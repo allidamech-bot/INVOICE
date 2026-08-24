@@ -1,0 +1,36 @@
+html[dir="rtl"] body{direction:rtl}
+html[dir="rtl"] .header-actions{margin-left:0;margin-right:auto}
+html[dir="rtl"] .new-menu{right:auto;left:0}
+html[dir="rtl"] .new-menu button,
+html[dir="rtl"] .action-menu button,
+html[dir="rtl"] .customer-dropdown button,
+html[dir="rtl"] .settings-tabs button,
+html[dir="rtl"] .template-card,
+html[dir="rtl"] .document-main{text-align:right}
+html[dir="rtl"] .new-menu span,
+html[dir="rtl"] .customer-dropdown button{align-items:flex-start}
+html[dir="rtl"] .search-box svg,
+html[dir="rtl"] .search-select svg{left:auto;right:12px}
+html[dir="rtl"] .search-box .input,
+html[dir="rtl"] .search-select .input{padding-left:11px;padding-right:38px}
+html[dir="rtl"] .document-total{text-align:left}
+html[dir="rtl"] .action-menu{right:auto;left:0}
+html[dir="rtl"] .toast{right:auto;left:22px}
+html[dir="rtl"] .editor-pane{border-right:0;border-left:1px solid #d8d4cc}
+html[dir="rtl"] .editor-actions{justify-self:start}
+html[dir="rtl"] .editor-global-error{left:auto;right:20px}
+html[dir="rtl"] .eyebrow{letter-spacing:0}
+html[dir="rtl"] .brand-words small{letter-spacing:0}
+html[dir="rtl"] .icon-btn .icon[name="arrowLeft"]{transform:scaleX(-1)}
+html[dir="rtl"] .toggle{direction:ltr}
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] input[type="url"],
+html[dir="rtl"] input[inputmode="numeric"]{direction:ltr;text-align:left}
+.auth-card{position:relative}
+.auth-language-switch{position:absolute;top:16px;right:16px;border:1px solid #d6d2ca;background:#fff;color:#253642;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;z-index:2}
+html[dir="rtl"] .auth-language-switch{right:auto;left:16px}
+@media(max-width:720px){
+  html[dir="rtl"] .header-actions{margin-right:auto}
+  .auth-language-switch{top:12px;right:12px}
+  html[dir="rtl"] .auth-language-switch{right:auto;left:12px}
+}
