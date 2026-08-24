@@ -1,10 +1,10 @@
-import type { EncryptedVaultRecord, PublicPreferencesRecord, SecurityMetadata, SessionKeyRecord } from '../types.js';
+import type { CloudAccountRecord, EncryptedVaultRecord, PublicPreferencesRecord, SecurityMetadata, SessionKeyRecord } from '../types.js';
 
 const DB_NAME = 'lourex-invoice';
 const DB_VERSION = 1;
 const STORE = 'records';
 
-type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord;
+type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord;
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -50,8 +50,8 @@ export async function deleteRecord(id: DbRecord['id']): Promise<void> {
       const tx = db.transaction(STORE, 'readwrite');
       tx.objectStore(STORE).delete(id);
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error ?? new Error('IndexedDB delete failed.'));
-      tx.onabort = () => reject(tx.error ?? new Error('IndexedDB delete aborted.'));
+      tx.onerror = () => reject(tx.error ?? new Error('IndexedDB write failed.'));
+      tx.onabort = () => reject(tx.error ?? new Error('IndexedDB write aborted.'));
     });
   } finally { db.close(); }
 }
@@ -77,6 +77,13 @@ export async function getPublicPreferences(): Promise<PublicPreferencesRecord | 
 export async function putPublicPreferences(preferences: Omit<PublicPreferencesRecord, 'id'|'updatedAt'>): Promise<void> {
   await putRecord({ id:'public-preferences', ...preferences, updatedAt:new Date().toISOString() });
 }
+export async function getCloudAccount(): Promise<CloudAccountRecord | null> { return getRecord<CloudAccountRecord>('cloud-account'); }
+export async function putCloudAccount(uid:string,email:string): Promise<void> {
+  const existing=await getCloudAccount();
+  const now=new Date().toISOString();
+  await putRecord({id:'cloud-account',uid,email,linkedAt:existing?.uid===uid?existing.linkedAt:now,updatedAt:now});
+}
+export async function clearCloudAccount(): Promise<void> { await deleteRecord('cloud-account'); }
 
 export async function clearDatabase(): Promise<void> {
   await new Promise<void>((resolve, reject) => {
