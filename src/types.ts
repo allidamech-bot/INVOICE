@@ -1,5 +1,6 @@
 export type DocumentKind = 'proforma' | 'invoice';
 export type DocumentLanguage = 'en' | 'ar' | 'bilingual';
+export type UiLanguage = 'en' | 'ar';
 export type TemplateId = 'executive' | 'minimal' | 'trade' | 'signature';
 export type DocumentStatus = 'draft' | 'final';
 export type DiscountMode = 'fixed' | 'percent';
@@ -172,6 +173,7 @@ export interface NumberingSettings {
 
 export interface AppSettings {
   autoLockMinutes: AutoLockMinutes;
+  uiLanguage: UiLanguage;
   numbering: NumberingSettings;
 }
 
@@ -197,6 +199,13 @@ export interface EncryptedVaultRecord {
   schemaVersion: number;
   iv: string;
   cipher: string;
+  updatedAt: string;
+}
+
+export interface PublicPreferencesRecord {
+  id: 'public-preferences';
+  logoDataUrl: string;
+  uiLanguage: UiLanguage;
   updatedAt: string;
 }
 
