@@ -1,0 +1,55 @@
+@media (max-width: 1180px) {
+  .editor-layout {
+    display: block;
+    min-height: 0;
+  }
+
+  .editor-pane {
+    width: 100%;
+    height: 100%;
+    border-right: 0;
+    border-left: 0;
+  }
+
+  .editor-scroll {
+    height: 100%;
+    overflow: auto;
+    padding: 18px 22px 80px;
+  }
+
+  .editor-scroll > * {
+    width: min(100%, 920px);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .preview-pane {
+    display: none;
+  }
+
+  .mobile-preview-button {
+    display: inline-flex;
+  }
+
+  .mobile-preview-overlay {
+    display: block;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .mobile-preview-overlay > header {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  .mobile-preview-stage {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 900px) {
+  .editor-scroll {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
