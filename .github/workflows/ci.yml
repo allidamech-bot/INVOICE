@@ -16,12 +16,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Read Vercel Firebase env presence flags
-        shell: bash
-        run: |
-          curl -sS -L --fail-with-body \
-            'https://invoice-git-fix-firebase-web-config-5ba56e-alidaamishs-projects.vercel.app/runtime-config.js' || true
-          echo
       - run: npm install
       - run: npm run typecheck
       - run: npm test
