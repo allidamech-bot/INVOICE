@@ -9,16 +9,7 @@ await cp('src/styles','dist/styles',{recursive:true});
 const runtimeConfig={
   environment:process.env.VERCEL_ENV||'local',
   canonicalHost:process.env.VERCEL_PROJECT_PRODUCTION_URL||'',
-  deploymentHost:process.env.VERCEL_URL||'',
-  firebaseEnvFlags:{
-    FIREBASE_API_KEY:Boolean(process.env.FIREBASE_API_KEY),
-    VITE_FIREBASE_API_KEY:Boolean(process.env.VITE_FIREBASE_API_KEY),
-    NEXT_PUBLIC_FIREBASE_API_KEY:Boolean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
-    FIREBASE_PROJECT_ID:Boolean(process.env.FIREBASE_PROJECT_ID),
-    VITE_FIREBASE_PROJECT_ID:Boolean(process.env.VITE_FIREBASE_PROJECT_ID),
-    FIREBASE_APP_ID:Boolean(process.env.FIREBASE_APP_ID),
-    VITE_FIREBASE_APP_ID:Boolean(process.env.VITE_FIREBASE_APP_ID)
-  }
+  deploymentHost:process.env.VERCEL_URL||''
 };
 await writeFile('dist/runtime-config.js',`window.__LOUREX_RUNTIME__=${JSON.stringify(runtimeConfig)};\n`);
 let html = await readFile('index.html','utf8');
