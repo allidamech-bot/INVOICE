@@ -16,17 +16,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Diagnose Firebase Web config
+      - name: Diagnose current Firebase API key
         shell: bash
         run: |
           set -u
-          for url in \
-            "https://lourex-invoice.web.app/__/firebase/init.json" \
-            "https://lourex-invoice.firebaseapp.com/__/firebase/init.json"; do
-            echo "=== $url ==="
-            curl -sS -L --fail-with-body "$url" || true
-            echo
-          done
+          API_KEY="$(sed -n "s/.*apiKey: '\([^']*\)'.*/\1/p" src/cloud/firebase.ts | head -n1)"
+          echo "Testing Identity Toolkit project config for the key embedded in src/cloud/firebase.ts"
+          curl -sS -L --fail-with-body \
+            -H 'Referer: https://invoice-three-puce.vercel.app/' \
+            "https://www.googleapis.com/identitytoolkit/v3/relyingparty/getProjectConfig?key=${API_KEY}&projectNumber=985119320046" || true
+          echo
       - run: npm install
       - run: npm run typecheck
       - run: npm test
