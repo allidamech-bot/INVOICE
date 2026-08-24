@@ -18,6 +18,11 @@ function installIndexedDbFake() {
           records.set(record.id, structuredClone(record));
           setTimeout(() => tx.oncomplete?.(), 0);
           return {};
+        },
+        delete(id) {
+          records.delete(id);
+          setTimeout(() => tx.oncomplete?.(), 0);
+          return {};
         }
       })};
       return tx;
@@ -38,13 +43,28 @@ function installIndexedDbFake() {
   };
 }
 
+function installSessionStorageFake() {
+  const values = new Map();
+  globalThis.sessionStorage = {
+    getItem(key) { return values.has(key) ? values.get(key) : null; },
+    setItem(key, value) { values.set(key, String(value)); },
+    removeItem(key) { values.delete(key); },
+    clear() { values.clear(); },
+    key(index) { return Array.from(values.keys())[index] ?? null; },
+    get length() { return values.size; }
+  };
+}
+
 installIndexedDbFake();
+installSessionStorageFake();
 const { emptyVault } = await import('../dist/src/lib/defaults.js');
-const { setupVault, unlockVault, saveVault } = await import('../dist/src/storage/vault.js');
+const { setupVault, unlockVault, saveVault, resumeVaultSession } = await import('../dist/src/storage/vault.js');
 const { clearDatabase, hasSecurity, getEncryptedVault } = await import('../dist/src/storage/db.js');
+const { clearSession, establishSession, getSessionKey, isSessionExpired, touchSession } = await import('../dist/src/storage/session.js');
 
 test('encrypted IndexedDB layer persists data across lock/reload-style unlocks', async () => {
   await clearDatabase();
+  sessionStorage.clear();
   assert.equal(await hasSecurity(), false);
   const initial = emptyVault();
   const setup = await setupVault('2468', initial);
@@ -63,4 +83,24 @@ test('encrypted IndexedDB layer persists data across lock/reload-style unlocks',
   await assert.rejects(() => unlockVault('1111'), /Wrong PIN/);
   await clearDatabase();
   assert.equal(await hasSecurity(), false);
+});
+
+test('active tab session resumes the encrypted vault after a refresh', async () => {
+  await clearDatabase();
+  sessionStorage.clear();
+  const setup = await setupVault('8642', emptyVault());
+  const next = structuredClone(setup.vault);
+  next.company.nameEn = 'LOUREX TEST';
+  await saveVault(setup.key, next);
+  assert.equal(await establishSession(setup.key), true);
+  assert.ok((await getSessionKey())?.key);
+  const resumed = await resumeVaultSession();
+  assert.ok(resumed);
+  assert.equal(resumed.vault.company.nameEn, 'LOUREX TEST');
+  touchSession(10_000);
+  assert.equal(isSessionExpired(10_000, 15, 10_000 + 14 * 60_000), false);
+  assert.equal(isSessionExpired(10_000, 15, 10_000 + 15 * 60_000), true);
+  await clearSession();
+  assert.equal(await resumeVaultSession(), null);
+  await clearDatabase();
 });
