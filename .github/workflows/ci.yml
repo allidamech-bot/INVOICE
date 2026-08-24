@@ -16,6 +16,30 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Verify Firebase Auth round-trip
+        shell: bash
+        run: |
+          set -euo pipefail
+          API_KEY="$(sed -n "s/.*apiKey:'\([^']*\)'.*/\1/p" src/cloud/firebase.ts | head -n1)"
+          TEST_EMAIL="lourex-ci-$(date +%s)-${RANDOM}@example.com"
+          TEST_PASSWORD="LourexCiTest!${RANDOM}${RANDOM}"
+          SIGNUP="$(curl -sS --fail-with-body \
+            -H 'Content-Type: application/json' \
+            -d "{\"email\":\"${TEST_EMAIL}\",\"password\":\"${TEST_PASSWORD}\",\"returnSecureToken\":true}" \
+            "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}")"
+          SIGNUP_TOKEN="$(printf '%s' "$SIGNUP" | python -c 'import json,sys; print(json.load(sys.stdin)["idToken"])')"
+          SIGNIN="$(curl -sS --fail-with-body \
+            -H 'Content-Type: application/json' \
+            -d "{\"email\":\"${TEST_EMAIL}\",\"password\":\"${TEST_PASSWORD}\",\"returnSecureToken\":true}" \
+            "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}")"
+          SIGNIN_TOKEN="$(printf '%s' "$SIGNIN" | python -c 'import json,sys; print(json.load(sys.stdin)["idToken"])')"
+          test -n "$SIGNUP_TOKEN"
+          test -n "$SIGNIN_TOKEN"
+          curl -sS --fail-with-body \
+            -H 'Content-Type: application/json' \
+            -d "{\"idToken\":\"${SIGNIN_TOKEN}\"}" \
+            "https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}" >/dev/null
+          echo 'Firebase Email/Password signup, sign-in, and cleanup succeeded.'
       - run: npm install
       - run: npm run typecheck
       - run: npm test
