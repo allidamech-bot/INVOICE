@@ -18,6 +18,16 @@
 </head>
 <body>
   <div id="root"></div>
+  <script src="./runtime-config.js"></script>
+  <script>
+    (()=>{
+      const runtime=window.__LOUREX_RUNTIME__;
+      if(!runtime||runtime.environment!=='production'||!runtime.canonicalHost)return;
+      if(window.location.hostname===runtime.canonicalHost)return;
+      const target=`https://${runtime.canonicalHost}${window.location.pathname}${window.location.search}${window.location.hash}`;
+      window.location.replace(target);
+    })();
+  </script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react@16.0.0/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@16.0.1/umd/react-dom.production.min.js"></script>
   <script type="module" src="./src/app/index.js"></script>

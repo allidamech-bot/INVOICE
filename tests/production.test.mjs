@@ -13,6 +13,21 @@ test('production shell has PWA, React runtime, and compiled app entry', async ()
   assert.ok((await stat(new URL('dist/brand/lourex-logo.svg', root))).size > 1000);
 });
 
+test('production shell redirects deployment URLs to the canonical Vercel project origin', async () => {
+  const html = await read('dist/index.html');
+  const runtime = await read('dist/runtime-config.js');
+  const build = await read('scripts/build.mjs');
+  const sw = await read('dist/sw.js');
+  assert.match(html, /runtime-config\.js/);
+  assert.match(html, /runtime\.canonicalHost/);
+  assert.match(html, /window\.location\.replace/);
+  assert.match(build, /VERCEL_PROJECT_PRODUCTION_URL/);
+  assert.match(build, /VERCEL_URL/);
+  assert.match(runtime, /__LOUREX_RUNTIME__/);
+  assert.match(sw, /runtime-config\.js/);
+  assert.match(sw, /cache:'no-store'/);
+});
+
 test('offline service worker precaches the application module graph', async () => {
   const sw = await read('dist/sw.js');
   for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js']) assert.ok(sw.includes(asset), asset);
