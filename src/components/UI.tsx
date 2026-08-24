@@ -1,3 +1,6 @@
+import type { UiLanguage } from '../types.js';
+import { t } from '../lib/i18n.js';
+
 export type IconName = 'plus'|'settings'|'search'|'file'|'users'|'save'|'download'|'share'|'copy'|'trash'|'edit'|'lock'|'x'|'chevronDown'|'chevronUp'|'arrowLeft'|'printer'|'check'|'more'|'eye'|'upload'|'backup'|'restore'|'refresh'|'invoice'|'proforma'|'menu';
 
 const paths: Record<IconName, any> = {
@@ -33,19 +36,21 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
 
 export function Modal({ open, title, children, onClose, size = 'md', footer }: { open: boolean; title: string; children: any; onClose: () => void; size?: 'sm'|'md'|'lg'|'xl'; footer?: any }): any {
   if (!open) return null;
-  return <div className="modal-backdrop" role="presentation" onMouseDown={(e: any) => { if (e.target === e.currentTarget) onClose(); }}><section className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-label={title}><header className="modal-header"><h2>{title}</h2><IconButton icon="x" label="Close" onClick={onClose}/></header><div className="modal-body">{children}</div>{footer ? <footer className="modal-footer">{footer}</footer> : null}</section></div>;
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(e: any) => { if (e.target === e.currentTarget) onClose(); }}><section className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-label={title}><header className="modal-header"><h2>{title}</h2><IconButton icon="x" label={t('Close','إغلاق')} onClick={onClose}/></header><div className="modal-body">{children}</div>{footer ? <footer className="modal-footer">{footer}</footer> : null}</section></div>;
 }
 
-export function ConfirmDialog({ open, title, message, confirmLabel = 'Delete', destructive = true, onCancel, onConfirm }: { open: boolean; title: string; message: string; confirmLabel?: string; destructive?: boolean; onCancel: () => void; onConfirm: () => void }): any {
-  return <Modal open={open} title={title} size="sm" onClose={onCancel} footer={<div className="modal-footer-actions"><Button onClick={onCancel}>Cancel</Button><Button variant={destructive ? 'danger' : 'primary'} onClick={onConfirm}>{confirmLabel}</Button></div>}><p className="modal-message">{message}</p></Modal>;
+export function ConfirmDialog({ open, title, message, confirmLabel, destructive = true, onCancel, onConfirm }: { open: boolean; title: string; message: string; confirmLabel?: string; destructive?: boolean; onCancel: () => void; onConfirm: () => void }): any {
+  const label = confirmLabel ?? t('Delete','حذف');
+  return <Modal open={open} title={title} size="sm" onClose={onCancel} footer={<div className="modal-footer-actions"><Button onClick={onCancel}>{t('Cancel','إلغاء')}</Button><Button variant={destructive ? 'danger' : 'primary'} onClick={onConfirm}>{label}</Button></div>}><p className="modal-message">{message}</p></Modal>;
 }
 
 export function Segmented({ value, options, onChange }: { value: string; options: Array<{value:string;label:string}>; onChange: (value: string) => void }): any {
   return <div className="segmented">{options.map(o => <button type="button" key={o.value} className={value === o.value ? 'active' : ''} onClick={() => onChange(o.value)}>{o.label}</button>)}</div>;
 }
 
-export function Brand({ compact = false }: { compact?: boolean }): any {
-  return <div className={`brand official-brand ${compact ? 'compact' : ''}`}><span className="brand-mark"><img src="./brand/lourex-logo.svg" alt=""/></span><span className="brand-words"><strong>LOUREX</strong>{compact ? null : <small>IMPORT • EXPORT • INTERNATIONAL TRADE</small>}</span></div>;
+export function Brand({ compact = false, logoDataUrl = './brand/lourex-logo.svg', language }: { compact?: boolean; logoDataUrl?: string; language?: UiLanguage }): any {
+  const subtitle = language === 'ar' ? 'استيراد • تصدير • تجارة دولية' : language === 'en' ? 'IMPORT • EXPORT • INTERNATIONAL TRADE' : t('IMPORT • EXPORT • INTERNATIONAL TRADE','استيراد • تصدير • تجارة دولية');
+  return <div className={`brand official-brand ${compact ? 'compact' : ''}`}><span className="brand-mark"><img src={logoDataUrl || './brand/lourex-logo.svg'} alt="LOUREX"/></span><span className="brand-words"><strong>LOUREX</strong>{compact ? null : <small>{subtitle}</small>}</span></div>;
 }
 
 export function Toast({ text, tone = 'default' }: { text: string; tone?: 'default'|'success'|'error' }): any {
