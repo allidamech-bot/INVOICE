@@ -69,9 +69,22 @@ test('Firebase cloud sync stores the encrypted vault under owner-only user paths
   assert.match(app, /CloudAccountModal/);
 });
 
+test('first-run account entry is consolidated and backup is collapsed by default', async () => {
+  const html = await read('dist/index.html');
+  const auth = await read('src/components/AuthScreens.tsx');
+  const css = await read('dist/styles/auth-entry.css');
+  assert.match(html, /styles\/auth-entry\.css/);
+  assert.match(auth, /Create New Account/);
+  assert.match(auth, /Sign In to Cloud/);
+  assert.match(auth, /Restore Backup/);
+  assert.match(auth, /restoreOpen:false/);
+  assert.match(css, /auth-cloud-launcher\{display:none!important\}/);
+  assert.match(css, /welcome-secondary-grid/);
+});
+
 test('offline service worker precaches the application module graph, premium styles and cloud UI', async () => {
   const sw = await read('dist/sw.js');
-  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js','styles/premium.css','styles/cloud.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
+  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js','styles/premium.css','styles/cloud.css','styles/auth-entry.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
 });
 
 test('print stylesheet isolates A4 documents from application chrome', async () => {
