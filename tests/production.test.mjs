@@ -5,10 +5,10 @@ import { readFile, stat } from 'node:fs/promises';
 const root = new URL('../', import.meta.url);
 const read = async path => readFile(new URL(path, root), 'utf8');
 
-test('production shell has PWA, local React runtime, and compiled app entry', async () => {
+test('production shell has PWA, React runtime, and compiled app entry', async () => {
   const html = await read('dist/index.html');
   assert.match(html, /manifest\.webmanifest/);
-  assert.match(html, /vendor\/react\.production\.min\.js/);
+  assert.match(html, /react@16\.0\.0/);
   assert.match(html, /src\/app\/index\.js/);
   assert.ok((await stat(new URL('dist/brand/lourex-logo.svg', root))).size > 1000);
 });
