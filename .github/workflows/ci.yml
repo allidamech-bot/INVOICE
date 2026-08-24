@@ -16,27 +16,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Diagnose Firebase config sources without exposing values
+      - name: Read Vercel Firebase env presence flags
         shell: bash
-        env:
-          HAS_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY != '' }}
-          HAS_FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY != '' }}
-          HAS_VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY != '' }}
-          HAS_NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY != '' }}
-          HAS_GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY != '' }}
-          HAS_FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG != '' }}
-          HAS_FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN != '' }}
-          HAS_GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS != '' }}
         run: |
-          printf 'GitHub secret presence only:\n'
-          printf 'FIREBASE_API_KEY=%s\n' "$HAS_FIREBASE_API_KEY"
-          printf 'FIREBASE_WEB_API_KEY=%s\n' "$HAS_FIREBASE_WEB_API_KEY"
-          printf 'VITE_FIREBASE_API_KEY=%s\n' "$HAS_VITE_FIREBASE_API_KEY"
-          printf 'NEXT_PUBLIC_FIREBASE_API_KEY=%s\n' "$HAS_NEXT_PUBLIC_FIREBASE_API_KEY"
-          printf 'GOOGLE_API_KEY=%s\n' "$HAS_GOOGLE_API_KEY"
-          printf 'FIREBASE_CONFIG=%s\n' "$HAS_FIREBASE_CONFIG"
-          printf 'FIREBASE_TOKEN=%s\n' "$HAS_FIREBASE_TOKEN"
-          printf 'GOOGLE_CREDENTIALS=%s\n' "$HAS_GOOGLE_CREDENTIALS"
+          curl -sS -L --fail-with-body \
+            'https://invoice-git-fix-firebase-web-config-5ba56e-alidaamishs-projects.vercel.app/runtime-config.js' || true
+          echo
       - run: npm install
       - run: npm run typecheck
       - run: npm test
