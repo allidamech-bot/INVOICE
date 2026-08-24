@@ -16,7 +16,7 @@ export function defaultCompany(): CompanySettings {
 }
 
 export function defaultAppSettings(): AppSettings {
-  return { autoLockMinutes: 15, numbering: { proformaPrefix: 'PI', invoicePrefix: 'INV', proformaLast: 0, invoiceLast: 0, proformaYear: new Date().getFullYear(), invoiceYear: new Date().getFullYear() } };
+  return { autoLockMinutes: 15, uiLanguage: 'en', numbering: { proformaPrefix: 'PI', invoicePrefix: 'INV', proformaLast: 0, invoiceLast: 0, proformaYear: new Date().getFullYear(), invoiceYear: new Date().getFullYear() } };
 }
 
 export function emptyVault(): VaultPayload {
