@@ -16,16 +16,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Diagnose current Firebase API key
+      - name: Diagnose Firebase Web App and production build
         shell: bash
         run: |
           set -u
           API_KEY="$(sed -n "s/.*apiKey: '\([^']*\)'.*/\1/p" src/cloud/firebase.ts | head -n1)"
-          echo "Testing Identity Toolkit project config for the key embedded in src/cloud/firebase.ts"
+          echo '=== Official Firebase dynamic Web App config ==='
+          curl -sS -L --fail-with-body \
+            'https://firebase.googleapis.com/v1alpha/projects/-/apps/1:985119320046:web:58798f19ad368a178510ff/webConfig' || true
+          echo
+          echo '=== Current key against Identity Toolkit ==='
           curl -sS -L --fail-with-body \
             -H 'Referer: https://invoice-three-puce.vercel.app/' \
             "https://www.googleapis.com/identitytoolkit/v3/relyingparty/getProjectConfig?key=${API_KEY}&projectNumber=985119320046" || true
           echo
+          echo '=== Production Firebase module fingerprint ==='
+          curl -sS -L --fail-with-body 'https://invoice-three-puce.vercel.app/src/cloud/firebase.js' \
+            | grep -Eo "apiKey:'[^']+'|authDomain:'[^']+'|projectId:'[^']+'|appId:'[^']+'" || true
+          echo
+          echo '=== Production service worker cache ==='
+          curl -sS -L --fail-with-body 'https://invoice-three-puce.vercel.app/sw.js' \
+            | head -n 2 || true
       - run: npm install
       - run: npm run typecheck
       - run: npm test
