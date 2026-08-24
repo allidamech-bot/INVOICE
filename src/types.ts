@@ -209,6 +209,13 @@ export interface PublicPreferencesRecord {
   updatedAt: string;
 }
 
+export interface SessionKeyRecord {
+  id: 'session-key';
+  token: string;
+  key: CryptoKey;
+  updatedAt: string;
+}
+
 export interface EncryptedBackupFile {
   format: 'LOUREX_BACKUP';
   version: 1;

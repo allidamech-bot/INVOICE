@@ -2,6 +2,7 @@ import type { SecurityMetadata, VaultPayload } from '../types.js';
 import { APP_SCHEMA_VERSION, emptyVault } from '../lib/defaults.js';
 import { createSecurity, decryptVault, encryptVault, verifyPin } from '../crypto/crypto.js';
 import { getEncryptedVault, getSecurity, putRecord, putSecurityAndVault } from './db.js';
+import { clearSession, getSessionKey, isSessionExpired, touchSession } from './session.js';
 
 export async function setupVault(pin: string, initial: VaultPayload = emptyVault()): Promise<{ key: CryptoKey; vault: VaultPayload }> {
   const { metadata, key } = await createSecurity(pin);
@@ -38,6 +39,25 @@ export async function unlockVault(pin: string): Promise<{ key: CryptoKey; vault:
   const key = await verifyPin(pin, security);
   const vault = migrateVault(await decryptVault(key, encrypted));
   return { key, vault, security };
+}
+
+export async function resumeVaultSession(): Promise<{ key: CryptoKey; vault: VaultPayload } | null> {
+  const session = await getSessionKey();
+  if (!session) return null;
+  const encrypted = await getEncryptedVault();
+  if (!encrypted) { await clearSession(); return null; }
+  try {
+    const vault = migrateVault(await decryptVault(session.key, encrypted));
+    if (isSessionExpired(session.lastActivity, vault.appSettings.autoLockMinutes)) {
+      await clearSession();
+      return null;
+    }
+    touchSession();
+    return { key: session.key, vault };
+  } catch {
+    await clearSession();
+    return null;
+  }
 }
 
 export async function saveVault(key: CryptoKey, vault: VaultPayload): Promise<void> {
