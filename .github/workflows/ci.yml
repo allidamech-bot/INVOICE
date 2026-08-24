@@ -16,27 +16,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Diagnose Firebase Web App and production build
+      - name: Diagnose Firebase config sources without exposing values
         shell: bash
+        env:
+          HAS_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY != '' }}
+          HAS_FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY != '' }}
+          HAS_VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY != '' }}
+          HAS_NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY != '' }}
+          HAS_GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY != '' }}
+          HAS_FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG != '' }}
+          HAS_FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN != '' }}
+          HAS_GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS != '' }}
         run: |
-          set -u
-          API_KEY="$(sed -n "s/.*apiKey: '\([^']*\)'.*/\1/p" src/cloud/firebase.ts | head -n1)"
-          echo '=== Official Firebase dynamic Web App config ==='
-          curl -sS -L --fail-with-body \
-            'https://firebase.googleapis.com/v1alpha/projects/-/apps/1:985119320046:web:58798f19ad368a178510ff/webConfig' || true
-          echo
-          echo '=== Current key against Identity Toolkit ==='
-          curl -sS -L --fail-with-body \
-            -H 'Referer: https://invoice-three-puce.vercel.app/' \
-            "https://www.googleapis.com/identitytoolkit/v3/relyingparty/getProjectConfig?key=${API_KEY}&projectNumber=985119320046" || true
-          echo
-          echo '=== Production Firebase module fingerprint ==='
-          curl -sS -L --fail-with-body 'https://invoice-three-puce.vercel.app/src/cloud/firebase.js' \
-            | grep -Eo "apiKey:'[^']+'|authDomain:'[^']+'|projectId:'[^']+'|appId:'[^']+'" || true
-          echo
-          echo '=== Production service worker cache ==='
-          curl -sS -L --fail-with-body 'https://invoice-three-puce.vercel.app/sw.js' \
-            | head -n 2 || true
+          printf 'GitHub secret presence only:\n'
+          printf 'FIREBASE_API_KEY=%s\n' "$HAS_FIREBASE_API_KEY"
+          printf 'FIREBASE_WEB_API_KEY=%s\n' "$HAS_FIREBASE_WEB_API_KEY"
+          printf 'VITE_FIREBASE_API_KEY=%s\n' "$HAS_VITE_FIREBASE_API_KEY"
+          printf 'NEXT_PUBLIC_FIREBASE_API_KEY=%s\n' "$HAS_NEXT_PUBLIC_FIREBASE_API_KEY"
+          printf 'GOOGLE_API_KEY=%s\n' "$HAS_GOOGLE_API_KEY"
+          printf 'FIREBASE_CONFIG=%s\n' "$HAS_FIREBASE_CONFIG"
+          printf 'FIREBASE_TOKEN=%s\n' "$HAS_FIREBASE_TOKEN"
+          printf 'GOOGLE_CREDENTIALS=%s\n' "$HAS_GOOGLE_CREDENTIALS"
       - run: npm install
       - run: npm run typecheck
       - run: npm test
