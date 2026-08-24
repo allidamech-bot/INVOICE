@@ -42,6 +42,15 @@ test('editor continuously autosaves incomplete drafts', async () => {
   assert.doesNotMatch(editor, /schedule=.*validateDocument/);
 });
 
+test('backup uses the native share sheet for Save to Files with download fallback', async () => {
+  const backup = await read('src/lib/backup.ts');
+  assert.match(backup, /navigator\.share/);
+  assert.match(backup, /canShare/);
+  assert.match(backup, /Save to Files/);
+  assert.match(backup, /downloadFallback/);
+  assert.match(backup, /LOUREX-Backup-/);
+});
+
 test('offline service worker precaches the application module graph and premium styles', async () => {
   const sw = await read('dist/sw.js');
   for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js','styles/premium.css']) assert.ok(sw.includes(asset), asset);
