@@ -16,6 +16,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Diagnose Firebase Web config
+        shell: bash
+        run: |
+          set -u
+          for url in \
+            "https://lourex-invoice.web.app/__/firebase/init.json" \
+            "https://lourex-invoice.firebaseapp.com/__/firebase/init.json"; do
+            echo "=== $url ==="
+            curl -sS -L --fail-with-body "$url" || true
+            echo
+          done
       - run: npm install
       - run: npm run typecheck
       - run: npm test
