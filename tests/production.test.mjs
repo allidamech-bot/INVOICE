@@ -51,9 +51,27 @@ test('backup uses the native share sheet for Save to Files with download fallbac
   assert.match(backup, /LOUREX-Backup-/);
 });
 
-test('offline service worker precaches the application module graph and premium styles', async () => {
+test('Firebase cloud sync stores the encrypted vault under owner-only user paths', async () => {
+  const html = await read('dist/index.html');
+  const cloud = await read('src/cloud/firebase.ts');
+  const rules = await read('firestore.rules');
+  const app = await read('src/app/App.tsx');
+  assert.match(html, /firebase-app-compat\.js/);
+  assert.match(html, /firebase-auth-compat\.js/);
+  assert.match(html, /firebase-firestore-compat\.js/);
+  assert.match(cloud, /LOUREX_CLOUD_V1/);
+  assert.match(cloud, /splitCipher/);
+  assert.match(cloud, /cipherSha256/);
+  assert.match(cloud, /pushLocalVaultToCloud/);
+  assert.match(cloud, /reconcileCloudVault/);
+  assert.match(rules, /request\.auth\.uid == userId/);
+  assert.match(app, /scheduleCloudSync/);
+  assert.match(app, /CloudAccountModal/);
+});
+
+test('offline service worker precaches the application module graph, premium styles and cloud UI', async () => {
   const sw = await read('dist/sw.js');
-  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js','styles/premium.css']) assert.ok(sw.includes(asset), asset);
+  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js','styles/premium.css','styles/cloud.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
 });
 
 test('print stylesheet isolates A4 documents from application chrome', async () => {
@@ -65,10 +83,10 @@ test('print stylesheet isolates A4 documents from application chrome', async () 
   assert.match(appCss, /page-break-after:always/);
 });
 
-test('source contains no unfinished UI placeholders or external database clients', async () => {
+test('source contains no unfinished UI placeholders or unintended backend clients', async () => {
   const app = [
     await read('src/app/App.tsx'), await read('src/components/DocumentsPage.tsx'), await read('src/components/CustomersPage.tsx'),
     await read('src/components/EditorPage.tsx'), await read('src/components/SettingsModal.tsx')
   ].join('\n');
-  assert.doesNotMatch(app, /TODO|Coming Soon|Supabase|Firebase|MongoDB|PostgreSQL/i);
+  assert.doesNotMatch(app, /TODO|Coming Soon|Supabase|MongoDB|PostgreSQL/i);
 });
