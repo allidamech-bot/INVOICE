@@ -1,10 +1,10 @@
-import type { EncryptedVaultRecord, PublicPreferencesRecord, SecurityMetadata } from '../types.js';
+import type { EncryptedVaultRecord, PublicPreferencesRecord, SecurityMetadata, SessionKeyRecord } from '../types.js';
 
 const DB_NAME = 'lourex-invoice';
 const DB_VERSION = 1;
 const STORE = 'records';
 
-type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord;
+type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord;
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -39,6 +39,19 @@ export async function putRecord(record: DbRecord): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error ?? new Error('IndexedDB write failed.'));
       tx.onabort = () => reject(tx.error ?? new Error('IndexedDB write aborted.'));
+    });
+  } finally { db.close(); }
+}
+
+export async function deleteRecord(id: DbRecord['id']): Promise<void> {
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error('IndexedDB delete failed.'));
+      tx.onabort = () => reject(tx.error ?? new Error('IndexedDB delete aborted.'));
     });
   } finally { db.close(); }
 }
