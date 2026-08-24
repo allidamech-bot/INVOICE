@@ -69,17 +69,20 @@ test('Firebase cloud sync stores the encrypted vault under owner-only user paths
   assert.match(app, /CloudAccountModal/);
 });
 
-test('first-run account entry is consolidated and backup is collapsed by default', async () => {
+test('first-run onboarding requires a cloud account before local PIN setup', async () => {
   const html = await read('dist/index.html');
   const auth = await read('src/components/AuthScreens.tsx');
   const css = await read('dist/styles/auth-entry.css');
   assert.match(html, /styles\/auth-entry\.css/);
-  assert.match(auth, /Create New Account/);
-  assert.match(auth, /Sign In to Cloud/);
-  assert.match(auth, /Restore Backup/);
-  assert.match(auth, /restoreOpen:false/);
-  assert.match(css, /auth-cloud-launcher\{display:none!important\}/);
-  assert.match(css, /welcome-secondary-grid/);
+  assert.match(auth, /Create your account/);
+  assert.match(auth, /Sign In/);
+  assert.match(auth, /createCloudUser/);
+  assert.match(auth, /signInCloudUser/);
+  assert.match(auth, /Confirm Password/);
+  assert.match(auth, /Create your local PIN/);
+  assert.doesNotMatch(auth, /Restore Backup|Choose Backup File|restoreOpen/);
+  assert.match(css, /account-entry-tabs/);
+  assert.match(css, /setup-account-badge/);
 });
 
 test('offline service worker precaches the application module graph, premium styles and cloud UI', async () => {
