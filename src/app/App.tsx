@@ -3,7 +3,7 @@ import { defaultCompany, emptyVault } from '../lib/defaults.js';
 import { createBlankDocument, convertToInvoice, duplicateDocument, nextDocumentNumber, validateDocument } from '../lib/documents.js';
 import { exportBackup, readBackup } from '../lib/backup.js';
 import { safeFilename } from '../lib/id.js';
-import { getPublicPreferences, getSecurity, hasSecurity, putPublicPreferences } from '../storage/db.js';
+import { getCloudAccount, getPublicPreferences, getSecurity, hasSecurity, putCloudAccount, putPublicPreferences } from '../storage/db.js';
 import { changePin, restoreVaultWithCurrentKey, resumeVaultSession, saveVault, setupVault, unlockVault } from '../storage/vault.js';
 import { clearSession, establishSession, isCurrentSessionExpired, touchSession } from '../storage/session.js';
 import { verifyPin } from '../crypto/crypto.js';
@@ -13,34 +13,153 @@ import { DocumentsPage } from '../components/DocumentsPage.js';
 import { CustomersPage } from '../components/CustomersPage.js';
 import { EditorPage } from '../components/EditorPage.js';
 import { SettingsModal } from '../components/SettingsModal.js';
+import { CloudAccountModal } from '../components/CloudAccountModal.js';
 import { Brand, Button, ConfirmDialog, Icon, IconButton, Toast } from '../components/UI.js';
 import { TemplateRenderer } from '../templates/TemplateRenderer.js';
+import { createCloudUser, friendlyCloudError, getCloudVaultMeta, pushLocalVaultToCloud, reconcileCloudVault, sendCloudPasswordReset, signInCloudUser, signOutCloudUser, waitForCloudUser } from '../cloud/firebase.js';
+import type { CloudUser } from '../cloud/firebase.js';
+
+type CloudSyncState='local'|'syncing'|'synced'|'error';
 
 interface State {
   loading:boolean; firstRun:boolean; unlocked:boolean; key:CryptoKey|null; vault:VaultPayload|null;
   screen:'documents'|'customers'|'editor'; editorDoc:LourexDocument|null; settingsOpen:boolean; newMenu:boolean;
   deletingDoc:LourexDocument|null; toast:string; toastTone:'default'|'success'|'error'; printDoc:LourexDocument|null;
   publicLogo:string; uiLanguage:UiLanguage;
+  cloudUser:CloudUser|null; cloudLinked:boolean; cloudModal:boolean; cloudSyncState:CloudSyncState; cloudSyncMessage:string;
 }
 
 export class App extends React.Component<{},State> {
-  state:State={loading:true,firstRun:false,unlocked:false,key:null,vault:null,screen:'documents',editorDoc:null,settingsOpen:false,newMenu:false,deletingDoc:null,toast:'',toastTone:'default',printDoc:null,publicLogo:'./brand/lourex-logo.svg',uiLanguage:'en'};
-  private lockTimer:number|undefined; private toastTimer:number|undefined;
-  componentDidMount():void{void this.initialize();['pointerdown','keydown','touchstart'].forEach(ev=>window.addEventListener(ev,this.activity,{passive:true}));document.addEventListener('visibilitychange',this.handleVisibilityChange);document.addEventListener('pointerdown',this.closeTransientMenus);window.addEventListener('afterprint',this.afterPrint);}
-  componentWillUnmount():void{['pointerdown','keydown','touchstart'].forEach(ev=>window.removeEventListener(ev,this.activity));document.removeEventListener('visibilitychange',this.handleVisibilityChange);document.removeEventListener('pointerdown',this.closeTransientMenus);window.removeEventListener('afterprint',this.afterPrint);if(this.lockTimer)clearTimeout(this.lockTimer);if(this.toastTimer)clearTimeout(this.toastTimer);}
-  private initialize=async()=>{try{const [configured,preferences]=await Promise.all([hasSecurity(),getPublicPreferences()]);let uiLanguage=preferences?.uiLanguage??'en';let publicLogo=preferences?.logoDataUrl||'./brand/lourex-logo.svg';if(configured){const resumed=await resumeVaultSession();if(resumed){const vault={...resumed.vault,appSettings:{...resumed.vault.appSettings,uiLanguage:resumed.vault.appSettings.uiLanguage??uiLanguage}};uiLanguage=vault.appSettings.uiLanguage;publicLogo=vault.company.logoDataUrl||publicLogo;setUiLanguage(uiLanguage);this.setState({loading:false,firstRun:false,unlocked:true,key:resumed.key,vault,screen:'documents',editorDoc:null,uiLanguage,publicLogo},this.resetAutoLock);return;}}setUiLanguage(uiLanguage);this.setState({loading:false,firstRun:!configured,unlocked:false,key:null,vault:null,uiLanguage,publicLogo});}catch(e){this.setState({loading:false});this.showToast(e instanceof Error?e.message:t('Unable to access local storage.','تعذر الوصول إلى التخزين المحلي.'),'error');}};
+  state:State={loading:true,firstRun:false,unlocked:false,key:null,vault:null,screen:'documents',editorDoc:null,settingsOpen:false,newMenu:false,deletingDoc:null,toast:'',toastTone:'default',printDoc:null,publicLogo:'./brand/lourex-logo.svg',uiLanguage:'en',cloudUser:null,cloudLinked:false,cloudModal:false,cloudSyncState:'local',cloudSyncMessage:''};
+  private lockTimer:number|undefined;
+  private toastTimer:number|undefined;
+  private cloudTimer:number|undefined;
+  private cloudSyncRunning=false;
+  private cloudSyncQueued=false;
+
+  componentDidMount():void{
+    void this.initialize();
+    ['pointerdown','keydown','touchstart'].forEach(ev=>window.addEventListener(ev,this.activity,{passive:true}));
+    document.addEventListener('visibilitychange',this.handleVisibilityChange);
+    document.addEventListener('pointerdown',this.closeTransientMenus);
+    window.addEventListener('afterprint',this.afterPrint);
+    window.addEventListener('online',this.handleOnline);
+  }
+  componentWillUnmount():void{
+    ['pointerdown','keydown','touchstart'].forEach(ev=>window.removeEventListener(ev,this.activity));
+    document.removeEventListener('visibilitychange',this.handleVisibilityChange);
+    document.removeEventListener('pointerdown',this.closeTransientMenus);
+    window.removeEventListener('afterprint',this.afterPrint);
+    window.removeEventListener('online',this.handleOnline);
+    if(this.lockTimer)clearTimeout(this.lockTimer);
+    if(this.toastTimer)clearTimeout(this.toastTimer);
+    if(this.cloudTimer)clearTimeout(this.cloudTimer);
+  }
+
+  private initialize=async()=>{
+    let cloudUser:CloudUser|null=null;
+    let cloudLinked=false;
+    let cloudSyncState:CloudSyncState='local';
+    let cloudSyncMessage='';
+    try{cloudUser=await waitForCloudUser();}catch{}
+    try{
+      let configured=await hasSecurity();
+      let linked=await getCloudAccount();
+      if(cloudUser&&linked&&linked.uid!==cloudUser.uid){cloudSyncState='error';cloudSyncMessage=t('This device is linked to a different LOUREX cloud account.','هذا الجهاز مرتبط بحساب LOUREX سحابي مختلف.');}
+      else if(cloudUser&&linked?.uid===cloudUser.uid){
+        cloudLinked=true;
+        try{
+          const result=await reconcileCloudVault(cloudUser.uid);
+          if(result==='pulled'){await clearSession();configured=true;}
+          if(result!=='empty'){cloudSyncState='synced';cloudSyncMessage=t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.');}
+        }catch(e){cloudSyncState='error';cloudSyncMessage=friendlyCloudError(e);}
+      }else if(cloudUser&&!configured&&!linked){
+        try{
+          await putCloudAccount(cloudUser.uid,cloudUser.email);
+          linked=await getCloudAccount();cloudLinked=true;
+          const result=await reconcileCloudVault(cloudUser.uid);
+          if(result==='pulled'){configured=true;await clearSession();}
+          if(result!=='empty'){cloudSyncState='synced';cloudSyncMessage=t('Encrypted cloud data restored.','تمت استعادة البيانات السحابية المشفّرة.');}
+        }catch(e){cloudSyncState='error';cloudSyncMessage=friendlyCloudError(e);}
+      }
+      const preferences=await getPublicPreferences();
+      let uiLanguage=preferences?.uiLanguage??'en';
+      let publicLogo=preferences?.logoDataUrl||'./brand/lourex-logo.svg';
+      if(configured){
+        const resumed=await resumeVaultSession();
+        if(resumed){
+          const vault={...resumed.vault,appSettings:{...resumed.vault.appSettings,uiLanguage:resumed.vault.appSettings.uiLanguage??uiLanguage}};
+          uiLanguage=vault.appSettings.uiLanguage;publicLogo=vault.company.logoDataUrl||publicLogo;setUiLanguage(uiLanguage);
+          this.setState({loading:false,firstRun:false,unlocked:true,key:resumed.key,vault,screen:'documents',editorDoc:null,uiLanguage,publicLogo,cloudUser,cloudLinked,cloudSyncState,cloudSyncMessage},this.resetAutoLock);return;
+        }
+      }
+      setUiLanguage(uiLanguage);
+      this.setState({loading:false,firstRun:!configured,unlocked:false,key:null,vault:null,uiLanguage,publicLogo,cloudUser,cloudLinked,cloudSyncState,cloudSyncMessage});
+    }catch(e){this.setState({loading:false,cloudUser,cloudLinked,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});this.showToast(e instanceof Error?e.message:t('Unable to access local storage.','تعذر الوصول إلى التخزين المحلي.'),'error');}
+  };
+
   private activity=()=>{if(this.state.unlocked){touchSession();this.resetAutoLock();}};
-  private handleVisibilityChange=()=>{if(document.visibilityState!=='visible'||!this.state.unlocked)return;const mins=this.state.vault?.appSettings.autoLockMinutes??15;if(isCurrentSessionExpired(mins)){this.lock();return;}touchSession();this.resetAutoLock();};
+  private handleOnline=()=>{this.scheduleCloudSync(700);};
+  private handleVisibilityChange=()=>{if(document.visibilityState!=='visible'||!this.state.unlocked)return;const mins=this.state.vault?.appSettings.autoLockMinutes??15;if(isCurrentSessionExpired(mins)){this.lock();return;}touchSession();this.resetAutoLock();this.scheduleCloudSync(1000);};
   private closeTransientMenus=(event:PointerEvent)=>{if(!this.state.newMenu)return;const target=event.target;if(target instanceof Element&&target.closest('.new-doc-menu'))return;this.setState({newMenu:false});};
   private resetAutoLock=()=>{if(this.lockTimer)window.clearTimeout(this.lockTimer);const mins=this.state.vault?.appSettings.autoLockMinutes??15;if(mins>0)this.lockTimer=window.setTimeout(()=>this.lock(),mins*60_000);};
   private showToast=(toast:string,tone:'default'|'success'|'error'='default')=>{if(this.toastTimer)clearTimeout(this.toastTimer);this.setState({toast,toastTone:tone});this.toastTimer=window.setTimeout(()=>this.setState({toast:''}),3600);};
   private normalizedVault=(vault:VaultPayload):VaultPayload=>({...vault,appSettings:{...vault.appSettings,uiLanguage:vault.appSettings.uiLanguage??this.state.uiLanguage??'en'}});
   private syncPublicPreferences=async(logoDataUrl:string,uiLanguage:UiLanguage)=>{const publicLogo=logoDataUrl||'./brand/lourex-logo.svg';setUiLanguage(uiLanguage);await putPublicPreferences({logoDataUrl:publicLogo,uiLanguage});this.setState({publicLogo,uiLanguage});};
   private changePublicLanguage=async(uiLanguage:UiLanguage)=>{setUiLanguage(uiLanguage);this.setState({uiLanguage});await putPublicPreferences({logoDataUrl:this.state.publicLogo||'./brand/lourex-logo.svg',uiLanguage});};
-  private finishSetup=async(pin:string,company:CompanySettings)=>{const base=emptyVault();const vault={...base,company,appSettings:{...base.appSettings,uiLanguage:this.state.uiLanguage}};const setup=await setupVault(pin,vault);await establishSession(setup.key);await this.syncPublicPreferences(company.logoDataUrl,this.state.uiLanguage);this.setState({firstRun:false,unlocked:true,key:setup.key,vault:setup.vault,screen:'documents'},this.resetAutoLock);this.showToast(t('LOUREX Invoice is ready.','نظام LOUREX Invoice جاهز.'),'success');};
-  private unlock=async(pin:string)=>{const result=await unlockVault(pin);const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.normalizedVault(result.vault);if(needsMigration)await saveVault(result.key,vault);await establishSession(result.key);await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);this.setState({unlocked:true,key:result.key,vault,screen:'documents',editorDoc:null},this.resetAutoLock);};
+
+  private scheduleCloudSync=(delay=4000)=>{
+    if(!this.state.cloudUser||!this.state.cloudLinked)return;
+    if(this.cloudTimer)window.clearTimeout(this.cloudTimer);
+    this.cloudTimer=window.setTimeout(()=>void this.flushCloudSync(),delay);
+  };
+  private flushCloudSync=async()=>{
+    const user=this.state.cloudUser;if(!user||!this.state.cloudLinked)return;
+    if(this.cloudSyncRunning){this.cloudSyncQueued=true;return;}
+    if(typeof navigator!=='undefined'&&!navigator.onLine){this.setState({cloudSyncState:'local',cloudSyncMessage:t('Offline — changes are saved locally and will sync later.','غير متصل — التغييرات محفوظة محليًا وستتم مزامنتها لاحقًا.')});return;}
+    const linked=await getCloudAccount();if(!linked||linked.uid!==user.uid)return;
+    this.cloudSyncRunning=true;this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Syncing encrypted vault…','جارٍ مزامنة الخزنة المشفّرة…')});
+    try{await pushLocalVaultToCloud(user.uid);this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}
+    catch(e){this.setState({cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});}
+    finally{this.cloudSyncRunning=false;if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(700);}}
+  };
+  private attachCloudUser=async(user:CloudUser)=>{
+    const [linked,configured]=await Promise.all([getCloudAccount(),hasSecurity()]);
+    if(linked&&linked.uid!==user.uid){await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false});throw new Error(t('This device is already linked to another LOUREX cloud account.','هذا الجهاز مرتبط مسبقًا بحساب LOUREX سحابي آخر.'));}
+    if(!linked&&configured){
+      const remote=await getCloudVaultMeta(user.uid);
+      if(remote){await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false});throw new Error(t('This cloud account already contains LOUREX data. Use an empty device to restore it, or sign in with the account originally linked to this device.','هذا الحساب السحابي يحتوي بالفعل على بيانات LOUREX. استخدم جهازًا فارغًا لاستعادتها أو سجّل بالحساب المرتبط أصلًا بهذا الجهاز.'));}
+    }
+    await putCloudAccount(user.uid,user.email);
+    this.setState({cloudUser:user,cloudLinked:true,cloudSyncState:'syncing',cloudSyncMessage:t('Connecting encrypted cloud backup…','جارٍ ربط النسخة السحابية المشفّرة…')});
+    try{
+      const result=await reconcileCloudVault(user.uid);
+      if(result==='pulled'){await clearSession();this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud data restored. Enter your LOUREX PIN to unlock it.','تمت استعادة البيانات السحابية. أدخل رمز PIN الخاص بـ LOUREX لفتحها.')});window.location.reload();return;}
+      this.setState({cloudSyncState:result==='empty'?'local':'synced',cloudSyncMessage:result==='empty'?t('Cloud account linked. Finish local setup to create the first encrypted sync.','تم ربط الحساب السحابي. أكمل الإعداد المحلي لإنشاء أول مزامنة مشفّرة.'):t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});
+    }catch(e){this.setState({cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});}
+  };
+  private cloudSignIn=async(email:string,password:string)=>{try{const user=await signInCloudUser(email,password);this.setState({cloudUser:user});await this.attachCloudUser(user);}catch(e){throw new Error(friendlyCloudError(e));}};
+  private cloudCreate=async(email:string,password:string)=>{try{const user=await createCloudUser(email,password);this.setState({cloudUser:user});await this.attachCloudUser(user);}catch(e){throw new Error(friendlyCloudError(e));}};
+  private cloudReset=async(email:string)=>{try{await sendCloudPasswordReset(email);}catch(e){throw new Error(friendlyCloudError(e));}};
+  private cloudSignOut=async()=>{await signOutCloudUser();this.setState({cloudUser:null,cloudSyncState:'local',cloudSyncMessage:t('Signed out of cloud. Local encrypted data remains on this device.','تم تسجيل الخروج من السحابة. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});};
+  private cloudSyncNow=async()=>{
+    const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));
+    const linked=await getCloudAccount();if(!linked){await this.attachCloudUser(user);return;}
+    if(linked.uid!==user.uid)throw new Error(t('This device is linked to another cloud account.','هذا الجهاز مرتبط بحساب سحابي آخر.'));
+    this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Checking encrypted cloud data…','جارٍ فحص البيانات السحابية المشفّرة…')});
+    try{const result=await reconcileCloudVault(user.uid);if(result==='pulled'){await clearSession();window.location.reload();return;}this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}
+    catch(e){const message=friendlyCloudError(e);this.setState({cloudSyncState:'error',cloudSyncMessage:message});throw new Error(message);}
+  };
+
+  private finishSetup=async(pin:string,company:CompanySettings)=>{
+    const base=emptyVault();const vault={...base,company,appSettings:{...base.appSettings,uiLanguage:this.state.uiLanguage}};const setup=await setupVault(pin,vault);await establishSession(setup.key);await this.syncPublicPreferences(company.logoDataUrl,this.state.uiLanguage);
+    let cloudLinked=this.state.cloudLinked,cloudSyncState=this.state.cloudSyncState,cloudSyncMessage=this.state.cloudSyncMessage;
+    if(this.state.cloudUser){try{await putCloudAccount(this.state.cloudUser.uid,this.state.cloudUser.email);cloudLinked=true;await pushLocalVaultToCloud(this.state.cloudUser.uid);cloudSyncState='synced';cloudSyncMessage=t('Encrypted cloud backup created.','تم إنشاء النسخة السحابية المشفّرة.');}catch(e){cloudSyncState='error';cloudSyncMessage=friendlyCloudError(e);}}
+    this.setState({firstRun:false,unlocked:true,key:setup.key,vault:setup.vault,screen:'documents',cloudLinked,cloudSyncState,cloudSyncMessage},this.resetAutoLock);this.showToast(t('LOUREX Invoice is ready.','نظام LOUREX Invoice جاهز.'),'success');
+  };
+  private unlock=async(pin:string)=>{const result=await unlockVault(pin);const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.normalizedVault(result.vault);if(needsMigration)await saveVault(result.key,vault);await establishSession(result.key);await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);this.setState({unlocked:true,key:result.key,vault,screen:'documents',editorDoc:null},()=>{this.resetAutoLock();this.scheduleCloudSync(1600);});};
   private lock=()=>{if(this.lockTimer)window.clearTimeout(this.lockTimer);void clearSession();this.setState({unlocked:false,key:null,vault:null,editorDoc:null,screen:'documents',settingsOpen:false,newMenu:false});};
-  private persist=async(vault:VaultPayload)=>{if(!this.state.key)throw new Error(t('App is locked.','التطبيق مقفل.'));await saveVault(this.state.key,vault);this.setState({vault});};
+  private persist=async(vault:VaultPayload)=>{if(!this.state.key)throw new Error(t('App is locked.','التطبيق مقفل.'));await saveVault(this.state.key,vault);this.setState({vault},()=>this.scheduleCloudSync());};
   private reserveDocument=async(kind:DocumentKind):Promise<{doc:LourexDocument;vault:VaultPayload}>=>{const vault=this.requireVault();const next=nextDocumentNumber(vault,kind);await this.persist(next.vault);return{doc:createBlankDocument(kind,next.number,next.vault.company),vault:next.vault};};
   private newDocument=async(kind:DocumentKind)=>{try{const {doc}=await this.reserveDocument(kind);this.setState({screen:'editor',editorDoc:doc,newMenu:false});}catch(e){this.showToast(e instanceof Error?e.message:t('Unable to create document.','تعذر إنشاء المستند.'),'error');}};
   private saveDocument=async(doc:LourexDocument,auto=false)=>{const vault=this.requireVault();if(vault.documents.some(d=>d.id!==doc.id&&d.number.trim().toLowerCase()===doc.number.trim().toLowerCase()))throw new Error(t('Document number already exists.','رقم المستند مستخدم بالفعل.'));const index=vault.documents.findIndex(d=>d.id===doc.id);const documents=[...vault.documents];const updated={...doc,updatedAt:new Date().toISOString()};if(index>=0)documents[index]=updated;else documents.push(updated);await this.persist({...vault,documents});this.setState({editorDoc:updated});if(!auto)this.showToast(t('Document saved.','تم حفظ المستند.'),'success');};
@@ -52,22 +171,27 @@ export class App extends React.Component<{},State> {
   private deleteCustomer=async(customer:Customer)=>{const vault=this.requireVault();await this.persist({...vault,customers:vault.customers.filter(c=>c.id!==customer.id)});this.showToast(t('Customer deleted.','تم حذف العميل.'),'success');};
   private saveCompany=async(company:CompanySettings)=>{const vault=this.requireVault();await this.persist({...vault,company});await this.syncPublicPreferences(company.logoDataUrl,vault.appSettings.uiLanguage);};
   private saveAppSettings=async(appSettings:AppSettings)=>{const vault=this.requireVault();const next={...appSettings,uiLanguage:appSettings.uiLanguage??'en'};await this.persist({...vault,appSettings:next});await this.syncPublicPreferences(vault.company.logoDataUrl,next.uiLanguage);touchSession();this.resetAutoLock();};
-  private changePin=async(currentPin:string,newPin:string)=>{const result=await changePin(currentPin,newPin);await establishSession(result.key);this.setState({key:result.key});this.showToast(t('PIN changed.','تم تغيير رمز PIN.'),'success');};
+  private changePin=async(currentPin:string,newPin:string)=>{const result=await changePin(currentPin,newPin);await establishSession(result.key);this.setState({key:result.key},()=>this.scheduleCloudSync(500));this.showToast(t('PIN changed.','تم تغيير رمز PIN.'),'success');};
   private backup=async(pin:string)=>{const security=await getSecurity();if(!security)throw new Error(t('Security settings are missing.','إعدادات الأمان غير موجودة.'));await verifyPin(pin,security);await exportBackup(pin,this.requireVault());};
-  private restore=async(file:File,pin:string)=>{if(!this.state.key)throw new Error(t('App is locked.','التطبيق مقفل.'));const restored=this.normalizedVault(await readBackup(file,pin));const vault=await restoreVaultWithCurrentKey(this.state.key,restored);await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);touchSession();this.setState({vault,screen:'documents',editorDoc:null},this.resetAutoLock);};
+  private restore=async(file:File,pin:string)=>{if(!this.state.key)throw new Error(t('App is locked.','التطبيق مقفل.'));const restored=this.normalizedVault(await readBackup(file,pin));const vault=await restoreVaultWithCurrentKey(this.state.key,restored);await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);touchSession();this.setState({vault,screen:'documents',editorDoc:null},()=>this.scheduleCloudSync(500));this.resetAutoLock();};
   private requireVault():VaultPayload{if(!this.state.vault)throw new Error(t('App is locked.','التطبيق مقفل.'));return this.state.vault;}
-  private requestPrint=async(doc:LourexDocument,mode:'print'|'pdf'|'share')=>{try{const errors=validateDocument(doc);if(Object.keys(errors).length)throw new Error(t('Complete the required document fields before printing or sharing.','أكمل الحقول المطلوبة قبل الطباعة أو المشاركة.'));let target={...doc,status:'final' as const,updatedAt:new Date().toISOString()};const vault=this.requireVault();if(vault.documents.some(d=>d.id!==target.id&&d.number.trim().toLowerCase()===target.number.trim().toLowerCase()))throw new Error(t('Document number already exists.','رقم المستند مستخدم بالفعل.'));const idx=vault.documents.findIndex(d=>d.id===target.id);const documents=[...vault.documents];if(idx>=0)documents[idx]=target;else documents.push(target);await this.persist({...vault,documents});const customer=target.customerSnapshot?.companyNameEn||target.customerSnapshot?.companyNameAr||'Customer';const prefix=`LOUREX-${safeFilename(target.number)}-${safeFilename(customer)}`;document.title=prefix;this.setState({printDoc:target},()=>{document.body.classList.add('printing');window.setTimeout(()=>window.print(),70);});if(mode==='pdf')this.showToast(t('PDF print view opened — choose “Save as PDF”.','تم فتح نافذة الطباعة — اختر «حفظ كملف PDF».'),'default');else if(mode==='share')this.showToast(t('System print view opened — save/share the PDF from your device.','تم فتح نافذة النظام — احفظ أو شارك ملف PDF من جهازك.'),'default');}catch(e){this.showToast(e instanceof Error?e.message:t('Unable to prepare document.','تعذر تجهيز المستند.'),'error');}};
+  private requestPrint=async(doc:LourexDocument,mode:'print'|'pdf'|'share')=>{try{const errors=validateDocument(doc);if(Object.keys(errors).length)throw new Error(t('Complete the required document fields before printing or sharing.','أكمل الحقول المطلوبة قبل الطباعة أو المشاركة.'));const target={...doc,status:'final' as const,updatedAt:new Date().toISOString()};const vault=this.requireVault();if(vault.documents.some(d=>d.id!==target.id&&d.number.trim().toLowerCase()===target.number.trim().toLowerCase()))throw new Error(t('Document number already exists.','رقم المستند مستخدم بالفعل.'));const idx=vault.documents.findIndex(d=>d.id===target.id);const documents=[...vault.documents];if(idx>=0)documents[idx]=target;else documents.push(target);await this.persist({...vault,documents});const customer=target.customerSnapshot?.companyNameEn||target.customerSnapshot?.companyNameAr||'Customer';const prefix=`LOUREX-${safeFilename(target.number)}-${safeFilename(customer)}`;document.title=prefix;this.setState({printDoc:target},()=>{document.body.classList.add('printing');window.setTimeout(()=>window.print(),70);});if(mode==='pdf')this.showToast(t('PDF print view opened — choose “Save as PDF”.','تم فتح نافذة الطباعة — اختر «حفظ كملف PDF».'),'default');else if(mode==='share')this.showToast(t('System print view opened — save/share the PDF from your device.','تم فتح نافذة النظام — احفظ أو شارك ملف PDF من جهازك.'),'default');}catch(e){this.showToast(e instanceof Error?e.message:t('Unable to prepare document.','تعذر تجهيز المستند.'),'error');}};
   private afterPrint=()=>{document.body.classList.remove('printing');document.title='LOUREX Invoice';this.setState({printDoc:null});};
   private closeEditor=()=>{this.setState({screen:'documents',editorDoc:null});};
+
+  private cloudModal=()=> <CloudAccountModal open={this.state.cloudModal} user={this.state.cloudUser} syncState={this.state.cloudSyncState} syncMessage={this.state.cloudSyncMessage} onClose={()=>this.setState({cloudModal:false})} onSignIn={this.cloudSignIn} onCreate={this.cloudCreate} onReset={this.cloudReset} onSync={this.cloudSyncNow} onSignOut={this.cloudSignOut}/>;
+  private authCloudShell=(content:any)=> <div className="auth-shell">{content}<div className={`auth-cloud-launcher cloud-${this.state.cloudSyncState}`}><Button icon="backup" onClick={()=>this.setState({cloudModal:true})}>{this.state.cloudUser?t('Cloud Account','الحساب السحابي'):t('Cloud Sign In','الدخول السحابي')}</Button></div>{this.cloudModal()}</div>;
+
   render():any{
     const activeLanguage=this.state.vault?.appSettings.uiLanguage??this.state.uiLanguage;setUiLanguage(activeLanguage);
     if(this.state.loading)return <div className="loading-screen"><Brand logoDataUrl={this.state.publicLogo} language={activeLanguage}/><span className="loading-line"/></div>;
-    if(this.state.firstRun)return <AuthScreenSelector mode="setup" company={defaultCompany()} logoDataUrl={this.state.publicLogo} language={activeLanguage} onLanguageChange={this.changePublicLanguage} onFinish={this.finishSetup}/>;
-    if(!this.state.unlocked)return <AuthScreenSelector mode="unlock" logoDataUrl={this.state.publicLogo} language={activeLanguage} onLanguageChange={this.changePublicLanguage} onUnlock={this.unlock}/>;
+    if(this.state.firstRun)return this.authCloudShell(<AuthScreenSelector mode="setup" company={defaultCompany()} logoDataUrl={this.state.publicLogo} language={activeLanguage} onLanguageChange={this.changePublicLanguage} onFinish={this.finishSetup}/>);
+    if(!this.state.unlocked)return this.authCloudShell(<AuthScreenSelector mode="unlock" logoDataUrl={this.state.publicLogo} language={activeLanguage} onLanguageChange={this.changePublicLanguage} onUnlock={this.unlock}/>);
     const vault=this.requireVault();
-    return <div className="app-root"><div className="app-ui"><header className="app-header"><button className="header-brand" disabled={this.state.screen==='editor'} onClick={()=>this.setState({screen:'documents',editorDoc:null})}><Brand compact logoDataUrl={vault.company.logoDataUrl} language={activeLanguage}/></button>{this.state.screen!=='editor'?<nav className="main-nav"><button className={this.state.screen==='documents'?'active':''} onClick={()=>this.setState({screen:'documents',editorDoc:null})}><Icon name="file"/>{t('Documents','المستندات')}</button><button className={this.state.screen==='customers'?'active':''} onClick={()=>this.setState({screen:'customers',editorDoc:null})}><Icon name="users"/>{t('Customers','العملاء')}</button></nav>:<div className="header-editor-context">{t('Document Editor','محرر المستند')}</div>}<div className="header-actions">{this.state.screen!=='editor'?<div className="new-doc-menu"><Button icon="plus" variant="primary" onClick={()=>this.setState({newMenu:!this.state.newMenu})}>{t('New Document','مستند جديد')}</Button>{this.state.newMenu?<div className="new-menu"><button onClick={()=>void this.newDocument('proforma')}><Icon name="proforma"/><span><strong>{t('Proforma Invoice','فاتورة مبدئية')}</strong><small>{t('Commercial quotation','عرض تجاري')}</small></span></button><button onClick={()=>void this.newDocument('invoice')}><Icon name="invoice"/><span><strong>{t('Invoice','فاتورة')}</strong><small>{t('Final invoice','فاتورة نهائية')}</small></span></button></div>:null}</div>:null}<IconButton icon="settings" label={t('Settings','الإعدادات')} onClick={()=>this.setState({settingsOpen:true})}/></div></header>
+    return <div className="app-root"><div className="app-ui"><header className="app-header"><button className="header-brand" disabled={this.state.screen==='editor'} onClick={()=>this.setState({screen:'documents',editorDoc:null})}><Brand compact logoDataUrl={vault.company.logoDataUrl} language={activeLanguage}/></button>{this.state.screen!=='editor'?<nav className="main-nav"><button className={this.state.screen==='documents'?'active':''} onClick={()=>this.setState({screen:'documents',editorDoc:null})}><Icon name="file"/>{t('Documents','المستندات')}</button><button className={this.state.screen==='customers'?'active':''} onClick={()=>this.setState({screen:'customers',editorDoc:null})}><Icon name="users"/>{t('Customers','العملاء')}</button></nav>:<div className="header-editor-context">{t('Document Editor','محرر المستند')}</div>}<div className="header-actions">{this.state.screen!=='editor'?<div className="new-doc-menu"><Button icon="plus" variant="primary" onClick={()=>this.setState({newMenu:!this.state.newMenu})}>{t('New Document','مستند جديد')}</Button>{this.state.newMenu?<div className="new-menu"><button onClick={()=>void this.newDocument('proforma')}><Icon name="proforma"/><span><strong>{t('Proforma Invoice','فاتورة مبدئية')}</strong><small>{t('Commercial quotation','عرض تجاري')}</small></span></button><button onClick={()=>void this.newDocument('invoice')}><Icon name="invoice"/><span><strong>{t('Invoice','فاتورة')}</strong><small>{t('Final invoice','فاتورة نهائية')}</small></span></button></div>:null}</div>:null}<Button icon="backup" className={`cloud-header-button cloud-${this.state.cloudSyncState}`} onClick={()=>this.setState({cloudModal:true})}>{t('Cloud','السحابة')}</Button><IconButton icon="settings" label={t('Settings','الإعدادات')} onClick={()=>this.setState({settingsOpen:true})}/></div></header>
       <main className={this.state.screen==='editor'?'editor-main':'main-content'}>{this.state.screen==='documents'?<DocumentsPage documents={vault.documents} onNew={(k)=>void this.newDocument(k)} onOpen={this.openDocument} onDuplicate={(d)=>void this.duplicate(d)} onPrint={(d,m)=>void this.requestPrint(d,m)} onDelete={(d)=>this.setState({deletingDoc:d})}/>:null}{this.state.screen==='customers'?<CustomersPage customers={vault.customers} onSave={this.saveCustomer} onDelete={this.deleteCustomer}/>:null}{this.state.screen==='editor'&&this.state.editorDoc?<EditorPage document={this.state.editorDoc} customers={vault.customers} company={vault.company} onClose={this.closeEditor} onSave={this.saveDocument} onSaveCustomer={this.saveCustomer} onConvert={this.convert} onPrint={(d,m)=>void this.requestPrint(d,m)}/>:null}</main>
       <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onChangePin={this.changePin} onLock={this.lock} onBackup={this.backup} onRestore={this.restore}/>
+      {this.cloudModal()}
       <ConfirmDialog open={Boolean(this.state.deletingDoc)} title={t(`Delete ${this.state.deletingDoc?.number ?? 'document'}?`,`حذف ${this.state.deletingDoc?.number ?? 'المستند'}؟`)} message={t('This action cannot be undone.','لا يمكن التراجع عن هذا الإجراء.')} onCancel={()=>this.setState({deletingDoc:null})} onConfirm={()=>void this.deleteDocument()}/><Toast text={this.state.toast} tone={this.state.toastTone}/></div>
       <div className="print-portal">{this.state.printDoc?<TemplateRenderer document={this.state.printDoc} scale={1}/>:null}</div></div>;
   }
