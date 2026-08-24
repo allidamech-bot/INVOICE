@@ -28,6 +28,15 @@ test('production shell redirects deployment URLs to the canonical Vercel project
   assert.match(sw, /cache:'no-store'/);
 });
 
+test('editor continuously autosaves incomplete drafts', async () => {
+  const editor = await read('src/components/EditorPage.tsx');
+  assert.match(editor, /setTimeout\(\(\)=>void this\.save\(true\),500\)/);
+  assert.match(editor, /Auto-saving/);
+  assert.match(editor, /Auto-saved/);
+  assert.match(editor, /saveAndClose/);
+  assert.doesNotMatch(editor, /schedule=.*validateDocument/);
+});
+
 test('offline service worker precaches the application module graph', async () => {
   const sw = await read('dist/sw.js');
   for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js']) assert.ok(sw.includes(asset), asset);
