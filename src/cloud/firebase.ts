@@ -112,6 +112,7 @@ export async function pushLocalVaultToCloud(uid:string):Promise<void>{
   if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error('You are offline. Your local changes are safe and will sync when you reconnect.');
   const [security,vault,previous]=await Promise.all([getSecurity(),getEncryptedVault(),getCloudVaultMeta(uid)]);
   if(!security||!vault)throw new Error('There is no local LOUREX vault to sync.');
+  if(previous&&previous.updatedAt>vault.updatedAt)throw new Error('Cloud has newer changes from another device. Use Sync Now before making more cloud changes.');
   const chunks=splitCipher(vault.cipher);
   const revision=revisionId();
   const cipherSha256=await sha256(vault.cipher);
