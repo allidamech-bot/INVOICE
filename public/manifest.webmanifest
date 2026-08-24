@@ -1,0 +1,19 @@
+{
+  "name": "LOUREX Invoice",
+  "short_name": "LOUREX",
+  "description": "Private local-first Proforma Invoice and Invoice creator.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8f5ee",
+  "theme_color": "#0b1d2d",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./brand/lourex-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
