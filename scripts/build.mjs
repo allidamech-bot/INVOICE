@@ -1,0 +1,11 @@
+import { cp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+await rm('dist',{recursive:true,force:true});
+await mkdir('dist',{recursive:true});
+const typecheck = spawnSync('tsc',['-p','tsconfig.json'],{stdio:'inherit'});
+if(typecheck.status!==0) process.exit(typecheck.status ?? 1);
+await cp('public','dist',{recursive:true});
+await cp('src/styles','dist/styles',{recursive:true});
+let html = await readFile('index.html','utf8');
+await writeFile('dist/index.html',html);
+console.log('LOUREX Invoice production build ready in dist/');
