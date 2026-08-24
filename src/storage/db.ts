@@ -1,10 +1,10 @@
-import type { EncryptedVaultRecord, SecurityMetadata } from '../types.js';
+import type { EncryptedVaultRecord, PublicPreferencesRecord, SecurityMetadata } from '../types.js';
 
 const DB_NAME = 'lourex-invoice';
 const DB_VERSION = 1;
 const STORE = 'records';
 
-type DbRecord = SecurityMetadata | EncryptedVaultRecord;
+type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord;
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -60,6 +60,10 @@ export async function putSecurityAndVault(security: SecurityMetadata, vault: Enc
 export async function hasSecurity(): Promise<boolean> { return Boolean(await getRecord<SecurityMetadata>('security')); }
 export async function getSecurity(): Promise<SecurityMetadata | null> { return getRecord<SecurityMetadata>('security'); }
 export async function getEncryptedVault(): Promise<EncryptedVaultRecord | null> { return getRecord<EncryptedVaultRecord>('vault'); }
+export async function getPublicPreferences(): Promise<PublicPreferencesRecord | null> { return getRecord<PublicPreferencesRecord>('public-preferences'); }
+export async function putPublicPreferences(preferences: Omit<PublicPreferencesRecord, 'id'|'updatedAt'>): Promise<void> {
+  await putRecord({ id:'public-preferences', ...preferences, updatedAt:new Date().toISOString() });
+}
 
 export async function clearDatabase(): Promise<void> {
   await new Promise<void>((resolve, reject) => {
