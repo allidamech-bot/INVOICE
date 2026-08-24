@@ -1,6 +1,10 @@
 import type { CompanySettings, UiLanguage } from '../types.js';
 import { Brand, Button, Field, Input } from './UI.js';
 import { fileToDataUrl } from '../lib/files.js';
+import { readBackup } from '../lib/backup.js';
+import { replaceVaultWithPin } from '../storage/vault.js';
+import { establishSession } from '../storage/session.js';
+import { putPublicPreferences } from '../storage/db.js';
 import { t } from '../lib/i18n.js';
 
 interface SetupProps {
@@ -10,10 +14,10 @@ interface SetupProps {
   language: UiLanguage;
   onLanguageChange: (language: UiLanguage) => Promise<void>;
 }
-interface SetupState { welcome: boolean; step: 1|2|3; pin: string; confirm: string; company: CompanySettings; error: string; busy: boolean; }
+interface SetupState { welcome: boolean; step: 1|2|3; pin: string; confirm: string; company: CompanySettings; error: string; busy: boolean; restoreFile:File|null; restorePin:string; restoreBusy:boolean; }
 
 export class SetupScreen extends React.Component<SetupProps, SetupState> {
-  state: SetupState = { welcome: true, step: 1, pin: '', confirm: '', company: this.props.initialCompany, error: '', busy: false };
+  state: SetupState = { welcome: true, step: 1, pin: '', confirm: '', company: this.props.initialCompany, error: '', busy: false, restoreFile:null, restorePin:'', restoreBusy:false };
 
   private updateCompany = (key: keyof CompanySettings, value: any): void => this.setState({ company: { ...this.state.company, [key]: value } });
   private updateBank = (key: keyof CompanySettings['bank'], value: string): void => this.setState({ company: { ...this.state.company, bank: { ...this.state.company.bank, [key]: value } } });
@@ -21,6 +25,21 @@ export class SetupScreen extends React.Component<SetupProps, SetupState> {
     if (!file) return;
     try { const data = await fileToDataUrl(file); this.updateCompany(field, data); }
     catch (e) { this.setState({ error: e instanceof Error ? e.message : t('Unable to read image.','تعذر قراءة الصورة.') }); }
+  };
+  private restoreExisting = async (): Promise<void> => {
+    const file=this.state.restoreFile;
+    const pin=this.state.restorePin;
+    if(!file)return this.setState({error:t('Choose your LOUREX backup file first.','اختر ملف النسخة الاحتياطية لـ LOUREX أولًا.')});
+    if(!/^\d{4,12}$/.test(pin))return this.setState({error:t('Enter the 4–12 digit PIN used for this backup.','أدخل رمز PIN المكوّن من 4 إلى 12 رقمًا والمستخدم لهذه النسخة.')});
+    this.setState({restoreBusy:true,error:''});
+    try{
+      const vault=await readBackup(file,pin);
+      const restored=await replaceVaultWithPin(pin,vault);
+      await establishSession(restored.key);
+      const uiLanguage=restored.vault.appSettings.uiLanguage??this.props.language;
+      await putPublicPreferences({logoDataUrl:restored.vault.company.logoDataUrl||this.props.logoDataUrl,uiLanguage});
+      window.location.reload();
+    }catch(e){this.setState({restoreBusy:false,error:e instanceof Error?e.message:t('Unable to restore this backup.','تعذر استعادة هذه النسخة الاحتياطية.')});}
   };
   private next = (): void => {
     if (this.state.step === 1) {
@@ -41,7 +60,7 @@ export class SetupScreen extends React.Component<SetupProps, SetupState> {
   private languageSwitch():any{return <button type="button" className="auth-language-switch" onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button>;}
   render(): any {
     const { step, company, busy, error } = this.state;
-    if (this.state.welcome) return <div className="auth-page"><div className="auth-card unlock-card welcome-card">{this.languageSwitch()}<Brand logoDataUrl={this.props.logoDataUrl} language={this.props.language}/><p className="eyebrow">LOUREX Invoice</p><h1>{t('Welcome.','مرحبًا.')}</h1><p className="subtle">{t('Create, save and share professional Proforma Invoices and Invoices. Everything stays on this device.','أنشئ واحفظ وشارك الفواتير المبدئية والفواتير الاحترافية. جميع بياناتك تبقى على هذا الجهاز.')}</p><Button variant="primary" onClick={()=>this.setState({welcome:false})}>{t('Set Up','بدء الإعداد')}</Button><p className="security-note">{t('Local-first · Encrypted · No cloud account','محلي أولًا · مشفّر · بدون حساب سحابي')}</p></div></div>;
+    if (this.state.welcome) return <div className="auth-page"><div className="auth-card unlock-card welcome-card">{this.languageSwitch()}<Brand logoDataUrl={this.props.logoDataUrl} language={this.props.language}/><p className="eyebrow">LOUREX Invoice</p><h1>{t('Welcome.','مرحبًا.')}</h1><p className="subtle">{t('Create, save and share professional Proforma Invoices and Invoices. Everything stays on this device.','أنشئ واحفظ وشارك الفواتير المبدئية والفواتير الاحترافية. جميع بياناتك تبقى على هذا الجهاز.')}</p><Button variant="primary" onClick={()=>this.setState({welcome:false,error:''})}>{t('Set Up New Account','إعداد حساب جديد')}</Button><div className="welcome-restore"><div className="welcome-divider"><span>{t('or','أو')}</span></div><h3>{t('Restore an existing account','استعادة حساب موجود')}</h3><p className="subtle">{t('Use an encrypted LOUREX backup to bring back your company, customers, invoices and settings without entering them again.','استخدم نسخة LOUREX الاحتياطية المشفّرة لاستعادة الشركة والعملاء والفواتير والإعدادات دون إدخالها من جديد.')}</p><label className="file-picker"><strong>{this.state.restoreFile?this.state.restoreFile.name:t('Choose LOUREX Backup','اختر نسخة LOUREX الاحتياطية')}</strong><input type="file" accept="application/json,.json" onChange={(e:any)=>this.setState({restoreFile:e.target.files?.[0]??null,error:''})}/></label>{this.state.restoreFile?<div className="restore-first-run"><Field label={t('Backup PIN','رمز PIN للنسخة الاحتياطية')}><Input inputMode="numeric" type="password" maxLength="12" value={this.state.restorePin} onChange={(e:any)=>this.setState({restorePin:e.target.value.replace(/\D/g,''),error:''})}/></Field><Button disabled={this.state.restoreBusy} onClick={()=>void this.restoreExisting()}>{this.state.restoreBusy?t('Restoring…','جارٍ الاستعادة…'):t('Restore Account','استعادة الحساب')}</Button></div>:null}</div>{error?<div className="auth-error">{error}</div>:null}<p className="security-note">{t('Local-first · Encrypted · No cloud account','محلي أولًا · مشفّر · بدون حساب سحابي')}</p></div></div>;
     return <div className="auth-page"><div className="auth-card setup-card">{this.languageSwitch()}<Brand logoDataUrl={company.logoDataUrl||this.props.logoDataUrl} language={this.props.language}/><div className="setup-progress"><span className={step >= 1 ? 'active' : ''}>1</span><i/><span className={step >= 2 ? 'active' : ''}>2</span><i/><span className={step >= 3 ? 'active' : ''}>3</span></div>
       {step === 1 ? <div className="auth-section"><p className="eyebrow">{t('Security','الأمان')}</p><h1>{t('Set your access PIN','أنشئ رمز PIN للدخول')}</h1><p className="subtle">{t('Your data stays encrypted on this device. The PIN is never stored as plain text.','تبقى بياناتك مشفّرة على هذا الجهاز، ولا يتم حفظ رمز PIN كنص عادي.')}</p><div className="form-grid one"><Field label={t('PIN','رمز PIN')}><Input inputMode="numeric" autoComplete="new-password" maxLength="12" type="password" value={this.state.pin} onChange={(e:any)=>this.setState({pin:e.target.value.replace(/\D/g,'')})}/></Field><Field label={t('Confirm PIN','تأكيد رمز PIN')}><Input inputMode="numeric" maxLength="12" type="password" value={this.state.confirm} onChange={(e:any)=>this.setState({confirm:e.target.value.replace(/\D/g,'')})}/></Field></div><Button variant="primary" onClick={this.next}>{t('Continue','متابعة')}</Button></div> : null}
       {step === 2 ? <div className="auth-section"><p className="eyebrow">{t('Company','الشركة')}</p><h1>{t('Company details','بيانات الشركة')}</h1><div className="form-grid two">
