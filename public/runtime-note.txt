@@ -1,0 +1,1 @@
+React 16.0.0 and ReactDOM 16.0.1 are loaded from jsDelivr by index.html for the standalone web build.
