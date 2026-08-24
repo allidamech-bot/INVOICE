@@ -1,0 +1,33 @@
+import type { UiLanguage } from '../types.js';
+
+let currentLanguage: UiLanguage = 'en';
+
+export function setUiLanguage(language: UiLanguage): void {
+  currentLanguage = language;
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = language;
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+  }
+}
+
+export function getUiLanguage(): UiLanguage { return currentLanguage; }
+export function isArabic(): boolean { return currentLanguage === 'ar'; }
+export function t(en: string, ar: string): string { return currentLanguage === 'ar' ? ar : en; }
+
+export function translateValidation(message: string): string {
+  if (currentLanguage !== 'ar') return message;
+  const map: Record<string,string> = {
+    'Document number is required.':'رقم المستند مطلوب.',
+    'Issue date is required.':'تاريخ الإصدار مطلوب.',
+    'Select a customer.':'اختر عميلاً.',
+    'Add at least one item.':'أضف صنفًا واحدًا على الأقل.',
+    'Description is required.':'الوصف مطلوب.',
+    'Quantity must be greater than 0.':'يجب أن تكون الكمية أكبر من 0.',
+    'Unit price must be 0 or greater.':'يجب أن يكون سعر الوحدة 0 أو أكثر.',
+    'Discount must be 0 or greater.':'يجب أن يكون الخصم 0 أو أكثر.',
+    'Shipping must be 0 or greater.':'يجب أن تكون قيمة الشحن 0 أو أكثر.',
+    'Other charges must be 0 or greater.':'يجب أن تكون الرسوم الأخرى 0 أو أكثر.',
+    'Tax must be 0 or greater.':'يجب أن تكون الضريبة 0 أو أكثر.'
+  };
+  return map[message] ?? message;
+}
