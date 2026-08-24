@@ -216,6 +216,14 @@ export interface SessionKeyRecord {
   updatedAt: string;
 }
 
+export interface CloudAccountRecord {
+  id: 'cloud-account';
+  uid: string;
+  email: string;
+  linkedAt: string;
+  updatedAt: string;
+}
+
 export interface EncryptedBackupFile {
   format: 'LOUREX_BACKUP';
   version: 1;
