@@ -5,11 +5,16 @@ import { readFile, stat } from 'node:fs/promises';
 const root = new URL('../', import.meta.url);
 const read = async path => readFile(new URL(path, root), 'utf8');
 
-test('production shell has PWA, React runtime, and compiled app entry', async () => {
+test('production shell has PWA, React runtime, compiled app entry and premium design layer', async () => {
   const html = await read('dist/index.html');
+  const premium = await read('dist/styles/premium.css');
   assert.match(html, /manifest\.webmanifest/);
   assert.match(html, /react@16\.0\.0/);
   assert.match(html, /src\/app\/index\.js/);
+  assert.match(html, /styles\/premium\.css/);
+  assert.match(premium, /--radius-xl/);
+  assert.match(premium, /\.save-indicator\.state-saved/);
+  assert.match(premium, /@media \(max-width:720px\)/);
   assert.ok((await stat(new URL('dist/brand/lourex-logo.svg', root))).size > 1000);
 });
 
@@ -37,9 +42,9 @@ test('editor continuously autosaves incomplete drafts', async () => {
   assert.doesNotMatch(editor, /schedule=.*validateDocument/);
 });
 
-test('offline service worker precaches the application module graph', async () => {
+test('offline service worker precaches the application module graph and premium styles', async () => {
   const sw = await read('dist/sw.js');
-  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js']) assert.ok(sw.includes(asset), asset);
+  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js','styles/premium.css']) assert.ok(sw.includes(asset), asset);
 });
 
 test('print stylesheet isolates A4 documents from application chrome', async () => {
