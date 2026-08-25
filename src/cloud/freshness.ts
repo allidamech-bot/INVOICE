@@ -27,9 +27,11 @@ async function checkCloudFreshness():Promise<void>{
     if(!local||!remote||remote.updatedAt<=local.updatedAt)return;
     const guard=`${user.uid}:${remote.revision}`;
     if(sessionStorage.getItem('lourex-cloud-refresh-revision')===guard)return;
-    sessionStorage.setItem('lourex-cloud-refresh-revision',guard);
     const installed=await installCloudVault(user.uid);
-    if(installed)window.location.reload();
+    if(installed){
+      sessionStorage.setItem('lourex-cloud-refresh-revision',guard);
+      window.location.reload();
+    }
   }catch{
     // App-level cloud controls surface sync errors; the watcher stays silent and retries later.
   }finally{
