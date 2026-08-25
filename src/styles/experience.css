@@ -146,6 +146,18 @@
 .invoice-page.document-tone-light .items-table td{color:#24323c}
 .invoice-page.document-tone-light .total-row strong{color:#24313a}
 
+/* Light documents can still contain deliberately dark modules. Keep those local surfaces readable. */
+.invoice-page.template-obsidian.document-tone-light .totals-block .total-row span,
+.invoice-page.template-obsidian.document-tone-light .totals-block .total-row strong,
+.invoice-page.template-obsidian.document-tone-light .totals-block .grand-total span,
+.invoice-page.template-obsidian.document-tone-light .totals-block .grand-total strong,
+.invoice-page.template-slate.document-tone-light .totals-block .total-row span,
+.invoice-page.template-slate.document-tone-light .totals-block .total-row strong,
+.invoice-page.template-slate.document-tone-light .totals-block .grand-total span,
+.invoice-page.template-slate.document-tone-light .totals-block .grand-total strong{color:#fff}
+.invoice-page.template-obsidian.document-tone-light .totals-block .total-row span,
+.invoice-page.template-slate.document-tone-light .totals-block .total-row span{color:#dce3e8}
+
 /* Fully dark templates: every shared semantic area gets a guaranteed readable foreground. */
 .invoice-page.document-tone-dark{--dark-ink:#f5f1e9;--dark-muted:#c8bfaf;--dark-soft:#afa38f;color:var(--dark-ink)}
 .invoice-page.document-tone-dark .party-seller,.invoice-page.document-tone-dark .terms-block,.invoice-page.document-tone-dark .bank-block,.invoice-page.document-tone-dark .signature-block,.invoice-page.document-tone-dark .notes-block{color:var(--dark-ink)}
