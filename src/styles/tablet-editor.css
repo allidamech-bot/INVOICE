@@ -32,8 +32,12 @@
   }
 
   .mobile-preview-overlay {
-    display: block;
+    display: none;
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .mobile-preview-open .mobile-preview-overlay {
+    display: block;
   }
 
   .mobile-preview-overlay > header {
