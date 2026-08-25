@@ -48,7 +48,9 @@ export function resolvedAccentInk(hex:string):'#ffffff'|'#101010'{
   const clean=hex.replace('#','');
   const full=clean.length===3?clean.split('').map(x=>x+x).join(''):clean;
   if(!/^[0-9a-f]{6}$/i.test(full))return '#101010';
-  const [r,g,b]=[0,2,4].map(i=>parseInt(full.slice(i,i+2),16));
+  const r=parseInt(full.slice(0,2),16);
+  const g=parseInt(full.slice(2,4),16);
+  const b=parseInt(full.slice(4,6),16);
   const luma=(0.2126*r)+(0.7152*g)+(0.0722*b);
   return luma<145?'#ffffff':'#101010';
 }
