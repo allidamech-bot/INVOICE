@@ -5,13 +5,13 @@ export const KDF_ITERATIONS = 310_000;
 
 export function defaultCompany(): CompanySettings {
   return {
-    nameEn: 'LOUREX', nameAr: '', logoDataUrl: './brand/lourex-logo.svg',
-    addressEn: '', addressAr: '', city: '', country: 'Türkiye', phone: '', email: '', website: '',
+    nameEn: '', nameAr: '', logoDataUrl: '',
+    addressEn: '', addressAr: '', city: '', country: '', phone: '', email: '', website: '',
     vatNumber: '', taxNumber: '', commercialRegistration: '',
-    bank: { bankName: '', accountName: 'LOUREX', iban: '', swift: '', currency: 'USD' },
+    bank: { bankName: '', accountName: '', iban: '', swift: '', currency: 'USD' },
     signatureDataUrl: '', stampDataUrl: '', defaultCurrency: 'USD', defaultLanguage: 'en',
     defaultPaymentTerms: '', defaultIncoterm: '', defaultDeliveryTime: '', defaultValidityDays: 7,
-    defaultFooterText: 'LOUREX • Import • Export • International Trade', defaultNotes: ''
+    defaultFooterText: '', defaultNotes: ''
   };
 }
 
