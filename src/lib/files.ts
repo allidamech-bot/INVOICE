@@ -13,17 +13,14 @@ interface BackgroundModel {
   dominance: number;
 }
 
-interface Bounds {
+interface ComponentStats {
+  label: number;
+  pixels: number;
+  seeds: number;
   left: number;
   top: number;
   right: number;
   bottom: number;
-}
-
-interface ComponentStats extends Bounds {
-  label: number;
-  pixels: number;
-  seeds: number;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -51,14 +48,19 @@ function pixelSaturation(red: number, green: number, blue: number): number {
   return maximum <= 0 ? 0 : (maximum - minimum) / maximum;
 }
 
-function channelSpread(red: number, green: number, blue: number): number {
-  return Math.max(red, green, blue) - Math.min(red, green, blue);
-}
-
 function colorDistance(data: Uint8ClampedArray, index: number, model: { red: number; green: number; blue: number }): number {
   const red = (data[index] ?? 0) - model.red;
   const green = (data[index + 1] ?? 0) - model.green;
   const blue = (data[index + 2] ?? 0) - model.blue;
+  return Math.sqrt((red * red + green * green + blue * blue) / 3);
+}
+
+function pixelDistance(data: Uint8ClampedArray, firstPixel: number, secondPixel: number): number {
+  const first = firstPixel * 4;
+  const second = secondPixel * 4;
+  const red = (data[first] ?? 0) - (data[second] ?? 0);
+  const green = (data[first + 1] ?? 0) - (data[second + 1] ?? 0);
+  const blue = (data[first + 2] ?? 0) - (data[second + 2] ?? 0);
   return Math.sqrt((red * red + green * green + blue * blue) / 3);
 }
 
@@ -86,14 +88,15 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function sampleEdgeIndexes(width: number, height: number): number[] {
+function edgeIndexes(width: number, height: number): number[] {
   const indexes: number[] = [];
-  const sampleBand = Math.max(2, Math.round(Math.min(width, height) * .025));
-  const step = Math.max(1, Math.round(Math.max(width, height) / 600));
-  for (let depth = 0; depth < sampleBand; depth += Math.max(1, Math.floor(sampleBand / 3))) {
-    const left = depth;
+  const band = Math.max(2, Math.round(Math.min(width, height) * .025));
+  const step = Math.max(1, Math.round(Math.max(width, height) / 700));
+  const depths = [0, Math.max(1, Math.floor(band / 2)), Math.max(1, band - 1)];
+  for (const depth of depths) {
+    const left = Math.min(width - 1, depth);
     const right = Math.max(left, width - 1 - depth);
-    const top = depth;
+    const top = Math.min(height - 1, depth);
     const bottom = Math.max(top, height - 1 - depth);
     for (let x = left; x <= right; x += step) {
       indexes.push((top * width + x) * 4);
@@ -108,7 +111,7 @@ function sampleEdgeIndexes(width: number, height: number): number[] {
 }
 
 function buildBackgroundModel(data: Uint8ClampedArray, width: number, height: number): BackgroundModel | null {
-  const indexes = sampleEdgeIndexes(width, height).filter(index => (data[index + 3] ?? 0) > 24);
+  const indexes = edgeIndexes(width, height).filter(index => (data[index + 3] ?? 0) > 24);
   if (indexes.length < 16) return null;
   const reds = indexes.map(index => data[index] ?? 0);
   const greens = indexes.map(index => data[index + 1] ?? 0);
@@ -120,8 +123,8 @@ function buildBackgroundModel(data: Uint8ClampedArray, width: number, height: nu
   const lumas = indexes.map(index => pixelLuma(data[index] ?? 0, data[index + 1] ?? 0, data[index + 2] ?? 0));
   const saturations = indexes.map(index => pixelSaturation(data[index] ?? 0, data[index + 1] ?? 0, data[index + 2] ?? 0));
   const distances = indexes.map(index => colorDistance(data, index, provisional));
-  const distanceHigh = percentile(distances, .94);
-  const dominanceRadius = clamp(distanceHigh + 18, 26, 112);
+  const distanceHigh = percentile(distances, .95);
+  const dominanceRadius = clamp(distanceHigh + 18, 28, 118);
   const dominance = distances.filter(distance => distance <= dominanceRadius).length / distances.length;
   return {
     red,
@@ -129,9 +132,9 @@ function buildBackgroundModel(data: Uint8ClampedArray, width: number, height: nu
     blue,
     luma: pixelLuma(red, green, blue),
     saturation: pixelSaturation(red, green, blue),
-    lumaLow: percentile(lumas, .03),
-    lumaHigh: percentile(lumas, .97),
-    saturationHigh: percentile(saturations, .94),
+    lumaLow: percentile(lumas, .025),
+    lumaHigh: percentile(lumas, .975),
+    saturationHigh: percentile(saturations, .95),
     distanceHigh,
     dominance
   };
@@ -168,41 +171,35 @@ function dilateMask(mask: Uint8Array, width: number, height: number, iterations:
   return current;
 }
 
-function expandBounds(bounds: Bounds, width: number, height: number, margin: number): Bounds {
-  return {
-    left: Math.max(0, bounds.left - margin),
-    top: Math.max(0, bounds.top - margin),
-    right: Math.min(width - 1, bounds.right + margin),
-    bottom: Math.min(height - 1, bounds.bottom + margin)
-  };
+function strongLogoSeed(data: Uint8ClampedArray, pixel: number, model: BackgroundModel): boolean {
+  const index = pixel * 4;
+  if ((data[index + 3] ?? 0) <= 12) return false;
+  const red = data[index] ?? 0;
+  const green = data[index + 1] ?? 0;
+  const blue = data[index + 2] ?? 0;
+  const saturation = pixelSaturation(red, green, blue);
+  const distance = colorDistance(data, index, model);
+  const saturationGate = clamp(Math.max(.20, model.saturationHigh + .07), .20, .43);
+  const distanceGate = clamp(model.distanceHigh + 12, 22, 92);
+  return saturation >= saturationGate && distance >= distanceGate;
 }
 
-function insideBounds(x: number, y: number, bounds: Bounds): boolean {
-  return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+function softLogoEvidence(data: Uint8ClampedArray, pixel: number, model: BackgroundModel): boolean {
+  const index = pixel * 4;
+  if ((data[index + 3] ?? 0) <= 12) return false;
+  const red = data[index] ?? 0;
+  const green = data[index + 1] ?? 0;
+  const blue = data[index + 2] ?? 0;
+  const saturation = pixelSaturation(red, green, blue);
+  const luma = pixelLuma(red, green, blue);
+  const distance = colorDistance(data, index, model);
+  const saturationGate = clamp(Math.max(.105, model.saturationHigh + .018), .105, .30);
+  const distanceGate = clamp(model.distanceHigh + 3, 15, 72);
+  const lumaDifference = Math.abs(luma - model.luma);
+  return (saturation >= saturationGate && distance >= distanceGate) || (lumaDifference >= 34 && distance >= distanceGate + 4);
 }
 
-function makeChromaticSeedMask(data: Uint8ClampedArray, width: number, height: number, model: BackgroundModel): Uint8Array {
-  const total = width * height;
-  const mask = new Uint8Array(total);
-  const saturationGate = clamp(Math.max(.18, model.saturationHigh + .075), .18, .42);
-  const distanceGate = clamp(model.distanceHigh + 14, 24, 92);
-  const spreadGate = 24;
-  for (let pixel = 0; pixel < total; pixel += 1) {
-    const index = pixel * 4;
-    if ((data[index + 3] ?? 0) <= 12) continue;
-    const red = data[index] ?? 0;
-    const green = data[index + 1] ?? 0;
-    const blue = data[index + 2] ?? 0;
-    const saturation = pixelSaturation(red, green, blue);
-    if (saturation < saturationGate) continue;
-    if (channelSpread(red, green, blue) < spreadGate) continue;
-    if (colorDistance(data, index, model) < distanceGate) continue;
-    mask[pixel] = 1;
-  }
-  return mask;
-}
-
-function labelComponents(mask: Uint8Array, seedMask: Uint8Array, width: number, height: number): { labels: Int32Array; components: ComponentStats[] } {
+function labelVisibleComponents(mask: Uint8Array, seedMask: Uint8Array, width: number, height: number): { labels: Int32Array; components: ComponentStats[] } {
   const total = width * height;
   const labels = new Int32Array(total);
   labels.fill(-1);
@@ -226,13 +223,11 @@ function labelComponents(mask: Uint8Array, seedMask: Uint8Array, width: number, 
       const x = pixel % width;
       const y = Math.floor(pixel / width);
       pixels += 1;
-      if (seedMask[pixel] ?? 0) {
-        seeds += 1;
-        if (x < left) left = x;
-        if (x > right) right = x;
-        if (y < top) top = y;
-        if (y > bottom) bottom = y;
-      }
+      if (seedMask[pixel] ?? 0) seeds += 1;
+      left = Math.min(left, x);
+      right = Math.max(right, x);
+      top = Math.min(top, y);
+      bottom = Math.max(bottom, y);
       const visit = (neighbor: number): void => {
         if (neighbor < 0 || neighbor >= total) return;
         if (!(mask[neighbor] ?? 0) || (labels[neighbor] ?? -1) >= 0) return;
@@ -244,9 +239,7 @@ function labelComponents(mask: Uint8Array, seedMask: Uint8Array, width: number, 
       if (y > 0) visit(pixel - width);
       if (y + 1 < height) visit(pixel + width);
     }
-    if (seeds > 0 && right >= left && bottom >= top) {
-      components.push({ label, pixels, seeds, left, top, right, bottom });
-    }
+    components.push({ label, pixels, seeds, left, top, right, bottom });
     label += 1;
   }
   return { labels, components };
@@ -257,15 +250,13 @@ function selectLogoComponent(components: ComponentStats[], width: number, height
   const centerX = (width - 1) / 2;
   const centerY = (height - 1) / 2;
   let best: ComponentStats | null = null;
-  let bestScore = -1;
+  let bestScore = -Infinity;
   for (const component of components) {
-    const componentCenterX = (component.left + component.right) / 2;
-    const componentCenterY = (component.top + component.bottom) / 2;
-    const normalizedDistance = Math.hypot((componentCenterX - centerX) / Math.max(1, width), (componentCenterY - centerY) / Math.max(1, height));
-    const centerBoost = clamp(1.25 - normalizedDistance, .7, 1.25);
-    const spanArea = Math.max(1, (component.right - component.left + 1) * (component.bottom - component.top + 1));
-    const density = component.seeds / spanArea;
-    const score = component.seeds * centerBoost * (1 + Math.min(.35, density * 2));
+    const cx = (component.left + component.right) / 2;
+    const cy = (component.top + component.bottom) / 2;
+    const centerDistance = Math.hypot((cx - centerX) / Math.max(1, width), (cy - centerY) / Math.max(1, height));
+    const centerWeight = clamp(1.22 - centerDistance, .62, 1.22);
+    const score = (component.seeds * 160 + Math.sqrt(component.pixels)) * centerWeight;
     if (score > bestScore) {
       bestScore = score;
       best = component;
@@ -274,204 +265,147 @@ function selectLogoComponent(components: ComponentStats[], width: number, height
   return best;
 }
 
-function rowColumnSeedSpans(seedMask: Uint8Array, labels: Int32Array, selectedLabel: number, width: number, height: number): {
-  rowMin: Int32Array;
-  rowMax: Int32Array;
-  colMin: Int32Array;
-  colMax: Int32Array;
-  selectedSeeds: Uint8Array;
-  count: number;
-} {
-  const rowMin = new Int32Array(height);
-  const rowMax = new Int32Array(height);
-  const colMin = new Int32Array(width);
-  const colMax = new Int32Array(width);
-  rowMin.fill(width);
-  rowMax.fill(-1);
-  colMin.fill(height);
-  colMax.fill(-1);
-  const selectedSeeds = new Uint8Array(width * height);
-  let count = 0;
-  for (let pixel = 0; pixel < width * height; pixel += 1) {
-    if (!(seedMask[pixel] ?? 0) || (labels[pixel] ?? -1) !== selectedLabel) continue;
-    const x = pixel % width;
-    const y = Math.floor(pixel / width);
-    selectedSeeds[pixel] = 1;
-    count += 1;
-    rowMin[y] = Math.min(rowMin[y] ?? width, x);
-    rowMax[y] = Math.max(rowMax[y] ?? -1, x);
-    colMin[x] = Math.min(colMin[x] ?? height, y);
-    colMax[x] = Math.max(colMax[x] ?? -1, y);
-  }
-  return { rowMin, rowMax, colMin, colMax, selectedSeeds, count };
-}
-
-function isBackgroundLike(data: Uint8ClampedArray, index: number, model: BackgroundModel): boolean {
-  if ((data[index + 3] ?? 0) <= 8) return true;
-  const red = data[index] ?? 0;
-  const green = data[index + 1] ?? 0;
-  const blue = data[index + 2] ?? 0;
-  const saturation = pixelSaturation(red, green, blue);
-  const luma = pixelLuma(red, green, blue);
-  const distance = colorDistance(data, index, model);
-  const neutralLimit = clamp(model.saturationHigh + .10, .16, .34);
-  if (saturation > neutralLimit) return false;
-  if (model.saturation < .22 && model.luma < 145) {
-    return luma <= clamp(model.lumaHigh + 58, 70, 205) || distance <= clamp(model.distanceHigh + 54, 46, 132);
-  }
-  if (model.saturation < .22 && model.luma >= 145) {
-    return luma >= clamp(model.lumaLow - 58, 48, 190) || distance <= clamp(model.distanceHigh + 54, 46, 132);
-  }
-  return distance <= clamp(model.distanceHigh + 44, 38, 112);
-}
-
-function removeDetachedVisibleNoise(data: Uint8ClampedArray, width: number, height: number, selectedSeeds: Uint8Array, roi: Bounds, seedCount: number): void {
+function buildLogoProtection(data: Uint8ClampedArray, width: number, height: number, model: BackgroundModel): { protection: Uint8Array; strongSeeds: Uint8Array; strongSeedCount: number } | null {
   const total = width * height;
+  const strongSeeds = new Uint8Array(total);
+  const softMask = new Uint8Array(total);
+  let strongSeedCount = 0;
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    if (strongLogoSeed(data, pixel, model)) {
+      strongSeeds[pixel] = 1;
+      strongSeedCount += 1;
+    }
+    if (softLogoEvidence(data, pixel, model)) softMask[pixel] = 1;
+  }
+  if (strongSeedCount < Math.max(36, Math.round(total * .00018))) return null;
+
+  const joinedSoft = dilateMask(softMask, width, height, clamp(Math.round(Math.min(width, height) * .0035), 1, 6));
+  const { labels, components } = labelVisibleComponents(joinedSoft, strongSeeds, width, height);
+  const selected = selectLogoComponent(components.filter(component => component.seeds > 0), width, height);
+  if (!selected || selected.seeds < strongSeedCount * .30) return null;
+
+  const selectedMask = new Uint8Array(total);
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    if ((labels[pixel] ?? -1) === selected.label) selectedMask[pixel] = 1;
+  }
+  const protectionRadius = clamp(Math.round(Math.min(selected.right - selected.left + 1, selected.bottom - selected.top + 1) * .035), 5, 22);
+  return { protection: dilateMask(selectedMask, width, height, protectionRadius), strongSeeds, strongSeedCount };
+}
+
+function localEdgeStrength(data: Uint8ClampedArray, pixel: number, width: number, height: number): number {
+  const x = pixel % width;
+  const y = Math.floor(pixel / width);
+  let maximum = 0;
+  if (x > 0) maximum = Math.max(maximum, pixelDistance(data, pixel, pixel - 1));
+  if (x + 1 < width) maximum = Math.max(maximum, pixelDistance(data, pixel, pixel + 1));
+  if (y > 0) maximum = Math.max(maximum, pixelDistance(data, pixel, pixel - width));
+  if (y + 1 < height) maximum = Math.max(maximum, pixelDistance(data, pixel, pixel + width));
+  return maximum;
+}
+
+function applyLogoEdgeBackgroundRemoval(data: Uint8ClampedArray, width: number, height: number, model: BackgroundModel): boolean {
+  if (model.dominance < .34) return false;
+  const original = new Uint8ClampedArray(data);
+  const total = width * height;
+  const protectionInfo = buildLogoProtection(original, width, height, model);
+  if (!protectionInfo) return false;
+  const { protection, strongSeeds, strongSeedCount } = protectionInfo;
   const visited = new Uint8Array(total);
   const queue = new Int32Array(total);
-  const members = new Int32Array(total);
-  const smallLimit = Math.max(36, Math.round(seedCount * .10));
-  for (let seed = 0; seed < total; seed += 1) {
-    if (visited[seed] ?? 0) continue;
-    if ((data[seed * 4 + 3] ?? 0) <= 12) continue;
-    let start = 0;
-    let end = 0;
-    let count = 0;
-    let seedHits = 0;
-    let left = width;
-    let top = height;
-    let right = -1;
-    let bottom = -1;
-    visited[seed] = 1;
-    queue[end++] = seed;
-    while (start < end) {
-      const pixel = queue[start++] ?? 0;
-      members[count++] = pixel;
-      if (selectedSeeds[pixel] ?? 0) seedHits += 1;
-      const x = pixel % width;
-      const y = Math.floor(pixel / width);
-      left = Math.min(left, x);
-      right = Math.max(right, x);
-      top = Math.min(top, y);
-      bottom = Math.max(bottom, y);
-      const visit = (neighbor: number): void => {
-        if (neighbor < 0 || neighbor >= total) return;
-        if (visited[neighbor] ?? 0) return;
-        if ((data[neighbor * 4 + 3] ?? 0) <= 12) return;
-        visited[neighbor] = 1;
-        queue[end++] = neighbor;
-      };
-      if (x > 0) visit(pixel - 1);
-      if (x + 1 < width) visit(pixel + 1);
-      if (y > 0) visit(pixel - width);
-      if (y + 1 < height) visit(pixel + width);
-    }
-    if (seedHits > 0) continue;
-    const centerX = (left + right) / 2;
-    const centerY = (top + bottom) / 2;
-    const outsideRoi = !insideBounds(centerX, centerY, roi);
-    if (!outsideRoi && count > smallLimit) continue;
-    for (let member = 0; member < count; member += 1) {
-      const pixel = members[member] ?? 0;
-      data[pixel * 4 + 3] = 0;
-    }
-  }
-}
+  let start = 0;
+  let end = 0;
 
-function applyChromaticLogoIsolation(data: Uint8ClampedArray, width: number, height: number, model: BackgroundModel): boolean {
-  const total = width * height;
-  const original = new Uint8ClampedArray(data);
-  const rawSeeds = makeChromaticSeedMask(original, width, height, model);
-  let rawSeedCount = 0;
-  for (let pixel = 0; pixel < total; pixel += 1) rawSeedCount += rawSeeds[pixel] ?? 0;
-  if (rawSeedCount < Math.max(48, Math.round(total * .00025))) return false;
+  const tightDistance = clamp(model.distanceHigh + 20, 30, 94);
+  const looseDistance = clamp(tightDistance + 48, 70, 152);
+  const localGate = clamp(model.distanceHigh * .48 + 25, 26, 52);
+  const saturationGate = clamp(Math.max(.27, model.saturationHigh + .14), .27, .48);
+  const lumaLow = clamp(model.lumaLow - 72, 0, 255);
+  const lumaHigh = clamp(model.lumaHigh + 72, 0, 255);
+  const edgeBarrier = clamp(localGate * 1.55, 44, 78);
 
-  const joinIterations = clamp(Math.round(Math.min(width, height) * .006), 2, 9);
-  const joined = dilateMask(rawSeeds, width, height, joinIterations);
-  const { labels, components } = labelComponents(joined, rawSeeds, width, height);
-  const selected = selectLogoComponent(components, width, height);
-  if (!selected || selected.seeds < Math.max(30, rawSeedCount * .35)) return false;
-
-  const selectedLabel = selected.label;
-  const spans = rowColumnSeedSpans(rawSeeds, labels, selectedLabel, width, height);
-  if (spans.count < Math.max(28, selected.seeds * .8)) return false;
-
-  const coreWidth = selected.right - selected.left + 1;
-  const coreHeight = selected.bottom - selected.top + 1;
-  if (coreWidth < 8 || coreHeight < 8 || coreWidth > width * .88 || coreHeight > height * .88) return false;
-
-  const margin = Math.max(6, Math.round(Math.max(coreWidth, coreHeight) * .12), Math.round(Math.min(width, height) * .014));
-  const roi = expandBounds(selected, width, height, margin);
-  const supportIterations = clamp(Math.round(Math.min(coreWidth, coreHeight) * .07), 4, 32);
-  const support = dilateMask(spans.selectedSeeds, width, height, supportIterations);
-  const rowPad = Math.max(2, Math.round(coreWidth * .025));
-  const colPad = Math.max(2, Math.round(coreHeight * .025));
-
-  let originalVisible = 0;
-  let removed = 0;
-  for (let pixel = 0; pixel < total; pixel += 1) {
+  const enqueue = (pixel: number, parent: number): void => {
+    if (pixel < 0 || pixel >= total || (visited[pixel] ?? 0) || (protection[pixel] ?? 0)) return;
     const index = pixel * 4;
-    const alpha = original[index + 3] ?? 0;
-    if (alpha <= 12) continue;
-    originalVisible += 1;
+    if ((original[index + 3] ?? 0) <= 8) return;
+    if (strongSeeds[pixel] ?? 0) return;
+    const red = original[index] ?? 0;
+    const green = original[index + 1] ?? 0;
+    const blue = original[index + 2] ?? 0;
+    const saturation = pixelSaturation(red, green, blue);
+    const luma = pixelLuma(red, green, blue);
+    const distance = colorDistance(original, index, model);
+    const inLumaBand = luma >= lumaLow && luma <= lumaHigh;
+    const globallyTight = distance <= tightDistance && saturation <= saturationGate;
+    const globallyLoose = distance <= looseDistance && saturation <= saturationGate && inLumaBand;
+    if (parent < 0) {
+      if (!globallyLoose) return;
+    } else {
+      const locallyContinuous = pixelDistance(original, pixel, parent) <= localGate;
+      const barrier = localEdgeStrength(original, pixel, width, height) >= edgeBarrier;
+      if (!(globallyTight || (globallyLoose && locallyContinuous && !barrier))) return;
+    }
+    visited[pixel] = 1;
+    queue[end++] = pixel;
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    enqueue(x, -1);
+    if (height > 1) enqueue((height - 1) * width + x, -1);
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    enqueue(y * width, -1);
+    if (width > 1) enqueue(y * width + width - 1, -1);
+  }
+
+  while (start < end) {
+    const pixel = queue[start++] ?? 0;
     const x = pixel % width;
     const y = Math.floor(pixel / width);
-
-    if (!insideBounds(x, y, roi)) {
-      data[index + 3] = 0;
-      removed += 1;
-      continue;
-    }
-
-    if (spans.selectedSeeds[pixel] ?? 0) continue;
-    if (support[pixel] ?? 0) continue;
-
-    const rowLeft = spans.rowMin[y] ?? width;
-    const rowRight = spans.rowMax[y] ?? -1;
-    const colTop = spans.colMin[x] ?? height;
-    const colBottom = spans.colMax[x] ?? -1;
-    const inRowEnvelope = rowRight >= rowLeft && x >= rowLeft - rowPad && x <= rowRight + rowPad;
-    const inColEnvelope = colBottom >= colTop && y >= colTop - colPad && y <= colBottom + colPad;
-    const interiorEnvelope = inRowEnvelope && inColEnvelope;
-
-    if (!interiorEnvelope && isBackgroundLike(original, index, model)) {
-      data[index + 3] = 0;
-      removed += 1;
-      continue;
-    }
-
-    if (!interiorEnvelope) {
-      const distance = colorDistance(original, index, model);
-      const start = clamp(model.distanceHigh + 8, 20, 90);
-      const end = clamp(start + 54, 62, 160);
-      const factor = smoothstep(start, end, distance);
-      if (factor < .16) {
-        data[index + 3] = 0;
-        removed += 1;
-      } else if (factor < .9) {
-        data[index + 3] = Math.round(alpha * factor);
-      }
-    }
+    if (x > 0) enqueue(pixel - 1, pixel);
+    if (x + 1 < width) enqueue(pixel + 1, pixel);
+    if (y > 0) enqueue(pixel - width, pixel);
+    if (y + 1 < height) enqueue(pixel + width, pixel);
   }
 
-  removeDetachedVisibleNoise(data, width, height, spans.selectedSeeds, roi, spans.count);
+  let removed = 0;
+  let originalVisible = 0;
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    const index = pixel * 4;
+    if ((original[index + 3] ?? 0) > 12) originalVisible += 1;
+    if (!(visited[pixel] ?? 0)) continue;
+    if ((data[index + 3] ?? 0) > 0) removed += 1;
+    data[index + 3] = 0;
+  }
 
-  let selectedSeedsRemaining = 0;
+  const visibleMask = new Uint8Array(total);
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    if ((data[pixel * 4 + 3] ?? 0) > 12) visibleMask[pixel] = 1;
+  }
+  const { labels, components } = labelVisibleComponents(visibleMask, strongSeeds, width, height);
+  const primary = selectLogoComponent(components.filter(component => component.seeds > 0), width, height);
+  if (!primary || primary.seeds < strongSeedCount * .94) {
+    data.set(original);
+    return false;
+  }
+
+  const margin = clamp(Math.round(Math.max(primary.right - primary.left + 1, primary.bottom - primary.top + 1) * .06), 5, 34);
+  const near = (component: ComponentStats): boolean => component.right >= primary.left - margin && component.left <= primary.right + margin && component.bottom >= primary.top - margin && component.top <= primary.bottom + margin;
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    const label = labels[pixel] ?? -1;
+    if (label < 0) continue;
+    const component = components.find(item => item.label === label);
+    if (!component) continue;
+    const keep = component.label === primary.label || (component.seeds > 0 && near(component));
+    if (!keep) data[pixel * 4 + 3] = 0;
+  }
+
+  let seedsRemaining = 0;
   let visibleRemaining = 0;
   for (let pixel = 0; pixel < total; pixel += 1) {
     if ((data[pixel * 4 + 3] ?? 0) > 12) visibleRemaining += 1;
-    if ((spans.selectedSeeds[pixel] ?? 0) && (data[pixel * 4 + 3] ?? 0) > 12) selectedSeedsRemaining += 1;
+    if ((strongSeeds[pixel] ?? 0) && (data[pixel * 4 + 3] ?? 0) > 12) seedsRemaining += 1;
   }
-
-  if (selectedSeedsRemaining < spans.count * .985) {
-    data.set(original);
-    return false;
-  }
-  if (visibleRemaining < spans.count * 1.05) {
-    data.set(original);
-    return false;
-  }
-  if (!originalVisible || removed / originalVisible < .04) {
+  if (seedsRemaining < strongSeedCount * .985 || visibleRemaining < strongSeedCount * 1.2 || !originalVisible || removed / originalVisible < .035) {
     data.set(original);
     return false;
   }
@@ -489,17 +423,11 @@ function applyFloodBackgroundRemoval(data: Uint8ClampedArray, width: number, hei
   const light = neutral && model.luma > 170;
   const dark = neutral && model.luma < 100;
   if (kind === 'stamp' && !light) return false;
-  const threshold = light
-    ? clamp(model.distanceHigh + 34, 42, 112)
-    : dark
-      ? clamp(model.distanceHigh + 28, 38, 104)
-      : clamp(model.distanceHigh + 22, 32, 88);
+  const threshold = light ? clamp(model.distanceHigh + 34, 42, 112) : dark ? clamp(model.distanceHigh + 28, 38, 104) : clamp(model.distanceHigh + 22, 32, 88);
   const enqueue = (pixel: number): void => {
-    if (pixel < 0 || pixel >= total) return;
-    if (visited[pixel] ?? 0) return;
+    if (pixel < 0 || pixel >= total || (visited[pixel] ?? 0)) return;
     const index = pixel * 4;
-    if ((data[index + 3] ?? 0) <= 8) return;
-    if (colorDistance(data, index, model) > threshold) return;
+    if ((data[index + 3] ?? 0) <= 8 || colorDistance(data, index, model) > threshold) return;
     visited[pixel] = 1;
     queue[end++] = pixel;
   };
@@ -604,7 +532,7 @@ function cropTransparentCanvas(canvas: HTMLCanvasElement, pixels: ImageData): st
     bottom = Math.max(bottom, y);
   }
   if (right < left || bottom < top) return canvas.toDataURL('image/png');
-  const padding = Math.max(4, Math.round(Math.min(width, height) * .018));
+  const padding = Math.max(5, Math.round(Math.min(width, height) * .018));
   const cropLeft = Math.max(0, left - padding);
   const cropTop = Math.max(0, top - padding);
   const cropRight = Math.min(width - 1, right + padding);
@@ -645,8 +573,9 @@ async function normalizeImage(src: string, kind: CompanyAssetKind): Promise<stri
   let changed = false;
 
   if (kind === 'logo') {
-    if (model) changed = applyChromaticLogoIsolation(pixels.data, width, height, model);
-    if (!changed && model && transparent < .55) changed = applyFloodBackgroundRemoval(pixels.data, width, height, model, kind);
+    // Never re-matte an already transparent logo. This prevents cumulative erosion
+    // when settings are opened/saved repeatedly.
+    if (transparent < .08 && model) changed = applyLogoEdgeBackgroundRemoval(pixels.data, width, height, model);
   } else if (kind === 'signature') {
     if (model && transparent < .72) changed = applySignatureMatte(pixels.data, width, height, model);
     if (!changed && model && transparent < .72) changed = applyFloodBackgroundRemoval(pixels.data, width, height, model, kind);
