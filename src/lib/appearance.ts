@@ -24,20 +24,34 @@ const AUTO_ACCENTS: Record<TemplateId,string> = {
   blackivory:'#b78a41', carbon:'#ba914d'
 };
 
-const LATIN_FONTS: Record<LatinFontId,string> = {
-  auto:'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+const LATIN_FONTS: Record<Exclude<LatinFontId,'auto'>,string> = {
   inter:'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
   'source-sans':'"Source Sans 3", "Segoe UI", Arial, sans-serif',
   montserrat:'Montserrat, Arial, sans-serif',
   playfair:'"Playfair Display", Georgia, serif'
 };
 
-const ARABIC_FONTS: Record<ArabicFontId,string> = {
-  auto:'Cairo, Tajawal, Tahoma, Arial, sans-serif',
+const ARABIC_FONTS: Record<Exclude<ArabicFontId,'auto'>,string> = {
   cairo:'Cairo, Tahoma, Arial, sans-serif',
   tajawal:'Tajawal, Tahoma, Arial, sans-serif',
   'noto-kufi':'"Noto Kufi Arabic", Tahoma, Arial, sans-serif',
   'noto-naskh':'"Noto Naskh Arabic", Tahoma, Arial, serif'
+};
+
+const AUTO_LATIN_BY_TEMPLATE: Record<TemplateId,Exclude<LatinFontId,'auto'>> = {
+  executive:'inter', minimal:'source-sans', trade:'source-sans', signature:'playfair',
+  obsidian:'montserrat', cobalt:'montserrat', editorial:'playfair', split:'inter',
+  prism:'montserrat', slate:'source-sans', horizon:'playfair', mono:'source-sans',
+  aurora:'montserrat', ledger:'source-sans', noir:'montserrat', midnight:'montserrat',
+  blackivory:'playfair', carbon:'montserrat'
+};
+
+const AUTO_ARABIC_BY_TEMPLATE: Record<TemplateId,Exclude<ArabicFontId,'auto'>> = {
+  executive:'cairo', minimal:'tajawal', trade:'tajawal', signature:'noto-naskh',
+  obsidian:'noto-kufi', cobalt:'noto-kufi', editorial:'noto-naskh', split:'cairo',
+  prism:'noto-kufi', slate:'tajawal', horizon:'noto-naskh', mono:'tajawal',
+  aurora:'noto-kufi', ledger:'tajawal', noir:'noto-kufi', midnight:'noto-kufi',
+  blackivory:'noto-naskh', carbon:'noto-kufi'
 };
 
 export function resolvedAccent(appearance:DocumentAppearance):string{
@@ -56,9 +70,13 @@ export function resolvedAccentInk(hex:string):'#ffffff'|'#101010'{
 }
 
 export function resolvedLatinFont(appearance:DocumentAppearance):string{
-  return LATIN_FONTS[appearance.latinFont??'auto'];
+  const requested=appearance.latinFont??'auto';
+  const fontId=requested==='auto'?AUTO_LATIN_BY_TEMPLATE[appearance.templateId]:requested;
+  return LATIN_FONTS[fontId];
 }
 
 export function resolvedArabicFont(appearance:DocumentAppearance):string{
-  return ARABIC_FONTS[appearance.arabicFont??'auto'];
+  const requested=appearance.arabicFont??'auto';
+  const fontId=requested==='auto'?AUTO_ARABIC_BY_TEMPLATE[appearance.templateId]:requested;
+  return ARABIC_FONTS[fontId];
 }
