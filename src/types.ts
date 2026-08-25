@@ -5,6 +5,9 @@ export type TemplateId = 'executive' | 'minimal' | 'trade' | 'signature' | 'obsi
 export type DocumentStatus = 'draft' | 'final';
 export type DiscountMode = 'fixed' | 'percent';
 export type AutoLockMinutes = 0 | 5 | 15 | 30;
+export type PaletteMode = 'auto' | 'custom';
+export type LatinFontId = 'auto' | 'inter' | 'source-sans' | 'montserrat' | 'playfair';
+export type ArabicFontId = 'auto' | 'cairo' | 'tajawal' | 'noto-kufi' | 'noto-naskh';
 
 export interface BankDetails {
   bankName: string;
@@ -132,7 +135,10 @@ export interface FinancialAdjustments {
 
 export interface DocumentAppearance {
   templateId: TemplateId;
+  paletteMode: PaletteMode;
   accentColor: string;
+  latinFont: LatinFontId;
+  arabicFont: ArabicFontId;
   showBank: boolean;
   showSignature: boolean;
   showStamp: boolean;
