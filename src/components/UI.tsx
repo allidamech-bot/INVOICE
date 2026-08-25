@@ -48,9 +48,8 @@ export function Segmented({ value, options, onChange }: { value: string; options
   return <div className="segmented">{options.map(o => <button type="button" key={o.value} className={value === o.value ? 'active' : ''} onClick={() => onChange(o.value)}>{o.label}</button>)}</div>;
 }
 
-export function Brand({ compact = false, logoDataUrl = './brand/lourex-logo.svg', language }: { compact?: boolean; logoDataUrl?: string; language?: UiLanguage }): any {
-  const subtitle = language === 'ar' ? 'استيراد • تصدير • تجارة دولية' : language === 'en' ? 'IMPORT • EXPORT • INTERNATIONAL TRADE' : t('IMPORT • EXPORT • INTERNATIONAL TRADE','استيراد • تصدير • تجارة دولية');
-  return <div className={`brand official-brand ${compact ? 'compact' : ''}`}><span className="brand-mark"><img src={logoDataUrl || './brand/lourex-logo.svg'} alt="LOUREX"/></span><span className="brand-words"><strong>LOUREX</strong>{compact ? null : <small>{subtitle}</small>}</span></div>;
+export function Brand({ compact = false, logoDataUrl = './brand/lourex-logo.svg', language: _language }: { compact?: boolean; logoDataUrl?: string; language?: UiLanguage }): any {
+  return <div className={`brand official-brand ${compact ? 'compact' : ''}`}><span className="brand-mark"><img src={logoDataUrl || './brand/lourex-logo.svg'} alt="LOUREX"/></span><span className="brand-words"><strong>LOUREX</strong></span></div>;
 }
 
 export function Toast({ text, tone = 'default' }: { text: string; tone?: 'default'|'success'|'error' }): any {
