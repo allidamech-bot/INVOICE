@@ -348,7 +348,8 @@ function applyLogoBackgroundRemoval(data:Uint8ClampedArray,width:number,height:n
   }
   if(evidenceCount<Math.max(8,total*.00008))return false;
 
-  const dilation=clamp(Math.round(Math.min(width,height)*(isDarkNeutralLogoBackground(profile)||isLightNeutralLogoBackground(profile)?.0025:.0035)),1,4);
+  const neutralTexture=isDarkNeutralLogoBackground(profile)||isLightNeutralLogoBackground(profile);
+  const dilation=clamp(Math.round(Math.min(width,height)*(neutralTexture?.0025:.0035)),1,4);
   const protect=dilateMask(protectedSeed,width,height,dilation);
   const visited=new Uint8Array(total);
   const queue=new Int32Array(total);
