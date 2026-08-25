@@ -2,7 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "git": {
-    "deploymentEnabled": false
-  }
+  "ignoreCommand": "node -e \"process.exit((process.env.VERCEL_GIT_COMMIT_MESSAGE||'').includes('[deploy]') ? 1 : 0)\""
 }
