@@ -1,0 +1,103 @@
+/* LOUREX document visual system: automatic palette, typography and asset contrast. */
+.invoice-page{
+  font-family:var(--font-latin,Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif);
+  font-synthesis:none;
+  text-rendering:optimizeLegibility;
+}
+.invoice-page [dir="rtl"],
+.invoice-page.lang-ar,
+.invoice-page.lang-ar *:not(.money-cell),
+.invoice-page .bi-label>span:last-child,
+.invoice-page .bi-value>span:last-child,
+.invoice-page .doc-title em{
+  font-family:var(--font-arabic,Cairo,Tajawal,Tahoma,Arial,sans-serif);
+}
+.invoice-page .money-cell,.invoice-page .doc-meta span,.invoice-page .grand-total strong{
+  font-variant-numeric:tabular-nums;
+}
+
+/* Auto palette keeps a deliberate accent across shared components while each template
+   retains its authored background architecture. */
+.invoice-page.palette-auto .section-kicker,
+.invoice-page.palette-auto .continued-label,
+.invoice-page.palette-auto .terms-block h3,
+.invoice-page.palette-auto .bank-block h3,
+.invoice-page.palette-auto .signature-block h3,
+.invoice-page.palette-auto .notes-block h3{
+  color:var(--accent);
+}
+.invoice-page.palette-auto .items-table .money-cell.strong{color:var(--accent)}
+.invoice-page.palette-auto .party-seller{border-color:var(--accent)}
+.invoice-page.palette-auto .template-card{border-color:var(--accent)}
+
+/* Signature / stamp presentation */
+.signature-media{
+  min-height:24mm;
+  height:auto;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:7mm;
+  padding-top:1.5mm;
+}
+.signature-media img{display:block;object-fit:contain;background:transparent;flex:0 1 auto}
+.signature-media .signature-image{max-width:49mm;max-height:22mm}
+.signature-media .stamp-image{max-width:31mm;max-height:24mm}
+
+/* Signatures are treated as ink: dark on light paper, light on fully-dark paper. */
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .signature-image{
+  filter:brightness(0) saturate(100%) contrast(1.18);
+}
+.template-noir .signature-image:not([src^="data:image/jpeg"]),
+.template-midnight .signature-image:not([src^="data:image/jpeg"]),
+.template-blackivory .signature-image:not([src^="data:image/jpeg"]),
+.template-carbon .signature-image:not([src^="data:image/jpeg"]){
+  filter:brightness(0) invert(1) contrast(1.25) drop-shadow(0 0 .25mm rgba(255,255,255,.22));
+  mix-blend-mode:normal;
+}
+.template-noir .signature-image[src^="data:image/jpeg"],
+.template-midnight .signature-image[src^="data:image/jpeg"],
+.template-blackivory .signature-image[src^="data:image/jpeg"],
+.template-carbon .signature-image[src^="data:image/jpeg"]{
+  filter:invert(1) grayscale(1) contrast(1.35) brightness(1.18);
+  mix-blend-mode:screen;
+}
+.template-noir .stamp-image,
+.template-midnight .stamp-image,
+.template-blackivory .stamp-image,
+.template-carbon .stamp-image{
+  filter:brightness(1.16) contrast(1.12) saturate(.94) drop-shadow(0 0 .3mm rgba(255,255,255,.12));
+}
+
+/* Dark-template readability guardrails. */
+.template-noir .signature-block,
+.template-midnight .signature-block,
+.template-blackivory .signature-block,
+.template-carbon .signature-block,
+.template-noir .bank-block span,
+.template-midnight .bank-block span,
+.template-blackivory .bank-block span,
+.template-carbon .bank-block span,
+.template-noir .term-row span,
+.template-midnight .term-row span,
+.template-blackivory .term-row span,
+.template-carbon .term-row span{
+  color:#f4efe7;
+}
+.template-noir .doc-footer,
+.template-midnight .doc-footer,
+.template-blackivory .doc-footer,
+.template-carbon .doc-footer{opacity:.94}
+
+/* Editor controls for the new automatic design system. */
+.appearance-system-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0 12px}
+.appearance-auto-note{min-height:44px;border:1px solid #ded8ce;border-radius:11px;background:#f5f0e8;padding:9px 11px;display:flex;align-items:center;font-size:11px;line-height:1.4;color:#66717a}
+.appearance-auto-note strong{color:#0b1d2d;margin-inline-end:5px}
+.appearance-toggles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0 14px}
+.appearance-toggles .toggle-row{min-height:44px;border:1px solid #e0dad1;border-radius:11px;background:#fffdfa;padding:8px 10px}
+@media(max-width:720px){
+  .appearance-system-grid{grid-template-columns:1fr}
+  .appearance-toggles{grid-template-columns:1fr}
+  .signature-media{gap:5mm;flex-wrap:wrap}
+  .signature-media .signature-image{max-width:46mm}
+}
