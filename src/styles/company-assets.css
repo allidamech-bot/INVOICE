@@ -1,12 +1,11 @@
 .invoice-page .official-doc-logo{display:none}
 
-/* Existing scanned JPEG signatures/stamps may already contain white paper.
-   On dark luxury templates, invert the paper to black and screen-blend it away.
-   Newly uploaded raster assets are normalized to transparent PNG by files.ts. */
-.template-noir .signature-media img[src^="data:image/jpeg"],
-.template-midnight .signature-media img[src^="data:image/jpeg"],
-.template-blackivory .signature-media img[src^="data:image/jpeg"],
-.template-carbon .signature-media img[src^="data:image/jpeg"]{
+/* Legacy scanned JPEG signatures can still carry an opaque paper background.
+   Keep this fallback signature-only so stamp colors are never inverted. */
+.template-noir .signature-media .signature-image[src^="data:image/jpeg"],
+.template-midnight .signature-media .signature-image[src^="data:image/jpeg"],
+.template-blackivory .signature-media .signature-image[src^="data:image/jpeg"],
+.template-carbon .signature-media .signature-image[src^="data:image/jpeg"]{
   filter:invert(1) hue-rotate(180deg) contrast(1.08);
   mix-blend-mode:screen;
 }
@@ -19,3 +18,21 @@
 .asset-preview img{
   background:transparent;
 }
+
+.asset-clean-hint{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:10px 0 0;
+  padding:9px 11px;
+  border:1px solid rgba(35,97,72,.14);
+  border-radius:11px;
+  background:rgba(231,241,236,.62);
+  color:#315d4c;
+  font-size:12px;
+  line-height:1.45;
+}
+.asset-clean-hint .icon{flex:0 0 auto}
+.asset-clean-hint.is-cleaning{border-color:rgba(181,139,79,.2);background:rgba(246,239,229,.82);color:#74592f}
+.asset-clean-hint.is-cleaning .icon{animation:asset-clean-spin .9s linear infinite}
+@keyframes asset-clean-spin{to{transform:rotate(360deg)}}
