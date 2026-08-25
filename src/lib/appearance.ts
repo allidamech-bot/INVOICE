@@ -58,15 +58,24 @@ export function resolvedAccent(appearance:DocumentAppearance):string{
   return (appearance.paletteMode??'auto')==='custom' && appearance.accentColor ? appearance.accentColor : AUTO_ACCENTS[appearance.templateId];
 }
 
+function linearChannel(value:number):number{
+  const channel=value/255;
+  return channel<=0.04045?channel/12.92:Math.pow((channel+0.055)/1.055,2.4);
+}
+function contrastRatio(a:number,b:number):number{
+  const lighter=Math.max(a,b),darker=Math.min(a,b);
+  return (lighter+0.05)/(darker+0.05);
+}
 export function resolvedAccentInk(hex:string):'#ffffff'|'#101010'{
   const clean=hex.replace('#','');
   const full=clean.length===3?clean.split('').map(x=>x+x).join(''):clean;
   if(!/^[0-9a-f]{6}$/i.test(full))return '#101010';
-  const r=parseInt(full.slice(0,2),16);
-  const g=parseInt(full.slice(2,4),16);
-  const b=parseInt(full.slice(4,6),16);
-  const luma=(0.2126*r)+(0.7152*g)+(0.0722*b);
-  return luma<145?'#ffffff':'#101010';
+  const r=parseInt(full.slice(0,2),16),g=parseInt(full.slice(2,4),16),b=parseInt(full.slice(4,6),16);
+  const luminance=(0.2126*linearChannel(r))+(0.7152*linearChannel(g))+(0.0722*linearChannel(b));
+  const whiteContrast=contrastRatio(1,luminance);
+  const darkLuminance=(0.2126*linearChannel(16))+(0.7152*linearChannel(16))+(0.0722*linearChannel(16));
+  const darkContrast=contrastRatio(luminance,darkLuminance);
+  return whiteContrast>=darkContrast?'#ffffff':'#101010';
 }
 
 export function resolvedLatinFont(appearance:DocumentAppearance):string{
