@@ -14,21 +14,21 @@ export function Icon({ name, size = 18, className = '' }: { name: IconName; size
   return <svg className={`icon ${className}`} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
-export function Button({ children, icon, variant = 'secondary', className = '', ...rest }: any): any {
-  return <button className={`btn btn-${variant} ${className}`} {...rest}>{icon ? <Icon name={icon}/> : null}<span>{children}</span></button>;
+export function Button({ children, icon, variant = 'secondary', className = '', type = 'button', ...rest }: any): any {
+  return <button type={type} className={`btn btn-${variant} ${className}`} {...rest}>{icon ? <Icon name={icon}/> : null}<span>{children}</span></button>;
 }
 
-export function IconButton({ icon, label, variant = 'ghost', ...rest }: any): any {
-  return <button className={`icon-btn icon-btn-${variant}`} aria-label={label} title={label} {...rest}><Icon name={icon}/></button>;
+export function IconButton({ icon, label, variant = 'ghost', className = '', type = 'button', ...rest }: any): any {
+  return <button type={type} className={`icon-btn icon-btn-${variant} ${className}`} aria-label={label} title={label} {...rest}><Icon name={icon}/></button>;
 }
 
 export function Field({ label, error, hint, children, className = '' }: { label: any; error?: string; hint?: string; children: any; className?: string }): any {
   return <label className={`field ${className}`}><span className="field-label">{label}</span>{children}{error ? <span className="field-error">{error}</span> : hint ? <span className="field-hint">{hint}</span> : null}</label>;
 }
 
-export function Input(props: any): any { return <input className={`input ${props.className ?? ''}`} {...props}/>; }
-export function Select(props: any): any { return <select className={`input select ${props.className ?? ''}`} {...props}/>; }
-export function Textarea(props: any): any { return <textarea className={`input textarea ${props.className ?? ''}`} {...props}/>; }
+export function Input({ className = '', ...props }: any): any { return <input className={`input ${className}`} {...props}/>; }
+export function Select({ className = '', ...props }: any): any { return <select className={`input select ${className}`} {...props}/>; }
+export function Textarea({ className = '', ...props }: any): any { return <textarea className={`input textarea ${className}`} {...props}/>; }
 
 export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: any }): any {
   return <label className="toggle-row"><button type="button" role="switch" aria-checked={checked} className={`toggle ${checked ? 'on' : ''}`} onClick={() => onChange(!checked)}><span/></button><span>{label}</span></label>;
@@ -45,7 +45,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel, destructive 
 }
 
 export function Segmented({ value, options, onChange }: { value: string; options: Array<{value:string;label:string}>; onChange: (value: string) => void }): any {
-  return <div className="segmented">{options.map(o => <button type="button" key={o.value} className={value === o.value ? 'active' : ''} onClick={() => onChange(o.value)}>{o.label}</button>)}</div>;
+  return <div className="segmented">{options.map(o => <button type="button" key={o.value} aria-pressed={value === o.value} className={value === o.value ? 'active' : ''} onClick={() => onChange(o.value)}>{o.label}</button>)}</div>;
 }
 
 export function Brand({ compact = false, logoDataUrl = './brand/lourex-logo.svg', name = '', language: _language }: { compact?: boolean; logoDataUrl?: string; name?: string; language?: UiLanguage }): any {
@@ -58,5 +58,5 @@ export function Brand({ compact = false, logoDataUrl = './brand/lourex-logo.svg'
 
 export function Toast({ text, tone = 'default' }: { text: string; tone?: 'default'|'success'|'error' }): any {
   if (!text) return null;
-  return <div className={`toast toast-${tone}`} role="status">{tone === 'success' ? <Icon name="check"/> : null}<span>{text}</span></div>;
+  return <div className={`toast toast-${tone}`} role="status" aria-live="polite">{tone === 'success' ? <Icon name="check"/> : null}<span>{text}</span></div>;
 }
