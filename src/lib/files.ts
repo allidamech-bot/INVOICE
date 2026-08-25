@@ -135,6 +135,16 @@ function edgeThreshold(model:BackgroundModel,kind:CompanyAssetKind):number{
   return clamp(model.spread*1.85+18,32,76);
 }
 
+function logoEdgeThreshold(model:BackgroundModel):number{
+  // Logos contain fine light/dark details that can resemble their background.
+  // Only remove a strongly dominant, mostly neutral border background, and use
+  // a much tighter threshold than signature/stamp cleanup.
+  if(model.dominance<.62||model.saturation>.28)return 0;
+  if(model.luma>176)return clamp(model.spread*1.35+16,28,58);
+  if(model.luma<104)return clamp(model.spread*1.25+16,26,54);
+  return clamp(model.spread*1.15+14,24,46);
+}
+
 function applyEdgeBackgroundRemoval(data:Uint8ClampedArray,width:number,height:number,model:BackgroundModel,kind:CompanyAssetKind):boolean{
   if(model.dominance<.43)return false;
   const threshold=edgeThreshold(model,kind);
@@ -172,6 +182,66 @@ function applyEdgeBackgroundRemoval(data:Uint8ClampedArray,width:number,height:n
     if(y+1<height)enqueue(pixel+width);
   }
   return changed>Math.max(12,total*.004);
+}
+
+function applyLogoBackgroundRemoval(data:Uint8ClampedArray,width:number,height:number,model:BackgroundModel):boolean{
+  const threshold=logoEdgeThreshold(model);
+  if(threshold<=0)return false;
+  const original=new Uint8ClampedArray(data);
+  const total=width*height;
+  const visited=new Uint8Array(total);
+  const queue=new Int32Array(total);
+  let start=0,end=0;
+  const enqueue=(pixel:number):void=>{
+    if(pixel<0||pixel>=total||visited[pixel])return;
+    const index=pixel*4;
+    if((data[index+3]??0)<=8)return;
+    if(colorDistance(data,index,model)>threshold)return;
+    visited[pixel]=1;
+    queue[end++]=pixel;
+  };
+  for(let x=0;x<width;x+=1){enqueue(x);if(height>1)enqueue((height-1)*width+x);}
+  for(let y=1;y<height-1;y+=1){enqueue(y*width);if(width>1)enqueue(y*width+width-1);}
+
+  const clearUntil=threshold*.72;
+  let changed=0;
+  while(start<end){
+    const pixel=queue[start++]!;
+    const x=pixel%width;
+    const y=Math.floor(pixel/width);
+    const index=pixel*4;
+    const originalAlpha=data[index+3]??0;
+    const distance=colorDistance(data,index,model);
+    const alpha=Math.round(originalAlpha*smoothstep(clearUntil,threshold,distance));
+    if(alpha<originalAlpha-2)changed+=1;
+    data[index+3]=alpha;
+    if(x>0)enqueue(pixel-1);
+    if(x+1<width)enqueue(pixel+1);
+    if(y>0)enqueue(pixel-width);
+    if(y+1<height)enqueue(pixel+width);
+  }
+
+  if(changed<Math.max(12,total*.003))return false;
+
+  // Safety gate: if the removal touched pixels that are clearly logo artwork
+  // (far from the modeled background or materially more saturated), reject the
+  // cleanup and keep the original image intact.
+  let evidence=0;
+  let damagedEvidence=0;
+  for(let index=0;index<data.length;index+=4){
+    const originalAlpha=original[index+3]??0;
+    if(originalAlpha<=12)continue;
+    const red=original[index]??0,green=original[index+1]??0,blue=original[index+2]??0;
+    const distance=colorDistance(original,index,model);
+    const saturation=pixelSaturation(red,green,blue);
+    const isArtwork=distance>threshold*1.45||saturation>model.saturation+.18;
+    if(!isArtwork)continue;
+    evidence+=1;
+    if((data[index+3]??0)<originalAlpha*.82)damagedEvidence+=1;
+  }
+  if(evidence>24&&damagedEvidence/evidence>.012){data.set(original);return false;}
+
+  return true;
 }
 
 function cropTransparentCanvas(canvas:HTMLCanvasElement,pixels:ImageData):string{
@@ -230,7 +300,8 @@ async function normalizeImage(src:string,kind:CompanyAssetKind):Promise<string>{
   let changed=false;
   if(!alreadyTransparent){
     if(kind==='signature')changed=applySignatureMatte(pixels.data,width,height,model);
-    if(!changed)changed=applyEdgeBackgroundRemoval(pixels.data,width,height,model,kind);
+    else if(kind==='logo')changed=applyLogoBackgroundRemoval(pixels.data,width,height,model);
+    else changed=applyEdgeBackgroundRemoval(pixels.data,width,height,model,kind);
   }
   if(changed)context.putImageData(pixels,0,0);
   return cropTransparentCanvas(canvas,pixels);
@@ -241,9 +312,13 @@ export async function cleanImageDataUrl(src:string,kind:CompanyAssetKind='generi
   try{return await normalizeImage(src,kind);}catch{return src;}
 }
 
-export async function fileToDataUrl(file:File,maxBytes=4*1024*1024,kind:CompanyAssetKind='generic'):Promise<string>{
+export async function fileToRawDataUrl(file:File,maxBytes=4*1024*1024):Promise<string>{
   if(file.size>maxBytes)throw new Error('Image is too large. Please use a file smaller than 4 MB.');
   if(!/^image\/(png|webp|jpeg|svg\+xml)$/i.test(file.type))throw new Error('Use PNG, WebP, JPEG, or SVG image files.');
-  const src=await readFileAsDataUrl(file);
+  return readFileAsDataUrl(file);
+}
+
+export async function fileToDataUrl(file:File,maxBytes=4*1024*1024,kind:CompanyAssetKind='generic'):Promise<string>{
+  const src=await fileToRawDataUrl(file,maxBytes);
   return cleanImageDataUrl(src,kind);
 }

@@ -19,6 +19,35 @@
   background:transparent;
 }
 
+.asset-control{min-width:0;display:flex;flex-direction:column;gap:8px}
+.asset-control>label{min-width:0}
+.logo-mode-switch{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:4px;
+  padding:4px;
+  border:1px solid rgba(11,29,45,.09);
+  border-radius:10px;
+  background:rgba(11,29,45,.035);
+}
+.logo-mode-switch button{
+  min-height:34px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:#596570;
+  font:inherit;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+}
+.logo-mode-switch button.active{
+  background:#fff;
+  color:#0b1d2d;
+  box-shadow:0 1px 4px rgba(11,29,45,.09);
+}
+.logo-mode-switch button:focus-visible{outline:2px solid rgba(181,139,79,.52);outline-offset:1px}
+
 .asset-clean-hint{
   display:flex;
   align-items:center;
