@@ -20,7 +20,22 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   migrated.appSettings = { ...emptyVault().appSettings, ...(vault.appSettings ?? {}), numbering: { ...emptyVault().appSettings.numbering, ...(vault.appSettings?.numbering ?? {}) } };
   if (sourceVersion < 2) migrated.appSettings.autoLockMinutes = 0;
   migrated.customers = Array.isArray(vault.customers) ? vault.customers : [];
-  migrated.documents = Array.isArray(vault.documents) ? vault.documents : [];
+  migrated.documents = Array.isArray(vault.documents) ? vault.documents.map(document => ({
+    ...document,
+    appearance: {
+      paletteMode:'auto',
+      accentColor:'#b58b4f',
+      latinFont:'auto',
+      arabicFont:'auto',
+      showBank:true,
+      showSignature:Boolean(document.companySnapshot?.signatureDataUrl),
+      showStamp:Boolean(document.companySnapshot?.stampDataUrl),
+      showHsCode:true,
+      showOrigin:true,
+      showPacking:false,
+      ...(document.appearance ?? {})
+    }
+  })) : [];
   const unique = (values: string[], label: string): void => {
     const seen = new Set<string>();
     for (const id of values) {
