@@ -13,10 +13,12 @@ export async function setupVault(pin: string, initial: VaultPayload = emptyVault
 
 export function migrateVault(vault: VaultPayload): VaultPayload {
   if (!vault || typeof vault !== 'object') throw new Error('Local data is corrupted.');
-  if ((vault.schemaVersion ?? 0) > APP_SCHEMA_VERSION) throw new Error('This data was created by a newer LOUREX Invoice version.');
+  const sourceVersion = vault.schemaVersion ?? 0;
+  if (sourceVersion > APP_SCHEMA_VERSION) throw new Error('This data was created by a newer LOUREX Invoice version.');
   const migrated = { ...emptyVault(), ...vault, schemaVersion: APP_SCHEMA_VERSION } as VaultPayload;
   migrated.company = { ...emptyVault().company, ...(vault.company ?? {}) };
   migrated.appSettings = { ...emptyVault().appSettings, ...(vault.appSettings ?? {}), numbering: { ...emptyVault().appSettings.numbering, ...(vault.appSettings?.numbering ?? {}) } };
+  if (sourceVersion < 2) migrated.appSettings.autoLockMinutes = 0;
   migrated.customers = Array.isArray(vault.customers) ? vault.customers : [];
   migrated.documents = Array.isArray(vault.documents) ? vault.documents : [];
   const unique = (values: string[], label: string): void => {

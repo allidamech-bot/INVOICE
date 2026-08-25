@@ -1,6 +1,6 @@
 import type { AppSettings, CompanySettings, CustomerSnapshot, CompanySnapshot, VaultPayload } from '../types.js';
 
-export const APP_SCHEMA_VERSION = 1;
+export const APP_SCHEMA_VERSION = 2;
 export const KDF_ITERATIONS = 310_000;
 
 export function defaultCompany(): CompanySettings {
@@ -16,7 +16,7 @@ export function defaultCompany(): CompanySettings {
 }
 
 export function defaultAppSettings(): AppSettings {
-  return { autoLockMinutes: 15, uiLanguage: 'en', numbering: { proformaPrefix: 'PI', invoicePrefix: 'INV', proformaLast: 0, invoiceLast: 0, proformaYear: new Date().getFullYear(), invoiceYear: new Date().getFullYear() } };
+  return { autoLockMinutes: 0, uiLanguage: 'en', numbering: { proformaPrefix: 'PI', invoicePrefix: 'INV', proformaLast: 0, invoiceLast: 0, proformaYear: new Date().getFullYear(), invoiceYear: new Date().getFullYear() } };
 }
 
 export function emptyVault(): VaultPayload {

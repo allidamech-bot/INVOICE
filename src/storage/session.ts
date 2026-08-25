@@ -14,10 +14,9 @@ function randomToken(): string {
   return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
 }
 
-function readMarker(): SessionMarker | null {
+function parseMarker(raw: string | null): SessionMarker | null {
+  if (!raw) return null;
   try {
-    const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (!raw) return null;
     const marker = JSON.parse(raw) as SessionMarker;
     if (!marker?.token || !Number.isFinite(marker.lastActivity)) return null;
     return marker;
@@ -26,8 +25,25 @@ function readMarker(): SessionMarker | null {
   }
 }
 
+function readMarker(): SessionMarker | null {
+  try {
+    const persistent = parseMarker(localStorage.getItem(SESSION_STORAGE_KEY));
+    if (persistent) return persistent;
+    const legacy = parseMarker(sessionStorage.getItem(SESSION_STORAGE_KEY));
+    if (legacy) {
+      try { localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(legacy)); } catch { /* best effort */ }
+      try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* best effort */ }
+      return legacy;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function writeMarker(marker: SessionMarker): void {
-  try { sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(marker)); } catch { /* session persistence is best effort */ }
+  try { localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(marker)); } catch { /* persistence is best effort */ }
+  try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* legacy cleanup is best effort */ }
 }
 
 export function isSessionExpired(lastActivity: number, autoLockMinutes: AutoLockMinutes, now = Date.now()): boolean {
@@ -48,6 +64,7 @@ export async function establishSession(key: CryptoKey): Promise<boolean> {
     writeMarker(marker);
     return true;
   } catch {
+    try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* no-op */ }
     try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* no-op */ }
     return false;
   }
@@ -76,6 +93,7 @@ export async function getSessionKey(): Promise<{ key: CryptoKey; lastActivity: n
 }
 
 export async function clearSession(): Promise<void> {
+  try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* no-op */ }
   try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* no-op */ }
   try { await deleteRecord('session-key'); } catch { /* no-op */ }
 }

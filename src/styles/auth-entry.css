@@ -1,10 +1,95 @@
-/* LOUREX Invoice — cloud-first account entry */
+/* LOUREX — account entry and launch experience */
 .auth-shell>.auth-cloud-launcher{display:none!important}
-.welcome-card{width:min(100%,560px);padding:34px 38px 30px}
+
+/* Launch screen */
+.loading-screen{
+  position:relative;
+  min-height:100vh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:24px;
+  padding:32px;
+  background:
+    radial-gradient(circle at 50% 38%,rgba(212,181,121,.14),transparent 28%),
+    radial-gradient(circle at 12% 14%,rgba(69,103,128,.14),transparent 30%),
+    linear-gradient(145deg,#071522 0%,#0a1c2a 52%,#10283a 100%);
+  color:#fff;
+}
+.loading-screen:before,.loading-screen:after{
+  content:"";
+  position:absolute;
+  width:420px;
+  height:420px;
+  border:1px solid rgba(212,181,121,.08);
+  border-radius:50%;
+  pointer-events:none;
+}
+.loading-screen:before{transform:translate(-36%,-38%);top:0;left:0}
+.loading-screen:after{transform:translate(40%,42%);right:0;bottom:0}
+.loading-screen .brand{
+  position:relative;
+  z-index:1;
+  flex-direction:column;
+  gap:16px;
+  text-align:center;
+  animation:lourexLaunchIn .45s ease-out both;
+}
+.loading-screen .brand-mark{
+  display:grid;
+  place-items:center;
+  width:118px;
+  height:118px;
+  border-radius:28px;
+  box-shadow:0 22px 65px rgba(0,0,0,.34),0 0 0 1px rgba(255,255,255,.07);
+}
+.loading-screen .brand-mark img{width:118px;height:118px;border-radius:28px}
+.loading-screen .brand-words strong{
+  color:#f8f4ea;
+  font-size:21px;
+  letter-spacing:.28em;
+  padding-left:.28em;
+  font-weight:760;
+}
+.loading-screen .loading-line{
+  position:relative;
+  z-index:1;
+  width:126px;
+  height:3px;
+  overflow:hidden;
+  border-radius:99px;
+  background:rgba(255,255,255,.1);
+}
+.loading-screen .loading-line:after{
+  content:"";
+  position:absolute;
+  inset:0 auto 0 0;
+  width:46%;
+  border-radius:inherit;
+  background:linear-gradient(90deg,#9b7139,#e3c98e,#9b7139);
+  animation:lourexLoading 1.05s ease-in-out infinite;
+}
+@keyframes lourexLoading{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
+@keyframes lourexLaunchIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+
+/* Account entry */
+.auth-page{
+  background:
+    radial-gradient(circle at 18% 12%,rgba(185,139,70,.12),transparent 28%),
+    radial-gradient(circle at 84% 80%,rgba(24,56,79,.09),transparent 32%),
+    linear-gradient(145deg,#f9f7f2,#eee8de);
+}
+.welcome-card{width:min(100%,560px);padding:36px 40px 30px}
 .welcome-card .brand{margin-bottom:14px}
+.welcome-card .brand-mark img{width:72px;height:72px;border-radius:18px;box-shadow:0 12px 30px rgba(7,21,34,.13)}
+.welcome-card .brand-words strong{font-size:18px;letter-spacing:.22em;padding-left:.22em}
 .welcome-card h1{margin:4px 0 8px;font-size:31px;line-height:1.08}
 .welcome-card>.subtle{margin:0 0 22px;line-height:1.6;color:#68737c}
-.account-first-card{width:min(100%,560px)}
+.account-first-card{width:min(100%,560px);border:1px solid rgba(11,29,45,.1);box-shadow:0 26px 70px rgba(7,21,34,.13)}
+.system-login-card{position:relative;overflow:hidden}
+.system-login-card:before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#173b55,#d4b579,#8e3028)}
 .account-entry-tabs{display:grid;grid-template-columns:1fr 1fr;margin:0 0 18px;border-radius:13px;background:#f1eee8;padding:4px}
 .account-entry-tabs button{min-height:40px;border:0;border-radius:10px;background:transparent;color:#6b747c;font:inherit;font-size:12.5px;font-weight:760;cursor:pointer}
 .account-entry-tabs button.active{background:#fff;color:#0b1d2d;box-shadow:0 2px 8px rgba(7,21,34,.08)}
@@ -18,8 +103,12 @@
 .auth-inline-cloud{margin-top:10px;border:0;background:transparent;color:#69747c;text-decoration:underline;text-underline-offset:3px;font-size:11px;font-weight:650;cursor:pointer;align-self:center}
 .auth-inline-cloud:hover{color:#0b1d2d}
 [dir="rtl"] .setup-account-badge{direction:rtl}
+
 @media(max-width:720px){
-  .welcome-card,.account-first-card{width:min(100%,520px);padding:28px 22px 24px}
+  .loading-screen{padding:24px}
+  .loading-screen .brand-mark,.loading-screen .brand-mark img{width:104px;height:104px;border-radius:25px}
+  .loading-screen .brand-words strong{font-size:19px}
+  .welcome-card,.account-first-card{width:min(100%,520px);padding:29px 22px 24px}
   .welcome-card h1{font-size:27px}
   .account-entry-tabs button{min-height:42px}
   .setup-account-badge{align-items:flex-start;flex-direction:column}

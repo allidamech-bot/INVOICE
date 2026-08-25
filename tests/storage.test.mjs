@@ -43,9 +43,9 @@ function installIndexedDbFake() {
   };
 }
 
-function installSessionStorageFake() {
+function makeStorageFake() {
   const values = new Map();
-  globalThis.sessionStorage = {
+  return {
     getItem(key) { return values.has(key) ? values.get(key) : null; },
     setItem(key, value) { values.set(key, String(value)); },
     removeItem(key) { values.delete(key); },
@@ -56,7 +56,8 @@ function installSessionStorageFake() {
 }
 
 installIndexedDbFake();
-installSessionStorageFake();
+globalThis.sessionStorage = makeStorageFake();
+globalThis.localStorage = makeStorageFake();
 const { emptyVault } = await import('../dist/src/lib/defaults.js');
 const { setupVault, unlockVault, saveVault, resumeVaultSession } = await import('../dist/src/storage/vault.js');
 const { clearDatabase, hasSecurity, getEncryptedVault } = await import('../dist/src/storage/db.js');
@@ -65,6 +66,7 @@ const { clearSession, establishSession, getSessionKey, isSessionExpired, touchSe
 test('encrypted IndexedDB layer persists data across lock/reload-style unlocks', async () => {
   await clearDatabase();
   sessionStorage.clear();
+  localStorage.clear();
   assert.equal(await hasSecurity(), false);
   const initial = emptyVault();
   const setup = await setupVault('2468', initial);
@@ -85,22 +87,28 @@ test('encrypted IndexedDB layer persists data across lock/reload-style unlocks',
   assert.equal(await hasSecurity(), false);
 });
 
-test('active tab session resumes the encrypted vault after a refresh', async () => {
+test('trusted device session resumes the encrypted vault across browser sessions', async () => {
   await clearDatabase();
   sessionStorage.clear();
+  localStorage.clear();
   const setup = await setupVault('8642', emptyVault());
   const next = structuredClone(setup.vault);
   next.company.nameEn = 'LOUREX TEST';
   await saveVault(setup.key, next);
   assert.equal(await establishSession(setup.key), true);
+  assert.ok(localStorage.getItem('lourex-invoice-session-v1'));
+  assert.equal(sessionStorage.getItem('lourex-invoice-session-v1'), null);
   assert.ok((await getSessionKey())?.key);
   const resumed = await resumeVaultSession();
   assert.ok(resumed);
   assert.equal(resumed.vault.company.nameEn, 'LOUREX TEST');
+  assert.equal(resumed.vault.appSettings.autoLockMinutes, 0);
   touchSession(10_000);
+  assert.equal(isSessionExpired(10_000, 0, 10_000 + 365 * 24 * 60 * 60_000), false);
   assert.equal(isSessionExpired(10_000, 15, 10_000 + 14 * 60_000), false);
   assert.equal(isSessionExpired(10_000, 15, 10_000 + 15 * 60_000), true);
   await clearSession();
+  assert.equal(localStorage.getItem('lourex-invoice-session-v1'), null);
   assert.equal(await resumeVaultSession(), null);
   await clearDatabase();
 });
