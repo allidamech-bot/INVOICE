@@ -1,0 +1,215 @@
+/* LOUREX — final experience layer. Loaded last on purpose. */
+:root{
+  --ux-bg:#f6f2ea;
+  --ux-surface:#fffdf9;
+  --ux-surface-strong:#ffffff;
+  --ux-ink:#16232d;
+  --ux-muted:#65717a;
+  --ux-line:#d9d2c7;
+  --ux-gold:#b58b4f;
+  --ux-navy:#0b1d2d;
+  --ux-shadow:0 14px 38px rgba(7,21,34,.075);
+  --ux-shadow-hover:0 20px 48px rgba(7,21,34,.11);
+}
+
+/* ---------- Application shell ---------- */
+.app-ui{background:radial-gradient(circle at 50% -8%,rgba(255,255,255,.9),transparent 34%),var(--ux-bg);color:var(--ux-ink)}
+.app-ui .app-header{border-bottom-color:rgba(11,29,45,.075);box-shadow:0 1px 0 rgba(255,255,255,.75)}
+.app-ui .main-content{max-width:1220px}
+.app-ui .page-heading{margin-bottom:22px}
+.app-ui .documents-heading{align-items:flex-start}
+.app-ui .page-heading h1{color:var(--ux-navy);font-weight:760}
+.app-ui .page-subtitle{margin:7px 0 0;max-width:560px;color:var(--ux-muted);font-size:13px;line-height:1.55}
+.app-ui .eyebrow{color:#98713b}
+.app-ui .btn{font-weight:720}
+.app-ui .btn-primary{background:linear-gradient(180deg,#10283a,#0b1d2d);border-color:#0b1d2d}
+.app-ui .btn-primary:hover:not(:disabled){background:linear-gradient(180deg,#153247,#0b1d2d)}
+.app-ui .input,.app-ui select.input,.app-ui textarea.input{color:#1a2731}
+.app-ui .input::placeholder{color:#90979c}
+.app-ui .field-label{color:#4f5e69}
+
+/* One clear creation entry point in the header; content area stays calm. */
+.app-ui .documents-heading .heading-actions{display:none!important}
+.app-ui .new-doc-menu>.btn{box-shadow:0 7px 18px rgba(11,29,45,.13)}
+.app-ui .new-menu{width:276px;padding:7px}
+.app-ui .new-menu button{min-height:54px;padding:10px 12px}
+.app-ui .new-menu button+button{margin-top:3px}
+.app-ui .new-menu button strong{font-size:13px;color:var(--ux-navy)}
+.app-ui .new-menu button small{font-size:11px;line-height:1.35}
+
+/* ---------- Documents workspace ---------- */
+.app-ui .documents-toolbar{padding:9px 10px;border-color:rgba(11,29,45,.07);background:rgba(255,253,249,.72);box-shadow:0 5px 18px rgba(7,21,34,.035)}
+.app-ui .documents-toolbar .segmented{background:#ebe5db}
+.app-ui .documents-toolbar .segmented button{font-weight:720;color:#66727b}
+.app-ui .documents-toolbar .segmented button.active{color:#0b1d2d;background:#fff;box-shadow:0 3px 12px rgba(7,21,34,.075)}
+.app-ui .document-list{gap:11px}
+.app-ui .document-card{min-height:82px;padding:5px 8px;border:1px solid #ddd6cb;border-radius:16px;background:rgba(255,253,249,.94);box-shadow:0 2px 8px rgba(7,21,34,.025);transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.app-ui .document-card:hover{border-color:#c9bdad;box-shadow:var(--ux-shadow-hover)}
+.app-ui .document-main{grid-template-columns:52px minmax(0,1fr) auto;gap:13px;padding:10px 9px}
+.app-ui .document-type-icon{width:44px;height:44px;border-radius:13px;background:#f0e5d4;color:#8d6732}
+.app-ui .document-card.document-invoice .document-type-icon{background:#e7eef3;color:#244c65}
+.app-ui .document-info{gap:4px}
+.app-ui .document-info-top{display:flex;align-items:center;gap:8px;min-width:0}
+.app-ui .document-info-top>strong{font-size:14px;line-height:1.2;color:#0b1d2d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-ui .document-kind-pill,.app-ui .document-status-pill{display:inline-flex;align-items:center;justify-content:center;width:max-content;border-radius:999px;font-size:9.5px;font-weight:800;line-height:1;white-space:nowrap}
+.app-ui .document-kind-pill{padding:5px 7px;background:#f2e8d9;color:#845f2d}
+.app-ui .document-kind-pill.kind-invoice{background:#e7eef3;color:#28516a}
+.app-ui .document-status-pill{padding:5px 8px;background:#f0ede7;color:#6c747a}
+.app-ui .document-status-pill.status-final{background:#e7f1ec;color:#286148}
+.app-ui .document-info b{font-size:12.5px;font-weight:670;color:#37444e}
+.app-ui .document-info small{color:#788188}
+.app-ui .document-total{min-width:122px;align-items:flex-end;gap:6px}
+.app-ui .document-total strong{font-size:14px;font-weight:800;color:#0b1d2d}
+.app-ui .document-actions{gap:2px}
+.app-ui .document-actions .btn-ghost{padding-inline:11px}
+.app-ui .action-menu{min-width:178px}
+.app-ui .action-menu button{font-weight:650;color:#34434e}
+.app-ui .action-menu button.danger{color:#9f3b32}
+
+.app-ui .documents-empty{min-height:360px;border-style:solid;border-color:rgba(11,29,45,.09);background:linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,253,249,.42));box-shadow:inset 0 1px 0 rgba(255,255,255,.85)}
+.app-ui .documents-empty .empty-mark{background:linear-gradient(145deg,#efe6d8,#e7ddce);color:#856331}
+.app-ui .documents-empty h2{font-size:20px;margin-top:17px}
+.app-ui .documents-empty p{margin:6px 0 19px;max-width:500px}
+.app-ui .empty-actions{display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap}
+.app-ui .empty-actions .btn{min-width:150px}
+
+/* ---------- Editor ergonomics ---------- */
+.app-ui .editor-topbar{border-bottom-color:#d7d0c6;box-shadow:0 5px 20px rgba(7,21,34,.045)}
+.app-ui .editor-top-left strong{font-weight:800;color:#0b1d2d}
+.app-ui .editor-top-left span{color:#6a747c}
+.app-ui .editor-pane{background:#f6f2eb}
+.app-ui .editor-scroll{padding-top:18px}
+.app-ui .editor-section{border-color:#ddd6cb;background:rgba(255,253,249,.975);box-shadow:0 5px 18px rgba(7,21,34,.035)}
+.app-ui .section-heading span{color:#8b6632;background:#f2e9dd}
+.app-ui .section-heading h2{font-weight:780}
+.app-ui .selected-customer{border:1px solid #e2d9cc;background:#f6f0e7}
+.app-ui .item-card{border-color:#ddd6cb;background:#fff}
+.app-ui .item-card header,.app-ui .item-card footer{background:#f4efe7}
+.app-ui .item-card footer strong,.app-ui .editor-totals strong{font-variant-numeric:tabular-nums}
+.app-ui .editor-totals .grand{font-size:15px;font-weight:800}
+.app-ui .appearance-auto-note{border-color:#ded4c5;background:#f6efe5;color:#596770}
+.app-ui .appearance-auto-note strong{color:#0b1d2d}
+.app-ui .appearance-toggles .toggle-row{border-color:#ded6ca;background:#fff}
+.app-ui .template-card{transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease}
+.app-ui .template-card:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(7,21,34,.07)}
+.app-ui .preview-toolbar{color:#4e5d68;background:#f2efe9}
+.app-ui .preview-stage{background:linear-gradient(180deg,#ddd8cf,#d5d0c7)}
+
+/* ---------- A4 document legibility and composition ---------- */
+.invoice-page{
+  font-size:10.35px;
+  line-height:1.48;
+  letter-spacing:0;
+  text-rendering:geometricPrecision;
+}
+.invoice-page .doc-body{display:flex;flex-direction:column;padding-bottom:15mm}
+.invoice-page:not(.details-only) .final-details{margin-top:auto;padding-top:6.5mm}
+.invoice-page.details-only .final-details{margin-top:0;padding-top:3mm}
+.invoice-page .doc-title{min-width:0}
+.invoice-page .doc-title span{line-height:1.04}
+.invoice-page .doc-title .doc-title-primary-ar{font-family:var(--font-arabic,Cairo,Tajawal,Tahoma,Arial,sans-serif);font-weight:800;letter-spacing:0!important;text-transform:none!important;line-height:1.35}
+.invoice-page .bi-label,.invoice-page .bi-value{display:inline-flex;flex-wrap:wrap;column-gap:1.8mm;row-gap:.6mm;max-width:100%}
+.invoice-page .party-block{line-height:1.5;overflow-wrap:anywhere}
+.invoice-page .party-name{font-size:12.4px;line-height:1.32;margin-bottom:1.4mm}
+.invoice-page .party-address,.invoice-page .party-tax{line-height:1.48}
+.invoice-page .section-kicker{font-size:7.15px;line-height:1.25;margin-bottom:2mm}
+.invoice-page .doc-meta>div{min-width:0}
+.invoice-page .doc-meta b{font-size:7.35px;line-height:1.25}
+.invoice-page .doc-meta span{font-size:8.2px;line-height:1.3;overflow-wrap:anywhere}
+.invoice-page .items-wrap{width:100%;min-width:0}
+.invoice-page .items-table{width:100%;max-width:100%}
+.invoice-page .items-table th{font-size:7.15px;line-height:1.25;vertical-align:middle}
+.invoice-page .items-table td{font-size:8.15px;line-height:1.42;overflow-wrap:anywhere;word-break:normal}
+.invoice-page .items-table .money-cell{overflow-wrap:normal;word-break:normal}
+.invoice-page .description-cell{line-height:1.5}
+.invoice-page .terms-block h3,.invoice-page .bank-block h3,.invoice-page .signature-block h3,.invoice-page .notes-block h3{font-size:8.15px;line-height:1.25}
+.invoice-page .term-row{align-items:baseline;min-width:0}
+.invoice-page .term-row b{font-size:6.9px;line-height:1.35}
+.invoice-page .term-row>span{font-size:7.7px;line-height:1.42;overflow-wrap:anywhere;min-width:0}
+.invoice-page .bank-block>div{min-width:0;align-items:baseline}
+.invoice-page .bank-block b{font-size:6.9px;line-height:1.35}
+.invoice-page .bank-block>div>span{font-size:7.6px;line-height:1.4;overflow-wrap:anywhere;word-break:break-word;min-width:0}
+.invoice-page .notes-block p{font-size:7.8px;line-height:1.5}
+.invoice-page .total-row span,.invoice-page .total-row strong{font-size:8px;line-height:1.3}
+.invoice-page .grand-total span,.invoice-page .grand-total strong{font-size:11.2px;line-height:1.25}
+.invoice-page .doc-footer{font-size:6.7px;line-height:1.3}
+.invoice-page .signature-media{min-height:25mm;align-items:center;gap:6mm}
+.invoice-page .signature-media .signature-image{max-width:50mm;max-height:22mm}
+.invoice-page .signature-media .stamp-image{max-width:31mm;max-height:24mm}
+
+/* Light-page contrast floor. */
+.invoice-page.document-tone-light{color:#1b2831}
+.invoice-page.document-tone-light .party-block{color:#25333d}
+.invoice-page.document-tone-light .party-address,.invoice-page.document-tone-light .party-tax,.invoice-page.document-tone-light .notes-block p{color:#52606a}
+.invoice-page.document-tone-light .term-row>span,.invoice-page.document-tone-light .bank-block>div>span{color:#283640}
+.invoice-page.document-tone-light .doc-footer{color:#69747c}
+.invoice-page.document-tone-light .items-table td{color:#24323c}
+.invoice-page.document-tone-light .total-row strong{color:#24313a}
+
+/* Fully dark templates: every shared semantic area gets a guaranteed readable foreground. */
+.invoice-page.document-tone-dark{--dark-ink:#f5f1e9;--dark-muted:#c8bfaf;--dark-soft:#afa38f;color:var(--dark-ink)}
+.invoice-page.document-tone-dark .party-seller,.invoice-page.document-tone-dark .terms-block,.invoice-page.document-tone-dark .bank-block,.invoice-page.document-tone-dark .signature-block,.invoice-page.document-tone-dark .notes-block{color:var(--dark-ink)}
+.invoice-page.document-tone-dark .party-seller .party-name{color:#fff}
+.invoice-page.document-tone-dark .party-seller .party-address,.invoice-page.document-tone-dark .party-seller .party-tax{color:var(--dark-muted);opacity:1}
+.invoice-page.document-tone-dark .term-row>span,.invoice-page.document-tone-dark .bank-block>div>span,.invoice-page.document-tone-dark .notes-block p{color:#eee8de}
+.invoice-page.document-tone-dark .term-row b,.invoice-page.document-tone-dark .bank-block b{color:#c2b69f}
+.invoice-page.document-tone-dark .doc-footer{color:#c0b6a5;opacity:1}
+.invoice-page.document-tone-dark .signature-block{color:#f6f2ea}
+
+/* Black Ivory has a deliberately light customer panel; keep local text dark there. */
+.template-blackivory .party-customer,.template-blackivory .party-customer *{color:#1a1815!important}
+.template-blackivory .party-customer .section-kicker{color:#76572d!important}
+
+/* Accent-backed surfaces must always use the automatically calculated contrast ink. */
+.template-split.palette-auto .modern-brand{color:var(--accent-ink)}
+.template-split.palette-auto .modern-brand *{color:var(--accent-ink)!important}
+.template-noir.palette-auto .items-table th{color:var(--accent-ink)}
+
+/* Preserve signature as readable ink while leaving the stamp's brand color intact. */
+.invoice-page.document-tone-light .signature-image{filter:brightness(0) saturate(100%) contrast(1.22)}
+.invoice-page.document-tone-dark .signature-image:not([src^="data:image/jpeg"]){filter:brightness(0) invert(1) contrast(1.28) drop-shadow(0 0 .22mm rgba(255,255,255,.2));mix-blend-mode:normal}
+.invoice-page.document-tone-dark .signature-image[src^="data:image/jpeg"]{filter:invert(1) grayscale(1) contrast(1.38) brightness(1.2);mix-blend-mode:screen}
+.invoice-page .stamp-image{mix-blend-mode:normal}
+
+/* Bilingual documents need extra breathing room rather than tiny text. */
+.invoice-page.lang-bilingual .bi-label,.invoice-page.lang-bilingual .bi-value{line-height:1.5}
+.invoice-page.lang-bilingual .items-table th{padding-top:2.3mm;padding-bottom:2.3mm}
+
+/* ---------- Responsive ---------- */
+@media(max-width:900px){
+  .app-ui .documents-heading{margin-bottom:18px}
+  .app-ui .page-subtitle{font-size:12.5px}
+}
+@media(max-width:720px){
+  :root{--header:98px}
+  .app-ui .app-header{min-height:98px;padding-top:6px;padding-bottom:5px}
+  .app-ui .main-nav{height:39px;padding-top:2px}
+  .app-ui .main-nav button{height:35px;min-height:35px}
+  .app-ui .documents-heading{margin-bottom:14px}
+  .app-ui .documents-heading .eyebrow{font-size:9px}
+  .app-ui .page-subtitle{margin-top:5px;line-height:1.45}
+  .app-ui .documents-toolbar{gap:8px;padding:7px}
+  .app-ui .document-card{min-height:84px;padding:4px}
+  .app-ui .document-main{grid-template-columns:43px minmax(0,1fr);gap:9px;padding:9px 6px}
+  .app-ui .document-type-icon{width:40px;height:40px;border-radius:11px}
+  .app-ui .document-info-top{gap:6px;flex-wrap:wrap}
+  .app-ui .document-info-top>strong{font-size:13px}
+  .app-ui .document-kind-pill{font-size:9px;padding:4px 6px}
+  .app-ui .document-total{grid-column:2;min-width:0;align-items:center;flex-direction:row;justify-content:flex-start;gap:8px}
+  .app-ui .document-total strong{font-size:13px}
+  .app-ui .documents-empty{min-height:310px;padding:28px 18px}
+  .app-ui .empty-actions{width:100%;display:grid;grid-template-columns:1fr}
+  .app-ui .empty-actions .btn{width:100%;min-width:0}
+  .app-ui .editor-section{padding:13px}
+  .app-ui .section-heading{margin-bottom:12px}
+}
+@media(max-width:420px){
+  .app-ui .page-subtitle{font-size:12px}
+  .app-ui .document-info b{max-width:52vw}
+  .app-ui .document-kind-pill{max-width:42vw;overflow:hidden;text-overflow:ellipsis}
+}
+
+@media print{
+  .invoice-page{font-size:10.35px}
+  .invoice-page:not(.details-only) .final-details{margin-top:auto}
+}
