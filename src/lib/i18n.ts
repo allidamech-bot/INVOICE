@@ -2,6 +2,15 @@ import type { UiLanguage } from '../types.js';
 
 let currentLanguage: UiLanguage = 'en';
 
+const arabicOverrides: Record<string,string> = {
+  'مبدئية':'عروض الأسعار',
+  'فاتورة مبدئية':'عرض سعر',
+  'فاتورة مبدئية جديدة':'عرض سعر جديد',
+  'فاتورة أولية':'عرض سعر',
+  'احفظ فاتورة مبدئية صالحة قبل تحويلها.':'احفظ عرض سعر صالحًا قبل تحويله.',
+  'بادئة الفاتورة المبدئية':'بادئة عرض السعر'
+};
+
 export function setUiLanguage(language: UiLanguage): void {
   currentLanguage = language;
   if (typeof document !== 'undefined') {
@@ -12,7 +21,10 @@ export function setUiLanguage(language: UiLanguage): void {
 
 export function getUiLanguage(): UiLanguage { return currentLanguage; }
 export function isArabic(): boolean { return currentLanguage === 'ar'; }
-export function t(en: string, ar: string): string { return currentLanguage === 'ar' ? ar : en; }
+export function t(en: string, ar: string): string {
+  if (currentLanguage !== 'ar') return en;
+  return arabicOverrides[ar] ?? ar.replace(/فاتورة مبدئية/g,'عرض سعر').replace(/فاتورة أولية/g,'عرض سعر');
+}
 
 export function translateValidation(message: string): string {
   if (currentLanguage !== 'ar') return message;
