@@ -1,0 +1,21 @@
+.invoice-page .official-doc-logo{display:none}
+
+/* Existing scanned JPEG signatures/stamps may already contain white paper.
+   On dark luxury templates, invert the paper to black and screen-blend it away.
+   Newly uploaded raster assets are normalized to transparent PNG by files.ts. */
+.template-noir .signature-media img[src^="data:image/jpeg"],
+.template-midnight .signature-media img[src^="data:image/jpeg"],
+.template-blackivory .signature-media img[src^="data:image/jpeg"],
+.template-carbon .signature-media img[src^="data:image/jpeg"]{
+  filter:invert(1) hue-rotate(180deg) contrast(1.08);
+  mix-blend-mode:screen;
+}
+
+.signature-media img{
+  background:transparent;
+  object-fit:contain;
+}
+
+.asset-preview img{
+  background:transparent;
+}
