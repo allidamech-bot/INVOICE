@@ -53,7 +53,7 @@ function percentile(values:number[],ratio:number):number{
 function median(values:number[]):number{return percentile(values,.5);}
 
 function pixelLuma(red:number,green:number,blue:number):number{
-  return (red*.2126)+(green*.7152)+(blue*.0722);
+  return red*.2126+green*.7152+blue*.0722;
 }
 
 function pixelSaturation(red:number,green:number,blue:number):number{
@@ -66,13 +66,6 @@ function colorDistance(data:Uint8ClampedArray,index:number,model:{red:number;gre
   const red=(data[index]??0)-model.red;
   const green=(data[index+1]??0)-model.green;
   const blue=(data[index+2]??0)-model.blue;
-  return Math.sqrt((red*red+green*green+blue*blue)/3);
-}
-
-function pixelDistance(data:Uint8ClampedArray,a:number,b:number):number{
-  const red=(data[a]??0)-(data[b]??0);
-  const green=(data[a+1]??0)-(data[b+1]??0);
-  const blue=(data[a+2]??0)-(data[b+2]??0);
   return Math.sqrt((red*red+green*green+blue*blue)/3);
 }
 
@@ -138,12 +131,11 @@ function logoBackgroundProfile(data:Uint8ClampedArray,width:number,height:number
   const lumas=indexes.map(index=>pixelLuma(data[index]??0,data[index+1]??0,data[index+2]??0));
   const saturations=indexes.map(index=>pixelSaturation(data[index]??0,data[index+1]??0,data[index+2]??0));
   const distances=indexes.map(index=>colorDistance(data,index,provisional));
-  const saturationHigh=percentile(saturations,.97);
   return {
     red,green,blue,
     lumaLow:percentile(lumas,.02),
     lumaHigh:percentile(lumas,.98),
-    saturationHigh,
+    saturationHigh:percentile(saturations,.97),
     distanceHigh:percentile(distances,.98),
     neutral:percentile(saturations,.9)<.22
   };
@@ -213,7 +205,6 @@ function applyEdgeBackgroundRemoval(data:Uint8ClampedArray,width:number,height:n
   };
   for(let x=0;x<width;x+=1){enqueue(x);if(height>1)enqueue((height-1)*width+x);}
   for(let y=1;y<height-1;y+=1){enqueue(y*width);if(width>1)enqueue(y*width+width-1);}
-
   const clearUntil=threshold*.5;
   let changed=0;
   while(start<end){
@@ -236,26 +227,61 @@ function applyEdgeBackgroundRemoval(data:Uint8ClampedArray,width:number,height:n
 
 function logoPixelMetrics(data:Uint8ClampedArray,index:number,profile:LogoBackgroundProfile):{distance:number;luma:number;saturation:number}{
   const red=data[index]??0,green=data[index+1]??0,blue=data[index+2]??0;
-  return {
-    distance:colorDistance(data,index,profile),
-    luma:pixelLuma(red,green,blue),
-    saturation:pixelSaturation(red,green,blue)
-  };
+  return {distance:colorDistance(data,index,profile),luma:pixelLuma(red,green,blue),saturation:pixelSaturation(red,green,blue)};
+}
+
+function isDarkNeutralLogoBackground(profile:LogoBackgroundProfile):boolean{
+  return profile.neutral&&profile.lumaHigh<138;
+}
+
+function isLightNeutralLogoBackground(profile:LogoBackgroundProfile):boolean{
+  return profile.neutral&&profile.lumaLow>150;
 }
 
 function logoBackgroundCandidate(data:Uint8ClampedArray,index:number,profile:LogoBackgroundProfile,soft=false):boolean{
   if((data[index+3]??0)<=8)return false;
   const {distance,luma,saturation}=logoPixelMetrics(data,index,profile);
   const lumaSpan=Math.max(8,profile.lumaHigh-profile.lumaLow);
-  const lumaPad=Math.max(soft?16:10,lumaSpan*(soft?.42:.28));
-  const low=clamp(profile.lumaLow-lumaPad,0,255);
-  const high=clamp(profile.lumaHigh+lumaPad,0,255);
-  const distanceLimit=clamp(profile.distanceHigh+(soft?34:24),soft?44:38,soft?116:105);
-  const saturationLimit=clamp(profile.saturationHigh+(soft?.14:.09),.16,soft?.34:.30);
-  const broadNeutral=profile.neutral&&saturation<=saturationLimit&&luma>=low&&luma<=high;
-  const closeToCornerModel=distance<=distanceLimit;
-  if(profile.neutral&&saturation>Math.max(.45,saturationLimit+.12))return false;
-  return closeToCornerModel||broadNeutral;
+  const saturationLimit=clamp(profile.saturationHigh+(soft?.18:.11),.17,soft?.40:.32);
+  const distanceLimit=clamp(profile.distanceHigh+(soft?52:34),soft?54:42,soft?148:122);
+  if(saturation>saturationLimit)return false;
+
+  if(isDarkNeutralLogoBackground(profile)){
+    const high=clamp(profile.lumaHigh+Math.max(24,lumaSpan*(soft?.82:.64)),0,178);
+    return luma<=high||distance<=distanceLimit;
+  }
+  if(isLightNeutralLogoBackground(profile)){
+    const low=clamp(profile.lumaLow-Math.max(24,lumaSpan*(soft?.82:.64)),78,255);
+    return luma>=low||distance<=distanceLimit;
+  }
+  if(profile.neutral){
+    const pad=Math.max(soft?20:12,lumaSpan*(soft?.55:.34));
+    return (luma>=clamp(profile.lumaLow-pad,0,255)&&luma<=clamp(profile.lumaHigh+pad,0,255))||distance<=distanceLimit;
+  }
+  return distance<=distanceLimit;
+}
+
+function logoArtworkEvidence(data:Uint8ClampedArray,index:number,profile:LogoBackgroundProfile):boolean{
+  if((data[index+3]??0)<=12)return false;
+  const {distance,luma,saturation}=logoPixelMetrics(data,index,profile);
+  const lumaSpan=Math.max(8,profile.lumaHigh-profile.lumaLow);
+  const saturationGate=Math.max(.25,profile.saturationHigh+.12);
+  if(saturation>saturationGate)return true;
+
+  if(isDarkNeutralLogoBackground(profile)){
+    const highlightGate=clamp(profile.lumaHigh+Math.max(28,lumaSpan*.84),92,238);
+    if(luma>highlightGate)return true;
+    return distance>profile.distanceHigh+58&&saturation>Math.max(.16,profile.saturationHigh+.055);
+  }
+  if(isLightNeutralLogoBackground(profile)){
+    const shadowGate=clamp(profile.lumaLow-Math.max(28,lumaSpan*.84),16,170);
+    if(luma<shadowGate)return true;
+    return distance>profile.distanceHigh+58&&saturation>Math.max(.16,profile.saturationHigh+.055);
+  }
+
+  const high=clamp(profile.lumaHigh+Math.max(22,lumaSpan*.55),0,255);
+  const low=clamp(profile.lumaLow-Math.max(18,lumaSpan*.45),0,255);
+  return distance>profile.distanceHigh+48||luma>high||luma<low;
 }
 
 function dilateMask(mask:Uint8Array,width:number,height:number,iterations:number):Uint8Array{
@@ -277,20 +303,21 @@ function dilateMask(mask:Uint8Array,width:number,height:number,iterations:number
   return current;
 }
 
-function removeTinyLogoFragments(data:Uint8ClampedArray,width:number,height:number):void{
+function removeUnprotectedLogoFragments(data:Uint8ClampedArray,width:number,height:number,protect:Uint8Array):void{
   const total=width*height;
   const visited=new Uint8Array(total);
   const queue=new Int32Array(total);
   const component=new Int32Array(total);
-  const minimum=Math.max(6,Math.round(total*.00005));
+  const maximumUnprotected=Math.max(48,Math.round(total*.12));
   for(let seed=0;seed<total;seed+=1){
     if(visited[seed]||(data[seed*4+3]??0)<=12)continue;
-    let start=0,end=0,count=0;
+    let start=0,end=0,count=0,protectedCount=0;
     visited[seed]=1;
     queue[end++]=seed;
     while(start<end){
       const pixel=queue[start++]!;
       component[count++]=pixel;
+      if(protect[pixel])protectedCount+=1;
       const x=pixel%width;
       const y=Math.floor(pixel/width);
       const visit=(neighbor:number):void=>{
@@ -303,8 +330,8 @@ function removeTinyLogoFragments(data:Uint8ClampedArray,width:number,height:numb
       if(y>0)visit(pixel-width);
       if(y+1<height)visit(pixel+width);
     }
-    if(count>minimum)continue;
-    for(let i=0;i<count;i+=1)data[component[i]!*4+3]=0;
+    if(protectedCount>0||count>maximumUnprotected)continue;
+    for(let index=0;index<count;index+=1)data[component[index]!*4+3]=0;
   }
 }
 
@@ -313,23 +340,23 @@ function applyLogoBackgroundRemoval(data:Uint8ClampedArray,width:number,height:n
   if(!profile)return false;
   const original=new Uint8ClampedArray(data);
   const total=width*height;
+
+  const protectedSeed=new Uint8Array(total);
+  let evidenceCount=0;
+  for(let pixel=0;pixel<total;pixel+=1){
+    if(logoArtworkEvidence(original,pixel*4,profile)){protectedSeed[pixel]=1;evidenceCount+=1;}
+  }
+  if(evidenceCount<Math.max(8,total*.00008))return false;
+
+  const dilation=clamp(Math.round(Math.min(width,height)*(isDarkNeutralLogoBackground(profile)||isLightNeutralLogoBackground(profile)?.0025:.0035)),1,4);
+  const protect=dilateMask(protectedSeed,width,height,dilation);
   const visited=new Uint8Array(total);
   const queue=new Int32Array(total);
   let start=0,end=0;
-  const localDistanceLimit=clamp(profile.distanceHigh+10,30,46);
-  const localLumaLimit=clamp((profile.lumaHigh-profile.lumaLow)*.58,18,30);
-
-  const enqueue=(pixel:number,parent:number|null=null):void=>{
-    if(pixel<0||pixel>=total||visited[pixel])return;
+  const enqueue=(pixel:number):void=>{
+    if(pixel<0||pixel>=total||visited[pixel]||protect[pixel])return;
     const index=pixel*4;
-    if(!logoBackgroundCandidate(original,index,profile,false))return;
-    if(parent!==null){
-      const parentIndex=parent*4;
-      const distance=pixelDistance(original,index,parentIndex);
-      const luma=pixelLuma(original[index]??0,original[index+1]??0,original[index+2]??0);
-      const parentLuma=pixelLuma(original[parentIndex]??0,original[parentIndex+1]??0,original[parentIndex+2]??0);
-      if(distance>localDistanceLimit&&Math.abs(luma-parentLuma)>localLumaLimit)return;
-    }
+    if(!logoBackgroundCandidate(original,index,profile,true))return;
     visited[pixel]=1;
     queue[end++]=pixel;
   };
@@ -340,60 +367,31 @@ function applyLogoBackgroundRemoval(data:Uint8ClampedArray,width:number,height:n
     const pixel=queue[start++]!;
     const x=pixel%width;
     const y=Math.floor(pixel/width);
-    if(x>0)enqueue(pixel-1,pixel);
-    if(x+1<width)enqueue(pixel+1,pixel);
-    if(y>0)enqueue(pixel-width,pixel);
-    if(y+1<height)enqueue(pixel+width,pixel);
+    if(x>0)enqueue(pixel-1);
+    if(x+1<width)enqueue(pixel+1);
+    if(y>0)enqueue(pixel-width);
+    if(y+1<height)enqueue(pixel+width);
   }
 
-  let edgeConnected=0;
-  for(let pixel=0;pixel<total;pixel+=1)if(visited[pixel])edgeConnected+=1;
-  if(edgeConnected<Math.max(18,total*.006))return false;
-
-  const lumaSpan=Math.max(8,profile.lumaHigh-profile.lumaLow);
-  const protectHigh=clamp(profile.lumaHigh+Math.max(16,lumaSpan*.36),0,255);
-  const protectLow=clamp(profile.lumaLow-Math.max(10,lumaSpan*.22),0,255);
-  const protectSaturation=Math.max(.24,profile.saturationHigh+.12);
-  const protectDistance=profile.distanceHigh+38;
-  const protectedSeed=new Uint8Array(total);
+  let originalVisible=0,removed=0;
   for(let pixel=0;pixel<total;pixel+=1){
     const index=pixel*4;
     if((original[index+3]??0)<=12)continue;
-    const {distance,luma,saturation}=logoPixelMetrics(original,index,profile);
-    if(saturation>protectSaturation||distance>protectDistance||luma>protectHigh||luma<protectLow)protectedSeed[pixel]=1;
-  }
-  const protect=dilateMask(protectedSeed,width,height,4);
-
-  let removed=0;
-  let originalVisible=0;
-  let remaining=0;
-  for(let pixel=0;pixel<total;pixel+=1){
-    const index=pixel*4;
-    const alpha=original[index+3]??0;
-    if(alpha<=12)continue;
     originalVisible+=1;
-    const remove=(Boolean(visited[pixel])||logoBackgroundCandidate(original,index,profile,true))&&!protect[pixel];
-    if(remove){data[index+3]=0;removed+=1;}
-    else remaining+=1;
+    if(visited[pixel]){data[index+3]=0;removed+=1;}
   }
-
   const removedRatio=originalVisible?removed/originalVisible:0;
-  if(removedRatio<.012||remaining<Math.max(12,total*.0004)||removedRatio>.985){data.set(original);return false;}
+  if(removedRatio<.012||removedRatio>.985){data.set(original);return false;}
 
-  // The corner model must never erase strongly foreground-looking artwork.
-  let evidence=0,damagedEvidence=0;
+  removeUnprotectedLogoFragments(data,width,height,protect);
+
+  let remaining=0,protectedRemaining=0;
   for(let pixel=0;pixel<total;pixel+=1){
-    const index=pixel*4;
-    if((original[index+3]??0)<=12)continue;
-    const {distance,luma,saturation}=logoPixelMetrics(original,index,profile);
-    const artwork=saturation>protectSaturation||distance>protectDistance||luma>protectHigh||luma<protectLow;
-    if(!artwork)continue;
-    evidence+=1;
-    if((data[index+3]??0)<(original[index+3]??0)*.82)damagedEvidence+=1;
+    if((data[pixel*4+3]??0)<=12)continue;
+    remaining+=1;
+    if(protectedSeed[pixel])protectedRemaining+=1;
   }
-  if(evidence>24&&damagedEvidence/evidence>.004){data.set(original);return false;}
-
-  if(removedRatio>.08)removeTinyLogoFragments(data,width,height);
+  if(remaining<Math.max(12,total*.0004)||protectedRemaining<evidenceCount*.985){data.set(original);return false;}
   return true;
 }
 
