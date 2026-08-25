@@ -48,8 +48,12 @@ export function Segmented({ value, options, onChange }: { value: string; options
   return <div className="segmented">{options.map(o => <button type="button" key={o.value} className={value === o.value ? 'active' : ''} onClick={() => onChange(o.value)}>{o.label}</button>)}</div>;
 }
 
-export function Brand({ compact = false, logoDataUrl = './brand/lourex-logo.svg', language: _language }: { compact?: boolean; logoDataUrl?: string; language?: UiLanguage }): any {
-  return <div className={`brand official-brand ${compact ? 'compact' : ''}`}><span className="brand-mark"><img src={logoDataUrl || './brand/lourex-logo.svg'} alt="LOUREX"/></span><span className="brand-words"><strong>LOUREX</strong></span></div>;
+export function Brand({ compact = false, logoDataUrl = './brand/lourex-logo.svg', name = '', language: _language }: { compact?: boolean; logoDataUrl?: string; name?: string; language?: UiLanguage }): any {
+  if (compact) {
+    const hasCompanyLogo = Boolean(logoDataUrl && !logoDataUrl.includes('lourex-logo.svg'));
+    return <div className="brand company-brand compact">{hasCompanyLogo ? <span className="brand-mark"><img src={logoDataUrl} alt={name || 'Company logo'}/></span> : <span className="brand-words"><strong>{name && name.toUpperCase() !== 'LOUREX' ? name : t('Company','الشركة')}</strong></span>}</div>;
+  }
+  return <div className="brand official-brand"><span className="brand-mark"><img src="./brand/lourex-logo.svg" alt="LOUREX"/></span><span className="brand-words"><strong>LOUREX</strong></span></div>;
 }
 
 export function Toast({ text, tone = 'default' }: { text: string; tone?: 'default'|'success'|'error' }): any {
