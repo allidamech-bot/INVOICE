@@ -6,7 +6,7 @@ import { paginateItems } from '../lib/documents.js';
 interface Props { document: LourexDocument; scale?: number; compact?: boolean; }
 interface PageProps { document: LourexDocument; items: DocumentItem[]; pageIndex: number; totalPages: number; finalPage: boolean; variant: TemplateId; compact?: boolean; }
 
-const MODERN_TEMPLATES: TemplateId[] = ['obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger'];
+const MODERN_TEMPLATES: TemplateId[] = ['obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 function isModernTemplate(variant: TemplateId): boolean { return MODERN_TEMPLATES.includes(variant); }
 
 function localized(doc: LourexDocument, en: string, ar: string): any {
@@ -60,7 +60,7 @@ function FinalDetails({ document: doc }: { document: LourexDocument }): any { re
 function ModernHeader({ document: doc, variant }: { document: LourexDocument; variant: TemplateId }): any {
   const typeEn = doc.kind === 'proforma' ? 'PROFORMA INVOICE' : 'INVOICE';
   const typeAr = doc.kind === 'proforma' ? 'عرض سعر' : 'فاتورة';
-  const darkBrand = variant === 'obsidian' || variant === 'cobalt' || variant === 'split' || variant === 'aurora';
+  const darkBrand = variant === 'obsidian' || variant === 'cobalt' || variant === 'split' || variant === 'aurora' || variant === 'noir' || variant === 'midnight' || variant === 'blackivory' || variant === 'carbon';
   return <header className={`header-modern modern-header-${variant}`}>
     <div className="modern-geometry" aria-hidden="true"/>
     <div className="modern-brand"><LogoBlock document={doc} inverse={darkBrand}/></div>

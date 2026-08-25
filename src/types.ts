@@ -1,7 +1,7 @@
 export type DocumentKind = 'proforma' | 'invoice';
 export type DocumentLanguage = 'en' | 'ar' | 'bilingual';
 export type UiLanguage = 'en' | 'ar';
-export type TemplateId = 'executive' | 'minimal' | 'trade' | 'signature' | 'obsidian' | 'cobalt' | 'editorial' | 'split' | 'prism' | 'slate' | 'horizon' | 'mono' | 'aurora' | 'ledger';
+export type TemplateId = 'executive' | 'minimal' | 'trade' | 'signature' | 'obsidian' | 'cobalt' | 'editorial' | 'split' | 'prism' | 'slate' | 'horizon' | 'mono' | 'aurora' | 'ledger' | 'noir' | 'midnight' | 'blackivory' | 'carbon';
 export type DocumentStatus = 'draft' | 'final';
 export type DiscountMode = 'fixed' | 'percent';
 export type AutoLockMinutes = 0 | 5 | 15 | 30;

@@ -1,0 +1,118 @@
+/* LOUREX — Dark Luxury document collection */
+.template-noir,.template-midnight,.template-blackivory,.template-carbon{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.template-noir .doc-body,.template-midnight .doc-body,.template-blackivory .doc-body,.template-carbon .doc-body{color:#f3efe6}
+.template-noir .party-address,.template-noir .party-tax,.template-midnight .party-address,.template-midnight .party-tax,.template-blackivory .party-address,.template-blackivory .party-tax,.template-carbon .party-address,.template-carbon .party-tax{color:inherit;opacity:.76}
+.template-noir .continued-label,.template-midnight .continued-label,.template-blackivory .continued-label,.template-carbon .continued-label{color:#c7a96a}
+.template-noir .terms-block,.template-noir .bank-block,.template-noir .signature-block,.template-noir .notes-block,.template-midnight .terms-block,.template-midnight .bank-block,.template-midnight .signature-block,.template-midnight .notes-block,.template-blackivory .terms-block,.template-blackivory .bank-block,.template-blackivory .signature-block,.template-blackivory .notes-block,.template-carbon .terms-block,.template-carbon .bank-block,.template-carbon .signature-block,.template-carbon .notes-block{border-color:rgba(220,190,128,.28)}
+.template-noir .terms-block h3,.template-noir .bank-block h3,.template-noir .signature-block h3,.template-noir .notes-block h3,.template-midnight .terms-block h3,.template-midnight .bank-block h3,.template-midnight .signature-block h3,.template-midnight .notes-block h3,.template-blackivory .terms-block h3,.template-blackivory .bank-block h3,.template-blackivory .signature-block h3,.template-blackivory .notes-block h3,.template-carbon .terms-block h3,.template-carbon .bank-block h3,.template-carbon .signature-block h3,.template-carbon .notes-block h3{color:#d8b66f}
+.template-noir .term-row b,.template-noir .bank-block b,.template-midnight .term-row b,.template-midnight .bank-block b,.template-blackivory .term-row b,.template-blackivory .bank-block b,.template-carbon .term-row b,.template-carbon .bank-block b{color:#b9a57a}
+.template-noir .notes-block p,.template-midnight .notes-block p,.template-blackivory .notes-block p,.template-carbon .notes-block p{color:#ddd5c7}
+.template-noir .doc-footer,.template-midnight .doc-footer,.template-blackivory .doc-footer,.template-carbon .doc-footer{border-color:rgba(216,182,111,.28);color:#b9ad99}
+
+/* 01 — NOIR GOLD: matte-black sheet with a solid gold title rail */
+.template-noir{background:#0a0a0b;color:#f5f1e9}
+.template-noir .page-accent{display:none}
+.template-noir .header-modern{min-height:62mm;padding:0;grid-template-columns:minmax(0,1fr) 62mm;grid-template-rows:auto 1fr;grid-template-areas:"brand title" "meta title";gap:0;background:#0a0a0b;border-bottom:1px solid #9f7a38}
+.template-noir .modern-brand{padding:10mm 12mm 4mm}
+.template-noir .modern-title{grid-area:title;margin:0;padding:10mm 7mm;background:linear-gradient(150deg,#e0c080 0%,#b8893f 48%,#7c5827 100%);display:flex;flex-direction:column;justify-content:flex-end;text-align:left}
+.template-noir .modern-title>small{color:#18130c;letter-spacing:.22em}
+.template-noir .doc-title span{font-size:27px;line-height:.94;letter-spacing:.015em;color:#0a0a0b}
+.template-noir .doc-title em{margin-top:2mm;font-size:14px;color:#0a0a0b}
+.template-noir .modern-meta{padding:2mm 12mm 8mm}
+.template-noir .modern-meta .doc-meta{grid-template-columns:repeat(2,minmax(0,1fr));gap:2mm 5mm;max-width:112mm}
+.template-noir .modern-meta .doc-meta>div{padding:2mm 0;border-color:rgba(216,182,111,.32)}
+.template-noir .doc-meta b{color:#b99b5e}.template-noir .doc-meta span{color:#f7f2e9}
+.template-noir .modern-geometry{left:10mm;top:8mm;width:33mm;height:33mm;border:1px solid rgba(216,182,111,.16);transform:rotate(45deg)}
+.template-noir .doc-body{background:#0a0a0b;padding-top:8mm}
+.template-noir .party-grid{grid-template-columns:.82fr 1.18fr;gap:4mm}
+.template-noir .party-block{min-height:31mm;border-radius:0;background:#111214;border:1px solid #292722;padding:4.5mm}
+.template-noir .party-seller{border-left:2.5mm solid #b88b43}
+.template-noir .party-customer{background:linear-gradient(135deg,#151516,#0d0d0e);border-color:#7b5b2a}
+.template-noir .section-kicker{color:#c99f54}.template-noir .party-name{color:#fff;font-size:13px}
+.template-noir .items-table{border-collapse:separate;border-spacing:0}
+.template-noir .items-table th{background:#c7a15d;color:#0a0a0b;border-right:1px solid rgba(10,10,11,.18);font-weight:900}
+.template-noir .items-table td{background:#101113;color:#eee8dd;border-bottom:1px solid #292a2c}
+.template-noir .items-table tbody tr:nth-child(even) td{background:#151618}
+.template-noir .items-table .money-cell.strong{color:#e4c37e}
+.template-noir .totals-block{background:linear-gradient(145deg,#c9a45f,#9b7034);border:0;border-radius:0;color:#0b0b0c;box-shadow:0 0 0 1px rgba(231,202,143,.28)}
+.template-noir .total-row{border-color:rgba(10,10,11,.18)}.template-noir .total-row span,.template-noir .total-row strong{color:#17120a}
+.template-noir .grand-total{border-top:2px solid #17120a}.template-noir .grand-total span,.template-noir .grand-total strong{color:#080808}
+
+/* 02 — MIDNIGHT NAVY: architectural navy with a left brand tower and gold datum lines */
+.template-midnight{background:#061522;color:#edf2f5}
+.template-midnight .page-accent{left:49mm;right:0;height:1.4mm;background:#c8a25a}
+.template-midnight .header-modern{min-height:58mm;padding:0;grid-template-columns:49mm 1fr;grid-template-areas:"brand title" "brand meta";gap:0;background:#081b2d;border-bottom:1px solid #29425a}
+.template-midnight .modern-brand{grid-area:brand;padding:10mm 6mm;background:#04101b;border-right:1px solid #9a793e;display:flex;align-items:flex-start}
+.template-midnight .modern-brand .official-doc-logo-inner{flex-direction:column;align-items:flex-start;gap:4mm}.template-midnight .modern-brand .doc-logo-mark img{width:20mm;height:20mm}
+.template-midnight .modern-title{padding:11mm 12mm 3mm 9mm;text-align:left;align-self:end}
+.template-midnight .modern-title>small{color:#c3a15f}.template-midnight .doc-title span{font-size:29px;color:#f4f6f7;letter-spacing:.035em}.template-midnight .doc-title em{color:#d3b46f}
+.template-midnight .modern-meta{padding:2mm 12mm 8mm 9mm}
+.template-midnight .modern-meta .doc-meta{grid-template-columns:repeat(4,1fr);gap:0}
+.template-midnight .modern-meta .doc-meta>div{padding:2.4mm;border:1px solid #29425a;margin-left:-1px;flex-direction:column}
+.template-midnight .doc-meta b{color:#9fb0bf}.template-midnight .doc-meta span{color:#fff}
+.template-midnight .modern-geometry{right:-22mm;top:-27mm;width:84mm;height:84mm;border:1px solid rgba(200,162,90,.25);border-radius:50%;box-shadow:0 0 0 10mm rgba(200,162,90,.025),0 0 0 20mm rgba(200,162,90,.018)}
+.template-midnight .doc-body{background:linear-gradient(180deg,#061522,#081827);padding-top:7mm}
+.template-midnight .party-grid{gap:3mm}
+.template-midnight .party-block{border-radius:1mm;background:#0a2135;border:1px solid #29435a;box-shadow:inset 0 1.4mm 0 #c8a25a}
+.template-midnight .party-customer{background:#0d2942;box-shadow:inset 0 1.4mm 0 #eef2f3}
+.template-midnight .section-kicker{color:#c9a65f}.template-midnight .party-name{color:#fff}
+.template-midnight .items-table th{background:#07111b;color:#d9bd82;border-top:1px solid #b48b45;border-bottom:1px solid #b48b45}
+.template-midnight .items-table td{color:#eaf0f4;border-bottom:1px solid #20384b;background:#081a2a}
+.template-midnight .items-table tbody tr:nth-child(even){background:transparent}.template-midnight .items-table tbody tr:nth-child(even) td{background:#0b2032}
+.template-midnight .items-table .money-cell.strong{color:#d9bd82}
+.template-midnight .totals-block{background:#04111c;border:1px solid #9d7b3f;border-radius:1mm;color:#fff}
+.template-midnight .total-row{border-color:#20384b}.template-midnight .total-row span{color:#b8c3cc}.template-midnight .grand-total{border-top:2px solid #c8a25a}.template-midnight .grand-total span,.template-midnight .grand-total strong{color:#e1c27f}
+
+/* 03 — BLACK IVORY: black canvas with ivory editorial panels and restrained gold */
+.template-blackivory{background:#10100f;color:#f5f0e6}
+.template-blackivory .page-accent{height:2mm;background:linear-gradient(90deg,#e7dfcf 0 72%,#b78a41 72%)}
+.template-blackivory .header-modern{min-height:55mm;padding:9mm 12mm 7mm;grid-template-columns:1.25fr .75fr;grid-template-areas:"title brand" "meta meta";gap:5mm 8mm;background:#10100f;border-bottom:1px solid #e1d8c7}
+.template-blackivory .modern-brand{justify-self:end}.template-blackivory .modern-title{text-align:left;align-self:center}
+.template-blackivory .modern-title>small{color:#bd9651}.template-blackivory .doc-title span{font-size:31px;line-height:.95;color:#f4efe5;font-weight:500;letter-spacing:-.01em}.template-blackivory .doc-title em{color:#d6b672;font-weight:500}
+.template-blackivory .modern-meta .doc-meta{grid-template-columns:repeat(4,1fr);gap:2mm}
+.template-blackivory .modern-meta .doc-meta>div{padding:2.2mm 2.6mm;border:1px solid #474239;flex-direction:column}
+.template-blackivory .doc-meta b{color:#b9aa91}.template-blackivory .doc-meta span{color:#fff}
+.template-blackivory .modern-geometry{left:10mm;bottom:8mm;width:92mm;height:1px;background:linear-gradient(90deg,#b78a41,transparent)}
+.template-blackivory .doc-body{background:#10100f}
+.template-blackivory .party-grid{grid-template-columns:1fr 1fr;gap:0;border:1px solid #dfd5c3}
+.template-blackivory .party-block{border:0;border-radius:0;background:#10100f;padding:5mm}
+.template-blackivory .party-customer{background:#eee7da;color:#161514}
+.template-blackivory .party-customer .party-name,.template-blackivory .party-customer .section-kicker{color:#171512}.template-blackivory .party-customer .section-kicker{border-bottom:1px solid #a67d3d;padding-bottom:1.5mm}
+.template-blackivory .party-seller .section-kicker{color:#d0ae68}.template-blackivory .party-name{color:#fff}
+.template-blackivory .items-table{border:1px solid #ded5c5}
+.template-blackivory .items-table th{background:#eee7da;color:#161514;border-right:1px solid #b8ad9b}
+.template-blackivory .items-table td{background:#121211;color:#f0eadf;border-bottom:1px solid #3a3732;border-right:1px solid #272522}
+.template-blackivory .items-table tbody tr:nth-child(even){background:transparent}.template-blackivory .items-table tbody tr:nth-child(even) td{background:#181816}
+.template-blackivory .items-table .money-cell.strong{color:#d6b46e}
+.template-blackivory .totals-block{background:#eee7da;border:0;border-radius:0;color:#171512}
+.template-blackivory .total-row{border-color:#c5bbab}.template-blackivory .total-row span,.template-blackivory .total-row strong{color:#29251f}.template-blackivory .grand-total{border-top:2px solid #a87d3b}.template-blackivory .grand-total span,.template-blackivory .grand-total strong{color:#111}
+.template-blackivory .lower-grid{grid-template-columns:minmax(0,1fr) 70mm}
+
+/* 04 — CARBON LUXE: layered charcoal, metallic gold geometry and offset modules */
+.template-carbon{background:#1a1b1d;color:#f2eee6}
+.template-carbon .page-accent{display:none}
+.template-carbon .header-modern{min-height:60mm;padding:10mm 12mm 7mm;grid-template-columns:.9fr 1.1fr;grid-template-areas:"brand title" "meta meta";gap:6mm 9mm;background:linear-gradient(135deg,#151618 0%,#232529 67%,#17181a 100%);border-bottom:1px solid #8e6c34}
+.template-carbon .modern-brand{align-self:start}.template-carbon .modern-title{text-align:right;align-self:center;padding-right:3mm;border-right:1.5mm solid #ba914d}
+.template-carbon .modern-title>small{color:#a99165}.template-carbon .doc-title span{font-size:28px;color:#fff;letter-spacing:.06em}.template-carbon .doc-title em{color:#d0ad68}
+.template-carbon .modern-meta .doc-meta{grid-template-columns:repeat(4,1fr);gap:2mm}
+.template-carbon .modern-meta .doc-meta>div{background:#202226;border:1px solid #34363a;padding:2.4mm;flex-direction:column}
+.template-carbon .doc-meta b{color:#a9987c}.template-carbon .doc-meta span{color:#f7f4ed}
+.template-carbon .modern-geometry{right:-13mm;top:-20mm;width:91mm;height:69mm;background:linear-gradient(135deg,transparent 0 42%,rgba(194,151,78,.17) 42% 44%,transparent 44% 58%,rgba(194,151,78,.08) 58%);transform:skewX(-18deg)}
+.template-carbon .header-modern:after{content:"";position:absolute;left:12mm;bottom:0;width:46mm;height:1.4mm;background:linear-gradient(90deg,#d0aa64,#765425)}
+.template-carbon .doc-body{background:repeating-linear-gradient(135deg,#1b1c1f 0,#1b1c1f 18mm,#1d1f22 18mm,#1d1f22 36mm);padding-top:8mm}
+.template-carbon .party-grid{grid-template-columns:1.18fr .82fr;gap:4mm;align-items:start}
+.template-carbon .party-block{border:1px solid #3c3d40;border-radius:0;background:rgba(33,35,38,.94);padding:4.5mm}
+.template-carbon .party-customer{margin-top:5mm;border-color:#9b763b;box-shadow:-3mm -3mm 0 rgba(187,143,71,.08)}
+.template-carbon .section-kicker{color:#c49a53}.template-carbon .party-name{color:#fff}
+.template-carbon .items-table{border-collapse:separate;border-spacing:0 1mm}
+.template-carbon .items-table th{background:transparent;color:#d6b36d;border-top:1px solid #8e6c34;border-bottom:1px solid #8e6c34}
+.template-carbon .items-table td{background:#24262a;color:#efebe3;border-bottom:0}
+.template-carbon .items-table tbody tr:nth-child(even){background:transparent}.template-carbon .items-table tbody tr:nth-child(even) td{background:#202226}
+.template-carbon .items-table .money-cell.strong{color:#dfbd78}
+.template-carbon .lower-grid{grid-template-columns:66mm minmax(0,1fr)}
+.template-carbon .totals-block{background:linear-gradient(145deg,#24262a,#18191b);border:1px solid #98743a;border-radius:0;color:#fff}
+.template-carbon .total-row{border-color:#37383b}.template-carbon .total-row span{color:#bbb2a2}.template-carbon .grand-total{margin:2mm -4mm -3mm;padding:3mm 4mm;background:linear-gradient(90deg,#b78b43,#d0ac67);color:#111;border-top:0}.template-carbon .grand-total span,.template-carbon .grand-total strong{color:#111}
+
+.lang-ar.template-noir .modern-title,.lang-ar.template-midnight .modern-title,.lang-ar.template-blackivory .modern-title,.lang-ar.template-carbon .modern-title{text-align:right}
+.lang-ar.template-carbon .modern-title{border-right:0;border-left:1.5mm solid #ba914d;padding-right:0;padding-left:3mm}
+@media print{.template-noir,.template-midnight,.template-blackivory,.template-carbon{background-color:inherit!important}}

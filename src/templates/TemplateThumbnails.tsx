@@ -16,7 +16,11 @@ const templates: Array<{ id: TemplateId; nameEn: string; nameAr: string; subEn: 
   { id: 'horizon', nameEn: 'Horizon', nameAr: 'هورايزن', subEn: 'Airy layered header', subAr: 'طبقات رحبة' },
   { id: 'mono', nameEn: 'Mono Grid', nameAr: 'مونو', subEn: 'Black & white grid', subAr: 'شبكة أبيض وأسود' },
   { id: 'aurora', nameEn: 'Aurora', nameAr: 'أورورا', subEn: 'Color-forward premium', subAr: 'ألوان فاخرة' },
-  { id: 'ledger', nameEn: 'Ledger', nameAr: 'ليدجر', subEn: 'Structured modular', subAr: 'وحدات منظمة' }
+  { id: 'ledger', nameEn: 'Ledger', nameAr: 'ليدجر', subEn: 'Structured modular', subAr: 'وحدات منظمة' },
+  { id: 'noir', nameEn: 'Noir Gold', nameAr: 'نوار ذهبي', subEn: 'Matte black / gold rail', subAr: 'أسود مطفي / شريط ذهبي' },
+  { id: 'midnight', nameEn: 'Midnight Navy', nameAr: 'منتصف الليل', subEn: 'Deep navy / gold architecture', subAr: 'كحلي عميق / هندسة ذهبية' },
+  { id: 'blackivory', nameEn: 'Black Ivory', nameAr: 'أسود عاجي', subEn: 'Black / ivory contrast', subAr: 'تباين أسود / عاجي' },
+  { id: 'carbon', nameEn: 'Carbon Luxe', nameAr: 'كربون فاخر', subEn: 'Charcoal / metallic gold', subAr: 'فحمي / ذهبي معدني' }
 ];
 
 export function TemplateThumbnails({ document: doc, onSelect }: { document: LourexDocument; onSelect: (id: TemplateId) => void }): any {
