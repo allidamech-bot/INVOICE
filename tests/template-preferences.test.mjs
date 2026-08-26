@@ -31,6 +31,6 @@ test('editor and template selector wire explicit favorites and per-kind defaults
   assert.match(selector,/template-default-badge/);
   assert.match(css,/template-preference-bar/);
   assert.match(html,/template-preferences\.css/);
-  assert.match(sw,/lourex-invoice-v39/);
+  assert.match(sw,/lourex-invoice-v40/);
   assert.match(sw,/template-preferences\.css/);
 });
