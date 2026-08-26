@@ -1,10 +1,10 @@
 import type { DocumentItem, LourexDocument, SavedItem } from '../types.js';
-import { uid } from './id.js';
+import { makeId } from './id.js';
 
 export function savedItemFromDocumentItem(item: DocumentItem, currency: string, existing?: SavedItem): SavedItem {
   const now=new Date().toISOString();
   return {
-    id:existing?.id??uid('product'),
+    id:existing?.id??makeId('product'),
     createdAt:existing?.createdAt??now,
     updatedAt:now,
     descriptionEn:item.descriptionEn.trim(),
@@ -22,7 +22,7 @@ export function savedItemFromDocumentItem(item: DocumentItem, currency: string, 
 
 export function savedItemToDocumentItem(saved: SavedItem): DocumentItem {
   return {
-    id:uid('item'),
+    id:makeId('item'),
     descriptionEn:saved.descriptionEn,
     descriptionAr:saved.descriptionAr,
     hsCode:saved.hsCode,
