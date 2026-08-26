@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { calculateTotals, lineTotal } from '../dist/src/lib/money.js';
 import { defaultCompany, emptyVault, customerSnapshotFrom } from '../dist/src/lib/defaults.js';
 import { createBlankDocument, duplicateDocument, convertToInvoice, nextDocumentNumber, paginateItems, validateDocument } from '../dist/src/lib/documents.js';
+import { getDocumentReadiness } from '../dist/src/lib/readiness.js';
 import { createSecurity, verifyPin, encryptVault, decryptVault, createEncryptedBackup, decryptBackup } from '../dist/src/crypto/crypto.js';
 
 function customer(overrides = {}) {
@@ -70,6 +71,23 @@ test('validation enforces minimum viable document and explicit item pricing', ()
   doc.items[0].unitPrice = '12.50';
   errors = validateDocument(doc);
   assert.equal(Object.keys(errors).length, 0);
+});
+
+test('document readiness rises to 100 only when required commercial data is complete', () => {
+  const doc = createBlankDocument('proforma', 'PI-2026-0001', defaultCompany());
+  const initial = getDocumentReadiness(doc);
+  assert.ok(initial.percent < 100);
+  assert.equal(initial.ready, false);
+  assert.ok(initial.remaining > 0);
+
+  doc.customerSnapshot = customerSnapshotFrom(customer());
+  doc.items[0].descriptionEn = 'Energy drink 250ml';
+  doc.items[0].unitPrice = '10.00';
+  const ready = getDocumentReadiness(doc);
+  assert.equal(ready.percent, 100);
+  assert.equal(ready.remaining, 0);
+  assert.equal(ready.ready, true);
+  assert.ok(ready.groups.every(group => group.complete));
 });
 
 test('bilingual documents require both item descriptions', () => {
