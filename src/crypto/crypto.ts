@@ -4,6 +4,11 @@ import { KDF_ITERATIONS } from '../lib/defaults.js';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const VERIFY_TEXT = 'LOUREX-VAULT-VERIFIER-v1';
+const MIN_KDF_ITERATIONS = 10_000;
+const MAX_KDF_ITERATIONS = 2_000_000;
+const MIN_SALT_BYTES = 16;
+const MAX_SALT_BYTES = 64;
+const GCM_IV_BYTES = 12;
 
 function bytesToB64(bytes: Uint8Array): string {
   let binary = '';
@@ -12,10 +17,20 @@ function bytesToB64(bytes: Uint8Array): string {
 }
 
 function b64ToBytes(value: string): Uint8Array {
+  if (typeof value !== 'string' || !value) throw new Error('Invalid encrypted data.');
   const binary = atob(value);
   const out = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
   return out;
+}
+
+function validateKdf(iterations: number, salt: Uint8Array): void {
+  if (!Number.isInteger(iterations) || iterations < MIN_KDF_ITERATIONS || iterations > MAX_KDF_ITERATIONS) {
+    throw new Error('Invalid encryption parameters.');
+  }
+  if (salt.byteLength < MIN_SALT_BYTES || salt.byteLength > MAX_SALT_BYTES) {
+    throw new Error('Invalid encryption parameters.');
+  }
 }
 
 export function randomBytes(length: number): Uint8Array {
@@ -25,6 +40,7 @@ export function randomBytes(length: number): Uint8Array {
 }
 
 export async function deriveKey(pin: string, salt: Uint8Array, iterations = KDF_ITERATIONS): Promise<CryptoKey> {
+  validateKdf(iterations, salt);
   const base = await crypto.subtle.importKey('raw', encoder.encode(pin), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' },
@@ -36,16 +52,19 @@ export async function deriveKey(pin: string, salt: Uint8Array, iterations = KDF_
 }
 
 async function encryptBytes(key: CryptoKey, plain: Uint8Array): Promise<{ iv: string; cipher: string }> {
-  const iv = randomBytes(12);
+  const iv = randomBytes(GCM_IV_BYTES);
   const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as BufferSource }, key, plain as BufferSource);
   return { iv: bytesToB64(iv), cipher: bytesToB64(new Uint8Array(cipher)) };
 }
 
 async function decryptBytes(key: CryptoKey, ivB64: string, cipherB64: string): Promise<Uint8Array> {
+  const iv = b64ToBytes(ivB64);
+  const cipher = b64ToBytes(cipherB64);
+  if (iv.byteLength !== GCM_IV_BYTES || cipher.byteLength < 16) throw new Error('Invalid encrypted data.');
   const plain = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: b64ToBytes(ivB64) as BufferSource },
+    { name: 'AES-GCM', iv: iv as BufferSource },
     key,
-    b64ToBytes(cipherB64) as BufferSource
+    cipher as BufferSource
   );
   return new Uint8Array(plain);
 }
@@ -62,8 +81,9 @@ export async function createSecurity(pin: string): Promise<{ metadata: SecurityM
 }
 
 export async function verifyPin(pin: string, metadata: SecurityMetadata): Promise<CryptoKey> {
-  const key = await deriveKey(pin, b64ToBytes(metadata.salt), metadata.iterations);
   try {
+    const salt = b64ToBytes(metadata.salt);
+    const key = await deriveKey(pin, salt, metadata.iterations);
     const plain = await decryptBytes(key, metadata.verifierIv, metadata.verifierCipher);
     if (decoder.decode(plain) !== VERIFY_TEXT) throw new Error('Wrong PIN');
     return key;
@@ -96,9 +116,14 @@ export async function createEncryptedBackup(pin: string, vault: VaultPayload): P
 }
 
 export async function decryptBackup(pin: string, file: EncryptedBackupFile): Promise<VaultPayload> {
-  if (file.format !== 'LOUREX_BACKUP' || file.version !== 1 || file.kdf?.name !== 'PBKDF2' || file.cipher?.name !== 'AES-GCM') throw new Error('Invalid LOUREX backup file.');
-  const key = await deriveKey(pin, b64ToBytes(file.kdf.salt), file.kdf.iterations);
+  if (
+    file.format !== 'LOUREX_BACKUP' || file.version !== 1 ||
+    file.kdf?.name !== 'PBKDF2' || file.kdf?.hash !== 'SHA-256' ||
+    file.cipher?.name !== 'AES-GCM'
+  ) throw new Error('Invalid LOUREX backup file.');
   try {
+    const salt = b64ToBytes(file.kdf.salt);
+    const key = await deriveKey(pin, salt, file.kdf.iterations);
     const plain = await decryptBytes(key, file.cipher.iv, file.cipher.data);
     return JSON.parse(decoder.decode(plain)) as VaultPayload;
   } catch {
