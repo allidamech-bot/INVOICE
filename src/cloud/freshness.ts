@@ -4,9 +4,9 @@ import { getCloudAccount, getEncryptedVault } from '../storage/db.js';
 let timer:number|undefined;
 let running=false;
 let stopped=false;
-const RELOAD_GUARD='lourex-cloud-refresh-revision';
+const NOTICE_GUARD='lourex-cloud-newer-revision';
 
-function appIsSafeToRefresh():boolean{
+function appIsSafeToCheck():boolean{
   if(document.visibilityState!=='visible')return false;
   if(typeof navigator!=='undefined'&&!navigator.onLine)return false;
   if(document.querySelector('.editor-screen,.modal-backdrop'))return false;
@@ -17,7 +17,7 @@ function appIsSafeToRefresh():boolean{
 }
 
 async function checkCloudFreshness():Promise<void>{
-  if(stopped||running||!appIsSafeToRefresh())return;
+  if(stopped||running||!appIsSafeToCheck())return;
   const user=currentCloudUser();
   if(!user)return;
   running=true;
@@ -27,13 +27,13 @@ async function checkCloudFreshness():Promise<void>{
     const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(user.uid)]);
     if(!local||!remote||remote.updatedAt<=local.updatedAt)return;
     const guard=`${user.uid}:${remote.revision}`;
-    if(sessionStorage.getItem(RELOAD_GUARD)===guard)return;
+    if(sessionStorage.getItem(NOTICE_GUARD)===guard)return;
 
-    // Never install a cloud vault from this independent watcher. Reloading lets
-    // App.initialize reconcile the encrypted vault before any editor or local
-    // write queue exists, preventing the watcher from racing an in-flight save.
-    sessionStorage.setItem(RELOAD_GUARD,guard);
-    window.location.reload();
+    // A background watcher must never replace or reload a live local vault.
+    // Reuse App's online handler so its protected cloud pipeline drains pending
+    // writes, detects the newer cloud revision, and tells the user to Sync Now.
+    sessionStorage.setItem(NOTICE_GUARD,guard);
+    window.dispatchEvent(new Event('online'));
   }catch{
     // App-level cloud controls surface sync errors; the watcher stays silent.
   }finally{
