@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyVault } from '../dist/src/lib/defaults.js';
-import { savedItemFromDocumentItem, savedItemToDocumentItem, sortSavedItems } from '../dist/src/lib/saved-items.js';
+import { savedItemFromDocumentItem, documentItemFromSavedItem, sortSavedItems } from '../dist/src/lib/saved-items.js';
 import { migrateVault } from '../dist/src/storage/vault.js';
 
 test('saved item round-trip keeps reusable commercial fields',()=>{
@@ -10,7 +10,7 @@ test('saved item round-trip keeps reusable commercial fields',()=>{
   assert.equal(saved.descriptionEn,'Red Bull 250ml');
   assert.equal(saved.lastUnitPrice,'24.50');
   assert.equal(saved.lastCurrency,'USD');
-  const restored=savedItemToDocumentItem(saved);
+  const restored=documentItemFromSavedItem(saved);
   assert.equal(restored.descriptionAr,source.descriptionAr);
   assert.equal(restored.hsCode,'2202');
   assert.equal(restored.unit,'Carton');
