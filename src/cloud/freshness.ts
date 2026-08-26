@@ -1,9 +1,10 @@
-import { currentCloudUser, getCloudVaultMeta, installCloudVault } from './firebase.js';
+import { currentCloudUser, getCloudVaultMeta } from './firebase.js';
 import { getCloudAccount, getEncryptedVault } from '../storage/db.js';
 
 let timer:number|undefined;
 let running=false;
 let stopped=false;
+const RELOAD_GUARD='lourex-cloud-refresh-revision';
 
 function appIsSafeToRefresh():boolean{
   if(document.visibilityState!=='visible')return false;
@@ -26,14 +27,15 @@ async function checkCloudFreshness():Promise<void>{
     const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(user.uid)]);
     if(!local||!remote||remote.updatedAt<=local.updatedAt)return;
     const guard=`${user.uid}:${remote.revision}`;
-    if(sessionStorage.getItem('lourex-cloud-refresh-revision')===guard)return;
-    const installed=await installCloudVault(user.uid);
-    if(installed){
-      sessionStorage.setItem('lourex-cloud-refresh-revision',guard);
-      window.location.reload();
-    }
+    if(sessionStorage.getItem(RELOAD_GUARD)===guard)return;
+
+    // Never install a cloud vault from this independent watcher. Reloading lets
+    // App.initialize reconcile the encrypted vault before any editor or local
+    // write queue exists, preventing the watcher from racing an in-flight save.
+    sessionStorage.setItem(RELOAD_GUARD,guard);
+    window.location.reload();
   }catch{
-    // App-level cloud controls surface sync errors; the watcher stays silent and retries later.
+    // App-level cloud controls surface sync errors; the watcher stays silent.
   }finally{
     running=false;
   }
