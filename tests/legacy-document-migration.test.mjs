@@ -11,7 +11,7 @@ test('legacy saved documents are fully normalized before the editor opens', () =
   legacy.company = {
     ...legacy.company,
     nameEn: 'LOUREX',
-    bank: { bankName: 'Legacy Bank' }
+    bank: { bankName: 'Current Bank' }
   };
   legacy.appSettings.smartDefaults = {
     currency: 'USD',
@@ -47,8 +47,9 @@ test('legacy saved documents are fully normalized before the editor opens', () =
   assert.equal(doc.status, 'draft');
   assert.equal(doc.appearance.templateId, 'executive');
   assert.equal(typeof doc.companySnapshot.logoDataUrl, 'string');
-  assert.equal(doc.companySnapshot.bank.bankName, 'Legacy Bank');
+  assert.equal(doc.companySnapshot.bank.bankName, '');
   assert.equal(typeof doc.companySnapshot.bank.iban, 'string');
+  assert.notEqual(doc.companySnapshot.bank.bankName, migrated.company.bank.bankName);
   assert.equal(doc.items[0].quantity, '1');
   assert.equal(doc.items[0].unitPrice, '10');
   assert.equal(doc.items[0].descriptionAr, '');
