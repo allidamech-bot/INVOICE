@@ -1,5 +1,8 @@
 const SCALE = 10_000n;
 const MONEY_SCALE = 100n;
+const PRODUCT_TO_CENTS = (SCALE * SCALE) / MONEY_SCALE;
+const PERCENT_DIVISOR = 1_000_000n;
+const MAX_DECIMAL_DIGITS = 96;
 
 function pow10(n: number): bigint { let v = 1n; for (let i = 0; i < n; i += 1) v *= 10n; return v; }
 
@@ -28,10 +31,8 @@ function normalizeDecimalSeparators(input: string): string {
     if(parts.some(part=>!/^[0-9]*$/.test(part)))return raw;
     if(commaCount===1){
       const [whole='',fraction='']=parts;
-      // A single 3-digit suffix is treated as a thousands group for backwards
-      // compatibility (1,234). Other suffix lengths are interpreted as a
-      // decimal comma, so common mobile input such as 12,5 means 12.5.
-      if(fraction.length===3&&whole.length>0)return `${sign}${whole}${fraction}`;
+      // A single comma in an editable numeric field is treated as a decimal
+      // separator. This avoids locale input such as 0,125 becoming 125.
       return `${sign}${whole}.${fraction}`;
     }
     if(parts[0]&&parts.slice(1).every(part=>part.length===3))return `${sign}${parts.join('')}`;
@@ -48,10 +49,13 @@ export function normalizeDecimalInput(input:string):string{
 export function isDecimalInput(input: string): boolean {
   const cleaned = normalizeDecimalSeparators(input);
   if (!cleaned || cleaned === '-' || cleaned === '.' || cleaned === '-.') return false;
+  const digits=cleaned.replace(/[-.]/g,'');
+  if(digits.length>MAX_DECIMAL_DIGITS)return false;
   return /^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(cleaned);
 }
 
 export function decimalToScaled(input: string, decimals = 4): bigint {
+  if(!Number.isInteger(decimals)||decimals<0||decimals>12)return 0n;
   const cleaned = normalizeDecimalSeparators(input || '0') || '0';
   if (!isDecimalInput(cleaned)) return 0n;
   const negative = cleaned.startsWith('-');
@@ -65,11 +69,10 @@ export function decimalToScaled(input: string, decimals = 4): bigint {
   return negative ? -result : result;
 }
 
-function scaled4ToMoney2(value: bigint): bigint {
-  const sign = value < 0n ? -1n : 1n;
-  const abs = value < 0n ? -value : value;
-  const rounded = (abs + 50n) / 100n;
-  return rounded * sign;
+function roundDivide(value:bigint,divisor:bigint):bigint{
+  const sign=value<0n?-1n:1n;
+  const abs=value<0n?-value:value;
+  return ((abs+divisor/2n)/divisor)*sign;
 }
 
 function money2ToString(cents: bigint): string {
@@ -81,10 +84,7 @@ function money2ToString(cents: bigint): string {
 export function lineTotal(quantity: string, unitPrice: string): string {
   const q = decimalToScaled(quantity);
   const p = decimalToScaled(unitPrice);
-  const product=q*p;
-  const sign=product<0n?-1n:1n;
-  const roundedScaled4=(product<0n?-product:product)+SCALE/2n;
-  return money2ToString(scaled4ToMoney2((roundedScaled4/SCALE)*sign));
+  return money2ToString(roundDivide(q*p,PRODUCT_TO_CENTS));
 }
 
 export interface TotalsInputItem { quantity: string; unitPrice: string }
@@ -103,7 +103,7 @@ export function calculateTotals(items: TotalsInputItem[], a: TotalsInputAdjustme
     if (a.discountMode === 'fixed') discount = decimalToScaled(a.discountValue, 2);
     else {
       const percent4 = decimalToScaled(a.discountValue, 4);
-      discount = (subtotal * percent4 + 500_000n) / 1_000_000n;
+      discount = roundDivide(subtotal*percent4,PERCENT_DIVISOR);
     }
     if (discount < 0n) discount = 0n;
     if (discount > subtotal) discount = subtotal;
@@ -114,7 +114,7 @@ export function calculateTotals(items: TotalsInputItem[], a: TotalsInputAdjustme
   let tax = 0n;
   if (a.taxEnabled) {
     const percent4 = decimalToScaled(a.taxPercent, 4);
-    tax = (taxable * percent4 + 500_000n) / 1_000_000n;
+    tax = roundDivide(taxable*percent4,PERCENT_DIVISOR);
   }
   const grand = taxable + tax;
   return {
