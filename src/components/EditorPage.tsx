@@ -3,7 +3,7 @@ import { calculateTotals, formatMoney, lineTotal } from '../lib/money.js';
 import { customerSnapshotFrom } from '../lib/defaults.js';
 import { emptyItem, refreshCompanySnapshot, validateDocument } from '../lib/documents.js';
 import { getDocumentReadiness } from '../lib/readiness.js';
-import { historySuggestions, savedItemSearchText, savedItemToDocumentItem, sortSavedItems } from '../lib/saved-items.js';
+import { documentItemFromSavedItem, historySuggestions, savedItemSearchText, sortSavedItems } from '../lib/saved-items.js';
 import { ARABIC_FONT_OPTIONS, LATIN_FONT_OPTIONS } from '../lib/appearance.js';
 import { isArabic, t, translateValidation } from '../lib/i18n.js';
 import { blankCustomer, CustomerForm } from './CustomersPage.js';
@@ -122,7 +122,7 @@ export class EditorPage extends React.Component<Props,State>{
     this.setState({suggestingItemId:'',expandedItems:{...this.state.expandedItems,[targetId]:Boolean(saved.hsCode||saved.origin||saved.packing)}});
   };
   private addSavedItem=(saved:SavedItem)=>{
-    const item=savedItemToDocumentItem(saved);if(saved.lastCurrency&&saved.lastCurrency!==this.state.doc.currency)item.unitPrice='';
+    const item=documentItemFromSavedItem(saved);if(saved.lastCurrency&&saved.lastCurrency!==this.state.doc.currency)item.unitPrice='';
     this.mutate(doc=>({...doc,items:[...doc.items,item]}));this.setState({savedItemsOpen:false,suggestingItemId:''});
   };
 
