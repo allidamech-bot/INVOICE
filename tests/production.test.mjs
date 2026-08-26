@@ -8,13 +8,18 @@ const read = async path => readFile(new URL(path, root), 'utf8');
 test('production shell has PWA, React runtime, compiled app entry and premium design layer', async () => {
   const html = await read('dist/index.html');
   const premium = await read('dist/styles/premium.css');
+  const accounting = await read('dist/styles/accounting-polish.css');
   assert.match(html, /manifest\.webmanifest/);
   assert.match(html, /react@16\.0\.0/);
   assert.match(html, /src\/app\/index\.js/);
   assert.match(html, /styles\/premium\.css/);
+  assert.match(html, /styles\/accounting-polish\.css/);
   assert.match(premium, /--radius-xl/);
   assert.match(premium, /\.save-indicator\.state-saved/);
   assert.match(premium, /@media \(max-width:720px\)/);
+  assert.match(accounting, /--acct-blue/);
+  assert.match(accounting, /\.editor-validation-summary/);
+  assert.match(accounting, /\.section-has-error/);
   assert.ok((await stat(new URL('dist/brand/lourex-logo.svg', root))).size > 1000);
 });
 
@@ -33,11 +38,14 @@ test('production shell redirects deployment URLs to the canonical Vercel project
   assert.match(sw, /cache:'no-store'/);
 });
 
-test('editor continuously autosaves incomplete drafts', async () => {
+test('editor continuously autosaves incomplete drafts while explicit actions validate', async () => {
   const editor = await read('src/components/EditorPage.tsx');
   assert.match(editor, /setTimeout\(\(\)=>void this\.save\(true\),500\)/);
-  assert.match(editor, /Auto-saving/);
-  assert.match(editor, /Auto-saved/);
+  assert.match(editor, /Saving draft/);
+  assert.match(editor, /Draft auto-saved/);
+  assert.match(editor, /validateCurrent/);
+  assert.match(editor, /save-validation-badge/);
+  assert.match(editor, /scrollToFirstError/);
   assert.match(editor, /saveAndClose/);
   assert.doesNotMatch(editor, /schedule=.*validateDocument/);
 });
@@ -87,7 +95,7 @@ test('first-run onboarding requires a cloud account before local PIN setup', asy
 
 test('offline service worker precaches the application module graph, premium styles and cloud UI', async () => {
   const sw = await read('dist/sw.js');
-  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js','styles/premium.css','styles/cloud.css','styles/auth-entry.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
+  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js','styles/premium.css','styles/accounting-polish.css','styles/cloud.css','styles/auth-entry.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
 });
 
 test('print stylesheet isolates A4 documents from application chrome', async () => {
