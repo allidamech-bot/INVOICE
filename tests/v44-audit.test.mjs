@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { defaultCompany, emptyVault, customerSnapshotFrom, APP_SCHEMA_VERSION } from '../dist/src/lib/defaults.js';
 import { addDaysIso, isIsoDate, normalizeValidityDays } from '../dist/src/lib/id.js';
 import { compareMoneyStrings, decimalToScaled, isDecimalInput, lineTotal, normalizeDecimalInput } from '../dist/src/lib/money.js';
-import { createBlankDocument, validateDocument } from '../dist/src/lib/documents.js';
+import { createBlankDocument, paginateItems, validateDocument } from '../dist/src/lib/documents.js';
 import { getDocumentReadiness } from '../dist/src/lib/readiness.js';
 import { migrateVault } from '../dist/src/storage/vault.js';
 
@@ -47,6 +47,9 @@ test('v44 service worker precaches every compiled application module',async()=>{
   assert.match(sw,/src\/storage\/vault-merge\.js/);
   assert.match(sw,/styles\/v44-audit\.css/);
   assert.match(sw,/EXTERNAL_CORE_SET/);
+  assert.match(sw,/preserveExternalRuntime/);
+  assert.match(sw,/caches\.match\(asset\)/);
+  assert.match(sw,/cache\.put\(asset,existing\.clone\(\)\)/);
   assert.match(sw,/cache\.put\(event\.request, response\.clone\(\)\)/);
 });
 
@@ -144,6 +147,16 @@ test('schema v5 normalizes hostile legacy defaults without changing document sna
   assert.equal(migrated.company.defaultCurrency,'SAR');
   assert.equal(migrated.appSettings.numbering.proformaPrefix,'PI');
   assert.equal(migrated.documents[0].companySnapshot.nameEn,'Historical Seller');
+});
+
+test('pagination can reserve additional first-page space for long party details',async()=>{
+  const base=validDoc().items[0];
+  const items=Array.from({length:9},(_,index)=>({...base,id:`i${index}`,descriptionEn:`Product ${index+1}`}));
+  assert.equal(paginateItems(items,false)[0].length,7);
+  assert.equal(paginateItems(items,false,3)[0].length,3);
+  const renderer=await read('src/templates/TemplateRenderer.tsx');
+  assert.match(renderer,/firstPageItemCapacity/);
+  assert.match(renderer,/paginateItems\(doc\.items, !separateDetails, firstPageItemCapacity\(doc\)\)/);
 });
 
 test('editor exposes percent discount and background-safe autosave',async()=>{
