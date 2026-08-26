@@ -100,4 +100,19 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
   const score = termsCount + (doc.notes.trim() ? 3 : 0) + (bank ? 4 : 0) + (signing ? 3 : 0) + adjustments;
   return score >= 10 || detailsChars > 700 || values.some(value=>value.length>260) || doc.notes.length>420;
 }
-export function TemplateRenderer({ document: doc, scale = 1, compact = false }: Props): any { const separateDetails = shouldUseDetailsPage(doc); const itemPages = paginateItems(doc.items, !separateDetails); const pages = separateDetails ? [...itemPages, [] as DocumentItem[]] : itemPages; return <div className="invoice-pages" style={{ '--preview-scale': String(scale) } as any}>{pages.map((items,index) => <Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index === pages.length - 1} variant={doc.appearance.templateId} compact={compact}/>)}</div>; }
+function firstPageItemCapacity(doc:LourexDocument):number{
+  const c=doc.customerSnapshot;
+  const values=[
+    doc.companySnapshot.nameEn,doc.companySnapshot.nameAr,doc.companySnapshot.addressEn,doc.companySnapshot.addressAr,doc.companySnapshot.city,doc.companySnapshot.country,
+    doc.companySnapshot.phone,doc.companySnapshot.email,doc.companySnapshot.website,doc.companySnapshot.vatNumber,doc.companySnapshot.taxNumber,doc.companySnapshot.commercialRegistration,
+    c?.companyNameEn??'',c?.companyNameAr??'',c?.addressEn??'',c?.addressAr??'',c?.city??'',c?.country??'',c?.phone??'',c?.email??'',c?.vatTaxNumber??'',c?.commercialRegistration??''
+  ].map(value=>value.trim()).filter(Boolean);
+  const chars=values.reduce((sum,value)=>sum+value.length,0);
+  const pressure=chars+values.length*18+(doc.language==='bilingual'?120:0);
+  if(pressure>1050)return 2;
+  if(pressure>780)return 3;
+  if(pressure>560)return 4;
+  if(pressure>380)return 5;
+  return 7;
+}
+export function TemplateRenderer({ document: doc, scale = 1, compact = false }: Props): any { const separateDetails = shouldUseDetailsPage(doc); const itemPages = paginateItems(doc.items, !separateDetails, firstPageItemCapacity(doc)); const pages = separateDetails ? [...itemPages, [] as DocumentItem[]] : itemPages; return <div className="invoice-pages" style={{ '--preview-scale': String(scale) } as any}>{pages.map((items,index) => <Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index === pages.length - 1} variant={doc.appearance.templateId} compact={compact}/>)}</div>; }
