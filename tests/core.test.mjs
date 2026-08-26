@@ -52,10 +52,38 @@ test('duplicate and conversion preserve content while producing independent iden
   const inv = convertToInvoice(source, 'INV-2026-0001'); assert.equal(inv.kind, 'invoice'); assert.equal(inv.convertedFromId, source.id); assert.equal(source.kind, 'proforma');
 });
 
-test('validation enforces minimum viable document', () => {
-  const doc = createBlankDocument('invoice', 'INV-2026-0001', defaultCompany()); let errors = validateDocument(doc); assert.ok(errors.customer); assert.ok(errors['item-0-description']);
-  doc.customerSnapshot = customerSnapshotFrom(customer()); doc.items[0].descriptionEn = 'Monster Energy Drink 500ml'; doc.items[0].quantity = '0'; errors = validateDocument(doc); assert.ok(errors['item-0-quantity']);
-  doc.items[0].quantity = '1'; errors = validateDocument(doc); assert.equal(Object.keys(errors).length, 0);
+test('validation enforces minimum viable document and explicit item pricing', () => {
+  const doc = createBlankDocument('invoice', 'INV-2026-0001', defaultCompany());
+  let errors = validateDocument(doc);
+  assert.ok(errors.customer);
+  assert.ok(errors['item-0-description']);
+  assert.ok(errors['item-0-price']);
+
+  doc.customerSnapshot = customerSnapshotFrom(customer());
+  doc.items[0].descriptionEn = 'Monster Energy Drink 500ml';
+  doc.items[0].quantity = '0';
+  errors = validateDocument(doc);
+  assert.ok(errors['item-0-quantity']);
+  assert.ok(errors['item-0-price']);
+
+  doc.items[0].quantity = '1';
+  doc.items[0].unitPrice = '12.50';
+  errors = validateDocument(doc);
+  assert.equal(Object.keys(errors).length, 0);
+});
+
+test('bilingual documents require both item descriptions', () => {
+  const doc = createBlankDocument('proforma', 'PI-2026-0001', defaultCompany());
+  doc.customerSnapshot = customerSnapshotFrom(customer());
+  doc.language = 'bilingual';
+  doc.items[0].descriptionEn = 'Energy drink 250ml';
+  doc.items[0].descriptionAr = '';
+  doc.items[0].unitPrice = '10.00';
+  let errors = validateDocument(doc);
+  assert.ok(errors['item-0-description-ar']);
+  doc.items[0].descriptionAr = 'مشروب طاقة 250 مل';
+  errors = validateDocument(doc);
+  assert.equal(Object.keys(errors).length, 0);
 });
 
 test('pagination handles 30+ items and preserves all rows', () => {
@@ -72,7 +100,7 @@ test('PIN verifier rejects wrong PIN and encrypted vault round-trips', async () 
 
 test('backup is encrypted, validates PIN, and restores complete payload', async () => {
   const vault = emptyVault(); vault.customers.push(customer()); const backup = await createEncryptedBackup('1357', vault); const serialized = JSON.stringify(backup); assert.ok(!serialized.includes('ABC Trading Company'));
-  await assert.rejects(() => decryptBackup('9999', backup), /incorrect|corrupted/i); const restored = await decryptBackup('1357', backup); assert.equal(restored.customers[0].companyNameEn, 'ABC Trading Company');
+  await assert.rejects(() => decryptBackup('9999', backup), /incorrect|corrupted/i); const restored = await decryptBackup(verified, record); assert.equal(restored.customers[0].companyNameEn, 'ABC Trading Company');
 });
 
 test('migration rejects duplicate IDs instead of silently corrupting restored data', async () => {
