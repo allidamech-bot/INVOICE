@@ -48,7 +48,15 @@ function requireCurrentUid(uid:string):void{const current=auth().currentUser;if(
 function splitCipher(cipher:string):string[]{if(cipher.length>MAX_CIPHER_LENGTH)throw new Error('Encrypted vault is too large for cloud sync. Export a local backup and remove oversized images.');const out:string[]=[];for(let i=0;i<cipher.length;i+=CHUNK_SIZE)out.push(cipher.slice(i,i+CHUNK_SIZE));return out;}
 function revisionId():string{const bytes=new Uint8Array(8);crypto.getRandomValues(bytes);return `${Date.now().toString(36)}-${Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')}`;}
 async function sha256(value:string):Promise<string>{const bytes=new TextEncoder().encode(value);const digest=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');}
-function validSecurity(value:any):value is SecurityMetadata{return Boolean(value&&value.id==='security'&&value.kdf?.name==='PBKDF2'&&value.kdf?.hash==='SHA-256'&&Number.isInteger(value.kdf?.iterations)&&value.kdf.iterations>=100_000&&value.kdf.iterations<=2_000_000&&typeof value.kdf?.salt==='string'&&value.kdf.salt.length>=16&&value.verifier?.alg==='AES-GCM'&&typeof value.verifier?.iv==='string'&&typeof value.verifier?.cipher==='string');}
+function validSecurity(value:any):value is SecurityMetadata{
+  return Boolean(
+    value&&value.id==='security'&&value.version===1&&
+    Number.isInteger(value.iterations)&&value.iterations>=10_000&&value.iterations<=2_000_000&&
+    typeof value.salt==='string'&&value.salt.length>=16&&value.salt.length<=128&&
+    typeof value.verifierIv==='string'&&value.verifierIv.length>=12&&value.verifierIv.length<=128&&
+    typeof value.verifierCipher==='string'&&value.verifierCipher.length>=16&&value.verifierCipher.length<=2048
+  );
+}
 function validMeta(data:any):data is CloudVaultMeta{
   return Boolean(data&&data.format===CLOUD_FORMAT&&data.version===1&&typeof data.revision==='string'&&data.revision.length>0&&data.revision.length<160&&typeof data.updatedAt==='string'&&!Number.isNaN(Date.parse(data.updatedAt))&&Number.isInteger(data.schemaVersion)&&data.schemaVersion>0&&data.schemaVersion<100&&typeof data.iv==='string'&&data.iv.length>=12&&Number.isInteger(data.cipherLength)&&data.cipherLength>0&&data.cipherLength<=MAX_CIPHER_LENGTH&&typeof data.cipherSha256==='string'&&/^[0-9a-f]{64}$/i.test(data.cipherSha256)&&Number.isInteger(data.chunkCount)&&data.chunkCount>=1&&data.chunkCount<=MAX_CHUNKS&&validSecurity(data.security));
 }
@@ -129,9 +137,14 @@ export async function pushLocalVaultToCloud(uid:string):Promise<void>{
   }
   const chunks=splitCipher(vault.cipher);
   const revision=revisionId();
-  await writeChunks(uid,revision,chunks);
   const meta:CloudVaultMeta={format:CLOUD_FORMAT,version:1,revision,updatedAt:vault.updatedAt,schemaVersion:vault.schemaVersion,iv:vault.iv,cipherLength:vault.cipher.length,cipherSha256,chunkCount:chunks.length,security};
-  await vaultCollection(uid).doc('meta').set(meta);
+  try{
+    await writeChunks(uid,revision,chunks);
+    await vaultCollection(uid).doc('meta').set(meta);
+  }catch(error){
+    await cleanupRevision(uid,revision,chunks.length);
+    throw error;
+  }
   if(previous&&previous.revision!==revision)void cleanupRevision(uid,previous.revision,previous.chunkCount);
 }
 
