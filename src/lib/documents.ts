@@ -1,21 +1,39 @@
 import type { CompanySettings, DocumentKind, DocumentItem, LourexDocument, VaultPayload } from '../types.js';
 import { addDaysIso, makeId, todayIso } from './id.js';
 import { companySnapshotFrom } from './defaults.js';
+import { decimalToScaled, isDecimalInput } from './money.js';
 
 export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { number: string; vault: VaultPayload } {
   const year = new Date().getFullYear();
   const numbering = { ...vault.appSettings.numbering };
-  if (kind === 'proforma') {
-    if (numbering.proformaYear !== year) { numbering.proformaYear = year; numbering.proformaLast = 0; }
-    numbering.proformaLast += 1;
-  } else {
-    if (numbering.invoiceYear !== year) { numbering.invoiceYear = year; numbering.invoiceLast = 0; }
-    numbering.invoiceLast += 1;
+  const isProforma = kind === 'proforma';
+  const yearKey = isProforma ? 'proformaYear' : 'invoiceYear';
+  const lastKey = isProforma ? 'proformaLast' : 'invoiceLast';
+  const prefixKey = isProforma ? 'proformaPrefix' : 'invoicePrefix';
+  const fallbackPrefix = isProforma ? 'PI' : 'INV';
+
+  if (numbering[yearKey] !== year) {
+    numbering[yearKey] = year;
+    numbering[lastKey] = 0;
   }
-  const seq = kind === 'proforma' ? numbering.proformaLast : numbering.invoiceLast;
-  const prefix = kind === 'proforma' ? numbering.proformaPrefix : numbering.invoicePrefix;
+
+  const prefix = (numbering[prefixKey] || fallbackPrefix)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 8) || fallbackPrefix;
+  numbering[prefixKey] = prefix;
+
+  const used = new Set(vault.documents.map(document => document.number.trim().toLowerCase()).filter(Boolean));
+  let seq = Math.max(0, Math.trunc(numbering[lastKey] || 0));
+  let number = '';
+  do {
+    seq += 1;
+    number = `${prefix}-${year}-${String(seq).padStart(4, '0')}`;
+  } while (used.has(number.toLowerCase()));
+  numbering[lastKey] = seq;
+
   return {
-    number: `${prefix}-${year}-${String(seq).padStart(4, '0')}`,
+    number,
     vault: { ...vault, appSettings: { ...vault.appSettings, numbering } }
   };
 }
@@ -55,16 +73,12 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
     } else if (!item.descriptionEn.trim()) {
       errors[`item-${index}-description`] = 'Description is required.';
     }
-    const qty = Number(item.quantity);
-    if (!Number.isFinite(qty) || qty <= 0) errors[`item-${index}-quantity`] = 'Quantity must be greater than 0.';
+    if (!isDecimalInput(item.quantity) || decimalToScaled(item.quantity) <= 0n) errors[`item-${index}-quantity`] = 'Quantity must be greater than 0.';
     if (!item.unit.trim()) errors[`item-${index}-unit`] = 'Unit is required.';
     if (!item.unitPrice.trim()) errors[`item-${index}-price`] = 'Unit price is required.';
-    else {
-      const price = Number(item.unitPrice);
-      if (!Number.isFinite(price) || price < 0) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
-    }
+    else if (!isDecimalInput(item.unitPrice) || decimalToScaled(item.unitPrice) < 0n) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
   });
-  const nonNegative = (value: string) => value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
+  const nonNegative = (value: string) => isDecimalInput(value) && decimalToScaled(value) >= 0n;
   if (doc.adjustments.discountEnabled && !nonNegative(doc.adjustments.discountValue)) errors.discount = 'Discount must be 0 or greater.';
   if (doc.adjustments.shippingEnabled && !nonNegative(doc.adjustments.shipping)) errors.shipping = 'Shipping must be 0 or greater.';
   if (doc.adjustments.otherChargesEnabled && !nonNegative(doc.adjustments.otherCharges)) errors.otherCharges = 'Other charges must be 0 or greater.';

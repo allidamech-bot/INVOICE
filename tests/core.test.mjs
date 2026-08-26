@@ -37,6 +37,30 @@ test('proforma and invoice numbering are independent and monotonic', () => {
   assert.equal(vault.appSettings.numbering.invoiceLast, 1);
 });
 
+test('generated numbering falls back from blank prefixes and skips existing collisions', () => {
+  const year = new Date().getFullYear();
+  let vault = emptyVault();
+  vault.appSettings.numbering.proformaPrefix = '';
+  const quote = nextDocumentNumber(vault, 'proforma');
+  assert.equal(quote.number, `PI-${year}-0001`);
+  assert.equal(quote.vault.appSettings.numbering.proformaPrefix, 'PI');
+
+  vault = emptyVault();
+  vault.appSettings.numbering.proformaPrefix = 'DOC';
+  vault.appSettings.numbering.invoicePrefix = 'DOC';
+  vault.documents.push(createBlankDocument('proforma', `DOC-${year}-0001`, defaultCompany()));
+  const invoice = nextDocumentNumber(vault, 'invoice');
+  assert.equal(invoice.number, `DOC-${year}-0002`);
+  assert.equal(invoice.vault.appSettings.numbering.invoiceLast, 2);
+
+  vault = emptyVault();
+  vault.appSettings.numbering.invoiceLast = 4;
+  vault.documents.push(createBlankDocument('invoice', `INV-${year}-0005`, defaultCompany()));
+  const afterManualCollision = nextDocumentNumber(vault, 'invoice');
+  assert.equal(afterManualCollision.number, `INV-${year}-0006`);
+  assert.equal(afterManualCollision.vault.appSettings.numbering.invoiceLast, 6);
+});
+
 test('customer and company snapshots stay historical after source edits', () => {
   const company = defaultCompany(); company.addressEn = 'Old Company Address';
   const doc = createBlankDocument('proforma', 'PI-2026-0001', company);
@@ -119,6 +143,19 @@ test('PIN verifier rejects wrong PIN and encrypted vault round-trips', async () 
 test('backup is encrypted, validates PIN, and restores complete payload', async () => {
   const vault = emptyVault(); vault.customers.push(customer()); const backup = await createEncryptedBackup('1357', vault); const serialized = JSON.stringify(backup); assert.ok(!serialized.includes('ABC Trading Company'));
   await assert.rejects(() => decryptBackup('9999', backup), /incorrect|corrupted/i); const restored = await decryptBackup('1357', backup); assert.equal(restored.customers[0].companyNameEn, 'ABC Trading Company');
+});
+
+test('backup decryption rejects abusive or malformed crypto parameters without unbounded KDF work', async () => {
+  const backup = await createEncryptedBackup('1357', emptyVault());
+  const hostile = structuredClone(backup);
+  hostile.kdf.iterations = 2_000_001;
+  await assert.rejects(() => decryptBackup('1357', hostile), /incorrect|corrupted/i);
+  const malformed = structuredClone(backup);
+  malformed.cipher.iv = 'not-valid-base64';
+  await assert.rejects(() => decryptBackup('1357', malformed), /incorrect|corrupted/i);
+  const weak = structuredClone(backup);
+  weak.kdf.iterations = 1;
+  await assert.rejects(() => decryptBackup('1357', weak), /incorrect|corrupted/i);
 });
 
 test('migration rejects duplicate IDs instead of silently corrupting restored data', async () => {

@@ -5,12 +5,17 @@ import { readFile, stat } from 'node:fs/promises';
 const root = new URL('../', import.meta.url);
 const read = async path => readFile(new URL(path, root), 'utf8');
 
-test('production shell has PWA, React runtime, compiled app entry and premium design layer', async () => {
+test('production shell has a fragment-compatible matched React runtime, PWA and premium design layer', async () => {
   const html = await read('dist/index.html');
+  const sw = await read('dist/sw.js');
   const premium = await read('dist/styles/premium.css');
   const accounting = await read('dist/styles/accounting-polish.css');
   assert.match(html, /manifest\.webmanifest/);
-  assert.match(html, /react@16\.0\.0/);
+  assert.match(html, /react@17\.0\.2\/umd\/react\.production\.min\.js/);
+  assert.match(html, /react-dom@17\.0\.2\/umd\/react-dom\.production\.min\.js/);
+  assert.doesNotMatch(html, /react@16\.0\.0|react-dom@16\.0\.1/);
+  assert.match(sw, /react@17\.0\.2/);
+  assert.match(sw, /react-dom@17\.0\.2/);
   assert.match(html, /src\/app\/index\.js/);
   assert.match(html, /styles\/premium\.css/);
   assert.match(html, /styles\/accounting-polish\.css/);
@@ -57,6 +62,16 @@ test('editor remounts its local draft state when document identity changes', asy
   assert.match(wrapper, /key=\{props\.document\.id\}/);
 });
 
+test('existing encrypted local vault can unlock without a live cloud session', async () => {
+  const selector = await read('src/app/AuthScreenSelector.tsx');
+  const unlockBranch = selector.indexOf("if (props.mode === 'unlock')");
+  const cloudGate = selector.indexOf('if (!currentCloudUser())');
+  assert.ok(unlockBranch >= 0, 'unlock branch missing');
+  assert.ok(cloudGate > unlockBranch, 'cloud account gate must not block an existing local vault');
+  assert.match(selector, /return <UnlockScreen/);
+  assert.match(selector, /return <AccountEntryScreen/);
+});
+
 test('backup uses the native share sheet for Save to Files with download fallback', async () => {
   const backup = await read('src/lib/backup.ts');
   assert.match(backup, /navigator\.share/);
@@ -87,6 +102,7 @@ test('Firebase cloud sync stores the encrypted vault under owner-only user paths
 test('first-run onboarding requires a cloud account before local PIN setup', async () => {
   const html = await read('dist/index.html');
   const auth = await read('src/components/AuthScreens.tsx');
+  const selector = await read('src/app/AuthScreenSelector.tsx');
   const css = await read('dist/styles/auth-entry.css');
   assert.match(html, /styles\/auth-entry\.css/);
   assert.match(auth, /Create your account/);
@@ -95,13 +111,15 @@ test('first-run onboarding requires a cloud account before local PIN setup', asy
   assert.match(auth, /signInCloudUser/);
   assert.match(auth, /Confirm Password/);
   assert.match(auth, /Create your local PIN/);
+  assert.match(selector, /if \(!currentCloudUser\(\)\)/);
   assert.doesNotMatch(auth, /Restore Backup|Choose Backup File|restoreOpen/);
   assert.match(css, /account-entry-tabs/);
   assert.match(css, /setup-account-badge/);
 });
 
-test('offline service worker precaches the application module graph, premium styles and cloud UI', async () => {
+test('offline service worker precaches the complete application module graph and current runtime', async () => {
   const sw = await read('dist/sw.js');
+  assert.match(sw, /lourex-invoice-v43/);
   for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/components/EditorPageCore.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js','styles/premium.css','styles/accounting-polish.css','styles/cloud.css','styles/auth-entry.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
 });
 
