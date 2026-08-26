@@ -121,6 +121,19 @@ test('backup is encrypted, validates PIN, and restores complete payload', async 
   await assert.rejects(() => decryptBackup('9999', backup), /incorrect|corrupted/i); const restored = await decryptBackup('1357', backup); assert.equal(restored.customers[0].companyNameEn, 'ABC Trading Company');
 });
 
+test('backup decryption rejects abusive or malformed crypto parameters without unbounded KDF work', async () => {
+  const backup = await createEncryptedBackup('1357', emptyVault());
+  const hostile = structuredClone(backup);
+  hostile.kdf.iterations = 2_000_001;
+  await assert.rejects(() => decryptBackup('1357', hostile), /incorrect|corrupted/i);
+  const malformed = structuredClone(backup);
+  malformed.cipher.iv = 'not-valid-base64';
+  await assert.rejects(() => decryptBackup('1357', malformed), /incorrect|corrupted/i);
+  const weak = structuredClone(backup);
+  weak.kdf.iterations = 1;
+  await assert.rejects(() => decryptBackup('1357', weak), /incorrect|corrupted/i);
+});
+
 test('migration rejects duplicate IDs instead of silently corrupting restored data', async () => {
   const { migrateVault } = await import('../dist/src/storage/vault.js'); const vault = emptyVault(); const first = customer({ id: 'duplicate-id' }); vault.customers = [first, { ...structuredClone(first) }]; assert.throws(() => migrateVault(vault), /duplicate or invalid customer IDs/i);
 });
