@@ -1,6 +1,7 @@
 import type { CompanySettings, DocumentKind, DocumentItem, LourexDocument, VaultPayload } from '../types.js';
 import { addDaysIso, makeId, todayIso } from './id.js';
 import { companySnapshotFrom } from './defaults.js';
+import { decimalToScaled, isDecimalInput } from './money.js';
 
 export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { number: string; vault: VaultPayload } {
   const year = new Date().getFullYear();
@@ -72,16 +73,12 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
     } else if (!item.descriptionEn.trim()) {
       errors[`item-${index}-description`] = 'Description is required.';
     }
-    const qty = Number(item.quantity);
-    if (!Number.isFinite(qty) || qty <= 0) errors[`item-${index}-quantity`] = 'Quantity must be greater than 0.';
+    if (!isDecimalInput(item.quantity) || decimalToScaled(item.quantity) <= 0n) errors[`item-${index}-quantity`] = 'Quantity must be greater than 0.';
     if (!item.unit.trim()) errors[`item-${index}-unit`] = 'Unit is required.';
     if (!item.unitPrice.trim()) errors[`item-${index}-price`] = 'Unit price is required.';
-    else {
-      const price = Number(item.unitPrice);
-      if (!Number.isFinite(price) || price < 0) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
-    }
+    else if (!isDecimalInput(item.unitPrice) || decimalToScaled(item.unitPrice) < 0n) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
   });
-  const nonNegative = (value: string) => value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
+  const nonNegative = (value: string) => isDecimalInput(value) && decimalToScaled(value) >= 0n;
   if (doc.adjustments.discountEnabled && !nonNegative(doc.adjustments.discountValue)) errors.discount = 'Discount must be 0 or greater.';
   if (doc.adjustments.shippingEnabled && !nonNegative(doc.adjustments.shipping)) errors.shipping = 'Shipping must be 0 or greater.';
   if (doc.adjustments.otherChargesEnabled && !nonNegative(doc.adjustments.otherCharges)) errors.otherCharges = 'Other charges must be 0 or greater.';
