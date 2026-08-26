@@ -84,8 +84,12 @@ export function calculateTotals(items: TotalsInputItem[], a: TotalsInputAdjustme
 }
 
 export function formatMoney(value: string, currency: string): string {
-  const n = Number(value || 0);
-  if (!Number.isFinite(n)) return `${currency} 0.00`;
-  try { return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + ` ${currency}`; }
-  catch { return `${n.toFixed(2)} ${currency}`; }
+  if (!isDecimalInput(value)) return `0.00 ${currency}`;
+  const cents = decimalToScaled(value, 2);
+  const fixed = money2ToString(cents);
+  const negative = fixed.startsWith('-');
+  const raw = negative ? fixed.slice(1) : fixed;
+  const [whole = '0', fraction = '00'] = raw.split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${negative ? '-' : ''}${grouped}.${fraction} ${currency}`;
 }
