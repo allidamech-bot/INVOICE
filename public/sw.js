@@ -14,7 +14,10 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) {
     if (!EXTERNAL_CORE_SET.has(url.href)) return;
-    event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
+    event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
+      if (response.ok) caches.open(CACHE).then(cache => cache.put(event.request, response.clone())).catch(()=>undefined);
+      return response;
+    })));
     return;
   }
   if (url.pathname.endsWith('/runtime-config.js')) {
@@ -22,7 +25,7 @@ self.addEventListener('fetch', event => {
     return;
   }
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
-    if (response.ok) caches.open(CACHE).then(cache => cache.put(event.request, response.clone()));
+    if (response.ok) caches.open(CACHE).then(cache => cache.put(event.request, response.clone())).catch(()=>undefined);
     return response;
   }).catch(() => event.request.mode === 'navigate' ? caches.match('./index.html') : new Response('', { status: 504, statusText: 'Offline' }))));
 });
