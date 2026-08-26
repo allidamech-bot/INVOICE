@@ -138,7 +138,7 @@ test('schema v5 normalizes hostile legacy defaults without changing document sna
   vault.documents=[validDoc()];
   vault.documents[0].companySnapshot.nameEn='Historical Seller';
   const migrated=migrateVault(vault);
-  assert.equal(migrated.company.defaultValidityDays,0);
+  assert.equal(migrated.company.defaultValidityDays,7);
   assert.equal(migrated.company.defaultCurrency,'SAR');
   assert.equal(migrated.appSettings.numbering.proformaPrefix,'PI');
   assert.equal(migrated.documents[0].companySnapshot.nameEn,'Historical Seller');
