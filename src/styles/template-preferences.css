@@ -1,0 +1,144 @@
+/* Favorite/default template controls — editor-only visual layer. */
+.template-selector{
+  align-items:stretch;
+}
+.template-card-wrap{
+  position:relative;
+  min-width:0;
+}
+.template-card-wrap .template-card{
+  position:relative;
+  width:100%;
+  height:100%;
+  padding-top:0;
+}
+.template-card-wrap.is-favorite .template-card{
+  border-color:#c9b27d;
+  box-shadow:0 8px 22px rgba(92,70,28,.08);
+}
+.template-favorite-button{
+  position:absolute;
+  z-index:4;
+  inset-block-start:8px;
+  inset-inline-end:8px;
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(11,29,45,.13);
+  border-radius:11px;
+  background:rgba(255,255,255,.92);
+  color:#697984;
+  box-shadow:0 5px 15px rgba(11,29,45,.1);
+  backdrop-filter:blur(10px);
+  font-size:18px;
+  line-height:1;
+  cursor:pointer;
+  transition:transform .15s ease,border-color .15s ease,background .15s ease,color .15s ease;
+}
+.template-favorite-button:hover{
+  transform:translateY(-1px);
+  border-color:#c6a45d;
+  color:#9b7327;
+}
+.template-favorite-button.active{
+  border-color:#d4b56f;
+  background:#fff8e8;
+  color:#b08127;
+}
+.template-default-badge{
+  position:absolute;
+  z-index:3;
+  inset-block-start:10px;
+  inset-inline-start:10px;
+  display:inline-flex;
+  align-items:center;
+  min-height:25px;
+  padding:4px 8px;
+  border:1px solid rgba(255,255,255,.55);
+  border-radius:999px;
+  background:rgba(11,29,45,.88);
+  color:#fff;
+  box-shadow:0 5px 14px rgba(11,29,45,.16);
+  backdrop-filter:blur(10px);
+  font-size:10px;
+  font-style:normal;
+  font-weight:800;
+  letter-spacing:.02em;
+}
+.template-preference-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin:12px 0 14px;
+  padding:12px 13px;
+  border:1px solid #ded8c9;
+  border-radius:15px;
+  background:linear-gradient(135deg,#fffdf8,#f8f5ee);
+}
+.template-preference-bar>div{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.template-star{
+  width:34px;
+  height:34px;
+  flex:0 0 34px;
+  display:grid;
+  place-items:center;
+  border-radius:11px;
+  background:#fff4d8;
+  color:#ad7d25;
+  font-size:18px;
+  box-shadow:inset 0 0 0 1px #ead7a8;
+}
+.template-preference-bar>div>span:last-child{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.template-preference-bar strong{
+  color:#162d3c;
+  font-size:12px;
+  line-height:1.25;
+}
+.template-preference-bar small{
+  color:#71818b;
+  font-size:10.5px;
+  line-height:1.4;
+}
+.template-preference-bar>.btn{
+  flex:0 0 auto;
+}
+
+@media(max-width:720px){
+  .template-favorite-button{
+    width:32px;
+    height:32px;
+    inset-block-start:7px;
+    inset-inline-end:7px;
+  }
+  .template-default-badge{
+    inset-block-start:8px;
+    inset-inline-start:8px;
+  }
+  .template-preference-bar{
+    align-items:stretch;
+    flex-direction:column;
+    padding:11px;
+  }
+  .template-preference-bar>.btn{
+    width:100%;
+    justify-content:center;
+  }
+}
+
+@media(max-width:420px){
+  .template-preference-bar>div{
+    align-items:flex-start;
+  }
+}

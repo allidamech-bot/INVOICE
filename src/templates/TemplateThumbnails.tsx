@@ -23,12 +23,28 @@ const templates: Array<{ id: TemplateId; nameEn: string; nameAr: string; subEn: 
   { id: 'carbon', nameEn: 'Carbon Luxe', nameAr: 'كربون فاخر', subEn: 'Charcoal / metallic gold', subAr: 'فحمي / ذهبي معدني' }
 ];
 
-export function TemplateThumbnails({ document: doc, onSelect }: { document: LourexDocument; onSelect: (id: TemplateId) => void }): any {
-  return <div className="template-selector">{templates.map(template => {
-    const preview = { ...doc, appearance: { ...doc.appearance, templateId: template.id } };
-    return <button type="button" className={`template-card ${doc.appearance.templateId === template.id ? 'selected' : ''}`} onClick={() => onSelect(template.id)} key={template.id}>
-      <div className="template-mini"><TemplateRenderer document={preview} scale={0.16} compact={true}/></div>
-      <span><b>{t(template.nameEn,template.nameAr)}</b><small>{t(template.subEn,template.subAr)}</small></span>
-    </button>;
+interface Props {
+  document:LourexDocument;
+  onSelect:(id:TemplateId)=>void;
+  favoriteIds?:TemplateId[];
+  defaultId?:TemplateId;
+  onToggleFavorite?:(id:TemplateId)=>void;
+}
+
+export function TemplateThumbnails({ document:doc,onSelect,favoriteIds=[],defaultId,onToggleFavorite }:Props):any{
+  const favorites=new Set(favoriteIds);
+  const ordered=[...templates].sort((a,b)=>Number(favorites.has(b.id))-Number(favorites.has(a.id)));
+  return <div className="template-selector">{ordered.map(template=>{
+    const preview={...doc,appearance:{...doc.appearance,templateId:template.id}};
+    const favorite=favorites.has(template.id);
+    const isDefault=defaultId===template.id;
+    return <div className={`template-card-wrap ${favorite?'is-favorite':''}`} key={template.id}>
+      <button type="button" className={`template-card ${doc.appearance.templateId===template.id?'selected':''}`} onClick={()=>onSelect(template.id)}>
+        <div className="template-mini"><TemplateRenderer document={preview} scale={0.16} compact={true}/></div>
+        <span><b>{t(template.nameEn,template.nameAr)}</b><small>{t(template.subEn,template.subAr)}</small></span>
+        {isDefault?<em className="template-default-badge">{t('Default','افتراضي')}</em>:null}
+      </button>
+      {onToggleFavorite?<button type="button" className={`template-favorite-button ${favorite?'active':''}`} aria-label={favorite?t('Remove from favorites','إزالة من المفضلة'):t('Add to favorites','إضافة للمفضلة')} title={favorite?t('Remove from favorites','إزالة من المفضلة'):t('Add to favorites','إضافة للمفضلة')} onClick={()=>onToggleFavorite(template.id)}>{favorite?'★':'☆'}</button>:null}
+    </div>;
   })}</div>;
 }

@@ -1,4 +1,4 @@
-import type { CompanySettings, Customer, DocumentItem, LourexDocument, SavedItem, TemplateId } from '../types.js';
+import type { AppSettings, CompanySettings, Customer, DocumentItem, LourexDocument, SavedItem, TemplateId } from '../types.js';
 import { calculateTotals, formatMoney, lineTotal } from '../lib/money.js';
 import { customerSnapshotFrom } from '../lib/defaults.js';
 import { emptyItem, refreshCompanySnapshot, validateDocument } from '../lib/documents.js';
@@ -17,10 +17,10 @@ const unitPresets=['PCS','Carton','Box','Pallet','KG','Unit','Set'];
 const incoterms=['EXW','FCA','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'];
 
 interface Props {
-  document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; company:CompanySettings; savedItems:SavedItem[];
+  document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; company:CompanySettings; savedItems:SavedItem[]; smartDefaults:AppSettings['smartDefaults'];
   onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
   onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
-  onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>void;
+  onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>void;
 }
 interface State {
   doc:LourexDocument; errors:Record<string,string>; saving:boolean; saveState:'saved'|'saving'|'unsaved'; customerQuery:string; customerOpen:boolean;
@@ -125,6 +125,16 @@ export class EditorPage extends React.Component<Props,State>{
     const item=documentItemFromSavedItem(saved);if(saved.lastCurrency&&saved.lastCurrency!==this.state.doc.currency)item.unitPrice='';
     this.mutate(doc=>({...doc,items:[...doc.items,item]}));this.setState({savedItemsOpen:false,suggestingItemId:''});
   };
+  private toggleFavoriteTemplate=(id:TemplateId)=>{
+    const current=this.props.smartDefaults.favoriteTemplateIds;
+    const favoriteTemplateIds=current.includes(id)?current.filter(item=>item!==id):[id,...current];
+    void this.props.onSaveSmartDefaults({...this.props.smartDefaults,favoriteTemplateIds});
+  };
+  private setCurrentTemplateDefault=()=>{
+    const templateId=this.state.doc.appearance.templateId;
+    const smart=this.state.doc.kind==='proforma'?{...this.props.smartDefaults,quoteTemplateId:templateId}:{...this.props.smartDefaults,invoiceTemplateId:templateId};
+    void this.props.onSaveSmartDefaults(smart);
+  };
 
   render():any{
     const d=this.state.doc,errors=this.state.errors,totals=calculateTotals(d.items,d.adjustments),readiness=getDocumentReadiness(d);
@@ -137,6 +147,8 @@ export class EditorPage extends React.Component<Props,State>{
     const recentCustomers=[...this.props.customers].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,4);
     const groupLabel=(key:string)=>key==='document'?t('Document','المستند'):key==='customer'?t('Customer','العميل'):key==='items'?t('Items','الأصناف'):t('Pricing','التسعير');
     const selectedCustomerName=(isArabic()?d.customerSnapshot?.companyNameAr:d.customerSnapshot?.companyNameEn)||d.customerSnapshot?.companyNameEn||d.customerSnapshot?.companyNameAr||'';
+    const defaultTemplateId=d.kind==='proforma'?this.props.smartDefaults.quoteTemplateId:this.props.smartDefaults.invoiceTemplateId;
+    const selectedIsDefault=defaultTemplateId===d.appearance.templateId;
 
     return <div className={`editor-screen ${this.state.mobilePreview?'mobile-preview-open':''}`}>
       <header className="editor-topbar">
@@ -214,7 +226,8 @@ export class EditorPage extends React.Component<Props,State>{
 
         <section className="editor-section">
           <div className="section-heading"><span>06</span><h2>{t('Design','التصميم')}</h2></div>
-          <TemplateThumbnails document={d} onSelect={(id:TemplateId)=>this.appearance('templateId',id)}/>
+          <TemplateThumbnails document={d} onSelect={(id:TemplateId)=>this.appearance('templateId',id)} favoriteIds={this.props.smartDefaults.favoriteTemplateIds} defaultId={defaultTemplateId} onToggleFavorite={this.toggleFavoriteTemplate}/>
+          <div className="template-preference-bar"><div><span className="template-star">★</span><span><strong>{t('Favorite templates appear first','القوالب المفضلة تظهر أولًا')}</strong><small>{t('Use the star on any template to keep your regular choices at the top.','استخدم النجمة على أي قالب لإبقاء خياراتك المعتادة في الأعلى.')}</small></span></div><Button icon={selectedIsDefault?'check':'save'} variant={selectedIsDefault?'secondary':'primary'} disabled={selectedIsDefault} onClick={()=>void this.setCurrentTemplateDefault()}>{selectedIsDefault?(d.kind==='proforma'?t('Default quote template','القالب الافتراضي لعرض السعر'):t('Default invoice template','القالب الافتراضي للفاتورة')):(d.kind==='proforma'?t('Set as quote default','تعيين كافتراضي لعرض السعر'):t('Set as invoice default','تعيين كافتراضي للفاتورة'))}</Button></div>
           <div className="appearance-system-grid"><Field label={t('Color System','نظام الألوان')}><Select value={d.appearance.paletteMode??'auto'} onChange={(e:any)=>this.appearance('paletteMode',e.target.value)}><option value="auto">{t('Auto — matched to template','تلقائي — متناسق مع القالب')}</option><option value="custom">{t('Custom Accent','لون مخصص')}</option></Select></Field>{(d.appearance.paletteMode??'auto')==='custom'?<Field label={t('Accent','اللون المميز')}><Input type="color" value={d.appearance.accentColor||'#b58b4f'} onChange={(e:any)=>this.appearance('accentColor',e.target.value)}/></Field>:<div className="appearance-auto-note"><span><strong>{t('Auto','تلقائي')}</strong>{t('The template chooses its balanced accent and contrast automatically.','يختار القالب اللون والتباين المتوازن تلقائيًا.')}</span></div>}<Field label={t('English Font','الخط الإنجليزي')}><Select value={d.appearance.latinFont??'auto'} onChange={(e:any)=>this.appearance('latinFont',e.target.value)}>{LATIN_FONT_OPTIONS.map(option=><option value={option.value} key={option.value}>{option.label}</option>)}</Select></Field><Field label={t('Arabic Font','الخط العربي')}><Select value={d.appearance.arabicFont??'auto'} onChange={(e:any)=>this.appearance('arabicFont',e.target.value)}>{ARABIC_FONT_OPTIONS.map(option=><option value={option.value} key={option.value}>{option.label}</option>)}</Select></Field></div>
           <div className="appearance-toggles"><Toggle checked={d.appearance.showBank} onChange={v=>this.appearance('showBank',v)} label={t('Bank Details','بيانات البنك')}/><Toggle checked={d.appearance.showSignature} onChange={v=>this.appearance('showSignature',v)} label={t('Signature','التوقيع')}/><Toggle checked={d.appearance.showStamp} onChange={v=>this.appearance('showStamp',v)} label={t('Stamp','الختم')}/></div>
           <Button icon="refresh" onClick={()=>this.mutate(doc=>draftWithLatestCompany(doc,this.props.company))}>{t('Refresh Company Details','تحديث بيانات الشركة')}</Button>{d.kind==='proforma'?<Button icon="invoice" variant="primary" onClick={this.convert}>{t('Convert to Invoice','تحويل إلى فاتورة')}</Button>:null}
