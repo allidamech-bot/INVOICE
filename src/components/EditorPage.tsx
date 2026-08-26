@@ -1,7 +1,7 @@
 import type { CompanySettings, Customer, DocumentItem, LourexDocument, TemplateId } from '../types.js';
 import { calculateTotals, formatMoney, lineTotal } from '../lib/money.js';
 import { customerSnapshotFrom } from '../lib/defaults.js';
-import { emptyItem, refreshCompanySnapshot } from '../lib/documents.js';
+import { emptyItem, refreshCompanySnapshot, validateDocument } from '../lib/documents.js';
 import { ARABIC_FONT_OPTIONS, LATIN_FONT_OPTIONS } from '../lib/appearance.js';
 import { isArabic, t, translateValidation } from '../lib/i18n.js';
 import { blankCustomer, CustomerForm } from './CustomersPage.js';
@@ -26,13 +26,74 @@ function draftWithLatestCompany(doc:LourexDocument,company:CompanySettings):Lour
 
 export class EditorPage extends React.Component<Props,State>{
   private autosaveTimer:number|undefined;
-  constructor(props:Props){super(props);const initial=draftWithLatestCompany(props.document,props.company);this.state={doc:initial,errors:{},saving:false,saveState:'saved',customerQuery:(isArabic()?initial.customerSnapshot?.companyNameAr:initial.customerSnapshot?.companyNameEn)||initial.customerSnapshot?.companyNameEn||initial.customerSnapshot?.companyNameAr||'',customerOpen:false,addCustomer:null,addCustomerError:'',mobilePreview:false,confirmClose:false};}
+  private validationAttempted=false;
+
+  constructor(props:Props){
+    super(props);
+    const initial=draftWithLatestCompany(props.document,props.company);
+    this.state={doc:initial,errors:{},saving:false,saveState:'saved',customerQuery:(isArabic()?initial.customerSnapshot?.companyNameAr:initial.customerSnapshot?.companyNameEn)||initial.customerSnapshot?.companyNameEn||initial.customerSnapshot?.companyNameAr||'',customerOpen:false,addCustomer:null,addCustomerError:'',mobilePreview:false,confirmClose:false};
+  }
+
   componentDidUpdate(prevProps:Props):void{if(prevProps.company!==this.props.company&&this.state.doc.status==='draft')this.mutate(doc=>draftWithLatestCompany(doc,this.props.company));}
   componentWillUnmount():void{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);}
-  private mutate=(fn:(d:LourexDocument)=>LourexDocument)=>{const doc={...fn(this.state.doc),updatedAt:new Date().toISOString()};this.setState({doc,saveState:'unsaved'},()=>this.schedule());};
+
+  private scrollToFirstError=()=>window.setTimeout(()=>{
+    const marker=document.querySelector('.editor-pane .field-error, .editor-pane .inline-error');
+    const target=marker?.closest('.field,.item-card,.editor-section') as HTMLElement|null;
+    target?.scrollIntoView({behavior:'smooth',block:'center'});
+    const input=target?.querySelector('input,select,textarea,button') as HTMLElement|null;
+    input?.focus({preventScroll:true});
+  },40);
+
+  private validateCurrent=():boolean=>{
+    const errors=validateDocument(this.state.doc);
+    this.validationAttempted=true;
+    if(Object.keys(errors).length){
+      this.setState({errors,saveState:'unsaved'},this.scrollToFirstError);
+      return false;
+    }
+    if(Object.keys(this.state.errors).length)this.setState({errors:{}});
+    return true;
+  };
+
+  private mutate=(fn:(d:LourexDocument)=>LourexDocument)=>{
+    const doc={...fn(this.state.doc),updatedAt:new Date().toISOString()};
+    const errors=this.validationAttempted?validateDocument(doc):this.state.errors;
+    this.setState({doc,saveState:'unsaved',errors},()=>this.schedule());
+  };
+
   private schedule=()=>{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);this.autosaveTimer=window.setTimeout(()=>void this.save(true),500);};
-  private save=async(auto=false)=>{if(this.state.saving){this.schedule();return;}const snapshot=structuredClone(this.state.doc);this.setState({saving:true,saveState:'saving',errors:{}});try{await this.props.onSave(snapshot,auto);const hasNewerChanges=this.state.doc.updatedAt!==snapshot.updatedAt;this.setState({saving:false,saveState:hasNewerChanges?'unsaved':'saved'},()=>{if(hasNewerChanges)this.schedule();});}catch(e){this.setState({saving:false,saveState:'unsaved',errors:{global:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')}});}};
-  private saveAndClose=async()=>{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);if(this.state.saving){window.setTimeout(()=>void this.saveAndClose(),100);return;}if(this.state.saveState==='saved'){this.props.onClose();return;}const snapshot=structuredClone(this.state.doc);this.setState({saving:true,saveState:'saving',errors:{}});try{await this.props.onSave(snapshot,true);this.props.onClose();}catch(e){this.setState({saving:false,saveState:'unsaved',errors:{global:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')}});}};
+
+  private save=async(auto=false)=>{
+    if(this.state.saving){if(auto)this.schedule();return;}
+    const snapshot=structuredClone(this.state.doc);
+    if(!auto){
+      const errors=validateDocument(snapshot);
+      this.validationAttempted=true;
+      if(Object.keys(errors).length){this.setState({errors,saveState:'unsaved'},this.scrollToFirstError);return;}
+    }
+    this.setState({saving:true,saveState:'saving',errors:auto?this.state.errors:{}});
+    try{
+      await this.props.onSave(snapshot,auto);
+      const hasNewerChanges=this.state.doc.updatedAt!==snapshot.updatedAt;
+      this.setState({saving:false,saveState:hasNewerChanges?'unsaved':'saved'},()=>{if(hasNewerChanges)this.schedule();});
+    }catch(e){
+      this.setState({saving:false,saveState:'unsaved',errors:{...this.state.errors,global:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')}});
+    }
+  };
+
+  private saveAndClose=async()=>{
+    if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
+    if(this.state.saving){window.setTimeout(()=>void this.saveAndClose(),100);return;}
+    if(this.state.saveState==='saved'){this.props.onClose();return;}
+    const snapshot=structuredClone(this.state.doc);
+    this.setState({saving:true,saveState:'saving'});
+    try{await this.props.onSave(snapshot,true);this.props.onClose();}
+    catch(e){this.setState({saving:false,saveState:'unsaved',errors:{...this.state.errors,global:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')}});}
+  };
+
+  private output=(mode:'print'|'pdf'|'share')=>{if(this.validateCurrent())this.props.onPrint(this.state.doc,mode);};
+  private convert=()=>{if(this.validateCurrent())void this.props.onConvert(this.state.doc);};
   private field=(key:keyof LourexDocument,value:any)=>this.mutate(d=>({...d,[key]:value}));
   private term=(key:keyof LourexDocument['terms'],value:string)=>this.mutate(d=>({...d,terms:{...d.terms,[key]:value}}));
   private adj=(key:keyof LourexDocument['adjustments'],value:any)=>this.mutate(d=>({...d,adjustments:{...d.adjustments,[key]:value}}));
@@ -40,19 +101,100 @@ export class EditorPage extends React.Component<Props,State>{
   private item=(id:string,key:keyof DocumentItem,value:string)=>this.mutate(d=>({...d,items:d.items.map(i=>i.id===id?{...i,[key]:value}:i)}));
   private selectCustomer=(c:Customer)=>{this.mutate(d=>({...d,customerSnapshot:customerSnapshotFrom(c)}));this.setState({customerQuery:(isArabic()?c.companyNameAr:c.companyNameEn)||c.companyNameEn||c.companyNameAr,customerOpen:false});};
   private addCustomer=async()=>{const c=this.state.addCustomer;if(!c)return;if(!c.companyNameEn.trim()&&!c.companyNameAr.trim()){this.setState({addCustomerError:t('Company name is required.','اسم الشركة مطلوب.')});return;}try{await this.props.onSaveCustomer(c);this.selectCustomer(c);this.setState({addCustomer:null,addCustomerError:''});}catch(e){this.setState({addCustomerError:e instanceof Error?e.message:t('Unable to save customer.','تعذر حفظ العميل.')});}};
-  render():any{const d=this.state.doc,errors=this.state.errors,totals=calculateTotals(d.items,d.adjustments);const error=(key:string)=>errors[key]?translateValidation(errors[key]):undefined;const customers=this.props.customers.filter(c=>!this.state.customerQuery||c.companyNameEn.toLowerCase().includes(this.state.customerQuery.toLowerCase())||c.companyNameAr.includes(this.state.customerQuery)).slice(0,8);return <div className={`editor-screen ${this.state.mobilePreview?'mobile-preview-open':''}`}>
-    <header className="editor-topbar"><div className="editor-top-left"><IconButton icon="arrowLeft" label={t('Back','رجوع')} onClick={()=>void this.saveAndClose()}/><div><strong>{d.number}</strong><span>{d.kind==='proforma'?t('Proforma Invoice','فاتورة مبدئية'):t('Invoice','فاتورة')}</span></div></div><div className={`save-indicator state-${this.state.saveState}`}>{this.state.saveState==='saving'?t('Auto-saving…','جارٍ الحفظ تلقائيًا…'):this.state.saveState==='saved'?t('Auto-saved','حُفظ تلقائيًا'):t('Waiting to save…','بانتظار الحفظ…')}</div><div className="editor-actions"><Button icon="eye" className="mobile-preview-button" onClick={()=>this.setState({mobilePreview:true})}>{t('Preview','معاينة')}</Button><Button icon="printer" variant="ghost" onClick={()=>this.props.onPrint(d,'print')}>{t('Print','طباعة')}</Button><Button icon="download" onClick={()=>this.props.onPrint(d,'pdf')}>PDF</Button><Button icon="share" onClick={()=>this.props.onPrint(d,'share')}>{t('Share','مشاركة')}</Button><Button icon="save" variant="primary" disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save now','حفظ الآن')}</Button></div></header>
-    {errors.global?<div className="editor-global-error">{errors.global}</div>:null}
-    <div className="editor-layout"><aside className="editor-pane"><div className="editor-scroll">
-      <section className="editor-section"><div className="section-heading"><span>01</span><h2>{t('Document','المستند')}</h2></div><div className="form-grid two compact-grid"><Field label={t('Number','الرقم')} error={error('number')}><Input value={d.number} onChange={(e:any)=>this.field('number',e.target.value)}/></Field><Field label={t('Issue Date','تاريخ الإصدار')}><Input type="date" value={d.issueDate} onChange={(e:any)=>this.field('issueDate',e.target.value)}/></Field><Field label={d.kind==='proforma'?t('Valid Until','صالح حتى'):t('Due Date','تاريخ الاستحقاق')}><Input type="date" value={d.dueDate} onChange={(e:any)=>this.field('dueDate',e.target.value)}/></Field><Field label={t('Currency','العملة')}><Input list="currencies" value={d.currency} onChange={(e:any)=>this.field('currency',e.target.value.toUpperCase())}/><datalist id="currencies">{currencyPresets.map(x=><option key={x} value={x}/>)}</datalist></Field><Field label={t('Document Language','لغة المستند')}><Select value={d.language} onChange={(e:any)=>this.field('language',e.target.value)}><option value="en">English</option><option value="ar">العربية</option><option value="bilingual">{t('Arabic + English','العربية + الإنجليزية')}</option></Select></Field></div></section>
-      <section className="editor-section"><div className="section-heading"><span>02</span><h2>{t('Customer','العميل')}</h2></div><div className="customer-select-wrap"><Field label={t('Saved Customer','عميل محفوظ')} error={error('customer')}><div className="search-select"><Icon name="search"/><Input value={this.state.customerQuery} placeholder={t('Search customer','ابحث عن عميل')} onFocus={()=>this.setState({customerOpen:true})} onChange={(e:any)=>this.setState({customerQuery:e.target.value,customerOpen:true})}/></div></Field>{this.state.customerOpen?<div className="customer-dropdown">{customers.map(c=><button key={c.id} onClick={()=>this.selectCustomer(c)}><strong>{(isArabic()?c.companyNameAr:c.companyNameEn)||c.companyNameEn||c.companyNameAr}</strong><span>{[c.city,c.country].filter(Boolean).join(', ')}</span></button>)}<button className="new-customer-option" onClick={()=>this.setState({addCustomer:blankCustomer(),customerOpen:false})}><Icon name="plus"/>{t('New Customer','عميل جديد')}</button></div>:null}</div>{d.customerSnapshot?<div className="selected-customer"><div><strong>{(isArabic()?d.customerSnapshot.companyNameAr:d.customerSnapshot.companyNameEn)||d.customerSnapshot.companyNameEn||d.customerSnapshot.companyNameAr}</strong><span>{[d.customerSnapshot.city,d.customerSnapshot.country].filter(Boolean).join(', ')}</span></div></div>:null}</section>
-      <section className="editor-section"><div className="section-heading with-action"><div><span>03</span><h2>{t('Items','الأصناف')}</h2></div><Button icon="plus" onClick={()=>this.mutate(doc=>({...doc,items:[...doc.items,emptyItem()]}))}>{t('Add Item','إضافة صنف')}</Button></div><div className="item-cards">{d.items.map((i,index)=><article className="item-card" key={i.id}><header><strong>{t(`Item ${index+1}`,`الصنف ${index+1}`)}</strong><IconButton icon="trash" label={t('Delete','حذف')} disabled={d.items.length===1} onClick={()=>this.mutate(doc=>({...doc,items:doc.items.filter(x=>x.id!==i.id)}))}/></header><div className="form-grid two compact-grid">{d.language!=='ar'?<Field label={t('Description English','الوصف بالإنجليزية')} className="span-2" error={error(`item-${index}-description`)}><Textarea rows="2" value={i.descriptionEn} onChange={(e:any)=>this.item(i.id,'descriptionEn',e.target.value)}/></Field>:null}{d.language!=='en'?<Field label={t('Description Arabic','الوصف بالعربية')} className="span-2" error={d.language==='ar'?error(`item-${index}-description`):undefined}><Textarea dir="rtl" rows="2" value={i.descriptionAr} onChange={(e:any)=>this.item(i.id,'descriptionAr',e.target.value)}/></Field>:null}<Field label="HS Code"><Input value={i.hsCode} onChange={(e:any)=>this.item(i.id,'hsCode',e.target.value)}/></Field><Field label={t('Origin','المنشأ')}><Input value={i.origin} onChange={(e:any)=>this.item(i.id,'origin',e.target.value)}/></Field><Field label={t('Packing','التعبئة')}><Input value={i.packing} onChange={(e:any)=>this.item(i.id,'packing',e.target.value)}/></Field><Field label={t('Quantity','الكمية')} error={error(`item-${index}-quantity`)}><Input value={i.quantity} onChange={(e:any)=>this.item(i.id,'quantity',e.target.value)}/></Field><Field label={t('Unit','الوحدة')}><Input list="units" value={i.unit} onChange={(e:any)=>this.item(i.id,'unit',e.target.value)}/><datalist id="units">{unitPresets.map(x=><option key={x} value={x}/>)}</datalist></Field><Field label={t(`Unit Price (${d.currency})`,`سعر الوحدة (${d.currency})`)} error={error(`item-${index}-price`)}><Input value={i.unitPrice} onChange={(e:any)=>this.item(i.id,'unitPrice',e.target.value)}/></Field></div><footer><span>{t('Line Total','إجمالي السطر')}</span><strong>{formatMoney(lineTotal(i.quantity,i.unitPrice),d.currency)}</strong></footer></article>)}</div></section>
-      <section className="editor-section"><div className="section-heading"><span>04</span><h2>{t('Totals','الإجماليات')}</h2></div><div className="adjustments-list"><div className="adjustment-row"><Toggle checked={d.adjustments.discountEnabled} onChange={v=>this.adj('discountEnabled',v)} label={t('Discount','خصم')}/>{d.adjustments.discountEnabled?<Input value={d.adjustments.discountValue} onChange={(e:any)=>this.adj('discountValue',e.target.value)}/>:null}</div><div className="adjustment-row"><Toggle checked={d.adjustments.shippingEnabled} onChange={v=>this.adj('shippingEnabled',v)} label={t('Shipping','شحن')}/>{d.adjustments.shippingEnabled?<Input value={d.adjustments.shipping} onChange={(e:any)=>this.adj('shipping',e.target.value)}/>:null}</div><div className="adjustment-row"><Toggle checked={d.adjustments.taxEnabled} onChange={v=>this.adj('taxEnabled',v)} label={t('Tax / VAT','الضريبة / القيمة المضافة')}/>{d.adjustments.taxEnabled?<Input value={d.adjustments.taxPercent} onChange={(e:any)=>this.adj('taxPercent',e.target.value)}/>:null}</div></div><div className="editor-totals"><div><span>{t('Subtotal','الإجمالي الفرعي')}</span><strong>{formatMoney(totals.subtotal,d.currency)}</strong></div><div className="grand"><span>{t('Grand Total','الإجمالي النهائي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div></div></section>
-      <section className="editor-section"><div className="section-heading"><span>05</span><h2>{t('Commercial Terms','الشروط التجارية')}</h2></div><div className="form-grid two compact-grid"><Field label="Incoterm"><Input list="incoterms" value={d.terms.incoterm} onChange={(e:any)=>this.term('incoterm',e.target.value)}/><datalist id="incoterms">{incoterms.map(x=><option key={x} value={x}/>)}</datalist></Field><Field label={t('Payment Terms','شروط الدفع')}><Input value={d.terms.paymentTerms} onChange={(e:any)=>this.term('paymentTerms',e.target.value)}/></Field><Field label={t('Delivery Time','مدة التسليم')}><Input value={d.terms.deliveryTime} onChange={(e:any)=>this.term('deliveryTime',e.target.value)}/></Field><Field label={t('Final Destination','الوجهة النهائية')}><Input value={d.terms.finalDestination} onChange={(e:any)=>this.term('finalDestination',e.target.value)}/></Field><Field label={t('Remarks','ملاحظات تجارية')} className="span-2"><Textarea value={d.terms.remarks} onChange={(e:any)=>this.term('remarks',e.target.value)}/></Field><Field label={t('Notes','ملاحظات')} className="span-2"><Textarea value={d.notes} onChange={(e:any)=>this.field('notes',e.target.value)}/></Field></div></section>
-      <section className="editor-section"><div className="section-heading"><span>06</span><h2>{t('Design','التصميم')}</h2></div><TemplateThumbnails document={d} onSelect={(id:TemplateId)=>this.appearance('templateId',id)}/><div className="appearance-system-grid"><Field label={t('Color System','نظام الألوان')}><Select value={d.appearance.paletteMode??'auto'} onChange={(e:any)=>this.appearance('paletteMode',e.target.value)}><option value="auto">{t('Auto — matched to template','تلقائي — متناسق مع القالب')}</option><option value="custom">{t('Custom Accent','لون مخصص')}</option></Select></Field>{(d.appearance.paletteMode??'auto')==='custom'?<Field label={t('Accent','اللون المميز')}><Input type="color" value={d.appearance.accentColor||'#b58b4f'} onChange={(e:any)=>this.appearance('accentColor',e.target.value)}/></Field>:<div className="appearance-auto-note"><span><strong>{t('Auto','تلقائي')}</strong>{t('The template chooses its balanced accent and contrast automatically.','يختار القالب اللون والتباين المتوازن تلقائيًا.')}</span></div>}<Field label={t('English Font','الخط الإنجليزي')}><Select value={d.appearance.latinFont??'auto'} onChange={(e:any)=>this.appearance('latinFont',e.target.value)}>{LATIN_FONT_OPTIONS.map(option=><option value={option.value} key={option.value}>{option.label}</option>)}</Select></Field><Field label={t('Arabic Font','الخط العربي')}><Select value={d.appearance.arabicFont??'auto'} onChange={(e:any)=>this.appearance('arabicFont',e.target.value)}>{ARABIC_FONT_OPTIONS.map(option=><option value={option.value} key={option.value}>{option.label}</option>)}</Select></Field></div><div className="appearance-toggles"><Toggle checked={d.appearance.showBank} onChange={v=>this.appearance('showBank',v)} label={t('Bank Details','بيانات البنك')}/><Toggle checked={d.appearance.showSignature} onChange={v=>this.appearance('showSignature',v)} label={t('Signature','التوقيع')}/><Toggle checked={d.appearance.showStamp} onChange={v=>this.appearance('showStamp',v)} label={t('Stamp','الختم')}/></div><Button icon="refresh" onClick={()=>this.mutate(doc=>draftWithLatestCompany(doc,this.props.company))}>{t('Refresh Company Details','تحديث بيانات الشركة')}</Button>{d.kind==='proforma'?<Button icon="invoice" variant="primary" onClick={()=>void this.props.onConvert(d)}>{t('Convert to Invoice','تحويل إلى فاتورة')}</Button>:null}</section>
-    </div></aside><section className="preview-pane"><div className="preview-toolbar"><span>{t('Live A4 Preview','معاينة A4 مباشرة')}</span></div><div className="preview-stage"><TemplateRenderer document={d} scale={0.82}/></div></section></div>
-    <div className="mobile-preview-overlay"><header><strong>{t('Preview','معاينة')}</strong><div><Button icon="download" onClick={()=>this.props.onPrint(d,'pdf')}>PDF</Button><IconButton icon="x" label={t('Close','إغلاق')} onClick={()=>this.setState({mobilePreview:false})}/></div></header><div className="mobile-preview-stage"><TemplateRenderer document={d} scale={0.48}/></div></div>
-    <ConfirmDialog open={this.state.confirmClose} title={t('Discard unsaved changes?','تجاهل التغييرات غير المحفوظة؟')} message={t('Your latest changes have not been saved.','لم يتم حفظ آخر تغييراتك.')} confirmLabel={t('Discard','تجاهل')} destructive onCancel={()=>this.setState({confirmClose:false})} onConfirm={()=>this.props.onClose()}/>
-    <Modal open={Boolean(this.state.addCustomer)} title={t('New Customer','عميل جديد')} size="lg" onClose={()=>this.setState({addCustomer:null,addCustomerError:''})} footer={<div className="modal-footer-actions"><Button onClick={()=>this.setState({addCustomer:null})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" onClick={()=>void this.addCustomer()}>{t('Save & Select','حفظ واختيار')}</Button></div>}>{this.state.addCustomer?<CustomerForm customer={this.state.addCustomer} onChange={addCustomer=>this.setState({addCustomer})}/>:null}{this.state.addCustomerError?<div className="inline-error">{this.state.addCustomerError}</div>:null}</Modal>
-  </div>;}
+
+  render():any{
+    const d=this.state.doc,errors=this.state.errors,totals=calculateTotals(d.items,d.adjustments);
+    const error=(key:string)=>errors[key]?translateValidation(errors[key]):undefined;
+    const validationKeys=Object.keys(errors).filter(key=>key!=='global');
+    const validationCount=validationKeys.length;
+    const sectionHasError=(...prefixes:string[])=>validationKeys.some(key=>prefixes.some(prefix=>key===prefix||key.startsWith(prefix)));
+    const itemHasError=(index:number)=>validationKeys.some(key=>key.startsWith(`item-${index}-`));
+    const customers=this.props.customers.filter(c=>!this.state.customerQuery||c.companyNameEn.toLowerCase().includes(this.state.customerQuery.toLowerCase())||c.companyNameAr.includes(this.state.customerQuery)).slice(0,8);
+
+    return <div className={`editor-screen ${this.state.mobilePreview?'mobile-preview-open':''}`}>
+      <header className="editor-topbar">
+        <div className="editor-top-left"><IconButton icon="arrowLeft" label={t('Back','رجوع')} onClick={()=>void this.saveAndClose()}/><div><strong>{d.number}</strong><span>{d.kind==='proforma'?t('Proforma Invoice','عرض سعر'):t('Invoice','فاتورة')}</span></div></div>
+        <div className={`save-indicator state-${this.state.saveState}`}>{this.state.saveState==='saving'?t('Saving draft…','جارٍ حفظ المسودة…'):this.state.saveState==='saved'?t('Draft auto-saved','تم حفظ المسودة تلقائيًا'):t('Unsaved changes','تغييرات غير محفوظة')}</div>
+        <div className="editor-actions">
+          <Button icon="eye" className="mobile-preview-button" onClick={()=>this.setState({mobilePreview:true})}>{t('Preview','معاينة')}</Button>
+          <Button icon="printer" variant="ghost" onClick={()=>this.output('print')}>{t('Print','طباعة')}</Button>
+          <Button icon="download" onClick={()=>this.output('pdf')}>PDF</Button>
+          <Button icon="share" onClick={()=>this.output('share')}>{t('Share','مشاركة')}</Button>
+          {validationCount?<span className="save-validation-badge" role="status">{validationCount} {t(validationCount===1?'required field':'required fields',validationCount===1?'حقل مطلوب':'حقول مطلوبة')}</span>:null}
+          <Button icon="save" variant="primary" className={`save-now-button ${validationCount?'has-validation-errors':''}`} disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save now','حفظ الآن')}</Button>
+        </div>
+      </header>
+
+      {errors.global?<div className="editor-global-error">{errors.global}</div>:null}
+      {validationCount?<div className="editor-validation-summary" role="alert"><span className="validation-dot"/><div><strong>{t('Complete the required information','أكمل البيانات الإلزامية')}</strong><span>{t('Required fields are highlighted below. Fix them, then save again.','تم تحديد الحقول المطلوبة بالأسفل. أكملها ثم اضغط حفظ مرة أخرى.')}</span></div><b>{validationCount}</b></div>:null}
+
+      <div className="editor-layout"><aside className="editor-pane"><div className="editor-scroll">
+        <section className={`editor-section ${sectionHasError('number','issueDate','dueDate','currency')?'section-has-error':''}`}>
+          <div className="section-heading"><span>01</span><h2>{t('Document','المستند')}</h2></div>
+          <div className="form-grid two compact-grid">
+            <Field label={t('Number','الرقم')} className="required-field" error={error('number')}><Input value={d.number} onChange={(e:any)=>this.field('number',e.target.value)}/></Field>
+            <Field label={t('Issue Date','تاريخ الإصدار')} className="required-field" error={error('issueDate')}><Input type="date" value={d.issueDate} onChange={(e:any)=>this.field('issueDate',e.target.value)}/></Field>
+            <Field label={d.kind==='proforma'?t('Valid Until','صالح حتى'):t('Due Date','تاريخ الاستحقاق')} className={d.kind==='proforma'?'required-field':''} error={error('dueDate')}><Input type="date" value={d.dueDate} onChange={(e:any)=>this.field('dueDate',e.target.value)}/></Field>
+            <Field label={t('Currency','العملة')} className="required-field" error={error('currency')}><Input list="currencies" value={d.currency} onChange={(e:any)=>this.field('currency',e.target.value.toUpperCase())}/><datalist id="currencies">{currencyPresets.map(x=><option key={x} value={x}/>)}</datalist></Field>
+            <Field label={t('Document Language','لغة المستند')}><Select value={d.language} onChange={(e:any)=>this.field('language',e.target.value)}><option value="en">English</option><option value="ar">العربية</option><option value="bilingual">{t('Arabic + English','العربية + الإنجليزية')}</option></Select></Field>
+          </div>
+        </section>
+
+        <section className={`editor-section ${sectionHasError('customer')?'section-has-error':''}`}>
+          <div className="section-heading"><span>02</span><h2>{t('Customer','العميل')}</h2></div>
+          <div className="customer-select-wrap"><Field label={t('Saved Customer','عميل محفوظ')} className="required-field" error={error('customer')}><div className="search-select"><Icon name="search"/><Input value={this.state.customerQuery} placeholder={t('Search customer','ابحث عن عميل')} onFocus={()=>this.setState({customerOpen:true})} onChange={(e:any)=>this.setState({customerQuery:e.target.value,customerOpen:true})}/></div></Field>{this.state.customerOpen?<div className="customer-dropdown">{customers.map(c=><button key={c.id} onClick={()=>this.selectCustomer(c)}><strong>{(isArabic()?c.companyNameAr:c.companyNameEn)||c.companyNameEn||c.companyNameAr}</strong><span>{[c.city,c.country].filter(Boolean).join(', ')}</span></button>)}<button className="new-customer-option" onClick={()=>this.setState({addCustomer:blankCustomer(),customerOpen:false})}><Icon name="plus"/>{t('New Customer','عميل جديد')}</button></div>:null}</div>
+          {d.customerSnapshot?<div className="selected-customer"><div><strong>{(isArabic()?d.customerSnapshot.companyNameAr:d.customerSnapshot.companyNameEn)||d.customerSnapshot.companyNameEn||d.customerSnapshot.companyNameAr}</strong><span>{[d.customerSnapshot.city,d.customerSnapshot.country].filter(Boolean).join(', ')}</span></div></div>:null}
+        </section>
+
+        <section className={`editor-section ${sectionHasError('items','item-')?'section-has-error':''}`}>
+          <div className="section-heading with-action"><div><span>03</span><h2>{t('Items','الأصناف')}</h2></div><Button icon="plus" className="add-item-button" onClick={()=>this.mutate(doc=>({...doc,items:[...doc.items,emptyItem()]}))}>{t('Add Item','إضافة صنف')}</Button></div>
+          {error('items')?<div className="inline-error section-inline-error">{error('items')}</div>:null}
+          <div className="item-cards">{d.items.map((i,index)=><article className={`item-card ${itemHasError(index)?'item-has-error':''}`} key={i.id}>
+            <header><strong>{t(`Item ${index+1}`,`الصنف ${index+1}`)}</strong><IconButton icon="trash" label={t('Delete','حذف')} disabled={d.items.length===1} onClick={()=>this.mutate(doc=>({...doc,items:doc.items.filter(x=>x.id!==i.id)}))}/></header>
+            <div className="form-grid two compact-grid">
+              {d.language!=='ar'?<Field label={t('Description English','الوصف بالإنجليزية')} className="span-2 required-field" error={error(`item-${index}-description`)}><Textarea rows="2" value={i.descriptionEn} onChange={(e:any)=>this.item(i.id,'descriptionEn',e.target.value)}/></Field>:null}
+              {d.language!=='en'?<Field label={t('Description Arabic','الوصف بالعربية')} className="span-2 required-field" error={d.language==='ar'?error(`item-${index}-description`):error(`item-${index}-description-ar`)}><Textarea dir="rtl" rows="2" value={i.descriptionAr} onChange={(e:any)=>this.item(i.id,'descriptionAr',e.target.value)}/></Field>:null}
+              <Field label="HS Code"><Input value={i.hsCode} onChange={(e:any)=>this.item(i.id,'hsCode',e.target.value)}/></Field>
+              <Field label={t('Origin','المنشأ')}><Input value={i.origin} onChange={(e:any)=>this.item(i.id,'origin',e.target.value)}/></Field>
+              <Field label={t('Packing','التعبئة')}><Input value={i.packing} onChange={(e:any)=>this.item(i.id,'packing',e.target.value)}/></Field>
+              <Field label={t('Quantity','الكمية')} className="required-field" error={error(`item-${index}-quantity`)}><Input inputMode="decimal" value={i.quantity} onChange={(e:any)=>this.item(i.id,'quantity',e.target.value)}/></Field>
+              <Field label={t('Unit','الوحدة')} className="required-field" error={error(`item-${index}-unit`)}><Input list="units" value={i.unit} onChange={(e:any)=>this.item(i.id,'unit',e.target.value)}/><datalist id="units">{unitPresets.map(x=><option key={x} value={x}/>)}</datalist></Field>
+              <Field label={t(`Unit Price (${d.currency})`,`سعر الوحدة (${d.currency})`)} className="required-field" error={error(`item-${index}-price`)}><Input inputMode="decimal" value={i.unitPrice} onChange={(e:any)=>this.item(i.id,'unitPrice',e.target.value)}/></Field>
+            </div>
+            <footer><span>{t('Line Total','إجمالي السطر')}</span><strong>{formatMoney(lineTotal(i.quantity,i.unitPrice),d.currency)}</strong></footer>
+          </article>)}</div>
+        </section>
+
+        <section className={`editor-section ${sectionHasError('discount','shipping','otherCharges','tax')?'section-has-error':''}`}>
+          <div className="section-heading"><span>04</span><h2>{t('Totals','الإجماليات')}</h2></div>
+          <div className="adjustments-list">
+            <div className={`adjustment-row ${error('discount')?'has-validation-error':''}`}><Toggle checked={d.adjustments.discountEnabled} onChange={v=>this.adj('discountEnabled',v)} label={t('Discount','خصم')}/>{d.adjustments.discountEnabled?<Input value={d.adjustments.discountValue} onChange={(e:any)=>this.adj('discountValue',e.target.value)}/>:null}{error('discount')?<span className="field-error adjustment-error">{error('discount')}</span>:null}</div>
+            <div className={`adjustment-row ${error('shipping')?'has-validation-error':''}`}><Toggle checked={d.adjustments.shippingEnabled} onChange={v=>this.adj('shippingEnabled',v)} label={t('Shipping','شحن')}/>{d.adjustments.shippingEnabled?<Input value={d.adjustments.shipping} onChange={(e:any)=>this.adj('shipping',e.target.value)}/>:null}{error('shipping')?<span className="field-error adjustment-error">{error('shipping')}</span>:null}</div>
+            <div className={`adjustment-row ${error('tax')?'has-validation-error':''}`}><Toggle checked={d.adjustments.taxEnabled} onChange={v=>this.adj('taxEnabled',v)} label={t('Tax / VAT','الضريبة / القيمة المضافة')}/>{d.adjustments.taxEnabled?<Input value={d.adjustments.taxPercent} onChange={(e:any)=>this.adj('taxPercent',e.target.value)}/>:null}{error('tax')?<span className="field-error adjustment-error">{error('tax')}</span>:null}</div>
+          </div>
+          <div className="editor-totals"><div><span>{t('Subtotal','الإجمالي الفرعي')}</span><strong>{formatMoney(totals.subtotal,d.currency)}</strong></div><div className="grand"><span>{t('Grand Total','الإجمالي النهائي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div></div>
+        </section>
+
+        <section className="editor-section">
+          <div className="section-heading"><span>05</span><h2>{t('Commercial Terms','الشروط التجارية')}</h2></div>
+          <div className="form-grid two compact-grid"><Field label="Incoterm"><Input list="incoterms" value={d.terms.incoterm} onChange={(e:any)=>this.term('incoterm',e.target.value)}/><datalist id="incoterms">{incoterms.map(x=><option key={x} value={x}/>)}</datalist></Field><Field label={t('Payment Terms','شروط الدفع')}><Input value={d.terms.paymentTerms} onChange={(e:any)=>this.term('paymentTerms',e.target.value)}/></Field><Field label={t('Delivery Time','مدة التسليم')}><Input value={d.terms.deliveryTime} onChange={(e:any)=>this.term('deliveryTime',e.target.value)}/></Field><Field label={t('Final Destination','الوجهة النهائية')}><Input value={d.terms.finalDestination} onChange={(e:any)=>this.term('finalDestination',e.target.value)}/></Field><Field label={t('Remarks','ملاحظات تجارية')} className="span-2"><Textarea value={d.terms.remarks} onChange={(e:any)=>this.term('remarks',e.target.value)}/></Field><Field label={t('Notes','ملاحظات')} className="span-2"><Textarea value={d.notes} onChange={(e:any)=>this.field('notes',e.target.value)}/></Field></div>
+        </section>
+
+        <section className="editor-section">
+          <div className="section-heading"><span>06</span><h2>{t('Design','التصميم')}</h2></div>
+          <TemplateThumbnails document={d} onSelect={(id:TemplateId)=>this.appearance('templateId',id)}/>
+          <div className="appearance-system-grid"><Field label={t('Color System','نظام الألوان')}><Select value={d.appearance.paletteMode??'auto'} onChange={(e:any)=>this.appearance('paletteMode',e.target.value)}><option value="auto">{t('Auto — matched to template','تلقائي — متناسق مع القالب')}</option><option value="custom">{t('Custom Accent','لون مخصص')}</option></Select></Field>{(d.appearance.paletteMode??'auto')==='custom'?<Field label={t('Accent','اللون المميز')}><Input type="color" value={d.appearance.accentColor||'#b58b4f'} onChange={(e:any)=>this.appearance('accentColor',e.target.value)}/></Field>:<div className="appearance-auto-note"><span><strong>{t('Auto','تلقائي')}</strong>{t('The template chooses its balanced accent and contrast automatically.','يختار القالب اللون والتباين المتوازن تلقائيًا.')}</span></div>}<Field label={t('English Font','الخط الإنجليزي')}><Select value={d.appearance.latinFont??'auto'} onChange={(e:any)=>this.appearance('latinFont',e.target.value)}>{LATIN_FONT_OPTIONS.map(option=><option value={option.value} key={option.value}>{option.label}</option>)}</Select></Field><Field label={t('Arabic Font','الخط العربي')}><Select value={d.appearance.arabicFont??'auto'} onChange={(e:any)=>this.appearance('arabicFont',e.target.value)}>{ARABIC_FONT_OPTIONS.map(option=><option value={option.value} key={option.value}>{option.label}</option>)}</Select></Field></div>
+          <div className="appearance-toggles"><Toggle checked={d.appearance.showBank} onChange={v=>this.appearance('showBank',v)} label={t('Bank Details','بيانات البنك')}/><Toggle checked={d.appearance.showSignature} onChange={v=>this.appearance('showSignature',v)} label={t('Signature','التوقيع')}/><Toggle checked={d.appearance.showStamp} onChange={v=>this.appearance('showStamp',v)} label={t('Stamp','الختم')}/></div>
+          <Button icon="refresh" onClick={()=>this.mutate(doc=>draftWithLatestCompany(doc,this.props.company))}>{t('Refresh Company Details','تحديث بيانات الشركة')}</Button>{d.kind==='proforma'?<Button icon="invoice" variant="primary" onClick={this.convert}>{t('Convert to Invoice','تحويل إلى فاتورة')}</Button>:null}
+        </section>
+      </div></aside>
+
+      <section className="preview-pane"><div className="preview-toolbar"><span>{t('Live A4 Preview','معاينة A4 مباشرة')}</span></div><div className="preview-stage"><TemplateRenderer document={d} scale={0.82}/></div></section>
+      </div>
+
+      <div className="mobile-preview-overlay"><header><strong>{t('Preview','معاينة')}</strong><div><Button icon="download" onClick={()=>this.output('pdf')}>PDF</Button><IconButton icon="x" label={t('Close','إغلاق')} onClick={()=>this.setState({mobilePreview:false})}/></div></header><div className="mobile-preview-stage"><TemplateRenderer document={d} scale={0.48}/></div></div>
+      <ConfirmDialog open={this.state.confirmClose} title={t('Discard unsaved changes?','تجاهل التغييرات غير المحفوظة؟')} message={t('Your latest changes have not been saved.','لم يتم حفظ آخر تغييراتك.')} confirmLabel={t('Discard','تجاهل')} destructive onCancel={()=>this.setState({confirmClose:false})} onConfirm={()=>this.props.onClose()}/>
+      <Modal open={Boolean(this.state.addCustomer)} title={t('New Customer','عميل جديد')} size="lg" onClose={()=>this.setState({addCustomer:null,addCustomerError:''})} footer={<div className="modal-footer-actions"><Button onClick={()=>this.setState({addCustomer:null})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" onClick={()=>void this.addCustomer()}>{t('Save & Select','حفظ واختيار')}</Button></div>}>{this.state.addCustomer?<CustomerForm customer={this.state.addCustomer} onChange={addCustomer=>this.setState({addCustomer})}/>:null}{this.state.addCustomerError?<div className="inline-error">{this.state.addCustomerError}</div>:null}</Modal>
+    </div>;
+  }
 }
