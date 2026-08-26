@@ -48,11 +48,21 @@ test('v44 service worker precaches every compiled application module',async()=>{
   assert.match(sw,/styles\/v44-audit\.css/);
 });
 
-test('cloud freshness watcher never installs a remote vault outside App coordination',async()=>{
+test('cloud freshness watcher never installs or reloads a live vault outside App coordination',async()=>{
   const source=await read('src/cloud/freshness.ts');
   assert.doesNotMatch(source,/installCloudVault/);
-  assert.match(source,/window\.location\.reload\(\)/);
+  assert.doesNotMatch(source,/window\.location\.reload\(\)/);
+  assert.match(source,/window\.dispatchEvent\(new Event\('online'\)\)/);
+  assert.match(source,/lourex-cloud-newer-revision/);
   assert.match(source,/editor-screen,.modal-backdrop/);
+});
+
+test('cloud metadata validation matches the real flat SecurityMetadata schema',async()=>{
+  const source=await read('src/cloud/firebase.ts');
+  for(const token of ['value.iterations','value.salt','value.verifierIv','value.verifierCipher'])assert.ok(source.includes(token),token);
+  assert.doesNotMatch(source,/value\.kdf|value\.verifier\?\./);
+  assert.match(source,/cleanupRevision\(uid,revision,chunks\.length\)/);
+  assert.match(source,/Cloud conflict detected/);
 });
 
 test('decimal comma and mixed locale separators are parsed without 100x mistakes',()=>{
