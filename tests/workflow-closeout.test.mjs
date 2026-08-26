@@ -56,8 +56,9 @@ test('editor contains final lock, review-before-issue and advanced simplificatio
 test('documents workspace supports ready state and requested sorting modes',async()=>{
   const docs=await read('src/components/DocumentsPage.tsx');
   assert.match(docs,/Highest total/);
-  assert.match(docs,/status-ready/);
   assert.match(docs,/workflowStatus/);
+  assert.match(docs,/status-\$\{state\}/);
+  assert.match(docs,/'ready'/);
 });
 
 test('PWA closeout assets are offline-cached',async()=>{
