@@ -1,5 +1,5 @@
 import type { SavedItem } from '../types.js';
-import { uid } from '../lib/id.js';
+import { makeId } from '../lib/id.js';
 import { savedItemSearchText, sortSavedItems } from '../lib/saved-items.js';
 import { t } from '../lib/i18n.js';
 import { Button, Field, Icon, IconButton, Input, Modal } from './UI.js';
@@ -17,7 +17,7 @@ interface State { query:string; editing:SavedItem|null; busy:boolean; error:stri
 
 function blank(currency:string):SavedItem{
   const now=new Date().toISOString();
-  return {id:uid('product'),createdAt:now,updatedAt:now,descriptionEn:'',descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'',lastCurrency:currency||'USD',usageCount:0,lastUsedAt:now};
+  return {id:makeId('product'),createdAt:now,updatedAt:now,descriptionEn:'',descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'',lastCurrency:currency||'USD',usageCount:0,lastUsedAt:now};
 }
 
 export class SavedItemsModal extends React.Component<Props,State>{
