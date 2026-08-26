@@ -1,6 +1,6 @@
 import type { AppSettings, CompanySettings, CustomerSnapshot, CompanySnapshot, VaultPayload } from '../types.js';
 
-export const APP_SCHEMA_VERSION = 3;
+export const APP_SCHEMA_VERSION = 4;
 export const KDF_ITERATIONS = 310_000;
 
 export function defaultCompany(): CompanySettings {
