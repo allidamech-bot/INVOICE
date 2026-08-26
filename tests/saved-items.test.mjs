@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyVault } from '../dist/src/lib/defaults.js';
+import { APP_SCHEMA_VERSION, emptyVault } from '../dist/src/lib/defaults.js';
 import { savedItemFromDocumentItem, documentItemFromSavedItem, sortSavedItems } from '../dist/src/lib/saved-items.js';
 import { migrateVault } from '../dist/src/storage/vault.js';
 
@@ -36,7 +36,7 @@ test('schema v2 migrates to smart defaults and encrypted saved-item collection',
   delete old.appSettings.smartDefaults;
   delete old.savedItems;
   const migrated=migrateVault(old);
-  assert.equal(migrated.schemaVersion,3);
+  assert.equal(migrated.schemaVersion,APP_SCHEMA_VERSION);
   assert.equal(migrated.appSettings.smartDefaults.currency,'SAR');
   assert.equal(migrated.appSettings.smartDefaults.language,'ar');
   assert.equal(migrated.appSettings.smartDefaults.incoterm,'CIF');

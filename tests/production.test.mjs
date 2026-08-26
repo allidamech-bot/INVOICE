@@ -39,7 +39,7 @@ test('production shell redirects deployment URLs to the canonical Vercel project
 });
 
 test('editor continuously autosaves incomplete drafts while explicit actions validate', async () => {
-  const editor = await read('src/components/EditorPage.tsx');
+  const editor = await read('src/components/EditorPageCore.tsx');
   assert.match(editor, /setTimeout\(\(\)=>void this\.save\(true\),500\)/);
   assert.match(editor, /Saving draft/);
   assert.match(editor, /Draft auto-saved/);
@@ -49,6 +49,12 @@ test('editor continuously autosaves incomplete drafts while explicit actions val
   assert.match(editor, /scrollToFirstError/);
   assert.match(editor, /saveAndClose/);
   assert.doesNotMatch(editor, /schedule=.*validateDocument/);
+});
+
+test('editor remounts its local draft state when document identity changes', async () => {
+  const wrapper = await read('src/components/EditorPage.tsx');
+  assert.match(wrapper, /EditorPageCore/);
+  assert.match(wrapper, /key=\{props\.document\.id\}/);
 });
 
 test('backup uses the native share sheet for Save to Files with download fallback', async () => {
@@ -96,7 +102,7 @@ test('first-run onboarding requires a cloud account before local PIN setup', asy
 
 test('offline service worker precaches the application module graph, premium styles and cloud UI', async () => {
   const sw = await read('dist/sw.js');
-  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js','styles/premium.css','styles/accounting-polish.css','styles/cloud.css','styles/auth-entry.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
+  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/components/EditorPageCore.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js','styles/premium.css','styles/accounting-polish.css','styles/cloud.css','styles/auth-entry.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
 });
 
 test('print stylesheet isolates A4 documents from application chrome', async () => {
@@ -111,7 +117,7 @@ test('print stylesheet isolates A4 documents from application chrome', async () 
 test('source contains no unfinished UI placeholders or unintended backend clients', async () => {
   const app = [
     await read('src/app/App.tsx'), await read('src/components/DocumentsPage.tsx'), await read('src/components/CustomersPage.tsx'),
-    await read('src/components/EditorPage.tsx'), await read('src/components/SettingsModal.tsx')
+    await read('src/components/EditorPage.tsx'), await read('src/components/EditorPageCore.tsx'), await read('src/components/SettingsModal.tsx')
   ].join('\n');
   assert.doesNotMatch(app, /TODO|Coming Soon|Supabase|MongoDB|PostgreSQL/i);
 });

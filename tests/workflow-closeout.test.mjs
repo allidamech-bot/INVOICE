@@ -45,7 +45,7 @@ test('quality guard warns without treating optional presentation gaps as validat
 });
 
 test('editor contains final lock, review-before-issue and advanced simplification',async()=>{
-  const editor=await read('src/components/EditorPage.tsx');
+  const editor=await read('src/components/EditorPageCore.tsx');
   assert.match(editor,/Review before issue|DocumentReviewModal/);
   assert.match(editor,/Unlock for editing/);
   assert.match(editor,/editor-form-lock/);
@@ -63,10 +63,21 @@ test('documents workspace supports ready state, sorting and final-only direct ou
   assert.match(docs,/Review & Issue/);
 });
 
+test('root UI is protected by a recovery boundary instead of falling to a blank page',async()=>{
+  const index=await read('src/app/index.tsx');
+  const boundary=await read('src/app/AppErrorBoundary.tsx');
+  assert.match(index,/AppErrorBoundary/);
+  assert.match(index,/<AppErrorBoundary><App\/><\/AppErrorBoundary>/);
+  assert.match(boundary,/getDerivedStateFromError/);
+  assert.match(boundary,/window\.location\.reload/);
+});
+
 test('PWA closeout assets are offline-cached',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/lourex-invoice-v40/);
+  assert.match(sw,/lourex-invoice-v42/);
   assert.match(sw,/workflow-closeout\.css/);
   assert.match(sw,/DocumentReviewModal\.js/);
   assert.match(sw,/document-quality\.js/);
+  assert.match(sw,/AppErrorBoundary\.js/);
+  assert.match(sw,/EditorPageCore\.js/);
 });
