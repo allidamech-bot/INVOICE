@@ -3,15 +3,27 @@ const MONEY_SCALE = 100n;
 
 function pow10(n: number): bigint { let v = 1n; for (let i = 0; i < n; i += 1) v *= 10n; return v; }
 
+function cleanedDecimal(input: string): string {
+  return (input || '').trim().replace(/,/g, '');
+}
+
+export function isDecimalInput(input: string): boolean {
+  const cleaned = cleanedDecimal(input);
+  if (!cleaned || cleaned === '-' || cleaned === '.' || cleaned === '-.') return false;
+  return /^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(cleaned);
+}
+
 export function decimalToScaled(input: string, decimals = 4): bigint {
-  const cleaned = (input || '0').trim().replace(/,/g, '');
-  if (!/^-?\d*(\.\d*)?$/.test(cleaned)) return 0n;
+  const cleaned = cleanedDecimal(input || '0') || '0';
+  if (!isDecimalInput(cleaned)) return 0n;
   const negative = cleaned.startsWith('-');
   const raw = negative ? cleaned.slice(1) : cleaned;
   const [wholeRaw = '0', fracRaw = ''] = raw.split('.');
   const whole = BigInt(wholeRaw || '0');
+  const scale = pow10(decimals);
   const frac = (fracRaw + '0'.repeat(decimals)).slice(0, decimals);
-  const result = whole * pow10(decimals) + BigInt(frac || '0');
+  let result = whole * scale + BigInt(frac || '0');
+  if (fracRaw.length > decimals && Number(fracRaw[decimals] ?? '0') >= 5) result += 1n;
   return negative ? -result : result;
 }
 
