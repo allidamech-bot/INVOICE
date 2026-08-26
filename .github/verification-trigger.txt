@@ -1,2 +1,3 @@
 LOUREX Invoice repository verification
 Audit verification: legacy-open recovery + keyed editor + PWA v42
+Strict wrapper verification after TypeScript fix
