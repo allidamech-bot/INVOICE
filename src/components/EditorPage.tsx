@@ -1,11 +1,13 @@
-import type { CompanySettings, Customer, DocumentItem, LourexDocument, TemplateId } from '../types.js';
+import type { CompanySettings, Customer, DocumentItem, LourexDocument, SavedItem, TemplateId } from '../types.js';
 import { calculateTotals, formatMoney, lineTotal } from '../lib/money.js';
 import { customerSnapshotFrom } from '../lib/defaults.js';
 import { emptyItem, refreshCompanySnapshot, validateDocument } from '../lib/documents.js';
 import { getDocumentReadiness } from '../lib/readiness.js';
+import { historySuggestions, savedItemSearchText, savedItemToDocumentItem, sortSavedItems } from '../lib/saved-items.js';
 import { ARABIC_FONT_OPTIONS, LATIN_FONT_OPTIONS } from '../lib/appearance.js';
 import { isArabic, t, translateValidation } from '../lib/i18n.js';
 import { blankCustomer, CustomerForm } from './CustomersPage.js';
+import { SavedItemsModal } from './SavedItemsModal.js';
 import { TemplateRenderer } from '../templates/TemplateRenderer.js';
 import { TemplateThumbnails } from '../templates/TemplateThumbnails.js';
 import { Button, ConfirmDialog, Field, Icon, IconButton, Input, Modal, Select, Textarea, Toggle } from './UI.js';
@@ -14,8 +16,17 @@ const currencyPresets=['USD','EUR','SAR','TRY','AED','GBP'];
 const unitPresets=['PCS','Carton','Box','Pallet','KG','Unit','Set'];
 const incoterms=['EXW','FCA','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'];
 
-interface Props { document:LourexDocument; customers:Customer[]; company:CompanySettings; onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>void; }
-interface State { doc:LourexDocument; errors:Record<string,string>; saving:boolean; saveState:'saved'|'saving'|'unsaved'; customerQuery:string; customerOpen:boolean; addCustomer:Customer|null; addCustomerError:string; mobilePreview:boolean; confirmClose:boolean; expandedItems:Record<string,boolean>; }
+interface Props {
+  document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; company:CompanySettings; savedItems:SavedItem[];
+  onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
+  onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
+  onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>void;
+}
+interface State {
+  doc:LourexDocument; errors:Record<string,string>; saving:boolean; saveState:'saved'|'saving'|'unsaved'; customerQuery:string; customerOpen:boolean;
+  addCustomer:Customer|null; addCustomerError:string; mobilePreview:boolean; confirmClose:boolean; expandedItems:Record<string,boolean>;
+  savedItemsOpen:boolean; suggestingItemId:string;
+}
 
 function draftWithLatestCompany(doc:LourexDocument,company:CompanySettings):LourexDocument{
   if(doc.status!=='draft')return structuredClone(doc);
@@ -32,7 +43,7 @@ export class EditorPage extends React.Component<Props,State>{
   constructor(props:Props){
     super(props);
     const initial=draftWithLatestCompany(props.document,props.company);
-    this.state={doc:initial,errors:{},saving:false,saveState:'saved',customerQuery:(isArabic()?initial.customerSnapshot?.companyNameAr:initial.customerSnapshot?.companyNameEn)||initial.customerSnapshot?.companyNameEn||initial.customerSnapshot?.companyNameAr||'',customerOpen:false,addCustomer:null,addCustomerError:'',mobilePreview:false,confirmClose:false,expandedItems:{}};
+    this.state={doc:initial,errors:{},saving:false,saveState:'saved',customerQuery:(isArabic()?initial.customerSnapshot?.companyNameAr:initial.customerSnapshot?.companyNameEn)||initial.customerSnapshot?.companyNameEn||initial.customerSnapshot?.companyNameAr||'',customerOpen:false,addCustomer:null,addCustomerError:'',mobilePreview:false,confirmClose:false,expandedItems:{},savedItemsOpen:false,suggestingItemId:''};
   }
 
   componentDidUpdate(prevProps:Props):void{if(prevProps.company!==this.props.company&&this.state.doc.status==='draft')this.mutate(doc=>draftWithLatestCompany(doc,this.props.company));}
@@ -100,6 +111,20 @@ export class EditorPage extends React.Component<Props,State>{
   private toggleItemDetails=(id:string)=>this.setState(state=>({expandedItems:{...state.expandedItems,[id]:!state.expandedItems[id]}}));
   private duplicateItem=(item:DocumentItem)=>this.mutate(doc=>{const clone=structuredClone(item);clone.id=emptyItem().id;const at=doc.items.findIndex(x=>x.id===item.id);const items=[...doc.items];items.splice(at+1,0,clone);return {...doc,items};});
   private addCustomer=async()=>{const c=this.state.addCustomer;if(!c)return;if(!c.companyNameEn.trim()&&!c.companyNameAr.trim()){this.setState({addCustomerError:t('Company name is required.','اسم الشركة مطلوب.')});return;}try{await this.props.onSaveCustomer(c);this.selectCustomer(c);this.setState({addCustomer:null,addCustomerError:''});}catch(e){this.setState({addCustomerError:e instanceof Error?e.message:t('Unable to save customer.','تعذر حفظ العميل.')});}};
+  private suggestionItems=(item:DocumentItem):SavedItem[]=>{
+    const q=(item.descriptionEn.trim()||item.descriptionAr.trim()).toLowerCase();if(!q)return [];
+    const merged=[...sortSavedItems(this.props.savedItems),...historySuggestions(this.props.documents)];const seen=new Set<string>();
+    return merged.filter(candidate=>{const key=(candidate.descriptionEn.trim().toLowerCase()||candidate.descriptionAr.trim());if(!key||seen.has(key)||!savedItemSearchText(candidate).includes(q))return false;seen.add(key);return true;}).slice(0,6);
+  };
+  private applySuggestion=(targetId:string,saved:SavedItem)=>{
+    const price=saved.lastCurrency&&saved.lastCurrency!==this.state.doc.currency?'':saved.lastUnitPrice;
+    this.mutate(doc=>({...doc,items:doc.items.map(item=>item.id===targetId?{...item,descriptionEn:saved.descriptionEn,descriptionAr:saved.descriptionAr,hsCode:saved.hsCode,origin:saved.origin,packing:saved.packing,unit:saved.unit||item.unit,unitPrice:price}:item)}));
+    this.setState({suggestingItemId:'',expandedItems:{...this.state.expandedItems,[targetId]:Boolean(saved.hsCode||saved.origin||saved.packing)}});
+  };
+  private addSavedItem=(saved:SavedItem)=>{
+    const item=savedItemToDocumentItem(saved);if(saved.lastCurrency&&saved.lastCurrency!==this.state.doc.currency)item.unitPrice='';
+    this.mutate(doc=>({...doc,items:[...doc.items,item]}));this.setState({savedItemsOpen:false,suggestingItemId:''});
+  };
 
   render():any{
     const d=this.state.doc,errors=this.state.errors,totals=calculateTotals(d.items,d.adjustments),readiness=getDocumentReadiness(d);
@@ -156,13 +181,13 @@ export class EditorPage extends React.Component<Props,State>{
         </section>
 
         <section className={`editor-section ${sectionHasError('items','item-')?'section-has-error':''}`}>
-          <div className="section-heading with-action"><div><span>03</span><h2>{t('Items','الأصناف')}</h2></div><Button icon="plus" className="add-item-button" onClick={()=>this.mutate(doc=>({...doc,items:[...doc.items,emptyItem()]}))}>{t('Add Item','إضافة صنف')}</Button></div>
+          <div className="section-heading with-action"><div><span>03</span><h2>{t('Items','الأصناف')}</h2></div><div className="section-heading-actions"><Button icon="file" variant="ghost" onClick={()=>this.setState({savedItemsOpen:true})}>{t('Saved Items','الأصناف المحفوظة')}</Button><Button icon="plus" className="add-item-button" onClick={()=>this.mutate(doc=>({...doc,items:[...doc.items,emptyItem()]}))}>{t('Add Item','إضافة صنف')}</Button></div></div>
           {error('items')?<div className="inline-error section-inline-error">{error('items')}</div>:null}
-          <div className="item-cards">{d.items.map((i,index)=>{const expanded=Boolean(this.state.expandedItems[i.id]);const zeroPrice=i.unitPrice.trim()!==''&&Number(i.unitPrice)===0;return <article className={`item-card premium-item-card ${itemHasError(index)?'item-has-error':''}`} key={i.id}>
-            <header><div><strong>{t(`Item ${index+1}`,`الصنف ${index+1}`)}</strong><span className="item-line-total">{formatMoney(lineTotal(i.quantity,i.unitPrice),d.currency)}</span></div><div className="item-card-actions"><IconButton icon="copy" label={t('Duplicate item','نسخ الصنف')} onClick={()=>this.duplicateItem(i)}/><IconButton icon="trash" label={t('Delete','حذف')} disabled={d.items.length===1} onClick={()=>this.mutate(doc=>({...doc,items:doc.items.filter(x=>x.id!==i.id)}))}/></div></header>
+          <div className="item-cards">{d.items.map((i,index)=>{const expanded=Boolean(this.state.expandedItems[i.id]);const zeroPrice=i.unitPrice.trim()!==''&&Number(i.unitPrice)===0;const suggestions=this.state.suggestingItemId===i.id?this.suggestionItems(i):[];return <article className={`item-card premium-item-card ${itemHasError(index)?'item-has-error':''}`} key={i.id}>
+            <header><div><strong>{t(`Item ${index+1}`,`الصنف ${index+1}`)}</strong><span className="item-line-total">{formatMoney(lineTotal(i.quantity,i.unitPrice),d.currency)}</span></div><div className="item-card-actions"><Button icon="save" variant="ghost" className="save-item-library-button" onClick={()=>void this.props.onSaveDocumentItem(i,d.currency)}>{t('Save item','حفظ الصنف')}</Button><IconButton icon="copy" label={t('Duplicate item','نسخ الصنف')} onClick={()=>this.duplicateItem(i)}/><IconButton icon="trash" label={t('Delete','حذف')} disabled={d.items.length===1} onClick={()=>this.mutate(doc=>({...doc,items:doc.items.filter(x=>x.id!==i.id)}))}/></div></header>
             <div className="form-grid two compact-grid item-core-grid">
-              {d.language!=='ar'?<Field label={t('Description English','الوصف بالإنجليزية')} className="span-2 required-field" error={error(`item-${index}-description`)}><Textarea rows="2" value={i.descriptionEn} onChange={(e:any)=>this.item(i.id,'descriptionEn',e.target.value)}/></Field>:null}
-              {d.language!=='en'?<Field label={t('Description Arabic','الوصف بالعربية')} className="span-2 required-field" error={d.language==='ar'?error(`item-${index}-description`):error(`item-${index}-description-ar`)}><Textarea dir="rtl" rows="2" value={i.descriptionAr} onChange={(e:any)=>this.item(i.id,'descriptionAr',e.target.value)}/></Field>:null}
+              {d.language!=='ar'?<div className="span-2 item-description-autocomplete"><Field label={t('Description English','الوصف بالإنجليزية')} className="required-field" error={error(`item-${index}-description`)}><Textarea rows="2" value={i.descriptionEn} onFocus={()=>this.setState({suggestingItemId:i.id})} onChange={(e:any)=>{this.item(i.id,'descriptionEn',e.target.value);this.setState({suggestingItemId:i.id});}}/></Field>{suggestions.length?<div className="item-suggestion-box">{suggestions.map(s=><button type="button" key={s.id} onClick={()=>this.applySuggestion(i.id,s)}><span><strong>{s.descriptionEn||s.descriptionAr}</strong>{s.descriptionAr&&s.descriptionEn?<small dir="rtl">{s.descriptionAr}</small>:null}</span><em>{[s.unit,s.lastUnitPrice?`${s.lastUnitPrice} ${s.lastCurrency}`:''].filter(Boolean).join(' · ')}</em></button>)}</div>:null}</div>:null}
+              {d.language!=='en'?<div className="span-2 item-description-autocomplete"><Field label={t('Description Arabic','الوصف بالعربية')} className="required-field" error={d.language==='ar'?error(`item-${index}-description`):error(`item-${index}-description-ar`)}><Textarea dir="rtl" rows="2" value={i.descriptionAr} onFocus={()=>this.setState({suggestingItemId:i.id})} onChange={(e:any)=>{this.item(i.id,'descriptionAr',e.target.value);this.setState({suggestingItemId:i.id});}}/></Field>{d.language==='ar'&&suggestions.length?<div className="item-suggestion-box rtl-suggestions">{suggestions.map(s=><button type="button" key={s.id} onClick={()=>this.applySuggestion(i.id,s)}><span><strong>{s.descriptionAr||s.descriptionEn}</strong>{s.descriptionEn&&s.descriptionAr?<small>{s.descriptionEn}</small>:null}</span><em>{[s.unit,s.lastUnitPrice?`${s.lastUnitPrice} ${s.lastCurrency}`:''].filter(Boolean).join(' · ')}</em></button>)}</div>:null}</div>:null}
               <div className="item-pricing-grid span-2"><Field label={t('Quantity','الكمية')} className="required-field" error={error(`item-${index}-quantity`)}><Input inputMode="decimal" value={i.quantity} onChange={(e:any)=>this.item(i.id,'quantity',e.target.value)}/></Field><Field label={t('Unit','الوحدة')} className="required-field" error={error(`item-${index}-unit`)}><Input list="units" value={i.unit} onChange={(e:any)=>this.item(i.id,'unit',e.target.value)}/><datalist id="units">{unitPresets.map(x=><option key={x} value={x}/>)}</datalist></Field><Field label={t(`Unit Price (${d.currency})`,`سعر الوحدة (${d.currency})`)} className="required-field" error={error(`item-${index}-price`)}><Input inputMode="decimal" value={i.unitPrice} onChange={(e:any)=>this.item(i.id,'unitPrice',e.target.value)}/></Field></div>
               {zeroPrice?<div className="zero-price-warning span-2"><span>!</span>{t('Price is zero — confirm this before issuing the document.','السعر صفر — تأكد منه قبل إصدار المستند.')}</div>:null}
               <div className="item-advanced-control span-2"><button type="button" onClick={()=>this.toggleItemDetails(i.id)}><Icon name={expanded?'chevronUp':'chevronDown'} size={16}/>{expanded?t('Hide trade details','إخفاء التفاصيل التجارية'):t('More trade details','تفاصيل تجارية إضافية')}</button></div>
@@ -203,6 +228,7 @@ export class EditorPage extends React.Component<Props,State>{
       <div className="mobile-preview-overlay"><header><strong>{t('Preview','معاينة')}</strong><div><Button icon="download" onClick={()=>this.output('pdf')}>PDF</Button><IconButton icon="x" label={t('Close','إغلاق')} onClick={()=>this.setState({mobilePreview:false})}/></div></header><div className="mobile-preview-stage"><TemplateRenderer document={d} scale={0.48}/></div></div>
       <ConfirmDialog open={this.state.confirmClose} title={t('Discard unsaved changes?','تجاهل التغييرات غير المحفوظة؟')} message={t('Your latest changes have not been saved.','لم يتم حفظ آخر تغييراتك.')} confirmLabel={t('Discard','تجاهل')} destructive onCancel={()=>this.setState({confirmClose:false})} onConfirm={()=>this.props.onClose()}/>
       <Modal open={Boolean(this.state.addCustomer)} title={t('New Customer','عميل جديد')} size="lg" onClose={()=>this.setState({addCustomer:null,addCustomerError:''})} footer={<div className="modal-footer-actions"><Button onClick={()=>this.setState({addCustomer:null})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" onClick={()=>void this.addCustomer()}>{t('Save & Select','حفظ واختيار')}</Button></div>}>{this.state.addCustomer?<CustomerForm customer={this.state.addCustomer} onChange={addCustomer=>this.setState({addCustomer})}/>:null}{this.state.addCustomerError?<div className="inline-error">{this.state.addCustomerError}</div>:null}</Modal>
+      <SavedItemsModal open={this.state.savedItemsOpen} items={this.props.savedItems} currency={d.currency} onClose={()=>this.setState({savedItemsOpen:false})} onSelect={this.addSavedItem} onSave={this.props.onSaveSavedItem} onDelete={this.props.onDeleteSavedItem}/>
     </div>;
   }
 }
