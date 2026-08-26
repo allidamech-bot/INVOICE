@@ -21,7 +21,7 @@ export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { n
 }
 
 export function emptyItem(): DocumentItem {
-  return { id: makeId('item'), descriptionEn: '', descriptionAr: '', hsCode: '', origin: '', packing: '', quantity: '1', unit: 'Carton', unitPrice: '0.00' };
+  return { id: makeId('item'), descriptionEn: '', descriptionAr: '', hsCode: '', origin: '', packing: '', quantity: '1', unit: 'Carton', unitPrice: '' };
 }
 
 export function createBlankDocument(kind: DocumentKind, number: string, company: CompanySettings): LourexDocument {
