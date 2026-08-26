@@ -12,9 +12,12 @@ test('service worker never cache-firsts arbitrary cross-origin API traffic',asyn
   assert.doesNotMatch(sw,/firebaseapis\.com|googleapis\.com|identitytoolkit/);
 });
 
-test('essential matched React runtime remains explicitly available offline without blocking SW install',async()=>{
+test('essential matched React runtime survives upgrades and remains optional during SW install',async()=>{
   const sw=await read('public/sw.js');
   assert.match(sw,/react@17\.0\.2\/umd\/react\.production\.min\.js/);
   assert.match(sw,/react-dom@17\.0\.2\/umd\/react-dom\.production\.min\.js/);
-  assert.match(sw,/EXTERNAL_CORE\.map\(asset=>cache\.add\(asset\)\.catch/);
+  assert.match(sw,/preserveExternalRuntime/);
+  assert.match(sw,/caches\.match\(asset\)/);
+  assert.match(sw,/cache\.put\(asset,existing\.clone\(\)\)/);
+  assert.match(sw,/try\{[\s\S]*fetch\(asset\)[\s\S]*\}catch\{\}/);
 });
