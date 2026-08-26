@@ -116,8 +116,10 @@ test('discount and tax validation match calculation semantics and readiness',()=
   assert.match(validateDocument(doc).discount,/subtotal/i);
   doc.adjustments.discountValue='50';
   assert.equal(validateDocument(doc).discount,undefined);
-  doc.adjustments.taxEnabled=true;doc.adjustments.taxPercent='100.01';
-  assert.match(validateDocument(doc).tax,/100/);
+  doc.adjustments.taxEnabled=true;doc.adjustments.taxPercent='150';
+  assert.equal(validateDocument(doc).tax,undefined);
+  doc.adjustments.taxPercent='-1';
+  assert.match(validateDocument(doc).tax,/0 or greater/);
 });
 
 test('readiness uses fixed precision grammar instead of JavaScript Number coercion',()=>{
