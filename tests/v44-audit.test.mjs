@@ -46,6 +46,8 @@ test('v44 service worker precaches every compiled application module',async()=>{
   }
   assert.match(sw,/src\/storage\/vault-merge\.js/);
   assert.match(sw,/styles\/v44-audit\.css/);
+  assert.match(sw,/EXTERNAL_CORE_SET/);
+  assert.match(sw,/cache\.put\(event\.request, response\.clone\(\)\)/);
 });
 
 test('cloud freshness watcher never installs or reloads a live vault outside App coordination',async()=>{
@@ -57,10 +59,12 @@ test('cloud freshness watcher never installs or reloads a live vault outside App
   assert.match(source,/editor-screen,.modal-backdrop/);
 });
 
-test('cloud metadata validation matches the real flat SecurityMetadata schema',async()=>{
+test('cloud metadata validation matches the real flat SecurityMetadata schema and commits atomically',async()=>{
   const source=await read('src/cloud/firebase.ts');
   for(const token of ['value.iterations','value.salt','value.verifierIv','value.verifierCipher'])assert.ok(source.includes(token),token);
   assert.doesNotMatch(source,/value\.kdf|value\.verifier\?\./);
+  assert.match(source,/runTransaction/);
+  assert.match(source,/current\.revision!==previous\.revision/);
   assert.match(source,/cleanupRevision\(uid,revision,chunks\.length\)/);
   assert.match(source,/Cloud conflict detected/);
 });
@@ -103,7 +107,7 @@ test('date validation rejects impossible and backwards commercial dates',()=>{
   assert.ok(validateDocument(doc).dueDate);
 });
 
-test('discount validation matches calculation semantics and readiness',()=>{
+test('discount and tax validation match calculation semantics and readiness',()=>{
   const doc=validDoc();
   doc.adjustments.discountEnabled=true;doc.adjustments.discountMode='percent';doc.adjustments.discountValue='101';
   assert.match(validateDocument(doc).discount,/100/);
@@ -112,6 +116,8 @@ test('discount validation matches calculation semantics and readiness',()=>{
   assert.match(validateDocument(doc).discount,/subtotal/i);
   doc.adjustments.discountValue='50';
   assert.equal(validateDocument(doc).discount,undefined);
+  doc.adjustments.taxEnabled=true;doc.adjustments.taxPercent='100.01';
+  assert.match(validateDocument(doc).tax,/100/);
 });
 
 test('readiness uses fixed precision grammar instead of JavaScript Number coercion',()=>{
@@ -145,6 +151,21 @@ test('editor exposes percent discount and background-safe autosave',async()=>{
   assert.match(editor,/visibilitychange/);
   assert.match(editor,/document\.visibilityState==='hidden'/);
   assert.match(editor,/void this\.save\(true\)/);
+});
+
+test('immediate settings saves revert visibly on storage failure',async()=>{
+  const settings=await read('src/components/SettingsModal.tsx');
+  assert.match(settings,/changeAutoLock/);
+  assert.match(settings,/appSettings:previous/);
+  assert.match(settings,/Unable to save auto-lock setting/);
+  assert.match(settings,/max="3650"/);
+});
+
+test('saved-item deletion is protected by a confirmation dialog',async()=>{
+  const saved=await read('src/components/SavedItemsModal.tsx');
+  assert.match(saved,/deleting:SavedItem\|null/);
+  assert.match(saved,/Delete saved item\?/);
+  assert.match(saved,/ConfirmDialog/);
 });
 
 test('print workflow does not mutate already-final documents just to reprint',async()=>{
