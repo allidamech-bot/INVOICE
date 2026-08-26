@@ -52,7 +52,8 @@ export function translateValidation(message: string): string {
     'Discount cannot exceed subtotal.':'لا يمكن أن يتجاوز الخصم الإجمالي الفرعي.',
     'Shipping must be 0 or greater.':'يجب أن تكون قيمة الشحن 0 أو أكثر.',
     'Other charges must be 0 or greater.':'يجب أن تكون الرسوم الأخرى 0 أو أكثر.',
-    'Tax must be 0 or greater.':'يجب أن تكون الضريبة 0 أو أكثر.'
+    'Tax must be 0 or greater.':'يجب أن تكون الضريبة 0 أو أكثر.',
+    'Tax percentage cannot exceed 100%.':'لا يمكن أن تتجاوز نسبة الضريبة 100٪.'
   };
   return map[message] ?? message;
 }
