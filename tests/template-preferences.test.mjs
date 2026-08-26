@@ -16,7 +16,7 @@ test('smart defaults keep independent quote/invoice template slots and favorites
 
 test('editor and template selector wire explicit favorites and per-kind defaults',async()=>{
   const [editor,selector,css,html,sw]=await Promise.all([
-    readFile('src/components/EditorPage.tsx','utf8'),
+    readFile('src/components/EditorPageCore.tsx','utf8'),
     readFile('src/templates/TemplateThumbnails.tsx','utf8'),
     readFile('src/styles/template-preferences.css','utf8'),
     readFile('index.html','utf8'),
