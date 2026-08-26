@@ -54,7 +54,7 @@ test('editor continuously autosaves incomplete drafts while explicit actions val
 test('editor remounts its local draft state when document identity changes', async () => {
   const wrapper = await read('src/components/EditorPage.tsx');
   assert.match(wrapper, /EditorPageCore/);
-  assert.match(wrapper, /key=\{props\.document\?\.id/);
+  assert.match(wrapper, /key=\{props\.document\.id\}/);
 });
 
 test('backup uses the native share sheet for Save to Files with download fallback', async () => {
