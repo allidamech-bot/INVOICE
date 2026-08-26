@@ -44,7 +44,8 @@ test('editor continuously autosaves incomplete drafts while explicit actions val
   assert.match(editor, /Saving draft/);
   assert.match(editor, /Draft auto-saved/);
   assert.match(editor, /validateCurrent/);
-  assert.match(editor, /save-validation-badge/);
+  assert.match(editor, /editor-validation-summary/);
+  assert.match(editor, /has-validation-errors/);
   assert.match(editor, /scrollToFirstError/);
   assert.match(editor, /saveAndClose/);
   assert.doesNotMatch(editor, /schedule=.*validateDocument/);
