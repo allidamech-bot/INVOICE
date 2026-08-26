@@ -45,7 +45,7 @@ test('quality guard warns without treating optional presentation gaps as validat
 });
 
 test('editor contains final lock, review-before-issue and advanced simplification',async()=>{
-  const editor=await read('src/components/EditorPage.tsx');
+  const editor=await read('src/components/EditorPageCore.tsx');
   assert.match(editor,/Review before issue|DocumentReviewModal/);
   assert.match(editor,/Unlock for editing/);
   assert.match(editor,/editor-form-lock/);
@@ -74,9 +74,10 @@ test('root UI is protected by a recovery boundary instead of falling to a blank 
 
 test('PWA closeout assets are offline-cached',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/lourex-invoice-v41/);
+  assert.match(sw,/lourex-invoice-v42/);
   assert.match(sw,/workflow-closeout\.css/);
   assert.match(sw,/DocumentReviewModal\.js/);
   assert.match(sw,/document-quality\.js/);
   assert.match(sw,/AppErrorBoundary\.js/);
+  assert.match(sw,/EditorPageCore\.js/);
 });
