@@ -53,17 +53,19 @@ test('editor contains final lock, review-before-issue and advanced simplificatio
   assert.match(editor,/status:'final'/);
 });
 
-test('documents workspace supports ready state and requested sorting modes',async()=>{
+test('documents workspace supports ready state, sorting and final-only direct output',async()=>{
   const docs=await read('src/components/DocumentsPage.tsx');
   assert.match(docs,/Highest total/);
   assert.match(docs,/workflowStatus/);
   assert.match(docs,/status-\$\{state\}/);
   assert.match(docs,/'ready'/);
+  assert.match(docs,/const canOutput=doc\.status==='final'/);
+  assert.match(docs,/Review & Issue/);
 });
 
 test('PWA closeout assets are offline-cached',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/lourex-invoice-v39/);
+  assert.match(sw,/lourex-invoice-v40/);
   assert.match(sw,/workflow-closeout\.css/);
   assert.match(sw,/DocumentReviewModal\.js/);
   assert.match(sw,/document-quality\.js/);
