@@ -1,7 +1,7 @@
 import type { CompanySettings, DocumentKind, DocumentItem, LourexDocument, VaultPayload } from '../types.js';
-import { addDaysIso, makeId, todayIso } from './id.js';
+import { addDaysIso, compareIsoDates, isIsoDate, makeId, normalizeValidityDays, todayIso } from './id.js';
 import { companySnapshotFrom } from './defaults.js';
-import { decimalToScaled, isDecimalInput } from './money.js';
+import { decimalToScaled, isDecimalInput, lineTotal } from './money.js';
 
 export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { number: string; vault: VaultPayload } {
   const year = new Date().getFullYear();
@@ -44,9 +44,10 @@ export function emptyItem(): DocumentItem {
 
 export function createBlankDocument(kind: DocumentKind, number: string, company: CompanySettings): LourexDocument {
   const issueDate = todayIso();
+  const validityDays=normalizeValidityDays(company.defaultValidityDays);
   return {
     id: makeId('doc'), kind, status: 'draft', number, issueDate,
-    dueDate: kind === 'proforma' ? addDaysIso(issueDate, company.defaultValidityDays) : '',
+    dueDate: kind === 'proforma' ? addDaysIso(issueDate, validityDays) : '',
     currency: company.defaultCurrency, language: company.defaultLanguage, customerSnapshot: null,
     companySnapshot: companySnapshotFrom(company), items: [emptyItem()],
     terms: { incoterm: company.defaultIncoterm, paymentTerms: company.defaultPaymentTerms, packing: '', deliveryTime: company.defaultDeliveryTime, portOfLoading: '', finalDestination: '', countryOfOrigin: '', validity: '', remarks: '' },
@@ -56,11 +57,18 @@ export function createBlankDocument(kind: DocumentKind, number: string, company:
   };
 }
 
+function documentSubtotalCents(doc:LourexDocument):bigint{
+  return doc.items.reduce((sum,item)=>sum+decimalToScaled(lineTotal(item.quantity,item.unitPrice),2),0n);
+}
+
 export function validateDocument(doc: LourexDocument): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!doc.number.trim()) errors.number = 'Document number is required.';
   if (!doc.issueDate) errors.issueDate = 'Issue date is required.';
+  else if(!isIsoDate(doc.issueDate))errors.issueDate='Issue date is invalid.';
   if (doc.kind === 'proforma' && !doc.dueDate) errors.dueDate = 'Valid until date is required.';
+  if(doc.dueDate&&!isIsoDate(doc.dueDate))errors.dueDate=doc.kind==='proforma'?'Valid until date is invalid.':'Due date is invalid.';
+  else if(doc.dueDate&&isIsoDate(doc.issueDate)&&compareIsoDates(doc.dueDate,doc.issueDate)<0)errors.dueDate=doc.kind==='proforma'?'Valid until date cannot be before issue date.':'Due date cannot be before issue date.';
   if (!doc.currency.trim()) errors.currency = 'Currency is required.';
   if (!doc.customerSnapshot?.companyNameEn.trim() && !doc.customerSnapshot?.companyNameAr.trim()) errors.customer = 'Select a customer.';
   if (doc.items.length < 1) errors.items = 'Add at least one item.';
@@ -79,11 +87,22 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
     else if (!isDecimalInput(item.unitPrice) || decimalToScaled(item.unitPrice) < 0n) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
   });
   const nonNegative = (value: string) => isDecimalInput(value) && decimalToScaled(value) >= 0n;
-  if (doc.adjustments.discountEnabled && !nonNegative(doc.adjustments.discountValue)) errors.discount = 'Discount must be 0 or greater.';
+  if (doc.adjustments.discountEnabled) {
+    if(!nonNegative(doc.adjustments.discountValue))errors.discount='Discount must be 0 or greater.';
+    else if(doc.adjustments.discountMode==='percent'&&decimalToScaled(doc.adjustments.discountValue)>decimalToScaled('100'))errors.discount='Discount percentage cannot exceed 100%.';
+    else if(doc.adjustments.discountMode==='fixed'&&decimalToScaled(doc.adjustments.discountValue,2)>documentSubtotalCents(doc))errors.discount='Discount cannot exceed subtotal.';
+  }
   if (doc.adjustments.shippingEnabled && !nonNegative(doc.adjustments.shipping)) errors.shipping = 'Shipping must be 0 or greater.';
   if (doc.adjustments.otherChargesEnabled && !nonNegative(doc.adjustments.otherCharges)) errors.otherCharges = 'Other charges must be 0 or greater.';
   if (doc.adjustments.taxEnabled && !nonNegative(doc.adjustments.taxPercent)) errors.tax = 'Tax must be 0 or greater.';
   return errors;
+}
+
+function daysBetween(start:string,end:string):number{
+  if(!isIsoDate(start)||!isIsoDate(end))return 0;
+  const a=Date.UTC(Number(start.slice(0,4)),Number(start.slice(5,7))-1,Number(start.slice(8,10)));
+  const b=Date.UTC(Number(end.slice(0,4)),Number(end.slice(5,7))-1,Number(end.slice(8,10)));
+  return Math.max(0,Math.round((b-a)/86_400_000));
 }
 
 export function duplicateDocument(source: LourexDocument, number: string): LourexDocument {
@@ -91,10 +110,7 @@ export function duplicateDocument(source: LourexDocument, number: string): Loure
   const issueDate = todayIso();
   let dueDate = source.kind === 'invoice' ? '' : source.dueDate;
   if (source.kind === 'proforma' && source.issueDate && source.dueDate) {
-    const start = new Date(`${source.issueDate}T12:00:00`).getTime();
-    const end = new Date(`${source.dueDate}T12:00:00`).getTime();
-    const days = Math.max(0, Math.round((end - start) / 86_400_000));
-    dueDate = addDaysIso(issueDate, days);
+    dueDate = addDaysIso(issueDate, daysBetween(source.issueDate,source.dueDate));
   }
   return { ...structuredClone(source), id: makeId('doc'), number, issueDate, dueDate, status: 'draft', convertedFromId: '', createdAt: now, updatedAt: now, items: source.items.map(i => ({ ...structuredClone(i), id: makeId('item') })) };
 }
