@@ -20,7 +20,7 @@ export function savedItemFromDocumentItem(item: DocumentItem, currency: string, 
   };
 }
 
-export function savedItemToDocumentItem(saved: SavedItem): DocumentItem {
+export function documentItemFromSavedItem(saved: SavedItem): DocumentItem {
   return {
     id:makeId('item'),
     descriptionEn:saved.descriptionEn,
