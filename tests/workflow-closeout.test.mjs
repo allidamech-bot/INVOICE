@@ -63,10 +63,20 @@ test('documents workspace supports ready state, sorting and final-only direct ou
   assert.match(docs,/Review & Issue/);
 });
 
+test('root UI is protected by a recovery boundary instead of falling to a blank page',async()=>{
+  const index=await read('src/app/index.tsx');
+  const boundary=await read('src/app/AppErrorBoundary.tsx');
+  assert.match(index,/AppErrorBoundary/);
+  assert.match(index,/<AppErrorBoundary><App\/><\/AppErrorBoundary>/);
+  assert.match(boundary,/getDerivedStateFromError/);
+  assert.match(boundary,/window\.location\.reload/);
+});
+
 test('PWA closeout assets are offline-cached',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/lourex-invoice-v40/);
+  assert.match(sw,/lourex-invoice-v41/);
   assert.match(sw,/workflow-closeout\.css/);
   assert.match(sw,/DocumentReviewModal\.js/);
   assert.match(sw,/document-quality\.js/);
+  assert.match(sw,/AppErrorBoundary\.js/);
 });
