@@ -65,14 +65,22 @@ test('cloud metadata validation matches the real flat SecurityMetadata schema',a
   assert.match(source,/Cloud conflict detected/);
 });
 
-test('decimal comma and mixed locale separators are parsed without 100x mistakes',()=>{
+test('decimal comma and mixed locale separators are parsed without 1000x mistakes',()=>{
   assert.equal(normalizeDecimalInput('12,5'),'12.5');
   assert.equal(decimalToScaled('12,5',2),1250n);
   assert.equal(lineTotal('2','12,5'),'25.00');
+  assert.equal(decimalToScaled('0,125',4),1250n);
+  assert.equal(decimalToScaled('1,234',4),12340n);
   assert.equal(decimalToScaled('1.234,56',2),123456n);
   assert.equal(decimalToScaled('1,234.56',2),123456n);
-  assert.equal(decimalToScaled('1,234',2),123400n);
+  assert.equal(decimalToScaled('1,234,567',2),123456700n);
   assert.equal(isDecimalInput('1e2'),false);
+  assert.equal(isDecimalInput('9'.repeat(200)),false);
+});
+
+test('line totals use a single final cent rounding step',()=>{
+  assert.equal(lineTotal('0.0038','1.3039'),'0.00');
+  assert.equal(lineTotal('1','1.2350'),'1.24');
 });
 
 test('money sorting stays exact above Number safe/finite ranges',()=>{
