@@ -109,10 +109,7 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
   }
   if (doc.adjustments.shippingEnabled && !nonNegative(doc.adjustments.shipping)) errors.shipping = 'Shipping must be 0 or greater.';
   if (doc.adjustments.otherChargesEnabled && !nonNegative(doc.adjustments.otherCharges)) errors.otherCharges = 'Other charges must be 0 or greater.';
-  if (doc.adjustments.taxEnabled) {
-    if(!nonNegative(doc.adjustments.taxPercent))errors.tax='Tax must be 0 or greater.';
-    else if(decimalToScaled(doc.adjustments.taxPercent)>decimalToScaled('100'))errors.tax='Tax percentage cannot exceed 100%.';
-  }
+  if (doc.adjustments.taxEnabled && !nonNegative(doc.adjustments.taxPercent)) errors.tax = 'Tax must be 0 or greater.';
   return errors;
 }
 
