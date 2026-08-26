@@ -102,7 +102,9 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     usageCount:Math.max(0,Math.trunc(finiteNumber(item?.usageCount,0))), lastUsedAt:stringValue(item?.lastUsedAt,item?.updatedAt ? stringValue(item.updatedAt) : nowIso())
   })) : [];
 
-  const fallbackCompanySnapshot = companySnapshotFrom(migrated.company);
+  // Historical document snapshots must never inherit today's company details.
+  // Missing legacy fields are filled only with safe blank/default snapshot values.
+  const fallbackCompanySnapshot = companySnapshotFrom(defaults.company);
   migrated.documents = Array.isArray((vault as any).documents) ? (vault as any).documents.map((document:any) => {
     const companySnapshot = document?.companySnapshot ?? {};
     const companyBank = companySnapshot.bank ?? {};
