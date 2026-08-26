@@ -3,9 +3,13 @@ import { addDaysIso, compareIsoDates, isIsoDate, makeId, normalizeValidityDays, 
 import { companySnapshotFrom } from './defaults.js';
 import { decimalToScaled, isDecimalInput, lineTotal } from './money.js';
 
+type NumberReservation={year:number;proforma:number;invoice:number};
+const liveNumberReservations=new WeakMap<object,NumberReservation>();
+
 export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { number: string; vault: VaultPayload } {
   const year = new Date().getFullYear();
-  const numbering = { ...vault.appSettings.numbering };
+  const sourceNumbering=vault.appSettings.numbering;
+  const numbering = { ...sourceNumbering };
   const isProforma = kind === 'proforma';
   const yearKey = isProforma ? 'proformaYear' : 'invoiceYear';
   const lastKey = isProforma ? 'proformaLast' : 'invoiceLast';
@@ -23,14 +27,25 @@ export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { n
     .slice(0, 8) || fallbackPrefix;
   numbering[prefixKey] = prefix;
 
+  // Calls can overlap before the first encrypted write updates React state.
+  // Keep a short-lived reservation against the exact numbering object so two
+  // same-tab actions can never receive the same sequence from one stale vault.
+  // WeakMap keeps independent vaults/tests isolated and lets old state collect.
+  const live=liveNumberReservations.get(sourceNumbering);
+  const reserved=live?.year===year?(isProforma?live.proforma:live.invoice):0;
   const used = new Set(vault.documents.map(document => document.number.trim().toLowerCase()).filter(Boolean));
-  let seq = Math.max(0, Math.trunc(numbering[lastKey] || 0));
+  let seq = Math.max(0, Math.trunc(numbering[lastKey] || 0),reserved);
   let number = '';
   do {
     seq += 1;
     number = `${prefix}-${year}-${String(seq).padStart(4, '0')}`;
   } while (used.has(number.toLowerCase()));
   numbering[lastKey] = seq;
+  const reservation: NumberReservation = live?.year===year
+    ? {...live}
+    : {year,proforma:0,invoice:0};
+  if(isProforma)reservation.proforma=seq;else reservation.invoice=seq;
+  liveNumberReservations.set(sourceNumbering,reservation);
 
   return {
     number,
