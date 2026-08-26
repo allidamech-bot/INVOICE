@@ -122,6 +122,22 @@ async function cleanupRevision(uid:string,revision:string,count:number):Promise<
     try{await batch.commit();}catch{}
   }
 }
+async function commitMetaIfUnchanged(uid:string,meta:CloudVaultMeta,previous:CloudVaultMeta|null):Promise<void>{
+  const ref=vaultCollection(uid).doc('meta');
+  await db().runTransaction(async(transaction:any)=>{
+    const snap=await transaction.get(ref);
+    if(previous){
+      if(!snap.exists)throw new Error('Cloud changed during sync. Use Sync Now and try again.');
+      const current=snap.data();
+      if(!validMeta(current)||current.revision!==previous.revision||current.updatedAt!==previous.updatedAt||current.cipherSha256!==previous.cipherSha256){
+        throw new Error('Cloud changed during sync. Use Sync Now and try again.');
+      }
+    }else if(snap.exists){
+      throw new Error('Cloud changed during sync. Use Sync Now and try again.');
+    }
+    transaction.set(ref,meta);
+  });
+}
 
 export async function pushLocalVaultToCloud(uid:string):Promise<void>{
   requireCurrentUid(uid);
@@ -140,7 +156,7 @@ export async function pushLocalVaultToCloud(uid:string):Promise<void>{
   const meta:CloudVaultMeta={format:CLOUD_FORMAT,version:1,revision,updatedAt:vault.updatedAt,schemaVersion:vault.schemaVersion,iv:vault.iv,cipherLength:vault.cipher.length,cipherSha256,chunkCount:chunks.length,security};
   try{
     await writeChunks(uid,revision,chunks);
-    await vaultCollection(uid).doc('meta').set(meta);
+    await commitMetaIfUnchanged(uid,meta,previous);
   }catch(error){
     await cleanupRevision(uid,revision,chunks.length);
     throw error;
