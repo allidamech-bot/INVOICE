@@ -147,7 +147,7 @@ export function refreshCompanySnapshot(doc: LourexDocument, company: CompanySett
   return { ...doc, companySnapshot: companySnapshotFrom(company), updatedAt: new Date().toISOString() };
 }
 
-export function paginateItems(items: DocumentItem[], reserveFinalDetails = true): DocumentItem[][] {
+export function paginateItems(items: DocumentItem[], reserveFinalDetails = true, firstPageCapacity = 7): DocumentItem[][] {
   const pages: DocumentItem[][] = [];
   let current: DocumentItem[] = [];
   let used = 0;
@@ -155,7 +155,8 @@ export function paginateItems(items: DocumentItem[], reserveFinalDetails = true)
     const text = `${item.descriptionEn} ${item.descriptionAr}`.trim();
     return Math.max(1, Math.ceil(text.length / 95));
   };
-  const capacity = () => pages.length === 0 ? 7 : 13;
+  const safeFirstPageCapacity=Math.max(1,Math.min(7,Math.trunc(firstPageCapacity)||7));
+  const capacity = () => pages.length === 0 ? safeFirstPageCapacity : 13;
   for (const item of items) {
     const weight = weightOf(item);
     if (current.length && used + weight > capacity()) { pages.push(current); current = []; used = 0; }
