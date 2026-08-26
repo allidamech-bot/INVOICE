@@ -42,16 +42,29 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!doc.number.trim()) errors.number = 'Document number is required.';
   if (!doc.issueDate) errors.issueDate = 'Issue date is required.';
+  if (doc.kind === 'proforma' && !doc.dueDate) errors.dueDate = 'Valid until date is required.';
+  if (!doc.currency.trim()) errors.currency = 'Currency is required.';
   if (!doc.customerSnapshot?.companyNameEn.trim() && !doc.customerSnapshot?.companyNameAr.trim()) errors.customer = 'Select a customer.';
   if (doc.items.length < 1) errors.items = 'Add at least one item.';
   doc.items.forEach((item, index) => {
-    const desc = doc.language === 'ar' ? item.descriptionAr : item.descriptionEn || item.descriptionAr;
-    if (!desc.trim()) errors[`item-${index}-description`] = 'Description is required.';
-    const qty = Number(item.quantity); const price = Number(item.unitPrice);
+    if (doc.language === 'ar') {
+      if (!item.descriptionAr.trim()) errors[`item-${index}-description`] = 'Description is required.';
+    } else if (doc.language === 'bilingual') {
+      if (!item.descriptionEn.trim()) errors[`item-${index}-description`] = 'English description is required.';
+      if (!item.descriptionAr.trim()) errors[`item-${index}-description-ar`] = 'Arabic description is required.';
+    } else if (!item.descriptionEn.trim()) {
+      errors[`item-${index}-description`] = 'Description is required.';
+    }
+    const qty = Number(item.quantity);
     if (!Number.isFinite(qty) || qty <= 0) errors[`item-${index}-quantity`] = 'Quantity must be greater than 0.';
-    if (!Number.isFinite(price) || price < 0) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
+    if (!item.unit.trim()) errors[`item-${index}-unit`] = 'Unit is required.';
+    if (!item.unitPrice.trim()) errors[`item-${index}-price`] = 'Unit price is required.';
+    else {
+      const price = Number(item.unitPrice);
+      if (!Number.isFinite(price) || price < 0) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
+    }
   });
-  const nonNegative = (value: string) => Number.isFinite(Number(value)) && Number(value) >= 0;
+  const nonNegative = (value: string) => value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
   if (doc.adjustments.discountEnabled && !nonNegative(doc.adjustments.discountValue)) errors.discount = 'Discount must be 0 or greater.';
   if (doc.adjustments.shippingEnabled && !nonNegative(doc.adjustments.shipping)) errors.shipping = 'Shipping must be 0 or greater.';
   if (doc.adjustments.otherChargesEnabled && !nonNegative(doc.adjustments.otherCharges)) errors.otherCharges = 'Other charges must be 0 or greater.';
