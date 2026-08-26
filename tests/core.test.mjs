@@ -100,7 +100,7 @@ test('PIN verifier rejects wrong PIN and encrypted vault round-trips', async () 
 
 test('backup is encrypted, validates PIN, and restores complete payload', async () => {
   const vault = emptyVault(); vault.customers.push(customer()); const backup = await createEncryptedBackup('1357', vault); const serialized = JSON.stringify(backup); assert.ok(!serialized.includes('ABC Trading Company'));
-  await assert.rejects(() => decryptBackup('9999', backup), /incorrect|corrupted/i); const restored = await decryptBackup(verified, record); assert.equal(restored.customers[0].companyNameEn, 'ABC Trading Company');
+  await assert.rejects(() => decryptBackup('9999', backup), /incorrect|corrupted/i); const restored = await decryptBackup('1357', backup); assert.equal(restored.customers[0].companyNameEn, 'ABC Trading Company');
 });
 
 test('migration rejects duplicate IDs instead of silently corrupting restored data', async () => {
