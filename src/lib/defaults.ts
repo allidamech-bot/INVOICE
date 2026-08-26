@@ -1,6 +1,6 @@
 import type { AppSettings, CompanySettings, CustomerSnapshot, CompanySnapshot, VaultPayload } from '../types.js';
 
-export const APP_SCHEMA_VERSION = 2;
+export const APP_SCHEMA_VERSION = 3;
 export const KDF_ITERATIONS = 310_000;
 
 export function defaultCompany(): CompanySettings {
@@ -16,11 +16,25 @@ export function defaultCompany(): CompanySettings {
 }
 
 export function defaultAppSettings(): AppSettings {
-  return { autoLockMinutes: 0, uiLanguage: 'en', numbering: { proformaPrefix: 'PI', invoicePrefix: 'INV', proformaLast: 0, invoiceLast: 0, proformaYear: new Date().getFullYear(), invoiceYear: new Date().getFullYear() } };
+  return {
+    autoLockMinutes: 0,
+    uiLanguage: 'en',
+    numbering: { proformaPrefix: 'PI', invoicePrefix: 'INV', proformaLast: 0, invoiceLast: 0, proformaYear: new Date().getFullYear(), invoiceYear: new Date().getFullYear() },
+    smartDefaults: {
+      currency:'USD',
+      language:'en',
+      incoterm:'',
+      paymentTerms:'',
+      deliveryTime:'',
+      quoteTemplateId:'executive',
+      invoiceTemplateId:'executive',
+      favoriteTemplateIds:[]
+    }
+  };
 }
 
 export function emptyVault(): VaultPayload {
-  return { schemaVersion: APP_SCHEMA_VERSION, company: defaultCompany(), appSettings: defaultAppSettings(), customers: [], documents: [] };
+  return { schemaVersion: APP_SCHEMA_VERSION, company: defaultCompany(), appSettings: defaultAppSettings(), customers: [], documents: [], savedItems: [] };
 }
 
 export function customerSnapshotFrom(customer: { id: string; companyNameEn: string; companyNameAr: string; contactPerson: string; addressEn: string; addressAr: string; city: string; country: string; phone: string; email: string; vatTaxNumber: string; commercialRegistration: string }): CustomerSnapshot {
