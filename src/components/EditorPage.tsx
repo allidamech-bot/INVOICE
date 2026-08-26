@@ -2,6 +2,7 @@ import type { CompanySettings, Customer, DocumentItem, LourexDocument, TemplateI
 import { calculateTotals, formatMoney, lineTotal } from '../lib/money.js';
 import { customerSnapshotFrom } from '../lib/defaults.js';
 import { emptyItem, refreshCompanySnapshot, validateDocument } from '../lib/documents.js';
+import { getDocumentReadiness } from '../lib/readiness.js';
 import { ARABIC_FONT_OPTIONS, LATIN_FONT_OPTIONS } from '../lib/appearance.js';
 import { isArabic, t, translateValidation } from '../lib/i18n.js';
 import { blankCustomer, CustomerForm } from './CustomersPage.js';
@@ -14,7 +15,7 @@ const unitPresets=['PCS','Carton','Box','Pallet','KG','Unit','Set'];
 const incoterms=['EXW','FCA','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'];
 
 interface Props { document:LourexDocument; customers:Customer[]; company:CompanySettings; onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>void; }
-interface State { doc:LourexDocument; errors:Record<string,string>; saving:boolean; saveState:'saved'|'saving'|'unsaved'; customerQuery:string; customerOpen:boolean; addCustomer:Customer|null; addCustomerError:string; mobilePreview:boolean; confirmClose:boolean; }
+interface State { doc:LourexDocument; errors:Record<string,string>; saving:boolean; saveState:'saved'|'saving'|'unsaved'; customerQuery:string; customerOpen:boolean; addCustomer:Customer|null; addCustomerError:string; mobilePreview:boolean; confirmClose:boolean; expandedItems:Record<string,boolean>; }
 
 function draftWithLatestCompany(doc:LourexDocument,company:CompanySettings):LourexDocument{
   if(doc.status!=='draft')return structuredClone(doc);
@@ -31,7 +32,7 @@ export class EditorPage extends React.Component<Props,State>{
   constructor(props:Props){
     super(props);
     const initial=draftWithLatestCompany(props.document,props.company);
-    this.state={doc:initial,errors:{},saving:false,saveState:'saved',customerQuery:(isArabic()?initial.customerSnapshot?.companyNameAr:initial.customerSnapshot?.companyNameEn)||initial.customerSnapshot?.companyNameEn||initial.customerSnapshot?.companyNameAr||'',customerOpen:false,addCustomer:null,addCustomerError:'',mobilePreview:false,confirmClose:false};
+    this.state={doc:initial,errors:{},saving:false,saveState:'saved',customerQuery:(isArabic()?initial.customerSnapshot?.companyNameAr:initial.customerSnapshot?.companyNameEn)||initial.customerSnapshot?.companyNameEn||initial.customerSnapshot?.companyNameAr||'',customerOpen:false,addCustomer:null,addCustomerError:'',mobilePreview:false,confirmClose:false,expandedItems:{}};
   }
 
   componentDidUpdate(prevProps:Props):void{if(prevProps.company!==this.props.company&&this.state.doc.status==='draft')this.mutate(doc=>draftWithLatestCompany(doc,this.props.company));}
@@ -48,10 +49,7 @@ export class EditorPage extends React.Component<Props,State>{
   private validateCurrent=():boolean=>{
     const errors=validateDocument(this.state.doc);
     this.validationAttempted=true;
-    if(Object.keys(errors).length){
-      this.setState({errors,saveState:'unsaved'},this.scrollToFirstError);
-      return false;
-    }
+    if(Object.keys(errors).length){this.setState({errors,saveState:'unsaved'},this.scrollToFirstError);return false;}
     if(Object.keys(this.state.errors).length)this.setState({errors:{}});
     return true;
   };
@@ -77,9 +75,7 @@ export class EditorPage extends React.Component<Props,State>{
       await this.props.onSave(snapshot,auto);
       const hasNewerChanges=this.state.doc.updatedAt!==snapshot.updatedAt;
       this.setState({saving:false,saveState:hasNewerChanges?'unsaved':'saved'},()=>{if(hasNewerChanges)this.schedule();});
-    }catch(e){
-      this.setState({saving:false,saveState:'unsaved',errors:{...this.state.errors,global:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')}});
-    }
+    }catch(e){this.setState({saving:false,saveState:'unsaved',errors:{...this.state.errors,global:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')}});}
   };
 
   private saveAndClose=async()=>{
@@ -100,16 +96,22 @@ export class EditorPage extends React.Component<Props,State>{
   private appearance=(key:keyof LourexDocument['appearance'],value:any)=>this.mutate(d=>({...d,appearance:{...d.appearance,[key]:value}}));
   private item=(id:string,key:keyof DocumentItem,value:string)=>this.mutate(d=>({...d,items:d.items.map(i=>i.id===id?{...i,[key]:value}:i)}));
   private selectCustomer=(c:Customer)=>{this.mutate(d=>({...d,customerSnapshot:customerSnapshotFrom(c)}));this.setState({customerQuery:(isArabic()?c.companyNameAr:c.companyNameEn)||c.companyNameEn||c.companyNameAr,customerOpen:false});};
+  private changeCustomer=()=>this.setState({customerQuery:'',customerOpen:true});
+  private toggleItemDetails=(id:string)=>this.setState(state=>({expandedItems:{...state.expandedItems,[id]:!state.expandedItems[id]}}));
+  private duplicateItem=(item:DocumentItem)=>this.mutate(doc=>{const clone=structuredClone(item);clone.id=emptyItem().id;const at=doc.items.findIndex(x=>x.id===item.id);const items=[...doc.items];items.splice(at+1,0,clone);return {...doc,items};});
   private addCustomer=async()=>{const c=this.state.addCustomer;if(!c)return;if(!c.companyNameEn.trim()&&!c.companyNameAr.trim()){this.setState({addCustomerError:t('Company name is required.','اسم الشركة مطلوب.')});return;}try{await this.props.onSaveCustomer(c);this.selectCustomer(c);this.setState({addCustomer:null,addCustomerError:''});}catch(e){this.setState({addCustomerError:e instanceof Error?e.message:t('Unable to save customer.','تعذر حفظ العميل.')});}};
 
   render():any{
-    const d=this.state.doc,errors=this.state.errors,totals=calculateTotals(d.items,d.adjustments);
+    const d=this.state.doc,errors=this.state.errors,totals=calculateTotals(d.items,d.adjustments),readiness=getDocumentReadiness(d);
     const error=(key:string)=>errors[key]?translateValidation(errors[key]):undefined;
     const validationKeys=Object.keys(errors).filter(key=>key!=='global');
     const validationCount=validationKeys.length;
     const sectionHasError=(...prefixes:string[])=>validationKeys.some(key=>prefixes.some(prefix=>key===prefix||key.startsWith(prefix)));
     const itemHasError=(index:number)=>validationKeys.some(key=>key.startsWith(`item-${index}-`));
     const customers=this.props.customers.filter(c=>!this.state.customerQuery||c.companyNameEn.toLowerCase().includes(this.state.customerQuery.toLowerCase())||c.companyNameAr.includes(this.state.customerQuery)).slice(0,8);
+    const recentCustomers=[...this.props.customers].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,4);
+    const groupLabel=(key:string)=>key==='document'?t('Document','المستند'):key==='customer'?t('Customer','العميل'):key==='items'?t('Items','الأصناف'):t('Pricing','التسعير');
+    const selectedCustomerName=(isArabic()?d.customerSnapshot?.companyNameAr:d.customerSnapshot?.companyNameEn)||d.customerSnapshot?.companyNameEn||d.customerSnapshot?.companyNameAr||'';
 
     return <div className={`editor-screen ${this.state.mobilePreview?'mobile-preview-open':''}`}>
       <header className="editor-topbar">
@@ -124,6 +126,12 @@ export class EditorPage extends React.Component<Props,State>{
           <Button icon="save" variant="primary" className={`save-now-button ${validationCount?'has-validation-errors':''}`} disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save now','حفظ الآن')}</Button>
         </div>
       </header>
+
+      <div className={`document-readiness ${readiness.ready?'is-ready':''}`} aria-label={t('Document readiness','جاهزية المستند')}>
+        <div className="readiness-copy"><span className="readiness-kicker">{t('Document readiness','جاهزية المستند')}</span><div><strong>{readiness.percent}%</strong><span>{readiness.ready?t('Ready to issue','جاهز للإصدار'):t(`${readiness.remaining} required details remaining`,`متبقي ${readiness.remaining} من البيانات المطلوبة`)}</span></div></div>
+        <div className="readiness-track"><span style={{width:`${readiness.percent}%`}}/></div>
+        <div className="readiness-groups">{readiness.groups.map(group=><span key={group.key} className={group.complete?'complete':''}><Icon name={group.complete?'check':'more'} size={14}/>{groupLabel(group.key)}</span>)}</div>
+      </div>
 
       {errors.global?<div className="editor-global-error">{errors.global}</div>:null}
       {validationCount?<div className="editor-validation-summary" role="alert"><span className="validation-dot"/><div><strong>{t('Complete the required information','أكمل البيانات الإلزامية')}</strong><span>{t('Required fields are highlighted below. Fix them, then save again.','تم تحديد الحقول المطلوبة بالأسفل. أكملها ثم اضغط حفظ مرة أخرى.')}</span></div><b>{validationCount}</b></div>:null}
@@ -140,29 +148,28 @@ export class EditorPage extends React.Component<Props,State>{
           </div>
         </section>
 
-        <section className={`editor-section ${sectionHasError('customer')?'section-has-error':''}`}>
+        <section className={`editor-section customer-section ${sectionHasError('customer')?'section-has-error':''}`}>
           <div className="section-heading"><span>02</span><h2>{t('Customer','العميل')}</h2></div>
-          <div className="customer-select-wrap"><Field label={t('Saved Customer','عميل محفوظ')} className="required-field" error={error('customer')}><div className="search-select"><Icon name="search"/><Input value={this.state.customerQuery} placeholder={t('Search customer','ابحث عن عميل')} onFocus={()=>this.setState({customerOpen:true})} onChange={(e:any)=>this.setState({customerQuery:e.target.value,customerOpen:true})}/></div></Field>{this.state.customerOpen?<div className="customer-dropdown">{customers.map(c=><button key={c.id} onClick={()=>this.selectCustomer(c)}><strong>{(isArabic()?c.companyNameAr:c.companyNameEn)||c.companyNameEn||c.companyNameAr}</strong><span>{[c.city,c.country].filter(Boolean).join(', ')}</span></button>)}<button className="new-customer-option" onClick={()=>this.setState({addCustomer:blankCustomer(),customerOpen:false})}><Icon name="plus"/>{t('New Customer','عميل جديد')}</button></div>:null}</div>
-          {d.customerSnapshot?<div className="selected-customer"><div><strong>{(isArabic()?d.customerSnapshot.companyNameAr:d.customerSnapshot.companyNameEn)||d.customerSnapshot.companyNameEn||d.customerSnapshot.companyNameAr}</strong><span>{[d.customerSnapshot.city,d.customerSnapshot.country].filter(Boolean).join(', ')}</span></div></div>:null}
+          {d.customerSnapshot?<div className="selected-customer premium-selected-customer"><span className="customer-avatar"><Icon name="users" size={19}/></span><div><strong>{selectedCustomerName}</strong><span>{[d.customerSnapshot.city,d.customerSnapshot.country].filter(Boolean).join(', ')}</span><small>{[d.customerSnapshot.phone,d.customerSnapshot.email].filter(Boolean).join(' · ')}</small></div><Button variant="ghost" onClick={this.changeCustomer}>{t('Change','تغيير')}</Button></div>:null}
+          {!d.customerSnapshot||this.state.customerOpen?<div className="customer-select-wrap"><Field label={t('Saved Customer','عميل محفوظ')} className="required-field" error={error('customer')}><div className="search-select"><Icon name="search"/><Input value={this.state.customerQuery} placeholder={t('Search customer','ابحث عن عميل')} onFocus={()=>this.setState({customerOpen:true})} onChange={(e:any)=>this.setState({customerQuery:e.target.value,customerOpen:true})}/></div></Field>{this.state.customerOpen?<div className="customer-dropdown">{customers.map(c=><button key={c.id} onClick={()=>this.selectCustomer(c)}><strong>{(isArabic()?c.companyNameAr:c.companyNameEn)||c.companyNameEn||c.companyNameAr}</strong><span>{[c.city,c.country].filter(Boolean).join(', ')}</span></button>)}<button className="new-customer-option" onClick={()=>this.setState({addCustomer:blankCustomer(),customerOpen:false})}><Icon name="plus"/>{t('New Customer','عميل جديد')}</button></div>:null}</div>:null}
+          {!d.customerSnapshot&&recentCustomers.length?<div className="recent-customer-row"><span>{t('Quick select','اختيار سريع')}</span><div>{recentCustomers.map(c=><button key={c.id} type="button" onClick={()=>this.selectCustomer(c)}>{(isArabic()?c.companyNameAr:c.companyNameEn)||c.companyNameEn||c.companyNameAr}</button>)}</div></div>:null}
         </section>
 
         <section className={`editor-section ${sectionHasError('items','item-')?'section-has-error':''}`}>
           <div className="section-heading with-action"><div><span>03</span><h2>{t('Items','الأصناف')}</h2></div><Button icon="plus" className="add-item-button" onClick={()=>this.mutate(doc=>({...doc,items:[...doc.items,emptyItem()]}))}>{t('Add Item','إضافة صنف')}</Button></div>
           {error('items')?<div className="inline-error section-inline-error">{error('items')}</div>:null}
-          <div className="item-cards">{d.items.map((i,index)=><article className={`item-card ${itemHasError(index)?'item-has-error':''}`} key={i.id}>
-            <header><strong>{t(`Item ${index+1}`,`الصنف ${index+1}`)}</strong><IconButton icon="trash" label={t('Delete','حذف')} disabled={d.items.length===1} onClick={()=>this.mutate(doc=>({...doc,items:doc.items.filter(x=>x.id!==i.id)}))}/></header>
-            <div className="form-grid two compact-grid">
+          <div className="item-cards">{d.items.map((i,index)=>{const expanded=Boolean(this.state.expandedItems[i.id]);const zeroPrice=i.unitPrice.trim()!==''&&Number(i.unitPrice)===0;return <article className={`item-card premium-item-card ${itemHasError(index)?'item-has-error':''}`} key={i.id}>
+            <header><div><strong>{t(`Item ${index+1}`,`الصنف ${index+1}`)}</strong><span className="item-line-total">{formatMoney(lineTotal(i.quantity,i.unitPrice),d.currency)}</span></div><div className="item-card-actions"><IconButton icon="copy" label={t('Duplicate item','نسخ الصنف')} onClick={()=>this.duplicateItem(i)}/><IconButton icon="trash" label={t('Delete','حذف')} disabled={d.items.length===1} onClick={()=>this.mutate(doc=>({...doc,items:doc.items.filter(x=>x.id!==i.id)}))}/></div></header>
+            <div className="form-grid two compact-grid item-core-grid">
               {d.language!=='ar'?<Field label={t('Description English','الوصف بالإنجليزية')} className="span-2 required-field" error={error(`item-${index}-description`)}><Textarea rows="2" value={i.descriptionEn} onChange={(e:any)=>this.item(i.id,'descriptionEn',e.target.value)}/></Field>:null}
               {d.language!=='en'?<Field label={t('Description Arabic','الوصف بالعربية')} className="span-2 required-field" error={d.language==='ar'?error(`item-${index}-description`):error(`item-${index}-description-ar`)}><Textarea dir="rtl" rows="2" value={i.descriptionAr} onChange={(e:any)=>this.item(i.id,'descriptionAr',e.target.value)}/></Field>:null}
-              <Field label="HS Code"><Input value={i.hsCode} onChange={(e:any)=>this.item(i.id,'hsCode',e.target.value)}/></Field>
-              <Field label={t('Origin','المنشأ')}><Input value={i.origin} onChange={(e:any)=>this.item(i.id,'origin',e.target.value)}/></Field>
-              <Field label={t('Packing','التعبئة')}><Input value={i.packing} onChange={(e:any)=>this.item(i.id,'packing',e.target.value)}/></Field>
-              <Field label={t('Quantity','الكمية')} className="required-field" error={error(`item-${index}-quantity`)}><Input inputMode="decimal" value={i.quantity} onChange={(e:any)=>this.item(i.id,'quantity',e.target.value)}/></Field>
-              <Field label={t('Unit','الوحدة')} className="required-field" error={error(`item-${index}-unit`)}><Input list="units" value={i.unit} onChange={(e:any)=>this.item(i.id,'unit',e.target.value)}/><datalist id="units">{unitPresets.map(x=><option key={x} value={x}/>)}</datalist></Field>
-              <Field label={t(`Unit Price (${d.currency})`,`سعر الوحدة (${d.currency})`)} className="required-field" error={error(`item-${index}-price`)}><Input inputMode="decimal" value={i.unitPrice} onChange={(e:any)=>this.item(i.id,'unitPrice',e.target.value)}/></Field>
+              <div className="item-pricing-grid span-2"><Field label={t('Quantity','الكمية')} className="required-field" error={error(`item-${index}-quantity`)}><Input inputMode="decimal" value={i.quantity} onChange={(e:any)=>this.item(i.id,'quantity',e.target.value)}/></Field><Field label={t('Unit','الوحدة')} className="required-field" error={error(`item-${index}-unit`)}><Input list="units" value={i.unit} onChange={(e:any)=>this.item(i.id,'unit',e.target.value)}/><datalist id="units">{unitPresets.map(x=><option key={x} value={x}/>)}</datalist></Field><Field label={t(`Unit Price (${d.currency})`,`سعر الوحدة (${d.currency})`)} className="required-field" error={error(`item-${index}-price`)}><Input inputMode="decimal" value={i.unitPrice} onChange={(e:any)=>this.item(i.id,'unitPrice',e.target.value)}/></Field></div>
+              {zeroPrice?<div className="zero-price-warning span-2"><span>!</span>{t('Price is zero — confirm this before issuing the document.','السعر صفر — تأكد منه قبل إصدار المستند.')}</div>:null}
+              <div className="item-advanced-control span-2"><button type="button" onClick={()=>this.toggleItemDetails(i.id)}><Icon name={expanded?'chevronUp':'chevronDown'} size={16}/>{expanded?t('Hide trade details','إخفاء التفاصيل التجارية'):t('More trade details','تفاصيل تجارية إضافية')}</button></div>
+              {expanded?<div className="item-advanced-fields span-2"><Field label="HS Code"><Input value={i.hsCode} onChange={(e:any)=>this.item(i.id,'hsCode',e.target.value)}/></Field><Field label={t('Origin','المنشأ')}><Input value={i.origin} onChange={(e:any)=>this.item(i.id,'origin',e.target.value)}/></Field><Field label={t('Packing','التعبئة')}><Input value={i.packing} onChange={(e:any)=>this.item(i.id,'packing',e.target.value)}/></Field></div>:null}
             </div>
             <footer><span>{t('Line Total','إجمالي السطر')}</span><strong>{formatMoney(lineTotal(i.quantity,i.unitPrice),d.currency)}</strong></footer>
-          </article>)}</div>
+          </article>;})}</div>
         </section>
 
         <section className={`editor-section ${sectionHasError('discount','shipping','otherCharges','tax')?'section-has-error':''}`}>
@@ -192,6 +199,7 @@ export class EditorPage extends React.Component<Props,State>{
       <section className="preview-pane"><div className="preview-toolbar"><span>{t('Live A4 Preview','معاينة A4 مباشرة')}</span></div><div className="preview-stage"><TemplateRenderer document={d} scale={0.82}/></div></section>
       </div>
 
+      <div className="mobile-editor-actionbar"><div className="mobile-total"><span>{t('Grand Total','الإجمالي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div><div className="mobile-action-buttons"><Button icon="save" variant="primary" disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save','حفظ')}</Button><Button icon="eye" onClick={()=>this.setState({mobilePreview:true})}>{t('Preview','معاينة')}</Button><Button icon="download" onClick={()=>this.output('pdf')}>PDF</Button></div></div>
       <div className="mobile-preview-overlay"><header><strong>{t('Preview','معاينة')}</strong><div><Button icon="download" onClick={()=>this.output('pdf')}>PDF</Button><IconButton icon="x" label={t('Close','إغلاق')} onClick={()=>this.setState({mobilePreview:false})}/></div></header><div className="mobile-preview-stage"><TemplateRenderer document={d} scale={0.48}/></div></div>
       <ConfirmDialog open={this.state.confirmClose} title={t('Discard unsaved changes?','تجاهل التغييرات غير المحفوظة؟')} message={t('Your latest changes have not been saved.','لم يتم حفظ آخر تغييراتك.')} confirmLabel={t('Discard','تجاهل')} destructive onCancel={()=>this.setState({confirmClose:false})} onConfirm={()=>this.props.onClose()}/>
       <Modal open={Boolean(this.state.addCustomer)} title={t('New Customer','عميل جديد')} size="lg" onClose={()=>this.setState({addCustomer:null,addCustomerError:''})} footer={<div className="modal-footer-actions"><Button onClick={()=>this.setState({addCustomer:null})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" onClick={()=>void this.addCustomer()}>{t('Save & Select','حفظ واختيار')}</Button></div>}>{this.state.addCustomer?<CustomerForm customer={this.state.addCustomer} onChange={addCustomer=>this.setState({addCustomer})}/>:null}{this.state.addCustomerError?<div className="inline-error">{this.state.addCustomerError}</div>:null}</Modal>
