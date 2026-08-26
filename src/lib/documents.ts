@@ -85,9 +85,17 @@ export function duplicateDocument(source: LourexDocument, number: string): Loure
   return { ...structuredClone(source), id: makeId('doc'), number, issueDate, dueDate, status: 'draft', convertedFromId: '', createdAt: now, updatedAt: now, items: source.items.map(i => ({ ...structuredClone(i), id: makeId('item') })) };
 }
 
+function conversionReference(source:LourexDocument):string{
+  if(source.language==='ar')return `مرجع عرض السعر: ${source.number}`;
+  if(source.language==='bilingual')return `Based on ${source.number} / مرجع عرض السعر: ${source.number}`;
+  return `Based on ${source.number}`;
+}
+
 export function convertToInvoice(source: LourexDocument, number: string): LourexDocument {
   const d = duplicateDocument(source, number);
-  return { ...d, kind: 'invoice', convertedFromId: source.id, dueDate: '', status: 'draft' };
+  const reference=conversionReference(source);
+  const remarks=[reference,d.terms.remarks.trim()].filter(Boolean).join('\n');
+  return { ...d, kind: 'invoice', convertedFromId: source.id, dueDate: '', status: 'draft', terms:{...d.terms,remarks} };
 }
 
 export function refreshCompanySnapshot(doc: LourexDocument, company: CompanySettings): LourexDocument {
