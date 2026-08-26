@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decimalToScaled, isDecimalInput, lineTotal } from '../dist/src/lib/money.js';
+import { decimalToScaled, formatMoney, isDecimalInput, lineTotal } from '../dist/src/lib/money.js';
 import { createBlankDocument, validateDocument } from '../dist/src/lib/documents.js';
 import { customerSnapshotFrom, defaultCompany } from '../dist/src/lib/defaults.js';
 
@@ -43,4 +43,10 @@ test('quantities that round to zero at engine precision are rejected',()=>{
   const doc=validDocument();
   doc.items[0].quantity='0.00001';
   assert.ok(validateDocument(doc)['item-0-quantity']);
+});
+
+test('money formatting does not collapse very large fixed-precision values to zero',()=>{
+  const huge='1234567890123456789012345678901234567890.12';
+  assert.equal(formatMoney(huge,'USD'),'1,234,567,890,123,456,789,012,345,678,901,234,567,890.12 USD');
+  assert.equal(formatMoney('-1000.5','EUR'),'-1,000.50 EUR');
 });
