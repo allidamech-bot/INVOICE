@@ -37,6 +37,30 @@ test('proforma and invoice numbering are independent and monotonic', () => {
   assert.equal(vault.appSettings.numbering.invoiceLast, 1);
 });
 
+test('generated numbering falls back from blank prefixes and skips existing collisions', () => {
+  const year = new Date().getFullYear();
+  let vault = emptyVault();
+  vault.appSettings.numbering.proformaPrefix = '';
+  const quote = nextDocumentNumber(vault, 'proforma');
+  assert.equal(quote.number, `PI-${year}-0001`);
+  assert.equal(quote.vault.appSettings.numbering.proformaPrefix, 'PI');
+
+  vault = emptyVault();
+  vault.appSettings.numbering.proformaPrefix = 'DOC';
+  vault.appSettings.numbering.invoicePrefix = 'DOC';
+  vault.documents.push(createBlankDocument('proforma', `DOC-${year}-0001`, defaultCompany()));
+  const invoice = nextDocumentNumber(vault, 'invoice');
+  assert.equal(invoice.number, `DOC-${year}-0002`);
+  assert.equal(invoice.vault.appSettings.numbering.invoiceLast, 2);
+
+  vault = emptyVault();
+  vault.appSettings.numbering.invoiceLast = 4;
+  vault.documents.push(createBlankDocument('invoice', `INV-${year}-0005`, defaultCompany()));
+  const afterManualCollision = nextDocumentNumber(vault, 'invoice');
+  assert.equal(afterManualCollision.number, `INV-${year}-0006`);
+  assert.equal(afterManualCollision.vault.appSettings.numbering.invoiceLast, 6);
+});
+
 test('customer and company snapshots stay historical after source edits', () => {
   const company = defaultCompany(); company.addressEn = 'Old Company Address';
   const doc = createBlankDocument('proforma', 'PI-2026-0001', company);
