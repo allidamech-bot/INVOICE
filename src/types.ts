@@ -109,6 +109,22 @@ export interface DocumentItem {
   unitPrice: string;
 }
 
+export interface SavedItem {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  descriptionEn: string;
+  descriptionAr: string;
+  hsCode: string;
+  origin: string;
+  packing: string;
+  unit: string;
+  lastUnitPrice: string;
+  lastCurrency: string;
+  usageCount: number;
+  lastUsedAt: string;
+}
+
 export interface CommercialTerms {
   incoterm: string;
   paymentTerms: string;
@@ -177,10 +193,22 @@ export interface NumberingSettings {
   invoiceYear: number;
 }
 
+export interface SmartDocumentDefaults {
+  currency: string;
+  language: DocumentLanguage;
+  incoterm: string;
+  paymentTerms: string;
+  deliveryTime: string;
+  quoteTemplateId: TemplateId;
+  invoiceTemplateId: TemplateId;
+  favoriteTemplateIds: TemplateId[];
+}
+
 export interface AppSettings {
   autoLockMinutes: AutoLockMinutes;
   uiLanguage: UiLanguage;
   numbering: NumberingSettings;
+  smartDefaults: SmartDocumentDefaults;
 }
 
 export interface VaultPayload {
@@ -189,6 +217,7 @@ export interface VaultPayload {
   appSettings: AppSettings;
   customers: Customer[];
   documents: LourexDocument[];
+  savedItems: SavedItem[];
 }
 
 export interface SecurityMetadata {
