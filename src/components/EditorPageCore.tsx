@@ -14,7 +14,7 @@ import { TemplateRenderer } from '../templates/TemplateRenderer.js';
 import { TemplateThumbnails } from '../templates/TemplateThumbnails.js';
 import { Button, ConfirmDialog, Field, Icon, IconButton, Input, Modal, Select, Textarea, Toggle } from './UI.js';
 
-const currencyPresets=['USD','EUR','SAR','TRY','AED','GBP'];
+const currencyPresets=['USD','EUR','SYP','SAR','TRY','AED','GBP'];
 const unitPresets=['PCS','Carton','Box','Pallet','KG','Unit','Set'];
 const incoterms=['EXW','FCA','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'];
 
