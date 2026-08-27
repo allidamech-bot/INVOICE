@@ -1,3 +1,5 @@
 LOUREX Invoice repository verification
 Audit verification: legacy-open recovery + keyed editor + PWA v42
 Strict wrapper verification after TypeScript fix
+v44 full-site audit final verification: cloud CAS + metadata integrity + numbering reservations + finance/date/PWA/settings safety
+v44 release-candidate verification: offline runtime migration + A4 party-pressure pagination

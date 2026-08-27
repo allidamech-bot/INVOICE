@@ -19,6 +19,7 @@ test('production shell has a fragment-compatible matched React runtime, PWA and 
   assert.match(html, /src\/app\/index\.js/);
   assert.match(html, /styles\/premium\.css/);
   assert.match(html, /styles\/accounting-polish\.css/);
+  assert.match(html, /styles\/v44-audit\.css/);
   assert.match(premium, /--radius-xl/);
   assert.match(premium, /\.save-indicator\.state-saved/);
   assert.match(premium, /@media \(max-width:720px\)/);
@@ -53,6 +54,7 @@ test('editor continuously autosaves incomplete drafts while explicit actions val
   assert.match(editor, /has-validation-errors/);
   assert.match(editor, /scrollToFirstError/);
   assert.match(editor, /saveAndClose/);
+  assert.match(editor, /visibilitychange/);
   assert.doesNotMatch(editor, /schedule=.*validateDocument/);
 });
 
@@ -94,6 +96,7 @@ test('Firebase cloud sync stores the encrypted vault under owner-only user paths
   assert.match(cloud, /cipherSha256/);
   assert.match(cloud, /pushLocalVaultToCloud/);
   assert.match(cloud, /reconcileCloudVault/);
+  assert.match(cloud, /Cloud conflict detected/);
   assert.match(rules, /request\.auth\.uid == userId/);
   assert.match(app, /scheduleCloudSync/);
   assert.match(app, /CloudAccountModal/);
@@ -119,8 +122,8 @@ test('first-run onboarding requires a cloud account before local PIN setup', asy
 
 test('offline service worker precaches the complete application module graph and current runtime', async () => {
   const sw = await read('dist/sw.js');
-  assert.match(sw, /lourex-invoice-v43/);
-  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/components/EditorPageCore.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/crypto/crypto.js','styles/premium.css','styles/accounting-polish.css','styles/cloud.css','styles/auth-entry.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
+  assert.match(sw, /lourex-invoice-v44/);
+  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/components/EditorPageCore.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/storage/vault-merge.js','src/crypto/crypto.js','styles/premium.css','styles/accounting-polish.css','styles/cloud.css','styles/auth-entry.css','styles/v44-audit.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
 });
 
 test('print stylesheet isolates A4 documents from application chrome', async () => {

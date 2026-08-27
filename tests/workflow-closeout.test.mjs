@@ -74,7 +74,7 @@ test('root UI is protected by a recovery boundary instead of falling to a blank 
 
 test('PWA closeout assets are offline-cached',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/lourex-invoice-v43/);
+  assert.match(sw,/lourex-invoice-v44/);
   assert.match(sw,/workflow-closeout\.css/);
   assert.match(sw,/DocumentReviewModal\.js/);
   assert.match(sw,/document-quality\.js/);

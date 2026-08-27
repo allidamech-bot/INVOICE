@@ -1,11 +1,12 @@
-import { currentCloudUser, getCloudVaultMeta, installCloudVault } from './firebase.js';
+import { currentCloudUser, getCloudVaultMeta } from './firebase.js';
 import { getCloudAccount, getEncryptedVault } from '../storage/db.js';
 
 let timer:number|undefined;
 let running=false;
 let stopped=false;
+const NOTICE_GUARD='lourex-cloud-newer-revision';
 
-function appIsSafeToRefresh():boolean{
+function appIsSafeToCheck():boolean{
   if(document.visibilityState!=='visible')return false;
   if(typeof navigator!=='undefined'&&!navigator.onLine)return false;
   if(document.querySelector('.editor-screen,.modal-backdrop'))return false;
@@ -16,7 +17,7 @@ function appIsSafeToRefresh():boolean{
 }
 
 async function checkCloudFreshness():Promise<void>{
-  if(stopped||running||!appIsSafeToRefresh())return;
+  if(stopped||running||!appIsSafeToCheck())return;
   const user=currentCloudUser();
   if(!user)return;
   running=true;
@@ -26,14 +27,15 @@ async function checkCloudFreshness():Promise<void>{
     const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(user.uid)]);
     if(!local||!remote||remote.updatedAt<=local.updatedAt)return;
     const guard=`${user.uid}:${remote.revision}`;
-    if(sessionStorage.getItem('lourex-cloud-refresh-revision')===guard)return;
-    const installed=await installCloudVault(user.uid);
-    if(installed){
-      sessionStorage.setItem('lourex-cloud-refresh-revision',guard);
-      window.location.reload();
-    }
+    if(sessionStorage.getItem(NOTICE_GUARD)===guard)return;
+
+    // A background watcher must never replace or reload a live local vault.
+    // Reuse App's online handler so its protected cloud pipeline drains pending
+    // writes, detects the newer cloud revision, and tells the user to Sync Now.
+    sessionStorage.setItem(NOTICE_GUARD,guard);
+    window.dispatchEvent(new Event('online'));
   }catch{
-    // App-level cloud controls surface sync errors; the watcher stays silent and retries later.
+    // App-level cloud controls surface sync errors; the watcher stays silent.
   }finally{
     running=false;
   }

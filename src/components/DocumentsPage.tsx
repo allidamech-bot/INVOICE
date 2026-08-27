@@ -1,5 +1,5 @@
 import type { DocumentKind, LourexDocument } from '../types.js';
-import { calculateTotals, formatMoney } from '../lib/money.js';
+import { calculateTotals, compareMoneyStrings, formatMoney } from '../lib/money.js';
 import { displayDate } from '../lib/id.js';
 import { validateDocument } from '../lib/documents.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
@@ -33,9 +33,10 @@ export class DocumentsPage extends React.Component<Props, State> {
     return docs.sort((a,b)=>{
       if(this.state.sort==='oldest')return a.updatedAt.localeCompare(b.updatedAt);
       if(this.state.sort==='highest'){
-        const av=Number(calculateTotals(a.items,a.adjustments).grandTotal)||0;
-        const bv=Number(calculateTotals(b.items,b.adjustments).grandTotal)||0;
-        return bv-av||b.updatedAt.localeCompare(a.updatedAt);
+        const av=calculateTotals(a.items,a.adjustments).grandTotal;
+        const bv=calculateTotals(b.items,b.adjustments).grandTotal;
+        const byTotal=compareMoneyStrings(bv,av);
+        return byTotal||b.updatedAt.localeCompare(a.updatedAt);
       }
       return b.updatedAt.localeCompare(a.updatedAt);
     });

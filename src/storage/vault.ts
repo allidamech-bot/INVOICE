@@ -1,5 +1,6 @@
 import type { SecurityMetadata, VaultPayload } from '../types.js';
 import { APP_SCHEMA_VERSION, companySnapshotFrom, emptyVault } from '../lib/defaults.js';
+import { normalizeValidityDays } from '../lib/id.js';
 import { createSecurity, decryptVault, encryptVault, verifyPin } from '../crypto/crypto.js';
 import { getEncryptedVault, getSecurity, putRecord, putSecurityAndVault } from './db.js';
 import { clearSession, getSessionKey, isSessionExpired, touchSession } from './session.js';
@@ -14,6 +15,8 @@ function stringValue(value: unknown, fallback = ''): string {
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   return fallback;
 }
+function cleanCurrency(value:unknown,fallback='USD'):string{return (stringValue(value,fallback).trim().toUpperCase()||fallback);}
+function cleanPrefix(value:unknown,fallback:string):string{return (stringValue(value,fallback).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)||fallback);}
 function booleanValue(value: unknown, fallback: boolean): boolean { return typeof value === 'boolean' ? value : fallback; }
 function finiteNumber(value: unknown, fallback: number): number { return typeof value === 'number' && Number.isFinite(value) ? value : fallback; }
 function languageValue(value: unknown, fallback: 'en'|'ar'|'bilingual' = 'en'): 'en'|'ar'|'bilingual' { return value === 'en' || value === 'ar' || value === 'bilingual' ? value : fallback; }
@@ -46,12 +49,12 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     phone:stringValue(sourceCompany.phone), email:stringValue(sourceCompany.email), website:stringValue(sourceCompany.website), vatNumber:stringValue(sourceCompany.vatNumber), taxNumber:stringValue(sourceCompany.taxNumber), commercialRegistration:stringValue(sourceCompany.commercialRegistration),
     bank:{
       bankName:stringValue(sourceBank.bankName,defaultBank.bankName), accountName:stringValue(sourceBank.accountName,defaultBank.accountName), iban:stringValue(sourceBank.iban,defaultBank.iban),
-      swift:stringValue(sourceBank.swift,defaultBank.swift), currency:stringValue(sourceBank.currency,defaultBank.currency)
+      swift:stringValue(sourceBank.swift,defaultBank.swift), currency:cleanCurrency(sourceBank.currency,defaultBank.currency)
     },
     signatureDataUrl:stringValue(sourceCompany.signatureDataUrl), stampDataUrl:stringValue(sourceCompany.stampDataUrl),
-    defaultCurrency:stringValue(sourceCompany.defaultCurrency,defaults.company.defaultCurrency), defaultLanguage:languageValue(sourceCompany.defaultLanguage,defaults.company.defaultLanguage),
+    defaultCurrency:cleanCurrency(sourceCompany.defaultCurrency,defaults.company.defaultCurrency), defaultLanguage:languageValue(sourceCompany.defaultLanguage,defaults.company.defaultLanguage),
     defaultPaymentTerms:stringValue(sourceCompany.defaultPaymentTerms), defaultIncoterm:stringValue(sourceCompany.defaultIncoterm), defaultDeliveryTime:stringValue(sourceCompany.defaultDeliveryTime),
-    defaultValidityDays:finiteNumber(sourceCompany.defaultValidityDays,defaults.company.defaultValidityDays), defaultFooterText:stringValue(sourceCompany.defaultFooterText), defaultNotes:stringValue(sourceCompany.defaultNotes)
+    defaultValidityDays:normalizeValidityDays(finiteNumber(sourceCompany.defaultValidityDays,defaults.company.defaultValidityDays)), defaultFooterText:stringValue(sourceCompany.defaultFooterText), defaultNotes:stringValue(sourceCompany.defaultNotes)
   };
 
   const sourceSettings = (vault as any).appSettings ?? {};
@@ -66,12 +69,12 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     autoLockMinutes: AUTO_LOCK_VALUES.has(sourceSettings.autoLockMinutes) ? sourceSettings.autoLockMinutes : defaults.appSettings.autoLockMinutes,
     uiLanguage: uiLanguageValue(sourceSettings.uiLanguage, defaults.appSettings.uiLanguage),
     numbering: {
-      proformaPrefix:stringValue(sourceNumbering.proformaPrefix,defaults.appSettings.numbering.proformaPrefix), invoicePrefix:stringValue(sourceNumbering.invoicePrefix,defaults.appSettings.numbering.invoicePrefix),
+      proformaPrefix:cleanPrefix(sourceNumbering.proformaPrefix,defaults.appSettings.numbering.proformaPrefix), invoicePrefix:cleanPrefix(sourceNumbering.invoicePrefix,defaults.appSettings.numbering.invoicePrefix),
       proformaLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.proformaLast,defaults.appSettings.numbering.proformaLast))), invoiceLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.invoiceLast,defaults.appSettings.numbering.invoiceLast))),
       proformaYear:Math.trunc(finiteNumber(sourceNumbering.proformaYear,defaults.appSettings.numbering.proformaYear)), invoiceYear:Math.trunc(finiteNumber(sourceNumbering.invoiceYear,defaults.appSettings.numbering.invoiceYear))
     },
     smartDefaults:{
-      currency:stringValue(sourceSmart.currency,defaults.appSettings.smartDefaults.currency), language:languageValue(sourceSmart.language,defaults.appSettings.smartDefaults.language),
+      currency:cleanCurrency(sourceSmart.currency,defaults.appSettings.smartDefaults.currency), language:languageValue(sourceSmart.language,defaults.appSettings.smartDefaults.language),
       incoterm:stringValue(sourceSmart.incoterm), paymentTerms:stringValue(sourceSmart.paymentTerms), deliveryTime:stringValue(sourceSmart.deliveryTime),
       quoteTemplateId:templateValue(sourceSmart.quoteTemplateId,defaults.appSettings.smartDefaults.quoteTemplateId), invoiceTemplateId:templateValue(sourceSmart.invoiceTemplateId,defaults.appSettings.smartDefaults.invoiceTemplateId), favoriteTemplateIds
     }
@@ -98,7 +101,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   migrated.savedItems = Array.isArray((vault as any).savedItems) ? (vault as any).savedItems.map((item:any)=>({
     id:stringValue(item?.id), createdAt:stringValue(item?.createdAt,nowIso()), updatedAt:stringValue(item?.updatedAt,item?.createdAt ? stringValue(item.createdAt) : nowIso()),
     descriptionEn:stringValue(item?.descriptionEn), descriptionAr:stringValue(item?.descriptionAr), hsCode:stringValue(item?.hsCode), origin:stringValue(item?.origin), packing:stringValue(item?.packing), unit:stringValue(item?.unit,'PCS'),
-    lastUnitPrice:stringValue(item?.lastUnitPrice ?? item?.unitPrice), lastCurrency:stringValue(item?.lastCurrency,migrated.appSettings.smartDefaults.currency || 'USD').toUpperCase(),
+    lastUnitPrice:stringValue(item?.lastUnitPrice ?? item?.unitPrice), lastCurrency:cleanCurrency(item?.lastCurrency,migrated.appSettings.smartDefaults.currency || 'USD'),
     usageCount:Math.max(0,Math.trunc(finiteNumber(item?.usageCount,0))), lastUsedAt:stringValue(item?.lastUsedAt,item?.updatedAt ? stringValue(item.updatedAt) : nowIso())
   })) : [];
 
@@ -121,13 +124,13 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
       vatNumber:stringValue(companySnapshot.vatNumber,fallbackCompanySnapshot.vatNumber), taxNumber:stringValue(companySnapshot.taxNumber,fallbackCompanySnapshot.taxNumber), commercialRegistration:stringValue(companySnapshot.commercialRegistration,fallbackCompanySnapshot.commercialRegistration),
       bank:{
         bankName:stringValue(companyBank.bankName,fallbackCompanySnapshot.bank.bankName), accountName:stringValue(companyBank.accountName,fallbackCompanySnapshot.bank.accountName), iban:stringValue(companyBank.iban,fallbackCompanySnapshot.bank.iban),
-        swift:stringValue(companyBank.swift,fallbackCompanySnapshot.bank.swift), currency:stringValue(companyBank.currency,fallbackCompanySnapshot.bank.currency)
+        swift:stringValue(companyBank.swift,fallbackCompanySnapshot.bank.swift), currency:cleanCurrency(companyBank.currency,fallbackCompanySnapshot.bank.currency)
       },
       signatureDataUrl:stringValue(companySnapshot.signatureDataUrl,fallbackCompanySnapshot.signatureDataUrl), stampDataUrl:stringValue(companySnapshot.stampDataUrl,fallbackCompanySnapshot.stampDataUrl), footerText:stringValue(companySnapshot.footerText,fallbackCompanySnapshot.footerText)
     };
     return {
       id:stringValue(document?.id), kind:document?.kind === 'invoice' ? 'invoice' : 'proforma', status:document?.status === 'final' ? 'final' : 'draft',
-      number:stringValue(document?.number), issueDate:stringValue(document?.issueDate), dueDate:stringValue(document?.dueDate), currency:stringValue(document?.currency,migrated.appSettings.smartDefaults.currency || migrated.company.defaultCurrency || 'USD'),
+      number:stringValue(document?.number), issueDate:stringValue(document?.issueDate), dueDate:stringValue(document?.dueDate), currency:cleanCurrency(document?.currency,migrated.appSettings.smartDefaults.currency || migrated.company.defaultCurrency || 'USD'),
       language:languageValue(document?.language,migrated.appSettings.smartDefaults.language),
       customerSnapshot:customerSnapshot ? {
         sourceCustomerId:stringValue(customerSnapshot.sourceCustomerId), companyNameEn:stringValue(customerSnapshot.companyNameEn), companyNameAr:stringValue(customerSnapshot.companyNameAr), contactPerson:stringValue(customerSnapshot.contactPerson),

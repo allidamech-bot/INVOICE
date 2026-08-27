@@ -31,7 +31,12 @@ export function translateValidation(message: string): string {
   const map: Record<string,string> = {
     'Document number is required.':'رقم المستند مطلوب.',
     'Issue date is required.':'تاريخ الإصدار مطلوب.',
+    'Issue date is invalid.':'تاريخ الإصدار غير صالح.',
     'Valid until date is required.':'تاريخ صلاحية عرض السعر مطلوب.',
+    'Valid until date is invalid.':'تاريخ صلاحية عرض السعر غير صالح.',
+    'Due date is invalid.':'تاريخ الاستحقاق غير صالح.',
+    'Valid until date cannot be before issue date.':'لا يمكن أن يكون تاريخ الصلاحية قبل تاريخ الإصدار.',
+    'Due date cannot be before issue date.':'لا يمكن أن يكون تاريخ الاستحقاق قبل تاريخ الإصدار.',
     'Currency is required.':'العملة مطلوبة.',
     'Select a customer.':'اختر عميلاً.',
     'Add at least one item.':'أضف صنفًا واحدًا على الأقل.',
@@ -43,9 +48,12 @@ export function translateValidation(message: string): string {
     'Unit price is required.':'سعر الوحدة مطلوب.',
     'Unit price must be 0 or greater.':'يجب أن يكون سعر الوحدة 0 أو أكثر.',
     'Discount must be 0 or greater.':'يجب أن يكون الخصم 0 أو أكثر.',
+    'Discount percentage cannot exceed 100%.':'لا يمكن أن تتجاوز نسبة الخصم 100٪.',
+    'Discount cannot exceed subtotal.':'لا يمكن أن يتجاوز الخصم الإجمالي الفرعي.',
     'Shipping must be 0 or greater.':'يجب أن تكون قيمة الشحن 0 أو أكثر.',
     'Other charges must be 0 or greater.':'يجب أن تكون الرسوم الأخرى 0 أو أكثر.',
-    'Tax must be 0 or greater.':'يجب أن تكون الضريبة 0 أو أكثر.'
+    'Tax must be 0 or greater.':'يجب أن تكون الضريبة 0 أو أكثر.',
+    'Tax percentage cannot exceed 100%.':'لا يمكن أن تتجاوز نسبة الضريبة 100٪.'
   };
   return map[message] ?? message;
 }

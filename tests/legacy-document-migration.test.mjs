@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyVault } from '../dist/src/lib/defaults.js';
+import { APP_SCHEMA_VERSION, emptyVault } from '../dist/src/lib/defaults.js';
 import { getDocumentReadiness } from '../dist/src/lib/readiness.js';
 import { documentQualityIssues } from '../dist/src/lib/document-quality.js';
 import { migrateVault } from '../dist/src/storage/vault.js';
@@ -43,7 +43,7 @@ test('legacy saved documents are fully normalized before the editor opens', () =
   const migrated = migrateVault(legacy);
   const doc = migrated.documents[0];
 
-  assert.equal(migrated.schemaVersion, 4);
+  assert.equal(migrated.schemaVersion, APP_SCHEMA_VERSION);
   assert.equal(doc.status, 'draft');
   assert.equal(doc.appearance.templateId, 'executive');
   assert.equal(typeof doc.companySnapshot.logoDataUrl, 'string');

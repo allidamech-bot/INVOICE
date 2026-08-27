@@ -29,6 +29,8 @@ const FIREBASE_CONFIG={
 };
 const CLOUD_FORMAT='LOUREX_CLOUD_V1';
 const CHUNK_SIZE=400_000;
+const MAX_CIPHER_LENGTH=60_000_000;
+const MAX_CHUNKS=Math.ceil(MAX_CIPHER_LENGTH/CHUNK_SIZE);
 let initialized=false;
 
 function ensureFirebase():void{
@@ -43,9 +45,25 @@ function db():any{ensureFirebase();return firebase.firestore();}
 function userFrom(raw:any):CloudUser|null{return raw?{uid:String(raw.uid),email:String(raw.email||'')}:null;}
 function vaultCollection(uid:string):any{return db().collection('users').doc(uid).collection('vault');}
 function requireCurrentUid(uid:string):void{const current=auth().currentUser;if(!current||current.uid!==uid)throw new Error('Cloud session is not available for this account.');}
-function splitCipher(cipher:string):string[]{const out:string[]=[];for(let i=0;i<cipher.length;i+=CHUNK_SIZE)out.push(cipher.slice(i,i+CHUNK_SIZE));return out;}
+function splitCipher(cipher:string):string[]{if(cipher.length>MAX_CIPHER_LENGTH)throw new Error('Encrypted vault is too large for cloud sync. Export a local backup and remove oversized images.');const out:string[]=[];for(let i=0;i<cipher.length;i+=CHUNK_SIZE)out.push(cipher.slice(i,i+CHUNK_SIZE));return out;}
 function revisionId():string{const bytes=new Uint8Array(8);crypto.getRandomValues(bytes);return `${Date.now().toString(36)}-${Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')}`;}
 async function sha256(value:string):Promise<string>{const bytes=new TextEncoder().encode(value);const digest=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');}
+function validBase64Bytes(value:unknown,minBytes:number,maxBytes:number):value is string{
+  if(typeof value!=='string'||!value||value.length%4!==0||value.length>Math.ceil(maxBytes/3)*4+4||!/^[A-Za-z0-9+/]*={0,2}$/.test(value))return false;
+  try{const bytes=atob(value).length;return bytes>=minBytes&&bytes<=maxBytes;}catch{return false;}
+}
+function validSecurity(value:any):value is SecurityMetadata{
+  return Boolean(
+    value&&value.id==='security'&&value.version===1&&
+    Number.isInteger(value.iterations)&&value.iterations>=10_000&&value.iterations<=2_000_000&&
+    validBase64Bytes(value.salt,16,64)&&
+    validBase64Bytes(value.verifierIv,12,12)&&
+    validBase64Bytes(value.verifierCipher,16,512)
+  );
+}
+function validMeta(data:any):data is CloudVaultMeta{
+  return Boolean(data&&data.format===CLOUD_FORMAT&&data.version===1&&typeof data.revision==='string'&&data.revision.length>0&&data.revision.length<160&&typeof data.updatedAt==='string'&&!Number.isNaN(Date.parse(data.updatedAt))&&Number.isInteger(data.schemaVersion)&&data.schemaVersion>0&&data.schemaVersion<100&&validBase64Bytes(data.iv,12,12)&&Number.isInteger(data.cipherLength)&&data.cipherLength>0&&data.cipherLength<=MAX_CIPHER_LENGTH&&typeof data.cipherSha256==='string'&&/^[0-9a-f]{64}$/i.test(data.cipherSha256)&&Number.isInteger(data.chunkCount)&&data.chunkCount>=1&&data.chunkCount<=MAX_CHUNKS&&validSecurity(data.security));
+}
 
 export function cloudSupported():boolean{return typeof firebase!=='undefined';}
 
@@ -86,9 +104,9 @@ export async function getCloudVaultMeta(uid:string):Promise<CloudVaultMeta|null>
   requireCurrentUid(uid);
   const snap=await vaultCollection(uid).doc('meta').get();
   if(!snap.exists)return null;
-  const data=snap.data() as Partial<CloudVaultMeta>;
-  if(data.format!==CLOUD_FORMAT||data.version!==1||!data.revision||!data.updatedAt||!data.security)return null;
-  return data as CloudVaultMeta;
+  const data=snap.data();
+  if(!validMeta(data))throw new Error('Cloud vault metadata is invalid.');
+  return data;
 }
 
 async function writeChunks(uid:string,revision:string,chunks:string[]):Promise<void>{
@@ -100,7 +118,7 @@ async function writeChunks(uid:string,revision:string,chunks:string[]):Promise<v
   }
 }
 async function cleanupRevision(uid:string,revision:string,count:number):Promise<void>{
-  if(!revision||count<=0)return;
+  if(!revision||count<=0||count>MAX_CHUNKS)return;
   const col=vaultCollection(uid);
   for(let offset=0;offset<count;offset+=400){
     const batch=db().batch();
@@ -108,29 +126,54 @@ async function cleanupRevision(uid:string,revision:string,count:number):Promise<
     try{await batch.commit();}catch{}
   }
 }
+async function commitMetaIfUnchanged(uid:string,meta:CloudVaultMeta,previous:CloudVaultMeta|null):Promise<void>{
+  const ref=vaultCollection(uid).doc('meta');
+  await db().runTransaction(async(transaction:any)=>{
+    const snap=await transaction.get(ref);
+    if(previous){
+      if(!snap.exists)throw new Error('Cloud changed during sync. Use Sync Now and try again.');
+      const current=snap.data();
+      if(!validMeta(current)||current.revision!==previous.revision||current.updatedAt!==previous.updatedAt||current.cipherSha256!==previous.cipherSha256){
+        throw new Error('Cloud changed during sync. Use Sync Now and try again.');
+      }
+    }else if(snap.exists){
+      throw new Error('Cloud changed during sync. Use Sync Now and try again.');
+    }
+    transaction.set(ref,meta);
+  });
+}
 
 export async function pushLocalVaultToCloud(uid:string):Promise<void>{
   requireCurrentUid(uid);
   if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error('You are offline. Your local changes are safe and will sync when you reconnect.');
   const [security,vault,previous]=await Promise.all([getSecurity(),getEncryptedVault(),getCloudVaultMeta(uid)]);
   if(!security||!vault)throw new Error('There is no local LOUREX vault to sync.');
+  if(vault.cipher.length>MAX_CIPHER_LENGTH)throw new Error('Encrypted vault is too large for cloud sync. Export a local backup and remove oversized images.');
   if(previous&&previous.updatedAt>vault.updatedAt)throw new Error('Cloud has newer changes from another device. Use Sync Now before making more cloud changes.');
+  const cipherSha256=await sha256(vault.cipher);
+  if(previous&&previous.updatedAt===vault.updatedAt){
+    if(previous.cipherSha256===cipherSha256)return;
+    throw new Error('Cloud conflict detected: two different encrypted vaults have the same modification time. Sync manually before continuing.');
+  }
   const chunks=splitCipher(vault.cipher);
   const revision=revisionId();
-  const cipherSha256=await sha256(vault.cipher);
-  await writeChunks(uid,revision,chunks);
   const meta:CloudVaultMeta={format:CLOUD_FORMAT,version:1,revision,updatedAt:vault.updatedAt,schemaVersion:vault.schemaVersion,iv:vault.iv,cipherLength:vault.cipher.length,cipherSha256,chunkCount:chunks.length,security};
-  await vaultCollection(uid).doc('meta').set(meta);
+  try{
+    await writeChunks(uid,revision,chunks);
+    await commitMetaIfUnchanged(uid,meta,previous);
+  }catch(error){
+    await cleanupRevision(uid,revision,chunks.length);
+    throw error;
+  }
   if(previous&&previous.revision!==revision)void cleanupRevision(uid,previous.revision,previous.chunkCount);
 }
 
 export async function pullCloudVault(uid:string):Promise<{security:SecurityMetadata;vault:EncryptedVaultRecord}|null>{
   requireCurrentUid(uid);
   const meta=await getCloudVaultMeta(uid);if(!meta)return null;
-  if(meta.chunkCount<1||meta.chunkCount>1000)throw new Error('Cloud vault metadata is invalid.');
   const col=vaultCollection(uid);
   const snaps=await Promise.all(Array.from({length:meta.chunkCount},(_,i)=>col.doc(`chunk-${meta.revision}-${String(i).padStart(5,'0')}`).get()));
-  const chunks=snaps.map((snap:any,i:number)=>{if(!snap.exists)throw new Error(`Cloud vault chunk ${i+1} is missing.`);const data=snap.data();if(data?.revision!==meta.revision||data?.index!==i||typeof data?.data!=='string')throw new Error('Cloud vault is incomplete.');return data.data as string;});
+  const chunks=snaps.map((snap:any,i:number)=>{if(!snap.exists)throw new Error(`Cloud vault chunk ${i+1} is missing.`);const data=snap.data();if(data?.revision!==meta.revision||data?.index!==i||typeof data?.data!=='string'||data.data.length>CHUNK_SIZE)throw new Error('Cloud vault is incomplete.');return data.data as string;});
   const cipher=chunks.join('');
   if(cipher.length!==meta.cipherLength||await sha256(cipher)!==meta.cipherSha256)throw new Error('Cloud vault integrity check failed.');
   return {security:meta.security,vault:{id:'vault',schemaVersion:meta.schemaVersion,iv:meta.iv,cipher,updatedAt:meta.updatedAt}};
@@ -147,5 +190,7 @@ export async function reconcileCloudVault(uid:string):Promise<CloudSyncResult>{
   if(!local||!remote)return 'empty';
   if(remote.updatedAt>local.updatedAt){await installCloudVault(uid);return 'pulled';}
   if(local.updatedAt>remote.updatedAt){await pushLocalVaultToCloud(uid);return 'pushed';}
+  const localHash=await sha256(local.cipher);
+  if(localHash!==remote.cipherSha256)throw new Error('Cloud conflict detected: two different encrypted vaults have the same modification time.');
   return 'same';
 }

@@ -1,5 +1,6 @@
 import type { LourexDocument } from '../types.js';
 import { validateDocument } from './documents.js';
+import { decimalToScaled, isDecimalInput } from './money.js';
 
 export interface ReadinessGroup {
   key: 'document'|'customer'|'items'|'pricing';
@@ -15,20 +16,21 @@ export interface DocumentReadiness {
   groups: ReadinessGroup[];
 }
 
-const finitePositive = (value: string) => value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) > 0;
-const finiteNonNegative = (value: string) => value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
+const fixedPositive = (value: string) => isDecimalInput(value) && decimalToScaled(value) > 0n;
+const fixedNonNegative = (value: string) => isDecimalInput(value) && decimalToScaled(value) >= 0n;
 
 export function getDocumentReadiness(doc: LourexDocument): DocumentReadiness {
+  const errors=validateDocument(doc);
   const requirements: boolean[] = [];
   const documentChecks = [
-    Boolean(doc.number.trim()),
-    Boolean(doc.issueDate),
+    !errors.number,
+    !errors.issueDate,
     Boolean(doc.currency.trim()),
-    doc.kind !== 'proforma' || Boolean(doc.dueDate)
+    !errors.dueDate
   ];
   requirements.push(...documentChecks);
 
-  const customerComplete = Boolean(doc.customerSnapshot?.companyNameEn.trim() || doc.customerSnapshot?.companyNameAr.trim());
+  const customerComplete = !errors.customer;
   requirements.push(customerComplete);
 
   const itemDetailChecks: boolean[] = [];
@@ -40,20 +42,19 @@ export function getDocumentReadiness(doc: LourexDocument): DocumentReadiness {
       : doc.language === 'bilingual'
         ? Boolean(item.descriptionEn.trim() && item.descriptionAr.trim())
         : Boolean(item.descriptionEn.trim());
-    itemDetailChecks.push(descriptionComplete, Boolean(item.unit.trim()), finitePositive(item.quantity));
-    pricingChecks.push(finiteNonNegative(item.unitPrice));
-    requirements.push(descriptionComplete, Boolean(item.unit.trim()), finitePositive(item.quantity), finiteNonNegative(item.unitPrice));
+    itemDetailChecks.push(descriptionComplete, Boolean(item.unit.trim()), fixedPositive(item.quantity));
+    pricingChecks.push(fixedNonNegative(item.unitPrice));
+    requirements.push(descriptionComplete, Boolean(item.unit.trim()), fixedPositive(item.quantity), fixedNonNegative(item.unitPrice));
   }
 
-  if (doc.adjustments.discountEnabled) requirements.push(finiteNonNegative(doc.adjustments.discountValue));
-  if (doc.adjustments.shippingEnabled) requirements.push(finiteNonNegative(doc.adjustments.shipping));
-  if (doc.adjustments.otherChargesEnabled) requirements.push(finiteNonNegative(doc.adjustments.otherCharges));
-  if (doc.adjustments.taxEnabled) requirements.push(finiteNonNegative(doc.adjustments.taxPercent));
+  if (doc.adjustments.discountEnabled) requirements.push(!errors.discount);
+  if (doc.adjustments.shippingEnabled) requirements.push(!errors.shipping);
+  if (doc.adjustments.otherChargesEnabled) requirements.push(!errors.otherCharges);
+  if (doc.adjustments.taxEnabled) requirements.push(!errors.tax);
 
   const total = Math.max(1, requirements.length);
   const complete = requirements.filter(Boolean).length;
   const percent = Math.max(0, Math.min(100, Math.round((complete / total) * 100)));
-  const errors = validateDocument(doc);
   return {
     percent,
     complete,
@@ -64,7 +65,7 @@ export function getDocumentReadiness(doc: LourexDocument): DocumentReadiness {
       { key: 'document', complete: documentChecks.every(Boolean) },
       { key: 'customer', complete: customerComplete },
       { key: 'items', complete: doc.items.length > 0 && itemDetailChecks.every(Boolean) },
-      { key: 'pricing', complete: doc.items.length > 0 && pricingChecks.every(Boolean) }
+      { key: 'pricing', complete: doc.items.length > 0 && pricingChecks.every(Boolean) && !errors.discount && !errors.shipping && !errors.otherCharges && !errors.tax }
     ]
   };
 }
