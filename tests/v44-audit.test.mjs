@@ -35,9 +35,9 @@ function validDoc(){
   return doc;
 }
 
-test('v44 service worker precaches every compiled application module',async()=>{
+test('v45 service worker precaches every compiled application module',async()=>{
   const sw=await read('dist/sw.js');
-  assert.match(sw,/lourex-invoice-v44/);
+  assert.match(sw,/lourex-invoice-v45/);
   const files=await jsFiles(path.join(root,'dist/src'));
   assert.ok(files.length>10);
   for(const file of files){

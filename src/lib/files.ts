@@ -412,6 +412,91 @@ function applyLogoEdgeBackgroundRemoval(data: Uint8ClampedArray, width: number, 
   return true;
 }
 
+function applyLogoResidualShadowRemoval(data: Uint8ClampedArray, width: number, height: number): boolean {
+  // The first pass intentionally protects dark detail around a coloured mark. On
+  // photos/scans this can also protect a broad dark shadow or matte that is not
+  // part of the logo. Once genuine transparency exists, remove only large,
+  // compact, neutral-dark residuals that sit immediately outside the coloured
+  // core. Thin outlines and wordmarks are deliberately excluded by the shape
+  // and padding guards below.
+  if (transparencyRatio(data) < .08) return false;
+  const total = width * height;
+  let seedCount = 0;
+  let left = width;
+  let top = height;
+  let right = -1;
+  let bottom = -1;
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    const index = pixel * 4;
+    if ((data[index + 3] ?? 0) <= 24) continue;
+    const red = data[index] ?? 0;
+    const green = data[index + 1] ?? 0;
+    const blue = data[index + 2] ?? 0;
+    if (pixelSaturation(red, green, blue) < .28 || Math.max(red, green, blue) - Math.min(red, green, blue) < 38) continue;
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    seedCount += 1;
+    left = Math.min(left, x);
+    right = Math.max(right, x);
+    top = Math.min(top, y);
+    bottom = Math.max(bottom, y);
+  }
+  if (seedCount < Math.max(48, Math.round(total * .00035)) || right < left || bottom < top) return false;
+
+  const coreWidth = right - left + 1;
+  const coreHeight = bottom - top + 1;
+  const coreMin = Math.max(1, Math.min(coreWidth, coreHeight));
+  const coreMax = Math.max(coreWidth, coreHeight);
+  const padding = clamp(Math.round(coreMax * .065), 4, 30);
+  const protectedLeft = Math.max(0, left - padding);
+  const protectedTop = Math.max(0, top - padding);
+  const protectedRight = Math.min(width - 1, right + padding);
+  const protectedBottom = Math.min(height - 1, bottom + padding);
+  const candidate = new Uint8Array(total);
+  const emptySeeds = new Uint8Array(total);
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    const index = pixel * 4;
+    if ((data[index + 3] ?? 0) <= 12) continue;
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    if (x >= protectedLeft && x <= protectedRight && y >= protectedTop && y <= protectedBottom) continue;
+    const red = data[index] ?? 0;
+    const green = data[index + 1] ?? 0;
+    const blue = data[index + 2] ?? 0;
+    const saturation = pixelSaturation(red, green, blue);
+    const luma = pixelLuma(red, green, blue);
+    if (saturation <= .16 && luma <= 118) candidate[pixel] = 1;
+  }
+
+  const { labels, components } = labelVisibleComponents(candidate, emptySeeds, width, height);
+  const proximity = clamp(Math.round(coreMax * .24), 8, 90);
+  const removalLabels = new Set<number>();
+  for (const component of components) {
+    const componentWidth = component.right - component.left + 1;
+    const componentHeight = component.bottom - component.top + 1;
+    const componentMin = Math.max(1, Math.min(componentWidth, componentHeight));
+    const componentMax = Math.max(componentWidth, componentHeight);
+    const fillRatio = component.pixels / Math.max(1, componentWidth * componentHeight);
+    const aspect = componentMax / componentMin;
+    const nearCore = component.right >= left - proximity && component.left <= right + proximity && component.bottom >= top - proximity && component.top <= bottom + proximity;
+    const largeEnough = component.pixels >= Math.max(80, Math.round(total * .0015));
+    const broadEnough = componentMin >= Math.max(5, Math.round(coreMin * .08));
+    // Long/thin dark typography is not treated as a background residue.
+    if (nearCore && largeEnough && broadEnough && fillRatio >= .18 && aspect <= 4.2) removalLabels.add(component.label);
+  }
+  if (!removalLabels.size) return false;
+
+  let removed = 0;
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    const label = labels[pixel] ?? -1;
+    if (!removalLabels.has(label)) continue;
+    const index = pixel * 4;
+    if ((data[index + 3] ?? 0) > 0) removed += 1;
+    data[index + 3] = 0;
+  }
+  return removed >= Math.max(24, Math.round(total * .0008));
+}
+
 function applyFloodBackgroundRemoval(data: Uint8ClampedArray, width: number, height: number, model: BackgroundModel, kind: CompanyAssetKind): boolean {
   if (model.dominance < .38) return false;
   const total = width * height;
@@ -573,9 +658,11 @@ async function normalizeImage(src: string, kind: CompanyAssetKind): Promise<stri
   let changed = false;
 
   if (kind === 'logo') {
-    // Never re-matte an already transparent logo. This prevents cumulative erosion
-    // when settings are opened/saved repeatedly.
+    // The destructive matte remains one-shot, but a second conservative pass can
+    // remove broad dark residuals after transparency has been established.
     if (transparent < .08 && model) changed = applyLogoEdgeBackgroundRemoval(pixels.data, width, height, model);
+    const residualChanged = applyLogoResidualShadowRemoval(pixels.data, width, height);
+    changed = residualChanged || changed;
   } else if (kind === 'signature') {
     if (model && transparent < .72) changed = applySignatureMatte(pixels.data, width, height, model);
     if (!changed && model && transparent < .72) changed = applyFloodBackgroundRemoval(pixels.data, width, height, model, kind);
