@@ -43,9 +43,12 @@ export function displayDate(iso: string, language: 'en' | 'ar' | 'bilingual'): s
   if (!iso) return '';
   const parts=parseIsoParts(iso);
   if(!parts)return iso;
-  const locale = language === 'ar' ? 'ar-SA' : 'en-GB';
+  // ar-SA defaults to the Umm al-Qura calendar in Safari/Intl. Documents are
+  // stored as Gregorian ISO dates, so force Gregorian while keeping Arabic
+  // month names and digits to avoid silently changing the legal date shown.
+  const locale = language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-GB';
   try {
-    return new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', year: 'numeric', timeZone:'UTC' }).format(new Date(Date.UTC(parts.year,parts.month-1,parts.day)));
+    return new Intl.DateTimeFormat(locale, { calendar:'gregory', day: '2-digit', month: 'short', year: 'numeric', timeZone:'UTC' }).format(new Date(Date.UTC(parts.year,parts.month-1,parts.day)));
   }
   catch { return iso; }
 }

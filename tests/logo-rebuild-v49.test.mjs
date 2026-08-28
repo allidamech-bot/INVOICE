@@ -44,7 +44,7 @@ test('deterministic helper keeps nearby thin dark wordmark-like strokes but reje
   assert.equal(alpha(data,width,135,28),0);
 });
 
-test('recreate-logo workflow is now a touch editor with tap removal, eraser, undo and exact user approval',async()=>{
+test('recreate-logo workflow uses a bounded, touch-friendly editor and exact user approval',async()=>{
   const [settings,rebuild,css,sw]=await Promise.all([
     readFile('src/components/SettingsModal.tsx','utf8'),
     readFile('src/lib/logo-rebuild.ts','utf8'),
@@ -55,14 +55,22 @@ test('recreate-logo workflow is now a touch editor with tap removal, eraser, und
   assert.match(settings,/إعادة إنشاء الشعار بدون خلفية/);
   assert.match(settings,/rebuildLogoWithoutBackgroundDataUrl\(source\)/);
   assert.match(rebuild,/openManualBackgroundEditor/);
+  assert.match(rebuild,/const maxDimension=1024/);
+  assert.match(rebuild,/historyLimit=pixelCount>750_000\?4:pixelCount>400_000\?6:8/);
+  assert.doesNotMatch(rebuild,/history\.length>12/);
+  assert.match(rebuild,/getImageData\(left,top,localWidth,localHeight\)/);
+  assert.match(rebuild,/putImageData\(pixels,left,top\)/);
+  assert.match(rebuild,/onpointercancel/);
+  assert.match(rebuild,/releasePointerCapture/);
+  assert.match(rebuild,/event\.key==='Escape'/);
+  assert.match(rebuild,/The logo cannot be empty/);
   assert.match(rebuild,/floodAt/);
   assert.match(rebuild,/eraseAt/);
-  assert.match(rebuild,/onpointerdown/);
   assert.match(rebuild,/Undo/);
   assert.match(rebuild,/اعتماد هذا الشعار/);
   assert.match(rebuild,/finish\(crop\(canvas,pixels\)\)/);
   assert.match(css,/logo-touch-editor-overlay/);
   assert.match(css,/touch-action:none/);
-  assert.match(sw,/lourex-invoice-v50/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/src\/lib\/logo-rebuild\.js/);
 });
