@@ -89,13 +89,14 @@ export function repairLogoResidualPixels(data:Uint8ClampedArray,width:number,hei
   const removal=new Uint8Array(total);let removed=0;
   for(let pixel=0;pixel<total;pixel+=1){const componentLabel=labels[pixel]??-1;if(!removeLabels.has(componentLabel))continue;removal[pixel]=1;if((data[pixel*4+3]??0)>0){data[pixel*4+3]=0;removed+=1;}}
 
-  // Consume the last one-to-few-pixel fringe of a dense matte while refusing to
-  // enter colourful core pixels or thin isolated black outlines.
+  // Consume the last one-to-few-pixel fringe of a dense matte, but never enter
+  // the dilated artwork halo. This keeps dark outlines immediately around the
+  // coloured logo intact while still removing compact background blocks.
   const growIterations=clamp(Math.round(coreMin*.018),1,4);let frontier=removal;
   for(let iteration=0;iteration<growIterations;iteration+=1){
     const expanded=dilate(frontier,width,height,1),next=new Uint8Array(frontier);let grew=false;
     for(let pixel=0;pixel<total;pixel+=1){
-      if(!(expanded[pixel]??0)||(frontier[pixel]??0)||(core[pixel]??0))continue;if(!darkNeutral(data,pixel,.27,160))continue;if(darkSupport(data,pixel,width,height)<.55)continue;
+      if(!(expanded[pixel]??0)||(frontier[pixel]??0)||(protectedMask[pixel]??0))continue;if(!darkNeutral(data,pixel,.27,160))continue;if(darkSupport(data,pixel,width,height)<.55)continue;
       data[pixel*4+3]=0;next[pixel]=1;removed+=1;grew=true;
     }
     frontier=next;if(!grew)break;
