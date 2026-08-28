@@ -23,8 +23,8 @@ test('mobile controls receive larger touch targets and spacing',()=>{
   assert.match(css,/\.adjustment-row\{[\s\S]*min-height:54px/);
 });
 
-test('v47 stylesheet is loaded last and cached for offline PWA use',()=>{
+test('mobile editor stylesheet remains last and cached across PWA releases',()=>{
   assert.match(html,/v44-audit\.css[^]*mobile-editor-fixes\.css/);
-  assert.match(sw,/lourex-invoice-v47/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/\.\/styles\/mobile-editor-fixes\.css/);
 });
