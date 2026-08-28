@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 function clamp(value:number,minimum:number,maximum:number):number{return Math.max(minimum,Math.min(maximum,value));}
 function luma(red:number,green:number,blue:number):number{return red*.2126+green*.7152+blue*.0722;}
 function saturation(red:number,green:number,blue:number):number{const maximum=Math.max(red,green,blue),minimum=Math.min(red,green,blue);return maximum<=0?0:(maximum-minimum)/maximum;}
@@ -34,10 +36,10 @@ function label(mask:Uint8Array,width:number,height:number):{labels:Int32Array;co
 }
 
 /**
- * Aggressively reconstructs a transparent logo from its coloured artwork.
- * Unlike the conservative cleaner, this is an explicit user action. Coloured
- * pixels form the protected core; a narrow halo keeps black outlines and light
- * highlights, while broad neutral/black background slabs are discarded.
+ * Kept as a deterministic pixel-level helper for existing automatic repair
+ * tests. The user-facing "recreate" workflow below is now interactive because
+ * neutral dark artwork and neutral dark background cannot always be separated
+ * safely by colour heuristics alone.
  */
 export function rebuildLogoTransparentPixels(data:Uint8ClampedArray,width:number,height:number):boolean{
   if(width<2||height<2||data.length<width*height*4)return false;
@@ -53,10 +55,6 @@ export function rebuildLogoTransparentPixels(data:Uint8ClampedArray,width:number
   const coreWidth=right-left+1,coreHeight=bottom-top+1,coreMin=Math.max(1,Math.min(coreWidth,coreHeight)),coreMax=Math.max(coreWidth,coreHeight);
   const outlineRadius=clamp(Math.round(coreMin*.07),3,10);
   const keep=dilate(colourCore,width,height,outlineRadius);
-
-  // Preserve detached dark typography or hairline artwork close to the logo,
-  // while rejecting broad compact rectangles such as the residue in the user's
-  // screenshot. Anything already inside the colour halo is automatically kept.
   const darkMask=new Uint8Array(total),proximity=clamp(Math.round(coreMax*1.25),18,260);
   for(let pixel=0;pixel<total;pixel+=1){
     if(keep[pixel]??0)continue;const index=pixel*4,alpha=data[index+3]??0;if(alpha<=20)continue;
@@ -83,7 +81,7 @@ export function rebuildLogoTransparentPixels(data:Uint8ClampedArray,width:number
   return removed>0&&kept>=Math.max(20,Math.round(seeds*.72));
 }
 
-function loadImage(src:string):Promise<HTMLImageElement>{return new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Unable to rebuild logo image.'));image.src=src;});}
+function loadImage(src:string):Promise<HTMLImageElement>{return new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error(t('Unable to open logo image.','تعذر فتح صورة الشعار.')));image.src=src;});}
 
 function crop(canvas:HTMLCanvasElement,pixels:ImageData):string{
   const width=canvas.width,height=canvas.height;let left=width,top=height,right=-1,bottom=-1;
@@ -93,12 +91,44 @@ function crop(canvas:HTMLCanvasElement,pixels:ImageData):string{
   if(cropWidth===width&&cropHeight===height)return canvas.toDataURL('image/png');const output=document.createElement('canvas');output.width=cropWidth;output.height=cropHeight;const context=output.getContext('2d');if(!context)return canvas.toDataURL('image/png');context.clearRect(0,0,cropWidth,cropHeight);context.drawImage(canvas,cropLeft,cropTop,cropWidth,cropHeight,0,0,cropWidth,cropHeight);return output.toDataURL('image/png');
 }
 
+function button(labelText:string,className:string):HTMLButtonElement{const element=document.createElement('button');element.type='button';element.className=className;element.textContent=labelText;return element;}
+function paragraph(text:string,className:string):HTMLParagraphElement{const element=document.createElement('p');element.className=className;element.textContent=text;return element;}
+function span(text:string,className:string):HTMLSpanElement{const element=document.createElement('span');element.className=className;element.textContent=text;return element;}
+
+async function openManualBackgroundEditor(src:string):Promise<string>{
+  const image=await loadImage(src),naturalWidth=image.naturalWidth||image.width,naturalHeight=image.naturalHeight||image.height;if(!naturalWidth||!naturalHeight)return src;
+  const maxDimension=1600,scale=Math.min(1,maxDimension/Math.max(naturalWidth,naturalHeight)),width=Math.max(1,Math.round(naturalWidth*scale)),height=Math.max(1,Math.round(naturalHeight*scale));
+  const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;canvas.className='logo-touch-editor-canvas';const context=canvas.getContext('2d',{willReadFrequently:true});if(!context)return src;context.clearRect(0,0,width,height);context.drawImage(image,0,0,width,height);
+  const original=context.getImageData(0,0,width,height),history:ImageData[]=[];let tool:'tap'|'erase'='tap',tolerance=42,brush=28,drawing=false,settled=false;
+  const overlay=document.createElement('div');overlay.className='logo-touch-editor-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label',t('Logo background editor','محرر خلفية الشعار'));
+  const sheet=document.createElement('div');sheet.className='logo-touch-editor-sheet';overlay.appendChild(sheet);
+  const header=document.createElement('header'),heading=document.createElement('div');heading.className='logo-touch-editor-heading';const title=document.createElement('strong');title.textContent=t('Remove logo background','إزالة خلفية الشعار');heading.append(title,span(t('Tap an unwanted area to remove it. Use the eraser when the unwanted pixels touch the logo edge.','اضغط على الجزء غير المرغوب لحذفه. استخدم الممحاة عندما تكون البقايا ملاصقة لحافة الشعار.'),'logo-touch-editor-subtitle'));const closeButton=button('×','logo-touch-editor-close');closeButton.setAttribute('aria-label',t('Close','إغلاق'));header.append(heading,closeButton);sheet.appendChild(header);
+  const canvasWrap=document.createElement('div');canvasWrap.className='logo-touch-editor-canvas-wrap';canvasWrap.appendChild(canvas);sheet.appendChild(canvasWrap);
+  const controls=document.createElement('div');controls.className='logo-touch-editor-controls',switcher=document.createElement('div');switcher.className='logo-touch-editor-switch';const tapButton=button(t('Tap area','لمس المنطقة'),'active'),eraseButton=button(t('Eraser','ممحاة'),'');switcher.append(tapButton,eraseButton);controls.appendChild(switcher);
+  const sliderRow=document.createElement('label');sliderRow.className='logo-touch-editor-slider';const sliderText=span(`${t('Color tolerance','حساسية اللون')}: ${tolerance}`,'');const slider=document.createElement('input');slider.type='range';slider.min='8';slider.max='90';slider.step='1';slider.value=String(tolerance);sliderRow.append(sliderText,slider);controls.appendChild(sliderRow);
+  const utility=document.createElement('div');utility.className='logo-touch-editor-utility';const undoButton=button(t('Undo','تراجع'),'');undoButton.disabled=true;const resetButton=button(t('Reset','إعادة ضبط'),'');utility.append(undoButton,resetButton);controls.appendChild(utility);sheet.appendChild(controls);
+  const hint=paragraph(t('Tip: start by tapping the black/gray block. If that also removes part of the logo, press Undo and erase only the unwanted pixels with your finger.','نصيحة: ابدأ بلمس الكتلة السوداء أو الرمادية. إذا أزال ذلك جزءًا من الشعار اضغط تراجع ثم امسح البقايا فقط بإصبعك.'),'logo-touch-editor-hint');sheet.appendChild(hint);
+  const footer=document.createElement('footer'),cancelButton=button(t('Cancel','إلغاء'),'logo-touch-editor-cancel'),applyButton=button(t('Use this logo','اعتماد هذا الشعار'),'logo-touch-editor-apply');footer.append(cancelButton,applyButton);sheet.appendChild(footer);
+
+  const previousOverflow=document.body.style.overflow;document.body.style.overflow='hidden';document.body.appendChild(overlay);
+  const updateUndo=()=>{undoButton.disabled=history.length===0;};
+  const snapshot=()=>{history.push(context.getImageData(0,0,width,height));if(history.length>12)history.shift();updateUndo();};
+  const coordinates=(event:PointerEvent)=>{const rect=canvas.getBoundingClientRect(),x=Math.max(0,Math.min(width-1,Math.floor((event.clientX-rect.left)*width/Math.max(1,rect.width)))),y=Math.max(0,Math.min(height-1,Math.floor((event.clientY-rect.top)*height/Math.max(1,rect.height))));return{x,y};};
+  const eraseAt=(x:number,y:number)=>{const pixels=context.getImageData(0,0,width,height),data=pixels.data,radius=Math.max(2,Math.round(brush*width/Math.max(320,canvas.clientWidth||320))),r2=radius*radius,left=Math.max(0,x-radius),right=Math.min(width-1,x+radius),top=Math.max(0,y-radius),bottom=Math.min(height-1,y+radius);for(let py=top;py<=bottom;py+=1)for(let px=left;px<=right;px+=1){const dx=px-x,dy=py-y;if(dx*dx+dy*dy<=r2)data[(py*width+px)*4+3]=0;}context.putImageData(pixels,0,0);};
+  const floodAt=(x:number,y:number)=>{const pixels=context.getImageData(0,0,width,height),data=pixels.data,total=width*height,seedPixel=y*width+x,seed=seedPixel*4;if((data[seed+3]??0)<=10)return;const sr=data[seed]??0,sg=data[seed+1]??0,sb=data[seed+2]??0,threshold=tolerance*tolerance*3,visited=new Uint8Array(total),queue=new Int32Array(total);let start=0,end=0;queue[end++]=seedPixel;visited[seedPixel]=1;while(start<end){const pixel=queue[start++]??0,index=pixel*4;if((data[index+3]??0)<=10)continue;const dr=(data[index]??0)-sr,dg=(data[index+1]??0)-sg,db=(data[index+2]??0)-sb;if(dr*dr+dg*dg+db*db>threshold)continue;data[index+3]=0;const px=pixel%width,py=Math.floor(pixel/width);const visit=(next:number)=>{if(next<0||next>=total||visited[next])return;visited[next]=1;queue[end++]=next;};if(px>0)visit(pixel-1);if(px+1<width)visit(pixel+1);if(py>0)visit(pixel-width);if(py+1<height)visit(pixel+width);}context.putImageData(pixels,0,0);};
+  const setTool=(next:'tap'|'erase')=>{tool=next;tapButton.classList.toggle('active',tool==='tap');eraseButton.classList.toggle('active',tool==='erase');slider.min=tool==='tap'?'8':'8';slider.max=tool==='tap'?'90':'72';slider.value=String(tool==='tap'?tolerance:brush);sliderText.textContent=tool==='tap'?`${t('Color tolerance','حساسية اللون')}: ${tolerance}`:`${t('Eraser size','حجم الممحاة')}: ${brush}`;};
+  tapButton.onclick=()=>setTool('tap');eraseButton.onclick=()=>setTool('erase');slider.oninput=()=>{const value=Number(slider.value);if(tool==='tap')tolerance=value;else brush=value;sliderText.textContent=tool==='tap'?`${t('Color tolerance','حساسية اللون')}: ${tolerance}`:`${t('Eraser size','حجم الممحاة')}: ${brush}`;};
+  undoButton.onclick=()=>{const previous=history.pop();if(previous)context.putImageData(previous,0,0);updateUndo();};resetButton.onclick=()=>{context.putImageData(new ImageData(new Uint8ClampedArray(original.data),original.width,original.height),0,0);history.length=0;updateUndo();};
+  canvas.onpointerdown=(event)=>{event.preventDefault();canvas.setPointerCapture?.(event.pointerId);const{x,y}=coordinates(event);snapshot();if(tool==='tap'){floodAt(x,y);return;}drawing=true;eraseAt(x,y);};canvas.onpointermove=(event)=>{if(!drawing||tool!=='erase')return;event.preventDefault();const{x,y}=coordinates(event);eraseAt(x,y);};canvas.onpointerup=()=>{drawing=false;};canvas.onpointercancel=()=>{drawing=false;};
+
+  return await new Promise<string>(resolve=>{
+    const finish=(value:string)=>{if(settled)return;settled=true;document.body.style.overflow=previousOverflow;overlay.remove();resolve(value);};
+    closeButton.onclick=()=>finish(src);cancelButton.onclick=()=>finish(src);overlay.onclick=event=>{if(event.target===overlay)finish(src);};
+    applyButton.onclick=()=>{const pixels=context.getImageData(0,0,width,height);finish(crop(canvas,pixels));};
+  });
+}
+
 export async function rebuildLogoWithoutBackgroundDataUrl(src:string):Promise<string>{
   if(!src||!src.startsWith('data:image/'))return src;
-  try{
-    const image=await loadImage(src),naturalWidth=image.naturalWidth||image.width,naturalHeight=image.naturalHeight||image.height;if(!naturalWidth||!naturalHeight)return src;
-    const maxDimension=1600,scale=Math.min(1,maxDimension/Math.max(naturalWidth,naturalHeight)),width=Math.max(1,Math.round(naturalWidth*scale)),height=Math.max(1,Math.round(naturalHeight*scale));
-    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const context=canvas.getContext('2d',{willReadFrequently:true});if(!context)return src;context.clearRect(0,0,width,height);context.drawImage(image,0,0,width,height);const pixels=context.getImageData(0,0,width,height);
-    if(!rebuildLogoTransparentPixels(pixels.data,width,height))return src;context.putImageData(pixels,0,0);return crop(canvas,pixels);
-  }catch{return src;}
+  try{return await openManualBackgroundEditor(src);}catch{return src;}
 }
