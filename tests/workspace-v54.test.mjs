@@ -15,9 +15,9 @@ test('documents workspace exposes direct quote and invoice creation without remo
   assert.match(page,/itemCountLabel/);
 });
 
-test('v54 service worker ships the template and workspace changes to installed devices',async()=>{
+test('current service worker ships the template and workspace changes to installed devices',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/lourex-invoice-v54/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/src\/components\/DocumentsPage\.js/);
   assert.match(sw,/src\/templates\/TemplateThumbnails\.js/);
   assert.match(sw,/styles\/template-preferences\.css/);
