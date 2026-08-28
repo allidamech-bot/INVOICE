@@ -4,18 +4,19 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('template selector uses a lightweight document instead of rendering 18 full invoices',async()=>{
-  const selector=await read('src/templates/TemplateThumbnails.tsx');
-  assert.match(selector,/function thumbnailDocument\(doc:LourexDocument\):LourexDocument/);
-  assert.match(selector,/doc\.items\.slice\(0,2\)/);
-  assert.match(selector,/logoDataUrl:''/);
-  assert.match(selector,/signatureDataUrl:''/);
-  assert.match(selector,/stampDataUrl:''/);
-  assert.match(selector,/showBank:false/);
-  assert.match(selector,/showSignature:false/);
-  assert.match(selector,/showStamp:false/);
-  assert.match(selector,/const lightweightDoc=thumbnailDocument\(doc\)/);
-  assert.match(selector,/TemplateRenderer document=\{preview\}/);
+test('template selector uses zero-runtime decorative previews instead of invoice renderers',async()=>{
+  const [selector,css]=await Promise.all([
+    read('src/templates/TemplateThumbnails.tsx'),
+    read('src/styles/template-preferences.css')
+  ]);
+  assert.match(selector,/function StaticTemplatePreview/);
+  assert.match(selector,/template-mini-static/);
+  assert.doesNotMatch(selector,/TemplateRenderer/);
+  assert.doesNotMatch(selector,/thumbnailDocument/);
+  assert.match(css,/zero-runtime template preview system/i);
+  assert.match(css,/template-preview-executive/);
+  assert.match(css,/template-preview-noir/);
+  assert.match(css,/template-preview-carbon/);
 });
 
 test('hidden mobile overlay defers its full A4 render until opened',async()=>{
