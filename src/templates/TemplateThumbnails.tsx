@@ -31,11 +31,43 @@ interface Props {
   onToggleFavorite?:(id:TemplateId)=>void;
 }
 
+// Template cards are decorative previews, not document previews. Rendering the
+// full invoice eighteen times can exhaust memory on mobile Safari/WebViews when
+// a saved document contains many rows or large base64 logo/signature/stamp
+// images. Keep one representative page and strip heavyweight snapshot media.
+function thumbnailDocument(doc:LourexDocument):LourexDocument{
+  const customer=doc.customerSnapshot;
+  return {
+    ...doc,
+    items:doc.items.slice(0,2).map(item=>({
+      ...item,
+      descriptionEn:item.descriptionEn.slice(0,72),
+      descriptionAr:item.descriptionAr.slice(0,72),
+      hsCode:'',origin:'',packing:''
+    })),
+    customerSnapshot:customer?{
+      ...customer,
+      addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''
+    }:null,
+    companySnapshot:{
+      ...doc.companySnapshot,
+      logoDataUrl:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',website:'',vatNumber:'',taxNumber:'',commercialRegistration:'',
+      bank:{bankName:'',accountName:'',iban:'',swift:'',currency:''},
+      signatureDataUrl:'',stampDataUrl:'',footerText:''
+    },
+    terms:{incoterm:'',paymentTerms:'',packing:'',deliveryTime:'',portOfLoading:'',finalDestination:'',countryOfOrigin:'',validity:'',remarks:''},
+    adjustments:{...doc.adjustments,discountEnabled:false,shippingEnabled:false,otherChargesEnabled:false,taxEnabled:false},
+    appearance:{...doc.appearance,showBank:false,showSignature:false,showStamp:false,showHsCode:false,showOrigin:false,showPacking:false},
+    notes:''
+  };
+}
+
 export function TemplateThumbnails({ document:doc,onSelect,favoriteIds=[],defaultId,onToggleFavorite }:Props):any{
   const favorites=new Set(favoriteIds);
   const ordered=[...templates].sort((a,b)=>Number(favorites.has(b.id))-Number(favorites.has(a.id)));
+  const lightweightDoc=thumbnailDocument(doc);
   return <div className="template-selector">{ordered.map(template=>{
-    const preview={...doc,appearance:{...doc.appearance,templateId:template.id}};
+    const preview={...lightweightDoc,appearance:{...lightweightDoc.appearance,templateId:template.id}};
     const favorite=favorites.has(template.id);
     const isDefault=defaultId===template.id;
     return <div className={`template-card-wrap ${favorite?'is-favorite':''}`} key={template.id}>

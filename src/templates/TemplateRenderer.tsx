@@ -6,6 +6,7 @@ import { resolvedAccent, resolvedAccentInk, resolvedArabicFont, resolvedLatinFon
 
 interface Props { document: LourexDocument; scale?: number; compact?: boolean; }
 interface PageProps { document: LourexDocument; items: DocumentItem[]; pageIndex: number; totalPages: number; finalPage: boolean; variant: TemplateId; compact?: boolean; }
+interface DeferredPreviewState { active:boolean; }
 
 const MODERN_TEMPLATES: TemplateId[] = ['obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 const FULL_DARK_TEMPLATES: TemplateId[] = ['noir','midnight','blackivory','carbon'];
@@ -115,4 +116,40 @@ function firstPageItemCapacity(doc:LourexDocument):number{
   if(pressure>380)return 5;
   return 7;
 }
-export function TemplateRenderer({ document: doc, scale = 1, compact = false }: Props): any { const separateDetails = shouldUseDetailsPage(doc); const itemPages = paginateItems(doc.items, !separateDetails, firstPageItemCapacity(doc)); const pages = separateDetails ? [...itemPages, [] as DocumentItem[]] : itemPages; return <div className="invoice-pages" style={{ '--preview-scale': String(scale) } as any}>{pages.map((items,index) => <Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index === pages.length - 1} variant={doc.appearance.templateId} compact={compact}/>)}</div>; }
+
+function renderDocument({ document: doc, scale = 1, compact = false }: Props):any{
+  const separateDetails = shouldUseDetailsPage(doc);
+  const itemPages = paginateItems(doc.items, !separateDetails, firstPageItemCapacity(doc));
+  const pages = separateDetails ? [...itemPages, [] as DocumentItem[]] : itemPages;
+  return <div className="invoice-pages" style={{ '--preview-scale': String(scale) } as any}>{pages.map((items,index) => <Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index === pages.length - 1} variant={doc.appearance.templateId} compact={compact}/>)}</div>;
+}
+
+// The mobile preview overlay stays mounted while hidden. Defer its expensive A4
+// subtree until the overlay is actually open so normal document editing does not
+// keep a second full multi-page invoice in memory.
+class DeferredMobilePreview extends React.Component<Props,DeferredPreviewState>{
+  state:DeferredPreviewState={active:false};
+  private observer:MutationObserver|null=null;
+  private screen:Element|null=null;
+
+  componentDidMount():void{
+    this.screen=document.querySelector('.editor-screen');
+    this.sync();
+    if(this.screen){
+      this.observer=new MutationObserver(this.sync);
+      this.observer.observe(this.screen,{attributes:true,attributeFilter:['class']});
+    }
+  }
+  componentWillUnmount():void{this.observer?.disconnect();this.observer=null;this.screen=null;}
+  private sync=()=>{
+    const active=Boolean(this.screen?.classList.contains('mobile-preview-open'));
+    if(active!==this.state.active)this.setState({active});
+  };
+  render():any{return this.state.active?renderDocument(this.props):<div className="invoice-pages deferred-mobile-preview" aria-hidden="true"/>;}
+}
+
+export function TemplateRenderer(props:Props): any {
+  const scale=props.scale??1;
+  if(scale===0.48&&!props.compact)return <DeferredMobilePreview {...props}/>;
+  return renderDocument(props);
+}

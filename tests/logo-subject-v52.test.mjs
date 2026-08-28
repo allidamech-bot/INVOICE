@@ -33,7 +33,7 @@ test('subject isolation removes broad attached dark residue but keeps the centra
   assert.equal(alpha(data,width,80,80),255);
 });
 
-test('v52 rebuild starts from subject isolation and automatic repair reuses the same subject helper',async()=>{
+test('logo rebuild starts from subject isolation and automatic repair stays cached across later releases',async()=>{
   const [rebuild,repair,sw]=await Promise.all([
     readFile('src/lib/logo-rebuild.ts','utf8'),
     readFile('src/lib/logo-repair.ts','utf8'),
@@ -43,7 +43,7 @@ test('v52 rebuild starts from subject isolation and automatic repair reuses the 
   assert.match(rebuild,/rebuildLogoTransparentPixels\(prepared\.data,width,height\)/);
   assert.match(rebuild,/Subject isolated automatically/);
   assert.match(repair,/rebuildLogoTransparentPixels\(pixels\.data,width,height\)/);
-  assert.match(sw,/lourex-invoice-v52/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/src\/lib\/logo-rebuild\.js/);
   assert.match(sw,/src\/lib\/logo-repair\.js/);
 });
