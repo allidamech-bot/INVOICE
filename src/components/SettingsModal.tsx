@@ -1,6 +1,7 @@
 import type { AppSettings, AutoLockMinutes, CompanySettings } from '../types.js';
 import { cleanImageDataUrl, fileToDataUrl, fileToRawDataUrl } from '../lib/files.js';
 import type { CompanyAssetKind } from '../lib/files.js';
+import { repairLogoDataUrl } from '../lib/logo-repair.js';
 import { t } from '../lib/i18n.js';
 import { Button, ConfirmDialog, Field, Input, Modal, Select, Textarea, Icon } from './UI.js';
 
@@ -31,9 +32,8 @@ export class SettingsModal extends React.Component<Props,State> {
   private setNumbering=(key:keyof AppSettings['numbering'],value:any)=>this.setState({appSettings:{...this.state.appSettings,numbering:{...this.state.appSettings.numbering,[key]:value}},savedSection:null,message:'',error:''});
   private assetKind=(field:AssetField):CompanyAssetKind=>field==='logoDataUrl'?'logo':field==='signatureDataUrl'?'signature':'stamp';
   private cleanCompanyAssets=async(company:CompanySettings):Promise<CompanySettings>=>{
-    // Never reprocess a saved logo during Settings open/save. Logo cleanup is
-    // deliberately one-shot at upload time so fine artwork cannot be eroded by
-    // repeated passes. Signature/stamp keep their successful automatic cleanup.
+    // Signature and stamp keep their established automatic cleanup. Logo mode is
+    // handled separately so choosing Original is never silently overridden on save.
     const [signatureDataUrl,stampDataUrl]=await Promise.all([
       cleanImageDataUrl(company.signatureDataUrl,'signature'),
       cleanImageDataUrl(company.stampDataUrl,'stamp')
@@ -43,16 +43,21 @@ export class SettingsModal extends React.Component<Props,State> {
   private prepareExistingAssets=async(source:CompanySettings)=>{
     if(!this.props.open)return;
     this.setState({cleaningAssets:true});
-    const cleaned=await this.cleanCompanyAssets(source);
+    const [cleaned,repairedLogo]=await Promise.all([this.cleanCompanyAssets(source),repairLogoDataUrl(source.logoDataUrl)]);
     if(!this.props.open){this.setState({cleaningAssets:false});return;}
     this.setState(state=>{
       const company={...state.company};
-      let changed=false;
+      let changed=false,logoChanged=false;
+      let logoOriginalDataUrl=state.logoOriginalDataUrl,logoCleanedDataUrl=state.logoCleanedDataUrl,logoMode=state.logoMode;
+      if(source.logoDataUrl&&state.company.logoDataUrl===source.logoDataUrl&&repairedLogo!==source.logoDataUrl){
+        company.logoDataUrl=repairedLogo;logoOriginalDataUrl=source.logoDataUrl;logoCleanedDataUrl=repairedLogo;logoMode='auto';changed=true;logoChanged=true;
+      }
       const fields:AssetField[]=['signatureDataUrl','stampDataUrl'];
       for(const field of fields){
         if(state.company[field]===source[field]&&cleaned[field]!==source[field]){company[field]=cleaned[field];changed=true;}
       }
-      return {company,cleaningAssets:false,savedSection:changed?null:state.savedSection,message:changed?t('Signature and stamp backgrounds cleaned. Review the previews and save.','تم تنظيف خلفية التوقيع والختم. راجع المعاينات ثم اضغط حفظ.'):state.message,error:''};
+      const message=logoChanged?t('The saved logo was re-cleaned with the improved background repair. Review it and save to apply.','تمت إعادة تنظيف الشعار المحفوظ بخوارزمية إزالة الخلفية المحسّنة. راجعه ثم اضغط حفظ لتطبيقه.'):changed?t('Signature and stamp backgrounds cleaned. Review the previews and save.','تم تنظيف خلفية التوقيع والختم. راجع المعاينات ثم اضغط حفظ.'):state.message;
+      return {company,logoOriginalDataUrl,logoCleanedDataUrl,logoMode,cleaningAssets:false,savedSection:changed?null:state.savedSection,message,error:''};
     });
   };
   private upload=async(field:AssetField,file?:File)=>{
@@ -61,8 +66,9 @@ export class SettingsModal extends React.Component<Props,State> {
     try{
       if(field==='logoDataUrl'){
         const original=await fileToRawDataUrl(file);
-        const cleaned=await cleanImageDataUrl(original,'logo');
-        this.setState(state=>({company:{...state.company,logoDataUrl:cleaned},logoOriginalDataUrl:original,logoCleanedDataUrl:cleaned,logoMode:'auto',cleaningAssets:false,savedSection:null,message:t('Logo prepared safely. Compare Auto clean with Original before saving.','تم تجهيز الشعار بأمان. قارن بين التنظيف التلقائي والأصلي قبل الحفظ.'),error:''}));
+        const firstPass=await cleanImageDataUrl(original,'logo');
+        const cleaned=await repairLogoDataUrl(firstPass);
+        this.setState(state=>({company:{...state.company,logoDataUrl:cleaned},logoOriginalDataUrl:original,logoCleanedDataUrl:cleaned,logoMode:'auto',cleaningAssets:false,savedSection:null,message:t('Logo prepared with enhanced background cleanup. Compare Auto clean with Original before saving.','تم تجهيز الشعار بتنظيف خلفية محسّن. قارن بين التنظيف التلقائي والأصلي قبل الحفظ.'),error:''}));
         return;
       }
       const data=await fileToDataUrl(file,4*1024*1024,this.assetKind(field));
@@ -72,7 +78,7 @@ export class SettingsModal extends React.Component<Props,State> {
   private setLogoMode=(logoMode:'auto'|'original')=>{
     const source=logoMode==='auto'?this.state.logoCleanedDataUrl:this.state.logoOriginalDataUrl;
     if(!source)return;
-    this.setState(state=>({logoMode,company:{...state.company,logoDataUrl:source},savedSection:null,message:logoMode==='auto'?t('Safe automatic logo cleanup selected.','تم اختيار التنظيف الآمن للشعار.'):t('Original logo selected with no background processing.','تم اختيار الشعار الأصلي بدون معالجة للخلفية.'),error:''}));
+    this.setState(state=>({logoMode,company:{...state.company,logoDataUrl:source},savedSection:null,message:logoMode==='auto'?t('Enhanced automatic logo cleanup selected.','تم اختيار التنظيف التلقائي المحسّن للشعار.'):t('Original logo selected with no background processing.','تم اختيار الشعار الأصلي بدون معالجة للخلفية.'),error:''}));
   };
   private saveCompany=async()=>{
     if(!this.state.company.nameEn.trim()&&!this.state.company.nameAr.trim()){this.setState({error:t('Company name is required.','اسم الشركة مطلوب.')});return;}
@@ -117,7 +123,7 @@ export class SettingsModal extends React.Component<Props,State> {
       <Field label={t('Phone','الهاتف')}><Input value={c.phone} onChange={(e:any)=>this.setCompany('phone',e.target.value)}/></Field><Field label={t('Email','البريد الإلكتروني')}><Input type="email" value={c.email} onChange={(e:any)=>this.setCompany('email',e.target.value)}/></Field>
       <Field label={t('Website','الموقع الإلكتروني')}><Input value={c.website} onChange={(e:any)=>this.setCompany('website',e.target.value)}/></Field><Field label={t('VAT Number','رقم ضريبة القيمة المضافة')}><Input value={c.vatNumber} onChange={(e:any)=>this.setCompany('vatNumber',e.target.value)}/></Field>
       <Field label={t('Tax Number','الرقم الضريبي')}><Input value={c.taxNumber} onChange={(e:any)=>this.setCompany('taxNumber',e.target.value)}/></Field><Field label={t('Commercial Registration','السجل التجاري')}><Input value={c.commercialRegistration} onChange={(e:any)=>this.setCompany('commercialRegistration',e.target.value)}/></Field>
-    </div><div className="asset-settings"><div className="asset-control logo-asset-control"><label><span>{t('Logo','الشعار')}</span><div className="asset-preview">{hasCompanyLogo?<img src={c.logoDataUrl} alt={t('Logo','الشعار')}/>:<Icon name="upload"/>}</div><input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" onChange={(e:any)=>this.upload('logoDataUrl',e.target.files?.[0])}/></label>{this.state.logoOriginalDataUrl?<div className="logo-mode-switch" role="group" aria-label={t('Logo processing','معالجة الشعار')}><button type="button" className={this.state.logoMode==='auto'?'active':''} onClick={()=>this.setLogoMode('auto')}>{t('Auto clean','تنظيف تلقائي')}</button><button type="button" className={this.state.logoMode==='original'?'active':''} onClick={()=>this.setLogoMode('original')}>{t('Original','الأصلي')}</button></div>:null}</div><label><span>{t('Signature','التوقيع')}</span><div className="asset-preview">{c.signatureDataUrl?<img src={c.signatureDataUrl} alt={t('Signature','التوقيع')}/>:<Icon name="upload"/>}</div><input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" onChange={(e:any)=>this.upload('signatureDataUrl',e.target.files?.[0])}/></label><label><span>{t('Stamp','الختم')}</span><div className="asset-preview">{c.stampDataUrl?<img src={c.stampDataUrl} alt={t('Stamp','الختم')}/>:<Icon name="upload"/>}</div><input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" onChange={(e:any)=>this.upload('stampDataUrl',e.target.files?.[0])}/></label></div><p className={`asset-clean-hint ${this.state.cleaningAssets?'is-cleaning':''}`}><Icon name={this.state.cleaningAssets?'refresh':'check'}/><span>{this.state.cleaningAssets?t('Processing company images…','جارٍ معالجة صور الشركة…'):t('Signature and stamp clean automatically. Logo cleanup is conservative and the original remains selectable after upload.','يتم تنظيف التوقيع والختم تلقائيًا. تنظيف الشعار محافظ ويمكن اختيار النسخة الأصلية بعد الرفع.')}</span></p></div>
+    </div><div className="asset-settings"><div className="asset-control logo-asset-control"><label><span>{t('Logo','الشعار')}</span><div className="asset-preview">{hasCompanyLogo?<img src={c.logoDataUrl} alt={t('Logo','الشعار')}/>:<Icon name="upload"/>}</div><input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" onChange={(e:any)=>this.upload('logoDataUrl',e.target.files?.[0])}/></label>{this.state.logoOriginalDataUrl?<div className="logo-mode-switch" role="group" aria-label={t('Logo processing','معالجة الشعار')}><button type="button" className={this.state.logoMode==='auto'?'active':''} onClick={()=>this.setLogoMode('auto')}>{t('Auto clean','تنظيف تلقائي')}</button><button type="button" className={this.state.logoMode==='original'?'active':''} onClick={()=>this.setLogoMode('original')}>{t('Original','الأصلي')}</button></div>:null}</div><label><span>{t('Signature','التوقيع')}</span><div className="asset-preview">{c.signatureDataUrl?<img src={c.signatureDataUrl} alt={t('Signature','التوقيع')}/>:<Icon name="upload"/>}</div><input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" onChange={(e:any)=>this.upload('signatureDataUrl',e.target.files?.[0])}/></label><label><span>{t('Stamp','الختم')}</span><div className="asset-preview">{c.stampDataUrl?<img src={c.stampDataUrl} alt={t('Stamp','الختم')}/>:<Icon name="upload"/>}</div><input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" onChange={(e:any)=>this.upload('stampDataUrl',e.target.files?.[0])}/></label></div><p className={`asset-clean-hint ${this.state.cleaningAssets?'is-cleaning':''}`}><Icon name={this.state.cleaningAssets?'refresh':'check'}/><span>{this.state.cleaningAssets?t('Processing company images…','جارٍ معالجة صور الشركة…'):t('Signature and stamp clean automatically. Existing and newly uploaded logos are checked for residual background blocks while preserving the original choice.','يتم تنظيف التوقيع والختم تلقائيًا. ويتم فحص الشعارات المحفوظة والجديدة لإزالة بقايا الخلفية مع إبقاء خيار النسخة الأصلية.')}</span></p></div>
     <div className="settings-section"><h4>{t('Bank details','بيانات البنك')}</h4><div className="form-grid two"><Field label={t('Bank Name','اسم البنك')}><Input value={c.bank.bankName} onChange={(e:any)=>this.setBank('bankName',e.target.value)}/></Field><Field label={t('Account Name','اسم الحساب')}><Input value={c.bank.accountName} onChange={(e:any)=>this.setBank('accountName',e.target.value)}/></Field><Field label="IBAN"><Input value={c.bank.iban} onChange={(e:any)=>this.setBank('iban',e.target.value)}/></Field><Field label="SWIFT / BIC"><Input value={c.bank.swift} onChange={(e:any)=>this.setBank('swift',e.target.value)}/></Field><Field label={t('Bank Currency','عملة البنك')}><Input value={c.bank.currency} onChange={(e:any)=>this.setBank('currency',e.target.value.toUpperCase())}/></Field></div></div>
     <div className="settings-section"><h4>{t('Language & defaults','اللغة والإعدادات الافتراضية')}</h4><div className="form-grid two"><Field label={t('Interface Language','لغة الواجهة')}><Select value={s.uiLanguage||'en'} onChange={(e:any)=>void this.changeInterfaceLanguage(e.target.value as AppSettings['uiLanguage'])}><option value="en">English</option><option value="ar">العربية</option></Select></Field><Field label={t('Default Currency','العملة الافتراضية')}><Input value={c.defaultCurrency} onChange={(e:any)=>this.setCompany('defaultCurrency',e.target.value.toUpperCase())}/></Field><Field label={t('Default Document Language','لغة المستند الافتراضية')}><Select value={c.defaultLanguage} onChange={(e:any)=>this.setCompany('defaultLanguage',e.target.value)}><option value="en">English</option><option value="ar">العربية</option><option value="bilingual">{t('Arabic + English','العربية + الإنجليزية')}</option></Select></Field><Field label={t('Default Payment Terms','شروط الدفع الافتراضية')}><Input value={c.defaultPaymentTerms} onChange={(e:any)=>this.setCompany('defaultPaymentTerms',e.target.value)}/></Field><Field label={t('Default Incoterm','شرط التجارة الافتراضي')}><Input value={c.defaultIncoterm} onChange={(e:any)=>this.setCompany('defaultIncoterm',e.target.value)}/></Field><Field label={t('Default Delivery Time','مدة التسليم الافتراضية')}><Input value={c.defaultDeliveryTime} onChange={(e:any)=>this.setCompany('defaultDeliveryTime',e.target.value)}/></Field><Field label={t('Default Validity (days)','مدة الصلاحية الافتراضية (أيام)')}><Input type="number" min="0" max="3650" step="1" value={String(c.defaultValidityDays)} onChange={(e:any)=>this.setCompany('defaultValidityDays',Math.min(3650,Math.max(0,Math.trunc(Number(e.target.value)||0))))}/></Field><Field label={t('Default Footer Text','نص التذييل الافتراضي')} className="span-2"><Input value={c.defaultFooterText} onChange={(e:any)=>this.setCompany('defaultFooterText',e.target.value)}/></Field><Field label={t('Default Notes','الملاحظات الافتراضية')} className="span-2"><Textarea rows="3" value={c.defaultNotes} onChange={(e:any)=>this.setCompany('defaultNotes',e.target.value)}/></Field></div></div></div>:null}
 
