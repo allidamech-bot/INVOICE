@@ -40,11 +40,11 @@ test('long thin dark wordmarks are not mistaken for compact residual background'
   assert.equal(alpha(data,width,60,77),255);
 });
 
-test('settings re-check both saved and newly uploaded logos and v48 caches the repair module',async()=>{
+test('settings re-check both saved and newly uploaded logos and current PWA caches the repair module',async()=>{
   const [settings,sw]=await Promise.all([readFile('src/components/SettingsModal.tsx','utf8'),readFile('public/sw.js','utf8')]);
   assert.match(settings,/repairLogoDataUrl\(source\.logoDataUrl\)/);
   assert.match(settings,/repairLogoDataUrl\(firstPass\)/);
-  assert.match(settings,/logoOriginalDataUrl=source\.logoDataUrl/);
-  assert.match(sw,/lourex-invoice-v48/);
+  assert.match(settings,/logoOriginalDataUrl=hasSavedLogo\?source\.logoDataUrl/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/src\/lib\/logo-repair\.js/);
 });
