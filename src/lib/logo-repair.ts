@@ -1,5 +1,6 @@
-function clamp(value:number,minimum:number,maximum:number):number{return Math.max(minimum,Math.min(maximum,value));}
+import { rebuildLogoTransparentPixels } from './logo-rebuild.js';
 
+function clamp(value:number,minimum:number,maximum:number):number{return Math.max(minimum,Math.min(maximum,value));}
 function luma(red:number,green:number,blue:number):number{return red*.2126+green*.7152+blue*.0722;}
 function saturation(red:number,green:number,blue:number):number{const max=Math.max(red,green,blue),min=Math.min(red,green,blue);return max<=0?0:(max-min)/max;}
 
@@ -50,12 +51,6 @@ function darkSupport(data:Uint8ClampedArray,pixel:number,width:number,height:num
   return total?support/total:0;
 }
 
-/**
- * Removes broad neutral-dark matte/shadow remnants that survive the first logo
- * cleanup pass. The colourful logo core is protected pixel-by-pixel instead of
- * by one large rectangular bounding box, so a black rectangle sitting behind a
- * coloured mark can be removed without erasing the artwork or thin outlines.
- */
 export function repairLogoResidualPixels(data:Uint8ClampedArray,width:number,height:number):boolean{
   if(width<2||height<2||data.length<width*height*4||transparencyRatio(data)<.08)return false;
   const total=width*height,core=new Uint8Array(total);let seeds=0,left=width,top=height,right=-1,bottom=-1;
@@ -81,7 +76,6 @@ export function repairLogoResidualPixels(data:Uint8ClampedArray,width:number,hei
     const nearCore=component.right>=left-proximity&&component.left<=right+proximity&&component.bottom>=top-proximity&&component.top<=bottom+proximity;
     const largeEnough=component.pixels>=Math.max(30,Math.round(total*.00055));
     const broadEnough=componentMin>=Math.max(3,Math.round(coreMin*.035));
-    // Broad/compact neutral pieces are matte remnants. Long thin marks are likely typography/outlines and stay intact.
     if(nearCore&&largeEnough&&broadEnough&&fill>=.11&&aspect<=7.5)removeLabels.add(component.label);
   }
   if(!removeLabels.size)return false;
@@ -89,9 +83,6 @@ export function repairLogoResidualPixels(data:Uint8ClampedArray,width:number,hei
   const removal=new Uint8Array(total);let removed=0;
   for(let pixel=0;pixel<total;pixel+=1){const componentLabel=labels[pixel]??-1;if(!removeLabels.has(componentLabel))continue;removal[pixel]=1;if((data[pixel*4+3]??0)>0){data[pixel*4+3]=0;removed+=1;}}
 
-  // Consume the last one-to-few-pixel fringe of a dense matte, but never enter
-  // the dilated artwork halo. This keeps dark outlines immediately around the
-  // coloured logo intact while still removing compact background blocks.
   const growIterations=clamp(Math.round(coreMin*.018),1,4);let frontier=removal;
   for(let iteration=0;iteration<growIterations;iteration+=1){
     const expanded=dilate(frontier,width,height,1),next=new Uint8Array(frontier);let grew=false;
@@ -120,6 +111,9 @@ export async function repairLogoDataUrl(src:string):Promise<string>{
     const image=await loadImage(src),naturalWidth=image.naturalWidth||image.width,naturalHeight=image.naturalHeight||image.height;if(!naturalWidth||!naturalHeight)return src;
     const maxDimension=1600,scale=Math.min(1,maxDimension/Math.max(naturalWidth,naturalHeight)),width=Math.max(1,Math.round(naturalWidth*scale)),height=Math.max(1,Math.round(naturalHeight*scale));
     const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const context=canvas.getContext('2d',{willReadFrequently:true});if(!context)return src;context.clearRect(0,0,width,height);context.drawImage(image,0,0,width,height);const pixels=context.getImageData(0,0,width,height);
-    if(!repairLogoResidualPixels(pixels.data,width,height))return src;context.putImageData(pixels,0,0);return crop(canvas,pixels);
+    const residualChanged=repairLogoResidualPixels(pixels.data,width,height);
+    const subjectChanged=rebuildLogoTransparentPixels(pixels.data,width,height);
+    if(!residualChanged&&!subjectChanged)return src;
+    context.putImageData(pixels,0,0);return crop(canvas,pixels);
   }catch{return src;}
 }
