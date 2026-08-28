@@ -16,8 +16,8 @@ test('logo auto-clean has a conservative second pass for dark residual backgroun
   assert.match(source,/changed = residualChanged \|\| changed/);
 });
 
-test('v45 PWA forces iOS to receive the new image-cleanup module',async()=>{
+test('current PWA release keeps the image-cleanup module available offline',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/lourex-invoice-v45/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/\.\/src\/lib\/files\.js/);
 });

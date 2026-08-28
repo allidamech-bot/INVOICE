@@ -1,0 +1,185 @@
+/* LOUREX v47 — mobile editor spacing, contrast, and overflow corrections. */
+
+/* Keep the item-section actions readable on every width. */
+.app-ui .section-heading-actions{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+  max-width:100%;
+}
+.app-ui .section-heading-actions .btn{
+  min-width:0;
+}
+.app-ui .section-heading-actions .btn-ghost{
+  background:#f8fbfd;
+  border-color:#d8e4ea;
+  color:#294c62;
+}
+.app-ui .section-heading-actions .add-item-button{
+  background:#e8f1f8!important;
+  border-color:#bfd4e1!important;
+  color:#174866!important;
+}
+
+/* Grand total is a dark emphasis surface; force accessible foreground contrast. */
+.app-ui .editor-totals{
+  margin-top:14px;
+  padding:8px;
+  border:1px solid #d8e3e8;
+  border-radius:14px;
+  background:#fff;
+}
+.app-ui .editor-totals>div:not(.grand){
+  min-height:38px;
+  padding:7px 8px;
+  align-items:center;
+  gap:12px;
+  color:#2c4050;
+}
+.app-ui .editor-totals>div:not(.grand) strong{
+  color:#17364a;
+}
+.app-ui .editor-totals .grand{
+  min-height:48px;
+  margin:7px 0 0;
+  padding:12px 13px!important;
+  align-items:center;
+  gap:12px;
+  border:1px solid #0f4562!important;
+  border-radius:12px;
+  background:linear-gradient(135deg,#10354d 0%,#175a7b 100%)!important;
+  color:#fff!important;
+  box-shadow:0 7px 16px rgba(13,58,82,.16);
+}
+.app-ui .editor-totals .grand span,
+.app-ui .editor-totals .grand strong{
+  color:#fff!important;
+  opacity:1!important;
+  text-shadow:none!important;
+}
+
+/* Give item cards a calmer visual hierarchy on small screens. */
+@media(max-width:720px){
+  .app-ui .editor-pane .editor-scroll{
+    padding-inline:10px!important;
+  }
+  .app-ui .editor-section{
+    padding:15px 13px!important;
+    margin-bottom:14px;
+  }
+  .app-ui .section-heading{
+    min-width:0;
+  }
+  .app-ui .section-heading.with-action{
+    flex-direction:column;
+    align-items:stretch;
+    justify-content:flex-start;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .app-ui .section-heading.with-action>div:first-child{
+    width:100%;
+    min-width:0;
+    justify-content:flex-start;
+  }
+  .app-ui .section-heading-actions{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    width:100%;
+    gap:8px!important;
+  }
+  .app-ui .section-heading-actions .btn{
+    width:100%;
+    min-width:0;
+    height:42px!important;
+    padding:0 9px!important;
+    border-radius:12px!important;
+    font-size:11px;
+    line-height:1.25;
+    white-space:nowrap;
+    overflow:hidden;
+  }
+  .app-ui .section-heading-actions .btn span{
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .app-ui .premium-item-card>header{
+    flex-wrap:wrap;
+    gap:8px 10px;
+    padding:10px 11px!important;
+  }
+  .app-ui .premium-item-card>header>div:first-child{
+    flex:1 1 170px;
+    min-width:0;
+    flex-wrap:wrap;
+    row-gap:4px;
+  }
+  .app-ui .item-line-total{
+    white-space:nowrap;
+  }
+  .app-ui .item-card-actions{
+    flex:0 0 auto;
+    gap:4px;
+    margin-inline-start:auto;
+  }
+  .app-ui .item-card-actions .btn{
+    height:36px;
+    padding-inline:8px!important;
+  }
+  .app-ui .item-card .form-grid{
+    padding:14px 12px!important;
+    gap:12px;
+  }
+  .app-ui .item-pricing-grid{
+    padding:11px!important;
+    gap:11px!important;
+    background:#f8fafc;
+    border-color:#dbe5ea;
+  }
+  .app-ui .field-label{
+    font-size:11.5px;
+    line-height:1.45;
+  }
+  .app-ui .input,
+  .app-ui select.input{
+    min-height:44px;
+  }
+  .app-ui textarea.input{
+    min-height:92px;
+  }
+
+  .app-ui .adjustments-list{
+    gap:9px;
+  }
+  .app-ui .adjustment-row{
+    min-height:54px;
+    padding:10px 11px;
+    background:#fff;
+    border-color:#dce4e8;
+  }
+  .app-ui .editor-totals{
+    margin-top:14px;
+  }
+}
+
+@media(max-width:390px){
+  .app-ui .section-heading-actions{
+    grid-template-columns:1fr;
+  }
+  .app-ui .section-heading-actions .btn{
+    height:40px!important;
+  }
+  .app-ui .premium-item-card>header>div:first-child{
+    flex-basis:100%;
+  }
+  .app-ui .item-card-actions{
+    width:100%;
+    justify-content:flex-end;
+  }
+  .app-ui .save-item-library-button{
+    margin-inline-end:auto;
+  }
+}
