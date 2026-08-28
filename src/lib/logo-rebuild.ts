@@ -51,7 +51,7 @@ export function rebuildLogoTransparentPixels(data:Uint8ClampedArray,width:number
   if(seeds<Math.max(20,Math.round(total*.00018))||right<left||bottom<top)return false;
 
   const coreWidth=right-left+1,coreHeight=bottom-top+1,coreMin=Math.max(1,Math.min(coreWidth,coreHeight)),coreMax=Math.max(coreWidth,coreHeight);
-  const outlineRadius=clamp(Math.round(coreMin*.042),2,8);
+  const outlineRadius=clamp(Math.round(coreMin*.07),3,10);
   const keep=dilate(colourCore,width,height,outlineRadius);
 
   // Preserve detached dark typography or hairline artwork close to the logo,
@@ -67,9 +67,9 @@ export function rebuildLogoTransparentPixels(data:Uint8ClampedArray,width:number
   const {labels,components}=label(darkMask,width,height),preserveLabels=new Set<number>();
   for(const component of components){
     const componentWidth=component.right-component.left+1,componentHeight=component.bottom-component.top+1,minimum=Math.max(1,Math.min(componentWidth,componentHeight)),maximum=Math.max(componentWidth,componentHeight),aspect=maximum/minimum,fill=component.pixels/Math.max(1,componentWidth*componentHeight);
-    const thin=minimum<=Math.max(3,Math.round(coreMin*.045))&&aspect>=2.1;
+    const thin=minimum<=Math.max(3,Math.round(coreMin*.055))&&aspect>=2.1;
     const tiny=component.pixels<=Math.max(22,Math.round(total*.00035))&&minimum<=Math.max(5,Math.round(coreMin*.06));
-    const textLike=(thin||tiny)&&fill<=.82;
+    const textLike=thin||(tiny&&fill<=.9);
     if(textLike)preserveLabels.add(component.label);
   }
 
