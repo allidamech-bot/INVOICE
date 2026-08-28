@@ -10,8 +10,8 @@ test('document currency presets include the requested core currencies', async ()
   for (const code of ['USD','EUR','SYP','SAR']) assert.ok(editor.includes(`'${code}'`), code);
 });
 
-test('service worker refreshes the cached editor module after currency preset changes', async () => {
+test('service worker keeps the cached editor module across subsequent PWA releases', async () => {
   const sw = await read('public/sw.js');
-  assert.match(sw, /Currency preset refresh/);
+  assert.match(sw, /lourex-invoice-v\d+/);
   assert.match(sw, /src\/components\/EditorPageCore\.js/);
 });
