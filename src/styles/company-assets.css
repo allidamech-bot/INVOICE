@@ -68,6 +68,38 @@
 }
 .logo-mode-switch button:focus-visible{outline:2px solid rgba(181,139,79,.52);outline-offset:1px}
 
+.logo-rebuild-action{
+  width:100%;
+  min-height:44px;
+  padding:9px 12px;
+  border:1px solid rgba(28,103,148,.24);
+  border-radius:11px;
+  background:linear-gradient(135deg,#15547a,#2377a8);
+  color:#fff;
+  font:inherit;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.35;
+  cursor:pointer;
+  box-shadow:0 5px 14px rgba(20,76,111,.14);
+}
+.logo-rebuild-action:hover{filter:brightness(1.04)}
+.logo-rebuild-action.active{background:linear-gradient(135deg,#184e3c,#2c755d);border-color:rgba(35,97,72,.32)}
+.logo-rebuild-action:disabled{opacity:.58;cursor:wait;box-shadow:none}
+.logo-rebuild-action:focus-visible,.logo-rebuild-restore:focus-visible{outline:2px solid rgba(181,139,79,.58);outline-offset:2px}
+.logo-rebuild-restore{
+  width:100%;
+  min-height:36px;
+  border:1px solid rgba(35,97,72,.18);
+  border-radius:9px;
+  background:rgba(231,241,236,.72);
+  color:#315d4c;
+  font:inherit;
+  font-size:11px;
+  font-weight:750;
+  cursor:pointer;
+}
+
 .asset-clean-hint{
   display:flex;
   align-items:center;
@@ -85,3 +117,8 @@
 .asset-clean-hint.is-cleaning{border-color:rgba(181,139,79,.2);background:rgba(246,239,229,.82);color:#74592f}
 .asset-clean-hint.is-cleaning .icon{animation:asset-clean-spin .9s linear infinite}
 @keyframes asset-clean-spin{to{transform:rotate(360deg)}}
+
+@media(max-width:720px){
+  .logo-rebuild-action{min-height:48px;font-size:13px;border-radius:12px}
+  .logo-rebuild-restore{min-height:40px;font-size:12px}
+}
