@@ -31,9 +31,9 @@ test('v64 conversion guidance explicitly preserves the source quote',async()=>{
   assert.match(css,/ينشئ فاتورة جديدة ويحافظ على عرض السعر/);
 });
 
-test('v64 PWA cache ships workflow changes',async()=>{
+test('v64 workflow assets remain present in later PWA releases',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/lourex-invoice-v64/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.ok(sw.includes('./src/components/DocumentReviewModal.js'));
   assert.ok(sw.includes('./src/components/EditorPageCore.js'));
   assert.ok(sw.includes('./styles/editor-workflow-v61.css'));
