@@ -20,23 +20,66 @@ test('all 18 template identifiers stay aligned across types, selector and render
   assert.match(renderer,/FULL_DARK_TEMPLATES/);
 });
 
-test('document renderer preserves Arabic and bilingual direction semantics',async()=>{
-  const renderer=await read('src/templates/TemplateRenderer.tsx');
+test('every proforma and invoice uses the same shared A4 renderer and output-fix layers',async()=>{
+  const [types,renderer,html,typography,direction,bridge,sw]=await Promise.all([
+    read('src/types.ts'),
+    read('src/templates/TemplateRenderer.tsx'),
+    read('index.html'),
+    read('src/styles/document-typography-v76.css'),
+    read('src/styles/document-direction-v78.css'),
+    read('public/ios-print-bridge.js'),
+    read('public/sw.js')
+  ]);
+
+  assert.match(types,/DocumentKind\s*=\s*'proforma'\s*\|\s*'invoice'/);
+  assert.match(renderer,/kind-\$\{doc\.kind\}/);
+  assert.match(renderer,/doc\.kind === 'proforma' \? 'PROFORMA INVOICE' : 'INVOICE'/);
+
+  // These layers target .invoice-page, not one document kind or one template,
+  // so the same fixes cover both document kinds and all 18 templates.
+  assert.match(typography,/\.invoice-page\s*\{/);
+  assert.match(direction,/\.invoice-page\s*\{direction:ltr/);
+  assert.doesNotMatch(typography,/\.kind-proforma|\.kind-invoice/);
+  assert.doesNotMatch(direction,/\.kind-proforma|\.kind-invoice/);
+
+  assert.match(html,/styles\/document-typography-v76\.css/);
+  assert.match(html,/styles\/document-direction-v78\.css/);
+  assert.match(sw,/document-typography-v76\.css/);
+  assert.match(sw,/document-direction-v78\.css/);
+
+  // The iOS PDF window imports the same stylesheet links, so preview and PDF
+  // cannot silently diverge on typography or RTL behavior.
+  assert.match(bridge,/querySelectorAll\('link\[rel="stylesheet"\]'\)/);
+  assert.match(bridge,/styleLinks\(\)/);
+});
+
+test('document renderer preserves English, Arabic and bilingual direction semantics',async()=>{
+  const [renderer,direction]=await Promise.all([
+    read('src/templates/TemplateRenderer.tsx'),
+    read('src/styles/document-direction-v78.css')
+  ]);
   assert.match(renderer,/doc\.language === 'ar'/);
   assert.match(renderer,/doc\.language === 'en'/);
   assert.match(renderer,/dir="rtl"/);
   assert.match(renderer,/bi-label/);
   assert.match(renderer,/bi-value/);
   assert.match(renderer,/doc-title-primary-ar/);
+  assert.match(direction,/\.invoice-page\.lang-en\{direction:ltr/);
+  assert.match(direction,/\.invoice-page\.lang-ar\{direction:rtl/);
+  assert.match(direction,/\.invoice-page\.lang-bi\{direction:ltr/);
+  assert.match(direction,/\.invoice-page\.lang-ar \.items-table\{direction:rtl\}/);
+  assert.match(direction,/unicode-bidi:isolate/);
 });
 
 test('A4 and multi-page print guardrails remain present for every template',async()=>{
-  const [documentCss,appCss,renderer,documents]=await Promise.all([
-    read('src/styles/document.css'),read('src/styles/app.css'),read('src/templates/TemplateRenderer.tsx'),read('src/lib/documents.ts')
+  const [documentCss,appCss,direction,renderer,documents]=await Promise.all([
+    read('src/styles/document.css'),read('src/styles/app.css'),read('src/styles/document-direction-v78.css'),read('src/templates/TemplateRenderer.tsx'),read('src/lib/documents.ts')
   ]);
   assert.match(documentCss,/width:210mm;height:297mm/);
   assert.match(appCss,/@media print/);
   assert.match(appCss,/page-break-after:always/);
+  assert.match(direction,/@page\{size:A4;margin:0\}/);
+  assert.match(direction,/page-break-inside:avoid/);
   assert.match(renderer,/paginateItems/);
   assert.match(renderer,/totalPages/);
   assert.match(renderer,/finalPage/);
