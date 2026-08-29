@@ -99,6 +99,11 @@ export class EditorPage extends React.Component<Props,State>{
       await this.props.onSave(snapshot,auto);
       const hasNewerChanges=this.state.doc.updatedAt!==snapshot.updatedAt;
       this.setState({saving:false,saveState:hasNewerChanges?'unsaved':'saved'},()=>{
+        // Only the explicit Save action leaves the editor, and only after the
+        // exact draft the user saw has been persisted successfully. If the user
+        // typed again while the save was in flight, keep the editor open so the
+        // newer input cannot be lost.
+        if(!auto&&!hasNewerChanges){this.props.onClose();return;}
         if(!hasNewerChanges)return;
         if(document.visibilityState==='hidden')void this.save(true);else this.schedule();
       });
