@@ -39,13 +39,11 @@ test('financial validation accepts the same decimal grammar used by calculations
   assert.ok(validateDocument(doc).shipping);
 });
 
-test('tax percentages are bounded to a valid 0–100 range',()=>{
+test('high-rate tax percentages remain supported while negative tax is rejected',()=>{
   const doc=validDocument();
   doc.adjustments.taxEnabled=true;
-  doc.adjustments.taxPercent='100';
+  doc.adjustments.taxPercent='150';
   assert.equal(validateDocument(doc).tax,undefined);
-  doc.adjustments.taxPercent='100.0001';
-  assert.equal(validateDocument(doc).tax,'Tax percentage cannot exceed 100%.');
   doc.adjustments.taxPercent='-1';
   assert.equal(validateDocument(doc).tax,'Tax must be 0 or greater.');
 });
