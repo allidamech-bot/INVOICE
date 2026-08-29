@@ -1,10 +1,10 @@
-import { currentCloudUser, getCloudVaultMeta } from './firebase.js';
+import { currentCloudUser, getCloudVaultMeta, reconcileCloudVault } from './firebase.js';
 import { getCloudAccount, getEncryptedVault } from '../storage/db.js';
 
 let timer:number|undefined;
 let running=false;
 let stopped=false;
-const NOTICE_GUARD='lourex-cloud-newer-revision';
+let lastHandledRevision='';
 
 function appIsSafeToCheck():boolean{
   if(document.visibilityState!=='visible')return false;
@@ -25,36 +25,40 @@ async function checkCloudFreshness():Promise<void>{
     const linked=await getCloudAccount();
     if(!linked||linked.uid!==user.uid)return;
     const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(user.uid)]);
-    if(!local||!remote||remote.updatedAt<=local.updatedAt)return;
-    const guard=`${user.uid}:${remote.revision}`;
-    if(sessionStorage.getItem(NOTICE_GUARD)===guard)return;
+    if(!remote)return;
+    if(local&&remote.updatedAt<=local.updatedAt)return;
+    if(remote.revision===lastHandledRevision)return;
 
-    // A background watcher must never replace or reload a live local vault.
-    // Reuse App's online handler so its protected cloud pipeline drains pending
-    // writes, detects the newer cloud revision, and tells the user to Sync Now.
-    sessionStorage.setItem(NOTICE_GUARD,guard);
-    window.dispatchEvent(new Event('online'));
+    /*
+      No editor/modal is open here, so it is safe to reconcile the encrypted
+      vault.  This is the missing cross-browser path: the old watcher only
+      dispatched an `online` event, while App's online handler is a push path.
+      Reconcile performs the timestamp/integrity checks and pulls when cloud is
+      newer.  Reload only after a successful pull so the in-memory vault is
+      rebuilt from the newly installed encrypted record.
+    */
+    const result=await reconcileCloudVault(user.uid);
+    lastHandledRevision=remote.revision;
+    if(result==='pulled')window.location.reload();
   }catch{
-    // App-level cloud controls surface sync errors; the watcher stays silent.
+    // App-level cloud controls surface actionable errors; watcher stays quiet.
   }finally{
     running=false;
   }
 }
 
-function schedule(delay=250):void{
-  window.setTimeout(()=>void checkCloudFreshness(),delay);
-}
+function schedule(delay=250):void{window.setTimeout(()=>void checkCloudFreshness(),delay);}
 
 export function startCloudFreshnessWatcher():()=>void{
   stopped=false;
-  const onFocus=()=>schedule(150);
-  const onOnline=()=>schedule(250);
-  const onVisibility=()=>{if(document.visibilityState==='visible')schedule(200);};
+  const onFocus=()=>schedule(100);
+  const onOnline=()=>schedule(150);
+  const onVisibility=()=>{if(document.visibilityState==='visible')schedule(120);};
   window.addEventListener('focus',onFocus);
   window.addEventListener('online',onOnline);
   document.addEventListener('visibilitychange',onVisibility);
-  timer=window.setInterval(()=>void checkCloudFreshness(),20_000);
-  schedule(1200);
+  timer=window.setInterval(()=>void checkCloudFreshness(),5_000);
+  schedule(700);
   return ()=>{
     stopped=true;
     window.removeEventListener('focus',onFocus);
