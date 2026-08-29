@@ -1,7 +1,7 @@
 import type { DocumentKind, LourexDocument } from '../types.js';
 import { calculateTotals, compareMoneyStrings, formatMoney } from '../lib/money.js';
 import { displayDate } from '../lib/id.js';
-import { validateDocument } from '../lib/documents.js';
+import { hasDocumentCustomer, validateDocument } from '../lib/documents.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { Button, Icon, IconButton, Input, Segmented, Select } from './UI.js';
 
@@ -84,7 +84,7 @@ export class DocumentsPage extends React.Component<Props, State> {
         const kindLabel = doc.kind === 'proforma' ? t('Proforma Invoice','عرض سعر') : t('Invoice','فاتورة');
         const state=workflowStatus(doc);
         const statusLabel = state==='draft'?t('Draft','مسودة'):state==='ready'?t('Ready','جاهز'):t('Final','نهائي');
-        const missingCustomer=!doc.customerSnapshot;
+        const missingCustomer=!hasDocumentCustomer(doc);
         const canOutput=doc.status==='final';
         return <article className={`document-card document-${doc.kind} premium-document-card workflow-${state} ${missingCustomer?'needs-customer':''}`} key={doc.id}>
           <button className="document-main" onClick={()=>this.props.onOpen(doc)}>
