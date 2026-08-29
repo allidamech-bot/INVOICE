@@ -22,6 +22,7 @@ function auth():any{ensureFirebase();return firebase.auth();} function db():any{
 function userFrom(raw:any):CloudUser|null{return raw?{uid:String(raw.uid),email:String(raw.email||'')}:null;}
 function vaultCollection(uid:string):any{return db().collection('users').doc(uid).collection('vault');}
 function requireCurrentUid(uid:string):void{const current=auth().currentUser;if(!current||current.uid!==uid)throw new Error('Cloud session is not available for this account.');}
+function markRecentAuth():void{try{sessionStorage.setItem('lourex-auth-just-signed-in','1');}catch{}}
 function splitCipher(cipher:string):string[]{if(cipher.length>MAX_CIPHER_LENGTH)throw new Error('Encrypted vault is too large for cloud sync. Export a local backup and remove oversized images.');const out:string[]=[];for(let i=0;i<cipher.length;i+=CHUNK_SIZE)out.push(cipher.slice(i,i+CHUNK_SIZE));return out;}
 function revisionId():string{const bytes=new Uint8Array(8);crypto.getRandomValues(bytes);return `${Date.now().toString(36)}-${Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')}`;}
 async function sha256(value:string):Promise<string>{const bytes=new TextEncoder().encode(value);const digest=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');}
@@ -34,12 +35,15 @@ export async function waitForCloudUser():Promise<CloudUser|null>{
   try{await auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch{}
   const immediate=userFrom(auth().currentUser);if(immediate)return immediate;
   let recent=false;try{recent=sessionStorage.getItem('lourex-auth-just-signed-in')==='1';}catch{}
-  const timeoutMs=recent?8000:1800;
+  // Existing devices now initialize local-first, so a longer auth restoration
+  // window no longer delays their UI and gives iOS/Safari time to restore LOCAL
+  // Firebase persistence before we incorrectly show another sign-in screen.
+  const timeoutMs=recent?10_000:5_000;
   return new Promise(resolve=>{let settled=false;let off:undefined|(()=>void);const finish=(value:CloudUser|null)=>{if(settled)return;settled=true;if(off)off();try{if(value)sessionStorage.removeItem('lourex-auth-just-signed-in');}catch{}resolve(value);};const timeout=window.setTimeout(()=>finish(userFrom(auth().currentUser)),timeoutMs);off=auth().onAuthStateChanged((user:any)=>{window.clearTimeout(timeout);finish(userFrom(user));},()=>{window.clearTimeout(timeout);finish(null);});});
 }
 export function currentCloudUser():CloudUser|null{try{return userFrom(auth().currentUser);}catch{return null;}}
-export async function createCloudUser(email:string,password:string):Promise<CloudUser>{ensureFirebase();await auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);const credential=await auth().createUserWithEmailAndPassword(email.trim(),password);const user=userFrom(credential.user);if(!user)throw new Error('Unable to create the cloud account.');return user;}
-export async function signInCloudUser(email:string,password:string):Promise<CloudUser>{ensureFirebase();await auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);const credential=await auth().signInWithEmailAndPassword(email.trim(),password);const user=userFrom(credential.user);if(!user)throw new Error('Unable to sign in.');return user;}
+export async function createCloudUser(email:string,password:string):Promise<CloudUser>{ensureFirebase();await auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);const credential=await auth().createUserWithEmailAndPassword(email.trim(),password);const user=userFrom(credential.user);if(!user)throw new Error('Unable to create the cloud account.');markRecentAuth();return user;}
+export async function signInCloudUser(email:string,password:string):Promise<CloudUser>{ensureFirebase();await auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);const credential=await auth().signInWithEmailAndPassword(email.trim(),password);const user=userFrom(credential.user);if(!user)throw new Error('Unable to sign in.');markRecentAuth();return user;}
 export async function signOutCloudUser():Promise<void>{ensureFirebase();await auth().signOut();}
 export async function sendCloudPasswordReset(email:string):Promise<void>{ensureFirebase();await auth().sendPasswordResetEmail(email.trim());}
 export function friendlyCloudError(error:unknown):string{const code=String((error as any)?.code||'');if(code.includes('invalid-credential')||code.includes('wrong-password')||code.includes('user-not-found'))return 'Email or password is incorrect.';if(code.includes('email-already-in-use'))return 'This email already has a LOUREX cloud account.';if(code.includes('weak-password'))return 'Use a stronger password with at least 6 characters.';if(code.includes('invalid-email'))return 'Enter a valid email address.';if(code.includes('too-many-requests'))return 'Too many attempts. Try again later.';if(code.includes('network-request-failed'))return 'Cloud connection failed. Check your internet connection.';if(code.includes('permission-denied'))return 'Firebase security rules are not enabled for LOUREX yet.';if(String((error as any)?.message||'').includes('payload size exceeds'))return 'Cloud sync data is large. LOUREX will upload it in smaller secure parts; please try Sync Now again.';return error instanceof Error?error.message:'Cloud operation failed.';}
