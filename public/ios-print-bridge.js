@@ -110,6 +110,14 @@
     }));
   };
 
+  const releaseParentPrintState = () => {
+    /* The actual print dialog runs in the child PDF window, so Safari never fires
+       `afterprint` on the parent application window. Dispatch the same event once
+       the rendered A4 markup has been safely copied, otherwise the app remains in
+       its hidden `printing` state after a successful iPhone PDF handoff. */
+    try { window.dispatchEvent(new Event('afterprint')); } catch {}
+  };
+
   window.print = function lourexPrintBridge() {
     const target = pendingPdfWindow;
     pendingPdfWindow = null;
@@ -128,6 +136,7 @@
     try {
       hydratePdfWindow(target, portal);
       target.focus();
+      releaseParentPrintState();
       /* Do not rely on an asynchronous automatic print call on iOS. Safari may
          reject it after the gesture expires. The PDF page is now visible and its
          Save PDF button always calls print() directly from a fresh user tap. */
