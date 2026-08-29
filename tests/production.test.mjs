@@ -123,7 +123,7 @@ test('first-run onboarding requires a cloud account before local PIN setup', asy
 test('offline service worker precaches the complete application module graph and current runtime', async () => {
   const sw = await read('dist/sw.js');
   assert.match(sw, /lourex-invoice-v\d+/);
-  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/components/EditorPageCore.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/storage/vault-merge.js','src/crypto/crypto.js','styles/premium.css','styles/accounting-polish.css','styles/cloud.css','styles/auth-entry.css','styles/v44-audit.css','styles/mobile-editor-fixes.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
+  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/components/EditorPageCore.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/storage/vault-merge.js','src/crypto/crypto.js','styles/premium.css','styles/accounting-polish.css','styles/cloud.css','styles/auth-entry.css','styles/v44-audit.css','styles/editor-system.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
 });
 
 test('print stylesheet isolates A4 documents from application chrome', async () => {
