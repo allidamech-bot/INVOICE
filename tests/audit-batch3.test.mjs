@@ -22,6 +22,13 @@ test('newer remote revisions are reconciled instead of entering the push-only on
   assert.match(app,/screen==='editor'/);
 });
 
+test('cloud freshness watcher is read-only and cannot bypass App account-link safety checks',async()=>{
+  const freshness=await read('src/cloud/freshness.ts');
+  assert.doesNotMatch(freshness,/putCloudAccount/);
+  assert.match(freshness,/const linked=await getCloudAccount\(\)/);
+  assert.match(freshness,/if\(!linked\|\|linked\.uid!==user\.uid\)return/);
+});
+
 test('all Firebase sign-in entry points mark the just-signed-in restoration window',async()=>{
   const firebase=await read('src/cloud/firebase.ts');
   assert.match(firebase,/function markRecentAuth/);
