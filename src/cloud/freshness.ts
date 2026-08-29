@@ -1,4 +1,4 @@
-import { currentCloudUser, getCloudVaultMeta, reconcileCloudVault } from './firebase.js';
+import { currentCloudUser, getCloudVaultMeta } from './firebase.js';
 import { getCloudAccount, getEncryptedVault, putCloudAccount } from '../storage/db.js';
 
 let timer:number|undefined;
@@ -25,8 +25,8 @@ async function checkCloudFreshness():Promise<void>{
     let linked=await getCloudAccount();
 
     // Safari and an installed iOS web app can have separate site-storage contexts.
-    // If Firebase already restored the signed-in account but this browser context
-    // has not stored the local cloud-link record yet, safely recreate that link.
+    // Recreate only the harmless account link here; App remains the sole owner of
+    // live vault replacement, conflict handling and user-visible sync state.
     if(!linked){
       await putCloudAccount(user.uid,user.email);
       linked=await getCloudAccount();
@@ -34,25 +34,18 @@ async function checkCloudFreshness():Promise<void>{
     if(!linked||linked.uid!==user.uid)return;
 
     const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(user.uid)]);
-    if(!remote)return;
+    if(!remote||!local||remote.updatedAt<=local.updatedAt)return;
 
-    // Reconcile in both directions. This makes a normal browser tab behave like
-    // the installed app: newer cloud data is pulled, newer local data is pushed.
-    const result=await reconcileCloudVault(user.uid);
-    if(result==='pulled'){
-      const guard=`${user.uid}:${remote.revision}`;
-      if(sessionStorage.getItem(NOTICE_GUARD)===guard)return;
-      sessionStorage.setItem(NOTICE_GUARD,guard);
-      window.location.reload();
-      return;
-    }
+    const guard=`${user.uid}:${remote.revision}`;
+    if(sessionStorage.getItem(NOTICE_GUARD)===guard)return;
 
-    // If another client published a newer revision between reads, schedule a
-    // near-term follow-up rather than waiting for the periodic interval.
-    if(local&&remote.updatedAt>local.updatedAt)window.setTimeout(()=>void checkCloudFreshness(),700);
+    // Never reconcile or reload from a background watcher. Hand control back to
+    // App's protected online pipeline so active editing and local writes cannot be
+    // replaced underneath the user.
+    sessionStorage.setItem(NOTICE_GUARD,guard);
+    window.dispatchEvent(new Event('online'));
   }catch{
-    // App-level cloud controls surface sync errors; this background watcher
-    // deliberately stays silent and retries on the next focus/timer cycle.
+    // App-level cloud controls surface sync errors; this watcher stays silent.
   }finally{
     running=false;
   }
@@ -64,16 +57,16 @@ function schedule(delay=250):void{
 
 export function startCloudFreshnessWatcher():()=>void{
   stopped=false;
-  const onFocus=()=>schedule(120);
-  const onOnline=()=>schedule(180);
-  const onPageshow=()=>schedule(160);
-  const onVisibility=()=>{if(document.visibilityState==='visible')schedule(150);};
+  const onFocus=()=>schedule(150);
+  const onOnline=()=>schedule(250);
+  const onPageshow=()=>schedule(180);
+  const onVisibility=()=>{if(document.visibilityState==='visible')schedule(200);};
   window.addEventListener('focus',onFocus);
   window.addEventListener('online',onOnline);
   window.addEventListener('pageshow',onPageshow);
   document.addEventListener('visibilitychange',onVisibility);
-  timer=window.setInterval(()=>void checkCloudFreshness(),5_000);
-  schedule(600);
+  timer=window.setInterval(()=>void checkCloudFreshness(),20_000);
+  schedule(1200);
   return ()=>{
     stopped=true;
     window.removeEventListener('focus',onFocus);
