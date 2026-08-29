@@ -148,4 +148,4 @@ test('print and A4 guardrails remain isolated from application editor chrome und
   assert.match(docCss, /page-break-after:always/);
   assert.doesNotMatch(editorCss, /\.invoice-page/);
   assert.doesNotMatch(editorCss, /\.document-page/);
-}));
+});
