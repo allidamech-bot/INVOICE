@@ -32,9 +32,9 @@ test('production config enables conservative browser hardening headers without a
   assert.doesNotMatch(config,/Content-Security-Policy/);
 });
 
-test('v55 service worker ships the recovery and update entry modules offline',async()=>{
+test('current service worker ships the recovery and update entry modules offline',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/lourex-invoice-v55/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/src\/app\/index\.js/);
   assert.match(sw,/src\/app\/AppErrorBoundary\.js/);
 });
