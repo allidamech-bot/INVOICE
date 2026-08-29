@@ -49,7 +49,10 @@ export function DocumentReviewModal({document:doc,mode,issues,working,onClose,on
   const stampShown=doc.appearance.showStamp&&Boolean(doc.companySnapshot.stampDataUrl);
   const warningCount=issues.filter(issue=>issue.level==='warning').length;
   const confirm=()=>{
-    if(mode==='pdf'){
+    // PDF and Share both end in the iOS PDF/print handoff. Open the destination
+    // synchronously from this exact tap before finalizing/saving the draft, or
+    // Safari can discard the user activation and silently block the output.
+    if(mode==='pdf'||mode==='share'){
       try{(window as any).__LOUREX_PREPARE_PDF__?.();}catch{}
     }
     onConfirm();
