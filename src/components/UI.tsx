@@ -34,9 +34,34 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
   return <label className="toggle-row"><button type="button" role="switch" aria-checked={checked} className={`toggle ${checked ? 'on' : ''}`} onClick={() => onChange(!checked)}><span/></button><span>{label}</span></label>;
 }
 
+interface ModalFrameProps { title:string; children:any; onClose:()=>void; size:'sm'|'md'|'lg'|'xl'; footer?:any; }
+class ModalFrame extends React.Component<ModalFrameProps> {
+  private backdrop:HTMLDivElement|null=null;
+  private previousFocus:HTMLElement|null=null;
+  componentDidMount():void{
+    this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    document.addEventListener('keydown',this.handleKeyDown);
+  }
+  componentWillUnmount():void{
+    document.removeEventListener('keydown',this.handleKeyDown);
+    try{this.previousFocus?.focus({preventScroll:true});}catch{}
+  }
+  private handleKeyDown=(event:KeyboardEvent)=>{
+    if(event.key!=='Escape'||!this.backdrop)return;
+    const backdrops=document.querySelectorAll('.modal-backdrop');
+    if(backdrops.length&&backdrops[backdrops.length-1]!==this.backdrop)return;
+    event.preventDefault();
+    this.props.onClose();
+  };
+  render():any{
+    const {title,children,onClose,size,footer}=this.props;
+    return <div ref={(node:any)=>{this.backdrop=node;}} className="modal-backdrop" role="presentation" onMouseDown={(e:any) => { if (e.target === e.currentTarget) onClose(); }}><section className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-label={title}><header className="modal-header"><h2>{title}</h2><IconButton icon="x" label={t('Close','إغلاق')} onClick={onClose}/></header><div className="modal-body">{children}</div>{footer ? <footer className="modal-footer">{footer}</footer> : null}</section></div>;
+  }
+}
+
 export function Modal({ open, title, children, onClose, size = 'md', footer }: { open: boolean; title: string; children: any; onClose: () => void; size?: 'sm'|'md'|'lg'|'xl'; footer?: any }): any {
   if (!open) return null;
-  return <div className="modal-backdrop" role="presentation" onMouseDown={(e: any) => { if (e.target === e.currentTarget) onClose(); }}><section className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-label={title}><header className="modal-header"><h2>{title}</h2><IconButton icon="x" label={t('Close','إغلاق')} onClick={onClose}/></header><div className="modal-body">{children}</div>{footer ? <footer className="modal-footer">{footer}</footer> : null}</section></div>;
+  return <ModalFrame title={title} size={size} onClose={onClose} footer={footer}>{children}</ModalFrame>;
 }
 
 export function ConfirmDialog({ open, title, message, confirmLabel, destructive = true, onCancel, onConfirm }: { open: boolean; title: string; message: string; confirmLabel?: string; destructive?: boolean; onCancel: () => void; onConfirm: () => void }): any {
