@@ -4,7 +4,6 @@ import { getCloudAccount, getEncryptedVault, putCloudAccount } from '../storage/
 let timer:number|undefined;
 let running=false;
 let stopped=false;
-const NOTICE_GUARD='lourex-cloud-newer-revision';
 
 function appIsSafeToCheck():boolean{
   if(document.visibilityState!=='visible')return false;
@@ -36,14 +35,11 @@ async function checkCloudFreshness():Promise<void>{
     const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(user.uid)]);
     if(!remote||!local||remote.updatedAt<=local.updatedAt)return;
 
-    const guard=`${user.uid}:${remote.revision}`;
-    if(sessionStorage.getItem(NOTICE_GUARD)===guard)return;
-
-    // Never reconcile or reload from a background watcher. Hand control back to
-    // App's protected online pipeline so active editing and local writes cannot be
-    // replaced underneath the user.
-    sessionStorage.setItem(NOTICE_GUARD,guard);
-    window.dispatchEvent(new Event('online'));
+    // A newer remote revision must never be routed through the normal online
+    // handler because that path is push-only. Ask App for a protected reconcile;
+    // if the user begins editing before App handles it, the watcher will retry on
+    // a later safe check instead of suppressing the revision for the whole session.
+    window.dispatchEvent(new Event('lourex-cloud-remote-newer'));
   }catch{
     // App-level cloud controls surface sync errors; this watcher stays silent.
   }finally{
