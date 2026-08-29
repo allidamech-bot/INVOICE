@@ -1,0 +1,80 @@
+/* v70 — iPhone/PWA viewport containment.
+   Prevents horizontal overflow, honors safe areas, and keeps top/bottom controls reachable. */
+html,body,#root,.app-root,.app-ui{max-width:100%;overflow-x:hidden}
+body{width:100%;min-width:0}
+
+@supports(height:100dvh){
+  .app-root,.app-ui{min-height:100dvh}
+  .app-ui .editor-screen{height:calc(100dvh - var(--header))}
+}
+
+@media(max-width:720px){
+  :root{--header:58px}
+  html,body,#root,.app-root,.app-ui{width:100%!important;max-width:100%!important;min-width:0!important}
+  .app-ui *{max-width:100%}
+
+  .app-ui .app-header{
+    width:100%!important;max-width:100vw!important;
+    padding-left:max(10px,env(safe-area-inset-left))!important;
+    padding-right:max(10px,env(safe-area-inset-right))!important;
+  }
+  .app-ui .main-content{width:100%!important;max-width:100%!important;padding-left:12px!important;padding-right:12px!important}
+
+  .app-ui .editor-screen{
+    width:100%!important;max-width:100vw!important;min-width:0!important;
+    overflow:hidden!important;
+  }
+  .app-ui .editor-topbar{
+    width:100%!important;max-width:100%!important;min-width:0!important;
+    padding-left:max(8px,env(safe-area-inset-left))!important;
+    padding-right:max(8px,env(safe-area-inset-right))!important;
+  }
+  .app-ui .editor-top-left,.app-ui .editor-actions,.app-ui .editor-layout,.app-ui .editor-pane,.app-ui .editor-scroll{
+    min-width:0!important;max-width:100%!important;
+  }
+  .app-ui .editor-layout{display:block!important;width:100%!important;overflow:hidden!important}
+  .app-ui .editor-pane{width:100%!important;border-right:0!important}
+  .app-ui .editor-scroll{
+    width:100%!important;
+    overflow-y:auto!important;overflow-x:hidden!important;
+    -webkit-overflow-scrolling:touch;
+    padding-left:max(8px,env(safe-area-inset-left))!important;
+    padding-right:max(8px,env(safe-area-inset-right))!important;
+    padding-bottom:calc(124px + env(safe-area-inset-bottom))!important;
+  }
+  .app-ui .editor-scroll>*{width:100%!important;max-width:100%!important;min-width:0!important;margin-left:0!important;margin-right:0!important}
+  .app-ui .editor-section,.app-ui .premium-item-card,.app-ui .form-grid,.app-ui .item-core-grid,.app-ui .item-pricing-grid{
+    width:100%!important;max-width:100%!important;min-width:0!important;
+  }
+  .app-ui .form-grid.two{grid-template-columns:minmax(0,1fr)!important}
+  .app-ui .span-2{grid-column:1!important}
+  .app-ui .item-pricing-grid{grid-template-columns:minmax(0,1fr) minmax(92px,.55fr)!important}
+  .app-ui .item-pricing-grid>.field:nth-child(3){grid-column:1/-1!important}
+
+  .app-ui .section-heading-actions{width:100%!important;min-width:0!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
+  .app-ui .section-heading-actions .btn{min-width:0!important;width:100%!important;padding-inline:8px!important}
+  .app-ui .section-heading-actions .btn span{display:block!important;min-width:0!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;line-height:1.2!important;text-align:center!important}
+
+  .app-ui .mobile-editor-actionbar{
+    left:max(8px,env(safe-area-inset-left))!important;
+    right:max(8px,env(safe-area-inset-right))!important;
+    bottom:max(8px,env(safe-area-inset-bottom))!important;
+    width:auto!important;max-width:none!important;
+  }
+  .app-ui .mobile-action-buttons{width:100%!important;min-width:0!important}
+  .app-ui .mobile-action-buttons .btn{min-width:0!important}
+
+  .app-ui .modal-backdrop{
+    padding-top:max(10px,env(safe-area-inset-top))!important;
+    padding-right:max(10px,env(safe-area-inset-right))!important;
+    padding-bottom:max(10px,env(safe-area-inset-bottom))!important;
+    padding-left:max(10px,env(safe-area-inset-left))!important;
+  }
+  .app-ui .modal{width:100%!important;max-width:100%!important;max-height:calc(100dvh - 20px)!important}
+}
+
+@media(max-width:390px){
+  .app-ui .section-heading-actions{grid-template-columns:1fr!important}
+  .app-ui .item-pricing-grid{grid-template-columns:1fr!important}
+  .app-ui .item-pricing-grid>.field:nth-child(3){grid-column:auto!important}
+}
