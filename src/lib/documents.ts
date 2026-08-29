@@ -72,6 +72,11 @@ export function createBlankDocument(kind: DocumentKind, number: string, company:
   };
 }
 
+export function hasDocumentCustomer(doc:LourexDocument):boolean{
+  const customer=doc.customerSnapshot;
+  return Boolean(customer&&(customer.companyNameEn.trim()||customer.companyNameAr.trim()));
+}
+
 function documentSubtotalCents(doc:LourexDocument):bigint{
   return doc.items.reduce((sum,item)=>sum+decimalToScaled(lineTotal(item.quantity,item.unitPrice),2),0n);
 }
@@ -85,7 +90,7 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
   if(doc.dueDate&&!isIsoDate(doc.dueDate))errors.dueDate=doc.kind==='proforma'?'Valid until date is invalid.':'Due date is invalid.';
   else if(doc.dueDate&&isIsoDate(doc.issueDate)&&compareIsoDates(doc.dueDate,doc.issueDate)<0)errors.dueDate=doc.kind==='proforma'?'Valid until date cannot be before issue date.':'Due date cannot be before issue date.';
   if (!doc.currency.trim()) errors.currency = 'Currency is required.';
-  if (!doc.customerSnapshot?.companyNameEn.trim() && !doc.customerSnapshot?.companyNameAr.trim()) errors.customer = 'Select a customer.';
+  if (!hasDocumentCustomer(doc)) errors.customer = 'Select a customer.';
   if (doc.items.length < 1) errors.items = 'Add at least one item.';
   doc.items.forEach((item, index) => {
     if (doc.language === 'ar') {
@@ -123,8 +128,11 @@ function daysBetween(start:string,end:string):number{
 export function duplicateDocument(source: LourexDocument, number: string): LourexDocument {
   const now = new Date().toISOString();
   const issueDate = todayIso();
-  let dueDate = source.kind === 'invoice' ? '' : source.dueDate;
-  if (source.kind === 'proforma' && source.issueDate && source.dueDate) {
+  // Preserve the original commercial date interval instead of silently dropping
+  // invoice due dates. Proformas keep their validity window and invoices keep
+  // their payment due window relative to the new issue date.
+  let dueDate = source.dueDate;
+  if (source.issueDate && source.dueDate) {
     dueDate = addDaysIso(issueDate, daysBetween(source.issueDate,source.dueDate));
   }
   return { ...structuredClone(source), id: makeId('doc'), number, issueDate, dueDate, status: 'draft', convertedFromId: '', createdAt: now, updatedAt: now, items: source.items.map(i => ({ ...structuredClone(i), id: makeId('item') })) };
