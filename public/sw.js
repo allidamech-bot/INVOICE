@@ -43,10 +43,10 @@ self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const url=new URL(event.request.url);
 
-  if(url.origin!==self.location.origin){
+  if(url.origin !== self.location.origin){
     if(!EXTERNAL_CORE_SET.has(url.href))return;
     event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{
-      if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone())).catch(()=>undefined);
+      if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request, response.clone())).catch(()=>undefined);
       return response;
     })));
     return;
@@ -66,7 +66,7 @@ self.addEventListener('fetch',event=>{
   }
 
   event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{
-    if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone())).catch(()=>undefined);
+    if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request, response.clone())).catch(()=>undefined);
     return response;
   }).catch(()=>event.request.mode==='navigate'?caches.match('./index.html'):new Response('',{status:504,statusText:'Offline'}))));
 });
