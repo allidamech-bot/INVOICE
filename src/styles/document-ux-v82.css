@@ -1,0 +1,132 @@
+/* v82 — quote/invoice workflow refinement. UI-only; printable A4 internals are intentionally untouched. */
+
+/* Keep the editor controls stable while long quotes/invoices are being edited. */
+.editor-topbar{
+  position:sticky;
+  top:0;
+  z-index:35;
+  box-shadow:0 1px 0 rgba(11,29,45,.06);
+}
+.editor-top-left{min-width:0}
+.editor-top-left>div{min-width:0}
+.editor-top-left strong,.editor-top-left span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.editor-workflow-badge{flex:0 0 auto}
+.editor-grand-total-chip{min-width:0}
+.editor-grand-total-chip strong{font-variant-numeric:tabular-nums}
+
+/* Validation should read as a clear state, not as another decoration layer. */
+.editor-section.has-error,
+.editor-section:has(.field-error),
+.item-card:has(.field-error),
+.premium-item-card:has(.field-error){
+  border-color:rgba(159,59,50,.45)!important;
+  box-shadow:0 0 0 2px rgba(159,59,50,.055)!important;
+}
+.field-error,.inline-error{font-weight:700;line-height:1.35}
+
+/* Make the final-review decision area remain reachable on small displays. */
+.issue-review{padding-bottom:4px}
+.issue-review-grid strong,.issue-total-check strong{font-variant-numeric:tabular-nums}
+.modal-footer-actions{max-width:100%}
+
+/* Document workspace: preserve hierarchy and avoid action/content collisions. */
+.premium-document-card{position:relative}
+.premium-document-card .document-main{min-width:0}
+.premium-document-card .document-info,.premium-document-card .document-total{min-width:0}
+.premium-document-card .document-info strong,.premium-document-card .document-info b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.premium-document-card .document-total strong{font-variant-numeric:tabular-nums}
+.premium-document-card.needs-customer{border-color:rgba(159,59,50,.30)}
+.premium-document-card.needs-customer .document-info-meta em{color:#8f3029;font-style:normal;font-weight:750}
+
+@media(max-width:720px){
+  .editor-topbar{
+    min-height:58px!important;
+    height:auto!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    grid-template-rows:auto auto!important;
+    gap:6px 8px!important;
+    padding:8px max(8px,env(safe-area-inset-right)) 8px max(8px,env(safe-area-inset-left))!important;
+  }
+  .editor-top-left{grid-column:1;grid-row:1;gap:6px!important}
+  .editor-top-left>.icon-btn{width:42px!important;height:42px!important;min-width:42px!important}
+  .editor-top-left>div strong{font-size:12px!important}
+  .editor-workflow-badge{font-size:10px!important}
+  .editor-grand-total-chip{grid-column:2;grid-row:1;justify-self:end;max-width:145px!important}
+  .save-indicator{grid-column:1/-1;grid-row:2;justify-self:start;min-height:18px}
+  .editor-actions{display:none!important}
+
+  .mobile-editor-actionbar{
+    z-index:55!important;
+    backdrop-filter:blur(18px);
+    background:rgba(255,253,249,.96)!important;
+    border:1px solid rgba(11,29,45,.12)!important;
+    box-shadow:0 14px 38px rgba(11,29,45,.18)!important;
+  }
+  .mobile-total{min-width:0}
+  .mobile-total strong{font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mobile-action-buttons{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:6px!important;
+  }
+  .mobile-action-buttons .btn{
+    min-width:0!important;
+    min-height:44px!important;
+    height:44px!important;
+    padding-inline:7px!important;
+  }
+  .mobile-action-buttons .btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .mobile-preview-overlay>header{
+    position:sticky!important;
+    top:0!important;
+    z-index:4!important;
+    padding-top:max(6px,env(safe-area-inset-top))!important;
+    min-height:58px!important;
+    height:auto!important;
+    box-shadow:0 1px 0 rgba(11,29,45,.08)!important;
+  }
+  .mobile-preview-overlay>header .icon-btn{width:44px!important;height:44px!important;min-width:44px!important}
+
+  .modal-footer{
+    position:sticky;
+    bottom:0;
+    z-index:3;
+    padding-bottom:max(12px,env(safe-area-inset-bottom))!important;
+  }
+  .modal-footer-actions{width:100%;display:grid!important;grid-template-columns:1fr 1fr!important}
+  .modal-footer-actions .btn{width:100%;min-height:44px;height:auto;white-space:normal;line-height:1.25;padding-block:8px}
+
+  .documents-heading{align-items:stretch!important}
+  .documents-heading-actions{display:grid!important;grid-template-columns:1fr 1fr!important;width:100%!important}
+  .documents-heading-actions .btn{width:100%!important;min-height:44px!important;height:auto!important}
+  .premium-documents-toolbar{position:relative}
+  .documents-toolbar-right{width:100%!important}
+  .documents-toolbar-right .search-box{width:100%!important}
+  .documents-sort{width:100%!important}
+
+  .premium-document-card{padding:6px!important;align-items:stretch!important}
+  .premium-document-card .document-main{
+    grid-template-columns:42px minmax(0,1fr) auto!important;
+    gap:8px!important;
+    padding:9px 6px!important;
+  }
+  .premium-document-card .document-total{max-width:118px;align-items:flex-end}
+  .premium-document-card .document-total strong{font-size:12px!important;white-space:nowrap}
+  .premium-document-card .mobile-actions{display:flex!important;align-items:center!important}
+  .premium-document-card .mobile-actions>.icon-btn{width:44px!important;height:44px!important;min-width:44px!important}
+  .premium-document-card .action-menu{position:absolute!important;inset-inline-end:6px!important;inset-inline-start:auto!important;top:calc(100% - 4px)!important;width:min(230px,calc(100vw - 36px))!important;z-index:70!important}
+  .premium-document-card .action-menu button{min-height:44px!important}
+}
+
+@media(max-width:390px){
+  .editor-grand-total-chip{max-width:120px!important}
+  .mobile-action-buttons .btn{font-size:11px!important}
+  .premium-document-card .document-main{grid-template-columns:38px minmax(0,1fr) auto!important}
+  .premium-document-card .document-total{max-width:100px}
+}
+
+@media print{
+  /* Never let application UX refinements leak into the printable invoice. */
+  .editor-topbar,.mobile-editor-actionbar,.mobile-preview-overlay{display:none!important}
+}
