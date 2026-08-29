@@ -1,141 +1,61 @@
 /* v61 — editor workflow acceleration.
-   v63 extends the same final editor layer with a discoverable, touch-friendly "similar item" path.
-   Application editor chrome only; printable document/A4 internals are intentionally untouched. */
+   v63 adds the discoverable similar-item path.
+   v64 strengthens quote-to-invoice and final-issue checkpoints without touching printable A4 internals. */
 
-.app-ui .premium-item-card{
-  scroll-margin-top:116px;
-  transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease;
-}
-.app-ui .premium-item-card:focus-within{
-  border-color:#9ebdcd!important;
-  box-shadow:0 12px 30px rgba(20,72,102,.10)!important;
-}
-.app-ui .premium-item-card:focus-within>header{
-  background:linear-gradient(90deg,#eef6fa 0%,#fff 82%)!important;
-}
-.app-ui .premium-item-card:focus-within .item-line-total{
-  background:#e4f0f6;
-  color:#174866;
-}
-.app-ui .recent-customer-row>div{
-  scroll-snap-type:x proximity;
-}
-.app-ui .recent-customer-row button{
-  scroll-snap-align:start;
-}
+.app-ui .premium-item-card{scroll-margin-top:116px;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.app-ui .premium-item-card:focus-within{border-color:#9ebdcd!important;box-shadow:0 12px 30px rgba(20,72,102,.10)!important}
+.app-ui .premium-item-card:focus-within>header{background:linear-gradient(90deg,#eef6fa 0%,#fff 82%)!important}
+.app-ui .premium-item-card:focus-within .item-line-total{background:#e4f0f6;color:#174866}
+.app-ui .recent-customer-row>div{scroll-snap-type:x proximity}
+.app-ui .recent-customer-row button{scroll-snap-align:start}
 
-/* v63: the existing duplicate action is the safest fast-entry path for a similar line.
-   It intentionally reuses the current row only when the user explicitly chooses it;
-   Add Item itself keeps its blank/default pricing behavior. */
-.app-ui .item-card-actions .save-item-library-button+.icon-btn{
-  width:auto;
-  min-width:40px;
-  padding-inline:10px;
-  gap:6px;
-  border-color:#d4e0e6;
-  background:#f8fbfc;
-}
-.app-ui .item-card-actions .save-item-library-button+.icon-btn::after{
-  content:'Similar';
-  font-size:11px;
-  font-weight:700;
-  letter-spacing:.01em;
-  white-space:nowrap;
-  color:#31586e;
-}
-[dir='rtl'] .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{
-  content:'صنف مشابه';
-  letter-spacing:0;
-}
-.app-ui .item-card-actions .save-item-library-button+.icon-btn:hover,
-.app-ui .item-card-actions .save-item-library-button+.icon-btn:focus-visible{
-  border-color:#9ebdcd;
-  background:#edf6fa;
-}
+/* v63 — explicit similar-line duplication. */
+.app-ui .item-card-actions .save-item-library-button+.icon-btn{width:auto;min-width:40px;padding-inline:10px;gap:6px;border-color:#d4e0e6;background:#f8fbfc}
+.app-ui .item-card-actions .save-item-library-button+.icon-btn::after{content:'Similar';font-size:11px;font-weight:700;letter-spacing:.01em;white-space:nowrap;color:#31586e}
+[dir='rtl'] .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{content:'صنف مشابه';letter-spacing:0}
+.app-ui .item-card-actions .save-item-library-button+.icon-btn:hover,.app-ui .item-card-actions .save-item-library-button+.icon-btn:focus-visible{border-color:#9ebdcd;background:#edf6fa}
+
+/* v64 — make the quote conversion a deliberate workflow transition rather than another design control. */
+.app-ui .convert-invoice-button{width:100%;min-height:48px!important;margin-top:14px!important;justify-content:center!important;border-radius:13px!important;box-shadow:0 9px 22px rgba(20,72,102,.12)!important}
+.app-ui .convert-invoice-button::after{content:'Creates a new invoice and keeps this quote';margin-inline-start:8px;font-size:10.5px;font-weight:600;opacity:.72}
+[dir='rtl'] .app-ui .convert-invoice-button::after{content:'ينشئ فاتورة جديدة ويحافظ على عرض السعر';margin-inline-start:8px}
+
+/* v64 — final confirmation should make document identity, amount and lock behavior unmistakable. */
+.app-ui .issue-review-purpose{display:flex;gap:10px;align-items:flex-start;padding:12px 13px;border:1px solid #d8e4ea;border-radius:12px;background:#f7fafb;color:#234b61}
+.app-ui .issue-review-purpose>svg{flex:0 0 auto;margin-top:2px}
+.app-ui .issue-review-purpose>div{display:grid;gap:3px}
+.app-ui .issue-review-purpose strong{font-size:12px}
+.app-ui .issue-review-purpose span{font-size:11.5px;line-height:1.55;color:#536c79}
+.app-ui .issue-review-grid .issue-total-check{border-color:#c8dbe5;background:#f2f8fa}
+.app-ui .issue-review-grid .issue-total-check strong{font-size:15px;color:#174866}
 
 @media(max-width:1180px){
-  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{
-    position:sticky;
-    top:0;
-    z-index:14;
-    margin:-8px -8px 14px;
-    padding:8px;
-    border:1px solid rgba(202,217,225,.86);
-    border-radius:14px;
-    background:rgba(250,252,252,.96);
-    backdrop-filter:blur(14px);
-    box-shadow:0 8px 20px rgba(14,39,55,.07);
-  }
-  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action .section-heading-actions{
-    flex-shrink:0;
-  }
-  .app-ui .premium-item-card{
-    scroll-margin-top:132px;
-  }
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{position:sticky;top:0;z-index:14;margin:-8px -8px 14px;padding:8px;border:1px solid rgba(202,217,225,.86);border-radius:14px;background:rgba(250,252,252,.96);backdrop-filter:blur(14px);box-shadow:0 8px 20px rgba(14,39,55,.07)}
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action .section-heading-actions{flex-shrink:0}
+  .app-ui .premium-item-card{scroll-margin-top:132px}
 }
-
 @media(max-width:720px){
-  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{
-    top:4px;
-    margin:-7px -5px 12px;
-    padding:7px;
-    border-radius:13px;
-  }
-  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action>div:first-child{
-    min-height:26px;
-  }
-  .app-ui .editor-section:has(.add-item-button) .section-heading-actions .btn{
-    min-height:44px!important;
-  }
-  .app-ui .premium-item-card{
-    scroll-margin-top:150px;
-  }
-  .app-ui .premium-item-card:focus-within{
-    transform:translateY(-1px);
-  }
-  .app-ui .item-card-actions{
-    align-items:center;
-    row-gap:6px;
-  }
-  .app-ui .item-card-actions .icon-btn,
-  .app-ui .item-card-actions .btn{
-    min-width:40px;
-    min-height:40px;
-  }
-  .app-ui .item-card-actions .save-item-library-button+.icon-btn{
-    min-height:44px;
-    padding-inline:9px;
-  }
-  .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{
-    font-size:10.5px;
-  }
-  .app-ui .recent-customer-row>div{
-    scroll-padding-inline:2px;
-  }
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{top:4px;margin:-7px -5px 12px;padding:7px;border-radius:13px}
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action>div:first-child{min-height:26px}
+  .app-ui .editor-section:has(.add-item-button) .section-heading-actions .btn{min-height:44px!important}
+  .app-ui .premium-item-card{scroll-margin-top:150px}
+  .app-ui .premium-item-card:focus-within{transform:translateY(-1px)}
+  .app-ui .item-card-actions{align-items:center;row-gap:6px}
+  .app-ui .item-card-actions .icon-btn,.app-ui .item-card-actions .btn{min-width:40px;min-height:40px}
+  .app-ui .item-card-actions .save-item-library-button+.icon-btn{min-height:44px;padding-inline:9px}
+  .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{font-size:10.5px}
+  .app-ui .recent-customer-row>div{scroll-padding-inline:2px}
+  .app-ui .convert-invoice-button{min-height:52px!important}
+  .app-ui .convert-invoice-button::after{display:none}
+  .app-ui .issue-review-purpose{padding:11px}
 }
-
 @media(max-width:430px){
-  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{
-    top:2px;
-  }
-  .app-ui .editor-section:has(.add-item-button) .section-heading-actions{
-    grid-template-columns:1fr 1fr!important;
-  }
-  .app-ui .item-card-actions .save-item-library-button+.icon-btn{
-    min-width:104px;
-  }
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{top:2px}
+  .app-ui .editor-section:has(.add-item-button) .section-heading-actions{grid-template-columns:1fr 1fr!important}
+  .app-ui .item-card-actions .save-item-library-button+.icon-btn{min-width:104px}
 }
-
 @media(max-width:350px){
-  .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{
-    display:none;
-  }
-  .app-ui .item-card-actions .save-item-library-button+.icon-btn{
-    min-width:44px;
-    padding-inline:8px;
-  }
+  .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{display:none}
+  .app-ui .item-card-actions .save-item-library-button+.icon-btn{min-width:44px;padding-inline:8px}
 }
-
-@media(prefers-reduced-motion:reduce){
-  .app-ui .premium-item-card{transition:none}
-}
+@media(prefers-reduced-motion:reduce){.app-ui .premium-item-card{transition:none}}
