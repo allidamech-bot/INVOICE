@@ -13,14 +13,18 @@ interface Props {
 // Keep the editor's internal draft state scoped to one document identity.
 // A new invoice created from a proforma must mount a fresh editor instead of
 // retaining the source document's local state.
-export function EditorPage(props:Props):any {
-  const canConvertFinalQuote=props.document.kind==='proforma'&&props.document.status==='final';
+export class EditorPage extends React.Component<Props>{
+  private resetFrame:number|undefined;
+  private resetTimer:number|undefined;
 
-  // The app is a single-page interface, so Safari can preserve the previous
-  // workspace scroll position when a document is opened. That made invoices
-  // appear to open halfway down the editor and look frozen. Reset every scroll
-  // owner after the new document identity mounts.
-  React.useEffect(()=>{
+  componentDidMount():void{this.resetScroll();}
+  componentDidUpdate(prevProps:Props):void{if(prevProps.document.id!==this.props.document.id)this.resetScroll();}
+  componentWillUnmount():void{
+    if(this.resetFrame!==undefined)window.cancelAnimationFrame(this.resetFrame);
+    if(this.resetTimer!==undefined)window.clearTimeout(this.resetTimer);
+  }
+
+  private resetScroll=()=>{
     const reset=()=>{
       window.scrollTo(0,0);
       document.documentElement.scrollTop=0;
@@ -28,16 +32,21 @@ export function EditorPage(props:Props):any {
       document.querySelectorAll<HTMLElement>('.editor-screen,.editor-pane,.app-main,.workspace').forEach(node=>{node.scrollTop=0;node.scrollLeft=0;});
     };
     reset();
-    const frame=window.requestAnimationFrame(reset);
-    const timer=window.setTimeout(reset,80);
-    return()=>{window.cancelAnimationFrame(frame);window.clearTimeout(timer);};
-  },[props.document.id]);
+    if(this.resetFrame!==undefined)window.cancelAnimationFrame(this.resetFrame);
+    if(this.resetTimer!==undefined)window.clearTimeout(this.resetTimer);
+    this.resetFrame=window.requestAnimationFrame(reset);
+    this.resetTimer=window.setTimeout(reset,80);
+  };
 
-  return <>
-    <EditorPageCore key={props.document.id} {...props}/>
-    {canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
-      <div><Icon name="invoice" size={18}/><span><strong>{t('Deal confirmed? Create the invoice.','تم تأكيد الصفقة؟ أنشئ الفاتورة.')}</strong><small>{t('The quote stays Final and unchanged. A new invoice is created with its own number.','يبقى عرض السعر نهائيًا دون تغيير، ويتم إنشاء فاتورة جديدة برقم مستقل.')}</small></span></div>
-      <Button icon="invoice" variant="primary" onClick={()=>void props.onConvert(props.document)}>{t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>
-    </div>:null}
-  </>;
+  render():any{
+    const props=this.props;
+    const canConvertFinalQuote=props.document.kind==='proforma'&&props.document.status==='final';
+    return <>
+      <EditorPageCore key={props.document.id} {...props}/>
+      {canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
+        <div><Icon name="invoice" size={18}/><span><strong>{t('Deal confirmed? Create the invoice.','تم تأكيد الصفقة؟ أنشئ الفاتورة.')}</strong><small>{t('The quote stays Final and unchanged. A new invoice is created with its own number.','يبقى عرض السعر نهائيًا دون تغيير، ويتم إنشاء فاتورة جديدة برقم مستقل.')}</small></span></div>
+        <Button icon="invoice" variant="primary" onClick={()=>void props.onConvert(props.document)}>{t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>
+      </div>:null}
+    </>;
+  }
 }
