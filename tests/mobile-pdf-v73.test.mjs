@@ -20,7 +20,7 @@ test('mobile preview preserves physical A4 geometry instead of shrinking documen
   assert.match(css, /min-width:\s*66mm/);
 });
 
-test('iPhone PDF confirmation has a synchronous gesture-safe preview and direct Save PDF fallback', async () => {
+test('iPhone PDF and Share confirmation preserve the user gesture and expose a direct print fallback', async () => {
   const [html, bridge, review] = await Promise.all([
     read('index.html'),
     read('public/ios-print-bridge.js'),
@@ -40,5 +40,5 @@ test('iPhone PDF confirmation has a synchronous gesture-safe preview and direct 
   assert.match(bridge, /releaseParentPrintState/);
   assert.match(bridge, /dispatchEvent\(new Event\('afterprint'\)\)/);
   assert.match(review, /__LOUREX_PREPARE_PDF__/);
-  assert.match(review, /mode==='pdf'/);
+  assert.match(review, /mode==='pdf'\|\|mode==='share'/);
 });
