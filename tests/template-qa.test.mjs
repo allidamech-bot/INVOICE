@@ -60,14 +60,17 @@ test('document renderer preserves English, Arabic and bilingual direction semant
   ]);
   assert.match(renderer,/doc\.language === 'ar'/);
   assert.match(renderer,/doc\.language === 'en'/);
+  assert.match(renderer,/lang-\$\{doc\.language\}/);
   assert.match(renderer,/dir="rtl"/);
   assert.match(renderer,/bi-label/);
   assert.match(renderer,/bi-value/);
   assert.match(renderer,/doc-title-primary-ar/);
   assert.match(direction,/\.invoice-page\.lang-en\{direction:ltr/);
   assert.match(direction,/\.invoice-page\.lang-ar\{direction:rtl/);
-  assert.match(direction,/\.invoice-page\.lang-bi\{direction:ltr/);
+  assert.match(direction,/\.invoice-page\.lang-bilingual\{direction:ltr/);
+  assert.doesNotMatch(direction,/\.invoice-page\.lang-bi(?:\W|$)/);
   assert.match(direction,/\.invoice-page\.lang-ar \.items-table\{direction:rtl\}/);
+  assert.match(direction,/\.invoice-page\.lang-bilingual \.items-table\{direction:ltr\}/);
   assert.match(direction,/unicode-bidi:isolate/);
 });
 
