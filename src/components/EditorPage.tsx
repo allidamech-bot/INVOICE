@@ -29,7 +29,7 @@ export class EditorPage extends React.Component<Props>{
       window.scrollTo(0,0);
       document.documentElement.scrollTop=0;
       document.body.scrollTop=0;
-      document.querySelectorAll<HTMLElement>('.editor-screen,.editor-pane,.app-main,.workspace').forEach(node=>{node.scrollTop=0;node.scrollLeft=0;});
+      document.querySelectorAll<HTMLElement>('.editor-main,.editor-screen,.editor-layout,.editor-pane,.editor-scroll,.app-main,.workspace').forEach(node=>{node.scrollTop=0;node.scrollLeft=0;});
     };
     reset();
     if(this.resetFrame!==undefined)window.cancelAnimationFrame(this.resetFrame);
