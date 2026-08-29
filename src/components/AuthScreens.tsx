@@ -50,7 +50,8 @@ export class SetupScreen extends React.Component<SetupProps, SetupState> {
   private updateBank = (key: keyof CompanySettings['bank'], value: string): void => this.setState({ company: { ...this.state.company, bank: { ...this.state.company.bank, [key]: value } } });
   private upload = async (field: 'logoDataUrl'|'signatureDataUrl'|'stampDataUrl', file?: File): Promise<void> => {
     if (!file) return;
-    try { const data = await fileToDataUrl(file); this.updateCompany(field, data); }
+    const kind=field==='logoDataUrl'?'logo':field==='signatureDataUrl'?'signature':'stamp';
+    try { const data = await fileToDataUrl(file,4*1024*1024,kind); this.updateCompany(field, data); }
     catch (e) { this.setState({ error: e instanceof Error ? e.message : t('Unable to read image.','تعذر قراءة الصورة.') }); }
   };
   private submitCloudAccount = async (e:any):Promise<void> => {
