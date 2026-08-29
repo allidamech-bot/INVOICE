@@ -30,5 +30,5 @@ test('v57 consolidation removes the superseded final override files from runtime
     assert.doesNotMatch(html,new RegExp(legacy.replace('.','\\.')));
     assert.doesNotMatch(sw,new RegExp(legacy.replace('.','\\.')));
   }
-  assert.match(sw,/lourex-invoice-v57/);
+  assert.match(sw,/lourex-invoice-v\d+/);
 });

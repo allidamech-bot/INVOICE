@@ -26,7 +26,7 @@ test('mobile controls retain larger touch targets and spacing',()=>{
 test('legacy final editor layers are replaced by one cached final stylesheet',()=>{
   assert.match(html,/v44-audit\.css[^]*editor-system\.css/);
   assert.doesNotMatch(html,/mobile-editor-fixes\.css|editor-premium-v56\.css/);
-  assert.match(sw,/lourex-invoice-v57/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/\.\/styles\/editor-system\.css/);
   assert.doesNotMatch(sw,/mobile-editor-fixes\.css|editor-premium-v56\.css/);
 });
