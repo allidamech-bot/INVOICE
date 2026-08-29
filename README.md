@@ -1,81 +1,101 @@
 # LOUREX Invoice
 
-A private, local-first web application for creating **Proforma Invoices** and **Invoices**. It has no backend, no cloud database, no external login, and no accounting/ERP modules.
+LOUREX Invoice is a local-first web application for creating, saving, printing, exporting and sharing **Proforma Invoices (quotes)** and **Invoices**. The application is designed for desktop, tablet and mobile use, including iPhone/iPad PWA workflows.
 
-## Run locally
+## Architecture
+
+- React + TypeScript, compiled as a static web application.
+- IndexedDB is the primary local data store.
+- Company data, customers, documents, saved items and settings are stored inside an encrypted local vault.
+- Firebase Authentication provides the optional/required LOUREX cloud account flow used by the current product.
+- Firestore stores only the encrypted vault payload and security metadata under the authenticated user's owner-only path.
+- The application remains usable offline after the PWA shell has been cached.
+- No accounting ledger, ERP, inventory accounting or server-side business database is included.
+
+## Security model
+
+- The local PIN is never stored as plaintext.
+- PBKDF2-SHA-256 with a random salt derives the local AES-GCM key.
+- Business data is encrypted with AES-GCM before it is stored in IndexedDB.
+- Cloud synchronization uploads the already-encrypted vault in bounded chunks and verifies the ciphertext with SHA-256 metadata.
+- Firestore rules restrict each user's vault path to that authenticated user.
+- Encrypted `.lourex-backup` files use their own random salt and IV.
+- PIN changes re-encrypt the local vault atomically.
+
+The local PIN protects the encrypted vault on the device. As with any browser application, device security, browser storage and account security remain part of the overall security boundary.
+
+## Documents
+
+The two supported document kinds are:
+
+- Proforma Invoice / Quote
+- Invoice
+
+Document numbering is independent (`PI-YYYY-####` and `INV-YYYY-####` by default). Documents can use English, Arabic or bilingual content. Arabic dates remain Gregorian and the printable renderer explicitly isolates LTR/RTL direction from the application interface direction.
+
+The current renderer supports 18 template identifiers:
+
+`executive`, `minimal`, `trade`, `signature`, `obsidian`, `cobalt`, `editorial`, `split`, `prism`, `slate`, `horizon`, `mono`, `aurora`, `ledger`, `noir`, `midnight`, `blackivory`, `carbon`.
+
+Saved documents keep customer/company snapshots so later edits to master customer or company records do not silently alter historical documents.
+
+## PDF, print and share
+
+LOUREX uses the browser's native print/PDF engine so exported documents keep selectable text, A4 sizing, Arabic shaping and multi-page page breaks.
+
+- Desktop browsers use the normal print/PDF flow.
+- iPhone/iPad use a gesture-safe PDF bridge that opens the PDF destination from the user's tap before asynchronous finalization work begins.
+- The iOS PDF view includes a direct **Save PDF / حفظ PDF** action for Safari's native print/share sheet.
+- Printable pages remain physical A4 (`210mm × 297mm`) and phone previews scale the whole sheet rather than shrinking the internal document layout.
+
+## Cloud synchronization
+
+Cloud synchronization stores encrypted ciphertext, not the decrypted invoice database. The client splits large encrypted vaults into bounded Firestore writes, validates metadata and ciphertext integrity, and uses revision checks to avoid silently overwriting a changed remote vault.
+
+Manual **Sync Now** performs a full reconciliation. Normal saves are written locally first, then queued for cloud synchronization.
+
+## Backup and restore
+
+Backup creates one encrypted `.lourex-backup` file containing the complete vault. Restore validates and decrypts the selected file before replacing the current local vault. Existing data is not merged during a restore operation.
+
+## Development
 
 Requirements: Node.js 20+.
 
 ```bash
 npm install
-npm run dev
-```
-
-Then open `http://localhost:5173`.
-
-## Production build
-
-```bash
 npm run typecheck
 npm test
 npm run build
-npm run preview
 ```
 
-The production application is written to `dist/`. It can be hosted as a static site on any HTTPS-capable static host. HTTPS is recommended for PWA installation and Web Crypto support.
+The production build is written to `dist/`.
 
-## Data and security
+For a local static preview:
 
-- All business data is stored locally in **IndexedDB**.
-- The PIN is never stored as plain text.
-- The vault key is derived with **PBKDF2-SHA-256** using a random salt and 310,000 iterations.
-- Local business data is encrypted with **AES-GCM-256**.
-- Backups are encrypted `.lourex-backup` files with their own random salt and IV.
-- Changing the PIN re-encrypts the local vault atomically.
-- Restoring a backup replaces the current local data after validation while keeping the current app PIN.
-
-Because this is intentionally a client-only application, the PIN protects the local encrypted vault but is not a substitute for server-side authentication on a shared or compromised device.
-
-## PDF, print, and share
-
-The application uses the browser's native print/PDF engine for the production PDF path. This preserves real/selectable text, A4 sizing, Arabic shaping, RTL, bilingual content, and multi-page page breaks instead of placing screenshots inside a PDF.
-
-- **Print** opens the system print view with only the document visible.
-- **PDF** opens the same document-only print view; choose **Save as PDF**.
-- **Share** opens the system document/PDF flow. On iPhone/iPad/Android, the resulting PDF can be shared from the native print/share interface. If the platform does not expose file sharing, save the PDF first and share it normally.
-
-## Editing the design
-
-Central design tokens are in:
-
-- `src/styles/app.css` — application UI, spacing, typography, controls, responsive behavior.
-- `src/styles/document.css` — A4 document system and the four invoice templates.
-
-Templates are rendered separately from document data:
-
-- `src/templates/TemplateRenderer.tsx`
-- `src/templates/TemplateThumbnails.tsx`
-
-The four V1 templates are `executive`, `minimal`, `trade`, and `signature`. Changing one template does not change saved document data.
+```bash
+npm run dev
+```
 
 ## Main structure
 
 ```text
 src/
-  app/          application shell and lock state
-  components/   documents, customers, editor, settings, shared UI
+  app/          application lifecycle, lock state, persistence and cloud coordination
+  cloud/        Firebase authentication and encrypted-vault synchronization
+  components/   documents, customers, editor, settings and shared UI
   crypto/       Web Crypto PIN/key/encryption layer
-  lib/          document logic, calculations, backups, utilities
-  storage/      IndexedDB encrypted vault and migrations
-  templates/    invoice template renderers
-  styles/       app and printable A4 styles
-  types.ts      strict shared data model
+  lib/          financial calculations, documents, backups, images and utilities
+  storage/      IndexedDB, session handling, migrations and concurrent-write merge logic
+  templates/    document renderers and template thumbnails
+  styles/       application UI, responsive layers and printable A4 templates
+  types.ts      shared strict data model
 public/
-  brand/        LOUREX logo and PWA icons
-  vendor/       local React runtime
+  brand/        LOUREX PWA artwork
   sw.js         offline service worker
+  ios-print-bridge.js  iOS PDF/print bridge
 ```
 
-## Tests
+## Verification
 
-`npm test` builds the production application and checks financial calculations, numbering, snapshots, conversion/duplication logic, 30+ item pagination, PIN verification, encrypted backup/restore, encrypted IndexedDB persistence, PWA production assets, print isolation, and unfinished/external-backend regressions.
+`npm test` builds the production application and runs regression coverage for fixed-precision financial calculations, independent numbering, document snapshots, conversion/duplication, long-document pagination, encrypted storage, PIN verification, encrypted backup/restore, cloud ownership/integrity, PWA caching, iOS PDF behavior, RTL/LTR output, all template identifiers, mobile editor behavior and concurrent local writes.
