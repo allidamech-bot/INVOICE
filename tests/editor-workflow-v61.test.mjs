@@ -28,8 +28,8 @@ test('active item and recent customer navigation are optimized for fast touch ed
   assert.match(css,/item-card-actions \.icon-btn,[^}]*min-width:40px/);
 });
 
-test('v61 PWA release caches the workflow layer for installed devices',async()=>{
+test('v61 workflow layer remains cached across subsequent PWA releases',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/lourex-invoice-v61/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/\.\/styles\/editor-workflow-v61\.css/);
 });
