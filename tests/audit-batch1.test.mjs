@@ -4,12 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('document workspace never compares totals across unrelated currencies',async()=>{
+test('highest-total sorting groups currencies before comparing amounts',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
-  assert.doesNotMatch(source,/compareMoneyStrings/);
-  assert.doesNotMatch(source,/value="highest"/);
-  assert.doesNotMatch(source,/Highest total/);
-  assert.match(source,/type SortMode='latest'\|'oldest'/);
+  assert.match(source,/value="highest"/);
+  assert.match(source,/Highest total \(by currency\)/);
+  assert.match(source,/a\.currency\.localeCompare\(b\.currency/);
+  assert.match(source,/if\(currencyOrder\)return currencyOrder/);
+  assert.match(source,/compareMoneyStrings\(bv,av\)/);
 });
 
 test('shared modal closes only the topmost dialog on Escape and restores focus',async()=>{
