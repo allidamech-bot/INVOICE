@@ -48,6 +48,7 @@ export class App extends React.Component<{},State> {
     document.addEventListener('pointerdown',this.closeTransientMenus);
     window.addEventListener('afterprint',this.afterPrint);
     window.addEventListener('online',this.handleOnline);
+    window.addEventListener('lourex-cloud-remote-newer',this.handleRemoteCloudNewer);
   }
   componentWillUnmount():void{
     ['pointerdown','keydown','touchstart'].forEach(ev=>window.removeEventListener(ev,this.activity));
@@ -55,56 +56,86 @@ export class App extends React.Component<{},State> {
     document.removeEventListener('pointerdown',this.closeTransientMenus);
     window.removeEventListener('afterprint',this.afterPrint);
     window.removeEventListener('online',this.handleOnline);
+    window.removeEventListener('lourex-cloud-remote-newer',this.handleRemoteCloudNewer);
     if(this.lockTimer)clearTimeout(this.lockTimer);
     if(this.toastTimer)clearTimeout(this.toastTimer);
     if(this.cloudTimer)clearTimeout(this.cloudTimer);
   }
 
   private initialize=async()=>{
-    let cloudUser:CloudUser|null=null;
-    let cloudLinked=false;
-    let cloudSyncState:CloudSyncState='local';
-    let cloudSyncMessage='';
-    try{cloudUser=await waitForCloudUser();}catch{}
     try{
       let configured=await hasSecurity();
-      let linked=await getCloudAccount();
-      if(cloudUser&&linked&&linked.uid!==cloudUser.uid){cloudSyncState='error';cloudSyncMessage=t('This device is linked to a different LOUREX cloud account.','هذا الجهاز مرتبط بحساب LOUREX سحابي مختلف.');}
-      else if(cloudUser&&linked?.uid===cloudUser.uid){
-        cloudLinked=true;
-        try{
-          const result=await reconcileCloudVault(cloudUser.uid);
-          if(result==='pulled'){await clearSession();configured=true;}
-          if(result!=='empty'){cloudSyncState='synced';cloudSyncMessage=t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.');}
-        }catch(e){cloudSyncState='error';cloudSyncMessage=friendlyCloudError(e);}
-      }else if(cloudUser&&!configured&&!linked){
-        try{
-          await putCloudAccount(cloudUser.uid,cloudUser.email);
-          linked=await getCloudAccount();cloudLinked=true;
-          const result=await reconcileCloudVault(cloudUser.uid);
-          if(result==='pulled'){configured=true;await clearSession();}
-          if(result!=='empty'){cloudSyncState='synced';cloudSyncMessage=t('Encrypted cloud data restored.','تمت استعادة البيانات السحابية المشفّرة.');}
-        }catch(e){cloudSyncState='error';cloudSyncMessage=friendlyCloudError(e);}
-      }
       const preferences=await getPublicPreferences();
       let uiLanguage=preferences?.uiLanguage??'en';
       let publicLogo=preferences?.logoDataUrl||'./brand/lourex-logo.svg';
+
+      // Existing devices are local-first: restore the trusted encrypted session and
+      // render immediately. Firebase auth and cloud reconciliation continue only
+      // after the local UI is available, so a slow network cannot block startup.
       if(configured){
         const resumed=await resumeVaultSession();
         if(resumed){
           const vault={...resumed.vault,appSettings:{...resumed.vault.appSettings,uiLanguage:resumed.vault.appSettings.uiLanguage??uiLanguage}};
           uiLanguage=vault.appSettings.uiLanguage;publicLogo=vault.company.logoDataUrl||publicLogo;setUiLanguage(uiLanguage);
           this.vaultWriteTail=Promise.resolve(vault);
-          this.setState({loading:false,firstRun:false,unlocked:true,key:resumed.key,vault,screen:'documents',editorDoc:null,uiLanguage,publicLogo,cloudUser,cloudLinked,cloudSyncState,cloudSyncMessage},this.resetAutoLock);return;
+          this.setState({loading:false,firstRun:false,unlocked:true,key:resumed.key,vault,screen:'documents',editorDoc:null,uiLanguage,publicLogo,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:''},()=>{this.resetAutoLock();void this.initializeConfiguredCloud();});
+          return;
         }
+        setUiLanguage(uiLanguage);
+        this.setState({loading:false,firstRun:false,unlocked:false,key:null,vault:null,uiLanguage,publicLogo,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:''},()=>void this.initializeConfiguredCloud());
+        return;
+      }
+
+      // A genuinely empty device must resolve cloud auth before showing first-run
+      // setup, otherwise an existing encrypted cloud vault could be overwritten by
+      // a brand-new local vault created too early.
+      let cloudUser:CloudUser|null=null;
+      let cloudLinked=false;
+      let cloudSyncState:CloudSyncState='local';
+      let cloudSyncMessage='';
+      try{cloudUser=await waitForCloudUser();}catch{}
+      if(cloudUser){
+        try{
+          let linked=await getCloudAccount();
+          if(linked&&linked.uid!==cloudUser.uid){cloudSyncState='error';cloudSyncMessage=t('This device is linked to a different LOUREX cloud account.','هذا الجهاز مرتبط بحساب LOUREX سحابي مختلف.');}
+          else{
+            if(!linked){await putCloudAccount(cloudUser.uid,cloudUser.email);linked=await getCloudAccount();}
+            cloudLinked=Boolean(linked?.uid===cloudUser.uid);
+            if(cloudLinked){
+              const result=await reconcileCloudVault(cloudUser.uid);
+              if(result==='pulled'){configured=true;await clearSession();}
+              if(result!=='empty'){cloudSyncState='synced';cloudSyncMessage=t('Encrypted cloud data restored.','تمت استعادة البيانات السحابية المشفّرة.');}
+            }
+          }
+        }catch(e){cloudSyncState='error';cloudSyncMessage=friendlyCloudError(e);}
       }
       setUiLanguage(uiLanguage);
       this.setState({loading:false,firstRun:!configured,unlocked:false,key:null,vault:null,uiLanguage,publicLogo,cloudUser,cloudLinked,cloudSyncState,cloudSyncMessage});
-    }catch(e){this.setState({loading:false,cloudUser,cloudLinked,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});this.showToast(e instanceof Error?e.message:t('Unable to access local storage.','تعذر الوصول إلى التخزين المحلي.'),'error');}
+    }catch(e){this.setState({loading:false,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});this.showToast(e instanceof Error?e.message:t('Unable to access local storage.','تعذر الوصول إلى التخزين المحلي.'),'error');}
+  };
+
+  private initializeConfiguredCloud=async()=>{
+    let cloudUser:CloudUser|null=null;
+    try{cloudUser=await waitForCloudUser();}catch{}
+    if(!cloudUser){this.setState({cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:''});return;}
+    try{
+      const linked=await getCloudAccount();
+      if(linked&&linked.uid!==cloudUser.uid){this.setState({cloudUser,cloudLinked:false,cloudSyncState:'error',cloudSyncMessage:t('This device is linked to a different LOUREX cloud account.','هذا الجهاز مرتبط بحساب LOUREX سحابي مختلف.')});return;}
+      if(!linked){
+        const remote=await getCloudVaultMeta(cloudUser.uid);
+        if(remote){this.setState({cloudUser,cloudLinked:false,cloudSyncState:'error',cloudSyncMessage:t('This cloud account already contains LOUREX data. Sign in with the account originally linked to this device or use Sync Now from the correct device.','هذا الحساب السحابي يحتوي بالفعل على بيانات LOUREX. سجّل بالحساب المرتبط أصلًا بهذا الجهاز أو استخدم المزامنة من الجهاز الصحيح.')});return;}
+        await putCloudAccount(cloudUser.uid,cloudUser.email);
+      }
+      this.setState({cloudUser,cloudLinked:true,cloudSyncState:'local',cloudSyncMessage:t('Cloud account connected.','الحساب السحابي متصل.')},()=>{
+        if(this.state.screen==='editor'||this.state.settingsOpen||this.state.cloudModal)return;
+        void this.cloudSyncNow().catch(()=>undefined);
+      });
+    }catch(e){this.setState({cloudUser,cloudLinked:false,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});}
   };
 
   private activity=()=>{if(this.state.unlocked){touchSession();this.resetAutoLock();}};
   private handleOnline=()=>{this.scheduleCloudSync(700);};
+  private handleRemoteCloudNewer=()=>{if(!this.state.cloudUser||!this.state.cloudLinked||this.state.screen==='editor'||this.state.settingsOpen||this.state.cloudModal||this.vaultReplacing)return;void this.cloudSyncNow().catch(()=>undefined);};
   private handleVisibilityChange=()=>{if(document.visibilityState!=='visible'||!this.state.unlocked)return;const mins=this.state.vault?.appSettings.autoLockMinutes??15;if(isCurrentSessionExpired(mins)){void this.lockNow(true);return;}touchSession();this.resetAutoLock();this.scheduleCloudSync(1000);};
   private closeTransientMenus=(event:PointerEvent)=>{if(!this.state.newMenu)return;const target=event.target;if(target instanceof Element&&target.closest('.new-doc-menu'))return;this.setState({newMenu:false});};
   private resetAutoLock=()=>{if(this.lockTimer)window.clearTimeout(this.lockTimer);const mins=this.state.vault?.appSettings.autoLockMinutes??15;if(mins>0)this.lockTimer=window.setTimeout(()=>void this.lockNow(true),mins*60_000);};
@@ -164,7 +195,7 @@ export class App extends React.Component<{},State> {
   private cloudSignIn=async(email:string,password:string)=>{try{const user=await signInCloudUser(email,password);this.setState({cloudUser:user});await this.attachCloudUser(user);}catch(e){throw new Error(friendlyCloudError(e));}};
   private cloudCreate=async(email:string,password:string)=>{try{const user=await createCloudUser(email,password);this.setState({cloudUser:user});await this.attachCloudUser(user);}catch(e){throw new Error(friendlyCloudError(e));}};
   private cloudReset=async(email:string)=>{try{await sendCloudPasswordReset(email);}catch(e){throw new Error(friendlyCloudError(e));}};
-  private cloudSignOut=async()=>{await signOutCloudUser();this.setState({cloudUser:null,cloudSyncState:'local',cloudSyncMessage:t('Signed out of cloud. Local encrypted data remains on this device.','تم تسجيل الخروج من السحابة. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});};
+  private cloudSignOut=async()=>{await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:t('Signed out of cloud. Local encrypted data remains on this device.','تم تسجيل الخروج من السحابة. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});};
   private cloudSyncNow=async()=>{
     this.editorMustBeClosed('syncing from the cloud','المزامنة من السحابة');
     await this.beginProtectedOperation();
@@ -187,7 +218,7 @@ export class App extends React.Component<{},State> {
     this.vaultWriteTail=Promise.resolve(setup.vault);
     this.setState({firstRun:false,unlocked:true,key:setup.key,vault:setup.vault,screen:'documents',cloudLinked,cloudSyncState,cloudSyncMessage},this.resetAutoLock);this.showToast(t('LOUREX Invoice is ready.','نظام LOUREX Invoice جاهز.'),'success');
   };
-  private unlock=async(pin:string)=>{const result=await unlockVault(pin);const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.normalizedVault(result.vault);if(needsMigration)await saveVault(result.key,vault);await establishSession(result.key);await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);this.vaultWriteTail=Promise.resolve(vault);this.setState({unlocked:true,key:result.key,vault,screen:'documents',editorDoc:null},()=>{this.resetAutoLock();this.scheduleCloudSync(1600);});};
+  private unlock=async(pin:string)=>{const result=await unlockVault(pin);const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.normalizedVault(result.vault);if(needsMigration)await saveVault(result.key,vault);await establishSession(result.key);await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);this.vaultWriteTail=Promise.resolve(vault);this.setState({unlocked:true,key:result.key,vault,screen:'documents',editorDoc:null},()=>{this.resetAutoLock();if(this.state.cloudUser&&this.state.cloudLinked)void this.cloudSyncNow().catch(()=>undefined);else this.scheduleCloudSync(1600);});};
   private lock=()=>{void this.lockNow(false);};
   private lockNow=async(automatic:boolean)=>{if(!automatic&&this.state.screen==='editor'){this.showToast(t('Close the document editor before locking the app.','أغلق محرر المستند قبل قفل التطبيق.'),'error');return;}if(this.lockTimer)window.clearTimeout(this.lockTimer);await this.drainVaultWrites();await clearSession();this.vaultWriteTail=Promise.resolve(null);this.setState({unlocked:false,key:null,vault:null,editorDoc:null,screen:'documents',settingsOpen:false,newMenu:false});};
   private persist=async(intended:VaultPayload)=>{
