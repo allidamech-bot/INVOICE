@@ -1,4 +1,6 @@
 import type { AppSettings, CompanySettings, Customer, DocumentItem, LourexDocument, SavedItem } from '../types.js';
+import { t } from '../lib/i18n.js';
+import { Button, Icon } from './UI.js';
 import { EditorPage as EditorPageCore } from './EditorPageCore.js';
 
 interface Props {
@@ -12,5 +14,12 @@ interface Props {
 // A new invoice created from a proforma must mount a fresh editor instead of
 // retaining the source document's local state.
 export function EditorPage(props:Props):any {
-  return <EditorPageCore key={props.document.id} {...props}/>;
+  const canConvertFinalQuote=props.document.kind==='proforma'&&props.document.status==='final';
+  return <>
+    <EditorPageCore key={props.document.id} {...props}/>
+    {canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
+      <div><Icon name="invoice" size={18}/><span><strong>{t('Deal confirmed? Create the invoice.','تم تأكيد الصفقة؟ أنشئ الفاتورة.')}</strong><small>{t('The quote stays Final and unchanged. A new invoice is created with its own number.','يبقى عرض السعر نهائيًا دون تغيير، ويتم إنشاء فاتورة جديدة برقم مستقل.')}</small></span></div>
+      <Button icon="invoice" variant="primary" onClick={()=>void props.onConvert(props.document)}>{t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>
+    </div>:null}
+  </>;
 }

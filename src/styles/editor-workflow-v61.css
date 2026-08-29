@@ -1,6 +1,7 @@
 /* v61 — editor workflow acceleration.
    v63 adds the discoverable similar-item path.
-   v64 strengthens quote-to-invoice and final-issue checkpoints without touching printable A4 internals. */
+   v64 strengthens quote-to-invoice and final-issue checkpoints.
+   v65 restores conversion access for Final quotes without unlocking them for editing. */
 
 .app-ui .premium-item-card{scroll-margin-top:116px;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
 .app-ui .premium-item-card:focus-within{border-color:#9ebdcd!important;box-shadow:0 12px 30px rgba(20,72,102,.10)!important}
@@ -29,6 +30,16 @@
 .app-ui .issue-review-grid .issue-total-check{border-color:#c8dbe5;background:#f2f8fa}
 .app-ui .issue-review-grid .issue-total-check strong{font-size:15px;color:#174866}
 
+/* v65 — Final quotes remain immutable but can still create their downstream invoice. */
+.final-quote-convert-bar{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));z-index:70;display:flex;align-items:center;gap:14px;max-width:min(620px,calc(100vw - 36px));padding:12px 13px;border:1px solid #c9dbe4;border-radius:16px;background:rgba(250,252,252,.98);box-shadow:0 18px 44px rgba(14,39,55,.16);backdrop-filter:blur(16px)}
+.final-quote-convert-bar>div{display:flex;align-items:flex-start;gap:9px;min-width:0;color:#244d63}
+.final-quote-convert-bar>div>svg{flex:0 0 auto;margin-top:2px}
+.final-quote-convert-bar span{display:grid;gap:2px;min-width:0}
+.final-quote-convert-bar strong{font-size:12px;line-height:1.35}
+.final-quote-convert-bar small{font-size:10.5px;line-height:1.4;color:#617984}
+.final-quote-convert-bar .btn{flex:0 0 auto;min-height:44px}
+[dir='rtl'] .final-quote-convert-bar{right:auto;left:max(18px,env(safe-area-inset-left))}
+
 @media(max-width:1180px){
   .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{position:sticky;top:0;z-index:14;margin:-8px -8px 14px;padding:8px;border:1px solid rgba(202,217,225,.86);border-radius:14px;background:rgba(250,252,252,.96);backdrop-filter:blur(14px);box-shadow:0 8px 20px rgba(14,39,55,.07)}
   .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action .section-heading-actions{flex-shrink:0}
@@ -48,11 +59,14 @@
   .app-ui .convert-invoice-button{min-height:52px!important}
   .app-ui .convert-invoice-button::after{display:none}
   .app-ui .issue-review-purpose{padding:11px}
+  .final-quote-convert-bar{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:calc(74px + env(safe-area-inset-bottom));max-width:none;display:grid;grid-template-columns:1fr;gap:9px;padding:10px;border-radius:14px}
+  .final-quote-convert-bar .btn{width:100%;justify-content:center}
 }
 @media(max-width:430px){
   .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{top:2px}
   .app-ui .editor-section:has(.add-item-button) .section-heading-actions{grid-template-columns:1fr 1fr!important}
   .app-ui .item-card-actions .save-item-library-button+.icon-btn{min-width:104px}
+  .final-quote-convert-bar small{display:none}
 }
 @media(max-width:350px){
   .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{display:none}
