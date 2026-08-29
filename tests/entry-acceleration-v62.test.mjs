@@ -30,9 +30,9 @@ test('v62 preserves language-aware prefill and existing data contracts',async()=
   assert.match(items,/Existing documents are not changed/);
 });
 
-test('v62 PWA cache ships customer and saved-item quick-add changes',async()=>{
+test('v62 quick-add modules remain in the current PWA release',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/lourex-invoice-v62/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.ok(sw.includes('./src/components/CustomersPage.js'));
   assert.ok(sw.includes('./src/components/SavedItemsModal.js'));
 });

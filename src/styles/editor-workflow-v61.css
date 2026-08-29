@@ -1,4 +1,5 @@
 /* v61 — editor workflow acceleration.
+   v63 extends the same final editor layer with a discoverable, touch-friendly "similar item" path.
    Application editor chrome only; printable document/A4 internals are intentionally untouched. */
 
 .app-ui .premium-item-card{
@@ -21,6 +22,35 @@
 }
 .app-ui .recent-customer-row button{
   scroll-snap-align:start;
+}
+
+/* v63: the existing duplicate action is the safest fast-entry path for a similar line.
+   It intentionally reuses the current row only when the user explicitly chooses it;
+   Add Item itself keeps its blank/default pricing behavior. */
+.app-ui .item-card-actions .save-item-library-button+.icon-btn{
+  width:auto;
+  min-width:40px;
+  padding-inline:10px;
+  gap:6px;
+  border-color:#d4e0e6;
+  background:#f8fbfc;
+}
+.app-ui .item-card-actions .save-item-library-button+.icon-btn::after{
+  content:'Similar';
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.01em;
+  white-space:nowrap;
+  color:#31586e;
+}
+[dir='rtl'] .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{
+  content:'صنف مشابه';
+  letter-spacing:0;
+}
+.app-ui .item-card-actions .save-item-library-button+.icon-btn:hover,
+.app-ui .item-card-actions .save-item-library-button+.icon-btn:focus-visible{
+  border-color:#9ebdcd;
+  background:#edf6fa;
 }
 
 @media(max-width:1180px){
@@ -63,10 +93,21 @@
   .app-ui .premium-item-card:focus-within{
     transform:translateY(-1px);
   }
+  .app-ui .item-card-actions{
+    align-items:center;
+    row-gap:6px;
+  }
   .app-ui .item-card-actions .icon-btn,
   .app-ui .item-card-actions .btn{
     min-width:40px;
     min-height:40px;
+  }
+  .app-ui .item-card-actions .save-item-library-button+.icon-btn{
+    min-height:44px;
+    padding-inline:9px;
+  }
+  .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{
+    font-size:10.5px;
   }
   .app-ui .recent-customer-row>div{
     scroll-padding-inline:2px;
@@ -79,6 +120,19 @@
   }
   .app-ui .editor-section:has(.add-item-button) .section-heading-actions{
     grid-template-columns:1fr 1fr!important;
+  }
+  .app-ui .item-card-actions .save-item-library-button+.icon-btn{
+    min-width:104px;
+  }
+}
+
+@media(max-width:350px){
+  .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{
+    display:none;
+  }
+  .app-ui .item-card-actions .save-item-library-button+.icon-btn{
+    min-width:44px;
+    padding-inline:8px;
   }
 }
 
