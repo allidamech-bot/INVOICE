@@ -1,5 +1,5 @@
 import type { DocumentKind, LourexDocument } from '../types.js';
-import { calculateTotals, formatMoney } from '../lib/money.js';
+import { calculateTotals, compareMoneyStrings, formatMoney } from '../lib/money.js';
 import { displayDate } from '../lib/id.js';
 import { validateDocument } from '../lib/documents.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
@@ -14,7 +14,7 @@ interface Props {
   onDelete: (doc: LourexDocument) => void;
 }
 type WorkspaceStatus='all'|'draft'|'ready'|'final';
-type SortMode='latest'|'oldest';
+type SortMode='latest'|'oldest'|'highest';
 interface State { tab: 'all'|'proforma'|'invoice'; status: WorkspaceStatus; sort:SortMode; query: string; menuId: string; }
 
 function workflowStatus(doc:LourexDocument):Exclude<WorkspaceStatus,'all'>{
@@ -34,7 +34,20 @@ export class DocumentsPage extends React.Component<Props, State> {
       .filter(d => this.state.tab === 'all' || d.kind === this.state.tab)
       .filter(d => this.state.status === 'all' || workflowStatus(d) === this.state.status)
       .filter(d => !q || d.number.toLowerCase().includes(q) || (d.customerSnapshot?.companyNameEn ?? '').toLowerCase().includes(q) || (d.customerSnapshot?.companyNameAr ?? '').includes(this.state.query.trim()));
-    return docs.sort((a,b)=>this.state.sort==='oldest'?a.updatedAt.localeCompare(b.updatedAt):b.updatedAt.localeCompare(a.updatedAt));
+    return docs.sort((a,b)=>{
+      if(this.state.sort==='oldest')return a.updatedAt.localeCompare(b.updatedAt);
+      if(this.state.sort==='highest'){
+        // Totals in different currencies are not economically comparable without
+        // an FX rate. Group by currency first, then sort amounts inside each group.
+        const currencyOrder=a.currency.localeCompare(b.currency,undefined,{sensitivity:'base'});
+        if(currencyOrder)return currencyOrder;
+        const av=calculateTotals(a.items,a.adjustments).grandTotal;
+        const bv=calculateTotals(b.items,b.adjustments).grandTotal;
+        const byTotal=compareMoneyStrings(bv,av);
+        return byTotal||b.updatedAt.localeCompare(a.updatedAt);
+      }
+      return b.updatedAt.localeCompare(a.updatedAt);
+    });
   }
   private runAction=(action:()=>void)=>{this.setState({menuId:''},action);};
   private clearFilters=()=>this.setState({tab:'all',status:'all',query:'',sort:'latest',menuId:''});
@@ -64,7 +77,7 @@ export class DocumentsPage extends React.Component<Props, State> {
         <button type="button" className={`${ready?'has-ready ':''}${this.state.status==='ready'?'active':''}`} aria-pressed={this.state.status==='ready'} onClick={()=>this.setOverview('all','ready')}><span>{t('Ready','جاهز')}</span><strong>{ready}</strong></button>
         <button type="button" className={`${drafts?'has-drafts ':''}${this.state.status==='draft'?'active':''}`} aria-pressed={this.state.status==='draft'} onClick={()=>this.setOverview('all','draft')}><span>{t('Drafts','المسودات')}</span><strong>{drafts}</strong></button>
       </div>
-      <div className="list-toolbar documents-toolbar premium-documents-toolbar"><div className="documents-filter-stack"><Segmented value={this.state.tab} onChange={(value)=>this.setState({tab:value as State['tab'],menuId:''})} options={[{value:'all',label:t('All','الكل')},{value:'proforma',label:t('Quotes','عروض الأسعار')},{value:'invoice',label:t('Invoices','الفواتير')}]}/><div className="status-filter" role="group" aria-label={t('Status filter','تصفية الحالة')}>{(['all','draft','ready','final'] as const).map(status=><button key={status} type="button" className={this.state.status===status?'active':''} onClick={()=>this.setState({status,menuId:''})}>{status==='all'?t('Any status','كل الحالات'):status==='draft'?t('Draft','مسودة'):status==='ready'?t('Ready','جاهز'):t('Final','نهائي')}</button>)}</div></div><div className="documents-toolbar-right"><div className="search-box"><Icon name="search"/><Input aria-label={t('Search documents','بحث في المستندات')} placeholder={t('Search number or customer','ابحث بالرقم أو العميل')} value={this.state.query} onChange={(e:any)=>this.setState({query:e.target.value,menuId:''})}/></div><Select className="documents-sort" aria-label={t('Sort documents','ترتيب المستندات')} value={this.state.sort} onChange={(e:any)=>this.setState({sort:e.target.value as SortMode,menuId:''})}><option value="latest">{t('Latest','الأحدث')}</option><option value="oldest">{t('Oldest','الأقدم')}</option></Select></div></div>
+      <div className="list-toolbar documents-toolbar premium-documents-toolbar"><div className="documents-filter-stack"><Segmented value={this.state.tab} onChange={(value)=>this.setState({tab:value as State['tab'],menuId:''})} options={[{value:'all',label:t('All','الكل')},{value:'proforma',label:t('Quotes','عروض الأسعار')},{value:'invoice',label:t('Invoices','الفواتير')}]}/><div className="status-filter" role="group" aria-label={t('Status filter','تصفية الحالة')}>{(['all','draft','ready','final'] as const).map(status=><button key={status} type="button" className={this.state.status===status?'active':''} onClick={()=>this.setState({status,menuId:''})}>{status==='all'?t('Any status','كل الحالات'):status==='draft'?t('Draft','مسودة'):status==='ready'?t('Ready','جاهز'):t('Final','نهائي')}</button>)}</div></div><div className="documents-toolbar-right"><div className="search-box"><Icon name="search"/><Input aria-label={t('Search documents','بحث في المستندات')} placeholder={t('Search number or customer','ابحث بالرقم أو العميل')} value={this.state.query} onChange={(e:any)=>this.setState({query:e.target.value,menuId:''})}/></div><Select className="documents-sort" aria-label={t('Sort documents','ترتيب المستندات')} value={this.state.sort} onChange={(e:any)=>this.setState({sort:e.target.value as SortMode,menuId:''})}><option value="latest">{t('Latest','الأحدث')}</option><option value="oldest">{t('Oldest','الأقدم')}</option><option value="highest">{t('Highest total (by currency)','أعلى إجمالي حسب العملة')}</option></Select></div></div>
       {docs.length ? <div className="document-list premium-document-list">{docs.map(doc => {
         const totals = calculateTotals(doc.items, doc.adjustments);
         const customer = isArabic() ? (doc.customerSnapshot?.companyNameAr || doc.customerSnapshot?.companyNameEn || t('No customer','بدون عميل')) : (doc.customerSnapshot?.companyNameEn || doc.customerSnapshot?.companyNameAr || t('No customer','بدون عميل'));
