@@ -58,16 +58,29 @@
     target.document.open();
     target.document.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${title}</title>${styleLinks()}<style>
       html,body{margin:0;background:#dfe3e4;color:#17364a;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      body{padding:68px 12px 28px;overflow:auto}
+      body{padding:68px 12px 28px;overflow-x:hidden;overflow-y:auto}
       .ios-pdf-toolbar{position:fixed;z-index:9999;top:0;left:0;right:0;min-height:56px;padding:max(8px,env(safe-area-inset-top)) 12px 8px;background:rgba(255,255,255,.97);border-bottom:1px solid #d8e1e7;display:flex;align-items:center;justify-content:space-between;gap:8px;box-shadow:0 3px 12px rgba(18,50,74,.08)}
       .ios-pdf-toolbar strong{font:700 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#17364a}
       .ios-pdf-actions{display:flex;gap:7px}.ios-pdf-actions button{min-height:40px;border-radius:11px;border:1px solid #ccd8df;background:#fff;color:#27495f;padding:0 13px;font:700 13px -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.ios-pdf-actions .primary{background:#173f59;border-color:#173f59;color:#fff}
-      .print-portal{display:block!important;width:210mm!important;min-width:210mm!important;max-width:none!important;margin:0 auto!important}
+      .print-portal{display:block!important;width:210mm!important;min-width:210mm!important;max-width:none!important;margin:0!important}
       .print-portal .invoice-pages{display:block!important;width:210mm!important;min-width:210mm!important;max-width:none!important;transform:none!important;margin:0!important;gap:18px!important}
-      .print-portal .invoice-page{width:210mm!important;min-width:210mm!important;max-width:210mm!important;height:297mm!important;min-height:297mm!important;margin:0 auto 18px!important}
-      @media print{html,body{width:210mm!important;background:#fff!important;overflow:visible!important}body{padding:0!important}.ios-pdf-toolbar{display:none!important}.print-portal{margin:0!important}.print-portal .invoice-pages{gap:0!important}.print-portal .invoice-page{margin:0!important;box-shadow:none!important;break-after:page;page-break-after:always}.print-portal .invoice-page:last-child{break-after:auto;page-break-after:auto}}
+      .print-portal .invoice-page{width:210mm!important;min-width:210mm!important;max-width:210mm!important;height:297mm!important;min-height:297mm!important;margin:0 0 18px!important}
+      @media print{html,body{width:210mm!important;background:#fff!important;overflow:visible!important}body{padding:0!important}.ios-pdf-toolbar{display:none!important}.print-portal{transform:none!important;transform-origin:top left!important;margin:0!important}.print-portal .invoice-pages{gap:0!important}.print-portal .invoice-page{margin:0!important;box-shadow:none!important;break-after:page;page-break-after:always}.print-portal .invoice-page:last-child{break-after:auto;page-break-after:auto}}
     </style></head><body><div class="ios-pdf-toolbar"><strong>LOUREX PDF</strong><div class="ios-pdf-actions"><button type="button" onclick="window.close()">Close / إغلاق</button><button class="primary" type="button" onclick="window.print()">Save PDF / حفظ PDF</button></div></div><div class="print-portal">${content}</div></body></html>`);
     target.document.close();
+
+    /* Screen preview only: keep the physical A4 DOM intact and scale the whole
+       sheet to the available iPhone width. Print media resets this to 1:1 A4. */
+    try {
+      const preview = target.document.querySelector('.print-portal');
+      if (preview) {
+        const a4CssPixels = 210 * 96 / 25.4;
+        const available = Math.max(280, target.innerWidth - 24);
+        const fit = Math.min(1, available / a4CssPixels);
+        preview.style.transform = `scale(${fit})`;
+        preview.style.transformOrigin = 'top left';
+      }
+    } catch {}
   };
 
   const waitForTargetAssets = async (target) => {
