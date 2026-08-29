@@ -20,18 +20,23 @@ test('mobile preview preserves physical A4 geometry instead of shrinking documen
   assert.match(css, /min-width:\s*66mm/);
 });
 
-test('iPhone PDF confirmation has a gesture-safe preview and print fallback', async () => {
-  const [html, bridge] = await Promise.all([
+test('iPhone PDF confirmation has a synchronous gesture-safe preview and direct Save PDF fallback', async () => {
+  const [html, bridge, review] = await Promise.all([
     read('index.html'),
-    read('public/ios-print-bridge.js')
+    read('public/ios-print-bridge.js'),
+    read('src/components/DocumentReviewModal.tsx')
   ]);
 
   assert.match(html, /<script src="\.\/ios-print-bridge\.js"><\/script>/);
   assert.doesNotThrow(() => new Function(bridge));
+  assert.match(bridge, /window\.__LOUREX_PREPARE_PDF__\s*=\s*preparePdfWindow/);
+  assert.match(bridge, /window\.open\('about:blank', '_blank'\)/);
   assert.match(bridge, /modal-footer-actions \.btn-primary/);
-  assert.match(bridge, /window\.open\('', '_blank'\)/);
   assert.match(bridge, /Save PDF \/ حفظ PDF/);
+  assert.match(bridge, /onclick="window\.print\(\)"/);
   assert.match(bridge, /window\.print = function lourexPrintBridge/);
   assert.match(bridge, /\.print-portal \.invoice-page/);
-  assert.match(bridge, /target\.print\(\)/);
+  assert.match(bridge, /styleLinks/);
+  assert.match(review, /__LOUREX_PREPARE_PDF__/);
+  assert.match(review, /mode==='pdf'/);
 });
