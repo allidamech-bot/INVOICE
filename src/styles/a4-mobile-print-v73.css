@@ -1,0 +1,93 @@
+/* v73 — isolate the printable A4 canvas from mobile application containment.
+   The iPhone shell intentionally clamps app chrome to the viewport; the document
+   preview itself must remain a real 210mm × 297mm sheet and then be scaled. */
+
+@media (max-width: 720px) {
+  /* The preview overlay is opt-in. A previous mobile refinement forced it visible
+     on every editor render, which also kept a second A4 surface alive unnecessarily. */
+  .app-ui .mobile-preview-overlay {
+    display: none !important;
+  }
+  .app-ui .mobile-preview-open .mobile-preview-overlay {
+    display: block !important;
+  }
+
+  /* Do not let `.app-ui * { max-width:100% }` shrink the A4 renderer to the
+     phone viewport. Shrinking the layout (instead of scaling it) collapses the
+     totals column, clips titles and distorts tables. */
+  .app-ui .preview-stage .invoice-pages,
+  .app-ui .mobile-preview-stage .invoice-pages {
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: none !important;
+    flex: 0 0 210mm !important;
+  }
+
+  .app-ui .preview-stage .invoice-page,
+  .app-ui .mobile-preview-stage .invoice-page {
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    flex: 0 0 297mm !important;
+  }
+
+  .app-ui .mobile-preview-stage {
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Keep the commercial totals column at its authored A4 width even when it is
+   the only child in the lower grid (for example when no commercial terms exist). */
+.invoice-page .lower-grid > .totals-block {
+  width: 66mm;
+  min-width: 66mm;
+  max-width: 66mm;
+  align-self: start;
+}
+.invoice-page .total-row,
+.invoice-page .grand-total {
+  min-width: 0;
+}
+.invoice-page .total-row > strong,
+.invoice-page .grand-total > strong {
+  white-space: nowrap;
+}
+
+/* Printing/PDF must always use physical A4 dimensions, irrespective of the
+   phone's visual viewport or safe-area containment rules. */
+@media print {
+  html,
+  body,
+  #root,
+  .app-root,
+  .print-portal {
+    max-width: none !important;
+    overflow: visible !important;
+  }
+
+  .print-portal,
+  .print-portal .invoice-pages {
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: none !important;
+  }
+
+  .print-portal .invoice-pages {
+    gap: 0 !important;
+    transform: none !important;
+    margin: 0 !important;
+  }
+
+  .print-portal .invoice-page {
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+}
