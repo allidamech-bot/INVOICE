@@ -55,11 +55,14 @@ test('current service worker precaches every compiled application module',async(
 
 test('cloud freshness watcher never installs or reloads a live vault outside App coordination',async()=>{
   const source=await read('src/cloud/freshness.ts');
+  const app=await read('src/app/App.tsx');
   assert.doesNotMatch(source,/installCloudVault/);
   assert.doesNotMatch(source,/window\.location\.reload\(\)/);
-  assert.match(source,/window\.dispatchEvent\(new Event\('online'\)\)/);
-  assert.match(source,/lourex-cloud-newer-revision/);
+  assert.doesNotMatch(source,/window\.dispatchEvent\(new Event\('online'\)\)/);
+  assert.match(source,/window\.dispatchEvent\(new Event\('lourex-cloud-remote-newer'\)\)/);
   assert.match(source,/editor-screen,.modal-backdrop/);
+  assert.match(app,/addEventListener\('lourex-cloud-remote-newer',this\.handleRemoteCloudNewer\)/);
+  assert.match(app,/handleRemoteCloudNewer=.*cloudSyncNow/);
 });
 
 test('cloud metadata validation matches the real flat SecurityMetadata schema and commits atomically',async()=>{
