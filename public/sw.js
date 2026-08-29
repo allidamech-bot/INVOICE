@@ -1,10 +1,10 @@
-// v73 — complete offline shell with fresh critical runtime paths.
+// v74 — complete offline shell with fresh critical runtime paths.
 // Compatibility marker retained for legacy regression coverage: lourex-invoice-v65.
-const CACHE = 'lourex-invoice-v73';
+const CACHE = 'lourex-invoice-v74';
 const LOCAL_CORE = ["./","./index.html","./manifest.webmanifest","./ios-print-bridge.js","./styles/app.css","./styles/rtl.css","./styles/document.css","./styles/templates-modern.css","./styles/templates-dark.css","./styles/refinement.css","./styles/tablet-editor.css","./styles/premium.css","./styles/cloud.css","./styles/auth-entry.css","./styles/company-assets.css","./styles/system-polish.css","./styles/document-system.css","./styles/experience.css","./styles/accounting-polish.css","./styles/workflow-premium.css","./styles/template-preferences.css","./styles/workflow-closeout.css","./styles/v44-audit.css","./styles/editor-system.css","./styles/editor-workflow-v61.css","./styles/mobile-item-editor-v66.css","./styles/iphone-fit-v70.css","./styles/mobile-shell-v71.css","./styles/a4-mobile-print-v73.css","./brand/lourex-logo.svg","./brand/lourex-app-icon.svg","./src/app/index.js","./src/app/App.js","./src/app/AppErrorBoundary.js","./src/app/AuthScreenSelector.js","./src/components/UI.js","./src/components/AuthScreens.js","./src/components/AccountEntryScreen.js","./src/components/DocumentsPage.js","./src/components/CustomersPage.js","./src/components/SettingsModal.js","./src/components/EditorPage.js","./src/components/EditorPageCore.js","./src/components/DocumentReviewModal.js","./src/components/SavedItemsModal.js","./src/components/CloudAccountModal.js","./src/cloud/firebase.js","./src/cloud/freshness.js","./src/templates/TemplateRenderer.js","./src/templates/TemplateThumbnails.js","./src/types.js","./src/lib/defaults.js","./src/lib/i18n.js","./src/lib/id.js","./src/lib/money.js","./src/lib/documents.js","./src/lib/readiness.js","./src/lib/document-quality.js","./src/lib/saved-items.js","./src/lib/appearance.js","./src/lib/backup.js","./src/lib/files.js","./src/lib/logo-repair.js","./src/lib/logo-rebuild.js","./src/crypto/crypto.js","./src/storage/db.js","./src/storage/session.js","./src/storage/vault.js","./src/storage/vault-merge.js"];
 const EXTERNAL_CORE = ["https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js","https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react-dom.production.min.js"];
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
-const FRESH_PATHS = new Set(['/src/cloud/firebase.js','/ios-print-bridge.js','/styles/a4-mobile-print-v73.css']);
+const FRESH_PATHS = new Set(['/src/cloud/firebase.js','/src/components/EditorPage.js','/ios-print-bridge.js','/styles/a4-mobile-print-v73.css']);
 
 async function preserveExternalRuntime(cache,asset){
   const existing=await caches.match(asset);
@@ -57,8 +57,8 @@ self.addEventListener('fetch',event=>{
     return;
   }
 
-  // Navigation and the repaired cloud/PDF/A4 paths prefer the network so iOS
-  // cannot remain trapped on a broken prior release; all other application
+  // Navigation and repaired cloud/PDF/A4/editor entry paths prefer the network
+  // so iOS cannot remain trapped on a broken prior release. Other application
   // modules remain cache-first for fast startup and full offline operation.
   if(event.request.mode==='navigate'||FRESH_PATHS.has(url.pathname)){
     event.respondWith(networkFirst(event.request));
