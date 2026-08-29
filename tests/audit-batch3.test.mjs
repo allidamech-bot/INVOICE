@@ -36,3 +36,13 @@ test('all Firebase sign-in entry points mark the just-signed-in restoration wind
   assert.match(firebase,/signInCloudUser[\s\S]*markRecentAuth\(\);return user/);
   assert.match(firebase,/recent\?10_000:5_000/);
 });
+
+test('installed PWA validates all same-origin app JS and CSS before using its offline cache',async()=>{
+  const sw=await read('public/sw.js');
+  assert.match(sw,/lourex-invoice-v80/);
+  assert.match(sw,/pathname\.startsWith\('\/src\/'\)/);
+  assert.match(sw,/pathname\.startsWith\('\/styles\/'\)/);
+  assert.match(sw,/isAppRuntimePath\(url\.pathname\)/);
+  assert.match(sw,/fetch\(request,\{cache:'no-cache'\}\)/);
+  assert.match(sw,/const cached=await cache\.match\(request\)/);
+});
