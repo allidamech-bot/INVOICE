@@ -15,6 +15,24 @@ interface Props {
 // retaining the source document's local state.
 export function EditorPage(props:Props):any {
   const canConvertFinalQuote=props.document.kind==='proforma'&&props.document.status==='final';
+
+  // The app is a single-page interface, so Safari can preserve the previous
+  // workspace scroll position when a document is opened. That made invoices
+  // appear to open halfway down the editor and look frozen. Reset every scroll
+  // owner after the new document identity mounts.
+  React.useEffect(()=>{
+    const reset=()=>{
+      window.scrollTo(0,0);
+      document.documentElement.scrollTop=0;
+      document.body.scrollTop=0;
+      document.querySelectorAll<HTMLElement>('.editor-screen,.editor-pane,.app-main,.workspace').forEach(node=>{node.scrollTop=0;node.scrollLeft=0;});
+    };
+    reset();
+    const frame=window.requestAnimationFrame(reset);
+    const timer=window.setTimeout(reset,80);
+    return()=>{window.cancelAnimationFrame(frame);window.clearTimeout(timer);};
+  },[props.document.id]);
+
   return <>
     <EditorPageCore key={props.document.id} {...props}/>
     {canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
