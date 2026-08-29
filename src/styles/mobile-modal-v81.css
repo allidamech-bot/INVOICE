@@ -1,0 +1,72 @@
+/* v81 — keep modal chrome reachable on iPhone/PWA.
+   Long settings forms scroll inside the modal body while the title and close
+   control remain pinned inside the visual viewport. */
+@media (max-width: 720px) {
+  .app-ui .modal-backdrop {
+    align-items: stretch !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    padding-top: max(8px, env(safe-area-inset-top)) !important;
+    padding-right: max(8px, env(safe-area-inset-right)) !important;
+    padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    padding-left: max(8px, env(safe-area-inset-left)) !important;
+  }
+
+  .app-ui .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: calc(100dvh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom))) !important;
+    margin: 0 !important;
+    align-self: stretch !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .app-ui .modal-header {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 20 !important;
+    min-height: 56px !important;
+    padding: 9px 12px !important;
+    background: rgba(255,255,255,.98) !important;
+    border-bottom: 1px solid #e1ded7 !important;
+  }
+
+  .app-ui .modal-header h2 {
+    display: block !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+
+  .app-ui .modal-header .icon-btn {
+    display: inline-grid !important;
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    color: #213846 !important;
+    background: #f2f5f6 !important;
+    border: 1px solid #d7e2e8 !important;
+    border-radius: 12px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .app-ui .modal-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    padding: 14px 12px calc(22px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .app-ui .settings-layout {
+    min-height: 0 !important;
+  }
+}
