@@ -31,6 +31,19 @@ test('document customer state treats blank snapshots as missing everywhere',asyn
   assert.match(workspace,/hasDocumentCustomer\(doc\)/);
 });
 
+test('quality multi-page warning accounts for real party and final-details pressure',async()=>{
+  const documents=await import('../dist/src/lib/documents.js');
+  const quality=await import('../dist/src/lib/document-quality.js');
+  const defaults=await import('../dist/src/lib/defaults.js');
+  const doc=documents.createBlankDocument('proforma','PI-2026-0009',defaults.defaultCompany());
+  doc.language='bilingual';
+  doc.customerSnapshot={companyNameEn:'Customer International Trading Company',companyNameAr:'شركة العميل الدولية للتجارة',contactName:'',addressEn:'A long commercial address used to create realistic first-page pressure across the A4 document',addressAr:'عنوان تجاري طويل لاختبار ضغط بيانات العميل على الصفحة الأولى من المستند',city:'Riyadh',country:'Saudi Arabia',phone:'+966500000000',email:'buyer@example.com',vatTaxNumber:'310000000000003',commercialRegistration:'1010000000'};
+  doc.companySnapshot={...doc.companySnapshot,addressEn:'A long company commercial address used in the document header and seller block',addressAr:'عنوان الشركة التجاري الطويل المستخدم في بيانات البائع ضمن المستند',city:'Homs',country:'Syria',phone:'+963000000000',email:'sales@example.com',website:'example.com',vatNumber:'VAT-123456',taxNumber:'TAX-123456',commercialRegistration:'CR-123456'};
+  doc.items=Array.from({length:6},(_,index)=>({...documents.emptyItem(),descriptionEn:`Commercial product ${index+1}`,descriptionAr:`منتج تجاري ${index+1}`,unitPrice:'100.00'}));
+  assert.ok(quality.estimatedDocumentPageCount(doc)>1);
+  assert.ok(quality.documentQualityIssues(doc).some(issue=>issue.code==='multi-page'));
+});
+
 test('v82 quote and invoice UX layer is loaded last and shipped offline',()=>{
   const html=read('index.html');
   const sw=read('public/sw.js');
