@@ -1,11 +1,11 @@
-/* v78 — isolate document writing direction from the Arabic application shell.
+/* v80 — isolate document writing direction from the Arabic application shell.
    The UI can be RTL while an English invoice remains LTR. Arabic invoices are
    explicitly RTL and bilingual invoices keep an LTR grid with Arabic spans
    carrying their own dir=rtl semantics. */
 .invoice-page{direction:ltr;text-align:left;unicode-bidi:isolate}
 .invoice-page.lang-en{direction:ltr;text-align:left}
 .invoice-page.lang-ar{direction:rtl;text-align:right}
-.invoice-page.lang-bi{direction:ltr;text-align:left}
+.invoice-page.lang-bilingual{direction:ltr;text-align:left}
 
 .invoice-page.lang-ar .header-modern .modern-title,
 .invoice-page.lang-ar .doc-title,
@@ -36,13 +36,13 @@
 
 .invoice-page.lang-ar .items-table{direction:rtl}
 .invoice-page.lang-en .items-table,
-.invoice-page.lang-bi .items-table{direction:ltr}
+.invoice-page.lang-bilingual .items-table{direction:ltr}
 .invoice-page.lang-ar .items-table th,
 .invoice-page.lang-ar .items-table td{text-align:right}
 .invoice-page.lang-en .items-table th,
 .invoice-page.lang-en .items-table td{text-align:left}
 .invoice-page.lang-en .items-table .money-cell,
-.invoice-page.lang-bi .items-table .money-cell{text-align:right}
+.invoice-page.lang-bilingual .items-table .money-cell{text-align:right}
 .invoice-page.lang-ar .items-table .money-cell{text-align:left}
 
 /* Keep identifiers, dates, numbers and currency codes stable inside RTL rows. */
