@@ -155,14 +155,14 @@
 .invoice-page.template-obsidian .items-table th{color:#fff!important}
 .invoice-page.template-obsidian .party-name{color:#081b2d!important}
 
-/* Arabic needs slightly more weight because small Arabic glyphs thin out faster
-   than Latin when Safari scales a full A4 sheet to phone width. */
+/* Arabic and bilingual documents need slightly more weight because small Arabic
+   glyphs thin out faster than Latin when Safari scales a full A4 sheet to phone width. */
 .invoice-page.lang-ar,
-.invoice-page.lang-bi{font-weight:550}
+.invoice-page.lang-bilingual{font-weight:550}
 .invoice-page.lang-ar .description-cell,
-.invoice-page.lang-bi .description-cell{font-weight:750!important}
+.invoice-page.lang-bilingual .description-cell{font-weight:750!important}
 .invoice-page.lang-ar .doc-meta span,
-.invoice-page.lang-bi .doc-meta span{font-weight:850!important}
+.invoice-page.lang-bilingual .doc-meta span{font-weight:850!important}
 
 @media print{
   .invoice-page{
