@@ -57,7 +57,7 @@ test('installed PWA update path is non-fatal and never forces an automatic reloa
   assert.match(index, /const hadController=Boolean\(navigator\.serviceWorker\.controller\)/);
   assert.match(index, /controllerchange/);
   assert.match(index, /if\(hadController\)showUpdateNotice\(\)/);
-  assert.match(index, /registration\.update\(\)\.catch\(\(\)=>undefined\)/);
+  assert.match(index, /then\(registration=>registration\.update\(\)\)\.catch\(\(\)=>undefined\)/);
   assert.doesNotMatch(index, /controllerchange[^]*window\.location\.reload\(\)/);
 });
 
