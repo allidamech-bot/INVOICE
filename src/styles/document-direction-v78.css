@@ -1,0 +1,61 @@
+/* v78 — isolate document writing direction from the Arabic application shell.
+   The UI can be RTL while an English invoice remains LTR. Arabic invoices are
+   explicitly RTL and bilingual invoices keep an LTR grid with Arabic spans
+   carrying their own dir=rtl semantics. */
+.invoice-page{direction:ltr;text-align:left;unicode-bidi:isolate}
+.invoice-page.lang-en{direction:ltr;text-align:left}
+.invoice-page.lang-ar{direction:rtl;text-align:right}
+.invoice-page.lang-bi{direction:ltr;text-align:left}
+
+.invoice-page.lang-ar .header-modern .modern-title,
+.invoice-page.lang-ar .doc-title,
+.invoice-page.lang-ar .section-kicker,
+.invoice-page.lang-ar .party-block,
+.invoice-page.lang-ar .terms-block,
+.invoice-page.lang-ar .bank-block,
+.invoice-page.lang-ar .signature-block,
+.invoice-page.lang-ar .notes-block{text-align:right}
+
+.invoice-page.lang-en .header-modern .modern-title,
+.invoice-page.lang-en .doc-title,
+.invoice-page.lang-en .section-kicker,
+.invoice-page.lang-en .party-block,
+.invoice-page.lang-en .terms-block,
+.invoice-page.lang-en .bank-block,
+.invoice-page.lang-en .signature-block,
+.invoice-page.lang-en .notes-block{text-align:left}
+
+.invoice-page.lang-ar .doc-meta>div,
+.invoice-page.lang-ar .total-row,
+.invoice-page.lang-ar .grand-total,
+.invoice-page.lang-ar .term-row{direction:rtl}
+.invoice-page.lang-en .doc-meta>div,
+.invoice-page.lang-en .total-row,
+.invoice-page.lang-en .grand-total,
+.invoice-page.lang-en .term-row{direction:ltr}
+
+.invoice-page.lang-ar .items-table{direction:rtl}
+.invoice-page.lang-en .items-table,
+.invoice-page.lang-bi .items-table{direction:ltr}
+.invoice-page.lang-ar .items-table th,
+.invoice-page.lang-ar .items-table td{text-align:right}
+.invoice-page.lang-en .items-table th,
+.invoice-page.lang-en .items-table td{text-align:left}
+.invoice-page.lang-en .items-table .money-cell,
+.invoice-page.lang-bi .items-table .money-cell{text-align:right}
+.invoice-page.lang-ar .items-table .money-cell{text-align:left}
+
+/* Keep identifiers, dates, numbers and currency codes stable inside RTL rows. */
+.invoice-page.lang-ar .doc-meta span,
+.invoice-page.lang-ar .money-cell,
+.invoice-page.lang-ar .bank-block span,
+.invoice-page.lang-ar .party-identifiers span{unicode-bidi:isolate}
+.invoice-page.lang-ar .doc-meta span,
+.invoice-page.lang-ar .money-cell{direction:ltr}
+
+@media print{
+  @page{size:A4;margin:0}
+  html,body{margin:0!important;padding:0!important}
+  .print-portal,.print-portal .invoice-pages{margin:0!important;padding:0!important}
+  .print-portal .invoice-page{box-sizing:border-box!important;overflow:hidden!important;break-inside:avoid!important;page-break-inside:avoid!important}
+}
