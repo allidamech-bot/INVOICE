@@ -54,9 +54,10 @@ test('every proforma and invoice uses the same shared A4 renderer and output-fix
 });
 
 test('document renderer preserves English, Arabic and bilingual direction semantics',async()=>{
-  const [renderer,direction]=await Promise.all([
+  const [renderer,direction,typography]=await Promise.all([
     read('src/templates/TemplateRenderer.tsx'),
-    read('src/styles/document-direction-v78.css')
+    read('src/styles/document-direction-v78.css'),
+    read('src/styles/document-typography-v76.css')
   ]);
   assert.match(renderer,/doc\.language === 'ar'/);
   assert.match(renderer,/doc\.language === 'en'/);
@@ -72,6 +73,8 @@ test('document renderer preserves English, Arabic and bilingual direction semant
   assert.match(direction,/\.invoice-page\.lang-ar \.items-table\{direction:rtl\}/);
   assert.match(direction,/\.invoice-page\.lang-bilingual \.items-table\{direction:ltr\}/);
   assert.match(direction,/unicode-bidi:isolate/);
+  assert.match(typography,/\.invoice-page\.lang-bilingual/);
+  assert.doesNotMatch(typography,/\.invoice-page\.lang-bi(?:\W|$)/);
 });
 
 test('A4 and multi-page print guardrails remain present for every template',async()=>{
