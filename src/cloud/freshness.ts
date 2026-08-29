@@ -1,5 +1,5 @@
 import { currentCloudUser, getCloudVaultMeta } from './firebase.js';
-import { getCloudAccount, getEncryptedVault, putCloudAccount } from '../storage/db.js';
+import { getCloudAccount, getEncryptedVault } from '../storage/db.js';
 
 let timer:number|undefined;
 let running=false;
@@ -21,15 +21,11 @@ async function checkCloudFreshness():Promise<void>{
   if(!user)return;
   running=true;
   try{
-    let linked=await getCloudAccount();
-
-    // Safari and an installed iOS web app can have separate site-storage contexts.
-    // Recreate only the harmless account link here; App remains the sole owner of
-    // live vault replacement, conflict handling and user-visible sync state.
-    if(!linked){
-      await putCloudAccount(user.uid,user.email);
-      linked=await getCloudAccount();
-    }
+    // This watcher is intentionally read-only. Only App may create or replace the
+    // device/account link because App performs the remote-vault safety checks first.
+    // Auto-linking here can race startup and accidentally bypass those checks when
+    // Firebase auth restores slightly before App finishes its configured-device flow.
+    const linked=await getCloudAccount();
     if(!linked||linked.uid!==user.uid)return;
 
     const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(user.uid)]);
