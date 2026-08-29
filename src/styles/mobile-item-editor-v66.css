@@ -1,5 +1,5 @@
-/* v67 — mobile item editor cleanup.
-   Flat controls, no button-inside-button visual chrome, tighter hierarchy. */
+/* v68 — mobile item editor cleanup.
+   Flat controls, full labels, no nested visual boxes. */
 @media (max-width: 720px) {
   .app-ui .editor-section:has(.add-item-button) {
     padding: 12px 10px !important;
@@ -7,93 +7,296 @@
     box-shadow: none !important;
     background: transparent !important;
   }
+
   .app-ui .editor-section:has(.add-item-button) > .section-heading.with-action {
-    position: static !important; margin: 0 0 12px !important; padding: 0 !important;
-    border: 0 !important; border-radius: 0 !important; background: transparent !important;
-    box-shadow: none !important; backdrop-filter: none !important; gap: 10px !important;
+    position: static !important;
+    top: auto !important;
+    z-index: auto !important;
+    margin: 0 0 12px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    gap: 10px !important;
   }
+
+  .app-ui .editor-section:has(.add-item-button) > .section-heading.with-action > div:first-child {
+    min-height: 28px !important;
+  }
+
   .app-ui .editor-section:has(.add-item-button) .section-heading-actions {
-    display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; width: 100%;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    width: 100% !important;
   }
+
   .app-ui .editor-section:has(.add-item-button) .section-heading-actions .btn {
-    min-height: 44px !important; height: 44px !important; padding: 0 12px !important;
-    border-radius: 12px !important; font-size: 12px !important; justify-content: center !important;
-    gap: 8px !important; white-space: nowrap; box-shadow: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    min-height: 46px !important;
+    height: 46px !important;
+    padding: 0 12px !important;
+    border-radius: 12px !important;
+    gap: 8px !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    box-shadow: none !important;
   }
-  /* Kill legacy pseudo-labels that were rendering as small boxes inside the actions. */
+
+  /* Critical reset: Button renders its text inside a span. Older editor rules were
+     visually turning that span into a second small control and clipping Arabic text. */
+  .app-ui .editor-section:has(.add-item-button) .section-heading-actions .btn > span,
+  .app-ui .item-card-actions .btn > span,
+  .app-ui .mobile-action-buttons .btn > span {
+    display: inline !important;
+    position: static !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: inherit !important;
+    font: inherit !important;
+    line-height: inherit !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    opacity: 1 !important;
+  }
+
   .app-ui .editor-section:has(.add-item-button) .section-heading-actions .btn::before,
   .app-ui .editor-section:has(.add-item-button) .section-heading-actions .btn::after,
   .app-ui .item-card-actions .btn::before,
   .app-ui .item-card-actions .btn::after,
   .app-ui .item-card-actions .icon-btn::before,
-  .app-ui .item-card-actions .icon-btn::after { display:none !important; content:none !important; }
+  .app-ui .item-card-actions .icon-btn::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .app-ui .editor-section:has(.add-item-button) .section-heading-actions .btn .icon {
+    flex: 0 0 auto !important;
+    width: 18px !important;
+    height: 18px !important;
+  }
 
   .app-ui .editor-section:has(.add-item-button) .section-heading-actions .btn-ghost {
-    background:#fff !important; border:1px solid #d7e2e8 !important; color:#31566b !important;
+    background: #fff !important;
+    border: 1px solid #d7e2e8 !important;
+    color: #31566b !important;
   }
+
   .app-ui .editor-section:has(.add-item-button) .section-heading-actions .add-item-button {
-    background:#153f5a !important; border:1px solid #153f5a !important; color:#fff !important;
+    background: #153f5a !important;
+    border: 1px solid #153f5a !important;
+    color: #fff !important;
   }
 
   .app-ui .premium-item-card {
-    overflow:hidden; margin-bottom:12px !important; border:1px solid #d9e3e8 !important;
-    border-radius:15px !important; box-shadow:none !important; background:#fff !important;
+    overflow: hidden;
+    margin-bottom: 12px !important;
+    border: 1px solid #d9e3e8 !important;
+    border-radius: 15px !important;
+    box-shadow: none !important;
+    background: #fff !important;
   }
-  .app-ui .premium-item-card > header {
-    display:grid !important; grid-template-columns:1fr !important; gap:8px !important;
-    padding:11px !important; min-height:0 !important; background:#fff !important;
-    border-bottom:1px solid #e7edef !important;
-  }
-  .app-ui .premium-item-card > header > div:first-child {
-    display:flex !important; align-items:center !important; justify-content:space-between !important;
-    width:100% !important; min-width:0 !important; gap:10px !important; flex-basis:auto !important;
-  }
-  .app-ui .premium-item-card > header > div:first-child > strong { font-size:13px !important; font-weight:800; color:#17364a; }
-  .app-ui .item-line-total {
-    flex:0 0 auto; padding:5px 9px !important; border:0 !important; border-radius:999px !important;
-    font-size:11.5px !important; font-weight:800; background:#edf4f7 !important; color:#245f7e !important;
-  }
-  /* One simple toolbar: save grows, duplicate/delete are icon-only. */
-  .app-ui .item-card-actions {
-    display:flex !important; align-items:center !important; gap:6px !important; width:100% !important; margin:0 !important;
-  }
-  .app-ui .item-card-actions .save-item-library-button {
-    flex:1 1 auto !important; width:auto !important; min-width:0 !important; height:38px !important; min-height:38px !important;
-    margin:0 !important; padding:0 10px !important; justify-content:center !important;
-    border:1px solid #d7e2e8 !important; border-radius:10px !important; background:#fff !important;
-    color:#31566b !important; font-size:11px !important; box-shadow:none !important;
-  }
-  .app-ui .item-card-actions .icon-btn {
-    flex:0 0 38px !important; width:38px !important; min-width:38px !important; height:38px !important; min-height:38px !important;
-    padding:0 !important; border:0 !important; border-radius:9px !important; background:transparent !important; box-shadow:none !important;
-  }
-  .app-ui .item-card-actions .icon-btn:last-child { color:#8c9aa3 !important; }
 
-  .app-ui .premium-item-card .item-core-grid { padding:11px !important; gap:9px !important; }
-  .app-ui .premium-item-card .field { gap:5px !important; }
-  .app-ui .premium-item-card .field-label { font-size:11.5px !important; font-weight:750; color:#516a78; }
+  .app-ui .premium-item-card > header {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    padding: 11px !important;
+    min-height: 0 !important;
+    background: #fff !important;
+    border-bottom: 1px solid #e7edef !important;
+  }
+
+  .app-ui .premium-item-card > header > div:first-child {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 10px !important;
+    flex-basis: auto !important;
+  }
+
+  .app-ui .premium-item-card > header > div:first-child > strong {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    color: #17364a !important;
+  }
+
+  .app-ui .item-line-total {
+    flex: 0 0 auto !important;
+    padding: 5px 9px !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    background: #edf4f7 !important;
+    color: #245f7e !important;
+  }
+
+  .app-ui .item-card-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .app-ui .item-card-actions .save-item-library-button {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    justify-content: center !important;
+    border: 1px solid #d7e2e8 !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+    color: #31566b !important;
+    font-size: 11px !important;
+    box-shadow: none !important;
+  }
+
+  .app-ui .item-card-actions .icon-btn {
+    flex: 0 0 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 9px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .app-ui .item-card-actions .icon-btn:last-child {
+    color: #8c9aa3 !important;
+  }
+
+  .app-ui .premium-item-card .item-core-grid {
+    padding: 11px !important;
+    gap: 9px !important;
+  }
+
+  .app-ui .premium-item-card .field {
+    gap: 5px !important;
+  }
+
+  .app-ui .premium-item-card .field-label {
+    font-size: 11.5px !important;
+    font-weight: 750 !important;
+    color: #516a78 !important;
+  }
+
   .app-ui .premium-item-card .input,
   .app-ui .premium-item-card select.input {
-    min-height:44px !important; border-radius:10px !important; background:#fff !important;
-    border:1px solid #cedbe2 !important; box-shadow:none !important;
+    min-height: 44px !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+    border: 1px solid #cedbe2 !important;
+    box-shadow: none !important;
   }
+
   .app-ui .premium-item-card textarea.input {
-    min-height:68px !important; height:68px !important; padding:9px 10px !important; line-height:1.4; resize:vertical;
+    min-height: 68px !important;
+    height: 68px !important;
+    padding: 9px 10px !important;
+    line-height: 1.4 !important;
+    resize: vertical;
   }
+
   .app-ui .premium-item-card .item-pricing-grid {
-    display:grid !important; grid-template-columns:minmax(0,1fr) minmax(104px,.72fr) !important;
-    gap:8px !important; padding:0 !important; border:0 !important; border-radius:0 !important;
-    background:transparent !important; box-shadow:none !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(104px, .72fr) !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
-  .app-ui .premium-item-card .item-pricing-grid > .field:nth-child(3) { grid-column:1/-1; }
-  .app-ui .premium-item-card .item-advanced-control { margin-top:0 !important; padding-top:8px !important; border-top:1px solid #edf1f3 !important; }
-  .app-ui .premium-item-card .item-advanced-control > button { min-height:32px !important; padding:0 2px !important; font-size:11px !important; color:#607785; }
-  .app-ui .premium-item-card .item-advanced-fields { padding:9px !important; border:1px solid #e2e9ec !important; border-radius:10px !important; background:#fafcfc !important; }
-  .app-ui .premium-item-card > footer { min-height:38px !important; padding:8px 11px !important; background:#fbfcfc !important; border-top:1px solid #e7edef !important; }
-  .app-ui .mobile-editor-actionbar { min-height:58px !important; padding:7px !important; border-radius:16px !important; }
-  .app-ui .mobile-action-buttons .btn { min-height:42px !important; }
+
+  .app-ui .premium-item-card .item-pricing-grid > .field:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  .app-ui .premium-item-card .item-advanced-control {
+    margin-top: 0 !important;
+    padding-top: 8px !important;
+    border-top: 1px solid #edf1f3 !important;
+  }
+
+  .app-ui .premium-item-card .item-advanced-control > button {
+    min-height: 32px !important;
+    padding: 0 2px !important;
+    font-size: 11px !important;
+    color: #607785 !important;
+  }
+
+  .app-ui .premium-item-card .item-advanced-fields {
+    padding: 9px !important;
+    border: 1px solid #e2e9ec !important;
+    border-radius: 10px !important;
+    background: #fafcfc !important;
+  }
+
+  .app-ui .premium-item-card > footer {
+    min-height: 38px !important;
+    padding: 8px 11px !important;
+    background: #fbfcfc !important;
+    border-top: 1px solid #e7edef !important;
+  }
+
+  .app-ui .mobile-editor-actionbar {
+    min-height: 58px !important;
+    padding: 7px !important;
+    border-radius: 16px !important;
+  }
+
+  .app-ui .mobile-action-buttons .btn {
+    min-height: 42px !important;
+  }
 }
-@media (max-width:350px){
-  .app-ui .premium-item-card .item-pricing-grid{grid-template-columns:1fr !important;}
-  .app-ui .premium-item-card .item-pricing-grid > .field:nth-child(3){grid-column:auto;}
+
+@media (max-width: 430px) {
+  .app-ui .editor-section:has(.add-item-button) .section-heading-actions .btn {
+    padding-inline: 9px !important;
+    gap: 6px !important;
+    font-size: 11.5px !important;
+  }
+}
+
+@media (max-width: 350px) {
+  .app-ui .editor-section:has(.add-item-button) .section-heading-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .app-ui .premium-item-card .item-pricing-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .app-ui .premium-item-card .item-pricing-grid > .field:nth-child(3) {
+    grid-column: auto;
+  }
 }
