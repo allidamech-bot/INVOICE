@@ -1,0 +1,87 @@
+/* v61 — editor workflow acceleration.
+   Application editor chrome only; printable document/A4 internals are intentionally untouched. */
+
+.app-ui .premium-item-card{
+  scroll-margin-top:116px;
+  transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease;
+}
+.app-ui .premium-item-card:focus-within{
+  border-color:#9ebdcd!important;
+  box-shadow:0 12px 30px rgba(20,72,102,.10)!important;
+}
+.app-ui .premium-item-card:focus-within>header{
+  background:linear-gradient(90deg,#eef6fa 0%,#fff 82%)!important;
+}
+.app-ui .premium-item-card:focus-within .item-line-total{
+  background:#e4f0f6;
+  color:#174866;
+}
+.app-ui .recent-customer-row>div{
+  scroll-snap-type:x proximity;
+}
+.app-ui .recent-customer-row button{
+  scroll-snap-align:start;
+}
+
+@media(max-width:1180px){
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{
+    position:sticky;
+    top:0;
+    z-index:14;
+    margin:-8px -8px 14px;
+    padding:8px;
+    border:1px solid rgba(202,217,225,.86);
+    border-radius:14px;
+    background:rgba(250,252,252,.96);
+    backdrop-filter:blur(14px);
+    box-shadow:0 8px 20px rgba(14,39,55,.07);
+  }
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action .section-heading-actions{
+    flex-shrink:0;
+  }
+  .app-ui .premium-item-card{
+    scroll-margin-top:132px;
+  }
+}
+
+@media(max-width:720px){
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{
+    top:4px;
+    margin:-7px -5px 12px;
+    padding:7px;
+    border-radius:13px;
+  }
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action>div:first-child{
+    min-height:26px;
+  }
+  .app-ui .editor-section:has(.add-item-button) .section-heading-actions .btn{
+    min-height:44px!important;
+  }
+  .app-ui .premium-item-card{
+    scroll-margin-top:150px;
+  }
+  .app-ui .premium-item-card:focus-within{
+    transform:translateY(-1px);
+  }
+  .app-ui .item-card-actions .icon-btn,
+  .app-ui .item-card-actions .btn{
+    min-width:40px;
+    min-height:40px;
+  }
+  .app-ui .recent-customer-row>div{
+    scroll-padding-inline:2px;
+  }
+}
+
+@media(max-width:430px){
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{
+    top:2px;
+  }
+  .app-ui .editor-section:has(.add-item-button) .section-heading-actions{
+    grid-template-columns:1fr 1fr!important;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .app-ui .premium-item-card{transition:none}
+}

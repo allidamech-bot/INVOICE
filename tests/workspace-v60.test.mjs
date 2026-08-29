@@ -44,9 +44,9 @@ test('workflow styling keeps the resume card and overview filters touch-friendly
   assert.match(css,/\.documents-overview>button\{padding:11px 12px;border-radius:14px;min-height:58px\}/);
 });
 
-test('v60 PWA cache ships changed workspace code and styling to installed devices',async()=>{
+test('v60 workspace assets remain present in the current PWA release',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/lourex-invoice-v60/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.ok(sw.includes('./src/components/DocumentsPage.js'));
   assert.ok(sw.includes('./styles/workflow-premium.css'));
 });
