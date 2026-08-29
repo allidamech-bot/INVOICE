@@ -37,6 +37,8 @@ test('iPhone PDF confirmation has a synchronous gesture-safe preview and direct 
   assert.match(bridge, /window\.print = function lourexPrintBridge/);
   assert.match(bridge, /\.print-portal \.invoice-page/);
   assert.match(bridge, /styleLinks/);
+  assert.match(bridge, /releaseParentPrintState/);
+  assert.match(bridge, /dispatchEvent\(new Event\('afterprint'\)\)/);
   assert.match(review, /__LOUREX_PREPARE_PDF__/);
   assert.match(review, /mode==='pdf'/);
 });
