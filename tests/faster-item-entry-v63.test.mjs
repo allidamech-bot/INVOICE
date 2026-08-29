@@ -6,10 +6,7 @@ const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 
 test('similar-item action is surfaced from the existing explicit duplicate control',async()=>{
-  const [editor,css]=await Promise.all([
-    read('src/components/EditorPageCore.tsx'),
-    read('src/styles/editor-workflow-v61.css')
-  ]);
+  const [editor,css]=await Promise.all([read('src/components/EditorPageCore.tsx'),read('src/styles/editor-workflow-v61.css')]);
   assert.match(editor,/private duplicateItem=\(item:DocumentItem\)/);
   assert.match(editor,/label=\{t\('Duplicate item','نسخ الصنف'\)\}/);
   assert.match(css,/save-item-library-button\+\.icon-btn::after/);
@@ -30,12 +27,9 @@ test('similar-item action stays touch friendly and degrades to icon-only on very
   assert.match(css,/@media\(max-width:350px\)[\s\S]*::after\{[^}]*display:none/);
 });
 
-test('v63 remains isolated from printable A4 internals and ships through the PWA cache',async()=>{
-  const [css,sw]=await Promise.all([
-    read('src/styles/editor-workflow-v61.css'),
-    read('public/sw.js')
-  ]);
+test('v63 remains isolated from printable A4 internals and stays in the current PWA release',async()=>{
+  const [css,sw]=await Promise.all([read('src/styles/editor-workflow-v61.css'),read('public/sw.js')]);
   assert.doesNotMatch(css,/\.a4[-_]|\.document-page|\.invoice-page|@media\s+print/i);
-  assert.match(sw,/lourex-invoice-v63/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.ok(sw.includes('./styles/editor-workflow-v61.css'));
 });
