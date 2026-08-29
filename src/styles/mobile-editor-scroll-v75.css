@@ -1,0 +1,33 @@
+/* v75 — iPhone editor scrolling repair.
+   On phones use one natural page scroll instead of a clipped nested scroll area.
+   This avoids Safari opening an invoice at a frozen offset inside a height-limited editor. */
+@media (max-width:720px){
+  html,body,#root,.app-root,.app-ui{height:auto!important;min-height:100%!important;overflow-y:visible!important;}
+  .app-ui .editor-main{height:auto!important;min-height:0!important;overflow:visible!important;}
+  .app-ui .editor-screen{
+    height:auto!important;
+    min-height:0!important;
+    overflow:visible!important;
+    padding-bottom:calc(132px + env(safe-area-inset-bottom))!important;
+  }
+  .app-ui .editor-topbar{
+    position:sticky!important;
+    top:var(--mobile-shell-header-height,60px)!important;
+    z-index:45!important;
+  }
+  .app-ui .editor-layout,
+  .app-ui .editor-pane,
+  .app-ui .editor-scroll{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+  }
+  .app-ui .editor-layout{display:block!important;}
+  .app-ui .editor-scroll{
+    -webkit-overflow-scrolling:auto!important;
+    overscroll-behavior:auto!important;
+    touch-action:pan-y!important;
+    padding-bottom:calc(132px + env(safe-area-inset-bottom))!important;
+  }
+}
