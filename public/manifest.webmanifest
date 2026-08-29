@@ -1,10 +1,11 @@
 {
-  "name": "LOUREX",
+  "name": "LOUREX Invoice",
   "short_name": "LOUREX",
-  "description": "Secure invoicing and quotation system.",
+  "description": "LOUREX invoicing and quotation system.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone"],
   "background_color": "#071522",
   "theme_color": "#0b1d2d",
   "orientation": "any",
@@ -13,7 +14,13 @@
       "src": "./brand/lourex-logo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./brand/lourex-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }
