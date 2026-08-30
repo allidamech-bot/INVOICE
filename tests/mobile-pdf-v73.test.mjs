@@ -20,7 +20,7 @@ test('mobile preview preserves physical A4 geometry instead of shrinking documen
   assert.match(css, /min-width:\s*66mm/);
 });
 
-test('iPhone PDF and Share generate a real PDF file before invoking the native share sheet', async () => {
+test('iPhone PDF save and share use real files with Safari-safe native fallbacks', async () => {
   const [html, bridge, review, documents, sw] = await Promise.all([
     read('index.html'),
     read('public/ios-print-bridge.js'),
@@ -37,8 +37,14 @@ test('iPhone PDF and Share generate a real PDF file before invoking the native s
   assert.match(bridge, /html2canvas@1\.4\.1/);
   assert.match(bridge, /jspdf@2\.5\.2/);
   assert.match(bridge, /new File\(\[blob\]/);
-  assert.match(bridge, /navigator\.share\(shareData\)/);
+  assert.match(bridge, /navigator\.share\(\{ files: \[file\] \}\)/);
+  assert.doesNotMatch(bridge, /shareData\s*=\s*\{\s*files:[\s\S]*?title:/);
   assert.match(bridge, /navigator\.canShare/);
+  assert.match(bridge, /download=\"\$\{escapeHtml\(file\.name\)\}\"/);
+  assert.match(bridge, /Open PDF \/ فتح PDF/);
+  assert.match(bridge, /shareWatchdogTimer/);
+  assert.match(bridge, /AbortError/);
+  assert.match(bridge, /document\.execCommand\('print'/);
   assert.match(bridge, /Save PDF \/ حفظ PDF/);
   assert.match(bridge, /Share PDF \/ مشاركة PDF/);
   assert.match(bridge, /lourex-ios-output-fallback/);
@@ -51,7 +57,7 @@ test('iPhone PDF and Share generate a real PDF file before invoking the native s
   assert.match(documents, /private runOutput=\(mode:'pdf'\|'share',action:\(\)=>void\)=>\{[\s\S]*?this\.reserveOutput\(mode\);[\s\S]*?this\.setState\(\{menuId:''\},action\);[\s\S]*?\};/);
   assert.match(documents, /runOutput\('pdf'/);
   assert.match(documents, /runOutput\('share'/);
-  assert.match(sw, /lourex-invoice-v89/);
+  assert.match(sw, /lourex-invoice-v90/);
   assert.match(sw, /html2canvas@1\.4\.1/);
   assert.match(sw, /jspdf@2\.5\.2/);
   assert.match(sw, /FRESH_PATHS = new Set\(\['\/ios-print-bridge\.js','\/pull-to-refresh\.js'\]\)/);
