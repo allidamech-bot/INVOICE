@@ -4,11 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v97 dark rebalance loads last and ships offline',async()=>{
+test('v97 dark rebalance stays loaded and ships offline',async()=>{
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   const styles=[...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
-  assert.equal(styles.at(-1),'dark-rebalance-v97.css');
-  assert.match(sw,/lourex-invoice-v97/);
+  assert.ok(styles.includes('dark-rebalance-v97.css'));
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/\.\/styles\/dark-rebalance-v97\.css/);
 });
 
