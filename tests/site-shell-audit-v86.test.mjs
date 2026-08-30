@@ -39,3 +39,14 @@ test('customer editor warns before discarding unsaved changes',()=>{
   assert.match(page,/Discard customer changes\?/);
   assert.match(page,/onConfirm=\{this\.closeEditing\}/);
 });
+
+test('saved-item editor protects dirty edits across close and item selection',()=>{
+  const modal=read('src/components/SavedItemsModal.tsx');
+  assert.match(modal,/type DiscardAction=''\|'editor'\|'modal'\|'select'/);
+  assert.match(modal,/private editingDirty=/);
+  assert.match(modal,/private requestModalClose=/);
+  assert.match(modal,/private selectItem=/);
+  assert.match(modal,/onClose=\{this\.requestModalClose\}/);
+  assert.match(modal,/Discard item changes\?/);
+  assert.match(modal,/onConfirm=\{this\.confirmDiscard\}/);
+});
