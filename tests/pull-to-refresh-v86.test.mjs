@@ -13,17 +13,25 @@ test('mobile shell loads and caches pull-to-refresh assets',async()=>{
   assert.match(sw,/lourex-invoice-v\d+/);
 });
 
-test('pull-to-refresh only starts at the safe top-level workspace and updates before reload',async()=>{
+test('pull-to-refresh only installs the blocking touchmove listener during an active pull gesture',async()=>{
   const script=await read('public/pull-to-refresh.js');
   assert.doesNotThrow(()=>new Function(script));
   assert.match(script,/const THRESHOLD=76/);
   assert.match(script,/window\.scrollY<=0/);
   assert.match(script,/\.app-root \.app-ui/);
   assert.match(script,/\.modal-backdrop,\.mobile-preview-overlay,\.editor-main,\.editor-screen/);
-  assert.match(script,/touchmove',onMove,\{passive:false\}/);
+  assert.match(script,/const attachMoveListener=/);
+  assert.match(script,/window\.addEventListener\('touchmove',onMove,\{passive:false\}\)/);
+  assert.match(script,/const detachMoveListener=/);
+  assert.match(script,/window\.removeEventListener\('touchmove',onMove\)/);
+  assert.match(script,/attachMoveListener\(\)/);
   assert.match(script,/event\.preventDefault\(\)/);
+  assert.match(script,/requestAnimationFrame\(renderPaint\)/);
+  assert.match(script,/refreshing\?'refreshing':distance>=THRESHOLD\?'ready':'pull'/);
   assert.match(script,/registration\.update\(\)/);
   assert.match(script,/window\.location\.reload\(\)/);
+  const tail=script.slice(script.lastIndexOf("window.addEventListener('touchstart'"));
+  assert.doesNotMatch(tail,/addEventListener\('touchmove'/);
 });
 
 test('pull-to-refresh visual feedback respects iPhone safe areas and never prints',async()=>{
