@@ -58,3 +58,13 @@ test('cloud modal cannot be dismissed while a protected cloud operation is runni
   assert.match(modal,/role="alert"/);
   assert.match(modal,/role="status"/);
 });
+
+test('account entry cannot switch modes or double-submit while authentication is running',()=>{
+  const screen=read('src/components/AccountEntryScreen.tsx');
+  assert.match(screen,/if\(this\.state\.busy\)return;/);
+  assert.match(screen,/auth-language-switch" disabled=\{this\.state\.busy\}/);
+  assert.match(screen,/type="button" disabled=\{this\.state\.busy\} className=\{!create\?'active':''\}/);
+  assert.match(screen,/type="button" disabled=\{this\.state\.busy\} className=\{create\?'active':''\}/);
+  assert.match(screen,/auth-error" role="alert"/);
+  assert.match(screen,/settings-message success" role="status"/);
+});
