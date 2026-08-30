@@ -8,8 +8,7 @@ const read = async path => readFile(new URL(path, root), 'utf8');
 test('production shell has a fragment-compatible matched React runtime, PWA and premium design layer', async () => {
   const html = await read('dist/index.html');
   const sw = await read('dist/sw.js');
-  const premium = await read('dist/styles/premium.css');
-  const accounting = await read('dist/styles/accounting-polish.css');
+  const bundle = await read('dist/styles/app.bundle.css');
   assert.match(html, /manifest\.webmanifest/);
   assert.match(html, /react@17\.0\.2\/umd\/react\.production\.min\.js/);
   assert.match(html, /react-dom@17\.0\.2\/umd\/react-dom\.production\.min\.js/);
@@ -17,15 +16,17 @@ test('production shell has a fragment-compatible matched React runtime, PWA and 
   assert.match(sw, /react@17\.0\.2/);
   assert.match(sw, /react-dom@17\.0\.2/);
   assert.match(html, /src\/app\/index\.js/);
-  assert.match(html, /styles\/premium\.css/);
-  assert.match(html, /styles\/accounting-polish\.css/);
-  assert.match(html, /styles\/v44-audit\.css/);
-  assert.match(premium, /--radius-xl/);
-  assert.match(premium, /\.save-indicator\.state-saved/);
-  assert.match(premium, /@media \(max-width:720px\)/);
-  assert.match(accounting, /--acct-blue/);
-  assert.match(accounting, /\.editor-validation-summary/);
-  assert.match(accounting, /\.section-has-error/);
+  assert.match(html, /styles\/app\.bundle\.css/);
+  assert.doesNotMatch(html, /styles\/premium\.css/);
+  assert.match(bundle, /\/\* --- premium\.css --- \*\//);
+  assert.match(bundle, /\/\* --- accounting-polish\.css --- \*\//);
+  assert.match(bundle, /\/\* --- v44-audit\.css --- \*\//);
+  assert.match(bundle, /--radius-xl/);
+  assert.match(bundle, /\.save-indicator\.state-saved/);
+  assert.match(bundle, /@media \(max-width:720px\)/);
+  assert.match(bundle, /--acct-blue/);
+  assert.match(bundle, /\.editor-validation-summary/);
+  assert.match(bundle, /\.section-has-error/);
   assert.ok((await stat(new URL('dist/brand/lourex-logo.svg', root))).size > 1000);
 });
 
@@ -106,8 +107,9 @@ test('first-run onboarding requires a cloud account before local PIN setup', asy
   const html = await read('dist/index.html');
   const auth = await read('src/components/AuthScreens.tsx');
   const selector = await read('src/app/AuthScreenSelector.tsx');
-  const css = await read('dist/styles/auth-entry.css');
-  assert.match(html, /styles\/auth-entry\.css/);
+  const css = await read('dist/styles/app.bundle.css');
+  assert.match(html, /styles\/app\.bundle\.css/);
+  assert.match(css, /\/\* --- auth-entry\.css --- \*\//);
   assert.match(auth, /Create your account/);
   assert.match(auth, /Sign In/);
   assert.match(auth, /createCloudUser/);
@@ -123,16 +125,15 @@ test('first-run onboarding requires a cloud account before local PIN setup', asy
 test('offline service worker precaches the complete application module graph and current runtime', async () => {
   const sw = await read('dist/sw.js');
   assert.match(sw, /lourex-invoice-v\d+/);
-  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/components/EditorPageCore.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/storage/vault-merge.js','src/crypto/crypto.js','styles/premium.css','styles/accounting-polish.css','styles/cloud.css','styles/auth-entry.css','styles/v44-audit.css','styles/editor-system.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
+  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/components/EditorPageCore.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/storage/vault-merge.js','src/crypto/crypto.js','styles/app.bundle.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
 });
 
 test('print stylesheet isolates A4 documents from application chrome', async () => {
-  const appCss = await read('dist/styles/app.css');
-  const docCss = await read('dist/styles/document.css');
-  assert.match(appCss, /@media print/);
-  assert.match(appCss, /\.app-ui\{display:none!important\}/);
-  assert.match(docCss, /width:210mm;height:297mm/);
-  assert.match(appCss, /page-break-after:always/);
+  const css = await read('dist/styles/app.bundle.css');
+  assert.match(css, /@media print/);
+  assert.match(css, /\.app-ui\{display:none!important\}/);
+  assert.match(css, /width:210mm;height:297mm/);
+  assert.match(css, /page-break-after:always/);
 });
 
 test('source contains no unfinished UI placeholders or unintended backend clients', async () => {
