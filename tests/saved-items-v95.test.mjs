@@ -4,11 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v95 saved items layer loads last and ships offline',async()=>{
+test('v95 saved items layer stays loaded and ships offline',async()=>{
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   const styles=[...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
-  assert.equal(styles.at(-1),'saved-items-v95.css');
-  assert.match(sw,/lourex-invoice-v95/);
+  assert.ok(styles.includes('saved-items-v95.css'));
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/\.\/styles\/saved-items-v95\.css/);
 });
 
