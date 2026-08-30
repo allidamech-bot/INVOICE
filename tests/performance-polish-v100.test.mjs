@@ -4,11 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v100 performance layer loads last, is cached offline, and preconnects critical third-party runtimes',async()=>{
+test('v100 performance layer loads last in source, remains offline-capable, and preconnects critical third-party runtimes',async()=>{
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   const styles=[...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
   assert.equal(styles.at(-1),'performance-polish-v100.css');
-  assert.match(sw,/const CACHE = 'lourex-invoice-v100'/);
+  assert.match(sw,/const CACHE = 'lourex-invoice-v101'/);
   assert.match(sw,/\.\/styles\/performance-polish-v100\.css/);
   assert.match(html,/rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net" crossorigin/);
   assert.match(html,/rel="preconnect" href="https:\/\/www\.gstatic\.com" crossorigin/);
