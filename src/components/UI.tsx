@@ -34,16 +34,23 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
   return <label className="toggle-row"><button type="button" role="switch" aria-checked={checked} className={`toggle ${checked ? 'on' : ''}`} onClick={() => onChange(!checked)}><span/></button><span>{label}</span></label>;
 }
 
+let openModalFrames=0;
+let bodyOverflowBeforeModals='';
+
 interface ModalFrameProps { title:string; children:any; onClose:()=>void; size:'sm'|'md'|'lg'|'xl'; footer?:any; }
 class ModalFrame extends React.Component<ModalFrameProps> {
   private backdrop:HTMLDivElement|null=null;
   private previousFocus:HTMLElement|null=null;
   componentDidMount():void{
     this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    if(openModalFrames===0){bodyOverflowBeforeModals=document.body.style.overflow;document.body.style.overflow='hidden';}
+    openModalFrames+=1;
     document.addEventListener('keydown',this.handleKeyDown);
   }
   componentWillUnmount():void{
     document.removeEventListener('keydown',this.handleKeyDown);
+    openModalFrames=Math.max(0,openModalFrames-1);
+    if(openModalFrames===0)document.body.style.overflow=bodyOverflowBeforeModals;
     try{this.previousFocus?.focus({preventScroll:true});}catch{}
   }
   private handleKeyDown=(event:KeyboardEvent)=>{
@@ -55,7 +62,7 @@ class ModalFrame extends React.Component<ModalFrameProps> {
   };
   render():any{
     const {title,children,onClose,size,footer}=this.props;
-    return <div ref={(node:any)=>{this.backdrop=node;}} className="modal-backdrop" role="presentation" onMouseDown={(e:any) => { if (e.target === e.currentTarget) onClose(); }}><section className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-label={title}><header className="modal-header"><h2>{title}</h2><IconButton icon="x" label={t('Close','إغلاق')} onClick={onClose}/></header><div className="modal-body">{children}</div>{footer ? <footer className="modal-footer">{footer}</footer> : null}</section></div>;
+    return <div ref={(node:any)=>{this.backdrop=node;}} className="modal-backdrop" role="presentation" onPointerDown={(e:any) => { if (e.target === e.currentTarget) onClose(); }}><section className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-label={title}><header className="modal-header"><h2>{title}</h2><IconButton icon="x" label={t('Close','إغلاق')} onClick={onClose}/></header><div className="modal-body">{children}</div>{footer ? <footer className="modal-footer">{footer}</footer> : null}</section></div>;
   }
 }
 
@@ -83,5 +90,6 @@ export function Brand({ compact = false, logoDataUrl = './brand/lourex-logo.svg'
 
 export function Toast({ text, tone = 'default' }: { text: string; tone?: 'default'|'success'|'error' }): any {
   if (!text) return null;
-  return <div className={`toast toast-${tone}`} role="status" aria-live="polite">{tone === 'success' ? <Icon name="check"/> : null}<span>{text}</span></div>;
+  const error=tone==='error';
+  return <div className={`toast toast-${tone}`} role={error?'alert':'status'} aria-live={error?'assertive':'polite'} style={{pointerEvents:'none'}}>{tone === 'success' ? <Icon name="check"/> : null}<span>{text}</span></div>;
 }
