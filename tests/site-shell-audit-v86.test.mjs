@@ -29,3 +29,13 @@ test('mobile document action menu closes on outside press or Escape',()=>{
   assert.match(page,/<button type="button" className="document-main"/);
   assert.match(page,/<button type="button" onClick=\{\(\)=>this\.runAction/);
 });
+
+test('customer editor warns before discarding unsaved changes',()=>{
+  const page=read('src/components/CustomersPage.tsx');
+  assert.match(page,/editingInitial:string/);
+  assert.match(page,/private editingDirty=/);
+  assert.match(page,/private requestClose=/);
+  assert.match(page,/onClose=\{this\.requestClose\}/);
+  assert.match(page,/Discard customer changes\?/);
+  assert.match(page,/onConfirm=\{this\.closeEditing\}/);
+});
