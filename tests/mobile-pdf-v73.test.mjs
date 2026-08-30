@@ -20,11 +20,13 @@ test('mobile preview preserves physical A4 geometry instead of shrinking documen
   assert.match(css, /min-width:\s*66mm/);
 });
 
-test('iPhone PDF and Share confirmation preserve the user gesture and expose a direct print fallback', async () => {
-  const [html, bridge, review] = await Promise.all([
+test('iPhone PDF, Share and Print preserve a fresh user gesture with blocked-popup fallback', async () => {
+  const [html, bridge, review, documents, sw] = await Promise.all([
     read('index.html'),
     read('public/ios-print-bridge.js'),
-    read('src/components/DocumentReviewModal.tsx')
+    read('src/components/DocumentReviewModal.tsx'),
+    read('src/components/DocumentsPage.tsx'),
+    read('public/sw.js')
   ]);
 
   assert.match(html, /<script src="\.\/ios-print-bridge\.js"><\/script>/);
@@ -33,12 +35,20 @@ test('iPhone PDF and Share confirmation preserve the user gesture and expose a d
   assert.match(bridge, /window\.open\('about:blank', '_blank'\)/);
   assert.match(bridge, /modal-footer-actions \.btn-primary/);
   assert.match(bridge, /Save PDF \/ حفظ PDF/);
+  assert.match(bridge, /Share PDF \/ مشاركة PDF/);
+  assert.match(bridge, /lourex-ios-output-fallback/);
   assert.match(bridge, /onclick="window\.print\(\)"/);
   assert.match(bridge, /window\.print = function lourexPrintBridge/);
   assert.match(bridge, /\.print-portal \.invoice-page/);
   assert.match(bridge, /styleLinks/);
   assert.match(bridge, /releaseParentPrintState/);
   assert.match(bridge, /dispatchEvent\(new Event\('afterprint'\)\)/);
-  assert.match(review, /__LOUREX_PREPARE_PDF__/);
-  assert.match(review, /mode==='pdf'\|\|mode==='share'/);
+  assert.match(review, /__LOUREX_PREPARE_PDF__\?\.\(mode\)/);
+  assert.match(review, /mode==='pdf'\|\|mode==='share'\|\|mode==='print'/);
+  assert.match(documents, /private reserveOutput=/);
+  assert.match(documents, /private runOutput=/);
+  assert.ok(documents.indexOf('this.reserveOutput(mode)') < documents.indexOf("this.setState({menuId:''},action)"));
+  assert.match(documents, /runOutput\('pdf'/);
+  assert.match(documents, /runOutput\('share'/);
+  assert.match(sw, /FRESH_PATHS = new Set\(\['\/ios-print-bridge\.js','\/pull-to-refresh\.js'\]\)/);
 });
