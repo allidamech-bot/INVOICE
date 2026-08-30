@@ -1,0 +1,291 @@
+/* v94 — workspace/mobile refinement.
+   Documents, Customers and Settings only. Printable A4 output is intentionally untouched. */
+
+/* Documents workspace: keep overview, filters and rows visually compact and stable. */
+.app-ui .documents-overview-five > button{
+  min-width:0;
+}
+.app-ui .documents-overview-five > button strong{
+  font-variant-numeric:tabular-nums;
+}
+.app-ui .premium-document-card{
+  box-shadow:none!important;
+}
+.app-ui .premium-document-card:hover{
+  box-shadow:0 8px 22px rgba(14,39,55,.055)!important;
+}
+.app-ui .premium-document-card .document-main{
+  min-width:0;
+}
+.app-ui .premium-document-card .document-info-meta{
+  min-width:0;
+  flex-wrap:wrap;
+  row-gap:2px;
+}
+
+/* Customer workspace: long contact data must never force horizontal overflow. */
+.app-ui .customers-page .page-heading{
+  min-width:0;
+}
+.app-ui .customers-toolbar .search-box{
+  width:min(100%,420px);
+  min-width:0;
+}
+.app-ui .customer-card{
+  min-width:0;
+  box-shadow:none;
+}
+.app-ui .customer-card:hover{
+  box-shadow:0 8px 22px rgba(14,39,55,.055);
+}
+.app-ui .customer-info{
+  min-width:0;
+}
+.app-ui .customer-info strong,
+.app-ui .customer-info span,
+.app-ui .customer-info small{
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.app-ui .customer-actions{
+  flex:0 0 auto;
+  align-items:center;
+}
+
+/* Settings: tabs should behave like navigation, not another vertical content column. */
+.app-ui .settings-panel{
+  min-width:0;
+}
+.app-ui .settings-title{
+  gap:12px;
+}
+.app-ui .settings-title > div{
+  min-width:0;
+}
+.app-ui .settings-section{
+  min-width:0;
+}
+.app-ui .settings-tabs button{
+  transition:background-color .15s ease,color .15s ease,border-color .15s ease;
+}
+
+@media (min-width:721px) and (max-width:1024px){
+  .app-ui .documents-overview-five{
+    grid-template-columns:repeat(5,minmax(100px,1fr));
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+    scrollbar-width:none;
+  }
+  .app-ui .documents-overview-five::-webkit-scrollbar{display:none}
+  .app-ui .documents-overview-five > button{
+    min-width:108px;
+  }
+}
+
+@media (max-width:720px){
+  /* Documents */
+  .app-ui .documents-page .page-heading{
+    margin-bottom:12px;
+  }
+  .app-ui .resume-document-card{
+    margin:10px 0;
+    border-radius:13px;
+    box-shadow:none;
+  }
+  .app-ui .documents-overview-five{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px;
+    margin:10px 0 12px;
+  }
+  .app-ui .documents-overview-five > button:first-child{
+    grid-column:1 / -1;
+  }
+  .app-ui .documents-overview-five > button{
+    min-height:56px;
+    padding:10px 11px;
+    border-radius:12px;
+    box-shadow:none;
+  }
+  .app-ui .documents-overview-five > button strong{
+    font-size:20px;
+  }
+  .app-ui .premium-documents-toolbar{
+    gap:10px!important;
+    margin-bottom:12px;
+  }
+  .app-ui .status-filter{
+    margin-inline:-1px;
+    padding-bottom:4px;
+    scrollbar-width:none;
+  }
+  .app-ui .status-filter::-webkit-scrollbar{display:none}
+  .app-ui .status-filter button{
+    min-height:36px;
+    padding:7px 10px;
+  }
+  .app-ui .premium-document-card{
+    border-radius:13px!important;
+  }
+  .app-ui .premium-document-card:hover{
+    transform:none;
+    box-shadow:none!important;
+  }
+  .app-ui .premium-document-card .document-main{
+    grid-template-columns:40px minmax(0,1fr) auto!important;
+    align-items:center!important;
+  }
+  .app-ui .premium-document-card .document-type-icon{
+    width:40px;
+    height:40px;
+  }
+  .app-ui .premium-document-card .document-info-meta{
+    font-size:10px;
+  }
+  .app-ui .premium-document-card .document-total{
+    max-width:112px;
+  }
+  .app-ui .premium-document-card .document-total strong{
+    max-width:112px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  /* Customers */
+  .app-ui .customers-page .page-heading{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    align-items:stretch!important;
+    gap:11px!important;
+  }
+  .app-ui .customers-page .page-heading > .btn{
+    width:100%!important;
+    min-height:44px;
+  }
+  .app-ui .customers-toolbar{
+    width:100%;
+    padding:0!important;
+    border:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  .app-ui .customers-toolbar .search-box{
+    width:100%!important;
+  }
+  .app-ui .customer-list{
+    gap:9px;
+  }
+  .app-ui .customer-card{
+    display:grid;
+    grid-template-columns:42px minmax(0,1fr) auto;
+    align-items:center;
+    gap:10px;
+    min-height:82px;
+    padding:12px;
+    border-radius:13px;
+  }
+  .app-ui .customer-card:hover{
+    transform:none;
+    box-shadow:none;
+  }
+  .app-ui .customer-actions{
+    gap:1px;
+  }
+  .app-ui .customer-actions .icon-btn{
+    width:40px;
+    min-width:40px;
+    height:40px;
+  }
+
+  /* Settings */
+  .app-ui .settings-layout{
+    display:block!important;
+  }
+  .app-ui .settings-tabs{
+    position:sticky;
+    top:-14px;
+    z-index:12;
+    display:flex!important;
+    flex-direction:row!important;
+    gap:6px!important;
+    width:calc(100% + 24px);
+    margin:-14px -12px 14px;
+    padding:8px 12px!important;
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+    scrollbar-width:none;
+    background:rgba(251,249,245,.98);
+    border-bottom:1px solid #e3e7e9;
+    backdrop-filter:blur(14px);
+  }
+  .app-ui .settings-tabs::-webkit-scrollbar{display:none}
+  .app-ui .settings-tabs button{
+    flex:0 0 auto;
+    min-width:104px;
+    min-height:40px;
+    padding:8px 12px!important;
+    text-align:center!important;
+    border:1px solid transparent!important;
+    border-radius:10px!important;
+    white-space:nowrap;
+  }
+  .app-ui .settings-tabs button.active{
+    border-color:#d4e1e7!important;
+    background:#fff!important;
+    box-shadow:0 2px 8px rgba(14,39,55,.06)!important;
+  }
+  .app-ui .settings-title{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    align-items:stretch!important;
+    gap:10px!important;
+    min-height:0!important;
+  }
+  .app-ui .settings-title > .btn{
+    width:100%!important;
+    min-height:44px;
+  }
+  .app-ui .settings-section{
+    padding:16px 0!important;
+  }
+  .app-ui .settings-section:first-of-type{
+    padding-top:12px!important;
+  }
+}
+
+@media (max-width:390px){
+  .app-ui .premium-document-card .document-main{
+    grid-template-columns:38px minmax(0,1fr)!important;
+  }
+  .app-ui .premium-document-card .document-total{
+    grid-column:2!important;
+    max-width:100%!important;
+    flex-direction:row!important;
+    align-items:center!important;
+    justify-content:space-between;
+    gap:7px!important;
+  }
+  .app-ui .premium-document-card .document-total strong{
+    max-width:62%;
+  }
+  .app-ui .customer-card{
+    grid-template-columns:40px minmax(0,1fr) auto;
+    padding:11px 9px;
+    gap:8px;
+  }
+  .app-ui .customer-actions .icon-btn{
+    width:38px;
+    min-width:38px;
+    height:38px;
+  }
+  .app-ui .settings-tabs button{
+    min-width:96px;
+  }
+}
+
+@media print{
+  .app-ui .documents-page,
+  .app-ui .customers-page,
+  .app-ui .settings-layout{display:none!important}
+}

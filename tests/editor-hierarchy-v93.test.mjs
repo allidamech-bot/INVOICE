@@ -4,11 +4,10 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('editor hierarchy refinement is the final app stylesheet and ships offline',async()=>{
+test('editor hierarchy refinement remains loaded and ships offline in later releases',async()=>{
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  const styles=[...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
-  assert.equal(styles.at(-1),'editor-hierarchy-v93.css');
-  assert.match(sw,/lourex-invoice-v93/);
+  assert.match(html,/\.\/styles\/editor-hierarchy-v93\.css/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/\.\/styles\/editor-hierarchy-v93\.css/);
 });
 
