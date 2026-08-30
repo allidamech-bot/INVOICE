@@ -111,16 +111,25 @@
   padding:2.45mm 1.35mm;
   vertical-align:middle;
   line-height:1.25;
+  white-space:normal!important;
+  word-break:normal;
 }
 .invoice-page .items-table td{
   padding:2.35mm 1.35mm;
   vertical-align:middle;
   line-height:1.4;
 }
-.invoice-page .items-table th:not(:nth-child(2)),
 .invoice-page .items-table td:not(.description-cell){
   white-space:nowrap;
 }
+.invoice-page .items-table th:nth-last-child(1),
+.invoice-page .items-table td:nth-last-child(1){width:23mm}
+.invoice-page .items-table th:nth-last-child(2),
+.invoice-page .items-table td:nth-last-child(2){width:21mm}
+.invoice-page .items-table th:nth-last-child(3),
+.invoice-page .items-table td:nth-last-child(3){width:17mm}
+.invoice-page .items-table th:nth-last-child(4),
+.invoice-page .items-table td:nth-last-child(4){width:14mm}
 .invoice-page .description-cell{
   width:100%;
   min-width:38mm;
