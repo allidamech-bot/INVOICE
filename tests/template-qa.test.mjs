@@ -47,10 +47,12 @@ test('every proforma and invoice uses the same shared A4 renderer and output-fix
   assert.match(sw,/document-typography-v76\.css/);
   assert.match(sw,/document-direction-v78\.css/);
 
-  // The iOS PDF window imports the same stylesheet links, so preview and PDF
-  // cannot silently diverge on typography or RTL behavior.
-  assert.match(bridge,/querySelectorAll\('link\[rel="stylesheet"\]'\)/);
-  assert.match(bridge,/styleLinks\(\)/);
+  // iPhone output now prints the same in-page portal instead of copying the
+  // document into a backgrounded about:blank tab, so preview and PDF share the
+  // exact same renderer and stylesheet cascade.
+  assert.match(bridge,/\.print-portal \.invoice-page/);
+  assert.match(bridge,/nativePrint\(\)/);
+  assert.doesNotMatch(bridge,/window\.open\('about:blank'/);
 });
 
 test('document renderer preserves English, Arabic and bilingual direction semantics',async()=>{
