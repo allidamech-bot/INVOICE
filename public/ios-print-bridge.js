@@ -1,8 +1,8 @@
 /* LOUREX iOS PDF bridge.
-   iPhone Safari/PWA cannot be trusted to open a usable PDF flow through
-   window.print(). PDF and Share therefore render the existing A4 portal into
-   a real PDF file first, then hand that file to the native iOS share sheet from
-   a fresh explicit tap. Print still uses the native print dialog. */
+   iPhone Safari/PWA output is handled as a real PDF file. Save uses a genuine
+   PDF anchor tap (download/preview), while Share uses the Web Share API with a
+   files-only payload for Safari compatibility plus an always-available PDF
+   preview fallback. Print keeps a native Safari print fallback. */
 (() => {
   const isAppleTouch = /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -13,8 +13,10 @@
   let pendingInlineOverlay = null;
   let pendingMode = 'pdf';
   let readyProbeTimer = 0;
+  let shareWatchdogTimer = 0;
   let pendingPdfPromise = null;
   let pendingPdfFile = null;
+  let pendingPdfUrl = '';
   const nativePrint = window.print.bind(window);
 
   const normalizeMode = (mode) => mode === 'share' ? 'share' : mode === 'print' ? 'print' : 'pdf';
@@ -36,7 +38,7 @@
   const actionCopy = (mode) => mode === 'share'
     ? {
         label: 'Share PDF / مشاركة PDF',
-        help: 'اضغط «مشاركة PDF» لفتح نافذة المشاركة في iPhone وإرسال ملف PDF مباشرة.'
+        help: 'اضغط «مشاركة PDF» لإرسال ملف PDF مباشرة. إذا لم تظهر نافذة iPhone استخدم «فتح PDF».'
       }
     : mode === 'print'
       ? {
@@ -45,7 +47,7 @@
         }
       : {
           label: 'Save PDF / حفظ PDF',
-          help: 'اضغط «حفظ PDF» ثم اختر Save to Files من نافذة مشاركة iPhone.'
+          help: 'اضغط «حفظ PDF». سيقوم Safari بتنزيل الملف أو فتح معاينة PDF التي يمكنك حفظها في Files.'
         };
 
   const clearReadyProbe = () => {
@@ -53,13 +55,30 @@
     readyProbeTimer = 0;
   };
 
+  const clearShareWatchdog = () => {
+    if (shareWatchdogTimer) window.clearTimeout(shareWatchdogTimer);
+    shareWatchdogTimer = 0;
+  };
+
+  const releasePdfUrlLater = () => {
+    if (!pendingPdfUrl) return;
+    const url = pendingPdfUrl;
+    pendingPdfUrl = '';
+    window.setTimeout(() => {
+      try { URL.revokeObjectURL(url); } catch {}
+    }, 120000);
+  };
+
   const resetPendingFile = () => {
+    clearShareWatchdog();
+    releasePdfUrlLater();
     pendingPdfPromise = null;
     pendingPdfFile = null;
   };
 
   const removeInlineOverlay = (release = false) => {
     clearReadyProbe();
+    clearShareWatchdog();
     const overlay = pendingInlineOverlay;
     pendingInlineOverlay = null;
     if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
@@ -78,7 +97,7 @@
     overlay.innerHTML = `<div class="lourex-ios-output-card"><div class="lourex-ios-output-spinner"></div><strong>Preparing PDF…</strong><span>جارٍ إنشاء ملف PDF الحقيقي…</span><button type="button" class="lourex-ios-output-cancel">Close / إغلاق</button></div>`;
 
     const style = document.createElement('style');
-    style.textContent = `.lourex-ios-output-fallback{position:fixed;inset:0;z-index:2147483646;display:grid;place-items:center;padding:24px;background:rgba(7,20,30,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.lourex-ios-output-card{width:min(360px,100%);padding:24px;border-radius:20px;background:#fffdf9;color:#17364a;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.28)}.lourex-ios-output-card strong{display:block;font-size:18px;margin:8px 0}.lourex-ios-output-card span{display:block;color:#667784;font-size:13px;line-height:1.55;margin-bottom:18px}.lourex-ios-output-spinner{width:42px;height:42px;margin:0 auto 14px;border:2px solid #d8c49d;border-top-color:#17364a;border-radius:50%;animation:lourexOutputSpin .8s linear infinite}.lourex-ios-output-card button{min-height:46px;border-radius:12px;border:1px solid #ccd8df;background:#fff;color:#27495f;padding:0 16px;font:700 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.lourex-ios-output-card .lourex-ios-output-primary{width:100%;background:#173f59;border-color:#173f59;color:#fff;margin-bottom:8px}.lourex-ios-output-card .lourex-ios-output-primary:disabled{opacity:.65}.lourex-ios-output-error{color:#9f3b32!important}@keyframes lourexOutputSpin{to{transform:rotate(360deg)}}@media print{.lourex-ios-output-fallback{display:none!important}}`;
+    style.textContent = `.lourex-ios-output-fallback{position:fixed;inset:0;z-index:2147483646;display:grid;place-items:center;padding:24px;background:rgba(7,20,30,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.lourex-ios-output-card{width:min(360px,100%);padding:24px;border-radius:20px;background:#fffdf9;color:#17364a;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.28)}.lourex-ios-output-card strong{display:block;font-size:18px;margin:8px 0}.lourex-ios-output-card span{display:block;color:#667784;font-size:13px;line-height:1.55;margin-bottom:18px}.lourex-ios-output-spinner{width:42px;height:42px;margin:0 auto 14px;border:2px solid #d8c49d;border-top-color:#17364a;border-radius:50%;animation:lourexOutputSpin .8s linear infinite}.lourex-ios-output-card button,.lourex-ios-output-card a{min-height:46px;border-radius:12px;border:1px solid #ccd8df;background:#fff;color:#27495f;padding:0 16px;font:700 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.lourex-ios-output-card a{display:flex;align-items:center;justify-content:center;text-decoration:none}.lourex-ios-output-card .lourex-ios-output-primary{width:100%;background:#173f59;border-color:#173f59;color:#fff;margin-bottom:8px}.lourex-ios-output-card .lourex-ios-output-secondary{width:100%;margin-bottom:8px}.lourex-ios-output-card .lourex-ios-output-primary:disabled{opacity:.65}.lourex-ios-output-error{color:#9f3b32!important}@keyframes lourexOutputSpin{to{transform:rotate(360deg)}}@media print{.lourex-ios-output-fallback{display:none!important}}`;
     overlay.appendChild(style);
     overlay.querySelector('.lourex-ios-output-cancel')?.addEventListener('click', () => removeInlineOverlay(true));
     document.body.appendChild(overlay);
@@ -173,7 +192,7 @@
             removeContainer: true
           });
           if (index > 0) pdf.addPage('a4', 'portrait');
-          const image = canvas.toDataURL('image/jpeg', 0.96);
+          const image = canvas.toDataURL('image/jpeg', 0.94);
           pdf.addImage(image, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
           canvas.width = 1;
           canvas.height = 1;
@@ -194,46 +213,54 @@
     return pendingPdfPromise;
   };
 
-  const openFileFallback = (file) => {
-    const url = URL.createObjectURL(file);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = file.name;
-    anchor.target = '_blank';
-    anchor.rel = 'noopener';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+  const pdfUrlFor = (file) => {
+    if (!pendingPdfUrl) pendingPdfUrl = URL.createObjectURL(file);
+    return pendingPdfUrl;
   };
 
-  const sharePreparedFile = (file, mode) => {
-    const shareData = { files: [file], title: file.name, text: mode === 'share' ? 'LOUREX Invoice PDF' : undefined };
+  const resetShareButton = (overlay, mode, message) => {
+    const card = overlay?.querySelector('.lourex-ios-output-card');
+    const primary = card?.querySelector('.lourex-ios-output-primary');
+    if (primary && primary.tagName === 'BUTTON') {
+      primary.disabled = false;
+      primary.textContent = actionCopy(mode).label;
+    }
+    const help = card?.querySelector('span');
+    if (help && message) help.textContent = message;
+  };
+
+  const sharePreparedFile = (file, mode, overlay) => {
     const canShareFiles = typeof navigator.share === 'function' &&
       (typeof navigator.canShare !== 'function' || navigator.canShare({ files: [file] }));
     if (!canShareFiles) {
-      openFileFallback(file);
-      removeInlineOverlay(true);
+      resetShareButton(overlay, mode, 'مشاركة الملفات غير متاحة هنا. استخدم «فتح PDF» ثم زر المشاركة في Safari.');
       return;
     }
 
-    navigator.share(shareData).then(() => {
-      removeInlineOverlay(true);
-    }).catch((error) => {
-      if (error && error.name === 'AbortError') return;
-      const overlay = ensureInlineOverlay(mode);
-      const card = overlay.querySelector('.lourex-ios-output-card');
-      const primary = card?.querySelector('.lourex-ios-output-primary');
-      if (primary) {
-        primary.disabled = false;
-        primary.textContent = actionCopy(mode).label;
-      }
-      const help = card?.querySelector('span');
-      if (help) {
-        help.classList.add('lourex-ios-output-error');
-        help.textContent = 'تعذر فتح مشاركة iPhone. اضغط الزر مرة أخرى أو استخدم «إغلاق» ثم أعد المحاولة.';
-      }
-    });
+    clearShareWatchdog();
+    shareWatchdogTimer = window.setTimeout(() => {
+      resetShareButton(overlay, mode, 'إذا لم تظهر نافذة المشاركة، اضغط «فتح PDF» واستخدم زر المشاركة في Safari.');
+      shareWatchdogTimer = 0;
+    }, 2500);
+
+    try {
+      /* Safari has historically been unreliable when files are mixed with title,
+         text or URL. A files-only payload is the most compatible iPhone path. */
+      navigator.share({ files: [file] }).then(() => {
+        clearShareWatchdog();
+        removeInlineOverlay(true);
+      }).catch((error) => {
+        clearShareWatchdog();
+        if (error && error.name === 'AbortError') {
+          resetShareButton(overlay, mode, 'تم إلغاء المشاركة. يمكنك المحاولة مرة أخرى أو فتح ملف PDF.');
+          return;
+        }
+        resetShareButton(overlay, mode, 'تعذر فتح مشاركة iPhone. استخدم «فتح PDF» ثم زر المشاركة في Safari.');
+      });
+    } catch {
+      clearShareWatchdog();
+      resetShareButton(overlay, mode, 'تعذر فتح مشاركة iPhone. استخدم «فتح PDF» ثم زر المشاركة في Safari.');
+    }
   };
 
   const hydrateInlineFallback = (overlay, mode, file) => {
@@ -241,24 +268,55 @@
     const card = overlay.querySelector('.lourex-ios-output-card');
     if (!card) return;
     card.dataset.ready = 'true';
-    card.innerHTML = `<strong>PDF Ready / ملف PDF جاهز</strong><span>${escapeHtml(copy.help)}</span><button type="button" class="lourex-ios-output-primary">${escapeHtml(copy.label)}</button><button type="button" class="lourex-ios-output-cancel">Close / إغلاق</button>`;
 
+    if (mode === 'pdf' && file) {
+      const url = pdfUrlFor(file);
+      card.innerHTML = `<strong>PDF Ready / ملف PDF جاهز</strong><span>${escapeHtml(copy.help)}</span><a class="lourex-ios-output-primary" href="${escapeHtml(url)}" download="${escapeHtml(file.name)}" target="_blank" rel="noopener" type="application/pdf">${escapeHtml(copy.label)}</a><button type="button" class="lourex-ios-output-cancel">Close / إغلاق</button>`;
+      card.querySelector('.lourex-ios-output-primary')?.addEventListener('click', () => {
+        window.setTimeout(() => {
+          if (overlay.isConnected) removeInlineOverlay(true);
+        }, 1200);
+      });
+      card.querySelector('.lourex-ios-output-cancel')?.addEventListener('click', () => removeInlineOverlay(true));
+      return;
+    }
+
+    if (mode === 'share' && file) {
+      const url = pdfUrlFor(file);
+      card.innerHTML = `<strong>PDF Ready / ملف PDF جاهز</strong><span>${escapeHtml(copy.help)}</span><button type="button" class="lourex-ios-output-primary">${escapeHtml(copy.label)}</button><a class="lourex-ios-output-secondary" href="${escapeHtml(url)}" download="${escapeHtml(file.name)}" target="_blank" rel="noopener" type="application/pdf">Open PDF / فتح PDF</a><button type="button" class="lourex-ios-output-cancel">Close / إغلاق</button>`;
+      const primary = card.querySelector('.lourex-ios-output-primary');
+      primary?.addEventListener('click', () => {
+        if (primary.disabled) return;
+        primary.disabled = true;
+        primary.textContent = 'Opening Share… / جارٍ فتح المشاركة…';
+        sharePreparedFile(file, mode, overlay);
+      });
+      card.querySelector('.lourex-ios-output-secondary')?.addEventListener('click', () => {
+        window.setTimeout(() => {
+          if (overlay.isConnected) removeInlineOverlay(true);
+        }, 1200);
+      });
+      card.querySelector('.lourex-ios-output-cancel')?.addEventListener('click', () => removeInlineOverlay(true));
+      return;
+    }
+
+    card.innerHTML = `<strong>Print Ready / الطباعة جاهزة</strong><span>${escapeHtml(copy.help)}</span><button type="button" class="lourex-ios-output-primary">${escapeHtml(copy.label)}</button><button type="button" class="lourex-ios-output-cancel">Close / إغلاق</button>`;
     const primary = card.querySelector('.lourex-ios-output-primary');
     primary?.addEventListener('click', () => {
       if (primary.disabled) return;
       primary.disabled = true;
-      primary.textContent = mode === 'share' ? 'Opening Share… / جارٍ فتح المشاركة…' : mode === 'print' ? 'Opening Print… / جارٍ فتح الطباعة…' : 'Opening Files… / جارٍ فتح الحفظ…';
-      if (mode === 'print') {
-        try {
-          nativePrint();
-          removeInlineOverlay(true);
-        } catch {
-          primary.disabled = false;
-          primary.textContent = copy.label;
-        }
-        return;
+      primary.textContent = 'Opening Print… / جارٍ فتح الطباعة…';
+      try {
+        let opened = false;
+        try { opened = Boolean(document.execCommand && document.execCommand('print', false, null)); } catch {}
+        if (!opened) nativePrint();
+        window.setTimeout(() => {
+          if (overlay.isConnected) resetShareButton(overlay, mode, 'إذا لم تظهر الطباعة يمكنك المحاولة مرة أخرى.');
+        }, 1800);
+      } catch {
+        primary.disabled = false;
+        primary.textContent = copy.label;
       }
-      sharePreparedFile(file, mode);
     });
     card.querySelector('.lourex-ios-output-cancel')?.addEventListener('click', () => removeInlineOverlay(true));
   };
