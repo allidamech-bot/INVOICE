@@ -36,7 +36,7 @@ function validDoc(){
 }
 
 test('current service worker precaches every compiled application module',async()=>{
-  const sw=await read('dist/sw.js');
+  const [sw,bundle]=await Promise.all([read('dist/sw.js'),read('dist/styles/app.bundle.css')]);
   assert.match(sw,/lourex-invoice-v\d+/);
   const files=await jsFiles(path.join(root,'dist/src'));
   assert.ok(files.length>10);
@@ -45,7 +45,8 @@ test('current service worker precaches every compiled application module',async(
     assert.ok(sw.includes(`./${relative}`),`offline cache missing ${relative}`);
   }
   assert.match(sw,/src\/storage\/vault-merge\.js/);
-  assert.match(sw,/styles\/v44-audit\.css/);
+  assert.match(sw,/styles\/app\.bundle\.css/);
+  assert.match(bundle,/\/\* --- v44-audit\.css --- \*\//);
   assert.match(sw,/EXTERNAL_CORE_SET/);
   assert.match(sw,/preserveExternalRuntime/);
   assert.match(sw,/caches\.match\(asset\)/);
