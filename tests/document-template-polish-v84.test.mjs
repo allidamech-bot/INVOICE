@@ -8,12 +8,12 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const templates=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 
-test('v84 template polish loads after shared v83 layout and ships offline',()=>{
+test('v84 template polish loads after shared v83 layout and ships offline in later releases',()=>{
   const html=read('index.html');
   const sw=read('public/sw.js');
   assert.match(html,/document-template-polish-v84\.css/);
   assert.ok(html.indexOf('document-template-polish-v84.css')>html.indexOf('document-layout-v83.css'));
-  assert.match(sw,/lourex-invoice-v84/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/document-template-polish-v84\.css/);
 });
 
