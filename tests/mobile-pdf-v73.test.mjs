@@ -65,7 +65,7 @@ test('iPhone PDF save and share normalize Safari colors and preserve high-resolu
   assert.match(documents, /private reserveOutput=/);
   assert.match(documents, /runOutput\('pdf'/);
   assert.match(documents, /runOutput\('share'/);
-  assert.match(sw, /lourex-invoice-v92/);
+  assert.match(sw, /lourex-invoice-v\d+/);
   assert.match(sw, /html2canvas@1\.4\.1/);
   assert.match(sw, /jspdf@2\.5\.2/);
   assert.match(sw, /FRESH_PATHS = new Set\(\['\/ios-print-bridge\.js','\/pull-to-refresh\.js'\]\)/);

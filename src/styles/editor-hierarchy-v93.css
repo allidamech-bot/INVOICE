@@ -1,0 +1,184 @@
+/* v93 — editor visual hierarchy refinement.
+   Keep one clear surface per section/item and remove nested card-on-card styling.
+   Application editor only; printable A4/template internals remain untouched. */
+
+.app-ui .editor-section {
+  border-color: #dfe6e9 !important;
+  box-shadow: 0 1px 2px rgba(14,39,55,.035) !important;
+}
+.app-ui .editor-section:hover {
+  border-color: #d7e1e5 !important;
+}
+
+/* Customer summary is content inside the Customer section, not a second card. */
+.app-ui .premium-selected-customer {
+  padding: 10px 0 12px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.app-ui .premium-selected-customer .customer-avatar {
+  box-shadow: none !important;
+}
+
+/* Each item remains one intentional card. Everything inside it is flat. */
+.app-ui .premium-item-card {
+  border-color: #dbe4e8 !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+.app-ui .premium-item-card:focus-within {
+  border-color: #a9c1cd !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.app-ui .premium-item-card > header,
+.app-ui .premium-item-card:focus-within > header {
+  background: #fafbfb !important;
+  box-shadow: none !important;
+}
+.app-ui .premium-item-card .item-pricing-grid {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.app-ui .premium-item-card .item-advanced-control {
+  margin-top: 2px !important;
+  padding-top: 10px !important;
+  border-top: 1px solid #edf1f3 !important;
+}
+.app-ui .premium-item-card .item-advanced-fields {
+  padding: 12px 0 0 !important;
+  border: 0 !important;
+  border-top: 1px solid #edf1f3 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.app-ui .premium-item-card > footer {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Pricing adjustments are rows, not four separate cards. */
+.app-ui .adjustments-list {
+  gap: 0 !important;
+  border-top: 1px solid #edf1f3;
+}
+.app-ui .adjustment-row {
+  min-height: 52px;
+  padding: 10px 2px !important;
+  border: 0 !important;
+  border-bottom: 1px solid #edf1f3 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.app-ui .adjustment-row.has-validation-error {
+  background: #fff9f8 !important;
+}
+
+/* Totals share the section surface. Only Grand Total is emphasized. */
+.app-ui .editor-totals {
+  margin-top: 14px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.app-ui .editor-totals > div:not(.grand) {
+  min-height: 40px;
+  padding: 8px 2px !important;
+  border-bottom: 1px solid #f0f3f4;
+}
+.app-ui .editor-totals .grand {
+  min-height: 50px;
+  margin-top: 8px !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+/* Readiness is a compact status strip rather than another floating card. */
+.app-ui .document-readiness {
+  border-radius: 11px !important;
+  box-shadow: none !important;
+}
+
+/* Advanced editor content should read as one continuation of its parent section. */
+.app-ui .advanced-panel {
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+.app-ui .template-preference-bar {
+  box-shadow: none !important;
+}
+
+@media (max-width: 720px) {
+  .app-ui .editor-pane .editor-scroll {
+    padding-inline: 8px !important;
+  }
+
+  .app-ui .editor-section {
+    margin-bottom: 10px !important;
+    padding: 14px 12px !important;
+    border-radius: 13px !important;
+    box-shadow: none !important;
+  }
+
+  /* Items section is already intentionally edge-to-edge on mobile. */
+  .app-ui .editor-section:has(.add-item-button) {
+    padding-inline: 4px !important;
+  }
+
+  .app-ui .premium-selected-customer {
+    padding: 8px 0 10px !important;
+  }
+
+  .app-ui .premium-item-card {
+    margin-bottom: 10px !important;
+    border-radius: 12px !important;
+  }
+
+  .app-ui .premium-item-card .item-core-grid {
+    padding: 12px !important;
+  }
+
+  .app-ui .premium-item-card .item-pricing-grid {
+    padding: 0 !important;
+  }
+
+  .app-ui .premium-item-card .item-advanced-fields {
+    padding: 10px 0 0 !important;
+  }
+
+  .app-ui .adjustment-row {
+    min-height: 54px;
+    padding: 10px 0 !important;
+  }
+
+  .app-ui .editor-totals {
+    margin-top: 12px !important;
+  }
+
+  .app-ui .document-readiness {
+    margin: 8px 8px 0 !important;
+    border-radius: 10px !important;
+  }
+
+  .app-ui .mobile-editor-actionbar {
+    box-shadow: 0 8px 24px rgba(9,31,45,.14) !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .app-ui .editor-section {
+    padding: 13px 10px !important;
+  }
+  .app-ui .premium-item-card .item-core-grid {
+    padding: 11px !important;
+  }
+}
