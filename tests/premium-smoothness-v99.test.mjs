@@ -4,12 +4,16 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v99 smoothness layer loads last and is available offline',async()=>{
+test('v99 smoothness layer remains loaded beneath the current performance layer and is available offline',async()=>{
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   const styles=[...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
-  assert.equal(styles.at(-1),'premium-smoothness-v99.css');
-  assert.match(sw,/const CACHE = 'lourex-invoice-v99'/);
+  const v99Index=styles.indexOf('premium-smoothness-v99.css');
+  const currentIndex=styles.indexOf('performance-polish-v100.css');
+  assert.ok(v99Index>=0);
+  assert.ok(currentIndex>v99Index);
+  assert.match(sw,/const CACHE = 'lourex-invoice-v100'/);
   assert.match(sw,/\.\/styles\/premium-smoothness-v99\.css/);
+  assert.match(sw,/\.\/styles\/performance-polish-v100\.css/);
 });
 
 test('v99 uses compositor-friendly restrained motion and touch momentum',async()=>{

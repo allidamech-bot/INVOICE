@@ -8,12 +8,15 @@ test('v95 saved items layer remains loaded and ships offline beneath the current
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   const styles=[...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
   const savedIndex=styles.indexOf('saved-items-v95.css');
-  const currentIndex=styles.indexOf('premium-smoothness-v99.css');
+  const v99Index=styles.indexOf('premium-smoothness-v99.css');
+  const currentIndex=styles.indexOf('performance-polish-v100.css');
   assert.ok(savedIndex>=0);
-  assert.ok(currentIndex>savedIndex);
-  assert.match(sw,/lourex-invoice-v99/);
+  assert.ok(v99Index>savedIndex);
+  assert.ok(currentIndex>v99Index);
+  assert.match(sw,/lourex-invoice-v100/);
   assert.match(sw,/\.\/styles\/saved-items-v95\.css/);
   assert.match(sw,/\.\/styles\/premium-smoothness-v99\.css/);
+  assert.match(sw,/\.\/styles\/performance-polish-v100\.css/);
 });
 
 test('saved item component classes have a dedicated desktop library layout',async()=>{
