@@ -28,6 +28,21 @@ function itemCountLabel(count:number):string{
 
 export class DocumentsPage extends React.Component<Props, State> {
   state: State = { tab: 'all', status: 'all', sort:'latest', query: '', menuId: '' };
+  componentDidMount():void{
+    document.addEventListener('pointerdown',this.handleOutsidePointer);
+    document.addEventListener('keydown',this.handleKeyDown);
+  }
+  componentWillUnmount():void{
+    document.removeEventListener('pointerdown',this.handleOutsidePointer);
+    document.removeEventListener('keydown',this.handleKeyDown);
+  }
+  private handleOutsidePointer=(event:PointerEvent)=>{
+    if(!this.state.menuId)return;
+    const target=event.target;
+    if(target instanceof Element&&target.closest('.mobile-actions'))return;
+    this.setState({menuId:''});
+  };
+  private handleKeyDown=(event:KeyboardEvent)=>{if(event.key==='Escape'&&this.state.menuId)this.setState({menuId:''});};
   private filtered(): LourexDocument[] {
     const q = this.state.query.trim().toLowerCase();
     const docs=this.props.documents
@@ -87,13 +102,13 @@ export class DocumentsPage extends React.Component<Props, State> {
         const missingCustomer=!hasDocumentCustomer(doc);
         const canOutput=doc.status==='final';
         return <article className={`document-card document-${doc.kind} premium-document-card workflow-${state} ${missingCustomer?'needs-customer':''}`} key={doc.id}>
-          <button className="document-main" onClick={()=>this.props.onOpen(doc)}>
+          <button type="button" className="document-main" onClick={()=>this.props.onOpen(doc)}>
             <span className={`document-type-icon type-${doc.kind}`}><Icon name={doc.kind === 'proforma'?'proforma':'invoice'}/></span>
             <span className="document-info"><span className="document-info-top"><strong>{doc.number}</strong><span className={`document-kind-pill kind-${doc.kind}`}>{kindLabel}</span></span><b>{customer}</b><small className="document-info-meta"><span>{displayDate(doc.issueDate,getUiLanguage())}</span><i aria-hidden="true">•</i><span>{itemCountLabel(doc.items.length)}</span>{missingCustomer?<><i aria-hidden="true">•</i><em>{t('Customer required','العميل مطلوب')}</em></>:null}</small></span>
             <span className="document-total"><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><span className={`document-status-pill status-${state}`}>{statusLabel}</span></span>
           </button>
           <div className="document-actions desktop-actions"><Button variant="ghost" onClick={()=>this.props.onOpen(doc)}>{canOutput?t('Open','فتح'):t('Review','مراجعة')}</Button><IconButton icon="copy" label={t('Duplicate','نسخ')} onClick={()=>this.props.onDuplicate(doc)}/>{canOutput?<><IconButton icon="download" label="PDF" onClick={()=>this.props.onPrint(doc,'pdf')}/><IconButton icon="share" label={t('Share','مشاركة')} onClick={()=>this.props.onPrint(doc,'share')}/></>:null}<IconButton icon="trash" label={t('Delete','حذف')} variant="danger" onClick={()=>this.props.onDelete(doc)}/></div>
-          <div className="mobile-actions"><IconButton icon="more" label={t('Actions','الإجراءات')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/>{this.state.menuId===doc.id?<div className="action-menu"><button onClick={()=>this.runAction(()=>this.props.onOpen(doc))}><Icon name={canOutput?'edit':'eye'}/>{canOutput?t('Open','فتح'):t('Review & Issue','مراجعة وإصدار')}</button><button onClick={()=>this.runAction(()=>this.props.onDuplicate(doc))}><Icon name="copy"/>{t('Duplicate','نسخ')}</button>{canOutput?<><button onClick={()=>this.runAction(()=>this.props.onPrint(doc,'pdf'))}><Icon name="download"/>PDF</button><button onClick={()=>this.runAction(()=>this.props.onPrint(doc,'share'))}><Icon name="share"/>{t('Share','مشاركة')}</button></>:null}<button className="danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/>{t('Delete','حذف')}</button></div>:null}</div>
+          <div className="mobile-actions"><IconButton icon="more" label={t('Actions','الإجراءات')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/>{this.state.menuId===doc.id?<div className="action-menu"><button type="button" onClick={()=>this.runAction(()=>this.props.onOpen(doc))}><Icon name={canOutput?'edit':'eye'}/>{canOutput?t('Open','فتح'):t('Review & Issue','مراجعة وإصدار')}</button><button type="button" onClick={()=>this.runAction(()=>this.props.onDuplicate(doc))}><Icon name="copy"/>{t('Duplicate','نسخ')}</button>{canOutput?<><button type="button" onClick={()=>this.runAction(()=>this.props.onPrint(doc,'pdf'))}><Icon name="download"/>PDF</button><button type="button" onClick={()=>this.runAction(()=>this.props.onPrint(doc,'share'))}><Icon name="share"/>{t('Share','مشاركة')}</button></>:null}<button type="button" className="danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/>{t('Delete','حذف')}</button></div>:null}</div>
         </article>;
       })}</div> : <div className="empty-state documents-empty"><span className="empty-mark"><Icon name="file" size={28}/></span><h2>{filteredView ? t('No matching documents','لا توجد مستندات مطابقة') : t('No documents yet','لا توجد مستندات بعد')}</h2><p>{filteredView ? t('Try another search or filter.','جرّب بحثًا أو تصفية مختلفة.') : t('Start with a quote, then convert it to an invoice when the deal is confirmed.','ابدأ بعرض سعر، ثم حوّله إلى فاتورة عند تأكيد الصفقة.')}</p>{filteredView?<div className="empty-actions"><Button icon="refresh" onClick={this.clearFilters}>{t('Clear filters','مسح التصفية')}</Button></div>:<div className="empty-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Create Quote','إنشاء عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Create Invoice','إنشاء فاتورة')}</Button></div>}</div>}
     </section>;
