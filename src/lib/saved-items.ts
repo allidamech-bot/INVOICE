@@ -16,7 +16,10 @@ export function savedItemFromDocumentItem(item: DocumentItem, currency: string, 
     lastUnitPrice:item.unitPrice.trim(),
     lastCurrency:currency.trim().toUpperCase(),
     usageCount:(existing?.usageCount??0)+1,
-    lastUsedAt:now
+    lastUsedAt:now,
+    category:existing?.category??'',
+    tags:[...(existing?.tags??[])],
+    favorite:Boolean(existing?.favorite)
   };
 }
 
@@ -35,11 +38,12 @@ export function documentItemFromSavedItem(saved: SavedItem): DocumentItem {
 }
 
 export function savedItemSearchText(item: SavedItem): string {
-  return [item.descriptionEn,item.descriptionAr,item.hsCode,item.origin,item.packing,item.unit].join(' ').toLowerCase();
+  return [item.descriptionEn,item.descriptionAr,item.hsCode,item.origin,item.packing,item.unit,item.category??'',...(item.tags??[])].join(' ').toLowerCase();
 }
 
 export function sortSavedItems(items: SavedItem[]): SavedItem[] {
   return [...items].sort((a,b)=>{
+    if(Boolean(b.favorite)!==Boolean(a.favorite))return Number(Boolean(b.favorite))-Number(Boolean(a.favorite));
     if((b.usageCount??0)!==(a.usageCount??0))return (b.usageCount??0)-(a.usageCount??0);
     return (b.lastUsedAt||b.updatedAt).localeCompare(a.lastUsedAt||a.updatedAt);
   });
