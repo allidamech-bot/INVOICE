@@ -1,0 +1,215 @@
+/* v84 — template-by-template visual polish for every Proforma Invoice / Invoice.
+   This layer intentionally preserves each template identity while enforcing clean commercial hierarchy. */
+
+/* Shared finish */
+.invoice-page{
+  -webkit-font-smoothing:antialiased;
+  font-kerning:normal;
+}
+.invoice-page .section-kicker,
+.invoice-page .terms-block h3,
+.invoice-page .bank-block h3,
+.invoice-page .signature-block h3,
+.invoice-page .notes-block h3{
+  line-height:1.25;
+}
+.invoice-page .party-name{letter-spacing:-.01em}
+.invoice-page .items-table thead{break-inside:avoid;page-break-inside:avoid}
+.invoice-page .items-table th{font-weight:800}
+.invoice-page .items-table td{font-weight:520}
+.invoice-page .items-table .description-cell{font-weight:610}
+.invoice-page .totals-block{font-variant-numeric:tabular-nums}
+.invoice-page .grand-total{border-top-width:1.5px}
+.invoice-page .notes-block{margin-top:4.5mm}
+.invoice-page .doc-footer{font-weight:600}
+
+/* If commercial terms are absent, keep totals anchored to the totals column. */
+.invoice-page .lower-grid:not(:has(.terms-block)) .totals-block{
+  grid-column:2;
+}
+/* If only bank or signature is enabled, let the remaining block use the space elegantly. */
+.invoice-page .bottom-grid:has(.bank-block:only-child) .bank-block,
+.invoice-page .bottom-grid:has(.signature-block:only-child) .signature-block{
+  grid-column:1/-1;
+  max-width:104mm;
+}
+.invoice-page .bottom-grid:has(.signature-block:only-child) .signature-block{justify-self:end;width:84mm}
+.invoice-page.details-only .doc-body{padding-top:10mm}
+
+/* 01 EXECUTIVE — authoritative navy, cleaner metadata rhythm. */
+.template-executive .header-executive{min-height:48mm;gap:4mm 6mm}
+.template-executive .header-executive .doc-title span{letter-spacing:.045em}
+.template-executive .header-executive .doc-meta{gap:2mm}
+.template-executive .header-executive .doc-meta>div{
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:1.5mm;
+  padding:2.1mm 2.4mm;
+  background:rgba(255,255,255,.035);
+}
+.template-executive .party-block{border-radius:2mm}
+.template-executive .totals-block{box-shadow:inset 0 0 0 1px rgba(181,139,79,.08)}
+
+/* 02 MINIMAL — quiet luxury, stronger alignment without extra decoration. */
+.template-minimal .header-minimal{padding-bottom:5mm;border-bottom:1px solid #d8d5ce}
+.template-minimal .header-minimal>div:last-child{gap:7mm}
+.template-minimal .doc-title span{font-weight:700;letter-spacing:.02em}
+.template-minimal .party-block{border:0;border-top:1px solid #cfcac0;border-radius:0;padding-inline:0}
+.template-minimal .section-kicker{color:#7c643e}
+.template-minimal .items-table th{letter-spacing:.06em}
+.template-minimal .totals-block{border:1px solid #d9d4ca;border-radius:1.5mm}
+
+/* 03 INTERNATIONAL TRADE — dense B2B structure, no cramped right side. */
+.template-trade .header-trade{grid-template-columns:52mm minmax(0,1fr);min-height:45mm}
+.template-trade .trade-bar{padding:9mm 6mm}
+.template-trade .trade-title{padding:8mm 12mm 5mm 7mm;align-items:flex-start}
+.template-trade .trade-title .doc-meta{min-width:72mm}
+.template-trade .party-block{border-left-width:2px;border-radius:1mm}
+.template-trade.lang-ar .party-block{border-left:1px solid #d9d7d2;border-right:2px solid var(--accent)}
+.template-trade .items-table{border:1px solid #d8dee2}
+
+/* 04 SIGNATURE — formal stationery with restrained gold datum. */
+.template-signature .header-signature{padding-top:10mm;padding-bottom:5mm}
+.template-signature .signature-title{padding-inline-start:5mm;border-inline-start:1px solid rgba(181,139,79,.55)}
+.template-signature .header-signature .doc-meta{gap:2mm}
+.template-signature .header-signature .doc-meta>div{background:#faf8f3;border:1px solid #e3dfd7;border-radius:1.5mm;padding-inline:2.2mm}
+.template-signature .party-block{border-radius:1.5mm}
+
+/* 05 OBSIDIAN — premium black header, calm light document body. */
+.template-obsidian .header-modern{min-height:51mm}
+.template-obsidian .modern-geometry{opacity:.58}
+.template-obsidian .party-block{border:1px solid #e1e3e5!important;border-radius:1.8mm!important}
+.template-obsidian .party-block:first-child{border-inline-start:2mm solid #101319!important}
+.template-obsidian .items-table th{letter-spacing:.055em}
+.template-obsidian .totals-block{border-radius:1.5mm}
+
+/* 06 COBALT — corporate blue with cleaner right-side hierarchy. */
+.template-cobalt .header-modern{grid-template-columns:52mm minmax(0,1fr)}
+.template-cobalt .modern-brand{padding:9mm 6mm}
+.template-cobalt .modern-title{padding-left:9mm}
+.template-cobalt .modern-meta{padding-left:9mm}
+.template-cobalt .party-grid{gap:4mm}
+.template-cobalt .party-block{border-radius:1.8mm;padding:4.2mm}
+.template-cobalt .totals-block{border-color:#cddae5;background:#f5f9fc}
+
+/* 07 EDITORIAL — typographic, spacious, no accidental weak hierarchy. */
+.template-editorial .header-modern{min-height:47mm;grid-template-columns:.92fr 1.08fr}
+.template-editorial .doc-title span{font-size:27px!important;line-height:1}
+.template-editorial .modern-meta .doc-meta{gap:2mm 5mm}
+.template-editorial .party-grid{gap:7mm}
+.template-editorial .party-block{padding-top:3.5mm}
+.template-editorial .items-table th{font-size:7.2px}
+.template-editorial .grand-total{border-top:1.5px solid #15191d}
+
+/* 08 SPLIT — retain the split identity while removing visual imbalance. */
+.template-split .header-modern{min-height:51mm}
+.template-split .modern-brand,.template-split .modern-title{padding:9mm 12mm}
+.template-split .modern-meta{padding:4mm 12mm 6mm}
+.template-split .party-grid{grid-template-columns:1fr 1fr!important;gap:4mm}
+.template-split .party-block{border-radius:1.5mm}
+.template-split .totals-block{border-inline-start-width:2px}
+
+/* 09 PRISM — reduce decorative intrusion; content wins. */
+.template-prism .header-modern{min-height:49mm;padding-right:15mm}
+.template-prism .modern-geometry{right:-26mm;top:-30mm;opacity:.88}
+.template-prism .modern-title{max-width:72mm}
+.template-prism .party-block{border-radius:2.5mm}
+.template-prism .party-block:nth-child(2){box-shadow:inset 2px 0 0 var(--accent)}
+.template-prism.lang-ar .party-block:nth-child(2){box-shadow:inset -2px 0 0 var(--accent)}
+.template-prism .totals-block{border:1px solid #e0e5e8}
+
+/* 10 SLATE — stabilize dark metadata rail and title width. */
+.template-slate .header-modern{grid-template-columns:minmax(0,1fr) 64mm}
+.template-slate .modern-meta{margin-right:-12mm;padding-inline:7mm}
+.template-slate.lang-ar .modern-meta{margin-right:0;margin-left:-12mm}
+.template-slate .modern-title{padding-bottom:1mm}
+.template-slate .party-grid{gap:4mm}
+.template-slate .party-block{border:1px solid #e3e7e9}
+.template-slate .totals-block{border-radius:1.2mm}
+
+/* 11 HORIZON — soft cards with consistent edge geometry. */
+.template-horizon .header-modern{min-height:50mm}
+.template-horizon .modern-brand,.template-horizon .modern-meta{border-radius:2mm}
+.template-horizon .party-block{border:1px solid #e5e7e9;border-radius:2mm}
+.template-horizon .items-table{border-spacing:0 .8mm}
+.template-horizon .items-table td{box-shadow:inset 0 -1px 0 #e5e8ea}
+.template-horizon .totals-block{box-shadow:none;border-radius:2mm}
+
+/* 12 MONO — technical monochrome without oppressive borders. */
+.template-mono .header-modern{border-width:1.5px;margin:7mm 9mm 0}
+.template-mono .modern-meta .doc-meta>div{border-width:1px}
+.template-mono .party-grid{border-width:1px}
+.template-mono .party-block+ .party-block{border-left-width:1px}
+.template-mono .items-table{border-width:1px}
+.template-mono .items-table th,.template-mono .items-table td{border-width:0 1px 1px 0}
+.template-mono .totals-block{border-width:1.5px}
+.template-mono .grand-total{border-top-width:1.5px}
+
+/* 13 AURORA — contemporary gradient, less oversized curvature. */
+.template-aurora .header-modern{min-height:52mm;border-bottom-right-radius:21mm}
+.template-aurora.lang-ar .header-modern{border-bottom-right-radius:0;border-bottom-left-radius:21mm}
+.template-aurora .modern-geometry{opacity:.78}
+.template-aurora .party-block{border:1px solid rgba(9,33,51,.08);border-radius:2.5mm}
+.template-aurora .totals-block{border:1px solid rgba(9,33,51,.09);border-radius:2mm}
+
+/* 14 LEDGER — structured accounting grid with cleaner labels. */
+.template-ledger .header-modern{border-bottom-width:3px}
+.template-ledger .modern-title{border-radius:1mm}
+.template-ledger .modern-meta .doc-meta>div{border-radius:1mm}
+.template-ledger .section-kicker{margin:-4mm -4mm 3mm;padding:1.7mm 2.2mm}
+.template-ledger .items-table th{letter-spacing:.045em}
+.template-ledger .totals-block{border-color:#c8d1d6}
+.template-ledger .grand-total{margin-bottom:-3.4mm}
+
+/* 15 NOIR GOLD — luxury, but with calmer gold and equal party structure. */
+.template-noir .header-modern{min-height:58mm;grid-template-columns:minmax(0,1fr) 58mm}
+.template-noir .modern-title{padding:9mm 6mm}
+.template-noir .doc-title span{font-size:25px}
+.template-noir .modern-meta{padding-bottom:7mm}
+.template-noir .party-block{border-radius:1mm}
+.template-noir .party-seller{border-left-width:1.5mm}
+.template-noir.lang-ar .party-seller{border-left:1px solid #292722;border-right:1.5mm solid #b88b43}
+.template-noir .totals-block{background:linear-gradient(145deg,#d2b06e,#a67b3d)}
+
+/* 16 MIDNIGHT — architectural navy with less box noise. */
+.template-midnight .header-modern{min-height:55mm;grid-template-columns:46mm minmax(0,1fr)}
+.template-midnight .modern-brand{padding:9mm 6mm}
+.template-midnight .modern-meta .doc-meta>div{padding:2.2mm;border-color:#29425a;background:rgba(255,255,255,.015)}
+.template-midnight .party-block{box-shadow:inset 0 1mm 0 #c8a25a;border-radius:1.2mm}
+.template-midnight .party-customer{box-shadow:inset 0 1mm 0 #eef2f3}
+.template-midnight .totals-block{border-radius:1.2mm}
+
+/* 17 BLACK IVORY — editorial contrast, cleaner panel proportions. */
+.template-blackivory .header-modern{min-height:52mm;grid-template-columns:1.15fr .85fr}
+.template-blackivory .doc-title span{font-size:28px}
+.template-blackivory .modern-meta .doc-meta>div{padding:2mm 2.3mm}
+.template-blackivory .party-grid{border-color:#cfc5b5}
+.template-blackivory .party-block{padding:4.5mm}
+.template-blackivory .items-table{border-color:#cfc5b5}
+.template-blackivory .totals-block{border:1px solid #c9bfaf}
+
+/* 18 CARBON LUXE — keep the industrial identity, remove offset/collision tricks. */
+.template-carbon .header-modern{min-height:56mm}
+.template-carbon .modern-title{padding-inline-end:3mm;border-inline-end:1mm solid #ba914d}
+.template-carbon.lang-ar .modern-title{padding-inline-end:0;padding-inline-start:3mm;border-inline-end:0;border-inline-start:1mm solid #ba914d}
+.template-carbon .modern-meta .doc-meta>div{padding:2.2mm;border-radius:1mm}
+.template-carbon .party-block{border-radius:1mm}
+.template-carbon .party-customer{box-shadow:none!important}
+.template-carbon .items-table{border-spacing:0 .7mm}
+.template-carbon .totals-block{border-radius:1mm}
+.template-carbon .grand-total{margin-bottom:-3.4mm}
+
+/* Language-specific finishing */
+.invoice-page.lang-ar .doc-title-primary-ar{letter-spacing:0;line-height:1.2}
+.invoice-page.lang-ar .section-kicker,
+.invoice-page.lang-ar .terms-block h3,
+.invoice-page.lang-ar .bank-block h3,
+.invoice-page.lang-ar .signature-block h3,
+.invoice-page.lang-ar .notes-block h3{text-transform:none;letter-spacing:0}
+.invoice-page.lang-bilingual .section-kicker .bi-label,
+.invoice-page.lang-bilingual h3 .bi-label{gap:1.2mm}
+.invoice-page.lang-bilingual .description-cell .bi-value{display:grid;grid-template-columns:1fr;gap:.8mm}
+
+@media print{
+  .invoice-page .lower-grid:not(:has(.terms-block)) .totals-block{grid-column:2}
+  .invoice-page .party-block,.invoice-page .totals-block,.invoice-page .items-table{box-shadow:none!important}
+}
