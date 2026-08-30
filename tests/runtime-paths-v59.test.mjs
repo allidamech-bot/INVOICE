@@ -5,13 +5,34 @@ import { readFile } from 'node:fs/promises';
 const root = new URL('../', import.meta.url);
 const read = async path => readFile(new URL(path, root), 'utf8');
 
-test('saved document open path clones persisted data and remounts editor by identity', async () => {
+test('saved document open path waits for protected cloud replacement, clones data and remounts editor by identity', async () => {
   const app = await read('src/app/App.tsx');
   const wrapper = await read('src/components/EditorPage.tsx');
-  assert.match(app, /openDocument=\(doc:LourexDocument\)=>this\.setState\(\{screen:'editor',editorDoc:structuredClone\(doc\)\}\)/);
+  assert.match(app, /openDocument=async\(doc:LourexDocument\)=>/);
+  assert.match(app, /await this\.waitForProtectedDataOperation\(\)/);
+  assert.match(app, /this\.setState\(\{screen:'editor',editorDoc:structuredClone\(doc\)\}\)/);
   assert.match(app, /screen==='editor'&&this\.state\.editorDoc\?<EditorPage/);
   assert.match(wrapper, /key=\{props\.document\.id\}/);
   assert.match(wrapper, /EditorPageCore/);
+});
+
+test('final document unlock becomes a persisted draft immediately instead of waiting for delayed autosave', async () => {
+  const editor = await read('src/components/EditorPageCore.tsx');
+  assert.match(editor, /private unlockFinal=async\(\)=>/);
+  assert.match(editor, /status:'draft' as const/);
+  assert.match(editor, /saving:true,saveState:'saving'/);
+  assert.match(editor, /await this\.props\.onSave\(doc,true\)/);
+  assert.match(editor, /onConfirm=\{\(\)=>void this\.unlockFinal\(\)\}/);
+});
+
+test('newly issued document waits for the saved final snapshot before PDF or share starts', async () => {
+  const editor = await read('src/components/EditorPageCore.tsx');
+  const saveAt = editor.indexOf('await this.props.onSave(finalDoc,false)');
+  const stateAt = editor.indexOf("await new Promise<void>(resolve=>this.setState({doc:finalDoc,saveState:'saved'},resolve))");
+  const printAt = editor.indexOf("if(mode!=='issue')this.props.onPrint(finalDoc,mode)");
+  assert.ok(saveAt >= 0, 'final snapshot save is missing');
+  assert.ok(stateAt > saveAt, 'editor state must settle after the final snapshot is saved');
+  assert.ok(printAt > stateAt, 'PDF/share must start only after the saved final state is visible');
 });
 
 test('editor close path flushes unsaved draft before returning to documents', async () => {
