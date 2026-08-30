@@ -1,0 +1,97 @@
+/* v100 — interaction performance polish.
+   Reduces scroll/compositing cost and off-screen rendering work without changing printable invoices. */
+
+/* Backdrop blur stays visually available on desktop, but no longer animates frame-by-frame. */
+.app-ui .modal-backdrop{
+  animation:v100-backdrop-in 150ms ease both;
+}
+@keyframes v100-backdrop-in{
+  from{background-color:rgba(6,16,24,0)}
+  to{background-color:rgba(6,16,24,.5)}
+}
+
+/* Long workspaces render only what is near the viewport when the browser supports it. */
+@supports (content-visibility:auto){
+  .app-ui .premium-document-card{
+    content-visibility:auto;
+    contain-intrinsic-size:82px;
+  }
+  .app-ui .customer-card{
+    content-visibility:auto;
+    contain-intrinsic-size:82px;
+  }
+  .app-ui .saved-item-row{
+    content-visibility:auto;
+    contain-intrinsic-size:66px;
+  }
+}
+
+/* Stable financial figures reduce tiny width shifts as values change. */
+.app-ui .document-total,
+.app-ui .editor-totals,
+.app-ui .item-line-total,
+.app-ui .documents-overview-five strong,
+.app-ui .save-indicator{
+  font-variant-numeric:tabular-nums;
+}
+
+/* Coarse-pointer devices (iPhone/iPad/touch) should prioritize scroll smoothness over live blur. */
+@media (pointer:coarse){
+  .app-ui .app-header,
+  .app-ui .settings-tabs,
+  .app-ui .saved-items-toolbar,
+  .app-ui .saved-item-editor-head,
+  .app-ui .saved-item-editor-actions,
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action,
+  .final-quote-convert-bar,
+  .app-ui .modal-backdrop{
+    -webkit-backdrop-filter:none!important;
+    backdrop-filter:none!important;
+  }
+
+  .app-ui .app-header{
+    background:rgba(248,245,238,.995)!important;
+  }
+  .app-ui .settings-tabs,
+  .app-ui .saved-items-toolbar,
+  .app-ui .saved-item-editor-head,
+  .app-ui .saved-item-editor-actions{
+    background:rgba(255,255,255,.995)!important;
+  }
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{
+    background:rgba(250,252,252,.995)!important;
+  }
+  .final-quote-convert-bar{
+    background:rgba(250,252,252,.995)!important;
+  }
+
+  /* Keep touch feedback immediate; avoid persistent promoted layers on long mobile pages. */
+  .app-ui .editor-topbar,
+  .app-ui .preview-toolbar{
+    transform:none;
+    backface-visibility:visible;
+  }
+}
+
+/* On phones the modal overlay uses a solid translucent scrim, avoiding expensive background sampling. */
+@media (max-width:720px){
+  .app-ui .modal-backdrop{
+    background:rgba(6,16,24,.48)!important;
+  }
+  .app-ui .main-content > .page,
+  .app-ui .documents-page,
+  .app-ui .customers-page{
+    animation-duration:150ms;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .app-ui .modal-backdrop{
+    animation:none!important;
+  }
+}
+
+/* Printable document composition is intentionally isolated from this layer. */
+@media print{
+  .app-ui .modal-backdrop{animation:none!important}
+}
