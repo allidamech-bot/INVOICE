@@ -127,14 +127,24 @@ export class EditorPage extends React.Component<Props,State>{
     const finalDoc=alreadyFinal?structuredClone(this.state.doc):{...structuredClone(this.state.doc),status:'final' as const,updatedAt:new Date().toISOString()};
     this.setState({issuing:true});
     try{
-      if(!alreadyFinal){await this.props.onSave(finalDoc,false);this.setState({doc:finalDoc,saveState:'saved'});}
+      if(!alreadyFinal){
+        await this.props.onSave(finalDoc,false);
+        await new Promise<void>(resolve=>this.setState({doc:finalDoc,saveState:'saved'},resolve));
+      }
       if(mode!=='issue')this.props.onPrint(finalDoc,mode);
       this.setState({reviewMode:null,issuing:false,doc:finalDoc,saveState:'saved'});
     }catch(e){this.setState({issuing:false,errors:{...this.state.errors,global:e instanceof Error?e.message:t('Unable to issue document.','تعذر إصدار المستند.')}});}
   };
-  private unlockFinal=()=>{
+  private unlockFinal=async()=>{
+    if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
     const doc={...structuredClone(this.state.doc),status:'draft' as const,updatedAt:new Date().toISOString()};
-    this.setState({doc,unlockConfirm:false,saveState:'unsaved'},()=>this.schedule());
+    this.setState({doc,unlockConfirm:false,saving:true,saveState:'saving',errors:{}});
+    try{
+      await this.props.onSave(doc,true);
+      this.setState({doc,saving:false,saveState:'saved'});
+    }catch(e){
+      this.setState({doc,saving:false,saveState:'unsaved',errors:{global:e instanceof Error?e.message:t('Unable to unlock document.','تعذر فتح المستند للتعديل.')}},()=>this.schedule());
+    }
   };
   private convert=()=>{if(this.validateCurrent())void this.props.onConvert(this.state.doc);};
   private field=(key:keyof LourexDocument,value:any)=>this.mutate(d=>({...d,[key]:value}));
@@ -223,7 +233,7 @@ export class EditorPage extends React.Component<Props,State>{
       <div className="mobile-editor-actionbar"><div className="mobile-total"><span>{t('Grand Total','الإجمالي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div><div className="mobile-action-buttons">{locked?<Button icon="edit" variant="primary" onClick={()=>this.setState({unlockConfirm:true})}>{t('Unlock','فتح')}</Button>:<Button icon="save" variant="primary" disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save','حفظ')}</Button>}<Button icon="eye" onClick={()=>this.setState({mobilePreview:true})}>{t('Preview','معاينة')}</Button><Button icon="download" onClick={()=>this.openReview('pdf')}>PDF</Button></div></div>
       <div className="mobile-preview-overlay"><header><strong>{t('Preview','معاينة')}</strong><div><Button icon="download" onClick={()=>this.openReview('pdf')}>PDF</Button><IconButton icon="x" label={t('Close','إغلاق')} onClick={()=>this.setState({mobilePreview:false})}/></div></header><div className="mobile-preview-stage"><TemplateRenderer document={d} scale={0.48}/></div></div>
       <ConfirmDialog open={this.state.confirmClose} title={t('Discard unsaved changes?','تجاهل التغييرات غير المحفوظة؟')} message={t('Your latest changes have not been saved.','لم يتم حفظ آخر تغييراتك.')} confirmLabel={t('Discard','تجاهل')} destructive onCancel={()=>this.setState({confirmClose:false})} onConfirm={()=>this.props.onClose()}/>
-      <ConfirmDialog open={this.state.unlockConfirm} title={t('Unlock final document?','فتح المستند النهائي للتعديل؟')} message={t('The document will return to Draft so changes can be made. Its number will remain unchanged.','سيعود المستند إلى حالة مسودة حتى تتمكن من تعديله، وسيبقى رقمه كما هو.')} confirmLabel={t('Unlock for editing','فتح للتعديل')} destructive={false} onCancel={()=>this.setState({unlockConfirm:false})} onConfirm={this.unlockFinal}/>
+      <ConfirmDialog open={this.state.unlockConfirm} title={t('Unlock final document?','فتح المستند النهائي للتعديل؟')} message={t('The document will return to Draft so changes can be made. Its number will remain unchanged.','سيعود المستند إلى حالة مسودة حتى تتمكن من تعديله، وسيبقى رقمه كما هو.')} confirmLabel={t('Unlock for editing','فتح للتعديل')} destructive={false} onCancel={()=>this.setState({unlockConfirm:false})} onConfirm={()=>void this.unlockFinal()}/>
       <Modal open={Boolean(this.state.addCustomer)} title={t('New Customer','عميل جديد')} size="lg" onClose={()=>this.setState({addCustomer:null,addCustomerError:''})} footer={<div className="modal-footer-actions"><Button onClick={()=>this.setState({addCustomer:null})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" onClick={()=>void this.addCustomer()}>{t('Save & Select','حفظ واختيار')}</Button></div>}>{this.state.addCustomer?<CustomerForm customer={this.state.addCustomer} onChange={addCustomer=>this.setState({addCustomer})}/>:null}{this.state.addCustomerError?<div className="inline-error">{this.state.addCustomerError}</div>:null}</Modal>
       <SavedItemsModal open={this.state.savedItemsOpen} items={this.props.savedItems} currency={d.currency} onClose={()=>this.setState({savedItemsOpen:false})} onSelect={this.addSavedItem} onSave={this.props.onSaveSavedItem} onDelete={this.props.onDeleteSavedItem}/>
       <DocumentReviewModal document={d} mode={this.state.reviewMode} issues={quality} working={this.state.issuing} onClose={()=>this.setState({reviewMode:null})} onConfirm={()=>void this.issueAndContinue()}/>
