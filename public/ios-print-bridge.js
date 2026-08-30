@@ -1,8 +1,9 @@
 /* LOUREX iOS PDF bridge.
    Safari on iPhone can expose computed CSS colors as CSS Color 4 `color(...)`
    values (especially display-p3). html2canvas 1.4.1 does not parse that syntax.
-   This bridge normalizes those computed colors to rgba() before capture, then
-   creates a real PDF file for Save/Share while keeping native Print available. */
+   This bridge normalizes those colors before capture and preserves signature /
+   stamp artwork as native high-resolution PDF overlays instead of flattening
+   those fine-detail assets into the page JPEG. */
 (() => {
   const isAppleTouch = /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -10,6 +11,7 @@
 
   const HTML2CANVAS_URL = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
   const JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
+  const SHARP_MEDIA_SELECTOR = '.signature-image,.stamp-image';
   const COLOR_PROPS = [
     'color','background-color','border-top-color','border-right-color','border-bottom-color','border-left-color',
     'outline-color','text-decoration-color','column-rule-color','caret-color','fill','stroke','flood-color',
@@ -58,7 +60,6 @@
     ];
   };
   const rgbaText = (r, g, b, a) => `rgba(${Math.round(clamp01(r) * 255)},${Math.round(clamp01(g) * 255)},${Math.round(clamp01(b) * 255)},${clamp01(a)})`;
-
   const replaceColorFunction = (value) => String(value || '').replace(/color\(\s*([\w-]+)\s+([^)]*)\)/gi, (_match, space, body) => {
     const parts = String(body).split('/');
     const channels = parts[0].trim().split(/\s+/).filter(Boolean);
@@ -70,7 +71,6 @@
     else if (normalizedSpace === 'srgb-linear') rgb = rgb.map(encodeSrgb);
     return rgbaText(rgb[0], rgb[1], rgb[2], alpha);
   });
-
   const normalizeUnsupportedColors = (root) => {
     const nodes = [root, ...Array.from(root.querySelectorAll('*'))];
     for (const node of nodes) {
@@ -84,9 +84,7 @@
     }
   };
 
-  const releaseParentPrintState = () => {
-    try { window.dispatchEvent(new Event('afterprint')); } catch {}
-  };
+  const releaseParentPrintState = () => { try { window.dispatchEvent(new Event('afterprint')); } catch {} };
   const actionCopy = (mode) => mode === 'share'
     ? { label:'Share PDF / مشاركة PDF', help:'اضغط «مشاركة PDF» لإرسال الملف مباشرة. وإذا لم تظهر نافذة iPhone استخدم «فتح PDF».' }
     : mode === 'print'
@@ -150,6 +148,65 @@
     }));
   };
 
+  const imageFormat = (src) => {
+    if (/^data:image\/png/i.test(src)) return 'PNG';
+    if (/^data:image\/jpe?g/i.test(src)) return 'JPEG';
+    if (/^data:image\/webp/i.test(src)) return 'WEBP';
+    return '';
+  };
+  const loadImageForPdf = (src) => new Promise((resolve,reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Unable to prepare signature or stamp.'));
+    image.src = src;
+  });
+  const pngForPdf = async (src) => {
+    const direct = imageFormat(src);
+    if (direct === 'PNG' || direct === 'JPEG') return { data:src, format:direct };
+    const image = await loadImageForPdf(src);
+    const naturalWidth = image.naturalWidth || image.width || 1;
+    const naturalHeight = image.naturalHeight || image.height || 1;
+    const maxDimension = 2600;
+    const scale = Math.min(1,maxDimension/Math.max(naturalWidth,naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1,Math.round(naturalWidth*scale));
+    canvas.height = Math.max(1,Math.round(naturalHeight*scale));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Unable to prepare high-resolution document artwork.');
+    context.clearRect(0,0,canvas.width,canvas.height);
+    context.drawImage(image,0,0,canvas.width,canvas.height);
+    return { data:canvas.toDataURL('image/png'), format:'PNG' };
+  };
+  const collectSharpMedia = (page) => {
+    const pageRect = page.getBoundingClientRect();
+    if (!pageRect.width || !pageRect.height) return [];
+    return Array.from(page.querySelectorAll(SHARP_MEDIA_SELECTOR)).map((image,index) => {
+      const rect = image.getBoundingClientRect();
+      const src = image.currentSrc || image.src || '';
+      if (!src || rect.width <= 0 || rect.height <= 0) return null;
+      const asset = {
+        src,
+        x:(rect.left-pageRect.left)/pageRect.width*210,
+        y:(rect.top-pageRect.top)/pageRect.height*297,
+        w:rect.width/pageRect.width*210,
+        h:rect.height/pageRect.height*297,
+        alias:`lourex-sharp-${index}-${image.classList.contains('stamp-image')?'stamp':'signature'}`
+      };
+      image.style.setProperty('visibility','hidden','important');
+      return asset;
+    }).filter(Boolean);
+  };
+  const addSharpMedia = async (pdf,assets) => {
+    for (const asset of assets) {
+      try {
+        const prepared = await pngForPdf(asset.src);
+        pdf.addImage(prepared.data,prepared.format,asset.x,asset.y,asset.w,asset.h,asset.alias,'NONE');
+      } catch {
+        /* Base page remains valid even if one optional artwork overlay fails. */
+      }
+    }
+  };
+
   const buildPdfFile = async () => {
     if (pendingPdfFile) return pendingPdfFile;
     if (pendingPdfPromise) return pendingPdfPromise;
@@ -177,9 +234,11 @@
         const renderScale = Math.min(2,Math.max(1.45,window.devicePixelRatio||1.5));
         for (let index=0; index<pages.length; index+=1) {
           const page = pages[index];
+          const sharpMedia = collectSharpMedia(page);
           const canvas = await window.html2canvas(page,{scale:renderScale,useCORS:true,allowTaint:false,logging:false,backgroundColor:'#ffffff',imageTimeout:1800,removeContainer:true});
           if (index>0) pdf.addPage('a4','portrait');
           pdf.addImage(canvas.toDataURL('image/jpeg',0.94),'JPEG',0,0,210,297,undefined,'FAST');
+          await addSharpMedia(pdf,sharpMedia);
           canvas.width=1; canvas.height=1;
         }
         const blob = pdf.output('blob');
