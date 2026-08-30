@@ -7,13 +7,13 @@ import { fileURLToPath } from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 
-test('v83 document layout is the final shared output layer and ships offline',()=>{
+test('v83 document layout remains a shared output layer and ships offline',()=>{
   const html=read('index.html');
   const sw=read('public/sw.js');
   const css=read('src/styles/document-layout-v83.css');
   assert.match(html,/document-layout-v83\.css/);
   assert.ok(html.indexOf('document-layout-v83.css')>html.indexOf('document-ux-v82.css'));
-  assert.match(sw,/lourex-invoice-v83/);
+  assert.match(sw,/lourex-invoice-v8\d/);
   assert.match(sw,/document-layout-v83\.css/);
   assert.match(css,/\.invoice-page \.final-details/);
   assert.match(css,/grid-template-columns:minmax\(0,1fr\)!important/);
