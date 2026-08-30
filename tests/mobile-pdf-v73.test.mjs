@@ -20,7 +20,7 @@ test('mobile preview preserves physical A4 geometry instead of shrinking documen
   assert.match(css, /min-width:\s*66mm/);
 });
 
-test('iPhone PDF, Share and Print preserve a fresh user gesture with blocked-popup fallback', async () => {
+test('iPhone PDF, Share and Print stay in-app until a fresh native print gesture', async () => {
   const [html, bridge, review, documents, sw] = await Promise.all([
     read('index.html'),
     read('public/ios-print-bridge.js'),
@@ -32,15 +32,15 @@ test('iPhone PDF, Share and Print preserve a fresh user gesture with blocked-pop
   assert.match(html, /<script src="\.\/ios-print-bridge\.js"><\/script>/);
   assert.doesNotThrow(() => new Function(bridge));
   assert.match(bridge, /window\.__LOUREX_PREPARE_PDF__\s*=\s*preparePdfWindow/);
-  assert.match(bridge, /window\.open\('about:blank', '_blank'\)/);
-  assert.match(bridge, /modal-footer-actions \.btn-primary/);
+  assert.doesNotMatch(bridge, /window\.open\('about:blank'/);
+  assert.match(bridge, /in-app two-tap handoff/);
+  assert.match(bridge, /portalIsReady/);
+  assert.match(bridge, /armReadyProbe/);
+  assert.match(bridge, /nativePrint\(\)/);
   assert.match(bridge, /Save PDF \/ حفظ PDF/);
   assert.match(bridge, /Share PDF \/ مشاركة PDF/);
   assert.match(bridge, /lourex-ios-output-fallback/);
-  assert.match(bridge, /onclick="window\.print\(\)"/);
   assert.match(bridge, /window\.print = function lourexPrintBridge/);
-  assert.match(bridge, /\.print-portal \.invoice-page/);
-  assert.match(bridge, /styleLinks/);
   assert.match(bridge, /releaseParentPrintState/);
   assert.match(bridge, /dispatchEvent\(new Event\('afterprint'\)\)/);
   assert.match(review, /__LOUREX_PREPARE_PDF__\?\.\(mode\)/);
