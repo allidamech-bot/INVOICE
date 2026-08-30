@@ -68,3 +68,15 @@ test('account entry cannot switch modes or double-submit while authentication is
   assert.match(screen,/auth-error" role="alert"/);
   assert.match(screen,/settings-message success" role="status"/);
 });
+
+test('settings modal warns before discarding persistent unsaved company or document settings',()=>{
+  const settings=read('src/components/SettingsModal.tsx');
+  assert.match(settings,/companyInitial:string; documentsInitial:string/);
+  assert.match(settings,/private hasUnsavedSettings=/);
+  assert.match(settings,/private requestClose=/);
+  assert.match(settings,/onClose=\{this\.requestClose\}/);
+  assert.match(settings,/Discard unsaved settings\?/);
+  assert.match(settings,/onConfirm=\{this\.discardAndClose\}/);
+  assert.match(settings,/companyInitial:JSON\.stringify\(company\)/);
+  assert.match(settings,/documentsInitial:JSON\.stringify\(next\)/);
+});
