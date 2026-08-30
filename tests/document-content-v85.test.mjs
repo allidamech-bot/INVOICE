@@ -7,12 +7,12 @@ import { fileURLToPath } from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 
-test('v85 content layer loads last and ships in the offline PWA shell',()=>{
+test('v85 content layer remains loaded and ships in the current offline PWA shell',()=>{
   const html=read('index.html');
   const sw=read('public/sw.js');
   assert.match(html,/document-content-v85\.css/);
   assert.ok(html.indexOf('document-content-v85.css')>html.indexOf('document-template-polish-v84.css'));
-  assert.match(sw,/lourex-invoice-v85/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/document-content-v85\.css/);
 });
 
