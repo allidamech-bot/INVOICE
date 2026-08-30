@@ -39,3 +39,12 @@ test('production bundle keeps print and responsive rules rather than rebuilding 
   assert.match(bundle,/\.invoice-page/);
   assert.match(bundle,/performance-polish-v100\.css/);
 });
+
+test('web font request only loads the fonts actually used by the current interface and Arabic documents',async()=>{
+  const html=await read('index.html');
+  assert.match(html,/family=Inter:wght@400;500;600;700;800/);
+  assert.match(html,/family=Noto\+Sans\+Arabic:wght@400;500;600;700;800;900/);
+  for(const unused of ['Montserrat','Playfair+Display','Cairo','Tajawal','Noto+Kufi+Arabic','Noto+Naskh+Arabic']){
+    assert.doesNotMatch(html,new RegExp(unused.replace(/\+/g,'\\+')));
+  }
+});
