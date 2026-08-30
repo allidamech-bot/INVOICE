@@ -123,6 +123,9 @@ export interface SavedItem {
   lastCurrency: string;
   usageCount: number;
   lastUsedAt: string;
+  category?: string;
+  tags?: string[];
+  favorite?: boolean;
 }
 
 export interface CommercialTerms {

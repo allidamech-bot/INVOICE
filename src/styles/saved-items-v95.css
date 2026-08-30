@@ -408,3 +408,299 @@
 @media print{
   .app-ui .saved-items-shell{display:none!important}
 }
+
+/* v102 — organized product library: Favorites → Recent → Categories → All.
+   Keeps large catalogs scannable without adding another heavy top-level app screen. */
+.app-ui .saved-items-shell{
+  grid-template-columns:minmax(350px,.95fr) minmax(0,1.05fr);
+}
+
+.app-ui .saved-items-smart-nav{
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:5px;
+  padding:10px 10px 8px;
+  border-bottom:1px solid #e9eef0;
+  background:#fff;
+}
+
+.app-ui .saved-items-smart-nav button{
+  min-width:0;
+  min-height:48px;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:5px;
+  padding:7px 8px;
+  border:1px solid transparent;
+  border-radius:10px;
+  background:transparent;
+  color:#607581;
+  font:inherit;
+  cursor:pointer;
+}
+
+.app-ui .saved-items-smart-nav button:hover{
+  background:#f5f8f9;
+}
+
+.app-ui .saved-items-smart-nav button.active{
+  border-color:#cfdde3;
+  background:#eef5f7;
+  color:#153f57;
+}
+
+.app-ui .saved-items-smart-nav strong{
+  min-width:0;
+  overflow:hidden;
+  font-size:11px;
+  font-weight:800;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.app-ui .saved-items-smart-nav small{
+  min-width:20px;
+  padding:2px 5px;
+  border-radius:999px;
+  background:rgba(19,62,85,.07);
+  color:inherit;
+  font-size:9px;
+  font-variant-numeric:tabular-nums;
+  text-align:center;
+}
+
+.app-ui .saved-items-toolbar{
+  grid-template-columns:minmax(0,1fr) 132px auto;
+  align-items:center;
+  padding:10px;
+}
+
+.app-ui .saved-items-toolbar .saved-items-sort{
+  min-width:0;
+  height:40px;
+  font-size:11px;
+}
+
+.app-ui .saved-items-toolbar > .btn{
+  min-width:104px;
+}
+
+.app-ui .saved-items-categories{
+  flex:0 0 auto;
+  display:flex;
+  gap:6px;
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+  padding:8px 10px 9px;
+  border-bottom:1px solid #edf1f3;
+  scrollbar-width:none;
+}
+
+.app-ui .saved-items-categories::-webkit-scrollbar{
+  display:none;
+}
+
+.app-ui .saved-items-categories button{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  min-height:34px;
+  padding:6px 9px;
+  border:1px solid #dce5e9;
+  border-radius:999px;
+  background:#fff;
+  color:#526d7c;
+  font:inherit;
+  font-size:10.5px;
+  cursor:pointer;
+}
+
+.app-ui .saved-items-categories button.active{
+  border-color:#9eb9c6;
+  background:#edf5f7;
+  color:#123f57;
+}
+
+.app-ui .saved-items-categories small{
+  min-width:18px;
+  padding:1px 5px;
+  border-radius:999px;
+  background:#edf2f4;
+  color:#647c88;
+  font-size:9px;
+  text-align:center;
+}
+
+.app-ui .saved-items-list-context{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:8px 12px 5px;
+  color:#748792;
+}
+
+.app-ui .saved-items-list-context strong{
+  overflow:hidden;
+  color:#456170;
+  font-size:10.5px;
+  font-weight:800;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.app-ui .saved-items-list-context span{
+  font-size:9.5px;
+  font-variant-numeric:tabular-nums;
+}
+
+.app-ui .saved-item-row{
+  grid-template-columns:34px minmax(0,1fr) 42px;
+}
+
+.app-ui .saved-item-favorite{
+  width:34px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  margin-inline-start:2px;
+  border:0;
+  border-radius:9px;
+  background:transparent;
+  color:#b5c0c6;
+  font-size:18px;
+  line-height:1;
+  cursor:pointer;
+}
+
+.app-ui .saved-item-favorite:hover{
+  background:#f4f7f8;
+  color:#8095a0;
+}
+
+.app-ui .saved-item-favorite.is-active{
+  color:#b88b36;
+}
+
+.app-ui .saved-item-favorite:disabled{
+  cursor:wait;
+  opacity:.55;
+}
+
+.app-ui .saved-item-main{
+  gap:4px;
+  padding-inline:5px;
+}
+
+[dir='rtl'] .app-ui .saved-item-main{
+  padding-inline:5px;
+}
+
+.app-ui .saved-item-row-meta{
+  width:100%;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  overflow:hidden;
+}
+
+.app-ui .saved-item-row-meta em{
+  flex:0 1 auto;
+  max-width:120px;
+  overflow:hidden;
+  padding:2px 6px;
+  border-radius:999px;
+  background:#eff4f6;
+  color:#5c7480;
+  font-size:9px;
+  font-style:normal;
+  line-height:1.35;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.app-ui .saved-item-row.is-favorite{
+  border-color:#e7e0cf;
+}
+
+.app-ui .saved-item-favorite-toggle{
+  margin-top:14px;
+  padding:12px 0 2px;
+  border-top:1px solid #e2e9ec;
+}
+
+.app-ui .saved-items-list-error{
+  flex:0 0 auto;
+  margin:8px 10px 10px;
+}
+
+@media (max-width:900px){
+  .app-ui .saved-items-shell{
+    grid-template-columns:minmax(300px,.95fr) minmax(0,1.05fr);
+  }
+  .app-ui .saved-items-toolbar{
+    grid-template-columns:minmax(0,1fr) 122px;
+  }
+  .app-ui .saved-items-toolbar .search-box{
+    grid-column:1/-1;
+  }
+  .app-ui .saved-items-toolbar > .btn{
+    width:100%;
+    max-width:none;
+  }
+}
+
+@media (max-width:720px){
+  .app-ui .saved-items-smart-nav{
+    position:sticky;
+    top:-16px;
+    z-index:9;
+    display:flex;
+    gap:5px;
+    overflow-x:auto;
+    padding:9px 9px 7px;
+    background:#fff;
+    scrollbar-width:none;
+  }
+  .app-ui .saved-items-smart-nav::-webkit-scrollbar{
+    display:none;
+  }
+  .app-ui .saved-items-smart-nav button{
+    flex:0 0 auto;
+    min-width:88px;
+    min-height:42px;
+    grid-template-columns:minmax(0,1fr) auto;
+    padding:6px 8px;
+  }
+  .app-ui .saved-items-smart-nav button > span[aria-hidden='true']{
+    display:none;
+  }
+  .app-ui .saved-items-toolbar{
+    top:33px;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    padding:9px;
+    backdrop-filter:none;
+  }
+  .app-ui .saved-items-toolbar .search-box{
+    grid-column:1/-1;
+  }
+  .app-ui .saved-items-toolbar .saved-items-sort,
+  .app-ui .saved-items-toolbar > .btn{
+    min-height:42px;
+  }
+  .app-ui .saved-items-categories{
+    padding-inline:9px;
+  }
+  .app-ui .saved-item-row{
+    grid-template-columns:34px minmax(0,1fr) 42px;
+  }
+  .app-ui .saved-item-editor-head,
+  .app-ui .saved-item-editor-actions{
+    backdrop-filter:none;
+  }
+}
