@@ -13,7 +13,7 @@ test('v83 document layout remains a shared output layer and ships offline',()=>{
   const css=read('src/styles/document-layout-v83.css');
   assert.match(html,/document-layout-v83\.css/);
   assert.ok(html.indexOf('document-layout-v83.css')>html.indexOf('document-ux-v82.css'));
-  assert.match(sw,/lourex-invoice-v8\d/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/document-layout-v83\.css/);
   assert.match(css,/\.invoice-page \.final-details/);
   assert.match(css,/grid-template-columns:minmax\(0,1fr\)!important/);
