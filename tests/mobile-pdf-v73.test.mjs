@@ -20,7 +20,7 @@ test('mobile preview preserves physical A4 geometry instead of shrinking documen
   assert.match(css, /min-width:\s*66mm/);
 });
 
-test('iPhone PDF save and share normalize Safari Color 4 values before real-file capture', async () => {
+test('iPhone PDF save and share normalize Safari colors and preserve high-resolution signature/stamp artwork', async () => {
   const [html, bridge, review, documents, sw] = await Promise.all([
     read('index.html'),
     read('public/ios-print-bridge.js'),
@@ -43,6 +43,12 @@ test('iPhone PDF save and share normalize Safari Color 4 values before real-file
   assert.match(bridge, /srgb-linear/);
   assert.match(bridge, /getComputedStyle\(node\)/);
   assert.match(bridge, /normalizeUnsupportedColors\(stage\)/);
+  assert.match(bridge, /SHARP_MEDIA_SELECTOR\s*=\s*'\.signature-image,\.stamp-image'/);
+  assert.match(bridge, /collectSharpMedia/);
+  assert.match(bridge, /visibility','hidden','important'/);
+  assert.match(bridge, /addSharpMedia/);
+  assert.match(bridge, /pdf\.addImage\(prepared\.data,prepared\.format,asset\.x,asset\.y,asset\.w,asset\.h,asset\.alias,'NONE'\)/);
+  assert.match(bridge, /maxDimension\s*=\s*2600/);
   assert.match(bridge, /navigator\.share\(\{ files: \[file\] \}\)/);
   assert.match(bridge, /navigator\.canShare/);
   assert.match(bridge, /download=\"\$\{escapeHtml\(file\.name\)\}\"/);
@@ -59,7 +65,7 @@ test('iPhone PDF save and share normalize Safari Color 4 values before real-file
   assert.match(documents, /private reserveOutput=/);
   assert.match(documents, /runOutput\('pdf'/);
   assert.match(documents, /runOutput\('share'/);
-  assert.match(sw, /lourex-invoice-v91/);
+  assert.match(sw, /lourex-invoice-v92/);
   assert.match(sw, /html2canvas@1\.4\.1/);
   assert.match(sw, /jspdf@2\.5\.2/);
   assert.match(sw, /FRESH_PATHS = new Set\(\['\/ios-print-bridge\.js','\/pull-to-refresh\.js'\]\)/);
