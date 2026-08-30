@@ -50,3 +50,11 @@ test('saved-item editor protects dirty edits across close and item selection',()
   assert.match(modal,/Discard item changes\?/);
   assert.match(modal,/onConfirm=\{this\.confirmDiscard\}/);
 });
+
+test('cloud modal cannot be dismissed while a protected cloud operation is running',()=>{
+  const modal=read('src/components/CloudAccountModal.tsx');
+  assert.match(modal,/private requestClose=\(\)=>\{if\(this\.state\.busy\|\|this\.props\.syncState==='syncing'\)return;this\.props\.onClose\(\);\}/);
+  assert.match(modal,/onClose=\{this\.requestClose\}/);
+  assert.match(modal,/role="alert"/);
+  assert.match(modal,/role="status"/);
+});
