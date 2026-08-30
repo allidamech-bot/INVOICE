@@ -44,13 +44,13 @@ test('quality multi-page warning accounts for real party and final-details press
   assert.ok(quality.documentQualityIssues(doc).some(issue=>issue.code==='multi-page'));
 });
 
-test('v82 quote and invoice UX layer is loaded last and shipped offline',()=>{
+test('v82 quote and invoice UX layer remains loaded and shipped offline in later releases',()=>{
   const html=read('index.html');
   const sw=read('public/sw.js');
   const css=read('src/styles/document-ux-v82.css');
   assert.match(html,/document-ux-v82\.css/);
   assert.ok(html.indexOf('document-ux-v82.css')>html.indexOf('mobile-modal-v81.css'));
-  assert.match(sw,/lourex-invoice-v82/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/document-ux-v82\.css/);
   assert.match(css,/\.editor-topbar/);
   assert.match(css,/\.mobile-editor-actionbar/);
