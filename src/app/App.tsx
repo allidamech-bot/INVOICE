@@ -4,7 +4,7 @@ import { createBlankDocument, convertToInvoice, duplicateDocument, nextDocumentN
 import { savedItemFromDocumentItem } from '../lib/saved-items.js';
 import { exportBackup, readBackup } from '../lib/backup.js';
 import { safeFilename } from '../lib/id.js';
-import { getCloudAccount, getPublicPreferences, getSecurity, hasSecurity, putCloudAccount, putPublicPreferences } from '../storage/db.js';
+import { getCloudAccount, getEncryptedVault, getPublicPreferences, getSecurity, hasSecurity, putCloudAccount, putPublicPreferences } from '../storage/db.js';
 import { changePin, restoreVaultWithCurrentKey, resumeVaultSession, saveVault, setupVault, unlockVault } from '../storage/vault.js';
 import { mergeVaultIntent } from '../storage/vault-merge.js';
 import { clearSession, establishSession, isCurrentSessionExpired, touchSession } from '../storage/session.js';
@@ -134,9 +134,9 @@ export class App extends React.Component<{},State> {
   };
 
   private activity=()=>{if(this.state.unlocked){touchSession();this.resetAutoLock();}};
-  private handleOnline=()=>{this.scheduleCloudSync(700);};
+  private handleOnline=()=>{this.scheduleCloudSync(500);};
   private handleRemoteCloudNewer=()=>{if(!this.state.cloudUser||!this.state.cloudLinked||this.state.screen==='editor'||this.state.settingsOpen||this.state.cloudModal||this.vaultReplacing)return;void this.cloudSyncNow().catch(()=>undefined);};
-  private handleVisibilityChange=()=>{if(document.visibilityState!=='visible'||!this.state.unlocked)return;const mins=this.state.vault?.appSettings.autoLockMinutes??15;if(isCurrentSessionExpired(mins)){void this.lockNow(true);return;}touchSession();this.resetAutoLock();this.scheduleCloudSync(1000);};
+  private handleVisibilityChange=()=>{if(document.visibilityState!=='visible'||!this.state.unlocked)return;const mins=this.state.vault?.appSettings.autoLockMinutes??15;if(isCurrentSessionExpired(mins)){void this.lockNow(true);return;}touchSession();this.resetAutoLock();this.scheduleCloudSync(700);};
   private closeTransientMenus=(event:PointerEvent)=>{if(!this.state.newMenu)return;const target=event.target;if(target instanceof Element&&target.closest('.new-doc-menu'))return;this.setState({newMenu:false});};
   private resetAutoLock=()=>{if(this.lockTimer)window.clearTimeout(this.lockTimer);const mins=this.state.vault?.appSettings.autoLockMinutes??15;if(mins>0)this.lockTimer=window.setTimeout(()=>void this.lockNow(true),mins*60_000);};
   private showToast=(toast:string,tone:'default'|'success'|'error'='default')=>{if(this.toastTimer)clearTimeout(this.toastTimer);this.setState({toast,toastTone:tone});this.toastTimer=window.setTimeout(()=>this.setState({toast:''}),3600);};
@@ -150,6 +150,14 @@ export class App extends React.Component<{},State> {
   private changePublicLanguage=async(uiLanguage:UiLanguage)=>{await this.syncPublicPreferences(this.state.publicLogo||'./brand/lourex-logo.svg',uiLanguage);};
   private drainVaultWrites=async()=>{try{await this.vaultWriteTail;}catch{}};
   private waitForCloudIdle=async()=>{while(this.cloudSyncRunning)await new Promise(resolve=>window.setTimeout(resolve,30));};
+  private waitForProtectedDataOperation=async()=>{
+    const deadline=Date.now()+30_000;
+    while(this.vaultReplacing){
+      if(!this.state.unlocked||!this.state.key)throw new Error(t('App is locked.','التطبيق مقفل.'));
+      if(Date.now()>=deadline)throw new Error(t('Cloud restore is still finishing. Try again in a moment.','ما زالت استعادة البيانات السحابية قيد الإنهاء. حاول مرة أخرى بعد لحظة.'));
+      await new Promise(resolve=>window.setTimeout(resolve,50));
+    }
+  };
   private editorMustBeClosed=(actionEn:string,actionAr:string)=>{if(this.state.screen!=='editor')return;throw new Error(t(`Close the document editor before ${actionEn}.`,`أغلق محرر المستند قبل ${actionAr}.`));};
   private beginProtectedOperation=async()=>{
     if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}
@@ -159,7 +167,7 @@ export class App extends React.Component<{},State> {
   };
   private endProtectedOperation=()=>{this.vaultReplacing=false;};
 
-  private scheduleCloudSync=(delay=4000)=>{
+  private scheduleCloudSync=(delay=2500)=>{
     if(!this.state.cloudUser||!this.state.cloudLinked)return;
     if(this.cloudTimer)window.clearTimeout(this.cloudTimer);
     this.cloudTimer=window.setTimeout(()=>void this.flushCloudSync(),delay);
@@ -175,7 +183,7 @@ export class App extends React.Component<{},State> {
     this.cloudSyncRunning=true;this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Syncing encrypted vault…','جارٍ مزامنة الخزنة المشفّرة…')});
     try{await pushLocalVaultToCloud(user.uid);this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}
     catch(e){this.setState({cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});}
-    finally{this.cloudSyncRunning=false;if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(700);}}
+    finally{this.cloudSyncRunning=false;if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(500);}}
   };
   private attachCloudUser=async(user:CloudUser)=>{
     const [linked,configured]=await Promise.all([getCloudAccount(),hasSecurity()]);
@@ -198,17 +206,42 @@ export class App extends React.Component<{},State> {
   private cloudSignOut=async()=>{await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:t('Signed out of cloud. Local encrypted data remains on this device.','تم تسجيل الخروج من السحابة. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});};
   private cloudSyncNow=async()=>{
     this.editorMustBeClosed('syncing from the cloud','المزامنة من السحابة');
-    await this.beginProtectedOperation();
+    if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}
+    await this.drainVaultWrites();
+    await this.waitForCloudIdle();
     try{
       const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));
-      const linked=await getCloudAccount();if(!linked){this.endProtectedOperation();await this.attachCloudUser(user);return;}
+      const linked=await getCloudAccount();if(!linked){await this.attachCloudUser(user);return;}
       if(linked.uid!==user.uid)throw new Error(t('This device is linked to another cloud account.','هذا الجهاز مرتبط بحساب سحابي آخر.'));
       this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Checking encrypted cloud data…','جارٍ فحص البيانات السحابية المشفّرة…')});
-      const result=await reconcileCloudVault(user.uid);
-      if(result==='pulled'){await clearSession();window.location.reload();return;}
-      this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});
+      const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(user.uid)]);
+      const remoteMustReplaceLocal=Boolean(remote&&(!local||remote.updatedAt>local.updatedAt));
+      if(remoteMustReplaceLocal){
+        if(this.state.screen==='editor'||this.state.settingsOpen){
+          this.setState({cloudSyncState:'local',cloudSyncMessage:t('Newer cloud data is waiting. Close the editor or settings, then use Sync Now.','توجد بيانات سحابية أحدث بانتظار الاستعادة. أغلق المحرر أو الإعدادات ثم استخدم «مزامنة الآن».')});
+          return;
+        }
+        await this.beginProtectedOperation();
+        try{
+          if(this.state.screen==='editor'||this.state.settingsOpen){
+            this.setState({cloudSyncState:'local',cloudSyncMessage:t('Newer cloud data is waiting. Close the editor or settings, then use Sync Now.','توجد بيانات سحابية أحدث بانتظار الاستعادة. أغلق المحرر أو الإعدادات ثم استخدم «مزامنة الآن».')});
+            return;
+          }
+          const result=await reconcileCloudVault(user.uid);
+          if(result==='pulled'){await clearSession();window.location.reload();return;}
+          this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});
+        }finally{this.endProtectedOperation();}
+        return;
+      }
+      this.cloudSyncRunning=true;
+      try{
+        if(local)await pushLocalVaultToCloud(user.uid);
+        this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});
+      }finally{
+        this.cloudSyncRunning=false;
+        if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(500);}
+      }
     }catch(e){const message=friendlyCloudError(e);this.setState({cloudSyncState:'error',cloudSyncMessage:message});throw new Error(message);}
-    finally{this.endProtectedOperation();}
   };
 
   private finishSetup=async(pin:string,company:CompanySettings)=>{
@@ -218,15 +251,15 @@ export class App extends React.Component<{},State> {
     this.vaultWriteTail=Promise.resolve(setup.vault);
     this.setState({firstRun:false,unlocked:true,key:setup.key,vault:setup.vault,screen:'documents',cloudLinked,cloudSyncState,cloudSyncMessage},this.resetAutoLock);this.showToast(t('LOUREX Invoice is ready.','نظام LOUREX Invoice جاهز.'),'success');
   };
-  private unlock=async(pin:string)=>{const result=await unlockVault(pin);const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.normalizedVault(result.vault);if(needsMigration)await saveVault(result.key,vault);await establishSession(result.key);await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);this.vaultWriteTail=Promise.resolve(vault);this.setState({unlocked:true,key:result.key,vault,screen:'documents',editorDoc:null},()=>{this.resetAutoLock();if(this.state.cloudUser&&this.state.cloudLinked)void this.cloudSyncNow().catch(()=>undefined);else this.scheduleCloudSync(1600);});};
+  private unlock=async(pin:string)=>{const result=await unlockVault(pin);const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.normalizedVault(result.vault);if(needsMigration)await saveVault(result.key,vault);await establishSession(result.key);await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);this.vaultWriteTail=Promise.resolve(vault);this.setState({unlocked:true,key:result.key,vault,screen:'documents',editorDoc:null},()=>{this.resetAutoLock();if(this.state.cloudUser&&this.state.cloudLinked)void this.cloudSyncNow().catch(()=>undefined);else this.scheduleCloudSync(1200);});};
   private lock=()=>{void this.lockNow(false);};
   private lockNow=async(automatic:boolean)=>{if(!automatic&&this.state.screen==='editor'){this.showToast(t('Close the document editor before locking the app.','أغلق محرر المستند قبل قفل التطبيق.'),'error');return;}if(this.lockTimer)window.clearTimeout(this.lockTimer);await this.drainVaultWrites();await clearSession();this.vaultWriteTail=Promise.resolve(null);this.setState({unlocked:false,key:null,vault:null,editorDoc:null,screen:'documents',settingsOpen:false,newMenu:false});};
   private persist=async(intended:VaultPayload)=>{
-    if(this.vaultReplacing)throw new Error(t('A protected data operation is in progress.','توجد عملية محمية على البيانات قيد التنفيذ.'));
-    const key=this.state.key;if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));
     const base=this.requireVault();
+    await this.waitForProtectedDataOperation();
     const operation=this.vaultWriteTail.catch(()=>null).then(async queued=>{
-      if(this.vaultReplacing)throw new Error(t('A protected data operation is in progress.','توجد عملية محمية على البيانات قيد التنفيذ.'));
+      await this.waitForProtectedDataOperation();
+      const key=this.state.key;if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));
       const latest=queued??this.state.vault??base;
       const merged=mergeVaultIntent(base,intended,latest);
       await saveVault(key,merged);
@@ -254,7 +287,7 @@ export class App extends React.Component<{},State> {
   private saveSavedItem=async(item:SavedItem)=>{const vault=this.requireVault();const index=vault.savedItems.findIndex(x=>x.id===item.id);const savedItems=[...vault.savedItems];if(index>=0)savedItems[index]={...item,updatedAt:new Date().toISOString()};else savedItems.push(item);await this.persist({...vault,savedItems});this.showToast(t('Item saved to product library.','تم حفظ الصنف في مكتبة الأصناف.'),'success');};
   private saveDocumentItem=async(item:LourexDocument['items'][number],currency:string)=>{const vault=this.requireVault();const existing=vault.savedItems.find(x=>(item.descriptionEn.trim()&&x.descriptionEn.trim().toLowerCase()===item.descriptionEn.trim().toLowerCase())||(item.descriptionAr.trim()&&x.descriptionAr.trim()===item.descriptionAr.trim()));await this.saveSavedItem(savedItemFromDocumentItem(item,currency,existing));};
   private deleteSavedItem=async(item:SavedItem)=>{const vault=this.requireVault();await this.persist({...vault,savedItems:vault.savedItems.filter(x=>x.id!==item.id)});this.showToast(t('Saved item deleted.','تم حذف الصنف المحفوظ.'),'success');};
-  private openDocument=(doc:LourexDocument)=>this.setState({screen:'editor',editorDoc:structuredClone(doc)});
+  private openDocument=async(doc:LourexDocument)=>{try{await this.waitForProtectedDataOperation();this.setState({screen:'editor',editorDoc:structuredClone(doc)});}catch(e){this.showToast(e instanceof Error?e.message:t('Unable to open document.','تعذر فتح المستند.'),'error');}};
   private duplicate=async(source:LourexDocument)=>{try{const {doc:blank}=await this.reserveDocument(source.kind);const vault=this.requireVault();const copy=duplicateDocument(source,blank.number);await this.persist({...vault,documents:[...vault.documents,copy]});this.setState({screen:'editor',editorDoc:copy});this.showToast(t('Duplicate created.','تم إنشاء نسخة.'),'success');}catch(e){this.showToast(e instanceof Error?e.message:t('Duplicate failed.','تعذر إنشاء نسخة.'),'error');}};
   private convert=async(source:LourexDocument)=>{try{const current=this.requireVault();const errors=validateDocument(source);if(Object.keys(errors).length)throw new Error(t('Save a valid Proforma before converting it.','احفظ عرض سعر صالحًا قبل تحويله.'));if(current.documents.some(d=>d.id!==source.id&&d.number.trim().toLowerCase()===source.number.trim().toLowerCase()))throw new Error(t('Document number already exists.','رقم المستند مستخدم بالفعل.'));const savedSource={...source,updatedAt:new Date().toISOString()};const sourceIndex=current.documents.findIndex(d=>d.id===source.id);const sourceDocuments=[...current.documents];if(sourceIndex>=0)sourceDocuments[sourceIndex]=savedSource;else sourceDocuments.push(savedSource);const withSource={...current,documents:sourceDocuments};const numbered=nextDocumentNumber(withSource,'invoice');const converted=convertToInvoice(savedSource,numbered.number);await this.persist({...numbered.vault,documents:[...sourceDocuments,converted]});this.setState({screen:'editor',editorDoc:converted});this.showToast(t(`Created ${converted.number}.`,`تم إنشاء ${converted.number}.`),'success');}catch(e){this.showToast(e instanceof Error?e.message:t('Conversion failed.','فشل التحويل.'),'error');}};
   private deleteDocument=async()=>{const target=this.state.deletingDoc;if(!target)return;try{const vault=this.requireVault();await this.persist({...vault,documents:vault.documents.filter(d=>d.id!==target.id)});this.setState({deletingDoc:null});this.showToast(t('Document deleted.','تم حذف المستند.'),'success');}catch(e){this.showToast(e instanceof Error?e.message:t('Delete failed.','فشل الحذف.'),'error');}};
@@ -324,7 +357,7 @@ export class App extends React.Component<{},State> {
     if(!this.state.unlocked)return this.authCloudShell(<AuthScreenSelector mode="unlock" logoDataUrl={this.state.publicLogo} language={activeLanguage} onLanguageChange={this.changePublicLanguage} onUnlock={this.unlock}/>);
     const vault=this.requireVault();
     return <div className="app-root"><div className="app-ui"><header className="app-header"><button className="header-brand" disabled={this.state.screen==='editor'} onClick={()=>this.setState({screen:'documents',editorDoc:null})}><Brand compact logoDataUrl={vault.company.logoDataUrl} language={activeLanguage}/></button>{this.state.screen!=='editor'?<nav className="main-nav"><button className={this.state.screen==='documents'?'active':''} onClick={()=>this.setState({screen:'documents',editorDoc:null})}><Icon name="file"/>{t('Documents','المستندات')}</button><button className={this.state.screen==='customers'?'active':''} onClick={()=>this.setState({screen:'customers',editorDoc:null})}><Icon name="users"/>{t('Customers','العملاء')}</button></nav>:<div className="header-editor-context">{t('Document Editor','محرر المستند')}</div>}<div className="header-actions">{this.state.screen!=='editor'?<div className="new-doc-menu"><Button icon="plus" variant="primary" onClick={()=>this.setState({newMenu:!this.state.newMenu})}>{t('New Document','مستند جديد')}</Button>{this.state.newMenu?<div className="new-menu"><button onClick={()=>void this.newDocument('proforma')}><Icon name="proforma"/><span><strong>{t('Proforma Invoice','عرض سعر')}</strong><small>{t('Commercial quotation','عرض تجاري')}</small></span></button><button onClick={()=>void this.newDocument('invoice')}><Icon name="invoice"/><span><strong>{t('Invoice','فاتورة')}</strong><small>{t('Final invoice','فاتورة نهائية')}</small></span></button></div>:null}</div>:null}<Button icon="backup" className={`cloud-header-button cloud-${this.state.cloudSyncState}`} onClick={()=>this.setState({cloudModal:true})}>{t('Cloud','السحابة')}</Button><IconButton icon="settings" label={t('Settings','الإعدادات')} onClick={()=>this.setState({settingsOpen:true})}/></div></header>
-      <main className={this.state.screen==='editor'?'editor-main':'main-content'}>{this.state.screen==='documents'?<DocumentsPage documents={vault.documents} onNew={(k)=>void this.newDocument(k)} onOpen={this.openDocument} onDuplicate={(d)=>void this.duplicate(d)} onPrint={(d,m)=>void this.requestPrint(d,m)} onDelete={(d)=>this.setState({deletingDoc:d})}/>:null}{this.state.screen==='customers'?<CustomersPage customers={vault.customers} onSave={this.saveCustomer} onDelete={this.deleteCustomer}/>:null}{this.state.screen==='editor'&&this.state.editorDoc?<EditorPage document={this.state.editorDoc} documents={vault.documents} customers={vault.customers} company={vault.company} savedItems={vault.savedItems} smartDefaults={vault.appSettings.smartDefaults} onClose={this.closeEditor} onSave={this.saveDocument} onSaveCustomer={this.saveCustomer} onSaveSavedItem={this.saveSavedItem} onSaveDocumentItem={this.saveDocumentItem} onDeleteSavedItem={this.deleteSavedItem} onSaveSmartDefaults={this.saveSmartDefaults} onConvert={this.convert} onPrint={(d,m)=>void this.requestPrint(d,m)}/>:null}</main>
+      <main className={this.state.screen==='editor'?'editor-main':'main-content'}>{this.state.screen==='documents'?<DocumentsPage documents={vault.documents} onNew={(k)=>void this.newDocument(k)} onOpen={(d)=>void this.openDocument(d)} onDuplicate={(d)=>void this.duplicate(d)} onPrint={(d,m)=>void this.requestPrint(d,m)} onDelete={(d)=>this.setState({deletingDoc:d})}/>:null}{this.state.screen==='customers'?<CustomersPage customers={vault.customers} onSave={this.saveCustomer} onDelete={this.deleteCustomer}/>:null}{this.state.screen==='editor'&&this.state.editorDoc?<EditorPage document={this.state.editorDoc} documents={vault.documents} customers={vault.customers} company={vault.company} savedItems={vault.savedItems} smartDefaults={vault.appSettings.smartDefaults} onClose={this.closeEditor} onSave={this.saveDocument} onSaveCustomer={this.saveCustomer} onSaveSavedItem={this.saveSavedItem} onSaveDocumentItem={this.saveDocumentItem} onDeleteSavedItem={this.deleteSavedItem} onSaveSmartDefaults={this.saveSmartDefaults} onConvert={this.convert} onPrint={(d,m)=>void this.requestPrint(d,m)}/>:null}</main>
       <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onChangePin={this.changePin} onLock={this.lock} onBackup={this.backup} onRestore={this.restore}/>
       {this.cloudModal()}
       <ConfirmDialog open={Boolean(this.state.deletingDoc)} title={t(`Delete ${this.state.deletingDoc?.number ?? 'document'}?`,`حذف ${this.state.deletingDoc?.number ?? 'المستند'}؟`)} message={t('This action cannot be undone.','لا يمكن التراجع عن هذا الإجراء.')} onCancel={()=>this.setState({deletingDoc:null})} onConfirm={()=>void this.deleteDocument()}/><Toast text={this.state.toast} tone={this.state.toastTone}/></div>
