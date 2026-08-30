@@ -1,0 +1,322 @@
+/* v99 — premium interaction and smoothness layer.
+   Application chrome only. Printable invoices/templates are intentionally untouched. */
+
+:root{
+  --motion-fast:120ms;
+  --motion-ui:170ms;
+  --motion-modal:200ms;
+  --motion-ease:cubic-bezier(.2,.75,.25,1);
+  --motion-ease-out:cubic-bezier(.16,1,.3,1);
+  --ui-focus:0 0 0 3px rgba(63,112,139,.14);
+  --ui-hover-shadow:0 10px 28px rgba(11,29,45,.075);
+}
+
+/* Keep touch interaction immediate and remove the grey iOS tap flash. */
+.app-ui button,
+.app-ui [role='button'],
+.app-ui input,
+.app-ui select,
+.app-ui textarea{
+  -webkit-tap-highlight-color:transparent;
+}
+.app-ui button,
+.app-ui [role='button']{
+  touch-action:manipulation;
+}
+
+/* Use one restrained motion language across controls. */
+.app-ui .btn,
+.app-ui .icon-btn,
+.app-ui .main-nav button,
+.app-ui .segmented button,
+.app-ui .status-filter button,
+.app-ui .settings-tabs button,
+.app-ui .template-card,
+.app-ui .document-card,
+.app-ui .premium-document-card,
+.app-ui .customer-card,
+.app-ui .saved-item-row,
+.app-ui .documents-overview-five > button{
+  transition:
+    transform var(--motion-fast) var(--motion-ease),
+    background-color var(--motion-ui) ease,
+    border-color var(--motion-ui) ease,
+    color var(--motion-ui) ease,
+    box-shadow var(--motion-ui) ease,
+    opacity var(--motion-ui) ease;
+}
+
+.app-ui .input,
+.app-ui select.input,
+.app-ui textarea.input,
+.app-ui .search-box,
+.app-ui .search-select{
+  transition:border-color var(--motion-ui) ease,box-shadow var(--motion-ui) ease,background-color var(--motion-ui) ease;
+}
+
+/* Header/navigation: visually stable, faster to read, no layout jump on selection. */
+.app-ui .app-header{
+  will-change:auto;
+  box-shadow:0 1px 0 rgba(11,29,45,.055),0 7px 24px rgba(11,29,45,.025);
+}
+.app-ui .main-nav button::after{
+  transform:scaleX(0);
+  transform-origin:center;
+  transition:transform var(--motion-ui) var(--motion-ease-out),opacity var(--motion-ui) ease;
+  opacity:0;
+}
+.app-ui .main-nav button.active::after{
+  transform:scaleX(1);
+  opacity:1;
+}
+.app-ui .main-nav button:focus-visible,
+.app-ui .btn:focus-visible,
+.app-ui .icon-btn:focus-visible,
+.app-ui .segmented button:focus-visible,
+.app-ui .status-filter button:focus-visible,
+.app-ui .settings-tabs button:focus-visible,
+.app-ui .template-card:focus-visible,
+.app-ui .document-main:focus-visible,
+.app-ui .saved-item-main:focus-visible{
+  outline:0;
+  box-shadow:var(--ui-focus);
+}
+
+/* Page content enters gently after navigation/state switches. */
+.app-ui .main-content > .page,
+.app-ui .documents-page,
+.app-ui .customers-page{
+  animation:v99-page-in var(--motion-modal) var(--motion-ease-out) both;
+}
+@keyframes v99-page-in{
+  from{opacity:.01;transform:translateY(4px)}
+  to{opacity:1;transform:none}
+}
+
+/* Menus and modal surfaces should appear attached to their trigger, not pop abruptly. */
+.app-ui .new-menu,
+.app-ui .action-menu,
+.app-ui .customer-dropdown{
+  transform-origin:top right;
+  animation:v99-pop-in 150ms var(--motion-ease-out) both;
+}
+[dir='rtl'] .app-ui .new-menu,
+[dir='rtl'] .app-ui .action-menu,
+[dir='rtl'] .app-ui .customer-dropdown{
+  transform-origin:top left;
+}
+@keyframes v99-pop-in{
+  from{opacity:0;transform:translateY(-5px) scale(.985)}
+  to{opacity:1;transform:none}
+}
+
+.app-ui .modal-backdrop{
+  animation:v99-backdrop-in var(--motion-modal) ease both;
+}
+.app-ui .modal{
+  animation:v99-modal-in var(--motion-modal) var(--motion-ease-out) both;
+}
+@keyframes v99-backdrop-in{from{background:rgba(6,16,24,0);backdrop-filter:blur(0)}to{background:rgba(6,16,24,.5);backdrop-filter:blur(5px)}}
+@keyframes v99-modal-in{from{opacity:0;transform:translateY(9px) scale(.992)}to{opacity:1;transform:none}}
+
+.app-ui .toast{
+  animation:v99-toast-in 220ms var(--motion-ease-out) both;
+}
+@keyframes v99-toast-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* Cards: more premium separation, but without heavy shadows or nested boxes. */
+.app-ui .premium-document-card,
+.app-ui .customer-card{
+  background:rgba(255,255,255,.88);
+  border-color:#dce3e6;
+}
+.app-ui .documents-overview-five > button{
+  border-color:#dce3e6;
+}
+.app-ui .editor-section{
+  transition:border-color var(--motion-ui) ease,box-shadow var(--motion-ui) ease,background-color var(--motion-ui) ease;
+}
+.app-ui .premium-item-card{
+  transition:border-color var(--motion-ui) ease,background-color var(--motion-ui) ease;
+}
+.app-ui .premium-item-card:focus-within{
+  background:#fff;
+}
+
+@media (hover:hover) and (pointer:fine){
+  .app-ui .btn:not(:disabled):hover,
+  .app-ui .icon-btn:not(:disabled):hover,
+  .app-ui .main-nav button:hover,
+  .app-ui .segmented button:hover,
+  .app-ui .status-filter button:hover,
+  .app-ui .settings-tabs button:hover{
+    transform:translateY(-1px);
+  }
+  .app-ui .premium-document-card:hover,
+  .app-ui .customer-card:hover,
+  .app-ui .documents-overview-five > button:hover{
+    transform:translateY(-1px);
+    box-shadow:var(--ui-hover-shadow)!important;
+  }
+  .app-ui .template-card:hover{
+    transform:translateY(-2px);
+  }
+}
+
+/* Press feedback is intentionally tiny so mobile feels responsive instead of animated. */
+.app-ui .btn:not(:disabled):active,
+.app-ui .icon-btn:not(:disabled):active,
+.app-ui .main-nav button:active,
+.app-ui .segmented button:active,
+.app-ui .status-filter button:active,
+.app-ui .settings-tabs button:active,
+.app-ui .documents-overview-five > button:active,
+.app-ui .saved-item-main:active{
+  transform:scale(.985);
+  transition-duration:70ms;
+}
+
+/* Inputs: quieter idle state, clearer focus without changing sizing. */
+.app-ui .input,
+.app-ui select.input,
+.app-ui textarea.input{
+  border-color:#d7dee2;
+  background:#fff;
+}
+.app-ui .input:hover,
+.app-ui select.input:hover,
+.app-ui textarea.input:hover{
+  border-color:#c5d1d7;
+}
+.app-ui .input:focus,
+.app-ui select.input:focus,
+.app-ui textarea.input:focus{
+  border-color:#7fa1b3;
+  box-shadow:var(--ui-focus);
+}
+
+/* Editor scrolling: native momentum on iPhone/iPad, controlled chaining, stable chrome. */
+.app-ui .editor-scroll,
+.app-ui .preview-stage,
+.app-ui .modal-body,
+.app-ui .saved-items-list,
+.app-ui .saved-item-editor,
+.app-ui .settings-tabs,
+.app-ui .status-filter,
+.app-ui .documents-overview-five{
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+.app-ui .editor-scroll,
+.app-ui .preview-stage{
+  scroll-behavior:auto;
+  scrollbar-gutter:stable;
+}
+.app-ui .editor-topbar,
+.app-ui .preview-toolbar{
+  transform:translateZ(0);
+  backface-visibility:hidden;
+}
+
+/* Make editor hierarchy feel continuous rather than a stack of boxes. */
+.app-ui .editor-section{
+  border-radius:14px!important;
+  box-shadow:0 1px 2px rgba(11,29,45,.025)!important;
+}
+.app-ui .editor-section:focus-within{
+  border-color:#c7d6dd!important;
+  box-shadow:0 0 0 1px rgba(92,132,153,.07)!important;
+}
+.app-ui .section-heading{
+  margin-bottom:12px;
+}
+.app-ui .section-heading h2{
+  letter-spacing:-.01em;
+}
+.app-ui .premium-item-card > header{
+  transition:background-color var(--motion-ui) ease,border-color var(--motion-ui) ease;
+}
+
+/* Settings/content surfaces gain rhythm without creating card-inside-card depth. */
+.app-ui .settings-section{
+  scroll-margin-top:88px;
+}
+.app-ui .settings-tabs button.active{
+  box-shadow:inset 3px 0 0 rgba(185,139,70,.75);
+}
+[dir='rtl'] .app-ui .settings-tabs button.active{
+  box-shadow:inset -3px 0 0 rgba(185,139,70,.75);
+}
+
+/* Progress/state changes should not cause abrupt visual jumps. */
+.app-ui .save-indicator,
+.app-ui .document-readiness,
+.app-ui .settings-message,
+.app-ui .inline-error,
+.app-ui .field-error{
+  transition:opacity var(--motion-ui) ease,color var(--motion-ui) ease,background-color var(--motion-ui) ease,border-color var(--motion-ui) ease;
+}
+
+/* Mobile/iPad: prioritize touch targets, momentum and density. */
+@media (max-width:1024px){
+  .app-ui .main-content{
+    padding-top:28px;
+  }
+  .app-ui .btn,
+  .app-ui .icon-btn,
+  .app-ui .main-nav button,
+  .app-ui .status-filter button,
+  .app-ui .settings-tabs button{
+    touch-action:manipulation;
+  }
+}
+
+@media (max-width:720px){
+  .app-ui .app-header{
+    backdrop-filter:blur(12px) saturate(1.05);
+  }
+  .app-ui .main-content{
+    padding-top:18px;
+  }
+  .app-ui .premium-document-card,
+  .app-ui .customer-card,
+  .app-ui .documents-overview-five > button{
+    box-shadow:none!important;
+  }
+  .app-ui .premium-document-card:active,
+  .app-ui .customer-card:active{
+    background:#fbfcfc;
+  }
+  .app-ui .modal{
+    animation-duration:170ms;
+  }
+  .app-ui .mobile-preview-overlay{
+    animation:v99-mobile-preview-in 180ms var(--motion-ease-out) both;
+  }
+  @keyframes v99-mobile-preview-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+}
+
+/* Accessibility: motion is enhancement only. */
+@media (prefers-reduced-motion:reduce){
+  .app-ui *,
+  .app-ui *::before,
+  .app-ui *::after{
+    animation-duration:.001ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.001ms!important;
+    scroll-behavior:auto!important;
+  }
+}
+
+/* Never affect printable invoice composition. */
+@media print{
+  .app-ui .main-content > .page,
+  .app-ui .documents-page,
+  .app-ui .customers-page,
+  .app-ui .modal,
+  .app-ui .modal-backdrop,
+  .app-ui .toast{
+    animation:none!important;
+    transform:none!important;
+  }
+}

@@ -4,12 +4,16 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v95 saved items layer loads last and ships offline',async()=>{
+test('v95 saved items layer remains loaded and ships offline beneath the current refinement layer',async()=>{
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   const styles=[...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
-  assert.equal(styles.at(-1),'saved-items-v95.css');
-  assert.match(sw,/lourex-invoice-v95/);
+  const savedIndex=styles.indexOf('saved-items-v95.css');
+  const currentIndex=styles.indexOf('premium-smoothness-v99.css');
+  assert.ok(savedIndex>=0);
+  assert.ok(currentIndex>savedIndex);
+  assert.match(sw,/lourex-invoice-v99/);
   assert.match(sw,/\.\/styles\/saved-items-v95\.css/);
+  assert.match(sw,/\.\/styles\/premium-smoothness-v99\.css/);
 });
 
 test('saved item component classes have a dedicated desktop library layout',async()=>{
