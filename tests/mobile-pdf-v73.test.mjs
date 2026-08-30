@@ -20,7 +20,7 @@ test('mobile preview preserves physical A4 geometry instead of shrinking documen
   assert.match(css, /min-width:\s*66mm/);
 });
 
-test('iPhone PDF, Share and Print stay in-app until a fresh native print gesture', async () => {
+test('iPhone PDF and Share generate a real PDF file before invoking the native share sheet', async () => {
   const [html, bridge, review, documents, sw] = await Promise.all([
     read('index.html'),
     read('public/ios-print-bridge.js'),
@@ -33,10 +33,12 @@ test('iPhone PDF, Share and Print stay in-app until a fresh native print gesture
   assert.doesNotThrow(() => new Function(bridge));
   assert.match(bridge, /window\.__LOUREX_PREPARE_PDF__\s*=\s*preparePdfWindow/);
   assert.doesNotMatch(bridge, /window\.open\('about:blank'/);
-  assert.match(bridge, /in-app two-tap handoff/);
-  assert.match(bridge, /portalIsReady/);
-  assert.match(bridge, /armReadyProbe/);
-  assert.match(bridge, /nativePrint\(\)/);
+  assert.match(bridge, /buildPdfFile/);
+  assert.match(bridge, /html2canvas@1\.4\.1/);
+  assert.match(bridge, /jspdf@2\.5\.2/);
+  assert.match(bridge, /new File\(\[blob\]/);
+  assert.match(bridge, /navigator\.share\(shareData\)/);
+  assert.match(bridge, /navigator\.canShare/);
   assert.match(bridge, /Save PDF \/ حفظ PDF/);
   assert.match(bridge, /Share PDF \/ مشاركة PDF/);
   assert.match(bridge, /lourex-ios-output-fallback/);
@@ -49,5 +51,8 @@ test('iPhone PDF, Share and Print stay in-app until a fresh native print gesture
   assert.match(documents, /private runOutput=\(mode:'pdf'\|'share',action:\(\)=>void\)=>\{[\s\S]*?this\.reserveOutput\(mode\);[\s\S]*?this\.setState\(\{menuId:''\},action\);[\s\S]*?\};/);
   assert.match(documents, /runOutput\('pdf'/);
   assert.match(documents, /runOutput\('share'/);
+  assert.match(sw, /lourex-invoice-v89/);
+  assert.match(sw, /html2canvas@1\.4\.1/);
+  assert.match(sw, /jspdf@2\.5\.2/);
   assert.match(sw, /FRESH_PATHS = new Set\(\['\/ios-print-bridge\.js','\/pull-to-refresh\.js'\]\)/);
 });
