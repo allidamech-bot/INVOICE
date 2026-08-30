@@ -1,0 +1,327 @@
+/* v83 — shared visual system for every Proforma/Invoice template.
+   Loaded last on purpose: fixes structural balance without changing document data. */
+
+.invoice-page{
+  --doc-gap:6mm;
+  --doc-soft-border:rgba(93,103,111,.24);
+  text-rendering:optimizeLegibility;
+}
+.invoice-page .doc-body{
+  padding-top:7.5mm;
+  padding-bottom:15mm;
+}
+.invoice-page .doc-logo,
+.invoice-page .modern-brand,
+.invoice-page .modern-title,
+.invoice-page .modern-meta,
+.invoice-page .doc-meta>div,
+.invoice-page .party-block,
+.invoice-page .items-wrap,
+.invoice-page .final-details,
+.invoice-page .terms-block,
+.invoice-page .totals-block,
+.invoice-page .bank-block,
+.invoice-page .signature-block,
+.invoice-page .notes-block{
+  min-width:0;
+}
+
+/* Header/meta — one visual rhythm in all 18 templates. */
+.invoice-page .doc-title{min-width:0}
+.invoice-page .doc-title span,
+.invoice-page .doc-title em{
+  overflow-wrap:break-word;
+}
+.invoice-page .doc-meta{
+  align-items:stretch;
+}
+.invoice-page .doc-meta>div{
+  min-height:12mm;
+  justify-content:center;
+  overflow:hidden;
+}
+.invoice-page .doc-meta b,
+.invoice-page .doc-meta span{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.invoice-page .doc-meta span{
+  font-variant-numeric:tabular-nums;
+}
+.invoice-page .header-modern .doc-meta>div,
+.invoice-page .header-executive .doc-meta>div,
+.invoice-page .header-signature .doc-meta>div{
+  padding-top:2mm;
+  padding-bottom:2mm;
+}
+
+/* Seller/customer — equal, readable cards instead of offset or floating boxes. */
+.invoice-page .party-grid{
+  align-items:stretch;
+  gap:4.5mm;
+  margin-bottom:6mm;
+}
+.invoice-page .party-block{
+  height:100%;
+  min-height:31mm;
+  margin-top:0!important;
+  overflow:hidden;
+}
+.invoice-page .party-name{
+  line-height:1.25;
+  overflow-wrap:anywhere;
+}
+.invoice-page .party-address,
+.invoice-page .party-contact{
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+.invoice-page .party-identifiers{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:1mm;
+  margin-top:1.6mm;
+}
+.invoice-page .party-identifiers>div{
+  display:grid;
+  grid-template-columns:minmax(25mm,38%) minmax(0,1fr);
+  gap:2mm;
+  align-items:baseline;
+}
+.invoice-page .party-identifiers b,
+.invoice-page .party-identifiers span{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+
+/* Items — keep commercial columns compact and reserve the width for description. */
+.invoice-page .items-wrap{
+  width:100%;
+  overflow:visible;
+}
+.invoice-page .items-table{
+  width:100%;
+  table-layout:auto;
+}
+.invoice-page .items-table th,
+.invoice-page .items-table td{
+  box-sizing:border-box;
+}
+.invoice-page .items-table th{
+  padding:2.45mm 1.35mm;
+  vertical-align:middle;
+  line-height:1.25;
+}
+.invoice-page .items-table td{
+  padding:2.35mm 1.35mm;
+  vertical-align:middle;
+  line-height:1.4;
+}
+.invoice-page .items-table th:not(:nth-child(2)),
+.invoice-page .items-table td:not(.description-cell){
+  white-space:nowrap;
+}
+.invoice-page .description-cell{
+  width:100%;
+  min-width:38mm;
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+.invoice-page .description-cell .bi-value{
+  align-items:flex-start;
+}
+.invoice-page .items-table .money-cell{
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.01em;
+}
+.invoice-page .items-table tbody tr{
+  break-inside:avoid;
+  page-break-inside:avoid;
+}
+
+/* Final zone — fix the broken/narrow commercial-terms layout seen in RTL PDFs. */
+.invoice-page .final-details{
+  margin-top:6mm!important;
+  width:100%;
+}
+.invoice-page .lower-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(58mm,64mm)!important;
+  gap:6mm;
+  align-items:start;
+  margin-top:0!important;
+}
+.invoice-page .terms-block,
+.invoice-page .totals-block{
+  align-self:start;
+}
+.invoice-page .terms-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:1.45mm!important;
+}
+.invoice-page .term-row{
+  display:grid!important;
+  grid-template-columns:minmax(28mm,34%) minmax(0,1fr);
+  gap:3mm;
+  align-items:start;
+  min-width:0;
+}
+.invoice-page .term-row b{
+  min-width:0!important;
+  width:auto;
+  line-height:1.35;
+  overflow-wrap:break-word;
+}
+.invoice-page .term-row span{
+  min-width:0;
+  line-height:1.45;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+.invoice-page .totals-block{
+  width:100%;
+  box-sizing:border-box;
+  padding:3.4mm 4mm;
+}
+.invoice-page .total-row,
+.invoice-page .grand-total{
+  align-items:baseline;
+  min-width:0;
+}
+.invoice-page .total-row span,
+.invoice-page .total-row strong,
+.invoice-page .grand-total span,
+.invoice-page .grand-total strong{
+  min-width:0;
+}
+.invoice-page .total-row strong,
+.invoice-page .grand-total strong{
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.invoice-page .grand-total{
+  gap:4mm;
+}
+
+/* Bank/signature — balanced two-column finish with no crushed values. */
+.invoice-page .bottom-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);
+  gap:7mm;
+  align-items:start;
+  margin-top:5.5mm;
+}
+.invoice-page .bank-block>div{
+  display:grid;
+  grid-template-columns:minmax(30mm,38%) minmax(0,1fr)!important;
+  gap:2.5mm;
+  align-items:baseline;
+}
+.invoice-page .bank-block b,
+.invoice-page .bank-block span{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.invoice-page .signature-block{
+  min-width:0;
+}
+.invoice-page .signature-media{
+  min-height:24mm;
+  height:auto;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:5mm;
+  flex-wrap:nowrap;
+}
+.invoice-page .signature-media img{
+  display:block;
+  max-height:22mm;
+  max-width:44mm;
+  width:auto;
+  height:auto;
+  object-fit:contain;
+}
+.invoice-page .notes-block p{
+  line-height:1.55;
+  overflow-wrap:anywhere;
+}
+
+/* Bilingual text must wrap by phrase, never collapse into one-letter columns. */
+.invoice-page.lang-bilingual .bi-label,
+.invoice-page.lang-bilingual .bi-value{
+  display:flex;
+  flex-wrap:wrap;
+  row-gap:.7mm;
+  column-gap:1.5mm;
+  min-width:0;
+}
+.invoice-page.lang-bilingual .bi-label>span,
+.invoice-page.lang-bilingual .bi-value>span{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+
+/* Dark luxury templates: preserve identity, remove deliberate offsets that hurt order. */
+.invoice-page.template-noir .party-grid,
+.invoice-page.template-midnight .party-grid,
+.invoice-page.template-blackivory .party-grid,
+.invoice-page.template-carbon .party-grid{
+  grid-template-columns:1fr 1fr!important;
+}
+.invoice-page.template-carbon .party-customer{
+  margin-top:0!important;
+  box-shadow:inset 0 0 0 1px rgba(187,143,71,.08)!important;
+}
+.invoice-page.template-carbon .lower-grid,
+.invoice-page.template-blackivory .lower-grid{
+  grid-template-columns:minmax(0,1fr) minmax(58mm,64mm)!important;
+}
+.invoice-page.template-noir .totals-block,
+.invoice-page.template-midnight .totals-block,
+.invoice-page.template-blackivory .totals-block,
+.invoice-page.template-carbon .totals-block{
+  box-shadow:none;
+}
+
+/* Arabic: grid order follows RTL naturally; values remain readable and numerals stable. */
+.invoice-page.lang-ar .term-row,
+.invoice-page.lang-ar .party-identifiers>div,
+.invoice-page.lang-ar .bank-block>div{
+  direction:rtl;
+}
+.invoice-page.lang-ar .term-row span,
+.invoice-page.lang-ar .party-identifiers span,
+.invoice-page.lang-ar .bank-block span{
+  text-align:right;
+}
+.invoice-page.lang-en .term-row,
+.invoice-page.lang-bilingual .term-row,
+.invoice-page.lang-en .party-identifiers>div,
+.invoice-page.lang-bilingual .party-identifiers>div,
+.invoice-page.lang-en .bank-block>div,
+.invoice-page.lang-bilingual .bank-block>div{
+  direction:ltr;
+}
+
+@media print{
+  .invoice-page{
+    box-shadow:none!important;
+  }
+  .invoice-page .doc-body{
+    padding-bottom:15mm!important;
+  }
+  .invoice-page .final-details,
+  .invoice-page .lower-grid,
+  .invoice-page .terms-block,
+  .invoice-page .totals-block,
+  .invoice-page .bottom-grid,
+  .invoice-page .bank-block,
+  .invoice-page .signature-block,
+  .invoice-page .notes-block{
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+}
