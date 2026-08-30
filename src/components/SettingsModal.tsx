@@ -14,27 +14,35 @@ interface Props {
 }
 interface State {
   tab:'company'|'documents'|'security'|'backup'; company:CompanySettings; appSettings:AppSettings; busy:boolean; cleaningAssets:boolean; message:string; error:string;
-  savedSection:'company'|'documents'|null; currentPin:string; newPin:string; confirmPin:string; backupPin:string; restorePin:string; restoreFile:File|null; confirmRestore:boolean;
+  savedSection:'company'|'documents'|null; currentPin:string; newPin:string; confirmPin:string; backupPin:string; restorePin:string; restoreFile:File|null; confirmRestore:boolean; confirmClose:boolean;
+  companyInitial:string; documentsInitial:string;
   logoOriginalDataUrl:string; logoCleanedDataUrl:string; logoRebuiltDataUrl:string; logoMode:'auto'|'rebuild'|'original';
 }
 
 type AssetField='logoDataUrl'|'signatureDataUrl'|'stampDataUrl';
 
 export class SettingsModal extends React.Component<Props,State> {
-  constructor(props:Props){super(props);this.state={tab:'company',company:structuredClone(props.company),appSettings:structuredClone(props.appSettings),busy:false,cleaningAssets:false,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',backupPin:'',restorePin:'',restoreFile:null,confirmRestore:false,logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto'};}
+  constructor(props:Props){
+    super(props);
+    const company=structuredClone(props.company);
+    const appSettings=structuredClone(props.appSettings);
+    this.state={tab:'company',company,appSettings,busy:false,cleaningAssets:false,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',backupPin:'',restorePin:'',restoreFile:null,confirmRestore:false,confirmClose:false,companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto'};
+  }
   componentDidUpdate(prev:Props):void{
     if(this.props.open&&!prev.open){
       const company=structuredClone(this.props.company);
-      this.setState({company,appSettings:structuredClone(this.props.appSettings),busy:false,cleaningAssets:false,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',backupPin:'',restorePin:'',restoreFile:null,confirmRestore:false,logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto'},()=>void this.prepareExistingAssets(company));
+      const appSettings=structuredClone(this.props.appSettings);
+      this.setState({company,appSettings,busy:false,cleaningAssets:false,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',backupPin:'',restorePin:'',restoreFile:null,confirmRestore:false,confirmClose:false,companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto'},()=>void this.prepareExistingAssets(company));
     }
   }
+  private hasUnsavedSettings=()=>JSON.stringify(this.state.company)!==this.state.companyInitial||JSON.stringify(this.state.appSettings)!==this.state.documentsInitial;
+  private requestClose=()=>{if(this.state.busy||this.state.cleaningAssets)return;if(this.hasUnsavedSettings()){this.setState({confirmClose:true});return;}this.props.onClose();};
+  private discardAndClose=()=>this.setState({confirmClose:false},this.props.onClose);
   private setCompany=(key:keyof CompanySettings,value:any)=>this.setState({company:{...this.state.company,[key]:value},savedSection:null,message:'',error:''});
   private setBank=(key:keyof CompanySettings['bank'],value:string)=>this.setState({company:{...this.state.company,bank:{...this.state.company.bank,[key]:value}},savedSection:null,message:'',error:''});
   private setNumbering=(key:keyof AppSettings['numbering'],value:any)=>this.setState({appSettings:{...this.state.appSettings,numbering:{...this.state.appSettings.numbering,[key]:value}},savedSection:null,message:'',error:''});
   private assetKind=(field:AssetField):CompanyAssetKind=>field==='logoDataUrl'?'logo':field==='signatureDataUrl'?'signature':'stamp';
   private cleanCompanyAssets=async(company:CompanySettings):Promise<CompanySettings>=>{
-    // Signature and stamp keep their established automatic cleanup. Logo mode is
-    // handled separately so choosing Original/Rebuild is never overridden on save.
     const [signatureDataUrl,stampDataUrl]=await Promise.all([
       cleanImageDataUrl(company.signatureDataUrl,'signature'),
       cleanImageDataUrl(company.stampDataUrl,'stamp')
@@ -50,9 +58,9 @@ export class SettingsModal extends React.Component<Props,State> {
       const company={...state.company};
       let changed=false,logoChanged=false;
       const hasSavedLogo=Boolean(source.logoDataUrl&&!source.logoDataUrl.includes('lourex-logo.svg'));
-      let logoOriginalDataUrl=hasSavedLogo?source.logoDataUrl:state.logoOriginalDataUrl;
-      let logoCleanedDataUrl=hasSavedLogo?repairedLogo:state.logoCleanedDataUrl;
-      let logoRebuiltDataUrl='';
+      const logoOriginalDataUrl=hasSavedLogo?source.logoDataUrl:state.logoOriginalDataUrl;
+      const logoCleanedDataUrl=hasSavedLogo?repairedLogo:state.logoCleanedDataUrl;
+      const logoRebuiltDataUrl='';
       let logoMode:State['logoMode']=hasSavedLogo&&repairedLogo===source.logoDataUrl?'original':state.logoMode;
       if(source.logoDataUrl&&state.company.logoDataUrl===source.logoDataUrl&&repairedLogo!==source.logoDataUrl){
         company.logoDataUrl=repairedLogo;logoMode='auto';changed=true;logoChanged=true;
@@ -105,22 +113,26 @@ export class SettingsModal extends React.Component<Props,State> {
     try{
       const company=await this.cleanCompanyAssets(this.state.company);
       await this.props.onSaveCompany(company);
-      this.setState({company,busy:false,cleaningAssets:false,savedSection:'company',message:t('Company settings saved. Logo artwork is preserved.','تم حفظ إعدادات الشركة مع الحفاظ على تفاصيل الشعار.')});
+      this.setState({company,companyInitial:JSON.stringify(company),busy:false,cleaningAssets:false,savedSection:'company',message:t('Company settings saved. Logo artwork is preserved.','تم حفظ إعدادات الشركة مع الحفاظ على تفاصيل الشعار.')});
     }catch(e){this.setState({busy:false,cleaningAssets:false,error:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')});}
   };
-  private saveDocuments=async()=>{this.setState({busy:true,error:'',message:'',savedSection:null});try{await this.props.onSaveAppSettings(this.state.appSettings);this.setState({busy:false,savedSection:'documents',message:t('Document settings saved.','تم حفظ إعدادات المستندات.')});}catch(e){this.setState({busy:false,error:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')});}};
+  private saveDocuments=async()=>{
+    this.setState({busy:true,error:'',message:'',savedSection:null});
+    try{await this.props.onSaveAppSettings(this.state.appSettings);this.setState({busy:false,documentsInitial:JSON.stringify(this.state.appSettings),savedSection:'documents',message:t('Document settings saved.','تم حفظ إعدادات المستندات.')});}
+    catch(e){this.setState({busy:false,error:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')});}
+  };
   private changeInterfaceLanguage=async(value:AppSettings['uiLanguage'])=>{
     const previous=this.state.appSettings;
     const next={...previous,uiLanguage:value};
     this.setState({appSettings:next,error:'',message:'',savedSection:null});
-    try{await this.props.onSaveAppSettings(next);this.setState({savedSection:'documents'});}
+    try{await this.props.onSaveAppSettings(next);this.setState({documentsInitial:JSON.stringify(next),savedSection:'documents'});}
     catch(e){this.setState({appSettings:previous,error:e instanceof Error?e.message:t('Unable to change interface language.','تعذر تغيير لغة الواجهة.')});}
   };
   private changeAutoLock=async(value:AutoLockMinutes)=>{
     const previous=this.state.appSettings;
     const next={...previous,autoLockMinutes:value};
     this.setState({appSettings:next,error:'',message:'',savedSection:null});
-    try{await this.props.onSaveAppSettings(next);this.setState({message:t('Auto-lock setting saved.','تم حفظ إعداد القفل التلقائي.')});}
+    try{await this.props.onSaveAppSettings(next);this.setState({documentsInitial:JSON.stringify(next),message:t('Auto-lock setting saved.','تم حفظ إعداد القفل التلقائي.')});}
     catch(e){this.setState({appSettings:previous,error:e instanceof Error?e.message:t('Unable to save auto-lock setting.','تعذر حفظ إعداد القفل التلقائي.')});}
   };
   private changePin=async()=>{if(!/^\d{4,12}$/.test(this.state.newPin)){this.setState({error:t('New PIN must contain 4–12 digits.','يجب أن يتكون رمز PIN الجديد من 4 إلى 12 رقمًا.')});return;}if(this.state.newPin!==this.state.confirmPin){this.setState({error:t('New PIN confirmation does not match.','تأكيد رمز PIN الجديد غير مطابق.')});return;}this.setState({busy:true,error:'',message:'',savedSection:null});try{await this.props.onChangePin(this.state.currentPin,this.state.newPin);this.setState({busy:false,message:t('PIN changed and local data re-encrypted.','تم تغيير رمز PIN وإعادة تشفير البيانات المحلية.'),currentPin:'',newPin:'',confirmPin:''});}catch(e){this.setState({busy:false,error:e instanceof Error?e.message:t('Unable to change PIN.','تعذر تغيير رمز PIN.')});}};
@@ -134,7 +146,7 @@ export class SettingsModal extends React.Component<Props,State> {
 
   render():any{
     const c=this.state.company,s=this.state.appSettings;const hasCompanyLogo=Boolean(c.logoDataUrl&&!c.logoDataUrl.includes('lourex-logo.svg'));
-    return <Modal open={this.props.open} title={t('Settings','الإعدادات')} size="xl" onClose={this.props.onClose}><div className="settings-layout"><nav className="settings-tabs">{([['company',t('Company','الشركة')],['documents',t('Documents','المستندات')],['security',t('Security','الأمان')],['backup',t('Backup','النسخ الاحتياطي')]] as const).map(([id,label])=><button key={id} className={this.state.tab===id?'active':''} onClick={()=>this.setState({tab:id,error:'',message:'',savedSection:null})}>{label}</button>)}</nav><div className="settings-panel">
+    return <Modal open={this.props.open} title={t('Settings','الإعدادات')} size="xl" onClose={this.requestClose}><div className="settings-layout"><nav className="settings-tabs">{([['company',t('Company','الشركة')],['documents',t('Documents','المستندات')],['security',t('Security','الأمان')],['backup',t('Backup','النسخ الاحتياطي')]] as const).map(([id,label])=><button type="button" key={id} className={this.state.tab===id?'active':''} onClick={()=>this.setState({tab:id,error:'',message:'',savedSection:null})}>{label}</button>)}</nav><div className="settings-panel">
     {this.state.tab==='company'?<div><div className="settings-title"><div><p className="eyebrow">{t('Company','الشركة')}</p><h3>{t('Company details','بيانات الشركة')}</h3></div>{this.saveButton('company')}</div><div className="settings-section"><div className="form-grid two">
       <Field label={t('Company Name English','اسم الشركة بالإنجليزية')}><Input value={c.nameEn} onChange={(e:any)=>this.setCompany('nameEn',e.target.value)}/></Field><Field label={t('Company Name Arabic','اسم الشركة بالعربية')}><Input dir="rtl" value={c.nameAr} onChange={(e:any)=>this.setCompany('nameAr',e.target.value)}/></Field>
       <Field label={t('Address English','العنوان بالإنجليزية')}><Input value={c.addressEn} onChange={(e:any)=>this.setCompany('addressEn',e.target.value)}/></Field><Field label={t('Address Arabic','العنوان بالعربية')}><Input dir="rtl" value={c.addressAr} onChange={(e:any)=>this.setCompany('addressAr',e.target.value)}/></Field>
@@ -151,7 +163,7 @@ export class SettingsModal extends React.Component<Props,State> {
     {this.state.tab==='security'?<div><div className="settings-title"><div><p className="eyebrow">{t('Security','الأمان')}</p><h3>{t('Local access','الدخول المحلي')}</h3></div></div><div className="settings-section"><h4>{t('Auto Lock','القفل التلقائي')}</h4><Field label={t('Lock after inactivity','القفل بعد عدم النشاط')}><Select value={String(s.autoLockMinutes)} onChange={(e:any)=>void this.changeAutoLock(Number(e.target.value) as AutoLockMinutes)}><option value="0">{t('Never','أبدًا')}</option><option value="5">{t('5 minutes','5 دقائق')}</option><option value="15">{t('15 minutes','15 دقيقة')}</option><option value="30">{t('30 minutes','30 دقيقة')}</option></Select></Field><Button icon="lock" onClick={this.props.onLock}>{t('Lock App','قفل التطبيق')}</Button></div><div className="settings-section"><h4>{t('Change PIN','تغيير رمز PIN')}</h4><div className="form-grid one"><Field label={t('Current PIN','رمز PIN الحالي')}><Input inputMode="numeric" type="password" value={this.state.currentPin} onChange={(e:any)=>this.setState({currentPin:e.target.value.replace(/\D/g,'')})}/></Field><Field label={t('New PIN','رمز PIN الجديد')}><Input inputMode="numeric" type="password" value={this.state.newPin} onChange={(e:any)=>this.setState({newPin:e.target.value.replace(/\D/g,'')})}/></Field><Field label={t('Confirm New PIN','تأكيد رمز PIN الجديد')}><Input inputMode="numeric" type="password" value={this.state.confirmPin} onChange={(e:any)=>this.setState({confirmPin:e.target.value.replace(/\D/g,'')})}/></Field></div><Button variant="primary" disabled={this.state.busy} onClick={this.changePin}>{t('Change PIN','تغيير رمز PIN')}</Button><p className="settings-note">{t('Changing the PIN decrypts the current vault in memory and atomically re-encrypts it with a new salt and key.','عند تغيير رمز PIN يتم فك تشفير الخزنة في الذاكرة ثم إعادة تشفيرها آمنًا بمفتاح وملح جديدين.')}</p></div></div>:null}
 
     {this.state.tab==='backup'?<div><div className="settings-title"><div><p className="eyebrow">{t('Data Safety','حماية البيانات')}</p><h3>{t('Backup / Restore','نسخ احتياطي / استعادة')}</h3></div></div><div className="backup-cards"><section className="backup-card"><span className="backup-icon"><Icon name="backup"/></span><h4>{t('Backup Data','نسخ البيانات احتياطيًا')}</h4><p>{t('Creates one encrypted .lourex-backup file containing company settings, customers, documents, numbering and preferences.','ينشئ ملف .lourex-backup مشفّرًا واحدًا يحتوي إعدادات الشركة والعملاء والمستندات والترقيم والتفضيلات.')}</p><Field label={t('Current PIN','رمز PIN الحالي')}><Input inputMode="numeric" type="password" value={this.state.backupPin} onChange={(e:any)=>this.setState({backupPin:e.target.value.replace(/\D/g,'')})}/></Field><Button variant="primary" disabled={this.state.busy||!this.state.backupPin} onClick={this.backup}>{t('Backup Data','إنشاء نسخة احتياطية')}</Button></section><section className="backup-card danger-zone"><span className="backup-icon"><Icon name="restore"/></span><h4>{t('Restore Backup','استعادة نسخة احتياطية')}</h4><p>{t('Validated restore replaces the current encrypted local vault. Existing data is not merged.','الاستعادة بعد التحقق تستبدل الخزنة المحلية المشفّرة الحالية، ولا يتم دمج البيانات الموجودة.')}</p><label className="file-picker"><input type="file" accept=".lourex-backup,application/json" onChange={(e:any)=>this.setState({restoreFile:e.target.files?.[0]??null})}/><span>{this.state.restoreFile?.name||t('Choose backup file','اختر ملف النسخة الاحتياطية')}</span></label><Field label={t('Backup PIN / Password','رمز PIN / كلمة مرور النسخة')}><Input inputMode="numeric" type="password" value={this.state.restorePin} onChange={(e:any)=>this.setState({restorePin:e.target.value.replace(/\D/g,'')})}/></Field><Button variant="danger" disabled={this.state.busy||!this.state.restoreFile||!this.state.restorePin} onClick={()=>this.setState({confirmRestore:true})}>{t('Restore Data','استعادة البيانات')}</Button></section></div></div>:null}
-    {this.state.message?<div className="settings-message success">{this.state.message}</div>:null}{this.state.error?<div className="settings-message error">{this.state.error}</div>:null}
-  </div></div><ConfirmDialog open={this.state.confirmRestore} title={t('Restore data?','استعادة البيانات؟')} message={t('This will replace the current local data. The backup file is validated before it is written.','سيتم استبدال البيانات المحلية الحالية. يتم التحقق من ملف النسخة الاحتياطية قبل كتابته.')} confirmLabel={t('Restore','استعادة')} onCancel={()=>this.setState({confirmRestore:false})} onConfirm={()=>{this.setState({confirmRestore:false});void this.restore();}}/></Modal>;
+    {this.state.message?<div className="settings-message success" role="status">{this.state.message}</div>:null}{this.state.error?<div className="settings-message error" role="alert">{this.state.error}</div>:null}
+  </div></div><ConfirmDialog open={this.state.confirmRestore} title={t('Restore data?','استعادة البيانات؟')} message={t('This will replace the current local data. The backup file is validated before it is written.','سيتم استبدال البيانات المحلية الحالية. يتم التحقق من ملف النسخة الاحتياطية قبل كتابته.')} confirmLabel={t('Restore','استعادة')} onCancel={()=>this.setState({confirmRestore:false})} onConfirm={()=>{this.setState({confirmRestore:false});void this.restore();}}/><ConfirmDialog open={this.state.confirmClose} title={t('Discard unsaved settings?','تجاهل الإعدادات غير المحفوظة؟')} message={t('You have unsaved company or document settings. Discard them and close Settings?','لديك إعدادات شركة أو مستندات غير محفوظة. هل تريد تجاهلها وإغلاق الإعدادات؟')} confirmLabel={t('Discard','تجاهل')} onCancel={()=>this.setState({confirmClose:false})} onConfirm={this.discardAndClose}/></Modal>;
   }
 }
