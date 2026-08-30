@@ -4,11 +4,10 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v94 workspace layer loads last and ships in the offline PWA shell',async()=>{
+test('v94 workspace layer remains loaded and ships in later offline PWA shells',async()=>{
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  const styles=[...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
-  assert.equal(styles.at(-1),'workspace-mobile-v94.css');
-  assert.match(sw,/lourex-invoice-v94/);
+  assert.match(html,/\.\/styles\/workspace-mobile-v94\.css/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/\.\/styles\/workspace-mobile-v94\.css/);
 });
 
