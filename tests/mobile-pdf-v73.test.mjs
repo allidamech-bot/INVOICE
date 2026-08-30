@@ -46,8 +46,7 @@ test('iPhone PDF, Share and Print preserve a fresh user gesture with blocked-pop
   assert.match(review, /__LOUREX_PREPARE_PDF__\?\.\(mode\)/);
   assert.match(review, /mode==='pdf'\|\|mode==='share'\|\|mode==='print'/);
   assert.match(documents, /private reserveOutput=/);
-  assert.match(documents, /private runOutput=/);
-  assert.ok(documents.indexOf('this.reserveOutput(mode)') < documents.indexOf("this.setState({menuId:''},action)"));
+  assert.match(documents, /private runOutput=\(mode:'pdf'\|'share',action:\(\)=>void\)=>\{[\s\S]*?this\.reserveOutput\(mode\);[\s\S]*?this\.setState\(\{menuId:''\},action\);[\s\S]*?\};/);
   assert.match(documents, /runOutput\('pdf'/);
   assert.match(documents, /runOutput\('share'/);
   assert.match(sw, /FRESH_PATHS = new Set\(\['\/ios-print-bridge\.js','\/pull-to-refresh\.js'\]\)/);
