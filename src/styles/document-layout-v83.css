@@ -57,6 +57,7 @@
 
 /* Seller/customer — equal, readable cards instead of offset or floating boxes. */
 .invoice-page .party-grid{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
   align-items:stretch;
   gap:4.5mm;
   margin-bottom:6mm;
@@ -75,6 +76,11 @@
 .invoice-page .party-contact{
   line-height:1.5;
   overflow-wrap:anywhere;
+}
+.invoice-page.lang-ar .party-contact{
+  direction:ltr;
+  text-align:right;
+  unicode-bidi:isolate;
 }
 .invoice-page .party-identifiers{
   display:grid;
@@ -188,6 +194,7 @@
   white-space:pre-wrap;
   overflow-wrap:anywhere;
   word-break:normal;
+  unicode-bidi:plaintext;
 }
 .invoice-page .totals-block{
   width:100%;
@@ -233,6 +240,9 @@
   min-width:0;
   overflow-wrap:anywhere;
 }
+.invoice-page .bank-block span{
+  unicode-bidi:plaintext;
+}
 .invoice-page .signature-block{
   min-width:0;
 }
@@ -248,14 +258,16 @@
 .invoice-page .signature-media img{
   display:block;
   max-height:22mm;
-  max-width:44mm;
   width:auto;
   height:auto;
   object-fit:contain;
 }
+.invoice-page .signature-media .signature-image{max-width:40mm}
+.invoice-page .signature-media .stamp-image{max-width:32mm}
 .invoice-page .notes-block p{
   line-height:1.55;
   overflow-wrap:anywhere;
+  unicode-bidi:plaintext;
 }
 
 /* Bilingual text must wrap by phrase, never collapse into one-letter columns. */
@@ -274,12 +286,6 @@
 }
 
 /* Dark luxury templates: preserve identity, remove deliberate offsets that hurt order. */
-.invoice-page.template-noir .party-grid,
-.invoice-page.template-midnight .party-grid,
-.invoice-page.template-blackivory .party-grid,
-.invoice-page.template-carbon .party-grid{
-  grid-template-columns:1fr 1fr!important;
-}
 .invoice-page.template-carbon .party-customer{
   margin-top:0!important;
   box-shadow:inset 0 0 0 1px rgba(187,143,71,.08)!important;
