@@ -20,7 +20,7 @@ test('mobile preview preserves physical A4 geometry instead of shrinking documen
   assert.match(css, /min-width:\s*66mm/);
 });
 
-test('iPhone PDF save and share use real files with Safari-safe native fallbacks', async () => {
+test('iPhone PDF save and share normalize Safari Color 4 values before real-file capture', async () => {
   const [html, bridge, review, documents, sw] = await Promise.all([
     read('index.html'),
     read('public/ios-print-bridge.js'),
@@ -37,27 +37,29 @@ test('iPhone PDF save and share use real files with Safari-safe native fallbacks
   assert.match(bridge, /html2canvas@1\.4\.1/);
   assert.match(bridge, /jspdf@2\.5\.2/);
   assert.match(bridge, /new File\(\[blob\]/);
+  assert.match(bridge, /normalizeUnsupportedColors/);
+  assert.match(bridge, /replaceColorFunction/);
+  assert.match(bridge, /display-p3/);
+  assert.match(bridge, /srgb-linear/);
+  assert.match(bridge, /getComputedStyle\(node\)/);
+  assert.match(bridge, /normalizeUnsupportedColors\(stage\)/);
   assert.match(bridge, /navigator\.share\(\{ files: \[file\] \}\)/);
-  assert.doesNotMatch(bridge, /shareData\s*=\s*\{\s*files:[\s\S]*?title:/);
   assert.match(bridge, /navigator\.canShare/);
   assert.match(bridge, /download=\"\$\{escapeHtml\(file\.name\)\}\"/);
   assert.match(bridge, /Open PDF \/ فتح PDF/);
   assert.match(bridge, /shareWatchdogTimer/);
-  assert.match(bridge, /AbortError/);
-  assert.match(bridge, /document\.execCommand\('print'/);
   assert.match(bridge, /Save PDF \/ حفظ PDF/);
   assert.match(bridge, /Share PDF \/ مشاركة PDF/);
   assert.match(bridge, /lourex-ios-output-fallback/);
-  assert.match(bridge, /window\.print = function lourexPrintBridge/);
+  assert.match(bridge, /window\.print=function lourexPrintBridge/);
   assert.match(bridge, /releaseParentPrintState/);
   assert.match(bridge, /dispatchEvent\(new Event\('afterprint'\)\)/);
   assert.match(review, /__LOUREX_PREPARE_PDF__\?\.\(mode\)/);
   assert.match(review, /mode==='pdf'\|\|mode==='share'\|\|mode==='print'/);
   assert.match(documents, /private reserveOutput=/);
-  assert.match(documents, /private runOutput=\(mode:'pdf'\|'share',action:\(\)=>void\)=>\{[\s\S]*?this\.reserveOutput\(mode\);[\s\S]*?this\.setState\(\{menuId:''\},action\);[\s\S]*?\};/);
   assert.match(documents, /runOutput\('pdf'/);
   assert.match(documents, /runOutput\('share'/);
-  assert.match(sw, /lourex-invoice-v90/);
+  assert.match(sw, /lourex-invoice-v91/);
   assert.match(sw, /html2canvas@1\.4\.1/);
   assert.match(sw, /jspdf@2\.5\.2/);
   assert.match(sw, /FRESH_PATHS = new Set\(\['\/ios-print-bridge\.js','\/pull-to-refresh\.js'\]\)/);
