@@ -8,7 +8,7 @@ const read=path=>readFile(new URL(path,root),'utf8');
 test('customer quick-add reuses the current search text instead of forcing re-entry',async()=>{
   const source=await read('src/components/CustomersPage.tsx');
   assert.match(source,/blankCustomer\(seed=''\)/);
-  assert.match(source,/private newCustomer=\(\)=>this\.setState\(\{editing:blankCustomer\(this\.state\.query\)/);
+  assert.match(source,/private newCustomer=\(\)=>this\.beginEdit\(blankCustomer\(this\.state\.query\)\)/);
   assert.match(source,/Create this customer without typing the name again/);
   assert.match(source,/query:''/);
 });
@@ -16,9 +16,9 @@ test('customer quick-add reuses the current search text instead of forcing re-en
 test('saved-item quick-add prefills the searched description and resets search after save',async()=>{
   const source=await read('src/components/SavedItemsModal.tsx');
   assert.match(source,/function blank\(currency:string,seed=''\)/);
-  assert.match(source,/private newItem=\(\)=>this\.setState\(\{editing:blank\(this\.props\.currency,this\.state\.query\)/);
+  assert.match(source,/private newItem=\(\)=>this\.beginEdit\(blank\(this\.props\.currency,this\.state\.query\)\)/);
   assert.match(source,/Create it without typing the description again/);
-  assert.match(source,/editing:null,query:''/);
+  assert.match(source,/query:''/);
 });
 
 test('v62 preserves language-aware prefill and existing data contracts',async()=>{
