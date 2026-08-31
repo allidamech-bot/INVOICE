@@ -37,6 +37,44 @@ export function documentItemFromSavedItem(saved: SavedItem): DocumentItem {
   };
 }
 
+export function normalizeSavedItemIdentity(value: string): string {
+  return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase();
+}
+
+export function parseSavedItemTags(value: string): string[] {
+  return value.split(/[,،]/).map(tag=>tag.trimStart());
+}
+
+export function findSavedItemDuplicate(items: SavedItem[], candidate: Pick<SavedItem,'id'|'descriptionEn'|'descriptionAr'>): SavedItem|undefined {
+  const en=normalizeSavedItemIdentity(candidate.descriptionEn);
+  const ar=normalizeSavedItemIdentity(candidate.descriptionAr);
+  return items.find(item=>item.id!==candidate.id&&(
+    (en&&normalizeSavedItemIdentity(item.descriptionEn)===en)||
+    (ar&&normalizeSavedItemIdentity(item.descriptionAr)===ar)
+  ));
+}
+
+export function isPristineDocumentItem(item: DocumentItem): boolean {
+  return !item.descriptionEn.trim()&&!item.descriptionAr.trim()&&!item.hsCode.trim()&&!item.origin.trim()&&!item.packing.trim()&&!item.unitPrice.trim()&&item.quantity.trim()==='1';
+}
+
+export function mergeSavedItemSelections(items: DocumentItem[], savedItems: SavedItem[], currency: string): DocumentItem[] {
+  if(!savedItems.length)return items;
+  const additions=savedItems.map(saved=>{
+    const item=documentItemFromSavedItem(saved);
+    if(saved.lastCurrency&&saved.lastCurrency!==currency)item.unitPrice='';
+    return item;
+  });
+  if(items.length&&isPristineDocumentItem(items[0]!))return [...additions,...items.slice(1)];
+  return [...items,...additions];
+}
+
+export function markSavedItemsUsed(items: SavedItem[], usedItems: SavedItem[], usedAt=new Date().toISOString()): SavedItem[] {
+  if(!usedItems.length)return items;
+  const usedIds=new Set(usedItems.map(item=>item.id));
+  return items.map(item=>usedIds.has(item.id)?{...item,usageCount:(item.usageCount??0)+1,lastUsedAt:usedAt,updatedAt:usedAt}:item);
+}
+
 export function savedItemSearchText(item: SavedItem): string {
   return [item.descriptionEn,item.descriptionAr,item.hsCode,item.origin,item.packing,item.unit,item.category??'',...(item.tags??[])].join(' ').toLowerCase();
 }
@@ -50,9 +88,9 @@ export function sortSavedItems(items: SavedItem[]): SavedItem[] {
 }
 
 export function findSavedItemMatch(items: SavedItem[], item: DocumentItem): SavedItem|undefined {
-  const en=item.descriptionEn.trim().toLowerCase();
-  const ar=item.descriptionAr.trim();
-  return items.find(saved=>(en&&saved.descriptionEn.trim().toLowerCase()===en)||(ar&&saved.descriptionAr.trim()===ar));
+  const en=normalizeSavedItemIdentity(item.descriptionEn);
+  const ar=normalizeSavedItemIdentity(item.descriptionAr);
+  return items.find(saved=>(en&&normalizeSavedItemIdentity(saved.descriptionEn)===en)||(ar&&normalizeSavedItemIdentity(saved.descriptionAr)===ar));
 }
 
 export function historySuggestions(documents: LourexDocument[]): SavedItem[] {

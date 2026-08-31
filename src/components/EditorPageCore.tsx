@@ -4,7 +4,7 @@ import { customerSnapshotFrom } from '../lib/defaults.js';
 import { emptyItem, refreshCompanySnapshot, validateDocument } from '../lib/documents.js';
 import { getDocumentReadiness } from '../lib/readiness.js';
 import { documentQualityIssues } from '../lib/document-quality.js';
-import { documentItemFromSavedItem, historySuggestions, savedItemSearchText, sortSavedItems } from '../lib/saved-items.js';
+import { historySuggestions, mergeSavedItemSelections, savedItemSearchText, sortSavedItems } from '../lib/saved-items.js';
 import { ARABIC_FONT_OPTIONS, LATIN_FONT_OPTIONS } from '../lib/appearance.js';
 import { isArabic, t, translateValidation } from '../lib/i18n.js';
 import { blankCustomer, CustomerForm } from './CustomersPage.js';
@@ -21,7 +21,7 @@ const incoterms=['EXW','FCA','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'];
 interface Props {
   document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; company:CompanySettings; savedItems:SavedItem[]; smartDefaults:AppSettings['smartDefaults'];
   onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
-  onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
+  onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onUseSavedItems:(items:SavedItem[])=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
   onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>void;
 }
 interface State {
@@ -166,8 +166,9 @@ export class EditorPage extends React.Component<Props,State>{
     const price=saved.lastCurrency&&saved.lastCurrency!==this.state.doc.currency?'':saved.lastUnitPrice;
     this.mutate(doc=>({...doc,items:doc.items.map(item=>item.id===targetId?{...item,descriptionEn:saved.descriptionEn,descriptionAr:saved.descriptionAr,hsCode:saved.hsCode,origin:saved.origin,packing:saved.packing,unit:saved.unit||item.unit,unitPrice:price}:item)}));
     this.setState({suggestingItemId:'',expandedItems:{...this.state.expandedItems,[targetId]:Boolean(saved.hsCode||saved.origin||saved.packing)}});
+    if(!saved.id.startsWith('history-'))void this.props.onUseSavedItems([saved]).catch(e=>this.setGlobalError(e instanceof Error?e.message:t('Unable to update item usage.','تعذر تحديث استخدام الصنف.')));
   };
-  private addSavedItem=(saved:SavedItem)=>{const item=documentItemFromSavedItem(saved);if(saved.lastCurrency&&saved.lastCurrency!==this.state.doc.currency)item.unitPrice='';this.mutate(doc=>({...doc,items:[...doc.items,item]}));this.setState({savedItemsOpen:false,suggestingItemId:''});};
+  private addSavedItems=async(saved:SavedItem[])=>{if(!saved.length)return;this.mutate(doc=>({...doc,items:mergeSavedItemSelections(doc.items,saved,doc.currency)}));this.setState({savedItemsOpen:false,suggestingItemId:''});try{await this.props.onUseSavedItems(saved);}catch(e){const message=e instanceof Error?e.message:t('Unable to update item usage.','تعذر تحديث استخدام الصنف.');this.setGlobalError(message);throw e;}};
   private saveDocumentItem=async(item:DocumentItem)=>{
     if(!item.descriptionEn.trim()&&!item.descriptionAr.trim()){this.setGlobalError(t('Enter an item description before saving it to the product library.','أدخل وصف الصنف قبل حفظه في مكتبة الأصناف.'));return;}
     if(item.unitPrice.trim()&&(!isDecimalInput(item.unitPrice)||decimalToScaled(item.unitPrice)<0n)){this.setGlobalError(t('Enter a valid unit price before saving this item.','أدخل سعر وحدة صالحًا قبل حفظ هذا الصنف.'));return;}
@@ -235,7 +236,7 @@ export class EditorPage extends React.Component<Props,State>{
       <ConfirmDialog open={this.state.confirmClose} title={t('Discard unsaved changes?','تجاهل التغييرات غير المحفوظة؟')} message={t('Your latest changes have not been saved.','لم يتم حفظ آخر تغييراتك.')} confirmLabel={t('Discard','تجاهل')} destructive onCancel={()=>this.setState({confirmClose:false})} onConfirm={()=>this.props.onClose()}/>
       <ConfirmDialog open={this.state.unlockConfirm} title={t('Unlock final document?','فتح المستند النهائي للتعديل؟')} message={t('The document will return to Draft so changes can be made. Its number will remain unchanged.','سيعود المستند إلى حالة مسودة حتى تتمكن من تعديله، وسيبقى رقمه كما هو.')} confirmLabel={t('Unlock for editing','فتح للتعديل')} destructive={false} onCancel={()=>this.setState({unlockConfirm:false})} onConfirm={()=>void this.unlockFinal()}/>
       <Modal open={Boolean(this.state.addCustomer)} title={t('New Customer','عميل جديد')} size="lg" onClose={()=>this.setState({addCustomer:null,addCustomerError:''})} footer={<div className="modal-footer-actions"><Button onClick={()=>this.setState({addCustomer:null})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" onClick={()=>void this.addCustomer()}>{t('Save & Select','حفظ واختيار')}</Button></div>}>{this.state.addCustomer?<CustomerForm customer={this.state.addCustomer} onChange={addCustomer=>this.setState({addCustomer})}/>:null}{this.state.addCustomerError?<div className="inline-error">{this.state.addCustomerError}</div>:null}</Modal>
-      <SavedItemsModal open={this.state.savedItemsOpen} items={this.props.savedItems} currency={d.currency} onClose={()=>this.setState({savedItemsOpen:false})} onSelect={this.addSavedItem} onSave={this.props.onSaveSavedItem} onDelete={this.props.onDeleteSavedItem}/>
+      <SavedItemsModal open={this.state.savedItemsOpen} items={this.props.savedItems} currency={d.currency} onClose={()=>this.setState({savedItemsOpen:false})} onSelectMany={this.addSavedItems} onSave={this.props.onSaveSavedItem} onDelete={this.props.onDeleteSavedItem}/>
       <DocumentReviewModal document={d} mode={this.state.reviewMode} issues={quality} working={this.state.issuing} onClose={()=>this.setState({reviewMode:null})} onConfirm={()=>void this.issueAndContinue()}/>
     </div>;
   }
