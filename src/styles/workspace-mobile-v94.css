@@ -438,6 +438,175 @@
   .app-ui .documents-results-bar>span i{display:none}
 }
 
+/* v105 — customer workspace clarity, search and form hierarchy. */
+.app-ui .premium-customers-page{min-width:0}
+.app-ui .customers-heading{align-items:flex-end}
+.app-ui .premium-customers-toolbar{
+  align-items:center;
+  margin-bottom:8px;
+}
+.app-ui .customers-search-box{
+  width:min(100%,520px)!important;
+  min-width:0;
+}
+.app-ui .customers-search-box .customers-search-input{padding-inline-end:44px}
+.app-ui .customers-search-clear{
+  position:absolute;
+  inset-inline-end:3px;
+  width:34px;
+  height:34px;
+}
+.app-ui .customers-search-shortcut{
+  position:absolute;
+  inset-inline-end:10px;
+  display:grid;
+  place-items:center;
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  border:1px solid #d8d5ce;
+  border-radius:6px;
+  background:#f7f5f0;
+  color:#7b8389;
+  font:600 11px/1 Inter,system-ui,sans-serif;
+  pointer-events:none;
+}
+.app-ui .customers-sort{width:175px;flex:0 0 auto}
+.app-ui .customers-results-bar{
+  min-height:30px;
+  margin:0 0 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  color:#6c757c;
+  font-size:11px;
+}
+.app-ui .customers-results-bar>span{display:flex;align-items:center;gap:5px}
+.app-ui .customers-results-bar strong{color:var(--navy);font-size:12px;font-variant-numeric:tabular-nums}
+.app-ui .customers-results-bar i{font-style:normal;color:#bcc2c5}
+.app-ui .customers-results-bar button{
+  border:0;
+  background:transparent;
+  color:#755a35;
+  border-radius:8px;
+  min-height:28px;
+  padding:4px 7px;
+  font-size:11px;
+  font-weight:700;
+}
+.app-ui .customers-results-bar button:hover{background:#f2eee7}
+.app-ui .premium-customer-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.app-ui .premium-customer-card{
+  display:flex!important;
+  align-items:center;
+  min-width:0;
+  padding:0!important;
+  gap:0!important;
+  overflow:visible;
+  background:rgba(255,255,255,.86);
+  border-color:#ddd9d1;
+}
+.app-ui .premium-customer-card .customer-card-main{
+  flex:1;
+  min-width:0;
+  min-height:86px;
+  display:grid;
+  grid-template-columns:44px minmax(0,1fr);
+  align-items:center;
+  gap:11px;
+  border:0;
+  border-radius:12px;
+  padding:13px 8px 13px 13px;
+  background:transparent;
+  color:inherit;
+  text-align:start;
+}
+.app-ui .premium-customer-card .customer-card-main:hover{background:#faf8f3}
+.app-ui .premium-customer-card .customer-avatar{width:44px;height:44px;border-radius:11px}
+.app-ui .premium-customer-card .customer-info{gap:3px}
+.app-ui .premium-customer-card .customer-name-row{display:flex;align-items:center;gap:7px;min-width:0}
+.app-ui .premium-customer-card .customer-name-row strong{font-size:13px;min-width:0}
+.app-ui .premium-customer-card .customer-name-row em{
+  flex:0 1 auto;
+  max-width:42%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  border-radius:999px;
+  padding:2px 6px;
+  background:#f1eee7;
+  color:#6e7478;
+  font-size:9px;
+  font-style:normal;
+  font-weight:650;
+}
+.app-ui .premium-customer-card .customer-secondary-name{font-size:10.5px;color:#5e6870}
+.app-ui .premium-customer-card .customer-info small{font-size:10.5px}
+.app-ui .premium-customer-card .customer-missing-contact{color:#9a7442}
+.app-ui .premium-customer-card .customer-actions{padding-inline-end:7px;gap:1px}
+.app-ui .premium-customer-card .customer-actions .icon-btn{width:36px;height:36px}
+.app-ui .customer-form-stack{display:flex;flex-direction:column;gap:12px}
+.app-ui .customer-form-section{
+  border:1px solid #e1ddd5;
+  border-radius:13px;
+  background:#fff;
+  padding:15px;
+}
+.app-ui .customer-form-section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}
+.app-ui .customer-form-section-heading h3{margin:0;color:var(--navy);font-size:13px}
+.app-ui .customer-form-section-heading p{margin:3px 0 0;color:#798087;font-size:10.5px;line-height:1.45}
+.app-ui .customer-form-grid{gap:12px}
+.app-ui .customer-form-error{margin-top:12px;padding:9px 10px;border-radius:9px;background:#fff1ee}
+
+@media (max-width:900px){
+  .app-ui .premium-customer-list{grid-template-columns:1fr}
+}
+
+@media (max-width:720px){
+  .app-ui .premium-customers-page .page-subtitle{max-width:34rem}
+  .app-ui .premium-customers-toolbar{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 150px!important;
+    gap:8px!important;
+    align-items:center!important;
+  }
+  .app-ui .premium-customers-toolbar .customers-search-box{width:100%!important}
+  .app-ui .premium-customers-toolbar .customers-sort{width:100%!important}
+  .app-ui .customers-search-shortcut{display:none}
+  .app-ui .customers-results-bar{margin:0 0 9px}
+  .app-ui .premium-customer-card{
+    display:flex!important;
+    min-height:0!important;
+    padding:0!important;
+    gap:0!important;
+    border-radius:13px!important;
+  }
+  .app-ui .premium-customer-card .customer-card-main{
+    min-height:78px;
+    grid-template-columns:40px minmax(0,1fr);
+    gap:9px;
+    padding:11px 4px 11px 10px;
+  }
+  .app-ui .premium-customer-card .customer-avatar{width:40px;height:40px}
+  .app-ui .premium-customer-card .customer-actions{padding-inline-end:4px}
+  .app-ui .premium-customer-card .customer-actions .icon-btn{width:38px;min-width:38px;height:38px}
+  .app-ui .customer-form-stack{gap:9px}
+  .app-ui .customer-form-section{padding:12px;border-radius:12px}
+  .app-ui .customer-form-section-heading{margin-bottom:10px}
+  .app-ui .customer-form-grid{grid-template-columns:1fr!important;gap:10px}
+  .app-ui .customer-form-grid .span-2{grid-column:auto!important}
+}
+
+@media (max-width:430px){
+  .app-ui .premium-customers-toolbar{grid-template-columns:minmax(0,1fr)!important}
+  .app-ui .customers-results-bar>span{flex-wrap:wrap}
+  .app-ui .customers-results-bar i{display:none}
+  .app-ui .premium-customer-card .customer-name-row{align-items:flex-start;flex-direction:column;gap:2px}
+  .app-ui .premium-customer-card .customer-name-row em{max-width:100%;padding:0;background:transparent}
+  .app-ui .premium-customer-card .customer-actions .icon-btn{width:36px;min-width:36px;height:36px}
+}
+
 @media print{
   .app-ui .documents-page,
   .app-ui .customers-page,
