@@ -284,6 +284,160 @@
   }
 }
 
+/* v104 — faster, calmer Documents workspace interactions. */
+.app-ui .documents-filter-toggle{display:none}
+.app-ui .documents-search-box{min-width:0}
+.app-ui .documents-search-box .documents-search-input{padding-inline-end:44px}
+.app-ui .documents-search-clear{
+  position:absolute;
+  inset-inline-end:3px;
+  width:34px;
+  height:34px;
+}
+.app-ui .documents-search-shortcut{
+  position:absolute;
+  inset-inline-end:10px;
+  display:grid;
+  place-items:center;
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  border:1px solid #d8d5ce;
+  border-radius:6px;
+  background:#f7f5f0;
+  color:#7b8389;
+  font:600 11px/1 Inter,system-ui,sans-serif;
+  pointer-events:none;
+}
+.app-ui .documents-results-bar{
+  min-height:34px;
+  margin:-5px 0 11px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  color:#68737b;
+  font-size:11px;
+}
+.app-ui .documents-results-bar>span{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  white-space:nowrap;
+}
+.app-ui .documents-results-bar>span strong{
+  color:var(--navy);
+  font-size:12px;
+  font-variant-numeric:tabular-nums;
+}
+.app-ui .documents-results-bar>span i{
+  color:#c1c6c9;
+  font-style:normal;
+}
+.app-ui .documents-results-bar>div{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+.app-ui .documents-results-bar button{
+  min-height:30px;
+  border:0;
+  border-radius:8px;
+  padding:5px 9px;
+  background:transparent;
+  color:#5f6c75;
+  font-size:11px;
+  font-weight:700;
+}
+.app-ui .documents-results-bar button:hover{background:#f0ede7;color:var(--navy)}
+.app-ui .documents-attention-link b{
+  display:inline-grid;
+  place-items:center;
+  min-width:19px;
+  height:19px;
+  margin-inline-start:4px;
+  border-radius:999px;
+  background:#f4e9d9;
+  color:#8a6229;
+  font-size:10px;
+  font-variant-numeric:tabular-nums;
+}
+.app-ui .documents-clear-filters{color:#7a5b32!important}
+
+@media (max-width:720px){
+  .app-ui .premium-documents-toolbar{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    align-items:stretch!important;
+    padding:9px!important;
+    border:1px solid #e1ddd5!important;
+    border-radius:13px!important;
+    background:rgba(255,255,255,.72)!important;
+  }
+  .app-ui .documents-filter-toggle{
+    display:flex;
+    width:100%;
+    min-height:40px;
+    align-items:center;
+    justify-content:flex-start;
+    gap:8px;
+    border:0;
+    border-radius:9px;
+    padding:0 10px;
+    background:#f3f0ea;
+    color:#384955;
+    font-size:12px;
+    font-weight:750;
+    text-align:start;
+  }
+  .app-ui .documents-filter-toggle span{flex:1}
+  .app-ui .documents-filter-toggle b{
+    min-width:20px;
+    height:20px;
+    display:grid;
+    place-items:center;
+    border-radius:999px;
+    background:var(--navy);
+    color:#fff;
+    font-size:10px;
+    font-variant-numeric:tabular-nums;
+  }
+  .app-ui .premium-documents-toolbar .documents-filter-stack{display:none!important}
+  .app-ui .premium-documents-toolbar.filters-open .documents-filter-stack{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    gap:8px!important;
+    padding-top:1px;
+  }
+  .app-ui .premium-documents-toolbar .segmented{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .app-ui .premium-documents-toolbar .segmented button{min-width:0;padding-inline:7px}
+  .app-ui .premium-documents-toolbar .status-filter{display:flex!important;overflow-x:auto!important}
+  .app-ui .premium-documents-toolbar .documents-toolbar-right{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    width:100%!important;
+    gap:8px!important;
+  }
+  .app-ui .premium-documents-toolbar .documents-search-box{width:100%!important}
+  .app-ui .premium-documents-toolbar .documents-sort{display:none;width:100%!important}
+  .app-ui .premium-documents-toolbar.filters-open .documents-sort{display:block}
+  .app-ui .documents-search-shortcut{display:none}
+  .app-ui .documents-results-bar{
+    align-items:flex-start;
+    margin:-3px 0 9px;
+    min-height:30px;
+  }
+  .app-ui .documents-results-bar>div{margin-inline-start:auto}
+  .app-ui .documents-attention-link{display:none}
+  .app-ui .documents-results-bar button{min-height:28px;padding:4px 6px}
+}
+
+@media (max-width:390px){
+  .app-ui .documents-results-bar>span{white-space:normal}
+  .app-ui .documents-results-bar>span i{display:none}
+}
+
 @media print{
   .app-ui .documents-page,
   .app-ui .customers-page,
