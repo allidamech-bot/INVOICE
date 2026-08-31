@@ -15,7 +15,7 @@ interface Props {
 }
 type WorkspaceStatus='all'|'draft'|'ready'|'final';
 type SortMode='latest'|'oldest'|'highest';
-interface State { tab: 'all'|'proforma'|'invoice'; status: WorkspaceStatus; sort:SortMode; query: string; menuId: string; }
+interface State { tab: 'all'|'proforma'|'invoice'; status: WorkspaceStatus; sort:SortMode; query: string; menuId: string; filtersOpen:boolean; }
 
 function workflowStatus(doc:LourexDocument):Exclude<WorkspaceStatus,'all'>{
   if(doc.status==='final')return 'final';
@@ -27,7 +27,7 @@ function itemCountLabel(count:number):string{
 }
 
 export class DocumentsPage extends React.Component<Props, State> {
-  state: State = { tab: 'all', status: 'all', sort:'latest', query: '', menuId: '' };
+  state: State = { tab: 'all', status: 'all', sort:'latest', query: '', menuId: '', filtersOpen:false };
   componentDidMount():void{
     document.addEventListener('pointerdown',this.handleOutsidePointer);
     document.addEventListener('keydown',this.handleKeyDown);
@@ -42,7 +42,16 @@ export class DocumentsPage extends React.Component<Props, State> {
     if(target instanceof Element&&target.closest('.mobile-actions'))return;
     this.setState({menuId:''});
   };
-  private handleKeyDown=(event:KeyboardEvent)=>{if(event.key==='Escape'&&this.state.menuId)this.setState({menuId:''});};
+  private handleKeyDown=(event:KeyboardEvent)=>{
+    if(event.key==='Escape'&&this.state.menuId){this.setState({menuId:''});return;}
+    if(event.key!=='/'||event.ctrlKey||event.metaKey||event.altKey)return;
+    const target=event.target;
+    if(target instanceof HTMLElement&&(target.matches('input, textarea, select')||target.isContentEditable))return;
+    const input=document.querySelector<HTMLInputElement>('.documents-search-input');
+    if(!input)return;
+    event.preventDefault();
+    input.focus();
+  };
   private filtered(): LourexDocument[] {
     const q = this.state.query.trim().toLowerCase();
     const docs=this.props.documents
@@ -72,8 +81,9 @@ export class DocumentsPage extends React.Component<Props, State> {
     this.reserveOutput(mode);
     this.setState({menuId:''},action);
   };
-  private clearFilters=()=>this.setState({tab:'all',status:'all',query:'',sort:'latest',menuId:''});
-  private setOverview=(tab:State['tab'],status:WorkspaceStatus)=>this.setState({tab,status,query:'',menuId:''});
+  private clearFilters=()=>this.setState({tab:'all',status:'all',query:'',sort:'latest',menuId:'',filtersOpen:false});
+  private clearSearch=()=>this.setState({query:'',menuId:''},()=>document.querySelector<HTMLInputElement>('.documents-search-input')?.focus());
+  private setOverview=(tab:State['tab'],status:WorkspaceStatus)=>this.setState({tab,status,query:'',menuId:'',filtersOpen:false});
   render(): any {
     const docs = this.filtered();
     const quotes=this.props.documents.filter(d=>d.kind==='proforma').length;
@@ -82,6 +92,7 @@ export class DocumentsPage extends React.Component<Props, State> {
     const ready=this.props.documents.filter(d=>workflowStatus(d)==='ready').length;
     const resume=[...this.props.documents].filter(d=>d.status!=='final').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0]??null;
     const filteredView=Boolean(this.state.query||this.state.tab!=='all'||this.state.status!=='all');
+    const activeFilterCount=(this.state.tab!=='all'?1:0)+(this.state.status!=='all'?1:0)+(this.state.query.trim()?1:0);
     return <section className="page documents-page premium-documents-page">
       <div className="page-heading documents-heading">
         <div><p className="eyebrow">{t('Sales documents','مستندات المبيعات')}</p><h1>{t('Documents','المستندات')}</h1><p className="page-subtitle">{t('Quotes and invoices, organized in one clear workspace.','عروض الأسعار والفواتير في مساحة واحدة واضحة ومنظمة.')}</p></div>
@@ -99,7 +110,12 @@ export class DocumentsPage extends React.Component<Props, State> {
         <button type="button" className={`${ready?'has-ready ':''}${this.state.status==='ready'?'active':''}`} aria-pressed={this.state.status==='ready'} onClick={()=>this.setOverview('all','ready')}><span>{t('Ready','جاهز')}</span><strong>{ready}</strong></button>
         <button type="button" className={`${drafts?'has-drafts ':''}${this.state.status==='draft'?'active':''}`} aria-pressed={this.state.status==='draft'} onClick={()=>this.setOverview('all','draft')}><span>{t('Drafts','المسودات')}</span><strong>{drafts}</strong></button>
       </div>
-      <div className="list-toolbar documents-toolbar premium-documents-toolbar"><div className="documents-filter-stack"><Segmented value={this.state.tab} onChange={(value)=>this.setState({tab:value as State['tab'],menuId:''})} options={[{value:'all',label:t('All','الكل')},{value:'proforma',label:t('Quotes','عروض الأسعار')},{value:'invoice',label:t('Invoices','الفواتير')}]}/><div className="status-filter" role="group" aria-label={t('Status filter','تصفية الحالة')}>{(['all','draft','ready','final'] as const).map(status=><button key={status} type="button" className={this.state.status===status?'active':''} onClick={()=>this.setState({status,menuId:''})}>{status==='all'?t('Any status','كل الحالات'):status==='draft'?t('Draft','مسودة'):status==='ready'?t('Ready','جاهز'):t('Final','نهائي')}</button>)}</div></div><div className="documents-toolbar-right"><div className="search-box"><Icon name="search"/><Input aria-label={t('Search documents','بحث في المستندات')} placeholder={t('Search number or customer','ابحث بالرقم أو العميل')} value={this.state.query} onChange={(e:any)=>this.setState({query:e.target.value,menuId:''})}/></div><Select className="documents-sort" aria-label={t('Sort documents','ترتيب المستندات')} value={this.state.sort} onChange={(e:any)=>this.setState({sort:e.target.value as SortMode,menuId:''})}><option value="latest">{t('Latest','الأحدث')}</option><option value="oldest">{t('Oldest','الأقدم')}</option><option value="highest">{t('Highest total (by currency)','أعلى إجمالي حسب العملة')}</option></Select></div></div>
+      <div className={`list-toolbar documents-toolbar premium-documents-toolbar ${this.state.filtersOpen?'filters-open':''}`}>
+        <button type="button" className="documents-filter-toggle" aria-expanded={this.state.filtersOpen} onClick={()=>this.setState({filtersOpen:!this.state.filtersOpen,menuId:''})}><Icon name={this.state.filtersOpen?'chevronUp':'chevronDown'}/><span>{t('Filters & sort','التصفية والترتيب')}</span>{activeFilterCount?<b>{activeFilterCount}</b>:null}</button>
+        <div className="documents-filter-stack"><Segmented value={this.state.tab} onChange={(value)=>this.setState({tab:value as State['tab'],menuId:''})} options={[{value:'all',label:t('All','الكل')},{value:'proforma',label:t('Quotes','عروض الأسعار')},{value:'invoice',label:t('Invoices','الفواتير')}]}/><div className="status-filter" role="group" aria-label={t('Status filter','تصفية الحالة')}>{(['all','draft','ready','final'] as const).map(status=><button key={status} type="button" className={this.state.status===status?'active':''} onClick={()=>this.setState({status,menuId:''})}>{status==='all'?t('Any status','كل الحالات'):status==='draft'?t('Draft','مسودة'):status==='ready'?t('Ready','جاهز'):t('Final','نهائي')}</button>)}</div></div>
+        <div className="documents-toolbar-right"><div className="search-box documents-search-box"><Icon name="search"/><Input className="documents-search-input" aria-label={t('Search documents','بحث في المستندات')} title={t('Press / to search','اضغط / للبحث')} placeholder={t('Search number or customer','ابحث بالرقم أو العميل')} value={this.state.query} onChange={(e:any)=>this.setState({query:e.target.value,menuId:''})}/>{this.state.query?<IconButton className="documents-search-clear" icon="x" label={t('Clear search','مسح البحث')} onClick={this.clearSearch}/>:<kbd className="documents-search-shortcut" aria-hidden="true">/</kbd>}</div><Select className="documents-sort" aria-label={t('Sort documents','ترتيب المستندات')} value={this.state.sort} onChange={(e:any)=>this.setState({sort:e.target.value as SortMode,menuId:''})}><option value="latest">{t('Latest','الأحدث')}</option><option value="oldest">{t('Oldest','الأقدم')}</option><option value="highest">{t('Highest total (by currency)','أعلى إجمالي حسب العملة')}</option></Select></div>
+      </div>
+      {this.props.documents.length?<div className="documents-results-bar" aria-live="polite"><span><strong>{docs.length}</strong> {t('shown','ظاهرة')} <i aria-hidden="true">/</i> {this.props.documents.length} {t('total','إجمالي')}</span><div>{drafts&&this.state.status!=='draft'?<button type="button" className="documents-attention-link" onClick={()=>this.setOverview('all','draft')}>{t('Review drafts','راجع المسودات')} <b>{drafts}</b></button>:null}{filteredView?<button type="button" className="documents-clear-filters" onClick={this.clearFilters}>{t('Clear filters','مسح التصفية')}</button>:null}</div></div>:null}
       {docs.length ? <div className="document-list premium-document-list">{docs.map(doc => {
         const totals = calculateTotals(doc.items, doc.adjustments);
         const customer = isArabic() ? (doc.customerSnapshot?.companyNameAr || doc.customerSnapshot?.companyNameEn || t('No customer','بدون عميل')) : (doc.customerSnapshot?.companyNameEn || doc.customerSnapshot?.companyNameAr || t('No customer','بدون عميل'));
