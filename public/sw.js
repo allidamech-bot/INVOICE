@@ -1,4 +1,4 @@
-// v119 — critical document output hardening: bottom-anchored commercial details and stable Arabic RTL PDF/share rendering; retains v118 installed-app icon QA and prior compatibility fixes.
+// v119 — critical document output hardening: bottom-anchored commercial details and stable Arabic RTL PDF/share rendering; retains v118 final QA hardening, v117 deep-audit fixes, v116 workflow presets, v115 simplified onboarding, v114 customer UX, v113 Product Library Pro, v112 metadata assistance, v111 product-entry presets, v110 system closeout, v109 customer document flow, v108 settings workspace, v107 guided editor flow, and v103 saved-item compatibility.
 // Compatibility marker retained for legacy regression coverage: lourex-invoice-v65.
 // Runtime compatibility markers: react@17.0.2/umd/react.production.min.js | react-dom@17.0.2/umd/react-dom.production.min.js
 const CACHE = 'lourex-invoice-v101';
