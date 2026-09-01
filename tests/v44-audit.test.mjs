@@ -137,8 +137,8 @@ test('readiness uses fixed precision grammar instead of JavaScript Number coerci
   assert.equal(readiness.groups.find(group=>group.key==='items')?.complete,false);
 });
 
-test('schema v5 normalizes hostile legacy defaults without changing document snapshots',()=>{
-  assert.equal(APP_SCHEMA_VERSION,5);
+test('schema v6 normalizes hostile legacy defaults without changing document snapshots',()=>{
+  assert.equal(APP_SCHEMA_VERSION,6);
   const vault=emptyVault();
   vault.schemaVersion=4;
   vault.company.defaultValidityDays=Infinity;
