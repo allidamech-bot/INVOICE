@@ -16,8 +16,9 @@ test('highest-total sorting groups currencies before comparing amounts',async()=
 test('shared modal closes only the topmost dialog on Escape and restores focus',async()=>{
   const source=await read('src/components/UI.tsx');
   assert.match(source,/document\.addEventListener\('keydown',this\.handleKeyDown\)/);
-  assert.match(source,/event\.key!=='Escape'/);
-  assert.match(source,/backdrops\[backdrops\.length-1\]!==this\.backdrop/);
+  assert.match(source,/private isTopModal=/);
+  assert.match(source,/backdrops\[backdrops\.length-1\]===this\.backdrop/);
+  assert.match(source,/event\.key==='Escape'/);
   assert.match(source,/previousFocus\?\.focus/);
 });
 
