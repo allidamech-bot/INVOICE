@@ -103,20 +103,23 @@ test('Firebase cloud sync stores the encrypted vault under owner-only user paths
   assert.match(app, /CloudAccountModal/);
 });
 
-test('first-run onboarding requires a cloud account before local PIN setup', async () => {
+test('first-run onboarding requires account entry before the simplified local PIN setup', async () => {
   const html = await read('dist/index.html');
   const auth = await read('src/components/AuthScreens.tsx');
+  const account = await read('src/components/AccountEntryScreen.tsx');
   const selector = await read('src/app/AuthScreenSelector.tsx');
   const css = await read('dist/styles/app.bundle.css');
   assert.match(html, /styles\/app\.bundle\.css/);
   assert.match(css, /\/\* --- auth-entry\.css --- \*\//);
-  assert.match(auth, /Create your account/);
-  assert.match(auth, /Sign In/);
-  assert.match(auth, /createCloudUser/);
-  assert.match(auth, /signInCloudUser/);
-  assert.match(auth, /Confirm Password/);
-  assert.match(auth, /Create your local PIN/);
+  assert.match(account, /Create your account/);
+  assert.match(account, /Sign In/);
+  assert.match(account, /createCloudUser/);
+  assert.match(account, /signInCloudUser/);
+  assert.match(account, /Confirm Password/);
+  assert.match(auth, /Create your LOUREX PIN/);
+  assert.match(auth, /account password cannot replace or recover this PIN/i);
   assert.match(selector, /if \(!currentCloudUser\(\)\)/);
+  assert.match(selector, /return <AccountEntryScreen/);
   assert.doesNotMatch(auth, /Restore Backup|Choose Backup File|restoreOpen/);
   assert.match(css, /account-entry-tabs/);
   assert.match(css, /setup-account-badge/);

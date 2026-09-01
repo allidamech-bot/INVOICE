@@ -1,0 +1,92 @@
+/* v115 — first-run onboarding simplification. Authentication/setup UI only. */
+
+.setup-card-v115{
+  max-width:680px;
+}
+.setup-card-v115 .setup-progress-two{
+  max-width:230px;
+  margin-inline:auto;
+}
+.setup-card-v115 .setup-progress-two i{
+  flex:1 1 auto;
+}
+.setup-card-v115 .setup-essential-step{
+  max-width:610px;
+  margin-inline:auto;
+}
+.pin-recovery-note,
+.setup-later-note{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  margin:14px 0 16px;
+  padding:12px 14px;
+  border:1px solid #d7e3e9;
+  border-radius:14px;
+  background:#f8fbfc;
+  color:#25485d;
+}
+.pin-recovery-note strong,
+.setup-later-note strong{
+  font-size:12px;
+  color:#15384e;
+}
+.pin-recovery-note span,
+.setup-later-note span{
+  font-size:11px;
+  line-height:1.55;
+  color:#647985;
+}
+.pin-recovery-note{
+  border-color:#e5d6b6;
+  background:#fffaf1;
+}
+.pin-recovery-note strong{
+  color:#704f1d;
+}
+.setup-company-essential-grid{
+  margin-top:4px;
+}
+.setup-logo-tile{
+  margin-top:14px;
+}
+.setup-logo-tile b{
+  font-size:11px;
+  font-weight:700;
+  color:#6b7e89;
+}
+.setup-card-v115 .setup-primary-action{
+  width:100%;
+  margin-top:4px;
+}
+
+@media(max-width:720px){
+  .setup-card-v115{
+    width:min(100%,620px);
+  }
+  .setup-card-v115 .setup-essential-step{
+    max-width:none;
+  }
+  .setup-card-v115 .setup-company-essential-grid{
+    grid-template-columns:1fr!important;
+  }
+  .pin-recovery-note,
+  .setup-later-note{
+    padding:11px 12px;
+  }
+}
+
+@media(pointer:coarse){
+  .setup-card-v115 .btn,
+  .setup-card-v115 .input,
+  .setup-card-v115 .auth-language-switch{
+    min-height:44px;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .setup-card-v115 *{
+    animation:none!important;
+    transition:none!important;
+  }
+}
