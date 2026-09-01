@@ -25,10 +25,11 @@ function customerDisplayName(customer:Customer):string{return (isArabic()?(custo
 
 export class CustomersPage extends React.Component<Props,State> {
   state:State={query:'',sort:'name',editing:null,editingInitial:'',discardConfirm:false,deleting:null,error:'',busy:false,creatingDocument:''};
-  componentDidMount():void{document.addEventListener('keydown',this.handleKeyDown);}
-  componentWillUnmount():void{document.removeEventListener('keydown',this.handleKeyDown);}
+  private mounted=false;
+  componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.handleKeyDown);}
+  componentWillUnmount():void{this.mounted=false;document.removeEventListener('keydown',this.handleKeyDown);}
   private handleKeyDown=(event:KeyboardEvent)=>{
-    if(event.defaultPrevented||event.metaKey||event.ctrlKey||event.altKey||this.state.editing)return;
+    if(event.defaultPrevented||event.metaKey||event.ctrlKey||event.altKey||this.state.editing||document.querySelector('.modal-backdrop'))return;
     const target=event.target;
     const typing=target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement||target instanceof HTMLSelectElement||Boolean(target instanceof HTMLElement&&target.isContentEditable);
     if(event.key==='/'&&!typing){event.preventDefault();document.querySelector<HTMLInputElement>('.customers-search-input')?.focus();return;}
@@ -71,8 +72,8 @@ export class CustomersPage extends React.Component<Props,State> {
     const creatingDocument=`${customer.id}:${kind}`;
     this.setState({creatingDocument,error:''});
     try{await this.props.onNewDocument(kind,customer);}
-    catch(e){this.setState({error:e instanceof Error?e.message:t('Unable to create document.','تعذر إنشاء المستند.')});}
-    finally{this.setState({creatingDocument:''});}
+    catch(e){if(this.mounted)this.setState({error:e instanceof Error?e.message:t('Unable to create document.','تعذر إنشاء المستند.')});}
+    finally{if(this.mounted)this.setState({creatingDocument:''});}
   };
   private remove=async()=>{const c=this.state.deleting;if(!c||this.state.busy)return;this.setState({busy:true,error:''});try{await this.props.onDelete(c);this.setState({deleting:null,busy:false,error:''});}catch(e){this.setState({deleting:null,busy:false,error:e instanceof Error?e.message:t('Unable to delete customer.','تعذر حذف العميل.')});}};
   render():any{
