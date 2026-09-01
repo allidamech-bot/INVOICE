@@ -39,35 +39,40 @@
   font-variant-ligatures:common-ligatures contextual;
   font-feature-settings:"rlig" 1,"calt" 1,"liga" 1;
 }
+.invoice-page [dir="rtl"]{
+  direction:rtl;
+  unicode-bidi:isolate;
+}
 
-/* Explicit bidi isolation for free-form Arabic content. Values that are purely
-   numeric/Latin retain their existing LTR rules from document-direction-v78. */
+/* Free-form values may legitimately mix Arabic, English, numbers and trade
+   abbreviations. `plaintext` lets each value choose its own first-strong bidi
+   direction instead of inheriting an unsafe forced RTL paragraph direction. */
 .invoice-page.lang-ar .description-cell,
-.invoice-page.lang-ar .description-cell [dir="rtl"],
-.invoice-page.lang-ar .term-row>span,
-.invoice-page.lang-ar .notes-block p,
 .invoice-page.lang-ar .party-name,
 .invoice-page.lang-ar .party-address{
-  direction:rtl;
   text-align:right;
   unicode-bidi:isolate;
   word-break:normal;
   hyphens:none;
 }
-.invoice-page.lang-ar .description-cell [dir="rtl"],
 .invoice-page.lang-ar .term-row>span,
-.invoice-page.lang-ar .notes-block p,
+.invoice-page.lang-ar .notes-block p{
+  text-align:right;
+  unicode-bidi:plaintext;
+  word-break:normal;
+  hyphens:none;
+}
+.invoice-page.lang-ar .description-cell [dir="rtl"],
 .invoice-page [dir="rtl"]{
   font-family:var(--font-arabic,"Noto Sans Arabic",Tahoma,Arial,sans-serif);
 }
 
 /* Avoid visual reordering when an Arabic label sits beside codes, dates, money,
-   phone numbers, email addresses, IBAN/SWIFT or other LTR commercial values. */
+   phone numbers, email addresses or other explicitly LTR commercial values. */
 .invoice-page.lang-ar .money-cell,
 .invoice-page.lang-ar .doc-meta>div>span,
 .invoice-page.lang-ar .party-contact,
 .invoice-page.lang-ar .party-identifiers span,
-.invoice-page.lang-ar .bank-block span,
 .invoice-page.lang-ar .total-row>strong,
 .invoice-page.lang-ar .grand-total>strong{
   direction:ltr;
