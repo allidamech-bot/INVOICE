@@ -1,0 +1,153 @@
+/* v121 — automatic contrast and restrained LOUREX document palette.
+   Accent colors may decorate the document, but never decide readability.
+   Text uses stable neutral inks unless it sits directly on an accent surface,
+   where --accent-ink is calculated in TypeScript from luminance/contrast. */
+
+.invoice-page{
+  --contrast-ink:#13232f;
+  --contrast-ink-soft:#31424d;
+  --contrast-muted:#66747d;
+  --contrast-rule:#dce2e5;
+  --contrast-paper:#ffffff;
+  --contrast-ivory:#f7f4ed;
+  --contrast-gold:#b58b4f;
+  --contrast-navy:#0b2638;
+}
+
+/* Core information stays neutral and readable. Accent is reserved for structure. */
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .party-name,
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .description-cell,
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .money-cell.strong,
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .term-row span,
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .bank-block span{
+  color:var(--contrast-ink)!important;
+}
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .section-kicker,
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .term-row b,
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .bank-block b,
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .total-row span{
+  color:var(--contrast-muted)!important;
+}
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .party-customer .section-kicker{
+  color:var(--contrast-ink-soft)!important;
+}
+
+/* Never tint monetary values with a decorative accent on light paper. */
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .items-table .money-cell,
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .total-row strong{
+  color:var(--contrast-ink-soft)!important;
+}
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .items-table .money-cell.strong{
+  color:var(--contrast-ink)!important;
+}
+
+/* Customer emphasis is structural, not colored text. */
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .party-customer{
+  border-color:var(--contrast-rule)!important;
+}
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .party-customer{
+  box-shadow:inset 1.15mm 0 0 var(--accent)!important;
+}
+.invoice-page.lang-ar:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .party-customer{
+  box-shadow:inset -1.15mm 0 0 var(--accent)!important;
+}
+
+/* The closing area remains navy/neutral regardless of custom accent brightness. */
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .totals-block{
+  border-color:var(--contrast-rule)!important;
+  background:linear-gradient(180deg,#fff 0%,#f7f8f7 100%)!important;
+  color:var(--contrast-ink)!important;
+}
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .grand-total{
+  background:var(--contrast-navy)!important;
+  color:#fff!important;
+}
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .grand-total span,
+.invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .grand-total strong{
+  color:#fff!important;
+}
+
+/* SPLIT is the only common light-document template with text directly on Accent.
+   Use the luminance-calculated accent ink instead of assuming white. */
+.template-split .modern-brand,
+.template-split .modern-brand .doc-logo-words,
+.template-split .modern-brand .doc-logo-words strong,
+.template-split .modern-brand .doc-logo-words small{
+  color:var(--accent-ink)!important;
+}
+.template-split .modern-brand .doc-logo-words strong,
+.template-split .modern-brand .doc-logo-words small{
+  color:var(--accent-ink)!important;
+}
+
+/* PRISM: decorative geometry is deliberately pale so title text always stays dark. */
+.template-prism .modern-geometry{
+  background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 24%,#fff),#e8eef0)!important;
+  opacity:1!important;
+}
+.template-prism .modern-title>small,
+.template-prism .doc-title span,
+.template-prism .doc-title em{
+  color:var(--contrast-ink)!important;
+}
+
+/* AURORA: remove purple hue injection. Keep the masthead navy; accent becomes detail only. */
+.template-aurora .header-modern{
+  background:linear-gradient(118deg,#0a2638 0%,#123b52 72%,#17485f 100%)!important;
+  color:#fff!important;
+}
+.template-aurora .modern-title>small,
+.template-aurora .doc-title span,
+.template-aurora .doc-title em,
+.template-aurora .doc-meta b,
+.template-aurora .doc-meta span{
+  color:#fff!important;
+}
+.template-aurora .modern-geometry{
+  border-color:color-mix(in srgb,var(--accent) 48%,rgba(255,255,255,.18))!important;
+}
+.template-aurora .page-accent{
+  display:block!important;
+  height:1.2mm!important;
+  background:var(--accent)!important;
+}
+
+/* EXECUTIVE / TRADE / SIGNATURE: LOUREX brand colors, accent only as a datum. */
+.template-executive .header-executive{
+  background:linear-gradient(118deg,#081e2e 0%,#0f3045 100%)!important;
+  border-bottom-color:var(--accent)!important;
+}
+.template-trade .trade-bar{background:linear-gradient(155deg,#082234,#143d55)!important}
+.template-signature .page-accent{
+  background:linear-gradient(90deg,var(--contrast-navy) 0 78%,var(--accent) 78% 100%)!important;
+}
+
+/* HORIZON / LEDGER: no accent-colored copy. */
+.template-horizon .header-modern:before{
+  background:linear-gradient(90deg,var(--contrast-navy) 0 78%,var(--accent) 78% 100%)!important;
+}
+.template-ledger .section-kicker,
+.template-ledger .party-customer .section-kicker{
+  color:var(--contrast-ink-soft)!important;
+}
+
+/* Dark templates keep gold as hierarchy but guarantee legible primary copy. */
+.template-noir .party-name,.template-noir .description-cell,
+.template-midnight .party-name,.template-midnight .description-cell,
+.template-carbon .party-name,.template-carbon .description-cell{color:#f4f1ea!important}
+.template-blackivory .party-seller .party-name,.template-blackivory .party-seller .description-cell{color:#f4f1ea!important}
+.template-blackivory .party-customer .party-name{color:#171716!important}
+.template-noir .money-cell,.template-midnight .money-cell,.template-carbon .money-cell{color:#eee7da!important}
+.template-noir .money-cell.strong,.template-midnight .money-cell.strong,.template-carbon .money-cell.strong{color:#e4c27c!important}
+
+/* Arabic inherits the same contrast decisions without changing bidi behavior. */
+.invoice-page.lang-ar .section-kicker,
+.invoice-page.lang-ar .terms-block h3,
+.invoice-page.lang-ar .notes-block h3,
+.invoice-page.lang-ar .bank-block h3{
+  text-shadow:none!important;
+}
+
+@media print{
+  .invoice-page{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}

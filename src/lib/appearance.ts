@@ -16,11 +16,14 @@ export const ARABIC_FONT_OPTIONS: Array<{value:ArabicFontId;label:string}> = [
   {value:'noto-naskh',label:'Noto Naskh Arabic'}
 ];
 
+// Brand-safe automatic accents. These colors are intentionally restrained:
+// navy / champagne / slate / corporate blue / muted teal. Accent is decorative;
+// readable text is handled separately through resolvedAccentInk and v121 CSS.
 const AUTO_ACCENTS: Record<TemplateId,string> = {
   executive:'#b58b4f', minimal:'#0b1d2d', trade:'#b58b4f', signature:'#b58b4f',
-  obsidian:'#c7a86a', cobalt:'#426a9f', editorial:'#9f634b', split:'#bd8c48',
-  prism:'#7259b8', slate:'#627486', horizon:'#b38750', mono:'#161616',
-  aurora:'#6b5bb4', ledger:'#8c6d42', noir:'#c7a15d', midnight:'#c8a25a',
+  obsidian:'#b79b67', cobalt:'#356f9c', editorial:'#8b7258', split:'#b58b4f',
+  prism:'#3f736f', slate:'#5f7484', horizon:'#b58b4f', mono:'#161616',
+  aurora:'#b58b4f', ledger:'#8a704b', noir:'#c7a15d', midnight:'#c8a25a',
   blackivory:'#b78a41', carbon:'#ba914d'
 };
 
