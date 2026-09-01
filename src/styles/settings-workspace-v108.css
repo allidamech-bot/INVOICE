@@ -1,0 +1,381 @@
+/* v108 — Settings workspace simplification.
+   Application settings only. Invoice/A4 output and stored settings schemas remain untouched. */
+
+.app-ui .settings-layout{
+  gap:22px;
+}
+
+.app-ui .settings-tabs{
+  align-self:start;
+  position:sticky;
+  top:0;
+  display:grid;
+  gap:6px;
+  padding:4px;
+  border:1px solid #e0e6e9;
+  border-radius:14px;
+  background:#f7f8f7;
+}
+
+.app-ui .settings-tabs button{
+  min-height:43px;
+  padding:9px 12px!important;
+  border:1px solid transparent!important;
+  border-radius:10px!important;
+  background:transparent!important;
+  color:#62727c!important;
+  font-weight:760;
+  text-align:start!important;
+  box-shadow:none!important;
+}
+
+.app-ui .settings-tabs button:hover{
+  background:#fff!important;
+  color:#17384d!important;
+}
+
+.app-ui .settings-tabs button.active{
+  border-color:#d4e1e7!important;
+  background:#fff!important;
+  color:#174866!important;
+  box-shadow:0 2px 8px rgba(14,39,55,.055)!important;
+}
+
+.app-ui .settings-panel{
+  width:100%;
+  max-width:900px;
+  margin-inline:auto;
+}
+
+/* Keep save access visible through long company/default forms. */
+.app-ui .settings-title{
+  position:sticky;
+  top:-1px;
+  z-index:9;
+  min-height:58px;
+  margin:0 0 4px;
+  padding:9px 2px 10px;
+  align-items:center;
+  border-bottom:1px solid rgba(218,225,229,.9);
+  background:rgba(251,250,247,.97);
+  backdrop-filter:blur(14px);
+}
+
+.app-ui .settings-title .eyebrow{
+  margin-bottom:2px;
+  color:#7b8991;
+  font-size:9.5px;
+  letter-spacing:.075em;
+}
+
+.app-ui .settings-title h3{
+  margin:0;
+  color:#142f40;
+  font-size:17px;
+}
+
+.app-ui .settings-title>.btn{
+  min-width:104px;
+  min-height:40px;
+}
+
+/* One continuous settings surface: sections are separated by rhythm, not nested cards. */
+.app-ui .settings-section{
+  margin:0!important;
+  padding:22px 2px!important;
+  border:0!important;
+  border-bottom:1px solid #e8edef!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+
+.app-ui .settings-section:last-child{
+  border-bottom:0!important;
+}
+
+.app-ui .settings-section>h4{
+  margin:0 0 14px;
+  color:#203b4c;
+  font-size:13px;
+  font-weight:820;
+}
+
+.app-ui .settings-section .form-grid{
+  gap:13px 14px;
+}
+
+.app-ui .settings-section .field-label{
+  color:#596c78;
+  font-size:10.5px;
+  font-weight:750;
+}
+
+.app-ui .settings-section .input,
+.app-ui .settings-section select.input{
+  min-height:43px;
+  border-color:#d7dfe3;
+  background:#fff;
+  box-shadow:none;
+}
+
+.app-ui .settings-section textarea.input{
+  min-height:88px;
+}
+
+/* Branding assets should read as a simple three-item strip, not nested cards. */
+.app-ui .asset-settings{
+  display:grid!important;
+  grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);
+  gap:10px!important;
+  margin-top:18px!important;
+  padding-top:17px;
+  border-top:1px solid #edf1f2;
+}
+
+.app-ui .asset-settings>label,
+.app-ui .asset-settings>.asset-control{
+  min-width:0;
+  padding:10px!important;
+  border:1px solid #e0e6e9!important;
+  border-radius:12px!important;
+  background:#fafbfb!important;
+  box-shadow:none!important;
+}
+
+.app-ui .asset-settings label>span,
+.app-ui .asset-control>label>span{
+  display:block;
+  margin-bottom:7px;
+  color:#526875;
+  font-size:10.5px;
+  font-weight:800;
+}
+
+.app-ui .asset-preview{
+  min-height:84px;
+  border-radius:9px!important;
+  background:#fff!important;
+  box-shadow:none!important;
+}
+
+.app-ui .logo-mode-switch{
+  margin-top:8px!important;
+  gap:5px!important;
+}
+
+.app-ui .logo-mode-switch button,
+.app-ui .logo-rebuild-action,
+.app-ui .logo-rebuild-restore{
+  min-height:35px;
+  border-radius:9px!important;
+}
+
+.app-ui .asset-clean-hint{
+  margin:10px 0 0!important;
+  padding:9px 11px!important;
+  border:0!important;
+  border-radius:10px!important;
+  background:#f5f8f8!important;
+  color:#667982!important;
+  box-shadow:none!important;
+  font-size:10.5px!important;
+}
+
+/* Numbering is a small control, so keep it visually compact. */
+.app-ui .numbering-preview{
+  display:grid!important;
+  grid-template-columns:1fr 1fr;
+  gap:8px!important;
+  margin-top:13px!important;
+}
+
+.app-ui .numbering-preview span{
+  min-width:0;
+  padding:9px 11px!important;
+  border:1px solid #e1e7e9!important;
+  border-radius:10px!important;
+  background:#f8faf9!important;
+  color:#29495c!important;
+  font-size:11px!important;
+  font-weight:760;
+  text-align:center;
+  box-shadow:none!important;
+}
+
+.app-ui .settings-note{
+  margin-top:10px!important;
+  color:#71818a!important;
+  font-size:10.5px!important;
+  line-height:1.55!important;
+}
+
+/* Security and backup actions should be easy to distinguish, but remain calm. */
+.app-ui .backup-cards{
+  gap:12px!important;
+}
+
+.app-ui .backup-card{
+  padding:18px!important;
+  border-color:#e0e6e9!important;
+  border-radius:13px!important;
+  background:#fafbfb!important;
+  box-shadow:none!important;
+}
+
+.app-ui .backup-card.danger-zone{
+  background:#fffaf9!important;
+  border-color:#eadad6!important;
+}
+
+.app-ui .backup-card p{
+  line-height:1.6;
+  color:#687983;
+}
+
+@media (max-width:900px){
+  .app-ui .settings-layout{
+    gap:14px;
+  }
+  .app-ui .asset-settings{
+    grid-template-columns:1fr 1fr;
+  }
+  .app-ui .asset-settings>.logo-asset-control{
+    grid-column:1 / -1;
+  }
+}
+
+@media (max-width:720px){
+  .app-ui .settings-layout{
+    display:block!important;
+  }
+
+  .app-ui .settings-tabs{
+    top:-14px!important;
+    z-index:14;
+    display:flex!important;
+    width:calc(100% + 24px)!important;
+    margin:-14px -12px 0!important;
+    padding:8px 12px!important;
+    gap:6px!important;
+    overflow-x:auto;
+    border:0!important;
+    border-bottom:1px solid #e2e7e9!important;
+    border-radius:0!important;
+    background:rgba(251,250,247,.98)!important;
+    scrollbar-width:none;
+    backdrop-filter:blur(14px);
+  }
+  .app-ui .settings-tabs::-webkit-scrollbar{display:none}
+  .app-ui .settings-tabs button{
+    flex:0 0 auto;
+    min-width:auto!important;
+    min-height:38px;
+    padding:8px 11px!important;
+    white-space:nowrap;
+    text-align:center!important;
+  }
+
+  .app-ui .settings-panel{
+    max-width:none;
+  }
+
+  .app-ui .settings-title{
+    top:47px;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:10px!important;
+    min-height:57px!important;
+    margin-inline:-2px;
+    padding:8px 2px 9px!important;
+    background:rgba(251,250,247,.98)!important;
+  }
+  .app-ui .settings-title>.btn{
+    width:auto!important;
+    min-width:86px!important;
+    min-height:40px!important;
+    padding-inline:13px!important;
+  }
+
+  /* No paired narrow fields on phones. */
+  .app-ui .settings-panel .form-grid.two,
+  .app-ui .settings-panel .form-grid.one{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .app-ui .settings-panel .form-grid .span-2{
+    grid-column:auto!important;
+  }
+
+  .app-ui .settings-section{
+    padding:18px 0!important;
+  }
+  .app-ui .settings-section:first-of-type{
+    padding-top:14px!important;
+  }
+  .app-ui .settings-section>h4{
+    margin-bottom:12px;
+    font-size:12.5px;
+  }
+
+  .app-ui .asset-settings{
+    grid-template-columns:1fr 1fr!important;
+    gap:8px!important;
+    margin-top:15px!important;
+    padding-top:14px;
+  }
+  .app-ui .asset-settings>.logo-asset-control{
+    grid-column:1 / -1;
+  }
+  .app-ui .asset-settings>label,
+  .app-ui .asset-settings>.asset-control{
+    padding:9px!important;
+  }
+  .app-ui .asset-preview{
+    min-height:76px;
+  }
+
+  .app-ui .numbering-preview{
+    grid-template-columns:1fr!important;
+  }
+
+  .app-ui .backup-cards{
+    grid-template-columns:1fr!important;
+  }
+  .app-ui .backup-card{
+    padding:15px!important;
+  }
+}
+
+@media (max-width:390px){
+  .app-ui .settings-title h3{
+    font-size:15px;
+  }
+  .app-ui .settings-title>.btn{
+    min-width:78px!important;
+    padding-inline:10px!important;
+  }
+  .app-ui .settings-tabs button{
+    padding-inline:9px!important;
+  }
+}
+
+@media (hover:none), (pointer:coarse){
+  .app-ui .settings-tabs button:hover{
+    background:transparent!important;
+    color:#62727c!important;
+  }
+  .app-ui .settings-tabs button.active:hover{
+    background:#fff!important;
+    color:#174866!important;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .app-ui .settings-tabs button{
+    transition:none!important;
+  }
+}
+
+@media print{
+  .app-ui .settings-layout{display:none!important}
+}
