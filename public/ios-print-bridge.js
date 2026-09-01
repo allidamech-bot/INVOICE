@@ -1,7 +1,8 @@
-/* LOUREX iOS PDF bridge.
+/* LOUREX iOS PDF bridge — v119.
    Safari on iPhone can expose computed CSS colors as CSS Color 4 `color(...)`
    values (especially display-p3). html2canvas 1.4.1 does not parse that syntax.
-   This bridge normalizes those colors before capture and preserves signature /
+   This bridge normalizes those colors, explicitly stabilizes Arabic/RTL text
+   before Canvas capture, waits for the Arabic web font, and preserves signature /
    stamp artwork as native high-resolution PDF overlays instead of flattening
    those fine-detail assets into the page JPEG. */
 (() => {
@@ -12,6 +13,8 @@
   const HTML2CANVAS_URL = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
   const JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
   const SHARP_MEDIA_SELECTOR = '.signature-image,.stamp-image';
+  const ARABIC_TEXT_RE = /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]/;
+  const LATIN_TEXT_RE = /[A-Za-z\u00c0-\u02af]/;
   const COLOR_PROPS = [
     'color','background-color','border-top-color','border-right-color','border-bottom-color','border-left-color',
     'outline-color','text-decoration-color','column-rule-color','caret-color','fill','stroke','flood-color',
@@ -74,12 +77,56 @@
   const normalizeUnsupportedColors = (root) => {
     const nodes = [root, ...Array.from(root.querySelectorAll('*'))];
     for (const node of nodes) {
-      if (!(node instanceof Element)) continue;
+      if (!node?.style) continue;
       const computed = getComputedStyle(node);
       for (const prop of COLOR_PROPS) {
         const value = computed.getPropertyValue(prop);
         if (!value || !/color\(/i.test(value)) continue;
         node.style.setProperty(prop, replaceColorFunction(value), 'important');
+      }
+    }
+  };
+
+  const firstStrongDirection = (value, fallback = 'ltr') => {
+    const text = String(value || '');
+    const rtlIndex = text.search(ARABIC_TEXT_RE);
+    const ltrIndex = text.search(LATIN_TEXT_RE);
+    if (rtlIndex >= 0 && (ltrIndex < 0 || rtlIndex < ltrIndex)) return 'rtl';
+    if (ltrIndex >= 0) return 'ltr';
+    if (/\d/.test(text)) return 'ltr';
+    return fallback;
+  };
+  const stabilizeDocumentDirection = (root) => {
+    if (!root?.querySelectorAll) return;
+    const pageArabic = root.classList?.contains('lang-ar');
+    const pageEnglish = root.classList?.contains('lang-en');
+    const fallback = pageArabic ? 'rtl' : 'ltr';
+    root.setAttribute?.('dir', fallback);
+    root.setAttribute?.('lang', pageArabic ? 'ar' : pageEnglish ? 'en' : 'en');
+    root.style?.setProperty('direction', fallback, 'important');
+    root.style?.setProperty('unicode-bidi', 'isolate', 'important');
+    if (pageArabic) {
+      root.style?.setProperty('text-align', 'right', 'important');
+      root.style?.setProperty('letter-spacing', 'normal', 'important');
+      root.style?.setProperty('word-spacing', 'normal', 'important');
+    }
+
+    const leaves = [root, ...Array.from(root.querySelectorAll('*'))];
+    for (const node of leaves) {
+      if (!node?.style || (node.children && node.children.length)) continue;
+      const text = String(node.textContent || '').trim();
+      if (!text) continue;
+      const dir = firstStrongDirection(text, fallback);
+      node.setAttribute?.('dir', dir);
+      node.style.setProperty('direction', dir, 'important');
+      node.style.setProperty('unicode-bidi', 'isolate', 'important');
+      if (dir === 'rtl') {
+        node.style.setProperty('text-align', 'right', 'important');
+        node.style.setProperty('letter-spacing', 'normal', 'important');
+        node.style.setProperty('word-spacing', 'normal', 'important');
+        node.style.setProperty('font-kerning', 'normal', 'important');
+        node.style.setProperty('font-variant-ligatures', 'common-ligatures contextual', 'important');
+        node.style.setProperty('font-feature-settings', '"rlig" 1, "calt" 1, "liga" 1', 'important');
       }
     }
   };
@@ -139,7 +186,16 @@
     await loadScript(JSPDF_URL,()=>Boolean(window.jspdf?.jsPDF));
   };
   const waitForCloneAssets = async (stage) => {
-    try { if (document.fonts) await Promise.race([document.fonts.ready,new Promise(resolve=>setTimeout(resolve,1800))]); } catch {}
+    try {
+      if (document.fonts) {
+        const fontJobs = [document.fonts.ready];
+        if (ARABIC_TEXT_RE.test(String(stage.textContent || ''))) {
+          fontJobs.push(document.fonts.load('400 12px "Noto Sans Arabic"','العربية'));
+          fontJobs.push(document.fonts.load('700 12px "Noto Sans Arabic"','العربية'));
+        }
+        await Promise.race([Promise.allSettled(fontJobs),new Promise(resolve=>setTimeout(resolve,2200))]);
+      }
+    } catch {}
     await Promise.all(Array.from(stage.querySelectorAll('img')).map(image => {
       if (image.complete) return Promise.resolve();
       return new Promise(resolve => {
@@ -221,6 +277,7 @@
         const clone = source.cloneNode(true);
         clone.style.setProperty('width','210mm','important'); clone.style.setProperty('min-width','210mm','important'); clone.style.setProperty('max-width','210mm','important');
         clone.style.setProperty('height','297mm','important'); clone.style.setProperty('min-height','297mm','important'); clone.style.setProperty('margin','0','important'); clone.style.setProperty('transform','none','important');
+        stabilizeDocumentDirection(clone);
         stage.appendChild(clone);
       }
       document.body.appendChild(stage);
@@ -228,14 +285,27 @@
         await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
         await waitForCloneAssets(stage);
         normalizeUnsupportedColors(stage);
+        Array.from(stage.querySelectorAll('.invoice-page')).forEach(stabilizeDocumentDirection);
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
         const pages = Array.from(stage.querySelectorAll('.invoice-page'));
         const renderScale = Math.min(2,Math.max(1.45,window.devicePixelRatio||1.5));
         for (let index=0; index<pages.length; index+=1) {
           const page = pages[index];
+          stabilizeDocumentDirection(page);
           const sharpMedia = collectSharpMedia(page);
-          const canvas = await window.html2canvas(page,{scale:renderScale,useCORS:true,allowTaint:false,logging:false,backgroundColor:'#ffffff',imageTimeout:1800,removeContainer:true});
+          const canvas = await window.html2canvas(page,{
+            scale:renderScale,
+            useCORS:true,
+            allowTaint:false,
+            logging:false,
+            backgroundColor:'#ffffff',
+            imageTimeout:1800,
+            removeContainer:true,
+            onclone:(clonedDocument)=>{
+              Array.from(clonedDocument.querySelectorAll('.invoice-page')).forEach(stabilizeDocumentDirection);
+            }
+          });
           if (index>0) pdf.addPage('a4','portrait');
           pdf.addImage(canvas.toDataURL('image/jpeg',0.94),'JPEG',0,0,210,297,undefined,'FAST');
           await addSharpMedia(pdf,sharpMedia);
