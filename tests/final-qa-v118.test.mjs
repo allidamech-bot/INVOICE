@@ -53,3 +53,14 @@ test('v118 customer quick-document transition never sets state after its page un
   assert.match(source,/Create this customer without typing the name again/);
   assert.match(source,/Add your first customer/);
 });
+
+test('v118 global search shortcuts cannot pull focus behind an open modal',async()=>{
+  const [documents,customers,items]=await Promise.all([
+    read('src/components/DocumentsPage.tsx'),
+    read('src/components/CustomersPage.tsx'),
+    read('src/components/SavedItemsPage.tsx')
+  ]);
+  assert.match(documents,/handleKeyDown=\(event:KeyboardEvent\)=>\{\s*if\(document\.querySelector\('\.modal-backdrop'\)\)return;/);
+  assert.match(customers,/this\.state\.editing\|\|document\.querySelector\('\.modal-backdrop'\)\)return;/);
+  assert.match(items,/event\.key!=='\/'\|\|document\.querySelector\('\.modal-backdrop'\)\)return;/);
+});
