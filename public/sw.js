@@ -1,4 +1,4 @@
-// v117 — deep system audit hardening: atomic catalog import, dialog shortcut isolation, and resilient offline runtime coverage; retains v116 workflow presets and all compatibility layers.
+// v117 — deep system audit hardening: atomic catalog import, dialog shortcut isolation, and resilient offline runtime coverage; retains v116 workflow presets, v115 simplified onboarding, v114 customer UX, v113 Product Library Pro, v112 metadata assistance, v111 product-entry presets, v110 system closeout, and v103 saved-item compatibility.
 // Compatibility marker retained for legacy regression coverage: lourex-invoice-v65.
 // Runtime compatibility markers: react@17.0.2/umd/react.production.min.js | react-dom@17.0.2/umd/react-dom.production.min.js
 const CACHE = 'lourex-invoice-v101';
