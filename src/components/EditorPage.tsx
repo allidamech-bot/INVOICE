@@ -95,7 +95,8 @@ export class EditorPage extends React.Component<Props,State>{
 
   private sameSectionMeta=(a:EditorSectionNavItem[],b:EditorSectionNavItem[])=>a.length===b.length&&a.every((item,index)=>{
     const other=b[index];
-    return Boolean(other)&&item.id===other.id&&item.number===other.number&&item.label===other.label&&item.hasError===other.hasError;
+    if(!other)return false;
+    return item.id===other.id&&item.number===other.number&&item.label===other.label&&item.hasError===other.hasError;
   });
 
   private syncSectionMeta=()=>{
@@ -114,10 +115,11 @@ export class EditorPage extends React.Component<Props,State>{
 
   private syncActiveSection=()=>{
     const sections=this.getEditorSections();
-    if(!sections.length)return;
+    const first=sections[0];
+    if(!first)return;
     const rootTop=this.navScrollRoot?.getBoundingClientRect().top??0;
     const anchor=rootTop+Math.min(150,Math.max(88,window.innerHeight*.18));
-    let active=sections[0];
+    let active:HTMLElement=first;
     for(const section of sections){
       if(section.getBoundingClientRect().top<=anchor)active=section;
       else break;
@@ -152,7 +154,7 @@ export class EditorPage extends React.Component<Props,State>{
     const form=document.querySelector('.editor-pane .editor-form-lock');
     if(form){
       this.navMutationObserver=new MutationObserver(()=>this.syncSectionMeta());
-      this.navMutationObserver.observe(form,{attributes:true,subtree:true,attributeFilter:['class']});
+      this.navMutationObserver.observe(form,{attributes:true,childList:true,characterData:true,subtree:true,attributeFilter:['class']});
     }
     this.syncActiveSection();
   };
