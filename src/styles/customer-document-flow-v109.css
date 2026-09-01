@@ -1,0 +1,145 @@
+/* v109 — customer-to-document quick flow. App UI only; printable invoice templates are intentionally untouched. */
+
+.app-ui .customer-card-v109{
+  grid-template-columns:minmax(0,1fr) auto auto;
+  gap:10px;
+  align-items:center;
+}
+.app-ui .customer-card-v109 .customer-card-main{
+  min-width:0;
+}
+.app-ui .customer-document-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex:0 0 auto;
+}
+.app-ui .customer-document-action{
+  appearance:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-height:40px;
+  padding:0 11px;
+  border:1px solid #dce4e8;
+  border-radius:10px;
+  background:#fff;
+  color:#173244;
+  font:inherit;
+  font-size:12px;
+  font-weight:700;
+  line-height:1;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:background-color .15s ease,border-color .15s ease,transform .15s ease;
+}
+.app-ui .customer-document-action:hover:not(:disabled){
+  background:#f7fafb;
+  border-color:#c9d8df;
+}
+.app-ui .customer-document-action:active:not(:disabled){
+  transform:translateY(1px);
+}
+.app-ui .customer-document-action:focus-visible{
+  outline:2px solid currentColor;
+  outline-offset:2px;
+}
+.app-ui .customer-document-action:disabled{
+  opacity:.5;
+  cursor:default;
+}
+.app-ui .customer-document-action.quote{
+  background:#f8fbfc;
+}
+.app-ui .customer-document-action.invoice{
+  border-color:#d6dde1;
+}
+.app-ui .customer-document-action .icon{
+  width:16px;
+  height:16px;
+  flex:0 0 16px;
+}
+.app-ui .customer-card-v109 .customer-actions{
+  padding-inline-start:2px;
+}
+
+@media (max-width:900px){
+  .app-ui .customer-card-v109{
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+  .app-ui .customer-card-v109 .customer-card-main{
+    grid-column:1 / -1;
+  }
+  .app-ui .customer-document-actions{
+    grid-column:1;
+    min-width:0;
+  }
+  .app-ui .customer-card-v109 .customer-actions{
+    grid-column:2;
+    justify-self:end;
+  }
+}
+
+@media (max-width:720px){
+  .app-ui .customer-card-v109{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:9px 8px!important;
+    padding:12px!important;
+    min-height:0!important;
+  }
+  .app-ui .customer-card-v109 .customer-card-main{
+    grid-column:1 / -1;
+    width:100%;
+  }
+  .app-ui .customer-document-actions{
+    width:100%;
+    gap:7px;
+  }
+  .app-ui .customer-document-action{
+    flex:1 1 0;
+    min-width:0;
+    min-height:44px;
+    padding:0 10px;
+    border-radius:11px;
+    font-size:12px;
+  }
+  .app-ui .customer-card-v109 .customer-actions{
+    display:flex;
+    align-items:center;
+    gap:2px;
+  }
+  .app-ui .customer-card-v109 .customer-actions .icon-btn{
+    min-width:44px;
+    width:44px;
+    height:44px;
+  }
+}
+
+@media (max-width:390px){
+  .app-ui .customer-document-action{
+    gap:5px;
+    padding-inline:8px;
+  }
+}
+
+@media (pointer:coarse){
+  .app-ui .customer-document-action:hover:not(:disabled){
+    background:#fff;
+    transform:none;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .app-ui .customer-document-action{
+    transition:none;
+  }
+}
+
+@media print{
+  .app-ui .customer-document-flow-v109,
+  .app-ui .customer-document-actions{
+    display:none!important;
+  }
+}

@@ -1,4 +1,4 @@
-import type { Customer } from '../types.js';
+import type { Customer, DocumentKind } from '../types.js';
 import { makeId } from '../lib/id.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { Button, ConfirmDialog, Field, Icon, IconButton, Input, Modal, Select, Textarea } from './UI.js';
@@ -17,14 +17,14 @@ export function CustomerForm({customer,onChange}:FormProps): any {
 }
 
 type CustomerSort='name'|'recent';
-interface Props { customers: Customer[]; onSave: (customer:Customer)=>Promise<void>; onDelete:(customer:Customer)=>Promise<void>; }
-interface State { query:string; sort:CustomerSort; editing:Customer|null; editingInitial:string; discardConfirm:boolean; deleting:Customer|null; error:string; busy:boolean; }
+interface Props { customers: Customer[]; onSave: (customer:Customer)=>Promise<void>; onDelete:(customer:Customer)=>Promise<void>; onNewDocument:(kind:DocumentKind,customer:Customer)=>Promise<void>; }
+interface State { query:string; sort:CustomerSort; editing:Customer|null; editingInitial:string; discardConfirm:boolean; deleting:Customer|null; error:string; busy:boolean; creatingDocument:string; }
 
 function normalizeCustomerName(value:string):string{return value.trim().replace(/\s+/g,' ').toLocaleLowerCase();}
 function customerDisplayName(customer:Customer):string{return (isArabic()?(customer.companyNameAr||customer.companyNameEn):(customer.companyNameEn||customer.companyNameAr)).trim();}
 
 export class CustomersPage extends React.Component<Props,State> {
-  state:State={query:'',sort:'name',editing:null,editingInitial:'',discardConfirm:false,deleting:null,error:'',busy:false};
+  state:State={query:'',sort:'name',editing:null,editingInitial:'',discardConfirm:false,deleting:null,error:'',busy:false,creatingDocument:''};
   componentDidMount():void{document.addEventListener('keydown',this.handleKeyDown);}
   componentWillUnmount():void{document.removeEventListener('keydown',this.handleKeyDown);}
   private handleKeyDown=(event:KeyboardEvent)=>{
@@ -66,13 +66,21 @@ export class CustomersPage extends React.Component<Props,State> {
     this.setState({busy:true,error:''});
     try{await this.props.onSave(c);this.setState({editing:null,editingInitial:'',discardConfirm:false,busy:false,error:'',query:''});}catch(e){this.setState({error:e instanceof Error?e.message:t('Unable to save customer.','تعذر حفظ العميل.'),busy:false});}
   };
+  private createDocument=async(kind:DocumentKind,customer:Customer)=>{
+    if(this.state.creatingDocument||this.state.busy)return;
+    const creatingDocument=`${customer.id}:${kind}`;
+    this.setState({creatingDocument,error:''});
+    try{await this.props.onNewDocument(kind,customer);}
+    catch(e){this.setState({error:e instanceof Error?e.message:t('Unable to create document.','تعذر إنشاء المستند.')});}
+    finally{this.setState({creatingDocument:''});}
+  };
   private remove=async()=>{const c=this.state.deleting;if(!c||this.state.busy)return;this.setState({busy:true,error:''});try{await this.props.onDelete(c);this.setState({deleting:null,busy:false,error:''});}catch(e){this.setState({deleting:null,busy:false,error:e instanceof Error?e.message:t('Unable to delete customer.','تعذر حذف العميل.')});}};
   render():any{
     const customers=this.filtered();
     const query=this.state.query.trim();
     const hasFilter=Boolean(query);
-    return <section className="page customers-page premium-customers-page">
-      <div className="page-heading customers-heading"><div><p className="eyebrow">{t('Address book','دليل العملاء')}</p><h1>{t('Customers','العملاء')}</h1><p className="page-subtitle">{t('Keep customer details ready for faster quotes and invoices.','احتفظ ببيانات العملاء جاهزة لإنشاء عروض الأسعار والفواتير بسرعة.')}</p></div><Button icon="plus" variant="primary" onClick={this.newCustomer}>{query?t(`Add “${query}”`,`إضافة «${query}»`):t('Add Customer','إضافة عميل')}</Button></div>
+    return <section className="page customers-page premium-customers-page customer-document-flow-v109">
+      <div className="page-heading customers-heading"><div><p className="eyebrow">{t('Address book','دليل العملاء')}</p><h1>{t('Customers','العملاء')}</h1><p className="page-subtitle">{t('Choose a customer and start a quote or invoice immediately.','اختر العميل وابدأ عرض سعر أو فاتورة مباشرة.')}</p></div><Button icon="plus" variant="primary" onClick={this.newCustomer}>{query?t(`Add “${query}”`,`إضافة «${query}»`):t('Add Customer','إضافة عميل')}</Button></div>
       <div className="list-toolbar customers-toolbar premium-customers-toolbar"><div className="search-box customers-search-box"><Icon name="search"/><Input className="customers-search-input" aria-label={t('Search customers','بحث في العملاء')} placeholder={t('Search name, phone, email or location','ابحث بالاسم أو الهاتف أو البريد أو الموقع')} value={this.state.query} onChange={(e:any)=>this.setState({query:e.target.value})}/>{query?<IconButton className="customers-search-clear" icon="x" label={t('Clear search','مسح البحث')} onClick={()=>this.setState({query:''})}/>:<kbd className="customers-search-shortcut" aria-hidden="true">/</kbd>}</div><Select className="customers-sort" aria-label={t('Sort customers','ترتيب العملاء')} value={this.state.sort} onChange={(e:any)=>this.setState({sort:e.target.value as CustomerSort})}><option value="name">{t('Name A–Z','الاسم أ–ي')}</option><option value="recent">{t('Recently updated','الأحدث تعديلًا')}</option></Select></div>
       <div className="customers-results-bar"><span><strong>{customers.length}</strong><span>{hasFilter?t('matching','مطابق'):t('customers','عميل')}</span>{hasFilter?<><i aria-hidden="true">/</i><span>{this.props.customers.length} {t('total','إجمالي')}</span></>:null}</span>{hasFilter?<button type="button" onClick={()=>this.setState({query:''})}>{t('Clear search','مسح البحث')}</button>:null}</div>
       {this.state.error&&!this.state.editing?<div className="inline-error" role="alert">{this.state.error}</div>:null}
@@ -80,7 +88,10 @@ export class CustomersPage extends React.Component<Props,State> {
         const primary=customerDisplayName(c)||t('Unnamed customer','عميل بدون اسم');
         const location=[c.city,c.country].filter(Boolean).join(', ');
         const contact=[c.email,c.phone].filter(Boolean).join(' · ');
-        return <article className="customer-card premium-customer-card" key={c.id}><button type="button" className="customer-card-main" onClick={()=>this.beginEdit(c)}><span className="customer-avatar">{primary.trim().charAt(0).toUpperCase()||'C'}</span><span className="customer-info"><span className="customer-name-row"><strong>{primary}</strong>{c.contactPerson?<em>{c.contactPerson}</em>:null}</span>{c.companyNameAr&&c.companyNameEn?<span className="customer-secondary-name" dir={isArabic()?'ltr':'rtl'}>{isArabic()?c.companyNameEn:c.companyNameAr}</span>:null}<small>{location||t('No location','لا يوجد موقع')}</small><small className={contact?'':'customer-missing-contact'}>{contact||t('Add phone or email','أضف الهاتف أو البريد')}</small></span></button><div className="customer-actions"><IconButton icon="edit" label={t('Edit','تعديل')} onClick={()=>this.beginEdit(c)}/><IconButton icon="trash" label={t('Delete','حذف')} variant="danger" disabled={this.state.busy} onClick={()=>this.setState({deleting:c,error:''})}/></div></article>;
+        const creatingQuote=this.state.creatingDocument===`${c.id}:proforma`;
+        const creatingInvoice=this.state.creatingDocument===`${c.id}:invoice`;
+        const creatingAny=Boolean(this.state.creatingDocument);
+        return <article className="customer-card premium-customer-card customer-card-v109" key={c.id}><button type="button" className="customer-card-main" onClick={()=>this.beginEdit(c)}><span className="customer-avatar">{primary.trim().charAt(0).toUpperCase()||'C'}</span><span className="customer-info"><span className="customer-name-row"><strong>{primary}</strong>{c.contactPerson?<em>{c.contactPerson}</em>:null}</span>{c.companyNameAr&&c.companyNameEn?<span className="customer-secondary-name" dir={isArabic()?'ltr':'rtl'}>{isArabic()?c.companyNameEn:c.companyNameAr}</span>:null}<small>{location||t('No location','لا يوجد موقع')}</small><small className={contact?'':'customer-missing-contact'}>{contact||t('Add phone or email','أضف الهاتف أو البريد')}</small></span></button><div className="customer-document-actions" aria-label={t(`Create document for ${primary}`,`إنشاء مستند للعميل ${primary}`)}><button type="button" className="customer-document-action quote" disabled={this.state.busy||creatingAny} onClick={()=>void this.createDocument('proforma',c)}><Icon name="proforma"/><span>{creatingQuote?t('Opening…','جارٍ الفتح…'):t('Quote','عرض سعر')}</span></button><button type="button" className="customer-document-action invoice" disabled={this.state.busy||creatingAny} onClick={()=>void this.createDocument('invoice',c)}><Icon name="invoice"/><span>{creatingInvoice?t('Opening…','جارٍ الفتح…'):t('Invoice','فاتورة')}</span></button></div><div className="customer-actions"><IconButton icon="edit" label={t('Edit','تعديل')} onClick={()=>this.beginEdit(c)}/><IconButton icon="trash" label={t('Delete','حذف')} variant="danger" disabled={this.state.busy||creatingAny} onClick={()=>this.setState({deleting:c,error:''})}/></div></article>;
       })}</div>:<div className="empty-state customers-empty"><span className="empty-mark"><Icon name="users" size={28}/></span><h2>{query?t('No matching customer','لا يوجد عميل مطابق'):t('No customers yet','لا يوجد عملاء بعد')}</h2><p>{query?t('Create this customer without typing the name again.','أنشئ هذا العميل دون إعادة كتابة الاسم.'):t('Add your first customer.','أضف أول عميل.')}</p><Button icon="plus" variant="primary" onClick={this.newCustomer}>{query?t(`Create “${query}”`,`إنشاء «${query}»`):t('Add Customer','إضافة عميل')}</Button></div>}
       <Modal open={Boolean(this.state.editing)} title={this.state.editing&&this.props.customers.some(c=>c.id===this.state.editing?.id)?t('Edit Customer','تعديل العميل'):t('Add Customer','إضافة عميل')} size="lg" onClose={this.requestClose} footer={<div className="modal-footer-actions"><Button disabled={this.state.busy} onClick={this.requestClose}>{t('Cancel','إلغاء')}</Button><Button variant="primary" disabled={this.state.busy} onClick={this.save}>{this.state.busy?t('Saving…','جارٍ الحفظ…'):t('Save Customer','حفظ العميل')}</Button></div>}>{this.state.editing?<CustomerForm customer={this.state.editing} onChange={(editing)=>this.setState({editing})}/>:null}{this.state.error?<div className="inline-error customer-form-error" role="alert">{this.state.error}</div>:null}</Modal>
       <ConfirmDialog open={this.state.discardConfirm} title={t('Discard customer changes?','تجاهل تعديلات العميل؟')} message={t('You have unsaved customer changes. Discard them and close?','لديك تعديلات غير محفوظة على العميل. هل تريد تجاهلها والإغلاق؟')} confirmLabel={t('Discard','تجاهل')} onCancel={()=>this.setState({discardConfirm:false})} onConfirm={this.closeEditing}/>
