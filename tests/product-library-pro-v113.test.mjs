@@ -57,6 +57,17 @@ test('v113 import plan creates new products and blocks ambiguous or invalid rows
   assert.equal(created.lastCurrency,'SAR');
 });
 
+test('v113 import preview blocks duplicate names even when file SKUs differ',()=>{
+  const matrix=[
+    ['SKU','Description EN','Unit Price'],
+    ['NEW-1','Same Product','10'],
+    ['NEW-2','Same Product','11']
+  ];
+  const plan=planProductImport(matrix,[],'USD',true);
+  assert.deepEqual(plan.counts,{create:1,update:0,skip:0,error:1});
+  assert.match(plan.rows[1].reason,/Duplicate product name/);
+});
+
 test('v113 can preview existing products as skipped when updates are disabled',()=>{
   const existing=saved('p1','A-1','Existing');
   const plan=planProductImport([['SKU','Unit Price'],['A-1','22']],[existing],'USD',false);
@@ -77,7 +88,7 @@ test('schema v6 preserves SKU and all modern saved-item metadata through migrati
   assert.equal(migrated.savedItems[0].favorite,true);
 });
 
-test('v113 Product Library Pro exposes SKU, duplicate and guarded Excel/CSV import',async()=>{
+test('v113 Product Library Pro exposes SKU, duplicate, dirty-state protection and guarded Excel/CSV import',async()=>{
   const [page,workspace,importer]=await Promise.all([
     read('src/components/SavedItemsPage.tsx'),
     read('src/components/ProductLibraryWorkspace.tsx'),
@@ -87,6 +98,9 @@ test('v113 Product Library Pro exposes SKU, duplicate and guarded Excel/CSV impo
   assert.match(workspace,/SKU \/ Item Code/);
   assert.match(workspace,/icon="copy"/);
   assert.match(workspace,/Duplicate/);
+  assert.match(workspace,/editingDirty/);
+  assert.match(workspace,/Discard unsaved product changes/);
+  assert.match(workspace,/requestImport/);
   assert.match(workspace,/ProductImportModal/);
   assert.match(importer,/\.xlsx/);
   assert.match(importer,/\.xls/);
