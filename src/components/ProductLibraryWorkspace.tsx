@@ -15,6 +15,7 @@ interface Props {
 }
 
 type SortMode='smart'|'name'|'recent'|'sku';
+type DiscardAction=''|'close'|'new'|'select'|'import';
 interface State {
   query:string;
   category:string;
@@ -25,6 +26,8 @@ interface State {
   busy:boolean;
   error:string;
   importOpen:boolean;
+  discardAction:DiscardAction;
+  pendingEdit:SavedItem|null;
 }
 
 function titleOf(item:SavedItem):string{
@@ -52,25 +55,65 @@ function ranked(items:SavedItem[],values:(item:SavedItem)=>string[],limit:number
 }
 
 export class ProductLibraryWorkspace extends React.Component<Props,State>{
-  state:State={query:'',category:'',sortMode:'smart',editing:null,editingInitial:'',deleting:null,busy:false,error:'',importOpen:false};
+  state:State={query:'',category:'',sortMode:'smart',editing:null,editingInitial:'',deleting:null,busy:false,error:'',importOpen:false,discardAction:'',pendingEdit:null};
 
   private set=(key:keyof SavedItem,value:any)=>this.setState(state=>({editing:state.editing?{...state.editing,[key]:value}:null,error:''}));
 
-  private beginEdit=(item:SavedItem)=>{
+  private loadEdit=(item:SavedItem)=>{
     const editing=structuredClone({...item,sku:item.sku??'',category:item.category??'',tags:[...(item.tags??[])],favorite:Boolean(item.favorite)});
-    this.setState({editing,editingInitial:JSON.stringify(editing),error:''});
+    this.setState({editing,editingInitial:JSON.stringify(editing),error:'',discardAction:'',pendingEdit:null});
   };
 
-  private newItem=()=>this.beginEdit(blank(this.props.currency));
+  private editingDirty=():boolean=>Boolean(this.state.editing&&(!this.state.editingInitial||JSON.stringify(this.state.editing)!==this.state.editingInitial));
+
+  private beginEdit=(item:SavedItem)=>{
+    if(this.state.busy||this.state.editing?.id===item.id)return;
+    if(this.editingDirty()){this.setState({discardAction:'select',pendingEdit:item});return;}
+    this.loadEdit(item);
+  };
+
+  private newItem=()=>{
+    if(this.state.busy)return;
+    if(this.editingDirty()){this.setState({discardAction:'new',pendingEdit:null});return;}
+    this.loadEdit(blank(this.props.currency));
+  };
+
+  private requestClose=()=>{
+    if(this.state.busy)return;
+    if(this.editingDirty()){this.setState({discardAction:'close',pendingEdit:null});return;}
+    this.setState({editing:null,editingInitial:'',error:''});
+  };
+
+  private requestImport=()=>{
+    if(this.state.busy)return;
+    if(this.editingDirty()){this.setState({discardAction:'import',pendingEdit:null});return;}
+    this.setState({importOpen:true});
+  };
+
+  private confirmDiscard=()=>{
+    const action=this.state.discardAction;
+    const pending=this.state.pendingEdit;
+    if(action==='select'&&pending){this.loadEdit(pending);return;}
+    if(action==='new'){this.loadEdit(blank(this.props.currency));return;}
+    if(action==='import'){
+      this.setState({editing:null,editingInitial:'',error:'',discardAction:'',pendingEdit:null,importOpen:true});
+      return;
+    }
+    this.setState({editing:null,editingInitial:'',error:'',discardAction:'',pendingEdit:null});
+  };
 
   private duplicate=(source:SavedItem)=>{
+    if(this.editingDirty()){
+      this.setState({error:t('Save or discard the current changes before duplicating this product.','احفظ التعديلات الحالية أو تجاهلها قبل نسخ هذا الصنف.')});
+      return;
+    }
     const now=new Date().toISOString();
     const copy:SavedItem={
       ...structuredClone(source),id:makeId('product'),createdAt:now,updatedAt:now,lastUsedAt:now,usageCount:0,sku:'',favorite:false,
       descriptionEn:source.descriptionEn?`${source.descriptionEn} Copy`:'',
       descriptionAr:source.descriptionAr?`${source.descriptionAr} - نسخة`:''
     };
-    this.setState({editing:copy,editingInitial:JSON.stringify(copy),error:''});
+    this.setState({editing:copy,editingInitial:'',error:'',discardAction:'',pendingEdit:null});
   };
 
   private toggleTag=(tag:string)=>{
@@ -93,14 +136,14 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
       return;
     }
     this.setState({busy:true,error:''});
-    try{await this.props.onSave(candidate);this.setState({busy:false,editing:null,editingInitial:'',error:''});}
+    try{await this.props.onSave(candidate);this.setState({busy:false,editing:null,editingInitial:'',error:'',discardAction:'',pendingEdit:null});}
     catch(e){this.setState({busy:false,error:e instanceof Error?e.message:t('Unable to save product.','تعذر حفظ الصنف.')});}
   };
 
   private remove=async()=>{
     const item=this.state.deleting;if(!item||this.state.busy)return;
     this.setState({busy:true,error:''});
-    try{await this.props.onDelete(item);this.setState({busy:false,deleting:null,editing:null,editingInitial:'',error:''});}
+    try{await this.props.onDelete(item);this.setState({busy:false,deleting:null,editing:null,editingInitial:'',error:'',discardAction:'',pendingEdit:null});}
     catch(e){this.setState({busy:false,deleting:null,error:e instanceof Error?e.message:t('Unable to delete product.','تعذر حذف الصنف.')});}
   };
 
@@ -137,7 +180,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
         <div className="product-library-search"><Icon name="search"/><Input aria-label={t('Search product library','بحث في مكتبة الأصناف')} value={this.state.query} placeholder={t('Search name, SKU, HS code, category…','ابحث بالاسم أو SKU أو HS Code أو التصنيف…')} onChange={(e:any)=>this.setState({query:e.target.value})}/>{this.state.query?<IconButton icon="x" label={t('Clear search','مسح البحث')} onClick={()=>this.setState({query:''})}/>:<span>/</span>}</div>
         <Select aria-label={t('Filter category','فلتر التصنيف')} value={this.state.category} onChange={(e:any)=>this.setState({category:e.target.value})}><option value="">{t('All categories','كل التصنيفات')}</option>{categories.map(category=><option key={category} value={category}>{category}</option>)}</Select>
         <Select aria-label={t('Sort products','ترتيب الأصناف')} value={this.state.sortMode} onChange={(e:any)=>this.setState({sortMode:e.target.value})}><option value="smart">{t('Most used','الأكثر استخدامًا')}</option><option value="recent">{t('Recently updated','الأحدث')}</option><option value="name">{t('Name A–Z','الاسم أبجديًا')}</option><option value="sku">SKU</option></Select>
-        <Button icon="upload" onClick={()=>this.setState({importOpen:true})}>{t('Import','استيراد')}</Button>
+        <Button icon="upload" onClick={this.requestImport}>{t('Import','استيراد')}</Button>
         <Button icon="plus" variant="primary" onClick={this.newItem}>{t('New Product','صنف جديد')}</Button>
       </div>
 
@@ -165,13 +208,13 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
                 <IconButton icon="edit" label={t('Edit product','تعديل الصنف')} onClick={()=>this.beginEdit(item)}/>
               </article>;
             })}
-            {!filtered.length?<div className="product-library-empty"><Icon name="items" size={30}/><strong>{this.props.items.length?t('No products match these filters','لا توجد أصناف مطابقة لهذه الفلاتر'):t('Your product library is ready','مكتبة الأصناف جاهزة')}</strong><span>{this.props.items.length?t('Clear the filters or try another search.','امسح الفلاتر أو جرّب بحثًا آخر.'):t('Add your first product or import an Excel/CSV catalog.','أضف أول صنف أو استورد كتالوج Excel/CSV.')}</span>{!this.props.items.length?<div><Button icon="upload" onClick={()=>this.setState({importOpen:true})}>{t('Import catalog','استيراد كتالوج')}</Button><Button icon="plus" variant="primary" onClick={this.newItem}>{t('New Product','صنف جديد')}</Button></div>:null}</div>:null}
+            {!filtered.length?<div className="product-library-empty"><Icon name="items" size={30}/><strong>{this.props.items.length?t('No products match these filters','لا توجد أصناف مطابقة لهذه الفلاتر'):t('Your product library is ready','مكتبة الأصناف جاهزة')}</strong><span>{this.props.items.length?t('Clear the filters or try another search.','امسح الفلاتر أو جرّب بحثًا آخر.'):t('Add your first product or import an Excel/CSV catalog.','أضف أول صنف أو استورد كتالوج Excel/CSV.')}</span>{!this.props.items.length?<div><Button icon="upload" onClick={this.requestImport}>{t('Import catalog','استيراد كتالوج')}</Button><Button icon="plus" variant="primary" onClick={this.newItem}>{t('New Product','صنف جديد')}</Button></div>:null}</div>:null}
           </div>
         </section>
 
         <aside className={`product-library-editor ${edit?'is-open':''}`}>
           {edit?<>
-            <header className="product-library-editor-head"><div><p className="eyebrow">{this.props.items.some(item=>item.id===edit.id)?t('Edit saved product','تعديل صنف محفوظ'):t('New saved product','صنف محفوظ جديد')}</p><h2>{titleOf(edit)}</h2>{edit.sku?<code>{edit.sku}</code>:null}</div><IconButton icon="x" label={t('Close editor','إغلاق التحرير')} onClick={()=>this.setState({editing:null,editingInitial:'',error:''})}/></header>
+            <header className="product-library-editor-head"><div><p className="eyebrow">{this.props.items.some(item=>item.id===edit.id)?t('Edit saved product','تعديل صنف محفوظ'):t('New saved product','صنف محفوظ جديد')}</p><h2>{titleOf(edit)}</h2>{edit.sku?<code>{edit.sku}</code>:null}</div><IconButton icon="x" label={t('Close editor','إغلاق التحرير')} onClick={this.requestClose}/></header>
             <div className="product-library-editor-scroll">
               <section className="product-editor-section"><div className="product-editor-section-title"><span>01</span><div><strong>{t('Identity','الهوية')}</strong><small>{t('Name and internal product code','الاسم والكود الداخلي للصنف')}</small></div></div><div className="form-grid two">
                 <Field label="SKU / Item Code" hint={t('Optional, but recommended for imports and price updates.','اختياري، لكنه موصى به للاستيراد وتحديث الأسعار.')}><Input value={edit.sku??''} placeholder="e.g. RB-250-ORG" autoCapitalize="characters" spellCheck={false} onChange={(e:any)=>this.set('sku',String(e.target.value).toUpperCase())}/></Field>
@@ -205,6 +248,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
       </div>
 
       <ProductImportModal open={this.state.importOpen} items={this.props.items} currency={this.props.currency} onClose={()=>this.setState({importOpen:false})} onSave={this.props.onSave}/>
+      <ConfirmDialog open={Boolean(this.state.discardAction)} title={t('Discard unsaved product changes?','تجاهل تعديلات الصنف غير المحفوظة؟')} message={t('Your current product changes have not been saved. Discard them and continue?','التعديلات الحالية على الصنف لم تُحفظ بعد. هل تريد تجاهلها والمتابعة؟')} confirmLabel={t('Discard changes','تجاهل التعديلات')} onCancel={()=>this.setState({discardAction:'',pendingEdit:null})} onConfirm={this.confirmDiscard}/>
       <ConfirmDialog open={Boolean(this.state.deleting)} title={t('Delete saved product?','حذف الصنف المحفوظ؟')} message={t('This removes the reusable catalog item. Existing invoices and quotes stay unchanged.','سيتم حذف الصنف من الكتالوج القابل لإعادة الاستخدام، ولن تتغير الفواتير وعروض الأسعار الحالية.')} onCancel={()=>this.setState({deleting:null})} onConfirm={()=>void this.remove()}/>
     </div>;
   }
