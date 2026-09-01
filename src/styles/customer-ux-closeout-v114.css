@@ -1,0 +1,117 @@
+/* v114 — customer-facing workflow closeout.
+   App chrome only: mobile editor actions, direct lock affordance and touch-safe output controls.
+   Printable invoice/template internals are intentionally untouched. */
+
+.app-ui .header-lock-button{
+  flex:0 0 auto;
+}
+
+.app-ui .mobile-editor-actionbar .btn-primary{
+  font-weight:820;
+}
+
+.app-ui .mobile-preview-overlay>header>div{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+@media(max-width:720px){
+  .app-ui .mobile-action-buttons{
+    display:grid!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:6px!important;
+    min-width:0!important;
+  }
+  .app-ui .mobile-action-buttons .btn{
+    width:100%!important;
+    min-width:0!important;
+    min-height:44px!important;
+    height:44px!important;
+    padding-inline:6px!important;
+    justify-content:center!important;
+  }
+  .app-ui .mobile-action-buttons .btn span{
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    font-size:10.5px;
+  }
+  .app-ui .mobile-preview-overlay>header .btn{
+    min-height:42px!important;
+    height:42px!important;
+    padding-inline:9px!important;
+  }
+  .app-ui .mobile-preview-overlay>header .btn span{
+    font-size:10.5px;
+  }
+  .app-ui .header-lock-button{
+    width:44px!important;
+    height:44px!important;
+    min-width:44px!important;
+  }
+}
+
+@media(max-width:430px){
+  .app-ui .editor-screen{
+    padding-bottom:150px!important;
+  }
+  .app-ui .editor-pane .editor-scroll{
+    padding-bottom:calc(170px + env(safe-area-inset-bottom))!important;
+  }
+  .app-ui .mobile-editor-actionbar{
+    align-items:stretch!important;
+    min-height:108px!important;
+  }
+  .app-ui .mobile-total{
+    display:none!important;
+  }
+  .app-ui .mobile-action-buttons{
+    width:100%!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .app-ui .mobile-action-buttons .btn{
+    min-height:43px!important;
+    height:43px!important;
+  }
+  .app-ui .mobile-action-buttons .btn span{
+    font-size:11px;
+    text-overflow:clip;
+  }
+  .app-ui .mobile-preview-overlay>header{
+    gap:8px;
+  }
+  .app-ui .mobile-preview-overlay>header>div{
+    gap:4px;
+  }
+  .app-ui .mobile-preview-overlay>header .btn{
+    padding-inline:7px!important;
+  }
+}
+
+@media(pointer:coarse){
+  .app-ui .header-lock-button,
+  .app-ui .mobile-action-buttons .btn,
+  .app-ui .mobile-preview-overlay>header .btn,
+  .app-ui .mobile-preview-overlay>header .icon-btn{
+    min-height:44px;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .app-ui .mobile-editor-actionbar *,
+  .app-ui .mobile-preview-overlay *{
+    transition:none!important;
+    animation:none!important;
+  }
+}
+
+@media print{
+  .app-ui .mobile-editor-actionbar,
+  .app-ui .mobile-preview-overlay,
+  .app-ui .header-lock-button{
+    display:none!important;
+  }
+}
