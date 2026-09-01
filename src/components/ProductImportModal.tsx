@@ -13,7 +13,7 @@ interface Props {
   items:SavedItem[];
   currency:string;
   onClose:()=>void;
-  onSave:(item:SavedItem)=>Promise<void>;
+  onSaveMany:(items:SavedItem[])=>Promise<void>;
 }
 
 interface State {
@@ -23,7 +23,6 @@ interface State {
   plan:ProductImportPlan|null;
   updateExisting:boolean;
   error:string;
-  progress:number;
   total:number;
   imported:number;
 }
@@ -83,13 +82,13 @@ function actionLabel(action:string):string{
 
 export class ProductImportModal extends React.Component<Props,State>{
   private fileInput:HTMLInputElement|null=null;
-  state:State={stage:'pick',fileName:'',matrix:[],plan:null,updateExisting:true,error:'',progress:0,total:0,imported:0};
+  state:State={stage:'pick',fileName:'',matrix:[],plan:null,updateExisting:true,error:'',total:0,imported:0};
 
   componentDidUpdate(prev:Props):void{
     if(this.props.open&&!prev.open)this.reset();
   }
 
-  private reset=()=>this.setState({stage:'pick',fileName:'',matrix:[],plan:null,updateExisting:true,error:'',progress:0,total:0,imported:0});
+  private reset=()=>this.setState({stage:'pick',fileName:'',matrix:[],plan:null,updateExisting:true,error:'',total:0,imported:0});
 
   private close=()=>{
     if(this.state.stage==='importing')return;
@@ -125,18 +124,13 @@ export class ProductImportModal extends React.Component<Props,State>{
     const plan=this.state.plan;
     if(!plan||plan.counts.error>0)return;
     const products=importableProducts(plan);
-    if(!products.length){this.setState({stage:'done',total:0,progress:0,imported:0});return;}
-    this.setState({stage:'importing',error:'',progress:0,total:products.length,imported:0});
-    let imported=0;
+    if(!products.length){this.setState({stage:'done',total:0,imported:0});return;}
+    this.setState({stage:'importing',error:'',total:products.length,imported:0});
     try{
-      for(const item of products){
-        await this.props.onSave(item);
-        imported+=1;
-        this.setState({progress:imported,imported});
-      }
-      this.setState({stage:'done',progress:products.length,imported:products.length});
+      await this.props.onSaveMany(products);
+      this.setState({stage:'done',imported:products.length});
     }catch(e){
-      this.setState({stage:'preview',imported,progress:imported,error:t(`Import stopped after ${imported} products. ${e instanceof Error?e.message:'Try again.'}`,`توقف الاستيراد بعد ${imported} صنف. ${e instanceof Error?e.message:'حاول مرة أخرى.'}`)});
+      this.setState({stage:'preview',imported:0,error:t(`Import failed before the catalog was changed. ${e instanceof Error?e.message:'Try again.'}`,`فشل الاستيراد قبل تغيير الكتالوج. ${e instanceof Error?e.message:'حاول مرة أخرى.'}`)});
     }
   };
 
@@ -167,7 +161,7 @@ export class ProductImportModal extends React.Component<Props,State>{
           <input ref={(node:any)=>{this.fileInput=node;}} className="product-import-file-input" type="file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={(e:any)=>void this.chooseFile(e.target.files?.[0]??null)}/>
           <div className="product-import-safety-grid">
             <div><Icon name="eye"/><span><strong>{t('Preview first','معاينة أولًا')}</strong><small>{t('Nothing is saved until you approve the preview.','لا يتم حفظ شيء قبل موافقتك على المعاينة.')}</small></span></div>
-            <div><Icon name="refresh"/><span><strong>{t('Safe updates','تحديث آمن')}</strong><small>{t('Blank cells never erase existing product details.','الخلايا الفارغة لا تمسح بيانات الصنف الموجودة.')}</small></span></div>
+            <div><Icon name="refresh"/><span><strong>{t('One secure write','حفظ آمن بعملية واحدة')}</strong><small>{t('The approved batch is committed together, avoiding hundreds of repeated vault writes.','يتم حفظ الدفعة المعتمدة معًا لتجنب مئات عمليات كتابة الخزنة المتكررة.')}</small></span></div>
             <div><Icon name="check"/><span><strong>{t('Duplicate protection','حماية من التكرار')}</strong><small>{t('Repeated SKU and conflicting names are flagged before import.','يتم كشف SKU المكرر وتعارض الأسماء قبل الاستيراد.')}</small></span></div>
           </div>
           <div className="product-import-template-bar"><div><strong>{t('Need the correct columns?','تحتاج الأعمدة الصحيحة؟')}</strong><span>{t('Download the LOUREX CSV template and fill it in Excel.','حمّل قالب LOUREX بصيغة CSV وافتحه وعبّئه في Excel.')}</span></div><Button icon="download" onClick={this.downloadTemplate}>{t('Download template','تحميل القالب')}</Button></div>
@@ -193,7 +187,7 @@ export class ProductImportModal extends React.Component<Props,State>{
           {plan.rows.length>previewRows.length?<div className="product-import-table-note">{t(`Showing the first ${previewRows.length} of ${plan.rows.length} rows. All rows are still validated and will be processed.`,`يتم عرض أول ${previewRows.length} من ${plan.rows.length} صف. جميع الصفوف ما زالت مفحوصة وسيتم معالجتها.`)}</div>:null}
         </>:null}
 
-        {stage==='importing'?<div className="product-import-progress"><div className="product-import-progress-ring"><strong>{this.state.total?Math.round((this.state.progress/this.state.total)*100):100}%</strong></div><h3>{t('Updating product library…','جارٍ تحديث مكتبة الأصناف…')}</h3><p>{t(`${this.state.progress} of ${this.state.total} products saved`,`${this.state.progress} من ${this.state.total} صنف تم حفظه`)}</p><div className="product-import-progress-track"><span style={{width:`${this.state.total?(this.state.progress/this.state.total)*100:100}%`}}/></div><small>{t('Keep this window open until the import is complete.','أبقِ هذه النافذة مفتوحة حتى يكتمل الاستيراد.')}</small></div>:null}
+        {stage==='importing'?<div className="product-import-progress"><div className="product-import-progress-ring"><strong>…</strong></div><h3>{t('Updating product library…','جارٍ تحديث مكتبة الأصناف…')}</h3><p>{t(`Saving ${this.state.total} products in one encrypted catalog update`, `جارٍ حفظ ${this.state.total} صنف ضمن تحديث مشفّر واحد للكتالوج`)}</p><small>{t('Keep this window open until the secure write is complete.','أبقِ هذه النافذة مفتوحة حتى تكتمل عملية الحفظ الآمنة.')}</small></div>:null}
 
         {stage==='done'?<div className="product-import-complete"><div><Icon name="check" size={30}/></div><p className="eyebrow">{t('Import complete','اكتمل الاستيراد')}</p><h3>{this.state.imported?t(`${this.state.imported} products are ready to use`,`أصبح ${this.state.imported} صنف جاهزًا للاستخدام`):t('No changes were needed','لم تكن هناك تغييرات مطلوبة')}</h3><p>{t('Your saved-item catalog is updated and immediately available in new quotes and invoices.','تم تحديث كتالوج الأصناف وأصبح متاحًا مباشرة في عروض الأسعار والفواتير الجديدة.')}</p></div>:null}
 
