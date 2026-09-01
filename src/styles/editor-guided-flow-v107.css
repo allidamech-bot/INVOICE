@@ -1,0 +1,263 @@
+/* v107 — guided editor flow.
+   Adds a compact six-step navigator for long invoice/proforma edits and makes
+   phone entry single-column where narrow paired fields create friction.
+   Application editor only; printable A4/template internals remain untouched. */
+
+.app-ui .editor-pane .editor-scroll{
+  padding-bottom:150px!important;
+}
+
+.app-ui .editor-form-lock>.editor-section{
+  scroll-margin-top:92px;
+}
+
+.app-ui .editor-section-navigator{
+  position:fixed;
+  z-index:52;
+  inset-inline-start:12px;
+  bottom:14px;
+  width:min(calc(44vw - 24px),720px);
+  max-width:calc(100vw - 24px);
+  display:flex;
+  align-items:stretch;
+  gap:5px;
+  padding:6px;
+  border:1px solid rgba(188,205,214,.9);
+  border-radius:16px;
+  background:rgba(255,255,255,.94);
+  box-shadow:0 12px 34px rgba(9,31,45,.13);
+  backdrop-filter:blur(16px);
+}
+
+.app-ui .editor-section-nav-button{
+  position:relative;
+  flex:1 1 0;
+  min-width:0;
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:6px 8px;
+  border:1px solid transparent;
+  border-radius:11px;
+  background:transparent;
+  color:#657984;
+  font:inherit;
+  cursor:pointer;
+  transition:background-color .15s ease,border-color .15s ease,color .15s ease,transform .15s ease;
+}
+
+.app-ui .editor-section-nav-button:hover,
+.app-ui .editor-section-nav-button:focus-visible{
+  border-color:#cadbe3;
+  background:#f5fafc;
+  color:#244f67;
+}
+
+.app-ui .editor-section-nav-button:focus-visible{
+  outline:3px solid rgba(36,95,134,.14);
+  outline-offset:1px;
+}
+
+.app-ui .editor-section-nav-button.active{
+  border-color:#9fc1d1;
+  background:#edf6fa;
+  color:#174866;
+}
+
+.app-ui .editor-nav-number{
+  flex:0 0 auto;
+  min-width:25px;
+  height:25px;
+  display:grid;
+  place-items:center;
+  padding-inline:5px;
+  border:1px solid #d8e5eb;
+  border-radius:8px;
+  background:#fff;
+  color:#527080;
+  font-size:10px;
+  font-weight:900;
+  line-height:1;
+}
+
+.app-ui .editor-section-nav-button.active .editor-nav-number{
+  border-color:#b8d2de;
+  background:#fff;
+  color:#174866;
+}
+
+.app-ui .editor-nav-label{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:10.5px;
+  font-weight:800;
+  line-height:1.2;
+}
+
+.app-ui .editor-nav-error-dot{
+  position:absolute;
+  inset-inline-end:4px;
+  top:3px;
+  width:14px;
+  height:14px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#b45249;
+  color:#fff;
+  font-size:9px;
+  font-weight:900;
+  line-height:1;
+  box-shadow:0 0 0 2px #fff;
+}
+
+.app-ui .editor-section-nav-button.has-error:not(.active){
+  background:#fff9f8;
+  color:#85504a;
+}
+
+.app-ui .editor-nav-live-status{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  padding:0!important;
+  margin:-1px!important;
+  overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;
+  white-space:nowrap!important;
+  border:0!important;
+}
+
+body:has(.editor-screen.mobile-preview-open) .editor-section-navigator{
+  display:none!important;
+}
+
+@media (max-width:1180px){
+  .app-ui .editor-section-navigator{
+    left:max(12px,env(safe-area-inset-left));
+    right:max(12px,env(safe-area-inset-right));
+    inset-inline-start:auto;
+    width:auto;
+    max-width:none;
+  }
+
+  .app-ui .editor-pane .editor-scroll{
+    padding-bottom:154px!important;
+  }
+}
+
+@media (max-width:720px){
+  .app-ui .editor-pane .editor-scroll{
+    padding-bottom:calc(178px + env(safe-area-inset-bottom))!important;
+  }
+
+  .app-ui .editor-form-lock>.editor-section{
+    scroll-margin-top:104px;
+  }
+
+  /* Phone entry should be one clear question at a time, not paired narrow fields. */
+  .app-ui .editor-form-lock>.editor-section>.form-grid.two.compact-grid,
+  .app-ui .editor-form-lock>.editor-section>.advanced-panel>.form-grid.two.compact-grid{
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:12px!important;
+  }
+
+  .app-ui .editor-form-lock>.editor-section>.form-grid.two.compact-grid>.span-2,
+  .app-ui .editor-form-lock>.editor-section>.advanced-panel>.form-grid.two.compact-grid>.span-2{
+    grid-column:auto!important;
+  }
+
+  .app-ui .editor-section-navigator{
+    z-index:54;
+    bottom:calc(76px + env(safe-area-inset-bottom));
+    left:max(8px,env(safe-area-inset-left));
+    right:max(8px,env(safe-area-inset-right));
+    gap:4px;
+    padding:5px;
+    border-radius:15px;
+    box-shadow:0 8px 24px rgba(9,31,45,.14);
+  }
+
+  .app-ui .editor-section-nav-button{
+    flex:0 0 34px;
+    min-width:34px;
+    min-height:40px;
+    gap:5px;
+    padding:5px;
+    border-radius:10px;
+  }
+
+  .app-ui .editor-section-nav-button.active{
+    flex:1 1 auto;
+    min-width:76px;
+    max-width:112px;
+    padding-inline:8px;
+  }
+
+  .app-ui .editor-nav-number{
+    min-width:24px;
+    height:24px;
+    padding-inline:4px;
+  }
+
+  .app-ui .editor-nav-label{
+    display:none;
+    font-size:10px;
+  }
+
+  .app-ui .editor-section-nav-button.active .editor-nav-label{
+    display:block;
+  }
+
+  /* Final quote conversion owns the mobile action area; avoid stacking docks. */
+  .app-ui .editor-section-navigator.has-final-quote-action{
+    display:none;
+  }
+}
+
+@media (max-width:350px){
+  .app-ui .editor-section-navigator{
+    gap:3px;
+    padding:4px;
+  }
+
+  .app-ui .editor-section-nav-button{
+    flex-basis:31px;
+    min-width:31px;
+    padding:4px;
+  }
+
+  .app-ui .editor-section-nav-button.active{
+    min-width:66px;
+    max-width:84px;
+  }
+
+  .app-ui .editor-nav-number{
+    min-width:22px;
+    height:22px;
+    font-size:9.5px;
+  }
+}
+
+@media (pointer:coarse){
+  .app-ui .editor-section-navigator{
+    backdrop-filter:none;
+    background:#fff;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .app-ui .editor-section-nav-button{
+    transition:none;
+  }
+}
+
+@media print{
+  .editor-section-navigator{
+    display:none!important;
+  }
+}
