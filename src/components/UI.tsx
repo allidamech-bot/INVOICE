@@ -36,16 +36,25 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
 
 let openModalFrames=0;
 let bodyOverflowBeforeModals='';
+let modalFrameSequence=0;
 
 interface ModalFrameProps { title:string; children:any; onClose:()=>void; size:'sm'|'md'|'lg'|'xl'; footer?:any; }
 class ModalFrame extends React.Component<ModalFrameProps> {
   private backdrop:HTMLDivElement|null=null;
+  private dialog:HTMLElement|null=null;
   private previousFocus:HTMLElement|null=null;
+  private titleId=`lourex-modal-title-${++modalFrameSequence}`;
   componentDidMount():void{
     this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
     if(openModalFrames===0){bodyOverflowBeforeModals=document.body.style.overflow;document.body.style.overflow='hidden';}
     openModalFrames+=1;
     document.addEventListener('keydown',this.handleKeyDown);
+    window.requestAnimationFrame(()=>{
+      if(!this.dialog||!this.isTopModal())return;
+      const active=document.activeElement;
+      if(active instanceof Node&&this.dialog.contains(active))return;
+      try{this.dialog.focus({preventScroll:true});}catch{}
+    });
   }
   componentWillUnmount():void{
     document.removeEventListener('keydown',this.handleKeyDown);
@@ -53,16 +62,37 @@ class ModalFrame extends React.Component<ModalFrameProps> {
     if(openModalFrames===0)document.body.style.overflow=bodyOverflowBeforeModals;
     try{this.previousFocus?.focus({preventScroll:true});}catch{}
   }
-  private handleKeyDown=(event:KeyboardEvent)=>{
-    if(event.key!=='Escape'||!this.backdrop)return;
+  private isTopModal=():boolean=>{
+    if(!this.backdrop)return false;
     const backdrops=document.querySelectorAll('.modal-backdrop');
-    if(backdrops.length&&backdrops[backdrops.length-1]!==this.backdrop)return;
-    event.preventDefault();
-    this.props.onClose();
+    return !backdrops.length||backdrops[backdrops.length-1]===this.backdrop;
+  };
+  private focusable=():HTMLElement[]=>{
+    if(!this.dialog)return [];
+    const selector='a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+    return Array.from(this.dialog.querySelectorAll<HTMLElement>(selector)).filter(node=>!node.hasAttribute('hidden')&&node.getAttribute('aria-hidden')!=='true'&&node.getClientRects().length>0);
+  };
+  private handleKeyDown=(event:KeyboardEvent)=>{
+    if(!this.backdrop||!this.dialog||!this.isTopModal())return;
+    if(event.key==='Escape'){
+      event.preventDefault();
+      this.props.onClose();
+      return;
+    }
+    if(event.key!=='Tab')return;
+    const nodes=this.focusable();
+    if(!nodes.length){event.preventDefault();this.dialog.focus();return;}
+    const first=nodes[0];
+    const last=nodes[nodes.length-1];
+    const active=document.activeElement;
+    if(active===this.dialog){event.preventDefault();(event.shiftKey?last:first)?.focus();return;}
+    if(event.shiftKey&&active===first){event.preventDefault();last?.focus();return;}
+    if(!event.shiftKey&&active===last){event.preventDefault();first?.focus();return;}
+    if(!(active instanceof Node)||!this.dialog.contains(active)){event.preventDefault();(event.shiftKey?last:first)?.focus();}
   };
   render():any{
     const {title,children,onClose,size,footer}=this.props;
-    return <div ref={(node:any)=>{this.backdrop=node;}} className="modal-backdrop" role="presentation" onPointerDown={(e:any) => { if (e.target === e.currentTarget) onClose(); }}><section className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-label={title}><header className="modal-header"><h2>{title}</h2><IconButton icon="x" label={t('Close','إغلاق')} onClick={onClose}/></header><div className="modal-body">{children}</div>{footer ? <footer className="modal-footer">{footer}</footer> : null}</section></div>;
+    return <div ref={(node:any)=>{this.backdrop=node;}} className="modal-backdrop" role="presentation" onPointerDown={(e:any) => { if (e.target === e.currentTarget) onClose(); }}><section ref={(node:any)=>{this.dialog=node;}} className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-labelledby={this.titleId} tabIndex={-1}><header className="modal-header"><h2 id={this.titleId}>{title}</h2><IconButton icon="x" label={t('Close','إغلاق')} onClick={onClose}/></header><div className="modal-body">{children}</div>{footer ? <footer className="modal-footer">{footer}</footer> : null}</section></div>;
   }
 }
 
