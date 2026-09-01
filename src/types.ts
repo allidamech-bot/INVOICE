@@ -113,6 +113,7 @@ export interface SavedItem {
   id: string;
   createdAt: string;
   updatedAt: string;
+  sku?: string;
   descriptionEn: string;
   descriptionAr: string;
   hsCode: string;

@@ -48,10 +48,13 @@ test('v103 exposes a first-class Items page and multi-select picker offline',asy
   ]);
   assert.match(app,/screen:'documents'\|'customers'\|'items'\|'editor'/);
   assert.match(app,/screen==='items'/);
-  assert.match(page,/SavedItemsModal embedded open/);
+  assert.match(page,/ProductLibraryWorkspace/);
   assert.match(modal,/onSelectMany/);
   assert.match(modal,/saved-items-picker-bar/);
+  assert.match(editor,/SavedItemsModal/);
   assert.match(editor,/mergeSavedItemSelections/);
   assert.ok(sw.includes('./src/components/SavedItemsPage.js'));
+  assert.ok(sw.includes('./src/components/SavedItemsModal.js'));
+  assert.ok(sw.includes('./src/components/ProductLibraryWorkspace.js'));
   assert.match(sw,/v103/);
 });

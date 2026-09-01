@@ -7,6 +7,7 @@ export function savedItemFromDocumentItem(item: DocumentItem, currency: string, 
     id:existing?.id??makeId('product'),
     createdAt:existing?.createdAt??now,
     updatedAt:now,
+    sku:existing?.sku??'',
     descriptionEn:item.descriptionEn.trim(),
     descriptionAr:item.descriptionAr.trim(),
     hsCode:item.hsCode.trim(),
@@ -41,14 +42,20 @@ export function normalizeSavedItemIdentity(value: string): string {
   return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase();
 }
 
+export function normalizeSavedItemSku(value:string):string{
+  return value.normalize('NFKC').trim().replace(/\s+/g,'').toLocaleUpperCase();
+}
+
 export function parseSavedItemTags(value: string): string[] {
   return value.split(/[,،]/).map(tag=>tag.trimStart());
 }
 
-export function findSavedItemDuplicate(items: SavedItem[], candidate: Pick<SavedItem,'id'|'descriptionEn'|'descriptionAr'>): SavedItem|undefined {
+export function findSavedItemDuplicate(items: SavedItem[], candidate: Pick<SavedItem,'id'|'descriptionEn'|'descriptionAr'|'sku'>): SavedItem|undefined {
+  const sku=normalizeSavedItemSku(candidate.sku??'');
   const en=normalizeSavedItemIdentity(candidate.descriptionEn);
   const ar=normalizeSavedItemIdentity(candidate.descriptionAr);
   return items.find(item=>item.id!==candidate.id&&(
+    (sku&&normalizeSavedItemSku(item.sku??'')===sku)||
     (en&&normalizeSavedItemIdentity(item.descriptionEn)===en)||
     (ar&&normalizeSavedItemIdentity(item.descriptionAr)===ar)
   ));
@@ -76,7 +83,7 @@ export function markSavedItemsUsed(items: SavedItem[], usedItems: SavedItem[], u
 }
 
 export function savedItemSearchText(item: SavedItem): string {
-  return [item.descriptionEn,item.descriptionAr,item.hsCode,item.origin,item.packing,item.unit,item.category??'',...(item.tags??[])].join(' ').toLowerCase();
+  return [item.sku??'',item.descriptionEn,item.descriptionAr,item.hsCode,item.origin,item.packing,item.unit,item.category??'',...(item.tags??[])].join(' ').toLowerCase();
 }
 
 export function sortSavedItems(items: SavedItem[]): SavedItem[] {
@@ -103,6 +110,7 @@ export function historySuggestions(documents: LourexDocument[]): SavedItem[] {
         id:`history-${doc.id}-${item.id}`,
         createdAt:doc.createdAt,
         updatedAt:doc.updatedAt,
+        sku:'',
         descriptionEn:item.descriptionEn,
         descriptionAr:item.descriptionAr,
         hsCode:item.hsCode,
