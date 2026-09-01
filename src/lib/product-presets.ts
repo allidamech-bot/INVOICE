@@ -93,6 +93,8 @@ export const PACKING_SIZE_CHOICES=[
 
 const REGION_CODES=('AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW').split(' ');
 const PREFERRED_REGIONS=['TR','SA','SY','AE','CN','PL','DE','EG','US','GB','IT','FR','NL','BE','ES','IN'];
+const currencyChoiceCache:{en?:PresetChoice[];ar?:PresetChoice[]}={};
+const countryChoiceCache:{en?:PresetChoice[];ar?:PresetChoice[]}={};
 
 function displayNames(locale:string,type:'region'|'currency'):Intl.DisplayNames|null{
   try{return new Intl.DisplayNames([locale],{type});}catch{return null;}
@@ -111,29 +113,37 @@ export function categoryChoices(arabic:boolean):PresetChoice[]{
 }
 
 export function currencyChoices(arabic:boolean):PresetChoice[]{
+  const key=arabic?'ar':'en';
+  const cached=currencyChoiceCache[key];
+  if(cached)return cached;
   let supported:string[]=[];
   try{
     const fn=(Intl as any).supportedValuesOf;
     if(typeof fn==='function')supported=fn('currency');
   }catch{}
   const codes=Array.from(new Set([...PREFERRED_CURRENCIES,...(supported.length?supported:FALLBACK_CURRENCIES)])).filter(Boolean);
-  const ui=displayNames(arabic?'ar':'en','currency');
+  const ui=displayNames(key,'currency');
   const preferred=new Set(PREFERRED_CURRENCIES);
-  return codes
+  const choices=codes
     .map(code=>({value:code,label:`${code} — ${ui?.of(code)||code}`}))
     .sort((a,b)=>{
       const ap=preferred.has(a.value),bp=preferred.has(b.value);
       if(ap!==bp)return ap?-1:1;
       if(ap&&bp)return PREFERRED_CURRENCIES.indexOf(a.value)-PREFERRED_CURRENCIES.indexOf(b.value);
-      return a.label.localeCompare(b.label,arabic?'ar':'en',{sensitivity:'base'});
+      return a.label.localeCompare(b.label,key,{sensitivity:'base'});
     });
+  currencyChoiceCache[key]=choices;
+  return choices;
 }
 
 export function countryChoices(arabic:boolean):PresetChoice[]{
+  const key=arabic?'ar':'en';
+  const cached=countryChoiceCache[key];
+  if(cached)return cached;
   const en=displayNames('en','region');
-  const ui=displayNames(arabic?'ar':'en','region');
+  const ui=displayNames(key,'region');
   const preferred=new Set(PREFERRED_REGIONS);
-  return REGION_CODES.map(code=>{
+  const choices=REGION_CODES.map(code=>{
     const english=en?.of(code)||code;
     const local=ui?.of(code)||english;
     return {value:english,label:arabic?`${local} — ${english}`:english,code};
@@ -141,8 +151,10 @@ export function countryChoices(arabic:boolean):PresetChoice[]{
     const ap=preferred.has(a.code),bp=preferred.has(b.code);
     if(ap!==bp)return ap?-1:1;
     if(ap&&bp)return PREFERRED_REGIONS.indexOf(a.code)-PREFERRED_REGIONS.indexOf(b.code);
-    return a.label.localeCompare(b.label,arabic?'ar':'en',{sensitivity:'base'});
+    return a.label.localeCompare(b.label,key,{sensitivity:'base'});
   }).map(({value,label})=>({value,label}));
+  countryChoiceCache[key]=choices;
+  return choices;
 }
 
 export interface ParsedPacking {
