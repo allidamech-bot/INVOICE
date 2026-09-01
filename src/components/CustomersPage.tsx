@@ -29,7 +29,7 @@ export class CustomersPage extends React.Component<Props,State> {
   componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.handleKeyDown);}
   componentWillUnmount():void{this.mounted=false;document.removeEventListener('keydown',this.handleKeyDown);}
   private handleKeyDown=(event:KeyboardEvent)=>{
-    if(event.defaultPrevented||event.metaKey||event.ctrlKey||event.altKey||this.state.editing)return;
+    if(event.defaultPrevented||event.metaKey||event.ctrlKey||event.altKey||this.state.editing||document.querySelector('.modal-backdrop'))return;
     const target=event.target;
     const typing=target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement||target instanceof HTMLSelectElement||Boolean(target instanceof HTMLElement&&target.isContentEditable);
     if(event.key==='/'&&!typing){event.preventDefault();document.querySelector<HTMLInputElement>('.customers-search-input')?.focus();return;}
