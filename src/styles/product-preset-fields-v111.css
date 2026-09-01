@@ -1,0 +1,78 @@
+/* v111 — faster product entry presets. Application UI only; printable A4 output is untouched. */
+.app-ui .smart-product-field{
+  min-width:0;
+}
+
+.app-ui .product-preset-control,
+.app-ui .packing-preset-control{
+  display:grid;
+  gap:7px;
+  min-width:0;
+}
+
+.app-ui .product-preset-control > .input,
+.app-ui .packing-preset-control > .input,
+.app-ui .packing-preset-details > .input{
+  width:100%;
+  min-width:0;
+}
+
+.app-ui .product-preset-custom{
+  border-style:dashed;
+  background:color-mix(in srgb, var(--surface, #fff) 96%, var(--accent, #1f678e) 4%);
+}
+
+.app-ui .packing-preset-details{
+  display:grid;
+  grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);
+  gap:7px;
+}
+
+.app-ui .packing-preset-preview{
+  display:block;
+  min-width:0;
+  padding:4px 8px;
+  border-radius:8px;
+  background:rgba(16,55,78,.055);
+  color:var(--muted, #607080);
+  font-size:11px;
+  font-weight:700;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+
+.app-ui .smart-product-field .select{
+  text-overflow:ellipsis;
+}
+
+@media (max-width:720px){
+  .app-ui .packing-preset-details{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .app-ui .smart-product-field .input,
+  .app-ui .smart-product-field .select{
+    min-height:46px;
+  }
+}
+
+@media (max-width:390px){
+  .app-ui .packing-preset-details{
+    grid-template-columns:1fr;
+  }
+}
+
+@media (pointer:coarse){
+  .app-ui .smart-product-field .input,
+  .app-ui .smart-product-field .select{
+    min-height:44px;
+  }
+}
+
+@media print{
+  .app-ui .smart-product-field,
+  .app-ui .product-preset-control,
+  .app-ui .packing-preset-control{
+    display:none !important;
+  }
+}
