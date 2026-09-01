@@ -1,0 +1,88 @@
+/* v119 — critical quote/invoice composition and Arabic output hardening.
+   Loaded after the document template/content layers and before the final app-only
+   performance layer. This intentionally affects every Proforma/Invoice template. */
+
+/* Keep the commercial closing zone at the bottom of the usable A4 body whenever
+   it fits on the page. Earlier v83 styling accidentally replaced the intended
+   auto margin with a fixed 6mm margin, which pulled terms/totals into mid-page. */
+.invoice-page .doc-body{
+  display:flex;
+  flex-direction:column;
+}
+.invoice-page:not(.details-only) .final-details{
+  margin-top:auto!important;
+  padding-top:6mm;
+}
+.invoice-page.details-only .final-details{
+  margin-top:0!important;
+  padding-top:3mm;
+}
+.invoice-page .final-details{
+  width:100%;
+  flex:0 0 auto;
+}
+
+/* html2canvas 1.4.x uses computed CSS direction while drawing text to Canvas.
+   Arabic cursive shaping can become unstable when a non-normal letter-spacing
+   reaches the canvas text renderer, especially in iOS Safari. Keep Arabic runs
+   typographically neutral while preserving the template's geometry/colors. */
+.invoice-page.lang-ar,
+.invoice-page.lang-ar *:not(.money-cell),
+.invoice-page [dir="rtl"],
+.invoice-page [dir="rtl"] *{
+  letter-spacing:normal!important;
+  word-spacing:normal;
+}
+.invoice-page.lang-ar,
+.invoice-page [dir="rtl"]{
+  font-kerning:normal;
+  font-variant-ligatures:common-ligatures contextual;
+  font-feature-settings:"rlig" 1,"calt" 1,"liga" 1;
+}
+
+/* Explicit bidi isolation for free-form Arabic content. Values that are purely
+   numeric/Latin retain their existing LTR rules from document-direction-v78. */
+.invoice-page.lang-ar .description-cell,
+.invoice-page.lang-ar .description-cell [dir="rtl"],
+.invoice-page.lang-ar .term-row>span,
+.invoice-page.lang-ar .notes-block p,
+.invoice-page.lang-ar .party-name,
+.invoice-page.lang-ar .party-address{
+  direction:rtl;
+  text-align:right;
+  unicode-bidi:isolate;
+  word-break:normal;
+  hyphens:none;
+}
+.invoice-page.lang-ar .description-cell [dir="rtl"],
+.invoice-page.lang-ar .term-row>span,
+.invoice-page.lang-ar .notes-block p,
+.invoice-page [dir="rtl"]{
+  font-family:var(--font-arabic,"Noto Sans Arabic",Tahoma,Arial,sans-serif);
+}
+
+/* Avoid visual reordering when an Arabic label sits beside codes, dates, money,
+   phone numbers, email addresses, IBAN/SWIFT or other LTR commercial values. */
+.invoice-page.lang-ar .money-cell,
+.invoice-page.lang-ar .doc-meta>div>span,
+.invoice-page.lang-ar .party-contact,
+.invoice-page.lang-ar .party-identifiers span,
+.invoice-page.lang-ar .bank-block span,
+.invoice-page.lang-ar .total-row>strong,
+.invoice-page.lang-ar .grand-total>strong{
+  direction:ltr;
+  unicode-bidi:isolate;
+}
+
+@media print{
+  .invoice-page:not(.details-only) .final-details{
+    margin-top:auto!important;
+  }
+  .invoice-page .final-details,
+  .invoice-page .lower-grid,
+  .invoice-page .notes-block,
+  .invoice-page .bottom-grid{
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+}
