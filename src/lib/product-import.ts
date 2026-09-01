@@ -147,6 +147,13 @@ function identityKey(item:Pick<SavedItem,'descriptionEn'|'descriptionAr'>):strin
   return normalizeSavedItemIdentity(item.descriptionEn)||normalizeSavedItemIdentity(item.descriptionAr);
 }
 
+function incomingNameKeys(incoming:Partial<Record<ProductImportField,string>>):string[]{
+  return [incoming.descriptionEn??'',incoming.descriptionAr??'']
+    .map(normalizeSavedItemIdentity)
+    .filter(Boolean)
+    .map(value=>`name:${value}`);
+}
+
 export function planProductImport(matrix:unknown[][],existingItems:SavedItem[],defaultCurrency:string,updateExisting=true):ProductImportPlan{
   const headerIndex=firstHeaderRow(matrix);
   if(headerIndex<0)return {rows:[],recognizedFields:[],counts:{create:0,update:0,skip:0,error:0}};
@@ -157,6 +164,7 @@ export function planProductImport(matrix:unknown[][],existingItems:SavedItem[],d
   const bySku=new Map<string,SavedItem>();
   existingItems.forEach(item=>{const sku=normalizeSavedItemSku(item.sku??'');if(sku&&!bySku.has(sku))bySku.set(sku,item);});
   const seenFileSkus=new Set<string>();
+  const seenFileNames=new Set<string>();
   const seenCreates=new Set<string>();
   const rows:ProductImportPlanRow[]=[];
   const now=new Date().toISOString();
@@ -171,6 +179,14 @@ export function planProductImport(matrix:unknown[][],existingItems:SavedItem[],d
       return;
     }
     if(sku)seenFileSkus.add(sku);
+
+    const nameKeys=incomingNameKeys(incoming);
+    if(nameKeys.some(key=>seenFileNames.has(key))){
+      rows.push({rowNumber,action:'error',reason:'Duplicate product name inside the import file.',item:null,matchedId:''});
+      return;
+    }
+    nameKeys.forEach(key=>seenFileNames.add(key));
+
     if(incoming.lastUnitPrice?.trim()&&(!isDecimalInput(incoming.lastUnitPrice)||decimalToScaled(incoming.lastUnitPrice)<0n)){
       rows.push({rowNumber,action:'error',reason:'Unit price is not a valid non-negative number.',item:null,matchedId:''});
       return;
