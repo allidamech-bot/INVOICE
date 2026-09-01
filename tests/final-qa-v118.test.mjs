@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { countryChoices, currencyChoices } from '../dist/src/lib/product-presets.js';
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
@@ -63,4 +64,20 @@ test('v118 global search shortcuts cannot pull focus behind an open modal',async
   assert.match(documents,/handleKeyDown=\(event:KeyboardEvent\)=>\{\s*if\(document\.querySelector\('\.modal-backdrop'\)\)return;/);
   assert.match(customers,/this\.state\.editing\|\|document\.querySelector\('\.modal-backdrop'\)\)return;/);
   assert.match(items,/event\.key!=='\/'\|\|document\.querySelector\('\.modal-backdrop'\)\)return;/);
+});
+
+test('v118 reuses expensive localized country and currency catalogs across renders',()=>{
+  const currenciesEn=currencyChoices(false);
+  const currenciesAr=currencyChoices(true);
+  const countriesEn=countryChoices(false);
+  const countriesAr=countryChoices(true);
+
+  assert.strictEqual(currencyChoices(false),currenciesEn);
+  assert.strictEqual(currencyChoices(true),currenciesAr);
+  assert.strictEqual(countryChoices(false),countriesEn);
+  assert.strictEqual(countryChoices(true),countriesAr);
+  assert.notStrictEqual(currenciesEn,currenciesAr);
+  assert.notStrictEqual(countriesEn,countriesAr);
+  assert.ok(currenciesEn.length>=40);
+  assert.ok(countriesEn.length>=200);
 });
