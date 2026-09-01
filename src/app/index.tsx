@@ -7,6 +7,17 @@ if(!root)throw new Error('Root element not found.');
 ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,root);
 startCloudFreshnessWatcher();
 
+// Page-level "/" shortcuts must never steal focus from the page behind an open
+// dialog. Keep typing inside dialog fields untouched while stopping only the
+// background-search shortcut at the capture boundary.
+window.addEventListener('keydown',(event:KeyboardEvent)=>{
+  if(event.key!=='/'||event.defaultPrevented||event.metaKey||event.ctrlKey||event.altKey||!document.querySelector('.modal-backdrop'))return;
+  const target=event.target;
+  const typing=target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement||target instanceof HTMLSelectElement||Boolean(target instanceof HTMLElement&&target.isContentEditable);
+  if(typing)return;
+  event.stopPropagation();
+},{capture:true});
+
 function showUpdateNotice():void{
   if(document.querySelector('[data-lourex-update]'))return;
   const notice=document.createElement('div');
