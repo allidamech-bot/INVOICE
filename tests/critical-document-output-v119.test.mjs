@@ -31,7 +31,8 @@ test('v119 protects Arabic shaping while allowing mixed Arabic English numeric t
   assert.match(css,/font-variant-ligatures:common-ligatures contextual/);
   assert.match(css,/font-feature-settings:"rlig" 1,"calt" 1,"liga" 1/);
   assert.match(css,/\.term-row>span,[\s\S]*?unicode-bidi:plaintext/);
-  assert.match(css,/\.money-cell,[\s\S]*?direction:ltr/);
+  assert.match(css,/\.invoice-page\.lang-ar \.money-cell,/);
+  assert.match(css,/direction:ltr;\s*\n\s*unicode-bidi:isolate;/);
 });
 
 test('iOS PDF/share bridge explicitly stabilizes bidi direction and Arabic font readiness before html2canvas capture',async()=>{
