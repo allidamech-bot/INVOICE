@@ -43,6 +43,7 @@ export class DocumentsPage extends React.Component<Props, State> {
     this.setState({menuId:''});
   };
   private handleKeyDown=(event:KeyboardEvent)=>{
+    if(document.querySelector('.modal-backdrop'))return;
     if(event.key==='Escape'&&this.state.menuId){this.setState({menuId:''});return;}
     if(event.key!=='/'||event.ctrlKey||event.metaKey||event.altKey)return;
     const target=event.target;
