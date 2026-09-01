@@ -11,6 +11,7 @@ interface Props {
   items:SavedItem[];
   currency:string;
   onSave:(item:SavedItem)=>Promise<void>;
+  onSaveMany:(items:SavedItem[])=>Promise<void>;
   onDelete:(item:SavedItem)=>Promise<void>;
 }
 
@@ -247,7 +248,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
         </aside>
       </div>
 
-      <ProductImportModal open={this.state.importOpen} items={this.props.items} currency={this.props.currency} onClose={()=>this.setState({importOpen:false})} onSave={this.props.onSave}/>
+      <ProductImportModal open={this.state.importOpen} items={this.props.items} currency={this.props.currency} onClose={()=>this.setState({importOpen:false})} onSaveMany={this.props.onSaveMany}/>
       <ConfirmDialog open={Boolean(this.state.discardAction)} title={t('Discard unsaved product changes?','تجاهل تعديلات الصنف غير المحفوظة؟')} message={t('Your current product changes have not been saved. Discard them and continue?','التعديلات الحالية على الصنف لم تُحفظ بعد. هل تريد تجاهلها والمتابعة؟')} confirmLabel={t('Discard changes','تجاهل التعديلات')} onCancel={()=>this.setState({discardAction:'',pendingEdit:null})} onConfirm={this.confirmDiscard}/>
       <ConfirmDialog open={Boolean(this.state.deleting)} title={t('Delete saved product?','حذف الصنف المحفوظ؟')} message={t('This removes the reusable catalog item. Existing invoices and quotes stay unchanged.','سيتم حذف الصنف من الكتالوج القابل لإعادة الاستخدام، ولن تتغير الفواتير وعروض الأسعار الحالية.')} onCancel={()=>this.setState({deleting:null})} onConfirm={()=>void this.remove()}/>
     </div>;
