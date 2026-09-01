@@ -25,15 +25,17 @@ test('v106 accelerates saved-item search and bulk picker selection',async()=>{
   assert.match(modal,/currently visible/);
 });
 
-test('v106 styling is isolated to the app items workspace and loaded last',async()=>{
-  const [css,index]=await Promise.all([
+test('v106 styling stays app-only, offline-capable, and below the final performance layer',async()=>{
+  const [css,index,sw]=await Promise.all([
     read('src/styles/items-library-v106.css'),
-    read('index.html')
+    read('index.html'),
+    read('public/sw.js')
   ]);
   assert.match(css,/v106 — large-catalog saved-items refinement/);
   assert.match(css,/\.app-ui \.saved-items-quick-filters/);
   assert.match(css,/@media \(max-width:720px\)/);
   assert.match(css,/@media print/);
   assert.match(index,/items-library-v106\.css/);
-  assert.ok(index.indexOf('items-library-v106.css')>index.indexOf('performance-polish-v100.css'));
+  assert.ok(index.indexOf('items-library-v106.css')<index.indexOf('performance-polish-v100.css'));
+  assert.match(sw,/\.\/styles\/items-library-v106\.css/);
 });
