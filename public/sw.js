@@ -1,4 +1,4 @@
-// v106 — complete offline shell with refined first-class Saved Items workspace and multi-select document item flow.
+// v106 — complete offline shell with refined first-class Saved Items workspace; retains v103 multi-select document item flow compatibility.
 // Compatibility marker retained for legacy regression coverage: lourex-invoice-v65.
 // Runtime compatibility markers: react@17.0.2/umd/react.production.min.js | react-dom@17.0.2/umd/react-dom.production.min.js
 const CACHE = 'lourex-invoice-v101';
