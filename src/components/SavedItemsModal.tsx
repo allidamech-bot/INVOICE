@@ -2,6 +2,7 @@ import type { SavedItem } from '../types.js';
 import { makeId } from '../lib/id.js';
 import { decimalToScaled, isDecimalInput, normalizeDecimalInput } from '../lib/money.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity, parseSavedItemTags, savedItemSearchText, sortSavedItems } from '../lib/saved-items.js';
+import { categoryChoices } from '../lib/product-presets.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { Button, ConfirmDialog, Field, Icon, IconButton, Input, Modal, Select, Toggle } from './UI.js';
 
@@ -53,6 +54,25 @@ function titleOf(item:SavedItem):string{
 function categoryOf(item:SavedItem):string{return (item.category??'').trim();}
 function recentStamp(item:SavedItem):string{return item.lastUsedAt||item.updatedAt||item.createdAt||'';}
 
+function rankedMetadata(items:SavedItem[],values:(item:SavedItem)=>string[],limit:number):string[]{
+  const scores=new Map<string,{value:string,count:number,usage:number,recent:string}>();
+  items.forEach(item=>{
+    values(item).map(value=>value.trim()).filter(Boolean).forEach(value=>{
+      const key=value.toLocaleLowerCase();
+      const current=scores.get(key)??{value,count:0,usage:0,recent:''};
+      current.count+=1;
+      current.usage+=Math.max(0,item.usageCount||0);
+      const stamp=recentStamp(item);
+      if(stamp>current.recent)current.recent=stamp;
+      scores.set(key,current);
+    });
+  });
+  return Array.from(scores.values())
+    .sort((a,b)=>b.usage-a.usage||b.count-a.count||b.recent.localeCompare(a.recent)||a.value.localeCompare(b.value,isArabic()?'ar':'en',{sensitivity:'base'}))
+    .slice(0,limit)
+    .map(entry=>entry.value);
+}
+
 export class SavedItemsModal extends React.Component<Props,State>{
   state:State={
     query:'',editing:null,editingInitial:'',discardAction:'',pendingSelect:null,deleting:null,
@@ -101,6 +121,14 @@ export class SavedItemsModal extends React.Component<Props,State>{
 
   private set=(key:keyof SavedItem,value:any)=>
     this.setState(state=>({editing:state.editing?{...state.editing,[key]:value}:null,error:''}));
+
+  private toggleTag=(tag:string)=>{
+    const item=this.state.editing;if(!item)return;
+    const current=item.tags??[];
+    const normalized=tag.toLocaleLowerCase();
+    const exists=current.some(value=>value.toLocaleLowerCase()===normalized);
+    this.set('tags',exists?current.filter(value=>value.toLocaleLowerCase()!==normalized):[...current,tag]);
+  };
 
   private beginEdit=(item:SavedItem)=>{
     const editing=structuredClone({...item,category:item.category??'',tags:[...(item.tags??[])],favorite:Boolean(item.favorite)});
@@ -275,6 +303,14 @@ export class SavedItemsModal extends React.Component<Props,State>{
       .sort((a,b)=>a.localeCompare(b,locale,{numeric:true,sensitivity:'base'}));
     const uncategorizedCount=this.props.items.filter(item=>!categoryOf(item)).length;
     const favoriteCount=this.props.items.filter(item=>item.favorite).length;
+    const categoryPresets=categoryChoices(isArabic());
+    const categoryPresetMap=new Map(categoryPresets.map(choice=>[choice.value,choice.label]));
+    const categorySuggestions=[
+      ...categories.map(value=>({value,label:categoryPresetMap.get(value)||value})),
+      ...categoryPresets.filter(choice=>!categories.includes(choice.value))
+    ];
+    const tagSuggestions=rankedMetadata(this.props.items,item=>item.tags??[],18);
+    const hsCodeSuggestions=rankedMetadata(this.props.items,item=>item.hsCode?[item.hsCode]:[],12);
 
     let pool:SavedItem[]=[];
     if(q)pool=this.props.items.filter(item=>savedItemSearchText(item).includes(q));
@@ -455,14 +491,24 @@ export class SavedItemsModal extends React.Component<Props,State>{
               <div className="form-grid two">
                 <Field label={t('Description English','الوصف بالإنجليزية')}><Input autoFocus={!isArabic()} value={edit.descriptionEn} onChange={(e:any)=>this.set('descriptionEn',e.target.value)}/></Field>
                 <Field label={t('Description Arabic','الوصف بالعربية')}><Input autoFocus={isArabic()} dir="rtl" value={edit.descriptionAr} onChange={(e:any)=>this.set('descriptionAr',e.target.value)}/></Field>
-                <Field label={t('Category','التصنيف')} hint={t('Type a new category or tap one below.','اكتب تصنيفًا جديدًا أو اختر واحدًا أدناه.')}>
-                  <Input value={edit.category??''} onChange={(e:any)=>this.set('category',e.target.value)}/>
-                  {categories.length?<span className="saved-item-category-suggestions">{categories.slice(0,8).map(category=><button type="button" key={category} className={categoryOf(edit)===category?'active':''} onClick={()=>this.set('category',category)}>{category}</button>)}</span>:null}
+                <Field label={t('Category','التصنيف')} hint={t('Choose a common category below, or type a custom one.','اختر تصنيفًا جاهزًا أدناه، أو اكتب تصنيفًا مخصصًا.')}>
+                  <Input value={edit.category??''} placeholder={t('Custom category','تصنيف مخصص')} onChange={(e:any)=>this.set('category',e.target.value)}/>
+                  <span className="saved-item-category-suggestions product-metadata-suggestions" aria-label={t('Category choices','خيارات التصنيف')}>
+                    {categorySuggestions.map(choice=><button type="button" key={choice.value} className={categoryOf(edit)===choice.value?'active':''} aria-pressed={categoryOf(edit)===choice.value} onClick={()=>this.set('category',choice.value)}>{choice.label}</button>)}
+                  </span>
                 </Field>
-                <Field label={t('Tags','الوسوم')} hint={t('Separate tags with English or Arabic commas.','افصل الوسوم بفواصل إنجليزية أو عربية.')}>
+                <Field label={t('Tags','الوسوم')} hint={tagSuggestions.length?t('Tap a previous tag below or type new tags separated by commas.','اختر وسمًا سابقًا أدناه أو اكتب وسومًا جديدة مفصولة بفواصل.'):t('Separate tags with English or Arabic commas.','افصل الوسوم بفواصل إنجليزية أو عربية.')}>
                   <Input value={(edit.tags??[]).join(', ')} placeholder={t('e.g. 250ml, Energy','مثال: 250مل، طاقة')} onChange={(e:any)=>this.set('tags',parseSavedItemTags(String(e.target.value)))}/>
+                  {tagSuggestions.length?<span className="product-metadata-suggestions saved-item-tag-suggestions" aria-label={t('Previous tags','الوسوم السابقة')}>
+                    {tagSuggestions.map(tag=>{const active=(edit.tags??[]).some(value=>value.toLocaleLowerCase()===tag.toLocaleLowerCase());return <button type="button" key={tag} className={active?'active':''} aria-pressed={active} onClick={()=>this.toggleTag(tag)}>#{tag}</button>;})}
+                  </span>:null}
                 </Field>
-                <Field label="HS Code"><Input value={edit.hsCode} onChange={(e:any)=>this.set('hsCode',e.target.value)}/></Field>
+                <Field label="HS Code" hint={hsCodeSuggestions.length?t('Choose from HS codes you used before, or enter a new code.','اختر من أكواد HS التي استخدمتها سابقًا أو أدخل كودًا جديدًا.'):t('Enter the HS code when it is known. Previous codes will appear here automatically.','أدخل HS Code عند معرفته، وستظهر الأكواد السابقة هنا تلقائيًا.')}>
+                  <Input inputMode="numeric" value={edit.hsCode} onChange={(e:any)=>this.set('hsCode',e.target.value)}/>
+                  {hsCodeSuggestions.length?<span className="product-metadata-suggestions saved-item-hs-suggestions" aria-label={t('Previous HS codes','أكواد HS السابقة')}>
+                    {hsCodeSuggestions.map(code=><button type="button" key={code} className={edit.hsCode===code?'active':''} aria-pressed={edit.hsCode===code} onClick={()=>this.set('hsCode',code)}>{code}</button>)}
+                  </span>:null}
+                </Field>
                 <Field label={t('Origin','المنشأ')}><Input value={edit.origin} onChange={(e:any)=>this.set('origin',e.target.value)}/></Field>
                 <Field label={t('Packing','التعبئة')}><Input value={edit.packing} onChange={(e:any)=>this.set('packing',e.target.value)}/></Field>
                 <Field label={t('Unit','الوحدة')}><Input value={edit.unit} onChange={(e:any)=>this.set('unit',e.target.value)}/></Field>
