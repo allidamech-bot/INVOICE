@@ -62,6 +62,29 @@ export const PACKING_TYPE_CHOICES:Array<{value:string;en:string;ar:string}>=[
   {value:'Tube',en:'Tube',ar:'أنبوب'}
 ];
 
+export const CATEGORY_CHOICES:Array<{value:string;en:string;ar:string}>=[
+  {value:'Beverages',en:'Beverages',ar:'مشروبات'},
+  {value:'Energy Drinks',en:'Energy drinks',ar:'مشروبات طاقة'},
+  {value:'Soft Drinks',en:'Soft drinks',ar:'مشروبات غازية'},
+  {value:'Juices',en:'Juices',ar:'عصائر'},
+  {value:'Water',en:'Water',ar:'مياه'},
+  {value:'Coffee & Tea',en:'Coffee & tea',ar:'قهوة وشاي'},
+  {value:'Chocolate',en:'Chocolate',ar:'شوكولاتة'},
+  {value:'Biscuits',en:'Biscuits',ar:'بسكويت'},
+  {value:'Snacks',en:'Snacks',ar:'سناكات'},
+  {value:'Confectionery',en:'Confectionery',ar:'حلويات'},
+  {value:'Food',en:'Food',ar:'مواد غذائية'},
+  {value:'Dairy',en:'Dairy',ar:'ألبان'},
+  {value:'Canned Food',en:'Canned food',ar:'معلبات'},
+  {value:'Personal Care',en:'Personal care',ar:'عناية شخصية'},
+  {value:'Household',en:'Household',ar:'مستلزمات منزلية'},
+  {value:'Perfumes',en:'Perfumes',ar:'عطور'},
+  {value:'Cosmetics',en:'Cosmetics',ar:'مستحضرات تجميل'},
+  {value:'Packaging',en:'Packaging',ar:'تغليف وعبوات'},
+  {value:'Electronics',en:'Electronics',ar:'إلكترونيات'},
+  {value:'Other',en:'Other',ar:'أخرى'}
+];
+
 export const PACKING_COUNT_CHOICES=['1','2','4','6','8','10','12','15','18','20','24','25','30','36','40','48','50','60','72','96','100','108','120','144'];
 export const PACKING_SIZE_CHOICES=[
   '10 ml','20 ml','25 ml','30 ml','50 ml','60 ml','100 ml','125 ml','150 ml','180 ml','200 ml','250 ml','300 ml','330 ml','355 ml','400 ml','500 ml','600 ml','750 ml','1 L','1.5 L','2 L','5 L',
@@ -81,6 +104,10 @@ export function unitChoices(arabic:boolean):PresetChoice[]{
 
 export function packingTypeChoices(arabic:boolean):PresetChoice[]{
   return PACKING_TYPE_CHOICES.map(choice=>({value:choice.value,label:arabic?`${choice.ar} — ${choice.value}`:choice.en}));
+}
+
+export function categoryChoices(arabic:boolean):PresetChoice[]{
+  return CATEGORY_CHOICES.map(choice=>({value:choice.value,label:arabic?`${choice.ar} — ${choice.value}`:choice.en}));
 }
 
 export function currencyChoices(arabic:boolean):PresetChoice[]{
