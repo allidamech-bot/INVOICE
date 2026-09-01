@@ -1,5 +1,16 @@
 import type { UiLanguage } from '../types.js';
-import { t } from '../lib/i18n.js';
+import { isArabic, t } from '../lib/i18n.js';
+import {
+  PACKING_COUNT_CHOICES,
+  PACKING_SIZE_CHOICES,
+  buildPackingPreset,
+  countryChoices,
+  currencyChoices,
+  packingTypeChoices,
+  parsePackingPreset,
+  unitChoices,
+  type PresetChoice
+} from '../lib/product-presets.js';
 
 export type IconName = 'plus'|'settings'|'search'|'file'|'users'|'items'|'save'|'download'|'share'|'copy'|'trash'|'edit'|'lock'|'x'|'chevronDown'|'chevronUp'|'arrowLeft'|'printer'|'check'|'more'|'eye'|'upload'|'backup'|'restore'|'refresh'|'invoice'|'proforma'|'menu';
 
@@ -22,13 +33,152 @@ export function IconButton({ icon, label, variant = 'ghost', className = '', typ
   return <button type={type} className={`icon-btn icon-btn-${variant} ${className}`} aria-label={label} title={label} {...rest}><Icon name={icon}/></button>;
 }
 
-export function Field({ label, error, hint, children, className = '' }: { label: any; error?: string; hint?: string; children: any; className?: string }): any {
-  return <label className={`field ${className}`}><span className="field-label">{label}</span>{children}{error ? <span className="field-error">{error}</span> : hint ? <span className="field-hint">{hint}</span> : null}</label>;
-}
-
 export function Input({ className = '', ...props }: any): any { return <input className={`input ${className}`} {...props}/>; }
 export function Select({ className = '', ...props }: any): any { return <select className={`input select ${className}`} {...props}/>; }
 export function Textarea({ className = '', ...props }: any): any { return <textarea className={`input textarea ${className}`} {...props}/>; }
+
+type SmartProductFieldKind='unit'|'currency'|'origin'|'packing';
+interface PresetControlProps { value:string; choices:PresetChoice[]; label:string; onChange:(value:string)=>void; uppercase?:boolean; }
+interface PresetControlState { custom:boolean; }
+
+function isKnownPreset(value:string,choices:PresetChoice[]):boolean{return choices.some(choice=>choice.value===value);}
+
+class PresetControl extends React.Component<PresetControlProps,PresetControlState>{
+  constructor(props:PresetControlProps){super(props);this.state={custom:Boolean(props.value)&&!isKnownPreset(props.value,props.choices)};}
+  componentDidUpdate(prev:PresetControlProps):void{
+    if(prev.value===this.props.value&&!this.props.value)return;
+    if(this.props.value){
+      const custom=!isKnownPreset(this.props.value,this.props.choices);
+      if(custom!==this.state.custom)this.setState({custom});
+    }
+  }
+  private select=(value:string)=>{
+    if(value==='__custom'){
+      this.setState({custom:true});
+      if(isKnownPreset(this.props.value,this.props.choices))this.props.onChange('');
+      return;
+    }
+    this.setState({custom:false});
+    this.props.onChange(value);
+  };
+  render():any{
+    const known=isKnownPreset(this.props.value,this.props.choices);
+    const selectValue=this.state.custom?'__custom':known?this.props.value:'';
+    const customValue=this.state.custom&&!known?this.props.value:'';
+    return <div className="product-preset-control">
+      <Select aria-label={this.props.label} value={selectValue} onChange={(e:any)=>this.select(String(e.target.value))}>
+        <option value="">{t('Choose…','اختر…')}</option>
+        {this.props.choices.map(choice=><option key={choice.value} value={choice.value}>{choice.label}</option>)}
+        <option value="__custom">{t('Other / Custom','أخرى / مخصص')}</option>
+      </Select>
+      {this.state.custom?<Input className="product-preset-custom" aria-label={t(`Custom ${this.props.label}`,`قيمة مخصصة: ${this.props.label}`)} value={customValue} placeholder={t('Enter custom value','أدخل قيمة مخصصة')} onChange={(e:any)=>this.props.onChange(this.props.uppercase?String(e.target.value).toUpperCase():String(e.target.value))}/>:null}
+    </div>;
+  }
+}
+
+interface PackingControlProps { value:string; label:string; onChange:(value:string)=>void; }
+interface PackingControlState { custom:boolean; }
+class PackingControl extends React.Component<PackingControlProps,PackingControlState>{
+  constructor(props:PackingControlProps){super(props);this.state={custom:parsePackingPreset(props.value).custom};}
+  componentDidUpdate(prev:PackingControlProps):void{
+    if(prev.value===this.props.value||!this.props.value)return;
+    const custom=parsePackingPreset(this.props.value).custom;
+    if(custom!==this.state.custom)this.setState({custom});
+  }
+  private chooseType=(type:string)=>{
+    const parsed=parsePackingPreset(this.props.value);
+    if(type==='__custom'){
+      this.setState({custom:true});
+      if(!parsed.custom)this.props.onChange('');
+      return;
+    }
+    this.setState({custom:false});
+    this.props.onChange(buildPackingPreset(type,parsed.custom?'':parsed.count,parsed.custom?'':parsed.size));
+  };
+  private chooseCount=(count:string)=>{
+    const parsed=parsePackingPreset(this.props.value);
+    if(parsed.custom||!parsed.type)return;
+    this.props.onChange(buildPackingPreset(parsed.type,count,count?parsed.size:''));
+  };
+  private chooseSize=(size:string)=>{
+    const parsed=parsePackingPreset(this.props.value);
+    if(parsed.custom||!parsed.type||!parsed.count)return;
+    this.props.onChange(buildPackingPreset(parsed.type,parsed.count,size));
+  };
+  render():any{
+    const arabic=isArabic();
+    const parsed=parsePackingPreset(this.props.value);
+    const types=packingTypeChoices(arabic);
+    if(this.state.custom){
+      return <div className="product-preset-control packing-preset-control is-custom">
+        <Select aria-label={this.props.label} value="__custom" onChange={(e:any)=>this.chooseType(String(e.target.value))}>
+          <option value="">{t('Choose packing','اختر التعبئة')}</option>
+          {types.map(choice=><option key={choice.value} value={choice.value}>{choice.label}</option>)}
+          <option value="__custom">{t('Other / Custom','أخرى / مخصص')}</option>
+        </Select>
+        <Input className="product-preset-custom" aria-label={t('Custom packing','تعبئة مخصصة')} value={parsed.custom?this.props.value:''} placeholder={t('e.g. 12 boxes × 24 pcs','مثال: 12 علبة × 24 قطعة')} onChange={(e:any)=>this.props.onChange(String(e.target.value))}/>
+      </div>;
+    }
+    return <div className="packing-preset-control">
+      <Select aria-label={this.props.label} value={parsed.type} onChange={(e:any)=>this.chooseType(String(e.target.value))}>
+        <option value="">{t('Package type','نوع التعبئة')}</option>
+        {types.map(choice=><option key={choice.value} value={choice.value}>{choice.label}</option>)}
+        <option value="__custom">{t('Other / Custom','أخرى / مخصص')}</option>
+      </Select>
+      <div className="packing-preset-details">
+        <Select aria-label={t('Units per package','عدد الوحدات في العبوة')} value={parsed.count} disabled={!parsed.type} onChange={(e:any)=>this.chooseCount(String(e.target.value))}>
+          <option value="">{t('Count','العدد')}</option>
+          {PACKING_COUNT_CHOICES.map(count=><option key={count} value={count}>{count}</option>)}
+        </Select>
+        <Select aria-label={t('Unit size or weight','حجم أو وزن الوحدة')} value={parsed.size} disabled={!parsed.type||!parsed.count} onChange={(e:any)=>this.chooseSize(String(e.target.value))}>
+          <option value="">{t('Size / weight','الحجم / الوزن')}</option>
+          {PACKING_SIZE_CHOICES.map(size=><option key={size} value={size}>{size}</option>)}
+        </Select>
+      </div>
+      {this.props.value?<span className="packing-preset-preview">{this.props.value}</span>:null}
+    </div>;
+  }
+}
+
+function smartFieldKind(label:any):SmartProductFieldKind|null{
+  if(typeof label!=='string')return null;
+  if(label===t('Unit','الوحدة'))return 'unit';
+  if(label===t('Currency','العملة'))return 'currency';
+  if(label===t('Origin','المنشأ')||label===t('Country of Origin','بلد المنشأ'))return 'origin';
+  if(label===t('Packing','التعبئة'))return 'packing';
+  return null;
+}
+
+function findInputChild(children:any):any{
+  const items=Array.isArray(children)?children:[children];
+  return items.find(child=>child&&typeof child==='object'&&child.type===Input)||null;
+}
+
+function dispatchInputValue(input:any,value:string):void{
+  const handler=input?.props?.onChange;
+  if(typeof handler==='function')handler({target:{value},currentTarget:{value}});
+}
+
+export function Field({ label, error, hint, children, className = '' }: { label: any; error?: string; hint?: string; children: any; className?: string }): any {
+  const kind=smartFieldKind(label);
+  const input=kind?findInputChild(children):null;
+  if(kind&&input&&typeof input.props?.value==='string'&&typeof input.props?.onChange==='function'){
+    const value=String(input.props.value||'');
+    const onChange=(next:string)=>dispatchInputValue(input,next);
+    const arabic=isArabic();
+    const control=kind==='packing'
+      ? <PackingControl value={value} label={String(label)} onChange={onChange}/>
+      : <PresetControl
+          value={value}
+          label={String(label)}
+          choices={kind==='unit'?unitChoices(arabic):kind==='currency'?currencyChoices(arabic):countryChoices(arabic)}
+          uppercase={kind==='currency'}
+          onChange={onChange}
+        />;
+    return <div className={`field smart-product-field smart-product-field-${kind} ${className}`}><span className="field-label">{label}</span>{control}{error ? <span className="field-error">{error}</span> : hint ? <span className="field-hint">{hint}</span> : null}</div>;
+  }
+  return <label className={`field ${className}`}><span className="field-label">{label}</span>{children}{error ? <span className="field-error">{error}</span> : hint ? <span className="field-hint">{hint}</span> : null}</label>;
+}
 
 export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: any }): any {
   return <label className="toggle-row"><button type="button" role="switch" aria-checked={checked} className={`toggle ${checked ? 'on' : ''}`} onClick={() => onChange(!checked)}><span/></button><span>{label}</span></label>;
