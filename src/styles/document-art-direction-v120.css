@@ -1,0 +1,490 @@
+/* v120 — LOUREX premium document art direction.
+   A visual-system pass for all Proforma/Invoice templates. It keeps the v119
+   RTL/PDF safeguards intact while making the A4 output feel like designed
+   corporate stationery rather than a collection of boxed UI cards. */
+
+/* --------------------------------------------------------------------------
+   01. Shared document rhythm
+   -------------------------------------------------------------------------- */
+.invoice-page{
+  --doc-ink:#14202a;
+  --doc-muted:#6e7a83;
+  --doc-rule:#dfe3e5;
+  --doc-paper:#fff;
+  --doc-soft:#f6f7f7;
+  --doc-radius:1.8mm;
+  color:var(--doc-ink);
+  font-family:var(--font-latin,Inter,Arial,sans-serif);
+  font-size:9.3px;
+  line-height:1.46;
+}
+.invoice-page.lang-ar,
+.invoice-page [dir="rtl"]{font-family:var(--font-arabic,"Noto Sans Arabic",Tahoma,Arial,sans-serif)}
+.invoice-page .doc-body{padding:7.5mm 11mm 15mm}
+.invoice-page .doc-logo img{max-width:52mm;max-height:16mm}
+.invoice-page .doc-title{gap:.7mm}
+.invoice-page .doc-title span{font-size:22px;line-height:.98;letter-spacing:.045em;font-weight:800}
+.invoice-page .doc-title em{font-size:10px;line-height:1.1;font-weight:650;opacity:.82}
+.invoice-page.lang-ar .doc-title span{font-size:24px;line-height:1.14}
+.invoice-page .doc-meta{gap:1.8mm 4mm}
+.invoice-page .doc-meta>div{
+  min-width:0;
+  border-bottom:1px solid color-mix(in srgb,var(--doc-rule) 88%,transparent);
+  padding:0 0 1.1mm;
+}
+.invoice-page .doc-meta b{font-size:6.3px;line-height:1.15;font-weight:700;color:var(--doc-muted);letter-spacing:.035em}
+.invoice-page .doc-meta span{font-size:7.8px;line-height:1.2;font-weight:720;color:var(--doc-ink)}
+
+/* --------------------------------------------------------------------------
+   02. Parties — make the customer the visual destination
+   -------------------------------------------------------------------------- */
+.invoice-page .party-grid{
+  grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr);
+  gap:4mm;
+  margin-bottom:6mm;
+  align-items:stretch;
+}
+.invoice-page.lang-ar .party-grid{grid-template-columns:minmax(0,1.18fr) minmax(0,.82fr)}
+.invoice-page .party-block{
+  min-height:27mm;
+  border:1px solid var(--doc-rule);
+  border-radius:var(--doc-radius);
+  padding:3.7mm 4mm;
+  background:transparent;
+}
+.invoice-page .party-seller{
+  color:#56636d;
+  background:color-mix(in srgb,var(--doc-soft) 72%,#fff);
+}
+.invoice-page .party-customer{
+  position:relative;
+  background:#fff;
+  border-color:color-mix(in srgb,var(--accent) 38%,var(--doc-rule));
+  box-shadow:inset 1.2mm 0 0 color-mix(in srgb,var(--accent) 78%,#fff);
+}
+.invoice-page.lang-ar .party-customer{box-shadow:inset -1.2mm 0 0 color-mix(in srgb,var(--accent) 78%,#fff)}
+.invoice-page .section-kicker{
+  margin:0 0 1.8mm;
+  font-size:6.2px;
+  line-height:1.2;
+  font-weight:800;
+  letter-spacing:.075em;
+  color:color-mix(in srgb,var(--accent) 78%,#51452f);
+}
+.invoice-page .party-seller .section-kicker{color:#78838b}
+.invoice-page .party-name{font-size:11.5px;line-height:1.22;font-weight:780;margin-bottom:1.2mm;color:var(--doc-ink)}
+.invoice-page .party-customer .party-name{font-size:12.7px}
+.invoice-page .party-address,.invoice-page .party-contact,.invoice-page .party-block>div{overflow-wrap:anywhere}
+.invoice-page .party-contact{margin-top:1mm;font-size:7.2px;opacity:.88}
+.invoice-page .party-identifiers{display:grid;grid-template-columns:1fr;gap:.55mm;margin-top:1.4mm;padding-top:1.4mm;border-top:1px solid color-mix(in srgb,var(--doc-rule) 82%,transparent)}
+.invoice-page .party-identifiers>div{display:flex;justify-content:space-between;gap:2mm}
+.invoice-page .party-identifiers b{font-size:6px;font-weight:650;color:#7a858d}
+.invoice-page .party-identifiers span{font-size:6.8px;font-weight:650}
+
+/* --------------------------------------------------------------------------
+   03. Items table — description first, money unmistakable
+   -------------------------------------------------------------------------- */
+.invoice-page .items-wrap{margin-top:0}
+.invoice-page .items-table{table-layout:auto;border-collapse:separate;border-spacing:0}
+.invoice-page .items-table th{
+  padding:2.2mm 1.45mm;
+  font-size:6.35px;
+  line-height:1.18;
+  letter-spacing:.035em;
+  font-weight:780;
+  text-transform:uppercase;
+  vertical-align:bottom;
+}
+.invoice-page.lang-ar .items-table th{text-transform:none}
+.invoice-page .items-table th small{font-size:5px;line-height:1;margin-top:.5mm;opacity:.62}
+.invoice-page .items-table td{
+  padding:2.55mm 1.45mm;
+  font-size:7.65px;
+  line-height:1.38;
+  border-bottom:1px solid #e6e8e9;
+  background:transparent;
+}
+.invoice-page .items-table tbody tr:nth-child(even){background:color-mix(in srgb,var(--doc-soft) 62%,#fff)}
+.invoice-page .items-table .description-cell{width:42%;min-width:42mm;font-weight:610;color:var(--doc-ink)}
+.invoice-page .items-table .col-num{width:6mm;color:#89939a;font-size:6.5px}
+.invoice-page .items-table .money-cell{font-variant-numeric:tabular-nums;font-weight:650}
+.invoice-page .items-table .money-cell.strong{font-weight:800;color:var(--doc-ink)}
+.invoice-page .continued-label{margin:0 0 2mm;font-size:6.2px;letter-spacing:.07em;color:#808a91}
+
+/* --------------------------------------------------------------------------
+   04. Closing zone — one deliberate commercial composition
+   -------------------------------------------------------------------------- */
+.invoice-page .final-details{position:relative}
+.invoice-page .lower-grid{
+  grid-template-columns:minmax(0,1fr) 61mm;
+  gap:6mm;
+  align-items:start;
+  margin-top:0;
+  padding-top:3.8mm;
+  border-top:1px solid color-mix(in srgb,var(--accent) 38%,var(--doc-rule));
+}
+.invoice-page .terms-block,
+.invoice-page .bank-block,
+.invoice-page .signature-block,
+.invoice-page .notes-block{
+  border-top:0;
+  padding-top:0;
+}
+.invoice-page .terms-block h3,
+.invoice-page .bank-block h3,
+.invoice-page .signature-block h3,
+.invoice-page .notes-block h3{
+  margin:0 0 2mm;
+  font-size:6.6px;
+  line-height:1.15;
+  font-weight:800;
+  color:var(--doc-ink);
+  letter-spacing:.07em;
+}
+.invoice-page.lang-ar .terms-block h3,
+.invoice-page.lang-ar .bank-block h3,
+.invoice-page.lang-ar .signature-block h3,
+.invoice-page.lang-ar .notes-block h3{letter-spacing:0}
+.invoice-page .terms-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:1.2mm 4.5mm}
+.invoice-page .term-row{display:grid;grid-template-columns:minmax(18mm,auto) 1fr;gap:1.8mm;align-items:baseline;padding:.35mm 0}
+.invoice-page .term-row b{min-width:0;font-size:6px;line-height:1.25;font-weight:650;color:#78838b}
+.invoice-page .term-row span{font-size:7px;line-height:1.35;font-weight:620;color:#26333d;overflow-wrap:anywhere}
+.invoice-page .totals-block{
+  align-self:start;
+  border:1px solid color-mix(in srgb,var(--accent) 26%,#d7dbdd);
+  border-radius:var(--doc-radius);
+  background:linear-gradient(180deg,#fff 0%,#f7f7f5 100%);
+  padding:2.7mm 3.5mm 3mm;
+  box-shadow:none;
+}
+.invoice-page .total-row{padding:1.05mm 0;border-bottom:1px solid #e5e7e7}
+.invoice-page .total-row span{font-size:6.6px;color:#737f87}
+.invoice-page .total-row strong{font-size:7.2px;color:#2b3740;font-variant-numeric:tabular-nums}
+.invoice-page .grand-total{
+  margin:1.4mm -3.5mm -3mm;
+  padding:2.6mm 3.5mm 2.8mm;
+  border-top:0;
+  border-radius:0 0 calc(var(--doc-radius) - .2mm) calc(var(--doc-radius) - .2mm);
+  background:var(--doc-ink);
+  color:#fff;
+}
+.invoice-page .grand-total span{font-size:7.8px;font-weight:720;color:#fff}
+.invoice-page .grand-total strong{font-size:11.5px;line-height:1;font-weight:850;color:#fff;font-variant-numeric:tabular-nums}
+.invoice-page .notes-block{margin-top:3.8mm;padding-top:2.6mm;border-top:1px solid #e2e5e6}
+.invoice-page .notes-block p{font-size:7px;line-height:1.5;color:#5f6b74}
+.invoice-page .bottom-grid{gap:7mm;margin-top:3.6mm;padding-top:2.6mm;border-top:1px solid #eceeef}
+.invoice-page .bank-block>div{grid-template-columns:25mm minmax(0,1fr);gap:2mm;margin:.8mm 0}
+.invoice-page .bank-block b{font-size:5.9px;color:#7a858d}
+.invoice-page .bank-block span{font-size:6.7px;line-height:1.35;font-weight:650;overflow-wrap:anywhere}
+.invoice-page .signature-media{height:18mm;gap:4mm}
+.invoice-page .signature-media img{max-height:17mm;max-width:38mm}
+.invoice-page .doc-footer{left:11mm;right:11mm;height:10.5mm;font-size:5.9px;letter-spacing:.025em;color:#879198}
+
+/* --------------------------------------------------------------------------
+   05. First-page headers — shorter, more confident, less dashboard-like
+   -------------------------------------------------------------------------- */
+.template-executive .header-executive{
+  min-height:43mm;
+  padding:8mm 11mm 6mm;
+  gap:4mm 7mm;
+  background:linear-gradient(118deg,#091b2a 0%,#102b3f 74%,#15354a 100%);
+  border-bottom:1.4mm solid color-mix(in srgb,var(--accent) 82%,#d7c09a);
+}
+.template-executive .header-executive .doc-meta{gap:0 5mm}
+.template-executive .header-executive .doc-meta>div{background:transparent;border:0;border-bottom:1px solid rgba(255,255,255,.18);border-radius:0;padding:0 0 1.2mm}
+.template-executive .header-executive .doc-title span{font-size:25px;letter-spacing:.03em}
+
+.template-minimal .header-minimal{
+  min-height:39mm;
+  padding:9mm 11mm 5.5mm;
+  border-bottom:1px solid #d8dcde;
+  align-items:flex-end;
+}
+.template-minimal .header-minimal>div:last-child{align-items:flex-end;gap:11mm}
+.template-minimal .doc-title span{font-size:27px;font-weight:650;letter-spacing:-.015em}
+.template-minimal .header-minimal .doc-meta{min-width:61mm}
+.template-minimal .party-block{border-top:0!important;border-bottom:1px solid #dfe2e3;padding-inline:0}
+.template-minimal .party-customer{box-shadow:none;border-bottom-color:color-mix(in srgb,var(--accent) 56%,#dfe2e3)}
+.template-minimal .items-table th{border-top:1px solid #1d2932;border-bottom:1px solid #1d2932}
+
+.template-trade .header-trade{min-height:40mm;grid-template-columns:39mm minmax(0,1fr);border-bottom:1px solid #d9e0e4}
+.template-trade .trade-bar{padding:8mm 5.5mm;background:linear-gradient(160deg,#0b2436,#153e57)}
+.template-trade .trade-title{padding:8mm 11mm 5mm 7mm;align-items:flex-end}
+.template-trade .trade-title .doc-meta{min-width:78mm}
+.template-trade .doc-title span{font-size:23px}
+.template-trade .party-customer{border-inline-start:1.4mm solid var(--accent);box-shadow:none}
+.template-trade.lang-ar .party-customer{border-inline-start:1px solid var(--doc-rule);border-inline-end:1.4mm solid var(--accent)}
+.template-trade .items-table{border:0;border-top:1px solid #cbd4d9}
+.template-trade .items-table th{background:#16384d}
+
+.template-signature .header-signature{min-height:41mm;padding:8.5mm 11mm 5.5mm;border-bottom:1px solid #d9d5cd}
+.template-signature .signature-title{border-inline-start:1.2mm solid color-mix(in srgb,var(--accent) 78%,#c8ab75);padding-inline-start:4mm}
+.template-signature .signature-title>small{font-size:5.8px;letter-spacing:.12em}
+.template-signature .header-signature .doc-meta{margin-top:2mm;gap:4mm}
+.template-signature .header-signature .doc-meta>div{background:transparent;border:0;border-bottom:1px solid #e1ddd5;border-radius:0;padding:0 0 1mm}
+.template-signature .page-accent{height:1.8mm;background:linear-gradient(90deg,#0c2131 0 70%,var(--accent) 70% 100%)}
+
+/* --------------------------------------------------------------------------
+   06. Modern templates — distinct art directions, same commercial discipline
+   -------------------------------------------------------------------------- */
+.header-modern{min-height:43mm;padding:8mm 11mm 5.5mm;gap:3.5mm 7mm}
+.header-modern .doc-meta{gap:0 4mm}
+.header-modern .doc-meta>div{padding-bottom:1.1mm}
+.header-modern .doc-title span{font-size:24px}
+.modern-title>small{font-size:5.5px;letter-spacing:.14em;margin-bottom:1.3mm}
+
+/* Obsidian — black architectural masthead, calm white body. */
+.template-obsidian .header-modern{min-height:45mm;padding:8mm 11mm 6mm;background:linear-gradient(120deg,#0e1115,#171b20)}
+.template-obsidian .modern-geometry{right:-25mm;bottom:-34mm;width:78mm;height:64mm;opacity:.28}
+.template-obsidian .party-block{background:#fff!important;border-color:#e2e5e7!important}
+.template-obsidian .party-seller{background:#f4f5f5!important}
+.template-obsidian .party-customer{border-color:#cfd5d9!important;box-shadow:inset 1.2mm 0 0 #171b20}
+.template-obsidian.lang-ar .party-customer{box-shadow:inset -1.2mm 0 0 #171b20}
+.template-obsidian .items-table th{background:#151a1f}
+.template-obsidian .totals-block{background:#fff;color:var(--doc-ink);border-color:#d6dade}
+.template-obsidian .total-row span,.template-obsidian .grand-total{color:inherit}
+.template-obsidian .grand-total{background:#151a1f;color:#fff}
+.template-obsidian .grand-total span,.template-obsidian .grand-total strong{color:#fff}
+
+/* Cobalt — corporate vertical signature, not a giant color block. */
+.template-cobalt .header-modern{min-height:43mm;grid-template-columns:38mm minmax(0,1fr)}
+.template-cobalt .modern-brand{padding:8mm 5.5mm;background:#153a58}
+.template-cobalt .modern-title{padding:7.5mm 11mm 1.5mm 7mm}
+.template-cobalt .modern-meta{padding:0 11mm 5.5mm 7mm}
+.template-cobalt .modern-title>small{color:#357cae}
+.template-cobalt .doc-title span{color:#153a58}
+.template-cobalt .party-customer{border-color:#aec8db;box-shadow:inset 1.2mm 0 0 #2f78a9}
+.template-cobalt.lang-ar .party-customer{box-shadow:inset -1.2mm 0 0 #2f78a9}
+.template-cobalt .items-table th{background:#153a58}
+
+/* Editorial — typographic restraint and generous white space. */
+.template-editorial .header-modern{min-height:40mm;padding-top:9mm;grid-template-columns:.82fr 1.18fr;border-bottom:1px solid #20262b}
+.template-editorial .modern-title{align-self:end}
+.template-editorial .doc-title span{font-size:29px!important;font-weight:520;letter-spacing:-.025em}
+.template-editorial .modern-title>small{letter-spacing:.18em}
+.template-editorial .modern-meta .doc-meta{grid-template-columns:repeat(2,minmax(0,1fr))}
+.template-editorial .party-grid{gap:8mm}
+.template-editorial .party-block{background:transparent;border:0;border-bottom:1px solid #dadddf;padding:3mm 0 3.5mm}
+.template-editorial .party-customer{box-shadow:none;border-bottom:1.4px solid #20262b}
+.template-editorial .items-table th{background:#fff;color:#20262b;border-top:1px solid #20262b;border-bottom:1px solid #20262b}
+.template-editorial .totals-block{border:0;border-top:1px solid #20262b;border-radius:0;background:#fff;padding-inline:0}
+.template-editorial .grand-total{margin-inline:0;border-radius:0;background:#20262b;padding-inline:3mm}
+
+/* Split — two-tone identity with controlled proportion. */
+.template-split .header-modern{min-height:44mm;grid-template-columns:.43fr .57fr;background:#102636}
+.template-split .modern-brand{padding:8mm 11mm;background:var(--accent)}
+.template-split .modern-title{padding:8mm 11mm 4mm}
+.template-split .modern-meta{padding:3.5mm 11mm 5mm}
+.template-split .party-grid{grid-template-columns:.82fr 1.18fr!important}
+.template-split.lang-ar .party-grid{grid-template-columns:1.18fr .82fr!important}
+.template-split .party-customer{box-shadow:none;border-inline-start:1.3mm solid var(--accent)}
+.template-split.lang-ar .party-customer{border-inline-start:1px solid var(--doc-rule);border-inline-end:1.3mm solid var(--accent)}
+
+/* Prism — geometric accent as a signature, never the main subject. */
+.template-prism .header-modern{min-height:42mm;padding-right:13mm}
+.template-prism .modern-geometry{right:-34mm;top:-41mm;width:92mm;height:80mm;opacity:.72}
+.template-prism .modern-title{max-width:68mm}
+.template-prism .party-block{border-radius:1.8mm}
+.template-prism .party-customer{box-shadow:inset 1.2mm 0 0 var(--accent)!important}
+.template-prism.lang-ar .party-customer{box-shadow:inset -1.2mm 0 0 var(--accent)!important}
+.template-prism .items-table th{background:#18384b}
+
+/* Slate — compact data rail with editorial body. */
+.template-slate .header-modern{min-height:43mm;grid-template-columns:minmax(0,1fr) 52mm;padding:7.5mm 11mm 5.5mm}
+.template-slate .modern-meta{margin:-7.5mm -11mm -5.5mm 0;padding:7mm 6mm;background:#29343c}
+.template-slate.lang-ar .modern-meta{margin:-7.5mm 0 -5.5mm -11mm}
+.template-slate .modern-meta .doc-meta{gap:1.4mm}
+.template-slate .modern-meta .doc-meta>div{padding:1.4mm 0;border-bottom-color:rgba(255,255,255,.16)}
+.template-slate .party-block{background:#f7f8f8;border-color:#e0e4e6}
+.template-slate .party-customer{background:#fff;border-color:#ccd4d8;box-shadow:none}
+.template-slate .items-table th{background:#29343c}
+
+/* Horizon — airy premium stationery, lighter than cards. */
+.template-horizon .header-modern{min-height:43mm;padding-top:11mm;background:#f7f8f8}
+.template-horizon .header-modern:before{height:5mm}
+.template-horizon .modern-brand{border:0;border-radius:0;padding:0;background:transparent}
+.template-horizon .modern-meta{border:0;border-radius:0;padding:0;background:transparent}
+.template-horizon .party-block{border-radius:1.8mm;background:#f7f8f8}
+.template-horizon .party-customer{background:#fff}
+.template-horizon .items-table{border-collapse:separate;border-spacing:0}
+.template-horizon .items-table td{background:transparent;box-shadow:none;border-bottom:1px solid #e2e5e7}
+.template-horizon .totals-block{border-radius:1.8mm}
+
+/* Mono — technical grid with breathing room. */
+.template-mono .header-modern{min-height:40mm;margin:6mm 9mm 0;padding:5.5mm 6mm;border:1px solid #171717}
+.template-mono .doc-body{padding-left:9mm;padding-right:9mm}
+.template-mono .party-grid{border:0;gap:0}
+.template-mono .party-block{border:1px solid #171717;background:#fff}
+.template-mono .party-customer{box-shadow:none;border-left:0}
+.template-mono.lang-ar .party-customer{border-left:1px solid #171717;border-right:0}
+.template-mono .items-table{border:1px solid #171717}
+.template-mono .items-table th{background:#171717}
+.template-mono .totals-block{border:1px solid #171717;border-radius:0;background:#fff}
+.template-mono .grand-total{border-radius:0;background:#171717}
+
+/* Aurora — contemporary gradient restrained to the masthead. */
+.template-aurora .header-modern{min-height:45mm;border-bottom-right-radius:14mm;background:linear-gradient(115deg,#0b2738 0 62%,color-mix(in srgb,var(--accent) 78%,#6f64ce) 100%)}
+.template-aurora.lang-ar .header-modern{border-bottom-right-radius:0;border-bottom-left-radius:14mm}
+.template-aurora .modern-geometry{right:10mm;bottom:-32mm;width:58mm;height:58mm;border-width:8mm;opacity:.46}
+.template-aurora .party-block{background:#f6f8f9}
+.template-aurora .party-customer{background:#fff;border-color:#d5dde2}
+.template-aurora .items-table th{background:#12364c}
+.template-aurora .totals-block{background:#fff;border-color:#d7dfe3}
+
+/* Ledger — structured B2B, modular without looking like a spreadsheet UI. */
+.template-ledger .header-modern{min-height:42mm;border-bottom:2px solid #1c3140}
+.template-ledger .modern-brand{border-left:2px solid var(--accent);padding-left:3mm}
+.template-ledger.lang-ar .modern-brand{border-left:0;border-right:2px solid var(--accent);padding-left:0;padding-right:3mm}
+.template-ledger .modern-title{border:0;border-bottom:1px solid #ccd3d8;padding:0 0 2mm}
+.template-ledger .modern-meta .doc-meta>div{border:0;border-bottom:1px solid #d7dde1;border-radius:0;padding:0 0 1.2mm}
+.template-ledger .party-block{border-color:#d2d9dd}
+.template-ledger .section-kicker{margin:-3.7mm -4mm 2.6mm;padding:1.3mm 2mm;background:#f1f3f4}
+.template-ledger .party-customer .section-kicker{background:#e9eef1}
+.template-ledger .items-table{border:0;border-top:1px solid #cbd3d8}
+.template-ledger .totals-block{border-radius:1mm}
+.template-ledger .grand-total{margin-bottom:-3mm}
+
+/* --------------------------------------------------------------------------
+   07. Dark luxury collection — elegant contrast without over-decoration
+   -------------------------------------------------------------------------- */
+.template-noir .header-modern{min-height:48mm;grid-template-columns:minmax(0,1fr) 49mm}
+.template-noir .modern-title{padding:8mm 5.5mm;background:linear-gradient(155deg,#d8ba7a,#a67838)}
+.template-noir .modern-meta{padding:1mm 11mm 6mm}
+.template-noir .doc-body{padding-top:6.5mm}
+.template-noir .party-grid{grid-template-columns:.82fr 1.18fr}
+.template-noir.lang-ar .party-grid{grid-template-columns:1.18fr .82fr}
+.template-noir .party-block{min-height:26mm;padding:3.7mm 4mm;background:#111214}
+.template-noir .party-customer{background:#151617;border-color:#71572f;box-shadow:inset 1.2mm 0 0 #c99c51}
+.template-noir.lang-ar .party-customer{box-shadow:inset -1.2mm 0 0 #c99c51}
+.template-noir .totals-block{background:#121314;border:1px solid #6d552e;color:#f4efe6}
+.template-noir .total-row span,.template-noir .total-row strong{color:#d7cdbb}
+.template-noir .grand-total{background:linear-gradient(145deg,#d2b06e,#a77b3d)}
+.template-noir .grand-total span,.template-noir .grand-total strong{color:#111}
+
+.template-midnight .header-modern{min-height:47mm;grid-template-columns:39mm minmax(0,1fr)}
+.template-midnight .modern-brand{padding:8mm 5mm}
+.template-midnight .modern-title{padding:8.5mm 11mm 2mm 7mm}
+.template-midnight .modern-meta{padding:1mm 11mm 6mm 7mm}
+.template-midnight .modern-meta .doc-meta>div{border:0;border-bottom:1px solid #29425a;margin:0;padding:0 0 1.2mm;background:transparent}
+.template-midnight .party-block{background:#0a2135;box-shadow:none}
+.template-midnight .party-customer{background:#0d2942;box-shadow:inset 1.2mm 0 0 #c8a25a}
+.template-midnight.lang-ar .party-customer{box-shadow:inset -1.2mm 0 0 #c8a25a}
+.template-midnight .totals-block{background:#071724;border-color:#6f5833}
+.template-midnight .grand-total{background:#c5a15e}
+.template-midnight .grand-total span,.template-midnight .grand-total strong{color:#0a1720}
+
+.template-blackivory .header-modern{min-height:45mm;grid-template-columns:1.08fr .92fr;padding:8mm 11mm 5.5mm}
+.template-blackivory .doc-title span{font-size:27px;font-weight:520}
+.template-blackivory .modern-meta .doc-meta>div{border:0;border-bottom:1px solid #4a453c;padding:0 0 1.2mm}
+.template-blackivory .party-grid{grid-template-columns:.82fr 1.18fr;border:0;gap:0}
+.template-blackivory.lang-ar .party-grid{grid-template-columns:1.18fr .82fr}
+.template-blackivory .party-block{border:1px solid #4a463f;background:#11110f}
+.template-blackivory .party-customer{background:#eee7da;color:#191816;box-shadow:none;border-color:#d4c8b5}
+.template-blackivory .items-table{border:0;border-top:1px solid #d7ccbb}
+.template-blackivory .totals-block{background:#eee7da;border-color:#cfc2ae}
+.template-blackivory .grand-total{background:#181714}
+.template-blackivory .grand-total span,.template-blackivory .grand-total strong{color:#f3ecdf}
+
+.template-carbon .header-modern{min-height:47mm;padding:8mm 11mm 5.5mm}
+.template-carbon .modern-title{padding-inline-end:3mm;border-inline-end:1mm solid #b98f49}
+.template-carbon.lang-ar .modern-title{padding-inline-end:0;padding-inline-start:3mm;border-inline-end:0;border-inline-start:1mm solid #b98f49}
+.template-carbon .modern-meta .doc-meta>div{background:transparent;border:0;border-bottom:1px solid #393b3e;border-radius:0;padding:0 0 1.2mm}
+.template-carbon .doc-body{background:#1b1d20}
+.template-carbon .party-block{background:#202226;border-color:#3a3d40}
+.template-carbon .party-customer{background:#25282c;border-color:#765c34;box-shadow:inset 1.2mm 0 0 #b98f49!important}
+.template-carbon.lang-ar .party-customer{box-shadow:inset -1.2mm 0 0 #b98f49!important}
+.template-carbon .items-table{border-spacing:0}
+.template-carbon .totals-block{background:#202226;border-color:#71582f}
+.template-carbon .grand-total{background:#bd9552;margin-bottom:-3mm}
+.template-carbon .grand-total span,.template-carbon .grand-total strong{color:#151515}
+
+/* --------------------------------------------------------------------------
+   08. Continuation pages — compact masthead instead of repeating the hero
+   -------------------------------------------------------------------------- */
+.invoice-pages>.invoice-page:not(:first-child) .doc-logo,
+.invoice-pages>.invoice-page:not(:first-child) .modern-geometry,
+.invoice-pages>.invoice-page:not(:first-child) .modern-title>small,
+.invoice-pages>.invoice-page:not(:first-child) .signature-title>small{display:none!important}
+.invoice-pages>.invoice-page:not(:first-child) .doc-body{padding-top:5.5mm}
+.invoice-pages>.invoice-page:not(:first-child) .doc-title span{font-size:12.5px!important;line-height:1.1!important;letter-spacing:.02em!important}
+.invoice-pages>.invoice-page:not(:first-child) .doc-title em{display:none}
+.invoice-pages>.invoice-page:not(:first-child) .doc-meta{display:flex!important;justify-content:flex-end!important;gap:4mm!important;min-width:0!important}
+.invoice-pages>.invoice-page:not(:first-child) .doc-meta>div{display:none!important}
+.invoice-pages>.invoice-page:not(:first-child) .doc-meta>div:first-child{display:flex!important;min-width:38mm!important;justify-content:space-between!important;padding:0 0 .8mm!important}
+.invoice-pages>.invoice-page:not(:first-child) .header-modern{
+  min-height:20mm!important;
+  padding:5mm 11mm 3.5mm!important;
+  margin:0!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  grid-template-areas:"title meta"!important;
+  gap:5mm!important;
+  border-radius:0!important;
+}
+.invoice-pages>.invoice-page:not(:first-child) .modern-brand{display:none!important}
+.invoice-pages>.invoice-page:not(:first-child) .modern-title{grid-area:title!important;align-self:center!important;padding:0!important;margin:0!important;border:0!important;text-align:left!important}
+.invoice-pages>.invoice-page:not(:first-child).lang-ar .modern-title{text-align:right!important}
+.invoice-pages>.invoice-page:not(:first-child) .modern-meta{grid-area:meta!important;align-self:center!important;padding:0!important;margin:0!important;background:transparent!important}
+.invoice-pages>.invoice-page:not(:first-child).template-slate .modern-meta,
+.invoice-pages>.invoice-page:not(:first-child).template-cobalt .modern-meta{background:transparent!important}
+.invoice-pages>.invoice-page:not(:first-child) .header-executive,
+.invoice-pages>.invoice-page:not(:first-child) .header-signature{
+  min-height:20mm!important;
+  padding:5mm 11mm 3.5mm!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  grid-template-areas:"title meta"!important;
+  gap:5mm!important;
+}
+.invoice-pages>.invoice-page:not(:first-child) .header-executive .doc-title{grid-area:title!important;text-align:left!important;align-self:center}
+.invoice-pages>.invoice-page:not(:first-child).lang-ar .header-executive .doc-title{text-align:right!important}
+.invoice-pages>.invoice-page:not(:first-child) .header-executive .doc-meta{grid-area:meta!important;align-self:center}
+.invoice-pages>.invoice-page:not(:first-child) .header-minimal{
+  min-height:20mm!important;
+  padding:5mm 11mm 3.5mm!important;
+  display:block!important;
+}
+.invoice-pages>.invoice-page:not(:first-child) .header-minimal>div:last-child{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:5mm!important;align-items:center!important}
+.invoice-pages>.invoice-page:not(:first-child) .header-trade{min-height:20mm!important;display:block!important;border-bottom:1px solid #d7dde1}
+.invoice-pages>.invoice-page:not(:first-child) .header-trade .trade-bar{display:none!important}
+.invoice-pages>.invoice-page:not(:first-child) .header-trade .trade-title{padding:5mm 11mm 3.5mm!important;align-items:center!important}
+.invoice-pages>.invoice-page:not(:first-child) .header-signature .signature-title{grid-area:title!important;padding:0!important;border:0!important;align-self:center}
+.invoice-pages>.invoice-page:not(:first-child) .header-signature .doc-meta{grid-area:meta!important;align-self:center!important;margin:0!important}
+.invoice-pages>.invoice-page:not(:first-child).template-mono .header-modern{border-width:0 0 1px!important}
+
+/* Details-only pages are intentionally calm: no false empty-table emphasis. */
+.invoice-page.details-only .doc-body{padding-top:6mm}
+.invoice-page.details-only .final-details{padding-top:0}
+.invoice-page.details-only .lower-grid{margin-top:0}
+
+/* --------------------------------------------------------------------------
+   09. RTL and bilingual finishing
+   -------------------------------------------------------------------------- */
+.invoice-page.lang-ar .party-block,
+.invoice-page.lang-ar .terms-block,
+.invoice-page.lang-ar .bank-block,
+.invoice-page.lang-ar .signature-block,
+.invoice-page.lang-ar .notes-block{text-align:right}
+.invoice-page.lang-ar .term-row{grid-template-columns:minmax(18mm,auto) 1fr}
+.invoice-page.lang-ar .party-identifiers>div{flex-direction:row}
+.invoice-page.lang-bilingual .party-name .bi-value,
+.invoice-page.lang-bilingual .party-address .bi-value{display:grid;gap:.5mm}
+.invoice-page.lang-bilingual .items-table .description-cell .bi-value{gap:.65mm}
+.invoice-page.lang-bilingual .doc-title{gap:.5mm}
+
+/* --------------------------------------------------------------------------
+   10. Print invariants — design yes, layout surprises no
+   -------------------------------------------------------------------------- */
+@media print{
+  .invoice-page{box-shadow:none}
+  .invoice-page .party-block,
+  .invoice-page .totals-block,
+  .invoice-page .items-table{box-shadow:none!important}
+  .invoice-page .final-details,
+  .invoice-page .lower-grid,
+  .invoice-page .bottom-grid{break-inside:avoid!important;page-break-inside:avoid!important}
+  .invoice-pages>.invoice-page:not(:first-child) .header-modern,
+  .invoice-pages>.invoice-page:not(:first-child) .header-executive,
+  .invoice-pages>.invoice-page:not(:first-child) .header-minimal,
+  .invoice-pages>.invoice-page:not(:first-child) .header-trade,
+  .invoice-pages>.invoice-page:not(:first-child) .header-signature{break-inside:avoid!important;page-break-inside:avoid!important}
+}
