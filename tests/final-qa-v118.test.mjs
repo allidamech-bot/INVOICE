@@ -42,3 +42,14 @@ test('v118 production build and offline shell ship every installed-app PNG',asyn
   assert.match(sw,/lourex-invoice-v65/);
   assert.match(sw,/const CACHE = 'lourex-invoice-v101'/);
 });
+
+test('v118 customer quick-document transition never sets state after its page unmounts',async()=>{
+  const source=await read('src/components/CustomersPage.tsx');
+  assert.match(source,/private mounted=false/);
+  assert.match(source,/componentDidMount\(\):void\{this\.mounted=true;/);
+  assert.match(source,/componentWillUnmount\(\):void\{this\.mounted=false;/);
+  assert.match(source,/catch\(e\)\{if\(this\.mounted\)this\.setState\(\{error:/);
+  assert.match(source,/finally\{if\(this\.mounted\)this\.setState\(\{creatingDocument:''\}\);\}/);
+  assert.match(source,/Create this customer without typing the name again/);
+  assert.match(source,/Add your first customer/);
+});
