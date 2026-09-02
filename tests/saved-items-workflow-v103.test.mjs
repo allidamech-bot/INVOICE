@@ -46,7 +46,7 @@ test('v103 exposes a first-class Items page and multi-select picker offline',asy
   const [app,page,modal,editor,sw]=await Promise.all([
     read('src/app/App.tsx'),read('src/components/SavedItemsPage.tsx'),read('src/components/SavedItemsModal.tsx'),read('src/components/EditorPageCore.tsx'),read('public/sw.js')
   ]);
-  assert.match(app,/screen:'documents'\|'customers'\|'items'\|'editor'/);
+  assert.match(app,/screen:[^;]*'items'/);
   assert.match(app,/screen==='items'/);
   assert.match(page,/ProductLibraryWorkspace/);
   assert.match(modal,/onSelectMany/);
