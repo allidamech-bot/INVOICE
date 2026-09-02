@@ -4,6 +4,7 @@ on:
     branches: [agent/document-lifecycle-batch-3]
     paths:
       - scripts/apply-document-lifecycle-batch3.mjs
+      - scripts/run-document-lifecycle-batch3.mjs
       - .github/workflows/apply-batch3.yml
 permissions:
   contents: write
@@ -18,12 +19,12 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-      - run: node scripts/apply-document-lifecycle-batch3.mjs
+      - run: node scripts/run-document-lifecycle-batch3.mjs
       - name: Commit transformed batch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/apply-batch3.yml scripts/apply-document-lifecycle-batch3.mjs
+          git rm .github/workflows/apply-batch3.yml scripts/apply-document-lifecycle-batch3.mjs scripts/run-document-lifecycle-batch3.mjs
           git add -A
           git commit -m "feat: add document lifecycle and credit notes"
           git push origin HEAD:agent/document-lifecycle-batch-3
