@@ -24,10 +24,11 @@ test('mobile document action menu closes on outside press or Escape',()=>{
   const page=read('src/components/DocumentsPage.tsx');
   assert.match(page,/document\.addEventListener\('pointerdown',this\.handleOutsidePointer\)/);
   assert.match(page,/document\.removeEventListener\('pointerdown',this\.handleOutsidePointer\)/);
-  assert.match(page,/target\.closest\('\.mobile-actions'\)/);
+  assert.match(page,/target\.closest\('\.mobile-actions,\.mobile-document-action-portal'\)/);
   assert.match(page,/event\.key==='Escape'/);
   assert.match(page,/<button type="button" className="document-main"/);
-  assert.match(page,/<button type="button" onClick=\{\(\)=>this\.runAction/);
+  assert.match(page,/ReactDOM\.createPortal\([\s\S]*?<button type="button" role="menuitem" onClick=\{\(\)=>this\.runAction/);
+  assert.match(page,/mobile-document-action-backdrop[\s\S]*?onClick=\{\(\)=>this\.setState\(\{menuId:''\}\)\}/);
 });
 
 test('customer editor warns before discarding unsaved changes',()=>{
