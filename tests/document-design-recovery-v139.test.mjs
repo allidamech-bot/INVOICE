@@ -42,10 +42,11 @@ test('v139 production bundle contains v120-v130 and removes local network import
   assert.deepEqual([...distHtml.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(m=>m[1]),['app.bundle.css']);
 });
 
-test('v139 offline source cache contains every final design layer',async()=>{
+test('v139 offline source cache retains every recovered design layer after later cache upgrades',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v139';$/m);
-  for(const name of designLayers)assert.ok(sw.includes(`"./styles/${name}"`),`${name} must be available offline`);
+  assert.match(sw,/lourex-invoice-v139/);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v\d+';$/m);
+  for(const name of designLayers)assert.ok(sw.includes(`"./styles/${name}"`),`${name} must remain available offline`);
 });
 
 test('v139 retains all 18 established quote and invoice template identities',async()=>{
