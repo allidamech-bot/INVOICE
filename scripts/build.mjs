@@ -36,8 +36,12 @@ await writeFile('dist/runtime-config.js',`window.__LOUREX_RUNTIME__=${JSON.strin
 
 let html = await readFile('index.html','utf8');
 const localStylePattern=/<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>/g;
-const styleNames=[...html.matchAll(localStylePattern)].map(match=>match[1]);
+const localImportPattern=/@import url\("\.\/styles\/([^\"]+\.css)"\);/g;
+const styleReferencePattern=/(?:<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>|@import url\("\.\/styles\/([^\"]+\.css)"\);)/g;
+const styleNames=[...html.matchAll(styleReferencePattern)].map(match=>match[1]||match[2]);
 if(!styleNames.length) throw new Error('No local stylesheet layers found in index.html.');
+if(new Set(styleNames).size!==styleNames.length) throw new Error('Duplicate local stylesheet layer detected in index.html.');
+if(styleNames.at(-1)!=='document-final-qa-v130.css') throw new Error('Final document QA layer must remain the last local stylesheet in the production cascade.');
 
 const styleParts=await Promise.all(styleNames.map(async name=>{
   const css=await readFile(`src/styles/${name}`,'utf8');
@@ -51,6 +55,8 @@ html=html.replace(localStylePattern,()=>{
   bundleInserted=true;
   return '<link rel="stylesheet" href="./styles/app.bundle.css" />';
 });
+html=html.replace(/<style>\s*(?:@import url\("\.\/styles\/[^\"]+\.css"\);)+\s*<\/style>/g,'');
+if([...html.matchAll(localImportPattern)].length) throw new Error('Production HTML still contains local stylesheet @import references.');
 await writeFile('dist/index.html',html);
 
 const swPath='dist/sw.js';
