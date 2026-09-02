@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
+// Covers the WebKit containing-block interaction that kept the v122 fixed sheet card-bound.
 test('v123 removes WebKit card containment while the mobile action sheet is open',async()=>{
   const css=await read('src/styles/mobile-document-actions-v123.css');
   const html=await read('index.html');
