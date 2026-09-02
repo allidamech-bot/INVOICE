@@ -55,8 +55,10 @@ test('v139 retains all 18 established quote and invoice template identities',asy
     read('src/styles/document-template-system-v129.css'),
     read('src/styles/document-final-qa-v130.css')
   ]);
-  for(const id of templateIds)assert.ok(types.includes(`'${id}'`),`${id} template identity must remain supported`);
-  for(const id of ['executive','trade','obsidian','prism','noir','carbon'])assert.match(v128,new RegExp(`\\.template-${id}\\b`));
-  for(const id of ['minimal','signature','cobalt','editorial','split','slate','horizon','mono','aurora','ledger','midnight','blackivory'])assert.match(v129,new RegExp(`\\.template-${id}\\b`));
+  const artDirection=`${v128}\n${v129}`;
+  for(const id of templateIds){
+    assert.ok(types.includes(`'${id}'`),`${id} template identity must remain supported`);
+    assert.match(artDirection,new RegExp(`\\.template-${id}\\b`),`${id} must retain explicit final art direction`);
+  }
   assert.match(v130,/\.invoice-page/);
 });
