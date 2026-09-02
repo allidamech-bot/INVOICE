@@ -39,7 +39,7 @@ function mergeAppSettings(base:AppSettings,intended:AppSettings,latest:AppSettin
   const next:AppSettings={...latest,numbering:{...latest.numbering},smartDefaults:{...latest.smartDefaults,favoriteTemplateIds:[...latest.smartDefaults.favoriteTemplateIds]}};
   if(intended.autoLockMinutes!==base.autoLockMinutes)next.autoLockMinutes=intended.autoLockMinutes;
   if(intended.uiLanguage!==base.uiLanguage)next.uiLanguage=intended.uiLanguage;
-  const numberingKeys:Array<keyof AppSettings['numbering']>=['proformaPrefix','invoicePrefix','proformaLast','invoiceLast','proformaYear','invoiceYear'];
+  const numberingKeys:Array<keyof AppSettings['numbering']>=['proformaPrefix','invoicePrefix','creditNotePrefix','proformaLast','invoiceLast','creditNoteLast','proformaYear','invoiceYear','creditNoteYear'];
   for(const key of numberingKeys)if(intended.numbering[key]!==base.numbering[key])(next.numbering as any)[key]=intended.numbering[key];
   const smartKeys:Array<Exclude<keyof AppSettings['smartDefaults'],'favoriteTemplateIds'>>=['currency','language','incoterm','paymentTerms','deliveryTime','quoteTemplateId','invoiceTemplateId'];
   for(const key of smartKeys)if(intended.smartDefaults[key]!==base.smartDefaults[key])(next.smartDefaults as any)[key]=intended.smartDefaults[key];
@@ -54,6 +54,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     company:mergeCompany(base.company,intended.company,latest.company),
     customers:mergeRecords(base.customers,intended.customers,latest.customers),
     documents:mergeRecords(base.documents,intended.documents,latest.documents),
+    documentEvents:mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents),
+    documentRevisions:mergeRecords(base.documentRevisions,intended.documentRevisions,latest.documentRevisions),
     payments:mergeRecords(base.payments,intended.payments,latest.payments),
     savedItems:mergeRecords(base.savedItems,intended.savedItems,latest.savedItems),
     appSettings:mergeAppSettings(base.appSettings,intended.appSettings,latest.appSettings)

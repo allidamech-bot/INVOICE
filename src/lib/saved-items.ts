@@ -103,6 +103,7 @@ export function findSavedItemMatch(items: SavedItem[], item: DocumentItem): Save
 export function historySuggestions(documents: LourexDocument[]): SavedItem[] {
   const map=new Map<string,SavedItem>();
   for(const doc of [...documents].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))){
+    if(doc.lifecycleStatus==='voided'||doc.role==='credit-note')continue;
     for(const item of doc.items){
       const key=(item.descriptionEn.trim().toLowerCase()||item.descriptionAr.trim());
       if(!key||map.has(key))continue;

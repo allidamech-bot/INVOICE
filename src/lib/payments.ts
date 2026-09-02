@@ -12,7 +12,7 @@ export function invoicePaymentSummary(invoice:LourexDocument,payments:PaymentRec
   return{status,total:centsString(totalCents),paid:centsString(paidCents),remaining:centsString(remainingCents)};
 }
 export function normalizePaymentRecord(invoice:LourexDocument,payments:PaymentRecord[],source:PaymentRecord):PaymentRecord{
-  if(invoice.kind!=='invoice'||invoice.status!=='final')throw new Error('Payments can only be recorded against a final invoice.');
+  if(invoice.kind!=='invoice'||invoice.role==='credit-note'||invoice.status!=='final'||invoice.lifecycleStatus==='voided')throw new Error('Payments can only be recorded against an active final invoice.');
   if(!isDecimalInput(source.amount)||decimalToScaled(source.amount,2)<=0n)throw new Error('Payment amount must be greater than 0.');
   if(!isIsoDate(source.date))throw new Error('Payment date is invalid.');
   const amountCents=decimalToScaled(source.amount,2);let otherCents=0n;for(const payment of payments)if(payment.invoiceId===invoice.id&&payment.id!==source.id)otherCents+=decimalToScaled(payment.amount,2);
