@@ -241,6 +241,17 @@ export interface EncryptedVaultRecord {
   updatedAt: string;
 }
 
+export type SafetySnapshotReason = 'pre-migration' | 'pre-restore' | 'pre-pin-change';
+
+export interface SafetySnapshotRecord {
+  id: 'safety-snapshot';
+  createdAt: string;
+  sourceSchemaVersion: number;
+  reason: SafetySnapshotReason;
+  security: SecurityMetadata;
+  vault: EncryptedVaultRecord;
+}
+
 export interface PublicPreferencesRecord {
   id: 'public-preferences';
   logoDataUrl: string;
