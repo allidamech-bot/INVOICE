@@ -16,10 +16,10 @@ test('v131 stores payments as first-class encrypted vault records',async()=>{
 test('v131 enforces collection invariants and overpayment protection',async()=>{
   const [payments,app]=await Promise.all([read('src/lib/payments.ts'),read('src/app/App.tsx')]);
   assert.ok(payments.includes('Payment cannot exceed the remaining invoice balance.'));
-  assert.ok(payments.includes('Invoice total cannot be reduced below the amount already paid.'));
+  assert.ok(payments.includes('Invoice balance after credit notes cannot fall below the amount already paid.'));
   assert.ok(payments.includes('Invoice currency cannot change after a payment is recorded.'));
   assert.ok(payments.includes('Invoice customer cannot change after a payment is recorded.'));
-  assert.ok(app.includes('assertInvoicePaymentInvariant(updated,vault.payments)'));
+  assert.ok(app.includes('assertInvoicePaymentInvariant(updated,vault.payments,vault.documents)'));
   assert.ok(app.includes('Delete the invoice payments before deleting this invoice.'));
 });
 
