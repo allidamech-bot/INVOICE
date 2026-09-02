@@ -41,7 +41,7 @@ const styleReferencePattern=/(?:<link rel="stylesheet" href="\.\/styles\/([^\"]+
 const styleNames=[...html.matchAll(styleReferencePattern)].map(match=>match[1]||match[2]);
 if(!styleNames.length) throw new Error('No local stylesheet layers found in index.html.');
 if(new Set(styleNames).size!==styleNames.length) throw new Error('Duplicate local stylesheet layer detected in index.html.');
-if(styleNames.at(-1)!=='document-final-qa-v130.css') throw new Error('Final document QA layer must remain the last local stylesheet in the production cascade.');
+if(styleNames.at(-1)!=='document-layout-cleanup-v140.css') throw new Error('v140 document layout cleanup must remain the final local stylesheet in the production cascade.');
 
 const styleParts=await Promise.all(styleNames.map(async name=>{
   const css=await readFile(`src/styles/${name}`,'utf8');
