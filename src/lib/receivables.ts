@@ -13,11 +13,15 @@ export interface StatementEntry{currency:string;date:string;reference:string;typ
 export interface CustomerStatementCurrency{currency:string;entries:StatementEntry[];billed:string;credits:string;paid:string;outstanding:string;overdue:string;}
 
 function centsString(cents:bigint):string{const sign=cents<0n?'-':'';const abs=cents<0n?-cents:cents;return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`;}
-function add(a:string,b:string):string{return centsString(decimalToScaled(a,2)+decimalToScaled(b,2));}
-function dayNumber(iso:string):number{const [y,m,d]=iso.split('-').map(Number);return Math.floor(Date.UTC(y,m-1,d)/86_400_000);}
+function dayNumber(iso:string):number{
+  const parts=iso.split('-');
+  const year=Number(parts[0]??0);
+  const month=Number(parts[1]??1);
+  const day=Number(parts[2]??1);
+  return Math.floor(Date.UTC(year,month-1,day)/86_400_000);
+}
 export function daysOverdue(dueDate:string,today=todayIso()):number{if(!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)||dueDate>=today)return 0;return Math.max(0,dayNumber(today)-dayNumber(dueDate));}
 export function agingBucketFor(dueDate:string,today=todayIso()):AgingBucket{const days=daysOverdue(dueDate,today);if(days<=0)return'current';if(days<=30)return'days1to30';if(days<=60)return'days31to60';if(days<=90)return'days61to90';return'days90plus';}
-function zeroAging():AgingAmounts{return{current:'0.00',days1to30:'0.00',days31to60:'0.00',days61to90:'0.00',days90plus:'0.00'};}
 function activeInvoices(documents:LourexDocument[]):LourexDocument[]{return documents.filter(doc=>doc.kind==='invoice'&&doc.role!=='credit-note'&&doc.status==='final'&&doc.lifecycleStatus!=='voided');}
 function customerIdFor(doc:LourexDocument):string{return doc.customerSnapshot?.sourceCustomerId||'';}
 function customerName(doc:LourexDocument):string{return (doc.customerSnapshot?.companyNameEn||doc.customerSnapshot?.companyNameAr||'').trim();}
