@@ -33,12 +33,11 @@ function replaceOnce(source,from,to,label){
 {
   const path='tests/hardening-v138.test.mjs';
   let s=await readFile(path,'utf8');
-  s=replaceOnce(
-    s,
-    `assert.match(app,/await this\\.saveDocument\\(target,false\\)/);`,
-    `assert.ok(app.includes('await this.saveDocument(target,false)'));`,
-    'canonical print assertion'
-  );
+  const start=s.indexOf('assert.match(app,/await this');
+  if(start<0)throw new Error('canonical print assertion: start not found');
+  const end=s.indexOf(');',start);
+  if(end<0)throw new Error('canonical print assertion: end not found');
+  s=`${s.slice(0,start)}assert.ok(app.includes('await this.saveDocument(target,false)'))${s.slice(end+1)}`;
   await writeFile(path,s);
 }
 
