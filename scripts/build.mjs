@@ -1,6 +1,18 @@
 import { cp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 
+const EXPECTED_REPO_OWNER='allidamech-bot';
+const EXPECTED_REPO_SLUG='INVOICE';
+const vercelEnvironment=process.env.VERCEL_ENV||'local';
+const sourceRepoOwner=process.env.VERCEL_GIT_REPO_OWNER||'';
+const sourceRepoSlug=process.env.VERCEL_GIT_REPO_SLUG||'';
+if(vercelEnvironment==='production'&&sourceRepoSlug&&sourceRepoSlug.toLowerCase()!==EXPECTED_REPO_SLUG.toLowerCase()){
+  throw new Error(`Refusing production build from ${sourceRepoOwner||'unknown'}/${sourceRepoSlug}. LOUREX Invoice production source must be ${EXPECTED_REPO_OWNER}/${EXPECTED_REPO_SLUG}.`);
+}
+if(vercelEnvironment==='production'&&sourceRepoOwner&&sourceRepoOwner.toLowerCase()!==EXPECTED_REPO_OWNER.toLowerCase()){
+  throw new Error(`Refusing production build from owner ${sourceRepoOwner}. LOUREX Invoice production source must be ${EXPECTED_REPO_OWNER}/${EXPECTED_REPO_SLUG}.`);
+}
+
 await rm('dist',{recursive:true,force:true});
 await mkdir('dist',{recursive:true});
 
@@ -11,9 +23,14 @@ await cp('public','dist',{recursive:true});
 await cp('src/styles','dist/styles',{recursive:true});
 
 const runtimeConfig={
-  environment:process.env.VERCEL_ENV||'local',
+  environment:vercelEnvironment,
   canonicalHost:process.env.VERCEL_PROJECT_PRODUCTION_URL||'',
-  deploymentHost:process.env.VERCEL_URL||''
+  deploymentHost:process.env.VERCEL_URL||'',
+  sourceRepoOwner:sourceRepoOwner||EXPECTED_REPO_OWNER,
+  sourceRepoSlug:sourceRepoSlug||EXPECTED_REPO_SLUG,
+  commitSha:process.env.VERCEL_GIT_COMMIT_SHA||process.env.GITHUB_SHA||'',
+  commitRef:process.env.VERCEL_GIT_COMMIT_REF||process.env.GITHUB_REF_NAME||'',
+  buildTime:new Date().toISOString()
 };
 await writeFile('dist/runtime-config.js',`window.__LOUREX_RUNTIME__=${JSON.stringify(runtimeConfig)};\n`);
 
@@ -41,4 +58,4 @@ let sw=await readFile(swPath,'utf8');
 sw=sw.replace(/"\.\/styles\/[^\"]+\.css"(?:,"\.\/styles\/[^\"]+\.css")*/g,'"./styles/app.bundle.css"');
 await writeFile(swPath,sw);
 
-console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; ${styleNames.length} CSS layers -> 1 bundle)`);
+console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; ${styleNames.length} CSS layers -> 1 bundle)`);
