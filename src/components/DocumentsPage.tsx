@@ -142,7 +142,7 @@ export class DocumentsPage extends React.Component<Props, State> {
         const missingCustomer=!hasDocumentCustomer(doc);
         const canOutput=doc.status==='final';
         const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
-        const collection=doc.kind==='invoice'&&doc.role!=='credit-note'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'?invoicePaymentSummary(doc,this.props.payments):null;
+        const collection=doc.kind==='invoice'&&doc.role!=='credit-note'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'?invoicePaymentSummary(doc,this.props.payments,undefined,this.props.documents):null;
         const collectionLabel=collection?.status==='paid'?t('Paid','مدفوعة'):collection?.status==='partially-paid'?t('Partially Paid','مدفوعة جزئيًا'):collection?.status==='overdue'?t('Overdue','متأخرة'):collection?t('Unpaid','غير مدفوعة'):'';
         return <article className={`document-card document-${doc.kind} role-${doc.role} lifecycle-${doc.lifecycleStatus} premium-document-card workflow-${state} ${missingCustomer?'needs-customer':''}`} key={doc.id}>
           <button type="button" className="document-main" onClick={()=>this.props.onOpen(doc)}>

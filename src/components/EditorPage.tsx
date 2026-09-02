@@ -198,7 +198,7 @@ export class EditorPage extends React.Component<Props,State>{
     return <>
       <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry}/>
       <DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={props.onDiscardRevision} onVoid={props.onVoidDocument} onCreateCreditNote={props.onCreateCreditNote}/>
-      <InvoicePaymentsPanel document={props.document} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>
+      <InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>
       {sections.length?<nav className={`editor-section-navigator ${canConvertFinalQuote?'has-final-quote-action':''}`} aria-label={t('Invoice editing steps','مراحل تحرير الفاتورة')}>
         {sections.map(section=>{
           const active=section.id===this.state.activeSectionId;
