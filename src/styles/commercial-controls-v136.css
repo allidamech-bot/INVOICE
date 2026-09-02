@@ -1,0 +1,46 @@
+/* v136 — commercial controls: bank accounts, tax/payment presets, pricing guidance and customer credit limits. */
+.app-ui .commercial-controls-settings{display:grid;gap:14px}
+.app-ui .commercial-settings-section{display:grid;gap:12px}
+.app-ui .commercial-section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.app-ui .commercial-section-heading h4{margin:0 0 4px}
+.app-ui .commercial-section-heading p{margin:0;max-width:720px;color:var(--muted,#6b7c87);font-size:12px;line-height:1.55}
+.app-ui .commercial-row-list{display:grid;gap:10px}
+.app-ui .commercial-row-list.compact{gap:8px}
+.app-ui .commercial-row-card{position:relative;border:1px solid #dfe7eb;border-radius:14px;background:#fff;padding:12px;box-shadow:0 5px 18px rgba(17,47,63,.035)}
+.app-ui .commercial-row-card>header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.app-ui .commercial-row-card.preset-row{padding-inline-end:54px}
+.app-ui .commercial-row-card.preset-row>.icon-btn{position:absolute;inset-inline-end:10px;top:50%;transform:translateY(-50%)}
+.app-ui .commercial-empty-note{margin:0;padding:10px 12px;border:1px dashed #d7e0e5;border-radius:12px;color:#72838e;font-size:12px}
+.app-ui .commercial-pricing-grid{align-items:end}
+.app-ui .commercial-preset-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.app-ui .commercial-preset-chips button,.app-ui .pricing-suggestion-chip{border:1px solid #d8e3e8;background:#f8fbfc;color:#31566a;border-radius:999px;min-height:30px;padding:5px 10px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.app-ui .commercial-preset-chips button:hover,.app-ui .pricing-suggestion-chip:hover{background:#fff;border-color:#b9cdd7}
+.app-ui .item-price-control{display:grid;gap:6px;min-width:0}
+.app-ui .pricing-suggestion-chip{justify-self:start}
+.app-ui .credit-limit-banner{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border:1px solid #dbe5ea;border-radius:13px;background:#f8fbfc}
+.app-ui .credit-limit-banner .credit-limit-icon{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:#fff;border:1px solid #dce6eb}
+.app-ui .credit-limit-banner strong{display:block;font-size:12px;color:#263f4d}
+.app-ui .credit-limit-banner span,.app-ui .credit-limit-banner small{display:block;color:#6c7e89;font-size:11px;line-height:1.45}
+.app-ui .credit-limit-banner b{font-size:12px;white-space:nowrap;color:#294d60}
+.app-ui .credit-limit-banner.is-over{border-color:#e8c6c6;background:#fff7f7}
+.app-ui .credit-limit-banner.is-over .credit-limit-icon{color:#a33b3b;border-color:#eccaca}
+.app-ui .credit-limit-banner.is-over b{color:#9b3434}
+.app-ui .credit-limit-banner.is-unmatched{border-style:dashed;background:#fbfbf8}
+.app-ui .customer-credit-fields{padding-top:4px}
+.app-ui .customer-credit-summary{display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 7px;border-radius:999px;background:#f4f8fa;color:#55707f;font-size:10px;font-weight:700}
+.app-ui .bank-account-select-note{display:block;margin-top:5px;color:#71838d;font-size:10.5px;line-height:1.4}
+@media(max-width:720px){
+  .app-ui .commercial-section-heading{align-items:stretch;flex-direction:column}
+  .app-ui .commercial-section-heading>.btn{width:100%;justify-content:center}
+  .app-ui .commercial-row-card.preset-row{padding-inline-end:12px;padding-bottom:58px}
+  .app-ui .commercial-row-card.preset-row>.icon-btn{top:auto;bottom:9px;inset-inline-end:10px;transform:none}
+  .app-ui .credit-limit-banner{grid-template-columns:auto minmax(0,1fr)}
+  .app-ui .credit-limit-banner>b{grid-column:2;white-space:normal}
+}
+@media(max-width:430px){
+  .app-ui .commercial-preset-chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .app-ui .commercial-preset-chips button{width:100%;min-width:0}
+}
+@media print{
+  .app-ui .commercial-controls-settings,.app-ui .credit-limit-banner,.app-ui .pricing-suggestion-chip,.app-ui .commercial-preset-chips{display:none!important}
+}
