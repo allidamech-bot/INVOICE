@@ -1,0 +1,748 @@
+/* v141 — LOUREX premium document redesign.
+   Final visual contract after v140. This layer intentionally replaces the
+   accumulated visual treatment of earlier templates while preserving all
+   document data, calculations, pagination and template identities. */
+
+.invoice-page{
+  --v141-paper:#fffdf9;
+  --v141-paper-2:#f8f6f1;
+  --v141-ink:#142637;
+  --v141-muted:#6c7880;
+  --v141-navy:#0d2b40;
+  --v141-navy-2:#143b55;
+  --v141-gold:#b68b48;
+  --v141-gold-soft:#eadfc8;
+  --v141-rule:#dfe4e5;
+  --v141-row:#f7f8f8;
+  --v141-radius:2mm;
+  color:var(--v141-ink)!important;
+  background:var(--v141-paper)!important;
+  color-scheme:light!important;
+}
+.invoice-page .page-accent{display:none!important}
+.invoice-page .doc-body{
+  padding:7.5mm 11.5mm 12mm!important;
+  color:var(--v141-ink)!important;
+  background:transparent!important;
+}
+.invoice-page :is(.doc-title,.doc-meta,.party-grid,.items-wrap,.final-details,.lower-grid,.bottom-grid){min-width:0!important}
+
+/* --------------------------------------------------------------------------
+   01. MASTER HEADER CONTRACT — no text may ever sit behind decoration
+   -------------------------------------------------------------------------- */
+.invoice-pages>.invoice-page:first-child :is(.header-modern,.header-executive,.header-minimal,.header-trade,.header-signature){
+  position:relative!important;
+  isolation:isolate!important;
+  overflow:hidden!important;
+  box-shadow:none!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .modern-geometry{display:none!important}
+
+/* Modern family: clean white/ivory masthead with a colored top datum. */
+.invoice-pages>.invoice-page:first-child .header-modern{
+  min-height:42mm!important;
+  padding:7mm 11.5mm 5.5mm!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 27mm!important;
+  grid-template-areas:"title brand" "meta meta"!important;
+  grid-template-rows:auto auto!important;
+  gap:4.5mm 8mm!important;
+  align-items:start!important;
+  background:#fff!important;
+  border:0!important;
+  border-top:3.2mm solid var(--v141-navy)!important;
+  border-bottom:1px solid var(--v141-gold-soft)!important;
+  color:var(--v141-ink)!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .modern-brand{
+  grid-area:brand!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  z-index:2!important;
+  justify-self:end!important;
+  align-self:start!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .modern-title{
+  grid-area:title!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  z-index:2!important;
+  align-self:start!important;
+  justify-self:start!important;
+  width:100%!important;
+  color:var(--v141-ink)!important;
+  text-align:start!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .modern-title>small{
+  display:block!important;
+  margin:0 0 1.2mm!important;
+  color:#8b724b!important;
+  opacity:1!important;
+  font-size:6.2px!important;
+  font-weight:800!important;
+  letter-spacing:.08em!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .modern-meta{
+  grid-area:meta!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  width:100%!important;
+  z-index:2!important;
+  background:transparent!important;
+  color:var(--v141-ink)!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .doc-title,
+.invoice-pages>.invoice-page:first-child .header-modern .doc-title *{
+  color:var(--v141-ink)!important;
+  text-shadow:none!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .doc-title span{
+  font-size:27px!important;
+  line-height:1.08!important;
+  font-weight:850!important;
+  letter-spacing:-.025em!important;
+}
+.invoice-pages>.invoice-page:first-child.lang-ar .header-modern .doc-title span{
+  font-size:27px!important;
+  line-height:1.2!important;
+  letter-spacing:0!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .doc-meta{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:0 5mm!important;
+  width:100%!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .doc-meta>div{
+  padding:0 0 1.6mm!important;
+  border:0!important;
+  border-bottom:1px solid #d8dfe1!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .doc-meta b{
+  color:#7c878e!important;
+  font-size:6.4px!important;
+  font-weight:760!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .doc-meta span{
+  color:var(--v141-ink)!important;
+  font-size:8.3px!important;
+  font-weight:760!important;
+}
+
+/* 01 Executive — premium white letterhead, no black panel. */
+.invoice-pages>.invoice-page:first-child.template-executive .header-executive{
+  min-height:42mm!important;
+  padding:7mm 11.5mm 5.5mm!important;
+  display:grid!important;
+  grid-template-columns:27mm minmax(0,1fr)!important;
+  grid-template-areas:"logo title" "meta meta"!important;
+  grid-template-rows:auto auto!important;
+  gap:4.2mm 8mm!important;
+  align-items:start!important;
+  background:linear-gradient(180deg,#fff 0%,#fcfaf5 100%)!important;
+  border:0!important;
+  border-top:3.2mm solid var(--v141-navy)!important;
+  border-bottom:1px solid var(--v141-gold-soft)!important;
+  color:var(--v141-ink)!important;
+}
+.invoice-pages>.invoice-page:first-child.template-executive .header-executive>.doc-logo{
+  grid-area:logo!important;
+  justify-self:start!important;
+  align-self:start!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+}
+.invoice-pages>.invoice-page:first-child.template-executive .header-executive>.doc-title{
+  grid-area:title!important;
+  justify-self:end!important;
+  align-self:start!important;
+  text-align:end!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  padding-top:.5mm!important;
+}
+.invoice-pages>.invoice-page:first-child.template-executive.lang-ar .header-executive>.doc-title{
+  justify-self:start!important;
+  text-align:start!important;
+}
+.invoice-pages>.invoice-page:first-child.template-executive .header-executive>.doc-title,
+.invoice-pages>.invoice-page:first-child.template-executive .header-executive>.doc-title *{
+  color:var(--v141-navy)!important;
+  text-shadow:none!important;
+}
+.invoice-pages>.invoice-page:first-child.template-executive .header-executive>.doc-title span{
+  font-size:29px!important;
+  line-height:1.08!important;
+  font-weight:860!important;
+}
+.invoice-pages>.invoice-page:first-child.template-executive .header-executive>.doc-meta{
+  grid-area:meta!important;
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:0 5mm!important;
+  width:100%!important;
+}
+.invoice-pages>.invoice-page:first-child.template-executive .header-executive>.doc-meta>div{
+  padding:0 0 1.6mm!important;
+  border:0!important;
+  border-bottom:1px solid #d8dfe1!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.invoice-pages>.invoice-page:first-child.template-executive .header-executive>.doc-meta b{color:#7b858c!important}
+.invoice-pages>.invoice-page:first-child.template-executive .header-executive>.doc-meta span{color:var(--v141-ink)!important}
+
+/* 02 Minimal — ultra-clean European sheet. */
+.invoice-pages>.invoice-page:first-child.template-minimal .header-minimal{
+  min-height:39mm!important;
+  padding:8mm 11.5mm 5.5mm!important;
+  display:grid!important;
+  grid-template-columns:27mm minmax(0,1fr)!important;
+  gap:8mm!important;
+  align-items:start!important;
+  background:#fff!important;
+  border:0!important;
+  border-top:1.2mm solid #1b3347!important;
+  border-bottom:1px solid #ced6da!important;
+  color:var(--v141-ink)!important;
+}
+.invoice-pages>.invoice-page:first-child.template-minimal .header-minimal>div:last-child{
+  min-width:0!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:4mm!important;
+}
+.invoice-pages>.invoice-page:first-child.template-minimal .doc-title,
+.invoice-pages>.invoice-page:first-child.template-minimal .doc-title *{color:#172d40!important;text-shadow:none!important}
+.invoice-pages>.invoice-page:first-child.template-minimal .doc-title span{
+  font-size:26px!important;
+  line-height:1.1!important;
+  font-weight:790!important;
+}
+.invoice-pages>.invoice-page:first-child.template-minimal .doc-meta{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:0 5mm!important;
+  width:100%!important;
+}
+.invoice-pages>.invoice-page:first-child.template-minimal .doc-meta>div{
+  padding:0 0 1.5mm!important;
+  border:0!important;
+  border-bottom:1px solid #dde2e4!important;
+  background:transparent!important;
+}
+.invoice-pages>.invoice-page:first-child.template-minimal .doc-meta b{color:#879198!important}
+.invoice-pages>.invoice-page:first-child.template-minimal .doc-meta span{color:#172d40!important;font-weight:700!important}
+
+/* 03 Trade — one controlled navy rail, never behind text. */
+.invoice-pages>.invoice-page:first-child.template-trade .header-trade{
+  min-height:42mm!important;
+  display:grid!important;
+  grid-template-columns:34mm minmax(0,1fr)!important;
+  background:#fff!important;
+  border:0!important;
+  border-bottom:1px solid var(--v141-gold-soft)!important;
+  color:var(--v141-ink)!important;
+}
+.invoice-pages>.invoice-page:first-child.template-trade .trade-bar{
+  padding:8mm 5mm!important;
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  background:linear-gradient(180deg,#0c2b40,#123d58)!important;
+  color:#fff!important;
+}
+.invoice-pages>.invoice-page:first-child.template-trade .trade-title{
+  padding:7mm 11.5mm 5.5mm 8mm!important;
+  display:grid!important;
+  gap:4mm!important;
+  align-content:start!important;
+  background:#fff!important;
+  min-width:0!important;
+}
+.invoice-pages>.invoice-page:first-child.template-trade.lang-ar .trade-title{padding:7mm 8mm 5.5mm 11.5mm!important}
+.invoice-pages>.invoice-page:first-child.template-trade .trade-title .doc-title,
+.invoice-pages>.invoice-page:first-child.template-trade .trade-title .doc-title *{color:var(--v141-navy)!important;text-shadow:none!important}
+.invoice-pages>.invoice-page:first-child.template-trade .trade-title .doc-meta{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:0 4mm!important;
+  min-width:0!important;
+}
+.invoice-pages>.invoice-page:first-child.template-trade .trade-title .doc-meta>div{
+  padding:0 0 1.5mm!important;
+  border:0!important;
+  border-bottom:1px solid #dce2e4!important;
+  background:transparent!important;
+}
+.invoice-pages>.invoice-page:first-child.template-trade .trade-title .doc-meta b{color:#7f8a91!important}
+.invoice-pages>.invoice-page:first-child.template-trade .trade-title .doc-meta span{color:var(--v141-ink)!important}
+
+/* 04 Signature — formal stationery, accent line beside title only. */
+.invoice-pages>.invoice-page:first-child.template-signature .header-signature{
+  min-height:40mm!important;
+  padding:7.5mm 11.5mm 5.5mm!important;
+  display:grid!important;
+  grid-template-columns:27mm minmax(0,1fr)!important;
+  grid-template-areas:"logo title" "meta meta"!important;
+  gap:4mm 8mm!important;
+  background:#fffdf9!important;
+  border:0!important;
+  border-top:1.2mm solid #b68b48!important;
+  border-bottom:1px solid #e2d8c4!important;
+  color:var(--v141-ink)!important;
+}
+.invoice-pages>.invoice-page:first-child.template-signature .signature-title{
+  grid-area:title!important;
+  padding-inline-start:5mm!important;
+  border-inline-start:1.2mm solid #b68b48!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+}
+.invoice-pages>.invoice-page:first-child.template-signature .signature-title .doc-title,
+.invoice-pages>.invoice-page:first-child.template-signature .signature-title .doc-title *{color:#172d40!important;text-shadow:none!important}
+.invoice-pages>.invoice-page:first-child.template-signature>.doc-meta{
+  grid-area:meta!important;
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:0 5mm!important;
+  width:100%!important;
+  margin:0!important;
+}
+.invoice-pages>.invoice-page:first-child.template-signature>.doc-meta>div{
+  padding:0 0 1.5mm!important;
+  border:0!important;
+  border-bottom:1px solid #e0e3e4!important;
+  background:transparent!important;
+}
+
+/* --------------------------------------------------------------------------
+   02. TEMPLATE IDENTITIES — distinction through controlled accents only
+   -------------------------------------------------------------------------- */
+.invoice-page.template-obsidian{--v141-template:#2c3135;background:#fff!important}
+.invoice-page.template-cobalt{--v141-template:#235477;background:#fff!important}
+.invoice-page.template-editorial{--v141-template:#2a2e31;background:#fff!important}
+.invoice-page.template-split{--v141-template:#355d70;background:#fff!important}
+.invoice-page.template-prism{--v141-template:#4b7774;background:#fff!important}
+.invoice-page.template-slate{--v141-template:#536675;background:#fff!important}
+.invoice-page.template-horizon{--v141-template:#173d55;background:#fff!important}
+.invoice-page.template-mono{--v141-template:#222629;background:#fff!important}
+.invoice-page.template-aurora{--v141-template:#376c6a;background:#fff!important}
+.invoice-page.template-ledger{--v141-template:#314b5c;background:#fff!important}
+.invoice-page.template-noir{--v141-template:#242526;background:#fffdf9!important}
+.invoice-page.template-midnight{--v141-template:#0d3048;background:#fffdf9!important}
+.invoice-page.template-blackivory{--v141-template:#282721;background:#fbf8f0!important}
+.invoice-page.template-carbon{--v141-template:#3c4246;background:#fffdf9!important}
+.invoice-pages>.invoice-page:first-child:is(.template-obsidian,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger,.template-noir,.template-midnight,.template-blackivory,.template-carbon) .header-modern{
+  border-top-color:var(--v141-template)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon).document-tone-dark,
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon).document-tone-dark .doc-body,
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon).document-tone-dark .final-details{
+  color:var(--v141-ink)!important;
+  background:transparent!important;
+}
+
+/* --------------------------------------------------------------------------
+   03. LOGO — compact, never float over title/meta
+   -------------------------------------------------------------------------- */
+.invoice-page .doc-logo{
+  width:27mm!important;
+  max-width:27mm!important;
+  height:18mm!important;
+  max-height:18mm!important;
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  overflow:visible!important;
+}
+.invoice-page .doc-logo img{
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  max-width:25mm!important;
+  max-height:17mm!important;
+  object-fit:contain!important;
+  filter:none!important;
+}
+
+/* --------------------------------------------------------------------------
+   04. PARTIES — premium bordered stationery cards, no pseudo decoration
+   -------------------------------------------------------------------------- */
+.invoice-page .party-grid{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:5mm!important;
+  margin:0 0 6mm!important;
+  align-items:stretch!important;
+}
+.invoice-page .party-block{
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  min-height:27mm!important;
+  padding:4mm 4.2mm!important;
+  border:1px solid #e0e4e5!important;
+  border-radius:var(--v141-radius)!important;
+  background:#fff!important;
+  box-shadow:0 .5mm 1.8mm rgba(23,42,55,.035)!important;
+  overflow:hidden!important;
+  color:var(--v141-ink)!important;
+}
+.invoice-page .party-block::before,
+.invoice-page .party-block::after{content:none!important;display:none!important}
+.invoice-page .party-customer{
+  border-inline-start:1.1mm solid var(--v141-gold)!important;
+}
+.invoice-page .party-seller{
+  border-inline-start:1.1mm solid #8aa0ad!important;
+}
+.invoice-page .section-kicker{
+  margin:0 0 1.5mm!important;
+  color:#7c6848!important;
+  font-size:6.5px!important;
+  line-height:1.2!important;
+  font-weight:830!important;
+  letter-spacing:.02em!important;
+}
+.invoice-page .party-seller .section-kicker{color:#71808a!important}
+.invoice-page .party-name{
+  margin:0 0 1.4mm!important;
+  color:#132b3e!important;
+  font-size:12px!important;
+  line-height:1.3!important;
+  font-weight:800!important;
+  overflow-wrap:anywhere!important;
+}
+.invoice-page .party-customer .party-name{font-size:13px!important;font-weight:850!important}
+.invoice-page .party-address,
+.invoice-page .party-contact,
+.invoice-page .party-block>div:not(.section-kicker):not(.party-name):not(.party-identifiers){
+  color:#4f5e67!important;
+  font-size:7.3px!important;
+  line-height:1.5!important;
+}
+.invoice-page .party-identifiers{
+  margin-top:1.8mm!important;
+  padding-top:1.5mm!important;
+  border-top:1px solid #e7eaeb!important;
+}
+.invoice-page .party-identifiers>div{
+  display:grid!important;
+  grid-template-columns:minmax(20mm,auto) minmax(0,1fr)!important;
+  gap:2mm!important;
+  align-items:baseline!important;
+}
+.invoice-page .party-identifiers b{color:#7d878d!important;font-size:6.2px!important}
+.invoice-page .party-identifiers span{color:#2e414e!important;font-size:7px!important;font-weight:650!important}
+.invoice-page.lang-ar .party-identifiers>div{direction:rtl!important}
+
+/* --------------------------------------------------------------------------
+   05. ITEMS — strong navy header, calm rows, precise numbers
+   -------------------------------------------------------------------------- */
+.invoice-page .items-wrap{
+  margin:0!important;
+  padding:0!important;
+  border:1px solid #d9dfe1!important;
+  border-radius:1.7mm!important;
+  background:#fff!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+}
+.invoice-page .continued-label{
+  padding:2.2mm 3mm!important;
+  border-bottom:1px solid #e0e5e6!important;
+  background:#f8f8f6!important;
+  color:#6e7a81!important;
+  font-size:7px!important;
+  font-weight:750!important;
+}
+.invoice-page .items-table{
+  width:100%!important;
+  margin:0!important;
+  border-collapse:collapse!important;
+  border-spacing:0!important;
+  table-layout:auto!important;
+  background:#fff!important;
+}
+.invoice-page .items-table thead th{
+  padding:2.5mm 1.45mm!important;
+  background:var(--v141-navy)!important;
+  color:#fff!important;
+  border:0!important;
+  border-inline-end:1px solid rgba(255,255,255,.14)!important;
+  vertical-align:middle!important;
+  font-size:6.55px!important;
+  line-height:1.22!important;
+  font-weight:820!important;
+  text-shadow:none!important;
+}
+.invoice-page .items-table thead th:last-child{border-inline-end:0!important}
+.invoice-page .items-table thead th small{display:block!important;margin-top:.45mm!important;color:#dbe5ea!important;font-size:5.4px!important}
+.invoice-page .items-table thead :is(.bi-label,.bi-label>span){color:#fff!important}
+.invoice-page .items-table tbody tr,
+.invoice-page .items-table tbody tr:nth-child(odd){background:#fff!important;color:var(--v141-ink)!important}
+.invoice-page .items-table tbody tr:nth-child(even){background:var(--v141-row)!important;color:var(--v141-ink)!important}
+.invoice-page .items-table tbody td{
+  padding:2.65mm 1.45mm!important;
+  border:0!important;
+  border-bottom:1px solid #e3e7e8!important;
+  border-inline-end:1px solid #edf0f1!important;
+  background:transparent!important;
+  color:#213642!important;
+  vertical-align:middle!important;
+  font-size:7.75px!important;
+  line-height:1.4!important;
+  text-shadow:none!important;
+  box-shadow:none!important;
+}
+.invoice-page .items-table tbody td:last-child{border-inline-end:0!important}
+.invoice-page .items-table tbody tr:last-child td{border-bottom:0!important}
+.invoice-page .items-table .description-cell{
+  width:40%!important;
+  min-width:42mm!important;
+  color:#172f40!important;
+  font-weight:650!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+}
+.invoice-page .items-table .description-cell .bi-value{gap:.35mm!important}
+.invoice-page .items-table .col-num{
+  width:6mm!important;
+  min-width:6mm!important;
+  color:#7d8990!important;
+  text-align:center!important;
+}
+.invoice-page .items-table .money-cell{
+  white-space:nowrap!important;
+  font-weight:720!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.invoice-page .items-table .money-cell.strong{color:#102d41!important;font-weight:880!important}
+
+/* --------------------------------------------------------------------------
+   06. CLOSING AREA — one deliberate commercial block, no dead A4 canyon
+   -------------------------------------------------------------------------- */
+.invoice-page:not(.details-only) .final-details{
+  margin-top:6mm!important;
+  padding-top:0!important;
+  border-top:0!important;
+  position:relative!important;
+  background:transparent!important;
+}
+.invoice-page.details-only .final-details{margin-top:0!important;padding-top:2mm!important}
+.invoice-page .lower-grid{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(57mm,63mm)!important;
+  gap:6mm!important;
+  align-items:start!important;
+  margin:0!important;
+  padding:0!important;
+}
+.invoice-page.lang-ar .lower-grid{direction:rtl!important}
+.invoice-page .terms-block{
+  min-width:0!important;
+  padding:4mm 4.2mm!important;
+  margin:0!important;
+  border:1px solid #e0e4e5!important;
+  border-radius:var(--v141-radius)!important;
+  background:#fff!important;
+  box-shadow:none!important;
+}
+.invoice-page :is(.terms-block,.notes-block,.bank-block,.signature-block) h3{
+  margin:0 0 2.2mm!important;
+  padding:0 0 1.4mm!important;
+  border-bottom:1px solid #e4e7e8!important;
+  color:#172f40!important;
+  font-size:7px!important;
+  line-height:1.2!important;
+  font-weight:850!important;
+  letter-spacing:.01em!important;
+}
+.invoice-page .terms-grid{display:grid!important;gap:.65mm!important}
+.invoice-page .term-row{
+  display:grid!important;
+  grid-template-columns:minmax(21mm,auto) minmax(0,1fr)!important;
+  gap:2.5mm!important;
+  padding:.45mm 0!important;
+  border:0!important;
+  align-items:start!important;
+}
+.invoice-page .term-row b{color:#7c878d!important;font-size:6.15px!important;font-weight:720!important}
+.invoice-page .term-row span{color:#293d49!important;font-size:7px!important;line-height:1.42!important;font-weight:620!important;overflow-wrap:anywhere!important}
+.invoice-page.lang-ar .term-row{direction:rtl!important}
+
+.invoice-page .totals-block{
+  min-width:0!important;
+  margin:0!important;
+  padding:3.5mm 4mm 0!important;
+  border:1px solid #d8dfe1!important;
+  border-radius:var(--v141-radius)!important;
+  background:#fff!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+}
+.invoice-page .total-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:3mm!important;
+  align-items:baseline!important;
+  padding:1.05mm 0!important;
+  border-bottom:1px solid #edf0f1!important;
+}
+.invoice-page .total-row:last-of-type{border-bottom:0!important}
+.invoice-page .total-row span{color:#748087!important;font-size:6.5px!important;font-weight:650!important}
+.invoice-page .total-row strong{color:#1b3344!important;font-size:7.5px!important;font-weight:780!important;white-space:nowrap!important}
+.invoice-page .grand-total{
+  margin:2.3mm -4mm 0!important;
+  padding:3.3mm 4mm!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:3mm!important;
+  align-items:center!important;
+  background:linear-gradient(115deg,#0d2b40,#143d57)!important;
+  color:#fff!important;
+  border:0!important;
+  border-radius:0!important;
+}
+.invoice-page .grand-total span{color:#fff!important;font-size:7.2px!important;font-weight:760!important}
+.invoice-page .grand-total strong{color:#fff!important;font-size:12px!important;line-height:1.05!important;font-weight:900!important;white-space:nowrap!important;letter-spacing:-.01em!important}
+
+.invoice-page .notes-block{
+  margin:4mm 0 0!important;
+  padding:3.4mm 4mm!important;
+  border:1px solid #e3e7e8!important;
+  border-radius:var(--v141-radius)!important;
+  background:#fafaf8!important;
+}
+.invoice-page .notes-block p{margin:0!important;color:#43545e!important;font-size:7px!important;line-height:1.55!important;white-space:pre-wrap!important}
+
+.invoice-page .bottom-grid{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:6mm!important;
+  margin:4mm 0 0!important;
+  padding:0!important;
+  border:0!important;
+  align-items:start!important;
+}
+.invoice-page .bottom-grid:empty{display:none!important}
+.invoice-page .bank-block,
+.invoice-page .signature-block{
+  min-width:0!important;
+  min-height:23mm!important;
+  margin:0!important;
+  padding:3.5mm 4mm!important;
+  border:1px solid #e2e6e7!important;
+  border-radius:var(--v141-radius)!important;
+  background:#fff!important;
+  box-shadow:none!important;
+}
+.invoice-page .bank-block>div{
+  display:grid!important;
+  grid-template-columns:minmax(23mm,auto) minmax(0,1fr)!important;
+  gap:2.5mm!important;
+  margin:.75mm 0!important;
+  align-items:baseline!important;
+}
+.invoice-page .bank-block b{color:#7b868c!important;font-size:6px!important;font-weight:700!important}
+.invoice-page .bank-block span{color:#263b48!important;font-size:6.9px!important;font-weight:650!important;overflow-wrap:anywhere!important}
+.invoice-page.lang-ar .bank-block>div{direction:rtl!important}
+.invoice-page .signature-block:after{content:none!important;display:none!important}
+.invoice-page .signature-media{
+  height:16mm!important;
+  min-height:16mm!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:3mm!important;
+  border-bottom:1px solid #cfd7da!important;
+}
+.invoice-page.lang-ar .signature-media{justify-content:flex-end!important}
+.invoice-page .signature-media img{max-height:15mm!important;max-width:37mm!important;object-fit:contain!important}
+.invoice-page .bottom-grid>.bank-block:only-child,
+.invoice-page .bottom-grid>.signature-block:only-child{
+  grid-column:1/-1!important;
+  width:min(100%,100mm)!important;
+}
+
+/* --------------------------------------------------------------------------
+   07. FOOTER + CONTINUATION SHEETS
+   -------------------------------------------------------------------------- */
+.invoice-page .doc-footer{
+  left:11.5mm!important;
+  right:11.5mm!important;
+  bottom:6mm!important;
+  padding-top:1.8mm!important;
+  border-top:1px solid #e4e7e8!important;
+  color:#7b858c!important;
+  font-size:5.9px!important;
+  background:transparent!important;
+}
+.invoice-pages>.invoice-page:not(:first-child) :is(.header-modern,.header-executive,.header-minimal,.header-trade,.header-signature){
+  min-height:19mm!important;
+  padding:4.5mm 11.5mm 3.5mm!important;
+  background:#fff!important;
+  color:var(--v141-ink)!important;
+  border:0!important;
+  border-top:1.2mm solid var(--v141-navy)!important;
+  border-bottom:1px solid #dce2e4!important;
+  box-shadow:none!important;
+}
+.invoice-pages>.invoice-page:not(:first-child) .trade-bar,
+.invoice-pages>.invoice-page:not(:first-child) .modern-geometry{display:none!important}
+.invoice-pages>.invoice-page:not(:first-child) :is(.doc-title,.doc-title *,.doc-meta span,.modern-title,.modern-title *){color:var(--v141-ink)!important;text-shadow:none!important}
+.invoice-pages>.invoice-page:not(:first-child) .doc-meta b{color:#7c878d!important}
+
+/* --------------------------------------------------------------------------
+   08. MOBILE PREVIEW — calm neutral canvas, page remains true A4
+   -------------------------------------------------------------------------- */
+@media(max-width:760px){
+  .app-ui .mobile-preview-stage{
+    background:#e7eaeb!important;
+    padding:18px 12px max(34px,env(safe-area-inset-bottom))!important;
+    overscroll-behavior:contain!important;
+  }
+  .app-ui .mobile-preview-stage .invoice-pages{
+    margin-inline:auto!important;
+  }
+  .app-ui .mobile-preview-stage .invoice-page{
+    box-shadow:0 8px 30px rgba(15,34,47,.14)!important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   09. PRINT/PDF — preserve blocks and true contrast
+   -------------------------------------------------------------------------- */
+@media print{
+  .invoice-page{
+    background:#fff!important;
+    box-shadow:none!important;
+  }
+  .invoice-page :is(.party-block,.items-wrap,.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+  .invoice-page .items-table tr{
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+  .invoice-page .items-table thead th{
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
+  .invoice-page .grand-total{
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
+}
