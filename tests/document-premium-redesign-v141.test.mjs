@@ -23,7 +23,7 @@ test('executive and minimal headers are explicitly light with dark readable typo
 test('legacy decorative geometry cannot overlap modern header text',async()=>{
   const css=await read('src/styles/document-premium-redesign-v141.css');
   assert.match(css,/\.header-modern \.modern-geometry\{display:none!important\}/);
-  assert.match(css,/\.header-modern\{[\s\S]*?isolation:isolate!important[\s\S]*?overflow:hidden!important/);
+  assert.match(css,/\.invoice-pages>\.invoice-page:first-child :is\(\.header-modern,\.header-executive,\.header-minimal,\.header-trade,\.header-signature\)\{[\s\S]*?isolation:isolate!important[\s\S]*?overflow:hidden!important/);
   assert.match(css,/\.header-modern \.modern-title\{[\s\S]*?position:relative!important[\s\S]*?z-index:2!important/);
 });
 
