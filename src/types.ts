@@ -112,6 +112,7 @@ export interface DocumentItem {
   quantity: string;
   unit: string;
   unitPrice: string;
+  unitCost: string;
 }
 
 export interface SavedItem {
@@ -127,6 +128,8 @@ export interface SavedItem {
   unit: string;
   lastUnitPrice: string;
   lastCurrency: string;
+  lastUnitCost?: string;
+  lastCostCurrency?: string;
   usageCount: number;
   lastUsedAt: string;
   category?: string;
@@ -156,6 +159,11 @@ export interface FinancialAdjustments {
   otherCharges: string;
   taxEnabled: boolean;
   taxPercent: string;
+}
+
+export interface InternalCostAdjustments {
+  shippingCost: string;
+  otherCost: string;
 }
 
 export interface DocumentAppearance {
@@ -193,6 +201,7 @@ export interface LourexDocument {
   items: DocumentItem[];
   terms: CommercialTerms;
   adjustments: FinancialAdjustments;
+  internalCosts: InternalCostAdjustments;
   appearance: DocumentAppearance;
   notes: string;
   convertedFromId: string;
