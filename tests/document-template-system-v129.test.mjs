@@ -47,7 +47,7 @@ test('aurora stays within LOUREX navy teal gold palette and avoids purple drift'
   assert.match(aurora,/#0b2b3d/);
   assert.match(aurora,/#174b58/);
   assert.match(aurora,/#b58b4f/);
-  assert.doesNotMatch(aurora,/#6f64ce|purple|violet|magenta/i);
+  assert.doesNotMatch(aurora,/#6f64ce|#8465b3|#8b5cf6|violet|magenta/i);
 });
 
 test('directional accents use logical inline properties for RTL-safe mirroring',async()=>{
