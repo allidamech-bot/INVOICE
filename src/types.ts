@@ -3,6 +3,9 @@ export type DocumentLanguage = 'en' | 'ar' | 'bilingual';
 export type UiLanguage = 'en' | 'ar';
 export type TemplateId = 'executive' | 'minimal' | 'trade' | 'signature' | 'obsidian' | 'cobalt' | 'editorial' | 'split' | 'prism' | 'slate' | 'horizon' | 'mono' | 'aurora' | 'ledger' | 'noir' | 'midnight' | 'blackivory' | 'carbon';
 export type DocumentStatus = 'draft' | 'final';
+export type DocumentRole = 'standard' | 'credit-note';
+export type DocumentLifecycleStatus = 'active' | 'voided';
+export type DocumentEventType = 'created' | 'issued' | 'reissued' | 'revision-started' | 'revision-discarded' | 'voided' | 'credit-note-created' | 'payment-recorded' | 'payment-deleted' | 'converted';
 export type PaymentStatus = 'unpaid' | 'partially-paid' | 'paid' | 'overdue';
 export type PaymentMethod = 'cash' | 'bank-transfer' | 'card' | 'cheque' | 'other';
 export type DiscountMode = 'fixed' | 'percent';
@@ -172,7 +175,14 @@ export interface DocumentAppearance {
 export interface LourexDocument {
   id: string;
   kind: DocumentKind;
+  role: DocumentRole;
   status: DocumentStatus;
+  lifecycleStatus: DocumentLifecycleStatus;
+  revision: number;
+  creditForId: string;
+  creditForNumber: string;
+  voidedAt: string;
+  voidReason: string;
   number: string;
   issueDate: string;
   dueDate: string;
@@ -207,13 +217,38 @@ export interface PaymentRecord {
   updatedAt: string;
 }
 
+export interface DocumentEventRecord {
+  id: string;
+  documentId: string;
+  documentNumber: string;
+  type: DocumentEventType;
+  at: string;
+  note: string;
+  relatedDocumentId: string;
+  relatedDocumentNumber: string;
+  amount: string;
+  currency: string;
+}
+
+export interface DocumentRevisionRecord {
+  id: string;
+  documentId: string;
+  documentNumber: string;
+  revision: number;
+  snapshot: LourexDocument;
+  createdAt: string;
+}
+
 export interface NumberingSettings {
   proformaPrefix: string;
   invoicePrefix: string;
+  creditNotePrefix: string;
   proformaLast: number;
   invoiceLast: number;
+  creditNoteLast: number;
   proformaYear: number;
   invoiceYear: number;
+  creditNoteYear: number;
 }
 
 export interface SmartDocumentDefaults {
@@ -240,6 +275,8 @@ export interface VaultPayload {
   appSettings: AppSettings;
   customers: Customer[];
   documents: LourexDocument[];
+  documentEvents: DocumentEventRecord[];
+  documentRevisions: DocumentRevisionRecord[];
   payments: PaymentRecord[];
   savedItems: SavedItem[];
 }

@@ -87,6 +87,7 @@ export class DocumentsPage extends React.Component<Props, State> {
     const doc=this.props.documents.find(item=>item.id===this.state.menuId);
     if(!doc||typeof document==='undefined')return null;
     const canOutput=doc.status==='final';
+    const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
     return ReactDOM.createPortal(
       <div className="mobile-document-action-portal" role="presentation">
         <button type="button" className="mobile-document-action-backdrop" aria-label={t('Close actions','إغلاق الإجراءات')} onClick={()=>this.setState({menuId:''})}/>
@@ -94,7 +95,7 @@ export class DocumentsPage extends React.Component<Props, State> {
           <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onOpen(doc))}><Icon name={canOutput?'edit':'eye'}/>{canOutput?t('Open','فتح'):t('Review & Issue','مراجعة وإصدار')}</button>
           <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onDuplicate(doc))}><Icon name="copy"/>{t('Duplicate','نسخ')}</button>
           {canOutput?<><button type="button" role="menuitem" onClick={()=>this.runOutput('pdf',()=>this.props.onPrint(doc,'pdf'))}><Icon name="download"/>PDF</button><button type="button" role="menuitem" onClick={()=>this.runOutput('share',()=>this.props.onPrint(doc,'share'))}><Icon name="share"/>{t('Share','مشاركة')}</button></>:null}
-          <button type="button" role="menuitem" className="danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/>{t('Delete','حذف')}</button>
+          {canDelete?<button type="button" role="menuitem" className="danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/>{t('Delete Draft','حذف المسودة')}</button>:null}
         </div>
       </div>,
       document.body
@@ -135,20 +136,21 @@ export class DocumentsPage extends React.Component<Props, State> {
       {docs.length ? <div className="document-list premium-document-list">{docs.map(doc => {
         const totals = calculateTotals(doc.items, doc.adjustments);
         const customer = isArabic() ? (doc.customerSnapshot?.companyNameAr || doc.customerSnapshot?.companyNameEn || t('No customer','بدون عميل')) : (doc.customerSnapshot?.companyNameEn || doc.customerSnapshot?.companyNameAr || t('No customer','بدون عميل'));
-        const kindLabel = doc.kind === 'proforma' ? t('Proforma Invoice','عرض سعر') : t('Invoice','فاتورة');
+        const kindLabel = doc.role==='credit-note'?t('Credit Note','إشعار دائن'):doc.kind === 'proforma' ? t('Proforma Invoice','عرض سعر') : t('Invoice','فاتورة');
         const state=workflowStatus(doc);
-        const statusLabel = state==='draft'?t('Draft','مسودة'):state==='ready'?t('Ready','جاهز'):t('Final','نهائي');
+        const statusLabel = doc.lifecycleStatus==='voided'?(doc.kind==='proforma'?t('Cancelled','ملغى'):t('Voided','ملغى')):state==='draft'?(doc.revision>1?t(`Revision ${doc.revision}`,`مراجعة ${doc.revision}`):t('Draft','مسودة')):state==='ready'?t('Ready','جاهز'):t('Final','نهائي');
         const missingCustomer=!hasDocumentCustomer(doc);
         const canOutput=doc.status==='final';
-        const collection=doc.kind==='invoice'&&doc.status==='final'?invoicePaymentSummary(doc,this.props.payments):null;
+        const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
+        const collection=doc.kind==='invoice'&&doc.role!=='credit-note'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'?invoicePaymentSummary(doc,this.props.payments):null;
         const collectionLabel=collection?.status==='paid'?t('Paid','مدفوعة'):collection?.status==='partially-paid'?t('Partially Paid','مدفوعة جزئيًا'):collection?.status==='overdue'?t('Overdue','متأخرة'):collection?t('Unpaid','غير مدفوعة'):'';
-        return <article className={`document-card document-${doc.kind} premium-document-card workflow-${state} ${missingCustomer?'needs-customer':''}`} key={doc.id}>
+        return <article className={`document-card document-${doc.kind} role-${doc.role} lifecycle-${doc.lifecycleStatus} premium-document-card workflow-${state} ${missingCustomer?'needs-customer':''}`} key={doc.id}>
           <button type="button" className="document-main" onClick={()=>this.props.onOpen(doc)}>
             <span className={`document-type-icon type-${doc.kind}`}><Icon name={doc.kind === 'proforma'?'proforma':'invoice'}/></span>
             <span className="document-info"><span className="document-info-top"><strong>{doc.number}</strong><span className={`document-kind-pill kind-${doc.kind}`}>{kindLabel}</span></span><b>{customer}</b><small className="document-info-meta"><span>{displayDate(doc.issueDate,getUiLanguage())}</span><i aria-hidden="true">•</i><span>{itemCountLabel(doc.items.length)}</span>{missingCustomer?<><i aria-hidden="true">•</i><em>{t('Customer required','العميل مطلوب')}</em></>:null}</small></span>
-            <span className="document-total"><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><span className={`document-status-pill status-${state}`}>{statusLabel}</span>{collection?<span className={`collection-pill collection-${collection.status}`}>{collectionLabel}</span>:null}</span>
+            <span className="document-total"><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><span className={`document-status-pill status-${state}`}>{statusLabel}</span>{collection?<span className={`collection-pill collection-${collection.status}`}>{collectionLabel}</span>:null}{doc.creditForNumber?<span className="collection-pill lifecycle-link-pill">↳ {doc.creditForNumber}</span>:null}</span>
           </button>
-          <div className="document-actions desktop-actions"><Button variant="ghost" onClick={()=>this.props.onOpen(doc)}>{canOutput?t('Open','فتح'):t('Review','مراجعة')}</Button><IconButton icon="copy" label={t('Duplicate','نسخ')} onClick={()=>this.props.onDuplicate(doc)}/>{canOutput?<><IconButton icon="download" label="PDF" onClick={()=>{this.reserveOutput('pdf');this.props.onPrint(doc,'pdf');}}/><IconButton icon="share" label={t('Share','مشاركة')} onClick={()=>{this.reserveOutput('share');this.props.onPrint(doc,'share');}}/></>:null}<IconButton icon="trash" label={t('Delete','حذف')} variant="danger" onClick={()=>this.props.onDelete(doc)}/></div>
+          <div className="document-actions desktop-actions"><Button variant="ghost" onClick={()=>this.props.onOpen(doc)}>{canOutput?t('Open','فتح'):t('Review','مراجعة')}</Button><IconButton icon="copy" label={t('Duplicate','نسخ')} onClick={()=>this.props.onDuplicate(doc)}/>{canOutput?<><IconButton icon="download" label="PDF" onClick={()=>{this.reserveOutput('pdf');this.props.onPrint(doc,'pdf');}}/><IconButton icon="share" label={t('Share','مشاركة')} onClick={()=>{this.reserveOutput('share');this.props.onPrint(doc,'share');}}/></>:null}{canDelete?<IconButton icon="trash" label={t('Delete Draft','حذف المسودة')} variant="danger" onClick={()=>this.props.onDelete(doc)}/>:null}</div>
           <div className="mobile-actions"><IconButton icon="more" label={t('Actions','الإجراءات')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/></div>
         </article>;
       })}</div> : <div className="empty-state documents-empty"><span className="empty-mark"><Icon name="file" size={28}/></span><h2>{filteredView ? t('No matching documents','لا توجد مستندات مطابقة') : t('No documents yet','لا توجد مستندات بعد')}</h2><p>{filteredView ? t('Try another search or filter.','جرّب بحثًا أو تصفية مختلفة.') : t('Start with a quote, then convert it to an invoice when the deal is confirmed.','ابدأ بعرض سعر، ثم حوّله إلى فاتورة عند تأكيد الصفقة.')}</p>{filteredView?<div className="empty-actions"><Button icon="refresh" onClick={this.clearFilters}>{t('Clear filters','مسح التصفية')}</Button></div>:<div className="empty-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Create Quote','إنشاء عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Create Invoice','إنشاء فاتورة')}</Button></div>}</div>}

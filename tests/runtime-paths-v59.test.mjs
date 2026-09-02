@@ -16,13 +16,20 @@ test('saved document open path waits for protected cloud replacement, clones dat
   assert.match(wrapper, /EditorPageCore/);
 });
 
-test('final document unlock becomes a persisted draft immediately instead of waiting for delayed autosave', async () => {
+test('final document revision persists a protected final snapshot before opening the revision draft', async () => {
   const editor = await read('src/components/EditorPageCore.tsx');
+  const app = await read('src/app/App.tsx');
+  const lifecycle = await read('src/lib/document-lifecycle.ts');
   assert.match(editor, /private unlockFinal=async\(\)=>/);
-  assert.match(editor, /status:'draft' as const/);
+  assert.match(editor, /await this\.props\.onBeginRevision\(structuredClone\(this\.state\.doc\)\)/);
   assert.match(editor, /saving:true,saveState:'saving'/);
-  assert.match(editor, /await this\.props\.onSave\(doc,true\)/);
   assert.match(editor, /onConfirm=\{\(\)=>void this\.unlockFinal\(\)\}/);
+  const snapshotAt = app.indexOf('const revision=createRevisionRecord(current)');
+  const persistAt = app.indexOf('documentRevisions=[...vault.documentRevisions,revision]');
+  assert.ok(snapshotAt >= 0, 'final revision snapshot is missing');
+  assert.ok(persistAt > snapshotAt, 'final revision snapshot must be persisted before the revision workflow completes');
+  assert.match(lifecycle, /snapshot:structuredClone\(doc\)/);
+  assert.match(lifecycle, /status:'draft',revision:documentRevision\(doc\)\+1/);
 });
 
 test('newly issued document waits for the saved final snapshot before PDF or share starts', async () => {

@@ -10,6 +10,7 @@ const LATIN_FONTS = new Set(['auto','inter','source-sans','montserrat','playfair
 const ARABIC_FONTS = new Set(['auto','cairo','tajawal','noto-kufi','noto-naskh']);
 const AUTO_LOCK_VALUES = new Set([0,5,15,30]);
 const PAYMENT_METHODS = new Set(['cash','bank-transfer','card','cheque','other']);
+const DOCUMENT_EVENT_TYPES = new Set(['created','issued','reissued','revision-started','revision-discarded','voided','credit-note-created','payment-recorded','payment-deleted','converted']);
 
 function stringValue(value: unknown, fallback = ''): string {
   if (typeof value === 'string') return value;
@@ -70,9 +71,9 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     autoLockMinutes: AUTO_LOCK_VALUES.has(sourceSettings.autoLockMinutes) ? sourceSettings.autoLockMinutes : defaults.appSettings.autoLockMinutes,
     uiLanguage: uiLanguageValue(sourceSettings.uiLanguage, defaults.appSettings.uiLanguage),
     numbering: {
-      proformaPrefix:cleanPrefix(sourceNumbering.proformaPrefix,defaults.appSettings.numbering.proformaPrefix), invoicePrefix:cleanPrefix(sourceNumbering.invoicePrefix,defaults.appSettings.numbering.invoicePrefix),
-      proformaLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.proformaLast,defaults.appSettings.numbering.proformaLast))), invoiceLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.invoiceLast,defaults.appSettings.numbering.invoiceLast))),
-      proformaYear:Math.trunc(finiteNumber(sourceNumbering.proformaYear,defaults.appSettings.numbering.proformaYear)), invoiceYear:Math.trunc(finiteNumber(sourceNumbering.invoiceYear,defaults.appSettings.numbering.invoiceYear))
+      proformaPrefix:cleanPrefix(sourceNumbering.proformaPrefix,defaults.appSettings.numbering.proformaPrefix), invoicePrefix:cleanPrefix(sourceNumbering.invoicePrefix,defaults.appSettings.numbering.invoicePrefix), creditNotePrefix:cleanPrefix(sourceNumbering.creditNotePrefix,defaults.appSettings.numbering.creditNotePrefix),
+      proformaLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.proformaLast,defaults.appSettings.numbering.proformaLast))), invoiceLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.invoiceLast,defaults.appSettings.numbering.invoiceLast))), creditNoteLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.creditNoteLast,defaults.appSettings.numbering.creditNoteLast))),
+      proformaYear:Math.trunc(finiteNumber(sourceNumbering.proformaYear,defaults.appSettings.numbering.proformaYear)), invoiceYear:Math.trunc(finiteNumber(sourceNumbering.invoiceYear,defaults.appSettings.numbering.invoiceYear)), creditNoteYear:Math.trunc(finiteNumber(sourceNumbering.creditNoteYear,defaults.appSettings.numbering.creditNoteYear))
     },
     smartDefaults:{
       currency:cleanCurrency(sourceSmart.currency,defaults.appSettings.smartDefaults.currency), language:languageValue(sourceSmart.language,defaults.appSettings.smartDefaults.language),
@@ -138,7 +139,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
       signatureDataUrl:stringValue(companySnapshot.signatureDataUrl,fallbackCompanySnapshot.signatureDataUrl), stampDataUrl:stringValue(companySnapshot.stampDataUrl,fallbackCompanySnapshot.stampDataUrl), footerText:stringValue(companySnapshot.footerText,fallbackCompanySnapshot.footerText)
     };
     return {
-      id:stringValue(document?.id), kind:document?.kind === 'invoice' ? 'invoice' : 'proforma', status:document?.status === 'final' ? 'final' : 'draft',
+      id:stringValue(document?.id), kind:document?.kind === 'invoice' ? 'invoice' : 'proforma', role:document?.role==='credit-note'?'credit-note':'standard', status:document?.status === 'final' ? 'final' : 'draft', lifecycleStatus:document?.lifecycleStatus==='voided'?'voided':'active', revision:Math.max(1,Math.trunc(finiteNumber(document?.revision,1))), creditForId:stringValue(document?.creditForId), creditForNumber:stringValue(document?.creditForNumber), voidedAt:stringValue(document?.voidedAt), voidReason:stringValue(document?.voidReason),
       number:stringValue(document?.number), issueDate:stringValue(document?.issueDate), dueDate:stringValue(document?.dueDate), currency:cleanCurrency(document?.currency,migrated.appSettings.smartDefaults.currency || migrated.company.defaultCurrency || 'USD'),
       language:languageValue(document?.language,migrated.appSettings.smartDefaults.language),
       customerSnapshot:customerSnapshot ? {
@@ -170,6 +171,15 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     };
   }) : [];
 
+  migrated.documentEvents = Array.isArray((vault as any).documentEvents) ? (vault as any).documentEvents.map((event:any)=>({
+    id:stringValue(event?.id),documentId:stringValue(event?.documentId),documentNumber:stringValue(event?.documentNumber),type:DOCUMENT_EVENT_TYPES.has(event?.type)?event.type:'created',at:stringValue(event?.at,nowIso()),note:stringValue(event?.note),relatedDocumentId:stringValue(event?.relatedDocumentId),relatedDocumentNumber:stringValue(event?.relatedDocumentNumber),amount:stringValue(event?.amount),currency:cleanCurrency(event?.currency,migrated.appSettings.smartDefaults.currency||'USD')
+  })) : [];
+  migrated.documentRevisions = Array.isArray((vault as any).documentRevisions) ? (vault as any).documentRevisions.map((revision:any)=>{
+    const snapshot=revision?.snapshot&&typeof revision.snapshot==='object'?structuredClone(revision.snapshot):null;if(!snapshot)return null;
+    snapshot.role=snapshot.role==='credit-note'?'credit-note':'standard';snapshot.lifecycleStatus=snapshot.lifecycleStatus==='voided'?'voided':'active';snapshot.revision=Math.max(1,Math.trunc(finiteNumber(snapshot.revision,1)));snapshot.creditForId=stringValue(snapshot.creditForId);snapshot.creditForNumber=stringValue(snapshot.creditForNumber);snapshot.voidedAt=stringValue(snapshot.voidedAt);snapshot.voidReason=stringValue(snapshot.voidReason);
+    return{id:stringValue(revision?.id),documentId:stringValue(revision?.documentId),documentNumber:stringValue(revision?.documentNumber),revision:Math.max(1,Math.trunc(finiteNumber(revision?.revision,1))),snapshot,createdAt:stringValue(revision?.createdAt,nowIso())};
+  }).filter(Boolean) as any : [];
+
   const unique = (values: string[], label: string): void => {
     const seen = new Set<string>();
     for (const id of values) {
@@ -179,6 +189,8 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   };
   unique(migrated.customers.map(c => c.id), 'customer');
   unique(migrated.documents.map(d => d.id), 'document');
+  unique(migrated.documentEvents.map(e => e.id), 'document event');
+  unique(migrated.documentRevisions.map(r => r.id), 'document revision');
   unique(migrated.payments.map(p => p.id), 'payment');
   unique(migrated.savedItems.map(i=>i.id),'saved item');
   for (const document of migrated.documents) unique(document.items.map(i => i.id), 'item');

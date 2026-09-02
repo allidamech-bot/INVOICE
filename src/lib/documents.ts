@@ -3,7 +3,7 @@ import { addDaysIso, compareIsoDates, isIsoDate, makeId, normalizeValidityDays, 
 import { companySnapshotFrom } from './defaults.js';
 import { decimalToScaled, isDecimalInput, lineTotal } from './money.js';
 
-type NumberReservation={year:number;proforma:number;invoice:number};
+type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number};
 const liveNumberReservations=new WeakMap<object,NumberReservation>();
 
 export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { number: string; vault: VaultPayload } {
@@ -43,7 +43,7 @@ export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { n
   numbering[lastKey] = seq;
   const reservation: NumberReservation = live?.year===year
     ? {...live}
-    : {year,proforma:0,invoice:0};
+    : {year,proforma:0,invoice:0,creditNote:0};
   if(isProforma)reservation.proforma=seq;else reservation.invoice=seq;
   liveNumberReservations.set(sourceNumbering,reservation);
 
@@ -51,6 +51,26 @@ export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { n
     number,
     vault: { ...vault, appSettings: { ...vault.appSettings, numbering } }
   };
+}
+
+export function nextCreditNoteNumber(vault:VaultPayload):{number:string;vault:VaultPayload}{
+  const year=new Date().getFullYear();
+  const sourceNumbering=vault.appSettings.numbering;
+  const numbering={...sourceNumbering};
+  if(numbering.creditNoteYear!==year){numbering.creditNoteYear=year;numbering.creditNoteLast=0;}
+  const prefix=(numbering.creditNotePrefix||'CN').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)||'CN';
+  numbering.creditNotePrefix=prefix;
+  const live=liveNumberReservations.get(sourceNumbering);
+  const reserved=live?.year===year?live.creditNote:0;
+  const used=new Set(vault.documents.map(document=>document.number.trim().toLowerCase()).filter(Boolean));
+  let seq=Math.max(0,Math.trunc(numbering.creditNoteLast||0),reserved);
+  let number='';
+  do{seq+=1;number=`${prefix}-${year}-${String(seq).padStart(4, '0')}`;}while(used.has(number.toLowerCase()));
+  numbering.creditNoteLast=seq;
+  const reservation: NumberReservation=live?.year===year?{...live}:{year,proforma:0,invoice:0,creditNote:0};
+  reservation.creditNote=seq;
+  liveNumberReservations.set(sourceNumbering,reservation);
+  return{number,vault:{...vault,appSettings:{...vault.appSettings,numbering}}};
 }
 
 export function emptyItem(): DocumentItem {
@@ -61,7 +81,7 @@ export function createBlankDocument(kind: DocumentKind, number: string, company:
   const issueDate = todayIso();
   const validityDays=normalizeValidityDays(company.defaultValidityDays);
   return {
-    id: makeId('doc'), kind, status: 'draft', number, issueDate,
+    id: makeId('doc'), kind, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', number, issueDate,
     dueDate: kind === 'proforma' ? addDaysIso(issueDate, validityDays) : '',
     currency: company.defaultCurrency, language: company.defaultLanguage, customerSnapshot: null,
     companySnapshot: companySnapshotFrom(company), items: [emptyItem()],
@@ -135,7 +155,7 @@ export function duplicateDocument(source: LourexDocument, number: string): Loure
   if (source.issueDate && source.dueDate) {
     dueDate = addDaysIso(issueDate, daysBetween(source.issueDate,source.dueDate));
   }
-  return { ...structuredClone(source), id: makeId('doc'), number, issueDate, dueDate, status: 'draft', convertedFromId: '', createdAt: now, updatedAt: now, items: source.items.map(i => ({ ...structuredClone(i), id: makeId('item') })) };
+  return { ...structuredClone(source), id: makeId('doc'), number, issueDate, dueDate, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', convertedFromId: '', createdAt: now, updatedAt: now, items: source.items.map(i => ({ ...structuredClone(i), id: makeId('item') })) };
 }
 
 function conversionReference(source:LourexDocument):string{
@@ -148,7 +168,7 @@ export function convertToInvoice(source: LourexDocument, number: string): Lourex
   const d = duplicateDocument(source, number);
   const reference=conversionReference(source);
   const remarks=[reference,d.terms.remarks.trim()].filter(Boolean).join('\n');
-  return { ...d, kind: 'invoice', convertedFromId: source.id, dueDate: '', status: 'draft', terms:{...d.terms,remarks} };
+  return { ...d, kind: 'invoice', role:'standard', convertedFromId: source.id, dueDate: '', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', terms:{...d.terms,remarks} };
 }
 
 export function refreshCompanySnapshot(doc: LourexDocument, company: CompanySettings): LourexDocument {

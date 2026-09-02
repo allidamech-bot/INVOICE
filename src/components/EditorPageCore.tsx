@@ -22,7 +22,7 @@ interface Props {
   document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; company:CompanySettings; savedItems:SavedItem[]; smartDefaults:AppSettings['smartDefaults'];
   onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
   onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onUseSavedItems:(items:SavedItem[])=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
-  onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>void;
+  onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onBeginRevision:(doc:LourexDocument)=>Promise<LourexDocument>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>void;
 }
 interface State {
   doc:LourexDocument; errors:Record<string,string>; saving:boolean; saveState:'saved'|'saving'|'unsaved'; customerQuery:string; customerOpen:boolean;
@@ -147,13 +147,12 @@ export class EditorPage extends React.Component<Props,State>{
   };
   private unlockFinal=async()=>{
     if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
-    const doc={...structuredClone(this.state.doc),status:'draft' as const,updatedAt:new Date().toISOString()};
-    this.setState({doc,unlockConfirm:false,saving:true,saveState:'saving',errors:{}});
+    this.setState({unlockConfirm:false,saving:true,saveState:'saving',errors:{}});
     try{
-      await this.props.onSave(doc,true);
+      const doc=await this.props.onBeginRevision(structuredClone(this.state.doc));
       this.setState({doc,saving:false,saveState:'saved'});
     }catch(e){
-      this.setState({doc,saving:false,saveState:'unsaved',errors:{global:e instanceof Error?e.message:t('Unable to unlock document.','تعذر فتح المستند للتعديل.')}},()=>this.schedule());
+      this.setState({saving:false,saveState:'saved',errors:{global:e instanceof Error?e.message:t('Unable to start revision.','تعذر بدء المراجعة.')}});
     }
   };
   private convert=()=>{if(this.validateCurrent())void this.props.onConvert(this.state.doc);};
@@ -189,7 +188,7 @@ export class EditorPage extends React.Component<Props,State>{
   private setCurrentTemplateDefault=()=>{const templateId=this.state.doc.appearance.templateId;const smart=this.state.doc.kind==='proforma'?{...this.props.smartDefaults,quoteTemplateId:templateId}:{...this.props.smartDefaults,invoiceTemplateId:templateId};void this.saveTemplateDefaults(smart);};
 
   render():any{
-    const d=this.state.doc,errors=this.state.errors,totals=calculateTotals(d.items,d.adjustments),readiness=getDocumentReadiness(d),locked=d.status==='final';
+    const d=this.state.doc,errors=this.state.errors,totals=calculateTotals(d.items,d.adjustments),readiness=getDocumentReadiness(d),locked=d.status==='final',revisionAllowed=d.status==='final'&&d.lifecycleStatus!=='voided'&&d.role!=='credit-note';
     const error=(key:string)=>errors[key]?translateValidation(errors[key]):undefined;
     const validationKeys=Object.keys(errors).filter(key=>key!=='global');const validationCount=validationKeys.length;
     const sectionHasError=(...prefixes:string[])=>validationKeys.some(key=>prefixes.some(prefix=>key===prefix||key.startsWith(prefix)));
@@ -206,7 +205,7 @@ export class EditorPage extends React.Component<Props,State>{
 
     return <div className={`editor-screen workflow-${workflow} ${this.state.mobilePreview?'mobile-preview-open':''}`}>
       <header className="editor-topbar">
-        <div className="editor-top-left"><IconButton icon="arrowLeft" label={t('Back','رجوع')} onClick={()=>void this.saveAndClose()}/><div><strong>{d.number}</strong><span>{d.kind==='proforma'?t('Proforma Invoice','عرض سعر'):t('Invoice','فاتورة')}</span></div><span className={`editor-workflow-badge status-${workflow}`}>{workflow==='final'?t('Final','نهائي'):workflow==='ready'?t('Ready','جاهز'):t('Draft','مسودة')}</span></div>
+        <div className="editor-top-left"><IconButton icon="arrowLeft" label={t('Back','رجوع')} onClick={()=>void this.saveAndClose()}/><div><strong>{d.number}</strong><span>{d.role==='credit-note'?t('Credit Note','إشعار دائن'):d.kind==='proforma'?t('Proforma Invoice','عرض سعر'):t('Invoice','فاتورة')}</span></div><span className={`editor-workflow-badge status-${workflow}`}>{workflow==='final'?t('Final','نهائي'):workflow==='ready'?t('Ready','جاهز'):t('Draft','مسودة')}</span></div>
         <div className="editor-grand-total-chip"><span>{t('Grand Total','الإجمالي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div>
         <div className={`save-indicator state-${locked?'saved':this.state.saveState}`}>{locked?t('Final document locked','المستند النهائي مقفل'):this.state.saveState==='saving'?t('Saving draft…','جارٍ حفظ المسودة…'):this.state.saveState==='saved'?t('Draft auto-saved','تم حفظ المسودة تلقائيًا'):t('Unsaved changes','تغييرات غير محفوظة')}</div>
         <div className="editor-actions">
@@ -214,7 +213,7 @@ export class EditorPage extends React.Component<Props,State>{
           <Button icon="printer" variant="ghost" onClick={()=>this.openReview('print')}>{t('Print','طباعة')}</Button>
           <Button icon="download" onClick={()=>this.openReview('pdf')}>PDF</Button>
           <Button icon="share" onClick={()=>this.openReview('share')}>{t('Share','مشاركة')}</Button>
-          {locked?<Button icon="edit" onClick={()=>this.setState({unlockConfirm:true})}>{t('Unlock for editing','فتح للتعديل')}</Button>:readiness.ready?<Button icon="check" variant="primary" onClick={()=>this.openReview('issue')}>{t('Issue','إصدار')}</Button>:<Button icon="save" variant="primary" className={`save-now-button ${validationCount?'has-validation-errors':''}`} disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save now','حفظ الآن')}</Button>}
+          {locked?(revisionAllowed?<Button icon="edit" onClick={()=>this.setState({unlockConfirm:true})}>{t('Create Revision','إنشاء مراجعة')}</Button>:null):readiness.ready?<Button icon="check" variant="primary" onClick={()=>this.openReview('issue')}>{t('Issue','إصدار')}</Button>:<Button icon="save" variant="primary" className={`save-now-button ${validationCount?'has-validation-errors':''}`} disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save now','حفظ الآن')}</Button>}
         </div>
       </header>
 
@@ -242,10 +241,10 @@ export class EditorPage extends React.Component<Props,State>{
       </fieldset></div></aside>
 
       <section className="preview-pane"><div className="preview-toolbar"><span>{t('Live A4 Preview','معاينة A4 مباشرة')}</span><span className={`preview-quality-pill ${quality.some(item=>item.level==='warning')?'has-warning':'clean'}`}>{quality.length?`${quality.length} ${t('quality notes','تنبيهات جودة')}`:t('Quality check passed','فحص الجودة ناجح')}</span></div><div className="preview-stage"><TemplateRenderer document={d} scale={0.82}/></div></section></div>
-      <div className={`mobile-editor-actionbar mobile-workflow-${workflow}`}><div className="mobile-total"><span>{t('Grand Total','الإجمالي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div><div className="mobile-action-buttons">{locked?<Button icon="edit" variant="primary" onClick={()=>this.setState({unlockConfirm:true})}>{t('Unlock','فتح')}</Button>:readiness.ready?<Button icon="check" variant="primary" onClick={()=>this.openReview('issue')}>{t('Issue','إصدار')}</Button>:<Button icon="save" variant="primary" disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save','حفظ')}</Button>}<Button icon="eye" onClick={()=>this.setState({mobilePreview:true})}>{t('Preview','معاينة')}</Button><Button icon="download" onClick={()=>this.openReview('pdf')}>PDF</Button><Button icon="share" onClick={()=>this.openReview('share')}>{t('Share','مشاركة')}</Button></div></div>
+      <div className={`mobile-editor-actionbar mobile-workflow-${workflow}`}><div className="mobile-total"><span>{t('Grand Total','الإجمالي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div><div className="mobile-action-buttons">{locked?(revisionAllowed?<Button icon="edit" variant="primary" onClick={()=>this.setState({unlockConfirm:true})}>{t('Revise','مراجعة')}</Button>:null):readiness.ready?<Button icon="check" variant="primary" onClick={()=>this.openReview('issue')}>{t('Issue','إصدار')}</Button>:<Button icon="save" variant="primary" disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save','حفظ')}</Button>}<Button icon="eye" onClick={()=>this.setState({mobilePreview:true})}>{t('Preview','معاينة')}</Button><Button icon="download" onClick={()=>this.openReview('pdf')}>PDF</Button><Button icon="share" onClick={()=>this.openReview('share')}>{t('Share','مشاركة')}</Button></div></div>
       <div className="mobile-preview-overlay"><header><strong>{t('Preview','معاينة')}</strong><div><Button icon="download" onClick={()=>this.openReview('pdf')}>PDF</Button><Button icon="share" onClick={()=>this.openReview('share')}>{t('Share','مشاركة')}</Button><IconButton icon="x" label={t('Close','إغلاق')} onClick={()=>this.setState({mobilePreview:false})}/></div></header><div className="mobile-preview-stage"><TemplateRenderer document={d} scale={0.48}/></div></div>
       <ConfirmDialog open={this.state.confirmClose} title={t('Discard unsaved changes?','تجاهل التغييرات غير المحفوظة؟')} message={t('Your latest changes have not been saved.','لم يتم حفظ آخر تغييراتك.')} confirmLabel={t('Discard','تجاهل')} destructive onCancel={()=>this.setState({confirmClose:false})} onConfirm={()=>this.props.onClose()}/>
-      <ConfirmDialog open={this.state.unlockConfirm} title={t('Unlock final document?','فتح المستند النهائي للتعديل؟')} message={t('The document will return to Draft so changes can be made. Its number will remain unchanged.','سيعود المستند إلى حالة مسودة حتى تتمكن من تعديله، وسيبقى رقمه كما هو.')} confirmLabel={t('Unlock for editing','فتح للتعديل')} destructive={false} onCancel={()=>this.setState({unlockConfirm:false})} onConfirm={()=>void this.unlockFinal()}/>
+      <ConfirmDialog open={this.state.unlockConfirm} title={t('Create a safe revision?','إنشاء مراجعة آمنة؟')} message={t('The current Final is saved permanently in Document History before Revision '+String(d.revision+1)+' opens. The document number stays unchanged.','سيتم حفظ النسخة النهائية الحالية بشكل دائم في سجل المستند قبل فتح المراجعة '+String(d.revision+1)+'، وسيبقى رقم المستند كما هو.')} confirmLabel={t('Create Revision','إنشاء مراجعة')} destructive={false} onCancel={()=>this.setState({unlockConfirm:false})} onConfirm={()=>void this.unlockFinal()}/>
       <Modal open={Boolean(this.state.addCustomer)} title={t('New Customer','عميل جديد')} size="lg" onClose={()=>this.setState({addCustomer:null,addCustomerError:''})} footer={<div className="modal-footer-actions"><Button onClick={()=>this.setState({addCustomer:null})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" onClick={()=>void this.addCustomer()}>{t('Save & Select','حفظ واختيار')}</Button></div>}>{this.state.addCustomer?<CustomerForm customer={this.state.addCustomer} onChange={addCustomer=>this.setState({addCustomer})}/>:null}{this.state.addCustomerError?<div className="inline-error">{this.state.addCustomerError}</div>:null}</Modal>
       <SavedItemsModal open={this.state.savedItemsOpen} items={this.props.savedItems} currency={d.currency} onClose={()=>this.setState({savedItemsOpen:false})} onSelectMany={this.addSavedItems} onSave={this.props.onSaveSavedItem} onDelete={this.props.onDeleteSavedItem}/>
       <DocumentReviewModal document={d} mode={this.state.reviewMode} issues={quality} working={this.state.issuing} onClose={()=>this.setState({reviewMode:null})} onConfirm={()=>void this.issueAndContinue()}/>
