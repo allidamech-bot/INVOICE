@@ -11,6 +11,8 @@ const ARABIC_FONTS = new Set(['auto','cairo','tajawal','noto-kufi','noto-naskh']
 const AUTO_LOCK_VALUES = new Set([0,5,15,30]);
 const PAYMENT_METHODS = new Set(['cash','bank-transfer','card','cheque','other']);
 const DOCUMENT_EVENT_TYPES = new Set(['created','issued','reissued','revision-started','revision-discarded','voided','credit-note-created','payment-recorded','payment-deleted','converted']);
+const PURCHASE_STATUSES = new Set(['draft','posted','reversed']);
+const INVENTORY_MOVEMENT_TYPES = new Set(['opening','purchase','purchase-reversal','issue','adjustment']);
 
 function stringValue(value: unknown, fallback = ''): string {
   if (typeof value === 'string') return value;
@@ -113,6 +115,27 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     preferredCurrency:stringValue(customer?.preferredCurrency).trim().toUpperCase(), paymentTermPresetId:stringValue(customer?.paymentTermPresetId), paymentTerms:stringValue(customer?.paymentTerms), paymentDueDays:stringValue(customer?.paymentDueDays), creditLimit:stringValue(customer?.creditLimit), creditCurrency:stringValue(customer?.creditCurrency).trim().toUpperCase(), notes:stringValue(customer?.notes)
   })) : [];
 
+  migrated.suppliers = Array.isArray((vault as any).suppliers) ? (vault as any).suppliers.map((supplier:any)=>({
+    id:stringValue(supplier?.id),createdAt:stringValue(supplier?.createdAt,nowIso()),updatedAt:stringValue(supplier?.updatedAt,supplier?.createdAt?stringValue(supplier.createdAt):nowIso()),
+    nameEn:stringValue(supplier?.nameEn),nameAr:stringValue(supplier?.nameAr),contactPerson:stringValue(supplier?.contactPerson),address:stringValue(supplier?.address),city:stringValue(supplier?.city),country:stringValue(supplier?.country),phone:stringValue(supplier?.phone),email:stringValue(supplier?.email),vatTaxNumber:stringValue(supplier?.vatTaxNumber),commercialRegistration:stringValue(supplier?.commercialRegistration),defaultCurrency:cleanCurrency(supplier?.defaultCurrency,migrated.appSettings.smartDefaults.currency||'USD'),paymentTerms:stringValue(supplier?.paymentTerms),notes:stringValue(supplier?.notes)
+  })) : [];
+
+  migrated.purchases = Array.isArray((vault as any).purchases) ? (vault as any).purchases.map((purchase:any)=>({
+    id:stringValue(purchase?.id),number:stringValue(purchase?.number),date:stringValue(purchase?.date),supplierSnapshot:purchase?.supplierSnapshot&&typeof purchase.supplierSnapshot==='object'?{
+      sourceSupplierId:stringValue(purchase.supplierSnapshot.sourceSupplierId),nameEn:stringValue(purchase.supplierSnapshot.nameEn),nameAr:stringValue(purchase.supplierSnapshot.nameAr),contactPerson:stringValue(purchase.supplierSnapshot.contactPerson),address:stringValue(purchase.supplierSnapshot.address),city:stringValue(purchase.supplierSnapshot.city),country:stringValue(purchase.supplierSnapshot.country),phone:stringValue(purchase.supplierSnapshot.phone),email:stringValue(purchase.supplierSnapshot.email),vatTaxNumber:stringValue(purchase.supplierSnapshot.vatTaxNumber),commercialRegistration:stringValue(purchase.supplierSnapshot.commercialRegistration)
+    }:null,currency:cleanCurrency(purchase?.currency,migrated.appSettings.smartDefaults.currency||'USD'),items:Array.isArray(purchase?.items)?purchase.items.map((item:any)=>({
+      id:stringValue(item?.id),savedItemId:stringValue(item?.savedItemId),sku:stringValue(item?.sku),descriptionEn:stringValue(item?.descriptionEn),descriptionAr:stringValue(item?.descriptionAr),quantity:stringValue(item?.quantity,'0'),unit:stringValue(item?.unit,'PCS'),unitCost:stringValue(item?.unitCost,'0'),landedUnitCost:stringValue(item?.landedUnitCost),previousUnitCost:stringValue(item?.previousUnitCost),previousCostCurrency:stringValue(item?.previousCostCurrency).trim().toUpperCase()
+    })):[],freight:stringValue(purchase?.freight,'0.00'),duty:stringValue(purchase?.duty,'0.00'),otherCosts:stringValue(purchase?.otherCosts,'0.00'),notes:stringValue(purchase?.notes),status:PURCHASE_STATUSES.has(purchase?.status)?purchase.status:'draft',postedAt:stringValue(purchase?.postedAt),reversedAt:stringValue(purchase?.reversedAt),reverseReason:stringValue(purchase?.reverseReason),createdAt:stringValue(purchase?.createdAt,nowIso()),updatedAt:stringValue(purchase?.updatedAt,purchase?.createdAt?stringValue(purchase.createdAt):nowIso())
+  })) : [];
+
+  migrated.expenses = Array.isArray((vault as any).expenses) ? (vault as any).expenses.map((expense:any)=>({
+    id:stringValue(expense?.id),date:stringValue(expense?.date),category:stringValue(expense?.category,'General'),description:stringValue(expense?.description),amount:stringValue(expense?.amount,'0'),currency:cleanCurrency(expense?.currency,migrated.appSettings.smartDefaults.currency||'USD'),supplierId:stringValue(expense?.supplierId),reference:stringValue(expense?.reference),notes:stringValue(expense?.notes),createdAt:stringValue(expense?.createdAt,nowIso()),updatedAt:stringValue(expense?.updatedAt,expense?.createdAt?stringValue(expense.createdAt):nowIso())
+  })) : [];
+
+  migrated.inventoryMovements = Array.isArray((vault as any).inventoryMovements) ? (vault as any).inventoryMovements.map((movement:any)=>({
+    id:stringValue(movement?.id),itemId:stringValue(movement?.itemId),itemNameEn:stringValue(movement?.itemNameEn),itemNameAr:stringValue(movement?.itemNameAr),sku:stringValue(movement?.sku),date:stringValue(movement?.date),type:INVENTORY_MOVEMENT_TYPES.has(movement?.type)?movement.type:'adjustment',quantity:stringValue(movement?.quantity,'0'),unitCost:stringValue(movement?.unitCost),currency:stringValue(movement?.currency).trim().toUpperCase(),sourceId:stringValue(movement?.sourceId),sourceNumber:stringValue(movement?.sourceNumber),note:stringValue(movement?.note),createdAt:stringValue(movement?.createdAt,nowIso())
+  })) : [];
+
   migrated.savedItems = Array.isArray((vault as any).savedItems) ? (vault as any).savedItems.map((item:any)=>({
     id:stringValue(item?.id), createdAt:stringValue(item?.createdAt,nowIso()), updatedAt:stringValue(item?.updatedAt,item?.createdAt ? stringValue(item.updatedAt) : nowIso()),
     sku:stringValue(item?.sku), descriptionEn:stringValue(item?.descriptionEn), descriptionAr:stringValue(item?.descriptionAr), hsCode:stringValue(item?.hsCode), origin:stringValue(item?.origin), packing:stringValue(item?.packing), unit:stringValue(item?.unit,'PCS'),
@@ -206,6 +229,10 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     }
   };
   unique(migrated.customers.map(c => c.id), 'customer');
+  unique(migrated.suppliers.map(s => s.id), 'supplier');
+  unique(migrated.purchases.map(p => p.id), 'purchase');
+  unique(migrated.expenses.map(e => e.id), 'expense');
+  unique(migrated.inventoryMovements.map(m => m.id), 'inventory movement');
   unique(migrated.documents.map(d => d.id), 'document');
   unique(migrated.documentEvents.map(e => e.id), 'document event');
   unique(migrated.documentRevisions.map(r => r.id), 'document revision');
