@@ -65,7 +65,7 @@ export class OperationsPage extends React.Component<Props,State>{
     const item=this.props.items.find(entry=>entry.id===this.state.movementItemId);if(!item){this.setState({error:t('Choose a saved item first.','اختر صنفًا محفوظًا أولًا.')});return;}
     try{const movement=createManualInventoryMovement(item,this.state.movementType,this.state.movementQuantity,this.state.movementDate,this.state.movementNote,this.state.movementCost,this.state.movementCurrency);await this.props.onSaveInventoryMovement(movement);this.setState({movementQuantity:'',movementNote:'',movementCost:'',error:''});}catch(e){this.fail(e);}
   };
-  private deleteMovement=async(movement:InventoryMovementRecord)=>{if(!inventoryMovementIsManual(movement)){this.setState({error:t('Purchase-generated inventory movements cannot be deleted. Reverse the purchase instead.','لا يمكن حذف حركات المخزون الناتجة عن شراء. اعكس الشراء بدلًا من ذلك.')});return;}if(!window.confirm(t('Delete this inventory movement?','حذف حركة المخزون؟')))return;try{await this.props.onDeleteInventoryMovement(movement);}catch(e){this.fail(e);}};
+  private deleteMovement=async(movement:InventoryMovementRecord)=>{if(!inventoryMovementIsManual(movement)){this.setState({error:t('Purchase-generated inventory movements cannot be deleted. Reverse the purchase instead.','لا يمكن حذف حركات المخزون الناتجة عن شراء. اعكس الشراء بدلًا من ذلك.')});return;}if(!window.confirm(t('Reverse this manual inventory movement? The original record will stay in history.','عكس حركة المخزون اليدوية؟ سيبقى السجل الأصلي محفوظًا في التاريخ.')))return;try{await this.props.onDeleteInventoryMovement(movement);}catch(e){this.fail(e);}};
 
   private renderSummary():any{
     const spend=spendByCurrency(this.props.purchases,this.props.expenses);

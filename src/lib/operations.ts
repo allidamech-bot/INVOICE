@@ -114,9 +114,9 @@ export function validatePurchase(purchase:PurchaseRecord,savedItems:SavedItem[]=
   return errors;
 }
 
-function purchaseMovement(purchase:PurchaseRecord,item:PurchaseRecord['items'][number],type:'purchase'|'purchase-reversal',quantity:string,note=''):InventoryMovementRecord{
+function purchaseMovement(purchase:PurchaseRecord,item:PurchaseRecord['items'][number],type:'purchase'|'purchase-reversal',quantity:string,note='',movementDate=purchase.date):InventoryMovementRecord{
   return {
-    id:makeId('stock'),itemId:item.savedItemId,itemNameEn:item.descriptionEn,itemNameAr:item.descriptionAr,sku:item.sku,date:purchase.date,type,
+    id:makeId('stock'),itemId:item.savedItemId,itemNameEn:item.descriptionEn,itemNameAr:item.descriptionAr,sku:item.sku,date:movementDate,type,
     quantity,unitCost:item.landedUnitCost||item.unitCost,currency:purchase.currency,sourceId:purchase.id,sourceNumber:purchase.number,note,createdAt:nowIso()
   };
 }
@@ -144,7 +144,8 @@ export function reversePurchase(purchase:PurchaseRecord,reason:string,existingMo
   if(existingMovements.some(m=>m.sourceId===purchase.id&&m.type==='purchase-reversal'))throw new Error('This purchase has already been reversed.');
   const at=nowIso();
   const reversed={...purchase,status:'reversed' as const,reversedAt:at,reverseReason:reason.trim(),updatedAt:at};
-  const movements=purchase.items.filter(item=>item.savedItemId).map(item=>purchaseMovement(purchase,item,'purchase-reversal',trimFixed(fixed(-decimalToScaled(item.quantity,4),4)),reason.trim()));
+  const reversalDate=todayIso();
+  const movements=purchase.items.filter(item=>item.savedItemId).map(item=>purchaseMovement(purchase,item,'purchase-reversal',trimFixed(fixed(-decimalToScaled(item.quantity,4),4)),reason.trim(),reversalDate));
   const lines=new Map(purchase.items.filter(line=>line.savedItemId).map(line=>[line.savedItemId,line]));
   const restored=savedItems.map(item=>{const line=lines.get(item.id);if(!line)return item;const current=(item.lastUnitCost??'').trim(),landed=(line.landedUnitCost||line.unitCost).trim();if(current!==landed||item.lastCostCurrency!==purchase.currency)return item;return {...item,lastUnitCost:line.previousUnitCost||'',lastCostCurrency:line.previousCostCurrency||'',updatedAt:at};});
   return {purchase:reversed,movements,savedItems:restored};
@@ -171,6 +172,17 @@ export function createManualInventoryMovement(item:SavedItem,type:Extract<Invent
   if(type==='opening')scaled=scaled<0n?-scaled:scaled;
   if(type==='issue')scaled=scaled>0n?-scaled:scaled;
   return {id:makeId('stock'),itemId:item.id,itemNameEn:item.descriptionEn,itemNameAr:item.descriptionAr,sku:item.sku??'',date,type,quantity:trimFixed(fixed(scaled,4)),unitCost:unitCost.trim(),currency:cleanCurrency(currency||item.lastCostCurrency||'' ,''),sourceId:'',sourceNumber:'',note:note.trim(),createdAt:nowIso()};
+}
+
+export function reverseManualInventoryMovement(movement:InventoryMovementRecord,date=todayIso()):InventoryMovementRecord{
+  if(!inventoryMovementIsManual(movement))throw new Error('Only manual inventory movements can be reversed here.');
+  if(!isIsoDate(date))throw new Error('Movement date is invalid.');
+  const quantity=decimalToScaled(movement.quantity,4);
+  if(quantity===0n)throw new Error('Movement quantity cannot be zero.');
+  return {
+    ...movement,id:makeId('stock'),date,type:'adjustment',quantity:trimFixed(fixed(-quantity,4)),sourceId:movement.id,sourceNumber:movement.sourceNumber||movement.id,
+    note:[`Reversal of ${movement.type}`,movement.note].filter(Boolean).join(' — '),createdAt:nowIso()
+  };
 }
 
 export interface InventoryBalance { item:SavedItem; quantity:string; quantityScaled:bigint; }

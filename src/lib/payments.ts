@@ -4,12 +4,13 @@ import { isIsoDate, todayIso } from './id.js';
 
 const METHODS=new Set<PaymentMethod>(['cash','bank-transfer','card','cheque','other']);
 function centsString(cents:bigint):string{const sign=cents<0n?'-':'';const abs=cents<0n?-cents:cents;return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`; }
-export function invoicePayments(invoiceId:string,payments:PaymentRecord[]):PaymentRecord[]{return payments.filter(payment=>payment.invoiceId===invoiceId);}
-export function paidAmount(invoiceId:string,payments:PaymentRecord[]):string{let cents=0n;for(const payment of invoicePayments(invoiceId,payments))cents+=decimalToScaled(payment.amount,2);return centsString(cents);}
-export function invoiceCreditAmount(invoiceId:string,documents:LourexDocument[]):string{
+export function invoicePayments(invoiceId:string,payments:PaymentRecord[],asOf=''):PaymentRecord[]{return payments.filter(payment=>payment.invoiceId===invoiceId&&(!asOf||(isIsoDate(payment.date)&&payment.date<=asOf)));}
+export function paidAmount(invoiceId:string,payments:PaymentRecord[],asOf=''):string{let cents=0n;for(const payment of invoicePayments(invoiceId,payments,asOf))cents+=decimalToScaled(payment.amount,2);return centsString(cents);}
+export function invoiceCreditAmount(invoiceId:string,documents:LourexDocument[],asOf=''):string{
   let cents=0n;
   for(const document of documents){
     if(document.role!=='credit-note'||document.creditForId!==invoiceId||document.status!=='final'||document.lifecycleStatus==='voided')continue;
+    if(asOf&&(!isIsoDate(document.issueDate)||document.issueDate>asOf))continue;
     cents+=decimalToScaled(calculateTotals(document.items,document.adjustments).grandTotal,2);
   }
   return centsString(cents);
@@ -17,10 +18,10 @@ export function invoiceCreditAmount(invoiceId:string,documents:LourexDocument[])
 export function invoicePaymentSummary(invoice:LourexDocument,payments:PaymentRecord[],today=todayIso(),documents:LourexDocument[]=[]):{status:PaymentStatus;total:string;credits:string;netTotal:string;paid:string;remaining:string}{
   const total=calculateTotals(invoice.items,invoice.adjustments).grandTotal;
   const totalCents=decimalToScaled(total,2);
-  const credits=invoiceCreditAmount(invoice.id,documents);
+  const credits=invoiceCreditAmount(invoice.id,documents,today);
   const creditCents=decimalToScaled(credits,2);
   const netCents=totalCents>creditCents?totalCents-creditCents:0n;
-  const paid=paidAmount(invoice.id,payments);
+  const paid=paidAmount(invoice.id,payments,today);
   const paidCents=decimalToScaled(paid,2);
   const remainingCents=netCents>paidCents?netCents-paidCents:0n;
   let status:PaymentStatus='unpaid';
