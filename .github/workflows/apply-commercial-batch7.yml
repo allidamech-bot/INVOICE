@@ -18,6 +18,18 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
+      - name: Make active cache matcher specific
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/apply-commercial-batch7-v2.mjs')
+          s=p.read_text()
+          old='source=once(source,"const CACHE = \'lourex-invoice-v135\';","const CACHE = \'lourex-invoice-v136\';",\'active v136 cache\');'
+          new='source=once(source,"\\nconst CACHE = \'lourex-invoice-v135\';\\nconst LOCAL_CORE = ","\\nconst CACHE = \'lourex-invoice-v136\';\\nconst LOCAL_CORE = ",\'active v136 cache\');'
+          if old not in s:
+              raise SystemExit('active cache helper matcher not found')
+          p.write_text(s.replace(old,new,1))
+          PY
       - name: Apply integration patch
         run: node scripts/apply-commercial-batch7-v2.mjs
       - name: Remove one-shot helpers
