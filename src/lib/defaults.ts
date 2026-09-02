@@ -4,7 +4,8 @@ import { defaultBankDetails } from './commercial-controls.js';
 // Compatibility marker: APP_SCHEMA_VERSION = 7 introduced encrypted payment records.
 // v9 adds encrypted internal cost metadata for profitability analysis.
 // v10 adds commercial controls, bank choices and customer credit policy.
-export const APP_SCHEMA_VERSION = 10;
+// v11 adds encrypted suppliers, purchases, expenses and inventory ledger records.
+export const APP_SCHEMA_VERSION = 11;
 export const KDF_ITERATIONS = 310_000;
 
 export function defaultCompany(): CompanySettings {
@@ -51,7 +52,7 @@ export function defaultAppSettings(): AppSettings {
 }
 
 export function emptyVault(): VaultPayload {
-  return { schemaVersion: APP_SCHEMA_VERSION, company: defaultCompany(), appSettings: defaultAppSettings(), customers: [], documents: [], documentEvents: [], documentRevisions: [], payments: [], savedItems: [] };
+  return { schemaVersion: APP_SCHEMA_VERSION, company: defaultCompany(), appSettings: defaultAppSettings(), customers: [], suppliers: [], purchases: [], expenses: [], inventoryMovements: [], documents: [], documentEvents: [], documentRevisions: [], payments: [], savedItems: [] };
 }
 
 export function customerSnapshotFrom(customer: { id: string; companyNameEn: string; companyNameAr: string; contactPerson: string; addressEn: string; addressAr: string; city: string; country: string; phone: string; email: string; vatTaxNumber: string; commercialRegistration: string }): CustomerSnapshot {

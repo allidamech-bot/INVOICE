@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createBlankDocument } from '../dist/src/lib/documents.js';
-import { defaultCompany, emptyVault } from '../dist/src/lib/defaults.js';
+import { APP_SCHEMA_VERSION, defaultCompany, emptyVault } from '../dist/src/lib/defaults.js';
 import { migrateVault } from '../dist/src/storage/vault.js';
 import { addDaysIso } from '../dist/src/lib/id.js';
 import {
@@ -28,7 +28,7 @@ test('v136 migrates legacy vaults to commercial controls without changing histor
   legacy.customers=[{id:'legacy-c',createdAt:now,updatedAt:now,companyNameEn:'Legacy',companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:'',notes:''}];
   const oldDoc=createBlankDocument('invoice','INV-OLD',defaultCompany());delete oldDoc.bankAccountId;delete oldDoc.paymentTermPresetId;oldDoc.companySnapshot.bank.bankName='Historical Bank';legacy.documents=[oldDoc];
   const migrated=migrateVault(legacy);
-  assert.equal(migrated.schemaVersion,10);assert.equal(migrated.company.defaultBankAccountId,'primary');assert.ok(Array.isArray(migrated.company.bankAccounts));assert.ok(migrated.company.commercial.paymentTermPresets.some(item=>item.days===30));
+  assert.equal(migrated.schemaVersion,APP_SCHEMA_VERSION);assert.ok(APP_SCHEMA_VERSION>=10);assert.equal(migrated.company.defaultBankAccountId,'primary');assert.ok(Array.isArray(migrated.company.bankAccounts));assert.ok(migrated.company.commercial.paymentTermPresets.some(item=>item.days===30));
   assert.equal(migrated.customers[0].creditLimit,'');assert.equal(migrated.customers[0].preferredCurrency,'');assert.equal(migrated.documents[0].bankAccountId,'');assert.equal(migrated.documents[0].companySnapshot.bank.bankName,'Historical Bank');
 });
 
@@ -74,12 +74,12 @@ test('v136 active credit notes reduce exposure while cross-currency limits never
 test('v136 validates customer credit metadata and ships all controls offline',async()=>{
   assert.ok(validateCustomerCommercial(customer({creditLimit:'-1',creditCurrency:'USD'})));assert.ok(validateCustomerCommercial(customer({creditLimit:'1000',creditCurrency:''})));assert.equal(validateCustomerCommercial(customer({creditLimit:'1000',creditCurrency:'SAR',paymentDueDays:'30'})),'');
   const [app,editor,customers,settings,commercialSettings,logic,defaults,html,sw,css]=await Promise.all([read('src/app/App.tsx'),read('src/components/EditorPageCore.tsx'),read('src/components/CustomersPage.tsx'),read('src/components/SettingsModal.tsx'),read('src/components/CommercialControlsSettings.tsx'),read('src/lib/commercial-controls.ts'),read('src/lib/defaults.ts'),read('index.html'),read('public/sw.js'),read('src/styles/commercial-controls-v136.css')]);
-  assert.ok(defaults.includes('APP_SCHEMA_VERSION = 10'));assert.ok(settings.includes("'commercial'"));for(const term of ['Bank accounts','Tax presets','Payment terms','Pricing policy','Target gross margin'])assert.ok(commercialSettings.includes(term),term);
+  assert.ok(defaults.includes(`APP_SCHEMA_VERSION = ${APP_SCHEMA_VERSION}`));assert.ok(APP_SCHEMA_VERSION>=10);assert.ok(settings.includes("'commercial'"));for(const term of ['Bank accounts','Tax presets','Payment terms','Pricing policy','Target gross margin'])assert.ok(commercialSettings.includes(term),term);
   for(const term of ['Credit Limit','Credit Currency','Preferred Currency'])assert.ok(customers.includes(term),term);
   for(const term of ['pricingSuggestedUnitPrice','credit-limit-banner','Bank Account','commercial-preset-chips'])assert.ok(editor.includes(term),term);
   assert.ok(app.includes("assertCustomerCreditLimit(updated"));assert.ok(app.includes("assertCustomerCreditLimit(target"),'print/PDF issuance must not bypass credit policy');assert.ok(app.includes('convertedPaymentPreset'));
   assert.ok(!logic.includes('exchangeRate'));assert.ok(!logic.includes('fxRate'));assert.ok(logic.includes('comparable=currency===creditCurrency'));
   assert.ok(html.includes('commercial-controls-v136.css'));assert.ok(html.indexOf('commercial-controls-v136.css')<html.indexOf('performance-polish-v100.css'));
-  assert.ok(/^const CACHE = 'lourex-invoice-v136';/m.test(sw));assert.ok(sw.includes("const CACHE = 'lourex-invoice-v135'"));for(const asset of ['commercial-controls-v136.css','CommercialControlsSettings.js','commercial-controls.js'])assert.ok(sw.includes(asset),asset);
+  const activeCacheVersion=Number(sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';/m)?.[1]??0);assert.ok(activeCacheVersion>=136);assert.ok(sw.includes("const CACHE = 'lourex-invoice-v135'"));for(const asset of ['commercial-controls-v136.css','CommercialControlsSettings.js','commercial-controls.js'])assert.ok(sw.includes(asset),asset);
   assert.ok(css.includes('@media print'));assert.ok(css.includes('.credit-limit-banner'));assert.ok(css.includes('.pricing-suggestion-chip'));
 });

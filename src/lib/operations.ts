@@ -67,7 +67,7 @@ export function createPurchase(purchases:PurchaseRecord[],suppliers:Supplier[],c
 }
 
 export function createPurchaseItem(item?:SavedItem):PurchaseRecord['items'][number]{
-  return {id:makeId('purchase-item'),savedItemId:item?.id??'',sku:item?.sku??'',descriptionEn:item?.descriptionEn??'',descriptionAr:item?.descriptionAr??'',quantity:'1',unit:item?.unit||'PCS',unitCost:item?.lastUnitCost??'',landedUnitCost:''};
+  return {id:makeId('purchase-item'),savedItemId:item?.id??'',sku:item?.sku??'',descriptionEn:item?.descriptionEn??'',descriptionAr:item?.descriptionAr??'',quantity:'1',unit:item?.unit||'PCS',unitCost:item?.lastUnitCost??'',landedUnitCost:'',previousUnitCost:item?.lastUnitCost??'',previousCostCurrency:item?.lastCostCurrency??''};
 }
 
 export function purchaseTotals(purchase:Pick<PurchaseRecord,'items'|'freight'|'duty'|'otherCosts'>):{subtotal:string;freight:string;duty:string;other:string;landedTotal:string}{
@@ -126,7 +126,9 @@ export function postPurchase(purchase:PurchaseRecord,savedItems:SavedItem[],exis
   const errors=validatePurchase(purchase,savedItems);if(errors.length)throw new Error(errors[0]);
   if(existingMovements.some(m=>m.sourceId===purchase.id&&m.type==='purchase'))throw new Error('This purchase is already reflected in inventory.');
   const at=nowIso();
-  const posted={...allocateLandedCost(purchase),status:'posted' as const,postedAt:at,updatedAt:at};
+  const savedById=new Map(savedItems.map(item=>[item.id,item]));
+  const withPrior={...purchase,items:purchase.items.map(line=>{const saved=savedById.get(line.savedItemId);return {...line,previousUnitCost:saved?.lastUnitCost??line.previousUnitCost??'',previousCostCurrency:saved?.lastCostCurrency??line.previousCostCurrency??''};})};
+  const posted={...allocateLandedCost(withPrior),status:'posted' as const,postedAt:at,updatedAt:at};
   const movements=posted.items.filter(item=>item.savedItemId).map(item=>purchaseMovement(posted,item,'purchase',trimFixed(item.quantity)));
   const landedByItem=new Map(posted.items.filter(item=>item.savedItemId).map(item=>[item.savedItemId,item]));
   const updatedItems=savedItems.map(item=>{
@@ -136,14 +138,16 @@ export function postPurchase(purchase:PurchaseRecord,savedItems:SavedItem[],exis
   return {purchase:posted,movements,savedItems:updatedItems};
 }
 
-export function reversePurchase(purchase:PurchaseRecord,reason:string,existingMovements:InventoryMovementRecord[]=[]):{purchase:PurchaseRecord;movements:InventoryMovementRecord[]}{
+export function reversePurchase(purchase:PurchaseRecord,reason:string,existingMovements:InventoryMovementRecord[]=[],savedItems:SavedItem[]=[]):{purchase:PurchaseRecord;movements:InventoryMovementRecord[];savedItems:SavedItem[]}{
   if(purchase.status!=='posted')throw new Error('Only posted purchases can be reversed.');
   if(!reason.trim())throw new Error('A reversal reason is required.');
   if(existingMovements.some(m=>m.sourceId===purchase.id&&m.type==='purchase-reversal'))throw new Error('This purchase has already been reversed.');
   const at=nowIso();
   const reversed={...purchase,status:'reversed' as const,reversedAt:at,reverseReason:reason.trim(),updatedAt:at};
   const movements=purchase.items.filter(item=>item.savedItemId).map(item=>purchaseMovement(purchase,item,'purchase-reversal',trimFixed(fixed(-decimalToScaled(item.quantity,4),4)),reason.trim()));
-  return {purchase:reversed,movements};
+  const lines=new Map(purchase.items.filter(line=>line.savedItemId).map(line=>[line.savedItemId,line]));
+  const restored=savedItems.map(item=>{const line=lines.get(item.id);if(!line)return item;const current=(item.lastUnitCost??'').trim(),landed=(line.landedUnitCost||line.unitCost).trim();if(current!==landed||item.lastCostCurrency!==purchase.currency)return item;return {...item,lastUnitCost:line.previousUnitCost||'',lastCostCurrency:line.previousCostCurrency||'',updatedAt:at};});
+  return {purchase:reversed,movements,savedItems:restored};
 }
 
 export function createExpense(currency='USD'):ExpenseRecord{

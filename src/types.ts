@@ -8,6 +8,8 @@ export type DocumentLifecycleStatus = 'active' | 'voided';
 export type DocumentEventType = 'created' | 'issued' | 'reissued' | 'revision-started' | 'revision-discarded' | 'voided' | 'credit-note-created' | 'payment-recorded' | 'payment-deleted' | 'converted';
 export type PaymentStatus = 'unpaid' | 'partially-paid' | 'paid' | 'overdue';
 export type PaymentMethod = 'cash' | 'bank-transfer' | 'card' | 'cheque' | 'other';
+export type PurchaseStatus = 'draft' | 'posted' | 'reversed';
+export type InventoryMovementType = 'opening' | 'purchase' | 'purchase-reversal' | 'issue' | 'adjustment';
 export type PricingMethod = 'markup' | 'margin';
 export type DiscountMode = 'fixed' | 'percent';
 export type AutoLockMinutes = 0 | 5 | 15 | 30;
@@ -82,6 +84,103 @@ export interface CompanySettings {
   defaultValidityDays: number;
   defaultFooterText: string;
   defaultNotes: string;
+}
+
+export interface Supplier {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  nameEn: string;
+  nameAr: string;
+  contactPerson: string;
+  address: string;
+  city: string;
+  country: string;
+  phone: string;
+  email: string;
+  vatTaxNumber: string;
+  commercialRegistration: string;
+  defaultCurrency: string;
+  paymentTerms: string;
+  notes: string;
+}
+
+export interface SupplierSnapshot {
+  sourceSupplierId: string;
+  nameEn: string;
+  nameAr: string;
+  contactPerson: string;
+  address: string;
+  city: string;
+  country: string;
+  phone: string;
+  email: string;
+  vatTaxNumber: string;
+  commercialRegistration: string;
+}
+
+export interface PurchaseItem {
+  id: string;
+  savedItemId: string;
+  sku: string;
+  descriptionEn: string;
+  descriptionAr: string;
+  quantity: string;
+  unit: string;
+  unitCost: string;
+  landedUnitCost: string;
+  previousUnitCost: string;
+  previousCostCurrency: string;
+}
+
+export interface PurchaseRecord {
+  id: string;
+  number: string;
+  date: string;
+  supplierSnapshot: SupplierSnapshot | null;
+  currency: string;
+  items: PurchaseItem[];
+  freight: string;
+  duty: string;
+  otherCosts: string;
+  notes: string;
+  status: PurchaseStatus;
+  postedAt: string;
+  reversedAt: string;
+  reverseReason: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExpenseRecord {
+  id: string;
+  date: string;
+  category: string;
+  description: string;
+  amount: string;
+  currency: string;
+  supplierId: string;
+  reference: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InventoryMovementRecord {
+  id: string;
+  itemId: string;
+  itemNameEn: string;
+  itemNameAr: string;
+  sku: string;
+  date: string;
+  type: InventoryMovementType;
+  quantity: string;
+  unitCost: string;
+  currency: string;
+  sourceId: string;
+  sourceNumber: string;
+  note: string;
+  createdAt: string;
 }
 
 export interface Customer {
@@ -326,6 +425,10 @@ export interface VaultPayload {
   company: CompanySettings;
   appSettings: AppSettings;
   customers: Customer[];
+  suppliers: Supplier[];
+  purchases: PurchaseRecord[];
+  expenses: ExpenseRecord[];
+  inventoryMovements: InventoryMovementRecord[];
   documents: LourexDocument[];
   documentEvents: DocumentEventRecord[];
   documentRevisions: DocumentRevisionRecord[];

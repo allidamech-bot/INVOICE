@@ -65,7 +65,7 @@ test('v137 posting purchase creates auditable receipts and updates reusable land
 test('v137 purchase reversal appends negative stock movements instead of deleting history',()=>{
   const {items,purchase}=purchaseFixture();
   const posted=postPurchase(purchase,items,[]);
-  const reversed=reversePurchase(posted.purchase,'Supplier invoice cancelled',posted.movements);
+  const reversed=reversePurchase(posted.purchase,'Supplier invoice cancelled',posted.movements,posted.savedItems);
   assert.equal(reversed.purchase.status,'reversed');
   assert.equal(reversed.movements.length,2);
   assert.equal(reversed.movements[0].type,'purchase-reversal');

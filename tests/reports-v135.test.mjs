@@ -70,7 +70,7 @@ test('v135 ignores draft voided and proforma documents in financial performance'
 
 test('v135 ships reports navigation print CSV and offline assets without combining currencies',async()=>{
   const [app,page,logic,html,sw,css]=await Promise.all([read('src/app/App.tsx'),read('src/components/ReportsPage.tsx'),read('src/lib/reports.ts'),read('index.html'),read('public/sw.js'),read('src/styles/reports-v135.css')]);
-  assert.ok(app.includes("|'reports'|'items'|'editor'"));assert.ok(app.includes("t('Reports','التقارير')"));assert.ok(app.includes('<ReportsPage'));
+  assert.ok(app.includes("|'reports'|"),'reports screen remains in the application state');assert.ok(app.includes("t('Reports','التقارير')"));assert.ok(app.includes('<ReportsPage'));
   for(const term of ['Financial Reports','This Month','This Quarter','This Year','All Time','Export CSV','Print / Save PDF','Monthly Performance','Customer Performance','All currencies — separate'])assert.ok(page.includes(term),term);
   assert.ok(page.includes('Currencies are never combined or converted automatically'));
   assert.ok(logic.includes('receivablesByCurrency(asOfDocuments'));
