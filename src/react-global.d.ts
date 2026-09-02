@@ -12,7 +12,10 @@ declare namespace React {
   function createElement(type: any, props?: any, ...children: any[]): any;
 }
 declare const React: { Component: typeof React.Component; createElement: typeof React.createElement; Fragment: any };
-declare const ReactDOM: { render(element: any, container: Element | DocumentFragment): void };
+declare const ReactDOM: {
+  render(element: any, container: Element | DocumentFragment): void;
+  createPortal(element: any, container: Element | DocumentFragment): any;
+};
 declare namespace JSX {
   interface ElementChildrenAttribute { children: {}; }
   interface IntrinsicAttributes { key?: any; }
