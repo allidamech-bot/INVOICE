@@ -1,0 +1,44 @@
+/* v123 — iPhone fixed-position containing-block correction.
+   performance-polish-v100 uses content-visibility:auto for off-screen cards. In WebKit,
+   that containment turns fixed descendants into card-relative descendants. Disable
+   containment only while a document action sheet is open, so v122 is truly viewport-fixed. */
+
+@media (max-width:720px){
+  @supports (content-visibility:auto){
+    .app-ui .premium-document-card:has(.action-menu){
+      content-visibility:visible!important;
+      contain:none!important;
+      contain-intrinsic-size:auto!important;
+    }
+  }
+
+  .app-ui .premium-document-card:has(.action-menu),
+  .app-ui .premium-document-card:has(.action-menu) .mobile-actions{
+    transform:none!important;
+    filter:none!important;
+    perspective:none!important;
+    will-change:auto!important;
+  }
+
+  .app-ui .premium-document-card:has(.action-menu) .action-menu{
+    position:fixed!important;
+    left:12px!important;
+    right:12px!important;
+    top:auto!important;
+    bottom:max(12px,env(safe-area-inset-bottom))!important;
+    inset-inline:auto!important;
+    inset-block-start:auto!important;
+    inset-block-end:auto!important;
+    width:auto!important;
+    max-width:none!important;
+    z-index:2147483000!important;
+  }
+}
+
+@media (max-width:390px){
+  .app-ui .premium-document-card:has(.action-menu) .action-menu{
+    left:9px!important;
+    right:9px!important;
+    bottom:max(9px,env(safe-area-inset-bottom))!important;
+  }
+}
