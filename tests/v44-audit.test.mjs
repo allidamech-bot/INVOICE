@@ -137,8 +137,8 @@ test('readiness uses fixed precision grammar instead of JavaScript Number coerci
   assert.equal(readiness.groups.find(group=>group.key==='items')?.complete,false);
 });
 
-test('schema v6 normalizes hostile legacy defaults without changing document snapshots',()=>{
-  assert.equal(APP_SCHEMA_VERSION,6);
+test('legacy schema normalizes hostile defaults without changing document snapshots',()=>{
+  assert.ok(APP_SCHEMA_VERSION>=6);
   const vault=emptyVault();
   vault.schemaVersion=4;
   vault.company.defaultValidityDays=Infinity;
@@ -147,6 +147,7 @@ test('schema v6 normalizes hostile legacy defaults without changing document sna
   vault.documents=[validDoc()];
   vault.documents[0].companySnapshot.nameEn='Historical Seller';
   const migrated=migrateVault(vault);
+  assert.equal(migrated.schemaVersion,APP_SCHEMA_VERSION);
   assert.equal(migrated.company.defaultValidityDays,7);
   assert.equal(migrated.company.defaultCurrency,'SAR');
   assert.equal(migrated.appSettings.numbering.proformaPrefix,'PI');

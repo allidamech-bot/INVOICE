@@ -75,13 +75,13 @@ test('v113 can preview existing products as skipped when updates are disabled',(
   assert.equal(importableProducts(plan).length,0);
 });
 
-test('schema v6 preserves SKU and all modern saved-item metadata through migration',()=>{
-  assert.equal(APP_SCHEMA_VERSION,6);
+test('legacy schema preserves SKU and all modern saved-item metadata through current migration',()=>{
+  assert.ok(APP_SCHEMA_VERSION>=6);
   const vault=emptyVault();
   vault.schemaVersion=5;
   vault.savedItems=[saved('p1','SKU-100','Product',{category:'Energy Drinks',tags:['250ml','Original'],favorite:true})];
   const migrated=migrateVault(vault);
-  assert.equal(migrated.schemaVersion,6);
+  assert.equal(migrated.schemaVersion,APP_SCHEMA_VERSION);
   assert.equal(migrated.savedItems[0].sku,'SKU-100');
   assert.equal(migrated.savedItems[0].category,'Energy Drinks');
   assert.deepEqual(migrated.savedItems[0].tags,['250ml','Original']);

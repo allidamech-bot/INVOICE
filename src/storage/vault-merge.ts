@@ -54,6 +54,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     company:mergeCompany(base.company,intended.company,latest.company),
     customers:mergeRecords(base.customers,intended.customers,latest.customers),
     documents:mergeRecords(base.documents,intended.documents,latest.documents),
+    payments:mergeRecords(base.payments,intended.payments,latest.payments),
     savedItems:mergeRecords(base.savedItems,intended.savedItems,latest.savedItems),
     appSettings:mergeAppSettings(base.appSettings,intended.appSettings,latest.appSettings)
   };

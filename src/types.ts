@@ -3,6 +3,8 @@ export type DocumentLanguage = 'en' | 'ar' | 'bilingual';
 export type UiLanguage = 'en' | 'ar';
 export type TemplateId = 'executive' | 'minimal' | 'trade' | 'signature' | 'obsidian' | 'cobalt' | 'editorial' | 'split' | 'prism' | 'slate' | 'horizon' | 'mono' | 'aurora' | 'ledger' | 'noir' | 'midnight' | 'blackivory' | 'carbon';
 export type DocumentStatus = 'draft' | 'final';
+export type PaymentStatus = 'unpaid' | 'partially-paid' | 'paid' | 'overdue';
+export type PaymentMethod = 'cash' | 'bank-transfer' | 'card' | 'cheque' | 'other';
 export type DiscountMode = 'fixed' | 'percent';
 export type AutoLockMinutes = 0 | 5 | 15 | 30;
 export type PaletteMode = 'auto' | 'custom';
@@ -188,6 +190,23 @@ export interface LourexDocument {
   updatedAt: string;
 }
 
+export interface PaymentRecord {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  customerId: string;
+  customerNameEn: string;
+  customerNameAr: string;
+  currency: string;
+  amount: string;
+  date: string;
+  method: PaymentMethod;
+  reference: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface NumberingSettings {
   proformaPrefix: string;
   invoicePrefix: string;
@@ -221,6 +240,7 @@ export interface VaultPayload {
   appSettings: AppSettings;
   customers: Customer[];
   documents: LourexDocument[];
+  payments: PaymentRecord[];
   savedItems: SavedItem[];
 }
 
