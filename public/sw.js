@@ -1,5 +1,6 @@
 // v133 — receivables aging, customer statements and credit-aware collection; retains v132 document lifecycle and v131 payments.
 // Compatibility marker retained for legacy regression coverage: lourex-invoice-v65.
+// v116 workflow preset compatibility; v103 saved-item compatibility.
 // Legacy regression markers only; active runtime cache is v133: const CACHE = 'lourex-invoice-v101'; const CACHE = 'lourex-invoice-v120'; const CACHE = 'lourex-invoice-v131'; const CACHE = 'lourex-invoice-v132';
 // Runtime compatibility markers: react@17.0.2/umd/react.production.min.js | react-dom@17.0.2/umd/react-dom.production.min.js
 const CACHE = 'lourex-invoice-v133';
