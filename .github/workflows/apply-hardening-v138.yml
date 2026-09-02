@@ -21,6 +21,7 @@ jobs:
           cache: npm
       - run: node scripts/prepare-hardening-helper.mjs
       - run: node scripts/apply-hardening-v138.mjs
+      - run: node scripts/post-hardening-v138.mjs
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
