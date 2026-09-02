@@ -12,7 +12,8 @@ interface State{query:string;filter:ReceivablesFilter;statementCustomerId:string
 function customerName(account:CustomerReceivableSummary,documents:LourexDocument[]):string{
   if(account.customer)return (isArabic()?(account.customer.companyNameAr||account.customer.companyNameEn):(account.customer.companyNameEn||account.customer.companyNameAr)).trim();
   const snapshot=documents.find(doc=>doc.customerSnapshot?.sourceCustomerId===account.customerId)?.customerSnapshot;
-  return (isArabic()?(snapshot?.companyNameAr||snapshot?.companyNameEn):(snapshot?.companyNameEn||snapshot?.companyNameAr)||t('Deleted customer','عميل محذوف')).trim();
+  const value=isArabic()?(snapshot?.companyNameAr||snapshot?.companyNameEn):(snapshot?.companyNameEn||snapshot?.companyNameAr);
+  return (value||t('Deleted customer','عميل محذوف')).trim();
 }
 function moneyList(rows:{currency:string;outstanding:string}[]):string{return rows.filter(row=>row.outstanding!=='0.00').map(row=>formatMoney(row.outstanding,row.currency)).join(' · ')||'—';}
 function overdueList(rows:{currency:string;overdue:string}[]):string{return rows.filter(row=>row.overdue!=='0.00').map(row=>formatMoney(row.overdue,row.currency)).join(' · ')||'—';}
@@ -26,7 +27,8 @@ class CustomerStatementModal extends React.Component<{open:boolean;customerId:st
     if(!this.props.open||!this.props.customerId)return null;
     const customer=this.props.customers.find(item=>item.id===this.props.customerId)??null;
     const fallback=this.props.documents.find(doc=>doc.customerSnapshot?.sourceCustomerId===this.props.customerId)?.customerSnapshot;
-    const displayName=(isArabic()?(customer?.companyNameAr||customer?.companyNameEn||fallback?.companyNameAr||fallback?.companyNameEn):(customer?.companyNameEn||customer?.companyNameAr||fallback?.companyNameEn||fallback?.companyNameAr)||t('Customer','عميل')).trim();
+    const displayNameValue=isArabic()?(customer?.companyNameAr||customer?.companyNameEn||fallback?.companyNameAr||fallback?.companyNameEn):(customer?.companyNameEn||customer?.companyNameAr||fallback?.companyNameEn||fallback?.companyNameAr);
+    const displayName=(displayNameValue||t('Customer','عميل')).trim();
     const address=[customer?.addressEn||fallback?.addressEn,customer?.city||fallback?.city,customer?.country||fallback?.country].filter(Boolean).join(', ');
     const statements=customerStatement(this.props.customerId,this.props.documents,this.props.payments);
     const companyName=(isArabic()?(this.props.company.nameAr||this.props.company.nameEn):(this.props.company.nameEn||this.props.company.nameAr)||'LOUREX').trim();
@@ -52,7 +54,7 @@ export class ReceivablesPage extends React.Component<Props,State>{
     const q=this.state.query.trim().toLocaleLowerCase();
     return accounts.filter(account=>{
       const name=customerName(account,this.props.documents).toLocaleLowerCase();
-      const matchesSearch=!q||name.includes(q)||account.customer?.email.toLocaleLowerCase().includes(q)||account.customer?.phone.includes(q);
+      const matchesSearch=!q||name.includes(q)||Boolean(account.customer?.email.toLocaleLowerCase().includes(q))||Boolean(account.customer?.phone.includes(q));
       if(!matchesSearch)return false;
       if(this.state.filter==='overdue')return account.hasOverdue;
       if(this.state.filter==='open')return account.openInvoices>0;
