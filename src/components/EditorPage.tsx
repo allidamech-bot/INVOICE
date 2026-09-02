@@ -4,6 +4,7 @@ import { Button, Icon } from './UI.js';
 import { EditorPage as EditorPageCore } from './EditorPageCore.js';
 import { InvoicePaymentsPanel } from './InvoicePaymentsPanel.js';
 import { DocumentLifecyclePanel } from './DocumentLifecyclePanel.js';
+import { ProfitabilityPanel } from './ProfitabilityPanel.js';
 
 interface Props {
   document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; company:CompanySettings; savedItems:SavedItem[]; payments:PaymentRecord[]; documentEvents:DocumentEventRecord[]; documentRevisions:DocumentRevisionRecord[]; smartDefaults:AppSettings['smartDefaults'];
@@ -178,10 +179,27 @@ export class EditorPage extends React.Component<Props,State>{
     window.setTimeout(()=>this.syncActiveSection(),reduceMotion?0:360);
   };
 
+  // Internal cost metadata can be updated by the profitability panel while the
+  // core editor still holds an older local draft. Merge the latest internal
+  // fields into core saves so a later autosave can never erase cost data.
+  private withLatestInternalCosts=(doc:LourexDocument):LourexDocument=>{
+    const latest=this.props.document;
+    if(latest.id!==doc.id)return doc;
+    const latestCosts=new Map(latest.items.map(item=>[item.id,item.unitCost??'']));
+    return {
+      ...doc,
+      items:doc.items.map(item=>({...item,unitCost:latestCosts.has(item.id)?(latestCosts.get(item.id)??''):(item.unitCost??'')})),
+      internalCosts:{
+        shippingCost:latest.internalCosts?.shippingCost??doc.internalCosts?.shippingCost??'0.00',
+        otherCost:latest.internalCosts?.otherCost??doc.internalCosts?.otherCost??'0.00'
+      }
+    };
+  };
+
   private saveWithProtectedRetry=async(doc:LourexDocument,auto?:boolean):Promise<void>=>{
     const deadline=Date.now()+12_000;
     for(;;){
-      try{await this.props.onSave(doc,auto);return;}
+      try{await this.props.onSave(this.withLatestInternalCosts(doc),auto);return;}
       catch(e){
         const message=e instanceof Error?e.message:String(e??'');
         const protectedOperation=/protected data operation/i.test(message)||message.includes('عملية محمية');
@@ -199,6 +217,7 @@ export class EditorPage extends React.Component<Props,State>{
       <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry}/>
       <DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={props.onDiscardRevision} onVoid={props.onVoidDocument} onCreateCreditNote={props.onCreateCreditNote}/>
       <InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>
+      <ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>
       {sections.length?<nav className={`editor-section-navigator ${canConvertFinalQuote?'has-final-quote-action':''}`} aria-label={t('Invoice editing steps','مراحل تحرير الفاتورة')}>
         {sections.map(section=>{
           const active=section.id===this.state.activeSectionId;
