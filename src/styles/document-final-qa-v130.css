@@ -1,0 +1,215 @@
+/* v130 — final LOUREX quotation/invoice design QA.
+   This is intentionally a small guardrail layer after v128/v129: it resolves
+   legacy dark-tone bleed, makes continuation sheets print-light, keeps long
+   commercial values readable, and aligns template thumbnails with the actual
+   redesigned documents. */
+
+/* --------------------------------------------------------------------------
+   01. Converted dark identities are light commercial sheets, not full-dark A4.
+   Older layers still know these templates as `document-tone-dark`; neutralize
+   that legacy semantic here so no old foreground can leak into the light body.
+   -------------------------------------------------------------------------- */
+.invoice-page:is(.template-midnight,.template-blackivory,.template-noir,.template-carbon).document-tone-dark{
+  color-scheme:light;
+}
+.invoice-page.template-midnight.document-tone-dark{
+  color:#162531!important;
+  background:#fbfaf6!important;
+}
+.invoice-page.template-blackivory.document-tone-dark{
+  color:#1d1d1b!important;
+  background:#f5f0e6!important;
+}
+.invoice-page.template-noir.document-tone-dark{
+  color:#1b211f!important;
+  background:#fbfaf6!important;
+}
+.invoice-page.template-carbon.document-tone-dark{
+  color:#1d252a!important;
+  background:#fbfaf7!important;
+}
+
+/* Continuation pages should be compact, quiet and inexpensive to print even
+   when page one uses a dark luxury masthead. */
+.invoice-pages>.invoice-page:not(:first-child):is(.template-midnight,.template-blackivory,.template-noir,.template-carbon) .header-modern{
+  background:transparent!important;
+  color:#1d2931!important;
+  border-bottom:1px solid #d6dcdf!important;
+  box-shadow:none!important;
+}
+.invoice-pages>.invoice-page:not(:first-child):is(.template-midnight,.template-blackivory,.template-noir,.template-carbon) :is(.modern-title,.modern-meta){
+  background:transparent!important;
+  color:#1d2931!important;
+  border:0!important;
+}
+.invoice-pages>.invoice-page:not(:first-child):is(.template-midnight,.template-blackivory,.template-noir,.template-carbon) .doc-title span,
+.invoice-pages>.invoice-page:not(:first-child):is(.template-midnight,.template-blackivory,.template-noir,.template-carbon) .doc-meta span{
+  color:#1d2931!important;
+}
+.invoice-pages>.invoice-page:not(:first-child):is(.template-midnight,.template-blackivory,.template-noir,.template-carbon) .doc-meta b{
+  color:#6c7880!important;
+}
+.invoice-pages>.invoice-page:not(:first-child):is(.template-midnight,.template-blackivory,.template-noir,.template-carbon) .doc-meta>div{
+  border-color:#d7dde0!important;
+}
+
+/* --------------------------------------------------------------------------
+   02. Commercial readability under real data: mixed scripts, long IBAN/SWIFT,
+   long company names and bilingual table headings should wrap safely while
+   money stays visually stable.
+   -------------------------------------------------------------------------- */
+.invoice-page :is(.doc-meta span,.party-contact,.party-identifiers span,.bank-block span){
+  overflow-wrap:anywhere;
+  min-width:0;
+}
+.invoice-page :is(.money-cell,.total-row strong,.grand-total strong){
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.invoice-page .items-table th .bi-label{
+  display:grid;
+  gap:.35mm;
+  align-content:center;
+}
+.invoice-page .items-table th .bi-label>span{
+  display:block;
+  line-height:1.16;
+}
+.invoice-page.lang-bilingual .items-table th{
+  padding-top:2.55mm;
+  padding-bottom:2.55mm;
+}
+.invoice-page .items-table :is(th,td){
+  min-width:0;
+}
+.invoice-page .description-cell,
+.invoice-page .term-row span,
+.invoice-page .notes-block p{
+  overflow-wrap:anywhere;
+}
+
+/* --------------------------------------------------------------------------
+   03. Closing-zone polish: remove empty separators and keep one-sided bank or
+   signature sections intentional instead of leaving a dead second column.
+   -------------------------------------------------------------------------- */
+.invoice-page .bottom-grid:empty{
+  display:none!important;
+}
+.invoice-page .bottom-grid>.bank-block:only-child{
+  grid-column:1/-1;
+  width:min(100%,100mm);
+}
+.invoice-page .bottom-grid>.signature-block:only-child{
+  grid-column:1/-1;
+  width:min(100%,72mm);
+  justify-self:end;
+}
+.invoice-page.lang-ar .bottom-grid>.signature-block:only-child{
+  justify-self:start;
+}
+.invoice-page .signature-media img{
+  object-fit:contain;
+}
+
+/* Footer text must never collide with page numbering on long bilingual company
+   footer strings. */
+.invoice-page .doc-footer>span:first-child{
+  min-width:0;
+  max-width:78%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.invoice-page .doc-footer>span:last-child{
+  flex:0 0 auto;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   04. Template selector QA — thumbnails now describe the actual v128/v129 art
+   direction rather than the retired full-black and purple versions.
+   -------------------------------------------------------------------------- */
+.template-preview-prism{
+  --mock-paper:#fbfcfb;
+  --mock-ink:#213f4d;
+  --mock-accent:#4c7773;
+  --mock-soft:#e9f0ee;
+}
+.template-preview-prism:before{
+  background:linear-gradient(135deg,#4c7773,#8fa7a2)!important;
+}
+.template-preview-prism .template-mock-rail{
+  background:linear-gradient(90deg,#213f4d,#4c7773)!important;
+}
+
+.template-preview-obsidian{
+  --mock-paper:#fff;
+  --mock-ink:#171c21;
+  --mock-accent:#aa8b5c;
+  --mock-soft:#eef0f1;
+  color:#17242e;
+}
+.template-preview-obsidian .template-mock-rail{height:30px;background:#15191d}
+
+.template-preview-midnight{
+  --mock-paper:#fbfaf6;
+  --mock-ink:#0d2a42;
+  --mock-accent:#c4a05b;
+  --mock-soft:#edf1f2;
+  color:#162531;
+}
+.template-preview-midnight .template-mock-rail{height:30px;background:#081d2e}
+
+.template-preview-noir{
+  --mock-paper:#fbfaf6;
+  --mock-ink:#151719;
+  --mock-accent:#b98f49;
+  --mock-soft:#f0ece4;
+  color:#1b211f;
+}
+.template-preview-noir .template-mock-rail{height:30px;width:auto;left:0;right:0;background:#121416}
+
+.template-preview-carbon{
+  --mock-paper:#fbfaf7;
+  --mock-ink:#2d3237;
+  --mock-accent:#b98f49;
+  --mock-soft:#eceeed;
+  color:#1d252a;
+}
+.template-preview-carbon .template-mock-rail{height:30px;background:linear-gradient(90deg,#22262a,#34393e)}
+
+.template-preview-blackivory{
+  --mock-paper:#f5f0e6;
+  --mock-ink:#171714;
+  --mock-accent:#b68a43;
+  --mock-soft:#eae2d4;
+  color:#1d1d1b;
+}
+
+.template-preview-obsidian .template-mock-table,
+.template-preview-midnight .template-mock-table,
+.template-preview-noir .template-mock-table,
+.template-preview-carbon .template-mock-table{
+  background:#fff!important;
+  border-color:rgba(23,36,46,.16)!important;
+}
+.template-preview-obsidian .template-mock-table i,
+.template-preview-midnight .template-mock-table i,
+.template-preview-noir .template-mock-table i,
+.template-preview-carbon .template-mock-table i{
+  background:rgba(23,36,46,.18)!important;
+}
+.template-preview-obsidian .template-mock-table i:first-child,
+.template-preview-midnight .template-mock-table i:first-child,
+.template-preview-noir .template-mock-table i:first-child,
+.template-preview-carbon .template-mock-table i:first-child{
+  background:color-mix(in srgb,var(--mock-accent) 62%,var(--mock-ink))!important;
+}
+
+@media print{
+  .invoice-page :is(.final-details,.lower-grid,.notes-block,.bottom-grid,.totals-block,.signature-block,.bank-block){
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+}
