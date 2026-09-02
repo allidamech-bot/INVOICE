@@ -78,5 +78,6 @@ test('v133 UI exposes receivables navigation aging and printable statements offl
   assert.ok(panel.includes('Credit Notes'));assert.ok(panel.includes('Net invoice'));
   assert.ok(html.includes('receivables-v133.css'));
   for(const asset of ['receivables-v133.css','ReceivablesPage.js','receivables.js'])assert.ok(sw.includes(asset),asset);
-  assert.ok(/^const CACHE = 'lourex-invoice-v133';/m.test(sw),'active PWA cache must be v133');
+  const activeCacheVersion=Number(sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';/m)?.[1]??0);
+  assert.ok(activeCacheVersion>=133,'receivables requires PWA cache v133 or later');
 });
