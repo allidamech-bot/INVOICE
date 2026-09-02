@@ -18,4 +18,23 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npm run typecheck
-      - run: npm test
+      - name: Build test artifacts
+        run: npm run build
+      - name: Tests A-C
+        if: always()
+        run: node --test $(find tests -maxdepth 1 -type f -name '*.test.mjs' | sort | awk -F/ '$2 ~ /^[a-c]/')
+      - name: Tests D-F
+        if: always()
+        run: node --test $(find tests -maxdepth 1 -type f -name '*.test.mjs' | sort | awk -F/ '$2 ~ /^[d-f]/')
+      - name: Tests G-M
+        if: always()
+        run: node --test $(find tests -maxdepth 1 -type f -name '*.test.mjs' | sort | awk -F/ '$2 ~ /^[g-m]/')
+      - name: Tests N-Q
+        if: always()
+        run: node --test $(find tests -maxdepth 1 -type f -name '*.test.mjs' | sort | awk -F/ '$2 ~ /^[n-q]/')
+      - name: Tests R
+        if: always()
+        run: node --test $(find tests -maxdepth 1 -type f -name '*.test.mjs' | sort | awk -F/ '$2 ~ /^r/')
+      - name: Tests S-Z
+        if: always()
+        run: node --test $(find tests -maxdepth 1 -type f -name '*.test.mjs' | sort | awk -F/ '$2 ~ /^[s-z]/')
