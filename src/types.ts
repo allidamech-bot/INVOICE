@@ -8,6 +8,7 @@ export type DocumentLifecycleStatus = 'active' | 'voided';
 export type DocumentEventType = 'created' | 'issued' | 'reissued' | 'revision-started' | 'revision-discarded' | 'voided' | 'credit-note-created' | 'payment-recorded' | 'payment-deleted' | 'converted';
 export type PaymentStatus = 'unpaid' | 'partially-paid' | 'paid' | 'overdue';
 export type PaymentMethod = 'cash' | 'bank-transfer' | 'card' | 'cheque' | 'other';
+export type PricingMethod = 'markup' | 'margin';
 export type DiscountMode = 'fixed' | 'percent';
 export type AutoLockMinutes = 0 | 5 | 15 | 30;
 export type PaletteMode = 'auto' | 'custom';
@@ -20,6 +21,37 @@ export interface BankDetails {
   iban: string;
   swift: string;
   currency: string;
+}
+
+export interface BankAccount extends BankDetails {
+  id: string;
+  label: string;
+}
+
+export interface TaxPreset {
+  id: string;
+  name: string;
+  rate: string;
+}
+
+export interface PaymentTermPreset {
+  id: string;
+  label: string;
+  days: number;
+}
+
+export interface PricingPolicy {
+  method: PricingMethod;
+  percent: string;
+  rounding: string;
+}
+
+export interface CommercialControls {
+  taxPresets: TaxPreset[];
+  defaultTaxPresetId: string;
+  paymentTermPresets: PaymentTermPreset[];
+  defaultPaymentTermPresetId: string;
+  pricing: PricingPolicy;
 }
 
 export interface CompanySettings {
@@ -37,6 +69,9 @@ export interface CompanySettings {
   taxNumber: string;
   commercialRegistration: string;
   bank: BankDetails;
+  bankAccounts: BankAccount[];
+  defaultBankAccountId: string;
+  commercial: CommercialControls;
   signatureDataUrl: string;
   stampDataUrl: string;
   defaultCurrency: string;
@@ -64,6 +99,12 @@ export interface Customer {
   email: string;
   vatTaxNumber: string;
   commercialRegistration: string;
+  preferredCurrency: string;
+  paymentTermPresetId: string;
+  paymentTerms: string;
+  paymentDueDays: string;
+  creditLimit: string;
+  creditCurrency: string;
   notes: string;
 }
 
@@ -191,6 +232,8 @@ export interface LourexDocument {
   creditForNumber: string;
   voidedAt: string;
   voidReason: string;
+  bankAccountId: string;
+  paymentTermPresetId: string;
   number: string;
   issueDate: string;
   dueDate: string;

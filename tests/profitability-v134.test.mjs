@@ -71,8 +71,8 @@ test('v134 migrates v8 vaults with safe blank item costs and zero internal overh
     descriptionEn:'Legacy',descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'10',lastCurrency:'USD',usageCount:0,lastUsedAt:'2026-01-01T00:00:00.000Z'
   }];
   const migrated=migrateVault(vault);
-  assert.equal(APP_SCHEMA_VERSION,9);
-  assert.equal(migrated.schemaVersion,9);
+  assert.ok(APP_SCHEMA_VERSION>=9);
+  assert.equal(migrated.schemaVersion,APP_SCHEMA_VERSION);
   assert.equal(migrated.documents[0].items[0].unitCost,'');
   assert.deepEqual(migrated.documents[0].internalCosts,{shippingCost:'0.00',otherCost:'0.00'});
   assert.equal(migrated.savedItems[0].lastUnitCost,'');
