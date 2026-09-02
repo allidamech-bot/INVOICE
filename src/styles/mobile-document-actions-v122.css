@@ -1,0 +1,92 @@
+/* v122 — reliable mobile document actions.
+   The previous card-anchored popover could be clipped by the document card on iPhone.
+   On phones, render the existing action menu as a viewport-level action sheet so every
+   action remains visible regardless of card position, scroll container, RTL or safe area. */
+
+@media (max-width:720px){
+  .app-ui .premium-document-list,
+  .app-ui .premium-document-card,
+  .app-ui .premium-document-card .mobile-actions{
+    overflow:visible!important;
+  }
+
+  .app-ui .premium-document-card:has(.action-menu){
+    position:relative!important;
+    z-index:180!important;
+  }
+
+  .app-ui .premium-document-card .mobile-actions{
+    position:relative!important;
+    z-index:181!important;
+  }
+
+  .app-ui .premium-document-card .action-menu{
+    position:fixed!important;
+    inset-inline:12px!important;
+    inset-block-start:auto!important;
+    inset-block-end:max(12px,env(safe-area-inset-bottom))!important;
+    width:auto!important;
+    max-width:none!important;
+    max-height:min(70dvh,520px)!important;
+    overflow-y:auto!important;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    z-index:1200!important;
+    display:grid!important;
+    gap:4px!important;
+    padding:8px!important;
+    border:1px solid rgba(14,39,55,.14)!important;
+    border-radius:18px!important;
+    background:rgba(255,255,255,.985)!important;
+    box-shadow:0 24px 70px rgba(7,21,34,.26),0 4px 16px rgba(7,21,34,.10)!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+
+  .app-ui .premium-document-card .action-menu button{
+    width:100%!important;
+    min-height:50px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:12px!important;
+    padding:10px 13px!important;
+    border:0!important;
+    border-radius:12px!important;
+    background:transparent!important;
+    color:#263843!important;
+    font-size:14px!important;
+    font-weight:720!important;
+    line-height:1.25!important;
+    text-align:start!important;
+    white-space:normal!important;
+  }
+
+  .app-ui .premium-document-card .action-menu button:hover,
+  .app-ui .premium-document-card .action-menu button:active{
+    background:#f4f1eb!important;
+  }
+
+  .app-ui .premium-document-card .action-menu button.danger{
+    color:#9a342d!important;
+  }
+
+  .app-ui .premium-document-card .action-menu button svg,
+  .app-ui .premium-document-card .action-menu button .icon{
+    flex:0 0 auto!important;
+  }
+}
+
+@media (max-width:390px){
+  .app-ui .premium-document-card .action-menu{
+    inset-inline:9px!important;
+    inset-block-end:max(9px,env(safe-area-inset-bottom))!important;
+    border-radius:16px!important;
+    padding:7px!important;
+  }
+  .app-ui .premium-document-card .action-menu button{
+    min-height:48px!important;
+    padding:9px 12px!important;
+    font-size:13.5px!important;
+  }
+}
