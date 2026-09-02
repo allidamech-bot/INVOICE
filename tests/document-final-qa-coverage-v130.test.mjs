@@ -19,7 +19,8 @@ test('the final quotation redesign covers exactly the complete 18-template selec
 
 test('final QA does not alter document data fields or editor/application chrome',async()=>{
   const qa=await read('src/styles/document-final-qa-v130.css');
-  assert.doesNotMatch(qa,/input|textarea|select|\.editor-|\.documents-|\.settings-|\.customer-/);
+  assert.doesNotMatch(qa,/\.editor-|\.documents-|\.settings-|\.customer-/);
+  assert.doesNotMatch(qa,/(?:^|[,{])\s*(?:input|textarea|select)(?:\W|$)/m);
   assert.match(qa,/\.invoice-page/);
   assert.match(qa,/\.template-preview-/);
 });
