@@ -16,8 +16,8 @@ export function savedItemFromDocumentItem(item: DocumentItem, currency: string, 
     unit:item.unit.trim(),
     lastUnitPrice:item.unitPrice.trim(),
     lastCurrency:currency.trim().toUpperCase(),
-    lastUnitCost:item.unitCost.trim(),
-    lastCostCurrency:currency.trim().toUpperCase(),
+    lastUnitCost:item.unitCost?.trim()??'',
+    lastCostCurrency:item.unitCost?.trim()?currency.trim().toUpperCase():(existing?.lastCostCurrency??''),
     usageCount:(existing?.usageCount??0)+1,
     lastUsedAt:now,
     category:existing?.category??'',
@@ -65,7 +65,7 @@ export function findSavedItemDuplicate(items: SavedItem[], candidate: Pick<Saved
 }
 
 export function isPristineDocumentItem(item: DocumentItem): boolean {
-  return !item.descriptionEn.trim()&&!item.descriptionAr.trim()&&!item.hsCode.trim()&&!item.origin.trim()&&!item.packing.trim()&&!item.unitPrice.trim()&&!item.unitCost.trim()&&item.quantity.trim()==='1';
+  return !item.descriptionEn.trim()&&!item.descriptionAr.trim()&&!item.hsCode.trim()&&!item.origin.trim()&&!item.packing.trim()&&!item.unitPrice.trim()&&!(item.unitCost??'').trim()&&item.quantity.trim()==='1';
 }
 
 export function mergeSavedItemSelections(items: DocumentItem[], savedItems: SavedItem[], currency: string): DocumentItem[] {
@@ -124,8 +124,8 @@ export function historySuggestions(documents: LourexDocument[]): SavedItem[] {
         unit:item.unit,
         lastUnitPrice:item.unitPrice,
         lastCurrency:doc.currency,
-        lastUnitCost:item.unitCost,
-        lastCostCurrency:doc.currency,
+        lastUnitCost:item.unitCost??'',
+        lastCostCurrency:item.unitCost?.trim()?doc.currency:'',
         usageCount:0,
         lastUsedAt:doc.updatedAt
       });
