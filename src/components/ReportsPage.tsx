@@ -79,7 +79,7 @@ export class ReportsPage extends React.Component<Props,State>{
         </article>)}
       </div>
 
-      {missingCostItems>0?<div className="reports-quality-alert"><Icon name="info"/><div><strong>{t('Profitability data is incomplete','بيانات الربحية غير مكتملة')}</strong><span>{t('Net sales, collection and receivables remain accurate. Gross profit and margin are intentionally hidden wherever item cost data is incomplete.','صافي المبيعات والتحصيل والمستحقات تبقى صحيحة. يتم إخفاء الربح الإجمالي والهامش عمدًا عندما تكون تكاليف الأصناف غير مكتملة.')}</span></div></div>:null}
+      {missingCostItems>0?<div className="reports-quality-alert"><Icon name="invoice"/><div><strong>{t('Profitability data is incomplete','بيانات الربحية غير مكتملة')}</strong><span>{t('Net sales, collection and receivables remain accurate. Gross profit and margin are intentionally hidden wherever item cost data is incomplete.','صافي المبيعات والتحصيل والمستحقات تبقى صحيحة. يتم إخفاء الربح الإجمالي والهامش عمدًا عندما تكون تكاليف الأصناف غير مكتملة.')}</span></div></div>:null}
 
       <section className="reports-panel">
         <div className="reports-panel-heading"><div><p className="eyebrow">{t('Trend','الاتجاه')}</p><h2>{t('Monthly Performance','الأداء الشهري')}</h2></div><span>{reportTitle}</span></div>
