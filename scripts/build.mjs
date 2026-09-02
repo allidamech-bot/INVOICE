@@ -6,11 +6,11 @@ const EXPECTED_REPO_SLUG='INVOICE';
 const vercelEnvironment=process.env.VERCEL_ENV||'local';
 const sourceRepoOwner=process.env.VERCEL_GIT_REPO_OWNER||'';
 const sourceRepoSlug=process.env.VERCEL_GIT_REPO_SLUG||'';
-if(vercelEnvironment==='production'&&sourceRepoSlug&&sourceRepoSlug.toLowerCase()!==EXPECTED_REPO_SLUG.toLowerCase()){
-  throw new Error(`Refusing production build from ${sourceRepoOwner||'unknown'}/${sourceRepoSlug}. LOUREX Invoice production source must be ${EXPECTED_REPO_OWNER}/${EXPECTED_REPO_SLUG}.`);
-}
-if(vercelEnvironment==='production'&&sourceRepoOwner&&sourceRepoOwner.toLowerCase()!==EXPECTED_REPO_OWNER.toLowerCase()){
-  throw new Error(`Refusing production build from owner ${sourceRepoOwner}. LOUREX Invoice production source must be ${EXPECTED_REPO_OWNER}/${EXPECTED_REPO_SLUG}.`);
+if(vercelEnvironment==='production'){
+  if(!sourceRepoOwner||!sourceRepoSlug)throw new Error(`Refusing production build without Vercel Git source metadata. LOUREX Invoice production source must be ${EXPECTED_REPO_OWNER}/${EXPECTED_REPO_SLUG}.`);
+  if(sourceRepoSlug.toLowerCase()!==EXPECTED_REPO_SLUG.toLowerCase()||sourceRepoOwner.toLowerCase()!==EXPECTED_REPO_OWNER.toLowerCase()){
+    throw new Error(`Refusing production build from ${sourceRepoOwner}/${sourceRepoSlug}. LOUREX Invoice production source must be ${EXPECTED_REPO_OWNER}/${EXPECTED_REPO_SLUG}.`);
+  }
 }
 
 await rm('dist',{recursive:true,force:true});

@@ -101,6 +101,6 @@ test('v137 UI and PWA expose one compact Operations workspace offline',async()=>
   const css='./styles/operations-v137.css',performance='./styles/performance-polish-v100.css';
   assert.ok(index.includes(css));assert.ok(index.indexOf(css)<index.indexOf(performance));
   for(const asset of [css,'./src/components/OperationsPage.js','./src/lib/operations.js'])assert.ok(sw.includes(asset),asset);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v137'/);
+  const activeCacheVersion=Number(sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';/m)?.[1]??0);assert.ok(activeCacheVersion>=137);
   assert.match(sw,/const CACHE = 'lourex-invoice-v136'/);
 });

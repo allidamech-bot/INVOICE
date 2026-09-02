@@ -22,10 +22,10 @@ function centsString(cents:bigint):string{
   return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`;
 }
 
-function nonNegativeMoney(value:unknown):bigint|null{
+function nonNegativeScaled(value:unknown,decimals=2):bigint|null{
   if(typeof value!=='string'||!value.trim()||!isDecimalInput(value))return null;
-  const cents=decimalToScaled(value,2);
-  return cents<0n?null:cents;
+  const scaled=decimalToScaled(value,decimals);
+  return scaled<0n?null:scaled;
 }
 
 function marginString(profit:bigint,revenue:bigint):string{
@@ -48,14 +48,15 @@ export function calculateProfitability(document:LourexDocument):ProfitabilitySum
   let missingCostItems=0;
   let costedItems=0;
   for(const item of document.items){
-    const unitCost=nonNegativeMoney(item.unitCost);
+    const unitCost=nonNegativeScaled(item.unitCost,4);
     if(unitCost===null){missingCostItems+=1;continue;}
-    itemCost+=decimalToScaled(lineTotal(item.quantity,centsString(unitCost)),2);
+    // Keep the full 4-decimal unit cost until quantity multiplication; only the line total rounds to cents.
+    itemCost+=decimalToScaled(lineTotal(item.quantity,item.unitCost),2);
     costedItems+=1;
   }
 
-  const shippingCost=nonNegativeMoney(document.internalCosts?.shippingCost??'0.00')??0n;
-  const otherCost=nonNegativeMoney(document.internalCosts?.otherCost??'0.00')??0n;
+  const shippingCost=nonNegativeScaled(document.internalCosts?.shippingCost??'0.00',2)??0n;
+  const otherCost=nonNegativeScaled(document.internalCosts?.otherCost??'0.00',2)??0n;
   const totalCost=itemCost+shippingCost+otherCost;
   const grossProfit=netRevenue-totalCost;
   const multiplier=document.role==='credit-note'?-1n:1n;
