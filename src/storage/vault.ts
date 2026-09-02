@@ -104,6 +104,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     id:stringValue(item?.id), createdAt:stringValue(item?.createdAt,nowIso()), updatedAt:stringValue(item?.updatedAt,item?.createdAt ? stringValue(item.updatedAt) : nowIso()),
     sku:stringValue(item?.sku), descriptionEn:stringValue(item?.descriptionEn), descriptionAr:stringValue(item?.descriptionAr), hsCode:stringValue(item?.hsCode), origin:stringValue(item?.origin), packing:stringValue(item?.packing), unit:stringValue(item?.unit,'PCS'),
     lastUnitPrice:stringValue(item?.lastUnitPrice ?? item?.unitPrice), lastCurrency:cleanCurrency(item?.lastCurrency,migrated.appSettings.smartDefaults.currency || 'USD'),
+    lastUnitCost:stringValue(item?.lastUnitCost), lastCostCurrency:stringValue(item?.lastCostCurrency).trim().toUpperCase(),
     usageCount:Math.max(0,Math.trunc(finiteNumber(item?.usageCount,0))), lastUsedAt:stringValue(item?.lastUsedAt,item?.updatedAt ? stringValue(item.updatedAt) : nowIso()),
     category:stringValue(item?.category), tags:Array.isArray(item?.tags)?Array.from(new Set(item.tags.map((tag:unknown)=>stringValue(tag).trim()).filter(Boolean))):[], favorite:booleanValue(item?.favorite,false)
   })) : [];
@@ -124,6 +125,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     const appearance = document?.appearance ?? {};
     const terms = document?.terms ?? {};
     const adjustments = document?.adjustments ?? {};
+    const internalCosts = document?.internalCosts ?? {};
     const customerSnapshot = document?.customerSnapshot && typeof document.customerSnapshot === 'object' ? document.customerSnapshot : null;
     const normalizedCompanySnapshot = {
       ...fallbackCompanySnapshot,
@@ -150,7 +152,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
       companySnapshot:normalizedCompanySnapshot,
       items:Array.isArray(document?.items) ? document.items.map((item:any)=>({
         id:stringValue(item?.id), descriptionEn:stringValue(item?.descriptionEn), descriptionAr:stringValue(item?.descriptionAr), hsCode:stringValue(item?.hsCode), origin:stringValue(item?.origin), packing:stringValue(item?.packing),
-        quantity:stringValue(item?.quantity,'1'), unit:stringValue(item?.unit,'Carton'), unitPrice:stringValue(item?.unitPrice)
+        quantity:stringValue(item?.quantity,'1'), unit:stringValue(item?.unit,'Carton'), unitPrice:stringValue(item?.unitPrice), unitCost:stringValue(item?.unitCost)
       })) : [],
       terms:{
         incoterm:stringValue(terms.incoterm), paymentTerms:stringValue(terms.paymentTerms), packing:stringValue(terms.packing), deliveryTime:stringValue(terms.deliveryTime), portOfLoading:stringValue(terms.portOfLoading),
@@ -161,6 +163,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
         shippingEnabled:booleanValue(adjustments.shippingEnabled,false), shipping:stringValue(adjustments.shipping,'0.00'), otherChargesEnabled:booleanValue(adjustments.otherChargesEnabled,false), otherCharges:stringValue(adjustments.otherCharges,'0.00'),
         taxEnabled:booleanValue(adjustments.taxEnabled,false), taxPercent:stringValue(adjustments.taxPercent,'0')
       },
+      internalCosts:{shippingCost:stringValue(internalCosts.shippingCost,'0.00'),otherCost:stringValue(internalCosts.otherCost,'0.00')},
       appearance:{
         templateId:templateValue(appearance.templateId,'executive'), paletteMode:appearance.paletteMode === 'custom' ? 'custom' : 'auto', accentColor:stringValue(appearance.accentColor,'#b58b4f'),
         latinFont:typeof appearance.latinFont === 'string' && LATIN_FONTS.has(appearance.latinFont) ? appearance.latinFont : 'auto', arabicFont:typeof appearance.arabicFont === 'string' && ARABIC_FONTS.has(appearance.arabicFont) ? appearance.arabicFont : 'auto',
@@ -177,6 +180,8 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   migrated.documentRevisions = Array.isArray((vault as any).documentRevisions) ? (vault as any).documentRevisions.map((revision:any)=>{
     const snapshot=revision?.snapshot&&typeof revision.snapshot==='object'?structuredClone(revision.snapshot):null;if(!snapshot)return null;
     snapshot.role=snapshot.role==='credit-note'?'credit-note':'standard';snapshot.lifecycleStatus=snapshot.lifecycleStatus==='voided'?'voided':'active';snapshot.revision=Math.max(1,Math.trunc(finiteNumber(snapshot.revision,1)));snapshot.creditForId=stringValue(snapshot.creditForId);snapshot.creditForNumber=stringValue(snapshot.creditForNumber);snapshot.voidedAt=stringValue(snapshot.voidedAt);snapshot.voidReason=stringValue(snapshot.voidReason);
+    snapshot.items=Array.isArray(snapshot.items)?snapshot.items.map((item:any)=>({...item,unitCost:stringValue(item?.unitCost)})):[];
+    snapshot.internalCosts={shippingCost:stringValue(snapshot.internalCosts?.shippingCost,'0.00'),otherCost:stringValue(snapshot.internalCosts?.otherCost,'0.00')};
     return{id:stringValue(revision?.id),documentId:stringValue(revision?.documentId),documentNumber:stringValue(revision?.documentNumber),revision:Math.max(1,Math.trunc(finiteNumber(revision?.revision,1))),snapshot,createdAt:stringValue(revision?.createdAt,nowIso())};
   }).filter(Boolean) as any : [];
 
