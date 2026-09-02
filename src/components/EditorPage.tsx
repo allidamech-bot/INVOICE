@@ -193,7 +193,7 @@ export class EditorPage extends React.Component<Props,State>{
 
   render():any{
     const props=this.props;
-    const canConvertFinalQuote=props.document.kind==='proforma'&&props.document.status==='final';
+    const canConvertFinalQuote=props.document.kind==='proforma'&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
     const sections=this.state.sections;
     return <>
       <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry}/>
