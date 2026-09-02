@@ -7,4 +7,13 @@ const to="  [`\\nconst CACHE = 'lourex-invoice-v136';\\n`, `\\nconst CACHE = 'lo
 if(!source.includes(from))throw new Error('Expected service-worker cache patch was not found.');
 source=source.replace(from,to);
 await writeFile(path,source);
-await import('./apply-operations-batch8.mjs?fixed=1');
+
+const operationsPage='src/components/OperationsPage.tsx';
+let page=await readFile(operationsPage,'utf8');
+const validationToken='error:errors[0]';
+const matches=page.split(validationToken).length-1;
+if(matches!==4)throw new Error(`Expected four strict validation fallbacks, found ${matches}.`);
+page=page.split(validationToken).join("error:errors[0]??t('Validation failed.','فشل التحقق.')");
+await writeFile(operationsPage,page);
+
+await import('./apply-operations-batch8.mjs?fixed=2');
