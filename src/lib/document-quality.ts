@@ -17,17 +17,6 @@ export interface DocumentQualityIssue {
   level: 'warning'|'info';
 }
 
-function usesSeparateDetailsPage(doc:LourexDocument):boolean{
-  const values=Object.values(doc.terms).filter(value=>value.trim());
-  const termsCount=values.length;
-  const detailsChars=values.reduce((sum,value)=>sum+value.length,0)+doc.notes.length;
-  const bank=doc.appearance.showBank&&Object.values(doc.companySnapshot.bank).some(value=>value.trim());
-  const signing=(doc.appearance.showSignature&&Boolean(doc.companySnapshot.signatureDataUrl))||(doc.appearance.showStamp&&Boolean(doc.companySnapshot.stampDataUrl));
-  const adjustments=[doc.adjustments.discountEnabled,doc.adjustments.shippingEnabled,doc.adjustments.otherChargesEnabled,doc.adjustments.taxEnabled].filter(Boolean).length;
-  const score=termsCount+(doc.notes.trim()?3:0)+(bank?4:0)+(signing?3:0)+adjustments;
-  return score>=10||detailsChars>700||values.some(value=>value.length>260)||doc.notes.length>420;
-}
-
 function firstPageCapacity(doc:LourexDocument):number{
   const c=doc.customerSnapshot;
   const values=[
@@ -42,6 +31,39 @@ function firstPageCapacity(doc:LourexDocument):number{
   if(pressure>560)return 4;
   if(pressure>380)return 5;
   return 7;
+}
+
+function itemWeight(descriptionEn:string,descriptionAr:string):number{
+  const text=`${descriptionEn} ${descriptionAr}`.trim();
+  return Math.max(1,Math.ceil(text.length/95));
+}
+
+function usesSeparateDetailsPage(doc:LourexDocument):boolean{
+  const values=Object.values(doc.terms).filter(value=>value.trim());
+  const termsCount=values.length;
+  const detailsChars=values.reduce((sum,value)=>sum+value.length,0)+doc.notes.length;
+  const bank=doc.appearance.showBank&&Object.values(doc.companySnapshot.bank).some(value=>value.trim());
+  const signing=(doc.appearance.showSignature&&Boolean(doc.companySnapshot.signatureDataUrl))||(doc.appearance.showStamp&&Boolean(doc.companySnapshot.stampDataUrl));
+  const adjustments=[doc.adjustments.discountEnabled,doc.adjustments.shippingEnabled,doc.adjustments.otherChargesEnabled,doc.adjustments.taxEnabled].filter(Boolean).length;
+  const score=termsCount+(doc.notes.trim()?3:0)+(bank?4:0)+(signing?3:0)+adjustments;
+
+  // Very large prose genuinely needs its own continuation page even when there
+  // are few items. Normal bank/signature/terms combinations do not.
+  const hardOverflow=detailsChars>1400||values.some(value=>value.length>520)||doc.notes.length>900;
+  if(hardOverflow)return true;
+
+  const complexClosing=score>=10||detailsChars>700||values.some(value=>value.length>260)||doc.notes.length>420;
+  if(!complexClosing)return false;
+
+  // Ask the existing item paginator how much item pressure would remain on the
+  // page that owns the closing zone. A sparse quote (for example one item plus
+  // bank/signature/three terms) must stay one page instead of creating a mostly
+  // empty first page and a details-only second page.
+  const tentative=paginateItems(doc.items,true,firstPageCapacity(doc));
+  const last=tentative[tentative.length-1]??[];
+  const lastWeight=last.reduce((sum,item)=>sum+itemWeight(item.descriptionEn,item.descriptionAr),0);
+  const allowedLastWeight=score>=16?2:score>=13?3:5;
+  return lastWeight>allowedLastWeight;
 }
 
 export function estimatedDocumentPageCount(doc:LourexDocument):number{
