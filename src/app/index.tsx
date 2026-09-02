@@ -78,9 +78,15 @@ if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     const hadController=Boolean(navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange',()=>{
-      if(reloadForUpdate)window.location.reload();
+      if(hadController)showUpdateNotice();
+      if(reloadForUpdate)window.location.replace(window.location.href);
     });
-    void navigator.serviceWorker.register('./sw.js').then(registration=>{
+
+    // Preserve the established non-fatal registration path: registration/update
+    // never forces a reload by itself. Waiting-worker inspection is handled
+    // separately so only an explicit user action activates a new version.
+    void navigator.serviceWorker.register('./sw.js').then(registration=>registration.update()).catch(()=>undefined);
+    void navigator.serviceWorker.ready.then(registration=>{
       if(hadController&&registration.waiting)showUpdateNotice(registration.waiting);
       registration.addEventListener('updatefound',()=>{
         const installing=registration.installing;
@@ -89,7 +95,6 @@ if('serviceWorker' in navigator){
           if(hadController&&installing.state==='installed')showUpdateNotice(registration.waiting||installing);
         });
       });
-      return registration.update();
     }).catch(()=>undefined);
   });
 }
