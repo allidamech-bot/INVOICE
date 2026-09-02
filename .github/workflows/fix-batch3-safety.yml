@@ -1,0 +1,29 @@
+name: Apply Batch 3 Safety Fixes
+on:
+  push:
+    branches: [agent/document-lifecycle-batch-3]
+    paths:
+      - scripts/fix-batch3-lifecycle-safety.mjs
+      - .github/workflows/fix-batch3-safety.yml
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/document-lifecycle-batch-3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: node scripts/fix-batch3-lifecycle-safety.mjs
+      - name: Commit fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/fix-batch3-safety.yml scripts/fix-batch3-lifecycle-safety.mjs
+          git add -A
+          git commit -m "fix: harden document lifecycle safety"
+          git push origin HEAD:agent/document-lifecycle-batch-3
