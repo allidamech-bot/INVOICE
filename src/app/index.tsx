@@ -76,16 +76,17 @@ function showUpdateNotice(worker?:ServiceWorker|null):void{
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
+    const hadController=Boolean(navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange',()=>{
       if(reloadForUpdate)window.location.reload();
     });
     void navigator.serviceWorker.register('./sw.js').then(registration=>{
-      if(registration.waiting)showUpdateNotice(registration.waiting);
+      if(hadController&&registration.waiting)showUpdateNotice(registration.waiting);
       registration.addEventListener('updatefound',()=>{
         const installing=registration.installing;
         if(!installing)return;
         installing.addEventListener('statechange',()=>{
-          if(installing.state==='installed'&&navigator.serviceWorker.controller)showUpdateNotice(registration.waiting||installing);
+          if(hadController&&installing.state==='installed')showUpdateNotice(registration.waiting||installing);
         });
       });
       return registration.update();
