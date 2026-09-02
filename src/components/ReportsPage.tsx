@@ -1,7 +1,7 @@
 import type { CompanySettings, Customer, LourexDocument, PaymentRecord } from '../types.js';
 import { formatMoney } from '../lib/money.js';
 import { todayIso } from '../lib/id.js';
-import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
+import { getUiLanguage, t } from '../lib/i18n.js';
 import { customerPerformanceReport, financialReportByCurrency, monthlyPerformanceReport, normalizeReportPeriod, type CustomerPerformanceRow } from '../lib/reports.js';
 import { Button, Icon, Input, Select } from './UI.js';
 
@@ -56,7 +56,7 @@ export class ReportsPage extends React.Component<Props,State>{
     return <div className="reports-page financial-report-print">
       <header className="reports-heading">
         <div><p className="eyebrow">{t('Management Reporting','التقارير الإدارية')}</p><h1>{t('Financial Reports','التقارير المالية')}</h1><p>{t('Sales, collection, receivables and gross profitability — always separated by currency.','المبيعات والتحصيل والمستحقات والربحية الإجمالية — مع فصل كل عملة بشكل مستقل دائمًا.')}</p></div>
-        <div className="reports-heading-actions"><Button icon="download" onClick={()=>this.exportCsv(visibleCustomers)}>{t('Export CSV','تصدير CSV')}</Button><Button icon="print" onClick={this.print}>{t('Print / Save PDF','طباعة / حفظ PDF')}</Button></div>
+        <div className="reports-heading-actions"><Button icon="download" onClick={()=>this.exportCsv(visibleCustomers)}>{t('Export CSV','تصدير CSV')}</Button><Button icon="printer" onClick={this.print}>{t('Print / Save PDF','طباعة / حفظ PDF')}</Button></div>
       </header>
 
       <section className="reports-filter-panel" aria-label={t('Report filters','فلاتر التقرير')}>

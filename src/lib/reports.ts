@@ -75,6 +75,7 @@ function marginString(profit:bigint,revenue:bigint):string{
   return `${sign}${abs/10_000n}.${((abs%10_000n)/100n).toString().padStart(2,'0')}`;
 }
 
+function compareMoneyDescending(left:string,right:string):number{const a=decimalToScaled(left,2),b=decimalToScaled(right,2);return a===b?0:a>b?-1:1;}
 function validIsoDate(value:string):boolean{return /^\d{4}-\d{2}-\d{2}$/.test(value);}
 export function reportDateInRange(date:string,from:string,to:string):boolean{
   if(!validIsoDate(date))return false;
@@ -207,7 +208,7 @@ export function customerPerformanceReport(customers:Customer[],documents:LourexD
       profitComplete:aggregate.profitComplete,
       missingCostItems:aggregate.missingCostItems
     };
-  }).sort((a,b)=>a.currency.localeCompare(b.currency)||Number(decimalToScaled(b.netSales,2)-decimalToScaled(a.netSales,2))||a.customerName.localeCompare(b.customerName));
+  }).sort((a,b)=>a.currency.localeCompare(b.currency)||compareMoneyDescending(a.netSales,b.netSales)||a.customerName.localeCompare(b.customerName));
 }
 
 export function monthlyPerformanceReport(documents:LourexDocument[],payments:PaymentRecord[],from='',to=todayIso()):MonthlyPerformanceRow[]{
