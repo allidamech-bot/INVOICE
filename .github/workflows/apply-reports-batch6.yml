@@ -1,0 +1,33 @@
+name: Apply reports batch 6 integration
+on:
+  push:
+    branches:
+      - agent/reports-multicurrency-batch-6
+    paths:
+      - scripts/apply-reports-batch6.mjs
+      - .github/workflows/apply-reports-batch6.yml
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/reports-multicurrency-batch-6
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Apply integration patch
+        run: node scripts/apply-reports-batch6.mjs
+      - name: Remove one-shot helper
+        run: rm scripts/apply-reports-batch6.mjs .github/workflows/apply-reports-batch6.yml
+      - name: Commit integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Integrate batch 6 financial reports"
+          git push origin HEAD:agent/reports-multicurrency-batch-6
