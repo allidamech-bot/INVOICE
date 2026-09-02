@@ -2,7 +2,7 @@ import type { SecurityMetadata, VaultPayload } from '../types.js';
 import { APP_SCHEMA_VERSION, companySnapshotFrom, emptyVault } from '../lib/defaults.js';
 import { normalizeValidityDays } from '../lib/id.js';
 import { createSecurity, decryptVault, encryptVault, verifyPin } from '../crypto/crypto.js';
-import { getEncryptedVault, getSecurity, putRecord, putSecurityAndVault } from './db.js';
+import { createSafetySnapshot, getEncryptedVault, getSecurity, putRecord, putSecurityAndVault } from './db.js';
 import { clearSession, getSessionKey, isSessionExpired, touchSession } from './session.js';
 
 const TEMPLATE_IDS = new Set(['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon']);
@@ -99,7 +99,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   })) : [];
 
   migrated.savedItems = Array.isArray((vault as any).savedItems) ? (vault as any).savedItems.map((item:any)=>({
-    id:stringValue(item?.id), createdAt:stringValue(item?.createdAt,nowIso()), updatedAt:stringValue(item?.updatedAt,item?.createdAt ? stringValue(item.createdAt) : nowIso()),
+    id:stringValue(item?.id), createdAt:stringValue(item?.createdAt,nowIso()), updatedAt:stringValue(item?.updatedAt,item?.createdAt ? stringValue(item.updatedAt) : nowIso()),
     sku:stringValue(item?.sku), descriptionEn:stringValue(item?.descriptionEn), descriptionAr:stringValue(item?.descriptionAr), hsCode:stringValue(item?.hsCode), origin:stringValue(item?.origin), packing:stringValue(item?.packing), unit:stringValue(item?.unit,'PCS'),
     lastUnitPrice:stringValue(item?.lastUnitPrice ?? item?.unitPrice), lastCurrency:cleanCurrency(item?.lastCurrency,migrated.appSettings.smartDefaults.currency || 'USD'),
     usageCount:Math.max(0,Math.trunc(finiteNumber(item?.usageCount,0))), lastUsedAt:stringValue(item?.lastUsedAt,item?.updatedAt ? stringValue(item.updatedAt) : nowIso()),
@@ -182,8 +182,10 @@ export async function unlockVault(pin: string): Promise<{ key: CryptoKey; vault:
   if (!security || !encrypted) throw new Error('LOUREX Invoice has not been set up on this device.');
   const key = await verifyPin(pin, security);
   const rawVault = await decryptVault(key, encrypted);
+  const sourceVersion=Number(rawVault.schemaVersion ?? 0);
+  if(sourceVersion!==APP_SCHEMA_VERSION)await createSafetySnapshot('pre-migration',sourceVersion);
   const vault = migrateVault(rawVault);
-  if ((rawVault.schemaVersion ?? 0) !== APP_SCHEMA_VERSION) await saveVault(key, vault);
+  if (sourceVersion !== APP_SCHEMA_VERSION) await saveVault(key, vault);
   return { key, vault, security };
 }
 
@@ -194,12 +196,14 @@ export async function resumeVaultSession(): Promise<{ key: CryptoKey; vault: Vau
   if (!encrypted) { await clearSession(); return null; }
   try {
     const rawVault = await decryptVault(session.key, encrypted);
+    const sourceVersion=Number(rawVault.schemaVersion ?? 0);
+    if(sourceVersion!==APP_SCHEMA_VERSION)await createSafetySnapshot('pre-migration',sourceVersion);
     const vault = migrateVault(rawVault);
     if (isSessionExpired(session.lastActivity, vault.appSettings.autoLockMinutes)) {
       await clearSession();
       return null;
     }
-    if ((rawVault.schemaVersion ?? 0) !== APP_SCHEMA_VERSION) await saveVault(session.key, vault);
+    if (sourceVersion !== APP_SCHEMA_VERSION) await saveVault(session.key, vault);
     touchSession();
     return { key: session.key, vault };
   } catch {
@@ -217,6 +221,7 @@ export async function saveVault(key: CryptoKey, vault: VaultPayload): Promise<vo
 }
 
 export async function restoreVaultWithCurrentKey(key: CryptoKey, vault: VaultPayload): Promise<VaultPayload> {
+  await createSafetySnapshot('pre-restore');
   const migrated = migrateVault(vault);
   await saveVault(key, migrated);
   return migrated;
@@ -224,6 +229,7 @@ export async function restoreVaultWithCurrentKey(key: CryptoKey, vault: VaultPay
 
 export async function changePin(currentPin: string, newPin: string): Promise<{ key: CryptoKey; security: SecurityMetadata }> {
   const unlocked = await unlockVault(currentPin);
+  await createSafetySnapshot('pre-pin-change',unlocked.vault.schemaVersion);
   const { metadata, key } = await createSecurity(newPin);
   const encrypted = await encryptVault(key, unlocked.vault);
   await putSecurityAndVault(metadata, encrypted);
@@ -231,6 +237,7 @@ export async function changePin(currentPin: string, newPin: string): Promise<{ k
 }
 
 export async function replaceVaultWithPin(pin: string, vault: VaultPayload): Promise<{ key: CryptoKey; security: SecurityMetadata; vault: VaultPayload }> {
+  await createSafetySnapshot('pre-restore');
   const migrated = migrateVault(vault);
   const { metadata, key } = await createSecurity(pin);
   const encrypted = await encryptVault(key, migrated);
