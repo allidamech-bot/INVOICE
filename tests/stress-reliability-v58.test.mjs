@@ -127,10 +127,12 @@ test('fixed-precision totals remain stable under 50 priced lines and commercial 
   assert.ok(Number(totals.grandTotal) > Number(totals.subtotal));
 });
 
-test('renderer keeps heavy final details on a dedicated page and hidden mobile preview deferred', async () => {
+test('renderer keeps genuinely heavy final details on a dedicated page and hidden mobile preview deferred', async () => {
   const renderer = await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer, /shouldUseDetailsPage/);
-  assert.match(renderer, /score >= 10 \|\| detailsChars > 700/);
+  assert.match(renderer, /complexClosing=score>=10\|\|detailsChars>700/);
+  assert.match(renderer, /hardOverflow=detailsChars>1400/);
+  assert.match(renderer, /lastWeight>allowedLastWeight/);
   assert.match(renderer, /separateDetails \? \[\.\.\.itemPages, \[\] as DocumentItem\[\]\] : itemPages/);
   assert.match(renderer, /finalPage=\{index === pages\.length - 1\}/);
   assert.match(renderer, /DeferredMobilePreview/);

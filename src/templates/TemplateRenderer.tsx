@@ -91,16 +91,6 @@ function Page({ document: doc, items, pageIndex, totalPages, finalPage, variant,
   const style={ '--accent':accent, '--accent-ink':resolvedAccentInk(accent), '--font-latin':resolvedLatinFont(doc.appearance), '--font-arabic':resolvedArabicFont(doc.appearance) } as any;
   return <article className={`invoice-page template-${variant} kind-${doc.kind} lang-${doc.language} palette-${paletteMode} document-tone-${darkTone?'dark':'light'} ${detailsOnly?'details-only':''} ${compact ? 'compact-preview' : ''}`} data-palette={paletteMode} data-kind={doc.kind} data-tone={darkTone?'dark':'light'} style={style}><div className="page-accent" />{variant === 'executive' ? <header className="header-executive"><LogoBlock document={doc} inverse={true}/><DocumentTitle document={doc} inverse/><MetaBlock document={doc}/></header> : null}{variant === 'minimal' ? <header className="header-minimal"><LogoBlock document={doc}/><div><DocumentTitle document={doc}/><MetaBlock document={doc}/></div></header> : null}{variant === 'trade' ? <header className="header-trade"><div className="trade-bar"><LogoBlock document={doc} inverse={true}/></div><div className="trade-title"><DocumentTitle document={doc}/><MetaBlock document={doc}/></div></header> : null}{variant === 'signature' ? <header className="header-signature"><LogoBlock document={doc}/><div className="signature-title"><small>{localized(doc,'COMMERCIAL DOCUMENT','مستند تجاري')}</small><DocumentTitle document={doc}/></div><MetaBlock document={doc}/></header> : null}{isModernTemplate(variant) ? <ModernHeader document={doc} variant={variant}/> : null}<main className="doc-body">{pageIndex === 0 ? <div className="party-grid"><PartyBlock document={doc} type="seller"/><PartyBlock document={doc} type="customer"/></div> : null}{items.length ? <ItemsTable document={doc} items={items} continued={pageIndex > 0}/> : null}{finalPage ? <FinalDetails document={doc}/> : null}</main><footer className="doc-footer"><span>{doc.companySnapshot.footerText || doc.companySnapshot.nameEn || doc.companySnapshot.nameAr}</span><span>{pageIndex + 1} / {totalPages}</span></footer></article>;
 }
-function shouldUseDetailsPage(doc: LourexDocument): boolean {
-  const values=Object.values(doc.terms).filter(value=>value.trim());
-  const termsCount=values.length;
-  const detailsChars=values.reduce((sum,value)=>sum+value.length,0)+doc.notes.length;
-  const bank = doc.appearance.showBank && Object.values(doc.companySnapshot.bank).some(value => value.trim());
-  const signing = (doc.appearance.showSignature && Boolean(doc.companySnapshot.signatureDataUrl)) || (doc.appearance.showStamp && Boolean(doc.companySnapshot.stampDataUrl));
-  const adjustments = [doc.adjustments.discountEnabled, doc.adjustments.shippingEnabled, doc.adjustments.otherChargesEnabled, doc.adjustments.taxEnabled].filter(Boolean).length;
-  const score = termsCount + (doc.notes.trim() ? 3 : 0) + (bank ? 4 : 0) + (signing ? 3 : 0) + adjustments;
-  return score >= 10 || detailsChars > 700 || values.some(value=>value.length>260) || doc.notes.length>420;
-}
 function firstPageItemCapacity(doc:LourexDocument):number{
   const c=doc.customerSnapshot;
   const values=[
@@ -115,6 +105,28 @@ function firstPageItemCapacity(doc:LourexDocument):number{
   if(pressure>560)return 4;
   if(pressure>380)return 5;
   return 7;
+}
+function itemWeight(item:DocumentItem):number{
+  const text=`${item.descriptionEn} ${item.descriptionAr}`.trim();
+  return Math.max(1,Math.ceil(text.length/95));
+}
+function shouldUseDetailsPage(doc: LourexDocument): boolean {
+  const values=Object.values(doc.terms).filter(value=>value.trim());
+  const termsCount=values.length;
+  const detailsChars=values.reduce((sum,value)=>sum+value.length,0)+doc.notes.length;
+  const bank = doc.appearance.showBank && Object.values(doc.companySnapshot.bank).some(value => value.trim());
+  const signing = (doc.appearance.showSignature && Boolean(doc.companySnapshot.signatureDataUrl)) || (doc.appearance.showStamp && Boolean(doc.companySnapshot.stampDataUrl));
+  const adjustments = [doc.adjustments.discountEnabled, doc.adjustments.shippingEnabled, doc.adjustments.otherChargesEnabled, doc.adjustments.taxEnabled].filter(Boolean).length;
+  const score = termsCount + (doc.notes.trim() ? 3 : 0) + (bank ? 4 : 0) + (signing ? 3 : 0) + adjustments;
+  const hardOverflow=detailsChars>1400||values.some(value=>value.length>520)||doc.notes.length>900;
+  if(hardOverflow)return true;
+  const complexClosing=score>=10||detailsChars>700||values.some(value=>value.length>260)||doc.notes.length>420;
+  if(!complexClosing)return false;
+  const tentative=paginateItems(doc.items,true,firstPageItemCapacity(doc));
+  const last=tentative[tentative.length-1]??[];
+  const lastWeight=last.reduce((sum,item)=>sum+itemWeight(item),0);
+  const allowedLastWeight=score>=16?2:score>=13?3:5;
+  return lastWeight>allowedLastWeight;
 }
 
 function renderDocument({ document: doc, scale = 1, compact = false }: Props):any{
