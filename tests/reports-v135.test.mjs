@@ -77,6 +77,6 @@ test('v135 ships reports navigation print CSV and offline assets without combini
   assert.ok(!logic.includes('exchangeRate'));assert.ok(!logic.includes('fxRate'));assert.ok(!logic.includes('convertCurrency'));
   assert.ok(html.includes('reports-v135.css'));assert.ok(html.indexOf('reports-v135.css')<html.indexOf('performance-polish-v100.css'));
   for(const asset of ['reports-v135.css','ReportsPage.js','reports.js'])assert.ok(sw.includes(asset),asset);
-  assert.ok(/^const CACHE = 'lourex-invoice-v135';/m.test(sw));assert.ok(sw.includes("const CACHE = 'lourex-invoice-v134'"));
+  assert.ok(/^const CACHE = 'lourex-invoice-v\d+';/m.test(sw));assert.ok(sw.includes("const CACHE = 'lourex-invoice-v135'"));assert.ok(sw.includes("const CACHE = 'lourex-invoice-v134'"));
   assert.ok(css.includes('printing-financial-report'));assert.ok(css.includes('@media print'));assert.ok(css.includes('grid-template-columns:repeat(5,minmax(0,1fr))'),'five report-era mobile tabs remain visible');
 });

@@ -1,6 +1,7 @@
 import type { CompanySettings, DocumentKind, DocumentItem, LourexDocument, VaultPayload } from '../types.js';
 import { addDaysIso, compareIsoDates, isIsoDate, makeId, normalizeValidityDays, todayIso } from './id.js';
 import { companySnapshotFrom } from './defaults.js';
+import { bankDetailsForId, defaultPaymentTermPreset, defaultTaxPreset } from './commercial-controls.js';
 import { decimalToScaled, isDecimalInput, lineTotal } from './money.js';
 
 type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number};
@@ -80,13 +81,15 @@ export function emptyItem(): DocumentItem {
 export function createBlankDocument(kind: DocumentKind, number: string, company: CompanySettings): LourexDocument {
   const issueDate = todayIso();
   const validityDays=normalizeValidityDays(company.defaultValidityDays);
+  const paymentPreset=defaultPaymentTermPreset(company);
+  const taxPreset=defaultTaxPreset(company);
   return {
-    id: makeId('doc'), kind, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', number, issueDate,
-    dueDate: kind === 'proforma' ? addDaysIso(issueDate, validityDays) : '',
+    id: makeId('doc'), kind, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', bankAccountId:company.defaultBankAccountId||'primary', paymentTermPresetId:paymentPreset?.id||'', number, issueDate,
+    dueDate: kind === 'proforma' ? addDaysIso(issueDate, validityDays) : paymentPreset ? addDaysIso(issueDate,paymentPreset.days) : '',
     currency: company.defaultCurrency, language: company.defaultLanguage, customerSnapshot: null,
     companySnapshot: companySnapshotFrom(company), items: [emptyItem()],
-    terms: { incoterm: company.defaultIncoterm, paymentTerms: company.defaultPaymentTerms, packing: '', deliveryTime: company.defaultDeliveryTime, portOfLoading: '', finalDestination: '', countryOfOrigin: '', validity: '', remarks: '' },
-    adjustments: { discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping: '0.00', otherChargesEnabled: false, otherCharges: '0.00', taxEnabled: false, taxPercent: '0' },
+    terms: { incoterm: company.defaultIncoterm, paymentTerms: paymentPreset?.label||company.defaultPaymentTerms, packing: '', deliveryTime: company.defaultDeliveryTime, portOfLoading: '', finalDestination: '', countryOfOrigin: '', validity: '', remarks: '' },
+    adjustments: { discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping: '0.00', otherChargesEnabled: false, otherCharges: '0.00', taxEnabled: Boolean(taxPreset), taxPercent: taxPreset?.rate||'0' },
     internalCosts:{shippingCost:'0.00',otherCost:'0.00'},
     appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: '#b58b4f', latinFont: 'auto', arabicFont: 'auto', showBank: true, showSignature: Boolean(company.signatureDataUrl), showStamp: Boolean(company.stampDataUrl), showHsCode: true, showOrigin: true, showPacking: false },
     notes: company.defaultNotes, convertedFromId: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
@@ -173,7 +176,9 @@ export function convertToInvoice(source: LourexDocument, number: string): Lourex
 }
 
 export function refreshCompanySnapshot(doc: LourexDocument, company: CompanySettings): LourexDocument {
-  return { ...doc, companySnapshot: companySnapshotFrom(company), updatedAt: new Date().toISOString() };
+  const companySnapshot=companySnapshotFrom(company);
+  const selectedBank=doc.bankAccountId?bankDetailsForId(company,doc.bankAccountId):doc.companySnapshot?.bank;
+  return { ...doc, companySnapshot:{...companySnapshot,bank:selectedBank?{...selectedBank}:companySnapshot.bank}, updatedAt: new Date().toISOString() };
 }
 
 export function paginateItems(items: DocumentItem[], reserveFinalDetails = true, firstPageCapacity = 7): DocumentItem[][] {

@@ -25,6 +25,13 @@ function languageValue(value: unknown, fallback: 'en'|'ar'|'bilingual' = 'en'): 
 function uiLanguageValue(value: unknown, fallback: 'en'|'ar' = 'en'): 'en'|'ar' { return value === 'ar' || value === 'en' ? value : fallback; }
 function templateValue(value: unknown, fallback: any = 'executive'): any { return typeof value === 'string' && TEMPLATE_IDS.has(value) ? value : fallback; }
 function nowIso(): string { return new Date().toISOString(); }
+function normalizeBankAccounts(value:unknown):any[]{
+  if(!Array.isArray(value))return[];const seen=new Set<string>();const result:any[]=[];
+  value.forEach((account:any,index)=>{const id=stringValue(account?.id,`bank-${index+1}`).trim()||`bank-${index+1}`;if(id==='primary'||seen.has(id))return;seen.add(id);result.push({id,label:stringValue(account?.label,`Bank ${index+2}`),bankName:stringValue(account?.bankName),accountName:stringValue(account?.accountName),iban:stringValue(account?.iban),swift:stringValue(account?.swift),currency:cleanCurrency(account?.currency,'USD')});});return result;
+}
+function normalizeTaxPresets(value:unknown):any[]{if(!Array.isArray(value))return[];const seen=new Set<string>();const result:any[]=[];value.forEach((preset:any,index)=>{const id=stringValue(preset?.id,`tax-${index+1}`).trim()||`tax-${index+1}`;if(seen.has(id))return;seen.add(id);result.push({id,name:stringValue(preset?.name),rate:stringValue(preset?.rate,'0')});});return result;}
+function normalizePaymentTermPresets(value:unknown,fallback:any[]):any[]{if(!Array.isArray(value))return fallback.map(item=>({...item}));const seen=new Set<string>();const result:any[]=[];value.forEach((preset:any,index)=>{const id=stringValue(preset?.id,`term-${index+1}`).trim()||`term-${index+1}`;if(seen.has(id))return;seen.add(id);result.push({id,label:stringValue(preset?.label),days:Math.min(3650,Math.max(0,Math.trunc(finiteNumber(preset?.days,0))))});});return result;}
+function normalizeCommercial(value:any,fallback:any):any{const source=value&&typeof value==='object'?value:{};return{taxPresets:normalizeTaxPresets(source.taxPresets),defaultTaxPresetId:stringValue(source.defaultTaxPresetId),paymentTermPresets:normalizePaymentTermPresets(source.paymentTermPresets,fallback.paymentTermPresets),defaultPaymentTermPresetId:stringValue(source.defaultPaymentTermPresetId),pricing:{method:source.pricing?.method==='margin'?'margin':'markup',percent:stringValue(source.pricing?.percent,fallback.pricing.percent),rounding:['0.01','0.05','0.10','0.50','1.00'].includes(source.pricing?.rounding)?source.pricing.rounding:fallback.pricing.rounding}};}
 
 export async function setupVault(pin: string, initial: VaultPayload = emptyVault()): Promise<{ key: CryptoKey; vault: VaultPayload }> {
   const { metadata, key } = await createSecurity(pin);
@@ -53,11 +60,16 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
       bankName:stringValue(sourceBank.bankName,defaultBank.bankName), accountName:stringValue(sourceBank.accountName,defaultBank.accountName), iban:stringValue(sourceBank.iban,defaultBank.iban),
       swift:stringValue(sourceBank.swift,defaultBank.swift), currency:cleanCurrency(sourceBank.currency,defaultBank.currency)
     },
+    bankAccounts:normalizeBankAccounts(sourceCompany.bankAccounts), defaultBankAccountId:stringValue(sourceCompany.defaultBankAccountId,'primary')||'primary',
+    commercial:normalizeCommercial(sourceCompany.commercial,defaults.company.commercial),
     signatureDataUrl:stringValue(sourceCompany.signatureDataUrl), stampDataUrl:stringValue(sourceCompany.stampDataUrl),
     defaultCurrency:cleanCurrency(sourceCompany.defaultCurrency,defaults.company.defaultCurrency), defaultLanguage:languageValue(sourceCompany.defaultLanguage,defaults.company.defaultLanguage),
     defaultPaymentTerms:stringValue(sourceCompany.defaultPaymentTerms), defaultIncoterm:stringValue(sourceCompany.defaultIncoterm), defaultDeliveryTime:stringValue(sourceCompany.defaultDeliveryTime),
     defaultValidityDays:normalizeValidityDays(finiteNumber(sourceCompany.defaultValidityDays,defaults.company.defaultValidityDays)), defaultFooterText:stringValue(sourceCompany.defaultFooterText), defaultNotes:stringValue(sourceCompany.defaultNotes)
   };
+  if(!new Set(['primary',...migrated.company.bankAccounts.map(account=>account.id)]).has(migrated.company.defaultBankAccountId))migrated.company.defaultBankAccountId='primary';
+  if(migrated.company.commercial.defaultTaxPresetId&&!migrated.company.commercial.taxPresets.some(item=>item.id===migrated.company.commercial.defaultTaxPresetId))migrated.company.commercial.defaultTaxPresetId='';
+  if(migrated.company.commercial.defaultPaymentTermPresetId&&!migrated.company.commercial.paymentTermPresets.some(item=>item.id===migrated.company.commercial.defaultPaymentTermPresetId))migrated.company.commercial.defaultPaymentTermPresetId='';
 
   const sourceSettings = (vault as any).appSettings ?? {};
   const sourceNumbering = sourceSettings.numbering ?? {};
@@ -97,7 +109,8 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     id:stringValue(customer?.id), createdAt:stringValue(customer?.createdAt,nowIso()), updatedAt:stringValue(customer?.updatedAt,customer?.createdAt ? stringValue(customer.createdAt) : nowIso()),
     companyNameEn:stringValue(customer?.companyNameEn), companyNameAr:stringValue(customer?.companyNameAr), contactPerson:stringValue(customer?.contactPerson),
     addressEn:stringValue(customer?.addressEn), addressAr:stringValue(customer?.addressAr), city:stringValue(customer?.city), country:stringValue(customer?.country), phone:stringValue(customer?.phone), email:stringValue(customer?.email),
-    vatTaxNumber:stringValue(customer?.vatTaxNumber), commercialRegistration:stringValue(customer?.commercialRegistration), notes:stringValue(customer?.notes)
+    vatTaxNumber:stringValue(customer?.vatTaxNumber), commercialRegistration:stringValue(customer?.commercialRegistration),
+    preferredCurrency:stringValue(customer?.preferredCurrency).trim().toUpperCase(), paymentTermPresetId:stringValue(customer?.paymentTermPresetId), paymentTerms:stringValue(customer?.paymentTerms), paymentDueDays:stringValue(customer?.paymentDueDays), creditLimit:stringValue(customer?.creditLimit), creditCurrency:stringValue(customer?.creditCurrency).trim().toUpperCase(), notes:stringValue(customer?.notes)
   })) : [];
 
   migrated.savedItems = Array.isArray((vault as any).savedItems) ? (vault as any).savedItems.map((item:any)=>({
@@ -141,7 +154,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
       signatureDataUrl:stringValue(companySnapshot.signatureDataUrl,fallbackCompanySnapshot.signatureDataUrl), stampDataUrl:stringValue(companySnapshot.stampDataUrl,fallbackCompanySnapshot.stampDataUrl), footerText:stringValue(companySnapshot.footerText,fallbackCompanySnapshot.footerText)
     };
     return {
-      id:stringValue(document?.id), kind:document?.kind === 'invoice' ? 'invoice' : 'proforma', role:document?.role==='credit-note'?'credit-note':'standard', status:document?.status === 'final' ? 'final' : 'draft', lifecycleStatus:document?.lifecycleStatus==='voided'?'voided':'active', revision:Math.max(1,Math.trunc(finiteNumber(document?.revision,1))), creditForId:stringValue(document?.creditForId), creditForNumber:stringValue(document?.creditForNumber), voidedAt:stringValue(document?.voidedAt), voidReason:stringValue(document?.voidReason),
+      id:stringValue(document?.id), kind:document?.kind === 'invoice' ? 'invoice' : 'proforma', role:document?.role==='credit-note'?'credit-note':'standard', status:document?.status === 'final' ? 'final' : 'draft', lifecycleStatus:document?.lifecycleStatus==='voided'?'voided':'active', revision:Math.max(1,Math.trunc(finiteNumber(document?.revision,1))), creditForId:stringValue(document?.creditForId), creditForNumber:stringValue(document?.creditForNumber), voidedAt:stringValue(document?.voidedAt), voidReason:stringValue(document?.voidReason), bankAccountId:stringValue(document?.bankAccountId), paymentTermPresetId:stringValue(document?.paymentTermPresetId),
       number:stringValue(document?.number), issueDate:stringValue(document?.issueDate), dueDate:stringValue(document?.dueDate), currency:cleanCurrency(document?.currency,migrated.appSettings.smartDefaults.currency || migrated.company.defaultCurrency || 'USD'),
       language:languageValue(document?.language,migrated.appSettings.smartDefaults.language),
       customerSnapshot:customerSnapshot ? {

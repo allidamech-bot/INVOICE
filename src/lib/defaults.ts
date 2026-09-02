@@ -1,8 +1,10 @@
 import type { AppSettings, CompanySettings, CustomerSnapshot, CompanySnapshot, VaultPayload } from '../types.js';
+import { defaultBankDetails } from './commercial-controls.js';
 
 // Compatibility marker: APP_SCHEMA_VERSION = 7 introduced encrypted payment records.
 // v9 adds encrypted internal cost metadata for profitability analysis.
-export const APP_SCHEMA_VERSION = 9;
+// v10 adds commercial controls, bank choices and customer credit policy.
+export const APP_SCHEMA_VERSION = 10;
 export const KDF_ITERATIONS = 310_000;
 
 export function defaultCompany(): CompanySettings {
@@ -11,6 +13,19 @@ export function defaultCompany(): CompanySettings {
     addressEn: '', addressAr: '', city: '', country: '', phone: '', email: '', website: '',
     vatNumber: '', taxNumber: '', commercialRegistration: '',
     bank: { bankName: '', accountName: '', iban: '', swift: '', currency: 'USD' },
+    bankAccounts: [], defaultBankAccountId: 'primary',
+    commercial: {
+      taxPresets: [], defaultTaxPresetId: '',
+      paymentTermPresets: [
+        { id:'term-due', label:'Due on receipt', days:0 },
+        { id:'term-net7', label:'Net 7', days:7 },
+        { id:'term-net15', label:'Net 15', days:15 },
+        { id:'term-net30', label:'Net 30', days:30 },
+        { id:'term-net45', label:'Net 45', days:45 },
+        { id:'term-net60', label:'Net 60', days:60 }
+      ],
+      defaultPaymentTermPresetId: '', pricing:{ method:'markup', percent:'0', rounding:'0.01' }
+    },
     signatureDataUrl: '', stampDataUrl: '', defaultCurrency: 'USD', defaultLanguage: 'en',
     defaultPaymentTerms: '', defaultIncoterm: '', defaultDeliveryTime: '', defaultValidityDays: 7,
     defaultFooterText: '', defaultNotes: ''
@@ -54,7 +69,7 @@ export function companySnapshotFrom(company: CompanySettings): CompanySnapshot {
     addressEn: company.addressEn, addressAr: company.addressAr, city: company.city, country: company.country,
     phone: company.phone, email: company.email, website: company.website, vatNumber: company.vatNumber,
     taxNumber: company.taxNumber, commercialRegistration: company.commercialRegistration,
-    bank: { ...company.bank }, signatureDataUrl: company.signatureDataUrl, stampDataUrl: company.stampDataUrl,
+    bank: { ...defaultBankDetails(company) }, signatureDataUrl: company.signatureDataUrl, stampDataUrl: company.stampDataUrl,
     footerText: company.defaultFooterText
   };
 }
