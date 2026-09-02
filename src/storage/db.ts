@@ -1,10 +1,10 @@
-import type { CloudAccountRecord, EncryptedVaultRecord, PublicPreferencesRecord, SecurityMetadata, SessionKeyRecord } from '../types.js';
+import type { CloudAccountRecord, EncryptedVaultRecord, PublicPreferencesRecord, SafetySnapshotReason, SafetySnapshotRecord, SecurityMetadata, SessionKeyRecord } from '../types.js';
 
 const DB_NAME = 'lourex-invoice';
 const DB_VERSION = 1;
 const STORE = 'records';
 
-type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord;
+type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord | SafetySnapshotRecord;
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -69,6 +69,23 @@ export async function putSecurityAndVault(security: SecurityMetadata, vault: Enc
     });
   } finally { db.close(); }
 }
+
+export async function createSafetySnapshot(reason:SafetySnapshotReason,sourceSchemaVersion?:number):Promise<SafetySnapshotRecord|null>{
+  const [security,vault]=await Promise.all([getSecurity(),getEncryptedVault()]);
+  if(!security||!vault)return null;
+  const snapshot:SafetySnapshotRecord={
+    id:'safety-snapshot',
+    createdAt:new Date().toISOString(),
+    sourceSchemaVersion:Number.isFinite(sourceSchemaVersion)?Math.max(0,Math.trunc(sourceSchemaVersion as number)):Math.max(0,Math.trunc(vault.schemaVersion||0)),
+    reason,
+    security:structuredClone(security),
+    vault:structuredClone(vault)
+  };
+  await putRecord(snapshot);
+  return snapshot;
+}
+
+export async function getSafetySnapshot():Promise<SafetySnapshotRecord|null>{return getRecord<SafetySnapshotRecord>('safety-snapshot');}
 
 export async function hasSecurity(): Promise<boolean> { return Boolean(await getRecord<SecurityMetadata>('security')); }
 export async function getSecurity(): Promise<SecurityMetadata | null> { return getRecord<SecurityMetadata>('security'); }

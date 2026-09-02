@@ -15,15 +15,23 @@ export class AppErrorBoundary extends React.Component<{ children?: any }, State>
     console.error('LOUREX Invoice UI error', error, info);
   }
 
-  private diagnostics=():string=>[
-    'LOUREX Invoice diagnostics',
-    `time=${new Date().toISOString()}`,
-    `path=${window.location.pathname}${window.location.search}${window.location.hash}`,
-    `online=${navigator.onLine}`,
-    `serviceWorker=${Boolean(navigator.serviceWorker?.controller)}`,
-    `error=${this.state.message || 'Unknown screen error'}`,
-    `userAgent=${navigator.userAgent}`
-  ].join('\n');
+  private diagnostics=():string=>{
+    const runtime=(window as any).__LOUREX_RUNTIME__||{};
+    return [
+      'LOUREX Invoice diagnostics',
+      `time=${new Date().toISOString()}`,
+      `path=${window.location.pathname}${window.location.search}${window.location.hash}`,
+      `environment=${runtime.environment||'unknown'}`,
+      `source=${runtime.sourceRepoOwner||'unknown'}/${runtime.sourceRepoSlug||'unknown'}`,
+      `commit=${runtime.commitSha||'n/a'}`,
+      `buildTime=${runtime.buildTime||'n/a'}`,
+      `online=${navigator.onLine}`,
+      `secureContext=${window.isSecureContext}`,
+      `serviceWorker=${Boolean(navigator.serviceWorker?.controller)}`,
+      `error=${this.state.message || 'Unknown screen error'}`,
+      `userAgent=${navigator.userAgent}`
+    ].join('\n');
+  };
 
   private copyDiagnostics=async()=>{
     const text=this.diagnostics();
@@ -48,6 +56,7 @@ export class AppErrorBoundary extends React.Component<{ children?: any }, State>
         <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
           <button type="button" onClick={()=>window.location.reload()} style={{minHeight:'44px',padding:'0 18px',border:0,borderRadius:'10px',background:'#0b1d2d',color:'#fff',fontWeight:700,cursor:'pointer'}}>Reload LOUREX / إعادة التحميل</button>
           <button type="button" onClick={()=>void this.copyDiagnostics()} style={{minHeight:'44px',padding:'0 18px',border:'1px solid #d8d1c4',borderRadius:'10px',background:'#fff',color:'#213846',fontWeight:700,cursor:'pointer'}}>{this.state.copied?'Copied / تم النسخ':'Copy diagnostics / نسخ التشخيص'}</button>
+          <button type="button" onClick={()=>{window.location.href='./health.html';}} style={{minHeight:'44px',padding:'0 18px',border:'1px solid #d8d1c4',borderRadius:'10px',background:'#fff',color:'#213846',fontWeight:700,cursor:'pointer'}}>System health / صحة النظام</button>
         </div>
         <details style={{marginTop:'16px',paddingTop:'14px',borderTop:'1px solid #ebe6dc'}}>
           <summary style={{cursor:'pointer',fontSize:'12px',fontWeight:700,color:'#60717b'}}>Technical details / التفاصيل التقنية</summary>
