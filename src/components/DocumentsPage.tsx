@@ -39,7 +39,7 @@ export class DocumentsPage extends React.Component<Props, State> {
   private handleOutsidePointer=(event:PointerEvent)=>{
     if(!this.state.menuId)return;
     const target=event.target;
-    if(target instanceof Element&&target.closest('.mobile-actions'))return;
+    if(target instanceof Element&&target.closest('.mobile-actions,.mobile-document-action-portal'))return;
     this.setState({menuId:''});
   };
   private handleKeyDown=(event:KeyboardEvent)=>{
@@ -62,8 +62,6 @@ export class DocumentsPage extends React.Component<Props, State> {
     return docs.sort((a,b)=>{
       if(this.state.sort==='oldest')return a.updatedAt.localeCompare(b.updatedAt);
       if(this.state.sort==='highest'){
-        // Totals in different currencies are not economically comparable without
-        // an FX rate. Group by currency first, then sort amounts inside each group.
         const currencyOrder=a.currency.localeCompare(b.currency,undefined,{sensitivity:'base'});
         if(currencyOrder)return currencyOrder;
         const av=calculateTotals(a.items,a.adjustments).grandTotal;
@@ -77,14 +75,29 @@ export class DocumentsPage extends React.Component<Props, State> {
   private runAction=(action:()=>void)=>{this.setState({menuId:''},action);};
   private reserveOutput=(mode:'pdf'|'share')=>{try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}};
   private runOutput=(mode:'pdf'|'share',action:()=>void)=>{
-    // Reserve the iPhone/WebKit user gesture before setState closes the mobile
-    // action menu. Running output only from the callback loses user activation.
     this.reserveOutput(mode);
     this.setState({menuId:''},action);
   };
   private clearFilters=()=>this.setState({tab:'all',status:'all',query:'',sort:'latest',menuId:'',filtersOpen:false});
   private clearSearch=()=>this.setState({query:'',menuId:''},()=>document.querySelector<HTMLInputElement>('.documents-search-input')?.focus());
   private setOverview=(tab:State['tab'],status:WorkspaceStatus)=>this.setState({tab,status,query:'',menuId:'',filtersOpen:false});
+  private renderMobileActionPortal=():any=>{
+    const doc=this.props.documents.find(item=>item.id===this.state.menuId);
+    if(!doc||typeof document==='undefined')return null;
+    const canOutput=doc.status==='final';
+    return ReactDOM.createPortal(
+      <div className="mobile-document-action-portal" role="presentation">
+        <button type="button" className="mobile-document-action-backdrop" aria-label={t('Close actions','إغلاق الإجراءات')} onClick={()=>this.setState({menuId:''})}/>
+        <div className="action-menu mobile-document-action-sheet" role="menu" aria-label={t('Document actions','إجراءات المستند')} onPointerDown={(event:any)=>event.stopPropagation()}>
+          <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onOpen(doc))}><Icon name={canOutput?'edit':'eye'}/>{canOutput?t('Open','فتح'):t('Review & Issue','مراجعة وإصدار')}</button>
+          <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onDuplicate(doc))}><Icon name="copy"/>{t('Duplicate','نسخ')}</button>
+          {canOutput?<><button type="button" role="menuitem" onClick={()=>this.runOutput('pdf',()=>this.props.onPrint(doc,'pdf'))}><Icon name="download"/>PDF</button><button type="button" role="menuitem" onClick={()=>this.runOutput('share',()=>this.props.onPrint(doc,'share'))}><Icon name="share"/>{t('Share','مشاركة')}</button></>:null}
+          <button type="button" role="menuitem" className="danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/>{t('Delete','حذف')}</button>
+        </div>
+      </div>,
+      document.body
+    );
+  };
   render(): any {
     const docs = this.filtered();
     const quotes=this.props.documents.filter(d=>d.kind==='proforma').length;
@@ -132,9 +145,10 @@ export class DocumentsPage extends React.Component<Props, State> {
             <span className="document-total"><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><span className={`document-status-pill status-${state}`}>{statusLabel}</span></span>
           </button>
           <div className="document-actions desktop-actions"><Button variant="ghost" onClick={()=>this.props.onOpen(doc)}>{canOutput?t('Open','فتح'):t('Review','مراجعة')}</Button><IconButton icon="copy" label={t('Duplicate','نسخ')} onClick={()=>this.props.onDuplicate(doc)}/>{canOutput?<><IconButton icon="download" label="PDF" onClick={()=>{this.reserveOutput('pdf');this.props.onPrint(doc,'pdf');}}/><IconButton icon="share" label={t('Share','مشاركة')} onClick={()=>{this.reserveOutput('share');this.props.onPrint(doc,'share');}}/></>:null}<IconButton icon="trash" label={t('Delete','حذف')} variant="danger" onClick={()=>this.props.onDelete(doc)}/></div>
-          <div className="mobile-actions"><IconButton icon="more" label={t('Actions','الإجراءات')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/>{this.state.menuId===doc.id?<div className="action-menu"><button type="button" onClick={()=>this.runAction(()=>this.props.onOpen(doc))}><Icon name={canOutput?'edit':'eye'}/>{canOutput?t('Open','فتح'):t('Review & Issue','مراجعة وإصدار')}</button><button type="button" onClick={()=>this.runAction(()=>this.props.onDuplicate(doc))}><Icon name="copy"/>{t('Duplicate','نسخ')}</button>{canOutput?<><button type="button" onClick={()=>this.runOutput('pdf',()=>this.props.onPrint(doc,'pdf'))}><Icon name="download"/>PDF</button><button type="button" onClick={()=>this.runOutput('share',()=>this.props.onPrint(doc,'share'))}><Icon name="share"/>{t('Share','مشاركة')}</button></>:null}<button type="button" className="danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/>{t('Delete','حذف')}</button></div>:null}</div>
+          <div className="mobile-actions"><IconButton icon="more" label={t('Actions','الإجراءات')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/></div>
         </article>;
       })}</div> : <div className="empty-state documents-empty"><span className="empty-mark"><Icon name="file" size={28}/></span><h2>{filteredView ? t('No matching documents','لا توجد مستندات مطابقة') : t('No documents yet','لا توجد مستندات بعد')}</h2><p>{filteredView ? t('Try another search or filter.','جرّب بحثًا أو تصفية مختلفة.') : t('Start with a quote, then convert it to an invoice when the deal is confirmed.','ابدأ بعرض سعر، ثم حوّله إلى فاتورة عند تأكيد الصفقة.')}</p>{filteredView?<div className="empty-actions"><Button icon="refresh" onClick={this.clearFilters}>{t('Clear filters','مسح التصفية')}</Button></div>:<div className="empty-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Create Quote','إنشاء عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Create Invoice','إنشاء فاتورة')}</Button></div>}</div>}
+      {this.renderMobileActionPortal()}
     </section>;
   }
 }
