@@ -1,0 +1,668 @@
+/* v140 — LOUREX document layout cleanup.
+   Final document-only guardrail layer after v130.
+   Purpose: remove legacy layout collisions, normalize spacing and table rhythm,
+   keep all 18 template identities, and make A4 output read like one coherent
+   commercial document on screen, PDF and print. */
+
+/* --------------------------------------------------------------------------
+   01. Shared document rhythm
+   -------------------------------------------------------------------------- */
+.invoice-page{
+  --v140-ink:#15232e;
+  --v140-muted:#69767f;
+  --v140-rule:#dfe4e6;
+  --v140-soft:#f7f8f7;
+  --v140-ivory:#fbfaf6;
+  --v140-gold:#b58b4f;
+}
+.invoice-page .doc-body{
+  padding:8mm 12mm 11mm!important;
+}
+.invoice-page .doc-body>*{
+  min-width:0;
+}
+.invoice-page .doc-logo{
+  width:auto!important;
+  max-width:25mm!important;
+  height:auto!important;
+  max-height:18mm!important;
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:flex-end!important;
+}
+.invoice-page .doc-logo img{
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  max-width:25mm!important;
+  max-height:18mm!important;
+  object-fit:contain!important;
+}
+.invoice-page .doc-title{
+  min-width:0;
+  margin:0!important;
+}
+.invoice-page .doc-title span{
+  text-wrap:balance;
+}
+.invoice-page .doc-meta{
+  min-width:0;
+}
+.invoice-page .doc-meta>div{
+  min-width:0;
+}
+.invoice-page .doc-meta b,
+.invoice-page .doc-meta span{
+  min-width:0;
+}
+
+/* --------------------------------------------------------------------------
+   02. Stable mastheads — stop absolute/legacy positioning from colliding
+   -------------------------------------------------------------------------- */
+.invoice-pages>.invoice-page:first-child .header-modern{
+  position:relative!important;
+  min-height:43mm!important;
+  padding:7.5mm 12mm 5.5mm!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 28mm!important;
+  grid-template-areas:"title brand" "meta meta"!important;
+  grid-template-rows:auto auto!important;
+  gap:4.5mm 8mm!important;
+  align-items:start!important;
+  overflow:hidden!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .modern-geometry{
+  position:absolute!important;
+  inset:0!important;
+  z-index:0!important;
+  opacity:.16!important;
+  pointer-events:none!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .modern-brand{
+  grid-area:brand!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  justify-self:end!important;
+  align-self:start!important;
+  z-index:2!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .modern-title{
+  grid-area:title!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  justify-self:start!important;
+  align-self:start!important;
+  width:100%!important;
+  min-width:0!important;
+  z-index:2!important;
+  text-align:start!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .modern-title>small{
+  display:block!important;
+  margin:0 0 1.6mm!important;
+  opacity:.72!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .modern-meta{
+  grid-area:meta!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  width:100%!important;
+  min-width:0!important;
+  z-index:2!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .modern-meta .doc-meta{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:0 5mm!important;
+  width:100%!important;
+  margin:0!important;
+}
+.invoice-pages>.invoice-page:first-child .header-modern .modern-meta .doc-meta>div{
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  padding:0 0 1.8mm!important;
+  border-width:0 0 1px!important;
+  border-radius:0!important;
+  background:transparent!important;
+}
+
+.invoice-pages>.invoice-page:first-child .header-executive{
+  position:relative!important;
+  min-height:43mm!important;
+  padding:7.5mm 12mm 5.5mm!important;
+  display:grid!important;
+  grid-template-columns:28mm minmax(0,1fr)!important;
+  grid-template-areas:"logo title" "meta meta"!important;
+  grid-template-rows:auto auto!important;
+  gap:4.5mm 8mm!important;
+  align-items:start!important;
+  overflow:hidden!important;
+}
+.invoice-pages>.invoice-page:first-child .header-executive>.doc-logo{
+  grid-area:logo!important;
+  justify-self:start!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+}
+.invoice-pages>.invoice-page:first-child .header-executive>.doc-title{
+  grid-area:title!important;
+  justify-self:end!important;
+  align-self:start!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  text-align:end!important;
+}
+.invoice-pages>.invoice-page:first-child .header-executive>.doc-meta{
+  grid-area:meta!important;
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:0 5mm!important;
+  width:100%!important;
+}
+.invoice-pages>.invoice-page:first-child .header-executive>.doc-meta>div{
+  padding:0 0 1.8mm!important;
+  border-width:0 0 1px!important;
+  border-radius:0!important;
+  background:transparent!important;
+}
+.invoice-pages>.invoice-page:first-child.lang-ar .header-executive>.doc-title{
+  justify-self:start!important;
+  text-align:start!important;
+}
+
+.invoice-pages>.invoice-page:first-child .header-minimal{
+  min-height:37mm!important;
+  padding:7.5mm 12mm 5.5mm!important;
+  display:grid!important;
+  grid-template-columns:28mm minmax(0,1fr)!important;
+  gap:8mm!important;
+  align-items:start!important;
+}
+.invoice-pages>.invoice-page:first-child .header-minimal>div:last-child{
+  min-width:0!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:4mm!important;
+}
+.invoice-pages>.invoice-page:first-child .header-minimal .doc-meta{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:0 5mm!important;
+}
+
+.invoice-pages>.invoice-page:first-child .header-trade{
+  min-height:42mm!important;
+  grid-template-columns:38mm minmax(0,1fr)!important;
+  overflow:hidden!important;
+}
+.invoice-pages>.invoice-page:first-child .header-trade .trade-bar{
+  padding:8mm 5.5mm!important;
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+}
+.invoice-pages>.invoice-page:first-child .header-trade .trade-title{
+  padding:7.5mm 12mm 5.5mm 8mm!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:4mm!important;
+  align-content:start!important;
+  min-width:0!important;
+}
+.invoice-pages>.invoice-page:first-child.lang-ar .header-trade .trade-title{
+  padding:7.5mm 8mm 5.5mm 12mm!important;
+}
+.invoice-pages>.invoice-page:first-child .header-trade .trade-title .doc-meta{
+  min-width:0!important;
+  width:100%!important;
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:0 4mm!important;
+}
+
+.invoice-pages>.invoice-page:first-child .header-signature{
+  min-height:40mm!important;
+  padding:7.5mm 12mm 5.5mm!important;
+  display:grid!important;
+  grid-template-columns:28mm minmax(0,1fr)!important;
+  grid-template-areas:"logo title" "meta meta"!important;
+  gap:4mm 8mm!important;
+  align-items:start!important;
+}
+.invoice-pages>.invoice-page:first-child .header-signature>.doc-logo{
+  grid-area:logo!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+}
+.invoice-pages>.invoice-page:first-child .header-signature>.signature-title{
+  grid-area:title!important;
+  min-width:0!important;
+  padding-inline-start:5mm!important;
+  border-inline-start:1px solid color-mix(in srgb,var(--accent) 58%,#d9cdbb)!important;
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+}
+.invoice-pages>.invoice-page:first-child .header-signature>.doc-meta{
+  grid-area:meta!important;
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:0 5mm!important;
+  width:100%!important;
+  margin:0!important;
+}
+
+/* --------------------------------------------------------------------------
+   03. Seller / customer — one clean grid, no decorative collisions
+   -------------------------------------------------------------------------- */
+.invoice-page .party-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:8mm!important;
+  align-items:start!important;
+  margin:0 0 7mm!important;
+}
+.invoice-page.lang-ar .party-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+}
+.invoice-page .party-block{
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  min-height:0!important;
+  padding:3mm 0 3.5mm!important;
+  border:0!important;
+  border-bottom:1px solid var(--v140-rule)!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+.invoice-page .party-customer{
+  border-bottom-color:color-mix(in srgb,var(--accent) 58%,var(--v140-rule))!important;
+  border-bottom-width:1.35px!important;
+}
+.invoice-page .party-block::before{
+  content:none!important;
+  display:none!important;
+}
+.invoice-page .party-block::after{
+  content:none!important;
+  display:none!important;
+}
+.invoice-page .section-kicker{
+  margin:0 0 1.5mm!important;
+  font-size:6.8px!important;
+  line-height:1.2!important;
+  font-weight:800!important;
+  letter-spacing:.01em!important;
+}
+.invoice-page .party-name{
+  margin:0 0 1.3mm!important;
+  font-size:12.6px!important;
+  line-height:1.32!important;
+  font-weight:780!important;
+  overflow-wrap:anywhere!important;
+}
+.invoice-page .party-customer .party-name{
+  font-size:13.6px!important;
+  font-weight:840!important;
+}
+.invoice-page .party-address,
+.invoice-page .party-contact,
+.invoice-page .party-block>div:not(.section-kicker):not(.party-name):not(.party-identifiers){
+  line-height:1.5!important;
+}
+.invoice-page .party-identifiers{
+  margin-top:1.8mm!important;
+  padding-top:1.6mm!important;
+  border-top:1px solid color-mix(in srgb,var(--v140-rule) 78%,transparent)!important;
+}
+.invoice-page .party-identifiers>div{
+  display:grid!important;
+  grid-template-columns:minmax(23mm,auto) minmax(0,1fr)!important;
+  gap:2mm!important;
+  align-items:baseline!important;
+}
+.invoice-page.lang-ar .party-identifiers>div{
+  direction:rtl!important;
+}
+
+/* --------------------------------------------------------------------------
+   04. Items table — remove black zebra collisions and restore commercial scan
+   -------------------------------------------------------------------------- */
+.invoice-page .items-wrap{
+  position:relative!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+.invoice-page .items-table{
+  width:100%!important;
+  margin:0!important;
+  border-collapse:separate!important;
+  border-spacing:0!important;
+  table-layout:auto!important;
+  background:transparent!important;
+}
+.invoice-page .items-table thead th{
+  vertical-align:middle!important;
+  padding:2.35mm 1.55mm!important;
+  border-top:0!important;
+  border-bottom:0!important;
+  line-height:1.24!important;
+  font-size:6.8px!important;
+  font-weight:820!important;
+}
+.invoice-page .items-table thead th:first-child{
+  border-start-start-radius:1.2mm!important;
+  border-end-start-radius:1.2mm!important;
+}
+.invoice-page .items-table thead th:last-child{
+  border-start-end-radius:1.2mm!important;
+  border-end-end-radius:1.2mm!important;
+}
+.invoice-page .items-table tbody tr,
+.invoice-page .items-table tbody tr:nth-child(odd){
+  background:#fff!important;
+  color:var(--v140-ink)!important;
+}
+.invoice-page .items-table tbody tr:nth-child(even){
+  background:var(--v140-soft)!important;
+  color:var(--v140-ink)!important;
+}
+.invoice-page .items-table tbody td{
+  position:relative!important;
+  padding:2.7mm 1.55mm!important;
+  border-top:0!important;
+  border-left:0!important;
+  border-right:0!important;
+  border-bottom:1px solid #e4e8e9!important;
+  background:transparent!important;
+  color:var(--v140-ink)!important;
+  vertical-align:middle!important;
+  font-size:8.05px!important;
+  line-height:1.42!important;
+  box-shadow:none!important;
+  text-shadow:none!important;
+}
+.invoice-page .items-table tbody tr:last-child td{
+  border-bottom-color:#cfd7da!important;
+}
+.invoice-page .items-table .description-cell{
+  min-width:46mm!important;
+  width:42%!important;
+  font-weight:620!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+}
+.invoice-page .items-table .col-num{
+  width:6mm!important;
+  min-width:6mm!important;
+  color:#8a959c!important;
+  text-align:center!important;
+}
+.invoice-page .items-table .money-cell,
+.invoice-page .items-table td:not(.description-cell):not(.col-num){
+  white-space:nowrap!important;
+}
+.invoice-page .items-table .money-cell{
+  font-weight:700!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.invoice-page .items-table .money-cell.strong{
+  font-weight:850!important;
+}
+
+/* --------------------------------------------------------------------------
+   05. Closing zone — stop totals from being thrown to the bottom of the A4
+   -------------------------------------------------------------------------- */
+.invoice-page:not(.details-only) .final-details{
+  margin-top:8mm!important;
+  padding-top:5mm!important;
+  border-top:1px solid color-mix(in srgb,var(--v140-rule) 92%,transparent)!important;
+}
+.invoice-page.details-only .final-details{
+  margin-top:0!important;
+  padding-top:3mm!important;
+}
+.invoice-page .lower-grid{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(58mm,64mm)!important;
+  gap:9mm!important;
+  align-items:start!important;
+  padding:0!important;
+  margin:0!important;
+}
+.invoice-page.lang-ar .lower-grid{
+  direction:rtl!important;
+}
+.invoice-page .terms-block,
+.invoice-page .totals-block{
+  min-width:0!important;
+  align-self:start!important;
+}
+.invoice-page .terms-block{
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.invoice-page .terms-block h3,
+.invoice-page .notes-block h3,
+.invoice-page .bank-block h3,
+.invoice-page .signature-block h3{
+  margin:0 0 2.2mm!important;
+  font-size:7.1px!important;
+  line-height:1.2!important;
+  font-weight:830!important;
+}
+.invoice-page .terms-grid{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:.3mm!important;
+}
+.invoice-page .term-row{
+  display:grid!important;
+  grid-template-columns:minmax(23mm,26mm) minmax(0,1fr)!important;
+  gap:2.4mm!important;
+  align-items:baseline!important;
+  padding:.65mm 0!important;
+  border:0!important;
+  background:transparent!important;
+}
+.invoice-page.lang-ar .term-row{
+  direction:rtl!important;
+}
+.invoice-page .term-row b{
+  font-size:6.5px!important;
+  line-height:1.35!important;
+  font-weight:760!important;
+  color:var(--v140-muted)!important;
+}
+.invoice-page .term-row span{
+  min-width:0!important;
+  font-size:7.45px!important;
+  line-height:1.48!important;
+  font-weight:650!important;
+  color:var(--v140-ink)!important;
+}
+.invoice-page .totals-block{
+  margin:0!important;
+  padding:0!important;
+  border:1px solid #d7dee1!important;
+  border-radius:1.8mm!important;
+  background:#fff!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+}
+.invoice-page .total-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:4mm!important;
+  align-items:center!important;
+  margin:0!important;
+  padding:1.8mm 3.2mm!important;
+  border-bottom:1px solid #e5e9ea!important;
+  background:#fff!important;
+}
+.invoice-page .total-row:last-of-type{
+  border-bottom:0!important;
+}
+.invoice-page .total-row span{
+  min-width:0!important;
+  font-size:6.9px!important;
+  line-height:1.3!important;
+  color:#66747d!important;
+}
+.invoice-page .total-row strong{
+  font-size:7.8px!important;
+  line-height:1.2!important;
+  font-weight:780!important;
+  color:var(--v140-ink)!important;
+}
+.invoice-page .grand-total{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:4mm!important;
+  align-items:center!important;
+  margin:0!important;
+  padding:3mm 3.2mm!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+.invoice-page .grand-total span{
+  min-width:0!important;
+  font-size:8px!important;
+  line-height:1.25!important;
+  font-weight:820!important;
+}
+.invoice-page .grand-total strong{
+  font-size:12px!important;
+  line-height:1.05!important;
+  font-weight:900!important;
+  letter-spacing:-.01em!important;
+  white-space:nowrap!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.invoice-page .notes-block{
+  margin-top:5mm!important;
+  padding:3.5mm 0 0!important;
+  border-top:1px solid #e2e6e8!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.invoice-page .notes-block p{
+  margin:0!important;
+  font-size:7.45px!important;
+  line-height:1.55!important;
+  color:#53626c!important;
+}
+.invoice-page .bottom-grid{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  gap:10mm!important;
+  margin-top:5mm!important;
+  padding-top:4mm!important;
+  border-top:1px solid #e2e6e8!important;
+}
+.invoice-page .bottom-grid:empty{
+  display:none!important;
+}
+.invoice-page .bank-block,
+.invoice-page .signature-block{
+  min-width:0!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.invoice-page .bank-block>div{
+  display:grid!important;
+  grid-template-columns:27mm minmax(0,1fr)!important;
+  gap:2.4mm!important;
+  margin:0!important;
+  padding:.7mm 0!important;
+}
+.invoice-page.lang-ar .bank-block>div{
+  direction:rtl!important;
+}
+.invoice-page .signature-media{
+  min-height:20mm!important;
+  height:auto!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  gap:3mm!important;
+}
+.invoice-page .signature-media img{
+  max-width:40mm!important;
+  max-height:20mm!important;
+  object-fit:contain!important;
+}
+
+/* --------------------------------------------------------------------------
+   06. Continuation sheets — compact and consistent
+   -------------------------------------------------------------------------- */
+.invoice-pages>.invoice-page:not(:first-child) :is(.header-modern,.header-executive,.header-minimal,.header-trade,.header-signature){
+  min-height:20mm!important;
+}
+.invoice-pages>.invoice-page:not(:first-child) .doc-body{
+  padding-top:6mm!important;
+}
+.invoice-pages>.invoice-page:not(:first-child) .party-grid{
+  display:none!important;
+}
+.invoice-pages>.invoice-page:not(:first-child) .items-wrap{
+  margin-top:0!important;
+}
+
+/* --------------------------------------------------------------------------
+   07. Mobile preview presentation — larger paper, calmer surrounding canvas
+   -------------------------------------------------------------------------- */
+@media(max-width:720px){
+  .app-ui .mobile-preview-stage{
+    background:#e7eaeb!important;
+    padding:18px 0 max(28px,env(safe-area-inset-bottom))!important;
+    scroll-padding-top:18px!important;
+  }
+  .app-ui .mobile-preview-stage .invoice-pages{
+    margin-inline:auto!important;
+    transform-origin:top center!important;
+  }
+  .app-ui .mobile-preview-overlay>header{
+    background:rgba(255,255,255,.98)!important;
+    border-bottom:1px solid #d5dde0!important;
+    box-shadow:0 2px 10px rgba(12,33,46,.06)!important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   08. Print/PDF invariants
+   -------------------------------------------------------------------------- */
+@media print{
+  .invoice-page:not(.details-only) .final-details{
+    margin-top:8mm!important;
+  }
+  .invoice-page :is(.party-grid,.items-wrap,.final-details,.lower-grid,.totals-block,.notes-block,.bottom-grid,.bank-block,.signature-block){
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+  .invoice-page .items-table tbody tr{
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+}
