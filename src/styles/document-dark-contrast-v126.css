@@ -1,0 +1,200 @@
+/* v126 — final dark-surface contrast contract.
+   Loaded after all document art-direction layers so generic light-document ink
+   can never make copy disappear on dark template surfaces. */
+
+/* Fully-dark luxury sheets -------------------------------------------------- */
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon){
+  --dark-ink:#f5f1e8;
+  --dark-ink-soft:#ded7ca;
+  --dark-muted:#b9ad99;
+  --dark-label:#d2b06f;
+  color:var(--dark-ink)!important;
+}
+
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .doc-body,
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .final-details{
+  color:var(--dark-ink)!important;
+}
+
+/* Header metadata is the main failure mode on dark paper. */
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .doc-meta b{
+  color:var(--dark-label)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .doc-meta span{
+  color:#fffdf8!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .doc-meta>div{
+  border-color:rgba(221,190,126,.28)!important;
+}
+
+/* Party blocks on dark paper. */
+.invoice-page:is(.template-noir,.template-midnight,.template-carbon) .section-kicker,
+.template-blackivory .party-seller .section-kicker{
+  color:var(--dark-label)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-carbon) .party-name,
+.invoice-page:is(.template-noir,.template-midnight,.template-carbon) .party-address,
+.invoice-page:is(.template-noir,.template-midnight,.template-carbon) .party-contact,
+.invoice-page:is(.template-noir,.template-midnight,.template-carbon) .party-identifiers span,
+.template-blackivory .party-seller .party-name,
+.template-blackivory .party-seller .party-address,
+.template-blackivory .party-seller .party-contact,
+.template-blackivory .party-seller .party-identifiers span{
+  color:var(--dark-ink)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-carbon) .party-identifiers b,
+.template-blackivory .party-seller .party-identifiers b{
+  color:var(--dark-muted)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-carbon) .party-identifiers,
+.template-blackivory .party-seller .party-identifiers{
+  border-color:rgba(255,255,255,.14)!important;
+}
+
+/* Item rows: body copy and numeric columns stay readable on dark rows. */
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .items-table td,
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .items-table .description-cell{
+  color:#f2ede4!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .items-table .col-num{
+  color:#c4baaa!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .items-table .money-cell{
+  color:#eee6d8!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .items-table .money-cell.strong{
+  color:#e2c17e!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .continued-label{
+  color:var(--dark-label)!important;
+}
+
+/* Closing zone: terms, notes, banking and signature labels. */
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block,.notes-block,.bank-block,.signature-block) h3{
+  color:var(--dark-label)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .term-row b,
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .bank-block b{
+  color:var(--dark-muted)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .term-row span,
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .bank-block span,
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .notes-block p,
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .signature-block p,
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .signature-block span{
+  color:var(--dark-ink-soft)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.lower-grid,.notes-block,.bottom-grid){
+  border-color:rgba(221,190,126,.25)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .doc-footer{
+  color:#bdb3a3!important;
+  border-color:rgba(221,190,126,.25)!important;
+}
+
+/* Dark totals panels. */
+.template-noir .totals-block .total-row span,
+.template-noir .totals-block .total-row strong,
+.template-midnight .totals-block .total-row span,
+.template-midnight .totals-block .total-row strong,
+.template-carbon .totals-block .total-row span,
+.template-carbon .totals-block .total-row strong{
+  color:#e4dccf!important;
+}
+.template-noir .totals-block .grand-total span,
+.template-noir .totals-block .grand-total strong,
+.template-midnight .totals-block .grand-total span,
+.template-midnight .totals-block .grand-total strong,
+.template-carbon .totals-block .grand-total span,
+.template-carbon .totals-block .grand-total strong{
+  color:#14110c!important;
+}
+
+/* BLACK IVORY intentionally has two light surfaces. Keep dark ink there. */
+.template-blackivory .party-customer,
+.template-blackivory .party-customer .party-name,
+.template-blackivory .party-customer .party-address,
+.template-blackivory .party-customer .party-contact,
+.template-blackivory .party-customer .party-identifiers span{
+  color:#191816!important;
+}
+.template-blackivory .party-customer .section-kicker,
+.template-blackivory .party-customer .party-identifiers b{
+  color:#76592c!important;
+}
+.template-blackivory .party-customer .party-identifiers{border-color:#c9beac!important}
+.template-blackivory .totals-block,
+.template-blackivory .totals-block .total-row span,
+.template-blackivory .totals-block .total-row strong{
+  color:#29251f!important;
+}
+.template-blackivory .totals-block .grand-total span,
+.template-blackivory .totals-block .grand-total strong{
+  color:#f5efe5!important;
+}
+
+/* Dark mastheads used by otherwise-light templates ------------------------ */
+.template-executive .header-executive,
+.template-obsidian .header-modern,
+.template-split .header-modern,
+.template-aurora .header-modern{
+  color:#fff!important;
+}
+.template-executive .header-executive :is(.doc-title span,.doc-title em,.doc-meta span),
+.template-obsidian .header-modern :is(.doc-title span,.doc-title em,.doc-meta span),
+.template-split .modern-title :is(.doc-title span,.doc-title em),
+.template-split .modern-meta .doc-meta span,
+.template-aurora .header-modern :is(.doc-title span,.doc-title em,.doc-meta span){
+  color:#fff!important;
+}
+.template-executive .header-executive .doc-meta b,
+.template-obsidian .header-modern .doc-meta b,
+.template-split .modern-meta .doc-meta b,
+.template-aurora .header-modern .doc-meta b{
+  color:rgba(255,255,255,.74)!important;
+}
+.template-executive .header-executive .doc-meta>div,
+.template-obsidian .header-modern .doc-meta>div,
+.template-split .modern-meta .doc-meta>div,
+.template-aurora .header-modern .doc-meta>div{
+  border-color:rgba(255,255,255,.22)!important;
+}
+
+/* Split's accent brand panel uses luminance-calculated ink, not forced white. */
+.template-split .modern-brand,
+.template-split .modern-brand .doc-logo-words,
+.template-split .modern-brand .doc-logo-words strong,
+.template-split .modern-brand .doc-logo-words small{
+  color:var(--accent-ink)!important;
+}
+
+/* Data rails that are dark only on page one. */
+.template-slate .modern-meta .doc-meta b{color:#c6d0d6!important}
+.template-slate .modern-meta .doc-meta span{color:#fff!important}
+.template-slate .modern-meta .doc-meta>div{border-color:rgba(255,255,255,.20)!important}
+
+/* On continuation pages Slate's rail becomes transparent/light. Reset it. */
+.invoice-pages>.invoice-page:not(:first-child).template-slate .modern-meta .doc-meta b{
+  color:#66747d!important;
+}
+.invoice-pages>.invoice-page:not(:first-child).template-slate .modern-meta .doc-meta span{
+  color:#13232f!important;
+}
+.invoice-pages>.invoice-page:not(:first-child).template-slate .modern-meta .doc-meta>div{
+  border-color:#dce2e5!important;
+}
+
+/* Preserve black copy on intentionally gold title rails. */
+.template-noir .modern-title,
+.template-noir .modern-title>small,
+.template-noir .modern-title .doc-title span,
+.template-noir .modern-title .doc-title em{
+  color:#12100d!important;
+}
+
+@media print{
+  .invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon){
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+}
