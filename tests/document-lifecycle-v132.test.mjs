@@ -8,7 +8,8 @@ test('v132 adds encrypted document events revisions and dedicated credit note nu
   assert.ok(types.includes('DocumentEventRecord'));
   assert.ok(types.includes('DocumentRevisionRecord'));
   assert.ok(types.includes('creditNotePrefix'));
-  assert.ok(defaults.includes('APP_SCHEMA_VERSION = 8'));
+  const schemaVersion=Number(defaults.match(/export const APP_SCHEMA_VERSION = (\d+)/)?.[1]??0);
+  assert.ok(schemaVersion>=8,'document lifecycle requires schema v8 or later');
   assert.ok(defaults.includes('documentEvents: []'));
   assert.ok(defaults.includes('documentRevisions: []'));
   assert.ok(merge.includes('documentEvents:mergeRecords'));

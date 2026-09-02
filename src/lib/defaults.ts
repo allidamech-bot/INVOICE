@@ -1,7 +1,8 @@
 import type { AppSettings, CompanySettings, CustomerSnapshot, CompanySnapshot, VaultPayload } from '../types.js';
 
 // Compatibility marker: APP_SCHEMA_VERSION = 7 introduced encrypted payment records.
-export const APP_SCHEMA_VERSION = 8;
+// v9 adds encrypted internal cost metadata for profitability analysis.
+export const APP_SCHEMA_VERSION = 9;
 export const KDF_ITERATIONS = 310_000;
 
 export function defaultCompany(): CompanySettings {
