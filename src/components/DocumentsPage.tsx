@@ -1,12 +1,14 @@
-import type { DocumentKind, LourexDocument } from '../types.js';
+import type { DocumentKind, LourexDocument, PaymentRecord } from '../types.js';
 import { calculateTotals, compareMoneyStrings, formatMoney } from '../lib/money.js';
 import { displayDate } from '../lib/id.js';
 import { hasDocumentCustomer, validateDocument } from '../lib/documents.js';
+import { invoicePaymentSummary } from '../lib/payments.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { Button, Icon, IconButton, Input, Segmented, Select } from './UI.js';
 
 interface Props {
   documents: LourexDocument[];
+  payments: PaymentRecord[];
   onNew: (kind: DocumentKind) => void;
   onOpen: (doc: LourexDocument) => void;
   onDuplicate: (doc: LourexDocument) => void;
@@ -138,11 +140,13 @@ export class DocumentsPage extends React.Component<Props, State> {
         const statusLabel = state==='draft'?t('Draft','مسودة'):state==='ready'?t('Ready','جاهز'):t('Final','نهائي');
         const missingCustomer=!hasDocumentCustomer(doc);
         const canOutput=doc.status==='final';
+        const collection=doc.kind==='invoice'&&doc.status==='final'?invoicePaymentSummary(doc,this.props.payments):null;
+        const collectionLabel=collection?.status==='paid'?t('Paid','مدفوعة'):collection?.status==='partially-paid'?t('Partially Paid','مدفوعة جزئيًا'):collection?.status==='overdue'?t('Overdue','متأخرة'):collection?t('Unpaid','غير مدفوعة'):'';
         return <article className={`document-card document-${doc.kind} premium-document-card workflow-${state} ${missingCustomer?'needs-customer':''}`} key={doc.id}>
           <button type="button" className="document-main" onClick={()=>this.props.onOpen(doc)}>
             <span className={`document-type-icon type-${doc.kind}`}><Icon name={doc.kind === 'proforma'?'proforma':'invoice'}/></span>
             <span className="document-info"><span className="document-info-top"><strong>{doc.number}</strong><span className={`document-kind-pill kind-${doc.kind}`}>{kindLabel}</span></span><b>{customer}</b><small className="document-info-meta"><span>{displayDate(doc.issueDate,getUiLanguage())}</span><i aria-hidden="true">•</i><span>{itemCountLabel(doc.items.length)}</span>{missingCustomer?<><i aria-hidden="true">•</i><em>{t('Customer required','العميل مطلوب')}</em></>:null}</small></span>
-            <span className="document-total"><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><span className={`document-status-pill status-${state}`}>{statusLabel}</span></span>
+            <span className="document-total"><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><span className={`document-status-pill status-${state}`}>{statusLabel}</span>{collection?<span className={`collection-pill collection-${collection.status}`}>{collectionLabel}</span>:null}</span>
           </button>
           <div className="document-actions desktop-actions"><Button variant="ghost" onClick={()=>this.props.onOpen(doc)}>{canOutput?t('Open','فتح'):t('Review','مراجعة')}</Button><IconButton icon="copy" label={t('Duplicate','نسخ')} onClick={()=>this.props.onDuplicate(doc)}/>{canOutput?<><IconButton icon="download" label="PDF" onClick={()=>{this.reserveOutput('pdf');this.props.onPrint(doc,'pdf');}}/><IconButton icon="share" label={t('Share','مشاركة')} onClick={()=>{this.reserveOutput('share');this.props.onPrint(doc,'share');}}/></>:null}<IconButton icon="trash" label={t('Delete','حذف')} variant="danger" onClick={()=>this.props.onDelete(doc)}/></div>
           <div className="mobile-actions"><IconButton icon="more" label={t('Actions','الإجراءات')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/></div>

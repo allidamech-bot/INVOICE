@@ -9,6 +9,7 @@ const TEMPLATE_IDS = new Set(['executive','minimal','trade','signature','obsidia
 const LATIN_FONTS = new Set(['auto','inter','source-sans','montserrat','playfair']);
 const ARABIC_FONTS = new Set(['auto','cairo','tajawal','noto-kufi','noto-naskh']);
 const AUTO_LOCK_VALUES = new Set([0,5,15,30]);
+const PAYMENT_METHODS = new Set(['cash','bank-transfer','card','cheque','other']);
 
 function stringValue(value: unknown, fallback = ''): string {
   if (typeof value === 'string') return value;
@@ -106,6 +107,13 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     category:stringValue(item?.category), tags:Array.isArray(item?.tags)?Array.from(new Set(item.tags.map((tag:unknown)=>stringValue(tag).trim()).filter(Boolean))):[], favorite:booleanValue(item?.favorite,false)
   })) : [];
 
+  migrated.payments = Array.isArray((vault as any).payments) ? (vault as any).payments.map((payment:any)=>({
+    id:stringValue(payment?.id), invoiceId:stringValue(payment?.invoiceId), invoiceNumber:stringValue(payment?.invoiceNumber), customerId:stringValue(payment?.customerId),
+    customerNameEn:stringValue(payment?.customerNameEn), customerNameAr:stringValue(payment?.customerNameAr), currency:cleanCurrency(payment?.currency,migrated.appSettings.smartDefaults.currency||'USD'),
+    amount:stringValue(payment?.amount,'0.00'), date:stringValue(payment?.date), method:PAYMENT_METHODS.has(payment?.method)?payment.method:'other',
+    reference:stringValue(payment?.reference), notes:stringValue(payment?.notes), createdAt:stringValue(payment?.createdAt,nowIso()), updatedAt:stringValue(payment?.updatedAt,payment?.createdAt?stringValue(payment.createdAt):nowIso())
+  })) : [];
+
   // Historical document snapshots must never inherit today's company details.
   // Missing legacy fields are filled only with safe blank/default snapshot values.
   const fallbackCompanySnapshot = companySnapshotFrom(defaults.company);
@@ -171,6 +179,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   };
   unique(migrated.customers.map(c => c.id), 'customer');
   unique(migrated.documents.map(d => d.id), 'document');
+  unique(migrated.payments.map(p => p.id), 'payment');
   unique(migrated.savedItems.map(i=>i.id),'saved item');
   for (const document of migrated.documents) unique(document.items.map(i => i.id), 'item');
   return migrated;
