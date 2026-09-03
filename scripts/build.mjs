@@ -1,4 +1,4 @@
-import { cp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, rm, readFile, writeFile, readdir } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 
 const EXPECTED_REPO_OWNER='allidamech-bot';
@@ -13,6 +13,32 @@ if(vercelEnvironment==='production'){
   }
 }
 
+const VENDOR_ASSETS=[
+  {name:'react.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js','https://unpkg.com/react@17.0.2/umd/react.production.min.js']},
+  {name:'react-dom.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react-dom.production.min.js','https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js']},
+  {name:'firebase-app-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js','https://unpkg.com/firebase@12.17.1/firebase-app-compat.js']},
+  {name:'firebase-auth-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-auth-compat.js','https://unpkg.com/firebase@12.17.1/firebase-auth-compat.js']},
+  {name:'firebase-firestore-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore-compat.js','https://unpkg.com/firebase@12.17.1/firebase-firestore-compat.js']},
+  {name:'html2canvas.min.js',urls:['https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js','https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js']},
+  {name:'jspdf.umd.min.js',urls:['https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js','https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js']},
+  {name:'xlsx.full.min.js',urls:['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js']}
+];
+
+async function downloadVendorAsset(asset){
+  let lastError;
+  for(const url of asset.urls){
+    try{
+      const response=await fetch(url,{redirect:'follow'});
+      if(!response.ok)throw new Error(`${response.status} ${response.statusText}`);
+      const data=Buffer.from(await response.arrayBuffer());
+      if(data.length<1000)throw new Error(`Unexpectedly small payload (${data.length} bytes)`);
+      await writeFile(`dist/vendor/${asset.name}`,data);
+      return;
+    }catch(error){lastError=error;}
+  }
+  throw new Error(`Unable to vendor ${asset.name}: ${lastError instanceof Error?lastError.message:String(lastError)}`);
+}
+
 await rm('dist',{recursive:true,force:true});
 await mkdir('dist',{recursive:true});
 
@@ -21,6 +47,8 @@ if(typecheck.status!==0) process.exit(typecheck.status ?? 1);
 
 await cp('public','dist',{recursive:true});
 await cp('src/styles','dist/styles',{recursive:true});
+await mkdir('dist/vendor',{recursive:true});
+await Promise.all(VENDOR_ASSETS.map(downloadVendorAsset));
 
 const runtimeConfig={
   environment:vercelEnvironment,
@@ -57,11 +85,40 @@ html=html.replace(localStylePattern,()=>{
 });
 html=html.replace(/<style>\s*(?:@import url\("\.\/styles\/[^\"]+\.css"\);)+\s*<\/style>/g,'');
 if([...html.matchAll(localImportPattern)].length) throw new Error('Production HTML still contains local stylesheet @import references.');
+const vendorUrlMap=new Map([
+  ['https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js','./vendor/react.production.min.js'],
+  ['https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react-dom.production.min.js','./vendor/react-dom.production.min.js'],
+  ['https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js','./vendor/firebase-app-compat.js'],
+  ['https://www.gstatic.com/firebasejs/12.17.1/firebase-auth-compat.js','./vendor/firebase-auth-compat.js'],
+  ['https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore-compat.js','./vendor/firebase-firestore-compat.js']
+]);
+for(const [remote,local] of vendorUrlMap)html=html.replaceAll(remote,local);
 await writeFile('dist/index.html',html);
+
+const iosBridgePath='dist/ios-print-bridge.js';
+let iosBridge=await readFile(iosBridgePath,'utf8');
+iosBridge=iosBridge
+  .replaceAll('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js','./vendor/html2canvas.min.js')
+  .replaceAll('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js','./vendor/jspdf.umd.min.js');
+await writeFile(iosBridgePath,iosBridge);
+
+const productImportPath='dist/src/components/ProductImportModal.js';
+let productImport=await readFile(productImportPath,'utf8');
+productImport=productImport.replaceAll('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','./vendor/xlsx.full.min.js');
+await writeFile(productImportPath,productImport);
 
 const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 sw=sw.replace(/"\.\/styles\/[^\"]+\.css"(?:,"\.\/styles\/[^\"]+\.css")*/g,'"./styles/app.bundle.css"');
+const vendorCore=VENDOR_ASSETS.map(asset=>`"./vendor/${asset.name}"`).join(',');
+sw=sw.replace('const LOCAL_CORE = [',`const LOCAL_CORE = [${vendorCore},`);
+sw=sw.replace(/const EXTERNAL_CORE = \[[^\]]*\];/,'const EXTERNAL_CORE = [];');
 await writeFile(swPath,sw);
 
-console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; ${styleNames.length} CSS layers -> 1 bundle)`);
+const outputFiles=await readdir('dist',{recursive:true});
+const sourceMaps=outputFiles.filter(file=>String(file).endsWith('.map'));
+if(sourceMaps.length)throw new Error(`Production build contains source maps: ${sourceMaps.slice(0,5).join(', ')}`);
+if([...vendorUrlMap.keys()].some(url=>html.includes(url)))throw new Error('Production HTML still references remote runtime JavaScript.');
+if(/https:\/\/cdn\.jsdelivr\.net\/npm\/(?:html2canvas|jspdf|xlsx)@/.test(iosBridge+productImport))throw new Error('Production runtime still references remote PDF/import libraries.');
+
+console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; ${styleNames.length} CSS layers -> 1 bundle; ${VENDOR_ASSETS.length} runtime libraries vendored; source maps disabled)`);

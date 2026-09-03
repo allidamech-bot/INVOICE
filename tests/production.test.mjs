@@ -5,16 +5,22 @@ import { readFile, stat } from 'node:fs/promises';
 const root = new URL('../', import.meta.url);
 const read = async path => readFile(new URL(path, root), 'utf8');
 
-test('production shell has a fragment-compatible matched React runtime, PWA and premium design layer', async () => {
+test('production shell has local matched React runtime, PWA and premium design layer', async () => {
   const html = await read('dist/index.html');
   const sw = await read('dist/sw.js');
   const bundle = await read('dist/styles/app.bundle.css');
   assert.match(html, /manifest\.webmanifest/);
-  assert.match(html, /react@17\.0\.2\/umd\/react\.production\.min\.js/);
-  assert.match(html, /react-dom@17\.0\.2\/umd\/react-dom\.production\.min\.js/);
+  assert.match(html, /\.\/vendor\/react\.production\.min\.js/);
+  assert.match(html, /\.\/vendor\/react-dom\.production\.min\.js/);
   assert.doesNotMatch(html, /react@16\.0\.0|react-dom@16\.0\.1/);
-  assert.match(sw, /react@17\.0\.2/);
-  assert.match(sw, /react-dom@17\.0\.2/);
+  assert.doesNotMatch(html, /https:\/\/(?:cdn\.jsdelivr\.net|unpkg\.com)\/[^\"]*react/);
+  assert.match(sw, /vendor\/react\.production\.min\.js/);
+  assert.match(sw, /vendor\/react-dom\.production\.min\.js/);
+  assert.ok((await stat(new URL('dist/vendor/react.production.min.js', root))).size > 5000);
+  assert.ok((await stat(new URL('dist/vendor/react-dom.production.min.js', root))).size > 5000);
+  assert.ok((await stat(new URL('dist/vendor/firebase-app-compat.js', root))).size > 5000);
+  assert.ok((await stat(new URL('dist/vendor/firebase-auth-compat.js', root))).size > 5000);
+  assert.ok((await stat(new URL('dist/vendor/firebase-firestore-compat.js', root))).size > 5000);
   assert.match(html, /src\/app\/index\.js/);
   assert.match(html, /styles\/app\.bundle\.css/);
   assert.doesNotMatch(html, /styles\/premium\.css/);
@@ -89,9 +95,9 @@ test('Firebase cloud sync stores the encrypted vault under owner-only user paths
   const cloud = await read('src/cloud/firebase.ts');
   const rules = await read('firestore.rules');
   const app = await read('src/app/App.tsx');
-  assert.match(html, /firebase-app-compat\.js/);
-  assert.match(html, /firebase-auth-compat\.js/);
-  assert.match(html, /firebase-firestore-compat\.js/);
+  assert.match(html, /vendor\/firebase-app-compat\.js/);
+  assert.match(html, /vendor\/firebase-auth-compat\.js/);
+  assert.match(html, /vendor\/firebase-firestore-compat\.js/);
   assert.match(cloud, /LOUREX_CLOUD_V1/);
   assert.match(cloud, /splitCipher/);
   assert.match(cloud, /cipherSha256/);
@@ -128,7 +134,7 @@ test('first-run onboarding requires account entry before the simplified local PI
 test('offline service worker precaches the complete application module graph and current runtime', async () => {
   const sw = await read('dist/sw.js');
   assert.match(sw, /lourex-invoice-v\d+/);
-  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/components/EditorPageCore.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/storage/vault-merge.js','src/crypto/crypto.js','styles/app.bundle.css','src/cloud/firebase.js','src/components/CloudAccountModal.js']) assert.ok(sw.includes(asset), asset);
+  for (const asset of ['src/app/index.js','src/components/EditorPage.js','src/components/EditorPageCore.js','src/templates/TemplateRenderer.js','src/storage/db.js','src/storage/vault-merge.js','src/crypto/crypto.js','styles/app.bundle.css','src/cloud/firebase.js','src/components/CloudAccountModal.js','vendor/react.production.min.js','vendor/firebase-auth-compat.js','vendor/html2canvas.min.js','vendor/jspdf.umd.min.js','vendor/xlsx.full.min.js']) assert.ok(sw.includes(asset), asset);
 });
 
 test('print stylesheet isolates A4 documents from application chrome', async () => {

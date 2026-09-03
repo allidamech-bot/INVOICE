@@ -23,13 +23,21 @@ test('recovery boundary exposes privacy-safe diagnostics without invoice payload
   assert.doesNotMatch(boundary,/customerSnapshot|companySnapshot|items|bank|iban|taxNumber/);
 });
 
-test('production config enables conservative browser hardening headers without a brittle CSP',async()=>{
+test('production config enables conservative browser hardening headers with a bounded CSP',async()=>{
   const config=await read('vercel.json');
   assert.match(config,/X-Content-Type-Options/);
   assert.match(config,/X-Frame-Options/);
   assert.match(config,/Referrer-Policy/);
   assert.match(config,/Permissions-Policy/);
-  assert.doesNotMatch(config,/Content-Security-Policy/);
+  assert.match(config,/Content-Security-Policy/);
+  assert.match(config,/default-src 'self'/);
+  assert.match(config,/script-src 'self' 'unsafe-inline'/);
+  assert.match(config,/object-src 'none'/);
+  assert.match(config,/frame-ancestors 'none'/);
+  assert.match(config,/connect-src 'self' [^\"]*googleapis\.com[^\"]*firebaseio\.com[^\"]*firebaseapp\.com/);
+  const scriptDirective=config.match(/script-src ([^;]+);/)?.[1]||'';
+  assert.ok(scriptDirective,'script-src directive missing');
+  assert.doesNotMatch(scriptDirective,/(?:cdn\.jsdelivr\.net|unpkg\.com|gstatic\.com)/);
 });
 
 test('current service worker ships the recovery and update entry modules offline',async()=>{
