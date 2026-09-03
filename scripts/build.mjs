@@ -64,8 +64,8 @@ await writeFile('dist/runtime-config.js',`window.__LOUREX_RUNTIME__=${JSON.strin
 
 let html = await readFile('index.html','utf8');
 const localStylePattern=/<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>/g;
-const localImportPattern=/@import url\("\.\/styles\/([^\"]+\.css"\);/g;
-const styleReferencePattern=/(?:<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>|@import url\("\.\/styles\/([^\"]+\.css"\);)/g;
+const localImportPattern=/@import url\("\.\/styles\/([^\"]+\.css)"\);/g;
+const styleReferencePattern=/(?:<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>|@import url\("\.\/styles\/([^\"]+\.css)"\);)/g;
 const styleNames=[...html.matchAll(styleReferencePattern)].map(match=>match[1]||match[2]);
 if(!styleNames.length) throw new Error('No local stylesheet layers found in index.html.');
 if(new Set(styleNames).size!==styleNames.length) throw new Error('Duplicate local stylesheet layer detected in index.html.');
