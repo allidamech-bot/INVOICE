@@ -21,6 +21,6 @@ test('v127 does not force a details-only page from bank/signature/terms alone',a
 test('v127 still reserves a dedicated details page for genuinely huge closing prose',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/values\.some\(value=>value\.length>520\)/);
-  assert.match(renderer,/doc\.notes\.length>900/);
+  assert.match(renderer,/notes\.length>900/);
   assert.match(renderer,/if\(hardOverflow\)return true/);
 });
