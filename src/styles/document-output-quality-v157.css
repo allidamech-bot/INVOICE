@@ -51,6 +51,97 @@
   text-transform:none!important;
 }
 
+/* v158 — one explicit language-direction contract for every template.
+   UI direction must never leak into document direction. Arabic mirrors document
+   structure once; English and bilingual retain LTR structure. Text fragments then
+   own their own bidi direction instead of inheriting a direction that can reverse
+   dates, technical identifiers, phone/email values, or bilingual labels. */
+.invoice-page.lang-ar{
+  direction:rtl!important;
+  unicode-bidi:isolate!important;
+  text-align:right!important;
+}
+.invoice-page.lang-en,
+.invoice-page.lang-bilingual{
+  direction:ltr!important;
+  unicode-bidi:isolate!important;
+}
+
+.invoice-page.lang-ar :is(
+  .header-executive,.header-minimal,.header-trade,.header-signature,.header-modern,
+  .doc-meta,.party-grid,.items-table,.lower-grid,.bottom-grid,.terms-grid,.bank-block,
+  .signature-media,.continuation-header,.doc-footer
+){direction:rtl!important}
+.invoice-page.lang-en :is(
+  .header-executive,.header-minimal,.header-trade,.header-signature,.header-modern,
+  .doc-meta,.party-grid,.items-table,.lower-grid,.bottom-grid,.terms-grid,.bank-block,
+  .signature-media,.continuation-header,.doc-footer
+),
+.invoice-page.lang-bilingual :is(
+  .header-executive,.header-minimal,.header-trade,.header-signature,.header-modern,
+  .doc-meta,.party-grid,.items-table,.lower-grid,.bottom-grid,.terms-grid,.bank-block,
+  .signature-media,.continuation-header,.doc-footer
+){direction:ltr!important}
+
+/* Arabic prose remains RTL and right aligned. plaintext lets mixed values choose
+   their first-strong direction without reversing punctuation or Latin fragments. */
+.invoice-page.lang-ar :is(
+  .doc-title,.modern-title,.party-block,.section-kicker,.party-name,.party-address,
+  .party-location,.terms-block,.bank-block,.signature-block,.notes-block,
+  .term-row>span,.notes-block p,.unit-cell,.trade-cell
+){text-align:right!important}
+.invoice-page.lang-ar :is(
+  .party-name,.party-address,.party-location,.term-row>span,.notes-block p,
+  .unit-cell,.trade-cell,.meta-issue>span,.meta-due>span
+){unicode-bidi:plaintext!important}
+.invoice-page.lang-ar :is(.meta-issue>span,.meta-due>span){
+  direction:rtl!important;
+  text-align:right!important;
+}
+
+/* Technical and numeric values always read LTR even when placed inside an RTL
+   document. They stay visually anchored to the Arabic side instead of reversing. */
+.invoice-page.lang-ar :is(
+  .money-cell,.quantity-cell,.meta-number>span,.meta-revision>span,.meta-source>span,
+  .meta-currency>span,.party-contact,.party-identifiers>div>span,
+  .bank-block>div[data-bank="iban"]>span,
+  .bank-block>div[data-bank="swift-/-bic"]>span,
+  .bank-block>div[data-bank="currency"]>span,
+  .term-row[data-term="incoterm"]>span,
+  .doc-footer>span:last-child
+){
+  direction:ltr!important;
+  unicode-bidi:isolate!important;
+}
+.invoice-page.lang-ar :is(
+  .meta-number>span,.meta-revision>span,.meta-source>span,.meta-currency>span,
+  .party-contact,.party-identifiers>div>span,
+  .bank-block>div[data-bank="iban"]>span,
+  .bank-block>div[data-bank="swift-/-bic"]>span,
+  .bank-block>div[data-bank="currency"]>span,
+  .term-row[data-term="incoterm"]>span
+){text-align:right!important}
+.invoice-page.lang-ar .items-table :is(.quantity-cell,.numeric-heading,.money-cell){text-align:left!important}
+
+/* Bilingual output is structurally LTR by design, but each language fragment is
+   isolated explicitly so the Arabic half can never render backwards. */
+.invoice-page.lang-bilingual :is(.bi-label,.bi-value){
+  direction:ltr!important;
+  unicode-bidi:isolate!important;
+}
+.invoice-page.lang-bilingual :is(.bi-label,.bi-value)>span:first-child{
+  direction:ltr!important;
+  unicode-bidi:isolate!important;
+  text-align:left!important;
+}
+.invoice-page.lang-bilingual :is(.bi-label,.bi-value)>span:last-child{
+  direction:rtl!important;
+  unicode-bidi:isolate!important;
+  text-align:right!important;
+  letter-spacing:0!important;
+  text-transform:none!important;
+}
+
 /* Signature/stamp zone: the previous 20–22 mm media size looked weak inside the
    available A4 footer space. Increase presence while keeping native aspect ratio. */
 .invoice-page .bottom-grid{
@@ -100,4 +191,6 @@
     word-break:normal!important;
     overflow-wrap:normal!important;
   }
+  .invoice-page.lang-ar{direction:rtl!important;text-align:right!important}
+  .invoice-page.lang-en,.invoice-page.lang-bilingual{direction:ltr!important}
 }
