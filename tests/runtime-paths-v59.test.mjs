@@ -36,7 +36,7 @@ test('newly issued document waits for the saved final snapshot before PDF or sha
   const editor = await read('src/components/EditorPageCore.tsx');
   const saveAt = editor.indexOf('await this.props.onSave(finalDoc,false)');
   const stateAt = editor.indexOf("await new Promise<void>(resolve=>this.setState({doc:finalDoc,saveState:'saved'},resolve))");
-  const printAt = editor.indexOf("if(mode!=='issue')this.props.onPrint(finalDoc,mode)");
+  const printAt = editor.indexOf("if(mode!=='issue')await this.props.onPrint(finalDoc,mode)");
   assert.ok(saveAt >= 0, 'final snapshot save is missing');
   assert.ok(stateAt > saveAt, 'editor state must settle after the final snapshot is saved');
   assert.ok(printAt > stateAt, 'PDF/share must start only after the saved final state is visible');

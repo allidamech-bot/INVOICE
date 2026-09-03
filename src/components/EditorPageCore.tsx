@@ -24,12 +24,13 @@ interface Props {
   document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; company:CompanySettings; savedItems:SavedItem[]; payments:PaymentRecord[]; smartDefaults:AppSettings['smartDefaults'];
   onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
   onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onUseSavedItems:(items:SavedItem[])=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
-  onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onBeginRevision:(doc:LourexDocument)=>Promise<LourexDocument>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>void;
+  onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onBeginRevision:(doc:LourexDocument)=>Promise<LourexDocument>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>Promise<void>;
 }
 interface State {
   doc:LourexDocument; errors:Record<string,string>; saving:boolean; saveState:'saved'|'saving'|'unsaved'; customerQuery:string; customerOpen:boolean;
   addCustomer:Customer|null; addCustomerError:string; mobilePreview:boolean; confirmClose:boolean; expandedItems:Record<string,boolean>;
   savedItemsOpen:boolean; suggestingItemId:string; advancedOpen:boolean; reviewMode:ReviewMode|null; issuing:boolean; unlockConfirm:boolean;
+  previewDoc:LourexDocument; desktopPreview:boolean;
 }
 
 function draftWithLatestCompany(doc:LourexDocument,company:CompanySettings):LourexDocument{
@@ -57,17 +58,25 @@ function priorHsCodes(savedItems:SavedItem[],documents:LourexDocument[]):string[
 
 export class EditorPage extends React.Component<Props,State>{
   private autosaveTimer:number|undefined;
+  private previewTimer:number|undefined;
+  private previewMedia:MediaQueryList|null=null;
   private validationAttempted=false;
 
   constructor(props:Props){
     super(props);
     const initial=draftWithLatestCompany(props.document,props.company);
-    this.state={doc:initial,errors:{},saving:false,saveState:'saved',customerQuery:(isArabic()?initial.customerSnapshot?.companyNameAr:initial.customerSnapshot?.companyNameEn)||initial.customerSnapshot?.companyNameEn||initial.customerSnapshot?.companyNameAr||'',customerOpen:false,addCustomer:null,addCustomerError:'',mobilePreview:false,confirmClose:false,expandedItems:{},savedItemsOpen:false,suggestingItemId:'',advancedOpen:false,reviewMode:null,issuing:false,unlockConfirm:false};
+    this.state={doc:initial,errors:{},saving:false,saveState:'saved',customerQuery:(isArabic()?initial.customerSnapshot?.companyNameAr:initial.customerSnapshot?.companyNameEn)||initial.customerSnapshot?.companyNameEn||initial.customerSnapshot?.companyNameAr||'',customerOpen:false,addCustomer:null,addCustomerError:'',mobilePreview:false,confirmClose:false,expandedItems:{},savedItemsOpen:false,suggestingItemId:'',advancedOpen:false,reviewMode:null,issuing:false,unlockConfirm:false,previewDoc:structuredClone(initial),desktopPreview:typeof window==='undefined'||window.matchMedia('(min-width:901px)').matches};
   }
 
-  componentDidMount():void{document.addEventListener('visibilitychange',this.handleVisibilityChange);}
+  componentDidMount():void{
+    document.addEventListener('visibilitychange',this.handleVisibilityChange);
+    this.previewMedia=window.matchMedia('(min-width:901px)');
+    this.previewMedia.addEventListener?.('change',this.handlePreviewMedia);
+  }
   componentDidUpdate(prevProps:Props):void{if(prevProps.company!==this.props.company&&this.state.doc.status==='draft')this.mutate(doc=>draftWithLatestCompany(doc,this.props.company));}
-  componentWillUnmount():void{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);document.removeEventListener('visibilitychange',this.handleVisibilityChange);}
+  componentWillUnmount():void{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);if(this.previewTimer)clearTimeout(this.previewTimer);this.previewMedia?.removeEventListener?.('change',this.handlePreviewMedia);document.removeEventListener('visibilitychange',this.handleVisibilityChange);}
+
+  private handlePreviewMedia=(event:MediaQueryListEvent)=>this.setState({desktopPreview:event.matches});
 
   private handleVisibilityChange=()=>{
     if(document.visibilityState!=='hidden'||this.state.doc.status==='final'||this.state.saveState==='saved')return;
@@ -97,10 +106,17 @@ export class EditorPage extends React.Component<Props,State>{
     if(this.state.doc.status==='final')return;
     const doc={...fn(this.state.doc),updatedAt:new Date().toISOString()};
     const errors=this.validationAttempted?validateDocument(doc):this.state.errors;
-    this.setState({doc,saveState:'unsaved',errors},()=>this.schedule());
+    this.setState({doc,saveState:'unsaved',errors},()=>{this.schedule();this.schedulePreview();});
   };
 
-  private schedule=()=>{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);this.autosaveTimer=window.setTimeout(()=>void this.save(true),500);};
+  private schedule=()=>{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);this.autosaveTimer=window.setTimeout(()=>void this.save(true),1200);};
+  private schedulePreview=()=>{
+    if(!this.state.desktopPreview)return;
+    if(this.previewTimer)window.clearTimeout(this.previewTimer);
+    // The A4 tree is deliberately one beat behind typing. This removes the
+    // multi-page renderer from the keystroke path without changing output data.
+    this.previewTimer=window.setTimeout(()=>this.setState({previewDoc:structuredClone(this.state.doc)}),180);
+  };
 
   private save=async(auto=false)=>{
     if(this.state.doc.status==='final')return;
@@ -132,7 +148,16 @@ export class EditorPage extends React.Component<Props,State>{
     catch(e){this.setState({saving:false,saveState:'unsaved',errors:{...this.state.errors,global:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')}});}
   };
 
-  private openReview=(mode:ReviewMode)=>{if(this.validateCurrent())this.setState({reviewMode:mode});};
+  private openReview=(mode:ReviewMode)=>{if(this.validateCurrent())this.setState({reviewMode:mode,mobilePreview:false});};
+  private output=async(mode:'print'|'pdf'|'share')=>{
+    if(!this.validateCurrent()||this.state.issuing)return;
+    if(this.state.doc.status!=='final'){this.setState({reviewMode:mode,mobilePreview:false});return;}
+    try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
+    this.setState({issuing:true,mobilePreview:false,errors:{}});
+    try{await this.props.onPrint(structuredClone(this.state.doc),mode);}
+    catch(e){this.setGlobalError(e instanceof Error?e.message:t('Unable to prepare document.','تعذر تجهيز المستند.'));}
+    finally{this.setState({issuing:false});}
+  };
   private issueAndContinue=async()=>{
     const mode=this.state.reviewMode;if(!mode)return;
     const alreadyFinal=this.state.doc.status==='final';
@@ -143,7 +168,7 @@ export class EditorPage extends React.Component<Props,State>{
         await this.props.onSave(finalDoc,false);
         await new Promise<void>(resolve=>this.setState({doc:finalDoc,saveState:'saved'},resolve));
       }
-      if(mode!=='issue')this.props.onPrint(finalDoc,mode);
+      if(mode!=='issue')await this.props.onPrint(finalDoc,mode);
       this.setState({reviewMode:null,issuing:false,doc:finalDoc,saveState:'saved'});
     }catch(e){this.setState({issuing:false,errors:{...this.state.errors,global:e instanceof Error?e.message:t('Unable to issue document.','تعذر إصدار المستند.')}});}
   };
@@ -211,16 +236,16 @@ export class EditorPage extends React.Component<Props,State>{
     const selectedBankId=d.bankAccountId||bankAccountIdForDetails(this.props.company,d.companySnapshot.bank)||this.props.company.defaultBankAccountId||'primary';
     const credit=customerCreditStatus(d,this.props.customers,this.props.documents,this.props.payments);
 
-    return <div className={`editor-screen workflow-${workflow} ${this.state.mobilePreview?'mobile-preview-open':''}`}>
+    return <div className={`editor-screen workflow-${workflow} ${this.state.mobilePreview?'mobile-preview-open':''}`} aria-busy={this.state.issuing}>
       <header className="editor-topbar">
         <div className="editor-top-left"><IconButton icon="arrowLeft" label={t('Back','رجوع')} onClick={()=>void this.saveAndClose()}/><div><strong>{d.number}</strong><span>{d.role==='credit-note'?t('Credit Note','إشعار دائن'):d.kind==='proforma'?t('Proforma Invoice','عرض سعر'):t('Invoice','فاتورة')}</span></div><span className={`editor-workflow-badge status-${workflow}`}>{workflow==='final'?t('Final','نهائي'):workflow==='ready'?t('Ready','جاهز'):t('Draft','مسودة')}</span></div>
         <div className="editor-grand-total-chip"><span>{t('Grand Total','الإجمالي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div>
-        <div className={`save-indicator state-${locked?'saved':this.state.saveState}`}>{locked?t('Final document locked','المستند النهائي مقفل'):this.state.saveState==='saving'?t('Saving draft…','جارٍ حفظ المسودة…'):this.state.saveState==='saved'?t('Draft auto-saved','تم حفظ المسودة تلقائيًا'):t('Unsaved changes','تغييرات غير محفوظة')}</div>
+        <div className={`save-indicator state-${locked?'saved':this.state.saveState}`} aria-live="polite">{locked?t('Final document locked','المستند النهائي مقفل'):this.state.saveState==='saving'?t('Saving locally…','جارٍ الحفظ محليًا…'):this.state.saveState==='saved'?t('Saved locally','تم الحفظ محليًا'):t('Changes not saved yet','تغييرات لم تُحفظ بعد')}</div>
         <div className="editor-actions">
           <Button icon="eye" className="mobile-preview-button" onClick={()=>this.setState({mobilePreview:true})}>{t('Preview','معاينة')}</Button>
-          <Button icon="printer" variant="ghost" onClick={()=>this.openReview('print')}>{t('Print','طباعة')}</Button>
-          <Button icon="download" onClick={()=>this.openReview('pdf')}>PDF</Button>
-          <Button icon="share" onClick={()=>this.openReview('share')}>{t('Share','مشاركة')}</Button>
+          <Button icon="printer" variant="ghost" disabled={this.state.issuing} onClick={()=>void this.output('print')}>{t('Print','طباعة')}</Button>
+          <Button icon="download" disabled={this.state.issuing} onClick={()=>void this.output('pdf')}>{this.state.issuing?t('Preparing…','جارٍ التجهيز…'):'PDF'}</Button>
+          <Button icon="share" disabled={this.state.issuing} onClick={()=>void this.output('share')}>{t('Share','مشاركة')}</Button>
           {locked?(revisionAllowed?<Button icon="edit" onClick={()=>this.setState({unlockConfirm:true})}>{t('Create Revision','إنشاء مراجعة')}</Button>:null):readiness.ready?<Button icon="check" variant="primary" onClick={()=>this.openReview('issue')}>{t('Issue','إصدار')}</Button>:<Button icon="save" variant="primary" className={`save-now-button ${validationCount?'has-validation-errors':''}`} disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save now','حفظ الآن')}</Button>}
         </div>
       </header>
@@ -248,9 +273,10 @@ export class EditorPage extends React.Component<Props,State>{
         <section className="editor-section"><div className="section-heading"><span>06</span><h2>{t('Design','التصميم')}</h2></div><TemplateThumbnails document={d} onSelect={(id:TemplateId)=>this.appearance('templateId',id)} favoriteIds={this.props.smartDefaults.favoriteTemplateIds} defaultId={defaultTemplateId} onToggleFavorite={this.toggleFavoriteTemplate}/><div className="template-preference-bar"><div><span className="template-star">★</span><span><strong>{t('Favorite templates appear first','القوالب المفضلة تظهر أولًا')}</strong><small>{t('Use the star on any template to keep your regular choices at the top.','استخدم النجمة على أي قالب لإبقاء خياراتك المعتادة في الأعلى.')}</small></span></div><Button icon={selectedIsDefault?'check':'save'} variant={selectedIsDefault?'secondary':'primary'} disabled={selectedIsDefault} onClick={()=>void this.setCurrentTemplateDefault()}>{selectedIsDefault?(d.kind==='proforma'?t('Default quote template','القالب الافتراضي لعرض السعر'):t('Default invoice template','القالب الافتراضي للفاتورة')):(d.kind==='proforma'?t('Set as quote default','تعيين كافتراضي لعرض السعر'):t('Set as invoice default','تعيين كافتراضي للفاتورة'))}</Button></div>{this.state.advancedOpen?<div className="advanced-panel design-advanced-panel"><div className="appearance-system-grid"><Field label={t('Color System','نظام الألوان')}><Select value={d.appearance.paletteMode??'auto'} onChange={(e:any)=>this.appearance('paletteMode',e.target.value)}><option value="auto">{t('Auto — matched to template','تلقائي — متناسق مع القالب')}</option><option value="custom">{t('Custom Accent','لون مخصص')}</option></Select></Field>{(d.appearance.paletteMode??'auto')==='custom'?<Field label={t('Accent','اللون المميز')}><Input type="color" value={d.appearance.accentColor||'#b58b4f'} onChange={(e:any)=>this.appearance('accentColor',e.target.value)}/></Field>:<div className="appearance-auto-note"><span><strong>{t('Auto','تلقائي')}</strong>{t('The template chooses its balanced accent and contrast automatically.','يختار القالب اللون والتباين المتوازن تلقائيًا.')}</span></div>}<Field label={t('English Font','الخط الإنجليزي')}><Select value={d.appearance.latinFont??'auto'} onChange={(e:any)=>this.appearance('latinFont',e.target.value)}>{LATIN_FONT_OPTIONS.map(option=><option value={option.value} key={option.value}>{option.label}</option>)}</Select></Field><Field label={t('Arabic Font','الخط العربي')}><Select value={d.appearance.arabicFont??'auto'} onChange={(e:any)=>this.appearance('arabicFont',e.target.value)}>{ARABIC_FONT_OPTIONS.map(option=><option value={option.value} key={option.value}>{option.label}</option>)}</Select></Field></div><div className="appearance-toggles"><Toggle checked={d.appearance.showBank} onChange={v=>this.appearance('showBank',v)} label={t('Bank Details','بيانات البنك')}/><Toggle checked={d.appearance.showSignature} onChange={v=>this.appearance('showSignature',v)} label={t('Signature','التوقيع')}/><Toggle checked={d.appearance.showStamp} onChange={v=>this.appearance('showStamp',v)} label={t('Stamp','الختم')}/></div><Button icon="refresh" onClick={()=>this.mutate(doc=>draftWithLatestCompany(doc,this.props.company))}>{t('Refresh Company Details','تحديث بيانات الشركة')}</Button></div>:null}{d.kind==='proforma'?<Button icon="invoice" variant="primary" className="convert-invoice-button" onClick={this.convert}>{t('Convert to Invoice','تحويل إلى فاتورة')}</Button>:null}</section>
       </fieldset></div></aside>
 
-      <section className="preview-pane"><div className="preview-toolbar"><span>{t('Live A4 Preview','معاينة A4 مباشرة')}</span><span className={`preview-quality-pill ${quality.some(item=>item.level==='warning')?'has-warning':'clean'}`}>{quality.length?`${quality.length} ${t('quality notes','تنبيهات جودة')}`:t('Quality check passed','فحص الجودة ناجح')}</span></div><div className="preview-stage"><TemplateRenderer document={d} scale={0.82}/></div></section></div>
-      <div className={`mobile-editor-actionbar mobile-workflow-${workflow}`}><div className="mobile-total"><span>{t('Grand Total','الإجمالي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div><div className="mobile-action-buttons">{locked?(revisionAllowed?<Button icon="edit" variant="primary" onClick={()=>this.setState({unlockConfirm:true})}>{t('Revise','مراجعة')}</Button>:null):readiness.ready?<Button icon="check" variant="primary" onClick={()=>this.openReview('issue')}>{t('Issue','إصدار')}</Button>:<Button icon="save" variant="primary" disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save','حفظ')}</Button>}<Button icon="eye" onClick={()=>this.setState({mobilePreview:true})}>{t('Preview','معاينة')}</Button><Button icon="download" onClick={()=>this.openReview('pdf')}>PDF</Button><Button icon="share" onClick={()=>this.openReview('share')}>{t('Share','مشاركة')}</Button></div></div>
-      <div className="mobile-preview-overlay"><header><strong>{t('Preview','معاينة')}</strong><div><Button icon="download" onClick={()=>this.openReview('pdf')}>PDF</Button><Button icon="share" onClick={()=>this.openReview('share')}>{t('Share','مشاركة')}</Button><IconButton icon="x" label={t('Close','إغلاق')} onClick={()=>this.setState({mobilePreview:false})}/></div></header><div className="mobile-preview-stage"><TemplateRenderer document={d} scale={0.48}/></div></div>
+      <section className="preview-pane"><div className="preview-toolbar"><span>{t('Live A4 Preview','معاينة A4 مباشرة')}</span><span className={`preview-quality-pill ${quality.some(item=>item.level==='warning')?'has-warning':'clean'}`}>{quality.length?`${quality.length} ${t('quality notes','تنبيهات جودة')}`:t('Quality check passed','فحص الجودة ناجح')}</span></div><div className="preview-stage">{this.state.desktopPreview?<TemplateRenderer document={this.state.previewDoc} scale={0.82}/>:null}</div></section></div>
+      <div className="editor-section-nav-slot" data-editor-nav-slot/>
+      <div className={`mobile-editor-actionbar mobile-workflow-${workflow}`} role="toolbar" aria-label={t('Document actions','إجراءات المستند')}><div className="mobile-total"><span>{t('Grand Total','الإجمالي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div><div className="mobile-action-buttons">{locked?(revisionAllowed?<Button icon="edit" variant="primary" onClick={()=>this.setState({unlockConfirm:true})}>{t('Revise','مراجعة')}</Button>:null):readiness.ready?<Button icon="check" variant="primary" onClick={()=>this.openReview('issue')}>{t('Issue','إصدار')}</Button>:<Button icon="save" variant="primary" disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save','حفظ')}</Button>}<Button icon="eye" disabled={this.state.issuing} onClick={()=>this.setState({mobilePreview:true})}>{t('Preview','معاينة')}</Button><Button icon="download" disabled={this.state.issuing} onClick={()=>void this.output('pdf')}>PDF</Button><Button icon="share" disabled={this.state.issuing} onClick={()=>void this.output('share')}>{t('Share','مشاركة')}</Button></div></div>
+      <div className="mobile-preview-overlay" aria-hidden={!this.state.mobilePreview}><header><strong>{t('Preview','معاينة')}</strong><div><Button icon="download" disabled={this.state.issuing} onClick={()=>void this.output('pdf')}>PDF</Button><Button icon="share" disabled={this.state.issuing} onClick={()=>void this.output('share')}>{t('Share','مشاركة')}</Button><IconButton icon="x" label={t('Close','إغلاق')} onClick={()=>this.setState({mobilePreview:false})}/></div></header><div className="mobile-preview-stage"><TemplateRenderer document={d} scale={0.48}/></div></div>
       <ConfirmDialog open={this.state.confirmClose} title={t('Discard unsaved changes?','تجاهل التغييرات غير المحفوظة؟')} message={t('Your latest changes have not been saved.','لم يتم حفظ آخر تغييراتك.')} confirmLabel={t('Discard','تجاهل')} destructive onCancel={()=>this.setState({confirmClose:false})} onConfirm={()=>this.props.onClose()}/>
       <ConfirmDialog open={this.state.unlockConfirm} title={t('Create a safe revision?','إنشاء مراجعة آمنة؟')} message={t('The current Final is saved permanently in Document History before Revision '+String(d.revision+1)+' opens. The document number stays unchanged.','سيتم حفظ النسخة النهائية الحالية بشكل دائم في سجل المستند قبل فتح المراجعة '+String(d.revision+1)+'، وسيبقى رقم المستند كما هو.')} confirmLabel={t('Create Revision','إنشاء مراجعة')} destructive={false} onCancel={()=>this.setState({unlockConfirm:false})} onConfirm={()=>void this.unlockFinal()}/>
       <Modal open={Boolean(this.state.addCustomer)} title={t('New Customer','عميل جديد')} size="lg" onClose={()=>this.setState({addCustomer:null,addCustomerError:''})} footer={<div className="modal-footer-actions"><Button onClick={()=>this.setState({addCustomer:null})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" onClick={()=>void this.addCustomer()}>{t('Save & Select','حفظ واختيار')}</Button></div>}>{this.state.addCustomer?<CustomerForm company={this.props.company} customer={this.state.addCustomer} onChange={addCustomer=>this.setState({addCustomer})}/>:null}{this.state.addCustomerError?<div className="inline-error">{this.state.addCustomerError}</div>:null}</Modal>

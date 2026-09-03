@@ -4,11 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v147 keeps all six phone workspaces in one navigation row',async()=>{
-  const [app,reportsCss]=await Promise.all([read('src/app/App.tsx'),read('src/styles/reports-v135.css')]);
+test('v152 keeps all six phone workspaces in one accessible navigation row',async()=>{
+  const [app,reportsCss,recoveryCss]=await Promise.all([read('src/app/App.tsx'),read('src/styles/reports-v135.css'),read('src/styles/ux-recovery-v152.css')]);
   for(const screen of ['documents','customers','receivables','reports','items','operations'])assert.ok(app.includes(`screen==='${screen}'`),screen);
-  assert.ok(reportsCss.includes('grid-template-columns:repeat(6,minmax(0,1fr))'));
-  assert.ok(reportsCss.includes('.app-ui .main-nav button'));
+  assert.ok(!reportsCss.includes('.app-ui .main-nav'),'report styles do not own shared navigation');
+  assert.ok(recoveryCss.includes('.app-ui .main-nav button'));
+  assert.ok(recoveryCss.includes('grid-template-columns:repeat(6,minmax(0,1fr))!important'));
+  assert.ok(recoveryCss.includes('min-width:0!important'));
 });
 
 test('v147 compacts customer and operations phone workspaces without changing printable documents',async()=>{

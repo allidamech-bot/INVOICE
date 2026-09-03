@@ -53,9 +53,9 @@ test('production shell redirects deployment URLs to the canonical Vercel project
 
 test('editor continuously autosaves incomplete drafts while explicit actions validate', async () => {
   const editor = await read('src/components/EditorPageCore.tsx');
-  assert.match(editor, /setTimeout\(\(\)=>void this\.save\(true\),500\)/);
-  assert.match(editor, /Saving draft/);
-  assert.match(editor, /Draft auto-saved/);
+  assert.match(editor, /setTimeout\(\(\)=>void this\.save\(true\),1200\)/);
+  assert.match(editor, /Saving locally/);
+  assert.match(editor, /Saved locally/);
   assert.match(editor, /validateCurrent/);
   assert.match(editor, /editor-validation-summary/);
   assert.match(editor, /has-validation-errors/);

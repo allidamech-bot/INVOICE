@@ -2,6 +2,7 @@ import { currentCloudUser, getCloudVaultMeta } from './firebase.js';
 import { getCloudAccount, getEncryptedVault } from '../storage/db.js';
 
 let timer:number|undefined;
+let pending:number|undefined;
 let running=false;
 let stopped=false;
 
@@ -44,7 +45,8 @@ async function checkCloudFreshness():Promise<void>{
 }
 
 function schedule(delay=250):void{
-  window.setTimeout(()=>void checkCloudFreshness(),delay);
+  if(pending)window.clearTimeout(pending);
+  pending=window.setTimeout(()=>{pending=undefined;void checkCloudFreshness();},delay);
 }
 
 export function startCloudFreshnessWatcher():()=>void{
@@ -57,7 +59,9 @@ export function startCloudFreshnessWatcher():()=>void{
   window.addEventListener('online',onOnline);
   window.addEventListener('pageshow',onPageshow);
   document.addEventListener('visibilitychange',onVisibility);
-  timer=window.setInterval(()=>void checkCloudFreshness(),20_000);
+  // Focus/pageshow/online already provide fast freshness checks. A one-minute
+  // safety poll avoids repeated Firestore reads while the user is idle.
+  timer=window.setInterval(()=>void checkCloudFreshness(),60_000);
   schedule(1200);
   return ()=>{
     stopped=true;
@@ -65,6 +69,8 @@ export function startCloudFreshnessWatcher():()=>void{
     window.removeEventListener('online',onOnline);
     window.removeEventListener('pageshow',onPageshow);
     document.removeEventListener('visibilitychange',onVisibility);
+    if(pending)window.clearTimeout(pending);
+    pending=undefined;
     if(timer)window.clearInterval(timer);
     timer=undefined;
   };

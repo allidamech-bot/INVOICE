@@ -10,7 +10,7 @@ interface Props {
   document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; company:CompanySettings; savedItems:SavedItem[]; payments:PaymentRecord[]; documentEvents:DocumentEventRecord[]; documentRevisions:DocumentRevisionRecord[]; smartDefaults:AppSettings['smartDefaults'];
   onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
   onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onUseSavedItems:(items:SavedItem[])=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
-  onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onSavePayment:(payment:PaymentRecord)=>Promise<void>; onDeletePayment:(payment:PaymentRecord)=>Promise<void>; onBeginRevision:(doc:LourexDocument)=>Promise<LourexDocument>; onDiscardRevision:(doc:LourexDocument)=>Promise<void>; onVoidDocument:(doc:LourexDocument,reason:string)=>Promise<void>; onCreateCreditNote:(doc:LourexDocument)=>Promise<void>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>void;
+  onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onSavePayment:(payment:PaymentRecord)=>Promise<void>; onDeletePayment:(payment:PaymentRecord)=>Promise<void>; onBeginRevision:(doc:LourexDocument)=>Promise<LourexDocument>; onDiscardRevision:(doc:LourexDocument)=>Promise<void>; onVoidDocument:(doc:LourexDocument,reason:string)=>Promise<void>; onCreateCreditNote:(doc:LourexDocument)=>Promise<void>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>Promise<void>;
 }
 
 interface EditorSectionNavItem {
@@ -157,7 +157,9 @@ export class EditorPage extends React.Component<Props,State>{
     const form=document.querySelector('.editor-pane .editor-form-lock');
     if(form){
       this.navMutationObserver=new MutationObserver(()=>this.syncSectionMeta());
-      this.navMutationObserver.observe(form,{attributes:true,childList:true,characterData:true,subtree:true,attributeFilter:['class']});
+      // Validation state is reflected on section class names. Watching text and
+      // child mutations made every controlled input update rescan the full form.
+      this.navMutationObserver.observe(form,{attributes:true,subtree:true,attributeFilter:['class']});
     }
     this.syncActiveSection();
   };
@@ -213,23 +215,25 @@ export class EditorPage extends React.Component<Props,State>{
     const props=this.props;
     const canConvertFinalQuote=props.document.kind==='proforma'&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
     const sections=this.state.sections;
+    const navSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-nav-slot]');
+    const sectionNavigator=sections.length?<nav className={`editor-section-navigator ${canConvertFinalQuote?'has-final-quote-action':''}`} aria-label={t('Invoice editing steps','مراحل تحرير الفاتورة')}>
+      {sections.map(section=>{
+        const active=section.id===this.state.activeSectionId;
+        const attention=section.hasError?t(' — needs attention',' — يحتاج مراجعة'):'';
+        return <button type="button" key={section.id} className={`editor-section-nav-button ${active?'active':''} ${section.hasError?'has-error':''}`} aria-current={active?'step':undefined} aria-label={`${section.number} ${section.label}${attention}`} onClick={()=>this.scrollToSection(section.id)}>
+          <span className="editor-nav-number">{section.number}</span>
+          <span className="editor-nav-label">{section.label}</span>
+          {section.hasError?<span className="editor-nav-error-dot" aria-hidden="true">!</span>:null}
+        </button>;
+      })}
+      <span className="editor-nav-live-status" aria-live="polite">{sections.find(section=>section.id===this.state.activeSectionId)?.label||''}</span>
+    </nav>:null;
     return <>
       <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry}/>
       <DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={props.onDiscardRevision} onVoid={props.onVoidDocument} onCreateCreditNote={props.onCreateCreditNote}/>
       <InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>
       <ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>
-      {sections.length?<nav className={`editor-section-navigator ${canConvertFinalQuote?'has-final-quote-action':''}`} aria-label={t('Invoice editing steps','مراحل تحرير الفاتورة')}>
-        {sections.map(section=>{
-          const active=section.id===this.state.activeSectionId;
-          const attention=section.hasError?t(' — needs attention',' — يحتاج مراجعة'):'';
-          return <button type="button" key={section.id} className={`editor-section-nav-button ${active?'active':''} ${section.hasError?'has-error':''}`} aria-current={active?'step':undefined} aria-label={`${section.number} ${section.label}${attention}`} onClick={()=>this.scrollToSection(section.id)}>
-            <span className="editor-nav-number">{section.number}</span>
-            <span className="editor-nav-label">{section.label}</span>
-            {section.hasError?<span className="editor-nav-error-dot" aria-hidden="true">!</span>:null}
-          </button>;
-        })}
-        <span className="editor-nav-live-status" aria-live="polite">{sections.find(section=>section.id===this.state.activeSectionId)?.label||''}</span>
-      </nav>:null}
+      {sectionNavigator&&navSlot?ReactDOM.createPortal(sectionNavigator,navSlot):null}
       {canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
         <div><Icon name="invoice" size={18}/><span><strong>{t('Deal confirmed? Create the invoice.','تم تأكيد الصفقة؟ أنشئ الفاتورة.')}</strong><small>{t('The quote stays Final and unchanged. A new invoice is created with its own number.','يبقى عرض السعر نهائيًا دون تغيير، ويتم إنشاء فاتورة جديدة برقم مستقل.')}</small></span></div>
         <Button icon="invoice" variant="primary" onClick={()=>void props.onConvert(props.document)}>{t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>

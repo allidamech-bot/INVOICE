@@ -1,0 +1,332 @@
+/* v152 — full application UX recovery.
+   This is the final application-chrome layer. It intentionally never targets
+   .invoice-page, printable document internals, or template geometry. */
+
+.app-ui{
+  --ux-app:#f3f0e9;
+  --ux-section:#faf8f3;
+  --ux-card:#fff;
+  --ux-input:#fff;
+  --ux-selected:#edf3f6;
+  --ux-navy:#0b273b;
+  --ux-navy-soft:#27495d;
+  --ux-ink:#182730;
+  --ux-body:#3f505b;
+  --ux-muted:#6f7c84;
+  --ux-faint:#929ba1;
+  --ux-line:#e0ddd6;
+  --ux-line-strong:#cfc9bd;
+  --ux-gold:#ae8243;
+  --ux-shadow:0 8px 26px rgba(9,31,45,.065);
+  color:var(--ux-ink);
+  background:var(--ux-app);
+}
+
+.app-ui .main-content{background:var(--ux-app)}
+.app-ui .page-heading h1,
+.app-ui .receivables-heading h1,
+.app-ui .reports-heading h1,
+.app-ui .operations-hero h1{color:var(--ux-navy)}
+.app-ui :is(.page-subtitle,.receivables-heading p,.reports-heading p,.operations-hero p){color:var(--ux-muted)}
+.app-ui .eyebrow{color:var(--ux-gold)}
+
+.app-ui .app-header{
+  background:rgba(248,246,240,.985);
+  border-bottom-color:rgba(11,39,59,.10);
+  box-shadow:0 3px 14px rgba(9,31,45,.045);
+}
+.app-ui .main-nav button{color:#61717b}
+.app-ui .main-nav button.active{color:var(--ux-navy)}
+.app-ui .main-nav button.active::after{background:var(--ux-gold)}
+.app-ui .cloud-header-button.cloud-queued{border-color:#cbb788;background:#fffaf0;color:#6c5127}
+.app-ui .cloud-header-button.cloud-syncing{border-color:#9bb8c7;background:#eef5f8;color:#19445d}
+.app-ui .cloud-header-button.cloud-synced{border-color:#b8d2c5;background:#eff7f2;color:#245b46}
+.app-ui .cloud-header-button.cloud-offline{border-color:#d4c9b8;background:#f5f1ea;color:#6e6456}
+.app-ui .cloud-header-button.cloud-error{border-color:#dfb9b2;background:#fff2ef;color:#8e3931}
+
+.app-ui .btn{
+  min-height:42px;
+  border-color:var(--ux-line-strong);
+  color:var(--ux-navy-soft);
+  background:var(--ux-card);
+}
+.app-ui .btn-primary{border-color:var(--ux-navy);background:var(--ux-navy);color:#fff}
+.app-ui .icon-btn{min-width:40px;min-height:40px;color:#52636d}
+.app-ui :is(.input,select.input,.textarea){border-color:#d3d0c9;background:var(--ux-input);color:var(--ux-ink)}
+.app-ui :is(.input,select.input,.textarea)::placeholder{color:var(--ux-faint)}
+.app-ui .field-label{color:#4e606c}
+
+/* One surface hierarchy: grouped sections use tone; rows use rhythm and
+   dividers. Borders no longer compete around every nested element. */
+.app-ui :is(.list-toolbar,.premium-documents-toolbar,.receivables-toolbar,.reports-filter-panel,.operations-toolbar,.product-library-commandbar){
+  border-color:var(--ux-line);
+  background:var(--ux-section);
+  box-shadow:none;
+}
+.app-ui :is(.premium-document-card,.customer-card,.report-currency-card,.reports-panel,.receivables-card,.operations-card,.product-library-body,.workspace-card){
+  border-color:var(--ux-line);
+  background:var(--ux-card);
+  box-shadow:var(--ux-shadow);
+}
+.app-ui :is(.premium-document-card,.customer-card,.report-currency-card,.reports-panel,.receivables-card,.operations-card)+:is(.premium-document-card,.customer-card,.report-currency-card,.reports-panel,.receivables-card,.operations-card){margin-top:2px}
+.app-ui :is(.document-info,.customer-info,.product-library-row-main)>strong,
+.app-ui .product-library-row-title strong{color:var(--ux-navy)}
+.app-ui :is(.document-info-meta,.customer-info small,.product-library-row-main>span,.product-library-row-main>small){color:var(--ux-muted)}
+
+.app-ui .empty-state,
+.app-ui .reports-empty,
+.app-ui .product-library-empty,
+.app-ui .operations-empty{
+  min-height:154px;
+  padding:22px 18px;
+  border-color:var(--ux-line-strong);
+  background:rgba(255,255,255,.52);
+  box-shadow:none;
+}
+.app-ui .empty-state h2{margin:10px 0 2px;font-size:19px}
+.app-ui .empty-state p{margin:3px 0 12px;color:var(--ux-muted)}
+
+/* Product catalog: clear rows, dominant identity, quiet metadata. */
+.app-ui .product-library-list{padding-block:4px}
+.app-ui .product-library-row{
+  margin:0 6px;
+  border:0;
+  border-bottom:1px solid #e7e4de;
+  border-radius:0;
+  background:#fff;
+}
+.app-ui .product-library-row:nth-child(even){background:#faf9f6}
+.app-ui .product-library-row:last-child{border-bottom:0}
+.app-ui .product-library-row.active{background:var(--ux-selected);box-shadow:inset 3px 0 0 #5c8194}
+[dir="rtl"] .app-ui .product-library-row.active{box-shadow:inset -3px 0 0 #5c8194}
+.app-ui .product-library-row-title strong{font-weight:780}
+.app-ui .product-library-row-title code{color:#56636b;background:#f0eee9}
+.app-ui .product-library-row-chips em{color:#64737c;background:#edf1f2}
+.app-ui .product-library-star{color:#a0a5a7}
+.app-ui .product-library-star.on{color:#a87832}
+
+/* Reports: filters are controls, result cards are information. */
+.app-ui .reports-filter-panel{border-radius:14px}
+.app-ui .reports-presets button{border-color:#d8d4cc;background:#fff;color:var(--ux-body)}
+.app-ui .reports-presets button:focus-visible{outline:3px solid rgba(174,130,67,.18);outline-offset:1px}
+.app-ui .report-primary-metrics>div{border:0;background:#f3f5f5}
+.app-ui .report-primary-metrics>div:first-child{background:#edf3f6}
+.app-ui .report-secondary-metrics>span{background:#f8f6f1}
+.app-ui .reports-table-wrap{border-top-color:var(--ux-line);overscroll-behavior-inline:contain}
+.app-ui .reports-table th{background:#f1f4f5;color:#536570}
+.app-ui .reports-table td{color:var(--ux-body)}
+.app-ui .reports-date-control{position:relative;display:block}
+.app-ui .reports-date-value{display:none}
+
+/* Editor: softer sections, stronger titles, less nested-card density. */
+.app-ui .editor-screen{background:#ece9e2}
+.app-ui .editor-pane{background:#f6f3ed}
+.app-ui .editor-section{
+  border-color:#e1ded7;
+  background:#fff;
+  box-shadow:0 3px 12px rgba(9,31,45,.035);
+}
+.app-ui .section-heading>span:first-child{background:#f1eadf;color:#8b6732}
+.app-ui .section-heading h2{color:var(--ux-navy);font-weight:790}
+.app-ui .item-card{border-color:#dedbd4;background:#fff}
+.app-ui .item-card header{background:#f2f4f4}
+.app-ui .item-pricing-grid,
+.app-ui .item-advanced-fields,
+.app-ui .advanced-panel{background:#f7f5f0;border-color:#e5e0d7}
+.app-ui .adjustment-row{border:0;border-bottom:1px solid #e6e2db;border-radius:0;background:transparent}
+.app-ui .adjustment-row:last-child{border-bottom:0}
+.app-ui .editor-totals{border:0;background:#edf2f4}
+.app-ui .editor-totals .grand{border:0;background:var(--ux-navy);color:#fff}
+.app-ui .editor-totals .grand :is(span,strong){color:#fff}
+.app-ui .template-card{border-color:#d9d5ce;background:#fff}
+.app-ui .template-card.selected{border-color:#a9854f;background:#fffaf1;box-shadow:0 0 0 2px rgba(174,130,67,.14)}
+.app-ui .document-readiness{border-color:#d8dedf;background:#f4f7f7}
+.app-ui .document-readiness.is-ready{background:#eff6f2}
+.app-ui .save-indicator.state-saved{color:#2d674f}
+.app-ui .save-indicator.state-saving{color:#6c532d}
+.app-ui .save-indicator.state-unsaved{color:#8a4a40}
+.app-ui .editor-section-nav-slot{display:contents}
+
+/* Accessible touch size without turning compact screens into giant controls. */
+@media(pointer:coarse){
+  .app-ui :is(.btn,.icon-btn,.main-nav button,.segmented button,.reports-presets button){min-height:42px}
+  .app-ui :is(.input,select.input){min-height:42px}
+}
+
+@media(max-width:720px){
+  html,body,#root,.app-root,.app-ui{overflow-x:clip}
+  .app-ui .app-header{
+    padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) 7px max(8px,env(safe-area-inset-left))!important;
+    gap:6px 8px!important;
+  }
+  .app-ui .main-nav{
+    display:grid!important;
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    width:100%!important;
+    height:46px!important;
+    gap:3px!important;
+    padding:4px!important;
+    overflow-x:visible!important;
+    overflow-y:hidden!important;
+    overscroll-behavior-inline:contain;
+    background:#e8edef!important;
+    border-color:#d5dfe3!important;
+  }
+  .app-ui .main-nav::-webkit-scrollbar{display:none}
+  .app-ui .main-nav button{
+    min-width:0!important;
+    width:auto!important;
+    height:38px!important;
+    padding:0 7px!important;
+    gap:4px!important;
+    font-size:9.5px!important;
+  }
+  .app-ui .main-nav button .icon{width:14px!important;height:14px!important}
+  .app-ui .main-content{padding:16px 12px calc(32px + env(safe-area-inset-bottom))!important}
+  .app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero){gap:9px!important;margin-bottom:12px!important}
+  .app-ui :is(.page-heading h1,.receivables-heading h1,.reports-heading h1,.operations-hero h1){font-size:25px!important}
+  .app-ui :is(.page-subtitle,.receivables-heading p,.reports-heading p,.operations-hero p){font-size:12px!important;line-height:1.48!important}
+
+  /* Structural bottom layout: both controls participate in the editor flex
+     flow. The scrolling form owns the remaining height, so nothing sits under
+     a floating layer at 320–430px or when the iOS keyboard changes the viewport. */
+  .app-ui .editor-screen{
+    height:calc(100dvh - var(--header))!important;
+    min-height:0!important;
+    padding-bottom:0!important;
+    overflow:hidden!important;
+  }
+  .app-ui .editor-layout{flex:1 1 auto!important;min-height:0!important}
+  .app-ui .editor-pane,.app-ui .editor-scroll{min-height:0!important}
+  .app-ui .editor-pane .editor-scroll{
+    height:100%!important;
+    padding:8px 8px 28px!important;
+    scroll-padding-top:60px!important;
+    scroll-padding-bottom:20px!important;
+    overscroll-behavior-y:contain;
+  }
+  .app-ui .editor-section-nav-slot{display:block;flex:0 0 auto;order:8;background:#f7f5f0}
+  .app-ui .editor-section-navigator{
+    position:relative!important;
+    inset:auto!important;
+    width:100%!important;
+    max-width:none!important;
+    min-height:48px!important;
+    gap:4px!important;
+    padding:5px max(7px,env(safe-area-inset-right))!important;
+    border:0!important;
+    border-top:1px solid #d8d4cc!important;
+    border-radius:0!important;
+    background:#f7f5f0!important;
+    box-shadow:none!important;
+    overflow-x:auto!important;
+    scrollbar-width:none;
+  }
+  .app-ui .editor-section-navigator::-webkit-scrollbar{display:none}
+  .app-ui .editor-section-nav-button{
+    flex:1 0 38px!important;
+    min-width:38px!important;
+    max-width:106px!important;
+    min-height:38px!important;
+    padding:4px!important;
+    border:0!important;
+    background:transparent!important;
+  }
+  .app-ui .editor-section-nav-button.active{flex:1.8 0 78px!important;background:#e7f0f4!important}
+  .app-ui .editor-nav-number{height:24px!important;min-width:24px!important;border-color:#d5e0e4!important}
+  .app-ui .mobile-editor-actionbar{
+    position:relative!important;
+    inset:auto!important;
+    order:9;
+    flex:0 0 auto;
+    width:100%!important;
+    min-height:56px!important;
+    margin:0!important;
+    padding:6px max(7px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left))!important;
+    border:0!important;
+    border-top:1px solid #d5d1c8!important;
+    border-radius:0!important;
+    background:#fff!important;
+    box-shadow:0 -6px 18px rgba(9,31,45,.07)!important;
+  }
+  .app-ui .mobile-action-buttons{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important}
+  .app-ui .mobile-action-buttons .btn{width:100%!important;min-width:0!important;min-height:42px!important;height:42px!important;padding:4px!important;border-radius:9px!important}
+  .app-ui .mobile-action-buttons .btn span{display:block!important;overflow:hidden;font-size:10px!important;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .mobile-total{display:none!important}
+  .app-ui .mobile-preview-overlay>header{position:sticky;top:0;z-index:2;flex:0 0 auto;padding:max(6px,env(safe-area-inset-top)) 8px 6px!important}
+  .app-ui .mobile-preview-stage{min-height:0;flex:1 1 auto;padding-bottom:calc(24px + env(safe-area-inset-bottom))!important}
+
+  .app-ui .editor-section{padding:11px!important;margin-bottom:8px!important;border-radius:12px!important}
+  .app-ui .section-heading{margin-bottom:10px!important}
+  .app-ui .section-heading h2{font-size:13.5px!important}
+  .app-ui .editor-section :is(.input,select.input,textarea.input){font-size:16px!important}
+
+  .app-ui .empty-state,
+  .app-ui .reports-empty,
+  .app-ui .product-library-empty,
+  .app-ui .operations-empty{min-height:136px!important;padding:18px 14px!important}
+
+  .app-ui .product-library-row{margin-inline:3px!important}
+  .app-ui .product-library-row-main{min-height:64px!important;padding-block:8px!important}
+  .app-ui .product-library-row-title strong{font-size:12px!important}
+  .app-ui .product-library-row-main>span{font-size:10px!important;color:#61717b!important}
+  .app-ui .product-library-row-main>small{font-size:9.5px!important;color:#7b858b!important}
+
+  .app-ui .reports-date-control{
+    min-height:42px;
+    display:flex;
+    align-items:center;
+    padding:0 36px 0 11px;
+    border:1px solid #d3d0c9;
+    border-radius:10px;
+    background:#fff;
+    color:var(--ux-ink);
+  }
+  [dir="rtl"] .app-ui .reports-date-control{padding:0 11px 0 36px}
+  .app-ui .reports-date-control::after{content:"▾";position:absolute;inset-inline-end:12px;color:#69777f;font-size:12px;pointer-events:none}
+  .app-ui .reports-date-value{display:block;font-size:16px;font-weight:650;line-height:1;white-space:nowrap}
+  .app-ui .reports-date-control input[type="date"]{
+    position:absolute!important;
+    inset:0!important;
+    z-index:1;
+    width:100%!important;
+    height:100%!important;
+    min-height:42px!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    opacity:.001;
+    cursor:pointer;
+  }
+  .app-ui .reports-table-wrap{overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+  .app-ui .reports-table{min-width:700px!important}
+  .app-ui .customer-performance-table{min-width:980px!important}
+
+  .app-ui .modal-backdrop{padding:8px max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))!important}
+  .app-ui .modal{max-height:calc(100dvh - max(16px,env(safe-area-inset-top) + env(safe-area-inset-bottom)))!important}
+  .app-ui .modal-footer{padding-bottom:max(10px,env(safe-area-inset-bottom))!important}
+}
+
+@media(max-width:360px){
+  .app-ui .main-nav button{font-size:8.5px!important;padding-inline:2px!important}
+  .app-ui .mobile-action-buttons{gap:3px!important}
+  .app-ui .mobile-action-buttons .btn span{font-size:9px!important}
+}
+
+@media(min-width:721px) and (max-width:900px){
+  .app-ui .editor-screen{height:calc(100dvh - var(--header));overflow:hidden}
+  .app-ui .editor-section-nav-slot{display:block;flex:0 0 auto}
+  .app-ui .editor-section-navigator{position:relative!important;inset:auto!important;width:100%!important;max-width:none!important;border-radius:0!important}
+  .app-ui .mobile-editor-actionbar{position:relative!important;inset:auto!important;width:100%!important;margin:0!important;border-radius:0!important}
+  .app-ui .editor-pane .editor-scroll{padding-bottom:32px!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .app-ui *{scroll-behavior:auto!important}
+}
+
+@media print{
+  .app-ui .editor-section-nav-slot,
+  .app-ui .editor-section-navigator,
+  .app-ui .mobile-editor-actionbar{display:none!important}
+}
