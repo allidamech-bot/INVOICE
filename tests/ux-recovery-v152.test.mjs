@@ -12,7 +12,8 @@ test('v152 keeps application and printable cascade boundaries explicit',async()=
   ]);
   assert.ok(html.indexOf('ux-recovery-v152.css')<html.indexOf('document-premium-redesign-v141.css'));
   assert.ok(sw.includes('./styles/ux-recovery-v152.css'));
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v152';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v153';$/m);
+  assert.ok(sw.includes("const CACHE = 'lourex-invoice-v152'"));
   assert.doesNotMatch(css,/\n\.invoice-page/);
   assert.ok(!reports.includes('.app-ui .main-nav'));
 });

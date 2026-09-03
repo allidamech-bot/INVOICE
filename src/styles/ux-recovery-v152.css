@@ -3,26 +3,33 @@
    .invoice-page, printable document internals, or template geometry. */
 
 .app-ui{
-  --ux-app:#f3f0e9;
-  --ux-section:#faf8f3;
-  --ux-card:#fff;
-  --ux-input:#fff;
-  --ux-selected:#edf3f6;
-  --ux-navy:#0b273b;
-  --ux-navy-soft:#27495d;
-  --ux-ink:#182730;
-  --ux-body:#3f505b;
-  --ux-muted:#6f7c84;
-  --ux-faint:#929ba1;
-  --ux-line:#e0ddd6;
-  --ux-line-strong:#cfc9bd;
-  --ux-gold:#ae8243;
-  --ux-shadow:0 8px 26px rgba(9,31,45,.065);
+  --ux-app:#e9edf0;
+  --ux-section:#f3eee4;
+  --ux-card:#fffdf8;
+  --ux-input:#f8faf9;
+  --ux-selected:#dce9ee;
+  --ux-navy:#092638;
+  --ux-navy-deep:#061b29;
+  --ux-navy-soft:#31576b;
+  --ux-blue-wash:#e4edf1;
+  --ux-ivory:#f4eee2;
+  --ux-champagne:#d1b27a;
+  --ux-ink:#172833;
+  --ux-body:#435965;
+  --ux-muted:#6a7b84;
+  --ux-faint:#8d999f;
+  --ux-line:#d5d9d8;
+  --ux-line-strong:#bdc8cb;
+  --ux-gold:#b48a48;
+  --ux-shadow:0 12px 30px rgba(5,27,41,.09);
+  --ux-shadow-strong:0 20px 50px rgba(5,27,41,.15);
   color:var(--ux-ink);
-  background:var(--ux-app);
+  background:
+    radial-gradient(circle at 8% 0,rgba(255,253,248,.92),transparent 34rem),
+    linear-gradient(135deg,#edf0f1 0%,#e7ecee 48%,#eee9df 100%);
 }
 
-.app-ui .main-content{background:var(--ux-app)}
+.app-ui .main-content{background:transparent}
 .app-ui .page-heading h1,
 .app-ui .receivables-heading h1,
 .app-ui .reports-heading h1,
@@ -31,13 +38,22 @@
 .app-ui .eyebrow{color:var(--ux-gold)}
 
 .app-ui .app-header{
-  background:rgba(248,246,240,.985);
-  border-bottom-color:rgba(11,39,59,.10);
-  box-shadow:0 3px 14px rgba(9,31,45,.045);
+  background:linear-gradient(118deg,var(--ux-navy-deep),#0b3045 62%,#123c50);
+  border-bottom-color:rgba(209,178,122,.28);
+  box-shadow:0 10px 32px rgba(4,20,31,.2);
 }
-.app-ui .main-nav button{color:#61717b}
-.app-ui .main-nav button.active{color:var(--ux-navy)}
+.app-ui .header-brand:not(:disabled):hover{background:rgba(255,255,255,.08)}
+.app-ui .brand-words strong{color:#fff}
+.app-ui .brand-words small{color:#b8c7ce}
+.app-ui .main-nav{background:rgba(255,255,255,.075);border-color:rgba(255,255,255,.1)}
+.app-ui .main-nav button{color:#b9c8ce}
+.app-ui .main-nav button:hover{color:#fff;background:rgba(255,255,255,.07)}
+.app-ui .main-nav button.active{color:var(--ux-navy-deep);background:#f7f1e6;box-shadow:0 7px 18px rgba(0,0,0,.18)}
 .app-ui .main-nav button.active::after{background:var(--ux-gold)}
+.app-ui .header-actions>.btn:not(.cloud-header-button),
+.app-ui .header-actions>.icon-btn,
+.app-ui .header-actions .new-doc-menu>.btn{border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.09);color:#f7fafb;box-shadow:none}
+.app-ui .header-actions .new-doc-menu>.btn-primary{border-color:var(--ux-champagne);background:linear-gradient(180deg,#dcc493,#c9a765);color:#132c3a;box-shadow:0 8px 22px rgba(0,0,0,.2)}
 .app-ui .cloud-header-button.cloud-queued{border-color:#cbb788;background:#fffaf0;color:#6c5127}
 .app-ui .cloud-header-button.cloud-syncing{border-color:#9bb8c7;background:#eef5f8;color:#19445d}
 .app-ui .cloud-header-button.cloud-synced{border-color:#b8d2c5;background:#eff7f2;color:#245b46}
@@ -52,22 +68,24 @@
 }
 .app-ui .btn-primary{border-color:var(--ux-navy);background:var(--ux-navy);color:#fff}
 .app-ui .icon-btn{min-width:40px;min-height:40px;color:#52636d}
-.app-ui :is(.input,select.input,.textarea){border-color:#d3d0c9;background:var(--ux-input);color:var(--ux-ink)}
+.app-ui :is(.input,select.input,.textarea){border-color:#c8d1d3;background:var(--ux-input);color:var(--ux-ink);box-shadow:inset 0 1px 2px rgba(6,27,41,.035)}
+.app-ui :is(.input,select.input,.textarea):focus{border-color:#7898a7!important;background:#fff!important;box-shadow:0 0 0 3px rgba(49,87,107,.13)!important}
 .app-ui :is(.input,select.input,.textarea)::placeholder{color:var(--ux-faint)}
 .app-ui .field-label{color:#4e606c}
 
 /* One surface hierarchy: grouped sections use tone; rows use rhythm and
    dividers. Borders no longer compete around every nested element. */
 .app-ui :is(.list-toolbar,.premium-documents-toolbar,.receivables-toolbar,.reports-filter-panel,.operations-toolbar,.product-library-commandbar){
-  border-color:var(--ux-line);
-  background:var(--ux-section);
-  box-shadow:none;
+  border-color:#d4c8b6;
+  background:linear-gradient(135deg,#f7f1e6,#eee7dc);
+  box-shadow:0 7px 22px rgba(5,27,41,.06);
 }
 .app-ui :is(.premium-document-card,.customer-card,.report-currency-card,.reports-panel,.receivables-card,.operations-card,.product-library-body,.workspace-card){
-  border-color:var(--ux-line);
+  border-color:#cad3d4;
   background:var(--ux-card);
   box-shadow:var(--ux-shadow);
 }
+.app-ui :is(.premium-document-card,.customer-card,.report-currency-card,.reports-panel,.receivables-card,.operations-card,.workspace-card):hover{border-color:#9eb1b8;box-shadow:var(--ux-shadow-strong)}
 .app-ui :is(.premium-document-card,.customer-card,.report-currency-card,.reports-panel,.receivables-card,.operations-card)+:is(.premium-document-card,.customer-card,.report-currency-card,.reports-panel,.receivables-card,.operations-card){margin-top:2px}
 .app-ui :is(.document-info,.customer-info,.product-library-row-main)>strong,
 .app-ui .product-library-row-title strong{color:var(--ux-navy)}
@@ -80,7 +98,7 @@
   min-height:154px;
   padding:22px 18px;
   border-color:var(--ux-line-strong);
-  background:rgba(255,255,255,.52);
+  background:linear-gradient(145deg,rgba(255,253,248,.94),rgba(229,237,240,.82));
   box-shadow:none;
 }
 .app-ui .empty-state h2{margin:10px 0 2px;font-size:19px}
@@ -93,11 +111,11 @@
   border:0;
   border-bottom:1px solid #e7e4de;
   border-radius:0;
-  background:#fff;
+  background:#fffdf8;
 }
-.app-ui .product-library-row:nth-child(even){background:#faf9f6}
+.app-ui .product-library-row:nth-child(even){background:#edf3f4}
 .app-ui .product-library-row:last-child{border-bottom:0}
-.app-ui .product-library-row.active{background:var(--ux-selected);box-shadow:inset 3px 0 0 #5c8194}
+.app-ui .product-library-row.active{background:#d9e8ed;box-shadow:inset 4px 0 0 var(--ux-navy-soft)}
 [dir="rtl"] .app-ui .product-library-row.active{box-shadow:inset -3px 0 0 #5c8194}
 .app-ui .product-library-row-title strong{font-weight:780}
 .app-ui .product-library-row-title code{color:#56636b;background:#f0eee9}
@@ -106,12 +124,13 @@
 .app-ui .product-library-star.on{color:#a87832}
 
 /* Reports: filters are controls, result cards are information. */
-.app-ui .reports-filter-panel{border-radius:14px}
+.app-ui .reports-filter-panel{border-radius:16px}
 .app-ui .reports-presets button{border-color:#d8d4cc;background:#fff;color:var(--ux-body)}
 .app-ui .reports-presets button:focus-visible{outline:3px solid rgba(174,130,67,.18);outline-offset:1px}
-.app-ui .report-primary-metrics>div{border:0;background:#f3f5f5}
-.app-ui .report-primary-metrics>div:first-child{background:#edf3f6}
-.app-ui .report-secondary-metrics>span{background:#f8f6f1}
+.app-ui .report-primary-metrics>div{border:0;background:#e9f0f2}
+.app-ui .report-primary-metrics>div:first-child{background:linear-gradient(145deg,#0d3448,#17495e);color:#fff}
+.app-ui .report-primary-metrics>div:first-child :is(strong,span,small){color:inherit}
+.app-ui .report-secondary-metrics>span{background:#f1eadf}
 .app-ui .reports-table-wrap{border-top-color:var(--ux-line);overscroll-behavior-inline:contain}
 .app-ui .reports-table th{background:#f1f4f5;color:#536570}
 .app-ui .reports-table td{color:var(--ux-body)}
@@ -119,20 +138,20 @@
 .app-ui .reports-date-value{display:none}
 
 /* Editor: softer sections, stronger titles, less nested-card density. */
-.app-ui .editor-screen{background:#ece9e2}
-.app-ui .editor-pane{background:#f6f3ed}
+.app-ui .editor-screen{background:linear-gradient(135deg,#dfe6e8,#e9e3d9)}
+.app-ui .editor-pane{background:#e8edef}
 .app-ui .editor-section{
-  border-color:#e1ded7;
-  background:#fff;
-  box-shadow:0 3px 12px rgba(9,31,45,.035);
+  border-color:#c9d2d3;
+  background:#fffdf8;
+  box-shadow:0 8px 22px rgba(5,27,41,.07);
 }
-.app-ui .section-heading>span:first-child{background:#f1eadf;color:#8b6732}
+.app-ui .section-heading>span:first-child{background:var(--ux-navy);color:#efd8a8;box-shadow:0 5px 12px rgba(9,38,56,.18)}
 .app-ui .section-heading h2{color:var(--ux-navy);font-weight:790}
-.app-ui .item-card{border-color:#dedbd4;background:#fff}
-.app-ui .item-card header{background:#f2f4f4}
+.app-ui .item-card{border-color:#c8d2d4;background:#fff}
+.app-ui .item-card header{background:#e5eef1;color:var(--ux-navy)}
 .app-ui .item-pricing-grid,
 .app-ui .item-advanced-fields,
-.app-ui .advanced-panel{background:#f7f5f0;border-color:#e5e0d7}
+.app-ui .advanced-panel{background:#f2ede4;border-color:#ddd2c1}
 .app-ui .adjustment-row{border:0;border-bottom:1px solid #e6e2db;border-radius:0;background:transparent}
 .app-ui .adjustment-row:last-child{border-bottom:0}
 .app-ui .editor-totals{border:0;background:#edf2f4}
@@ -146,6 +165,34 @@
 .app-ui .save-indicator.state-saving{color:#6c532d}
 .app-ui .save-indicator.state-unsaved{color:#8a4a40}
 .app-ui .editor-section-nav-slot{display:contents}
+
+/* Page identity: every workspace starts with one confident visual anchor. */
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero){
+  position:relative;
+  overflow:hidden;
+  padding:20px 22px;
+  border:1px solid rgba(209,178,122,.26);
+  border-radius:18px;
+  background:
+    radial-gradient(circle at 90% -30%,rgba(209,178,122,.24),transparent 42%),
+    linear-gradient(125deg,var(--ux-navy-deep),#0c3449 70%,#174b60);
+  box-shadow:0 16px 38px rgba(5,27,41,.17);
+}
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero)::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:4px;background:linear-gradient(var(--ux-champagne),#9e743b)}
+.app-ui :is(.page-heading h1,.receivables-heading h1,.reports-heading h1,.operations-hero h1){color:#fff}
+.app-ui :is(.page-subtitle,.receivables-heading p,.reports-heading p,.operations-hero p){color:#bdcbd1}
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero) .eyebrow{color:#e1c58f}
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero) .heading-actions .btn:not(.btn-primary){border-color:rgba(255,255,255,.24);background:rgba(255,255,255,.1);color:#fff}
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero) .heading-actions .btn-primary{border-color:#d8bd87;background:#f1dfbb;color:#123044;box-shadow:0 8px 20px rgba(0,0,0,.2)}
+
+/* Stronger identity for status and overview cards without dashboard colour noise. */
+.app-ui :is(.documents-overview,.receivables-summary,.report-primary-metrics,.operations-summary)>*:nth-child(3n+1){background:#e3edf0;border-color:#c2d2d7}
+.app-ui :is(.documents-overview,.receivables-summary,.report-primary-metrics,.operations-summary)>*:nth-child(3n+2){background:#f2eadc;border-color:#ddcfb7}
+.app-ui :is(.documents-overview,.receivables-summary,.report-primary-metrics,.operations-summary)>*:nth-child(3n){background:#e8efeb;border-color:#cbd9d2}
+.app-ui .segmented{background:#dce4e6;border:1px solid #c7d2d5}
+.app-ui .segmented button.active{background:var(--ux-navy);color:#fff;box-shadow:0 5px 12px rgba(5,27,41,.2)}
+.app-ui .settings-tabs{background:#e7ecee;border-radius:14px}
+.app-ui .settings-tabs button.active{background:var(--ux-navy)!important;color:#fff!important;box-shadow:inset 3px 0 0 var(--ux-champagne),0 7px 16px rgba(5,27,41,.14)!important}
 
 /* Accessible touch size without turning compact screens into giant controls. */
 @media(pointer:coarse){
@@ -169,8 +216,8 @@
     overflow-x:visible!important;
     overflow-y:hidden!important;
     overscroll-behavior-inline:contain;
-    background:#e8edef!important;
-    border-color:#d5dfe3!important;
+    background:rgba(255,255,255,.09)!important;
+    border-color:rgba(255,255,255,.12)!important;
   }
   .app-ui .main-nav::-webkit-scrollbar{display:none}
   .app-ui .main-nav button{
@@ -181,9 +228,11 @@
     gap:4px!important;
     font-size:9.5px!important;
   }
+  .app-ui .main-nav button.active{background:#f3e8d4!important;color:#0b2b3d!important}
   .app-ui .main-nav button .icon{width:14px!important;height:14px!important}
   .app-ui .main-content{padding:16px 12px calc(32px + env(safe-area-inset-bottom))!important}
   .app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero){gap:9px!important;margin-bottom:12px!important}
+  .app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero){padding:14px!important;border-radius:15px!important}
   .app-ui :is(.page-heading h1,.receivables-heading h1,.reports-heading h1,.operations-hero h1){font-size:25px!important}
   .app-ui :is(.page-subtitle,.receivables-heading p,.reports-heading p,.operations-hero p){font-size:12px!important;line-height:1.48!important}
 
@@ -205,7 +254,7 @@
     scroll-padding-bottom:20px!important;
     overscroll-behavior-y:contain;
   }
-  .app-ui .editor-section-nav-slot{display:block;flex:0 0 auto;order:8;background:#f7f5f0}
+  .app-ui .editor-section-nav-slot{display:block;flex:0 0 auto;order:8;background:#dfe7e9}
   .app-ui .editor-section-navigator{
     position:relative!important;
     inset:auto!important;
@@ -217,7 +266,7 @@
     border:0!important;
     border-top:1px solid #d8d4cc!important;
     border-radius:0!important;
-    background:#f7f5f0!important;
+    background:#dfe7e9!important;
     box-shadow:none!important;
     overflow-x:auto!important;
     scrollbar-width:none;
@@ -232,7 +281,7 @@
     border:0!important;
     background:transparent!important;
   }
-  .app-ui .editor-section-nav-button.active{flex:1.8 0 78px!important;background:#e7f0f4!important}
+  .app-ui .editor-section-nav-button.active{flex:1.8 0 78px!important;background:var(--ux-navy)!important;color:#fff!important}
   .app-ui .editor-nav-number{height:24px!important;min-width:24px!important;border-color:#d5e0e4!important}
   .app-ui .mobile-editor-actionbar{
     position:relative!important;
@@ -246,7 +295,7 @@
     border:0!important;
     border-top:1px solid #d5d1c8!important;
     border-radius:0!important;
-    background:#fff!important;
+    background:#f7f2e9!important;
     box-shadow:0 -6px 18px rgba(9,31,45,.07)!important;
   }
   .app-ui .mobile-action-buttons{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important}
