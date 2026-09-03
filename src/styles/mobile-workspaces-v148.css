@@ -1,0 +1,423 @@
+/* v148 — focused mobile recovery for Settings and Product Library.
+   Application UI only. Printable invoice/proforma output and accounting logic are untouched. */
+
+@media (max-width:720px){
+  /* Product Library: keep catalog controls dense and make editing a focused phone task. */
+  .app-ui .product-library-page-heading{
+    gap:5px!important;
+    margin-bottom:8px!important;
+  }
+  .app-ui .product-library-page-heading h1{
+    margin:1px 0 3px!important;
+    font-size:25px!important;
+    line-height:1.08!important;
+  }
+  .app-ui .product-library-page-heading .page-subtitle{
+    margin:0!important;
+    font-size:12px!important;
+    line-height:1.48!important;
+  }
+  .app-ui .product-library-page-heading .eyebrow{
+    margin:0!important;
+    font-size:9px!important;
+  }
+
+  .app-ui .product-library-commandbar{
+    position:relative!important;
+    top:auto!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    gap:5px!important;
+    padding:6px!important;
+    border-radius:11px!important;
+    box-shadow:none!important;
+  }
+  .app-ui .product-library-search{
+    grid-column:1/-1!important;
+  }
+  .app-ui .product-library-search>.input,
+  .app-ui .product-library-commandbar>.input,
+  .app-ui .product-library-commandbar>.btn{
+    min-height:38px!important;
+    height:38px!important;
+    border-radius:9px!important;
+    font-size:12px!important;
+  }
+  .app-ui .product-library-search>.input{
+    padding-inline-start:36px!important;
+    padding-inline-end:36px!important;
+  }
+  .app-ui .product-library-search>.icon{
+    inset-inline-start:11px!important;
+  }
+  .app-ui .product-library-commandbar>.btn{
+    padding:6px 8px!important;
+  }
+
+  .app-ui .product-library-metrics{
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:5px!important;
+    margin:6px 0 7px!important;
+  }
+  .app-ui .product-library-metrics>div,
+  .app-ui .product-library-metrics>button{
+    min-height:46px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    justify-content:center!important;
+    gap:1px!important;
+    padding:6px 7px!important;
+    border-radius:9px!important;
+  }
+  .app-ui .product-library-metrics span{
+    width:100%;
+    overflow:hidden;
+    font-size:8.5px!important;
+    line-height:1.2!important;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .app-ui .product-library-metrics strong{
+    font-size:15px!important;
+    line-height:1.05!important;
+  }
+
+  .app-ui .product-library-body{
+    min-height:0!important;
+    border-radius:10px!important;
+    box-shadow:none!important;
+  }
+  .app-ui .product-library-list-head{
+    min-height:40px!important;
+    padding:6px 8px!important;
+  }
+  .app-ui .product-library-list-head strong{
+    font-size:11px!important;
+  }
+  .app-ui .product-library-list-head span{
+    font-size:9px!important;
+  }
+  .app-ui .product-library-list-head .btn{
+    min-height:32px!important;
+    padding:5px 7px!important;
+    font-size:10px!important;
+  }
+  .app-ui .product-library-list{
+    padding:3px 4px 7px!important;
+  }
+  .app-ui .product-library-row{
+    grid-template-columns:28px minmax(0,1fr) 32px!important;
+    gap:2px!important;
+    margin:1px 0!important;
+    border-radius:9px!important;
+  }
+  .app-ui .product-library-star{
+    width:28px!important;
+    min-height:38px!important;
+    height:38px!important;
+    font-size:16px!important;
+  }
+  .app-ui .product-library-row-main{
+    min-height:57px!important;
+    gap:1px!important;
+    padding:6px 3px!important;
+  }
+  .app-ui .product-library-row-title{
+    gap:4px!important;
+  }
+  .app-ui .product-library-row-title strong{
+    font-size:11px!important;
+  }
+  .app-ui .product-library-row-title code{
+    max-width:38%!important;
+    padding:2px 4px!important;
+    font-size:8px!important;
+  }
+  .app-ui .product-library-row-main>span,
+  .app-ui .product-library-row-main>small{
+    font-size:9px!important;
+    line-height:1.25!important;
+  }
+  .app-ui .product-library-row-main>small{
+    font-size:8.5px!important;
+  }
+  .app-ui .product-library-row-chips{
+    gap:3px!important;
+  }
+  .app-ui .product-library-row-chips em{
+    padding:1px 4px!important;
+    font-size:7.5px!important;
+  }
+  .app-ui .product-library-row>.icon-btn{
+    width:32px!important;
+    min-width:32px!important;
+    height:32px!important;
+  }
+  .app-ui .product-library-empty{
+    min-height:170px!important;
+    padding:20px 12px!important;
+  }
+
+  .app-ui .product-library-pro.editor-open .product-library-commandbar,
+  .app-ui .product-library-pro.editor-open .product-library-metrics{
+    display:none!important;
+  }
+  .app-ui .product-library-editor.is-open{
+    min-height:0!important;
+    border:1px solid #dde5e8;
+    border-radius:11px;
+    overflow:visible;
+  }
+  .app-ui .product-library-editor-head{
+    position:relative!important;
+    top:auto!important;
+    gap:8px!important;
+    padding:9px 10px!important;
+  }
+  .app-ui .product-library-editor-head .eyebrow{
+    font-size:8.5px!important;
+  }
+  .app-ui .product-library-editor-head h2{
+    margin-bottom:2px!important;
+    font-size:15px!important;
+  }
+  .app-ui .product-library-editor-scroll{
+    padding:0 10px 8px!important;
+  }
+  .app-ui .product-editor-section{
+    padding:12px 0 13px!important;
+  }
+  .app-ui .product-editor-section-title{
+    gap:7px!important;
+    margin-bottom:9px!important;
+  }
+  .app-ui .product-editor-section-title>span{
+    width:24px!important;
+    height:24px!important;
+    flex-basis:24px!important;
+    border-radius:7px!important;
+    font-size:8px!important;
+  }
+  .app-ui .product-editor-section-title strong{
+    font-size:11px!important;
+  }
+  .app-ui .product-editor-section-title small{
+    font-size:8.5px!important;
+  }
+  .app-ui .product-library-editor .form-grid{
+    gap:8px!important;
+  }
+  .app-ui .product-library-editor .field-label{
+    font-size:10px!important;
+  }
+  .app-ui .product-library-editor .input,
+  .app-ui .product-library-editor select.input{
+    min-height:40px!important;
+    height:40px!important;
+  }
+  .app-ui .product-library-editor textarea.input{
+    min-height:68px!important;
+    height:auto!important;
+  }
+  .app-ui .product-sku-note{
+    min-height:38px!important;
+    padding:6px 8px!important;
+    font-size:8.5px!important;
+  }
+  .app-ui .product-library-choice-strip button{
+    min-height:32px!important;
+    padding:4px 7px!important;
+    font-size:8.5px!important;
+  }
+  .app-ui .product-library-favorite{
+    margin-top:7px!important;
+    padding:8px 9px!important;
+  }
+  .app-ui .product-library-editor-actions{
+    position:sticky!important;
+    bottom:0!important;
+    gap:6px!important;
+    padding:7px 8px max(7px,env(safe-area-inset-bottom))!important;
+  }
+  .app-ui .product-library-editor-actions>div{
+    gap:5px!important;
+  }
+  .app-ui .product-library-editor-actions .btn{
+    min-height:38px!important;
+    padding:6px 8px!important;
+    font-size:11px!important;
+  }
+  .app-ui .product-library-editor-actions>.btn-primary{
+    min-width:104px!important;
+  }
+
+  /* Settings: one compact navigation strip, one compact save header, flatter sections. */
+  .app-ui .settings-layout{
+    gap:0!important;
+  }
+  .app-ui .settings-tabs{
+    top:-14px!important;
+    z-index:14!important;
+    width:calc(100% + 20px)!important;
+    margin:-14px -10px 0!important;
+    padding:6px 10px!important;
+    gap:4px!important;
+    border-bottom:1px solid #e2e7e9!important;
+    background:rgba(251,250,247,.995)!important;
+  }
+  .app-ui .settings-tabs button{
+    min-height:34px!important;
+    padding:6px 9px!important;
+    border-radius:8px!important;
+    font-size:10.5px!important;
+  }
+  .app-ui .settings-title{
+    top:40px!important;
+    min-height:48px!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:7px!important;
+    margin:0!important;
+    padding:6px 0 7px!important;
+    background:rgba(251,250,247,.995)!important;
+  }
+  .app-ui .settings-title .eyebrow{
+    margin:0 0 1px!important;
+    font-size:8.5px!important;
+  }
+  .app-ui .settings-title h3{
+    font-size:14.5px!important;
+    line-height:1.2!important;
+  }
+  .app-ui .settings-title>.btn{
+    min-width:76px!important;
+    min-height:36px!important;
+    padding:6px 9px!important;
+    font-size:10.5px!important;
+  }
+  .app-ui .settings-section{
+    padding:14px 0!important;
+  }
+  .app-ui .settings-section:first-of-type{
+    padding-top:10px!important;
+  }
+  .app-ui .settings-section>h4{
+    margin:0 0 9px!important;
+    font-size:11.5px!important;
+  }
+  .app-ui .settings-section .form-grid{
+    gap:9px!important;
+  }
+  .app-ui .settings-section .field-label{
+    font-size:9.5px!important;
+  }
+  .app-ui .settings-section .input,
+  .app-ui .settings-section select.input{
+    min-height:40px!important;
+    height:40px!important;
+    border-radius:9px!important;
+  }
+  .app-ui .settings-section textarea.input{
+    min-height:72px!important;
+    height:auto!important;
+  }
+  .app-ui .settings-note{
+    margin-top:7px!important;
+    font-size:9.5px!important;
+    line-height:1.45!important;
+  }
+  .app-ui .asset-settings{
+    gap:6px!important;
+    margin-top:11px!important;
+    padding-top:11px!important;
+  }
+  .app-ui .asset-settings>label,
+  .app-ui .asset-settings>.asset-control{
+    padding:7px!important;
+    border-radius:9px!important;
+  }
+  .app-ui .asset-settings label>span,
+  .app-ui .asset-control>label>span{
+    margin-bottom:5px!important;
+    font-size:9px!important;
+  }
+  .app-ui .asset-preview{
+    min-height:62px!important;
+    border-radius:7px!important;
+  }
+  .app-ui .logo-mode-switch{
+    margin-top:5px!important;
+    gap:4px!important;
+  }
+  .app-ui .logo-mode-switch button,
+  .app-ui .logo-rebuild-action,
+  .app-ui .logo-rebuild-restore{
+    min-height:32px!important;
+    padding:5px 7px!important;
+    font-size:9.5px!important;
+  }
+  .app-ui .asset-clean-hint{
+    margin-top:7px!important;
+    padding:7px 8px!important;
+    font-size:9px!important;
+  }
+  .app-ui .numbering-preview{
+    gap:5px!important;
+    margin-top:8px!important;
+  }
+  .app-ui .numbering-preview span{
+    padding:7px 8px!important;
+    border-radius:8px!important;
+    font-size:10px!important;
+  }
+  .app-ui .backup-cards{
+    gap:8px!important;
+  }
+  .app-ui .backup-card{
+    padding:11px!important;
+    border-radius:10px!important;
+  }
+  .app-ui .backup-card h4,
+  .app-ui .backup-card h3{
+    margin-top:0!important;
+    margin-bottom:5px!important;
+    font-size:13px!important;
+  }
+  .app-ui .backup-card p{
+    margin:4px 0!important;
+    font-size:10.5px!important;
+    line-height:1.5!important;
+  }
+}
+
+@media (max-width:390px){
+  .app-ui .product-library-metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .app-ui .product-library-editor-actions{
+    align-items:stretch!important;
+    flex-direction:row!important;
+  }
+  .app-ui .product-library-editor-actions>div{
+    display:flex!important;
+    flex:1 1 auto;
+    min-width:0;
+  }
+  .app-ui .product-library-editor-actions>div .btn{
+    flex:1 1 0;
+  }
+  .app-ui .product-library-editor-actions>.btn-primary{
+    flex:1 1 0;
+    width:auto!important;
+  }
+  .app-ui .settings-tabs button{
+    padding-inline:8px!important;
+    font-size:10px!important;
+  }
+}
+
+@media print{
+  .app-ui .product-library-page,
+  .app-ui .settings-layout{
+    display:none!important;
+  }
+}
