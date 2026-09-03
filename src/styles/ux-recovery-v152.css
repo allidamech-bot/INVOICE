@@ -3,26 +3,33 @@
    .invoice-page, printable document internals, or template geometry. */
 
 .app-ui{
-  --ux-app:#f3f0e9;
-  --ux-section:#faf8f3;
-  --ux-card:#fff;
-  --ux-input:#fff;
-  --ux-selected:#edf3f6;
-  --ux-navy:#0b273b;
-  --ux-navy-soft:#27495d;
-  --ux-ink:#182730;
-  --ux-body:#3f505b;
-  --ux-muted:#6f7c84;
-  --ux-faint:#929ba1;
-  --ux-line:#e0ddd6;
-  --ux-line-strong:#cfc9bd;
-  --ux-gold:#ae8243;
-  --ux-shadow:0 8px 26px rgba(9,31,45,.065);
+  --ux-app:#e9edf0;
+  --ux-section:#f3eee4;
+  --ux-card:#fffdf8;
+  --ux-input:#f8faf9;
+  --ux-selected:#dce9ee;
+  --ux-navy:#092638;
+  --ux-navy-deep:#061b29;
+  --ux-navy-soft:#31576b;
+  --ux-blue-wash:#e4edf1;
+  --ux-ivory:#f4eee2;
+  --ux-champagne:#d1b27a;
+  --ux-ink:#172833;
+  --ux-body:#435965;
+  --ux-muted:#6a7b84;
+  --ux-faint:#8d999f;
+  --ux-line:#d5d9d8;
+  --ux-line-strong:#bdc8cb;
+  --ux-gold:#b48a48;
+  --ux-shadow:0 12px 30px rgba(5,27,41,.09);
+  --ux-shadow-strong:0 20px 50px rgba(5,27,41,.15);
   color:var(--ux-ink);
-  background:var(--ux-app);
+  background:
+    radial-gradient(circle at 8% 0,rgba(255,253,248,.92),transparent 34rem),
+    linear-gradient(135deg,#edf0f1 0%,#e7ecee 48%,#eee9df 100%);
 }
 
-.app-ui .main-content{background:var(--ux-app)}
+.app-ui .main-content{background:transparent}
 .app-ui .page-heading h1,
 .app-ui .receivables-heading h1,
 .app-ui .reports-heading h1,
@@ -31,13 +38,22 @@
 .app-ui .eyebrow{color:var(--ux-gold)}
 
 .app-ui .app-header{
-  background:rgba(248,246,240,.985);
-  border-bottom-color:rgba(11,39,59,.10);
-  box-shadow:0 3px 14px rgba(9,31,45,.045);
+  background:linear-gradient(118deg,var(--ux-navy-deep),#0b3045 62%,#123c50);
+  border-bottom-color:rgba(209,178,122,.28);
+  box-shadow:0 10px 32px rgba(4,20,31,.2);
 }
-.app-ui .main-nav button{color:#61717b}
-.app-ui .main-nav button.active{color:var(--ux-navy)}
+.app-ui .header-brand:not(:disabled):hover{background:rgba(255,255,255,.08)}
+.app-ui .brand-words strong{color:#fff}
+.app-ui .brand-words small{color:#b8c7ce}
+.app-ui .main-nav{background:rgba(255,255,255,.075);border-color:rgba(255,255,255,.1)}
+.app-ui .main-nav button{color:#b9c8ce}
+.app-ui .main-nav button:hover{color:#fff;background:rgba(255,255,255,.07)}
+.app-ui .main-nav button.active{color:var(--ux-navy-deep);background:#f7f1e6;box-shadow:0 7px 18px rgba(0,0,0,.18)}
 .app-ui .main-nav button.active::after{background:var(--ux-gold)}
+.app-ui .header-actions>.btn:not(.cloud-header-button),
+.app-ui .header-actions>.icon-btn,
+.app-ui .header-actions .new-doc-menu>.btn{border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.09);color:#f7fafb;box-shadow:none}
+.app-ui .header-actions .new-doc-menu>.btn-primary{border-color:var(--ux-champagne);background:linear-gradient(180deg,#dcc493,#c9a765);color:#132c3a;box-shadow:0 8px 22px rgba(0,0,0,.2)}
 .app-ui .cloud-header-button.cloud-queued{border-color:#cbb788;background:#fffaf0;color:#6c5127}
 .app-ui .cloud-header-button.cloud-syncing{border-color:#9bb8c7;background:#eef5f8;color:#19445d}
 .app-ui .cloud-header-button.cloud-synced{border-color:#b8d2c5;background:#eff7f2;color:#245b46}
@@ -52,22 +68,24 @@
 }
 .app-ui .btn-primary{border-color:var(--ux-navy);background:var(--ux-navy);color:#fff}
 .app-ui .icon-btn{min-width:40px;min-height:40px;color:#52636d}
-.app-ui :is(.input,select.input,.textarea){border-color:#d3d0c9;background:var(--ux-input);color:var(--ux-ink)}
+.app-ui :is(.input,select.input,.textarea){border-color:#c8d1d3;background:var(--ux-input);color:var(--ux-ink);box-shadow:inset 0 1px 2px rgba(6,27,41,.035)}
+.app-ui :is(.input,select.input,.textarea):focus{border-color:#7898a7!important;background:#fff!important;box-shadow:0 0 0 3px rgba(49,87,107,.13)!important}
 .app-ui :is(.input,select.input,.textarea)::placeholder{color:var(--ux-faint)}
 .app-ui .field-label{color:#4e606c}
 
 /* One surface hierarchy: grouped sections use tone; rows use rhythm and
    dividers. Borders no longer compete around every nested element. */
 .app-ui :is(.list-toolbar,.premium-documents-toolbar,.receivables-toolbar,.reports-filter-panel,.operations-toolbar,.product-library-commandbar){
-  border-color:var(--ux-line);
-  background:var(--ux-section);
-  box-shadow:none;
+  border-color:#d4c8b6;
+  background:linear-gradient(135deg,#f7f1e6,#eee7dc);
+  box-shadow:0 7px 22px rgba(5,27,41,.06);
 }
 .app-ui :is(.premium-document-card,.customer-card,.report-currency-card,.reports-panel,.receivables-card,.operations-card,.product-library-body,.workspace-card){
-  border-color:var(--ux-line);
+  border-color:#cad3d4;
   background:var(--ux-card);
   box-shadow:var(--ux-shadow);
 }
+.app-ui :is(.premium-document-card,.customer-card,.report-currency-card,.reports-panel,.receivables-card,.operations-card,.workspace-card):hover{border-color:#9eb1b8;box-shadow:var(--ux-shadow-strong)}
 .app-ui :is(.premium-document-card,.customer-card,.report-currency-card,.reports-panel,.receivables-card,.operations-card)+:is(.premium-document-card,.customer-card,.report-currency-card,.reports-panel,.receivables-card,.operations-card){margin-top:2px}
 .app-ui :is(.document-info,.customer-info,.product-library-row-main)>strong,
 .app-ui .product-library-row-title strong{color:var(--ux-navy)}
@@ -80,7 +98,7 @@
   min-height:154px;
   padding:22px 18px;
   border-color:var(--ux-line-strong);
-  background:rgba(255,255,255,.52);
+  background:linear-gradient(145deg,rgba(255,253,248,.94),rgba(229,237,240,.82));
   box-shadow:none;
 }
 .app-ui .empty-state h2{margin:10px 0 2px;font-size:19px}
@@ -93,11 +111,11 @@
   border:0;
   border-bottom:1px solid #e7e4de;
   border-radius:0;
-  background:#fff;
+  background:#fffdf8;
 }
-.app-ui .product-library-row:nth-child(even){background:#faf9f6}
+.app-ui .product-library-row:nth-child(even){background:#edf3f4}
 .app-ui .product-library-row:last-child{border-bottom:0}
-.app-ui .product-library-row.active{background:var(--ux-selected);box-shadow:inset 3px 0 0 #5c8194}
+.app-ui .product-library-row.active{background:#d9e8ed;box-shadow:inset 4px 0 0 var(--ux-navy-soft)}
 [dir="rtl"] .app-ui .product-library-row.active{box-shadow:inset -3px 0 0 #5c8194}
 .app-ui .product-library-row-title strong{font-weight:780}
 .app-ui .product-library-row-title code{color:#56636b;background:#f0eee9}
@@ -106,12 +124,13 @@
 .app-ui .product-library-star.on{color:#a87832}
 
 /* Reports: filters are controls, result cards are information. */
-.app-ui .reports-filter-panel{border-radius:14px}
+.app-ui .reports-filter-panel{border-radius:16px}
 .app-ui .reports-presets button{border-color:#d8d4cc;background:#fff;color:var(--ux-body)}
 .app-ui .reports-presets button:focus-visible{outline:3px solid rgba(174,130,67,.18);outline-offset:1px}
-.app-ui .report-primary-metrics>div{border:0;background:#f3f5f5}
-.app-ui .report-primary-metrics>div:first-child{background:#edf3f6}
-.app-ui .report-secondary-metrics>span{background:#f8f6f1}
+.app-ui .report-primary-metrics>div{border:0;background:#e9f0f2}
+.app-ui .report-primary-metrics>div:first-child{background:linear-gradient(145deg,#0d3448,#17495e);color:#fff}
+.app-ui .report-primary-metrics>div:first-child :is(strong,span,small){color:inherit}
+.app-ui .report-secondary-metrics>span{background:#f1eadf}
 .app-ui .reports-table-wrap{border-top-color:var(--ux-line);overscroll-behavior-inline:contain}
 .app-ui .reports-table th{background:#f1f4f5;color:#536570}
 .app-ui .reports-table td{color:var(--ux-body)}
@@ -119,20 +138,20 @@
 .app-ui .reports-date-value{display:none}
 
 /* Editor: softer sections, stronger titles, less nested-card density. */
-.app-ui .editor-screen{background:#ece9e2}
-.app-ui .editor-pane{background:#f6f3ed}
+.app-ui .editor-screen{background:linear-gradient(135deg,#dfe6e8,#e9e3d9)}
+.app-ui .editor-pane{background:#e8edef}
 .app-ui .editor-section{
-  border-color:#e1ded7;
-  background:#fff;
-  box-shadow:0 3px 12px rgba(9,31,45,.035);
+  border-color:#c9d2d3;
+  background:#fffdf8;
+  box-shadow:0 8px 22px rgba(5,27,41,.07);
 }
-.app-ui .section-heading>span:first-child{background:#f1eadf;color:#8b6732}
+.app-ui .section-heading>span:first-child{background:var(--ux-navy);color:#efd8a8;box-shadow:0 5px 12px rgba(9,38,56,.18)}
 .app-ui .section-heading h2{color:var(--ux-navy);font-weight:790}
-.app-ui .item-card{border-color:#dedbd4;background:#fff}
-.app-ui .item-card header{background:#f2f4f4}
+.app-ui .item-card{border-color:#c8d2d4;background:#fff}
+.app-ui .item-card header{background:#e5eef1;color:var(--ux-navy)}
 .app-ui .item-pricing-grid,
 .app-ui .item-advanced-fields,
-.app-ui .advanced-panel{background:#f7f5f0;border-color:#e5e0d7}
+.app-ui .advanced-panel{background:#f2ede4;border-color:#ddd2c1}
 .app-ui .adjustment-row{border:0;border-bottom:1px solid #e6e2db;border-radius:0;background:transparent}
 .app-ui .adjustment-row:last-child{border-bottom:0}
 .app-ui .editor-totals{border:0;background:#edf2f4}
@@ -146,6 +165,34 @@
 .app-ui .save-indicator.state-saving{color:#6c532d}
 .app-ui .save-indicator.state-unsaved{color:#8a4a40}
 .app-ui .editor-section-nav-slot{display:contents}
+
+/* Page identity: every workspace starts with one confident visual anchor. */
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero){
+  position:relative;
+  overflow:hidden;
+  padding:20px 22px;
+  border:1px solid rgba(209,178,122,.26);
+  border-radius:18px;
+  background:
+    radial-gradient(circle at 90% -30%,rgba(209,178,122,.24),transparent 42%),
+    linear-gradient(125deg,var(--ux-navy-deep),#0c3449 70%,#174b60);
+  box-shadow:0 16px 38px rgba(5,27,41,.17);
+}
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero)::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:4px;background:linear-gradient(var(--ux-champagne),#9e743b)}
+.app-ui :is(.page-heading h1,.receivables-heading h1,.reports-heading h1,.operations-hero h1){color:#fff}
+.app-ui :is(.page-subtitle,.receivables-heading p,.reports-heading p,.operations-hero p){color:#bdcbd1}
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero) .eyebrow{color:#e1c58f}
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero) .heading-actions .btn:not(.btn-primary){border-color:rgba(255,255,255,.24);background:rgba(255,255,255,.1);color:#fff}
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero) .heading-actions .btn-primary{border-color:#d8bd87;background:#f1dfbb;color:#123044;box-shadow:0 8px 20px rgba(0,0,0,.2)}
+
+/* Stronger identity for status and overview cards without dashboard colour noise. */
+.app-ui :is(.documents-overview,.receivables-summary,.report-primary-metrics,.operations-summary)>*:nth-child(3n+1){background:#e3edf0;border-color:#c2d2d7}
+.app-ui :is(.documents-overview,.receivables-summary,.report-primary-metrics,.operations-summary)>*:nth-child(3n+2){background:#f2eadc;border-color:#ddcfb7}
+.app-ui :is(.documents-overview,.receivables-summary,.report-primary-metrics,.operations-summary)>*:nth-child(3n){background:#e8efeb;border-color:#cbd9d2}
+.app-ui .segmented{background:#dce4e6;border:1px solid #c7d2d5}
+.app-ui .segmented button.active{background:var(--ux-navy);color:#fff;box-shadow:0 5px 12px rgba(5,27,41,.2)}
+.app-ui .settings-tabs{background:#e7ecee;border-radius:14px}
+.app-ui .settings-tabs button.active{background:var(--ux-navy)!important;color:#fff!important;box-shadow:inset 3px 0 0 var(--ux-champagne),0 7px 16px rgba(5,27,41,.14)!important}
 
 /* Accessible touch size without turning compact screens into giant controls. */
 @media(pointer:coarse){
@@ -169,8 +216,8 @@
     overflow-x:visible!important;
     overflow-y:hidden!important;
     overscroll-behavior-inline:contain;
-    background:#e8edef!important;
-    border-color:#d5dfe3!important;
+    background:rgba(255,255,255,.09)!important;
+    border-color:rgba(255,255,255,.12)!important;
   }
   .app-ui .main-nav::-webkit-scrollbar{display:none}
   .app-ui .main-nav button{
@@ -181,9 +228,11 @@
     gap:4px!important;
     font-size:9.5px!important;
   }
+  .app-ui .main-nav button.active{background:#f3e8d4!important;color:#0b2b3d!important}
   .app-ui .main-nav button .icon{width:14px!important;height:14px!important}
   .app-ui .main-content{padding:16px 12px calc(32px + env(safe-area-inset-bottom))!important}
   .app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero){gap:9px!important;margin-bottom:12px!important}
+  .app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero){padding:14px!important;border-radius:15px!important}
   .app-ui :is(.page-heading h1,.receivables-heading h1,.reports-heading h1,.operations-hero h1){font-size:25px!important}
   .app-ui :is(.page-subtitle,.receivables-heading p,.reports-heading p,.operations-hero p){font-size:12px!important;line-height:1.48!important}
 
@@ -205,7 +254,7 @@
     scroll-padding-bottom:20px!important;
     overscroll-behavior-y:contain;
   }
-  .app-ui .editor-section-nav-slot{display:block;flex:0 0 auto;order:8;background:#f7f5f0}
+  .app-ui .editor-section-nav-slot{display:block;flex:0 0 auto;order:8;background:#dfe7e9}
   .app-ui .editor-section-navigator{
     position:relative!important;
     inset:auto!important;
@@ -217,7 +266,7 @@
     border:0!important;
     border-top:1px solid #d8d4cc!important;
     border-radius:0!important;
-    background:#f7f5f0!important;
+    background:#dfe7e9!important;
     box-shadow:none!important;
     overflow-x:auto!important;
     scrollbar-width:none;
@@ -232,7 +281,7 @@
     border:0!important;
     background:transparent!important;
   }
-  .app-ui .editor-section-nav-button.active{flex:1.8 0 78px!important;background:#e7f0f4!important}
+  .app-ui .editor-section-nav-button.active{flex:1.8 0 78px!important;background:var(--ux-navy)!important;color:#fff!important}
   .app-ui .editor-nav-number{height:24px!important;min-width:24px!important;border-color:#d5e0e4!important}
   .app-ui .mobile-editor-actionbar{
     position:relative!important;
@@ -246,7 +295,7 @@
     border:0!important;
     border-top:1px solid #d5d1c8!important;
     border-radius:0!important;
-    background:#fff!important;
+    background:#f7f2e9!important;
     box-shadow:0 -6px 18px rgba(9,31,45,.07)!important;
   }
   .app-ui .mobile-action-buttons{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important}
@@ -323,6 +372,229 @@
 
 @media(prefers-reduced-motion:reduce){
   .app-ui *{scroll-behavior:auto!important}
+}
+
+/* v154 — screenshot-led mobile composition recovery.
+   These rules deliberately finish the historical cascade in one application-
+   chrome layer. Printable document pages remain outside every selector. */
+.app-ui :is(.page,.operations-page,.reports-page,.receivables-page,.product-library-pro),
+.app-ui :is(.document-card,.customer-card,.operation-row,.receivable-account-row),
+.app-ui :is(.document-info,.customer-info,.resume-copy,.resume-meta,.operations-panel-head>div){min-width:0}
+.app-ui :is(.document-info strong,.document-info b,.customer-info strong,.resume-copy strong,.operation-row strong,.receivable-account-row strong){overflow-wrap:anywhere}
+.app-ui :is(.document-info-meta,.customer-info small,.operation-row span){max-width:100%}
+
+.app-ui .page-heading::after,
+.app-ui .receivables-heading::after,
+.app-ui .reports-heading::after,
+.app-ui .operations-hero::after{
+  content:"";
+  position:absolute;
+  width:150px;
+  height:150px;
+  inset-inline-end:-54px;
+  inset-block-end:-104px;
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:50%;
+  box-shadow:0 0 0 25px rgba(255,255,255,.035),0 0 0 52px rgba(209,178,122,.035);
+  pointer-events:none;
+}
+.app-ui .empty-mark{background:#dfeaed;color:var(--ux-navy-soft)}
+.app-ui :is(.documents-empty,.customers-empty,.receivable-empty){border-style:solid;border-color:#d4ddde}
+.app-ui :is(.documents-empty,.customers-empty,.receivable-empty)::before{content:"";width:34px;height:3px;margin-bottom:6px;border-radius:999px;background:linear-gradient(90deg,var(--ux-gold),#d9bf8b)}
+
+/* Information rows use an accent rail and tonal surfaces, not nested boxes. */
+.app-ui .premium-document-card{overflow:hidden;border-inline-start:4px solid #5d879a}
+.app-ui .premium-document-card.document-proforma{border-inline-start-color:#bd8b42}
+.app-ui .premium-document-card.workflow-final{border-inline-start-color:#43806a!important}
+.app-ui .premium-customer-card{overflow:hidden;border-inline-start:4px solid #315f77}
+.app-ui .receivable-account-row{border-inline-start:3px solid #557f94}
+.app-ui .receivable-account-row.has-overdue{border-inline-start-color:#b85c50}
+.app-ui .operation-row{border-inline-start:3px solid #b58a48}
+.app-ui .product-library-row{grid-template-columns:3px 34px minmax(0,1fr) 38px}
+.app-ui .product-library-row::before{content:"";align-self:stretch;width:3px;border-radius:999px;background:#c4d5db}
+.app-ui .product-library-row:nth-child(3n+2)::before{background:#d2b06f}
+.app-ui .product-library-row:nth-child(3n)::before{background:#78a08e}
+
+.app-ui .editor-date-control{position:relative;display:block;min-width:0}
+.app-ui .editor-date-value{display:none}
+
+@media(max-width:720px){
+  :root{--header:104px;--mobile-shell-header-height:104px}
+  body:has(.editor-screen){--header:64px;--mobile-shell-header-height:64px}
+
+  .app-ui .app-header{
+    min-height:104px!important;
+    grid-template-rows:48px 42px!important;
+    align-content:center!important;
+    padding:max(4px,env(safe-area-inset-top)) 8px 6px!important;
+    background:linear-gradient(125deg,#061b29,#0b3449 66%,#164b60)!important;
+  }
+  .app-ui .app-header:has(.header-editor-context){
+    min-height:64px!important;
+    height:64px!important;
+    grid-template-rows:1fr!important;
+    grid-template-columns:auto minmax(0,1fr) auto!important;
+    padding:max(4px,env(safe-area-inset-top)) 8px 4px!important;
+  }
+  .app-ui .app-header:has(.header-editor-context) .header-brand{grid-column:1!important;grid-row:1!important}
+  .app-ui .app-header:has(.header-editor-context) .header-editor-context{
+    grid-column:2!important;
+    grid-row:1!important;
+    min-width:0;
+    overflow:hidden;
+    color:#fff!important;
+    font-size:14px;
+    font-weight:800;
+    text-align:start;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .app-ui .app-header:has(.header-editor-context) .header-actions{grid-column:3!important;grid-row:1!important}
+  .app-ui .header-brand .brand.compact .brand-mark img{width:36px!important;height:36px!important}
+  .app-ui .header-actions .btn,.app-ui .header-actions .icon-btn{width:38px!important;min-width:38px!important;height:38px!important;min-height:38px!important;border-radius:11px!important}
+  .app-ui .main-nav{height:42px!important;border-radius:13px!important;padding:3px!important;gap:2px!important}
+  .app-ui .main-nav button{height:36px!important;min-height:36px!important;padding:0 3px!important;gap:3px!important;font-size:9.25px!important;border-radius:10px!important}
+  .app-ui .main-nav button.active{box-shadow:inset 0 -2px 0 #c49a55,0 5px 13px rgba(0,0,0,.18)!important}
+
+  .app-ui .main-content{padding:12px 10px calc(28px + env(safe-area-inset-bottom))!important}
+  .app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero){
+    min-height:0!important;
+    padding:13px 14px!important;
+    border-radius:15px!important;
+    box-shadow:0 11px 25px rgba(5,27,41,.14)!important;
+  }
+  .app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero)>div:first-child{position:relative;z-index:1;min-width:0}
+  .app-ui :is(.page-heading h1,.receivables-heading h1,.reports-heading h1,.operations-hero h1){margin:2px 0 3px!important;font-size:24px!important;line-height:1.08!important}
+  .app-ui :is(.page-subtitle,.receivables-heading p,.reports-heading p,.operations-hero p){margin:0!important;font-size:11.5px!important;line-height:1.45!important}
+  .app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero) .eyebrow{font-size:8.5px!important;letter-spacing:.08em!important}
+  .app-ui .page-heading>.btn{position:relative;z-index:1;width:100%!important;min-height:40px!important;background:linear-gradient(180deg,#e6cf9f,#d0ae6a)!important;border-color:#ebd7ad!important;color:#102c3c!important}
+  .app-ui .heading-actions{position:relative;z-index:1;gap:5px!important}
+
+  .app-ui :is(.empty-state,.reports-empty,.product-library-empty,.operations-empty){min-height:104px!important;padding:13px 12px!important;border-radius:13px!important}
+  .app-ui .empty-state .empty-mark{width:38px!important;height:38px!important;border-radius:11px!important}
+  .app-ui .empty-state h2{margin:6px 0 1px!important;font-size:15px!important}
+  .app-ui .empty-state p{margin:1px 0 6px!important;font-size:10.5px!important;line-height:1.4!important}
+
+  /* Customers: one compact identity row, one compact action rail. */
+  .app-ui .premium-customer-list{gap:7px!important}
+  .app-ui .premium-customer-card{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:0 6px!important;
+    min-height:0!important;
+    padding:7px!important;
+    border-radius:13px!important;
+  }
+  .app-ui .premium-customer-card .customer-card-main{grid-column:1/-1!important;min-height:54px!important;padding:5px!important;gap:8px!important}
+  .app-ui .premium-customer-card .customer-avatar{width:38px!important;height:38px!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+  .app-ui .premium-customer-card .customer-name-row{flex-direction:row!important;align-items:center!important;min-width:0}
+  .app-ui .premium-customer-card .customer-name-row strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .premium-customer-card .customer-document-actions{grid-column:1!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important;padding:5px 0 0!important;border:0!important}
+  .app-ui .premium-customer-card .customer-document-action{min-height:38px!important;padding:5px 7px!important;border-radius:9px!important}
+  .app-ui .premium-customer-card .customer-actions{grid-column:2!important;align-self:end;padding:5px 0 0!important}
+
+  /* Document rows: prevent amount/status from colliding with long names. */
+  .app-ui .premium-document-card{border-radius:13px!important}
+  .app-ui .premium-document-card .document-main{
+    grid-template-columns:34px minmax(0,1fr)!important;
+    grid-template-rows:auto auto!important;
+    min-height:0!important;
+    padding:9px!important;
+    gap:6px 8px!important;
+  }
+  .app-ui .premium-document-card .document-type-icon{grid-row:1!important;width:34px!important;height:34px!important}
+  .app-ui .premium-document-card .document-info{grid-column:2!important;min-width:0!important}
+  .app-ui .premium-document-card .document-info-top{display:flex;align-items:center;gap:5px;min-width:0}
+  .app-ui .premium-document-card .document-info-top strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .premium-document-card .document-kind-pill{flex:0 0 auto;max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .premium-document-card .document-info>b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .premium-document-card .document-total{grid-column:2!important;max-width:100%!important;display:flex!important;flex-flow:row wrap!important;align-items:center!important;gap:5px!important;text-align:start!important}
+  .app-ui .premium-document-card .document-total strong{max-width:100%!important;font-size:14px!important;overflow-wrap:anywhere}
+  .app-ui .documents-overview-five{gap:4px!important}
+  .app-ui .documents-overview-five>button{border:0!important;box-shadow:inset 0 0 0 1px rgba(26,62,80,.08)}
+
+  /* Dense workspaces from the supplied iPhone captures. */
+  .app-ui :is(.premium-documents-toolbar,.premium-customers-toolbar,.receivables-toolbar,.reports-filter-panel,.product-library-commandbar){box-shadow:none!important}
+  .app-ui .reports-heading-actions .btn{min-height:38px!important;background:rgba(255,255,255,.1)!important;color:#fff!important;border-color:rgba(255,255,255,.22)!important}
+  .app-ui .reports-filter-panel{padding:9px!important;gap:6px!important}
+  .app-ui .reports-presets button{min-height:34px!important}
+  .app-ui .reports-date-control,.app-ui .editor-date-control{
+    position:relative;
+    min-height:42px;
+    display:flex;
+    align-items:center;
+    min-width:0;
+    padding:0 36px 0 11px;
+    overflow:hidden;
+    border:1px solid #c7d2d4;
+    border-radius:10px;
+    background:#fff;
+    color:var(--ux-ink);
+  }
+  [dir="rtl"] .app-ui :is(.reports-date-control,.editor-date-control){padding:0 11px 0 36px}
+  .app-ui .editor-date-control::after{content:"▾";position:absolute;inset-inline-end:12px;color:#69777f;font-size:12px;pointer-events:none}
+  .app-ui .editor-date-value{display:block;min-width:0;overflow:hidden;font-size:16px;font-weight:650;line-height:1;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .editor-date-control input[type="date"]{position:absolute!important;inset:0!important;z-index:1;width:100%!important;height:100%!important;min-height:42px!important;margin:0!important;padding:0!important;border:0!important;opacity:.001;cursor:pointer}
+  .app-ui .product-library-commandbar{padding:6px!important}
+  .app-ui .product-library-body{overflow:hidden;background:#f8faf9!important}
+  .app-ui .product-library-row{grid-template-columns:3px 28px minmax(0,1fr) 32px!important;margin:0!important;border-radius:0!important}
+
+  .app-ui .operations-page{gap:7px!important}
+  .app-ui .operations-hero{gap:8px!important}
+  .app-ui .operations-search{position:relative;z-index:1;min-height:38px!important;border-color:rgba(255,255,255,.18)!important;background:rgba(255,255,255,.1)!important}
+  .app-ui .operations-search :is(.input,.icon){color:#fff!important}
+  .app-ui .operations-search .input::placeholder{color:#becbd1!important}
+  .app-ui .operations-summary{gap:5px!important}
+  .app-ui .operations-summary>div{min-height:62px!important;padding:9px 10px!important;border:0!important;border-radius:11px!important;box-shadow:none!important}
+  .app-ui .operations-summary>div>strong{font-size:18px!important}
+  .app-ui .operations-tabs{padding:3px!important;border:0!important;background:#dfe7e9!important}
+  .app-ui .operations-tabs button{min-height:38px!important;padding:6px 9px!important}
+  .app-ui :is(.operations-list-panel,.operations-editor,.inventory-balances,.inventory-entry,.inventory-history){padding:11px!important;border-radius:14px!important}
+
+  /* Editor: compact shell, no blank sticky offset, no overlapping controls. */
+  .app-ui .editor-main{padding:0!important;margin:0!important}
+  .app-ui .editor-screen{height:calc(100dvh - 64px)!important;min-height:0!important;overflow:hidden!important;padding:0!important}
+  .app-ui .editor-topbar{
+    position:relative!important;
+    inset:auto!important;
+    flex:0 0 52px!important;
+    min-height:52px!important;
+    height:52px!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    padding:6px 8px!important;
+    overflow:hidden!important;
+    background:#fffdf8!important;
+  }
+  .app-ui .editor-top-left{min-width:0!important;gap:6px!important}
+  .app-ui .editor-top-left>div{min-width:0!important;flex:1}
+  .app-ui .editor-top-left strong,.app-ui .editor-top-left>div>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .editor-top-left strong{font-size:12px!important}
+  .app-ui .editor-workflow-badge{flex:0 0 auto;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .editor-topbar>.editor-actions,.app-ui .editor-topbar>.editor-grand-total-chip,.app-ui .editor-topbar>.save-indicator{display:none!important}
+  .app-ui .document-readiness{flex:0 0 auto;margin:5px 7px!important;padding:7px 8px!important;overflow:hidden!important}
+  .app-ui .readiness-copy,.app-ui .readiness-copy>div{min-width:0!important}
+  .app-ui .readiness-copy>div>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .readiness-groups>span{max-width:108px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .editor-layout{flex:1 1 0!important;min-height:0!important;overflow:hidden!important}
+  .app-ui .editor-pane{height:100%!important;min-height:0!important;overflow:hidden!important}
+  .app-ui .editor-pane .editor-scroll{height:100%!important;overflow-y:auto!important;overflow-x:hidden!important;padding:7px 7px 18px!important;scroll-padding-top:8px!important}
+  .app-ui .editor-section{overflow:hidden!important}
+  .app-ui .editor-section :is(.field,.input,select.input,.textarea,.item-card,.item-pricing-grid,.advanced-panel){min-width:0!important;max-width:100%!important}
+  .app-ui .editor-section :is(.field-label,.bank-account-select-note,.commercial-preset-chips button){overflow-wrap:anywhere}
+  .app-ui .editor-section-nav-slot{flex:0 0 46px!important;overflow:hidden!important}
+  .app-ui .editor-section-navigator{min-height:46px!important;height:46px!important;padding:4px 6px!important}
+  .app-ui .editor-section-nav-button{min-height:36px!important;height:36px!important}
+  .app-ui .editor-section-nav-button .editor-nav-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .mobile-editor-actionbar{flex:0 0 calc(54px + env(safe-area-inset-bottom))!important;min-height:54px!important;padding:5px 6px max(5px,env(safe-area-inset-bottom))!important}
+}
+
+@media(max-width:360px){
+  .app-ui .main-nav button{font-size:8px!important}
+  .app-ui .main-nav button .icon{display:none!important}
+  .app-ui :is(.page-heading h1,.receivables-heading h1,.reports-heading h1,.operations-hero h1){font-size:22px!important}
+  .app-ui .premium-customer-card .customer-document-action span{font-size:9px!important}
+  .app-ui .editor-section-nav-button:not(.active) .editor-nav-label{display:none!important}
 }
 
 @media print{
