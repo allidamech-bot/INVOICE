@@ -547,3 +547,180 @@
     display:none!important;
   }
 }
+
+/* v147 phase 2 — compact customer and operations workspaces on phones. */
+@media (max-width:720px){
+  .app-ui .customers-page .page-heading{
+    gap:7px!important;
+    margin-bottom:9px!important;
+  }
+  .app-ui .customers-page .page-heading h1{
+    margin:2px 0 4px!important;
+    font-size:26px!important;
+    line-height:1.08!important;
+  }
+  .app-ui .customers-page .page-subtitle{
+    margin:0!important;
+    font-size:12.5px!important;
+    line-height:1.5!important;
+  }
+  .app-ui .customers-page .eyebrow{
+    margin:0!important;
+    font-size:9.5px!important;
+  }
+  .app-ui .customers-page .page-heading > .btn{
+    min-height:40px!important;
+    height:40px!important;
+    padding:7px 10px!important;
+  }
+  .app-ui .premium-customers-toolbar{
+    margin-bottom:7px!important;
+  }
+  .app-ui .customers-toolbar .search-box,
+  .app-ui .customers-toolbar .input,
+  .app-ui .customers-sort{
+    min-height:40px!important;
+    height:40px!important;
+  }
+  .app-ui .customer-list{
+    gap:7px!important;
+  }
+  .app-ui .customer-card{
+    min-height:70px!important;
+    padding:10px 11px!important;
+    gap:8px!important;
+    border-radius:11px!important;
+  }
+  .app-ui .customer-avatar{
+    width:38px!important;
+    height:38px!important;
+    border-radius:10px!important;
+  }
+  .app-ui .customer-info strong{
+    font-size:13px!important;
+  }
+  .app-ui .customer-info span,
+  .app-ui .customer-info small{
+    font-size:10.5px!important;
+    line-height:1.35!important;
+  }
+  .app-ui .customer-actions .icon-btn{
+    width:36px!important;
+    min-width:36px!important;
+    height:36px!important;
+  }
+
+  .app-ui .operations-page{
+    gap:9px!important;
+  }
+  .app-ui .operations-hero{
+    gap:7px!important;
+    margin-bottom:0!important;
+    padding:13px!important;
+    border-radius:13px!important;
+  }
+  .app-ui .operations-hero h1{
+    margin:2px 0 4px!important;
+    font-size:26px!important;
+    line-height:1.08!important;
+  }
+  .app-ui .operations-hero .eyebrow{
+    font-size:9.5px!important;
+    letter-spacing:.08em!important;
+  }
+  .app-ui .operations-hero p{
+    font-size:12.5px!important;
+    line-height:1.5!important;
+  }
+  .app-ui .operations-search{
+    min-height:40px!important;
+    padding-inline:9px!important;
+    border-radius:10px!important;
+  }
+  .app-ui .operations-search .input{
+    min-height:38px!important;
+    height:38px!important;
+  }
+  .app-ui .operations-summary{
+    gap:6px!important;
+  }
+  .app-ui .operations-summary > div{
+    min-height:62px!important;
+    padding:9px 10px!important;
+    border-radius:11px!important;
+  }
+  .app-ui .operations-summary > div > strong{
+    font-size:18px!important;
+  }
+  .app-ui .operations-summary > div > span{
+    font-size:10.5px!important;
+  }
+  .app-ui .operations-summary .operations-spend-card strong{
+    font-size:11.5px!important;
+  }
+  .app-ui .operations-tabs{
+    gap:3px!important;
+    padding:4px!important;
+    border-radius:11px!important;
+  }
+  .app-ui .operations-tabs button{
+    min-height:37px!important;
+    padding:6px 9px!important;
+    border-radius:8px!important;
+    font-size:10.5px!important;
+  }
+  .app-ui .operations-list-panel,
+  .app-ui .operations-editor,
+  .app-ui .inventory-balances,
+  .app-ui .inventory-entry,
+  .app-ui .inventory-history{
+    padding:11px!important;
+    border-radius:13px!important;
+  }
+  .app-ui .operations-panel-head{
+    gap:8px!important;
+    margin-bottom:10px!important;
+  }
+  .app-ui .operations-panel-head h2,
+  .app-ui .inventory-entry h2,
+  .app-ui .inventory-history h2{
+    font-size:16px!important;
+  }
+  .app-ui .operations-panel-head p{
+    margin-top:3px!important;
+    font-size:11px!important;
+    line-height:1.45!important;
+  }
+  .app-ui .operations-list{
+    gap:6px!important;
+  }
+  .app-ui .operation-row{
+    gap:7px!important;
+    padding:10px!important;
+    border-radius:11px!important;
+  }
+  .app-ui .operation-row strong{
+    font-size:12.5px!important;
+  }
+  .app-ui .operation-row span,
+  .app-ui .operation-row small{
+    font-size:10.5px!important;
+  }
+  .app-ui .operations-form-grid{
+    gap:8px!important;
+  }
+  .app-ui .operations-form-grid label,
+  .app-ui .block-field{
+    gap:4px!important;
+    font-size:11px!important;
+  }
+  .app-ui .operations-page .input,
+  .app-ui .operations-page select.input{
+    min-height:40px!important;
+    height:40px!important;
+  }
+  .app-ui .operations-empty{
+    padding:18px 12px!important;
+    font-size:11.5px!important;
+  }
+}
