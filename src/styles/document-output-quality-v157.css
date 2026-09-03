@@ -58,11 +58,13 @@
    dates, technical identifiers, phone/email values, or bilingual labels. */
 .invoice-page.lang-ar{
   direction:rtl!important;
+  unicode-bidi:isolate!important;
   text-align:right!important;
 }
 .invoice-page.lang-en,
 .invoice-page.lang-bilingual{
   direction:ltr!important;
+  unicode-bidi:isolate!important;
 }
 
 .invoice-page.lang-ar :is(
