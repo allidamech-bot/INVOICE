@@ -4,11 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v156 is the final app preview layer before canonical A4 styling and ships offline',async()=>{
+test('v156 is the final app preview layer before document output styling and ships offline',async()=>{
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   assert.ok(html.indexOf('mobile-safe-area-v155.css')<html.indexOf('mobile-preview-v156.css'));
-  assert.ok(html.indexOf('mobile-preview-v156.css')<html.indexOf('document-premium-redesign-v141.css'));
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v156';$/m);
+  assert.ok(html.indexOf('mobile-preview-v156.css')<html.indexOf('document-output-quality-v157.css'));
+  assert.ok(html.indexOf('document-output-quality-v157.css')<html.indexOf('document-premium-redesign-v141.css'));
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v157';$/m);
+  assert.ok(sw.includes("const CACHE = 'lourex-invoice-v156'"));
   assert.ok(sw.includes('./styles/mobile-preview-v156.css'));
 });
 
