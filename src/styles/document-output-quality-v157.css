@@ -1,0 +1,103 @@
+/* v157 — clean Arabic shaping + stronger signature/stamp presentation.
+   Narrow document-output override only. No application UI or business logic changes. */
+
+/* Arabic must never inherit Latin tracking/casing rules. Keep shaping contextual and
+   let the browser own glyph joining before preview/PDF capture. */
+.invoice-page :where([dir="rtl"],.doc-title-primary-ar,.bi-label>span:last-child,.bi-value>span:last-child){
+  font-family:var(--font-arabic,"Noto Sans Arabic",Tahoma,Arial,sans-serif)!important;
+  direction:rtl!important;
+  unicode-bidi:isolate!important;
+  letter-spacing:0!important;
+  word-spacing:normal!important;
+  text-transform:none!important;
+  font-kerning:normal!important;
+  font-variant-ligatures:common-ligatures contextual!important;
+  font-feature-settings:"rlig" 1,"calt" 1,"liga" 1!important;
+  word-break:normal!important;
+  overflow-wrap:normal!important;
+  line-break:auto!important;
+  text-rendering:optimizeLegibility;
+}
+
+.invoice-page.lang-ar{
+  font-family:var(--font-arabic,"Noto Sans Arabic",Tahoma,Arial,sans-serif)!important;
+  direction:rtl;
+}
+
+/* Bilingual micro-labels were visually cramped in raster PDF output. Give Arabic
+   its own breathing room without changing the document information hierarchy. */
+.invoice-page .bi-label{
+  column-gap:1.35mm;
+  row-gap:.45mm;
+}
+.invoice-page .bi-label>span:last-child{
+  display:inline-block;
+  line-height:1.42!important;
+  font-size:1.04em;
+}
+.invoice-page .bi-value>span:last-child{
+  line-height:1.48!important;
+}
+.invoice-page .doc-meta b .bi-label>span:last-child,
+.invoice-page .section-kicker .bi-label>span:last-child,
+.invoice-page .items-table th .bi-label>span:last-child,
+.invoice-page :is(.terms-block,.bank-block,.signature-block,.notes-block) h3 .bi-label>span:last-child{
+  font-weight:700;
+}
+
+/* Keep English tracking on English only. Arabic heading fragments explicitly reset it. */
+.invoice-page :is(.doc-meta b,.section-kicker,.items-table th,.continued-label,.modern-title>small,.signature-title>small,.terms-block h3,.bank-block h3,.signature-block h3,.notes-block h3) [dir="rtl"]{
+  letter-spacing:0!important;
+  text-transform:none!important;
+}
+
+/* Signature/stamp zone: the previous 20–22 mm media size looked weak inside the
+   available A4 footer space. Increase presence while keeping native aspect ratio. */
+.invoice-page .bottom-grid{
+  grid-template-columns:minmax(0,1.08fr) minmax(62mm,.92fr);
+  gap:7mm;
+}
+.invoice-page .signature-block{
+  min-width:0;
+}
+.invoice-page .signature-media{
+  grid-template-columns:minmax(0,1.18fr) minmax(30mm,.82fr)!important;
+  align-items:end!important;
+  gap:4.5mm!important;
+  min-height:31mm!important;
+  padding-top:1.6mm!important;
+}
+.invoice-page .signature-media img{
+  width:100%!important;
+  max-width:none!important;
+  object-fit:contain!important;
+  object-position:center bottom!important;
+  background:transparent!important;
+}
+.invoice-page .signature-media .signature-image{
+  height:27mm!important;
+  max-height:27mm!important;
+}
+.invoice-page .signature-media .stamp-image{
+  height:30mm!important;
+  max-height:30mm!important;
+}
+
+/* If only one asset is enabled, do not leave it stranded at half size. */
+.invoice-page .signature-media:has(.signature-image:only-child),
+.invoice-page .signature-media:has(.stamp-image:only-child){
+  grid-template-columns:minmax(0,1fr)!important;
+  justify-items:center;
+}
+.invoice-page .signature-media .signature-image:only-child{max-width:62mm!important}
+.invoice-page .signature-media .stamp-image:only-child{max-width:38mm!important}
+
+/* Dark templates preserve their existing ink/color filters; size only changes here. */
+@media print{
+  .invoice-page :where([dir="rtl"],.doc-title-primary-ar,.bi-label>span:last-child,.bi-value>span:last-child){
+    letter-spacing:0!important;
+    text-transform:none!important;
+    word-break:normal!important;
+    overflow-wrap:normal!important;
+  }
+}
