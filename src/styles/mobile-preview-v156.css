@@ -1,0 +1,173 @@
+/* v156 — mobile preview viewport recovery.
+   Preview chrome only. The printable A4 document keeps its canonical geometry. */
+
+@media (max-width:1180px){
+  body:has(.app-ui .editor-screen.mobile-preview-open){
+    overflow:hidden!important;
+    overscroll-behavior:none!important;
+  }
+
+  .app-ui .mobile-preview-overlay{
+    position:fixed!important;
+    inset:0!important;
+    z-index:240!important;
+    width:100vw!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    margin:0!important;
+    padding:0!important;
+    display:none!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+    background:#dfe4e6!important;
+  }
+
+  .app-ui .mobile-preview-open .mobile-preview-overlay{
+    display:flex!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header{
+    position:relative!important;
+    inset:auto!important;
+    top:auto!important;
+    z-index:3!important;
+    flex:0 0 auto!important;
+    box-sizing:border-box!important;
+    width:100%!important;
+    min-width:0!important;
+    min-height:calc(56px + env(safe-area-inset-top))!important;
+    height:auto!important;
+    display:flex!important;
+    align-items:flex-end!important;
+    justify-content:space-between!important;
+    gap:8px!important;
+    margin:0!important;
+    padding:env(safe-area-inset-top) max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left))!important;
+    border:0!important;
+    border-bottom:1px solid #ccd5d8!important;
+    border-radius:0!important;
+    background:rgba(255,253,248,.985)!important;
+    box-shadow:0 5px 18px rgba(6,27,41,.10)!important;
+    backdrop-filter:blur(14px);
+  }
+
+  .app-ui .mobile-preview-overlay>header>strong{
+    flex:0 0 auto!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:0 4px!important;
+    color:#092638!important;
+    font-size:14px!important;
+    font-weight:800!important;
+    line-height:40px!important;
+    white-space:nowrap!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header>div{
+    flex:0 1 auto!important;
+    min-width:0!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:6px!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header .btn,
+  .app-ui .mobile-preview-overlay>header .icon-btn{
+    flex:0 0 auto!important;
+    min-height:40px!important;
+    height:40px!important;
+    margin:0!important;
+    border-radius:11px!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header .btn{
+    padding:0 10px!important;
+    gap:5px!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header .icon-btn{
+    width:40px!important;
+    min-width:40px!important;
+    padding:0!important;
+  }
+
+  .app-ui .mobile-preview-stage{
+    position:relative!important;
+    flex:1 1 auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    width:100%!important;
+    height:auto!important;
+    box-sizing:border-box!important;
+    overflow:auto!important;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain!important;
+    scroll-padding-top:14px!important;
+    margin:0!important;
+    padding:14px max(10px,env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))!important;
+    background:linear-gradient(180deg,#dce2e4,#e4e8e9)!important;
+  }
+
+  .app-ui .mobile-preview-stage>.invoice-pages{
+    margin:0 auto!important;
+    transform-origin:top center!important;
+  }
+}
+
+@media (max-width:720px){
+  .app-ui .mobile-preview-overlay>header{
+    min-height:calc(54px + env(safe-area-inset-top))!important;
+    gap:6px!important;
+    padding-bottom:7px!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header>strong{
+    font-size:13.5px!important;
+    line-height:40px!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header>div{
+    gap:5px!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header .btn{
+    min-width:0!important;
+    padding-inline:9px!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header .btn span{
+    font-size:11px!important;
+    white-space:nowrap!important;
+  }
+
+  .app-ui .mobile-preview-stage{
+    padding:10px max(8px,env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))!important;
+    scroll-padding-top:10px!important;
+  }
+}
+
+@media (max-width:390px){
+  .app-ui .mobile-preview-overlay>header{
+    padding-inline:max(7px,env(safe-area-inset-left)) max(7px,env(safe-area-inset-right))!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header>strong{
+    padding-inline:2px!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header .btn{
+    padding-inline:7px!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header .btn span{
+    font-size:10.5px!important;
+  }
+}
+
+@media print{
+  .app-ui .mobile-preview-overlay{
+    display:none!important;
+  }
+}
