@@ -27,13 +27,13 @@
 /* Bilingual micro-labels were visually cramped in raster PDF output. Give Arabic
    its own breathing room without changing the document information hierarchy. */
 .invoice-page .bi-label{
-  column-gap:1.35mm;
-  row-gap:.45mm;
+  column-gap:1.35mm!important;
+  row-gap:.45mm!important;
 }
 .invoice-page .bi-label>span:last-child{
   display:inline-block;
   line-height:1.42!important;
-  font-size:1.04em;
+  font-size:1.04em!important;
 }
 .invoice-page .bi-value>span:last-child{
   line-height:1.48!important;
@@ -54,8 +54,8 @@
 /* Signature/stamp zone: the previous 20–22 mm media size looked weak inside the
    available A4 footer space. Increase presence while keeping native aspect ratio. */
 .invoice-page .bottom-grid{
-  grid-template-columns:minmax(0,1.08fr) minmax(62mm,.92fr);
-  gap:7mm;
+  grid-template-columns:minmax(0,1.08fr) minmax(62mm,.92fr)!important;
+  gap:7mm!important;
 }
 .invoice-page .signature-block{
   min-width:0;
