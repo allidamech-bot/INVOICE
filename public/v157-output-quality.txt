@@ -1,2 +1,0 @@
-document-output-quality-v157
-Arabic shaping + signature/stamp sizing
