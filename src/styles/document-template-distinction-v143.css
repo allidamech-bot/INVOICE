@@ -1,0 +1,170 @@
+/* v143 — restore strong visual distinction across all 18 document templates.
+   Safety contract: light printable paper, no absolute text positioning, no decorative
+   pseudo-elements over content, and no changes to document data or pagination. */
+
+/* Shared modern-template safety. */
+.invoice-pages>.invoice-page:first-child:is(.template-obsidian,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger,.template-noir,.template-midnight,.template-blackivory,.template-carbon) .header-modern{
+  overflow:hidden!important;
+  isolation:isolate!important;
+  color:var(--v141-ink)!important;
+}
+.invoice-pages>.invoice-page:first-child:is(.template-obsidian,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger,.template-noir,.template-midnight,.template-blackivory,.template-carbon) .modern-title,
+.invoice-pages>.invoice-page:first-child:is(.template-obsidian,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger,.template-noir,.template-midnight,.template-blackivory,.template-carbon) .modern-meta{
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  z-index:2!important;
+}
+
+/* 05 Obsidian — architectural graphite frame. */
+.invoice-pages>.invoice-page:first-child.template-obsidian .header-modern{
+  grid-template-columns:minmax(0,1fr) 31mm!important;
+  background:linear-gradient(180deg,#ffffff 0%,#f4f3ef 100%)!important;
+  border-top:3.4mm solid #292e32!important;
+  border-bottom:1px solid #c7c8c5!important;
+}
+.invoice-pages>.invoice-page:first-child.template-obsidian .modern-brand{
+  min-height:21mm!important;padding:4mm!important;border:1px solid #d3d3cf!important;background:#2b3034!important;border-radius:1.2mm!important;
+}
+.invoice-pages>.invoice-page:first-child.template-obsidian .modern-title{border-inline-start:1.1mm solid #b68b48!important;padding-inline-start:4mm!important}
+
+/* 06 Cobalt — corporate vertical signature rail. */
+.invoice-pages>.invoice-page:first-child.template-cobalt .header-modern{
+  grid-template-columns:36mm minmax(0,1fr)!important;
+  grid-template-areas:"brand title" "brand meta"!important;
+  gap:0 8mm!important;
+  border-top:0!important;
+  border-inline-start:5mm solid #1f557b!important;
+  background:#fff!important;
+}
+.invoice-pages>.invoice-page:first-child.template-cobalt .modern-brand{
+  grid-area:brand!important;align-self:stretch!important;justify-self:stretch!important;display:flex!important;align-items:flex-start!important;padding:7mm 4mm!important;background:#163d5a!important;border-radius:0!important;
+}
+.invoice-pages>.invoice-page:first-child.template-cobalt .modern-title{grid-area:title!important;padding-top:2mm!important}
+.invoice-pages>.invoice-page:first-child.template-cobalt .modern-meta{grid-area:meta!important}
+
+/* 07 Editorial — typography-led newspaper precision. */
+.invoice-pages>.invoice-page:first-child.template-editorial .header-modern{
+  grid-template-columns:minmax(0,1fr) 24mm!important;
+  border-top:1px solid #2b3033!important;
+  border-bottom:1.2mm solid #2b3033!important;
+  background:#fff!important;
+}
+.invoice-pages>.invoice-page:first-child.template-editorial .modern-title{padding-bottom:3mm!important;border-bottom:1px solid #aeb4b7!important}
+.invoice-pages>.invoice-page:first-child.template-editorial .doc-title span{font-weight:700!important;letter-spacing:-.04em!important}
+.invoice-pages>.invoice-page:first-child.template-editorial .modern-brand{filter:grayscale(1)!important;opacity:.9!important}
+
+/* 08 Split — restrained two-tone composition. */
+.invoice-pages>.invoice-page:first-child.template-split .header-modern{
+  background:linear-gradient(90deg,#eef3f4 0 33%,#fff 33% 100%)!important;
+  border-top:2mm solid #355d70!important;
+  border-bottom:1px solid #cbd6da!important;
+}
+.invoice-pages>.invoice-page:first-child.template-split.lang-ar .header-modern{background:linear-gradient(270deg,#eef3f4 0 33%,#fff 33% 100%)!important}
+.invoice-pages>.invoice-page:first-child.template-split .modern-title{padding-inline-start:5mm!important;border-inline-start:1px solid #a7bcc5!important}
+
+/* 09 Prism — geometric color without geometry over text. */
+.invoice-pages>.invoice-page:first-child.template-prism .header-modern{
+  background:linear-gradient(135deg,#eef8f6 0 18%,#fff 18% 82%,#f4efe5 82% 100%)!important;
+  border-top:2.4mm solid #4b7774!important;
+  border-bottom:1px solid #cbdedb!important;
+}
+.invoice-pages>.invoice-page:first-child.template-prism .modern-title{padding-inline-start:4mm!important;border-inline-start:1.2mm solid #4b7774!important}
+.invoice-pages>.invoice-page:first-child.template-prism .modern-meta>div{border-bottom-color:#b7d0cc!important}
+
+/* 10 Slate — disciplined data rail. */
+.invoice-pages>.invoice-page:first-child.template-slate .header-modern{
+  grid-template-columns:minmax(0,1fr) 25mm!important;
+  background:#f6f8f9!important;
+  border-top:0!important;
+  border-inline-end:4mm solid #536675!important;
+  border-bottom:1px solid #cbd2d6!important;
+}
+.invoice-pages>.invoice-page:first-child.template-slate .modern-meta{padding:3mm 4mm!important;background:#fff!important;border:1px solid #d8dee1!important;border-radius:1mm!important}
+
+/* 11 Horizon — open layered blue horizon. */
+.invoice-pages>.invoice-page:first-child.template-horizon .header-modern{
+  min-height:44mm!important;
+  background:linear-gradient(180deg,#edf5f8 0 28%,#fff 28% 100%)!important;
+  border-top:0!important;
+  border-bottom:1.2mm solid #173d55!important;
+}
+.invoice-pages>.invoice-page:first-child.template-horizon .modern-title{padding-top:2mm!important}
+.invoice-pages>.invoice-page:first-child.template-horizon .modern-title>small{color:#527286!important}
+
+/* 12 Mono Grid — monochrome grid discipline. */
+.invoice-pages>.invoice-page:first-child.template-mono .header-modern{
+  background-color:#fff!important;
+  background-image:linear-gradient(#eceeef 1px,transparent 1px),linear-gradient(90deg,#eceeef 1px,transparent 1px)!important;
+  background-size:8mm 8mm!important;
+  border:1px solid #222629!important;
+  border-top:2.4mm solid #222629!important;
+}
+.invoice-pages>.invoice-page:first-child.template-mono .modern-title{background:#fff!important;padding:2mm 3mm!important;border:1px solid #222629!important}
+.invoice-pages>.invoice-page:first-child.template-mono .modern-meta{background:#fff!important;padding:2mm!important}
+
+/* 13 Aurora — soft teal/gold premium wash. */
+.invoice-pages>.invoice-page:first-child.template-aurora .header-modern{
+  background:linear-gradient(120deg,#eef8f6 0%,#fff 48%,#f8f1e5 100%)!important;
+  border-top:3mm solid #376c6a!important;
+  border-bottom:1px solid #d7c5a6!important;
+}
+.invoice-pages>.invoice-page:first-child.template-aurora .modern-title{padding-inline-start:4mm!important;border-inline-start:1.1mm solid #c3a467!important}
+.invoice-pages>.invoice-page:first-child.template-aurora .modern-brand{padding:2.5mm!important;background:#f7fbfa!important;border:1px solid #c9ddda!important;border-radius:50%!important}
+
+/* 14 Ledger — accounting module system. */
+.invoice-pages>.invoice-page:first-child.template-ledger .header-modern{
+  background:#fff!important;
+  border-top:2.2mm solid #314b5c!important;
+  border-bottom:2px double #314b5c!important;
+}
+.invoice-pages>.invoice-page:first-child.template-ledger .modern-title{padding:3mm!important;border:1px solid #cbd4d9!important;background:#f7f9fa!important}
+.invoice-pages>.invoice-page:first-child.template-ledger .modern-meta{padding:2.5mm!important;border:1px solid #cbd4d9!important;background:#fff!important}
+.invoice-pages>.invoice-page:first-child.template-ledger .modern-meta>div{border-inline-start:2px solid #314b5c!important;padding-inline-start:2mm!important}
+
+/* 15 Noir Gold — matte black identity, light commercial paper. */
+.invoice-pages>.invoice-page:first-child.template-noir .header-modern{
+  background:linear-gradient(90deg,#f5f1e8 0 12%,#fff 12% 100%)!important;
+  border-top:4mm solid #222324!important;
+  border-bottom:1px solid #c8a566!important;
+}
+.invoice-pages>.invoice-page:first-child.template-noir.lang-ar .header-modern{background:linear-gradient(270deg,#f5f1e8 0 12%,#fff 12% 100%)!important}
+.invoice-pages>.invoice-page:first-child.template-noir .modern-title{border-inline-start:1.3mm solid #b78b45!important;padding-inline-start:4mm!important}
+
+/* 16 Midnight Navy — deep navy architecture, ivory field. */
+.invoice-pages>.invoice-page:first-child.template-midnight .header-modern{
+  background:linear-gradient(180deg,#eef3f6 0 22%,#fffdf9 22% 100%)!important;
+  border-top:4mm solid #0d3048!important;
+  border-bottom:1px solid #b89455!important;
+}
+.invoice-pages>.invoice-page:first-child.template-midnight .modern-brand{padding:3mm!important;background:#0d3048!important;border-radius:1mm!important}
+.invoice-pages>.invoice-page:first-child.template-midnight .modern-title>small{color:#8f7448!important}
+
+/* 17 Black Ivory — classic luxury contrast without dark body. */
+.invoice-pages>.invoice-page:first-child.template-blackivory .header-modern{
+  background:#fbf8f0!important;
+  border-top:3mm solid #282721!important;
+  border-bottom:2px double #b8995e!important;
+}
+.invoice-pages>.invoice-page:first-child.template-blackivory .modern-title{padding:3mm 4mm!important;background:#fffdf8!important;border:1px solid #d8ccb7!important}
+.invoice-pages>.invoice-page:first-child.template-blackivory .modern-meta>div{border-bottom-color:#d4c6ae!important}
+
+/* 18 Carbon Luxe — industrial charcoal with metallic datum. */
+.invoice-pages>.invoice-page:first-child.template-carbon .header-modern{
+  background:linear-gradient(180deg,#f2f3f3,#fff)!important;
+  border-top:3.6mm solid #3c4246!important;
+  border-bottom:1.1mm solid #ad874e!important;
+}
+.invoice-pages>.invoice-page:first-child.template-carbon .modern-title{padding-inline-end:4mm!important;border-inline-end:1.2mm solid #ad874e!important}
+.invoice-pages>.invoice-page:first-child.template-carbon.lang-ar .modern-title{padding-inline-end:0!important;padding-inline-start:4mm!important;border-inline-end:0!important;border-inline-start:1.2mm solid #ad874e!important}
+.invoice-pages>.invoice-page:first-child.template-carbon .modern-brand{padding:2.5mm!important;border:1px solid #aeb5b8!important;background:#fff!important;border-radius:1mm!important}
+
+/* Mobile preview remains readable and uncluttered. */
+@media (max-width:720px){
+  .invoice-pages>.invoice-page:first-child:is(.template-cobalt,.template-slate) .header-modern{grid-template-columns:minmax(0,1fr) 24mm!important;grid-template-areas:"title brand" "meta meta"!important;border-inline-start:0!important;border-inline-end:0!important}
+  .invoice-pages>.invoice-page:first-child.template-cobalt .modern-brand{grid-area:brand!important;align-self:start!important;justify-self:end!important;min-height:0!important;padding:2.5mm!important;border-radius:1mm!important}
+}
+
+@media print{
+  .invoice-page{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+}
