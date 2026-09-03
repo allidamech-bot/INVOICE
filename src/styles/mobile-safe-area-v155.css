@@ -1,0 +1,49 @@
+/* v155 — iPhone/PWA safe-area and RTL final-quote action recovery.
+   Application chrome only. Printable A4 document geometry is intentionally untouched. */
+
+@media (max-width:720px){
+  :root{
+    --mobile-app-header-content-height:104px;
+    --mobile-editor-header-content-height:64px;
+    --header:calc(var(--mobile-app-header-content-height) + env(safe-area-inset-top));
+    --mobile-shell-header-height:var(--header);
+  }
+
+  body:has(.editor-screen){
+    --header:calc(var(--mobile-editor-header-content-height) + env(safe-area-inset-top));
+    --mobile-shell-header-height:var(--header);
+  }
+
+  /* The previous 64px editor header included the iPhone safe-area inside the
+     same fixed height. On devices with a tall status area this collapsed the
+     usable header content to a thin strip. Keep 64px of real header content
+     below the safe area instead. */
+  .app-ui .app-header{
+    box-sizing:border-box!important;
+    min-height:var(--header)!important;
+    height:var(--header)!important;
+  }
+
+  .app-ui .app-header:has(.header-editor-context){
+    min-height:var(--header)!important;
+    height:var(--header)!important;
+  }
+
+  /* The editor must consume only the viewport left after the actual rendered
+     app header, including the iOS safe-area. Avoid hard-coded 64px subtraction. */
+  .app-ui .editor-screen{
+    height:calc(100dvh - var(--mobile-shell-header-height))!important;
+    max-height:calc(100dvh - var(--mobile-shell-header-height))!important;
+    min-height:0!important;
+  }
+
+  /* RTL v65 set right:auto with higher specificity, so the later mobile rule
+     could not restore a two-sided inset. Force a balanced mobile action sheet. */
+  .final-quote-convert-bar,
+  [dir='rtl'] .final-quote-convert-bar{
+    left:max(10px,env(safe-area-inset-left))!important;
+    right:max(10px,env(safe-area-inset-right))!important;
+    width:auto!important;
+    max-width:none!important;
+  }
+}
