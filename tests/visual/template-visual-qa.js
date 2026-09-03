@@ -36,9 +36,9 @@ const documentData={
 
 try{
   const rendered=React.createElement(TemplateRenderer,{document:documentData,scale,compact:false});
-  const shell=React.createElement('div',{className:'qa-shell'},
+  const shell=React.createElement('div',{className:`qa-shell editor-screen ${mode==='mobile'?'mobile-preview-open':''}`},
     React.createElement('div',{className:'qa-caption'},React.createElement('span',null,`${template.toUpperCase()} · ${language.toUpperCase()} · ${count} items`),React.createElement('span',null,mode.toUpperCase())),
-    React.createElement('div',{className:`qa-stage preview-stage mode-${mode}`},rendered)
+    React.createElement('div',{className:`qa-stage preview-stage ${mode==='mobile'?'mobile-preview-stage':''} mode-${mode}`},rendered)
   );
   ReactDOM.render(shell,document.getElementById('root'));
   document.documentElement.dataset.ready='true';
