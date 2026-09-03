@@ -14,6 +14,7 @@ function issueText(issue:DocumentQualityIssue):string{
     case 'signature-missing':return t('Signature is enabled but no signature image is available.','التوقيع مفعل لكن لا توجد صورة توقيع.');
     case 'stamp-missing':return t('Stamp is enabled but no stamp image is available.','الختم مفعل لكن لا توجد صورة ختم.');
     case 'zero-price':return t('One or more items have a zero price.','يوجد صنف واحد أو أكثر بسعر صفر.');
+    case 'language-mismatch':return t('Some document values use a different language than the selected document language. They are suppressed in output until corrected.','بعض قيم المستند مكتوبة بلغة مختلفة عن لغة المستند المختارة. سيتم إخفاؤها من الإخراج حتى يتم تصحيحها.');
     case 'multi-page':return t('This document will use multiple A4 pages.','هذا المستند سيستخدم عدة صفحات A4.');
     case 'long-description':return t('A long item description may need a quick preview check.','يوجد وصف طويل لصنف ويُفضّل مراجعته في المعاينة.');
   }
@@ -49,8 +50,6 @@ export function DocumentReviewModal({document:doc,mode,issues,working,onClose,on
   const stampShown=doc.appearance.showStamp&&Boolean(doc.companySnapshot.stampDataUrl);
   const warningCount=issues.filter(issue=>issue.level==='warning').length;
   const confirm=()=>{
-    // iPhone/WebKit requires the PDF/print destination to be reserved from this
-    // exact user tap. Preserve the requested mode so Share and PDF remain distinct.
     if(mode==='pdf'||mode==='share'||mode==='print'){
       try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
     }
