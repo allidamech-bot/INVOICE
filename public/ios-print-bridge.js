@@ -1,4 +1,4 @@
-/* LOUREX iOS PDF bridge — v119.
+/* LOUREX document output bridge — v152.
    Safari on iPhone can expose computed CSS colors as CSS Color 4 `color(...)`
    values (especially display-p3). html2canvas 1.4.1 does not parse that syntax.
    This bridge normalizes those colors, explicitly stabilizes Arabic/RTL text
@@ -8,7 +8,6 @@
 (() => {
   const isAppleTouch = /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  if (!isAppleTouch) return;
 
   const HTML2CANVAS_URL = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
   const JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
@@ -28,6 +27,7 @@
   let pendingPdfPromise = null;
   let pendingPdfFile = null;
   let pendingPdfUrl = '';
+  let pendingArmed = false;
   const nativePrint = window.print.bind(window);
 
   const normalizeMode = (mode) => mode === 'share' ? 'share' : mode === 'print' ? 'print' : 'pdf';
@@ -151,6 +151,7 @@
     const overlay = pendingInlineOverlay; pendingInlineOverlay = null;
     if (overlay?.parentNode) overlay.parentNode.removeChild(overlay);
     resetPendingFile();
+    pendingArmed = false;
     if (release) releaseParentPrintState();
   };
 
@@ -160,7 +161,8 @@
     const overlay = document.createElement('div');
     overlay.className = 'lourex-ios-output-fallback';
     overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true');
-    overlay.innerHTML = '<div class="lourex-ios-output-card"><div class="lourex-ios-output-spinner"></div><strong>Preparing PDF…</strong><span>جارٍ إنشاء ملف PDF…</span><button type="button" class="lourex-ios-output-cancel">Close / إغلاق</button></div>';
+    const preparing=pendingMode==='print'?['Preparing print…','جارٍ تجهيز الطباعة…']:pendingMode==='share'?['Preparing to share…','جارٍ تجهيز المشاركة…']:['Preparing PDF…','جارٍ إنشاء ملف PDF…'];
+    overlay.innerHTML = `<div class="lourex-ios-output-card"><div class="lourex-ios-output-spinner"></div><strong>${preparing[0]}</strong><span>${preparing[1]}</span><button type="button" class="lourex-ios-output-cancel">Close / إغلاق</button></div>`;
     const style = document.createElement('style');
     style.textContent = '.lourex-ios-output-fallback{position:fixed;inset:0;z-index:2147483646;display:grid;place-items:center;padding:24px;background:rgba(7,20,30,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.lourex-ios-output-card{width:min(360px,100%);padding:24px;border-radius:20px;background:#fffdf9;color:#17364a;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.28)}.lourex-ios-output-card strong{display:block;font-size:18px;margin:8px 0}.lourex-ios-output-card span{display:block;color:#667784;font-size:13px;line-height:1.55;margin-bottom:18px}.lourex-ios-output-spinner{width:42px;height:42px;margin:0 auto 14px;border:2px solid #d8c49d;border-top-color:#17364a;border-radius:50%;animation:lourexOutputSpin .8s linear infinite}.lourex-ios-output-card button,.lourex-ios-output-card a{min-height:46px;border-radius:12px;border:1px solid #ccd8df;background:#fff;color:#27495f;padding:0 16px;font:700 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.lourex-ios-output-card a{display:flex;align-items:center;justify-content:center;text-decoration:none}.lourex-ios-output-primary{width:100%;background:#173f59!important;border-color:#173f59!important;color:#fff!important;margin-bottom:8px}.lourex-ios-output-secondary{width:100%;margin-bottom:8px}.lourex-ios-output-error{color:#9f3b32!important}@keyframes lourexOutputSpin{to{transform:rotate(360deg)}}@media print{.lourex-ios-output-fallback{display:none!important}}';
     overlay.appendChild(style);
@@ -356,32 +358,36 @@
   const showPreparationError = (error) => {
     const overlay=ensureInlineOverlay(pendingMode); const card=overlay.querySelector('.lourex-ios-output-card'); if(!card)return;
     const message=error instanceof Error?error.message:'Unable to create PDF.';
-    card.innerHTML=`<strong>PDF failed / تعذر إنشاء PDF</strong><span class="lourex-ios-output-error">${escapeHtml(message)}</span><button type="button" class="lourex-ios-output-cancel">Close / إغلاق</button>`;
+    const title=pendingMode==='print'?'Print failed / تعذرت الطباعة':pendingMode==='share'?'Share failed / تعذرت المشاركة':'PDF failed / تعذر إنشاء PDF';
+    card.innerHTML=`<strong>${title}</strong><span class="lourex-ios-output-error">${escapeHtml(message)}</span><button type="button" class="lourex-ios-output-cancel">Close / إغلاق</button>`;
     card.querySelector('.lourex-ios-output-cancel')?.addEventListener('click',()=>removeInlineOverlay(true));
   };
+  window.__LOUREX_OUTPUT_ERROR__ = (message) => showPreparationError(new Error(String(message||'Unable to prepare document.')));
 
   const portalIsReady = () => Boolean(document.querySelector('.print-portal .invoice-page'));
   const prepareCurrentOutput = () => {
     const overlay=ensureInlineOverlay(pendingMode);
-    if (pendingMode==='print') { hydrateInlineFallback(overlay,pendingMode,null); return; }
+    if (pendingMode==='print') {
+      if(isAppleTouch){hydrateInlineFallback(overlay,pendingMode,null);return;}
+      try{nativePrint();}finally{removeInlineOverlay(true);}
+      return;
+    }
     void buildPdfFile().then(file=>{ if(overlay.isConnected)hydrateInlineFallback(overlay,pendingMode,file); }).catch(showPreparationError);
   };
   const armReadyProbe = () => {
     clearReadyProbe(); let attempts=0;
     readyProbeTimer=setInterval(()=>{ attempts+=1; if(portalIsReady()){clearReadyProbe();prepareCurrentOutput();} else if(attempts>=125){clearReadyProbe();showPreparationError(new Error('Printable document timed out.'));}},80);
   };
-  const preparePdfWindow = (mode='pdf') => { pendingMode=normalizeMode(mode); resetPendingFile(); ensureInlineOverlay(pendingMode); armReadyProbe(); return true; };
+  const preparePdfWindow = (mode='pdf') => {
+    const nextMode=normalizeMode(mode);
+    if(pendingInlineOverlay?.isConnected&&pendingMode===nextMode&&readyProbeTimer)return true;
+    pendingArmed=true; pendingMode=nextMode; resetPendingFile(); ensureInlineOverlay(pendingMode); armReadyProbe(); return true;
+  };
   window.__LOUREX_PREPARE_PDF__ = preparePdfWindow;
 
-  document.addEventListener('click',event=>{
-    const node=event.target; if(!(node instanceof Element))return;
-    const button=node.closest('.modal-footer-actions .btn-primary'); if(!button||!button.closest('.modal')?.querySelector('.issue-review'))return;
-    const text=button.textContent||''; if(!/PDF|Share|مشاركة|طباعة|Print/i.test(text))return;
-    preparePdfWindow(/Share|مشاركة/i.test(text)?'share':/Print|طباعة/i.test(text)?'print':'pdf');
-  },true);
-
   window.print=function lourexPrintBridge(){
-    if(!portalIsReady()){armReadyProbe();if(!document.body.classList.contains('printing'))nativePrint();return;}
+    if(!pendingArmed||document.body.classList.contains('printing-financial-report')){nativePrint();return;}
+    if(!portalIsReady()){armReadyProbe();return;}
     clearReadyProbe();prepareCurrentOutput();
   };
 })();

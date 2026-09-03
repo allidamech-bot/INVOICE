@@ -1,6 +1,6 @@
 import type { CompanySettings, Customer, LourexDocument, PaymentRecord } from '../types.js';
 import { formatMoney } from '../lib/money.js';
-import { todayIso } from '../lib/id.js';
+import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, t } from '../lib/i18n.js';
 import { customerPerformanceReport, financialReportByCurrency, monthlyPerformanceReport, normalizeReportPeriod, type CustomerPerformanceRow } from '../lib/reports.js';
 import { Button, Icon, Input, Select } from './UI.js';
@@ -13,6 +13,7 @@ function startOfMonth(today:string):string{return `${today.slice(0,7)}-01`;}
 function startOfQuarter(today:string):string{const year=today.slice(0,4);const month=Number(today.slice(5,7));const start=Math.floor((month-1)/3)*3+1;return `${year}-${String(start).padStart(2,'0')}-01`;}
 function monthLabel(month:string):string{const [year,rawMonth]=month.split('-');const date=new Date(Date.UTC(Number(year),Number(rawMonth)-1,1));try{return new Intl.DateTimeFormat(getUiLanguage()==='ar'?'ar-EG':'en-US',{month:'short',year:'numeric',timeZone:'UTC',calendar:'gregory'}).format(date);}catch{return month;}}
 function customerDisplay(row:CustomerPerformanceRow):string{return row.customerName||t('Unassigned customer','عميل غير محدد');}
+function filterDateLabel(value:string):string{return value?displayDate(value,getUiLanguage()):t('All dates','كل التواريخ');}
 function csvCell(value:string|number):string{const text=String(value??'');return /[",\n]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;}
 
 export class ReportsPage extends React.Component<Props,State>{
@@ -61,8 +62,8 @@ export class ReportsPage extends React.Component<Props,State>{
 
       <section className="reports-filter-panel" aria-label={t('Report filters','فلاتر التقرير')}>
         <div className="reports-presets"><button type="button" onClick={()=>this.setPreset('month')}>{t('This Month','هذا الشهر')}</button><button type="button" onClick={()=>this.setPreset('quarter')}>{t('This Quarter','هذا الربع')}</button><button type="button" onClick={()=>this.setPreset('year')}>{t('This Year','هذه السنة')}</button><button type="button" onClick={()=>this.setPreset('all')}>{t('All Time','كل الفترات')}</button></div>
-        <label><span>{t('From','من')}</span><Input type="date" value={this.state.from} onChange={(e:any)=>this.setState({from:e.target.value})}/></label>
-        <label><span>{t('To','إلى')}</span><Input type="date" value={this.state.to} onChange={(e:any)=>this.setState({to:e.target.value})}/></label>
+        <label className="reports-date-field"><span>{t('From','من')}</span><span className="reports-date-control"><span className="reports-date-value" aria-hidden="true">{filterDateLabel(this.state.from)}</span><Input aria-label={t('From date','تاريخ البداية')} type="date" value={this.state.from} onChange={(e:any)=>this.setState({from:e.target.value})}/></span></label>
+        <label className="reports-date-field"><span>{t('To','إلى')}</span><span className="reports-date-control"><span className="reports-date-value" aria-hidden="true">{filterDateLabel(this.state.to)}</span><Input aria-label={t('To date','تاريخ النهاية')} type="date" value={this.state.to} onChange={(e:any)=>this.setState({to:e.target.value})}/></span></label>
         <label><span>{t('Currency','العملة')}</span><Select value={this.state.currency} onChange={(e:any)=>this.setState({currency:e.target.value})}><option value="ALL">{t('All currencies — separate','كل العملات — منفصلة')}</option>{currencies.map(currency=><option key={currency} value={currency}>{currency}</option>)}</Select></label>
       </section>
 

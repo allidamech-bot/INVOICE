@@ -17,9 +17,9 @@ test('v114 mobile workflow exposes the correct primary action plus preview PDF a
   assert.match(core,/mobile-editor-actionbar mobile-workflow-\$\{workflow\}/);
   assert.match(core,/readiness\.ready\?<Button icon="check" variant="primary" onClick=\{\(\)=>this\.openReview\('issue'\)\}/);
   assert.match(core,/mobile-action-buttons/);
-  assert.match(core,/onClick=\{\(\)=>this\.openReview\('pdf'\)\}>PDF/);
-  assert.match(core,/onClick=\{\(\)=>this\.openReview\('share'\)\}>\{t\('Share','مشاركة'\)\}/);
-  assert.match(core,/mobile-preview-overlay[\s\S]*openReview\('share'\)/);
+  assert.match(core,/onClick=\{\(\)=>void this\.output\('pdf'\)\}>PDF/);
+  assert.match(core,/onClick=\{\(\)=>void this\.output\('share'\)\}>\{t\('Share','مشاركة'\)\}/);
+  assert.match(core,/mobile-preview-overlay[\s\S]*output\('share'\)/);
 });
 
 test('v114 carries typed customer search into the quick-create form',async()=>{

@@ -13,8 +13,8 @@ test('v104 makes document search and filters faster without changing document ou
   assert.match(page,/documents-filter-toggle/);
   assert.match(page,/documents-results-bar/);
   assert.match(page,/Review drafts/);
-  assert.match(page,/this\.reserveOutput\('pdf'\)/);
-  assert.match(page,/this\.reserveOutput\('share'\)/);
+  assert.match(page,/this\.runOutput\('pdf',doc\)/);
+  assert.match(page,/this\.runOutput\('share',doc\)/);
 });
 
 test('v104 keeps advanced filters compact on mobile and leaves printable output untouched',async()=>{

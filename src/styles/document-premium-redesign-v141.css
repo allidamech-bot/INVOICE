@@ -149,6 +149,15 @@
 /* RTL is a deliberately mirrored layout */
 .invoice-page.lang-ar .doc-title,.invoice-page.lang-ar .modern-title,.invoice-page.lang-ar .party-block,.invoice-page.lang-ar :is(.terms-block,.bank-block,.signature-block,.notes-block){text-align:right}.invoice-page.lang-ar .doc-logo{justify-content:flex-end}.invoice-page.lang-ar .items-table{direction:rtl}.invoice-page.lang-ar .items-table th,.invoice-page.lang-ar .items-table td{text-align:right}.invoice-page.lang-ar .items-table :is(.quantity-cell,.numeric-heading,.money-cell){text-align:left}.invoice-page.lang-ar .party-identifiers>div,.invoice-page.lang-ar .term-row,.invoice-page.lang-ar :is(.total-row,.grand-total){direction:rtl}.invoice-page.lang-ar .bottom-grid,.invoice-page.lang-ar .lower-grid,.invoice-page.lang-ar .party-grid{direction:rtl}.invoice-page.lang-ar .bank-block>div>span{direction:rtl}.invoice-page.lang-ar .bank-block>div[data-bank="iban"]>span,.invoice-page.lang-ar .bank-block>div[data-bank="swift-/-bic"]>span{direction:ltr;text-align:right}.invoice-page.lang-bilingual .bi-label{justify-content:flex-start}.invoice-page.lang-bilingual .bi-value>span[dir="rtl"]{text-align:right}
 
+/* Bilingual titles represent one concept in two languages. Keep Arabic close
+   to the Latin title's perceived weight instead of rendering it as a caption. */
+.invoice-page.lang-bilingual .doc-title{gap:.45mm}
+.invoice-page.lang-bilingual .doc-title>em{font-size:20px;line-height:1.18;font-style:normal;font-weight:800;opacity:.96;letter-spacing:0}
+.invoice-page.lang-bilingual.template-minimal .doc-title>em,
+.invoice-page.lang-bilingual.template-editorial .doc-title>em,
+.invoice-page.lang-bilingual.template-blackivory .doc-title>em{font-size:22px}
+.invoice-pages>.invoice-page:not(:first-child).lang-bilingual .doc-title>em{display:none}
+
 /* Void state is an exception: a watermark, never part of content flow. */
 .document-void-watermark{position:absolute;z-index:8;inset:42% 8% auto;transform:rotate(-18deg);padding:2mm 4mm;border:1.2mm solid rgba(140,30,30,.14);color:rgba(140,30,30,.16);font-size:48px;line-height:1;text-align:center;font-weight:850;letter-spacing:.12em;pointer-events:none}
 

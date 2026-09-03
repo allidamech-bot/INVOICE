@@ -12,12 +12,12 @@ interface Props {
   onNew: (kind: DocumentKind) => void;
   onOpen: (doc: LourexDocument) => void;
   onDuplicate: (doc: LourexDocument) => void;
-  onPrint: (doc: LourexDocument, mode: 'print'|'pdf'|'share') => void;
+  onPrint: (doc: LourexDocument, mode: 'print'|'pdf'|'share') => Promise<void>;
   onDelete: (doc: LourexDocument) => void;
 }
 type WorkspaceStatus='all'|'draft'|'ready'|'final';
 type SortMode='latest'|'oldest'|'highest';
-interface State { tab: 'all'|'proforma'|'invoice'; status: WorkspaceStatus; sort:SortMode; query: string; menuId: string; filtersOpen:boolean; }
+interface State { tab: 'all'|'proforma'|'invoice'; status: WorkspaceStatus; sort:SortMode; query: string; menuId: string; filtersOpen:boolean; outputId:string; }
 
 function workflowStatus(doc:LourexDocument):Exclude<WorkspaceStatus,'all'>{
   if(doc.status==='final')return 'final';
@@ -29,7 +29,7 @@ function itemCountLabel(count:number):string{
 }
 
 export class DocumentsPage extends React.Component<Props, State> {
-  state: State = { tab: 'all', status: 'all', sort:'latest', query: '', menuId: '', filtersOpen:false };
+  state: State = { tab: 'all', status: 'all', sort:'latest', query: '', menuId: '', filtersOpen:false, outputId:'' };
   componentDidMount():void{
     document.addEventListener('pointerdown',this.handleOutsidePointer);
     document.addEventListener('keydown',this.handleKeyDown);
@@ -76,9 +76,12 @@ export class DocumentsPage extends React.Component<Props, State> {
   }
   private runAction=(action:()=>void)=>{this.setState({menuId:''},action);};
   private reserveOutput=(mode:'pdf'|'share')=>{try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}};
-  private runOutput=(mode:'pdf'|'share',action:()=>void)=>{
+  private runOutput=async(mode:'pdf'|'share',doc:LourexDocument)=>{
+    if(this.state.outputId)return;
     this.reserveOutput(mode);
-    this.setState({menuId:''},action);
+    this.setState({menuId:'',outputId:doc.id});
+    try{await this.props.onPrint(doc,mode);}catch{/* App surfaces the actionable error toast. */}
+    finally{this.setState({outputId:''});}
   };
   private clearFilters=()=>this.setState({tab:'all',status:'all',query:'',sort:'latest',menuId:'',filtersOpen:false});
   private clearSearch=()=>this.setState({query:'',menuId:''},()=>document.querySelector<HTMLInputElement>('.documents-search-input')?.focus());
@@ -94,7 +97,7 @@ export class DocumentsPage extends React.Component<Props, State> {
         <div className="action-menu mobile-document-action-sheet" role="menu" aria-label={t('Document actions','إجراءات المستند')} onPointerDown={(event:any)=>event.stopPropagation()}>
           <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onOpen(doc))}><Icon name={canOutput?'edit':'eye'}/>{canOutput?t('Open','فتح'):t('Review & Issue','مراجعة وإصدار')}</button>
           <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onDuplicate(doc))}><Icon name="copy"/>{t('Duplicate','نسخ')}</button>
-          {canOutput?<><button type="button" role="menuitem" onClick={()=>this.runOutput('pdf',()=>this.props.onPrint(doc,'pdf'))}><Icon name="download"/>PDF</button><button type="button" role="menuitem" onClick={()=>this.runOutput('share',()=>this.props.onPrint(doc,'share'))}><Icon name="share"/>{t('Share','مشاركة')}</button></>:null}
+          {canOutput?<><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}><Icon name="download"/>{this.state.outputId===doc.id?t('Preparing…','جارٍ التجهيز…'):'PDF'}</button><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}><Icon name="share"/>{t('Share','مشاركة')}</button></>:null}
           {canDelete?<button type="button" role="menuitem" className="danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/>{t('Delete Draft','حذف المسودة')}</button>:null}
         </div>
       </div>,
@@ -150,7 +153,7 @@ export class DocumentsPage extends React.Component<Props, State> {
             <span className="document-info"><span className="document-info-top"><strong>{doc.number}</strong><span className={`document-kind-pill kind-${doc.kind}`}>{kindLabel}</span></span><b>{customer}</b><small className="document-info-meta"><span>{displayDate(doc.issueDate,getUiLanguage())}</span><i aria-hidden="true">•</i><span>{itemCountLabel(doc.items.length)}</span>{missingCustomer?<><i aria-hidden="true">•</i><em>{t('Customer required','العميل مطلوب')}</em></>:null}</small></span>
             <span className="document-total"><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><span className={`document-status-pill status-${state}`}>{statusLabel}</span>{collection?<span className={`collection-pill collection-${collection.status}`}>{collectionLabel}</span>:null}{doc.creditForNumber?<span className="collection-pill lifecycle-link-pill">↳ {doc.creditForNumber}</span>:null}</span>
           </button>
-          <div className="document-actions desktop-actions"><Button variant="ghost" onClick={()=>this.props.onOpen(doc)}>{canOutput?t('Open','فتح'):t('Review','مراجعة')}</Button><IconButton icon="copy" label={t('Duplicate','نسخ')} onClick={()=>this.props.onDuplicate(doc)}/>{canOutput?<><IconButton icon="download" label="PDF" onClick={()=>{this.reserveOutput('pdf');this.props.onPrint(doc,'pdf');}}/><IconButton icon="share" label={t('Share','مشاركة')} onClick={()=>{this.reserveOutput('share');this.props.onPrint(doc,'share');}}/></>:null}{canDelete?<IconButton icon="trash" label={t('Delete Draft','حذف المسودة')} variant="danger" onClick={()=>this.props.onDelete(doc)}/>:null}</div>
+          <div className="document-actions desktop-actions"><Button variant="ghost" onClick={()=>this.props.onOpen(doc)}>{canOutput?t('Open','فتح'):t('Review','مراجعة')}</Button><IconButton icon="copy" label={t('Duplicate','نسخ')} onClick={()=>this.props.onDuplicate(doc)}/>{canOutput?<><IconButton icon="download" label="PDF" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}/><IconButton icon="share" label={t('Share','مشاركة')} disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}/></>:null}{canDelete?<IconButton icon="trash" label={t('Delete Draft','حذف المسودة')} variant="danger" onClick={()=>this.props.onDelete(doc)}/>:null}</div>
           <div className="mobile-actions"><IconButton icon="more" label={t('Actions','الإجراءات')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/></div>
         </article>;
       })}</div> : <div className="empty-state documents-empty"><span className="empty-mark"><Icon name="file" size={28}/></span><h2>{filteredView ? t('No matching documents','لا توجد مستندات مطابقة') : t('No documents yet','لا توجد مستندات بعد')}</h2><p>{filteredView ? t('Try another search or filter.','جرّب بحثًا أو تصفية مختلفة.') : t('Start with a quote, then convert it to an invoice when the deal is confirmed.','ابدأ بعرض سعر، ثم حوّله إلى فاتورة عند تأكيد الصفقة.')}</p>{filteredView?<div className="empty-actions"><Button icon="refresh" onClick={this.clearFilters}>{t('Clear filters','مسح التصفية')}</Button></div>:<div className="empty-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Create Quote','إنشاء عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Create Invoice','إنشاء فاتورة')}</Button></div>}</div>}
