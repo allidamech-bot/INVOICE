@@ -1,6 +1,7 @@
 import type { LourexDocument } from '../types.js';
 import { paginateItems } from './documents.js';
 import { decimalToScaled, isDecimalInput } from './money.js';
+import { hasDocumentLanguageMismatch } from './document-language.js';
 
 export type DocumentQualityCode =
   | 'company-name-missing'
@@ -10,7 +11,8 @@ export type DocumentQualityCode =
   | 'stamp-missing'
   | 'zero-price'
   | 'multi-page'
-  | 'long-description';
+  | 'long-description'
+  | 'language-mismatch';
 
 export interface DocumentQualityIssue {
   code: DocumentQualityCode;
@@ -47,18 +49,12 @@ function usesSeparateDetailsPage(doc:LourexDocument):boolean{
   const adjustments=[doc.adjustments.discountEnabled,doc.adjustments.shippingEnabled,doc.adjustments.otherChargesEnabled,doc.adjustments.taxEnabled].filter(Boolean).length;
   const score=termsCount+(doc.notes.trim()?3:0)+(bank?4:0)+(signing?3:0)+adjustments;
 
-  // Very large prose genuinely needs its own continuation page even when there
-  // are few items. Normal bank/signature/terms combinations do not.
   const hardOverflow=detailsChars>1400||values.some(value=>value.length>520)||doc.notes.length>900;
   if(hardOverflow)return true;
 
   const complexClosing=score>=10||detailsChars>700||values.some(value=>value.length>260)||doc.notes.length>420;
   if(!complexClosing)return false;
 
-  // Ask the existing item paginator how much item pressure would remain on the
-  // page that owns the closing zone. A sparse quote (for example one item plus
-  // bank/signature/three terms) must stay one page instead of creating a mostly
-  // empty first page and a details-only second page.
   const tentative=paginateItems(doc.items,true,firstPageCapacity(doc));
   const last=tentative[tentative.length-1]??[];
   const lastWeight=last.reduce((sum,item)=>sum+itemWeight(item.descriptionEn,item.descriptionAr),0);
@@ -86,6 +82,7 @@ export function documentQualityIssues(doc: LourexDocument): DocumentQualityIssue
   if(doc.appearance.showSignature&&!doc.companySnapshot.signatureDataUrl.trim())issues.push({code:'signature-missing',level:'warning'});
   if(doc.appearance.showStamp&&!doc.companySnapshot.stampDataUrl.trim())issues.push({code:'stamp-missing',level:'warning'});
   if(doc.items.some(item=>isDecimalInput(item.unitPrice)&&decimalToScaled(item.unitPrice)===0n))issues.push({code:'zero-price',level:'warning'});
+  if(hasDocumentLanguageMismatch(doc))issues.push({code:'language-mismatch',level:'warning'});
   if(estimatedDocumentPageCount(doc)>1)issues.push({code:'multi-page',level:'info'});
   if(doc.items.some(item=>(item.descriptionEn.length+item.descriptionAr.length)>900))issues.push({code:'long-description',level:'info'});
   return issues;
