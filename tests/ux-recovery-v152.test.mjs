@@ -52,7 +52,9 @@ test('v152 cloud persistence is local-first coalesced and retryable',async()=>{
     read('src/app/App.tsx'),read('src/storage/db.ts'),read('src/cloud/freshness.ts'),read('src/components/CloudAccountModal.tsx')
   ]);
   assert.match(app,/type CloudSyncState='local'\|'queued'\|'syncing'\|'synced'\|'offline'\|'error'/);
-  assert.match(app,/private scheduleCloudSync=\(delay=4_000\)/);
+  assert.match(app,/private scheduleCloudSync=\(delay=1_200\)/);
+  assert.match(app,/pushLocalVaultToCloud\(user\.uid,local\)/);
+  assert.match(app,/Newer local changes are waiting to sync/);
   assert.match(app,/cloudRetryDelay=Math\.min\(60_000,this\.cloudRetryDelay\*2\)/);
   assert.match(app,/Setup saved locally — cloud backup queued/);
   assert.match(app,/private cloudHeaderLabel=/);
@@ -62,6 +64,16 @@ test('v152 cloud persistence is local-first coalesced and retryable',async()=>{
   assert.match(freshness,/if\(pending\)window\.clearTimeout\(pending\)/);
   assert.match(modal,/Saved locally — waiting to sync/);
   assert.match(modal,/Offline — safely saved on this device/);
+});
+
+test('v152 small encrypted vaults use one atomic cloud transaction',async()=>{
+  const [cloud,vault]=await Promise.all([read('src/cloud/firebase.ts'),read('src/storage/vault.ts')]);
+  assert.match(cloud,/commitSingleChunkIfUnchanged/);
+  assert.match(cloud,/transaction\.set\(chunkRef/);
+  assert.match(cloud,/if\(chunks\.length===1\)await commitSingleChunkIfUnchanged/);
+  assert.match(cloud,/localSnapshot\?:EncryptedVaultRecord\|null/);
+  assert.match(vault,/Promise<EncryptedVaultRecord>/);
+  assert.match(vault,/return encrypted/);
 });
 
 test('v152 report dates retain native picking behind stable mobile labels',async()=>{

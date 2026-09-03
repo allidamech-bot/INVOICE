@@ -1,4 +1,4 @@
-import type { AppSettings, CompanySettings, Customer, DocumentKind, ExpenseRecord, InventoryMovementRecord, LourexDocument, PaymentRecord, PurchaseRecord, SavedItem, Supplier, UiLanguage, VaultPayload } from '../types.js';
+import type { AppSettings, CompanySettings, Customer, DocumentKind, EncryptedVaultRecord, ExpenseRecord, InventoryMovementRecord, LourexDocument, PaymentRecord, PurchaseRecord, SavedItem, Supplier, UiLanguage, VaultPayload } from '../types.js';
 import { customerSnapshotFrom, defaultCompany, emptyVault } from '../lib/defaults.js';
 import { createBlankDocument, convertToInvoice, duplicateDocument, nextCreditNoteNumber, nextDocumentNumber, validateDocument } from '../lib/documents.js';
 import { assertDocumentLifecycleInvariant, auditedDocument, beginRevisionDraft, createCreditNoteDraft, createDocumentEvent, createRevisionRecord, invoiceCreditCapacity, restoreRevisionSnapshot, voidFinalDocument } from '../lib/document-lifecycle.js';
@@ -49,6 +49,7 @@ export class App extends React.Component<{},State> {
   private cloudRetryDelay=5_000;
   private lastCloudSyncedAt='';
   private lastActivityTouch=0;
+  private latestEncryptedVault:EncryptedVaultRecord|null=null;
   private vaultWriteTail:Promise<VaultPayload|null>=Promise.resolve(null);
   private vaultReplacing=false;
 
@@ -160,10 +161,10 @@ export class App extends React.Component<{},State> {
   private waitForCloudIdle=async()=>{while(this.cloudSyncRunning)await new Promise(resolve=>window.setTimeout(resolve,30));};
   private waitForProtectedDataOperation=async()=>{const deadline=Date.now()+30_000;while(this.vaultReplacing){if(!this.state.unlocked||!this.state.key)throw new Error(t('App is locked.','التطبيق مقفل.'));if(Date.now()>=deadline)throw new Error(t('Cloud restore is still finishing. Try again in a moment.','ما زالت استعادة البيانات السحابية قيد الإنهاء. حاول مرة أخرى بعد لحظة.'));await new Promise(resolve=>window.setTimeout(resolve,50));}};
   private editorMustBeClosed=(actionEn:string,actionAr:string)=>{if(this.state.screen!=='editor')return;throw new Error(t(`Close the document editor before ${actionEn}.`,`أغلق محرر المستند قبل ${actionAr}.`));};
-  private beginProtectedOperation=async()=>{if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}await this.drainVaultWrites();await this.waitForCloudIdle();this.vaultReplacing=true;};
+  private beginProtectedOperation=async()=>{if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}await this.drainVaultWrites();await this.waitForCloudIdle();this.latestEncryptedVault=null;this.vaultReplacing=true;};
   private endProtectedOperation=()=>{this.vaultReplacing=false;};
 
-  private scheduleCloudSync=(delay=4_000)=>{
+  private scheduleCloudSync=(delay=1_200)=>{
     if(!this.state.cloudUser||!this.state.cloudLinked)return;
     if(this.cloudTimer)window.clearTimeout(this.cloudTimer);
     const offline=typeof navigator!=='undefined'&&!navigator.onLine;
@@ -186,7 +187,8 @@ export class App extends React.Component<{},State> {
     }
     await this.drainVaultWrites();
     if(this.vaultReplacing){this.cloudSyncQueued=true;return;}
-    const [linked,local]=await Promise.all([getCloudAccount(),getEncryptedVault()]);
+    const [linked,storedLocal]=await Promise.all([getCloudAccount(),this.latestEncryptedVault?Promise.resolve(this.latestEncryptedVault):getEncryptedVault()]);
+    const local=storedLocal;
     if(!linked||linked.uid!==user.uid||!local)return;
     if(local.updatedAt===this.lastCloudSyncedAt){
       this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});
@@ -195,10 +197,14 @@ export class App extends React.Component<{},State> {
     this.cloudSyncRunning=true;
     this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Syncing in background…','جارٍ المزامنة في الخلفية…')});
     try{
-      await pushLocalVaultToCloud(user.uid);
+      await pushLocalVaultToCloud(user.uid,local);
       this.lastCloudSyncedAt=local.updatedAt;
       this.cloudRetryDelay=5_000;
-      this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});
+      const newest=this.latestEncryptedVault??await getEncryptedVault();
+      if(newest&&newest.updatedAt!==local.updatedAt){
+        this.cloudSyncQueued=true;
+        this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer local changes are waiting to sync.','توجد تعديلات محلية أحدث بانتظار المزامنة.')});
+      }else this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});
     }catch(e){
       const retryDelay=this.cloudRetryDelay;
       this.cloudRetryDelay=Math.min(60_000,this.cloudRetryDelay*2);
@@ -234,7 +240,7 @@ export class App extends React.Component<{},State> {
         return;
       }
       this.cloudSyncRunning=true;
-      try{if(local){await pushLocalVaultToCloud(user.uid);this.lastCloudSyncedAt=local.updatedAt;}this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}
+      try{if(local){await pushLocalVaultToCloud(user.uid,local);this.lastCloudSyncedAt=local.updatedAt;}const newest=this.latestEncryptedVault??await getEncryptedVault();if(local&&newest&&newest.updatedAt!==local.updatedAt){this.cloudSyncQueued=true;this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer local changes are waiting to sync.','توجد تعديلات محلية أحدث بانتظار المزامنة.')});}else this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}
       finally{this.cloudSyncRunning=false;if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(500);}}
     }catch(e){const message=friendlyCloudError(e);this.setState({cloudSyncState:'error',cloudSyncMessage:message});throw new Error(message);}
   };
@@ -242,8 +248,8 @@ export class App extends React.Component<{},State> {
   private finishSetup=async(pin:string,company:CompanySettings)=>{const base=emptyVault();const vault={...base,company,appSettings:{...base.appSettings,uiLanguage:this.state.uiLanguage,smartDefaults:{...base.appSettings.smartDefaults,currency:company.defaultCurrency||'USD',language:company.defaultLanguage,incoterm:company.defaultIncoterm,paymentTerms:company.defaultPaymentTerms,deliveryTime:company.defaultDeliveryTime}}};const setup=await setupVault(pin,vault);await establishSession(setup.key);await this.syncPublicPreferences(company.logoDataUrl,this.state.uiLanguage);let cloudLinked=this.state.cloudLinked,cloudSyncState=this.state.cloudSyncState,cloudSyncMessage=this.state.cloudSyncMessage;if(this.state.cloudUser){try{await putCloudAccount(this.state.cloudUser.uid,this.state.cloudUser.email);cloudLinked=true;cloudSyncState='queued';cloudSyncMessage=t('Setup saved locally — cloud backup queued.','تم حفظ الإعداد محليًا — النسخة السحابية في الانتظار.');}catch(e){cloudSyncState='error';cloudSyncMessage=friendlyCloudError(e);}}this.vaultWriteTail=Promise.resolve(setup.vault);this.setState({firstRun:false,unlocked:true,key:setup.key,vault:setup.vault,screen:'documents',cloudLinked,cloudSyncState,cloudSyncMessage},()=>{this.resetAutoLock();this.scheduleCloudSync(350);});this.showToast(t('LOUREX Invoice is ready.','نظام LOUREX Invoice جاهز.'),'success');};
   private unlock=async(pin:string)=>{const result=await unlockVault(pin);const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.normalizedVault(result.vault);if(needsMigration)await saveVault(result.key,vault);await establishSession(result.key);await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);this.vaultWriteTail=Promise.resolve(vault);this.setState({unlocked:true,key:result.key,vault,screen:'documents',editorDoc:null},()=>{this.resetAutoLock();if(this.state.cloudUser&&this.state.cloudLinked)void this.cloudSyncNow().catch(()=>undefined);else this.scheduleCloudSync(1200);});};
   private lock=()=>{void this.lockNow(false);};
-  private lockNow=async(automatic:boolean)=>{if(!automatic&&this.state.screen==='editor'){this.showToast(t('Close the document editor before locking the app.','أغلق محرر المستند قبل قفل التطبيق.'),'error');return;}if(this.lockTimer)window.clearTimeout(this.lockTimer);await this.drainVaultWrites();await clearSession();this.vaultWriteTail=Promise.resolve(null);this.setState({unlocked:false,key:null,vault:null,editorDoc:null,screen:'documents',settingsOpen:false,newMenu:false});};
-  private persist=async(intended:VaultPayload)=>{const base=this.requireVault();await this.waitForProtectedDataOperation();const operation=this.vaultWriteTail.catch(()=>null).then(async queued=>{await this.waitForProtectedDataOperation();const key=this.state.key;if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));const latest=queued??this.state.vault??base;const merged=mergeVaultIntent(base,intended,latest);await saveVault(key,merged);if(this.state.unlocked&&this.state.key===key)await new Promise<void>(resolve=>this.setState({vault:merged},resolve));this.scheduleCloudSync();return merged;});this.vaultWriteTail=operation;await operation;};
+  private lockNow=async(automatic:boolean)=>{if(!automatic&&this.state.screen==='editor'){this.showToast(t('Close the document editor before locking the app.','أغلق محرر المستند قبل قفل التطبيق.'),'error');return;}if(this.lockTimer)window.clearTimeout(this.lockTimer);await this.drainVaultWrites();await clearSession();this.latestEncryptedVault=null;this.vaultWriteTail=Promise.resolve(null);this.setState({unlocked:false,key:null,vault:null,editorDoc:null,screen:'documents',settingsOpen:false,newMenu:false});};
+  private persist=async(intended:VaultPayload)=>{const base=this.requireVault();await this.waitForProtectedDataOperation();const operation=this.vaultWriteTail.catch(()=>null).then(async queued=>{await this.waitForProtectedDataOperation();const key=this.state.key;if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));const latest=queued??this.state.vault??base;const merged=mergeVaultIntent(base,intended,latest);const encrypted=await saveVault(key,merged);this.latestEncryptedVault=encrypted;if(this.state.unlocked&&this.state.key===key)await new Promise<void>(resolve=>this.setState({vault:merged},resolve));this.scheduleCloudSync();return merged;});this.vaultWriteTail=operation;await operation;};
   private reserveDocument=async(kind:DocumentKind):Promise<{doc:LourexDocument;vault:VaultPayload}>=>{const vault=this.requireVault();const next=nextDocumentNumber(vault,kind);await this.persist(next.vault);const current=this.requireVault();const smart=current.appSettings.smartDefaults;const base=createBlankDocument(kind,next.number,current.company);const paymentTerms=smart.paymentTerms||base.terms.paymentTerms;let doc={...base,currency:smart.currency||base.currency,language:smart.language||base.language,terms:{...base.terms,incoterm:smart.incoterm,paymentTerms,deliveryTime:smart.deliveryTime},appearance:{...base.appearance,templateId:kind==='proforma'?smart.quoteTemplateId:smart.invoiceTemplateId}};const paymentPreset=paymentTermPresetByLabel(current.company,paymentTerms);if(paymentPreset)doc=applyPaymentTermPreset(doc,paymentPreset);return{doc,vault:current};};
   private newDocument=async(kind:DocumentKind)=>{try{const {doc}=await this.reserveDocument(kind);this.setState({screen:'editor',editorDoc:doc,newMenu:false});}catch(e){this.showToast(e instanceof Error?e.message:t('Unable to create document.','تعذر إنشاء المستند.'),'error');}};
   private newDocumentForCustomer=async(kind:DocumentKind,customer:Customer)=>{try{const {doc}=await this.reserveDocument(kind);const prepared=applyCustomerCommercialDefaults({...doc,customerSnapshot:customerSnapshotFrom(customer)},customer,this.requireVault().company);await new Promise<void>(resolve=>this.setState({screen:'editor',editorDoc:prepared,newMenu:false},resolve));}catch(e){throw e instanceof Error?e:new Error(t('Unable to create document.','تعذر إنشاء المستند.'));}};

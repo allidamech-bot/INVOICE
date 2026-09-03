@@ -1,4 +1,4 @@
-import type { SecurityMetadata, VaultPayload } from '../types.js';
+import type { EncryptedVaultRecord, SecurityMetadata, VaultPayload } from '../types.js';
 import { APP_SCHEMA_VERSION, companySnapshotFrom, emptyVault } from '../lib/defaults.js';
 import { normalizeValidityDays } from '../lib/id.js';
 import { createSecurity, decryptVault, encryptVault, verifyPin } from '../crypto/crypto.js';
@@ -278,8 +278,12 @@ export async function resumeVaultSession(): Promise<{ key: CryptoKey; vault: Vau
   }
 }
 
-export async function saveVault(key: CryptoKey, vault: VaultPayload): Promise<void> {
-  try { await putRecord(await encryptVault(key, { ...vault, schemaVersion: APP_SCHEMA_VERSION })); }
+export async function saveVault(key: CryptoKey, vault: VaultPayload): Promise<EncryptedVaultRecord> {
+  try {
+    const encrypted=await encryptVault(key, { ...vault, schemaVersion: APP_SCHEMA_VERSION });
+    await putRecord(encrypted);
+    return encrypted;
+  }
   catch (error) {
     if (error instanceof DOMException && (error.name === 'QuotaExceededError' || error.name === 'UnknownError')) throw new Error('Local storage is full. Export a backup and free device storage.');
     throw error;
