@@ -4,13 +4,16 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v157 loads before the canonical A4 layer and remains document scoped',async()=>{
-  const [html,css]=await Promise.all([
+test('v157 loads before the canonical A4 layer and ships to installed PWAs',async()=>{
+  const [html,css,sw]=await Promise.all([
     read('index.html'),
-    read('src/styles/document-output-quality-v157.css')
+    read('src/styles/document-output-quality-v157.css'),
+    read('public/sw.js')
   ]);
   assert.ok(html.indexOf('mobile-preview-v156.css')<html.indexOf('document-output-quality-v157.css'));
   assert.ok(html.indexOf('document-output-quality-v157.css')<html.indexOf('document-premium-redesign-v141.css'));
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v157';$/m);
+  assert.ok(sw.includes('./styles/document-output-quality-v157.css'));
   assert.match(css,/\.invoice-page/);
   assert.doesNotMatch(css,/\.app-header|\.main-nav|\.editor-screen/);
 });
