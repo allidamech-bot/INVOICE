@@ -4,11 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v141 is the final production document style and PWA cache generation',async()=>{
+test('v141 remains the final document style while v142 advances the hardened PWA cache',async()=>{
   const [html,build,sw]=await Promise.all([read('index.html'),read('scripts/build.mjs'),read('public/sw.js')]);
   assert.ok(html.indexOf('document-premium-redesign-v141.css')>html.indexOf('document-layout-cleanup-v140.css'));
   assert.match(build,/styleNames\.at\(-1\)!=='document-premium-redesign-v141\.css'/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v141';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v142';$/m);
   assert.ok(sw.includes('"./styles/document-premium-redesign-v141.css"'));
 });
 
