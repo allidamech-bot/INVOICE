@@ -93,6 +93,7 @@ const vendorUrlMap=new Map([
   ['https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore-compat.js','./vendor/firebase-firestore-compat.js']
 ]);
 for(const [remote,local] of vendorUrlMap)html=html.replaceAll(remote,local);
+html=html.replace(/\s*<link rel="preconnect" href="https:\/\/(?:cdn\.jsdelivr\.net|www\.gstatic\.com)"[^>]*\/>\n?/g,'\n');
 await writeFile('dist/index.html',html);
 
 const iosBridgePath='dist/ios-print-bridge.js';
@@ -120,5 +121,6 @@ const sourceMaps=outputFiles.filter(file=>String(file).endsWith('.map'));
 if(sourceMaps.length)throw new Error(`Production build contains source maps: ${sourceMaps.slice(0,5).join(', ')}`);
 if([...vendorUrlMap.keys()].some(url=>html.includes(url)))throw new Error('Production HTML still references remote runtime JavaScript.');
 if(/https:\/\/cdn\.jsdelivr\.net\/npm\/(?:html2canvas|jspdf|xlsx)@/.test(iosBridge+productImport))throw new Error('Production runtime still references remote PDF/import libraries.');
+if(/preconnect[^>]+(?:cdn\.jsdelivr\.net|www\.gstatic\.com)/.test(html))throw new Error('Production HTML still preconnects to retired runtime CDNs.');
 
 console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; ${styleNames.length} CSS layers -> 1 bundle; ${VENDOR_ASSETS.length} runtime libraries vendored; source maps disabled)`);
