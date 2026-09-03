@@ -7,14 +7,14 @@ import { fileURLToPath } from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 
-test('v83 document layout remains a shared output layer and ships offline',()=>{
+test('historical v83 layout is retired in favor of the canonical A4 layer',()=>{
   const html=read('index.html');
   const sw=read('public/sw.js');
   const css=read('src/styles/document-layout-v83.css');
-  assert.match(html,/document-layout-v83\.css/);
-  assert.ok(html.indexOf('document-layout-v83.css')>html.indexOf('document-ux-v82.css'));
+  assert.doesNotMatch(html,/document-layout-v83\.css/);
+  assert.match(html,/document-premium-redesign-v141\.css/);
   assert.match(sw,/lourex-invoice-v\d+/);
-  assert.match(sw,/document-layout-v83\.css/);
+  assert.match(sw,/document-premium-redesign-v141\.css/);
   assert.match(css,/\.invoice-page \.final-details/);
   assert.match(css,/grid-template-columns:minmax\(0,1fr\)!important/);
 });

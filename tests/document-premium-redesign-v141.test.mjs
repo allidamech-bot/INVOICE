@@ -3,54 +3,65 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
+const templates=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 
-test('v141 remains the final document style while v142 advances the hardened PWA cache',async()=>{
+test('canonical document design is the only active A4 visual layer',async()=>{
   const [html,build,sw]=await Promise.all([read('index.html'),read('scripts/build.mjs'),read('public/sw.js')]);
-  assert.ok(html.indexOf('document-premium-redesign-v141.css')>html.indexOf('document-layout-cleanup-v140.css'));
+  const styles=[...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
+  assert.equal(styles.at(-1),'document-premium-redesign-v141.css');
+  for(const retired of ['document-art-direction-v120.css','document-palette-v121.css','document-dark-contrast-v126.css','document-flagship-v128.css','document-template-system-v129.css','document-final-qa-v130.css','document-layout-cleanup-v140.css','document-template-distinction-v143.css'])assert.equal(styles.includes(retired),false,retired);
   assert.match(build,/styleNames\.at\(-1\)!=='document-premium-redesign-v141\.css'/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v142';$/m);
-  assert.ok(sw.includes('"./styles/document-premium-redesign-v141.css"'));
+  assert.match(sw,/const CACHE = 'lourex-invoice-v146'/);
 });
 
-test('executive and minimal headers are explicitly light with dark readable typography',async()=>{
+test('all 18 templates own an explicit independent art direction',async()=>{
   const css=await read('src/styles/document-premium-redesign-v141.css');
-  assert.match(css,/template-executive \.header-executive\{[\s\S]*?background:linear-gradient\(180deg,#fff 0%,#fcfaf5 100%\)!important/);
-  assert.match(css,/template-executive \.header-executive>\.doc-title,[\s\S]*?color:var\(--v141-navy\)!important/);
-  assert.match(css,/template-minimal \.header-minimal\{[\s\S]*?background:#fff!important/);
-  assert.match(css,/template-minimal \.doc-title,[\s\S]*?color:#172d40!important/);
+  for(const id of templates){
+    assert.match(css,new RegExp(`\/\\* \\d{2} [^*]+ \\*\/[\\s\\S]*?\\.template-${id}\\b`),id);
+    assert.match(css,new RegExp(`\\.template-${id}[^\\n]*\\.items-table`),`${id}: table`);
+  }
+  assert.match(css,/Executive — multinational corporate luxury/);
+  assert.match(css,/Editorial — financial-journal typography and rules/);
+  assert.match(css,/Midnight Navy — LOUREX flagship/);
 });
 
-test('legacy decorative geometry cannot overlap modern header text',async()=>{
-  const css=await read('src/styles/document-premium-redesign-v141.css');
-  assert.match(css,/\.header-modern \.modern-geometry\{display:none!important\}/);
-  assert.match(css,/\.invoice-pages>\.invoice-page:first-child :is\(\.header-modern,\.header-executive,\.header-minimal,\.header-trade,\.header-signature\)\{[\s\S]*?isolation:isolate!important[\s\S]*?overflow:hidden!important/);
-  assert.match(css,/\.header-modern \.modern-title\{[\s\S]*?position:relative!important[\s\S]*?z-index:2!important/);
+test('A4, item table, totals, bank and signature use bounded flow-safe grids',async()=>{
+  const [css,renderer]=await Promise.all([read('src/styles/document-premium-redesign-v141.css'),read('src/templates/TemplateRenderer.tsx')]);
+  assert.match(css,/@page\{size:A4;margin:0\}/);
+  assert.match(css,/width:210mm;height:297mm/);
+  assert.match(css,/\.items-table\{width:100%;border-collapse:collapse;table-layout:fixed\}/);
+  assert.match(renderer,/<colgroup>/);
+  assert.match(css,/\.grand-total\{[^}]*grid-template-columns:minmax\(0,1fr\) auto/);
+  assert.match(css,/data-bank="iban"/);
+  assert.match(css,/\.signature-media\{[^}]*display:grid/);
+  assert.doesNotMatch(css,/\.party-block::before|\.party-block::after|\.header-modern::before|\.header-modern::after/);
 });
 
-test('seller and buyer blocks use real borders without pseudo-elements crossing content',async()=>{
-  const css=await read('src/styles/document-premium-redesign-v141.css');
-  assert.match(css,/\.invoice-page \.party-block\{[\s\S]*?border:1px solid #e0e4e5!important[\s\S]*?background:#fff!important/);
-  assert.match(css,/\.invoice-page \.party-block::before,[\s\S]*?content:none!important;display:none!important/);
-  assert.match(css,/\.invoice-page \.party-customer\{[\s\S]*?border-inline-start:1\.1mm solid var\(--v141-gold\)!important/);
+test('continuation pages replace repeated hero headers and preserve pagination',async()=>{
+  const renderer=await read('src/templates/TemplateRenderer.tsx');
+  assert.match(renderer,/function ContinuationHeader/);
+  assert.match(renderer,/!firstPage\?<ContinuationHeader/);
+  assert.match(renderer,/firstPage&&variant === 'executive'/);
+  assert.match(renderer,/page-continued/);
+  assert.match(renderer,/paginateItems/);
 });
 
-test('item table has one readable navy header and only light body rows',async()=>{
-  const css=await read('src/styles/document-premium-redesign-v141.css');
-  assert.match(css,/\.items-table thead th\{[\s\S]*?background:var\(--v141-navy\)!important[\s\S]*?color:#fff!important/);
-  assert.match(css,/tbody tr:nth-child\(odd\)\{background:#fff!important/);
-  assert.match(css,/tbody tr:nth-child\(even\)\{background:var\(--v141-row\)!important/);
-  assert.match(css,/\.items-table tbody td\{[\s\S]*?color:#213642!important/);
+test('RTL and bilingual documents receive explicit mirrored semantics',async()=>{
+  const [css,renderer]=await Promise.all([read('src/styles/document-premium-redesign-v141.css'),read('src/templates/TemplateRenderer.tsx')]);
+  assert.match(renderer,/dir=\{doc\.language==='ar'\?'rtl':'ltr'\}/);
+  assert.match(css,/\.invoice-page\.lang-ar \.items-table\{direction:rtl\}/);
+  assert.match(css,/\.template-split\.lang-ar \.header-modern/);
+  assert.match(css,/\.template-noir\.lang-ar \.header-modern/);
+  assert.match(css,/\.template-carbon\.lang-ar \.modern-title/);
+  assert.match(css,/\.invoice-page\.lang-bilingual \.bi-value/);
 });
 
-test('commercial closing area follows content instead of being pinned to A4 bottom',async()=>{
+test('dark identities remain light commercial paper with print-safe mastheads',async()=>{
   const css=await read('src/styles/document-premium-redesign-v141.css');
-  assert.match(css,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]*?margin-top:6mm!important/);
-  assert.match(css,/\.lower-grid\{[\s\S]*?grid-template-columns:minmax\(0,1fr\) minmax\(57mm,63mm\)!important/);
-  assert.match(css,/\.grand-total\{[\s\S]*?background:linear-gradient\(115deg,#0d2b40,#143d57\)!important[\s\S]*?color:#fff!important/);
-});
-
-test('formerly dark templates are forced onto light commercial paper',async()=>{
-  const css=await read('src/styles/document-premium-redesign-v141.css');
-  for(const id of ['noir','midnight','blackivory','carbon'])assert.match(css,new RegExp(`template-${id}\\{--v141-template:[^}]+background:#`));
-  assert.match(css,/template-noir,.template-midnight,.template-blackivory,.template-carbon\)\.document-tone-dark[\s\S]*?color:var\(--v141-ink\)!important[\s\S]*?background:transparent!important/);
+  assert.match(css,/\.template-noir\{--paper:#fffdf8/);
+  assert.match(css,/\.template-midnight\{--paper:#fcfaf4/);
+  assert.match(css,/\.template-blackivory\{--paper:#fbf6eb/);
+  assert.match(css,/\.template-carbon\{--paper:#fafafa/);
+  assert.match(css,/-webkit-print-color-adjust:exact/);
+  assert.doesNotMatch(css,/\.template-(?:noir|midnight|blackivory|carbon)\{[^}]*--paper:#(?:0|1|2)/);
 });

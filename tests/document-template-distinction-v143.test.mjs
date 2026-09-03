@@ -5,12 +5,10 @@ import { readFile } from 'node:fs/promises';
 const read=path=>readFile(path,'utf8');
 const MODERN=['obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 
-test('v143 visual distinction sits between layout cleanup and the final v141 safety layer',async()=>{
+test('v143 is retired and its distinction contract lives in the canonical layer',async()=>{
   const html=await read('index.html');
-  const v140=html.indexOf('document-layout-cleanup-v140.css');
-  const v143=html.indexOf('document-template-distinction-v143.css');
-  const v141=html.indexOf('document-premium-redesign-v141.css');
-  assert.ok(v140>=0&&v143>v140&&v141>v143);
+  assert.equal(html.indexOf('document-template-distinction-v143.css'),-1);
+  assert.equal([...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].at(-1)?.[1],'document-premium-redesign-v141.css');
 });
 
 test('all fourteen modern template identities receive explicit v143 art direction',async()=>{

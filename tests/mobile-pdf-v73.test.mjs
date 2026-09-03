@@ -7,17 +7,15 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('mobile preview preserves physical A4 geometry instead of shrinking document layout', async () => {
   const [html, css] = await Promise.all([
     read('index.html'),
-    read('src/styles/a4-mobile-print-v73.css')
+    read('src/styles/document-premium-redesign-v141.css')
   ]);
 
-  assert.match(html, /styles\/a4-mobile-print-v73\.css/);
+  assert.match(html, /styles\/document-premium-redesign-v141\.css/);
   assert.match(css, /\.mobile-preview-stage \.invoice-page/);
-  assert.match(css, /width:\s*210mm\s*!important/);
-  assert.match(css, /height:\s*297mm\s*!important/);
-  assert.match(css, /\.mobile-preview-overlay\s*\{\s*display:\s*none\s*!important/);
-  assert.match(css, /\.mobile-preview-open \.mobile-preview-overlay\s*\{\s*display:\s*block\s*!important/);
-  assert.match(css, /\.lower-grid\s*>\s*\.totals-block/);
-  assert.match(css, /min-width:\s*66mm/);
+  assert.match(css, /width:210mm;min-width:210mm;height:297mm;min-height:297mm/);
+  assert.match(css, /\.mobile-preview-overlay\{display:none\}/);
+  assert.match(css, /\.mobile-preview-open \.mobile-preview-overlay\{display:flex/);
+  assert.match(css, /grid-template-columns:minmax\(0,1fr\) minmax\(58mm,64mm\)/);
 });
 
 test('iPhone PDF save and share normalize Safari colors and preserve high-resolution signature/stamp artwork', async () => {

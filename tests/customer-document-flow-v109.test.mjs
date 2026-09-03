@@ -35,7 +35,7 @@ test('v109 styles keep customer actions touch-safe and responsive', async () => 
   assert.doesNotMatch(css, /\.items-table/);
 });
 
-test('v109 stylesheet is loaded, cached, and remains before final v100 layer', async () => {
+test('v109 stylesheet remains app-only beneath the canonical document layer', async () => {
   const [html, sw] = await Promise.all([read('index.html'), read('public/sw.js')]);
   const v109 = './styles/customer-document-flow-v109.css';
   const v100 = './styles/performance-polish-v100.css';
@@ -44,7 +44,7 @@ test('v109 stylesheet is loaded, cached, and remains before final v100 layer', a
   assert.ok(html.indexOf(v109) < html.indexOf(v100));
   assert.equal((html.match(/<link rel="stylesheet"/g) || []).at(-1) !== undefined, true);
   const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map(match => match[1]);
-  assert.equal(links.at(-1), v100);
+  assert.equal(links.at(-1), './styles/document-premium-redesign-v141.css');
   assert.match(sw, /v103/);
   assert.match(sw, /const CACHE = 'lourex-invoice-v101'/);
 });

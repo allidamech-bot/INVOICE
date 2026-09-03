@@ -4,17 +4,14 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v119 document output layer loads after document composition layers and before final performance layer',async()=>{
-  const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
-  const output='./styles/document-output-v119.css';
-  const content='./styles/document-content-v85.css';
-  const performance='./styles/performance-polish-v100.css';
-  assert.ok(html.includes(output));
-  assert.ok(sw.includes(output));
-  assert.ok(html.indexOf(output)>html.indexOf(content));
-  assert.ok(html.indexOf(output)<html.indexOf(performance));
-  assert.equal([...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].at(-1)?.[1],'performance-polish-v100.css');
-  assert.match(sw,/const CACHE = 'lourex-invoice-v101'/);
+test('canonical document output layer is the single final A4 stylesheet',async()=>{
+  const [html,sw,css]=await Promise.all([read('index.html'),read('public/sw.js'),read('src/styles/document-premium-redesign-v141.css')]);
+  const design='./styles/document-premium-redesign-v141.css';
+  assert.ok(html.includes(design));
+  assert.ok(sw.includes(design));
+  assert.equal([...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].at(-1)?.[1],'document-premium-redesign-v141.css');
+  assert.match(css,/@page\{size:A4;margin:0\}/);
+  assert.match(sw,/const CACHE = 'lourex-invoice-v146'/);
 });
 
 test('v119 keeps terms totals notes and other closing details at the bottom of the A4 body',async()=>{

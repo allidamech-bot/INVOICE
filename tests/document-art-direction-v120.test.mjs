@@ -4,14 +4,14 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v120 premium document art direction is loaded after the existing document stack',async()=>{
+test('historical v120 art direction is retired from runtime in favor of one canonical layer',async()=>{
   const [html,css]=await Promise.all([
     read('index.html'),
-    read('src/styles/document-art-direction-v120.css')
+    read('src/styles/document-premium-redesign-v141.css')
   ]);
-  assert.match(html,/@import url\("\.\/styles\/document-art-direction-v120\.css"\)/);
-  assert.match(css,/v120 — LOUREX premium document art direction/);
-  assert.ok(html.indexOf('document-output-v119.css')<html.indexOf('document-art-direction-v120.css'));
+  assert.doesNotMatch(html,/document-art-direction-v120\.css/);
+  assert.match(html,/document-premium-redesign-v141\.css/);
+  assert.match(css,/canonical A4 layer/);
 });
 
 test('v120 creates customer-first hierarchy and a deliberate commercial closing zone',async()=>{
