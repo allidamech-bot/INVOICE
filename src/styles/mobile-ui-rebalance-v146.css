@@ -292,6 +292,205 @@
     min-width:34px;
     height:34px;
   }
+
+  /* v147 — mobile UI recovery based on real iPhone captures. */
+  .app-ui .main-content{
+    padding-inline:12px!important;
+    padding-top:14px!important;
+  }
+
+  .app-ui .documents-page .page-heading,
+  .app-ui .receivables-heading,
+  .app-ui .reports-heading{
+    margin-bottom:12px!important;
+  }
+
+  .app-ui .receivables-heading h1,
+  .app-ui .reports-heading h1{
+    margin:2px 0 5px!important;
+    font-size:26px!important;
+    line-height:1.08!important;
+  }
+
+  .app-ui .receivables-heading .page-subtitle,
+  .app-ui .receivables-heading p,
+  .app-ui .reports-heading p{
+    margin:0!important;
+    font-size:12.5px!important;
+    line-height:1.55!important;
+  }
+
+  .app-ui .receivables-heading .eyebrow,
+  .app-ui .reports-heading .eyebrow{
+    font-size:9.5px!important;
+    margin:0!important;
+  }
+
+  .app-ui .resume-document-card{
+    min-height:76px!important;
+    padding:9px 10px!important;
+    margin:6px 0 8px!important;
+  }
+
+  .app-ui .documents-overview-five{
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:5px!important;
+  }
+
+  .app-ui .documents-overview-five > button:first-child{
+    grid-column:1/-1!important;
+    min-height:44px!important;
+  }
+
+  .app-ui .documents-overview-five > button:not(:first-child){
+    min-height:46px!important;
+    padding:7px 6px!important;
+  }
+
+  .app-ui .documents-overview-five span{
+    font-size:9px!important;
+  }
+
+  .app-ui .documents-overview-five strong{
+    font-size:16px!important;
+  }
+
+  .app-ui .premium-documents-toolbar{
+    padding:6px!important;
+    gap:6px!important;
+  }
+
+  .app-ui .documents-filter-toggle,
+  .app-ui .documents-search-box .input,
+  .app-ui .documents-sort{
+    min-height:38px!important;
+    height:38px!important;
+  }
+
+  .app-ui .documents-filter-toggle{
+    padding:6px 9px!important;
+  }
+
+  .app-ui .premium-document-card .document-main{
+    min-height:72px!important;
+    padding:9px!important;
+  }
+
+  .app-ui .empty-state{
+    min-height:168px!important;
+    padding:22px 16px!important;
+  }
+
+  .app-ui .empty-state h2{
+    font-size:17px!important;
+    margin-bottom:6px!important;
+  }
+
+  .app-ui .empty-state p{
+    font-size:12px!important;
+    line-height:1.5!important;
+  }
+
+  .app-ui .reports-heading-actions{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+  }
+
+  .app-ui .reports-heading-actions .btn{
+    min-height:40px!important;
+    padding:7px 9px!important;
+    font-size:12px!important;
+  }
+
+  .app-ui .reports-filter-panel{
+    padding:11px!important;
+    border-radius:13px!important;
+    gap:8px!important;
+    margin-bottom:12px!important;
+  }
+
+  .app-ui .reports-presets{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:6px!important;
+  }
+
+  .app-ui .reports-presets button{
+    min-height:36px!important;
+    padding:6px 8px!important;
+    border-radius:9px!important;
+    font-size:11px!important;
+  }
+
+  .app-ui .reports-filter-panel > label{
+    gap:4px!important;
+  }
+
+  .app-ui .reports-filter-panel > label > span{
+    font-size:10px!important;
+  }
+
+  .app-ui .reports-filter-panel input[type="date"],
+  .app-ui .reports-filter-panel select{
+    min-height:40px!important;
+    height:40px!important;
+    padding:7px 10px!important;
+    font-size:13px!important;
+    line-height:1!important;
+  }
+
+  .app-ui .report-card,
+  .app-ui .receivables-card{
+    border-radius:13px!important;
+    padding:13px!important;
+    margin-bottom:11px!important;
+  }
+
+  .app-ui .report-card h2,
+  .app-ui .receivables-card h2{
+    font-size:20px!important;
+    line-height:1.15!important;
+    margin-bottom:6px!important;
+  }
+
+  .app-ui .report-card p,
+  .app-ui .receivables-card p{
+    font-size:12px!important;
+    line-height:1.5!important;
+  }
+
+  .app-ui .receivables-page .search-box,
+  .app-ui .reports-page .search-box{
+    min-height:40px!important;
+  }
+
+  .app-ui .receivables-page .search-box .input,
+  .app-ui .reports-page .search-box .input,
+  .app-ui .receivables-page select,
+  .app-ui .reports-page select{
+    min-height:40px!important;
+    height:40px!important;
+  }
+
+  .app-ui .receivables-page table,
+  .app-ui .reports-page table{
+    font-size:10.5px!important;
+  }
+
+  .app-ui .receivables-page th,
+  .app-ui .receivables-page td,
+  .app-ui .reports-page th,
+  .app-ui .reports-page td{
+    padding:8px 7px!important;
+    white-space:nowrap;
+  }
+
+  .app-ui .aging-table-wrap,
+  .app-ui .reports-page .table-wrap,
+  .app-ui .receivables-page .table-wrap{
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch;
+  }
 }
 
 @media (max-width:420px){
@@ -318,6 +517,18 @@
 
   .app-ui .product-library-search{
     grid-column:1 / -1!important;
+  }
+
+  .app-ui .documents-overview-five{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  .app-ui .documents-overview-five > button:first-child{
+    grid-column:1/-1!important;
+  }
+
+  .app-ui .reports-heading-actions{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
   }
 }
 
