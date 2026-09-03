@@ -4,25 +4,22 @@ import { readFile } from 'node:fs/promises';
 
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('v126 is the final document contrast layer and covers all fully-dark templates',async()=>{
+test('canonical light-paper layer replaces the retired fully-dark contrast layer',async()=>{
   const [html,css]=await Promise.all([
     read('index.html'),
-    read('src/styles/document-dark-contrast-v126.css')
+    read('src/styles/document-premium-redesign-v141.css')
   ]);
-
-  const art=html.indexOf('document-art-direction-v120.css');
-  const palette=html.indexOf('document-palette-v121.css');
-  const dark=html.indexOf('document-dark-contrast-v126.css');
-  assert.ok(art>=0&&palette>art&&dark>palette,'v126 must load after art direction and palette layers');
+  assert.doesNotMatch(html,/document-dark-contrast-v126\.css/);
+  assert.equal([...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].at(-1)?.[1],'document-premium-redesign-v141.css');
 
   for(const name of ['template-noir','template-midnight','template-blackivory','template-carbon']){
     assert.match(css,new RegExp(name));
   }
-  assert.match(css,/\.doc-meta b[\s\S]*?color:var\(--dark-label\)!important/);
-  assert.match(css,/\.doc-meta span[\s\S]*?color:#fffdf8!important/);
-  assert.match(css,/\.term-row span/);
+  assert.match(css,/\.template-noir\{--paper:#fffdf8/);
+  assert.match(css,/\.template-midnight\{--paper:#fcfaf4/);
+  assert.match(css,/\.term-row>span/);
   assert.match(css,/\.notes-block p/);
-  assert.match(css,/\.bank-block span/);
+  assert.match(css,/\.bank-block>div>span/);
   assert.match(css,/\.continued-label/);
 });
 

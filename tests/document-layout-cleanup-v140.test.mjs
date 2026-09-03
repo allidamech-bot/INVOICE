@@ -5,22 +5,18 @@ import { readFile } from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 
-test('v140 remains the layout foundation directly beneath the current premium document layer',async()=>{
+test('canonical document layer replaces v140 and remains final',async()=>{
   const [html,build,css,sw]=await Promise.all([
     read('index.html'),
     read('scripts/build.mjs'),
-    read('src/styles/document-layout-cleanup-v140.css'),
+    read('src/styles/document-premium-redesign-v141.css'),
     read('public/sw.js')
   ]);
-  const qa=html.indexOf('document-final-qa-v130.css');
-  const cleanup=html.indexOf('document-layout-cleanup-v140.css');
-  const premium=html.indexOf('document-premium-redesign-v141.css');
-  assert.ok(qa>=0&&cleanup>qa,'v140 must remain after v130');
-  assert.ok(premium>cleanup,'v141 must extend v140 rather than replace its structural guardrails');
+  assert.equal(html.indexOf('document-layout-cleanup-v140.css'),-1);
+  assert.equal([...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].at(-1)?.[1],'document-premium-redesign-v141.css');
   assert.match(build,/styleNames\.at\(-1\)!=='document-premium-redesign-v141\.css'/);
-  assert.ok(sw.includes('"./styles/document-layout-cleanup-v140.css"'));
   assert.ok(sw.includes('"./styles/document-premium-redesign-v141.css"'));
-  assert.match(css,/v140 — LOUREX document layout cleanup/);
+  assert.match(css,/canonical A4 layer/);
 });
 
 test('v140 removes the large dead gap and normalizes the closing zone',async()=>{

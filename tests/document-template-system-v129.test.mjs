@@ -4,13 +4,14 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v129 template system is loaded after flagship v128 without touching app chrome',async()=>{
+test('canonical template system replaces v128/v129 without touching app chrome',async()=>{
   const [html,css]=await Promise.all([
     read('index.html'),
-    read('src/styles/document-template-system-v129.css')
+    read('src/styles/document-premium-redesign-v141.css')
   ]);
-  assert.match(html,/document-flagship-v128\.css[^<]*document-template-system-v129\.css/);
-  assert.match(css,/\.invoice-page:is\(\.template-minimal,/);
+  assert.doesNotMatch(html,/document-template-system-v129\.css/);
+  assert.match(html,/document-premium-redesign-v141\.css/);
+  assert.match(css,/\.template-minimal/);
   assert.doesNotMatch(css,/\.app-shell|\.documents-page|\.editor-shell/);
 });
 

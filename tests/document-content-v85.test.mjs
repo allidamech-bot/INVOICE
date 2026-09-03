@@ -7,13 +7,13 @@ import { fileURLToPath } from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 
-test('v85 content layer remains loaded and ships in the current offline PWA shell',()=>{
+test('historical v85 content layer is retired from runtime and replaced canonically',()=>{
   const html=read('index.html');
   const sw=read('public/sw.js');
-  assert.match(html,/document-content-v85\.css/);
-  assert.ok(html.indexOf('document-content-v85.css')>html.indexOf('document-template-polish-v84.css'));
+  assert.doesNotMatch(html,/document-content-v85\.css/);
+  assert.match(html,/document-premium-redesign-v141\.css/);
   assert.match(sw,/lourex-invoice-v\d+/);
-  assert.match(sw,/document-content-v85\.css/);
+  assert.match(sw,/document-premium-redesign-v141\.css/);
 });
 
 test('document metadata adapts to optional due dates without empty header slots',()=>{

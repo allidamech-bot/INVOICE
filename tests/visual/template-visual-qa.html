@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LOUREX template visual QA</title>
+  <link rel="stylesheet" href="../../dist/styles/app.bundle.css" />
+  <style>
+    html,body{margin:0;min-height:100%;background:#dfe3e5;color:#17222b;font-family:Inter,Arial,sans-serif}
+    .qa-shell{min-height:100vh;padding:28px}.qa-caption{width:min(100%,210mm);margin:0 auto 16px;display:flex;justify-content:space-between;gap:16px;font-size:13px;font-weight:700}.qa-stage{display:flex;justify-content:center;overflow:visible;margin:0 auto}.qa-stage.preview-stage{width:210mm}.qa-stage.mode-tablet{width:834px;overflow:hidden}.qa-stage.mode-mobile{width:390px;overflow:hidden}.qa-error{margin:40px auto;max-width:760px;padding:24px;background:#fff;border:1px solid #b8c0c4;white-space:pre-wrap}
+    @media print{.qa-shell{padding:0}.qa-caption{display:none}.qa-stage{width:auto!important;overflow:visible!important}}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="../../dist/vendor/react.production.min.js"></script>
+  <script src="../../dist/vendor/react-dom.production.min.js"></script>
+  <script type="module" src="./template-visual-qa.js"></script>
+</body>
+</html>

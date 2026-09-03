@@ -96,6 +96,16 @@ for(const [remote,local] of vendorUrlMap)html=html.replaceAll(remote,local);
 html=html.replace(/\s*<link rel="preconnect" href="https:\/\/(?:cdn\.jsdelivr\.net|www\.gstatic\.com)"[^>]*\/>\n?/g,'\n');
 await writeFile('dist/index.html',html);
 
+// Keep the browser-driven template stress fixture available on local and
+// preview builds only. Production never publishes QA routes or mock documents.
+if(vercelEnvironment!=='production'){
+  await mkdir('dist/qa',{recursive:true});
+  for(const file of ['template-visual-qa.html','template-visual-qa.js']){
+    const source=await readFile(`tests/visual/${file}`,'utf8');
+    await writeFile(`dist/qa/${file}`,source.replaceAll('../../dist/','../'));
+  }
+}
+
 const iosBridgePath='dist/ios-print-bridge.js';
 let iosBridge=await readFile(iosBridgePath,'utf8');
 iosBridge=iosBridge

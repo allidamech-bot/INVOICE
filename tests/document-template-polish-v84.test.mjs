@@ -8,13 +8,13 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const templates=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 
-test('v84 template polish loads after shared v83 layout and ships offline in later releases',()=>{
+test('historical v84 polish is retired beneath the canonical template system',()=>{
   const html=read('index.html');
   const sw=read('public/sw.js');
-  assert.match(html,/document-template-polish-v84\.css/);
-  assert.ok(html.indexOf('document-template-polish-v84.css')>html.indexOf('document-layout-v83.css'));
+  assert.doesNotMatch(html,/document-template-polish-v84\.css/);
+  assert.match(html,/document-premium-redesign-v141\.css/);
   assert.match(sw,/lourex-invoice-v\d+/);
-  assert.match(sw,/document-template-polish-v84\.css/);
+  assert.match(sw,/document-premium-redesign-v141\.css/);
 });
 
 test('all 18 invoice and proforma template identities receive explicit polish',()=>{

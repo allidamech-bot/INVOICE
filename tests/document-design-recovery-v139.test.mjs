@@ -17,27 +17,16 @@ const designLayers=[
 ];
 const templateIds=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 
-test('v139 preserves the complete final document design cascade in source order',async()=>{
+test('canonical recovery removes the historical document cascade from runtime',async()=>{
   const html=await read('index.html');
-  let previous=html.indexOf('performance-polish-v100.css');
-  assert.ok(previous>=0);
-  for(const name of designLayers){
-    const current=html.indexOf(name);
-    assert.ok(current>previous,`${name} must remain after the prior design layer`);
-    previous=current;
-  }
-  assert.equal(designLayers.at(-1),'document-final-qa-v130.css');
+  for(const name of designLayers.filter(name=>!name.startsWith('mobile-document-actions')))assert.equal(html.indexOf(name),-1,`${name} must be retired`);
+  assert.equal([...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].at(-1)?.[1],'document-premium-redesign-v141.css');
 });
 
-test('v139 production bundle contains v120-v130 and removes local network imports',async()=>{
+test('production bundle contains one canonical document layer and removes local imports',async()=>{
   const [bundle,distHtml]=await Promise.all([read('dist/styles/app.bundle.css'),read('dist/index.html')]);
-  let previous=-1;
-  for(const name of designLayers){
-    const marker=`/* --- ${name} --- */`;
-    const current=bundle.indexOf(marker);
-    assert.ok(current>previous,`${name} must be bundled in exact cascade order`);
-    previous=current;
-  }
+  assert.match(bundle,/\/\* --- document-premium-redesign-v141\.css --- \*\//);
+  for(const name of designLayers.filter(name=>!name.startsWith('mobile-document-actions')))assert.equal(bundle.indexOf(`/* --- ${name} --- */`),-1);
   assert.doesNotMatch(distHtml,/@import url\("\.\/styles\//);
   assert.deepEqual([...distHtml.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(m=>m[1]),['app.bundle.css']);
 });

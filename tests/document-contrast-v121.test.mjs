@@ -4,12 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v121 contrast layer loads after v120 art direction',async()=>{
+test('historical contrast and art-direction layers no longer participate in runtime',async()=>{
   const html=await read('index.html');
-  const v120=html.indexOf('document-art-direction-v120.css');
-  const v121=html.indexOf('document-palette-v121.css');
-  assert.ok(v120>=0);
-  assert.ok(v121>v120);
+  assert.equal(html.indexOf('document-art-direction-v120.css'),-1);
+  assert.equal(html.indexOf('document-palette-v121.css'),-1);
+  assert.ok(html.indexOf('document-premium-redesign-v141.css')>=0);
 });
 
 test('document renderer exposes computed accent ink for dynamic contrast',async()=>{

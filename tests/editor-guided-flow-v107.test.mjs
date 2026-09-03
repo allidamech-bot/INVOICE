@@ -31,12 +31,12 @@ test('v107 keeps long mobile forms readable and the step dock touch-safe',async(
   assert.doesNotMatch(css,/\.items-table\s*\{/);
 });
 
-test('v107 ships offline while preserving the final v100 performance cascade',async()=>{
+test('v107 ships offline beneath the final canonical document layer',async()=>{
   const [index,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   assert.match(index,/editor-guided-flow-v107\.css/);
   assert.match(sw,/editor-guided-flow-v107\.css/);
   assert.match(sw,/v103/);
   assert.ok(index.indexOf('editor-guided-flow-v107.css')<index.indexOf('performance-polish-v100.css'));
   const styles=[...index.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
-  assert.equal(styles.at(-1),'performance-polish-v100.css');
+  assert.equal(styles.at(-1),'document-premium-redesign-v141.css');
 });

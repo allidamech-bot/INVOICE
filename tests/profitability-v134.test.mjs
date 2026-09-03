@@ -100,13 +100,13 @@ test('v134 editor integration preserves newer internal costs against stale core 
   assert.match(editor,/<ProfitabilityPanel[^>]*onSave=\{props\.onSave\}/);
 });
 
-test('v134 PWA ships profitability offline while preserving legacy compatibility and final performance layer',async()=>{
+test('v134 PWA ships profitability offline beneath the canonical document layer',async()=>{
   const [index,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   const profitability='./styles/profitability-v134.css';
   const performance='./styles/performance-polish-v100.css';
   assert.ok(index.includes(profitability));
   assert.ok(index.indexOf(profitability)<index.indexOf(performance));
-  assert.equal([...index.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map(match=>match[1]).at(-1),performance);
+  assert.equal([...index.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map(match=>match[1]).at(-1),'./styles/document-premium-redesign-v141.css');
   for(const asset of [profitability,'./src/components/ProfitabilityPanel.js','./src/lib/profitability.js'])assert.ok(sw.includes(asset),asset);
   assert.match(sw,/const CACHE = 'lourex-invoice-v134'/);
   assert.match(sw,/v103 saved-item compatibility/);

@@ -4,15 +4,14 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v128 flagship design layer loads after dark contrast and remains document-only',async()=>{
+test('canonical flagship design replaces v128 and remains document-only',async()=>{
   const [html,css]=await Promise.all([
     read('index.html'),
-    read('src/styles/document-flagship-v128.css')
+    read('src/styles/document-premium-redesign-v141.css')
   ]);
-  const contrast=html.indexOf('document-dark-contrast-v126.css');
-  const flagship=html.indexOf('document-flagship-v128.css');
-  assert.ok(contrast>=0&&flagship>contrast,'flagship layer must load after v126 contrast');
-  assert.match(css,/\.invoice-page:is\(\.template-executive,\.template-trade,\.template-editorial,\.template-signature,\.template-midnight,\.template-blackivory\)/);
+  assert.doesNotMatch(html,/document-flagship-v128\.css/);
+  assert.match(html,/document-premium-redesign-v141\.css/);
+  assert.match(css,/\.template-midnight/);
   assert.doesNotMatch(css,/\.app-shell|\.documents-page|\.editor-screen/);
 });
 

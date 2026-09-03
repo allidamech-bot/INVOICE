@@ -5,16 +5,13 @@ import { readFile } from 'node:fs/promises';
 const read=path=>readFile(path,'utf8');
 const allTemplates=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 
-test('v130 final QA loads last after both redesign batches',async()=>{
+test('canonical document QA layer loads last and remains document-only',async()=>{
   const [html,qa]=await Promise.all([
     read('index.html'),
-    read('src/styles/document-final-qa-v130.css')
+    read('src/styles/document-premium-redesign-v141.css')
   ]);
-  const flagship=html.indexOf('document-flagship-v128.css');
-  const batch2=html.indexOf('document-template-system-v129.css');
-  const finalQa=html.indexOf('document-final-qa-v130.css');
-  assert.ok(flagship>=0&&batch2>flagship&&finalQa>batch2,'v130 must be the final document design layer');
-  assert.match(qa,/final LOUREX quotation\/invoice design QA/);
+  assert.equal([...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].at(-1)?.[1],'document-premium-redesign-v141.css');
+  assert.match(qa,/canonical A4 layer/);
   assert.doesNotMatch(qa,/\.app-shell|\.documents-page|\.editor-shell/);
 });
 
