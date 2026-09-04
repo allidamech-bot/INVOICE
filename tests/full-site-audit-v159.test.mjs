@@ -31,17 +31,18 @@ test('v159 uses cryptographic identifiers when randomUUID is unavailable',async(
   assert.doesNotMatch(source,/Math\.random/);
 });
 
-test('v159 makes transient menus and operations navigation keyboard accessible',async()=>{
-  const [app,operations]=await Promise.all([
+test('v159 keeps transient menus and operations navigation keyboard accessible',async()=>{
+  const [app,shell,operations]=await Promise.all([
     read('src/app/App.tsx'),
+    read('src/components/AppShell.tsx'),
     read('src/components/OperationsPage.tsx')
   ]);
 
   assert.match(app,/closeTransientMenusOnEscape/);
   assert.match(app,/event\.key==='Escape'/);
-  assert.match(app,/aria-haspopup="menu"/);
-  assert.match(app,/aria-expanded=\{this\.state\.newMenu\}/);
-  assert.match(app,/role="menuitem"/);
+  assert.match(shell,/aria-haspopup="menu"/);
+  assert.match(shell,/aria-expanded=\{this\.props\.newMenu\}/);
+  assert.match(shell,/role="menuitem"/);
   assert.match(operations,/type="search" aria-label=/);
   assert.match(operations,/role="tab"[^>]*aria-controls=/);
   assert.match(operations,/role="tabpanel"[^>]*aria-labelledby=/);
