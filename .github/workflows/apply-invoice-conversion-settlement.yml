@@ -18,7 +18,9 @@ jobs:
           node-version: 22
           cache: npm
       - name: Apply targeted source changes
-        run: python scripts/apply_invoice_conversion.py
+        run: |
+          python scripts/apply_invoice_conversion.py
+          python scripts/fix_invoice_conversion_signature.py
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
@@ -26,7 +28,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm .github/workflows/apply-invoice-conversion-settlement.yml scripts/apply_invoice_conversion.py
+          rm .github/workflows/apply-invoice-conversion-settlement.yml scripts/apply_invoice_conversion.py scripts/fix_invoice_conversion_signature.py
           git add src index.html public/sw.js tests .github/workflows scripts
           git commit -m "Build invoice conversion settlement workflow"
           git push origin HEAD:feature/invoice-conversion-settlement
