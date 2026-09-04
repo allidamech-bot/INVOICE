@@ -27,12 +27,12 @@ test('v114 carries typed customer search into the quick-create form',async()=>{
   assert.match(core,/blankCustomer\(this\.state\.customerQuery\)/);
 });
 
-test('v114 keeps current-page semantics while manual header controls stay retired',async()=>{
+test('v114 keeps current-page semantics while manual header and settings lock controls stay retired',async()=>{
   const [app,cloudCss]=await Promise.all([read('src/app/App.tsx'),read('src/styles/cloud.css')]);
   assert.match(app,/aria-current=\{this\.state\.screen==='documents'\?'page':undefined\}/);
   assert.match(app,/aria-current=\{this\.state\.screen==='customers'\?'page':undefined\}/);
   assert.match(app,/aria-current=\{this\.state\.screen==='items'\?'page':undefined\}/);
-  assert.match(cloudCss,/\.auth-cloud-launcher,\.cloud-header-button,\.header-lock-button\{display:none!important\}/);
+  assert.match(cloudCss,/\.auth-cloud-launcher,\.cloud-header-button,\.header-lock-button,\.settings-panel \.settings-section:has\(select option\[value="30"\]\)>\.btn\{display:none!important\}/);
 });
 
 test('v114 responsive layer keeps four actions usable and does not leak into printed invoices',async()=>{
