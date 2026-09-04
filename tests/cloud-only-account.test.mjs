@@ -13,10 +13,12 @@ test('local recovery UI is completely retired',async()=>{
 });
 
 test('manual backup, sync, and lock controls are not exposed',async()=>{
-  const [settings,cloudCss]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/styles/cloud.css')]);
+  const [settings,cloudCss,i18n]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/styles/cloud.css'),read('src/lib/i18n.ts')]);
   assert.doesNotMatch(settings,/Backup \/ Restore|Backup Data|Choose backup file|backupPin|restoreFile/);
   assert.match(settings,/Restore from Cloud/);
-  assert.match(cloudCss,/\.auth-cloud-launcher,\.cloud-header-button,\.header-lock-button\{display:none!important\}/);
+  assert.match(cloudCss,/\.auth-cloud-launcher,\.cloud-header-button,\.header-lock-button,\.settings-panel \.settings-section:has\(select option\[value="30"\]\)>\.btn\{display:none!important\}/);
+  assert.match(i18n,/automatic synchronization/);
+  assert.match(i18n,/وسيطبقها LOUREX تلقائيًا/);
 });
 
 test('cloud restore uses the signed-in account without a backup PIN prompt',async()=>{
