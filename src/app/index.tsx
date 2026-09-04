@@ -9,6 +9,15 @@ ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,root);
 startCloudFreshnessWatcher();
 void startLocalRecoveryAssistant();
 
+// A legacy App path can still invoke the push API while another device has just
+// advanced the account revision. The cloud layer converts that stale push into a
+// protected fast-forward pull and emits this event. Reloading here rehydrates the
+// React tree from the exact encrypted account copy that was just installed.
+window.addEventListener('lourex-cloud-applied',()=>{
+  if(document.querySelector('.editor-screen'))return;
+  window.location.reload();
+});
+
 // Page-level "/" shortcuts must never steal focus from the page behind an open
 // dialog. Keep typing inside dialog fields untouched while stopping only the
 // background-search shortcut at the capture boundary.
