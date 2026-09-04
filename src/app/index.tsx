@@ -1,13 +1,23 @@
 import { App } from './App.js';
 import { AppErrorBoundary } from './AppErrorBoundary.js';
 import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
+import { hydrateAuthoritativeCloudBeforeApp } from '../cloud/startup.js';
 import { purgeLegacySafetySnapshot } from '../storage/db.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
-ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,root);
-void purgeLegacySafetySnapshot();
-startCloudFreshnessWatcher();
+const appRoot=root;
+
+async function start():Promise<void>{
+  // Resolve the signed-in account copy before App reads local security/session
+  // state. This prevents an installed iPhone PWA from unlocking a stale local
+  // vault first and only discovering the newer cloud copy afterwards.
+  await hydrateAuthoritativeCloudBeforeApp();
+  ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,appRoot);
+  void purgeLegacySafetySnapshot();
+  startCloudFreshnessWatcher();
+}
+void start();
 
 // The cloud layer may install a newer account copy while the UI is idle.
 // Reloading here rehydrates React from the exact encrypted account copy.
