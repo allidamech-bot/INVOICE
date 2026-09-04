@@ -4,13 +4,23 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v152 keeps all six phone workspaces in one accessible navigation row',async()=>{
-  const [app,reportsCss,recoveryCss]=await Promise.all([read('src/app/App.tsx'),read('src/styles/reports-v135.css'),read('src/styles/ux-recovery-v152.css')]);
+test('v152 workspaces remain reachable through the current phone navigation architecture',async()=>{
+  const [app,shell,reportsCss,shellCss]=await Promise.all([
+    read('src/app/App.tsx'),
+    read('src/components/AppShell.tsx'),
+    read('src/styles/reports-v135.css'),
+    read('src/styles/app-shell-v161.css')
+  ]);
   for(const screen of ['documents','customers','receivables','reports','items','operations'])assert.ok(app.includes(`screen==='${screen}'`),screen);
   assert.ok(!reportsCss.includes('.app-ui .main-nav'),'report styles do not own shared navigation');
-  assert.ok(recoveryCss.includes('.app-ui .main-nav button'));
-  assert.ok(recoveryCss.includes('grid-template-columns:repeat(6,minmax(0,1fr))!important'));
-  assert.ok(recoveryCss.includes('min-width:0!important'));
+  assert.ok(shell.includes('mobile-bottom-nav'));
+  assert.ok(shell.includes('mobile-more-sheet'));
+  assert.ok(shell.includes("this.navButton('receivables'"));
+  assert.ok(shell.includes("this.navButton('reports'"));
+  assert.ok(shell.includes("this.navButton('items'"));
+  assert.ok(shell.includes("this.navButton('operations'"));
+  assert.ok(shellCss.includes('grid-template-columns:repeat(5,minmax(0,1fr))'));
+  assert.ok(shellCss.includes('min-width:0'));
 });
 
 test('v147 compacts customer and operations phone workspaces without changing printable documents',async()=>{
