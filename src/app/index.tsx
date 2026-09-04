@@ -1,10 +1,12 @@
 import { App } from './App.js';
 import { AppErrorBoundary } from './AppErrorBoundary.js';
 import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
+import { purgeLegacySafetySnapshot } from '../storage/db.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
 ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,root);
+void purgeLegacySafetySnapshot();
 startCloudFreshnessWatcher();
 
 // The cloud layer may install a newer account copy while the UI is idle.
