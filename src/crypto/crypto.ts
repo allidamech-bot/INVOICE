@@ -4,6 +4,7 @@ import { KDF_ITERATIONS } from '../lib/defaults.js';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const VERIFY_TEXT = 'LOUREX-VAULT-VERIFIER-v1';
+const ACCOUNT_ACCESS_DOMAIN = 'LOUREX-ACCOUNT-ACCESS-v1';
 const MIN_KDF_ITERATIONS = 10_000;
 const MAX_KDF_ITERATIONS = 2_000_000;
 const MIN_SALT_BYTES = 16;
@@ -25,12 +26,14 @@ function b64ToBytes(value: string): Uint8Array {
 }
 
 function validateKdf(iterations: number, salt: Uint8Array): void {
-  if (!Number.isInteger(iterations) || iterations < MIN_KDF_ITERATIONS || iterations > MAX_KDF_ITERATIONS) {
-    throw new Error('Invalid encryption parameters.');
-  }
-  if (salt.byteLength < MIN_SALT_BYTES || salt.byteLength > MAX_SALT_BYTES) {
-    throw new Error('Invalid encryption parameters.');
-  }
+  if (!Number.isInteger(iterations) || iterations < MIN_KDF_ITERATIONS || iterations > MAX_KDF_ITERATIONS) throw new Error('Invalid encryption parameters.');
+  if (salt.byteLength < MIN_SALT_BYTES || salt.byteLength > MAX_SALT_BYTES) throw new Error('Invalid encryption parameters.');
+}
+
+function accountSecret(uid:string):string {
+  const normalized=String(uid||'').trim();
+  if(!normalized)throw new Error('Cloud account is required.');
+  return `${ACCOUNT_ACCESS_DOMAIN}:${normalized}`;
 }
 
 export function randomBytes(length: number): Uint8Array {
@@ -39,9 +42,9 @@ export function randomBytes(length: number): Uint8Array {
   return bytes;
 }
 
-export async function deriveKey(pin: string, salt: Uint8Array, iterations = KDF_ITERATIONS): Promise<CryptoKey> {
+export async function deriveKey(secret: string, salt: Uint8Array, iterations = KDF_ITERATIONS): Promise<CryptoKey> {
   validateKdf(iterations, salt);
-  const base = await crypto.subtle.importKey('raw', encoder.encode(pin), 'PBKDF2', false, ['deriveKey']);
+  const base = await crypto.subtle.importKey('raw', encoder.encode(secret), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' },
     base,
@@ -61,35 +64,45 @@ async function decryptBytes(key: CryptoKey, ivB64: string, cipherB64: string): P
   const iv = b64ToBytes(ivB64);
   const cipher = b64ToBytes(cipherB64);
   if (iv.byteLength !== GCM_IV_BYTES || cipher.byteLength < 16) throw new Error('Invalid encrypted data.');
-  const plain = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: iv as BufferSource },
-    key,
-    cipher as BufferSource
-  );
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as BufferSource }, key, cipher as BufferSource);
   return new Uint8Array(plain);
+}
+
+async function securityFromSecret(secret:string):Promise<{metadata:SecurityMetadata;key:CryptoKey}> {
+  const salt=randomBytes(24);
+  const key=await deriveKey(secret,salt);
+  const verification=await encryptBytes(key,encoder.encode(VERIFY_TEXT));
+  return {metadata:{id:'security',version:1,iterations:KDF_ITERATIONS,salt:bytesToB64(salt),verifierIv:verification.iv,verifierCipher:verification.cipher},key};
+}
+
+async function keyFromSecret(secret:string,metadata:SecurityMetadata):Promise<CryptoKey> {
+  const salt=b64ToBytes(metadata.salt);
+  const key=await deriveKey(secret,salt,metadata.iterations);
+  const plain=await decryptBytes(key,metadata.verifierIv,metadata.verifierCipher);
+  if(decoder.decode(plain)!==VERIFY_TEXT)throw new Error('Invalid account vault key.');
+  return key;
 }
 
 export async function createSecurity(pin: string): Promise<{ metadata: SecurityMetadata; key: CryptoKey }> {
   if (!/^\d{4,12}$/.test(pin)) throw new Error('PIN must contain 4–12 digits.');
-  const salt = randomBytes(24);
-  const key = await deriveKey(pin, salt);
-  const verification = await encryptBytes(key, encoder.encode(VERIFY_TEXT));
-  return {
-    metadata: { id: 'security', version: 1, iterations: KDF_ITERATIONS, salt: bytesToB64(salt), verifierIv: verification.iv, verifierCipher: verification.cipher },
-    key
-  };
+  return securityFromSecret(pin);
 }
 
 export async function verifyPin(pin: string, metadata: SecurityMetadata): Promise<CryptoKey> {
-  try {
-    const salt = b64ToBytes(metadata.salt);
-    const key = await deriveKey(pin, salt, metadata.iterations);
-    const plain = await decryptBytes(key, metadata.verifierIv, metadata.verifierCipher);
-    if (decoder.decode(plain) !== VERIFY_TEXT) throw new Error('Wrong PIN');
-    return key;
-  } catch {
-    throw new Error('Wrong PIN');
-  }
+  try { return await keyFromSecret(pin,metadata); }
+  catch { throw new Error('Wrong PIN'); }
+}
+
+// Account-first access replaces the old user-entered PIN. The authenticated
+// Firebase UID is the stable account identity, so every signed-in device derives
+// the same logical access secret while Firestore rules remain the authorization
+// boundary for downloading the encrypted vault itself.
+export async function createAccountSecurity(uid:string):Promise<{metadata:SecurityMetadata;key:CryptoKey}> {
+  return securityFromSecret(accountSecret(uid));
+}
+export async function verifyAccountAccess(uid:string,metadata:SecurityMetadata):Promise<CryptoKey> {
+  try{return await keyFromSecret(accountSecret(uid),metadata);}
+  catch{throw new Error('Unable to open this LOUREX account data.');}
 }
 
 export async function encryptVault(key: CryptoKey, vault: VaultPayload): Promise<EncryptedVaultRecord> {
@@ -116,11 +129,7 @@ export async function createEncryptedBackup(pin: string, vault: VaultPayload): P
 }
 
 export async function decryptBackup(pin: string, file: EncryptedBackupFile): Promise<VaultPayload> {
-  if (
-    file.format !== 'LOUREX_BACKUP' || file.version !== 1 ||
-    file.kdf?.name !== 'PBKDF2' || file.kdf?.hash !== 'SHA-256' ||
-    file.cipher?.name !== 'AES-GCM'
-  ) throw new Error('Invalid LOUREX backup file.');
+  if (file.format !== 'LOUREX_BACKUP' || file.version !== 1 || file.kdf?.name !== 'PBKDF2' || file.kdf?.hash !== 'SHA-256' || file.cipher?.name !== 'AES-GCM') throw new Error('Invalid LOUREX backup file.');
   try {
     const salt = b64ToBytes(file.kdf.salt);
     const key = await deriveKey(pin, salt, file.kdf.iterations);
