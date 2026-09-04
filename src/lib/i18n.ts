@@ -11,6 +11,14 @@ const arabicOverrides: Record<string,string> = {
   'بادئة الفاتورة المبدئية':'بادئة عرض السعر'
 };
 
+function automaticSyncCopy(value:string):string {
+  return value
+    .replace(/or use Sync\s+Now from the correct device\./g,'and allow automatic synchronization to continue from the correct signed-in device.')
+    .replace(/then use Sync\s+Now\./g,'LOUREX will apply it automatically.')
+    .replace(/أو استخدم المزامنة من الجهاز الصحيح\./g,'وستتابع المزامنة تلقائيًا من الجهاز الصحيح.')
+    .replace(/ثم استخدم «?مزامنة\s+الآن»?\./g,'وسيطبقها LOUREX تلقائيًا.');
+}
+
 export function setUiLanguage(language: UiLanguage): void {
   currentLanguage = language;
   if (typeof document !== 'undefined') {
@@ -22,8 +30,9 @@ export function setUiLanguage(language: UiLanguage): void {
 export function getUiLanguage(): UiLanguage { return currentLanguage; }
 export function isArabic(): boolean { return currentLanguage === 'ar'; }
 export function t(en: string, ar: string): string {
-  if (currentLanguage !== 'ar') return en;
-  return arabicOverrides[ar] ?? ar.replace(/فاتورة مبدئية/g,'عرض سعر').replace(/فاتورة أولية/g,'عرض سعر');
+  if (currentLanguage !== 'ar') return automaticSyncCopy(en);
+  const translated=arabicOverrides[ar] ?? ar.replace(/فاتورة مبدئية/g,'عرض سعر').replace(/فاتورة أولية/g,'عرض سعر');
+  return automaticSyncCopy(translated);
 }
 
 export function translateValidation(message: string): string {

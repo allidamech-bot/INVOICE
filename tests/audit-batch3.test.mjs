@@ -4,29 +4,32 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('configured devices render their local vault before waiting for Firebase auth',async()=>{
+test('configured devices restore their encrypted local session before background cloud reconciliation',async()=>{
   const app=await read('src/app/App.tsx');
   const initialize=app.slice(app.indexOf('private initialize=async'),app.indexOf('private initializeConfiguredCloud'));
   assert.ok(initialize.indexOf('await hasSecurity()')>=0);
   assert.ok(initialize.indexOf('resumeVaultSession()')>=0);
-  assert.ok(initialize.indexOf('resumeVaultSession()')<initialize.indexOf('waitForCloudUser()'),'local trusted session must be attempted before cloud wait');
+  assert.ok(initialize.indexOf('resumeVaultSession()')<initialize.indexOf('waitForCloudUser()'),'local encrypted session restore must precede background cloud reconciliation');
   assert.match(initialize,/loading:false,firstRun:false,unlocked:true/);
   assert.match(initialize,/void this\.initializeConfiguredCloud\(\)/);
 });
 
-test('newer remote revisions are reconciled instead of entering the push-only online path',async()=>{
-  const [freshness,app]=await Promise.all([read('src/cloud/freshness.ts'),read('src/app/App.tsx')]);
-  assert.match(freshness,/lourex-cloud-remote-newer/);
+test('newer remote revisions are reconciled automatically without a manual sync event',async()=>{
+  const freshness=await read('src/cloud/freshness.ts');
+  assert.match(freshness,/cloudRemoteChangedSinceAnchor/);
+  assert.match(freshness,/reconcileCloudVault/);
+  assert.match(freshness,/result==='pulled'/);
+  assert.match(freshness,/window\.location\.reload\(\)/);
+  assert.doesNotMatch(freshness,/lourex-cloud-remote-newer/);
   assert.doesNotMatch(freshness,/dispatchEvent\(new Event\('online'\)\)/);
-  assert.match(app,/handleRemoteCloudNewer=.*cloudSyncNow/);
-  assert.match(app,/screen==='editor'/);
 });
 
-test('cloud freshness watcher is read-only and cannot bypass App account-link safety checks',async()=>{
+test('cloud freshness watcher repairs a missing link only for the authenticated account',async()=>{
   const freshness=await read('src/cloud/freshness.ts');
-  assert.doesNotMatch(freshness,/putCloudAccount/);
-  assert.match(freshness,/const linked=await getCloudAccount\(\)/);
-  assert.match(freshness,/if\(!linked\|\|linked\.uid!==user\.uid\)return/);
+  assert.match(freshness,/let linked=await getCloudAccount\(\)/);
+  assert.match(freshness,/if\(!linked\)/);
+  assert.match(freshness,/putCloudAccount\(user\.uid,user\.email\)/);
+  assert.match(freshness,/if\(linked\.uid!==user\.uid\)/);
 });
 
 test('all Firebase sign-in entry points mark the just-signed-in restoration window',async()=>{

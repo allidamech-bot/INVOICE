@@ -50,9 +50,9 @@ test('v152 keeps PDF and share actions awaitable visible and single-armed',async
   assert.match(app,/__LOUREX_OUTPUT_ERROR__\?\.\(message\)/);
 });
 
-test('v152 cloud persistence is local-first coalesced and retryable',async()=>{
-  const [app,db,freshness,modal]=await Promise.all([
-    read('src/app/App.tsx'),read('src/storage/db.ts'),read('src/cloud/freshness.ts'),read('src/components/CloudAccountModal.tsx')
+test('v152 cloud persistence is local-first coalesced retryable and automatically presented',async()=>{
+  const [app,db,freshness,modal,i18n]=await Promise.all([
+    read('src/app/App.tsx'),read('src/storage/db.ts'),read('src/cloud/freshness.ts'),read('src/components/CloudAccountModal.tsx'),read('src/lib/i18n.ts')
   ]);
   assert.match(app,/type CloudSyncState='local'\|'queued'\|'syncing'\|'synced'\|'offline'\|'error'/);
   assert.match(app,/private scheduleCloudSync=\(delay=1_200\)/);
@@ -65,8 +65,10 @@ test('v152 cloud persistence is local-first coalesced and retryable',async()=>{
   assert.doesNotMatch(setup,/await pushLocalVaultToCloud/);
   assert.match(db,/let dbPromise:Promise<IDBDatabase>\|null=null/);
   assert.match(freshness,/if\(pending\)window\.clearTimeout\(pending\)/);
-  assert.match(modal,/Saved locally — waiting to sync/);
-  assert.match(modal,/Offline — safely saved on this device/);
+  assert.match(modal,/Your LOUREX data is saved automatically to this account/);
+  assert.doesNotMatch(modal,/Saved locally — waiting to sync|Sync Now|مزامنة الآن/);
+  assert.match(i18n,/automaticSyncCopy/);
+  assert.match(i18n,/automatic synchronization/);
 });
 
 test('v152 small encrypted vaults use one atomic cloud transaction',async()=>{

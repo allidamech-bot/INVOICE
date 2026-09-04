@@ -10,21 +10,19 @@ test('multi-device freshness never trusts device wall-clock timestamps',async()=
   assert.doesNotMatch(freshness,/remote\.updatedAt\s*[<>]=?\s*local\.updatedAt/);
 });
 
-test('different local and account copies without a verified anchor are preserved as a conflict',async()=>{
+test('the signed-in account copy is authoritative when no verified anchor exists',async()=>{
   const cloud=await read('src/cloud/firebase.ts');
-  assert.match(cloud,/writeConflict/);
-  assert.match(cloud,/Nothing was overwritten/);
-  assert.match(cloud,/Both copies are safe/);
+  assert.match(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.match(cloud,/if\(remoteChanged\)\{await installCloudVault\(uid\);return 'pulled';\}/);
   assert.doesNotMatch(cloud,/if\(remote\.updatedAt>local\.updatedAt\)\{await installCloudVault/);
 });
 
-test('explicit conflict resolution can publish this device or restore the account copy',async()=>{
+test('legacy conflict helpers remain compatibility-only and are not exposed in account UI',async()=>{
   const [cloud,modal]=await Promise.all([read('src/cloud/firebase.ts'),read('src/components/CloudAccountModal.tsx')]);
+  assert.match(cloud,/Compatibility exports for older UI bundles/);
   assert.match(cloud,/resolveCloudConflictWithLocal/);
   assert.match(cloud,/resolveCloudConflictWithCloud/);
-  assert.match(modal,/Keep This Device Copy/);
-  assert.match(modal,/Use Account Copy/);
-  assert.match(modal,/hasCloudConflict/);
+  assert.doesNotMatch(modal,/Keep This Device Copy|Use Account Copy|hasCloudConflict|Sync Now|مزامنة الآن/);
 });
 
 test('cloud writes use revision compare-and-swap and preserve recoverable history',async()=>{

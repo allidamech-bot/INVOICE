@@ -14,8 +14,9 @@ test('first-run setup prepares the optional logo while Settings retains dedicate
   assert.match(settings,/fileToDataUrl\(file,4\*1024\*1024,this\.assetKind\(field\)\)/);
 });
 
-test('cloud account cannot sign out while an encrypted sync is active',async()=>{
+test('cloud account protects account actions while an explicit account operation is active',async()=>{
   const source=await read('src/components/CloudAccountModal.tsx');
-  const matches=source.match(/disabled=\{this\.state\.busy\|\|this\.props\.syncState==='syncing'\}/g)??[];
-  assert.ok(matches.length>=2,'both Sync Now and Sign Out should be protected during sync');
+  assert.match(source,/<Button disabled=\{this\.state\.busy\} onClick=\{\(\)=>void this\.run\(this\.props\.onSignOut\)\}/);
+  assert.match(source,/Sign Out/);
+  assert.doesNotMatch(source,/Sync Now|مزامنة الآن/);
 });
