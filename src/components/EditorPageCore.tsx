@@ -114,7 +114,7 @@ export class EditorPage extends React.Component<Props,State>{
     this.setState({doc,saveState:'unsaved',errors},()=>{this.schedule();this.schedulePreview();});
   };
 
-  private schedule=()=>{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);this.autosaveTimer=window.setTimeout(()=>void this.save(true),1200);};
+  private schedule=()=>{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);this.autosaveTimer=window.setTimeout(()=>void this.save(true),450);};
   private schedulePreview=()=>{
     if(!this.state.desktopPreview)return;
     if(this.previewTimer)window.clearTimeout(this.previewTimer);
