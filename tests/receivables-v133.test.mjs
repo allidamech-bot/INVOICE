@@ -69,9 +69,9 @@ test('v133 customer statement has debit credit and running balance',()=>{
 });
 
 test('v133 UI exposes receivables navigation aging and printable statements offline',async()=>{
-  const [app,page,html,sw,panel]=await Promise.all([read('src/app/App.tsx'),read('src/components/ReceivablesPage.tsx'),read('index.html'),read('public/sw.js'),read('src/components/InvoicePaymentsPanel.tsx')]);
+  const [app,shell,page,html,sw,panel]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx'),read('src/components/ReceivablesPage.tsx'),read('index.html'),read('public/sw.js'),read('src/components/InvoicePaymentsPanel.tsx')]);
   assert.ok(app.includes("|'receivables'|"),'receivables screen remains in the application state');
-  assert.ok(app.includes("t('Receivables','المستحقات')"));
+  assert.ok(shell.includes("t('Receivables','المستحقات')"));
   assert.ok(app.includes('<ReceivablesPage'));
   for(const term of ['Receivables Aging','Customer Statement','Print / Save PDF','1–30','31–60','61–90','+90'])assert.ok(page.includes(term),term);
   assert.ok(page.includes('printing-customer-statement'));
