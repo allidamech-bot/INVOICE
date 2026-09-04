@@ -8,7 +8,7 @@ test('v155 loads after application recovery and is cached for installed PWAs',as
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   assert.ok(html.indexOf('ux-recovery-v152.css')<html.indexOf('mobile-safe-area-v155.css'));
   assert.ok(html.indexOf('mobile-safe-area-v155.css')<html.indexOf('document-premium-redesign-v141.css'));
-  assert.match(sw,/const CACHE = 'lourex-invoice-v157'/);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v159';$/m);
   assert.ok(sw.includes('./styles/mobile-safe-area-v155.css'));
 });
 

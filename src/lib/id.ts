@@ -1,8 +1,16 @@
 export function makeId(prefix: string): string {
   const cryptoObj = globalThis.crypto;
   if (cryptoObj?.randomUUID) return `${prefix}_${cryptoObj.randomUUID()}`;
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+  if (cryptoObj?.getRandomValues) {
+    const bytes = cryptoObj.getRandomValues(new Uint8Array(16));
+    const random = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    return `${prefix}_${random}`;
+  }
+  fallbackIdSequence += 1;
+  return `${prefix}_${Date.now().toString(36)}_${fallbackIdSequence.toString(36)}`;
 }
+
+let fallbackIdSequence = 0;
 
 export function todayIso(): string {
   const d = new Date();

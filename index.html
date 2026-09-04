@@ -83,15 +83,7 @@
 <body>
   <div id="root"></div>
   <script src="./runtime-config.js"></script>
-  <script>
-    (()=>{
-      const runtime=window.__LOUREX_RUNTIME__;
-      if(!runtime||runtime.environment!=='production'||!runtime.canonicalHost)return;
-      if(window.location.hostname===runtime.canonicalHost)return;
-      const target=`https://${runtime.canonicalHost}${window.location.pathname}${window.location.search}${window.location.hash}`;
-      window.location.replace(target);
-    })();
-  </script>
+  <script src="./canonical-redirect.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react-dom.production.min.js"></script>
   <script crossorigin src="https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js"></script>
