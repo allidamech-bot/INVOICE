@@ -10,7 +10,7 @@ test('documents workspace exposes direct quote and invoice creation without remo
   assert.match(page,/New Invoice/);
   assert.match(page,/onNew\('proforma'\)/);
   assert.match(page,/onNew\('invoice'\)/);
-  assert.match(page,/Search number or customer/);
+  assert.match(page,/Number, customer, phone, email/);
   assert.match(page,/Highest total/);
   assert.match(page,/itemCountLabel/);
 });
