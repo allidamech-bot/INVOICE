@@ -1,12 +1,10 @@
-/* v125 — authoritative iPhone action-sheet positioning.
-   This layer intentionally avoids logical inset shorthands because they can reset
-   physical left/right/bottom offsets in RTL Safari. It also wins over all legacy
-   .action-menu positioning while keeping the body-level v124 portal. */
+/* Batch 7 / v125 — self-contained mobile document action portal.
+   v122-v124 were historical fixes for card containment and portal positioning.
+   The body-level portal is now authoritative on the same 900px breakpoint as
+   the three-dot trigger, so those runtime layers can leave the cascade. */
 
-/* The document list switches from desktop actions to the three-dot trigger at
-   900px (app.css). Keep the body portal on the exact same breakpoint so iPad
-   and other tablet-width layouts never render a working trigger with a hidden
-   action sheet. */
+.mobile-document-action-portal{display:none}
+
 @media (max-width:900px){
   .mobile-document-action-portal{
     display:block!important;
