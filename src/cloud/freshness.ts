@@ -8,6 +8,12 @@ let stopped=false;
 let realtimeOff:(()=>void)|undefined;
 let realtimeUid='';
 
+function isStandalonePwa():boolean{
+  try{
+    return window.matchMedia?.('(display-mode: standalone)').matches===true||Boolean((navigator as Navigator&{standalone?:boolean}).standalone);
+  }catch{return false;}
+}
+
 function appIsSafeToApply():boolean{
   if(document.visibilityState!=='visible')return false;
   if(typeof navigator!=='undefined'&&!navigator.onLine)return false;
@@ -43,7 +49,13 @@ function ensureRealtime(uid:string):void{
 async function checkCloudFreshness():Promise<void>{
   if(stopped||running)return;
   const user=currentCloudUser();
-  if(!user){detachRealtime();return;}
+  if(!user){
+    detachRealtime();
+    // iOS Home Screen apps can restore Firebase persistence later than Safari.
+    // Keep probing silently instead of treating the first null auth read as final.
+    if(isStandalonePwa())schedule(600);
+    return;
+  }
 
   let linked=await getCloudAccount().catch(()=>null);
   if(!linked){
@@ -62,7 +74,7 @@ async function checkCloudFreshness():Promise<void>{
   }catch{
     // Data movement is intentionally invisible. Transient failures are retried
     // automatically; there is no manual sync/conflict surface for the user.
-    schedule(700);
+    schedule(isStandalonePwa()?350:700);
   }finally{
     running=false;
   }
@@ -70,16 +82,17 @@ async function checkCloudFreshness():Promise<void>{
 
 export function startCloudFreshnessWatcher():()=>void{
   stopped=false;
-  const onFocus=()=>schedule(30);
-  const onOnline=()=>schedule(30);
-  const onPageshow=()=>schedule(40);
-  const onVisibility=()=>{if(document.visibilityState==='visible')schedule(40);};
+  const standalone=isStandalonePwa();
+  const onFocus=()=>schedule(standalone?10:30);
+  const onOnline=()=>schedule(standalone?10:30);
+  const onPageshow=(event:PageTransitionEvent)=>schedule(event.persisted||standalone?10:40);
+  const onVisibility=()=>{if(document.visibilityState==='visible')schedule(standalone?10:40);};
   window.addEventListener('focus',onFocus);
   window.addEventListener('online',onOnline);
   window.addEventListener('pageshow',onPageshow);
   document.addEventListener('visibilitychange',onVisibility);
-  timer=window.setInterval(()=>schedule(0),5_000);
-  schedule(120);
+  timer=window.setInterval(()=>schedule(0),standalone?1_500:5_000);
+  schedule(standalone?40:120);
   return ()=>{
     stopped=true;
     window.removeEventListener('focus',onFocus);
