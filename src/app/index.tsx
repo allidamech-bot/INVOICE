@@ -1,11 +1,13 @@
 import { App } from './App.js';
 import { AppErrorBoundary } from './AppErrorBoundary.js';
 import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
+import { startLocalRecoveryAssistant } from './local-recovery.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
 ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,root);
 startCloudFreshnessWatcher();
+void startLocalRecoveryAssistant();
 
 // Page-level "/" shortcuts must never steal focus from the page behind an open
 // dialog. Keep typing inside dialog fields untouched while stopping only the
