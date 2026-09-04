@@ -21,16 +21,14 @@ type Props =
     });
 
 export function AuthScreenSelector(props: Props): any {
-  // An existing encrypted local vault must always remain unlockable with its PIN,
-  // even when Firebase is offline, blocked, signed out, or still restoring auth.
-  if (props.mode === 'unlock') {
-    return <UnlockScreen logoDataUrl={props.logoDataUrl} language={props.language} onLanguageChange={props.onLanguageChange} onUnlock={props.onUnlock}/>;
-  }
-
-  // Cloud account is required only during first-time setup so the initial vault
-  // is linked before it is created. Existing devices remain local-first offline.
+  // LOUREX is account-first: an authenticated account session is required before
+  // setup or unlock. Data movement itself stays automatic and has no sync UI.
   if (!currentCloudUser()) {
     return <AccountEntryScreen language={props.language} onLanguageChange={props.onLanguageChange}/>;
+  }
+
+  if (props.mode === 'unlock') {
+    return <UnlockScreen logoDataUrl={props.logoDataUrl} language={props.language} onLanguageChange={props.onLanguageChange} onUnlock={props.onUnlock}/>;
   }
 
   return <SetupScreen initialCompany={props.company} logoDataUrl={props.logoDataUrl} language={props.language} onLanguageChange={props.onLanguageChange} onFinish={props.onFinish}/>;
