@@ -1,18 +1,14 @@
 import { App } from './App.js';
 import { AppErrorBoundary } from './AppErrorBoundary.js';
 import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
-import { startLocalRecoveryAssistant } from './local-recovery.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
 ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,root);
 startCloudFreshnessWatcher();
-void startLocalRecoveryAssistant();
 
-// A legacy App path can still invoke the push API while another device has just
-// advanced the account revision. The cloud layer converts that stale push into a
-// protected fast-forward pull and emits this event. Reloading here rehydrates the
-// React tree from the exact encrypted account copy that was just installed.
+// The cloud layer may install a newer account copy while the UI is idle.
+// Reloading here rehydrates React from the exact encrypted account copy.
 window.addEventListener('lourex-cloud-applied',()=>{
   if(document.querySelector('.editor-screen'))return;
   window.location.reload();
