@@ -69,8 +69,8 @@ test('v135 ignores draft voided and proforma documents in financial performance'
 });
 
 test('v135 ships reports navigation print CSV and offline assets without combining currencies',async()=>{
-  const [app,page,logic,html,sw,css,recoveryCss]=await Promise.all([read('src/app/App.tsx'),read('src/components/ReportsPage.tsx'),read('src/lib/reports.ts'),read('index.html'),read('public/sw.js'),read('src/styles/reports-v135.css'),read('src/styles/ux-recovery-v152.css')]);
-  assert.ok(app.includes("|'reports'|"),'reports screen remains in the application state');assert.ok(app.includes("t('Reports','التقارير')"));assert.ok(app.includes('<ReportsPage'));
+  const [app,shell,page,logic,html,sw,css,recoveryCss]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx'),read('src/components/ReportsPage.tsx'),read('src/lib/reports.ts'),read('index.html'),read('public/sw.js'),read('src/styles/reports-v135.css'),read('src/styles/ux-recovery-v152.css')]);
+  assert.ok(app.includes("|'reports'|"),'reports screen remains in the application state');assert.ok(shell.includes("t('Reports','التقارير')"));assert.ok(app.includes('<ReportsPage'));
   for(const term of ['Financial Reports','This Month','This Quarter','This Year','All Time','Export CSV','Print / Save PDF','Monthly Performance','Customer Performance','All currencies — separate'])assert.ok(page.includes(term),term);
   assert.ok(page.includes('Currencies are never combined or converted automatically'));
   assert.ok(logic.includes('receivablesByCurrency(asOfDocuments'));
@@ -78,5 +78,5 @@ test('v135 ships reports navigation print CSV and offline assets without combini
   assert.ok(html.includes('reports-v135.css'));assert.ok(html.indexOf('reports-v135.css')<html.indexOf('performance-polish-v100.css'));
   for(const asset of ['reports-v135.css','ReportsPage.js','reports.js'])assert.ok(sw.includes(asset),asset);
   assert.ok(/^const CACHE = 'lourex-invoice-v\d+';/m.test(sw));assert.ok(sw.includes("const CACHE = 'lourex-invoice-v135'"));assert.ok(sw.includes("const CACHE = 'lourex-invoice-v134'"));
-  assert.ok(css.includes('printing-financial-report'));assert.ok(css.includes('@media print'));assert.ok(!css.includes('.app-ui .main-nav'),'reports no longer overrides shared navigation');assert.ok(recoveryCss.includes('.app-ui .main-nav button'),'all six mobile workspaces remain reachable');
+  assert.ok(css.includes('printing-financial-report'));assert.ok(css.includes('@media print'));assert.ok(!css.includes('.app-ui .main-nav'),'reports no longer overrides shared navigation');assert.ok(recoveryCss.includes('.app-ui .main-nav button'),'legacy recovery layer remains beneath the new app shell');
 });
