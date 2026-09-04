@@ -23,7 +23,7 @@ function detachRealtime():void{
   realtimeOff=undefined;realtimeUid='';
 }
 
-function schedule(delay=120):void{
+function schedule(delay=60):void{
   if(stopped)return;
   if(pending)window.clearTimeout(pending);
   pending=window.setTimeout(()=>{pending=undefined;void checkCloudFreshness();},delay);
@@ -33,7 +33,7 @@ function ensureRealtime(uid:string):void{
   if(realtimeUid===uid&&realtimeOff)return;
   detachRealtime();
   try{
-    realtimeOff=subscribeCloudVaultChanges(uid,()=>schedule(70));
+    realtimeOff=subscribeCloudVaultChanges(uid,()=>schedule(25));
     realtimeUid=uid;
   }catch{
     realtimeOff=undefined;realtimeUid='';
@@ -62,7 +62,7 @@ async function checkCloudFreshness():Promise<void>{
   }catch{
     // Data movement is intentionally invisible. Transient failures are retried
     // automatically; there is no manual sync/conflict surface for the user.
-    schedule(1800);
+    schedule(700);
   }finally{
     running=false;
   }
@@ -70,16 +70,16 @@ async function checkCloudFreshness():Promise<void>{
 
 export function startCloudFreshnessWatcher():()=>void{
   stopped=false;
-  const onFocus=()=>schedule(70);
-  const onOnline=()=>schedule(80);
-  const onPageshow=()=>schedule(80);
-  const onVisibility=()=>{if(document.visibilityState==='visible')schedule(80);};
+  const onFocus=()=>schedule(30);
+  const onOnline=()=>schedule(30);
+  const onPageshow=()=>schedule(40);
+  const onVisibility=()=>{if(document.visibilityState==='visible')schedule(40);};
   window.addEventListener('focus',onFocus);
   window.addEventListener('online',onOnline);
   window.addEventListener('pageshow',onPageshow);
   document.addEventListener('visibilitychange',onVisibility);
-  timer=window.setInterval(()=>schedule(0),15_000);
-  schedule(500);
+  timer=window.setInterval(()=>schedule(0),5_000);
+  schedule(120);
   return ()=>{
     stopped=true;
     window.removeEventListener('focus',onFocus);

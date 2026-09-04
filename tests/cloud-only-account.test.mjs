@@ -39,6 +39,6 @@ test('cloud account is authoritative and cloud pulls do not create local recover
 test('background account refresh is silent and automatic',async()=>{
   const freshness=await read('src/cloud/freshness.ts');
   assert.match(freshness,/subscribeCloudVaultChanges/);
-  assert.match(freshness,/15_000/);
+  assert.match(freshness,/5_000/);
   assert.doesNotMatch(freshness,/lourex-cloud-remote-newer/);
 });
