@@ -11,9 +11,9 @@ jobs:
         with:
           ref: fix/cross-device-account-sync
       - name: Apply repair
-        run: python scripts/patch-cross-device-sync.py
+        run: python scripts/patch-cross-device-sync-v2.py
       - name: Inspect patched region
-        run: nl -ba src/app/App.tsx | sed -n '205,235p'
+        run: nl -ba src/app/App.tsx | sed -n '215,255p'
       - name: Validate
         run: |
           npm ci
@@ -23,7 +23,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/apply-cross-device-sync-fix.yml scripts/patch-cross-device-sync.py
+          git rm .github/workflows/apply-cross-device-sync-fix.yml scripts/patch-cross-device-sync.py scripts/patch-cross-device-sync-v2.py scripts/.cross-device-rerun
           git add src/app/App.tsx src/cloud/firebase.ts tests/audit-batch3.test.mjs tests/cross-device-account-sync.test.mjs
           git commit -m "Repair cross-device account synchronization"
           git push origin HEAD:fix/cross-device-account-sync
