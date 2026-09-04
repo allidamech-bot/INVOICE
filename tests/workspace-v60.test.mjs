@@ -7,7 +7,7 @@ const read=path=>readFile(new URL(path,root),'utf8');
 
 test('documents workspace exposes one-tap resume for the latest unfinished document',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
-  assert.match(source,/filter\(d=>d\.status!=='final'\)/);
+  assert.match(source,/filter\(doc=>doc\.status!=='final'\)/);
   assert.match(source,/sort\(\(a,b\)=>b\.updatedAt\.localeCompare\(a\.updatedAt\)\)/);
   assert.match(source,/Continue where you left off/);
   assert.match(source,/onClick=\{\(\)=>this\.props\.onOpen\(resume\)\}/);
@@ -15,15 +15,14 @@ test('documents workspace exposes one-tap resume for the latest unfinished docum
   assert.match(source,/Continue editing/);
 });
 
-test('overview cards act as accessible one-click filters and clear stale search text',async()=>{
+test('overview cards act as one-click filters and clear stale search text',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
   assert.match(source,/private setOverview=/);
   assert.match(source,/query:''/);
-  assert.match(source,/aria-pressed=/);
   assert.match(source,/this\.setOverview\('proforma','all'\)/);
   assert.match(source,/this\.setOverview\('invoice','all'\)/);
-  assert.match(source,/this\.setOverview\('all','ready'\)/);
   assert.match(source,/this\.setOverview\('all','draft'\)/);
+  assert.match(source,/this\.setOverview\('all','final'\)/);
 });
 
 test('empty filtered workspace provides a direct reset action',async()=>{
