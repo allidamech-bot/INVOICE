@@ -13,7 +13,7 @@ type Props =
   | (SharedProps & {
       mode: 'setup';
       company: CompanySettings;
-      onFinish: (company: CompanySettings) => Promise<void>;
+      onFinish: (pin: string, company: CompanySettings) => Promise<void>;
     })
   | (SharedProps & {
       mode: 'unlock';
