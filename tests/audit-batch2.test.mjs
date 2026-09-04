@@ -16,7 +16,8 @@ test('first-run setup prepares the optional logo while Settings retains dedicate
 
 test('cloud account protects account actions while an explicit account operation is active',async()=>{
   const source=await read('src/components/CloudAccountModal.tsx');
-  assert.match(source,/<Button disabled=\{this\.state\.busy\} onClick=\{\(\)=>void this\.run\(this\.props\.onSignOut\)\}/);
+  assert.match(source,/<Button disabled=\{this\.state\.busy\} onClick=\{\(\)=>void this\.run\(this\.props\.onSignOut,'','signout'\)\}/);
+  assert.match(source,/this\.state\.accountAction==='signout'/);
   assert.match(source,/Sign Out/);
   assert.doesNotMatch(source,/Sync Now|مزامنة الآن/);
 });

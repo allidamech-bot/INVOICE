@@ -53,11 +53,11 @@ test('saved-item editor protects dirty edits across close and item selection',()
   assert.match(modal,/onConfirm=\{this\.confirmDiscard\}/);
 });
 
-test('cloud account modal blocks dismissal only while its own explicit account action is busy',()=>{
+test('cloud account modal remains dismissible while account actions are busy',()=>{
   const modal=read('src/components/CloudAccountModal.tsx');
-  assert.match(modal,/private requestClose=\(\)=>\{if\(!this\.state\.busy\)this\.props\.onClose\(\);\}/);
+  assert.match(modal,/private requestClose=\(\)=>this\.props\.onClose\(\);/);
   assert.match(modal,/onClose=\{this\.requestClose\}/);
-  assert.match(modal,/<Button disabled=\{this\.state\.busy\} onClick=\{\(\)=>void this\.run\(this\.props\.onSignOut\)\}/);
+  assert.match(modal,/<Button disabled=\{this\.state\.busy\} onClick=\{\(\)=>void this\.run\(this\.props\.onSignOut,'','signout'\)\}/);
   assert.doesNotMatch(modal,/Sync Now|مزامنة الآن/);
 });
 

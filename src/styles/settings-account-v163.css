@@ -139,8 +139,8 @@
 .app-ui .settings-account-status p{margin:2px 0 0!important;color:#6d7c83!important;font-size:10.5px!important;line-height:1.55!important}
 .app-ui .settings-account-actions{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important;margin-top:14px!important;padding-top:12px!important;border-top:1px solid #e5e8e3!important}
 .app-ui .settings-account-actions .btn{min-height:40px!important}
-.app-ui .settings-signout-button{border-color:#dfc6c1!important;background:#fff8f6!important;color:#914d47!important}
-.app-ui .settings-signout-button:hover{border-color:#d2aca5!important;background:#fff2ef!important;color:#7f403b!important}
+.app-ui .settings-signout-button{border-color:#cbd6d8!important;background:#f8faf9!important;color:#294b59!important}
+.app-ui .settings-signout-button:hover{border-color:#aebfc3!important;background:#f0f5f3!important;color:#183d4c!important}
 .app-ui .account-safety-note{display:flex!important;align-items:flex-start!important;gap:6px!important;margin-top:10px!important}
 .app-ui .account-safety-note .icon{flex:0 0 auto!important;color:#3c795f!important}
 .app-ui .device-security-section{max-width:760px!important}
@@ -149,11 +149,14 @@
 .app-ui .settings-message{position:sticky!important;bottom:8px!important;z-index:10!important;margin:0 20px 12px!important;max-width:calc(100% - 40px)!important;border-radius:11px!important;box-shadow:0 8px 22px rgba(27,42,50,.09)!important}
 
 /* Late modal hardening: keep the single canonical close button visible on iPhone. */
-@media(max-width:720px){
+@media(max-width:720px),(max-height:520px) and (pointer:coarse){
   .app-ui .modal-backdrop{
+    box-sizing:border-box!important;
     align-items:stretch!important;
     justify-content:stretch!important;
+    height:100dvh!important;
     min-height:100dvh!important;
+    max-height:100dvh!important;
     overflow:hidden!important;
     padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left))!important;
   }
@@ -161,7 +164,7 @@
     width:100%!important;
     max-width:100%!important;
     height:100%!important;
-    max-height:calc(100dvh - max(12px,env(safe-area-inset-top)) - max(12px,env(safe-area-inset-bottom)))!important;
+    max-height:100%!important;
     min-height:0!important;
     margin:0!important;
     display:flex!important;
