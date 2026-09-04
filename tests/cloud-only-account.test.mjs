@@ -12,11 +12,11 @@ test('local recovery UI is completely retired',async()=>{
   assert.match(db,/createSafetySnapshot[\s\S]*purgeLegacySafetySnapshot\(\)[\s\S]*return null/);
 });
 
-test('manual backup and sync controls are not exposed',async()=>{
+test('manual backup, sync, and lock controls are not exposed',async()=>{
   const [settings,cloudCss]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/styles/cloud.css')]);
   assert.doesNotMatch(settings,/Backup \/ Restore|Backup Data|Choose backup file|backupPin|restoreFile/);
   assert.match(settings,/Restore from Cloud/);
-  assert.match(cloudCss,/\.auth-cloud-launcher,\.cloud-header-button\{display:none!important\}/);
+  assert.match(cloudCss,/\.auth-cloud-launcher,\.cloud-header-button,\.header-lock-button\{display:none!important\}/);
 });
 
 test('cloud restore uses the signed-in account without a backup PIN prompt',async()=>{
