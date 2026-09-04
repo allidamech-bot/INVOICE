@@ -18,7 +18,7 @@ test('cross-device updates use Firestore realtime events and automatic account r
   assert.match(freshness,/reconcileCloudVault/);
   assert.match(freshness,/result==='pulled'/);
   assert.match(freshness,/window\.location\.reload\(\)/);
-  assert.match(freshness,/15_000/);
+  assert.match(freshness,/5_000/);
 });
 
 test('missing local account link is repaired for the already authenticated account',async()=>{
