@@ -10,7 +10,8 @@ test('highest-total sorting groups currencies before comparing amounts',async()=
   assert.match(source,/Highest total \(by currency\)/);
   assert.match(source,/a\.currency\.localeCompare\(b\.currency/);
   assert.match(source,/if\(currencyOrder\)return currencyOrder/);
-  assert.match(source,/compareMoneyStrings\(bv,av\)/);
+  assert.match(source,/compareMoneyStrings\(av,bv\)/);
+  assert.match(source,/this\.state\.sort==='highest'\?-byTotal:byTotal/);
 });
 
 test('shared modal closes only the topmost dialog on Escape and restores focus',async()=>{
