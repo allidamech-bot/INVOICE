@@ -22,9 +22,11 @@ test('manual backup, sync, and lock controls are not exposed',async()=>{
 });
 
 test('cloud restore uses the signed-in account without a backup PIN prompt',async()=>{
-  const settings=await read('src/components/SettingsModal.tsx');
-  assert.match(settings,/currentCloudUser\(\)/);
-  assert.match(settings,/installCloudVault\(user\.uid,false\)/);
+  const [settings,app]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/app/App.tsx')]);
+  assert.match(settings,/const user=this\.props\.cloudUser/);
+  assert.match(settings,/await this\.props\.onCloudRestore\(\)/);
+  assert.match(app,/installCloudVault\(user\.uid,false\)/);
+  assert.match(app,/await this\.beginProtectedOperation\(\)/);
   assert.doesNotMatch(settings,/Backup PIN|restorePin/);
 });
 
@@ -33,7 +35,10 @@ test('cloud account is authoritative and cloud pulls do not create local recover
   assert.doesNotMatch(cloud,/createSafetySnapshot/);
   assert.match(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
   assert.match(cloud,/if\(remoteChanged\)\{await installCloudVault\(uid\);return 'pulled';\}/);
-  assert.match(cloud,/if\(remoteChanged\)\{const installed=await installCloudVault\(uid,true\)/);
+  const push=cloud.slice(cloud.indexOf('export async function pushLocalVaultToCloud'),cloud.indexOf('// Compatibility exports'));
+  assert.match(push,/if\(!anchor\)return 'remote-changed'/);
+  assert.match(push,/if\(remoteChanged\)return 'remote-changed'/);
+  assert.doesNotMatch(push,/installCloudVault/);
 });
 
 test('background account refresh is silent and automatic',async()=>{

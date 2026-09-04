@@ -16,23 +16,27 @@ test('batch 6 keeps the canonical modal close control reachable on iPhone',async
 });
 
 test('batch 6 exposes account sign out without deleting local encrypted data',async()=>{
-  const settings=await read('src/components/SettingsModal.tsx');
-  assert.match(settings,/signOutCloudUser/);
+  const [settings,app]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/app/App.tsx')]);
+  assert.match(settings,/onCloudSignOut:\(\)=>Promise<void>/);
   assert.match(settings,/private signOutFromCloud=async/);
   assert.match(settings,/Sign Out/);
   assert.match(settings,/تسجيل الخروج/);
   assert.match(settings,/Signing out does not delete the encrypted data already stored on this device/);
   const signOut=settings.slice(settings.indexOf('private signOutFromCloud=async'),settings.indexOf('private saveButton'));
-  assert.match(signOut,/await signOutCloudUser\(\)/);
+  assert.match(signOut,/await this\.props\.onCloudSignOut\(\)/);
   assert.doesNotMatch(signOut,/clearSession|delete|remove|installCloudVault|restoreVault|putCloudAccount/i);
+  assert.doesNotMatch(signOut,/window\.location\.reload/);
+  assert.match(app,/cloudUser=\{this\.state\.cloudUser\}[\s\S]{0,120}onCloudSignOut=\{this\.cloudSignOut\}/);
+  assert.match(app,/private cloudSignOut=async\(\)=>\{try\{await signOutCloudUser\(\)/);
 });
 
 test('batch 6 separates automatic account sync from explicit cloud recovery',async()=>{
-  const settings=await read('src/components/SettingsModal.tsx');
+  const [settings,app]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/app/App.tsx')]);
   assert.match(settings,/Your encrypted LOUREX data syncs automatically to this account/);
   assert.match(settings,/confirmCloudRestore/);
   assert.match(settings,/Restore account data from cloud\?/);
-  assert.match(settings,/installCloudVault\(user\.uid,false\)/);
+  assert.match(settings,/await this\.props\.onCloudRestore\(\)/);
+  assert.match(app,/installCloudVault\(user\.uid,false\)/);
   assert.match(settings,/The signed-in account copy will replace the current encrypted local vault on this device/);
   assert.doesNotMatch(settings,/Lock App|Auto Lock|Lock after inactivity/);
 });
@@ -54,7 +58,7 @@ test('batch 6 remains app-only, loads late, and ships offline',async()=>{
   assert.ok(html.indexOf('editor-workspace-v162.css')<html.indexOf('settings-account-v163.css'));
   assert.ok(html.indexOf('settings-account-v163.css')<html.indexOf('document-premium-redesign-v141.css'));
   assert.match(sw,/\.\/styles\/settings-account-v163\.css/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v160';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v165';$/m);
   assert.doesNotMatch(css,/\.invoice-page\s*\{/);
   assert.doesNotMatch(css,/\.items-table\s*\{/);
 });

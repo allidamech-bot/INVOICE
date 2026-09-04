@@ -28,7 +28,7 @@ import { AppShell } from '../components/AppShell.js';
 import { WorkspaceHome } from '../components/WorkspaceHome.js';
 import { Brand, Button, ConfirmDialog, Toast } from '../components/UI.js';
 import { TemplateRenderer } from '../templates/TemplateRenderer.js';
-import { createCloudUser, friendlyCloudError, getCloudVaultMeta, pushLocalVaultToCloud, reconcileCloudVault, sendCloudPasswordReset, signInCloudUser, signOutCloudUser, waitForCloudUser } from '../cloud/firebase.js';
+import { cloudRemoteChangedSinceAnchor, createCloudUser, friendlyCloudError, getCloudVaultMeta, installCloudVault, pushLocalVaultToCloud, reconcileCloudVault, sendCloudPasswordReset, signInCloudUser, signOutCloudUser, waitForCloudUser } from '../cloud/firebase.js';
 import type { CloudUser } from '../cloud/firebase.js';
 
 type CloudSyncState='local'|'queued'|'syncing'|'synced'|'offline'|'error';
@@ -165,6 +165,15 @@ export class App extends React.Component<{},State> {
   private editorMustBeClosed=(actionEn:string,actionAr:string)=>{if(this.state.screen!=='editor')return;throw new Error(t(`Close the document editor before ${actionEn}.`,`أغلق محرر المستند قبل ${actionAr}.`));};
   private beginProtectedOperation=async()=>{if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}await this.drainVaultWrites();await this.waitForCloudIdle();this.latestEncryptedVault=null;this.vaultReplacing=true;};
   private endProtectedOperation=()=>{this.vaultReplacing=false;};
+  private cloudReplaceBlocked=()=>this.state.screen==='editor'||this.state.settingsOpen||this.state.cloudModal;
+  private deferRemoteCloud=()=>this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer cloud data is waiting. Close the editor or dialog to apply it safely.','توجد بيانات سحابية أحدث بانتظار الاستعادة. أغلق المحرر أو النافذة لتطبيقها بأمان.')});
+  private retryCloudSync=(error:unknown)=>{
+    const retryDelay=this.cloudRetryDelay;
+    this.cloudRetryDelay=Math.min(60_000,this.cloudRetryDelay*2);
+    const detail=friendlyCloudError(error);
+    this.setState({cloudSyncState:'error',cloudSyncMessage:t(`${detail} Retry scheduled.`,`${detail} ستتم إعادة المحاولة تلقائيًا.`)});
+    if(!this.cloudTimer)this.cloudTimer=window.setTimeout(()=>void this.flushCloudSync(),retryDelay);
+  };
 
   private scheduleCloudSync=(delay=220)=>{
     if(!this.state.cloudUser||!this.state.cloudLinked)return;
@@ -187,9 +196,13 @@ export class App extends React.Component<{},State> {
       this.setState({cloudSyncState:'offline',cloudSyncMessage:t('Offline — saved locally. Cloud sync will resume automatically.','غير متصل — تم الحفظ محليًا وستُستأنف المزامنة تلقائيًا.')});
       return;
     }
-    await this.drainVaultWrites();
-    if(this.vaultReplacing){this.cloudSyncQueued=true;return;}
-    const [linked,storedLocal]=await Promise.all([getCloudAccount(),this.latestEncryptedVault?Promise.resolve(this.latestEncryptedVault):getEncryptedVault()]);
+    let linked:Awaited<ReturnType<typeof getCloudAccount>>;
+    let storedLocal:EncryptedVaultRecord|null;
+    try{
+      await this.drainVaultWrites();
+      if(this.vaultReplacing){this.cloudSyncQueued=true;return;}
+      [linked,storedLocal]=await Promise.all([getCloudAccount(),this.latestEncryptedVault?Promise.resolve(this.latestEncryptedVault):getEncryptedVault()]);
+    }catch(e){this.retryCloudSync(e);return;}
     const local=storedLocal;
     if(!linked||linked.uid!==user.uid||!local)return;
     if(local.updatedAt===this.lastCloudSyncedAt){
@@ -199,7 +212,12 @@ export class App extends React.Component<{},State> {
     this.cloudSyncRunning=true;
     this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Syncing in background…','جارٍ المزامنة في الخلفية…')});
     try{
-      await pushLocalVaultToCloud(user.uid,local);
+      const result=await pushLocalVaultToCloud(user.uid,local);
+      if(result==='remote-changed'){
+        this.deferRemoteCloud();
+        window.setTimeout(this.handleRemoteCloudNewer,0);
+        return;
+      }
       this.lastCloudSyncedAt=local.updatedAt;
       this.cloudRetryDelay=5_000;
       const newest=this.latestEncryptedVault??await getEncryptedVault();
@@ -207,12 +225,7 @@ export class App extends React.Component<{},State> {
         this.cloudSyncQueued=true;
         this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer local changes are waiting to sync.','توجد تعديلات محلية أحدث بانتظار المزامنة.')});
       }else this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});
-    }catch(e){
-      const retryDelay=this.cloudRetryDelay;
-      this.cloudRetryDelay=Math.min(60_000,this.cloudRetryDelay*2);
-      this.setState({cloudSyncState:'error',cloudSyncMessage:t(`${friendlyCloudError(e)} Retry scheduled.`,`${friendlyCloudError(e)} ستتم إعادة المحاولة تلقائيًا.`)});
-      if(!this.cloudTimer)this.cloudTimer=window.setTimeout(()=>void this.flushCloudSync(),retryDelay);
-    }finally{
+    }catch(e){this.retryCloudSync(e);}finally{
       this.cloudSyncRunning=false;
       if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(180);}
     }
@@ -221,7 +234,17 @@ export class App extends React.Component<{},State> {
   private cloudSignIn=async(email:string,password:string)=>{try{const user=await signInCloudUser(email,password);this.setState({cloudUser:user});await this.attachCloudUser(user);}catch(e){throw new Error(friendlyCloudError(e));}};
   private cloudCreate=async(email:string,password:string)=>{try{const user=await createCloudUser(email,password);this.setState({cloudUser:user});await this.attachCloudUser(user);}catch(e){throw new Error(friendlyCloudError(e));}};
   private cloudReset=async(email:string)=>{try{await sendCloudPasswordReset(email);}catch(e){throw new Error(friendlyCloudError(e));}};
-  private cloudSignOut=async()=>{await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:t('Signed out of cloud. Local encrypted data remains on this device.','تم تسجيل الخروج من السحابة. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});};
+  private cloudRestore=async()=>{
+    this.editorMustBeClosed('restoring account data','استرجاع بيانات الحساب');
+    await this.beginProtectedOperation();
+    try{
+      const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));
+      const linked=await getCloudAccount();if(!linked||linked.uid!==user.uid)throw new Error(t('This device is not linked to the signed-in cloud account.','هذا الجهاز غير مرتبط بالحساب السحابي المسجل حاليًا.'));
+      const restored=await installCloudVault(user.uid,false);if(!restored)throw new Error(t('No cloud data exists for this account yet.','لا توجد بيانات سحابية محفوظة لهذا الحساب حتى الآن.'));
+    }catch(e){throw new Error(friendlyCloudError(e));}
+    finally{this.endProtectedOperation();}
+  };
+  private cloudSignOut=async()=>{try{await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:t('Signed out of cloud. Local encrypted data remains on this device.','تم تسجيل الخروج من السحابة. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});}catch(e){throw new Error(friendlyCloudError(e));}};
   private cloudSyncNow=async()=>{
     this.editorMustBeClosed('syncing from the cloud','المزامنة من السحابة');
     if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}
@@ -230,19 +253,18 @@ export class App extends React.Component<{},State> {
       const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));
       const linked=await getCloudAccount();if(!linked){await this.attachCloudUser(user);return;}if(linked.uid!==user.uid)throw new Error(t('This device is linked to another cloud account.','هذا الجهاز مرتبط بحساب سحابي آخر.'));
       this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Checking encrypted cloud data…','جارٍ فحص البيانات السحابية المشفّرة…')});
-      const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(user.uid)]);
-      const remoteMustReplaceLocal=Boolean(remote&&(!local||remote.updatedAt>local.updatedAt));
-      if(remoteMustReplaceLocal){
-        if((this.state.screen as State['screen'])==='editor'||this.state.settingsOpen){this.setState({cloudSyncState:'local',cloudSyncMessage:t('Newer cloud data is waiting. Close the editor or settings, and it will apply automatically when the editor is safe.','توجد بيانات سحابية أحدث بانتظار الاستعادة. أغلق المحرر أو الإعدادات وسيتم تطبيقها تلقائيًا عندما يصبح المحرر في حالة آمنة.')});return;}
+      const [local,remoteChanged]=await Promise.all([getEncryptedVault(),cloudRemoteChangedSinceAnchor(user.uid)]);
+      if(remoteChanged){
+        if(this.cloudReplaceBlocked()){this.deferRemoteCloud();return;}
         await this.beginProtectedOperation();
         try{
-          if((this.state.screen as State['screen'])==='editor'||this.state.settingsOpen){this.setState({cloudSyncState:'local',cloudSyncMessage:t('Newer cloud data is waiting. Close the editor or settings, and it will apply automatically when the editor is safe.','توجد بيانات سحابية أحدث بانتظار الاستعادة. أغلق المحرر أو الإعدادات وسيتم تطبيقها تلقائيًا عندما يصبح المحرر في حالة آمنة.')});return;}
+          if(this.cloudReplaceBlocked()){this.deferRemoteCloud();return;}
           const result=await reconcileCloudVault(user.uid);if(result==='pulled'){window.location.reload();return;}this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});
         }finally{this.endProtectedOperation();}
         return;
       }
       this.cloudSyncRunning=true;
-      try{if(local){await pushLocalVaultToCloud(user.uid,local);this.lastCloudSyncedAt=local.updatedAt;}const newest=this.latestEncryptedVault??await getEncryptedVault();if(local&&newest&&newest.updatedAt!==local.updatedAt){this.cloudSyncQueued=true;this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer local changes are waiting to sync.','توجد تعديلات محلية أحدث بانتظار المزامنة.')});}else this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}
+      try{if(local){const result=await pushLocalVaultToCloud(user.uid,local);if(result==='remote-changed'){this.deferRemoteCloud();window.setTimeout(this.handleRemoteCloudNewer,0);return;}this.lastCloudSyncedAt=local.updatedAt;}const newest=this.latestEncryptedVault??await getEncryptedVault();if(local&&newest&&newest.updatedAt!==local.updatedAt){this.cloudSyncQueued=true;this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer local changes are waiting to sync.','توجد تعديلات محلية أحدث بانتظار المزامنة.')});}else this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}
       finally{this.cloudSyncRunning=false;if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(150);}}
     }catch(e){const message=friendlyCloudError(e);this.setState({cloudSyncState:'error',cloudSyncMessage:message});throw new Error(message);}
   };
@@ -295,7 +317,7 @@ export class App extends React.Component<{},State> {
   private requestPrint=async(doc:LourexDocument,mode:'print'|'pdf'|'share'):Promise<void>=>{try{const errors=validateDocument(doc);if(Object.keys(errors).length)throw new Error(t('Complete the required document fields before printing or sharing.','أكمل الحقول المطلوبة قبل الطباعة أو المشاركة.'));const vault=this.requireVault();if(vault.documents.some(d=>d.id!==doc.id&&d.number.trim().toLowerCase()===doc.number.trim().toLowerCase()))throw new Error(t('Document number already exists.','رقم المستند مستخدم بالفعل.'));let target:LourexDocument;const existing=vault.documents.find(d=>d.id===doc.id);if(doc.status==='final'&&existing?.status==='final')target=structuredClone(doc);else{target={...structuredClone(doc),status:'final',updatedAt:new Date().toISOString()};await this.saveDocument(target,false);target=structuredClone(this.requireVault().documents.find(saved=>saved.id===target.id)??target);}const customer=target.customerSnapshot?.companyNameEn||target.customerSnapshot?.companyNameAr||'Customer';const prefix=`LOUREX-${safeFilename(target.number)}-${safeFilename(customer)}`;document.title=prefix;await new Promise<void>((resolve,reject)=>this.setState({printDoc:target},()=>{document.body.classList.add('printing');void this.launchPrint().then(resolve,reject);}));}catch(e){const message=e instanceof Error?e.message:t('Unable to prepare document.','تعذر تجهيز المستند.');try{(window as any).__LOUREX_OUTPUT_ERROR__?.(message);}catch{}this.showToast(message,'error');throw e;}};
   private afterPrint=()=>{document.body.classList.remove('printing');document.title='LOUREX Invoice';this.setState({printDoc:null});};
   private closeEditor=()=>{this.setState({screen:'documents',editorDoc:null});};
-  private cloudModal=()=> <CloudAccountModal open={this.state.cloudModal} user={this.state.cloudUser} syncState={this.state.cloudSyncState} syncMessage={this.state.cloudSyncMessage} onClose={()=>this.setState({cloudModal:false})} onSignIn={this.cloudSignIn} onCreate={this.cloudCreate} onReset={this.cloudReset} onSync={this.cloudSyncNow} onSignOut={this.cloudSignOut}/>;
+  private cloudModal=()=> <CloudAccountModal open={this.state.cloudModal} user={this.state.cloudUser} onClose={()=>this.setState({cloudModal:false})} onSignIn={this.cloudSignIn} onCreate={this.cloudCreate} onReset={this.cloudReset} onRestore={this.cloudRestore} onSignOut={this.cloudSignOut}/>;
   private authCloudShell=(content:any)=> <div className="auth-shell">{content}<div className={`auth-cloud-launcher cloud-${this.state.cloudSyncState}`}><Button icon="backup" onClick={()=>this.setState({cloudModal:true})}>{this.state.cloudUser?t('Cloud Account','الحساب السحابي'):t('Cloud Sign In','الدخول السحابي')}</Button></div>{this.cloudModal()}</div>;
   private cloudHeaderLabel=()=>this.state.cloudSyncState==='syncing'?t('Syncing','مزامنة'):this.state.cloudSyncState==='queued'?t('Saved','محفوظ'):this.state.cloudSyncState==='offline'?t('Offline','غير متصل'):this.state.cloudSyncState==='error'?t('Retry','إعادة'):this.state.cloudSyncState==='synced'?t('Synced','متزامن'):t('Cloud','السحابة');
 
@@ -319,7 +341,7 @@ export class App extends React.Component<{},State> {
           {this.state.screen==='editor'&&this.state.editorDoc?<EditorPage document={this.state.editorDoc} documents={vault.documents} customers={vault.customers} company={vault.company} savedItems={vault.savedItems} payments={vault.payments} documentEvents={vault.documentEvents} documentRevisions={vault.documentRevisions} smartDefaults={vault.appSettings.smartDefaults} onClose={this.closeEditor} onSave={this.saveDocument} onSaveCustomer={this.saveCustomer} onSaveSavedItem={this.saveSavedItem} onSaveDocumentItem={this.saveDocumentItem} onUseSavedItems={this.useSavedItems} onDeleteSavedItem={this.deleteSavedItem} onSaveSmartDefaults={this.saveSmartDefaults} onSavePayment={this.savePayment} onDeletePayment={this.deletePayment} onBeginRevision={this.beginRevision} onDiscardRevision={this.discardRevision} onVoidDocument={this.voidDocument} onCreateCreditNote={this.createCreditNote} onConvert={this.convert} onPrint={this.requestPrint}/>:null}
         </main>
       </AppShell>
-      <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onChangePin={this.changePin} onLock={this.lock} onBackup={this.backup} onRestore={this.restore}/>
+      <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} cloudUser={this.state.cloudUser} onCloudRestore={this.cloudRestore} onCloudSignOut={this.cloudSignOut} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onChangePin={this.changePin} onLock={this.lock} onBackup={this.backup} onRestore={this.restore}/>
       {this.cloudModal()}
       <ConfirmDialog open={Boolean(this.state.deletingDoc)} title={t(`Delete ${this.state.deletingDoc?.number ?? 'document'}?`,`حذف ${this.state.deletingDoc?.number ?? 'المستند'}؟`)} message={t('This action cannot be undone.','لا يمكن التراجع عن هذا الإجراء.')} onCancel={()=>this.setState({deletingDoc:null})} onConfirm={()=>void this.deleteDocument()}/><Toast text={this.state.toast} tone={this.state.toastTone}/></div>
       <div className="print-portal">{this.state.printDoc?<TemplateRenderer document={this.state.printDoc} scale={1}/>:null}</div></div>;

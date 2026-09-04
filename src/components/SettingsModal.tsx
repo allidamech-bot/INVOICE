@@ -5,7 +5,7 @@ import { repairLogoDataUrl } from '../lib/logo-repair.js';
 import { rebuildLogoWithoutBackgroundDataUrl } from '../lib/logo-rebuild.js';
 import { t } from '../lib/i18n.js';
 import { validateCommercialCompany } from '../lib/commercial-controls.js';
-import { currentCloudUser, installCloudVault, signOutCloudUser } from '../cloud/firebase.js';
+import type { CloudUser } from '../cloud/firebase.js';
 import { CommercialControlsSettings } from './CommercialControlsSettings.js';
 import { Button, ConfirmDialog, Field, Input, Modal, Select, Textarea, Icon } from './UI.js';
 
@@ -13,6 +13,7 @@ interface Props {
   open:boolean; company:CompanySettings; appSettings:AppSettings; onClose:()=>void;
   onSaveCompany:(company:CompanySettings)=>Promise<void>; onSaveAppSettings:(settings:AppSettings)=>Promise<void>;
   onChangePin:(currentPin:string,newPin:string)=>Promise<void>; onLock:()=>void;
+  cloudUser:CloudUser|null; onCloudRestore:()=>Promise<void>; onCloudSignOut:()=>Promise<void>;
   // Retained only for compatibility with older App bundles. Manual backup/restore
   // controls are intentionally not rendered anymore.
   onBackup:(pin:string)=>Promise<void>; onRestore:(file:File,pin:string)=>Promise<void>;
@@ -41,7 +42,7 @@ export class SettingsModal extends React.Component<Props,State> {
     }
   }
   private hasUnsavedSettings=()=>JSON.stringify(this.state.company)!==this.state.companyInitial||JSON.stringify(this.state.appSettings)!==this.state.documentsInitial;
-  private requestClose=()=>{if(this.state.busy||this.state.cleaningAssets)return;if(this.hasUnsavedSettings()){this.setState({confirmClose:true});return;}this.props.onClose();};
+  private requestClose=()=>{if(this.hasUnsavedSettings()){this.setState({confirmClose:true});return;}this.props.onClose();};
   private discardAndClose=()=>this.setState({confirmClose:false},this.props.onClose);
   private setCompany=(key:keyof CompanySettings,value:any)=>this.setState({company:{...this.state.company,[key]:value},savedSection:null,message:'',error:''});
   private setBank=(key:keyof CompanySettings['bank'],value:string)=>this.setState({company:{...this.state.company,bank:{...this.state.company.bank,[key]:value}},savedSection:null,message:'',error:''});
@@ -129,12 +130,11 @@ export class SettingsModal extends React.Component<Props,State> {
     catch(e){this.setState({busy:false,error:e instanceof Error?e.message:t('Unable to change PIN.','تعذر تغيير رمز PIN.')});}
   };
   private restoreFromCloud=async()=>{
-    const user=currentCloudUser();
+    const user=this.props.cloudUser;
     if(!user){this.setState({confirmCloudRestore:false,error:t('Sign in to your LOUREX account first.','سجّل الدخول إلى حساب LOUREX أولًا.')});return;}
     this.setState({confirmCloudRestore:false,busy:true,accountAction:'restore',error:'',message:'',savedSection:null});
     try{
-      const restored=await installCloudVault(user.uid,false);
-      if(!restored)throw new Error(t('No cloud data exists for this account yet.','لا توجد بيانات سحابية محفوظة لهذا الحساب حتى الآن.'));
+      await this.props.onCloudRestore();
       this.setState({message:t('Account data restored from the cloud.','تم استرجاع بيانات الحساب من السحابة.')});
       window.setTimeout(()=>window.location.reload(),220);
     }catch(e){this.setState({busy:false,accountAction:'',error:e instanceof Error?e.message:t('Unable to restore account data.','تعذر استرجاع بيانات الحساب.')});}
@@ -143,9 +143,8 @@ export class SettingsModal extends React.Component<Props,State> {
     if(this.state.busy)return;
     this.setState({busy:true,accountAction:'signout',error:'',message:'',savedSection:null});
     try{
-      await signOutCloudUser();
+      await this.props.onCloudSignOut();
       this.setState({busy:false,accountAction:'',message:t('Signed out. Encrypted local data remains on this device.','تم تسجيل الخروج. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});
-      window.setTimeout(()=>window.location.reload(),180);
     }catch(e){this.setState({busy:false,accountAction:'',error:e instanceof Error?e.message:t('Unable to sign out.','تعذر تسجيل الخروج.')});}
   };
   private saveButton(section:'company'|'documents'):any{
@@ -157,7 +156,7 @@ export class SettingsModal extends React.Component<Props,State> {
   render():any{
     const c=this.state.company,s=this.state.appSettings;
     const hasCompanyLogo=Boolean(c.logoDataUrl&&!c.logoDataUrl.includes('lourex-logo.svg'));
-    const account=currentCloudUser();
+    const account=this.props.cloudUser;
     const tabItems=([['company',t('Company','الشركة'),'users'],['commercial',t('Commercial','تجاري'),'invoice'],['documents',t('Documents','المستندات'),'file'],['security',t('Account & Security','الحساب والأمان'),'lock']] as const);
     return <Modal open={this.props.open} title={t('Settings','الإعدادات')} size="xl" onClose={this.requestClose}>
       <div className="settings-layout settings-workspace-v2">

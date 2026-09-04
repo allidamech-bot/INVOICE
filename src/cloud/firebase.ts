@@ -204,20 +204,21 @@ export async function installCloudVault(uid:string,notify=false):Promise<boolean
   return true;
 }
 
-export async function pushLocalVaultToCloud(uid:string,localSnapshot?:EncryptedVaultRecord|null):Promise<void>{
+export async function pushLocalVaultToCloud(uid:string,localSnapshot?:EncryptedVaultRecord|null):Promise<'same'|'pushed'|'remote-changed'>{
   requireCurrentUid(uid);
   if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error('Internet connection is required to save account data.');
   const [security,storedVault,previous]=await Promise.all([getSecurity(),localSnapshot?Promise.resolve(localSnapshot):getEncryptedVault(),getCloudVaultMeta(uid)]);const vault=storedVault;
   if(!security||!vault)throw new Error('There is no LOUREX account data to save.');
   const localHash=await sha256(vault.cipher);
-  if(previous&&previous.cipherSha256===localHash){writeSyncAnchor(uid,previous);return;}
+  if(previous&&previous.cipherSha256===localHash){writeSyncAnchor(uid,previous);return 'same';}
   if(previous){
     const anchor=readSyncAnchor(uid);
-    if(!anchor){const installed=await installCloudVault(uid,true);if(!installed)throw new Error('Cloud account data is unavailable.');return;}
+    if(!anchor)return 'remote-changed';
     const remoteChanged=previous.revision!==anchor.revision||previous.cipherSha256!==anchor.cipherSha256;
-    if(remoteChanged){const installed=await installCloudVault(uid,true);if(!installed)throw new Error('Cloud account data is unavailable.');return;}
+    if(remoteChanged)return 'remote-changed';
   }
   await publishVault(uid,security,vault,previous);
+  return 'pushed';
 }
 
 // Compatibility exports for older UI bundles. The new account-first flow never
