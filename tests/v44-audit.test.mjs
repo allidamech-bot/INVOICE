@@ -54,16 +54,16 @@ test('current service worker precaches every compiled application module',async(
   assert.match(sw,/cache\.put\(event\.request, response\.clone\(\)\)/);
 });
 
-test('cloud freshness watcher never installs or reloads a live vault outside App coordination',async()=>{
+test('cloud freshness watcher applies account updates only when the UI is safe',async()=>{
   const source=await read('src/cloud/freshness.ts');
-  const app=await read('src/app/App.tsx');
-  assert.doesNotMatch(source,/installCloudVault/);
-  assert.doesNotMatch(source,/window\.location\.reload\(\)/);
-  assert.doesNotMatch(source,/window\.dispatchEvent\(new Event\('online'\)\)/);
-  assert.match(source,/window\.dispatchEvent\(new Event\('lourex-cloud-remote-newer'\)\)/);
+  assert.match(source,/reconcileCloudVault/);
+  assert.match(source,/subscribeCloudVaultChanges/);
+  assert.match(source,/cloudRemoteChangedSinceAnchor/);
+  assert.match(source,/window\.location\.reload\(\)/);
   assert.match(source,/editor-screen,.modal-backdrop/);
-  assert.match(app,/addEventListener\('lourex-cloud-remote-newer',this\.handleRemoteCloudNewer\)/);
-  assert.match(app,/handleRemoteCloudNewer=.*cloudSyncNow/);
+  assert.match(source,/document\.activeElement/);
+  assert.match(source,/15_000/);
+  assert.doesNotMatch(source,/lourex-cloud-remote-newer/);
 });
 
 test('cloud metadata validation matches the real flat SecurityMetadata schema and commits atomically',async()=>{
@@ -73,7 +73,8 @@ test('cloud metadata validation matches the real flat SecurityMetadata schema an
   assert.match(source,/runTransaction/);
   assert.match(source,/current\.revision!==previous\.revision/);
   assert.match(source,/cleanupRevision\(uid,revision,chunks\.length\)/);
-  assert.match(source,/Cloud conflict detected/);
+  assert.match(source,/commitMetaIfUnchanged/);
+  assert.match(source,/Account data changed on another device/);
 });
 
 test('decimal comma and mixed locale separators are parsed without 1000x mistakes',()=>{
