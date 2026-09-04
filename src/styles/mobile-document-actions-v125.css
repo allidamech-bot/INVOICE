@@ -3,8 +3,13 @@
    physical left/right/bottom offsets in RTL Safari. It also wins over all legacy
    .action-menu positioning while keeping the body-level v124 portal. */
 
-@media (max-width:720px){
+/* The document list switches from desktop actions to the three-dot trigger at
+   900px (app.css). Keep the body portal on the exact same breakpoint so iPad
+   and other tablet-width layouts never render a working trigger with a hidden
+   action sheet. */
+@media (max-width:900px){
   .mobile-document-action-portal{
+    display:block!important;
     position:fixed!important;
     top:0!important;
     right:0!important;
