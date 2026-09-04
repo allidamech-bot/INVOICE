@@ -39,11 +39,13 @@ test('production shell has local matched React runtime, PWA and premium design l
 test('production shell redirects deployment URLs to the canonical Vercel project origin', async () => {
   const html = await read('dist/index.html');
   const runtime = await read('dist/runtime-config.js');
+  const redirect = await read('dist/canonical-redirect.js');
   const build = await read('scripts/build.mjs');
   const sw = await read('dist/sw.js');
   assert.match(html, /runtime-config\.js/);
-  assert.match(html, /runtime\.canonicalHost/);
-  assert.match(html, /window\.location\.replace/);
+  assert.match(html, /canonical-redirect\.js/);
+  assert.match(redirect, /runtime\.canonicalHost/);
+  assert.match(redirect, /window\.location\.replace/);
   assert.match(build, /VERCEL_PROJECT_PRODUCTION_URL/);
   assert.match(build, /VERCEL_URL/);
   assert.match(runtime, /__LOUREX_RUNTIME__/);

@@ -31,7 +31,9 @@ test('production config enables conservative browser hardening headers with a bo
   assert.match(config,/Permissions-Policy/);
   assert.match(config,/Content-Security-Policy/);
   assert.match(config,/default-src 'self'/);
-  assert.match(config,/script-src 'self' 'unsafe-inline'/);
+  assert.match(config,/script-src 'self';/);
+  assert.doesNotMatch(config,/script-src [^;]*'unsafe-inline'/);
+  assert.match(config,/Strict-Transport-Security/);
   assert.match(config,/object-src 'none'/);
   assert.match(config,/frame-ancestors 'none'/);
   assert.match(config,/connect-src 'self' [^\"]*googleapis\.com[^\"]*firebaseio\.com[^\"]*firebaseapp\.com/);
