@@ -25,7 +25,7 @@ test('batch 4 exposes reusable product cost and a favorites filter',async()=>{
   assert.match(source,/Unit cost \(internal\)/);
   assert.match(source,/never printed on customer documents/);
   assert.match(source,/With cost/);
-  assert.match(source,/favoriteOnly\|\|Boolean\(item\.favorite\)/);
+  assert.match(source,/!this\.state\.favoriteOnly\|\|Boolean\(item\.favorite\)/);
 });
 
 test('batch 4 styling is responsive, RTL-safe and isolated from printable document output',async()=>{
