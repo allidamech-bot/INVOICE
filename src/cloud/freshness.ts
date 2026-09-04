@@ -47,9 +47,6 @@ async function checkCloudFreshness():Promise<void>{
 
   let linked=await getCloudAccount().catch(()=>null);
   if(!linked){
-    // Signing in is explicit consent to associate this browser/device with this
-    // LOUREX account. Reconciliation on the next load still protects divergent
-    // local/account data as a conflict; this only repairs a missing link record.
     try{await putCloudAccount(user.uid,user.email);window.location.reload();}catch{}
     return;
   }
@@ -61,16 +58,11 @@ async function checkCloudFreshness():Promise<void>{
   try{
     if(!await cloudRemoteChangedSinceAnchor(user.uid))return;
     const result=await reconcileCloudVault(user.uid);
-    if(result==='pulled'){
-      // The encrypted account copy is now in IndexedDB. Reload only when the UI is
-      // idle so React rehydrates from that exact copy without interrupting editing.
-      window.location.reload();
-      return;
-    }
+    if(result==='pulled')window.location.reload();
   }catch{
-    // A genuine concurrent-edit conflict is non-destructive. Route it through the
-    // existing App error path so the Cloud Sync dialog exposes both protected copies.
-    try{window.dispatchEvent(new Event('lourex-cloud-remote-newer'));}catch{}
+    // Data movement is intentionally invisible. Transient failures are retried
+    // automatically; there is no manual sync/conflict surface for the user.
+    schedule(1800);
   }finally{
     running=false;
   }
@@ -86,8 +78,6 @@ export function startCloudFreshnessWatcher():()=>void{
   window.addEventListener('online',onOnline);
   window.addEventListener('pageshow',onPageshow);
   document.addEventListener('visibilitychange',onVisibility);
-  // Firestore onSnapshot provides the normal fast path. This 15-second read-only
-  // fallback covers suspended iOS tabs and transient listener failures.
   timer=window.setInterval(()=>schedule(0),15_000);
   schedule(500);
   return ()=>{
