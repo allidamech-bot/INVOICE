@@ -96,7 +96,7 @@ test('v137 operating expenses remain separate and currencies are never combined'
 
 test('v137 UI and PWA expose one compact Operations workspace offline',async()=>{
   const [app,page,index,sw]=await Promise.all([read('src/app/App.tsx'),read('src/components/OperationsPage.tsx'),read('index.html'),read('public/sw.js')]);
-  assert.match(app,/screen:'documents'\|'customers'\|'receivables'\|'reports'\|'items'\|'operations'\|'editor'/);
+  assert.match(app,/screen:'home'\|'documents'\|'customers'\|'receivables'\|'reports'\|'items'\|'operations'\|'editor'/);
   assert.match(app,/OperationsPage/);assert.match(page,/Suppliers/);assert.match(page,/Purchases/);assert.match(page,/Expenses/);assert.match(page,/Inventory Ledger/);
   const css='./styles/operations-v137.css',performance='./styles/performance-polish-v100.css';
   assert.ok(index.includes(css));assert.ok(index.indexOf(css)<index.indexOf(performance));
