@@ -1,5 +1,5 @@
-import { currentCloudUser, getCloudVaultMeta } from './firebase.js';
-import { getCloudAccount, getEncryptedVault } from '../storage/db.js';
+import { cloudRemoteChangedSinceAnchor, currentCloudUser } from './firebase.js';
+import { getCloudAccount } from '../storage/db.js';
 
 let timer:number|undefined;
 let pending:number|undefined;
@@ -22,23 +22,16 @@ async function checkCloudFreshness():Promise<void>{
   if(!user)return;
   running=true;
   try{
-    // This watcher is intentionally read-only. Only App may create or replace the
-    // device/account link because App performs the remote-vault safety checks first.
-    // Auto-linking here can race startup and accidentally bypass those checks when
-    // Firebase auth restores slightly before App finishes its configured-device flow.
     const linked=await getCloudAccount();
     if(!linked||linked.uid!==user.uid)return;
 
-    const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(user.uid)]);
-    if(!remote||!local||remote.updatedAt<=local.updatedAt)return;
-
-    // A newer remote revision must never be routed through the normal online
-    // handler because that path is push-only. Ask App for a protected reconcile;
-    // if the user begins editing before App handles it, the watcher will retry on
-    // a later safe check instead of suppressing the revision for the whole session.
+    // Never compare device clocks. A phone with a fast/slow clock must not be
+    // allowed to decide which encrypted vault is newer. The cloud revision and
+    // the last acknowledged revision on this device are the only freshness keys.
+    if(!await cloudRemoteChangedSinceAnchor(user.uid))return;
     window.dispatchEvent(new Event('lourex-cloud-remote-newer'));
   }catch{
-    // App-level cloud controls surface sync errors; this watcher stays silent.
+    // App-level cloud controls surface sync errors; this read-only watcher stays silent.
   }finally{
     running=false;
   }
@@ -59,8 +52,6 @@ export function startCloudFreshnessWatcher():()=>void{
   window.addEventListener('online',onOnline);
   window.addEventListener('pageshow',onPageshow);
   document.addEventListener('visibilitychange',onVisibility);
-  // Focus/pageshow/online already provide fast freshness checks. A one-minute
-  // safety poll avoids repeated Firestore reads while the user is idle.
   timer=window.setInterval(()=>void checkCloudFreshness(),60_000);
   schedule(1200);
   return ()=>{
