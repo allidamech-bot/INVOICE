@@ -18,3 +18,13 @@ test('v125 pins the body portal sheet to the bottom viewport without RTL inset r
   const newIndex=html.indexOf('mobile-document-actions-v125.css');
   assert.ok(oldIndex>=0&&newIndex>oldIndex,'v125 must load after v124');
 });
+
+test('v125 keeps the action portal visible wherever the tablet three-dot trigger replaces desktop actions',async()=>{
+  const [css,appCss]=await Promise.all([
+    read('src/styles/mobile-document-actions-v125.css'),
+    read('src/styles/app.css')
+  ]);
+
+  assert.match(appCss,/@media\(max-width:900px\)[\s\S]*?\.document-actions\{display:none\}[\s\S]*?\.mobile-actions\{display:block\}/);
+  assert.match(css,/@media \(max-width:900px\)\{[\s\S]*?\.mobile-document-action-portal\{[\s\S]*?display:block!important/);
+});
