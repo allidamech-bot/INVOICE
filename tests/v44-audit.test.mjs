@@ -176,9 +176,10 @@ test('editor exposes percent discount and background-safe autosave',async()=>{
 
 test('immediate settings saves revert visibly on storage failure',async()=>{
   const settings=await read('src/components/SettingsModal.tsx');
-  assert.match(settings,/changeAutoLock/);
+  assert.match(settings,/changeInterfaceLanguage/);
+  assert.match(settings,/const previous=this\.state\.appSettings/);
   assert.match(settings,/appSettings:previous/);
-  assert.match(settings,/Unable to save auto-lock setting/);
+  assert.match(settings,/Unable to change interface language/);
   assert.match(settings,/max="3650"/);
 });
 
