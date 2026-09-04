@@ -4,21 +4,28 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('mobile document actions load the viewport action-sheet layer',async()=>{
-  const [html,css]=await Promise.all([
+test('historical v122 action-sheet layer is retired from runtime in favor of the consolidated portal',async()=>{
+  const [html,current,sw]=await Promise.all([
     read('index.html'),
-    read('src/styles/mobile-document-actions-v122.css')
+    read('src/styles/mobile-document-actions-v125.css'),
+    read('public/sw.js')
   ]);
-  assert.match(html,/mobile-document-actions-v122\.css/);
-  assert.match(css,/@media \(max-width:720px\)/);
-  assert.match(css,/\.premium-document-card \.action-menu\{[\s\S]*position:fixed!important/);
-  assert.match(css,/inset-block-end:max\(12px,env\(safe-area-inset-bottom\)\)!important/);
-  assert.match(css,/max-height:min\(70dvh,520px\)!important/);
-  assert.match(css,/overflow-y:auto!important/);
+  assert.doesNotMatch(html,/mobile-document-actions-v122\.css/);
+  assert.match(html,/mobile-document-actions-v125\.css/);
+  assert.match(current,/@media \(max-width:900px\)/);
+  assert.match(current,/\.mobile-document-action-portal[\s\S]*?position:fixed!important/);
+  assert.match(current,/bottom:max\(12px,env\(safe-area-inset-bottom\)\)!important/);
+  assert.match(current,/max-height:min\(72dvh,560px\)!important/);
+  assert.match(current,/overflow-y:auto!important/);
+  // Source-cache compatibility can keep the old file during the migration; it
+  // must not participate in the live cascade anymore.
+  assert.match(sw,/mobile-document-actions-v122\.css/);
 });
 
-test('mobile action sheet keeps card and list overflow visible',async()=>{
-  const css=await read('src/styles/mobile-document-actions-v122.css');
-  assert.match(css,/\.premium-document-list,[\s\S]*\.premium-document-card,[\s\S]*\.premium-document-card \.mobile-actions\{[\s\S]*overflow:visible!important/);
-  assert.match(css,/\.premium-document-card:has\(\.action-menu\)\{[\s\S]*z-index:180!important/);
+test('the consolidated body portal no longer depends on card overflow escape hatches',async()=>{
+  const current=await read('src/styles/mobile-document-actions-v125.css');
+  assert.match(current,/\.mobile-document-action-portal \.mobile-document-action-backdrop/);
+  assert.match(current,/pointer-events:none!important/);
+  assert.match(current,/pointer-events:auto!important/);
+  assert.doesNotMatch(current,/premium-document-card:has\(\.action-menu\)/);
 });

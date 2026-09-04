@@ -1,0 +1,248 @@
+/* Batch 7 — canonical LOUREX application design system.
+   Application chrome only: no printable invoice/template geometry belongs here.
+   This layer provides one token vocabulary for the new shell, dashboard, editor,
+   settings and legacy application components while the old CSS is retired safely. */
+
+.app-ui{
+  /* Brand and semantic colour */
+  --ds-navy-950:#071b28;
+  --ds-navy-900:#0b2838;
+  --ds-navy-800:#123a4c;
+  --ds-navy-700:#31576b;
+  --ds-gold-600:#b48a48;
+  --ds-gold-500:#c6a15b;
+  --ds-gold-200:#ead8b1;
+  --ds-ivory-100:#f7f4ee;
+  --ds-ivory-50:#fbfaf7;
+  --ds-surface:#fffdfa;
+  --ds-surface-strong:#ffffff;
+  --ds-text:#172833;
+  --ds-text-soft:#435965;
+  --ds-muted:#71808a;
+  --ds-faint:#909ba1;
+  --ds-line:#dedbd4;
+  --ds-line-strong:#c7ced0;
+  --ds-success:#27805f;
+  --ds-warning:#aa7424;
+  --ds-danger:#a6443f;
+  --ds-info:#315f78;
+
+  /* Rhythm */
+  --ds-space-1:4px;
+  --ds-space-2:8px;
+  --ds-space-3:12px;
+  --ds-space-4:16px;
+  --ds-space-5:24px;
+  --ds-space-6:32px;
+  --ds-space-7:48px;
+  --ds-radius-control:11px;
+  --ds-radius-card:16px;
+  --ds-radius-panel:20px;
+  --ds-radius-pill:999px;
+  --ds-shadow-card:0 8px 26px rgba(7,27,40,.055);
+  --ds-shadow-raised:0 18px 48px rgba(7,27,40,.12);
+  --ds-focus:0 0 0 3px rgba(49,87,107,.15);
+  --ds-motion-fast:150ms ease;
+
+  /* One type system. Arabic switches family below without changing hierarchy. */
+  --ds-font-ui:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  --ds-font-ar:"Noto Sans Arabic",Tahoma,Arial,sans-serif;
+  --ds-text-xs:10px;
+  --ds-text-sm:12px;
+  --ds-text-md:14px;
+  --ds-text-lg:18px;
+  --ds-text-xl:26px;
+
+  /* Compatibility bridge: new surfaces and older application components now
+     resolve to the same tokens instead of carrying independent palettes. */
+  --shell-navy:var(--ds-navy-900);
+  --shell-navy-2:var(--ds-navy-800);
+  --shell-gold:var(--ds-gold-500);
+  --shell-ivory:var(--ds-ivory-100);
+  --shell-paper:var(--ds-surface);
+  --shell-line:var(--ds-line);
+  --shell-text:var(--ds-text);
+  --shell-muted:var(--ds-muted);
+  --shell-success:var(--ds-success);
+  --shell-warning:var(--ds-warning);
+  --shell-error:var(--ds-danger);
+
+  --ux-app:var(--ds-ivory-100);
+  --ux-card:var(--ds-surface);
+  --ux-input:var(--ds-surface-strong);
+  --ux-navy:var(--ds-navy-900);
+  --ux-navy-deep:var(--ds-navy-950);
+  --ux-navy-soft:var(--ds-navy-700);
+  --ux-ink:var(--ds-text);
+  --ux-body:var(--ds-text-soft);
+  --ux-muted:var(--ds-muted);
+  --ux-faint:var(--ds-faint);
+  --ux-line:var(--ds-line);
+  --ux-line-strong:var(--ds-line-strong);
+  --ux-gold:var(--ds-gold-600);
+  --ux-champagne:var(--ds-gold-200);
+  --ux-shadow:var(--ds-shadow-card);
+  --ux-shadow-strong:var(--ds-shadow-raised);
+
+  --editor-shell:#e9edef;
+  --editor-pane:#f5f6f4;
+  --editor-card:var(--ds-surface-strong);
+  --editor-card-soft:var(--ds-ivory-50);
+  --editor-line:var(--ds-line);
+  --editor-line-strong:var(--ds-line-strong);
+  --editor-ink:var(--ds-navy-900);
+  --editor-muted:var(--ds-muted);
+  --editor-accent:var(--ds-navy-700);
+  --editor-accent-soft:#e8f0f2;
+  --editor-gold:var(--ds-gold-600);
+  --editor-shadow:var(--ds-shadow-card);
+  --editor-shadow-raised:var(--ds-shadow-raised);
+  --editor-radius:var(--ds-radius-card);
+  --editor-control-radius:var(--ds-radius-control);
+
+  font-family:var(--ds-font-ui);
+  color:var(--ds-text);
+  background:var(--ds-ivory-100);
+  text-rendering:optimizeLegibility;
+}
+
+html[dir='rtl'] .app-ui{font-family:var(--ds-font-ar)}
+
+/* Base interaction language */
+.app-ui :where(button,input,select,textarea){font:inherit}
+.app-ui :where(button,.btn,.icon-btn){-webkit-tap-highlight-color:transparent}
+.app-ui :where(.btn,.icon-btn,.shell-nav-button,.mobile-bottom-nav>button,.settings-nav-button){
+  transition:background-color var(--ds-motion-fast),border-color var(--ds-motion-fast),color var(--ds-motion-fast),box-shadow var(--ds-motion-fast),transform var(--ds-motion-fast);
+}
+
+.app-ui .btn{
+  min-height:42px;
+  border-radius:var(--ds-radius-control)!important;
+  border-color:var(--ds-line-strong);
+  background:var(--ds-surface-strong);
+  color:var(--ds-navy-700);
+  font-weight:700;
+  box-shadow:none;
+}
+.app-ui .btn:hover:not(:disabled){border-color:#aebabc;background:#fff;color:var(--ds-navy-900)}
+.app-ui .btn-primary{
+  border-color:var(--ds-navy-900);
+  background:var(--ds-navy-900);
+  color:#fff;
+}
+.app-ui .btn-primary:hover:not(:disabled){border-color:var(--ds-navy-800);background:var(--ds-navy-800);color:#fff}
+.app-ui .btn-danger{border-color:#e0bab6;background:#fff5f3;color:var(--ds-danger)}
+.app-ui .btn-ghost{border-color:transparent;background:transparent;box-shadow:none}
+.app-ui .icon-btn{min-width:40px;min-height:40px;border-radius:var(--ds-radius-control)!important;color:#52656f}
+
+.app-ui :where(.btn,.icon-btn,button,input,select,textarea):focus-visible{
+  outline:0;
+  box-shadow:var(--ds-focus)!important;
+}
+
+/* Forms */
+.app-ui :where(.input,select.input,textarea.input,.textarea){
+  border-color:var(--ds-line-strong);
+  border-radius:var(--ds-radius-control)!important;
+  background:var(--ds-surface-strong);
+  color:var(--ds-text);
+}
+.app-ui :where(.input,select.input,textarea.input,.textarea):hover{border-color:#b7c1c3}
+.app-ui :where(.input,select.input,textarea.input,.textarea):focus{
+  border-color:#7d9aa7!important;
+  background:#fff!important;
+  box-shadow:var(--ds-focus)!important;
+}
+.app-ui :where(.input,textarea.input,.textarea)::placeholder{color:var(--ds-faint)}
+.app-ui .field{gap:var(--ds-space-2)}
+.app-ui .field-label{color:#52636d;font-size:11px;font-weight:750;line-height:1.4}
+.app-ui :where(.field-error,.inline-error,.auth-error){color:var(--ds-danger)}
+
+/* Shared surface hierarchy. One parent surface, then spacing/dividers inside. */
+.app-ui :where(.dashboard-panel,.premium-document-card,.document-detail-card,.customer-card,.reports-panel,.report-currency-card,.receivables-card,.operations-card,.product-library-body,.settings-workspace-card,.account-security-card){
+  border-color:var(--ds-line);
+  background:var(--ds-surface);
+  box-shadow:var(--ds-shadow-card);
+}
+.app-ui :where(.dashboard-panel,.premium-document-card,.document-detail-card,.customer-card,.reports-panel,.report-currency-card,.receivables-card,.operations-card,.product-library-body):hover{
+  border-color:#c4c9c8;
+}
+
+.app-ui :where(.page-heading,.dashboard-hero,.document-detail-hero,.settings-workspace-hero){
+  border-radius:var(--ds-radius-panel);
+}
+
+/* Financial values remain stable as numbers change. */
+.app-ui :where(
+  .document-total strong,
+  .document-detail-value strong,
+  .document-detail-totals strong,
+  .dashboard-money-stack b,
+  .dashboard-kpis strong,
+  .editor-grand-total-chip strong,
+  .editor-totals strong,
+  .mobile-total strong,
+  .receivables-summary strong,
+  .report-primary-metrics strong,
+  .operations-summary strong
+){font-variant-numeric:tabular-nums lining-nums}
+
+/* Status is semantic, not decorative. */
+.app-ui :where(.status-pill,.document-status-badge,.lifecycle-badge,.sync-badge){
+  border-radius:var(--ds-radius-pill);
+  font-weight:750;
+}
+.app-ui :where(.state-synced,.status-paid,.status-success){--status-accent:var(--ds-success)}
+.app-ui :where(.state-syncing,.state-queued,.status-pending,.status-warning){--status-accent:var(--ds-warning)}
+.app-ui :where(.state-error,.status-overdue,.status-danger){--status-accent:var(--ds-danger)}
+
+/* Empty/loading states share the same calm rhythm instead of page-specific boxes. */
+.app-ui :where(.empty-state,.dashboard-empty,.reports-empty,.operations-empty,.product-library-empty){
+  color:var(--ds-muted);
+}
+.app-ui :where(.empty-state,.dashboard-empty,.reports-empty,.operations-empty,.product-library-empty) :where(h2,strong){color:var(--ds-navy-900)}
+
+/* Navigation and shell consistency */
+.app-ui .workspace-topbar{border-bottom-color:var(--ds-line);background:rgba(255,253,250,.96)}
+.app-ui .shell-page-title strong{color:var(--ds-navy-900)}
+.app-ui .shell-sync-status{border-color:var(--ds-line);background:var(--ds-surface-strong);color:var(--ds-text-soft)}
+.app-ui .mobile-bottom-nav{border-top-color:var(--ds-line);background:rgba(255,253,250,.98)}
+
+/* Editor hierarchy: keep content flat and let headings/totals carry emphasis. */
+.app-ui .editor-section{border-color:var(--ds-line)!important;background:var(--ds-surface-strong)!important}
+.app-ui .section-heading h2{color:var(--ds-navy-900)!important}
+.app-ui .section-heading>span:first-child{color:var(--ds-gold-600)!important}
+.app-ui .premium-selected-customer{box-shadow:none!important}
+.app-ui .premium-item-card{border-color:var(--ds-line)!important;box-shadow:none!important}
+.app-ui .editor-totals .grand{background:var(--ds-navy-900)!important;color:#fff!important}
+
+/* Settings/account pages use the same interaction vocabulary as the rest of the app. */
+.app-ui :where(.settings-workspace,.account-workspace){color:var(--ds-text)}
+.app-ui :where(.settings-nav-button,.settings-workspace-tab){border-radius:var(--ds-radius-control)}
+.app-ui :where(.settings-nav-button.active,.settings-workspace-tab.active){color:var(--ds-navy-900)}
+
+/* Logical-direction guardrails for application chrome. */
+[dir='rtl'] .app-ui :where(.page-heading,.document-detail-topbar,.dashboard-panel-heading,.settings-workspace-heading){text-align:start}
+[dir='rtl'] .app-ui :where(.document-detail-value,.dashboard-document-meta){text-align:end}
+
+@media(pointer:coarse){
+  .app-ui :where(.btn,.icon-btn,.shell-nav-button,.mobile-bottom-nav>button,.mobile-more-sheet button,.settings-nav-button){min-height:44px}
+  .app-ui :where(.input,select.input){min-height:44px}
+}
+
+@media(max-width:720px){
+  .app-ui{--ds-radius-panel:16px;--ds-radius-card:14px}
+  .app-ui :where(.input,select.input,textarea.input,.textarea){font-size:16px}
+  .app-ui .field-label{font-size:10.5px}
+  .app-ui :where(.dashboard-panel,.premium-document-card,.document-detail-card,.customer-card,.settings-workspace-card){box-shadow:none}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .app-ui :where(*,::before,::after){scroll-behavior:auto!important}
+  .app-ui :where(.btn,.icon-btn,.shell-nav-button,.mobile-bottom-nav>button,.settings-nav-button){transition:none!important}
+}
+
+@media print{
+  /* The design system must never create printable application chrome. */
+  .workspace-sidebar,.workspace-topbar,.mobile-bottom-nav,.mobile-more-sheet{display:none!important}
+}
