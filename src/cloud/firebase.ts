@@ -1,5 +1,5 @@
 import type { EncryptedVaultRecord, SecurityMetadata } from '../types.js';
-import { createSafetySnapshot, getEncryptedVault, getSecurity, putSecurityAndVault } from '../storage/db.js';
+import { getEncryptedVault, getSecurity, putSecurityAndVault } from '../storage/db.js';
 
 declare const firebase: any;
 
@@ -12,7 +12,6 @@ interface CloudVaultMeta {
   parentRevision?:string; deviceId?:string;
 }
 interface CloudSyncAnchor { revision:string; cipherSha256:string; updatedAt:string; }
-interface CloudConflictToken { localHash:string; remoteRevision:string; remoteHash:string; detectedAt:string; }
 
 const FIREBASE_CONFIG={apiKey:'AIzaSyAgakNDqcKlyAFiOyfm1ebA8PB-_HKM-go',authDomain:'lourex-invoice.firebaseapp.com',projectId:'lourex-invoice',storageBucket:'lourex-invoice.firebasestorage.app',messagingSenderId:'985119320046',appId:'1:985119320046:web:58798f19ad368a178510ff'};
 const CLOUD_FORMAT='LOUREX_CLOUD_V1';
@@ -37,7 +36,6 @@ function historyCollection(uid:string):any{return db().collection('users').doc(u
 function requireCurrentUid(uid:string):void{const current=auth().currentUser;if(!current||current.uid!==uid)throw new Error('Cloud session is not available for this account.');}
 function markRecentAuth():void{try{sessionStorage.setItem('lourex-auth-just-signed-in','1');}catch{}}
 function syncAnchorKey(uid:string):string{return `lourex-cloud-anchor:${uid}`;}
-function conflictKey(uid:string):string{return `lourex-cloud-conflict:${uid}`;}
 function deviceIdKey():string{return 'lourex-device-id';}
 function currentDeviceId():string{
   try{
@@ -57,23 +55,11 @@ function readSyncAnchor(uid:string):CloudSyncAnchor|null{
   }catch{return null;}
 }
 function writeSyncAnchor(uid:string,meta:Pick<CloudVaultMeta,'revision'|'cipherSha256'|'updatedAt'>):void{
-  try{localStorage.setItem(syncAnchorKey(uid),JSON.stringify({revision:meta.revision,cipherSha256:meta.cipherSha256,updatedAt:meta.updatedAt} satisfies CloudSyncAnchor));clearConflict(uid);}catch{}
+  try{localStorage.setItem(syncAnchorKey(uid),JSON.stringify({revision:meta.revision,cipherSha256:meta.cipherSha256,updatedAt:meta.updatedAt} satisfies CloudSyncAnchor));}catch{}
 }
-function readConflict(uid:string):CloudConflictToken|null{
-  try{
-    const raw=localStorage.getItem(conflictKey(uid));if(!raw)return null;
-    const parsed=JSON.parse(raw);
-    if(!parsed||typeof parsed.localHash!=='string'||typeof parsed.remoteRevision!=='string'||typeof parsed.remoteHash!=='string'||typeof parsed.detectedAt!=='string')return null;
-    return parsed as CloudConflictToken;
-  }catch{return null;}
-}
-function writeConflict(uid:string,localHash:string,remote:CloudVaultMeta):void{
-  try{localStorage.setItem(conflictKey(uid),JSON.stringify({localHash,remoteRevision:remote.revision,remoteHash:remote.cipherSha256,detectedAt:new Date().toISOString()} satisfies CloudConflictToken));}catch{}
-}
-function clearConflict(uid:string):void{try{localStorage.removeItem(conflictKey(uid));}catch{}}
 function notifyCloudApplied():void{try{window.dispatchEvent(new Event('lourex-cloud-applied'));}catch{}}
 function splitCipher(cipher:string):string[]{
-  if(cipher.length>MAX_CIPHER_LENGTH)throw new Error('Encrypted vault is too large for cloud sync. Export a local backup and remove oversized images.');
+  if(cipher.length>MAX_CIPHER_LENGTH)throw new Error('Account data is too large for cloud storage. Remove oversized images and try again.');
   const out:string[]=[];for(let i=0;i<cipher.length;i+=CHUNK_SIZE)out.push(cipher.slice(i,i+CHUNK_SIZE));return out;
 }
 function revisionId():string{const bytes=new Uint8Array(8);crypto.getRandomValues(bytes);return `${Date.now().toString(36)}-${Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')}`;}
@@ -107,24 +93,24 @@ export async function waitForCloudUser():Promise<CloudUser|null>{
   });
 }
 export function currentCloudUser():CloudUser|null{try{return userFrom(auth().currentUser);}catch{return null;}}
-export async function createCloudUser(email:string,password:string):Promise<CloudUser>{ensureFirebase();await auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);const credential=await auth().createUserWithEmailAndPassword(email.trim(),password);const user=userFrom(credential.user);if(!user)throw new Error('Unable to create the cloud account.');markRecentAuth();return user;}
+export async function createCloudUser(email:string,password:string):Promise<CloudUser>{ensureFirebase();await auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);const credential=await auth().createUserWithEmailAndPassword(email.trim(),password);const user=userFrom(credential.user);if(!user)throw new Error('Unable to create the account.');markRecentAuth();return user;}
 export async function signInCloudUser(email:string,password:string):Promise<CloudUser>{ensureFirebase();await auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);const credential=await auth().signInWithEmailAndPassword(email.trim(),password);const user=userFrom(credential.user);if(!user)throw new Error('Unable to sign in.');markRecentAuth();return user;}
 export async function signOutCloudUser():Promise<void>{ensureFirebase();await auth().signOut();}
 export async function sendCloudPasswordReset(email:string):Promise<void>{ensureFirebase();await auth().sendPasswordResetEmail(email.trim());}
 export function friendlyCloudError(error:unknown):string{
   const code=String((error as any)?.code||'');
   if(code.includes('invalid-credential')||code.includes('wrong-password')||code.includes('user-not-found'))return 'Email or password is incorrect.';
-  if(code.includes('email-already-in-use'))return 'This email already has a LOUREX cloud account.';
+  if(code.includes('email-already-in-use'))return 'This email already has a LOUREX account.';
   if(code.includes('weak-password'))return 'Use a stronger password with at least 6 characters.';
   if(code.includes('invalid-email'))return 'Enter a valid email address.';
   if(code.includes('too-many-requests'))return 'Too many attempts. Try again later.';
   if(code.includes('network-request-failed'))return 'Cloud connection failed. Check your internet connection.';
-  if(code.includes('permission-denied'))return 'Firebase security rules are not enabled for LOUREX yet.';
-  if(String((error as any)?.message||'').includes('payload size exceeds'))return 'Cloud sync data is large. LOUREX will upload it in smaller secure parts; please try Sync Now again.';
+  if(code.includes('permission-denied'))return 'Cloud access is not enabled for this LOUREX account.';
+  if(String((error as any)?.message||'').includes('payload size exceeds'))return 'Account data is too large. Remove oversized images and try again.';
   return error instanceof Error?error.message:'Cloud operation failed.';
 }
-export async function getCloudVaultMeta(uid:string):Promise<CloudVaultMeta|null>{requireCurrentUid(uid);const snap=await vaultCollection(uid).doc('meta').get();if(!snap.exists)return null;const data=snap.data();if(!validMeta(data))throw new Error('Cloud vault metadata is invalid.');return data;}
-export function hasCloudConflict(uid:string):boolean{return Boolean(readConflict(uid));}
+export async function getCloudVaultMeta(uid:string):Promise<CloudVaultMeta|null>{requireCurrentUid(uid);const snap=await vaultCollection(uid).doc('meta').get();if(!snap.exists)return null;const data=snap.data();if(!validMeta(data))throw new Error('Cloud account data is invalid.');return data;}
+export function hasCloudConflict(_uid:string):boolean{return false;}
 export async function cloudRemoteChangedSinceAnchor(uid:string):Promise<boolean>{
   requireCurrentUid(uid);const remote=await getCloudVaultMeta(uid);if(!remote)return false;const anchor=readSyncAnchor(uid);if(!anchor)return true;
   return remote.revision!==anchor.revision||remote.cipherSha256!==anchor.cipherSha256;
@@ -172,8 +158,8 @@ async function commitMetaIfUnchanged(uid:string,meta:CloudVaultMeta,previous:Clo
   const ref=vaultCollection(uid).doc('meta');
   await db().runTransaction(async(transaction:any)=>{
     const snap=await transaction.get(ref);
-    if(previous){if(!snap.exists)throw new Error('Cloud changed during sync. Nothing was overwritten. Sync again to compare both copies.');const current=snap.data();if(!validMeta(current)||current.revision!==previous.revision||current.cipherSha256!==previous.cipherSha256)throw new Error('Cloud changed during sync. Nothing was overwritten. Sync again to compare both copies.');}
-    else if(snap.exists)throw new Error('Cloud changed during sync. Nothing was overwritten. Sync again to compare both copies.');
+    if(previous){if(!snap.exists)throw new Error('Account data changed on another device.');const current=snap.data();if(!validMeta(current)||current.revision!==previous.revision||current.cipherSha256!==previous.cipherSha256)throw new Error('Account data changed on another device.');}
+    else if(snap.exists)throw new Error('Account data changed on another device.');
     transaction.set(ref,meta);
   });
 }
@@ -181,13 +167,13 @@ async function commitSingleChunkIfUnchanged(uid:string,meta:CloudVaultMeta,previ
   const col=vaultCollection(uid);const metaRef=col.doc('meta');const chunkRef=col.doc(`chunk-${meta.revision}-00000`);
   await db().runTransaction(async(transaction:any)=>{
     const snap=await transaction.get(metaRef);
-    if(previous){if(!snap.exists)throw new Error('Cloud changed during sync. Nothing was overwritten. Sync again to compare both copies.');const current=snap.data();if(!validMeta(current)||current.revision!==previous.revision||current.cipherSha256!==previous.cipherSha256)throw new Error('Cloud changed during sync. Nothing was overwritten. Sync again to compare both copies.');}
-    else if(snap.exists)throw new Error('Cloud changed during sync. Nothing was overwritten. Sync again to compare both copies.');
+    if(previous){if(!snap.exists)throw new Error('Account data changed on another device.');const current=snap.data();if(!validMeta(current)||current.revision!==previous.revision||current.cipherSha256!==previous.cipherSha256)throw new Error('Account data changed on another device.');}
+    else if(snap.exists)throw new Error('Account data changed on another device.');
     transaction.set(chunkRef,{revision:meta.revision,index:0,data:cipher});transaction.set(metaRef,meta);
   });
 }
 async function publishVault(uid:string,security:SecurityMetadata,vault:EncryptedVaultRecord,previous:CloudVaultMeta|null):Promise<CloudVaultMeta>{
-  if(vault.cipher.length>MAX_CIPHER_LENGTH)throw new Error('Encrypted vault is too large for cloud sync. Export a local backup and remove oversized images.');
+  if(vault.cipher.length>MAX_CIPHER_LENGTH)throw new Error('Account data is too large for cloud storage. Remove oversized images and try again.');
   const cipherSha256=await sha256(vault.cipher);const chunks=splitCipher(vault.cipher);const revision=revisionId();
   const meta:CloudVaultMeta={format:CLOUD_FORMAT,version:1,revision,updatedAt:vault.updatedAt,schemaVersion:vault.schemaVersion,iv:vault.iv,cipherLength:vault.cipher.length,cipherSha256,chunkCount:chunks.length,security,parentRevision:previous?.revision||'',deviceId:currentDeviceId()};
   await archivePreviousRevision(uid,previous);
@@ -202,61 +188,66 @@ async function pullCloudVaultFromMeta(uid:string,meta:CloudVaultMeta):Promise<{s
   const col=vaultCollection(uid);const chunks:string[]=[];
   for(let offset=0;offset<meta.chunkCount;offset+=24){
     const snaps=await Promise.all(Array.from({length:Math.min(24,meta.chunkCount-offset)},(_,j)=>{const i=offset+j;return col.doc(`chunk-${meta.revision}-${String(i).padStart(5,'0')}`).get();}));
-    snaps.forEach((snap:any,j:number)=>{const i=offset+j;if(!snap.exists)throw new Error(`Cloud vault chunk ${i+1} is missing.`);const data=snap.data();if(data?.revision!==meta.revision||data?.index!==i||typeof data?.data!=='string'||data.data.length>CHUNK_SIZE)throw new Error('Cloud vault is incomplete.');chunks.push(data.data as string);});
+    snaps.forEach((snap:any,j:number)=>{const i=offset+j;if(!snap.exists)throw new Error(`Cloud data part ${i+1} is missing.`);const data=snap.data();if(data?.revision!==meta.revision||data?.index!==i||typeof data?.data!=='string'||data.data.length>CHUNK_SIZE)throw new Error('Cloud account data is incomplete.');chunks.push(data.data as string);});
   }
-  const cipher=chunks.join('');if(cipher.length!==meta.cipherLength||await sha256(cipher)!==meta.cipherSha256)throw new Error('Cloud vault integrity check failed.');
+  const cipher=chunks.join('');if(cipher.length!==meta.cipherLength||await sha256(cipher)!==meta.cipherSha256)throw new Error('Cloud account data integrity check failed.');
   return {security:meta.security,vault:{id:'vault',schemaVersion:meta.schemaVersion,iv:meta.iv,cipher,updatedAt:meta.updatedAt}};
 }
 export async function pullCloudVault(uid:string):Promise<{security:SecurityMetadata;vault:EncryptedVaultRecord}|null>{requireCurrentUid(uid);const meta=await getCloudVaultMeta(uid);if(!meta)return null;return pullCloudVaultFromMeta(uid,meta);}
 export async function installCloudVault(uid:string,notify=false):Promise<boolean>{
-  const meta=await getCloudVaultMeta(uid);if(!meta)return false;const remote=await pullCloudVaultFromMeta(uid,meta);
-  await createSafetySnapshot('pre-restore');await putSecurityAndVault(remote.security,remote.vault);writeSyncAnchor(uid,meta);clearConflict(uid);if(notify)notifyCloudApplied();return true;
+  requireCurrentUid(uid);
+  const meta=await getCloudVaultMeta(uid);if(!meta)return false;
+  const remote=await pullCloudVaultFromMeta(uid,meta);
+  await putSecurityAndVault(remote.security,remote.vault);
+  writeSyncAnchor(uid,meta);
+  if(notify)notifyCloudApplied();
+  return true;
 }
 
 export async function pushLocalVaultToCloud(uid:string,localSnapshot?:EncryptedVaultRecord|null):Promise<void>{
   requireCurrentUid(uid);
-  if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error('You are offline. Your local changes are safe and will sync when you reconnect.');
+  if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error('Internet connection is required to save account data.');
   const [security,storedVault,previous]=await Promise.all([getSecurity(),localSnapshot?Promise.resolve(localSnapshot):getEncryptedVault(),getCloudVaultMeta(uid)]);const vault=storedVault;
-  if(!security||!vault)throw new Error('There is no local LOUREX vault to sync.');
+  if(!security||!vault)throw new Error('There is no LOUREX account data to save.');
   const localHash=await sha256(vault.cipher);
   if(previous&&previous.cipherSha256===localHash){writeSyncAnchor(uid,previous);return;}
   if(previous){
     const anchor=readSyncAnchor(uid);
-    if(!anchor){writeConflict(uid,localHash,previous);throw new Error('This device and your LOUREX account contain different data and this device has no verified sync checkpoint. Nothing was overwritten. Choose which copy to keep in Cloud Sync.');}
-    const localChanged=localHash!==anchor.cipherSha256;
+    if(!anchor){const installed=await installCloudVault(uid,true);if(!installed)throw new Error('Cloud account data is unavailable.');return;}
     const remoteChanged=previous.revision!==anchor.revision||previous.cipherSha256!==anchor.cipherSha256;
-    if(remoteChanged&&!localChanged){const installed=await installCloudVault(uid,true);if(!installed)throw new Error('The account copy disappeared during sync. Try again.');return;}
-    if(remoteChanged&&localChanged){writeConflict(uid,localHash,previous);throw new Error('Your LOUREX account changed on another device while this device also has local changes. Nothing was overwritten. Both copies are safe; choose which copy to keep in Cloud Sync.');}
+    if(remoteChanged){const installed=await installCloudVault(uid,true);if(!installed)throw new Error('Cloud account data is unavailable.');return;}
   }
   await publishVault(uid,security,vault,previous);
 }
 
-export async function resolveCloudConflictWithLocal(uid:string):Promise<void>{
-  requireCurrentUid(uid);if(!readConflict(uid))throw new Error('There is no cloud conflict to resolve.');
-  const [security,vault,previous]=await Promise.all([getSecurity(),getEncryptedVault(),getCloudVaultMeta(uid)]);if(!security||!vault)throw new Error('There is no local LOUREX data to publish.');
-  await publishVault(uid,security,vault,previous);clearConflict(uid);
-}
-export async function resolveCloudConflictWithCloud(uid:string):Promise<void>{
-  requireCurrentUid(uid);if(!readConflict(uid))throw new Error('There is no cloud conflict to resolve.');
-  const installed=await installCloudVault(uid);if(!installed)throw new Error('The cloud copy is no longer available.');clearConflict(uid);
-}
+// Compatibility exports for older UI bundles. The new account-first flow never
+// exposes conflicts to the user; the account copy is authoritative automatically.
+export async function resolveCloudConflictWithLocal(uid:string):Promise<void>{await pushLocalVaultToCloud(uid);}
+export async function resolveCloudConflictWithCloud(uid:string):Promise<void>{const installed=await installCloudVault(uid,true);if(!installed)throw new Error('Cloud account data is unavailable.');}
 
 export async function reconcileCloudVault(uid:string):Promise<CloudSyncResult>{
   requireCurrentUid(uid);
   const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(uid)]);
-  if(!local&&!remote){clearConflict(uid);return 'empty';}
+  if(!local&&!remote)return 'empty';
   const startup=Boolean(document.querySelector('.loading-screen'));
-  if(local&&!remote){clearConflict(uid);if(startup){window.setTimeout(()=>void pushLocalVaultToCloud(uid).catch(()=>undefined),900);return 'same';}const security=await getSecurity();if(!security)throw new Error('Security settings are missing.');await publishVault(uid,security,local,null);return 'pushed';}
+  if(local&&!remote){
+    if(startup){window.setTimeout(()=>void pushLocalVaultToCloud(uid).catch(()=>undefined),500);return 'same';}
+    const security=await getSecurity();if(!security)throw new Error('Security settings are missing.');
+    await publishVault(uid,security,local,null);return 'pushed';
+  }
   if(!local&&remote){await installCloudVault(uid);return 'pulled';}
   if(!local||!remote)return 'empty';
   const localHash=await sha256(local.cipher);
   if(localHash===remote.cipherSha256){writeSyncAnchor(uid,remote);return 'same';}
   const anchor=readSyncAnchor(uid);
-  if(!anchor){writeConflict(uid,localHash,remote);throw new Error('Cloud safety check found different local and account data with no verified sync checkpoint. Nothing was overwritten. Both copies are safe; choose which copy to keep in Cloud Sync.');}
+  if(!anchor){await installCloudVault(uid);return 'pulled';}
   const localChanged=localHash!==anchor.cipherSha256;
   const remoteChanged=remote.revision!==anchor.revision||remote.cipherSha256!==anchor.cipherSha256;
-  if(remoteChanged&&!localChanged){await installCloudVault(uid);return 'pulled';}
-  if(localChanged&&!remoteChanged){if(startup){window.setTimeout(()=>void pushLocalVaultToCloud(uid).catch(()=>undefined),900);return 'same';}const security=await getSecurity();if(!security)throw new Error('Security settings are missing.');await publishVault(uid,security,local,remote);return 'pushed';}
-  if(localChanged&&remoteChanged){writeConflict(uid,localHash,remote);throw new Error('Cloud conflict detected: this device and another device both changed since the last successful sync. Nothing was overwritten. Both copies are safe; choose which copy to keep in Cloud Sync.');}
+  if(remoteChanged){await installCloudVault(uid);return 'pulled';}
+  if(localChanged){
+    if(startup){window.setTimeout(()=>void pushLocalVaultToCloud(uid).catch(()=>undefined),500);return 'same';}
+    const security=await getSecurity();if(!security)throw new Error('Security settings are missing.');
+    await publishVault(uid,security,local,remote);return 'pushed';
+  }
   writeSyncAnchor(uid,remote);return 'same';
 }
