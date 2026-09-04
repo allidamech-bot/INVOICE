@@ -52,13 +52,12 @@ test('saved-item editor protects dirty edits across close and item selection',()
   assert.match(modal,/onConfirm=\{this\.confirmDiscard\}/);
 });
 
-test('cloud modal can be dismissed while protected sync continues in the background',()=>{
+test('cloud account modal blocks dismissal only while its own explicit account action is busy',()=>{
   const modal=read('src/components/CloudAccountModal.tsx');
-  assert.match(modal,/private requestClose=\(\)=>this\.props\.onClose\(\)/);
-  assert.doesNotMatch(modal,/requestClose=\(\)=>\{if\(this\.state\.busy\|\|this\.props\.syncState==='syncing'\)return/);
+  assert.match(modal,/private requestClose=\(\)=>\{if\(!this\.state\.busy\)this\.props\.onClose\(\);\}/);
   assert.match(modal,/onClose=\{this\.requestClose\}/);
-  assert.match(modal,/disabled=\{this\.state\.busy\|\|this\.props\.syncState==='syncing'\}/);
-  assert.match(modal,/role=\{this\.props\.syncState==='error'\?'alert':'status'\}/);
+  assert.match(modal,/<Button disabled=\{this\.state\.busy\} onClick=\{\(\)=>void this\.run\(this\.props\.onSignOut\)\}/);
+  assert.doesNotMatch(modal,/Sync Now|مزامنة الآن/);
 });
 
 test('account entry cannot switch modes or double-submit while authentication is running',()=>{
