@@ -19,7 +19,7 @@ test('v159 removes inline executable code while preserving canonical redirects o
   assert.match(config,/script-src 'self';/);
   assert.doesNotMatch(config,/script-src [^;]*'unsafe-inline'/);
   assert.match(config,/Strict-Transport-Security/);
-  assert.match(sw,/lourex-invoice-v159/);
+  assert.match(sw,/lourex-invoice-v160/);
   assert.match(sw,/canonical-redirect\.js/);
 });
 
