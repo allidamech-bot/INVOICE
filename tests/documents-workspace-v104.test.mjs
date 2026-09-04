@@ -12,7 +12,7 @@ test('v104 makes document search and filters faster without changing document ou
   assert.match(page,/filtersOpen/);
   assert.match(page,/documents-filter-toggle/);
   assert.match(page,/documents-results-bar/);
-  assert.match(page,/Review drafts/);
+  assert.match(page,/Payment status/);
   assert.match(page,/this\.runOutput\('pdf',doc\)/);
   assert.match(page,/this\.runOutput\('share',doc\)/);
 });
