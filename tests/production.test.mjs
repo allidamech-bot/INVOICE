@@ -73,23 +73,26 @@ test('editor remounts its local draft state when document identity changes', asy
   assert.match(wrapper, /key=\{props\.document\.id\}/);
 });
 
-test('existing encrypted local vault can unlock without a live cloud session', async () => {
+test('account-first unlock never asks for a separate LOUREX PIN', async () => {
   const selector = await read('src/app/AuthScreenSelector.tsx');
-  const unlockBranch = selector.indexOf("if (props.mode === 'unlock')");
-  const cloudGate = selector.indexOf('if (!currentCloudUser())');
-  assert.ok(unlockBranch >= 0, 'unlock branch missing');
-  assert.ok(cloudGate > unlockBranch, 'cloud account gate must not block an existing local vault');
-  assert.match(selector, /return <UnlockScreen/);
+  const auth = await read('src/components/AuthScreens.tsx');
+  const crypto = await read('src/crypto/crypto.ts');
+  const session = await read('src/storage/session.ts');
+  assert.match(selector, /if \(!currentCloudUser\(\)\)/);
   assert.match(selector, /return <AccountEntryScreen/);
+  assert.match(auth, /No PIN is required/);
+  assert.doesNotMatch(auth, /Create your LOUREX PIN|Access PIN|Confirm PIN/);
+  assert.match(crypto, /createAccountSecurity/);
+  assert.match(crypto, /verifyAccountAccess/);
+  assert.match(session, /isSessionExpired[\s\S]*return false/);
+  assert.match(session, /clearSession\(\): Promise<void> \{ return; \}/);
 });
 
-test('backup uses the native share sheet for Save to Files with download fallback', async () => {
+test('backup helper remains isolated from the user-facing account flow', async () => {
   const backup = await read('src/lib/backup.ts');
+  const settings = await read('src/components/SettingsModal.tsx');
   assert.match(backup, /navigator\.share/);
-  assert.match(backup, /canShare/);
-  assert.match(backup, /Save to Files/);
-  assert.match(backup, /downloadFallback/);
-  assert.match(backup, /LOUREX-Backup-/);
+  assert.doesNotMatch(settings, /Backup Data|Restore Backup|Choose backup file/);
 });
 
 test('Firebase cloud sync stores the encrypted vault under owner-only user paths', async () => {
@@ -105,13 +108,11 @@ test('Firebase cloud sync stores the encrypted vault under owner-only user paths
   assert.match(cloud, /cipherSha256/);
   assert.match(cloud, /pushLocalVaultToCloud/);
   assert.match(cloud, /reconcileCloudVault/);
-  assert.match(cloud, /Cloud conflict detected/);
   assert.match(rules, /request\.auth\.uid == userId/);
   assert.match(app, /scheduleCloudSync/);
-  assert.match(app, /CloudAccountModal/);
 });
 
-test('first-run onboarding requires account entry before the simplified local PIN setup', async () => {
+test('first-run onboarding requires account entry and contains no PIN setup', async () => {
   const html = await read('dist/index.html');
   const auth = await read('src/components/AuthScreens.tsx');
   const account = await read('src/components/AccountEntryScreen.tsx');
@@ -124,8 +125,8 @@ test('first-run onboarding requires account entry before the simplified local PI
   assert.match(account, /createCloudUser/);
   assert.match(account, /signInCloudUser/);
   assert.match(account, /Confirm Password/);
-  assert.match(auth, /Create your LOUREX PIN/);
-  assert.match(auth, /account password cannot replace or recover this PIN/i);
+  assert.match(auth, /No separate PIN is required/);
+  assert.doesNotMatch(auth, /Create your LOUREX PIN|Keep this PIN safe|Confirm PIN/);
   assert.match(selector, /if \(!currentCloudUser\(\)\)/);
   assert.match(selector, /return <AccountEntryScreen/);
   assert.doesNotMatch(auth, /Restore Backup|Choose Backup File|restoreOpen/);
