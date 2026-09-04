@@ -60,7 +60,8 @@ test('documents workspace supports ready state, sorting and final-only direct ou
   assert.match(docs,/status-\$\{state\}/);
   assert.match(docs,/'ready'/);
   assert.match(docs,/const canOutput=doc\.status==='final'/);
-  assert.match(docs,/Review & Issue/);
+  assert.match(docs,/View details/);
+  assert.match(docs,/Continue editing/);
 });
 
 test('root UI is protected by a recovery boundary instead of falling to a blank page',async()=>{
