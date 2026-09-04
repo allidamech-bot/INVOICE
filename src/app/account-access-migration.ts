@@ -1,3 +1,4 @@
+import type { VaultPayload } from '../types.js';
 import { createAccountSecurity, decryptVault, encryptVault, verifyAccountAccess } from '../crypto/crypto.js';
 import { getEncryptedVault, getSecurity, putSecurityAndVault } from '../storage/db.js';
 import { establishSession, getSessionKey } from '../storage/session.js';
@@ -21,9 +22,9 @@ export async function migrateLegacyPinVaultToAccountAccess():Promise<void>{
     let accountKey:CryptoKey|null=null;
     try{accountKey=await verifyAccountAccess(user.uid,security);}catch{}
 
-    let vault;
+    let vault:VaultPayload;
     try{vault=await decryptVault(accountKey??session.key,encrypted);}catch{return;}
-    const normalized={...vault,appSettings:{...vault.appSettings,autoLockMinutes:0 as const}};
+    const normalized:VaultPayload={...vault,appSettings:{...vault.appSettings,autoLockMinutes:0}};
 
     if(!accountKey){
       const created=await createAccountSecurity(user.uid);
