@@ -4,15 +4,15 @@ import { readFile } from 'node:fs/promises';
 
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('a stale push becomes a protected account pull when this device has no local changes',async()=>{
+test('a stale device fast-forwards to the authoritative account copy automatically',async()=>{
   const cloud=await read('src/cloud/firebase.ts');
-  assert.match(cloud,/const localChanged=localHash!==anchor\.cipherSha256/);
-  assert.match(cloud,/if\(remoteChanged&&!localChanged\)\{const installed=await installCloudVault\(uid,true\)/);
-  assert.match(cloud,/Nothing was overwritten/);
-  assert.match(cloud,/Both copies are safe/);
+  assert.match(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.match(cloud,/if\(remoteChanged\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.match(cloud,/if\(remoteChanged\)\{const installed=await installCloudVault\(uid,true\)/);
+  assert.doesNotMatch(cloud,/Nothing was overwritten|Both copies are safe/);
 });
 
-test('cross-device updates use Firestore realtime events and bidirectional reconcile',async()=>{
+test('cross-device updates use Firestore realtime events and automatic account reconcile',async()=>{
   const freshness=await read('src/cloud/freshness.ts');
   assert.match(freshness,/subscribeCloudVaultChanges/);
   assert.match(freshness,/reconcileCloudVault/);
