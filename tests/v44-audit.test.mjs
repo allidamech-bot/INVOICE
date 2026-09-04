@@ -62,7 +62,7 @@ test('cloud freshness watcher applies account updates only when the UI is safe',
   assert.match(source,/window\.location\.reload\(\)/);
   assert.match(source,/editor-screen,.modal-backdrop/);
   assert.match(source,/document\.activeElement/);
-  assert.match(source,/15_000/);
+  assert.match(source,/5_000/);
   assert.doesNotMatch(source,/lourex-cloud-remote-newer/);
 });
 
