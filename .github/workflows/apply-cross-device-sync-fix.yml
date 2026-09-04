@@ -12,6 +12,8 @@ jobs:
           ref: fix/cross-device-account-sync
       - name: Apply repair
         run: python scripts/patch-cross-device-sync.py
+      - name: Inspect patched region
+        run: nl -ba src/app/App.tsx | sed -n '205,235p'
       - name: Validate
         run: |
           npm ci
