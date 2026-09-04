@@ -28,10 +28,11 @@ test('v114 carries typed customer search into the quick-create form',async()=>{
 });
 
 test('v114 keeps current-page semantics while manual header and settings lock controls stay retired',async()=>{
-  const [app,cloudCss]=await Promise.all([read('src/app/App.tsx'),read('src/styles/cloud.css')]);
-  assert.match(app,/aria-current=\{this\.state\.screen==='documents'\?'page':undefined\}/);
-  assert.match(app,/aria-current=\{this\.state\.screen==='customers'\?'page':undefined\}/);
-  assert.match(app,/aria-current=\{this\.state\.screen==='items'\?'page':undefined\}/);
+  const [shell,cloudCss]=await Promise.all([read('src/components/AppShell.tsx'),read('src/styles/cloud.css')]);
+  assert.match(shell,/aria-current=\{this\.props\.screen===screen\?'page':undefined\}/);
+  assert.match(shell,/aria-current=\{this\.props\.screen==='documents'\?'page':undefined\}/);
+  assert.match(shell,/aria-current=\{this\.props\.screen==='customers'\?'page':undefined\}/);
+  assert.match(shell,/this\.navButton\('items','items'/);
   assert.match(cloudCss,/\.auth-cloud-launcher,\.cloud-header-button,\.header-lock-button,\.settings-panel \.settings-section:has\(select option\[value="30"\]\)>\.btn\{display:none!important\}/);
 });
 
