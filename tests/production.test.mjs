@@ -73,14 +73,15 @@ test('editor remounts its local draft state when document identity changes', asy
   assert.match(wrapper, /key=\{props\.document\.id\}/);
 });
 
-test('existing encrypted local vault can unlock without a live cloud session', async () => {
+test('encrypted local vault requires the signed-in account session before PIN unlock', async () => {
   const selector = await read('src/app/AuthScreenSelector.tsx');
-  const unlockBranch = selector.indexOf("if (props.mode === 'unlock')");
   const cloudGate = selector.indexOf('if (!currentCloudUser())');
-  assert.ok(unlockBranch >= 0, 'unlock branch missing');
-  assert.ok(cloudGate > unlockBranch, 'cloud account gate must not block an existing local vault');
+  const unlockBranch = selector.indexOf("if (props.mode === 'unlock')");
+  assert.ok(cloudGate >= 0, 'cloud account gate missing');
+  assert.ok(unlockBranch > cloudGate, 'account session must be checked before local PIN unlock');
   assert.match(selector, /return <UnlockScreen/);
   assert.match(selector, /return <AccountEntryScreen/);
+  assert.match(selector, /account-first/);
 });
 
 test('backup uses the native share sheet for Save to Files with download fallback', async () => {
@@ -105,7 +106,8 @@ test('Firebase cloud sync stores the encrypted vault under owner-only user paths
   assert.match(cloud, /cipherSha256/);
   assert.match(cloud, /pushLocalVaultToCloud/);
   assert.match(cloud, /reconcileCloudVault/);
-  assert.match(cloud, /Cloud conflict detected/);
+  assert.match(cloud, /commitMetaIfUnchanged/);
+  assert.match(cloud, /Account data changed on another device/);
   assert.match(rules, /request\.auth\.uid == userId/);
   assert.match(app, /scheduleCloudSync/);
   assert.match(app, /CloudAccountModal/);
