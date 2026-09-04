@@ -9,18 +9,17 @@ test('cloud sync never blindly overwrites changes from another device', async ()
   assert.match(cloud, /readSyncAnchor/);
   assert.match(cloud, /writeSyncAnchor/);
   assert.match(cloud, /remoteChanged/);
-  assert.match(cloud, /Nothing was overwritten/);
-  assert.match(cloud, /prevented from overwriting them/);
+  assert.match(cloud, /commitMetaIfUnchanged/);
+  assert.match(cloud, /if\(remoteChanged\)\{await installCloudVault\(uid\);return 'pulled';\}/);
 });
 
-test('cloud restore snapshots local encrypted data before replacement', async () => {
+test('cloud restore installs the authoritative encrypted account copy without retired recovery snapshots', async () => {
   const cloud = await read('src/cloud/firebase.ts');
   const install = cloud.indexOf('export async function installCloudVault');
-  const snapshot = cloud.indexOf("createSafetySnapshot('pre-restore')", install);
   const replace = cloud.indexOf('putSecurityAndVault(remote.security,remote.vault)', install);
   assert.ok(install >= 0);
-  assert.ok(snapshot > install);
-  assert.ok(replace > snapshot);
+  assert.ok(replace > install);
+  assert.doesNotMatch(cloud, /createSafetySnapshot/);
 });
 
 test('previous cloud revisions are retained before a new revision becomes current', async () => {
