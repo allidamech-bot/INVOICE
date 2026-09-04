@@ -20,6 +20,7 @@ type DiscardAction=''|'close'|'new'|'select'|'import';
 interface State {
   query:string;
   category:string;
+  favoriteOnly:boolean;
   sortMode:SortMode;
   editing:SavedItem|null;
   editingInitial:string;
@@ -40,7 +41,7 @@ function recentStamp(item:SavedItem):string{return item.lastUsedAt||item.updated
 
 function blank(currency:string):SavedItem{
   const now=new Date().toISOString();
-  return {id:makeId('product'),createdAt:now,updatedAt:now,sku:'',descriptionEn:'',descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'',lastCurrency:currency||'USD',usageCount:0,lastUsedAt:now,category:'',tags:[],favorite:false};
+  return {id:makeId('product'),createdAt:now,updatedAt:now,sku:'',descriptionEn:'',descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'',lastCurrency:currency||'USD',lastUnitCost:'',lastCostCurrency:currency||'USD',usageCount:0,lastUsedAt:now,category:'',tags:[],favorite:false};
 }
 
 function ranked(items:SavedItem[],values:(item:SavedItem)=>string[],limit:number):string[]{
@@ -56,12 +57,12 @@ function ranked(items:SavedItem[],values:(item:SavedItem)=>string[],limit:number
 }
 
 export class ProductLibraryWorkspace extends React.Component<Props,State>{
-  state:State={query:'',category:'',sortMode:'smart',editing:null,editingInitial:'',deleting:null,busy:false,error:'',importOpen:false,discardAction:'',pendingEdit:null};
+  state:State={query:'',category:'',favoriteOnly:false,sortMode:'smart',editing:null,editingInitial:'',deleting:null,busy:false,error:'',importOpen:false,discardAction:'',pendingEdit:null};
 
   private set=(key:keyof SavedItem,value:any)=>this.setState(state=>({editing:state.editing?{...state.editing,[key]:value}:null,error:''}));
 
   private loadEdit=(item:SavedItem)=>{
-    const editing=structuredClone({...item,sku:item.sku??'',category:item.category??'',tags:[...(item.tags??[])],favorite:Boolean(item.favorite)});
+    const editing=structuredClone({...item,sku:item.sku??'',category:item.category??'',tags:[...(item.tags??[])],favorite:Boolean(item.favorite),lastUnitCost:item.lastUnitCost??'',lastCostCurrency:item.lastCostCurrency??item.lastCurrency??this.props.currency??'USD'});
     this.setState({editing,editingInitial:JSON.stringify(editing),error:'',discardAction:'',pendingEdit:null});
   };
 
@@ -90,6 +91,8 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
     if(this.editingDirty()){this.setState({discardAction:'import',pendingEdit:null});return;}
     this.setState({importOpen:true});
   };
+
+  private clearFilters=()=>this.setState({query:'',category:'',favoriteOnly:false});
 
   private confirmDiscard=()=>{
     const action=this.state.discardAction;
@@ -128,8 +131,11 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
     const sku=(item.sku??'').trim().toUpperCase();
     if(!item.descriptionEn.trim()&&!item.descriptionAr.trim()){this.setState({error:t('Enter an English or Arabic description.','أدخل وصفًا بالإنجليزية أو العربية.')});return;}
     if(!item.unit.trim()){this.setState({error:t('Unit is required.','الوحدة مطلوبة.')});return;}
-    if(item.lastUnitPrice.trim()&&(!isDecimalInput(item.lastUnitPrice)||decimalToScaled(item.lastUnitPrice)<0n)){this.setState({error:t('Enter a valid non-negative price.','أدخل سعرًا صالحًا يساوي صفرًا أو أكثر.')});return;}
-    const candidate:SavedItem={...item,sku,lastCurrency:(item.lastCurrency||this.props.currency||'USD').trim().toUpperCase(),category:categoryOf(item),tags:Array.from(new Set((item.tags??[]).map(tag=>tag.trim()).filter(Boolean))),lastUnitPrice:item.lastUnitPrice.trim()?normalizeDecimalInput(item.lastUnitPrice):'',favorite:Boolean(item.favorite),updatedAt:new Date().toISOString()};
+    if(item.lastUnitPrice.trim()&&(!isDecimalInput(item.lastUnitPrice)||decimalToScaled(item.lastUnitPrice)<0n)){this.setState({error:t('Enter a valid non-negative price.','أدخل سعر بيع صالحًا يساوي صفرًا أو أكثر.')});return;}
+    const cost=(item.lastUnitCost??'').trim();
+    if(cost&&(!isDecimalInput(cost)||decimalToScaled(cost)<0n)){this.setState({error:t('Enter a valid non-negative unit cost.','أدخل تكلفة وحدة صالحة تساوي صفرًا أو أكثر.')});return;}
+    const lastCurrency=(item.lastCurrency||this.props.currency||'USD').trim().toUpperCase();
+    const candidate:SavedItem={...item,sku,lastCurrency,lastCostCurrency:cost?(item.lastCostCurrency||lastCurrency).trim().toUpperCase():'',category:categoryOf(item),tags:Array.from(new Set((item.tags??[]).map(tag=>tag.trim()).filter(Boolean))),lastUnitPrice:item.lastUnitPrice.trim()?normalizeDecimalInput(item.lastUnitPrice):'',lastUnitCost:cost?normalizeDecimalInput(cost):'',favorite:Boolean(item.favorite),updatedAt:new Date().toISOString()};
     const duplicate=findSavedItemDuplicate(this.props.items,candidate);
     if(duplicate){
       const duplicateSku=sku&&normalizeSavedItemSku(duplicate.sku??'')===normalizeSavedItemSku(sku);
@@ -170,41 +176,45 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
     const categorySuggestions=[...categories.map(value=>({value,label:value})),...categoryPresets.filter(choice=>!existingCategorySet.has(choice.value))];
     const tags=ranked(this.props.items,item=>item.tags??[],18);
     const hsCodes=ranked(this.props.items,item=>item.hsCode?[item.hsCode]:[],12);
-    let filtered=this.props.items.filter(item=>(!query||savedItemSearchText(item).includes(query))&&(!this.state.category||categoryOf(item)===this.state.category));
+    let filtered=this.props.items.filter(item=>(!query||savedItemSearchText(item).includes(query))&&(!this.state.category||categoryOf(item)===this.state.category)&&(!this.state.favoriteOnly||Boolean(item.favorite)));
     filtered=this.ordered(filtered);
     const edit=this.state.editing;
     const favorites=this.props.items.filter(item=>item.favorite).length;
     const skuCount=this.props.items.filter(item=>Boolean(item.sku?.trim())).length;
+    const costCount=this.props.items.filter(item=>Boolean(item.lastUnitCost?.trim())).length;
+    const filtersActive=Boolean(query||this.state.category||this.state.favoriteOnly);
 
-    return <div className={`product-library-pro ${edit?'editor-open':''}`}>
+    return <div className={`product-library-pro product-library-v165 ${edit?'editor-open':''}`}>
       <div className="product-library-commandbar">
         <div className="product-library-search"><Icon name="search"/><Input aria-label={t('Search product library','بحث في مكتبة الأصناف')} value={this.state.query} placeholder={t('Search name, SKU, HS code, category…','ابحث بالاسم أو SKU أو HS Code أو التصنيف…')} onChange={(e:any)=>this.setState({query:e.target.value})}/>{this.state.query?<IconButton icon="x" label={t('Clear search','مسح البحث')} onClick={()=>this.setState({query:''})}/>:<span>/</span>}</div>
         <Select aria-label={t('Filter category','فلتر التصنيف')} value={this.state.category} onChange={(e:any)=>this.setState({category:e.target.value})}><option value="">{t('All categories','كل التصنيفات')}</option>{categories.map(category=><option key={category} value={category}>{category}</option>)}</Select>
-        <Select aria-label={t('Sort products','ترتيب الأصناف')} value={this.state.sortMode} onChange={(e:any)=>this.setState({sortMode:e.target.value})}><option value="smart">{t('Most used','الأكثر استخدامًا')}</option><option value="recent">{t('Recently updated','الأحدث')}</option><option value="name">{t('Name A–Z','الاسم أبجديًا')}</option><option value="sku">SKU</option></Select>
+        <Select aria-label={t('Sort products','ترتيب الأصناف')} value={this.state.sortMode} onChange={(e:any)=>this.setState({sortMode:e.target.value as SortMode})}><option value="smart">{t('Most used','الأكثر استخدامًا')}</option><option value="recent">{t('Recently updated','الأحدث')}</option><option value="name">{t('Name A–Z','الاسم أبجديًا')}</option><option value="sku">SKU</option></Select>
         <Button icon="upload" onClick={this.requestImport}>{t('Import','استيراد')}</Button>
         <Button icon="plus" variant="primary" onClick={this.newItem}>{t('New Product','صنف جديد')}</Button>
       </div>
 
-      <div className="product-library-metrics" aria-label={t('Catalog summary','ملخص الكتالوج')}>
-        <button type="button" className={!this.state.category&&!query?'active':''} onClick={()=>this.setState({category:'',query:''})}><span>{t('Products','الأصناف')}</span><strong>{this.props.items.length}</strong></button>
+      <div className="product-library-metrics product-library-metrics-v165" aria-label={t('Catalog summary','ملخص الكتالوج')}>
+        <button type="button" className={!filtersActive?'active':''} onClick={this.clearFilters}><span>{t('Products','الأصناف')}</span><strong>{this.props.items.length}</strong></button>
         <div><span>{t('With SKU','مع SKU')}</span><strong>{skuCount}</strong></div>
-        <div><span>{t('Favorites','المفضلة')}</span><strong>{favorites}</strong></div>
+        <button type="button" className={this.state.favoriteOnly?'active':''} onClick={()=>this.setState(state=>({favoriteOnly:!state.favoriteOnly}))}><span>{t('Favorites','المفضلة')}</span><strong>{favorites}</strong></button>
+        <div><span>{t('With cost','مع تكلفة')}</span><strong>{costCount}</strong></div>
         <div><span>{t('Categories','التصنيفات')}</span><strong>{categories.length}</strong></div>
       </div>
 
       <div className="product-library-body">
         <section className="product-library-list-pane">
-          <div className="product-library-list-head"><div><strong>{this.state.category||t('Product catalog','كتالوج الأصناف')}</strong><span>{t(`${filtered.length} visible`,`${filtered.length} ظاهر`)}</span></div>{(query||this.state.category)?<Button variant="ghost" onClick={()=>this.setState({query:'',category:''})}>{t('Clear filters','مسح الفلاتر')}</Button>:null}</div>
+          <div className="product-library-list-head"><div><strong>{this.state.favoriteOnly?t('Favorite products','الأصناف المفضلة'):this.state.category||t('Product catalog','كتالوج الأصناف')}</strong><span>{t(`${filtered.length} visible`,`${filtered.length} ظاهر`)}</span></div>{filtersActive?<Button variant="ghost" onClick={this.clearFilters}>{t('Clear filters','مسح الفلاتر')}</Button>:null}</div>
           <div className="product-library-list">
             {filtered.map(item=>{
               const active=edit?.id===item.id;
+              const cost=item.lastUnitCost?.trim()?`${item.lastUnitCost} ${item.lastCostCurrency||item.lastCurrency}`:'';
               return <article key={item.id} className={`product-library-row ${active?'active':''}`}>
                 <button type="button" className={`product-library-star ${item.favorite?'on':''}`} aria-label={item.favorite?t('Remove favorite','إزالة من المفضلة'):t('Add favorite','إضافة للمفضلة')} aria-pressed={Boolean(item.favorite)} onClick={()=>void this.toggleFavorite(item)}>★</button>
                 <button type="button" className="product-library-row-main" onClick={()=>this.beginEdit(item)}>
                   <div className="product-library-row-title"><strong>{titleOf(item)}</strong>{item.sku?<code>{item.sku}</code>:null}</div>
                   {item.descriptionEn&&item.descriptionAr?<span>{isArabic()?item.descriptionEn:item.descriptionAr}</span>:null}
                   <div className="product-library-row-chips">{categoryOf(item)?<em>{categoryOf(item)}</em>:null}{(item.tags??[]).slice(0,2).map(tag=><em key={tag}>#{tag}</em>)}</div>
-                  <small>{[item.unit,item.lastUnitPrice?`${item.lastUnitPrice} ${item.lastCurrency}`:'',item.origin,item.hsCode?`HS ${item.hsCode}`:''].filter(Boolean).join(' · ')}</small>
+                  <small>{[item.unit,item.lastUnitPrice?`${t('Price','سعر')} ${item.lastUnitPrice} ${item.lastCurrency}`:'',cost?`${t('Cost','تكلفة')} ${cost}`:'',item.origin,item.hsCode?`HS ${item.hsCode}`:''].filter(Boolean).join(' · ')}</small>
                 </button>
                 <IconButton icon="edit" label={t('Edit product','تعديل الصنف')} onClick={()=>this.beginEdit(item)}/>
               </article>;
@@ -231,11 +241,13 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
                 <Field label={t('Origin','المنشأ')}><Input value={edit.origin} onChange={(e:any)=>this.set('origin',e.target.value)}/></Field>
               </div></section>
 
-              <section className="product-editor-section"><div className="product-editor-section-title"><span>03</span><div><strong>{t('Commercial details','التفاصيل التجارية')}</strong><small>{t('Packing, unit and reusable price','التعبئة والوحدة والسعر القابل لإعادة الاستخدام')}</small></div></div><div className="form-grid two">
+              <section className="product-editor-section"><div className="product-editor-section-title"><span>03</span><div><strong>{t('Pricing & commercial details','التسعير والتفاصيل التجارية')}</strong><small>{t('Packing, unit, reusable sale price and internal cost','التعبئة والوحدة وسعر البيع والتكلفة الداخلية')}</small></div></div><div className="form-grid two">
                 <Field label={t('Packing','التعبئة')}><Input value={edit.packing} onChange={(e:any)=>this.set('packing',e.target.value)}/></Field>
                 <Field label={t('Unit','الوحدة')}><Input value={edit.unit} onChange={(e:any)=>this.set('unit',e.target.value)}/></Field>
-                <Field label={t('Last price','آخر سعر')}><Input inputMode="decimal" value={edit.lastUnitPrice} onChange={(e:any)=>this.set('lastUnitPrice',e.target.value)}/></Field>
-                <Field label={t('Currency','العملة')}><Input value={edit.lastCurrency} onChange={(e:any)=>this.set('lastCurrency',String(e.target.value).toUpperCase())}/></Field>
+                <Field label={t('Sale price','سعر البيع')}><Input inputMode="decimal" value={edit.lastUnitPrice} onChange={(e:any)=>this.set('lastUnitPrice',e.target.value)}/></Field>
+                <Field label={t('Sale currency','عملة البيع')}><Input value={edit.lastCurrency} onChange={(e:any)=>this.set('lastCurrency',String(e.target.value).toUpperCase())}/></Field>
+                <Field label={t('Unit cost (internal)','تكلفة الوحدة (داخلية)')} hint={t('Used for profitability and never printed on customer documents.','تُستخدم لحساب الربحية ولا تظهر في مستندات العميل.')}><Input inputMode="decimal" value={edit.lastUnitCost??''} onChange={(e:any)=>this.set('lastUnitCost',e.target.value)}/></Field>
+                <Field label={t('Cost currency','عملة التكلفة')}><Input value={edit.lastCostCurrency??edit.lastCurrency} onChange={(e:any)=>this.set('lastCostCurrency',String(e.target.value).toUpperCase())}/></Field>
               </div><div className="product-library-favorite"><Toggle checked={Boolean(edit.favorite)} onChange={favorite=>this.set('favorite',favorite)} label={t('Keep this product in Favorites','إبقاء هذا الصنف في المفضلة')}/></div></section>
 
               {this.state.error?<div className="inline-error product-library-error" role="alert">{this.state.error}</div>:null}
