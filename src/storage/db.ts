@@ -88,6 +88,46 @@ export async function createSafetySnapshot(reason:SafetySnapshotReason,sourceSch
 
 export async function getSafetySnapshot():Promise<SafetySnapshotRecord|null>{return getRecord<SafetySnapshotRecord>('safety-snapshot');}
 
+export async function swapSafetySnapshotIntoCurrent():Promise<SafetySnapshotRecord>{
+  const db=await openDb();
+  return new Promise<SafetySnapshotRecord>((resolve,reject)=>{
+    const tx=db.transaction(STORE,'readwrite');
+    const store=tx.objectStore(STORE);
+    const snapshotReq=store.get('safety-snapshot');
+    const securityReq=store.get('security');
+    const vaultReq=store.get('vault');
+    let restored:SafetySnapshotRecord|null=null;
+    tx.oncomplete=()=>restored?resolve(restored):reject(new Error('Recovery snapshot is unavailable.'));
+    tx.onerror=()=>reject(tx.error??new Error('Unable to restore recovery snapshot.'));
+    tx.onabort=()=>reject(tx.error??new Error('Recovery restore was aborted.'));
+    snapshotReq.onerror=()=>tx.abort();securityReq.onerror=()=>tx.abort();vaultReq.onerror=()=>tx.abort();
+    vaultReq.onsuccess=()=>{
+      if(snapshotReq.readyState!=='done'||securityReq.readyState!=='done')return;
+      const snapshot=snapshotReq.result as SafetySnapshotRecord|undefined;
+      const currentSecurity=securityReq.result as SecurityMetadata|undefined;
+      const currentVault=vaultReq.result as EncryptedVaultRecord|undefined;
+      if(!snapshot||!currentSecurity||!currentVault){tx.abort();return;}
+      restored=structuredClone(snapshot);
+      const reverse:SafetySnapshotRecord={id:'safety-snapshot',createdAt:new Date().toISOString(),sourceSchemaVersion:Math.max(0,Math.trunc(currentVault.schemaVersion||0)),reason:'pre-restore',security:structuredClone(currentSecurity),vault:structuredClone(currentVault)};
+      store.put(snapshot.security);
+      store.put(snapshot.vault);
+      store.put(reverse);
+    };
+    const trySwap=()=>{
+      if(snapshotReq.readyState!=='done'||securityReq.readyState!=='done'||vaultReq.readyState!=='done')return;
+      const snapshot=snapshotReq.result as SafetySnapshotRecord|undefined;
+      const currentSecurity=securityReq.result as SecurityMetadata|undefined;
+      const currentVault=vaultReq.result as EncryptedVaultRecord|undefined;
+      if(!snapshot||!currentSecurity||!currentVault){tx.abort();return;}
+      if(restored)return;
+      restored=structuredClone(snapshot);
+      const reverse:SafetySnapshotRecord={id:'safety-snapshot',createdAt:new Date().toISOString(),sourceSchemaVersion:Math.max(0,Math.trunc(currentVault.schemaVersion||0)),reason:'pre-restore',security:structuredClone(currentSecurity),vault:structuredClone(currentVault)};
+      store.put(snapshot.security);store.put(snapshot.vault);store.put(reverse);
+    };
+    snapshotReq.onsuccess=trySwap;securityReq.onsuccess=trySwap;vaultReq.onsuccess=trySwap;
+  });
+}
+
 export async function hasSecurity(): Promise<boolean> { return Boolean(await getRecord<SecurityMetadata>('security')); }
 export async function getSecurity(): Promise<SecurityMetadata | null> { return getRecord<SecurityMetadata>('security'); }
 export async function getEncryptedVault(): Promise<EncryptedVaultRecord | null> { return getRecord<EncryptedVaultRecord>('vault'); }
@@ -108,7 +148,7 @@ export async function clearDatabase(): Promise<void> {
   db?.close();
   dbPromise=null;
   await new Promise<void>((resolve, reject) => {
-    const req = indexedDB.deleteDatabase(DB_NAME);
-    req.onsuccess = () => resolve(); req.onerror = () => reject(req.error ?? new Error('Unable to clear local database.')); req.onblocked = () => reject(new Error('Database is currently in use.'));
+    const req=indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess=()=>resolve(); req.onerror=()=>reject(req.error??new Error('Unable to clear local database.')); req.onblocked=()=>reject(new Error('Database is currently in use.'));
   });
 }
