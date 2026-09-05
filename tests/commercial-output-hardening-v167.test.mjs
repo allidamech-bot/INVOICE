@@ -89,6 +89,13 @@ test('visible wrapped packing and origin columns reserve additional A4 row space
   assert.equal(estimatedDocumentPageCount(doc),2);
 });
 
+test('renderer uses Quotation as the public quote title while keeping the internal proforma kind',async()=>{
+  const renderer=await read('src/templates/TemplateRenderer.tsx');
+  assert.match(renderer,/doc\.kind === 'proforma' \? 'QUOTATION' : 'INVOICE'/);
+  assert.doesNotMatch(renderer,/PROFORMA INVOICE/);
+  assert.match(renderer,/doc\.kind === 'proforma' \? 'عرض سعر' : 'فاتورة'/);
+});
+
 test('renderer preserves commercial location direction and shows the tax rate in Arabic',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/key==='Port of Loading'\|\|key==='Final Destination'\?'neutral'/);
