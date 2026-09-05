@@ -22,7 +22,7 @@ function mergeRecords<T extends { id:string }>(base:T[], intended:T[], latest:T[
   const indexById=new Map(result.map((item,index)=>[item.id,index]));
   for(const item of intended){
     const before=baseById.get(item.id);
-    if(before&&before===item)continue;
+    if(before&&sameRecord(before,item))continue;
     const index=indexById.get(item.id);
     if(index===undefined){indexById.set(item.id,result.length);result.push(item);}
     else result[index]=item;
@@ -207,6 +207,7 @@ function guardDraftPurchaseConflicts(base:PurchaseRecord[],intended:PurchaseReco
     if(!remoteChanged)continue;
     if(!wanted&&!current)continue;
     if(wanted&&current&&sameRecord(wanted,current))continue;
+    if((wanted&&wanted.status!=='draft')||(current&&current.status!=='draft'))continue;
     throw new Error('Purchase changed on another device. Reopen Operations before saving or deleting it.');
   }
   for(const wanted of intended){
