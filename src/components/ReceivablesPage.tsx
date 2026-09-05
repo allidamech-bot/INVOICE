@@ -2,7 +2,7 @@ import type { CompanySettings, Customer, LourexDocument, PaymentRecord } from '.
 import { displayDate, todayIso } from '../lib/id.js';
 import { formatMoney } from '../lib/money.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
-import { customerReceivables, customerStatement, receivablesByCurrency, type CustomerReceivableSummary } from '../lib/receivables.js';
+import { customerReceivables, customerStatement, receivableCustomerId, receivablesByCurrency, type CustomerReceivableSummary } from '../lib/receivables.js';
 import { Button, Icon, IconButton, Input, Modal, Select } from './UI.js';
 
 type ReceivablesFilter='open'|'overdue'|'all';
@@ -11,7 +11,7 @@ interface State{query:string;filter:ReceivablesFilter;statementCustomerId:string
 
 function customerName(account:CustomerReceivableSummary,documents:LourexDocument[]):string{
   if(account.customer)return (isArabic()?(account.customer.companyNameAr||account.customer.companyNameEn):(account.customer.companyNameEn||account.customer.companyNameAr)).trim();
-  const snapshot=documents.find(doc=>doc.customerSnapshot?.sourceCustomerId===account.customerId)?.customerSnapshot;
+  const snapshot=documents.find(doc=>receivableCustomerId(doc)===account.customerId)?.customerSnapshot;
   const value=isArabic()?(snapshot?.companyNameAr||snapshot?.companyNameEn):(snapshot?.companyNameEn||snapshot?.companyNameAr);
   return (value||t('Deleted customer','عميل محذوف')).trim();
 }
@@ -26,7 +26,7 @@ class CustomerStatementModal extends React.Component<{open:boolean;customerId:st
   render():any{
     if(!this.props.open||!this.props.customerId)return null;
     const customer=this.props.customers.find(item=>item.id===this.props.customerId)??null;
-    const fallback=this.props.documents.find(doc=>doc.customerSnapshot?.sourceCustomerId===this.props.customerId)?.customerSnapshot;
+    const fallback=this.props.documents.find(doc=>receivableCustomerId(doc)===this.props.customerId)?.customerSnapshot;
     const displayNameValue=isArabic()?(customer?.companyNameAr||customer?.companyNameEn||fallback?.companyNameAr||fallback?.companyNameEn):(customer?.companyNameEn||customer?.companyNameAr||fallback?.companyNameEn||fallback?.companyNameAr);
     const displayName=(displayNameValue||t('Customer','عميل')).trim();
     const address=[customer?.addressEn||fallback?.addressEn,customer?.city||fallback?.city,customer?.country||fallback?.country].filter(Boolean).join(', ');
