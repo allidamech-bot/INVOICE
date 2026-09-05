@@ -67,6 +67,28 @@ test('quality pagination counts long neutral commercial locations in Arabic outp
   assert.equal(estimatedDocumentPageCount(doc),2);
 });
 
+test('visible wrapped packing and origin columns reserve additional A4 row space',()=>{
+  const company=defaultCompany();
+  company.footerText='';
+  company.defaultPaymentTerms='';
+  company.defaultDeliveryTime='';
+  const doc=createBlankDocument('invoice','INV-2026-0102',company);
+  doc.language='en';
+  doc.appearance.showBank=false;
+  doc.appearance.showHsCode=false;
+  doc.appearance.showOrigin=false;
+  doc.appearance.showPacking=false;
+  doc.customerSnapshot=customerSnapshotFrom({id:'c3',companyNameEn:'Buyer',companyNameAr:'',contactPerson:'',addressEn:'Riyadh',addressAr:'',city:'Riyadh',country:'Saudi Arabia',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''});
+  const base={...doc.items[0],descriptionEn:'Product',quantity:'1',unit:'PCS',unitPrice:'10'};
+  doc.items=[{...base,id:'a',packing:`Carton ${'A'.repeat(110)}`,origin:`Origin ${'B'.repeat(90)}`},{...base,id:'b',packing:`Carton ${'C'.repeat(110)}`,origin:`Origin ${'D'.repeat(90)}`}];
+  assert.equal(estimatedDocumentPageCount(doc),1);
+  doc.appearance.showPacking=true;
+  assert.equal(estimatedDocumentPageCount(doc),2);
+  doc.appearance.showPacking=false;
+  doc.appearance.showOrigin=true;
+  assert.equal(estimatedDocumentPageCount(doc),2);
+});
+
 test('renderer preserves commercial location direction and shows the tax rate in Arabic',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/key==='Port of Loading'\|\|key==='Final Destination'\?'neutral'/);
@@ -75,4 +97,5 @@ test('renderer preserves commercial location direction and shows the tax rate in
   assert.match(renderer,/<span dir="auto">\{row\[2\]\}<\/span>/);
   assert.match(renderer,/const taxRate=doc\.adjustments\.taxEnabled\?`\$\{doc\.adjustments\.taxPercent\}%`/);
   assert.match(renderer,/`الضريبة \$\{taxRate\}`\.trim\(\)/);
+  assert.match(renderer,/item=>itemWeight\(doc,item\)/);
 });
