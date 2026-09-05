@@ -114,6 +114,14 @@ export function validatePurchase(purchase:PurchaseRecord,savedItems:SavedItem[]=
   return errors;
 }
 
+export function purchaseAccountingIsValid(purchase:PurchaseRecord):boolean{
+  if(!purchase.number.trim()||!isIsoDate(purchase.date)||!purchase.currency.trim()||!purchase.items.length)return false;
+  for(const item of purchase.items){
+    if(!positive(item.quantity)||!nonNegative(item.unitCost))return false;
+  }
+  return [purchase.freight,purchase.duty,purchase.otherCosts].every(value=>nonNegative(value||'0'));
+}
+
 function purchaseMovement(purchase:PurchaseRecord,item:PurchaseRecord['items'][number],type:'purchase'|'purchase-reversal',quantity:string,note='',movementDate=purchase.date):InventoryMovementRecord{
   return {
     id:makeId('stock'),itemId:item.savedItemId,itemNameEn:item.descriptionEn,itemNameAr:item.descriptionAr,sku:item.sku,date:movementDate,type,
@@ -165,6 +173,8 @@ export function validateExpense(expense:ExpenseRecord):string[]{
   return errors;
 }
 
+export function expenseAccountingIsValid(expense:ExpenseRecord):boolean{return validateExpense(expense).length===0;}
+
 export function createManualInventoryMovement(item:SavedItem,type:Extract<InventoryMovementType,'opening'|'issue'|'adjustment'>,quantity:string,date=todayIso(),note='',unitCost='',currency=''):InventoryMovementRecord{
   if(!isIsoDate(date))throw new Error('Movement date is invalid.');
   if(!isDecimalInput(quantity)||decimalToScaled(quantity,4)===0n)throw new Error('Movement quantity cannot be zero.');
@@ -185,10 +195,33 @@ export function reverseManualInventoryMovement(movement:InventoryMovementRecord,
   };
 }
 
+export function inventoryMovementAccountingIsValid(movement:InventoryMovementRecord):boolean{
+  if(!movement.itemId.trim()||!isIsoDate(movement.date)||!isDecimalInput(movement.quantity))return false;
+  const quantity=decimalToScaled(movement.quantity,4);
+  if(quantity===0n)return false;
+  if((movement.type==='opening'||movement.type==='purchase')&&quantity<0n)return false;
+  if((movement.type==='issue'||movement.type==='purchase-reversal')&&quantity>0n)return false;
+  if((movement.type==='purchase'||movement.type==='purchase-reversal')&&!movement.sourceId.trim())return false;
+  const cost=(movement.unitCost||'').trim();
+  if(cost&&(!isDecimalInput(cost)||decimalToScaled(cost,4)<0n))return false;
+  return movement.type==='opening'||movement.type==='purchase'||movement.type==='purchase-reversal'||movement.type==='issue'||movement.type==='adjustment';
+}
+
+export interface OperationsIntegritySummary { invalidPurchases:number; invalidExpenses:number; invalidMovements:number; totalInvalid:number; }
+export function operationsIntegritySummary(purchases:PurchaseRecord[],expenses:ExpenseRecord[],movements:InventoryMovementRecord[]):OperationsIntegritySummary{
+  const invalidPurchases=purchases.filter(purchase=>purchase.status!=='draft'&&!purchaseAccountingIsValid(purchase)).length;
+  const invalidExpenses=expenses.filter(expense=>!expenseAccountingIsValid(expense)).length;
+  const invalidMovements=movements.filter(movement=>!inventoryMovementAccountingIsValid(movement)).length;
+  return {invalidPurchases,invalidExpenses,invalidMovements,totalInvalid:invalidPurchases+invalidExpenses+invalidMovements};
+}
+
 export interface InventoryBalance { item:SavedItem; quantity:string; quantityScaled:bigint; }
 export function inventoryBalances(items:SavedItem[],movements:InventoryMovementRecord[]):InventoryBalance[]{
   const byItem=new Map<string,bigint>();
-  for(const movement of movements)byItem.set(movement.itemId,(byItem.get(movement.itemId)??0n)+decimalToScaled(movement.quantity,4));
+  for(const movement of movements){
+    if(!inventoryMovementAccountingIsValid(movement))continue;
+    byItem.set(movement.itemId,(byItem.get(movement.itemId)??0n)+decimalToScaled(movement.quantity,4));
+  }
   return items.map(item=>{const quantityScaled=byItem.get(item.id)??0n;return {item,quantity:trimFixed(fixed(quantityScaled,4)),quantityScaled};}).sort((a,b)=>{
     const left=(a.item.sku||a.item.descriptionEn||a.item.descriptionAr).toLowerCase();
     const right=(b.item.sku||b.item.descriptionEn||b.item.descriptionAr).toLowerCase();return left.localeCompare(right);
@@ -199,7 +232,13 @@ export function inventoryMovementIsManual(movement:InventoryMovementRecord):bool
 
 export function spendByCurrency(purchases:PurchaseRecord[],expenses:ExpenseRecord[]):Array<{currency:string;purchases:string;expenses:string;total:string}>{
   const map=new Map<string,{purchase:bigint;expense:bigint}>();
-  for(const purchase of purchases){if(purchase.status!=='posted')continue;const currency=cleanCurrency(purchase.currency);const row=map.get(currency)??{purchase:0n,expense:0n};row.purchase+=cents(purchaseTotals(purchase).landedTotal);map.set(currency,row);}
-  for(const expense of expenses){const currency=cleanCurrency(expense.currency);const row=map.get(currency)??{purchase:0n,expense:0n};row.expense+=cents(expense.amount);map.set(currency,row);}
+  for(const purchase of purchases){
+    if(purchase.status!=='posted'||!purchaseAccountingIsValid(purchase))continue;
+    const currency=cleanCurrency(purchase.currency);const row=map.get(currency)??{purchase:0n,expense:0n};row.purchase+=cents(purchaseTotals(purchase).landedTotal);map.set(currency,row);
+  }
+  for(const expense of expenses){
+    if(!expenseAccountingIsValid(expense))continue;
+    const currency=cleanCurrency(expense.currency);const row=map.get(currency)??{purchase:0n,expense:0n};row.expense+=cents(expense.amount);map.set(currency,row);
+  }
   return Array.from(map.entries()).sort(([a],[b])=>a.localeCompare(b)).map(([currency,row])=>({currency,purchases:fixed(row.purchase,2),expenses:fixed(row.expense,2),total:fixed(row.purchase+row.expense,2)}));
 }
