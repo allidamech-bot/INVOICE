@@ -84,9 +84,9 @@ export class SettingsModal extends React.Component<Props,State> {
   };
   private upload=async(field:AssetField,file?:File)=>{
     if(!file)return;
-    if(file.size>MAX_COMPANY_ASSET_BYTES){this.setState({error:t('Image is too large. Use a file smaller than 4 MB.','حجم الصورة كبير جدًا. استخدم ملفًا أصغر من 4 ميجابايت.'),message:''});return;}
-    if(!COMPANY_ASSET_TYPES.test(file.type)){this.setState({error:t('Use a PNG, WebP, or JPEG image.','استخدم صورة بصيغة PNG أو WebP أو JPEG.'),message:''});return;}
     const preparationId=++this.assetPreparationId;
+    if(file.size>MAX_COMPANY_ASSET_BYTES){this.setState({cleaningAssets:false,error:t('Image is too large. Use a file smaller than 4 MB.','حجم الصورة كبير جدًا. استخدم ملفًا أصغر من 4 ميجابايت.'),message:''});return;}
+    if(!COMPANY_ASSET_TYPES.test(file.type)){this.setState({cleaningAssets:false,error:t('Use a PNG, WebP, or JPEG image.','استخدم صورة بصيغة PNG أو WebP أو JPEG.'),message:''});return;}
     this.setState({cleaningAssets:true,error:'',message:'',savedSection:null});
     try{
       if(field==='logoDataUrl'){
@@ -121,10 +121,12 @@ export class SettingsModal extends React.Component<Props,State> {
     }
   };
   private setLogoMode=(logoMode:State['logoMode'])=>{
+    if(this.state.busy)return;
     const source=logoMode==='auto'?this.state.logoCleanedDataUrl:logoMode==='rebuild'?this.state.logoRebuiltDataUrl:this.state.logoOriginalDataUrl;
     if(!source)return;
+    this.assetPreparationId+=1;
     const message=logoMode==='auto'?t('Enhanced automatic logo cleanup selected.','تم اختيار التنظيف التلقائي المحسّن للشعار.'):logoMode==='rebuild'?t('Recreated transparent logo selected.','تم اختيار الشعار المعاد إنشاؤه بدون خلفية.'):t('Original logo selected with no background processing.','تم اختيار الشعار الأصلي بدون معالجة للخلفية.');
-    this.setState(state=>({logoMode,company:{...state.company,logoDataUrl:source},savedSection:null,message,error:''}));
+    this.setState(state=>({logoMode,company:{...state.company,logoDataUrl:source},cleaningAssets:false,savedSection:null,message,error:''}));
   };
   private saveCompany=async()=>{
     if(!this.state.company.nameEn.trim()&&!this.state.company.nameAr.trim()){this.setState({error:t('Company name is required.','اسم الشركة مطلوب.')});return;}
