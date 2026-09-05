@@ -10,6 +10,8 @@ interface PageProps { document: LourexDocument; items: DocumentItem[]; pageIndex
 interface DeferredPreviewState { active:boolean; }
 
 const MODERN_TEMPLATES: TemplateId[] = ['obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
+const OUTPUT_FRAGMENT_MARKER='::lourex-output-fragment:';
+const OUTPUT_FRAGMENT_WEIGHT=2;
 function isModernTemplate(variant: TemplateId): boolean { return MODERN_TEMPLATES.includes(variant); }
 
 function localized(doc: LourexDocument, en: string, ar: string): any {
@@ -32,6 +34,63 @@ function companyName(doc: LourexDocument): any { return identityPair(doc, doc.co
 function customerName(doc: LourexDocument): any { const c = doc.customerSnapshot; return identityPair(doc, c?.companyNameEn ?? '', c?.companyNameAr ?? ''); }
 function safeValue(doc:LourexDocument,value:string|undefined|null,kind:DocumentValueKind='prose'):string{return documentDisplayValue(value,doc.language,kind);}
 function termKind(key:string):DocumentValueKind{return key==='Incoterm'?'technical':key==='Country of Origin'?'country':key==='Port of Loading'||key==='Final Destination'?'neutral':'prose';}
+
+function outputFragmentMeta(item:DocumentItem):{sourceId:string;index:number}{
+  const at=item.id.lastIndexOf(OUTPUT_FRAGMENT_MARKER);
+  if(at<0)return{sourceId:item.id,index:0};
+  const suffix=item.id.slice(at+OUTPUT_FRAGMENT_MARKER.length);
+  if(!/^\d+$/.test(suffix))return{sourceId:item.id,index:0};
+  return{sourceId:item.id.slice(0,at),index:Number(suffix)};
+}
+function splitOutputText(value:string,maxChars:number):string[]{
+  const glyphs=Array.from(value.trim());
+  if(!glyphs.length)return[''];
+  const limit=Math.max(8,Math.trunc(maxChars));
+  const chunks:string[]=[];
+  let start=0;
+  while(start<glyphs.length){
+    let end=Math.min(glyphs.length,start+limit);
+    if(end<glyphs.length){
+      const floor=start+Math.floor(limit*.58);
+      for(let cursor=end;cursor>floor;cursor-=1){
+        if(/\s/u.test(glyphs[cursor-1]??'')){end=cursor-1;break;}
+      }
+      if(end<=start)end=Math.min(glyphs.length,start+limit);
+    }
+    const chunk=glyphs.slice(start,end).join('').trim();
+    if(chunk)chunks.push(chunk);
+    start=end;
+    while(start<glyphs.length&&/\s/u.test(glyphs[start]??''))start+=1;
+  }
+  return chunks.length?chunks:[''];
+}
+function outputItemFragments(doc:LourexDocument,item:DocumentItem):DocumentItem[]{
+  if(itemWeight(doc,item)<=OUTPUT_FRAGMENT_WEIGHT)return[item];
+  const bilingual=doc.language==='bilingual';
+  const descriptionLimit=bilingual?88:180;
+  const descriptionEn=doc.language==='ar'?'':doc.language==='en'?documentDisplayValue(item.descriptionEn,'en'):item.descriptionEn.trim();
+  const descriptionAr=doc.language==='en'?'':doc.language==='ar'?documentDisplayValue(item.descriptionAr,'ar'):item.descriptionAr.trim();
+  const enChunks=splitOutputText(descriptionEn,descriptionLimit);
+  const arChunks=splitOutputText(descriptionAr,descriptionLimit);
+  const hsChunks=doc.appearance.showHsCode?splitOutputText(item.hsCode,50):[item.hsCode];
+  const originChunks=doc.appearance.showOrigin?splitOutputText(safeValue(doc,item.origin,'country'),38):[item.origin];
+  const packingChunks=doc.appearance.showPacking?splitOutputText(safeValue(doc,item.packing),46):[item.packing];
+  const unitChunks=splitOutputText(safeValue(doc,item.unit,'unit'),26);
+  const count=Math.max(enChunks.length,arChunks.length,hsChunks.length,originChunks.length,packingChunks.length,unitChunks.length);
+  return Array.from({length:count},(_,index)=>({
+    ...item,
+    id:`${item.id}${OUTPUT_FRAGMENT_MARKER}${index}`,
+    descriptionEn:enChunks[index]??'',
+    descriptionAr:arChunks[index]??'',
+    hsCode:hsChunks[index]??'',
+    origin:originChunks[index]??'',
+    packing:packingChunks[index]??'',
+    unit:unitChunks[index]??'',
+    quantity:index===0?item.quantity:'',
+    unitPrice:index===0?item.unitPrice:'',
+    unitCost:index===0?(item.unitCost??''):''
+  }));
+}
 
 function LogoBlock({ document: doc, inverse = false }: { document: LourexDocument; inverse?: boolean }): any {
   const src = doc.companySnapshot.logoDataUrl;
@@ -62,7 +121,7 @@ function PartyBlock({ document: doc, type }: { document: LourexDocument; type: '
 function ItemsTable({ document: doc, items, continued }: { document: LourexDocument; items: DocumentItem[]; continued: boolean }): any {
   const currency=documentCurrency(doc);
   const showHs = doc.appearance.showHsCode && doc.items.some(i => i.hsCode.trim()); const showOrigin = doc.appearance.showOrigin && doc.items.some(i => safeValue(doc,i.origin,'country')); const showPacking = doc.appearance.showPacking && doc.items.some(i => safeValue(doc,i.packing));
-  return <div className="items-wrap">{continued ? <div className="continued-label">{localized(doc, 'Items — continued', 'البنود — تابع')}</div> : null}<table className="items-table"><colgroup><col className="col-index"/><col className="col-description"/>{showHs?<col className="col-hs"/>:null}{showOrigin?<col className="col-origin"/>:null}{showPacking?<col className="col-packing"/>:null}<col className="col-qty"/><col className="col-unit"/><col className="col-price"/><col className="col-total"/></colgroup><thead><tr><th className="col-num">#</th><th>{localized(doc, 'Description', 'الوصف')}</th>{showHs ? <th>{localized(doc, 'HS Code', 'الرمز الجمركي')}</th> : null}{showOrigin ? <th>{localized(doc, 'Origin', 'المنشأ')}</th> : null}{showPacking ? <th>{localized(doc, 'Packing', 'التعبئة')}</th> : null}<th className="numeric-heading">{localized(doc, 'Qty', 'الكمية')}</th><th>{localized(doc, 'Unit', 'الوحدة')}</th><th className="numeric-heading">{localized(doc, 'Unit Price', 'سعر الوحدة')}<small>{currency}</small></th><th className="numeric-heading">{localized(doc, 'Total', 'الإجمالي')}<small>{currency}</small></th></tr></thead><tbody>{items.map(item => <tr key={item.id}><td className="col-num">{doc.items.findIndex(source => source.id === item.id) + 1}</td><td className="description-cell">{valuePair(doc, item.descriptionEn, item.descriptionAr)}</td>{showHs ? <td className="trade-cell">{item.hsCode || '—'}</td> : null}{showOrigin ? <td className="trade-cell">{safeValue(doc,item.origin,'country') || '—'}</td> : null}{showPacking ? <td className="trade-cell">{safeValue(doc,item.packing) || '—'}</td> : null}<td className="quantity-cell">{item.quantity}</td><td className="unit-cell">{safeValue(doc,item.unit,'unit') || '—'}</td><td className="money-cell">{item.unitPrice}</td><td className="money-cell strong">{lineTotal(item.quantity, item.unitPrice)}</td></tr>)}</tbody></table></div>;
+  return <div className="items-wrap">{continued ? <div className="continued-label">{localized(doc, 'Items — continued', 'البنود — تابع')}</div> : null}<table className="items-table"><colgroup><col className="col-index"/><col className="col-description"/>{showHs?<col className="col-hs"/>:null}{showOrigin?<col className="col-origin"/>:null}{showPacking?<col className="col-packing"/>:null}<col className="col-qty"/><col className="col-unit"/><col className="col-price"/><col className="col-total"/></colgroup><thead><tr><th className="col-num">#</th><th>{localized(doc, 'Description', 'الوصف')}</th>{showHs ? <th>{localized(doc, 'HS Code', 'الرمز الجمركي')}</th> : null}{showOrigin ? <th>{localized(doc, 'Origin', 'المنشأ')}</th> : null}{showPacking ? <th>{localized(doc, 'Packing', 'التعبئة')}</th> : null}<th className="numeric-heading">{localized(doc, 'Qty', 'الكمية')}</th><th>{localized(doc, 'Unit', 'الوحدة')}</th><th className="numeric-heading">{localized(doc, 'Unit Price', 'سعر الوحدة')}<small>{currency}</small></th><th className="numeric-heading">{localized(doc, 'Total', 'الإجمالي')}<small>{currency}</small></th></tr></thead><tbody>{items.map(item=>{const fragment=outputFragmentMeta(item);const continuation=fragment.index>0;const sourceIndex=doc.items.findIndex(source=>source.id===fragment.sourceId);return <tr key={item.id} className={continuation?'item-continuation-row':undefined}><td className="col-num">{continuation?'↳':sourceIndex>=0?sourceIndex+1:'—'}</td><td className="description-cell">{valuePair(doc,item.descriptionEn,item.descriptionAr)}</td>{showHs?<td className="trade-cell">{item.hsCode||'—'}</td>:null}{showOrigin?<td className="trade-cell">{safeValue(doc,item.origin,'country')||'—'}</td>:null}{showPacking?<td className="trade-cell">{safeValue(doc,item.packing)||'—'}</td>:null}<td className="quantity-cell">{continuation?'':item.quantity}</td><td className="unit-cell">{safeValue(doc,item.unit,'unit')||'—'}</td><td className="money-cell">{continuation?'':item.unitPrice}</td><td className="money-cell strong">{continuation?'':lineTotal(item.quantity,item.unitPrice)}</td></tr>;})}</tbody></table></div>;
 }
 function Terms({ document: doc }: { document: LourexDocument }): any {
   const t = doc.terms; const rawRows: Array<[string,string,string]> = [['Incoterm','الإنكوترم',t.incoterm],['Payment Terms','شروط الدفع',t.paymentTerms],['Packing','التعبئة',t.packing],['Delivery Time','مدة التسليم',t.deliveryTime],['Port of Loading','ميناء التحميل',t.portOfLoading],['Final Destination','الوجهة النهائية',t.finalDestination],['Country of Origin','بلد المنشأ',t.countryOfOrigin],['Validity','الصلاحية',t.validity],['Remarks','ملاحظات تجارية',t.remarks]];
@@ -172,7 +231,8 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
 
 function renderDocument({ document: doc, scale = 1, compact = false }: Props):any{
   const separateDetails = shouldUseDetailsPage(doc);
-  const itemPages = paginateItems(doc.items, !separateDetails, firstPageItemCapacity(doc),doc.language,item=>itemWeight(doc,item));
+  const outputItems=doc.items.flatMap(item=>outputItemFragments(doc,item));
+  const itemPages = paginateItems(outputItems, !separateDetails, firstPageItemCapacity(doc),doc.language,item=>itemWeight(doc,item));
   const pages = separateDetails ? [...itemPages, [] as DocumentItem[]] : itemPages;
   return <div className="invoice-pages" style={{ '--preview-scale': String(scale) } as any}>{pages.map((items,index) => <Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index === pages.length - 1} variant={doc.appearance.templateId} compact={compact}/>)}</div>;
 }
