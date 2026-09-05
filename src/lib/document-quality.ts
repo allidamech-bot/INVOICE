@@ -86,10 +86,18 @@ function usesSeparateDetailsPage(doc:LourexDocument):boolean{
   return lastWeight>allowedLastWeight;
 }
 
+function weightedItemPageFloor(doc:LourexDocument):number{
+  const firstCapacity=firstPageCapacity(doc);
+  const totalWeight=doc.items.reduce((sum,item)=>sum+itemWeight(doc,item),0);
+  if(totalWeight<=firstCapacity)return 1;
+  return 1+Math.ceil((totalWeight-firstCapacity)/13);
+}
+
 export function estimatedDocumentPageCount(doc:LourexDocument):number{
   const separateDetails=usesSeparateDetailsPage(doc);
   const itemPages=paginateItems(doc.items,!separateDetails,firstPageCapacity(doc),doc.language,item=>itemWeight(doc,item));
-  return itemPages.length+(separateDetails?1:0);
+  const itemPageCount=Math.max(itemPages.length,weightedItemPageFloor(doc));
+  return itemPageCount+(separateDetails?1:0);
 }
 
 export function documentQualityIssues(doc: LourexDocument): DocumentQualityIssue[] {
