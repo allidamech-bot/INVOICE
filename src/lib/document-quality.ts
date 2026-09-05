@@ -19,12 +19,29 @@ export interface DocumentQualityIssue {
   level: 'warning'|'info';
 }
 
+function visibleIdentityValues(doc:LourexDocument,english:string,arabic:string):string[]{
+  const en=english.trim();const ar=arabic.trim();
+  if(doc.language==='en'){
+    const visible=documentDisplayValue(en,'en');
+    return visible?[visible]:[];
+  }
+  if(doc.language==='ar'){
+    const visible=ar||en;
+    return visible?[visible]:[];
+  }
+  return [en,ar].filter(Boolean);
+}
+
 function firstPageCapacity(doc:LourexDocument):number{
   const c=doc.customerSnapshot;
   const values=[
-    doc.companySnapshot.nameEn,doc.companySnapshot.nameAr,doc.companySnapshot.addressEn,doc.companySnapshot.addressAr,doc.companySnapshot.city,doc.companySnapshot.country,
+    ...visibleIdentityValues(doc,doc.companySnapshot.nameEn,doc.companySnapshot.nameAr),
+    ...visibleIdentityValues(doc,doc.companySnapshot.addressEn,doc.companySnapshot.addressAr),
+    doc.companySnapshot.city,doc.companySnapshot.country,
     doc.companySnapshot.phone,doc.companySnapshot.email,doc.companySnapshot.website,doc.companySnapshot.vatNumber,doc.companySnapshot.taxNumber,doc.companySnapshot.commercialRegistration,
-    c?.companyNameEn??'',c?.companyNameAr??'',c?.addressEn??'',c?.addressAr??'',c?.city??'',c?.country??'',c?.phone??'',c?.email??'',c?.vatTaxNumber??'',c?.commercialRegistration??''
+    ...visibleIdentityValues(doc,c?.companyNameEn??'',c?.companyNameAr??''),
+    ...visibleIdentityValues(doc,c?.addressEn??'',c?.addressAr??''),
+    c?.city??'',c?.country??'',c?.phone??'',c?.email??'',c?.vatTaxNumber??'',c?.commercialRegistration??''
   ].map(value=>value.trim()).filter(Boolean);
   const chars=values.reduce((sum,value)=>sum+value.length,0);
   const pressure=chars+values.length*18+(doc.language==='bilingual'?120:0);
@@ -102,7 +119,7 @@ export function estimatedDocumentPageCount(doc:LourexDocument):number{
 
 export function documentQualityIssues(doc: LourexDocument): DocumentQualityIssue[] {
   const issues: DocumentQualityIssue[]=[];
-  const companyName=(doc.companySnapshot.nameEn||doc.companySnapshot.nameAr).trim();
+  const companyName=visibleIdentityValues(doc,doc.companySnapshot.nameEn,doc.companySnapshot.nameAr).join(' / ');
   if(!companyName)issues.push({code:'company-name-missing',level:'warning'});
   const logo=doc.companySnapshot.logoDataUrl.trim();
   if(!logo||logo.includes('lourex-logo.svg'))issues.push({code:'logo-missing',level:'info'});
