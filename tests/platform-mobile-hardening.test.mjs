@@ -15,8 +15,10 @@ test('pull-to-refresh cannot discard inline Operations or Product Library drafts
 
 test('PWA update and cloud-applied reloads respect inline draft workspaces',async()=>{
   const source=await read('src/app/index.tsx');
+  assert.match(source,/function isDocumentEditorOpen\(\):boolean/);
+  assert.match(source,/document\.querySelector\('\.editor-screen'\)/);
   assert.match(source,/function reloadUnsafeWorkspaceOpen\(\):boolean/);
-  assert.match(source,/\.editor-screen,\.operations-page,\.product-library-pro\.editor-open,\.modal-backdrop/);
+  assert.match(source,/isDocumentEditorOpen\(\)\|\|Boolean\(document\.querySelector\('\.operations-page,\.product-library-pro\.editor-open,\.modal-backdrop'\)\)/);
   assert.match(source,/lourex-cloud-applied[\s\S]*reloadUnsafeWorkspaceOpen\(\)/);
   assert.match(source,/reload\.addEventListener\('click'[\s\S]*reloadUnsafeWorkspaceOpen\(\)/);
 });
