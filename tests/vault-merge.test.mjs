@@ -47,3 +47,59 @@ test('deleting one record preserves unrelated concurrent additions',()=>{
   assert.equal(merged.customers.some(item=>item.id==='c1'),false);
   assert.equal(merged.customers.some(item=>item.id==='c2'),true);
 });
+
+test('a stale autosave cannot downgrade a concurrently issued document back to draft',()=>{
+  const base=emptyVault();
+  const doc=createBlankDocument('invoice','INV-2026-0100',base.company);base.documents=[doc];
+  const finalDoc={...doc,status:'final',updatedAt:'2026-09-05T15:00:01.000Z'};
+  const latest=mergeVaultIntent(base,{...base,documents:[finalDoc]},base);
+  const staleDraft={...doc,notes:'late autosave',updatedAt:'2026-09-05T15:00:02.000Z'};
+  const merged=mergeVaultIntent(base,{...base,documents:[staleDraft]},latest);
+  assert.equal(merged.documents[0].status,'final');
+  assert.notEqual(merged.documents[0].notes,'late autosave');
+});
+
+test('a stale draft cannot resurrect a discarded revision after the previous final was restored',()=>{
+  const base=emptyVault();
+  const original=createBlankDocument('invoice','INV-2026-0101',base.company);
+  const revisionDraft={...original,revision:2,status:'draft',notes:'revision edits',updatedAt:'2026-09-05T15:01:00.000Z'};
+  base.documents=[revisionDraft];
+  const restoredFinal={...original,status:'final',revision:1,updatedAt:'2026-09-05T15:01:01.000Z'};
+  const latest={...base,documents:[restoredFinal]};
+  const staleDraft={...revisionDraft,notes:'late revision autosave',updatedAt:'2026-09-05T15:01:02.000Z'};
+  const merged=mergeVaultIntent(base,{...base,documents:[staleDraft]},latest);
+  assert.equal(merged.documents[0].status,'final');
+  assert.equal(merged.documents[0].revision,1);
+});
+
+test('starting a new revision intentionally can still move a current final document to a higher draft revision',()=>{
+  const base=emptyVault();
+  const finalDoc={...createBlankDocument('invoice','INV-2026-0102',base.company),status:'final',revision:1};
+  base.documents=[finalDoc];
+  const revisionDraft={...finalDoc,status:'draft',revision:2,updatedAt:'2026-09-05T15:02:00.000Z'};
+  const merged=mergeVaultIntent(base,{...base,documents:[revisionDraft]},base);
+  assert.equal(merged.documents[0].status,'draft');
+  assert.equal(merged.documents[0].revision,2);
+});
+
+test('a stale delete cannot remove a document that became final concurrently',()=>{
+  const base=emptyVault();
+  const doc=createBlankDocument('proforma','PI-2026-0103',base.company);base.documents=[doc];
+  const finalDoc={...doc,status:'final',updatedAt:'2026-09-05T15:03:00.000Z'};
+  const latest=mergeVaultIntent(base,{...base,documents:[finalDoc]},base);
+  const merged=mergeVaultIntent(base,{...base,documents:[]},latest);
+  assert.equal(merged.documents.length,1);
+  assert.equal(merged.documents[0].status,'final');
+});
+
+test('a stale active copy cannot overwrite a concurrently voided archive',()=>{
+  const base=emptyVault();
+  const finalDoc={...createBlankDocument('invoice','INV-2026-0104',base.company),status:'final',updatedAt:'2026-09-05T15:04:00.000Z'};
+  base.documents=[finalDoc];
+  const voided={...finalDoc,lifecycleStatus:'voided',voidedAt:'2026-09-05T15:04:01.000Z',voidReason:'Cancelled',updatedAt:'2026-09-05T15:04:01.000Z'};
+  const latest=mergeVaultIntent(base,{...base,documents:[voided]},base);
+  const staleActive={...finalDoc,notes:'late write',updatedAt:'2026-09-05T15:04:02.000Z'};
+  const merged=mergeVaultIntent(base,{...base,documents:[staleActive]},latest);
+  assert.equal(merged.documents[0].lifecycleStatus,'voided');
+  assert.equal(merged.documents[0].voidReason,'Cancelled');
+});
