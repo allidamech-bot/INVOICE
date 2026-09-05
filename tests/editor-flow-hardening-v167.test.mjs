@@ -26,3 +26,14 @@ test('all item unit inputs share one valid datalist instead of duplicate DOM ids
   assert.match(editor,/list="editor-unit-presets"/);
   assert.doesNotMatch(editor,/id="units"/);
 });
+
+test('critical editor controls keep 44px touch targets on iPhone and iPad',async()=>{
+  const design=await read('src/styles/design-system-v164.css');
+  const coarse=design.slice(design.indexOf('@media(pointer:coarse)'));
+  assert.match(coarse,/\.app-ui \.mobile-action-buttons \.btn/);
+  assert.match(coarse,/\.app-ui \.editor-section-nav-button/);
+  assert.match(coarse,/\.app-ui \.item-card-actions \.icon-btn/);
+  assert.match(coarse,/\.app-ui \.editor-top-left>\.icon-btn/);
+  assert.match(coarse,/min-height:44px!important/);
+  assert.match(coarse,/min-width:44px!important/);
+});
