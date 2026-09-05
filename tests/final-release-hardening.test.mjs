@@ -72,6 +72,15 @@ test('final release uses a fresh PWA cache generation instead of mutating the v1
   assert.doesNotMatch(sw,/^const CACHE = 'lourex-invoice-v167';$/m);
 });
 
+test('active PWA shell stays on one cached runtime generation until explicit worker activation',async()=>{
+  const [sw,entry]=await Promise.all([read('public/sw.js'),read('src/app/index.tsx')]);
+  assert.match(sw,/async function cacheFirst\(request\)[\s\S]*const cached=await cache\.match\(request\);[\s\S]*if\(cached\)return cached/);
+  assert.match(sw,/event\.request\.mode==='navigate'\|\|FRESH_PATHS\.has\(url\.pathname\)\|\|isAppRuntimePath\(url\.pathname\)[\s\S]*event\.respondWith\(cacheFirst\(event\.request\)\)/);
+  assert.doesNotMatch(sw,/event\.respondWith\(networkFirst\(event\.request\)\)/);
+  assert.match(entry,/registration\.update\(\)/);
+  assert.match(entry,/waiting\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
+});
+
 test('financial CSV export neutralizes spreadsheet formulas while preserving numeric negatives',async()=>{
   const page=await read('src/components/ReportsPage.tsx');
   assert.match(page,/const CSV_NUMBER=\/\^-\?\(\?:\\d\+\|\\d\*\\\.\\d\+\)\$\//);
