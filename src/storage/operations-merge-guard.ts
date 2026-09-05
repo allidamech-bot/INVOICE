@@ -1,4 +1,4 @@
-import type { ExpenseRecord, InventoryMovementRecord, PurchaseRecord, SavedItem, Supplier, VaultPayload } from '../types.js';
+import type { InventoryMovementRecord, PurchaseRecord, Supplier, VaultPayload } from '../types.js';
 import { isIsoDate } from '../lib/id.js';
 import { decimalToScaled, isDecimalInput } from '../lib/money.js';
 import { normalizeSavedItemIdentity } from '../lib/saved-items.js';
@@ -157,6 +157,22 @@ function guardInventoryChanges(base:VaultPayload,intended:VaultPayload,merged:Op
   }
 }
 
+function guardSavedItemCostConcurrency(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):void{
+  if(intended.savedItems===base.savedItems)return;
+  const baseById=new Map(base.savedItems.map(item=>[item.id,item]));
+  const latestById=new Map(latest.savedItems.map(item=>[item.id,item]));
+  for(const item of intended.savedItems){
+    const before=baseById.get(item.id);const current=latestById.get(item.id);
+    if(!before||!current)continue;
+    const intendedCost=[item.lastUnitCost??'',item.lastCostCurrency??''];
+    const baseCost=[before.lastUnitCost??'',before.lastCostCurrency??''];
+    const latestCost=[current.lastUnitCost??'',current.lastCostCurrency??''];
+    const intendedChanged=!recordEqual(intendedCost,baseCost);
+    const latestChanged=!recordEqual(latestCost,baseCost);
+    if(intendedChanged&&latestChanged&&!recordEqual(intendedCost,latestCost))throw new Error(t('This item cost changed on another device. Reload before posting or changing its cost.','تم تغيير تكلفة هذا الصنف على جهاز آخر. حدّث البيانات قبل الترحيل أو تغيير التكلفة.'));
+  }
+}
+
 function guardSavedItemHistory(base:VaultPayload,intended:VaultPayload,merged:OperationalState):void{
   if(intended.savedItems===base.savedItems)return;
   const intendedIds=new Set(intended.savedItems.map(item=>item.id));
@@ -169,6 +185,7 @@ function guardSavedItemHistory(base:VaultPayload,intended:VaultPayload,merged:Op
 export function guardOperationsMerge(base:VaultPayload,intended:VaultPayload,latest:VaultPayload,merged:OperationalState):void{
   guardSupplierChanges(base,intended,merged);
   guardExpenseChanges(base,intended,merged);
+  guardSavedItemCostConcurrency(base,intended,latest);
   guardSavedItemHistory(base,intended,merged);
   guardInventoryChanges(base,intended,merged);
   guardPurchaseChanges(base,intended,latest,merged);
