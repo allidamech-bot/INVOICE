@@ -3,7 +3,7 @@ import { calculateTotals, decimalToScaled } from './money.js';
 import { accountedInvoiceCreditNotes, accountedInvoicePayments } from './payments.js';
 import { calculateProfitability } from './profitability.js';
 import { customerReceivables, receivableCustomerId, receivablesByCurrency } from './receivables.js';
-import { todayIso } from './id.js';
+import { isIsoDate, todayIso } from './id.js';
 
 export interface FinancialReportCurrency {
   currency:string;
@@ -77,7 +77,7 @@ function marginString(profit:bigint,revenue:bigint):string{
 }
 
 function compareMoneyDescending(left:string,right:string):number{const a=decimalToScaled(left,2),b=decimalToScaled(right,2);return a===b?0:a>b?-1:1;}
-function validIsoDate(value:string):boolean{return /^\d{4}-\d{2}-\d{2}$/.test(value);}
+function validIsoDate(value:string):boolean{return isIsoDate(value);}
 export function reportDateInRange(date:string,from:string,to:string):boolean{
   if(!validIsoDate(date))return false;
   if(from&&date<from)return false;
