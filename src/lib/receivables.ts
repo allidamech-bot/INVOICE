@@ -1,6 +1,6 @@
 import type { Customer, LourexDocument, PaymentRecord } from '../types.js';
 import { calculateTotals, decimalToScaled } from './money.js';
-import { invoicePaymentSummary, invoicePayments } from './payments.js';
+import { accountedInvoicePayments, invoicePaymentSummary } from './payments.js';
 import { todayIso } from './id.js';
 
 export type AgingBucket='current'|'days1to30'|'days31to60'|'days61to90'|'days90plus';
@@ -66,7 +66,7 @@ export function customerStatement(customerId:string,documents:LourexDocument[],p
       const amount=decimalToScaled(calculateTotals(credit.items,credit.adjustments).grandTotal,2);
       push(invoice.currency,{date:credit.issueDate,reference:credit.number,type:'credit-note',description:`Credit against ${invoice.number}`,debit:0n,credit:amount,relatedInvoiceNumber:invoice.number,order:2});
     }
-    for(const payment of invoicePayments(invoice.id,payments,today))push(invoice.currency,{date:payment.date,reference:payment.reference||payment.id,type:'payment',description:payment.reference||invoice.number,debit:0n,credit:decimalToScaled(payment.amount,2),relatedInvoiceNumber:invoice.number,order:3});
+    for(const payment of accountedInvoicePayments(invoice,payments,today))push(invoice.currency,{date:payment.date,reference:payment.reference||payment.id,type:'payment',description:payment.reference||invoice.number,debit:0n,credit:decimalToScaled(payment.amount,2),relatedInvoiceNumber:invoice.number,order:3});
   }
   const summaries=receivablesByCurrency(documents,payments,today,customerId);
   return [...rows.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([currency,entries])=>{
