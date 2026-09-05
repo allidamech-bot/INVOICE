@@ -1,7 +1,7 @@
 import type { CompanySettings, DocumentKind, DocumentItem, DocumentLanguage, LourexDocument, VaultPayload } from '../types.js';
 import { addDaysIso, compareIsoDates, isIsoDate, makeId, normalizeValidityDays, todayIso } from './id.js';
 import { companySnapshotFrom } from './defaults.js';
-import { bankDetailsForId, defaultPaymentTermPreset, defaultTaxPreset } from './commercial-controls.js';
+import { bankAccountIdForDetails, bankDetailsForId, defaultPaymentTermPreset, defaultTaxPreset } from './commercial-controls.js';
 import { decimalToScaled, isDecimalInput, lineTotal } from './money.js';
 
 type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number};
@@ -178,8 +178,11 @@ export function convertToInvoice(source: LourexDocument, number: string): Lourex
 
 export function refreshCompanySnapshot(doc: LourexDocument, company: CompanySettings): LourexDocument {
   const companySnapshot=companySnapshotFrom(company);
-  const selectedBank=doc.bankAccountId?bankDetailsForId(company,doc.bankAccountId):doc.companySnapshot?.bank;
-  return { ...doc, companySnapshot:{...companySnapshot,bank:selectedBank?{...selectedBank}:companySnapshot.bank}, updatedAt: new Date().toISOString() };
+  const configuredBank=doc.bankAccountId?bankDetailsForId(company,doc.bankAccountId):null;
+  const inferredBankId=!configuredBank&&doc.companySnapshot?.bank?bankAccountIdForDetails(company,doc.companySnapshot.bank):'';
+  const bankAccountId=configuredBank?doc.bankAccountId:(inferredBankId||company.defaultBankAccountId||'primary');
+  const selectedBank=bankDetailsForId(company,bankAccountId)||companySnapshot.bank;
+  return { ...doc, bankAccountId, companySnapshot:{...companySnapshot,bank:{...selectedBank}}, updatedAt: new Date().toISOString() };
 }
 
 export function paginateItems(items: DocumentItem[], reserveFinalDetails = true, firstPageCapacity = 7, language:DocumentLanguage='bilingual', customWeight?:DocumentItemWeight): DocumentItem[][] {
