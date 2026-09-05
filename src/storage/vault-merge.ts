@@ -1,4 +1,4 @@
-import type { AppSettings, CompanySettings, VaultPayload } from '../types.js';
+import type { AppSettings, CompanySettings, LourexDocument, VaultPayload } from '../types.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -18,6 +18,39 @@ function mergeRecords<T extends { id:string }>(base:T[], intended:T[], latest:T[
     if(index===undefined){indexById.set(item.id,result.length);result.push(item);}
     else result[index]=item;
   }
+  return result;
+}
+
+function documentRevision(document:LourexDocument):number{return Math.max(1,Math.trunc(document.revision||1));}
+function documentChangedSinceBase(base:LourexDocument,latest:LourexDocument):boolean{
+  return base.updatedAt!==latest.updatedAt||base.status!==latest.status||base.lifecycleStatus!==latest.lifecycleStatus||documentRevision(base)!==documentRevision(latest);
+}
+function preserveConcurrentDocument(base:LourexDocument,intended:LourexDocument,latest:LourexDocument):boolean{
+  if(!documentChangedSinceBase(base,latest))return false;
+  if(latest.lifecycleStatus==='voided'&&intended.lifecycleStatus!=='voided')return true;
+  if(latest.status==='final'&&intended.status==='draft')return true;
+  if(documentRevision(latest)>documentRevision(intended))return true;
+  return false;
+}
+function mergeDocuments(base:LourexDocument[],intended:LourexDocument[],latest:LourexDocument[]):LourexDocument[]{
+  if(intended===base)return latest;
+  const baseById=new Map(base.map(item=>[item.id,item]));
+  const intendedById=new Map(intended.map(item=>[item.id,item]));
+  const result:LourexDocument[]=[];
+  const seen=new Set<string>();
+  for(const latestItem of latest){
+    const before=baseById.get(latestItem.id);
+    const wanted=intendedById.get(latestItem.id);
+    if(!wanted){
+      if(!before||documentChangedSinceBase(before,latestItem))result.push(latestItem);
+      seen.add(latestItem.id);
+      continue;
+    }
+    if(before&&before===wanted){result.push(latestItem);seen.add(latestItem.id);continue;}
+    result.push(before&&preserveConcurrentDocument(before,wanted,latestItem)?latestItem:wanted);
+    seen.add(latestItem.id);
+  }
+  for(const item of intended)if(!seen.has(item.id))result.push(item);
   return result;
 }
 
@@ -59,7 +92,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     purchases:mergeRecords(base.purchases,intended.purchases,latest.purchases),
     expenses:mergeRecords(base.expenses,intended.expenses,latest.expenses),
     inventoryMovements:mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements),
-    documents:mergeRecords(base.documents,intended.documents,latest.documents),
+    documents:mergeDocuments(base.documents,intended.documents,latest.documents),
     documentEvents:mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents),
     documentRevisions:mergeRecords(base.documentRevisions,intended.documentRevisions,latest.documentRevisions),
     payments:mergeRecords(base.payments,intended.payments,latest.payments),
