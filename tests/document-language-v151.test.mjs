@@ -58,11 +58,12 @@ test('English document identity never falls back to Arabic-only names or address
   assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)return doc\.companySnapshot\.nameEn\.trim\(\)\|\|doc\.companySnapshot\.nameAr\.trim\(\)/);
 });
 
-test('final review identity follows document language and blocks only new issue when output identity is missing',async()=>{
+test('final review identity follows rendered document language and blocks only new issue when output identity is missing',async()=>{
   const review=await readFile('src/components/DocumentReviewModal.tsx','utf8');
   assert.doesNotMatch(review,/isArabic\(\)\?\(doc\.customerSnapshot/);
+  assert.match(review,/documentDisplayValue/);
   assert.match(review,/function reviewIdentityName/);
-  assert.match(review,/if\(language==='en'\)return en/);
+  assert.match(review,/if\(language==='en'\)return documentDisplayValue\(en,'en'\)/);
   assert.match(review,/if\(language==='ar'\)return ar\|\|en/);
   assert.match(review,/filter\(Boolean\)\.join\(' \/ '\)/);
   assert.match(review,/const identityReady=Boolean\(customer&&company\)/);
