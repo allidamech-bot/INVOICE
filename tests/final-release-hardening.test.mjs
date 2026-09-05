@@ -49,8 +49,8 @@ test('Operations surfaces excluded legacy accounting records instead of silently
   assert.match(page,/excluded from accounting or inventory totals until corrected/);
 });
 
-test('coarse-pointer mobile controls retain reliable 44px touch targets in the final cascade',async()=>{
-  const [html,css]=await Promise.all([read('index.html'),read('src/styles/final-mobile-accessibility-v168.css')]);
+test('coarse-pointer mobile controls retain reliable 44px touch targets in the final cascade and offline cache',async()=>{
+  const [html,css,sw]=await Promise.all([read('index.html'),read('src/styles/final-mobile-accessibility-v168.css'),read('public/sw.js')]);
   assert.match(html,/design-system-v164\.css[\s\S]*final-mobile-accessibility-v168\.css[\s\S]*document-premium-redesign-v141\.css/);
   assert.match(css,/@media \(max-width:720px\) and \(pointer:coarse\)/);
   assert.match(css,/\.operations-tabs button/);
@@ -62,6 +62,7 @@ test('coarse-pointer mobile controls retain reliable 44px touch targets in the f
   assert.match(css,/min-width:44px!important/);
   assert.match(css,/grid-template-columns:44px minmax\(0,1fr\) 44px!important/);
   assert.doesNotMatch(css,/invoice-page|template-renderer|document-page/);
+  assert.ok(sw.includes('./styles/final-mobile-accessibility-v168.css'));
 });
 
 test('final release uses a fresh PWA cache generation instead of mutating the v167 cache in place',async()=>{
