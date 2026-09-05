@@ -1,4 +1,6 @@
-import type { AppSettings, CompanySettings, LourexDocument, VaultPayload } from '../types.js';
+import type { AppSettings, CompanySettings, Customer, LourexDocument, SavedItem, VaultPayload } from '../types.js';
+import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
+import { t } from '../lib/i18n.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -54,6 +56,35 @@ function mergeDocuments(base:LourexDocument[],intended:LourexDocument[],latest:L
   return result;
 }
 
+function customerIdentity(value:string):string{return normalizeSavedItemIdentity(value);}
+function customerNames(customer:Customer):string[]{return [customer.companyNameEn,customer.companyNameAr].map(customerIdentity).filter(Boolean);}
+function guardCustomerIdentityChanges(base:Customer[],intended:Customer[],merged:Customer[]):void{
+  if(intended===base)return;
+  const baseById=new Map(base.map(customer=>[customer.id,customer]));
+  for(const customer of intended){
+    const before=baseById.get(customer.id);
+    const namesChanged=!before||customerIdentity(before.companyNameEn)!==customerIdentity(customer.companyNameEn)||customerIdentity(before.companyNameAr)!==customerIdentity(customer.companyNameAr);
+    if(!namesChanged)continue;
+    const names=customerNames(customer);
+    if(!names.length)throw new Error(t('Company name is required.','اسم الشركة مطلوب.'));
+    const duplicate=merged.find(existing=>existing.id!==customer.id&&customerNames(existing).some(name=>names.includes(name)));
+    if(duplicate)throw new Error(t('This customer already exists. Open the existing customer to edit it.','هذا العميل موجود بالفعل. افتح العميل الموجود لتعديله.'));
+  }
+}
+
+function savedItemIdentityChanged(before:SavedItem|undefined,item:SavedItem):boolean{
+  return !before||normalizeSavedItemIdentity(before.descriptionEn)!==normalizeSavedItemIdentity(item.descriptionEn)||normalizeSavedItemIdentity(before.descriptionAr)!==normalizeSavedItemIdentity(item.descriptionAr)||(before.sku??'').normalize('NFKC').trim().replace(/\s+/g,'').toLocaleUpperCase()!==(item.sku??'').normalize('NFKC').trim().replace(/\s+/g,'').toLocaleUpperCase();
+}
+function guardSavedItemIdentityChanges(base:SavedItem[],intended:SavedItem[],merged:SavedItem[]):void{
+  if(intended===base)return;
+  const baseById=new Map(base.map(item=>[item.id,item]));
+  for(const item of intended){
+    if(!savedItemIdentityChanged(baseById.get(item.id),item))continue;
+    if(!item.descriptionEn.trim()&&!item.descriptionAr.trim())throw new Error(t('Enter an English or Arabic description.','أدخل وصفًا بالإنجليزية أو العربية.'));
+    if(findSavedItemDuplicate(merged,item))throw new Error(t('This item already exists or uses a duplicate SKU. Open the existing item to edit it.','هذا الصنف موجود بالفعل أو يستخدم SKU مكررًا. افتح الصنف الموجود لتعديله.'));
+  }
+}
+
 function mergeCompany(base:CompanySettings,intended:CompanySettings,latest:CompanySettings):CompanySettings{
   if(intended===base)return latest;
   const next:CompanySettings={...latest,bank:{...latest.bank},bankAccounts:latest.bankAccounts.map(account=>({...account})),commercial:{...latest.commercial,taxPresets:latest.commercial.taxPresets.map(item=>({...item})),paymentTermPresets:latest.commercial.paymentTermPresets.map(item=>({...item})),pricing:{...latest.commercial.pricing}}};
@@ -83,11 +114,15 @@ function mergeAppSettings(base:AppSettings,intended:AppSettings,latest:AppSettin
 }
 
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
+  const customers=mergeRecords(base.customers,intended.customers,latest.customers);
+  const savedItems=mergeRecords(base.savedItems,intended.savedItems,latest.savedItems);
+  guardCustomerIdentityChanges(base.customers,intended.customers,customers);
+  guardSavedItemIdentityChanges(base.savedItems,intended.savedItems,savedItems);
   return {
     ...latest,
     schemaVersion:Math.max(latest.schemaVersion,intended.schemaVersion),
     company:mergeCompany(base.company,intended.company,latest.company),
-    customers:mergeRecords(base.customers,intended.customers,latest.customers),
+    customers,
     suppliers:mergeRecords(base.suppliers,intended.suppliers,latest.suppliers),
     purchases:mergeRecords(base.purchases,intended.purchases,latest.purchases),
     expenses:mergeRecords(base.expenses,intended.expenses,latest.expenses),
@@ -96,7 +131,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     documentEvents:mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents),
     documentRevisions:mergeRecords(base.documentRevisions,intended.documentRevisions,latest.documentRevisions),
     payments:mergeRecords(base.payments,intended.payments,latest.payments),
-    savedItems:mergeRecords(base.savedItems,intended.savedItems,latest.savedItems),
+    savedItems,
     appSettings:mergeAppSettings(base.appSettings,intended.appSettings,latest.appSettings)
   };
 }
