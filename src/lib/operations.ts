@@ -22,6 +22,7 @@ function fixed(value:bigint,decimals:number):string{
 function trimFixed(value:string):string{return value.replace(/\.0+$/,'').replace(/(\.\d*?)0+$/,'$1');}
 function cents(value:string):bigint{return decimalToScaled(value,2);}
 function lineCents(quantity:string,unitCost:string):bigint{return roundDivide(decimalToScaled(quantity,4)*decimalToScaled(unitCost,4),PRODUCT_TO_CENTS);}
+function lineCentsScaled(quantity4:bigint,unit4:bigint):bigint{return roundDivide(quantity4*unit4,PRODUCT_TO_CENTS);}
 function positive(value:string):boolean{return isDecimalInput(value)&&decimalToScaled(value,4)>0n;}
 function nonNegative(value:string):boolean{return isDecimalInput(value)&&decimalToScaled(value,4)>=0n;}
 function nowIso():string{return new Date().toISOString();}
@@ -79,6 +80,51 @@ export function purchaseTotals(purchase:Pick<PurchaseRecord,'items'|'freight'|'d
   return {subtotal:fixed(subtotal,2),freight:fixed(freight,2),duty:fixed(duty,2),other:fixed(other,2),landedTotal:fixed(subtotal+freight+duty+other,2)};
 }
 
+function smallestUnitAdjustment(quantity4:bigint,unit4:bigint,direction:1n|-1n):{delta:bigint;effect:bigint}|null{
+  const current=lineCentsScaled(quantity4,unit4);
+  const limit=direction>0n?100_000_000n:unit4;
+  if(limit<=0n)return null;
+  let high=1n;
+  const changed=(delta:bigint)=>{
+    const next=unit4+direction*delta;
+    if(next<0n)return false;
+    return lineCentsScaled(quantity4,next)!==current;
+  };
+  while(high<limit&&!changed(high))high*=2n;
+  if(high>limit)high=limit;
+  if(!changed(high))return null;
+  let low=1n;
+  while(low<high){const mid=(low+high)/2n;if(changed(mid))high=mid;else low=mid+1n;}
+  const next=unit4+direction*low;
+  const effect=lineCentsScaled(quantity4,next)-current;
+  return effect===0n?null:{delta:low,effect};
+}
+
+function reconcileLandedUnitCosts(items:PurchaseRecord['items'],targetCents:bigint):PurchaseRecord['items']{
+  const next=items.map(item=>({...item}));
+  let actual=next.reduce((sum,item)=>sum+lineCents(item.quantity,item.landedUnitCost||item.unitCost),0n);
+  let remaining=targetCents-actual;
+  for(let pass=0;remaining!==0n&&pass<next.length*4;pass+=1){
+    const direction:1n|-1n=remaining>0n?1n:-1n;
+    let best:{index:number;delta:bigint;effect:bigint}|null=null;
+    for(let index=0;index<next.length;index+=1){
+      const item=next[index];if(!item)continue;
+      const quantity4=decimalToScaled(item.quantity,4);if(quantity4<=0n)continue;
+      const unit4=decimalToScaled(item.landedUnitCost||item.unitCost,4);
+      const candidate=smallestUnitAdjustment(quantity4,unit4,direction);if(!candidate)continue;
+      if((candidate.effect>0n)!==(remaining>0n)||absBigInt(candidate.effect)>absBigInt(remaining))continue;
+      if(!best||absBigInt(candidate.effect)>absBigInt(best.effect)||(absBigInt(candidate.effect)===absBigInt(best.effect)&&candidate.delta<best.delta))best={index,delta:candidate.delta,effect:candidate.effect};
+    }
+    if(!best)break;
+    const item=next[best.index];if(!item)break;
+    const unit4=decimalToScaled(item.landedUnitCost||item.unitCost,4)+direction*best.delta;
+    item.landedUnitCost=fixed(unit4,4);
+    actual+=best.effect;remaining=targetCents-actual;
+  }
+  return next;
+}
+function absBigInt(value:bigint):bigint{return value<0n?-value:value;}
+
 export function allocateLandedCost(purchase:PurchaseRecord):PurchaseRecord{
   const extras4=decimalToScaled(purchase.freight||'0',4)+decimalToScaled(purchase.duty||'0',4)+decimalToScaled(purchase.otherCosts||'0',4);
   const bases=purchase.items.map(item=>decimalToScaled(item.quantity,4)*decimalToScaled(item.unitCost,4));
@@ -86,7 +132,7 @@ export function allocateLandedCost(purchase:PurchaseRecord):PurchaseRecord{
   const quantities=purchase.items.map(item=>decimalToScaled(item.quantity,4));
   const quantityTotal=quantities.reduce((sum,value)=>sum+(value>0n?value:0n),0n);
   const weightTotal=baseTotal>0n?baseTotal:quantityTotal;
-  const items=purchase.items.map((item,index)=>{
+  const prelim=purchase.items.map((item,index)=>{
     const qty=quantities[index]??0n;
     const unit=decimalToScaled(item.unitCost,4);
     const weight=baseTotal>0n?(bases[index]??0n):(qty>0n?qty:0n);
@@ -94,7 +140,8 @@ export function allocateLandedCost(purchase:PurchaseRecord):PurchaseRecord{
     const extraPerUnit=qty>0n?roundDivide(allocated*SCALE4,qty):0n;
     return {...item,landedUnitCost:fixed(unit+extraPerUnit,4)};
   });
-  return {...purchase,items};
+  const target=cents(purchaseTotals(purchase).landedTotal);
+  return {...purchase,items:reconcileLandedUnitCosts(prelim,target)};
 }
 
 export function validatePurchase(purchase:PurchaseRecord,savedItems:SavedItem[]=[]):string[]{
