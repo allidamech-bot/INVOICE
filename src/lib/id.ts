@@ -42,6 +42,15 @@ export function addDaysIso(iso: string, days: number): string {
   return d.toISOString().slice(0,10);
 }
 
+export function daysBetweenIso(start:string,end:string):number|null{
+  const startParts=parseIsoParts(start),endParts=parseIsoParts(end);
+  if(!startParts||!endParts)return null;
+  const startUtc=Date.UTC(startParts.year,startParts.month-1,startParts.day);
+  const endUtc=Date.UTC(endParts.year,endParts.month-1,endParts.day);
+  const days=Math.round((endUtc-startUtc)/86_400_000);
+  return days>=0?days:null;
+}
+
 export function compareIsoDates(left:string,right:string):number{
   if(!isIsoDate(left)||!isIsoDate(right))return 0;
   return left===right?0:left>right?1:-1;
