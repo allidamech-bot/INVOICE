@@ -40,9 +40,9 @@ export class SetupScreen extends React.Component<SetupProps, SetupState> {
   private selectLogo = (input:HTMLInputElement):void => { const file=input.files?.[0]; input.value=''; void this.uploadLogo(file); };
   private uploadLogo = async (file?: File): Promise<void> => {
     if (!file) return;
-    if(file.size>MAX_SETUP_LOGO_BYTES){this.setState({error:t('Image is too large. Use a file smaller than 4 MB.','حجم الصورة كبير جدًا. استخدم ملفًا أصغر من 4 ميجابايت.')});return;}
-    if(!SETUP_LOGO_TYPES.test(file.type)){this.setState({error:t('Use a PNG, WebP, or JPEG image.','استخدم صورة بصيغة PNG أو WebP أو JPEG.')});return;}
     const uploadId=++this.logoUploadId;
+    if(file.size>MAX_SETUP_LOGO_BYTES){this.setState({error:t('Image is too large. Use a file smaller than 4 MB.','حجم الصورة كبير جدًا. استخدم ملفًا أصغر من 4 ميجابايت.'),logoBusy:false});return;}
+    if(!SETUP_LOGO_TYPES.test(file.type)){this.setState({error:t('Use a PNG, WebP, or JPEG image.','استخدم صورة بصيغة PNG أو WebP أو JPEG.'),logoBusy:false});return;}
     this.setState({error:'',logoBusy:true});
     try {
       const data = await fileToDataUrl(file,MAX_SETUP_LOGO_BYTES,'logo');
