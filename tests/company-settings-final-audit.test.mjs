@@ -36,7 +36,7 @@ test('company artwork can be replaced repeatedly and removed before saving',asyn
 test('company artwork upload is bounded and excludes raw SVG uploads',async()=>{
   const source=await read('src/components/SettingsModal.tsx');
   assert.match(source,/MAX_COMPANY_ASSET_BYTES=4\*1024\*1024/);
-  assert.match(source,/COMPANY_ASSET_TYPES=\/\^image\\\/\\\(png\|webp\|jpeg\\\)\$\/i/);
+  assert.ok(source.includes('const COMPANY_ASSET_TYPES=/^image\\/(png|webp|jpeg)$/i;'));
   assert.match(source,/accept="image\/png,image\/webp,image\/jpeg"/);
   assert.doesNotMatch(source,/accept="[^"]*image\/svg\+xml/);
   assert.match(source,/Use a PNG, WebP, or JPEG image/);
