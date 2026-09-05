@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createBlankDocument } from '../dist/src/lib/documents.js';
 import { defaultCompany, emptyVault } from '../dist/src/lib/defaults.js';
-import { createExpense, createManualInventoryMovement, createPurchase, createPurchaseItem, spendByCurrency, validatePurchase } from '../dist/src/lib/operations.js';
+import { createExpense, createManualInventoryMovement, createPurchase, createPurchaseItem, inventoryBalances, spendByCurrency, validatePurchase } from '../dist/src/lib/operations.js';
 import { financialReportByCurrency, monthlyPerformanceReport, normalizeReportPeriod, reportDateInRange } from '../dist/src/lib/reports.js';
 
 function supplier(){const at='2026-09-05T12:00:00.000Z';return{id:'supplier-integrity',createdAt:at,updatedAt:at,nameEn:'Supplier',nameAr:'',contactPerson:'',address:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:'',defaultCurrency:'USD',paymentTerms:'',notes:''};}
@@ -54,6 +54,16 @@ test('spend summary excludes malformed legacy purchases and expenses instead of 
   const negativeExpense={...validExpense,id:'bad-expense',amount:'-999.00'};
   const rows=spendByCurrency([purchase,badPurchase],[validExpense,negativeExpense]);
   assert.deepEqual(rows,[{currency:'USD',purchases:'20.00',expenses:'25.00',total:'45.00'}]);
+});
+
+test('inventory balances ignore malformed legacy movements without deleting ledger history',()=>{
+  const saved=item();
+  const valid=createManualInventoryMovement(saved,'opening','5','2026-09-05');
+  const malformedAmount={...valid,id:'bad-amount',quantity:'not-a-number'};
+  const malformedDate={...valid,id:'bad-date',date:'2026-02-31',quantity:'50'};
+  const balances=inventoryBalances([saved],[valid,malformedAmount,malformedDate]);
+  assert.equal(balances.length,1);
+  assert.equal(balances[0].quantity,'5');
 });
 
 test('financial CSV neutralizes spreadsheet formulas only in textual identity cells',()=>{
