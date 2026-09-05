@@ -76,6 +76,7 @@ function documentSearchText(doc:LourexDocument):string{
 
 export class DocumentsPage extends React.Component<Props,State>{
   state:State={tab:'all',status:'all',payment:'all',currency:'all',sort:'latest',query:'',menuId:'',filtersOpen:false,outputId:'',detailId:''};
+  private quoteConversions=new Set<string>();
 
   componentDidMount():void{
     document.addEventListener('pointerdown',this.handleOutsidePointer);
@@ -144,6 +145,11 @@ export class DocumentsPage extends React.Component<Props,State>{
   }
 
   private runAction=(action:()=>void)=>this.setState({menuId:''},action);
+  private convertQuote=(doc:LourexDocument)=>{
+    if(this.quoteConversions.has(doc.id))return;
+    this.quoteConversions.add(doc.id);
+    void Promise.resolve(this.props.onConvert?.(doc)).finally(()=>this.quoteConversions.delete(doc.id));
+  };
   private reserveOutput=(mode:'pdf'|'share')=>{try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}};
   private runOutput=async(mode:'pdf'|'share',doc:LourexDocument)=>{
     if(this.state.outputId)return;
@@ -165,7 +171,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({detailId:doc.id}))}><Icon name="eye"/>{t('View details','عرض التفاصيل')}</button>
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onOpen(doc))}><Icon name="edit"/>{doc.status==='final'?t('Open / manage','فتح / إدارة'):t('Continue editing','متابعة التحرير')}</button>
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onDuplicate(doc))}><Icon name="copy"/>{t('Duplicate','نسخ')}</button>
-      {linkedInvoice?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({detailId:linkedInvoice.id}))}><Icon name="invoice"/>{t(`Open linked invoice ${linkedInvoice.number}`,`فتح الفاتورة المرتبطة ${linkedInvoice.number}`)}</button>:canConvert?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onConvert?.(doc))}><Icon name="invoice"/>{t('Convert to Invoice','تحويل إلى فاتورة')}</button>:null}
+      {linkedInvoice?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({detailId:linkedInvoice.id}))}><Icon name="invoice"/>{t(`Open linked invoice ${linkedInvoice.number}`,`فتح الفاتورة المرتبطة ${linkedInvoice.number}`)}</button>:canConvert?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.convertQuote(doc))}><Icon name="invoice"/>{t('Convert to Invoice','تحويل إلى فاتورة')}</button>:null}
       {canOutput?<><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}><Icon name="download"/>{this.state.outputId===doc.id?t('Preparing…','جارٍ التجهيز…'):'PDF'}</button><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}><Icon name="share"/>{t('Share','مشاركة')}</button></>:null}
       {canDelete?<button type="button" role="menuitem" className="danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/>{t('Delete Draft','حذف المسودة')}</button>:null}
     </>;
@@ -203,7 +209,7 @@ export class DocumentsPage extends React.Component<Props,State>{
         <button type="button" className="document-detail-back" onClick={()=>this.setState({detailId:'',menuId:''})}><Icon name="arrowLeft"/><span>{t('Documents','المستندات')}</span></button>
         <div className="document-detail-actions">
           <Button icon="edit" variant="primary" onClick={()=>this.props.onOpen(doc)}>{doc.status==='final'?t('Open / manage','فتح / إدارة'):t('Continue editing','متابعة التحرير')}</Button>
-          {linkedInvoice?<Button icon="invoice" onClick={()=>this.setState({detailId:linkedInvoice.id,menuId:''})}>{t(`Open ${linkedInvoice.number}`,`فتح ${linkedInvoice.number}`)}</Button>:canConvert?<Button icon="invoice" onClick={()=>this.props.onConvert?.(doc)}>{t('Convert to Invoice','تحويل إلى فاتورة')}</Button>:null}
+          {linkedInvoice?<Button icon="invoice" onClick={()=>this.setState({detailId:linkedInvoice.id,menuId:''})}>{t(`Open ${linkedInvoice.number}`,`فتح ${linkedInvoice.number}`)}</Button>:canConvert?<Button icon="invoice" onClick={()=>this.convertQuote(doc)}>{t('Convert to Invoice','تحويل إلى فاتورة')}</Button>:null}
           {canOutput?<><Button icon="download" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}>PDF</Button><Button icon="share" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}>{t('Share','مشاركة')}</Button></>:null}
           <div className="document-detail-more"><IconButton icon="more" label={t('More actions','إجراءات أخرى')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/>{this.state.menuId===doc.id?<div className="document-action-popover" role="menu">{this.actionButtons(doc)}</div>:null}</div>
         </div>
