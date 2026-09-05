@@ -181,11 +181,12 @@ test('editor exposes percent discount and background-safe autosave',async()=>{
   assert.match(editor,/void this\.save\(true\)/);
 });
 
-test('immediate settings saves revert visibly on storage failure',async()=>{
+test('immediate settings saves revert only the failed language change on storage failure',async()=>{
   const settings=await read('src/components/SettingsModal.tsx');
   assert.match(settings,/changeInterfaceLanguage/);
   assert.match(settings,/const previous=this\.state\.appSettings/);
-  assert.match(settings,/appSettings:previous/);
+  assert.match(settings,/appSettings:state\.appSettings\.uiLanguage===value\?\{\.\.\.state\.appSettings,uiLanguage:previous\.uiLanguage\}:state\.appSettings/);
+  assert.doesNotMatch(settings,/appSettings:previous/);
   assert.match(settings,/Unable to change interface language/);
   assert.match(settings,/max="3650"/);
 });

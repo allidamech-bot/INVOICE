@@ -26,8 +26,11 @@ interface State {
 }
 
 type AssetField='logoDataUrl'|'signatureDataUrl'|'stampDataUrl';
+const MAX_COMPANY_ASSET_BYTES=4*1024*1024;
+const COMPANY_ASSET_TYPES=/^image\/(png|webp|jpeg)$/i;
 
 export class SettingsModal extends React.Component<Props,State> {
+  private assetPreparationId=0;
   constructor(props:Props){
     super(props);
     const company=structuredClone(props.company);
@@ -35,10 +38,12 @@ export class SettingsModal extends React.Component<Props,State> {
     this.state={tab:'company',company,appSettings,busy:false,cleaningAssets:false,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto'};
   }
   componentDidUpdate(prev:Props):void{
+    if(!this.props.open&&prev.open)this.assetPreparationId+=1;
     if(this.props.open&&!prev.open){
       const company=structuredClone(this.props.company);
       const appSettings=structuredClone(this.props.appSettings);
-      this.setState({company,appSettings,busy:false,cleaningAssets:false,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto'},()=>void this.prepareExistingAssets(company));
+      const preparationId=++this.assetPreparationId;
+      this.setState({company,appSettings,busy:false,cleaningAssets:false,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto'},()=>void this.prepareExistingAssets(company,preparationId));
     }
   }
   private hasUnsavedSettings=()=>JSON.stringify(this.state.company)!==this.state.companyInitial||JSON.stringify(this.state.appSettings)!==this.state.documentsInitial;
@@ -52,11 +57,11 @@ export class SettingsModal extends React.Component<Props,State> {
     const [signatureDataUrl,stampDataUrl]=await Promise.all([cleanImageDataUrl(company.signatureDataUrl,'signature'),cleanImageDataUrl(company.stampDataUrl,'stamp')]);
     return {...company,signatureDataUrl,stampDataUrl};
   };
-  private prepareExistingAssets=async(source:CompanySettings)=>{
-    if(!this.props.open)return;
+  private prepareExistingAssets=async(source:CompanySettings,preparationId:number)=>{
+    if(!this.props.open||preparationId!==this.assetPreparationId)return;
     this.setState({cleaningAssets:true});
     const [cleaned,repairedLogo]=await Promise.all([this.cleanCompanyAssets(source),repairLogoDataUrl(source.logoDataUrl)]);
-    if(!this.props.open){this.setState({cleaningAssets:false});return;}
+    if(!this.props.open||preparationId!==this.assetPreparationId)return;
     this.setState(state=>{
       const company={...state.company};
       let changed=false,logoChanged=false;
@@ -72,55 +77,87 @@ export class SettingsModal extends React.Component<Props,State> {
       return {company,logoOriginalDataUrl,logoCleanedDataUrl,logoRebuiltDataUrl,logoMode,cleaningAssets:false,savedSection:changed?null:state.savedSection,message,error:''};
     });
   };
+  private selectAsset=(field:AssetField,input:HTMLInputElement)=>{const file=input.files?.[0];input.value='';void this.upload(field,file);};
+  private clearAsset=(field:AssetField)=>{
+    this.assetPreparationId+=1;
+    this.setState(state=>({...state,company:{...state.company,[field]:''},...(field==='logoDataUrl'?{logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto' as const}:{}),cleaningAssets:false,savedSection:null,message:t('Artwork removed from this draft. Save Company to apply the change.','تمت إزالة الصورة من هذه المسودة. اضغط حفظ الشركة لتطبيق التغيير.'),error:''}));
+  };
   private upload=async(field:AssetField,file?:File)=>{
     if(!file)return;
+    const preparationId=++this.assetPreparationId;
+    if(file.size>MAX_COMPANY_ASSET_BYTES){this.setState({cleaningAssets:false,error:t('Image is too large. Use a file smaller than 4 MB.','حجم الصورة كبير جدًا. استخدم ملفًا أصغر من 4 ميجابايت.'),message:''});return;}
+    if(!COMPANY_ASSET_TYPES.test(file.type)){this.setState({cleaningAssets:false,error:t('Use a PNG, WebP, or JPEG image.','استخدم صورة بصيغة PNG أو WebP أو JPEG.'),message:''});return;}
     this.setState({cleaningAssets:true,error:'',message:'',savedSection:null});
     try{
       if(field==='logoDataUrl'){
         const original=await fileToRawDataUrl(file);
         const firstPass=await cleanImageDataUrl(original,'logo');
         const cleaned=await repairLogoDataUrl(firstPass);
+        if(!this.props.open||preparationId!==this.assetPreparationId)return;
         this.setState(state=>({company:{...state.company,logoDataUrl:cleaned},logoOriginalDataUrl:original,logoCleanedDataUrl:cleaned,logoRebuiltDataUrl:'',logoMode:'auto',cleaningAssets:false,savedSection:null,message:t('Logo prepared. If any background remains, use Recreate logo without background.','تم تجهيز الشعار. إذا بقيت أي خلفية استخدم خيار إعادة إنشاء الشعار بدون خلفية.'),error:''}));
         return;
       }
-      const data=await fileToDataUrl(file,4*1024*1024,this.assetKind(field));
+      const data=await fileToDataUrl(file,MAX_COMPANY_ASSET_BYTES,this.assetKind(field));
+      if(!this.props.open||preparationId!==this.assetPreparationId)return;
       this.setState(state=>({company:{...state.company,[field]:data},cleaningAssets:false,savedSection:null,message:t('Background cleaned automatically. Save to apply it to documents.','تم تنظيف الخلفية تلقائيًا. اضغط حفظ لتطبيقها على المستندات.'),error:''}));
-    }catch(e){this.setState({cleaningAssets:false,error:e instanceof Error?e.message:t('Image upload failed.','فشل رفع الصورة.')});}
+    }catch{
+      if(!this.props.open||preparationId!==this.assetPreparationId)return;
+      this.setState({cleaningAssets:false,error:t('Unable to process this image. Try another PNG, WebP, or JPEG file.','تعذرت معالجة هذه الصورة. جرّب ملف PNG أو WebP أو JPEG آخر.')});
+    }
   };
   private rebuildLogo=async()=>{
     const source=this.state.logoOriginalDataUrl||this.state.company.logoDataUrl;
     if(!source||source.includes('lourex-logo.svg')){this.setState({error:t('Upload or save a company logo first.','ارفع أو احفظ شعار الشركة أولًا.')});return;}
+    const preparationId=++this.assetPreparationId;
     this.setState({cleaningAssets:true,error:'',message:'',savedSection:null});
     try{
       const rebuilt=await rebuildLogoWithoutBackgroundDataUrl(source);
+      if(!this.props.open||preparationId!==this.assetPreparationId)return;
       if(!rebuilt||rebuilt===source){this.setState({cleaningAssets:false,error:t('The logo could not be reconstructed reliably. Try uploading the original image again.','تعذر إعادة إنشاء الشعار بشكل موثوق. جرّب رفع الصورة الأصلية مرة أخرى.')});return;}
       this.setState(state=>({company:{...state.company,logoDataUrl:rebuilt},logoRebuiltDataUrl:rebuilt,logoMode:'rebuild',cleaningAssets:false,savedSection:null,message:t('Transparent logo recreated. Review the preview, then press Save to use it on documents.','تمت إعادة إنشاء الشعار بدون خلفية. راجع المعاينة ثم اضغط حفظ لاستخدامه في المستندات.'),error:''}));
-    }catch(e){this.setState({cleaningAssets:false,error:e instanceof Error?e.message:t('Unable to recreate the logo.','تعذر إعادة إنشاء الشعار.')});}
+    }catch(e){
+      if(!this.props.open||preparationId!==this.assetPreparationId)return;
+      this.setState({cleaningAssets:false,error:e instanceof Error?e.message:t('Unable to recreate the logo.','تعذر إعادة إنشاء الشعار.')});
+    }
   };
   private setLogoMode=(logoMode:State['logoMode'])=>{
+    if(this.state.busy)return;
     const source=logoMode==='auto'?this.state.logoCleanedDataUrl:logoMode==='rebuild'?this.state.logoRebuiltDataUrl:this.state.logoOriginalDataUrl;
     if(!source)return;
+    this.assetPreparationId+=1;
     const message=logoMode==='auto'?t('Enhanced automatic logo cleanup selected.','تم اختيار التنظيف التلقائي المحسّن للشعار.'):logoMode==='rebuild'?t('Recreated transparent logo selected.','تم اختيار الشعار المعاد إنشاؤه بدون خلفية.'):t('Original logo selected with no background processing.','تم اختيار الشعار الأصلي بدون معالجة للخلفية.');
-    this.setState(state=>({logoMode,company:{...state.company,logoDataUrl:source},savedSection:null,message,error:''}));
+    this.setState(state=>({logoMode,company:{...state.company,logoDataUrl:source},cleaningAssets:false,savedSection:null,message,error:''}));
   };
   private saveCompany=async()=>{
     if(!this.state.company.nameEn.trim()&&!this.state.company.nameAr.trim()){this.setState({error:t('Company name is required.','اسم الشركة مطلوب.')});return;}
+    if(this.state.company.email.trim()&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.state.company.email.trim())){this.setState({error:t('Enter a valid company email address or leave it empty.','أدخل بريدًا إلكترونيًا صحيحًا للشركة أو اترك الحقل فارغًا.')});return;}
     const commercialError=validateCommercialCompany(this.state.company);if(commercialError){this.setState({error:commercialError});return;}
+    const source=structuredClone(this.state.company);const sourceSnapshot=JSON.stringify(source);
     this.setState({busy:true,cleaningAssets:true,error:'',message:'',savedSection:null});
-    try{const company=await this.cleanCompanyAssets(this.state.company);await this.props.onSaveCompany(company);this.setState({company,companyInitial:JSON.stringify(company),busy:false,cleaningAssets:false,savedSection:'company',message:t('Company settings saved. Logo artwork is preserved.','تم حفظ إعدادات الشركة مع الحفاظ على تفاصيل الشعار.')});}
-    catch(e){this.setState({busy:false,cleaningAssets:false,error:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')});}
+    try{
+      const company=await this.cleanCompanyAssets(source);await this.props.onSaveCompany(company);
+      this.setState(state=>{const unchanged=JSON.stringify(state.company)===sourceSnapshot;return {company:unchanged?company:state.company,companyInitial:JSON.stringify(company),busy:false,cleaningAssets:false,savedSection:unchanged?'company':null,message:unchanged?t('Company settings saved. Logo artwork is preserved.','تم حفظ إعدادات الشركة مع الحفاظ على تفاصيل الشعار.'):t('Company settings saved. Newer edits are still unsaved.','تم حفظ إعدادات الشركة، وما زالت التعديلات الأحدث غير محفوظة.')};});
+    }catch(e){this.setState({busy:false,cleaningAssets:false,error:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')});}
   };
   private saveDocuments=async()=>{
+    const settings=structuredClone(this.state.appSettings);const snapshot=JSON.stringify(settings);
     this.setState({busy:true,error:'',message:'',savedSection:null});
-    try{await this.props.onSaveAppSettings(this.state.appSettings);this.setState({busy:false,documentsInitial:JSON.stringify(this.state.appSettings),savedSection:'documents',message:t('Document settings saved.','تم حفظ إعدادات المستندات.')});}
+    try{await this.props.onSaveAppSettings(settings);this.setState(state=>{const unchanged=JSON.stringify(state.appSettings)===snapshot;return {busy:false,documentsInitial:snapshot,savedSection:unchanged?'documents':null,message:unchanged?t('Document settings saved.','تم حفظ إعدادات المستندات.'):t('Document settings saved. Newer edits are still unsaved.','تم حفظ إعدادات المستندات، وما زالت التعديلات الأحدث غير محفوظة.')};});}
     catch(e){this.setState({busy:false,error:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')});}
   };
   private changeInterfaceLanguage=async(value:AppSettings['uiLanguage'])=>{
+    if(this.state.busy)return;
     const previous=this.state.appSettings;
+    const persisted=JSON.parse(this.state.documentsInitial) as AppSettings;
     const next={...previous,uiLanguage:value};
-    this.setState({appSettings:next,error:'',message:'',savedSection:null});
-    try{await this.props.onSaveAppSettings(next);this.setState({documentsInitial:JSON.stringify(next),savedSection:'documents'});}
-    catch(e){this.setState({appSettings:previous,error:e instanceof Error?e.message:t('Unable to change interface language.','تعذر تغيير لغة الواجهة.')});}
+    const nextPersisted={...persisted,uiLanguage:value};
+    this.setState({appSettings:next,busy:true,error:'',message:'',savedSection:null});
+    try{
+      await this.props.onSaveAppSettings(nextPersisted);
+      this.setState(state=>({busy:false,documentsInitial:JSON.stringify(nextPersisted),savedSection:JSON.stringify(state.appSettings)===JSON.stringify(nextPersisted)?'documents':null}));
+    }catch(e){
+      this.setState(state=>({appSettings:state.appSettings.uiLanguage===value?{...state.appSettings,uiLanguage:previous.uiLanguage}:state.appSettings,busy:false,error:e instanceof Error?e.message:t('Unable to change interface language.','تعذر تغيير لغة الواجهة.')}));
+    }
   };
   private changePin=async()=>{
     if(!/^\d{4,12}$/.test(this.state.newPin)){this.setState({error:t('New PIN must contain 4–12 digits.','يجب أن يتكون رمز PIN الجديد من 4 إلى 12 رقمًا.')});return;}
@@ -165,20 +202,20 @@ export class SettingsModal extends React.Component<Props,State> {
           {this.state.tab==='company'?<div className="settings-tab-page">
             <div className="settings-title"><div><p className="eyebrow">{t('Company','الشركة')}</p><h3>{t('Company details','بيانات الشركة')}</h3><p>{t('Identity, contact details, artwork, bank information and document defaults.','الهوية وبيانات التواصل والشعار والبنك وإعدادات المستندات الافتراضية.')}</p></div>{this.saveButton('company')}</div>
             <section className="settings-section"><h4>{t('Identity & contact','الهوية والتواصل')}</h4><div className="form-grid two">
-              <Field label={t('Company Name English','اسم الشركة بالإنجليزية')}><Input value={c.nameEn} onChange={(e:any)=>this.setCompany('nameEn',e.target.value)}/></Field><Field label={t('Company Name Arabic','اسم الشركة بالعربية')}><Input dir="rtl" value={c.nameAr} onChange={(e:any)=>this.setCompany('nameAr',e.target.value)}/></Field>
-              <Field label={t('Address English','العنوان بالإنجليزية')}><Input value={c.addressEn} onChange={(e:any)=>this.setCompany('addressEn',e.target.value)}/></Field><Field label={t('Address Arabic','العنوان بالعربية')}><Input dir="rtl" value={c.addressAr} onChange={(e:any)=>this.setCompany('addressAr',e.target.value)}/></Field>
+              <Field label={t('Company Name English','اسم الشركة بالإنجليزية')}><Input dir="ltr" value={c.nameEn} onChange={(e:any)=>this.setCompany('nameEn',e.target.value)}/></Field><Field label={t('Company Name Arabic','اسم الشركة بالعربية')}><Input dir="rtl" value={c.nameAr} onChange={(e:any)=>this.setCompany('nameAr',e.target.value)}/></Field>
+              <Field label={t('Address English','العنوان بالإنجليزية')}><Input dir="ltr" value={c.addressEn} onChange={(e:any)=>this.setCompany('addressEn',e.target.value)}/></Field><Field label={t('Address Arabic','العنوان بالعربية')}><Input dir="rtl" value={c.addressAr} onChange={(e:any)=>this.setCompany('addressAr',e.target.value)}/></Field>
               <Field label={t('City','المدينة')}><Input value={c.city} onChange={(e:any)=>this.setCompany('city',e.target.value)}/></Field><Field label={t('Country','الدولة')}><Input value={c.country} onChange={(e:any)=>this.setCompany('country',e.target.value)}/></Field>
-              <Field label={t('Phone','الهاتف')}><Input value={c.phone} onChange={(e:any)=>this.setCompany('phone',e.target.value)}/></Field><Field label={t('Email','البريد الإلكتروني')}><Input type="email" value={c.email} onChange={(e:any)=>this.setCompany('email',e.target.value)}/></Field>
-              <Field label={t('Website','الموقع الإلكتروني')}><Input value={c.website} onChange={(e:any)=>this.setCompany('website',e.target.value)}/></Field><Field label={t('VAT Number','رقم ضريبة القيمة المضافة')}><Input value={c.vatNumber} onChange={(e:any)=>this.setCompany('vatNumber',e.target.value)}/></Field>
-              <Field label={t('Tax Number','الرقم الضريبي')}><Input value={c.taxNumber} onChange={(e:any)=>this.setCompany('taxNumber',e.target.value)}/></Field><Field label={t('Commercial Registration','السجل التجاري')}><Input value={c.commercialRegistration} onChange={(e:any)=>this.setCompany('commercialRegistration',e.target.value)}/></Field>
+              <Field label={t('Phone','الهاتف')}><Input type="tel" inputMode="tel" autoComplete="tel" dir="ltr" value={c.phone} onChange={(e:any)=>this.setCompany('phone',e.target.value)}/></Field><Field label={t('Email','البريد الإلكتروني')}><Input type="email" inputMode="email" autoComplete="email" dir="ltr" value={c.email} onChange={(e:any)=>this.setCompany('email',e.target.value)}/></Field>
+              <Field label={t('Website','الموقع الإلكتروني')}><Input type="url" inputMode="url" autoComplete="url" dir="ltr" value={c.website} onChange={(e:any)=>this.setCompany('website',e.target.value)}/></Field><Field label={t('VAT Number','رقم ضريبة القيمة المضافة')}><Input dir="ltr" value={c.vatNumber} onChange={(e:any)=>this.setCompany('vatNumber',e.target.value)}/></Field>
+              <Field label={t('Tax Number','الرقم الضريبي')}><Input dir="ltr" value={c.taxNumber} onChange={(e:any)=>this.setCompany('taxNumber',e.target.value)}/></Field><Field label={t('Commercial Registration','السجل التجاري')}><Input dir="ltr" value={c.commercialRegistration} onChange={(e:any)=>this.setCompany('commercialRegistration',e.target.value)}/></Field>
             </div></section>
             <section className="settings-section company-artwork-section"><div className="settings-section-heading"><div><h4>{t('Company artwork','هوية الشركة البصرية')}</h4><p>{t('These images are cleaned locally before they are saved into encrypted company data.','تتم معالجة هذه الصور محليًا قبل حفظها داخل بيانات الشركة المشفّرة.')}</p></div></div><div className="asset-settings">
-              <div className="asset-control logo-asset-control"><label><span>{t('Logo','الشعار')}</span><div className="asset-preview">{hasCompanyLogo?<img src={c.logoDataUrl} alt={t('Logo','الشعار')}/>:<Icon name="upload"/>}</div><input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" onChange={(e:any)=>this.upload('logoDataUrl',e.target.files?.[0])}/></label>{this.state.logoOriginalDataUrl?<><div className="logo-mode-switch" role="group" aria-label={t('Logo processing','معالجة الشعار')}><button type="button" className={this.state.logoMode==='auto'?'active':''} onClick={()=>this.setLogoMode('auto')}>{t('Auto clean','تنظيف تلقائي')}</button><button type="button" className={this.state.logoMode==='original'?'active':''} onClick={()=>this.setLogoMode('original')}>{t('Original','الأصلي')}</button></div><button type="button" className={`logo-rebuild-action ${this.state.logoMode==='rebuild'?'active':''}`} disabled={this.state.cleaningAssets||this.state.busy} onClick={()=>void this.rebuildLogo()}>{this.state.cleaningAssets?t('Recreating logo…','جارٍ إعادة إنشاء الشعار…'):t('Recreate logo without background','إعادة إنشاء الشعار بدون خلفية')}</button>{this.state.logoRebuiltDataUrl&&this.state.logoMode!=='rebuild'?<button type="button" className="logo-rebuild-restore" onClick={()=>this.setLogoMode('rebuild')}>{t('Use recreated version','استخدام النسخة المعاد إنشاؤها')}</button>:null}</>:null}</div>
-              <label><span>{t('Signature','التوقيع')}</span><div className="asset-preview">{c.signatureDataUrl?<img src={c.signatureDataUrl} alt={t('Signature','التوقيع')}/>:<Icon name="upload"/>}</div><input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" onChange={(e:any)=>this.upload('signatureDataUrl',e.target.files?.[0])}/></label>
-              <label><span>{t('Stamp','الختم')}</span><div className="asset-preview">{c.stampDataUrl?<img src={c.stampDataUrl} alt={t('Stamp','الختم')}/>:<Icon name="upload"/>}</div><input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" onChange={(e:any)=>this.upload('stampDataUrl',e.target.files?.[0])}/></label>
+              <div className="asset-control logo-asset-control"><label><span>{t('Logo','الشعار')}</span><div className="asset-preview">{hasCompanyLogo?<img src={c.logoDataUrl} alt={t('Logo','الشعار')}/>:<Icon name="upload"/>}</div><input type="file" disabled={this.state.busy||this.state.cleaningAssets} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectAsset('logoDataUrl',e.currentTarget)}/></label>{this.state.logoOriginalDataUrl?<><div className="logo-mode-switch" role="group" aria-label={t('Logo processing','معالجة الشعار')}><button type="button" className={this.state.logoMode==='auto'?'active':''} onClick={()=>this.setLogoMode('auto')}>{t('Auto clean','تنظيف تلقائي')}</button><button type="button" className={this.state.logoMode==='original'?'active':''} onClick={()=>this.setLogoMode('original')}>{t('Original','الأصلي')}</button></div><button type="button" className={`logo-rebuild-action ${this.state.logoMode==='rebuild'?'active':''}`} disabled={this.state.cleaningAssets||this.state.busy} onClick={()=>void this.rebuildLogo()}>{this.state.cleaningAssets?t('Recreating logo…','جارٍ إعادة إنشاء الشعار…'):t('Recreate logo without background','إعادة إنشاء الشعار بدون خلفية')}</button>{this.state.logoRebuiltDataUrl&&this.state.logoMode!=='rebuild'?<button type="button" className="logo-rebuild-restore" onClick={()=>this.setLogoMode('rebuild')}>{t('Use recreated version','استخدام النسخة المعاد إنشاؤها')}</button>:null}</>:null}{hasCompanyLogo?<button type="button" className="logo-rebuild-restore asset-remove-action" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>this.clearAsset('logoDataUrl')}>{t('Remove logo','إزالة الشعار')}</button>:null}</div>
+              <div className="asset-control"><label><span>{t('Signature','التوقيع')}</span><div className="asset-preview">{c.signatureDataUrl?<img src={c.signatureDataUrl} alt={t('Signature','التوقيع')}/>:<Icon name="upload"/>}</div><input type="file" disabled={this.state.busy||this.state.cleaningAssets} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectAsset('signatureDataUrl',e.currentTarget)}/></label>{c.signatureDataUrl?<button type="button" className="logo-rebuild-restore asset-remove-action" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>this.clearAsset('signatureDataUrl')}>{t('Remove signature','إزالة التوقيع')}</button>:null}</div>
+              <div className="asset-control"><label><span>{t('Stamp','الختم')}</span><div className="asset-preview">{c.stampDataUrl?<img src={c.stampDataUrl} alt={t('Stamp','الختم')}/>:<Icon name="upload"/>}</div><input type="file" disabled={this.state.busy||this.state.cleaningAssets} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectAsset('stampDataUrl',e.currentTarget)}/></label>{c.stampDataUrl?<button type="button" className="logo-rebuild-restore asset-remove-action" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>this.clearAsset('stampDataUrl')}>{t('Remove stamp','إزالة الختم')}</button>:null}</div>
             </div><p className={`asset-clean-hint ${this.state.cleaningAssets?'is-cleaning':''}`}><Icon name={this.state.cleaningAssets?'refresh':'check'}/><span>{this.state.cleaningAssets?t('Processing company images…','جارٍ معالجة صور الشركة…'):t('Auto clean is conservative. Recreate logo without background is the stronger option for stubborn dark/gray remnants.','التنظيف التلقائي محافظ. خيار إعادة إنشاء الشعار بدون خلفية هو الحل الأقوى لبقايا الخلفية السوداء أو الرمادية العنيدة.')}</span></p></section>
-            <section className="settings-section"><h4>{t('Bank details','بيانات البنك')}</h4><div className="form-grid two"><Field label={t('Bank Name','اسم البنك')}><Input value={c.bank.bankName} onChange={(e:any)=>this.setBank('bankName',e.target.value)}/></Field><Field label={t('Account Name','اسم الحساب')}><Input value={c.bank.accountName} onChange={(e:any)=>this.setBank('accountName',e.target.value)}/></Field><Field label="IBAN"><Input value={c.bank.iban} onChange={(e:any)=>this.setBank('iban',e.target.value)}/></Field><Field label="SWIFT / BIC"><Input value={c.bank.swift} onChange={(e:any)=>this.setBank('swift',e.target.value)}/></Field><Field label={t('Bank Currency','عملة البنك')}><Input value={c.bank.currency} onChange={(e:any)=>this.setBank('currency',e.target.value.toUpperCase())}/></Field></div></section>
-            <section className="settings-section"><h4>{t('Language & defaults','اللغة والإعدادات الافتراضية')}</h4><div className="form-grid two"><Field label={t('Interface Language','لغة الواجهة')}><Select value={s.uiLanguage||'en'} onChange={(e:any)=>void this.changeInterfaceLanguage(e.target.value as AppSettings['uiLanguage'])}><option value="en">English</option><option value="ar">العربية</option></Select></Field><Field label={t('Default Currency','العملة الافتراضية')}><Input value={c.defaultCurrency} onChange={(e:any)=>this.setCompany('defaultCurrency',e.target.value.toUpperCase())}/></Field><Field label={t('Default Document Language','لغة المستند الافتراضية')}><Select value={c.defaultLanguage} onChange={(e:any)=>this.setCompany('defaultLanguage',e.target.value)}><option value="en">English</option><option value="ar">العربية</option><option value="bilingual">{t('Arabic + English','العربية + الإنجليزية')}</option></Select></Field><Field label={t('Default Payment Terms','شروط الدفع الافتراضية')}><Input value={c.defaultPaymentTerms} onChange={(e:any)=>this.setCompany('defaultPaymentTerms',e.target.value)}/></Field><Field label={t('Default Incoterm','شرط التجارة الافتراضي')}><Input value={c.defaultIncoterm} onChange={(e:any)=>this.setCompany('defaultIncoterm',e.target.value)}/></Field><Field label={t('Default Delivery Time','مدة التسليم الافتراضية')}><Input value={c.defaultDeliveryTime} onChange={(e:any)=>this.setCompany('defaultDeliveryTime',e.target.value)}/></Field><Field label={t('Default Validity (days)','مدة الصلاحية الافتراضية (أيام)')}><Input type="number" min="0" max="3650" step="1" value={String(c.defaultValidityDays)} onChange={(e:any)=>this.setCompany('defaultValidityDays',Math.min(3650,Math.max(0,Math.trunc(Number(e.target.value)||0))))}/></Field><Field label={t('Default Footer Text','نص التذييل الافتراضي')} className="span-2"><Input value={c.defaultFooterText} onChange={(e:any)=>this.setCompany('defaultFooterText',e.target.value)}/></Field><Field label={t('Default Notes','الملاحظات الافتراضية')} className="span-2"><Textarea rows="3" value={c.defaultNotes} onChange={(e:any)=>this.setCompany('defaultNotes',e.target.value)}/></Field></div></section>
+            <section className="settings-section"><h4>{t('Bank details','بيانات البنك')}</h4><div className="form-grid two"><Field label={t('Bank Name','اسم البنك')}><Input value={c.bank.bankName} onChange={(e:any)=>this.setBank('bankName',e.target.value)}/></Field><Field label={t('Account Name','اسم الحساب')}><Input value={c.bank.accountName} onChange={(e:any)=>this.setBank('accountName',e.target.value)}/></Field><Field label="IBAN"><Input dir="ltr" value={c.bank.iban} onChange={(e:any)=>this.setBank('iban',e.target.value)}/></Field><Field label="SWIFT / BIC"><Input dir="ltr" value={c.bank.swift} onChange={(e:any)=>this.setBank('swift',e.target.value)}/></Field><Field label={t('Bank Currency','عملة البنك')}><Input dir="ltr" value={c.bank.currency} onChange={(e:any)=>this.setBank('currency',e.target.value.toUpperCase())}/></Field></div></section>
+            <section className="settings-section"><h4>{t('Language & defaults','اللغة والإعدادات الافتراضية')}</h4><div className="form-grid two"><Field label={t('Interface Language','لغة الواجهة')}><Select disabled={this.state.busy} value={s.uiLanguage||'en'} onChange={(e:any)=>void this.changeInterfaceLanguage(e.target.value as AppSettings['uiLanguage'])}><option value="en">English</option><option value="ar">العربية</option></Select></Field><Field label={t('Default Currency','العملة الافتراضية')}><Input dir="ltr" value={c.defaultCurrency} onChange={(e:any)=>this.setCompany('defaultCurrency',e.target.value.toUpperCase())}/></Field><Field label={t('Default Document Language','لغة المستند الافتراضية')}><Select value={c.defaultLanguage} onChange={(e:any)=>this.setCompany('defaultLanguage',e.target.value)}><option value="en">English</option><option value="ar">العربية</option><option value="bilingual">{t('Arabic + English','العربية + الإنجليزية')}</option></Select></Field><Field label={t('Default Payment Terms','شروط الدفع الافتراضية')}><Input value={c.defaultPaymentTerms} onChange={(e:any)=>this.setCompany('defaultPaymentTerms',e.target.value)}/></Field><Field label={t('Default Incoterm','شرط التجارة الافتراضي')}><Input value={c.defaultIncoterm} onChange={(e:any)=>this.setCompany('defaultIncoterm',e.target.value)}/></Field><Field label={t('Default Delivery Time','مدة التسليم الافتراضية')}><Input value={c.defaultDeliveryTime} onChange={(e:any)=>this.setCompany('defaultDeliveryTime',e.target.value)}/></Field><Field label={t('Default Validity (days)','مدة الصلاحية الافتراضية (أيام)')}><Input type="number" min="0" max="3650" step="1" value={String(c.defaultValidityDays)} onChange={(e:any)=>this.setCompany('defaultValidityDays',Math.min(3650,Math.max(0,Math.trunc(Number(e.target.value)||0))))}/></Field><Field label={t('Default Footer Text','نص التذييل الافتراضي')} className="span-2"><Input value={c.defaultFooterText} onChange={(e:any)=>this.setCompany('defaultFooterText',e.target.value)}/></Field><Field label={t('Default Notes','الملاحظات الافتراضية')} className="span-2"><Textarea rows="3" value={c.defaultNotes} onChange={(e:any)=>this.setCompany('defaultNotes',e.target.value)}/></Field></div></section>
           </div>:null}
 
           {this.state.tab==='commercial'?<div className="settings-tab-page"><div className="settings-title"><div><p className="eyebrow">{t('Commercial','تجاري')}</p><h3>{t('Commercial controls','الضوابط التجارية')}</h3><p>{t('Reusable tax, payment, bank, credit and pricing controls.','ضوابط قابلة لإعادة الاستخدام للضريبة والدفع والبنوك والائتمان والتسعير.')}</p></div>{this.saveButton('company')}</div><CommercialControlsSettings company={c} onChange={company=>this.setState({company,savedSection:null,message:'',error:''})}/></div>:null}

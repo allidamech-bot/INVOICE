@@ -80,5 +80,7 @@ test('settings modal warns before discarding persistent unsaved company or docum
   assert.match(settings,/Discard unsaved settings\?/);
   assert.match(settings,/onConfirm=\{this\.discardAndClose\}/);
   assert.match(settings,/companyInitial:JSON\.stringify\(company\)/);
-  assert.match(settings,/documentsInitial:JSON\.stringify\(next\)/);
+  assert.match(settings,/const nextPersisted=\{\.\.\.persisted,uiLanguage:value\}/);
+  assert.match(settings,/documentsInitial:JSON\.stringify\(nextPersisted\)/);
+  assert.match(settings,/appSettings:state\.appSettings\.uiLanguage===value\?\{\.\.\.state\.appSettings,uiLanguage:previous\.uiLanguage\}:state\.appSettings/);
 });
