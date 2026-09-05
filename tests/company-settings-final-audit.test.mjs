@@ -75,7 +75,7 @@ test('company save validates optional email without changing historical document
   const [settings,documents]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/lib/documents.ts')]);
   assert.match(settings,/Enter a valid company email address or leave it empty/);
   assert.match(documents,/companySnapshot:/);
-  assert.match(documents,/structuredClone\(company\)/);
+  assert.match(documents,/companySnapshotFrom\(company\)/);
 });
 
 test('stale artwork work cannot overwrite a closed or reopened settings session',async()=>{
