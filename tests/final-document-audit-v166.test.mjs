@@ -52,7 +52,7 @@ test('hidden translations do not create extra A4 item pages in a single-language
 
 test('document runtime changes ship through the explicit-update PWA cache generation',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v166';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v167';$/m);
   assert.ok(sw.includes('./src/components/EditorPage.js'));
   assert.ok(sw.includes('./src/components/EditorPageCore.js'));
   assert.match(sw,/SKIP_WAITING/);
