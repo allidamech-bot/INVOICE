@@ -17,7 +17,7 @@ interface Props {
   onDelete: (doc: LourexDocument) => void;
 }
 
-type WorkspaceStatus='all'|'draft'|'ready'|'final';
+type WorkspaceStatus='all'|'draft'|'ready'|'final'|'voided';
 type SortMode='latest'|'oldest'|'highest'|'lowest';
 type PaymentFilter='all'|PaymentStatus;
 interface State {
@@ -33,9 +33,16 @@ interface State {
   detailId:string;
 }
 
-function workflowStatus(doc:LourexDocument):Exclude<WorkspaceStatus,'all'>{
+function workflowStatus(doc:LourexDocument):Exclude<WorkspaceStatus,'all'|'voided'>{
   if(doc.status==='final')return 'final';
   return Object.keys(validateDocument(doc)).length===0?'ready':'draft';
+}
+
+function matchesWorkspaceStatus(doc:LourexDocument,status:WorkspaceStatus):boolean{
+  if(status==='all')return true;
+  if(status==='voided')return doc.lifecycleStatus==='voided';
+  if(status==='final')return doc.status==='final'&&doc.lifecycleStatus!=='voided';
+  return workflowStatus(doc)===status;
 }
 
 function itemCountLabel(count:number):string{
@@ -127,7 +134,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     const q=this.state.query.trim().toLowerCase();
     return this.props.documents.filter(doc=>{
       if(this.state.tab!=='all'&&doc.kind!==this.state.tab)return false;
-      if(this.state.status!=='all'&&workflowStatus(doc)!==this.state.status)return false;
+      if(!matchesWorkspaceStatus(doc,this.state.status))return false;
       if(this.state.currency!=='all'&&doc.currency!==this.state.currency)return false;
       if(this.state.payment!=='all'&&this.paymentStatus(doc)!==this.state.payment)return false;
       if(q&&!documentSearchText(doc).includes(q))return false;
@@ -171,7 +178,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     const canConvert=Boolean(this.props.onConvert&&doc.kind==='proforma'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
     return <>
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({detailId:doc.id}))}><Icon name="eye"/>{t('View details','عرض التفاصيل')}</button>
-      <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onOpen(doc))}><Icon name="edit"/>{doc.status==='final'?t('Open / manage','فتح / إدارة'):t('Continue editing','متابعة التحرير')}</button>
+      <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onOpen(doc))}><Icon name="edit"/>{doc.lifecycleStatus==='voided'?t('Open archive','فتح الأرشيف'):doc.status==='final'?t('Open / manage','فتح / إدارة'):t('Continue editing','متابعة التحرير')}</button>
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onDuplicate(doc))}><Icon name="copy"/>{t('Duplicate','نسخ')}</button>
       {linkedInvoice?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({detailId:linkedInvoice.id}))}><Icon name="invoice"/>{t(`Open linked invoice ${linkedInvoice.number}`,`فتح الفاتورة المرتبطة ${linkedInvoice.number}`)}</button>:canConvert?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.convertQuote(doc))}><Icon name="invoice"/>{t('Convert to Invoice','تحويل إلى فاتورة')}</button>:null}
       {canOutput?<><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}><Icon name="download"/>{this.state.outputId===doc.id?t('Preparing…','جارٍ التجهيز…'):'PDF'}</button><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}><Icon name="share"/>{t('Share','مشاركة')}</button></>:null}
@@ -210,7 +217,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       <div className="document-detail-topbar">
         <button type="button" className="document-detail-back" onClick={()=>this.setState({detailId:'',menuId:''})}><Icon name="arrowLeft"/><span>{t('Documents','المستندات')}</span></button>
         <div className="document-detail-actions">
-          <Button icon="edit" variant="primary" onClick={()=>this.props.onOpen(doc)}>{doc.status==='final'?t('Open / manage','فتح / إدارة'):t('Continue editing','متابعة التحرير')}</Button>
+          <Button icon={doc.lifecycleStatus==='voided'?'file':'edit'} variant="primary" onClick={()=>this.props.onOpen(doc)}>{doc.lifecycleStatus==='voided'?t('Open archive','فتح الأرشيف'):doc.status==='final'?t('Open / manage','فتح / إدارة'):t('Continue editing','متابعة التحرير')}</Button>
           {linkedInvoice?<Button icon="invoice" onClick={()=>this.setState({detailId:linkedInvoice.id,menuId:''})}>{t(`Open ${linkedInvoice.number}`,`فتح ${linkedInvoice.number}`)}</Button>:canConvert?<Button icon="invoice" onClick={()=>this.convertQuote(doc)}>{t('Convert to Invoice','تحويل إلى فاتورة')}</Button>:null}
           {canOutput?<><Button icon="download" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}>PDF</Button><Button icon="share" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}>{t('Share','مشاركة')}</Button></>:null}
           <div className="document-detail-more"><IconButton icon="more" label={t('More actions','إجراءات أخرى')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/>{this.state.menuId===doc.id?<div className="document-action-popover" role="menu">{this.actionButtons(doc)}</div>:null}</div>
@@ -228,7 +235,7 @@ export class DocumentsPage extends React.Component<Props,State>{
             <header><h2>{t('Document overview','بيانات المستند')}</h2></header>
             <div className="document-detail-facts">
               <div><small>{t('Issue date','تاريخ الإصدار')}</small><strong>{displayDate(doc.issueDate,getUiLanguage())}</strong></div>
-              <div><small>{doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):t('Validity / due','الصلاحية / الاستحقاق')}</small><strong>{doc.dueDate?displayDate(doc.dueDate,getUiLanguage()):'—'}</strong></div>
+              <div><small>{doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):t('Valid until','صالح حتى')}</small><strong>{doc.dueDate?displayDate(doc.dueDate,getUiLanguage()):'—'}</strong></div>
               <div><small>{t('Currency','العملة')}</small><strong>{doc.currency}</strong></div>
               <div><small>{t('Language','اللغة')}</small><strong>{doc.language==='bilingual'?t('Bilingual','ثنائي اللغة'):doc.language==='ar'?t('Arabic','العربية'):t('English','الإنجليزية')}</strong></div>
             </div>
@@ -270,7 +277,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     const quotes=this.props.documents.filter(doc=>doc.kind==='proforma'&&doc.role==='standard').length;
     const invoices=this.props.documents.filter(doc=>doc.kind==='invoice'&&doc.role==='standard').length;
     const drafts=this.props.documents.filter(doc=>workflowStatus(doc)==='draft').length;
-    const issued=this.props.documents.filter(doc=>workflowStatus(doc)==='final'&&doc.lifecycleStatus!=='voided').length;
+    const issued=this.props.documents.filter(doc=>matchesWorkspaceStatus(doc,'final')).length;
     const resume=[...this.props.documents].filter(doc=>doc.status!=='final').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0]??null;
     const currencies=Array.from(new Set(this.props.documents.map(doc=>doc.currency).filter(Boolean))).sort();
     const filteredView=Boolean(this.state.query||this.state.tab!=='all'||this.state.status!=='all'||this.state.payment!=='all'||this.state.currency!=='all');
@@ -297,7 +304,7 @@ export class DocumentsPage extends React.Component<Props,State>{
         <div className="documents-filter-stack">
           <Segmented value={this.state.tab} onChange={value=>this.setState({tab:value as State['tab'],menuId:''})} options={[{value:'all',label:t('All','الكل')},{value:'proforma',label:t('Quotes','عروض الأسعار')},{value:'invoice',label:t('Invoices','الفواتير')}]}/>
           <div className="documents-advanced-filters">
-            <Select aria-label={t('Document status','حالة المستند')} value={this.state.status} onChange={(e:any)=>this.setState({status:e.target.value as WorkspaceStatus,menuId:''})}><option value="all">{t('Any document status','كل حالات المستند')}</option><option value="draft">{t('Draft','مسودة')}</option><option value="ready">{t('Ready to issue','جاهز للإصدار')}</option><option value="final">{t('Issued','صادر')}</option></Select>
+            <Select aria-label={t('Document status','حالة المستند')} value={this.state.status} onChange={(e:any)=>this.setState({status:e.target.value as WorkspaceStatus,menuId:''})}><option value="all">{t('Any document status','كل حالات المستند')}</option><option value="draft">{t('Draft','مسودة')}</option><option value="ready">{t('Ready to issue','جاهز للإصدار')}</option><option value="final">{t('Issued','صادر')}</option><option value="voided">{t('Cancelled / Voided','ملغى')}</option></Select>
             <Select aria-label={t('Payment status','حالة الدفع')} value={this.state.payment} onChange={(e:any)=>this.setState({payment:e.target.value as PaymentFilter,tab:e.target.value==='all'?this.state.tab:'invoice',menuId:''})}><option value="all">{t('Any payment status','كل حالات الدفع')}</option><option value="unpaid">{t('Unpaid','غير مدفوعة')}</option><option value="partially-paid">{t('Partially Paid','مدفوعة جزئيًا')}</option><option value="paid">{t('Paid','مدفوعة')}</option><option value="overdue">{t('Overdue','متأخرة')}</option></Select>
             <Select aria-label={t('Currency','العملة')} value={this.state.currency} onChange={(e:any)=>this.setState({currency:e.target.value,menuId:''})}><option value="all">{t('All currencies','كل العملات')}</option>{currencies.map(currency=><option key={currency} value={currency}>{currency}</option>)}</Select>
           </div>
@@ -318,7 +325,7 @@ export class DocumentsPage extends React.Component<Props,State>{
           <div className="document-actions desktop-actions"><IconButton icon="more" label={t('Document actions','إجراءات المستند')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/>{this.state.menuId===doc.id?<div className="document-action-popover" role="menu">{this.actionButtons(doc)}</div>:null}</div>
           <div className="mobile-actions"><IconButton icon="more" label={t('Actions','الإجراءات')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/></div>
         </article>;
-      })}</div>:<div className="empty-state documents-empty"><span className="empty-mark"><Icon name="file" size={28}/></span><h2>{filteredView?t('No matching documents','لا توجد مستندات مطابقة'):t('No documents yet','لا توجد مستندات بعد')}</h2><p>{filteredView?t('Try another search or filter.','جرّب بحثًا أو تصفية مختلفة.'):t('Start with a quotation, then issue the invoice when the deal is confirmed.','ابدأ بعرض سعر، ثم أصدر الفاتورة عند تأكيد الصفقة.')}</p>{filteredView?<div className="empty-actions"><Button icon="refresh" onClick={this.clearFilters}>{t('Clear filters','مسح التصفية')}</Button></div>:<div className="empty-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Create Quote','إنشاء عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Create Invoice','إنشاء فاتورة')}</Button></div>}</div>}
+      })}</div>:<div className="empty-state documents-empty"><span className="empty-mark"><Icon name="file" size={28}/></span><h2>{filteredView?t('No matching documents','لا توجد مستندات مطابقة'):t('No documents yet','لا توجد مستندات بعد')}</h2><p>{filteredView?t('Try another search or filter.','جرّب بحثًا أو تصفية مختلفة.'):t('Start with a quotation, then issue the invoice when the deal is confirmed.','ابدأ بعرض سعر، ثم أصدر الفاتورة عند تأكيد الصفقة.')}</p>{filteredView?<div className="empty-actions"><Button icon="refresh" onClick={this.clearFilters}>{t('Clear filters','مسح التصفية')}</Button>:<div className="empty-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Create Quote','إنشاء عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Create Invoice','إنشاء فاتورة')}</Button></div>}</div>}
       {this.renderMobileActionPortal()}
     </section>;
   }
