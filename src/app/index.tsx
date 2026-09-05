@@ -19,10 +19,15 @@ async function start():Promise<void>{
 }
 void start();
 
+function reloadUnsafeWorkspaceOpen():boolean{
+  return Boolean(document.querySelector('.editor-screen,.operations-page,.product-library-pro.editor-open,.modal-backdrop'));
+}
+
 // The cloud layer may install a newer account copy while the UI is idle.
-// Reloading here rehydrates React from the exact encrypted account copy.
+// Reloading here rehydrates React from the exact encrypted account copy, but
+// never discard a document, inline Operations draft, product draft, or modal.
 window.addEventListener('lourex-cloud-applied',()=>{
-  if(document.querySelector('.editor-screen'))return;
+  if(reloadUnsafeWorkspaceOpen())return;
   window.location.reload();
 });
 
@@ -39,8 +44,6 @@ window.addEventListener('keydown',(event:KeyboardEvent)=>{
 
 let pendingUpdateWorker:ServiceWorker|null=null;
 let reloadForUpdate=false;
-
-function isDocumentEditorOpen():boolean{return Boolean(document.querySelector('.editor-screen'));}
 
 function showUpdateNotice(worker?:ServiceWorker|null):void{
   if(worker)pendingUpdateWorker=worker;
@@ -59,7 +62,7 @@ function showUpdateNotice(worker?:ServiceWorker|null):void{
   const title=document.createElement('strong');
   title.textContent='LOUREX update ready / تحديث LOUREX جاهز';
   const detail=document.createElement('small');
-  detail.textContent='Close any open document, then update safely / أغلق أي مستند مفتوح ثم حدّث بأمان';
+  detail.textContent='Close any open editor or data-entry workspace, then update safely / أغلق أي محرر أو مساحة إدخال مفتوحة ثم حدّث بأمان';
   detail.style.opacity='.78';
   copy.append(title,detail);
 
@@ -75,8 +78,8 @@ function showUpdateNotice(worker?:ServiceWorker|null):void{
   reload.style.fontWeight='800';
   reload.style.whiteSpace='nowrap';
   reload.addEventListener('click',()=>{
-    if(isDocumentEditorOpen()){
-      detail.textContent='Close the open document first so its latest changes are saved / أغلق المستند المفتوح أولًا ليتم حفظ آخر التغييرات';
+    if(reloadUnsafeWorkspaceOpen()){
+      detail.textContent='Close the open editor or data-entry workspace first so unsaved changes are not lost / أغلق المحرر أو مساحة الإدخال المفتوحة أولًا حتى لا تضيع التعديلات غير المحفوظة';
       return;
     }
     const waiting=pendingUpdateWorker;
