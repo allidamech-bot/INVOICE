@@ -23,6 +23,7 @@ interface EditorSectionNavItem {
 interface State {
   sections:EditorSectionNavItem[];
   activeSectionId:string;
+  persistenceError:string;
 }
 
 // Keep the editor's internal draft state scoped to one document identity.
@@ -35,25 +36,32 @@ export class EditorPage extends React.Component<Props,State>{
   private navSetupTimer:number|undefined;
   private navMutationObserver:MutationObserver|undefined;
   private navScrollRoot:HTMLElement|null=null;
+  private initialDraftPersisted=false;
+  private mounted=false;
 
   constructor(props:Props){
     super(props);
-    this.state={sections:[],activeSectionId:''};
+    this.state={sections:[],activeSectionId:'',persistenceError:''};
   }
 
   componentDidMount():void{
+    this.mounted=true;
+    this.ensureInitialDraftPersisted();
     this.resetScroll();
     this.scheduleSectionNavigationSetup();
   }
 
   componentDidUpdate(prevProps:Props):void{
     if(prevProps.document.id!==this.props.document.id){
+      this.initialDraftPersisted=false;
+      this.ensureInitialDraftPersisted();
       this.resetScroll();
       this.scheduleSectionNavigationSetup();
     }
   }
 
   componentWillUnmount():void{
+    this.mounted=false;
     if(this.resetFrame!==undefined)window.cancelAnimationFrame(this.resetFrame);
     if(this.resetTimer!==undefined)window.clearTimeout(this.resetTimer);
     if(this.navFrame!==undefined)window.cancelAnimationFrame(this.navFrame);
@@ -211,6 +219,23 @@ export class EditorPage extends React.Component<Props,State>{
     }
   };
 
+  private ensureInitialDraftPersisted=()=>{
+    const doc=this.props.document;
+    if(doc.status==='final'||this.props.documents.some(item=>item.id===doc.id)){
+      this.initialDraftPersisted=true;
+      return;
+    }
+    if(this.initialDraftPersisted)return;
+    this.initialDraftPersisted=true;
+    void this.saveWithProtectedRetry(structuredClone(doc),true).then(()=>{
+      if(this.mounted&&this.state.persistenceError)this.setState({persistenceError:''});
+    }).catch(e=>{
+      this.initialDraftPersisted=false;
+      if(!this.mounted)return;
+      this.setState({persistenceError:e instanceof Error?e.message:t('Unable to save the new draft locally.','تعذر حفظ المسودة الجديدة محليًا.')});
+    });
+  };
+
   render():any{
     const props=this.props;
     const canConvertFinalQuote=props.document.kind==='proforma'&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
@@ -229,6 +254,7 @@ export class EditorPage extends React.Component<Props,State>{
       <span className="editor-nav-live-status" aria-live="polite">{sections.find(section=>section.id===this.state.activeSectionId)?.label||''}</span>
     </nav>:null;
     return <>
+      {this.state.persistenceError?<div className="editor-global-error" role="alert">{this.state.persistenceError}</div>:null}
       <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry}/>
       <DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={props.onDiscardRevision} onVoid={props.onVoidDocument} onCreateCreditNote={props.onCreateCreditNote}/>
       <InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>
