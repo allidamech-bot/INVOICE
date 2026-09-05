@@ -70,6 +70,18 @@ test('concurrent purchase drafts cannot reserve the same purchase number',()=>{
   assert.throws(()=>mergeVaultIntent(base,{...base,purchases:[second]},latest),/purchase number already exists/i);
 });
 
+test('concurrent purchases for the same item cannot race the reusable last cost cache',()=>{
+  const base=emptyVault();base.suppliers=[supplier()];base.savedItems=[savedItem()];
+  const firstDraft=purchaseFor(base,{id:'purchase-cost-a',number:'PUR-2026-0101'});
+  const secondDraft=purchaseFor(base,{id:'purchase-cost-b',number:'PUR-2026-0102'});secondDraft.items[0].unitCost='20.00';secondDraft.freight='0.00';
+  base.purchases=[firstDraft,secondDraft];
+  const first=postPurchase(firstDraft,base.savedItems,base.inventoryMovements);
+  const latest=mergeVaultIntent(base,{...base,purchases:[first.purchase,secondDraft],inventoryMovements:first.movements,savedItems:first.savedItems},base);
+  assert.equal(latest.savedItems[0].lastUnitCost,first.purchase.items[0].landedUnitCost);
+  const second=postPurchase(secondDraft,base.savedItems,base.inventoryMovements);
+  assert.throws(()=>mergeVaultIntent(base,{...base,purchases:[firstDraft,second.purchase],inventoryMovements:second.movements,savedItems:second.savedItems},latest),/item cost changed on another device/i);
+});
+
 test('saved item deletion cannot erase an item that gained purchase history concurrently',()=>{
   const base=emptyVault();base.suppliers=[supplier()];base.savedItems=[savedItem()];
   const purchase=purchaseFor(base,{id:'purchase-new'});
