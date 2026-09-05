@@ -37,6 +37,7 @@ export class EditorPage extends React.Component<Props,State>{
   private navMutationObserver:MutationObserver|undefined;
   private navScrollRoot:HTMLElement|null=null;
   private initialDraftPersisted=false;
+  private quoteConversionRunning=false;
   private mounted=false;
 
   constructor(props:Props){
@@ -54,6 +55,7 @@ export class EditorPage extends React.Component<Props,State>{
   componentDidUpdate(prevProps:Props):void{
     if(prevProps.document.id!==this.props.document.id){
       this.initialDraftPersisted=false;
+      this.quoteConversionRunning=false;
       this.ensureInitialDraftPersisted();
       this.resetScroll();
       this.scheduleSectionNavigationSetup();
@@ -224,6 +226,12 @@ export class EditorPage extends React.Component<Props,State>{
     await this.props.onPrint(doc,mode);
   };
 
+  private convertFinalQuote=()=>{
+    if(this.quoteConversionRunning)return;
+    this.quoteConversionRunning=true;
+    void Promise.resolve(this.props.onConvert(this.props.document)).finally(()=>{this.quoteConversionRunning=false;});
+  };
+
   private ensureInitialDraftPersisted=()=>{
     const doc=this.props.document;
     if(doc.status==='final'||this.props.documents.some(item=>item.id===doc.id)){
@@ -271,7 +279,7 @@ export class EditorPage extends React.Component<Props,State>{
         <div><Icon name="check" size={18}/><span><strong>{t('Invoice already created from this quote.','تم إنشاء فاتورة من عرض السعر هذا بالفعل.')}</strong><small>{t(`Linked invoice: ${linkedInvoice.number}. Cancel that invoice before creating a replacement from this quote.`,`الفاتورة المرتبطة: ${linkedInvoice.number}. ألغِ تلك الفاتورة قبل إنشاء بديل من عرض السعر هذا.`)}</small></span></div>
       </div>:canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
         <div><Icon name="invoice" size={18}/><span><strong>{t('Deal confirmed? Create the invoice.','تم تأكيد الصفقة؟ أنشئ الفاتورة.')}</strong><small>{t('The quote stays Final and unchanged. A new invoice is created with its own number.','يبقى عرض السعر نهائيًا دون تغيير، ويتم إنشاء فاتورة جديدة برقم مستقل.')}</small></span></div>
-        <Button icon="invoice" variant="primary" onClick={()=>void props.onConvert(props.document)}>{t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>
+        <Button icon="invoice" variant="primary" onClick={this.convertFinalQuote}>{t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>
       </div>:null):null}
     </>;
   }
