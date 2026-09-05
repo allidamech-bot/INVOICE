@@ -12,7 +12,7 @@ test('v157 loads before the canonical A4 layer and ships to installed PWAs',asyn
   ]);
   assert.ok(html.indexOf('mobile-preview-v156.css')<html.indexOf('document-output-quality-v157.css'));
   assert.ok(html.indexOf('document-output-quality-v157.css')<html.indexOf('document-premium-redesign-v141.css'));
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v166';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v167';$/m);
   assert.ok(sw.includes('./styles/document-output-quality-v157.css'));
   assert.match(css,/\.invoice-page/);
   assert.doesNotMatch(css,/\.app-header|\.main-nav|\.editor-screen/);
