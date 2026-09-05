@@ -1,7 +1,7 @@
 import type { LourexDocument } from '../types.js';
 import type { DocumentQualityIssue } from '../lib/document-quality.js';
 import { calculateTotals, formatMoney } from '../lib/money.js';
-import { isArabic, t } from '../lib/i18n.js';
+import { t } from '../lib/i18n.js';
 import { Button, Icon, Modal } from './UI.js';
 
 export type ReviewMode='issue'|'print'|'pdf'|'share';
@@ -40,10 +40,18 @@ function modePurpose(mode:ReviewMode,final:boolean):string{
   return t('Confirming will save this exact version as Final and lock it against accidental edits. You can explicitly unlock it later if a correction is required.','عند التأكيد سيتم حفظ هذه النسخة نفسها كمستند نهائي وقفلها ضد التعديل غير المقصود. ويمكن فتحها لاحقًا بشكل صريح إذا احتجت إلى تصحيح.');
 }
 
+function reviewCustomerName(doc:LourexDocument):string{
+  const customer=doc.customerSnapshot;
+  if(!customer)return '';
+  if(doc.language==='en')return customer.companyNameEn.trim();
+  if(doc.language==='ar')return customer.companyNameAr.trim()||customer.companyNameEn.trim();
+  return [customer.companyNameEn.trim(),customer.companyNameAr.trim()].filter(Boolean).join(' / ');
+}
+
 export function DocumentReviewModal({document:doc,mode,issues,working,onClose,onConfirm}:{document:LourexDocument;mode:ReviewMode|null;issues:DocumentQualityIssue[];working:boolean;onClose:()=>void;onConfirm:()=>void}):any{
   if(!mode)return null;
   const totals=calculateTotals(doc.items,doc.adjustments);
-  const customer=isArabic()?(doc.customerSnapshot?.companyNameAr||doc.customerSnapshot?.companyNameEn):(doc.customerSnapshot?.companyNameEn||doc.customerSnapshot?.companyNameAr);
+  const customer=reviewCustomerName(doc);
   const final=doc.status==='final';
   const bankShown=doc.appearance.showBank&&Object.values(doc.companySnapshot.bank).some(value=>value.trim());
   const signatureShown=doc.appearance.showSignature&&Boolean(doc.companySnapshot.signatureDataUrl);
