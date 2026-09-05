@@ -26,6 +26,8 @@ test('overview cards act as truthful one-click filters and clear stale hidden fi
   assert.match(source,/this\.overviewActive\('all','all'\)/);
   assert.match(source,/this\.overviewActive\('proforma','all'\)/);
   assert.match(source,/this\.overviewActive\('invoice','all'\)/);
+  assert.match(source,/const invoices=this\.props\.documents\.filter\(doc=>doc\.kind==='invoice'\)\.length/);
+  assert.doesNotMatch(source,/const invoices=this\.props\.documents\.filter\(doc=>doc\.kind==='invoice'&&doc\.role==='standard'\)\.length/);
 });
 
 test('empty filtered workspace provides a direct reset action',async()=>{
