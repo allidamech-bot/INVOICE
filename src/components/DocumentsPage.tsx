@@ -285,7 +285,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
     const docs=this.filtered();
     const quotes=this.props.documents.filter(doc=>doc.kind==='proforma'&&doc.role==='standard').length;
-    const invoices=this.props.documents.filter(doc=>doc.kind==='invoice'&&doc.role==='standard').length;
+    const invoices=this.props.documents.filter(doc=>doc.kind==='invoice').length;
     const drafts=this.props.documents.filter(doc=>workflowStatus(doc)==='draft').length;
     const issued=this.props.documents.filter(doc=>matchesWorkspaceStatus(doc,'final')).length;
     const resume=[...this.props.documents].filter(doc=>doc.status!=='final').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0]??null;
