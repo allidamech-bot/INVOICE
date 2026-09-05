@@ -2,7 +2,7 @@ import type { ExpenseRecord, InventoryMovementRecord, InventoryMovementType, Pur
 import { t } from '../lib/i18n.js';
 import { formatMoney } from '../lib/money.js';
 import { todayIso } from '../lib/id.js';
-import { allocateLandedCost, createExpense, createManualInventoryMovement, createPurchase, createPurchaseItem, createSupplier, inventoryBalances, inventoryMovementIsManual, purchaseTotals, spendByCurrency, supplierSnapshotFrom, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
+import { allocateLandedCost, createExpense, createManualInventoryMovement, createPurchase, createPurchaseItem, createSupplier, inventoryBalances, inventoryMovementIsManual, operationsIntegritySummary, purchaseTotals, spendByCurrency, supplierSnapshotFrom, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
 import { Button, Icon, Input, Select, Textarea } from './UI.js';
 
 type Tab='suppliers'|'purchases'|'expenses'|'inventory';
@@ -69,12 +69,13 @@ export class OperationsPage extends React.Component<Props,State>{
 
   private renderSummary():any{
     const spend=spendByCurrency(this.props.purchases,this.props.expenses);
-    return <div className="operations-summary">
+    const integrity=operationsIntegritySummary(this.props.purchases,this.props.expenses,this.props.inventoryMovements);
+    return <><div className="operations-summary">
       <div><strong>{this.props.suppliers.length}</strong><span>{t('Suppliers','الموردون')}</span></div>
       <div><strong>{this.props.purchases.filter(p=>p.status==='posted').length}</strong><span>{t('Posted purchases','مشتريات مرحلة')}</span></div>
       <div><strong>{this.props.expenses.length}</strong><span>{t('Expenses','المصروفات')}</span></div>
       <div className="operations-spend-card"><span>{t('Spend by currency','الإنفاق حسب العملة')}</span>{spend.length?spend.slice(0,3).map(row=><strong key={row.currency}>{formatMoney(row.total,row.currency)}</strong>):<strong>—</strong>}</div>
-    </div>;
+    </div>{integrity.totalInvalid?<div className="operations-callout danger operations-integrity-warning" role="status"><strong>{t('Accounting integrity warning','تنبيه سلامة البيانات المحاسبية')}</strong><span>{t(`${integrity.totalInvalid} historical Operations record(s) are excluded from accounting or inventory totals until corrected. Purchases: ${integrity.invalidPurchases} · Expenses: ${integrity.invalidExpenses} · Inventory: ${integrity.invalidMovements}`,`تم استبعاد ${integrity.totalInvalid} سجل تاريخي في العمليات من إجماليات المحاسبة أو المخزون حتى يتم تصحيحه. المشتريات: ${integrity.invalidPurchases} · المصروفات: ${integrity.invalidExpenses} · المخزون: ${integrity.invalidMovements}`)}</span></div>:null}</>;
   }
 
   private renderSuppliers():any{
