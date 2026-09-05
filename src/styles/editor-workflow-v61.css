@@ -16,10 +16,9 @@
 [dir='rtl'] .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{content:'صنف مشابه';letter-spacing:0}
 .app-ui .item-card-actions .save-item-library-button+.icon-btn:hover,.app-ui .item-card-actions .save-item-library-button+.icon-btn:focus-visible{border-color:#9ebdcd;background:#edf6fa}
 
-/* v64 — make the quote conversion a deliberate workflow transition rather than another design control. */
-.app-ui .convert-invoice-button{width:100%;min-height:48px!important;margin-top:14px!important;justify-content:center!important;border-radius:13px!important;box-shadow:0 9px 22px rgba(20,72,102,.12)!important}
-.app-ui .convert-invoice-button::after{content:'Creates a new invoice and keeps this quote';margin-inline-start:8px;font-size:10.5px;font-weight:600;opacity:.72}
-[dir='rtl'] .app-ui .convert-invoice-button::after{content:'ينشئ فاتورة جديدة ويحافظ على عرض السعر';margin-inline-start:8px}
+/* Conversion is a Final-quote workflow action. The legacy control that still
+   exists inside the editable Design fieldset is deliberately retired. */
+.app-ui .convert-invoice-button{display:none!important}
 
 /* v64 — final confirmation should make document identity, amount and lock behavior unmistakable. */
 .app-ui .issue-review-purpose{display:flex;gap:10px;align-items:flex-start;padding:12px 13px;border:1px solid #d8e4ea;border-radius:12px;background:#f7fafb;color:#234b61}
@@ -38,6 +37,8 @@
 .final-quote-convert-bar strong{font-size:12px;line-height:1.35}
 .final-quote-convert-bar small{font-size:10.5px;line-height:1.4;color:#617984}
 .final-quote-convert-bar .btn{flex:0 0 auto;min-height:44px}
+.final-quote-convert-bar.is-converted{border-color:#c9dfd2;background:rgba(247,252,249,.98);box-shadow:0 14px 36px rgba(25,78,57,.12)}
+.final-quote-convert-bar.is-converted>div{color:#2e684f}
 [dir='rtl'] .final-quote-convert-bar{right:auto;left:max(18px,env(safe-area-inset-left))}
 
 @media(max-width:1180px){
@@ -56,8 +57,6 @@
   .app-ui .item-card-actions .save-item-library-button+.icon-btn{min-height:44px;padding-inline:9px}
   .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{font-size:10.5px}
   .app-ui .recent-customer-row>div{scroll-padding-inline:2px}
-  .app-ui .convert-invoice-button{min-height:52px!important}
-  .app-ui .convert-invoice-button::after{display:none}
   .app-ui .issue-review-purpose{padding:11px}
   .final-quote-convert-bar{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:calc(74px + env(safe-area-inset-bottom));max-width:none;display:grid;grid-template-columns:1fr;gap:9px;padding:10px;border-radius:14px}
   .final-quote-convert-bar .btn{width:100%;justify-content:center}
