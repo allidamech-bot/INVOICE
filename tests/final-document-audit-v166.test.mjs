@@ -22,10 +22,11 @@ test('desktop A4 preview takes a fresh editor snapshot when an iPad crosses the 
   assert.match(core,/TemplateRenderer document=\{this\.state\.previewDoc\} scale=\{0\.82\}/);
 });
 
-test('single-language legal identity fields survive Arabic and English document output',async()=>{
+test('single-language legal identity fields honor output language without losing Arabic brand fallback',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/function identityPair\(doc: LourexDocument, en: string, ar: string\)/);
-  assert.match(renderer,/if\(doc\.language==='en'\)return <span dir="auto">\{english\|\|arabic\|\|'—'\}<\/span>/);
+  assert.match(renderer,/if\(doc\.language==='en'\)return <span dir="auto">\{documentDisplayValue\(english,'en'\)\|\|'—'\}<\/span>/);
+  assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)[^\n]*english\|\|arabic/);
   assert.match(renderer,/if\(doc\.language==='ar'\)return <span dir="auto">\{arabic\|\|english\|\|'—'\}<\/span>/);
   assert.match(renderer,/function companyName[\s\S]*return identityPair\(doc, doc\.companySnapshot\.nameEn, doc\.companySnapshot\.nameAr\)/);
   assert.match(renderer,/function customerName[\s\S]*return identityPair\(doc, c\?\.companyNameEn \?\? '', c\?\.companyNameAr \?\? ''\)/);
