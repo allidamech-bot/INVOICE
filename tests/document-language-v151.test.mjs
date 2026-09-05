@@ -57,3 +57,11 @@ test('English document identity never falls back to Arabic-only names or address
   assert.match(renderer,/if\(doc\.language==='en'\)return documentDisplayValue\(doc\.companySnapshot\.nameEn,'en'\)\|\|'LOUREX'/);
   assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)return doc\.companySnapshot\.nameEn\.trim\(\)\|\|doc\.companySnapshot\.nameAr\.trim\(\)/);
 });
+
+test('final review customer identity follows document language rather than app interface language',async()=>{
+  const review=await readFile('src/components/DocumentReviewModal.tsx','utf8');
+  assert.doesNotMatch(review,/isArabic\(\)\?\(doc\.customerSnapshot/);
+  assert.match(review,/if\(doc\.language==='en'\)return customer\.companyNameEn\.trim\(\)/);
+  assert.match(review,/if\(doc\.language==='ar'\)return customer\.companyNameAr\.trim\(\)\|\|customer\.companyNameEn\.trim\(\)/);
+  assert.match(review,/filter\(Boolean\)\.join\(' \/ '\)/);
+});
