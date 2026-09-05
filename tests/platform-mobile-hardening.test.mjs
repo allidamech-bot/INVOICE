@@ -27,3 +27,13 @@ test('background cloud freshness waits for inline Operations and product drafts 
   assert.match(source,/activeElement alone is not sufficient/);
   assert.match(source,/if\(!appIsSafeToApply\(\)\)return/);
 });
+
+test('direct cloud-vault installation cannot replace local encrypted data behind an inline draft',async()=>{
+  const source=await read('src/cloud/firebase.ts');
+  assert.match(source,/function inlineDraftWorkspaceOpen\(\):boolean/);
+  assert.match(source,/\.operations-page,\.product-library-pro\.editor-open/);
+  assert.match(source,/installCloudVault[\s\S]*if\(inlineDraftWorkspaceOpen\(\)\)throw new Error/);
+  const startup=await read('src/cloud/startup.ts');
+  assert.match(startup,/hydrateAuthoritativeCloudBeforeApp/);
+  assert.match(startup,/await installCloudVault\(user\.uid,false\)/);
+});
