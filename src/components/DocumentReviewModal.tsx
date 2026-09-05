@@ -49,13 +49,7 @@ export function DocumentReviewModal({document:doc,mode,issues,working,onClose,on
   const signatureShown=doc.appearance.showSignature&&Boolean(doc.companySnapshot.signatureDataUrl);
   const stampShown=doc.appearance.showStamp&&Boolean(doc.companySnapshot.stampDataUrl);
   const warningCount=issues.filter(issue=>issue.level==='warning').length;
-  const confirm=()=>{
-    if(mode==='pdf'||mode==='share'||mode==='print'){
-      try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
-    }
-    onConfirm();
-  };
-  return <Modal open title={final?t('Final document action','إجراء على مستند نهائي'):t('Final check before issue','الفحص النهائي قبل الإصدار')} size="md" onClose={onClose} footer={<div className="modal-footer-actions"><Button onClick={onClose}>{t('Back to document','العودة للمستند')}</Button><Button icon={mode==='pdf'?'download':mode==='share'?'share':mode==='print'?'printer':'check'} variant="primary" disabled={working||mode==='issue'&&final} onClick={confirm}>{working?t('Working…','جارٍ التنفيذ…'):actionLabel(mode,final)}</Button></div>}>
+  return <Modal open title={final?t('Final document action','إجراء على مستند نهائي'):t('Final check before issue','الفحص النهائي قبل الإصدار')} size="md" onClose={onClose} footer={<div className="modal-footer-actions"><Button onClick={onClose}>{t('Back to document','العودة للمستند')}</Button><Button icon={mode==='pdf'?'download':mode==='share'?'share':mode==='print'?'printer':'check'} variant="primary" disabled={working||mode==='issue'&&final} onClick={onConfirm}>{working?t('Working…','جارٍ التنفيذ…'):actionLabel(mode,final)}</Button></div>}>
     <div className="issue-review">
       <div className={`issue-review-status status-${final?'final':'ready'}`}><Icon name={final?'lock':'check'} size={18}/><div><strong>{final?t('Final document','مستند نهائي'):t('Ready for final confirmation','جاهز للتأكيد النهائي')}</strong><span>{final?t('The document is locked against accidental edits.','المستند مقفل ضد التعديل غير المقصود.'):t('Required fields passed validation. Verify the identity and total below before confirming.','تم اجتياز الحقول الإلزامية. تحقق من هوية المستند والإجمالي أدناه قبل التأكيد.')}</span></div></div>
       <div className="issue-review-purpose"><Icon name={final?'lock':'check'} size={16}/><div><strong>{final?t('What happens next','ما الذي سيحدث الآن'):t('Confirmation effect','نتيجة التأكيد')}</strong><span>{modePurpose(mode,final)}</span></div></div>
