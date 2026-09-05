@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyVault } from '../dist/src/lib/defaults.js';
-import { createExpense, createManualInventoryMovement, createPurchase, createPurchaseItem, createSupplier, postPurchase, reverseManualInventoryMovement, reversePurchase } from '../dist/src/lib/operations.js';
+import { createExpense, createManualInventoryMovement, createPurchase, createPurchaseItem, createSupplier, inventoryBalances, operationsIntegritySummary, postPurchase, reverseManualInventoryMovement, reversePurchase, spendByCurrency } from '../dist/src/lib/operations.js';
 import { mergeVaultIntent } from '../dist/src/storage/vault-merge.js';
 
 function saved(id='sku1',name='Tracked',cost='10'){
@@ -98,4 +98,32 @@ test('new invalid operating expenses cannot bypass UI validation at the persiste
   const base=emptyVault(),latest=structuredClone(base),intended=structuredClone(base);
   const expense=createExpense('USD');expense.description='Invalid';expense.amount='-5';intended.expenses=[expense];
   assert.throws(()=>mergeVaultIntent(base,intended,latest),/amount must be greater than zero/i);
+});
+
+test('malformed historical purchases and expenses are excluded from spend instead of silently becoming zero',()=>{
+  const vault=postedPurchaseVault();
+  const validExpense=createExpense('USD');validExpense.description='Valid';validExpense.amount='20';
+  const invalidExpense={...createExpense('USD'),description:'Legacy malformed',amount:'not-a-number'};
+  const invalidPurchase=structuredClone(vault.purchases[0]);invalidPurchase.id='legacy-purchase';invalidPurchase.number='PUR-2026-9999';invalidPurchase.items[0].unitCost='bad-cost';
+  const spend=spendByCurrency([vault.purchases[0],invalidPurchase],[validExpense,invalidExpense]);
+  assert.deepEqual(spend.map(row=>row.currency),['USD']);
+  assert.equal(spend[0].purchases,'100.00');
+  assert.equal(spend[0].expenses,'20.00');
+  assert.equal(spend[0].total,'120.00');
+  const integrity=operationsIntegritySummary([vault.purchases[0],invalidPurchase],[validExpense,invalidExpense],[]);
+  assert.equal(integrity.invalidPurchases,1);
+  assert.equal(integrity.invalidExpenses,1);
+  assert.equal(integrity.totalInvalid,2);
+});
+
+test('malformed historical inventory movements stay in history but do not alter on-hand quantity',()=>{
+  const item=saved();
+  const valid=createManualInventoryMovement(item,'opening','10','2026-09-01','Opening');
+  const invalid={...valid,id:'legacy-bad-stock',quantity:'broken'};
+  const invalidSign={...valid,id:'legacy-bad-sign',type:'issue',quantity:'5'};
+  const balances=inventoryBalances([item],[valid,invalid,invalidSign]);
+  assert.equal(balances[0].quantity,'10');
+  const integrity=operationsIntegritySummary([],[],[valid,invalid,invalidSign]);
+  assert.equal(integrity.invalidMovements,2);
+  assert.equal(integrity.totalInvalid,2);
 });
