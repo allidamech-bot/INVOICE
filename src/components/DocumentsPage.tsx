@@ -169,7 +169,8 @@ export class DocumentsPage extends React.Component<Props,State>{
   };
   private clearFilters=()=>this.setState({tab:'all',status:'all',payment:'all',currency:'all',query:'',sort:'latest',menuId:'',filtersOpen:false});
   private clearSearch=()=>this.setState({query:'',menuId:''},()=>document.querySelector<HTMLInputElement>('.documents-search-input')?.focus());
-  private setOverview=(tab:State['tab'],status:WorkspaceStatus)=>this.setState({tab,status,payment:'all',query:'',menuId:'',filtersOpen:false});
+  private setOverview=(tab:State['tab'],status:WorkspaceStatus)=>this.setState({tab,status,payment:'all',currency:'all',query:'',menuId:'',filtersOpen:false});
+  private overviewActive=(tab:State['tab'],status:WorkspaceStatus)=>this.state.tab===tab&&this.state.status===status&&this.state.payment==='all'&&this.state.currency==='all'&&!this.state.query.trim();
 
   private actionButtons=(doc:LourexDocument):any=>{
     const canOutput=doc.status==='final';
@@ -301,11 +302,11 @@ export class DocumentsPage extends React.Component<Props,State>{
       {resume?<button type="button" className={`resume-document-card workflow-${workflowStatus(resume)}`} onClick={()=>this.props.onOpen(resume)}><span className="resume-icon"><Icon name={resume.kind==='proforma'?'proforma':'invoice'}/></span><span className="resume-copy"><small>{t('Continue where you left off','أكمل من حيث توقفت')}</small><strong>{resume.number}</strong><span>{customerName(resume)}</span></span><span className="resume-meta"><b>{formatMoney(calculateTotals(resume.items,resume.adjustments).grandTotal,resume.currency)}</b><em>{workflowStatus(resume)==='ready'?t('Ready to issue','جاهز للإصدار'):t('Continue editing','متابعة التحرير')} →</em></span></button>:null}
 
       <div className="documents-overview documents-overview-five" aria-label={t('Document overview','ملخص المستندات')}>
-        <button type="button" className={this.state.tab==='all'&&this.state.status==='all'&&!this.state.query?'active':''} onClick={()=>this.setOverview('all','all')}><span>{t('All','الكل')}</span><strong>{this.props.documents.length}</strong></button>
-        <button type="button" className={this.state.tab==='proforma'&&this.state.status==='all'?'active':''} onClick={()=>this.setOverview('proforma','all')}><span>{t('Quotes','عروض الأسعار')}</span><strong>{quotes}</strong></button>
-        <button type="button" className={this.state.tab==='invoice'&&this.state.status==='all'?'active':''} onClick={()=>this.setOverview('invoice','all')}><span>{t('Invoices','الفواتير')}</span><strong>{invoices}</strong></button>
-        <button type="button" className={`${drafts?'has-drafts ':''}${this.state.status==='draft'?'active':''}`} onClick={()=>this.setOverview('all','draft')}><span>{t('Drafts','المسودات')}</span><strong>{drafts}</strong></button>
-        <button type="button" className={this.state.status==='final'?'active':''} onClick={()=>this.setOverview('all','final')}><span>{t('Issued','صادرة')}</span><strong>{issued}</strong></button>
+        <button type="button" className={this.overviewActive('all','all')?'active':''} onClick={()=>this.setOverview('all','all')}><span>{t('All','الكل')}</span><strong>{this.props.documents.length}</strong></button>
+        <button type="button" className={this.overviewActive('proforma','all')?'active':''} onClick={()=>this.setOverview('proforma','all')}><span>{t('Quotes','عروض الأسعار')}</span><strong>{quotes}</strong></button>
+        <button type="button" className={this.overviewActive('invoice','all')?'active':''} onClick={()=>this.setOverview('invoice','all')}><span>{t('Invoices','الفواتير')}</span><strong>{invoices}</strong></button>
+        <button type="button" className={`${drafts?'has-drafts ':''}${this.overviewActive('all','draft')?'active':''}`} onClick={()=>this.setOverview('all','draft')}><span>{t('Drafts','المسودات')}</span><strong>{drafts}</strong></button>
+        <button type="button" className={this.overviewActive('all','final')?'active':''} onClick={()=>this.setOverview('all','final')}><span>{t('Issued','صادرة')}</span><strong>{issued}</strong></button>
       </div>
 
       <div className={`list-toolbar documents-toolbar premium-documents-toolbar ${this.state.filtersOpen?'filters-open':''}`}>
