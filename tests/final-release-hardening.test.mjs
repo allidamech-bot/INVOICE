@@ -71,3 +71,12 @@ test('final release uses a fresh PWA cache generation instead of mutating the v1
   assert.match(sw,/lourex-invoice-v167: preserved as a legacy marker/);
   assert.doesNotMatch(sw,/^const CACHE = 'lourex-invoice-v167';$/m);
 });
+
+test('financial CSV export neutralizes spreadsheet formulas while preserving numeric negatives',async()=>{
+  const page=await read('src/components/ReportsPage.tsx');
+  assert.match(page,/const CSV_NUMBER=\/\^-\?\(\?:\\d\+\|\\d\*\\\.\\d\+\)\$\//);
+  assert.match(page,/const probe=text\.trimStart\(\)/);
+  assert.match(page,/const formulaRisk=\/\^\[=\+@\]\/\.test\(probe\)\|\|\(probe\.startsWith\('-'\)&&!CSV_NUMBER\.test\(probe\)\)/);
+  assert.match(page,/const safe=formulaRisk\?`'\$\{text\}`:text/);
+  assert.match(page,/\[\"\\r\\n\]/);
+});
