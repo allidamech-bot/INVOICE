@@ -4,7 +4,7 @@ import { emptyVault } from '../dist/src/lib/defaults.js';
 import { createBlankDocument } from '../dist/src/lib/documents.js';
 import { mergeVaultIntent } from '../dist/src/storage/vault-merge.js';
 
-function customer(id,name){const now=new Date().toISOString();return{id,companyNameEn:name,companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:'',notes:'',createdAt:now,updatedAt:now};}
+function customer(id,name){const now=new Date().toISOString();return{id,companyNameEn:name,companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:'',preferredCurrency:'',paymentTermPresetId:'',paymentTerms:'',paymentDueDays:'',creditLimit:'',creditCurrency:'',notes:'',createdAt:now,updatedAt:now};}
 function savedItem(id,name,sku){const now=new Date().toISOString();return{id,createdAt:now,updatedAt:now,sku,descriptionEn:name,descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'',lastCurrency:'USD',usageCount:0,lastUsedAt:now};}
 
 test('document autosave and settings save from the same base preserve both changes',()=>{
@@ -62,6 +62,16 @@ test('concurrent customer creation cannot commit the same normalized identity tw
   assert.throws(()=>mergeVaultIntent(base,{...base,customers:[customer('c2','buyer')]},latest),/customer already exists/i);
 });
 
+test('customer quick-add cannot persist invalid email or credit controls',()=>{
+  const base=emptyVault();
+  const invalidEmail={...customer('c1','Buyer'),email:'buyer@invalid'};
+  assert.throws(()=>mergeVaultIntent(base,{...base,customers:[invalidEmail]},base),/valid email/i);
+  const missingCreditCurrency={...customer('c2','Credit Buyer'),creditLimit:'1000'};
+  assert.throws(()=>mergeVaultIntent(base,{...base,customers:[missingCreditCurrency]},base),/currency for the credit limit/i);
+  const invalidDue={...customer('c3','Terms Buyer'),paymentDueDays:'30.5'};
+  assert.throws(()=>mergeVaultIntent(base,{...base,customers:[invalidDue]},base),/whole number/i);
+});
+
 test('SKU-only edits cannot bypass duplicate product protection',()=>{
   const base=emptyVault();
   const first=savedItem('p1','First','SKU-A');
@@ -71,12 +81,23 @@ test('SKU-only edits cannot bypass duplicate product protection',()=>{
   assert.throws(()=>mergeVaultIntent(base,{...base,savedItems:[first,conflicting]},base),/duplicate SKU/i);
 });
 
-test('legacy duplicate identities do not block unrelated settings saves',()=>{
+test('non-UI saved-product paths cannot persist blank units or invalid reusable prices',()=>{
+  const base=emptyVault();
+  const blankUnit={...savedItem('p1','Product','SKU-1'),unit:''};
+  assert.throws(()=>mergeVaultIntent(base,{...base,savedItems:[blankUnit]},base),/Unit is required/i);
+  const invalidPrice={...savedItem('p2','Priced Product','SKU-2'),lastUnitPrice:'-1'};
+  assert.throws(()=>mergeVaultIntent(base,{...base,savedItems:[invalidPrice]},base),/non-negative price/i);
+});
+
+test('legacy duplicate or incomplete master data does not block unrelated saves',()=>{
   const base=emptyVault();
   base.customers=[customer('c1','Legacy Buyer'),customer('c2','Legacy Buyer')];
-  const intent={...base,appSettings:{...base.appSettings,numbering:{...base.appSettings.numbering,invoicePrefix:'SALE'}}};
+  base.savedItems=[{...savedItem('p1','Legacy Product','LEGACY'),unit:''}];
+  const intendedItem={...base.savedItems[0],favorite:true};
+  const intent={...base,savedItems:[intendedItem],appSettings:{...base.appSettings,numbering:{...base.appSettings.numbering,invoicePrefix:'SALE'}}};
   const merged=mergeVaultIntent(base,intent,base);
   assert.equal(merged.customers.length,2);
+  assert.equal(merged.savedItems[0].favorite,true);
   assert.equal(merged.appSettings.numbering.invoicePrefix,'SALE');
 });
 
