@@ -9,7 +9,9 @@ test('v131 stores payments as first-class encrypted vault records',async()=>{
   assert.ok(types.includes('payments: PaymentRecord[]'));
   assert.ok(defaults.includes('APP_SCHEMA_VERSION = 7'));
   assert.ok(defaults.includes('payments: []'));
-  assert.ok(merge.includes('payments:mergeRecords'));
+  assert.ok(merge.includes('const payments=mergeRecords(base.payments,intended.payments,latest.payments)'));
+  assert.ok(merge.includes('guardFinancialSettlement(documents,payments)'));
+  assert.ok(merge.includes('payments,'));
   assert.ok(vault.includes("unique(migrated.payments.map(p => p.id), 'payment')"));
 });
 
