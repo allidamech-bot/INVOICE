@@ -91,5 +91,5 @@ test('pagination, bottom anchoring, RTL isolation and print break protections re
   assert.match(qa,/@media print/);
   assert.match(qa,/break-inside:avoid/);
   assert.match(sw,/pathname\.startsWith\('\/styles\/'\)/);
-  assert.match(sw,/networkFirst\(event\.request\)/);
+  assert.match(sw,/cacheFirst\(event\.request\)/);
 });
