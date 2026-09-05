@@ -62,3 +62,10 @@ test('coarse-pointer mobile controls retain reliable 44px touch targets in the f
   assert.match(css,/grid-template-columns:44px minmax\(0,1fr\) 44px!important/);
   assert.doesNotMatch(css,/invoice-page|template-renderer|document-page/);
 });
+
+test('final release uses a fresh PWA cache generation instead of mutating the v167 cache in place',async()=>{
+  const sw=await read('public/sw.js');
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v168';$/m);
+  assert.match(sw,/lourex-invoice-v167: preserved as a legacy marker/);
+  assert.doesNotMatch(sw,/^const CACHE = 'lourex-invoice-v167';$/m);
+});
