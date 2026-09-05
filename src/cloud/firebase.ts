@@ -59,7 +59,11 @@ function writeSyncAnchor(uid:string,meta:Pick<CloudVaultMeta,'revision'|'cipherS
 }
 function notifyCloudApplied():void{try{window.dispatchEvent(new Event('lourex-cloud-applied'));}catch{}}
 function inlineDraftWorkspaceOpen():boolean{
-  try{return Boolean(document.querySelector('.operations-page,.product-library-pro.editor-open'));}catch{return false;}
+  try{
+    if(document.querySelector('.editor-screen,.operations-page,.product-library-pro.editor-open'))return true;
+    const modal=document.querySelector('.modal-backdrop');
+    return Boolean(modal&&!modal.querySelector('.cloud-account-panel,.cloud-auth-form'));
+  }catch{return false;}
 }
 function splitCipher(cipher:string):string[]{
   if(cipher.length>MAX_CIPHER_LENGTH)throw new Error('Account data is too large for cloud storage. Remove oversized images and try again.');
@@ -199,9 +203,15 @@ async function pullCloudVaultFromMeta(uid:string,meta:CloudVaultMeta):Promise<{s
 export async function pullCloudVault(uid:string):Promise<{security:SecurityMetadata;vault:EncryptedVaultRecord}|null>{requireCurrentUid(uid);const meta=await getCloudVaultMeta(uid);if(!meta)return null;return pullCloudVaultFromMeta(uid,meta);}
 export async function installCloudVault(uid:string,notify=false):Promise<boolean>{
   requireCurrentUid(uid);
-  if(inlineDraftWorkspaceOpen())throw new Error('Close Operations or the Product Library editor before applying cloud account data.');
+  if(inlineDraftWorkspaceOpen())throw new Error('Close the open editor or dialog before applying cloud account data.');
   const meta=await getCloudVaultMeta(uid);if(!meta)return false;
   const remote=await pullCloudVaultFromMeta(uid,meta);
+  // Network reads can take long enough for the user to open an editor, change
+  // account state, or enter a dialog after this operation started. Revalidate
+  // both ownership and UI safety at the commit boundary before replacing the
+  // encrypted local vault.
+  requireCurrentUid(uid);
+  if(inlineDraftWorkspaceOpen())throw new Error('Close the open editor or dialog before applying cloud account data.');
   await putSecurityAndVault(remote.security,remote.vault);
   writeSyncAnchor(uid,meta);
   if(notify)notifyCloudApplied();
