@@ -58,6 +58,9 @@ function writeSyncAnchor(uid:string,meta:Pick<CloudVaultMeta,'revision'|'cipherS
   try{localStorage.setItem(syncAnchorKey(uid),JSON.stringify({revision:meta.revision,cipherSha256:meta.cipherSha256,updatedAt:meta.updatedAt} satisfies CloudSyncAnchor));}catch{}
 }
 function notifyCloudApplied():void{try{window.dispatchEvent(new Event('lourex-cloud-applied'));}catch{}}
+function inlineDraftWorkspaceOpen():boolean{
+  try{return Boolean(document.querySelector('.operations-page,.product-library-pro.editor-open'));}catch{return false;}
+}
 function splitCipher(cipher:string):string[]{
   if(cipher.length>MAX_CIPHER_LENGTH)throw new Error('Account data is too large for cloud storage. Remove oversized images and try again.');
   const out:string[]=[];for(let i=0;i<cipher.length;i+=CHUNK_SIZE)out.push(cipher.slice(i,i+CHUNK_SIZE));return out;
@@ -196,6 +199,7 @@ async function pullCloudVaultFromMeta(uid:string,meta:CloudVaultMeta):Promise<{s
 export async function pullCloudVault(uid:string):Promise<{security:SecurityMetadata;vault:EncryptedVaultRecord}|null>{requireCurrentUid(uid);const meta=await getCloudVaultMeta(uid);if(!meta)return null;return pullCloudVaultFromMeta(uid,meta);}
 export async function installCloudVault(uid:string,notify=false):Promise<boolean>{
   requireCurrentUid(uid);
+  if(inlineDraftWorkspaceOpen())throw new Error('Close Operations or the Product Library editor before applying cloud account data.');
   const meta=await getCloudVaultMeta(uid);if(!meta)return false;
   const remote=await pullCloudVaultFromMeta(uid,meta);
   await putSecurityAndVault(remote.security,remote.vault);
