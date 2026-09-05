@@ -18,9 +18,11 @@ test('v131 stores payments as first-class encrypted vault records',async()=>{
 test('v131 enforces collection invariants and overpayment protection',async()=>{
   const [payments,app]=await Promise.all([read('src/lib/payments.ts'),read('src/app/App.tsx')]);
   assert.ok(payments.includes('Payment cannot exceed the remaining invoice balance after credit notes.'));
-  assert.ok(payments.includes('Invoice balance after credit notes cannot fall below the amount already paid.'));
+  assert.ok(payments.includes('Invoice balance cannot fall below payments plus issued credit notes.'));
   assert.ok(payments.includes('Invoice currency cannot change after a payment is recorded.'));
   assert.ok(payments.includes('Invoice customer cannot change after a payment is recorded.'));
+  assert.ok(payments.includes('accountedInvoicePayments'));
+  assert.ok(payments.includes('accountedInvoiceCreditNotes'));
   assert.ok(app.includes('assertInvoicePaymentInvariant(updated,vault.payments,vault.documents)'));
   assert.ok(app.includes('Delete the invoice payments before deleting this invoice.'));
 });
@@ -29,6 +31,7 @@ test('v131 exposes full and partial receipt workflow with collection status',asy
   const [panel,docs]=await Promise.all([read('src/components/InvoicePaymentsPanel.tsx'),read('src/components/DocumentsPage.tsx')]);
   for(const term of ['Record Payment','Amount','Date','Method','Reference','Notes','Payment history'])assert.ok(panel.includes(term),term);
   assert.ok(panel.includes('summary.remaining'));
+  assert.ok(panel.includes('payment-integrity-warning'));
   assert.ok(docs.includes('invoicePaymentSummary'));
   assert.ok(docs.includes('Partially Paid'));
   assert.ok(docs.includes('Overdue'));
