@@ -21,6 +21,22 @@ test('desktop A4 preview takes a fresh editor snapshot when an iPad crosses the 
   assert.match(core,/TemplateRenderer document=\{this\.state\.previewDoc\} scale=\{0\.82\}/);
 });
 
+test('single-language legal identity fields survive Arabic and English document output',async()=>{
+  const renderer=await read('src/templates/TemplateRenderer.tsx');
+  assert.match(renderer,/function identityPair\(doc: LourexDocument, en: string, ar: string\)/);
+  assert.match(renderer,/if\(doc\.language==='en'\)return <span dir="auto">\{english\|\|arabic\|\|'—'\}<\/span>/);
+  assert.match(renderer,/if\(doc\.language==='ar'\)return <span dir="auto">\{arabic\|\|english\|\|'—'\}<\/span>/);
+  assert.match(renderer,/function companyName[\s\S]*return identityPair\(doc, doc\.companySnapshot\.nameEn, doc\.companySnapshot\.nameAr\)/);
+  assert.match(renderer,/function customerName[\s\S]*return identityPair\(doc, c\?\.companyNameEn \?\? '', c\?\.companyNameAr \?\? ''\)/);
+  assert.match(renderer,/party-address">\{identityPair\(doc, addressEn, addressAr\)\}/);
+  assert.match(renderer,/safeValue\(doc,cityRaw,'neutral'\)/);
+  assert.match(renderer,/<bdi>\{city\}<\/bdi>/);
+  assert.match(renderer,/\['Bank Name','اسم البنك',b\.bankName,'neutral'\]/);
+  assert.match(renderer,/\['Account Name','اسم الحساب',b\.accountName,'neutral'\]/);
+  assert.match(renderer,/if\(doc\.language==='ar'\)return doc\.companySnapshot\.nameAr\.trim\(\)\|\|doc\.companySnapshot\.nameEn\.trim\(\)\|\|'LOUREX'/);
+  assert.match(renderer,/function valuePair[\s\S]*documentDisplayValue\(en,'en'\)[\s\S]*documentDisplayValue\(ar,'ar'\)/);
+});
+
 test('document runtime changes ship through the explicit-update PWA cache generation',async()=>{
   const sw=await read('public/sw.js');
   assert.match(sw,/^const CACHE = 'lourex-invoice-v166';$/m);
