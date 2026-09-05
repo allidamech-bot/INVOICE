@@ -25,9 +25,11 @@ export function receivableCustomerId(doc:LourexDocument):string{
   const snapshot=doc.customerSnapshot;
   const direct=snapshot?.sourceCustomerId?.trim()||'';
   if(direct)return direct;
-  if(!snapshot)return '';
-  const identity=[snapshot.companyNameEn,snapshot.companyNameAr,snapshot.email,snapshot.phone].map(value=>legacyCustomerPart(value||'')).filter(Boolean).join('|');
-  return identity?`legacy:${identity}`:'';
+  if(snapshot){
+    const identity=[snapshot.companyNameEn,snapshot.companyNameAr,snapshot.email,snapshot.phone].map(value=>legacyCustomerPart(value||'')).filter(Boolean).join('|');
+    if(identity)return `legacy:${identity}`;
+  }
+  return `legacy-document:${doc.id}`;
 }
 export function daysOverdue(dueDate:string,today=todayIso()):number{if(!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)||dueDate>=today)return 0;return Math.max(0,dayNumber(today)-dayNumber(dueDate));}
 export function agingBucketFor(dueDate:string,today=todayIso()):AgingBucket{const days=daysOverdue(dueDate,today);if(days<=0)return'current';if(days<=30)return'days1to30';if(days<=60)return'days31to60';if(days<=90)return'days61to90';return'days90plus';}
@@ -51,7 +53,7 @@ export function receivablesByCurrency(documents:LourexDocument[],payments:Paymen
 export function customerReceivables(customers:Customer[],documents:LourexDocument[],payments:PaymentRecord[],today=todayIso()):CustomerReceivableSummary[]{
   const customerMap=new Map(customers.map(customer=>[customer.id,customer]));
   const ids=new Set<string>();
-  for(const invoice of activeInvoices(documents,today)){const id=receivableCustomerId(invoice);if(id)ids.add(id);}
+  for(const invoice of activeInvoices(documents,today))ids.add(receivableCustomerId(invoice));
   return [...ids].map(customerId=>{const currencies=receivablesByCurrency(documents,payments,today,customerId).map(row=>({...row,customerId}));return{customerId,customer:customerMap.get(customerId)??null,currencies,hasOverdue:currencies.some(row=>decimalToScaled(row.overdue,2)>0n),openInvoices:currencies.reduce((sum,row)=>sum+row.openInvoices,0)};}).sort((a,b)=>Number(b.hasOverdue)-Number(a.hasOverdue)||b.openInvoices-a.openInvoices||((a.customer?.companyNameEn||a.customer?.companyNameAr||'').localeCompare(b.customer?.companyNameEn||b.customer?.companyNameAr||'')));
 }
 
