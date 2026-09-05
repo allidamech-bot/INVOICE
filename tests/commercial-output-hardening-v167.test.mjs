@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createBlankDocument } from '../dist/src/lib/documents.js';
 import { defaultCompany, customerSnapshotFrom } from '../dist/src/lib/defaults.js';
-import { documentDisplayValue, hasDocumentLanguageMismatch } from '../dist/src/lib/document-language.js';
+import { documentDisplayValue, documentLanguageMismatch, hasDocumentLanguageMismatch } from '../dist/src/lib/document-language.js';
 import { estimatedDocumentPageCount } from '../dist/src/lib/document-quality.js';
 
 const read=path=>readFile(path,'utf8');
@@ -11,6 +11,14 @@ const read=path=>readFile(path,'utf8');
 test('neutral commercial locations remain visible in Arabic documents',()=>{
   assert.equal(documentDisplayValue('Ambarli Port','ar','neutral'),'Ambarli Port');
   assert.equal(documentDisplayValue('Riyadh Distribution Center','ar','neutral'),'Riyadh Distribution Center');
+});
+
+test('custom item units survive document-language filtering',()=>{
+  assert.equal(documentDisplayValue('PCS','ar','unit'),'قطعة');
+  assert.equal(documentDisplayValue('Bottle','ar','unit'),'Bottle');
+  assert.equal(documentDisplayValue('عبوة خاصة','en','unit'),'عبوة خاصة');
+  assert.equal(documentLanguageMismatch('Bottle','ar','unit'),false);
+  assert.equal(documentLanguageMismatch('عبوة خاصة','en','unit'),false);
 });
 
 test('legal names and commercial locations do not create false language mismatch warnings',()=>{
@@ -27,6 +35,7 @@ test('legal names and commercial locations do not create false language mismatch
   doc.customerSnapshot=customerSnapshotFrom({id:'c1',companyNameEn:'',companyNameAr:'العميل',contactPerson:'',addressEn:'',addressAr:'الرياض',city:'Riyadh',country:'Saudi Arabia',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''});
   doc.items[0].descriptionEn='';
   doc.items[0].descriptionAr='منتج';
+  doc.items[0].unit='Bottle';
   doc.terms={incoterm:'FOB',paymentTerms:'',packing:'',deliveryTime:'',portOfLoading:'Ambarli Port',finalDestination:'Riyadh Distribution Center',countryOfOrigin:'Türkiye',validity:'',remarks:''};
   doc.notes='';
   assert.equal(hasDocumentLanguageMismatch(doc),false);
