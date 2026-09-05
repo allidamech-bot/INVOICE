@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createBlankDocument } from '../dist/src/lib/documents.js';
 import { defaultCompany, emptyVault } from '../dist/src/lib/defaults.js';
 import { createExpense, createManualInventoryMovement, createPurchase, createPurchaseItem, spendByCurrency, validatePurchase } from '../dist/src/lib/operations.js';
@@ -53,6 +54,14 @@ test('spend summary excludes malformed legacy purchases and expenses instead of 
   const negativeExpense={...validExpense,id:'bad-expense',amount:'-999.00'};
   const rows=spendByCurrency([purchase,badPurchase],[validExpense,negativeExpense]);
   assert.deepEqual(rows,[{currency:'USD',purchases:'20.00',expenses:'25.00',total:'45.00'}]);
+});
+
+test('financial CSV neutralizes spreadsheet formulas only in textual identity cells',()=>{
+  const source=fs.readFileSync(new URL('../src/components/ReportsPage.tsx',import.meta.url),'utf8');
+  assert.match(source,/function safeCsvText\(value:string\):string/);
+  assert.match(source,/\^\[\\t\\r \]\*\[=\+\\-@\]/);
+  assert.match(source,/safeCsvText\(row\.currency\),safeCsvText\(row\.customerName\),row\.netSales/);
+  assert.doesNotMatch(source,/safeCsvText\(row\.netSales\)/);
 });
 
 test('operations integrity changes preserve unrelated vault defaults',()=>{
