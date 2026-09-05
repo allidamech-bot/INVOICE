@@ -87,6 +87,23 @@ test('legacy invoice snapshots without source customer IDs remain visible in rec
   assert.equal(statement[0].outstanding,'450.00');
 });
 
+test('anonymous historical invoices reconcile into account-level receivables instead of disappearing',()=>{
+  const anonymous=makeInvoice({id:'inv-anon',number:'INV-2026-0101',amount:'275.00',customerId:'',customerName:'',dueDate:'2026-08-01'});
+  anonymous.customerSnapshot=null;
+  const identified=makeInvoice({id:'inv-known',number:'INV-2026-0102',amount:'125.00',customerId:'cust-known',customerName:'Known Buyer',dueDate:'2026-08-01'});
+  const documents=[anonymous,identified];
+  const anonymousId=receivableCustomerId(anonymous);
+  assert.equal(anonymousId,'legacy-document:inv-anon');
+  const global=receivablesByCurrency(documents,[],'2026-09-02');
+  const accounts=customerReceivables([],documents,[],'2026-09-02');
+  const accountOutstanding=accounts.reduce((sum,account)=>sum+Number(account.currencies.find(row=>row.currency==='USD')?.outstanding||0),0);
+  assert.equal(global.find(row=>row.currency==='USD').outstanding,'400.00');
+  assert.equal(accountOutstanding,400);
+  const statement=customerStatement(anonymousId,documents,[],'2026-09-02');
+  assert.equal(statement[0].entries[0].reference,'INV-2026-0101');
+  assert.equal(statement[0].outstanding,'275.00');
+});
+
 test('v133 UI exposes receivables navigation aging and printable statements offline',async()=>{
   const [app,shell,page,html,sw,panel]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx'),read('src/components/ReceivablesPage.tsx'),read('index.html'),read('public/sw.js'),read('src/components/InvoicePaymentsPanel.tsx')]);
   assert.ok(app.includes("|'receivables'|"),'receivables screen remains in the application state');
@@ -95,7 +112,9 @@ test('v133 UI exposes receivables navigation aging and printable statements offl
   for(const term of ['Receivables Aging','Customer Statement','Print / Save PDF','1–30','31–60','61–90','+90'])assert.ok(page.includes(term),term);
   assert.ok(page.includes('printing-customer-statement'));
   assert.ok(page.includes('receivableCustomerId'));
+  assert.ok(page.includes('const overdueAccounts=customerReceivables'));
   assert.ok(panel.includes('Credit Notes'));assert.ok(panel.includes('Net invoice'));
+  assert.ok(panel.includes('payment-integrity-warning'));
   assert.ok(html.includes('receivables-v133.css'));
   for(const asset of ['receivables-v133.css','ReceivablesPage.js','receivables.js'])assert.ok(sw.includes(asset),asset);
   const activeCacheVersion=Number(sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';/m)?.[1]??0);
