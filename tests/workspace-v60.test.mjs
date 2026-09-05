@@ -15,14 +15,17 @@ test('documents workspace exposes one-tap resume for the latest unfinished docum
   assert.match(source,/Continue editing/);
 });
 
-test('overview cards act as one-click filters and clear stale search text',async()=>{
+test('overview cards act as truthful one-click filters and clear stale hidden filters',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
-  assert.match(source,/private setOverview=/);
-  assert.match(source,/query:''/);
+  assert.match(source,/private setOverview=.*payment:'all',currency:'all',query:''/);
+  assert.match(source,/private overviewActive=.*payment==='all'.*currency==='all'.*!this\.state\.query\.trim\(\)/);
   assert.match(source,/this\.setOverview\('proforma','all'\)/);
   assert.match(source,/this\.setOverview\('invoice','all'\)/);
   assert.match(source,/this\.setOverview\('all','draft'\)/);
   assert.match(source,/this\.setOverview\('all','final'\)/);
+  assert.match(source,/this\.overviewActive\('all','all'\)/);
+  assert.match(source,/this\.overviewActive\('proforma','all'\)/);
+  assert.match(source,/this\.overviewActive\('invoice','all'\)/);
 });
 
 test('empty filtered workspace provides a direct reset action',async()=>{
