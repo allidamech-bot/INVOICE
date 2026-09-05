@@ -1,3 +1,4 @@
+// AI logo rollout cache refresh — force Safari/PWA clients to reinstall the worker and recache the new Settings/AI runtime.
 // v168 — final release cache isolation after stacked runtime hardening.
 // v167 — quotation date-window and item editor input hardening.
 // v166 — final quotation/invoice draft persistence and responsive preview hardening.
@@ -16,7 +17,7 @@
 // v153 — premium application colour hierarchy and visual differentiation: const CACHE = 'lourex-invoice-v153';
 // v152 compatibility retained for UX recovery: const CACHE = 'lourex-invoice-v152';
 // v152 — UX, interaction reliability, and local-first sync recovery.
-// v151 compatibility retained for language isolation: const CACHE = 'lourex-invoice-v151';
+// v151 — clean Arabic document output and stronger signature/stamp presentation.
 // v146 — canonical invoice-template visual recovery and consolidated document styles.
 // v142 — production hardening cache generation for local vendored runtime and security headers.
 // v141 — premium light redesign for quotation/invoice templates with stable contrast and spacing.
