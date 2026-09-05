@@ -68,12 +68,44 @@ test('v135 ignores draft voided and proforma documents in financial performance'
   assert.deepEqual(normalizeReportPeriod('2026-03-31','2026-01-01'),{from:'2026-01-01',to:'2026-03-31'});
 });
 
+test('reports ignore malformed settlement records instead of disagreeing with receivables',()=>{
+  const doc=invoice();
+  const valid=payment(doc,{id:'pay-valid',amount:'100.00'});
+  const negative=payment(doc,{id:'pay-negative',amount:'-50.00'});
+  const wrongCurrency={...payment(doc,{id:'pay-wrong-currency',amount:'90.00'}),currency:'EUR'};
+  const badCredit=credit(doc,{id:'cn-wrong-currency'});badCredit.currency='EUR';
+  const rows=financialReportByCurrency([doc,badCredit],[valid,negative,wrongCurrency],'2026-01-01','2026-01-31');
+  assert.deepEqual(rows.map(row=>row.currency),['USD']);
+  assert.equal(rows[0].collected,'100.00');
+  assert.equal(rows[0].payments,1);
+  assert.equal(rows[0].creditNotes,0);
+  assert.equal(rows[0].netSales,'1000.00');
+  assert.equal(rows[0].outstanding,'900.00');
+  const monthly=monthlyPerformanceReport([doc,badCredit],[valid,negative,wrongCurrency],'2026-01-01','2026-01-31');
+  assert.equal(monthly[0].collected,'100.00');
+});
+
+test('legacy customer performance reconciles sales collections and receivables into one synthetic account',()=>{
+  const legacy=invoice({id:'inv-legacy-report',number:'INV-LEGACY',customerId:'',customerName:'Legacy Buyer'});
+  legacy.customerSnapshot.email='legacy@example.com';
+  const receipt=payment(legacy,{id:'pay-legacy',amount:'400.00'});
+  const rows=customerPerformanceReport([],[legacy],[receipt],'2026-01-01','2026-01-31');
+  assert.equal(rows.length,1);
+  assert.match(rows[0].customerId,/^legacy:/);
+  assert.equal(rows[0].customerName,'Legacy Buyer');
+  assert.equal(rows[0].netSales,'1000.00');
+  assert.equal(rows[0].collected,'400.00');
+  assert.equal(rows[0].outstanding,'600.00');
+});
+
 test('v135 ships reports navigation print CSV and offline assets without combining currencies',async()=>{
   const [app,shell,page,logic,html,sw,css,recoveryCss]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx'),read('src/components/ReportsPage.tsx'),read('src/lib/reports.ts'),read('index.html'),read('public/sw.js'),read('src/styles/reports-v135.css'),read('src/styles/ux-recovery-v152.css')]);
   assert.ok(app.includes("|'reports'|"),'reports screen remains in the application state');assert.ok(shell.includes("t('Reports','التقارير')"));assert.ok(app.includes('<ReportsPage'));
   for(const term of ['Financial Reports','This Month','This Quarter','This Year','All Time','Export CSV','Print / Save PDF','Monthly Performance','Customer Performance','All currencies — separate'])assert.ok(page.includes(term),term);
   assert.ok(page.includes('Currencies are never combined or converted automatically'));
   assert.ok(logic.includes('receivablesByCurrency(asOfDocuments'));
+  assert.ok(logic.includes('financialPayments(documents,payments)'));
+  assert.ok(logic.includes('receivableCustomerId'));
   assert.ok(!logic.includes('exchangeRate'));assert.ok(!logic.includes('fxRate'));assert.ok(!logic.includes('convertCurrency'));
   assert.ok(html.includes('reports-v135.css'));assert.ok(html.indexOf('reports-v135.css')<html.indexOf('performance-polish-v100.css'));
   for(const asset of ['reports-v135.css','ReportsPage.js','reports.js'])assert.ok(sw.includes(asset),asset);

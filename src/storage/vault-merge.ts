@@ -1,6 +1,8 @@
 import type { AppSettings, CompanySettings, Customer, LourexDocument, SavedItem, VaultPayload } from '../types.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
 import { decimalToScaled, isDecimalInput } from '../lib/money.js';
+import { assertDocumentLifecycleInvariant } from '../lib/document-lifecycle.js';
+import { assertInvoicePaymentInvariant } from '../lib/payments.js';
 import { t } from '../lib/i18n.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
@@ -55,6 +57,59 @@ function mergeDocuments(base:LourexDocument[],intended:LourexDocument[],latest:L
   }
   for(const item of intended)if(!seen.has(item.id))result.push(item);
   return result;
+}
+
+function financialInvoiceIds(base:VaultPayload,intended:VaultPayload):Set<string>{
+  const ids=new Set<string>();
+  if(intended.payments!==base.payments){
+    const baseById=new Map(base.payments.map(payment=>[payment.id,payment]));
+    const intendedById=new Map(intended.payments.map(payment=>[payment.id,payment]));
+    for(const payment of intended.payments){
+      const before=baseById.get(payment.id);
+      if(before===payment)continue;
+      if(payment.invoiceId)ids.add(payment.invoiceId);
+      if(before?.invoiceId&&before.invoiceId!==payment.invoiceId)ids.add(before.invoiceId);
+    }
+    for(const payment of base.payments)if(!intendedById.has(payment.id)&&payment.invoiceId)ids.add(payment.invoiceId);
+  }
+  if(intended.documents!==base.documents){
+    const baseById=new Map(base.documents.map(document=>[document.id,document]));
+    const intendedById=new Map(intended.documents.map(document=>[document.id,document]));
+    for(const document of intended.documents){
+      const before=baseById.get(document.id);
+      if(before===document)continue;
+      for(const candidate of [before,document]){
+        if(!candidate)continue;
+        if(candidate.role==='credit-note'){
+          if(candidate.creditForId)ids.add(candidate.creditForId);
+        }else if(candidate.kind==='invoice')ids.add(candidate.id);
+      }
+    }
+    for(const document of base.documents){
+      if(intendedById.has(document.id))continue;
+      if(document.role==='credit-note'){
+        if(document.creditForId)ids.add(document.creditForId);
+      }else if(document.kind==='invoice')ids.add(document.id);
+    }
+  }
+  return ids;
+}
+function guardFinancialSettlementChanges(base:VaultPayload,intended:VaultPayload,documents:LourexDocument[],payments:VaultPayload['payments']):void{
+  const affected=financialInvoiceIds(base,intended);
+  if(!affected.size)return;
+  for(const invoiceId of affected){
+    const invoice=documents.find(document=>document.id===invoiceId&&document.kind==='invoice'&&document.role!=='credit-note');
+    const linkedPayments=payments.filter(payment=>payment.invoiceId===invoiceId);
+    const linkedCredits=documents.filter(document=>document.role==='credit-note'&&document.creditForId===invoiceId&&document.status==='final'&&document.lifecycleStatus!=='voided');
+    if(!invoice){
+      if(linkedPayments.length||linkedCredits.length)throw new Error('Financial activity cannot remain linked to a missing source invoice.');
+      continue;
+    }
+    if((linkedPayments.length||linkedCredits.length)&&(invoice.status!=='final'||invoice.lifecycleStatus==='voided'))throw new Error('An invoice with payments or issued credit notes must remain an active final invoice.');
+    assertInvoicePaymentInvariant(invoice,payments,documents);
+    assertDocumentLifecycleInvariant(invoice,documents,payments);
+    for(const credit of linkedCredits)assertDocumentLifecycleInvariant(credit,documents,payments);
+  }
 }
 
 function text(value:unknown):string{return typeof value==='string'?value:'';}
@@ -142,8 +197,11 @@ function mergeAppSettings(base:AppSettings,intended:AppSettings,latest:AppSettin
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
   const customers=mergeRecords(base.customers,intended.customers,latest.customers);
   const savedItems=mergeRecords(base.savedItems,intended.savedItems,latest.savedItems);
+  const documents=mergeDocuments(base.documents,intended.documents,latest.documents);
+  const payments=mergeRecords(base.payments,intended.payments,latest.payments);
   guardCustomerChanges(base.customers,intended.customers,customers);
   guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems);
+  guardFinancialSettlementChanges(base,intended,documents,payments);
   return {
     ...latest,
     schemaVersion:Math.max(latest.schemaVersion,intended.schemaVersion),
@@ -153,10 +211,10 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     purchases:mergeRecords(base.purchases,intended.purchases,latest.purchases),
     expenses:mergeRecords(base.expenses,intended.expenses,latest.expenses),
     inventoryMovements:mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements),
-    documents:mergeDocuments(base.documents,intended.documents,latest.documents),
+    documents,
     documentEvents:mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents),
     documentRevisions:mergeRecords(base.documentRevisions,intended.documentRevisions,latest.documentRevisions),
-    payments:mergeRecords(base.payments,intended.payments,latest.payments),
+    payments,
     savedItems,
     appSettings:mergeAppSettings(base.appSettings,intended.appSettings,latest.appSettings)
   };
