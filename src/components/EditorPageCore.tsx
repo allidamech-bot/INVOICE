@@ -81,7 +81,7 @@ export class EditorPage extends React.Component<Props,State>{
   componentDidUpdate(prevProps:Props):void{if(prevProps.company!==this.props.company&&this.state.doc.status==='draft')this.mutate(doc=>draftWithLatestCompany(doc,this.props.company));}
   componentWillUnmount():void{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);if(this.previewTimer)clearTimeout(this.previewTimer);this.previewMedia?.removeEventListener?.('change',this.handlePreviewMedia);document.removeEventListener('visibilitychange',this.handleVisibilityChange);}
 
-  private handlePreviewMedia=(event:MediaQueryListEvent)=>this.setState({desktopPreview:event.matches});
+  private handlePreviewMedia=(event:MediaQueryListEvent)=>this.setState(state=>({desktopPreview:event.matches,previewDoc:event.matches?structuredClone(state.doc):state.previewDoc}));
 
   private handleVisibilityChange=()=>{
     if(document.visibilityState!=='hidden'||this.state.doc.status==='final'||this.state.saveState==='saved')return;
