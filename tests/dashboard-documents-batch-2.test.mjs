@@ -17,7 +17,10 @@ test('batch 2 home is an operational dashboard backed by existing accounting log
 test('batch 2 documents provide richer search filters and one calm action surface',async()=>{
   const page=await read('src/components/DocumentsPage.tsx');
   for(const token of ['PaymentFilter','documentSearchText','paymentStatus','currency','partially-paid','overdue','Lowest total'])assert.ok(page.includes(token),token);
-  assert.ok(page.includes("placeholder={t('Number, customer, phone, email…'"));
+  assert.ok(page.includes("placeholder={t('Number, customer, item, HS code…'"));
+  assert.ok(page.includes('item.descriptionEn'));
+  assert.ok(page.includes('item.descriptionAr'));
+  assert.ok(page.includes('item.hsCode'));
   assert.ok(page.includes('document-action-popover'));
   assert.ok(page.includes('mobile-document-action-portal'));
   assert.ok(page.includes('icon="more"'));
