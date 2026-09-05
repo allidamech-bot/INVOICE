@@ -10,6 +10,13 @@ test('logo background removal uses secure same-origin AI endpoint without exposi
   ]);
 
   assert.match(settings,/rebuildLogoWithoutBackgroundDataUrl\(source\)/);
+  assert.match(settings,/AI Remove Background/);
+  assert.match(settings,/إزالة الخلفية بالذكاء الاصطناعي/);
+  assert.match(settings,/const original=await fileToRawDataUrl\(file\)/);
+  assert.match(settings,/logoDataUrl:original/);
+  assert.doesNotMatch(settings,/cleanImageDataUrl\(original,'logo'\)/);
+  assert.doesNotMatch(settings,/repairLogoDataUrl/);
+
   assert.match(rebuild,/fetch\('\/api\/remove-background'/);
   assert.match(rebuild,/'Content-Type':blob\.type/);
   assert.match(rebuild,/AbortController/);
