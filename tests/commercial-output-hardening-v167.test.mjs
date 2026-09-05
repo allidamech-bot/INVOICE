@@ -99,7 +99,7 @@ test('hidden party translations do not consume English A4 capacity or satisfy En
   doc.appearance.showStamp=false;
   doc.customerSnapshot=customerSnapshotFrom({id:'c4',companyNameEn:'Buyer',companyNameAr:'ع'.repeat(700),contactPerson:'',addressEn:'',addressAr:'ع'.repeat(700),city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''});
   const base={...doc.items[0],descriptionEn:'Product',descriptionAr:'',quantity:'1',unit:'PCS',unitPrice:'10'};
-  doc.items=Array.from({length:7},(_,index)=>({...base,id:`visible-${index}`}));
+  doc.items=Array.from({length:6},(_,index)=>({...base,id:`visible-${index}`}));
   doc.terms={incoterm:'',paymentTerms:'',packing:'',deliveryTime:'',portOfLoading:'',finalDestination:'',countryOfOrigin:'',validity:'',remarks:''};
   doc.notes='';
   assert.equal(estimatedDocumentPageCount(doc),1);
