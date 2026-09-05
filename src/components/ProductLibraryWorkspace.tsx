@@ -150,6 +150,8 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
 
   private toggleFavorite=async(item:SavedItem)=>{
     if(this.state.busy)return;
+    const editing=this.state.editing;
+    if(editing?.id===item.id){this.set('favorite',!Boolean(editing.favorite));return;}
     this.setState({busy:true,error:''});
     try{await this.props.onSave({...item,favorite:!Boolean(item.favorite),updatedAt:new Date().toISOString()});this.setState({busy:false});}
     catch(e){this.setState({busy:false,error:e instanceof Error?e.message:t('Unable to update favorite.','تعذر تحديث المفضلة.')});}
@@ -198,8 +200,9 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
           <div className="product-library-list">
             {filtered.map(item=>{
               const active=edit?.id===item.id;
+              const rowFavorite=active?Boolean(edit?.favorite):Boolean(item.favorite);
               return <article key={item.id} className={`product-library-row ${active?'active':''}`}>
-                <button type="button" className={`product-library-star ${item.favorite?'on':''}`} aria-label={item.favorite?t('Remove favorite','إزالة من المفضلة'):t('Add favorite','إضافة للمفضلة')} aria-pressed={Boolean(item.favorite)} onClick={()=>void this.toggleFavorite(item)}>★</button>
+                <button type="button" className={`product-library-star ${rowFavorite?'on':''}`} aria-label={rowFavorite?t('Remove favorite','إزالة من المفضلة'):t('Add favorite','إضافة للمفضلة')} aria-pressed={rowFavorite} onClick={()=>void this.toggleFavorite(item)}>★</button>
                 <button type="button" className="product-library-row-main" onClick={()=>this.beginEdit(item)}>
                   <div className="product-library-row-title"><strong>{titleOf(item)}</strong>{item.sku?<code>{item.sku}</code>:null}</div>
                   {item.descriptionEn&&item.descriptionAr?<span>{isArabic()?item.descriptionEn:item.descriptionAr}</span>:null}
