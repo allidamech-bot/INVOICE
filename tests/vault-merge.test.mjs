@@ -5,6 +5,7 @@ import { createBlankDocument } from '../dist/src/lib/documents.js';
 import { mergeVaultIntent } from '../dist/src/storage/vault-merge.js';
 
 function customer(id,name){const now=new Date().toISOString();return{id,companyNameEn:name,companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:'',notes:'',createdAt:now,updatedAt:now};}
+function savedItem(id,name,sku){const now=new Date().toISOString();return{id,createdAt:now,updatedAt:now,sku,descriptionEn:name,descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'',lastCurrency:'USD',usageCount:0,lastUsedAt:now};}
 
 test('document autosave and settings save from the same base preserve both changes',()=>{
   const base=emptyVault();
@@ -46,6 +47,37 @@ test('deleting one record preserves unrelated concurrent additions',()=>{
   const merged=mergeVaultIntent(base,deleteIntent,latest);
   assert.equal(merged.customers.some(item=>item.id==='c1'),false);
   assert.equal(merged.customers.some(item=>item.id==='c2'),true);
+});
+
+test('customer quick-add cannot bypass duplicate identity protection',()=>{
+  const base=emptyVault();
+  base.customers=[customer('c1','Buyer')];
+  const duplicate=customer('c2','  BUYER  ');
+  assert.throws(()=>mergeVaultIntent(base,{...base,customers:[...base.customers,duplicate]},base),/customer already exists/i);
+});
+
+test('concurrent customer creation cannot commit the same normalized identity twice',()=>{
+  const base=emptyVault();
+  const latest=mergeVaultIntent(base,{...base,customers:[customer('c1','Buyer')]},base);
+  assert.throws(()=>mergeVaultIntent(base,{...base,customers:[customer('c2','buyer')]},latest),/customer already exists/i);
+});
+
+test('SKU-only edits cannot bypass duplicate product protection',()=>{
+  const base=emptyVault();
+  const first=savedItem('p1','First','SKU-A');
+  const second=savedItem('p2','Second','SKU-B');
+  base.savedItems=[first,second];
+  const conflicting={...second,sku:' sku-a '};
+  assert.throws(()=>mergeVaultIntent(base,{...base,savedItems:[first,conflicting]},base),/duplicate SKU/i);
+});
+
+test('legacy duplicate identities do not block unrelated settings saves',()=>{
+  const base=emptyVault();
+  base.customers=[customer('c1','Legacy Buyer'),customer('c2','Legacy Buyer')];
+  const intent={...base,appSettings:{...base.appSettings,numbering:{...base.appSettings.numbering,invoicePrefix:'SALE'}}};
+  const merged=mergeVaultIntent(base,intent,base);
+  assert.equal(merged.customers.length,2);
+  assert.equal(merged.appSettings.numbering.invoicePrefix,'SALE');
 });
 
 test('a stale autosave cannot downgrade a concurrently issued document back to draft',()=>{
