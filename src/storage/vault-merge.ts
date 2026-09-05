@@ -170,6 +170,51 @@ function guardSavedItemChanges(base:SavedItem[],intended:SavedItem[],merged:Save
   }
 }
 
+function guardConcurrentRecordChanges<T extends {id:string}>(base:T[],intended:T[],latest:T[],label:string):void{
+  if(intended===base)return;
+  const intendedById=new Map(intended.map(item=>[item.id,item]));
+  const latestById=new Map(latest.map(item=>[item.id,item]));
+  const baseIds=new Set(base.map(item=>item.id));
+  for(const before of base){
+    const wanted=intendedById.get(before.id);
+    const current=latestById.get(before.id);
+    const localChanged=!wanted||!sameRecord(before,wanted);
+    if(!localChanged)continue;
+    const remoteChanged=!current||!sameRecord(before,current);
+    if(!remoteChanged)continue;
+    if(!wanted&&!current)continue;
+    if(wanted&&current&&sameRecord(wanted,current))continue;
+    throw new Error(`${label} changed on another device. Reopen Operations before saving or deleting it.`);
+  }
+  for(const wanted of intended){
+    if(baseIds.has(wanted.id))continue;
+    const current=latestById.get(wanted.id);
+    if(current&&!sameRecord(current,wanted))throw new Error(`${label} changed on another device. Reopen Operations before saving or deleting it.`);
+  }
+}
+function guardDraftPurchaseConflicts(base:PurchaseRecord[],intended:PurchaseRecord[],latest:PurchaseRecord[]):void{
+  if(intended===base)return;
+  const intendedById=new Map(intended.map(item=>[item.id,item]));
+  const latestById=new Map(latest.map(item=>[item.id,item]));
+  const baseIds=new Set(base.map(item=>item.id));
+  for(const before of base){
+    if(before.status!=='draft')continue;
+    const wanted=intendedById.get(before.id);
+    const current=latestById.get(before.id);
+    const localChanged=!wanted||!sameRecord(before,wanted);
+    if(!localChanged)continue;
+    const remoteChanged=!current||!sameRecord(before,current);
+    if(!remoteChanged)continue;
+    if(!wanted&&!current)continue;
+    if(wanted&&current&&sameRecord(wanted,current))continue;
+    throw new Error('Purchase changed on another device. Reopen Operations before saving or deleting it.');
+  }
+  for(const wanted of intended){
+    if(baseIds.has(wanted.id))continue;
+    const current=latestById.get(wanted.id);
+    if(current&&!sameRecord(current,wanted))throw new Error('Purchase changed on another device. Reopen Operations before saving or deleting it.');
+  }
+}
 function guardSupplierChanges(base:Supplier[],intended:Supplier[]):void{
   if(intended===base)return;
   const baseById=new Map(base.map(supplier=>[supplier.id,supplier]));
@@ -320,6 +365,9 @@ function guardPurchaseState(purchase:PurchaseRecord,purchases:PurchaseRecord[],m
   }
 }
 function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:VaultPayload,suppliers:Supplier[],purchases:PurchaseRecord[],expenses:ExpenseRecord[],movements:InventoryMovementRecord[],savedItems:SavedItem[]):void{
+  guardConcurrentRecordChanges(base.suppliers,intended.suppliers,latest.suppliers,'Supplier');
+  guardConcurrentRecordChanges(base.expenses,intended.expenses,latest.expenses,'Expense');
+  guardDraftPurchaseConflicts(base.purchases,intended.purchases,latest.purchases);
   guardSupplierChanges(base.suppliers,intended.suppliers);
   guardExpenseChanges(base.expenses,intended.expenses);
   guardInventoryLedgerIntent(base,intended);
