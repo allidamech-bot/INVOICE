@@ -1,3 +1,4 @@
+// v168 — final release cache isolation after stacked runtime hardening.
 // v167 — quotation date-window and item editor input hardening.
 // v166 — final quotation/invoice draft persistence and responsive preview hardening.
 // v165 — final production hardening for safe cloud reconciliation and iPhone modal recovery.
@@ -27,7 +28,8 @@
 // v116 workflow preset compatibility; v103 saved-item compatibility.
 // Legacy regression markers only: const CACHE = 'lourex-invoice-v101'; const CACHE = 'lourex-invoice-v120'; const CACHE = 'lourex-invoice-v131'; const CACHE = 'lourex-invoice-v132'; const CACHE = 'lourex-invoice-v133'; const CACHE = 'lourex-invoice-v134'; const CACHE = 'lourex-invoice-v135'; const CACHE = 'lourex-invoice-v136'; const CACHE = 'lourex-invoice-v142'; const CACHE = 'lourex-invoice-v146';
 // Runtime compatibility markers: react@17.0.2/umd/react.production.min.js | react-dom@17.0.2/umd/react-dom.production.min.js
-const CACHE = 'lourex-invoice-v167';
+const CACHE = 'lourex-invoice-v168';
+// lourex-invoice-v167: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v166: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v165: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v160: preserved as a legacy marker for cache-migration tests.
