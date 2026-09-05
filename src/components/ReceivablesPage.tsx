@@ -9,9 +9,10 @@ type ReceivablesFilter='open'|'overdue'|'all';
 interface Props{customers:Customer[];documents:LourexDocument[];payments:PaymentRecord[];company:CompanySettings;}
 interface State{query:string;filter:ReceivablesFilter;statementCustomerId:string;}
 
+function accountSnapshot(account:CustomerReceivableSummary,documents:LourexDocument[]){return documents.find(doc=>receivableCustomerId(doc)===account.customerId)?.customerSnapshot;}
 function customerName(account:CustomerReceivableSummary,documents:LourexDocument[]):string{
   if(account.customer)return (isArabic()?(account.customer.companyNameAr||account.customer.companyNameEn):(account.customer.companyNameEn||account.customer.companyNameAr)).trim();
-  const snapshot=documents.find(doc=>receivableCustomerId(doc)===account.customerId)?.customerSnapshot;
+  const snapshot=accountSnapshot(account,documents);
   const value=isArabic()?(snapshot?.companyNameAr||snapshot?.companyNameEn):(snapshot?.companyNameEn||snapshot?.companyNameAr);
   return (value||t('Deleted customer','عميل محذوف')).trim();
 }
@@ -27,15 +28,19 @@ class CustomerStatementModal extends React.Component<{open:boolean;customerId:st
     if(!this.props.open||!this.props.customerId)return null;
     const customer=this.props.customers.find(item=>item.id===this.props.customerId)??null;
     const fallback=this.props.documents.find(doc=>receivableCustomerId(doc)===this.props.customerId)?.customerSnapshot;
-    const displayNameValue=isArabic()?(customer?.companyNameAr||customer?.companyNameEn||fallback?.companyNameAr||fallback?.companyNameEn):(customer?.companyNameEn||customer?.companyNameAr||fallback?.companyNameEn||fallback?.companyNameAr);
+    const arabic=isArabic();
+    const displayNameValue=arabic?(customer?.companyNameAr||customer?.companyNameEn||fallback?.companyNameAr||fallback?.companyNameEn):(customer?.companyNameEn||customer?.companyNameAr||fallback?.companyNameEn||fallback?.companyNameAr);
     const displayName=(displayNameValue||t('Customer','عميل')).trim();
-    const address=[customer?.addressEn||fallback?.addressEn,customer?.city||fallback?.city,customer?.country||fallback?.country].filter(Boolean).join(', ');
+    const addressValue=arabic?(customer?.addressAr||customer?.addressEn||fallback?.addressAr||fallback?.addressEn):(customer?.addressEn||customer?.addressAr||fallback?.addressEn||fallback?.addressAr);
+    const address=[addressValue,customer?.city||fallback?.city,customer?.country||fallback?.country].filter(Boolean).join(', ');
+    const contactEmail=customer?.email||fallback?.email||'';
+    const contactPhone=customer?.phone||fallback?.phone||'';
     const statements=customerStatement(this.props.customerId,this.props.documents,this.props.payments);
-    const companyName=(isArabic()?(this.props.company.nameAr||this.props.company.nameEn):(this.props.company.nameEn||this.props.company.nameAr)||'LOUREX').trim();
+    const companyName=(arabic?(this.props.company.nameAr||this.props.company.nameEn):(this.props.company.nameEn||this.props.company.nameAr)||'LOUREX').trim();
     return <Modal open={this.props.open} title={t('Customer Statement','كشف حساب العميل')} size="xl" onClose={this.props.onClose} footer={<div className="modal-footer-actions"><Button onClick={this.props.onClose}>{t('Close','إغلاق')}</Button><Button icon="printer" variant="primary" onClick={this.print}>{t('Print / Save PDF','طباعة / حفظ PDF')}</Button></div>}>
       <div className="customer-statement-print">
         <header className="statement-header"><div className="statement-brand">{this.props.company.logoDataUrl?<img src={this.props.company.logoDataUrl} alt=""/>:null}<div><strong>{companyName}</strong><span>{t('Customer Statement','كشف حساب العميل')}</span></div></div><div className="statement-date"><span>{t('Statement date','تاريخ الكشف')}</span><strong>{displayDate(todayIso(),getUiLanguage())}</strong></div></header>
-        <section className="statement-customer"><div><span>{t('Customer','العميل')}</span><strong>{displayName}</strong></div>{address?<small>{address}</small>:null}{customer?.email||customer?.phone?<small>{[customer?.email,customer?.phone].filter(Boolean).join(' · ')}</small>:null}</section>
+        <section className="statement-customer"><div><span>{t('Customer','العميل')}</span><strong>{displayName}</strong></div>{address?<small>{address}</small>:null}{contactEmail||contactPhone?<small>{[contactEmail,contactPhone].filter(Boolean).join(' · ')}</small>:null}</section>
         {statements.length?statements.map(section=><section className="statement-currency" key={section.currency}>
           <div className="statement-currency-heading"><h3>{section.currency}</h3><div><span>{t('Outstanding','المستحق')} <strong>{formatMoney(section.outstanding,section.currency)}</strong></span><span className={section.overdue!=='0.00'?'is-overdue':''}>{t('Overdue','المتأخر')} <strong>{formatMoney(section.overdue,section.currency)}</strong></span></div></div>
           <div className="statement-summary-grid"><div><span>{t('Billed','الفواتير')}</span><strong>{formatMoney(section.billed,section.currency)}</strong></div><div><span>{t('Credit Notes','الإشعارات الدائنة')}</span><strong>{formatMoney(section.credits,section.currency)}</strong></div><div><span>{t('Paid','المدفوع')}</span><strong>{formatMoney(section.paid,section.currency)}</strong></div><div><span>{t('Balance','الرصيد')}</span><strong>{formatMoney(section.outstanding,section.currency)}</strong></div></div>
@@ -54,7 +59,10 @@ export class ReceivablesPage extends React.Component<Props,State>{
     const q=this.state.query.trim().toLocaleLowerCase();
     return accounts.filter(account=>{
       const name=customerName(account,this.props.documents).toLocaleLowerCase();
-      const matchesSearch=!q||name.includes(q)||Boolean(account.customer?.email.toLocaleLowerCase().includes(q))||Boolean(account.customer?.phone.includes(q));
+      const snapshot=account.customer?undefined:accountSnapshot(account,this.props.documents);
+      const email=(account.customer?.email||snapshot?.email||'').toLocaleLowerCase();
+      const phone=account.customer?.phone||snapshot?.phone||'';
+      const matchesSearch=!q||name.includes(q)||email.includes(q)||phone.includes(q);
       if(!matchesSearch)return false;
       if(this.state.filter==='overdue')return account.hasOverdue;
       if(this.state.filter==='open')return account.openInvoices>0;
