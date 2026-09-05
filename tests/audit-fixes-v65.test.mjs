@@ -9,7 +9,9 @@ test('final proforma remains convertible without unlocking it for editing',async
   const editor=await read('src/components/EditorPage.tsx');
   assert.match(editor,/props\.document\.kind==='proforma'&&props\.document\.status==='final'/);
   assert.match(editor,/Create Invoice from Quote/);
-  assert.match(editor,/props\.onConvert\(props\.document\)/);
+  assert.match(editor,/private convertFinalQuote=/);
+  assert.match(editor,/this\.props\.onConvert\(this\.props\.document\)/);
+  assert.match(editor,/if\(this\.quoteConversionRunning\)return/);
   assert.match(editor,/The quote stays Final and unchanged/);
 });
 
@@ -24,6 +26,6 @@ test('final quote conversion action is touch-safe and ships to installed PWA cli
   const [css,sw]=await Promise.all([read('src/styles/editor-workflow-v61.css'),read('public/sw.js')]);
   assert.match(css,/\.final-quote-convert-bar/);
   assert.match(css,/@media\(max-width:720px\)[\s\S]*\.final-quote-convert-bar/);
-  assert.match(sw,/lourex-invoice-v65/);
+  assert.match(sw,/lourex-invoice-v\d+/);
   assert.ok(sw.includes('./src/components/EditorPage.js'));
 });

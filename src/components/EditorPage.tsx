@@ -37,6 +37,7 @@ export class EditorPage extends React.Component<Props,State>{
   private navMutationObserver:MutationObserver|undefined;
   private navScrollRoot:HTMLElement|null=null;
   private initialDraftPersisted=false;
+  private quoteConversionRunning=false;
   private mounted=false;
 
   constructor(props:Props){
@@ -54,6 +55,7 @@ export class EditorPage extends React.Component<Props,State>{
   componentDidUpdate(prevProps:Props):void{
     if(prevProps.document.id!==this.props.document.id){
       this.initialDraftPersisted=false;
+      this.quoteConversionRunning=false;
       this.ensureInitialDraftPersisted();
       this.resetScroll();
       this.scheduleSectionNavigationSetup();
@@ -219,6 +221,17 @@ export class EditorPage extends React.Component<Props,State>{
     }
   };
 
+  private printWithPreparedMode=async(doc:LourexDocument,mode:'print'|'pdf'|'share'):Promise<void>=>{
+    try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
+    await this.props.onPrint(doc,mode);
+  };
+
+  private convertFinalQuote=()=>{
+    if(this.quoteConversionRunning)return;
+    this.quoteConversionRunning=true;
+    void Promise.resolve(this.props.onConvert(this.props.document)).finally(()=>{this.quoteConversionRunning=false;});
+  };
+
   private ensureInitialDraftPersisted=()=>{
     const doc=this.props.document;
     if(doc.status==='final'||this.props.documents.some(item=>item.id===doc.id)){
@@ -238,10 +251,12 @@ export class EditorPage extends React.Component<Props,State>{
 
   render():any{
     const props=this.props;
-    const canConvertFinalQuote=props.document.kind==='proforma'&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
+    const finalQuote=props.document.kind==='proforma'&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
+    const linkedInvoice=finalQuote?props.documents.find(item=>item.kind==='invoice'&&item.role==='standard'&&item.convertedFromId===props.document.id&&item.lifecycleStatus!=='voided'):undefined;
+    const canConvertFinalQuote=finalQuote&&!linkedInvoice;
     const sections=this.state.sections;
     const navSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-nav-slot]');
-    const sectionNavigator=sections.length?<nav className={`editor-section-navigator ${canConvertFinalQuote?'has-final-quote-action':''}`} aria-label={t('Invoice editing steps','مراحل تحرير الفاتورة')}>
+    const sectionNavigator=sections.length?<nav className={`editor-section-navigator ${finalQuote?'has-final-quote-action':''}`} aria-label={t('Invoice editing steps','مراحل تحرير الفاتورة')}>
       {sections.map(section=>{
         const active=section.id===this.state.activeSectionId;
         const attention=section.hasError?t(' — needs attention',' — يحتاج مراجعة'):'';
@@ -255,15 +270,17 @@ export class EditorPage extends React.Component<Props,State>{
     </nav>:null;
     return <>
       {this.state.persistenceError?<div className="editor-global-error" role="alert">{this.state.persistenceError}</div>:null}
-      <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry}/>
+      <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry} onPrint={this.printWithPreparedMode}/>
       <DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={props.onDiscardRevision} onVoid={props.onVoidDocument} onCreateCreditNote={props.onCreateCreditNote}/>
       <InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>
       <ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>
       {sectionNavigator&&navSlot?ReactDOM.createPortal(sectionNavigator,navSlot):null}
-      {canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
+      {finalQuote?(linkedInvoice?<div className="final-quote-convert-bar is-converted" role="status">
+        <div><Icon name="check" size={18}/><span><strong>{t('Invoice already created from this quote.','تم إنشاء فاتورة من عرض السعر هذا بالفعل.')}</strong><small>{t(`Linked invoice: ${linkedInvoice.number}. Cancel that invoice before creating a replacement from this quote.`,`الفاتورة المرتبطة: ${linkedInvoice.number}. ألغِ تلك الفاتورة قبل إنشاء بديل من عرض السعر هذا.`)}</small></span></div>
+      </div>:canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
         <div><Icon name="invoice" size={18}/><span><strong>{t('Deal confirmed? Create the invoice.','تم تأكيد الصفقة؟ أنشئ الفاتورة.')}</strong><small>{t('The quote stays Final and unchanged. A new invoice is created with its own number.','يبقى عرض السعر نهائيًا دون تغيير، ويتم إنشاء فاتورة جديدة برقم مستقل.')}</small></span></div>
-        <Button icon="invoice" variant="primary" onClick={()=>void props.onConvert(props.document)}>{t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>
-      </div>:null}
+        <Button icon="invoice" variant="primary" onClick={this.convertFinalQuote}>{t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>
+      </div>:null):null}
     </>;
   }
 }

@@ -1,4 +1,4 @@
-import type { LourexDocument } from '../types.js';
+import type { DocumentItem, LourexDocument } from '../types.js';
 import { paginateItems } from './documents.js';
 import { decimalToScaled, isDecimalInput } from './money.js';
 import { documentDisplayValue, hasDocumentLanguageMismatch, type DocumentValueKind } from './document-language.js';
@@ -41,11 +41,22 @@ function displayedItemText(doc:LourexDocument,descriptionEn:string,descriptionAr
   return `${descriptionEn} ${descriptionAr}`.trim();
 }
 
-function itemWeight(doc:LourexDocument,descriptionEn:string,descriptionAr:string):number{
-  return Math.max(1,Math.ceil(displayedItemText(doc,descriptionEn,descriptionAr).length/95));
+function wrappedCellWeight(value:string,charactersPerLine:number):number{return value.trim()?Math.max(1,Math.ceil(value.trim().length/charactersPerLine)):0;}
+function itemWeight(doc:LourexDocument,item:DocumentItem):number{
+  const description=wrappedCellWeight(displayedItemText(doc,item.descriptionEn,item.descriptionAr),95);
+  const hs=doc.appearance.showHsCode?wrappedCellWeight(item.hsCode,26):0;
+  const origin=doc.appearance.showOrigin?wrappedCellWeight(documentDisplayValue(item.origin,doc.language,'country'),20):0;
+  const packing=doc.appearance.showPacking?wrappedCellWeight(documentDisplayValue(item.packing,doc.language),24):0;
+  const unit=wrappedCellWeight(documentDisplayValue(item.unit,doc.language,'unit'),14);
+  return Math.max(1,description,hs,origin,packing,unit);
 }
 
-function termKind(key:string):DocumentValueKind{return key==='Incoterm'?'technical':key==='Country of Origin'?'country':'prose';}
+function termKind(key:string):DocumentValueKind{
+  if(key==='Incoterm')return 'technical';
+  if(key==='Country of Origin')return 'country';
+  if(key==='Port of Loading'||key==='Final Destination')return 'neutral';
+  return 'prose';
+}
 function displayedClosingValues(doc:LourexDocument):string[]{
   const t=doc.terms;
   const rows:Array<[string,string]>=[['Incoterm',t.incoterm],['Payment Terms',t.paymentTerms],['Packing',t.packing],['Delivery Time',t.deliveryTime],['Port of Loading',t.portOfLoading],['Final Destination',t.finalDestination],['Country of Origin',t.countryOfOrigin],['Validity',t.validity],['Remarks',t.remarks]];
@@ -68,16 +79,16 @@ function usesSeparateDetailsPage(doc:LourexDocument):boolean{
   const complexClosing=score>=10||detailsChars>700||values.some(value=>value.length>260)||notes.length>420;
   if(!complexClosing)return false;
 
-  const tentative=paginateItems(doc.items,true,firstPageCapacity(doc),doc.language);
+  const tentative=paginateItems(doc.items,true,firstPageCapacity(doc),doc.language,item=>itemWeight(doc,item));
   const last=tentative[tentative.length-1]??[];
-  const lastWeight=last.reduce((sum,item)=>sum+itemWeight(doc,item.descriptionEn,item.descriptionAr),0);
+  const lastWeight=last.reduce((sum,item)=>sum+itemWeight(doc,item),0);
   const allowedLastWeight=score>=16?2:score>=13?3:5;
   return lastWeight>allowedLastWeight;
 }
 
 export function estimatedDocumentPageCount(doc:LourexDocument):number{
   const separateDetails=usesSeparateDetailsPage(doc);
-  const itemPages=paginateItems(doc.items,!separateDetails,firstPageCapacity(doc),doc.language);
+  const itemPages=paginateItems(doc.items,!separateDetails,firstPageCapacity(doc),doc.language,item=>itemWeight(doc,item));
   return itemPages.length+(separateDetails?1:0);
 }
 

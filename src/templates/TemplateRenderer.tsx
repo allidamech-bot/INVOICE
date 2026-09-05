@@ -39,7 +39,7 @@ function LogoBlock({ document: doc, inverse = false }: { document: LourexDocumen
   return <div className={`doc-logo ${inverse ? 'inverse' : ''}`}><img src={src} alt={doc.companySnapshot.nameEn || doc.companySnapshot.nameAr || 'Company logo'} /></div>;
 }
 function DocumentTitle({ document: doc, inverse = false }: { document: LourexDocument; inverse?: boolean }): any {
-  const typeEn = doc.role==='credit-note' ? 'CREDIT NOTE' : doc.kind === 'proforma' ? 'PROFORMA INVOICE' : 'INVOICE';
+  const typeEn = doc.role==='credit-note' ? 'CREDIT NOTE' : doc.kind === 'proforma' ? 'QUOTATION' : 'INVOICE';
   const typeAr = doc.role==='credit-note' ? 'إشعار دائن' : doc.kind === 'proforma' ? 'عرض سعر' : 'فاتورة';
   return <div className={`doc-title ${inverse ? 'inverse' : ''}`}>{doc.language === 'en' ? <span>{typeEn}</span> : doc.language === 'ar' ? <span className="doc-title-primary-ar" dir="rtl">{typeAr}</span> : <><span>{typeEn}</span><em dir="rtl">{typeAr}</em></>}</div>;
 }
@@ -135,7 +135,15 @@ function docItemText(doc:LourexDocument,item:DocumentItem):string{
   if(doc.language==='ar')return item.descriptionAr.trim();
   return `${item.descriptionEn} ${item.descriptionAr}`.trim();
 }
-function itemWeight(doc:LourexDocument,item:DocumentItem):number{return Math.max(1,Math.ceil(docItemText(doc,item).length/95));}
+function wrappedCellWeight(value:string,charactersPerLine:number):number{return value.trim()?Math.max(1,Math.ceil(value.trim().length/charactersPerLine)):0;}
+function itemWeight(doc:LourexDocument,item:DocumentItem):number{
+  const description=wrappedCellWeight(docItemText(doc,item),95);
+  const hs=doc.appearance.showHsCode?wrappedCellWeight(item.hsCode,26):0;
+  const origin=doc.appearance.showOrigin?wrappedCellWeight(safeValue(doc,item.origin,'country'),20):0;
+  const packing=doc.appearance.showPacking?wrappedCellWeight(safeValue(doc,item.packing),24):0;
+  const unit=wrappedCellWeight(safeValue(doc,item.unit,'unit'),14);
+  return Math.max(1,description,hs,origin,packing,unit);
+}
 function displayedClosingValues(doc:LourexDocument):string[]{
   const t=doc.terms;
   return [
@@ -155,7 +163,7 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
   if(hardOverflow)return true;
   const complexClosing=score>=10||detailsChars>700||values.some(value=>value.length>260)||notes.length>420;
   if(!complexClosing)return false;
-  const tentative=paginateItems(doc.items,true,firstPageItemCapacity(doc),doc.language);
+  const tentative=paginateItems(doc.items,true,firstPageItemCapacity(doc),doc.language,item=>itemWeight(doc,item));
   const last=tentative[tentative.length-1]??[];
   const lastWeight=last.reduce((sum,item)=>sum+itemWeight(doc,item),0);
   const allowedLastWeight=score>=16?2:score>=13?3:5;
@@ -164,7 +172,7 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
 
 function renderDocument({ document: doc, scale = 1, compact = false }: Props):any{
   const separateDetails = shouldUseDetailsPage(doc);
-  const itemPages = paginateItems(doc.items, !separateDetails, firstPageItemCapacity(doc),doc.language);
+  const itemPages = paginateItems(doc.items, !separateDetails, firstPageItemCapacity(doc),doc.language,item=>itemWeight(doc,item));
   const pages = separateDetails ? [...itemPages, [] as DocumentItem[]] : itemPages;
   return <div className="invoice-pages" style={{ '--preview-scale': String(scale) } as any}>{pages.map((items,index) => <Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index === pages.length - 1} variant={doc.appearance.templateId} compact={compact}/>)}</div>;
 }

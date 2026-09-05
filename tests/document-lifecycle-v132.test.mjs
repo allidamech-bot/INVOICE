@@ -38,6 +38,7 @@ test('v132 final documents preserve audit history through void and block destruc
   assert.ok(panel.includes('Confirm Void'));
   assert.ok(panel.includes('reason'));
   assert.ok(panel.includes('Timeline'));
+  assert.ok(panel.includes("savedFinals=archivedFinals+(doc.status==='final'?1:0)"));
 });
 
 test('v132 credit notes are linked capped and cannot accept payments',async()=>{
