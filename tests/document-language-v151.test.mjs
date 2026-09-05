@@ -58,10 +58,15 @@ test('English document identity never falls back to Arabic-only names or address
   assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)return doc\.companySnapshot\.nameEn\.trim\(\)\|\|doc\.companySnapshot\.nameAr\.trim\(\)/);
 });
 
-test('final review customer identity follows document language rather than app interface language',async()=>{
+test('final review identity follows document language and blocks only new issue when output identity is missing',async()=>{
   const review=await readFile('src/components/DocumentReviewModal.tsx','utf8');
   assert.doesNotMatch(review,/isArabic\(\)\?\(doc\.customerSnapshot/);
-  assert.match(review,/if\(doc\.language==='en'\)return customer\.companyNameEn\.trim\(\)/);
-  assert.match(review,/if\(doc\.language==='ar'\)return customer\.companyNameAr\.trim\(\)\|\|customer\.companyNameEn\.trim\(\)/);
+  assert.match(review,/function reviewIdentityName/);
+  assert.match(review,/if\(language==='en'\)return en/);
+  assert.match(review,/if\(language==='ar'\)return ar\|\|en/);
   assert.match(review,/filter\(Boolean\)\.join\(' \/ '\)/);
+  assert.match(review,/const identityReady=Boolean\(customer&&company\)/);
+  assert.match(review,/const blocked=!final&&!identityReady/);
+  assert.match(review,/disabled=\{working\|\|blocked\|\|mode==='issue'&&final\}/);
+  assert.match(review,/Document identity incomplete/);
 });
