@@ -230,4 +230,49 @@ async function openManualBackgroundEditor(src:string):Promise<string>{
   });
 }
 
-export async function rebuildLogoWithoutBackgroundDataUrl(src:string):Promise<string>{if(!src||!src.startsWith('data:image/'))return src;try{return await openManualBackgroundEditor(src);}catch{return src;}}
+function dataUrlToBlob(src:string):Blob{
+  const comma=src.indexOf(',');
+  if(comma<0||!src.startsWith('data:image/'))throw new Error(t('Unable to read the original logo image.','تعذر قراءة صورة الشعار الأصلية.'));
+  const metadata=src.slice(5,comma),payload=src.slice(comma+1),mime=(metadata.split(';')[0]||'').toLowerCase();
+  if(!/^image\/(png|webp|jpeg)$/.test(mime))throw new Error(t('AI background removal supports PNG, WebP, and JPEG logos.','إزالة الخلفية بالذكاء الاصطناعي تدعم شعارات PNG وWebP وJPEG.'));
+  try{
+    const binary=metadata.includes(';base64')?atob(payload):decodeURIComponent(payload);
+    const bytes=new Uint8Array(binary.length);for(let index=0;index<binary.length;index+=1)bytes[index]=binary.charCodeAt(index);
+    return new Blob([bytes],{type:mime});
+  }catch{throw new Error(t('Unable to read the original logo image.','تعذر قراءة صورة الشعار الأصلية.'));}
+}
+
+function blobToDataUrl(blob:Blob):Promise<string>{
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error(t('Unable to read the AI result.','تعذر قراءة نتيجة الذكاء الاصطناعي.')));reader.readAsDataURL(blob);
+  });
+}
+
+async function removeLogoBackgroundWithAi(src:string):Promise<string>{
+  const blob=dataUrlToBlob(src);
+  if(blob.size>4*1024*1024)throw new Error(t('The logo is too large for AI background removal. Use a file smaller than 4 MB.','حجم الشعار كبير جدًا لإزالة الخلفية بالذكاء الاصطناعي. استخدم ملفًا أصغر من 4 ميجابايت.'));
+  const controller=new AbortController(),timeout=window.setTimeout(()=>controller.abort(),35000);
+  try{
+    const response=await fetch('/api/remove-background',{method:'POST',headers:{'Content-Type':blob.type,'X-Requested-With':'LOUREX-Invoice'},body:blob,signal:controller.signal,cache:'no-store'});
+    if(!response.ok){
+      let code='';
+      try{const payload=await response.json() as {code?:string};code=payload.code||'';}catch{}
+      if(code==='AI_NOT_CONFIGURED')throw new Error(t('AI background removal is not configured yet. Add the REMOVE_BG_API_KEY secret to the LOUREX Invoice Vercel project.','إزالة الخلفية بالذكاء الاصطناعي غير مهيأة بعد. أضف سر REMOVE_BG_API_KEY إلى مشروع LOUREX Invoice على Vercel.'));
+      if(code==='AI_QUOTA_EXHAUSTED')throw new Error(t('AI background-removal quota is unavailable. Check the remove.bg account quota.','حصة إزالة الخلفية بالذكاء الاصطناعي غير متاحة. تحقق من حصة حساب remove.bg.'));
+      if(code==='AI_RATE_LIMITED')throw new Error(t('AI background removal is busy right now. Try again shortly.','خدمة إزالة الخلفية بالذكاء الاصطناعي مشغولة الآن. حاول بعد قليل.'));
+      if(code==='AI_IMAGE_REJECTED'||code==='UNSUPPORTED_IMAGE')throw new Error(t('The AI service could not process this logo. Try another PNG, WebP, or JPEG image.','تعذر على خدمة الذكاء الاصطناعي معالجة هذا الشعار. جرّب صورة PNG أو WebP أو JPEG أخرى.'));
+      throw new Error(t('AI background removal is temporarily unavailable. Try again.','إزالة الخلفية بالذكاء الاصطناعي غير متاحة مؤقتًا. حاول مرة أخرى.'));
+    }
+    const result=await response.blob();
+    if(!result.size)throw new Error(t('AI background removal returned an empty result.','أعادت إزالة الخلفية بالذكاء الاصطناعي نتيجة فارغة.'));
+    return await blobToDataUrl(result);
+  }catch(error){
+    if(error instanceof Error&&error.name==='AbortError')throw new Error(t('AI background removal took too long. Try again.','استغرقت إزالة الخلفية بالذكاء الاصطناعي وقتًا طويلًا. حاول مرة أخرى.'));
+    throw error;
+  }finally{window.clearTimeout(timeout);}
+}
+
+export async function rebuildLogoWithoutBackgroundDataUrl(src:string):Promise<string>{
+  if(!src||!src.startsWith('data:image/'))return src;
+  return removeLogoBackgroundWithAi(src);
+}
