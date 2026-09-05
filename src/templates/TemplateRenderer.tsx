@@ -39,7 +39,7 @@ function LogoBlock({ document: doc, inverse = false }: { document: LourexDocumen
   return <div className={`doc-logo ${inverse ? 'inverse' : ''}`}><img src={src} alt={doc.companySnapshot.nameEn || doc.companySnapshot.nameAr || 'Company logo'} /></div>;
 }
 function DocumentTitle({ document: doc, inverse = false }: { document: LourexDocument; inverse?: boolean }): any {
-  const typeEn = doc.role==='credit-note' ? 'CREDIT NOTE' : doc.kind === 'proforma' ? 'PROFORMA INVOICE' : 'INVOICE';
+  const typeEn = doc.role==='credit-note' ? 'CREDIT NOTE' : doc.kind === 'proforma' ? 'QUOTATION' : 'INVOICE';
   const typeAr = doc.role==='credit-note' ? 'إشعار دائن' : doc.kind === 'proforma' ? 'عرض سعر' : 'فاتورة';
   return <div className={`doc-title ${inverse ? 'inverse' : ''}`}>{doc.language === 'en' ? <span>{typeEn}</span> : doc.language === 'ar' ? <span className="doc-title-primary-ar" dir="rtl">{typeAr}</span> : <><span>{typeEn}</span><em dir="rtl">{typeAr}</em></>}</div>;
 }
