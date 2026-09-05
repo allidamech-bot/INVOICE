@@ -85,7 +85,10 @@ test('v134 keeps internal profitability outside all customer-facing document ren
     read('src/styles/profitability-v134.css'),
     read('src/components/ProfitabilityPanel.tsx')
   ]);
-  assert.doesNotMatch(renderer,/unitCost|internalCosts|ProfitabilityPanel|Gross profit|الربح الإجمالي/);
+  assert.doesNotMatch(renderer,/internalCosts|ProfitabilityPanel|Gross profit|الربح الإجمالي/);
+  const itemsTable=renderer.slice(renderer.indexOf('function ItemsTable'),renderer.indexOf('function Terms'));
+  assert.ok(itemsTable.length>0,'ItemsTable renderer section');
+  assert.doesNotMatch(itemsTable,/unitCost|lastUnitCost|marginPercent|grossProfit|totalCost/);
   assert.match(css,/@media print\{\.profitability-panel\{display:none!important\}\}/);
   assert.match(panel,/Internal only · never printed/);
   assert.match(panel,/not rendered in invoices, PDFs, print, or share output/);
