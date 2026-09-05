@@ -65,10 +65,12 @@ function paymentLabel(status:PaymentStatus):string{
 
 function documentSearchText(doc:LourexDocument):string{
   const customer=doc.customerSnapshot;
+  const itemValues=doc.items.flatMap(item=>[item.descriptionEn,item.descriptionAr,item.hsCode,item.origin,item.packing,item.unit]);
   return [
     doc.number,doc.currency,doc.creditForNumber,
     customer?.companyNameEn,customer?.companyNameAr,customer?.contactPerson,
     customer?.phone,customer?.email,customer?.city,customer?.country,
+    ...itemValues,
     doc.terms.incoterm,doc.terms.paymentTerms,doc.terms.finalDestination,
     doc.terms.countryOfOrigin,doc.terms.portOfLoading,doc.notes
   ].filter(Boolean).join(' ').toLowerCase();
@@ -163,7 +165,7 @@ export class DocumentsPage extends React.Component<Props,State>{
   private setOverview=(tab:State['tab'],status:WorkspaceStatus)=>this.setState({tab,status,payment:'all',query:'',menuId:'',filtersOpen:false});
 
   private actionButtons=(doc:LourexDocument):any=>{
-    const canOutput=doc.status==='final'&&doc.lifecycleStatus!=='voided';
+    const canOutput=doc.status==='final';
     const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
     const linkedInvoice=this.linkedInvoiceForQuote(doc);
     const canConvert=Boolean(this.props.onConvert&&doc.kind==='proforma'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
@@ -199,7 +201,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       [t('Port of loading','ميناء التحميل'),doc.terms.portOfLoading],
       [t('Validity','الصلاحية'),doc.terms.validity]
     ].filter(([,value])=>Boolean(value));
-    const canOutput=doc.status==='final'&&doc.lifecycleStatus!=='voided';
+    const canOutput=doc.status==='final';
     const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
     const linkedInvoice=this.linkedInvoiceForQuote(doc);
     const canConvert=Boolean(this.props.onConvert&&doc.kind==='proforma'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
@@ -300,7 +302,7 @@ export class DocumentsPage extends React.Component<Props,State>{
             <Select aria-label={t('Currency','العملة')} value={this.state.currency} onChange={(e:any)=>this.setState({currency:e.target.value,menuId:''})}><option value="all">{t('All currencies','كل العملات')}</option>{currencies.map(currency=><option key={currency} value={currency}>{currency}</option>)}</Select>
           </div>
         </div>
-        <div className="documents-toolbar-right"><div className="search-box documents-search-box"><Icon name="search"/><Input className="documents-search-input" aria-label={t('Search documents','بحث في المستندات')} title={t('Press / to search','اضغط / للبحث')} placeholder={t('Number, customer, phone, email…','رقم، عميل، هاتف، بريد…')} value={this.state.query} onChange={(e:any)=>this.setState({query:e.target.value,menuId:''})}/>{this.state.query?<IconButton className="documents-search-clear" icon="x" label={t('Clear search','مسح البحث')} onClick={this.clearSearch}/>:<kbd className="documents-search-shortcut" aria-hidden="true">/</kbd>}</div><Select className="documents-sort" aria-label={t('Sort documents','ترتيب المستندات')} value={this.state.sort} onChange={(e:any)=>this.setState({sort:e.target.value as SortMode,menuId:''})}><option value="latest">{t('Latest','الأحدث')}</option><option value="oldest">{t('Oldest','الأقدم')}</option><option value="highest">{t('Highest total (by currency)','أعلى إجمالي حسب العملة')}</option><option value="lowest">{t('Lowest total (by currency)','أقل إجمالي حسب العملة')}</option></Select></div>
+        <div className="documents-toolbar-right"><div className="search-box documents-search-box"><Icon name="search"/><Input className="documents-search-input" aria-label={t('Search documents','بحث في المستندات')} title={t('Press / to search','اضغط / للبحث')} placeholder={t('Number, customer, item, HS code…','رقم، عميل، صنف، HS Code…')} value={this.state.query} onChange={(e:any)=>this.setState({query:e.target.value,menuId:''})}/>{this.state.query?<IconButton className="documents-search-clear" icon="x" label={t('Clear search','مسح البحث')} onClick={this.clearSearch}/>:<kbd className="documents-search-shortcut" aria-hidden="true">/</kbd>}</div><Select className="documents-sort" aria-label={t('Sort documents','ترتيب المستندات')} value={this.state.sort} onChange={(e:any)=>this.setState({sort:e.target.value as SortMode,menuId:''})}><option value="latest">{t('Latest','الأحدث')}</option><option value="oldest">{t('Oldest','الأقدم')}</option><option value="highest">{t('Highest total (by currency)','أعلى إجمالي حسب العملة')}</option><option value="lowest">{t('Lowest total (by currency)','أقل إجمالي حسب العملة')}</option></Select></div>
       </div>
 
       {this.props.documents.length?<div className="documents-results-bar" aria-live="polite"><span><strong>{docs.length}</strong> {t('shown','ظاهرة')} <i aria-hidden="true">/</i> {this.props.documents.length} {t('total','إجمالي')}</span><div>{filteredView?<button type="button" className="documents-clear-filters" onClick={this.clearFilters}>{t('Clear filters','مسح التصفية')}</button>:null}</div></div>:null}
