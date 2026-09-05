@@ -30,7 +30,9 @@ test('hidden mobile overlay defers its full A4 render until opened',async()=>{
 
 test('real document renderer remains intact for full preview and print quality',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
-  assert.match(renderer,/paginateItems\(doc\.items/);
+  assert.match(renderer,/const outputItems=doc\.items\.flatMap\(item=>outputItemFragments\(doc,item\)\)/);
+  assert.match(renderer,/paginateItems\(outputItems, !separateDetails/);
+  assert.match(renderer,/calculateTotals\(doc\.items, doc\.adjustments\)/);
   assert.match(renderer,/LogoBlock document=\{doc\}/);
   assert.match(renderer,/Signature document=\{doc\}/);
   assert.match(renderer,/return renderDocument\(props\)/);
