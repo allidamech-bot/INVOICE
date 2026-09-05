@@ -51,15 +51,19 @@ async function preserveExternalRuntime(cache,asset){
   try{const response=await fetch(asset);if(response.ok)await cache.put(asset,response.clone());}catch{}
 }
 
-async function networkFirst(request){
+// A controlling worker owns one immutable application generation. Core shell
+// requests must use that generation until the waiting worker is explicitly
+// activated; otherwise a flaky network can mix new and old module bytes inside
+// the active cache. Missing/non-core requests may still be populated lazily.
+async function cacheFirst(request){
   const cache=await caches.open(CACHE);
+  const cached=await cache.match(request);
+  if(cached)return cached;
   try{
-    const response=await fetch(request,{cache:'no-cache'});
+    const response=await fetch(request);
     if(response.ok)void cache.put(request,response.clone());
     return response;
   }catch{
-    const cached=await cache.match(request);
-    if(cached)return cached;
     if(request.mode==='navigate')return (await cache.match('./index.html'))||new Response('',{status:504,statusText:'Offline'});
     return new Response('',{status:504,statusText:'Offline'});
   }
@@ -100,7 +104,7 @@ self.addEventListener('fetch',event=>{
   }
 
   if(event.request.mode==='navigate'||FRESH_PATHS.has(url.pathname)||isAppRuntimePath(url.pathname)){
-    event.respondWith(networkFirst(event.request));
+    event.respondWith(cacheFirst(event.request));
     return;
   }
 
