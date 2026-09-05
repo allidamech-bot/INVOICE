@@ -100,11 +100,11 @@ export function hasDocumentLanguageMismatch(doc:LourexDocument):boolean{
   const values:Array<[string,DocumentValueKind]>=[
     [doc.currency,'currency'],
     [doc.companySnapshot.footerText,'prose'],
-    [doc.companySnapshot.city,'prose'],[doc.companySnapshot.country,'country'],
-    [doc.companySnapshot.bank.bankName,'prose'],[doc.companySnapshot.bank.accountName,'prose'],[doc.companySnapshot.bank.currency,'currency'],
-    [doc.customerSnapshot?.city??'','prose'],[doc.customerSnapshot?.country??'','country'],
-    [doc.terms.paymentTerms,'prose'],[doc.terms.packing,'prose'],[doc.terms.deliveryTime,'prose'],[doc.terms.portOfLoading,'prose'],
-    [doc.terms.finalDestination,'prose'],[doc.terms.countryOfOrigin,'country'],[doc.terms.validity,'prose'],[doc.terms.remarks,'prose'],[doc.notes,'prose']
+    [doc.companySnapshot.city,'neutral'],[doc.companySnapshot.country,'country'],
+    [doc.companySnapshot.bank.bankName,'neutral'],[doc.companySnapshot.bank.accountName,'neutral'],[doc.companySnapshot.bank.currency,'currency'],
+    [doc.customerSnapshot?.city??'','neutral'],[doc.customerSnapshot?.country??'','country'],
+    [doc.terms.paymentTerms,'prose'],[doc.terms.packing,'prose'],[doc.terms.deliveryTime,'prose'],[doc.terms.portOfLoading,'neutral'],
+    [doc.terms.finalDestination,'neutral'],[doc.terms.countryOfOrigin,'country'],[doc.terms.validity,'prose'],[doc.terms.remarks,'prose'],[doc.notes,'prose']
   ];
   for(const item of doc.items){values.push([item.origin,'country'],[item.packing,'prose'],[item.unit,'unit']);}
   if(doc.language==='en'){
