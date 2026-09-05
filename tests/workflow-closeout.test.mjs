@@ -57,7 +57,8 @@ test('documents workspace supports ready state, sorting and final-only direct ou
   const docs=await read('src/components/DocumentsPage.tsx');
   assert.match(docs,/Highest total/);
   assert.match(docs,/workflowStatus/);
-  assert.match(docs,/status-\$\{state\}/);
+  assert.match(docs,/const visualState=doc\.lifecycleStatus==='voided'\?'voided':state/);
+  assert.match(docs,/status-\$\{visualState\}/);
   assert.match(docs,/'ready'/);
   assert.match(docs,/const canOutput=doc\.status==='final'/);
   assert.match(docs,/View details/);
