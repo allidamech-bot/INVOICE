@@ -73,5 +73,8 @@ test('batch 6 preserves unsaved-settings protection and company/document saves',
   assert.match(settings,/companyInitial:JSON\.stringify\(company\)/);
   assert.match(settings,/documentsInitial:JSON\.stringify\(appSettings\)/);
   assert.match(settings,/await this\.props\.onSaveCompany\(company\)/);
-  assert.match(settings,/await this\.props\.onSaveAppSettings\(this\.state\.appSettings\)/);
+  assert.match(settings,/const settings=structuredClone\(this\.state\.appSettings\);const snapshot=JSON\.stringify\(settings\)/);
+  assert.match(settings,/await this\.props\.onSaveAppSettings\(settings\)/);
+  assert.match(settings,/documentsInitial:snapshot/);
+  assert.match(settings,/Newer edits are still unsaved/);
 });
