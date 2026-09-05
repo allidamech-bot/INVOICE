@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { paginateItems } from '../dist/src/lib/documents.js';
 
 const read=path=>readFile(path,'utf8');
 
@@ -35,6 +36,18 @@ test('single-language legal identity fields survive Arabic and English document 
   assert.match(renderer,/\['Account Name','اسم الحساب',b\.accountName,'neutral'\]/);
   assert.match(renderer,/if\(doc\.language==='ar'\)return doc\.companySnapshot\.nameAr\.trim\(\)\|\|doc\.companySnapshot\.nameEn\.trim\(\)\|\|'LOUREX'/);
   assert.match(renderer,/function valuePair[\s\S]*documentDisplayValue\(en,'en'\)[\s\S]*documentDisplayValue\(ar,'ar'\)/);
+});
+
+test('hidden translations do not create extra A4 item pages in a single-language document',()=>{
+  const items=Array.from({length:7},(_,index)=>({
+    id:`item-${index}`,
+    descriptionEn:`Short product ${index+1}`,
+    descriptionAr:'ع'.repeat(400),
+    hsCode:'',origin:'',packing:'',quantity:'1',unit:'PCS',unitPrice:'10',unitCost:''
+  }));
+  assert.equal(paginateItems(items,false,7,'en').length,1);
+  assert.ok(paginateItems(items,false,7,'ar').length>1);
+  assert.ok(paginateItems(items,false,7,'bilingual').length>1);
 });
 
 test('document runtime changes ship through the explicit-update PWA cache generation',async()=>{
