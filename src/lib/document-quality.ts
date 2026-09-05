@@ -1,7 +1,7 @@
 import type { LourexDocument } from '../types.js';
 import { paginateItems } from './documents.js';
 import { decimalToScaled, isDecimalInput } from './money.js';
-import { hasDocumentLanguageMismatch } from './document-language.js';
+import { documentDisplayValue, hasDocumentLanguageMismatch, type DocumentValueKind } from './document-language.js';
 
 export type DocumentQualityCode =
   | 'company-name-missing'
@@ -35,36 +35,49 @@ function firstPageCapacity(doc:LourexDocument):number{
   return 7;
 }
 
-function itemWeight(descriptionEn:string,descriptionAr:string):number{
-  const text=`${descriptionEn} ${descriptionAr}`.trim();
-  return Math.max(1,Math.ceil(text.length/95));
+function displayedItemText(doc:LourexDocument,descriptionEn:string,descriptionAr:string):string{
+  if(doc.language==='en')return descriptionEn.trim();
+  if(doc.language==='ar')return descriptionAr.trim();
+  return `${descriptionEn} ${descriptionAr}`.trim();
+}
+
+function itemWeight(doc:LourexDocument,descriptionEn:string,descriptionAr:string):number{
+  return Math.max(1,Math.ceil(displayedItemText(doc,descriptionEn,descriptionAr).length/95));
+}
+
+function termKind(key:string):DocumentValueKind{return key==='Incoterm'?'technical':key==='Country of Origin'?'country':'prose';}
+function displayedClosingValues(doc:LourexDocument):string[]{
+  const t=doc.terms;
+  const rows:Array<[string,string]>=[['Incoterm',t.incoterm],['Payment Terms',t.paymentTerms],['Packing',t.packing],['Delivery Time',t.deliveryTime],['Port of Loading',t.portOfLoading],['Final Destination',t.finalDestination],['Country of Origin',t.countryOfOrigin],['Validity',t.validity],['Remarks',t.remarks]];
+  return rows.map(([key,value])=>documentDisplayValue(value,doc.language,termKind(key))).filter(Boolean);
 }
 
 function usesSeparateDetailsPage(doc:LourexDocument):boolean{
-  const values=Object.values(doc.terms).filter(value=>value.trim());
+  const values=displayedClosingValues(doc);
   const termsCount=values.length;
-  const detailsChars=values.reduce((sum,value)=>sum+value.length,0)+doc.notes.length;
+  const notes=documentDisplayValue(doc.notes,doc.language);
+  const detailsChars=values.reduce((sum,value)=>sum+value.length,0)+notes.length;
   const bank=doc.appearance.showBank&&Object.values(doc.companySnapshot.bank).some(value=>value.trim());
   const signing=(doc.appearance.showSignature&&Boolean(doc.companySnapshot.signatureDataUrl))||(doc.appearance.showStamp&&Boolean(doc.companySnapshot.stampDataUrl));
   const adjustments=[doc.adjustments.discountEnabled,doc.adjustments.shippingEnabled,doc.adjustments.otherChargesEnabled,doc.adjustments.taxEnabled].filter(Boolean).length;
-  const score=termsCount+(doc.notes.trim()?3:0)+(bank?4:0)+(signing?3:0)+adjustments;
+  const score=termsCount+(notes?3:0)+(bank?4:0)+(signing?3:0)+adjustments;
 
-  const hardOverflow=detailsChars>1400||values.some(value=>value.length>520)||doc.notes.length>900;
+  const hardOverflow=detailsChars>1400||values.some(value=>value.length>520)||notes.length>900;
   if(hardOverflow)return true;
 
-  const complexClosing=score>=10||detailsChars>700||values.some(value=>value.length>260)||doc.notes.length>420;
+  const complexClosing=score>=10||detailsChars>700||values.some(value=>value.length>260)||notes.length>420;
   if(!complexClosing)return false;
 
-  const tentative=paginateItems(doc.items,true,firstPageCapacity(doc));
+  const tentative=paginateItems(doc.items,true,firstPageCapacity(doc),doc.language);
   const last=tentative[tentative.length-1]??[];
-  const lastWeight=last.reduce((sum,item)=>sum+itemWeight(item.descriptionEn,item.descriptionAr),0);
+  const lastWeight=last.reduce((sum,item)=>sum+itemWeight(doc,item.descriptionEn,item.descriptionAr),0);
   const allowedLastWeight=score>=16?2:score>=13?3:5;
   return lastWeight>allowedLastWeight;
 }
 
 export function estimatedDocumentPageCount(doc:LourexDocument):number{
   const separateDetails=usesSeparateDetailsPage(doc);
-  const itemPages=paginateItems(doc.items,!separateDetails,firstPageCapacity(doc));
+  const itemPages=paginateItems(doc.items,!separateDetails,firstPageCapacity(doc),doc.language);
   return itemPages.length+(separateDetails?1:0);
 }
 
@@ -84,6 +97,6 @@ export function documentQualityIssues(doc: LourexDocument): DocumentQualityIssue
   if(doc.items.some(item=>isDecimalInput(item.unitPrice)&&decimalToScaled(item.unitPrice)===0n))issues.push({code:'zero-price',level:'warning'});
   if(hasDocumentLanguageMismatch(doc))issues.push({code:'language-mismatch',level:'warning'});
   if(estimatedDocumentPageCount(doc)>1)issues.push({code:'multi-page',level:'info'});
-  if(doc.items.some(item=>(item.descriptionEn.length+item.descriptionAr.length)>900))issues.push({code:'long-description',level:'info'});
+  if(doc.items.some(item=>displayedItemText(doc,item.descriptionEn,item.descriptionAr).length>900))issues.push({code:'long-description',level:'info'});
   return issues;
 }

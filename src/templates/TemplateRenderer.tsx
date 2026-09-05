@@ -22,10 +22,16 @@ function valuePair(doc: LourexDocument, en: string, ar: string): any {
   if (doc.language === 'ar') return <span dir="rtl">{documentDisplayValue(ar,'ar') || '—'}</span>;
   return <span className="bi-value"><span>{en || '—'}</span>{ar ? <span dir="rtl">{ar}</span> : null}</span>;
 }
-function companyName(doc: LourexDocument): any { return valuePair(doc, doc.companySnapshot.nameEn, doc.companySnapshot.nameAr); }
-function customerName(doc: LourexDocument): any { const c = doc.customerSnapshot; return valuePair(doc, c?.companyNameEn ?? '', c?.companyNameAr ?? ''); }
+function identityPair(doc: LourexDocument, en: string, ar: string): any {
+  const english=en.trim(); const arabic=ar.trim();
+  if(doc.language==='en')return <span dir="auto">{english||arabic||'—'}</span>;
+  if(doc.language==='ar')return <span dir="auto">{arabic||english||'—'}</span>;
+  return <span className="bi-value">{english?<span dir="auto">{english}</span>:null}{arabic?<span dir="rtl">{arabic}</span>:null}{!english&&!arabic?<span>—</span>:null}</span>;
+}
+function companyName(doc: LourexDocument): any { return identityPair(doc, doc.companySnapshot.nameEn, doc.companySnapshot.nameAr); }
+function customerName(doc: LourexDocument): any { const c = doc.customerSnapshot; return identityPair(doc, c?.companyNameEn ?? '', c?.companyNameAr ?? ''); }
 function safeValue(doc:LourexDocument,value:string|undefined|null,kind:DocumentValueKind='prose'):string{return documentDisplayValue(value,doc.language,kind);}
-function termKind(key:string):DocumentValueKind{return key==='Incoterm'?'technical':key==='Country of Origin'?'country':'prose';}
+function termKind(key:string):DocumentValueKind{return key==='Incoterm'?'technical':key==='Country of Origin'?'country':key==='Port of Loading'||key==='Final Destination'?'neutral':'prose';}
 
 function LogoBlock({ document: doc, inverse = false }: { document: LourexDocument; inverse?: boolean }): any {
   const src = doc.companySnapshot.logoDataUrl;
@@ -45,13 +51,13 @@ function PartyBlock({ document: doc, type }: { document: LourexDocument; type: '
   const c = doc.customerSnapshot; const isSeller = type === 'seller'; const name = isSeller ? companyName(doc) : customerName(doc);
   const addressEn = isSeller ? doc.companySnapshot.addressEn : (c?.addressEn ?? ''); const addressAr = isSeller ? doc.companySnapshot.addressAr : (c?.addressAr ?? '');
   const cityRaw = isSeller ? doc.companySnapshot.city : (c?.city ?? ''); const countryRaw = isSeller ? doc.companySnapshot.country : (c?.country ?? '');
-  const city=safeValue(doc,cityRaw);const country=safeValue(doc,countryRaw,'country');
+  const city=safeValue(doc,cityRaw,'neutral');const country=safeValue(doc,countryRaw,'country');
   const phone = isSeller ? doc.companySnapshot.phone : (c?.phone ?? ''); const email = isSeller ? doc.companySnapshot.email : (c?.email ?? ''); const website=isSeller?doc.companySnapshot.website:'';
   const identifiers:Array<[string,string,string]>=isSeller
     ? [['VAT No.','رقم ضريبة القيمة المضافة',doc.companySnapshot.vatNumber],['Tax No.','الرقم الضريبي',doc.companySnapshot.taxNumber],['Commercial Registration','السجل التجاري',doc.companySnapshot.commercialRegistration]]
     : [['VAT / Tax','الضريبة',c?.vatTaxNumber??''],['Commercial Registration','السجل التجاري',c?.commercialRegistration??'']];
   const visibleIdentifiers=identifiers.filter(([, ,value],index,array)=>Boolean(value.trim())&&array.findIndex(row=>row[2].trim()===value.trim())===index);
-  return <section className={`party-block party-${type}`}><div className="section-kicker">{localized(doc, isSeller ? 'Seller / From' : 'Bill To / Customer', isSeller ? 'البائع / من' : 'إلى / العميل')}</div><div className="party-name">{name}</div>{(addressEn || addressAr) ? <div className="party-address">{valuePair(doc, addressEn, addressAr)}</div> : null}{(city || country) ? <div className="party-location">{[city, country].filter(Boolean).join(', ')}</div> : null}{(phone || email || website) ? <div className="party-contact">{[phone, email, website].filter(Boolean).join(' • ')}</div> : null}{visibleIdentifiers.length?<div className="party-identifiers">{visibleIdentifiers.map(([en,ar,value])=><div key={`${en}-${value}`}><b>{localized(doc,en,ar)}</b><span>{value}</span></div>)}</div>:null}</section>;
+  return <section className={`party-block party-${type}`}><div className="section-kicker">{localized(doc, isSeller ? 'Seller / From' : 'Bill To / Customer', isSeller ? 'البائع / من' : 'إلى / العميل')}</div><div className="party-name">{name}</div>{(addressEn || addressAr) ? <div className="party-address">{identityPair(doc, addressEn, addressAr)}</div> : null}{(city || country) ? <div className="party-location">{city?<bdi>{city}</bdi>:null}{city&&country?', ':null}{country?<bdi>{country}</bdi>:null}</div> : null}{(phone || email || website) ? <div className="party-contact">{[phone, email, website].filter(Boolean).join(' • ')}</div> : null}{visibleIdentifiers.length?<div className="party-identifiers">{visibleIdentifiers.map(([en,ar,value])=><div key={`${en}-${value}`}><b>{localized(doc,en,ar)}</b><span>{value}</span></div>)}</div>:null}</section>;
 }
 function ItemsTable({ document: doc, items, continued }: { document: LourexDocument; items: DocumentItem[]; continued: boolean }): any {
   const currency=documentCurrency(doc);
@@ -61,15 +67,15 @@ function ItemsTable({ document: doc, items, continued }: { document: LourexDocum
 function Terms({ document: doc }: { document: LourexDocument }): any {
   const t = doc.terms; const rawRows: Array<[string,string,string]> = [['Incoterm','الإنكوترم',t.incoterm],['Payment Terms','شروط الدفع',t.paymentTerms],['Packing','التعبئة',t.packing],['Delivery Time','مدة التسليم',t.deliveryTime],['Port of Loading','ميناء التحميل',t.portOfLoading],['Final Destination','الوجهة النهائية',t.finalDestination],['Country of Origin','بلد المنشأ',t.countryOfOrigin],['Validity','الصلاحية',t.validity],['Remarks','ملاحظات تجارية',t.remarks]];
   const rows=rawRows.map(([en,ar,value])=>[en,ar,safeValue(doc,value,termKind(en))] as [string,string,string]).filter((row): row is [string,string,string] => Boolean(row[2]?.trim()));
-  if (!rows.length) return null; return <section className="terms-block"><h3>{localized(doc,'Commercial Terms','الشروط التجارية')}</h3><div className="terms-grid">{rows.map(row => <div className="term-row" data-term={row[0].toLowerCase().replaceAll(' ','-')} key={row[0]}><b>{localized(doc,row[0],row[1])}</b><span>{row[2]}</span></div>)}</div></section>;
+  if (!rows.length) return null; return <section className="terms-block"><h3>{localized(doc,'Commercial Terms','الشروط التجارية')}</h3><div className="terms-grid">{rows.map(row => <div className="term-row" data-term={row[0].toLowerCase().replaceAll(' ','-')} key={row[0]}><b>{localized(doc,row[0],row[1])}</b><span dir="auto">{row[2]}</span></div>)}</div></section>;
 }
 function Totals({ document: doc }: { document: LourexDocument }): any {
-  const currency=documentCurrency(doc);const t = calculateTotals(doc.items, doc.adjustments); const rows: Array<[string,string,string,boolean]> = [['Subtotal','المجموع الفرعي',t.subtotal,true],['Discount','الخصم',t.discount,doc.adjustments.discountEnabled],['Shipping','الشحن',t.shipping,doc.adjustments.shippingEnabled],['Other Charges','رسوم أخرى',t.otherCharges,doc.adjustments.otherChargesEnabled],[`Tax ${doc.adjustments.taxEnabled ? doc.adjustments.taxPercent + '%' : ''}`,'الضريبة',t.tax,doc.adjustments.taxEnabled]];
+  const currency=documentCurrency(doc);const t = calculateTotals(doc.items, doc.adjustments); const taxRate=doc.adjustments.taxEnabled?`${doc.adjustments.taxPercent}%`:''; const rows: Array<[string,string,string,boolean]> = [['Subtotal','المجموع الفرعي',t.subtotal,true],['Discount','الخصم',t.discount,doc.adjustments.discountEnabled],['Shipping','الشحن',t.shipping,doc.adjustments.shippingEnabled],['Other Charges','رسوم أخرى',t.otherCharges,doc.adjustments.otherChargesEnabled],[`Tax ${taxRate}`,`الضريبة ${taxRate}`.trim(),t.tax,doc.adjustments.taxEnabled]];
   return <section className="totals-block">{rows.filter(r => r[3]).map(r => <div className="total-row" data-total={r[0].toLowerCase().replaceAll(' ','-')} key={r[0]}><span>{localized(doc,r[0],r[1])}</span><strong>{formatMoney(r[2],currency)}</strong></div>)}<div className="grand-total"><span>{localized(doc,doc.role==='credit-note'?'Credit Total':'Grand Total',doc.role==='credit-note'?'إجمالي الإشعار الدائن':'الإجمالي النهائي')}</span><strong>{formatMoney(t.grandTotal,currency)}</strong></div></section>;
 }
 function Bank({ document: doc }: { document: LourexDocument }): any {
-  if (!doc.appearance.showBank) return null; const b = doc.companySnapshot.bank; const rawRows = ([['Bank Name','اسم البنك',b.bankName,'prose'],['Account Name','اسم الحساب',b.accountName,'prose'],['IBAN','آيبان',b.iban,'neutral'],['SWIFT / BIC','سويفت',b.swift,'neutral'],['Currency','العملة',b.currency,'currency']] as Array<[string,string,string,DocumentValueKind]>);const rows=rawRows.map(([en,ar,value,kind])=>[en,ar,safeValue(doc,value,kind)] as [string,string,string]).filter((r): r is [string,string,string] => Boolean(r[2]?.trim())); if (!rows.length) return null;
-  return <section className="bank-block"><h3>{localized(doc,'Bank Details','التفاصيل البنكية')}</h3>{rows.map(r => <div data-bank={r[0].toLowerCase().replaceAll(' ','-')} key={r[0]}><b>{localized(doc,r[0],r[1])}</b><span>{r[2]}</span></div>)}</section>;
+  if (!doc.appearance.showBank) return null; const b = doc.companySnapshot.bank; const rawRows = ([['Bank Name','اسم البنك',b.bankName,'neutral'],['Account Name','اسم الحساب',b.accountName,'neutral'],['IBAN','آيبان',b.iban,'neutral'],['SWIFT / BIC','سويفت',b.swift,'neutral'],['Currency','العملة',b.currency,'currency']] as Array<[string,string,string,DocumentValueKind]>);const rows=rawRows.map(([en,ar,value,kind])=>[en,ar,safeValue(doc,value,kind)] as [string,string,string]).filter((r): r is [string,string,string] => Boolean(r[2]?.trim())); if (!rows.length) return null;
+  return <section className="bank-block"><h3>{localized(doc,'Bank Details','التفاصيل البنكية')}</h3>{rows.map(r => <div data-bank={r[0].toLowerCase().replaceAll(' ','-')} key={r[0]}><b>{localized(doc,r[0],r[1])}</b><span dir="auto">{r[2]}</span></div>)}</section>;
 }
 function Signature({ document: doc }: { document: LourexDocument }): any {
   const showSig = doc.appearance.showSignature && doc.companySnapshot.signatureDataUrl;
@@ -96,8 +102,8 @@ function ContinuationHeader({ document: doc }: { document: LourexDocument }): an
 function footerText(doc:LourexDocument):string{
   const custom=safeValue(doc,doc.companySnapshot.footerText);
   if(custom)return custom;
-  if(doc.language==='en')return documentDisplayValue(doc.companySnapshot.nameEn,'en')||'LOUREX';
-  if(doc.language==='ar')return documentDisplayValue(doc.companySnapshot.nameAr,'ar')||'LOUREX';
+  if(doc.language==='en')return doc.companySnapshot.nameEn.trim()||doc.companySnapshot.nameAr.trim()||'LOUREX';
+  if(doc.language==='ar')return doc.companySnapshot.nameAr.trim()||doc.companySnapshot.nameEn.trim()||'LOUREX';
   return doc.companySnapshot.nameEn||doc.companySnapshot.nameAr||'LOUREX';
 }
 
@@ -124,15 +130,16 @@ function firstPageItemCapacity(doc:LourexDocument):number{
   if(pressure>380)return 5;
   return 7;
 }
-function itemWeight(item:DocumentItem):number{
-  const text=docItemText(item);
-  return Math.max(1,Math.ceil(text.length/95));
+function docItemText(doc:LourexDocument,item:DocumentItem):string{
+  if(doc.language==='en')return item.descriptionEn.trim();
+  if(doc.language==='ar')return item.descriptionAr.trim();
+  return `${item.descriptionEn} ${item.descriptionAr}`.trim();
 }
-function docItemText(item:DocumentItem):string{return `${item.descriptionEn} ${item.descriptionAr}`.trim();}
+function itemWeight(doc:LourexDocument,item:DocumentItem):number{return Math.max(1,Math.ceil(docItemText(doc,item).length/95));}
 function displayedClosingValues(doc:LourexDocument):string[]{
   const t=doc.terms;
   return [
-    safeValue(doc,t.incoterm,'technical'),safeValue(doc,t.paymentTerms),safeValue(doc,t.packing),safeValue(doc,t.deliveryTime),safeValue(doc,t.portOfLoading),safeValue(doc,t.finalDestination),safeValue(doc,t.countryOfOrigin,'country'),safeValue(doc,t.validity),safeValue(doc,t.remarks)
+    safeValue(doc,t.incoterm,'technical'),safeValue(doc,t.paymentTerms),safeValue(doc,t.packing),safeValue(doc,t.deliveryTime),safeValue(doc,t.portOfLoading,'neutral'),safeValue(doc,t.finalDestination,'neutral'),safeValue(doc,t.countryOfOrigin,'country'),safeValue(doc,t.validity),safeValue(doc,t.remarks)
   ].filter(Boolean);
 }
 function shouldUseDetailsPage(doc: LourexDocument): boolean {
@@ -148,16 +155,16 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
   if(hardOverflow)return true;
   const complexClosing=score>=10||detailsChars>700||values.some(value=>value.length>260)||notes.length>420;
   if(!complexClosing)return false;
-  const tentative=paginateItems(doc.items,true,firstPageItemCapacity(doc));
+  const tentative=paginateItems(doc.items,true,firstPageItemCapacity(doc),doc.language);
   const last=tentative[tentative.length-1]??[];
-  const lastWeight=last.reduce((sum,item)=>sum+itemWeight(item),0);
+  const lastWeight=last.reduce((sum,item)=>sum+itemWeight(doc,item),0);
   const allowedLastWeight=score>=16?2:score>=13?3:5;
   return lastWeight>allowedLastWeight;
 }
 
 function renderDocument({ document: doc, scale = 1, compact = false }: Props):any{
   const separateDetails = shouldUseDetailsPage(doc);
-  const itemPages = paginateItems(doc.items, !separateDetails, firstPageItemCapacity(doc));
+  const itemPages = paginateItems(doc.items, !separateDetails, firstPageItemCapacity(doc),doc.language);
   const pages = separateDetails ? [...itemPages, [] as DocumentItem[]] : itemPages;
   return <div className="invoice-pages" style={{ '--preview-scale': String(scale) } as any}>{pages.map((items,index) => <Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index === pages.length - 1} variant={doc.appearance.templateId} compact={compact}/>)}</div>;
 }

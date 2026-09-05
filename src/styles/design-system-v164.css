@@ -226,8 +226,19 @@ html[dir='rtl'] .app-ui{font-family:var(--ds-font-ar)}
 [dir='rtl'] .app-ui :where(.document-detail-value,.dashboard-document-meta){text-align:end}
 
 @media(pointer:coarse){
-  .app-ui :where(.btn,.icon-btn,.shell-nav-button,.mobile-bottom-nav>button,.mobile-more-sheet button,.settings-nav-button){min-height:44px}
-  .app-ui :where(.input,select.input){min-height:44px}
+  .app-ui :where(.btn,.icon-btn,.shell-nav-button,.mobile-bottom-nav>button,.mobile-more-sheet button,.settings-nav-button){min-height:44px!important}
+  .app-ui :where(.icon-btn){min-width:44px!important}
+  .app-ui :where(.input,select.input){min-height:44px!important}
+  .app-ui .editor-actions .btn,
+  .app-ui .section-heading-actions .btn,
+  .app-ui .mobile-action-buttons .btn,
+  .app-ui .editor-section-nav-button,
+  .app-ui .advanced-master-toggle,
+  .app-ui .item-card-actions .btn,
+  .app-ui .item-card-actions .icon-btn,
+  .app-ui .editor-top-left>.icon-btn{min-height:44px!important}
+  .app-ui .item-card-actions .icon-btn,
+  .app-ui .editor-top-left>.icon-btn{min-width:44px!important}
 }
 
 @media(max-width:720px){

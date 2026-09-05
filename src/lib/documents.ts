@@ -1,4 +1,4 @@
-import type { CompanySettings, DocumentKind, DocumentItem, LourexDocument, VaultPayload } from '../types.js';
+import type { CompanySettings, DocumentKind, DocumentItem, DocumentLanguage, LourexDocument, VaultPayload } from '../types.js';
 import { addDaysIso, compareIsoDates, isIsoDate, makeId, normalizeValidityDays, todayIso } from './id.js';
 import { companySnapshotFrom } from './defaults.js';
 import { bankDetailsForId, defaultPaymentTermPreset, defaultTaxPreset } from './commercial-controls.js';
@@ -181,13 +181,13 @@ export function refreshCompanySnapshot(doc: LourexDocument, company: CompanySett
   return { ...doc, companySnapshot:{...companySnapshot,bank:selectedBank?{...selectedBank}:companySnapshot.bank}, updatedAt: new Date().toISOString() };
 }
 
-export function paginateItems(items: DocumentItem[], reserveFinalDetails = true, firstPageCapacity = 7): DocumentItem[][] {
+export function paginateItems(items: DocumentItem[], reserveFinalDetails = true, firstPageCapacity = 7, language:DocumentLanguage='bilingual'): DocumentItem[][] {
   const pages: DocumentItem[][] = [];
   let current: DocumentItem[] = [];
   let used = 0;
   const weightOf = (item: DocumentItem): number => {
-    const text = `${item.descriptionEn} ${item.descriptionAr}`.trim();
-    return Math.max(1, Math.ceil(text.length / 95));
+    const text = language==='en'?item.descriptionEn:language==='ar'?item.descriptionAr:`${item.descriptionEn} ${item.descriptionAr}`.trim();
+    return Math.max(1, Math.ceil(text.trim().length / 95));
   };
   const safeFirstPageCapacity=Math.max(1,Math.min(7,Math.trunc(firstPageCapacity)||7));
   const capacity = () => pages.length === 0 ? safeFirstPageCapacity : 13;

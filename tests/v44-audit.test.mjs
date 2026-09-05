@@ -162,7 +162,7 @@ test('pagination can reserve additional first-page space for long party details'
   assert.equal(paginateItems(items,false,3)[0].length,3);
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/firstPageItemCapacity/);
-  assert.match(renderer,/paginateItems\(doc\.items, !separateDetails, firstPageItemCapacity\(doc\)\)/);
+  assert.match(renderer,/paginateItems\(doc\.items, !separateDetails, firstPageItemCapacity\(doc\),doc\.language\)/);
 });
 
 test('editor exposes percent discount and background-safe autosave',async()=>{
