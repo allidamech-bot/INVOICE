@@ -6,6 +6,14 @@ import { mergeVaultIntent } from '../dist/src/storage/vault-merge.js';
 
 function customer(id,name){const now=new Date().toISOString();return{id,companyNameEn:name,companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:'',preferredCurrency:'',paymentTermPresetId:'',paymentTerms:'',paymentDueDays:'',creditLimit:'',creditCurrency:'',notes:'',createdAt:now,updatedAt:now};}
 function savedItem(id,name,sku){const now=new Date().toISOString();return{id,createdAt:now,updatedAt:now,sku,descriptionEn:name,descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'',lastCurrency:'USD',usageCount:0,lastUsedAt:now};}
+function finalInvoice(base,id='inv-settlement',amount='100.00'){
+  const doc=createBlankDocument('invoice','INV-2026-0200',base.company);
+  doc.id=id;doc.status='final';doc.lifecycleStatus='active';doc.role='standard';doc.currency='USD';doc.items=[{...doc.items[0],descriptionEn:'Service',quantity:'1',unitPrice:amount}];
+  doc.adjustments={discountEnabled:false,discountMode:'fixed',discountValue:'0.00',shippingEnabled:false,shipping:'0.00',otherChargesEnabled:false,otherCharges:'0.00',taxEnabled:false,taxPercent:'0'};
+  return doc;
+}
+function payment(invoice,id,amount){const now='2026-09-05T12:00:00.000Z';return{id,invoiceId:invoice.id,invoiceNumber:invoice.number,customerId:invoice.customerSnapshot?.sourceCustomerId||'',customerNameEn:invoice.customerSnapshot?.companyNameEn||'',customerNameAr:invoice.customerSnapshot?.companyNameAr||'',currency:invoice.currency,amount,date:'2026-09-05',method:'bank-transfer',reference:id,notes:'',createdAt:now,updatedAt:now};}
+function credit(base,invoice,id,amount){const doc=createBlankDocument('invoice',`CN-${id}`,base.company);doc.id=id;doc.status='final';doc.lifecycleStatus='active';doc.role='credit-note';doc.currency=invoice.currency;doc.creditForId=invoice.id;doc.creditForNumber=invoice.number;doc.customerSnapshot=invoice.customerSnapshot?structuredClone(invoice.customerSnapshot):null;doc.items=[{...doc.items[0],descriptionEn:`Credit against ${invoice.number}`,quantity:'1',unitPrice:amount}];doc.adjustments={discountEnabled:false,discountMode:'fixed',discountValue:'0.00',shippingEnabled:false,shipping:'0.00',otherChargesEnabled:false,otherCharges:'0.00',taxEnabled:false,taxPercent:'0'};return doc;}
 
 test('document autosave and settings save from the same base preserve both changes',()=>{
   const base=emptyVault();
@@ -99,6 +107,30 @@ test('legacy duplicate or incomplete master data does not block unrelated saves'
   assert.equal(merged.customers.length,2);
   assert.equal(merged.savedItems[0].favorite,true);
   assert.equal(merged.appSettings.numbering.invoicePrefix,'SALE');
+});
+
+test('concurrent payments cannot merge into an over-collected invoice',()=>{
+  const base=emptyVault();const invoice=finalInvoice(base);base.documents=[invoice];
+  const first=payment(invoice,'pay-a','60.00');const second=payment(invoice,'pay-b','60.00');
+  const latest=mergeVaultIntent(base,{...base,payments:[first]},base);
+  assert.equal(latest.payments.length,1);
+  assert.throws(()=>mergeVaultIntent(base,{...base,payments:[second]},latest),/balance after credit notes cannot fall below|payments plus issued credit notes/i);
+});
+
+test('concurrent credit notes cannot merge above the source invoice balance',()=>{
+  const base=emptyVault();const invoice=finalInvoice(base);base.documents=[invoice];
+  const first=credit(base,invoice,'credit-a','60.00');const second=credit(base,invoice,'credit-b','60.00');
+  const latest=mergeVaultIntent(base,{...base,documents:[invoice,first]},base);
+  assert.equal(latest.documents.filter(doc=>doc.role==='credit-note').length,1);
+  assert.throws(()=>mergeVaultIntent(base,{...base,documents:[invoice,second]},latest),/cannot be reduced below payments plus issued credit notes|cannot exceed the remaining invoice balance/i);
+});
+
+test('a concurrent issued credit note prevents the source invoice from becoming a revision draft',()=>{
+  const base=emptyVault();const invoice=finalInvoice(base);base.documents=[invoice];
+  const issuedCredit=credit(base,invoice,'credit-race','20.00');
+  const latest=mergeVaultIntent(base,{...base,documents:[invoice,issuedCredit]},base);
+  const revisionDraft={...invoice,status:'draft',revision:2,updatedAt:'2026-09-05T15:02:00.000Z'};
+  assert.throws(()=>mergeVaultIntent(base,{...base,documents:[revisionDraft]},latest),/must remain an active final invoice/i);
 });
 
 test('a stale autosave cannot downgrade a concurrently issued document back to draft',()=>{
