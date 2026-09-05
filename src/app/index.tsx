@@ -19,8 +19,12 @@ async function start():Promise<void>{
 }
 void start();
 
+function isDocumentEditorOpen():boolean{
+  return Boolean(document.querySelector('.editor-screen'));
+}
+
 function reloadUnsafeWorkspaceOpen():boolean{
-  return Boolean(document.querySelector('.editor-screen,.operations-page,.product-library-pro.editor-open,.modal-backdrop'));
+  return isDocumentEditorOpen()||Boolean(document.querySelector('.operations-page,.product-library-pro.editor-open,.modal-backdrop'));
 }
 
 // The cloud layer may install a newer account copy while the UI is idle.
