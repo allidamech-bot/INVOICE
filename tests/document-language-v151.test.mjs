@@ -49,3 +49,11 @@ test('v151 renderer and offline shell use the central language isolation layer',
   assert.match(sw,/\.\/src\/lib\/document-language\.js/);
   assert.match(sw,/const CACHE = 'lourex-invoice-v151'/);
 });
+
+test('English document identity never falls back to Arabic-only names or addresses',async()=>{
+  const renderer=await readFile('src/templates/TemplateRenderer.tsx','utf8');
+  assert.match(renderer,/if\(doc\.language==='en'\)return <span dir="auto">\{documentDisplayValue\(english,'en'\)\|\|'—'\}<\/span>/);
+  assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)[^\n]*english\|\|arabic/);
+  assert.match(renderer,/if\(doc\.language==='en'\)return documentDisplayValue\(doc\.companySnapshot\.nameEn,'en'\)\|\|'LOUREX'/);
+  assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)return doc\.companySnapshot\.nameEn\.trim\(\)\|\|doc\.companySnapshot\.nameAr\.trim\(\)/);
+});
