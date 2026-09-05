@@ -13,12 +13,19 @@ test('neutral commercial locations remain visible in Arabic documents',()=>{
   assert.equal(documentDisplayValue('Riyadh Distribution Center','ar','neutral'),'Riyadh Distribution Center');
 });
 
-test('custom item units survive document-language filtering',()=>{
+test('custom commercial identifiers survive document-language filtering',()=>{
   assert.equal(documentDisplayValue('PCS','ar','unit'),'قطعة');
   assert.equal(documentDisplayValue('Bottle','ar','unit'),'Bottle');
   assert.equal(documentDisplayValue('عبوة خاصة','en','unit'),'عبوة خاصة');
+  assert.equal(documentDisplayValue('Saudi Arabia','ar','country'),'المملكة العربية السعودية');
+  assert.equal(documentDisplayValue('Netherlands','ar','country'),'Netherlands');
+  assert.equal(documentDisplayValue('هولندا','en','country'),'هولندا');
+  assert.equal(documentDisplayValue('USD','ar','currency'),'دولار أمريكي');
+  assert.equal(documentDisplayValue('KWD','ar','currency'),'KWD');
   assert.equal(documentLanguageMismatch('Bottle','ar','unit'),false);
   assert.equal(documentLanguageMismatch('عبوة خاصة','en','unit'),false);
+  assert.equal(documentLanguageMismatch('Netherlands','ar','country'),false);
+  assert.equal(documentLanguageMismatch('KWD','ar','currency'),false);
 });
 
 test('legal names and commercial locations do not create false language mismatch warnings',()=>{
@@ -32,11 +39,13 @@ test('legal names and commercial locations do not create false language mismatch
   company.defaultDeliveryTime='';
   const doc=createBlankDocument('proforma','PI-2026-0100',company);
   doc.language='ar';
+  doc.currency='KWD';
   doc.customerSnapshot=customerSnapshotFrom({id:'c1',companyNameEn:'',companyNameAr:'العميل',contactPerson:'',addressEn:'',addressAr:'الرياض',city:'Riyadh',country:'Saudi Arabia',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''});
   doc.items[0].descriptionEn='';
   doc.items[0].descriptionAr='منتج';
   doc.items[0].unit='Bottle';
-  doc.terms={incoterm:'FOB',paymentTerms:'',packing:'',deliveryTime:'',portOfLoading:'Ambarli Port',finalDestination:'Riyadh Distribution Center',countryOfOrigin:'Türkiye',validity:'',remarks:''};
+  doc.items[0].origin='Netherlands';
+  doc.terms={incoterm:'FOB',paymentTerms:'',packing:'',deliveryTime:'',portOfLoading:'Ambarli Port',finalDestination:'Riyadh Distribution Center',countryOfOrigin:'Netherlands',validity:'',remarks:''};
   doc.notes='';
   assert.equal(hasDocumentLanguageMismatch(doc),false);
 });
