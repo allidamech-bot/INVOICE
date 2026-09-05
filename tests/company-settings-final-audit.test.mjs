@@ -4,13 +4,16 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('interface-language save cannot silently persist unsaved numbering edits',async()=>{
+test('interface-language save cannot silently persist or roll back newer numbering edits',async()=>{
   const source=await read('src/components/SettingsModal.tsx');
   assert.match(source,/const persisted=JSON\.parse\(this\.state\.documentsInitial\) as AppSettings/);
   assert.match(source,/const nextPersisted=\{\.\.\.persisted,uiLanguage:value\}/);
+  assert.match(source,/this\.setState\(\{appSettings:next,busy:true/);
   assert.match(source,/onSaveAppSettings\(nextPersisted\)/);
   assert.match(source,/savedSection:JSON\.stringify\(state\.appSettings\)===JSON\.stringify\(nextPersisted\)\?'documents':null/);
+  assert.match(source,/appSettings:state\.appSettings\.uiLanguage===value\?\{\.\.\.state\.appSettings,uiLanguage:previous\.uiLanguage\}:state\.appSettings/);
   assert.doesNotMatch(source,/onSaveAppSettings\(next\);this\.setState\(\{documentsInitial:JSON\.stringify\(next\)/);
+  assert.doesNotMatch(source,/catch\(e\)\{this\.setState\(\{appSettings:previous/);
 });
 
 test('company and document saves preserve edits made while persistence is in flight',async()=>{
@@ -60,10 +63,12 @@ test('company save validates optional email without changing historical document
   assert.match(documents,/structuredClone\(company\)/);
 });
 
-test('stale artwork preparation cannot overwrite a closed or reopened settings session',async()=>{
+test('stale artwork work cannot overwrite a closed or reopened settings session',async()=>{
   const source=await read('src/components/SettingsModal.tsx');
   assert.match(source,/private assetPreparationId=0/);
   assert.match(source,/if\(!this\.props\.open&&prev\.open\)this\.assetPreparationId\+=1/);
-  assert.match(source,/const preparationId=\+\+this\.assetPreparationId/);
-  assert.match(source,/if\(!this\.props\.open\|\|preparationId!==this\.assetPreparationId\)return/);
+  const operationStarts=source.match(/const preparationId=\+\+this\.assetPreparationId/g)||[];
+  const staleGuards=source.match(/if\(!this\.props\.open\|\|preparationId!==this\.assetPreparationId\)return;/g)||[];
+  assert.ok(operationStarts.length>=3,'open preparation, upload, and rebuild should each get a fresh operation id');
+  assert.ok(staleGuards.length>=7,'all async artwork completion and failure paths should reject stale sessions');
 });
