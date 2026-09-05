@@ -197,9 +197,10 @@ export function reverseManualInventoryMovement(movement:InventoryMovementRecord,
 }
 
 export interface InventoryBalance { item:SavedItem; quantity:string; quantityScaled:bigint; }
+export function inventoryMovementIsAccounted(movement:InventoryMovementRecord):boolean{return Boolean(movement.itemId)&&isIsoDate(movement.date)&&isDecimalInput(movement.quantity);}
 export function inventoryBalances(items:SavedItem[],movements:InventoryMovementRecord[]):InventoryBalance[]{
   const byItem=new Map<string,bigint>();
-  for(const movement of movements)byItem.set(movement.itemId,(byItem.get(movement.itemId)??0n)+decimalToScaled(movement.quantity,4));
+  for(const movement of movements){if(!inventoryMovementIsAccounted(movement))continue;byItem.set(movement.itemId,(byItem.get(movement.itemId)??0n)+decimalToScaled(movement.quantity,4));}
   return items.map(item=>{const quantityScaled=byItem.get(item.id)??0n;return {item,quantity:trimFixed(fixed(quantityScaled,4)),quantityScaled};}).sort((a,b)=>{
     const left=(a.item.sku||a.item.descriptionEn||a.item.descriptionAr).toLowerCase();
     const right=(b.item.sku||b.item.descriptionEn||b.item.descriptionAr).toLowerCase();return left.localeCompare(right);
