@@ -14,6 +14,7 @@ function startOfQuarter(today:string):string{const year=today.slice(0,4);const m
 function monthLabel(month:string):string{const [year,rawMonth]=month.split('-');const date=new Date(Date.UTC(Number(year),Number(rawMonth)-1,1));try{return new Intl.DateTimeFormat(getUiLanguage()==='ar'?'ar-EG':'en-US',{month:'short',year:'numeric',timeZone:'UTC',calendar:'gregory'}).format(date);}catch{return month;}}
 function customerDisplay(row:CustomerPerformanceRow):string{return row.customerName||t('Unassigned customer','عميل غير محدد');}
 function filterDateLabel(value:string):string{return value?displayDate(value,getUiLanguage()):t('All dates','كل التواريخ');}
+function safeCsvText(value:string):string{return /^[\t\r ]*[=+\-@]/.test(value)?`'${value}`:value;}
 function csvCell(value:string|number):string{const text=String(value??'');return /[",\n]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;}
 
 export class ReportsPage extends React.Component<Props,State>{
@@ -35,7 +36,7 @@ export class ReportsPage extends React.Component<Props,State>{
 
   private exportCsv=(rows:CustomerPerformanceRow[])=>{
     const headers=['Currency','Customer','Net Sales','Gross Profit','Margin %','Collected','Outstanding','Overdue','Invoices','Credit Notes','Profit Complete'];
-    const lines=[headers,...rows.map(row=>[row.currency,row.customerName,row.netSales,row.grossProfit,row.marginPercent,row.collected,row.outstanding,row.overdue,row.issuedInvoices,row.creditNotes,row.profitComplete?'Yes':'No'])].map(row=>row.map(csvCell).join(','));
+    const lines=[headers,...rows.map(row=>[safeCsvText(row.currency),safeCsvText(row.customerName),row.netSales,row.grossProfit,row.marginPercent,row.collected,row.outstanding,row.overdue,row.issuedInvoices,row.creditNotes,row.profitComplete?'Yes':'No'])].map(row=>row.map(csvCell).join(','));
     const blob=new Blob([`\uFEFF${lines.join('\r\n')}`],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download=`LOUREX-Financial-Report-${this.state.from||'all'}-${this.state.to||todayIso()}.csv`;document.body.appendChild(anchor);anchor.click();anchor.remove();window.setTimeout(()=>URL.revokeObjectURL(url),500);
   };
 
