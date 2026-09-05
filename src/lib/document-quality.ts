@@ -45,7 +45,12 @@ function itemWeight(doc:LourexDocument,descriptionEn:string,descriptionAr:string
   return Math.max(1,Math.ceil(displayedItemText(doc,descriptionEn,descriptionAr).length/95));
 }
 
-function termKind(key:string):DocumentValueKind{return key==='Incoterm'?'technical':key==='Country of Origin'?'country':'prose';}
+function termKind(key:string):DocumentValueKind{
+  if(key==='Incoterm')return 'technical';
+  if(key==='Country of Origin')return 'country';
+  if(key==='Port of Loading'||key==='Final Destination')return 'neutral';
+  return 'prose';
+}
 function displayedClosingValues(doc:LourexDocument):string[]{
   const t=doc.terms;
   const rows:Array<[string,string]>=[['Incoterm',t.incoterm],['Payment Terms',t.paymentTerms],['Packing',t.packing],['Delivery Time',t.deliveryTime],['Port of Loading',t.portOfLoading],['Final Destination',t.finalDestination],['Country of Origin',t.countryOfOrigin],['Validity',t.validity],['Remarks',t.remarks]];
