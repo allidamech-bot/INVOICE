@@ -87,3 +87,16 @@ test('stale artwork work cannot overwrite a closed or reopened settings session'
   assert.ok(operationStarts.length>=3,'open preparation, upload, and rebuild should each get a fresh operation id');
   assert.ok(staleGuards.length>=7,'all async artwork completion and failure paths should reject stale sessions');
 });
+
+test('new artwork intent supersedes older processing, including logo mode changes',async()=>{
+  const source=await read('src/components/SettingsModal.tsx');
+  const upload=source.slice(source.indexOf('private upload=async'),source.indexOf('private rebuildLogo=async'));
+  assert.ok(upload.indexOf('const preparationId=++this.assetPreparationId')<upload.indexOf('file.size>MAX_COMPANY_ASSET_BYTES'),'a replacement selection must invalidate older work before validation');
+  assert.ok(upload.indexOf('const preparationId=++this.assetPreparationId')<upload.indexOf('COMPANY_ASSET_TYPES.test'),'a rejected replacement must still supersede older work');
+  assert.match(upload,/cleaningAssets:false,error:t\('Image is too large/);
+  assert.match(upload,/cleaningAssets:false,error:t\('Use a PNG, WebP, or JPEG image/);
+  const mode=source.slice(source.indexOf('private setLogoMode='),source.indexOf('private saveCompany=async'));
+  assert.match(mode,/if\(this\.state\.busy\)return/);
+  assert.match(mode,/this\.assetPreparationId\+=1/);
+  assert.match(mode,/cleaningAssets:false/);
+});
