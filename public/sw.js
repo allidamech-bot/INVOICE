@@ -17,7 +17,7 @@
 // v153 — premium application colour hierarchy and visual differentiation: const CACHE = 'lourex-invoice-v153';
 // v152 compatibility retained for UX recovery: const CACHE = 'lourex-invoice-v152';
 // v152 — UX, interaction reliability, and local-first sync recovery.
-// v151 — clean Arabic document output and stronger signature/stamp presentation.
+// v151 compatibility retained for language isolation: const CACHE = 'lourex-invoice-v151';
 // v146 — canonical invoice-template visual recovery and consolidated document styles.
 // v142 — production hardening cache generation for local vendored runtime and security headers.
 // v141 — premium light redesign for quotation/invoice templates with stable contrast and spacing.
