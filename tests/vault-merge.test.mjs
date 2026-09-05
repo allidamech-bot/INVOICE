@@ -122,7 +122,7 @@ test('concurrent credit notes cannot merge above the source invoice balance',()=
   const first=credit(base,invoice,'credit-a','60.00');const second=credit(base,invoice,'credit-b','60.00');
   const latest=mergeVaultIntent(base,{...base,documents:[invoice,first]},base);
   assert.equal(latest.documents.filter(doc=>doc.role==='credit-note').length,1);
-  assert.throws(()=>mergeVaultIntent(base,{...base,documents:[invoice,second]},latest),/cannot be reduced below payments plus issued credit notes|cannot exceed the remaining invoice balance/i);
+  assert.throws(()=>mergeVaultIntent(base,{...base,documents:[invoice,second]},latest),/cannot (?:be reduced|fall) below payments plus issued credit notes|cannot exceed the remaining invoice balance/i);
 });
 
 test('a concurrent issued credit note prevents the source invoice from becoming a revision draft',()=>{
