@@ -87,5 +87,5 @@ test('financial CSV export neutralizes spreadsheet formulas while preserving num
   assert.match(page,/const probe=text\.trimStart\(\)/);
   assert.match(page,/const formulaRisk=\/\^\[=\+@\]\/\.test\(probe\)\|\|\(probe\.startsWith\('-'\)&&!CSV_NUMBER\.test\(probe\)\)/);
   assert.match(page,/const safe=formulaRisk\?`'\$\{text\}`:text/);
-  assert.match(page,/\[\"\\r\\n\]/);
+  assert.ok(page.includes('return /[",\\r\\n]/.test(safe)'));
 });
