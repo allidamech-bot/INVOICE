@@ -5,7 +5,7 @@ import { emptyItem, refreshCompanySnapshot, validateDocument } from '../lib/docu
 import { getDocumentReadiness } from '../lib/readiness.js';
 import { documentQualityIssues } from '../lib/document-quality.js';
 import { findSavedItemMatch, historySuggestions, mergeSavedItemSelections, savedItemSearchText, sortSavedItems } from '../lib/saved-items.js';
-import { addDaysIso, displayDate, isIsoDate, normalizeValidityDays } from '../lib/id.js';
+import { addDaysIso, daysBetweenIso, displayDate, isIsoDate, normalizeValidityDays } from '../lib/id.js';
 import { applyCustomerCommercialDefaults, applyPaymentTermPreset, bankAccountIdForDetails, bankAccountsForCompany, bankDetailsForId, customerCreditStatus, paymentTermPresetById, pricingSuggestedUnitPrice } from '../lib/commercial-controls.js';
 import { ARABIC_FONT_OPTIONS, LATIN_FONT_OPTIONS } from '../lib/appearance.js';
 import { getUiLanguage, isArabic, t, translateValidation } from '../lib/i18n.js';
@@ -23,13 +23,6 @@ const incoterms=['EXW','FCA','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'];
 function EditorDateInput(props:{value:string;label:string;onChange:(value:string)=>void}):any{
   const visible=props.value?displayDate(props.value,getUiLanguage()):t('Choose date','اختر التاريخ');
   return <span className="editor-date-control"><span className="editor-date-value" aria-hidden="true">{visible}</span><Input aria-label={props.label} type="date" value={props.value} onChange={(event:any)=>props.onChange(event.target.value)}/></span>;
-}
-
-function isoDaySpan(start:string,end:string):number|null{
-  if(!isIsoDate(start)||!isIsoDate(end))return null;
-  const toUtc=(value:string)=>Date.UTC(Number(value.slice(0,4)),Number(value.slice(5,7))-1,Number(value.slice(8,10)));
-  const days=Math.round((toUtc(end)-toUtc(start))/86_400_000);
-  return days>=0?days:null;
 }
 
 interface Props {
@@ -125,6 +118,8 @@ export class EditorPage extends React.Component<Props,State>{
   private schedulePreview=()=>{
     if(!this.state.desktopPreview)return;
     if(this.previewTimer)window.clearTimeout(this.previewTimer);
+    // The A4 tree is deliberately one beat behind typing. This removes the
+    // multi-page renderer from the keystroke path without changing output data.
     this.previewTimer=window.setTimeout(()=>this.setState({previewDoc:structuredClone(this.state.doc)}),180);
   };
 
@@ -198,7 +193,7 @@ export class EditorPage extends React.Component<Props,State>{
     let next={...d,issueDate:value};
     if(d.kind==='proforma'){
       if(!isIsoDate(value))return next;
-      const validityDays=isoDaySpan(d.issueDate,d.dueDate)??normalizeValidityDays(this.props.company.defaultValidityDays);
+      const validityDays=daysBetweenIso(d.issueDate,d.dueDate)??normalizeValidityDays(this.props.company.defaultValidityDays);
       return {...next,dueDate:addDaysIso(value,validityDays)};
     }
     const preset=paymentTermPresetById(this.props.company,d.paymentTermPresetId);
