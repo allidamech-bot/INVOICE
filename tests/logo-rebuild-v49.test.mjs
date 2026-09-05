@@ -44,15 +44,15 @@ test('deterministic helper keeps nearby thin dark wordmark-like strokes but reje
   assert.equal(alpha(data,width,135,28),0);
 });
 
-test('recreate-logo workflow uses a bounded, touch-friendly editor and exact user approval',async()=>{
+test('AI logo workflow keeps the bounded touch editor available as a fallback utility',async()=>{
   const [settings,rebuild,css,sw]=await Promise.all([
     readFile('src/components/SettingsModal.tsx','utf8'),
     readFile('src/lib/logo-rebuild.ts','utf8'),
     readFile('src/styles/company-assets.css','utf8'),
     readFile('public/sw.js','utf8')
   ]);
-  assert.match(settings,/Recreate logo without background/);
-  assert.match(settings,/إعادة إنشاء الشعار بدون خلفية/);
+  assert.match(settings,/AI Remove Background/);
+  assert.match(settings,/إزالة الخلفية بالذكاء الاصطناعي/);
   assert.match(settings,/rebuildLogoWithoutBackgroundDataUrl\(source\)/);
   assert.match(rebuild,/openManualBackgroundEditor/);
   assert.match(rebuild,/const maxDimension=1024/);
