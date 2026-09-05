@@ -37,3 +37,13 @@ test('manual cloud restore reloads immediately after success instead of leaving 
   assert.match(restore,/window\.location\.reload\(\)/);
   assert.doesNotMatch(restore,/setTimeout[\s\S]*window\.location\.reload/);
 });
+
+test('Operations surfaces excluded legacy accounting records instead of silently hiding integrity loss',async()=>{
+  const page=await read('src/components/OperationsPage.tsx');
+  assert.match(page,/operationsIntegritySummary/);
+  assert.match(page,/integrity\.totalInvalid\?<div className="operations-callout danger operations-integrity-warning" role="status">/);
+  assert.match(page,/integrity\.invalidPurchases/);
+  assert.match(page,/integrity\.invalidExpenses/);
+  assert.match(page,/integrity\.invalidMovements/);
+  assert.match(page,/excluded from accounting or inventory totals until corrected/);
+});
