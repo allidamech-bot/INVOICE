@@ -13,6 +13,7 @@ test('PWA activation rechecks draft safety immediately before a requested reload
   assert.match(controller,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
   assert.ok(controller.indexOf('reloadUnsafeWorkspaceOpen()')<controller.indexOf('window.location.replace(window.location.href)'));
   assert.match(entry,/function updateNoticeDeferredForWorkspace\(\):void[\s\S]*reload\.disabled=false/);
+  assert.match(entry,/reload\.style\.minHeight='44px'/);
 });
 
 test('cloud install revalidates account ownership and workspace safety at the local commit boundary',async()=>{
