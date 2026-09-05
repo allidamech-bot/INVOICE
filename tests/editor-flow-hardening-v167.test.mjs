@@ -27,14 +27,15 @@ test('all item unit inputs share one valid datalist instead of duplicate DOM ids
   assert.doesNotMatch(editor,/id="units"/);
 });
 
-test('document design exposes every optional item table column directly',async()=>{
+test('document design exposes every optional item table column without depending on commercial advanced state',async()=>{
   const editor=await read('src/components/EditorPageCore.tsx');
   assert.match(editor,/appearance-table-columns/);
   assert.match(editor,/checked=\{d\.appearance\.showHsCode\}[\s\S]{0,140}this\.appearance\('showHsCode',v\)/);
   assert.match(editor,/checked=\{d\.appearance\.showOrigin\}[\s\S]{0,140}this\.appearance\('showOrigin',v\)/);
   assert.match(editor,/checked=\{d\.appearance\.showPacking\}[\s\S]{0,140}this\.appearance\('showPacking',v\)/);
-  assert.match(editor,/<div className="advanced-panel design-advanced-panel">/);
-  assert.doesNotMatch(editor,/advancedOpen\?<div className="advanced-panel design-advanced-panel">/);
+  const design=editor.slice(editor.indexOf('<section className="editor-section"><div className="section-heading"><span>06</span>'));
+  assert.match(design,/design-advanced-panel/);
+  assert.doesNotMatch(design,/this\.state\.advancedOpen\?<div className="advanced-panel design-advanced-panel"/);
 });
 
 test('critical editor controls keep 44px touch targets on iPhone and iPad',async()=>{
