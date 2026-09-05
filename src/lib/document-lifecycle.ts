@@ -2,6 +2,7 @@ import type { DocumentEventRecord, DocumentEventType, DocumentRevisionRecord, Lo
 import { duplicateDocument, emptyItem } from './documents.js';
 import { makeId } from './id.js';
 import { calculateTotals, decimalToScaled } from './money.js';
+import { accountedInvoiceCreditNotes, accountedInvoicePayments } from './payments.js';
 
 function centsString(cents:bigint):string{const sign=cents<0n?'-':'';const abs=cents<0n?-cents:cents;return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`; }
 export function isCreditNote(doc:LourexDocument):boolean{return doc.role==='credit-note';}
@@ -10,8 +11,8 @@ export function documentRevision(doc:LourexDocument):number{return Math.max(1,Ma
 export function activeFinalCreditNotes(invoiceId:string,documents:LourexDocument[]):LourexDocument[]{return documents.filter(doc=>doc.role==='credit-note'&&doc.creditForId===invoiceId&&doc.status==='final'&&doc.lifecycleStatus!=='voided');}
 export function invoiceCreditCapacity(invoice:LourexDocument,documents:LourexDocument[],payments:PaymentRecord[],excludeCreditId=''):{total:string;paid:string;credited:string;available:string}{
   const total=decimalToScaled(calculateTotals(invoice.items,invoice.adjustments).grandTotal,2);
-  let paid=0n;for(const payment of payments)if(payment.invoiceId===invoice.id)paid+=decimalToScaled(payment.amount,2);
-  let credited=0n;for(const credit of activeFinalCreditNotes(invoice.id,documents))if(credit.id!==excludeCreditId)credited+=decimalToScaled(calculateTotals(credit.items,credit.adjustments).grandTotal,2);
+  let paid=0n;for(const payment of accountedInvoicePayments(invoice,payments))paid+=decimalToScaled(payment.amount,2);
+  let credited=0n;for(const credit of accountedInvoiceCreditNotes(invoice,documents))if(credit.id!==excludeCreditId)credited+=decimalToScaled(calculateTotals(credit.items,credit.adjustments).grandTotal,2);
   const available=total-paid-credited;return{total:centsString(total),paid:centsString(paid),credited:centsString(credited),available:centsString(available>0n?available:0n)};
 }
 export function createDocumentEvent(doc:LourexDocument,type:DocumentEventType,note='',related?:LourexDocument,amount=''):DocumentEventRecord{const now=new Date().toISOString();return{id:makeId('event'),documentId:doc.id,documentNumber:doc.number,type,at:now,note,relatedDocumentId:related?.id||'',relatedDocumentNumber:related?.number||'',amount,currency:doc.currency};}
