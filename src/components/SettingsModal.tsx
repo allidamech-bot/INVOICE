@@ -1,7 +1,6 @@
 import type { AppSettings, CompanySettings } from '../types.js';
 import { cleanImageDataUrl, fileToDataUrl, fileToRawDataUrl } from '../lib/files.js';
 import type { CompanyAssetKind } from '../lib/files.js';
-import { repairLogoDataUrl } from '../lib/logo-repair.js';
 import { rebuildLogoWithoutBackgroundDataUrl } from '../lib/logo-rebuild.js';
 import { t } from '../lib/i18n.js';
 import { validateCommercialCompany } from '../lib/commercial-controls.js';
@@ -35,7 +34,7 @@ export class SettingsModal extends React.Component<Props,State> {
     super(props);
     const company=structuredClone(props.company);
     const appSettings=structuredClone(props.appSettings);
-    this.state={tab:'company',company,appSettings,busy:false,cleaningAssets:false,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto'};
+    this.state={tab:'company',company,appSettings,busy:false,cleaningAssets:false,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original'};
   }
   componentDidUpdate(prev:Props):void{
     if(!this.props.open&&prev.open)this.assetPreparationId+=1;
@@ -43,7 +42,7 @@ export class SettingsModal extends React.Component<Props,State> {
       const company=structuredClone(this.props.company);
       const appSettings=structuredClone(this.props.appSettings);
       const preparationId=++this.assetPreparationId;
-      this.setState({company,appSettings,busy:false,cleaningAssets:false,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto'},()=>void this.prepareExistingAssets(company,preparationId));
+      this.setState({company,appSettings,busy:false,cleaningAssets:false,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original'},()=>void this.prepareExistingAssets(company,preparationId));
     }
   }
   private hasUnsavedSettings=()=>JSON.stringify(this.state.company)!==this.state.companyInitial||JSON.stringify(this.state.appSettings)!==this.state.documentsInitial;
@@ -60,27 +59,26 @@ export class SettingsModal extends React.Component<Props,State> {
   private prepareExistingAssets=async(source:CompanySettings,preparationId:number)=>{
     if(!this.props.open||preparationId!==this.assetPreparationId)return;
     this.setState({cleaningAssets:true});
-    const [cleaned,repairedLogo]=await Promise.all([this.cleanCompanyAssets(source),repairLogoDataUrl(source.logoDataUrl)]);
+    const cleaned=await this.cleanCompanyAssets(source);
     if(!this.props.open||preparationId!==this.assetPreparationId)return;
     this.setState(state=>{
       const company={...state.company};
-      let changed=false,logoChanged=false;
+      let changed=false;
       const hasSavedLogo=Boolean(source.logoDataUrl&&!source.logoDataUrl.includes('lourex-logo.svg'));
-      const logoOriginalDataUrl=hasSavedLogo?source.logoDataUrl:state.logoOriginalDataUrl;
-      const logoCleanedDataUrl=hasSavedLogo?repairedLogo:state.logoCleanedDataUrl;
+      const logoOriginalDataUrl=hasSavedLogo?source.logoDataUrl:'';
+      const logoCleanedDataUrl=logoOriginalDataUrl;
       const logoRebuiltDataUrl='';
-      let logoMode:State['logoMode']=hasSavedLogo&&repairedLogo===source.logoDataUrl?'original':state.logoMode;
-      if(source.logoDataUrl&&state.company.logoDataUrl===source.logoDataUrl&&repairedLogo!==source.logoDataUrl){company.logoDataUrl=repairedLogo;logoMode='auto';changed=true;logoChanged=true;}
+      const logoMode:State['logoMode']='original';
       const fields:AssetField[]=['signatureDataUrl','stampDataUrl'];
       for(const field of fields){if(state.company[field]===source[field]&&cleaned[field]!==source[field]){company[field]=cleaned[field];changed=true;}}
-      const message=logoChanged?t('The saved logo was re-cleaned. If any background remains, use Recreate logo without background.','تمت إعادة تنظيف الشعار المحفوظ. إذا بقيت أي خلفية استخدم خيار إعادة إنشاء الشعار بدون خلفية.'):changed?t('Signature and stamp backgrounds cleaned. Review the previews and save.','تم تنظيف خلفية التوقيع والختم. راجع المعاينات ثم اضغط حفظ.'):state.message;
+      const message=changed?t('Signature and stamp backgrounds cleaned. Review the previews and save.','تم تنظيف خلفية التوقيع والختم. راجع المعاينات ثم اضغط حفظ.'):state.message;
       return {company,logoOriginalDataUrl,logoCleanedDataUrl,logoRebuiltDataUrl,logoMode,cleaningAssets:false,savedSection:changed?null:state.savedSection,message,error:''};
     });
   };
   private selectAsset=(field:AssetField,input:HTMLInputElement)=>{const file=input.files?.[0];input.value='';void this.upload(field,file);};
   private clearAsset=(field:AssetField)=>{
     this.assetPreparationId+=1;
-    this.setState(state=>({...state,company:{...state.company,[field]:''},...(field==='logoDataUrl'?{logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto' as const}:{}),cleaningAssets:false,savedSection:null,message:t('Artwork removed from this draft. Save Company to apply the change.','تمت إزالة الصورة من هذه المسودة. اضغط حفظ الشركة لتطبيق التغيير.'),error:''}));
+    this.setState(state=>({...state,company:{...state.company,[field]:''},...(field==='logoDataUrl'?{logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original' as const}:{}),cleaningAssets:false,savedSection:null,message:t('Artwork removed from this draft. Save Company to apply the change.','تمت إزالة الصورة من هذه المسودة. اضغط حفظ الشركة لتطبيق التغيير.'),error:''}));
   };
   private upload=async(field:AssetField,file?:File)=>{
     if(!file)return;
@@ -91,10 +89,8 @@ export class SettingsModal extends React.Component<Props,State> {
     try{
       if(field==='logoDataUrl'){
         const original=await fileToRawDataUrl(file);
-        const firstPass=await cleanImageDataUrl(original,'logo');
-        const cleaned=await repairLogoDataUrl(firstPass);
         if(!this.props.open||preparationId!==this.assetPreparationId)return;
-        this.setState(state=>({company:{...state.company,logoDataUrl:cleaned},logoOriginalDataUrl:original,logoCleanedDataUrl:cleaned,logoRebuiltDataUrl:'',logoMode:'auto',cleaningAssets:false,savedSection:null,message:t('Logo prepared. If any background remains, use Recreate logo without background.','تم تجهيز الشعار. إذا بقيت أي خلفية استخدم خيار إعادة إنشاء الشعار بدون خلفية.'),error:''}));
+        this.setState(state=>({company:{...state.company,logoDataUrl:original},logoOriginalDataUrl:original,logoCleanedDataUrl:original,logoRebuiltDataUrl:'',logoMode:'original',cleaningAssets:false,savedSection:null,message:t('Original logo preserved. Use AI Remove Background if you want a transparent version.','تم الحفاظ على الشعار الأصلي بدون حذف أي جزء منه. استخدم إزالة الخلفية بالذكاء الاصطناعي للحصول على نسخة شفافة.'),error:''}));
         return;
       }
       const data=await fileToDataUrl(file,MAX_COMPANY_ASSET_BYTES,this.assetKind(field));
@@ -113,11 +109,11 @@ export class SettingsModal extends React.Component<Props,State> {
     try{
       const rebuilt=await rebuildLogoWithoutBackgroundDataUrl(source);
       if(!this.props.open||preparationId!==this.assetPreparationId)return;
-      if(!rebuilt||rebuilt===source){this.setState({cleaningAssets:false,error:t('The logo could not be reconstructed reliably. Try uploading the original image again.','تعذر إعادة إنشاء الشعار بشكل موثوق. جرّب رفع الصورة الأصلية مرة أخرى.')});return;}
-      this.setState(state=>({company:{...state.company,logoDataUrl:rebuilt},logoRebuiltDataUrl:rebuilt,logoMode:'rebuild',cleaningAssets:false,savedSection:null,message:t('Transparent logo recreated. Review the preview, then press Save to use it on documents.','تمت إعادة إنشاء الشعار بدون خلفية. راجع المعاينة ثم اضغط حفظ لاستخدامه في المستندات.'),error:''}));
+      if(!rebuilt||rebuilt===source){this.setState({cleaningAssets:false,error:t('AI background removal did not produce a usable transparent logo. Try uploading the original image again.','لم تنتج إزالة الخلفية بالذكاء الاصطناعي شعارًا شفافًا صالحًا. جرّب رفع الصورة الأصلية مرة أخرى.')});return;}
+      this.setState(state=>({company:{...state.company,logoDataUrl:rebuilt},logoRebuiltDataUrl:rebuilt,logoMode:'rebuild',cleaningAssets:false,savedSection:null,message:t('AI background removed. Review the preview, then press Save to use it on documents.','تمت إزالة الخلفية بالذكاء الاصطناعي. راجع المعاينة ثم اضغط حفظ لاستخدام الشعار في المستندات.'),error:''}));
     }catch(e){
       if(!this.props.open||preparationId!==this.assetPreparationId)return;
-      this.setState({cleaningAssets:false,error:e instanceof Error?e.message:t('Unable to recreate the logo.','تعذر إعادة إنشاء الشعار.')});
+      this.setState({cleaningAssets:false,error:e instanceof Error?e.message:t('Unable to remove the logo background with AI.','تعذرت إزالة خلفية الشعار بالذكاء الاصطناعي.')});
     }
   };
   private setLogoMode=(logoMode:State['logoMode'])=>{
@@ -125,7 +121,7 @@ export class SettingsModal extends React.Component<Props,State> {
     const source=logoMode==='auto'?this.state.logoCleanedDataUrl:logoMode==='rebuild'?this.state.logoRebuiltDataUrl:this.state.logoOriginalDataUrl;
     if(!source)return;
     this.assetPreparationId+=1;
-    const message=logoMode==='auto'?t('Enhanced automatic logo cleanup selected.','تم اختيار التنظيف التلقائي المحسّن للشعار.'):logoMode==='rebuild'?t('Recreated transparent logo selected.','تم اختيار الشعار المعاد إنشاؤه بدون خلفية.'):t('Original logo selected with no background processing.','تم اختيار الشعار الأصلي بدون معالجة للخلفية.');
+    const message=logoMode==='rebuild'?t('AI transparent logo selected.','تم اختيار نسخة الشعار الشفافة بالذكاء الاصطناعي.'):t('Original logo selected with no background processing.','تم اختيار الشعار الأصلي بدون أي معالجة للخلفية.');
     this.setState(state=>({logoMode,company:{...state.company,logoDataUrl:source},cleaningAssets:false,savedSection:null,message,error:''}));
   };
   private saveCompany=async()=>{
@@ -187,7 +183,7 @@ export class SettingsModal extends React.Component<Props,State> {
   private saveButton(section:'company'|'documents'):any{
     const saved=this.state.savedSection===section;
     const processing=section==='company'&&this.state.cleaningAssets;
-    return <Button icon={saved?'check':'save'} variant="primary" disabled={this.state.busy||processing} onClick={section==='company'?this.saveCompany:this.saveDocuments}>{processing?t('Cleaning images…','جارٍ معالجة الصور…'):this.state.busy?t('Saving…','جارٍ الحفظ…'):saved?t('Saved','تم الحفظ'):t('Save','حفظ')}</Button>;
+    return <Button icon={saved?'check':'save'} variant="primary" disabled={this.state.busy||processing} onClick={section==='company'?this.saveCompany:this.saveDocuments}>{processing?t('Processing artwork…','جارٍ معالجة الصور…'):this.state.busy?t('Saving…','جارٍ الحفظ…'):saved?t('Saved','تم الحفظ'):t('Save','حفظ')}</Button>;
   }
 
   render():any{
@@ -209,11 +205,11 @@ export class SettingsModal extends React.Component<Props,State> {
               <Field label={t('Website','الموقع الإلكتروني')}><Input type="url" inputMode="url" autoComplete="url" dir="ltr" value={c.website} onChange={(e:any)=>this.setCompany('website',e.target.value)}/></Field><Field label={t('VAT Number','رقم ضريبة القيمة المضافة')}><Input dir="ltr" value={c.vatNumber} onChange={(e:any)=>this.setCompany('vatNumber',e.target.value)}/></Field>
               <Field label={t('Tax Number','الرقم الضريبي')}><Input dir="ltr" value={c.taxNumber} onChange={(e:any)=>this.setCompany('taxNumber',e.target.value)}/></Field><Field label={t('Commercial Registration','السجل التجاري')}><Input dir="ltr" value={c.commercialRegistration} onChange={(e:any)=>this.setCompany('commercialRegistration',e.target.value)}/></Field>
             </div></section>
-            <section className="settings-section company-artwork-section"><div className="settings-section-heading"><div><h4>{t('Company artwork','هوية الشركة البصرية')}</h4><p>{t('These images are cleaned locally before they are saved into encrypted company data.','تتم معالجة هذه الصور محليًا قبل حفظها داخل بيانات الشركة المشفّرة.')}</p></div></div><div className="asset-settings">
-              <div className="asset-control logo-asset-control"><label><span>{t('Logo','الشعار')}</span><div className="asset-preview">{hasCompanyLogo?<img src={c.logoDataUrl} alt={t('Logo','الشعار')}/>:<Icon name="upload"/>}</div><input type="file" disabled={this.state.busy||this.state.cleaningAssets} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectAsset('logoDataUrl',e.currentTarget)}/></label>{this.state.logoOriginalDataUrl?<><div className="logo-mode-switch" role="group" aria-label={t('Logo processing','معالجة الشعار')}><button type="button" className={this.state.logoMode==='auto'?'active':''} onClick={()=>this.setLogoMode('auto')}>{t('Auto clean','تنظيف تلقائي')}</button><button type="button" className={this.state.logoMode==='original'?'active':''} onClick={()=>this.setLogoMode('original')}>{t('Original','الأصلي')}</button></div><button type="button" className={`logo-rebuild-action ${this.state.logoMode==='rebuild'?'active':''}`} disabled={this.state.cleaningAssets||this.state.busy} onClick={()=>void this.rebuildLogo()}>{this.state.cleaningAssets?t('Recreating logo…','جارٍ إعادة إنشاء الشعار…'):t('Recreate logo without background','إعادة إنشاء الشعار بدون خلفية')}</button>{this.state.logoRebuiltDataUrl&&this.state.logoMode!=='rebuild'?<button type="button" className="logo-rebuild-restore" onClick={()=>this.setLogoMode('rebuild')}>{t('Use recreated version','استخدام النسخة المعاد إنشاؤها')}</button>:null}</>:null}{hasCompanyLogo?<button type="button" className="logo-rebuild-restore asset-remove-action" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>this.clearAsset('logoDataUrl')}>{t('Remove logo','إزالة الشعار')}</button>:null}</div>
+            <section className="settings-section company-artwork-section"><div className="settings-section-heading"><div><h4>{t('Company artwork','هوية الشركة البصرية')}</h4><p>{t('The original logo is preserved. AI background removal runs only when you request it; signature and stamp cleanup stays local before encrypted save.','يتم الحفاظ على الشعار الأصلي. إزالة خلفية الشعار بالذكاء الاصطناعي تعمل فقط عند طلبها، بينما تبقى معالجة التوقيع والختم محليًا قبل الحفظ المشفّر.')}</p></div></div><div className="asset-settings">
+              <div className="asset-control logo-asset-control"><label><span>{t('Logo','الشعار')}</span><div className="asset-preview">{hasCompanyLogo?<img src={c.logoDataUrl} alt={t('Logo','الشعار')}/>:<Icon name="upload"/>}</div><input type="file" disabled={this.state.busy||this.state.cleaningAssets} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectAsset('logoDataUrl',e.currentTarget)}/></label>{this.state.logoOriginalDataUrl?<><div className="logo-mode-switch" role="group" aria-label={t('Logo processing','معالجة الشعار')}><button type="button" className={this.state.logoMode==='original'?'active':''} onClick={()=>this.setLogoMode('original')}>{t('Original','الأصلي')}</button>{this.state.logoRebuiltDataUrl?<button type="button" className={this.state.logoMode==='rebuild'?'active':''} onClick={()=>this.setLogoMode('rebuild')}>{t('AI transparent','شفاف AI')}</button>:null}</div><button type="button" className={`logo-rebuild-action ${this.state.logoMode==='rebuild'?'active':''}`} disabled={this.state.cleaningAssets||this.state.busy} onClick={()=>void this.rebuildLogo()}>{this.state.cleaningAssets?t('Removing background with AI…','جارٍ إزالة الخلفية بالذكاء الاصطناعي…'):t('AI Remove Background','إزالة الخلفية بالذكاء الاصطناعي')}</button>{this.state.logoRebuiltDataUrl&&this.state.logoMode!=='rebuild'?<button type="button" className="logo-rebuild-restore" onClick={()=>this.setLogoMode('rebuild')}>{t('Use AI version','استخدام نسخة AI')}</button>:null}</>:null}{hasCompanyLogo?<button type="button" className="logo-rebuild-restore asset-remove-action" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>this.clearAsset('logoDataUrl')}>{t('Remove logo','إزالة الشعار')}</button>:null}</div>
               <div className="asset-control"><label><span>{t('Signature','التوقيع')}</span><div className="asset-preview">{c.signatureDataUrl?<img src={c.signatureDataUrl} alt={t('Signature','التوقيع')}/>:<Icon name="upload"/>}</div><input type="file" disabled={this.state.busy||this.state.cleaningAssets} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectAsset('signatureDataUrl',e.currentTarget)}/></label>{c.signatureDataUrl?<button type="button" className="logo-rebuild-restore asset-remove-action" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>this.clearAsset('signatureDataUrl')}>{t('Remove signature','إزالة التوقيع')}</button>:null}</div>
               <div className="asset-control"><label><span>{t('Stamp','الختم')}</span><div className="asset-preview">{c.stampDataUrl?<img src={c.stampDataUrl} alt={t('Stamp','الختم')}/>:<Icon name="upload"/>}</div><input type="file" disabled={this.state.busy||this.state.cleaningAssets} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectAsset('stampDataUrl',e.currentTarget)}/></label>{c.stampDataUrl?<button type="button" className="logo-rebuild-restore asset-remove-action" disabled={this.state.busy||this.state.cleaningAssets} onClick={()=>this.clearAsset('stampDataUrl')}>{t('Remove stamp','إزالة الختم')}</button>:null}</div>
-            </div><p className={`asset-clean-hint ${this.state.cleaningAssets?'is-cleaning':''}`}><Icon name={this.state.cleaningAssets?'refresh':'check'}/><span>{this.state.cleaningAssets?t('Processing company images…','جارٍ معالجة صور الشركة…'):t('Auto clean is conservative. Recreate logo without background is the stronger option for stubborn dark/gray remnants.','التنظيف التلقائي محافظ. خيار إعادة إنشاء الشعار بدون خلفية هو الحل الأقوى لبقايا الخلفية السوداء أو الرمادية العنيدة.')}</span></p></section>
+            </div><p className={`asset-clean-hint ${this.state.cleaningAssets?'is-cleaning':''}`}><Icon name={this.state.cleaningAssets?'refresh':'check'}/><span>{this.state.cleaningAssets?t('Processing company artwork…','جارٍ معالجة صور الشركة…'):t('Your logo is never erased by color thresholds. Keep the original or create a transparent AI version and review it before saving.','لا يتم حذف أجزاء الشعار اعتمادًا على حساسية الألوان. يمكنك الاحتفاظ بالأصل أو إنشاء نسخة شفافة بالذكاء الاصطناعي ومراجعتها قبل الحفظ.')}</span></p></section>
             <section className="settings-section"><h4>{t('Bank details','بيانات البنك')}</h4><div className="form-grid two"><Field label={t('Bank Name','اسم البنك')}><Input value={c.bank.bankName} onChange={(e:any)=>this.setBank('bankName',e.target.value)}/></Field><Field label={t('Account Name','اسم الحساب')}><Input value={c.bank.accountName} onChange={(e:any)=>this.setBank('accountName',e.target.value)}/></Field><Field label="IBAN"><Input dir="ltr" value={c.bank.iban} onChange={(e:any)=>this.setBank('iban',e.target.value)}/></Field><Field label="SWIFT / BIC"><Input dir="ltr" value={c.bank.swift} onChange={(e:any)=>this.setBank('swift',e.target.value)}/></Field><Field label={t('Bank Currency','عملة البنك')}><Input dir="ltr" value={c.bank.currency} onChange={(e:any)=>this.setBank('currency',e.target.value.toUpperCase())}/></Field></div></section>
             <section className="settings-section"><h4>{t('Language & defaults','اللغة والإعدادات الافتراضية')}</h4><div className="form-grid two"><Field label={t('Interface Language','لغة الواجهة')}><Select disabled={this.state.busy} value={s.uiLanguage||'en'} onChange={(e:any)=>void this.changeInterfaceLanguage(e.target.value as AppSettings['uiLanguage'])}><option value="en">English</option><option value="ar">العربية</option></Select></Field><Field label={t('Default Currency','العملة الافتراضية')}><Input dir="ltr" value={c.defaultCurrency} onChange={(e:any)=>this.setCompany('defaultCurrency',e.target.value.toUpperCase())}/></Field><Field label={t('Default Document Language','لغة المستند الافتراضية')}><Select value={c.defaultLanguage} onChange={(e:any)=>this.setCompany('defaultLanguage',e.target.value)}><option value="en">English</option><option value="ar">العربية</option><option value="bilingual">{t('Arabic + English','العربية + الإنجليزية')}</option></Select></Field><Field label={t('Default Payment Terms','شروط الدفع الافتراضية')}><Input value={c.defaultPaymentTerms} onChange={(e:any)=>this.setCompany('defaultPaymentTerms',e.target.value)}/></Field><Field label={t('Default Incoterm','شرط التجارة الافتراضي')}><Input value={c.defaultIncoterm} onChange={(e:any)=>this.setCompany('defaultIncoterm',e.target.value)}/></Field><Field label={t('Default Delivery Time','مدة التسليم الافتراضية')}><Input value={c.defaultDeliveryTime} onChange={(e:any)=>this.setCompany('defaultDeliveryTime',e.target.value)}/></Field><Field label={t('Default Validity (days)','مدة الصلاحية الافتراضية (أيام)')}><Input type="number" min="0" max="3650" step="1" value={String(c.defaultValidityDays)} onChange={(e:any)=>this.setCompany('defaultValidityDays',Math.min(3650,Math.max(0,Math.trunc(Number(e.target.value)||0))))}/></Field><Field label={t('Default Footer Text','نص التذييل الافتراضي')} className="span-2"><Input value={c.defaultFooterText} onChange={(e:any)=>this.setCompany('defaultFooterText',e.target.value)}/></Field><Field label={t('Default Notes','الملاحظات الافتراضية')} className="span-2"><Textarea rows="3" value={c.defaultNotes} onChange={(e:any)=>this.setCompany('defaultNotes',e.target.value)}/></Field></div></section>
           </div>:null}
