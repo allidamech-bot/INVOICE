@@ -1,5 +1,6 @@
 import type { AppSettings, CompanySettings, Customer, LourexDocument, SavedItem, VaultPayload } from '../types.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
+import { decimalToScaled, isDecimalInput } from '../lib/money.js';
 import { t } from '../lib/i18n.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
@@ -56,32 +57,57 @@ function mergeDocuments(base:LourexDocument[],intended:LourexDocument[],latest:L
   return result;
 }
 
+function text(value:unknown):string{return typeof value==='string'?value:'';}
 function customerIdentity(value:string):string{return normalizeSavedItemIdentity(value);}
-function customerNames(customer:Customer):string[]{return [customer.companyNameEn,customer.companyNameAr].map(customerIdentity).filter(Boolean);}
-function guardCustomerIdentityChanges(base:Customer[],intended:Customer[],merged:Customer[]):void{
+function customerNames(customer:Customer):string[]{return [text(customer.companyNameEn),text(customer.companyNameAr)].map(customerIdentity).filter(Boolean);}
+function customerFieldChanged(before:Customer|undefined,customer:Customer,key:keyof Customer):boolean{return !before||text(before[key])!==text(customer[key]);}
+function guardCustomerChanges(base:Customer[],intended:Customer[],merged:Customer[]):void{
   if(intended===base)return;
   const baseById=new Map(base.map(customer=>[customer.id,customer]));
   for(const customer of intended){
     const before=baseById.get(customer.id);
-    const namesChanged=!before||customerIdentity(before.companyNameEn)!==customerIdentity(customer.companyNameEn)||customerIdentity(before.companyNameAr)!==customerIdentity(customer.companyNameAr);
-    if(!namesChanged)continue;
-    const names=customerNames(customer);
-    if(!names.length)throw new Error(t('Company name is required.','اسم الشركة مطلوب.'));
-    const duplicate=merged.find(existing=>existing.id!==customer.id&&customerNames(existing).some(name=>names.includes(name)));
-    if(duplicate)throw new Error(t('This customer already exists. Open the existing customer to edit it.','هذا العميل موجود بالفعل. افتح العميل الموجود لتعديله.'));
+    const namesChanged=!before||customerIdentity(text(before.companyNameEn))!==customerIdentity(text(customer.companyNameEn))||customerIdentity(text(before.companyNameAr))!==customerIdentity(text(customer.companyNameAr));
+    if(namesChanged){
+      const names=customerNames(customer);
+      if(!names.length)throw new Error(t('Company name is required.','اسم الشركة مطلوب.'));
+      const duplicate=merged.find(existing=>existing.id!==customer.id&&customerNames(existing).some(name=>names.includes(name)));
+      if(duplicate)throw new Error(t('This customer already exists. Open the existing customer to edit it.','هذا العميل موجود بالفعل. افتح العميل الموجود لتعديله.'));
+    }
+    if(customerFieldChanged(before,customer,'email')){
+      const email=text(customer.email).trim();
+      if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error(t('Enter a valid email address or leave it empty.','أدخل بريدًا إلكترونيًا صحيحًا أو اترك الحقل فارغًا.'));
+    }
+    const commercialChanged=!before||(['creditLimit','creditCurrency','paymentDueDays'] as Array<keyof Customer>).some(key=>customerFieldChanged(before,customer,key));
+    if(commercialChanged){
+      const creditLimit=text(customer.creditLimit).trim();
+      const creditCurrency=text(customer.creditCurrency).trim();
+      const dueDays=text(customer.paymentDueDays).trim();
+      if(creditLimit&&(!isDecimalInput(creditLimit)||decimalToScaled(creditLimit,2)<0n))throw new Error(t('Credit limit must be zero or greater.','يجب أن يكون حد الائتمان صفرًا أو أكثر.'));
+      if(creditLimit&&!creditCurrency)throw new Error(t('Choose a currency for the credit limit.','اختر عملة لحد الائتمان.'));
+      if(dueDays&&!/^\d+$/.test(dueDays))throw new Error(t('Payment due days must be a whole number.','يجب أن تكون أيام الاستحقاق رقمًا صحيحًا.'));
+      if(/^\d+$/.test(dueDays)&&Number(dueDays)>3650)throw new Error(t('Payment due days cannot exceed 3650.','لا يمكن أن تتجاوز أيام الاستحقاق 3650 يومًا.'));
+    }
   }
 }
 
+function savedItemSku(value:unknown):string{return text(value).normalize('NFKC').trim().replace(/\s+/g,'').toLocaleUpperCase();}
 function savedItemIdentityChanged(before:SavedItem|undefined,item:SavedItem):boolean{
-  return !before||normalizeSavedItemIdentity(before.descriptionEn)!==normalizeSavedItemIdentity(item.descriptionEn)||normalizeSavedItemIdentity(before.descriptionAr)!==normalizeSavedItemIdentity(item.descriptionAr)||(before.sku??'').normalize('NFKC').trim().replace(/\s+/g,'').toLocaleUpperCase()!==(item.sku??'').normalize('NFKC').trim().replace(/\s+/g,'').toLocaleUpperCase();
+  return !before||normalizeSavedItemIdentity(text(before.descriptionEn))!==normalizeSavedItemIdentity(text(item.descriptionEn))||normalizeSavedItemIdentity(text(before.descriptionAr))!==normalizeSavedItemIdentity(text(item.descriptionAr))||savedItemSku(before.sku)!==savedItemSku(item.sku);
 }
-function guardSavedItemIdentityChanges(base:SavedItem[],intended:SavedItem[],merged:SavedItem[]):void{
+function guardSavedItemChanges(base:SavedItem[],intended:SavedItem[],merged:SavedItem[]):void{
   if(intended===base)return;
   const baseById=new Map(base.map(item=>[item.id,item]));
   for(const item of intended){
-    if(!savedItemIdentityChanged(baseById.get(item.id),item))continue;
-    if(!item.descriptionEn.trim()&&!item.descriptionAr.trim())throw new Error(t('Enter an English or Arabic description.','أدخل وصفًا بالإنجليزية أو العربية.'));
-    if(findSavedItemDuplicate(merged,item))throw new Error(t('This item already exists or uses a duplicate SKU. Open the existing item to edit it.','هذا الصنف موجود بالفعل أو يستخدم SKU مكررًا. افتح الصنف الموجود لتعديله.'));
+    const before=baseById.get(item.id);
+    const identityChanged=savedItemIdentityChanged(before,item);
+    const commercialChanged=!before||identityChanged||text(before.unit)!==text(item.unit)||text(before.lastUnitPrice)!==text(item.lastUnitPrice);
+    if(commercialChanged){
+      if(!text(item.descriptionEn).trim()&&!text(item.descriptionAr).trim())throw new Error(t('Enter an English or Arabic description.','أدخل وصفًا بالإنجليزية أو العربية.'));
+      if(!text(item.unit).trim())throw new Error(t('Unit is required.','الوحدة مطلوبة.'));
+      const price=text(item.lastUnitPrice).trim();
+      if(price&&(!isDecimalInput(price)||decimalToScaled(price)<0n))throw new Error(t('Enter a valid non-negative price.','أدخل سعرًا صالحًا يساوي صفرًا أو أكثر.'));
+    }
+    if(identityChanged&&findSavedItemDuplicate(merged,item))throw new Error(t('This item already exists or uses a duplicate SKU. Open the existing item to edit it.','هذا الصنف موجود بالفعل أو يستخدم SKU مكررًا. افتح الصنف الموجود لتعديله.'));
   }
 }
 
@@ -116,8 +142,8 @@ function mergeAppSettings(base:AppSettings,intended:AppSettings,latest:AppSettin
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
   const customers=mergeRecords(base.customers,intended.customers,latest.customers);
   const savedItems=mergeRecords(base.savedItems,intended.savedItems,latest.savedItems);
-  guardCustomerIdentityChanges(base.customers,intended.customers,customers);
-  guardSavedItemIdentityChanges(base.savedItems,intended.savedItems,savedItems);
+  guardCustomerChanges(base.customers,intended.customers,customers);
+  guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems);
   return {
     ...latest,
     schemaVersion:Math.max(latest.schemaVersion,intended.schemaVersion),
