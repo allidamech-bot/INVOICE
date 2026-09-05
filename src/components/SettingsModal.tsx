@@ -86,30 +86,39 @@ export class SettingsModal extends React.Component<Props,State> {
     if(!file)return;
     if(file.size>MAX_COMPANY_ASSET_BYTES){this.setState({error:t('Image is too large. Use a file smaller than 4 MB.','حجم الصورة كبير جدًا. استخدم ملفًا أصغر من 4 ميجابايت.'),message:''});return;}
     if(!COMPANY_ASSET_TYPES.test(file.type)){this.setState({error:t('Use a PNG, WebP, or JPEG image.','استخدم صورة بصيغة PNG أو WebP أو JPEG.'),message:''});return;}
-    this.assetPreparationId+=1;
+    const preparationId=++this.assetPreparationId;
     this.setState({cleaningAssets:true,error:'',message:'',savedSection:null});
     try{
       if(field==='logoDataUrl'){
         const original=await fileToRawDataUrl(file);
         const firstPass=await cleanImageDataUrl(original,'logo');
         const cleaned=await repairLogoDataUrl(firstPass);
+        if(!this.props.open||preparationId!==this.assetPreparationId)return;
         this.setState(state=>({company:{...state.company,logoDataUrl:cleaned},logoOriginalDataUrl:original,logoCleanedDataUrl:cleaned,logoRebuiltDataUrl:'',logoMode:'auto',cleaningAssets:false,savedSection:null,message:t('Logo prepared. If any background remains, use Recreate logo without background.','تم تجهيز الشعار. إذا بقيت أي خلفية استخدم خيار إعادة إنشاء الشعار بدون خلفية.'),error:''}));
         return;
       }
       const data=await fileToDataUrl(file,MAX_COMPANY_ASSET_BYTES,this.assetKind(field));
+      if(!this.props.open||preparationId!==this.assetPreparationId)return;
       this.setState(state=>({company:{...state.company,[field]:data},cleaningAssets:false,savedSection:null,message:t('Background cleaned automatically. Save to apply it to documents.','تم تنظيف الخلفية تلقائيًا. اضغط حفظ لتطبيقها على المستندات.'),error:''}));
-    }catch{this.setState({cleaningAssets:false,error:t('Unable to process this image. Try another PNG, WebP, or JPEG file.','تعذرت معالجة هذه الصورة. جرّب ملف PNG أو WebP أو JPEG آخر.')});}
+    }catch{
+      if(!this.props.open||preparationId!==this.assetPreparationId)return;
+      this.setState({cleaningAssets:false,error:t('Unable to process this image. Try another PNG, WebP, or JPEG file.','تعذرت معالجة هذه الصورة. جرّب ملف PNG أو WebP أو JPEG آخر.')});
+    }
   };
   private rebuildLogo=async()=>{
     const source=this.state.logoOriginalDataUrl||this.state.company.logoDataUrl;
     if(!source||source.includes('lourex-logo.svg')){this.setState({error:t('Upload or save a company logo first.','ارفع أو احفظ شعار الشركة أولًا.')});return;}
-    this.assetPreparationId+=1;
+    const preparationId=++this.assetPreparationId;
     this.setState({cleaningAssets:true,error:'',message:'',savedSection:null});
     try{
       const rebuilt=await rebuildLogoWithoutBackgroundDataUrl(source);
+      if(!this.props.open||preparationId!==this.assetPreparationId)return;
       if(!rebuilt||rebuilt===source){this.setState({cleaningAssets:false,error:t('The logo could not be reconstructed reliably. Try uploading the original image again.','تعذر إعادة إنشاء الشعار بشكل موثوق. جرّب رفع الصورة الأصلية مرة أخرى.')});return;}
       this.setState(state=>({company:{...state.company,logoDataUrl:rebuilt},logoRebuiltDataUrl:rebuilt,logoMode:'rebuild',cleaningAssets:false,savedSection:null,message:t('Transparent logo recreated. Review the preview, then press Save to use it on documents.','تمت إعادة إنشاء الشعار بدون خلفية. راجع المعاينة ثم اضغط حفظ لاستخدامه في المستندات.'),error:''}));
-    }catch(e){this.setState({cleaningAssets:false,error:e instanceof Error?e.message:t('Unable to recreate the logo.','تعذر إعادة إنشاء الشعار.')});}
+    }catch(e){
+      if(!this.props.open||preparationId!==this.assetPreparationId)return;
+      this.setState({cleaningAssets:false,error:e instanceof Error?e.message:t('Unable to recreate the logo.','تعذر إعادة إنشاء الشعار.')});
+    }
   };
   private setLogoMode=(logoMode:State['logoMode'])=>{
     const source=logoMode==='auto'?this.state.logoCleanedDataUrl:logoMode==='rebuild'?this.state.logoRebuiltDataUrl:this.state.logoOriginalDataUrl;
@@ -140,9 +149,13 @@ export class SettingsModal extends React.Component<Props,State> {
     const persisted=JSON.parse(this.state.documentsInitial) as AppSettings;
     const next={...previous,uiLanguage:value};
     const nextPersisted={...persisted,uiLanguage:value};
-    this.setState({appSettings:next,error:'',message:'',savedSection:null});
-    try{await this.props.onSaveAppSettings(nextPersisted);this.setState(state=>({documentsInitial:JSON.stringify(nextPersisted),savedSection:JSON.stringify(state.appSettings)===JSON.stringify(nextPersisted)?'documents':null}));}
-    catch(e){this.setState({appSettings:previous,error:e instanceof Error?e.message:t('Unable to change interface language.','تعذر تغيير لغة الواجهة.')});}
+    this.setState({appSettings:next,busy:true,error:'',message:'',savedSection:null});
+    try{
+      await this.props.onSaveAppSettings(nextPersisted);
+      this.setState(state=>({busy:false,documentsInitial:JSON.stringify(nextPersisted),savedSection:JSON.stringify(state.appSettings)===JSON.stringify(nextPersisted)?'documents':null}));
+    }catch(e){
+      this.setState(state=>({appSettings:state.appSettings.uiLanguage===value?{...state.appSettings,uiLanguage:previous.uiLanguage}:state.appSettings,busy:false,error:e instanceof Error?e.message:t('Unable to change interface language.','تعذر تغيير لغة الواجهة.')}));
+    }
   };
   private changePin=async()=>{
     if(!/^\d{4,12}$/.test(this.state.newPin)){this.setState({error:t('New PIN must contain 4–12 digits.','يجب أن يتكون رمز PIN الجديد من 4 إلى 12 رقمًا.')});return;}
