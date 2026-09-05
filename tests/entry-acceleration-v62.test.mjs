@@ -5,10 +5,13 @@ import { readFile } from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 
-test('customer quick-add reuses the current search text instead of forcing re-entry',async()=>{
+test('customer quick-add reuses name searches without turning phone or email searches into company names',async()=>{
   const source=await read('src/components/CustomersPage.tsx');
   assert.match(source,/blankCustomer\(seed=''\)/);
-  assert.match(source,/private newCustomer=\(\)=>this\.beginEdit\(blankCustomer\(this\.state\.query\)\)/);
+  assert.match(source,/function customerSearchSeed/);
+  assert.match(source,/seed\.includes\('@'\)/);
+  assert.match(source,/\^\[\+\\d\\s\(\)\.\-\]\{5,\}\$/);
+  assert.match(source,/private newCustomer=\(\)=>this\.beginEdit\(blankCustomer\(customerSearchSeed\(this\.state\.query\)\)\)/);
   assert.match(source,/Create this customer without typing the name again/);
   assert.match(source,/query:''/);
 });
