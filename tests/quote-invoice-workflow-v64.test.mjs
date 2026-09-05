@@ -60,11 +60,19 @@ test('rapid repeated conversion clicks are ignored before another invoice number
   assert.match(documents,/finally\(\(\)=>this\.quoteConversions\.delete\(doc\.id\)\)/);
 });
 
-test('review-confirmed PDF and share paths arm the output bridge before printing',async()=>{
-  const editor=await read('src/components/EditorPage.tsx');
+test('review-confirmed output arms only after the final save path succeeds',async()=>{
+  const [editor,review,core]=await Promise.all([
+    read('src/components/EditorPage.tsx'),
+    read('src/components/DocumentReviewModal.tsx'),
+    read('src/components/EditorPageCore.tsx')
+  ]);
   assert.match(editor,/printWithPreparedMode/);
   assert.match(editor,/__LOUREX_PREPARE_PDF__\?\.\(mode\)/);
   assert.match(editor,/onPrint=\{this\.printWithPreparedMode\}/);
+  assert.doesNotMatch(review,/__LOUREX_PREPARE_PDF__/);
+  const saveAt=core.indexOf('await this.props.onSave(finalDoc,false)');
+  const outputAt=core.indexOf("if(mode!=='issue')await this.props.onPrint(finalDoc,mode)");
+  assert.ok(saveAt>=0&&outputAt>saveAt,'output must begin only after the final snapshot save succeeds');
 });
 
 test('v64 workflow assets remain present in later PWA releases',async()=>{

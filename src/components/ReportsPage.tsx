@@ -14,7 +14,14 @@ function startOfQuarter(today:string):string{const year=today.slice(0,4);const m
 function monthLabel(month:string):string{const [year,rawMonth]=month.split('-');const date=new Date(Date.UTC(Number(year),Number(rawMonth)-1,1));try{return new Intl.DateTimeFormat(getUiLanguage()==='ar'?'ar-EG':'en-US',{month:'short',year:'numeric',timeZone:'UTC',calendar:'gregory'}).format(date);}catch{return month;}}
 function customerDisplay(row:CustomerPerformanceRow):string{return row.customerName||t('Unassigned customer','عميل غير محدد');}
 function filterDateLabel(value:string):string{return value?displayDate(value,getUiLanguage()):t('All dates','كل التواريخ');}
-function csvCell(value:string|number):string{const text=String(value??'');return /[",\n]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;}
+const CSV_NUMBER=/^-?(?:\d+|\d*\.\d+)$/;
+function csvCell(value:string|number):string{
+  const text=String(value??'');
+  const probe=text.trimStart();
+  const formulaRisk=/^[=+@]/.test(probe)||(probe.startsWith('-')&&!CSV_NUMBER.test(probe));
+  const safe=formulaRisk?`'${text}`:text;
+  return /[",\r\n]/.test(safe)?`"${safe.replace(/"/g,'""')}"`:safe;
+}
 
 export class ReportsPage extends React.Component<Props,State>{
   state:State={from:`${todayIso().slice(0,4)}-01-01`,to:todayIso(),currency:'ALL',query:''};

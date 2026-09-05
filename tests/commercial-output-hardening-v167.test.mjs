@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { createBlankDocument } from '../dist/src/lib/documents.js';
 import { defaultCompany, customerSnapshotFrom } from '../dist/src/lib/defaults.js';
 import { documentDisplayValue, documentLanguageMismatch, hasDocumentLanguageMismatch } from '../dist/src/lib/document-language.js';
-import { estimatedDocumentPageCount } from '../dist/src/lib/document-quality.js';
+import { documentQualityIssues, estimatedDocumentPageCount } from '../dist/src/lib/document-quality.js';
 
 const read=path=>readFile(path,'utf8');
 
@@ -87,6 +87,27 @@ test('visible wrapped packing and origin columns reserve additional A4 row space
   doc.appearance.showPacking=false;
   doc.appearance.showOrigin=true;
   assert.equal(estimatedDocumentPageCount(doc),2);
+});
+
+test('hidden party translations do not consume English A4 capacity or satisfy English company identity',()=>{
+  const company=defaultCompany();
+  Object.assign(company,{nameEn:'LOUREX',nameAr:'ع'.repeat(700),addressEn:'',addressAr:'ع'.repeat(700),city:'',country:'',phone:'',email:'',website:'',vatNumber:'',taxNumber:'',commercialRegistration:'',footerText:'',defaultPaymentTerms:'',defaultDeliveryTime:''});
+  const doc=createBlankDocument('invoice','INV-2026-0103',company);
+  doc.language='en';
+  doc.appearance.showBank=false;
+  doc.appearance.showSignature=false;
+  doc.appearance.showStamp=false;
+  doc.customerSnapshot=customerSnapshotFrom({id:'c4',companyNameEn:'Buyer',companyNameAr:'ع'.repeat(700),contactPerson:'',addressEn:'',addressAr:'ع'.repeat(700),city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''});
+  const base={...doc.items[0],descriptionEn:'Product',descriptionAr:'',quantity:'1',unit:'PCS',unitPrice:'10'};
+  doc.items=Array.from({length:6},(_,index)=>({...base,id:`visible-${index}`}));
+  doc.terms={incoterm:'',paymentTerms:'',packing:'',deliveryTime:'',portOfLoading:'',finalDestination:'',countryOfOrigin:'',validity:'',remarks:''};
+  doc.notes='';
+  assert.equal(estimatedDocumentPageCount(doc),1);
+  doc.language='bilingual';
+  assert.ok(estimatedDocumentPageCount(doc)>1);
+  doc.language='en';
+  doc.companySnapshot.nameEn='لوركس';
+  assert.ok(documentQualityIssues(doc).some(issue=>issue.code==='company-name-missing'));
 });
 
 test('renderer uses Quotation as the public quote title while keeping the internal proforma kind',async()=>{

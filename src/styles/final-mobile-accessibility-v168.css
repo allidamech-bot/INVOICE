@@ -1,0 +1,63 @@
+/* Final release — coarse-pointer target hardening.
+   Application chrome only. Printable invoice/quotation output is intentionally untouched. */
+
+@media (max-width:720px) and (pointer:coarse){
+  /* Older compact mobile layers intentionally reduced several controls below
+     a reliable finger target. Keep the compact visual treatment, but restore
+     a 44px interaction box at the final cascade boundary. */
+  .app-ui :where(
+    .documents-filter-toggle,
+    .reports-presets button,
+    .operations-tabs button,
+    .operations-page .row-actions button,
+    .operations-page .plain-close,
+    .operations-page .purchase-item-title button,
+    .product-library-star,
+    .product-library-row > .icon-btn,
+    .customer-actions .icon-btn,
+    .segmented button
+  ){
+    min-height:44px!important;
+  }
+
+  .app-ui :where(
+    .product-library-star,
+    .product-library-row > .icon-btn,
+    .customer-actions .icon-btn,
+    .operations-page .plain-close,
+    .operations-page .purchase-item-title button
+  ){
+    min-width:44px!important;
+  }
+
+  .app-ui .product-library-row{
+    grid-template-columns:44px minmax(0,1fr) 44px!important;
+  }
+
+  .app-ui :where(
+    .documents-search-box .input,
+    .documents-sort,
+    .product-library-search > .input,
+    .product-library-commandbar > .input,
+    .product-library-commandbar > .btn,
+    .reports-heading-actions .btn,
+    .reports-filter-panel input[type="date"],
+    .reports-filter-panel select,
+    .receivables-page .search-box,
+    .receivables-page .search-box .input,
+    .receivables-page select,
+    .reports-page .search-box,
+    .reports-page .search-box .input,
+    .reports-page select,
+    .operations-search,
+    .operations-search .input,
+    .operations-page .input,
+    .operations-page select.input,
+    .customers-page .page-heading > .btn,
+    .customers-toolbar .search-box,
+    .customers-toolbar .input,
+    .customers-sort
+  ){
+    min-height:44px!important;
+  }
+}

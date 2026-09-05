@@ -12,7 +12,10 @@ test('PWA update activation is explicit and blocked while the document editor is
   assert.match(index,/isDocumentEditorOpen/);
   assert.match(index,/document\.querySelector\('\.editor-screen'\)/);
   assert.match(index,/waiting\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
-  assert.match(index,/if\(reloadForUpdate\)window\.location\.replace\(window\.location\.href\)/);
+  assert.match(index,/const userRequestedReload=reloadForUpdate/);
+  assert.match(index,/if\(!userRequestedReload\)return/);
+  assert.match(index,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
+  assert.match(index,/window\.location\.replace\(window\.location\.href\)/);
 });
 
 test('destructive vault transitions create encrypted safety snapshots first',async()=>{
