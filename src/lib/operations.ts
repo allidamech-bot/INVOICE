@@ -22,6 +22,7 @@ function fixed(value:bigint,decimals:number):string{
 function trimFixed(value:string):string{return value.replace(/\.0+$/,'').replace(/(\.\d*?)0+$/,'$1');}
 function cents(value:string):bigint{return decimalToScaled(value,2);}
 function lineCents(quantity:string,unitCost:string):bigint{return roundDivide(decimalToScaled(quantity,4)*decimalToScaled(unitCost,4),PRODUCT_TO_CENTS);}
+function lineCentsScaled(quantity4:bigint,unit4:bigint):bigint{return roundDivide(quantity4*unit4,PRODUCT_TO_CENTS);}
 function positive(value:string):boolean{return isDecimalInput(value)&&decimalToScaled(value,4)>0n;}
 function nonNegative(value:string):boolean{return isDecimalInput(value)&&decimalToScaled(value,4)>=0n;}
 function nowIso():string{return new Date().toISOString();}
@@ -79,6 +80,51 @@ export function purchaseTotals(purchase:Pick<PurchaseRecord,'items'|'freight'|'d
   return {subtotal:fixed(subtotal,2),freight:fixed(freight,2),duty:fixed(duty,2),other:fixed(other,2),landedTotal:fixed(subtotal+freight+duty+other,2)};
 }
 
+function smallestUnitAdjustment(quantity4:bigint,unit4:bigint,direction:1n|-1n):{delta:bigint;effect:bigint}|null{
+  const current=lineCentsScaled(quantity4,unit4);
+  const limit=direction>0n?100_000_000n:unit4;
+  if(limit<=0n)return null;
+  let high=1n;
+  const changed=(delta:bigint)=>{
+    const next=unit4+direction*delta;
+    if(next<0n)return false;
+    return lineCentsScaled(quantity4,next)!==current;
+  };
+  while(high<limit&&!changed(high))high*=2n;
+  if(high>limit)high=limit;
+  if(!changed(high))return null;
+  let low=1n;
+  while(low<high){const mid=(low+high)/2n;if(changed(mid))high=mid;else low=mid+1n;}
+  const next=unit4+direction*low;
+  const effect=lineCentsScaled(quantity4,next)-current;
+  return effect===0n?null:{delta:low,effect};
+}
+
+function reconcileLandedUnitCosts(items:PurchaseRecord['items'],targetCents:bigint):PurchaseRecord['items']{
+  const next=items.map(item=>({...item}));
+  let actual=next.reduce((sum,item)=>sum+lineCents(item.quantity,item.landedUnitCost||item.unitCost),0n);
+  let remaining=targetCents-actual;
+  for(let pass=0;remaining!==0n&&pass<next.length*4;pass+=1){
+    const direction:1n|-1n=remaining>0n?1n:-1n;
+    let best:{index:number;delta:bigint;effect:bigint}|null=null;
+    for(let index=0;index<next.length;index+=1){
+      const item=next[index];if(!item)continue;
+      const quantity4=decimalToScaled(item.quantity,4);if(quantity4<=0n)continue;
+      const unit4=decimalToScaled(item.landedUnitCost||item.unitCost,4);
+      const candidate=smallestUnitAdjustment(quantity4,unit4,direction);if(!candidate)continue;
+      if((candidate.effect>0n)!==(remaining>0n)||absBigInt(candidate.effect)>absBigInt(remaining))continue;
+      if(!best||absBigInt(candidate.effect)>absBigInt(best.effect)||(absBigInt(candidate.effect)===absBigInt(best.effect)&&candidate.delta<best.delta))best={index,delta:candidate.delta,effect:candidate.effect};
+    }
+    if(!best)break;
+    const item=next[best.index];if(!item)break;
+    const unit4=decimalToScaled(item.landedUnitCost||item.unitCost,4)+direction*best.delta;
+    item.landedUnitCost=fixed(unit4,4);
+    actual+=best.effect;remaining=targetCents-actual;
+  }
+  return next;
+}
+function absBigInt(value:bigint):bigint{return value<0n?-value:value;}
+
 export function allocateLandedCost(purchase:PurchaseRecord):PurchaseRecord{
   const extras4=decimalToScaled(purchase.freight||'0',4)+decimalToScaled(purchase.duty||'0',4)+decimalToScaled(purchase.otherCosts||'0',4);
   const bases=purchase.items.map(item=>decimalToScaled(item.quantity,4)*decimalToScaled(item.unitCost,4));
@@ -86,7 +132,7 @@ export function allocateLandedCost(purchase:PurchaseRecord):PurchaseRecord{
   const quantities=purchase.items.map(item=>decimalToScaled(item.quantity,4));
   const quantityTotal=quantities.reduce((sum,value)=>sum+(value>0n?value:0n),0n);
   const weightTotal=baseTotal>0n?baseTotal:quantityTotal;
-  const items=purchase.items.map((item,index)=>{
+  const prelim=purchase.items.map((item,index)=>{
     const qty=quantities[index]??0n;
     const unit=decimalToScaled(item.unitCost,4);
     const weight=baseTotal>0n?(bases[index]??0n):(qty>0n?qty:0n);
@@ -94,7 +140,8 @@ export function allocateLandedCost(purchase:PurchaseRecord):PurchaseRecord{
     const extraPerUnit=qty>0n?roundDivide(allocated*SCALE4,qty):0n;
     return {...item,landedUnitCost:fixed(unit+extraPerUnit,4)};
   });
-  return {...purchase,items};
+  const target=cents(purchaseTotals(purchase).landedTotal);
+  return {...purchase,items:reconcileLandedUnitCosts(prelim,target)};
 }
 
 export function validatePurchase(purchase:PurchaseRecord,savedItems:SavedItem[]=[]):string[]{
@@ -112,6 +159,14 @@ export function validatePurchase(purchase:PurchaseRecord,savedItems:SavedItem[]=
   }
   for(const [label,value] of [['Freight',purchase.freight],['Duty',purchase.duty],['Other costs',purchase.otherCosts]] as const){if(!nonNegative(value||'0'))errors.push(`${label} must be zero or greater.`);}
   return errors;
+}
+
+export function purchaseAccountingIsValid(purchase:PurchaseRecord):boolean{
+  if(!purchase.number.trim()||!isIsoDate(purchase.date)||!purchase.currency.trim()||!purchase.items.length)return false;
+  for(const item of purchase.items){
+    if(!positive(item.quantity)||!nonNegative(item.unitCost))return false;
+  }
+  return [purchase.freight,purchase.duty,purchase.otherCosts].every(value=>nonNegative(value||'0'));
 }
 
 function purchaseMovement(purchase:PurchaseRecord,item:PurchaseRecord['items'][number],type:'purchase'|'purchase-reversal',quantity:string,note='',movementDate=purchase.date):InventoryMovementRecord{
@@ -165,6 +220,8 @@ export function validateExpense(expense:ExpenseRecord):string[]{
   return errors;
 }
 
+export function expenseAccountingIsValid(expense:ExpenseRecord):boolean{return validateExpense(expense).length===0;}
+
 export function createManualInventoryMovement(item:SavedItem,type:Extract<InventoryMovementType,'opening'|'issue'|'adjustment'>,quantity:string,date=todayIso(),note='',unitCost='',currency=''):InventoryMovementRecord{
   if(!isIsoDate(date))throw new Error('Movement date is invalid.');
   if(!isDecimalInput(quantity)||decimalToScaled(quantity,4)===0n)throw new Error('Movement quantity cannot be zero.');
@@ -185,10 +242,33 @@ export function reverseManualInventoryMovement(movement:InventoryMovementRecord,
   };
 }
 
+export function inventoryMovementAccountingIsValid(movement:InventoryMovementRecord):boolean{
+  if(!movement.itemId.trim()||!isIsoDate(movement.date)||!isDecimalInput(movement.quantity))return false;
+  const quantity=decimalToScaled(movement.quantity,4);
+  if(quantity===0n)return false;
+  if((movement.type==='opening'||movement.type==='purchase')&&quantity<0n)return false;
+  if((movement.type==='issue'||movement.type==='purchase-reversal')&&quantity>0n)return false;
+  if((movement.type==='purchase'||movement.type==='purchase-reversal')&&!movement.sourceId.trim())return false;
+  const cost=(movement.unitCost||'').trim();
+  if(cost&&(!isDecimalInput(cost)||decimalToScaled(cost,4)<0n))return false;
+  return movement.type==='opening'||movement.type==='purchase'||movement.type==='purchase-reversal'||movement.type==='issue'||movement.type==='adjustment';
+}
+
+export interface OperationsIntegritySummary { invalidPurchases:number; invalidExpenses:number; invalidMovements:number; totalInvalid:number; }
+export function operationsIntegritySummary(purchases:PurchaseRecord[],expenses:ExpenseRecord[],movements:InventoryMovementRecord[]):OperationsIntegritySummary{
+  const invalidPurchases=purchases.filter(purchase=>purchase.status!=='draft'&&!purchaseAccountingIsValid(purchase)).length;
+  const invalidExpenses=expenses.filter(expense=>!expenseAccountingIsValid(expense)).length;
+  const invalidMovements=movements.filter(movement=>!inventoryMovementAccountingIsValid(movement)).length;
+  return {invalidPurchases,invalidExpenses,invalidMovements,totalInvalid:invalidPurchases+invalidExpenses+invalidMovements};
+}
+
 export interface InventoryBalance { item:SavedItem; quantity:string; quantityScaled:bigint; }
 export function inventoryBalances(items:SavedItem[],movements:InventoryMovementRecord[]):InventoryBalance[]{
   const byItem=new Map<string,bigint>();
-  for(const movement of movements)byItem.set(movement.itemId,(byItem.get(movement.itemId)??0n)+decimalToScaled(movement.quantity,4));
+  for(const movement of movements){
+    if(!inventoryMovementAccountingIsValid(movement))continue;
+    byItem.set(movement.itemId,(byItem.get(movement.itemId)??0n)+decimalToScaled(movement.quantity,4));
+  }
   return items.map(item=>{const quantityScaled=byItem.get(item.id)??0n;return {item,quantity:trimFixed(fixed(quantityScaled,4)),quantityScaled};}).sort((a,b)=>{
     const left=(a.item.sku||a.item.descriptionEn||a.item.descriptionAr).toLowerCase();
     const right=(b.item.sku||b.item.descriptionEn||b.item.descriptionAr).toLowerCase();return left.localeCompare(right);
@@ -199,7 +279,13 @@ export function inventoryMovementIsManual(movement:InventoryMovementRecord):bool
 
 export function spendByCurrency(purchases:PurchaseRecord[],expenses:ExpenseRecord[]):Array<{currency:string;purchases:string;expenses:string;total:string}>{
   const map=new Map<string,{purchase:bigint;expense:bigint}>();
-  for(const purchase of purchases){if(purchase.status!=='posted')continue;const currency=cleanCurrency(purchase.currency);const row=map.get(currency)??{purchase:0n,expense:0n};row.purchase+=cents(purchaseTotals(purchase).landedTotal);map.set(currency,row);}
-  for(const expense of expenses){const currency=cleanCurrency(expense.currency);const row=map.get(currency)??{purchase:0n,expense:0n};row.expense+=cents(expense.amount);map.set(currency,row);}
+  for(const purchase of purchases){
+    if(purchase.status!=='posted'||!purchaseAccountingIsValid(purchase))continue;
+    const currency=cleanCurrency(purchase.currency);const row=map.get(currency)??{purchase:0n,expense:0n};row.purchase+=cents(purchaseTotals(purchase).landedTotal);map.set(currency,row);
+  }
+  for(const expense of expenses){
+    if(!expenseAccountingIsValid(expense))continue;
+    const currency=cleanCurrency(expense.currency);const row=map.get(currency)??{purchase:0n,expense:0n};row.expense+=cents(expense.amount);map.set(currency,row);
+  }
   return Array.from(map.entries()).sort(([a],[b])=>a.localeCompare(b)).map(([currency,row])=>({currency,purchases:fixed(row.purchase,2),expenses:fixed(row.expense,2),total:fixed(row.purchase+row.expense,2)}));
 }

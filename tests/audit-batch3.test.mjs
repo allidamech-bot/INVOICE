@@ -40,12 +40,16 @@ test('all Firebase sign-in entry points mark the just-signed-in restoration wind
   assert.match(firebase,/recent\?10_000:5_000/);
 });
 
-test('installed PWA validates all same-origin app JS and CSS before using its offline cache',async()=>{
-  const sw=await read('public/sw.js');
+test('installed PWA keeps one same-origin JS/CSS generation until an explicit update activates',async()=>{
+  const [sw,entry]=await Promise.all([read('public/sw.js'),read('src/app/index.tsx')]);
   assert.match(sw,/lourex-invoice-v\d+/);
   assert.match(sw,/pathname\.startsWith\('\/src\/'\)/);
   assert.match(sw,/pathname\.startsWith\('\/styles\/'\)/);
   assert.match(sw,/isAppRuntimePath\(url\.pathname\)/);
-  assert.match(sw,/fetch\(request,\{cache:'no-cache'\}\)/);
+  assert.match(sw,/async function cacheFirst\(request\)/);
   assert.match(sw,/const cached=await cache\.match\(request\)/);
+  assert.match(sw,/if\(cached\)return cached/);
+  assert.match(sw,/event\.respondWith\(cacheFirst\(event\.request\)\)/);
+  assert.match(entry,/registration\.update\(\)/);
+  assert.match(entry,/waiting\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
 });
