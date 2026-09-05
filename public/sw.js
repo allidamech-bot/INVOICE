@@ -1,3 +1,4 @@
+// AI logo rollout cache refresh — force Safari/PWA clients to reinstall the worker and recache the new Settings/AI runtime.
 // v168 — final release cache isolation after stacked runtime hardening.
 // v167 — quotation date-window and item editor input hardening.
 // v166 — final quotation/invoice draft persistence and responsive preview hardening.
