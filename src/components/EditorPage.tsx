@@ -238,10 +238,12 @@ export class EditorPage extends React.Component<Props,State>{
 
   render():any{
     const props=this.props;
-    const canConvertFinalQuote=props.document.kind==='proforma'&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
+    const finalQuote=props.document.kind==='proforma'&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
+    const linkedInvoice=finalQuote?props.documents.find(item=>item.kind==='invoice'&&item.role==='standard'&&item.convertedFromId===props.document.id&&item.lifecycleStatus!=='voided'):undefined;
+    const canConvertFinalQuote=finalQuote&&!linkedInvoice;
     const sections=this.state.sections;
     const navSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-nav-slot]');
-    const sectionNavigator=sections.length?<nav className={`editor-section-navigator ${canConvertFinalQuote?'has-final-quote-action':''}`} aria-label={t('Invoice editing steps','مراحل تحرير الفاتورة')}>
+    const sectionNavigator=sections.length?<nav className={`editor-section-navigator ${finalQuote?'has-final-quote-action':''}`} aria-label={t('Invoice editing steps','مراحل تحرير الفاتورة')}>
       {sections.map(section=>{
         const active=section.id===this.state.activeSectionId;
         const attention=section.hasError?t(' — needs attention',' — يحتاج مراجعة'):'';
@@ -260,10 +262,12 @@ export class EditorPage extends React.Component<Props,State>{
       <InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>
       <ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>
       {sectionNavigator&&navSlot?ReactDOM.createPortal(sectionNavigator,navSlot):null}
-      {canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
+      {finalQuote?(linkedInvoice?<div className="final-quote-convert-bar is-converted" role="status">
+        <div><Icon name="check" size={18}/><span><strong>{t('Invoice already created from this quote.','تم إنشاء فاتورة من عرض السعر هذا بالفعل.')}</strong><small>{t(`Linked invoice: ${linkedInvoice.number}. Cancel that invoice before creating a replacement from this quote.`,`الفاتورة المرتبطة: ${linkedInvoice.number}. ألغِ تلك الفاتورة قبل إنشاء بديل من عرض السعر هذا.`)}</small></span></div>
+      </div>:canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
         <div><Icon name="invoice" size={18}/><span><strong>{t('Deal confirmed? Create the invoice.','تم تأكيد الصفقة؟ أنشئ الفاتورة.')}</strong><small>{t('The quote stays Final and unchanged. A new invoice is created with its own number.','يبقى عرض السعر نهائيًا دون تغيير، ويتم إنشاء فاتورة جديدة برقم مستقل.')}</small></span></div>
         <Button icon="invoice" variant="primary" onClick={()=>void props.onConvert(props.document)}>{t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>
-      </div>:null}
+      </div>:null):null}
     </>;
   }
 }
