@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const root=new URL('../',import.meta.url);
+const read=path=>readFile(new URL(path,root),'utf8');
+
+test('pull-to-refresh cannot discard inline Operations or Product Library drafts',async()=>{
+  const source=await read('public/pull-to-refresh.js');
+  assert.match(source,/\.operations-page/);
+  assert.match(source,/\.saved-items-page/);
+  assert.match(source,/document\.querySelector\('\.modal-backdrop,\.mobile-preview-overlay,\.editor-main,\.editor-screen,\.operations-page,\.saved-items-page'\)/);
+  assert.match(source,/Unlike[\s\S]*modal-based forms[\s\S]*pull refresh must never discard them/);
+});
