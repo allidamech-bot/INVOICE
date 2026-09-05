@@ -114,6 +114,13 @@ test('v113 Product Library Pro exposes SKU, duplicate, dirty-state protection an
   assert.match(importer,/Fix file errors first/);
 });
 
+test('favorite toggles on the actively edited product stay in the unsaved editor snapshot',async()=>{
+  const workspace=await read('src/components/ProductLibraryWorkspace.tsx');
+  assert.match(workspace,/if\(editing\?\.id===item\.id\)\{this\.set\('favorite',!Boolean\(editing\.favorite\)\);return;\}/);
+  assert.match(workspace,/const rowFavorite=active\?Boolean\(edit\?\.favorite\):Boolean\(item\.favorite\)/);
+  assert.match(workspace,/aria-pressed=\{rowFavorite\}/);
+});
+
 test('v113 stays app-only, offline capable and keeps the performance layer last',async()=>{
   const [css,index,sw]=await Promise.all([read('src/styles/product-library-pro-v113.css'),read('index.html'),read('public/sw.js')]);
   assert.match(css,/\.app-ui \.product-library-pro/);

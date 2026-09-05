@@ -22,10 +22,11 @@ test('desktop A4 preview takes a fresh editor snapshot when an iPad crosses the 
   assert.match(core,/TemplateRenderer document=\{this\.state\.previewDoc\} scale=\{0\.82\}/);
 });
 
-test('single-language legal identity fields survive Arabic and English document output',async()=>{
+test('single-language legal identity fields honor output language without losing Arabic brand fallback',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/function identityPair\(doc: LourexDocument, en: string, ar: string\)/);
-  assert.match(renderer,/if\(doc\.language==='en'\)return <span dir="auto">\{english\|\|arabic\|\|'—'\}<\/span>/);
+  assert.match(renderer,/if\(doc\.language==='en'\)return <span dir="auto">\{documentDisplayValue\(english,'en'\)\|\|'—'\}<\/span>/);
+  assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)[^\n]*english\|\|arabic/);
   assert.match(renderer,/if\(doc\.language==='ar'\)return <span dir="auto">\{arabic\|\|english\|\|'—'\}<\/span>/);
   assert.match(renderer,/function companyName[\s\S]*return identityPair\(doc, doc\.companySnapshot\.nameEn, doc\.companySnapshot\.nameAr\)/);
   assert.match(renderer,/function customerName[\s\S]*return identityPair\(doc, c\?\.companyNameEn \?\? '', c\?\.companyNameAr \?\? ''\)/);
@@ -48,6 +49,29 @@ test('hidden translations do not create extra A4 item pages in a single-language
   assert.equal(paginateItems(items,false,7,'en').length,1);
   assert.ok(paginateItems(items,false,7,'ar').length>1);
   assert.ok(paginateItems(items,false,7,'bilingual').length>1);
+});
+
+test('first-page pressure counts only party identity that is actually visible in the document language',async()=>{
+  const renderer=await read('src/templates/TemplateRenderer.tsx');
+  assert.match(renderer,/function identityOutputValues\(doc:LourexDocument,en:string,ar:string\):string\[\]/);
+  assert.match(renderer,/if\(doc\.language==='en'\)[\s\S]*documentDisplayValue\(english,'en'\)/);
+  assert.match(renderer,/const addressVisible=identityOutputValues\(doc,addressEn,addressAr\)\.length>0/);
+  assert.match(renderer,/\.\.\.identityOutputValues\(doc,doc\.companySnapshot\.nameEn,doc\.companySnapshot\.nameAr\)/);
+  assert.match(renderer,/\.\.\.identityOutputValues\(doc,c\?\.companyNameEn\?\?'',c\?\.companyNameAr\?\?''\)/);
+  assert.doesNotMatch(renderer,/doc\.companySnapshot\.nameEn,doc\.companySnapshot\.nameAr,doc\.companySnapshot\.addressEn,doc\.companySnapshot\.addressAr/);
+});
+
+test('oversized item continuation rows keep unrelated cells blank instead of rendering placeholder dashes',async()=>{
+  const renderer=await read('src/templates/TemplateRenderer.tsx');
+  assert.match(renderer,/function continuationValuePair/);
+  assert.match(renderer,/continuation\?continuationValuePair\(doc,item\.descriptionEn,item\.descriptionAr\):valuePair/);
+  assert.match(renderer,/continuation\?item\.hsCode:item\.hsCode\|\|'—'/);
+  assert.match(renderer,/continuation\?origin:origin\|\|'—'/);
+  assert.match(renderer,/continuation\?packing:packing\|\|'—'/);
+  assert.match(renderer,/continuation\?unit:unit\|\|'—'/);
+  assert.match(renderer,/continuation\?'':item\.quantity/);
+  assert.match(renderer,/continuation\?'':item\.unitPrice/);
+  assert.match(renderer,/continuation\?'':lineTotal\(item\.quantity,item\.unitPrice\)/);
 });
 
 test('document runtime changes ship through the explicit-update PWA cache generation',async()=>{

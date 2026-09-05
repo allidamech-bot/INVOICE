@@ -1,7 +1,8 @@
 import type { LourexDocument } from '../types.js';
 import type { DocumentQualityIssue } from '../lib/document-quality.js';
 import { calculateTotals, formatMoney } from '../lib/money.js';
-import { isArabic, t } from '../lib/i18n.js';
+import { documentDisplayValue } from '../lib/document-language.js';
+import { t } from '../lib/i18n.js';
 import { Button, Icon, Modal } from './UI.js';
 
 export type ReviewMode='issue'|'print'|'pdf'|'share';
@@ -40,24 +41,28 @@ function modePurpose(mode:ReviewMode,final:boolean):string{
   return t('Confirming will save this exact version as Final and lock it against accidental edits. You can explicitly unlock it later if a correction is required.','عند التأكيد سيتم حفظ هذه النسخة نفسها كمستند نهائي وقفلها ضد التعديل غير المقصود. ويمكن فتحها لاحقًا بشكل صريح إذا احتجت إلى تصحيح.');
 }
 
+function reviewIdentityName(language:LourexDocument['language'],english:string,arabic:string):string{
+  const en=english.trim();const ar=arabic.trim();
+  if(language==='en')return documentDisplayValue(en,'en');
+  if(language==='ar')return ar||en;
+  return [en,ar].filter(Boolean).join(' / ');
+}
+
 export function DocumentReviewModal({document:doc,mode,issues,working,onClose,onConfirm}:{document:LourexDocument;mode:ReviewMode|null;issues:DocumentQualityIssue[];working:boolean;onClose:()=>void;onConfirm:()=>void}):any{
   if(!mode)return null;
   const totals=calculateTotals(doc.items,doc.adjustments);
-  const customer=isArabic()?(doc.customerSnapshot?.companyNameAr||doc.customerSnapshot?.companyNameEn):(doc.customerSnapshot?.companyNameEn||doc.customerSnapshot?.companyNameAr);
+  const customer=reviewIdentityName(doc.language,doc.customerSnapshot?.companyNameEn??'',doc.customerSnapshot?.companyNameAr??'');
+  const company=reviewIdentityName(doc.language,doc.companySnapshot.nameEn,doc.companySnapshot.nameAr);
   const final=doc.status==='final';
+  const identityReady=Boolean(customer&&company);
   const bankShown=doc.appearance.showBank&&Object.values(doc.companySnapshot.bank).some(value=>value.trim());
   const signatureShown=doc.appearance.showSignature&&Boolean(doc.companySnapshot.signatureDataUrl);
   const stampShown=doc.appearance.showStamp&&Boolean(doc.companySnapshot.stampDataUrl);
   const warningCount=issues.filter(issue=>issue.level==='warning').length;
-  const confirm=()=>{
-    if(mode==='pdf'||mode==='share'||mode==='print'){
-      try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
-    }
-    onConfirm();
-  };
-  return <Modal open title={final?t('Final document action','إجراء على مستند نهائي'):t('Final check before issue','الفحص النهائي قبل الإصدار')} size="md" onClose={onClose} footer={<div className="modal-footer-actions"><Button onClick={onClose}>{t('Back to document','العودة للمستند')}</Button><Button icon={mode==='pdf'?'download':mode==='share'?'share':mode==='print'?'printer':'check'} variant="primary" disabled={working||mode==='issue'&&final} onClick={confirm}>{working?t('Working…','جارٍ التنفيذ…'):actionLabel(mode,final)}</Button></div>}>
+  const blocked=!final&&!identityReady;
+  return <Modal open title={final?t('Final document action','إجراء على مستند نهائي'):t('Final check before issue','الفحص النهائي قبل الإصدار')} size="md" onClose={onClose} footer={<div className="modal-footer-actions"><Button onClick={onClose}>{t('Back to document','العودة للمستند')}</Button><Button icon={mode==='pdf'?'download':mode==='share'?'share':mode==='print'?'printer':'check'} variant="primary" disabled={working||blocked||mode==='issue'&&final} onClick={onConfirm}>{working?t('Working…','جارٍ التنفيذ…'):actionLabel(mode,final)}</Button></div>}>
     <div className="issue-review">
-      <div className={`issue-review-status status-${final?'final':'ready'}`}><Icon name={final?'lock':'check'} size={18}/><div><strong>{final?t('Final document','مستند نهائي'):t('Ready for final confirmation','جاهز للتأكيد النهائي')}</strong><span>{final?t('The document is locked against accidental edits.','المستند مقفل ضد التعديل غير المقصود.'):t('Required fields passed validation. Verify the identity and total below before confirming.','تم اجتياز الحقول الإلزامية. تحقق من هوية المستند والإجمالي أدناه قبل التأكيد.')}</span></div></div>
+      <div className={`issue-review-status status-${final?'final':'ready'}`}><Icon name={final?'lock':blocked?'more':'check'} size={18}/><div><strong>{final?t('Final document','مستند نهائي'):blocked?t('Document identity incomplete','هوية المستند غير مكتملة'):t('Ready for final confirmation','جاهز للتأكيد النهائي')}</strong><span>{final?t('The document is locked against accidental edits.','المستند مقفل ضد التعديل غير المقصود.'):blocked?t('Add company and customer names that are visible in the selected document language before issuing.','أضف اسم الشركة واسم العميل بحيث يظهرا في لغة المستند المختارة قبل الإصدار.'):t('Required fields passed validation. Verify the identity and total below before confirming.','تم اجتياز الحقول الإلزامية. تحقق من هوية المستند والإجمالي أدناه قبل التأكيد.')}</span></div></div>
       <div className="issue-review-purpose"><Icon name={final?'lock':'check'} size={16}/><div><strong>{final?t('What happens next','ما الذي سيحدث الآن'):t('Confirmation effect','نتيجة التأكيد')}</strong><span>{modePurpose(mode,final)}</span></div></div>
       <div className="issue-review-grid"><div><span>{t('Document','المستند')}</span><strong>{doc.number}</strong></div><div><span>{t('Customer','العميل')}</span><strong>{customer||'—'}</strong></div><div><span>{t('Items','الأصناف')}</span><strong>{doc.items.length}</strong></div><div className="issue-total-check"><span>{t('Grand Total','الإجمالي النهائي')}</span><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong></div></div>
       <div className="issue-asset-checks"><span className={bankShown?'ok':''}><Icon name={bankShown?'check':'more'} size={14}/>{t('Bank details','بيانات البنك')}</span><span className={signatureShown?'ok':''}><Icon name={signatureShown?'check':'more'} size={14}/>{t('Signature','التوقيع')}</span><span className={stampShown?'ok':''}><Icon name={stampShown?'check':'more'} size={14}/>{t('Stamp','الختم')}</span></div>

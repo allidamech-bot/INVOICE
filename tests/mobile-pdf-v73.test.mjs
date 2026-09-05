@@ -58,8 +58,7 @@ test('iPhone PDF save and share normalize Safari colors and preserve high-resolu
   assert.match(bridge, /window\.print=function lourexPrintBridge/);
   assert.match(bridge, /releaseParentPrintState/);
   assert.match(bridge, /dispatchEvent\(new Event\('afterprint'\)\)/);
-  assert.match(review, /__LOUREX_PREPARE_PDF__\?\.\(mode\)/);
-  assert.match(review, /mode==='pdf'\|\|mode==='share'\|\|mode==='print'/);
+  assert.doesNotMatch(review, /__LOUREX_PREPARE_PDF__/);
   assert.match(documents, /private reserveOutput=/);
   assert.match(documents, /runOutput\('pdf'/);
   assert.match(documents, /runOutput\('share'/);

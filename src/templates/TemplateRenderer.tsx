@@ -10,6 +10,8 @@ interface PageProps { document: LourexDocument; items: DocumentItem[]; pageIndex
 interface DeferredPreviewState { active:boolean; }
 
 const MODERN_TEMPLATES: TemplateId[] = ['obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
+const OUTPUT_FRAGMENT_MARKER='::lourex-output-fragment:';
+const OUTPUT_FRAGMENT_WEIGHT=2;
 function isModernTemplate(variant: TemplateId): boolean { return MODERN_TEMPLATES.includes(variant); }
 
 function localized(doc: LourexDocument, en: string, ar: string): any {
@@ -22,9 +24,34 @@ function valuePair(doc: LourexDocument, en: string, ar: string): any {
   if (doc.language === 'ar') return <span dir="rtl">{documentDisplayValue(ar,'ar') || '—'}</span>;
   return <span className="bi-value"><span>{en || '—'}</span>{ar ? <span dir="rtl">{ar}</span> : null}</span>;
 }
+function continuationValuePair(doc:LourexDocument,en:string,ar:string):any{
+  if(doc.language==='en'){
+    const value=documentDisplayValue(en,'en');
+    return value?<span>{value}</span>:null;
+  }
+  if(doc.language==='ar'){
+    const value=documentDisplayValue(ar,'ar');
+    return value?<span dir="rtl">{value}</span>:null;
+  }
+  const english=en.trim();const arabic=ar.trim();
+  if(!english&&!arabic)return null;
+  return <span className="bi-value">{english?<span>{english}</span>:null}{arabic?<span dir="rtl">{arabic}</span>:null}</span>;
+}
+function identityOutputValues(doc:LourexDocument,en:string,ar:string):string[]{
+  const english=en.trim();const arabic=ar.trim();
+  if(doc.language==='en'){
+    const visible=documentDisplayValue(english,'en');
+    return visible?[visible]:[];
+  }
+  if(doc.language==='ar'){
+    const visible=arabic||english;
+    return visible?[visible]:[];
+  }
+  return [english,arabic].filter(Boolean);
+}
 function identityPair(doc: LourexDocument, en: string, ar: string): any {
   const english=en.trim(); const arabic=ar.trim();
-  if(doc.language==='en')return <span dir="auto">{english||arabic||'—'}</span>;
+  if(doc.language==='en')return <span dir="auto">{documentDisplayValue(english,'en')||'—'}</span>;
   if(doc.language==='ar')return <span dir="auto">{arabic||english||'—'}</span>;
   return <span className="bi-value">{english?<span dir="auto">{english}</span>:null}{arabic?<span dir="rtl">{arabic}</span>:null}{!english&&!arabic?<span>—</span>:null}</span>;
 }
@@ -32,6 +59,63 @@ function companyName(doc: LourexDocument): any { return identityPair(doc, doc.co
 function customerName(doc: LourexDocument): any { const c = doc.customerSnapshot; return identityPair(doc, c?.companyNameEn ?? '', c?.companyNameAr ?? ''); }
 function safeValue(doc:LourexDocument,value:string|undefined|null,kind:DocumentValueKind='prose'):string{return documentDisplayValue(value,doc.language,kind);}
 function termKind(key:string):DocumentValueKind{return key==='Incoterm'?'technical':key==='Country of Origin'?'country':key==='Port of Loading'||key==='Final Destination'?'neutral':'prose';}
+
+function outputFragmentMeta(item:DocumentItem):{sourceId:string;index:number}{
+  const at=item.id.lastIndexOf(OUTPUT_FRAGMENT_MARKER);
+  if(at<0)return{sourceId:item.id,index:0};
+  const suffix=item.id.slice(at+OUTPUT_FRAGMENT_MARKER.length);
+  if(!/^\d+$/.test(suffix))return{sourceId:item.id,index:0};
+  return{sourceId:item.id.slice(0,at),index:Number(suffix)};
+}
+function splitOutputText(value:string,maxChars:number):string[]{
+  const glyphs=Array.from(value.trim());
+  if(!glyphs.length)return[''];
+  const limit=Math.max(8,Math.trunc(maxChars));
+  const chunks:string[]=[];
+  let start=0;
+  while(start<glyphs.length){
+    let end=Math.min(glyphs.length,start+limit);
+    if(end<glyphs.length){
+      const floor=start+Math.floor(limit*.58);
+      for(let cursor=end;cursor>floor;cursor-=1){
+        if(/\s/u.test(glyphs[cursor-1]??'')){end=cursor-1;break;}
+      }
+      if(end<=start)end=Math.min(glyphs.length,start+limit);
+    }
+    const chunk=glyphs.slice(start,end).join('').trim();
+    if(chunk)chunks.push(chunk);
+    start=end;
+    while(start<glyphs.length&&/\s/u.test(glyphs[start]??''))start+=1;
+  }
+  return chunks.length?chunks:[''];
+}
+function outputItemFragments(doc:LourexDocument,item:DocumentItem):DocumentItem[]{
+  if(itemWeight(doc,item)<=OUTPUT_FRAGMENT_WEIGHT)return[item];
+  const bilingual=doc.language==='bilingual';
+  const descriptionLimit=bilingual?88:180;
+  const descriptionEn=doc.language==='ar'?'':doc.language==='en'?documentDisplayValue(item.descriptionEn,'en'):item.descriptionEn.trim();
+  const descriptionAr=doc.language==='en'?'':doc.language==='ar'?documentDisplayValue(item.descriptionAr,'ar'):item.descriptionAr.trim();
+  const enChunks=splitOutputText(descriptionEn,descriptionLimit);
+  const arChunks=splitOutputText(descriptionAr,descriptionLimit);
+  const hsChunks=doc.appearance.showHsCode?splitOutputText(item.hsCode,50):[item.hsCode];
+  const originChunks=doc.appearance.showOrigin?splitOutputText(safeValue(doc,item.origin,'country'),38):[item.origin];
+  const packingChunks=doc.appearance.showPacking?splitOutputText(safeValue(doc,item.packing),46):[item.packing];
+  const unitChunks=splitOutputText(safeValue(doc,item.unit,'unit'),26);
+  const count=Math.max(enChunks.length,arChunks.length,hsChunks.length,originChunks.length,packingChunks.length,unitChunks.length);
+  return Array.from({length:count},(_,index)=>({
+    ...item,
+    id:`${item.id}${OUTPUT_FRAGMENT_MARKER}${index}`,
+    descriptionEn:enChunks[index]??'',
+    descriptionAr:arChunks[index]??'',
+    hsCode:hsChunks[index]??'',
+    origin:originChunks[index]??'',
+    packing:packingChunks[index]??'',
+    unit:unitChunks[index]??'',
+    quantity:index===0?item.quantity:'',
+    unitPrice:index===0?item.unitPrice:'',
+    unitCost:index===0?(item.unitCost??''):''
+  }));
+}
 
 function LogoBlock({ document: doc, inverse = false }: { document: LourexDocument; inverse?: boolean }): any {
   const src = doc.companySnapshot.logoDataUrl;
@@ -50,6 +134,7 @@ function MetaBlock({ document: doc }: { document: LourexDocument }): any {
 function PartyBlock({ document: doc, type }: { document: LourexDocument; type: 'seller' | 'customer' }): any {
   const c = doc.customerSnapshot; const isSeller = type === 'seller'; const name = isSeller ? companyName(doc) : customerName(doc);
   const addressEn = isSeller ? doc.companySnapshot.addressEn : (c?.addressEn ?? ''); const addressAr = isSeller ? doc.companySnapshot.addressAr : (c?.addressAr ?? '');
+  const addressVisible=identityOutputValues(doc,addressEn,addressAr).length>0;
   const cityRaw = isSeller ? doc.companySnapshot.city : (c?.city ?? ''); const countryRaw = isSeller ? doc.companySnapshot.country : (c?.country ?? '');
   const city=safeValue(doc,cityRaw,'neutral');const country=safeValue(doc,countryRaw,'country');
   const phone = isSeller ? doc.companySnapshot.phone : (c?.phone ?? ''); const email = isSeller ? doc.companySnapshot.email : (c?.email ?? ''); const website=isSeller?doc.companySnapshot.website:'';
@@ -57,12 +142,12 @@ function PartyBlock({ document: doc, type }: { document: LourexDocument; type: '
     ? [['VAT No.','رقم ضريبة القيمة المضافة',doc.companySnapshot.vatNumber],['Tax No.','الرقم الضريبي',doc.companySnapshot.taxNumber],['Commercial Registration','السجل التجاري',doc.companySnapshot.commercialRegistration]]
     : [['VAT / Tax','الضريبة',c?.vatTaxNumber??''],['Commercial Registration','السجل التجاري',c?.commercialRegistration??'']];
   const visibleIdentifiers=identifiers.filter(([, ,value],index,array)=>Boolean(value.trim())&&array.findIndex(row=>row[2].trim()===value.trim())===index);
-  return <section className={`party-block party-${type}`}><div className="section-kicker">{localized(doc, isSeller ? 'Seller / From' : 'Bill To / Customer', isSeller ? 'البائع / من' : 'إلى / العميل')}</div><div className="party-name">{name}</div>{(addressEn || addressAr) ? <div className="party-address">{identityPair(doc, addressEn, addressAr)}</div> : null}{(city || country) ? <div className="party-location">{city?<bdi>{city}</bdi>:null}{city&&country?', ':null}{country?<bdi>{country}</bdi>:null}</div> : null}{(phone || email || website) ? <div className="party-contact">{[phone, email, website].filter(Boolean).join(' • ')}</div> : null}{visibleIdentifiers.length?<div className="party-identifiers">{visibleIdentifiers.map(([en,ar,value])=><div key={`${en}-${value}`}><b>{localized(doc,en,ar)}</b><span>{value}</span></div>)}</div>:null}</section>;
+  return <section className={`party-block party-${type}`}><div className="section-kicker">{localized(doc, isSeller ? 'Seller / From' : 'Bill To / Customer', isSeller ? 'البائع / من' : 'إلى / العميل')}</div><div className="party-name">{name}</div>{addressVisible ? <div className="party-address">{identityPair(doc, addressEn, addressAr)}</div> : null}{(city || country) ? <div className="party-location">{city?<bdi>{city}</bdi>:null}{city&&country?', ':null}{country?<bdi>{country}</bdi>:null}</div> : null}{(phone || email || website) ? <div className="party-contact">{[phone, email, website].filter(Boolean).join(' • ')}</div> : null}{visibleIdentifiers.length?<div className="party-identifiers">{visibleIdentifiers.map(([en,ar,value])=><div key={`${en}-${value}`}><b>{localized(doc,en,ar)}</b><span>{value}</span></div>)}</div>:null}</section>;
 }
 function ItemsTable({ document: doc, items, continued }: { document: LourexDocument; items: DocumentItem[]; continued: boolean }): any {
   const currency=documentCurrency(doc);
   const showHs = doc.appearance.showHsCode && doc.items.some(i => i.hsCode.trim()); const showOrigin = doc.appearance.showOrigin && doc.items.some(i => safeValue(doc,i.origin,'country')); const showPacking = doc.appearance.showPacking && doc.items.some(i => safeValue(doc,i.packing));
-  return <div className="items-wrap">{continued ? <div className="continued-label">{localized(doc, 'Items — continued', 'البنود — تابع')}</div> : null}<table className="items-table"><colgroup><col className="col-index"/><col className="col-description"/>{showHs?<col className="col-hs"/>:null}{showOrigin?<col className="col-origin"/>:null}{showPacking?<col className="col-packing"/>:null}<col className="col-qty"/><col className="col-unit"/><col className="col-price"/><col className="col-total"/></colgroup><thead><tr><th className="col-num">#</th><th>{localized(doc, 'Description', 'الوصف')}</th>{showHs ? <th>{localized(doc, 'HS Code', 'الرمز الجمركي')}</th> : null}{showOrigin ? <th>{localized(doc, 'Origin', 'المنشأ')}</th> : null}{showPacking ? <th>{localized(doc, 'Packing', 'التعبئة')}</th> : null}<th className="numeric-heading">{localized(doc, 'Qty', 'الكمية')}</th><th>{localized(doc, 'Unit', 'الوحدة')}</th><th className="numeric-heading">{localized(doc, 'Unit Price', 'سعر الوحدة')}<small>{currency}</small></th><th className="numeric-heading">{localized(doc, 'Total', 'الإجمالي')}<small>{currency}</small></th></tr></thead><tbody>{items.map(item => <tr key={item.id}><td className="col-num">{doc.items.findIndex(source => source.id === item.id) + 1}</td><td className="description-cell">{valuePair(doc, item.descriptionEn, item.descriptionAr)}</td>{showHs ? <td className="trade-cell">{item.hsCode || '—'}</td> : null}{showOrigin ? <td className="trade-cell">{safeValue(doc,item.origin,'country') || '—'}</td> : null}{showPacking ? <td className="trade-cell">{safeValue(doc,item.packing) || '—'}</td> : null}<td className="quantity-cell">{item.quantity}</td><td className="unit-cell">{safeValue(doc,item.unit,'unit') || '—'}</td><td className="money-cell">{item.unitPrice}</td><td className="money-cell strong">{lineTotal(item.quantity, item.unitPrice)}</td></tr>)}</tbody></table></div>;
+  return <div className="items-wrap">{continued ? <div className="continued-label">{localized(doc, 'Items — continued', 'البنود — تابع')}</div> : null}<table className="items-table"><colgroup><col className="col-index"/><col className="col-description"/>{showHs?<col className="col-hs"/>:null}{showOrigin?<col className="col-origin"/>:null}{showPacking?<col className="col-packing"/>:null}<col className="col-qty"/><col className="col-unit"/><col className="col-price"/><col className="col-total"/></colgroup><thead><tr><th className="col-num">#</th><th>{localized(doc, 'Description', 'الوصف')}</th>{showHs ? <th>{localized(doc, 'HS Code', 'الرمز الجمركي')}</th> : null}{showOrigin ? <th>{localized(doc, 'Origin', 'المنشأ')}</th> : null}{showPacking ? <th>{localized(doc, 'Packing', 'التعبئة')}</th> : null}<th className="numeric-heading">{localized(doc, 'Qty', 'الكمية')}</th><th>{localized(doc, 'Unit', 'الوحدة')}</th><th className="numeric-heading">{localized(doc, 'Unit Price', 'سعر الوحدة')}<small>{currency}</small></th><th className="numeric-heading">{localized(doc, 'Total', 'الإجمالي')}<small>{currency}</small></th></tr></thead><tbody>{items.map(item=>{const fragment=outputFragmentMeta(item);const continuation=fragment.index>0;const sourceIndex=doc.items.findIndex(source=>source.id===fragment.sourceId);const origin=safeValue(doc,item.origin,'country');const packing=safeValue(doc,item.packing);const unit=safeValue(doc,item.unit,'unit');return <tr key={item.id} className={continuation?'item-continuation-row':undefined}><td className="col-num">{continuation?'↳':sourceIndex>=0?sourceIndex+1:'—'}</td><td className="description-cell">{continuation?continuationValuePair(doc,item.descriptionEn,item.descriptionAr):valuePair(doc,item.descriptionEn,item.descriptionAr)}</td>{showHs?<td className="trade-cell">{continuation?item.hsCode:item.hsCode||'—'}</td>:null}{showOrigin?<td className="trade-cell">{continuation?origin:origin||'—'}</td>:null}{showPacking?<td className="trade-cell">{continuation?packing:packing||'—'}</td>:null}<td className="quantity-cell">{continuation?'':item.quantity}</td><td className="unit-cell">{continuation?unit:unit||'—'}</td><td className="money-cell">{continuation?'':item.unitPrice}</td><td className="money-cell strong">{continuation?'':lineTotal(item.quantity,item.unitPrice)}</td></tr>;})}</tbody></table></div>;
 }
 function Terms({ document: doc }: { document: LourexDocument }): any {
   const t = doc.terms; const rawRows: Array<[string,string,string]> = [['Incoterm','الإنكوترم',t.incoterm],['Payment Terms','شروط الدفع',t.paymentTerms],['Packing','التعبئة',t.packing],['Delivery Time','مدة التسليم',t.deliveryTime],['Port of Loading','ميناء التحميل',t.portOfLoading],['Final Destination','الوجهة النهائية',t.finalDestination],['Country of Origin','بلد المنشأ',t.countryOfOrigin],['Validity','الصلاحية',t.validity],['Remarks','ملاحظات تجارية',t.remarks]];
@@ -98,11 +183,10 @@ function ModernHeader({ document: doc, variant }: { document: LourexDocument; va
 function ContinuationHeader({ document: doc }: { document: LourexDocument }): any {
   return <header className="continuation-header"><div className="continuation-company"><LogoBlock document={doc}/><strong>{companyName(doc)}</strong></div><div className="continuation-document"><DocumentTitle document={doc}/><span>{doc.number}</span></div></header>;
 }
-
 function footerText(doc:LourexDocument):string{
   const custom=safeValue(doc,doc.companySnapshot.footerText);
   if(custom)return custom;
-  if(doc.language==='en')return doc.companySnapshot.nameEn.trim()||doc.companySnapshot.nameAr.trim()||'LOUREX';
+  if(doc.language==='en')return documentDisplayValue(doc.companySnapshot.nameEn,'en')||'LOUREX';
   if(doc.language==='ar')return doc.companySnapshot.nameAr.trim()||doc.companySnapshot.nameEn.trim()||'LOUREX';
   return doc.companySnapshot.nameEn||doc.companySnapshot.nameAr||'LOUREX';
 }
@@ -118,9 +202,12 @@ function Page({ document: doc, items, pageIndex, totalPages, finalPage, variant,
 function firstPageItemCapacity(doc:LourexDocument):number{
   const c=doc.customerSnapshot;
   const values=[
-    doc.companySnapshot.nameEn,doc.companySnapshot.nameAr,doc.companySnapshot.addressEn,doc.companySnapshot.addressAr,doc.companySnapshot.city,doc.companySnapshot.country,
-    doc.companySnapshot.phone,doc.companySnapshot.email,doc.companySnapshot.website,doc.companySnapshot.vatNumber,doc.companySnapshot.taxNumber,doc.companySnapshot.commercialRegistration,
-    c?.companyNameEn??'',c?.companyNameAr??'',c?.addressEn??'',c?.addressAr??'',c?.city??'',c?.country??'',c?.phone??'',c?.email??'',c?.vatTaxNumber??'',c?.commercialRegistration??''
+    ...identityOutputValues(doc,doc.companySnapshot.nameEn,doc.companySnapshot.nameAr),
+    ...identityOutputValues(doc,doc.companySnapshot.addressEn,doc.companySnapshot.addressAr),
+    doc.companySnapshot.city,doc.companySnapshot.country,doc.companySnapshot.phone,doc.companySnapshot.email,doc.companySnapshot.website,doc.companySnapshot.vatNumber,doc.companySnapshot.taxNumber,doc.companySnapshot.commercialRegistration,
+    ...identityOutputValues(doc,c?.companyNameEn??'',c?.companyNameAr??''),
+    ...identityOutputValues(doc,c?.addressEn??'',c?.addressAr??''),
+    c?.city??'',c?.country??'',c?.phone??'',c?.email??'',c?.vatTaxNumber??'',c?.commercialRegistration??''
   ].map(value=>value.trim()).filter(Boolean);
   const chars=values.reduce((sum,value)=>sum+value.length,0);
   const pressure=chars+values.length*18+(doc.language==='bilingual'?120:0);
@@ -172,7 +259,8 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
 
 function renderDocument({ document: doc, scale = 1, compact = false }: Props):any{
   const separateDetails = shouldUseDetailsPage(doc);
-  const itemPages = paginateItems(doc.items, !separateDetails, firstPageItemCapacity(doc),doc.language,item=>itemWeight(doc,item));
+  const outputItems=doc.items.flatMap(item=>outputItemFragments(doc,item));
+  const itemPages = paginateItems(outputItems, !separateDetails, firstPageItemCapacity(doc),doc.language,item=>itemWeight(doc,item));
   const pages = separateDetails ? [...itemPages, [] as DocumentItem[]] : itemPages;
   return <div className="invoice-pages" style={{ '--preview-scale': String(scale) } as any}>{pages.map((items,index) => <Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index === pages.length - 1} variant={doc.appearance.templateId} compact={compact}/>)}</div>;
 }

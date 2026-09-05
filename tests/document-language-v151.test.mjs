@@ -49,3 +49,25 @@ test('v151 renderer and offline shell use the central language isolation layer',
   assert.match(sw,/\.\/src\/lib\/document-language\.js/);
   assert.match(sw,/const CACHE = 'lourex-invoice-v151'/);
 });
+
+test('English document identity never falls back to Arabic-only names or addresses',async()=>{
+  const renderer=await readFile('src/templates/TemplateRenderer.tsx','utf8');
+  assert.match(renderer,/if\(doc\.language==='en'\)return <span dir="auto">\{documentDisplayValue\(english,'en'\)\|\|'—'\}<\/span>/);
+  assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)[^\n]*english\|\|arabic/);
+  assert.match(renderer,/if\(doc\.language==='en'\)return documentDisplayValue\(doc\.companySnapshot\.nameEn,'en'\)\|\|'LOUREX'/);
+  assert.doesNotMatch(renderer,/if\(doc\.language==='en'\)return doc\.companySnapshot\.nameEn\.trim\(\)\|\|doc\.companySnapshot\.nameAr\.trim\(\)/);
+});
+
+test('final review identity follows rendered document language and blocks only new issue when output identity is missing',async()=>{
+  const review=await readFile('src/components/DocumentReviewModal.tsx','utf8');
+  assert.doesNotMatch(review,/isArabic\(\)\?\(doc\.customerSnapshot/);
+  assert.match(review,/documentDisplayValue/);
+  assert.match(review,/function reviewIdentityName/);
+  assert.match(review,/if\(language==='en'\)return documentDisplayValue\(en,'en'\)/);
+  assert.match(review,/if\(language==='ar'\)return ar\|\|en/);
+  assert.match(review,/filter\(Boolean\)\.join\(' \/ '\)/);
+  assert.match(review,/const identityReady=Boolean\(customer&&company\)/);
+  assert.match(review,/const blocked=!final&&!identityReady/);
+  assert.match(review,/disabled=\{working\|\|blocked\|\|mode==='issue'&&final\}/);
+  assert.match(review,/Document identity incomplete/);
+});
