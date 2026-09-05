@@ -1,0 +1,69 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const read=path=>readFile(path,'utf8');
+
+test('interface-language save cannot silently persist unsaved numbering edits',async()=>{
+  const source=await read('src/components/SettingsModal.tsx');
+  assert.match(source,/const persisted=JSON\.parse\(this\.state\.documentsInitial\) as AppSettings/);
+  assert.match(source,/const nextPersisted=\{\.\.\.persisted,uiLanguage:value\}/);
+  assert.match(source,/onSaveAppSettings\(nextPersisted\)/);
+  assert.match(source,/savedSection:JSON\.stringify\(state\.appSettings\)===JSON\.stringify\(nextPersisted\)\?'documents':null/);
+  assert.doesNotMatch(source,/onSaveAppSettings\(next\);this\.setState\(\{documentsInitial:JSON\.stringify\(next\)/);
+});
+
+test('company and document saves preserve edits made while persistence is in flight',async()=>{
+  const source=await read('src/components/SettingsModal.tsx');
+  assert.match(source,/const source=structuredClone\(this\.state\.company\);const sourceSnapshot=JSON\.stringify\(source\)/);
+  assert.match(source,/const unchanged=JSON\.stringify\(state\.company\)===sourceSnapshot/);
+  assert.match(source,/company:unchanged\?company:state\.company/);
+  assert.match(source,/const settings=structuredClone\(this\.state\.appSettings\);const snapshot=JSON\.stringify\(settings\)/);
+  assert.match(source,/const unchanged=JSON\.stringify\(state\.appSettings\)===snapshot/);
+  assert.match(source,/Newer edits are still unsaved/);
+});
+
+test('company artwork can be replaced repeatedly and removed before saving',async()=>{
+  const source=await read('src/components/SettingsModal.tsx');
+  assert.match(source,/private selectAsset=\(field:AssetField,input:HTMLInputElement\)=>\{const file=input\.files\?\.\[0\];input\.value='';void this\.upload\(field,file\);\}/);
+  assert.match(source,/private clearAsset=\(field:AssetField\)/);
+  assert.match(source,/Remove logo/);
+  assert.match(source,/Remove signature/);
+  assert.match(source,/Remove stamp/);
+  assert.match(source,/Save Company to apply the change/);
+});
+
+test('company artwork upload is bounded and excludes raw SVG uploads',async()=>{
+  const source=await read('src/components/SettingsModal.tsx');
+  assert.match(source,/MAX_COMPANY_ASSET_BYTES=4\*1024\*1024/);
+  assert.match(source,/COMPANY_ASSET_TYPES=\/\^image\\\/\\\(png\|webp\|jpeg\\\)\$\/i/);
+  assert.match(source,/accept="image\/png,image\/webp,image\/jpeg"/);
+  assert.doesNotMatch(source,/accept="[^"]*image\/svg\+xml/);
+  assert.match(source,/Use a PNG, WebP, or JPEG image/);
+});
+
+test('company technical identifiers remain LTR inside Arabic settings UI',async()=>{
+  const source=await read('src/components/SettingsModal.tsx');
+  assert.match(source,/label="IBAN"><Input dir="ltr"/);
+  assert.match(source,/label="SWIFT \/ BIC"><Input dir="ltr"/);
+  assert.match(source,/VAT Number[\s\S]*?<Input dir="ltr"/);
+  assert.match(source,/Commercial Registration[\s\S]*?<Input dir="ltr"/);
+  assert.match(source,/type="tel" inputMode="tel" autoComplete="tel" dir="ltr"/);
+  assert.match(source,/type="email" inputMode="email" autoComplete="email" dir="ltr"/);
+  assert.match(source,/type="url" inputMode="url" autoComplete="url" dir="ltr"/);
+});
+
+test('company save validates optional email without changing historical document snapshots',async()=>{
+  const [settings,documents]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/lib/documents.ts')]);
+  assert.match(settings,/Enter a valid company email address or leave it empty/);
+  assert.match(documents,/companySnapshot:/);
+  assert.match(documents,/structuredClone\(company\)/);
+});
+
+test('stale artwork preparation cannot overwrite a closed or reopened settings session',async()=>{
+  const source=await read('src/components/SettingsModal.tsx');
+  assert.match(source,/private assetPreparationId=0/);
+  assert.match(source,/if\(!this\.props\.open&&prev\.open\)this\.assetPreparationId\+=1/);
+  assert.match(source,/const preparationId=\+\+this\.assetPreparationId/);
+  assert.match(source,/if\(!this\.props\.open\|\|preparationId!==this\.assetPreparationId\)return/);
+});
