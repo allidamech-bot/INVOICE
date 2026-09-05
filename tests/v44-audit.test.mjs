@@ -162,7 +162,14 @@ test('pagination can reserve additional first-page space for long party details'
   assert.equal(paginateItems(items,false,3)[0].length,3);
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/firstPageItemCapacity/);
-  assert.match(renderer,/paginateItems\(doc\.items, !separateDetails, firstPageItemCapacity\(doc\),doc\.language\)/);
+  assert.match(renderer,/paginateItems\(doc\.items, !separateDetails, firstPageItemCapacity\(doc\),doc\.language,item=>itemWeight\(doc,item\)\)/);
+});
+
+test('custom row weights can reserve A4 space for wrapped trade columns',()=>{
+  const base=validDoc().items[0];
+  const items=[{...base,id:'i1'},{...base,id:'i2'}];
+  assert.equal(paginateItems(items,false,7,'en').length,1);
+  assert.equal(paginateItems(items,false,7,'en',()=>5).length,2);
 });
 
 test('editor exposes percent discount and background-safe autosave',async()=>{
