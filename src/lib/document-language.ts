@@ -73,7 +73,10 @@ export function documentDisplayValue(value:string|undefined|null,language:Docume
   const original=String(value??'').trim();
   if(!original)return '';
   let raw=mappedValue(original,language,kind);
-  if(language==='bilingual'||kind==='neutral'||kind==='technical')return raw;
+  // Units are user-extensible identifiers. Translate known presets, but preserve
+  // unknown/custom units verbatim instead of deleting a valid commercial value
+  // merely because its script differs from the document language.
+  if(language==='bilingual'||kind==='neutral'||kind==='technical'||kind==='unit')return raw;
   if(language==='en'){
     if(!hasArabicScript(raw))return raw;
     raw=compact(raw.replace(ARABIC_RUN_RE,' '));
@@ -86,7 +89,7 @@ export function documentDisplayValue(value:string|undefined|null,language:Docume
 
 export function documentLanguageMismatch(value:string|undefined|null,language:DocumentLanguage,kind:DocumentValueKind='prose'):boolean{
   const original=String(value??'').trim();
-  if(!original||language==='bilingual'||kind==='neutral'||kind==='technical')return false;
+  if(!original||language==='bilingual'||kind==='neutral'||kind==='technical'||kind==='unit')return false;
   const mapped=mappedValue(original,language,kind);
   return language==='en'?hasArabicScript(mapped):hasLatinScript(mapped);
 }
