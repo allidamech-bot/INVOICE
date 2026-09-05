@@ -83,9 +83,11 @@ test('active PWA shell stays on one cached runtime generation until explicit wor
 
 test('financial CSV export neutralizes spreadsheet formulas while preserving numeric negatives',async()=>{
   const page=await read('src/components/ReportsPage.tsx');
+  const csv=page.slice(page.indexOf('function csvCell'),page.indexOf('export class ReportsPage'));
   assert.match(page,/const CSV_NUMBER=\/\^-\?\(\?:\\d\+\|\\d\*\\\.\\d\+\)\$\//);
-  assert.match(page,/const probe=text\.trimStart\(\)/);
-  assert.match(page,/const formulaRisk=\/\^\[=\+@\]\/\.test\(probe\)\|\|\(probe\.startsWith\('-'\)&&!CSV_NUMBER\.test\(probe\)\)/);
-  assert.match(page,/const safe=formulaRisk\?`'\$\{text\}`:text/);
-  assert.ok(page.includes('return /[",\\r\\n]/.test(safe)'));
+  assert.match(csv,/const probe=text\.trimStart\(\)/);
+  assert.match(csv,/const formulaRisk=\/\^\[=\+@\]\/\.test\(probe\)\|\|\(probe\.startsWith\('-'\)&&!CSV_NUMBER\.test\(probe\)\)/);
+  assert.match(csv,/const safe=formulaRisk\?`'\$\{text\}`:text/);
+  assert.ok(csv.includes("safe.replace(/\"/g,'\"\"')"));
+  assert.ok(csv.includes('.test(safe)?'));
 });
