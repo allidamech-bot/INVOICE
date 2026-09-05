@@ -219,6 +219,11 @@ export class EditorPage extends React.Component<Props,State>{
     }
   };
 
+  private printWithPreparedMode=async(doc:LourexDocument,mode:'print'|'pdf'|'share'):Promise<void>=>{
+    try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
+    await this.props.onPrint(doc,mode);
+  };
+
   private ensureInitialDraftPersisted=()=>{
     const doc=this.props.document;
     if(doc.status==='final'||this.props.documents.some(item=>item.id===doc.id)){
@@ -257,7 +262,7 @@ export class EditorPage extends React.Component<Props,State>{
     </nav>:null;
     return <>
       {this.state.persistenceError?<div className="editor-global-error" role="alert">{this.state.persistenceError}</div>:null}
-      <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry}/>
+      <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry} onPrint={this.printWithPreparedMode}/>
       <DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={props.onDiscardRevision} onVoid={props.onVoidDocument} onCreateCreditNote={props.onCreateCreditNote}/>
       <InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>
       <ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>
