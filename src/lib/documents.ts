@@ -5,6 +5,7 @@ import { bankDetailsForId, defaultPaymentTermPreset, defaultTaxPreset } from './
 import { decimalToScaled, isDecimalInput, lineTotal } from './money.js';
 
 type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number};
+export type DocumentItemWeight=(item:DocumentItem)=>number;
 const liveNumberReservations=new WeakMap<object,NumberReservation>();
 
 export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { number: string; vault: VaultPayload } {
@@ -181,13 +182,17 @@ export function refreshCompanySnapshot(doc: LourexDocument, company: CompanySett
   return { ...doc, companySnapshot:{...companySnapshot,bank:selectedBank?{...selectedBank}:companySnapshot.bank}, updatedAt: new Date().toISOString() };
 }
 
-export function paginateItems(items: DocumentItem[], reserveFinalDetails = true, firstPageCapacity = 7, language:DocumentLanguage='bilingual'): DocumentItem[][] {
+export function paginateItems(items: DocumentItem[], reserveFinalDetails = true, firstPageCapacity = 7, language:DocumentLanguage='bilingual', customWeight?:DocumentItemWeight): DocumentItem[][] {
   const pages: DocumentItem[][] = [];
   let current: DocumentItem[] = [];
   let used = 0;
-  const weightOf = (item: DocumentItem): number => {
+  const defaultWeight = (item: DocumentItem): number => {
     const text = language==='en'?item.descriptionEn:language==='ar'?item.descriptionAr:`${item.descriptionEn} ${item.descriptionAr}`.trim();
     return Math.max(1, Math.ceil(text.trim().length / 95));
+  };
+  const weightOf=(item:DocumentItem):number=>{
+    const value=customWeight?customWeight(item):defaultWeight(item);
+    return Number.isFinite(value)?Math.max(1,Math.ceil(value)):1;
   };
   const safeFirstPageCapacity=Math.max(1,Math.min(7,Math.trunc(firstPageCapacity)||7));
   const capacity = () => pages.length === 0 ? safeFirstPageCapacity : 13;
