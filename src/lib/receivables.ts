@@ -1,6 +1,6 @@
 import type { Customer, LourexDocument, PaymentRecord } from '../types.js';
 import { calculateTotals, decimalToScaled } from './money.js';
-import { accountedInvoicePayments, invoicePaymentSummary } from './payments.js';
+import { accountedInvoiceCreditNotes, accountedInvoicePayments, invoicePaymentSummary } from './payments.js';
 import { todayIso } from './id.js';
 
 export type AgingBucket='current'|'days1to30'|'days31to60'|'days61to90'|'days90plus';
@@ -64,7 +64,7 @@ export function customerStatement(customerId:string,documents:LourexDocument[],p
   for(const invoice of invoices){
     const total=decimalToScaled(calculateTotals(invoice.items,invoice.adjustments).grandTotal,2);
     push(invoice.currency,{date:invoice.issueDate,reference:invoice.number,type:'invoice',description:customerName(invoice),debit:total,credit:0n,relatedInvoiceNumber:invoice.number,order:1});
-    for(const credit of documents.filter(doc=>doc.role==='credit-note'&&doc.creditForId===invoice.id&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&/^\d{4}-\d{2}-\d{2}$/.test(doc.issueDate)&&doc.issueDate<=today)){
+    for(const credit of accountedInvoiceCreditNotes(invoice,documents,today)){
       const amount=decimalToScaled(calculateTotals(credit.items,credit.adjustments).grandTotal,2);
       push(invoice.currency,{date:credit.issueDate,reference:credit.number,type:'credit-note',description:`Credit against ${invoice.number}`,debit:0n,credit:amount,relatedInvoiceNumber:invoice.number,order:2});
     }
