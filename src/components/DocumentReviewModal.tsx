@@ -1,6 +1,7 @@
 import type { LourexDocument } from '../types.js';
 import type { DocumentQualityIssue } from '../lib/document-quality.js';
 import { calculateTotals, formatMoney } from '../lib/money.js';
+import { documentDisplayValue } from '../lib/document-language.js';
 import { t } from '../lib/i18n.js';
 import { Button, Icon, Modal } from './UI.js';
 
@@ -42,7 +43,7 @@ function modePurpose(mode:ReviewMode,final:boolean):string{
 
 function reviewIdentityName(language:LourexDocument['language'],english:string,arabic:string):string{
   const en=english.trim();const ar=arabic.trim();
-  if(language==='en')return en;
+  if(language==='en')return documentDisplayValue(en,'en');
   if(language==='ar')return ar||en;
   return [en,ar].filter(Boolean).join(' / ');
 }
