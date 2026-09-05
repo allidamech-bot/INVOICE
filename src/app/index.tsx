@@ -83,7 +83,7 @@ function showUpdateNotice(worker?:ServiceWorker|null):void{
   const reload=document.createElement('button');
   reload.type='button';
   reload.textContent='Update / تحديث';
-  reload.style.minHeight='34px';
+  reload.style.minHeight='44px';
   reload.style.padding='0 10px';
   reload.style.border='1px solid rgba(255,255,255,.32)';
   reload.style.borderRadius='9px';
