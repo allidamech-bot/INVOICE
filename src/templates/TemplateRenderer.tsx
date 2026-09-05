@@ -24,7 +24,7 @@ function valuePair(doc: LourexDocument, en: string, ar: string): any {
 }
 function identityPair(doc: LourexDocument, en: string, ar: string): any {
   const english=en.trim(); const arabic=ar.trim();
-  if(doc.language==='en')return <span dir="auto">{english||arabic||'—'}</span>;
+  if(doc.language==='en')return <span dir="auto">{documentDisplayValue(english,'en')||'—'}</span>;
   if(doc.language==='ar')return <span dir="auto">{arabic||english||'—'}</span>;
   return <span className="bi-value">{english?<span dir="auto">{english}</span>:null}{arabic?<span dir="rtl">{arabic}</span>:null}{!english&&!arabic?<span>—</span>:null}</span>;
 }
@@ -102,7 +102,7 @@ function ContinuationHeader({ document: doc }: { document: LourexDocument }): an
 function footerText(doc:LourexDocument):string{
   const custom=safeValue(doc,doc.companySnapshot.footerText);
   if(custom)return custom;
-  if(doc.language==='en')return doc.companySnapshot.nameEn.trim()||doc.companySnapshot.nameAr.trim()||'LOUREX';
+  if(doc.language==='en')return documentDisplayValue(doc.companySnapshot.nameEn,'en')||'LOUREX';
   if(doc.language==='ar')return doc.companySnapshot.nameAr.trim()||doc.companySnapshot.nameEn.trim()||'LOUREX';
   return doc.companySnapshot.nameEn||doc.companySnapshot.nameAr||'LOUREX';
 }
