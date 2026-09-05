@@ -162,7 +162,9 @@ test('pagination can reserve additional first-page space for long party details'
   assert.equal(paginateItems(items,false,3)[0].length,3);
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/firstPageItemCapacity/);
-  assert.match(renderer,/paginateItems\(doc\.items, !separateDetails, firstPageItemCapacity\(doc\),doc\.language,item=>itemWeight\(doc,item\)\)/);
+  assert.match(renderer,/const outputItems=doc\.items\.flatMap\(item=>outputItemFragments\(doc,item\)\)/);
+  assert.match(renderer,/paginateItems\(outputItems, !separateDetails, firstPageItemCapacity\(doc\),doc\.language,item=>itemWeight\(doc,item\)\)/);
+  assert.match(renderer,/calculateTotals\(doc\.items, doc\.adjustments\)/);
 });
 
 test('custom row weights can reserve A4 space for wrapped trade columns',()=>{
