@@ -31,7 +31,7 @@ function identityPair(doc: LourexDocument, en: string, ar: string): any {
 function companyName(doc: LourexDocument): any { return identityPair(doc, doc.companySnapshot.nameEn, doc.companySnapshot.nameAr); }
 function customerName(doc: LourexDocument): any { const c = doc.customerSnapshot; return identityPair(doc, c?.companyNameEn ?? '', c?.companyNameAr ?? ''); }
 function safeValue(doc:LourexDocument,value:string|undefined|null,kind:DocumentValueKind='prose'):string{return documentDisplayValue(value,doc.language,kind);}
-function termKind(key:string):DocumentValueKind{return key==='Incoterm'?'technical':key==='Country of Origin'?'country':'prose';}
+function termKind(key:string):DocumentValueKind{return key==='Incoterm'?'technical':key==='Country of Origin'?'country':key==='Port of Loading'||key==='Final Destination'?'neutral':'prose';}
 
 function LogoBlock({ document: doc, inverse = false }: { document: LourexDocument; inverse?: boolean }): any {
   const src = doc.companySnapshot.logoDataUrl;
@@ -67,10 +67,10 @@ function ItemsTable({ document: doc, items, continued }: { document: LourexDocum
 function Terms({ document: doc }: { document: LourexDocument }): any {
   const t = doc.terms; const rawRows: Array<[string,string,string]> = [['Incoterm','الإنكوترم',t.incoterm],['Payment Terms','شروط الدفع',t.paymentTerms],['Packing','التعبئة',t.packing],['Delivery Time','مدة التسليم',t.deliveryTime],['Port of Loading','ميناء التحميل',t.portOfLoading],['Final Destination','الوجهة النهائية',t.finalDestination],['Country of Origin','بلد المنشأ',t.countryOfOrigin],['Validity','الصلاحية',t.validity],['Remarks','ملاحظات تجارية',t.remarks]];
   const rows=rawRows.map(([en,ar,value])=>[en,ar,safeValue(doc,value,termKind(en))] as [string,string,string]).filter((row): row is [string,string,string] => Boolean(row[2]?.trim()));
-  if (!rows.length) return null; return <section className="terms-block"><h3>{localized(doc,'Commercial Terms','الشروط التجارية')}</h3><div className="terms-grid">{rows.map(row => <div className="term-row" data-term={row[0].toLowerCase().replaceAll(' ','-')} key={row[0]}><b>{localized(doc,row[0],row[1])}</b><span>{row[2]}</span></div>)}</div></section>;
+  if (!rows.length) return null; return <section className="terms-block"><h3>{localized(doc,'Commercial Terms','الشروط التجارية')}</h3><div className="terms-grid">{rows.map(row => <div className="term-row" data-term={row[0].toLowerCase().replaceAll(' ','-')} key={row[0]}><b>{localized(doc,row[0],row[1])}</b><span dir="auto">{row[2]}</span></div>)}</div></section>;
 }
 function Totals({ document: doc }: { document: LourexDocument }): any {
-  const currency=documentCurrency(doc);const t = calculateTotals(doc.items, doc.adjustments); const rows: Array<[string,string,string,boolean]> = [['Subtotal','المجموع الفرعي',t.subtotal,true],['Discount','الخصم',t.discount,doc.adjustments.discountEnabled],['Shipping','الشحن',t.shipping,doc.adjustments.shippingEnabled],['Other Charges','رسوم أخرى',t.otherCharges,doc.adjustments.otherChargesEnabled],[`Tax ${doc.adjustments.taxEnabled ? doc.adjustments.taxPercent + '%' : ''}`,'الضريبة',t.tax,doc.adjustments.taxEnabled]];
+  const currency=documentCurrency(doc);const t = calculateTotals(doc.items, doc.adjustments); const taxRate=doc.adjustments.taxEnabled?`${doc.adjustments.taxPercent}%`:''; const rows: Array<[string,string,string,boolean]> = [['Subtotal','المجموع الفرعي',t.subtotal,true],['Discount','الخصم',t.discount,doc.adjustments.discountEnabled],['Shipping','الشحن',t.shipping,doc.adjustments.shippingEnabled],['Other Charges','رسوم أخرى',t.otherCharges,doc.adjustments.otherChargesEnabled],[`Tax ${taxRate}`,`الضريبة ${taxRate}`.trim(),t.tax,doc.adjustments.taxEnabled]];
   return <section className="totals-block">{rows.filter(r => r[3]).map(r => <div className="total-row" data-total={r[0].toLowerCase().replaceAll(' ','-')} key={r[0]}><span>{localized(doc,r[0],r[1])}</span><strong>{formatMoney(r[2],currency)}</strong></div>)}<div className="grand-total"><span>{localized(doc,doc.role==='credit-note'?'Credit Total':'Grand Total',doc.role==='credit-note'?'إجمالي الإشعار الدائن':'الإجمالي النهائي')}</span><strong>{formatMoney(t.grandTotal,currency)}</strong></div></section>;
 }
 function Bank({ document: doc }: { document: LourexDocument }): any {
@@ -139,7 +139,7 @@ function itemWeight(doc:LourexDocument,item:DocumentItem):number{return Math.max
 function displayedClosingValues(doc:LourexDocument):string[]{
   const t=doc.terms;
   return [
-    safeValue(doc,t.incoterm,'technical'),safeValue(doc,t.paymentTerms),safeValue(doc,t.packing),safeValue(doc,t.deliveryTime),safeValue(doc,t.portOfLoading),safeValue(doc,t.finalDestination),safeValue(doc,t.countryOfOrigin,'country'),safeValue(doc,t.validity),safeValue(doc,t.remarks)
+    safeValue(doc,t.incoterm,'technical'),safeValue(doc,t.paymentTerms),safeValue(doc,t.packing),safeValue(doc,t.deliveryTime),safeValue(doc,t.portOfLoading,'neutral'),safeValue(doc,t.finalDestination,'neutral'),safeValue(doc,t.countryOfOrigin,'country'),safeValue(doc,t.validity),safeValue(doc,t.remarks)
   ].filter(Boolean);
 }
 function shouldUseDetailsPage(doc: LourexDocument): boolean {
