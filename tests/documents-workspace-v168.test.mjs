@@ -37,6 +37,29 @@ test('quotation detail uses Valid until rather than invoice due-date wording',as
   assert.doesNotMatch(source,/Validity \/ due/);
 });
 
+test('document detail shows trade metadata and explicit tax percentage',async()=>{
+  const source=await read('src/components/DocumentsPage.tsx');
+  assert.match(source,/item\.origin\?`\$\{t\('Origin','المنشأ'\)\}: \$\{item\.origin\}`/);
+  assert.match(source,/item\.packing\?`\$\{t\('Packing','التعبئة'\)\}: \$\{item\.packing\}`/);
+  assert.match(source,/Tax \$\{doc\.adjustments\.taxPercent\}%/);
+  assert.match(source,/الضريبة \$\{doc\.adjustments\.taxPercent\}%/);
+});
+
+test('document detail links quote invoice and credit-note relationships',async()=>{
+  const source=await read('src/components/DocumentsPage.tsx');
+  assert.match(source,/const sourceQuote=doc\.convertedFromId/);
+  assert.match(source,/const sourceInvoice=doc\.creditForId/);
+  assert.match(source,/const creditNotes=doc\.kind==='invoice'&&doc\.role==='standard'/);
+  assert.match(source,/Related documents/);
+  assert.match(source,/المستندات المرتبطة/);
+});
+
+test('voided documents do not reuse the issued visual status class',async()=>{
+  const source=await read('src/components/DocumentsPage.tsx');
+  assert.match(source,/const visualState=doc\.lifecycleStatus==='voided'\?'voided':state/);
+  assert.equal((source.match(/document-status-pill status-\$\{visualState\}/g)||[]).length,2);
+});
+
 test('mobile document actions remain body-ported and dismissible',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
   assert.match(source,/mobile-document-action-portal/);
