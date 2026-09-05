@@ -46,6 +46,13 @@ test('document workspace suppresses duplicate conversion and opens the linked in
   assert.match(source,/فتح الفاتورة المرتبطة/);
 });
 
+test('review-confirmed PDF and share paths arm the output bridge before printing',async()=>{
+  const editor=await read('src/components/EditorPage.tsx');
+  assert.match(editor,/printWithPreparedMode/);
+  assert.match(editor,/__LOUREX_PREPARE_PDF__\?\.\(mode\)/);
+  assert.match(editor,/onPrint=\{this\.printWithPreparedMode\}/);
+});
+
 test('v64 workflow assets remain present in later PWA releases',async()=>{
   const sw=await read('public/sw.js');
   assert.match(sw,/lourex-invoice-v\d+/);
