@@ -46,6 +46,20 @@ test('document workspace suppresses duplicate conversion and opens the linked in
   assert.match(source,/فتح الفاتورة المرتبطة/);
 });
 
+test('rapid repeated conversion clicks are ignored before another invoice number can be reserved',async()=>{
+  const [editor,documents]=await Promise.all([
+    read('src/components/EditorPage.tsx'),
+    read('src/components/DocumentsPage.tsx')
+  ]);
+  assert.match(editor,/quoteConversionRunning=false/);
+  assert.match(editor,/if\(this\.quoteConversionRunning\)return/);
+  assert.match(editor,/onClick=\{this\.convertFinalQuote\}/);
+  assert.match(documents,/quoteConversions=new Set<string>\(\)/);
+  assert.match(documents,/if\(this\.quoteConversions\.has\(doc\.id\)\)return/);
+  assert.match(documents,/this\.quoteConversions\.add\(doc\.id\)/);
+  assert.match(documents,/finally\(\(\)=>this\.quoteConversions\.delete\(doc\.id\)\)/);
+});
+
 test('review-confirmed PDF and share paths arm the output bridge before printing',async()=>{
   const editor=await read('src/components/EditorPage.tsx');
   assert.match(editor,/printWithPreparedMode/);
