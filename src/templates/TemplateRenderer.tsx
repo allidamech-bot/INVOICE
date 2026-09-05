@@ -130,11 +130,12 @@ function firstPageItemCapacity(doc:LourexDocument):number{
   if(pressure>380)return 5;
   return 7;
 }
-function itemWeight(item:DocumentItem):number{
-  const text=docItemText(item);
-  return Math.max(1,Math.ceil(text.length/95));
+function docItemText(doc:LourexDocument,item:DocumentItem):string{
+  if(doc.language==='en')return item.descriptionEn.trim();
+  if(doc.language==='ar')return item.descriptionAr.trim();
+  return `${item.descriptionEn} ${item.descriptionAr}`.trim();
 }
-function docItemText(item:DocumentItem):string{return `${item.descriptionEn} ${item.descriptionAr}`.trim();}
+function itemWeight(doc:LourexDocument,item:DocumentItem):number{return Math.max(1,Math.ceil(docItemText(doc,item).length/95));}
 function displayedClosingValues(doc:LourexDocument):string[]{
   const t=doc.terms;
   return [
@@ -154,16 +155,16 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
   if(hardOverflow)return true;
   const complexClosing=score>=10||detailsChars>700||values.some(value=>value.length>260)||notes.length>420;
   if(!complexClosing)return false;
-  const tentative=paginateItems(doc.items,true,firstPageItemCapacity(doc));
+  const tentative=paginateItems(doc.items,true,firstPageItemCapacity(doc),doc.language);
   const last=tentative[tentative.length-1]??[];
-  const lastWeight=last.reduce((sum,item)=>sum+itemWeight(item),0);
+  const lastWeight=last.reduce((sum,item)=>sum+itemWeight(doc,item),0);
   const allowedLastWeight=score>=16?2:score>=13?3:5;
   return lastWeight>allowedLastWeight;
 }
 
 function renderDocument({ document: doc, scale = 1, compact = false }: Props):any{
   const separateDetails = shouldUseDetailsPage(doc);
-  const itemPages = paginateItems(doc.items, !separateDetails, firstPageItemCapacity(doc));
+  const itemPages = paginateItems(doc.items, !separateDetails, firstPageItemCapacity(doc),doc.language);
   const pages = separateDetails ? [...itemPages, [] as DocumentItem[]] : itemPages;
   return <div className="invoice-pages" style={{ '--preview-scale': String(scale) } as any}>{pages.map((items,index) => <Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index === pages.length - 1} variant={doc.appearance.templateId} compact={compact}/>)}</div>;
 }
