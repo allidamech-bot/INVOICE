@@ -27,6 +27,14 @@ test('all item unit inputs share one valid datalist instead of duplicate DOM ids
   assert.doesNotMatch(editor,/id="units"/);
 });
 
+test('document design exposes every optional item table column',async()=>{
+  const editor=await read('src/components/EditorPageCore.tsx');
+  assert.match(editor,/appearance-table-columns/);
+  assert.match(editor,/checked=\{d\.appearance\.showHsCode\}[\s\S]{0,140}this\.appearance\('showHsCode',v\)/);
+  assert.match(editor,/checked=\{d\.appearance\.showOrigin\}[\s\S]{0,140}this\.appearance\('showOrigin',v\)/);
+  assert.match(editor,/checked=\{d\.appearance\.showPacking\}[\s\S]{0,140}this\.appearance\('showPacking',v\)/);
+});
+
 test('critical editor controls keep 44px touch targets on iPhone and iPad',async()=>{
   const design=await read('src/styles/design-system-v164.css');
   const coarse=design.slice(design.indexOf('@media(pointer:coarse)'));
