@@ -80,7 +80,7 @@ export class SettingsModal extends React.Component<Props,State> {
   private selectAsset=(field:AssetField,input:HTMLInputElement)=>{const file=input.files?.[0];input.value='';void this.upload(field,file);};
   private clearAsset=(field:AssetField)=>{
     this.assetPreparationId+=1;
-    this.setState(state=>({company:{...state.company,[field]:''},...(field==='logoDataUrl'?{logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto' as const}:{}),cleaningAssets:false,savedSection:null,message:t('Artwork removed from this draft. Save Company to apply the change.','تمت إزالة الصورة من هذه المسودة. اضغط حفظ الشركة لتطبيق التغيير.'),error:''}));
+    this.setState(state=>({...state,company:{...state.company,[field]:''},...(field==='logoDataUrl'?{logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'auto' as const}:{}),cleaningAssets:false,savedSection:null,message:t('Artwork removed from this draft. Save Company to apply the change.','تمت إزالة الصورة من هذه المسودة. اضغط حفظ الشركة لتطبيق التغيير.'),error:''}));
   };
   private upload=async(field:AssetField,file?:File)=>{
     if(!file)return;
