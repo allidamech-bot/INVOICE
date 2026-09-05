@@ -45,6 +45,21 @@ test('company artwork upload is bounded and excludes raw SVG uploads',async()=>{
   assert.match(source,/Use a PNG, WebP, or JPEG image/);
 });
 
+test('first-run company logo uses the same bounded raster policy and cannot finish mid-processing',async()=>{
+  const source=await read('src/components/AuthScreens.tsx');
+  assert.match(source,/MAX_SETUP_LOGO_BYTES=4\*1024\*1024/);
+  assert.ok(source.includes('const SETUP_LOGO_TYPES=/^image\\/(png|webp|jpeg)$/i;'));
+  assert.match(source,/private logoUploadId=0/);
+  assert.match(source,/logoBusy: boolean/);
+  assert.match(source,/this\.setState\(\{error:'',logoBusy:true\}\)/);
+  assert.match(source,/if\(uploadId!==this\.logoUploadId\)return/);
+  assert.match(source,/if\(this\.state\.logoBusy\)return/);
+  assert.match(source,/disabled=\{busy\|\|logoBusy\}/);
+  assert.match(source,/accept="image\/png,image\/webp,image\/jpeg"/);
+  assert.doesNotMatch(source,/accept="[^"]*image\/svg\+xml/);
+  assert.match(source,/Preparing logo/);
+});
+
 test('company technical identifiers remain LTR inside Arabic settings UI',async()=>{
   const source=await read('src/components/SettingsModal.tsx');
   assert.match(source,/label="IBAN"><Input dir="ltr"/);
