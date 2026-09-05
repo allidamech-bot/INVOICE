@@ -24,6 +24,31 @@ function valuePair(doc: LourexDocument, en: string, ar: string): any {
   if (doc.language === 'ar') return <span dir="rtl">{documentDisplayValue(ar,'ar') || '—'}</span>;
   return <span className="bi-value"><span>{en || '—'}</span>{ar ? <span dir="rtl">{ar}</span> : null}</span>;
 }
+function continuationValuePair(doc:LourexDocument,en:string,ar:string):any{
+  if(doc.language==='en'){
+    const value=documentDisplayValue(en,'en');
+    return value?<span>{value}</span>:null;
+  }
+  if(doc.language==='ar'){
+    const value=documentDisplayValue(ar,'ar');
+    return value?<span dir="rtl">{value}</span>:null;
+  }
+  const english=en.trim();const arabic=ar.trim();
+  if(!english&&!arabic)return null;
+  return <span className="bi-value">{english?<span>{english}</span>:null}{arabic?<span dir="rtl">{arabic}</span>:null}</span>;
+}
+function identityOutputValues(doc:LourexDocument,en:string,ar:string):string[]{
+  const english=en.trim();const arabic=ar.trim();
+  if(doc.language==='en'){
+    const visible=documentDisplayValue(english,'en');
+    return visible?[visible]:[];
+  }
+  if(doc.language==='ar'){
+    const visible=arabic||english;
+    return visible?[visible]:[];
+  }
+  return [english,arabic].filter(Boolean);
+}
 function identityPair(doc: LourexDocument, en: string, ar: string): any {
   const english=en.trim(); const arabic=ar.trim();
   if(doc.language==='en')return <span dir="auto">{documentDisplayValue(english,'en')||'—'}</span>;
@@ -109,6 +134,7 @@ function MetaBlock({ document: doc }: { document: LourexDocument }): any {
 function PartyBlock({ document: doc, type }: { document: LourexDocument; type: 'seller' | 'customer' }): any {
   const c = doc.customerSnapshot; const isSeller = type === 'seller'; const name = isSeller ? companyName(doc) : customerName(doc);
   const addressEn = isSeller ? doc.companySnapshot.addressEn : (c?.addressEn ?? ''); const addressAr = isSeller ? doc.companySnapshot.addressAr : (c?.addressAr ?? '');
+  const addressVisible=identityOutputValues(doc,addressEn,addressAr).length>0;
   const cityRaw = isSeller ? doc.companySnapshot.city : (c?.city ?? ''); const countryRaw = isSeller ? doc.companySnapshot.country : (c?.country ?? '');
   const city=safeValue(doc,cityRaw,'neutral');const country=safeValue(doc,countryRaw,'country');
   const phone = isSeller ? doc.companySnapshot.phone : (c?.phone ?? ''); const email = isSeller ? doc.companySnapshot.email : (c?.email ?? ''); const website=isSeller?doc.companySnapshot.website:'';
@@ -116,12 +142,12 @@ function PartyBlock({ document: doc, type }: { document: LourexDocument; type: '
     ? [['VAT No.','رقم ضريبة القيمة المضافة',doc.companySnapshot.vatNumber],['Tax No.','الرقم الضريبي',doc.companySnapshot.taxNumber],['Commercial Registration','السجل التجاري',doc.companySnapshot.commercialRegistration]]
     : [['VAT / Tax','الضريبة',c?.vatTaxNumber??''],['Commercial Registration','السجل التجاري',c?.commercialRegistration??'']];
   const visibleIdentifiers=identifiers.filter(([, ,value],index,array)=>Boolean(value.trim())&&array.findIndex(row=>row[2].trim()===value.trim())===index);
-  return <section className={`party-block party-${type}`}><div className="section-kicker">{localized(doc, isSeller ? 'Seller / From' : 'Bill To / Customer', isSeller ? 'البائع / من' : 'إلى / العميل')}</div><div className="party-name">{name}</div>{(addressEn || addressAr) ? <div className="party-address">{identityPair(doc, addressEn, addressAr)}</div> : null}{(city || country) ? <div className="party-location">{city?<bdi>{city}</bdi>:null}{city&&country?', ':null}{country?<bdi>{country}</bdi>:null}</div> : null}{(phone || email || website) ? <div className="party-contact">{[phone, email, website].filter(Boolean).join(' • ')}</div> : null}{visibleIdentifiers.length?<div className="party-identifiers">{visibleIdentifiers.map(([en,ar,value])=><div key={`${en}-${value}`}><b>{localized(doc,en,ar)}</b><span>{value}</span></div>)}</div>:null}</section>;
+  return <section className={`party-block party-${type}`}><div className="section-kicker">{localized(doc, isSeller ? 'Seller / From' : 'Bill To / Customer', isSeller ? 'البائع / من' : 'إلى / العميل')}</div><div className="party-name">{name}</div>{addressVisible ? <div className="party-address">{identityPair(doc, addressEn, addressAr)}</div> : null}{(city || country) ? <div className="party-location">{city?<bdi>{city}</bdi>:null}{city&&country?', ':null}{country?<bdi>{country}</bdi>:null}</div> : null}{(phone || email || website) ? <div className="party-contact">{[phone, email, website].filter(Boolean).join(' • ')}</div> : null}{visibleIdentifiers.length?<div className="party-identifiers">{visibleIdentifiers.map(([en,ar,value])=><div key={`${en}-${value}`}><b>{localized(doc,en,ar)}</b><span>{value}</span></div>)}</div>:null}</section>;
 }
 function ItemsTable({ document: doc, items, continued }: { document: LourexDocument; items: DocumentItem[]; continued: boolean }): any {
   const currency=documentCurrency(doc);
   const showHs = doc.appearance.showHsCode && doc.items.some(i => i.hsCode.trim()); const showOrigin = doc.appearance.showOrigin && doc.items.some(i => safeValue(doc,i.origin,'country')); const showPacking = doc.appearance.showPacking && doc.items.some(i => safeValue(doc,i.packing));
-  return <div className="items-wrap">{continued ? <div className="continued-label">{localized(doc, 'Items — continued', 'البنود — تابع')}</div> : null}<table className="items-table"><colgroup><col className="col-index"/><col className="col-description"/>{showHs?<col className="col-hs"/>:null}{showOrigin?<col className="col-origin"/>:null}{showPacking?<col className="col-packing"/>:null}<col className="col-qty"/><col className="col-unit"/><col className="col-price"/><col className="col-total"/></colgroup><thead><tr><th className="col-num">#</th><th>{localized(doc, 'Description', 'الوصف')}</th>{showHs ? <th>{localized(doc, 'HS Code', 'الرمز الجمركي')}</th> : null}{showOrigin ? <th>{localized(doc, 'Origin', 'المنشأ')}</th> : null}{showPacking ? <th>{localized(doc, 'Packing', 'التعبئة')}</th> : null}<th className="numeric-heading">{localized(doc, 'Qty', 'الكمية')}</th><th>{localized(doc, 'Unit', 'الوحدة')}</th><th className="numeric-heading">{localized(doc, 'Unit Price', 'سعر الوحدة')}<small>{currency}</small></th><th className="numeric-heading">{localized(doc, 'Total', 'الإجمالي')}<small>{currency}</small></th></tr></thead><tbody>{items.map(item=>{const fragment=outputFragmentMeta(item);const continuation=fragment.index>0;const sourceIndex=doc.items.findIndex(source=>source.id===fragment.sourceId);return <tr key={item.id} className={continuation?'item-continuation-row':undefined}><td className="col-num">{continuation?'↳':sourceIndex>=0?sourceIndex+1:'—'}</td><td className="description-cell">{valuePair(doc,item.descriptionEn,item.descriptionAr)}</td>{showHs?<td className="trade-cell">{item.hsCode||'—'}</td>:null}{showOrigin?<td className="trade-cell">{safeValue(doc,item.origin,'country')||'—'}</td>:null}{showPacking?<td className="trade-cell">{safeValue(doc,item.packing)||'—'}</td>:null}<td className="quantity-cell">{continuation?'':item.quantity}</td><td className="unit-cell">{safeValue(doc,item.unit,'unit')||'—'}</td><td className="money-cell">{continuation?'':item.unitPrice}</td><td className="money-cell strong">{continuation?'':lineTotal(item.quantity,item.unitPrice)}</td></tr>;})}</tbody></table></div>;
+  return <div className="items-wrap">{continued ? <div className="continued-label">{localized(doc, 'Items — continued', 'البنود — تابع')}</div> : null}<table className="items-table"><colgroup><col className="col-index"/><col className="col-description"/>{showHs?<col className="col-hs"/>:null}{showOrigin?<col className="col-origin"/>:null}{showPacking?<col className="col-packing"/>:null}<col className="col-qty"/><col className="col-unit"/><col className="col-price"/><col className="col-total"/></colgroup><thead><tr><th className="col-num">#</th><th>{localized(doc, 'Description', 'الوصف')}</th>{showHs ? <th>{localized(doc, 'HS Code', 'الرمز الجمركي')}</th> : null}{showOrigin ? <th>{localized(doc, 'Origin', 'المنشأ')}</th> : null}{showPacking ? <th>{localized(doc, 'Packing', 'التعبئة')}</th> : null}<th className="numeric-heading">{localized(doc, 'Qty', 'الكمية')}</th><th>{localized(doc, 'Unit', 'الوحدة')}</th><th className="numeric-heading">{localized(doc, 'Unit Price', 'سعر الوحدة')}<small>{currency}</small></th><th className="numeric-heading">{localized(doc, 'Total', 'الإجمالي')}<small>{currency}</small></th></tr></thead><tbody>{items.map(item=>{const fragment=outputFragmentMeta(item);const continuation=fragment.index>0;const sourceIndex=doc.items.findIndex(source=>source.id===fragment.sourceId);const origin=safeValue(doc,item.origin,'country');const packing=safeValue(doc,item.packing);const unit=safeValue(doc,item.unit,'unit');return <tr key={item.id} className={continuation?'item-continuation-row':undefined}><td className="col-num">{continuation?'↳':sourceIndex>=0?sourceIndex+1:'—'}</td><td className="description-cell">{continuation?continuationValuePair(doc,item.descriptionEn,item.descriptionAr):valuePair(doc,item.descriptionEn,item.descriptionAr)}</td>{showHs?<td className="trade-cell">{continuation?item.hsCode:item.hsCode||'—'}</td>:null}{showOrigin?<td className="trade-cell">{continuation?origin:origin||'—'}</td>:null}{showPacking?<td className="trade-cell">{continuation?packing:packing||'—'}</td>:null}<td className="quantity-cell">{continuation?'':item.quantity}</td><td className="unit-cell">{continuation?unit:unit||'—'}</td><td className="money-cell">{continuation?'':item.unitPrice}</td><td className="money-cell strong">{continuation?'':lineTotal(item.quantity,item.unitPrice)}</td></tr>;})}</tbody></table></div>;
 }
 function Terms({ document: doc }: { document: LourexDocument }): any {
   const t = doc.terms; const rawRows: Array<[string,string,string]> = [['Incoterm','الإنكوترم',t.incoterm],['Payment Terms','شروط الدفع',t.paymentTerms],['Packing','التعبئة',t.packing],['Delivery Time','مدة التسليم',t.deliveryTime],['Port of Loading','ميناء التحميل',t.portOfLoading],['Final Destination','الوجهة النهائية',t.finalDestination],['Country of Origin','بلد المنشأ',t.countryOfOrigin],['Validity','الصلاحية',t.validity],['Remarks','ملاحظات تجارية',t.remarks]];
@@ -157,7 +183,6 @@ function ModernHeader({ document: doc, variant }: { document: LourexDocument; va
 function ContinuationHeader({ document: doc }: { document: LourexDocument }): any {
   return <header className="continuation-header"><div className="continuation-company"><LogoBlock document={doc}/><strong>{companyName(doc)}</strong></div><div className="continuation-document"><DocumentTitle document={doc}/><span>{doc.number}</span></div></header>;
 }
-
 function footerText(doc:LourexDocument):string{
   const custom=safeValue(doc,doc.companySnapshot.footerText);
   if(custom)return custom;
@@ -177,9 +202,12 @@ function Page({ document: doc, items, pageIndex, totalPages, finalPage, variant,
 function firstPageItemCapacity(doc:LourexDocument):number{
   const c=doc.customerSnapshot;
   const values=[
-    doc.companySnapshot.nameEn,doc.companySnapshot.nameAr,doc.companySnapshot.addressEn,doc.companySnapshot.addressAr,doc.companySnapshot.city,doc.companySnapshot.country,
-    doc.companySnapshot.phone,doc.companySnapshot.email,doc.companySnapshot.website,doc.companySnapshot.vatNumber,doc.companySnapshot.taxNumber,doc.companySnapshot.commercialRegistration,
-    c?.companyNameEn??'',c?.companyNameAr??'',c?.addressEn??'',c?.addressAr??'',c?.city??'',c?.country??'',c?.phone??'',c?.email??'',c?.vatTaxNumber??'',c?.commercialRegistration??''
+    ...identityOutputValues(doc,doc.companySnapshot.nameEn,doc.companySnapshot.nameAr),
+    ...identityOutputValues(doc,doc.companySnapshot.addressEn,doc.companySnapshot.addressAr),
+    doc.companySnapshot.city,doc.companySnapshot.country,doc.companySnapshot.phone,doc.companySnapshot.email,doc.companySnapshot.website,doc.companySnapshot.vatNumber,doc.companySnapshot.taxNumber,doc.companySnapshot.commercialRegistration,
+    ...identityOutputValues(doc,c?.companyNameEn??'',c?.companyNameAr??''),
+    ...identityOutputValues(doc,c?.addressEn??'',c?.addressAr??''),
+    c?.city??'',c?.country??'',c?.phone??'',c?.email??'',c?.vatTaxNumber??'',c?.commercialRegistration??''
   ].map(value=>value.trim()).filter(Boolean);
   const chars=values.reduce((sum,value)=>sum+value.length,0);
   const pressure=chars+values.length*18+(doc.language==='bilingual'?120:0);
