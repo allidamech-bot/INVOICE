@@ -63,15 +63,18 @@ function financialInvoiceIds(base:VaultPayload,intended:VaultPayload):Set<string
   const ids=new Set<string>();
   if(intended.payments!==base.payments){
     const baseById=new Map(base.payments.map(payment=>[payment.id,payment]));
+    const intendedById=new Map(intended.payments.map(payment=>[payment.id,payment]));
     for(const payment of intended.payments){
       const before=baseById.get(payment.id);
       if(before===payment)continue;
       if(payment.invoiceId)ids.add(payment.invoiceId);
       if(before?.invoiceId&&before.invoiceId!==payment.invoiceId)ids.add(before.invoiceId);
     }
+    for(const payment of base.payments)if(!intendedById.has(payment.id)&&payment.invoiceId)ids.add(payment.invoiceId);
   }
   if(intended.documents!==base.documents){
     const baseById=new Map(base.documents.map(document=>[document.id,document]));
+    const intendedById=new Map(intended.documents.map(document=>[document.id,document]));
     for(const document of intended.documents){
       const before=baseById.get(document.id);
       if(before===document)continue;
@@ -81,6 +84,12 @@ function financialInvoiceIds(base:VaultPayload,intended:VaultPayload):Set<string
           if(candidate.creditForId)ids.add(candidate.creditForId);
         }else if(candidate.kind==='invoice')ids.add(candidate.id);
       }
+    }
+    for(const document of base.documents){
+      if(intendedById.has(document.id))continue;
+      if(document.role==='credit-note'){
+        if(document.creditForId)ids.add(document.creditForId);
+      }else if(document.kind==='invoice')ids.add(document.id);
     }
   }
   return ids;
