@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyVault } from '../dist/src/lib/defaults.js';
-import { createExpense, createManualInventoryMovement, createPurchase, createPurchaseItem, createSupplier, inventoryBalances, operationsIntegritySummary, postPurchase, reverseManualInventoryMovement, reversePurchase, spendByCurrency } from '../dist/src/lib/operations.js';
+import { allocateLandedCost, createExpense, createManualInventoryMovement, createPurchase, createPurchaseItem, createSupplier, inventoryBalances, operationsIntegritySummary, postPurchase, purchaseTotals, reverseManualInventoryMovement, reversePurchase, spendByCurrency } from '../dist/src/lib/operations.js';
+import { decimalToScaled, lineTotal } from '../dist/src/lib/money.js';
 import { mergeVaultIntent } from '../dist/src/storage/vault-merge.js';
 
 function saved(id='sku1',name='Tracked',cost='10'){
@@ -39,6 +40,8 @@ function applyPurchaseReverse(vault,reason){
   next.purchases=[reversed.purchase];next.savedItems=reversed.savedItems;next.inventoryMovements=[...next.inventoryMovements,...reversed.movements];
   return next;
 }
+
+function allocatedLineCents(purchase){return purchase.items.reduce((sum,item)=>sum+decimalToScaled(lineTotal(item.quantity,item.landedUnitCost||item.unitCost),2),0n);}
 
 test('concurrent posting cannot receive the same purchase into inventory twice',()=>{
   const base=draftPurchaseVault();
@@ -126,4 +129,23 @@ test('malformed historical inventory movements stay in history but do not alter 
   const integrity=operationsIntegritySummary([],[],[valid,invalid,invalidSign]);
   assert.equal(integrity.invalidMovements,2);
   assert.equal(integrity.totalInvalid,2);
+});
+
+test('landed-cost rounding reconciliation keeps allocated line costs tied to the purchase landed total',()=>{
+  const supplier=createSupplier();supplier.nameEn='Supplier';
+  const purchase=createPurchase([], [supplier], 'USD');
+  purchase.items=Array.from({length:3},(_,index)=>{const line=createPurchaseItem();line.id=`line-${index}`;line.descriptionEn=`Item ${index+1}`;line.quantity='3';line.unitCost='1';return line;});
+  purchase.freight='1.00';
+  const allocated=allocateLandedCost(purchase);
+  assert.equal(allocatedLineCents(allocated),decimalToScaled(purchaseTotals(purchase).landedTotal,2));
+  assert.equal(decimalToScaled(purchaseTotals(purchase).landedTotal,2),1000n);
+});
+
+test('tiny landed-cost extras are not lost to per-line cent rounding when representable',()=>{
+  const supplier=createSupplier();supplier.nameEn='Supplier';
+  const purchase=createPurchase([], [supplier], 'USD');
+  purchase.items=Array.from({length:3},(_,index)=>{const line=createPurchaseItem();line.id=`zero-${index}`;line.descriptionEn=`Zero ${index+1}`;line.quantity='1';line.unitCost='0';return line;});
+  purchase.otherCosts='0.01';
+  const allocated=allocateLandedCost(purchase);
+  assert.equal(allocatedLineCents(allocated),1n);
 });
