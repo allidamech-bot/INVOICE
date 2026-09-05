@@ -4,6 +4,7 @@ import { decimalToScaled, isDecimalInput } from '../lib/money.js';
 import { assertDocumentLifecycleInvariant } from '../lib/document-lifecycle.js';
 import { assertInvoicePaymentInvariant } from '../lib/payments.js';
 import { t } from '../lib/i18n.js';
+import { guardOperationsMerge } from './operations-merge-guard.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -197,20 +198,25 @@ function mergeAppSettings(base:AppSettings,intended:AppSettings,latest:AppSettin
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
   const customers=mergeRecords(base.customers,intended.customers,latest.customers);
   const savedItems=mergeRecords(base.savedItems,intended.savedItems,latest.savedItems);
+  const suppliers=mergeRecords(base.suppliers,intended.suppliers,latest.suppliers);
+  const purchases=mergeRecords(base.purchases,intended.purchases,latest.purchases);
+  const expenses=mergeRecords(base.expenses,intended.expenses,latest.expenses);
+  const inventoryMovements=mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   const documents=mergeDocuments(base.documents,intended.documents,latest.documents);
   const payments=mergeRecords(base.payments,intended.payments,latest.payments);
   guardCustomerChanges(base.customers,intended.customers,customers);
   guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems);
   guardFinancialSettlementChanges(base,intended,documents,payments);
+  guardOperationsMerge(base,intended,latest,{suppliers,purchases,expenses,inventoryMovements,savedItems});
   return {
     ...latest,
     schemaVersion:Math.max(latest.schemaVersion,intended.schemaVersion),
     company:mergeCompany(base.company,intended.company,latest.company),
     customers,
-    suppliers:mergeRecords(base.suppliers,intended.suppliers,latest.suppliers),
-    purchases:mergeRecords(base.purchases,intended.purchases,latest.purchases),
-    expenses:mergeRecords(base.expenses,intended.expenses,latest.expenses),
-    inventoryMovements:mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements),
+    suppliers,
+    purchases,
+    expenses,
+    inventoryMovements,
     documents,
     documentEvents:mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents),
     documentRevisions:mergeRecords(base.documentRevisions,intended.documentRevisions,latest.documentRevisions),
