@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="stylesheet" href="../../src/styles/editor-workflow-v61.css">
+  <link rel="stylesheet" href="../../src/styles/editor-workspace-v162.css">
+  <link rel="stylesheet" href="../../src/styles/design-system-v164.css">
+  <link rel="stylesheet" href="../../src/styles/final-mobile-accessibility-v168.css">
+  <style>
+    html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#f6f2ea}
+    *{box-sizing:border-box}
+    .fixture-content{min-height:560px;background:#fff;border:1px solid #ddd}
+    .editor-section-nav{display:grid;grid-template-columns:repeat(6,1fr);width:100%;height:100%}
+    .editor-section-nav button,.mobile-action-buttons button,.final-quote-convert-bar .btn{min-height:44px}
+    .mobile-action-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  </style>
+</head>
+<body>
+  <div class="app-ui">
+    <section class="editor-screen">
+      <div class="editor-layout"><div class="fixture-content">Document content</div></div>
+      <div class="editor-section-nav-slot" data-editor-nav-slot>
+        <nav class="editor-section-nav" aria-label="Document sections">
+          <button>01</button><button>02</button><button>03</button><button>04</button><button>05</button><button>06</button>
+        </nav>
+      </div>
+      <div class="mobile-editor-actionbar">
+        <div class="mobile-action-total">USD 555.00</div>
+        <div class="mobile-action-buttons">
+          <button class="btn btn-primary">مراجعة</button><button class="btn">معاينة</button><button class="btn">PDF</button><button class="btn">مشاركة</button>
+        </div>
+      </div>
+    </section>
+    <div class="final-quote-convert-bar">
+      <div><strong>تم تأكيد الصفقة؟ أنشئ الفاتورة.</strong><small>أنشئ فاتورة مرتبطة بعرض السعر النهائي.</small></div>
+      <button class="btn btn-primary" data-convert-cta>إنشاء فاتورة من عرض السعر</button>
+    </div>
+  </div>
+</body>
+</html>
