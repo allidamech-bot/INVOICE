@@ -15,17 +15,20 @@ test('Final quotation conversion reserves a dedicated mobile lane instead of cov
   assert.match(editorCss,/\.app-ui \.editor-section-nav-slot\{[\s\S]*?min-height:48px!important/);
   assert.match(editorCss,/\.app-ui \.mobile-editor-actionbar\{[\s\S]*?z-index:34!important/);
 
-  assert.match(finalCss,/body:has\(\.final-quote-convert-bar\)\{[\s\S]*?--final-quote-nav-height:48px/);
-  assert.match(finalCss,/--final-quote-actionbar-height:64px/);
-  assert.match(finalCss,/body:has\(\.final-quote-convert-bar\) \.app-ui \.editor-layout\{[\s\S]*?margin-bottom:var\(--final-quote-sheet-height\)!important/);
-  assert.match(finalCss,/bottom:calc\(var\(--final-quote-nav-height\) \+ var\(--final-quote-actionbar-height\) \+ env\(safe-area-inset-bottom\) \+ 6px\)!important/);
+  assert.match(finalCss,/body:has\(\.final-quote-convert-bar\)\{[\s\S]*?--final-quote-nav-height:60px/);
+  assert.match(finalCss,/--final-quote-stack-gap:10px/);
+  assert.match(finalCss,/body:has\(\.final-quote-convert-bar\) \.app-ui \.editor-layout\{[\s\S]*?margin-bottom:calc\(var\(--final-quote-sheet-height\) \+ var\(--final-quote-stack-gap\)\)!important/);
+  assert.match(finalCss,/bottom:calc\(var\(--final-quote-nav-height\) \+ var\(--final-quote-actionbar-height\) \+ env\(safe-area-inset-bottom\) \+ var\(--final-quote-stack-gap\)\)!important/);
   assert.match(finalCss,/z-index:33!important/);
+  assert.match(finalCss,/max-height:none!important/);
+  assert.match(finalCss,/overflow:visible!important/);
 });
 
-test('narrow iPhone layout accounts for the two-row mobile action bar and hides conversion actions during full-screen preview',async()=>{
+test('narrow iPhone layout keeps the full conversion CTA above the two-row mobile action bar',async()=>{
   const css=await read('src/styles/final-mobile-accessibility-v168.css');
-  assert.match(css,/@media \(max-width:520px\)\{[\s\S]*?--final-quote-actionbar-height:86px/);
-  assert.match(css,/@media \(max-width:430px\)\{[\s\S]*?--final-quote-sheet-height:106px/);
+  assert.match(css,/@media \(max-width:720px\)\{[\s\S]*?\.final-quote-convert-bar small\{display:none!important\}/);
+  assert.match(css,/@media \(max-width:520px\)\{[\s\S]*?--final-quote-actionbar-height:108px/);
+  assert.match(css,/@media \(max-width:430px\)\{[\s\S]*?--final-quote-actionbar-height:112px[\s\S]*?--final-quote-sheet-height:120px/);
   assert.match(css,/body:has\(\.editor-screen\.mobile-preview-open\) \.final-quote-convert-bar\{display:none!important\}/);
 });
 
