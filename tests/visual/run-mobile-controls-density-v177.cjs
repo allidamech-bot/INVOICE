@@ -13,6 +13,12 @@ const cases=[
   {width:820,height:1180,label:'tablet touch'}
 ];
 
+const squareTargets=new Set([
+  '.shell-mobile-brand>button','.product-library-star','.product-library-row>.icon-btn',
+  '.saved-items-search-clear','.editor-top-left>.icon-btn','.item-card-actions .icon-btn',
+  '.template-favorite-button','.logo-touch-editor-close'
+]);
+
 (async()=>{
   const browser=await chromium.launch({headless:true});
   const failures=[];
@@ -28,16 +34,28 @@ const cases=[
           if(!el)return null;
           const r=el.getBoundingClientRect();
           const s=getComputedStyle(el);
-          return {width:r.width,height:r.height,left:r.left,right:r.right,display:s.display,overflowX:s.overflowX};
+          return {
+            width:r.width,height:r.height,left:r.left,right:r.right,display:s.display,
+            overflowX:s.overflowX,minHeight:s.minHeight,maxHeight:s.maxHeight,minWidth:s.minWidth,maxWidth:s.maxWidth
+          };
         };
         const selectors=[
           '.shell-mobile-brand>button','.shell-sync-status','.page-heading .btn',
-          '.settings-tabs>button','.documents-sort','.section-heading-actions .btn',
+          '.settings-title>.btn','.settings-tabs>button','.documents-sort','.section-heading-actions .btn',
           '.product-library-star','.product-library-row>.icon-btn','.cloud-account-actions .btn',
+          '.saved-items-search-clear','.saved-items-quick-filters button','.product-library-list-head .btn',
+          '.product-metadata-suggestions button','.segmented button','.status-filter button',
+          '.dashboard-panel-heading>button','.editor-top-left>.icon-btn','.final-lock-banner .btn',
+          '.editor-section .input','.premium-selected-customer>.btn','.recent-customer-row button',
+          '.item-card-actions .btn','.item-card-actions .icon-btn','.mobile-action-buttons .btn',
+          '.template-favorite-button','.logo-mode-switch button','.logo-rebuild-restore',
+          '.logo-touch-editor-close','.logo-touch-editor-utility button',
           '.auth-language-switch','.account-entry-tabs button'
         ];
         return {
           viewport:{width:innerWidth,height:innerHeight},
+          media:{phone:matchMedia('(max-width:720px)').matches,coarse:matchMedia('(pointer:coarse)').matches},
+          stylesheets:Array.from(document.styleSheets).map(sheet=>sheet.href).filter(Boolean),
           scrollWidth:document.documentElement.scrollWidth,
           targets:Object.fromEntries(selectors.map(selector=>[selector,rect(selector)])),
           tabs:rect('[data-scroll-lane]')
@@ -48,8 +66,8 @@ const cases=[
       for(const [selector,box] of Object.entries(result.targets)){
         if(!box){failures.push(`${prefix}: missing ${selector}`);continue;}
         if(box.display==='none'){failures.push(`${prefix}: hidden ${selector}`);continue;}
-        if(box.height<44-.25)failures.push(`${prefix}: ${selector} height ${box.height}px (<44px)`);
-        if((selector.includes('icon-btn')||selector.includes('star')||selector.includes('shell-mobile-brand'))&&box.width<44-.25)failures.push(`${prefix}: ${selector} width ${box.width}px (<44px)`);
+        if(box.height<44-.25)failures.push(`${prefix}: ${selector} height ${box.height}px (<44px; min=${box.minHeight}; max=${box.maxHeight})`);
+        if(squareTargets.has(selector)&&box.width<44-.25)failures.push(`${prefix}: ${selector} width ${box.width}px (<44px; min=${box.minWidth}; max=${box.maxWidth})`);
       }
       if(result.scrollWidth>result.viewport.width+1)failures.push(`${prefix}: page horizontal overflow ${result.scrollWidth}px > ${result.viewport.width}px`);
       if(scenario.width<=720&&result.tabs&&!['auto','scroll'].includes(result.tabs.overflowX))failures.push(`${prefix}: settings tab lane is not horizontally reachable`);
