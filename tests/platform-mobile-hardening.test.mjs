@@ -37,5 +37,6 @@ test('direct cloud-vault installation cannot replace local encrypted data behind
   assert.match(source,/installCloudVault[\s\S]*if\(inlineDraftWorkspaceOpen\(\)\)throw new Error/);
   const startup=await read('src/cloud/startup.ts');
   assert.match(startup,/hydrateAuthoritativeCloudBeforeApp/);
-  assert.match(startup,/await installCloudVault\(user\.uid,false\)/);
+  assert.match(startup,/await reconcileCloudVault\(user\.uid\)/);
+  assert.doesNotMatch(startup,/await installCloudVault\(user\.uid,false\)/);
 });
