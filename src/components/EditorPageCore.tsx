@@ -118,6 +118,8 @@ export class EditorPage extends React.Component<Props,State>{
   private schedulePreview=()=>{
     if(!this.state.desktopPreview)return;
     if(this.previewTimer)window.clearTimeout(this.previewTimer);
+    // The A4 tree is deliberately one beat behind typing. This removes the
+    // multi-page renderer from the keystroke path without changing output data.
     this.previewTimer=window.setTimeout(()=>this.setState({previewDoc:structuredClone(this.state.doc)}),180);
   };
 
