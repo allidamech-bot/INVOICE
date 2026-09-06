@@ -30,10 +30,11 @@ test('cloud restore uses the signed-in account without a backup PIN prompt',asyn
   assert.doesNotMatch(settings,/Backup PIN|restorePin/);
 });
 
-test('cloud account is authoritative and cloud pulls do not create local recovery snapshots',async()=>{
+test('automatic cloud reconcile never overwrites an unverified or concurrently changed local vault',async()=>{
   const cloud=await read('src/cloud/firebase.ts');
   assert.doesNotMatch(cloud,/createSafetySnapshot/);
-  assert.match(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.match(cloud,/if\(!anchor\)throw new Error\('Cloud sync paused to protect local data/);
+  assert.match(cloud,/if\(remoteChanged&&localChanged\)throw new Error\('Cloud sync paused because local and cloud data both changed/);
   assert.match(cloud,/if\(remoteChanged\)\{await installCloudVault\(uid\);return 'pulled';\}/);
   const push=cloud.slice(cloud.indexOf('export async function pushLocalVaultToCloud'),cloud.indexOf('// Compatibility exports'));
   assert.match(push,/if\(!anchor\)return 'remote-changed'/);
