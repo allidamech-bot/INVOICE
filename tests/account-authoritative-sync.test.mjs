@@ -10,10 +10,12 @@ test('multi-device freshness never trusts device wall-clock timestamps',async()=
   assert.doesNotMatch(freshness,/remote\.updatedAt\s*[<>]=?\s*local\.updatedAt/);
 });
 
-test('the signed-in account copy is authoritative when no verified anchor exists',async()=>{
+test('automatic reconcile fails closed when no verified anchor exists',async()=>{
   const cloud=await read('src/cloud/firebase.ts');
-  assert.match(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.match(cloud,/if\(!anchor\)return 'diverged'/);
+  assert.match(cloud,/if\(localChanged&&remoteChanged\)return 'diverged'/);
   assert.match(cloud,/if\(remoteChanged\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.doesNotMatch(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
   assert.doesNotMatch(cloud,/if\(remote\.updatedAt>local\.updatedAt\)\{await installCloudVault/);
 });
 
