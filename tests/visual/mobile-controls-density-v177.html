@@ -8,10 +8,11 @@
   <link rel="stylesheet" href="../../dist/styles/app.bundle.css">
   <style>
     html,body{margin:0;width:100%;min-height:100%;font-family:Arial,sans-serif;background:#f6f2eb}
-    *{box-sizing:border-box}.fixture{padding:10px;display:grid;gap:10px}.fixture-card{min-width:0;padding:10px;border:1px solid #ddd5ca;border-radius:12px;background:#fff}
+    *{box-sizing:border-box}.fixture{padding:10px;display:grid;gap:10px}.fixture-card{position:relative;min-width:0;padding:10px;border:1px solid #ddd5ca;border-radius:12px;background:#fff}
     .product-library-row{display:grid;grid-template-columns:32px minmax(0,1fr) 32px;align-items:center;gap:6px}.product-library-row>span{min-width:0;overflow-wrap:anywhere}
-    .section-heading-actions,.heading-actions,.cloud-account-actions{display:flex;gap:6px}.settings-tabs{display:flex;gap:6px}.settings-tabs>button{flex:0 0 auto}
+    .section-heading-actions,.heading-actions,.cloud-account-actions,.item-card-actions,.recent-customer-row,.logo-touch-editor-utility{display:flex;gap:6px}.settings-tabs,.segmented,.status-filter,.saved-items-quick-filters,.product-metadata-suggestions,.logo-mode-switch{display:flex;gap:6px}.settings-tabs>button,.saved-items-quick-filters>button,.product-metadata-suggestions>button{flex:0 0 auto}
     .documents-toolbar-right{display:flex;gap:6px}.documents-sort{width:100%}.auth-page{min-height:0!important;padding:10px!important;display:block!important}.auth-card{margin:0!important;padding:10px!important}
+    .template-favorite-button{position:static!important}.saved-items-search-clear{position:static!important}.editor-top-left{display:flex;gap:6px}.premium-selected-customer{display:flex!important;gap:6px!important}.dashboard-panel-heading,.settings-title{display:flex;gap:6px;align-items:center;justify-content:space-between}.editor-section{display:grid;gap:6px}.mobile-action-buttons{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}
   </style>
 </head>
 <body>
@@ -26,12 +27,22 @@
         <div class="page-heading"><h1>إدارة العملاء والمستندات الطويلة</h1><div class="heading-actions"><button class="btn">إضافة عميل</button><button class="btn">إجراء إضافي طويل</button></div></div>
       </section>
       <section class="fixture-card">
+        <div class="settings-title"><strong>الإعدادات</strong><button class="btn">حفظ</button></div>
         <div class="settings-tabs" data-scroll-lane><button>الشركة</button><button>القوالب</button><button>الحساب</button><button>النسخ الاحتياطي</button><button>الإعدادات المتقدمة</button></div>
       </section>
       <section class="fixture-card documents-toolbar-right"><select class="input documents-sort"><option>الأحدث أولًا</option></select></section>
       <section class="fixture-card"><div class="section-heading-actions"><button class="btn">إضافة صنف</button><button class="btn">الأصناف المحفوظة</button></div></section>
       <section class="fixture-card product-library-row"><button class="product-library-star" aria-label="مفضلة">★</button><span>اسم صنف طويل لاختبار القص والتفاف النص في مكتبة الأصناف</span><button class="icon-btn" aria-label="فتح">⋯</button></section>
       <section class="fixture-card cloud-account-actions"><button class="btn">مزامنة الآن</button><button class="btn">استعادة من السحابة</button></section>
+      <section class="fixture-card"><button class="saved-items-search-clear icon-btn" aria-label="مسح البحث">×</button><div class="saved-items-quick-filters"><button>الكل</button><button>المفضلة</button><button>الأحدث</button></div></section>
+      <section class="fixture-card"><div class="product-library-list-head"><button class="btn">تحديد</button></div><div class="product-metadata-suggestions"><button>مقترح محفوظ</button></div></section>
+      <section class="fixture-card"><div class="segmented"><button>فاتورة</button><button>عرض سعر</button></div><div class="status-filter"><button>الكل</button><button>مسودة</button></div></section>
+      <section class="fixture-card"><div class="dashboard-panel-heading"><strong>المستندات الأخيرة</strong><button>عرض الكل</button></div></section>
+      <section class="fixture-card"><div class="editor-top-left"><button class="icon-btn" aria-label="رجوع">←</button><strong>المحرر</strong></div><div class="final-lock-banner"><button class="btn">إجراء نهائي</button></div><div class="editor-section"><input class="input" value="قيمة" readonly></div></section>
+      <section class="fixture-card"><div class="premium-selected-customer"><span>عميل محدد</span><button class="btn">تغيير</button></div><div class="recent-customer-row"><button>عميل حديث</button></div></section>
+      <section class="fixture-card"><div class="item-card-actions"><button class="btn">نسخ</button><button class="icon-btn" aria-label="حذف الصنف">×</button></div><div class="mobile-action-buttons"><button class="btn">حفظ</button><button class="btn">معاينة</button></div></section>
+      <section class="fixture-card"><button class="template-favorite-button" aria-label="قالب مفضل">★</button><div class="logo-mode-switch"><button>الأصلية</button><button>شفافة</button></div><button class="logo-rebuild-restore">استعادة الأصل</button></section>
+      <section class="fixture-card"><button class="logo-touch-editor-close" aria-label="إغلاق محرر الشعار">×</button><div class="logo-touch-editor-utility"><button>تراجع</button><button>إعادة</button></div></section>
     </main>
   </div>
   <section class="auth-page"><div class="auth-card"><button class="auth-language-switch">العربية / English</button><div class="account-entry-tabs"><button>تسجيل الدخول</button><button>إنشاء حساب</button></div></div></section>
