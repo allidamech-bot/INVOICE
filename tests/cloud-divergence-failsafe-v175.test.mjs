@@ -21,7 +21,7 @@ test('startup uses guarded reconcile instead of installing remote data directly'
 test('automatic cloud freshness treats protected divergence as a safety stop instead of retrying it',async()=>{
   const freshness=await read('src/cloud/freshness.ts');
   assert.match(freshness,/Automatic replacement was blocked to protect your data\./);
-  assert.match(freshness,/message\.includes\([\s\S]*\)\)return/);
+  assert.match(freshness,/if\(message\.includes\('Automatic replacement was blocked to protect your data\.'\)\)return;/);
 });
 
 test('explicit cloud restore remains available while automatic divergence is blocked',async()=>{
