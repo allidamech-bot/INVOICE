@@ -1,3 +1,4 @@
+// v173 — iPad/tablet editor refinement and atomic runtime cache generation.
 // v171 mobile Final-quotation geometry recalibration — recache the corrected no-overlap mobile stack.
 // v169 mobile Final-quotation stack refresh — recache the late mobile accessibility layer after the overlap fix.
 // v169 artwork AI rollout — refresh cached Settings runtime for signature and stamp AI controls.
@@ -33,7 +34,8 @@
 // v116 workflow preset compatibility; v103 saved-item compatibility.
 // Legacy regression markers only: const CACHE = 'lourex-invoice-v101'; const CACHE = 'lourex-invoice-v120'; const CACHE = 'lourex-invoice-v131'; const CACHE = 'lourex-invoice-v132'; const CACHE = 'lourex-invoice-v133'; const CACHE = 'lourex-invoice-v134'; const CACHE = 'lourex-invoice-v135'; const CACHE = 'lourex-invoice-v136'; const CACHE = 'lourex-invoice-v142'; const CACHE = 'lourex-invoice-v146';
 // Runtime compatibility markers: react@17.0.2/umd/react.production.min.js | react-dom@17.0.2/umd/react-dom.production.min.js
-const CACHE = 'lourex-invoice-v169';
+const CACHE = 'lourex-invoice-v173';
+// lourex-invoice-v169: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v168: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v167: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v166: preserved as a legacy marker for cache-migration tests.
