@@ -28,15 +28,21 @@ test('v177 establishes a universal 44px coarse-pointer interaction floor without
   assert.doesNotMatch(css,/\.invoice-page|\.template-|\.document-page|\.items-table/);
 });
 
-test('v177 phone touch safety does not depend on pointer capability reporting',async()=>{
+test('v177 phone touch safety uses explicit selectors and does not depend on pointer capability reporting',async()=>{
   const css=await read('src/styles/mobile-controls-density-v177.css');
   const phone=css.slice(css.indexOf('@media (max-width:720px){'),css.indexOf('@media (max-width:360px){'));
-  for(const selector of ['.settings-tabs>button','.product-library-star','.product-library-row>.icon-btn','.cloud-account-actions .btn','.account-entry-tabs button']){
-    assert.ok(phone.includes(selector),`missing phone fallback for ${selector}`);
-  }
+  for(const selector of [
+    '.app-ui .settings-tabs>button',
+    '.app-ui .documents-sort',
+    '.app-ui .product-library-star',
+    '.app-ui .product-library-row>.icon-btn',
+    '.app-ui .cloud-account-actions .btn',
+    '.auth-page .account-entry-tabs button'
+  ]) assert.ok(phone.includes(selector),`missing explicit phone fallback for ${selector}`);
   assert.match(phone,/min-height:44px!important/);
-  assert.match(phone,/\.product-library-star,\.product-library-row>\.icon-btn\)[\s\S]*min-width:44px!important/);
+  assert.match(phone,/\.app-ui \.product-library-star,[\s\S]*\.app-ui \.product-library-row>\.icon-btn\{[\s\S]*min-width:44px!important/);
   assert.doesNotMatch(phone,/pointer:coarse/);
+  assert.doesNotMatch(phone,/\.app-ui :where\(\s*\.settings-tabs>button/);
 });
 
 test('v177 browser geometry fixture measures the production CSS bundle rather than a hand-picked source subset',async()=>{
