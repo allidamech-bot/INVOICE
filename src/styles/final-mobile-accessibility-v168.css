@@ -1,6 +1,6 @@
 /* Final release — coarse-pointer target hardening.
    Application chrome only. Printable invoice/quotation output is intentionally untouched.
-   v170 also reserves real mobile layout space for Final-quotation conversion actions. */
+   v171 recalibrates the Final-quotation mobile stack from the real dock geometry. */
 
 @media (max-width:720px) and (pointer:coarse){
   /* Older compact mobile layers intentionally reduced several controls below
@@ -63,48 +63,59 @@
   }
 }
 
-/* Final quotation conversion used to be an old fixed sheet positioned only
-   74px above the viewport bottom. The canonical editor now has TWO real bottom
-   rows (step navigation + mobile actions), so that legacy offset placed the
-   conversion sheet directly on top of the 01–06 step dock. Reserve a matching
-   gap in the flex layout and position the fixed sheet inside that gap. */
+/* Final quotation conversion is still a fixed workflow sheet in the legacy
+   component. Keep it inside a deliberately reserved lane above BOTH real dock
+   rows. The first hotfix used the nominal 48/86px values, but iPhone safe-area,
+   button target hardening and nav padding make the rendered rows taller. Use a
+   conservative outer-box allowance and never clip the conversion controls. */
 @media (max-width:900px){
   body:has(.final-quote-convert-bar){
-    --final-quote-nav-height:48px;
-    --final-quote-actionbar-height:64px;
-    --final-quote-sheet-height:86px;
+    --final-quote-nav-height:60px;
+    --final-quote-actionbar-height:76px;
+    --final-quote-sheet-height:92px;
+    --final-quote-stack-gap:10px;
   }
 
   body:has(.final-quote-convert-bar) .app-ui .editor-layout{
-    margin-bottom:var(--final-quote-sheet-height)!important;
+    margin-bottom:calc(var(--final-quote-sheet-height) + var(--final-quote-stack-gap))!important;
   }
 
   .final-quote-convert-bar,
   [dir='rtl'] .final-quote-convert-bar{
-    bottom:calc(var(--final-quote-nav-height) + var(--final-quote-actionbar-height) + env(safe-area-inset-bottom) + 6px)!important;
+    box-sizing:border-box!important;
+    bottom:calc(var(--final-quote-nav-height) + var(--final-quote-actionbar-height) + env(safe-area-inset-bottom) + var(--final-quote-stack-gap))!important;
     z-index:33!important;
-    max-height:calc(var(--final-quote-sheet-height) - 10px)!important;
-    overflow:auto!important;
+    max-height:none!important;
+    overflow:visible!important;
   }
 }
 
-/* Phones render the conversion action as a stacked sheet, so it needs a taller
-   reserved lane than tablet. Nothing is allowed to float over the step dock. */
+/* Phone action bars wrap into two rows. Hide the explanatory sentence here so
+   the important decision and CTA stay compact and their height is predictable. */
 @media (max-width:720px){
-  body:has(.final-quote-convert-bar){--final-quote-sheet-height:122px}
+  body:has(.final-quote-convert-bar){
+    --final-quote-actionbar-height:88px;
+    --final-quote-sheet-height:126px;
+  }
+  .final-quote-convert-bar small{display:none!important}
 }
 
-/* On narrow phones the canonical mobile action bar is two rows (total + four
-   actions). Account for its real height rather than the old 64/74px guess. */
+/* iPhone widths render the total above the four 44px actions. The safe area is
+   added separately in the bottom expression, so this value covers the real
+   content/padding box without guessing from the old 64px minimum. */
 @media (max-width:520px){
   body:has(.final-quote-convert-bar){
-    --final-quote-actionbar-height:86px;
-    --final-quote-sheet-height:114px;
+    --final-quote-actionbar-height:108px;
+    --final-quote-sheet-height:124px;
   }
 }
 
 @media (max-width:430px){
-  body:has(.final-quote-convert-bar){--final-quote-sheet-height:106px}
+  body:has(.final-quote-convert-bar){
+    --final-quote-nav-height:60px;
+    --final-quote-actionbar-height:112px;
+    --final-quote-sheet-height:120px;
+  }
   .final-quote-convert-bar,
   [dir='rtl'] .final-quote-convert-bar{
     gap:7px!important;
