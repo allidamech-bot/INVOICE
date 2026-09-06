@@ -15,8 +15,10 @@ test('new quote and invoice drafts are persisted immediately when the editor ope
   assert.match(editor,/Unable to save the new draft locally/);
 });
 
-test('desktop A4 preview takes a fresh editor snapshot when an iPad crosses the desktop breakpoint',async()=>{
+test('live A4 preview is mounted only where the desktop preview pane is actually visible',async()=>{
   const core=await read('src/components/EditorPageCore.tsx');
+  assert.match(core,/window\.matchMedia\('\(min-width:1181px\)'\)/);
+  assert.doesNotMatch(core,/window\.matchMedia\('\(min-width:901px\)'\)/);
   assert.match(core,/private handlePreviewMedia=\(event:MediaQueryListEvent\)=>this\.setState\(state=>\(\{desktopPreview:event\.matches,previewDoc:event\.matches\?structuredClone\(state\.doc\):state\.previewDoc\}\)\)/);
   assert.match(core,/if\(!this\.state\.desktopPreview\)return/);
   assert.match(core,/TemplateRenderer document=\{this\.state\.previewDoc\} scale=\{0\.82\}/);

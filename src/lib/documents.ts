@@ -3,6 +3,7 @@ import { addDaysIso, compareIsoDates, isIsoDate, makeId, normalizeValidityDays, 
 import { companySnapshotFrom } from './defaults.js';
 import { bankAccountIdForDetails, bankDetailsForId, defaultPaymentTermPreset, defaultTaxPreset } from './commercial-controls.js';
 import { decimalToScaled, isDecimalInput, lineTotal } from './money.js';
+import { t } from './i18n.js';
 
 type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number};
 export type DocumentItemWeight=(item:DocumentItem)=>number;
@@ -170,6 +171,9 @@ function conversionReference(source:LourexDocument):string{
 }
 
 export function convertToInvoice(source: LourexDocument, number: string): LourexDocument {
+  if(source.kind!=='proforma'||source.role!=='standard'||source.status!=='final'||source.lifecycleStatus==='voided'){
+    throw new Error(t('Only an active Final quotation can be converted to an invoice.','يمكن تحويل عرض سعر نهائي ونشط فقط إلى فاتورة.'));
+  }
   const d = duplicateDocument(source, number);
   const reference=conversionReference(source);
   const remarks=[reference,d.terms.remarks.trim()].filter(Boolean).join('\n');
