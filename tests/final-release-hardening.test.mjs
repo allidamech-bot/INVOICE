@@ -67,11 +67,11 @@ test('coarse-pointer mobile controls retain reliable 44px touch targets in the f
 
 test('current release uses a fresh PWA cache generation instead of mutating the prior active cache in place',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v176';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v177';$/m);
+  assert.match(sw,/lourex-invoice-v176: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v169: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v168: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v167: preserved as a legacy marker/);
-  assert.doesNotMatch(sw,/^const CACHE = 'lourex-invoice-v168';$/m);
+  assert.doesNotMatch(sw,/^const CACHE = 'lourex-invoice-v176';$/m);
 });
 
 test('active PWA shell stays on one cached runtime generation until explicit worker activation',async()=>{
