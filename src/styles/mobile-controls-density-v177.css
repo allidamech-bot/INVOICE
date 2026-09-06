@@ -1,0 +1,200 @@
+/* v177 — final coarse-pointer control geometry and narrow-page clipping recovery.
+   Application UI only; printable invoice/quotation templates remain untouched. */
+
+/* A phone/tablet control may look compact, but its interactive box must remain
+   finger-safe. This final layer intentionally overrides historical 32–42px mobile
+   compaction rules without changing desktop density. */
+@media (max-width:960px) and (pointer:coarse){
+  .app-ui :where(button,.btn,.icon-btn,select,.input),
+  .auth-page :where(button,.btn,select,.input){
+    box-sizing:border-box!important;
+    min-height:44px!important;
+  }
+
+  .app-ui :where(.icon-btn,button[aria-label],.plain-close,.product-library-star),
+  .auth-page :where(button[aria-label],.icon-btn){
+    min-width:44px!important;
+  }
+
+  /* Old fixed heights must never cap the final 44px target. */
+  .app-ui :where(
+    .shell-mobile-brand>button,
+    .shell-sync-status,
+    .documents-sort,
+    .section-heading-actions .btn,
+    .editor-top-left>.icon-btn,
+    .mobile-action-buttons .btn,
+    .mobile-preview-overlay>header .btn,
+    .settings-title>.btn,
+    .settings-tabs>button,
+    .settings-account-actions .btn,
+    .settings-section-heading .btn,
+    .product-library-commandbar>.btn,
+    .product-library-commandbar .icon-btn,
+    .product-library-row>.icon-btn,
+    .product-library-editor-actions .btn,
+    .cloud-account-actions .btn,
+    .cloud-auth-form .btn
+  ){
+    min-height:44px!important;
+    max-height:none!important;
+  }
+}
+
+/* The settings title action is used on tablets too. Its historical 40px cap must
+   not depend on pointer capability reporting because iPad/browser contexts can
+   report a non-coarse primary pointer even when the screen is touch driven. */
+@media (max-width:960px){
+  .app-ui .settings-title>.btn{
+    box-sizing:border-box!important;
+    min-height:44px!important;
+    max-height:none!important;
+  }
+}
+
+/* Phone geometry must not depend on a browser reporting pointer:coarse correctly.
+   Use explicit selectors here rather than zero-specificity :where() so historical
+   phone rules cannot win merely because they are more specific. */
+@media (max-width:720px){
+  .app-ui .settings-tabs>button,
+  .app-ui .documents-sort,
+  .app-ui .product-library-star,
+  .app-ui .product-library-row>.icon-btn,
+  .app-ui .cloud-account-actions .btn,
+  .app-ui .saved-items-search-clear,
+  .app-ui .saved-items-quick-filters button,
+  .app-ui .product-library-list-head .btn,
+  .app-ui .product-metadata-suggestions button,
+  .app-ui .segmented button,
+  .app-ui .status-filter button,
+  .app-ui .settings-title>.btn,
+  .app-ui .dashboard-panel-heading>button,
+  .app-ui .editor-top-left>.icon-btn,
+  .app-ui .editor-top-left .icon-btn,
+  .app-ui .final-lock-banner .btn,
+  .app-ui .editor-section .input,
+  .app-ui .editor-section select.input,
+  .app-ui .premium-selected-customer>.btn,
+  .app-ui .recent-customer-row button,
+  .app-ui .item-card-actions .btn,
+  .app-ui .item-card-actions .icon-btn,
+  .app-ui .mobile-preview-overlay>header .btn,
+  .app-ui .mobile-preview-overlay>header .icon-btn,
+  .app-ui .mobile-action-buttons .btn,
+  .app-ui .template-favorite-button,
+  .app-ui .logo-mode-switch button,
+  .app-ui .logo-rebuild-restore,
+  .app-ui .logo-touch-editor-close,
+  .app-ui .logo-touch-editor-utility button,
+  .auth-page .auth-language-switch,
+  .auth-page .account-entry-tabs button{
+    box-sizing:border-box!important;
+    min-height:44px!important;
+    max-height:none!important;
+  }
+
+  .app-ui .product-library-star,
+  .app-ui .product-library-row>.icon-btn,
+  .app-ui .saved-items-search-clear,
+  .app-ui .editor-top-left>.icon-btn,
+  .app-ui .editor-top-left .icon-btn,
+  .app-ui .item-card-actions .icon-btn,
+  .app-ui .mobile-preview-overlay>header .icon-btn,
+  .app-ui .template-favorite-button,
+  .app-ui .logo-touch-editor-close{
+    min-width:44px!important;
+    max-width:none!important;
+  }
+
+  /* Never let heading/action rows create a hidden second viewport. */
+  .app-ui :where(
+    .page-heading,
+    .heading-actions,
+    .settings-title,
+    .section-heading,
+    .section-heading-actions,
+    .customers-toolbar,
+    .documents-toolbar-right,
+    .reports-heading-actions,
+    .customer-profile-topbar,
+    .customer-profile-top-actions,
+    .product-library-commandbar,
+    .editor-topbar
+  ){
+    min-width:0!important;
+    max-width:100%!important;
+  }
+
+  .app-ui :where(.page-heading,.settings-title,.section-heading,.customer-profile-topbar){
+    flex-wrap:wrap!important;
+  }
+
+  .app-ui :where(
+    .page-heading h1,
+    .settings-title h2,
+    .section-heading h2,
+    .section-heading h3,
+    .customer-profile-topbar h2,
+    .editor-topbar strong
+  ){
+    min-width:0!important;
+    max-width:100%!important;
+    overflow-wrap:anywhere!important;
+  }
+
+  /* Tabs/segments are allowed to scroll inside their own lane instead of being
+     clipped by the page-level overflow guard. */
+  .app-ui :where(
+    .settings-tabs,
+    .segmented,
+    .operations-tabs,
+    .reports-presets,
+    .documents-filter-tabs,
+    .saved-items-quick-filters,
+    .status-filter
+  ){
+    max-width:100%!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    overscroll-behavior-inline:contain!important;
+    -webkit-overflow-scrolling:touch!important;
+    scrollbar-width:none;
+  }
+
+  .app-ui :where(
+    .settings-tabs,
+    .segmented,
+    .operations-tabs,
+    .reports-presets,
+    .documents-filter-tabs,
+    .saved-items-quick-filters,
+    .status-filter
+  )::-webkit-scrollbar{display:none}
+
+  .app-ui :where(.form-grid,.form-grid.two,.customer-form-grid,.product-editor-grid,.settings-grid) > *{
+    min-width:0!important;
+    max-width:100%!important;
+  }
+
+  .app-ui :where(input,select,textarea,.input){
+    min-width:0!important;
+    max-width:100%!important;
+  }
+}
+
+@media (max-width:360px){
+  /* On very narrow phones, action groups may wrap instead of clipping labels. */
+  .app-ui :where(.heading-actions,.section-heading-actions,.customer-profile-top-actions){
+    flex-wrap:wrap!important;
+  }
+
+  .app-ui :where(.heading-actions,.section-heading-actions,.customer-profile-top-actions)>.btn{
+    min-width:0!important;
+    max-width:100%!important;
+  }
+}
+
+@media print{
+  /* Explicitly keep this layer application-only. */
+  .app-ui{display:none!important}
+}
