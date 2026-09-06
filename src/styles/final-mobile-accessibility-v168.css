@@ -2,8 +2,8 @@
    Application chrome only. Printable invoice/quotation output is intentionally untouched.
    v172 moves Final-quotation conversion into the editor flex layout so phone,
    tablet and desktop never depend on fixed bottom offsets.
-   v173 restores tablet-specific editor density, balanced step navigation and
-   locale-safe Gregorian date presentation without changing phone or A4 output. */
+   v173 restores tablet-specific editor density, full-width editing, balanced step
+   navigation and locale-safe Gregorian date presentation without changing phone or A4 output. */
 
 @media (max-width:720px) and (pointer:coarse){
   /* Older compact mobile layers intentionally reduced several controls below
@@ -201,10 +201,16 @@
 }
 
 /* v173 — tablet editor refinement.
-   The first document card uses tablet width instead of behaving like a large
-   phone: number owns one row, dates share one row, and currency/language share
-   the next. Other complex editor grids retain their established responsive rules. */
+   Tablet editing should use the screen it is given. The older workspace layer
+   capped every direct scroll child at 840px, which visibly stranded a wide blank
+   gutter on 1024px iPads. Remove that desktop-oriented cap only on tablets. */
 @media (min-width:721px) and (max-width:1180px){
+  .app-ui .editor-pane .editor-scroll>*{
+    width:100%!important;
+    max-width:none!important;
+    margin-inline:0!important;
+  }
+
   .app-ui .editor-form-lock>.editor-section:first-child>.form-grid.two.compact-grid{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
     gap:11px 12px!important;
