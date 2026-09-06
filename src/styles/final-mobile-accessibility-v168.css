@@ -1,7 +1,9 @@
 /* Final release — coarse-pointer target hardening.
    Application chrome only. Printable invoice/quotation output is intentionally untouched.
    v172 moves Final-quotation conversion into the editor flex layout so phone,
-   tablet and desktop never depend on fixed bottom offsets. */
+   tablet and desktop never depend on fixed bottom offsets.
+   v173 restores tablet-specific editor density, full-width editing, balanced step
+   navigation and locale-safe Gregorian date presentation without changing phone or A4 output. */
 
 @media (max-width:720px) and (pointer:coarse){
   /* Older compact mobile layers intentionally reduced several controls below
@@ -195,6 +197,124 @@
   .app-ui .editor-screen>.final-quote-convert-bar>.btn{
     width:100%!important;
     min-width:0!important;
+  }
+}
+
+/* v173 — tablet editor refinement.
+   Tablet editing should use the screen it is given. The older workspace layer
+   capped every direct scroll child at 840px, which visibly stranded a wide blank
+   gutter on 1024px iPads. Remove that desktop-oriented cap only on tablets. */
+@media (min-width:721px) and (max-width:1180px){
+  .app-ui .editor-pane .editor-scroll>*{
+    width:100%!important;
+    max-width:none!important;
+    margin-inline:0!important;
+  }
+
+  .app-ui .editor-form-lock>.editor-section:first-child>.form-grid.two.compact-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:11px 12px!important;
+  }
+  .app-ui .editor-form-lock>.editor-section:first-child>.form-grid.two.compact-grid>.field:first-child{
+    grid-column:1/-1!important;
+  }
+
+  /* Safari/iPadOS can reorder the native date text according to browser UI
+     conventions. Keep the real native picker as the hit target, but render the
+     app's Gregorian locale-safe displayDate label above it. */
+  .app-ui .editor-date-control{
+    position:relative!important;
+    min-height:44px!important;
+    display:flex!important;
+    align-items:center!important;
+    min-width:0!important;
+    padding:0 36px 0 11px!important;
+    overflow:hidden!important;
+    border:1px solid #c7d2d4!important;
+    border-radius:10px!important;
+    background:#fff!important;
+    color:#183442!important;
+  }
+  [dir='rtl'] .app-ui .editor-date-control{padding:0 11px 0 36px!important}
+  .app-ui .editor-date-control::after{
+    content:'▾';
+    position:absolute!important;
+    inset-inline-end:12px!important;
+    color:#69777f!important;
+    font-size:12px!important;
+    pointer-events:none!important;
+  }
+  .app-ui .editor-date-value{
+    display:block!important;
+    min-width:0!important;
+    overflow:hidden!important;
+    font-size:16px!important;
+    font-weight:650!important;
+    line-height:1.2!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    unicode-bidi:isolate!important;
+  }
+  .app-ui .editor-date-control input[type='date']{
+    position:absolute!important;
+    inset:0!important;
+    z-index:1!important;
+    width:100%!important;
+    height:100%!important;
+    min-height:44px!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    opacity:.001!important;
+    cursor:pointer!important;
+  }
+}
+
+/* The iPad editing dock remains a real layout row, but uses the available width
+   efficiently: six balanced steps, all labels visible, and a compact action row
+   that still preserves >=44px coarse-pointer targets. */
+@media (min-width:721px) and (max-width:900px){
+  .app-ui .editor-pane .editor-scroll{
+    padding-bottom:36px!important;
+    scroll-padding-bottom:28px!important;
+  }
+  .app-ui .editor-section-nav-slot{
+    min-height:50px!important;
+    padding:4px max(8px,env(safe-area-inset-right)) 5px max(8px,env(safe-area-inset-left))!important;
+    overflow:hidden!important;
+  }
+  .app-ui .editor-section-navigator{
+    width:100%!important;
+    min-width:0!important;
+    max-width:960px!important;
+    display:grid!important;
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    gap:4px!important;
+  }
+  .app-ui .editor-section-nav-button{
+    flex:initial!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:none!important;
+    min-height:44px!important;
+    grid-template-columns:22px minmax(0,1fr) auto!important;
+    gap:4px!important;
+    padding:4px 6px!important;
+  }
+  .app-ui .editor-section-nav-button.active{min-width:0!important}
+  .app-ui .editor-section-nav-button:not(.active) .editor-nav-label{display:block!important}
+  .app-ui .editor-nav-label{font-size:9px!important}
+
+  .app-ui .mobile-editor-actionbar{
+    min-height:calc(56px + env(safe-area-inset-bottom))!important;
+    gap:6px!important;
+    padding:5px max(8px,env(safe-area-inset-right)) max(5px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))!important;
+  }
+  .app-ui .mobile-total{min-width:78px!important;max-width:108px!important}
+  .app-ui .mobile-action-buttons{gap:4px!important}
+  .app-ui .mobile-action-buttons .btn{
+    min-height:44px!important;
+    padding:4px 5px!important;
   }
 }
 

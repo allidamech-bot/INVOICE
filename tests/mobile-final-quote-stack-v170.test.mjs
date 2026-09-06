@@ -46,5 +46,5 @@ test('the conversion CTA keeps reliable touch geometry and the PWA still caches 
   ]);
   assert.match(css,/\.final-quote-convert-bar>\.btn\{[\s\S]*?min-height:44px!important/);
   assert.match(sw,/\.\/styles\/final-mobile-accessibility-v168\.css/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v173';$/m);
 });

@@ -14,7 +14,12 @@
     .fixture-topbar{min-height:58px;background:#fff;border-bottom:1px solid #ddd}
     .fixture-readiness{min-height:48px;margin:8px 14px 0;background:#fff;border:1px solid #ddd;border-radius:12px}
     .fixture-lock{min-height:64px;margin:8px 14px 0;background:#eef7fb;border:1px solid #c9dce4;border-radius:12px}
-    .fixture-content{height:100%;min-height:0;background:#fff;border:1px solid #ddd}
+    .fixture-content{min-height:100%;background:#f8f6f1}
+    .fixture-document-section{margin:0!important}
+    .fixture-document-grid{display:grid}
+    .fixture-document-grid>.field{display:grid;gap:5px;min-width:0}
+    .fixture-document-grid>.field>label{font-size:11px;color:#586b75}
+    .fixture-document-grid .input{width:100%;min-width:0;min-height:44px;border:1px solid #c7d2d4;border-radius:10px;background:#fff;padding:8px 10px;font:inherit}
     .editor-section-navigator{direction:rtl}
     .editor-section-nav-button{font:inherit}
     .mobile-action-buttons button,.final-quote-convert-bar .btn{font:inherit}
@@ -26,7 +31,24 @@
       <div class="editor-topbar fixture-topbar"></div>
       <div class="document-readiness fixture-readiness"></div>
       <div class="final-lock-banner fixture-lock"></div>
-      <div class="editor-layout"><div class="editor-pane"><div class="editor-scroll"><div class="fixture-content">Document content</div></div></div></div>
+      <div class="editor-layout">
+        <div class="editor-pane">
+          <div class="editor-scroll">
+            <fieldset class="editor-form-lock fixture-content">
+              <section class="editor-section fixture-document-section">
+                <div class="section-heading"><span>01</span><h2>المستند</h2></div>
+                <div class="form-grid two compact-grid fixture-document-grid" data-document-grid>
+                  <div class="field" data-doc-field="number"><label>الرقم</label><input class="input" value="PI-2026-0032" readonly></div>
+                  <div class="field" data-doc-field="issue"><label>تاريخ الإصدار</label><span class="editor-date-control"><span class="editor-date-value" data-date-label>٠٦ سبتمبر ٢٠٢٦</span><input class="input" type="date" value="2026-09-06" aria-label="تاريخ الإصدار"></span></div>
+                  <div class="field" data-doc-field="due"><label>صالح حتى</label><span class="editor-date-control"><span class="editor-date-value">١٣ سبتمبر ٢٠٢٦</span><input class="input" type="date" value="2026-09-13" aria-label="صالح حتى"></span></div>
+                  <div class="field" data-doc-field="currency"><label>العملة</label><input class="input" value="USD — دولار أمريكي" readonly></div>
+                  <div class="field" data-doc-field="language"><label>لغة المستند</label><select class="input"><option>العربية + الإنجليزية</option></select></div>
+                </div>
+              </section>
+            </fieldset>
+          </div>
+        </div>
+      </div>
       <div class="editor-section-nav-slot" data-editor-nav-slot>
         <nav class="editor-section-navigator" aria-label="Document sections">
           <button class="editor-section-nav-button active"><span class="editor-nav-number">01</span><span class="editor-nav-label">المستند</span></button>

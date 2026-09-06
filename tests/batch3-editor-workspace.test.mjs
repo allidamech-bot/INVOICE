@@ -63,6 +63,6 @@ test('batch 3 preserves save issue preview PDF share and offline contracts',asyn
   assert.match(core,/this\.output\('share'\)/);
   assert.match(core,/mobile-preview-overlay/);
   assert.match(sw,/\.\/styles\/editor-workspace-v162\.css/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v173';$/m);
   assert.match(css,/@media print\{[\s\S]*\.app-ui \.editor-screen[\s\S]*display:none!important/);
 });

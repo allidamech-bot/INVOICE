@@ -9,7 +9,7 @@ test('v156 is the final app preview layer before document output styling and shi
   assert.ok(html.indexOf('mobile-safe-area-v155.css')<html.indexOf('mobile-preview-v156.css'));
   assert.ok(html.indexOf('mobile-preview-v156.css')<html.indexOf('document-output-quality-v157.css'));
   assert.ok(html.indexOf('document-output-quality-v157.css')<html.indexOf('document-premium-redesign-v141.css'));
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v173';$/m);
   assert.ok(sw.includes("const CACHE = 'lourex-invoice-v156'"));
   assert.ok(sw.includes('./styles/mobile-preview-v156.css'));
 });
