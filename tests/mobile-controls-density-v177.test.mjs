@@ -28,6 +28,17 @@ test('v177 establishes a universal 44px coarse-pointer interaction floor without
   assert.doesNotMatch(css,/\.invoice-page|\.template-|\.document-page|\.items-table/);
 });
 
+test('v177 phone touch safety does not depend on pointer capability reporting',async()=>{
+  const css=await read('src/styles/mobile-controls-density-v177.css');
+  const phone=css.slice(css.indexOf('@media (max-width:720px){'),css.indexOf('@media (max-width:360px){'));
+  for(const selector of ['.settings-tabs>button','.product-library-star','.product-library-row>.icon-btn','.cloud-account-actions .btn','.account-entry-tabs button']){
+    assert.ok(phone.includes(selector),`missing phone fallback for ${selector}`);
+  }
+  assert.match(phone,/min-height:44px!important/);
+  assert.match(phone,/\.product-library-star,\.product-library-row>\.icon-btn\)[\s\S]*min-width:44px!important/);
+  assert.doesNotMatch(phone,/pointer:coarse/);
+});
+
 test('v177 keeps narrow headings, forms and tab lanes reachable instead of clipping them',async()=>{
   const css=await read('src/styles/mobile-controls-density-v177.css');
   assert.match(css,/@media \(max-width:720px\)/);
