@@ -4,15 +4,16 @@ import { readFile } from 'node:fs/promises';
 
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('a stale device fast-forwards safely without installing a remote vault behind an active editor',async()=>{
+test('a stale or anchorless device never auto-installs cloud over a different local vault',async()=>{
   const cloud=await read('src/cloud/firebase.ts');
-  assert.match(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.match(cloud,/if\(!anchor\)throw new Error\('Cloud sync paused to protect local data/);
+  assert.match(cloud,/if\(remoteChanged&&localChanged\)throw new Error\('Cloud sync paused because local and cloud data both changed/);
   assert.match(cloud,/if\(remoteChanged\)\{await installCloudVault\(uid\);return 'pulled';\}/);
   const push=cloud.slice(cloud.indexOf('export async function pushLocalVaultToCloud'),cloud.indexOf('// Compatibility exports'));
   assert.match(push,/if\(!anchor\)return 'remote-changed'/);
   assert.match(push,/if\(remoteChanged\)return 'remote-changed'/);
   assert.doesNotMatch(push,/installCloudVault/);
-  assert.doesNotMatch(cloud,/Nothing was overwritten|Both copies are safe/);
+  assert.doesNotMatch(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
 });
 
 test('cross-device updates use Firestore realtime events and automatic account reconcile',async()=>{
@@ -40,7 +41,7 @@ test('account revisions never use wall clock time to choose a winner',async()=>{
   assert.match(cloud,/commitMetaIfUnchanged/);
 });
 
-test('UI rehydrates after cloud layer fast-forwards a stale legacy push',async()=>{
+test('UI rehydrates after an explicitly applied cloud vault',async()=>{
   const entry=await read('src/app/index.tsx');
   const cloud=await read('src/cloud/firebase.ts');
   assert.match(cloud,/lourex-cloud-applied/);
