@@ -1,6 +1,9 @@
 const { chromium } = require('playwright');
+const { mkdirSync, writeFileSync } = require('node:fs');
 
 const baseUrl='http://127.0.0.1:4173/tests/visual/mobile-controls-density-v177.html';
+const reportDir='visual-qa-output';
+const reportPath=`${reportDir}/mobile-controls-density-v177.json`;
 const cases=[
   {width:320,height:568,label:'small phone'},
   {width:360,height:640,label:'android phone'},
@@ -13,6 +16,7 @@ const cases=[
 (async()=>{
   const browser=await chromium.launch({headless:true});
   const failures=[];
+  const scenarios=[];
   try{
     for(const scenario of cases){
       const page=await browser.newPage({viewport:{width:scenario.width,height:scenario.height},hasTouch:true,isMobile:true});
@@ -39,6 +43,7 @@ const cases=[
           tabs:rect('[data-scroll-lane]')
         };
       });
+      scenarios.push({scenario,result});
       const prefix=`${scenario.label} ${scenario.width}x${scenario.height}`;
       for(const [selector,box] of Object.entries(result.targets)){
         if(!box){failures.push(`${prefix}: missing ${selector}`);continue;}
@@ -51,6 +56,14 @@ const cases=[
       await page.close();
     }
   }finally{await browser.close();}
+  const report={caseCount:cases.length,failures,scenarios};
+  mkdirSync(reportDir,{recursive:true});
+  writeFileSync(reportPath,JSON.stringify(report,null,2));
   if(failures.length){console.error(JSON.stringify({caseCount:cases.length,failures},null,2));process.exit(1);}
   console.log(JSON.stringify({caseCount:cases.length,failures:0},null,2));
-})().catch(error=>{console.error(error);process.exit(1);});
+})().catch(error=>{
+  mkdirSync(reportDir,{recursive:true});
+  writeFileSync(reportPath,JSON.stringify({caseCount:cases.length,error:String(error&&error.stack||error)},null,2));
+  console.error(error);
+  process.exit(1);
+});
