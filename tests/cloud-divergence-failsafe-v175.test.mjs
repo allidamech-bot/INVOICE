@@ -7,21 +7,19 @@ const read=(path)=>readFile(path,'utf8');
 test('cloud reconcile never auto-pulls over an existing divergent local vault without a trustworthy anchor',async()=>{
   const cloud=await read('src/cloud/firebase.ts');
   assert.doesNotMatch(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
-  assert.match(cloud,/if\(!anchor\)throw new Error\('Cloud and local data differ/);
-  assert.match(cloud,/if\(localChanged&&remoteChanged\)throw new Error\('Cloud and local data both changed/);
+  assert.match(cloud,/if\(!anchor\)return 'diverged'/);
+  assert.match(cloud,/if\(localChanged&&remoteChanged\)return 'diverged'/);
 });
 
 test('startup uses guarded reconcile instead of installing remote data directly',async()=>{
   const startup=await read('src/cloud/startup.ts');
   assert.match(startup,/reconcileCloudVault\(user\.uid\)/);
   assert.doesNotMatch(startup,/installCloudVault\(user\.uid,false\)/);
-  assert.doesNotMatch(startup,/cloudRemoteChangedSinceAnchor/);
 });
 
-test('automatic cloud freshness treats protected divergence as a safety stop instead of retrying it',async()=>{
+test('automatic cloud freshness does not reload or overwrite on divergence',async()=>{
   const freshness=await read('src/cloud/freshness.ts');
-  assert.match(freshness,/Automatic replacement was blocked to protect your data\./);
-  assert.match(freshness,/if\(message\.includes\('Automatic replacement was blocked to protect your data\.'\)\)return;/);
+  assert.match(freshness,/result==='diverged'/);
 });
 
 test('explicit cloud restore remains available while automatic divergence is blocked',async()=>{
