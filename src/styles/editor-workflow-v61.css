@@ -16,10 +16,6 @@
 [dir='rtl'] .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{content:'صنف مشابه';letter-spacing:0}
 .app-ui .item-card-actions .save-item-library-button+.icon-btn:hover,.app-ui .item-card-actions .save-item-library-button+.icon-btn:focus-visible{border-color:#9ebdcd;background:#edf6fa}
 
-/* Conversion is a Final-quote workflow action. The legacy control that still
-   exists inside the editable Design fieldset is deliberately retired. */
-.app-ui .convert-invoice-button{display:none!important}
-
 /* v64 — final confirmation should make document identity, amount and lock behavior unmistakable. */
 .app-ui .issue-review-purpose{display:flex;gap:10px;align-items:flex-start;padding:12px 13px;border:1px solid #d8e4ea;border-radius:12px;background:#f7fafb;color:#234b61}
 .app-ui .issue-review-purpose>svg{flex:0 0 auto;margin-top:2px}
