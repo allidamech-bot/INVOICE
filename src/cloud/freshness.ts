@@ -73,12 +73,9 @@ async function checkCloudFreshness():Promise<void>{
   try{
     if(!await cloudRemoteChangedSinceAnchor(user.uid))return;
     const result=await reconcileCloudVault(user.uid);
+    if(result==='diverged')return;
     if(result==='pulled')window.location.reload();
-  }catch(error){
-    // Ambiguous divergence is a deliberate safety stop, not a transient network
-    // failure. Do not create a tight retry loop while local encrypted data is held.
-    const message=error instanceof Error?error.message:'';
-    if(message.includes('Automatic replacement was blocked to protect your data.'))return;
+  }catch{
     // Data movement is intentionally invisible. Transient failures are retried
     // automatically; there is no manual sync/conflict surface for the user.
     schedule(isStandalonePwa()?350:700);
