@@ -39,6 +39,13 @@ function overlaps(a, b, tolerance=0.5) {
             position:style.position
           };
         };
+        const measureAll = selector => Array.from(document.querySelectorAll(selector)).map(el=>{
+          const style=getComputedStyle(el);
+          const r=el.getBoundingClientRect();
+          return {top:r.top,right:r.right,bottom:r.bottom,left:r.left,width:r.width,height:r.height,display:style.display,visibility:style.visibility,opacity:Number(style.opacity||'1')};
+        });
+        const dateInput=document.querySelector('[data-doc-field="issue"] input[type="date"]');
+        const dateLabel=document.querySelector('[data-date-label]');
         return {
           lock:measure('.final-lock-banner'),
           layout:measure('.editor-layout'),
@@ -46,13 +53,25 @@ function overlaps(a, b, tolerance=0.5) {
           nav:measure('.editor-section-nav-slot'),
           actions:measure('.mobile-editor-actionbar'),
           cta:measure('[data-convert-cta]'),
+          documentGrid:measure('[data-document-grid]'),
+          number:measure('[data-doc-field="number"]'),
+          issue:measure('[data-doc-field="issue"]'),
+          due:measure('[data-doc-field="due"]'),
+          currency:measure('[data-doc-field="currency"]'),
+          language:measure('[data-doc-field="language"]'),
+          navButtons:measureAll('.editor-section-nav-button'),
+          navLabels:measureAll('.editor-nav-label'),
+          actionButtons:measureAll('.mobile-action-buttons .btn'),
+          dateInputOpacity:dateInput?Number(getComputedStyle(dateInput).opacity||'1'):null,
+          dateLabelDisplay:dateLabel?getComputedStyle(dateLabel).display:null,
+          dateLabelText:dateLabel?.textContent?.trim()||'',
           viewport:{ width:innerWidth, height:innerHeight }
         };
       });
 
       const label=`${kind} ${width}x${height}`;
-      const { lock, layout, conversion, nav, actions, cta, viewport }=result;
-      if(!lock||!layout||!conversion||!nav||!actions||!cta){
+      const { lock, layout, conversion, nav, actions, cta, viewport, documentGrid, number, issue, due, currency, language, navButtons, navLabels, actionButtons }=result;
+      if(!lock||!layout||!conversion||!nav||!actions||!cta||!documentGrid||!number||!issue||!due||!currency||!language){
         failures.push(`${label}: missing required editor geometry element`);
         await page.close();
         continue;
@@ -72,6 +91,12 @@ function overlaps(a, b, tolerance=0.5) {
         if(overlaps(nav,actions))failures.push(`${label}: 01–06 navigator overlaps document actions`);
         if(conversion.bottom>nav.top+0.75)failures.push(`${label}: phone order must be conversion -> navigator -> actions`);
         if(nav.bottom>actions.top+0.75)failures.push(`${label}: phone navigator must remain above document actions`);
+
+        // Phone entry intentionally remains one clear question per row.
+        if(issue.top<number.bottom-0.5)failures.push(`${label}: phone Issue Date moved into the number row`);
+        if(due.top<issue.bottom-0.5)failures.push(`${label}: phone Valid Until moved into the Issue Date row`);
+        if(currency.top<due.bottom-0.5)failures.push(`${label}: phone Currency moved into the date row`);
+        if(language.top<currency.bottom-0.5)failures.push(`${label}: phone Document Language moved into the currency row`);
       }else{
         if(overlaps(lock,conversion))failures.push(`${label}: inline conversion overlaps the Final banner`);
         if(overlaps(conversion,layout))failures.push(`${label}: inline conversion overlaps editor content`);
@@ -83,6 +108,30 @@ function overlaps(a, b, tolerance=0.5) {
         }else if(visible(actions)){
           failures.push(`${label}: desktop should not render the mobile action bar`);
         }
+      }
+
+      if(width>=721&&width<=1180){
+        // Tablet document header: one full-width number row, then two balanced pairs.
+        if(number.width<documentGrid.width-2)failures.push(`${label}: document number does not span the tablet grid`);
+        if(Math.abs(issue.top-due.top)>1)failures.push(`${label}: Issue Date and Valid Until are not on the same tablet row`);
+        if(Math.abs(issue.width-due.width)>2)failures.push(`${label}: tablet date fields are not balanced`);
+        if(currency.top<issue.bottom-0.5||language.top<due.bottom-0.5)failures.push(`${label}: currency/language row collides with tablet date row`);
+        if(Math.abs(currency.top-language.top)>1)failures.push(`${label}: Currency and Document Language are not on the same tablet row`);
+        if(Math.abs(currency.width-language.width)>2)failures.push(`${label}: tablet currency/language fields are not balanced`);
+
+        // The locale-safe displayDate label must own the visible text on iPadOS;
+        // the native input remains fully interactive but visually transparent.
+        if(result.dateLabelDisplay==='none'||!result.dateLabelText)failures.push(`${label}: locale-safe tablet date label is hidden`);
+        if(result.dateInputOpacity===null||result.dateInputOpacity>0.01)failures.push(`${label}: native Safari date text is still visible over the locale-safe label`);
+      }
+
+      if(width>=721&&width<=900){
+        if(navButtons.length!==6)failures.push(`${label}: expected six tablet navigation steps`);
+        const widths=navButtons.map(item=>item.width);
+        if(widths.length&&Math.max(...widths)-Math.min(...widths)>2)failures.push(`${label}: tablet navigation steps are not equal width`);
+        if(navLabels.some(item=>item.display==='none'||item.width<=0))failures.push(`${label}: one or more tablet navigation labels are hidden`);
+        if(actions.height>66)failures.push(`${label}: tablet document action dock is taller than the compact target`);
+        if(actionButtons.some(item=>item.height<44))failures.push(`${label}: tablet action button fell below the 44px touch target`);
       }
 
       await page.close();
