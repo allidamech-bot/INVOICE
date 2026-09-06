@@ -16,13 +16,24 @@ function validQuote(){
 }
 
 test('conversion preserves source identity and writes visible source reference',()=>{
-  const source=validQuote();
+  const source=validQuote();source.status='final';
   const invoice=convertToInvoice(source,'INV-2026-0001');
   assert.equal(invoice.kind,'invoice');
   assert.equal(invoice.status,'draft');
   assert.equal(invoice.convertedFromId,source.id);
   assert.match(invoice.terms.remarks,/PI-2026-0001/);
   assert.equal(source.kind,'proforma');
+});
+
+test('conversion rejects draft, invoice, credit-note and voided sources at the domain boundary',()=>{
+  const draft=validQuote();
+  assert.throws(()=>convertToInvoice(draft,'INV-2026-0100'),/Final quotation|عرض سعر نهائي/);
+  const invoiceSource={...validQuote(),kind:'invoice',status:'final'};
+  assert.throws(()=>convertToInvoice(invoiceSource,'INV-2026-0101'),/Final quotation|عرض سعر نهائي/);
+  const creditSource={...validQuote(),status:'final',role:'credit-note'};
+  assert.throws(()=>convertToInvoice(creditSource,'INV-2026-0102'),/Final quotation|عرض سعر نهائي/);
+  const voidedSource={...validQuote(),status:'final',lifecycleStatus:'voided'};
+  assert.throws(()=>convertToInvoice(voidedSource,'INV-2026-0103'),/Final quotation|عرض سعر نهائي/);
 });
 
 test('duplicate receives a new identity and returns to draft with refreshed dates',()=>{
