@@ -39,6 +39,12 @@ test('v177 phone touch safety does not depend on pointer capability reporting',a
   assert.doesNotMatch(phone,/pointer:coarse/);
 });
 
+test('v177 browser geometry fixture measures the production CSS bundle rather than a hand-picked source subset',async()=>{
+  const fixture=await read('tests/visual/mobile-controls-density-v177.html');
+  assert.match(fixture,/href="\.\.\/\.\.\/dist\/styles\/app\.bundle\.css"/);
+  assert.doesNotMatch(fixture,/href="\.\.\/\.\.\/src\/styles\//);
+});
+
 test('v177 keeps narrow headings, forms and tab lanes reachable instead of clipping them',async()=>{
   const css=await read('src/styles/mobile-controls-density-v177.css');
   assert.match(css,/@media \(max-width:720px\)/);
