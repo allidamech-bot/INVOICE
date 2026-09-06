@@ -46,6 +46,7 @@ async function inspectPage(page,testCase){
     const customer=first?.querySelector('.party-customer');
     return {
       pageCount:pages.length,
+      firstPageItemRowCount:first?.querySelectorAll('.items-table tbody tr').length||0,
       sheet:pages[0]?rect(pages[0]):null,
       direction:first?getComputedStyle(first).direction:null,
       sellerX:seller?rect(seller).left:null,
@@ -123,6 +124,8 @@ async function inspectPage(page,testCase){
     if(result.language==='ar'&&!(result.sellerX>result.customerX))failures.push(`${label}: seller/customer grid did not mirror`);
     if(result.language==='en'&&!(result.sellerX<result.customerX))failures.push(`${label}: seller/customer grid order is incorrect`);
     if(result.language==='bilingual'&&result.bilingualRtlCount<3)failures.push(`${label}: bilingual Arabic content is missing`);
+    if(result.items==='10'&&result.mode==='desktop'&&(result.language==='en'||result.language==='ar')&&result.firstPageItemRowCount<4)failures.push(`${label}: first page wastes available A4 space (${result.firstPageItemRowCount} item rows)`);
+    if(result.items==='10'&&result.mode==='desktop'&&result.language==='bilingual'&&result.firstPageItemRowCount<2)failures.push(`${label}: bilingual first page wastes available A4 space (${result.firstPageItemRowCount} item rows)`);
   }
   if(browserErrors.size)failures.push(...[...browserErrors].map(error=>`browser: ${error}`));
   const report={baseUrl,outputDir,caseCount:results.length,failures,results};
