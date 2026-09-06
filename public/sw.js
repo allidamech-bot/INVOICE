@@ -1,3 +1,4 @@
+// v178 invoice/quotation carry-forward — cache the shared customer search runtime in a fresh immutable PWA generation.
 // v177 mobile control-density recovery — recache the final coarse-pointer target and clipping layer.
 // v176 mobile overlap recovery — recache the final application modal/safe-area layer without changing the established explicit-update lifecycle.
 // v171 mobile Final-quotation geometry recalibration — recache the corrected no-overlap mobile stack.
@@ -38,7 +39,8 @@
 /* Historical v169 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v169';
 */
-const CACHE = 'lourex-invoice-v177';
+const CACHE = 'lourex-invoice-v178';
+// lourex-invoice-v177: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v176: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v169: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v168: preserved as a legacy marker for cache-migration tests.
@@ -52,6 +54,7 @@ LOCAL_CORE.push('./styles/design-system-v164.css');
 LOCAL_CORE.push('./styles/final-mobile-accessibility-v168.css');
 LOCAL_CORE.push('./styles/mobile-overlap-recovery-v176.css');
 LOCAL_CORE.push('./styles/mobile-controls-density-v177.css');
+LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
 const FRESH_PATHS = new Set(['/ios-print-bridge.js','/pull-to-refresh.js']);
