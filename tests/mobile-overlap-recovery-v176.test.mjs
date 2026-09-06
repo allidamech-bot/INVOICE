@@ -24,14 +24,35 @@ test('v176 is the final application layer while v141 remains the final document 
 test('v176 keeps destructive confirmation footer inside the dynamic mobile viewport',async()=>{
   const css=await read('src/styles/mobile-overlap-recovery-v176.css');
   assert.match(css,/\.app-ui \.modal-backdrop\{[\s\S]*z-index:7000!important/);
-  assert.match(css,/@media \(max-width:720px\), \(max-height:520px\) and \(pointer:coarse\)/);
+  assert.match(css,/@media \(max-width:720px\), \(max-height:520px\)\{/);
   assert.match(css,/\.app-ui \.modal-backdrop\{[\s\S]*height:100dvh!important[\s\S]*env\(safe-area-inset-bottom\)/);
   assert.match(css,/\.app-ui \.modal\{[\s\S]*height:auto!important[\s\S]*max-height:calc\(100dvh/);
   assert.match(css,/\.app-ui \.modal-sm\{[\s\S]*height:auto!important/);
   assert.match(css,/\.app-ui \.modal-body\{[\s\S]*min-height:0!important[\s\S]*overflow-y:auto!important/);
   assert.match(css,/\.app-ui \.modal-footer\{[\s\S]*position:relative!important[\s\S]*flex:0 0 auto!important[\s\S]*visibility:visible!important/);
-  assert.match(css,/\.app-ui \.modal-footer-actions[\s\S]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
-  assert.match(css,/\.app-ui \.modal-footer-actions \.btn\{[\s\S]*min-height:44px!important[\s\S]*white-space:normal!important/);
+  assert.match(css,/\.app-ui \.modal-footer-actions[\s\S]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important[\s\S]*align-items:stretch!important/);
+  assert.match(css,/\.app-ui \.modal-footer-actions \.btn\{[\s\S]*min-height:44px!important[\s\S]*max-height:none!important[\s\S]*white-space:normal!important/);
+  assert.match(css,/@media \(max-height:460px\)\{[\s\S]*\.app-ui \.modal-footer-actions \.btn\{[\s\S]*min-height:44px!important/);
+});
+
+test('v176 restores 44px touch targets to compact Settings and Product Library controls on coarse-pointer devices',async()=>{
+  const css=await read('src/styles/mobile-overlap-recovery-v176.css');
+  assert.match(css,/@media \(max-width:960px\) and \(pointer:coarse\)/);
+  for(const selector of [
+    '.shell-mobile-brand>button',
+    '.shell-sync-status',
+    '.settings-title>.btn',
+    '.settings-tabs>button',
+    '.settings-account-actions .btn',
+    '.settings-section-heading .btn',
+    '.product-library-commandbar .btn',
+    '.product-library-star',
+    '.product-library-row>.icon-btn',
+    '.product-library-editor-actions .btn',
+    '.cloud-account-actions .btn'
+  ]) assert.ok(css.includes(selector),`missing touch-target override for ${selector}`);
+  assert.match(css,/min-height:44px!important/);
+  assert.match(css,/min-width:44px!important/);
 });
 
 test('v176 prevents mobile sheet and page overflow regressions without touching printable templates',async()=>{
