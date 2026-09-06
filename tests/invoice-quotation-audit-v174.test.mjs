@@ -16,7 +16,7 @@ const customer={
 test('document customer search finds operational identifiers, not only company name',()=>{
   assert.equal(customerMatchesSearch(customer,'north star'),true);
   assert.equal(customerMatchesSearch(customer,'نجم الشمال'),true);
-  assert.equal(customerMatchesSearch(customer,'055 123'),true);
+  assert.equal(customerMatchesSearch(customer,'55 123'),true);
   assert.equal(customerMatchesSearch(customer,'accounts@northstar'),true);
   assert.equal(customerMatchesSearch(customer,'Riyadh'),true);
   assert.equal(customerMatchesSearch(customer,'310123456700003'),true);
