@@ -28,6 +28,15 @@ test('v177 establishes a universal 44px coarse-pointer interaction floor without
   assert.doesNotMatch(css,/\.invoice-page|\.document-page|\.items-table|\.template-(?:executive|minimal|trade|signature|obsidian|cobalt|editorial|split|prism|slate|horizon|mono|aurora|ledger|noir|midnight|blackivory|carbon)/);
 });
 
+test('v177 keeps the settings title action touch-safe on tablets even when pointer capability reporting is wrong',async()=>{
+  const css=await read('src/styles/mobile-controls-density-v177.css');
+  const tablet=css.slice(css.indexOf('/* The settings title action is used on tablets too.'),css.indexOf('/* Phone geometry must not depend'));
+  assert.match(tablet,/@media \(max-width:960px\)/);
+  assert.match(tablet,/\.app-ui \.settings-title>\.btn/);
+  assert.match(tablet,/min-height:44px!important/);
+  assert.doesNotMatch(tablet,/pointer:coarse/);
+});
+
 test('v177 phone touch safety uses explicit selectors for historical compact controls and does not depend on pointer reporting',async()=>{
   const css=await read('src/styles/mobile-controls-density-v177.css');
   const phone=css.slice(css.indexOf('@media (max-width:720px){'),css.indexOf('@media (max-width:360px){'));
