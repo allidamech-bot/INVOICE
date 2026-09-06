@@ -54,8 +54,8 @@ test('startup authority, trusted-session ordering and explicit PWA updates remai
   assert.match(entry,/await hydrateAuthoritativeCloudBeforeApp\(\)/);
   assert.ok(entry.indexOf('await hydrateAuthoritativeCloudBeforeApp()')<entry.indexOf('ReactDOM.render'));
   assert.match(startup,/waitForCloudUser\(\)/);
-  assert.match(startup,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
-  assert.match(startup,/installCloudVault\(user\.uid,false\)/);
+  assert.match(startup,/reconcileCloudVault\(user\.uid\)/);
+  assert.doesNotMatch(startup,/installCloudVault\(user\.uid,false\)/);
   assert.match(app,/auth-cloud-launcher/);
   assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
   assert.match(sw,/SKIP_WAITING/);

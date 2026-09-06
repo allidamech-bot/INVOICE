@@ -4,7 +4,7 @@ import { getEncryptedVault, getSecurity, putSecurityAndVault } from '../storage/
 declare const firebase: any;
 
 export interface CloudUser { uid:string; email:string; }
-export type CloudSyncResult = 'empty'|'same'|'pushed'|'pulled';
+export type CloudSyncResult = 'empty'|'same'|'pushed'|'pulled'|'diverged';
 
 interface CloudVaultMeta {
   format:'LOUREX_CLOUD_V1'; version:1; revision:string; updatedAt:string; schemaVersion:number; iv:string;
@@ -235,8 +235,8 @@ export async function pushLocalVaultToCloud(uid:string,localSnapshot?:EncryptedV
   return 'pushed';
 }
 
-// Compatibility exports for older UI bundles. The new account-first flow never
-// exposes conflicts to the user; the account copy is authoritative automatically.
+// Compatibility exports for older UI bundles. Explicit conflict choices remain
+// available, while automatic reconciliation refuses ambiguous destructive pulls.
 export async function resolveCloudConflictWithLocal(uid:string):Promise<void>{await pushLocalVaultToCloud(uid);}
 export async function resolveCloudConflictWithCloud(uid:string):Promise<void>{const installed=await installCloudVault(uid,true);if(!installed)throw new Error('Cloud account data is unavailable.');}
 
@@ -255,9 +255,10 @@ export async function reconcileCloudVault(uid:string):Promise<CloudSyncResult>{
   const localHash=await sha256(local.cipher);
   if(localHash===remote.cipherSha256){writeSyncAnchor(uid,remote);return 'same';}
   const anchor=readSyncAnchor(uid);
-  if(!anchor){await installCloudVault(uid);return 'pulled';}
+  if(!anchor)return 'diverged';
   const localChanged=localHash!==anchor.cipherSha256;
   const remoteChanged=remote.revision!==anchor.revision||remote.cipherSha256!==anchor.cipherSha256;
+  if(localChanged&&remoteChanged)return 'diverged';
   if(remoteChanged){await installCloudVault(uid);return 'pulled';}
   if(localChanged){
     if(startup){window.setTimeout(()=>void pushLocalVaultToCloud(uid).catch(()=>undefined),500);return 'same';}

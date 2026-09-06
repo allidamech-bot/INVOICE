@@ -21,3 +21,9 @@ test('automatic cloud freshness does not reload or overwrite on divergence',asyn
   const freshness=await read('src/cloud/freshness.ts');
   assert.match(freshness,/result==='diverged'/);
 });
+
+test('explicit cloud restore remains available while automatic divergence is blocked',async()=>{
+  const cloud=await read('src/cloud/firebase.ts');
+  assert.match(cloud,/resolveCloudConflictWithCloud[\s\S]*installCloudVault\(uid,true\)/);
+  assert.match(cloud,/export async function installCloudVault/);
+});

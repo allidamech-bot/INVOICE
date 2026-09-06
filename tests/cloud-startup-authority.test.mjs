@@ -10,11 +10,11 @@ test('app hydrates authoritative cloud vault before rendering local unlock state
   assert.ok(entry.indexOf('await hydrateAuthoritativeCloudBeforeApp()')<entry.indexOf('ReactDOM.render'));
 });
 
-test('startup cloud bootstrap links authenticated account and pulls changed remote vault',async()=>{
+test('startup cloud bootstrap links authenticated account and uses guarded reconcile',async()=>{
   const startup=await read('src/cloud/startup.ts');
   assert.match(startup,/waitForCloudUser/);
   assert.match(startup,/getCloudVaultMeta/);
   assert.match(startup,/putCloudAccount\(user\.uid,user\.email\)/);
-  assert.match(startup,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
-  assert.match(startup,/installCloudVault\(user\.uid,false\)/);
+  assert.match(startup,/reconcileCloudVault\(user\.uid\)/);
+  assert.doesNotMatch(startup,/installCloudVault\(user\.uid,false\)/);
 });
