@@ -117,6 +117,15 @@ test('renderer uses Quotation as the public quote title while keeping the intern
   assert.match(renderer,/doc\.kind === 'proforma' \? 'عرض سعر' : 'فاتورة'/);
 });
 
+test('editor uses Quotation terminology and document-neutral navigation',async()=>{
+  const core=await read('src/components/EditorPageCore.tsx');
+  const wrapper=await read('src/components/EditorPage.tsx');
+  assert.match(core,/d\.kind==='proforma'\?t\('Quotation','عرض سعر'\):t\('Invoice','فاتورة'\)/);
+  assert.doesNotMatch(core,/t\('Proforma Invoice','عرض سعر'\)/);
+  assert.match(wrapper,/aria-label=\{t\('Document editing steps','مراحل تحرير المستند'\)\}/);
+  assert.doesNotMatch(wrapper,/Invoice editing steps/);
+});
+
 test('renderer preserves commercial location direction and shows the tax rate in Arabic',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/key==='Port of Loading'\|\|key==='Final Destination'\?'neutral'/);
