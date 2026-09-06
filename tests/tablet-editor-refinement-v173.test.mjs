@@ -4,12 +4,14 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v173 restores a compact two-column document header on tablets while phones remain single-column',async()=>{
+test('v173 restores a compact two-column full-width document header on tablets while phones remain single-column',async()=>{
   const [finalCss,workspaceCss]=await Promise.all([
     read('src/styles/final-mobile-accessibility-v168.css'),
     read('src/styles/editor-workspace-v162.css')
   ]);
   assert.match(finalCss,/@media \(min-width:721px\) and \(max-width:1180px\)/);
+  assert.match(finalCss,/\.app-ui \.editor-pane \.editor-scroll>\*\{[\s\S]*width:100%!important;[\s\S]*max-width:none!important;[\s\S]*margin-inline:0!important/);
+  assert.match(workspaceCss,/@media\(max-width:1180px\)[\s\S]*\.app-ui \.editor-scroll>\*\{max-width:840px!important\}/);
   assert.match(finalCss,/editor-section:first-child>\.form-grid\.two\.compact-grid\{[\s\S]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
   assert.match(finalCss,/editor-section:first-child>\.form-grid\.two\.compact-grid>\.field:first-child\{[\s\S]*grid-column:1\/-1!important/);
   assert.match(workspaceCss,/@media\(max-width:900px\)[\s\S]*\.app-ui \.form-grid\.two\{grid-template-columns:minmax\(0,1fr\)!important/);
