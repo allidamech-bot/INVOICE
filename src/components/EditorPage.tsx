@@ -256,7 +256,7 @@ export class EditorPage extends React.Component<Props,State>{
     const canConvertFinalQuote=finalQuote&&!linkedInvoice;
     const sections=this.state.sections;
     const navSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-nav-slot]');
-    const sectionNavigator=sections.length?<nav className={`editor-section-navigator ${finalQuote?'has-final-quote-action':''}`} aria-label={t('Invoice editing steps','مراحل تحرير الفاتورة')}>
+    const sectionNavigator=sections.length?<nav className={`editor-section-navigator ${finalQuote?'has-final-quote-action':''}`} aria-label={t('Document editing steps','مراحل تحرير المستند')}>
       {sections.map(section=>{
         const active=section.id===this.state.activeSectionId;
         const attention=section.hasError?t(' — needs attention',' — يحتاج مراجعة'):'';
