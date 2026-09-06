@@ -41,6 +41,7 @@ jobs:
             exit 1
           fi
           node tests/visual/run-template-visual-qa.cjs visual-qa-output
+          node tests/visual/run-mobile-final-quote-stack.cjs
       - name: Upload visual QA evidence on failure
         if: failure()
         uses: actions/upload-artifact@v6
