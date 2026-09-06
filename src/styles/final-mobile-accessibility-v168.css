@@ -1,5 +1,6 @@
 /* Final release — coarse-pointer target hardening.
-   Application chrome only. Printable invoice/quotation output is intentionally untouched. */
+   Application chrome only. Printable invoice/quotation output is intentionally untouched.
+   v170 also reserves real mobile layout space for Final-quotation conversion actions. */
 
 @media (max-width:720px) and (pointer:coarse){
   /* Older compact mobile layers intentionally reduced several controls below
@@ -61,3 +62,56 @@
     min-height:44px!important;
   }
 }
+
+/* Final quotation conversion used to be an old fixed sheet positioned only
+   74px above the viewport bottom. The canonical editor now has TWO real bottom
+   rows (step navigation + mobile actions), so that legacy offset placed the
+   conversion sheet directly on top of the 01–06 step dock. Reserve a matching
+   gap in the flex layout and position the fixed sheet inside that gap. */
+@media (max-width:900px){
+  body:has(.final-quote-convert-bar){
+    --final-quote-nav-height:48px;
+    --final-quote-actionbar-height:64px;
+    --final-quote-sheet-height:86px;
+  }
+
+  body:has(.final-quote-convert-bar) .app-ui .editor-layout{
+    margin-bottom:var(--final-quote-sheet-height)!important;
+  }
+
+  .final-quote-convert-bar,
+  [dir='rtl'] .final-quote-convert-bar{
+    bottom:calc(var(--final-quote-nav-height) + var(--final-quote-actionbar-height) + env(safe-area-inset-bottom) + 6px)!important;
+    z-index:33!important;
+    max-height:calc(var(--final-quote-sheet-height) - 10px)!important;
+    overflow:auto!important;
+  }
+}
+
+/* Phones render the conversion action as a stacked sheet, so it needs a taller
+   reserved lane than tablet. Nothing is allowed to float over the step dock. */
+@media (max-width:720px){
+  body:has(.final-quote-convert-bar){--final-quote-sheet-height:122px}
+}
+
+/* On narrow phones the canonical mobile action bar is two rows (total + four
+   actions). Account for its real height rather than the old 64/74px guess. */
+@media (max-width:520px){
+  body:has(.final-quote-convert-bar){
+    --final-quote-actionbar-height:86px;
+    --final-quote-sheet-height:114px;
+  }
+}
+
+@media (max-width:430px){
+  body:has(.final-quote-convert-bar){--final-quote-sheet-height:106px}
+  .final-quote-convert-bar,
+  [dir='rtl'] .final-quote-convert-bar{
+    gap:7px!important;
+    padding:9px!important;
+  }
+}
+
+/* Full-screen preview owns the viewport; never leave the conversion sheet over
+   PDF/share preview controls. */
+body:has(.editor-screen.mobile-preview-open) .final-quote-convert-bar{display:none!important}
