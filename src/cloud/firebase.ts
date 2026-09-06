@@ -4,7 +4,7 @@ import { getEncryptedVault, getSecurity, putSecurityAndVault } from '../storage/
 declare const firebase: any;
 
 export interface CloudUser { uid:string; email:string; }
-export type CloudSyncResult = 'empty'|'same'|'pushed'|'pulled';
+export type CloudSyncResult = 'empty'|'same'|'pushed'|'pulled'|'diverged';
 
 interface CloudVaultMeta {
   format:'LOUREX_CLOUD_V1'; version:1; revision:string; updatedAt:string; schemaVersion:number; iv:string;
@@ -255,10 +255,10 @@ export async function reconcileCloudVault(uid:string):Promise<CloudSyncResult>{
   const localHash=await sha256(local.cipher);
   if(localHash===remote.cipherSha256){writeSyncAnchor(uid,remote);return 'same';}
   const anchor=readSyncAnchor(uid);
-  if(!anchor)throw new Error('Cloud and local data differ, but this device has no trusted sync anchor. Automatic replacement was blocked to protect your data.');
+  if(!anchor)return 'diverged';
   const localChanged=localHash!==anchor.cipherSha256;
   const remoteChanged=remote.revision!==anchor.revision||remote.cipherSha256!==anchor.cipherSha256;
-  if(localChanged&&remoteChanged)throw new Error('Cloud and local data both changed since the last sync. Automatic replacement was blocked to protect your data.');
+  if(localChanged&&remoteChanged)return 'diverged';
   if(remoteChanged){await installCloudVault(uid);return 'pulled';}
   if(localChanged){
     if(startup){window.setTimeout(()=>void pushLocalVaultToCloud(uid).catch(()=>undefined),500);return 'same';}
