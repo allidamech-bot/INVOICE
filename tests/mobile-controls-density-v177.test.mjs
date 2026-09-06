@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('v177 loads after all application mobile recovery layers, before document output, and ships in the active PWA cache',async()=>{
+test('v177 loads after all application mobile recovery layers, before document output, and remains shipped after later PWA generations',async()=>{
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   const current='mobile-controls-density-v177.css';
   const doc='document-premium-redesign-v141.css';
@@ -12,8 +12,9 @@ test('v177 loads after all application mobile recovery layers, before document o
   assert.ok(html.indexOf(doc)>html.indexOf(current));
   const styles=[...html.matchAll(/<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>/g)].map(m=>m[1]);
   assert.equal(styles.at(-1),doc);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v177';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v178';$/m);
   assert.ok(sw.includes(`./styles/${current}`));
+  assert.match(sw,/lourex-invoice-v177: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v176: preserved as a legacy marker/);
 });
 
