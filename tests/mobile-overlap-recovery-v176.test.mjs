@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('v176 is the final application layer while v141 remains the final document stylesheet',async()=>{
-  const html=await read('index.html');
+  const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   const recovery='mobile-overlap-recovery-v176.css';
   const documentLayer='document-premium-redesign-v141.css';
   assert.match(html,new RegExp(recovery.replaceAll('.','\\.')));
@@ -17,6 +17,8 @@ test('v176 is the final application layer while v141 remains the final document 
   assert.ok(html.indexOf(documentLayer)>recoveryIndex,'v141 must remain after the final application recovery layer');
   const styleNames=[...html.matchAll(/<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>/g)].map(match=>match[1]);
   assert.equal(styleNames.at(-1),documentLayer);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v176';$/m);
+  assert.ok(sw.includes(`./styles/${recovery}`),'v176 recovery stylesheet must ship in the installed PWA cache');
 });
 
 test('v176 keeps destructive confirmation footer inside the dynamic mobile viewport',async()=>{
