@@ -1,0 +1,284 @@
+/* v176 — final mobile overlap, safe-area and modal reachability recovery.
+   Application chrome only. Printable invoice/quotation output is intentionally untouched.
+
+   Goals:
+   - small confirmation dialogs must never inherit the full-height Settings modal geometry;
+   - every modal footer/action remains inside the visual viewport on iPhone/PWA and short landscape screens;
+   - canonical modals must sit above document action sheets and bottom navigation;
+   - shared mobile controls must shrink/wrap instead of creating horizontal page overflow. */
+
+/* Canonical application layer order. Document action portals intentionally use 6000;
+   a destructive confirmation opened from one of those sheets must render above it. */
+.app-ui .modal-backdrop{
+  z-index:7000!important;
+}
+
+@media (max-width:960px){
+  html,body,#root{
+    max-width:100%;
+    overflow-x:hidden;
+  }
+
+  .app-ui,
+  .app-ui .workspace-shell,
+  .app-ui .workspace-content,
+  .app-ui .main-content,
+  .app-ui .page{
+    min-width:0!important;
+    max-width:100%!important;
+  }
+
+  .app-ui .workspace-content{
+    overflow-x:clip;
+  }
+
+  .app-ui :where(.btn,.icon-btn,.input,select,textarea){
+    max-width:100%;
+  }
+
+  .app-ui .btn{
+    min-width:0;
+  }
+
+  .app-ui .btn>span{
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+}
+
+@media (max-width:720px), (max-height:520px) and (pointer:coarse){
+  /* Use the dynamic viewport and keep the safe areas on the backdrop itself. */
+  .app-ui .modal-backdrop{
+    box-sizing:border-box!important;
+    position:fixed!important;
+    inset:0!important;
+    width:100vw!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    max-height:100dvh!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    overflow:hidden!important;
+    padding-top:max(6px,env(safe-area-inset-top))!important;
+    padding-right:max(6px,env(safe-area-inset-right))!important;
+    padding-bottom:max(10px,env(safe-area-inset-bottom))!important;
+    padding-left:max(6px,env(safe-area-inset-left))!important;
+  }
+
+  /* v163 previously forced every mobile modal to height:100%. That is useful for
+     Settings but wrong for ConfirmDialog. Let content size the modal and constrain
+     only its maximum height; the body becomes the sole scroll owner. */
+  .app-ui .modal{
+    box-sizing:border-box!important;
+    width:100%!important;
+    max-width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:calc(100dvh - max(12px,env(safe-area-inset-top)) - max(20px,env(safe-area-inset-bottom)))!important;
+    margin:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-self:center!important;
+    overflow:hidden!important;
+    border-radius:16px!important;
+    transform:none!important;
+  }
+
+  .app-ui .modal-sm{
+    width:min(100%,430px)!important;
+    max-width:430px!important;
+    height:auto!important;
+  }
+
+  .app-ui .modal-header{
+    position:relative!important;
+    inset:auto!important;
+    z-index:4!important;
+    flex:0 0 auto!important;
+    min-width:0!important;
+    min-height:54px!important;
+    padding:6px 8px 6px 12px!important;
+    gap:8px!important;
+    overflow:visible!important;
+  }
+
+  [dir='rtl'] .app-ui .modal-header{
+    padding:6px 12px 6px 8px!important;
+  }
+
+  .app-ui .modal-header h2{
+    min-width:0!important;
+    margin:0!important;
+    font-size:15px!important;
+    line-height:1.35!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    overflow-wrap:anywhere!important;
+  }
+
+  .app-ui .modal-header>.icon-btn{
+    flex:0 0 44px!important;
+    width:44px!important;
+    min-width:44px!important;
+    max-width:44px!important;
+    height:44px!important;
+    min-height:44px!important;
+    max-height:44px!important;
+    display:inline-grid!important;
+    place-items:center!important;
+    visibility:visible!important;
+    opacity:1!important;
+    pointer-events:auto!important;
+  }
+
+  .app-ui .modal-body{
+    position:relative!important;
+    flex:1 1 auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    max-width:100%!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    overscroll-behavior:contain!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+
+  /* Confirmation dialogs need normal readable body padding even though Settings
+     intentionally removes modal-body padding for its internal workspace. */
+  .app-ui .modal-sm .modal-body{
+    flex:0 1 auto!important;
+    padding:16px 14px!important;
+  }
+
+  .app-ui .modal-message{
+    max-width:100%!important;
+    margin:0!important;
+    line-height:1.65!important;
+    overflow-wrap:anywhere!important;
+  }
+
+  /* Footer is a real flex row, not a sticky layer competing with the scroll body.
+     This guarantees Delete/Confirm remains inside the visual viewport. */
+  .app-ui .modal-footer{
+    position:relative!important;
+    inset:auto!important;
+    bottom:auto!important;
+    z-index:5!important;
+    flex:0 0 auto!important;
+    min-width:0!important;
+    min-height:58px!important;
+    width:100%!important;
+    padding:7px 9px max(9px,env(safe-area-inset-bottom))!important;
+    overflow:visible!important;
+    visibility:visible!important;
+    opacity:1!important;
+    transform:none!important;
+  }
+
+  .app-ui .modal-footer-actions{
+    width:100%!important;
+    min-width:0!important;
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+  }
+
+  .app-ui .modal-footer-actions>.btn,
+  .app-ui .modal-footer-actions .btn{
+    width:100%!important;
+    min-width:0!important;
+    min-height:44px!important;
+    height:auto!important;
+    padding:8px 10px!important;
+    line-height:1.25!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+  }
+
+  /* Shared app content should wrap rather than become a second horizontal viewport. */
+  .app-ui :where(.page-heading,.heading-actions,.list-toolbar,.customers-toolbar,.customer-profile-topbar,.customer-profile-top-actions,.reports-heading-actions){
+    min-width:0!important;
+    max-width:100%!important;
+  }
+
+  .app-ui :where(.page-heading,.heading-actions,.customer-profile-top-actions) .btn{
+    min-width:0!important;
+  }
+
+  .app-ui :where(.form-grid,.form-grid.two,.customer-form-grid) > *{
+    min-width:0!important;
+    max-width:100%!important;
+  }
+
+  /* Bottom sheets share the same dynamic viewport contract and must stay clear of
+     the home indicator / browser chrome. */
+  .app-ui .mobile-more-sheet,
+  .mobile-document-action-portal .mobile-document-action-sheet,
+  .mobile-document-action-portal .mobile-document-action-sheet.action-menu{
+    box-sizing:border-box!important;
+    max-height:calc(100dvh - max(18px,env(safe-area-inset-top)) - max(18px,env(safe-area-inset-bottom)))!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    overscroll-behavior:contain!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+}
+
+@media (max-width:430px){
+  .app-ui .modal-backdrop{
+    padding-right:max(5px,env(safe-area-inset-right))!important;
+    padding-left:max(5px,env(safe-area-inset-left))!important;
+  }
+
+  .app-ui .modal{
+    border-radius:15px!important;
+  }
+
+  .app-ui .modal-sm .modal-body{
+    padding:14px 12px!important;
+  }
+
+  .app-ui .modal-footer-actions{
+    gap:6px!important;
+  }
+
+  .app-ui .modal-footer-actions .btn{
+    padding-inline:7px!important;
+    font-size:12px!important;
+  }
+}
+
+@media (max-width:350px){
+  .app-ui .modal-footer-actions{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+}
+
+@media (max-height:460px) and (pointer:coarse){
+  .app-ui .modal-backdrop{
+    padding-top:max(4px,env(safe-area-inset-top))!important;
+    padding-bottom:max(4px,env(safe-area-inset-bottom))!important;
+  }
+
+  .app-ui .modal{
+    max-height:calc(100dvh - max(8px,env(safe-area-inset-top)) - max(8px,env(safe-area-inset-bottom)))!important;
+  }
+
+  .app-ui .modal-header{
+    min-height:48px!important;
+  }
+
+  .app-ui .modal-footer{
+    min-height:52px!important;
+    padding-top:4px!important;
+  }
+}
+
+@media print{
+  .app-ui .modal-backdrop{
+    display:none!important;
+  }
+}
