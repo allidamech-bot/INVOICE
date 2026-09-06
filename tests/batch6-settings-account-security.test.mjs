@@ -58,7 +58,7 @@ test('batch 6 remains app-only, loads late, and ships offline',async()=>{
   assert.ok(html.indexOf('editor-workspace-v162.css')<html.indexOf('settings-account-v163.css'));
   assert.ok(html.indexOf('settings-account-v163.css')<html.indexOf('document-premium-redesign-v141.css'));
   assert.match(sw,/\.\/styles\/settings-account-v163\.css/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v168';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
   assert.doesNotMatch(css,/\.invoice-page\s*\{/);
   assert.doesNotMatch(css,/\.items-table\s*\{/);
 });

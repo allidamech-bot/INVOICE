@@ -9,7 +9,7 @@ import { mergeVaultIntent } from '../dist/src/storage/vault-merge.js';
 
 function finalInvoice(base,{id='inv-fin',number='INV-2026-0900',amount='100.00'}={}){
   const invoice=createBlankDocument('invoice',number,base.company);
-  invoice.id=id;invoice.status='final';invoice.lifecycleStatus='active';invoice.role='standard';
+  invoice.id=id;invoice.status='final';invoice.lifecycleStatus='active';invoice.role='standard';invoice.issueDate='2026-09-05';invoice.dueDate='2026-10-05';
   invoice.customerSnapshot={sourceCustomerId:'cust-fin',companyNameEn:'Financial Buyer',companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
   invoice.items=[{...invoice.items[0],descriptionEn:'Service',quantity:'1',unitPrice:amount}];
   return invoice;
