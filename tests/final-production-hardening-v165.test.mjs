@@ -57,7 +57,7 @@ test('startup authority, trusted-session ordering and explicit PWA updates remai
   assert.match(startup,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
   assert.match(startup,/installCloudVault\(user\.uid,false\)/);
   assert.match(app,/auth-cloud-launcher/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v168';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
   assert.match(sw,/SKIP_WAITING/);
   assert.doesNotMatch(sw,/install[\s\S]{0,500}await self\.skipWaiting\(\)/);
 });
