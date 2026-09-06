@@ -41,6 +41,17 @@
   }
 }
 
+/* The settings title action is used on tablets too. Its historical 40px cap must
+   not depend on pointer capability reporting because iPad/browser contexts can
+   report a non-coarse primary pointer even when the screen is touch driven. */
+@media (max-width:960px){
+  .app-ui .settings-title>.btn{
+    box-sizing:border-box!important;
+    min-height:44px!important;
+    max-height:none!important;
+  }
+}
+
 /* Phone geometry must not depend on a browser reporting pointer:coarse correctly.
    Use explicit selectors here rather than zero-specificity :where() so historical
    phone rules cannot win merely because they are more specific. */
