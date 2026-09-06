@@ -73,6 +73,7 @@ async function checkCloudFreshness():Promise<void>{
   try{
     if(!await cloudRemoteChangedSinceAnchor(user.uid))return;
     const result=await reconcileCloudVault(user.uid);
+    if(result==='diverged')return;
     if(result==='pulled')window.location.reload();
   }catch{
     // Data movement is intentionally invisible. Transient failures are retried
