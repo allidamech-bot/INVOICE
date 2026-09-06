@@ -76,7 +76,7 @@ test('oversized item continuation rows keep unrelated cells blank instead of ren
 
 test('document runtime changes ship through the explicit-update PWA cache generation',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v175';$/m);
   assert.ok(sw.includes('./src/components/EditorPage.js'));
   assert.ok(sw.includes('./src/components/EditorPageCore.js'));
   assert.match(sw,/SKIP_WAITING/);
