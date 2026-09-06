@@ -42,23 +42,22 @@
 }
 
 /* Phone geometry must not depend on a browser reporting pointer:coarse correctly.
-   Safari/standalone PWAs and automated Chromium contexts can disagree about the
-   primary pointer even when the screen is touch driven. These are explicit app
-   controls that are known to have legacy fixed 32–40px dimensions. */
+   Use explicit selectors here rather than zero-specificity :where() so historical
+   phone rules cannot win merely because they are more specific. */
 @media (max-width:720px){
-  .app-ui :where(
-    .settings-tabs>button,
-    .product-library-star,
-    .product-library-row>.icon-btn,
-    .cloud-account-actions .btn
-  ),
-  .auth-page :where(.account-entry-tabs button){
+  .app-ui .settings-tabs>button,
+  .app-ui .documents-sort,
+  .app-ui .product-library-star,
+  .app-ui .product-library-row>.icon-btn,
+  .app-ui .cloud-account-actions .btn,
+  .auth-page .account-entry-tabs button{
     box-sizing:border-box!important;
     min-height:44px!important;
     max-height:none!important;
   }
 
-  .app-ui :where(.product-library-star,.product-library-row>.icon-btn){
+  .app-ui .product-library-star,
+  .app-ui .product-library-row>.icon-btn{
     min-width:44px!important;
     max-width:none!important;
   }
