@@ -53,6 +53,8 @@ function overlaps(a, b, tolerance=0.5) {
           nav:measure('.editor-section-nav-slot'),
           actions:measure('.mobile-editor-actionbar'),
           cta:measure('[data-convert-cta]'),
+          scrollSurface:measure('.editor-scroll'),
+          scrollContent:measure('.editor-scroll>.fixture-content'),
           documentGrid:measure('[data-document-grid]'),
           number:measure('[data-doc-field="number"]'),
           issue:measure('[data-doc-field="issue"]'),
@@ -70,8 +72,8 @@ function overlaps(a, b, tolerance=0.5) {
       });
 
       const label=`${kind} ${width}x${height}`;
-      const { lock, layout, conversion, nav, actions, cta, viewport, documentGrid, number, issue, due, currency, language, navButtons, navLabels, actionButtons }=result;
-      if(!lock||!layout||!conversion||!nav||!actions||!cta||!documentGrid||!number||!issue||!due||!currency||!language){
+      const { lock, layout, conversion, nav, actions, cta, viewport, scrollSurface, scrollContent, documentGrid, number, issue, due, currency, language, navButtons, navLabels, actionButtons }=result;
+      if(!lock||!layout||!conversion||!nav||!actions||!cta||!scrollSurface||!scrollContent||!documentGrid||!number||!issue||!due||!currency||!language){
         failures.push(`${label}: missing required editor geometry element`);
         await page.close();
         continue;
@@ -111,6 +113,10 @@ function overlaps(a, b, tolerance=0.5) {
       }
 
       if(width>=721&&width<=1180){
+        // Tablet content must fill the editing surface instead of inheriting the
+        // old 840px desktop cap that caused the large blank iPad gutter.
+        if(scrollContent.width<scrollSurface.width-48)failures.push(`${label}: tablet editor content is artificially width-capped`);
+
         // Tablet document header: one full-width number row, then two balanced pairs.
         if(number.width<documentGrid.width-2)failures.push(`${label}: document number does not span the tablet grid`);
         if(Math.abs(issue.top-due.top)>1)failures.push(`${label}: Issue Date and Valid Until are not on the same tablet row`);
