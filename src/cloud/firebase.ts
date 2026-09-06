@@ -235,8 +235,8 @@ export async function pushLocalVaultToCloud(uid:string,localSnapshot?:EncryptedV
   return 'pushed';
 }
 
-// Compatibility exports for older UI bundles. The new account-first flow never
-// exposes conflicts to the user; the account copy is authoritative automatically.
+// Compatibility exports for older UI bundles. Explicit conflict choices remain
+// available, while automatic reconciliation refuses ambiguous destructive pulls.
 export async function resolveCloudConflictWithLocal(uid:string):Promise<void>{await pushLocalVaultToCloud(uid);}
 export async function resolveCloudConflictWithCloud(uid:string):Promise<void>{const installed=await installCloudVault(uid,true);if(!installed)throw new Error('Cloud account data is unavailable.');}
 
@@ -255,9 +255,10 @@ export async function reconcileCloudVault(uid:string):Promise<CloudSyncResult>{
   const localHash=await sha256(local.cipher);
   if(localHash===remote.cipherSha256){writeSyncAnchor(uid,remote);return 'same';}
   const anchor=readSyncAnchor(uid);
-  if(!anchor){await installCloudVault(uid);return 'pulled';}
+  if(!anchor)throw new Error('Cloud and local data differ, but this device has no trusted sync anchor. Automatic replacement was blocked to protect your data.');
   const localChanged=localHash!==anchor.cipherSha256;
   const remoteChanged=remote.revision!==anchor.revision||remote.cipherSha256!==anchor.cipherSha256;
+  if(localChanged&&remoteChanged)throw new Error('Cloud and local data both changed since the last sync. Automatic replacement was blocked to protect your data.');
   if(remoteChanged){await installCloudVault(uid);return 'pulled';}
   if(localChanged){
     if(startup){window.setTimeout(()=>void pushLocalVaultToCloud(uid).catch(()=>undefined),500);return 'same';}
