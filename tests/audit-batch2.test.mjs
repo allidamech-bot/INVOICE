@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('first-run setup and Settings prepare bounded raster company artwork with dedicated cleanup profiles',async()=>{
+test('first-run setup stays bounded while Settings preserves originals for explicit AI background removal',async()=>{
   const [auth,settings]=await Promise.all([
     read('src/components/AuthScreens.tsx'),
     read('src/components/SettingsModal.tsx')
@@ -15,8 +15,12 @@ test('first-run setup and Settings prepare bounded raster company artwork with d
   assert.match(auth,/accept="image\/png,image\/webp,image\/jpeg"/);
   assert.doesNotMatch(auth,/accept="[^"]*image\/svg\+xml/);
   assert.match(settings,/MAX_COMPANY_ASSET_BYTES=4\*1024\*1024/);
-  assert.match(settings,/field==='logoDataUrl'\?'logo':field==='signatureDataUrl'\?'signature':'stamp'/);
-  assert.match(settings,/fileToDataUrl\(file,MAX_COMPANY_ASSET_BYTES,this\.assetKind\(field\)\)/);
+  assert.match(settings,/fileToRawDataUrl\(file\)/);
+  assert.match(settings,/rebuildAsset=async\(field:AssetField\)/);
+  assert.match(settings,/rebuildLogoWithoutBackgroundDataUrl\(source\)/);
+  assert.match(settings,/AI Remove Background/);
+  assert.doesNotMatch(settings,/cleanImageDataUrl/);
+  assert.doesNotMatch(settings,/fileToDataUrl\(file,MAX_COMPANY_ASSET_BYTES/);
 });
 
 test('cloud account protects account actions while an explicit account operation is active',async()=>{
