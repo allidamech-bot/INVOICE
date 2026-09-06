@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="stylesheet" href="../../src/styles/app.css">
+  <link rel="stylesheet" href="../../src/styles/mobile-workspaces-v148.css">
+  <link rel="stylesheet" href="../../src/styles/mobile-editor-recovery-v149.css">
+  <link rel="stylesheet" href="../../src/styles/mobile-auth-modal-v150.css">
+  <link rel="stylesheet" href="../../src/styles/app-shell-v161.css">
+  <link rel="stylesheet" href="../../src/styles/editor-workspace-v162.css">
+  <link rel="stylesheet" href="../../src/styles/settings-account-v163.css">
+  <link rel="stylesheet" href="../../src/styles/design-system-v164.css">
+  <link rel="stylesheet" href="../../src/styles/final-mobile-accessibility-v168.css">
+  <link rel="stylesheet" href="../../src/styles/mobile-overlap-recovery-v176.css">
+  <link rel="stylesheet" href="../../src/styles/mobile-controls-density-v177.css">
+  <style>
+    html,body{margin:0;width:100%;min-height:100%;font-family:Arial,sans-serif;background:#f6f2eb}
+    *{box-sizing:border-box}.fixture{padding:10px;display:grid;gap:10px}.fixture-card{min-width:0;padding:10px;border:1px solid #ddd5ca;border-radius:12px;background:#fff}
+    .product-library-row{display:grid;grid-template-columns:32px minmax(0,1fr) 32px;align-items:center;gap:6px}.product-library-row>span{min-width:0;overflow-wrap:anywhere}
+    .section-heading-actions,.heading-actions,.cloud-account-actions{display:flex;gap:6px}.settings-tabs{display:flex;gap:6px}.settings-tabs>button{flex:0 0 auto}
+    .documents-toolbar-right{display:flex;gap:6px}.documents-sort{width:100%}.auth-page{min-height:0!important;padding:10px!important;display:block!important}.auth-card{margin:0!important;padding:10px!important}
+  </style>
+</head>
+<body>
+  <div class="app-ui">
+    <header class="workspace-topbar fixture-card">
+      <div class="shell-mobile-brand"><button type="button" aria-label="الرئيسية">⌂</button></div>
+      <div class="shell-page-title"><strong>المستندات والعملاء</strong></div>
+      <button type="button" class="shell-sync-status">متزامن</button>
+    </header>
+    <main class="fixture">
+      <section class="fixture-card">
+        <div class="page-heading"><h1>إدارة العملاء والمستندات الطويلة</h1><div class="heading-actions"><button class="btn">إضافة عميل</button><button class="btn">إجراء إضافي طويل</button></div></div>
+      </section>
+      <section class="fixture-card">
+        <div class="settings-tabs" data-scroll-lane><button>الشركة</button><button>القوالب</button><button>الحساب</button><button>النسخ الاحتياطي</button><button>الإعدادات المتقدمة</button></div>
+      </section>
+      <section class="fixture-card documents-toolbar-right"><select class="input documents-sort"><option>الأحدث أولًا</option></select></section>
+      <section class="fixture-card"><div class="section-heading-actions"><button class="btn">إضافة صنف</button><button class="btn">الأصناف المحفوظة</button></div></section>
+      <section class="fixture-card product-library-row"><button class="product-library-star" aria-label="مفضلة">★</button><span>اسم صنف طويل لاختبار القص والتفاف النص في مكتبة الأصناف</span><button class="icon-btn" aria-label="فتح">⋯</button></section>
+      <section class="fixture-card cloud-account-actions"><button class="btn">مزامنة الآن</button><button class="btn">استعادة من السحابة</button></section>
+    </main>
+  </div>
+  <section class="auth-page"><div class="auth-card"><button class="auth-language-switch">العربية / English</button><div class="account-entry-tabs"><button>تسجيل الدخول</button><button>إنشاء حساب</button></div></div></section>
+</body>
+</html>
