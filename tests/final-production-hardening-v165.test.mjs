@@ -59,7 +59,8 @@ test('startup safety, trusted-session ordering and explicit PWA updates remain i
   assert.match(startup,/await reconcileCloudVault\(user\.uid\)/);
   assert.doesNotMatch(startup,/installCloudVault\(user\.uid,false\)/);
   assert.match(app,/auth-cloud-launcher/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v175';$/m);
+  assert.match(sw,/lourex-invoice-v169: preserved as a legacy marker/);
   assert.match(sw,/SKIP_WAITING/);
   assert.doesNotMatch(sw,/install[\s\S]{0,500}await self\.skipWaiting\(\)/);
 });
