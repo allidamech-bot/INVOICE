@@ -3,7 +3,7 @@
 // v169 mobile Final-quotation stack refresh — recache the late mobile accessibility layer after the overlap fix.
 // v169 artwork AI rollout — refresh cached Settings runtime for signature and stamp AI controls.
 // v169 — isolate the AI-logo runtime refresh in a fresh cache generation.
-// AI logo rollout cache refresh — force Safari/PWA clients to reinstall the worker and recache the new Settings/AI runtime.
+// AI logo rollout cache refresh — force Safari/PWA clients to reinstall this manifest and recache the new Settings/AI runtime.
 // v168 — final release cache isolation after stacked runtime hardening.
 // v167 — quotation date-window and item editor input hardening.
 // v166 — final quotation/invoice draft persistence and responsive preview hardening.
@@ -34,7 +34,11 @@
 // v116 workflow preset compatibility; v103 saved-item compatibility.
 // Legacy regression markers only: const CACHE = 'lourex-invoice-v101'; const CACHE = 'lourex-invoice-v120'; const CACHE = 'lourex-invoice-v131'; const CACHE = 'lourex-invoice-v132'; const CACHE = 'lourex-invoice-v133'; const CACHE = 'lourex-invoice-v134'; const CACHE = 'lourex-invoice-v135'; const CACHE = 'lourex-invoice-v136'; const CACHE = 'lourex-invoice-v142'; const CACHE = 'lourex-invoice-v146';
 // Runtime compatibility markers: react@17.0.2/umd/react.production.min.js | react-dom@17.0.2/umd/react-dom.production.min.js
+/* Historical v169 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v169';
+*/
+const CACHE = 'lourex-invoice-v176';
+// lourex-invoice-v169: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v168: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v167: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v166: preserved as a legacy marker for cache-migration tests.
