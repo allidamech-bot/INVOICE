@@ -23,18 +23,20 @@ test('v64 review keeps document identity and amount visible at confirmation',asy
   assert.match(source,/issue-total-check/);
 });
 
-test('quote conversion is a final-only workflow action and the editable design control is retired',async()=>{
-  const [editor,core,css]=await Promise.all([
+test('quote conversion is a final-only workflow action with no draft Design-fieldset control',async()=>{
+  const [editor,core,css,documents]=await Promise.all([
     read('src/components/EditorPage.tsx'),
     read('src/components/EditorPageCore.tsx'),
-    read('src/styles/editor-workflow-v61.css')
+    read('src/styles/editor-workflow-v61.css'),
+    read('src/lib/documents.ts')
   ]);
-  assert.match(core,/convert-invoice-button/);
-  assert.match(css,/\.app-ui \.convert-invoice-button\{display:none!important\}/);
+  assert.doesNotMatch(core,/convert-invoice-button/);
+  assert.doesNotMatch(css,/\.app-ui \.convert-invoice-button\{display:none!important\}/);
   assert.match(editor,/props\.document\.kind==='proforma'&&props\.document\.status==='final'/);
   assert.match(editor,/convertedFromId===props\.document\.id/);
   assert.match(editor,/Invoice already created from this quote/);
   assert.match(editor,/Create Invoice from Quote/);
+  assert.match(documents,/source\.kind!=='proforma'\|\|source\.role!=='standard'\|\|source\.status!=='final'\|\|source\.lifecycleStatus==='voided'/);
 });
 
 test('document workspace suppresses duplicate conversion and opens the linked invoice instead',async()=>{
