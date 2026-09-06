@@ -1,3 +1,4 @@
+// v169 mobile Final-quotation stack refresh — recache the late mobile accessibility layer after the overlap fix.
 // v169 artwork AI rollout — refresh cached Settings runtime for signature and stamp AI controls.
 // v169 — isolate the AI-logo runtime refresh in a fresh cache generation.
 // AI logo rollout cache refresh — force Safari/PWA clients to reinstall the worker and recache the new Settings/AI runtime.
