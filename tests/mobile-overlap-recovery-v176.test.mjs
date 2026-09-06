@@ -4,9 +4,10 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('v176 is the final application layer while v141 remains the final document stylesheet',async()=>{
+test('v176 remains the final modal recovery layer before later app-only layers and v141 remains final document stylesheet',async()=>{
   const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   const recovery='mobile-overlap-recovery-v176.css';
+  const later='mobile-controls-density-v177.css';
   const documentLayer='document-premium-redesign-v141.css';
   assert.match(html,new RegExp(recovery.replaceAll('.','\\.')));
   const recoveryIndex=html.indexOf(recovery);
@@ -14,11 +15,12 @@ test('v176 is the final application layer while v141 remains the final document 
     assert.ok(html.indexOf(older)>=0,`${older} should remain loaded`);
     assert.ok(recoveryIndex>html.indexOf(older),`v176 must load after ${older}`);
   }
-  assert.ok(html.indexOf(documentLayer)>recoveryIndex,'v141 must remain after the final application recovery layer');
+  assert.ok(html.indexOf(later)>recoveryIndex,'later app-only recovery layer should follow v176');
+  assert.ok(html.indexOf(documentLayer)>html.indexOf(later),'v141 must remain after all application recovery layers');
   const styleNames=[...html.matchAll(/<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>/g)].map(match=>match[1]);
   assert.equal(styleNames.at(-1),documentLayer);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v176';$/m);
-  assert.ok(sw.includes(`./styles/${recovery}`),'v176 recovery stylesheet must ship in the installed PWA cache');
+  assert.match(sw,/lourex-invoice-v176: preserved as a legacy marker/);
+  assert.ok(sw.includes(`./styles/${recovery}`),'v176 recovery stylesheet must remain in the installed PWA cache');
 });
 
 test('v176 keeps destructive confirmation footer inside the dynamic mobile viewport',async()=>{
