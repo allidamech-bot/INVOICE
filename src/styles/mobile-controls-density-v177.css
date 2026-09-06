@@ -41,7 +41,28 @@
   }
 }
 
+/* Phone geometry must not depend on a browser reporting pointer:coarse correctly.
+   Safari/standalone PWAs and automated Chromium contexts can disagree about the
+   primary pointer even when the screen is touch driven. These are explicit app
+   controls that are known to have legacy fixed 32–40px dimensions. */
 @media (max-width:720px){
+  .app-ui :where(
+    .settings-tabs>button,
+    .product-library-star,
+    .product-library-row>.icon-btn,
+    .cloud-account-actions .btn
+  ),
+  .auth-page :where(.account-entry-tabs button){
+    box-sizing:border-box!important;
+    min-height:44px!important;
+    max-height:none!important;
+  }
+
+  .app-ui :where(.product-library-star,.product-library-row>.icon-btn){
+    min-width:44px!important;
+    max-width:none!important;
+  }
+
   /* Never let heading/action rows create a hidden second viewport. */
   .app-ui :where(
     .page-heading,
