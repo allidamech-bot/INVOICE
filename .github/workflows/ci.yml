@@ -19,3 +19,32 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - name: Install browser visual QA runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install chromium
+      - name: Run browser visual QA
+        run: |
+          npx http-server . -p 4173 -c-1 > /tmp/lourex-visual-qa-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/tests/visual/template-visual-qa.html >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/lourex-visual-qa-server.log
+            exit 1
+          fi
+          node tests/visual/run-template-visual-qa.cjs visual-qa-output
+      - name: Upload visual QA evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lourex-visual-qa
+          path: visual-qa-output
+          if-no-files-found: ignore

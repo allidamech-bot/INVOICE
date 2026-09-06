@@ -63,9 +63,21 @@ async function inspectPage(page,testCase){
   const browser=await chromium.launch({headless:true,executablePath:chromium.executablePath()});
   const context=await browser.newContext({viewport:{width:1440,height:1280},deviceScaleFactor:1});
   const page=await context.newPage();
-  const browserErrors=[];
-  page.on('console',message=>{if(message.type()==='error')browserErrors.push(message.text());});
-  page.on('pageerror',error=>browserErrors.push(error.message));
+  const browserErrors=new Set();
+  page.on('response',response=>{
+    const status=response.status();
+    if(status>=400)browserErrors.add(`HTTP ${status} ${response.url()}`);
+  });
+  page.on('console',message=>{
+    if(message.type()!=='error')return;
+    const text=message.text();
+    // Network errors are captured above with their exact status and URL.
+    if(/^Failed to load resource:/.test(text))return;
+    const location=message.location();
+    const source=location?.url?` @ ${location.url()}:${location.lineNumber??0}`:'';
+    browserErrors.add(`${text}${source}`);
+  });
+  page.on('pageerror',error=>browserErrors.add(error.message));
   const results=[];
   for(const language of ['en','ar']){
     for(const template of templates){
@@ -112,7 +124,7 @@ async function inspectPage(page,testCase){
     if(result.language==='en'&&!(result.sellerX<result.customerX))failures.push(`${label}: seller/customer grid order is incorrect`);
     if(result.language==='bilingual'&&result.bilingualRtlCount<3)failures.push(`${label}: bilingual Arabic content is missing`);
   }
-  if(browserErrors.length)failures.push(...browserErrors.map(error=>`browser: ${error}`));
+  if(browserErrors.size)failures.push(...[...browserErrors].map(error=>`browser: ${error}`));
   const report={baseUrl,outputDir,caseCount:results.length,failures,results};
   await writeFile(path.join(outputDir,'report.json'),JSON.stringify(report,null,2));
   console.log(JSON.stringify({caseCount:results.length,failures:failures.length,outputDir},null,2));
