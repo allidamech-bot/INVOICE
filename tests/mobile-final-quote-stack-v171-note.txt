@@ -1,1 +1,0 @@
-Screenshot-led regression marker: the final quotation conversion sheet must remain fully visible above the step navigator and mobile action bar on narrow iPhones, with no clipping of the Create Invoice CTA.
