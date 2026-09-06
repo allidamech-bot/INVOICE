@@ -103,6 +103,7 @@ test('final-details reservation never drops or duplicates stress rows', () => {
 test('heavy media snapshots survive duplicate and proforma-to-invoice conversion without shared item identity', () => {
   const source = heavyDocument();
   const duplicate = duplicateDocument(source, 'PI-2026-10000');
+  source.status='final';
   const invoice = convertToInvoice(source, 'INV-2026-10000');
   for (const doc of [duplicate, invoice]) {
     assert.equal(doc.companySnapshot.logoDataUrl, source.companySnapshot.logoDataUrl);
