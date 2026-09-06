@@ -8,34 +8,46 @@
   <link rel="stylesheet" href="../../src/styles/design-system-v164.css">
   <link rel="stylesheet" href="../../src/styles/final-mobile-accessibility-v168.css">
   <style>
-    html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#f6f2ea}
+    html,body{margin:0;width:100%;height:100%;font-family:Arial,sans-serif;background:#f6f2ea}
     *{box-sizing:border-box}
-    .fixture-content{min-height:1200px;background:#fff;border:1px solid #ddd}
-    .editor-section-nav{display:grid;grid-template-columns:repeat(6,1fr);width:100%;height:100%}
-    .editor-section-nav button,.mobile-action-buttons button,.final-quote-convert-bar .btn{min-height:44px}
-    .mobile-action-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+    .app-ui{width:100%;height:100%}
+    .fixture-topbar{min-height:58px;background:#fff;border-bottom:1px solid #ddd}
+    .fixture-readiness{min-height:48px;margin:8px 14px 0;background:#fff;border:1px solid #ddd;border-radius:12px}
+    .fixture-lock{min-height:64px;margin:8px 14px 0;background:#eef7fb;border:1px solid #c9dce4;border-radius:12px}
+    .fixture-content{height:100%;min-height:0;background:#fff;border:1px solid #ddd}
+    .editor-section-navigator{direction:rtl}
+    .editor-section-nav-button{font:inherit}
+    .mobile-action-buttons button,.final-quote-convert-bar .btn{font:inherit}
   </style>
 </head>
 <body>
   <div class="app-ui">
     <section class="editor-screen">
-      <div class="editor-layout"><div class="fixture-content">Document content</div></div>
+      <div class="editor-topbar fixture-topbar"></div>
+      <div class="document-readiness fixture-readiness"></div>
+      <div class="final-lock-banner fixture-lock"></div>
+      <div class="editor-layout"><div class="editor-pane"><div class="editor-scroll"><div class="fixture-content">Document content</div></div></div></div>
       <div class="editor-section-nav-slot" data-editor-nav-slot>
-        <nav class="editor-section-nav" aria-label="Document sections">
-          <button>01</button><button>02</button><button>03</button><button>04</button><button>05</button><button>06</button>
+        <nav class="editor-section-navigator" aria-label="Document sections">
+          <button class="editor-section-nav-button active"><span class="editor-nav-number">01</span><span class="editor-nav-label">المستند</span></button>
+          <button class="editor-section-nav-button"><span class="editor-nav-number">02</span><span class="editor-nav-label">العميل</span></button>
+          <button class="editor-section-nav-button"><span class="editor-nav-number">03</span><span class="editor-nav-label">الأصناف</span></button>
+          <button class="editor-section-nav-button"><span class="editor-nav-number">04</span><span class="editor-nav-label">الإجماليات</span></button>
+          <button class="editor-section-nav-button"><span class="editor-nav-number">05</span><span class="editor-nav-label">الشروط</span></button>
+          <button class="editor-section-nav-button"><span class="editor-nav-number">06</span><span class="editor-nav-label">التصميم</span></button>
         </nav>
       </div>
       <div class="mobile-editor-actionbar">
-        <div class="mobile-action-total">USD 555.00</div>
+        <div class="mobile-total"><span>الإجمالي</span><strong>USD 555.00</strong></div>
         <div class="mobile-action-buttons">
           <button class="btn btn-primary">مراجعة</button><button class="btn">معاينة</button><button class="btn">PDF</button><button class="btn">مشاركة</button>
         </div>
       </div>
+      <div class="final-quote-convert-bar">
+        <div><span><strong>تم تأكيد الصفقة؟ أنشئ الفاتورة.</strong><small>يبقى عرض السعر نهائيًا دون تغيير، ويتم إنشاء فاتورة جديدة برقم مستقل.</small></span></div>
+        <button class="btn btn-primary" data-convert-cta>إنشاء فاتورة من عرض السعر</button>
+      </div>
     </section>
-    <div class="final-quote-convert-bar">
-      <div><strong>تم تأكيد الصفقة؟ أنشئ الفاتورة.</strong><small>أنشئ فاتورة مرتبطة بعرض السعر النهائي.</small></div>
-      <button class="btn btn-primary" data-convert-cta>إنشاء فاتورة من عرض السعر</button>
-    </div>
   </div>
 </body>
 </html>

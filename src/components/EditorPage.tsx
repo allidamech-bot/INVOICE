@@ -256,6 +256,7 @@ export class EditorPage extends React.Component<Props,State>{
     const canConvertFinalQuote=finalQuote&&!linkedInvoice;
     const sections=this.state.sections;
     const navSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-nav-slot]');
+    const editorScreen=typeof document==='undefined'?null:document.querySelector('.editor-screen');
     const sectionNavigator=sections.length?<nav className={`editor-section-navigator ${finalQuote?'has-final-quote-action':''}`} aria-label={t('Document editing steps','مراحل تحرير المستند')}>
       {sections.map(section=>{
         const active=section.id===this.state.activeSectionId;
@@ -268,6 +269,12 @@ export class EditorPage extends React.Component<Props,State>{
       })}
       <span className="editor-nav-live-status" aria-live="polite">{sections.find(section=>section.id===this.state.activeSectionId)?.label||''}</span>
     </nav>:null;
+    const finalQuoteAction=finalQuote?(linkedInvoice?<div className="final-quote-convert-bar is-converted" role="status">
+      <div><Icon name="check" size={18}/><span><strong>{t('Invoice already created from this quote.','تم إنشاء فاتورة من عرض السعر هذا بالفعل.')}</strong><small>{t(`Linked invoice: ${linkedInvoice.number}. Cancel that invoice before creating a replacement from this quote.`,`الفاتورة المرتبطة: ${linkedInvoice.number}. ألغِ تلك الفاتورة قبل إنشاء بديل من عرض السعر هذا.`)}</small></span></div>
+    </div>:canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
+      <div><Icon name="invoice" size={18}/><span><strong>{t('Deal confirmed? Create the invoice.','تم تأكيد الصفقة؟ أنشئ الفاتورة.')}</strong><small>{t('The quote stays Final and unchanged. A new invoice is created with its own number.','يبقى عرض السعر نهائيًا دون تغيير، ويتم إنشاء فاتورة جديدة برقم مستقل.')}</small></span></div>
+      <Button icon="invoice" variant="primary" onClick={this.convertFinalQuote}>{t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>
+    </div>:null):null;
     return <>
       {this.state.persistenceError?<div className="editor-global-error" role="alert">{this.state.persistenceError}</div>:null}
       <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry} onPrint={this.printWithPreparedMode}/>
@@ -275,12 +282,7 @@ export class EditorPage extends React.Component<Props,State>{
       <InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>
       <ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>
       {sectionNavigator&&navSlot?ReactDOM.createPortal(sectionNavigator,navSlot):null}
-      {finalQuote?(linkedInvoice?<div className="final-quote-convert-bar is-converted" role="status">
-        <div><Icon name="check" size={18}/><span><strong>{t('Invoice already created from this quote.','تم إنشاء فاتورة من عرض السعر هذا بالفعل.')}</strong><small>{t(`Linked invoice: ${linkedInvoice.number}. Cancel that invoice before creating a replacement from this quote.`,`الفاتورة المرتبطة: ${linkedInvoice.number}. ألغِ تلك الفاتورة قبل إنشاء بديل من عرض السعر هذا.`)}</small></span></div>
-      </div>:canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
-        <div><Icon name="invoice" size={18}/><span><strong>{t('Deal confirmed? Create the invoice.','تم تأكيد الصفقة؟ أنشئ الفاتورة.')}</strong><small>{t('The quote stays Final and unchanged. A new invoice is created with its own number.','يبقى عرض السعر نهائيًا دون تغيير، ويتم إنشاء فاتورة جديدة برقم مستقل.')}</small></span></div>
-        <Button icon="invoice" variant="primary" onClick={this.convertFinalQuote}>{t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>
-      </div>:null):null}
+      {finalQuoteAction&&editorScreen?ReactDOM.createPortal(finalQuoteAction,editorScreen):null}
     </>;
   }
 }

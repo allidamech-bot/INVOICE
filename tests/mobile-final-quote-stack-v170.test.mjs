@@ -4,37 +4,47 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('Final quotation conversion reserves a dedicated mobile lane instead of covering the editor step dock',async()=>{
-  const [finalCss,editorCss,legacyCss]=await Promise.all([
+test('Final quotation conversion is portaled into the editor layout instead of floating outside it',async()=>{
+  const [wrapper,finalCss,editorCss,legacyCss]=await Promise.all([
+    read('src/components/EditorPage.tsx'),
     read('src/styles/final-mobile-accessibility-v168.css'),
     read('src/styles/editor-workspace-v162.css'),
     read('src/styles/editor-workflow-v61.css')
   ]);
 
+  // The legacy layer is intentionally left untouched for backward cascade safety;
+  // the final release layer must override it structurally.
   assert.match(legacyCss,/\.final-quote-convert-bar\{position:fixed/);
-  assert.match(editorCss,/\.app-ui \.editor-section-nav-slot\{[\s\S]*?min-height:48px!important/);
-  assert.match(editorCss,/\.app-ui \.mobile-editor-actionbar\{[\s\S]*?z-index:34!important/);
-
-  assert.match(finalCss,/body:has\(\.final-quote-convert-bar\)\{[\s\S]*?--final-quote-nav-height:60px/);
-  assert.match(finalCss,/--final-quote-stack-gap:10px/);
-  assert.match(finalCss,/body:has\(\.final-quote-convert-bar\) \.app-ui \.editor-layout\{[\s\S]*?margin-bottom:calc\(var\(--final-quote-sheet-height\) \+ var\(--final-quote-stack-gap\)\)!important/);
-  assert.match(finalCss,/bottom:calc\(var\(--final-quote-nav-height\) \+ var\(--final-quote-actionbar-height\) \+ env\(safe-area-inset-bottom\) \+ var\(--final-quote-stack-gap\)\)!important/);
-  assert.match(finalCss,/z-index:33!important/);
-  assert.match(finalCss,/max-height:none!important/);
-  assert.match(finalCss,/overflow:visible!important/);
+  assert.match(wrapper,/document\.querySelector\('\.editor-screen'\)/);
+  assert.match(wrapper,/ReactDOM\.createPortal\(finalQuoteAction,editorScreen\)/);
+  assert.match(finalCss,/\.app-ui \.editor-screen>\.final-quote-convert-bar\{order:35\}/);
+  assert.match(finalCss,/position:relative!important/);
+  assert.match(finalCss,/bottom:auto!important/);
+  assert.match(finalCss,/width:auto!important/);
+  assert.match(finalCss,/\.app-ui \.editor-screen>\.editor-layout\{order:40\}/);
+  assert.match(finalCss,/\.app-ui \.editor-screen>\.editor-section-nav-slot\{order:50\}/);
+  assert.match(finalCss,/\.app-ui \.editor-screen>\.mobile-editor-actionbar\{order:60\}/);
+  assert.match(editorCss,/\.app-ui \.editor-section-nav-slot\{[\s\S]*?min-height:46px!important/);
 });
 
-test('narrow iPhone layout keeps the full conversion CTA above the two-row mobile action bar',async()=>{
+test('phone uses one flow stack while tablet and desktop keep conversion inline near the Final banner',async()=>{
   const css=await read('src/styles/final-mobile-accessibility-v168.css');
+
+  assert.match(css,/@media \(max-width:900px\) and \(min-width:721px\)\{[\s\S]*?margin:8px 9px 0!important/);
+  assert.match(css,/@media \(max-width:720px\)\{[\s\S]*?final-quote-convert-bar\{order:45\}/);
+  assert.match(css,/@media \(max-width:720px\)\{[\s\S]*?grid-template-columns:minmax\(0,1fr\) auto!important/);
   assert.match(css,/@media \(max-width:720px\)\{[\s\S]*?\.final-quote-convert-bar small\{display:none!important\}/);
-  assert.match(css,/@media \(max-width:520px\)\{[\s\S]*?--final-quote-actionbar-height:108px/);
-  assert.match(css,/@media \(max-width:430px\)\{[\s\S]*?--final-quote-actionbar-height:112px[\s\S]*?--final-quote-sheet-height:120px/);
-  assert.match(css,/body:has\(\.editor-screen\.mobile-preview-open\) \.final-quote-convert-bar\{display:none!important\}/);
+  assert.match(css,/@media \(max-width:430px\)\{[\s\S]*?grid-template-columns:minmax\(0,1fr\)!important/);
+  assert.match(css,/mobile-preview-open>\.final-quote-convert-bar\{display:none!important\}/);
+  assert.doesNotMatch(css,/--final-quote-actionbar-height|--final-quote-nav-height|bottom:calc\(var\(--final-quote/);
 });
 
-test('the service worker refreshes the cached late mobile CSS after the overlap fix',async()=>{
-  const sw=await read('public/sw.js');
-  assert.match(sw,/mobile Final-quotation stack refresh/);
+test('the conversion CTA keeps reliable touch geometry and the PWA still caches the final layout layer',async()=>{
+  const [css,sw]=await Promise.all([
+    read('src/styles/final-mobile-accessibility-v168.css'),
+    read('public/sw.js')
+  ]);
+  assert.match(css,/\.final-quote-convert-bar>\.btn\{[\s\S]*?min-height:44px!important/);
   assert.match(sw,/\.\/styles\/final-mobile-accessibility-v168\.css/);
   assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
 });

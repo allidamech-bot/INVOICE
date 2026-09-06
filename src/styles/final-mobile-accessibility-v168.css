@@ -1,6 +1,7 @@
 /* Final release — coarse-pointer target hardening.
    Application chrome only. Printable invoice/quotation output is intentionally untouched.
-   v171 recalibrates the Final-quotation mobile stack from the real dock geometry. */
+   v172 moves Final-quotation conversion into the editor flex layout so phone,
+   tablet and desktop never depend on fixed bottom offsets. */
 
 @media (max-width:720px) and (pointer:coarse){
   /* Older compact mobile layers intentionally reduced several controls below
@@ -63,66 +64,144 @@
   }
 }
 
-/* Final quotation conversion is still a fixed workflow sheet in the legacy
-   component. Keep it inside a deliberately reserved lane above BOTH real dock
-   rows. The first hotfix used the nominal 48/86px values, but iPhone safe-area,
-   button target hardening and nav padding make the rendered rows taller. Use a
-   conservative outer-box allowance and never clip the conversion controls. */
-@media (max-width:900px){
-  body:has(.final-quote-convert-bar){
-    --final-quote-nav-height:60px;
-    --final-quote-actionbar-height:76px;
-    --final-quote-sheet-height:92px;
-    --final-quote-stack-gap:10px;
-  }
+/* Final quotation conversion now lives inside .editor-screen through a portal.
+   Give every direct editor row an explicit flex order. This makes layout geometry
+   deterministic instead of stacking three unrelated fixed layers. */
+.app-ui .editor-screen>.editor-topbar{order:10}
+.app-ui .editor-screen>.document-readiness{order:20}
+.app-ui .editor-screen>.final-lock-banner{order:30}
+.app-ui .editor-screen>.editor-global-error,
+.app-ui .editor-screen>.editor-validation-summary{order:32}
+.app-ui .editor-screen>.final-quote-convert-bar{order:35}
+.app-ui .editor-screen>.editor-layout{order:40}
+.app-ui .editor-screen>.editor-section-nav-slot{order:50}
+.app-ui .editor-screen>.mobile-editor-actionbar{order:60}
 
-  body:has(.final-quote-convert-bar) .app-ui .editor-layout{
-    margin-bottom:calc(var(--final-quote-sheet-height) + var(--final-quote-stack-gap))!important;
-  }
+/* Tablet + desktop: keep the conversion decision inline directly beneath the
+   Final state banner. It consumes real layout space and can never cover fields. */
+.app-ui .editor-screen>.final-quote-convert-bar,
+[dir='rtl'] .app-ui .editor-screen>.final-quote-convert-bar{
+  position:relative!important;
+  inset:auto!important;
+  top:auto!important;
+  right:auto!important;
+  bottom:auto!important;
+  left:auto!important;
+  z-index:31!important;
+  flex:0 0 auto!important;
+  box-sizing:border-box!important;
+  width:auto!important;
+  max-width:none!important;
+  min-width:0!important;
+  min-height:64px!important;
+  margin:8px 14px 0!important;
+  padding:10px 12px!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:12px!important;
+  overflow:visible!important;
+  border:1px solid #c9dce4!important;
+  border-radius:13px!important;
+  background:#f2f8fb!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  transform:none!important;
+}
 
-  .final-quote-convert-bar,
-  [dir='rtl'] .final-quote-convert-bar{
-    box-sizing:border-box!important;
-    bottom:calc(var(--final-quote-nav-height) + var(--final-quote-actionbar-height) + env(safe-area-inset-bottom) + var(--final-quote-stack-gap))!important;
-    z-index:33!important;
-    max-height:none!important;
-    overflow:visible!important;
+.app-ui .editor-screen>.final-quote-convert-bar.is-converted{
+  grid-template-columns:minmax(0,1fr)!important;
+}
+
+.app-ui .editor-screen>.final-quote-convert-bar>div{
+  min-width:0!important;
+  display:flex!important;
+  align-items:flex-start!important;
+  gap:9px!important;
+}
+
+.app-ui .editor-screen>.final-quote-convert-bar>div>svg{
+  flex:0 0 auto!important;
+  margin-top:2px!important;
+}
+
+.app-ui .editor-screen>.final-quote-convert-bar span{
+  min-width:0!important;
+  display:grid!important;
+  gap:2px!important;
+}
+
+.app-ui .editor-screen>.final-quote-convert-bar strong{
+  color:#234d63!important;
+  font-size:12px!important;
+  line-height:1.35!important;
+  overflow-wrap:anywhere!important;
+}
+
+.app-ui .editor-screen>.final-quote-convert-bar small{
+  color:#6b7e88!important;
+  font-size:10px!important;
+  line-height:1.45!important;
+  overflow-wrap:anywhere!important;
+}
+
+.app-ui .editor-screen>.final-quote-convert-bar>.btn{
+  min-width:190px!important;
+  min-height:44px!important;
+  white-space:nowrap!important;
+}
+
+@media (max-width:900px) and (min-width:721px){
+  .app-ui .editor-screen>.final-quote-convert-bar,
+  [dir='rtl'] .app-ui .editor-screen>.final-quote-convert-bar{
+    margin:8px 9px 0!important;
   }
 }
 
-/* Phone action bars wrap into two rows. Hide the explanatory sentence here so
-   the important decision and CTA stay compact and their height is predictable. */
+/* Phone: the same element becomes a real row in the bottom editor stack:
+   content -> conversion -> 01–06 navigator -> document actions. No fixed CTA,
+   no guessed bottom offset, and no overlap regardless of safe-area height. */
 @media (max-width:720px){
-  body:has(.final-quote-convert-bar){
-    --final-quote-actionbar-height:88px;
-    --final-quote-sheet-height:126px;
-  }
-  .final-quote-convert-bar small{display:none!important}
-}
+  .app-ui .editor-screen>.final-quote-convert-bar{order:45}
 
-/* iPhone widths render the total above the four 44px actions. The safe area is
-   added separately in the bottom expression, so this value covers the real
-   content/padding box without guessing from the old 64px minimum. */
-@media (max-width:520px){
-  body:has(.final-quote-convert-bar){
-    --final-quote-actionbar-height:108px;
-    --final-quote-sheet-height:124px;
+  .app-ui .editor-screen>.final-quote-convert-bar,
+  [dir='rtl'] .app-ui .editor-screen>.final-quote-convert-bar{
+    min-height:58px!important;
+    margin:0!important;
+    padding:7px max(9px,env(safe-area-inset-right)) 7px max(9px,env(safe-area-inset-left))!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:8px!important;
+    border-inline:0!important;
+    border-bottom:0!important;
+    border-radius:0!important;
+    background:#f1f7fa!important;
+  }
+
+  .app-ui .editor-screen>.final-quote-convert-bar small{display:none!important}
+  .app-ui .editor-screen>.final-quote-convert-bar strong{font-size:11px!important}
+  .app-ui .editor-screen>.final-quote-convert-bar>.btn{
+    min-width:0!important;
+    min-height:44px!important;
+    padding-inline:12px!important;
   }
 }
 
 @media (max-width:430px){
-  body:has(.final-quote-convert-bar){
-    --final-quote-nav-height:60px;
-    --final-quote-actionbar-height:112px;
-    --final-quote-sheet-height:120px;
-  }
-  .final-quote-convert-bar,
-  [dir='rtl'] .final-quote-convert-bar{
+  .app-ui .editor-screen>.final-quote-convert-bar,
+  [dir='rtl'] .app-ui .editor-screen>.final-quote-convert-bar{
+    grid-template-columns:minmax(0,1fr)!important;
     gap:7px!important;
-    padding:9px!important;
+  }
+  .app-ui .editor-screen>.final-quote-convert-bar>.btn{
+    width:100%!important;
+    min-width:0!important;
   }
 }
 
-/* Full-screen preview owns the viewport; never leave the conversion sheet over
-   PDF/share preview controls. */
-body:has(.editor-screen.mobile-preview-open) .final-quote-convert-bar{display:none!important}
+/* Full-screen preview owns the viewport; never leave conversion controls behind
+   the preview PDF/share toolbar. */
+.app-ui .editor-screen.mobile-preview-open>.final-quote-convert-bar{display:none!important}
+
+@media print{
+  .app-ui .final-quote-convert-bar{display:none!important}
+}
