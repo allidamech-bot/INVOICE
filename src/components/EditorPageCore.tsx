@@ -118,8 +118,6 @@ export class EditorPage extends React.Component<Props,State>{
   private schedulePreview=()=>{
     if(!this.state.desktopPreview)return;
     if(this.previewTimer)window.clearTimeout(this.previewTimer);
-    // The A4 tree is deliberately one beat behind typing. This removes the
-    // multi-page renderer from the keystroke path without changing output data.
     this.previewTimer=window.setTimeout(()=>this.setState({previewDoc:structuredClone(this.state.doc)}),180);
   };
 
@@ -255,7 +253,7 @@ export class EditorPage extends React.Component<Props,State>{
 
     return <div className={`editor-screen workflow-${workflow} ${this.state.mobilePreview?'mobile-preview-open':''}`} aria-busy={this.state.issuing}>
       <header className="editor-topbar">
-        <div className="editor-top-left"><IconButton icon="arrowLeft" label={t('Back','رجوع')} onClick={()=>void this.saveAndClose()}/><div><strong>{d.number}</strong><span>{d.role==='credit-note'?t('Credit Note','إشعار دائن'):d.kind==='proforma'?t('Proforma Invoice','عرض سعر'):t('Invoice','فاتورة')}</span></div><span className={`editor-workflow-badge status-${workflow}`}>{workflow==='final'?t('Final','نهائي'):workflow==='ready'?t('Ready','جاهز'):t('Draft','مسودة')}</span></div>
+        <div className="editor-top-left"><IconButton icon="arrowLeft" label={t('Back','رجوع')} onClick={()=>void this.saveAndClose()}/><div><strong>{d.number}</strong><span>{d.role==='credit-note'?t('Credit Note','إشعار دائن'):d.kind==='proforma'?t('Quotation','عرض سعر'):t('Invoice','فاتورة')}</span></div><span className={`editor-workflow-badge status-${workflow}`}>{workflow==='final'?t('Final','نهائي'):workflow==='ready'?t('Ready','جاهز'):t('Draft','مسودة')}</span></div>
         <div className="editor-grand-total-chip"><span>{t('Grand Total','الإجمالي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div>
         <div className={`save-indicator state-${locked?'saved':this.state.saveState}`} aria-live="polite">{locked?t('Final document locked','المستند النهائي مقفل'):this.state.saveState==='saving'?t('Saving locally…','جارٍ الحفظ محليًا…'):this.state.saveState==='saved'?t('Saved locally','تم الحفظ محليًا'):t('Changes not saved yet','تغييرات لم تُحفظ بعد')}</div>
         <div className="editor-actions">
