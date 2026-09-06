@@ -12,8 +12,9 @@ test('v177 loads after all application mobile recovery layers, before document o
   assert.ok(html.indexOf(doc)>html.indexOf(current));
   const styles=[...html.matchAll(/<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>/g)].map(m=>m[1]);
   assert.equal(styles.at(-1),doc);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v178';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v179';$/m);
   assert.ok(sw.includes(`./styles/${current}`));
+  assert.match(sw,/lourex-invoice-v178: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v177: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v176: preserved as a legacy marker/);
 });
