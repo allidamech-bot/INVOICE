@@ -1,3 +1,4 @@
+// v176 mobile overlap recovery — recache the final application modal/safe-area layer without changing the established explicit-update lifecycle.
 // v171 mobile Final-quotation geometry recalibration — recache the corrected no-overlap mobile stack.
 // v169 mobile Final-quotation stack refresh — recache the late mobile accessibility layer after the overlap fix.
 // v169 artwork AI rollout — refresh cached Settings runtime for signature and stamp AI controls.
@@ -43,6 +44,7 @@ const LOCAL_CORE = ["./","./index.html","./health.html","./manifest.webmanifest"
 const EXTERNAL_CORE = ["https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js","https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react-dom.production.min.js","https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js","https://www.gstatic.com/firebasejs/12.17.1/firebase-auth-compat.js","https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore-compat.js","https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js","https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js","https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"];
 LOCAL_CORE.push('./styles/design-system-v164.css');
 LOCAL_CORE.push('./styles/final-mobile-accessibility-v168.css');
+LOCAL_CORE.push('./styles/mobile-overlap-recovery-v176.css');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
 const FRESH_PATHS = new Set(['/ios-print-bridge.js','/pull-to-refresh.js']);
