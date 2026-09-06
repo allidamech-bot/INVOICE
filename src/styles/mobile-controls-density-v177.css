@@ -50,6 +50,32 @@
   .app-ui .product-library-star,
   .app-ui .product-library-row>.icon-btn,
   .app-ui .cloud-account-actions .btn,
+  .app-ui .saved-items-search-clear,
+  .app-ui .saved-items-quick-filters button,
+  .app-ui .product-library-list-head .btn,
+  .app-ui .product-metadata-suggestions button,
+  .app-ui .segmented button,
+  .app-ui .status-filter button,
+  .app-ui .settings-title>.btn,
+  .app-ui .dashboard-panel-heading>button,
+  .app-ui .editor-top-left>.icon-btn,
+  .app-ui .editor-top-left .icon-btn,
+  .app-ui .final-lock-banner .btn,
+  .app-ui .editor-section .input,
+  .app-ui .editor-section select.input,
+  .app-ui .premium-selected-customer>.btn,
+  .app-ui .recent-customer-row button,
+  .app-ui .item-card-actions .btn,
+  .app-ui .item-card-actions .icon-btn,
+  .app-ui .mobile-preview-overlay>header .btn,
+  .app-ui .mobile-preview-overlay>header .icon-btn,
+  .app-ui .mobile-action-buttons .btn,
+  .app-ui .template-favorite-button,
+  .app-ui .logo-mode-switch button,
+  .app-ui .logo-rebuild-restore,
+  .app-ui .logo-touch-editor-close,
+  .app-ui .logo-touch-editor-utility button,
+  .auth-page .auth-language-switch,
   .auth-page .account-entry-tabs button{
     box-sizing:border-box!important;
     min-height:44px!important;
@@ -57,7 +83,14 @@
   }
 
   .app-ui .product-library-star,
-  .app-ui .product-library-row>.icon-btn{
+  .app-ui .product-library-row>.icon-btn,
+  .app-ui .saved-items-search-clear,
+  .app-ui .editor-top-left>.icon-btn,
+  .app-ui .editor-top-left .icon-btn,
+  .app-ui .item-card-actions .icon-btn,
+  .app-ui .mobile-preview-overlay>header .icon-btn,
+  .app-ui .template-favorite-button,
+  .app-ui .logo-touch-editor-close{
     min-width:44px!important;
     max-width:none!important;
   }
@@ -105,7 +138,9 @@
     .segmented,
     .operations-tabs,
     .reports-presets,
-    .documents-filter-tabs
+    .documents-filter-tabs,
+    .saved-items-quick-filters,
+    .status-filter
   ){
     max-width:100%!important;
     overflow-x:auto!important;
@@ -120,7 +155,9 @@
     .segmented,
     .operations-tabs,
     .reports-presets,
-    .documents-filter-tabs
+    .documents-filter-tabs,
+    .saved-items-quick-filters,
+    .status-filter
   )::-webkit-scrollbar{display:none}
 
   .app-ui :where(.form-grid,.form-grid.two,.customer-form-grid,.product-editor-grid,.settings-grid) > *{
