@@ -1,3 +1,4 @@
+// v177 mobile control-density recovery — recache the final coarse-pointer target and clipping layer.
 // v176 mobile overlap recovery — recache the final application modal/safe-area layer without changing the established explicit-update lifecycle.
 // v171 mobile Final-quotation geometry recalibration — recache the corrected no-overlap mobile stack.
 // v169 mobile Final-quotation stack refresh — recache the late mobile accessibility layer after the overlap fix.
@@ -37,7 +38,8 @@
 /* Historical v169 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v169';
 */
-const CACHE = 'lourex-invoice-v176';
+const CACHE = 'lourex-invoice-v177';
+// lourex-invoice-v176: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v169: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v168: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v167: preserved as a legacy marker for cache-migration tests.
@@ -49,6 +51,7 @@ const EXTERNAL_CORE = ["https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.prod
 LOCAL_CORE.push('./styles/design-system-v164.css');
 LOCAL_CORE.push('./styles/final-mobile-accessibility-v168.css');
 LOCAL_CORE.push('./styles/mobile-overlap-recovery-v176.css');
+LOCAL_CORE.push('./styles/mobile-controls-density-v177.css');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
 const FRESH_PATHS = new Set(['/ios-print-bridge.js','/pull-to-refresh.js']);
