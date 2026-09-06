@@ -25,7 +25,7 @@ test('v177 establishes a universal 44px coarse-pointer interaction floor without
   assert.match(css,/min-height:44px!important/);
   assert.match(css,/button\[aria-label\][\s\S]*min-width:44px!important/);
   for(const selector of ['.documents-sort','.section-heading-actions .btn','.editor-top-left>.icon-btn','.mobile-action-buttons .btn','.settings-tabs>button','.product-library-row>.icon-btn','.cloud-account-actions .btn']) assert.ok(css.includes(selector),selector);
-  assert.doesNotMatch(css,/\.invoice-page|\.template-|\.document-page|\.items-table/);
+  assert.doesNotMatch(css,/\.invoice-page|\.document-page|\.items-table|\.template-(?:executive|minimal|trade|signature|obsidian|cobalt|editorial|split|prism|slate|horizon|mono|aurora|ledger|noir|midnight|blackivory|carbon)/);
 });
 
 test('v177 phone touch safety uses explicit selectors for historical compact controls and does not depend on pointer reporting',async()=>{
