@@ -46,8 +46,49 @@
   }
 }
 
-@media (max-width:720px), (max-height:520px) and (pointer:coarse){
-  /* Use the dynamic viewport and keep the safe areas on the backdrop itself. */
+/* Final touch-target contract for coarse-pointer phones and tablets. Historical
+   mobile layers intentionally compacted several Settings/Product Library controls
+   to 32–42px; keep visual density but never shrink an actionable target below 44px. */
+@media (max-width:960px) and (pointer:coarse){
+  .app-ui :where(
+    .shell-mobile-brand>button,
+    .shell-sync-status,
+    .settings-title>.btn,
+    .settings-tabs>button,
+    .settings-account-actions .btn,
+    .settings-section-heading .btn,
+    .settings-workspace-v2 .settings-tabs>button,
+    .settings-workspace-v2 .settings-account-actions .btn,
+    .asset-card .btn,
+    .commercial-controls-settings .btn,
+    .product-library-commandbar .btn,
+    .product-library-commandbar .icon-btn,
+    .product-library-star,
+    .product-library-row>.icon-btn,
+    .product-library-editor-actions .btn,
+    .cloud-account-actions .btn,
+    .cloud-auth-form .btn
+  ){
+    box-sizing:border-box!important;
+    min-height:44px!important;
+    max-height:none!important;
+  }
+
+  .app-ui :where(
+    .shell-mobile-brand>button,
+    .product-library-commandbar .icon-btn,
+    .product-library-star,
+    .product-library-row>.icon-btn
+  ){
+    min-width:44px!important;
+  }
+}
+
+@media (max-width:720px), (max-height:520px){
+  /* Use the dynamic viewport and keep the safe areas on the backdrop itself.
+     Short-view protection is intentionally pointer-agnostic: WebKit/emulation can
+     report pointer capabilities inconsistently while the viewport still needs the
+     same reachability guarantees. */
   .app-ui .modal-backdrop{
     box-sizing:border-box!important;
     position:fixed!important;
@@ -119,6 +160,7 @@
   }
 
   .app-ui .modal-header>.icon-btn{
+    box-sizing:border-box!important;
     flex:0 0 44px!important;
     width:44px!important;
     min-width:44px!important;
@@ -182,15 +224,18 @@
     min-width:0!important;
     display:grid!important;
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    align-items:stretch!important;
     gap:7px!important;
   }
 
   .app-ui .modal-footer-actions>.btn,
   .app-ui .modal-footer-actions .btn{
+    box-sizing:border-box!important;
     width:100%!important;
     min-width:0!important;
     min-height:44px!important;
     height:auto!important;
+    max-height:none!important;
     padding:8px 10px!important;
     line-height:1.25!important;
     white-space:normal!important;
@@ -257,7 +302,7 @@
   }
 }
 
-@media (max-height:460px) and (pointer:coarse){
+@media (max-height:460px){
   .app-ui .modal-backdrop{
     padding-top:max(4px,env(safe-area-inset-top))!important;
     padding-bottom:max(4px,env(safe-area-inset-bottom))!important;
@@ -272,8 +317,15 @@
   }
 
   .app-ui .modal-footer{
-    min-height:52px!important;
+    min-height:58px!important;
     padding-top:4px!important;
+  }
+
+  .app-ui .modal-footer-actions .btn{
+    box-sizing:border-box!important;
+    min-height:44px!important;
+    height:auto!important;
+    max-height:none!important;
   }
 }
 
