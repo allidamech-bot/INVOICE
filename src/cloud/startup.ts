@@ -1,16 +1,17 @@
 import { getCloudAccount, putCloudAccount } from '../storage/db.js';
-import { cloudRemoteChangedSinceAnchor, getCloudVaultMeta, installCloudVault, waitForCloudUser } from './firebase.js';
+import { getCloudVaultMeta, reconcileCloudVault, waitForCloudUser } from './firebase.js';
 
 /**
  * Resolve the signed-in cloud account before React hydrates local encrypted data.
  *
  * iOS Home Screen PWAs can have an auth/storage context that differs from Safari.
- * If the account already has a cloud vault, that account copy is authoritative:
- * link this local container to the authenticated uid and install the remote vault
- * whenever this device has no sync anchor or the remote revision changed.
+ * Startup must therefore link the authenticated account early, but it must never
+ * replace a different local encrypted vault merely because localStorage lost the
+ * last sync anchor. Safe reconciliation installs cloud data only when there is no
+ * local vault, or when the verified anchor proves the local copy did not change.
  *
- * This happens before resumeVaultSession/unlock UI so a stale phone-local vault
- * cannot win merely because it was present first or carries a newer local timestamp.
+ * This happens before resumeVaultSession/unlock UI so stale cloud data cannot roll
+ * a newer device-local vault backwards during startup.
  */
 export async function hydrateAuthoritativeCloudBeforeApp():Promise<void>{
   if(typeof navigator!=='undefined'&&!navigator.onLine)return;
@@ -27,11 +28,10 @@ export async function hydrateAuthoritativeCloudBeforeApp():Promise<void>{
     if(linked&&linked.uid!==user.uid)return;
     if(!linked)await putCloudAccount(user.uid,user.email);
 
-    if(await cloudRemoteChangedSinceAnchor(user.uid)){
-      await installCloudVault(user.uid,false);
-    }
+    await reconcileCloudVault(user.uid);
   }catch{
-    // Startup must remain usable offline or during transient cloud failures.
-    // The regular freshness watcher retries silently once the app is mounted.
+    // Startup must remain usable offline, during transient cloud failures, or
+    // when local/cloud copies diverge. In every uncertain case the local vault
+    // is left untouched; the regular account flow can resolve it explicitly.
   }
 }
