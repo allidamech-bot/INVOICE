@@ -10,11 +10,13 @@ test('multi-device freshness never trusts device wall-clock timestamps',async()=
   assert.doesNotMatch(freshness,/remote\.updatedAt\s*[<>]=?\s*local\.updatedAt/);
 });
 
-test('the signed-in account copy is authoritative when no verified anchor exists',async()=>{
+test('automatic reconcile preserves local data when no verified anchor exists or both sides changed',async()=>{
   const cloud=await read('src/cloud/firebase.ts');
-  assert.match(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.match(cloud,/if\(!anchor\)throw new Error\('Cloud sync paused to protect local data/);
+  assert.match(cloud,/if\(remoteChanged&&localChanged\)throw new Error\('Cloud sync paused because local and cloud data both changed/);
   assert.match(cloud,/if\(remoteChanged\)\{await installCloudVault\(uid\);return 'pulled';\}/);
-  assert.doesNotMatch(cloud,/if\(remote\.updatedAt>local\.updatedAt\)\{await installCloudVault/);
+  assert.doesNotMatch(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.doesNotMatch(cloud,/remote\.updatedAt\s*[<>]=?\s*local\.updatedAt/);
 });
 
 test('legacy conflict helpers remain compatibility-only and are not exposed in account UI',async()=>{

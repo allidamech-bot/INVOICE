@@ -40,6 +40,8 @@ test('cloud restore is explicit and cloud publication never installs behind the 
   assert.doesNotMatch(push,/installCloudVault/);
   assert.match(push,/Promise<'same'\|'pushed'\|'remote-changed'>/);
   assert.match(push,/return 'remote-changed'/);
+  assert.match(cloud,/if\(!anchor\)throw new Error\('Cloud sync paused to protect local data/);
+  assert.match(cloud,/if\(remoteChanged&&localChanged\)throw new Error\('Cloud sync paused because local and cloud data both changed/);
   assert.match(app,/private cloudReplaceBlocked=\(\)=>this\.state\.screen==='editor'\|\|this\.state\.settingsOpen\|\|this\.state\.cloudModal/);
   assert.match(app,/private cloudRestore=async\(\)=>\{[\s\S]*await this\.beginProtectedOperation\(\)[\s\S]*installCloudVault\(user\.uid,false\)[\s\S]*this\.endProtectedOperation\(\)/);
   assert.match(app,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
@@ -47,17 +49,18 @@ test('cloud restore is explicit and cloud publication never installs behind the 
   assert.doesNotMatch(app,/remote\.updatedAt\s*[<>]=?\s*local\.updatedAt/);
 });
 
-test('startup authority, trusted-session ordering and explicit PWA updates remain intact',async()=>{
+test('startup safety, trusted-session ordering and explicit PWA updates remain intact',async()=>{
   const [entry,startup,app,sw]=await Promise.all([
     read('src/app/index.tsx'),read('src/cloud/startup.ts'),read('src/app/App.tsx'),read('public/sw.js')
   ]);
   assert.match(entry,/await hydrateAuthoritativeCloudBeforeApp\(\)/);
   assert.ok(entry.indexOf('await hydrateAuthoritativeCloudBeforeApp()')<entry.indexOf('ReactDOM.render'));
   assert.match(startup,/waitForCloudUser\(\)/);
-  assert.match(startup,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
-  assert.match(startup,/installCloudVault\(user\.uid,false\)/);
+  assert.match(startup,/await reconcileCloudVault\(user\.uid\)/);
+  assert.doesNotMatch(startup,/installCloudVault\(user\.uid,false\)/);
   assert.match(app,/auth-cloud-launcher/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v169';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v175';$/m);
+  assert.match(sw,/lourex-invoice-v169: preserved as a legacy marker/);
   assert.match(sw,/SKIP_WAITING/);
   assert.doesNotMatch(sw,/install[\s\S]{0,500}await self\.skipWaiting\(\)/);
 });

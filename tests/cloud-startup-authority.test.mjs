@@ -3,18 +3,19 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('app hydrates authoritative cloud vault before rendering local unlock state',async()=>{
+test('app resolves cloud state before rendering local unlock state',async()=>{
   const entry=await read('src/app/index.tsx');
   assert.match(entry,/hydrateAuthoritativeCloudBeforeApp/);
   assert.match(entry,/await hydrateAuthoritativeCloudBeforeApp\(\)/);
   assert.ok(entry.indexOf('await hydrateAuthoritativeCloudBeforeApp()')<entry.indexOf('ReactDOM.render'));
 });
 
-test('startup cloud bootstrap links authenticated account and pulls changed remote vault',async()=>{
+test('startup cloud bootstrap links authenticated account and routes through safe reconciliation',async()=>{
   const startup=await read('src/cloud/startup.ts');
   assert.match(startup,/waitForCloudUser/);
   assert.match(startup,/getCloudVaultMeta/);
   assert.match(startup,/putCloudAccount\(user\.uid,user\.email\)/);
-  assert.match(startup,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
-  assert.match(startup,/installCloudVault\(user\.uid,false\)/);
+  assert.match(startup,/await reconcileCloudVault\(user\.uid\)/);
+  assert.doesNotMatch(startup,/await installCloudVault\(user\.uid,false\)/);
+  assert.doesNotMatch(startup,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
 });
