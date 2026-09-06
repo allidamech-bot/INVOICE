@@ -36,7 +36,7 @@ function overlaps(a, b, tolerance=0.5) {
             top:r.top, right:r.right, bottom:r.bottom, left:r.left,
             width:r.width, height:r.height,
             display:style.display, visibility:style.visibility, opacity:Number(style.opacity || '1'),
-            position:style.position
+            position:style.position, maxWidth:style.maxWidth
           };
         };
         const measureAll = selector => Array.from(document.querySelectorAll(selector)).map(el=>{
@@ -114,8 +114,11 @@ function overlaps(a, b, tolerance=0.5) {
 
       if(width>=721&&width<=1180){
         // Tablet content must fill the editing surface instead of inheriting the
-        // old 840px desktop cap that caused the large blank iPad gutter.
-        if(scrollContent.width<scrollSurface.width-48)failures.push(`${label}: tablet editor content is artificially width-capped`);
+        // old 840px desktop cap that caused the large blank iPad gutter. Check
+        // both the actual computed max-width and usable rendered proportion;
+        // editor padding + stable scrollbar gutter are legitimate differences.
+        if(scrollContent.maxWidth!=='none')failures.push(`${label}: tablet editor still has computed max-width ${scrollContent.maxWidth}`);
+        if(scrollContent.width/scrollSurface.width<0.9)failures.push(`${label}: tablet editor uses only ${Math.round(scrollContent.width/scrollSurface.width*100)}% of editing width (${Math.round(scrollContent.width)}/${Math.round(scrollSurface.width)}px)`);
 
         // Tablet document header: one full-width number row, then two balanced pairs.
         if(number.width<documentGrid.width-2)failures.push(`${label}: document number does not span the tablet grid`);
