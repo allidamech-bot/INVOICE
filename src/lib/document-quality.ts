@@ -45,10 +45,11 @@ function firstPageCapacity(doc:LourexDocument):number{
   ].map(value=>value.trim()).filter(Boolean);
   const chars=values.reduce((sum,value)=>sum+value.length,0);
   const pressure=chars+values.length*18+(doc.language==='bilingual'?120:0);
-  if(pressure>1050)return 2;
-  if(pressure>780)return 3;
-  if(pressure>560)return 4;
-  if(pressure>380)return 5;
+  if(pressure>1600)return 2;
+  if(pressure>1300)return 3;
+  if(pressure>950)return 4;
+  if(pressure>700)return 5;
+  if(pressure>500)return 6;
   return 7;
 }
 
