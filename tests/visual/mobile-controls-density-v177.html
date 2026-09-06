@@ -3,17 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <link rel="stylesheet" href="../../src/styles/app.css">
-  <link rel="stylesheet" href="../../src/styles/mobile-workspaces-v148.css">
-  <link rel="stylesheet" href="../../src/styles/mobile-editor-recovery-v149.css">
-  <link rel="stylesheet" href="../../src/styles/mobile-auth-modal-v150.css">
-  <link rel="stylesheet" href="../../src/styles/app-shell-v161.css">
-  <link rel="stylesheet" href="../../src/styles/editor-workspace-v162.css">
-  <link rel="stylesheet" href="../../src/styles/settings-account-v163.css">
-  <link rel="stylesheet" href="../../src/styles/design-system-v164.css">
-  <link rel="stylesheet" href="../../src/styles/final-mobile-accessibility-v168.css">
-  <link rel="stylesheet" href="../../src/styles/mobile-overlap-recovery-v176.css">
-  <link rel="stylesheet" href="../../src/styles/mobile-controls-density-v177.css">
+  <!-- Geometry QA must exercise the exact production cascade assembled by build.mjs,
+       not a hand-picked subset of historical source stylesheets. -->
+  <link rel="stylesheet" href="../../dist/styles/app.bundle.css">
   <style>
     html,body{margin:0;width:100%;min-height:100%;font-family:Arial,sans-serif;background:#f6f2eb}
     *{box-sizing:border-box}.fixture{padding:10px;display:grid;gap:10px}.fixture-card{min-width:0;padding:10px;border:1px solid #ddd5ca;border-radius:12px;background:#fff}
