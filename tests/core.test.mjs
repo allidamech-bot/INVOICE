@@ -74,6 +74,7 @@ test('duplicate and conversion preserve content while producing independent iden
   const source = createBlankDocument('proforma', 'PI-2026-0001', defaultCompany()); source.customerSnapshot = customerSnapshotFrom(customer());
   source.items[0].descriptionEn = 'Red Bull Energy Drink Original 250ml'; source.items[0].quantity = '10'; source.items[0].unitPrice = '24.50';
   const dup = duplicateDocument(source, 'PI-2026-0002'); assert.notEqual(dup.id, source.id); assert.notEqual(dup.items[0].id, source.items[0].id); assert.equal(dup.items[0].descriptionEn, source.items[0].descriptionEn);
+  source.status='final';
   const inv = convertToInvoice(source, 'INV-2026-0001'); assert.equal(inv.kind, 'invoice'); assert.equal(inv.convertedFromId, source.id); assert.equal(source.kind, 'proforma');
 });
 
