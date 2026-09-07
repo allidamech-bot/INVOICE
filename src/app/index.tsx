@@ -7,12 +7,28 @@ import { purgeLegacySafetySnapshot } from '../storage/db.js';
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
 const appRoot=root;
+const CLOUD_STARTUP_BUDGET_MS=1_800;
+
+async function hydrateCloudWithinStartupBudget():Promise<void>{
+  let timeout:number|undefined;
+  try{
+    await Promise.race([
+      hydrateAuthoritativeCloudBeforeApp(),
+      new Promise<void>(resolve=>{timeout=window.setTimeout(resolve,CLOUD_STARTUP_BUDGET_MS);})
+    ]);
+  }finally{
+    if(timeout!==undefined)window.clearTimeout(timeout);
+  }
+}
 
 async function start():Promise<void>{
-  // Resolve the signed-in account copy before App reads local security/session
-  // state. This prevents an installed iPhone PWA from unlocking a stale local
-  // vault first and only discovering the newer cloud copy afterwards.
-  await hydrateAuthoritativeCloudBeforeApp();
+  // Prefer the authoritative cloud copy before App reads local security/session
+  // state, but never let a stalled iOS Firebase/Auth/Firestore request hold the
+  // launch screen indefinitely. If the small preflight budget expires, React
+  // opens the encrypted local workspace and the existing freshness watcher keeps
+  // reconciling safely in the background. Late cloud application is still
+  // protected by the active-workspace guards below and inside the cloud layer.
+  await hydrateCloudWithinStartupBudget();
   ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,appRoot);
   void purgeLegacySafetySnapshot();
   startCloudFreshnessWatcher();
