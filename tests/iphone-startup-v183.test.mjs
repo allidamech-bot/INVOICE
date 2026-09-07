@@ -26,17 +26,22 @@ test('cloud bootstrap uses an already-restored Firebase user before the slower a
   assert.ok(ready>=0&&wait>ready&&reconcile>wait);
 });
 
-test('startup still resolves authoritative cloud state before React renders',async()=>{
+test('v184 keeps authoritative cloud preflight ahead of React while bounding its launch wait',async()=>{
   const entry=await read('src/app/index.tsx');
-  const hydrate=entry.indexOf('await hydrateAuthoritativeCloudBeforeApp()');
+  const hydrate=entry.indexOf('hydrateAuthoritativeCloudBeforeApp()');
+  const budget=entry.indexOf('CLOUD_STARTUP_BUDGET_MS');
+  const race=entry.indexOf('Promise.race');
   const render=entry.indexOf('ReactDOM.render');
-  assert.ok(hydrate>=0&&render>hydrate);
+  assert.ok(budget>=0&&race>budget&&hydrate>race&&render>hydrate);
+  assert.match(entry,/await hydrateCloudWithinStartupBudget\(\)/);
 });
 
-test('v183 recaches the new boot shell and startup runtime without mutating v182 in place',async()=>{
+test('v183 boot recovery remains preserved after the fresh v184 cache generation',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v183';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v184';$/m);
+  assert.match(sw,/lourex-invoice-v183: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v182: preserved as a legacy marker/);
   assert.ok(sw.includes('./index.html'));
   assert.ok(sw.includes('./src/cloud/startup.js'));
+  assert.ok(sw.includes('./src/app/index.js'));
 });
