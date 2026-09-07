@@ -44,7 +44,8 @@ test('v179 balances iPad steps and keeps the compact action dock touch-safe',asy
 
 test('v179 remains preserved after later immutable PWA cache generations',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v182';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v183';$/m);
+  assert.match(sw,/lourex-invoice-v182: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v179: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v178: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v177: preserved as a legacy marker/);
