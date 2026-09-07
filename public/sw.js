@@ -1,3 +1,4 @@
+// v183 iPhone blank-start recovery — recache the immediate branded boot shell and faster ready-auth startup path.
 // v182 iPhone Home Screen/site parity — recache the latest runtime changes after v179 so installed PWAs cannot remain on stale application bytes.
 // v179 iPad editor refinement — recache the tablet layout/date/navigation improvements without dropping v178 runtime assets.
 // v178 invoice/quotation carry-forward — cache the shared customer search runtime in a fresh immutable PWA generation.
@@ -41,7 +42,8 @@
 /* Historical v169 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v169';
 */
-const CACHE = 'lourex-invoice-v182';
+const CACHE = 'lourex-invoice-v183';
+// lourex-invoice-v182: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v179: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v178: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v177: preserved as a legacy marker for cache-migration tests.
