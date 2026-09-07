@@ -13,7 +13,7 @@ test('network-fresh runtime config can rescue an old PWA that is still trapped o
     read('index.html')
   ]);
 
-  assert.match(html,/#lourex-boot\{position:fixed;inset:0;z-index:2147483000/);
+  assert.match(html,/#lourex-boot\.loading-screen\{position:fixed;inset:0;z-index:2147483000/);
   assert.match(sw,/runtime-config\.js[\s\S]*cache:'no-store'/);
   assert.match(vercel,/"source": "\/runtime-config\.js"[\s\S]*"no-cache, no-store, must-revalidate"/);
 
