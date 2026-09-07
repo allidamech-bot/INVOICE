@@ -1,8 +1,6 @@
 const EXPECTED_REPO_OWNER='allidamech-bot';
 const EXPECTED_REPO_SLUG='INVOICE';
-const FORBIDDEN_PROJECT_IDS=new Set([
-  'prj_KgRgeJKQKIu2F2ElkrbfEEXDUtA3',
-]);
+const EXPECTED_PROJECT_ID='prj_cH5bT5QF3JtbL8RzrGOxF4QCohVZ';
 const FORBIDDEN_PRODUCTION_HOSTS=new Set([
   'lou-rex.com',
   'www.lou-rex.com',
@@ -30,12 +28,16 @@ if(sourceRepoOwner.toLowerCase()!==EXPECTED_REPO_OWNER.toLowerCase()||sourceRepo
   throw new Error(`Refusing production build from ${sourceRepoOwner}/${sourceRepoSlug}. LOUREX Invoice production source must be ${EXPECTED_REPO_OWNER}/${EXPECTED_REPO_SLUG}.`);
 }
 
-if(projectId&&FORBIDDEN_PROJECT_IDS.has(projectId)){
-  throw new Error(`Refusing LOUREX Invoice production build in forbidden Vercel project ${projectId}. This project belongs to the primary lou-rex.com platform.`);
+if(!projectId){
+  throw new Error(`Refusing LOUREX Invoice production build without VERCEL_PROJECT_ID. Expected isolated Invoice project ${EXPECTED_PROJECT_ID}.`);
+}
+
+if(projectId!==EXPECTED_PROJECT_ID){
+  throw new Error(`Refusing LOUREX Invoice production build in unexpected Vercel project ${projectId}. Expected isolated Invoice project ${EXPECTED_PROJECT_ID}.`);
 }
 
 if(productionHost&&FORBIDDEN_PRODUCTION_HOSTS.has(productionHost)){
   throw new Error(`Refusing LOUREX Invoice production build for forbidden production host ${productionHost}. lou-rex.com belongs to the primary LOUREX platform.`);
 }
 
-console.log(`LOUREX Invoice deployment isolation verified for ${sourceRepoOwner}/${sourceRepoSlug}${projectId?` on ${projectId}`:''}${productionHost?` (${productionHost})`:''}.`);
+console.log(`LOUREX Invoice deployment isolation verified for ${sourceRepoOwner}/${sourceRepoSlug} on ${projectId}${productionHost?` (${productionHost})`:''}.`);

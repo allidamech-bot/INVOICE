@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 
 const script='scripts/verify-deployment-isolation.mjs';
+const EXPECTED_PROJECT_ID='prj_cH5bT5QF3JtbL8RzrGOxF4QCohVZ';
 const run=overrides=>spawnSync(process.execPath,[script],{
   encoding:'utf8',
   env:{
@@ -11,7 +12,7 @@ const run=overrides=>spawnSync(process.execPath,[script],{
     VERCEL_ENV:'production',
     VERCEL_GIT_REPO_OWNER:'allidamech-bot',
     VERCEL_GIT_REPO_SLUG:'INVOICE',
-    VERCEL_PROJECT_ID:'prj_invoice_isolated_test',
+    VERCEL_PROJECT_ID:EXPECTED_PROJECT_ID,
     VERCEL_PROJECT_PRODUCTION_URL:'invoice-three-puce.vercel.app',
     ...overrides,
   },
@@ -22,16 +23,30 @@ test('deployment isolation guard is wired before the production build',async()=>
   assert.equal(pkg.scripts.build,'node scripts/verify-deployment-isolation.mjs && node scripts/build.mjs');
 });
 
-test('deployment isolation guard accepts the canonical INVOICE repository on an isolated project',()=>{
+test('deployment isolation guard accepts only the canonical INVOICE repository on the dedicated project',()=>{
   const result=run({});
   assert.equal(result.status,0,result.stderr||result.stdout);
   assert.match(result.stdout,/deployment isolation verified/i);
+  assert.match(result.stdout,new RegExp(EXPECTED_PROJECT_ID));
 });
 
 test('deployment isolation guard rejects the primary lou-rex.com Vercel project id',()=>{
   const result=run({VERCEL_PROJECT_ID:'prj_KgRgeJKQKIu2F2ElkrbfEEXDUtA3'});
   assert.notEqual(result.status,0);
-  assert.match(result.stderr,/forbidden Vercel project/i);
+  assert.match(result.stderr,/unexpected Vercel project/i);
+});
+
+test('deployment isolation guard rejects any other Vercel project id',()=>{
+  const result=run({VERCEL_PROJECT_ID:'prj_other_invoice_project'});
+  assert.notEqual(result.status,0);
+  assert.match(result.stderr,/unexpected Vercel project/i);
+  assert.match(result.stderr,new RegExp(EXPECTED_PROJECT_ID));
+});
+
+test('deployment isolation guard fails closed without Vercel project metadata',()=>{
+  const result=run({VERCEL_PROJECT_ID:''});
+  assert.notEqual(result.status,0);
+  assert.match(result.stderr,/without VERCEL_PROJECT_ID/i);
 });
 
 test('deployment isolation guard rejects lou-rex.com production hosts',()=>{
@@ -52,4 +67,11 @@ test('deployment isolation guard fails closed without Vercel Git source metadata
   const result=run({VERCEL_GIT_REPO_OWNER:'',VERCEL_GIT_REPO_SLUG:''});
   assert.notEqual(result.status,0);
   assert.match(result.stderr,/without Vercel Git source metadata/i);
+});
+
+test('direct production build guard also requires the dedicated project id',async()=>{
+  const build=await readFile('scripts/build.mjs','utf8');
+  assert.match(build,/EXPECTED_PROJECT_ID='prj_cH5bT5QF3JtbL8RzrGOxF4QCohVZ'/);
+  assert.match(build,/unexpected Vercel project/);
+  assert.match(build,/VERCEL_PROJECT_ID/);
 });
