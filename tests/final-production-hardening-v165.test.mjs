@@ -51,8 +51,10 @@ test('startup authority, trusted-session ordering and explicit PWA updates remai
   const [entry,startup,app,sw]=await Promise.all([
     read('src/app/index.tsx'),read('src/cloud/startup.ts'),read('src/app/App.tsx'),read('public/sw.js')
   ]);
-  assert.match(entry,/await hydrateAuthoritativeCloudBeforeApp\(\)/);
-  assert.ok(entry.indexOf('await hydrateAuthoritativeCloudBeforeApp()')<entry.indexOf('ReactDOM.render'));
+  assert.match(entry,/hydrateAuthoritativeCloudBeforeApp\(\)/);
+  assert.match(entry,/Promise\.race\(\[/);
+  assert.match(entry,/CLOUD_STARTUP_BUDGET_MS=1_800/);
+  assert.ok(entry.indexOf('await hydrateCloudWithinStartupBudget()')<entry.indexOf('ReactDOM.render'));
   assert.match(startup,/waitForCloudUser\(\)/);
   assert.match(startup,/reconcileCloudVault\(user\.uid\)/);
   assert.doesNotMatch(startup,/installCloudVault\(user\.uid,false\)/);
