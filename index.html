@@ -15,16 +15,20 @@
   <link rel="apple-touch-icon" sizes="180x180" href="./brand/lourex-app-icon-180.png" />
   <style id="lourex-boot-style">
     html,body,#root{min-height:100%;margin:0}
-    #lourex-boot{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:calc(28px + env(safe-area-inset-top)) 28px calc(28px + env(safe-area-inset-bottom));background:radial-gradient(circle at 50% 38%,rgba(201,164,88,.16),transparent 34%),linear-gradient(160deg,#071722 0%,#0b1d2d 58%,#102b3b 100%);color:#f7f2e7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:center}
-    .lourex-boot-card{display:flex;flex-direction:column;align-items:center;gap:9px;transform:translateY(-2vh)}
-    .lourex-boot-mark{width:70px;height:70px;border:1px solid rgba(222,190,117,.52);border-radius:20px;display:grid;place-items:center;margin-bottom:7px;background:rgba(255,255,255,.055);box-shadow:0 18px 55px rgba(0,0,0,.25),inset 0 1px rgba(255,255,255,.08);font:800 34px/1 Georgia,serif;color:#dec079;letter-spacing:-2px}
-    .lourex-boot-brand{font-size:27px;line-height:1;letter-spacing:.16em;font-weight:800;margin-left:.16em}
-    .lourex-boot-product{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:rgba(247,242,231,.64)}
-    .lourex-boot-track{width:126px;height:3px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.12);margin-top:16px}
-    .lourex-boot-track>i{display:block;width:44%;height:100%;border-radius:inherit;background:#dec079;animation:lourex-boot-slide 1.05s ease-in-out infinite}
-    .lourex-boot-copy{margin-top:5px;font-size:11px;line-height:1.65;color:rgba(247,242,231,.62);font-weight:600}
-    @keyframes lourex-boot-slide{0%{transform:translateX(-110%)}50%{transform:translateX(80%)}100%{transform:translateX(250%)}}
-    @media (prefers-reduced-motion:reduce){.lourex-boot-track>i{animation:none;transform:none;width:100%;opacity:.65}}
+    #lourex-boot.loading-screen{position:fixed;inset:0;z-index:2147483000;min-height:100vh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-sizing:border-box;padding:32px;background:radial-gradient(circle at 50% 38%,rgba(212,181,121,.14),transparent 28%),radial-gradient(circle at 12% 14%,rgba(69,103,128,.14),transparent 30%),linear-gradient(145deg,#071522 0%,#0a1c2a 52%,#10283a 100%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    #lourex-boot.loading-screen:before,#lourex-boot.loading-screen:after{content:"";position:absolute;width:420px;height:420px;border:1px solid rgba(212,181,121,.08);border-radius:50%;pointer-events:none}
+    #lourex-boot.loading-screen:before{transform:translate(-36%,-38%);top:0;left:0}
+    #lourex-boot.loading-screen:after{transform:translate(40%,42%);right:0;bottom:0}
+    #lourex-boot .brand{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;animation:lourexLaunchIn .45s ease-out both}
+    #lourex-boot .brand-mark{display:grid;place-items:center;width:118px;height:118px;border-radius:28px;box-shadow:0 22px 65px rgba(0,0,0,.34),0 0 0 1px rgba(255,255,255,.07)}
+    #lourex-boot .brand-mark img{display:block;width:118px;height:118px;border-radius:28px}
+    #lourex-boot .brand-words strong{color:#f8f4ea;font-size:21px;letter-spacing:.28em;padding-left:.28em;font-weight:760}
+    #lourex-boot .loading-line{position:relative;z-index:1;width:126px;height:3px;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.1)}
+    #lourex-boot .loading-line:after{content:"";position:absolute;inset:0 auto 0 0;width:46%;border-radius:inherit;background:linear-gradient(90deg,#9b7139,#e3c98e,#9b7139);animation:lourexLoading 1.05s ease-in-out infinite}
+    @keyframes lourexLoading{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
+    @keyframes lourexLaunchIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+    @media(max-width:720px){#lourex-boot.loading-screen{padding:24px}#lourex-boot .brand-mark,#lourex-boot .brand-mark img{width:104px;height:104px;border-radius:25px}#lourex-boot .brand-words strong{font-size:19px}}
+    @media(prefers-reduced-motion:reduce){#lourex-boot .brand{animation:none}#lourex-boot .loading-line:after{animation:none;width:100%;opacity:.65}}
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -100,14 +104,12 @@
 </head>
 <body>
   <div id="root">
-    <div id="lourex-boot" role="status" aria-live="polite" aria-label="Loading LOUREX Invoice">
-      <div class="lourex-boot-card">
-        <div class="lourex-boot-mark" aria-hidden="true">L</div>
-        <strong class="lourex-boot-brand">LOUREX</strong>
-        <span class="lourex-boot-product">Invoice</span>
-        <div class="lourex-boot-track" aria-hidden="true"><i></i></div>
-        <small class="lourex-boot-copy">Preparing your secure workspace<br />جارٍ تجهيز مساحة العمل الآمنة</small>
+    <div id="lourex-boot" class="loading-screen" role="status" aria-live="polite" aria-label="Loading LOUREX Invoice">
+      <div class="brand official-brand">
+        <span class="brand-mark"><img src="./brand/lourex-logo.svg" alt="LOUREX" /></span>
+        <span class="brand-words"><strong>LOUREX</strong></span>
       </div>
+      <span class="loading-line" aria-hidden="true"></span>
     </div>
   </div>
   <script src="./runtime-config.js"></script>
