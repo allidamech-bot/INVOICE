@@ -3,14 +3,18 @@ import { spawnSync } from 'node:child_process';
 
 const EXPECTED_REPO_OWNER='allidamech-bot';
 const EXPECTED_REPO_SLUG='INVOICE';
+const EXPECTED_PROJECT_ID='prj_cH5bT5QF3JtbL8RzrGOxF4QCohVZ';
 const vercelEnvironment=process.env.VERCEL_ENV||'local';
 const sourceRepoOwner=process.env.VERCEL_GIT_REPO_OWNER||'';
 const sourceRepoSlug=process.env.VERCEL_GIT_REPO_SLUG||'';
+const projectId=process.env.VERCEL_PROJECT_ID||'';
 if(vercelEnvironment==='production'){
   if(!sourceRepoOwner||!sourceRepoSlug)throw new Error(`Refusing production build without Vercel Git source metadata. LOUREX Invoice production source must be ${EXPECTED_REPO_OWNER}/${EXPECTED_REPO_SLUG}.`);
   if(sourceRepoSlug.toLowerCase()!==EXPECTED_REPO_SLUG.toLowerCase()||sourceRepoOwner.toLowerCase()!==EXPECTED_REPO_OWNER.toLowerCase()){
     throw new Error(`Refusing production build from ${sourceRepoOwner}/${sourceRepoSlug}. LOUREX Invoice production source must be ${EXPECTED_REPO_OWNER}/${EXPECTED_REPO_SLUG}.`);
   }
+  if(!projectId)throw new Error(`Refusing LOUREX Invoice production build without VERCEL_PROJECT_ID. Expected isolated Invoice project ${EXPECTED_PROJECT_ID}.`);
+  if(projectId!==EXPECTED_PROJECT_ID)throw new Error(`Refusing LOUREX Invoice production build in unexpected Vercel project ${projectId}. Expected isolated Invoice project ${EXPECTED_PROJECT_ID}.`);
 }
 
 const VENDOR_ASSETS=[
@@ -56,6 +60,7 @@ const runtimeConfig={
   deploymentHost:process.env.VERCEL_URL||'',
   sourceRepoOwner:sourceRepoOwner||EXPECTED_REPO_OWNER,
   sourceRepoSlug:sourceRepoSlug||EXPECTED_REPO_SLUG,
+  projectId,
   commitSha:process.env.VERCEL_GIT_COMMIT_SHA||process.env.GITHUB_SHA||'',
   commitRef:process.env.VERCEL_GIT_COMMIT_REF||process.env.GITHUB_REF_NAME||'',
   buildTime:new Date().toISOString()
@@ -133,4 +138,4 @@ if([...vendorUrlMap.keys()].some(url=>html.includes(url)))throw new Error('Produ
 if(/https:\/\/cdn\.jsdelivr\.net\/npm\/(?:html2canvas|jspdf|xlsx)@/.test(iosBridge+productImport))throw new Error('Production runtime still references remote PDF/import libraries.');
 if(/preconnect[^>]+(?:cdn\.jsdelivr\.net|www\.gstatic\.com)/.test(html))throw new Error('Production HTML still preconnects to retired runtime CDNs.');
 
-console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; ${styleNames.length} CSS layers -> 1 bundle; ${VENDOR_ASSETS.length} runtime libraries vendored; source maps disabled)`);
+console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; project: ${runtimeConfig.projectId||'local'}; ${styleNames.length} CSS layers -> 1 bundle; ${VENDOR_ASSETS.length} runtime libraries vendored; source maps disabled)`);
