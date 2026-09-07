@@ -4,12 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('v182 forces installed Home Screen PWAs to recache the latest application runtime',async()=>{
+test('v182 parity remains preserved after later immutable PWA cache generations',async()=>{
   const [sw,product]=await Promise.all([
     read('public/sw.js'),
     read('src/components/ProductLibraryWorkspace.tsx')
   ]);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v182';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v183';$/m);
+  assert.match(sw,/lourex-invoice-v182: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v179: preserved as a legacy marker/);
   assert.ok(sw.includes('./src/components/ProductLibraryWorkspace.js'));
   assert.match(product,/lastUnitCost/);

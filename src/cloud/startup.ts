@@ -1,5 +1,5 @@
 import { getCloudAccount, putCloudAccount } from '../storage/db.js';
-import { getCloudVaultMeta, reconcileCloudVault, waitForCloudUser } from './firebase.js';
+import { currentCloudUser, getCloudVaultMeta, reconcileCloudVault, waitForCloudUser } from './firebase.js';
 
 /**
  * Resolve the signed-in cloud account before React hydrates local encrypted data.
@@ -13,8 +13,14 @@ import { getCloudVaultMeta, reconcileCloudVault, waitForCloudUser } from './fire
 export async function hydrateAuthoritativeCloudBeforeApp():Promise<void>{
   if(typeof navigator!=='undefined'&&!navigator.onLine)return;
 
-  let user;
-  try{user=await waitForCloudUser();}catch{return;}
+  // Firebase often already restored the signed-in user by the time the module
+  // executes. Use that ready session immediately instead of paying the slower
+  // persistence bootstrap again on every iPhone/Safari launch. If Auth is still
+  // restoring, retain the existing guarded wait path and all cloud-safety rules.
+  let user=currentCloudUser();
+  if(!user){
+    try{user=await waitForCloudUser();}catch{return;}
+  }
   if(!user)return;
 
   try{
