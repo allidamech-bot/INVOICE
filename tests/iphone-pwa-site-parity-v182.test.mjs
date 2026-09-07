@@ -9,7 +9,8 @@ test('v182 parity remains preserved after later immutable PWA cache generations'
     read('public/sw.js'),
     read('src/components/ProductLibraryWorkspace.tsx')
   ]);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v183';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v184';$/m);
+  assert.match(sw,/lourex-invoice-v183: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v182: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v179: preserved as a legacy marker/);
   assert.ok(sw.includes('./src/components/ProductLibraryWorkspace.js'));
