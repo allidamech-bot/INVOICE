@@ -42,14 +42,15 @@ test('v179 balances iPad steps and keeps the compact action dock touch-safe',asy
   assert.match(tablet,/\.app-ui \.editor-pane \.editor-scroll\{[\s\S]*scroll-padding-bottom:28px!important/);
 });
 
-test('v179 ships through a fresh immutable PWA cache generation above v178',async()=>{
+test('v179 remains preserved after later immutable PWA cache generations',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v179';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v182';$/m);
+  assert.match(sw,/lourex-invoice-v179: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v178: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v177: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v176: preserved as a legacy marker/);
   assert.match(sw,/\.\/styles\/final-mobile-accessibility-v168\.css/);
   assert.match(sw,/\.\/src\/lib\/customer-search\.js/);
   assert.match(sw,/SKIP_WAITING/);
-  assert.doesNotMatch(sw,/^const CACHE = 'lourex-invoice-v178';$/m);
+  assert.doesNotMatch(sw,/^const CACHE = 'lourex-invoice-v179';$/m);
 });
