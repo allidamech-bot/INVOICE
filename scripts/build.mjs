@@ -65,7 +65,56 @@ const runtimeConfig={
   commitRef:process.env.VERCEL_GIT_COMMIT_REF||process.env.GITHUB_REF_NAME||'',
   buildTime:new Date().toISOString()
 };
-await writeFile('dist/runtime-config.js',`window.__LOUREX_RUNTIME__=${JSON.stringify(runtimeConfig)};\n`);
+
+// runtime-config.js is deliberately fetched with no-store by the service worker
+// and by Vercel headers. That makes it the one recovery path an already-installed
+// stale PWA can still receive even while its old worker keeps serving cached
+// index/app bytes. Use that path only while the static LOUREX boot shell is still
+// present and React has not mounted. In that state there is no editor or data-entry
+// workspace to lose, so activating a waiting worker and reloading is safe. Once
+// React mounts, the existing explicit-update workflow remains authoritative.
+const stuckBootRecovery=`
+;(function(){
+  if(!('serviceWorker' in navigator))return;
+  var reloading=false;
+  function bootOnly(){
+    return Boolean(document.getElementById('lourex-boot'))&&!document.querySelector('.app-ui,.auth-page');
+  }
+  function activateWaiting(registration){
+    if(!bootOnly())return false;
+    var waiting=registration&&registration.waiting;
+    if(!waiting)return false;
+    function reloadIfStillBooting(){
+      if(reloading||!bootOnly())return;
+      reloading=true;
+      window.location.replace(window.location.href);
+    }
+    navigator.serviceWorker.addEventListener('controllerchange',reloadIfStillBooting,{once:true});
+    try{waiting.postMessage({type:'SKIP_WAITING'});}catch(_error){}
+    return true;
+  }
+  async function rescue(){
+    if(!bootOnly())return;
+    var registration;
+    try{registration=await navigator.serviceWorker.getRegistration();}catch(_error){return;}
+    if(!registration)return;
+    try{await registration.update();}catch(_error){}
+    if(activateWaiting(registration))return;
+    var installing=registration.installing;
+    if(!installing)return;
+    function onStateChange(){
+      if(installing.state!=='installed')return;
+      installing.removeEventListener('statechange',onStateChange);
+      activateWaiting(registration);
+    }
+    installing.addEventListener('statechange',onStateChange);
+  }
+  window.setTimeout(function(){void rescue();},750);
+  window.setTimeout(function(){void rescue();},2500);
+  window.setTimeout(function(){void rescue();},6000);
+})();
+`;
+await writeFile('dist/runtime-config.js',`window.__LOUREX_RUNTIME__=${JSON.stringify(runtimeConfig)};\n${stuckBootRecovery}`);
 
 let html = await readFile('index.html','utf8');
 const localStylePattern=/<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>/g;
