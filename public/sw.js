@@ -1,3 +1,4 @@
+// v185 single launch continuity — recache the unified static/React splash so iPhone users see one uninterrupted launch screen.
 // v184 iPhone startup deadlock recovery — bound pre-render cloud work so stalled Firebase promises cannot hold the boot screen forever.
 // v183 iPhone blank-start recovery — recache the immediate branded boot shell and faster ready-auth startup path.
 // v182 iPhone Home Screen/site parity — recache the latest runtime changes after v179 so installed PWAs cannot remain on stale application bytes.
@@ -43,7 +44,11 @@
 /* Historical v169 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v169';
 */
+/* Historical v184 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v184';
+*/
+const CACHE = 'lourex-invoice-v185';
+// lourex-invoice-v184: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v183: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v182: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v179: preserved as a legacy marker for cache-migration tests.
