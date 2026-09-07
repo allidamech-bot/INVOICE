@@ -86,14 +86,14 @@
 
 /* ---------- Validation system ---------- */
 .app-ui .field-error,.app-ui .inline-error{color:var(--acct-red-strong);font-weight:720}
-.app-ui .field:has(.field-error)>.field-label{color:#a63c3c}
+.app-ui .field:has(.field-error)>.field-label{color:var(--ds-danger-text)}
 .app-ui .field:has(.field-error)>.input,
 .app-ui .field:has(.field-error)>select.input,
 .app-ui .field:has(.field-error)>textarea.input,
 .app-ui .field:has(.field-error) .search-select{
-  border-color:#d05a5a!important;
-  background:#fffafa!important;
-  box-shadow:0 0 0 3px rgba(192,68,68,.10)!important;
+  border-color:var(--ds-danger)!important;
+  background:var(--ds-input)!important;
+  box-shadow:0 0 0 3px rgba(199,90,87,.14)!important;
 }
 .app-ui .field:has(.field-error) .search-select .input{background:transparent!important;box-shadow:none!important}
 .app-ui .section-has-error{border-color:rgba(192,68,68,.38)!important;box-shadow:0 0 0 1px rgba(192,68,68,.06),0 10px 26px rgba(116,37,37,.055)!important}

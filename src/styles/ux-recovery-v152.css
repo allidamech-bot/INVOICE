@@ -166,24 +166,21 @@
 .app-ui .save-indicator.state-unsaved{color:#8a4a40}
 .app-ui .editor-section-nav-slot{display:contents}
 
-/* Page identity: every workspace starts with one confident visual anchor. */
+/* Shared page headings use typography and space; no decorative hero container. */
 .app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero){
   position:relative;
-  overflow:hidden;
-  padding:20px 22px;
-  border:1px solid rgba(209,178,122,.26);
-  border-radius:18px;
-  background:
-    radial-gradient(circle at 90% -30%,rgba(209,178,122,.24),transparent 42%),
-    linear-gradient(125deg,var(--ux-navy-deep),#0c3449 70%,#174b60);
-  box-shadow:0 16px 38px rgba(5,27,41,.17);
+  overflow:visible;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
 }
-.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero)::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:4px;background:linear-gradient(var(--ux-champagne),#9e743b)}
-.app-ui :is(.page-heading h1,.receivables-heading h1,.reports-heading h1,.operations-hero h1){color:#fff}
-.app-ui :is(.page-subtitle,.receivables-heading p,.reports-heading p,.operations-hero p){color:#bdcbd1}
-.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero) .eyebrow{color:#e1c58f}
-.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero) .heading-actions .btn:not(.btn-primary){border-color:rgba(255,255,255,.24);background:rgba(255,255,255,.1);color:#fff}
-.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero) .heading-actions .btn-primary{border-color:#d8bd87;background:#f1dfbb;color:#123044;box-shadow:0 8px 20px rgba(0,0,0,.2)}
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero)::before,
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero)::after{content:none}
+.app-ui :is(.page-heading h1,.receivables-heading h1,.reports-heading h1,.operations-hero h1){color:var(--ds-text)}
+.app-ui :is(.page-subtitle,.receivables-heading p,.reports-heading p,.operations-hero p){color:var(--ds-text-soft)}
+.app-ui :is(.page-heading,.receivables-heading,.reports-heading,.operations-hero) .eyebrow{color:var(--ds-muted)}
 
 /* Stronger identity for status and overview cards without dashboard colour noise. */
 .app-ui :is(.documents-overview,.receivables-summary,.report-primary-metrics,.operations-summary)>*:nth-child(3n+1){background:#e3edf0;border-color:#c2d2d7}

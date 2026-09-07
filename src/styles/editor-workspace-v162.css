@@ -254,18 +254,10 @@
 
 .app-ui .form-grid,.app-ui .compact-grid,.app-ui .field,.app-ui .field>*{min-width:0!important;max-width:100%}
 .app-ui .form-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:13px 14px!important}
-.app-ui .field{gap:6px!important}
-.app-ui .field-label{color:#596a72!important;font-size:10.5px!important;font-weight:750!important;line-height:1.35!important}
+/* Shared field rhythm, labels and input appearance are owned by design-system-v164.css. */
 .app-ui .input,.app-ui select.input,.app-ui textarea.input{
   width:100%!important;
   max-width:100%!important;
-  border-color:#d8d6d0!important;
-  background:#fff!important;
-  color:#183442!important;
-}
-.app-ui .input:focus,.app-ui select.input:focus,.app-ui textarea.input:focus{
-  border-color:#7194a6!important;
-  box-shadow:0 0 0 3px rgba(48,91,111,.105)!important;
 }
 .app-ui .required-field>.field-label::after{color:#a95d53!important}
 

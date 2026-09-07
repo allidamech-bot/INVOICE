@@ -122,6 +122,7 @@
   color:var(--ds-text);
   background:var(--ds-ivory-100);
   text-rendering:optimizeLegibility;
+  min-height:100dvh!important;
   color-scheme:dark;
   font-size:var(--ds-text-md);
   line-height:1.5;
@@ -159,6 +160,7 @@ html[dir='rtl'] .app-ui :where(h1,h2,h3,.field-label,.btn,.eyebrow,.shell-page-t
 .app-ui .btn-primary:hover:not(:disabled){border-color:var(--ds-accent-hover);background:var(--ds-accent-hover);color:var(--ds-on-action)}
 .app-ui .btn-danger{border-color:var(--ds-danger-text);background:var(--ds-workspace);color:var(--ds-danger-text)}
 .app-ui .btn-ghost{border-color:transparent;background:transparent;box-shadow:none}
+.app-ui .btn-danger:hover:not(:disabled){border-color:var(--ds-danger);background:var(--ds-selected);color:var(--ds-danger-text)}
 .app-ui .icon-btn{min-width:40px;min-height:40px;border-radius:var(--ds-radius-control)!important;color:var(--ds-text-soft)}
 
 .app-ui :where(.btn,.icon-btn,button,input,select,textarea):focus-visible{
@@ -187,7 +189,7 @@ html[dir='rtl'] .app-ui :where(h1,h2,h3,.field-label,.btn,.eyebrow,.shell-page-t
 .app-ui :is(.input,textarea.input,.textarea)::placeholder{color:var(--ds-faint)}
 .app-ui .field{gap:var(--ds-space-2)}
 .app-ui .field-label{color:var(--ds-text-soft);font-size:12px;font-weight:750;line-height:1.4}
-.app-ui :where(.field-error,.inline-error,.auth-error){color:var(--ds-danger-text)}
+.app-ui :is(.field-error,.inline-error,.auth-error){color:var(--ds-danger-text)}
 
 /* Shared surface hierarchy. One parent surface, then spacing/dividers inside. */
 .app-ui :is(.dashboard-panel,.premium-document-card,.document-detail-card,.customer-card,.reports-panel,.report-currency-card,.receivables-card,.operations-card,.product-library-body,.settings-workspace-card,.account-security-card){
@@ -204,7 +206,7 @@ html[dir='rtl'] .app-ui :where(h1,h2,h3,.field-label,.btn,.eyebrow,.shell-page-t
 }
 
 /* Financial values remain stable as numbers change. */
-.app-ui :where(
+.app-ui :is(
   .document-total strong,
   .document-detail-value strong,
   .document-detail-totals strong,
@@ -216,7 +218,7 @@ html[dir='rtl'] .app-ui :where(h1,h2,h3,.field-label,.btn,.eyebrow,.shell-page-t
   .receivables-summary strong,
   .report-primary-metrics strong,
   .operations-summary strong
-){font-variant-numeric:tabular-nums lining-nums}
+){font-variant-numeric:tabular-nums lining-nums;color:var(--ds-text)}
 
 /* Status is semantic, not decorative. */
 .app-ui :where(.status-pill,.document-status-badge,.lifecycle-badge,.sync-badge){

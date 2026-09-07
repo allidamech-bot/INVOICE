@@ -8,7 +8,8 @@ test('v153 introduces a deliberate premium application colour hierarchy',async()
   const css=await read('src/styles/ux-recovery-v152.css');
   for(const token of ['--ux-navy-deep','--ux-blue-wash','--ux-ivory','--ux-champagne','--ux-shadow-strong'])assert.ok(css.includes(token),token);
   assert.match(css,/\.app-ui \.app-header\{[\s\S]*linear-gradient\(118deg,var\(--ux-navy-deep\)/);
-  assert.match(css,/Page identity:[\s\S]*linear-gradient\(125deg,var\(--ux-navy-deep\)/);
+  assert.match(css,/Shared page headings[\s\S]*background:transparent/);
+  assert.match(css,/operations-hero\)::after\{content:none\}/);
   assert.match(css,/\.app-ui \.main-nav button\.active\{[^}]*background:#f7f1e6/);
   assert.match(css,/\.app-ui \.header-actions \.new-doc-menu>\.btn-primary\{[^}]*--ux-champagne/);
 });
