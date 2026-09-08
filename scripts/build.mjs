@@ -154,7 +154,7 @@ await writeFile('dist/index.html',html);
 // preview builds only. Production never publishes QA routes or mock documents.
 if(vercelEnvironment!=='production'){
   await mkdir('dist/qa',{recursive:true});
-  for(const file of ['template-visual-qa.html','template-visual-qa.js','obsidian-foundation.html','obsidian-shell.html']){
+  for(const file of ['template-visual-qa.html','template-visual-qa.js','obsidian-foundation.html','obsidian-shell.html','obsidian-dashboard.html']){
     const source=await readFile(`tests/visual/${file}`,'utf8');
     await writeFile(`dist/qa/${file}`,source.replaceAll('../../dist/','../'));
   }

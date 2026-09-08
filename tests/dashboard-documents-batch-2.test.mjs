@@ -6,9 +6,11 @@ const read=path=>readFile(path,'utf8');
 
 test('batch 2 home is an operational dashboard backed by existing accounting logic',async()=>{
   const [home,app]=await Promise.all([read('src/components/WorkspaceHome.tsx'),read('src/app/App.tsx')]);
-  for(const token of ['receivablesByCurrency','financialReportByCurrency','Open quotations','Open invoices','Outstanding','Sales this month','Recent documents','Needs attention'])assert.ok(home.includes(token),token);
+  for(const token of ['receivablesByCurrency','financialReportByCurrency','Sales','Collected','Outstanding','Overdue','Recent documents','Needs attention'])assert.ok(home.includes(token),token);
   assert.ok(home.includes('formatMoney(row.outstanding,row.currency)'));
   assert.ok(home.includes('formatMoney(row.netSales,row.currency)'));
+  assert.ok(home.includes('formatMoney(row.collected,row.currency)'));
+  assert.ok(home.includes('formatMoney(row.overdue,row.currency)'));
   assert.ok(app.includes('documents={vault.documents}'));
   assert.ok(app.includes('payments={vault.payments}'));
   assert.ok(app.includes('onOpenDocument={(doc)=>void this.openDocument(doc)}'));

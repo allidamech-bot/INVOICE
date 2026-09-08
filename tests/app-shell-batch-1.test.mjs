@@ -20,8 +20,7 @@ test('batch 1 moves application navigation into one responsive shell',async()=>{
   assert.doesNotMatch(app,/header-lock-button/);
   for(const token of ['workspace-sidebar','mobile-bottom-nav','mobile-more-sheet','shell-sync-status'])assert.ok(shell.includes(token),token);
   for(const label of ["t('Home','الرئيسية')","t('Finance','المالية')","t('Business','الأعمال')","t('More','المزيد')"])assert.ok(shell.includes(label),label);
-  assert.match(home,/New Quotation/);
-  assert.match(home,/New Invoice/);
+  assert.match(home,/New Document/);
 });
 
 test('batch 1 mobile navigation keeps five clear slots with a central create action',async()=>{

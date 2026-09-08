@@ -2,6 +2,7 @@ import type { LourexDocument, PaymentRecord } from '../types.js';
 import { calculateTotals, formatMoney } from '../lib/money.js';
 import { financialReportByCurrency } from '../lib/reports.js';
 import { receivablesByCurrency } from '../lib/receivables.js';
+import { invoicePaymentSummary } from '../lib/payments.js';
 import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { Button, Icon } from './UI.js';
@@ -12,8 +13,7 @@ interface Props{
   payments:PaymentRecord[];
   customerCount:number;
   itemCount:number;
-  onNewQuotation:()=>void;
-  onNewInvoice:()=>void;
+  onNewDocument:()=>void;
   onOpenDocument:(doc:LourexDocument)=>void;
   onNavigate:(screen:'documents'|'customers'|'items'|'receivables'|'reports'|'operations')=>void;
 }
@@ -31,48 +31,62 @@ function documentLabel(doc:LourexDocument):string{
   return doc.kind==='proforma'?t('Quotation','عرض سعر'):t('Invoice','فاتورة');
 }
 
-export function WorkspaceHome({companyName,documents,payments,customerCount,itemCount,onNewQuotation,onNewInvoice,onOpenDocument,onNavigate}:Props):any{
+function documentStatus(doc:LourexDocument,payments:PaymentRecord[],documents:LourexDocument[],today:string):{tone:string;label:string}{
+  if(doc.lifecycleStatus==='voided')return{tone:'void',label:t('Void','ملغى')};
+  if(doc.status==='draft')return{tone:'draft',label:t('Draft','مسودة')};
+  if(doc.kind==='proforma')return{tone:'quotation',label:t('Quotation','عرض سعر')};
+  if(doc.role==='credit-note')return{tone:'issued',label:t('Issued','صادر')};
+  const payment=invoicePaymentSummary(doc,payments,today,documents).status;
+  if(payment==='paid')return{tone:'paid',label:t('Paid','مدفوعة')};
+  if(payment==='partially-paid')return{tone:'partial',label:t('Partially paid','مدفوعة جزئيًا')};
+  if(payment==='overdue')return{tone:'overdue',label:t('Overdue','متأخرة')};
+  return{tone:'issued',label:t('Issued','صادرة')};
+}
+
+export function WorkspaceHome({companyName,documents,payments,customerCount,itemCount,onNewDocument,onOpenDocument,onNavigate}:Props):any{
   const today=todayIso();
   const monthStart=`${today.slice(0,7)}-01`;
   const receivables=receivablesByCurrency(documents,payments,today);
   const monthly=financialReportByCurrency(documents,payments,monthStart,today);
   const openInvoices=receivables.reduce((sum,row)=>sum+row.openInvoices,0);
   const overdueInvoices=receivables.reduce((sum,row)=>sum+row.overdueInvoices,0);
-  const activeQuotes=documents.filter(doc=>doc.kind==='proforma'&&doc.role==='standard'&&doc.lifecycleStatus!=='voided'&&doc.status==='final').length;
   const drafts=documents.filter(doc=>doc.status==='draft').length;
   const recent=[...documents].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,6);
 
   return <section className="workspace-home-page dashboard-page">
     <header className="workspace-home-hero dashboard-hero">
       <div>
-        <p className="workspace-home-eyebrow">{t('Business overview','نظرة عامة على الأعمال')}</p>
-        <h1>{companyName||'LOUREX Invoice'}</h1>
+        <p className="workspace-home-eyebrow">{companyName||'LOUREX Invoice'}</p>
+        <h1>{t('Business overview','نظرة عامة على الأعمال')}</h1>
         <p>{t('Your sales documents, receivables and recent activity in one focused view.','مستندات المبيعات والمستحقات وآخر النشاطات في شاشة واحدة مركزة.')}</p>
       </div>
       <div className="workspace-home-actions">
-        <Button icon="proforma" variant="primary" onClick={onNewQuotation}>{t('New Quotation','عرض سعر جديد')}</Button>
-        <Button icon="invoice" onClick={onNewInvoice}>{t('New Invoice','فاتورة جديدة')}</Button>
+        <Button icon="plus" variant="primary" onClick={onNewDocument}>{t('New Document','مستند جديد')}</Button>
       </div>
     </header>
 
     <div className="dashboard-kpis" aria-label={t('Business summary','ملخص الأعمال')}>
-      <button type="button" onClick={()=>onNavigate('documents')}><span className="dashboard-kpi-icon"><Icon name="proforma"/></span><span><small>{t('Open quotations','عروض السعر المفتوحة')}</small><strong>{activeQuotes}</strong><em>{t('Issued and active','صادرة وفعالة')}</em></span></button>
-      <button type="button" onClick={()=>onNavigate('receivables')}><span className="dashboard-kpi-icon"><Icon name="invoice"/></span><span><small>{t('Open invoices','الفواتير غير المسددة')}</small><strong>{openInvoices}</strong><em>{overdueInvoices?t(`${overdueInvoices} overdue`,`${overdueInvoices} متأخرة`):t('No overdue invoices','لا توجد فواتير متأخرة')}</em></span></button>
-      <button type="button" onClick={()=>onNavigate('receivables')}><span className="dashboard-kpi-icon"><Icon name="backup"/></span><span><small>{t('Outstanding','المستحقات')}</small>{receivables.length?<span className="dashboard-money-stack">{receivables.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row.outstanding,row.currency)}</b>)}</span>:<strong>—</strong>}<em>{t('Kept separate by currency','منفصلة حسب العملة')}</em></span></button>
-      <button type="button" onClick={()=>onNavigate('reports')}><span className="dashboard-kpi-icon"><Icon name="file"/></span><span><small>{t('Sales this month','مبيعات هذا الشهر')}</small>{monthly.length?<span className="dashboard-money-stack">{monthly.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row.netSales,row.currency)}</b>)}</span>:<strong>—</strong>}<em>{t('Net issued sales','صافي المبيعات الصادرة')}</em></span></button>
+      <button type="button" className="dashboard-kpi kpi-sales" onClick={()=>onNavigate('reports')}><span className="dashboard-kpi-icon"><Icon name="file"/></span><span><small>{t('Sales','المبيعات')}</small>{monthly.length?<span className="dashboard-money-stack">{monthly.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row.netSales,row.currency)}</b>)}</span>:<strong>—</strong>}<em>{t('Net issued this month','صافي الصادر هذا الشهر')}</em></span></button>
+      <button type="button" className="dashboard-kpi kpi-collected" onClick={()=>onNavigate('reports')}><span className="dashboard-kpi-icon"><Icon name="backup"/></span><span><small>{t('Collected','المحصّل')}</small>{monthly.length?<span className="dashboard-money-stack">{monthly.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row.collected,row.currency)}</b>)}</span>:<strong>—</strong>}<em>{t('Payments this month','مدفوعات هذا الشهر')}</em></span></button>
+      <button type="button" className="dashboard-kpi kpi-outstanding" onClick={()=>onNavigate('receivables')}><span className="dashboard-kpi-icon"><Icon name="invoice"/></span><span><small>{t('Outstanding','المستحق')}</small>{receivables.length?<span className="dashboard-money-stack">{receivables.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row.outstanding,row.currency)}</b>)}</span>:<strong>—</strong>}<em>{openInvoices?t(`${openInvoices} open invoices`,`${openInvoices} فواتير مفتوحة`):t('No open invoices','لا توجد فواتير مفتوحة')}</em></span></button>
+      <button type="button" className="dashboard-kpi kpi-overdue" onClick={()=>onNavigate('receivables')}><span className="dashboard-kpi-icon"><Icon name="invoice"/></span><span><small>{t('Overdue','المتأخر')}</small>{receivables.length?<span className="dashboard-money-stack">{receivables.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row.overdue,row.currency)}</b>)}</span>:<strong>—</strong>}<em>{overdueInvoices?t(`${overdueInvoices} overdue invoices`,`${overdueInvoices} فواتير متأخرة`):t('Nothing overdue','لا توجد مستحقات متأخرة')}</em></span></button>
     </div>
 
     <div className="dashboard-main-grid">
       <section className="dashboard-panel dashboard-recent">
         <header className="dashboard-panel-heading"><div><small>{t('Recent activity','آخر النشاط')}</small><h2>{t('Recent documents','آخر المستندات')}</h2></div><button type="button" onClick={()=>onNavigate('documents')}>{t('View all','عرض الكل')} <span aria-hidden="true">→</span></button></header>
-        {recent.length?<div className="dashboard-document-list">{recent.map(doc=>{
+        {recent.length?<div className="dashboard-document-list"><div className="dashboard-document-head" aria-hidden="true"><span/><span>{t('Document','المستند')}</span><span>{t('Customer','العميل')}</span><span>{t('Date','التاريخ')}</span><span>{t('Amount','المبلغ')}</span><span>{t('Status','الحالة')}</span></div>{recent.map(doc=>{
           const total=calculateTotals(doc.items,doc.adjustments).grandTotal;
+          const status=documentStatus(doc,payments,documents,today);
           return <button type="button" key={doc.id} className="dashboard-document-row" onClick={()=>onOpenDocument(doc)}>
             <span className={`dashboard-document-kind kind-${doc.kind}`}><Icon name={doc.kind==='proforma'?'proforma':'invoice'}/></span>
-            <span className="dashboard-document-copy"><strong>{doc.number}</strong><small>{customerName(doc)}</small></span>
-            <span className="dashboard-document-meta"><strong>{formatMoney(total,doc.currency)}</strong><small>{documentLabel(doc)} · {displayDate(doc.issueDate,getUiLanguage())}</small></span>
+            <span className="dashboard-document-copy"><strong>{doc.number}</strong><small>{documentLabel(doc)}</small></span>
+            <span className="dashboard-document-customer">{customerName(doc)}</span>
+            <span className="dashboard-document-date">{displayDate(doc.issueDate,getUiLanguage())}</span>
+            <strong className="dashboard-document-amount">{formatMoney(total,doc.currency)}</strong>
+            <span className={`dashboard-document-status status-${status.tone}`}>{status.label}</span>
           </button>;
-        })}</div>:<div className="dashboard-empty"><Icon name="file"/><strong>{t('No documents yet','لا توجد مستندات بعد')}</strong><span>{t('Create your first quotation or invoice.','أنشئ أول عرض سعر أو فاتورة.')}</span></div>}
+        })}</div>:<div className="dashboard-empty"><Icon name="file"/><strong>{t('No documents yet','لا توجد مستندات بعد')}</strong><span>{t('Create your first quotation or invoice.','أنشئ أول عرض سعر أو فاتورة.')}</span><Button icon="plus" variant="primary" onClick={onNewDocument}>{t('New Document','مستند جديد')}</Button></div>}
       </section>
 
       <aside className="dashboard-side-stack">
