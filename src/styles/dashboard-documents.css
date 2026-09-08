@@ -174,6 +174,15 @@
   .app-ui .document-detail-actions .document-detail-more{display:none}
 }
 
+@media(max-width:800px){
+  .app-ui .dashboard-document-head{display:none}
+  .app-ui .dashboard-document-row{min-height:92px!important;grid-template-columns:34px minmax(0,1fr) auto;grid-template-rows:auto auto auto;gap:2px 9px;padding:10px 12px}
+  .app-ui .dashboard-document-kind{width:34px;height:34px}
+  .app-ui .dashboard-document-kind{grid-column:1;grid-row:1 / 4}.app-ui .dashboard-document-copy{grid-column:2;grid-row:1}.app-ui .dashboard-document-copy small{display:block}
+  .app-ui .dashboard-document-customer{grid-column:2;grid-row:2}.app-ui .dashboard-document-date{display:block;grid-column:2 / 4;grid-row:3;font-size:10px}
+  .app-ui .dashboard-document-amount{grid-column:3;grid-row:2}.app-ui .dashboard-document-status{grid-column:3;grid-row:1}
+}
+
 @media(max-width:720px){
   .app-ui .dashboard-page{padding:18px 12px 34px}
   .app-ui .dashboard-hero{align-items:stretch;flex-direction:column;padding:0 2px 17px;border-radius:0}
@@ -185,12 +194,6 @@
   .app-ui .dashboard-kpis strong{font-size:24px}.app-ui .dashboard-money-stack b{font-size:22px}
   .app-ui .dashboard-kpi-icon{display:none}
   .app-ui .dashboard-side-stack{grid-template-columns:minmax(0,1fr)}
-  .app-ui .dashboard-document-head{display:none}
-  .app-ui .dashboard-document-row{min-height:92px!important;grid-template-columns:34px minmax(0,1fr) auto;grid-template-rows:auto auto auto;gap:2px 9px;padding:10px 12px}
-  .app-ui .dashboard-document-kind{width:34px;height:34px}
-  .app-ui .dashboard-document-kind{grid-column:1;grid-row:1 / 4}.app-ui .dashboard-document-copy{grid-column:2;grid-row:1}.app-ui .dashboard-document-copy small{display:block}
-  .app-ui .dashboard-document-customer{grid-column:2;grid-row:2}.app-ui .dashboard-document-date{display:block;grid-column:2 / 4;grid-row:3;font-size:10px}
-  .app-ui .dashboard-document-amount{grid-column:3;grid-row:2}.app-ui .dashboard-document-status{grid-column:3;grid-row:1}
   .app-ui .documents-advanced-filters{grid-template-columns:minmax(0,1fr)}
 
   .app-ui .document-detail-page{padding:10px 11px 30px}

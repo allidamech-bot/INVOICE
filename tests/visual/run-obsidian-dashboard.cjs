@@ -2,7 +2,7 @@ const {chromium}=require('playwright');
 const {mkdirSync,writeFileSync}=require('node:fs');
 const assert=require('node:assert/strict');
 const output='visual-qa-output/obsidian-dashboard';
-const scenarios=[{width:1440,height:1000,touch:false},{width:1024,height:900,touch:false},{width:820,height:1180,touch:true},{width:390,height:844,touch:true}];
+const scenarios=[{width:1440,height:1000,touch:false},{width:1024,height:900,touch:false},{width:820,height:1180,touch:true},{width:768,height:1024,touch:true},{width:390,height:844,touch:true},{width:320,height:568,touch:true}];
 
 (async()=>{
   mkdirSync(output,{recursive:true});
@@ -32,8 +32,8 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:1024,height:900,tou
       if(state.kpis.some(item=>item.background!=='rgba(0, 0, 0, 0)'||item.radius!=='0px'))failures.push('KPI cards are not internally divided');
       if(state.whiteSurfaces)failures.push(`white application surfaces ${state.whiteSurfaces}`);
       if(state.recentRows!==6||state.statuses!==6)failures.push(`recent document structure ${state.recentRows}/${state.statuses}`);
-      if(state.firstRowHeight<64||state.firstRowHeight>(scenario.width<=720?112:82))failures.push(`recent row height ${state.firstRowHeight}`);
-      if(scenario.width<=720){if(state.columns!==2)failures.push(`mobile KPI columns ${state.columns}`);if(state.recentHead!=='none')failures.push('mobile table head visible');}
+      if(state.firstRowHeight<64||state.firstRowHeight>(scenario.width<=800?112:82))failures.push(`recent row height ${state.firstRowHeight}`);
+      if(scenario.width<=800){if(state.columns!==2)failures.push(`mobile KPI columns ${state.columns}`);if(state.recentHead!=='none')failures.push('mobile table head visible');}
       else{if(state.recentHead==='none')failures.push('desktop table head hidden');}
       await page.screenshot({path:`${output}/${scenario.width}-${lang}.png`,fullPage:true});
       results.push({scenario,lang,state,failures});await page.close();

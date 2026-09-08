@@ -210,53 +210,7 @@
 .app-ui .workspace-shell.is-editor .workspace-content{grid-column:1}
 .app-ui .editor-context-mark{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:var(--ds-selected);color:var(--ds-accent-bright)}
 
-/* Home shell scaffold. Batch 2 expands this into the full operational dashboard. */
-.app-ui .workspace-home-page{max-width:1280px;margin:0 auto;padding:28px clamp(18px,3vw,38px) 50px}
-.app-ui .workspace-home-hero{
-  display:flex;
-  align-items:flex-end;
-  justify-content:space-between;
-  gap:28px;
-  padding:30px;
-  border:1px solid #ded6c9;
-  border-radius:22px;
-  background:
-    radial-gradient(circle at 92% 0%,rgba(200,164,97,.14),transparent 34%),
-    linear-gradient(145deg,#fffdfa,#f4efe5);
-  box-shadow:0 18px 44px rgba(35,47,53,.07);
-}
-.app-ui .workspace-home-eyebrow{margin:0 0 8px;color:#9a7d48;font-size:11px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
-[dir='rtl'] .app-ui .workspace-home-eyebrow{letter-spacing:0;text-transform:none}
-.app-ui .workspace-home-hero h1{margin:0;color:#132b39;font-size:clamp(25px,3vw,37px);line-height:1.12;font-weight:850;letter-spacing:-.025em}
-[dir='rtl'] .app-ui .workspace-home-hero h1{letter-spacing:0}
-.app-ui .workspace-home-hero p:not(.workspace-home-eyebrow){max-width:650px;margin:10px 0 0;color:#6c7a82;font-size:14px;line-height:1.75}
-.app-ui .workspace-home-actions{display:flex;flex:0 0 auto;gap:9px;flex-wrap:wrap}
-.app-ui .workspace-home-actions .btn{min-height:44px}
-.app-ui .workspace-home-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:18px}
-.app-ui .workspace-home-grid>button{
-  min-height:126px;
-  display:grid;
-  grid-template-columns:42px minmax(0,1fr) 24px;
-  align-items:start;
-  gap:12px;
-  padding:18px;
-  border:1px solid #e1dcd3;
-  border-radius:17px;
-  background:#fff;
-  color:var(--shell-text);
-  text-align:start;
-  cursor:pointer;
-  box-shadow:0 10px 28px rgba(45,56,62,.045);
-  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;
-}
-.app-ui .workspace-home-grid>button:hover{transform:translateY(-2px);border-color:#cdbb98;box-shadow:0 14px 34px rgba(45,56,62,.075)}
-.app-ui .workspace-home-card-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:#edf2f2;color:#17394b}
-.app-ui .workspace-home-grid>button>span:nth-child(2){display:flex;min-width:0;flex-direction:column;gap:2px}
-.app-ui .workspace-home-grid small{color:#677781;font-size:11px;font-weight:750}
-.app-ui .workspace-home-grid strong{color:#173446;font-size:23px;line-height:1.25;font-weight:850}
-.app-ui .workspace-home-grid em{color:#8a9499;font-size:11px;font-style:normal;line-height:1.45}
-.app-ui .workspace-home-card-arrow{align-self:center;color:#b09a73;transform:rotate(180deg)}
-[dir='rtl'] .app-ui .workspace-home-card-arrow{transform:none}
+/* Dashboard layout and surfaces are owned by dashboard-documents.css. */
 
 .app-ui .mobile-bottom-nav,.app-ui .mobile-more-sheet,.app-ui .mobile-more-backdrop{display:none}
 
@@ -408,21 +362,13 @@
   [dir='rtl'] .app-ui .mobile-more-sheet .shell-nav-button.active{box-shadow:inset -3px 0 0 var(--ds-accent-bright)}
   .app-ui .mobile-more-settings{width:100%;min-height:46px;display:flex;align-items:center;gap:11px;margin-top:3px;padding:10px 11px;border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-workspace);color:var(--ds-text);font:inherit;font-weight:700;text-align:start}
 
-  .app-ui .workspace-home-page{padding:16px 12px calc(24px + env(safe-area-inset-bottom))}
-  .app-ui .workspace-home-hero{display:block;padding:20px;border-radius:18px}
-  .app-ui .workspace-home-hero h1{font-size:25px}
-  .app-ui .workspace-home-actions{margin-top:18px}
-  .app-ui .workspace-home-actions .btn{flex:1 1 140px;justify-content:center}
-  .app-ui .workspace-home-grid{grid-template-columns:1fr;gap:9px;margin-top:12px}
-  .app-ui .workspace-home-grid>button{min-height:96px;padding:14px}
 }
 
 @media(min-width:961px) and (max-width:1180px){
   .app-ui .workspace-shell{grid-template-columns:216px minmax(0,1fr)}
   .app-ui .workspace-sidebar{padding-inline:11px}
-  .app-ui .workspace-home-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
 @media(prefers-reduced-motion:reduce){
-  .app-ui .shell-nav-button,.app-ui .workspace-home-grid>button{transition:none!important}
+  .app-ui .shell-nav-button{transition:none!important}
 }
