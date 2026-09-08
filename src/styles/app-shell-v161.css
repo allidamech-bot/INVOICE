@@ -80,6 +80,8 @@
 }
 .app-ui .shell-new-menu button{color:var(--ds-text);text-align:start}
 .app-ui .shell-new-menu button:hover{background:var(--ds-selected)}
+.app-ui .shell-new-menu button>span{display:flex;min-width:0;flex-direction:column;align-items:flex-start;gap:2px}
+[dir='rtl'] .app-ui .shell-new-menu button>span{align-items:flex-start}
 .app-ui .shell-new-menu button strong{color:var(--ds-text)}
 .app-ui .shell-new-menu button small{color:var(--ds-text-soft)}
 .app-ui .desktop-shell-new-menu{left:0;right:0;top:calc(100% + 8px)}

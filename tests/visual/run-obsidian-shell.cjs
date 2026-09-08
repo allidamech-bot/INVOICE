@@ -45,6 +45,9 @@ const scenarios=[{width:1440,height:900,touch:false},{width:1024,height:768,touc
       }else{
         await page.locator('.shell-create-button').click();
         if(!(await page.locator('.desktop-shell-new-menu').isVisible()))failures.push('desktop create menu did not open');
+        const menu=await page.locator('.desktop-shell-new-menu').evaluate(el=>({background:getComputedStyle(el).backgroundColor,stack:getComputedStyle(el.querySelector('button>span')).display}));
+        if(menu.background!=='rgb(16, 29, 36)')failures.push(`desktop create menu ${menu.background}`);
+        if(menu.stack!=='flex')failures.push(`desktop create menu copy ${menu.stack}`);
       }
       await page.screenshot({path:`${output}/${scenario.width}-${lang}.png`,fullPage:false});
       results.push({scenario,lang,state,failures});await page.close();
