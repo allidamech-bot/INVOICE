@@ -32,6 +32,10 @@ test('batch 1 mobile navigation keeps five clear slots with a central create act
   assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
   assert.match(css,/min-height:calc\(58px \+ env\(safe-area-inset-top\)\)/);
   assert.match(css,/bottom:calc\(72px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(css,/background:var\(--ds-shell\)/);
+  assert.match(css,/background:var\(--ds-selected\)/);
+  assert.doesNotMatch(css,/shell-create-button\.btn-primary\{background:linear-gradient/);
+  assert.doesNotMatch(css,/shell-brand-button\{[^}]*background:rgba\(255,255,255/);
 });
 
 test('batch 1 shell is last application layer while printable document redesign remains final',async()=>{

@@ -89,7 +89,7 @@ export class AppShell extends React.Component<Props,State>{
       </aside>:null}
 
       <header className="workspace-topbar">
-        <div className="shell-mobile-brand">{!editor?<button type="button" onClick={()=>this.navigate('home')}><Brand compact logoDataUrl={this.props.logoDataUrl} language={this.props.language}/></button>:<span className="editor-context-mark"><Icon name="edit"/></span>}</div>
+        <div className="shell-mobile-brand">{!editor?<button type="button" aria-label={t('Home','الرئيسية')} onClick={()=>this.navigate('home')}><Brand compact logoDataUrl={this.props.logoDataUrl} language={this.props.language}/></button>:<span className="editor-context-mark"><Icon name="edit"/></span>}</div>
         <div className="shell-page-title"><small>{editor?t('Editing','تحرير'):t('LOUREX Invoice','LOUREX Invoice')}</small><strong>{this.pageTitle()}</strong></div>
         <button type="button" className={`shell-sync-status state-${this.props.cloudState}`} title={this.props.cloudMessage||this.props.cloudLabel} onClick={this.props.onCloud}><span className="shell-status-dot"/><span>{this.props.cloudLabel}</span></button>
       </header>

@@ -1,18 +1,18 @@
-/* Batch 1 — canonical LOUREX application shell and information architecture.
+/* Obsidian Executive — canonical LOUREX application shell and information architecture.
    This layer intentionally targets application chrome only and never document output. */
 
 .app-ui{
-  --shell-navy:#0b1d2d;
-  --shell-navy-2:#123447;
-  --shell-gold:#c8a461;
-  --shell-ivory:#f6f3ed;
-  --shell-paper:#fffdfa;
-  --shell-line:#e4ded3;
-  --shell-text:#152733;
-  --shell-muted:#71808a;
-  --shell-success:#27805f;
-  --shell-warning:#b77a23;
-  --shell-error:#b34b48;
+  --shell-navy:var(--ds-shell);
+  --shell-navy-2:var(--ds-surface);
+  --shell-gold:var(--ds-brass);
+  --shell-ivory:var(--ds-canvas);
+  --shell-paper:var(--ds-surface);
+  --shell-line:var(--ds-line);
+  --shell-text:var(--ds-text);
+  --shell-muted:var(--ds-text-soft);
+  --shell-success:var(--ds-success);
+  --shell-warning:var(--ds-warning);
+  --shell-error:var(--ds-danger);
   min-height:100dvh;
   background:var(--shell-ivory)!important;
 }
@@ -40,33 +40,48 @@
   padding:18px 14px max(18px,env(safe-area-inset-bottom));
   overflow-y:auto;
   overscroll-behavior:contain;
-  background:linear-gradient(180deg,#0b1d2d 0%,#102a3a 58%,#0d2332 100%);
+  background:var(--ds-shell);
   border-inline-end:1px solid rgba(255,255,255,.08);
-  box-shadow:10px 0 35px rgba(20,34,43,.08);
+  box-shadow:none;
 }
 
 .app-ui .shell-brand-button{
   width:100%;
-  min-height:62px;
+  min-height:58px;
   display:flex;
   align-items:center;
   justify-content:flex-start;
   padding:8px 10px;
-  border:1px solid rgba(255,255,255,.11);
-  border-radius:16px;
-  background:rgba(255,255,255,.96);
+  border:1px solid transparent;
+  border-radius:12px;
+  background:transparent;
+  color:var(--ds-text);
   cursor:pointer;
   overflow:hidden;
 }
 .app-ui .shell-brand-button .brand.compact{max-width:100%}
 .app-ui .shell-brand-button .brand.compact .brand-mark img{max-height:38px!important}
+.app-ui .shell-brand-button .brand-words strong{color:var(--ds-text);font-size:15px;letter-spacing:.16em}
+[dir='rtl'] .app-ui .shell-brand-button .brand-words strong{letter-spacing:.08em}
+.app-ui .shell-brand-button:hover{border-color:var(--ds-line);background:var(--ds-surface)}
 
 .app-ui .shell-create-wrap{position:relative;width:100%}
-.app-ui .shell-create-button{width:100%;justify-content:center;min-height:46px;border-radius:13px!important;box-shadow:0 10px 24px rgba(0,0,0,.14)}
-.app-ui .shell-create-button.btn-primary{background:linear-gradient(135deg,#d1b06f,#b78a40)!important;color:#172633!important;border-color:#d9bd84!important}
-.app-ui .shell-create-button.btn-primary:hover{filter:brightness(1.025)}
+.app-ui .shell-create-button{width:100%;justify-content:center;min-height:46px;border-radius:12px!important;box-shadow:none}
+.app-ui .shell-create-button.btn-primary{background:var(--ds-accent)!important;color:var(--ds-on-action)!important;border-color:var(--ds-accent)!important}
+.app-ui .shell-create-button.btn-primary:hover{background:var(--ds-accent-hover)!important;border-color:var(--ds-accent-hover)!important}
 
-.app-ui .shell-new-menu{z-index:90;min-width:220px}
+.app-ui .shell-new-menu{
+  z-index:90;
+  min-width:220px;
+  border-color:var(--ds-line-strong);
+  background:var(--ds-surface);
+  color:var(--ds-text);
+  box-shadow:var(--ds-shadow-raised);
+}
+.app-ui .shell-new-menu button{color:var(--ds-text);text-align:start}
+.app-ui .shell-new-menu button:hover{background:var(--ds-selected)}
+.app-ui .shell-new-menu button strong{color:var(--ds-text)}
+.app-ui .shell-new-menu button small{color:var(--ds-text-soft)}
 .app-ui .desktop-shell-new-menu{left:0;right:0;top:calc(100% + 8px)}
 [dir='rtl'] .app-ui .desktop-shell-new-menu{left:0;right:0}
 
@@ -74,8 +89,8 @@
 .app-ui .shell-nav-primary,.app-ui .shell-nav-group{display:flex;flex-direction:column;gap:5px}
 .app-ui .shell-nav-group>p{
   margin:7px 11px 3px;
-  color:#8095a1;
-  font-size:10px;
+  color:var(--ds-faint);
+  font-size:11px;
   line-height:1.3;
   font-weight:800;
   letter-spacing:.11em;
@@ -93,7 +108,7 @@
   border:1px solid transparent;
   border-radius:12px;
   background:transparent;
-  color:#bac8ce;
+  color:var(--ds-text-soft);
   font:inherit;
   font-size:13px;
   font-weight:650;
@@ -101,14 +116,14 @@
   cursor:pointer;
   transition:background .16s ease,color .16s ease,border-color .16s ease,transform .16s ease;
 }
-.app-ui .shell-nav-button:hover{color:#fff;background:rgba(255,255,255,.065)}
+.app-ui .shell-nav-button:hover{color:var(--ds-text);background:var(--ds-surface)}
 .app-ui .shell-nav-button.active{
-  color:#fff;
-  background:linear-gradient(90deg,rgba(200,164,97,.22),rgba(255,255,255,.07));
-  border-color:rgba(213,181,117,.27);
-  box-shadow:inset 3px 0 0 var(--shell-gold);
+  color:var(--ds-text);
+  background:var(--ds-selected);
+  border-color:var(--ds-line-strong);
+  box-shadow:inset 3px 0 0 var(--ds-accent-bright);
 }
-[dir='rtl'] .app-ui .shell-nav-button.active{box-shadow:inset -3px 0 0 var(--shell-gold)}
+[dir='rtl'] .app-ui .shell-nav-button.active{box-shadow:inset -3px 0 0 var(--ds-accent-bright)}
 .app-ui .shell-nav-button.nested{padding-inline-start:17px}
 .app-ui .shell-nav-button .icon{flex:0 0 auto;opacity:.9}
 
@@ -122,22 +137,22 @@
   padding:8px 10px;
   border:1px solid rgba(255,255,255,.08);
   border-radius:12px;
-  background:rgba(255,255,255,.035);
-  color:#d3dde1;
+  background:var(--ds-workspace);
+  color:var(--ds-text-soft);
   text-align:start;
   cursor:pointer;
 }
 .app-ui .shell-account-row>span:not(.shell-status-dot){display:flex;min-width:0;flex-direction:column;gap:1px}
-.app-ui .shell-account-row small{font-size:10px;color:#91a4ae}
-.app-ui .shell-account-row strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-ui .shell-account-row small{font-size:11px;color:var(--ds-faint)}
+.app-ui .shell-account-row strong{font-size:12px;color:var(--ds-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .app-ui .shell-settings-row{font-size:13px;font-weight:650}
-.app-ui .shell-settings-row:hover,.app-ui .shell-account-row:hover{background:rgba(255,255,255,.075);color:#fff}
+.app-ui .shell-settings-row:hover,.app-ui .shell-account-row:hover{border-color:var(--ds-line-strong);background:var(--ds-selected);color:var(--ds-text)}
 
-.app-ui .shell-status-dot{width:8px;height:8px;flex:0 0 8px;border-radius:999px;background:#8b9aa2;box-shadow:0 0 0 3px rgba(139,154,162,.12)}
-.app-ui .state-synced .shell-status-dot{background:var(--shell-success);box-shadow:0 0 0 3px rgba(39,128,95,.14)}
-.app-ui .state-syncing .shell-status-dot,.app-ui .state-queued .shell-status-dot{background:var(--shell-warning);box-shadow:0 0 0 3px rgba(183,122,35,.14)}
-.app-ui .state-error .shell-status-dot{background:var(--shell-error);box-shadow:0 0 0 3px rgba(179,75,72,.14)}
-.app-ui .state-offline .shell-status-dot{background:#7f8991}
+.app-ui .shell-status-dot{width:8px;height:8px;flex:0 0 8px;border-radius:999px;background:var(--ds-faint);box-shadow:0 0 0 3px rgba(112,131,137,.12)}
+.app-ui .state-synced .shell-status-dot{background:var(--shell-success);box-shadow:0 0 0 3px rgba(54,167,121,.14)}
+.app-ui .state-syncing .shell-status-dot,.app-ui .state-queued .shell-status-dot{background:var(--shell-warning);box-shadow:0 0 0 3px rgba(209,154,69,.14)}
+.app-ui .state-error .shell-status-dot{background:var(--shell-error);box-shadow:0 0 0 3px rgba(199,90,87,.14)}
+.app-ui .state-offline .shell-status-dot{background:var(--ds-faint)}
 
 .app-ui .workspace-topbar{
   grid-column:2;
@@ -151,13 +166,13 @@
   align-items:center;
   gap:14px;
   padding:10px 22px;
-  background:rgba(255,253,250,.94);
-  backdrop-filter:blur(18px) saturate(1.12);
+  background:var(--ds-workspace);
+  backdrop-filter:none;
   border-bottom:1px solid var(--shell-line);
 }
 .app-ui .shell-mobile-brand{display:none}
 .app-ui .shell-page-title{display:flex;min-width:0;flex:1 1 auto;flex-direction:column;gap:1px}
-.app-ui .shell-page-title small{font-size:10px;line-height:1.2;font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:#8c7961}
+.app-ui .shell-page-title small{font-size:11px;line-height:1.2;font-weight:750;letter-spacing:.06em;text-transform:uppercase;color:var(--ds-text-soft)}
 [dir='rtl'] .app-ui .shell-page-title small{letter-spacing:0;text-transform:none}
 .app-ui .shell-page-title strong{font-size:18px;line-height:1.25;font-weight:800;color:var(--shell-text)}
 .app-ui .shell-sync-status{
@@ -166,17 +181,17 @@
   align-items:center;
   gap:8px;
   padding:7px 11px;
-  border:1px solid #e0d9ce;
+  border:1px solid var(--ds-line);
   border-radius:999px;
-  background:#fff;
-  color:#5d6c75;
+  background:var(--ds-surface);
+  color:var(--ds-text-soft);
   font:inherit;
   font-size:11px;
   font-weight:700;
   cursor:pointer;
   white-space:nowrap;
 }
-.app-ui .shell-sync-status:hover{border-color:#cdb991;background:#fffdf9;color:#273d49}
+.app-ui .shell-sync-status:hover{border-color:var(--ds-line-strong);background:var(--ds-selected);color:var(--ds-text)}
 
 .app-ui .workspace-content{
   grid-column:2;
@@ -191,7 +206,7 @@
 .app-ui .workspace-shell.is-editor{grid-template-columns:minmax(0,1fr)}
 .app-ui .workspace-shell.is-editor .workspace-topbar{grid-column:1}
 .app-ui .workspace-shell.is-editor .workspace-content{grid-column:1}
-.app-ui .editor-context-mark{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:#e8eef0;color:#173446}
+.app-ui .editor-context-mark{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:var(--ds-selected);color:var(--ds-accent-bright)}
 
 /* Home shell scaffold. Batch 2 expands this into the full operational dashboard. */
 .app-ui .workspace-home-page{max-width:1280px;margin:0 auto;padding:28px clamp(18px,3vw,38px) 50px}
@@ -270,7 +285,7 @@
   .app-ui .shell-mobile-brand .brand.compact{min-width:0!important;width:38px!important;max-width:38px!important}
   .app-ui .shell-mobile-brand .brand.compact .brand-mark{width:38px!important;min-width:38px!important}
   .app-ui .shell-mobile-brand .brand.compact .brand-mark img{width:38px!important;height:38px!important;max-width:38px!important;max-height:38px!important;object-fit:contain!important}
-  .app-ui .shell-page-title small{font-size:9px}
+  .app-ui .shell-page-title small{font-size:10px}
   .app-ui .shell-page-title strong{font-size:15px}
   .app-ui .shell-sync-status{min-height:36px;padding:6px 9px}
   .app-ui .shell-sync-status>span:last-child{max-width:74px;overflow:hidden;text-overflow:ellipsis}
@@ -286,10 +301,10 @@
     grid-template-columns:repeat(5,minmax(0,1fr));
     align-items:start;
     padding:6px max(5px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(5px,env(safe-area-inset-left));
-    background:rgba(255,253,250,.97);
-    border-top:1px solid #ded8cd;
-    box-shadow:0 -9px 30px rgba(28,42,49,.09);
-    backdrop-filter:blur(18px) saturate(1.1);
+    background:var(--ds-shell);
+    border-top:1px solid var(--ds-line);
+    box-shadow:0 -8px 24px rgba(0,0,0,.18);
+    backdrop-filter:none;
   }
   .app-ui .mobile-bottom-nav>button{
     min-width:0;
@@ -303,12 +318,12 @@
     border:0;
     border-radius:10px;
     background:transparent;
-    color:#7b8990;
+    color:var(--ds-text-soft);
     font:inherit;
     cursor:pointer;
   }
-  .app-ui .mobile-bottom-nav>button span{max-width:100%;font-size:9px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .app-ui .mobile-bottom-nav>button.active{color:#17394b;background:#edf2f1}
+  .app-ui .mobile-bottom-nav>button span{max-width:100%;font-size:10px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .mobile-bottom-nav>button.active{color:var(--ds-accent-bright);background:var(--ds-selected)}
   .app-ui .mobile-create-wrap{position:relative;display:flex;justify-content:center}
   .app-ui .mobile-create-button{
     width:52px;
@@ -316,11 +331,11 @@
     margin-top:-14px;
     display:grid;
     place-items:center;
-    border:4px solid #fffdfa;
-    border-radius:999px;
-    background:linear-gradient(145deg,#d3b472,#b98d43);
-    color:#142936;
-    box-shadow:0 10px 25px rgba(63,50,29,.22);
+    border:4px solid var(--ds-shell);
+    border-radius:15px;
+    background:var(--ds-accent);
+    color:var(--ds-on-action);
+    box-shadow:0 8px 20px rgba(0,0,0,.28);
     cursor:pointer;
   }
   .app-ui .mobile-shell-new-menu{
@@ -340,8 +355,8 @@
     z-index:76;
     display:block;
     border:0;
-    background:rgba(9,24,34,.38);
-    backdrop-filter:blur(2px);
+    background:rgba(0,0,0,.58);
+    backdrop-filter:none;
   }
   .app-ui .mobile-more-sheet{
     position:fixed;
@@ -354,17 +369,17 @@
     padding:8px 12px 14px;
     overflow:auto;
     overscroll-behavior:contain;
-    border:1px solid #ded8cd;
-    border-radius:22px;
-    background:#fffdfa;
-    box-shadow:0 22px 60px rgba(14,31,42,.24);
+    border:1px solid var(--ds-line-strong);
+    border-radius:18px;
+    background:var(--ds-surface);
+    box-shadow:0 22px 60px rgba(0,0,0,.38);
   }
-  .app-ui .mobile-more-handle{width:38px;height:4px;margin:0 auto 9px;border-radius:999px;background:#d8d2c9}
+  .app-ui .mobile-more-handle{width:38px;height:4px;margin:0 auto 9px;border-radius:999px;background:var(--ds-line-strong)}
   .app-ui .mobile-more-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 3px 10px}
   .app-ui .mobile-more-heading>div{display:flex;flex-direction:column}
-  .app-ui .mobile-more-heading small{font-size:9px;font-weight:750;color:#99805a}
-  .app-ui .mobile-more-heading strong{font-size:18px;color:#173446}
-  .app-ui .mobile-more-heading>button{width:40px;height:40px;display:grid;place-items:center;border:1px solid #e2ddd5;border-radius:12px;background:#fff;color:#53646e}
+  .app-ui .mobile-more-heading small{font-size:11px;font-weight:750;color:var(--ds-text-soft)}
+  .app-ui .mobile-more-heading strong{font-size:18px;color:var(--ds-text)}
+  .app-ui .mobile-more-heading>button{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--ds-line);border-radius:11px;background:var(--ds-workspace);color:var(--ds-text-soft)}
   .app-ui .mobile-more-account{
     width:100%;
     min-height:52px;
@@ -373,22 +388,23 @@
     gap:11px;
     margin-bottom:10px;
     padding:9px 11px;
-    border:1px solid #ded8cd;
+    border:1px solid var(--ds-line);
     border-radius:14px;
-    background:#f6f3ed;
-    color:#263e4b;
+    background:var(--ds-workspace);
+    color:var(--ds-text);
     text-align:start;
   }
   .app-ui .mobile-more-account>span:not(.shell-status-dot){display:flex;flex-direction:column}
-  .app-ui .mobile-more-account small{font-size:10px;color:#79868d}
+  .app-ui .mobile-more-account small{font-size:11px;color:var(--ds-text-soft)}
   .app-ui .mobile-more-account strong{font-size:12px}
-  .app-ui .mobile-more-group{padding:8px 0;border-top:1px solid #eee9e1}
-  .app-ui .mobile-more-group>p{margin:0 8px 5px;color:#99805a;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+  .app-ui .mobile-more-group{padding:8px 0;border-top:1px solid var(--ds-line)}
+  .app-ui .mobile-more-group>p{margin:0 8px 5px;color:var(--ds-faint);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
   [dir='rtl'] .app-ui .mobile-more-group>p{letter-spacing:0;text-transform:none}
-  .app-ui .mobile-more-sheet .shell-nav-button{color:#38505c;min-height:44px}
-  .app-ui .mobile-more-sheet .shell-nav-button:hover{color:#173446;background:#f2eee7}
-  .app-ui .mobile-more-sheet .shell-nav-button.active{color:#173446;background:#edf2f1;border-color:#d6e0df;box-shadow:none}
-  .app-ui .mobile-more-settings{width:100%;min-height:46px;display:flex;align-items:center;gap:11px;margin-top:3px;padding:10px 11px;border:1px solid #ded8cd;border-radius:12px;background:#fff;color:#263e4b;font:inherit;font-weight:700;text-align:start}
+  .app-ui .mobile-more-sheet .shell-nav-button{color:var(--ds-text-soft);min-height:44px}
+  .app-ui .mobile-more-sheet .shell-nav-button:hover{color:var(--ds-text);background:var(--ds-selected)}
+  .app-ui .mobile-more-sheet .shell-nav-button.active{color:var(--ds-text);background:var(--ds-selected);border-color:var(--ds-line-strong);box-shadow:inset 3px 0 0 var(--ds-accent-bright)}
+  [dir='rtl'] .app-ui .mobile-more-sheet .shell-nav-button.active{box-shadow:inset -3px 0 0 var(--ds-accent-bright)}
+  .app-ui .mobile-more-settings{width:100%;min-height:46px;display:flex;align-items:center;gap:11px;margin-top:3px;padding:10px 11px;border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-workspace);color:var(--ds-text);font:inherit;font-weight:700;text-align:start}
 
   .app-ui .workspace-home-page{padding:16px 12px calc(24px + env(safe-area-inset-bottom))}
   .app-ui .workspace-home-hero{display:block;padding:20px;border-radius:18px}

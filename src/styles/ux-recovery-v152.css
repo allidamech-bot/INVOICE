@@ -384,16 +384,7 @@
 .app-ui .receivables-heading::after,
 .app-ui .reports-heading::after,
 .app-ui .operations-hero::after{
-  content:"";
-  position:absolute;
-  width:150px;
-  height:150px;
-  inset-inline-end:-54px;
-  inset-block-end:-104px;
-  border:1px solid rgba(255,255,255,.13);
-  border-radius:50%;
-  box-shadow:0 0 0 25px rgba(255,255,255,.035),0 0 0 52px rgba(209,178,122,.035);
-  pointer-events:none;
+  content:none;
 }
 .app-ui .empty-mark{background:#dfeaed;color:var(--ux-navy-soft)}
 .app-ui :is(.documents-empty,.customers-empty,.receivable-empty){border-style:solid;border-color:#d4ddde}
