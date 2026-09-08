@@ -14,6 +14,7 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:1024,height:900,tou
       const errors=[];page.on('pageerror',error=>errors.push(String(error)));
       await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-dashboard.html?lang=${lang}`,{waitUntil:'load'});
       await page.locator('.dashboard-page').waitFor();
+      await page.evaluate(()=>document.fonts.ready);
       const state=await page.evaluate(()=>{
         const style=selector=>getComputedStyle(document.querySelector(selector));
         const rect=selector=>document.querySelector(selector).getBoundingClientRect();
@@ -31,7 +32,7 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:1024,height:900,tou
       if(state.kpis.some(item=>item.background!=='rgba(0, 0, 0, 0)'||item.radius!=='0px'))failures.push('KPI cards are not internally divided');
       if(state.whiteSurfaces)failures.push(`white application surfaces ${state.whiteSurfaces}`);
       if(state.recentRows!==6||state.statuses!==6)failures.push(`recent document structure ${state.recentRows}/${state.statuses}`);
-      if(state.firstRowHeight<64||state.firstRowHeight>82)failures.push(`recent row height ${state.firstRowHeight}`);
+      if(state.firstRowHeight<64||state.firstRowHeight>(scenario.width<=720?112:82))failures.push(`recent row height ${state.firstRowHeight}`);
       if(scenario.width<=720){if(state.columns!==2)failures.push(`mobile KPI columns ${state.columns}`);if(state.recentHead!=='none')failures.push('mobile table head visible');}
       else{if(state.recentHead==='none')failures.push('desktop table head hidden');}
       await page.screenshot({path:`${output}/${scenario.width}-${lang}.png`,fullPage:true});

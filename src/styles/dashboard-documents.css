@@ -22,7 +22,7 @@
 .app-ui .dashboard-kpis strong{color:var(--ds-text);font-size:28px;line-height:1.12;font-weight:850}
 .app-ui .dashboard-kpis em{margin-top:3px;color:var(--ds-faint);font-size:10.5px;line-height:1.4;font-style:normal}
 .app-ui .dashboard-money-stack{display:flex;min-width:0;flex-direction:column;gap:1px;margin:1px 0}
-.app-ui .dashboard-money-stack b{overflow:hidden;color:var(--ds-text);font-size:18px;line-height:1.28;font-weight:850;font-variant-numeric:tabular-nums;text-overflow:ellipsis;white-space:nowrap}
+.app-ui .dashboard-money-stack b{color:var(--ds-text);font-size:24px;line-height:1.28;font-weight:850;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .app-ui .kpi-overdue .dashboard-money-stack b{color:var(--ds-danger-text)}
 
 .app-ui .dashboard-main-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(290px,.65fr);gap:14px;align-items:start}
@@ -36,10 +36,10 @@
 .app-ui .dashboard-panel-heading>button{min-height:40px;padding:7px 10px;border:0;border-radius:10px;background:transparent;color:var(--ds-accent-bright);font:inherit;font-size:11px;font-weight:750;cursor:pointer}
 .app-ui .dashboard-panel-heading>button:hover{background:var(--ds-selected);color:var(--ds-text)}
 .app-ui .dashboard-document-list{display:grid}
-.app-ui .dashboard-document-head,.app-ui .dashboard-document-row{display:grid;grid-template-columns:38px minmax(100px,.72fr) minmax(120px,1fr) 92px minmax(118px,.75fr) auto;align-items:center;gap:11px;padding-inline:16px}
+.app-ui .dashboard-document-head,.app-ui .dashboard-document-row{display:grid;grid-template-columns:38px minmax(100px,.72fr) minmax(100px,1fr) 92px minmax(118px,.75fr) 90px;align-items:center;gap:11px;padding-inline:16px}
 .app-ui .dashboard-document-head{min-height:34px;border-bottom:1px solid var(--ds-line);background:var(--ds-workspace);color:var(--ds-faint);font-size:10px;font-weight:750}
 .app-ui .dashboard-document-head>span:nth-last-child(-n+2){text-align:end}
-.app-ui .dashboard-document-row{width:100%;min-height:70px;padding-block:10px;border:0;border-bottom:1px solid var(--ds-line);background:transparent;color:var(--ds-text);text-align:start;cursor:pointer}
+.app-ui .dashboard-document-row{width:100%;min-height:70px!important;padding-block:10px;border:0;border-bottom:1px solid var(--ds-line);background:transparent;color:var(--ds-text);text-align:start;cursor:pointer}
 .app-ui .dashboard-document-row:last-child{border-bottom:0}
 .app-ui .dashboard-document-row:hover{background:var(--ds-selected)}
 .app-ui .dashboard-document-kind{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;background:rgba(39,170,163,.1);color:var(--ds-accent-bright)}
@@ -153,6 +153,11 @@
 .app-ui .document-detail-secondary-actions>button{width:calc(100% - 16px);min-height:43px;display:flex;align-items:center;gap:10px;margin:5px 8px 0;padding:8px 10px;border:0;border-radius:10px;background:#f7f5f1;color:#405761;font:inherit;font-size:11.5px;font-weight:700;text-align:start;cursor:pointer}
 .app-ui .document-detail-secondary-actions>button:hover{background:#efeae1}.app-ui .document-detail-secondary-actions>button.danger{background:#fff4f2;color:#a23d38}
 
+@media(max-width:1320px){
+  .app-ui .dashboard-main-grid{grid-template-columns:minmax(0,1fr)}
+  .app-ui .dashboard-side-stack{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
 @media(max-width:1120px){
   .app-ui .dashboard-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .app-ui .dashboard-kpis>button:nth-child(3){border-inline-start:0}
@@ -175,15 +180,16 @@
   .app-ui .dashboard-hero h1{font-size:23px}
   .app-ui .workspace-home-actions{margin-top:3px}.app-ui .workspace-home-actions .btn{width:100%;flex:1 1 auto}
   .app-ui .dashboard-kpis{grid-template-columns:repeat(2,minmax(0,1fr));margin:0 0 10px}
-  .app-ui .dashboard-kpis>button{min-height:114px;grid-template-columns:32px minmax(0,1fr);gap:8px;padding:12px 10px}
+  .app-ui .dashboard-kpis>button{min-height:114px;grid-template-columns:minmax(0,1fr);gap:8px;padding:16px 12px}
   .app-ui .dashboard-kpi-icon{width:36px;height:36px;border-radius:11px}
-  .app-ui .dashboard-kpis strong{font-size:21px}.app-ui .dashboard-money-stack b{font-size:13px}
+  .app-ui .dashboard-kpis strong{font-size:24px}.app-ui .dashboard-money-stack b{font-size:22px}
+  .app-ui .dashboard-kpi-icon{display:none}
   .app-ui .dashboard-side-stack{grid-template-columns:minmax(0,1fr)}
   .app-ui .dashboard-document-head{display:none}
-  .app-ui .dashboard-document-row{min-height:74px;grid-template-columns:34px minmax(0,1fr) auto;grid-template-rows:auto auto;gap:2px 9px;padding:10px 12px}
+  .app-ui .dashboard-document-row{min-height:92px!important;grid-template-columns:34px minmax(0,1fr) auto;grid-template-rows:auto auto auto;gap:2px 9px;padding:10px 12px}
   .app-ui .dashboard-document-kind{width:34px;height:34px}
-  .app-ui .dashboard-document-kind{grid-column:1;grid-row:1 / 3}.app-ui .dashboard-document-copy{grid-column:2;grid-row:1}.app-ui .dashboard-document-copy small{display:none}
-  .app-ui .dashboard-document-customer{grid-column:2;grid-row:2}.app-ui .dashboard-document-date{display:none}
+  .app-ui .dashboard-document-kind{grid-column:1;grid-row:1 / 4}.app-ui .dashboard-document-copy{grid-column:2;grid-row:1}.app-ui .dashboard-document-copy small{display:block}
+  .app-ui .dashboard-document-customer{grid-column:2;grid-row:2}.app-ui .dashboard-document-date{display:block;grid-column:2 / 4;grid-row:3;font-size:10px}
   .app-ui .dashboard-document-amount{grid-column:3;grid-row:2}.app-ui .dashboard-document-status{grid-column:3;grid-row:1}
   .app-ui .documents-advanced-filters{grid-template-columns:minmax(0,1fr)}
 
