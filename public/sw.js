@@ -1,3 +1,4 @@
+// v186 account/cloud separation — recache the dedicated account controls without changing the established immutable runtime policy.
 // v185 single launch continuity — recache the unified static/React splash so iPhone users see one uninterrupted launch screen.
 // v184 iPhone startup deadlock recovery — bound pre-render cloud work so stalled Firebase promises cannot hold the boot screen forever.
 // v183 iPhone blank-start recovery — recache the immediate branded boot shell and faster ready-auth startup path.
@@ -67,6 +68,7 @@ LOCAL_CORE.push('./styles/design-system-v164.css');
 LOCAL_CORE.push('./styles/final-mobile-accessibility-v168.css');
 LOCAL_CORE.push('./styles/mobile-overlap-recovery-v176.css');
 LOCAL_CORE.push('./styles/mobile-controls-density-v177.css');
+LOCAL_CORE.push('./styles/account-cloud-separation-v186.css');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
