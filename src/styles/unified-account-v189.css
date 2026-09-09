@@ -4,6 +4,13 @@
   display:none!important;
 }
 
+/* Account access now lives in the dedicated account surface. Retire the legacy
+   Settings tab that exposed manual cloud restore and device-PIN controls. */
+.app-ui .settings-tabs>button:nth-child(4),
+.app-ui .security-settings-page{
+  display:none!important;
+}
+
 .account-managed-setup,
 .account-auto-unlock,
 .legacy-upgrade-card{
