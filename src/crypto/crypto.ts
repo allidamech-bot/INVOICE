@@ -9,6 +9,7 @@ const MAX_KDF_ITERATIONS = 2_000_000;
 const MIN_SALT_BYTES = 16;
 const MAX_SALT_BYTES = 64;
 const GCM_IV_BYTES = 12;
+const ACCOUNT_SECRET_PATTERN=/^acct_[A-Za-z0-9_-]{43}$/;
 
 function bytesToB64(bytes: Uint8Array): string {
   let binary = '';
@@ -62,15 +63,16 @@ async function decryptBytes(key: CryptoKey, ivB64: string, cipherB64: string): P
   const cipher = b64ToBytes(cipherB64);
   if (iv.byteLength !== GCM_IV_BYTES || cipher.byteLength < 16) throw new Error('Invalid encrypted data.');
   const plain = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: iv as BufferSource },
-    key,
+    { name: 'AES-GCM', iv: iv as BufferSource }, key,
     cipher as BufferSource
   );
   return new Uint8Array(plain);
 }
 
 export async function createSecurity(pin: string): Promise<{ metadata: SecurityMetadata; key: CryptoKey }> {
-  if (!/^\d{4,12}$/.test(pin)) throw new Error('PIN must contain 4–12 digits.');
+  const legacyPin=/^\d{4,12}$/.test(pin);
+  const accountSecret=ACCOUNT_SECRET_PATTERN.test(pin);
+  if (!legacyPin&&!accountSecret) throw new Error('PIN must contain 4–12 digits.');
   const salt = randomBytes(24);
   const key = await deriveKey(pin, salt);
   const verification = await encryptBytes(key, encoder.encode(VERIFY_TEXT));
