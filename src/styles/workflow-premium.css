@@ -98,7 +98,7 @@
 .premium-document-card.needs-customer{border-inline-start:3px solid #cf8b42!important}
 
 /* Global accounting polish: restrained functional color, no invoice-template recoloring */
-.editor-screen .btn-primary,.page:not(.invoice-page) .btn-primary{background:linear-gradient(135deg,#12334a,#1f5a7d)!important;border-color:#173e58!important;box-shadow:0 5px 14px rgba(30,83,116,.18)}
+/* Primary actions now use the canonical application button system. */
 .editor-screen .input:focus,.page:not(.invoice-page) .input:focus{border-color:#6f9fb7!important;box-shadow:0 0 0 3px rgba(64,128,162,.11)!important}
 .editor-screen .editor-section{border-color:#dde5e9}
 .editor-screen .section-heading>span{background:#edf5f8!important;color:var(--workflow-blue)!important;border-color:#d6e7ee!important}

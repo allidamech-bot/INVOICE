@@ -65,6 +65,8 @@ const scenarios=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
         assert.equal(menuState.inside,true,'menu outside viewport');
         assert.equal(menuState.hit,true,'menu occluded');
         assert.equal(menuState.bg,'rgb(22, 38, 46)');
+        const portal=page.locator(viewport.width<=900?'.mobile-document-action-portal':'.document-desktop-action-portal');
+        assert.equal(await portal.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)','portal must preserve the workspace beneath it');
         await page.screenshot({path:output+'/'+viewport.width+'-'+lang+'-menu.png',animations:'disabled'});
         await page.keyboard.press('End');
         assert.equal(await menu.locator('button').last().evaluate(el=>el===document.activeElement),true);

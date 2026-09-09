@@ -14,7 +14,7 @@
   --shell-warning:var(--ds-warning);
   --shell-error:var(--ds-danger);
   min-height:100dvh;
-  background:var(--shell-ivory)!important;
+  background:var(--shell-ivory);
 }
 
 .app-ui .workspace-shell{

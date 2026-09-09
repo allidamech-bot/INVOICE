@@ -92,7 +92,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     this.menuTrigger=event.currentTarget;
     this.setState({menuId:this.state.menuId===doc.id?'':doc.id});
   };
-  private closeMenu=()=>this.setState({menuId:''},()=>this.menuTrigger?.isConnected&&this.menuTrigger.focus());
+  private closeMenu=()=>this.setState({menuId:''},()=>this.menuTrigger?.isConnected&&this.menuTrigger.focus({preventScroll:true}));
   private positionMenu=()=>{
     const menu=this.desktopMenu,trigger=this.menuTrigger;
     if(!menu||!trigger||!this.state.menuId||window.innerWidth<=900)return;
@@ -104,7 +104,7 @@ export class DocumentsPage extends React.Component<Props,State>{
   private handleViewportChange=()=>{if(this.state.menuId)this.setState({menuId:''});};
   private handleScroll=(event:Event)=>{
     if(event.target instanceof Element&&event.target.closest('.document-action-popover,.mobile-document-action-sheet'))return;
-    this.handleViewportChange();
+    this.positionMenu();
   };
 
   componentDidMount():void{

@@ -38,7 +38,7 @@
     make('invoice','INV-2026-0043','draft',-1,'2400.00')
   ];
   documents[5].items[0].descriptionEn='';documents[5].items[0].descriptionAr='';
-  documents[4].lifecycleStatus='voided';
+  documents[2].lifecycleStatus='voided';
   const payments=[{id:'pay-1',invoiceId:'doc-INV-2026-0041',invoiceNumber:'INV-2026-0041',customerId:'customer-1',customerNameEn:customer.companyNameEn,customerNameAr:customer.companyNameAr,currency:'USD',amount:'1200.00',date:shift(-2),method:'bank-transfer',reference:'TRX-1001',notes:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}];
 
   class Fixture extends React.Component{
