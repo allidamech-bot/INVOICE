@@ -26,7 +26,7 @@ test('document contextual actions close on outside press or Escape and mobile us
   assert.match(page,/document\.removeEventListener\('pointerdown',this\.handleOutsidePointer\)/);
   assert.match(page,/target\.closest\('[^']*\.mobile-actions[^']*\.mobile-document-action-portal'\)/);
   assert.match(page,/event\.key==='Escape'/);
-  assert.match(page,/<button type="button" className="document-main"/);
+  assert.match(page,/<button type="button" className="document-register-open"/);
   assert.match(page,/private actionButtons=/);
   assert.match(page,/ReactDOM\.createPortal\([\s\S]*?this\.actionButtons\(doc\)[\s\S]*?document\.body/);
   assert.match(page,/mobile-document-action-backdrop[\s\S]*?onClick=\{\(\)=>this\.setState\(\{menuId:''\}\)\}/);

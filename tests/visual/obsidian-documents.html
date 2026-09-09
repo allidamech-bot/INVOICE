@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <base href="../../dist/">
+  <link rel="stylesheet" href="styles/app.bundle.css">
+</head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+  import {AppShell} from './src/components/AppShell.js';
+  import {DocumentsPage} from './src/components/DocumentsPage.js';
+  import {createBlankDocument} from './src/lib/documents.js';
+  import {customerSnapshotFrom,defaultCompany} from './src/lib/defaults.js';
+  import {setUiLanguage} from './src/lib/i18n.js';
+  import {todayIso} from './src/lib/id.js';
+
+  const ar=new URLSearchParams(location.search).get('lang')==='ar';
+  setUiLanguage(ar?'ar':'en');
+  const h=React.createElement;
+  const company=defaultCompany();
+  company.nameEn='LOUREX Trading';company.nameAr='لوركس للتجارة';company.defaultCurrency='USD';
+  const customer={id:'customer-1',companyNameEn:'Northstar Markets',companyNameAr:'أسواق نورث ستار',contactPerson:'Samira',addressEn:'Business Bay',addressAr:'الخليج التجاري',city:'Dubai',country:'UAE',phone:'+971 50 000 0000',email:'finance@example.test',vatTaxNumber:'TRN-100200',commercialRegistration:'CR-200100'};
+  const snapshot=customerSnapshotFrom(customer);
+  const shift=days=>{const date=new Date(`${todayIso()}T12:00:00Z`);date.setUTCDate(date.getUTCDate()+days);return date.toISOString().slice(0,10);};
+  const make=(kind,number,status,days,price,currency='USD')=>{
+    const base=createBlankDocument(kind,number,company);
+    return {...base,id:`doc-${number}`,status,currency,issueDate:shift(days),dueDate:kind==='invoice'?shift(days+7):shift(days+14),customerSnapshot:snapshot,items:[{...base.items[0],descriptionEn:'Premium business services',descriptionAr:'خدمات أعمال متميزة',quantity:'4',unitPrice:price}],createdAt:new Date(Date.now()+days*86400000).toISOString(),updatedAt:new Date(Date.now()+days*86400000).toISOString()};
+  };
+  const documents=[
+    make('invoice','INV-2026-0042','final',-35,'975.00'),
+    make('invoice','INV-2026-0041','final',-8,'1420.00'),
+    make('proforma','PI-2026-0028','final',-4,'680.00'),
+    make('invoice','INV-2026-0040','final',-3,'510.00','EUR'),
+    make('proforma','PI-2026-0027','draft',-2,'1200.00'),
+    make('invoice','INV-2026-0043','draft',-1,'2400.00')
+  ];
+  documents[5].items[0].descriptionEn='';documents[5].items[0].descriptionAr='';
+  documents[4].lifecycleStatus='voided';
+  const payments=[{id:'pay-1',invoiceId:'doc-INV-2026-0041',invoiceNumber:'INV-2026-0041',customerId:'customer-1',customerNameEn:customer.companyNameEn,customerNameAr:customer.companyNameAr,currency:'USD',amount:'1200.00',date:shift(-2),method:'bank-transfer',reference:'TRX-1001',notes:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}];
+
+  class Fixture extends React.Component{
+    state={newMenu:false};
+    render(){return h(AppShell,{screen:'documents',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:this.state.newMenu,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:()=>{},onToggleNew:()=>this.setState(state=>({newMenu:!state.newMenu})),onNew:()=>this.setState({newMenu:false}),onSettings:()=>{},onCloud:()=>{}},h(DocumentsPage,{documents,payments,onNew:()=>{},onOpen:doc=>{window.lastAction='open:'+doc.id;},onDuplicate:doc=>{window.lastAction='duplicate:'+doc.id;},onConvert:()=>{},onPrint:async()=>{},onDelete:()=>{}}));}
+  }
+  ReactDOM.render(h(Fixture),document.getElementById('root'));
+</script></body></html>

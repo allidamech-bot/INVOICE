@@ -4,7 +4,7 @@ import { displayDate } from '../lib/id.js';
 import { hasDocumentCustomer, validateDocument } from '../lib/documents.js';
 import { invoicePaymentSummary } from '../lib/payments.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
-import { Button, Icon, IconButton, Input, Segmented, Select } from './UI.js';
+import { Button, Icon, IconButton, Input, Select } from './UI.js';
 
 interface Props {
   documents: LourexDocument[];
@@ -86,31 +86,71 @@ function documentSearchText(doc:LourexDocument):string{
 export class DocumentsPage extends React.Component<Props,State>{
   state:State={tab:'all',status:'all',payment:'all',currency:'all',sort:'latest',query:'',menuId:'',filtersOpen:false,outputId:'',detailId:''};
   private quoteConversions=new Set<string>();
+  private menuTrigger:HTMLElement|null=null;
+  private desktopMenu:HTMLDivElement|null=null;
+  private toggleMenu=(doc:LourexDocument,event:any)=>{
+    this.menuTrigger=event.currentTarget;
+    this.setState({menuId:this.state.menuId===doc.id?'':doc.id});
+  };
+  private closeMenu=()=>this.setState({menuId:''},()=>this.menuTrigger?.isConnected&&this.menuTrigger.focus());
+  private positionMenu=()=>{
+    const menu=this.desktopMenu,trigger=this.menuTrigger;
+    if(!menu||!trigger||!this.state.menuId||window.innerWidth<=900)return;
+    const anchor=trigger.getBoundingClientRect(),height=menu.getBoundingClientRect().height;
+    const left=isArabic()?anchor.left:anchor.right-menu.offsetWidth;
+    menu.style.left=`${Math.max(12,Math.min(left,window.innerWidth-menu.offsetWidth-12))}px`;
+    menu.style.top=`${Math.max(12,Math.min(anchor.bottom+8,window.innerHeight-height-12))}px`;
+  };
+  private handleViewportChange=()=>{if(this.state.menuId)this.setState({menuId:''});};
+  private handleScroll=(event:Event)=>{
+    if(event.target instanceof Element&&event.target.closest('.document-action-popover,.mobile-document-action-sheet'))return;
+    this.handleViewportChange();
+  };
 
   componentDidMount():void{
     document.addEventListener('pointerdown',this.handleOutsidePointer);
     document.addEventListener('keydown',this.handleKeyDown);
+    window.addEventListener('resize',this.handleViewportChange);
+    document.addEventListener('scroll',this.handleScroll,true);
   }
-  componentDidUpdate(prevProps:Props):void{
+  componentDidUpdate(prevProps:Props,prevState:State):void{
+    if(this.state.menuId&&prevState.menuId!==this.state.menuId){
+      this.positionMenu();
+      const selector=window.innerWidth<=900?'.mobile-document-action-sheet':'.document-action-popover';
+      document.querySelector<HTMLButtonElement>(`${selector} button:not(:disabled)`)?.focus({preventScroll:true});
+    }
     if(this.state.detailId&&!this.props.documents.some(doc=>doc.id===this.state.detailId))this.setState({detailId:''});
     if(prevProps.documents!==this.props.documents&&this.state.menuId&&!this.props.documents.some(doc=>doc.id===this.state.menuId))this.setState({menuId:''});
   }
   componentWillUnmount():void{
     document.removeEventListener('pointerdown',this.handleOutsidePointer);
     document.removeEventListener('keydown',this.handleKeyDown);
+    window.removeEventListener('resize',this.handleViewportChange);
+    document.removeEventListener('scroll',this.handleScroll,true);
   }
 
   private handleOutsidePointer=(event:PointerEvent)=>{
     if(!this.state.menuId)return;
     const target=event.target;
-    if(target instanceof Element&&target.closest('.document-actions,.mobile-actions,.document-action-popover,.mobile-document-action-portal'))return;
+    if(target instanceof Element&&target.closest('.document-actions,.mobile-actions,.document-detail-more,.document-action-popover,.mobile-document-action-portal'))return;
     this.setState({menuId:''});
   };
   private handleKeyDown=(event:KeyboardEvent)=>{
     if(document.querySelector('.modal-backdrop'))return;
     if(event.key==='Escape'){
-      if(this.state.menuId){this.setState({menuId:''});return;}
+      if(this.state.menuId){event.preventDefault();this.closeMenu();return;}
       if(this.state.detailId){this.setState({detailId:''});return;}
+    }
+    if(this.state.menuId&&['ArrowDown','ArrowUp','Home','End','Tab'].includes(event.key)){
+      const selector=window.innerWidth<=900?'.mobile-document-action-sheet':'.document-action-popover';
+      const buttons=Array.from(document.querySelectorAll<HTMLButtonElement>(`${selector} button:not(:disabled)`));
+      if(buttons.length){
+        event.preventDefault();
+        const current=buttons.indexOf(document.activeElement as HTMLButtonElement);
+        const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(current+(event.key==='ArrowUp'||(event.key==='Tab'&&event.shiftKey)?-1:1)+buttons.length)%buttons.length;
+        buttons[next]?.focus();
+      }
+      return;
     }
     if(this.state.detailId||event.key!=='/'||event.ctrlKey||event.metaKey||event.altKey)return;
     const target=event.target;
@@ -190,7 +230,7 @@ export class DocumentsPage extends React.Component<Props,State>{
   private renderMobileActionPortal=():any=>{
     const doc=this.props.documents.find(item=>item.id===this.state.menuId);
     if(!doc||typeof document==='undefined')return null;
-    return ReactDOM.createPortal(<div className="mobile-document-action-portal" role="presentation"><button type="button" className="mobile-document-action-backdrop" aria-label={t('Close actions','إغلاق الإجراءات')} onClick={()=>this.setState({menuId:''})}/><div className="action-menu mobile-document-action-sheet" role="menu" aria-label={t('Document actions','إجراءات المستند')} onPointerDown={(event:any)=>event.stopPropagation()}>{this.actionButtons(doc)}</div></div>,document.body);
+    return <>{ReactDOM.createPortal(<div className="app-ui document-desktop-action-portal"><div ref={(node:HTMLDivElement|null)=>{this.desktopMenu=node;}} className="document-action-popover" role="menu" aria-label={t('Document actions','إجراءات المستند')}>{this.actionButtons(doc)}</div></div>,document.body)}{ReactDOM.createPortal(<div className="mobile-document-action-portal app-ui" role="presentation"><button type="button" className="mobile-document-action-backdrop" aria-label={t('Close actions','إغلاق الإجراءات')} onClick={()=>this.setState({menuId:''})}/><div className="action-menu mobile-document-action-sheet" role="menu" aria-label={t('Document actions','إجراءات المستند')} onPointerDown={(event:any)=>event.stopPropagation()}>{this.actionButtons(doc)}</div></div>,document.body)}</>;
   };
 
   private renderDetail=(doc:LourexDocument):any=>{
@@ -226,7 +266,7 @@ export class DocumentsPage extends React.Component<Props,State>{
           <Button icon={doc.lifecycleStatus==='voided'?'file':'edit'} variant="primary" onClick={()=>this.props.onOpen(doc)}>{doc.lifecycleStatus==='voided'?t('Open archive','فتح الأرشيف'):doc.status==='final'?t('Open / manage','فتح / إدارة'):t('Continue editing','متابعة التحرير')}</Button>
           {linkedInvoice?<Button icon="invoice" onClick={()=>this.setState({detailId:linkedInvoice.id,menuId:''})}>{t(`Open ${linkedInvoice.number}`,`فتح ${linkedInvoice.number}`)}</Button>:canConvert?<Button icon="invoice" onClick={()=>this.convertQuote(doc)}>{t('Convert to Invoice','تحويل إلى فاتورة')}</Button>:null}
           {canOutput?<><Button icon="download" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}>PDF</Button><Button icon="share" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}>{t('Share','مشاركة')}</Button></>:null}
-          <div className="document-detail-more"><IconButton icon="more" label={t('More actions','إجراءات أخرى')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/>{this.state.menuId===doc.id?<div className="document-action-popover" role="menu">{this.actionButtons(doc)}</div>:null}</div>
+          <div className="document-detail-more"><IconButton icon="more" label={t('More actions','إجراءات أخرى')} aria-haspopup="menu" aria-expanded={this.state.menuId===doc.id} onClick={(event:any)=>this.toggleMenu(doc,event)}/></div>
         </div>
       </div>
 
@@ -252,7 +292,7 @@ export class DocumentsPage extends React.Component<Props,State>{
             <div className="document-detail-item-head"><span>{t('Description','الوصف')}</span><span>{t('Qty','الكمية')}</span><span>{t('Unit','الوحدة')}</span><span>{t('Price','السعر')}</span><span>{t('Total','الإجمالي')}</span></div>
             <div className="document-detail-item-list">{doc.items.map(item=>{
               const tradeMeta=[item.hsCode?`HS ${item.hsCode}`:'',item.origin?`${t('Origin','المنشأ')}: ${item.origin}`:'',item.packing?`${t('Packing','التعبئة')}: ${item.packing}`:''].filter(Boolean).join(' · ');
-              return <div key={item.id} className="document-detail-item-row"><span><strong>{isArabic()?(item.descriptionAr||item.descriptionEn):(item.descriptionEn||item.descriptionAr)||t('Item','صنف')}</strong>{tradeMeta?<small>{tradeMeta}</small>:null}</span><span>{item.quantity}</span><span>{item.unit}</span><span>{formatMoney(item.unitPrice,doc.currency)}</span><span>{formatMoney(lineTotal(item.quantity,item.unitPrice),doc.currency)}</span></div>;
+              return <div key={item.id} className="document-detail-item-row"><span><strong>{isArabic()?(item.descriptionAr||item.descriptionEn):(item.descriptionEn||item.descriptionAr)||t('Item','صنف')}</strong>{tradeMeta?<small>{tradeMeta}</small>:null}</span><span data-label={t('Qty: ','الكمية: ')}>{item.quantity}</span><span data-label={t('Unit: ','الوحدة: ')}>{item.unit}</span><span data-label={t('Price: ','السعر: ')}>{formatMoney(item.unitPrice,doc.currency)}</span><span data-label={t('Total: ','الإجمالي: ')}>{formatMoney(lineTotal(item.quantity,item.unitPrice),doc.currency)}</span></div>;
             })}</div>
             <div className="document-detail-totals">
               <div><span>{t('Subtotal','المجموع الفرعي')}</span><strong>{formatMoney(totals.subtotal,doc.currency)}</strong></div>
@@ -299,9 +339,9 @@ export class DocumentsPage extends React.Component<Props,State>{
         <div className="heading-actions documents-heading-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('New Quote','عرض سعر جديد')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('New Invoice','فاتورة جديدة')}</Button></div>
       </div>
 
-      {resume?<button type="button" className={`resume-document-card workflow-${workflowStatus(resume)}`} onClick={()=>this.props.onOpen(resume)}><span className="resume-icon"><Icon name={resume.kind==='proforma'?'proforma':'invoice'}/></span><span className="resume-copy"><small>{t('Continue where you left off','أكمل من حيث توقفت')}</small><strong>{resume.number}</strong><span>{customerName(resume)}</span></span><span className="resume-meta"><b>{formatMoney(calculateTotals(resume.items,resume.adjustments).grandTotal,resume.currency)}</b><em>{workflowStatus(resume)==='ready'?t('Ready to issue','جاهز للإصدار'):t('Continue editing','متابعة التحرير')} →</em></span></button>:null}
+      {resume?<button type="button" className="documents-resume" onClick={()=>this.props.onOpen(resume)}><span className="resume-icon"><Icon name={resume.kind==='proforma'?'proforma':'invoice'}/></span><span className="resume-copy"><small>{t('Continue where you left off','أكمل من حيث توقفت')}</small><strong>{resume.number}</strong><span>{customerName(resume)}</span></span><span className="resume-meta"><b>{formatMoney(calculateTotals(resume.items,resume.adjustments).grandTotal,resume.currency)}</b><em>{workflowStatus(resume)==='ready'?t('Ready to issue','جاهز للإصدار'):t('Continue editing','متابعة التحرير')} <Icon name={isArabic()?'arrowLeft':'arrowRight'}/></em></span></button>:null}
 
-      <div className="documents-overview documents-overview-five" aria-label={t('Document overview','ملخص المستندات')}>
+      <div className="documents-register-tabs" aria-label={t('Document overview','ملخص المستندات')}>
         <button type="button" className={this.overviewActive('all','all')?'active':''} onClick={()=>this.setOverview('all','all')}><span>{t('All','الكل')}</span><strong>{this.props.documents.length}</strong></button>
         <button type="button" className={this.overviewActive('proforma','all')?'active':''} onClick={()=>this.setOverview('proforma','all')}><span>{t('Quotes','عروض الأسعار')}</span><strong>{quotes}</strong></button>
         <button type="button" className={this.overviewActive('invoice','all')?'active':''} onClick={()=>this.setOverview('invoice','all')}><span>{t('Invoices','الفواتير')}</span><strong>{invoices}</strong></button>
@@ -309,32 +349,37 @@ export class DocumentsPage extends React.Component<Props,State>{
         <button type="button" className={this.overviewActive('all','final')?'active':''} onClick={()=>this.setOverview('all','final')}><span>{t('Issued','صادرة')}</span><strong>{issued}</strong></button>
       </div>
 
-      <div className={`list-toolbar documents-toolbar premium-documents-toolbar ${this.state.filtersOpen?'filters-open':''}`}>
+      <div className={`documents-command ${this.state.filtersOpen?'filters-open':''}`}>
         <button type="button" className="documents-filter-toggle" aria-expanded={this.state.filtersOpen} onClick={()=>this.setState({filtersOpen:!this.state.filtersOpen,menuId:''})}><Icon name={this.state.filtersOpen?'chevronUp':'chevronDown'}/><span>{t('Filters & sort','التصفية والترتيب')}</span>{activeFilterCount?<b>{activeFilterCount}</b>:null}</button>
-        <div className="documents-filter-stack">
-          <Segmented value={this.state.tab} onChange={value=>this.setState({tab:value as State['tab'],menuId:''})} options={[{value:'all',label:t('All','الكل')},{value:'proforma',label:t('Quotes','عروض الأسعار')},{value:'invoice',label:t('Invoices','الفواتير')}]}/>
+        <div className="documents-command-filters">
           <div className="documents-advanced-filters">
-            <Select aria-label={t('Document status','حالة المستند')} value={this.state.status} onChange={(e:any)=>this.setState({status:e.target.value as WorkspaceStatus,menuId:''})}><option value="all">{t('Any document status','كل حالات المستند')}</option><option value="draft">{t('Draft','مسودة')}</option><option value="ready">{t('Ready to issue','جاهز للإصدار')}</option><option value="final">{t('Issued','صادر')}</option><option value="voided">{t('Cancelled / Voided','ملغى')}</option></Select>
-            <Select aria-label={t('Payment status','حالة الدفع')} value={this.state.payment} onChange={(e:any)=>this.setState({payment:e.target.value as PaymentFilter,tab:e.target.value==='all'?this.state.tab:'invoice',menuId:''})}><option value="all">{t('Any payment status','كل حالات الدفع')}</option><option value="unpaid">{t('Unpaid','غير مدفوعة')}</option><option value="partially-paid">{t('Partially Paid','مدفوعة جزئيًا')}</option><option value="paid">{t('Paid','مدفوعة')}</option><option value="overdue">{t('Overdue','متأخرة')}</option></Select>
-            <Select aria-label={t('Currency','العملة')} value={this.state.currency} onChange={(e:any)=>this.setState({currency:e.target.value,menuId:''})}><option value="all">{t('All currencies','كل العملات')}</option>{currencies.map(currency=><option key={currency} value={currency}>{currency}</option>)}</Select>
+            <label><span>{t('Document status','حالة المستند')}</span><Select aria-label={t('Document status','حالة المستند')} value={this.state.status} onChange={(e:any)=>this.setState({status:e.target.value as WorkspaceStatus,menuId:''})}><option value="all">{t('Any document status','كل حالات المستند')}</option><option value="draft">{t('Draft','مسودة')}</option><option value="ready">{t('Ready to issue','جاهز للإصدار')}</option><option value="final">{t('Issued','صادر')}</option><option value="voided">{t('Cancelled / Voided','ملغى')}</option></Select></label>
+            <label><span>{t('Payment status','حالة الدفع')}</span><Select aria-label={t('Payment status','حالة الدفع')} value={this.state.payment} onChange={(e:any)=>this.setState({payment:e.target.value as PaymentFilter,tab:e.target.value==='all'?this.state.tab:'invoice',menuId:''})}><option value="all">{t('Any payment status','كل حالات الدفع')}</option><option value="unpaid">{t('Unpaid','غير مدفوعة')}</option><option value="partially-paid">{t('Partially Paid','مدفوعة جزئيًا')}</option><option value="paid">{t('Paid','مدفوعة')}</option><option value="overdue">{t('Overdue','متأخرة')}</option></Select></label>
+            <label><span>{t('Currency','العملة')}</span><Select aria-label={t('Currency','العملة')} value={this.state.currency} onChange={(e:any)=>this.setState({currency:e.target.value,menuId:''})}><option value="all">{t('All currencies','كل العملات')}</option>{currencies.map(currency=><option key={currency} value={currency}>{currency}</option>)}</Select></label>
           </div>
         </div>
-        <div className="documents-toolbar-right"><div className="search-box documents-search-box"><Icon name="search"/><Input className="documents-search-input" aria-label={t('Search documents','بحث في المستندات')} title={t('Press / to search','اضغط / للبحث')} placeholder={t('Number, customer, item, HS code…','رقم، عميل، صنف، HS Code…')} value={this.state.query} onChange={(e:any)=>this.setState({query:e.target.value,menuId:''})}/>{this.state.query?<IconButton className="documents-search-clear" icon="x" label={t('Clear search','مسح البحث')} onClick={this.clearSearch}/>:<kbd className="documents-search-shortcut" aria-hidden="true">/</kbd>}</div><Select className="documents-sort" aria-label={t('Sort documents','ترتيب المستندات')} value={this.state.sort} onChange={(e:any)=>this.setState({sort:e.target.value as SortMode,menuId:''})}><option value="latest">{t('Latest','الأحدث')}</option><option value="oldest">{t('Oldest','الأقدم')}</option><option value="highest">{t('Highest total (by currency)','أعلى إجمالي حسب العملة')}</option><option value="lowest">{t('Lowest total (by currency)','أقل إجمالي حسب العملة')}</option></Select></div>
+        <div className="documents-command-search"><div className="search-box documents-search-box"><Icon name="search"/><Input className="documents-search-input" aria-label={t('Search documents','بحث في المستندات')} title={t('Press / to search','اضغط / للبحث')} placeholder={t('Number, customer, item, HS code…','رقم، عميل، صنف، HS Code…')} value={this.state.query} onChange={(e:any)=>this.setState({query:e.target.value,menuId:''})}/>{this.state.query?<IconButton className="documents-search-clear" icon="x" label={t('Clear search','مسح البحث')} onClick={this.clearSearch}/>:<kbd className="documents-search-shortcut" aria-hidden="true">/</kbd>}</div><Select className="documents-sort" aria-label={t('Sort documents','ترتيب المستندات')} value={this.state.sort} onChange={(e:any)=>this.setState({sort:e.target.value as SortMode,menuId:''})}><option value="latest">{t('Latest','الأحدث')}</option><option value="oldest">{t('Oldest','الأقدم')}</option><option value="highest">{t('Highest total (by currency)','أعلى إجمالي حسب العملة')}</option><option value="lowest">{t('Lowest total (by currency)','أقل إجمالي حسب العملة')}</option></Select></div>
       </div>
 
       {this.props.documents.length?<div className="documents-results-bar" aria-live="polite"><span><strong>{docs.length}</strong> {t('shown','ظاهرة')} <i aria-hidden="true">/</i> {this.props.documents.length} {t('total','إجمالي')}</span><div>{filteredView?<button type="button" className="documents-clear-filters" onClick={this.clearFilters}>{t('Clear filters','مسح التصفية')}</button>:null}</div></div>:null}
 
-      {docs.length?<div className="document-list premium-document-list">{docs.map(doc=>{
+      {docs.length?<div className="documents-register">{docs.map(doc=>{
         const totals=calculateTotals(doc.items,doc.adjustments);
         const state=workflowStatus(doc);
         const visualState=doc.lifecycleStatus==='voided'?'voided':state;
         const missingCustomer=!hasDocumentCustomer(doc);
         const payment=this.paymentStatus(doc);
         const statusLabel=doc.lifecycleStatus==='voided'?(doc.kind==='proforma'?t('Cancelled','ملغى'):t('Voided','ملغى')):state==='draft'?(doc.revision>1?t(`Revision ${doc.revision}`,`مراجعة ${doc.revision}`):t('Draft','مسودة')):state==='ready'?t('Ready','جاهز'):t('Issued','صادر');
-        return <article className={`document-card document-${doc.kind} role-${doc.role} lifecycle-${doc.lifecycleStatus} premium-document-card workflow-${state} ${missingCustomer?'needs-customer':''}`} key={doc.id}>
-          <button type="button" className="document-main" onClick={()=>this.setState({detailId:doc.id,menuId:''})}><span className={`document-type-icon type-${doc.kind}`}><Icon name={doc.kind==='proforma'?'proforma':'invoice'}/></span><span className="document-info"><span className="document-info-top"><strong>{doc.number}</strong><span className={`document-kind-pill kind-${doc.kind}`}>{kindLabel(doc)}</span></span><b>{customerName(doc)}</b><small className="document-info-meta"><span>{displayDate(doc.issueDate,getUiLanguage())}</span><i aria-hidden="true">•</i><span>{itemCountLabel(doc.items.length)}</span>{missingCustomer?<><i aria-hidden="true">•</i><em>{t('Customer required','العميل مطلوب')}</em></>:null}</small></span><span className="document-total"><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><span className={`document-status-pill status-${visualState}`}>{statusLabel}</span>{payment?<span className={`collection-pill collection-${payment}`}>{paymentLabel(payment)}</span>:null}{doc.creditForNumber?<span className="collection-pill lifecycle-link-pill">↳ {doc.creditForNumber}</span>:null}</span></button>
-          <div className="document-actions desktop-actions"><IconButton icon="more" label={t('Document actions','إجراءات المستند')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/>{this.state.menuId===doc.id?<div className="document-action-popover" role="menu">{this.actionButtons(doc)}</div>:null}</div>
-          <div className="mobile-actions"><IconButton icon="more" label={t('Actions','الإجراءات')} onClick={()=>this.setState({menuId:this.state.menuId===doc.id?'':doc.id})}/></div>
+        return <article className="documents-register-row" key={doc.id}>
+          <button type="button" className="document-register-open" onClick={()=>this.setState({detailId:doc.id,menuId:''})}>
+            <span className="register-identity"><strong><bdi>{doc.number}</bdi></strong><span className={`document-kind-pill kind-${doc.kind}`}>{kindLabel(doc)}</span></span>
+            <span className="register-customer"><b>{customerName(doc)}</b><small>{itemCountLabel(doc.items.length)}{missingCustomer? ` · ${t('Customer required','العميل مطلوب')}`:''}</small></span>
+            <span className="register-date">{displayDate(doc.issueDate,getUiLanguage())}</span>
+            <strong className="register-amount"><bdi>{formatMoney(totals.grandTotal,doc.currency)}</bdi></strong>
+            <span className="register-status"><span className={`document-status-pill status-${visualState}`}>{statusLabel}</span>{payment?<span className={`collection-pill collection-${payment}`}>{paymentLabel(payment)}</span>:null}{doc.creditForNumber?<span className="collection-pill lifecycle-link-pill">↳ {doc.creditForNumber}</span>:null}</span>
+          </button>
+          <div className="document-actions desktop-actions"><IconButton icon="more" label={t('Document actions','إجراءات المستند')} aria-haspopup="menu" aria-expanded={this.state.menuId===doc.id} onClick={(event:any)=>this.toggleMenu(doc,event)}/></div>
+          <div className="mobile-actions"><IconButton icon="more" label={t('Actions','الإجراءات')} aria-haspopup="menu" aria-expanded={this.state.menuId===doc.id} onClick={(event:any)=>this.toggleMenu(doc,event)}/></div>
         </article>;
       })}</div>:<div className="empty-state documents-empty"><span className="empty-mark"><Icon name="file" size={28}/></span><h2>{filteredView?t('No matching documents','لا توجد مستندات مطابقة'):t('No documents yet','لا توجد مستندات بعد')}</h2><p>{filteredView?t('Try another search or filter.','جرّب بحثًا أو تصفية مختلفة.'):t('Start with a quotation, then issue the invoice when the deal is confirmed.','ابدأ بعرض سعر، ثم أصدر الفاتورة عند تأكيد الصفقة.')}</p>{filteredView?<div className="empty-actions"><Button icon="refresh" onClick={this.clearFilters}>{t('Clear filters','مسح التصفية')}</Button></div>:<div className="empty-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Create Quote','إنشاء عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Create Invoice','إنشاء فاتورة')}</Button></div>}</div>}
       {this.renderMobileActionPortal()}

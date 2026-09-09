@@ -34,8 +34,8 @@
     border:0!important;
     border-radius:0!important;
     background:rgba(7,21,34,.30)!important;
-    -webkit-backdrop-filter:blur(2px)!important;
-    backdrop-filter:blur(2px)!important;
+    -webkit-backdrop-filter:none!important;
+    backdrop-filter:none!important;
     pointer-events:auto!important;
   }
 
@@ -59,9 +59,9 @@
     -webkit-overflow-scrolling:touch!important;
     display:grid!important;
     gap:2px!important;
-    border:1px solid rgba(14,39,55,.12)!important;
-    border-radius:20px!important;
-    background:#fff!important;
+    border:1px solid var(--ds-line)!important;
+    border-radius:16px!important;
+    background:var(--ds-surface-strong)!important;
     box-shadow:0 24px 70px rgba(7,21,34,.26),0 5px 16px rgba(7,21,34,.10)!important;
     transform:none!important;
     translate:none!important;
@@ -75,7 +75,7 @@
     height:4px;
     margin:2px auto 6px;
     border-radius:999px;
-    background:#d8dde0;
+    background:var(--ds-line);
   }
 
   .mobile-document-action-portal .mobile-document-action-sheet button{
@@ -95,7 +95,7 @@
     border:0!important;
     border-radius:12px!important;
     background:transparent!important;
-    color:#203441!important;
+    color:var(--ds-text)!important;
     font-size:15px!important;
     font-weight:700!important;
     line-height:1.3!important;
@@ -106,7 +106,7 @@
   }
 
   .mobile-document-action-portal .mobile-document-action-sheet button+button{
-    border-top:1px solid rgba(14,39,55,.08)!important;
+    border-top:1px solid var(--ds-line)!important;
     border-top-left-radius:0!important;
     border-top-right-radius:0!important;
   }
@@ -117,11 +117,11 @@
   }
 
   .mobile-document-action-portal .mobile-document-action-sheet button:active{
-    background:#f4f1eb!important;
+    background:var(--ds-selected)!important;
   }
 
   .mobile-document-action-portal .mobile-document-action-sheet button.danger{
-    color:#a2322b!important;
+    color:var(--ds-danger-text)!important;
   }
 
   .mobile-document-action-portal .mobile-document-action-sheet button svg,
@@ -136,7 +136,7 @@
     right:9px!important;
     bottom:max(9px,env(safe-area-inset-bottom))!important;
     left:9px!important;
-    border-radius:18px!important;
+    border-radius:16px!important;
     padding:7px!important;
   }
 
