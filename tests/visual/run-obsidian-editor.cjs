@@ -17,6 +17,10 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
     const issues=await page.evaluate(()=>{
      const issues=[],screen=document.querySelector('.editor-screen');
      if(screen.scrollWidth>innerWidth+1)issues.push('editor horizontal overflow');
+     for(const el of document.querySelectorAll('.editor-section>.section-heading')){
+      const background=getComputedStyle(el).backgroundColor;
+      if(!['rgba(0, 0, 0, 0)','rgb(16, 29, 36)'].includes(background))issues.push('section heading outside dark surface system: '+background);
+     }
      for(const el of document.querySelectorAll('.editor-scroll *,.editor-topbar,.document-readiness,.mobile-editor-actionbar,.preview-stage')){
       if(el.closest('.invoice-pages,.template-mini,.template-thumbnail')||el.matches('.toggle>span'))continue;
       const rect=el.getBoundingClientRect(),css=getComputedStyle(el);

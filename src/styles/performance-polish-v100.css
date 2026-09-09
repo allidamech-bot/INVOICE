@@ -59,10 +59,10 @@
     background:rgba(255,255,255,.995)!important;
   }
   .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{
-    background:rgba(250,252,252,.995)!important;
+    background:var(--ds-surface)!important;
   }
   .final-quote-convert-bar{
-    background:rgba(250,252,252,.995)!important;
+    background:var(--ds-surface)!important;
   }
 
   /* Keep touch feedback immediate; avoid persistent promoted layers on long mobile pages. */
