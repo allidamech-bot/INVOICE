@@ -18,35 +18,7 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm run typecheck
-      - name: Run production build
-        run: npm run build
-      - name: Regression tests A-T
-        if: always()
-        run: node --test tests/[a-t]*.test.mjs
-      - name: Regression ux-recovery-v152
-        if: always()
-        run: node --test tests/ux-recovery-v152.test.mjs
-      - name: Regression v44-audit
-        if: always()
-        run: node --test tests/v44-audit.test.mjs
-      - name: Regression vault-merge
-        if: always()
-        run: node --test tests/vault-merge.test.mjs
-      - name: Regression visual-hierarchy-v153
-        if: always()
-        run: node --test tests/visual-hierarchy-v153.test.mjs
-      - name: Regression workflow-closeout
-        if: always()
-        run: node --test tests/workflow-closeout.test.mjs
-      - name: Regression workspace-mobile-v94
-        if: always()
-        run: node --test tests/workspace-mobile-v94.test.mjs
-      - name: Regression workspace-v54
-        if: always()
-        run: node --test tests/workspace-v54.test.mjs
-      - name: Regression workspace-v60
-        if: always()
-        run: node --test tests/workspace-v60.test.mjs
+      - run: npm test
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
