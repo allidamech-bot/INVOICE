@@ -56,7 +56,8 @@ test('batch 7 keeps financial tables scan-friendly and mobile workflows reachabl
   ]);
   assert.match(receivables,/aging-table th[\s\S]*position:sticky/);
   assert.match(receivables,/font-variant-numeric:tabular-nums/);
-  assert.match(reports,/reports-table th[\s\S]*position:sticky/);
+  assert.match(reports,/reports-table-wrap[\s\S]*background:var\(--ds-workspace\)/);
+  assert.match(reports,/reports-table th[\s\S]*background:var\(--ds-surface-strong\)/);
   assert.match(reports,/font-variant-numeric:tabular-nums/);
   assert.match(operations,/operations-tabs button[\s\S]*min-height:40px/);
   assert.match(operations,/@media\(max-width:720px\)[\s\S]*operations-tabs button\{min-height:44px/);
