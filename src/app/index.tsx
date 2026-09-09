@@ -4,7 +4,7 @@ import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
 import { hydrateAuthoritativeCloudBeforeApp } from '../cloud/startup.js';
 import { currentCloudUser, waitForCloudUser } from '../cloud/firebase.js';
 import { purgeLegacySafetySnapshot } from '../storage/db.js';
-import { clearSession } from '../storage/session.js';
+import { resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
@@ -18,24 +18,35 @@ async function resolveRequiredAccountSession():Promise<boolean>{
     try{user=await waitForCloudUser();}catch{}
   }
   accountWasAuthenticated=Boolean(user);
-  if(user)return true;
+  if(user){
+    setActiveAccountUid(user.uid);
+    // A previously unlocked vault key is bound to the Firebase UID and may be
+    // resumed only after that same account authenticates. This keeps sign-out a
+    // real workspace boundary without making the user enter a second PIN.
+    await resumeAccountSession(user.uid);
+    return true;
+  }
 
-  // Account-first invariant: a stale unlocked device session must never bypass
-  // the premium account gateway after the Firebase account has signed out.
-  // clearSession removes only the transient unlock key/marker; the encrypted
-  // local vault remains intact and can be opened again after account sign-in.
-  await clearSession();
+  setActiveAccountUid(null);
+  // Signed-out users must never keep an active workspace marker. Preserve only
+  // an account-bound device key so the same account can resume seamlessly later.
+  await suspendSession();
   return false;
 }
 
 function startAccountSignOutWatcher():void{
   window.setInterval(()=>{
-    const signedIn=Boolean(currentCloudUser());
-    if(signedIn){accountWasAuthenticated=true;return;}
+    const user=currentCloudUser();
+    if(user){
+      setActiveAccountUid(user.uid);
+      accountWasAuthenticated=true;
+      return;
+    }
     if(!accountWasAuthenticated)return;
 
     accountWasAuthenticated=false;
-    void clearSession().finally(()=>{
+    setActiveAccountUid(null);
+    void suspendSession().finally(()=>{
       try{sessionStorage.setItem('lourex-auth-just-signed-out','1');}catch{}
       window.location.reload();
     });
@@ -44,9 +55,8 @@ function startAccountSignOutWatcher():void{
 
 async function start():Promise<void>{
   const accountReady=await resolveRequiredAccountSession();
-  // Only reconcile cloud data when an account session actually exists. Signed-
-  // out users should reach the account gateway immediately instead of paying a
-  // second Firebase wait during startup.
+  // Only reconcile account data when an authenticated account session exists.
+  // Signed-out users reach the account gateway immediately.
   if(accountReady)await hydrateAuthoritativeCloudBeforeApp();
   ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,appRoot);
   void purgeLegacySafetySnapshot();
@@ -63,7 +73,7 @@ function reloadUnsafeWorkspaceOpen():boolean{
   return isDocumentEditorOpen()||Boolean(document.querySelector('.operations-page,.product-library-pro.editor-open,.modal-backdrop'));
 }
 
-// The cloud layer may install a newer account copy while the UI is idle.
+// The account layer may install a newer account copy while the UI is idle.
 // Reloading here rehydrates React from the exact encrypted account copy, but
 // never discard a document, inline Operations draft, product draft, or modal.
 window.addEventListener('lourex-cloud-applied',()=>{
