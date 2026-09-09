@@ -56,6 +56,12 @@ export class AppShell extends React.Component<Props,State>{
     <button type="button" role="menuitem" onClick={()=>this.props.onNew('invoice')}><Icon name="invoice"/><span><strong>{t('Invoice','فاتورة')}</strong><small>{t('Final invoice','فاتورة نهائية')}</small></span></button>
   </div>:null;
 
+  private syncStatus=(className:string)=>
+    <div className={`${className} state-${this.props.cloudState}`} role="status" aria-live="polite" title={this.props.cloudMessage||this.props.cloudLabel}><span className="shell-status-dot"/><span>{this.props.cloudLabel}</span></div>;
+
+  private accountButton=(className:string,compact=false)=>
+    <button type="button" className={className} aria-label={t('Account','الحساب')} title={t('Open account','فتح الحساب')} onClick={this.props.onCloud}><Icon name="users"/>{compact?<span>{t('Account','الحساب')}</span>:<span><small>{t('Account','الحساب')}</small><strong>{t('Sign in, sign out and account settings','تسجيل الدخول والخروج وإعدادات الحساب')}</strong></span>}</button>;
+
   render():any{
     const editor=this.props.screen==='editor';
     return <div className={`workspace-shell ${editor?'is-editor':''}`}>
@@ -83,7 +89,8 @@ export class AppShell extends React.Component<Props,State>{
           </div>
         </nav>
         <div className="shell-sidebar-footer">
-          <button type="button" className={`shell-account-row state-${this.props.cloudState}`} title={this.props.cloudMessage||this.props.cloudLabel} onClick={this.props.onCloud}><span className="shell-status-dot"/><span><small>{t('Account & cloud','الحساب والسحابة')}</small><strong>{this.props.cloudLabel}</strong></span></button>
+          {this.syncStatus('shell-sync-row')}
+          {this.accountButton('shell-account-row')}
           <button type="button" className="shell-settings-row" onClick={this.props.onSettings}><Icon name="settings"/><span>{t('Settings','الإعدادات')}</span></button>
         </div>
       </aside>:null}
@@ -91,7 +98,10 @@ export class AppShell extends React.Component<Props,State>{
       <header className="workspace-topbar">
         <div className="shell-mobile-brand">{!editor?<button type="button" aria-label={t('Home','الرئيسية')} onClick={()=>this.navigate('home')}><Brand compact logoDataUrl={this.props.logoDataUrl} language={this.props.language}/></button>:<span className="editor-context-mark"><Icon name="edit"/></span>}</div>
         <div className="shell-page-title"><small>{editor?t('Editing','تحرير'):t('LOUREX Invoice','LOUREX Invoice')}</small><strong>{this.pageTitle()}</strong></div>
-        <button type="button" className={`shell-sync-status state-${this.props.cloudState}`} title={this.props.cloudMessage||this.props.cloudLabel} onClick={this.props.onCloud}><span className="shell-status-dot"/><span>{this.props.cloudLabel}</span></button>
+        <div className="shell-topbar-actions">
+          {this.syncStatus('shell-sync-status')}
+          {this.accountButton('shell-account-button',true)}
+        </div>
       </header>
 
       <div className="workspace-content">{this.props.children}</div>
@@ -100,7 +110,8 @@ export class AppShell extends React.Component<Props,State>{
         {this.state.moreOpen?<><button type="button" className="mobile-more-backdrop" aria-label={t('Close menu','إغلاق القائمة')} onClick={()=>this.setState({moreOpen:false})}/><section className="mobile-more-sheet" aria-label={t('More','المزيد')}>
           <div className="mobile-more-handle"/>
           <div className="mobile-more-heading"><div><small>{t('Workspace','مساحة العمل')}</small><strong>{t('More','المزيد')}</strong></div><button type="button" onClick={()=>this.setState({moreOpen:false})} aria-label={t('Close','إغلاق')}><Icon name="x"/></button></div>
-          <button type="button" className={`mobile-more-account state-${this.props.cloudState}`} onClick={this.props.onCloud}><span className="shell-status-dot"/><span><small>{t('Account & cloud','الحساب والسحابة')}</small><strong>{this.props.cloudLabel}</strong></span></button>
+          {this.syncStatus('mobile-more-sync')}
+          {this.accountButton('mobile-more-account')}
           <div className="mobile-more-group"><p>{t('Workspace','مساحة العمل')}</p>{this.navButton('items','items',t('Items','الأصناف'))}</div>
           <div className="mobile-more-group"><p>{t('Finance','المالية')}</p>{this.navButton('receivables','invoice',t('Receivables','المستحقات'))}{this.navButton('reports','file',t('Reports','التقارير'))}</div>
           <div className="mobile-more-group"><p>{t('Business','الأعمال')}</p>{this.navButton('operations','backup',t('Operations','العمليات'))}</div>

@@ -65,7 +65,7 @@ test('v152 cloud persistence is local-first coalesced retryable and automaticall
   assert.doesNotMatch(setup,/await pushLocalVaultToCloud/);
   assert.match(db,/let dbPromise:Promise<IDBDatabase>\|null=null/);
   assert.match(freshness,/if\(pending\)window\.clearTimeout\(pending\)/);
-  assert.match(modal,/Your LOUREX data is saved automatically to this account/);
+  assert.match(modal,/Your LOUREX Invoice data is saved automatically to this account/);
   assert.doesNotMatch(modal,/Saved locally — waiting to sync|Sync Now|مزامنة الآن/);
   assert.match(i18n,/automaticSyncCopy/);
   assert.match(i18n,/automatic synchronization/);
