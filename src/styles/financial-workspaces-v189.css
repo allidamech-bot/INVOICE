@@ -309,4 +309,38 @@
     .app-ui .operations-summary{grid-template-columns:1fr 1fr}
     .app-ui .operations-summary>div>strong{font-size:20px}
   }
+
+  /* Batch 7 visual closeout: legacy v152 nth-child palette and base table fills
+     have greater selector specificity than the first Obsidian pass. Neutralize
+     those historical light surfaces explicitly without weakening the shared QA. */
+  .app-ui .report-primary-metrics>div:nth-child(n){
+    background:transparent;
+    border-color:rgba(237,242,241,.1);
+  }
+  .app-ui table.reports-table,
+  .app-ui table.reports-table.customer-performance-table,
+  .app-ui table.aging-table{
+    background:var(--ds-surface);
+    color:var(--ds-text);
+  }
+  .app-ui .reports-table tbody,
+  .app-ui .aging-table tbody{
+    background:var(--ds-surface);
+  }
+  .app-ui .reports-table tbody tr,
+  .app-ui .reports-table tbody td,
+  .app-ui .aging-table tbody tr,
+  .app-ui .aging-table tbody td{
+    background:transparent;
+  }
+  .app-ui .operations-summary>div:nth-child(n){
+    background:var(--ds-surface);
+    border-color:var(--ds-line);
+  }
+  .app-ui .operations-summary>div:nth-child(1){
+    background:linear-gradient(145deg,var(--ds-financial-surface),var(--ds-surface));
+  }
+  .app-ui .operations-summary>.operations-spend-card:nth-child(n){
+    background:var(--ds-surface);
+  }
 }
