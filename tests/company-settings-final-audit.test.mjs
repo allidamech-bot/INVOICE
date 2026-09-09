@@ -53,12 +53,12 @@ test('first-run company logo uses the same bounded raster policy and cannot fini
   assert.match(source,/logoBusy: boolean/);
   assert.match(source,/this\.setState\(\{error:'',logoBusy:true\}\)/);
   assert.match(source,/if\(uploadId!==this\.logoUploadId\)return/);
-  assert.match(source,/if\(this\.state\.logoBusy\)return/);
+  assert.match(source,/if\(this\.state\.logoBusy\|\|this\.state\.busy\)return/);
   assert.match(source,/disabled=\{busy\|\|logoBusy\}/);
   assert.match(source,/accept="image\/png,image\/webp,image\/jpeg"/);
   assert.doesNotMatch(source,/accept="[^"]*image\/svg\+xml/);
   assert.match(source,/Preparing logo/);
-  const upload=source.slice(source.indexOf('private uploadLogo = async'),source.indexOf('private next ='));
+  const upload=source.slice(source.indexOf('private uploadLogo = async'),source.indexOf('private finish ='));
   assert.ok(upload.indexOf('const uploadId=++this.logoUploadId')<upload.indexOf('file.size>MAX_SETUP_LOGO_BYTES'),'every newer setup-logo selection must invalidate older work before size validation');
   assert.ok(upload.indexOf('const uploadId=++this.logoUploadId')<upload.indexOf('SETUP_LOGO_TYPES.test'),'a rejected setup-logo replacement must still supersede older work');
   assert.match(upload,/Image is too large[\s\S]*logoBusy:false/);
