@@ -74,7 +74,7 @@
 @keyframes lourexLoading{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
 @keyframes lourexLaunchIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
 
-/* Account entry */
+/* Shared setup / unlock canvas. Account sign-in gets its own dark gateway below. */
 .auth-page{
   background:
     radial-gradient(circle at 18% 12%,rgba(185,139,70,.12),transparent 28%),
@@ -104,13 +104,297 @@
 .auth-inline-cloud:hover{color:#0b1d2d}
 [dir="rtl"] .setup-account-badge{direction:rtl}
 
-@media(max-width:720px){
+/* Premium account gateway */
+.auth-account-page{
+  position:relative;
+  isolation:isolate;
+  min-height:100vh;
+  min-height:100svh;
+  min-height:100dvh;
+  display:grid;
+  place-items:center;
+  overflow:auto;
+  padding:max(24px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));
+  background:
+    radial-gradient(circle at 13% 14%,rgba(53,142,153,.18),transparent 31%),
+    radial-gradient(circle at 85% 83%,rgba(199,164,99,.14),transparent 34%),
+    linear-gradient(145deg,#05121b 0%,#071a25 48%,#0b2230 100%);
+  color:#f5f3ec;
+}
+.auth-account-page:before,
+.auth-account-page:after{
+  content:"";
+  position:fixed;
+  z-index:-1;
+  pointer-events:none;
+  border-radius:999px;
+  border:1px solid rgba(214,184,122,.085);
+}
+.auth-account-page:before{width:520px;height:520px;top:-310px;left:-235px;box-shadow:0 0 110px rgba(41,119,132,.09) inset}
+.auth-account-page:after{width:620px;height:620px;right:-360px;bottom:-380px}
+.auth-account-frame{
+  width:min(1120px,100%);
+  min-height:min(720px,calc(100dvh - 48px));
+  display:grid;
+  grid-template-columns:minmax(0,1.05fr) minmax(420px,.95fr);
+  overflow:hidden;
+  border:1px solid rgba(231,218,190,.13);
+  border-radius:34px;
+  background:rgba(7,20,29,.76);
+  box-shadow:0 38px 100px rgba(0,0,0,.42),0 0 0 1px rgba(255,255,255,.02) inset;
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  animation:premiumAuthIn .5s cubic-bezier(.2,.75,.25,1) both;
+}
+@keyframes premiumAuthIn{from{opacity:0;transform:translateY(12px) scale(.992)}to{opacity:1;transform:none}}
+
+.auth-account-story{
+  position:relative;
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:34px;
+  padding:48px 52px 42px;
+  overflow:hidden;
+  background:
+    linear-gradient(160deg,rgba(20,61,76,.9) 0%,rgba(8,34,47,.96) 44%,rgba(5,22,31,.98) 100%);
+  border-inline-end:1px solid rgba(231,218,190,.1);
+}
+.auth-account-story:before{
+  content:"";
+  position:absolute;
+  width:430px;
+  height:430px;
+  inset:-190px auto auto -170px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(58,147,155,.2),rgba(58,147,155,0) 68%);
+  pointer-events:none;
+}
+.auth-account-story:after{
+  content:"";
+  position:absolute;
+  width:1px;
+  height:160px;
+  inset:auto 52px 42px auto;
+  background:linear-gradient(180deg,transparent,rgba(214,184,122,.5),transparent);
+  opacity:.55;
+  pointer-events:none;
+}
+.auth-story-brand,.auth-story-copy,.auth-story-trust,.auth-story-foot{position:relative;z-index:1}
+.auth-story-brand{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.auth-story-brand .brand{gap:13px}
+.auth-story-brand .brand-mark,.auth-story-brand .brand-mark img{width:70px;height:70px;border-radius:19px}
+.auth-story-brand .brand-mark{box-shadow:0 16px 38px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.08)}
+.auth-story-brand .brand-words strong{color:#f4efe4;font-size:17px;letter-spacing:.22em;padding-inline-start:.22em}
+.auth-story-brand .brand-words small{color:#91a7b3}
+.auth-story-product{
+  padding:8px 11px;
+  border:1px solid rgba(214,184,122,.2);
+  border-radius:999px;
+  color:#d9c08d;
+  background:rgba(7,21,29,.32);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.16em;
+  white-space:nowrap;
+}
+.auth-story-copy{max-width:590px;margin:auto 0}
+.auth-story-kicker{margin:0 0 16px;color:#d7bc86;font-size:10px;font-weight:850;letter-spacing:.17em}
+.auth-story-copy h2{margin:0;max-width:560px;color:#f8f5ed;font-size:clamp(34px,4vw,54px);line-height:1.02;letter-spacing:-.035em;font-weight:780;text-wrap:balance}
+.auth-story-copy>p:last-child{max-width:540px;margin:22px 0 0;color:#a8bac4;font-size:15px;line-height:1.75}
+.auth-story-trust{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.auth-story-trust>div{min-width:0;padding:14px 13px 13px;border:1px solid rgba(151,186,195,.11);border-radius:17px;background:rgba(255,255,255,.025)}
+.auth-trust-mark{display:block;width:18px;height:3px;margin-bottom:12px;border-radius:99px;background:linear-gradient(90deg,#d6b87a,#5aa5ad)}
+.auth-story-trust strong,.auth-story-trust small{display:block;overflow-wrap:anywhere}
+.auth-story-trust strong{color:#e9e4d8;font-size:11px;line-height:1.25}
+.auth-story-trust small{margin-top:5px;color:#7f98a4;font-size:9.5px;line-height:1.35}
+.auth-story-foot{margin:0;color:#637f8d;font-size:9.5px;letter-spacing:.03em}
+
+.auth-account-card.account-first-card{
+  position:relative;
+  align-self:stretch;
+  width:100%;
+  max-width:none;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:58px clamp(36px,5vw,64px) 46px;
+  overflow:visible;
+  border:0;
+  border-radius:0;
+  background:linear-gradient(180deg,rgba(13,29,39,.96),rgba(9,23,32,.98));
+  box-shadow:none;
+  color:#f6f3ea;
+}
+.auth-account-card.system-login-card:before{height:1px;background:linear-gradient(90deg,transparent,rgba(214,184,122,.48),transparent)}
+.auth-account-card .premium-auth-language{
+  position:absolute;
+  inset:24px 28px auto auto;
+  min-height:38px;
+  padding:0 13px;
+  border:1px solid rgba(174,196,204,.18);
+  border-radius:12px;
+  background:rgba(255,255,255,.035);
+  color:#b3c2c8;
+  font-size:11px;
+  font-weight:760;
+  cursor:pointer;
+  transition:border-color .18s ease,background .18s ease,color .18s ease;
+}
+[dir="rtl"] .auth-account-card .premium-auth-language{right:auto;left:28px}
+.auth-account-card .premium-auth-language:hover{border-color:rgba(214,184,122,.35);background:rgba(214,184,122,.07);color:#e3cfaa}
+.auth-account-card .premium-auth-language:focus-visible{outline:3px solid rgba(92,174,184,.24);outline-offset:2px}
+.auth-card-mobile-brand{display:none}
+.auth-card-heading{margin:0 0 24px}
+.auth-account-card .auth-card-heading .eyebrow{margin:0 0 11px;color:#d5b77b;font-size:10px;font-weight:850;letter-spacing:.16em}
+[dir="rtl"] .auth-account-card .auth-card-heading .eyebrow{letter-spacing:0}
+.auth-account-card .auth-card-heading h1{margin:0;color:#f8f5ee;font-size:clamp(28px,3vw,38px);line-height:1.08;letter-spacing:-.025em;font-weight:770;text-wrap:balance}
+.auth-account-card .auth-card-heading .subtle{margin:11px 0 0;color:#91a4ae;font-size:13px;line-height:1.65}
+.auth-account-card .account-entry-tabs{
+  margin:0 0 22px;
+  padding:4px;
+  border:1px solid rgba(160,188,198,.12);
+  border-radius:15px;
+  background:#081923;
+}
+.auth-account-card .account-entry-tabs button{
+  min-height:43px;
+  border-radius:11px;
+  color:#7f98a4;
+  font-size:12px;
+  font-weight:780;
+  transition:background .18s ease,color .18s ease,box-shadow .18s ease;
+}
+.auth-account-card .account-entry-tabs button.active{
+  background:#163746;
+  color:#f5f1e8;
+  box-shadow:0 8px 22px rgba(0,0,0,.18),0 0 0 1px rgba(91,171,181,.1) inset;
+}
+.auth-account-card .account-entry-fields{gap:15px}
+.auth-account-card .account-entry-fields .field{margin:0;color:#b5c2c8}
+.auth-account-card .account-entry-fields .field>label,
+.auth-account-card .account-entry-fields label{color:#afbdc4;font-size:11px;font-weight:740;letter-spacing:.01em}
+.auth-account-card .account-entry-fields input{
+  min-height:51px;
+  border:1px solid #29404c!important;
+  border-radius:14px!important;
+  background:#081923!important;
+  color:#f7f3eb!important;
+  box-shadow:0 1px 0 rgba(255,255,255,.025) inset!important;
+  caret-color:#d8bb7e;
+  font-size:14px;
+  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
+}
+.auth-account-card .account-entry-fields input::placeholder{color:#607580}
+.auth-account-card .account-entry-fields input:hover{border-color:#365664!important}
+.auth-account-card .account-entry-fields input:focus{border-color:#69aeb5!important;background:#0a1e29!important;box-shadow:0 0 0 3px rgba(73,153,163,.15)!important;outline:none!important}
+.auth-account-card .premium-auth-feedback{margin:16px 0 0;border-radius:13px;font-size:11.5px;line-height:1.5}
+.auth-account-card .auth-error.premium-auth-feedback{border:1px solid rgba(210,105,92,.25);background:rgba(125,45,37,.17);color:#efb8af}
+.auth-account-card .settings-message.success.premium-auth-feedback{border:1px solid rgba(80,169,143,.22);background:rgba(38,112,91,.15);color:#a9d8c7}
+.auth-account-card .premium-auth-primary{
+  width:100%;
+  min-height:52px;
+  margin-top:18px;
+  border:1px solid rgba(233,211,162,.25)!important;
+  border-radius:14px!important;
+  background:linear-gradient(135deg,#d4b577 0%,#c59c55 100%)!important;
+  color:#071720!important;
+  box-shadow:0 14px 30px rgba(174,130,60,.17)!important;
+  font-size:13px!important;
+  font-weight:850!important;
+  letter-spacing:.01em;
+  transition:transform .16s ease,box-shadow .16s ease,filter .16s ease!important;
+}
+.auth-account-card .premium-auth-primary:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.035);box-shadow:0 18px 34px rgba(174,130,60,.22)!important}
+.auth-account-card .premium-auth-primary:active:not(:disabled){transform:translateY(0)}
+.auth-account-card .premium-auth-primary:focus-visible{outline:3px solid rgba(94,173,182,.24)!important;outline-offset:3px!important}
+.auth-account-card .account-forgot{
+  align-self:center;
+  margin:15px 0 0;
+  padding:6px 8px;
+  border:0;
+  background:transparent;
+  color:#8fb0ba;
+  font-size:11px;
+  font-weight:710;
+  text-decoration:none;
+  cursor:pointer;
+}
+.auth-account-card .account-forgot:hover{color:#d8c18f}
+.auth-card-security{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:24px;padding-top:18px;border-top:1px solid rgba(156,183,192,.09);color:#667f8b;font-size:9.5px;line-height:1.45;text-align:center}
+.auth-security-dot{flex:0 0 auto;width:6px;height:6px;border-radius:50%;background:#5ca6ac;box-shadow:0 0 0 4px rgba(92,166,172,.09)}
+
+[dir="rtl"] .auth-account-page{direction:rtl}
+[dir="rtl"] .auth-account-story{border-inline-end:1px solid rgba(231,218,190,.1)}
+[dir="rtl"] .auth-story-copy h2,[dir="rtl"] .auth-account-card .auth-card-heading h1{letter-spacing:0}
+[dir="rtl"] .auth-story-product{letter-spacing:.08em}
+
+@media(max-width:900px){
+  .auth-account-page{place-items:start center;padding:max(18px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+  .auth-account-frame{min-height:auto;grid-template-columns:1fr;border-radius:28px}
+  .auth-account-story{min-height:245px;padding:28px 30px 26px;border-inline-end:0;border-bottom:1px solid rgba(231,218,190,.1);gap:22px}
+  .auth-story-brand .brand-mark,.auth-story-brand .brand-mark img{width:54px;height:54px;border-radius:15px}
+  .auth-story-brand .brand-words strong{font-size:14px}
+  .auth-story-copy{margin:0}
+  .auth-story-copy h2{max-width:680px;font-size:clamp(28px,6vw,42px)}
+  .auth-story-copy>p:last-child{margin-top:13px;font-size:12.5px;line-height:1.6}
+  .auth-story-trust,.auth-story-foot{display:none}
+  .auth-account-card.account-first-card{padding:48px clamp(28px,7vw,58px) 34px}
+}
+
+@media(max-width:600px){
   .loading-screen{padding:24px}
   .loading-screen .brand-mark,.loading-screen .brand-mark img{width:104px;height:104px;border-radius:25px}
   .loading-screen .brand-words strong{font-size:19px}
-  .welcome-card,.account-first-card{width:min(100%,520px);padding:29px 22px 24px}
-  .welcome-card h1{font-size:27px}
-  .account-entry-tabs button{min-height:42px}
+  .welcome-card:not(.auth-account-card),.account-first-card:not(.auth-account-card){width:min(100%,520px);padding:29px 22px 24px}
+  .welcome-card:not(.auth-account-card) h1{font-size:27px}
   .setup-account-badge{align-items:flex-start;flex-direction:column}
   .setup-account-badge strong{max-width:100%}
+
+  .auth-account-page{
+    display:block;
+    min-height:100dvh;
+    padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));
+    background:
+      radial-gradient(circle at 20% 5%,rgba(49,134,145,.2),transparent 30%),
+      linear-gradient(160deg,#05131c 0%,#081d29 58%,#0a202c 100%);
+  }
+  .auth-account-frame{width:100%;border-radius:25px;box-shadow:0 24px 64px rgba(0,0,0,.34)}
+  .auth-account-story{min-height:auto;padding:22px 21px 20px;background:linear-gradient(155deg,rgba(18,58,73,.96),rgba(7,29,40,.98))}
+  .auth-story-brand{gap:12px}
+  .auth-story-product{padding:7px 9px;font-size:8px}
+  .auth-story-brand .brand{gap:9px}
+  .auth-story-brand .brand-mark,.auth-story-brand .brand-mark img{width:47px;height:47px;border-radius:13px}
+  .auth-story-brand .brand-words strong{font-size:12px;letter-spacing:.17em;padding-inline-start:.17em}
+  .auth-story-brand .brand-words small{font-size:8px}
+  .auth-story-copy{margin-top:6px}
+  .auth-story-kicker{display:none}
+  .auth-story-copy h2{font-size:24px;line-height:1.08}
+  .auth-story-copy>p:last-child{display:none}
+  .auth-account-card.account-first-card{min-height:0;padding:42px 20px 25px;background:linear-gradient(180deg,#0d202a,#091821)}
+  .auth-account-card .premium-auth-language{top:14px;right:16px;min-height:34px;padding:0 10px;border-radius:10px;font-size:10px}
+  [dir="rtl"] .auth-account-card .premium-auth-language{right:auto;left:16px}
+  .auth-card-heading{margin-bottom:20px;padding-top:2px}
+  .auth-account-card .auth-card-heading h1{font-size:27px}
+  .auth-account-card .auth-card-heading .subtle{font-size:12px;line-height:1.55}
+  .auth-account-card .account-entry-tabs{margin-bottom:18px}
+  .auth-account-card .account-entry-tabs button{min-height:44px;font-size:11.5px}
+  .auth-account-card .account-entry-fields{gap:12px}
+  .auth-account-card .account-entry-fields input{min-height:52px;font-size:16px}
+  .auth-account-card .premium-auth-primary{min-height:53px;margin-top:16px}
+  .auth-card-security{margin-top:20px;padding-top:16px;font-size:8.8px}
+}
+
+@media(max-width:380px){
+  .auth-story-product{display:none}
+  .auth-account-story{padding-inline:18px}
+  .auth-account-card.account-first-card{padding-inline:17px}
+  .auth-account-card .auth-card-heading h1{font-size:25px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .auth-account-frame,.loading-screen .brand{animation:none!important}
+  .auth-account-card .premium-auth-primary,.auth-account-card .account-entry-tabs button,.auth-account-card .account-entry-fields input{transition:none!important}
 }
