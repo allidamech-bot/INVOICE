@@ -139,7 +139,9 @@
   margin-inline:14px!important;
   border-radius:12px!important;
 }
-.app-ui .final-lock-banner{margin-top:8px!important}
+.app-ui .final-lock-banner{margin-top:8px!important;border-color:var(--ds-line)!important;background:var(--ds-surface)!important;color:var(--ds-accent-bright)!important}
+.app-ui .final-lock-banner strong{color:var(--ds-text)!important}
+.app-ui .final-lock-banner span{color:var(--ds-text-soft)!important}
 .app-ui .editor-global-error,.app-ui .editor-validation-summary{margin-top:8px!important}
 
 /* Desktop: a bounded editor surface next to a dedicated A4 inspection surface. */
@@ -252,6 +254,8 @@
 .app-ui .section-heading h2{margin:0!important;color:var(--ds-text)!important;font-size:18px!important;line-height:1.3!important;font-weight:800!important}
 .app-ui .section-heading-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:7px!important;min-width:0!important}
 .app-ui .section-heading-actions .btn{min-height:38px!important;padding-inline:10px!important;font-size:10.5px!important}
+.app-ui .section-heading-actions .btn>span{display:block;width:auto;height:auto;min-width:0;padding:0;border:0;background:transparent;color:inherit;font:inherit;border-radius:0}
+.app-ui .item-advanced-control button{color:var(--ds-accent-bright)}
 
 .app-ui .form-grid,.app-ui .compact-grid,.app-ui .field,.app-ui .field>*{min-width:0!important;max-width:100%}
 .app-ui .form-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:13px 14px!important}
@@ -335,9 +339,9 @@
 }
 .app-ui .item-price-control{min-width:0!important}
 @media(min-width:1440px){
-  .app-ui .editor-screen .premium-item-card .item-core-grid{grid-template-columns:minmax(0,1fr) minmax(240px,1fr)!important;align-items:start}
+  .app-ui .editor-screen .premium-item-card .item-core-grid{grid-template-columns:minmax(0,1fr) minmax(290px,1fr)!important;align-items:start}
   .app-ui .editor-screen .item-core-grid>.item-description-autocomplete{grid-column:1!important}
-  .app-ui .editor-screen .item-core-grid>.item-pricing-grid{grid-column:2!important;grid-row:1 / span 2;grid-template-columns:minmax(55px,.65fr) minmax(65px,.75fr) minmax(90px,1fr)!important;gap:8px!important}
+  .app-ui .editor-screen .item-core-grid>.item-pricing-grid{grid-column:2!important;grid-row:1 / span 2;grid-template-columns:minmax(65px,.65fr) minmax(95px,.9fr) minmax(100px,1fr)!important;gap:8px!important}
 }
 .app-ui .pricing-suggestion-chip{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .app-ui .item-advanced-fields,.app-ui .advanced-panel{
@@ -436,7 +440,8 @@
   color:var(--ds-text-soft)!important;
   text-align:start!important;
 }
-.app-ui .editor-section-nav-button.active{border-color:var(--ds-line)!important;background:var(--ds-surface)!important;color:var(--ds-text)!important;box-shadow:none!important}
+.app-ui .editor-section-nav-button.active{border-color:var(--ds-accent)!important;background:var(--ds-selected)!important;color:var(--ds-text)!important;box-shadow:none!important}
+.app-ui .editor-section-nav-button.active .editor-nav-number{color:var(--ds-accent-bright)!important}
 .app-ui .editor-section-nav-button.has-error{border-color:var(--ds-line)!important;background:var(--ds-surface)!important;color:var(--ds-danger-text)!important}
 .app-ui .editor-nav-number{width:22px!important;height:22px!important;display:grid!important;place-items:center!important;border-radius:7px!important;background:var(--ds-workspace)!important;font-size:8.5px!important;font-weight:850!important}
 .app-ui .editor-nav-label{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:9.5px!important;font-weight:750!important}

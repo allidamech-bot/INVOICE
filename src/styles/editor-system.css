@@ -11,8 +11,8 @@
   max-width:100%;
 }
 .app-ui .section-heading-actions .btn{min-width:0}
-.app-ui .section-heading-actions .btn-ghost{background:#f8fbfd;border-color:#d8e4ea;color:#294c62}
-.app-ui .section-heading-actions .add-item-button{background:#e8f1f8!important;border-color:#bfd4e1!important;color:#174866!important}
+.app-ui .section-heading-actions .btn-ghost{background:var(--ds-surface-strong);border-color:var(--ds-line);color:var(--ds-text)}
+.app-ui .section-heading-actions .add-item-button{background:var(--ds-accent)!important;border-color:var(--ds-accent)!important;color:var(--ds-text)!important}
 .app-ui .editor-totals{margin-top:14px;padding:8px;border:1px solid #d8e3e8;border-radius:14px;background:#fff}
 .app-ui .editor-totals>div:not(.grand){min-height:38px;padding:7px 8px;align-items:center;gap:12px;color:#2c4050}
 .app-ui .editor-totals>div:not(.grand) strong{color:#17364a}

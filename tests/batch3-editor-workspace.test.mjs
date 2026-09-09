@@ -34,7 +34,7 @@ test('batch 3 keeps the six-step form calm and prevents nested control overflow'
   ]);
   for(const number of ['01','02','03','04','05','06'])assert.match(core,new RegExp(`>${number}<`));
   assert.match(wrapper,/editor-section-navigator/);
-  assert.match(css,/\.app-ui \.editor-section\{[\s\S]*border-radius:0!important/);
+  assert.match(css,/\.app-ui \.editor-section\{[^}]*border-radius:0!important/);
   assert.match(css,/\.app-ui \.form-grid\.two\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
   assert.match(css,/\.app-ui \.item-pricing-grid\{[\s\S]*grid-template-columns:minmax\(90px,\.75fr\) minmax\(120px,\.9fr\) minmax\(150px,1\.15fr\)!important/);
   assert.match(css,/\.app-ui \.customer-dropdown\{[\s\S]*max-height:min\(360px,48vh\)!important[\s\S]*overflow:auto!important/);
