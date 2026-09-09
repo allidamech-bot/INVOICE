@@ -20,8 +20,24 @@ jobs:
       - run: npm run typecheck
       - name: Run production build
         run: npm run build
-      - name: Run unit and regression tests
-        run: node --test tests/*.test.mjs
+      - name: Regression tests A-D
+        if: always()
+        run: node --test tests/[a-d]*.test.mjs
+      - name: Regression tests E-H
+        if: always()
+        run: node --test tests/[e-h]*.test.mjs
+      - name: Regression tests I-L
+        if: always()
+        run: node --test tests/[i-l]*.test.mjs
+      - name: Regression tests M-P
+        if: always()
+        run: node --test tests/[m-p]*.test.mjs
+      - name: Regression tests Q-T
+        if: always()
+        run: node --test tests/[q-t]*.test.mjs
+      - name: Regression tests U-Z
+        if: always()
+        run: node --test tests/[u-z]*.test.mjs
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
