@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {AppShell} from './src/components/AppShell.js';
+import {ReportsPage} from './src/components/ReportsPage.js';
+import {ReceivablesPage} from './src/components/ReceivablesPage.js';
+import {OperationsPage} from './src/components/OperationsPage.js';
+import {ProfitabilityPanel} from './src/components/ProfitabilityPanel.js';
+import {blankCustomer} from './src/components/CustomersPage.js';
+import {defaultCompany} from './src/lib/defaults.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {createSupplier} from './src/lib/operations.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar',screen=params.get('screen')||'reports',h=React.createElement;
+setUiLanguage(ar?'ar':'en');document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';
+const company=defaultCompany();company.nameEn='LOUREX Trading';company.nameAr='لوركس للتجارة';
+const customer={...blankCustomer(),id:'customer-finance',companyNameEn:'Atlas Industrial Trading',companyNameAr:'أطلس للتجارة الصناعية',contactPerson:ar?'سارة أحمد':'Sarah Ahmed',city:'Riyadh',country:'Saudi Arabia',email:'finance@atlas.test',phone:'+966 50 000 0000',preferredCurrency:'USD',paymentTerms:'Net 30',paymentDueDays:'30',creditLimit:'50000',creditCurrency:'USD'};
+const snapshot={sourceCustomerId:customer.id,companyNameEn:customer.companyNameEn,companyNameAr:customer.companyNameAr,contactPerson:customer.contactPerson,addressEn:'King Fahd Road',addressAr:'طريق الملك فهد',city:customer.city,country:customer.country,phone:customer.phone,email:customer.email,vatTaxNumber:'310000000000003',commercialRegistration:'1010000000'};
+function invoice(id,number,currency,price,cost,issue,due){const d=createBlankDocument('invoice',number,company);d.id=id;d.status='final';d.lifecycleStatus='active';d.currency=currency;d.issueDate=issue;d.dueDate=due;d.customerSnapshot={...snapshot};d.items=[{...d.items[0],id:id+'-item',descriptionEn:'Industrial control assembly',descriptionAr:'مجموعة تحكم صناعية',quantity:'10',unit:'PCS',unitPrice:price,unitCost:cost}];d.internalCosts={shippingCost:'100.00',otherCost:'50.00'};return d;}
+const usd=invoice('inv-usd','INV-2026-0042','USD','250.00','145.00','2026-08-18','2026-08-28');
+const eur=invoice('inv-eur','INV-2026-0043','EUR','180.00','110.00','2026-08-21','2026-09-30');
+const payments=[{id:'pay-1',invoiceId:usd.id,invoiceNumber:usd.number,customerId:customer.id,customerNameEn:customer.companyNameEn,customerNameAr:customer.companyNameAr,currency:'USD',amount:'900.00',date:'2026-08-25',method:'bank-transfer',reference:'TRX-8841',notes:'',createdAt:'2026-08-25T12:00:00.000Z',updatedAt:'2026-08-25T12:00:00.000Z'}];
+const savedItems=[{id:'saved-1',createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-08-01T00:00:00.000Z',sku:'LX-CTRL-01',descriptionEn:'Industrial control assembly',descriptionAr:'مجموعة تحكم صناعية',hsCode:'853710',origin:'Türkiye',packing:'Box',unit:'PCS',lastUnitPrice:'250.00',lastCurrency:'USD',lastUnitCost:'145.00',lastCostCurrency:'USD',usageCount:8,lastUsedAt:'2026-08-18T00:00:00.000Z',category:'Controls',tags:['Industrial'],favorite:true}];
+const supplier={...createSupplier(),id:'supplier-1',nameEn:'Anatolia Components',nameAr:'مكونات الأناضول',contactPerson:'Mert Kaya',country:'Türkiye',city:'Istanbul',phone:'+90 212 000 0000',email:'sales@supplier.test',defaultCurrency:'USD',paymentTerms:'30% advance / 70% before shipment'};
+class Fixture extends React.Component{render(){let content;if(screen==='reports')content=h(ReportsPage,{company,customers:[customer],documents:[usd,eur],payments});else if(screen==='receivables')content=h(ReceivablesPage,{company,customers:[customer],documents:[usd,eur],payments});else if(screen==='operations')content=h(OperationsPage,{suppliers:[supplier],purchases:[],expenses:[],inventoryMovements:[],items:savedItems,defaultCurrency:'USD',onSaveSupplier:async()=>{},onDeleteSupplier:async()=>{},onSavePurchase:async()=>{},onDeletePurchase:async()=>{},onPostPurchase:async()=>{},onReversePurchase:async()=>{},onSaveExpense:async()=>{},onDeleteExpense:async()=>{},onSaveInventoryMovement:async()=>{},onDeleteInventoryMovement:async()=>{}});else content=h(ProfitabilityPanel,{document:usd,savedItems,onSave:async()=>{},onSaveSavedItem:async()=>{}});return h(AppShell,{screen:screen==='profitability'?'documents':screen,logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:()=>{},onToggleNew:()=>{},onNew:()=>{},onSettings:()=>{},onCloud:()=>{}},content);}}
+ReactDOM.render(h(Fixture),document.getElementById('root'));
+</script></body></html>
