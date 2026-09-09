@@ -31,8 +31,8 @@
     z-index: 20 !important;
     min-height: 56px !important;
     padding: 9px 12px !important;
-    background: rgba(255,255,255,.98) !important;
-    border-bottom: 1px solid #e1ded7 !important;
+    background: var(--ds-surface-strong) !important;
+    border-bottom: 1px solid var(--ds-line) !important;
   }
 
   .app-ui .modal-header h2 {
@@ -48,9 +48,9 @@
     min-width: 44px !important;
     height: 44px !important;
     min-height: 44px !important;
-    color: #213846 !important;
-    background: #f2f5f6 !important;
-    border: 1px solid #d7e2e8 !important;
+    color: var(--ds-text) !important;
+    background: var(--ds-selected) !important;
+    border: 1px solid var(--ds-line) !important;
     border-radius: 12px !important;
     opacity: 1 !important;
     visibility: visible !important;

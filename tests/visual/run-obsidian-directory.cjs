@@ -15,13 +15,13 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
     for(const el of root.querySelectorAll('*')){
      const r=el.getBoundingClientRect(),s=getComputedStyle(el);if(!r.width||!r.height||r.bottom<0||r.top>innerHeight||s.visibility==='hidden')continue;
      const rgb=s.backgroundColor.match(/[\d.]+/g)?.map(Number)||[];
-     if(r.width*r.height>1000&&rgb.length>=3&&rgb.slice(0,3).every(v=>v>220)&&(rgb.length===3||rgb[3]>.8))problems.push('light chrome '+el.className);
+     if(r.width*r.height>1000&&rgb.length>=3&&rgb.slice(0,3).every(v=>v>220)&&(rgb.length===3||rgb[3]>.8))problems.push('light chrome '+el.tagName+'.'+el.className+' in '+el.parentElement.className+' '+s.backgroundColor);
      if(innerWidth<=430&&el.matches('input,select,textarea')&&parseFloat(s.fontSize)<16)problems.push('small phone input '+el.className);
     }return [...new Set(problems)];
    });failures.push(...issues);
   };
   const reachable=async locator=>{
-   await locator.scrollIntoViewIfNeeded();assert.equal(await locator.evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight+1&&r.left>=0&&r.right<=innerWidth+1&&el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),true,'action clipped or covered');
+   await locator.scrollIntoViewIfNeeded();await page.waitForTimeout(180);const geometry=await locator.evaluate(el=>{const r=el.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {ok:r.top>=0&&r.bottom<=innerHeight+1&&r.left>=0&&r.right<=innerWidth+1&&el.contains(hit),rect:r.toJSON(),hit:hit?.className,viewport:{width:innerWidth,height:innerHeight}};});assert.equal(geometry.ok,true,'action clipped or covered '+JSON.stringify(geometry));
   };
   try{
    await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-directory.html?lang=${lang}&screen=${screen}`,{waitUntil:'load'});await page.evaluate(()=>document.fonts.ready);
