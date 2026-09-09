@@ -11,6 +11,7 @@
   --ds-surface:#101D24;
   --ds-surface-strong:#16262E;
   --ds-selected:#1C3540;
+  --ds-financial-surface:#14343B;
   --ds-input:#0C171C;
   --ds-accent:#137C7A;
   /* Darkened hover keeps white action text above 4.5:1 contrast. */
@@ -247,7 +248,7 @@ html[dir='rtl'] .app-ui :where(h1,h2,h3,.field-label,.btn,.eyebrow,.shell-page-t
 .app-ui .section-heading>span:first-child{color:var(--ds-accent-bright)!important}
 .app-ui .premium-selected-customer{box-shadow:none!important}
 .app-ui .premium-item-card{border-color:var(--ds-line)!important;box-shadow:none!important}
-.app-ui .editor-totals .grand{background:var(--ds-navy-900)!important;color:#fff!important}
+.app-ui .editor-totals .grand{background:var(--ds-financial-surface)!important;color:var(--ds-text)!important}
 
 /* Settings/account pages use the same interaction vocabulary as the rest of the app. */
 .app-ui :where(.settings-workspace,.account-workspace){color:var(--ds-text)}
