@@ -29,3 +29,11 @@ test('v188 any Firebase account sign-out returns an unlocked workspace to the ac
   assert.match(index,/window\.location\.reload\(\)/);
   assert.match(index,/startAccountSignOutWatcher\(\);/);
 });
+
+test('v188 publishes a fresh immutable PWA generation containing the logout guard',async()=>{
+  const sw=await read('public/sw.js');
+  assert.match(sw,/v188 account-required logout/);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v188';$/m);
+  assert.match(sw,/lourex-invoice-v185: preserved as a legacy marker/);
+  assert.ok(sw.includes('./src/app/index.js'));
+});
