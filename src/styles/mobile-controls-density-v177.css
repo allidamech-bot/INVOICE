@@ -87,7 +87,8 @@
   .app-ui .logo-touch-editor-close,
   .app-ui .logo-touch-editor-utility button,
   .auth-page .auth-language-switch,
-  .auth-page .account-entry-tabs button{
+  .auth-page .account-entry-tabs button,
+  .auth-page .input{
     box-sizing:border-box!important;
     min-height:44px!important;
     max-height:none!important;
