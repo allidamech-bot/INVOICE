@@ -1,3 +1,4 @@
+// v188 account-required logout — publish a fresh immutable runtime so signed-out Safari/PWA clients cannot keep the old unlocked entrypoint.
 // v187 premium account gateway — recache the signed-out experience and secure logout transition for Safari/PWA clients.
 // v186 account/cloud separation — recache the dedicated account controls without changing the established immutable runtime policy.
 // v185 single launch continuity — recache the unified static/React splash so iPhone users see one uninterrupted launch screen.
@@ -49,7 +50,11 @@ const CACHE = 'lourex-invoice-v169';
 /* Historical v184 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v184';
 */
+/* Historical v185 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v185';
+*/
+const CACHE = 'lourex-invoice-v188';
+// lourex-invoice-v185: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v184: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v183: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v182: preserved as a legacy marker for cache-migration tests.
