@@ -389,7 +389,10 @@
 .app-ui .editor-totals>div:not(.grand) strong{color:var(--ds-text)}
 
 .app-ui .template-selector{min-width:0!important;gap:9px!important}
-.app-ui .template-card{min-width:0!important;border-color:var(--ds-line)!important;border-radius:12px!important;box-shadow:none!important}
+.app-ui .template-card{min-width:0!important;border-color:var(--ds-line)!important;border-radius:12px!important;background:var(--ds-workspace)!important;color:var(--ds-text);box-shadow:none!important}
+.app-ui .template-card.selected{border-color:var(--ds-accent-bright)!important;background:var(--ds-selected)!important}
+.app-ui .template-card>span :is(b,strong){color:var(--ds-text)}
+.app-ui .template-card>span small{color:var(--ds-text-soft)}
 .app-ui .template-preference-bar{min-width:0!important;border-color:var(--ds-line)!important;background:var(--ds-workspace)!important;box-shadow:none!important}
 .app-ui .advanced-master-toggle{min-height:42px!important;border-color:var(--ds-line)!important;background:var(--ds-workspace)!important}
 

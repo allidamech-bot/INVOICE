@@ -39,7 +39,8 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
    await sections.last().scrollIntoViewIfNeeded();
    await page.screenshot({path:output+'/'+stem+'-terms.png',animations:'disabled'});
    if(viewport.width<=1180){
-    await page.locator('.mobile-preview-button:visible').first().click();
+    if(viewport.width<=900)await page.locator('.mobile-action-buttons .btn').nth(1).click();
+    else await page.locator('.mobile-preview-button:visible').first().click();
     await page.locator('.mobile-preview-overlay').waitFor({state:'visible'});
     const preview=await page.locator('.mobile-preview-stage').evaluate(el=>({background:getComputedStyle(el).backgroundColor,paper:el.querySelectorAll('.invoice-page').length}));
     assert.equal(preview.background,'rgb(13, 24, 30)');assert.ok(preview.paper>0);
