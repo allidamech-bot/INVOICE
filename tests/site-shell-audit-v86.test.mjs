@@ -58,7 +58,7 @@ test('cloud account modal remains dismissible while account actions are busy',()
   assert.match(modal,/private requestClose=\(\)=>this\.props\.onClose\(\);/);
   assert.match(modal,/onClose=\{this\.requestClose\}/);
   assert.match(modal,/<Button disabled=\{this\.state\.busy\} onClick=\{\(\)=>void this\.signOut\(\)\}/);
-  assert.match(modal,/private signOut=async\(\)=>\{[\s\S]*?if\(this\.operationRunning\)return;[\s\S]*?await this\.props\.onSignOut\(\);[\s\S]*?await clearSession\(\);/);
+  assert.match(modal,/private signOut=async\(\)=>\{[\s\S]*?if\(this\.operationRunning\)return;[\s\S]*?await this\.props\.onSignOut\(\);[\s\S]*?await suspendSession\(\);/);
   assert.doesNotMatch(modal,/Sync Now|مزامنة الآن/);
 });
 
