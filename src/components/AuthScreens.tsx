@@ -3,6 +3,8 @@ import { Brand, Button, Field, Input } from './UI.js';
 import { fileToDataUrl } from '../lib/files.js';
 import { t } from '../lib/i18n.js';
 import { currentCloudUser } from '../cloud/firebase.js';
+import { getOrCreateAccountVaultSecret } from '../cloud/account-access.js';
+import { changePin } from '../storage/vault.js';
 
 const MAX_SETUP_LOGO_BYTES=4*1024*1024;
 const SETUP_LOGO_TYPES=/^image\/(png|webp|jpeg)$/i;
@@ -15,9 +17,6 @@ interface SetupProps {
   onLanguageChange: (language: UiLanguage) => Promise<void>;
 }
 interface SetupState {
-  step: 1|2;
-  pin: string;
-  confirm: string;
   company: CompanySettings;
   error: string;
   busy: boolean;
@@ -27,9 +26,6 @@ interface SetupState {
 export class SetupScreen extends React.Component<SetupProps, SetupState> {
   private logoUploadId=0;
   state: SetupState = {
-    step: 1,
-    pin: '',
-    confirm: '',
     company: this.props.initialCompany,
     error: '',
     busy: false,
@@ -54,39 +50,74 @@ export class SetupScreen extends React.Component<SetupProps, SetupState> {
       this.setState({error:t('Unable to process this image. Try another PNG, WebP, or JPEG file.','تعذرت معالجة هذه الصورة. جرّب ملف PNG أو WebP أو JPEG آخر.'),logoBusy:false});
     }
   };
-  private next = (): void => {
-    if (!/^\d{4,12}$/.test(this.state.pin)) return this.setState({ error: t('Use a 4–12 digit PIN.','استخدم رمز PIN من 4 إلى 12 رقمًا.') });
-    if (this.state.pin !== this.state.confirm) return this.setState({ error: t('PIN confirmation does not match.','تأكيد رمز PIN غير مطابق.') });
-    this.setState({ step: 2, error: '' });
-  };
   private finish = async (): Promise<void> => {
-    if(this.state.logoBusy)return;
+    if(this.state.logoBusy||this.state.busy)return;
     if (!this.state.company.nameEn.trim() && !this.state.company.nameAr.trim()) {
       this.setState({ error: t('Company name is required.','اسم الشركة مطلوب.') });
       return;
     }
+    const user=currentCloudUser();
+    if(!user){this.setState({error:t('Your account session ended. Sign in again.','انتهت جلسة حسابك. سجّل الدخول مرة أخرى.')});return;}
     this.setState({ busy: true, error: '' });
-    try { await this.props.onFinish(this.state.pin, this.state.company); }
+    try {
+      const accountSecret=await getOrCreateAccountVaultSecret(user.uid);
+      await this.props.onFinish(accountSecret, this.state.company);
+    }
     catch (e) { this.setState({ error: e instanceof Error ? e.message : t('Setup failed.','فشل الإعداد.'), busy: false }); }
   };
   private languageSwitch():any{return <button type="button" className="auth-language-switch" disabled={this.state.busy||this.state.logoBusy} onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button>;}
 
   render(): any {
-    const { step, company, busy, logoBusy, error } = this.state;
+    const { company, busy, logoBusy, error } = this.state;
     const signedIn=currentCloudUser();
-    return <div className="auth-page"><div className="auth-card setup-card setup-card-v115">{this.languageSwitch()}<Brand logoDataUrl={company.logoDataUrl||this.props.logoDataUrl} language={this.props.language}/><div className="setup-account-badge"><span>{t('Cloud account','الحساب السحابي')}</span><strong>{signedIn?.email||''}</strong></div><div className="setup-progress setup-progress-two" aria-label={t('Setup progress','تقدم الإعداد')}><span className={step >= 1 ? 'active' : ''}>1</span><i/><span className={step >= 2 ? 'active' : ''}>2</span></div>
-      {step === 1 ? <div className="auth-section setup-essential-step"><p className="eyebrow">{t('Security · 1 of 2','الأمان · 1 من 2')}</p><h1>{t('Create your LOUREX PIN','أنشئ رمز PIN لـ LOUREX')}</h1><p className="subtle">{t('Your PIN unlocks the encrypted LOUREX vault on this device and after an encrypted cloud restore. It is separate from your account password.','رمز PIN يفتح خزنة LOUREX المشفّرة على هذا الجهاز وبعد استعادة النسخة السحابية المشفّرة، وهو منفصل عن كلمة مرور الحساب.')}</p><div className="pin-recovery-note" role="note"><strong>{t('Keep this PIN safe','احتفظ برمز PIN بأمان')}</strong><span>{t('Your account password cannot replace or recover this PIN. You will need the same PIN to unlock restored encrypted data.','كلمة مرور الحساب لا تستبدل رمز PIN ولا تستعيده. ستحتاج إلى رمز PIN نفسه لفتح البيانات المشفّرة بعد استعادتها.')}</span></div><div className="form-grid one"><Field label={t('PIN','رمز PIN')}><Input autoFocus inputMode="numeric" autoComplete="new-password" maxLength="12" type="password" value={this.state.pin} onChange={(e:any)=>this.setState({pin:e.target.value.replace(/\D/g,''),error:''})}/></Field><Field label={t('Confirm PIN','تأكيد رمز PIN')}><Input inputMode="numeric" maxLength="12" type="password" value={this.state.confirm} onChange={(e:any)=>this.setState({confirm:e.target.value.replace(/\D/g,''),error:''})}/></Field></div><Button className="setup-primary-action" variant="primary" onClick={this.next}>{t('Continue','متابعة')}</Button></div> : null}
-      {step === 2 ? <div className="auth-section setup-essential-step"><p className="eyebrow">{t('Company · 2 of 2','الشركة · 2 من 2')}</p><h1>{t('Name your company','أدخل اسم شركتك')}</h1><p className="subtle">{t('Only the company name is required now. Address, tax, bank details, signature and stamp can be completed later from Settings.','المطلوب الآن هو اسم الشركة فقط. يمكنك إكمال العنوان والضريبة وبيانات البنك والتوقيع والختم لاحقًا من الإعدادات.')}</p><div className="form-grid two setup-company-essential-grid"><Field label={t('Company Name English','اسم الشركة بالإنجليزية')}><Input autoFocus={this.props.language!=='ar'} dir="ltr" value={company.nameEn} onChange={(e:any)=>this.updateCompany('nameEn',e.target.value)}/></Field><Field label={t('Company Name Arabic','اسم الشركة بالعربية')}><Input autoFocus={this.props.language==='ar'} dir="rtl" value={company.nameAr} onChange={(e:any)=>this.updateCompany('nameAr',e.target.value)}/></Field></div><label className="upload-tile setup-logo-tile"><span>{t('Company Logo · Optional','شعار الشركة · اختياري')}</span><img src={company.logoDataUrl || './brand/lourex-logo.svg'} alt={t('Company logo preview','معاينة شعار الشركة')}/><b>{logoBusy?t('Preparing logo…','جارٍ تجهيز الشعار…'):t('Tap to choose logo','اضغط لاختيار الشعار')}</b><input type="file" disabled={busy||logoBusy} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectLogo(e.currentTarget)}/></label><div className="setup-later-note"><strong>{t('You can start immediately','يمكنك البدء مباشرة')}</strong><span>{t('All advanced company and document defaults remain available in Settings whenever you need them.','تبقى جميع بيانات الشركة والإعدادات الافتراضية المتقدمة متاحة في الإعدادات متى احتجتها.')}</span></div><div className="setup-actions"><Button disabled={busy||logoBusy} onClick={()=>this.setState({step:1,error:''})}>{t('Back','رجوع')}</Button><Button variant="primary" disabled={busy||logoBusy} onClick={()=>void this.finish()}>{logoBusy?t('Preparing logo…','جارٍ تجهيز الشعار…'):busy ? t('Finishing…','جارٍ الإنهاء…') : t('Finish Setup','إنهاء الإعداد')}</Button></div></div> : null}
+    return <div className="auth-page"><div className="auth-card setup-card setup-card-v115 account-managed-setup">{this.languageSwitch()}<Brand logoDataUrl={company.logoDataUrl||this.props.logoDataUrl} language={this.props.language}/><div className="setup-account-badge"><span>{t('Signed in','تم تسجيل الدخول')}</span><strong>{signedIn?.email||''}</strong></div>
+      <div className="auth-section setup-essential-step"><p className="eyebrow">{t('WORKSPACE SETUP','إعداد مساحة العمل')}</p><h1>{t('Name your company','أدخل اسم شركتك')}</h1><p className="subtle">{t('LOUREX protects and saves your workspace automatically with your account. No separate access PIN is required.','يحمي LOUREX مساحة عملك ويحفظها تلقائيًا مع حسابك. لا يلزم رمز دخول PIN منفصل.')}</p><div className="account-managed-security-note" role="note"><strong>{t('One account, one sign-in','حساب واحد، تسجيل دخول واحد')}</strong><span>{t('Local encrypted storage and account backup run automatically in the background.','يعمل التخزين المحلي المشفّر والنسخ الاحتياطي للحساب تلقائيًا في الخلفية.')}</span></div><div className="form-grid two setup-company-essential-grid"><Field label={t('Company Name English','اسم الشركة بالإنجليزية')}><Input autoFocus={this.props.language!=='ar'} dir="ltr" value={company.nameEn} onChange={(e:any)=>this.updateCompany('nameEn',e.target.value)}/></Field><Field label={t('Company Name Arabic','اسم الشركة بالعربية')}><Input autoFocus={this.props.language==='ar'} dir="rtl" value={company.nameAr} onChange={(e:any)=>this.updateCompany('nameAr',e.target.value)}/></Field></div><label className="upload-tile setup-logo-tile"><span>{t('Company Logo · Optional','شعار الشركة · اختياري')}</span><img src={company.logoDataUrl || './brand/lourex-logo.svg'} alt={t('Company logo preview','معاينة شعار الشركة')}/><b>{logoBusy?t('Preparing logo…','جارٍ تجهيز الشعار…'):t('Tap to choose logo','اضغط لاختيار الشعار')}</b><input type="file" disabled={busy||logoBusy} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectLogo(e.currentTarget)}/></label><div className="setup-later-note"><strong>{t('You can start immediately','يمكنك البدء مباشرة')}</strong><span>{t('Address, tax, bank details, signature, stamp and document defaults remain available in Settings.','يبقى العنوان والضريبة وبيانات البنك والتوقيع والختم وإعدادات المستندات متاحة في الإعدادات.')}</span></div><Button className="setup-primary-action" variant="primary" disabled={busy||logoBusy} onClick={()=>void this.finish()}>{logoBusy?t('Preparing logo…','جارٍ تجهيز الشعار…'):busy?t('Preparing workspace…','جارٍ تجهيز مساحة العمل…'):t('Enter LOUREX','الدخول إلى LOUREX')}</Button></div>
       {error ? <div className="auth-error" role="alert">{error}</div> : null}
     </div></div>;
   }
 }
 
 interface UnlockProps { onUnlock: (pin: string) => Promise<void>; logoDataUrl:string; language:UiLanguage; onLanguageChange:(language:UiLanguage)=>Promise<void>; }
-interface UnlockState { pin: string; error: string; busy: boolean; }
+interface UnlockState { legacyPin:string; error:string; busy:boolean; checking:boolean; needsLegacyUpgrade:boolean; }
 export class UnlockScreen extends React.Component<UnlockProps, UnlockState> {
-  state: UnlockState = { pin: '', error: '', busy: false };
-  private openCloud = (): void => { const button=document.querySelector('.auth-cloud-launcher .btn') as HTMLButtonElement|null; button?.click(); };
-  private submit = async (e:any): Promise<void> => { e.preventDefault(); if (!this.state.pin) return; this.setState({busy:true,error:''}); try { await this.props.onUnlock(this.state.pin); } catch (err) { this.setState({busy:false,error:err instanceof Error?err.message:t('Unable to unlock.','تعذر فتح التطبيق.'),pin:''}); } };
-  render(): any { return <div className="auth-page"><form className="auth-card unlock-card" onSubmit={this.submit}><button type="button" className="auth-language-switch" onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button><Brand logoDataUrl={this.props.logoDataUrl} language={this.props.language}/><p className="eyebrow">LOUREX Invoice</p><h1>{t('Enter PIN','أدخل رمز PIN')}</h1><Field label={t('Access PIN','رمز الدخول')}><Input autoFocus inputMode="numeric" type="password" value={this.state.pin} onChange={(e:any)=>this.setState({pin:e.target.value.replace(/\D/g,'')})}/></Field>{this.state.error ? <div className="auth-error" role="alert">{this.state.error}</div> : null}<Button variant="primary" type="submit" disabled={this.state.busy}>{this.state.busy?t('Unlocking…','جارٍ الفتح…'):t('Unlock','فتح')}</Button><button type="button" className="auth-inline-cloud" onClick={this.openCloud}>{t('Cloud account','الحساب السحابي')}</button><p className="security-note">{t('Encrypted local access · Cloud sync available','دخول محلي مشفّر · المزامنة السحابية متاحة')}</p></form></div>; }
+  state: UnlockState = { legacyPin:'', error:'', busy:false, checking:true, needsLegacyUpgrade:false };
+
+  componentDidMount():void{void this.unlockWithAccount();}
+
+  private accountSecret=async():Promise<string>=>{
+    const user=currentCloudUser();
+    if(!user)throw new Error(t('Your account session ended. Sign in again.','انتهت جلسة حسابك. سجّل الدخول مرة أخرى.'));
+    return getOrCreateAccountVaultSecret(user.uid);
+  };
+
+  private unlockWithAccount=async():Promise<void>=>{
+    this.setState({checking:true,busy:true,error:'',needsLegacyUpgrade:false});
+    try{
+      const secret=await this.accountSecret();
+      await this.props.onUnlock(secret);
+    }catch(error){
+      const message=error instanceof Error?error.message:t('Unable to open your workspace.','تعذر فتح مساحة العمل.');
+      const legacy=/wrong pin/i.test(message);
+      this.setState({checking:false,busy:false,needsLegacyUpgrade:legacy,error:legacy?'':message});
+    }
+  };
+
+  private migrateLegacy=async(e:any):Promise<void>=>{
+    e.preventDefault();
+    if(this.state.busy||!this.state.legacyPin)return;
+    this.setState({busy:true,error:''});
+    try{
+      const secret=await this.accountSecret();
+      await changePin(this.state.legacyPin,secret);
+      await this.props.onUnlock(secret);
+    }catch(error){
+      const message=error instanceof Error?error.message:t('Unable to finish the secure upgrade.','تعذر إكمال ترقية الأمان.');
+      this.setState({busy:false,error:/wrong pin/i.test(message)?t('The previous device PIN is incorrect.','رمز PIN السابق للجهاز غير صحيح.'):message,legacyPin:''});
+    }
+  };
+
+  render(): any {
+    if(this.state.checking)return <div className="auth-page"><div className="auth-card unlock-card account-auto-unlock"><button type="button" className="auth-language-switch" disabled onClick={()=>undefined}>{this.props.language==='ar'?'English':'العربية'}</button><Brand logoDataUrl={this.props.logoDataUrl} language={this.props.language}/><p className="eyebrow">LOUREX Invoice</p><h1>{t('Opening your workspace…','جارٍ فتح مساحة عملك…')}</h1><p className="subtle">{t('Your account is restoring secure access automatically.','يستعيد حسابك الوصول الآمن تلقائيًا.')}</p><span className="account-access-loader" aria-hidden="true"/></div></div>;
+    return <div className="auth-page"><form className="auth-card unlock-card legacy-upgrade-card" onSubmit={this.migrateLegacy}><button type="button" className="auth-language-switch" disabled={this.state.busy} onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button><Brand logoDataUrl={this.props.logoDataUrl} language={this.props.language}/><p className="eyebrow">{t('ONE-TIME SECURE UPGRADE','ترقية أمان لمرة واحدة')}</p><h1>{t('Connect your existing encrypted data','اربط بياناتك المشفّرة الحالية')}</h1><p className="subtle">{t('This device still contains data protected by the previous PIN system. Enter that old PIN once to move it to automatic account access. LOUREX will not ask for it again.','يحتوي هذا الجهاز على بيانات محمية بنظام PIN السابق. أدخل رمز PIN القديم مرة واحدة لنقلها إلى الدخول التلقائي بالحساب. لن يطلبه LOUREX مرة أخرى.')}</p><Field label={t('Previous device PIN · one time only','رمز PIN السابق للجهاز · مرة واحدة فقط')}><Input autoFocus inputMode="numeric" autoComplete="off" maxLength="12" type="password" value={this.state.legacyPin} onChange={(e:any)=>this.setState({legacyPin:e.target.value.replace(/\D/g,''),error:''})}/></Field>{this.state.error?<div className="auth-error" role="alert">{this.state.error}</div>:null}<Button variant="primary" type="submit" disabled={this.state.busy||!this.state.legacyPin}>{this.state.busy?t('Upgrading…','جارٍ الترقية…'):t('Finish Secure Upgrade','إكمال ترقية الأمان')}</Button><p className="security-note">{t('After this upgrade: sign in once, then LOUREX opens directly.','بعد هذه الترقية: سجّل الدخول مرة واحدة ثم يفتح LOUREX مباشرة.')}</p></form></div>;
+  }
 }
