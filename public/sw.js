@@ -1,3 +1,4 @@
+// v189 unified account access — recache automatic account-bound vault access and invisible background saving.
 // v188 account-required logout — publish a fresh immutable runtime so signed-out Safari/PWA clients cannot keep the old unlocked entrypoint.
 // v187 premium account gateway — recache the signed-out experience and secure logout transition for Safari/PWA clients.
 // v186 account/cloud separation — recache the dedicated account controls without changing the established immutable runtime policy.
@@ -53,7 +54,11 @@ const CACHE = 'lourex-invoice-v184';
 /* Historical v185 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v185';
 */
+/* Historical v188 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v188';
+*/
+const CACHE = 'lourex-invoice-v189';
+// lourex-invoice-v188: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v185: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v184: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v183: preserved as a legacy marker for cache-migration tests.
@@ -75,6 +80,8 @@ LOCAL_CORE.push('./styles/final-mobile-accessibility-v168.css');
 LOCAL_CORE.push('./styles/mobile-overlap-recovery-v176.css');
 LOCAL_CORE.push('./styles/mobile-controls-density-v177.css');
 LOCAL_CORE.push('./styles/account-cloud-separation-v186.css');
+LOCAL_CORE.push('./styles/unified-account-v189.css');
+LOCAL_CORE.push('./src/cloud/account-access.js');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);

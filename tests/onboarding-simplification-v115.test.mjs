@@ -4,23 +4,25 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v115 first-run setup is only PIN plus essential company identity',async()=>{
+test('v115 essential company onboarding remains compact under account-managed access',async()=>{
   const auth=await read('src/components/AuthScreens.tsx');
-  assert.match(auth,/step: 1\|2;/);
-  assert.doesNotMatch(auth,/step: 1\|2\|3/);
-  assert.match(auth,/Security · 1 of 2/);
-  assert.match(auth,/Company · 2 of 2/);
+  assert.match(auth,/account-managed-setup/);
+  assert.match(auth,/WORKSPACE SETUP/);
+  assert.match(auth,/Name your company/);
   assert.match(auth,/Company Name English/);
   assert.match(auth,/Company Name Arabic/);
   assert.match(auth,/Company Logo · Optional/);
-  assert.match(auth,/Finish Setup/);
+  assert.match(auth,/Enter LOUREX/);
+  assert.doesNotMatch(auth,/Create your LOUREX PIN|Security · 1 of 2/);
 });
 
-test('v115 clearly explains that the account password cannot recover the vault PIN',async()=>{
+test('v115 setup is now protected automatically by the signed-in LOUREX account',async()=>{
   const auth=await read('src/components/AuthScreens.tsx');
-  assert.match(auth,/Keep this PIN safe/);
-  assert.match(auth,/account password cannot replace or recover this PIN/i);
-  assert.match(auth,/same PIN to unlock restored encrypted data/i);
+  assert.match(auth,/getOrCreateAccountVaultSecret\(user\.uid\)/);
+  assert.match(auth,/No separate access PIN is required/);
+  assert.match(auth,/One account, one sign-in/);
+  assert.match(auth,/Local encrypted storage and account backup run automatically in the background/);
+  assert.doesNotMatch(auth,/Keep this PIN safe|account password cannot replace or recover this PIN/i);
 });
 
 test('v115 defers advanced company details to Settings instead of blocking first use',async()=>{
@@ -31,26 +33,29 @@ test('v115 defers advanced company details to Settings instead of blocking first
   assert.doesNotMatch(setup,/Bank Name/);
   assert.doesNotMatch(setup,/Signature/);
   assert.doesNotMatch(setup,/Stamp/);
-  assert.match(setup,/address, tax, bank details, signature and stamp can be completed later from Settings/i);
+  assert.match(setup,/Address, tax, bank details, signature, stamp and document defaults remain available in Settings/i);
 });
 
-test('v115 onboarding presentation stays compact and touch safe',async()=>{
-  const css=await read('src/styles/onboarding-simplification-v115.css');
-  assert.match(css,/\.setup-card-v115/);
-  assert.match(css,/\.pin-recovery-note/);
-  assert.match(css,/\.setup-company-essential-grid/);
-  assert.match(css,/@media\(max-width:720px\)/);
-  assert.match(css,/@media\(pointer:coarse\)/);
+test('v115 onboarding presentation stays compact and touch safe while v189 adds account-managed polish',async()=>{
+  const [legacyCss,unifiedCss]=await Promise.all([
+    read('src/styles/onboarding-simplification-v115.css'),
+    read('src/styles/unified-account-v189.css')
+  ]);
+  assert.match(legacyCss,/\.setup-card-v115/);
+  assert.match(legacyCss,/\.setup-company-essential-grid/);
+  assert.match(legacyCss,/@media\(max-width:720px\)/);
+  assert.match(legacyCss,/@media\(pointer:coarse\)/);
+  assert.match(unifiedCss,/\.account-managed-security-note/);
+  assert.match(unifiedCss,/\.account-managed-setup/);
 });
 
-test('v115 loads before the final performance layer and is cached offline',async()=>{
+test('v115 remains loaded and cached while v189 owns the current account-access generation',async()=>{
   const [index,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   const ux='./styles/onboarding-simplification-v115.css';
   const perf='./styles/performance-polish-v100.css';
   assert.ok(index.indexOf(ux)>-1&&index.indexOf(ux)<index.indexOf(perf));
   assert.ok(sw.includes(ux));
   assert.match(sw,/v115/);
-  assert.match(sw,/v114/);
-  assert.match(sw,/v113/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v101'/);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v189';$/m);
+  assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
 });
