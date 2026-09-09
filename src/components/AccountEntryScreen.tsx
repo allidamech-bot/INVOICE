@@ -68,11 +68,11 @@ export class AccountEntryScreen extends React.Component<Props,State>{
           <div className="auth-story-copy">
             <p className="auth-story-kicker">{t('PRIVATE BUSINESS WORKSPACE','مساحة أعمال خاصة')}</p>
             <h2>{t('Run every commercial document from one calm, secure workspace.','أدر مستندات أعمالك كلها من مساحة واحدة هادئة وآمنة.')}</h2>
-            <p>{t('Invoices, quotations, customers and financial follow-up stay organized, encrypted and ready wherever you work.','الفواتير وعروض الأسعار والعملاء والمتابعة المالية تبقى منظمة ومشفّرة وجاهزة أينما تعمل.')}</p>
+            <p>{t('Invoices, quotations, customers and financial follow-up stay organized, protected and ready wherever you work.','الفواتير وعروض الأسعار والعملاء والمتابعة المالية تبقى منظمة ومحمية وجاهزة أينما تعمل.')}</p>
           </div>
           <div className="auth-story-trust" aria-label={t('Workspace benefits','مزايا مساحة العمل')}>
-            <div><span className="auth-trust-mark"/><strong>{t('Private by design','خصوصية من الأساس')}</strong><small>{t('Encrypted local vault','خزنة محلية مشفّرة')}</small></div>
-            <div><span className="auth-trust-mark"/><strong>{t('Cloud continuity','استمرارية سحابية')}</strong><small>{t('Automatic secure backup','نسخ احتياطي آمن تلقائي')}</small></div>
+            <div><span className="auth-trust-mark"/><strong>{t('Private by design','خصوصية من الأساس')}</strong><small>{t('Encrypted local storage','تخزين محلي مشفّر')}</small></div>
+            <div><span className="auth-trust-mark"/><strong>{t('Automatic continuity','استمرارية تلقائية')}</strong><small>{t('Your work saves in the background','يتم حفظ عملك في الخلفية')}</small></div>
             <div><span className="auth-trust-mark"/><strong>{t('Ready anywhere','جاهز أينما كنت')}</strong><small>{t('Works offline too','يعمل دون اتصال أيضًا')}</small></div>
           </div>
           <p className="auth-story-foot">{t('LOUREX Invoice · Your private document workspace','LOUREX Invoice · مساحة مستنداتك الخاصة')}</p>
@@ -84,7 +84,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
           <div className="auth-card-heading">
             <p className="eyebrow">{create?t('NEW WORKSPACE','مساحة جديدة'):t('WELCOME BACK','مرحبًا بعودتك')}</p>
             <h1>{create?t('Create your LOUREX account','أنشئ حساب LOUREX'):t('Sign in to your workspace','سجّل الدخول إلى مساحتك')}</h1>
-            <p className="subtle">{create?t('Create one secure account for LOUREX Invoice cloud continuity.','أنشئ حسابًا آمنًا واحدًا لاستمرارية بيانات LOUREX Invoice سحابيًا.'):t('Continue to your invoices, quotations and business records.','تابع إلى فواتيرك وعروض أسعارك وسجلات أعمالك.')}</p>
+            <p className="subtle">{create?t('Create one secure account for LOUREX Invoice. Your workspace will save automatically.','أنشئ حسابًا آمنًا واحدًا لـ LOUREX Invoice. سيتم حفظ مساحة عملك تلقائيًا.'):t('Continue to your invoices, quotations and business records.','تابع إلى فواتيرك وعروض أسعارك وسجلات أعمالك.')}</p>
           </div>
 
           <div className="segmented account-entry-tabs" role="tablist" aria-label={t('Account access','الدخول إلى الحساب')}>
@@ -104,7 +104,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
           <Button className="welcome-primary premium-auth-primary" variant="primary" type="submit" disabled={this.state.busy}>{this.state.busy?t('Please wait…','يرجى الانتظار…'):create?t('Create Account','إنشاء الحساب'):t('Enter LOUREX','الدخول إلى LOUREX')}</Button>
           {!create?<button type="button" className="cloud-reset-link account-forgot" disabled={this.state.busy} onClick={()=>void this.reset()}>{t('Forgot password?','نسيت كلمة المرور؟')}</button>:null}
 
-          <div className="auth-card-security"><span className="auth-security-dot"/><span>{t('Encrypted workspace · Secure cloud continuity · Offline ready','مساحة مشفّرة · استمرارية سحابية آمنة · جاهز دون اتصال')}</span></div>
+          <div className="auth-card-security"><span className="auth-security-dot"/><span>{t('Protected workspace · Automatic saving · Offline ready','مساحة محمية · حفظ تلقائي · جاهز دون اتصال')}</span></div>
         </form>
       </div>
     </div>;
