@@ -514,9 +514,9 @@
     min-width:0;
     padding:0 36px 0 11px;
     overflow:hidden;
-    border:1px solid #c7d2d4;
+    border:1px solid var(--ds-input-line);
     border-radius:10px;
-    background:#fff;
+    background:var(--ds-input);
     color:var(--ux-ink);
   }
   [dir="rtl"] .app-ui :is(.reports-date-control,.editor-date-control){padding:0 11px 0 36px}

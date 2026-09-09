@@ -38,7 +38,7 @@
 [dir='rtl'] .final-quote-convert-bar{right:auto;left:max(18px,env(safe-area-inset-left))}
 
 @media(max-width:1180px){
-  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{position:sticky;top:0;z-index:14;margin:-8px -8px 14px;padding:8px;border:1px solid rgba(202,217,225,.86);border-radius:14px;background:rgba(250,252,252,.96);backdrop-filter:blur(14px);box-shadow:0 8px 20px rgba(14,39,55,.07)}
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{position:sticky;top:0;z-index:14;margin:-8px -8px 14px;padding:8px;border:1px solid rgba(202,217,225,.86);border-radius:14px;background:var(--ds-surface);backdrop-filter:none;box-shadow:none}
   .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action .section-heading-actions{flex-shrink:0}
   .app-ui .premium-item-card{scroll-margin-top:132px}
 }

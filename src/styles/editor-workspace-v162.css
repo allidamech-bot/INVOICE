@@ -17,7 +17,7 @@
 
 .app-ui .editor-screen{
   width:100%;
-  height:100dvh;
+  height:100dvh!important;
   min-height:0;
   display:flex!important;
   flex-direction:column;
@@ -256,6 +256,7 @@
 .app-ui .section-heading-actions .btn{min-height:38px!important;padding-inline:10px!important;font-size:10.5px!important}
 .app-ui .section-heading-actions .btn>span{display:block;width:auto;height:auto;min-width:0;padding:0;border:0;background:transparent;color:inherit;font:inherit;border-radius:0}
 .app-ui .item-advanced-control button{color:var(--ds-accent-bright)}
+[dir='rtl'] .app-ui .editor-top-left>.icon-btn>.icon{transform:scaleX(-1)}
 
 .app-ui .form-grid,.app-ui .compact-grid,.app-ui .field,.app-ui .field>*{min-width:0!important;max-width:100%}
 .app-ui .form-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:13px 14px!important}

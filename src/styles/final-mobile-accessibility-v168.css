@@ -177,7 +177,7 @@
     border-inline:0!important;
     border-bottom:0!important;
     border-radius:0!important;
-    background:#f1f7fa!important;
+    background:var(--ds-surface)!important;
   }
 
   .app-ui .editor-screen>.final-quote-convert-bar small{display:none!important}
