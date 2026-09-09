@@ -12,6 +12,7 @@
   min-height:0;
   height:100dvh;
   overflow:hidden;
+  overflow-anchor:none;
   padding:0!important;
 }
 

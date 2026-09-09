@@ -58,9 +58,13 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
   try{
    await page.goto('http://127.0.0.1:4173/tests/visual/obsidian-editor.html?lang='+lang+'&kind='+kind+'&status=final',{waitUntil:'load'});
    await page.locator('.editor-section-nav-button').first().waitFor();
+   await page.evaluate(()=>document.fonts.ready);
+   await page.waitForTimeout(100);
    assert.ok(await page.locator('.editor-form-lock').evaluate(el=>el.disabled));
    const issues=await page.evaluate(()=>{
     const issues=[];
+    const topbar=document.querySelector('.editor-topbar').getBoundingClientRect();
+    if(topbar.top<0||topbar.bottom>innerHeight)issues.push('final editor command bar outside viewport');
     for(const selector of ['.final-lock-banner','.final-quote-convert-bar']){
      const el=document.querySelector(selector);if(!el)continue;
      const r=el.getBoundingClientRect();
