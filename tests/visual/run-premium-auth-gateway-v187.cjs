@@ -16,6 +16,7 @@ const cases=[
 const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1);
 
 (async()=>{
+  mkdirSync(reportDir,{recursive:true});
   const browser=await chromium.launch({headless:true});
   const failures=[];
   const scenarios=[];
@@ -32,7 +33,10 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
           const r=el.getBoundingClientRect(),s=getComputedStyle(el);
           return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,display:s.display,visibility:s.visibility};
         };
-        const fields=Array.from(document.querySelectorAll('.account-entry-fields input:not([hidden])')).map(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height,left:r.left,right:r.right,top:r.top,bottom:r.bottom};});
+        const fields=Array.from(document.querySelectorAll('.account-entry-fields input')).filter(el=>{
+          const field=el.closest('.field');
+          return field&&!field.hidden&&getComputedStyle(field).display!=='none';
+        }).map(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height,left:r.left,right:r.right,top:r.top,bottom:r.bottom};});
         return {
           dir:document.documentElement.dir,
           lang:document.documentElement.lang,
@@ -75,7 +79,6 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
       await page.close();
     }
   }finally{await browser.close();}
-  mkdirSync(reportDir,{recursive:true});
   const report={caseCount:cases.length,failures,scenarios};
   writeFileSync(reportPath,JSON.stringify(report,null,2));
   if(failures.length){console.error(JSON.stringify({caseCount:cases.length,failures},null,2));process.exit(1);}
