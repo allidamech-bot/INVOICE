@@ -18,7 +18,7 @@ test('settings and account dialogs always retain an exit path during slow operat
   assert.match(css,/\.app-ui \.modal-header>\.icon-btn\{[\s\S]*width:44px!important[\s\S]*height:44px!important/);
 });
 
-test('settings sign out uses app auth state without wiping or reloading local data',async()=>{
+test('legacy settings sign out does not wipe encrypted local data',async()=>{
   const [settings,app]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/app/App.tsx')]);
   const action=settings.slice(settings.indexOf('private signOutFromCloud=async'),settings.indexOf('private saveButton'));
   assert.match(action,/await this\.props\.onCloudSignOut\(\)/);
@@ -27,15 +27,16 @@ test('settings sign out uses app auth state without wiping or reloading local da
   assert.match(app,/cloudUser=\{this\.state\.cloudUser\}[\s\S]{0,120}onCloudSignOut=\{this\.cloudSignOut\}/);
 });
 
-test('cloud restore is explicit and cloud publication never installs behind the active UI',async()=>{
-  const [account,cloud,app]=await Promise.all([
+test('manual cloud restore is removed from visible account UX while publication safety remains intact',async()=>{
+  const [account,cloud,app,unifiedCss]=await Promise.all([
     read('src/components/CloudAccountModal.tsx'),
     read('src/cloud/firebase.ts'),
-    read('src/app/App.tsx')
+    read('src/app/App.tsx'),
+    read('src/styles/unified-account-v189.css')
   ]);
-  assert.match(account,/confirmRestore:boolean/);
-  assert.match(account,/<ConfirmDialog open=\{this\.props\.open&&this\.state\.confirmRestore\}/);
-  assert.match(account,/await this\.props\.onRestore\(\)/);
+  assert.doesNotMatch(account,/confirmRestore:boolean|Restore from Cloud|private restoreFromCloud=async/);
+  assert.match(account,/No manual sync or separate cloud sign-in is required/);
+  assert.match(unifiedCss,/\.app-ui \.security-settings-page\{\s*display:none!important/);
   const push=cloud.slice(cloud.indexOf('export async function pushLocalVaultToCloud'),cloud.indexOf('// Compatibility exports'));
   assert.doesNotMatch(push,/installCloudVault/);
   assert.match(push,/Promise<'same'\|'pushed'\|'remote-changed'>/);
