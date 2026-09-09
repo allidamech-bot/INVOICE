@@ -14,7 +14,7 @@ test('v188 signed-out startup cannot resume an old unlocked local session',async
   assert.match(index,/if\(user\)return true;[\s\S]*await clearSession\(\);[\s\S]*return false;/);
   assert.match(index,/const accountReady=await resolveRequiredAccountSession\(\)/);
   assert.match(index,/if\(accountReady\)await hydrateAuthoritativeCloudBeforeApp\(\)/);
-  assert.match(session,/export async function clearSession\(\):Promise<void>/);
+  assert.match(session,/export async function clearSession\(\):\s*Promise<void>/);
   assert.doesNotMatch(session,/deleteRecord\('vault'\)|deleteRecord\('security'\)/);
 });
 
