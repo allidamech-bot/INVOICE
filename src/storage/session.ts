@@ -2,6 +2,8 @@ import type { AutoLockMinutes, SessionKeyRecord } from '../types.js';
 import { deleteRecord, getRecord, putRecord } from './db.js';
 
 const SESSION_STORAGE_KEY = 'lourex-invoice-session-v1';
+const ACTIVE_ACCOUNT_UID_KEY = 'lourex-invoice-active-account-v1';
+const ACCOUNT_TOKEN_PREFIX = 'acct:';
 
 interface SessionMarker {
   token: string;
@@ -46,6 +48,25 @@ function writeMarker(marker: SessionMarker): void {
   try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* legacy cleanup is best effort */ }
 }
 
+function removeMarker():void{
+  try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* no-op */ }
+  try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* no-op */ }
+}
+
+function accountPrefix(uid:string):string{return `${ACCOUNT_TOKEN_PREFIX}${uid}:`;}
+function isAccountBoundToken(token:string):boolean{return token.startsWith(ACCOUNT_TOKEN_PREFIX)&&token.indexOf(':',ACCOUNT_TOKEN_PREFIX.length)>ACCOUNT_TOKEN_PREFIX.length;}
+
+export function setActiveAccountUid(uid:string|null):void{
+  try{
+    if(uid)localStorage.setItem(ACTIVE_ACCOUNT_UID_KEY,uid);
+    else localStorage.removeItem(ACTIVE_ACCOUNT_UID_KEY);
+  }catch{}
+}
+
+export function getActiveAccountUid():string{
+  try{return localStorage.getItem(ACTIVE_ACCOUNT_UID_KEY)||'';}catch{return '';}
+}
+
 export function isSessionExpired(lastActivity: number, autoLockMinutes: AutoLockMinutes, now = Date.now()): boolean {
   return autoLockMinutes > 0 && now - lastActivity >= autoLockMinutes * 60_000;
 }
@@ -56,7 +77,8 @@ export function isCurrentSessionExpired(autoLockMinutes: AutoLockMinutes, now = 
 }
 
 export async function establishSession(key: CryptoKey): Promise<boolean> {
-  const token = randomToken();
+  const uid=getActiveAccountUid();
+  const token = uid ? `${accountPrefix(uid)}${randomToken()}` : randomToken();
   const marker: SessionMarker = { token, lastActivity: Date.now() };
   try {
     const record: SessionKeyRecord = { id: 'session-key', token, key, updatedAt: new Date().toISOString() };
@@ -64,10 +86,20 @@ export async function establishSession(key: CryptoKey): Promise<boolean> {
     writeMarker(marker);
     return true;
   } catch {
-    try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* no-op */ }
-    try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* no-op */ }
+    removeMarker();
     return false;
   }
+}
+
+export async function resumeAccountSession(uid:string):Promise<boolean>{
+  if(!uid)return false;
+  setActiveAccountUid(uid);
+  try{
+    const record=await getRecord<SessionKeyRecord>('session-key');
+    if(!record?.key||!record.token.startsWith(accountPrefix(uid)))return false;
+    writeMarker({token:record.token,lastActivity:Date.now()});
+    return true;
+  }catch{return false;}
 }
 
 export function touchSession(now = Date.now()): void {
@@ -80,7 +112,10 @@ export function touchSession(now = Date.now()): void {
 export async function getSessionKey(): Promise<{ key: CryptoKey; lastActivity: number } | null> {
   const marker = readMarker();
   if (!marker) {
-    try { await deleteRecord('session-key'); } catch { /* stale key cleanup is best effort */ }
+    try {
+      const record=await getRecord<SessionKeyRecord>('session-key');
+      if(record&&!isAccountBoundToken(record.token))await deleteRecord('session-key');
+    } catch { /* stale key cleanup is best effort */ }
     return null;
   }
   try {
@@ -92,8 +127,20 @@ export async function getSessionKey(): Promise<{ key: CryptoKey; lastActivity: n
   }
 }
 
+// Account sign-out should close the workspace immediately without destroying the
+// device-bound vault key. The key remains unusable by the app while signed out
+// and is resumed only when the same Firebase UID authenticates again.
+export async function suspendSession():Promise<void>{
+  removeMarker();
+  try{
+    const record=await getRecord<SessionKeyRecord>('session-key');
+    if(record&&!isAccountBoundToken(record.token))await deleteRecord('session-key');
+  }catch{}
+}
+
+// Destructive session clearing remains available for corruption/expiry recovery.
+// The encrypted vault and security metadata are never deleted here.
 export async function clearSession(): Promise<void> {
-  try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* no-op */ }
-  try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* no-op */ }
+  removeMarker();
   try { await deleteRecord('session-key'); } catch { /* no-op */ }
 }
