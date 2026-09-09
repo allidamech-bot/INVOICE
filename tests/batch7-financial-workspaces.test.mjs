@@ -64,6 +64,22 @@ test('batch 7 keeps financial tables scan-friendly and mobile workflows reachabl
   assert.match(operations,/operations-editor-actions[\s\S]*position:sticky/);
 });
 
+test('batch 7 canonical layer wins the retained light v152 financial overrides',async()=>{
+  const [index,design]=await Promise.all([
+    read('index.html'),
+    read('src/styles/design-system-v164.css')
+  ]);
+  assert.ok(index.indexOf('design-system-v164.css')>index.indexOf('ux-recovery-v152.css'),'canonical design layer must load after legacy v152');
+  assert.match(design,/Batch 7 financial workspaces/);
+  assert.match(design,/\.app-ui \.reports-presets button\{[\s\S]*background:var\(--ds-input\)!important/);
+  assert.match(design,/\.app-ui :is\(\.reports-table,\.aging-table\)\{[\s\S]*background:var\(--ds-workspace\)!important/);
+  assert.match(design,/\.app-ui \.operations-summary>\*\{[\s\S]*background:transparent!important/);
+  assert.match(design,/\.app-ui \.operations-tabs\{[\s\S]*background:var\(--ds-workspace\)!important/);
+  assert.match(design,/\.app-ui \.reports-page :is\(input\.input,select\.input,textarea\.input\)\{font-size:16px!important/);
+  assert.match(design,/@media\(max-width:390px\)[\s\S]*\.app-ui \.operations-summary\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
+  assert.doesNotMatch(design,/\.template-(executive|minimal|trade|signature|obsidian|cobalt|editorial|split|prism|slate|horizon|mono|aurora|ledger|noir|midnight|blackivory|carbon)/);
+});
+
 test('batch 7 preserves dedicated white-paper financial print outputs',async()=>{
   const [receivables,reports,operations]=await Promise.all([
     read('src/styles/receivables-v133.css'),
