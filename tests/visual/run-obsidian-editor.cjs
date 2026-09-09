@@ -7,7 +7,7 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
  mkdirSync(output,{recursive:true});const browser=await chromium.launch({headless:true}),results=[];
  try{for(const viewport of viewports)for(const lang of ['en','ar'])for(const kind of ['invoice','proforma']){
   const page=await browser.newPage({viewport,hasTouch:viewport.width<=820,isMobile:viewport.width<=820});page.setDefaultTimeout(12000);
-  const failures=[];page.on('pageerror',e=>failures.push(String(e)));
+  const failures=[];page.on('pageerror',e=>failures.push(e.stack||String(e)));
   const stem=viewport.width+'-'+lang+'-'+kind;
   try{
    await page.goto('http://127.0.0.1:4173/tests/visual/obsidian-editor.html?lang='+lang+'&kind='+kind,{waitUntil:'load'});

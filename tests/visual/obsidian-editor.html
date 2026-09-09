@@ -5,13 +5,14 @@
 <script type="module">
 import {AppShell} from './src/components/AppShell.js';
 import {EditorPage} from './src/components/EditorPage.js';
+import {blankCustomer} from './src/components/CustomersPage.js';
 import {createBlankDocument} from './src/lib/documents.js';
 import {defaultCompany,defaultAppSettings,customerSnapshotFrom} from './src/lib/defaults.js';
 import {setUiLanguage} from './src/lib/i18n.js';
 const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar';
 setUiLanguage(ar?'ar':'en');
 const company=defaultCompany();company.nameEn='LOUREX Trading';company.nameAr='لوركس للتجارة';company.defaultCurrency='USD';
-const customer={id:'customer-1',companyNameEn:'Northstar Markets',companyNameAr:'أسواق نورث ستار',contactPerson:'Samira',addressEn:'Business Bay',addressAr:'الخليج التجاري',city:'Dubai',country:'UAE',phone:'+971 50 000 0000',email:'finance@example.test',vatTaxNumber:'TRN-100200',commercialRegistration:'CR-200100'};
+const customer={...blankCustomer(),id:'customer-1',companyNameEn:'Northstar Markets',companyNameAr:'أسواق نورث ستار',contactPerson:'Samira',addressEn:'Business Bay',addressAr:'الخليج التجاري',city:'Dubai',country:'UAE',phone:'+971 50 000 0000',email:'finance@example.test',vatTaxNumber:'TRN-100200',commercialRegistration:'CR-200100'};
 const kind=params.get('kind')==='proforma'?'proforma':'invoice';
 const doc=createBlankDocument(kind,kind==='invoice'?'INV-2026-0042':'PI-2026-0028',company);
 doc.language=ar?'bilingual':'en';doc.currency='USD';doc.customerSnapshot=customerSnapshotFrom(customer);
