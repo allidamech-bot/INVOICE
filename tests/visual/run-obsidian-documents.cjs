@@ -30,6 +30,8 @@ const scenarios=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
         assert.equal(await page.locator('.documents-register-row').count(),6);
         assert.equal(await page.locator('.documents-heading-actions .btn').first().isVisible(),true,'creation action visible');
         await check('.documents-workspace-v2');
+        assert.equal(await page.locator('.documents-heading-actions .btn-primary').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(19, 124, 122)','primary action uses teal');
+        assert.equal(await page.locator('.document-status-pill.status-draft').evaluate(el=>getComputedStyle(el).color),'rgb(154, 172, 177)','draft remains readable');
         await page.screenshot({path:output+'/'+viewport.width+'-'+lang+'-list.png',fullPage:true,animations:'disabled'});
         const search=page.locator('.documents-search-input');
         await search.fill('INV-2026-0042');

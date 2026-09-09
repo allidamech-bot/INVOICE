@@ -291,7 +291,6 @@
   .app-ui .dashboard-kpis>button{min-height:116px}
   .app-ui .dashboard-shortcut-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .app-ui .document-detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.app-ui .document-detail-actions .btn{width:100%}
-  .app-ui .document-detail-facts{grid-template-columns:minmax(0,1fr)}.app-ui .document-detail-facts>div{border-inline-end:0!important;border-bottom:1px solid var(--ds-line)!important}.app-ui .document-detail-facts>div:last-child{border-bottom:0!important}
 }
 
 @media print{
