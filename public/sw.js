@@ -75,6 +75,7 @@ LOCAL_CORE.push('./styles/final-mobile-accessibility-v168.css');
 LOCAL_CORE.push('./styles/mobile-overlap-recovery-v176.css');
 LOCAL_CORE.push('./styles/mobile-controls-density-v177.css');
 LOCAL_CORE.push('./styles/account-cloud-separation-v186.css');
+LOCAL_CORE.push('./styles/financial-workspaces-v189.css');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
