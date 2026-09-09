@@ -31,12 +31,14 @@ test('cloud install revalidates account ownership and workspace safety at the lo
   assert.match(guard,/\.cloud-account-panel,\.cloud-auth-form/);
 });
 
-test('manual cloud restore reloads immediately after success instead of leaving a stale UI window',async()=>{
+test('account surface keeps restore automatic and sign-out returns immediately to the account gateway',async()=>{
   const modal=await read('src/components/CloudAccountModal.tsx');
-  const restore=modal.slice(modal.indexOf('private restoreFromCloud=async'),modal.indexOf('render():any'));
-  assert.match(restore,/await this\.props\.onRestore\(\)/);
-  assert.match(restore,/window\.location\.reload\(\)/);
-  assert.doesNotMatch(restore,/setTimeout[\s\S]*window\.location\.reload/);
+  assert.doesNotMatch(modal,/private restoreFromCloud=async|Restore from Cloud|confirmRestore/);
+  const signOut=modal.slice(modal.indexOf('private signOut=async'),modal.indexOf('render():any'));
+  assert.match(signOut,/await this\.props\.onSignOut\(\)/);
+  assert.match(signOut,/await suspendSession\(\)/);
+  assert.match(signOut,/window\.location\.reload\(\)/);
+  assert.doesNotMatch(signOut,/setTimeout[\s\S]*window\.location\.reload/);
 });
 
 test('Operations surfaces excluded legacy accounting records instead of silently hiding integrity loss',async()=>{
@@ -67,7 +69,8 @@ test('coarse-pointer mobile controls retain reliable 44px touch targets in the f
 
 test('current release uses a fresh PWA cache generation instead of mutating the prior active cache in place',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v184';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v189';$/m);
+  assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v183: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v182: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v179: preserved as a legacy marker/);
