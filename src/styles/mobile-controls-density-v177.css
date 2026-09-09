@@ -183,6 +183,15 @@
   }
 }
 
+/* The mobile language switch is intentionally absolute in the premium login card.
+   Once its touch target is raised to 44px, reserve enough vertical space so long
+   English/Arabic headings can never render underneath it. */
+@media (max-width:600px){
+  .auth-account-page .auth-account-card.account-first-card{
+    padding-top:66px!important;
+  }
+}
+
 @media (max-width:360px){
   /* On very narrow phones, action groups may wrap instead of clipping labels. */
   .app-ui :where(.heading-actions,.section-heading-actions,.customer-profile-top-actions){
