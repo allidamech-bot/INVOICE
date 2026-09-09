@@ -2,20 +2,56 @@ import { App } from './App.js';
 import { AppErrorBoundary } from './AppErrorBoundary.js';
 import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
 import { hydrateAuthoritativeCloudBeforeApp } from '../cloud/startup.js';
+import { currentCloudUser, waitForCloudUser } from '../cloud/firebase.js';
 import { purgeLegacySafetySnapshot } from '../storage/db.js';
+import { clearSession } from '../storage/session.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
 const appRoot=root;
 
+let accountWasAuthenticated=false;
+
+async function resolveRequiredAccountSession():Promise<boolean>{
+  let user=currentCloudUser();
+  if(!user){
+    try{user=await waitForCloudUser();}catch{}
+  }
+  accountWasAuthenticated=Boolean(user);
+  if(user)return true;
+
+  // Account-first invariant: a stale unlocked device session must never bypass
+  // the premium account gateway after the Firebase account has signed out.
+  // clearSession removes only the transient unlock key/marker; the encrypted
+  // local vault remains intact and can be opened again after account sign-in.
+  await clearSession();
+  return false;
+}
+
+function startAccountSignOutWatcher():void{
+  window.setInterval(()=>{
+    const signedIn=Boolean(currentCloudUser());
+    if(signedIn){accountWasAuthenticated=true;return;}
+    if(!accountWasAuthenticated)return;
+
+    accountWasAuthenticated=false;
+    void clearSession().finally(()=>{
+      try{sessionStorage.setItem('lourex-auth-just-signed-out','1');}catch{}
+      window.location.reload();
+    });
+  },400);
+}
+
 async function start():Promise<void>{
-  // Resolve the signed-in account copy before App reads local security/session
-  // state. This prevents an installed iPhone PWA from unlocking a stale local
-  // vault first and only discovering the newer cloud copy afterwards.
-  await hydrateAuthoritativeCloudBeforeApp();
+  const accountReady=await resolveRequiredAccountSession();
+  // Only reconcile cloud data when an account session actually exists. Signed-
+  // out users should reach the account gateway immediately instead of paying a
+  // second Firebase wait during startup.
+  if(accountReady)await hydrateAuthoritativeCloudBeforeApp();
   ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,appRoot);
   void purgeLegacySafetySnapshot();
   startCloudFreshnessWatcher();
+  startAccountSignOutWatcher();
 }
 void start();
 
