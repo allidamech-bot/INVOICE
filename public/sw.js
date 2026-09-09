@@ -67,6 +67,7 @@ LOCAL_CORE.push('./styles/design-system-v164.css');
 LOCAL_CORE.push('./styles/final-mobile-accessibility-v168.css');
 LOCAL_CORE.push('./styles/mobile-overlap-recovery-v176.css');
 LOCAL_CORE.push('./styles/mobile-controls-density-v177.css');
+LOCAL_CORE.push('./styles/account-cloud-separation-v186.css');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
@@ -119,28 +120,20 @@ self.addEventListener('activate',event=>event.waitUntil((async()=>{
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const url=new URL(event.request.url);
-
-  if(url.origin !== self.location.origin){
-    if (!EXTERNAL_CORE_SET.has(url.href)) return;
-    event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{
-      if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request, response.clone())).catch(()=>undefined);
+  if(url.origin!==location.origin){
+    if(EXTERNAL_CORE_SET.has(url.href))event.respondWith(cacheFirst(event.request));
+    return;
+  }
+  if(url.pathname==='/runtime-config.js'){
+    event.respondWith(fetch(event.request,{cache:'no-store'}).catch(()=>new Response('window.__LOUREX_RUNTIME__={environment:"offline",canonicalHost:"",deploymentHost:"",sourceRepoOwner:"allidamech-bot",sourceRepoSlug:"INVOICE",projectId:""};',{headers:{'Content-Type':'application/javascript','Cache-Control':'no-store'}})));
+    return;
+  }
+  if(FRESH_PATHS.has(url.pathname)){
+    event.respondWith(fetch(event.request,{cache:'no-store'}).then(response=>{
+      if(response.ok){const copy=response.clone();void caches.open(CACHE).then(cache=>cache.put(event.request,copy));}
       return response;
-    })));
+    }).catch(()=>cacheFirst(event.request)));
     return;
   }
-
-  if(url.pathname.endsWith('/runtime-config.js')){
-    event.respondWith(fetch(event.request,{cache:'no-store'}));
-    return;
-  }
-
-  if(event.request.mode==='navigate'||FRESH_PATHS.has(url.pathname)||isAppRuntimePath(url.pathname)){
-    event.respondWith(cacheFirst(event.request));
-    return;
-  }
-
-  event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{
-    if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone())).catch(()=>undefined);
-    return response;
-  }).catch(()=>event.request.mode==='navigate'?caches.match('./index.html'):new Response('',{status:504,statusText:'Offline'}))));
+  event.respondWith(cacheFirst(event.request));
 });
