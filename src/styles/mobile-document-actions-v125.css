@@ -4,6 +4,7 @@
    the three-dot trigger, so those runtime layers can leave the cascade. */
 
 .mobile-document-action-portal{display:none}
+.mobile-document-action-portal.app-ui{background:transparent;min-height:0!important}
 
 @media (max-width:900px){
   .mobile-document-action-portal{

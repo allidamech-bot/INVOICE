@@ -85,6 +85,8 @@
 .app-ui .documents-resume .resume-meta{display:flex;flex-direction:column;align-items:flex-end;gap:3px;color:var(--ds-text)}
 .app-ui .documents-resume .resume-meta b{font-size:14px;font-variant-numeric:tabular-nums}
 .app-ui .documents-resume .resume-meta em{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ds-accent-bright);font-style:normal}
+.app-ui .resume-arrow{display:flex;transform:rotate(180deg)}
+[dir='rtl'] .app-ui .resume-arrow{transform:none}
 .app-ui .documents-register-tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--ds-line);margin:0 0 16px;padding-bottom:8px}
 .app-ui .documents-register-tabs>button{flex:0 0 auto;display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 12px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--ds-text-soft);font:inherit;font-size:12px;cursor:pointer}
 .app-ui .documents-register-tabs strong{font-size:12px;font-variant-numeric:tabular-nums;color:inherit}
@@ -128,8 +130,8 @@
 .app-ui .documents-empty{background:var(--ds-surface);border:1px solid var(--ds-line);border-radius:14px;box-shadow:none}
 .app-ui .documents-empty::before{content:none}.app-ui .documents-empty h2{color:var(--ds-text)}.app-ui .documents-empty p{color:var(--ds-text-soft)}
 /* Body-level desktop menu cannot be clipped by register or workspace ancestors. */
-.document-desktop-action-portal{position:relative;z-index:6000}
-.app-ui .document-action-popover{position:fixed;z-index:6000;width:min(270px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain;display:grid;padding:6px;border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-surface-strong);box-shadow:0 16px 40px rgba(0,0,0,.32)}
+.document-desktop-action-portal.app-ui{position:fixed;inset:0;min-height:0!important;background:transparent;pointer-events:none;z-index:6000}
+.app-ui .document-action-popover{position:fixed;z-index:6000;pointer-events:auto;width:min(270px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain;display:grid;padding:6px;border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-surface-strong);box-shadow:0 16px 40px rgba(0,0,0,.32)}
 .app-ui .document-action-popover button{min-height:44px;display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:9px;background:transparent;color:var(--ds-text);font:inherit;font-size:12px;text-align:start;cursor:pointer}
 .app-ui .document-action-popover button:hover{background:var(--ds-selected)}
 .app-ui .document-action-popover button.danger{color:var(--ds-danger-text)}
