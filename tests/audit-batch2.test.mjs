@@ -25,7 +25,8 @@ test('first-run setup stays bounded while Settings preserves originals for expli
 
 test('cloud account protects account actions while an explicit account operation is active',async()=>{
   const source=await read('src/components/CloudAccountModal.tsx');
-  assert.match(source,/<Button disabled=\{this\.state\.busy\} onClick=\{\(\)=>void this\.run\(this\.props\.onSignOut,'','signout'\)\}/);
+  assert.match(source,/<Button disabled=\{this\.state\.busy\} onClick=\{\(\)=>void this\.signOut\(\)\}/);
+  assert.match(source,/private signOut=async\(\)=>\{[\s\S]*?if\(this\.operationRunning\)return;[\s\S]*?await this\.props\.onSignOut\(\);[\s\S]*?await clearSession\(\);[\s\S]*?window\.location\.reload\(\);/);
   assert.match(source,/this\.state\.accountAction==='signout'/);
   assert.match(source,/Sign Out/);
   assert.doesNotMatch(source,/Sync Now|مزامنة الآن/);

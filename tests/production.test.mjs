@@ -121,7 +121,7 @@ test('first-run onboarding requires account entry before the simplified local PI
   const css = await read('dist/styles/app.bundle.css');
   assert.match(html, /styles\/app\.bundle\.css/);
   assert.match(css, /\/\* --- auth-entry\.css --- \*\//);
-  assert.match(account, /Create your account/);
+  assert.match(account, /Create your LOUREX account/);
   assert.match(account, /Sign In/);
   assert.match(account, /createCloudUser/);
   assert.match(account, /signInCloudUser/);

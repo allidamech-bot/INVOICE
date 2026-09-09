@@ -1,3 +1,4 @@
+// v187 premium account gateway — recache the signed-out experience and secure logout transition for Safari/PWA clients.
 // v186 account/cloud separation — recache the dedicated account controls without changing the established immutable runtime policy.
 // v185 single launch continuity — recache the unified static/React splash so iPhone users see one uninterrupted launch screen.
 // v184 iPhone startup deadlock recovery — bound pre-render cloud work so stalled Firebase promises cannot hold the boot screen forever.

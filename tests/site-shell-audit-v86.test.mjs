@@ -57,18 +57,19 @@ test('cloud account modal remains dismissible while account actions are busy',()
   const modal=read('src/components/CloudAccountModal.tsx');
   assert.match(modal,/private requestClose=\(\)=>this\.props\.onClose\(\);/);
   assert.match(modal,/onClose=\{this\.requestClose\}/);
-  assert.match(modal,/<Button disabled=\{this\.state\.busy\} onClick=\{\(\)=>void this\.run\(this\.props\.onSignOut,'','signout'\)\}/);
+  assert.match(modal,/<Button disabled=\{this\.state\.busy\} onClick=\{\(\)=>void this\.signOut\(\)\}/);
+  assert.match(modal,/private signOut=async\(\)=>\{[\s\S]*?if\(this\.operationRunning\)return;[\s\S]*?await this\.props\.onSignOut\(\);[\s\S]*?await clearSession\(\);/);
   assert.doesNotMatch(modal,/Sync Now|مزامنة الآن/);
 });
 
 test('account entry cannot switch modes or double-submit while authentication is running',()=>{
   const screen=read('src/components/AccountEntryScreen.tsx');
   assert.match(screen,/if\(this\.state\.busy\)return;/);
-  assert.match(screen,/auth-language-switch" disabled=\{this\.state\.busy\}/);
-  assert.match(screen,/type="button" disabled=\{this\.state\.busy\} className=\{!create\?'active':''\}/);
-  assert.match(screen,/type="button" disabled=\{this\.state\.busy\} className=\{create\?'active':''\}/);
-  assert.match(screen,/auth-error" role="alert"/);
-  assert.match(screen,/settings-message success" role="status"/);
+  assert.match(screen,/className="[^"]*auth-language-switch[^"]*" disabled=\{this\.state\.busy\}/);
+  assert.match(screen,/role="tab" aria-selected=\{!create\} disabled=\{this\.state\.busy\} className=\{!create\?'active':''\}/);
+  assert.match(screen,/role="tab" aria-selected=\{create\} disabled=\{this\.state\.busy\} className=\{create\?'active':''\}/);
+  assert.match(screen,/premium-auth-feedback" role="alert"/);
+  assert.match(screen,/premium-auth-feedback" role="status"/);
 });
 
 test('settings modal warns before discarding persistent unsaved company or document settings',()=>{
