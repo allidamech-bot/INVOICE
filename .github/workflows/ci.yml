@@ -20,24 +20,33 @@ jobs:
       - run: npm run typecheck
       - name: Run production build
         run: npm run build
-      - name: Regression tests A-D
+      - name: Regression tests A-T
         if: always()
-        run: node --test tests/[a-d]*.test.mjs
-      - name: Regression tests E-H
+        run: node --test tests/[a-t]*.test.mjs
+      - name: Regression ux-recovery-v152
         if: always()
-        run: node --test tests/[e-h]*.test.mjs
-      - name: Regression tests I-L
+        run: node --test tests/ux-recovery-v152.test.mjs
+      - name: Regression v44-audit
         if: always()
-        run: node --test tests/[i-l]*.test.mjs
-      - name: Regression tests M-P
+        run: node --test tests/v44-audit.test.mjs
+      - name: Regression vault-merge
         if: always()
-        run: node --test tests/[m-p]*.test.mjs
-      - name: Regression tests Q-T
+        run: node --test tests/vault-merge.test.mjs
+      - name: Regression visual-hierarchy-v153
         if: always()
-        run: node --test tests/[q-t]*.test.mjs
-      - name: Regression tests U-Z
+        run: node --test tests/visual-hierarchy-v153.test.mjs
+      - name: Regression workflow-closeout
         if: always()
-        run: node --test tests/[u-z]*.test.mjs
+        run: node --test tests/workflow-closeout.test.mjs
+      - name: Regression workspace-mobile-v94
+        if: always()
+        run: node --test tests/workspace-mobile-v94.test.mjs
+      - name: Regression workspace-v54
+        if: always()
+        run: node --test tests/workspace-v54.test.mjs
+      - name: Regression workspace-v60
+        if: always()
+        run: node --test tests/workspace-v60.test.mjs
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
