@@ -11,7 +11,7 @@
     <div class="auth-account-frame">
       <section class="auth-account-story" aria-label="LOUREX Invoice workspace">
         <div class="auth-story-brand">
-          <div class="brand official-brand"><span class="brand-mark"><img src="../../brand/lourex-logo.svg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div>
+          <div class="brand official-brand"><span class="brand-mark"><img src="../../dist/brand/lourex-logo.svg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div>
           <span class="auth-story-product">LOUREX INVOICE</span>
         </div>
         <div class="auth-story-copy">
@@ -29,7 +29,7 @@
 
       <form class="auth-card unlock-card welcome-card account-first-card system-login-card auth-account-card" onsubmit="return false">
         <button type="button" class="auth-language-switch premium-auth-language" data-en="العربية" data-ar="English">العربية</button>
-        <div class="auth-card-mobile-brand"><div class="brand official-brand"><span class="brand-mark"><img src="../../brand/lourex-logo.svg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div></div>
+        <div class="auth-card-mobile-brand"><div class="brand official-brand"><span class="brand-mark"><img src="../../dist/brand/lourex-logo.svg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div></div>
         <div class="auth-card-heading">
           <p class="eyebrow" id="eyebrow">WELCOME BACK</p>
           <h1 id="heading">Sign in to your workspace</h1>
@@ -42,7 +42,7 @@
         <div class="account-entry-fields">
           <div class="field"><label for="email" id="email-label">Email</label><input class="input" id="email" type="email" value="user@example.com"></div>
           <div class="field"><label for="password" id="password-label">Password</label><input class="input" id="password" type="password" value="password123"></div>
-          <div class="field" id="confirm-field" hidden><label for="confirm" id="confirm-label">Confirm Password</label><input class="input" id="confirm" type="password" value="password123"></div>
+          <div class="field" id="confirm-field"><label for="confirm" id="confirm-label">Confirm Password</label><input class="input" id="confirm" type="password" value="password123"></div>
         </div>
         <button class="btn primary welcome-primary premium-auth-primary" type="button" id="primary">Enter LOUREX</button>
         <button type="button" class="cloud-reset-link account-forgot" id="forgot">Forgot password?</button>
@@ -56,9 +56,9 @@
   document.querySelectorAll('[data-en][data-ar]').forEach(el=>el.textContent=el.dataset[lang]);
   const gateway=document.getElementById('gateway'),create=mode==='create';gateway.className=`auth-page auth-account-page ${create?'auth-mode-create':'auth-mode-signin'}`;
   document.getElementById('signin-tab').classList.toggle('active',!create);document.getElementById('create-tab').classList.toggle('active',create);
-  document.getElementById('confirm-field').hidden=!create;document.getElementById('forgot').hidden=create;
   const text={en:{signin:['WELCOME BACK','Sign in to your workspace','Continue to your invoices, quotations and business records.','Sign In','Create Account','Email','Password','Confirm Password','Enter LOUREX','Forgot password?','Encrypted workspace · Secure cloud continuity · Offline ready'],create:['NEW WORKSPACE','Create your LOUREX account','Create one secure account for LOUREX Invoice cloud continuity.','Sign In','Create Account','Email','Password','Confirm Password','Create Account','Forgot password?','Encrypted workspace · Secure cloud continuity · Offline ready']},ar:{signin:['مرحبًا بعودتك','سجّل الدخول إلى مساحتك','تابع إلى فواتيرك وعروض أسعارك وسجلات أعمالك.','تسجيل الدخول','إنشاء حساب','البريد الإلكتروني','كلمة المرور','تأكيد كلمة المرور','الدخول إلى LOUREX','نسيت كلمة المرور؟','مساحة مشفّرة · استمرارية سحابية آمنة · جاهز دون اتصال'],create:['مساحة جديدة','أنشئ حساب LOUREX','أنشئ حسابًا آمنًا واحدًا لاستمرارية بيانات LOUREX Invoice سحابيًا.','تسجيل الدخول','إنشاء حساب','البريد الإلكتروني','كلمة المرور','تأكيد كلمة المرور','إنشاء الحساب','نسيت كلمة المرور؟','مساحة مشفّرة · استمرارية سحابية آمنة · جاهز دون اتصال']}}[lang][mode];
-  ['eyebrow','heading','subtle','signin-tab','create-tab','email-label','password-label','confirm-label','primary','forgot','security'].forEach((id,i)=>document.getElementById(id).textContent=text[i]);
+  ['eyebrow','heading','subtle','signin-tab','create-tab','email-label','password-label','confirm-label','primary','forgot','security'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.textContent=text[i]});
+  if(create){document.getElementById('forgot')?.remove()}else{document.getElementById('confirm-field')?.remove()}
 </script>
 </body>
 </html>
