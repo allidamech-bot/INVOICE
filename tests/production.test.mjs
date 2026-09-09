@@ -73,12 +73,12 @@ test('editor remounts its local draft state when document identity changes', asy
   assert.match(wrapper, /key=\{props\.document\.id\}/);
 });
 
-test('encrypted local vault requires the signed-in account session before PIN unlock', async () => {
+test('encrypted local vault requires the signed-in account before workspace unlock', async () => {
   const selector = await read('src/app/AuthScreenSelector.tsx');
   const cloudGate = selector.indexOf('if (!currentCloudUser())');
   const unlockBranch = selector.indexOf("if (props.mode === 'unlock')");
-  assert.ok(cloudGate >= 0, 'cloud account gate missing');
-  assert.ok(unlockBranch > cloudGate, 'account session must be checked before local PIN unlock');
+  assert.ok(cloudGate >= 0, 'account gate missing');
+  assert.ok(unlockBranch > cloudGate, 'account session must be checked before workspace unlock');
   assert.match(selector, /return <UnlockScreen/);
   assert.match(selector, /return <AccountEntryScreen/);
   assert.match(selector, /account-first/);
@@ -113,7 +113,7 @@ test('Firebase cloud sync stores the encrypted vault under owner-only user paths
   assert.match(app, /CloudAccountModal/);
 });
 
-test('first-run onboarding requires account entry before the simplified local PIN setup', async () => {
+test('first-run onboarding uses one LOUREX account and account-managed vault protection', async () => {
   const html = await read('dist/index.html');
   const auth = await read('src/components/AuthScreens.tsx');
   const account = await read('src/components/AccountEntryScreen.tsx');
@@ -126,8 +126,9 @@ test('first-run onboarding requires account entry before the simplified local PI
   assert.match(account, /createCloudUser/);
   assert.match(account, /signInCloudUser/);
   assert.match(account, /Confirm Password/);
-  assert.match(auth, /Create your LOUREX PIN/);
-  assert.match(auth, /account password cannot replace or recover this PIN/i);
+  assert.match(auth, /getOrCreateAccountVaultSecret\(user\.uid\)/);
+  assert.match(auth, /No separate access PIN is required/);
+  assert.doesNotMatch(auth, /Create your LOUREX PIN/);
   assert.match(selector, /if \(!currentCloudUser\(\)\)/);
   assert.match(selector, /return <AccountEntryScreen/);
   assert.doesNotMatch(auth, /Restore Backup|Choose Backup File|restoreOpen/);
