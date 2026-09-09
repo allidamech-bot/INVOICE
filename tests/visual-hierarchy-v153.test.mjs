@@ -16,7 +16,7 @@ test('v153 introduces a deliberate premium application colour hierarchy',async()
 
 test('v153 differentiates content surfaces while keeping gold as an accent',async()=>{
   const css=await read('src/styles/ux-recovery-v152.css');
-  assert.match(css,/product-library-row:nth-child\(even\)\{background:#edf3f4\}/);
+  assert.match(css,/product-library-row\{[^}]*border-bottom:1px solid var\(--ds-line\);[^}]*background:var\(--ds-surface\)/);
   assert.match(css,/report-primary-metrics>div:first-child\{background:linear-gradient/);
   assert.match(css,/item-card header\{background:#e5eef1/);
   assert.match(css,/settings-tabs button\.active\{background:var\(--ux-navy\)!important/);
