@@ -1,7 +1,7 @@
 const {chromium}=require('playwright');
 const {mkdirSync,writeFileSync}=require('node:fs');
 const assert=require('node:assert/strict');
-const output='visual-qa-output/obsidian-financial';
+const output='visual-qa-output/obsidian-financial-real';
 const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,height:844},{width:320,height:568}];
 const screens=['reports','receivables','operations','profitability'];
 (async()=>{
@@ -20,5 +20,5 @@ const screens=['reports','receivables','operations','profitability'];
   }catch(error){failures.push(String(error));await shot('failure').catch(()=>{});}
   results.push({viewport,lang,screen,failures});await page.close();
  }}finally{await browser.close();}
- writeFileSync(output+'/report.json',JSON.stringify(results,null,2));const failures=results.flatMap(r=>r.failures.map(f=>`${r.viewport.width}/${r.lang}/${r.screen}: ${f}`));assert.equal(failures.length,0,failures.join('\n'));console.log('Obsidian financial: '+results.length+' language/viewport flows passed.');
+ writeFileSync(output+'/report.json',JSON.stringify(results,null,2));const failures=results.flatMap(r=>r.failures.map(f=>`${r.viewport.width}/${r.lang}/${r.screen}: ${f}`));assert.equal(failures.length,0,failures.join('\n'));console.log('Obsidian financial real components: '+results.length+' language/viewport flows passed.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
