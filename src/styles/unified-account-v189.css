@@ -1,0 +1,151 @@
+/* v189 — unified account entry, automatic vault access and invisible background saving. */
+
+.auth-shell>.auth-cloud-launcher{
+  display:none!important;
+}
+
+.account-managed-setup,
+.account-auto-unlock,
+.legacy-upgrade-card{
+  width:min(560px,calc(100vw - 28px));
+}
+
+.account-managed-setup .setup-account-badge{
+  margin:2px 0 18px;
+}
+
+.account-managed-security-note,
+.account-continuity-note{
+  display:flex;
+  align-items:flex-start;
+  gap:11px;
+  padding:13px 14px;
+  border:1px solid rgba(21,77,94,.12);
+  border-radius:14px;
+  background:linear-gradient(135deg,rgba(18,77,95,.055),rgba(181,139,79,.05));
+  color:var(--ink,#0b2636);
+}
+
+.account-managed-security-note{
+  flex-direction:column;
+  gap:3px;
+  margin:4px 0 18px;
+}
+
+.account-managed-security-note strong,
+.account-continuity-note strong{
+  font-weight:800;
+}
+
+.account-managed-security-note span,
+.account-continuity-note small{
+  color:var(--muted,#73808a);
+  line-height:1.55;
+}
+
+.account-only-panel{
+  display:grid;
+  gap:14px;
+}
+
+.account-continuity-note .shell-status-dot{
+  flex:0 0 auto;
+  margin-top:5px;
+  background:#2c8b73;
+  box-shadow:0 0 0 5px rgba(44,139,115,.11);
+}
+
+.account-continuity-note>div{
+  display:grid;
+  gap:2px;
+}
+
+.account-only-actions{
+  justify-content:flex-end!important;
+}
+
+.account-auto-unlock{
+  text-align:center;
+  align-items:center;
+}
+
+.account-auto-unlock .brand{
+  margin-inline:auto;
+}
+
+.account-access-loader{
+  display:block;
+  width:42px;
+  height:42px;
+  margin:18px auto 4px;
+  border-radius:999px;
+  border:3px solid rgba(11,38,54,.12);
+  border-top-color:#b58b4f;
+  animation:lourexAccountSpin .85s linear infinite;
+}
+
+@keyframes lourexAccountSpin{to{transform:rotate(360deg)}}
+
+.legacy-upgrade-card .subtle{
+  line-height:1.7;
+}
+
+.legacy-upgrade-card .security-note{
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid rgba(11,38,54,.09);
+}
+
+/* Saving is infrastructure, not a feature the user has to manage. Keep the
+   indicator deliberately compact and neutral across desktop and mobile. */
+.app-ui .shell-sync-row,
+.app-ui .shell-sync-status,
+.app-ui .mobile-more-sync{
+  cursor:default!important;
+  user-select:none;
+}
+
+.app-ui .shell-sync-row.state-synced .shell-status-dot,
+.app-ui .shell-sync-row.state-local .shell-status-dot,
+.app-ui .shell-sync-row.state-queued .shell-status-dot,
+.app-ui .shell-sync-status.state-synced .shell-status-dot,
+.app-ui .shell-sync-status.state-local .shell-status-dot,
+.app-ui .shell-sync-status.state-queued .shell-status-dot,
+.app-ui .mobile-more-sync.state-synced .shell-status-dot,
+.app-ui .mobile-more-sync.state-local .shell-status-dot,
+.app-ui .mobile-more-sync.state-queued .shell-status-dot{
+  background:#2c8b73!important;
+}
+
+.app-ui .shell-sync-row.state-syncing .shell-status-dot,
+.app-ui .shell-sync-status.state-syncing .shell-status-dot,
+.app-ui .mobile-more-sync.state-syncing .shell-status-dot{
+  animation:lourexSavePulse 1s ease-in-out infinite;
+}
+
+@keyframes lourexSavePulse{50%{opacity:.38;transform:scale(.78)}}
+
+@media(max-width:720px){
+  .account-managed-setup,
+  .account-auto-unlock,
+  .legacy-upgrade-card{
+    width:min(100%,calc(100vw - 20px));
+  }
+
+  .account-managed-security-note{
+    margin-bottom:14px;
+  }
+
+  .legacy-upgrade-card{
+    padding-top:62px!important;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .account-access-loader,
+  .app-ui .shell-sync-row.state-syncing .shell-status-dot,
+  .app-ui .shell-sync-status.state-syncing .shell-status-dot,
+  .app-ui .mobile-more-sync.state-syncing .shell-status-dot{
+    animation:none!important;
+  }
+}
