@@ -18,7 +18,10 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
+      - name: Run production build
+        run: npm run build
+      - name: Run unit and regression tests
+        run: node --test tests/*.test.mjs
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
