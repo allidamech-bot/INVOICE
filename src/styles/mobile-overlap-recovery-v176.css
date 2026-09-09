@@ -5,12 +5,55 @@
    - small confirmation dialogs must never inherit the full-height Settings modal geometry;
    - every modal footer/action remains inside the visual viewport on iPhone/PWA and short landscape screens;
    - canonical modals must sit above document action sheets and bottom navigation;
+   - shared modal chrome must remain inside the Obsidian Executive palette after historical Settings layers;
    - shared mobile controls must shrink/wrap instead of creating horizontal page overflow. */
 
 /* Canonical application layer order. Document action portals intentionally use 6000;
    a destructive confirmation opened from one of those sheets must render above it. */
 .app-ui .modal-backdrop{
   z-index:7000!important;
+  background:rgba(3,10,14,.76)!important;
+}
+
+/* v163 historically restyled the shared mobile modal as an ivory Settings surface.
+   This final app-only recovery layer owns shared overlay chrome so every consumer
+   (Customers, Product Library, Settings and confirmations) resolves to the same
+   Obsidian tokens without changing printable document surfaces. */
+.app-ui .modal{
+  border-color:var(--ds-line)!important;
+  background:var(--ds-surface-strong)!important;
+  color:var(--ds-text)!important;
+  box-shadow:var(--ds-shadow-raised)!important;
+}
+
+.app-ui .modal-header,
+.app-ui .modal-footer{
+  border-color:var(--ds-line)!important;
+  background:var(--ds-surface-strong)!important;
+  color:var(--ds-text)!important;
+}
+
+.app-ui .modal-body{
+  background:var(--ds-surface)!important;
+  color:var(--ds-text)!important;
+}
+
+.app-ui .modal-header h2{
+  color:var(--ds-text)!important;
+}
+
+.app-ui .modal-header .icon-btn,
+.app-ui .modal-header .icon-btn-ghost{
+  border-color:transparent!important;
+  background:transparent!important;
+  color:var(--ds-text-soft)!important;
+  box-shadow:none!important;
+}
+
+.app-ui .modal-header .icon-btn:hover:not(:disabled),
+.app-ui .modal-header .icon-btn-ghost:hover:not(:disabled){
+  background:var(--ds-selected)!important;
+  color:var(--ds-text)!important;
 }
 
 @media (max-width:960px){
@@ -43,6 +86,16 @@
   .app-ui .btn>span{
     min-width:0;
     overflow-wrap:anywhere;
+  }
+
+  /* A modal is a blocking interaction. Keep the fixed mobile/tablet navigation
+     out of both painting and hit testing while an overlay is open; nested stacking
+     contexts otherwise let the bottom navigation intercept footer actions on iPad
+     and iPhone even though the backdrop has the higher local z-index. */
+  .app-ui:has(.modal-backdrop) .mobile-bottom-nav{
+    visibility:hidden!important;
+    pointer-events:none!important;
+    opacity:0!important;
   }
 }
 
