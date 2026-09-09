@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="stylesheet" href="../../dist/styles/app.bundle.css">
+  <style>html,body{margin:0;min-height:100%;font-family:Inter,"Noto Sans Arabic",Arial,sans-serif}*{box-sizing:border-box}</style>
+</head>
+<body>
+  <div class="auth-page auth-account-page auth-mode-signin" id="gateway">
+    <div class="auth-account-frame">
+      <section class="auth-account-story" aria-label="LOUREX Invoice workspace">
+        <div class="auth-story-brand">
+          <div class="brand official-brand"><span class="brand-mark"><img src="../../brand/lourex-logo.svg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div>
+          <span class="auth-story-product">LOUREX INVOICE</span>
+        </div>
+        <div class="auth-story-copy">
+          <p class="auth-story-kicker" data-en="PRIVATE BUSINESS WORKSPACE" data-ar="مساحة أعمال خاصة">PRIVATE BUSINESS WORKSPACE</p>
+          <h2 data-en="Run every commercial document from one calm, secure workspace." data-ar="أدر مستندات أعمالك كلها من مساحة واحدة هادئة وآمنة.">Run every commercial document from one calm, secure workspace.</h2>
+          <p data-en="Invoices, quotations, customers and financial follow-up stay organized, encrypted and ready wherever you work." data-ar="الفواتير وعروض الأسعار والعملاء والمتابعة المالية تبقى منظمة ومشفّرة وجاهزة أينما تعمل.">Invoices, quotations, customers and financial follow-up stay organized, encrypted and ready wherever you work.</p>
+        </div>
+        <div class="auth-story-trust">
+          <div><span class="auth-trust-mark"></span><strong data-en="Private by design" data-ar="خصوصية من الأساس">Private by design</strong><small data-en="Encrypted local vault" data-ar="خزنة محلية مشفّرة">Encrypted local vault</small></div>
+          <div><span class="auth-trust-mark"></span><strong data-en="Cloud continuity" data-ar="استمرارية سحابية">Cloud continuity</strong><small data-en="Automatic secure backup" data-ar="نسخ احتياطي آمن تلقائي">Automatic secure backup</small></div>
+          <div><span class="auth-trust-mark"></span><strong data-en="Ready anywhere" data-ar="جاهز أينما كنت">Ready anywhere</strong><small data-en="Works offline too" data-ar="يعمل دون اتصال أيضًا">Works offline too</small></div>
+        </div>
+        <p class="auth-story-foot" data-en="LOUREX Invoice · Your private document workspace" data-ar="LOUREX Invoice · مساحة مستنداتك الخاصة">LOUREX Invoice · Your private document workspace</p>
+      </section>
+
+      <form class="auth-card unlock-card welcome-card account-first-card system-login-card auth-account-card" onsubmit="return false">
+        <button type="button" class="auth-language-switch premium-auth-language" data-en="العربية" data-ar="English">العربية</button>
+        <div class="auth-card-mobile-brand"><div class="brand official-brand"><span class="brand-mark"><img src="../../brand/lourex-logo.svg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div></div>
+        <div class="auth-card-heading">
+          <p class="eyebrow" id="eyebrow">WELCOME BACK</p>
+          <h1 id="heading">Sign in to your workspace</h1>
+          <p class="subtle" id="subtle">Continue to your invoices, quotations and business records.</p>
+        </div>
+        <div class="segmented account-entry-tabs" role="tablist">
+          <button type="button" role="tab" class="active" id="signin-tab">Sign In</button>
+          <button type="button" role="tab" id="create-tab">Create Account</button>
+        </div>
+        <div class="account-entry-fields">
+          <div class="field"><label for="email" id="email-label">Email</label><input class="input" id="email" type="email" value="user@example.com"></div>
+          <div class="field"><label for="password" id="password-label">Password</label><input class="input" id="password" type="password" value="password123"></div>
+          <div class="field" id="confirm-field" hidden><label for="confirm" id="confirm-label">Confirm Password</label><input class="input" id="confirm" type="password" value="password123"></div>
+        </div>
+        <button class="btn primary welcome-primary premium-auth-primary" type="button" id="primary">Enter LOUREX</button>
+        <button type="button" class="cloud-reset-link account-forgot" id="forgot">Forgot password?</button>
+        <div class="auth-card-security"><span class="auth-security-dot"></span><span id="security">Encrypted workspace · Secure cloud continuity · Offline ready</span></div>
+      </form>
+    </div>
+  </div>
+<script>
+  const q=new URLSearchParams(location.search),lang=q.get('lang')==='ar'?'ar':'en',mode=q.get('mode')==='create'?'create':'signin',ar=lang==='ar';
+  document.documentElement.lang=lang;document.documentElement.dir=ar?'rtl':'ltr';
+  document.querySelectorAll('[data-en][data-ar]').forEach(el=>el.textContent=el.dataset[lang]);
+  const gateway=document.getElementById('gateway'),create=mode==='create';gateway.className=`auth-page auth-account-page ${create?'auth-mode-create':'auth-mode-signin'}`;
+  document.getElementById('signin-tab').classList.toggle('active',!create);document.getElementById('create-tab').classList.toggle('active',create);
+  document.getElementById('confirm-field').hidden=!create;document.getElementById('forgot').hidden=create;
+  const text={en:{signin:['WELCOME BACK','Sign in to your workspace','Continue to your invoices, quotations and business records.','Sign In','Create Account','Email','Password','Confirm Password','Enter LOUREX','Forgot password?','Encrypted workspace · Secure cloud continuity · Offline ready'],create:['NEW WORKSPACE','Create your LOUREX account','Create one secure account for LOUREX Invoice cloud continuity.','Sign In','Create Account','Email','Password','Confirm Password','Create Account','Forgot password?','Encrypted workspace · Secure cloud continuity · Offline ready']},ar:{signin:['مرحبًا بعودتك','سجّل الدخول إلى مساحتك','تابع إلى فواتيرك وعروض أسعارك وسجلات أعمالك.','تسجيل الدخول','إنشاء حساب','البريد الإلكتروني','كلمة المرور','تأكيد كلمة المرور','الدخول إلى LOUREX','نسيت كلمة المرور؟','مساحة مشفّرة · استمرارية سحابية آمنة · جاهز دون اتصال'],create:['مساحة جديدة','أنشئ حساب LOUREX','أنشئ حسابًا آمنًا واحدًا لاستمرارية بيانات LOUREX Invoice سحابيًا.','تسجيل الدخول','إنشاء حساب','البريد الإلكتروني','كلمة المرور','تأكيد كلمة المرور','إنشاء الحساب','نسيت كلمة المرور؟','مساحة مشفّرة · استمرارية سحابية آمنة · جاهز دون اتصال']}}[lang][mode];
+  ['eyebrow','heading','subtle','signin-tab','create-tab','email-label','password-label','confirm-label','primary','forgot','security'].forEach((id,i)=>document.getElementById(id).textContent=text[i]);
+</script>
+</body>
+</html>
