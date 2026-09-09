@@ -56,11 +56,20 @@ export class AppShell extends React.Component<Props,State>{
     <button type="button" role="menuitem" onClick={()=>this.props.onNew('invoice')}><Icon name="invoice"/><span><strong>{t('Invoice','فاتورة')}</strong><small>{t('Final invoice','فاتورة نهائية')}</small></span></button>
   </div>:null;
 
-  private syncStatus=(className:string)=>
-    <div className={`${className} state-${this.props.cloudState}`} role="status" aria-live="polite" title={this.props.cloudMessage||this.props.cloudLabel}><span className="shell-status-dot"/><span>{this.props.cloudLabel}</span></div>;
+  private saveLabel=():string=>{
+    if(this.props.cloudState==='syncing')return t('Saving…','جارٍ الحفظ…');
+    if(this.props.cloudState==='offline')return t('Offline','غير متصل');
+    if(this.props.cloudState==='error')return t('Save pending','الحفظ معلّق');
+    return t('Saved','محفوظ');
+  };
+
+  private syncStatus=(className:string)=>{
+    const label=this.saveLabel();
+    return <div className={`${className} state-${this.props.cloudState}`} role="status" aria-live="polite" title={label}><span className="shell-status-dot"/><span>{label}</span></div>;
+  };
 
   private accountButton=(className:string,compact=false)=>
-    <button type="button" className={className} aria-label={t('Account','الحساب')} title={t('Open account','فتح الحساب')} onClick={this.props.onCloud}><Icon name="users"/>{compact?<span>{t('Account','الحساب')}</span>:<span><small>{t('Account','الحساب')}</small><strong>{t('Sign in, sign out and account settings','تسجيل الدخول والخروج وإعدادات الحساب')}</strong></span>}</button>;
+    <button type="button" className={className} aria-label={t('Account','الحساب')} title={t('Open account','فتح الحساب')} onClick={this.props.onCloud}><Icon name="users"/>{compact?<span>{t('Account','الحساب')}</span>:<span><small>{t('Account','الحساب')}</small><strong>{t('Profile, password and sign out','الملف وكلمة المرور وتسجيل الخروج')}</strong></span>}</button>;
 
   render():any{
     const editor=this.props.screen==='editor';
