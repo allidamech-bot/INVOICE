@@ -114,6 +114,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     document.addEventListener('scroll',this.handleScroll,true);
   }
   componentDidUpdate(prevProps:Props,prevState:State):void{
+    if(this.state.detailId&&prevState.detailId!==this.state.detailId)document.querySelector<HTMLButtonElement>('.document-detail-back')?.focus();
     if(this.state.menuId&&prevState.menuId!==this.state.menuId){
       this.positionMenu();
       const selector=window.innerWidth<=900?'.mobile-document-action-sheet':'.document-action-popover';

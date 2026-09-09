@@ -9,6 +9,7 @@ const scenarios=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
   try{
     for(const viewport of scenarios)for(const lang of ['en','ar']){
       const page=await browser.newPage({viewport,hasTouch:viewport.width<=820,isMobile:viewport.width<=820});
+      page.setDefaultTimeout(12000);
       const failures=[];page.on('pageerror',e=>failures.push(String(e)));
       const check=async(selector)=>{
         const issues=await page.locator(selector).evaluate(root=>{
@@ -27,6 +28,7 @@ const scenarios=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
         await page.locator('.documents-register').waitFor();
         await page.evaluate(()=>document.fonts.ready);
         assert.equal(await page.locator('.documents-register-row').count(),6);
+        assert.equal(await page.locator('.documents-heading-actions .btn').first().isVisible(),true,'creation action visible');
         await check('.documents-workspace-v2');
         await page.screenshot({path:output+'/'+viewport.width+'-'+lang+'-list.png',fullPage:true,animations:'disabled'});
         const search=page.locator('.documents-search-input');
@@ -37,6 +39,7 @@ const scenarios=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
         await check('.documents-empty');
         await search.fill('');
         await page.locator('.documents-filter-toggle').click();
+        await page.screenshot({path:output+'/'+viewport.width+'-'+lang+'-filters.png',fullPage:true,animations:'disabled'});
         await page.locator('.documents-advanced-filters select').nth(1).selectOption('partially-paid');
         assert.equal(await page.locator('.documents-register-row').count(),1);
         assert.match(await page.locator('.register-identity').innerText(),/0041/);
