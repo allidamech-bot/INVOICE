@@ -49,6 +49,7 @@ jobs:
           node tests/visual/run-obsidian-dashboard.cjs
           node tests/visual/run-obsidian-documents.cjs
           node tests/visual/run-obsidian-editor.cjs
+          node tests/visual/run-obsidian-directory.cjs
       - name: Upload visual QA evidence
         if: always()
         uses: actions/upload-artifact@v6

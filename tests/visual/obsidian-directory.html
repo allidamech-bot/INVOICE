@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {AppShell} from './src/components/AppShell.js';
+import {CustomersPage,blankCustomer} from './src/components/CustomersPage.js';
+import {SavedItemsPage} from './src/components/SavedItemsPage.js';
+import {SavedItemsModal} from './src/components/SavedItemsModal.js';
+import {defaultCompany} from './src/lib/defaults.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar',screen=params.get('screen')||'customers',h=React.createElement;
+setUiLanguage(ar?'ar':'en');
+const company=defaultCompany(),now=new Date().toISOString();
+const customers=Array.from({length:8},(_,i)=>({...blankCustomer(),id:'customer-'+i,companyNameEn:['Atlas Trading','Northstar Markets','Summit Supply','Harbor Commercial'][i%4]+' '+(i+1),companyNameAr:['أطلس للتجارة','أسواق نورث ستار','إمداد القمة','الميناء التجارية'][i%4]+' '+(i+1),contactPerson:ar?'سميرة أحمد':'Samira Ahmed',city:'Dubai',country:'UAE',addressEn:'Business Bay, Office 204',addressAr:'الخليج التجاري، مكتب ٢٠٤',email:'finance'+i+'@example.test',phone:'+971 50 000 000'+i,vatTaxNumber:'TRN-10020'+i,commercialRegistration:'CR-20010'+i,preferredCurrency:'USD',paymentTerms:'Net 30',paymentDueDays:'30',creditLimit:'25000',creditCurrency:'USD'}));
+const items=Array.from({length:24},(_,i)=>({id:'product-'+i,createdAt:now,updatedAt:now,sku:'LX-'+String(i+1).padStart(3,'0'),descriptionEn:['Precision valve assembly','Industrial control panel','Stainless steel fitting'][i%3]+' '+(i+1),descriptionAr:['مجموعة صمام دقيق','لوحة تحكم صناعية','وصلة فولاذ مقاوم للصدأ'][i%3]+' '+(i+1),hsCode:'848180',origin:'UAE',packing:'Box',unit:'PCS',lastUnitPrice:String(125+i*25),lastCurrency:'USD',lastUnitCost:'75',lastCostCurrency:'USD',usageCount:24-i,lastUsedAt:now,category:['Components','Controls','Fittings'][i%3],tags:['Industrial'],favorite:i<4}));
+class Fixture extends React.Component{
+ state={customers,items,picker:screen==='picker'};
+ saveCustomer=async item=>{window.savedCustomer=item;this.setState(s=>({customers:s.customers.map(c=>c.id===item.id?item:c)}));};
+ saveItem=async item=>{window.savedProduct=item;this.setState(s=>({items:s.items.map(c=>c.id===item.id?item:c)}));};
+ render(){return h(AppShell,{screen:screen==='customers'?'customers':'saved-items',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:()=>{},onToggleNew:()=>{},onNew:()=>{},onSettings:()=>{},onCloud:()=>{}},screen==='customers'?h(CustomersPage,{customers:this.state.customers,company,onSave:this.saveCustomer,onDelete:async()=>{},onNewDocument:async(kind,c)=>{window.createdDocument={kind,customerId:c.id};}}):h(React.Fragment,null,h(SavedItemsPage,{items:this.state.items,currency:'USD',onSave:this.saveItem,onSaveMany:async()=>{},onDelete:async()=>{}}),h(SavedItemsModal,{open:this.state.picker,items:this.state.items,currency:'USD',onClose:()=>this.setState({picker:false}),onSave:this.saveItem,onDelete:async()=>{},onSelectMany:async selected=>{window.selectedItems=selected;this.setState({picker:false});}})));}
+}
+ReactDOM.render(h(Fixture),document.getElementById('root'));
+</script></body></html>

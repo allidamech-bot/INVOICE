@@ -9,7 +9,7 @@
   max-height:calc(92dvh - 138px);
   margin:-24px;
   overflow:hidden;
-  background:#f8fafb;
+  background:var(--ds-surface);
 }
 
 .app-ui .saved-items-list-pane,
@@ -21,8 +21,8 @@
 .app-ui .saved-items-list-pane{
   display:flex;
   flex-direction:column;
-  border-inline-end:1px solid #dce4e8;
-  background:#fff;
+  border-inline-end:1px solid var(--ds-line);
+  background:var(--ds-surface);
 }
 
 .app-ui .saved-items-toolbar{
@@ -31,8 +31,8 @@
   grid-template-columns:minmax(0,1fr) auto;
   gap:8px;
   padding:14px;
-  border-bottom:1px solid #e5ebee;
-  background:rgba(255,255,255,.98);
+  border-bottom:1px solid var(--ds-line);
+  background:var(--ds-surface);
 }
 
 .app-ui .saved-items-toolbar .search-box{
@@ -71,14 +71,14 @@
   margin:2px 0;
   border:1px solid transparent;
   border-radius:12px;
-  background:#fff;
+  background:var(--ds-surface);
   transition:background-color .15s ease,border-color .15s ease;
 }
 
 .app-ui .saved-item-row:hover,
 .app-ui .saved-item-row:focus-within{
-  border-color:#d9e4e9;
-  background:#f7fafb;
+  border-color:var(--ds-line);
+  background:var(--ds-surface);
 }
 
 .app-ui .saved-item-main{
@@ -93,7 +93,7 @@
   border:0;
   border-radius:11px;
   background:transparent;
-  color:#17364a;
+  color:var(--ds-text);
   font:inherit;
   text-align:start;
   cursor:pointer;
@@ -115,18 +115,18 @@
 }
 
 .app-ui .saved-item-main strong{
-  color:#102f45;
+  color:var(--ds-text);
   font-size:13px;
   font-weight:800;
 }
 
 .app-ui .saved-item-main span{
-  color:#596f7c;
+  color:var(--ds-text-soft);
   font-size:11px;
 }
 
 .app-ui .saved-item-main small{
-  color:#81909a;
+  color:var(--ds-text-soft);
   font-size:10.5px;
   font-variant-numeric:tabular-nums;
 }
@@ -150,7 +150,7 @@
   gap:7px;
   padding:28px 22px;
   text-align:center;
-  color:#71838e;
+  color:var(--ds-text-soft);
 }
 
 .app-ui .saved-items-empty > .icon{
@@ -158,12 +158,12 @@
   height:42px;
   padding:10px;
   border-radius:13px;
-  background:#edf4f7;
-  color:#37647d;
+  background:var(--ds-surface);
+  color:var(--ds-text-soft);
 }
 
 .app-ui .saved-items-empty strong{
-  color:#17364a;
+  color:var(--ds-text);
   font-size:14px;
 }
 
@@ -183,7 +183,7 @@
   overflow-y:auto;
   overscroll-behavior:contain;
   padding:18px 19px;
-  background:#f8fafb;
+  background:var(--ds-surface);
 }
 
 .app-ui .saved-item-editor-head{
@@ -195,7 +195,7 @@
   min-width:0;
   margin-bottom:16px;
   padding-bottom:13px;
-  border-bottom:1px solid #dfe7ea;
+  border-bottom:1px solid var(--ds-line);
 }
 
 .app-ui .saved-item-editor-head > div{
@@ -210,7 +210,7 @@
   max-width:100%;
   margin:0;
   overflow:hidden;
-  color:#102f45;
+  color:var(--ds-text);
   font-size:18px;
   line-height:1.3;
   text-overflow:ellipsis;
@@ -224,9 +224,9 @@
 .app-ui .saved-item-editor .inline-error{
   margin-top:12px;
   padding:10px 11px;
-  border:1px solid #efc2bf;
+  border:1px solid var(--ds-line);
   border-radius:10px;
-  background:#fff5f4;
+  background:var(--ds-surface);
 }
 
 .app-ui .saved-item-editor-actions{
@@ -238,9 +238,9 @@
   gap:8px;
   margin:18px -19px -18px;
   padding:12px 19px max(12px,env(safe-area-inset-bottom));
-  border-top:1px solid #dfe6ea;
-  background:rgba(248,250,251,.98);
-  backdrop-filter:blur(14px);
+  border-top:1px solid var(--ds-line);
+  background:var(--ds-surface);
+  backdrop-filter:none;
 }
 
 .app-ui .saved-item-editor-actions > span{
@@ -261,21 +261,21 @@
   gap:8px;
   padding:32px;
   text-align:center;
-  color:#748690;
+  color:var(--ds-text-soft);
 }
 
 .app-ui .saved-item-editor-placeholder > .icon{
   width:52px;
   height:52px;
   padding:13px;
-  border:1px solid #dbe6eb;
+  border:1px solid var(--ds-line);
   border-radius:16px;
-  background:#fff;
-  color:#3b6981;
+  background:var(--ds-surface);
+  color:var(--ds-text-soft);
 }
 
 .app-ui .saved-item-editor-placeholder strong{
-  color:#17364a;
+  color:var(--ds-text);
   font-size:14px;
 }
 
@@ -305,7 +305,7 @@
     max-height:none;
     margin:-16px;
     overflow:visible;
-    background:#fff;
+    background:var(--ds-surface);
   }
 
   .app-ui .saved-items-list-pane{
@@ -319,9 +319,9 @@
     grid-template-columns:1fr;
     gap:8px;
     padding:11px;
-    border-bottom:1px solid #e2e9ec;
-    background:rgba(255,255,255,.98);
-    backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--ds-line);
+    background:var(--ds-surface);
+    backdrop-filter:none;
   }
 
   .app-ui .saved-items-toolbar > .btn{
@@ -336,7 +336,7 @@
 
   .app-ui .saved-item-row{
     grid-template-columns:minmax(0,1fr) 42px;
-    border-bottom:1px solid #eef2f4;
+    border-bottom:1px solid var(--ds-line);
     border-radius:10px;
   }
 
@@ -358,7 +358,7 @@
     min-height:calc(70dvh - env(safe-area-inset-bottom));
     overflow:visible;
     padding:14px 12px 0;
-    background:#fff;
+    background:var(--ds-surface);
   }
 
   .app-ui .saved-item-editor-head{
@@ -368,8 +368,8 @@
     align-items:center;
     margin:0 -12px 14px;
     padding:10px 12px;
-    background:rgba(255,255,255,.98);
-    backdrop-filter:blur(14px);
+    background:var(--ds-surface);
+    backdrop-filter:none;
   }
 
   .app-ui .saved-item-editor-head h3{
@@ -385,7 +385,7 @@
     grid-template-columns:1fr 1.35fr;
     margin:18px -12px 0;
     padding:10px 12px max(10px,env(safe-area-inset-bottom));
-    background:rgba(255,255,255,.98);
+    background:var(--ds-surface);
   }
 
   .app-ui .saved-item-editor-actions .btn{
@@ -413,9 +413,9 @@
   min-height:590px;
   max-height:calc(100dvh - 240px);
   margin:0;
-  border:1px solid #dce4e8;
+  border:1px solid var(--ds-line);
   border-radius:18px;
-  box-shadow:0 16px 44px rgba(18,48,67,.08);
+  box-shadow:none;
 }
 
 .app-ui .saved-item-row{
@@ -423,13 +423,13 @@
 }
 
 .app-ui .saved-item-row.is-selected{
-  border-color:#7fa9bd;
-  background:#edf7fa;
-  box-shadow:inset 3px 0 0 #2f7897;
+  border-color:var(--ds-accent);
+  background:var(--ds-selected);
+  box-shadow:none;
 }
 
 [dir='rtl'] .app-ui .saved-item-row.is-selected{
-  box-shadow:inset -3px 0 0 #2f7897;
+  box-shadow:none;
 }
 
 .app-ui .saved-items-shell.is-picker .saved-item-row.is-selected::after{
@@ -442,8 +442,8 @@
   display:grid;
   place-items:center;
   border-radius:999px;
-  background:#245f7b;
-  color:#fff;
+  background:var(--ds-selected);
+  color:var(--ds-text);
   font-size:11px;
   font-weight:900;
   pointer-events:none;
@@ -459,9 +459,9 @@
   align-items:center;
   gap:8px;
   padding:10px;
-  border-top:1px solid #dce5e9;
-  background:rgba(255,255,255,.98);
-  box-shadow:0 -8px 24px rgba(20,53,72,.06);
+  border-top:1px solid var(--ds-line);
+  background:var(--ds-surface);
+  box-shadow:none;
 }
 
 .app-ui .saved-items-picker-bar>div{
@@ -472,13 +472,13 @@
 }
 
 .app-ui .saved-items-picker-bar strong{
-  color:#153f57;
+  color:var(--ds-text);
   font-size:11px;
 }
 
 .app-ui .saved-items-picker-bar small{
   overflow:hidden;
-  color:#72838d;
+  color:var(--ds-text-soft);
   font-size:9.5px;
   text-overflow:ellipsis;
   white-space:nowrap;
@@ -500,18 +500,18 @@
   flex:0 0 auto;
   min-height:30px;
   padding:5px 8px;
-  border:1px solid #d9e3e7;
+  border:1px solid var(--ds-line);
   border-radius:999px;
-  background:#fff;
-  color:#58717e;
+  background:var(--ds-surface);
+  color:var(--ds-text-soft);
   font:inherit;
   font-size:9.5px;
 }
 
 .app-ui .saved-item-category-suggestions button.active{
-  border-color:#8cafbf;
-  background:#edf5f7;
-  color:#153f57;
+  border-color:var(--ds-accent);
+  background:var(--ds-selected);
+  color:var(--ds-text);
 }
 
 @media (max-width:720px){
@@ -576,8 +576,8 @@
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:5px;
   padding:10px 10px 8px;
-  border-bottom:1px solid #e9eef0;
-  background:#fff;
+  border-bottom:1px solid var(--ds-line);
+  background:var(--ds-surface);
 }
 
 .app-ui .saved-items-smart-nav button{
@@ -591,19 +591,19 @@
   border:1px solid transparent;
   border-radius:10px;
   background:transparent;
-  color:#607581;
+  color:var(--ds-text-soft);
   font:inherit;
   cursor:pointer;
 }
 
 .app-ui .saved-items-smart-nav button:hover{
-  background:#f5f8f9;
+  background:var(--ds-surface);
 }
 
 .app-ui .saved-items-smart-nav button.active{
-  border-color:#cfdde3;
-  background:#eef5f7;
-  color:#153f57;
+  border-color:var(--ds-accent);
+  background:var(--ds-selected);
+  color:var(--ds-text);
 }
 
 .app-ui .saved-items-smart-nav strong{
@@ -649,7 +649,7 @@
   overflow-x:auto;
   overscroll-behavior-inline:contain;
   padding:8px 10px 9px;
-  border-bottom:1px solid #edf1f3;
+  border-bottom:1px solid var(--ds-line);
   scrollbar-width:none;
 }
 
@@ -664,27 +664,27 @@
   gap:7px;
   min-height:34px;
   padding:6px 9px;
-  border:1px solid #dce5e9;
+  border:1px solid var(--ds-line);
   border-radius:999px;
-  background:#fff;
-  color:#526d7c;
+  background:var(--ds-surface);
+  color:var(--ds-text-soft);
   font:inherit;
   font-size:10.5px;
   cursor:pointer;
 }
 
 .app-ui .saved-items-categories button.active{
-  border-color:#9eb9c6;
-  background:#edf5f7;
-  color:#123f57;
+  border-color:var(--ds-accent);
+  background:var(--ds-selected);
+  color:var(--ds-text);
 }
 
 .app-ui .saved-items-categories small{
   min-width:18px;
   padding:1px 5px;
   border-radius:999px;
-  background:#edf2f4;
-  color:#647c88;
+  background:var(--ds-surface);
+  color:var(--ds-text-soft);
   font-size:9px;
   text-align:center;
 }
@@ -696,12 +696,12 @@
   justify-content:space-between;
   gap:8px;
   padding:8px 12px 5px;
-  color:#748792;
+  color:var(--ds-text-soft);
 }
 
 .app-ui .saved-items-list-context strong{
   overflow:hidden;
-  color:#456170;
+  color:var(--ds-text-soft);
   font-size:10.5px;
   font-weight:800;
   text-overflow:ellipsis;
@@ -726,19 +726,19 @@
   border:0;
   border-radius:9px;
   background:transparent;
-  color:#b5c0c6;
+  color:var(--ds-text-soft);
   font-size:18px;
   line-height:1;
   cursor:pointer;
 }
 
 .app-ui .saved-item-favorite:hover{
-  background:#f4f7f8;
-  color:#8095a0;
+  background:var(--ds-surface);
+  color:var(--ds-text-soft);
 }
 
 .app-ui .saved-item-favorite.is-active{
-  color:#b88b36;
+  color:var(--ds-brass-highlight);
 }
 
 .app-ui .saved-item-favorite:disabled{
@@ -770,8 +770,8 @@
   overflow:hidden;
   padding:2px 6px;
   border-radius:999px;
-  background:#eff4f6;
-  color:#5c7480;
+  background:var(--ds-surface);
+  color:var(--ds-text-soft);
   font-size:9px;
   font-style:normal;
   line-height:1.35;
@@ -780,13 +780,13 @@
 }
 
 .app-ui .saved-item-row.is-favorite{
-  border-color:#e7e0cf;
+  border-color:var(--ds-line);
 }
 
 .app-ui .saved-item-favorite-toggle{
   margin-top:14px;
   padding:12px 0 2px;
-  border-top:1px solid #e2e9ec;
+  border-top:1px solid var(--ds-line);
 }
 
 .app-ui .saved-items-list-error{
@@ -819,7 +819,7 @@
     gap:5px;
     overflow-x:auto;
     padding:9px 9px 7px;
-    background:#fff;
+    background:var(--ds-surface);
     scrollbar-width:none;
   }
   .app-ui .saved-items-smart-nav::-webkit-scrollbar{
