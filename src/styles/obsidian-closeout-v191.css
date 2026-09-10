@@ -1,0 +1,64 @@
+/* Obsidian closeout: shared feedback and account overlays, screen only. */
+@media screen {
+  .app-ui :is(.cloud-account-identity,.account-continuity-note,.cloud-account-scope-note){
+    min-width:0!important;
+    border:1px solid var(--ds-line)!important;
+    background:var(--ds-surface)!important;
+    color:var(--ds-text)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .cloud-account-identity strong{color:var(--ds-text)!important;overflow-wrap:anywhere;white-space:normal;font-size:16px}
+  .app-ui :is(.cloud-account-identity small,.account-continuity-note small,.cloud-account-scope-note){color:var(--ds-text-soft)!important;font-size:14px!important;line-height:1.6}
+  .app-ui .account-continuity-note strong{color:var(--ds-text)!important;font-size:14px}
+  .app-ui .account-only-actions{display:flex!important;flex-wrap:wrap;gap:8px}
+  .app-ui .cloud-reset-link{min-height:44px;color:var(--ds-text-soft)!important;font-size:14px}
+  .app-ui :is(.auth-error,.settings-message.error){
+    border:1px solid var(--ds-danger)!important;
+    background:#301F24!important;
+    color:var(--ds-danger-text)!important;
+    overflow-wrap:anywhere;
+  }
+  .app-ui .settings-message.success{
+    border:1px solid var(--ds-success)!important;
+    background:#12332B!important;
+    color:#BAE8D6!important;
+  }
+  .app-ui .toast{
+    max-width:calc(100vw - 32px)!important;
+    border:1px solid var(--ds-line-strong)!important;
+    background:var(--ds-surface-strong)!important;
+    color:var(--ds-text)!important;
+    font-size:14px!important;
+    line-height:1.6!important;
+    overflow-wrap:anywhere;
+    box-shadow:var(--ds-shadow-raised)!important;
+  }
+  .app-ui .toast-success{border-color:var(--ds-success)!important}
+  .app-ui .toast-error{border-color:var(--ds-danger)!important;color:var(--ds-danger-text)!important}
+  .app-ui :is(.empty-state,.dashboard-empty,.reports-empty,.operations-empty,.product-library-empty){
+    background:var(--ds-workspace)!important;
+    border-color:var(--ds-line)!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui :is(.empty-state,.dashboard-empty,.reports-empty,.operations-empty,.product-library-empty) p{font-size:14px!important;line-height:1.6!important;color:var(--ds-text-soft)!important}
+  .app-ui .modal-message{font-size:16px!important;line-height:1.7!important;color:var(--ds-text-soft)!important;overflow-wrap:anywhere}
+  .app-ui .modal :is(button,input,select,textarea):focus-visible{outline:2px solid var(--ds-focus-line)!important;outline-offset:2px}
+  .app-ui .modal :is(button,input,select,textarea){scroll-margin-block:16px}
+  .app-ui .settings-workspace-v2 .settings-panel{scroll-padding-block:120px 24px}
+  .app-ui .settings-workspace-v2 .settings-message{position:sticky!important;bottom:0!important;margin:0 12px 12px!important;z-index:20;font-size:14px!important;line-height:1.6!important}
+  .app-ui .company-artwork-section input[type='file']{max-width:100%;min-height:44px;font-size:14px;color:var(--ds-text-soft)}
+  .app-ui .company-artwork-section input[type='file']::file-selector-button{min-height:44px;padding:8px;border:1px solid var(--ds-line-strong);border-radius:8px;background:var(--ds-input);color:var(--ds-text);font:inherit;cursor:pointer}
+  @media(max-width:720px){
+    .app-ui .modal :is(input,select,textarea){font-size:16px!important}
+    .app-ui .modal :is(.btn,.logo-mode-switch button,.logo-rebuild-action,.logo-rebuild-restore){min-height:44px!important}
+    .app-ui .settings-workspace-v2 .settings-title{position:sticky!important;top:58px!important;z-index:16!important}
+    .app-ui .settings-workspace-v2 .settings-title p:not(.eyebrow){display:none!important}
+    .app-ui .settings-workspace-v2 .settings-panel{overflow:visible!important}
+    .app-ui .settings-workspace-v2 .settings-title>.btn{min-width:80px!important}
+    .app-ui .account-only-actions>.btn{width:100%}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .app-ui .modal-backdrop,.app-ui .toast{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  }
+}

@@ -8,14 +8,15 @@ test('v153 introduces a deliberate premium application colour hierarchy',async()
   const css=await read('src/styles/ux-recovery-v152.css');
   for(const token of ['--ux-navy-deep','--ux-blue-wash','--ux-ivory','--ux-champagne','--ux-shadow-strong'])assert.ok(css.includes(token),token);
   assert.match(css,/\.app-ui \.app-header\{[\s\S]*linear-gradient\(118deg,var\(--ux-navy-deep\)/);
-  assert.match(css,/Page identity:[\s\S]*linear-gradient\(125deg,var\(--ux-navy-deep\)/);
+  assert.match(css,/Shared page headings[\s\S]*background:transparent/);
+  assert.match(css,/operations-hero\)::after\{content:none\}/);
   assert.match(css,/\.app-ui \.main-nav button\.active\{[^}]*background:#f7f1e6/);
   assert.match(css,/\.app-ui \.header-actions \.new-doc-menu>\.btn-primary\{[^}]*--ux-champagne/);
 });
 
 test('v153 differentiates content surfaces while keeping gold as an accent',async()=>{
   const css=await read('src/styles/ux-recovery-v152.css');
-  assert.match(css,/product-library-row:nth-child\(even\)\{background:#edf3f4\}/);
+  assert.match(css,/product-library-row\{[^}]*border-bottom:1px solid var\(--ds-line\);[^}]*background:var\(--ds-surface\)/);
   assert.match(css,/report-primary-metrics>div:first-child\{background:linear-gradient/);
   assert.match(css,/item-card header\{background:#e5eef1/);
   assert.match(css,/settings-tabs button\.active\{background:var\(--ux-navy\)!important/);

@@ -52,17 +52,19 @@
   .app-ui .app-header{
     background:rgba(248,245,238,.995)!important;
   }
-  .app-ui .settings-tabs,
+  .app-ui .settings-tabs{
+    background:rgba(255,255,255,.995)!important;
+  }
   .app-ui .saved-items-toolbar,
   .app-ui .saved-item-editor-head,
   .app-ui .saved-item-editor-actions{
-    background:rgba(255,255,255,.995)!important;
+    background:var(--ds-surface)!important;
   }
   .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{
-    background:rgba(250,252,252,.995)!important;
+    background:var(--ds-surface)!important;
   }
   .final-quote-convert-bar{
-    background:rgba(250,252,252,.995)!important;
+    background:var(--ds-surface)!important;
   }
 
   /* Keep touch feedback immediate; avoid persistent promoted layers on long mobile pages. */
@@ -160,7 +162,6 @@
 .app-ui .document-card,
 .app-ui .premium-document-card,
 .app-ui .customer-card,
-.app-ui .saved-item-row,
 .app-ui .backup-card,
 .app-ui .editor-section,
 .app-ui .receivables-card,

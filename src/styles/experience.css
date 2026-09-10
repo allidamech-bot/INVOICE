@@ -28,8 +28,7 @@
 .app-ui .input::placeholder{color:#90979c}
 .app-ui .field-label{color:#4f5e69}
 
-/* One clear creation entry point in the header; content area stays calm. */
-.app-ui .documents-heading .heading-actions{display:none!important}
+/* Document creation controls are owned by the canonical document workspace. */
 .app-ui .new-doc-menu>.btn{box-shadow:0 7px 18px rgba(11,29,45,.13)}
 .app-ui .new-menu{width:276px;padding:7px}
 .app-ui .new-menu button{min-height:54px;padding:10px 12px}

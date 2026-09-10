@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="stylesheet" href="../../dist/styles/app.bundle.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .foundation-fixture{padding:24px;max-width:1100px;margin:auto}
+    .foundation-fixture section{padding:24px;margin-block:16px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card)}
+    .foundation-controls{display:flex;gap:12px;flex-wrap:wrap;margin-block:16px}
+    @media(max-width:720px){.foundation-fixture,.foundation-fixture section{padding:16px}.foundation-fixture .form-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body><div class="app-ui"><main id="fixture" class="foundation-fixture"></main></div>
+<script src="../../dist/vendor/react.production.min.js"></script>
+<script src="../../dist/vendor/react-dom.production.min.js"></script>
+<script type="module">
+  import {Button,IconButton,Input,Select,Textarea} from '../../dist/src/components/UI.js';
+  const ar=new URLSearchParams(location.search).get('lang')==='ar';
+  document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';
+  const h=React.createElement;
+  const label=(en,arabic)=>ar?arabic:en;
+  const field=(id,title,component,props,children)=>h('label',{className:'field',htmlFor:id},h('span',{className:'field-label'},title),h(component,{id,...props},children));
+  ReactDOM.render(h(React.Fragment,null,
+    h('div',{className:'page-heading'},h('h1',null,label('Document workspace','مساحة عمل المستندات'))),
+    h('p',null,label('Prepare and review your business documents.','إعداد مستندات الأعمال ومراجعتها.')),
+    h('section',{className:'dashboard-panel'},
+      h('div',{className:'foundation-controls'},
+        h(Button,{id:'primary',variant:'primary',icon:'save'},label('Save document','حفظ المستند')),
+        h(Button,{id:'secondary'},label('Preview','معاينة')),
+        h(Button,{id:'ghost',variant:'ghost'},label('Back','رجوع')),
+        h(Button,{id:'danger',variant:'danger'},label('Delete','حذف')),
+        h(IconButton,{id:'icon',icon:'more',label:label('More actions','إجراءات إضافية')}),
+        h(Button,{id:'disabled',disabled:true},label('Unavailable','غير متاح'))),
+      h('div',{className:'form-grid two'},
+        field('customer',label('Customer name','اسم العميل'),Input,{defaultValue:label('International Trading Company','الشركة الدولية للتجارة')}),
+        field('reference',label('Reference','المرجع'),Input,{placeholder:label('Enter a reference','أدخل المرجع')}),
+        field('currency',label('Currency','العملة'),Select,{},h('option',null,'USD')),
+        field('notes',label('Notes','ملاحظات'),Textarea,{defaultValue:label('Delivery within 14 days.','التسليم خلال أربعة عشر يومًا.')})),
+      h('p',{className:'field-error'},label('Choose a customer before issuing.','اختر العميل قبل إصدار المستند.')),
+      h('div',{className:'document-total'},h('strong',null,'12,450.00 USD')))),document.getElementById('fixture'));
+</script></body></html>

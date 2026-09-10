@@ -67,7 +67,7 @@ test('v189 daily workspace exposes only generic save state, not cloud controls',
 test('v189 PWA publishes a fresh runtime with account access and unified account styles cached',async()=>{
   const sw=await read('public/sw.js');
   const html=await read('index.html');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v189';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v191';$/m);
   assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
   assert.ok(sw.includes("LOCAL_CORE.push('./styles/unified-account-v189.css')"));
   assert.ok(sw.includes("LOCAL_CORE.push('./src/cloud/account-access.js')"));

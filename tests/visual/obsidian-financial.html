@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {AppShell} from './src/components/AppShell.js';
+import {ReportsPage} from './src/components/ReportsPage.js';
+import {ReceivablesPage} from './src/components/ReceivablesPage.js';
+import {OperationsPage} from './src/components/OperationsPage.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {defaultCompany} from './src/lib/defaults.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+import {todayIso} from './src/lib/id.js';
+import {createSupplier,createPurchase,createPurchaseItem,createExpense,createManualInventoryMovement,supplierSnapshotFrom} from './src/lib/operations.js';
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar',screen=params.get('screen')||'reports',h=React.createElement;
+setUiLanguage(ar?'ar':'en');
+const company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة',logoDataUrl:'./brand/lourex-logo.svg',city:'Istanbul',country:'Türkiye',defaultCurrency:'USD'};
+const year=todayIso().slice(0,4),now=new Date().toISOString();
+const customer=(id,en,arName,currency)=>({id,createdAt:now,updatedAt:now,companyNameEn:en,companyNameAr:arName,contactPerson:ar?'سارة أحمد':'Sara Ahmed',addressEn:'Business District, Suite 204',addressAr:'المنطقة التجارية، مكتب ٢٠٤',city:'Dubai',country:'UAE',phone:'+971 50 000 0000',email:`finance-${id}@example.test`,vatTaxNumber:`TRN-${id}`,commercialRegistration:`CR-${id}`,preferredCurrency:currency,paymentTermPresetId:'',paymentTerms:'Net 30',paymentDueDays:'30',creditLimit:'50000',creditCurrency:currency,notes:''});
+const customers=[customer('atlas','Atlas Trading','أطلس للتجارة','USD'),customer('cedar','Cedar Markets','أسواق سيدار','EUR'),customer('harbor','Harbor Supply','إمداد الميناء','USD')];
+function invoice({id,number,currency,price,cost,issueMonth,dueMonth,customerIndex=0}){
+ const c=customers[customerIndex],doc=createBlankDocument('invoice',number,company);doc.id=id;doc.status='final';doc.lifecycleStatus='active';doc.role='standard';doc.currency=currency;doc.issueDate=`${year}-${issueMonth}-10`;doc.dueDate=`${year}-${dueMonth}-20`;
+ doc.customerSnapshot={sourceCustomerId:c.id,companyNameEn:c.companyNameEn,companyNameAr:c.companyNameAr,contactPerson:c.contactPerson,addressEn:c.addressEn,addressAr:c.addressAr,city:c.city,country:c.country,phone:c.phone,email:c.email,vatTaxNumber:c.vatTaxNumber,commercialRegistration:c.commercialRegistration};
+ doc.items=[{...doc.items[0],descriptionEn:'Commercial equipment',descriptionAr:'معدات تجارية',quantity:'2',unitPrice:price,unitCost:cost}];doc.internalCosts={shippingCost:'35.00',otherCost:'15.00'};return doc;
+}
+const usdA=invoice({id:'inv-usd-a',number:`INV-${year}-0001`,currency:'USD',price:'1250.00',cost:'720.00',issueMonth:'01',dueMonth:'02',customerIndex:0});
+const eurA=invoice({id:'inv-eur-a',number:`INV-${year}-0002`,currency:'EUR',price:'980.00',cost:'610.00',issueMonth:'03',dueMonth:'04',customerIndex:1});
+const usdB=invoice({id:'inv-usd-b',number:`INV-${year}-0003`,currency:'USD',price:'640.00',cost:'390.00',issueMonth:'06',dueMonth:'07',customerIndex:2});
+const documents=[usdA,eurA,usdB];
+const payment=(doc,id,amount,month)=>({id,invoiceId:doc.id,invoiceNumber:doc.number,customerId:doc.customerSnapshot.sourceCustomerId,customerNameEn:doc.customerSnapshot.companyNameEn,customerNameAr:doc.customerSnapshot.companyNameAr,currency:doc.currency,amount,date:`${year}-${month}-15`,method:'bank-transfer',reference:id,notes:'',createdAt:now,updatedAt:now});
+const payments=[payment(usdA,'pay-usd-1','700.00','02'),payment(eurA,'pay-eur-1','500.00','04'),payment(usdB,'pay-usd-2','300.00','07')];
+const items=Array.from({length:8},(_,i)=>({id:`item-${i}`,createdAt:now,updatedAt:now,sku:`LX-${String(i+1).padStart(3,'0')}`,descriptionEn:['Precision valve','Control module','Steel fitting'][i%3]+` ${i+1}`,descriptionAr:['صمام دقيق','وحدة تحكم','وصلة فولاذية'][i%3]+` ${i+1}`,hsCode:'848180',origin:'Türkiye',packing:'Box',unit:'PCS',lastUnitPrice:String(180+i*20),lastCurrency:'USD',lastUnitCost:String(95+i*8),lastCostCurrency:'USD',usageCount:12-i,lastUsedAt:now,category:'Components',tags:['Industrial'],favorite:i<2}));
+const supplierA={...createSupplier(),id:'supplier-atlas',nameEn:'Anatolia Components',nameAr:'مكونات الأناضول',contactPerson:'Kemal Yilmaz',country:'Türkiye',city:'Istanbul',defaultCurrency:'USD',email:'sales@anatolia.example',updatedAt:now};
+const supplierB={...createSupplier(),id:'supplier-euro',nameEn:'Euro Industrial',nameAr:'يورو الصناعية',country:'Germany',city:'Hamburg',defaultCurrency:'EUR',updatedAt:now};
+const suppliers=[supplierA,supplierB];
+const posted=createPurchase([],suppliers,'USD');posted.id='purchase-posted';posted.number=`PUR-${year}-0001`;posted.date=`${year}-05-12`;posted.supplierSnapshot=supplierSnapshotFrom(supplierA);posted.items=[{...createPurchaseItem(items[0]),id:'purchase-line-1',quantity:'40',unitCost:'88.00',landedUnitCost:'92.50'}];posted.freight='120.00';posted.duty='60.00';posted.status='posted';posted.postedAt=now;posted.updatedAt=now;
+const draft=createPurchase([posted],suppliers,'EUR');draft.id='purchase-draft';draft.number=`PUR-${year}-0002`;draft.date=`${year}-08-04`;draft.supplierSnapshot=supplierSnapshotFrom(supplierB);draft.currency='EUR';draft.items=[{...createPurchaseItem(items[1]),id:'purchase-line-2',quantity:'25',unitCost:'72.00'}];draft.updatedAt=now;
+const expenses=[Object.assign(createExpense('USD'),{id:'expense-1',date:`${year}-04-06`,category:'Freight',description:'Warehouse transfer',amount:'420.00',reference:'EXP-001',updatedAt:now}),Object.assign(createExpense('EUR'),{id:'expense-2',date:`${year}-06-11`,category:'Marketing',description:'Trade catalog',amount:'260.00',reference:'EXP-002',updatedAt:now})];
+const inventoryMovements=[createManualInventoryMovement(items[0],'opening','120',`${year}-01-02`,'Opening balance','88','USD'),createManualInventoryMovement(items[0],'issue','18',`${year}-07-18`,'Sample allocation','92.5','USD'),createManualInventoryMovement(items[1],'opening','65',`${year}-02-02`,'Opening balance','72','EUR')];
+class Fixture extends React.Component{
+ state={suppliers,purchases:[posted,draft],expenses,inventoryMovements,items};
+ saveSupplier=async item=>this.setState(s=>({suppliers:s.suppliers.some(x=>x.id===item.id)?s.suppliers.map(x=>x.id===item.id?item:x):[...s.suppliers,item]}));
+ savePurchase=async item=>this.setState(s=>({purchases:s.purchases.some(x=>x.id===item.id)?s.purchases.map(x=>x.id===item.id?item:x):[...s.purchases,item]}));
+ saveExpense=async item=>this.setState(s=>({expenses:s.expenses.some(x=>x.id===item.id)?s.expenses.map(x=>x.id===item.id?item:x):[...s.expenses,item]}));
+ saveMovement=async item=>this.setState(s=>({inventoryMovements:[...s.inventoryMovements,item]}));
+ render(){
+  const page=screen==='reports'?h(ReportsPage,{company,customers,documents,payments}):screen==='receivables'?h(ReceivablesPage,{company,customers,documents,payments}):h(OperationsPage,{suppliers:this.state.suppliers,purchases:this.state.purchases,expenses:this.state.expenses,inventoryMovements:this.state.inventoryMovements,items:this.state.items,defaultCurrency:'USD',onSaveSupplier:this.saveSupplier,onDeleteSupplier:async()=>{},onSavePurchase:this.savePurchase,onDeletePurchase:async()=>{},onPostPurchase:async()=>{},onReversePurchase:async()=>{},onSaveExpense:this.saveExpense,onDeleteExpense:async()=>{},onSaveInventoryMovement:this.saveMovement,onDeleteInventoryMovement:async()=>{}});
+  return h(AppShell,{screen,logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:()=>{},onToggleNew:()=>{},onNew:()=>{},onSettings:()=>{},onCloud:()=>{}},page);
+ }
+}
+ReactDOM.render(h(Fixture),document.getElementById('root'));
+</script></body></html>

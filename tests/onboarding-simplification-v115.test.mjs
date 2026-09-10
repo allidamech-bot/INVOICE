@@ -56,6 +56,6 @@ test('v115 remains loaded and cached while v189 owns the current account-access 
   assert.ok(index.indexOf(ux)>-1&&index.indexOf(ux)<index.indexOf(perf));
   assert.ok(sw.includes(ux));
   assert.match(sw,/v115/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v189';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v191';$/m);
   assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
 });

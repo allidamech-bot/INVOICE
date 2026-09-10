@@ -45,8 +45,17 @@ jobs:
           node tests/visual/run-mobile-modal-overlap-v176.cjs
           node tests/visual/run-mobile-controls-density-v177.cjs
           node tests/visual/run-premium-auth-gateway-v187.cjs
-      - name: Upload visual QA evidence on failure
-        if: failure()
+          node tests/visual/run-obsidian-foundation.cjs
+          node tests/visual/run-obsidian-shell.cjs
+          node tests/visual/run-obsidian-dashboard.cjs
+          node tests/visual/run-obsidian-documents.cjs
+          node tests/visual/run-obsidian-editor.cjs
+          node tests/visual/run-obsidian-directory.cjs
+          node tests/visual/run-obsidian-financial.cjs
+          node tests/visual/run-obsidian-settings.cjs
+          node tests/visual/run-obsidian-overlays.cjs
+      - name: Upload visual QA evidence
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: lourex-visual-qa

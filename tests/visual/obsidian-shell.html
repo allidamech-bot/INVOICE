@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <base href="../../dist/">
+  <link rel="stylesheet" href="styles/app.bundle.css">
+  <style>.shell-fixture{min-height:1100px;padding:28px}.shell-fixture-card{max-width:760px;min-height:220px;padding:24px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-surface)}@media(max-width:960px){.shell-fixture{padding:18px 14px}.shell-fixture-card{min-height:700px}}</style>
+</head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+  import {AppShell} from './src/components/AppShell.js';
+  import {setUiLanguage} from './src/lib/i18n.js';
+  const ar=new URLSearchParams(location.search).get('lang')==='ar';
+  setUiLanguage(ar?'ar':'en');
+  const h=React.createElement;
+  class Fixture extends React.Component{
+    state={newMenu:false,screen:'home'};
+    render(){return h(AppShell,{screen:this.state.screen,logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:this.state.newMenu,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:ar?'آخر مزامنة الآن':'Last synced now',onNavigate:screen=>this.setState({screen}),onToggleNew:()=>this.setState(state=>({newMenu:!state.newMenu})),onNew:()=>this.setState({newMenu:false}),onSettings:()=>{},onCloud:()=>{}},h('main',{className:'shell-fixture'},h('section',{className:'shell-fixture-card'},h('h1',null,ar?'نظرة عامة على الأعمال':'Business overview'),h('p',null,ar?'المحتوى يبقى واضحًا وقابلًا للوصول على جميع الأجهزة.':'Content remains clear and reachable on every device.'))));}
+  }
+  ReactDOM.render(h(Fixture),document.getElementById('root'));
+</script></body></html>
