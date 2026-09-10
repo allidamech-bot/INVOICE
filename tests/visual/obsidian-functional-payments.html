@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {InvoicePaymentsPanel} from './src/components/InvoicePaymentsPanel.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {defaultCompany,customerSnapshotFrom} from './src/lib/defaults.js';
+import {blankCustomer} from './src/components/CustomersPage.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar';setUiLanguage(ar?'ar':'en');document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';
+const company=defaultCompany();const customer={...blankCustomer(),id:'customer-pay-1',companyNameEn:'Northstar Markets',companyNameAr:'أسواق نورث ستار'};
+const doc=createBlankDocument('invoice','INV-2026-0195',company);doc.status='final';doc.customerSnapshot=customerSnapshotFrom(customer);doc.items=[{...doc.items[0],descriptionEn:'Audit service',descriptionAr:'خدمة تدقيق',quantity:'1',unit:'Unit',unitPrice:'1000.00'}];
+const now='2026-09-10T12:00:00.000Z';const payment={id:'pay-existing',invoiceId:doc.id,invoiceNumber:doc.number,customerId:customer.id,customerNameEn:customer.companyNameEn,customerNameAr:customer.companyNameAr,currency:'USD',amount:'100.00',date:'2026-09-10',method:'bank-transfer',reference:'REF-1',notes:'',createdAt:now,updatedAt:now};
+window.paymentSaveCalls=0;window.paymentDeleteCalls=0;window.confirm=()=>true;
+const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const props={document:doc,documents:[doc],payments:[payment],onSave:async()=>{window.paymentSaveCalls+=1;await delay(140);},onDelete:async()=>{window.paymentDeleteCalls+=1;await delay(140);}};
+ReactDOM.render(React.createElement(InvoicePaymentsPanel,props),document.getElementById('root'));
+</script></body></html>
