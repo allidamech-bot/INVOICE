@@ -42,7 +42,7 @@ test('v192 editor browser QA audits the design section after scrolling and check
 
 test('v192 remains cached intact while later immutable PWA generations advance',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v194';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v195';$/m);
   assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v192: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v191: preserved as a legacy marker/);

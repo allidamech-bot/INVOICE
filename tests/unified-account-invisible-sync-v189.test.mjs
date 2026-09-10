@@ -67,7 +67,7 @@ test('v189 daily workspace exposes only generic save state, not cloud controls',
 test('v189 account runtime remains cached as later PWA generations advance',async()=>{
   const sw=await read('public/sw.js');
   const html=await read('index.html');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v194';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v195';$/m);
   assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v192: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v191: preserved as a legacy marker/);

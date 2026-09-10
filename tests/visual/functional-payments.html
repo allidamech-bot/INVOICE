@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {InvoicePaymentsPanel} from './src/components/InvoicePaymentsPanel.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {defaultCompany} from './src/lib/defaults.js';
+import {invoicePaymentSummary,normalizePaymentRecord} from './src/lib/payments.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar';
+setUiLanguage(ar?'ar':'en');document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';
+const company=defaultCompany();company.nameEn='LOUREX Trading';company.nameAr='لوركس للتجارة';
+const customer={sourceCustomerId:'customer-payments',companyNameEn:'Northstar Markets',companyNameAr:'أسواق نورث ستار',contactPerson:'',addressEn:'Business Bay',addressAr:'الخليج التجاري',city:'Dubai',country:'UAE',phone:'',email:'finance@example.test',vatTaxNumber:'',commercialRegistration:''};
+const invoice=createBlankDocument('invoice','INV-2026-0195',company);invoice.status='final';invoice.lifecycleStatus='active';invoice.role='standard';invoice.currency='USD';invoice.customerSnapshot=customer;invoice.issueDate='2026-09-01';invoice.dueDate='2027-01-01';invoice.items=[{...invoice.items[0],descriptionEn:'Professional services',descriptionAr:'خدمات مهنية',quantity:'1',unit:'Unit',unitPrice:'1000.00'}];invoice.adjustments={discountEnabled:false,discountMode:'fixed',discountValue:'0.00',shippingEnabled:false,shipping:'0.00',otherChargesEnabled:false,otherCharges:'0.00',taxEnabled:false,taxPercent:'0'};
+const documents=[invoice];
+if(params.get('credit')==='1'){
+  const credit=createBlankDocument('invoice','CN-2026-0195',company);credit.status='final';credit.lifecycleStatus='active';credit.role='credit-note';credit.creditForId=invoice.id;credit.creditForNumber=invoice.number;credit.currency='USD';credit.customerSnapshot=structuredClone(customer);credit.issueDate='2026-09-02';credit.items=[{...credit.items[0],descriptionEn:'Credit adjustment',descriptionAr:'تسوية دائنة',quantity:'1',unit:'Unit',unitPrice:'200.00'}];credit.adjustments=structuredClone(invoice.adjustments);documents.push(credit);
+}
+let payments=[];
+const existing=Number(params.get('existing')||0);if(existing>0){const now='2026-09-03T12:00:00.000Z';payments.push({id:'pay-existing',invoiceId:invoice.id,invoiceNumber:invoice.number,customerId:customer.sourceCustomerId,customerNameEn:customer.companyNameEn,customerNameAr:customer.companyNameAr,currency:'USD',amount:existing.toFixed(2),date:'2026-09-03',method:'bank-transfer',reference:'EXISTING',notes:'',createdAt:now,updatedAt:now});}
+const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const saveDelay=Math.max(0,Number(params.get('saveDelay')||0)),deleteDelay=Math.max(0,Number(params.get('deleteDelay')||0));
+window.saveAttempts=0;window.deleteAttempts=0;window.failSave=params.get('saveFail')==='1';window.failDelete=params.get('deleteFail')==='1';window.eventLog=[];
+window.paymentsState=()=>structuredClone(payments);window.paymentSummary=()=>invoicePaymentSummary(invoice,payments,'2026-09-10',documents);
+let root=document.getElementById('root');
+const render=()=>ReactDOM.render(React.createElement(InvoicePaymentsPanel,{document:invoice,documents,payments:[...payments],onSave:async source=>{window.saveAttempts+=1;window.eventLog.push({type:'save-start',id:source.id,amount:source.amount});if(saveDelay)await delay(saveDelay);if(window.failSave){window.eventLog.push({type:'save-error',id:source.id});throw new Error('Fixture payment save failure');}const normalized=normalizePaymentRecord(invoice,payments,source,documents);const index=payments.findIndex(item=>item.id===normalized.id);if(index>=0)payments[index]=normalized;else payments.push(normalized);window.lastSaved=structuredClone(normalized);window.eventLog.push({type:'save-done',id:normalized.id,amount:normalized.amount});render();},onDelete:async payment=>{window.deleteAttempts+=1;window.eventLog.push({type:'delete-start',id:payment.id});if(deleteDelay)await delay(deleteDelay);if(window.failDelete){window.eventLog.push({type:'delete-error',id:payment.id});throw new Error('Fixture payment delete failure');}payments=payments.filter(item=>item.id!==payment.id);window.eventLog.push({type:'delete-done',id:payment.id});render();}}),root);
+render();
+</script></body></html>

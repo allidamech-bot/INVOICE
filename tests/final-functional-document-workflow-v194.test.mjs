@@ -30,10 +30,11 @@ test('v194 browser workflow covers autosave, issue, PDF/share, retry, quote conv
   assert.match(runner,/retrying output must not issue\/save the document a second time/);
 });
 
-test('v194 is a fresh immutable PWA generation while v193 remains a migration marker',async()=>{
+test('v194 remains preserved after the immutable PWA generation advances to v195',async()=>{
   const sw=await read('public/sw.js');
   assert.match(sw,/v194 functional document workflow/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v194';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v195';$/m);
+  assert.match(sw,/lourex-invoice-v194: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);
   assert.ok(sw.includes('./src/components/EditorPageCore.js'));
 });
