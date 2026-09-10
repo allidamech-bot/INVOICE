@@ -56,9 +56,10 @@ test('v193 visual QA explicitly rejects hidden step six, editor nav overlap and 
   assert.match(financial,/action clipped or covered/);
 });
 
-test('v193 is a fresh immutable PWA generation and keeps v192 as a migration marker',async()=>{
+test('v193 remains cached intact while v194 advances the immutable PWA generation',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v193';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v194';$/m);
+  assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v192: preserved as a legacy marker/);
   assert.ok(sw.includes("LOCAL_CORE.push('./styles/obsidian-mobile-geometry-v193.css')"));
 });
