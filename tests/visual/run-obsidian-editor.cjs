@@ -29,6 +29,16 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
      return [...new Set(issues)];
     });failures.push(...issues);
    };
+   const auditStepNav=async()=>{
+    if(viewport.width>420)return;
+    const geometry=await page.locator('.editor-section-navigator').evaluate(nav=>{
+     const navRect=nav.getBoundingClientRect();
+     const buttons=[...nav.querySelectorAll('.editor-section-nav-button')];
+     return {count:buttons.length,nav:{left:navRect.left,right:navRect.right,width:navRect.width},clipped:buttons.map((button,index)=>{const r=button.getBoundingClientRect();return {index,left:r.left,right:r.right,width:r.width,display:getComputedStyle(button).display};}).filter(item=>item.left<-1||item.right>innerWidth+1||item.width<24||item.display==='none'),viewport:innerWidth};
+    });
+    assert.equal(geometry.count,6,'mobile editor must expose all six section steps '+JSON.stringify(geometry));
+    assert.deepEqual(geometry.clipped,[],'mobile editor section step clipped '+JSON.stringify(geometry));
+   };
    const auditDesign=async()=>{
     const issues=await page.evaluate(()=>{
      const issues=[],panel=document.querySelector('.design-advanced-panel');
@@ -55,29 +65,29 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
      return [...new Set(issues)];
     });failures.push(...issues);
    };
-   await audit();
+   await audit();await auditStepNav();
    await page.screenshot({path:output+'/'+stem+'-document.png',animations:'disabled'});
    const sections=page.locator('.editor-section');
    await sections.nth(2).scrollIntoViewIfNeeded();
-   await audit();
+   await audit();await auditStepNav();
    await page.screenshot({path:output+'/'+stem+'-items.png',animations:'disabled'});
    await page.locator('.item-pricing-grid input').first().fill('5');
    await page.waitForFunction(()=>window.lastSaved?.items[0].quantity==='5');
    await sections.nth(3).scrollIntoViewIfNeeded();
    assert.match(await page.locator('.editor-totals .grand').innerText(),/5,045.00/);
-   await audit();
+   await audit();await auditStepNav();
    await page.screenshot({path:output+'/'+stem+'-totals.png',animations:'disabled'});
    await sections.nth(4).scrollIntoViewIfNeeded();
-   await audit();
+   await audit();await auditStepNav();
    await page.screenshot({path:output+'/'+stem+'-terms.png',animations:'disabled'});
    await sections.last().scrollIntoViewIfNeeded();
-   await audit();
+   await audit();await auditStepNav();
    await auditDesign();
    const firstAppearanceSwitch=page.locator('.design-advanced-panel .appearance-toggles .toggle').first();
    const before=await firstAppearanceSwitch.getAttribute('aria-checked');
    await firstAppearanceSwitch.click();
    assert.notEqual(await firstAppearanceSwitch.getAttribute('aria-checked'),before);
-   await auditDesign();
+   await auditDesign();await auditStepNav();
    await page.screenshot({path:output+'/'+stem+'-design.png',animations:'disabled'});
    if(viewport.width<=1180){
     if(viewport.width<=900)await page.locator('.mobile-action-buttons .btn').nth(1).click();
@@ -113,6 +123,10 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
     if(document.querySelector('.editor-pane').getBoundingClientRect().height<90)issues.push('final editor has insufficient working space');
     return issues;
    });failures.push(...issues);
+   if(viewport.width<=420){
+    const clipped=await page.locator('.editor-section-nav-button').evaluateAll(buttons=>buttons.map((button,index)=>{const r=button.getBoundingClientRect();return {index,left:r.left,right:r.right,width:r.width};}).filter(item=>item.left<-1||item.right>innerWidth+1||item.width<24));
+    assert.deepEqual(clipped,[],'final mobile editor section step clipped '+JSON.stringify(clipped));
+   }
    await page.screenshot({path:output+'/'+viewport.width+'-'+lang+'-'+kind+'-final.png',animations:'disabled'});
   }catch(e){failures.push(String(e));}
   results.push({viewport,lang,kind,status:'final',failures});await page.close();
