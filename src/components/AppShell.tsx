@@ -74,6 +74,7 @@ export class AppShell extends React.Component<Props,State>{
   };
 
   private createDocument=(kind:DocumentKind)=>{
+    this.closeCreateMenu();
     this.closeMore();
     this.props.onNew(kind);
   };
