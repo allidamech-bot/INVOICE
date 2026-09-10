@@ -16,9 +16,11 @@
   --app-safe-bottom:0px;
 }
 
-html[data-app-display='standalone']{
-  --app-safe-top:var(--device-safe-top);
-  --app-safe-bottom:var(--device-safe-bottom);
+@media (display-mode:standalone){
+  :root{
+    --app-safe-top:var(--device-safe-top);
+    --app-safe-bottom:var(--device-safe-bottom);
+  }
 }
 
 @media screen and (max-width:960px){
