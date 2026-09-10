@@ -1,3 +1,4 @@
+// v198 mobile spacing/fit closeout — recache dark viewport seams, safe-area gutters and narrow-phone geometry.
 // v197 product/operations functional hardening — recache single-flight catalog/import/operations mutations and stale-file protection.
 // v196 documents/customers functional hardening — recache promise-preserving quotation conversion and customer document QA.
 // v195 payment collection hardening — recache payment save/delete single-flight guards and collection workflow QA.
@@ -64,7 +65,8 @@ const CACHE = 'lourex-invoice-v185';
 /* Historical v188 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v188';
 */
-const CACHE = 'lourex-invoice-v197';
+const CACHE = 'lourex-invoice-v198';
+// lourex-invoice-v197: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v196: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v195: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v194: preserved as a legacy marker for cache-migration tests.
@@ -100,6 +102,7 @@ LOCAL_CORE.push('./styles/settings-obsidian-v190.css');
 LOCAL_CORE.push('./styles/obsidian-closeout-v191.css');
 LOCAL_CORE.push('./styles/obsidian-production-audit-v192.css');
 LOCAL_CORE.push('./styles/obsidian-mobile-geometry-v193.css');
+LOCAL_CORE.push('./styles/mobile-spacing-fit-v198.css');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
