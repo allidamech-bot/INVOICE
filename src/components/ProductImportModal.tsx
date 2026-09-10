@@ -82,16 +82,24 @@ function actionLabel(action:string):string{
 
 export class ProductImportModal extends React.Component<Props,State>{
   private fileInput:HTMLInputElement|null=null;
+  private fileReadGeneration=0;
+  private applyInFlight=false;
   state:State={stage:'pick',fileName:'',matrix:[],plan:null,updateExisting:true,error:'',total:0,imported:0};
 
   componentDidUpdate(prev:Props):void{
     if(this.props.open&&!prev.open)this.reset();
+    if(!this.props.open&&prev.open)this.fileReadGeneration+=1;
   }
 
-  private reset=()=>this.setState({stage:'pick',fileName:'',matrix:[],plan:null,updateExisting:true,error:'',total:0,imported:0});
+  private reset=()=>{
+    this.fileReadGeneration+=1;
+    this.applyInFlight=false;
+    this.setState({stage:'pick',fileName:'',matrix:[],plan:null,updateExisting:true,error:'',total:0,imported:0});
+  };
 
   private close=()=>{
-    if(this.state.stage==='importing')return;
+    if(this.applyInFlight||this.state.stage==='importing')return;
+    this.fileReadGeneration+=1;
     this.props.onClose();
   };
 
@@ -101,15 +109,18 @@ export class ProductImportModal extends React.Component<Props,State>{
   };
 
   private chooseFile=async(file:File|null)=>{
-    if(!file)return;
+    if(!file||this.applyInFlight)return;
+    const generation=++this.fileReadGeneration;
     this.setState({error:'',fileName:file.name});
     try{
       const matrix=await matrixFromFile(file);
+      if(generation!==this.fileReadGeneration||!this.props.open)return;
       this.recalculate(matrix,this.state.updateExisting);
     }catch(e){
+      if(generation!==this.fileReadGeneration||!this.props.open)return;
       this.setState({stage:'pick',matrix:[],plan:null,error:e instanceof Error?e.message:t('Unable to read this file.','تعذر قراءة الملف.')});
     }finally{
-      if(this.fileInput)this.fileInput.value='';
+      if(generation===this.fileReadGeneration&&this.fileInput)this.fileInput.value='';
     }
   };
 
@@ -122,15 +133,18 @@ export class ProductImportModal extends React.Component<Props,State>{
 
   private apply=async()=>{
     const plan=this.state.plan;
-    if(!plan||plan.counts.error>0)return;
+    if(this.applyInFlight||!plan||plan.counts.error>0)return;
     const products=importableProducts(plan);
     if(!products.length){this.setState({stage:'done',total:0,imported:0});return;}
+    this.applyInFlight=true;
     this.setState({stage:'importing',error:'',total:products.length,imported:0});
     try{
       await this.props.onSaveMany(products);
       this.setState({stage:'done',imported:products.length});
     }catch(e){
       this.setState({stage:'preview',imported:0,error:t(`Import failed before the catalog was changed. ${e instanceof Error?e.message:'Try again.'}`,`فشل الاستيراد قبل تغيير الكتالوج. ${e instanceof Error?e.message:'حاول مرة أخرى.'}`)});
+    }finally{
+      this.applyInFlight=false;
     }
   };
 
