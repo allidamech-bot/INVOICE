@@ -36,3 +36,11 @@ test('v195 payment browser workflow covers duplicate intent, retry, credit balan
   assert.match(fixture,/invoicePaymentSummary/);
   assert.match(ci,/node tests\/visual\/run-functional-payments\.cjs/);
 });
+
+test('v195 publishes a fresh immutable PWA generation and preserves v194 as a migration marker',async()=>{
+  const sw=await read('public/sw.js');
+  assert.match(sw,/v195 payment collection hardening/);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v195';$/m);
+  assert.match(sw,/lourex-invoice-v194: preserved as a legacy marker/);
+  assert.ok(sw.includes('./src/components/InvoicePaymentsPanel.js'));
+});
