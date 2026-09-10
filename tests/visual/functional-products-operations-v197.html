@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {ProductLibraryWorkspace} from './src/components/ProductLibraryWorkspace.js';
+import {OperationsPage} from './src/components/OperationsPage.js';
+import {createSupplier} from './src/lib/operations.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+
+const params=new URLSearchParams(location.search);
+const lang=params.get('lang')==='ar'?'ar':'en';
+const mode=params.get('mode')||'products';
+setUiLanguage(lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const now='2026-09-10T12:00:00.000Z';
+const product={id:'product-v197',createdAt:now,updatedAt:now,sku:'SKU-V197',descriptionEn:'Audit Product',descriptionAr:'صنف التدقيق',hsCode:'220299',origin:'Türkiye',packing:'12 pcs',unit:'PCS',lastUnitPrice:'10.00',lastCurrency:'USD',lastUnitCost:'5.00',lastCostCurrency:'USD',usageCount:1,lastUsedAt:now,category:'Audit',tags:['qa'],favorite:false};
+window.saveAttempts=0;window.deleteAttempts=0;window.importAttempts=0;window.postAttempts=0;window.movementAttempts=0;window.failPost=params.get('failPost')==='1';
+
+class ProductHarness extends React.Component{
+  state={items:[product]};
+  save=async item=>{window.saveAttempts+=1;await delay(180);this.setState(state=>({items:state.items.some(entry=>entry.id===item.id)?state.items.map(entry=>entry.id===item.id?item:entry):[...state.items,item]}));};
+  remove=async item=>{window.deleteAttempts+=1;await delay(180);this.setState(state=>({items:state.items.filter(entry=>entry.id!==item.id)}));};
+  saveMany=async items=>{window.importAttempts+=1;await delay(180);this.setState(state=>({items:[...state.items,...items.filter(item=>!state.items.some(entry=>entry.id===item.id))]}));};
+  render(){window.productState=()=>this.state.items.map(item=>({...item}));return React.createElement(ProductLibraryWorkspace,{items:this.state.items,currency:'USD',onSave:this.save,onDelete:this.remove,onSaveMany:this.saveMany});}
+}
+
+const supplier={...createSupplier(),id:'supplier-v197',nameEn:'Audit Supplier',nameAr:'مورد التدقيق',defaultCurrency:'USD'};
+class OperationsHarness extends React.Component{
+  state={purchases:[],movements:[]};
+  post=async purchase=>{window.postAttempts+=1;await delay(180);if(window.failPost)throw new Error(lang==='ar'?'فشل تجريبي للترحيل':'Simulated post failure');this.setState(state=>({purchases:[...state.purchases.filter(entry=>entry.id!==purchase.id),{...purchase,status:'posted'}]}));};
+  movement=async movement=>{window.movementAttempts+=1;await delay(180);this.setState(state=>({movements:[...state.movements,movement]}));};
+  render(){window.operationsState=()=>({purchases:this.state.purchases.map(item=>({...item})),movements:this.state.movements.map(item=>({...item}))});return React.createElement(OperationsPage,{suppliers:[supplier],purchases:this.state.purchases,expenses:[],inventoryMovements:this.state.movements,items:[product],defaultCurrency:'USD',onSaveSupplier:async()=>{},onDeleteSupplier:async()=>{},onSavePurchase:async()=>{},onDeletePurchase:async()=>{},onPostPurchase:this.post,onReversePurchase:async()=>{},onSaveExpense:async()=>{},onDeleteExpense:async()=>{},onSaveInventoryMovement:this.movement,onDeleteInventoryMovement:async()=>{}});}
+}
+ReactDOM.render(React.createElement(mode==='operations'?OperationsHarness:ProductHarness),document.getElementById('root'));
+</script></body></html>
