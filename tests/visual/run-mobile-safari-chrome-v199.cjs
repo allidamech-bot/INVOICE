@@ -68,6 +68,9 @@ const viewports=[{width:390,height:844},{width:430,height:932}];
           root.innerHTML='<div class="loading-screen"><div class="brand official-brand"><span class="brand-mark"><img src="../../brand/lourex-logo.svg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div><span class="loading-line"></span></div>';
         });
         await page.locator('.loading-screen').waitFor();
+        // The launch brand intentionally animates for 450ms. Measure final layout,
+        // not the transformed intermediate bounding box captured mid-animation.
+        await page.waitForTimeout(520);
         const launch=await page.evaluate(()=>{
           const screen=document.querySelector('.loading-screen').getBoundingClientRect();
           const brand=document.querySelector('.loading-screen .brand').getBoundingClientRect();
