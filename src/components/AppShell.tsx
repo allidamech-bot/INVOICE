@@ -29,11 +29,54 @@ type NavTarget=Exclude<WorkspaceScreen,'editor'>;
 export class AppShell extends React.Component<Props,State>{
   state:State={moreOpen:false};
 
+  componentDidMount():void{document.addEventListener('keydown',this.handleKeyDown);}
+  componentWillUnmount():void{document.removeEventListener('keydown',this.handleKeyDown);}
+
   componentDidUpdate(prev:Props):void{
     if(prev.screen!==this.props.screen&&this.state.moreOpen)this.setState({moreOpen:false});
   }
 
-  private navigate=(screen:NavTarget)=>{this.setState({moreOpen:false});this.props.onNavigate(screen);};
+  private handleKeyDown=(event:KeyboardEvent)=>{
+    if(event.key!=='Escape'||!this.state.moreOpen)return;
+    event.preventDefault();
+    this.setState({moreOpen:false});
+  };
+
+  private closeCreateMenu=()=>{if(this.props.newMenu)this.props.onToggleNew();};
+  private closeMore=()=>{if(this.state.moreOpen)this.setState({moreOpen:false});};
+
+  private navigate=(screen:NavTarget)=>{
+    this.closeCreateMenu();
+    this.closeMore();
+    this.props.onNavigate(screen);
+  };
+
+  private toggleCreate=()=>{
+    this.closeMore();
+    this.props.onToggleNew();
+  };
+
+  private toggleMore=()=>{
+    this.closeCreateMenu();
+    this.setState(state=>({moreOpen:!state.moreOpen}));
+  };
+
+  private openSettings=()=>{
+    this.closeCreateMenu();
+    this.closeMore();
+    this.props.onSettings();
+  };
+
+  private openAccount=()=>{
+    this.closeCreateMenu();
+    this.closeMore();
+    this.props.onCloud();
+  };
+
+  private createDocument=(kind:DocumentKind)=>{
+    this.closeMore();
+    this.props.onNew(kind);
+  };
 
   private pageTitle=():string=>{
     switch(this.props.screen){
@@ -52,8 +95,8 @@ export class AppShell extends React.Component<Props,State>{
     <button type="button" className={`shell-nav-button ${className} ${this.props.screen===screen?'active':''}`} aria-current={this.props.screen===screen?'page':undefined} onClick={()=>this.navigate(screen)}><Icon name={icon}/><span>{label}</span></button>;
 
   private createMenu=(id:string,className:string)=>this.props.newMenu?<div className={`new-menu shell-new-menu ${className}`} id={id} role="menu" aria-label={t('New Document','مستند جديد')}>
-    <button type="button" role="menuitem" onClick={()=>this.props.onNew('proforma')}><Icon name="proforma"/><span><strong>{t('Quotation','عرض سعر')}</strong><small>{t('Commercial quotation','عرض تجاري')}</small></span></button>
-    <button type="button" role="menuitem" onClick={()=>this.props.onNew('invoice')}><Icon name="invoice"/><span><strong>{t('Invoice','فاتورة')}</strong><small>{t('Final invoice','فاتورة نهائية')}</small></span></button>
+    <button type="button" role="menuitem" onClick={()=>this.createDocument('proforma')}><Icon name="proforma"/><span><strong>{t('Quotation','عرض سعر')}</strong><small>{t('Commercial quotation','عرض تجاري')}</small></span></button>
+    <button type="button" role="menuitem" onClick={()=>this.createDocument('invoice')}><Icon name="invoice"/><span><strong>{t('Invoice','فاتورة')}</strong><small>{t('Final invoice','فاتورة نهائية')}</small></span></button>
   </div>:null;
 
   private saveLabel=():string=>{
@@ -69,7 +112,7 @@ export class AppShell extends React.Component<Props,State>{
   };
 
   private accountButton=(className:string,compact=false)=>
-    <button type="button" className={className} aria-label={t('Account','الحساب')} title={t('Open account','فتح الحساب')} onClick={this.props.onCloud}><Icon name="users"/>{compact?<span>{t('Account','الحساب')}</span>:<span><small>{t('Account','الحساب')}</small><strong>{t('Profile, password and sign out','الملف وكلمة المرور وتسجيل الخروج')}</strong></span>}</button>;
+    <button type="button" className={className} aria-label={t('Account','الحساب')} title={t('Open account','فتح الحساب')} onClick={this.openAccount}><Icon name="users"/>{compact?<span>{t('Account','الحساب')}</span>:<span><small>{t('Account','الحساب')}</small><strong>{t('Profile, password and sign out','الملف وكلمة المرور وتسجيل الخروج')}</strong></span>}</button>;
 
   render():any{
     const editor=this.props.screen==='editor';
@@ -77,7 +120,7 @@ export class AppShell extends React.Component<Props,State>{
       {!editor?<aside className="workspace-sidebar" aria-label={t('Main navigation','التنقل الرئيسي')}>
         <button type="button" className="shell-brand-button" onClick={()=>this.navigate('home')}><Brand compact logoDataUrl={this.props.logoDataUrl} language={this.props.language}/></button>
         <div className="new-doc-menu shell-create-wrap">
-          <Button icon="plus" variant="primary" className="shell-create-button" aria-haspopup="menu" aria-expanded={this.props.newMenu} aria-controls="desktop-new-document-menu" onClick={this.props.onToggleNew}>{t('New Document','مستند جديد')}</Button>
+          <Button icon="plus" variant="primary" className="shell-create-button" aria-haspopup="menu" aria-expanded={this.props.newMenu} aria-controls="desktop-new-document-menu" onClick={this.toggleCreate}>{t('New Document','مستند جديد')}</Button>
           {this.createMenu('desktop-new-document-menu','desktop-shell-new-menu')}
         </div>
         <nav className="shell-navigation">
@@ -100,7 +143,7 @@ export class AppShell extends React.Component<Props,State>{
         <div className="shell-sidebar-footer">
           {this.syncStatus('shell-sync-row')}
           {this.accountButton('shell-account-row')}
-          <button type="button" className="shell-settings-row" onClick={this.props.onSettings}><Icon name="settings"/><span>{t('Settings','الإعدادات')}</span></button>
+          <button type="button" className="shell-settings-row" onClick={this.openSettings}><Icon name="settings"/><span>{t('Settings','الإعدادات')}</span></button>
         </div>
       </aside>:null}
 
@@ -116,25 +159,25 @@ export class AppShell extends React.Component<Props,State>{
       <div className="workspace-content">{this.props.children}</div>
 
       {!editor?<>
-        {this.state.moreOpen?<><button type="button" className="mobile-more-backdrop" aria-label={t('Close menu','إغلاق القائمة')} onClick={()=>this.setState({moreOpen:false})}/><section className="mobile-more-sheet" aria-label={t('More','المزيد')}>
-          <div className="mobile-more-handle"/>
-          <div className="mobile-more-heading"><div><small>{t('Workspace','مساحة العمل')}</small><strong>{t('More','المزيد')}</strong></div><button type="button" onClick={()=>this.setState({moreOpen:false})} aria-label={t('Close','إغلاق')}><Icon name="x"/></button></div>
+        {this.state.moreOpen?<><button type="button" className="mobile-more-backdrop" aria-label={t('Close menu','إغلاق القائمة')} onClick={this.closeMore}/><section className="mobile-more-sheet" id="mobile-more-sheet" role="dialog" aria-modal="true" aria-label={t('More','المزيد')}>
+          <div className="mobile-more-handle" aria-hidden="true"/>
+          <div className="mobile-more-heading"><div><small>{t('Workspace','مساحة العمل')}</small><strong>{t('More','المزيد')}</strong></div><button type="button" onClick={this.closeMore} aria-label={t('Close','إغلاق')}><Icon name="x"/></button></div>
           {this.syncStatus('mobile-more-sync')}
           {this.accountButton('mobile-more-account')}
           <div className="mobile-more-group"><p>{t('Workspace','مساحة العمل')}</p>{this.navButton('items','items',t('Items','الأصناف'))}</div>
           <div className="mobile-more-group"><p>{t('Finance','المالية')}</p>{this.navButton('receivables','invoice',t('Receivables','المستحقات'))}{this.navButton('reports','file',t('Reports','التقارير'))}</div>
           <div className="mobile-more-group"><p>{t('Business','الأعمال')}</p>{this.navButton('operations','backup',t('Operations','العمليات'))}</div>
-          <button type="button" className="mobile-more-settings" onClick={()=>{this.setState({moreOpen:false});this.props.onSettings();}}><Icon name="settings"/><span>{t('Settings','الإعدادات')}</span></button>
+          <button type="button" className="mobile-more-settings" onClick={this.openSettings}><Icon name="settings"/><span>{t('Settings','الإعدادات')}</span></button>
         </section></>:null}
         <nav className="mobile-bottom-nav" aria-label={t('Mobile navigation','تنقل الجوال')}>
           <button type="button" className={this.props.screen==='home'?'active':''} aria-current={this.props.screen==='home'?'page':undefined} onClick={()=>this.navigate('home')}><Icon name="menu"/><span>{t('Home','الرئيسية')}</span></button>
           <button type="button" className={this.props.screen==='documents'?'active':''} aria-current={this.props.screen==='documents'?'page':undefined} onClick={()=>this.navigate('documents')}><Icon name="file"/><span>{t('Documents','المستندات')}</span></button>
           <div className="new-doc-menu mobile-create-wrap">
-            <button type="button" className="mobile-create-button" aria-haspopup="menu" aria-expanded={this.props.newMenu} aria-controls="mobile-new-document-menu" aria-label={t('New Document','مستند جديد')} onClick={this.props.onToggleNew}><Icon name="plus" size={24}/></button>
+            <button type="button" className="mobile-create-button" aria-haspopup="menu" aria-expanded={this.props.newMenu} aria-controls="mobile-new-document-menu" aria-label={t('New Document','مستند جديد')} onClick={this.toggleCreate}><Icon name="plus" size={24}/></button>
             {this.createMenu('mobile-new-document-menu','mobile-shell-new-menu')}
           </div>
           <button type="button" className={this.props.screen==='customers'?'active':''} aria-current={this.props.screen==='customers'?'page':undefined} onClick={()=>this.navigate('customers')}><Icon name="users"/><span>{t('Customers','العملاء')}</span></button>
-          <button type="button" className={this.state.moreOpen?'active':''} aria-expanded={this.state.moreOpen} onClick={()=>this.setState(state=>({moreOpen:!state.moreOpen}))}><Icon name="more"/><span>{t('More','المزيد')}</span></button>
+          <button type="button" className={this.state.moreOpen?'active':''} aria-haspopup="dialog" aria-controls="mobile-more-sheet" aria-expanded={this.state.moreOpen} onClick={this.toggleMore}><Icon name="more"/><span>{t('More','المزيد')}</span></button>
         </nav>
       </>:null}
     </div>;

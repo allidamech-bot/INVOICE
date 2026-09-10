@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <base href="../../dist/">
+  <link rel="stylesheet" href="styles/app.bundle.css">
+</head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+  import {CloudAccountModal} from './src/components/CloudAccountModal.js';
+  import {setUiLanguage} from './src/lib/i18n.js';
+  const params=new URLSearchParams(location.search);
+  const ar=params.get('lang')==='ar';
+  const signedIn=params.get('user')==='1';
+  setUiLanguage(ar?'ar':'en');
+  const h=React.createElement;
+  window.accountQa={signInCalls:0,createCalls:0,resetCalls:0,signOutCalls:0,lastCredentials:null,resolve:null,reject:null,closeCalls:0};
+  const deferred=()=>new Promise((resolve,reject)=>{window.accountQa.resolve=resolve;window.accountQa.reject=reject;});
+  class Fixture extends React.Component{
+    render(){return h(CloudAccountModal,{open:true,user:signedIn?{uid:'qa-user',email:'qa@lourex.test'}:null,onClose:()=>{window.accountQa.closeCalls+=1;},onSignIn:(email,password)=>{window.accountQa.signInCalls+=1;window.accountQa.lastCredentials={email,password};return deferred();},onCreate:(email,password)=>{window.accountQa.createCalls+=1;window.accountQa.lastCredentials={email,password};return deferred();},onReset:async()=>{window.accountQa.resetCalls+=1;},onRestore:async()=>{},onSignOut:async()=>{window.accountQa.signOutCalls+=1;throw new Error(ar?'تعذر تسجيل الخروج للتجربة':'QA sign-out failure');}});}
+  }
+  ReactDOM.render(h(Fixture),document.getElementById('root'));
+</script></body></html>
