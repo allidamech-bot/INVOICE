@@ -16,9 +16,10 @@
   const ar=new URLSearchParams(location.search).get('lang')==='ar';
   setUiLanguage(ar?'ar':'en');
   const h=React.createElement;
+  window.shellQa={settings:0,account:0,newKind:'',navigations:[]};
   class Fixture extends React.Component{
     state={newMenu:false,screen:'home'};
-    render(){return h(AppShell,{screen:this.state.screen,logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:this.state.newMenu,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:ar?'آخر مزامنة الآن':'Last synced now',onNavigate:screen=>this.setState({screen}),onToggleNew:()=>this.setState(state=>({newMenu:!state.newMenu})),onNew:()=>this.setState({newMenu:false}),onSettings:()=>{},onCloud:()=>{}},h('main',{className:'shell-fixture'},h('section',{className:'shell-fixture-card'},h('h1',null,ar?'نظرة عامة على الأعمال':'Business overview'),h('p',null,ar?'المحتوى يبقى واضحًا وقابلًا للوصول على جميع الأجهزة.':'Content remains clear and reachable on every device.'))));}
+    render(){return h(AppShell,{screen:this.state.screen,logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:this.state.newMenu,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:ar?'آخر مزامنة الآن':'Last synced now',onNavigate:screen=>{window.shellQa.navigations.push(screen);this.setState({screen});},onToggleNew:()=>this.setState(state=>({newMenu:!state.newMenu})),onNew:kind=>{window.shellQa.newKind=kind;this.setState({newMenu:false});},onSettings:()=>{window.shellQa.settings+=1;},onCloud:()=>{window.shellQa.account+=1;}},h('main',{className:'shell-fixture'},h('section',{className:'shell-fixture-card'},h('h1',null,ar?'نظرة عامة على الأعمال':'Business overview'),h('p',null,ar?'المحتوى يبقى واضحًا وقابلًا للوصول على جميع الأجهزة.':'Content remains clear and reachable on every device.'))));}
   }
   ReactDOM.render(h(Fixture),document.getElementById('root'));
 </script></body></html>
