@@ -90,7 +90,8 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
         assert.equal(saved.terms.incoterm,'CIF');
         assert.equal(saved.terms.paymentTerms,'Net 30 Days');
 
-        await page.locator('.mobile-preview-button').click();
+        const preview=page.locator('.mobile-action-buttons button:visible').filter({hasText:'Preview'}).first();
+        await preview.click();
         await page.waitForFunction(()=>document.querySelector('.editor-screen')?.classList.contains('mobile-preview-open'));
         await page.locator('.mobile-preview-overlay button[aria-label="Close"]').click();
         await page.waitForFunction(()=>!document.querySelector('.editor-screen')?.classList.contains('mobile-preview-open'));
