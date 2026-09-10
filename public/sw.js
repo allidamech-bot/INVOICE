@@ -1,3 +1,4 @@
+// v194 functional document workflow — recache the issued-output retry state fix and final invoice/quotation runtime QA.
 // v193 mobile geometry closeout — recache narrow editor navigation, focused product editing and purchase workspace fixes.
 // v192 post-redesign production audit — recache the final Obsidian editor cleanup and mobile design controls.
 // v191 Obsidian complete workspace — fresh cache for settings, account overlays and recovery.
@@ -60,7 +61,8 @@ const CACHE = 'lourex-invoice-v185';
 /* Historical v188 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v188';
 */
-const CACHE = 'lourex-invoice-v193';
+const CACHE = 'lourex-invoice-v194';
+// lourex-invoice-v193: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v192: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v191: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v188: preserved as a legacy marker for cache-migration tests.

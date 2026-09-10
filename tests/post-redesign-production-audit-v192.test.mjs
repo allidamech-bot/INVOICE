@@ -40,9 +40,10 @@ test('v192 editor browser QA audits the design section after scrolling and check
   assert.match(after,/firstAppearanceSwitch\.click\(\)/);
 });
 
-test('v192 remains cached intact while v193 advances the immutable PWA generation',async()=>{
+test('v192 remains cached intact while later immutable PWA generations advance',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v193';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v194';$/m);
+  assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v192: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v191: preserved as a legacy marker/);
   assert.ok(sw.includes("LOCAL_CORE.push('./styles/obsidian-production-audit-v192.css')"));

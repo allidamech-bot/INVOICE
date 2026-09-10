@@ -19,7 +19,23 @@ doc.language=ar?'bilingual':'en';doc.currency='USD';doc.customerSnapshot=custome
 doc.items=[{...doc.items[0],descriptionEn:'Premium business services',descriptionAr:'خدمات أعمال متميزة',quantity:'4',unit:'Unit',unitPrice:'975.00'},{...doc.items[0],id:'item-2',descriptionEn:'Logistics coordination',descriptionAr:'تنسيق الخدمات اللوجستية',quantity:'2',unit:'Unit',unitPrice:'85.00'}];
 doc.notes=ar?'شكرًا لتعاملكم معنا.':'Thank you for your business.';
 doc.status=params.get('status')==='final'?'final':'draft';
+const documents=[doc];
+if(params.get('linked')==='1'&&kind==='proforma'){
+  const linked=createBlankDocument('invoice','INV-2026-0099',company);linked.status='final';linked.customerSnapshot=customerSnapshotFrom(customer);linked.items=structuredClone(doc.items);linked.convertedFromId=doc.id;documents.push(linked);
+}
+const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+window.eventLog=[];window.preparedModes=[];window.saveAttempts=0;window.outputAttempts=0;window.convertCount=0;window.closeCount=0;
+window.failSave=params.get('saveFail')==='1';window.failOutput=params.get('outputFail')==='1';
+const saveDelay=Math.max(0,Number(params.get('saveDelay')||0));const outputDelay=Math.max(0,Number(params.get('outputDelay')||0));const convertDelay=Math.max(0,Number(params.get('convertDelay')||0));
+window.__LOUREX_PREPARE_PDF__=mode=>{window.preparedModes.push(mode);return true;};
 const noop=()=>{},asyncNoop=async()=>{};
-const props={document:doc,documents:[doc],customers:[customer],company,savedItems:[],payments:[],documentEvents:[],documentRevisions:[],smartDefaults:defaultAppSettings().smartDefaults,onClose:noop,onSave:async value=>{window.lastSaved=value;},onSaveCustomer:asyncNoop,onSaveSavedItem:asyncNoop,onSaveDocumentItem:asyncNoop,onUseSavedItems:asyncNoop,onDeleteSavedItem:asyncNoop,onSaveSmartDefaults:asyncNoop,onSavePayment:asyncNoop,onDeletePayment:asyncNoop,onBeginRevision:async value=>value,onDiscardRevision:asyncNoop,onVoidDocument:asyncNoop,onCreateCreditNote:asyncNoop,onConvert:asyncNoop,onPrint:async(value,mode)=>{window.lastOutput=mode;}};
+const props={document:doc,documents,customers:[customer],company,savedItems:[],payments:[],documentEvents:[],documentRevisions:[],smartDefaults:defaultAppSettings().smartDefaults,
+ onClose:()=>{window.closeCount+=1;window.eventLog.push({type:'close'});},
+ onSave:async(value,auto)=>{window.saveAttempts+=1;window.eventLog.push({type:'save-start',status:value.status,auto:Boolean(auto)});if(saveDelay)await delay(saveDelay);if(window.failSave){window.eventLog.push({type:'save-error',status:value.status});throw new Error('Fixture save failure');}window.lastSaved=structuredClone(value);window.eventLog.push({type:'save-done',status:value.status,auto:Boolean(auto)});},
+ onSaveCustomer:asyncNoop,onSaveSavedItem:asyncNoop,onSaveDocumentItem:asyncNoop,onUseSavedItems:asyncNoop,onDeleteSavedItem:asyncNoop,onSaveSmartDefaults:asyncNoop,onSavePayment:asyncNoop,onDeletePayment:asyncNoop,
+ onBeginRevision:async value=>({...structuredClone(value),status:'draft',revision:(value.revision||1)+1}),onDiscardRevision:asyncNoop,onVoidDocument:asyncNoop,onCreateCreditNote:asyncNoop,
+ onConvert:async value=>{window.convertCount+=1;window.eventLog.push({type:'convert-start',id:value.id});if(convertDelay)await delay(convertDelay);window.lastConverted=structuredClone(value);window.eventLog.push({type:'convert-done',id:value.id});},
+ onPrint:async(value,mode)=>{window.outputAttempts+=1;window.eventLog.push({type:'output-start',mode,status:value.status});if(outputDelay)await delay(outputDelay);if(window.failOutput){window.eventLog.push({type:'output-error',mode});throw new Error('Fixture output failure');}window.lastOutput=mode;window.lastOutputDocument=structuredClone(value);window.eventLog.push({type:'output-done',mode,status:value.status});}
+};
 ReactDOM.render(React.createElement(AppShell,{screen:'editor',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:noop,onToggleNew:noop,onNew:noop,onSettings:noop,onCloud:noop},React.createElement(EditorPage,props)),document.getElementById('root'));
 </script></body></html>
