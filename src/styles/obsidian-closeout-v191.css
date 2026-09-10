@@ -51,19 +51,19 @@
   .app-ui .company-artwork-section input[type='file']::file-selector-button{min-height:44px;padding:8px;border:1px solid var(--ds-line-strong);border-radius:8px;background:var(--ds-input);color:var(--ds-text);font:inherit;cursor:pointer}
 
   /* Desktop/tablet Settings owns the scroll container so the title/Save toolbar can
-     remain sticky while long company forms scroll underneath it. Keeping the modal
-     body from becoming a competing scroll container also preserves reliable hit-testing. */
+     remain sticky while long company forms scroll underneath it. Give the modal body
+     a concrete viewport-derived block size so the internal grid never collapses. */
   @media(min-width:721px) and (min-height:521px){
     .app-ui .modal:has(.settings-workspace-v2)>.modal-body{
-      display:flex!important;
-      flex:1 1 0!important;
+      height:calc(min(92dvh,980px) - 62px)!important;
+      max-height:calc(min(92dvh,980px) - 62px)!important;
       min-height:0!important;
       overflow:hidden!important;
     }
     .app-ui .settings-workspace-v2{
-      flex:1 1 auto!important;
+      height:100%!important;
+      max-height:100%!important;
       min-height:0!important;
-      align-self:stretch!important;
     }
     .app-ui .settings-workspace-v2 .settings-panel{
       min-height:0!important;
