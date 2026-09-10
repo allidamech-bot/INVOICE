@@ -29,10 +29,37 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
      return [...new Set(issues)];
     });failures.push(...issues);
    };
+   const auditDesign=async()=>{
+    const issues=await page.evaluate(()=>{
+     const issues=[],panel=document.querySelector('.design-advanced-panel');
+     if(!panel){issues.push('design advanced panel missing');return issues;}
+     const panelRect=panel.getBoundingClientRect(),panelCss=getComputedStyle(panel);
+     if(panelCss.backgroundColor!=='rgb(13, 24, 30)')issues.push('design panel outside canonical workspace: '+panelCss.backgroundColor);
+     const rows=[...panel.querySelectorAll('.appearance-toggles .toggle-row')];
+     if(rows.length!==6)issues.push('expected 6 appearance toggle rows, found '+rows.length);
+     for(const row of rows){
+      const rowRect=row.getBoundingClientRect(),rowCss=getComputedStyle(row),toggle=row.querySelector('.toggle');
+      if(rowCss.backgroundColor!=='rgb(16, 29, 36)')issues.push('appearance row outside canonical surface: '+rowCss.backgroundColor);
+      if(rowRect.left<panelRect.left-1||rowRect.right>panelRect.right+1)issues.push('appearance row escapes design panel');
+      if(!toggle){issues.push('appearance switch missing');continue;}
+      const toggleRect=toggle.getBoundingClientRect();
+      if(Math.abs(toggleRect.width-36)>1||Math.abs(toggleRect.height-21)>1)issues.push('appearance switch inflated: '+toggleRect.width+'x'+toggleRect.height);
+      if(toggleRect.left<rowRect.left-1||toggleRect.right>rowRect.right+1||toggleRect.top<rowRect.top-1||toggleRect.bottom>rowRect.bottom+1)issues.push('appearance switch escapes row');
+     }
+     const firstGroup=panel.querySelector('.appearance-toggles');
+     if(firstGroup){
+      const columns=getComputedStyle(firstGroup).gridTemplateColumns.split(' ').filter(Boolean).length;
+      const expected=innerWidth<=720?1:innerWidth<=1180?2:3;
+      if(columns!==expected)issues.push('appearance grid columns '+columns+' expected '+expected);
+     }
+     return [...new Set(issues)];
+    });failures.push(...issues);
+   };
    await audit();
    await page.screenshot({path:output+'/'+stem+'-document.png',animations:'disabled'});
    const sections=page.locator('.editor-section');
    await sections.nth(2).scrollIntoViewIfNeeded();
+   await audit();
    await page.screenshot({path:output+'/'+stem+'-items.png',animations:'disabled'});
    await page.locator('.item-pricing-grid input').first().fill('5');
    await page.waitForFunction(()=>window.lastSaved?.items[0].quantity==='5');
@@ -41,8 +68,16 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
    await audit();
    await page.screenshot({path:output+'/'+stem+'-totals.png',animations:'disabled'});
    await sections.nth(4).scrollIntoViewIfNeeded();
+   await audit();
    await page.screenshot({path:output+'/'+stem+'-terms.png',animations:'disabled'});
    await sections.last().scrollIntoViewIfNeeded();
+   await audit();
+   await auditDesign();
+   const firstAppearanceSwitch=page.locator('.design-advanced-panel .appearance-toggles .toggle').first();
+   const before=await firstAppearanceSwitch.getAttribute('aria-checked');
+   await firstAppearanceSwitch.click();
+   assert.notEqual(await firstAppearanceSwitch.getAttribute('aria-checked'),before);
+   await auditDesign();
    await page.screenshot({path:output+'/'+stem+'-design.png',animations:'disabled'});
    if(viewport.width<=1180){
     if(viewport.width<=900)await page.locator('.mobile-action-buttons .btn').nth(1).click();

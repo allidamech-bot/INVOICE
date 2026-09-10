@@ -1,0 +1,122 @@
+/* v192 — post-redesign production audit closeout.
+   Application chrome only. This layer removes residual light-theme editor styling
+   that can leak through older compatibility styles. Printable document/template
+   geometry and colours are intentionally untouched. */
+@media screen {
+  .app-ui .design-advanced-panel{
+    min-width:0!important;
+    overflow:hidden!important;
+    border-color:var(--ds-line)!important;
+    background:var(--ds-workspace)!important;
+    color:var(--ds-text)!important;
+  }
+
+  .app-ui .appearance-system-grid{
+    min-width:0!important;
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:12px!important;
+    margin:0 0 14px!important;
+  }
+
+  .app-ui .appearance-auto-note{
+    min-width:0!important;
+    min-height:44px!important;
+    display:flex!important;
+    align-items:center!important;
+    padding:9px 11px!important;
+    overflow:hidden!important;
+    border:1px solid var(--ds-line)!important;
+    border-radius:var(--ds-radius-control)!important;
+    background:var(--ds-surface)!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .appearance-auto-note span{min-width:0!important;overflow-wrap:anywhere!important}
+  .app-ui .appearance-auto-note strong{color:var(--ds-text)!important}
+
+  .app-ui .appearance-toggles{
+    min-width:0!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:8px!important;
+    margin:0 0 10px!important;
+    padding:0!important;
+    background:transparent!important;
+  }
+
+  .app-ui .appearance-toggles .toggle-row{
+    min-width:0!important;
+    min-height:48px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:10px!important;
+    margin:0!important;
+    padding:7px 9px!important;
+    overflow:hidden!important;
+    border:1px solid var(--ds-line)!important;
+    border-radius:10px!important;
+    background:var(--ds-surface)!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .appearance-toggles .toggle-row>span:last-child{
+    min-width:0!important;
+    flex:1 1 auto!important;
+    overflow-wrap:anywhere!important;
+    color:var(--ds-text-soft)!important;
+    line-height:1.4!important;
+  }
+  .app-ui .appearance-toggles .toggle-row>.toggle{
+    flex:0 0 36px!important;
+    width:36px!important;
+    min-width:36px!important;
+    max-width:36px!important;
+    height:21px!important;
+    min-height:21px!important;
+    max-height:21px!important;
+    margin:0!important;
+    padding:2px!important;
+    overflow:hidden!important;
+    border:0!important;
+    border-radius:20px!important;
+    background:var(--ds-faint)!important;
+    box-shadow:none!important;
+    direction:ltr!important;
+  }
+  .app-ui .appearance-toggles .toggle-row>.toggle.on{background:var(--ds-accent)!important}
+  .app-ui .appearance-toggles .toggle-row>.toggle>span{
+    display:block!important;
+    width:17px!important;
+    min-width:17px!important;
+    max-width:17px!important;
+    height:17px!important;
+    min-height:17px!important;
+    max-height:17px!important;
+    margin:0!important;
+    padding:0!important;
+    border-radius:50%!important;
+    background:#fff!important;
+  }
+  .app-ui .appearance-toggles .toggle-row>.toggle:not(.on)>span{transform:none!important}
+  .app-ui .appearance-toggles .toggle-row>.toggle.on>span{transform:translateX(15px)!important}
+
+  .app-ui .design-advanced-panel>.btn{
+    max-width:100%!important;
+    min-height:44px!important;
+  }
+
+  @media (min-width:721px) and (max-width:1180px){
+    .app-ui .appearance-system-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+    .app-ui .appearance-toggles{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  }
+
+  @media (max-width:720px){
+    .app-ui .design-advanced-panel{padding:10px!important}
+    .app-ui .appearance-system-grid{grid-template-columns:minmax(0,1fr)!important;gap:10px!important;margin-bottom:12px!important}
+    .app-ui .appearance-toggles{grid-template-columns:minmax(0,1fr)!important;gap:6px!important;margin-bottom:8px!important}
+    .app-ui .appearance-toggles .toggle-row{min-height:46px!important;padding:6px 8px!important}
+    .app-ui .design-advanced-panel>.btn{width:100%!important;justify-content:center!important}
+  }
+}
