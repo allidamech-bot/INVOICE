@@ -49,7 +49,7 @@ export class AppErrorBoundary extends React.Component<{ children?: any }, State>
   };
 
   render(): any {
-    if (!this.state.failed) return this.props.children;
+    if (!this.state.failed) return this.props.children ?? null;
     return <main className="app-recovery" dir={isArabic()?'rtl':'ltr'} style={{minHeight:'100dvh',display:'grid',placeItems:'center',padding:'24px',background:'#091218',color:'#EDF2F1',fontFamily:'Inter, Arial, sans-serif'}}>
       <section role="alert" style={{width:'min(620px,100%)',background:'#101D24',border:'1px solid #30434B',borderRadius:'18px',padding:'28px',boxShadow:'0 18px 45px rgba(15,35,50,.10)'}}>
         <strong style={{display:'block',fontSize:'22px',marginBottom:'10px'}}>LOUREX Invoice</strong>
