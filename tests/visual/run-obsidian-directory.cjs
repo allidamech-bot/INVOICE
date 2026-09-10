@@ -23,6 +23,18 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
   const reachable=async locator=>{
    await locator.scrollIntoViewIfNeeded();await page.waitForTimeout(180);const geometry=await locator.evaluate(el=>{const r=el.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {ok:r.top>=0&&r.bottom<=innerHeight+1&&r.left>=0&&r.right<=innerWidth+1&&el.contains(hit),rect:r.toJSON(),hit:hit?.className,viewport:{width:innerWidth,height:innerHeight}};});assert.equal(geometry.ok,true,'action clipped or covered '+JSON.stringify(geometry));
   };
+  const auditFocusedProductEditor=async()=>{
+   if(viewport.width>720)return;
+   const state=await page.evaluate(()=>{
+    const editor=document.querySelector('.product-library-editor.is-open');const nav=document.querySelector('.mobile-bottom-nav');
+    if(!editor)return {error:'product editor missing'};
+    const r=editor.getBoundingClientRect(),s=nav?getComputedStyle(nav):null;
+    return {editor:{left:r.left,right:r.right,width:r.width},nav:nav?{display:s.display,visibility:s.visibility,opacity:s.opacity,pointerEvents:s.pointerEvents}:null,viewport:innerWidth};
+   });
+   assert.equal(state.error,undefined,JSON.stringify(state));
+   assert.ok(state.editor.left>=-1&&state.editor.right<=viewport.width+1,'product editor exceeds phone viewport '+JSON.stringify(state));
+   if(state.nav)assert.ok(state.nav.display==='none'||state.nav.visibility==='hidden'||state.nav.opacity==='0','mobile bottom nav covers focused product editor '+JSON.stringify(state));
+  };
   try{
    await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-directory.html?lang=${lang}&screen=${screen}`,{waitUntil:'load'});await page.evaluate(()=>document.fonts.ready);
    if(screen==='customers'){
@@ -39,9 +51,9 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
     const search=page.locator('.product-library-search input');await search.fill('LX-001');assert.equal(await rows.count(),1);await search.fill('missing-catalog-result');assert.equal(await rows.count(),0);await shot('empty');await search.fill('');
     await page.locator('.product-library-commandbar select').first().selectOption('Controls');assert.equal(await rows.count(),8);await page.locator('.product-library-commandbar select').first().selectOption('');
     await page.locator('.product-library-metrics button').last().click();assert.equal(await rows.count(),4);await rows.first().locator('.product-library-star').click();await page.waitForFunction(()=>document.querySelectorAll('.product-library-row').length===3);await page.locator('.product-library-metrics button').first().click();
-    await search.fill('LX-001');await rows.first().locator('.product-library-row-main').click();await page.locator('.product-library-editor.is-open').waitFor();await audit('.product-library-editor');await shot('editor');
+    await search.fill('LX-001');await rows.first().locator('.product-library-row-main').click();await page.locator('.product-library-editor.is-open').waitFor();await audit('.product-library-editor');await auditFocusedProductEditor();await shot('editor');
     const price=page.locator('.product-library-editor .field').filter({hasText:lang==='ar'?'سعر البيع':'Sale price'}).locator('input');await price.fill('275');
-    const save=page.locator('.product-library-editor-actions .btn-primary');await reachable(save);await save.click();await page.waitForFunction(()=>window.savedProduct?.lastUnitPrice==='275');await page.locator('.product-library-row-price').filter({hasText:'275 USD'}).waitFor();
+    const save=page.locator('.product-library-editor-actions .btn-primary');await reachable(save);await auditFocusedProductEditor();await save.click();await page.waitForFunction(()=>window.savedProduct?.lastUnitPrice==='275');await page.locator('.product-library-row-price').filter({hasText:'275 USD'}).waitFor();
    }else{
     await page.locator('.saved-items-shell').waitFor();await page.locator('.saved-items-smart-nav button').last().click();const rows=page.locator('.saved-item-row');assert.equal(await rows.count(),24);await audit('.modal');await shot('list');
     await page.locator('.saved-items-search-input').fill('Precision');assert.equal(await rows.count(),8);await rows.nth(0).locator('.saved-item-main').click();await rows.nth(1).locator('.saved-item-main').click();assert.equal(await page.locator('.saved-item-row.is-selected').count(),2);
