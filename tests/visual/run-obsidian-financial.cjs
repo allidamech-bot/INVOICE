@@ -27,6 +27,20 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
    const geometry=await locator.evaluate(el=>{const r=el.getBoundingClientRect(),x=Math.min(innerWidth-1,Math.max(0,r.x+r.width/2)),y=Math.min(innerHeight-1,Math.max(0,r.y+r.height/2)),hit=document.elementFromPoint(x,y);return {ok:r.top>=-1&&r.bottom<=innerHeight+1&&r.left>=-1&&r.right<=innerWidth+1&&Boolean(hit&&(el===hit||el.contains(hit))),rect:r.toJSON(),hit:hit?.className,viewport:{width:innerWidth,height:innerHeight}};});
    assert.equal(geometry.ok,true,'action clipped or covered '+JSON.stringify(geometry));
   };
+  const auditPurchaseEditor=async()=>{
+   if(viewport.width>720)return;
+   const geometry=await page.evaluate(()=>{
+    const selectors=['.operations-page','.purchase-layout','.purchase-editor','.purchase-item','.operations-editor-actions'];
+    const clipped=[];
+    for(const selector of selectors){for(const el of document.querySelectorAll(selector)){const r=el.getBoundingClientRect(),s=getComputedStyle(el);if(s.display==='none'||!r.width||!r.height)continue;if(r.left<-1||r.right>innerWidth+1||r.width>innerWidth+1)clipped.push({selector,left:r.left,right:r.right,width:r.width});}}
+    const list=document.querySelector('.purchase-layout .operations-list-panel');const nav=document.querySelector('.mobile-bottom-nav');const navStyle=nav?getComputedStyle(nav):null;
+    return {pageScrollWidth:document.documentElement.scrollWidth,clipped,listDisplay:list?getComputedStyle(list).display:null,nav:navStyle?{display:navStyle.display,visibility:navStyle.visibility,opacity:navStyle.opacity}:null,viewport:innerWidth};
+   });
+   assert.ok(geometry.pageScrollWidth<=viewport.width+1,'purchase workspace causes page overflow '+JSON.stringify(geometry));
+   assert.deepEqual(geometry.clipped,[],'purchase editor clips outside phone viewport '+JSON.stringify(geometry));
+   assert.equal(geometry.listDisplay,'none','purchase list should leave the phone viewport while editor is focused '+JSON.stringify(geometry));
+   if(geometry.nav)assert.ok(geometry.nav.display==='none'||geometry.nav.visibility==='hidden'||geometry.nav.opacity==='0','mobile nav covers purchase editor '+JSON.stringify(geometry));
+  };
   try{
    await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-financial.html?lang=${lang}&screen=${screen}`,{waitUntil:'load'});await page.evaluate(()=>document.fonts.ready);
    if(screen==='reports'){
@@ -49,7 +63,8 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
      const tab=page.locator(selector);await reachable(tab);await tab.click();await page.locator(`#operations-panel-${state}`).waitFor();await audit('.operations-page');await shot(state);
     }
     await page.locator('#operations-tab-purchases').click();const purchaseRow=page.locator('.purchase-row').first();await purchaseRow.waitFor();
-    const view=purchaseRow.locator('.row-actions button').first();await reachable(view);await view.click();await page.locator('.purchase-editor').waitFor();await audit('.operations-page');await shot('purchase-editor');
+    const view=purchaseRow.locator('.row-actions button').first();await reachable(view);await view.click();await page.locator('.purchase-editor').waitFor();await audit('.operations-page');await auditPurchaseEditor();
+    const primary=page.locator('.purchase-editor .operations-editor-actions .btn-primary');await reachable(primary);await auditPurchaseEditor();await shot('purchase-editor');
    }
   }catch(error){failures.push(String(error));await shot('failure').catch(()=>{});}
   results.push({viewport,lang,screen,failures});await page.close();

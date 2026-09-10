@@ -1,0 +1,175 @@
+/* v193 — post-redesign mobile geometry closeout.
+   Screen-only application chrome. Keeps narrow editor steps visible, prevents the
+   global phone nav from covering focused inline editors, and removes purchase
+   workspace horizontal clipping without changing printable document output. */
+@media screen and (max-width:720px){
+  /* Focused editors own the phone viewport. The persistent app nav must not sit
+     over their fields or sticky save actions. */
+  .app-ui:has(.product-library-pro.editor-open) .mobile-bottom-nav,
+  .app-ui:has(.operations-page .purchase-editor) .mobile-bottom-nav{
+    visibility:hidden!important;
+    pointer-events:none!important;
+    opacity:0!important;
+  }
+
+  .app-ui .product-library-pro.editor-open,
+  .app-ui .product-library-pro.editor-open .product-library-body,
+  .app-ui .product-library-editor.is-open,
+  .app-ui .product-library-editor-scroll,
+  .app-ui .product-library-editor-actions{
+    min-width:0!important;
+    max-width:100%!important;
+    width:100%!important;
+    box-sizing:border-box!important;
+  }
+  .app-ui .product-library-pro.editor-open{padding-bottom:max(12px,env(safe-area-inset-bottom))!important}
+  .app-ui .product-library-editor.is-open{overflow:hidden!important}
+  .app-ui .product-library-editor-scroll{overflow-x:hidden!important}
+  .app-ui .product-library-editor-actions{
+    bottom:0!important;
+    z-index:20!important;
+    padding-bottom:max(9px,env(safe-area-inset-bottom))!important;
+    background:linear-gradient(180deg,rgba(16,29,36,0),var(--ds-surface) 26%)!important;
+  }
+
+  /* Operations historically inherits desktop minimums from the purchase split.
+     Collapse every editing layer to the physical viewport before styling rows. */
+  .app-ui .operations-page,
+  .app-ui .operations-page>* ,
+  .app-ui .operations-split,
+  .app-ui .operations-list-panel,
+  .app-ui .operations-editor,
+  .app-ui .purchase-editor,
+  .app-ui .operations-panel-head,
+  .app-ui .operations-list,
+  .app-ui .operation-row,
+  .app-ui .operations-form-grid,
+  .app-ui .purchase-items,
+  .app-ui .purchase-item,
+  .app-ui .purchase-item-title,
+  .app-ui .purchase-item-grid,
+  .app-ui .purchase-total-strip,
+  .app-ui .operations-editor-actions{
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+  }
+  .app-ui .operations-page{
+    width:100%!important;
+    overflow-x:clip!important;
+  }
+  .app-ui .operations-split,
+  .app-ui .purchase-layout{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:10px!important;
+    width:100%!important;
+  }
+  .app-ui .purchase-layout:has(.purchase-editor) .operations-list-panel{display:none!important}
+  .app-ui .operations-editor{margin-top:0!important;width:100%!important}
+  .app-ui .operations-hero{
+    min-width:0!important;
+    max-width:100%!important;
+    width:100%!important;
+  }
+  .app-ui .operations-search,
+  .app-ui .operations-search .input{
+    min-width:0!important;
+    max-width:100%!important;
+    width:100%!important;
+  }
+  .app-ui .operations-panel-head{
+    flex-wrap:wrap!important;
+    align-items:flex-start!important;
+  }
+  .app-ui .operations-panel-head>div{min-width:0!important;flex:1 1 180px!important}
+  .app-ui .operations-panel-head>.btn{max-width:100%!important;white-space:normal!important}
+  .app-ui .operation-row>*,
+  .app-ui .purchase-item-title>*{min-width:0!important}
+  .app-ui .operation-row :is(strong,span,small),
+  .app-ui .purchase-item-title :is(strong,span,small){overflow-wrap:anywhere!important}
+  .app-ui .row-actions,
+  .app-ui .purchase-item-title{
+    flex-wrap:wrap!important;
+  }
+  .app-ui .operations-form-grid :is(.input,select.input,textarea.input),
+  .app-ui .purchase-item-grid :is(.input,select.input,textarea.input){
+    min-width:0!important;
+    max-width:100%!important;
+    width:100%!important;
+  }
+  .app-ui .operations-editor-actions{
+    position:sticky!important;
+    bottom:0!important;
+    z-index:20!important;
+    width:100%!important;
+    margin-inline:0!important;
+    padding:10px 0 max(9px,env(safe-area-inset-bottom))!important;
+    background:linear-gradient(180deg,rgba(16,29,36,0),var(--ds-surface) 28%)!important;
+  }
+}
+
+@media screen and (max-width:420px){
+  /* Six document steps must always remain visible. Labels are redundant at this
+     width because the active section heading is immediately above the content. */
+  .app-ui .editor-section-navigator{
+    display:grid!important;
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    gap:4px!important;
+    width:100%!important;
+    min-width:0!important;
+    overflow:visible!important;
+    padding-inline:5px!important;
+  }
+  .app-ui .editor-section-nav-button,
+  .app-ui .editor-section-nav-button.active,
+  .app-ui .editor-section-nav-button.has-error{
+    flex:none!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    padding:4px 2px!important;
+    justify-content:center!important;
+  }
+  .app-ui .editor-section-nav-button .editor-nav-label{display:none!important}
+  .app-ui .editor-section-nav-button .editor-nav-number{margin:0!important}
+
+  .app-ui .operation-row{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .app-ui .purchase-row .operation-status{grid-column:auto!important}
+  .app-ui .operation-row .row-actions{
+    grid-column:auto!important;
+    justify-content:flex-start!important;
+    width:100%!important;
+  }
+  [dir="rtl"] .app-ui .operation-row .row-actions{justify-content:flex-start!important}
+  .app-ui .purchase-items-head{
+    align-items:flex-start!important;
+    flex-wrap:wrap!important;
+  }
+  .app-ui .purchase-items-head>.btn{max-width:100%!important;white-space:normal!important}
+  .app-ui .purchase-total-strip{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    justify-content:stretch!important;
+  }
+  .app-ui .purchase-total-strip>*{min-width:0!important;overflow-wrap:anywhere!important}
+  .app-ui .operations-editor-actions{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+  }
+  .app-ui .operations-editor-actions .btn{
+    min-width:0!important;
+    width:100%!important;
+    padding-inline:7px!important;
+    white-space:normal!important;
+  }
+  .app-ui .operations-editor-actions .btn-primary{grid-column:1/-1!important}
+}
+
+@media print{
+  .app-ui .editor-section-navigator,
+  .app-ui .mobile-bottom-nav{display:none!important}
+}
