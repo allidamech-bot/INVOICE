@@ -6,8 +6,12 @@ const read=path=>readFile(path,'utf8');
 
 test('v195 Documents keeps quotation conversion single-flight until App conversion actually settles',async()=>{
   const [app,page]=await Promise.all([read('src/app/App.tsx'),read('src/components/DocumentsPage.tsx')]);
-  assert.match(app,/this\.state\.screen==='documents'[\s\S]*?<DocumentsPage[\s\S]*?onConvert=\{this\.convert\}/);
-  assert.doesNotMatch(app,/this\.state\.screen==='documents'[\s\S]*?onConvert=\{\(d\)=>void this\.convert\(d\)\}/);
+  const start=app.indexOf("{this.state.screen==='documents'?<DocumentsPage");
+  const end=app.indexOf("{this.state.screen==='customers'?<CustomersPage",start);
+  assert.ok(start>=0&&end>start,'DocumentsPage render block is missing');
+  const documentsRender=app.slice(start,end);
+  assert.match(documentsRender,/onConvert=\{this\.convert\}/);
+  assert.doesNotMatch(documentsRender,/onConvert=\{\(d\)=>void this\.convert\(d\)\}/);
   assert.match(page,/private quoteConversions=new Set<string>\(\)/);
   assert.match(page,/if\(this\.quoteConversions\.has\(doc\.id\)\)return/);
   assert.match(page,/Promise\.resolve\(this\.props\.onConvert\?\.\(doc\)\)\.finally\(\(\)=>this\.quoteConversions\.delete\(doc\.id\)\)/);
