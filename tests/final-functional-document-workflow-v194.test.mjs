@@ -30,10 +30,12 @@ test('v194 browser workflow covers autosave, issue, PDF/share, retry, quote conv
   assert.match(runner,/retrying output must not issue\/save the document a second time/);
 });
 
-test('v194 remains preserved after the immutable PWA generation advances to v195',async()=>{
+test('v194 remains preserved after later immutable PWA generations advance',async()=>{
   const sw=await read('public/sw.js');
   assert.match(sw,/v194 functional document workflow/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v195';$/m);
+  const current=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
+  assert.ok(current&&Number(current[1])>=196,'current immutable PWA generation must not regress below v196');
+  assert.match(sw,/lourex-invoice-v195: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v194: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);
   assert.ok(sw.includes('./src/components/EditorPageCore.js'));
