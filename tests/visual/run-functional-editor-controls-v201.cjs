@@ -35,7 +35,7 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
         const documentSection=sections.nth(0);
         await documentSection.locator('input').first().fill('INV-2026-0091');
         await documentSection.locator('input[type="date"]').first().fill('2026-09-11');
-        const currency=documentSection.locator('input[list="currencies"]');
+        const currency=page.locator('.editor-form-lock input[list="currencies"]').first();
         await currency.fill('eur');
         assert.equal(await currency.inputValue(),'EUR','currency input must normalize to uppercase immediately');
         await documentSection.locator('select').selectOption('bilingual');
@@ -183,7 +183,7 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
         const number=page.locator('.editor-form-lock > .editor-section').first().locator('input').first();
         await number.fill('');
         await page.waitForTimeout(520);
-        const save=page.locator('.save-now-button');
+        const save=page.locator('.mobile-action-buttons button:visible').filter({hasText:'Save'}).first();
         await save.click();
         await page.locator('.editor-validation-summary').waitFor();
         assert.ok(await page.locator('.editor-form-lock > .editor-section').first().locator('.field-error').count(),'invalid required field must surface its error');
