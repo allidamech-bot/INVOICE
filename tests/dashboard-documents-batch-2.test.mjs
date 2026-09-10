@@ -49,7 +49,7 @@ test('batch 2 styles are responsive app-only UI and remain offline-capable',asyn
 
 test('batch 2 App wires conversion and detail-capable documents without changing the editor contract',async()=>{
   const app=await read('src/app/App.tsx');
-  assert.ok(app.includes('onConvert={(d)=>void this.convert(d)}'));
+  assert.ok(!app.includes('onConvert={(d)=>void this.convert(d)}'),'quotation conversion must preserve its async promise');
   assert.ok(app.includes('<EditorPage document={this.state.editorDoc}'));
   assert.ok(app.includes('onConvert={this.convert}'));
 });
