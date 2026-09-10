@@ -75,7 +75,7 @@ test('v189 account runtime remains cached as later PWA generations advance',asyn
   assert.match(html,/account-cloud-separation-v186\.css[\s\S]*unified-account-v189\.css[\s\S]*document-premium-redesign-v141\.css/);
 });
 
-test('v189 account migration never deletes the encrypted vault or security records',async()=>{\{
+test('v189 account migration never deletes the encrypted vault or security records',async()=>{
   const [session,auth,db]=await Promise.all([
     read('src/storage/session.ts'),read('src/components/AuthScreens.tsx'),read('src/storage/db.ts')
   ]);
