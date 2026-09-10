@@ -64,17 +64,18 @@ test('v189 daily workspace exposes only generic save state, not cloud controls',
   assert.match(css,/\.security-settings-page\{\s*display:none!important/);
 });
 
-test('v189 PWA publishes a fresh runtime with account access and unified account styles cached',async()=>{
+test('v189 account runtime remains cached as later PWA generations advance',async()=>{
   const sw=await read('public/sw.js');
   const html=await read('index.html');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v191';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v192';$/m);
+  assert.match(sw,/lourex-invoice-v191: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
   assert.ok(sw.includes("LOCAL_CORE.push('./styles/unified-account-v189.css')"));
   assert.ok(sw.includes("LOCAL_CORE.push('./src/cloud/account-access.js')"));
   assert.match(html,/account-cloud-separation-v186\.css[\s\S]*unified-account-v189\.css[\s\S]*document-premium-redesign-v141\.css/);
 });
 
-test('v189 account migration never deletes the encrypted vault or security records',async()=>{
+test('v189 account migration never deletes the encrypted vault or security records',async()=>{\{
   const [session,auth,db]=await Promise.all([
     read('src/storage/session.ts'),read('src/components/AuthScreens.tsx'),read('src/storage/db.ts')
   ]);
