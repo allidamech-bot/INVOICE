@@ -38,6 +38,11 @@ export class EditorPage extends React.Component<Props,State>{
   private navScrollRoot:HTMLElement|null=null;
   private initialDraftPersisted=false;
   private quoteConversionRunning=false;
+  private outputPromise:Promise<void>|null=null;
+  private customerSavePromise:Promise<void>|null=null;
+  private documentItemSavePromises=new Map<string,Promise<void>>();
+  private revisionPromise:Promise<LourexDocument>|null=null;
+  private lifecyclePromises=new Map<string,Promise<void>>();
   private mounted=false;
 
   constructor(props:Props){
@@ -221,10 +226,48 @@ export class EditorPage extends React.Component<Props,State>{
     }
   };
 
-  private printWithPreparedMode=async(doc:LourexDocument,mode:'print'|'pdf'|'share'):Promise<void>=>{
-    try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
-    await this.props.onPrint(doc,mode);
+  private printWithPreparedMode=(doc:LourexDocument,mode:'print'|'pdf'|'share'):Promise<void>=>{
+    if(this.outputPromise)return this.outputPromise;
+    const operation=(async()=>{
+      try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
+      await this.props.onPrint(doc,mode);
+    })().finally(()=>{if(this.outputPromise===operation)this.outputPromise=null;});
+    this.outputPromise=operation;
+    return operation;
   };
+
+  private saveCustomerSingleFlight=(customer:Customer):Promise<void>=>{
+    if(this.customerSavePromise)return this.customerSavePromise;
+    const operation=Promise.resolve(this.props.onSaveCustomer(customer)).finally(()=>{if(this.customerSavePromise===operation)this.customerSavePromise=null;});
+    this.customerSavePromise=operation;
+    return operation;
+  };
+
+  private saveDocumentItemSingleFlight=(item:DocumentItem,currency:string):Promise<void>=>{
+    const existing=this.documentItemSavePromises.get(item.id);
+    if(existing)return existing;
+    const operation=Promise.resolve(this.props.onSaveDocumentItem(item,currency)).finally(()=>{if(this.documentItemSavePromises.get(item.id)===operation)this.documentItemSavePromises.delete(item.id);});
+    this.documentItemSavePromises.set(item.id,operation);
+    return operation;
+  };
+
+  private beginRevisionSingleFlight=(doc:LourexDocument):Promise<LourexDocument>=>{
+    if(this.revisionPromise)return this.revisionPromise;
+    const operation=Promise.resolve(this.props.onBeginRevision(doc)).finally(()=>{if(this.revisionPromise===operation)this.revisionPromise=null;});
+    this.revisionPromise=operation;
+    return operation;
+  };
+
+  private lifecycleSingleFlight=(key:'discard'|'void'|'credit',action:()=>Promise<void>):Promise<void>=>{
+    const existing=this.lifecyclePromises.get(key);
+    if(existing)return existing;
+    const operation=Promise.resolve().then(action).finally(()=>{if(this.lifecyclePromises.get(key)===operation)this.lifecyclePromises.delete(key);});
+    this.lifecyclePromises.set(key,operation);
+    return operation;
+  };
+  private discardRevisionSingleFlight=(doc:LourexDocument)=>this.lifecycleSingleFlight('discard',()=>this.props.onDiscardRevision(doc));
+  private voidDocumentSingleFlight=(doc:LourexDocument,reason:string)=>this.lifecycleSingleFlight('void',()=>this.props.onVoidDocument(doc,reason));
+  private createCreditNoteSingleFlight=(doc:LourexDocument)=>this.lifecycleSingleFlight('credit',()=>this.props.onCreateCreditNote(doc));
 
   private convertFinalQuote=()=>{
     if(this.quoteConversionRunning)return;
@@ -277,8 +320,8 @@ export class EditorPage extends React.Component<Props,State>{
     </div>:null):null;
     return <>
       {this.state.persistenceError?<div className="editor-global-error" role="alert">{this.state.persistenceError}</div>:null}
-      <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry} onPrint={this.printWithPreparedMode}/>
-      <DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={props.onDiscardRevision} onVoid={props.onVoidDocument} onCreateCreditNote={props.onCreateCreditNote}/>
+      <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry} onSaveCustomer={this.saveCustomerSingleFlight} onSaveDocumentItem={this.saveDocumentItemSingleFlight} onBeginRevision={this.beginRevisionSingleFlight} onPrint={this.printWithPreparedMode}/>
+      <DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={this.discardRevisionSingleFlight} onVoid={this.voidDocumentSingleFlight} onCreateCreditNote={this.createCreditNoteSingleFlight}/>
       <InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>
       <ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>
       {sectionNavigator&&navSlot?ReactDOM.createPortal(sectionNavigator,navSlot):null}
