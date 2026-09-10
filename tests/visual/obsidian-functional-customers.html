@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {CustomersPage,blankCustomer} from './src/components/CustomersPage.js';
+import {defaultCompany} from './src/lib/defaults.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar';setUiLanguage(ar?'ar':'en');document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';
+const customer={...blankCustomer(),id:'customer-v195',companyNameEn:'Northstar Markets',companyNameAr:'أسواق نورث ستار',email:'finance@example.test'};
+const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));window.customerDocumentCalls=[];
+const props={customers:[customer],company:defaultCompany(),onSave:async()=>{},onDelete:async()=>{},onNewDocument:async(kind,value)=>{window.customerDocumentCalls.push(`${value.id}:${kind}`);await delay(140);}};
+ReactDOM.render(React.createElement(CustomersPage,props),document.getElementById('root'));
+</script></body></html>
