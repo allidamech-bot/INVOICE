@@ -35,10 +35,10 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
         const documentSection=sections.nth(0);
         await documentSection.locator('input').first().fill('INV-2026-0091');
         await documentSection.locator('input[type="date"]').first().fill('2026-09-11');
-        const currency=documentSection.locator('input[list="currencies"]');
-        await currency.fill('eur');
-        assert.equal(await currency.inputValue(),'EUR','currency input must normalize to uppercase immediately');
-        await documentSection.locator('select').selectOption('bilingual');
+        const currency=documentSection.getByRole('combobox',{name:'Currency',exact:true});
+        await currency.selectOption('EUR');
+        assert.equal(await currency.inputValue(),'EUR','currency preset must update the document value');
+        await documentSection.getByRole('combobox',{name:'Document Language',exact:true}).selectOption('bilingual');
 
         const itemsSection=sections.nth(2);
         const initialItems=await itemsSection.locator('.item-card').count();
@@ -51,10 +51,9 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
         assert.equal(await itemsSection.locator('.item-card').count(),initialItems+1,'Delete item must remove one row');
 
         const firstCard=itemsSection.locator('.item-card').first();
-        const pricing=firstCard.locator('.item-pricing-grid input');
-        await pricing.nth(0).fill('3.5');
-        await pricing.nth(1).fill('Box');
-        await pricing.nth(2).fill('100.25');
+        await firstCard.locator('.item-pricing-grid .field').nth(0).locator('input').fill('3.5');
+        await firstCard.getByRole('combobox',{name:'Unit',exact:true}).selectOption('Box');
+        await firstCard.locator('.item-pricing-grid .field').nth(2).locator('input').fill('100.25');
 
         const totalsSection=sections.nth(3);
         const switches=totalsSection.locator('button[role="switch"]');
@@ -69,8 +68,8 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
         await totalsSection.locator('.adjustment-row').nth(3).locator('input').fill('15');
 
         const termsSection=sections.nth(4);
-        await termsSection.locator('input').nth(0).fill('CIF');
-        await termsSection.locator('input').nth(1).fill('Net 30');
+        await termsSection.getByRole('combobox',{name:'Incoterm',exact:true}).selectOption('CIF');
+        await termsSection.getByRole('combobox',{name:'Payment Terms',exact:true}).selectOption('Net 30 Days');
         await termsSection.locator('.advanced-master-toggle').click();
         await termsSection.locator('textarea').last().fill('Audit note for the invoice.');
 
@@ -89,7 +88,7 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
         assert.equal(saved.adjustments.shipping,'25');
         assert.equal(saved.adjustments.otherCharges,'5');
         assert.equal(saved.terms.incoterm,'CIF');
-        assert.equal(saved.terms.paymentTerms,'Net 30');
+        assert.equal(saved.terms.paymentTerms,'Net 30 Days');
 
         await page.locator('.mobile-preview-button').click();
         await page.waitForFunction(()=>document.querySelector('.editor-screen')?.classList.contains('mobile-preview-open'));
