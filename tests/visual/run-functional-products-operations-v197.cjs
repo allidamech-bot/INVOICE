@@ -31,7 +31,7 @@ const doubleClick=async locator=>locator.evaluate(button=>{button.click();button
         await page.waitForTimeout(240);
         assert.equal(await page.evaluate(()=>window.deleteAttempts),1,'product delete must be single-flight');
 
-        await page.getByRole('button',{name:'Import'}).click();
+        await page.getByRole('button',{name:'Import',exact:true}).click();
         await page.locator('.product-import-file-input').setInputFiles({name:'products.csv',mimeType:'text/csv',buffer:Buffer.from('SKU,Description EN,Unit,Unit Price,Currency\nSKU-NEW,Imported Product,PCS,12.00,USD\n')});
         const importButton=page.getByRole('button',{name:/Import 1 product/});
         await importButton.waitFor();
