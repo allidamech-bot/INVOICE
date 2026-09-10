@@ -1,3 +1,4 @@
+// v201 editor control hardening — recache single-flight document output, customer, item, revision and lifecycle actions.
 // v200 navigation/auth control hardening — recache mutually exclusive mobile menus and stable async account controls.
 // v199 Safari chrome closeout — avoid double-counting top/bottom browser bars while preserving standalone PWA hardware safe areas.
 // v198 mobile spacing/fit closeout — recache dark viewport seams, safe-area gutters and narrow-phone geometry.
@@ -67,7 +68,8 @@ const CACHE = 'lourex-invoice-v185';
 /* Historical v188 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v188';
 */
-const CACHE = 'lourex-invoice-v200';
+const CACHE = 'lourex-invoice-v201';
+// lourex-invoice-v200: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v199: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v198: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v197: preserved as a legacy marker for cache-migration tests.

@@ -24,16 +24,16 @@ if(params.get('linked')==='1'&&kind==='proforma'){
   const linked=createBlankDocument('invoice','INV-2026-0099',company);linked.status='final';linked.customerSnapshot=customerSnapshotFrom(customer);linked.items=structuredClone(doc.items);linked.convertedFromId=doc.id;documents.push(linked);
 }
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-window.eventLog=[];window.preparedModes=[];window.saveAttempts=0;window.outputAttempts=0;window.convertCount=0;window.closeCount=0;
+window.eventLog=[];window.preparedModes=[];window.saveAttempts=0;window.outputAttempts=0;window.convertCount=0;window.closeCount=0;window.revisionCount=0;window.discardCount=0;window.voidCount=0;window.creditCount=0;window.customerSaveCount=0;window.itemSaveCount=0;
 window.failSave=params.get('saveFail')==='1';window.failOutput=params.get('outputFail')==='1';
-const saveDelay=Math.max(0,Number(params.get('saveDelay')||0));const outputDelay=Math.max(0,Number(params.get('outputDelay')||0));const convertDelay=Math.max(0,Number(params.get('convertDelay')||0));
+const saveDelay=Math.max(0,Number(params.get('saveDelay')||0));const outputDelay=Math.max(0,Number(params.get('outputDelay')||0));const convertDelay=Math.max(0,Number(params.get('convertDelay')||0));const actionDelay=Math.max(0,Number(params.get('actionDelay')||0));
 window.__LOUREX_PREPARE_PDF__=mode=>{window.preparedModes.push(mode);return true;};
 const noop=()=>{},asyncNoop=async()=>{};
 const props={document:doc,documents,customers:[customer],company,savedItems:[],payments:[],documentEvents:[],documentRevisions:[],smartDefaults:defaultAppSettings().smartDefaults,
  onClose:()=>{window.closeCount+=1;window.eventLog.push({type:'close'});},
  onSave:async(value,auto)=>{window.saveAttempts+=1;window.eventLog.push({type:'save-start',status:value.status,auto:Boolean(auto)});if(saveDelay)await delay(saveDelay);if(window.failSave){window.eventLog.push({type:'save-error',status:value.status});throw new Error('Fixture save failure');}window.lastSaved=structuredClone(value);window.eventLog.push({type:'save-done',status:value.status,auto:Boolean(auto)});},
- onSaveCustomer:asyncNoop,onSaveSavedItem:asyncNoop,onSaveDocumentItem:asyncNoop,onUseSavedItems:asyncNoop,onDeleteSavedItem:asyncNoop,onSaveSmartDefaults:asyncNoop,onSavePayment:asyncNoop,onDeletePayment:asyncNoop,
- onBeginRevision:async value=>({...structuredClone(value),status:'draft',revision:(value.revision||1)+1}),onDiscardRevision:asyncNoop,onVoidDocument:asyncNoop,onCreateCreditNote:asyncNoop,
+ onSaveCustomer:async value=>{window.customerSaveCount+=1;window.lastCustomer=structuredClone(value);if(actionDelay)await delay(actionDelay);},onSaveSavedItem:asyncNoop,onSaveDocumentItem:async value=>{window.itemSaveCount+=1;window.lastItemSaved=structuredClone(value);if(actionDelay)await delay(actionDelay);},onUseSavedItems:asyncNoop,onDeleteSavedItem:asyncNoop,onSaveSmartDefaults:asyncNoop,onSavePayment:asyncNoop,onDeletePayment:asyncNoop,
+ onBeginRevision:async value=>{window.revisionCount+=1;if(actionDelay)await delay(actionDelay);return {...structuredClone(value),status:'draft',revision:(value.revision||1)+1};},onDiscardRevision:async()=>{window.discardCount+=1;if(actionDelay)await delay(actionDelay);},onVoidDocument:async()=>{window.voidCount+=1;if(actionDelay)await delay(actionDelay);},onCreateCreditNote:async()=>{window.creditCount+=1;if(actionDelay)await delay(actionDelay);},
  onConvert:async value=>{window.convertCount+=1;window.eventLog.push({type:'convert-start',id:value.id});if(convertDelay)await delay(convertDelay);window.lastConverted=structuredClone(value);window.eventLog.push({type:'convert-done',id:value.id});},
  onPrint:async(value,mode)=>{window.outputAttempts+=1;window.eventLog.push({type:'output-start',mode,status:value.status});if(outputDelay)await delay(outputDelay);if(window.failOutput){window.eventLog.push({type:'output-error',mode});throw new Error('Fixture output failure');}window.lastOutput=mode;window.lastOutputDocument=structuredClone(value);window.eventLog.push({type:'output-done',mode,status:value.status});}
 };
