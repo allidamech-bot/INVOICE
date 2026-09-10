@@ -70,6 +70,22 @@ const output='visual-qa-output/functional-document-workflow';
       }finally{await page.close();}
     });
 
+    await run('issue-confirm-single-flight',async()=>{
+      const page=await open('lang=en&kind=invoice&saveDelay=250&outputDelay=250');
+      try{
+        await page.locator('.mobile-action-buttons button').filter({hasText:'PDF'}).first().click();
+        await page.locator('.issue-review').waitFor();
+        const confirm=page.locator('.modal-footer-actions .btn-primary');
+        await confirm.evaluate(button=>{button.click();button.click();});
+        await page.waitForFunction(()=>window.lastOutput==='pdf');
+        await page.waitForTimeout(350);
+        const current=await state(page);
+        assert.equal(current.saveAttempts,1,'rapid issue confirmation must save the Final snapshot once');
+        assert.equal(current.outputAttempts,1,'rapid issue confirmation must create one output only');
+        await snap(page,'issue-confirm-single-flight');
+      }finally{await page.close();}
+    });
+
     await run('output-failure-retry',async()=>{
       const page=await open('lang=en&kind=invoice&outputFail=1');
       try{
