@@ -35,7 +35,7 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
         const documentSection=sections.nth(0);
         await documentSection.locator('input').first().fill('INV-2026-0091');
         await documentSection.locator('input[type="date"]').first().fill('2026-09-11');
-        const currency=page.locator('.editor-form-lock input[list="currencies"]').first();
+        const currency=documentSection.locator('input').nth(3);
         await currency.fill('eur');
         assert.equal(await currency.inputValue(),'EUR','currency input must normalize to uppercase immediately');
         await documentSection.locator('select').selectOption('bilingual');
