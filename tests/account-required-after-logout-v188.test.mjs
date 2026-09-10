@@ -35,7 +35,8 @@ test('v188 logout guard remains present in later immutable PWA generations',asyn
   const sw=await read('public/sw.js');
   assert.match(sw,/v188 account-required logout/);
   assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
-  const current=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
-  assert.ok(current&&Number(current[1])>=196,'current immutable PWA generation must not regress below v196');
+  const versions=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
+  const current=Number(versions.at(-1)?.[1]);
+  assert.ok(Number.isInteger(current)&&current>=196,'current immutable PWA generation must not regress below v196');
   assert.ok(sw.includes('./src/app/index.js'));
 });
