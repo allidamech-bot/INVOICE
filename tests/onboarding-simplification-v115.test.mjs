@@ -49,13 +49,13 @@ test('v115 onboarding presentation stays compact and touch safe while v189 adds 
   assert.match(unifiedCss,/\.account-managed-setup/);
 });
 
-test('v115 remains loaded and cached while v189 owns the current account-access generation',async()=>{
+test('v115 remains loaded and cached while the current account-access generation advances safely',async()=>{
   const [index,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
   const ux='./styles/onboarding-simplification-v115.css';
   const perf='./styles/performance-polish-v100.css';
   assert.ok(index.indexOf(ux)>-1&&index.indexOf(ux)<index.indexOf(perf));
   assert.ok(sw.includes(ux));
   assert.match(sw,/v115/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v191';$/m);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v192';$/m);
   assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
 });
