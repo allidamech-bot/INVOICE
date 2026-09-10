@@ -56,10 +56,11 @@ test('v197 functional browser gate is wired into CI',async()=>{
   for(const marker of ['product save must be single-flight','product delete must be single-flight','product import must be single-flight','purchase post must be single-flight','inventory movement must be single-flight','Arabic operations retry must release the mutation lock'])assert.ok(runner.includes(marker),marker);
 });
 
-test('v197 ships product and Operations hardening as a fresh immutable PWA generation',async()=>{
+test('v197 product and Operations hardening remains preserved after later immutable PWA generations advance',async()=>{
   const sw=await read('public/sw.js');
-  assert.equal(activeCacheVersion(sw),197);
+  assert.ok(activeCacheVersion(sw)>=197,`active PWA cache must not regress below v197; got v${activeCacheVersion(sw)}`);
   assert.match(sw,/v197 product\/operations functional hardening/);
+  assert.match(sw,/lourex-invoice-v197: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v196: preserved as a legacy marker/);
   for(const asset of ['./src/components/ProductLibraryWorkspace.js','./src/components/ProductImportModal.js','./src/components/OperationsPage.js'])assert.ok(sw.includes(asset),asset);
 });
