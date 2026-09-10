@@ -42,8 +42,9 @@ test('v192 editor browser QA audits the design section after scrolling and check
 
 test('v192 remains cached intact while later immutable PWA generations advance',async()=>{
   const sw=await read('public/sw.js');
-  const current=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
-  assert.ok(current&&Number(current[1])>=196,'current immutable PWA generation must not regress below v196');
+  const versions=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
+  const current=Number(versions.at(-1)?.[1]);
+  assert.ok(Number.isInteger(current)&&current>=196,'current immutable PWA generation must not regress below v196');
   assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v192: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v191: preserved as a legacy marker/);
