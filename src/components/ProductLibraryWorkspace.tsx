@@ -58,8 +58,10 @@ function ranked(items:SavedItem[],values:(item:SavedItem)=>string[],limit:number
 }
 
 export class ProductLibraryWorkspace extends React.Component<Props,State>{
+  private mutationInFlight=false;
   state:State={query:'',category:'',favoriteOnly:false,sortMode:'smart',editing:null,editingInitial:'',deleting:null,busy:false,error:'',importOpen:false,discardAction:'',pendingEdit:null};
 
+  private mutating=():boolean=>this.mutationInFlight||this.state.busy;
   private set=(key:keyof SavedItem,value:any)=>this.setState(state=>({editing:state.editing?{...state.editing,[key]:value}:null,error:''}));
 
   private loadEdit=(item:SavedItem)=>{
@@ -70,25 +72,25 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
   private editingDirty=():boolean=>Boolean(this.state.editing&&(!this.state.editingInitial||JSON.stringify(this.state.editing)!==this.state.editingInitial));
 
   private beginEdit=(item:SavedItem)=>{
-    if(this.state.busy||this.state.editing?.id===item.id)return;
+    if(this.mutating()||this.state.editing?.id===item.id)return;
     if(this.editingDirty()){this.setState({discardAction:'select',pendingEdit:item});return;}
     this.loadEdit(item);
   };
 
   private newItem=()=>{
-    if(this.state.busy)return;
+    if(this.mutating())return;
     if(this.editingDirty()){this.setState({discardAction:'new',pendingEdit:null});return;}
     this.loadEdit(blank(this.props.currency));
   };
 
   private requestClose=()=>{
-    if(this.state.busy)return;
+    if(this.mutating())return;
     if(this.editingDirty()){this.setState({discardAction:'close',pendingEdit:null});return;}
     this.setState({editing:null,editingInitial:'',error:''});
   };
 
   private requestImport=()=>{
-    if(this.state.busy)return;
+    if(this.mutating())return;
     if(this.editingDirty()){this.setState({discardAction:'import',pendingEdit:null});return;}
     this.setState({importOpen:true});
   };
@@ -108,6 +110,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
   };
 
   private duplicate=(source:SavedItem)=>{
+    if(this.mutating())return;
     if(this.editingDirty()){
       this.setState({error:t('Save or discard the current changes before duplicating this product.','احفظ التعديلات الحالية أو تجاهلها قبل نسخ هذا الصنف.')});
       return;
@@ -128,7 +131,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
   };
 
   private save=async()=>{
-    const item=this.state.editing;if(!item||this.state.busy)return;
+    const item=this.state.editing;if(!item||this.mutating())return;
     const sku=(item.sku??'').trim().toUpperCase();
     if(!item.descriptionEn.trim()&&!item.descriptionAr.trim()){this.setState({error:t('Enter an English or Arabic description.','أدخل وصفًا بالإنجليزية أو العربية.')});return;}
     if(!item.unit.trim()){this.setState({error:t('Unit is required.','الوحدة مطلوبة.')});return;}
@@ -143,25 +146,31 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
       this.setState({error:duplicateSku?t(`SKU “${sku}” is already used by ${titleOf(duplicate)}.`,`SKU «${sku}» مستخدم بالفعل للصنف ${titleOf(duplicate)}.`):t(`A product named “${titleOf(duplicate)}” already exists.`,`يوجد صنف باسم «${titleOf(duplicate)}» بالفعل.`)});
       return;
     }
+    this.mutationInFlight=true;
     this.setState({busy:true,error:''});
     try{await this.props.onSave(candidate);this.setState({busy:false,editing:null,editingInitial:'',error:'',discardAction:'',pendingEdit:null});}
     catch(e){this.setState({busy:false,error:e instanceof Error?e.message:t('Unable to save product.','تعذر حفظ الصنف.')});}
+    finally{this.mutationInFlight=false;}
   };
 
   private remove=async()=>{
-    const item=this.state.deleting;if(!item||this.state.busy)return;
+    const item=this.state.deleting;if(!item||this.mutating())return;
+    this.mutationInFlight=true;
     this.setState({busy:true,error:''});
     try{await this.props.onDelete(item);this.setState({busy:false,deleting:null,editing:null,editingInitial:'',error:'',discardAction:'',pendingEdit:null});}
     catch(e){this.setState({busy:false,deleting:null,error:e instanceof Error?e.message:t('Unable to delete product.','تعذر حذف الصنف.')});}
+    finally{this.mutationInFlight=false;}
   };
 
   private toggleFavorite=async(item:SavedItem)=>{
-    if(this.state.busy)return;
+    if(this.mutating())return;
     const editing=this.state.editing;
     if(editing?.id===item.id){this.set('favorite',!Boolean(editing.favorite));return;}
+    this.mutationInFlight=true;
     this.setState({busy:true,error:''});
     try{await this.props.onSave({...item,favorite:!Boolean(item.favorite),updatedAt:new Date().toISOString()});this.setState({busy:false});}
     catch(e){this.setState({busy:false,error:e instanceof Error?e.message:t('Unable to update favorite.','تعذر تحديث المفضلة.')});}
+    finally{this.mutationInFlight=false;}
   };
 
   private ordered=(items:SavedItem[]):SavedItem[]=>{
@@ -256,7 +265,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
               {this.state.error?<div className="inline-error product-library-error" role="alert">{this.state.error}</div>:null}
             </div>
             <footer className="product-library-editor-actions">
-              <div>{this.props.items.some(item=>item.id===edit.id)?<><Button icon="copy" onClick={()=>this.duplicate(edit)}>{t('Duplicate','نسخ')}</Button><Button icon="trash" variant="danger" disabled={this.state.busy} onClick={()=>this.setState({deleting:structuredClone(edit)})}>{t('Delete','حذف')}</Button></>:null}</div>
+              <div>{this.props.items.some(item=>item.id===edit.id)?<><Button icon="copy" disabled={this.state.busy} onClick={()=>this.duplicate(edit)}>{t('Duplicate','نسخ')}</Button><Button icon="trash" variant="danger" disabled={this.state.busy} onClick={()=>this.setState({deleting:structuredClone(edit)})}>{t('Delete','حذف')}</Button></>:null}</div>
               <Button icon="save" variant="primary" disabled={this.state.busy} onClick={()=>void this.save()}>{this.state.busy?t('Saving…','جارٍ الحفظ…'):t('Save Product','حفظ الصنف')}</Button>
             </footer>
           </>:<div className="product-library-editor-empty"><div><Icon name="items" size={30}/></div><p className="eyebrow">{t('Product details','بيانات الصنف')}</p><strong>{t('Choose a product to edit','اختر صنفًا لتعديله')}</strong><span>{t('The editor keeps recurring commercial data in one place without crowding the catalog list.','يبقي المحرر البيانات التجارية المتكررة في مكان واحد دون ازدحام قائمة الأصناف.')}</span><Button icon="plus" variant="primary" onClick={this.newItem}>{t('New Product','صنف جديد')}</Button></div>}
