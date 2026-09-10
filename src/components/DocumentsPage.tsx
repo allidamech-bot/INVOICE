@@ -86,6 +86,7 @@ function documentSearchText(doc:LourexDocument):string{
 export class DocumentsPage extends React.Component<Props,State>{
   state:State={tab:'all',status:'all',payment:'all',currency:'all',sort:'latest',query:'',menuId:'',filtersOpen:false,outputId:'',detailId:''};
   private quoteConversions=new Set<string>();
+  private outputRunning=false;
   private menuTrigger:HTMLElement|null=null;
   private desktopMenu:HTMLDivElement|null=null;
   private toggleMenu=(doc:LourexDocument,event:any)=>{
@@ -202,11 +203,12 @@ export class DocumentsPage extends React.Component<Props,State>{
   };
   private reserveOutput=(mode:'pdf'|'share')=>{try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}};
   private runOutput=async(mode:'pdf'|'share',doc:LourexDocument)=>{
-    if(this.state.outputId)return;
+    if(this.outputRunning)return;
+    this.outputRunning=true;
     this.reserveOutput(mode);
     this.setState({menuId:'',outputId:doc.id});
     try{await this.props.onPrint(doc,mode);}catch{/* App surfaces actionable output errors. */}
-    finally{this.setState({outputId:''});}
+    finally{this.outputRunning=false;this.setState({outputId:''});}
   };
   private clearFilters=()=>this.setState({tab:'all',status:'all',payment:'all',currency:'all',query:'',sort:'latest',menuId:'',filtersOpen:false});
   private clearSearch=()=>this.setState({query:'',menuId:''},()=>document.querySelector<HTMLInputElement>('.documents-search-input')?.focus());
