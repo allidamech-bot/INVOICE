@@ -168,14 +168,14 @@ export class EditorPage extends React.Component<Props,State>{
     const mode=this.state.reviewMode;if(!mode)return;
     const alreadyFinal=this.state.doc.status==='final';
     const finalDoc=alreadyFinal?structuredClone(this.state.doc):{...structuredClone(this.state.doc),status:'final' as const,updatedAt:new Date().toISOString()};
-    this.setState({issuing:true});
+    this.setState({issuing:true,errors:{}});
     try{
       if(!alreadyFinal){
         await this.props.onSave(finalDoc,false);
         await new Promise<void>(resolve=>this.setState({doc:finalDoc,saveState:'saved'},resolve));
       }
       if(mode!=='issue')await this.props.onPrint(finalDoc,mode);
-      this.setState({reviewMode:null,issuing:false,doc:finalDoc,saveState:'saved'});
+      this.setState({reviewMode:null,issuing:false,doc:finalDoc,saveState:'saved',errors:{}});
     }catch(e){this.setState({issuing:false,errors:{...this.state.errors,global:e instanceof Error?e.message:t('Unable to issue document.','تعذر إصدار المستند.')}});}
   };
   private unlockFinal=async()=>{
