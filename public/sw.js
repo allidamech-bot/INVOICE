@@ -1,3 +1,4 @@
+// v197 product/operations functional hardening — recache single-flight catalog/import/operations mutations and stale-file protection.
 // v196 documents/customers functional hardening — recache promise-preserving quotation conversion and customer document QA.
 // v195 payment collection hardening — recache payment save/delete single-flight guards and collection workflow QA.
 // v194 functional document workflow — recache the issued-output retry state fix and final invoice/quotation runtime QA.
@@ -63,7 +64,8 @@ const CACHE = 'lourex-invoice-v185';
 /* Historical v188 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v188';
 */
-const CACHE = 'lourex-invoice-v196';
+const CACHE = 'lourex-invoice-v197';
+// lourex-invoice-v196: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v195: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v194: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v193: preserved as a legacy marker for cache-migration tests.
