@@ -37,10 +37,13 @@ test('v195 payment browser workflow covers duplicate intent, retry, credit balan
   assert.match(ci,/node tests\/visual\/run-functional-payments\.cjs/);
 });
 
-test('v195 publishes a fresh immutable PWA generation and preserves v194 as a migration marker',async()=>{
+test('v195 remains preserved after later immutable PWA generations advance',async()=>{
   const sw=await read('public/sw.js');
   assert.match(sw,/v195 payment collection hardening/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v195';$/m);
+  const versions=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
+  const current=Number(versions.at(-1)?.[1]);
+  assert.ok(Number.isInteger(current)&&current>=196,'current immutable PWA generation must not regress below v196');
+  assert.match(sw,/lourex-invoice-v195: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v194: preserved as a legacy marker/);
   assert.ok(sw.includes('./src/components/InvoicePaymentsPanel.js'));
 });

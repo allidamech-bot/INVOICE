@@ -69,7 +69,10 @@ test('coarse-pointer mobile controls retain reliable 44px touch targets in the f
 
 test('current release uses a fresh PWA cache generation instead of mutating the prior active cache in place',async()=>{
   const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v195';$/m);
+  const versions=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
+  const current=Number(versions.at(-1)?.[1]);
+  assert.ok(Number.isInteger(current)&&current>=196,'current immutable PWA generation must not regress below v196');
+  assert.match(sw,/lourex-invoice-v195: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v192: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v191: preserved as a legacy marker/);

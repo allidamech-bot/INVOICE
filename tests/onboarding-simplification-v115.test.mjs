@@ -56,6 +56,8 @@ test('v115 remains loaded and cached while the current account-access generation
   assert.ok(index.indexOf(ux)>-1&&index.indexOf(ux)<index.indexOf(perf));
   assert.ok(sw.includes(ux));
   assert.match(sw,/v115/);
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v195';$/m);
+  const versions=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
+  const current=Number(versions.at(-1)?.[1]);
+  assert.ok(Number.isInteger(current)&&current>=196,'current immutable PWA generation must not regress below v196');
   assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
 });
