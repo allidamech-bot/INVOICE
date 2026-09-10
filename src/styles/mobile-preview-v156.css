@@ -19,7 +19,7 @@
     display:none!important;
     flex-direction:column!important;
     overflow:hidden!important;
-    background:#dfe4e6!important;
+    background:var(--ds-workspace)!important;
   }
 
   .app-ui .mobile-preview-open .mobile-preview-overlay{
@@ -44,11 +44,11 @@
     margin:0!important;
     padding:env(safe-area-inset-top) max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left))!important;
     border:0!important;
-    border-bottom:1px solid #ccd5d8!important;
+    border-bottom:1px solid var(--ds-line)!important;
     border-radius:0!important;
-    background:rgba(255,253,248,.985)!important;
+    background:var(--ds-shell)!important;
     box-shadow:0 5px 18px rgba(6,27,41,.10)!important;
-    backdrop-filter:blur(14px);
+    backdrop-filter:none;
   }
 
   .app-ui .mobile-preview-overlay>header>strong{
@@ -56,7 +56,7 @@
     min-width:0!important;
     margin:0!important;
     padding:0 4px!important;
-    color:#092638!important;
+    color:var(--ds-text)!important;
     font-size:14px!important;
     font-weight:800!important;
     line-height:40px!important;
@@ -107,7 +107,7 @@
     scroll-padding-top:14px!important;
     margin:0!important;
     padding:14px max(10px,env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))!important;
-    background:linear-gradient(180deg,#dce2e4,#e4e8e9)!important;
+    background:var(--ds-workspace)!important;
   }
 
   .app-ui .mobile-preview-stage>.invoice-pages{

@@ -40,7 +40,7 @@
 
 .documents-overview-five{grid-template-columns:repeat(5,minmax(0,1fr))}.documents-overview-five>button.has-ready:before{background:#3d8a65}
 .documents-toolbar-right{display:flex;align-items:center;gap:8px;min-width:0}.documents-toolbar-right .search-box{min-width:240px}.documents-sort{width:auto!important;min-width:142px!important}
-.document-status-pill.status-ready{background:#edf8f2!important;border-color:#c8e2d3!important;color:#2f7857!important}.premium-document-card.workflow-final{border-inline-start:3px solid #5b83a0!important}.premium-document-card.workflow-ready{border-inline-start:3px solid #4a8b69!important}
+.premium-document-card.workflow-final{border-inline-start:3px solid #5b83a0!important}.premium-document-card.workflow-ready{border-inline-start:3px solid #4a8b69!important}
 
 /* Design-system closeout */
 .app-ui .btn,.app-ui .input,.app-ui .icon-btn,.app-ui .editor-section,.app-ui .document-card,.app-ui .modal{transition:border-color .16s ease,box-shadow .16s ease,background-color .16s ease,transform .16s ease,opacity .16s ease}

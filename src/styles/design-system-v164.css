@@ -1,31 +1,50 @@
-/* Batch 7 — canonical LOUREX application design system.
+/* Obsidian Executive — canonical LOUREX application design system.
    Application chrome only: no printable invoice/template geometry belongs here.
    This layer provides one token vocabulary for the new shell, dashboard, editor,
    settings and legacy application components while the old CSS is retired safely. */
 
 .app-ui{
   /* Brand and semantic colour */
-  --ds-navy-950:#071b28;
-  --ds-navy-900:#0b2838;
-  --ds-navy-800:#123a4c;
-  --ds-navy-700:#31576b;
-  --ds-gold-600:#b48a48;
-  --ds-gold-500:#c6a15b;
-  --ds-gold-200:#ead8b1;
-  --ds-ivory-100:#f7f4ee;
-  --ds-ivory-50:#fbfaf7;
-  --ds-surface:#fffdfa;
-  --ds-surface-strong:#ffffff;
-  --ds-text:#172833;
-  --ds-text-soft:#435965;
-  --ds-muted:#71808a;
-  --ds-faint:#909ba1;
-  --ds-line:#dedbd4;
-  --ds-line-strong:#c7ced0;
-  --ds-success:#27805f;
-  --ds-warning:#aa7424;
-  --ds-danger:#a6443f;
-  --ds-info:#315f78;
+  --ds-canvas:#091218;
+  --ds-shell:#060D12;
+  --ds-workspace:#0D181E;
+  --ds-surface:#101D24;
+  --ds-surface-strong:#16262E;
+  --ds-selected:#1C3540;
+  --ds-financial-surface:#14343B;
+  --ds-input:#0C171C;
+  --ds-accent:#137C7A;
+  /* Darkened hover keeps white action text above 4.5:1 contrast. */
+  --ds-accent-hover:#158380;
+  --ds-accent-bright:#27AAA3;
+  --ds-brass:#B99658;
+  --ds-brass-highlight:#D2B77B;
+  --ds-text:#EDF2F1;
+  --ds-text-soft:#9AACB1;
+  --ds-muted:#9AACB1;
+  --ds-faint:#708389;
+  --ds-line:#263840;
+  --ds-line-strong:#30434B;
+  --ds-input-line:#293A42;
+  --ds-focus-line:#2AA69E;
+  --ds-success:#36A779;
+  --ds-warning:#D19A45;
+  --ds-danger:#C75A57;
+  --ds-danger-text:#E58D87;
+  --ds-info:var(--ds-accent-bright);
+  --ds-on-action:#ffffff;
+  --ds-secondary-button:#17262D;
+  /* Legacy names are aliases, not independent palettes. Printable output uses
+     its own tokens outside this scope; never bridge global --paper/--ink here. */
+  --ds-navy-950:var(--ds-shell);
+  --ds-navy-900:var(--ds-workspace);
+  --ds-navy-800:var(--ds-selected);
+  --ds-navy-700:var(--ds-accent-bright);
+  --ds-gold-600:var(--ds-brass);
+  --ds-gold-500:var(--ds-brass-highlight);
+  --ds-gold-200:var(--ds-brass-highlight);
+  --ds-ivory-100:var(--ds-canvas);
+  --ds-ivory-50:var(--ds-surface);
 
   /* Rhythm */
   --ds-space-1:4px;
@@ -36,22 +55,22 @@
   --ds-space-6:32px;
   --ds-space-7:48px;
   --ds-radius-control:11px;
-  --ds-radius-card:16px;
-  --ds-radius-panel:20px;
+  --ds-radius-card:14px;
+  --ds-radius-panel:16px;
   --ds-radius-pill:999px;
-  --ds-shadow-card:0 8px 26px rgba(7,27,40,.055);
-  --ds-shadow-raised:0 18px 48px rgba(7,27,40,.12);
-  --ds-focus:0 0 0 3px rgba(49,87,107,.15);
+  --ds-shadow-card:none;
+  --ds-shadow-raised:0 12px 32px rgba(0,0,0,.24);
+  --ds-focus:0 0 0 3px rgba(42,166,158,.22);
   --ds-motion-fast:150ms ease;
 
   /* One type system. Arabic switches family below without changing hierarchy. */
   --ds-font-ui:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
   --ds-font-ar:"Noto Sans Arabic",Tahoma,Arial,sans-serif;
-  --ds-text-xs:10px;
+  --ds-text-xs:11px;
   --ds-text-sm:12px;
   --ds-text-md:14px;
   --ds-text-lg:18px;
-  --ds-text-xl:26px;
+  --ds-text-xl:30px;
 
   /* Compatibility bridge: new surfaces and older application components now
      resolve to the same tokens instead of carrying independent palettes. */
@@ -69,7 +88,7 @@
 
   --ux-app:var(--ds-ivory-100);
   --ux-card:var(--ds-surface);
-  --ux-input:var(--ds-surface-strong);
+  --ux-input:var(--ds-input);
   --ux-navy:var(--ds-navy-900);
   --ux-navy-deep:var(--ds-navy-950);
   --ux-navy-soft:var(--ds-navy-700);
@@ -84,16 +103,16 @@
   --ux-shadow:var(--ds-shadow-card);
   --ux-shadow-strong:var(--ds-shadow-raised);
 
-  --editor-shell:#e9edef;
-  --editor-pane:#f5f6f4;
+  --editor-shell:var(--ds-canvas);
+  --editor-pane:var(--ds-workspace);
   --editor-card:var(--ds-surface-strong);
   --editor-card-soft:var(--ds-ivory-50);
   --editor-line:var(--ds-line);
   --editor-line-strong:var(--ds-line-strong);
-  --editor-ink:var(--ds-navy-900);
+  --editor-ink:var(--ds-text);
   --editor-muted:var(--ds-muted);
   --editor-accent:var(--ds-navy-700);
-  --editor-accent-soft:#e8f0f2;
+  --editor-accent-soft:var(--ds-selected);
   --editor-gold:var(--ds-gold-600);
   --editor-shadow:var(--ds-shadow-card);
   --editor-shadow-raised:var(--ds-shadow-raised);
@@ -104,9 +123,18 @@
   color:var(--ds-text);
   background:var(--ds-ivory-100);
   text-rendering:optimizeLegibility;
+  min-height:100dvh!important;
+  color-scheme:dark;
+  font-size:var(--ds-text-md);
+  line-height:1.5;
 }
 
 html[dir='rtl'] .app-ui{font-family:var(--ds-font-ar)}
+/* Do not apply tracking or font changes to document descendants. */
+html[dir='rtl'] .app-ui :where(h1,h2,h3,.field-label,.btn,.eyebrow,.shell-page-title,.shell-nav-button):not(.invoice-pages *){letter-spacing:normal;text-transform:none}
+.app-ui :where(h1,h2,h3):not(.invoice-pages *){color:var(--ds-text);line-height:1.4}
+.app-ui .page-heading h1{font-size:var(--ds-text-xl);font-weight:800;letter-spacing:normal}
+.app-ui :where(.section-heading h2,.dashboard-panel-heading h2){font-size:var(--ds-text-lg)}
 
 /* Base interaction language */
 .app-ui :where(button,input,select,textarea){font:inherit}
@@ -119,53 +147,59 @@ html[dir='rtl'] .app-ui{font-family:var(--ds-font-ar)}
   min-height:42px;
   border-radius:var(--ds-radius-control)!important;
   border-color:var(--ds-line-strong);
-  background:var(--ds-surface-strong);
-  color:var(--ds-navy-700);
+  background:var(--ds-secondary-button);
+  color:var(--ds-text);
   font-weight:700;
   box-shadow:none;
 }
-.app-ui .btn:hover:not(:disabled){border-color:#aebabc;background:#fff;color:var(--ds-navy-900)}
+.app-ui .btn:hover:not(:disabled){border-color:var(--ds-focus-line);background:var(--ds-selected);color:var(--ds-text)}
 .app-ui .btn-primary{
-  border-color:var(--ds-navy-900);
-  background:var(--ds-navy-900);
-  color:#fff;
+  border-color:var(--ds-accent);
+  background:var(--ds-accent);
+  color:var(--ds-on-action);
 }
-.app-ui .btn-primary:hover:not(:disabled){border-color:var(--ds-navy-800);background:var(--ds-navy-800);color:#fff}
-.app-ui .btn-danger{border-color:#e0bab6;background:#fff5f3;color:var(--ds-danger)}
+.app-ui .btn-primary:hover:not(:disabled){border-color:var(--ds-accent-hover);background:var(--ds-accent-hover);color:var(--ds-on-action)}
+.app-ui .btn-danger{border-color:var(--ds-danger-text);background:var(--ds-workspace);color:var(--ds-danger-text)}
 .app-ui .btn-ghost{border-color:transparent;background:transparent;box-shadow:none}
-.app-ui .icon-btn{min-width:40px;min-height:40px;border-radius:var(--ds-radius-control)!important;color:#52656f}
+.app-ui .btn-danger:hover:not(:disabled){border-color:var(--ds-danger);background:var(--ds-selected);color:var(--ds-danger-text)}
+.app-ui .icon-btn{min-width:40px;min-height:40px;border-radius:var(--ds-radius-control)!important;color:var(--ds-text-soft)}
 
 .app-ui :where(.btn,.icon-btn,button,input,select,textarea):focus-visible{
-  outline:0;
+  outline:2px solid var(--ds-focus-line);
+  outline-offset:2px;
   box-shadow:var(--ds-focus)!important;
 }
+
+.app-ui .icon-btn:hover:not(:disabled){background:var(--ds-selected);color:var(--ds-text)}
+.app-ui .icon-btn-danger:hover:not(:disabled){color:var(--ds-danger-text);background:var(--ds-workspace)}
+.app-ui :where(.btn,.icon-btn):disabled{opacity:.55;transform:none}
 
 /* Forms */
-.app-ui :where(.input,select.input,textarea.input,.textarea){
-  border-color:var(--ds-line-strong);
+.app-ui :is(.input,select.input,textarea.input,.textarea){
+  border-color:var(--ds-input-line);
   border-radius:var(--ds-radius-control)!important;
-  background:var(--ds-surface-strong);
+  background:var(--ds-input);
   color:var(--ds-text);
 }
-.app-ui :where(.input,select.input,textarea.input,.textarea):hover{border-color:#b7c1c3}
-.app-ui :where(.input,select.input,textarea.input,.textarea):focus{
-  border-color:#7d9aa7!important;
-  background:#fff!important;
+.app-ui :is(.input,select.input,textarea.input,.textarea):hover{border-color:var(--ds-muted)}
+.app-ui :is(.input,select.input,textarea.input,.textarea):focus{
+  border-color:var(--ds-focus-line)!important;
+  background:var(--ds-input)!important;
   box-shadow:var(--ds-focus)!important;
 }
-.app-ui :where(.input,textarea.input,.textarea)::placeholder{color:var(--ds-faint)}
+.app-ui :is(.input,textarea.input,.textarea)::placeholder{color:var(--ds-faint)}
 .app-ui .field{gap:var(--ds-space-2)}
-.app-ui .field-label{color:#52636d;font-size:11px;font-weight:750;line-height:1.4}
-.app-ui :where(.field-error,.inline-error,.auth-error){color:var(--ds-danger)}
+.app-ui .field-label{color:var(--ds-text-soft);font-size:12px;font-weight:750;line-height:1.4}
+.app-ui :is(.field-error,.inline-error,.auth-error){color:var(--ds-danger-text)}
 
 /* Shared surface hierarchy. One parent surface, then spacing/dividers inside. */
-.app-ui :where(.dashboard-panel,.premium-document-card,.document-detail-card,.customer-card,.reports-panel,.report-currency-card,.receivables-card,.operations-card,.product-library-body,.settings-workspace-card,.account-security-card){
+.app-ui :is(.dashboard-panel,.premium-document-card,.document-detail-card,.customer-card,.reports-panel,.report-currency-card,.receivables-card,.operations-card,.product-library-body,.settings-workspace-card,.account-security-card){
   border-color:var(--ds-line);
   background:var(--ds-surface);
   box-shadow:var(--ds-shadow-card);
 }
 .app-ui :where(.dashboard-panel,.premium-document-card,.document-detail-card,.customer-card,.reports-panel,.report-currency-card,.receivables-card,.operations-card,.product-library-body):hover{
-  border-color:#c4c9c8;
+  border-color:var(--ds-line-strong);
 }
 
 .app-ui :where(.page-heading,.dashboard-hero,.document-detail-hero,.settings-workspace-hero){
@@ -173,7 +207,7 @@ html[dir='rtl'] .app-ui{font-family:var(--ds-font-ar)}
 }
 
 /* Financial values remain stable as numbers change. */
-.app-ui :where(
+.app-ui :is(
   .document-total strong,
   .document-detail-value strong,
   .document-detail-totals strong,
@@ -185,7 +219,7 @@ html[dir='rtl'] .app-ui{font-family:var(--ds-font-ar)}
   .receivables-summary strong,
   .report-primary-metrics strong,
   .operations-summary strong
-){font-variant-numeric:tabular-nums lining-nums}
+){font-variant-numeric:tabular-nums lining-nums;color:var(--ds-text)}
 
 /* Status is semantic, not decorative. */
 .app-ui :where(.status-pill,.document-status-badge,.lifecycle-badge,.sync-badge){
@@ -200,26 +234,26 @@ html[dir='rtl'] .app-ui{font-family:var(--ds-font-ar)}
 .app-ui :where(.empty-state,.dashboard-empty,.reports-empty,.operations-empty,.product-library-empty){
   color:var(--ds-muted);
 }
-.app-ui :where(.empty-state,.dashboard-empty,.reports-empty,.operations-empty,.product-library-empty) :where(h2,strong){color:var(--ds-navy-900)}
+.app-ui :where(.empty-state,.dashboard-empty,.reports-empty,.operations-empty,.product-library-empty) :where(h2,strong){color:var(--ds-text)}
 
 /* Navigation and shell consistency */
-.app-ui .workspace-topbar{border-bottom-color:var(--ds-line);background:rgba(255,253,250,.96)}
-.app-ui .shell-page-title strong{color:var(--ds-navy-900)}
+.app-ui .workspace-topbar{border-bottom-color:var(--ds-line);background:var(--ds-workspace)}
+.app-ui .shell-page-title strong{color:var(--ds-text)}
 .app-ui .shell-sync-status{border-color:var(--ds-line);background:var(--ds-surface-strong);color:var(--ds-text-soft)}
-.app-ui .mobile-bottom-nav{border-top-color:var(--ds-line);background:rgba(255,253,250,.98)}
+.app-ui .mobile-bottom-nav{border-top-color:var(--ds-line);background:var(--ds-shell)}
 
 /* Editor hierarchy: keep content flat and let headings/totals carry emphasis. */
-.app-ui .editor-section{border-color:var(--ds-line)!important;background:var(--ds-surface-strong)!important}
-.app-ui .section-heading h2{color:var(--ds-navy-900)!important}
-.app-ui .section-heading>span:first-child{color:var(--ds-gold-600)!important}
+.app-ui .editor-section{border-color:var(--ds-line)!important;background:var(--ds-surface)!important}
+.app-ui .section-heading h2{color:var(--ds-text)!important}
+.app-ui .section-heading>span:first-child{color:var(--ds-accent-bright)!important}
 .app-ui .premium-selected-customer{box-shadow:none!important}
 .app-ui .premium-item-card{border-color:var(--ds-line)!important;box-shadow:none!important}
-.app-ui .editor-totals .grand{background:var(--ds-navy-900)!important;color:#fff!important}
+.app-ui .editor-totals .grand{background:var(--ds-financial-surface)!important;color:var(--ds-text)!important}
 
 /* Settings/account pages use the same interaction vocabulary as the rest of the app. */
 .app-ui :where(.settings-workspace,.account-workspace){color:var(--ds-text)}
 .app-ui :where(.settings-nav-button,.settings-workspace-tab){border-radius:var(--ds-radius-control)}
-.app-ui :where(.settings-nav-button.active,.settings-workspace-tab.active){color:var(--ds-navy-900)}
+.app-ui :where(.settings-nav-button.active,.settings-workspace-tab.active){color:var(--ds-text)}
 
 /* Logical-direction guardrails for application chrome. */
 [dir='rtl'] .app-ui :where(.page-heading,.document-detail-topbar,.dashboard-panel-heading,.settings-workspace-heading){text-align:start}
@@ -242,9 +276,9 @@ html[dir='rtl'] .app-ui{font-family:var(--ds-font-ar)}
 }
 
 @media(max-width:720px){
-  .app-ui{--ds-radius-panel:16px;--ds-radius-card:14px}
-  .app-ui :where(.input,select.input,textarea.input,.textarea){font-size:16px}
-  .app-ui .field-label{font-size:10.5px}
+  .app-ui{--ds-radius-panel:16px;--ds-radius-card:14px;--ds-text-xl:24px}
+  .app-ui :is(.input,select.input,textarea.input,.textarea){font-size:16px}
+  .app-ui .field-label{font-size:12px}
   .app-ui :where(.dashboard-panel,.premium-document-card,.document-detail-card,.customer-card,.settings-workspace-card){box-shadow:none}
 }
 

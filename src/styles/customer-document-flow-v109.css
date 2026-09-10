@@ -8,6 +8,18 @@
 .app-ui .customer-card-v109 .customer-card-main{
   min-width:0;
 }
+.app-ui .customer-card-v109:last-child{border-bottom:0}
+.app-ui .customer-card-v109 .customer-name-row strong{color:var(--ds-text)}
+.app-ui .customer-card-v109 .customer-info small{color:var(--ds-text-soft)}
+.app-ui .customer-card-v109 .customer-avatar{background:var(--ds-selected);color:var(--ds-accent-bright)}
+[dir='rtl'] .app-ui .customer-profile-back .icon{transform:scaleX(-1)}
+@media(min-width:1100px){
+  .app-ui .customer-card-v109 .customer-info{display:grid;grid-template-columns:minmax(160px,1fr) minmax(160px,1fr);gap:3px 20px}
+  .app-ui .customer-card-v109 .customer-name-row{grid-column:1}
+  .app-ui .customer-card-v109 .customer-secondary-name{grid-column:1;grid-row:2}
+  .app-ui .customer-card-v109 .customer-location{grid-column:2;grid-row:1}
+  .app-ui .customer-card-v109 .customer-contact{grid-column:2;grid-row:2;overflow-wrap:anywhere}
+}
 .app-ui .customer-document-actions{
   display:flex;
   align-items:center;
@@ -22,10 +34,10 @@
   gap:6px;
   min-height:40px;
   padding:0 11px;
-  border:1px solid #dce4e8;
+  border:1px solid var(--ds-line);
   border-radius:10px;
-  background:#fff;
-  color:#173244;
+  background:var(--ds-surface-strong);
+  color:var(--ds-text);
   font:inherit;
   font-size:12px;
   font-weight:700;
@@ -35,8 +47,8 @@
   transition:background-color .15s ease,border-color .15s ease,transform .15s ease;
 }
 .app-ui .customer-document-action:hover:not(:disabled){
-  background:#f7fafb;
-  border-color:#c9d8df;
+  background:var(--ds-selected);
+  border-color:var(--ds-line);
 }
 .app-ui .customer-document-action:active:not(:disabled){
   transform:translateY(1px);
@@ -50,10 +62,10 @@
   cursor:default;
 }
 .app-ui .customer-document-action.quote{
-  background:#f8fbfc;
+  background:var(--ds-surface-strong);
 }
 .app-ui .customer-document-action.invoice{
-  border-color:#d6dde1;
+  border-color:var(--ds-line);
 }
 .app-ui .customer-document-action .icon{
   width:16px;
@@ -87,7 +99,7 @@
   border:1px solid var(--ds-line,#dedbd4);
   border-radius:var(--ds-radius-control,11px);
   background:var(--ds-surface-strong,#fff);
-  color:var(--ds-navy-900,#0b2838);
+  color:var(--ds-text);
   font:inherit;
   font-weight:750;
   cursor:pointer;
@@ -112,23 +124,23 @@
   align-items:center;
   gap:18px;
   min-width:0;
-  padding:22px;
+  padding:18px;
   margin-block-end:18px;
-  border:1px solid rgba(198,161,91,.22);
+  border:1px solid var(--ds-line);
   border-radius:var(--ds-radius-panel,20px);
-  background:linear-gradient(135deg,var(--ds-navy-950,#071b28),var(--ds-navy-800,#123a4c));
+  background:var(--ds-surface);
   color:#fff;
-  box-shadow:var(--ds-shadow-card,0 8px 26px rgba(7,27,40,.055));
+  box-shadow:none;
 }
 .app-ui .customer-profile-avatar{
   display:grid;
   place-items:center;
   width:60px;
   height:60px;
-  border:1px solid rgba(234,216,177,.46);
+  border:1px solid var(--ds-line);
   border-radius:18px;
   background:rgba(255,255,255,.09);
-  color:var(--ds-gold-200,#ead8b1);
+  color:var(--ds-accent-bright);
   font-size:24px;
   font-weight:800;
   line-height:1;
@@ -141,7 +153,7 @@
   color:rgba(255,255,255,.68);
   font-size:11px;
   font-weight:750;
-  letter-spacing:.08em;
+  letter-spacing:0;
   text-transform:uppercase;
 }
 .app-ui .customer-profile-identity h1{
@@ -201,7 +213,7 @@
   border:1px solid var(--ds-line,#dedbd4);
   border-radius:var(--ds-radius-card,16px);
   background:var(--ds-surface,#fffdfa);
-  box-shadow:var(--ds-shadow-card,0 8px 26px rgba(7,27,40,.055));
+  box-shadow:none;
 }
 .app-ui .customer-profile-card>header{
   display:flex;
@@ -212,7 +224,7 @@
 }
 .app-ui .customer-profile-card>header h2{
   margin:0;
-  color:var(--ds-navy-900,#0b2838);
+  color:var(--ds-text);
   font-size:15px;
   line-height:1.25;
 }
@@ -235,10 +247,11 @@
 .app-ui .customer-profile-facts>div,
 .app-ui .customer-profile-stack>div{
   min-width:0;
-  padding:12px;
-  border:1px solid color-mix(in srgb,var(--ds-line,#dedbd4) 78%,transparent);
-  border-radius:12px;
-  background:var(--ds-ivory-50,#fbfaf7);
+  padding:10px 0;
+  border:0;
+  border-bottom:1px solid var(--ds-line);
+  border-radius:0;
+  background:transparent;
 }
 .app-ui .customer-profile-facts .wide{
   grid-column:1 / -1;
@@ -274,7 +287,7 @@
   overflow-wrap:anywhere;
 }
 .app-ui .customer-profile-credit{
-  border-color:color-mix(in srgb,var(--ds-gold-600,#b48a48) 28%,var(--ds-line,#dedbd4));
+  border-color:var(--ds-line);
 }
 .app-ui .customer-profile-quick-actions{
   display:grid;
@@ -294,7 +307,7 @@
   border:1px solid var(--ds-line,#dedbd4);
   border-radius:var(--ds-radius-control,11px);
   background:var(--ds-surface-strong,#fff);
-  color:var(--ds-navy-900,#0b2838);
+  color:var(--ds-text);
   font:inherit;
   font-size:12px;
   font-weight:750;
@@ -310,7 +323,7 @@
   cursor:default;
 }
 .app-ui .customer-profile-quick-actions>button.danger{
-  color:var(--ds-danger,#a6443f);
+  color:var(--ds-danger-text);
 }
 .app-ui .customer-profile-quick-actions .icon{
   width:17px;
@@ -449,7 +462,7 @@
 
 @media (pointer:coarse){
   .app-ui .customer-document-action:hover:not(:disabled){
-    background:#fff;
+    background:var(--ds-surface-strong);
     transform:none;
   }
   .app-ui .customer-profile-quick-actions>button:hover:not(:disabled){

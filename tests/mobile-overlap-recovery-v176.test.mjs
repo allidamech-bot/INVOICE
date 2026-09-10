@@ -37,6 +37,16 @@ test('v176 keeps destructive confirmation footer inside the dynamic mobile viewp
   assert.match(css,/@media \(max-height:460px\)\{[\s\S]*\.app-ui \.modal-footer-actions \.btn\{[\s\S]*min-height:44px!important/);
 });
 
+test('v176 keeps shared modal chrome dark and removes bottom navigation from modal hit testing',async()=>{
+  const css=await read('src/styles/mobile-overlap-recovery-v176.css');
+  assert.match(css,/\.app-ui \.modal-backdrop\{[\s\S]*background:rgba\(3,10,14,\.76\)!important/);
+  assert.match(css,/\.app-ui \.modal\{[\s\S]*background:var\(--ds-surface-strong\)!important[\s\S]*color:var\(--ds-text\)!important/);
+  assert.match(css,/\.app-ui \.modal-header,[\s\S]*\.app-ui \.modal-footer\{[\s\S]*background:var\(--ds-surface-strong\)!important/);
+  assert.match(css,/\.app-ui \.modal-body\{[\s\S]*background:var\(--ds-surface\)!important/);
+  assert.match(css,/\.app-ui \.modal-header \.icon-btn,[\s\S]*\.app-ui \.modal-header \.icon-btn-ghost\{[\s\S]*background:transparent!important[\s\S]*color:var\(--ds-text-soft\)!important/);
+  assert.match(css,/@media \(max-width:960px\)[\s\S]*\.app-ui:has\(\.modal-backdrop\) \.mobile-bottom-nav\{[\s\S]*visibility:hidden!important[\s\S]*pointer-events:none!important[\s\S]*opacity:0!important/);
+});
+
 test('v176 restores 44px touch targets to compact Settings and Product Library controls on coarse-pointer devices',async()=>{
   const css=await read('src/styles/mobile-overlap-recovery-v176.css');
   assert.match(css,/@media \(max-width:960px\) and \(pointer:coarse\)/);

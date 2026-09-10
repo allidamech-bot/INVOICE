@@ -216,7 +216,8 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
                   <div className="product-library-row-title"><strong>{titleOf(item)}</strong>{item.sku?<code>{item.sku}</code>:null}</div>
                   {item.descriptionEn&&item.descriptionAr?<span>{isArabic()?item.descriptionEn:item.descriptionAr}</span>:null}
                   <div className="product-library-row-chips">{categoryOf(item)?<em>{categoryOf(item)}</em>:null}{(item.tags??[]).slice(0,2).map(tag=><em key={tag}>#{tag}</em>)}</div>
-                  <small>{[item.unit,item.lastUnitPrice?`${t('Price','سعر')} ${item.lastUnitPrice} ${item.lastCurrency}`:'',cost?`${t('Cost','تكلفة')} ${cost}`:'',item.origin,item.hsCode?`HS ${item.hsCode}`:''].filter(Boolean).join(' · ')}</small>
+                  <small>{[item.unit,cost?`${t('Cost','تكلفة')} ${cost}`:'',item.origin,item.hsCode?`HS ${item.hsCode}`:''].filter(Boolean).join(' · ')}</small>
+                  <bdi className="product-library-row-price">{item.lastUnitPrice?`${item.lastUnitPrice} ${item.lastCurrency}`:t('No price','بدون سعر')}</bdi>
                 </button>
                 <IconButton icon="edit" label={t('Edit product','تعديل الصنف')} onClick={()=>this.beginEdit(item)}/>
               </article>;

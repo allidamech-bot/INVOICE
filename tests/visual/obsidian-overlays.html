@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {CloudAccountModal} from './src/components/CloudAccountModal.js';
+import {AppErrorBoundary} from './src/app/AppErrorBoundary.js';
+import {Modal,ConfirmDialog,Button,Toast} from './src/components/UI.js';
+import {setUiLanguage,t} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),h=React.createElement,screen=params.get('screen');
+setUiLanguage(params.get('lang')==='ar'?'ar':'en');
+class Fixture extends React.Component{
+ state={nested:false,toast:''};
+ render(){
+  if(screen==='recovery')return h(AppErrorBoundary,{ref:instance=>{if(instance&&!instance.state.failed)instance.setState({failed:true,message:'Test recovery',copied:false});}});
+  if(screen==='account')return h(CloudAccountModal,{open:true,user:{uid:'qa',email:'finance.department.with.a.long.name@example.test'},onClose:()=>{},onSignOut:async()=>{throw new Error(t('Offline. Please try again.','غير متصل. حاول مرة أخرى.'));}});
+  if(screen==='empty')return h('section',{className:'empty-state',style:{margin:24}},h('h2',null,t('No documents yet','لا توجد مستندات بعد')),h('p',null,t('Create your first invoice or quotation.','أنشئ أول فاتورة أو عرض سعر.')),h(Button,{onClick:()=>this.setState({toast:t('Ready','جاهز')})},t('New document','مستند جديد')),h(Toast,{text:this.state.toast,tone:'success'}));
+  return h(Modal,{open:true,title:t('Review settings','مراجعة الإعدادات'),onClose:()=>{},footer:h(Button,{onClick:()=>this.setState({nested:true})},t('Continue','متابعة'))},
+   h('p',{className:'modal-message'},t('Review your changes before continuing.','راجع التعديلات قبل المتابعة.')),
+   h(ConfirmDialog,{open:this.state.nested,title:t('Discard changes?','تجاهل التعديلات؟'),message:t('Your saved data will remain unchanged.','ستبقى بياناتك المحفوظة كما هي.'),onCancel:()=>this.setState({nested:false}),onConfirm:()=>this.setState({nested:false})}));
+ }
+}
+ReactDOM.render(h(Fixture),document.getElementById('root'));
+</script></body></html>

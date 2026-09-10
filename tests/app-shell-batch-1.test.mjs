@@ -20,8 +20,7 @@ test('batch 1 moves application navigation into one responsive shell',async()=>{
   assert.doesNotMatch(app,/header-lock-button/);
   for(const token of ['workspace-sidebar','mobile-bottom-nav','mobile-more-sheet','shell-sync-status'])assert.ok(shell.includes(token),token);
   for(const label of ["t('Home','الرئيسية')","t('Finance','المالية')","t('Business','الأعمال')","t('More','المزيد')"])assert.ok(shell.includes(label),label);
-  assert.match(home,/New Quotation/);
-  assert.match(home,/New Invoice/);
+  assert.match(home,/New Document/);
 });
 
 test('batch 1 mobile navigation keeps five clear slots with a central create action',async()=>{
@@ -32,6 +31,10 @@ test('batch 1 mobile navigation keeps five clear slots with a central create act
   assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
   assert.match(css,/min-height:calc\(58px \+ env\(safe-area-inset-top\)\)/);
   assert.match(css,/bottom:calc\(72px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(css,/background:var\(--ds-shell\)/);
+  assert.match(css,/background:var\(--ds-selected\)/);
+  assert.doesNotMatch(css,/shell-create-button\.btn-primary\{background:linear-gradient/);
+  assert.doesNotMatch(css,/shell-brand-button\{[^}]*background:rgba\(255,255,255/);
 });
 
 test('batch 1 shell is last application layer while printable document redesign remains final',async()=>{

@@ -5,16 +5,16 @@
 
 .app-ui .premium-item-card{scroll-margin-top:116px;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
 .app-ui .premium-item-card:focus-within{border-color:#9ebdcd!important;box-shadow:0 12px 30px rgba(20,72,102,.10)!important}
-.app-ui .premium-item-card:focus-within>header{background:linear-gradient(90deg,#eef6fa 0%,#fff 82%)!important}
+.app-ui .premium-item-card:focus-within>header{background:var(--ds-selected)!important}
 .app-ui .premium-item-card:focus-within .item-line-total{background:#e4f0f6;color:#174866}
 .app-ui .recent-customer-row>div{scroll-snap-type:x proximity}
 .app-ui .recent-customer-row button{scroll-snap-align:start}
 
 /* v63 — explicit similar-line duplication. */
-.app-ui .item-card-actions .save-item-library-button+.icon-btn{width:auto;min-width:40px;padding-inline:10px;gap:6px;border-color:#d4e0e6;background:#f8fbfc}
-.app-ui .item-card-actions .save-item-library-button+.icon-btn::after{content:'Similar';font-size:11px;font-weight:700;letter-spacing:.01em;white-space:nowrap;color:#31586e}
+.app-ui .item-card-actions .save-item-library-button+.icon-btn{display:flex;width:auto!important;min-width:40px;padding-inline:10px;gap:6px;border-color:var(--ds-line);background:var(--ds-surface-strong)}
+.app-ui .item-card-actions .save-item-library-button+.icon-btn::after{content:'Similar';font-size:11px;font-weight:700;letter-spacing:.01em;white-space:nowrap;color:var(--ds-text-soft)}
 [dir='rtl'] .app-ui .item-card-actions .save-item-library-button+.icon-btn::after{content:'صنف مشابه';letter-spacing:0}
-.app-ui .item-card-actions .save-item-library-button+.icon-btn:hover,.app-ui .item-card-actions .save-item-library-button+.icon-btn:focus-visible{border-color:#9ebdcd;background:#edf6fa}
+.app-ui .item-card-actions .save-item-library-button+.icon-btn:hover,.app-ui .item-card-actions .save-item-library-button+.icon-btn:focus-visible{border-color:var(--ds-accent);background:var(--ds-selected)}
 
 /* v64 — final confirmation should make document identity, amount and lock behavior unmistakable. */
 .app-ui .issue-review-purpose{display:flex;gap:10px;align-items:flex-start;padding:12px 13px;border:1px solid #d8e4ea;border-radius:12px;background:#f7fafb;color:#234b61}
@@ -38,7 +38,7 @@
 [dir='rtl'] .final-quote-convert-bar{right:auto;left:max(18px,env(safe-area-inset-left))}
 
 @media(max-width:1180px){
-  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{position:sticky;top:0;z-index:14;margin:-8px -8px 14px;padding:8px;border:1px solid rgba(202,217,225,.86);border-radius:14px;background:rgba(250,252,252,.96);backdrop-filter:blur(14px);box-shadow:0 8px 20px rgba(14,39,55,.07)}
+  .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action{position:sticky;top:0;z-index:14;margin:-8px -8px 14px;padding:8px;border:1px solid rgba(202,217,225,.86);border-radius:14px;background:var(--ds-surface);backdrop-filter:none;box-shadow:none}
   .app-ui .editor-section:has(.add-item-button)>.section-heading.with-action .section-heading-actions{flex-shrink:0}
   .app-ui .premium-item-card{scroll-margin-top:132px}
 }

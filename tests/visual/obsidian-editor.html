@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {AppShell} from './src/components/AppShell.js';
+import {EditorPage} from './src/components/EditorPage.js';
+import {blankCustomer} from './src/components/CustomersPage.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {defaultCompany,defaultAppSettings,customerSnapshotFrom} from './src/lib/defaults.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar';
+setUiLanguage(ar?'ar':'en');
+const company=defaultCompany();company.nameEn='LOUREX Trading';company.nameAr='لوركس للتجارة';company.defaultCurrency='USD';
+const customer={...blankCustomer(),id:'customer-1',companyNameEn:'Northstar Markets',companyNameAr:'أسواق نورث ستار',contactPerson:'Samira',addressEn:'Business Bay',addressAr:'الخليج التجاري',city:'Dubai',country:'UAE',phone:'+971 50 000 0000',email:'finance@example.test',vatTaxNumber:'TRN-100200',commercialRegistration:'CR-200100'};
+const kind=params.get('kind')==='proforma'?'proforma':'invoice';
+const doc=createBlankDocument(kind,kind==='invoice'?'INV-2026-0042':'PI-2026-0028',company);
+doc.language=ar?'bilingual':'en';doc.currency='USD';doc.customerSnapshot=customerSnapshotFrom(customer);
+doc.items=[{...doc.items[0],descriptionEn:'Premium business services',descriptionAr:'خدمات أعمال متميزة',quantity:'4',unit:'Unit',unitPrice:'975.00'},{...doc.items[0],id:'item-2',descriptionEn:'Logistics coordination',descriptionAr:'تنسيق الخدمات اللوجستية',quantity:'2',unit:'Unit',unitPrice:'85.00'}];
+doc.notes=ar?'شكرًا لتعاملكم معنا.':'Thank you for your business.';
+doc.status=params.get('status')==='final'?'final':'draft';
+const noop=()=>{},asyncNoop=async()=>{};
+const props={document:doc,documents:[doc],customers:[customer],company,savedItems:[],payments:[],documentEvents:[],documentRevisions:[],smartDefaults:defaultAppSettings().smartDefaults,onClose:noop,onSave:async value=>{window.lastSaved=value;},onSaveCustomer:asyncNoop,onSaveSavedItem:asyncNoop,onSaveDocumentItem:asyncNoop,onUseSavedItems:asyncNoop,onDeleteSavedItem:asyncNoop,onSaveSmartDefaults:asyncNoop,onSavePayment:asyncNoop,onDeletePayment:asyncNoop,onBeginRevision:async value=>value,onDiscardRevision:asyncNoop,onVoidDocument:asyncNoop,onCreateCreditNote:asyncNoop,onConvert:asyncNoop,onPrint:async(value,mode)=>{window.lastOutput=mode;}};
+ReactDOM.render(React.createElement(AppShell,{screen:'editor',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:noop,onToggleNew:noop,onNew:noop,onSettings:noop,onCloud:noop},React.createElement(EditorPage,props)),document.getElementById('root'));
+</script></body></html>

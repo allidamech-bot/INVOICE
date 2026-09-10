@@ -103,9 +103,9 @@
   align-items:center!important;
   gap:12px!important;
   overflow:visible!important;
-  border:1px solid #c9dce4!important;
+  border:1px solid var(--ds-line)!important;
   border-radius:13px!important;
-  background:#f2f8fb!important;
+  background:var(--ds-surface)!important;
   box-shadow:none!important;
   backdrop-filter:none!important;
   transform:none!important;
@@ -116,6 +116,7 @@
 }
 
 .app-ui .editor-screen>.final-quote-convert-bar>div{
+  color:var(--ds-accent-bright)!important;
   min-width:0!important;
   display:flex!important;
   align-items:flex-start!important;
@@ -134,14 +135,14 @@
 }
 
 .app-ui .editor-screen>.final-quote-convert-bar strong{
-  color:#234d63!important;
+  color:var(--ds-text)!important;
   font-size:12px!important;
   line-height:1.35!important;
   overflow-wrap:anywhere!important;
 }
 
 .app-ui .editor-screen>.final-quote-convert-bar small{
-  color:#6b7e88!important;
+  color:var(--ds-text-soft)!important;
   font-size:10px!important;
   line-height:1.45!important;
   overflow-wrap:anywhere!important;
@@ -176,7 +177,7 @@
     border-inline:0!important;
     border-bottom:0!important;
     border-radius:0!important;
-    background:#f1f7fa!important;
+    background:var(--ds-surface)!important;
   }
 
   .app-ui .editor-screen>.final-quote-convert-bar small{display:none!important}
@@ -230,17 +231,17 @@
     min-width:0!important;
     padding:0 36px 0 11px!important;
     overflow:hidden!important;
-    border:1px solid #c7d2d4!important;
+    border:1px solid var(--ds-input-line)!important;
     border-radius:10px!important;
-    background:#fff!important;
-    color:#183442!important;
+    background:var(--ds-input)!important;
+    color:var(--ds-text)!important;
   }
   [dir='rtl'] .app-ui .editor-date-control{padding:0 11px 0 36px!important}
   .app-ui .editor-date-control::after{
     content:'▾';
     position:absolute!important;
     inset-inline-end:12px!important;
-    color:#69777f!important;
+    color:var(--ds-text-soft)!important;
     font-size:12px!important;
     pointer-events:none!important;
   }

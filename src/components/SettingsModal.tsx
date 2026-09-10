@@ -210,7 +210,7 @@ export class SettingsModal extends React.Component<Props,State> {
     const c=this.state.company,s=this.state.appSettings;
     const hasCompanyLogo=Boolean(c.logoDataUrl&&!c.logoDataUrl.includes('lourex-logo.svg'));
     const account=this.props.cloudUser;
-    const tabItems=([['company',t('Company','الشركة'),'users'],['commercial',t('Commercial','تجاري'),'invoice'],['documents',t('Documents','المستندات'),'file'],['security',t('Account & Security','الحساب والأمان'),'lock']] as const);
+    const tabItems=([['company',t('Company','الشركة'),'users'],['commercial',t('Commercial','تجاري'),'invoice'],['documents',t('Documents','المستندات'),'file']] as const);
     return <Modal open={this.props.open} title={t('Settings','الإعدادات')} size="xl" onClose={this.requestClose}>
       <div className="settings-layout settings-workspace-v2">
         <nav className="settings-tabs" aria-label={t('Settings sections','أقسام الإعدادات')}>{tabItems.map(([id,label,icon])=><button type="button" key={id} className={this.state.tab===id?'active':''} aria-current={this.state.tab===id?'page':undefined} onClick={()=>this.setState({tab:id,error:'',message:'',savedSection:null})}><Icon name={icon}/><span>{label}</span></button>)}</nav>

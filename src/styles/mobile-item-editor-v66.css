@@ -95,24 +95,24 @@
   }
 
   .app-ui .editor-section:has(.add-item-button) .section-heading-actions .btn-ghost {
-    background: #fff !important;
-    border: 1px solid #d7e2e8 !important;
-    color: #31566b !important;
+    background: var(--ds-input) !important;
+    border: 1px solid var(--ds-line) !important;
+    color: var(--ds-text) !important;
   }
 
   .app-ui .editor-section:has(.add-item-button) .section-heading-actions .add-item-button {
-    background: #153f5a !important;
-    border: 1px solid #153f5a !important;
-    color: #fff !important;
+    background: var(--ds-accent) !important;
+    border: 1px solid var(--ds-accent) !important;
+    color: var(--ds-text) !important;
   }
 
   .app-ui .premium-item-card {
     overflow: hidden;
     margin-bottom: 12px !important;
-    border: 1px solid #d9e3e8 !important;
+    border: 1px solid var(--ds-line) !important;
     border-radius: 15px !important;
     box-shadow: none !important;
-    background: #fff !important;
+    background: var(--ds-input) !important;
   }
 
   .app-ui .premium-item-card > header {
@@ -121,8 +121,8 @@
     gap: 8px !important;
     padding: 11px !important;
     min-height: 0 !important;
-    background: #fff !important;
-    border-bottom: 1px solid #e7edef !important;
+    background: var(--ds-input) !important;
+    border-bottom: 1px solid var(--ds-line) !important;
   }
 
   .app-ui .premium-item-card > header > div:first-child {
@@ -138,7 +138,7 @@
   .app-ui .premium-item-card > header > div:first-child > strong {
     font-size: 13px !important;
     font-weight: 800 !important;
-    color: #17364a !important;
+    color: var(--ds-text) !important;
   }
 
   .app-ui .item-line-total {
@@ -148,8 +148,8 @@
     border-radius: 999px !important;
     font-size: 11.5px !important;
     font-weight: 800 !important;
-    background: #edf4f7 !important;
-    color: #245f7e !important;
+    background: var(--ds-selected) !important;
+    color: var(--ds-text) !important;
   }
 
   .app-ui .item-card-actions {
@@ -169,10 +169,10 @@
     margin: 0 !important;
     padding: 0 10px !important;
     justify-content: center !important;
-    border: 1px solid #d7e2e8 !important;
+    border: 1px solid var(--ds-line) !important;
     border-radius: 10px !important;
-    background: #fff !important;
-    color: #31566b !important;
+    background: var(--ds-input) !important;
+    color: var(--ds-text) !important;
     font-size: 11px !important;
     box-shadow: none !important;
   }
@@ -191,7 +191,7 @@
   }
 
   .app-ui .item-card-actions .icon-btn:last-child {
-    color: #8c9aa3 !important;
+    color: var(--ds-text-soft) !important;
   }
 
   .app-ui .premium-item-card .item-core-grid {
@@ -206,15 +206,15 @@
   .app-ui .premium-item-card .field-label {
     font-size: 11.5px !important;
     font-weight: 750 !important;
-    color: #516a78 !important;
+    color: var(--ds-text-soft) !important;
   }
 
   .app-ui .premium-item-card .input,
   .app-ui .premium-item-card select.input {
     min-height: 44px !important;
     border-radius: 10px !important;
-    background: #fff !important;
-    border: 1px solid #cedbe2 !important;
+    background: var(--ds-input) !important;
+    border: 1px solid var(--ds-line) !important;
     box-shadow: none !important;
   }
 
@@ -244,28 +244,28 @@
   .app-ui .premium-item-card .item-advanced-control {
     margin-top: 0 !important;
     padding-top: 8px !important;
-    border-top: 1px solid #edf1f3 !important;
+    border-top: 1px solid var(--ds-line) !important;
   }
 
   .app-ui .premium-item-card .item-advanced-control > button {
     min-height: 32px !important;
     padding: 0 2px !important;
     font-size: 11px !important;
-    color: #607785 !important;
+    color: var(--ds-text-soft) !important;
   }
 
   .app-ui .premium-item-card .item-advanced-fields {
     padding: 9px !important;
-    border: 1px solid #e2e9ec !important;
+    border: 1px solid var(--ds-line) !important;
     border-radius: 10px !important;
-    background: #fafcfc !important;
+    background: var(--ds-workspace) !important;
   }
 
   .app-ui .premium-item-card > footer {
     min-height: 38px !important;
     padding: 8px 11px !important;
-    background: #fbfcfc !important;
-    border-top: 1px solid #e7edef !important;
+    background: var(--ds-workspace) !important;
+    border-top: 1px solid var(--ds-line) !important;
   }
 
   .app-ui .mobile-editor-actionbar {

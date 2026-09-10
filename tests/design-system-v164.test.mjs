@@ -13,7 +13,7 @@ test('batch 7 defines one canonical application token vocabulary',async()=>{
   ])assert.ok(css.includes(token),`${token} must exist`);
   assert.match(css,/--shell-navy:var\(--ds-navy-900\)/);
   assert.match(css,/--ux-navy:var\(--ds-navy-900\)/);
-  assert.match(css,/--editor-ink:var\(--ds-navy-900\)/);
+  assert.match(css,/--editor-ink:var\(--ds-text\)/);
 });
 
 test('batch 7 standardizes accessible controls, numbers and RTL without touching document output',async()=>{

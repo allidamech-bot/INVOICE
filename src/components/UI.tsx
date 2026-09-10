@@ -276,7 +276,9 @@ export function Segmented({ value, options, onChange }: { value: string; options
 export function Brand({ compact = false, logoDataUrl = './brand/lourex-logo.svg', name = '', language: _language }: { compact?: boolean; logoDataUrl?: string; name?: string; language?: UiLanguage }): any {
   if (compact) {
     const hasCompanyLogo = Boolean(logoDataUrl && !logoDataUrl.includes('lourex-logo.svg'));
-    return <div className="brand company-brand compact">{hasCompanyLogo ? <span className="brand-mark"><img src={logoDataUrl} alt={name || 'Company logo'}/></span> : <span className="brand-words"><strong>{name && name.toUpperCase() !== 'LOUREX' ? name : t('Company','الشركة')}</strong></span>}</div>;
+    return <div className="brand company-brand compact">{hasCompanyLogo
+      ? <span className="brand-mark"><img src={logoDataUrl} alt={name || 'Company logo'}/></span>
+      : <><span className="brand-mark"><img src="./brand/lourex-logo.svg" alt="LOUREX"/></span><span className="brand-words"><strong>LOUREX</strong></span></>}</div>;
   }
   return <div className="brand official-brand"><span className="brand-mark"><img src="./brand/lourex-logo.svg" alt="LOUREX"/></span><span className="brand-words"><strong>LOUREX</strong></span></div>;
 }

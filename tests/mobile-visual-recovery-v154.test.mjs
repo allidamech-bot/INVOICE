@@ -27,11 +27,13 @@ test('v154 gives editor dates a stable iPhone label while retaining native picki
   assert.match(css,/editor-date-control input\[type="date"\][^}]*opacity:\.001/);
 });
 
-test('v154 introduces compact accented rows without touching printable templates',async()=>{
+test('compact workspace rows remain scoped away from printable templates',async()=>{
   const css=await read('src/styles/ux-recovery-v152.css');
-  for(const selector of ['premium-document-card','premium-customer-card','receivable-account-row','operation-row','product-library-row::before'])assert.ok(css.includes(selector),selector);
+  for(const selector of ['premium-document-card','premium-customer-card','receivable-account-row','operation-row','product-library-row'])assert.ok(css.includes(selector),selector);
   assert.match(css,/\.app-ui :is\(\.empty-state,[^}]*min-height:104px!important/);
   assert.match(css,/\.app-ui \.operations-summary>div\{[^}]*min-height:62px!important/);
+  assert.match(css,/\.product-library-row\{[^}]*grid-template-columns:44px minmax\(0,1fr\) 44px!important/);
+  assert.doesNotMatch(css,/product-library-row::before/);
   assert.doesNotMatch(css,/\n\.invoice-page/);
   assert.doesNotMatch(css,/\n\.document-page/);
 });

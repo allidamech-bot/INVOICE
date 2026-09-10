@@ -11,9 +11,9 @@
   user-select:none;
 }
 .app-ui .shell-sync-status:hover{
-  border-color:#e0d9ce;
-  background:#fff;
-  color:#5d6c75;
+  border-color:var(--ds-line);
+  background:var(--ds-surface);
+  color:var(--ds-text-soft);
 }
 
 .app-ui .shell-account-button{
@@ -23,17 +23,17 @@
   justify-content:center;
   gap:7px;
   padding:7px 11px;
-  border:1px solid #e0d9ce;
+  border:1px solid var(--ds-line);
   border-radius:999px;
-  background:#fff;
-  color:#173446;
+  background:var(--ds-surface);
+  color:var(--ds-text);
   font:inherit;
   font-size:11px;
   font-weight:800;
   cursor:pointer;
   white-space:nowrap;
 }
-.app-ui .shell-account-button:hover{border-color:#cdb991;background:#fffdf9;color:#0b1d2d}
+.app-ui .shell-account-button:hover{border-color:var(--ds-accent);background:var(--ds-selected);color:var(--ds-text)}
 .app-ui .shell-account-button .icon{flex:0 0 auto}
 
 .app-ui .shell-sync-row{
@@ -64,8 +64,8 @@
   padding:9px 12px;
   border:1px solid var(--shell-line,#e4ded3);
   border-radius:12px;
-  background:#f7f8f8;
-  color:#61717a;
+  background:var(--ds-workspace);
+  color:var(--ds-text-soft);
   font-size:12px;
   font-weight:750;
 }
@@ -77,10 +77,10 @@
 .cloud-auth-form .cloud-account-scope-note{
   margin:0;
   padding:9px 11px;
-  border:1px solid #dfe6e8;
+  border:1px solid var(--ds-line);
   border-radius:11px;
-  background:#f6f9fa;
-  color:#64737b;
+  background:var(--ds-workspace);
+  color:var(--ds-text-soft);
   font-size:11px;
   line-height:1.55;
   text-align:start;
