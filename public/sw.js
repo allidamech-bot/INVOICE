@@ -1,3 +1,4 @@
+// v193 mobile geometry closeout — recache narrow editor navigation, focused product editing and purchase workspace fixes.
 // v192 post-redesign production audit — recache the final Obsidian editor cleanup and mobile design controls.
 // v191 Obsidian complete workspace — fresh cache for settings, account overlays and recovery.
 // v189 unified account access — recache automatic account-bound vault access and invisible background saving.
@@ -59,7 +60,8 @@ const CACHE = 'lourex-invoice-v185';
 /* Historical v188 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v188';
 */
-const CACHE = 'lourex-invoice-v192';
+const CACHE = 'lourex-invoice-v193';
+// lourex-invoice-v192: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v191: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v188: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v185: preserved as a legacy marker for cache-migration tests.
@@ -89,6 +91,7 @@ LOCAL_CORE.push('./styles/financial-workspaces-v189.css');
 LOCAL_CORE.push('./styles/settings-obsidian-v190.css');
 LOCAL_CORE.push('./styles/obsidian-closeout-v191.css');
 LOCAL_CORE.push('./styles/obsidian-production-audit-v192.css');
+LOCAL_CORE.push('./styles/obsidian-mobile-geometry-v193.css');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
