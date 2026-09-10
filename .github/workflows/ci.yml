@@ -45,6 +45,7 @@ jobs:
           node tests/visual/run-mobile-modal-overlap-v176.cjs
           node tests/visual/run-mobile-controls-density-v177.cjs
           node tests/visual/run-mobile-spacing-fit-v198.cjs
+          node tests/visual/run-mobile-safari-chrome-v199.cjs
           node tests/visual/run-premium-auth-gateway-v187.cjs
           node tests/visual/run-obsidian-foundation.cjs
           node tests/visual/run-obsidian-shell.cjs

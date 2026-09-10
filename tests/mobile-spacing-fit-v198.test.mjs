@@ -3,8 +3,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
+const activeCacheVersion=sw=>{
+  const matches=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
+  return matches.length?Number(matches.at(-1)[1]):0;
+};
 
-test('v198 is the final screen-only mobile fit layer before the printable document layer',async()=>{
+test('v198 remains the screen-only mobile fit foundation before newer mobile and printable layers',async()=>{
   const [html,css]=await Promise.all([read('index.html'),read('src/styles/mobile-spacing-fit-v198.css')]);
   const mobileLayer='mobile-spacing-fit-v198.css';
   const documentLayer='document-premium-redesign-v141.css';
@@ -45,14 +49,14 @@ test('v198 compacts only redundant account-entry story content on short phones',
   assert.match(css,/\.auth-story-copy h2\{[\s\S]*font-size:clamp\(25px,8\.5vw,31px\)!important/);
 });
 
-test('v198 aligns boot, manifest and installed PWA cache with the dark mobile canvas',async()=>{
+test('v198 dark mobile canvas remains part of the current immutable PWA generation',async()=>{
   const [html,manifestText,sw]=await Promise.all([read('index.html'),read('public/manifest.webmanifest'),read('public/sw.js')]);
   const manifest=JSON.parse(manifestText);
   assert.match(html,/<meta name="theme-color" content="#071a25" \/>/);
   assert.match(html,/html,body,#root\{min-height:100%;min-height:100dvh;margin:0;background:#071a25\}/);
   assert.equal(manifest.background_color,'#071a25');
   assert.equal(manifest.theme_color,'#071a25');
-  assert.match(sw,/const CACHE = 'lourex-invoice-v198';/);
+  assert.ok(activeCacheVersion(sw)>=198,'active PWA generation must retain or advance beyond v198');
   assert.match(sw,/lourex-invoice-v197: preserved as a legacy marker/);
-  assert.ok(sw.includes("LOCAL_CORE.push('./styles/mobile-spacing-fit-v198.css');"),'v198 stylesheet must be available to installed/offline clients');
+  assert.ok(sw.includes("LOCAL_CORE.push('./styles/mobile-spacing-fit-v198.css');"),'v198 stylesheet must remain available to installed/offline clients');
 });
