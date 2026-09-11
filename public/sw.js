@@ -1,3 +1,4 @@
+// v202 security closeout — recache hardened auth, session-key removal, password policy and security gates.
 // v201 editor control hardening — recache single-flight document output, customer, item, revision and lifecycle actions.
 // v200 navigation/auth control hardening — recache mutually exclusive mobile menus and stable async account controls.
 // v199 Safari chrome closeout — avoid double-counting top/bottom browser bars while preserving standalone PWA hardware safe areas.
@@ -68,7 +69,8 @@ const CACHE = 'lourex-invoice-v185';
 /* Historical v188 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v188';
 */
-const CACHE = 'lourex-invoice-v201';
+const CACHE = 'lourex-invoice-v202';
+// lourex-invoice-v201: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v200: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v199: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v198: preserved as a legacy marker for cache-migration tests.
@@ -103,6 +105,7 @@ LOCAL_CORE.push('./styles/mobile-controls-density-v177.css');
 LOCAL_CORE.push('./styles/account-cloud-separation-v186.css');
 LOCAL_CORE.push('./styles/unified-account-v189.css');
 LOCAL_CORE.push('./src/cloud/account-access.js');
+LOCAL_CORE.push('./src/lib/account-security.js');
 LOCAL_CORE.push('./styles/financial-workspaces-v189.css');
 LOCAL_CORE.push('./styles/settings-obsidian-v190.css');
 LOCAL_CORE.push('./styles/obsidian-closeout-v191.css');
