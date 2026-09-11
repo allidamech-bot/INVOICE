@@ -39,7 +39,7 @@ const base='http://127.0.0.1:4173/tests/visual';
 
         await more.click();
         await page.locator('#mobile-more-sheet').waitFor();
-        await page.locator('#mobile-more-sheet .mobile-more-group .shell-nav-button').first().click();
+        await page.locator('#mobile-more-sheet .mobile-more-group .mobile-more-link').first().click();
         assert.equal(await page.locator('#mobile-more-sheet').count(),0,'More must close after secondary navigation');
         assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'items');
 
