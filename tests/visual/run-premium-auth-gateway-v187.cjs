@@ -49,6 +49,7 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
           frame:box('.auth-account-frame'),story:box('.auth-account-story'),card:box('.auth-account-card'),
           languageButton:box('.premium-auth-language'),heading:box('.auth-card-heading'),
           headingTextRects:textRects(['.auth-card-heading .eyebrow','.auth-card-heading h1','.auth-card-heading .subtle']),
+          google:box('.google-auth-button'),providerDivider:box('.auth-provider-divider'),
           tabs:box('.account-entry-tabs'),signinTab:box('#signin-tab'),createTab:box('#create-tab'),primary:box('.premium-auth-primary'),forgot:box('.account-forgot'),
           confirm:box('#confirm-field'),security:box('.auth-card-security'),fields,
           storyTrustDisplay:getComputedStyle(document.querySelector('.auth-story-trust')).display,
@@ -60,7 +61,7 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
       if(result.dir!==(scenario.lang==='ar'?'rtl':'ltr'))failures.push(`${p}: wrong direction ${result.dir}`);
       if(result.lang!==scenario.lang)failures.push(`${p}: wrong lang ${result.lang}`);
       if(result.scrollWidth>scenario.width+1)failures.push(`${p}: horizontal overflow ${result.scrollWidth}px > ${scenario.width}px`);
-      for(const key of ['frame','story','card','languageButton','heading','tabs','signinTab','createTab','primary','security'])if(!result[key]||result[key].display==='none'||result[key].visibility==='hidden')failures.push(`${p}: missing/hidden ${key}`);
+      for(const key of ['frame','story','card','languageButton','heading','google','providerDivider','tabs','signinTab','createTab','primary','security'])if(!result[key]||result[key].display==='none'||result[key].visibility==='hidden')failures.push(`${p}: missing/hidden ${key}`);
       if(result.frame&&(result.frame.left<-1||result.frame.right>scenario.width+1))failures.push(`${p}: gateway frame clips horizontally`);
       if(result.card&&result.card.width<Math.min(280,scenario.width-20))failures.push(`${p}: auth card too narrow (${result.card.width}px)`);
       if(result.headingTextRects.some(rect=>intersects(result.languageButton,rect)))failures.push(`${p}: language switch overlaps visible heading text`);
@@ -71,7 +72,7 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
       if(scenario.mode==='create'&&result.forgot)failures.push(`${p}: forgot-password action visible in create mode`);
       if(scenario.mode==='signin'&&!result.forgot)failures.push(`${p}: forgot-password action missing in sign-in mode`);
       if(mobile){
-        for(const [name,b] of [['language',result.languageButton],['signin tab',result.signinTab],['create tab',result.createTab],['primary',result.primary],['forgot',result.forgot]]){
+        for(const [name,b] of [['language',result.languageButton],['Google',result.google],['signin tab',result.signinTab],['create tab',result.createTab],['primary',result.primary],['forgot',result.forgot]]){
           if(b&&b.height<44-.25)failures.push(`${p}: ${name} target ${b.height}px (<44px)`);
         }
         if(result.storyTrustDisplay!=='none')failures.push(`${p}: dense trust cards should collapse on phone`);
