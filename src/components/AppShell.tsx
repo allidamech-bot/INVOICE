@@ -170,7 +170,7 @@ export class AppShell extends React.Component<Props,State>{
       <div className="workspace-content">{this.props.children}</div>
 
       {!editor?<>
-        {this.state.moreOpen?<><button type="button" className="mobile-more-backdrop" aria-label={t('Close menu','إغلاق القائمة')} onClick={this.closeMore}/><section className="mobile-more-sheet" id="mobile-more-sheet" role="dialog" aria-modal="true" aria-label={t('More','المزيد')}>
+        {this.state.moreOpen?<><button type="button" className="mobile-more-backdrop" aria-label={t('Close menu','إغلاق القائمة')} onClick={this.closeMore}/><section className="mobile-more-sheet" id="mobile-more-sheet" role="dialog" aria-modal="true" aria-label={t('More','المزيد')} dir={this.props.language==='ar'?'rtl':'ltr'}>
           <div className="mobile-more-handle" aria-hidden="true"/>
           <div className="mobile-more-heading">
             <div className="mobile-more-heading-copy"><small>{t('Workspace menu','قائمة مساحة العمل')}</small><strong>{t('More','المزيد')}</strong><span>{t('Quick access to business tools and settings','وصول سريع إلى أدوات العمل والإعدادات')}</span></div>
