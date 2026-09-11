@@ -4,11 +4,22 @@
   display:none!important;
 }
 
-/* Account access now lives in the dedicated account surface. Retire the legacy
-   Settings tab that exposed manual cloud restore and device-PIN controls. */
-.app-ui .settings-tabs>button:nth-child(4),
-.app-ui .security-settings-page{
-  display:none!important;
+/* v205 scope bridge: account identity stays in Account, while device security and
+   encrypted recovery are intentionally available from the dedicated Settings scope. */
+.app-ui .settings-preferences-workspace .settings-tabs>button:nth-child(4){
+  display:flex!important;
+}
+
+.app-ui .settings-preferences-workspace .security-settings-page{
+  display:block!important;
+}
+
+/* Account profile artwork belongs to application chrome, not printable paper.
+   Keep its preview consistent with the dark Obsidian workspace. */
+.app-ui .account-profile-workspace .account-profile-logo-section .asset-preview{
+  border-color:var(--ds-line-strong)!important;
+  background:linear-gradient(145deg,var(--ds-input),var(--ds-surface-strong))!important;
+  box-shadow:none!important;
 }
 
 .account-managed-setup,
