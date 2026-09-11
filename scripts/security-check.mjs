@@ -1,5 +1,5 @@
 import { readFile, readdir } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 
 const root=process.cwd();
 const failures=[];
@@ -35,7 +35,10 @@ async function collectFiles(dir){
   return out;
 }
 
-const sourceFiles=(await Promise.all(['src','api','scripts'].map(collectFiles))).flat().filter(path=>/\.(?:ts|tsx|js|mjs|cjs)$/.test(path));
+// Do not scan this scanner itself for key-signature literals: its detection
+// patterns necessarily contain those signatures and would self-trigger.
+const sourceFiles=(await Promise.all(['src','api','scripts'].map(collectFiles))).flat()
+  .filter(path=>/\.(?:ts|tsx|js|mjs|cjs)$/.test(path)&&path!=='scripts/security-check.mjs');
 const privateKeyPattern=/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/;
 const serviceAccountPattern=/"private_key"\s*:\s*"-----BEGIN PRIVATE KEY-----/;
 const hardcodedSecretPattern=/(?:REMOVE_BG_API_KEY|FIREBASE_ADMIN_PRIVATE_KEY|GOOGLE_APPLICATION_CREDENTIALS)\s*=\s*['"][^'"]+['"]/;
