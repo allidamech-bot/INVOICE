@@ -25,6 +25,7 @@ interface Props {
 interface State { moreOpen:boolean; }
 
 type NavTarget=Exclude<WorkspaceScreen,'editor'>;
+type MoreTone='items'|'receivables'|'reports'|'operations';
 
 export class AppShell extends React.Component<Props,State>{
   state:State={moreOpen:false};
@@ -94,6 +95,13 @@ export class AppShell extends React.Component<Props,State>{
   private navButton=(screen:NavTarget,icon:'menu'|'file'|'users'|'items'|'invoice'|'backup',label:string,className='')=>
     <button type="button" className={`shell-nav-button ${className} ${this.props.screen===screen?'active':''}`} aria-current={this.props.screen===screen?'page':undefined} onClick={()=>this.navigate(screen)}><Icon name={icon}/><span>{label}</span></button>;
 
+  private moreNavButton=(screen:NavTarget,icon:'file'|'items'|'invoice'|'backup',label:string,description:string,tone:MoreTone)=>
+    <button type="button" className={`mobile-more-link tone-${tone} ${this.props.screen===screen?'active':''}`} aria-current={this.props.screen===screen?'page':undefined} onClick={()=>this.navigate(screen)}>
+      <span className="mobile-more-link-icon"><Icon name={icon}/></span>
+      <span className="mobile-more-link-copy"><strong>{label}</strong><small>{description}</small></span>
+      <span className="mobile-more-chevron" aria-hidden="true"/>
+    </button>;
+
   private createMenu=(id:string,className:string)=>this.props.newMenu?<div className={`new-menu shell-new-menu ${className}`} id={id} role="menu" aria-label={t('New Document','مستند جديد')}>
     <button type="button" role="menuitem" onClick={()=>this.createDocument('proforma')}><Icon name="proforma"/><span><strong>{t('Quotation','عرض سعر')}</strong><small>{t('Commercial quotation','عرض تجاري')}</small></span></button>
     <button type="button" role="menuitem" onClick={()=>this.createDocument('invoice')}><Icon name="invoice"/><span><strong>{t('Invoice','فاتورة')}</strong><small>{t('Final invoice','فاتورة نهائية')}</small></span></button>
@@ -161,13 +169,20 @@ export class AppShell extends React.Component<Props,State>{
       {!editor?<>
         {this.state.moreOpen?<><button type="button" className="mobile-more-backdrop" aria-label={t('Close menu','إغلاق القائمة')} onClick={this.closeMore}/><section className="mobile-more-sheet" id="mobile-more-sheet" role="dialog" aria-modal="true" aria-label={t('More','المزيد')}>
           <div className="mobile-more-handle" aria-hidden="true"/>
-          <div className="mobile-more-heading"><div><small>{t('Workspace','مساحة العمل')}</small><strong>{t('More','المزيد')}</strong></div><button type="button" onClick={this.closeMore} aria-label={t('Close','إغلاق')}><Icon name="x"/></button></div>
-          {this.syncStatus('mobile-more-sync')}
-          {this.accountButton('mobile-more-account')}
-          <div className="mobile-more-group"><p>{t('Workspace','مساحة العمل')}</p>{this.navButton('items','items',t('Items','الأصناف'))}</div>
-          <div className="mobile-more-group"><p>{t('Finance','المالية')}</p>{this.navButton('receivables','invoice',t('Receivables','المستحقات'))}{this.navButton('reports','file',t('Reports','التقارير'))}</div>
-          <div className="mobile-more-group"><p>{t('Business','الأعمال')}</p>{this.navButton('operations','backup',t('Operations','العمليات'))}</div>
-          <button type="button" className="mobile-more-settings" onClick={this.openSettings}><Icon name="settings"/><span>{t('Settings','الإعدادات')}</span></button>
+          <div className="mobile-more-heading">
+            <div className="mobile-more-heading-copy"><small>{t('Workspace menu','قائمة مساحة العمل')}</small><strong>{t('More','المزيد')}</strong><span>{t('Quick access to business tools and settings','وصول سريع إلى أدوات العمل والإعدادات')}</span></div>
+            <button type="button" className="mobile-more-close" onClick={this.closeMore} aria-label={t('Close','إغلاق')}><Icon name="x"/></button>
+          </div>
+          <div className="mobile-more-status-row">{this.syncStatus('mobile-more-sync')}</div>
+          <button type="button" className="mobile-more-account" onClick={this.openAccount}>
+            <span className="mobile-more-account-icon"><Icon name="users"/></span>
+            <span className="mobile-more-account-copy"><strong>{t('Account','الحساب')}</strong><small>{t('Profile, password and sign out','الملف وكلمة المرور وتسجيل الخروج')}</small></span>
+            <span className="mobile-more-chevron" aria-hidden="true"/>
+          </button>
+          <div className="mobile-more-group group-workspace"><p><span>{t('Workspace','مساحة العمل')}</span></p>{this.moreNavButton('items','items',t('Items','الأصناف'),t('Products and services library','إدارة المنتجات والخدمات'),'items')}</div>
+          <div className="mobile-more-group group-finance"><p><span>{t('Finance','المالية')}</span></p>{this.moreNavButton('receivables','invoice',t('Receivables','المستحقات'),t('Open balances and collections','الأرصدة المفتوحة والتحصيل'),'receivables')}{this.moreNavButton('reports','file',t('Reports','التقارير'),t('Sales and financial insights','تقارير المبيعات والمالية'),'reports')}</div>
+          <div className="mobile-more-group group-business"><p><span>{t('Business','الأعمال')}</span></p>{this.moreNavButton('operations','backup',t('Operations','العمليات'),t('Purchases, expenses and activity','المشتريات والمصروفات والنشاط'),'operations')}</div>
+          <div className="mobile-more-group group-system"><p><span>{t('General','عام')}</span></p><button type="button" className="mobile-more-settings" onClick={this.openSettings}><span className="mobile-more-settings-icon"><Icon name="settings"/></span><span className="mobile-more-settings-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Company, appearance and security','الشركة والمظهر والأمان')}</small></span><span className="mobile-more-chevron" aria-hidden="true"/></button></div>
         </section></>:null}
         <nav className="mobile-bottom-nav" aria-label={t('Mobile navigation','تنقل الجوال')}>
           <button type="button" className={this.props.screen==='home'?'active':''} aria-current={this.props.screen==='home'?'page':undefined} onClick={()=>this.navigate('home')}><Icon name="menu"/><span>{t('Home','الرئيسية')}</span></button>

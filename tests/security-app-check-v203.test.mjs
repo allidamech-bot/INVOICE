@@ -25,7 +25,8 @@ test('v203 production output wires Firebase App Check before Auth and Firestore'
   assert.match(bootstrap,/ReCaptchaEnterpriseProvider/);
   assert.match(bootstrap,/appCheck\(\)\.activate\(provider,true\)/);
   assert.doesNotMatch(bootstrap,/FIREBASE_APPCHECK_DEBUG_TOKEN/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v203'/);
+  assert.match(sw,/const CACHE = 'lourex-invoice-v204'/);
+  assert.match(sw,/lourex-invoice-v203: preserved as a legacy marker/);
 });
 
 test('App Check activates synchronously inside Firebase initialization when configured',async()=>{
