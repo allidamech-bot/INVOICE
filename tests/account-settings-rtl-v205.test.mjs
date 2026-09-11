@@ -5,11 +5,15 @@ import {readFile} from 'node:fs/promises';
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('v205 routes Account and Settings into distinct workspace scopes',async()=>{
-  const shell=await read('src/components/AppShell.tsx');
+  const [shell,scope]=await Promise.all([read('src/components/AppShell.tsx'),read('src/lib/settings-scope.ts')]);
   assert.match(shell,/SETTINGS_SCOPE_KEY='lourex-settings-scope'/);
   assert.match(shell,/this\.requestSettingsScope\('account'\);\s*this\.props\.onSettings\(\)/);
   assert.match(shell,/this\.requestSettingsScope\('settings'\);\s*this\.props\.onSettings\(\)/);
   assert.match(shell,/sessionStorage\.setItem\(SETTINGS_SCOPE_KEY,scope\)/);
+  assert.match(scope,/SETTINGS_SCOPE_KEY='lourex-settings-scope'/);
+  assert.match(scope,/sessionStorage\.getItem\(SETTINGS_SCOPE_KEY\)/);
+  assert.match(scope,/sessionStorage\.removeItem\(SETTINGS_SCOPE_KEY\)/);
+  assert.match(scope,/scope==='account'\?'account':'settings'/);
 });
 
 test('v205 Account owns company profile while Settings owns preferences and security',async()=>{
