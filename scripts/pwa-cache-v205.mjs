@@ -11,9 +11,9 @@ if(!sw.includes(`'${scopeRuntime}'`)&&!sw.includes(`"${scopeRuntime}"`)){
 }
 
 const previousCache="const CACHE = 'lourex-invoice-v204';";
-const nextCache="const CACHE = 'lourex-invoice-v206';\n// lourex-invoice-v205: preserved as a legacy marker for cache-migration tests.\n// lourex-invoice-v204: preserved as a legacy marker for cache-migration tests.";
+const nextCache="const CACHE = 'lourex-invoice-v207';\n// const CACHE = 'lourex-invoice-v206'; preserved as a legacy marker for cache-migration tests.\n// lourex-invoice-v205: preserved as a legacy marker for cache-migration tests.\n// lourex-invoice-v204: preserved as a legacy marker for cache-migration tests.";
 if(sw.includes(previousCache))sw=sw.replace(previousCache,nextCache);
-if(!sw.includes("const CACHE = 'lourex-invoice-v206';"))throw new Error('Unable to advance the LOUREX PWA cache generation to v206.');
+if(!sw.includes("const CACHE = 'lourex-invoice-v207';"))throw new Error('Unable to advance the LOUREX PWA cache generation to v207.');
 if(!sw.includes(scopeRuntime))throw new Error('LOUREX PWA cache is missing the settings-scope runtime.');
 
 await writeFile(swPath,sw);

@@ -34,10 +34,19 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
     const clipped=[];
     for(const selector of selectors){for(const el of document.querySelectorAll(selector)){const r=el.getBoundingClientRect(),s=getComputedStyle(el);if(s.display==='none'||!r.width||!r.height)continue;if(r.left<-1||r.right>innerWidth+1||r.width>innerWidth+1)clipped.push({selector,left:r.left,right:r.right,width:r.width});}}
     const list=document.querySelector('.purchase-layout .operations-list-panel');const nav=document.querySelector('.mobile-bottom-nav');const navStyle=nav?getComputedStyle(nav):null;
-    return {pageScrollWidth:document.documentElement.scrollWidth,clipped,listDisplay:list?getComputedStyle(list).display:null,nav:navStyle?{display:navStyle.display,visibility:navStyle.visibility,opacity:navStyle.opacity}:null,viewport:innerWidth};
+    const actions=document.querySelector('.purchase-editor .operations-editor-actions'),actionRect=actions?.getBoundingClientRect();
+    const covered=[];
+    if(actionRect&&actionRect.bottom>0&&actionRect.top<innerHeight){
+     for(const control of document.querySelectorAll('.purchase-editor fieldset input,.purchase-editor fieldset select,.purchase-editor fieldset textarea,.purchase-editor fieldset button')){
+      const r=control.getBoundingClientRect(),s=getComputedStyle(control);if(s.display==='none'||s.visibility==='hidden'||!r.width||!r.height||r.bottom<=0||r.top>=innerHeight)continue;
+      if(r.left<actionRect.right&&r.right>actionRect.left&&r.top<actionRect.bottom&&r.bottom>actionRect.top)covered.push({tag:control.tagName,label:control.closest('label')?.textContent?.trim().slice(0,40),rect:r.toJSON()});
+     }
+    }
+    return {pageScrollWidth:document.documentElement.scrollWidth,clipped,covered,listDisplay:list?getComputedStyle(list).display:null,nav:navStyle?{display:navStyle.display,visibility:navStyle.visibility,opacity:navStyle.opacity}:null,viewport:innerWidth};
    });
    assert.ok(geometry.pageScrollWidth<=viewport.width+1,'purchase workspace causes page overflow '+JSON.stringify(geometry));
    assert.deepEqual(geometry.clipped,[],'purchase editor clips outside phone viewport '+JSON.stringify(geometry));
+   assert.deepEqual(geometry.covered,[],'purchase action bar covers editable fields '+JSON.stringify(geometry));
    assert.equal(geometry.listDisplay,'none','purchase list should leave the phone viewport while editor is focused '+JSON.stringify(geometry));
    if(geometry.nav)assert.ok(geometry.nav.display==='none'||geometry.nav.visibility==='hidden'||geometry.nav.opacity==='0','mobile nav covers purchase editor '+JSON.stringify(geometry));
   };

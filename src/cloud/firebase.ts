@@ -1,5 +1,6 @@
 import type { EncryptedVaultRecord, SecurityMetadata } from '../types.js';
 import { getEncryptedVault, getSecurity, putSecurityAndVault } from '../storage/db.js';
+import { MIN_ACCOUNT_PASSWORD_LENGTH } from '../lib/account-security.js';
 
 declare const firebase: any;
 
@@ -100,6 +101,12 @@ export async function waitForCloudUser():Promise<CloudUser|null>{
   });
 }
 export function currentCloudUser():CloudUser|null{try{return userFrom(auth().currentUser);}catch{return null;}}
+export function subscribeCloudUser(onChange:(user:CloudUser|null)=>void):()=>void{
+  try{
+    const off=auth().onAuthStateChanged((user:any)=>onChange(userFrom(user)),()=>undefined);
+    return typeof off==='function'?off:()=>undefined;
+  }catch{return ()=>undefined;}
+}
 export async function createCloudUser(email:string,password:string):Promise<CloudUser>{ensureFirebase();await auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);const credential=await auth().createUserWithEmailAndPassword(email.trim(),password);const user=userFrom(credential.user);if(!user)throw new Error('Unable to create the account.');markRecentAuth();return user;}
 export async function signInCloudUser(email:string,password:string):Promise<CloudUser>{ensureFirebase();await auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);const credential=await auth().signInWithEmailAndPassword(email.trim(),password);const user=userFrom(credential.user);if(!user)throw new Error('Unable to sign in.');markRecentAuth();return user;}
 export async function signOutCloudUser():Promise<void>{ensureFirebase();await auth().signOut();}
@@ -108,7 +115,7 @@ export function friendlyCloudError(error:unknown):string{
   const code=String((error as any)?.code||'');
   if(code.includes('invalid-credential')||code.includes('wrong-password')||code.includes('user-not-found'))return 'Email or password is incorrect.';
   if(code.includes('email-already-in-use'))return 'This email already has a LOUREX account.';
-  if(code.includes('weak-password'))return 'Use a stronger password with at least 6 characters.';
+  if(code.includes('weak-password'))return `Use a stronger password with at least ${MIN_ACCOUNT_PASSWORD_LENGTH} characters.`;
   if(code.includes('invalid-email'))return 'Enter a valid email address.';
   if(code.includes('too-many-requests'))return 'Too many attempts. Try again later.';
   if(code.includes('network-request-failed'))return 'Cloud connection failed. Check your internet connection.';

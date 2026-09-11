@@ -1,0 +1,125 @@
+/* v207 — screenshot-led maintenance closeout.
+   Application UI only. Repairs artwork-upload readability and removes the
+   purchase action overlay without changing document output or stored data. */
+@media screen {
+  .app-ui .asset-upload-label{
+    position:relative;
+    display:grid;
+    min-width:0;
+    gap:8px;
+    cursor:pointer;
+  }
+
+  .app-ui .asset-upload-label>.asset-field-label{
+    display:block!important;
+    margin:0!important;
+    color:var(--ds-text-soft)!important;
+    font-size:14px!important;
+    font-weight:740!important;
+    line-height:1.4!important;
+  }
+
+  .app-ui .asset-file-input{
+    position:absolute!important;
+    inline-size:1px!important;
+    block-size:1px!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:hidden!important;
+    clip-path:inset(50%)!important;
+    white-space:nowrap!important;
+    border:0!important;
+    opacity:0!important;
+    font-size:16px!important;
+  }
+
+  .app-ui .asset-file-trigger{
+    width:100%!important;
+    min-width:0!important;
+    min-height:44px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:8px!important;
+    margin:0!important;
+    padding:9px 12px!important;
+    border:1px solid var(--ds-line-strong)!important;
+    border-radius:9px!important;
+    background:var(--ds-input)!important;
+    color:var(--ds-text)!important;
+    font-size:14px!important;
+    font-weight:740!important;
+    line-height:1.35!important;
+    text-align:center!important;
+    box-sizing:border-box!important;
+  }
+
+  .app-ui .asset-file-trigger>span{
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .app-ui .asset-upload-label:hover .asset-file-trigger{
+    border-color:var(--ds-focus-line)!important;
+    background:var(--ds-selected)!important;
+  }
+
+  .app-ui .asset-upload-label:focus-within .asset-file-trigger{
+    outline:2px solid var(--ds-focus-line)!important;
+    outline-offset:2px!important;
+    box-shadow:var(--ds-focus)!important;
+  }
+
+  .app-ui .asset-upload-label:has(.asset-file-input:disabled){cursor:not-allowed}
+  .app-ui .asset-upload-label:has(.asset-file-input:disabled) .asset-file-trigger{opacity:.55}
+
+  .app-ui .account-profile-logo-grid{
+    display:grid!important;
+    grid-template-columns:minmax(260px,1.15fr) minmax(220px,.85fr)!important;
+    gap:14px!important;
+    align-items:stretch!important;
+  }
+
+  .app-ui .account-profile-logo-grid>.asset-control{min-width:0!important}
+  .app-ui .account-profile-summary{
+    min-width:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    gap:6px!important;
+    padding:15px 16px!important;
+    border:1px solid var(--ds-line)!important;
+    border-radius:12px!important;
+    background:var(--ds-workspace)!important;
+    color:var(--ds-text)!important;
+  }
+
+  .app-ui .account-profile-summary strong,
+  .app-ui .account-profile-summary span{
+    display:block!important;
+    min-width:0!important;
+    overflow-wrap:anywhere!important;
+    word-break:break-word!important;
+  }
+
+  .app-ui .account-profile-summary strong{font-size:15px!important;line-height:1.45!important}
+  .app-ui .account-profile-summary span{color:var(--ds-text-soft)!important;font-size:13px!important;line-height:1.45!important}
+
+  @media(max-width:720px){
+    .app-ui .account-profile-logo-grid{grid-template-columns:minmax(0,1fr)!important;gap:11px!important}
+    .app-ui .account-profile-summary{padding:12px 13px!important}
+
+    /* A long purchase form is edited top-to-bottom. Keeping its final actions in
+       normal flow makes every currency/item field fully visible and tappable. */
+    .app-ui .purchase-editor .operations-editor-actions{
+      position:static!important;
+      inset:auto!important;
+      z-index:auto!important;
+      margin:14px 0 0!important;
+      padding:14px 0 0!important;
+      background:transparent!important;
+    }
+  }
+}

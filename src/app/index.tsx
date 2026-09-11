@@ -2,7 +2,7 @@ import { App } from './App.js';
 import { AppErrorBoundary } from './AppErrorBoundary.js';
 import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
 import { hydrateAuthoritativeCloudBeforeApp } from '../cloud/startup.js';
-import { currentCloudUser, waitForCloudUser } from '../cloud/firebase.js';
+import { currentCloudUser, subscribeCloudUser, waitForCloudUser } from '../cloud/firebase.js';
 import { purgeLegacySafetySnapshot } from '../storage/db.js';
 import { resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
 
@@ -11,6 +11,7 @@ if(!root)throw new Error('Root element not found.');
 const appRoot=root;
 
 let accountWasAuthenticated=false;
+let signOutTransitionRunning=false;
 
 async function resolveRequiredAccountSession():Promise<boolean>{
   let user=currentCloudUser();
@@ -35,22 +36,22 @@ async function resolveRequiredAccountSession():Promise<boolean>{
 }
 
 function startAccountSignOutWatcher():void{
-  window.setInterval(()=>{
-    const user=currentCloudUser();
+  subscribeCloudUser(user=>{
     if(user){
       setActiveAccountUid(user.uid);
       accountWasAuthenticated=true;
       return;
     }
-    if(!accountWasAuthenticated)return;
+    if(!accountWasAuthenticated||signOutTransitionRunning)return;
 
+    signOutTransitionRunning=true;
     accountWasAuthenticated=false;
     setActiveAccountUid(null);
     void suspendSession().finally(()=>{
       try{sessionStorage.setItem('lourex-auth-just-signed-out','1');}catch{}
       window.location.reload();
     });
-  },400);
+  });
 }
 
 async function start():Promise<void>{
