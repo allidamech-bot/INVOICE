@@ -1,6 +1,7 @@
 import type { UiLanguage } from '../types.js';
 import { Brand, Button, Field, Input } from './UI.js';
 import { t } from '../lib/i18n.js';
+import { accountPasswordIssue, MAX_ACCOUNT_PASSWORD_LENGTH, MIN_ACCOUNT_PASSWORD_LENGTH } from '../lib/account-security.js';
 import { createCloudUser, friendlyCloudError, sendCloudPasswordReset, signInCloudUser } from '../cloud/firebase.js';
 
 interface Props {
@@ -27,12 +28,20 @@ export class AccountEntryScreen extends React.Component<Props,State>{
 
   private setMode=(mode:'signin'|'create')=>this.setState({mode,error:'',message:'',password:'',confirm:''});
 
+  private passwordError=(password:string):string=>{
+    const issue=accountPasswordIssue(password);
+    if(issue==='too-short')return t(`Use at least ${MIN_ACCOUNT_PASSWORD_LENGTH} characters for a stronger account password.`,`استخدم ${MIN_ACCOUNT_PASSWORD_LENGTH} حرفًا على الأقل لكلمة مرور أقوى.`);
+    if(issue==='too-long')return t(`Password must be ${MAX_ACCOUNT_PASSWORD_LENGTH} characters or fewer.`,`يجب ألا تتجاوز كلمة المرور ${MAX_ACCOUNT_PASSWORD_LENGTH} حرفًا.`);
+    if(issue==='too-repetitive')return t('Avoid repeated-character passwords. Use a longer passphrase or a mix of different characters.','تجنب كلمات المرور المكوّنة من أحرف مكررة. استخدم عبارة مرور أطول أو مجموعة متنوعة من الأحرف.');
+    return '';
+  };
+
   private submit=async(e:any):Promise<void>=>{
     e.preventDefault();
     if(this.state.busy)return;
     const email=this.state.email.trim(); const password=this.state.password; const create=this.state.mode==='create';
     if(!email||!password){this.setState({error:t('Enter your email and password.','أدخل البريد الإلكتروني وكلمة المرور.')});return;}
-    if(create&&password.length<6){this.setState({error:t('Password must contain at least 6 characters.','يجب أن تحتوي كلمة المرور على 6 أحرف على الأقل.')});return;}
+    if(create){const passwordError=this.passwordError(password);if(passwordError){this.setState({error:passwordError});return;}}
     if(create&&password!==this.state.confirm){this.setState({error:t('Password confirmation does not match.','تأكيد كلمة المرور غير مطابق.')});return;}
     this.setState({busy:true,error:'',message:''});
     try{
@@ -54,9 +63,14 @@ export class AccountEntryScreen extends React.Component<Props,State>{
     if(this.state.busy)return;
     const email=this.state.email.trim();
     if(!email){this.setState({error:t('Enter your email first.','أدخل بريدك الإلكتروني أولًا.')});return;}
+    const neutral=t('If an account exists for this email, password reset instructions will be sent.','إذا كان هناك حساب مرتبط بهذا البريد فسيتم إرسال تعليمات إعادة تعيين كلمة المرور.');
     this.setState({busy:true,error:'',message:''});
-    try{await sendCloudPasswordReset(email);this.setState({busy:false,message:t('Password reset email sent.','تم إرسال رسالة إعادة تعيين كلمة المرور.')});}
-    catch(error){this.setState({busy:false,error:friendlyCloudError(error)});}
+    try{await sendCloudPasswordReset(email);this.setState({busy:false,message:neutral});}
+    catch(error:any){
+      const code=String(error?.code||'');
+      if(code.includes('user-not-found')){this.setState({busy:false,message:neutral});return;}
+      this.setState({busy:false,error:friendlyCloudError(error)});
+    }
   };
 
   render():any{
@@ -94,10 +108,11 @@ export class AccountEntryScreen extends React.Component<Props,State>{
 
           <div className="account-entry-fields">
             <Field label={t('Email','البريد الإلكتروني')}><Input type="email" inputMode="email" autoComplete="email" autoFocus disabled={this.state.busy} value={this.state.email} onChange={(e:any)=>this.setState({email:e.target.value,error:''})}/></Field>
-            <Field label={t('Password','كلمة المرور')}><Input type="password" autoComplete={create?'new-password':'current-password'} disabled={this.state.busy} value={this.state.password} onChange={(e:any)=>this.setState({password:e.target.value,error:''})}/></Field>
-            {create?<Field label={t('Confirm Password','تأكيد كلمة المرور')}><Input type="password" autoComplete="new-password" disabled={this.state.busy} value={this.state.confirm} onChange={(e:any)=>this.setState({confirm:e.target.value,error:''})}/></Field>:null}
+            <Field label={t('Password','كلمة المرور')}><Input type="password" autoComplete={create?'new-password':'current-password'} minLength={create?MIN_ACCOUNT_PASSWORD_LENGTH:undefined} maxLength={create?MAX_ACCOUNT_PASSWORD_LENGTH:undefined} disabled={this.state.busy} value={this.state.password} onChange={(e:any)=>this.setState({password:e.target.value,error:''})}/></Field>
+            {create?<Field label={t('Confirm Password','تأكيد كلمة المرور')}><Input type="password" autoComplete="new-password" minLength={MIN_ACCOUNT_PASSWORD_LENGTH} maxLength={MAX_ACCOUNT_PASSWORD_LENGTH} disabled={this.state.busy} value={this.state.confirm} onChange={(e:any)=>this.setState({confirm:e.target.value,error:''})}/></Field>:null}
           </div>
 
+          {create?<p className="security-note">{t(`Use ${MIN_ACCOUNT_PASSWORD_LENGTH}+ characters. A long passphrase is recommended.`,`استخدم ${MIN_ACCOUNT_PASSWORD_LENGTH} حرفًا أو أكثر. يُنصح بعبارة مرور طويلة.`)}</p>:null}
           {this.state.error?<div className="auth-error premium-auth-feedback" role="alert">{this.state.error}</div>:null}
           {this.state.message?<div className="settings-message success premium-auth-feedback" role="status">{this.state.message}</div>:null}
 

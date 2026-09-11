@@ -17,6 +17,10 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      - name: Dependency security audit
+        run: npm audit --audit-level=high
+      - name: LOUREX static security gate
+        run: node scripts/security-check.mjs
       - run: npm run typecheck
       - run: npm test
       - name: Install browser visual QA runtime

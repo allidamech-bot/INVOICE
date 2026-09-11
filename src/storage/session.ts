@@ -127,15 +127,12 @@ export async function getSessionKey(): Promise<{ key: CryptoKey; lastActivity: n
   }
 }
 
-// Account sign-out should close the workspace immediately without destroying the
-// device-bound vault key. The key remains unusable by the app while signed out
-// and is resumed only when the same Firebase UID authenticates again.
+// Signing out is a hard local security boundary. The encrypted vault and its
+// metadata stay on the device, but the usable CryptoKey is removed. The same
+// authenticated Firebase UID can derive a fresh key again from account access.
 export async function suspendSession():Promise<void>{
   removeMarker();
-  try{
-    const record=await getRecord<SessionKeyRecord>('session-key');
-    if(record&&!isAccountBoundToken(record.token))await deleteRecord('session-key');
-  }catch{}
+  try { await deleteRecord('session-key'); } catch { /* no-op */ }
 }
 
 // Destructive session clearing remains available for corruption/expiry recovery.

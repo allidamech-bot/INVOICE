@@ -102,7 +102,7 @@ test('trusted device session resumes the encrypted vault across browser sessions
   const resumed = await resumeVaultSession();
   assert.ok(resumed);
   assert.equal(resumed.vault.company.nameEn, 'LOUREX TEST');
-  assert.equal(resumed.vault.appSettings.autoLockMinutes, 0);
+  assert.equal(resumed.vault.appSettings.autoLockMinutes, 15);
   touchSession(10_000);
   assert.equal(isSessionExpired(10_000, 0, 10_000 + 365 * 24 * 60 * 60_000), false);
   assert.equal(isSessionExpired(10_000, 15, 10_000 + 14 * 60_000), false);

@@ -35,7 +35,9 @@ export function defaultCompany(): CompanySettings {
 
 export function defaultAppSettings(): AppSettings {
   return {
-    autoLockMinutes: 0,
+    // Fresh workspaces lock automatically after inactivity. Existing vaults keep
+    // their explicit preference for backward compatibility.
+    autoLockMinutes: 15,
     uiLanguage: 'en',
     numbering: { proformaPrefix: 'PI', invoicePrefix: 'INV', creditNotePrefix: 'CN', proformaLast: 0, invoiceLast: 0, creditNoteLast: 0, proformaYear: new Date().getFullYear(), invoiceYear: new Date().getFullYear(), creditNoteYear: new Date().getFullYear() },
     smartDefaults: {
