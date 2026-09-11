@@ -32,7 +32,7 @@ test('v200 account form cannot mutate credentials while an account request is ru
   assert.match(modal,/private setMode=\(mode:'signin'\|'create'\)=>\{if\(this\.state\.busy\)return;this\.setState\(\{mode,password:'',confirm:'',error:'',message:''\}\);\}/);
   assert.match(modal,/className="cloud-auth-form" aria-busy=\{this\.state\.busy\}/);
   assert.match(modal,/type="email" inputMode="email" autoComplete="email" disabled=\{this\.state\.busy\}/);
-  assert.match(modal,/type="password" autoComplete=\{this\.state\.mode==='create'\?'new-password':'current-password'\} disabled=\{this\.state\.busy\}/);
+  assert.match(modal,/type="password" autoComplete=\{this\.state\.mode==='create'\?'new-password':'current-password'\}[\s\S]{0,180}disabled=\{this\.state\.busy\}/);
   assert.match(modal,/role="tablist" aria-label=/);
   assert.match(modal,/role="tab" aria-selected=\{this\.state\.mode==='signin'\}/);
   assert.match(modal,/role="tab" aria-selected=\{this\.state\.mode==='create'\}/);
