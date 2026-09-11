@@ -1,11 +1,12 @@
 import type { DocumentKind, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
-import { requestSettingsScope } from '../lib/settings-scope.js';
 import { Brand, Button, Icon } from './UI.js';
 
 export type WorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 
 type CloudState='local'|'queued'|'syncing'|'synced'|'offline'|'error';
+type SettingsScope='account'|'settings';
+const SETTINGS_SCOPE_KEY='lourex-settings-scope';
 
 interface Props {
   screen:WorkspaceScreen;
@@ -63,17 +64,19 @@ export class AppShell extends React.Component<Props,State>{
     this.setState(state=>({moreOpen:!state.moreOpen}));
   };
 
+  private requestSettingsScope=(scope:SettingsScope)=>{try{sessionStorage.setItem(SETTINGS_SCOPE_KEY,scope);}catch{}};
+
   private openSettings=()=>{
     this.closeCreateMenu();
     this.closeMore();
-    requestSettingsScope('settings');
+    this.requestSettingsScope('settings');
     this.props.onSettings();
   };
 
   private openAccount=()=>{
     this.closeCreateMenu();
     this.closeMore();
-    requestSettingsScope('account');
+    this.requestSettingsScope('account');
     this.props.onSettings();
   };
 
