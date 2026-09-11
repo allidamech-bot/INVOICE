@@ -38,10 +38,17 @@ test('v205 Arabic More menu declares RTL direction at the dialog boundary',async
   assert.match(shell,/Preferences, documents and security','التفضيلات والمستندات والأمان/);
 });
 
-test('v205 build precaches the settings scope bridge in a fresh PWA generation',async()=>{
+test('v206 Account Save stays in normal mobile document flow',async()=>{
+  const css=await read('src/styles/obsidian-closeout-v191.css');
+  assert.match(css,/settings-workspace-v2\.account-profile-workspace \.settings-title\.account-profile-title\{[\s\S]*position:relative!important[\s\S]*top:auto!important/);
+  assert.match(css,/settings-workspace-v2\.account-profile-workspace \.settings-title\.account-profile-title>\.btn\{[\s\S]*position:static!important[\s\S]*margin:0!important/);
+});
+
+test('v206 build keeps the settings scope bridge and advances the PWA cache',async()=>{
   const [pkg,patch]=await Promise.all([read('package.json'),read('scripts/pwa-cache-v205.mjs')]);
   assert.match(pkg,/node scripts\/pwa-cache-v205\.mjs/);
   assert.match(patch,/\.\/src\/lib\/settings-scope\.js/);
-  assert.match(patch,/lourex-invoice-v205/);
+  assert.match(patch,/lourex-invoice-v206/);
+  assert.match(patch,/lourex-invoice-v205: preserved as a legacy marker/);
   assert.match(patch,/lourex-invoice-v204: preserved as a legacy marker/);
 });

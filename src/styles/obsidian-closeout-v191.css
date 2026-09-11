@@ -79,6 +79,24 @@
     .app-ui .settings-workspace-v2 .settings-title p:not(.eyebrow){display:none!important}
     .app-ui .settings-workspace-v2 .settings-panel{overflow:visible!important}
     .app-ui .settings-workspace-v2 .settings-title>.btn{min-width:80px!important}
+
+    /* v206: Account profile Save belongs to the section header, not to a floating
+       sticky toolbar. Keeping it in normal flow removes the detached mid-page button
+       and the reserved blank gap seen while scrolling on iPhone/Safari. */
+    .app-ui .settings-workspace-v2.account-profile-workspace .settings-title.account-profile-title{
+      position:relative!important;
+      top:auto!important;
+      inset-block-start:auto!important;
+      z-index:auto!important;
+      transform:none!important;
+    }
+    .app-ui .settings-workspace-v2.account-profile-workspace .settings-title.account-profile-title>.btn{
+      position:static!important;
+      inset:auto!important;
+      margin:0!important;
+      align-self:center!important;
+    }
+
     .app-ui .account-only-actions>.btn{width:100%}
   }
   @media(prefers-reduced-motion:reduce){
