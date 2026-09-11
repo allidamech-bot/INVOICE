@@ -30,9 +30,9 @@ test('batch 6 exposes account sign out without deleting local encrypted data',as
   assert.match(app,/private cloudSignOut=async\(\)=>\{try\{await signOutCloudUser\(\)/);
 });
 
-test('batch 6 separates automatic account sync from explicit cloud recovery',async()=>{
+test('batch 6 separates automatic account protection from explicit cloud recovery',async()=>{
   const [settings,app]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/app/App.tsx')]);
-  assert.match(settings,/Your encrypted LOUREX data syncs automatically to this account/);
+  assert.match(settings,/Your encrypted workspace is protected automatically/);
   assert.match(settings,/confirmCloudRestore/);
   assert.match(settings,/Restore account data from cloud\?/);
   assert.match(settings,/await this\.props\.onCloudRestore\(\)/);
