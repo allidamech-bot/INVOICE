@@ -189,3 +189,90 @@
     grid-template-columns:40px minmax(0,1fr) 18px!important;
   }
 }
+
+/* v209 — Google account access. Keep the provider action visually distinct from
+   LOUREX's own primary action while preserving the premium dark gateway and RTL. */
+@media screen {
+  .auth-account-card .google-auth-button{
+    position:relative;
+    width:100%;
+    min-height:50px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    margin:0;
+    padding:0 48px;
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:13px;
+    background:#f8f9fa;
+    color:#202124;
+    font:inherit;
+    font-size:13px;
+    font-weight:760;
+    line-height:1.2;
+    cursor:pointer;
+    box-shadow:0 9px 24px rgba(0,0,0,.14);
+    transition:transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease;
+  }
+
+  .auth-account-card .google-auth-button:hover:not(:disabled){
+    transform:translateY(-1px);
+    background:#fff;
+    border-color:rgba(92,174,184,.34);
+    box-shadow:0 12px 30px rgba(0,0,0,.19);
+  }
+
+  .auth-account-card .google-auth-button:focus-visible{
+    outline:3px solid rgba(92,174,184,.28);
+    outline-offset:2px;
+  }
+
+  .auth-account-card .google-auth-button:disabled{opacity:.62;cursor:wait;transform:none}
+
+  .auth-account-card .google-auth-mark{
+    position:absolute;
+    inset-inline-start:16px;
+    top:50%;
+    transform:translateY(-50%);
+    display:grid;
+    place-items:center;
+    width:26px;
+    height:26px;
+    border-radius:50%;
+    background:conic-gradient(from -45deg,#4285f4 0 25%,#34a853 0 50%,#fbbc05 0 75%,#ea4335 0 100%);
+    color:#fff;
+    font-family:Arial,sans-serif;
+    font-size:15px;
+    font-weight:900;
+    line-height:1;
+    box-shadow:0 0 0 3px #fff inset;
+  }
+
+  .auth-account-card .auth-provider-divider{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+    align-items:center;
+    gap:12px;
+    margin:17px 0;
+    color:#6f8793;
+    font-size:10px;
+    font-weight:700;
+    line-height:1;
+  }
+
+  .auth-account-card .auth-provider-divider:before,
+  .auth-account-card .auth-provider-divider:after{
+    content:"";
+    height:1px;
+    background:linear-gradient(90deg,transparent,rgba(154,181,191,.2));
+  }
+
+  .auth-account-card .auth-provider-divider:after{transform:scaleX(-1)}
+  [dir='rtl'] .auth-account-card .google-auth-button{direction:rtl}
+
+  @media(max-width:720px){
+    .auth-account-card .google-auth-button{min-height:48px;border-radius:12px;font-size:12.5px}
+    .auth-account-card .auth-provider-divider{margin:14px 0;gap:10px}
+  }
+}
