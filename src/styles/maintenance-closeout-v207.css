@@ -123,3 +123,69 @@
     }
   }
 }
+
+/* v208 — true Arabic RTL follow-up for the mobile More workspace.
+   In a column flexbox under RTL, flex-end is the physical left edge. The previous
+   visual layer therefore pushed Arabic copy and the save status toward the left.
+   Keep the dialog boundary RTL, align copy to logical start (the right edge), and
+   pin the icon/copy/chevron columns explicitly so the row is a deterministic mirror
+   of the LTR layout. */
+@media screen and (max-width:960px){
+  .app-ui .mobile-more-sheet[dir='rtl']{
+    direction:rtl!important;
+    text-align:start!important;
+  }
+
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-heading-copy,
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-account-copy,
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-link-copy,
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-settings-copy{
+    align-items:flex-start!important;
+    text-align:start!important;
+  }
+
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-status-row{
+    justify-content:flex-start!important;
+  }
+
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-account,
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-link,
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-settings{
+    direction:rtl!important;
+    grid-template-columns:44px minmax(0,1fr) 20px!important;
+    text-align:start!important;
+  }
+
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-account-icon,
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-link-icon,
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-settings-icon{
+    grid-column:1!important;
+    justify-self:start!important;
+  }
+
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-account-copy,
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-link-copy,
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-settings-copy{
+    grid-column:2!important;
+    width:100%!important;
+    justify-self:stretch!important;
+  }
+
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-chevron{
+    grid-column:3!important;
+    justify-self:end!important;
+  }
+
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-group>p{
+    justify-content:flex-start!important;
+    text-align:start!important;
+  }
+}
+
+@media screen and (max-width:380px){
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-account,
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-link,
+  .app-ui .mobile-more-sheet[dir='rtl'] .mobile-more-settings{
+    grid-template-columns:40px minmax(0,1fr) 18px!important;
+  }
+}
