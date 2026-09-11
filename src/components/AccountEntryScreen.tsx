@@ -63,9 +63,14 @@ export class AccountEntryScreen extends React.Component<Props,State>{
     if(this.state.busy)return;
     const email=this.state.email.trim();
     if(!email){this.setState({error:t('Enter your email first.','أدخل بريدك الإلكتروني أولًا.')});return;}
+    const neutral=t('If an account exists for this email, password reset instructions will be sent.','إذا كان هناك حساب مرتبط بهذا البريد فسيتم إرسال تعليمات إعادة تعيين كلمة المرور.');
     this.setState({busy:true,error:'',message:''});
-    try{await sendCloudPasswordReset(email);this.setState({busy:false,message:t('If an account exists for this email, password reset instructions will be sent.','إذا كان هناك حساب مرتبط بهذا البريد فسيتم إرسال تعليمات إعادة تعيين كلمة المرور.')});}
-    catch(error){this.setState({busy:false,error:friendlyCloudError(error)});}
+    try{await sendCloudPasswordReset(email);this.setState({busy:false,message:neutral});}
+    catch(error:any){
+      const code=String(error?.code||'');
+      if(code.includes('user-not-found')){this.setState({busy:false,message:neutral});return;}
+      this.setState({busy:false,error:friendlyCloudError(error)});
+    }
   };
 
   render():any{
