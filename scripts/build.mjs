@@ -184,6 +184,7 @@ await writeFile(productImportPath,productImport);
 const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 sw=sw.replace("const CACHE = 'lourex-invoice-v202';","const CACHE = 'lourex-invoice-v203';\n// lourex-invoice-v202: preserved as a legacy marker for cache-migration tests.");
+sw=sw.replace("const CACHE = 'lourex-invoice-v203';","const CACHE = 'lourex-invoice-v204';\n// lourex-invoice-v203: preserved as a legacy marker for cache-migration tests.");
 sw=sw.replace(/"\.\/styles\/[^\"]+\.css"(?:,"\.\/styles\/[^\"]+\.css")*/g,'"./styles/app.bundle.css"');
 const vendorCore=VENDOR_ASSETS.map(asset=>`"./vendor/${asset.name}"`).join(',');
 sw=sw.replace('const LOCAL_CORE = [',`const LOCAL_CORE = [${vendorCore},`);
