@@ -25,7 +25,8 @@ test('v203 production output wires Firebase App Check before Auth and Firestore'
   assert.match(bootstrap,/ReCaptchaEnterpriseProvider/);
   assert.match(bootstrap,/appCheck\(\)\.activate\(provider,true\)/);
   assert.doesNotMatch(bootstrap,/FIREBASE_APPCHECK_DEBUG_TOKEN/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v204'/);
+  assert.match(sw,/const CACHE = 'lourex-invoice-v205'/);
+  assert.match(sw,/lourex-invoice-v204: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v203: preserved as a legacy marker/);
 });
 
