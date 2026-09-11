@@ -5,6 +5,8 @@ import { Brand, Button, Icon } from './UI.js';
 export type WorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 
 type CloudState='local'|'queued'|'syncing'|'synced'|'offline'|'error';
+type SettingsScope='account'|'settings';
+const SETTINGS_SCOPE_KEY='lourex-settings-scope';
 
 interface Props {
   screen:WorkspaceScreen;
@@ -62,16 +64,20 @@ export class AppShell extends React.Component<Props,State>{
     this.setState(state=>({moreOpen:!state.moreOpen}));
   };
 
+  private requestSettingsScope=(scope:SettingsScope)=>{try{sessionStorage.setItem(SETTINGS_SCOPE_KEY,scope);}catch{}};
+
   private openSettings=()=>{
     this.closeCreateMenu();
     this.closeMore();
+    this.requestSettingsScope('settings');
     this.props.onSettings();
   };
 
   private openAccount=()=>{
     this.closeCreateMenu();
     this.closeMore();
-    this.props.onCloud();
+    this.requestSettingsScope('account');
+    this.props.onSettings();
   };
 
   private createDocument=(kind:DocumentKind)=>{
@@ -120,7 +126,7 @@ export class AppShell extends React.Component<Props,State>{
   };
 
   private accountButton=(className:string,compact=false)=>
-    <button type="button" className={className} aria-label={t('Account','الحساب')} title={t('Open account','فتح الحساب')} onClick={this.openAccount}><Icon name="users"/>{compact?<span>{t('Account','الحساب')}</span>:<span><small>{t('Account','الحساب')}</small><strong>{t('Profile, password and sign out','الملف وكلمة المرور وتسجيل الخروج')}</strong></span>}</button>;
+    <button type="button" className={className} aria-label={t('Account','الحساب')} title={t('Open account','فتح الحساب')} onClick={this.openAccount}><Icon name="users"/>{compact?<span>{t('Account','الحساب')}</span>:<span><small>{t('Account','الحساب')}</small><strong>{t('Company profile, logo and account access','ملف الشركة والشعار وبيانات الحساب')}</strong></span>}</button>;
 
   render():any{
     const editor=this.props.screen==='editor';
@@ -167,7 +173,7 @@ export class AppShell extends React.Component<Props,State>{
       <div className="workspace-content">{this.props.children}</div>
 
       {!editor?<>
-        {this.state.moreOpen?<><button type="button" className="mobile-more-backdrop" aria-label={t('Close menu','إغلاق القائمة')} onClick={this.closeMore}/><section className="mobile-more-sheet" id="mobile-more-sheet" role="dialog" aria-modal="true" aria-label={t('More','المزيد')}>
+        {this.state.moreOpen?<><button type="button" className="mobile-more-backdrop" aria-label={t('Close menu','إغلاق القائمة')} onClick={this.closeMore}/><section className="mobile-more-sheet" id="mobile-more-sheet" role="dialog" aria-modal="true" aria-label={t('More','المزيد')} dir={this.props.language==='ar'?'rtl':'ltr'}>
           <div className="mobile-more-handle" aria-hidden="true"/>
           <div className="mobile-more-heading">
             <div className="mobile-more-heading-copy"><small>{t('Workspace menu','قائمة مساحة العمل')}</small><strong>{t('More','المزيد')}</strong><span>{t('Quick access to business tools and settings','وصول سريع إلى أدوات العمل والإعدادات')}</span></div>
@@ -176,13 +182,13 @@ export class AppShell extends React.Component<Props,State>{
           <div className="mobile-more-status-row">{this.syncStatus('mobile-more-sync')}</div>
           <button type="button" className="mobile-more-account" onClick={this.openAccount}>
             <span className="mobile-more-account-icon"><Icon name="users"/></span>
-            <span className="mobile-more-account-copy"><strong>{t('Account','الحساب')}</strong><small>{t('Profile, password and sign out','الملف وكلمة المرور وتسجيل الخروج')}</small></span>
+            <span className="mobile-more-account-copy"><strong>{t('Account','الحساب')}</strong><small>{t('Company profile, logo, website and account access','ملف الشركة والشعار والموقع وبيانات الحساب')}</small></span>
             <span className="mobile-more-chevron" aria-hidden="true"/>
           </button>
           <div className="mobile-more-group group-workspace"><p><span>{t('Workspace','مساحة العمل')}</span></p>{this.moreNavButton('items','items',t('Items','الأصناف'),t('Products and services library','إدارة المنتجات والخدمات'),'items')}</div>
           <div className="mobile-more-group group-finance"><p><span>{t('Finance','المالية')}</span></p>{this.moreNavButton('receivables','invoice',t('Receivables','المستحقات'),t('Open balances and collections','الأرصدة المفتوحة والتحصيل'),'receivables')}{this.moreNavButton('reports','file',t('Reports','التقارير'),t('Sales and financial insights','تقارير المبيعات والمالية'),'reports')}</div>
           <div className="mobile-more-group group-business"><p><span>{t('Business','الأعمال')}</span></p>{this.moreNavButton('operations','backup',t('Operations','العمليات'),t('Purchases, expenses and activity','المشتريات والمصروفات والنشاط'),'operations')}</div>
-          <div className="mobile-more-group group-system"><p><span>{t('General','عام')}</span></p><button type="button" className="mobile-more-settings" onClick={this.openSettings}><span className="mobile-more-settings-icon"><Icon name="settings"/></span><span className="mobile-more-settings-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Company, appearance and security','الشركة والمظهر والأمان')}</small></span><span className="mobile-more-chevron" aria-hidden="true"/></button></div>
+          <div className="mobile-more-group group-system"><p><span>{t('General','عام')}</span></p><button type="button" className="mobile-more-settings" onClick={this.openSettings}><span className="mobile-more-settings-icon"><Icon name="settings"/></span><span className="mobile-more-settings-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Preferences, documents and security','التفضيلات والمستندات والأمان')}</small></span><span className="mobile-more-chevron" aria-hidden="true"/></button></div>
         </section></>:null}
         <nav className="mobile-bottom-nav" aria-label={t('Mobile navigation','تنقل الجوال')}>
           <button type="button" className={this.props.screen==='home'?'active':''} aria-current={this.props.screen==='home'?'page':undefined} onClick={()=>this.navigate('home')}><Icon name="menu"/><span>{t('Home','الرئيسية')}</span></button>

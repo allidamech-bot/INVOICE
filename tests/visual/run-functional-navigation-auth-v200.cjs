@@ -26,6 +26,21 @@ const base='http://127.0.0.1:4173/tests/visual';
         assert.equal(await page.locator('.mobile-shell-new-menu').count(),0,'Create menu must close before More opens');
         await page.locator('#mobile-more-sheet').waitFor();
         assert.equal(await page.locator('#mobile-more-sheet').getAttribute('aria-modal'),'true');
+        assert.equal(await page.locator('#mobile-more-sheet').getAttribute('dir'),lang==='ar'?'rtl':'ltr','More sheet must declare the active writing direction');
+        const moreGeometry=await page.locator('#mobile-more-sheet .mobile-more-link').first().evaluate(button=>{
+          const rect=selector=>button.querySelector(selector).getBoundingClientRect();
+          const icon=rect('.mobile-more-link-icon');
+          const copy=rect('.mobile-more-link-copy');
+          const chevron=rect('.mobile-more-chevron');
+          return {iconCenter:icon.left+icon.width/2,copyCenter:copy.left+copy.width/2,chevronCenter:chevron.left+chevron.width/2};
+        });
+        if(lang==='ar'){
+          assert.ok(moreGeometry.iconCenter>moreGeometry.copyCenter,'Arabic More items must place the icon on the right of the copy');
+          assert.ok(moreGeometry.chevronCenter<moreGeometry.copyCenter,'Arabic More items must place the chevron on the left of the copy');
+        }else{
+          assert.ok(moreGeometry.iconCenter<moreGeometry.copyCenter,'English More items must place the icon on the left of the copy');
+          assert.ok(moreGeometry.chevronCenter>moreGeometry.copyCenter,'English More items must place the chevron on the right of the copy');
+        }
 
         await page.keyboard.press('Escape');
         assert.equal(await page.locator('#mobile-more-sheet').count(),0,'Escape must close More');
@@ -48,9 +63,18 @@ const base='http://127.0.0.1:4173/tests/visual';
         await page.locator('#mobile-more-sheet .mobile-more-settings').click();
         assert.equal(await page.locator('#mobile-more-sheet').count(),0,'More must close before Settings opens');
         assert.equal(await page.evaluate(()=>window.shellQa.settings),1);
+        assert.equal(await page.evaluate(()=>sessionStorage.getItem('lourex-settings-scope')),'settings','Settings entry must request the Settings scope');
+
+        await more.click();
+        await page.locator('#mobile-more-sheet').waitFor();
+        await page.locator('#mobile-more-sheet .mobile-more-account').click();
+        assert.equal(await page.locator('#mobile-more-sheet').count(),0,'More must close before Account opens');
+        assert.equal(await page.evaluate(()=>window.shellQa.settings),2,'Account must open through the scoped Settings boundary');
+        assert.equal(await page.evaluate(()=>sessionStorage.getItem('lourex-settings-scope')),'account','Account entry must request the Account scope');
 
         await page.locator('.shell-account-button').click();
-        assert.equal(await page.evaluate(()=>window.shellQa.account),1);
+        assert.equal(await page.evaluate(()=>window.shellQa.settings),3,'Top-bar Account must use the scoped Settings boundary');
+        assert.equal(await page.evaluate(()=>sessionStorage.getItem('lourex-settings-scope')),'account','Top-bar Account must request the Account scope');
 
         await create.click();
         await page.locator('.mobile-shell-new-menu [role="menuitem"]').first().click();

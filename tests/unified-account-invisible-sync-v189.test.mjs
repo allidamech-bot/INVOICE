@@ -60,8 +60,9 @@ test('v189 daily workspace exposes only generic save state, not cloud controls',
   assert.doesNotMatch(modal,/Restore from Cloud/);
   assert.match(modal,/No manual sync or separate cloud sign-in is required/);
   assert.match(css,/\.auth-shell>\.auth-cloud-launcher\{\s*display:none!important/);
-  assert.match(css,/\.settings-tabs>button:nth-child\(4\)/);
-  assert.match(css,/\.security-settings-page\{\s*display:none!important/);
+  assert.match(css,/\.settings-preferences-workspace \.settings-tabs>button:nth-child\(4\)\{\s*display:flex!important/);
+  assert.match(css,/\.settings-preferences-workspace \.security-settings-page\{\s*display:block!important/);
+  assert.doesNotMatch(css,/\.settings-tabs>button:nth-child\(4\),\s*\n\.app-ui \.security-settings-page\{\s*display:none!important/);
 });
 
 test('v189 account runtime remains cached as later PWA generations advance',async()=>{

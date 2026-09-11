@@ -22,5 +22,5 @@ test('logo signature and stamp use only original or explicit AI background remov
   assert.doesNotMatch(settings,/fileToDataUrl\(file/);
   assert.doesNotMatch(settings,/Background cleaned automatically/);
   assert.doesNotMatch(settings,/Signature and stamp backgrounds cleaned/);
-  assert.match(settings,/No automatic color-threshold cleanup is applied/);
+  assert.match(settings,/Original artwork is preserved unless you explicitly choose the AI transparent version/);
 });

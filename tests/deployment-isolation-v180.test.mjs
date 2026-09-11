@@ -20,7 +20,12 @@ const run=overrides=>spawnSync(process.execPath,[script],{
 
 test('deployment isolation guard is wired before the production build',async()=>{
   const pkg=JSON.parse(await readFile('package.json','utf8'));
-  assert.equal(pkg.scripts.build,'node scripts/verify-deployment-isolation.mjs && node scripts/build.mjs');
+  const buildSteps=pkg.scripts.build.split('&&').map(step=>step.trim());
+  assert.deepEqual(buildSteps,[
+    'node scripts/verify-deployment-isolation.mjs',
+    'node scripts/build.mjs',
+    'node scripts/pwa-cache-v205.mjs',
+  ]);
 });
 
 test('deployment isolation guard accepts only the canonical INVOICE repository on the dedicated project',()=>{

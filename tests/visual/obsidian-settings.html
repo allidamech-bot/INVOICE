@@ -4,13 +4,15 @@
 import {SettingsModal} from './src/components/SettingsModal.js';
 import {defaultCompany,defaultAppSettings} from './src/lib/defaults.js';
 import {setUiLanguage} from './src/lib/i18n.js';
-const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar',h=React.createElement;
+import {requestSettingsScope} from './src/lib/settings-scope.js';
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar',scope=params.get('scope')==='account'?'account':'settings',h=React.createElement;
 setUiLanguage(ar?'ar':'en');
 const company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة',addressEn:'Business District, Suite 204',addressAr:'المنطقة التجارية، مكتب ٢٠٤',city:'Istanbul',country:'Türkiye',phone:'+90 212 555 0100',email:'finance@lourex.test',website:'https://lourex.test',vatNumber:'VAT-900100',taxNumber:'TAX-900100',commercialRegistration:'CR-778899'};
 const appSettings={...defaultAppSettings(),uiLanguage:ar?'ar':'en'};
 class Fixture extends React.Component{
- state={company,appSettings};
- render(){return h(SettingsModal,{open:true,company:this.state.company,appSettings:this.state.appSettings,onClose:()=>{},onSaveCompany:async value=>{window.savedCompany=value;this.setState({company:value});},onSaveAppSettings:async value=>{window.savedSettings=value;this.setState({appSettings:value});},onChangePin:async()=>{},onLock:()=>{},cloudUser:{uid:'qa-user',email:'finance@lourex.test'},onCloudRestore:async()=>{},onCloudSignOut:async()=>{},onBackup:async()=>{},onRestore:async()=>{}});}
+ state={company,appSettings,open:false};
+ componentDidMount(){requestSettingsScope(scope);this.setState({open:true});}
+ render(){return h(SettingsModal,{open:this.state.open,company:this.state.company,appSettings:this.state.appSettings,onClose:()=>this.setState({open:false}),onSaveCompany:async value=>{window.savedCompany=value;this.setState({company:value});},onSaveAppSettings:async value=>{window.savedSettings=value;this.setState({appSettings:value});},onChangePin:async()=>{},onLock:()=>{},cloudUser:{uid:'qa-user',email:'finance@lourex.test'},onCloudRestore:async()=>{},onCloudSignOut:async()=>{},onBackup:async()=>{},onRestore:async()=>{}});}
 }
 ReactDOM.render(h(Fixture),document.getElementById('root'));
 </script></body></html>

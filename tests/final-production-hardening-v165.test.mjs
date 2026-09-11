@@ -36,7 +36,7 @@ test('manual cloud restore is removed from visible account UX while publication 
   ]);
   assert.doesNotMatch(account,/confirmRestore:boolean|Restore from Cloud|private restoreFromCloud=async/);
   assert.match(account,/No manual sync or separate cloud sign-in is required/);
-  assert.match(unifiedCss,/\.app-ui \.security-settings-page\{\s*display:none!important/);
+  assert.match(unifiedCss,/\.settings-preferences-workspace \.security-settings-page\{\s*display:block!important/);
   const push=cloud.slice(cloud.indexOf('export async function pushLocalVaultToCloud'),cloud.indexOf('// Compatibility exports'));
   assert.doesNotMatch(push,/installCloudVault/);
   assert.match(push,/Promise<'same'\|'pushed'\|'remote-changed'>/);
