@@ -28,7 +28,9 @@ test('v204 More sheet uses distinct semantic tones without changing printable te
   assert.match(css,/mobile-more-account/);
   assert.match(css,/mobile-more-settings/);
   assert.match(css,/max-height:min\(78dvh,690px\)/);
-  assert.doesNotMatch(css,/\.invoice-page|\.quotation-page|\.document-sheet|\.print-/);
+  for(const forbidden of ['.invoice-page','.quotation-page','.document-sheet','.print-']){
+    assert.equal(css.includes(forbidden),false,`v204 mobile menu CSS must not target ${forbidden}`);
+  }
 });
 
 test('v204 build refreshes the installed PWA generation',async()=>{
