@@ -22,7 +22,7 @@ function forwardedHost(request){
   return raw.split(',')[0]?.trim().toLowerCase()||'';
 }
 
-function requestOriginAllowed(request){
+function sameOriginRequest(request){
   const origin=String(request.headers.origin||'').trim();
   const requestedWith=String(request.headers['x-requested-with']||'').trim();
   if(!origin||requestedWith!=='LOUREX-Invoice')return false;
@@ -78,7 +78,7 @@ export default async function handler(request,response){
     sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST for background removal.'});
     return;
   }
-  if(!requestOriginAllowed(request)){
+  if(!sameOriginRequest(request)){
     sendJson(response,403,{code:'ORIGIN_REJECTED',message:'Background removal requests must come from this LOUREX Invoice deployment.'});
     return;
   }
