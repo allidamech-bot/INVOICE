@@ -66,8 +66,8 @@ test('account entry cannot switch modes or double-submit while authentication is
   const screen=read('src/components/AccountEntryScreen.tsx');
   assert.match(screen,/if\(this\.state\.busy\)return;/);
   assert.match(screen,/className="[^"]*auth-language-switch[^"]*" disabled=\{this\.state\.busy\}/);
-  assert.match(screen,/role="tab" aria-selected=\{!create\} disabled=\{this\.state\.busy\} className=\{!create\?'active':''\}/);
-  assert.match(screen,/role="tab" aria-selected=\{create\} disabled=\{this\.state\.busy\} className=\{create\?'active':''\}/);
+  assert.match(screen,/role="tab" aria-selected=\{!create\} disabled=\{this\.state\.busy\|\|linkingGoogle\} className=\{!create\?'active':''\}/);
+  assert.match(screen,/role="tab" aria-selected=\{create\} disabled=\{this\.state\.busy\|\|linkingGoogle\} className=\{create\?'active':''\}/);
   assert.match(screen,/premium-auth-feedback" role="alert"/);
   assert.match(screen,/premium-auth-feedback" role="status"/);
 });

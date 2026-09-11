@@ -3,17 +3,18 @@ import { Brand, Button, Field, Input } from './UI.js';
 import { t } from '../lib/i18n.js';
 import { accountPasswordIssue, MAX_ACCOUNT_PASSWORD_LENGTH, MIN_ACCOUNT_PASSWORD_LENGTH } from '../lib/account-security.js';
 import { createCloudUser, friendlyCloudError, sendCloudPasswordReset, signInCloudUser } from '../cloud/firebase.js';
+import { clearPendingGoogleLink, GoogleAccountLinkRequiredError, linkGoogleToExistingPasswordAccount, signInCloudUserWithGoogle } from '../cloud/google-auth.js';
 
 interface Props {
   language: UiLanguage;
   onLanguageChange: (language: UiLanguage) => Promise<void>;
 }
 interface State {
-  mode:'signin'|'create'; email:string; password:string; confirm:string; busy:boolean; error:string; message:string;
+  mode:'signin'|'create'; email:string; password:string; confirm:string; busy:boolean; error:string; message:string; googleLinkPending:boolean;
 }
 
 export class AccountEntryScreen extends React.Component<Props,State>{
-  state:State={mode:'signin',email:'',password:'',confirm:'',busy:false,error:'',message:''};
+  state:State={mode:'signin',email:'',password:'',confirm:'',busy:false,error:'',message:'',googleLinkPending:false};
 
   componentDidMount():void{
     try{
@@ -24,9 +25,11 @@ export class AccountEntryScreen extends React.Component<Props,State>{
     }catch{}
   }
 
+  componentWillUnmount():void{clearPendingGoogleLink();}
+
   private languageSwitch=():any=><button type="button" className="auth-language-switch premium-auth-language" disabled={this.state.busy} onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button>;
 
-  private setMode=(mode:'signin'|'create')=>this.setState({mode,error:'',message:'',password:'',confirm:''});
+  private setMode=(mode:'signin'|'create')=>{clearPendingGoogleLink();this.setState({mode,error:'',message:'',password:'',confirm:'',googleLinkPending:false});};
 
   private passwordError=(password:string):string=>{
     const issue=accountPasswordIssue(password);
@@ -34,6 +37,35 @@ export class AccountEntryScreen extends React.Component<Props,State>{
     if(issue==='too-long')return t(`Password must be ${MAX_ACCOUNT_PASSWORD_LENGTH} characters or fewer.`,`يجب ألا تتجاوز كلمة المرور ${MAX_ACCOUNT_PASSWORD_LENGTH} حرفًا.`);
     if(issue==='too-repetitive')return t('Avoid repeated-character passwords. Use a longer passphrase or a mix of different characters.','تجنب كلمات المرور المكوّنة من أحرف مكررة. استخدم عبارة مرور أطول أو مجموعة متنوعة من الأحرف.');
     return '';
+  };
+
+  private googleError=(error:any):string=>{
+    const code=String(error?.code||'');
+    if(code.includes('popup-closed-by-user')||code.includes('cancelled-popup-request'))return t('Google sign-in was cancelled.','تم إلغاء تسجيل الدخول عبر Google.');
+    if(code.includes('popup-blocked'))return t('Your browser blocked the Google sign-in window. Allow pop-ups for LOUREX and try again.','حظر المتصفح نافذة تسجيل الدخول عبر Google. اسمح بالنوافذ المنبثقة لـ LOUREX ثم حاول مجددًا.');
+    if(code.includes('unauthorized-domain'))return t('This LOUREX domain is not authorized for Google sign-in.','هذا النطاق غير مصرح له بتسجيل الدخول عبر Google.');
+    if(code.includes('operation-not-allowed'))return t('Google sign-in is not enabled for this LOUREX project.','تسجيل الدخول عبر Google غير مفعّل لهذا المشروع.');
+    if(code.includes('network-request-failed'))return t('Google sign-in could not reach the network. Check your connection and try again.','تعذر الاتصال بـ Google. تحقق من اتصال الإنترنت وحاول مجددًا.');
+    if(code.includes('credential-already-in-use'))return t('This Google account is already linked to another LOUREX account.','حساب Google هذا مرتبط بالفعل بحساب LOUREX آخر.');
+    if(code.includes('wrong-password')||code.includes('invalid-credential'))return t('The password for this existing LOUREX account is incorrect.','كلمة مرور حساب LOUREX الحالي غير صحيحة.');
+    return this.props.language==='ar'?t('Google sign-in failed. Please try again.','تعذر تسجيل الدخول عبر Google. حاول مرة أخرى.'):friendlyCloudError(error);
+  };
+
+  private googleSignIn=async():Promise<void>=>{
+    if(this.state.busy)return;
+    clearPendingGoogleLink();
+    this.setState({busy:true,error:'',message:'',googleLinkPending:false});
+    try{
+      await signInCloudUserWithGoogle();
+      this.setState({message:t('Google sign-in complete. Restoring your LOUREX data…','تم تسجيل الدخول عبر Google. جارٍ استعادة بيانات LOUREX…')});
+      window.setTimeout(()=>window.location.reload(),450);
+    }catch(error:any){
+      if(error instanceof GoogleAccountLinkRequiredError){
+        this.setState({mode:'signin',email:error.email,password:'',confirm:'',busy:false,error:'',googleLinkPending:true,message:t('This Google email already has a LOUREX account. Enter your existing LOUREX password once to connect Google without changing your data.','هذا البريد في Google لديه حساب LOUREX موجود. أدخل كلمة مرور LOUREX الحالية مرة واحدة لربط Google دون تغيير بياناتك.')});
+        return;
+      }
+      this.setState({busy:false,error:this.googleError(error)});
+    }
   };
 
   private submit=async(e:any):Promise<void>=>{
@@ -45,9 +77,14 @@ export class AccountEntryScreen extends React.Component<Props,State>{
     if(create&&password!==this.state.confirm){this.setState({error:t('Password confirmation does not match.','تأكيد كلمة المرور غير مطابق.')});return;}
     this.setState({busy:true,error:'',message:''});
     try{
-      if(create)await createCloudUser(email,password);else await signInCloudUser(email,password);
+      if(this.state.googleLinkPending)await linkGoogleToExistingPasswordAccount(email,password);
+      else if(create)await createCloudUser(email,password);
+      else await signInCloudUser(email,password);
       try{sessionStorage.setItem('lourex-auth-just-signed-in','1');}catch{}
-      this.setState({message:create?t('Account created. Preparing LOUREX…','تم إنشاء الحساب. جارٍ تجهيز LOUREX…'):t('Signed in. Restoring your LOUREX data…','تم تسجيل الدخول. جارٍ استعادة بيانات LOUREX…')});
+      const message=this.state.googleLinkPending
+        ?t('Google connected securely. Restoring your existing LOUREX data…','تم ربط Google بأمان. جارٍ استعادة بيانات LOUREX الحالية…')
+        :create?t('Account created. Preparing LOUREX…','تم إنشاء الحساب. جارٍ تجهيز LOUREX…'):t('Signed in. Restoring your LOUREX data…','تم تسجيل الدخول. جارٍ استعادة بيانات LOUREX…');
+      this.setState({message});
       window.setTimeout(()=>window.location.reload(),500);
     }catch(error:any){
       const code=String(error?.code||'');
@@ -55,7 +92,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
         this.setState({mode:'signin',busy:false,password:'',confirm:'',message:'',error:t('This account already exists. Enter its password and sign in — do not create a new account.','هذا الحساب موجود بالفعل. أدخل كلمة المرور وسجّل الدخول — لا تنشئ حسابًا جديدًا.')});
         return;
       }
-      this.setState({busy:false,error:friendlyCloudError(error)});
+      this.setState({busy:false,error:this.state.googleLinkPending?this.googleError(error):friendlyCloudError(error)});
     }
   };
 
@@ -75,6 +112,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
 
   render():any{
     const create=this.state.mode==='create';
+    const linkingGoogle=this.state.googleLinkPending;
     return <div className={`auth-page auth-account-page ${create?'auth-mode-create':'auth-mode-signin'}`}>
       <div className="auth-account-frame">
         <section className="auth-account-story" aria-label={t('LOUREX Invoice workspace','مساحة عمل LOUREX Invoice')}>
@@ -96,19 +134,27 @@ export class AccountEntryScreen extends React.Component<Props,State>{
           {this.languageSwitch()}
           <div className="auth-card-mobile-brand"><Brand logoDataUrl="./brand/lourex-logo.svg" language={this.props.language}/></div>
           <div className="auth-card-heading">
-            <p className="eyebrow">{create?t('NEW WORKSPACE','مساحة جديدة'):t('WELCOME BACK','مرحبًا بعودتك')}</p>
-            <h1>{create?t('Create your LOUREX account','أنشئ حساب LOUREX'):t('Sign in to your workspace','سجّل الدخول إلى مساحتك')}</h1>
-            <p className="subtle">{create?t('Create one secure account for LOUREX Invoice. Your workspace will save automatically.','أنشئ حسابًا آمنًا واحدًا لـ LOUREX Invoice. سيتم حفظ مساحة عملك تلقائيًا.'):t('Continue to your invoices, quotations and business records.','تابع إلى فواتيرك وعروض أسعارك وسجلات أعمالك.')}</p>
+            <p className="eyebrow">{linkingGoogle?t('CONNECT GOOGLE','ربط GOOGLE'):create?t('NEW WORKSPACE','مساحة جديدة'):t('WELCOME BACK','مرحبًا بعودتك')}</p>
+            <h1>{linkingGoogle?t('Connect Google to your LOUREX account','اربط Google بحساب LOUREX'):create?t('Create your LOUREX account','أنشئ حساب LOUREX'):t('Sign in to your workspace','سجّل الدخول إلى مساحتك')}</h1>
+            <p className="subtle">{linkingGoogle?t('Verify your existing password once. Your LOUREX account, UID and cloud data stay unchanged.','تحقق من كلمة المرور الحالية مرة واحدة. سيبقى حساب LOUREX ومعرّفه وبياناته السحابية دون تغيير.'):create?t('Create one secure account for LOUREX Invoice. Your workspace will save automatically.','أنشئ حسابًا آمنًا واحدًا لـ LOUREX Invoice. سيتم حفظ مساحة عملك تلقائيًا.'):t('Continue to your invoices, quotations and business records.','تابع إلى فواتيرك وعروض أسعارك وسجلات أعمالك.')}</p>
           </div>
 
+          {!linkingGoogle?<>
+            <button type="button" className="google-auth-button" disabled={this.state.busy} onClick={()=>void this.googleSignIn()}>
+              <span className="google-auth-mark" aria-hidden="true">G</span>
+              <span>{this.state.busy?t('Please wait…','يرجى الانتظار…'):t('Continue with Google','المتابعة باستخدام Google')}</span>
+            </button>
+            <div className="auth-provider-divider" aria-hidden="true"><span>{t('or use email','أو استخدم البريد الإلكتروني')}</span></div>
+          </>:null}
+
           <div className="segmented account-entry-tabs" role="tablist" aria-label={t('Account access','الدخول إلى الحساب')}>
-            <button type="button" role="tab" aria-selected={!create} disabled={this.state.busy} className={!create?'active':''} onClick={()=>this.setMode('signin')}>{t('Sign In','تسجيل الدخول')}</button>
-            <button type="button" role="tab" aria-selected={create} disabled={this.state.busy} className={create?'active':''} onClick={()=>this.setMode('create')}>{t('Create Account','إنشاء حساب')}</button>
+            <button type="button" role="tab" aria-selected={!create} disabled={this.state.busy||linkingGoogle} className={!create?'active':''} onClick={()=>this.setMode('signin')}>{t('Sign In','تسجيل الدخول')}</button>
+            <button type="button" role="tab" aria-selected={create} disabled={this.state.busy||linkingGoogle} className={create?'active':''} onClick={()=>this.setMode('create')}>{t('Create Account','إنشاء حساب')}</button>
           </div>
 
           <div className="account-entry-fields">
-            <Field label={t('Email','البريد الإلكتروني')}><Input type="email" inputMode="email" autoComplete="email" autoFocus disabled={this.state.busy} value={this.state.email} onChange={(e:any)=>this.setState({email:e.target.value,error:''})}/></Field>
-            <Field label={t('Password','كلمة المرور')}><Input type="password" autoComplete={create?'new-password':'current-password'} minLength={create?MIN_ACCOUNT_PASSWORD_LENGTH:undefined} maxLength={create?MAX_ACCOUNT_PASSWORD_LENGTH:undefined} disabled={this.state.busy} value={this.state.password} onChange={(e:any)=>this.setState({password:e.target.value,error:''})}/></Field>
+            <Field label={t('Email','البريد الإلكتروني')}><Input type="email" inputMode="email" autoComplete="email" autoFocus={!linkingGoogle} disabled={this.state.busy||linkingGoogle} value={this.state.email} onChange={(e:any)=>this.setState({email:e.target.value,error:''})}/></Field>
+            <Field label={t('Password','كلمة المرور')}><Input type="password" autoComplete={create?'new-password':'current-password'} minLength={create?MIN_ACCOUNT_PASSWORD_LENGTH:undefined} maxLength={create?MAX_ACCOUNT_PASSWORD_LENGTH:undefined} autoFocus={linkingGoogle} disabled={this.state.busy} value={this.state.password} onChange={(e:any)=>this.setState({password:e.target.value,error:''})}/></Field>
             {create?<Field label={t('Confirm Password','تأكيد كلمة المرور')}><Input type="password" autoComplete="new-password" minLength={MIN_ACCOUNT_PASSWORD_LENGTH} maxLength={MAX_ACCOUNT_PASSWORD_LENGTH} disabled={this.state.busy} value={this.state.confirm} onChange={(e:any)=>this.setState({confirm:e.target.value,error:''})}/></Field>:null}
           </div>
 
@@ -116,8 +162,8 @@ export class AccountEntryScreen extends React.Component<Props,State>{
           {this.state.error?<div className="auth-error premium-auth-feedback" role="alert">{this.state.error}</div>:null}
           {this.state.message?<div className="settings-message success premium-auth-feedback" role="status">{this.state.message}</div>:null}
 
-          <Button className="welcome-primary premium-auth-primary" variant="primary" type="submit" disabled={this.state.busy}>{this.state.busy?t('Please wait…','يرجى الانتظار…'):create?t('Create Account','إنشاء الحساب'):t('Enter LOUREX','الدخول إلى LOUREX')}</Button>
-          {!create?<button type="button" className="cloud-reset-link account-forgot" disabled={this.state.busy} onClick={()=>void this.reset()}>{t('Forgot password?','نسيت كلمة المرور؟')}</button>:null}
+          <Button className="welcome-primary premium-auth-primary" variant="primary" type="submit" disabled={this.state.busy}>{this.state.busy?t('Please wait…','يرجى الانتظار…'):linkingGoogle?t('Connect Google securely','ربط Google بأمان'):create?t('Create Account','إنشاء الحساب'):t('Enter LOUREX','الدخول إلى LOUREX')}</Button>
+          {linkingGoogle?<button type="button" className="cloud-reset-link account-forgot" disabled={this.state.busy} onClick={()=>this.setMode('signin')}>{t('Cancel Google linking','إلغاء ربط Google')}</button>:!create?<button type="button" className="cloud-reset-link account-forgot" disabled={this.state.busy} onClick={()=>void this.reset()}>{t('Forgot password?','نسيت كلمة المرور؟')}</button>:null}
 
           <div className="auth-card-security"><span className="auth-security-dot"/><span>{t('Protected workspace · Automatic saving · Offline ready','مساحة محمية · حفظ تلقائي · جاهز دون اتصال')}</span></div>
         </form>
