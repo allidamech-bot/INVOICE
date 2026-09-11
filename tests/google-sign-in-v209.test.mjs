@@ -42,8 +42,10 @@ test('v209 Google entry is styled for premium desktop, mobile and RTL layouts',a
   assert.match(css,/@media\(max-width:720px\)[\s\S]*\.google-auth-button/);
 });
 
-test('v209 advances the installed PWA cache so Google login ships to existing clients',async()=>{
+test('v209 advances the installed PWA cache and precaches the Google auth module',async()=>{
   const patch=await read('scripts/pwa-cache-v205.mjs');
   assert.match(patch,/const CACHE = 'lourex-invoice-v209'/);
   assert.match(patch,/const CACHE = 'lourex-invoice-v208'.*legacy marker/);
+  assert.match(patch,/\.\/src\/cloud\/google-auth\.js/);
+  assert.match(patch,/requiredRuntimes/);
 });
