@@ -31,11 +31,14 @@ export function clearPendingGoogleLink():void{
 export async function signInCloudUserWithGoogle():Promise<CloudUser>{
   clearPendingGoogleLink();
   const instance=auth();
-  await instance.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
   const provider=new firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({prompt:'select_account'});
   try{
+    // Keep the popup call in the original click activation. Safari/iOS can revoke
+    // popup permission after any awaited work, so persistence is confirmed only
+    // after the provider window has been opened and the sign-in has completed.
     const result=await instance.signInWithPopup(provider);
+    try{await instance.setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch{}
     const user=userFrom(result?.user);
     if(!user)throw new Error('Unable to complete Google sign-in.');
     markRecentAuth();
@@ -88,6 +91,10 @@ export function friendlyGoogleAuthError(error:unknown):string{
   if(code.includes('unauthorized-domain'))return 'This LOUREX domain is not authorized for Google sign-in.';
   if(code.includes('operation-not-allowed'))return 'Google sign-in is not enabled for this LOUREX project.';
   if(code.includes('network-request-failed'))return 'Google sign-in could not reach the network. Check your connection and try again.';
+  if(code.includes('web-storage-unsupported'))return 'This browser is blocking storage required for Google sign-in. Use a regular browser window and allow site storage.';
+  if(code.includes('operation-not-supported-in-this-environment'))return 'Google sign-in is not supported in this browser context. Open LOUREX directly in Safari or Chrome and try again.';
+  if(code.includes('app-not-authorized')||code.includes('invalid-api-key'))return 'This LOUREX web app is not authorized for Firebase Authentication.';
+  if(code.includes('too-many-requests'))return 'Google sign-in is temporarily rate-limited. Please wait a moment and try again.';
   if(code.includes('credential-already-in-use'))return 'This Google account is already linked to another LOUREX account.';
   if(code.includes('wrong-password')||code.includes('invalid-credential'))return 'The LOUREX password for this existing account is incorrect.';
   return error instanceof Error?error.message:'Google sign-in failed.';

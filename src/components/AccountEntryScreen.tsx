@@ -46,9 +46,15 @@ export class AccountEntryScreen extends React.Component<Props,State>{
     if(code.includes('unauthorized-domain'))return t('This LOUREX domain is not authorized for Google sign-in.','هذا النطاق غير مصرح له بتسجيل الدخول عبر Google.');
     if(code.includes('operation-not-allowed'))return t('Google sign-in is not enabled for this LOUREX project.','تسجيل الدخول عبر Google غير مفعّل لهذا المشروع.');
     if(code.includes('network-request-failed'))return t('Google sign-in could not reach the network. Check your connection and try again.','تعذر الاتصال بـ Google. تحقق من اتصال الإنترنت وحاول مجددًا.');
+    if(code.includes('web-storage-unsupported'))return t('This browser is blocking storage required for Google sign-in. Use a regular browser window and allow site storage.','المتصفح يحظر التخزين المطلوب لتسجيل الدخول عبر Google. افتح LOUREX في نافذة عادية واسمح بتخزين بيانات الموقع.');
+    if(code.includes('operation-not-supported-in-this-environment'))return t('Google sign-in is not supported in this browser context. Open LOUREX directly in Safari or Chrome and try again.','تسجيل الدخول عبر Google غير مدعوم في وضع المتصفح الحالي. افتح LOUREX مباشرة في Safari أو Chrome وحاول مجددًا.');
+    if(code.includes('app-not-authorized')||code.includes('invalid-api-key'))return t('This LOUREX web app is not authorized for Firebase Authentication.','تطبيق LOUREX هذا غير مصرح له باستخدام Firebase Authentication.');
+    if(code.includes('too-many-requests'))return t('Google sign-in is temporarily rate-limited. Please wait a moment and try again.','تم تقييد محاولات Google مؤقتًا. انتظر قليلًا ثم حاول مجددًا.');
+    if(code.includes('internal-error'))return t('Google sign-in could not start correctly in this browser. Reload LOUREX and try again.','تعذر بدء تسجيل الدخول عبر Google بشكل صحيح في هذا المتصفح. حدّث LOUREX ثم حاول مجددًا.');
     if(code.includes('credential-already-in-use'))return t('This Google account is already linked to another LOUREX account.','حساب Google هذا مرتبط بالفعل بحساب LOUREX آخر.');
     if(code.includes('wrong-password')||code.includes('invalid-credential'))return t('The password for this existing LOUREX account is incorrect.','كلمة مرور حساب LOUREX الحالي غير صحيحة.');
-    return this.props.language==='ar'?t('Google sign-in failed. Please try again.','تعذر تسجيل الدخول عبر Google. حاول مرة أخرى.'):friendlyCloudError(error);
+    const reference=code?` (${code})`:'';
+    return `${t('Google sign-in failed. Please try again.','تعذر تسجيل الدخول عبر Google. حاول مرة أخرى.')}${reference}`;
   };
 
   private googleSignIn=async():Promise<void>=>{
@@ -60,6 +66,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
       this.setState({message:t('Google sign-in complete. Restoring your LOUREX data…','تم تسجيل الدخول عبر Google. جارٍ استعادة بيانات LOUREX…')});
       window.setTimeout(()=>window.location.reload(),450);
     }catch(error:any){
+      try{console.error('[LOUREX Google Auth]',String(error?.code||'unknown'),String(error?.message||''));}catch{}
       if(error instanceof GoogleAccountLinkRequiredError){
         this.setState({mode:'signin',email:error.email,password:'',confirm:'',busy:false,error:'',googleLinkPending:true,message:t('This Google email already has a LOUREX account. Enter your existing LOUREX password once to connect Google without changing your data.','هذا البريد في Google لديه حساب LOUREX موجود. أدخل كلمة مرور LOUREX الحالية مرة واحدة لربط Google دون تغيير بياناتك.')});
         return;
