@@ -8,6 +8,8 @@ const vercelEnvironment=process.env.VERCEL_ENV||'local';
 const sourceRepoOwner=process.env.VERCEL_GIT_REPO_OWNER||'';
 const sourceRepoSlug=process.env.VERCEL_GIT_REPO_SLUG||'';
 const projectId=process.env.VERCEL_PROJECT_ID||'';
+const firebaseAppCheckEnterpriseKey=(process.env.FIREBASE_APP_CHECK_ENTERPRISE_KEY||'').trim();
+const firebaseAppCheckRequired=process.env.FIREBASE_APP_CHECK_REQUIRED==='1';
 if(vercelEnvironment==='production'){
   if(!sourceRepoOwner||!sourceRepoSlug)throw new Error(`Refusing production build without Vercel Git source metadata. LOUREX Invoice production source must be ${EXPECTED_REPO_OWNER}/${EXPECTED_REPO_SLUG}.`);
   if(sourceRepoSlug.toLowerCase()!==EXPECTED_REPO_SLUG.toLowerCase()||sourceRepoOwner.toLowerCase()!==EXPECTED_REPO_OWNER.toLowerCase()){
@@ -15,12 +17,14 @@ if(vercelEnvironment==='production'){
   }
   if(!projectId)throw new Error(`Refusing LOUREX Invoice production build without VERCEL_PROJECT_ID. Expected isolated Invoice project ${EXPECTED_PROJECT_ID}.`);
   if(projectId!==EXPECTED_PROJECT_ID)throw new Error(`Refusing LOUREX Invoice production build in unexpected Vercel project ${projectId}. Expected isolated Invoice project ${EXPECTED_PROJECT_ID}.`);
+  if(firebaseAppCheckRequired&&!firebaseAppCheckEnterpriseKey)throw new Error('Refusing production build with FIREBASE_APP_CHECK_REQUIRED=1 but no FIREBASE_APP_CHECK_ENTERPRISE_KEY.');
 }
 
 const VENDOR_ASSETS=[
   {name:'react.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js','https://unpkg.com/react@17.0.2/umd/react.production.min.js']},
   {name:'react-dom.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react-dom.production.min.js','https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js']},
   {name:'firebase-app-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js','https://unpkg.com/firebase@12.17.1/firebase-app-compat.js']},
+  {name:'firebase-app-check-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-app-check-compat.js','https://unpkg.com/firebase@12.17.1/firebase-app-check-compat.js']},
   {name:'firebase-auth-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-auth-compat.js','https://unpkg.com/firebase@12.17.1/firebase-auth-compat.js']},
   {name:'firebase-firestore-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore-compat.js','https://unpkg.com/firebase@12.17.1/firebase-firestore-compat.js']},
   {name:'html2canvas.min.js',urls:['https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js','https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js']},
@@ -63,6 +67,8 @@ const runtimeConfig={
   projectId,
   commitSha:process.env.VERCEL_GIT_COMMIT_SHA||process.env.GITHUB_SHA||'',
   commitRef:process.env.VERCEL_GIT_COMMIT_REF||process.env.GITHUB_REF_NAME||'',
+  firebaseAppCheckEnterpriseKey,
+  firebaseAppCheckRequired,
   buildTime:new Date().toISOString()
 };
 
@@ -147,6 +153,9 @@ const vendorUrlMap=new Map([
   ['https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore-compat.js','./vendor/firebase-firestore-compat.js']
 ]);
 for(const [remote,local] of vendorUrlMap)html=html.replaceAll(remote,local);
+const firebaseAppScript='<script crossorigin src="./vendor/firebase-app-compat.js"></script>';
+if(!html.includes(firebaseAppScript))throw new Error('Production HTML is missing the vendored Firebase app runtime.');
+html=html.replace(firebaseAppScript,`${firebaseAppScript}\n  <script src="./vendor/firebase-app-check-compat.js"></script>\n  <script src="./firebase-app-check-bootstrap.js"></script>`);
 html=html.replace(/\s*<link rel="preconnect" href="https:\/\/(?:cdn\.jsdelivr\.net|www\.gstatic\.com)"[^>]*\/>\n?/g,'\n');
 await writeFile('dist/index.html',html);
 
@@ -174,6 +183,7 @@ await writeFile(productImportPath,productImport);
 
 const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
+sw=sw.replace("const CACHE = 'lourex-invoice-v202';","const CACHE = 'lourex-invoice-v203';\n// lourex-invoice-v202: preserved as a legacy marker for cache-migration tests.");
 sw=sw.replace(/"\.\/styles\/[^\"]+\.css"(?:,"\.\/styles\/[^\"]+\.css")*/g,'"./styles/app.bundle.css"');
 const vendorCore=VENDOR_ASSETS.map(asset=>`"./vendor/${asset.name}"`).join(',');
 sw=sw.replace('const LOCAL_CORE = [',`const LOCAL_CORE = [${vendorCore},`);
@@ -187,4 +197,4 @@ if([...vendorUrlMap.keys()].some(url=>html.includes(url)))throw new Error('Produ
 if(/https:\/\/cdn\.jsdelivr\.net\/npm\/(?:html2canvas|jspdf|xlsx)@/.test(iosBridge+productImport))throw new Error('Production runtime still references remote PDF/import libraries.');
 if(/preconnect[^>]+(?:cdn\.jsdelivr\.net|www\.gstatic\.com)/.test(html))throw new Error('Production HTML still preconnects to retired runtime CDNs.');
 
-console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; project: ${runtimeConfig.projectId||'local'}; ${styleNames.length} CSS layers -> 1 bundle; ${VENDOR_ASSETS.length} runtime libraries vendored; source maps disabled)`);
+console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; project: ${runtimeConfig.projectId||'local'}; App Check: ${runtimeConfig.firebaseAppCheckEnterpriseKey?'configured':'not configured'}${runtimeConfig.firebaseAppCheckRequired?' / required':''}; ${styleNames.length} CSS layers -> 1 bundle; ${VENDOR_ASSETS.length} runtime libraries vendored; source maps disabled)`);

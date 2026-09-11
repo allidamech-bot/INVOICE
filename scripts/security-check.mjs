@@ -6,9 +6,10 @@ const failures=[];
 const check=(condition,message)=>{if(!condition)failures.push(message);};
 const read=path=>readFile(join(root,path),'utf8');
 
-const [gitignore,defaults,session,entry,modal,passwordPolicy,api,vercel]=await Promise.all([
+const [gitignore,defaults,session,entry,modal,passwordPolicy,api,vercel,build,appCheckBootstrap]=await Promise.all([
   read('.gitignore'),read('src/lib/defaults.ts'),read('src/storage/session.ts'),read('src/components/AccountEntryScreen.tsx'),
-  read('src/components/CloudAccountModal.tsx'),read('src/lib/account-security.ts'),read('api/remove-background.js'),read('vercel.json')
+  read('src/components/CloudAccountModal.tsx'),read('src/lib/account-security.ts'),read('api/remove-background.js'),read('vercel.json'),
+  read('scripts/build.mjs'),read('public/firebase-app-check-bootstrap.js')
 ]);
 
 check(/^\.env$/m.test(gitignore)&&/^\.env\.\*$/m.test(gitignore),'gitignore must block .env and .env.*');
@@ -17,6 +18,13 @@ check(/autoLockMinutes:\s*15/.test(defaults),'fresh workspaces must default to a
 check(/suspendSession[\s\S]*deleteRecord\('session-key'\)/.test(session),'sign out must delete the persisted CryptoKey');
 check(/MIN_ACCOUNT_PASSWORD_LENGTH=12/.test(passwordPolicy),'account password minimum must be 12 characters');
 check(/accountPasswordIssue/.test(entry)&&/accountPasswordIssue/.test(modal),'all account creation surfaces must use the shared password policy');
+check(/firebase-app-check-compat\.js/.test(build),'production build must vendor the Firebase App Check runtime');
+check(/FIREBASE_APP_CHECK_ENTERPRISE_KEY/.test(build)&&/FIREBASE_APP_CHECK_REQUIRED/.test(build),'production build must expose explicit App Check configuration gates');
+check(/firebaseAppCheckRequired&&!firebaseAppCheckEnterpriseKey/.test(build),'production build must fail closed when App Check is required without a key');
+check(/ReCaptchaEnterpriseProvider/.test(appCheckBootstrap),'Firebase App Check must use the reCAPTCHA Enterprise provider');
+check(/firebase\.appCheck\(\)\.activate\(provider,true\)/.test(appCheckBootstrap),'Firebase App Check token auto-refresh must be enabled');
+check(/firebase\.initializeApp=function/.test(appCheckBootstrap),'App Check bootstrap must activate inside Firebase initialization before cloud services are used');
+check(!/FIREBASE_APPCHECK_DEBUG_TOKEN/.test(appCheckBootstrap+build),'production App Check wiring must not enable the debug-token bypass');
 check(/if\(!origin\|\|requestedWith!==['"]LOUREX-Invoice['"]\)return false/.test(api),'AI proxy must reject missing/spoofed browser intent headers');
 check(/RATE_MAX=12/.test(api)&&/RATE_WINDOW_MS=5\*60\*1000/.test(api),'AI proxy must have an abuse limiter');
 check(/validImageSignature/.test(api),'AI proxy must validate image magic bytes');
