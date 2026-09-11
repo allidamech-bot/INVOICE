@@ -33,7 +33,7 @@ test('company artwork can be replaced repeatedly and removed before saving',asyn
   assert.match(source,/Remove logo/);
   assert.match(source,/Remove signature/);
   assert.match(source,/Remove stamp/);
-  assert.match(source,/Save Company to apply the change/);
+  assert.match(source,/Artwork removed from this draft\. Save changes to apply it\./);
 });
 
 test('company artwork upload is bounded and excludes raw SVG uploads',async()=>{
