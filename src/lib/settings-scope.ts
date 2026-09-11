@@ -1,13 +1,13 @@
 export type SettingsScope='account'|'settings';
 
-let requestedScope:SettingsScope='settings';
-
-export function requestSettingsScope(scope:SettingsScope):void{
-  requestedScope=scope;
-}
+const SETTINGS_SCOPE_KEY='lourex-settings-scope';
 
 export function consumeSettingsScope():SettingsScope{
-  const scope=requestedScope;
-  requestedScope='settings';
-  return scope;
+  try{
+    const scope=sessionStorage.getItem(SETTINGS_SCOPE_KEY);
+    sessionStorage.removeItem(SETTINGS_SCOPE_KEY);
+    return scope==='account'?'account':'settings';
+  }catch{
+    return 'settings';
+  }
 }
