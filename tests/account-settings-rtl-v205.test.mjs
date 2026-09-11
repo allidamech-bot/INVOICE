@@ -33,3 +33,11 @@ test('v205 Arabic More menu declares RTL direction at the dialog boundary',async
   assert.match(shell,/Company profile, logo, website and account access','ملف الشركة والشعار والموقع وبيانات الحساب/);
   assert.match(shell,/Preferences, documents and security','التفضيلات والمستندات والأمان/);
 });
+
+test('v205 build precaches the settings scope bridge in a fresh PWA generation',async()=>{
+  const [pkg,patch]=await Promise.all([read('package.json'),read('scripts/pwa-cache-v205.mjs')]);
+  assert.match(pkg,/node scripts\/pwa-cache-v205\.mjs/);
+  assert.match(patch,/\.\/src\/lib\/settings-scope\.js/);
+  assert.match(patch,/lourex-invoice-v205/);
+  assert.match(patch,/lourex-invoice-v204: preserved as a legacy marker/);
+});
