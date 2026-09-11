@@ -9,7 +9,7 @@ test('v188 signed-out startup cannot resume an unlocked workspace without the au
     read('src/app/index.tsx'),
     read('src/storage/session.ts')
   ]);
-  assert.match(index,/currentCloudUser, waitForCloudUser/);
+  assert.match(index,/currentCloudUser,[^}]*waitForCloudUser/);
   assert.match(index,/async function resolveRequiredAccountSession/);
   assert.match(index,/if\(user\)\{[\s\S]*setActiveAccountUid\(user\.uid\);[\s\S]*await resumeAccountSession\(user\.uid\);[\s\S]*return true;[\s\S]*\}/);
   assert.match(index,/setActiveAccountUid\(null\);[\s\S]*await suspendSession\(\);[\s\S]*return false;/);
@@ -22,9 +22,11 @@ test('v188 signed-out startup cannot resume an unlocked workspace without the au
 test('v188 any Firebase account sign-out returns an unlocked workspace to the account gateway',async()=>{
   const index=await read('src/app/index.tsx');
   assert.match(index,/function startAccountSignOutWatcher\(\):void/);
-  assert.match(index,/const user=currentCloudUser\(\)/);
+  assert.match(index,/subscribeCloudUser\(user=>\{/);
   assert.match(index,/if\(user\)\{[\s\S]*setActiveAccountUid\(user\.uid\);[\s\S]*accountWasAuthenticated=true;[\s\S]*return;[\s\S]*\}/);
-  assert.match(index,/if\(!accountWasAuthenticated\)return;/);
+  assert.match(index,/if\(!accountWasAuthenticated\|\|signOutTransitionRunning\)return;/);
+  assert.match(index,/signOutTransitionRunning=true/);
+  assert.doesNotMatch(index,/setInterval/);
   assert.match(index,/setActiveAccountUid\(null\);[\s\S]*void suspendSession\(\)\.finally\(\(\)=>\{/);
   assert.match(index,/sessionStorage\.setItem\('lourex-auth-just-signed-out','1'\)/);
   assert.match(index,/window\.location\.reload\(\)/);

@@ -112,6 +112,18 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
         assert.ok(await page.locator('.settings-account-card.account-profile-access').count()===1,'Account access card missing');
         assert.ok(await page.locator('.settings-signout-button').count()===1,'Account sign-out action missing');
         assert.equal(await page.locator('.security-settings-page').count(),0,'Security preferences must not be mixed into Account');
+        const upload=page.locator('.account-profile-logo-section .logo-asset-control');
+        const trigger=upload.locator('.asset-file-trigger');
+        await trigger.waitFor();
+        assert.match((await trigger.textContent())||'',lang==='ar'?/اختيار صورة/:/Choose image/,'artwork picker is not localized');
+        const uploadGeometry=await page.evaluate(()=>{
+          const control=document.querySelector('.account-profile-logo-section .logo-asset-control'),summary=document.querySelector('.account-profile-summary'),name=summary?.querySelector('strong'),detail=summary?.querySelector('span'),input=control?.querySelector('input[type="file"]');
+          const c=control?.getBoundingClientRect(),s=summary?.getBoundingClientRect(),n=name?.getBoundingClientRect(),d=detail?.getBoundingClientRect(),i=input?.getBoundingClientRect();
+          return {gap:c&&s?s.top-c.bottom:null,lineGap:n&&d?d.top-n.bottom:null,nativeInput:i?{width:i.width,height:i.height}:null};
+        });
+        assert.ok(uploadGeometry.gap!==null&&uploadGeometry.gap>=8,'company summary is attached to the upload control '+JSON.stringify(uploadGeometry));
+        assert.ok(uploadGeometry.lineGap!==null&&uploadGeometry.lineGap>=3,'company name and website are not visually separated '+JSON.stringify(uploadGeometry));
+        assert.ok(uploadGeometry.nativeInput&&uploadGeometry.nativeInput.width<=2&&uploadGeometry.nativeInput.height<=2,'native file control remains visually exposed '+JSON.stringify(uploadGeometry));
 
         const name=page.locator('.account-profile-page input.input').first();
         await name.fill('LOUREX verified company');
