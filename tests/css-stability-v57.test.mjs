@@ -5,14 +5,22 @@ import { access, readFile } from 'node:fs/promises';
 const read=path=>readFile(path,'utf8');
 
 test('every local stylesheet loaded by the app exists and is available offline',async()=>{
-  const [html,sw]=await Promise.all([read('index.html'),read('public/sw.js')]);
+  const [html,sourceSw,distSw,bundle]=await Promise.all([
+    read('index.html'),read('public/sw.js'),read('dist/sw.js'),read('dist/styles/app.bundle.css')
+  ]);
   const styles=[...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].map(match=>match[1]);
   assert.ok(styles.length>=10,'expected the application stylesheet stack');
   assert.equal(new Set(styles).size,styles.length,'stylesheet links must not be duplicated');
+  let previous=-1;
   for(const style of styles){
     await access(`src/styles/${style}`);
-    assert.ok(sw.includes(`./styles/${style}`),`service worker must cache styles/${style}`);
+    const marker=`/* --- ${style} --- */`;
+    const bundledAt=bundle.indexOf(marker);
+    assert.ok(bundledAt>previous,`production bundle must contain styles/${style} in source order`);
+    previous=bundledAt;
   }
+  assert.ok(sourceSw.includes('./styles/app.css'),'source worker must retain a stylesheet cache path for local/dev compatibility');
+  assert.ok(distSw.includes('./styles/app.bundle.css'),'production worker must cache the consolidated stylesheet bundle');
 });
 
 test('final editor layer stays isolated from printable document internals',async()=>{
