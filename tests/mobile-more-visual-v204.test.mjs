@@ -14,7 +14,7 @@ test('v204 More sheet exposes a clear compact information hierarchy',async()=>{
   assert.match(shell,/Open balances and collections/);
   assert.match(shell,/Sales and financial insights/);
   assert.match(shell,/Purchases, expenses and activity/);
-  assert.match(shell,/Company, appearance and security/);
+  assert.match(shell,/Preferences, documents and security/);
   for(const tone of ['items','receivables','reports','operations'])assert.match(shell,new RegExp(`'${tone}'`));
 });
 
