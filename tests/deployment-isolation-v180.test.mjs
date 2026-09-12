@@ -24,6 +24,7 @@ test('deployment isolation guard is wired before the production build',async()=>
   assert.deepEqual(buildSteps,[
     'node scripts/verify-deployment-isolation.mjs',
     'node scripts/build.mjs',
+    'node scripts/pdf-searchable-text-v222.mjs',
     'node scripts/firebase-sdk-v213.mjs',
     'node scripts/pwa-cache-v205.mjs',
   ]);

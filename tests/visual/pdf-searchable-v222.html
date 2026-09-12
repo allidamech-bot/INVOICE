@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <base href="../../dist/">
+  <style>
+    html,body{margin:0;background:#fff;font-family:Arial,sans-serif}
+    .invoice-page{width:794px;height:1123px;padding:48px;box-sizing:border-box;background:#fff;color:#111}
+    .en{font-size:20px;margin-bottom:20px}
+    .ar{font-size:22px;direction:rtl;text-align:right;font-family:"Noto Sans Arabic",Arial,sans-serif}
+  </style>
+</head>
+<body>
+  <div class="invoice-page" id="page">
+    <div class="en">LOUREX Invoice INV-2026-0042 Customer Acme Trading</div>
+    <div class="ar" dir="rtl">فاتورة لوركس رقم ٢٠٢٦ العميل شركة الاختبار</div>
+  </div>
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="ios-print-bridge.js"></script>
+</body>
+</html>
