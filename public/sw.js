@@ -1,3 +1,4 @@
+// v218 cloud coalescing — recache the quieter full-vault Firebase publication policy.
 // v217 save reliability — recache truthful save states, departure protection and explicit cloud conflict recovery.
 // v202 security closeout — recache hardened auth, session-key removal, password policy and security gates.
 // v201 editor control hardening — recache single-flight document output, customer, item, revision and lifecycle actions.
