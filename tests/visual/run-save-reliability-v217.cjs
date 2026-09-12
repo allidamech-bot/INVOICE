@@ -19,6 +19,14 @@ const base='http://127.0.0.1:4173/tests/visual';
         await page.goto(`${base}/obsidian-shell.html?conflict=1&lang=${lang}`,{waitUntil:'load'});
         const banner=page.locator('.cloud-conflict-banner');
         await banner.waitFor();
+        const palette=await page.evaluate(()=>({
+          gradient:getComputedStyle(document.querySelector('.cloud-conflict-banner')).backgroundImage,
+          icon:getComputedStyle(document.querySelector('.cloud-conflict-icon')).backgroundColor,
+          text:getComputedStyle(document.querySelector('.cloud-conflict-banner')).color
+        }));
+        assert.notEqual(palette.gradient,'none','conflict banner must use the dark semantic gradient');
+        assert.equal(palette.icon,'rgb(48, 31, 36)','conflict icon must stay on the dark danger surface');
+        assert.equal(palette.text,'rgb(237, 242, 241)','conflict copy must use dark-theme text contrast');
         const geometry=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,banner:document.querySelector('.cloud-conflict-banner')?.getBoundingClientRect().toJSON()}));
         assert.ok(geometry.scrollWidth<=geometry.width+1,`conflict shell overflow: ${JSON.stringify(geometry)}`);
         await banner.locator('button').click();
@@ -38,6 +46,8 @@ const base='http://127.0.0.1:4173/tests/visual';
         await page.goto(`${base}/functional-account-v200.html?user=1&conflict=1&lang=${lang}`,{waitUntil:'load'});
         const recovery=page.locator('.cloud-conflict-recovery');
         await recovery.waitFor();
+        assert.notEqual(await recovery.evaluate(el=>getComputedStyle(el).backgroundImage),'none','conflict recovery must use the dark semantic gradient');
+        assert.equal(await recovery.evaluate(el=>getComputedStyle(el).color),'rgb(237, 242, 241)','conflict recovery must use dark-theme text contrast');
         const actions=page.locator('.cloud-conflict-actions button');
         assert.equal(await actions.count(),2,'both explicit conflict choices must be visible');
         await actions.first().click();
