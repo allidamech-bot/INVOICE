@@ -3,7 +3,7 @@ import { AppErrorBoundary } from './AppErrorBoundary.js';
 import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
 import { hydrateAuthoritativeCloudBeforeApp } from '../cloud/startup.js';
 import { currentCloudUser, subscribeCloudUser, waitForCloudUser } from '../cloud/firebase.js';
-import { activateAccountStorage, purgeLegacySafetySnapshot } from '../storage/db.js';
+import { activateAccountStorage, activeAccountStorageUid, purgeLegacySafetySnapshot } from '../storage/db.js';
 import { getActiveAccountUid, resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
 
 const root=document.getElementById('root');
@@ -52,8 +52,11 @@ async function resolveRequiredAccountSession():Promise<boolean>{
 function startAccountSignOutWatcher():void{
   subscribeCloudUser(user=>{
     if(user){
-      const previousUid=getActiveAccountUid();
-      if(previousUid&&previousUid!==user.uid){
+      // The selected IndexedDB scope is the authoritative runtime boundary.
+      // localStorage markers are shared by browser tabs and therefore must not
+      // be trusted to decide whether this live workspace belongs to the new UID.
+      const selectedStorageUid=activeAccountStorageUid();
+      if(selectedStorageUid&&selectedStorageUid!==user.uid){
         if(signOutTransitionRunning)return;
         signOutTransitionRunning=true;
         accountWasAuthenticated=false;
@@ -64,7 +67,7 @@ function startAccountSignOutWatcher():void{
             // React workspace alive while account B is authenticated. Destroy A's
             // usable key in A's own database, move to the public scope, then reload.
             // Startup will select B's physical database before reading any vault.
-            await activateAccountStorage(previousUid);
+            await activateAccountStorage(selectedStorageUid);
             await suspendSession();
           }finally{
             setActiveAccountUid(null);
