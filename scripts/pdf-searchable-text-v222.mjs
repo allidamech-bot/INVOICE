@@ -39,6 +39,7 @@ const helper=`
   const FONT_FILE='lourex-search-amiri.ttf';
   const FONT_NAME='LOUREXSearchText';
   let fontBase64Promise=null;
+  const arabicShapingDisabled=new WeakSet();
 
   const bufferToBase64=(buffer)=>{
     const bytes=new Uint8Array(buffer);
@@ -64,6 +65,21 @@ const helper=`
     const fontBase64=await loadFontBase64();
     pdf.addFileToVFS(FONT_FILE,fontBase64);
     pdf.addFont(FONT_FILE,FONT_NAME,'normal');
+  };
+
+  const disableAutomaticArabicPresentationForms=(pdf)=>{
+    if(arabicShapingDisabled.has(pdf))return;
+    const events=pdf.internal?.events;
+    const topics=events?.getTopics?.();
+    const subscribers=topics?.preProcessText||{};
+    const arabicProcessor=pdf.processArabic;
+    if(typeof arabicProcessor==='function'){
+      for(const [token,subscription] of Object.entries(subscribers)){
+        const callback=Array.isArray(subscription)?subscription[0]:null;
+        if(callback===arabicProcessor)events.unsubscribe(token);
+      }
+    }
+    arabicShapingDisabled.add(pdf);
   };
 
   const normalizedText=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
@@ -105,6 +121,7 @@ const helper=`
 
   window.__LOUREX_ADD_SEARCHABLE_TEXT_LAYER__=async(pdf,page)=>{
     await ensurePdfFont(pdf);
+    disableAutomaticArabicPresentationForms(pdf);
     pdf.setFont(FONT_NAME,'normal');
     pdf.setR2L?.(false);
     for(const run of textRunsForPage(page)){
