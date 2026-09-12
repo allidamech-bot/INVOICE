@@ -1,0 +1,93 @@
+/* v220 — close the remaining light-theme leaks in application feedback surfaces.
+   Screen UI only. Printable invoices and quotation templates stay untouched. */
+@media screen {
+  .app-ui .cloud-conflict-banner,
+  .app-ui .cloud-conflict-recovery{
+    border-color:rgba(199,90,87,.52)!important;
+    background:linear-gradient(135deg,rgba(199,90,87,.14),var(--ds-surface) 58%)!important;
+    color:var(--ds-text)!important;
+    box-shadow:var(--ds-shadow-raised)!important;
+  }
+  .app-ui .cloud-conflict-icon{
+    border:1px solid rgba(199,90,87,.4)!important;
+    background:#301f24!important;
+    color:var(--ds-danger-text)!important;
+  }
+  .app-ui .cloud-conflict-banner strong,
+  .app-ui .cloud-conflict-recovery>strong,
+  .app-ui .cloud-conflict-confirm>strong{color:#f3d0cd!important}
+  .app-ui .cloud-conflict-banner span,
+  .app-ui .cloud-conflict-recovery p,
+  .app-ui .cloud-conflict-recovery>small{color:var(--ds-text-soft)!important}
+  .app-ui .cloud-conflict-confirm{border-top-color:rgba(199,90,87,.32)!important}
+
+  .app-ui .modal:has(.issue-review)>.modal-body{
+    background:var(--ds-workspace)!important;
+    color:var(--ds-text)!important;
+  }
+  .app-ui .issue-review-status,
+  .app-ui .issue-review-status.status-final{
+    border-color:rgba(54,167,121,.45)!important;
+    background:rgba(54,167,121,.1)!important;
+    color:#bae8d6!important;
+  }
+  .app-ui .issue-review-status.status-final{
+    border-color:rgba(39,170,163,.42)!important;
+    background:rgba(39,170,163,.1)!important;
+    color:#b9e7e3!important;
+  }
+  .app-ui .issue-review-status strong{color:inherit!important}
+  .app-ui .issue-review-status span{color:var(--ds-text-soft)!important}
+
+  .app-ui .issue-review-purpose{
+    border-color:var(--ds-line-strong)!important;
+    background:var(--ds-surface)!important;
+    color:var(--ds-text)!important;
+  }
+  .app-ui .issue-review-purpose strong{color:var(--ds-text)!important}
+  .app-ui .issue-review-purpose span{color:var(--ds-text-soft)!important}
+
+  .app-ui .issue-review-grid>div{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface)!important;
+    color:var(--ds-text)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .issue-review-grid span{color:var(--ds-text-soft)!important}
+  .app-ui .issue-review-grid strong{color:var(--ds-text)!important}
+  .app-ui .issue-review-grid .issue-total-check{
+    border-color:rgba(39,170,163,.4)!important;
+    background:var(--ds-financial-surface)!important;
+  }
+  .app-ui .issue-review-grid .issue-total-check strong{color:#b9e7e3!important}
+
+  .app-ui .issue-asset-checks>span{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-input)!important;
+    color:var(--ds-text-soft)!important;
+  }
+  .app-ui .issue-asset-checks>span.ok{
+    border-color:rgba(54,167,121,.4)!important;
+    background:rgba(54,167,121,.1)!important;
+    color:#bae8d6!important;
+  }
+  .app-ui .issue-warnings>strong{color:var(--ds-text-soft)!important}
+  .app-ui .issue-warning{
+    border-color:rgba(209,154,69,.48)!important;
+    background:rgba(209,154,69,.1)!important;
+    color:#e7c989!important;
+  }
+  .app-ui .issue-warning.level-info{
+    border-color:rgba(39,170,163,.38)!important;
+    background:rgba(39,170,163,.08)!important;
+    color:#b9e7e3!important;
+  }
+  .app-ui .issue-warning>span{background:#4a391f!important;color:#f0cf8d!important}
+  .app-ui .issue-warning.level-info>span{background:#15343a!important;color:#9edbd7!important}
+  .app-ui .issue-warning p{color:inherit!important}
+  .app-ui .issue-clean{
+    border:1px solid rgba(54,167,121,.4)!important;
+    background:rgba(54,167,121,.1)!important;
+    color:#bae8d6!important;
+  }
+}

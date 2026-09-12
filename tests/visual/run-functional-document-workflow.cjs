@@ -34,6 +34,24 @@ const output='visual-qa-output/functional-document-workflow';
         const pdf=page.locator('.mobile-action-buttons button').filter({hasText:'PDF'}).first();
         await pdf.click();
         await page.locator('.issue-review').waitFor();
+        const reviewSurfaces=await page.evaluate(()=>{
+          const background=selector=>getComputedStyle(document.querySelector(selector)).backgroundColor;
+          return {
+            modal:background('.modal:has(.issue-review)>.modal-body'),
+            purpose:background('.issue-review-purpose'),
+            identity:background('.issue-review-grid>div'),
+            total:background('.issue-total-check'),
+            asset:background('.issue-asset-checks>span')
+          };
+        });
+        assert.deepEqual(reviewSurfaces,{
+          modal:'rgb(13, 24, 30)',
+          purpose:'rgb(16, 29, 36)',
+          identity:'rgb(16, 29, 36)',
+          total:'rgb(20, 52, 59)',
+          asset:'rgb(12, 23, 28)'
+        },'final review must use the Obsidian surface hierarchy');
+        await snap(page,`review-before-issue-${lang}`);
         assert.equal((await state(page)).lastOutput,undefined,'draft PDF must not output before confirmation');
         await page.locator('.modal-footer-actions .btn-primary').click();
         await page.waitForFunction(()=>window.lastSaved?.status==='final'&&window.lastOutput==='pdf');
