@@ -34,7 +34,8 @@ await Promise.all([
 
 const helper=`
 ;(function installLourexSearchablePdfTextLayer(){
-  const FONT_URL='./vendor/lourex-search-amiri.ttf';
+  const bridgeScript=Array.from(document.scripts).map(script=>script.src).find(src=>/\\/ios-print-bridge\\.js(?:$|[?#])/.test(src));
+  const FONT_URL=new URL('./vendor/lourex-search-amiri.ttf',bridgeScript||document.baseURI).href;
   const FONT_FILE='lourex-search-amiri.ttf';
   const FONT_NAME='LOUREXSearchText';
   let fontBase64Promise=null;
@@ -105,9 +106,10 @@ const helper=`
   window.__LOUREX_ADD_SEARCHABLE_TEXT_LAYER__=async(pdf,page)=>{
     await ensurePdfFont(pdf);
     pdf.setFont(FONT_NAME,'normal');
+    pdf.setR2L?.(false);
     for(const run of textRunsForPage(page)){
       pdf.setFontSize(run.fontPt);
-      pdf.text(run.text,run.x,run.y,{renderingMode:'invisible',maxWidth:run.width,lineHeightFactor:1});
+      pdf.text(run.text,run.x,run.y,{renderingMode:'invisible',lineHeightFactor:1});
     }
   };
 })();
