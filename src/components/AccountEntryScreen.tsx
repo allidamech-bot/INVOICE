@@ -3,18 +3,18 @@ import { Brand, Button, Field, Input } from './UI.js';
 import { t } from '../lib/i18n.js';
 import { accountPasswordIssue, MAX_ACCOUNT_PASSWORD_LENGTH, MIN_ACCOUNT_PASSWORD_LENGTH } from '../lib/account-security.js';
 import { createCloudUser, friendlyCloudError, sendCloudPasswordReset, signInCloudUser } from '../cloud/firebase.js';
-import { clearPendingGoogleLink, consumeGoogleRedirectResult, googleRedirectPending, GoogleAccountLinkRequiredError, linkGoogleToExistingPasswordAccount, signInCloudUserWithGoogle } from '../cloud/google-auth.js';
+import { clearPendingGoogleLink, consumeGoogleRedirectResult, googleRedirectPending, GoogleAccountLinkRequiredError, linkGoogleToExistingPasswordAccount, prepareGooglePopupAuth, signInCloudUserWithGoogle } from '../cloud/google-auth.js';
 
 interface Props {
   language: UiLanguage;
   onLanguageChange: (language: UiLanguage) => Promise<void>;
 }
 interface State {
-  mode:'signin'|'create'; email:string; password:string; confirm:string; busy:boolean; error:string; message:string; googleLinkPending:boolean;
+  mode:'signin'|'create'; email:string; password:string; confirm:string; busy:boolean; error:string; message:string; googleLinkPending:boolean; googleReady:boolean;
 }
 
 export class AccountEntryScreen extends React.Component<Props,State>{
-  state:State={mode:'signin',email:'',password:'',confirm:'',busy:false,error:'',message:'',googleLinkPending:false};
+  state:State={mode:'signin',email:'',password:'',confirm:'',busy:false,error:'',message:'',googleLinkPending:false,googleReady:false};
 
   componentDidMount():void{
     try{
@@ -24,9 +24,20 @@ export class AccountEntryScreen extends React.Component<Props,State>{
       }
     }catch{}
     if(googleRedirectPending())void this.finishGoogleRedirect();
+    void this.prepareGoogle();
   }
 
   componentWillUnmount():void{clearPendingGoogleLink();}
+
+  private prepareGoogle=async():Promise<void>=>{
+    try{
+      await prepareGooglePopupAuth();
+      this.setState({googleReady:true});
+    }catch(error:any){
+      try{console.error('[LOUREX Google Auth Prep]',String(error?.code||'unknown'),String(error?.message||''));}catch{}
+      this.setState({googleReady:false,error:t('Google sign-in could not prepare in this browser. Reload LOUREX and try again, or use email sign-in.','تعذر تجهيز تسجيل الدخول عبر Google في هذا المتصفح. حدّث LOUREX وحاول مجددًا أو استخدم تسجيل الدخول بالبريد الإلكتروني.')});
+    }
+  };
 
   private languageSwitch=():any=><button type="button" className="auth-language-switch premium-auth-language" disabled={this.state.busy} onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button>;
 
@@ -52,6 +63,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
     if(code.includes('app-not-authorized')||code.includes('invalid-api-key'))return t('This LOUREX web app is not authorized for Firebase Authentication.','تطبيق LOUREX هذا غير مصرح له باستخدام Firebase Authentication.');
     if(code.includes('too-many-requests'))return t('Google sign-in is temporarily rate-limited. Please wait a moment and try again.','تم تقييد محاولات Google مؤقتًا. انتظر قليلًا ثم حاول مجددًا.');
     if(code.includes('internal-error'))return t('Google sign-in could not start correctly in this browser. Reload LOUREX and try again.','تعذر بدء تسجيل الدخول عبر Google بشكل صحيح في هذا المتصفح. حدّث LOUREX ثم حاول مجددًا.');
+    if(code.includes('google-popup-not-ready'))return t('Google sign-in is still preparing. Try again in a moment.','لا يزال تسجيل الدخول عبر Google قيد التجهيز. حاول بعد لحظة.');
     if(code.includes('credential-already-in-use'))return t('This Google account is already linked to another LOUREX account.','حساب Google هذا مرتبط بالفعل بحساب LOUREX آخر.');
     if(code.includes('wrong-password')||code.includes('invalid-credential'))return t('The password for this existing LOUREX account is incorrect.','كلمة مرور حساب LOUREX الحالي غير صحيحة.');
     const reference=code?` (${code})`:'';
@@ -78,7 +90,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
   };
 
   private googleSignIn=async():Promise<void>=>{
-    if(this.state.busy)return;
+    if(this.state.busy||!this.state.googleReady)return;
     clearPendingGoogleLink();
     this.setState({busy:true,error:'',message:'',googleLinkPending:false});
     try{
@@ -161,9 +173,9 @@ export class AccountEntryScreen extends React.Component<Props,State>{
           </div>
 
           {!linkingGoogle?<>
-            <button type="button" className="google-auth-button" disabled={this.state.busy} onClick={()=>void this.googleSignIn()}>
+            <button type="button" className="google-auth-button" disabled={this.state.busy||!this.state.googleReady} onClick={()=>void this.googleSignIn()}>
               <span className="google-auth-mark" aria-hidden="true">G</span>
-              <span>{this.state.busy?t('Please wait…','يرجى الانتظار…'):t('Continue with Google','المتابعة باستخدام Google')}</span>
+              <span>{this.state.busy?t('Please wait…','يرجى الانتظار…'):!this.state.googleReady?t('Preparing Google…','جارٍ تجهيز Google…'):t('Continue with Google','المتابعة باستخدام Google')}</span>
             </button>
             <div className="auth-provider-divider" aria-hidden="true"><span>{t('or use email','أو استخدم البريد الإلكتروني')}</span></div>
           </>:null}
