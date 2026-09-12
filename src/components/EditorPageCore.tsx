@@ -28,7 +28,7 @@ function EditorDateInput(props:{value:string;label:string;onChange:(value:string
 
 interface Props {
   document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; company:CompanySettings; savedItems:SavedItem[]; payments:PaymentRecord[]; smartDefaults:AppSettings['smartDefaults'];
-  onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
+  onEditActivity?:()=>void; onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
   onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onUseSavedItems:(items:SavedItem[])=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
   onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onBeginRevision:(doc:LourexDocument)=>Promise<LourexDocument>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>Promise<void>;
 }
@@ -127,6 +127,7 @@ export class EditorPage extends React.Component<Props,State>{
 
   private mutate=(fn:(d:LourexDocument)=>LourexDocument)=>{
     if(this.state.doc.status==='final')return;
+    this.props.onEditActivity?.();
     this.departureFlushQueued=false;
     const doc={...fn(this.state.doc),updatedAt:new Date().toISOString()};
     const errors=this.validationAttempted?validateDocument(doc):this.state.errors;
