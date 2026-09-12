@@ -1,4 +1,4 @@
-import { App } from './App.js';
+import { App as BaseApp } from './App.js';
 import { AppErrorBoundary } from './AppErrorBoundary.js';
 import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
 import { hydrateAuthoritativeCloudBeforeApp } from '../cloud/startup.js';
@@ -11,11 +11,11 @@ const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
 const appRoot=root;
 
-// App keeps the encryption/Firebase protocol unchanged. This runtime subclass
-// only replaces the two automatic quiet-window schedulers after App's own class
+// BaseApp keeps the encryption/Firebase protocol unchanged. This runtime subclass
+// only replaces the two automatic quiet-window schedulers after BaseApp's own class
 // fields have initialized. Explicit recovery/manual sync delays still pass
 // straight through and are never lengthened by this policy.
-class AdaptiveCloudApp extends App {
+class AdaptiveCloudApp extends BaseApp {
   adaptiveCloudRuntime=(()=>{
     const instance=this as any;
     const scheduleCloudSync=instance.scheduleCloudSync.bind(instance);
@@ -33,6 +33,11 @@ class AdaptiveCloudApp extends App {
     return true;
   })();
 }
+
+// Preserve the established root contract used by recovery and runtime guards:
+// AppErrorBoundary still wraps <App/> directly, while App resolves to the
+// adaptive runtime implementation for this release.
+const App=AdaptiveCloudApp;
 
 let accountWasAuthenticated=false;
 let signOutTransitionRunning=false;
@@ -192,7 +197,7 @@ async function start():Promise<void>{
   // Only reconcile account data when an authenticated account session exists.
   // Signed-out users reach the account gateway immediately.
   if(accountReady)await hydrateAuthoritativeCloudBeforeApp();
-  ReactDOM.render(<AppErrorBoundary><AdaptiveCloudApp/></AppErrorBoundary>,appRoot);
+  ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,appRoot);
   restoreWorkspaceAfterAutomaticReload();
   void purgeLegacySafetySnapshot();
   startCloudFreshnessWatcher();
