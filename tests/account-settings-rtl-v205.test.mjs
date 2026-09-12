@@ -38,10 +38,10 @@ test('v205 Arabic More menu declares RTL direction at the dialog boundary',async
   assert.match(shell,/Preferences, documents and security','التفضيلات والمستندات والأمان/);
 });
 
-test('v206 Account Save stays in normal mobile document flow',async()=>{
+test('v211 Account Save stays in normal mobile flow with a full touch target',async()=>{
   const css=await read('src/styles/obsidian-closeout-v191.css');
   assert.match(css,/settings-workspace-v2\.account-profile-workspace \.settings-title\.account-profile-title\{[\s\S]*position:relative!important[\s\S]*top:auto!important/);
-  assert.match(css,/settings-workspace-v2\.account-profile-workspace \.settings-title\.account-profile-title>\.btn\{[\s\S]*position:static!important[\s\S]*margin:0!important/);
+  assert.match(css,/settings-workspace-v2\.account-profile-workspace \.settings-title\.account-profile-title>\.btn\{[\s\S]*position:static!important[\s\S]*margin:0!important[\s\S]*min-width:96px!important[\s\S]*min-height:48px!important/);
 });
 
 test('v206 build keeps the settings scope bridge and advances the PWA cache',async()=>{
