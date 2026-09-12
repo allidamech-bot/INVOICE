@@ -97,7 +97,8 @@ async function checkCloudFreshness():Promise<void>{
       return;
     }
   }
-  if(!linked||linked.uid!==user.uid){detachRealtime();return;}
+  if(!linked){detachRealtime();return;}
+  if(linked.uid!==user.uid){detachRealtime();return;}
   ensureRealtime(user.uid);
   if(!appIsSafeToApply())return;
 
