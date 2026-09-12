@@ -25,7 +25,7 @@ function actionLabel(mode:ReviewMode,final:boolean):string{
   if(mode==='issue')return final?t('Already Final','نهائي بالفعل'):t('Confirm & Issue','تأكيد وإصدار');
   if(mode==='pdf')return final?t('Continue to PDF','متابعة إلى PDF'):t('Confirm, Issue & PDF','تأكيد وإصدار PDF');
   if(mode==='share')return final?t('Continue to Share','متابعة للمشاركة'):t('Confirm, Issue & Share','تأكيد وإصدار ومشاركة');
-  return final?t('Continue to Print','متابعة للطباعة'):t('Confirm, Issue & Print','تأكيد وإصدار وطباعة');
+  return final?t('Continue to Print','متابعة إلى الطباعة'):t('Confirm, Issue & Print','تأكيد وإصدار وطباعة');
 }
 
 function modePurpose(mode:ReviewMode,final:boolean):string{
@@ -55,7 +55,8 @@ export function DocumentReviewModal({document:doc,mode,issues,working,onClose,on
   const company=reviewIdentityName(doc.language,doc.companySnapshot.nameEn,doc.companySnapshot.nameAr);
   const final=doc.status==='final';
   const identityReady=Boolean(customer&&company);
-  const bankShown=doc.appearance.showBank&&Object.values(doc.companySnapshot.bank).some(value=>value.trim());
+  const bank=doc.companySnapshot.bank;
+  const bankShown=doc.appearance.showBank&&[bank.bankName,bank.accountName,bank.iban,bank.swift].some(value=>value.trim());
   const signatureShown=doc.appearance.showSignature&&Boolean(doc.companySnapshot.signatureDataUrl);
   const stampShown=doc.appearance.showStamp&&Boolean(doc.companySnapshot.stampDataUrl);
   const warningCount=issues.filter(issue=>issue.level==='warning').length;
