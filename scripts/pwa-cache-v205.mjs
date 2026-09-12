@@ -4,7 +4,7 @@ const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 
 const cacheMarker="LOCAL_CORE.push('./canonical-redirect.js');";
-const requiredRuntimes=['./src/lib/settings-scope.js','./src/cloud/google-auth.js'];
+const requiredRuntimes=['./src/lib/settings-scope.js','./src/cloud/google-auth.js','./src/cloud/coalescing.js'];
 for(const runtime of requiredRuntimes){
   if(sw.includes(`'${runtime}'`)||sw.includes(`"${runtime}"`))continue;
   if(!sw.includes(cacheMarker))throw new Error('Unable to locate the LOUREX PWA cache insertion point.');
@@ -12,9 +12,9 @@ for(const runtime of requiredRuntimes){
 }
 
 const previousCache="const CACHE = 'lourex-invoice-v204';";
-const nextCache="const CACHE = 'lourex-invoice-v220';\n// const CACHE = 'lourex-invoice-v219'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v218'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v217'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v216'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v215'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v214'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v213'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v212'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v211'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v210'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v209'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v208'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v207'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v206'; preserved as a legacy marker for cache-migration tests.\n// lourex-invoice-v205: preserved as a legacy marker for cache-migration tests.\n// lourex-invoice-v204: preserved as a legacy marker for cache-migration tests.";
+const nextCache="const CACHE = 'lourex-invoice-v223';\n// const CACHE = 'lourex-invoice-v222'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v221'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v220'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v219'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v218'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v217'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v216'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v215'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v214'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v213'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v212'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v211'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v210'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v209'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v208'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v207'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v206'; preserved as a legacy marker for cache-migration tests.\n// lourex-invoice-v205: preserved as a legacy marker for cache-migration tests.\n// lourex-invoice-v204: preserved as a legacy marker for cache-migration tests.";
 if(sw.includes(previousCache))sw=sw.replace(previousCache,nextCache);
-if(!sw.includes("const CACHE = 'lourex-invoice-v220';"))throw new Error('Unable to advance the LOUREX PWA cache generation to v220.');
+if(!sw.includes("const CACHE = 'lourex-invoice-v223';"))throw new Error('Unable to advance the LOUREX PWA cache generation to v223.');
 for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`LOUREX PWA cache is missing required runtime ${runtime}.`);
 
 // critical v214 service-worker activation: preserved as a release marker.
@@ -26,9 +26,11 @@ for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`
 // v218 coalesces consecutive local saves before publishing the full vault.
 // v219 keeps automatic reloads blocked for the entire document-editor lifetime.
 // v220 closes the remaining light feedback surfaces in the dark application UI.
+// v223 keeps small vaults fast while giving medium/large encrypted vaults a
+// longer automatic quiet window before full-vault Firebase publication.
 const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";
 const criticalInstallTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n  await self.skipWaiting();\n})()));";
 if(sw.includes(installTail))sw=sw.replace(installTail,criticalInstallTail);
-if(!sw.includes('await self.skipWaiting();'))throw new Error('Unable to enable the critical v220 service-worker activation.');
+if(!sw.includes('await self.skipWaiting();'))throw new Error('Unable to enable the critical v223 service-worker activation.');
 
 await writeFile(swPath,sw);
