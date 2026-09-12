@@ -44,21 +44,22 @@ test('v215 selects the UID storage boundary before any account session or cloud 
   assert.match(entry,/if\(accountReady\)await hydrateAuthoritativeCloudBeforeApp\(\)/);
 });
 
-test('v215 direct Firebase account replacement tears down A before B can reuse the runtime',async()=>{
+test('v215 direct Firebase account replacement tears down the actual selected storage scope before reload',async()=>{
   const entry=await read('src/app/index.tsx');
   const watcher=entry.slice(entry.indexOf('function startAccountSignOutWatcher'),entry.indexOf('async function start()'));
-  assert.match(watcher,/const previousUid=getActiveAccountUid\(\);/);
-  const switchStart=watcher.indexOf('if(previousUid&&previousUid!==user.uid)');
+  assert.match(entry,/activateAccountStorage, activeAccountStorageUid, purgeLegacySafetySnapshot/);
+  assert.match(watcher,/const selectedStorageUid=activeAccountStorageUid\(\);/);
+  const switchStart=watcher.indexOf('if(selectedStorageUid&&selectedStorageUid!==user.uid)');
   const switchEnd=watcher.indexOf('setActiveAccountUid(user.uid)',switchStart);
   assert.ok(switchStart>=0&&switchEnd>switchStart,'direct UID replacement guard must run before normal same-user handling');
   const directSwitch=watcher.slice(switchStart,switchEnd);
-  const oldScope=directSwitch.indexOf('await activateAccountStorage(previousUid)');
+  const oldScope=directSwitch.indexOf('await activateAccountStorage(selectedStorageUid)');
   const suspend=directSwitch.indexOf('await suspendSession()');
   const clearUid=directSwitch.indexOf('setActiveAccountUid(null)');
   const publicScope=directSwitch.indexOf('await activateAccountStorage(null)');
   const reload=directSwitch.indexOf('window.location.reload()');
   assert.ok(oldScope>=0&&suspend>oldScope&&clearUid>suspend&&publicScope>clearUid&&reload>publicScope);
-  assert.doesNotMatch(directSwitch,/activateAccountStorage\(user\.uid\)|resumeAccountSession\(user\.uid\)/);
+  assert.doesNotMatch(directSwitch,/getActiveAccountUid\(\)|activateAccountStorage\(user\.uid\)|resumeAccountSession\(user\.uid\)/);
 });
 
 test('v215 sign-out destroys the usable session key before leaving that account storage scope',async()=>{
