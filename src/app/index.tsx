@@ -177,7 +177,7 @@ async function start():Promise<void>{
 void start();
 
 function isDocumentEditorOpen():boolean{
-  return Boolean(document.querySelector('.editor-screen'));
+  return document.documentElement.hasAttribute('data-lourex-document-editor')||Boolean(document.querySelector('.editor-screen'));
 }
 
 function reloadUnsafeWorkspaceOpen():boolean{

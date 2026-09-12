@@ -1,3 +1,4 @@
+// v219 editor continuity — recache the durable guard against automatic reloads while editing.
 // v218 cloud coalescing — recache the quieter full-vault Firebase publication policy.
 // v217 save reliability — recache truthful save states, departure protection and explicit cloud conflict recovery.
 // v202 security closeout — recache hardened auth, session-key removal, password policy and security gates.

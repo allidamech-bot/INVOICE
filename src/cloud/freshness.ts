@@ -44,6 +44,7 @@ function appIsSafeToApply():boolean{
   // Operations contains inline supplier/purchase/expense/manual-stock drafts and
   // Product Library keeps an inline product draft. Focus can leave those fields
   // while the draft is still unsaved, so activeElement alone is not sufficient.
+  if(document.documentElement.hasAttribute('data-lourex-document-editor'))return false;
   if(document.querySelector('.editor-screen,.modal-backdrop,.operations-page,.product-library-pro.editor-open'))return false;
   const active=document.activeElement;
   if(active instanceof HTMLInputElement||active instanceof HTMLTextAreaElement||active instanceof HTMLSelectElement)return false;
