@@ -3,12 +3,36 @@ import { AppErrorBoundary } from './AppErrorBoundary.js';
 import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
 import { hydrateAuthoritativeCloudBeforeApp } from '../cloud/startup.js';
 import { currentCloudUser, subscribeCloudUser, waitForCloudUser } from '../cloud/firebase.js';
+import { adaptiveCloudSettleMs } from '../cloud/coalescing.js';
 import { activateAccountStorage, activeAccountStorageUid, purgeLegacySafetySnapshot } from '../storage/db.js';
 import { getActiveAccountUid, resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
 const appRoot=root;
+
+// App keeps the encryption/Firebase protocol unchanged. This runtime subclass
+// only replaces the two automatic quiet-window schedulers after App's own class
+// fields have initialized. Explicit recovery/manual sync delays still pass
+// straight through and are never lengthened by this policy.
+class AdaptiveCloudApp extends App {
+  adaptiveCloudRuntime=(()=>{
+    const instance=this as any;
+    const scheduleCloudSync=instance.scheduleCloudSync.bind(instance);
+    instance.scheduleCloudSync=(delay?:number)=>scheduleCloudSync(
+      typeof delay==='number'
+        ?delay
+        :adaptiveCloudSettleMs(instance.latestEncryptedVault?.cipher?.length??0,false)
+    );
+    instance.deferQueuedCloudSaveForDocumentEdit=()=>{
+      if(instance.state.cloudSyncState!=='queued'||!instance.cloudTimer)return;
+      window.clearTimeout(instance.cloudTimer);
+      const delay=adaptiveCloudSettleMs(instance.latestEncryptedVault?.cipher?.length??0,true);
+      instance.cloudTimer=window.setTimeout(()=>void instance.flushCloudSync(),delay);
+    };
+    return true;
+  })();
+}
 
 let accountWasAuthenticated=false;
 let signOutTransitionRunning=false;
@@ -168,7 +192,7 @@ async function start():Promise<void>{
   // Only reconcile account data when an authenticated account session exists.
   // Signed-out users reach the account gateway immediately.
   if(accountReady)await hydrateAuthoritativeCloudBeforeApp();
-  ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,appRoot);
+  ReactDOM.render(<AppErrorBoundary><AdaptiveCloudApp/></AppErrorBoundary>,appRoot);
   restoreWorkspaceAfterAutomaticReload();
   void purgeLegacySafetySnapshot();
   startCloudFreshnessWatcher();
