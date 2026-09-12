@@ -52,6 +52,28 @@ async function resolveRequiredAccountSession():Promise<boolean>{
 function startAccountSignOutWatcher():void{
   subscribeCloudUser(user=>{
     if(user){
+      const previousUid=getActiveAccountUid();
+      if(previousUid&&previousUid!==user.uid){
+        if(signOutTransitionRunning)return;
+        signOutTransitionRunning=true;
+        accountWasAuthenticated=false;
+        void (async()=>{
+          try{
+            // Firebase can replace one authenticated user with another without
+            // emitting an intermediate signed-out state. Never keep account A's
+            // React workspace alive while account B is authenticated. Destroy A's
+            // usable key in A's own database, move to the public scope, then reload.
+            // Startup will select B's physical database before reading any vault.
+            await activateAccountStorage(previousUid);
+            await suspendSession();
+          }finally{
+            setActiveAccountUid(null);
+            await activateAccountStorage(null);
+            window.location.reload();
+          }
+        })();
+        return;
+      }
       setActiveAccountUid(user.uid);
       accountWasAuthenticated=true;
       return;
