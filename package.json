@@ -7,7 +7,7 @@
   "scripts": {
     "clean": "node scripts/clean.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "build": "node scripts/verify-deployment-isolation.mjs && node scripts/build.mjs && node scripts/firebase-auth-same-origin-v211.mjs && node scripts/pwa-cache-v205.mjs",
+    "build": "node scripts/verify-deployment-isolation.mjs && node scripts/build.mjs && node scripts/pwa-cache-v205.mjs",
     "test": "npm run build && node --test tests/*.test.mjs",
     "preview": "http-server dist -p 4173 -c-1",
     "dev": "node scripts/dev.mjs"
