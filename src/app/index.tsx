@@ -3,8 +3,8 @@ import { AppErrorBoundary } from './AppErrorBoundary.js';
 import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
 import { hydrateAuthoritativeCloudBeforeApp } from '../cloud/startup.js';
 import { currentCloudUser, subscribeCloudUser, waitForCloudUser } from '../cloud/firebase.js';
-import { purgeLegacySafetySnapshot } from '../storage/db.js';
-import { resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
+import { activateAccountStorage, activeAccountStorageUid, purgeLegacySafetySnapshot } from '../storage/db.js';
+import { getActiveAccountUid, resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
@@ -12,6 +12,17 @@ const appRoot=root;
 
 let accountWasAuthenticated=false;
 let signOutTransitionRunning=false;
+
+async function suspendPreviousAccountStorage():Promise<void>{
+  const previousUid=getActiveAccountUid();
+  if(previousUid){
+    await activateAccountStorage(previousUid);
+    await suspendSession();
+  }
+  setActiveAccountUid(null);
+  await activateAccountStorage(null);
+  if(!previousUid)await suspendSession();
+}
 
 async function resolveRequiredAccountSession():Promise<boolean>{
   let user=currentCloudUser();
@@ -21,6 +32,10 @@ async function resolveRequiredAccountSession():Promise<boolean>{
   accountWasAuthenticated=Boolean(user);
   if(user){
     setActiveAccountUid(user.uid);
+    // Select the UID-specific local database before any vault/session read. A
+    // different account on the same device therefore cannot inherit this user's
+    // encrypted vault, session key, preferences or cloud-link metadata.
+    await activateAccountStorage(user.uid);
     // A previously unlocked vault key is bound to the Firebase UID and may be
     // resumed only after that same account authenticates. This keeps sign-out a
     // real workspace boundary without making the user enter a second PIN.
@@ -28,16 +43,40 @@ async function resolveRequiredAccountSession():Promise<boolean>{
     return true;
   }
 
-  setActiveAccountUid(null);
-  // Signed-out users must never keep an active workspace marker. Preserve only
-  // an account-bound device key so the same account can resume seamlessly later.
-  await suspendSession();
+  // Signed-out users must never keep an active workspace marker. Suspend the
+  // previous UID inside its own database before moving to the public scope.
+  await suspendPreviousAccountStorage();
   return false;
 }
 
 function startAccountSignOutWatcher():void{
   subscribeCloudUser(user=>{
     if(user){
+      // The selected IndexedDB scope is the authoritative runtime boundary.
+      // localStorage markers are shared by browser tabs and therefore must not
+      // be trusted to decide whether this live workspace belongs to the new UID.
+      const selectedStorageUid=activeAccountStorageUid();
+      if(selectedStorageUid&&selectedStorageUid!==user.uid){
+        if(signOutTransitionRunning)return;
+        signOutTransitionRunning=true;
+        accountWasAuthenticated=false;
+        void (async()=>{
+          try{
+            // Firebase can replace one authenticated user with another without
+            // emitting an intermediate signed-out state. Never keep account A's
+            // React workspace alive while account B is authenticated. Destroy A's
+            // usable key in A's own database, move to the public scope, then reload.
+            // Startup will select B's physical database before reading any vault.
+            await activateAccountStorage(selectedStorageUid);
+            await suspendSession();
+          }finally{
+            setActiveAccountUid(null);
+            await activateAccountStorage(null);
+            window.location.reload();
+          }
+        })();
+        return;
+      }
       setActiveAccountUid(user.uid);
       accountWasAuthenticated=true;
       return;
@@ -46,11 +85,18 @@ function startAccountSignOutWatcher():void{
 
     signOutTransitionRunning=true;
     accountWasAuthenticated=false;
-    setActiveAccountUid(null);
-    void suspendSession().finally(()=>{
-      try{sessionStorage.setItem('lourex-auth-just-signed-out','1');}catch{}
-      window.location.reload();
-    });
+    void (async()=>{
+      try{
+        // Keep the old account scope selected until its usable key is removed.
+        // Only then expose the signed-out public scope and reload the gateway.
+        await suspendSession();
+      }finally{
+        setActiveAccountUid(null);
+        await activateAccountStorage(null);
+        try{sessionStorage.setItem('lourex-auth-just-signed-out','1');}catch{}
+        window.location.reload();
+      }
+    })();
   });
 }
 

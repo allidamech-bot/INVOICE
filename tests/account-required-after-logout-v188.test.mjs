@@ -27,9 +27,10 @@ test('v188 any Firebase account sign-out returns an unlocked workspace to the ac
   assert.match(index,/if\(!accountWasAuthenticated\|\|signOutTransitionRunning\)return;/);
   assert.match(index,/signOutTransitionRunning=true/);
   assert.doesNotMatch(index,/setInterval/);
-  assert.match(index,/setActiveAccountUid\(null\);[\s\S]*void suspendSession\(\)\.finally\(\(\)=>\{/);
-  assert.match(index,/sessionStorage\.setItem\('lourex-auth-just-signed-out','1'\)/);
-  assert.match(index,/window\.location\.reload\(\)/);
+  const signedOut=index.slice(index.lastIndexOf('if(!accountWasAuthenticated||signOutTransitionRunning)return;'),index.indexOf('async function start()'));
+  assert.match(signedOut,/await suspendSession\(\);[\s\S]*setActiveAccountUid\(null\);[\s\S]*await activateAccountStorage\(null\);/);
+  assert.match(signedOut,/sessionStorage\.setItem\('lourex-auth-just-signed-out','1'\)/);
+  assert.match(signedOut,/window\.location\.reload\(\)/);
   assert.match(index,/startAccountSignOutWatcher\(\);/);
 });
 
