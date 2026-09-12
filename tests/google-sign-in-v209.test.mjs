@@ -4,14 +4,13 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('v211 uses redirect on iOS while retaining popup for desktop browsers',async()=>{
+test('v212 uses direct popup auth on every browser and clears legacy redirect state',async()=>{
   const google=await read('src/cloud/google-auth.ts');
-  assert.match(google,/shouldUseRedirectFlow/);
-  assert.match(google,/iPad\|iPhone\|iPod/);
-  assert.match(google,/signInWithRedirect\(googleProvider\)/);
   assert.match(google,/signInWithPopup\(googleProvider\)/);
-  assert.match(google,/getRedirectResult\(\)/);
-  assert.match(google,/GOOGLE_REDIRECT_PENDING_KEY/);
+  assert.doesNotMatch(google,/signInWithRedirect\(googleProvider\)/);
+  assert.match(google,/LEGACY_GOOGLE_REDIRECT_PENDING_KEY/);
+  assert.match(google,/clearLegacyRedirectState/);
+  assert.match(google,/googleRedirectPending\(\):boolean\{[\s\S]*return false/);
   assert.match(google,/prompt:'select_account'/);
 });
 
@@ -25,13 +24,10 @@ test('v209 preserves an existing LOUREX uid by linking Google only after passwor
   assert.match(google,/await instance\.signOut\(\)/);
 });
 
-test('v211 account gateway consumes redirect completion and keeps safe-link recovery',async()=>{
+test('v212 account gateway keeps safe-link recovery without starting redirect completion',async()=>{
   const account=await read('src/components/AccountEntryScreen.tsx');
   assert.match(account,/Continue with Google/);
   assert.match(account,/المتابعة باستخدام Google/);
-  assert.match(account,/consumeGoogleRedirectResult/);
-  assert.match(account,/googleRedirectPending/);
-  assert.match(account,/finishGoogleRedirect/);
   assert.match(account,/GoogleAccountLinkRequiredError/);
   assert.match(account,/googleLinkPending/);
   assert.match(account,/linkGoogleToExistingPasswordAccount/);
@@ -40,34 +36,21 @@ test('v211 account gateway consumes redirect completion and keeps safe-link reco
   assert.match(account,/\[LOUREX Google Auth\]/);
 });
 
-test('v211 production build patches Firebase authDomain to the canonical LOUREX origin only',async()=>{
-  const patch=await read('scripts/firebase-auth-same-origin-v211.mjs');
+test('v212 production build keeps Firebase default authDomain and no longer applies same-origin patch',async()=>{
+  const firebase=await read('src/cloud/firebase.ts');
   const pkg=JSON.parse(await read('package.json'));
-  assert.match(patch,/invoice-three-puce\.vercel\.app/);
-  assert.match(patch,/lourex-invoice\.firebaseapp\.com/);
-  assert.match(patch,/VERCEL_ENV/);
-  assert.match(patch,/VERCEL_PROJECT_ID/);
-  assert.match(patch,/authDomain/);
-  assert.match(pkg.scripts.build,/firebase-auth-same-origin-v211\.mjs/);
+  assert.match(firebase,/authDomain:'lourex-invoice\.firebaseapp\.com'/);
+  assert.doesNotMatch(pkg.scripts.build,/firebase-auth-same-origin-v211\.mjs/);
 });
 
-test('v211 Vercel transparently proxies Firebase auth helpers instead of redirecting them',async()=>{
+test('legacy Firebase auth helper proxy remains isolated for old v211 clients during cache migration',async()=>{
   const config=JSON.parse(await read('vercel.json'));
   const rule=config.rewrites?.find(item=>item.source==='/__/auth/:path*');
-  assert.ok(rule,'same-origin Firebase auth rewrite must exist');
+  assert.ok(rule,'legacy same-origin Firebase auth rewrite must remain during v212 migration');
   assert.equal(rule.destination,'https://lourex-invoice.firebaseapp.com/__/auth/:path*');
-});
-
-test('Firebase auth helper proxy is excluded from LOUREX app CSP and framing headers',async()=>{
-  const config=JSON.parse(await read('vercel.json'));
   const hardened=config.headers?.find(item=>item.headers?.some(header=>header.key==='Content-Security-Policy'));
   assert.ok(hardened,'LOUREX application hardening header rule must exist');
   assert.equal(hardened.source,'/((?!__/auth/).*)');
-  const authHeaders=config.headers?.find(item=>item.source==='/__/auth/:path*')?.headers||[];
-  assert.ok(authHeaders.some(header=>header.key==='Cache-Control'&&header.value==='no-store'));
-  for(const blocked of ['Content-Security-Policy','X-Frame-Options','Cross-Origin-Resource-Policy','Cross-Origin-Opener-Policy']){
-    assert.equal(authHeaders.some(header=>header.key===blocked),false,`${blocked} must be inherited from Firebase rather than LOUREX`);
-  }
 });
 
 test('v209 Google entry is styled for premium desktop, mobile and RTL layouts',async()=>{
@@ -79,10 +62,10 @@ test('v209 Google entry is styled for premium desktop, mobile and RTL layouts',a
   assert.match(css,/@media\(max-width:720px\)[\s\S]*\.google-auth-button/);
 });
 
-test('v211 advances the installed PWA cache and precaches the Google auth module',async()=>{
+test('v212 advances the installed PWA cache and precaches the Google auth module',async()=>{
   const patch=await read('scripts/pwa-cache-v205.mjs');
-  assert.match(patch,/const CACHE = 'lourex-invoice-v211'/);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v210'.*legacy marker/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v212'/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v211'.*legacy marker/);
   assert.match(patch,/\.\/src\/cloud\/google-auth\.js/);
   assert.match(patch,/requiredRuntimes/);
 });

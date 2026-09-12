@@ -4,7 +4,7 @@ declare const firebase: any;
 
 let pendingGoogleCredential:any=null;
 let pendingGoogleEmail='';
-const GOOGLE_REDIRECT_PENDING_KEY='lourex-google-redirect-pending';
+const LEGACY_GOOGLE_REDIRECT_PENDING_KEY='lourex-google-redirect-pending';
 
 function auth():any{
   if(typeof firebase==='undefined'||!firebase?.auth)throw new Error('Firebase authentication is unavailable. Check your internet connection and reload.');
@@ -25,20 +25,8 @@ function provider():any{
   return value;
 }
 
-function shouldUseRedirectFlow():boolean{
-  if(typeof navigator==='undefined')return false;
-  const ua=String(navigator.userAgent||'');
-  const iosDevice=/(iPad|iPhone|iPod)/i.test(ua);
-  const touchIpadMode=String((navigator as any).platform||'')==='MacIntel'&&Number((navigator as any).maxTouchPoints||0)>1;
-  return iosDevice||touchIpadMode;
-}
-
-function markRedirectPending():void{
-  try{sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY,'1');}catch{}
-}
-
-function clearRedirectPending():void{
-  try{sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);}catch{}
+function clearLegacyRedirectState():void{
+  try{sessionStorage.removeItem(LEGACY_GOOGLE_REDIRECT_PENDING_KEY);}catch{}
 }
 
 function captureLinkRequirement(error:any):never{
@@ -65,46 +53,29 @@ export function clearPendingGoogleLink():void{
   pendingGoogleEmail='';
 }
 
+// v212 compatibility shim: redirect auth was removed after Safari repeatedly
+// returned auth/internal-error through the Vercel helper proxy. Clear any stale
+// v211 marker so older sessions recover cleanly instead of retrying redirect.
 export function googleRedirectPending():boolean{
-  try{return sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY)==='1';}catch{return false;}
+  clearLegacyRedirectState();
+  return false;
 }
 
 export async function consumeGoogleRedirectResult():Promise<CloudUser|null>{
-  if(!googleRedirectPending())return null;
-  const instance=auth();
-  try{
-    const result=await instance.getRedirectResult();
-    clearRedirectPending();
-    if(!result?.user)return null;
-    try{await instance.setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch{}
-    const user=userFrom(result.user);
-    if(!user)throw new Error('Unable to complete Google sign-in.');
-    markRecentAuth();
-    return user;
-  }catch(error:any){
-    clearRedirectPending();
-    captureLinkRequirement(error);
-  }
+  clearLegacyRedirectState();
+  return null;
 }
 
 export async function signInCloudUserWithGoogle():Promise<CloudUser|null>{
   clearPendingGoogleLink();
+  clearLegacyRedirectState();
   const instance=auth();
   const googleProvider=provider();
   try{
-    if(shouldUseRedirectFlow()){
-      markRedirectPending();
-      try{await instance.setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch{}
-      try{
-        await instance.signInWithRedirect(googleProvider);
-        return null;
-      }catch(error){
-        clearRedirectPending();
-        throw error;
-      }
-    }
-
-    // Desktop browsers keep the popup call inside the original user gesture.
+    // Keep the popup call directly inside the original user gesture. Do not await
+    // persistence or any other async work before this call: Safari can otherwise
+    // treat it as an unsolicited popup. Firebase documents popup auth as the
+    // supported alternative when redirect auth is unreliable.
     const result=await instance.signInWithPopup(googleProvider);
     try{await instance.setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch{}
     const user=userFrom(result?.user);
