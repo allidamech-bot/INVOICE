@@ -4,6 +4,7 @@ declare const firebase: any;
 
 let pendingGoogleCredential:any=null;
 let pendingGoogleEmail='';
+const GOOGLE_REDIRECT_PENDING_KEY='lourex-google-redirect-pending';
 
 function auth():any{
   if(typeof firebase==='undefined'||!firebase?.auth)throw new Error('Firebase authentication is unavailable. Check your internet connection and reload.');
@@ -18,6 +19,42 @@ function markRecentAuth():void{
   try{sessionStorage.setItem('lourex-auth-just-signed-in','1');}catch{}
 }
 
+function provider():any{
+  const value=new firebase.auth.GoogleAuthProvider();
+  value.setCustomParameters({prompt:'select_account'});
+  return value;
+}
+
+function shouldUseRedirectFlow():boolean{
+  if(typeof navigator==='undefined')return false;
+  const ua=String(navigator.userAgent||'');
+  const iosDevice=/(iPad|iPhone|iPod)/i.test(ua);
+  const touchIpadMode=String((navigator as any).platform||'')==='MacIntel'&&Number((navigator as any).maxTouchPoints||0)>1;
+  return iosDevice||touchIpadMode;
+}
+
+function markRedirectPending():void{
+  try{sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY,'1');}catch{}
+}
+
+function clearRedirectPending():void{
+  try{sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);}catch{}
+}
+
+function captureLinkRequirement(error:any):never{
+  const code=String(error?.code||'');
+  if(code.includes('account-exists-with-different-credential')){
+    const email=String(error?.email||'').trim();
+    const credential=firebase.auth.GoogleAuthProvider.credentialFromError?.(error)||null;
+    if(email&&credential){
+      pendingGoogleCredential=credential;
+      pendingGoogleEmail=email.toLowerCase();
+      throw new GoogleAccountLinkRequiredError(email);
+    }
+  }
+  throw error;
+}
+
 export class GoogleAccountLinkRequiredError extends Error{
   readonly code='lourex/google-link-required';
   constructor(readonly email:string){super('This Google email already belongs to an existing LOUREX account.');this.name='GoogleAccountLinkRequiredError';}
@@ -28,33 +65,54 @@ export function clearPendingGoogleLink():void{
   pendingGoogleEmail='';
 }
 
-export async function signInCloudUserWithGoogle():Promise<CloudUser>{
+export function googleRedirectPending():boolean{
+  try{return sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY)==='1';}catch{return false;}
+}
+
+export async function consumeGoogleRedirectResult():Promise<CloudUser|null>{
+  if(!googleRedirectPending())return null;
+  const instance=auth();
+  try{
+    const result=await instance.getRedirectResult();
+    clearRedirectPending();
+    if(!result?.user)return null;
+    try{await instance.setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch{}
+    const user=userFrom(result.user);
+    if(!user)throw new Error('Unable to complete Google sign-in.');
+    markRecentAuth();
+    return user;
+  }catch(error:any){
+    clearRedirectPending();
+    captureLinkRequirement(error);
+  }
+}
+
+export async function signInCloudUserWithGoogle():Promise<CloudUser|null>{
   clearPendingGoogleLink();
   const instance=auth();
-  const provider=new firebase.auth.GoogleAuthProvider();
-  provider.setCustomParameters({prompt:'select_account'});
+  const googleProvider=provider();
   try{
-    // Keep the popup call in the original click activation. Safari/iOS can revoke
-    // popup permission after any awaited work, so persistence is confirmed only
-    // after the provider window has been opened and the sign-in has completed.
-    const result=await instance.signInWithPopup(provider);
+    if(shouldUseRedirectFlow()){
+      markRedirectPending();
+      try{await instance.setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch{}
+      try{
+        await instance.signInWithRedirect(googleProvider);
+        return null;
+      }catch(error){
+        clearRedirectPending();
+        throw error;
+      }
+    }
+
+    // Desktop browsers keep the popup call inside the original user gesture.
+    const result=await instance.signInWithPopup(googleProvider);
     try{await instance.setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch{}
     const user=userFrom(result?.user);
     if(!user)throw new Error('Unable to complete Google sign-in.');
     markRecentAuth();
     return user;
   }catch(error:any){
-    const code=String(error?.code||'');
-    if(code.includes('account-exists-with-different-credential')){
-      const email=String(error?.email||'').trim();
-      const credential=firebase.auth.GoogleAuthProvider.credentialFromError?.(error)||null;
-      if(email&&credential){
-        pendingGoogleCredential=credential;
-        pendingGoogleEmail=email.toLowerCase();
-        throw new GoogleAccountLinkRequiredError(email);
-      }
-    }
-    throw error;
+    captureLinkRequirement(error);
   }
 }
 
