@@ -44,6 +44,7 @@ jobs:
             cat /tmp/lourex-visual-qa-server.log
             exit 1
           fi
+          node tests/visual/run-pdf-searchable-v222.cjs
           node tests/visual/run-template-visual-qa.cjs visual-qa-output
           node tests/visual/run-mobile-final-quote-stack.cjs
           node tests/visual/run-mobile-modal-overlap-v176.cjs
