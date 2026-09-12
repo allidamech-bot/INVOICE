@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 
 const FIREBASE_VERSION='12.19.0';
 const ASSETS=[
@@ -31,4 +31,18 @@ for(const name of ASSETS){
   await writeFile(`dist/vendor/${name}`,data);
 }
 
-console.log(`LOUREX Firebase browser runtime upgraded to ${FIREBASE_VERSION} (${ASSETS.length} compat bundles).`);
+// The vendored file names predate the v213 Firebase upgrade. Add an explicit
+// version query to every Firebase runtime request so normal Safari/Chrome
+// profiles cannot reuse an older HTTP-cache entry at the same /vendor path.
+// Installed PWA caches remain generation-isolated as a second protection.
+const htmlPath='dist/index.html';
+let html=await readFile(htmlPath,'utf8');
+for(const name of ASSETS){
+  const local=`./vendor/${name}`;
+  if(!html.includes(local))continue;
+  html=html.replaceAll(local,`${local}?v=${FIREBASE_VERSION}`);
+}
+if(!html.includes(`./vendor/firebase-auth-compat.js?v=${FIREBASE_VERSION}`))throw new Error('Production HTML did not receive the versioned Firebase Auth runtime URL.');
+await writeFile(htmlPath,html);
+
+console.log(`LOUREX Firebase browser runtime upgraded to ${FIREBASE_VERSION} (${ASSETS.length} compat bundles, versioned browser URLs).`);

@@ -72,9 +72,10 @@ test('v215 sign-out destroys the usable session key before leaving that account 
   assert.ok(suspend>=0&&clearUid>suspend&&publicScope>clearUid);
 });
 
-test('v215 forces installed clients onto the account-isolated storage runtime',async()=>{
+test('v216 keeps installed clients on the account-isolated storage runtime while advancing the PWA generation',async()=>{
   const patch=await read('scripts/pwa-cache-v205.mjs');
-  assert.match(patch,/const CACHE = 'lourex-invoice-v215'/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v216'/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v215'.*legacy marker/);
   assert.match(patch,/const CACHE = 'lourex-invoice-v214'.*legacy marker/);
   assert.match(patch,/security-boundary migration/);
   assert.match(patch,/await self\.skipWaiting\(\)/);

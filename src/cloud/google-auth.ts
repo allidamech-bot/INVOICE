@@ -4,6 +4,8 @@ declare const firebase: any;
 
 let pendingGoogleCredential:any=null;
 let pendingGoogleEmail='';
+let googlePopupPrepared=false;
+let googlePopupPreparePromise:Promise<void>|null=null;
 const LEGACY_GOOGLE_REDIRECT_PENDING_KEY='lourex-google-redirect-pending';
 
 function auth():any{
@@ -27,6 +29,39 @@ function provider():any{
 
 function clearLegacyRedirectState():void{
   try{sessionStorage.removeItem(LEGACY_GOOGLE_REDIRECT_PENDING_KEY);}catch{}
+}
+
+async function waitUntilVisible(timeoutMs=2500):Promise<void>{
+  if(typeof document==='undefined'||document.visibilityState==='visible')return;
+  await new Promise<void>(resolve=>{
+    let settled=false;
+    const finish=()=>{
+      if(settled)return;
+      settled=true;
+      document.removeEventListener('visibilitychange',onVisibility);
+      window.clearTimeout(timer);
+      resolve();
+    };
+    const onVisibility=()=>{if(document.visibilityState==='visible')finish();};
+    const timer=window.setTimeout(finish,timeoutMs);
+    document.addEventListener('visibilitychange',onVisibility);
+  });
+}
+
+async function persistSignedInGoogleSession(instance:any):Promise<void>{
+  await waitUntilVisible();
+  try{
+    await instance.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    return;
+  }catch(localError){
+    try{
+      await instance.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+      return;
+    }catch{
+      try{await instance.signOut();}catch{}
+      throw localError;
+    }
+  }
 }
 
 function captureLinkRequirement(error:any):never{
@@ -53,6 +88,31 @@ export function clearPendingGoogleLink():void{
   pendingGoogleEmail='';
 }
 
+// Prepare the popup while the sign-in page is idle, before the user gesture.
+// Google popup auth must not write Firebase's IndexedDB persistence while iOS
+// Safari/WebKit hides the opener. NONE keeps the credential in memory during
+// the popup; after the popup returns and the page is visible we migrate the
+// authenticated session back to LOCAL (SESSION fallback). This also replaces
+// stale browser-profile Auth persistence left by older Firebase runtimes without
+// touching any LOUREX IndexedDB vault or per-account database.
+export async function prepareGooglePopupAuth():Promise<void>{
+  if(googlePopupPrepared)return;
+  if(googlePopupPreparePromise)return googlePopupPreparePromise;
+  googlePopupPreparePromise=(async()=>{
+    const instance=auth();
+    if(instance.currentUser){googlePopupPrepared=true;return;}
+    try{
+      await instance.setPersistence(firebase.auth.Auth.Persistence.NONE);
+    }catch(noneError){
+      try{await instance.setPersistence(firebase.auth.Auth.Persistence.SESSION);}
+      catch{throw noneError;}
+    }
+    googlePopupPrepared=true;
+  })();
+  try{await googlePopupPreparePromise;}
+  finally{if(!googlePopupPrepared)googlePopupPreparePromise=null;}
+}
+
 // v212 compatibility shim: redirect auth was removed after Safari repeatedly
 // returned auth/internal-error through the Vercel helper proxy. Clear any stale
 // v211 marker so older sessions recover cleanly instead of retrying redirect.
@@ -69,17 +129,21 @@ export async function consumeGoogleRedirectResult():Promise<CloudUser|null>{
 export async function signInCloudUserWithGoogle():Promise<CloudUser|null>{
   clearPendingGoogleLink();
   clearLegacyRedirectState();
+  if(!googlePopupPrepared){
+    const error:any=new Error('Google sign-in is still preparing. Try again in a moment.');
+    error.code='lourex/google-popup-not-ready';
+    throw error;
+  }
   const instance=auth();
   const googleProvider=provider();
   try{
-    // Keep the popup call directly inside the original user gesture. Do not await
-    // persistence or any other async work before this call: Safari can otherwise
-    // treat it as an unsolicited popup. Firebase documents popup auth as the
-    // supported alternative when redirect auth is unreliable.
+    // Keep the popup call directly inside the original user gesture. All
+    // persistence preparation happened before this click, so Safari receives a
+    // synchronous popup request while Firebase avoids IndexedDB during pagehide.
     const result=await instance.signInWithPopup(googleProvider);
-    try{await instance.setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch{}
     const user=userFrom(result?.user);
     if(!user)throw new Error('Unable to complete Google sign-in.');
+    await persistSignedInGoogleSession(instance);
     markRecentAuth();
     return user;
   }catch(error:any){
@@ -126,5 +190,6 @@ export function friendlyGoogleAuthError(error:unknown):string{
   if(code.includes('too-many-requests'))return 'Google sign-in is temporarily rate-limited. Please wait a moment and try again.';
   if(code.includes('credential-already-in-use'))return 'This Google account is already linked to another LOUREX account.';
   if(code.includes('wrong-password')||code.includes('invalid-credential'))return 'The LOUREX password for this existing account is incorrect.';
+  if(code.includes('google-popup-not-ready'))return 'Google sign-in is still preparing. Try again in a moment.';
   return error instanceof Error?error.message:'Google sign-in failed.';
 }
