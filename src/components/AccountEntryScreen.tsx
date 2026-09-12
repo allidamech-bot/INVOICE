@@ -3,7 +3,7 @@ import { Brand, Button, Field, Input } from './UI.js';
 import { t } from '../lib/i18n.js';
 import { accountPasswordIssue, MAX_ACCOUNT_PASSWORD_LENGTH, MIN_ACCOUNT_PASSWORD_LENGTH } from '../lib/account-security.js';
 import { createCloudUser, friendlyCloudError, sendCloudPasswordReset, signInCloudUser } from '../cloud/firebase.js';
-import { clearPendingGoogleLink, GoogleAccountLinkRequiredError, linkGoogleToExistingPasswordAccount, signInCloudUserWithGoogle } from '../cloud/google-auth.js';
+import { clearPendingGoogleLink, consumeGoogleRedirectResult, googleRedirectPending, GoogleAccountLinkRequiredError, linkGoogleToExistingPasswordAccount, signInCloudUserWithGoogle } from '../cloud/google-auth.js';
 
 interface Props {
   language: UiLanguage;
@@ -23,6 +23,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
         this.setState({message:t('Signed out securely. Sign in to continue.','تم تسجيل الخروج بأمان. سجّل الدخول للمتابعة.')});
       }
     }catch{}
+    if(googleRedirectPending())void this.finishGoogleRedirect();
   }
 
   componentWillUnmount():void{clearPendingGoogleLink();}
@@ -57,22 +58,35 @@ export class AccountEntryScreen extends React.Component<Props,State>{
     return `${t('Google sign-in failed. Please try again.','تعذر تسجيل الدخول عبر Google. حاول مرة أخرى.')}${reference}`;
   };
 
+  private applyGoogleFailure=(error:any):void=>{
+    try{console.error('[LOUREX Google Auth]',String(error?.code||'unknown'),String(error?.message||''));}catch{}
+    if(error instanceof GoogleAccountLinkRequiredError){
+      this.setState({mode:'signin',email:error.email,password:'',confirm:'',busy:false,error:'',googleLinkPending:true,message:t('This Google email already has a LOUREX account. Enter your existing LOUREX password once to connect Google without changing your data.','هذا البريد في Google لديه حساب LOUREX موجود. أدخل كلمة مرور LOUREX الحالية مرة واحدة لربط Google دون تغيير بياناتك.')});
+      return;
+    }
+    this.setState({busy:false,error:this.googleError(error)});
+  };
+
+  private finishGoogleRedirect=async():Promise<void>=>{
+    this.setState({busy:true,error:'',message:t('Completing Google sign-in…','جارٍ إكمال تسجيل الدخول عبر Google…')});
+    try{
+      const user=await consumeGoogleRedirectResult();
+      if(!user){this.setState({busy:false,message:''});return;}
+      this.setState({message:t('Google sign-in complete. Restoring your LOUREX data…','تم تسجيل الدخول عبر Google. جارٍ استعادة بيانات LOUREX…')});
+      window.setTimeout(()=>window.location.reload(),450);
+    }catch(error:any){this.applyGoogleFailure(error);}
+  };
+
   private googleSignIn=async():Promise<void>=>{
     if(this.state.busy)return;
     clearPendingGoogleLink();
     this.setState({busy:true,error:'',message:'',googleLinkPending:false});
     try{
-      await signInCloudUserWithGoogle();
+      const user=await signInCloudUserWithGoogle();
+      if(!user)return;
       this.setState({message:t('Google sign-in complete. Restoring your LOUREX data…','تم تسجيل الدخول عبر Google. جارٍ استعادة بيانات LOUREX…')});
       window.setTimeout(()=>window.location.reload(),450);
-    }catch(error:any){
-      try{console.error('[LOUREX Google Auth]',String(error?.code||'unknown'),String(error?.message||''));}catch{}
-      if(error instanceof GoogleAccountLinkRequiredError){
-        this.setState({mode:'signin',email:error.email,password:'',confirm:'',busy:false,error:'',googleLinkPending:true,message:t('This Google email already has a LOUREX account. Enter your existing LOUREX password once to connect Google without changing your data.','هذا البريد في Google لديه حساب LOUREX موجود. أدخل كلمة مرور LOUREX الحالية مرة واحدة لربط Google دون تغيير بياناتك.')});
-        return;
-      }
-      this.setState({busy:false,error:this.googleError(error)});
-    }
+    }catch(error:any){this.applyGoogleFailure(error);}
   };
 
   private submit=async(e:any):Promise<void>=>{
