@@ -12,9 +12,9 @@ for(const runtime of requiredRuntimes){
 }
 
 const previousCache="const CACHE = 'lourex-invoice-v204';";
-const nextCache="const CACHE = 'lourex-invoice-v210';\n// const CACHE = 'lourex-invoice-v209'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v208'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v207'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v206'; preserved as a legacy marker for cache-migration tests.\n// lourex-invoice-v205: preserved as a legacy marker for cache-migration tests.\n// lourex-invoice-v204: preserved as a legacy marker for cache-migration tests.";
+const nextCache="const CACHE = 'lourex-invoice-v211';\n// const CACHE = 'lourex-invoice-v210'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v209'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v208'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v207'; preserved as a legacy marker for cache-migration tests.\n// const CACHE = 'lourex-invoice-v206'; preserved as a legacy marker for cache-migration tests.\n// lourex-invoice-v205: preserved as a legacy marker for cache-migration tests.\n// lourex-invoice-v204: preserved as a legacy marker for cache-migration tests.";
 if(sw.includes(previousCache))sw=sw.replace(previousCache,nextCache);
-if(!sw.includes("const CACHE = 'lourex-invoice-v210';"))throw new Error('Unable to advance the LOUREX PWA cache generation to v210.');
+if(!sw.includes("const CACHE = 'lourex-invoice-v211';"))throw new Error('Unable to advance the LOUREX PWA cache generation to v211.');
 for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`LOUREX PWA cache is missing required runtime ${runtime}.`);
 
 await writeFile(swPath,sw);
