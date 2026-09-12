@@ -58,6 +58,18 @@ test('v211 Vercel transparently proxies Firebase auth helpers instead of redirec
   assert.equal(rule.destination,'https://lourex-invoice.firebaseapp.com/__/auth/:path*');
 });
 
+test('Firebase auth helper proxy is excluded from LOUREX app CSP and framing headers',async()=>{
+  const config=JSON.parse(await read('vercel.json'));
+  const hardened=config.headers?.find(item=>item.headers?.some(header=>header.key==='Content-Security-Policy'));
+  assert.ok(hardened,'LOUREX application hardening header rule must exist');
+  assert.equal(hardened.source,'/((?!__/auth/).*)');
+  const authHeaders=config.headers?.find(item=>item.source==='/__/auth/:path*')?.headers||[];
+  assert.ok(authHeaders.some(header=>header.key==='Cache-Control'&&header.value==='no-store'));
+  for(const blocked of ['Content-Security-Policy','X-Frame-Options','Cross-Origin-Resource-Policy','Cross-Origin-Opener-Policy']){
+    assert.equal(authHeaders.some(header=>header.key===blocked),false,`${blocked} must be inherited from Firebase rather than LOUREX`);
+  }
+});
+
 test('v209 Google entry is styled for premium desktop, mobile and RTL layouts',async()=>{
   const css=await read('src/styles/maintenance-closeout-v207.css');
   assert.match(css,/\.google-auth-button\{/);
