@@ -43,10 +43,30 @@ test('v212 production build keeps Firebase default authDomain and no longer appl
   assert.doesNotMatch(pkg.scripts.build,/firebase-auth-same-origin-v211\.mjs/);
 });
 
+test('v213 production runtime upgrades Firebase compat bundles to the iOS popup-fixed 12.19.0 release',async()=>{
+  const upgrade=await read('scripts/firebase-sdk-v213.mjs');
+  const pkg=JSON.parse(await read('package.json'));
+  assert.match(upgrade,/FIREBASE_VERSION='12\.19\.0'/);
+  assert.match(upgrade,/firebase-auth-compat\.js/);
+  assert.match(upgrade,/firebase-app-compat\.js/);
+  assert.match(upgrade,/firebase-app-check-compat\.js/);
+  assert.match(upgrade,/firebase-firestore-compat\.js/);
+  assert.match(pkg.scripts.build,/firebase-sdk-v213\.mjs/);
+});
+
+test('v213 CSP allows only the Google script origins required by Firebase federated auth',async()=>{
+  const config=JSON.parse(await read('vercel.json'));
+  const hardened=config.headers?.find(item=>item.headers?.some(header=>header.key==='Content-Security-Policy'));
+  const csp=hardened?.headers?.find(header=>header.key==='Content-Security-Policy')?.value||'';
+  assert.match(csp,/script-src 'self' https:\/\/apis\.google\.com https:\/\/www\.gstatic\.com;/);
+  assert.doesNotMatch(csp,/script-src [^;]*(?:cdn\.jsdelivr\.net|unpkg\.com)/);
+  assert.doesNotMatch(csp,/script-src [^;]*'unsafe-inline'/);
+});
+
 test('legacy Firebase auth helper proxy remains isolated for old v211 clients during cache migration',async()=>{
   const config=JSON.parse(await read('vercel.json'));
   const rule=config.rewrites?.find(item=>item.source==='/__/auth/:path*');
-  assert.ok(rule,'legacy same-origin Firebase auth rewrite must remain during v212 migration');
+  assert.ok(rule,'legacy same-origin Firebase auth rewrite must remain during v213 migration');
   assert.equal(rule.destination,'https://lourex-invoice.firebaseapp.com/__/auth/:path*');
   const hardened=config.headers?.find(item=>item.headers?.some(header=>header.key==='Content-Security-Policy'));
   assert.ok(hardened,'LOUREX application hardening header rule must exist');
@@ -62,10 +82,10 @@ test('v209 Google entry is styled for premium desktop, mobile and RTL layouts',a
   assert.match(css,/@media\(max-width:720px\)[\s\S]*\.google-auth-button/);
 });
 
-test('v212 advances the installed PWA cache and precaches the Google auth module',async()=>{
+test('v213 advances the installed PWA cache and precaches the Google auth module',async()=>{
   const patch=await read('scripts/pwa-cache-v205.mjs');
-  assert.match(patch,/const CACHE = 'lourex-invoice-v212'/);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v211'.*legacy marker/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v213'/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v212'.*legacy marker/);
   assert.match(patch,/\.\/src\/cloud\/google-auth\.js/);
   assert.match(patch,/requiredRuntimes/);
 });

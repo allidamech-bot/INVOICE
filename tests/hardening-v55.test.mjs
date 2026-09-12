@@ -31,7 +31,7 @@ test('production config enables conservative browser hardening headers with a bo
   assert.match(config,/Permissions-Policy/);
   assert.match(config,/Content-Security-Policy/);
   assert.match(config,/default-src 'self'/);
-  assert.match(config,/script-src 'self';/);
+  assert.match(config,/script-src 'self' https:\/\/apis\.google\.com https:\/\/www\.gstatic\.com;/);
   assert.doesNotMatch(config,/script-src [^;]*'unsafe-inline'/);
   assert.match(config,/Strict-Transport-Security/);
   assert.match(config,/object-src 'none'/);
@@ -39,7 +39,8 @@ test('production config enables conservative browser hardening headers with a bo
   assert.match(config,/connect-src 'self' [^\"]*googleapis\.com[^\"]*firebaseio\.com[^\"]*firebaseapp\.com/);
   const scriptDirective=config.match(/script-src ([^;]+);/)?.[1]||'';
   assert.ok(scriptDirective,'script-src directive missing');
-  assert.doesNotMatch(scriptDirective,/(?:cdn\.jsdelivr\.net|unpkg\.com|gstatic\.com)/);
+  assert.doesNotMatch(scriptDirective,/(?:cdn\.jsdelivr\.net|unpkg\.com)/);
+  assert.equal(scriptDirective,"'self' https://apis.google.com https://www.gstatic.com");
 });
 
 test('current service worker ships the recovery and update entry modules offline',async()=>{

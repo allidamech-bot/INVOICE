@@ -28,8 +28,10 @@ check(!/FIREBASE_APPCHECK_DEBUG_TOKEN/.test(appCheckBootstrap+build),'production
 check(/if\(!origin\|\|requestedWith!==['"]LOUREX-Invoice['"]\)return false/.test(api),'AI proxy must reject missing/spoofed browser intent headers');
 check(/RATE_MAX=12/.test(api)&&/RATE_WINDOW_MS=5\*60\*1000/.test(api),'AI proxy must have an abuse limiter');
 check(/validImageSignature/.test(api),'AI proxy must validate image magic bytes');
-check(/Content-Security-Policy/.test(vercel)&&/script-src 'self';/.test(vercel),'production CSP must keep script execution self-only');
+const scriptDirective=vercel.match(/script-src ([^;]+);/)?.[1]||'';
+check(/Content-Security-Policy/.test(vercel)&&scriptDirective==="'self' https://apis.google.com https://www.gstatic.com",'production CSP must allow only self plus the two explicit Google federated-auth script origins');
 check(!/script-src [^;]*'unsafe-inline'/.test(vercel),'production script-src must not allow unsafe-inline');
+check(!/(?:cdn\.jsdelivr\.net|unpkg\.com)/.test(scriptDirective),'production script-src must not allow general-purpose runtime CDNs');
 check(/Cross-Origin-Opener-Policy/.test(vercel)&&/Cross-Origin-Resource-Policy/.test(vercel),'production must set cross-origin isolation headers');
 check(/Strict-Transport-Security[\s\S]*63072000; includeSubDomains/.test(vercel),'HSTS must be at least two years and include subdomains');
 

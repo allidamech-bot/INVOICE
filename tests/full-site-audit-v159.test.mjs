@@ -16,7 +16,7 @@ test('v159 removes inline executable code while preserving canonical redirects o
   assert.doesNotMatch(html,/<script>(?:.|\n)*?<\/script>/);
   assert.match(redirect,/environment!=='production'/);
   assert.match(redirect,/window\.location\.replace/);
-  assert.match(config,/script-src 'self';/);
+  assert.match(config,/script-src 'self' https:\/\/apis\.google\.com https:\/\/www\.gstatic\.com;/);
   assert.doesNotMatch(config,/script-src [^;]*'unsafe-inline'/);
   assert.match(config,/Strict-Transport-Security/);
   assert.match(sw,/lourex-invoice-v160/);

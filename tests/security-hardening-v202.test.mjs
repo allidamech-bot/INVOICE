@@ -45,10 +45,11 @@ test('v202 AI proxy rejects blind requests and validates request and response pa
   assert.match(api,/process\.env\.REMOVE_BG_API_KEY/);
 });
 
-test('v202 production hardening keeps scripts self-only and extends transport/cross-origin protections',async()=>{
+test('v202 production hardening keeps scripts tightly allowlisted and extends transport/cross-origin protections',async()=>{
   const config=await read('vercel.json');
-  assert.match(config,/script-src 'self';/);
+  assert.match(config,/script-src 'self' https:\/\/apis\.google\.com https:\/\/www\.gstatic\.com;/);
   assert.doesNotMatch(config,/script-src [^;]*'unsafe-inline'/);
+  assert.doesNotMatch(config,/script-src [^;]*(?:cdn\.jsdelivr\.net|unpkg\.com)/);
   assert.match(config,/Cross-Origin-Opener-Policy/);
   assert.match(config,/Cross-Origin-Resource-Policy/);
   assert.match(config,/X-Permitted-Cross-Domain-Policies/);
