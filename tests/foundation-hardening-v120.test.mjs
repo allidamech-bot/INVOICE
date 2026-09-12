@@ -45,13 +45,16 @@ test('production build identifies and guards the canonical INVOICE repository',a
   assert.match(build,/commitSha/);
 });
 
-test('system health page exposes platform diagnostics without decrypted business fields',async()=>{
+test('system health page exposes bounded platform diagnostics without opening account data',async()=>{
   const [health,vercel,errors]=await Promise.all([read('public/health.html'),read('vercel.json'),read('src/app/AppErrorBoundary.tsx')]);
   assert.match(health,/System Health/);
   assert.match(health,/Deployment source/);
-  assert.match(health,/Safety snapshot/);
+  assert.match(health,/Encrypted local storage/);
   assert.match(health,/Privacy-safe diagnostics/);
+  assert.match(health,/PROBE_TIMEOUT_MS/);
+  assert.match(health,/finally\{render\(\);\}/);
   assert.doesNotMatch(health,/companyNameEn|customerSnapshot|descriptionEn|decryptVault/);
+  assert.doesNotMatch(health,/indexedDB\.open\(|transaction\('records'|Safety snapshot/);
   assert.match(vercel,/\/sw\.js/);
   assert.match(vercel,/\/runtime-config\.js/);
   assert.match(vercel,/\/health\.html/);
