@@ -44,12 +44,30 @@ test('v215 selects the UID storage boundary before any account session or cloud 
   assert.match(entry,/if\(accountReady\)await hydrateAuthoritativeCloudBeforeApp\(\)/);
 });
 
+test('v215 direct Firebase account replacement tears down A before B can reuse the runtime',async()=>{
+  const entry=await read('src/app/index.tsx');
+  const watcher=entry.slice(entry.indexOf('function startAccountSignOutWatcher'),entry.indexOf('async function start()'));
+  assert.match(watcher,/const previousUid=getActiveAccountUid\(\);/);
+  const switchStart=watcher.indexOf('if(previousUid&&previousUid!==user.uid)');
+  const switchEnd=watcher.indexOf('setActiveAccountUid(user.uid)',switchStart);
+  assert.ok(switchStart>=0&&switchEnd>switchStart,'direct UID replacement guard must run before normal same-user handling');
+  const directSwitch=watcher.slice(switchStart,switchEnd);
+  const oldScope=directSwitch.indexOf('await activateAccountStorage(previousUid)');
+  const suspend=directSwitch.indexOf('await suspendSession()');
+  const clearUid=directSwitch.indexOf('setActiveAccountUid(null)');
+  const publicScope=directSwitch.indexOf('await activateAccountStorage(null)');
+  const reload=directSwitch.indexOf('window.location.reload()');
+  assert.ok(oldScope>=0&&suspend>oldScope&&clearUid>suspend&&publicScope>clearUid&&reload>publicScope);
+  assert.doesNotMatch(directSwitch,/activateAccountStorage\(user\.uid\)|resumeAccountSession\(user\.uid\)/);
+});
+
 test('v215 sign-out destroys the usable session key before leaving that account storage scope',async()=>{
   const entry=await read('src/app/index.tsx');
   const watcher=entry.slice(entry.indexOf('function startAccountSignOutWatcher'),entry.indexOf('async function start()'));
-  const suspend=watcher.indexOf('await suspendSession()');
-  const clearUid=watcher.indexOf('setActiveAccountUid(null)');
-  const publicScope=watcher.indexOf('await activateAccountStorage(null)');
+  const signedOut=watcher.slice(watcher.lastIndexOf('if(!accountWasAuthenticated||signOutTransitionRunning)return;'));
+  const suspend=signedOut.indexOf('await suspendSession()');
+  const clearUid=signedOut.indexOf('setActiveAccountUid(null)');
+  const publicScope=signedOut.indexOf('await activateAccountStorage(null)');
   assert.ok(suspend>=0&&clearUid>suspend&&publicScope>clearUid);
 });
 
