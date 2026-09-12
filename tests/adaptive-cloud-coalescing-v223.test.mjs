@@ -19,11 +19,13 @@ test('v223 keeps small vault sync fast and lengthens only automatic quiet window
 
 test('v223 wraps only automatic App cloud scheduling while explicit recovery delays remain urgent',async()=>{
   const [index,app]=await Promise.all([read('src/app/index.tsx'),read('src/app/App.tsx')]);
+  assert.match(index,/import \{ App as BaseApp \} from '\.\/App\.js'/);
   assert.match(index,/import \{ adaptiveCloudSettleMs \} from '\.\.\/cloud\/coalescing\.js'/);
-  assert.match(index,/class AdaptiveCloudApp extends App/);
+  assert.match(index,/class AdaptiveCloudApp extends BaseApp/);
   assert.match(index,/typeof delay==='number'[\s\S]*\?delay[\s\S]*:adaptiveCloudSettleMs\(instance\.latestEncryptedVault\?\.cipher\?\.length\?\?0,false\)/);
   assert.match(index,/deferQueuedCloudSaveForDocumentEdit=[\s\S]*adaptiveCloudSettleMs\(instance\.latestEncryptedVault\?\.cipher\?\.length\?\?0,true\)/);
-  assert.match(index,/ReactDOM\.render\(<AppErrorBoundary><AdaptiveCloudApp\/><\/AppErrorBoundary>/);
+  assert.match(index,/const App=AdaptiveCloudApp/);
+  assert.match(index,/ReactDOM\.render\(<AppErrorBoundary><App\/><\/AppErrorBoundary>/);
   for(const delay of [80,120,150,180,500])assert.ok(app.includes(`scheduleCloudSync(${delay})`),`urgent ${delay} ms path must remain explicit`);
   assert.match(app,/private persist=async[\s\S]*this\.scheduleCloudSync\(\)/);
 });
