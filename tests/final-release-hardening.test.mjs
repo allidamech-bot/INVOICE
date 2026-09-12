@@ -4,14 +4,17 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('PWA activation rechecks draft safety immediately before a requested reload',async()=>{
+test('PWA activation rechecks draft safety while allowing only the safe signed-out auth migration',async()=>{
   const entry=await read('src/app/index.tsx');
   const controller=entry.slice(entry.indexOf("navigator.serviceWorker.addEventListener('controllerchange'"),entry.indexOf('// Preserve the established non-fatal registration path'));
   assert.match(controller,/const userRequestedReload=reloadForUpdate/);
   assert.match(controller,/pendingUpdateWorker=null/);
-  assert.match(controller,/if\(!userRequestedReload\)return/);
+  assert.match(controller,/if\(!userRequestedReload\)\{[\s\S]*safeSignedOutAuthGatewayForAutomaticReload\(\)[\s\S]*window\.location\.replace\(window\.location\.href\)[\s\S]*return;[\s\S]*\}/);
   assert.match(controller,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
-  assert.ok(controller.indexOf('reloadUnsafeWorkspaceOpen()')<controller.indexOf('window.location.replace(window.location.href)'));
+  const requestedGuard=controller.indexOf('if(reloadUnsafeWorkspaceOpen()){updateNoticeDeferredForWorkspace();return;}');
+  const requestedReload=controller.lastIndexOf('window.location.replace(window.location.href)');
+  assert.ok(requestedGuard>=0&&requestedReload>requestedGuard);
+  assert.match(entry,/function safeSignedOutAuthGatewayForAutomaticReload\(\):boolean[\s\S]*!currentCloudUser\(\)[\s\S]*!reloadUnsafeWorkspaceOpen\(\)[\s\S]*\.auth-page/);
   assert.match(entry,/function updateNoticeDeferredForWorkspace\(\):void[\s\S]*reload\.disabled=false/);
   assert.match(entry,/reload\.style\.minHeight='44px'/);
 });

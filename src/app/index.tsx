@@ -74,6 +74,10 @@ function reloadUnsafeWorkspaceOpen():boolean{
   return isDocumentEditorOpen()||Boolean(document.querySelector('.operations-page,.product-library-pro.editor-open,.modal-backdrop'));
 }
 
+function safeSignedOutAuthGatewayForAutomaticReload():boolean{
+  return !currentCloudUser()&&!reloadUnsafeWorkspaceOpen()&&Boolean(document.querySelector('.auth-page'));
+}
+
 // The account layer may install a newer account copy while the UI is idle.
 // Reloading here rehydrates React from the exact encrypted account copy, but
 // never discard a document, inline Operations draft, product draft, or modal.
@@ -164,7 +168,13 @@ if('serviceWorker' in navigator){
       const userRequestedReload=reloadForUpdate;
       pendingUpdateWorker=null;
       if(hadController)showUpdateNotice();
-      if(!userRequestedReload)return;
+      if(!userRequestedReload){
+        // A signed-out auth gateway has no editable business state to protect.
+        // Reload it automatically after a newly activated worker takes control
+        // so Safari cannot keep executing a stale Firebase auth runtime.
+        if(safeSignedOutAuthGatewayForAutomaticReload())window.location.replace(window.location.href);
+        return;
+      }
       // Activation is asynchronous. Re-check immediately before the actual
       // reload so work started after the Update click cannot be discarded.
       if(reloadUnsafeWorkspaceOpen()){updateNoticeDeferredForWorkspace();return;}

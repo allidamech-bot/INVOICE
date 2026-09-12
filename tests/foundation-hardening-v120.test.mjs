@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('PWA update activation is explicit and blocked while the document editor is open',async()=>{
+test('PWA update activation protects editable workspaces while permitting the safe signed-out auth migration',async()=>{
   const [sw,index]=await Promise.all([read('public/sw.js'),read('src/app/index.tsx')]);
   assert.match(sw,/const CACHE = 'lourex-invoice-v120'/);
   assert.match(sw,/event\.data\?\.type==='SKIP_WAITING'/);
@@ -13,7 +13,8 @@ test('PWA update activation is explicit and blocked while the document editor is
   assert.match(index,/document\.querySelector\('\.editor-screen'\)/);
   assert.match(index,/waiting\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
   assert.match(index,/const userRequestedReload=reloadForUpdate/);
-  assert.match(index,/if\(!userRequestedReload\)return/);
+  assert.match(index,/function safeSignedOutAuthGatewayForAutomaticReload\(\):boolean\{[\s\S]*!currentCloudUser\(\)[\s\S]*!reloadUnsafeWorkspaceOpen\(\)[\s\S]*document\.querySelector\('\.auth-page'\)/);
+  assert.match(index,/if\(!userRequestedReload\)\{[\s\S]*if\(safeSignedOutAuthGatewayForAutomaticReload\(\)\)window\.location\.replace\(window\.location\.href\);[\s\S]*return;[\s\S]*\}/);
   assert.match(index,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
   assert.match(index,/window\.location\.replace\(window\.location\.href\)/);
 });

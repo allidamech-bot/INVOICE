@@ -82,10 +82,20 @@ test('v209 Google entry is styled for premium desktop, mobile and RTL layouts',a
   assert.match(css,/@media\(max-width:720px\)[\s\S]*\.google-auth-button/);
 });
 
-test('v213 advances the installed PWA cache and precaches the Google auth module',async()=>{
+test('v214 forces the stale Firebase PWA generation to activate and preserves prior cache markers',async()=>{
   const patch=await read('scripts/pwa-cache-v205.mjs');
-  assert.match(patch,/const CACHE = 'lourex-invoice-v213'/);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v212'.*legacy marker/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v214'/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v213'.*legacy marker/);
   assert.match(patch,/\.\/src\/cloud\/google-auth\.js/);
-  assert.match(patch,/requiredRuntimes/);
+  assert.match(patch,/await self\.skipWaiting\(\)/);
+  assert.match(patch,/critical v214 service-worker activation/);
+});
+
+test('v214 auto-reloads only the safe signed-out auth gateway after worker activation',async()=>{
+  const entry=await read('src/app/index.tsx');
+  assert.match(entry,/safeSignedOutAuthGatewayForAutomaticReload/);
+  assert.match(entry,/!currentCloudUser\(\)/);
+  assert.match(entry,/document\.querySelector\('\.auth-page'\)/);
+  assert.match(entry,/if\(safeSignedOutAuthGatewayForAutomaticReload\(\)\)window\.location\.replace\(window\.location\.href\)/);
+  assert.match(entry,/reloadUnsafeWorkspaceOpen\(\)/);
 });
