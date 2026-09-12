@@ -8,6 +8,30 @@ let stopped=false;
 let realtimeOff:(()=>void)|undefined;
 let realtimeUid='';
 
+const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen';
+type RestorableWorkspace='home'|'documents'|'customers'|'receivables'|'reports'|'items';
+const WORKSPACE_SELECTORS:Array<[RestorableWorkspace,string]>=[
+  ['home','.workspace-home-page'],
+  ['documents','.documents-workspace-v2,.documents-page'],
+  ['customers','.customers-page,.customer-profile-page'],
+  ['receivables','.receivables-page'],
+  ['reports','.reports-page'],
+  ['items','.product-library-pro,.saved-items-page']
+];
+
+function rememberWorkspaceBeforeAutomaticReload():void{
+  try{
+    const match=WORKSPACE_SELECTORS.find(([,selector])=>Boolean(document.querySelector(selector)));
+    if(match)sessionStorage.setItem(WORKSPACE_RESUME_KEY,match[0]);
+    else sessionStorage.removeItem(WORKSPACE_RESUME_KEY);
+  }catch{}
+}
+
+function reloadPreservingWorkspace():void{
+  rememberWorkspaceBeforeAutomaticReload();
+  window.location.reload();
+}
+
 function isStandalonePwa():boolean{
   try{
     return window.matchMedia?.('(display-mode: standalone)').matches===true||Boolean((navigator as Navigator&{standalone?:boolean}).standalone);
@@ -62,9 +86,18 @@ async function checkCloudFreshness():Promise<void>{
 
   let linked=await getCloudAccount().catch(()=>null);
   if(!linked){
-    try{await putCloudAccount(user.uid,user.email);window.location.reload();}catch{}
-    return;
+    try{
+      // Creating the missing local account link does not require a page reload.
+      // Reloading here used to eject an active user back to Home and could even
+      // interrupt a draft because this branch runs before the workspace guard.
+      await putCloudAccount(user.uid,user.email);
+      linked=await getCloudAccount().catch(()=>null);
+    }catch{
+      schedule(isStandalonePwa()?350:700);
+      return;
+    }
   }
+  if(!linked){detachRealtime();return;}
   if(linked.uid!==user.uid){detachRealtime();return;}
   ensureRealtime(user.uid);
   if(!appIsSafeToApply())return;
@@ -77,7 +110,7 @@ async function checkCloudFreshness():Promise<void>{
       window.dispatchEvent(new Event('lourex-cloud-conflict'));
       return;
     }
-    if(result==='pulled')window.location.reload();
+    if(result==='pulled')reloadPreservingWorkspace();
   }catch{
     // Transient failures retry automatically. Confirmed divergence is surfaced
     // separately so the customer can make an explicit, non-destructive choice.
