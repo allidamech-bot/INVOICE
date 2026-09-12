@@ -30,6 +30,7 @@ interface State {
 // A new invoice created from a proforma must mount a fresh editor instead of
 // retaining the source document's local state.
 export class EditorPage extends React.Component<Props,State>{
+  private static readonly activeEditorAttribute='data-lourex-document-editor';
   private resetFrame:number|undefined;
   private resetTimer:number|undefined;
   private navFrame:number|undefined;
@@ -52,6 +53,9 @@ export class EditorPage extends React.Component<Props,State>{
 
   componentDidMount():void{
     this.mounted=true;
+    // Keep a durable page-level editing signal for cloud/PWA reload guards.
+    // DOM-only checks can briefly miss the editor while React is reconciling.
+    document.documentElement.setAttribute(EditorPage.activeEditorAttribute,this.props.document.id);
     this.ensureInitialDraftPersisted();
     this.resetScroll();
     this.scheduleSectionNavigationSetup();
@@ -59,6 +63,7 @@ export class EditorPage extends React.Component<Props,State>{
 
   componentDidUpdate(prevProps:Props):void{
     if(prevProps.document.id!==this.props.document.id){
+      document.documentElement.setAttribute(EditorPage.activeEditorAttribute,this.props.document.id);
       this.initialDraftPersisted=false;
       this.quoteConversionRunning=false;
       this.ensureInitialDraftPersisted();
@@ -69,6 +74,9 @@ export class EditorPage extends React.Component<Props,State>{
 
   componentWillUnmount():void{
     this.mounted=false;
+    if(document.documentElement.getAttribute(EditorPage.activeEditorAttribute)===this.props.document.id){
+      document.documentElement.removeAttribute(EditorPage.activeEditorAttribute);
+    }
     if(this.resetFrame!==undefined)window.cancelAnimationFrame(this.resetFrame);
     if(this.resetTimer!==undefined)window.clearTimeout(this.resetTimer);
     if(this.navFrame!==undefined)window.cancelAnimationFrame(this.navFrame);

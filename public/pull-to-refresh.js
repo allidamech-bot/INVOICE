@@ -32,6 +32,7 @@
     if(refreshing||!pageAtTop())return false;
     if(!document.querySelector('.app-root .app-ui'))return false;
     if(document.body.classList.contains('printing'))return false;
+    if(document.documentElement.hasAttribute('data-lourex-document-editor'))return false;
     // Operations and Product Library contain inline draft editors. Unlike
     // modal-based forms, those drafts do not have a global before-reload
     // confirmation, so native-style pull refresh must never discard them.
