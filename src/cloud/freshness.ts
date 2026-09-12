@@ -106,11 +106,14 @@ async function checkCloudFreshness():Promise<void>{
   try{
     if(!await cloudRemoteChangedSinceAnchor(user.uid))return;
     const result=await reconcileCloudVault(user.uid);
-    if(result==='diverged')return;
+    if(result==='diverged'){
+      window.dispatchEvent(new Event('lourex-cloud-conflict'));
+      return;
+    }
     if(result==='pulled')reloadPreservingWorkspace();
   }catch{
-    // Data movement is intentionally invisible. Transient failures are retried
-    // automatically; there is no manual sync/conflict surface for the user.
+    // Transient failures retry automatically. Confirmed divergence is surfaced
+    // separately so the customer can make an explicit, non-destructive choice.
     schedule(isStandalonePwa()?350:700);
   }finally{
     running=false;

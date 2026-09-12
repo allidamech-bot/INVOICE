@@ -67,6 +67,7 @@ export class EditorPage extends React.Component<Props,State>{
   private previewTimer:number|undefined;
   private previewMedia:MediaQueryList|null=null;
   private validationAttempted=false;
+  private departureFlushQueued=false;
 
   constructor(props:Props){
     super(props);
@@ -76,11 +77,13 @@ export class EditorPage extends React.Component<Props,State>{
 
   componentDidMount():void{
     document.addEventListener('visibilitychange',this.handleVisibilityChange);
+    window.addEventListener('beforeunload',this.handleBeforeUnload);
+    window.addEventListener('pagehide',this.handlePageHide);
     this.previewMedia=window.matchMedia('(min-width:1181px)');
     this.previewMedia.addEventListener?.('change',this.handlePreviewMedia);
   }
   componentDidUpdate(prevProps:Props):void{if(prevProps.company!==this.props.company&&this.state.doc.status==='draft')this.mutate(doc=>draftWithLatestCompany(doc,this.props.company));}
-  componentWillUnmount():void{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);if(this.previewTimer)clearTimeout(this.previewTimer);this.previewMedia?.removeEventListener?.('change',this.handlePreviewMedia);document.removeEventListener('visibilitychange',this.handleVisibilityChange);}
+  componentWillUnmount():void{this.flushPendingSnapshot();if(this.autosaveTimer)clearTimeout(this.autosaveTimer);if(this.previewTimer)clearTimeout(this.previewTimer);this.previewMedia?.removeEventListener?.('change',this.handlePreviewMedia);document.removeEventListener('visibilitychange',this.handleVisibilityChange);window.removeEventListener('beforeunload',this.handleBeforeUnload);window.removeEventListener('pagehide',this.handlePageHide);}
 
   private handlePreviewMedia=(event:MediaQueryListEvent)=>this.setState(state=>({desktopPreview:event.matches,previewDoc:event.matches?structuredClone(state.doc):state.previewDoc}));
 
@@ -88,6 +91,20 @@ export class EditorPage extends React.Component<Props,State>{
     if(document.visibilityState!=='hidden'||this.state.doc.status==='final'||this.state.saveState==='saved')return;
     if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
     void this.save(true);
+  };
+  private handleBeforeUnload=(event:BeforeUnloadEvent)=>{
+    if(this.state.doc.status==='final'||this.state.saveState==='saved'&&!this.state.saving)return;
+    this.flushPendingSnapshot();
+    event.preventDefault();
+    event.returnValue='';
+  };
+  private handlePageHide=()=>this.flushPendingSnapshot();
+  private flushPendingSnapshot=()=>{
+    if(this.departureFlushQueued||this.state.doc.status==='final'||this.state.saveState==='saved'&&!this.state.saving)return;
+    this.departureFlushQueued=true;
+    if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
+    const snapshot=structuredClone(this.state.doc);
+    void this.props.onSave(snapshot,true).catch(()=>{this.departureFlushQueued=false;});
   };
 
   private setGlobalError=(message:string)=>this.setState({errors:{...this.state.errors,global:message}});
@@ -110,6 +127,7 @@ export class EditorPage extends React.Component<Props,State>{
 
   private mutate=(fn:(d:LourexDocument)=>LourexDocument)=>{
     if(this.state.doc.status==='final')return;
+    this.departureFlushQueued=false;
     const doc={...fn(this.state.doc),updatedAt:new Date().toISOString()};
     const errors=this.validationAttempted?validateDocument(doc):this.state.errors;
     this.setState({doc,saveState:'unsaved',errors},()=>{this.schedule();this.schedulePreview();});

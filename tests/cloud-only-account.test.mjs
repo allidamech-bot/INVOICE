@@ -25,7 +25,7 @@ test('cloud restore uses the signed-in account without a backup PIN prompt',asyn
   const [settings,app]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/app/App.tsx')]);
   assert.match(settings,/const user=this\.props\.cloudUser/);
   assert.match(settings,/await this\.props\.onCloudRestore\(\)/);
-  assert.match(app,/installCloudVault\(user\.uid,false\)/);
+  assert.match(app,/resolveCloudConflictWithCloud\(user\.uid\)/);
   assert.match(app,/await this\.beginProtectedOperation\(\)/);
   assert.doesNotMatch(settings,/Backup PIN|restorePin/);
 });

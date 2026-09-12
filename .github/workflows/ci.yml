@@ -51,6 +51,7 @@ jobs:
           node tests/visual/run-mobile-spacing-fit-v198.cjs
           node tests/visual/run-mobile-safari-chrome-v199.cjs
           node tests/visual/run-functional-navigation-auth-v200.cjs
+          node tests/visual/run-save-reliability-v217.cjs
           node tests/visual/run-premium-auth-gateway-v187.cjs
           node tests/visual/run-obsidian-foundation.cjs
           node tests/visual/run-obsidian-shell.cjs

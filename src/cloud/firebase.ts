@@ -244,7 +244,13 @@ export async function pushLocalVaultToCloud(uid:string,localSnapshot?:EncryptedV
 
 // Compatibility exports for older UI bundles. Explicit conflict choices remain
 // available, while automatic reconciliation refuses ambiguous destructive pulls.
-export async function resolveCloudConflictWithLocal(uid:string):Promise<void>{await pushLocalVaultToCloud(uid);}
+export async function resolveCloudConflictWithLocal(uid:string):Promise<void>{
+  requireCurrentUid(uid);
+  if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error('Internet connection is required to resolve account data.');
+  const [security,local,remote]=await Promise.all([getSecurity(),getEncryptedVault(),getCloudVaultMeta(uid)]);
+  if(!security||!local)throw new Error('There is no LOUREX account data on this device.');
+  await publishVault(uid,security,local,remote);
+}
 export async function resolveCloudConflictWithCloud(uid:string):Promise<void>{const installed=await installCloudVault(uid,true);if(!installed)throw new Error('Cloud account data is unavailable.');}
 
 export async function reconcileCloudVault(uid:string):Promise<CloudSyncResult>{
