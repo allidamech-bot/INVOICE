@@ -19,12 +19,15 @@ test('automatic reconcile fails closed when no verified anchor exists',async()=>
   assert.doesNotMatch(cloud,/if\(remote\.updatedAt>local\.updatedAt\)\{await installCloudVault/);
 });
 
-test('legacy conflict helpers remain compatibility-only and are not exposed in account UI',async()=>{
+test('cloud conflict choices are exposed only through the guarded account recovery UI',async()=>{
   const [cloud,modal]=await Promise.all([read('src/cloud/firebase.ts'),read('src/components/CloudAccountModal.tsx')]);
-  assert.match(cloud,/Compatibility exports for older UI bundles/);
   assert.match(cloud,/resolveCloudConflictWithLocal/);
   assert.match(cloud,/resolveCloudConflictWithCloud/);
-  assert.doesNotMatch(modal,/Keep This Device Copy|Use Account Copy|hasCloudConflict|Sync Now|مزامنة الآن/);
+  assert.match(modal,/cloudState!=='conflict'/);
+  assert.match(modal,/Keep This Device Copy/);
+  assert.match(modal,/Use Cloud Copy/);
+  assert.match(modal,/confirmConflict/);
+  assert.doesNotMatch(modal,/Sync Now|مزامنة الآن/);
 });
 
 test('cloud writes use revision compare-and-swap and preserve recoverable history',async()=>{

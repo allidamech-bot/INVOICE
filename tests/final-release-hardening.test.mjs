@@ -37,7 +37,7 @@ test('cloud install revalidates account ownership and workspace safety at the lo
 test('account surface keeps restore automatic and sign-out returns immediately to the account gateway',async()=>{
   const modal=await read('src/components/CloudAccountModal.tsx');
   assert.doesNotMatch(modal,/private restoreFromCloud=async|Restore from Cloud|confirmRestore/);
-  const signOut=modal.slice(modal.indexOf('private signOut=async'),modal.indexOf('render():any'));
+  const signOut=modal.slice(modal.indexOf('private signOut=async'),modal.indexOf('private resolveConflict=async'));
   assert.match(signOut,/await this\.props\.onSignOut\(\)/);
   assert.match(signOut,/await suspendSession\(\)/);
   assert.match(signOut,/window\.location\.reload\(\)/);

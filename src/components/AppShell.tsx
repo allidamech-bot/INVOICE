@@ -4,7 +4,7 @@ import { Brand, Button, Icon } from './UI.js';
 
 export type WorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 
-type CloudState='local'|'queued'|'syncing'|'synced'|'offline'|'error';
+type CloudState='local'|'queued'|'syncing'|'synced'|'offline'|'error'|'conflict';
 type SettingsScope='account'|'settings';
 const SETTINGS_SCOPE_KEY='lourex-settings-scope';
 
@@ -114,16 +114,20 @@ export class AppShell extends React.Component<Props,State>{
   </div>:null;
 
   private saveLabel=():string=>{
-    if(this.props.cloudState==='syncing')return t('Saving…','جارٍ الحفظ…');
-    if(this.props.cloudState==='offline')return t('Offline','غير متصل');
-    if(this.props.cloudState==='error')return t('Save pending','الحفظ معلّق');
-    return t('Saved','محفوظ');
+    return this.props.cloudLabel;
   };
 
   private syncStatus=(className:string)=>{
     const label=this.saveLabel();
-    return <div className={`${className} state-${this.props.cloudState}`} role="status" aria-live="polite" title={label}><span className="shell-status-dot"/><span>{label}</span></div>;
+    const detail=this.props.cloudMessage;
+    return <div className={`${className} state-${this.props.cloudState}`} role="status" aria-live="polite" aria-label={detail?`${label}. ${detail}`:label} title={detail||label}><span className="shell-status-dot"/><span>{label}</span></div>;
   };
+
+  private conflictBanner=()=>this.props.cloudState==='conflict'?<section className="cloud-conflict-banner" role="alert">
+    <span className="cloud-conflict-icon"><Icon name="backup"/></span>
+    <div><strong>{t('Cloud sync needs your choice','المزامنة السحابية تحتاج اختيارك')}</strong><span>{this.props.cloudMessage||t('This device and the cloud both changed. Neither copy was overwritten.','تم تعديل نسخة هذا الجهاز ونسخة السحابة. لم يتم استبدال أي منهما.')}</span></div>
+    <Button variant="primary" onClick={this.props.onCloud}>{this.props.screen==='editor'?t('Review options','عرض الخيارات'):t('Resolve safely','حل التعارض بأمان')}</Button>
+  </section>:null;
 
   private accountButton=(className:string,compact=false)=>
     <button type="button" className={className} aria-label={t('Account','الحساب')} title={t('Open account','فتح الحساب')} onClick={this.openAccount}><Icon name="users"/>{compact?<span>{t('Account','الحساب')}</span>:<span><small>{t('Account','الحساب')}</small><strong>{t('Company profile, logo and account access','ملف الشركة والشعار وبيانات الحساب')}</strong></span>}</button>;
@@ -170,7 +174,7 @@ export class AppShell extends React.Component<Props,State>{
         </div>
       </header>
 
-      <div className="workspace-content">{this.props.children}</div>
+      <div className="workspace-content">{this.conflictBanner()}{this.props.children}</div>
 
       {!editor?<>
         {this.state.moreOpen?<><button type="button" className="mobile-more-backdrop" aria-label={t('Close menu','إغلاق القائمة')} onClick={this.closeMore}/><section className="mobile-more-sheet" id="mobile-more-sheet" role="dialog" aria-modal="true" aria-label={t('More','المزيد')} dir={this.props.language==='ar'?'rtl':'ltr'}>

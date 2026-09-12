@@ -42,7 +42,7 @@ test('manual cloud restore is removed from visible account UX while publication 
   assert.match(push,/Promise<'same'\|'pushed'\|'remote-changed'>/);
   assert.match(push,/return 'remote-changed'/);
   assert.match(app,/private cloudReplaceBlocked=\(\)=>this\.state\.screen==='editor'\|\|this\.state\.settingsOpen\|\|this\.state\.cloudModal/);
-  assert.match(app,/private cloudRestore=async\(\)=>\{[\s\S]*await this\.beginProtectedOperation\(\)[\s\S]*installCloudVault\(user\.uid,false\)[\s\S]*this\.endProtectedOperation\(\)/);
+  assert.match(app,/private cloudRestore=async\(\)=>\{[\s\S]*await this\.beginProtectedOperation\(\)[\s\S]*resolveCloudConflictWithCloud\(user\.uid\)[\s\S]*this\.endProtectedOperation\(\)/);
   assert.match(app,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
   assert.match(app,/if\(result==='remote-changed'\)\{[\s\S]*this\.deferRemoteCloud\(\)[\s\S]*this\.handleRemoteCloudNewer/);
   assert.doesNotMatch(app,/remote\.updatedAt\s*[<>]=?\s*local\.updatedAt/);

@@ -54,7 +54,7 @@ test('v152 cloud persistence is local-first coalesced retryable and automaticall
   const [app,db,freshness,modal,i18n]=await Promise.all([
     read('src/app/App.tsx'),read('src/storage/db.ts'),read('src/cloud/freshness.ts'),read('src/components/CloudAccountModal.tsx'),read('src/lib/i18n.ts')
   ]);
-  assert.match(app,/type CloudSyncState='local'\|'queued'\|'syncing'\|'synced'\|'offline'\|'error'/);
+  assert.match(app,/type CloudSyncState='local'\|'queued'\|'syncing'\|'synced'\|'offline'\|'error'\|'conflict'/);
   assert.match(app,/private scheduleCloudSync=\(delay=220\)/);
   assert.match(app,/pushLocalVaultToCloud\(user\.uid,local\)/);
   assert.match(app,/Newer local changes are waiting to sync/);

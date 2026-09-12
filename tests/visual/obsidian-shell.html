@@ -13,13 +13,15 @@
 <script type="module">
   import {AppShell} from './src/components/AppShell.js';
   import {setUiLanguage} from './src/lib/i18n.js';
-  const ar=new URLSearchParams(location.search).get('lang')==='ar';
+  const params=new URLSearchParams(location.search);
+  const ar=params.get('lang')==='ar';
+  const conflict=params.get('conflict')==='1';
   setUiLanguage(ar?'ar':'en');
   const h=React.createElement;
   window.shellQa={settings:0,account:0,newKind:'',navigations:[]};
   class Fixture extends React.Component{
     state={newMenu:false,screen:'home'};
-    render(){return h(AppShell,{screen:this.state.screen,logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:this.state.newMenu,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:ar?'آخر مزامنة الآن':'Last synced now',onNavigate:screen=>{window.shellQa.navigations.push(screen);this.setState({screen});},onToggleNew:()=>this.setState(state=>({newMenu:!state.newMenu})),onNew:kind=>{window.shellQa.newKind=kind;this.setState({newMenu:false});},onSettings:()=>{window.shellQa.settings+=1;},onCloud:()=>{window.shellQa.account+=1;}},h('main',{className:'shell-fixture'},h('section',{className:'shell-fixture-card'},h('h1',null,ar?'نظرة عامة على الأعمال':'Business overview'),h('p',null,ar?'المحتوى يبقى واضحًا وقابلًا للوصول على جميع الأجهزة.':'Content remains clear and reachable on every device.'))));}
+    render(){return h(AppShell,{screen:this.state.screen,logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:this.state.newMenu,cloudState:conflict?'conflict':'synced',cloudLabel:conflict?(ar?'تعارض مزامنة':'Sync conflict'):(ar?'محفوظ سحابيًا':'Saved to cloud'),cloudMessage:conflict?(ar?'يحتوي هذا الجهاز والسحابة على تعديلات أحدث. لم يتم استبدال أي نسخة.':'This device and the cloud both contain newer changes. Neither copy was overwritten.'):(ar?'السحابة محدثة.':'Cloud is up to date.'),onNavigate:screen=>{window.shellQa.navigations.push(screen);this.setState({screen});},onToggleNew:()=>this.setState(state=>({newMenu:!state.newMenu})),onNew:kind=>{window.shellQa.newKind=kind;this.setState({newMenu:false});},onSettings:()=>{window.shellQa.settings+=1;},onCloud:()=>{window.shellQa.account+=1;}},h('main',{className:'shell-fixture'},h('section',{className:'shell-fixture-card'},h('h1',null,ar?'نظرة عامة على الأعمال':'Business overview'),h('p',null,ar?'المحتوى يبقى واضحًا وقابلًا للوصول على جميع الأجهزة.':'Content remains clear and reachable on every device.'))));}
   }
   ReactDOM.render(h(Fixture),document.getElementById('root'));
 </script></body></html>

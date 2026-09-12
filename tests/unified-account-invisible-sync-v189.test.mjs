@@ -48,15 +48,14 @@ test('v189 session keys are bound to Firebase UID and suspended, not exposed, on
   assert.match(modal,/await suspendSession\(\)/);
 });
 
-test('v189 daily workspace exposes only generic save state, not cloud controls',async()=>{
+test('daily workspace exposes truthful passive save states and reserves controls for conflicts',async()=>{
   const [shell,modal,css]=await Promise.all([
     read('src/components/AppShell.tsx'),read('src/components/CloudAccountModal.tsx'),read('src/styles/unified-account-v189.css')
   ]);
-  assert.match(shell,/t\('Saving…','جارٍ الحفظ…'\)/);
-  assert.match(shell,/t\('Saved','محفوظ'\)/);
-  assert.match(shell,/t\('Offline','غير متصل'\)/);
-  assert.doesNotMatch(shell,/t\('Cloud','السحابة'\)/);
-  assert.doesNotMatch(shell,/t\('Syncing','مزامنة'\)/);
+  assert.match(shell,/this\.props\.cloudLabel/);
+  assert.match(shell,/this\.props\.cloudMessage/);
+  assert.match(shell,/cloudState==='conflict'/);
+  assert.match(shell,/Resolve safely/);
   assert.doesNotMatch(modal,/Restore from Cloud/);
   assert.match(modal,/No manual sync or separate cloud sign-in is required/);
   assert.match(css,/\.auth-shell>\.auth-cloud-launcher\{\s*display:none!important/);

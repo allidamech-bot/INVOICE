@@ -1,3 +1,4 @@
+// v217 save reliability — recache truthful save states, departure protection and explicit cloud conflict recovery.
 // v202 security closeout — recache hardened auth, session-key removal, password policy and security gates.
 // v201 editor control hardening — recache single-flight document output, customer, item, revision and lifecycle actions.
 // v200 navigation/auth control hardening — recache mutually exclusive mobile menus and stable async account controls.
@@ -113,6 +114,7 @@ LOCAL_CORE.push('./styles/obsidian-production-audit-v192.css');
 LOCAL_CORE.push('./styles/obsidian-mobile-geometry-v193.css');
 LOCAL_CORE.push('./styles/mobile-spacing-fit-v198.css');
 LOCAL_CORE.push('./styles/mobile-safari-chrome-v199.css');
+LOCAL_CORE.push('./styles/save-reliability-v217.css');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);

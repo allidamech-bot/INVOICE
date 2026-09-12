@@ -36,7 +36,7 @@ test('batch 6 separates automatic account protection from explicit cloud recover
   assert.match(settings,/confirmCloudRestore/);
   assert.match(settings,/Restore account data from cloud\?/);
   assert.match(settings,/await this\.props\.onCloudRestore\(\)/);
-  assert.match(app,/installCloudVault\(user\.uid,false\)/);
+  assert.match(app,/resolveCloudConflictWithCloud\(user\.uid\)/);
   assert.match(settings,/The signed-in account copy will replace the current encrypted local vault on this device/);
   assert.doesNotMatch(settings,/Lock App|Auto Lock|Lock after inactivity/);
 });
