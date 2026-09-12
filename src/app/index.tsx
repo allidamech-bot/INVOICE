@@ -13,6 +13,69 @@ const appRoot=root;
 let accountWasAuthenticated=false;
 let signOutTransitionRunning=false;
 
+const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen';
+type RestorableWorkspace='home'|'documents'|'customers'|'receivables'|'reports'|'items';
+const RESTORABLE_WORKSPACES:RestorableWorkspace[]=['home','documents','customers','receivables','reports','items'];
+const WORKSPACE_SELECTORS:Array<[RestorableWorkspace,string]>=[
+  ['home','.workspace-home-page'],
+  ['documents','.documents-workspace-v2,.documents-page'],
+  ['customers','.customers-page,.customer-profile-page'],
+  ['receivables','.receivables-page'],
+  ['reports','.reports-page'],
+  ['items','.product-library-pro,.saved-items-page']
+];
+
+function currentRestorableWorkspace():RestorableWorkspace|null{
+  const match=WORKSPACE_SELECTORS.find(([,selector])=>Boolean(document.querySelector(selector)));
+  return match?.[0]??null;
+}
+
+function rememberWorkspaceBeforeAutomaticReload():void{
+  try{
+    const screen=currentRestorableWorkspace();
+    if(screen)sessionStorage.setItem(WORKSPACE_RESUME_KEY,screen);
+    else sessionStorage.removeItem(WORKSPACE_RESUME_KEY);
+  }catch{}
+}
+
+function pendingRestorableWorkspace():RestorableWorkspace|null{
+  try{
+    const value=sessionStorage.getItem(WORKSPACE_RESUME_KEY);
+    return RESTORABLE_WORKSPACES.includes(value as RestorableWorkspace)?value as RestorableWorkspace:null;
+  }catch{return null;}
+}
+
+function clearPendingWorkspace():void{try{sessionStorage.removeItem(WORKSPACE_RESUME_KEY);}catch{}}
+
+function workspaceNavigationButton(screen:RestorableWorkspace):HTMLButtonElement|null{
+  const primary=Array.from(document.querySelectorAll<HTMLButtonElement>('.shell-nav-primary .shell-nav-button'));
+  if(screen==='home')return primary[0]??null;
+  if(screen==='documents')return primary[1]??null;
+  if(screen==='customers')return primary[2]??null;
+  if(screen==='items')return primary[3]??null;
+  const groups=Array.from(document.querySelectorAll<HTMLElement>('.shell-nav-group'));
+  const finance=groups[0]?Array.from(groups[0].querySelectorAll<HTMLButtonElement>('.shell-nav-button')):[];
+  if(screen==='receivables')return finance[0]??null;
+  if(screen==='reports')return finance[1]??null;
+  return null;
+}
+
+function restoreWorkspaceAfterAutomaticReload():void{
+  const screen=pendingRestorableWorkspace();
+  if(!screen)return;
+  if(screen==='home'){clearPendingWorkspace();return;}
+  const deadline=Date.now()+12_000;
+  const attempt=()=>{
+    // Never carry a workspace destination through an account/auth boundary.
+    if(document.querySelector('.auth-page')){clearPendingWorkspace();return;}
+    const button=workspaceNavigationButton(screen);
+    if(button){clearPendingWorkspace();button.click();return;}
+    if(Date.now()>=deadline){clearPendingWorkspace();return;}
+    window.setTimeout(attempt,60);
+  };
+  window.setTimeout(attempt,0);
+}
+
 async function suspendPreviousAccountStorage():Promise<void>{
   const previousUid=getActiveAccountUid();
   if(previousUid){
@@ -106,6 +169,7 @@ async function start():Promise<void>{
   // Signed-out users reach the account gateway immediately.
   if(accountReady)await hydrateAuthoritativeCloudBeforeApp();
   ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,appRoot);
+  restoreWorkspaceAfterAutomaticReload();
   void purgeLegacySafetySnapshot();
   startCloudFreshnessWatcher();
   startAccountSignOutWatcher();
@@ -129,6 +193,7 @@ function safeSignedOutAuthGatewayForAutomaticReload():boolean{
 // never discard a document, inline Operations draft, product draft, or modal.
 window.addEventListener('lourex-cloud-applied',()=>{
   if(reloadUnsafeWorkspaceOpen())return;
+  rememberWorkspaceBeforeAutomaticReload();
   window.location.reload();
 });
 
@@ -193,6 +258,7 @@ function showUpdateNotice(worker?:ServiceWorker|null):void{
       detail.textContent='Close the open editor or data-entry workspace first so unsaved changes are not lost / أغلق المحرر أو مساحة الإدخال المفتوحة أولًا حتى لا تضيع التعديلات غير المحفوظة';
       return;
     }
+    rememberWorkspaceBeforeAutomaticReload();
     const waiting=pendingUpdateWorker;
     if(waiting){
       reloadForUpdate=true;
@@ -224,6 +290,7 @@ if('serviceWorker' in navigator){
       // Activation is asynchronous. Re-check immediately before the actual
       // reload so work started after the Update click cannot be discarded.
       if(reloadUnsafeWorkspaceOpen()){updateNoticeDeferredForWorkspace();return;}
+      rememberWorkspaceBeforeAutomaticReload();
       window.location.replace(window.location.href);
     });
 
