@@ -82,10 +82,11 @@ test('v209 Google entry is styled for premium desktop, mobile and RTL layouts',a
   assert.match(css,/@media\(max-width:720px\)[\s\S]*\.google-auth-button/);
 });
 
-test('v214 forces the stale Firebase PWA generation to activate and preserves prior cache markers',async()=>{
+test('v216 keeps the critical stale-Firebase PWA activation path and preserves prior cache generations',async()=>{
   const patch=await read('scripts/pwa-cache-v205.mjs');
-  assert.match(patch,/const CACHE = 'lourex-invoice-v214'/);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v213'.*legacy marker/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v216'/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v215'.*legacy marker/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v214'.*legacy marker/);
   assert.match(patch,/\.\/src\/cloud\/google-auth\.js/);
   assert.match(patch,/await self\.skipWaiting\(\)/);
   assert.match(patch,/critical v214 service-worker activation/);
