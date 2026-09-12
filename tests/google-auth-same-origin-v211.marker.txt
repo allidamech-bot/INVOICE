@@ -1,0 +1,1 @@
+LOUREX Google Auth v211: Safari/iOS redirect + same-origin Firebase auth helper proxy regression marker.
