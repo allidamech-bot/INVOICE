@@ -18,10 +18,10 @@ if(!sw.includes("const CACHE = 'lourex-invoice-v216';"))throw new Error('Unable 
 for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`LOUREX PWA cache is missing required runtime ${runtime}.`);
 
 // critical v214 service-worker activation: preserved as a release marker.
-// v215 established the per-account storage security boundary. v216 is a browser
-// auth recovery generation: normal Safari/Chrome profiles must stop serving any
-// stale Google-auth runtime while editable workspaces remain protected by the
-// app's existing reload guard.
+// v215 security-boundary migration: preserved as a release marker.
+// v216 is a browser auth recovery generation: normal Safari/Chrome profiles must
+// stop serving stale Google-auth runtime while editable workspaces remain
+// protected by the app's existing reload guard.
 const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";
 const criticalInstallTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n  await self.skipWaiting();\n})()));";
 if(sw.includes(installTail))sw=sw.replace(installTail,criticalInstallTail);
