@@ -36,8 +36,12 @@ for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`
 // v228 replaces decorative Luminous Noir effects with a flat Matte Black accounting interface.
 // v229 closes legacy light/gradient surfaces nested inside matte application workspaces.
 // v230 refreshes installed clients for editor detail spacing and locale-correct automatic font labels.
-const releaseMarker='// lourex-invoice-v230: editor detail polish refresh.';
-if(!sw.includes(releaseMarker))sw=`${releaseMarker}\n${sw}`;
+// v231 keeps Totals switches visually compact while preserving a 44px mobile/tablet hit target.
+const releaseMarkers=[
+  '// lourex-invoice-v230: editor detail polish refresh.',
+  '// lourex-invoice-v231: mobile totals switch geometry refresh.'
+];
+for(const releaseMarker of releaseMarkers)if(!sw.includes(releaseMarker))sw=`${releaseMarker}\n${sw}`;
 const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";
 const criticalInstallTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n  await self.skipWaiting();\n})()));";
 if(sw.includes(installTail))sw=sw.replace(installTail,criticalInstallTail);
