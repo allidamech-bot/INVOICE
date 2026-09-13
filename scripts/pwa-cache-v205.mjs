@@ -4,7 +4,7 @@ const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 
 const cacheMarker="LOCAL_CORE.push('./canonical-redirect.js');";
-const requiredRuntimes=['./src/lib/settings-scope.js','./src/cloud/google-auth.js','./src/cloud/coalescing.js','./health.js','./styles/nested-surface-consistency-v229.css'];
+const requiredRuntimes=['./src/lib/settings-scope.js','./src/cloud/google-auth.js','./src/cloud/coalescing.js','./health.js','./styles/nested-surface-consistency-v229.css','./styles/saved-items-picker-v232.css'];
 for(const runtime of requiredRuntimes){
   if(sw.includes(`'${runtime}'`)||sw.includes(`"${runtime}"`))continue;
   if(!sw.includes(cacheMarker))throw new Error('Unable to locate the LOUREX PWA cache insertion point.');
@@ -37,9 +37,11 @@ for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`
 // v229 closes legacy light/gradient surfaces nested inside matte application workspaces.
 // v230 refreshes installed clients for editor detail spacing and locale-correct automatic font labels.
 // v231 keeps Totals switches visually compact while preserving a 44px mobile/tablet hit target.
+// v232 turns the mobile Saved Items picker into one contained dialog viewport with a dedicated scrolling list.
 const releaseMarkers=[
   '// lourex-invoice-v230: editor detail polish refresh.',
-  '// lourex-invoice-v231: mobile totals switch geometry refresh.'
+  '// lourex-invoice-v231: mobile totals switch geometry refresh.',
+  '// lourex-invoice-v232: saved-items picker containment refresh.'
 ];
 for(const releaseMarker of releaseMarkers)if(!sw.includes(releaseMarker))sw=`${releaseMarker}\n${sw}`;
 const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";
