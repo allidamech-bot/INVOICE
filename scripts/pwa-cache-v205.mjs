@@ -38,10 +38,12 @@ for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`
 // v230 refreshes installed clients for editor detail spacing and locale-correct automatic font labels.
 // v231 keeps Totals switches visually compact while preserving a 44px mobile/tablet hit target.
 // v232 turns the mobile Saved Items picker into one contained dialog viewport with a dedicated scrolling list.
+// v233 gives mobile purchase editing an exclusive focused viewport and removes passive mixed-language customer names.
 const releaseMarkers=[
   '// lourex-invoice-v230: editor detail polish refresh.',
   '// lourex-invoice-v231: mobile totals switch geometry refresh.',
-  '// lourex-invoice-v232: saved-items picker containment refresh.'
+  '// lourex-invoice-v232: saved-items picker containment refresh.',
+  '// lourex-invoice-v233: final mobile purchase and customer language closeout.'
 ];
 for(const releaseMarker of releaseMarkers)if(!sw.includes(releaseMarker))sw=`${releaseMarker}\n${sw}`;
 const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";
