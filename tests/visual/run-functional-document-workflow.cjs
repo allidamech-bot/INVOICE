@@ -45,7 +45,7 @@ const output='visual-qa-output/functional-document-workflow';
           };
         });
         assert.deepEqual(reviewSurfaces,{
-          modal:'rgb(20, 20, 20)',
+          modal:'rgb(14, 14, 14)',
           purpose:'rgb(20, 20, 20)',
           identity:'rgb(20, 20, 20)',
           total:'rgb(24, 23, 19)',
