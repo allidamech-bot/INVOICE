@@ -14,10 +14,10 @@ test('iPhone startup paints the same launch screen React uses before runtime scr
   assert.match(html,/class="brand-mark"><img src="\.\/brand\/lourex-logo\.svg" alt="LOUREX"/);
   assert.match(html,/class="brand-words"><strong>LOUREX<\/strong>/);
   assert.match(html,/class="loading-line"/);
-  assert.match(html,/linear-gradient\(145deg,#071522 0%,#0a1c2a 52%,#10283a 100%\)/);
+  assert.match(html,/linear-gradient\(145deg,#050A11 0%,#09151F 52%,#0B1723 100%\)/);
   assert.match(html,/prefers-reduced-motion:reduce/);
   assert.match(app,/if\(this\.state\.loading\)return <div className="loading-screen"><Brand logoDataUrl=\{this\.state\.publicLogo\} language=\{activeLanguage\}\/><span className="loading-line"\/><\/div>/);
-  assert.match(css,/\.loading-screen\{[\s\S]*linear-gradient\(145deg,#071522 0%,#0a1c2a 52%,#10283a 100%\)/);
+  assert.match(css,/\.loading-screen\{[\s\S]*linear-gradient\(145deg,#050A11 0%,#09151F 52%,#0B1723 100%\)/);
 });
 
 test('cloud bootstrap uses an already-restored Firebase user before the slower auth wait',async()=>{

@@ -52,10 +52,10 @@ test('v198 compacts only redundant account-entry story content on short phones',
 test('v198 dark mobile canvas remains part of the current immutable PWA generation',async()=>{
   const [html,manifestText,sw]=await Promise.all([read('index.html'),read('public/manifest.webmanifest'),read('public/sw.js')]);
   const manifest=JSON.parse(manifestText);
-  assert.match(html,/<meta name="theme-color" content="#071a25" \/>/);
-  assert.match(html,/html,body,#root\{min-height:100%;min-height:100dvh;margin:0;background:#071a25\}/);
-  assert.equal(manifest.background_color,'#071a25');
-  assert.equal(manifest.theme_color,'#071a25');
+  assert.match(html,/<meta name="theme-color" content="#07121A" \/>/);
+  assert.match(html,/html,body,#root\{min-height:100%;min-height:100dvh;margin:0;background:#07121A\}/);
+  assert.equal(manifest.background_color,'#07121A');
+  assert.equal(manifest.theme_color,'#07121A');
   assert.ok(activeCacheVersion(sw)>=198,'active PWA generation must retain or advance beyond v198');
   assert.match(sw,/lourex-invoice-v197: preserved as a legacy marker/);
   assert.ok(sw.includes("LOCAL_CORE.push('./styles/mobile-spacing-fit-v198.css');"),'v198 stylesheet must remain available to installed/offline clients');

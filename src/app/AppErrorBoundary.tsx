@@ -50,12 +50,12 @@ export class AppErrorBoundary extends React.Component<{ children?: any }, State>
 
   render(): any {
     if (!this.state.failed) return this.props.children ?? null;
-    return <main className="app-recovery" dir={isArabic()?'rtl':'ltr'} style={{minHeight:'100dvh',display:'grid',placeItems:'center',padding:'24px',background:'#091218',color:'#EDF2F1',fontFamily:'Inter, Arial, sans-serif'}}>
-      <section role="alert" style={{width:'min(620px,100%)',background:'#101D24',border:'1px solid #30434B',borderRadius:'18px',padding:'28px',boxShadow:'0 18px 45px rgba(15,35,50,.10)'}}>
+    return <main className="app-recovery" dir={isArabic()?'rtl':'ltr'} style={{minHeight:'100dvh',display:'grid',placeItems:'center',padding:'24px',background:'radial-gradient(700px 520px at 12% 4%, rgba(83,70,216,.18), transparent 70%), linear-gradient(145deg,#050A11,#09151F)',color:'#EDF2F1',fontFamily:'Inter, Arial, sans-serif'}}>
+      <section role="alert" style={{width:'min(620px,100%)',background:'linear-gradient(145deg,rgba(17,28,42,.99),rgba(8,18,27,.99))',border:'1px solid rgba(156,172,255,.18)',borderRadius:'20px',padding:'28px',boxShadow:'0 36px 96px rgba(0,0,0,.52)'}}>
         <strong style={{display:'block',fontSize:'22px',marginBottom:'10px'}}>LOUREX Invoice</strong>
         <p style={{margin:'0 0 20px',lineHeight:1.8}}>{t('An unexpected screen error occurred. Your saved invoice data remains stored on this device.','حدث خطأ غير متوقع في الشاشة. بيانات الفواتير المحفوظة تبقى محفوظة على هذا الجهاز.')}</p>
         <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-          <button type="button" onClick={()=>window.location.reload()} style={{minHeight:'44px',padding:'0 18px',border:0,borderRadius:'10px',background:'#0b1d2d',color:'#fff',fontWeight:700,cursor:'pointer'}}>{t('Reload LOUREX','إعادة التحميل')}</button>
+          <button type="button" onClick={()=>window.location.reload()} style={{minHeight:'44px',padding:'0 18px',border:'1px solid rgba(171,177,255,.46)',borderRadius:'10px',background:'linear-gradient(135deg,#6958EA,#456EDD 50%,#2F82C9)',color:'#fff',fontWeight:700,cursor:'pointer',boxShadow:'0 12px 30px rgba(65,72,205,.28)'}}>{t('Reload LOUREX','إعادة التحميل')}</button>
           <button type="button" onClick={()=>void this.copyDiagnostics()} style={{minHeight:'44px',padding:'0 18px',border:'1px solid #30434B',borderRadius:'10px',background:'#101D24',color:'#EDF2F1',fontWeight:700,cursor:'pointer'}}>{this.state.copied?t('Copied','تم النسخ'):t('Copy diagnostics','نسخ التشخيص')}</button>
           <button type="button" onClick={()=>{window.location.href='./health.html';}} style={{minHeight:'44px',padding:'0 18px',border:'1px solid #30434B',borderRadius:'10px',background:'#101D24',color:'#EDF2F1',fontWeight:700,cursor:'pointer'}}>{t('System health','صحة النظام')}</button>
         </div>

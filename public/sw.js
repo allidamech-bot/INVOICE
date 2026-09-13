@@ -1,3 +1,4 @@
+// v225 Luminous Noir continuity — recache launch, diagnostics, update and iPhone output surfaces.
 // v224 Luminous Noir — recache the unified premium dark application art direction.
 // v220 dark surface continuity — recache cloud conflict and final-review surfaces.
 // v219 editor continuity — recache the durable guard against automatic reloads while editing.
