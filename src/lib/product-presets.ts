@@ -101,15 +101,15 @@ function displayNames(locale:string,type:'region'|'currency'):Intl.DisplayNames|
 }
 
 export function unitChoices(arabic:boolean):PresetChoice[]{
-  return UNIT_CHOICES.map(choice=>({value:choice.value,label:arabic?`${choice.ar} — ${choice.value}`:`${choice.en} — ${choice.value}`}));
+  return UNIT_CHOICES.map(choice=>({value:choice.value,label:arabic?choice.ar:choice.en}));
 }
 
 export function packingTypeChoices(arabic:boolean):PresetChoice[]{
-  return PACKING_TYPE_CHOICES.map(choice=>({value:choice.value,label:arabic?`${choice.ar} — ${choice.value}`:choice.en}));
+  return PACKING_TYPE_CHOICES.map(choice=>({value:choice.value,label:arabic?choice.ar:choice.en}));
 }
 
 export function categoryChoices(arabic:boolean):PresetChoice[]{
-  return CATEGORY_CHOICES.map(choice=>({value:choice.value,label:arabic?`${choice.ar} — ${choice.value}`:choice.en}));
+  return CATEGORY_CHOICES.map(choice=>({value:choice.value,label:arabic?choice.ar:choice.en}));
 }
 
 export function currencyChoices(arabic:boolean):PresetChoice[]{
@@ -146,7 +146,7 @@ export function countryChoices(arabic:boolean):PresetChoice[]{
   const choices=REGION_CODES.map(code=>{
     const english=en?.of(code)||code;
     const local=ui?.of(code)||english;
-    return {value:english,label:arabic?`${local} — ${english}`:english,code};
+    return {value:english,label:local,code};
   }).sort((a,b)=>{
     const ap=preferred.has(a.code),bp=preferred.has(b.code);
     if(ap!==bp)return ap?-1:1;
