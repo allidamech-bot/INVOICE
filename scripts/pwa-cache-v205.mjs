@@ -48,6 +48,7 @@ for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`
 // v240 protects deliberate Lock from discarding unsaved inline data-entry state while automatic inactivity locking remains enforced.
 // v241 width-fits the full A4 mobile preview on narrow phones without changing the printable document geometry.
 // v242 restores the Matte Black Operations tab strip on phones after the legacy UX recovery override.
+// v243 contains the Inventory workspace and Manual Movement action inside narrow phone viewports while preserving the ledger's internal horizontal scroll.
 const releaseMarkers=[
   '// lourex-invoice-v230: editor detail polish refresh.',
   '// lourex-invoice-v231: mobile totals switch geometry refresh.',
@@ -61,7 +62,8 @@ const releaseMarkers=[
   '// lourex-invoice-v239: operations locale purity refresh.',
   '// lourex-invoice-v240: manual lock draft safety refresh.',
   '// lourex-invoice-v241: narrow mobile A4 preview fit refresh.',
-  '// lourex-invoice-v242: mobile Operations matte tabs refresh.'
+  '// lourex-invoice-v242: mobile Operations matte tabs refresh.',
+  '// lourex-invoice-v243: inventory mobile containment refresh.'
 ];
 for(const releaseMarker of releaseMarkers)if(!sw.includes(releaseMarker))sw=`${releaseMarker}\n${sw}`;
 const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";

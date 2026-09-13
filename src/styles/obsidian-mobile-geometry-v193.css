@@ -49,7 +49,11 @@
   .app-ui .purchase-item-title,
   .app-ui .purchase-item-grid,
   .app-ui .purchase-total-strip,
-  .app-ui .operations-editor-actions{
+  .app-ui .operations-editor-actions,
+  .app-ui .inventory-workspace,
+  .app-ui .inventory-balances,
+  .app-ui .inventory-entry,
+  .app-ui .inventory-history{
     min-width:0!important;
     max-width:100%!important;
     box-sizing:border-box!important;
@@ -59,10 +63,17 @@
     overflow-x:clip!important;
   }
   .app-ui .operations-split,
-  .app-ui .purchase-layout{
+  .app-ui .purchase-layout,
+  .app-ui .inventory-workspace{
     display:grid!important;
     grid-template-columns:minmax(0,1fr)!important;
     gap:10px!important;
+    width:100%!important;
+  }
+  .app-ui .inventory-entry>.btn{
+    box-sizing:border-box!important;
+    min-width:0!important;
+    max-width:100%!important;
     width:100%!important;
   }
   .app-ui .purchase-layout:has(.purchase-editor) .operations-list-panel{display:none!important}

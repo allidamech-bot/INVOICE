@@ -27,6 +27,25 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
    const geometry=await locator.evaluate(el=>{const r=el.getBoundingClientRect(),x=Math.min(innerWidth-1,Math.max(0,r.x+r.width/2)),y=Math.min(innerHeight-1,Math.max(0,r.y+r.height/2)),hit=document.elementFromPoint(x,y);return {ok:r.top>=-1&&r.bottom<=innerHeight+1&&r.left>=-1&&r.right<=innerWidth+1&&Boolean(hit&&(el===hit||el.contains(hit))),rect:r.toJSON(),hit:hit?.className,viewport:{width:innerWidth,height:innerHeight}};});
    assert.equal(geometry.ok,true,'action clipped or covered '+JSON.stringify(geometry));
   };
+  const auditInventoryContainment=async()=>{
+   if(viewport.width>720)return;
+   const geometry=await page.evaluate(()=>{
+    const workspace=document.querySelector('.inventory-workspace');
+    const balances=document.querySelector('.inventory-balances');
+    const entry=document.querySelector('.inventory-entry');
+    const action=document.querySelector('.inventory-entry>.btn');
+    if(!workspace||!balances||!entry||!action)return {error:'inventory containment nodes missing'};
+    const rect=el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,width:r.width};};
+    return {workspace:rect(workspace),balances:rect(balances),entry:rect(entry),action:rect(action),pageScrollWidth:document.documentElement.scrollWidth,viewport:innerWidth};
+   });
+   assert.equal(geometry.error,undefined,JSON.stringify(geometry));
+   assert.ok(geometry.pageScrollWidth<=geometry.viewport+1,'inventory workspace expands the phone page '+JSON.stringify(geometry));
+   for(const key of ['workspace','balances','entry','action']){
+    const box=geometry[key];
+    assert.ok(box.left>=-1&&box.right<=geometry.viewport+1&&box.width<=geometry.viewport+1,`${key} escapes phone width `+JSON.stringify(geometry));
+   }
+   assert.ok(geometry.action.left>=geometry.entry.left-1&&geometry.action.right<=geometry.entry.right+1,'inventory action escapes Manual Movement card '+JSON.stringify(geometry));
+  };
   const auditPurchaseEditor=async()=>{
    if(viewport.width>720)return;
    const geometry=await page.evaluate(()=>{
@@ -85,7 +104,9 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
     await page.locator('.operations-summary').waitFor();await audit('.operations-page');await shot('suppliers');
     const tabs={purchases:'#operations-tab-purchases',expenses:'#operations-tab-expenses',inventory:'#operations-tab-inventory'};
     for(const [state,selector] of Object.entries(tabs)){
-     const tab=page.locator(selector);await reachable(tab);await tab.click();await page.locator(`#operations-panel-${state}`).waitFor();await audit('.operations-page');await shot(state);
+     const tab=page.locator(selector);await reachable(tab);await tab.click();await page.locator(`#operations-panel-${state}`).waitFor();await audit('.operations-page');
+     if(state==='inventory')await auditInventoryContainment();
+     await shot(state);
     }
     await page.locator('#operations-tab-purchases').click();const purchaseRow=page.locator('.purchase-row').first();await purchaseRow.waitFor();
     const view=purchaseRow.locator('.row-actions button').first();await reachable(view);await view.click();await page.locator('.purchase-editor').waitFor();await audit('.operations-page');await auditPurchaseEditor();
