@@ -84,6 +84,18 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
             assert.ok(await page.locator('.device-security-section').count()===1,'device security controls missing');
             assert.equal(await page.locator('.settings-signout-button').count(),0,'Sign out belongs under Account, not Settings');
             assert.equal(await page.locator('.account-profile-page').count(),0,'Account profile must remain outside Security settings');
+
+            const restoreName=lang==='ar'?'استرجاع من السحابة':'Restore from Cloud';
+            await page.locator('.settings-recovery-card').getByRole('button',{name:restoreName}).click();
+            const restoreActions=page.getByRole('button',{name:restoreName});
+            assert.ok(await restoreActions.count()>=2,'cloud restore confirmation action missing');
+            await restoreActions.last().click();
+            await page.waitForFunction(()=>window.cloudRestoreObserved?.called===true);
+            const restoreObservation=await page.evaluate(()=>window.cloudRestoreObserved);
+            assert.equal(restoreObservation.safe,true,'Settings did not expose the explicit safe cloud-account panel before restore');
+            assert.equal(await page.locator('.settings-workspace-v2.cloud-account-panel').count(),1,'cloud-account-panel marker missing during restore');
+            const selfBlocked=await page.locator('.settings-message.error').filter({hasText:/Close the open editor or dialog|أغلق.*المحرر|أغلق.*مربع/}).count();
+            assert.equal(selfBlocked,0,'Restore from Cloud blocked itself because Settings is open');
           }
         }
       }catch(error){failures.push(String(error));await shot('failure').catch(()=>{});}
