@@ -33,6 +33,7 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
     const selectors=['.operations-page','.purchase-layout','.purchase-editor','.purchase-item','.operations-editor-actions'];
     const clipped=[];
     for(const selector of selectors){for(const el of document.querySelectorAll(selector)){const r=el.getBoundingClientRect(),s=getComputedStyle(el);if(s.display==='none'||!r.width||!r.height)continue;if(r.left<-1||r.right>innerWidth+1||r.width>innerWidth+1)clipped.push({selector,left:r.left,right:r.right,width:r.width});}}
+    const display=selector=>{const el=document.querySelector(selector);return el?getComputedStyle(el).display:null;};
     const list=document.querySelector('.purchase-layout .operations-list-panel');const nav=document.querySelector('.mobile-bottom-nav');const navStyle=nav?getComputedStyle(nav):null;
     const actions=document.querySelector('.purchase-editor .operations-editor-actions'),actionRect=actions?.getBoundingClientRect();
     const covered=[];
@@ -42,13 +43,28 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
       if(r.left<actionRect.right&&r.right>actionRect.left&&r.top<actionRect.bottom&&r.bottom>actionRect.top)covered.push({tag:control.tagName,label:control.closest('label')?.textContent?.trim().slice(0,40),rect:r.toJSON()});
      }
     }
-    return {pageScrollWidth:document.documentElement.scrollWidth,clipped,covered,listDisplay:list?getComputedStyle(list).display:null,nav:navStyle?{display:navStyle.display,visibility:navStyle.visibility,opacity:navStyle.opacity}:null,viewport:innerWidth};
+    return {
+     pageScrollWidth:document.documentElement.scrollWidth,
+     clipped,
+     covered,
+     listDisplay:list?getComputedStyle(list).display:null,
+     nav:navStyle?{display:navStyle.display,visibility:navStyle.visibility,opacity:navStyle.opacity}:null,
+     topbarDisplay:display('.workspace-topbar'),
+     heroDisplay:display('.operations-page > .operations-hero'),
+     summaryDisplay:display('.operations-page > .operations-summary'),
+     tabsDisplay:display('.operations-page > .operations-tabs'),
+     viewport:innerWidth
+    };
    });
    assert.ok(geometry.pageScrollWidth<=viewport.width+1,'purchase workspace causes page overflow '+JSON.stringify(geometry));
    assert.deepEqual(geometry.clipped,[],'purchase editor clips outside phone viewport '+JSON.stringify(geometry));
    assert.deepEqual(geometry.covered,[],'purchase action bar covers editable fields '+JSON.stringify(geometry));
    assert.equal(geometry.listDisplay,'none','purchase list should leave the phone viewport while editor is focused '+JSON.stringify(geometry));
    if(geometry.nav)assert.ok(geometry.nav.display==='none'||geometry.nav.visibility==='hidden'||geometry.nav.opacity==='0','mobile nav covers purchase editor '+JSON.stringify(geometry));
+   assert.ok(geometry.topbarDisplay===null||geometry.topbarDisplay==='none','purchase shell topbar must leave focused phone editor '+JSON.stringify(geometry));
+   assert.ok(geometry.heroDisplay===null||geometry.heroDisplay==='none','operations overview must leave focused purchase editor '+JSON.stringify(geometry));
+   assert.ok(geometry.summaryDisplay===null||geometry.summaryDisplay==='none','operations summary must leave focused purchase editor '+JSON.stringify(geometry));
+   assert.ok(geometry.tabsDisplay===null||geometry.tabsDisplay==='none','operations tabs must leave focused purchase editor '+JSON.stringify(geometry));
   };
   try{
    await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-financial.html?lang=${lang}&screen=${screen}`,{waitUntil:'load'});await page.evaluate(()=>document.fonts.ready);
