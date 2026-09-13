@@ -1,0 +1,239 @@
+/* v224 — LOUREX Luminous Noir.
+   A premium, dark-only application art direction built for long mobile work.
+   This file never styles printable invoice/quotation pages. */
+@media screen {
+  .app-ui{
+    --ds-accent:#5346D8;
+    --ds-accent-hover:#6558E8;
+    --ds-accent-bright:#9CACFF;
+    --ds-selected:#20263D;
+    --ds-financial-surface:#182231;
+    --ds-brass:#C69A52;
+    --ds-brass-highlight:#E2C27F;
+    --ds-line:#293746;
+    --ds-line-strong:#3A4960;
+    --ds-input-line:#304052;
+    --ds-focus-line:#8C91FF;
+    --ds-secondary-button:#18212D;
+    --ds-focus:0 0 0 3px rgba(124,115,255,.22);
+    --ds-shadow-card:0 16px 38px rgba(0,0,0,.16);
+    --ds-shadow-raised:0 24px 64px rgba(0,0,0,.42),0 1px 0 rgba(255,255,255,.035) inset;
+    background-color:var(--ds-canvas)!important;
+    background-image:
+      radial-gradient(760px 560px at 88% -12%,rgba(83,70,216,.13),transparent 68%),
+      radial-gradient(650px 520px at -8% 92%,rgba(44,119,203,.08),transparent 70%)!important;
+  }
+
+  .app-ui .workspace-shell{
+    background-color:var(--ds-canvas)!important;
+    background-image:
+      radial-gradient(720px 520px at 93% 0,rgba(83,70,216,.1),transparent 70%),
+      radial-gradient(640px 480px at 8% 100%,rgba(198,154,82,.045),transparent 74%)!important;
+  }
+  .app-ui .workspace-sidebar{
+    border-inline-end-color:rgba(156,172,255,.12)!important;
+    background-color:var(--ds-shell)!important;
+    background-image:linear-gradient(180deg,rgba(83,70,216,.075),transparent 36%,rgba(198,154,82,.035))!important;
+    box-shadow:18px 0 56px rgba(0,0,0,.16)!important;
+  }
+  [dir='rtl'] .app-ui .workspace-sidebar{box-shadow:-18px 0 56px rgba(0,0,0,.16)!important}
+  .app-ui .workspace-topbar{
+    border-bottom-color:rgba(156,172,255,.14)!important;
+    background-color:var(--ds-workspace)!important;
+    background-image:linear-gradient(90deg,rgba(83,70,216,.055),transparent 48%,rgba(198,154,82,.025))!important;
+    box-shadow:0 12px 34px rgba(0,0,0,.14)!important;
+    backdrop-filter:blur(18px) saturate(130%);
+    -webkit-backdrop-filter:blur(18px) saturate(130%);
+  }
+
+  /* One luminous action language across desktop, mobile and editor. */
+  .app-ui :is(.btn-primary,.shell-create-button,.mobile-create-button){
+    border-color:rgba(171,177,255,.46)!important;
+    background-color:var(--ds-accent)!important;
+    background-image:linear-gradient(135deg,#6958EA 0%,#456EDD 48%,#2F82C9 100%)!important;
+    color:#fff!important;
+    box-shadow:0 12px 30px rgba(65,72,205,.28),0 1px 0 rgba(255,255,255,.18) inset!important;
+  }
+  .app-ui :is(.btn-primary,.shell-create-button,.mobile-create-button):hover:not(:disabled){
+    border-color:rgba(197,200,255,.68)!important;
+    background-color:var(--ds-accent-hover)!important;
+    background-image:linear-gradient(135deg,#7868F4 0%,#527AE8 48%,#3890D8 100%)!important;
+    box-shadow:0 16px 38px rgba(65,72,205,.36),0 1px 0 rgba(255,255,255,.2) inset!important;
+  }
+  .app-ui :is(.btn-primary,.shell-create-button,.mobile-create-button):active:not(:disabled){transform:translateY(1px)!important;filter:saturate(.94)}
+  .app-ui .mobile-create-button{border-color:var(--ds-shell)!important;box-shadow:0 14px 32px rgba(56,72,203,.4),0 0 0 4px var(--ds-shell)!important}
+
+  .app-ui :is(.shell-nav-button.active,.mobile-bottom-nav>button.active,.settings-nav-button.active,.settings-workspace-tab.active,.documents-register-tabs>button.active){
+    border-color:rgba(132,126,245,.28)!important;
+    background-color:var(--ds-selected)!important;
+    background-image:linear-gradient(105deg,rgba(105,88,234,.2),rgba(47,130,201,.07) 62%,transparent)!important;
+    color:var(--ds-text)!important;
+    box-shadow:inset 3px 0 0 #9CACFF,0 10px 24px rgba(0,0,0,.12)!important;
+  }
+  [dir='rtl'] .app-ui :is(.shell-nav-button.active,.settings-nav-button.active,.settings-workspace-tab.active){box-shadow:inset -3px 0 0 #9CACFF,0 10px 24px rgba(0,0,0,.12)!important}
+  .app-ui .mobile-bottom-nav{
+    border-top-color:rgba(156,172,255,.16)!important;
+    background-color:var(--ds-shell)!important;
+    background-image:linear-gradient(180deg,rgba(35,42,66,.72),rgba(6,13,18,.98) 38%)!important;
+    box-shadow:0 -18px 42px rgba(0,0,0,.3)!important;
+    backdrop-filter:blur(18px) saturate(135%);
+    -webkit-backdrop-filter:blur(18px) saturate(135%);
+  }
+
+  /* Tactile dark controls without the old flat teal wash. */
+  .app-ui :is(.input,select.input,textarea.input,.textarea){
+    border-color:var(--ds-input-line)!important;
+    background-color:var(--ds-input)!important;
+    background-image:linear-gradient(180deg,rgba(255,255,255,.018),transparent)!important;
+    color:var(--ds-text)!important;
+    box-shadow:0 1px 0 rgba(255,255,255,.025) inset,0 8px 20px rgba(0,0,0,.07)!important;
+  }
+  .app-ui :is(.input,select.input,textarea.input,.textarea):focus{
+    border-color:var(--ds-focus-line)!important;
+    background-color:var(--ds-input)!important;
+    box-shadow:var(--ds-focus),0 10px 28px rgba(0,0,0,.14)!important;
+  }
+  .app-ui :is(.btn,.icon-btn):not(.btn-primary):not(.btn-danger){
+    background-color:var(--ds-secondary-button);
+    background-image:linear-gradient(180deg,rgba(255,255,255,.028),transparent);
+  }
+
+  /* Premium surface hierarchy. Background-color remains explicit so offline and
+     reduced-transparency modes still have a fully dark canvas. */
+  .app-ui :is(
+    .dashboard-kpis,.dashboard-panel,.documents-command,.documents-register,
+    .documents-resume,.document-detail-hero,.document-detail-card,
+    .premium-customer-list,.customer-form-section,.product-library-body,
+    .product-library-commandbar,.reports-panel,.reports-filter-panel,
+    .aging-panel,.receivable-accounts-panel,.operations-list-panel,.operations-editor,
+    .settings-section,.settings-workspace-card,.account-security-card,
+    .editor-section,.premium-item-card,.modal
+  ){
+    border-color:rgba(123,140,166,.28)!important;
+    background-color:var(--ds-surface)!important;
+    background-image:linear-gradient(145deg,rgba(255,255,255,.028),transparent 42%,rgba(83,70,216,.035))!important;
+    box-shadow:var(--ds-shadow-card)!important;
+  }
+  .app-ui :is(
+    .dashboard-panel,.documents-register,.document-detail-card,.premium-customer-list,
+    .product-library-body,.reports-panel,.aging-panel,.receivable-accounts-panel,
+    .operations-list-panel,.operations-editor,.settings-section,.editor-section
+  ){box-shadow:0 1px 0 rgba(255,255,255,.025) inset,0 18px 48px rgba(0,0,0,.12)!important}
+
+  .app-ui .dashboard-hero{position:relative;isolation:isolate;padding-block:10px 28px!important}
+  .app-ui .dashboard-hero::before{
+    content:"";position:absolute;z-index:-1;inset:-28px -26px 4px;border-radius:30px;pointer-events:none;
+    background:radial-gradient(520px 180px at 14% 10%,rgba(83,70,216,.13),transparent 72%),radial-gradient(400px 180px at 88% 20%,rgba(198,154,82,.055),transparent 74%);
+  }
+  .app-ui .dashboard-hero::after{
+    content:"";position:absolute;inset:auto 0 0;width:min(180px,42%);height:2px;border-radius:99px;
+    background:linear-gradient(90deg,#E2C27F,#6958EA,transparent);opacity:.82;
+  }
+  [dir='rtl'] .app-ui .dashboard-hero::after{inset-inline-start:auto;inset-inline-end:0;background:linear-gradient(270deg,#E2C27F,#6958EA,transparent)}
+  .app-ui .workspace-home-eyebrow,
+  .app-ui :is(.page-heading,.reports-heading,.receivables-heading,.operations-hero) .eyebrow{color:var(--ds-brass-highlight)!important}
+
+  .app-ui .dashboard-kpis{background-color:var(--ds-surface)!important;background-image:linear-gradient(110deg,rgba(83,70,216,.07),transparent 44%,rgba(198,154,82,.035))!important;box-shadow:0 24px 60px rgba(0,0,0,.18)!important}
+  .app-ui .dashboard-kpis>button{position:relative;overflow:hidden;background-color:transparent!important;background-image:none!important}
+  .app-ui .dashboard-kpis>button::after{content:"";position:absolute;inset:auto 12px 0;height:1px;border-radius:99px;opacity:.75;background:linear-gradient(90deg,transparent,rgba(156,172,255,.56),transparent)}
+  .app-ui .dashboard-kpis>button:hover{background-color:var(--ds-selected)!important;background-image:linear-gradient(145deg,rgba(105,88,234,.18),rgba(47,130,201,.05))!important}
+  .app-ui .dashboard-kpi-icon,
+  .app-ui .dashboard-document-kind,
+  .app-ui .documents-resume .resume-icon,
+  .app-ui .documents-empty .empty-mark,
+  .app-ui .customer-avatar{
+    border:1px solid rgba(156,172,255,.2)!important;
+    background-color:#1A2138!important;
+    background-image:linear-gradient(145deg,rgba(105,88,234,.3),rgba(47,130,201,.1))!important;
+    color:#B8C2FF!important;
+    box-shadow:0 9px 22px rgba(0,0,0,.18)!important;
+  }
+  .app-ui .dashboard-document-kind.kind-proforma,
+  .app-ui .document-detail-kind-icon{
+    border-color:rgba(226,194,127,.24)!important;
+    background-color:#2A241B!important;
+    background-image:linear-gradient(145deg,rgba(198,154,82,.22),rgba(198,154,82,.045))!important;
+    color:var(--ds-brass-highlight)!important;
+  }
+
+  .app-ui :is(.dashboard-document-row,.documents-register-row,.premium-customer-card,.product-library-row,.receivable-account-row):hover{
+    background-color:var(--ds-selected)!important;
+    background-image:linear-gradient(90deg,rgba(105,88,234,.12),rgba(47,130,201,.035),transparent)!important;
+  }
+  .app-ui .editor-totals .grand,
+  .app-ui .issue-total-check,
+  .app-ui .document-detail-totals .grand{
+    border-color:rgba(226,194,127,.24)!important;
+    background-color:var(--ds-financial-surface)!important;
+    background-image:linear-gradient(125deg,rgba(198,154,82,.12),rgba(83,70,216,.08) 68%,transparent)!important;
+  }
+  .app-ui :is(.editor-totals .grand,.issue-total-check,.document-detail-totals .grand) strong{color:#F1D799!important}
+
+  /* All overlays are dark glass, including recovery, review and action sheets. */
+  .app-ui .modal-backdrop{background:rgba(2,4,9,.78)!important;backdrop-filter:blur(20px) saturate(120%)!important;-webkit-backdrop-filter:blur(20px) saturate(120%)!important}
+  .app-ui .modal{
+    border-color:rgba(156,172,255,.18)!important;
+    background-color:var(--ds-workspace)!important;
+    background-image:linear-gradient(145deg,rgba(83,70,216,.09),transparent 34%),linear-gradient(180deg,rgba(255,255,255,.03),transparent)!important;
+    box-shadow:0 40px 110px rgba(0,0,0,.62),0 1px 0 rgba(255,255,255,.055) inset!important;
+  }
+  .app-ui :is(.modal-header,.modal-footer-actions,.product-library-editor-actions,.operations-editor-actions){border-color:rgba(123,140,166,.24)!important;background-color:rgba(16,29,36,.94)!important;background-image:linear-gradient(90deg,rgba(83,70,216,.055),transparent)!important}
+  .app-ui :is(.mobile-more-sheet,.mobile-document-action-sheet,.document-action-popover,.shell-new-menu,.customer-dropdown){
+    border-color:rgba(156,172,255,.2)!important;
+    background-color:var(--ds-surface)!important;
+    background-image:linear-gradient(145deg,rgba(83,70,216,.1),transparent 38%),linear-gradient(180deg,rgba(255,255,255,.025),transparent)!important;
+    box-shadow:var(--ds-shadow-raised)!important;
+  }
+
+  .app-ui :is(.issue-review-purpose,.issue-review-grid>div,.issue-asset-checks>span,.cloud-conflict-banner,.cloud-conflict-recovery){box-shadow:0 10px 26px rgba(0,0,0,.12)!important}
+  .app-ui :is(.cloud-conflict-banner,.cloud-conflict-recovery){background-color:#20151B!important;background-image:linear-gradient(135deg,rgba(199,90,87,.18),rgba(83,70,216,.055) 58%,transparent)!important}
+  .app-ui .cloud-conflict-icon{background:#321C24!important}
+  .app-ui .issue-review-purpose,
+  .app-ui .issue-review-grid>div{background-color:var(--ds-surface)!important;background-image:linear-gradient(145deg,rgba(255,255,255,.025),rgba(83,70,216,.035))!important}
+  .app-ui .issue-asset-checks>span{background-color:var(--ds-input)!important;background-image:none!important}
+  .app-ui .issue-asset-checks>span.ok{background-color:#122B26!important;background-image:linear-gradient(135deg,rgba(54,167,121,.13),transparent)!important}
+  .app-ui .issue-warning{background-color:#2B2216!important;background-image:linear-gradient(135deg,rgba(209,154,69,.13),transparent)!important}
+  .app-ui .issue-warning.level-info{background-color:#171D31!important;background-image:linear-gradient(135deg,rgba(83,70,216,.14),transparent)!important;color:#C3CAFF!important}
+
+  /* Status colours communicate meaning; they are no longer used as decoration. */
+  .app-ui :is(.state-synced,.status-paid,.collection-paid,.issue-clean,.issue-review-status){color:#8BE0BD!important}
+  .app-ui :is(.state-syncing,.state-queued,.status-pending){color:#F0C979!important}
+  .app-ui :is(.state-error,.status-overdue,.collection-overdue){color:#FF9A92!important}
+  .app-ui :is(.document-kind-pill.kind-invoice,.document-status-pill.status-final,.document-status-pill.status-ready,.collection-partially-paid,.dashboard-document-status.status-issued,.dashboard-document-status.status-partial){
+    border-color:rgba(132,126,245,.36)!important;background-color:rgba(83,70,216,.12)!important;color:#B8C2FF!important
+  }
+
+  /* Sign-in joins the same visual world instead of opening on a separate palette. */
+  .auth-account-page{
+    background-color:#07121A!important;
+    background-image:radial-gradient(720px 540px at 14% 4%,rgba(83,70,216,.2),transparent 70%),radial-gradient(620px 520px at 92% 94%,rgba(47,130,201,.12),transparent 74%),linear-gradient(145deg,#050A11,#09151F)!important;
+  }
+  .auth-account-frame{border-color:rgba(156,172,255,.16)!important;box-shadow:0 44px 120px rgba(0,0,0,.52),0 1px 0 rgba(255,255,255,.05) inset!important}
+  .auth-account-story{background-color:#0B1723!important;background-image:radial-gradient(520px 390px at 8% 6%,rgba(105,88,234,.23),transparent 72%),linear-gradient(155deg,rgba(16,30,48,.98),rgba(7,20,31,.99))!important}
+  .auth-account-story::before{background:radial-gradient(circle,rgba(83,70,216,.2),rgba(83,70,216,0) 68%)!important}
+  .auth-account-card.account-first-card{background-color:#0B151F!important;background-image:linear-gradient(180deg,rgba(17,28,42,.99),rgba(8,18,27,.99))!important}
+  .auth-account-card .account-entry-tabs{border-color:rgba(156,172,255,.14)!important;background:#0A121D!important}
+  .auth-account-card .account-entry-tabs button.active{background-color:#20263D!important;background-image:linear-gradient(135deg,rgba(105,88,234,.24),rgba(47,130,201,.08))!important;color:#F5F4FF!important;box-shadow:0 10px 26px rgba(0,0,0,.22),0 0 0 1px rgba(156,172,255,.11) inset!important}
+  .auth-account-card .account-entry-fields input{border-color:#334257!important;background:#0A121D!important;caret-color:#AEB8FF!important}
+  .auth-account-card .account-entry-fields input:focus{border-color:#8C91FF!important;background:#0C1522!important;box-shadow:0 0 0 3px rgba(124,115,255,.2)!important}
+  .auth-account-card .premium-auth-primary{border-color:rgba(189,194,255,.46)!important;background-color:#5346D8!important;background-image:linear-gradient(135deg,#6958EA,#456EDD 50%,#2F82C9)!important;color:#fff!important;box-shadow:0 16px 38px rgba(65,72,205,.3)!important}
+  .auth-account-card .google-auth-button{border-color:rgba(156,172,255,.2)!important;background-color:#121B28!important;background-image:linear-gradient(180deg,rgba(255,255,255,.035),transparent)!important;color:#F1F3F7!important;box-shadow:0 12px 30px rgba(0,0,0,.2)!important}
+  .auth-account-card .google-auth-button:hover:not(:disabled){border-color:rgba(156,172,255,.42)!important;background-color:#182236!important;background-image:linear-gradient(135deg,rgba(105,88,234,.14),rgba(47,130,201,.05))!important}
+  .auth-account-card .google-auth-mark{box-shadow:0 0 0 3px #121B28 inset!important}
+  .auth-trust-mark{background:linear-gradient(90deg,#E2C27F,#6958EA,#4F9EEA)!important}
+  .auth-security-dot{background:#8F9CFF!important;box-shadow:0 0 0 4px rgba(124,115,255,.12),0 0 18px rgba(124,115,255,.4)!important}
+
+  @media(max-width:720px){
+    .app-ui .dashboard-hero{padding-block:2px 22px!important}
+    .app-ui .dashboard-hero::before{inset:-18px -12px 2px;border-radius:24px}
+    .app-ui .dashboard-kpis{box-shadow:0 16px 38px rgba(0,0,0,.2)!important}
+    .app-ui .dashboard-kpis>button::after{inset-inline:9px}
+    .app-ui :is(.dashboard-panel,.documents-register,.document-detail-card,.premium-customer-list,.editor-section){box-shadow:0 12px 30px rgba(0,0,0,.12)!important}
+    .app-ui .modal{box-shadow:0 -20px 70px rgba(0,0,0,.58),0 1px 0 rgba(255,255,255,.05) inset!important}
+    .auth-account-story{background-image:radial-gradient(440px 240px at 8% 0,rgba(83,70,216,.22),transparent 74%),linear-gradient(155deg,#101E31,#081622)!important}
+  }
+
+  @media(prefers-reduced-motion:reduce){
+    .app-ui :is(.btn,.icon-btn,.dashboard-kpi,.dashboard-document-row,.documents-register-row,.premium-customer-card,.product-library-row){transition:none!important}
+  }
+}

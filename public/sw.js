@@ -1,3 +1,4 @@
+// v224 Luminous Noir — recache the unified premium dark application art direction.
 // v220 dark surface continuity — recache cloud conflict and final-review surfaces.
 // v219 editor continuity — recache the durable guard against automatic reloads while editing.
 // v218 cloud coalescing — recache the quieter full-vault Firebase publication policy.
@@ -119,6 +120,7 @@ LOCAL_CORE.push('./styles/mobile-spacing-fit-v198.css');
 LOCAL_CORE.push('./styles/mobile-safari-chrome-v199.css');
 LOCAL_CORE.push('./styles/save-reliability-v217.css');
 LOCAL_CORE.push('./styles/dark-surface-continuity-v220.css');
+LOCAL_CORE.push('./styles/luminous-noir-v224.css');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
