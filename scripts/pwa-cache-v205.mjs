@@ -43,6 +43,7 @@ for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`
 // v235 blocks automatic remote-cloud replacement while an unsafe data-entry workspace is open.
 // v236 restores live inactivity locking and background-resume expiry enforcement.
 // v237 keeps financial report identities and CSV exports in the active UI language.
+// v238 keeps receivables search bilingual while rendering only the active-language customer identity.
 const releaseMarkers=[
   '// lourex-invoice-v230: editor detail polish refresh.',
   '// lourex-invoice-v231: mobile totals switch geometry refresh.',
@@ -51,7 +52,8 @@ const releaseMarkers=[
   '// lourex-invoice-v234: focused mobile purchase editing refresh.',
   '// lourex-invoice-v235: guarded cloud replacement refresh.',
   '// lourex-invoice-v236: live inactivity lock refresh.',
-  '// lourex-invoice-v237: reports locale purity refresh.'
+  '// lourex-invoice-v237: reports locale purity refresh.',
+  '// lourex-invoice-v238: receivables bilingual search refresh.'
 ];
 for(const releaseMarker of releaseMarkers)if(!sw.includes(releaseMarker))sw=`${releaseMarker}\n${sw}`;
 const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";
