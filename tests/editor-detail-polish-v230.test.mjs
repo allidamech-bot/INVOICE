@@ -20,9 +20,13 @@ test('v230 product preset labels stay in the active UI language while stored val
   assert.deepEqual(unitChoices(true).find(choice=>choice.value==='Unit'),{value:'Unit',label:'وحدة'});
   assert.deepEqual(packingTypeChoices(true).find(choice=>choice.value==='Carton'),{value:'Carton',label:'كرتون'});
   assert.deepEqual(categoryChoices(true).find(choice=>choice.value==='Energy Drinks'),{value:'Energy Drinks',label:'مشروبات طاقة'});
-  const turkey=countryChoices(true).find(choice=>choice.value==='Turkey');
-  assert.ok(turkey);
-  assert.ok(!turkey.label.includes(' — Turkey'),`Arabic country label must not append English: ${turkey.label}`);
+  const englishCountries=countryChoices(false);
+  const arabicCountries=countryChoices(true);
+  const preferredCountry=englishCountries[0];
+  assert.ok(preferredCountry);
+  const localizedCountry=arabicCountries.find(choice=>choice.value===preferredCountry.value);
+  assert.ok(localizedCountry);
+  assert.ok(!localizedCountry.label.includes(` — ${preferredCountry.value}`),`Arabic country label must not append English: ${localizedCountry.label}`);
 });
 
 test('v230 keeps the automatic design label separated from its explanatory copy',async()=>{
