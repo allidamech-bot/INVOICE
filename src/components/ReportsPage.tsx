@@ -12,7 +12,16 @@ interface State{from:string;to:string;currency:string;query:string;}
 function startOfMonth(today:string):string{return `${today.slice(0,7)}-01`;}
 function startOfQuarter(today:string):string{const year=today.slice(0,4);const month=Number(today.slice(5,7));const start=Math.floor((month-1)/3)*3+1;return `${year}-${String(start).padStart(2,'0')}-01`;}
 function monthLabel(month:string):string{const [year,rawMonth]=month.split('-');const date=new Date(Date.UTC(Number(year),Number(rawMonth)-1,1));try{return new Intl.DateTimeFormat(getUiLanguage()==='ar'?'ar-EG':'en-US',{month:'short',year:'numeric',timeZone:'UTC',calendar:'gregory'}).format(date);}catch{return month;}}
-function customerDisplay(row:CustomerPerformanceRow):string{return row.customerName||t('Unassigned customer','عميل غير محدد');}
+function customerDisplay(row:CustomerPerformanceRow,customers:Customer[]):string{
+  const customer=customers.find(item=>item.id===row.customerId);
+  const live=customer?(getUiLanguage()==='ar'?(customer.companyNameAr||customer.companyNameEn):(customer.companyNameEn||customer.companyNameAr)).trim():'';
+  return live||row.customerName||t('Unassigned customer','عميل غير محدد');
+}
+function customerSearchText(row:CustomerPerformanceRow,customers:Customer[]):string{
+  const customer=customers.find(item=>item.id===row.customerId);
+  return [customerDisplay(row,customers),row.customerName,customer?.companyNameEn,customer?.companyNameAr].filter(Boolean).join(' ').toLocaleLowerCase();
+}
+function companyDisplayName(company:CompanySettings):string{return (getUiLanguage()==='ar'?(company.nameAr||company.nameEn):(company.nameEn||company.nameAr)||'LOUREX').trim()||'LOUREX';}
 function filterDateLabel(value:string):string{return value?displayDate(value,getUiLanguage()):t('All dates','كل التواريخ');}
 const CSV_NUMBER=/^-?(?:\d+|\d*\.\d+)$/;
 function csvCell(value:string|number):string{
@@ -41,8 +50,8 @@ export class ReportsPage extends React.Component<Props,State>{
   private print=()=>{document.body.classList.add('printing-financial-report');window.setTimeout(()=>window.print(),40);};
 
   private exportCsv=(rows:CustomerPerformanceRow[])=>{
-    const headers=['Currency','Customer','Net Sales','Gross Profit','Margin %','Collected','Outstanding','Overdue','Invoices','Credit Notes','Profit Complete'];
-    const lines=[headers,...rows.map(row=>[row.currency,row.customerName,row.netSales,row.grossProfit,row.marginPercent,row.collected,row.outstanding,row.overdue,row.issuedInvoices,row.creditNotes,row.profitComplete?'Yes':'No'])].map(row=>row.map(csvCell).join(','));
+    const headers=[t('Currency','العملة'),t('Customer','العميل'),t('Net Sales','صافي المبيعات'),t('Gross Profit','الربح الإجمالي'),t('Margin %','الهامش %'),t('Collected','المحصّل'),t('Outstanding','المتبقي'),t('Overdue','المتأخر'),t('Invoices','الفواتير'),t('Credit Notes','الإشعارات الدائنة'),t('Profit Complete','اكتمال الربحية')];
+    const lines=[headers,...rows.map(row=>[row.currency,customerDisplay(row,this.props.customers),row.netSales,row.grossProfit,row.marginPercent,row.collected,row.outstanding,row.overdue,row.issuedInvoices,row.creditNotes,row.profitComplete?t('Yes','نعم'):t('No','لا')])].map(row=>row.map(csvCell).join(','));
     const blob=new Blob([`\uFEFF${lines.join('\r\n')}`],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download=`LOUREX-Financial-Report-${this.state.from||'all'}-${this.state.to||todayIso()}.csv`;document.body.appendChild(anchor);anchor.click();anchor.remove();window.setTimeout(()=>URL.revokeObjectURL(url),500);
   };
 
@@ -55,7 +64,7 @@ export class ReportsPage extends React.Component<Props,State>{
     const selected=this.state.currency==='ALL'?'':this.state.currency;
     const visibleSummaries=selected?summaries.filter(row=>row.currency===selected):summaries;
     const query=this.state.query.trim().toLocaleLowerCase();
-    const visibleCustomers=allCustomers.filter(row=>(!selected||row.currency===selected)&&(!query||customerDisplay(row).toLocaleLowerCase().includes(query)));
+    const visibleCustomers=allCustomers.filter(row=>(!selected||row.currency===selected)&&(!query||customerSearchText(row,this.props.customers).includes(query)));
     const visibleTrends=trends.filter(row=>!selected||row.currency===selected);
     const missingCostItems=visibleSummaries.reduce((sum,row)=>sum+row.missingCostItems,0);
     const reportTitle=period.from?`${period.from} — ${period.to}`:t(`Through ${period.to}`,`حتى ${period.to}`);
@@ -74,7 +83,7 @@ export class ReportsPage extends React.Component<Props,State>{
         <label><span>{t('Currency','العملة')}</span><Select value={this.state.currency} onChange={(e:any)=>this.setState({currency:e.target.value})}><option value="ALL">{t('All currencies — separate','كل العملات — منفصلة')}</option>{currencies.map(currency=><option key={currency} value={currency}>{currency}</option>)}</Select></label>
       </section>
 
-      <div className="report-print-header"><div className="report-print-brand"><img src={logo}/><div><strong>{this.props.company.nameEn||this.props.company.nameAr||'LOUREX'}</strong><span>{t('Financial Management Report','تقرير الإدارة المالية')}</span></div></div><div><strong>{reportTitle}</strong><span>{selected||t('Currencies shown separately','العملات معروضة بشكل منفصل')}</span></div></div>
+      <div className="report-print-header"><div className="report-print-brand"><img src={logo}/><div><strong>{companyDisplayName(this.props.company)}</strong><span>{t('Financial Management Report','تقرير الإدارة المالية')}</span></div></div><div><strong>{reportTitle}</strong><span>{selected||t('Currencies shown separately','العملات معروضة بشكل منفصل')}</span></div></div>
 
       {!visibleSummaries.length?<div className="reports-empty"><Icon name="invoice" size={30}/><strong>{t('No financial activity in this period','لا توجد حركة مالية ضمن هذه الفترة')}</strong><span>{t('Change the period or currency filter.','غيّر الفترة أو فلتر العملة.')}</span></div>:null}
 
@@ -97,7 +106,7 @@ export class ReportsPage extends React.Component<Props,State>{
 
       <section className="reports-panel">
         <div className="reports-panel-heading customer-report-heading"><div><p className="eyebrow">{t('Customers','العملاء')}</p><h2>{t('Customer Performance','أداء العملاء')}</h2><p>{t('Revenue is period-based; outstanding and overdue are the balances as of the report end date.','الإيراد حسب الفترة المحددة، أما المتبقي والمتأخر فهما الرصيد حتى تاريخ نهاية التقرير.')}</p></div><div className="reports-customer-search"><Icon name="search"/><Input value={this.state.query} placeholder={t('Search customer','بحث عن عميل')} onChange={(e:any)=>this.setState({query:e.target.value})}/></div></div>
-        <div className="reports-table-wrap"><table className="reports-table customer-performance-table"><thead><tr><th>{t('Customer','العميل')}</th>{!selected?<th>{t('Currency','العملة')}</th>:null}<th>{t('Net Sales','صافي المبيعات')}</th><th>{t('Gross Profit','الربح الإجمالي')}</th><th>{t('Margin','الهامش')}</th><th>{t('Collected','المحصّل')}</th><th>{t('Outstanding','المتبقي')}</th><th>{t('Overdue','المتأخر')}</th></tr></thead><tbody>{visibleCustomers.map(row=><tr key={`${row.customerId}-${row.currency}`}><td><strong>{customerDisplay(row)}</strong><small>{row.issuedInvoices} {t('invoices','فواتير')}{row.creditNotes?` · ${row.creditNotes} ${t('credits','دائن')}`:''}</small></td>{!selected?<td><b>{row.currency}</b></td>:null}<td>{formatMoney(row.netSales,row.currency)}</td><td>{row.profitComplete?formatMoney(row.grossProfit,row.currency):'—'}</td><td>{row.profitComplete?`${row.marginPercent}%`:'—'}</td><td>{formatMoney(row.collected,row.currency)}</td><td>{formatMoney(row.outstanding,row.currency)}</td><td className={row.overdue!=='0.00'?'overdue-cell':''}>{formatMoney(row.overdue,row.currency)}</td></tr>)}</tbody></table></div>
+        <div className="reports-table-wrap"><table className="reports-table customer-performance-table"><thead><tr><th>{t('Customer','العميل')}</th>{!selected?<th>{t('Currency','العملة')}</th>:null}<th>{t('Net Sales','صافي المبيعات')}</th><th>{t('Gross Profit','الربح الإجمالي')}</th><th>{t('Margin','الهامش')}</th><th>{t('Collected','المحصّل')}</th><th>{t('Outstanding','المتبقي')}</th><th>{t('Overdue','المتأخر')}</th></tr></thead><tbody>{visibleCustomers.map(row=><tr key={`${row.customerId}-${row.currency}`}><td><strong>{customerDisplay(row,this.props.customers)}</strong><small>{row.issuedInvoices} {t('invoices','فواتير')}{row.creditNotes?` · ${row.creditNotes} ${t('credits','دائن')}`:''}</small></td>{!selected?<td><b>{row.currency}</b></td>:null}<td>{formatMoney(row.netSales,row.currency)}</td><td>{row.profitComplete?formatMoney(row.grossProfit,row.currency):'—'}</td><td>{row.profitComplete?`${row.marginPercent}%`:'—'}</td><td>{formatMoney(row.collected,row.currency)}</td><td>{formatMoney(row.outstanding,row.currency)}</td><td className={row.overdue!=='0.00'?'overdue-cell':''}>{formatMoney(row.overdue,row.currency)}</td></tr>)}</tbody></table></div>
         {!visibleCustomers.length?<p className="reports-inline-empty">{t('No customer activity matches these filters.','لا توجد حركة عملاء مطابقة لهذه الفلاتر.')}</p>:null}
       </section>
 
