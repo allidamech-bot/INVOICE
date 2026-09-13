@@ -233,7 +233,7 @@
     border-radius:13px!important;
   }
 
-  .auth-story-copy h2{
+  .auth-story-copy .auth-story-title{
     font-size:clamp(25px,8.5vw,31px)!important;
     line-height:1.04!important;
   }

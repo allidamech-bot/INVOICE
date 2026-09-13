@@ -32,9 +32,9 @@ test('v223 wraps only automatic App cloud scheduling while explicit recovery del
 
 test('v223 remains cached in the current installed-PWA generation',async()=>{
   const [patch,distSw]=await Promise.all([read('scripts/pwa-cache-v205.mjs'),read('dist/sw.js')]);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v226'/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v227'/);
   assert.match(patch,/lourex-invoice-v223.*legacy marker/);
   assert.match(patch,/\.\/src\/cloud\/coalescing\.js/);
-  assert.match(distSw,/const CACHE = 'lourex-invoice-v226'/);
+  assert.match(distSw,/const CACHE = 'lourex-invoice-v227'/);
   assert.match(distSw,/\.\/src\/cloud\/coalescing\.js/);
 });

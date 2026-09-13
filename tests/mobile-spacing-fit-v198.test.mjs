@@ -46,7 +46,7 @@ test('v198 compacts only redundant account-entry story content on short phones',
   assert.match(css,/@media screen and \(max-width:600px\) and \(max-height:700px\)/);
   assert.match(css,/\.auth-account-story\{[\s\S]*min-height:0!important/);
   assert.match(css,/\.auth-story-copy>p:last-child,[\s\S]*\.auth-story-kicker\{[\s\S]*display:none!important/);
-  assert.match(css,/\.auth-story-copy h2\{[\s\S]*font-size:clamp\(25px,8\.5vw,31px\)!important/);
+  assert.match(css,/\.auth-story-copy \.auth-story-title\{[\s\S]*font-size:clamp\(25px,8\.5vw,31px\)!important/);
 });
 
 test('v198 dark mobile canvas remains part of the current immutable PWA generation',async()=>{

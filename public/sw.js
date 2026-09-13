@@ -1,3 +1,4 @@
+// v227 account accessibility — complete keyboard tab behavior and expose one primary page heading.
 // v226 diagnostic recovery — run CSP-safe health checks and refresh localized, touch-safe account entry controls.
 // v225 Luminous Noir continuity — recache launch, diagnostics, update and iPhone output surfaces.
 // v224 Luminous Noir — recache the unified premium dark application art direction.
