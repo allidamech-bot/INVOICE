@@ -4,6 +4,7 @@ import { startCloudFreshnessWatcher } from '../cloud/freshness.js';
 import { hydrateAuthoritativeCloudBeforeApp } from '../cloud/startup.js';
 import { currentCloudUser, subscribeCloudUser, waitForCloudUser } from '../cloud/firebase.js';
 import { adaptiveCloudSettleMs } from '../cloud/coalescing.js';
+import { t } from '../lib/i18n.js';
 import { activateAccountStorage, activeAccountStorageUid, purgeLegacySafetySnapshot } from '../storage/db.js';
 import { getActiveAccountUid, isCurrentSessionExpired, resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
 
@@ -35,6 +36,17 @@ class AdaptiveCloudApp extends BaseApp {
     // modals). This prevents an automatic remote pull from reloading the app while
     // the user is typing outside the document editor.
     instance.cloudReplaceBlocked=()=>instance.state.screen==='editor'||instance.state.settingsOpen||instance.state.cloudModal||reloadUnsafeWorkspaceOpen();
+
+    // A deliberate Lock action must not throw away unsaved inline business input.
+    // Automatic inactivity locking stays security-authoritative and still proceeds.
+    const lockNow=instance.lockNow.bind(instance);
+    instance.lockNow=(automatic:boolean)=>{
+      if(!automatic&&manualLockUnsafeWorkspaceOpen()){
+        instance.showToast(t('Close or save the open editor before locking the app.','أغلق أو احفظ المحرر المفتوح قبل قفل التطبيق.'),'error');
+        return Promise.resolve();
+      }
+      return lockNow(automatic);
+    };
 
     // Restore the live inactivity timer promised by AppSettings.autoLockMinutes.
     // Session expiry on startup already exists; this closes the runtime gap so an
@@ -241,6 +253,23 @@ void start();
 
 function isDocumentEditorOpen():boolean{
   return document.documentElement.hasAttribute('data-lourex-document-editor')||Boolean(document.querySelector('.editor-screen'));
+}
+
+function inventoryEntryHasDraftInput():boolean{
+  const entry=document.querySelector('.operations-page .inventory-entry');
+  if(!(entry instanceof HTMLElement))return false;
+  const item=entry.querySelector<HTMLSelectElement>('select');
+  if(item?.value.trim())return true;
+  const decimals=Array.from(entry.querySelectorAll<HTMLInputElement>('input[inputmode="decimal"]'));
+  if(decimals.some(input=>input.value.trim()))return true;
+  const textInputs=Array.from(entry.querySelectorAll<HTMLInputElement>('input:not([type="date"]):not([list])'));
+  return textInputs.some(input=>input.value.trim());
+}
+
+function manualLockUnsafeWorkspaceOpen():boolean{
+  if(isDocumentEditorOpen())return true;
+  const editableOperations=Boolean(document.querySelector('.operations-editor:not(.purchase-editor),.purchase-editor fieldset:not([disabled])'));
+  return editableOperations||Boolean(document.querySelector('.product-library-pro.editor-open,.modal-backdrop'))||inventoryEntryHasDraftInput();
 }
 
 function reloadUnsafeWorkspaceOpen():boolean{
