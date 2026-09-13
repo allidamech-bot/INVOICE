@@ -23,5 +23,7 @@ test('v196 browser gate double-clicks customer Quote and Invoice actions in Engl
   assert.match(runner,/button\.click\(\);button\.click\(\)/);
   assert.match(runner,/list quote action must be single-flight/);
   assert.match(runner,/profile invoice action must be single-flight/);
-  assert.match(runner,/for\(const viewport of \[390,1024\]\)for\(const lang of \['en','ar'\]\)await runLanguage\(browser,lang,viewport\)/);
+  assert.ok(runner.includes('for(const viewport of [320,390,1024])'),'customer browser gate must exercise 320, 390 and 1024 widths');
+  assert.ok(runner.includes("for(const lang of ['en','ar'])"),'customer browser gate must exercise English and Arabic');
+  assert.ok(runner.includes('await runLanguage(browser,lang,viewport)'),'customer browser gate must execute every language/viewport combination');
 });
