@@ -4,7 +4,7 @@ const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 
 const cacheMarker="LOCAL_CORE.push('./canonical-redirect.js');";
-const requiredRuntimes=['./src/lib/settings-scope.js','./src/cloud/google-auth.js','./src/cloud/coalescing.js','./health.js'];
+const requiredRuntimes=['./src/lib/settings-scope.js','./src/cloud/google-auth.js','./src/cloud/coalescing.js','./health.js','./styles/nested-surface-consistency-v229.css'];
 for(const runtime of requiredRuntimes){
   if(sw.includes(`'${runtime}'`)||sw.includes(`"${runtime}"`))continue;
   if(!sw.includes(cacheMarker))throw new Error('Unable to locate the LOUREX PWA cache insertion point.');
@@ -34,6 +34,7 @@ for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`
 // v226 makes the production health runner CSP-safe and refreshes public-language accessibility.
 // v227 completes keyboard tab behavior and restores a single primary heading on account entry.
 // v228 replaces decorative Luminous Noir effects with a flat Matte Black accounting interface.
+// v229 closes legacy light/gradient surfaces nested inside matte application workspaces.
 const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";
 const criticalInstallTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n  await self.skipWaiting();\n})()));";
 if(sw.includes(installTail))sw=sw.replace(installTail,criticalInstallTail);

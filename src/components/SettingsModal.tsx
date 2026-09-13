@@ -176,7 +176,7 @@ export class SettingsModal extends React.Component<Props,State> {
   private restoreFromCloud=async()=>{
     const user=this.props.cloudUser;
     if(!user){this.setState({confirmCloudRestore:false,error:t('Sign in to your LOUREX account first.','سجّل الدخول إلى حساب LOUREX أولًا.')});return;}
-    this.setState({confirmCloudRestore:false,busy:true,accountAction:'restore',error:'',message:'',savedSection:null});
+    await new Promise<void>(resolve=>this.setState({confirmCloudRestore:false,busy:true,accountAction:'restore',error:'',message:'',savedSection:null},resolve));
     try{
       await this.props.onCloudRestore();
       this.setState({message:t('Account data restored from the cloud.','تم استرجاع بيانات الحساب من السحابة.')});
@@ -235,7 +235,7 @@ export class SettingsModal extends React.Component<Props,State> {
     const accountScope=this.state.scope==='account';
     const tabItems=([['company',t('General','عام'),'settings'],['commercial',t('Commercial','تجاري'),'invoice'],['documents',t('Documents','المستندات'),'file'],['security',t('Security','الأمان'),'lock']] as const);
     return <Modal open={this.props.open} title={accountScope?t('Account','الحساب'):t('Settings','الإعدادات')} size="xl" onClose={this.requestClose}>
-      <div className={`settings-layout settings-workspace-v2 ${accountScope?'account-profile-workspace':'settings-preferences-workspace'}`}>
+      <div className={`settings-layout settings-workspace-v2 ${accountScope?'account-profile-workspace':'settings-preferences-workspace'} ${this.state.accountAction==='restore'?'cloud-account-panel':''}`}>
         {!accountScope?<nav className="settings-tabs" aria-label={t('Settings sections','أقسام الإعدادات')}>{tabItems.map(([id,label,icon])=><button type="button" key={id} className={this.state.tab===id?'active':''} aria-current={this.state.tab===id?'page':undefined} onClick={()=>this.setState({tab:id,error:'',message:'',savedSection:null})}><Icon name={icon}/><span>{label}</span></button>)}</nav>:null}
         <div className="settings-panel">
           {accountScope?this.accountProfile():null}

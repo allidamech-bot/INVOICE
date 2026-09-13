@@ -1,0 +1,450 @@
+/* v229 — nested surface consistency pass.
+   Screen application chrome only. Keeps one matte hierarchy through controls inside
+   cards, dialogs, customer profiles, document editors, Settings and mobile More.
+   Printable quotation/invoice pages are intentionally untouched. */
+@media screen {
+  /* Editor: keep nested content subordinate to each section instead of reviving
+     legacy white/blue cards inside the matte shell. */
+  .app-ui .premium-selected-customer{
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+  .app-ui .premium-selected-customer :is(strong,span,small){color:var(--ds-text-soft)!important}
+  .app-ui .premium-selected-customer strong{color:var(--ds-text)!important}
+  .app-ui .recent-customer-row{border-top-color:var(--ds-line)!important}
+  .app-ui .recent-customer-row>span{color:var(--ds-muted)!important}
+  .app-ui .recent-customer-row button{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface-strong)!important;
+    background-image:none!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .recent-customer-row button:hover,
+  .app-ui .recent-customer-row button:focus-visible{
+    border-color:var(--ds-line-strong)!important;
+    background:var(--ds-selected)!important;
+    color:var(--ds-text)!important;
+  }
+
+  .app-ui .premium-item-card>header,
+  .app-ui .premium-item-card:focus-within>header{
+    border-bottom-color:var(--ds-line)!important;
+    background:var(--ds-surface-strong)!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+  .app-ui .premium-item-card:focus-within{
+    border-color:var(--ds-focus-line)!important;
+    box-shadow:none!important;
+    transform:none!important;
+  }
+  .app-ui .item-line-total,
+  .app-ui .premium-item-card:focus-within .item-line-total{
+    border:1px solid var(--ds-line)!important;
+    background:var(--ds-selected)!important;
+    background-image:none!important;
+    color:var(--ds-accent-bright)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .premium-item-card .item-pricing-grid{
+    border:0!important;
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+  .app-ui .premium-item-card .item-advanced-control,
+  .app-ui .premium-item-card .item-advanced-fields{border-color:var(--ds-line)!important}
+  .app-ui .premium-item-card .item-advanced-fields{
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+  .app-ui .adjustments-list{border-color:var(--ds-line)!important}
+  .app-ui .adjustment-row{
+    border-color:var(--ds-line)!important;
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+  .app-ui .adjustment-row.has-validation-error{
+    background:#1C1514!important;
+    color:var(--ds-text)!important;
+  }
+  .app-ui .editor-totals{
+    border:0!important;
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+  .app-ui .editor-totals>div:not(.grand){border-color:var(--ds-line)!important}
+  .app-ui .readiness-track{background:var(--ds-selected)!important}
+  .app-ui .readiness-track>span{background:var(--ds-accent)!important;background-image:none!important}
+  .app-ui .readiness-groups>span,
+  .app-ui .preview-quality-pill{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface-strong)!important;
+    background-image:none!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .readiness-groups>span.complete,
+  .app-ui .preview-quality-pill.clean{
+    border-color:#345142!important;
+    background:#142019!important;
+    color:#9CC8AE!important;
+  }
+
+  /* Commercial controls used inside customers, quotations and invoices. */
+  .app-ui .commercial-row-card{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface-strong)!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+  .app-ui .commercial-empty-note{
+    border-color:var(--ds-line)!important;
+    background:transparent!important;
+    color:var(--ds-muted)!important;
+  }
+  .app-ui :is(.commercial-preset-chips button,.pricing-suggestion-chip,.product-metadata-suggestions button){
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface-strong)!important;
+    background-image:none!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui :is(.commercial-preset-chips button,.pricing-suggestion-chip,.product-metadata-suggestions button):hover,
+  .app-ui :is(.commercial-preset-chips button,.pricing-suggestion-chip,.product-metadata-suggestions button):focus-visible,
+  .app-ui .product-metadata-suggestions button.active,
+  .app-ui .product-metadata-suggestions button[aria-pressed='true']{
+    border-color:var(--ds-focus-line)!important;
+    background:var(--ds-selected)!important;
+    color:var(--ds-text)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .credit-limit-banner{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface-strong)!important;
+    background-image:none!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .credit-limit-banner .credit-limit-icon{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-selected)!important;
+    color:var(--ds-accent-bright)!important;
+  }
+  .app-ui .credit-limit-banner :is(strong,b){color:var(--ds-text)!important}
+  .app-ui .credit-limit-banner :is(span,small){color:var(--ds-text-soft)!important}
+  .app-ui .credit-limit-banner.is-over{
+    border-color:#704642!important;
+    background:#1C1514!important;
+  }
+  .app-ui .credit-limit-banner.is-over .credit-limit-icon{border-color:#704642!important;background:#261817!important;color:#E2A39D!important}
+  .app-ui .credit-limit-banner.is-over b{color:#E2A39D!important}
+  .app-ui .credit-limit-banner.is-unmatched{background:#171715!important}
+  .app-ui .customer-credit-summary{
+    border:1px solid var(--ds-line)!important;
+    background:var(--ds-surface-strong)!important;
+    color:var(--ds-text-soft)!important;
+  }
+
+  /* Customer page -> customer profile -> facts/actions. */
+  .app-ui .customer-profile-hero,
+  .app-ui .customer-profile-card{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface)!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+  .app-ui .customer-profile-avatar{
+    border-color:var(--ds-line-strong)!important;
+    background:var(--ds-selected)!important;
+    color:var(--ds-accent-bright)!important;
+  }
+  .app-ui .customer-profile-identity :is(p,strong),
+  .app-ui .customer-profile-secondary-name{color:var(--ds-text-soft)!important}
+  .app-ui .customer-profile-identity h1{color:var(--ds-text)!important}
+  .app-ui .customer-profile-badges span,
+  .app-ui .customer-profile-card>header>span{
+    border:1px solid var(--ds-line)!important;
+    background:var(--ds-surface-strong)!important;
+    background-image:none!important;
+    color:var(--ds-text-soft)!important;
+  }
+  .app-ui .customer-profile-badges b{color:var(--ds-text)!important}
+  .app-ui .customer-profile-facts>div,
+  .app-ui .customer-profile-stack>div{
+    border-color:var(--ds-line)!important;
+    background:transparent!important;
+  }
+  .app-ui .customer-profile-facts small,
+  .app-ui .customer-profile-stack small{color:var(--ds-muted)!important}
+  .app-ui .customer-profile-facts strong,
+  .app-ui .customer-profile-stack strong{color:var(--ds-text)!important}
+  .app-ui .customer-profile-quick-actions>button,
+  .app-ui .customer-profile-back{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-secondary-button)!important;
+    background-image:none!important;
+    color:var(--ds-text)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .customer-profile-quick-actions>button:hover:not(:disabled),
+  .app-ui .customer-profile-back:hover{
+    border-color:var(--ds-line-strong)!important;
+    background:var(--ds-selected)!important;
+  }
+
+  /* Saved-item/product detail controls nested inside dialogs/editor cards. */
+  .app-ui :is(.saved-items-shell,.saved-items-list-pane,.saved-items-toolbar,.saved-item-editor,.saved-item-editor-actions){
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface)!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+  .app-ui .saved-item-row{
+    border-color:transparent!important;
+    background:transparent!important;
+  }
+  .app-ui .saved-item-row:hover,
+  .app-ui .saved-item-row:focus-within,
+  .app-ui .saved-item-row.is-selected{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-selected)!important;
+  }
+  .app-ui .saved-items-empty>.icon{background:var(--ds-surface-strong)!important;color:var(--ds-accent-bright)!important}
+
+  /* Document detail view is a page inside the Documents workspace: preserve one
+     parent card, flat internal rows, and a distinct financial row. */
+  .app-ui .document-detail-item-head{background:var(--ds-workspace)!important;background-image:none!important}
+  .app-ui .document-detail-item-row,
+  .app-ui .document-detail-facts>div,
+  .app-ui .document-detail-terms>div{border-color:var(--ds-line)!important;background:transparent!important}
+  .app-ui .document-detail-secondary-actions>button{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-secondary-button)!important;
+    background-image:none!important;
+    color:var(--ds-text)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .document-detail-secondary-actions>button:hover{background:var(--ds-selected)!important}
+  .app-ui .document-detail-payment>div{border-color:var(--ds-line)!important;background:transparent!important}
+  .app-ui .document-detail-payment>.remaining{
+    border-color:#4A4131!important;
+    background:var(--ds-financial-surface)!important;
+    color:var(--ds-text)!important;
+  }
+
+  /* Settings/account: nested workspace, tabs, previews and account cards must
+     never fall back to the old ivory/white palette. */
+  .app-ui .settings-workspace-v2{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-workspace)!important;
+    background-image:none!important;
+  }
+  .app-ui .settings-workspace-v2 .settings-tabs{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-shell)!important;
+    background-image:none!important;
+  }
+  .app-ui .settings-workspace-v2 .settings-tabs>button{
+    background:transparent!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .settings-workspace-v2 .settings-tabs>button .icon{color:var(--ds-muted)!important}
+  .app-ui .settings-workspace-v2 .settings-tabs>button:hover{
+    background:var(--ds-surface-strong)!important;
+    color:var(--ds-text)!important;
+  }
+  .app-ui .settings-workspace-v2 .settings-tabs>button.active{
+    border-color:var(--ds-line-strong)!important;
+    background:var(--ds-selected)!important;
+    color:var(--ds-text)!important;
+    box-shadow:inset 3px 0 0 var(--ds-accent)!important;
+  }
+  [dir='rtl'] .app-ui .settings-workspace-v2 .settings-tabs>button.active{box-shadow:inset -3px 0 0 var(--ds-accent)!important}
+  .app-ui .settings-workspace-v2 .settings-panel,
+  .app-ui .settings-title{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-workspace)!important;
+    background-image:none!important;
+    color:var(--ds-text)!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  .app-ui .settings-title h3,
+  .app-ui .settings-workspace-v2 .settings-section>h4,
+  .app-ui .settings-section-heading h4{color:var(--ds-text)!important}
+  .app-ui .settings-title p:not(.eyebrow),
+  .app-ui .settings-section-heading p,
+  .app-ui .settings-note{color:var(--ds-text-soft)!important}
+  .app-ui .settings-title .eyebrow{color:var(--ds-accent-bright)!important}
+  .app-ui .settings-workspace-v2 .settings-section,
+  .app-ui .settings-account-card{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface)!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+  .app-ui .settings-workspace-v2 :is(.input,select.input,textarea.input){
+    border-color:var(--ds-input-line)!important;
+    background:var(--ds-input)!important;
+    color:var(--ds-text)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .settings-workspace-v2 :is(.input,select.input,textarea.input):focus{
+    border-color:var(--ds-focus-line)!important;
+    background:var(--ds-input)!important;
+    box-shadow:var(--ds-focus)!important;
+  }
+  .app-ui .settings-workspace-v2 .field-label{color:var(--ds-text-soft)!important}
+  .app-ui .company-artwork-section .asset-preview,
+  .app-ui .numbering-preview>span,
+  .app-ui .appearance-auto-note{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface-strong)!important;
+    background-image:none!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .appearance-auto-note strong{color:var(--ds-text)!important}
+  .app-ui .logo-mode-switch button{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-secondary-button)!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .logo-mode-switch button.active{
+    border-color:var(--ds-focus-line)!important;
+    background:var(--ds-selected)!important;
+    color:var(--ds-text)!important;
+  }
+  .app-ui .settings-account-status :is(strong,p,small){color:var(--ds-text-soft)!important}
+  .app-ui .settings-account-status strong{color:var(--ds-text)!important}
+  .app-ui .settings-account-actions{border-color:var(--ds-line)!important}
+  .app-ui .settings-signout-button{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-secondary-button)!important;
+    color:var(--ds-text-soft)!important;
+  }
+  .app-ui .settings-signout-button:hover{border-color:var(--ds-line-strong)!important;background:var(--ds-selected)!important;color:var(--ds-text)!important}
+
+  /* Modal internals inherit the same hierarchy even on iPhone full-height sheets. */
+  .app-ui .modal-header,
+  .app-ui .modal-footer,
+  .app-ui .modal-footer-actions{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface)!important;
+    background-image:none!important;
+  }
+  .app-ui .modal-header>.icon-btn{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-secondary-button)!important;
+    color:var(--ds-text-soft)!important;
+  }
+
+  /* Mobile More: remove the remaining Luminous-Noir gradients, glass and
+     category rainbow. Keep hierarchy through spacing, dividers and one accent. */
+  .app-ui .mobile-more-backdrop{
+    background:rgba(0,0,0,.78)!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  .app-ui .mobile-more-sheet{
+    border-color:var(--ds-line-strong)!important;
+    border-radius:16px 16px 12px 12px!important;
+    background:var(--ds-surface)!important;
+    background-image:none!important;
+    box-shadow:0 18px 44px rgba(0,0,0,.46)!important;
+  }
+  .app-ui .mobile-more-handle{background:var(--ds-line-strong)!important;box-shadow:none!important}
+  .app-ui .mobile-more-heading-copy>small,
+  .app-ui .mobile-more-heading-copy>span,
+  .app-ui .mobile-more-group>p{color:var(--ds-muted)!important}
+  .app-ui .mobile-more-heading-copy>strong,
+  .app-ui :is(.mobile-more-account-copy,.mobile-more-link-copy,.mobile-more-settings-copy) strong{color:var(--ds-text)!important}
+  .app-ui :is(.mobile-more-account-copy,.mobile-more-link-copy,.mobile-more-settings-copy) small{color:var(--ds-text-soft)!important}
+  .app-ui .mobile-more-close{
+    border-color:var(--ds-line)!important;
+    border-radius:10px!important;
+    background:var(--ds-secondary-button)!important;
+    color:var(--ds-text-soft)!important;
+  }
+  .app-ui .mobile-more-close:active{background:var(--ds-selected)!important;color:var(--ds-text)!important}
+  .app-ui :is(.mobile-more-account,.mobile-more-link,.mobile-more-settings){
+    border-color:var(--ds-line)!important;
+    border-radius:11px!important;
+    background:var(--ds-surface-strong)!important;
+    background-image:none!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+    filter:none!important;
+  }
+  /* Tone-specific legacy selectors have higher specificity than the generic row.
+     Reassert the flat surface inside the sheet so category gradients cannot return. */
+  .app-ui .mobile-more-sheet .mobile-more-link{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface-strong)!important;
+    background-image:none!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .mobile-more-sheet .mobile-more-link .mobile-more-link-icon{
+    border-color:var(--ds-line-strong)!important;
+    background:var(--ds-selected)!important;
+    color:var(--ds-accent-bright)!important;
+    box-shadow:none!important;
+  }
+  .app-ui :is(.mobile-more-account,.mobile-more-link,.mobile-more-settings):active{
+    transform:none!important;
+    filter:none!important;
+    background:var(--ds-selected)!important;
+  }
+  .app-ui :is(.mobile-more-account-icon,.mobile-more-link-icon,.mobile-more-settings-icon){
+    border-color:var(--ds-line-strong)!important;
+    background:var(--ds-selected)!important;
+    color:var(--ds-accent-bright)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .mobile-more-group>p:before,
+  .app-ui :is(.group-workspace,.group-finance,.group-business,.group-system)>p:before{
+    background:var(--ds-accent)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .mobile-more-chevron{color:var(--ds-muted)!important}
+  .app-ui .mobile-more-link.active{
+    border-color:var(--ds-focus-line)!important;
+    background:var(--ds-selected)!important;
+    box-shadow:inset 3px 0 0 var(--ds-accent)!important;
+  }
+  [dir='rtl'] .app-ui .mobile-more-link.active{box-shadow:inset -3px 0 0 var(--ds-accent)!important}
+  .app-ui .mobile-more-sync{
+    border-color:#345142!important;
+    background:#142019!important;
+    color:#9CC8AE!important;
+    box-shadow:none!important;
+  }
+  .app-ui .mobile-more-sync.state-error{border-color:#704642!important;background:#1C1514!important;color:#E2A39D!important}
+  .app-ui .mobile-more-sync.state-offline{border-color:var(--ds-line)!important;background:var(--ds-surface-strong)!important;color:var(--ds-muted)!important}
+
+  @media(max-width:720px){
+    .app-ui .settings-workspace-v2 .settings-tabs{background:var(--ds-shell)!important}
+    .app-ui .settings-workspace-v2 .settings-tabs>button.active{box-shadow:inset 0 -2px 0 var(--ds-accent)!important}
+    .app-ui .modal-header{background:var(--ds-surface)!important}
+  }
+
+  @media(pointer:coarse){
+    .app-ui .customer-profile-quick-actions>button:hover:not(:disabled),
+    .app-ui .recent-customer-row button:hover,
+    .app-ui :is(.commercial-preset-chips button,.pricing-suggestion-chip,.product-metadata-suggestions button):hover{
+      background:var(--ds-surface-strong)!important;
+    }
+  }
+}
