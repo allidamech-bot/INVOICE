@@ -32,9 +32,9 @@ const scenarios=[{width:1440,height:900,touch:false},{width:1024,height:768,touc
         if(!state.bottomNav||state.bottomNav.display==='none')failures.push('mobile bottom navigation hidden');
         if(state.bottomNav?.background!=='rgb(6, 13, 18)')failures.push(`mobile navigation ${state.bottomNav?.background}`);
         if(state.bottomNav&&state.bottomNav.height<65)failures.push(`mobile navigation height ${state.bottomNav.height}`);
-        if(state.mobileCreate?.background!=='rgb(19, 124, 122)')failures.push(`mobile create ${state.mobileCreate?.background}`);
+        if(state.mobileCreate?.background!=='rgb(83, 70, 216)')failures.push(`mobile create ${state.mobileCreate?.background}`);
       }
-      if(scenario.width>960&&state.create?.background!=='rgb(19, 124, 122)')failures.push(`primary create ${state.create?.background}`);
+      if(scenario.width>960&&state.create?.background!=='rgb(83, 70, 216)')failures.push(`primary create ${state.create?.background}`);
       if(scenario.width<=960){
         const more=page.getByRole('button',{name:lang==='ar'?'المزيد':'More'}).last();
         await more.click();

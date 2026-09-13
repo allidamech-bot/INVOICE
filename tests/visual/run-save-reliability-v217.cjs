@@ -25,7 +25,7 @@ const base='http://127.0.0.1:4173/tests/visual';
           text:getComputedStyle(document.querySelector('.cloud-conflict-banner')).color
         }));
         assert.notEqual(palette.gradient,'none','conflict banner must use the dark semantic gradient');
-        assert.equal(palette.icon,'rgb(48, 31, 36)','conflict icon must stay on the dark danger surface');
+        assert.equal(palette.icon,'rgb(50, 28, 36)','conflict icon must stay on the dark danger surface');
         assert.equal(palette.text,'rgb(237, 242, 241)','conflict copy must use dark-theme text contrast');
         const geometry=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,banner:document.querySelector('.cloud-conflict-banner')?.getBoundingClientRect().toJSON()}));
         assert.ok(geometry.scrollWidth<=geometry.width+1,`conflict shell overflow: ${JSON.stringify(geometry)}`);
