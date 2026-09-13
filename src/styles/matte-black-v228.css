@@ -149,7 +149,7 @@
   .app-ui :is(.mobile-more-sheet,.mobile-document-action-sheet,.document-action-popover,.shell-new-menu,.customer-dropdown){border-color:var(--ds-line-strong)!important;background-color:var(--ds-surface)!important;background-image:none!important;box-shadow:var(--ds-shadow-raised)!important}
   .document-desktop-action-portal.app-ui,.mobile-document-action-portal.app-ui{background-color:transparent!important;background-image:none!important}
 
-  .app-ui :is(.cloud-conflict-banner,.cloud-conflict-recovery){border-color:#704642!important;background-color:#1C1514!important;background-image:none!important;box-shadow:none!important}
+  .app-ui :is(.cloud-conflict-banner,.cloud-conflict-recovery){border-color:#704642!important;background-color:#1C1514!important;background-image:none!important;color:var(--ds-text)!important;box-shadow:none!important}
   .app-ui .cloud-conflict-icon{background:#261817!important;box-shadow:none!important}
   .app-ui :is(.issue-review-purpose,.issue-review-grid>div,.issue-asset-checks>span){background-color:var(--ds-surface)!important;background-image:none!important;box-shadow:none!important}
   .app-ui .issue-asset-checks>span.ok{background-color:#132019!important;background-image:none!important}
