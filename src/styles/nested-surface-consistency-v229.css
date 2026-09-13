@@ -387,6 +387,21 @@
     box-shadow:none!important;
     filter:none!important;
   }
+  /* Tone-specific legacy selectors have higher specificity than the generic row.
+     Reassert the flat surface inside the sheet so category gradients cannot return. */
+  .app-ui .mobile-more-sheet .mobile-more-link{
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface-strong)!important;
+    background-image:none!important;
+    color:var(--ds-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .mobile-more-sheet .mobile-more-link .mobile-more-link-icon{
+    border-color:var(--ds-line-strong)!important;
+    background:var(--ds-selected)!important;
+    color:var(--ds-accent-bright)!important;
+    box-shadow:none!important;
+  }
   .app-ui :is(.mobile-more-account,.mobile-more-link,.mobile-more-settings):active{
     transform:none!important;
     filter:none!important;
