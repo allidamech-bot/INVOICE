@@ -86,7 +86,7 @@ const isLight=color=>{
         if(r.left<-1||r.right>viewport.width+1||r.width>viewport.width+1)failures.push(`top command bar escapes viewport ${JSON.stringify(r)}`);
       }
       if(auth){
-        if(state.bodyBg!=='rgb(5, 18, 27)')failures.push(`auth body fallback is not dark gateway canvas: ${state.bodyBg}`);
+        if(state.bodyBg!=='rgb(8, 8, 8)')failures.push(`auth body fallback is not matte gateway canvas: ${state.bodyBg}`);
         if(!state.primary)failures.push('auth primary action missing');
         if(viewport.height<=700&&(state.shortStory?.description!=='none'||state.shortStory?.kicker!=='none'))failures.push(`short-phone redundant story copy not compacted ${JSON.stringify(state.shortStory)}`);
         if(state.primary){

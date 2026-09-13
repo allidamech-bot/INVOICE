@@ -19,10 +19,10 @@ const scenarios=[{width:1440,height:900,touch:false},{width:1024,height:768,touc
       });
       const failures=[...errors];
       if(state.scrollWidth>scenario.width+1)failures.push(`horizontal overflow ${state.scrollWidth}`);
-      if(state.topbar?.background!=='rgb(13, 24, 30)')failures.push(`topbar ${state.topbar?.background}`);
+      if(state.topbar?.background!=='rgb(11, 11, 11)')failures.push(`topbar ${state.topbar?.background}`);
       if(scenario.width>960){
         if(!state.sidebar||state.sidebar.display==='none')failures.push('desktop sidebar hidden');
-        if(state.sidebar?.background!=='rgb(6, 13, 18)')failures.push(`sidebar ${state.sidebar?.background}`);
+        if(state.sidebar?.background!=='rgb(11, 11, 11)')failures.push(`sidebar ${state.sidebar?.background}`);
         if(state.bottomNav?.display!=='none')failures.push('desktop bottom navigation visible');
         if(state.logoText!=='LOUREX')failures.push(`fallback brand ${state.logoText}`);
         const startShadow=lang==='ar'?state.active?.boxShadow.includes('-3px'):state.active?.boxShadow.includes('3px');
@@ -30,23 +30,23 @@ const scenarios=[{width:1440,height:900,touch:false},{width:1024,height:768,touc
       }else{
         if(state.sidebar?.display!=='none')failures.push('mobile sidebar visible');
         if(!state.bottomNav||state.bottomNav.display==='none')failures.push('mobile bottom navigation hidden');
-        if(state.bottomNav?.background!=='rgb(6, 13, 18)')failures.push(`mobile navigation ${state.bottomNav?.background}`);
+        if(state.bottomNav?.background!=='rgb(11, 11, 11)')failures.push(`mobile navigation ${state.bottomNav?.background}`);
         if(state.bottomNav&&state.bottomNav.height<65)failures.push(`mobile navigation height ${state.bottomNav.height}`);
-        if(state.mobileCreate?.background!=='rgb(83, 70, 216)')failures.push(`mobile create ${state.mobileCreate?.background}`);
+        if(state.mobileCreate?.background!=='rgb(184, 160, 113)')failures.push(`mobile create ${state.mobileCreate?.background}`);
       }
-      if(scenario.width>960&&state.create?.background!=='rgb(83, 70, 216)')failures.push(`primary create ${state.create?.background}`);
+      if(scenario.width>960&&state.create?.background!=='rgb(184, 160, 113)')failures.push(`primary create ${state.create?.background}`);
       if(scenario.width<=960){
         const more=page.getByRole('button',{name:lang==='ar'?'المزيد':'More'}).last();
         await more.click();
         await page.locator('.mobile-more-sheet').waitFor();
         const sheet=await page.locator('.mobile-more-sheet').evaluate(el=>({background:getComputedStyle(el).backgroundColor,bottom:el.getBoundingClientRect().bottom,height:el.getBoundingClientRect().height}));
-        if(sheet.background!=='rgb(16, 29, 36)')failures.push(`more sheet ${sheet.background}`);
+        if(sheet.background!=='rgb(20, 20, 20)')failures.push(`more sheet ${sheet.background}`);
         if(sheet.bottom>scenario.height-64)failures.push(`more sheet overlaps navigation ${sheet.bottom}`);
       }else{
         await page.locator('.shell-create-button').click();
         if(!(await page.locator('.desktop-shell-new-menu').isVisible()))failures.push('desktop create menu did not open');
         const menu=await page.locator('.desktop-shell-new-menu').evaluate(el=>({background:getComputedStyle(el).backgroundColor,stack:getComputedStyle(el.querySelector('button>span')).display}));
-        if(menu.background!=='rgb(16, 29, 36)')failures.push(`desktop create menu ${menu.background}`);
+        if(menu.background!=='rgb(20, 20, 20)')failures.push(`desktop create menu ${menu.background}`);
         if(menu.stack!=='flex')failures.push(`desktop create menu copy ${menu.stack}`);
       }
       await page.screenshot({path:`${output}/${scenario.width}-${lang}.png`,fullPage:false});

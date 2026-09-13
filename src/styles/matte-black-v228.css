@@ -36,12 +36,13 @@
     background-image:none!important;
   }
 
-  .app-ui :is(.workspace-shell,.workspace-sidebar,.workspace-topbar,.workspace-content,.editor-screen,.editor-pane){
+  .app-ui :is(.workspace-shell,.workspace-sidebar,.workspace-topbar,.workspace-content,.editor-screen,.editor-pane,.editor-topbar,.preview-stage,.mobile-preview-stage,.design-advanced-panel){
     background-image:none!important;
   }
   .app-ui .workspace-shell{background-color:var(--ds-canvas)!important}
   .app-ui .workspace-sidebar{border-inline-end-color:var(--ds-line)!important;background-color:var(--ds-shell)!important;box-shadow:none!important}
   .app-ui .workspace-topbar{border-bottom-color:var(--ds-line)!important;background-color:var(--ds-shell)!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .app-ui :is(.workspace-content,.editor-screen,.editor-pane,.editor-topbar,.preview-stage,.mobile-preview-stage,.design-advanced-panel){background-color:var(--ds-workspace)!important}
 
   .app-ui :is(.btn.btn-primary,.shell-create-button.btn-primary,.mobile-create-button){
     border:1px solid var(--ds-accent)!important;
@@ -106,7 +107,8 @@
     .aging-panel,.receivable-accounts-panel,.receivable-account-row,
     .operations-list-panel,.operations-editor,.operations-card,
     .settings-section,.settings-workspace-card,.account-security-card,
-    .editor-section,.premium-item-card,.item-card,.modal
+    .editor-section,.premium-item-card,.item-card,.modal,.appearance-toggles .toggle-row,
+    .final-lock-banner,.final-quote-convert-bar
   ){
     border-color:var(--ds-line)!important;
     background-color:var(--ds-surface)!important;
@@ -151,7 +153,7 @@
 
   .app-ui :is(.cloud-conflict-banner,.cloud-conflict-recovery){border-color:#704642!important;background-color:#1C1514!important;background-image:none!important;color:var(--ds-text)!important;box-shadow:none!important}
   .app-ui .cloud-conflict-icon{background:#261817!important;box-shadow:none!important}
-  .app-ui :is(.issue-review-purpose,.issue-review-grid>div,.issue-asset-checks>span){background-color:var(--ds-surface)!important;background-image:none!important;box-shadow:none!important}
+  .app-ui :is(.modal-body,.issue-review-purpose,.issue-review-grid>div,.issue-asset-checks>span){background-color:var(--ds-surface)!important;background-image:none!important;box-shadow:none!important}
   .app-ui .issue-asset-checks>span.ok{background-color:#132019!important;background-image:none!important}
   .app-ui .issue-warning{background-color:#211B12!important;background-image:none!important}
   .app-ui .issue-warning.level-info{background-color:#181818!important;background-image:none!important;color:var(--ds-text-soft)!important}

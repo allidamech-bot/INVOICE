@@ -30,8 +30,8 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:820,height:1180,tou
       const failures=[];
       if(errors.length)failures.push(...errors);
       if(base.overflow)failures.push('Horizontal page overflow');
-      for(const target of base.targets.filter(t=>['#customer','#reference','#currency','#notes'].includes(t.selector))){if(target.background!=='rgb(12, 23, 28)')failures.push(`${target.selector}: incorrect input surface ${target.background}`);}
-      if(base.canvas!=='rgb(9, 18, 24)')failures.push(`Canvas: ${base.canvas}`);
+      for(const target of base.targets.filter(t=>['#customer','#reference','#currency','#notes'].includes(t.selector))){if(target.background!=='rgb(16, 16, 16)')failures.push(`${target.selector}: incorrect matte input surface ${target.background}`);}
+      if(base.canvas!=='rgb(8, 8, 8)')failures.push(`Canvas: ${base.canvas}`);
       for(const target of base.targets){
         if(target.contrast<4.5&&target.selector!=='#icon')failures.push(`${target.selector}: contrast ${target.contrast.toFixed(2)}`);
         if(scenario.touch&&target.selector.startsWith('#')&&target.height<43.75)failures.push(`${target.selector}: touch height ${target.height}`);

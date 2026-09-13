@@ -25,9 +25,9 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:1024,height:900,tou
       });
       const failures=[...errors];
       if(state.scrollWidth>scenario.width+1)failures.push(`horizontal overflow ${state.scrollWidth}`);
-      if(state.canvas!=='rgb(9, 18, 24)')failures.push(`canvas ${state.canvas}`);
+      if(state.canvas!=='rgb(8, 8, 8)')failures.push(`canvas ${state.canvas}`);
       if(state.hero!=='rgba(0, 0, 0, 0)')failures.push(`hero surface ${state.hero}`);
-      if(state.kpiPanel!=='rgb(16, 29, 36)')failures.push(`KPI panel ${state.kpiPanel}`);
+      if(state.kpiPanel!=='rgb(20, 20, 20)')failures.push(`KPI panel ${state.kpiPanel}`);
       if(state.kpis.length!==4)failures.push(`KPI count ${state.kpis.length}`);
       if(state.kpis.some(item=>item.background!=='rgba(0, 0, 0, 0)'||item.radius!=='0px'))failures.push('KPI cards are not internally divided');
       if(state.whiteSurfaces)failures.push(`white application surfaces ${state.whiteSurfaces}`);
