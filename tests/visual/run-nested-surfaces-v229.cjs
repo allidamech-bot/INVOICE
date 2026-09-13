@@ -128,7 +128,7 @@ async function auditSettings(browser,viewport,lang){
       await page.waitForTimeout(50);
       await assertBackground(page,'.settings-section',[MATTE.surface],`${label}/tab${i}`);
       await assertBackground(page,'.settings-workspace-v2 .input,.settings-workspace-v2 select.input,.settings-workspace-v2 textarea.input',[MATTE.input],`${label}/tab${i}`,{optional:true});
-      await assertBackground(page,'.commercial-row-card',[MATTE.strong],`${label}/tab${i}`,{optional:true});
+      await assertBackground(page,'.commercial-row-card',[MATTE.surface],`${label}/tab${i}`,{optional:true});
       await noLightChrome(page,'.settings-workspace-v2',`${label}/tab${i}`);
     }
   }finally{await page.close();}
