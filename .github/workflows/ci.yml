@@ -69,6 +69,7 @@ jobs:
           node tests/visual/run-obsidian-settings.cjs
           node tests/visual/run-obsidian-overlays.cjs
           node tests/visual/run-luminous-noir-v224.cjs
+          node tests/visual/run-luminous-noir-continuity-v225.cjs
       - name: Upload visual QA evidence
         if: always()
         uses: actions/upload-artifact@v6
