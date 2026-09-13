@@ -23,7 +23,9 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
    });failures.push(...issues);
   };
   const reachable=async locator=>{
-   await locator.scrollIntoViewIfNeeded();await page.waitForTimeout(120);
+   if(viewport.width<=430)await locator.evaluate(el=>el.scrollIntoView({block:'center',inline:'nearest'}));
+   else await locator.scrollIntoViewIfNeeded();
+   await page.waitForTimeout(120);
    const geometry=await locator.evaluate(el=>{const r=el.getBoundingClientRect(),x=Math.min(innerWidth-1,Math.max(0,r.x+r.width/2)),y=Math.min(innerHeight-1,Math.max(0,r.y+r.height/2)),hit=document.elementFromPoint(x,y);return {ok:r.top>=-1&&r.bottom<=innerHeight+1&&r.left>=-1&&r.right<=innerWidth+1&&Boolean(hit&&(el===hit||el.contains(hit))),rect:r.toJSON(),hit:hit?.className,viewport:{width:innerWidth,height:innerHeight}};});
    assert.equal(geometry.ok,true,'action clipped or covered '+JSON.stringify(geometry));
   };
@@ -85,7 +87,9 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
     await page.locator('.operations-summary').waitFor();await audit('.operations-page');await shot('suppliers');
     const tabs={purchases:'#operations-tab-purchases',expenses:'#operations-tab-expenses',inventory:'#operations-tab-inventory'};
     for(const [state,selector] of Object.entries(tabs)){
-     const tab=page.locator(selector);await reachable(tab);await tab.click();await page.locator(`#operations-panel-${state}`).waitFor();await audit('.operations-page');await shot(state);
+     const tab=page.locator(selector);await reachable(tab);await tab.click();await page.locator(`#operations-panel-${state}`).waitFor();await audit('.operations-page');
+     if(state==='inventory')await reachable(page.locator('.inventory-entry>.btn'));
+     await shot(state);
     }
     await page.locator('#operations-tab-purchases').click();const purchaseRow=page.locator('.purchase-row').first();await purchaseRow.waitFor();
     const view=purchaseRow.locator('.row-actions button').first();await reachable(view);await view.click();await page.locator('.purchase-editor').waitFor();await audit('.operations-page');await auditPurchaseEditor();
