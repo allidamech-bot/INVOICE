@@ -8,8 +8,9 @@ test('v232 makes the phone Saved Items picker one contained dialog with one scro
   const css=await read('src/styles/saved-items-picker-v232.css');
   assert.match(css,/\.app-ui \.modal:has\(\.saved-items-shell\.is-picker\)>\.modal-body\{[\s\S]*?overflow:hidden!important/);
   assert.match(css,/\.app-ui \.saved-items-shell\.is-picker \.saved-items-list\{[\s\S]*?overflow-y:auto!important/);
-  assert.match(css,/\.app-ui \.saved-items-shell\.is-picker \.saved-items-picker-bar\{[\s\S]*?position:relative!important[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
-  assert.match(css,/\.app-ui \.saved-items-shell\.is-picker \.saved-items-picker-bar>\.btn\{[\s\S]*?min-height:44px!important/);
+  assert.match(css,/\.app-ui \.saved-items-shell\.is-picker \.saved-items-picker-bar\{[\s\S]*?position:relative!important[\s\S]*?display:flex!important[\s\S]*?flex-wrap:wrap!important/);
+  assert.match(css,/\.app-ui \.saved-items-shell\.is-picker \.saved-items-picker-bar>div\{[\s\S]*?flex:1 0 100%!important/);
+  assert.match(css,/\.app-ui \.saved-items-shell\.is-picker \.saved-items-picker-bar>\.btn\{[\s\S]*?flex:1 1 90px!important[\s\S]*?min-height:44px!important/);
   assert.match(css,/white-space:normal!important/);
 });
 
