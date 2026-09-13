@@ -65,6 +65,22 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
      return [...new Set(issues)];
     });failures.push(...issues);
    };
+   const auditTotals=async()=>{
+    if(viewport.width>960)return;
+    const issues=await page.evaluate(()=>{
+     const issues=[],switches=[...document.querySelectorAll('.adjustments-list .toggle-row>.toggle')];
+     if(switches.length!==4)issues.push('expected 4 totals switches, found '+switches.length);
+     for(const toggle of switches){
+      const hit=toggle.getBoundingClientRect(),track=getComputedStyle(toggle,'::before'),knob=toggle.querySelector('span')?.getBoundingClientRect();
+      const trackWidth=parseFloat(track.width),trackHeight=parseFloat(track.height);
+      if(hit.width<43||hit.height<43)issues.push('totals switch hit target below 44px: '+hit.width+'x'+hit.height);
+      if(Math.abs(trackWidth-36)>1||Math.abs(trackHeight-21)>1)issues.push('totals visual track inflated: '+trackWidth+'x'+trackHeight);
+      if(!knob||Math.abs(knob.width-17)>1||Math.abs(knob.height-17)>1)issues.push('totals switch knob inflated: '+(knob?knob.width+'x'+knob.height:'missing'));
+      if(getComputedStyle(toggle).backgroundColor!=='rgba(0, 0, 0, 0)')issues.push('totals hit target must stay visually transparent');
+     }
+     return [...new Set(issues)];
+    });failures.push(...issues);
+   };
    await audit();await auditStepNav();
    await page.screenshot({path:output+'/'+stem+'-document.png',animations:'disabled'});
    const sections=page.locator('.editor-section');
@@ -75,7 +91,7 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
    await page.waitForFunction(()=>window.lastSaved?.items[0].quantity==='5');
    await sections.nth(3).scrollIntoViewIfNeeded();
    assert.match(await page.locator('.editor-totals .grand').innerText(),/5,045.00/);
-   await audit();await auditStepNav();
+   await audit();await auditStepNav();await auditTotals();
    await page.screenshot({path:output+'/'+stem+'-totals.png',animations:'disabled'});
    await sections.nth(4).scrollIntoViewIfNeeded();
    await audit();await auditStepNav();
