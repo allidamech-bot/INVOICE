@@ -38,9 +38,9 @@ export function incotermChoices(_arabic:boolean):PresetChoice[]{
 }
 
 export function paymentTermChoices(arabic:boolean):PresetChoice[]{
-  return PAYMENT_TERMS.map(item=>({value:item.value,label:arabic?`${item.ar} — ${item.value}`:item.en}));
+  return PAYMENT_TERMS.map(item=>({value:item.value,label:arabic?item.ar:item.en}));
 }
 
 export function deliveryTimeChoices(arabic:boolean):PresetChoice[]{
-  return DELIVERY_TERMS.map(item=>({value:item.value,label:arabic?`${item.ar} — ${item.value}`:item.en}));
+  return DELIVERY_TERMS.map(item=>({value:item.value,label:arabic?item.ar:item.en}));
 }
