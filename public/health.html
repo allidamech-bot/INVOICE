@@ -9,6 +9,7 @@
     :root{font-family:Inter,Arial,sans-serif;color:#EDF2F7;background:#07121A;color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;min-height:100dvh;padding:24px;background:radial-gradient(720px 540px at 12% 4%,rgba(83,70,216,.18),transparent 70%),radial-gradient(620px 520px at 92% 94%,rgba(47,130,201,.1),transparent 74%),linear-gradient(145deg,#050A11,#09151F);background-attachment:fixed}main{width:min(900px,100%);margin:0 auto}.head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}.brand{display:flex;align-items:center;gap:12px}.brand img{width:48px;height:48px;object-fit:contain;border-radius:13px;box-shadow:0 14px 34px rgba(0,0,0,.32)}.brand h1{font-size:22px;margin:0;color:#F7F5F0}.brand p{margin:3px 0 0;color:#94A1B2;font-size:13px}.card{background:#0F1B28;background-image:linear-gradient(145deg,rgba(255,255,255,.028),transparent 42%,rgba(83,70,216,.04));border:1px solid rgba(156,172,255,.17);border-radius:20px;padding:18px;box-shadow:0 28px 72px rgba(0,0,0,.34),0 1px 0 rgba(255,255,255,.035) inset;margin-bottom:14px}.summary{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}.dot{width:12px;height:12px;border-radius:50%;background:#6F7A8B;box-shadow:0 0 0 4px rgba(111,122,139,.1)}.dot.ok{background:#52C596;box-shadow:0 0 0 4px rgba(82,197,150,.1)}.dot.warn{background:#D9A84E;box-shadow:0 0 0 4px rgba(217,168,78,.11)}.dot.bad{background:#E06E68;box-shadow:0 0 0 4px rgba(224,110,104,.1)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.row{padding:12px;border:1px solid #293746;border-radius:13px;background:#0A1520;background-image:linear-gradient(180deg,rgba(255,255,255,.018),transparent)}.label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#8F9BAC;margin-bottom:5px}.value{font-weight:700;word-break:break-word;color:#E9EDF4}.okText{color:#8BE0BD}.warnText{color:#F0C979}.badText{color:#FF9A92}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid #304052;border-radius:11px;min-height:44px;padding:0 15px;font-weight:800;cursor:pointer;color:#E9EDF4;background:#18212D}.btn:focus-visible{outline:0;border-color:#8C91FF;box-shadow:0 0 0 3px rgba(124,115,255,.22)}.primary{border-color:rgba(171,177,255,.46);background:linear-gradient(135deg,#6958EA,#456EDD 50%,#2F82C9);color:#fff;box-shadow:0 12px 30px rgba(65,72,205,.28)}.secondary{background:#18212D;color:#E9EDF4}.note{font-size:12px;line-height:1.65;color:#97A4B5;margin-top:12px}pre{white-space:pre-wrap;word-break:break-word;background:#07121A;border:1px solid #293746;border-radius:13px;padding:12px;font-size:11px;line-height:1.55;max-height:260px;overflow:auto;color:#C7D0DD}@media(max-width:650px){body{padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}.grid{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.actions{width:100%}.actions .btn{flex:1}}
   </style>
   <script src="./runtime-config.js"></script>
+  <script src="./health.js" defer></script>
 </head>
 <body>
 <main>
@@ -16,68 +17,8 @@
     <div class="brand"><img src="./brand/lourex-logo.svg" alt="LOUREX" /><div><h1>System Health / صحة النظام</h1><p>Privacy-safe diagnostics — no invoice contents are displayed.</p></div></div>
     <div class="actions"><button class="btn secondary" id="back">Back / رجوع</button><button class="btn primary" id="copy">Copy report / نسخ التقرير</button></div>
   </div>
-  <section class="card"><div class="summary"><span class="dot" id="summaryDot"></span><span id="summaryText">Checking… / جارٍ الفحص…</span></div><div class="grid" id="grid"></div><div class="note">This page reports platform state only: deployment source, browser storage availability, PWA cache, service worker and the existence of scoped encrypted local storage. It never opens, decrypts or prints business data.<br><span dir="rtl">تعرض هذه الصفحة حالة النظام فقط ولا تقوم بفتح أو فك تشفير أو عرض بيانات الفواتير والعملاء.</span></div></section>
+  <section class="card"><div class="summary" role="status" aria-live="polite"><span class="dot" id="summaryDot"></span><span id="summaryText">Checking… / جارٍ الفحص…</span></div><div class="grid" id="grid"></div><div class="note">This page reports platform state only: deployment source, browser storage availability, PWA cache, service worker and the existence of scoped encrypted local storage. It never opens, decrypts or prints business data.<br><span dir="rtl">تعرض هذه الصفحة حالة النظام فقط ولا تقوم بفتح أو فك تشفير أو عرض بيانات الفواتير والعملاء.</span></div></section>
   <section class="card"><strong>Technical report / التقرير التقني</strong><pre id="report">Checking…</pre></section>
 </main>
-<script>
-(() => {
-  const EXPECTED_OWNER='allidamech-bot',EXPECTED_REPO='INVOICE';
-  const PUBLIC_DB_NAME='lourex-invoice-public',ACCOUNT_DB_PREFIX='lourex-invoice-account-';
-  const PROBE_TIMEOUT_MS=1800;
-  const rows=[]; const details=[];
-  const runtime=window.__LOUREX_RUNTIME__||{};
-  const add=(label,value,status='ok')=>{rows.push({label,value:String(value),status});details.push(`${label}=${String(value)}`);};
-  const yesNo=value=>value?'OK':'Unavailable';
-  const shortSha=value=>value?String(value).slice(0,12):'n/a';
-  const withTimeout=(promise,label,timeout=PROBE_TIMEOUT_MS)=>new Promise((resolve,reject)=>{
-    let settled=false;
-    const timer=setTimeout(()=>{if(settled)return;settled=true;reject(new Error(`${label} timed out`));},timeout);
-    Promise.resolve(promise).then(value=>{if(settled)return;settled=true;clearTimeout(timer);resolve(value);},error=>{if(settled)return;settled=true;clearTimeout(timer);reject(error);});
-  });
-  const render=()=>{
-    const grid=document.getElementById('grid');grid.innerHTML='';
-    rows.forEach(row=>{const el=document.createElement('div');el.className='row';el.innerHTML=`<span class="label"></span><span class="value ${row.status}Text"></span>`;el.querySelector('.label').textContent=row.label;el.querySelector('.value').textContent=row.value;grid.appendChild(el);});
-    const bad=rows.filter(row=>row.status==='bad').length,warn=rows.filter(row=>row.status==='warn').length;const dot=document.getElementById('summaryDot');dot.className=`dot ${bad?'bad':warn?'warn':'ok'}`;document.getElementById('summaryText').textContent=bad?`${bad} critical check(s) need attention / توجد مشكلة حرجة`:warn?`Core checks passed with ${warn} warning(s) / الفحص الأساسي سليم مع تنبيهات`:'All core checks passed / جميع الفحوص الأساسية سليمة';
-    document.getElementById('report').textContent=['LOUREX Invoice system health',`time=${new Date().toISOString()}`,...details,`userAgent=${navigator.userAgent}`].join('\n');
-  };
-  async function dbStatus(){
-    if(!('indexedDB' in window)){add('IndexedDB','Unavailable','bad');return;}
-    if(typeof indexedDB.databases!=='function'){add('IndexedDB','Available (scoped database enumeration unsupported here)','warn');return;}
-    try{
-      const dbs=await withTimeout(indexedDB.databases(),'IndexedDB enumeration');
-      const names=Array.isArray(dbs)?dbs.map(db=>String(db?.name||'')):[];
-      const publicPresent=names.includes(PUBLIC_DB_NAME);
-      const accountCount=names.filter(name=>name.startsWith(ACCOUNT_DB_PREFIX)).length;
-      const scopedCount=(publicPresent?1:0)+accountCount;
-      if(!scopedCount){add('Encrypted local storage','Not created on this device','warn');return;}
-      const summary=accountCount?`${accountCount} account scope${accountCount===1?'':'s'}${publicPresent?' + public scope':''}`:'Public scope present';
-      add('Encrypted local storage',summary,'ok');
-    }catch(error){add('IndexedDB check',error?.message||'Timed out or unavailable','warn');}
-  }
-  async function run(){
-    try{
-      const source=`${runtime.sourceRepoOwner||'unknown'}/${runtime.sourceRepoSlug||'unknown'}`;
-      const sourceOk=String(runtime.sourceRepoOwner||'').toLowerCase()===EXPECTED_OWNER.toLowerCase()&&String(runtime.sourceRepoSlug||'').toLowerCase()===EXPECTED_REPO.toLowerCase();
-      add('Environment',runtime.environment||'unknown',runtime.environment?'ok':'warn');
-      add('Deployment source',source,sourceOk?'ok':'bad');
-      add('Commit',shortSha(runtime.commitSha),runtime.commitSha?'ok':'warn');
-      add('Build time',runtime.buildTime||'n/a',runtime.buildTime?'ok':'warn');
-      add('Secure context',yesNo(window.isSecureContext),window.isSecureContext?'ok':'bad');
-      add('Network',navigator.onLine?'Online':'Offline',navigator.onLine?'ok':'warn');
-      add('Service worker support',yesNo('serviceWorker' in navigator),'serviceWorker' in navigator?'ok':'bad');
-      if('serviceWorker' in navigator){
-        try{const reg=await withTimeout(navigator.serviceWorker.getRegistration(),'Service worker check');add('PWA worker',reg?(reg.waiting?'Update waiting':navigator.serviceWorker.controller?'Active':'Installed'):'Not registered',reg?'ok':'warn');}catch(error){add('PWA worker',error?.message||'Check failed','warn');}
-      }
-      try{const keys=await withTimeout(caches.keys(),'Cache storage check');const lourex=keys.filter(key=>key.startsWith('lourex-invoice-'));add('PWA cache',lourex.join(', ')||'None',lourex.length?'ok':'warn');}catch(error){add('Cache storage',error?.message||'Unavailable','warn');}
-      if(navigator.storage?.estimate){try{const estimate=await withTimeout(navigator.storage.estimate(),'Browser storage estimate');const used=Math.round((estimate.usage||0)/1024/1024*10)/10;const quota=Math.round((estimate.quota||0)/1024/1024);add('Browser storage',`${used} MB used / ${quota} MB quota`,quota?'ok':'warn');}catch(error){add('Browser storage',error?.message||'Estimate unavailable','warn');}}
-      await dbStatus();
-    }catch(error){add('Health runner',error?.message||'Unexpected diagnostic failure','warn');}
-    finally{render();}
-  }
-  document.getElementById('back').addEventListener('click',()=>{if(history.length>1)history.back();else location.href='./';});
-  document.getElementById('copy').addEventListener('click',async()=>{const text=document.getElementById('report').textContent||'';try{await navigator.clipboard.writeText(text);document.getElementById('copy').textContent='Copied / تم النسخ';}catch{}});
-  void run();
-})();
-</script>
 </body>
 </html>

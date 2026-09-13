@@ -25,6 +25,11 @@
     else label.textContent=isArabic()?'اسحب للتحديث':'Pull to refresh';
   };
   copy('pull');
+  const languageObserver=new MutationObserver(()=>{
+    lastCopyState='';
+    copy(refreshing?'refreshing':distance>=THRESHOLD?'ready':'pull');
+  });
+  languageObserver.observe(document.documentElement,{attributes:true,attributeFilter:['dir','lang']});
 
   const pageAtTop=()=>window.scrollY<=0&&document.documentElement.scrollTop<=0&&document.body.scrollTop<=0;
   const blockedTarget=(target)=>target instanceof Element&&Boolean(target.closest('input,textarea,select,[contenteditable="true"],.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.preview-stage,.editor-scroll,.operations-page,.saved-items-page'));

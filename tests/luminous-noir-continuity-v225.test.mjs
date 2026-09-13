@@ -19,7 +19,7 @@ test('v225 keeps launch and installed PWA chrome in the Luminous Noir palette',a
   assert.match(launchCss,/linear-gradient\(90deg,#6958EA,#9CACFF,#2F82C9\)/);
   assert.equal(manifest.background_color,'#07121A');
   assert.equal(manifest.theme_color,'#07121A');
-  assert.match(patch,/const CACHE = 'lourex-invoice-v225'/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v226'/);
   assert.match(patch,/v225 extends Luminous Noir through launch, diagnostics, updates and iPhone output/);
 });
 
