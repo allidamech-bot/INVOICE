@@ -47,6 +47,7 @@ for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`
 // v239 keeps Operations supplier, item, status and expense-category identity locale-pure and restores Arabic purchase descriptions.
 // v240 protects deliberate Lock from discarding unsaved inline data-entry state while automatic inactivity locking remains enforced.
 // v241 width-fits the full A4 mobile preview on narrow phones without changing the printable document geometry.
+// v242 restores the Matte Black Operations tab strip on phones after the legacy UX recovery override.
 const releaseMarkers=[
   '// lourex-invoice-v230: editor detail polish refresh.',
   '// lourex-invoice-v231: mobile totals switch geometry refresh.',
@@ -59,7 +60,8 @@ const releaseMarkers=[
   '// lourex-invoice-v238: receivables bilingual search refresh.',
   '// lourex-invoice-v239: operations locale purity refresh.',
   '// lourex-invoice-v240: manual lock draft safety refresh.',
-  '// lourex-invoice-v241: narrow mobile A4 preview fit refresh.'
+  '// lourex-invoice-v241: narrow mobile A4 preview fit refresh.',
+  '// lourex-invoice-v242: mobile Operations matte tabs refresh.'
 ];
 for(const releaseMarker of releaseMarkers)if(!sw.includes(releaseMarker))sw=`${releaseMarker}\n${sw}`;
 const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";
