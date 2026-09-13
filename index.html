@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#07121A" />
+  <meta name="theme-color" content="#080808" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,17 +14,14 @@
   <link rel="icon" href="./brand/lourex-app-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" sizes="180x180" href="./brand/lourex-app-icon-180.png" />
   <style id="lourex-boot-style">
-    html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:#07121A}
-    #lourex-boot.loading-screen{position:fixed;inset:0;z-index:2147483000;min-height:100vh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-sizing:border-box;padding:32px;background:radial-gradient(circle at 50% 38%,rgba(105,88,234,.18),transparent 29%),radial-gradient(circle at 12% 14%,rgba(47,130,201,.12),transparent 31%),linear-gradient(145deg,#050A11 0%,#09151F 52%,#0B1723 100%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    #lourex-boot.loading-screen:before,#lourex-boot.loading-screen:after{content:"";position:absolute;width:420px;height:420px;border:1px solid rgba(156,172,255,.08);border-radius:50%;pointer-events:none}
-    #lourex-boot.loading-screen:before{transform:translate(-36%,-38%);top:0;left:0}
-    #lourex-boot.loading-screen:after{transform:translate(40%,42%);right:0;bottom:0}
+    html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:#080808}
+    #lourex-boot.loading-screen{position:fixed;inset:0;z-index:2147483000;min-height:100vh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-sizing:border-box;padding:32px;background:#080808;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     #lourex-boot .brand{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;animation:lourexLaunchIn .45s ease-out both}
-    #lourex-boot .brand-mark{display:grid;place-items:center;width:118px;height:118px;border-radius:28px;box-shadow:0 22px 65px rgba(0,0,0,.34),0 0 0 1px rgba(255,255,255,.07)}
+    #lourex-boot .brand-mark{display:grid;place-items:center;width:118px;height:118px;border-radius:28px}
     #lourex-boot .brand-mark img{display:block;width:118px;height:118px;border-radius:28px}
     #lourex-boot .brand-words strong{color:#f8f4ea;font-size:21px;letter-spacing:.28em;padding-left:.28em;font-weight:760}
     #lourex-boot .loading-line{position:relative;z-index:1;width:126px;height:3px;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.1)}
-    #lourex-boot .loading-line:after{content:"";position:absolute;inset:0 auto 0 0;width:46%;border-radius:inherit;background:linear-gradient(90deg,#6958EA,#9CACFF,#2F82C9);animation:lourexLoading 1.05s ease-in-out infinite}
+    #lourex-boot .loading-line:after{content:"";position:absolute;inset:0 auto 0 0;width:46%;border-radius:inherit;background:#B8A071;animation:lourexLoading 1.05s ease-in-out infinite}
     @keyframes lourexLoading{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
     @keyframes lourexLaunchIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
     @media(max-width:720px){#lourex-boot.loading-screen{padding:24px}#lourex-boot .brand-mark,#lourex-boot .brand-mark img{width:104px;height:104px;border-radius:25px}#lourex-boot .brand-words strong{font-size:19px}}
@@ -113,6 +110,7 @@
   <link rel="stylesheet" href="./styles/save-reliability-v217.css" />
   <link rel="stylesheet" href="./styles/dark-surface-continuity-v220.css" />
   <link rel="stylesheet" href="./styles/luminous-noir-v224.css" />
+  <link rel="stylesheet" href="./styles/matte-black-v228.css" />
   <link rel="stylesheet" href="./styles/document-premium-redesign-v141.css" />
   <title>LOUREX Invoice</title>
 </head>

@@ -276,11 +276,11 @@ function showUpdateNotice(worker?:ServiceWorker|null):void{
   reload.textContent='Update / تحديث';
   reload.style.minHeight='44px';
   reload.style.padding='0 10px';
-  reload.style.border='1px solid rgba(171,177,255,.46)';
+  reload.style.border='1px solid #B8A071';
   reload.style.borderRadius='9px';
-  reload.style.background='linear-gradient(135deg,#6958EA,#456EDD 50%,#2F82C9)';
-  reload.style.color='#fff';
-  reload.style.boxShadow='0 10px 26px rgba(65,72,205,.28)';
+  reload.style.background='#B8A071';
+  reload.style.color='#11110F';
+  reload.style.boxShadow='none';
   reload.style.fontWeight='800';
   reload.style.whiteSpace='nowrap';
   reload.addEventListener('click',()=>{

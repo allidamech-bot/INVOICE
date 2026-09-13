@@ -45,12 +45,12 @@ const output='visual-qa-output/functional-document-workflow';
           };
         });
         assert.deepEqual(reviewSurfaces,{
-          modal:'rgb(13, 24, 30)',
-          purpose:'rgb(16, 29, 36)',
-          identity:'rgb(16, 29, 36)',
-          total:'rgb(24, 34, 49)',
-          asset:'rgb(12, 23, 28)'
-        },'final review must use the Obsidian surface hierarchy');
+          modal:'rgb(14, 14, 14)',
+          purpose:'rgb(20, 20, 20)',
+          identity:'rgb(20, 20, 20)',
+          total:'rgb(24, 23, 19)',
+          asset:'rgb(20, 20, 20)'
+        },'final review must use the Matte Black surface hierarchy');
         await snap(page,`review-before-issue-${lang}`);
         assert.equal((await state(page)).lastOutput,undefined,'draft PDF must not output before confirmation');
         await page.locator('.modal-footer-actions .btn-primary').click();

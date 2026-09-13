@@ -50,18 +50,18 @@ export class AppErrorBoundary extends React.Component<{ children?: any }, State>
 
   render(): any {
     if (!this.state.failed) return this.props.children ?? null;
-    return <main className="app-recovery" dir={isArabic()?'rtl':'ltr'} style={{minHeight:'100dvh',display:'grid',placeItems:'center',padding:'24px',background:'radial-gradient(700px 520px at 12% 4%, rgba(83,70,216,.18), transparent 70%), linear-gradient(145deg,#050A11,#09151F)',color:'#EDF2F1',fontFamily:'Inter, Arial, sans-serif'}}>
-      <section role="alert" style={{width:'min(620px,100%)',background:'linear-gradient(145deg,rgba(17,28,42,.99),rgba(8,18,27,.99))',border:'1px solid rgba(156,172,255,.18)',borderRadius:'20px',padding:'28px',boxShadow:'0 36px 96px rgba(0,0,0,.52)'}}>
+    return <main className="app-recovery" dir={isArabic()?'rtl':'ltr'} style={{minHeight:'100dvh',display:'grid',placeItems:'center',padding:'24px',background:'#080808',color:'#F0EFEA',fontFamily:'Inter, Arial, sans-serif'}}>
+      <section role="alert" style={{width:'min(620px,100%)',background:'#141414',border:'1px solid #333',borderRadius:'14px',padding:'28px',boxShadow:'none'}}>
         <strong style={{display:'block',fontSize:'22px',marginBottom:'10px'}}>LOUREX Invoice</strong>
         <p style={{margin:'0 0 20px',lineHeight:1.8}}>{t('An unexpected screen error occurred. Your saved invoice data remains stored on this device.','حدث خطأ غير متوقع في الشاشة. بيانات الفواتير المحفوظة تبقى محفوظة على هذا الجهاز.')}</p>
         <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-          <button type="button" onClick={()=>window.location.reload()} style={{minHeight:'44px',padding:'0 18px',border:'1px solid rgba(171,177,255,.46)',borderRadius:'10px',background:'linear-gradient(135deg,#6958EA,#456EDD 50%,#2F82C9)',color:'#fff',fontWeight:700,cursor:'pointer',boxShadow:'0 12px 30px rgba(65,72,205,.28)'}}>{t('Reload LOUREX','إعادة التحميل')}</button>
-          <button type="button" onClick={()=>void this.copyDiagnostics()} style={{minHeight:'44px',padding:'0 18px',border:'1px solid #30434B',borderRadius:'10px',background:'#101D24',color:'#EDF2F1',fontWeight:700,cursor:'pointer'}}>{this.state.copied?t('Copied','تم النسخ'):t('Copy diagnostics','نسخ التشخيص')}</button>
-          <button type="button" onClick={()=>{window.location.href='./health.html';}} style={{minHeight:'44px',padding:'0 18px',border:'1px solid #30434B',borderRadius:'10px',background:'#101D24',color:'#EDF2F1',fontWeight:700,cursor:'pointer'}}>{t('System health','صحة النظام')}</button>
+          <button type="button" onClick={()=>window.location.reload()} style={{minHeight:'44px',padding:'0 18px',border:'1px solid #B8A071',borderRadius:'9px',background:'#B8A071',color:'#11110F',fontWeight:700,cursor:'pointer',boxShadow:'none'}}>{t('Reload LOUREX','إعادة التحميل')}</button>
+          <button type="button" onClick={()=>void this.copyDiagnostics()} style={{minHeight:'44px',padding:'0 18px',border:'1px solid #383838',borderRadius:'9px',background:'#1A1A1A',color:'#F0EFEA',fontWeight:700,cursor:'pointer'}}>{this.state.copied?t('Copied','تم النسخ'):t('Copy diagnostics','نسخ التشخيص')}</button>
+          <button type="button" onClick={()=>{window.location.href='./health.html';}} style={{minHeight:'44px',padding:'0 18px',border:'1px solid #383838',borderRadius:'9px',background:'#1A1A1A',color:'#F0EFEA',fontWeight:700,cursor:'pointer'}}>{t('System health','صحة النظام')}</button>
         </div>
-        <details style={{marginTop:'16px',paddingTop:'14px',borderTop:'1px solid #263840'}}>
+        <details style={{marginTop:'16px',paddingTop:'14px',borderTop:'1px solid #292929'}}>
           <summary style={{cursor:'pointer',fontSize:'14px',fontWeight:700,color:'#9AACB1'}}>{t('Technical details','التفاصيل التقنية')}</summary>
-          <pre style={{margin:'10px 0 0',padding:'12px',overflow:'auto',whiteSpace:'pre-wrap',wordBreak:'break-word',borderRadius:'10px',background:'#0C171C',fontSize:'12px',lineHeight:1.55,color:'#9AACB1'}}>{this.diagnostics()}</pre>
+          <pre style={{margin:'10px 0 0',padding:'12px',overflow:'auto',whiteSpace:'pre-wrap',wordBreak:'break-word',borderRadius:'9px',background:'#0E0E0E',fontSize:'12px',lineHeight:1.55,color:'#AAA9A4'}}>{this.diagnostics()}</pre>
         </details>
       </section>
     </main>;
