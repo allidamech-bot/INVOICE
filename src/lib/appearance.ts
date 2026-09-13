@@ -1,7 +1,10 @@
 import type { ArabicFontId, DocumentAppearance, LatinFontId, TemplateId } from '../types.js';
+import { getUiLanguage } from './i18n.js';
+
+const autoFontLabel=():string=>getUiLanguage()==='ar'?'تلقائي':'Auto';
 
 export const LATIN_FONT_OPTIONS: Array<{value:LatinFontId;label:string}> = [
-  {value:'auto',label:'Auto'},
+  {value:'auto',get label(){return autoFontLabel();}},
   {value:'inter',label:'Inter'},
   {value:'source-sans',label:'Source Sans 3'},
   {value:'montserrat',label:'Montserrat'},
@@ -9,7 +12,7 @@ export const LATIN_FONT_OPTIONS: Array<{value:LatinFontId;label:string}> = [
 ];
 
 export const ARABIC_FONT_OPTIONS: Array<{value:ArabicFontId;label:string}> = [
-  {value:'auto',label:'تلقائي'},
+  {value:'auto',get label(){return autoFontLabel();}},
   {value:'cairo',label:'Cairo'},
   {value:'tajawal',label:'Tajawal'},
   {value:'noto-kufi',label:'Noto Kufi Arabic'},
