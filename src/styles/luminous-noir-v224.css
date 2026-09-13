@@ -184,6 +184,12 @@
     background-image:linear-gradient(145deg,rgba(83,70,216,.1),transparent 38%),linear-gradient(180deg,rgba(255,255,255,.025),transparent)!important;
     box-shadow:var(--ds-shadow-raised)!important;
   }
+  .document-desktop-action-portal.app-ui,
+  .mobile-document-action-portal.app-ui{
+    background-color:transparent!important;
+    background-image:none!important;
+  }
+  .app-ui .document-action-popover{background-color:var(--ds-surface-strong)!important}
 
   .app-ui :is(.issue-review-purpose,.issue-review-grid>div,.issue-asset-checks>span,.cloud-conflict-banner,.cloud-conflict-recovery){box-shadow:0 10px 26px rgba(0,0,0,.12)!important}
   .app-ui :is(.cloud-conflict-banner,.cloud-conflict-recovery){background-color:#20151B!important;background-image:linear-gradient(135deg,rgba(199,90,87,.18),rgba(83,70,216,.055) 58%,transparent)!important}
