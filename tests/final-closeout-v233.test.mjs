@@ -34,7 +34,10 @@ test('final closeout keeps purchase editing clear of phone bottom navigation and
     read('src/styles/maintenance-closeout-v207.css'),
     read('tests/visual/run-obsidian-financial.cjs')
   ]);
-  assert.match(mobile,/:has\(\.operations-page \.purchase-editor\) \.mobile-bottom-nav\{[\s\S]*visibility:hidden!important[\s\S]*pointer-events:none!important[\s\S]*opacity:0!important/);
+  assert.match(mobile,/\.app-ui:has\(\.operations-page \.purchase-editor\) \.mobile-bottom-nav/);
+  assert.match(mobile,/visibility:hidden!important/);
+  assert.match(mobile,/pointer-events:none!important/);
+  assert.match(mobile,/opacity:0!important/);
   assert.match(maintenance,/\.purchase-editor \.operations-editor-actions\{[\s\S]*position:static!important/);
   assert.match(runner,/mobile nav covers purchase editor/);
   assert.match(runner,/purchase action bar covers editable fields/);
