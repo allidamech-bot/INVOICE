@@ -85,7 +85,9 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
     await page.locator('.operations-summary').waitFor();await audit('.operations-page');await shot('suppliers');
     const tabs={purchases:'#operations-tab-purchases',expenses:'#operations-tab-expenses',inventory:'#operations-tab-inventory'};
     for(const [state,selector] of Object.entries(tabs)){
-     const tab=page.locator(selector);await reachable(tab);await tab.click();await page.locator(`#operations-panel-${state}`).waitFor();await audit('.operations-page');await shot(state);
+     const tab=page.locator(selector);await reachable(tab);await tab.click();await page.locator(`#operations-panel-${state}`).waitFor();await audit('.operations-page');
+     if(state==='inventory')await reachable(page.locator('.inventory-entry>.btn'));
+     await shot(state);
     }
     await page.locator('#operations-tab-purchases').click();const purchaseRow=page.locator('.purchase-row').first();await purchaseRow.waitFor();
     const view=purchaseRow.locator('.row-actions button').first();await reachable(view);await view.click();await page.locator('.purchase-editor').waitFor();await audit('.operations-page');await auditPurchaseEditor();
