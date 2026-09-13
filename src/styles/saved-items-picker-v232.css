@@ -129,6 +129,54 @@
   }
 }
 
+/* v233 — final application closeout.
+   Passive customer surfaces follow the UI language exclusively: customerDisplayName
+   already falls back to the alternate stored name when the preferred-language value
+   is empty, so the explicit secondary-language line is redundant in list/profile UI.
+   Editing keeps both bilingual fields available and stored data is untouched. */
+@media screen{
+  .app-ui .customer-secondary-name,
+  .app-ui .customer-profile-secondary-name{
+    display:none!important;
+  }
+}
+
+/* A purchase is a long, high-attention mobile task. Once the purchase editor is
+   open, remove persistent shell chrome and the Operations overview from the phone
+   viewport. The editor's own header/close/action controls become the complete
+   focused workspace, preventing sticky shell chrome from painting over lower fields. */
+@media screen and (max-width:720px){
+  .app-ui:has(.operations-page .purchase-editor) .workspace-topbar,
+  .app-ui:has(.operations-page .purchase-editor) .mobile-bottom-nav{
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+    opacity:0!important;
+  }
+
+  .app-ui:has(.operations-page .purchase-editor) .workspace-shell,
+  .app-ui:has(.operations-page .purchase-editor) .workspace-shell.is-editor{
+    grid-template-rows:minmax(0,1fr)!important;
+  }
+
+  .app-ui:has(.operations-page .purchase-editor) .workspace-content,
+  .app-ui:has(.operations-page .purchase-editor) .workspace-shell.is-editor .workspace-content{
+    grid-row:1!important;
+    padding-bottom:max(12px,env(safe-area-inset-bottom))!important;
+  }
+
+  .app-ui .operations-page:has(.purchase-editor)>.operations-hero,
+  .app-ui .operations-page:has(.purchase-editor)>.operations-summary,
+  .app-ui .operations-page:has(.purchase-editor)>.operations-integrity-warning,
+  .app-ui .operations-page:has(.purchase-editor)>.operations-tabs{
+    display:none!important;
+  }
+
+  .app-ui .operations-page:has(.purchase-editor){
+    padding-top:max(10px,env(safe-area-inset-top))!important;
+  }
+}
+
 @media print{
   .app-ui .saved-items-shell.is-picker{display:none!important}
 }
