@@ -5,16 +5,15 @@ import { hydrateAuthoritativeCloudBeforeApp } from '../cloud/startup.js';
 import { currentCloudUser, subscribeCloudUser, waitForCloudUser } from '../cloud/firebase.js';
 import { adaptiveCloudSettleMs } from '../cloud/coalescing.js';
 import { activateAccountStorage, activeAccountStorageUid, purgeLegacySafetySnapshot } from '../storage/db.js';
-import { getActiveAccountUid, resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
+import { getActiveAccountUid, isCurrentSessionExpired, resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
 const appRoot=root;
 
 // BaseApp keeps the encryption/Firebase protocol unchanged. This runtime subclass
-// only replaces the two automatic quiet-window schedulers after BaseApp's own class
-// fields have initialized. Explicit recovery/manual sync delays still pass
-// straight through and are never lengthened by this policy.
+// replaces runtime scheduling/safety hooks after BaseApp's own class fields have
+// initialized. Explicit recovery/manual sync delays still pass straight through.
 class AdaptiveCloudApp extends BaseApp {
   adaptiveCloudRuntime=(()=>{
     const instance=this as any;
@@ -36,6 +35,35 @@ class AdaptiveCloudApp extends BaseApp {
     // modals). This prevents an automatic remote pull from reloading the app while
     // the user is typing outside the document editor.
     instance.cloudReplaceBlocked=()=>instance.state.screen==='editor'||instance.state.settingsOpen||instance.state.cloudModal||reloadUnsafeWorkspaceOpen();
+
+    // Restore the live inactivity timer promised by AppSettings.autoLockMinutes.
+    // Session expiry on startup already exists; this closes the runtime gap so an
+    // app left open does not remain unlocked indefinitely. Activity in BaseApp
+    // calls resetAutoLock(), so normal typing/taps keep extending the deadline.
+    instance.resetAutoLock=()=>{
+      if(instance.lockTimer){window.clearTimeout(instance.lockTimer);instance.lockTimer=undefined;}
+      const minutes=Number(instance.state.vault?.appSettings?.autoLockMinutes??0);
+      if(!instance.state.unlocked||minutes<=0)return;
+      instance.lockTimer=window.setTimeout(()=>{
+        instance.lockTimer=undefined;
+        void instance.lockNow(true);
+      },minutes*60_000);
+    };
+    // Mobile browsers may suspend timers while backgrounded. Check the persisted
+    // last-activity timestamp before BaseApp touches it when the app becomes visible,
+    // otherwise a long background period could silently bypass auto-lock.
+    const handleVisibilityChange=instance.handleVisibilityChange.bind(instance);
+    instance.handleVisibilityChange=()=>{
+      if(document.visibilityState==='visible'&&instance.state.unlocked){
+        const minutes=Number(instance.state.vault?.appSettings?.autoLockMinutes??0);
+        if(minutes>0&&isCurrentSessionExpired(minutes)){
+          if(instance.lockTimer){window.clearTimeout(instance.lockTimer);instance.lockTimer=undefined;}
+          void instance.lockNow(true);
+          return;
+        }
+      }
+      handleVisibilityChange();
+    };
     return true;
   })();
 }

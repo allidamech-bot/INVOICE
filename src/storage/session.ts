@@ -71,9 +71,13 @@ export function isSessionExpired(lastActivity: number, autoLockMinutes: AutoLock
   return autoLockMinutes > 0 && now - lastActivity >= autoLockMinutes * 60_000;
 }
 
-export function isCurrentSessionExpired(autoLockMinutes: AutoLockMinutes, now = Date.now()): boolean {
+function normalizeAutoLockMinutes(value:number):AutoLockMinutes{
+  return value===5||value===15||value===30?value:0;
+}
+
+export function isCurrentSessionExpired(autoLockMinutes: number, now = Date.now()): boolean {
   const marker = readMarker();
-  return !marker || isSessionExpired(marker.lastActivity, autoLockMinutes, now);
+  return !marker || isSessionExpired(marker.lastActivity, normalizeAutoLockMinutes(autoLockMinutes), now);
 }
 
 export async function establishSession(key: CryptoKey): Promise<boolean> {
