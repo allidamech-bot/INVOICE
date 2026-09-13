@@ -49,7 +49,7 @@ const output='visual-qa-output/functional-document-workflow';
           purpose:'rgb(16, 29, 36)',
           identity:'rgb(16, 29, 36)',
           total:'rgb(24, 34, 49)',
-          asset:'rgb(18, 43, 38)'
+          asset:'rgb(12, 23, 28)'
         },'final review must use the Obsidian surface hierarchy');
         await snap(page,`review-before-issue-${lang}`);
         assert.equal((await state(page)).lastOutput,undefined,'draft PDF must not output before confirmation');
