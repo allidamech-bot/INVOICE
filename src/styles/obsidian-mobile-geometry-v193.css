@@ -169,6 +169,37 @@
   .app-ui .operations-editor-actions .btn-primary{grid-column:1/-1!important}
 }
 
+/* v234 — mobile purchase focus.
+   Once a purchase is open on a phone, the purchase editor becomes the complete
+   task surface: shell chrome and Operations overview content leave the viewport,
+   preventing a sticky top bar from crossing long form fields while scrolling. */
+@media screen and (max-width:720px){
+  .app-ui:has(.operations-page .purchase-editor) .workspace-topbar,
+  .app-ui:has(.operations-page .purchase-editor) .mobile-bottom-nav{
+    display:none!important;
+  }
+
+  .app-ui:has(.operations-page .purchase-editor) .workspace-shell{
+    grid-template-rows:minmax(0,1fr)!important;
+  }
+
+  .app-ui:has(.operations-page .purchase-editor) .workspace-content{
+    grid-row:1!important;
+    padding-bottom:max(12px,env(safe-area-inset-bottom))!important;
+  }
+
+  .app-ui .operations-page:has(.purchase-editor)>.operations-hero,
+  .app-ui .operations-page:has(.purchase-editor)>.operations-summary,
+  .app-ui .operations-page:has(.purchase-editor)>.operations-integrity-warning,
+  .app-ui .operations-page:has(.purchase-editor)>.operations-tabs{
+    display:none!important;
+  }
+
+  .app-ui .operations-page:has(.purchase-editor){
+    padding-top:max(10px,env(safe-area-inset-top))!important;
+  }
+}
+
 @media print{
   .app-ui .editor-section-navigator,
   .app-ui .mobile-bottom-nav{display:none!important}
