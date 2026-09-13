@@ -232,7 +232,7 @@
 .auth-account-card .premium-auth-language{
   position:absolute;
   inset:24px 28px auto auto;
-  min-height:38px;
+  min-height:44px;
   padding:0 13px;
   border:1px solid rgba(174,196,204,.18);
   border-radius:12px;
@@ -260,7 +260,7 @@
   background:#081923;
 }
 .auth-account-card .account-entry-tabs button{
-  min-height:43px;
+  min-height:44px;
   border-radius:11px;
   color:#7f98a4;
   font-size:12px;
@@ -311,6 +311,10 @@
 .auth-account-card .premium-auth-primary:active:not(:disabled){transform:translateY(0)}
 .auth-account-card .premium-auth-primary:focus-visible{outline:3px solid rgba(94,173,182,.24)!important;outline-offset:3px!important}
 .auth-account-card .account-forgot{
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   align-self:center;
   margin:15px 0 0;
   padding:6px 8px;
@@ -374,7 +378,7 @@
   .auth-story-copy h2{font-size:24px;line-height:1.08}
   .auth-story-copy>p:last-child{display:none}
   .auth-account-card.account-first-card{min-height:0;padding:42px 20px 25px;background:linear-gradient(180deg,#0d202a,#091821)}
-  .auth-account-card .premium-auth-language{top:14px;right:16px;min-height:34px;padding:0 10px;border-radius:10px;font-size:10px}
+  .auth-account-card .premium-auth-language{top:14px;right:16px;min-height:44px;padding:0 12px;border-radius:10px;font-size:10px}
   [dir="rtl"] .auth-account-card .premium-auth-language{right:auto;left:16px}
   .auth-card-heading{margin-bottom:20px;padding-top:2px}
   .auth-account-card .auth-card-heading h1{font-size:27px}

@@ -30,6 +30,6 @@ test('v224 loads after all legacy application layers and ships offline',async()=
   assert.ok(noir>html.indexOf('./styles/dark-surface-continuity-v220.css'));
   assert.ok(noir<html.indexOf('./styles/document-premium-redesign-v141.css'));
   assert.match(sw,/LOCAL_CORE\.push\('\.\/styles\/luminous-noir-v224\.css'\)/);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v225'/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v226'/);
   assert.match(dist,/LOUREX Luminous Noir/);
 });
