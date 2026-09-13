@@ -30,6 +30,12 @@ class AdaptiveCloudApp extends BaseApp {
       const delay=adaptiveCloudSettleMs(instance.latestEncryptedVault?.cipher?.length??0,true);
       instance.cloudTimer=window.setTimeout(()=>void instance.flushCloudSync(),delay);
     };
+    // BaseApp already defers a remote vault replacement when cloudReplaceBlocked()
+    // is true. Extend that guard to the runtime workspaces that own unsaved local
+    // draft state but live below BaseApp (Operations, product editor and shared
+    // modals). This prevents an automatic remote pull from reloading the app while
+    // the user is typing outside the document editor.
+    instance.cloudReplaceBlocked=()=>instance.state.screen==='editor'||instance.state.settingsOpen||instance.state.cloudModal||reloadUnsafeWorkspaceOpen();
     return true;
   })();
 }
