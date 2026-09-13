@@ -16,6 +16,10 @@ function customerName(account:CustomerReceivableSummary,documents:LourexDocument
   const value=isArabic()?(snapshot?.companyNameAr||snapshot?.companyNameEn):(snapshot?.companyNameEn||snapshot?.companyNameAr);
   return (value||t('Deleted customer','عميل محذوف')).trim();
 }
+function customerSearchNames(account:CustomerReceivableSummary,documents:LourexDocument[]):string{
+  const snapshot=accountSnapshot(account,documents);
+  return [account.customer?.companyNameEn,account.customer?.companyNameAr,snapshot?.companyNameEn,snapshot?.companyNameAr,customerName(account,documents)].filter(Boolean).join(' ').toLocaleLowerCase();
+}
 function moneyList(rows:{currency:string;outstanding:string}[]):string{return rows.filter(row=>row.outstanding!=='0.00').map(row=>formatMoney(row.outstanding,row.currency)).join(' · ')||'—';}
 function overdueList(rows:{currency:string;overdue:string}[]):string{return rows.filter(row=>row.overdue!=='0.00').map(row=>formatMoney(row.overdue,row.currency)).join(' · ')||'—';}
 
@@ -58,11 +62,11 @@ export class ReceivablesPage extends React.Component<Props,State>{
     const accounts=customerReceivables(this.props.customers,this.props.documents,this.props.payments);
     const q=this.state.query.trim().toLocaleLowerCase();
     return accounts.filter(account=>{
-      const name=customerName(account,this.props.documents).toLocaleLowerCase();
+      const names=customerSearchNames(account,this.props.documents);
       const snapshot=account.customer?undefined:accountSnapshot(account,this.props.documents);
       const email=(account.customer?.email||snapshot?.email||'').toLocaleLowerCase();
       const phone=account.customer?.phone||snapshot?.phone||'';
-      const matchesSearch=!q||name.includes(q)||email.includes(q)||phone.includes(q);
+      const matchesSearch=!q||names.includes(q)||email.includes(q)||phone.includes(q);
       if(!matchesSearch)return false;
       if(this.state.filter==='overdue')return account.hasOverdue;
       if(this.state.filter==='open')return account.openInvoices>0;
