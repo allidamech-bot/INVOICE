@@ -35,6 +35,28 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
    assert.ok(state.editor.left>=-1&&state.editor.right<=viewport.width+1,'product editor exceeds phone viewport '+JSON.stringify(state));
    if(state.nav)assert.ok(state.nav.display==='none'||state.nav.visibility==='hidden'||state.nav.opacity==='0','mobile bottom nav covers focused product editor '+JSON.stringify(state));
   };
+  const auditMobilePicker=async()=>{
+   if(viewport.width>720)return;
+   const state=await page.evaluate(()=>{
+    const modal=document.querySelector('.modal:has(.saved-items-shell.is-picker)'),body=modal?.querySelector('.modal-body'),shell=modal?.querySelector('.saved-items-shell.is-picker'),pane=shell?.querySelector('.saved-items-list-pane'),list=shell?.querySelector('.saved-items-list'),bar=shell?.querySelector('.saved-items-picker-bar');
+    if(!modal||!body||!shell||!pane||!list||!bar)return {error:'mobile picker containment nodes missing'};
+    const rect=el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
+    const info=[...bar.querySelectorAll('strong,small')].map(el=>({text:el.textContent,clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,whiteSpace:getComputedStyle(el).whiteSpace}));
+    const buttons=[...bar.querySelectorAll('.btn')].map(el=>({...rect(el),text:el.textContent?.trim()}));
+    return {modal:rect(modal),body:rect(body),shell:rect(shell),pane:rect(pane),list:rect(list),bar:rect(bar),bodyOverflow:getComputedStyle(body).overflowY,shellOverflow:getComputedStyle(shell).overflowY,listOverflow:getComputedStyle(list).overflowY,listScrollable:list.scrollHeight>list.clientHeight+1,buttons,info,viewport:{width:innerWidth,height:innerHeight}};
+   });
+   assert.equal(state.error,undefined,JSON.stringify(state));
+   assert.ok(state.modal.top>=-1&&state.modal.bottom<=state.viewport.height+1,'picker modal escapes viewport '+JSON.stringify(state));
+   assert.ok(state.modal.height>=state.viewport.height*.72,'picker modal wastes phone viewport '+JSON.stringify(state));
+   assert.equal(state.bodyOverflow,'hidden','picker modal body must not create a second scroll page '+JSON.stringify(state));
+   assert.equal(state.shellOverflow,'hidden','picker shell must own contained geometry '+JSON.stringify(state));
+   assert.ok(['auto','scroll'].includes(state.listOverflow),'picker list must be the scrolling surface '+JSON.stringify(state));
+   assert.equal(state.listScrollable,true,'picker list should scroll inside the dialog '+JSON.stringify(state));
+   assert.ok(state.list.bottom<=state.bar.top+1,'picker actions overlap the scrolling list '+JSON.stringify(state));
+   assert.ok(state.bar.left>=state.modal.left-1&&state.bar.right<=state.modal.right+1&&state.bar.bottom<=state.body.bottom+1,'picker action bar escapes modal '+JSON.stringify(state));
+   assert.ok(state.buttons.length>=2&&state.buttons.every(button=>button.height>=43&&button.left>=state.modal.left-1&&button.right<=state.modal.right+1),'picker action target clipped or below 44px '+JSON.stringify(state));
+   assert.ok(state.info.every(item=>item.scrollWidth<=item.clientWidth+1&&item.whiteSpace==='normal'),'picker summary text clipped '+JSON.stringify(state));
+  };
   try{
    await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-directory.html?lang=${lang}&screen=${screen}`,{waitUntil:'load'});await page.evaluate(()=>document.fonts.ready);
    if(screen==='customers'){
@@ -55,8 +77,8 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
     const price=page.locator('.product-library-editor .field').filter({hasText:lang==='ar'?'سعر البيع':'Sale price'}).locator('input');await price.fill('275');
     const save=page.locator('.product-library-editor-actions .btn-primary');await reachable(save);await auditFocusedProductEditor();await save.click();await page.waitForFunction(()=>window.savedProduct?.lastUnitPrice==='275');await page.locator('.product-library-row-price').filter({hasText:'275 USD'}).waitFor();
    }else{
-    await page.locator('.saved-items-shell').waitFor();await page.locator('.saved-items-smart-nav button').last().click();const rows=page.locator('.saved-item-row');assert.equal(await rows.count(),24);await audit('.modal');await shot('list');
-    await page.locator('.saved-items-search-input').fill('Precision');assert.equal(await rows.count(),8);await rows.nth(0).locator('.saved-item-main').click();await rows.nth(1).locator('.saved-item-main').click();assert.equal(await page.locator('.saved-item-row.is-selected').count(),2);
+    await page.locator('.saved-items-shell').waitFor();await page.locator('.saved-items-smart-nav button').last().click();const rows=page.locator('.saved-item-row');assert.equal(await rows.count(),24);await audit('.modal');await auditMobilePicker();await shot('list');
+    await page.locator('.saved-items-search-input').fill('Precision');assert.equal(await rows.count(),8);await rows.nth(0).locator('.saved-item-main').click();await rows.nth(1).locator('.saved-item-main').click();assert.equal(await page.locator('.saved-item-row.is-selected').count(),2);await auditMobilePicker();
     const add=page.locator('.saved-items-picker-bar .btn-primary');await reachable(add);await shot('selected');await add.click();await page.waitForFunction(()=>window.selectedItems?.length===2);assert.equal(await page.evaluate(()=>window.selectedItems.every(item=>item.lastCurrency==='USD'&&item.unit==='PCS')),true);
    }
   }catch(error){failures.push(String(error));await shot('failure').catch(()=>{});}
