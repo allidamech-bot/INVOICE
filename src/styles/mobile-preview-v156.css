@@ -166,6 +166,22 @@
   }
 }
 
+/* v241 — the A4 sheet stays physically 210mm wide; only its screen preview
+   scale changes on narrow phones. The previous fixed .48 scale rendered a
+   ~381px sheet, so 320–375px viewports clipped both document edges. */
+@media screen and (max-width:390px){
+  .app-ui .mobile-preview-stage>.invoice-pages{--preview-scale:.445!important}
+}
+@media screen and (max-width:375px){
+  .app-ui .mobile-preview-stage>.invoice-pages{--preview-scale:.43!important}
+}
+@media screen and (max-width:360px){
+  .app-ui .mobile-preview-stage>.invoice-pages{--preview-scale:.405!important}
+}
+@media screen and (max-width:340px){
+  .app-ui .mobile-preview-stage>.invoice-pages{--preview-scale:.38!important}
+}
+
 @media print{
   .app-ui .mobile-preview-overlay{
     display:none!important;

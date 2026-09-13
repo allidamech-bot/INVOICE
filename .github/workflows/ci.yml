@@ -59,6 +59,7 @@ jobs:
           node tests/visual/run-obsidian-dashboard.cjs
           node tests/visual/run-obsidian-documents.cjs
           node tests/visual/run-obsidian-editor.cjs
+          node tests/visual/run-mobile-preview-fit-v241.cjs
           node tests/visual/run-functional-document-workflow.cjs
           node tests/visual/run-functional-editor-controls-v201.cjs
           node tests/visual/run-functional-payments.cjs
