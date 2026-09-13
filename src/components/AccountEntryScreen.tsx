@@ -41,7 +41,22 @@ export class AccountEntryScreen extends React.Component<Props,State>{
 
   private languageSwitch=():any=><button type="button" className="auth-language-switch premium-auth-language" disabled={this.state.busy} onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button>;
 
-  private setMode=(mode:'signin'|'create')=>{clearPendingGoogleLink();this.setState({mode,error:'',message:'',password:'',confirm:'',googleLinkPending:false});};
+  private setMode=(mode:'signin'|'create',focusTab=false)=>{
+    clearPendingGoogleLink();
+    this.setState({mode,error:'',message:'',password:'',confirm:'',googleLinkPending:false},()=>{
+      if(focusTab)window.requestAnimationFrame(()=>document.getElementById(`account-tab-${mode}`)?.focus());
+    });
+  };
+
+  private modeKeyDown=(event:any):void=>{
+    let mode:'signin'|'create'|null=null;
+    if(event.key==='ArrowLeft'||event.key==='ArrowRight')mode=this.state.mode==='signin'?'create':'signin';
+    else if(event.key==='Home')mode='signin';
+    else if(event.key==='End')mode='create';
+    if(!mode)return;
+    event.preventDefault();
+    this.setMode(mode,true);
+  };
 
   private passwordError=(password:string):string=>{
     const issue=accountPasswordIssue(password);
@@ -152,7 +167,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
           <div className="auth-story-brand"><Brand logoDataUrl="./brand/lourex-logo.svg" language={this.props.language}/><span className="auth-story-product">LOUREX INVOICE</span></div>
           <div className="auth-story-copy">
             <p className="auth-story-kicker">{t('PRIVATE BUSINESS WORKSPACE','مساحة أعمال خاصة')}</p>
-            <h2>{t('Run every commercial document from one calm, secure workspace.','أدر مستندات أعمالك كلها من مساحة واحدة هادئة وآمنة.')}</h2>
+            <p className="auth-story-title">{t('Run every commercial document from one calm, secure workspace.','أدر مستندات أعمالك كلها من مساحة واحدة هادئة وآمنة.')}</p>
             <p>{t('Invoices, quotations, customers and financial follow-up stay organized, protected and ready wherever you work.','الفواتير وعروض الأسعار والعملاء والمتابعة المالية تبقى منظمة ومحمية وجاهزة أينما تعمل.')}</p>
           </div>
           <div className="auth-story-trust" aria-label={t('Workspace benefits','مزايا مساحة العمل')}>
@@ -181,11 +196,11 @@ export class AccountEntryScreen extends React.Component<Props,State>{
           </>:null}
 
           <div className="segmented account-entry-tabs" role="tablist" aria-label={t('Account access','الدخول إلى الحساب')}>
-            <button type="button" role="tab" aria-selected={!create} disabled={this.state.busy||linkingGoogle} className={!create?'active':''} onClick={()=>this.setMode('signin')}>{t('Sign In','تسجيل الدخول')}</button>
-            <button type="button" role="tab" aria-selected={create} disabled={this.state.busy||linkingGoogle} className={create?'active':''} onClick={()=>this.setMode('create')}>{t('Create Account','إنشاء حساب')}</button>
+            <button id="account-tab-signin" type="button" role="tab" aria-controls="account-entry-panel" aria-selected={!create} tabIndex={!create?0:-1} disabled={this.state.busy||linkingGoogle} className={!create?'active':''} onKeyDown={this.modeKeyDown} onClick={()=>this.setMode('signin')}>{t('Sign In','تسجيل الدخول')}</button>
+            <button id="account-tab-create" type="button" role="tab" aria-controls="account-entry-panel" aria-selected={create} tabIndex={create?0:-1} disabled={this.state.busy||linkingGoogle} className={create?'active':''} onKeyDown={this.modeKeyDown} onClick={()=>this.setMode('create')}>{t('Create Account','إنشاء حساب')}</button>
           </div>
 
-          <div className="account-entry-fields">
+          <div className="account-entry-fields" id="account-entry-panel" role="tabpanel" aria-labelledby={create?'account-tab-create':'account-tab-signin'}>
             <Field label={t('Email','البريد الإلكتروني')}><Input type="email" inputMode="email" autoComplete="email" autoFocus={!linkingGoogle} disabled={this.state.busy||linkingGoogle} value={this.state.email} onChange={(e:any)=>this.setState({email:e.target.value,error:''})}/></Field>
             <Field label={t('Password','كلمة المرور')}><Input type="password" autoComplete={create?'new-password':'current-password'} minLength={create?MIN_ACCOUNT_PASSWORD_LENGTH:undefined} maxLength={create?MAX_ACCOUNT_PASSWORD_LENGTH:undefined} autoFocus={linkingGoogle} disabled={this.state.busy} value={this.state.password} onChange={(e:any)=>this.setState({password:e.target.value,error:''})}/></Field>
             {create?<Field label={t('Confirm Password','تأكيد كلمة المرور')}><Input type="password" autoComplete="new-password" minLength={MIN_ACCOUNT_PASSWORD_LENGTH} maxLength={MAX_ACCOUNT_PASSWORD_LENGTH} disabled={this.state.busy} value={this.state.confirm} onChange={(e:any)=>this.setState({confirm:e.target.value,error:''})}/></Field>:null}
