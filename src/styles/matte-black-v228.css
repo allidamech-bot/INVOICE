@@ -2,6 +2,8 @@
    Flat, restrained accounting UI: no decorative gradients, glass, glow or 3D.
    Screen chrome only; printable invoices and quotations remain unchanged. */
 @media screen {
+  html,body{background-color:#080808!important;background-image:none!important}
+
   .app-ui{
     --ds-canvas:#080808;
     --ds-shell:#0B0B0B;
