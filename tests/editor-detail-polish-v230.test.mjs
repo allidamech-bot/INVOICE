@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {setUiLanguage} from '../dist/src/lib/i18n.js';
 import {LATIN_FONT_OPTIONS,ARABIC_FONT_OPTIONS} from '../dist/src/lib/appearance.js';
 import {unitChoices,packingTypeChoices,categoryChoices,countryChoices} from '../dist/src/lib/product-presets.js';
+import {paymentTermChoices,deliveryTimeChoices} from '../dist/src/lib/workflow-presets.js';
 
 test('v230 automatic font labels follow the application UI language',()=>{
   setUiLanguage('en');
@@ -27,6 +28,13 @@ test('v230 product preset labels stay in the active UI language while stored val
   const localizedCountry=arabicCountries.find(choice=>choice.value===preferredCountry.value);
   assert.ok(localizedCountry);
   assert.ok(!localizedCountry.label.includes(` — ${preferredCountry.value}`),`Arabic country label must not append English: ${localizedCountry.label}`);
+});
+
+test('v230 workflow preset labels stay locale-pure while canonical stored values stay unchanged',()=>{
+  assert.deepEqual(paymentTermChoices(false).find(choice=>choice.value==='Net 30 Days'),{value:'Net 30 Days',label:'Net 30 days'});
+  assert.deepEqual(paymentTermChoices(true).find(choice=>choice.value==='Net 30 Days'),{value:'Net 30 Days',label:'أجل 30 يومًا'});
+  assert.deepEqual(deliveryTimeChoices(false).find(choice=>choice.value==='Ready Stock'),{value:'Ready Stock',label:'Ready stock'});
+  assert.deepEqual(deliveryTimeChoices(true).find(choice=>choice.value==='Ready Stock'),{value:'Ready Stock',label:'متوفر وجاهز'});
 });
 
 test('v230 keeps the automatic design label separated from its explanatory copy',async()=>{
