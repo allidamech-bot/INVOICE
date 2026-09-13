@@ -33,7 +33,13 @@
     box-shadow:none!important;
   }
   .app-ui .appearance-auto-note span{min-width:0!important;overflow-wrap:anywhere!important}
-  .app-ui .appearance-auto-note strong{color:var(--ds-text)!important}
+  /* v230 — keep the automatic-design label visually separate from its explanatory copy in LTR/RTL. */
+  .app-ui .appearance-auto-note strong{
+    display:inline-block!important;
+    margin-inline-end:7px!important;
+    color:var(--ds-text)!important;
+    white-space:nowrap!important;
+  }
 
   .app-ui .appearance-toggles{
     min-width:0!important;
