@@ -1,3 +1,4 @@
+// v228 Matte Black — publish the flat, restrained accounting interface without decorative 3D effects.
 // v227 account accessibility — complete keyboard tab behavior and expose one primary page heading.
 // v226 diagnostic recovery — run CSP-safe health checks and refresh localized, touch-safe account entry controls.
 // v225 Luminous Noir continuity — recache launch, diagnostics, update and iPhone output surfaces.
@@ -124,6 +125,7 @@ LOCAL_CORE.push('./styles/mobile-safari-chrome-v199.css');
 LOCAL_CORE.push('./styles/save-reliability-v217.css');
 LOCAL_CORE.push('./styles/dark-surface-continuity-v220.css');
 LOCAL_CORE.push('./styles/luminous-noir-v224.css');
+LOCAL_CORE.push('./styles/matte-black-v228.css');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);

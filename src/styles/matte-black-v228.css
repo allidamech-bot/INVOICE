@@ -1,0 +1,192 @@
+/* v228 — LOUREX Matte Black.
+   Flat, restrained accounting UI: no decorative gradients, glass, glow or 3D.
+   Screen chrome only; printable invoices and quotations remain unchanged. */
+@media screen {
+  .app-ui{
+    --ds-canvas:#080808;
+    --ds-shell:#0B0B0B;
+    --ds-workspace:#0E0E0E;
+    --ds-surface:#141414;
+    --ds-surface-strong:#191919;
+    --ds-selected:#202020;
+    --ds-financial-surface:#181713;
+    --ds-input:#101010;
+    --ds-accent:#B8A071;
+    --ds-accent-hover:#C8B184;
+    --ds-accent-bright:#D1BC91;
+    --ds-brass:#A99163;
+    --ds-brass-highlight:#D1BC91;
+    --ds-text:#F0EFEA;
+    --ds-text-soft:#AAA9A4;
+    --ds-muted:#92918C;
+    --ds-faint:#74736F;
+    --ds-line:#292929;
+    --ds-line-strong:#383838;
+    --ds-input-line:#333333;
+    --ds-focus-line:#C8B184;
+    --ds-secondary-button:#1A1A1A;
+    --ds-on-action:#11110F;
+    --ds-shadow-card:none;
+    --ds-shadow-raised:0 14px 36px rgba(0,0,0,.42);
+    --ds-focus:0 0 0 2px rgba(200,177,132,.24);
+    --ds-radius-control:9px;
+    --ds-radius-card:11px;
+    --ds-radius-panel:12px;
+    background-color:var(--ds-canvas)!important;
+    background-image:none!important;
+  }
+
+  .app-ui :is(.workspace-shell,.workspace-sidebar,.workspace-topbar,.workspace-content,.editor-screen,.editor-pane){
+    background-image:none!important;
+  }
+  .app-ui .workspace-shell{background-color:var(--ds-canvas)!important}
+  .app-ui .workspace-sidebar{border-inline-end-color:var(--ds-line)!important;background-color:var(--ds-shell)!important;box-shadow:none!important}
+  .app-ui .workspace-topbar{border-bottom-color:var(--ds-line)!important;background-color:var(--ds-shell)!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+
+  .app-ui :is(.btn.btn-primary,.shell-create-button.btn-primary,.mobile-create-button){
+    border:1px solid var(--ds-accent)!important;
+    background-color:var(--ds-accent)!important;
+    background-image:none!important;
+    color:var(--ds-on-action)!important;
+    box-shadow:none!important;
+    transform:none!important;
+  }
+  .app-ui :is(.btn.btn-primary,.shell-create-button.btn-primary,.mobile-create-button):hover:not(:disabled){
+    border-color:var(--ds-accent-hover)!important;
+    background-color:var(--ds-accent-hover)!important;
+    background-image:none!important;
+    box-shadow:none!important;
+    transform:none!important;
+  }
+  .app-ui :is(.btn,.icon-btn):not(.btn-primary):not(.btn-danger){background-color:var(--ds-secondary-button)!important;background-image:none!important;box-shadow:none!important}
+  .app-ui :is(.btn,.icon-btn):active:not(:disabled){transform:none!important}
+
+  .app-ui :is(.shell-nav-button.active,.mobile-bottom-nav>button.active,.settings-nav-button.active,.settings-workspace-tab.active,.documents-register-tabs>button.active){
+    border-color:var(--ds-line-strong)!important;
+    background-color:var(--ds-selected)!important;
+    background-image:none!important;
+    color:var(--ds-text)!important;
+    box-shadow:inset 3px 0 0 var(--ds-accent)!important;
+  }
+  [dir='rtl'] .app-ui :is(.shell-nav-button.active,.settings-nav-button.active,.settings-workspace-tab.active){box-shadow:inset -3px 0 0 var(--ds-accent)!important}
+
+  .app-ui .mobile-bottom-nav{
+    border-top-color:var(--ds-line)!important;
+    background-color:var(--ds-shell)!important;
+    background-image:none!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  .app-ui .mobile-bottom-nav>button{border-radius:8px!important}
+  .app-ui .mobile-bottom-nav>button.active{border:0!important;box-shadow:none!important;color:var(--ds-accent-bright)!important}
+  .app-ui .mobile-create-button{
+    width:48px!important;
+    height:48px!important;
+    margin-top:0!important;
+    border-width:1px!important;
+    border-radius:10px!important;
+  }
+
+  .app-ui :is(.input,select.input,textarea.input,.textarea){
+    border-color:var(--ds-input-line)!important;
+    background-color:var(--ds-input)!important;
+    background-image:none!important;
+    color:var(--ds-text)!important;
+    box-shadow:none!important;
+  }
+  .app-ui :is(.input,select.input,textarea.input,.textarea):focus{border-color:var(--ds-focus-line)!important;background-color:var(--ds-input)!important;box-shadow:var(--ds-focus)!important}
+
+  .app-ui :is(
+    .dashboard-kpis,.dashboard-panel,.documents-command,.documents-register,
+    .documents-resume,.document-detail-hero,.document-detail-card,
+    .premium-customer-list,.premium-customer-card,.customer-form-section,
+    .product-library-body,.product-library-commandbar,.product-library-row,
+    .reports-panel,.reports-filter-panel,.report-currency-card,
+    .aging-panel,.receivable-accounts-panel,.receivable-account-row,
+    .operations-list-panel,.operations-editor,.operations-card,
+    .settings-section,.settings-workspace-card,.account-security-card,
+    .editor-section,.premium-item-card,.item-card,.modal
+  ){
+    border-color:var(--ds-line)!important;
+    background-color:var(--ds-surface)!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .dashboard-hero{padding-block:4px 22px!important}
+  .app-ui .dashboard-hero::before,.app-ui .dashboard-hero::after{display:none!important;content:none!important;background:none!important}
+  .app-ui .workspace-home-eyebrow,
+  .app-ui :is(.page-heading,.reports-heading,.receivables-heading,.operations-hero) .eyebrow{color:var(--ds-accent-bright)!important}
+  .app-ui .dashboard-kpis{border-radius:var(--ds-radius-panel)!important}
+  .app-ui .dashboard-kpis>button{background-color:transparent!important;background-image:none!important;box-shadow:none!important}
+  .app-ui .dashboard-kpis>button::after{display:none!important;content:none!important}
+  .app-ui .dashboard-kpis>button:hover{background-color:var(--ds-selected)!important;background-image:none!important;transform:none!important}
+
+  .app-ui :is(.dashboard-kpi-icon,.dashboard-document-kind,.documents-resume .resume-icon,.documents-empty .empty-mark,.customer-avatar){
+    border:1px solid var(--ds-line-strong)!important;
+    background-color:#1B1B1B!important;
+    background-image:none!important;
+    color:var(--ds-accent-bright)!important;
+    box-shadow:none!important;
+  }
+  .app-ui :is(.dashboard-document-kind.kind-proforma,.document-detail-kind-icon){border-color:#4B4232!important;background-color:#1D1A15!important;background-image:none!important;color:var(--ds-accent-bright)!important}
+  .app-ui :is(.dashboard-document-row,.documents-register-row,.premium-customer-card,.product-library-row,.receivable-account-row):hover{background-color:var(--ds-selected)!important;background-image:none!important;transform:none!important}
+
+  .app-ui :is(.editor-totals .grand,.issue-total-check,.document-detail-totals .grand){border-color:#4A4131!important;background-color:var(--ds-financial-surface)!important;background-image:none!important;box-shadow:none!important}
+  .app-ui :is(.editor-totals .grand,.issue-total-check,.document-detail-totals .grand) strong{color:#DDC99D!important}
+  .app-ui :is(.document-kind-pill.kind-invoice,.document-status-pill.status-final,.document-status-pill.status-ready,.collection-partially-paid,.dashboard-document-status.status-issued,.dashboard-document-status.status-partial){
+    border-color:#4A4131!important;
+    background-color:#1C1A16!important;
+    background-image:none!important;
+    color:#D8C394!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .modal-backdrop{background:rgba(0,0,0,.78)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .app-ui .modal{border-color:var(--ds-line-strong)!important;background-color:var(--ds-workspace)!important;background-image:none!important;box-shadow:var(--ds-shadow-raised)!important}
+  .app-ui :is(.modal-header,.modal-footer-actions,.product-library-editor-actions,.operations-editor-actions){border-color:var(--ds-line)!important;background-color:var(--ds-surface)!important;background-image:none!important}
+  .app-ui :is(.mobile-more-sheet,.mobile-document-action-sheet,.document-action-popover,.shell-new-menu,.customer-dropdown){border-color:var(--ds-line-strong)!important;background-color:var(--ds-surface)!important;background-image:none!important;box-shadow:var(--ds-shadow-raised)!important}
+  .document-desktop-action-portal.app-ui,.mobile-document-action-portal.app-ui{background-color:transparent!important;background-image:none!important}
+
+  .app-ui :is(.cloud-conflict-banner,.cloud-conflict-recovery){border-color:#704642!important;background-color:#1C1514!important;background-image:none!important;box-shadow:none!important}
+  .app-ui .cloud-conflict-icon{background:#261817!important;box-shadow:none!important}
+  .app-ui :is(.issue-review-purpose,.issue-review-grid>div,.issue-asset-checks>span){background-color:var(--ds-surface)!important;background-image:none!important;box-shadow:none!important}
+  .app-ui .issue-asset-checks>span.ok{background-color:#132019!important;background-image:none!important}
+  .app-ui .issue-warning{background-color:#211B12!important;background-image:none!important}
+  .app-ui .issue-warning.level-info{background-color:#181818!important;background-image:none!important;color:var(--ds-text-soft)!important}
+
+  .auth-account-page{background-color:#080808!important;background-image:none!important}
+  .auth-account-page::before,.auth-account-page::after,.auth-account-story::before{display:none!important;content:none!important}
+  .auth-account-frame{border-color:#292929!important;border-radius:18px!important;background:#0D0D0D!important;box-shadow:none!important}
+  .auth-account-story{background-color:#111111!important;background-image:none!important}
+  .auth-account-card.account-first-card{background-color:#0C0C0C!important;background-image:none!important}
+  .auth-account-card .account-entry-tabs{border:1px solid #2B2B2B!important;background:#111111!important}
+  .auth-account-card .account-entry-tabs button.active{background-color:#242424!important;background-image:none!important;color:#F1F0EB!important;box-shadow:none!important}
+  .auth-account-card .account-entry-fields input{border-color:#343434!important;background:#101010!important;caret-color:#D1BC91!important;box-shadow:none!important}
+  .auth-account-card .account-entry-fields input:focus{border-color:#C8B184!important;background:#101010!important;box-shadow:0 0 0 2px rgba(200,177,132,.2)!important}
+  .auth-account-card .premium-auth-primary{border-color:#B8A071!important;background-color:#B8A071!important;background-image:none!important;color:#11110F!important;box-shadow:none!important}
+  .auth-account-card .google-auth-button{border-color:#323232!important;background-color:#181818!important;background-image:none!important;color:#F0EFEA!important;box-shadow:none!important}
+  .auth-account-card .google-auth-button:hover:not(:disabled){border-color:#4A4A4A!important;background-color:#202020!important;background-image:none!important;transform:none!important;box-shadow:none!important}
+  .auth-account-card .google-auth-mark{box-shadow:0 0 0 3px #181818 inset!important}
+  .auth-trust-mark{background:#B8A071!important}
+  .auth-security-dot{background:#B8A071!important;box-shadow:none!important}
+
+  .loading-screen{background-color:#080808!important;background-image:none!important}
+  .loading-screen::before,.loading-screen::after{display:none!important;content:none!important}
+  .loading-screen .brand,.loading-screen .brand-mark{animation:none!important;box-shadow:none!important}
+  .loading-screen .loading-line{background:#252525!important}
+  .loading-screen .loading-line::after{background:#B8A071!important}
+
+  @media(max-width:720px){
+    .app-ui .dashboard-hero{padding:0 2px 17px!important}
+    .app-ui .dashboard-kpis{box-shadow:none!important}
+    .app-ui :is(.dashboard-panel,.documents-register,.document-detail-card,.premium-customer-list,.editor-section){box-shadow:none!important}
+    .app-ui .modal{box-shadow:0 -12px 34px rgba(0,0,0,.5)!important}
+    .auth-account-story{background-color:#111111!important;background-image:none!important}
+  }
+
+  @media(prefers-reduced-motion:reduce){
+    .app-ui :is(.btn,.icon-btn,.dashboard-kpi,.dashboard-document-row,.documents-register-row,.premium-customer-card,.product-library-row){transition:none!important}
+  }
+}

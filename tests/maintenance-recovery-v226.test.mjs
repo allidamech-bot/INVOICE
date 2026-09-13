@@ -16,7 +16,7 @@ test('v226 health diagnostics execute under the production self-only script poli
   assert.doesNotThrow(()=>new Function(script));
   assert.match(script,/HEALTH_DEADLINE_MS=8000/);
   assert.match(script,/Diagnostic deadline reached/);
-  assert.match(patch,/const CACHE = 'lourex-invoice-v227'/);
+  assert.match(patch,/const CACHE = 'lourex-invoice-v228'/);
   assert.match(patch,/\.\/health\.js/);
   assert.match(vercel,/"source": "\/health\.js"[\s\S]*?no-cache, no-store, must-revalidate/);
 });

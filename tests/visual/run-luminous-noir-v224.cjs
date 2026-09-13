@@ -67,12 +67,12 @@ function luminance([r,g,b]){
         const rootRgb=(state.rootBackground.match(/[\d.]+/g)||[]).slice(0,3).map(Number);
         assert.ok(rootRgb.length===3&&luminance(rootRgb)<.025,`root is not deep dark: ${state.rootBackground}`);
         if(scenario.name.startsWith('auth-')){
-          assert.ok(state.primary&&state.primary.background==='rgb(83, 70, 216)',`auth primary is outside Luminous Noir: ${JSON.stringify(state.primary)}`);
+          assert.ok(state.primary&&state.primary.background==='rgb(184, 160, 113)',`auth primary is outside Matte Black: ${JSON.stringify(state.primary)}`);
         }else{
-          assert.equal(state.accent,'#5346D8','workspace must expose the Luminous Noir accent token');
-          if(state.primary)assert.equal(state.primary.background,'rgb(83, 70, 216)','visible primary must use the sapphire fallback');
+          assert.equal(state.accent,'#B8A071','workspace must expose the restrained matte accent token');
+          if(state.primary)assert.equal(state.primary.background,'rgb(184, 160, 113)','visible primary must use the matte accent fallback');
         }
-        if(state.primary)assert.notEqual(state.primary.image,'none','primary action must retain the luminous gradient');
+        if(state.primary)assert.equal(state.primary.image,'none','primary action must stay flat without a decorative gradient');
         await page.screenshot({path:`${output}/${scenario.name}.png`,fullPage:true,animations:'disabled'});
       }catch(error){
         failures.push(error?.stack||String(error));
@@ -85,5 +85,5 @@ function luminance([r,g,b]){
   writeFileSync(`${output}/report.json`,JSON.stringify(results,null,2));
   const failures=results.flatMap(result=>result.failures.map(failure=>`${result.name}: ${failure}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`Luminous Noir v224: ${results.length} cross-workspace visual flows passed.`);
+  console.log(`Matte Black v228: ${results.length} cross-workspace visual flows passed.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
