@@ -1,0 +1,11 @@
+/* v233 — customer identity language purity.
+   Application UI only. Customer data stays bilingual in storage and edit forms,
+   while list/profile identity surfaces show the active UI language. The existing
+   customerDisplayName helper already provides the opposite-language fallback when
+   the active-language name is empty. Printable documents are untouched. */
+@media screen {
+  .app-ui .customer-secondary-name,
+  .app-ui .customer-profile-secondary-name{
+    display:none!important;
+  }
+}
