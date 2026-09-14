@@ -125,6 +125,13 @@ export class AccountEntryScreen extends React.Component<Props,State>{
     if(create&&password!==this.state.confirm){this.setState({error:t('Password confirmation does not match.','تأكيد كلمة المرور غير مطابق.')});return;}
     this.setState({busy:true,error:'',message:''});
     try{
+      // Google popup preparation changes Firebase's global persistence away from
+      // IndexedDB on Safari. If that preparation is still in flight while an
+      // email/password submit starts, it can otherwise win the race after the
+      // password path restores LOCAL persistence and the next reload appears to
+      // "lose" the successful sign-in. Let the one shared preparation settle
+      // first; password auth then becomes the final persistence writer.
+      if(!this.state.googleLinkPending){try{await prepareGooglePopupAuth();}catch{}}
       if(this.state.googleLinkPending)await linkGoogleToExistingPasswordAccount(email,password);
       else if(create)await createCloudUser(email,password);
       else await signInCloudUser(email,password);
@@ -132,7 +139,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
       const message=this.state.googleLinkPending
         ?t('Google connected securely. Restoring your existing LOUREX data…','تم ربط Google بأمان. جارٍ استعادة بيانات LOUREX الحالية…')
         :create?t('Account created. Preparing LOUREX…','تم إنشاء الحساب. جارٍ تجهيز LOUREX…'):t('Signed in. Restoring your LOUREX data…','تم تسجيل الدخول. جارٍ استعادة بيانات LOUREX…');
-      this.setState({message});
+      this.setState({message,error:''});
       window.setTimeout(()=>window.location.reload(),500);
     }catch(error:any){
       const code=String(error?.code||'');
