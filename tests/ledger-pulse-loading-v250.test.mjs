@@ -5,10 +5,11 @@ import {readFile} from 'node:fs/promises';
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('v250 gives the launch state a matte accounting-ledger identity without changing startup markup',async()=>{
-  const [css,app,html]=await Promise.all([
-    read('src/styles/matte-black-v228.css'),
+  const [css,app,html,pwa]=await Promise.all([
+    read('src/styles/ledger-pulse-loading-v250.css'),
     read('src/app/App.tsx'),
-    read('index.html')
+    read('index.html'),
+    read('scripts/pwa-cache-v205.mjs')
   ]);
   assert.match(css,/v250 — Ledger Pulse launch experience/);
   assert.match(css,/SECURE DOCUMENT WORKSPACE/);
@@ -18,6 +19,8 @@ test('v250 gives the launch state a matte accounting-ledger identity without cha
   assert.match(css,/prefers-reduced-motion:reduce/);
   assert.match(app,/if\(this\.state\.loading\)return <div className="loading-screen"><Brand logoDataUrl=\{this\.state\.publicLogo\} language=\{activeLanguage\}\/><span className="loading-line"\/><\/div>/);
   assert.match(html,/id="lourex-boot" class="loading-screen"/);
+  assert.ok(html.indexOf('./styles/ledger-pulse-loading-v250.css')>html.indexOf('./styles/matte-black-v228.css'));
+  assert.match(pwa,/\.\/styles\/ledger-pulse-loading-v250\.css/);
 });
 
 test('v250 changes the generated service worker so installed clients refresh the launch assets',async()=>{
