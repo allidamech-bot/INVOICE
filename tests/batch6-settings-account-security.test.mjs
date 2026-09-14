@@ -30,7 +30,7 @@ test('batch 6 exposes account sign out without deleting local encrypted data',as
   assert.match(app,/private cloudSignOut=async\(\)=>\{try\{await signOutCloudUser\(\)/);
 });
 
-test('batch 6 separates automatic account protection from explicit cloud recovery',async()=>{
+test('batch 6 separates automatic account protection from explicit cloud recovery and exposes session locking',async()=>{
   const [settings,app]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/app/App.tsx')]);
   assert.match(settings,/Your encrypted workspace is protected automatically/);
   assert.match(settings,/confirmCloudRestore/);
@@ -38,7 +38,10 @@ test('batch 6 separates automatic account protection from explicit cloud recover
   assert.match(settings,/await this\.props\.onCloudRestore\(\)/);
   assert.match(app,/resolveCloudConflictWithCloud\(user\.uid\)/);
   assert.match(settings,/The signed-in account copy will replace the current encrypted local vault on this device/);
-  assert.doesNotMatch(settings,/Lock App|Auto Lock|Lock after inactivity/);
+  assert.match(settings,/Auto Lock/);
+  assert.match(settings,/Lock Now/);
+  assert.match(settings,/autoLockMinutes/);
+  assert.match(settings,/this\.props\.onLock\(\)/);
 });
 
 test('batch 6 settings navigation is responsive and visually bounded',async()=>{
