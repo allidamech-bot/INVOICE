@@ -68,6 +68,7 @@ jobs:
           node tests/visual/run-obsidian-directory.cjs
           node tests/visual/run-packing-preview-locale-v244.cjs
           node tests/visual/run-product-category-locale-v245.cjs
+          node tests/visual/run-saved-items-category-locale-v246.cjs
           node tests/visual/run-obsidian-financial.cjs
           node tests/visual/run-operations-mobile-tabs-v242.cjs
           node tests/visual/run-obsidian-settings.cjs
