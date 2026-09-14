@@ -66,14 +66,14 @@ test('first-run company logo uses the same bounded raster policy and cannot fini
 });
 
 test('company technical identifiers remain LTR inside Arabic settings UI',async()=>{
-  const source=await read('src/components/SettingsModal.tsx');
-  assert.match(source,/label="IBAN"><Input dir="ltr"/);
-  assert.match(source,/label="SWIFT \/ BIC"><Input dir="ltr"/);
-  assert.match(source,/VAT Number[\s\S]*?<Input dir="ltr"/);
-  assert.match(source,/Commercial Registration[\s\S]*?<Input dir="ltr"/);
-  assert.match(source,/type="tel" inputMode="tel" autoComplete="tel" dir="ltr"/);
-  assert.match(source,/type="email" inputMode="email" autoComplete="email" dir="ltr"/);
-  assert.match(source,/type="url" inputMode="url" autoComplete="url" dir="ltr"/);
+  const [settings,commercial]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/components/CommercialControlsSettings.tsx')]);
+  assert.match(commercial,/label="IBAN"><Input dir="ltr"/);
+  assert.match(commercial,/label="SWIFT \/ BIC"><Input dir="ltr"/);
+  assert.match(settings,/VAT Number[\s\S]*?<Input dir="ltr"/);
+  assert.match(settings,/Commercial Registration[\s\S]*?<Input dir="ltr"/);
+  assert.match(settings,/type="tel" inputMode="tel" autoComplete="tel" dir="ltr"/);
+  assert.match(settings,/type="email" inputMode="email" autoComplete="email" dir="ltr"/);
+  assert.match(settings,/type="url" inputMode="url" autoComplete="url" dir="ltr"/);
 });
 
 test('company save validates optional email without changing historical document snapshots',async()=>{
