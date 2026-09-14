@@ -21,7 +21,6 @@ const assert=require('node:assert/strict');
         await row.locator('.product-library-row-main').click();
         const editor=page.locator('.product-library-editor.is-open');
         await editor.waitFor();
-        const rawUnit=editor.locator('input').filter({has:undefined});
         const unitValue=await editor.locator('input').evaluateAll(inputs=>inputs.map(input=>input.value).find(value=>value==='PCS')||'');
         assert.equal(unitValue,'PCS','editor must retain the canonical stored unit');
 
