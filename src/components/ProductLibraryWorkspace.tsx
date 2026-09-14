@@ -4,6 +4,7 @@ import { decimalToScaled, isDecimalInput, normalizeDecimalInput } from '../lib/m
 import { categoryChoices } from '../lib/product-presets.js';
 import { findSavedItemDuplicate, normalizeSavedItemSku, parseSavedItemTags, savedItemSearchText, sortSavedItems } from '../lib/saved-items.js';
 import { isArabic, t } from '../lib/i18n.js';
+import { displayUnitPreset } from '../lib/unit-display.js';
 import { Button, ConfirmDialog, Field, Icon, IconButton, Input, Select, Toggle } from './UI.js';
 import { ProductImportModal } from './ProductImportModal.js';
 
@@ -227,7 +228,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
                   <div className="product-library-row-title"><strong>{titleOf(item)}</strong>{item.sku?<code>{item.sku}</code>:null}</div>
                   {item.descriptionEn&&item.descriptionAr?<span>{isArabic()?item.descriptionEn:item.descriptionAr}</span>:null}
                   <div className="product-library-row-chips">{categoryOf(item)?<em>{categoryLabel(categoryOf(item))}</em>:null}{(item.tags??[]).slice(0,2).map(tag=><em key={tag}>#{tag}</em>)}</div>
-                  <small>{[item.unit,cost?`${t('Cost','تكلفة')} ${cost}`:'',item.origin,item.hsCode?`HS ${item.hsCode}`:''].filter(Boolean).join(' · ')}</small>
+                  <small>{[displayUnitPreset(item.unit,isArabic()),cost?`${t('Cost','تكلفة')} ${cost}`:'',item.origin,item.hsCode?`HS ${item.hsCode}`:''].filter(Boolean).join(' · ')}</small>
                   <bdi className="product-library-row-price">{item.lastUnitPrice?`${item.lastUnitPrice} ${item.lastCurrency}`:t('No price','بدون سعر')}</bdi>
                 </button>
                 <IconButton icon="edit" label={t('Edit product','تعديل الصنف')} onClick={()=>this.beginEdit(item)}/>
