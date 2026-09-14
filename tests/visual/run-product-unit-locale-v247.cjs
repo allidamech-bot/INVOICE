@@ -21,14 +21,11 @@ const assert=require('node:assert/strict');
         await row.locator('.product-library-row-main').click();
         const editor=page.locator('.product-library-editor.is-open');
         await editor.waitFor();
-        const fieldLabel=lang==='ar'?'الوحدة':'Unit';
-        const unitValue=await editor.evaluate((root,label)=>{
-          const fields=Array.from(root.querySelectorAll('.field'));
-          const field=fields.find(node=>node.querySelector('.field-label')?.textContent?.trim()===label);
-          const input=field?.querySelector('input');
-          return input?.value||'';
-        },fieldLabel);
-        assert.equal(unitValue,'PCS','editor must retain the canonical stored unit');
+        const saveButton=editor.getByRole('button',{name:lang==='ar'?'حفظ الصنف':'Save Product',exact:true});
+        await saveButton.click();
+        await page.waitForFunction(()=>Boolean(window.savedProduct));
+        const savedUnit=await page.evaluate(()=>window.savedProduct?.unit||'');
+        assert.equal(savedUnit,'PCS','saving the product must retain the canonical stored unit');
 
         await page.close();
       }
@@ -36,5 +33,5 @@ const assert=require('node:assert/strict');
   }finally{
     await browser.close();
   }
-  console.log('Product unit locale QA: localized catalog display and canonical editor value passed at phone widths.');
+  console.log('Product unit locale QA: localized catalog display and canonical save path passed at phone widths.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
