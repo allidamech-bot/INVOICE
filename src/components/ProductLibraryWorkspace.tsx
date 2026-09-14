@@ -184,8 +184,10 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
     const query=this.state.query.trim().toLocaleLowerCase();
     const categories=Array.from(new Set(this.props.items.map(categoryOf).filter(Boolean))).sort((a,b)=>a.localeCompare(b,isArabic()?'ar':'en',{sensitivity:'base'}));
     const categoryPresets=categoryChoices(isArabic());
+    const categoryPresetMap=new Map(categoryPresets.map(choice=>[choice.value,choice.label]));
+    const categoryLabel=(value:string)=>categoryPresetMap.get(value)||value;
     const existingCategorySet=new Set(categories);
-    const categorySuggestions=[...categories.map(value=>({value,label:value})),...categoryPresets.filter(choice=>!existingCategorySet.has(choice.value))];
+    const categorySuggestions=[...categories.map(value=>({value,label:categoryLabel(value)})),...categoryPresets.filter(choice=>!existingCategorySet.has(choice.value))];
     const tags=ranked(this.props.items,item=>item.tags??[],18);
     const hsCodes=ranked(this.props.items,item=>item.hsCode?[item.hsCode]:[],12);
     let filtered=this.props.items.filter(item=>(!query||savedItemSearchText(item).includes(query))&&(!this.state.category||categoryOf(item)===this.state.category)&&(!this.state.favoriteOnly||Boolean(item.favorite)));
@@ -198,7 +200,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
     return <div className={`product-library-pro ${edit?'editor-open':''}`}>
       <div className="product-library-commandbar">
         <div className="product-library-search"><Icon name="search"/><Input aria-label={t('Search product library','بحث في مكتبة الأصناف')} value={this.state.query} placeholder={t('Search name, SKU, HS code, category…','ابحث بالاسم أو SKU أو HS Code أو التصنيف…')} onChange={(e:any)=>this.setState({query:e.target.value})}/>{this.state.query?<IconButton icon="x" label={t('Clear search','مسح البحث')} onClick={()=>this.setState({query:''})}/>:<span>/</span>}</div>
-        <Select aria-label={t('Filter category','فلتر التصنيف')} value={this.state.category} onChange={(e:any)=>this.setState({category:e.target.value})}><option value="">{t('All categories','كل التصنيفات')}</option>{categories.map(category=><option key={category} value={category}>{category}</option>)}</Select>
+        <Select aria-label={t('Filter category','فلتر التصنيف')} value={this.state.category} onChange={(e:any)=>this.setState({category:e.target.value})}><option value="">{t('All categories','كل التصنيفات')}</option>{categories.map(category=><option key={category} value={category}>{categoryLabel(category)}</option>)}</Select>
         <Select aria-label={t('Sort products','ترتيب الأصناف')} value={this.state.sortMode} onChange={(e:any)=>this.setState({sortMode:e.target.value})}><option value="smart">{t('Most used','الأكثر استخدامًا')}</option><option value="recent">{t('Recently updated','الأحدث')}</option><option value="name">{t('Name A–Z','الاسم أبجديًا')}</option><option value="sku">SKU</option></Select>
         <Button icon="upload" onClick={this.requestImport}>{t('Import','استيراد')}</Button>
         <Button icon="plus" variant="primary" onClick={this.newItem}>{t('New Product','صنف جديد')}</Button>
@@ -213,7 +215,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
 
       <div className="product-library-body">
         <section className="product-library-list-pane">
-          <div className="product-library-list-head"><div><strong>{this.state.favoriteOnly?t('Favorite products','الأصناف المفضلة'):this.state.category||t('Product catalog','كتالوج الأصناف')}</strong><span>{t(`${filtered.length} visible`,`${filtered.length} ظاهر`)}</span></div>{filtersActive?<Button variant="ghost" onClick={this.clearFilters}>{t('Clear filters','مسح الفلاتر')}</Button>:null}</div>
+          <div className="product-library-list-head"><div><strong>{this.state.favoriteOnly?t('Favorite products','الأصناف المفضلة'):this.state.category?categoryLabel(this.state.category):t('Product catalog','كتالوج الأصناف')}</strong><span>{t(`${filtered.length} visible`,`${filtered.length} ظاهر`)}</span></div>{filtersActive?<Button variant="ghost" onClick={this.clearFilters}>{t('Clear filters','مسح الفلاتر')}</Button>:null}</div>
           <div className="product-library-list">
             {filtered.map(item=>{
               const active=edit?.id===item.id;
@@ -224,7 +226,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
                 <button type="button" className="product-library-row-main" onClick={()=>this.beginEdit(item)}>
                   <div className="product-library-row-title"><strong>{titleOf(item)}</strong>{item.sku?<code>{item.sku}</code>:null}</div>
                   {item.descriptionEn&&item.descriptionAr?<span>{isArabic()?item.descriptionEn:item.descriptionAr}</span>:null}
-                  <div className="product-library-row-chips">{categoryOf(item)?<em>{categoryOf(item)}</em>:null}{(item.tags??[]).slice(0,2).map(tag=><em key={tag}>#{tag}</em>)}</div>
+                  <div className="product-library-row-chips">{categoryOf(item)?<em>{categoryLabel(categoryOf(item))}</em>:null}{(item.tags??[]).slice(0,2).map(tag=><em key={tag}>#{tag}</em>)}</div>
                   <small>{[item.unit,cost?`${t('Cost','تكلفة')} ${cost}`:'',item.origin,item.hsCode?`HS ${item.hsCode}`:''].filter(Boolean).join(' · ')}</small>
                   <bdi className="product-library-row-price">{item.lastUnitPrice?`${item.lastUnitPrice} ${item.lastCurrency}`:t('No price','بدون سعر')}</bdi>
                 </button>
