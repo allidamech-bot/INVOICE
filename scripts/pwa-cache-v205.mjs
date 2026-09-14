@@ -4,7 +4,7 @@ const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 
 const cacheMarker="LOCAL_CORE.push('./canonical-redirect.js');";
-const requiredRuntimes=['./src/lib/settings-scope.js','./src/cloud/google-auth.js','./src/cloud/coalescing.js','./src/lib/packing-display.js','./health.js','./styles/nested-surface-consistency-v229.css','./styles/saved-items-picker-v232.css','./styles/customer-language-purity-v233.css'];
+const requiredRuntimes=['./src/lib/settings-scope.js','./src/cloud/google-auth.js','./src/cloud/coalescing.js','./src/lib/packing-display.js','./src/lib/unit-display.js','./health.js','./styles/nested-surface-consistency-v229.css','./styles/saved-items-picker-v232.css','./styles/customer-language-purity-v233.css'];
 for(const runtime of requiredRuntimes){
   if(sw.includes(`'${runtime}'`)||sw.includes(`"${runtime}"`))continue;
   if(!sw.includes(cacheMarker))throw new Error('Unable to locate the LOUREX PWA cache insertion point.');
@@ -52,6 +52,7 @@ for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`
 // v244 keeps Packing preview text in the active UI language while canonical stored values remain unchanged and backward-compatible.
 // v245 keeps canonical product category values while localizing catalog labels to the active UI language.
 // v246 extends canonical category localization through Saved Items filters, category browsing, context labels and row chips.
+// v247 localizes known saved-product unit labels in read-only catalog rows while canonical editor/storage values remain unchanged.
 const releaseMarkers=[
   '// lourex-invoice-v230: editor detail polish refresh.',
   '// lourex-invoice-v231: mobile totals switch geometry refresh.',
@@ -69,7 +70,8 @@ const releaseMarkers=[
   '// lourex-invoice-v243: inventory mobile containment refresh.',
   '// lourex-invoice-v244: packing preview locale purity refresh.',
   '// lourex-invoice-v245: product category locale purity refresh.',
-  '// lourex-invoice-v246: saved items category locale purity refresh.'
+  '// lourex-invoice-v246: saved items category locale purity refresh.',
+  '// lourex-invoice-v247: product unit locale purity refresh.'
 ];
 for(const releaseMarker of releaseMarkers)if(!sw.includes(releaseMarker))sw=`${releaseMarker}\n${sw}`;
 const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";
