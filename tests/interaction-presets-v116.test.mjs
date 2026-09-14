@@ -26,13 +26,16 @@ test('v116 shared Field maps recurring customer and settings fields to presets',
 });
 
 test('v116 target screens keep semantic labels that activate the shared choices',async()=>{
-  const [customers,settings,editor]=await Promise.all([
+  const [customers,settings,commercial,editor]=await Promise.all([
     read('src/components/CustomersPage.tsx'),
     read('src/components/SettingsModal.tsx'),
+    read('src/components/CommercialControlsSettings.tsx'),
     read('src/components/EditorPageCore.tsx')
   ]);
   assert.match(customers,/Field label=\{t\('Country','الدولة'\)\}/);
-  for(const label of ['Bank Currency','Default Currency','Default Payment Terms','Default Incoterm','Default Delivery Time'])assert.ok(settings.includes(label),label);
+  assert.ok(settings.includes('Default Currency'),'Default Currency');
+  assert.match(commercial,/Field label=\{t\('Currency','العملة'\)\}/);
+  for(const label of ['Default Payment Terms','Default Incoterm','Default Delivery Time'])assert.ok(commercial.includes(label),label);
   assert.match(editor,/Field label="Incoterm"/);
   assert.ok(editor.includes("t('Payment Terms','شروط الدفع')"));
   assert.ok(editor.includes("t('Delivery Time','مدة التسليم')"));

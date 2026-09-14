@@ -23,8 +23,9 @@ test('v205 Account owns company profile while Settings owns preferences and secu
   assert.match(settings,/Company logo','شعار الشركة/);
   assert.match(settings,/Website','الموقع الإلكتروني/);
   assert.match(settings,/Identity & contact','الهوية والتواصل/);
+  assert.match(settings,/Legal & registration','البيانات القانونية والتسجيل/);
   assert.match(settings,/Account access','الدخول إلى الحساب/);
-  assert.match(settings,/Preferences, documents and security|Workspace preferences/);
+  assert.match(settings,/Workspace preferences/);
   assert.match(settings,/Commercial','تجاري/);
   assert.match(settings,/Documents','المستندات/);
   assert.match(settings,/Security','الأمان/);
@@ -34,8 +35,8 @@ test('v205 Account owns company profile while Settings owns preferences and secu
 test('v205 Arabic More menu declares RTL direction at the dialog boundary',async()=>{
   const shell=await read('src/components/AppShell.tsx');
   assert.match(shell,/mobile-more-sheet[^>]*dir=\{this\.props\.language==='ar'\?'rtl':'ltr'\}/);
-  assert.match(shell,/Company profile, logo, website and account access','ملف الشركة والشعار والموقع وبيانات الحساب/);
-  assert.match(shell,/Preferences, documents and security','التفضيلات والمستندات والأمان/);
+  assert.match(shell,/Company identity, logo, legal profile and account access','هوية الشركة والشعار والبيانات القانونية وبيانات الحساب/);
+  assert.match(shell,/Workspace, documents, commercial and security','مساحة العمل والمستندات والتجاري والأمان/);
 });
 
 test('v211 Account Save stays in normal mobile flow with a full touch target',async()=>{

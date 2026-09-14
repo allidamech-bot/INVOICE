@@ -20,7 +20,7 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
         const rgb=s.backgroundColor.match(/[\d.]+/g)?.map(Number)||[];
         if(r.width*r.height>1200&&rgb.length>=3&&rgb.slice(0,3).every(v=>v>225)&&(rgb.length===3||rgb[3]>.8))problems.push(`light chrome ${el.tagName}.${el.className} ${s.backgroundColor}`);
         if(vw<=430&&el.matches('input,select,textarea')&&parseFloat(s.fontSize)<16)problems.push(`small phone input ${el.className} ${s.fontSize}`);
-        if(vw<=430&&el.matches('.settings-tabs>button,.settings-title>.btn,.settings-account-actions .btn')&&(r.width<44||r.height<44))problems.push(`small touch target ${el.className} ${Math.round(r.width)}x${Math.round(r.height)}`);
+        if(vw<=430&&el.matches('.settings-tabs>button,.settings-title>.btn,.settings-section-heading .btn,.settings-account-actions .btn')&&(r.width<44||r.height<44))problems.push(`small touch target ${el.className} ${Math.round(r.width)}x${Math.round(r.height)}`);
       }
       return [...new Set(problems)];
     });
@@ -43,15 +43,15 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
         const modal=page.locator('.modal'),modalBox=await modal.boundingBox();
         assert.ok(modalBox&&modalBox.width<=viewport.width+1&&modalBox.height<=viewport.height+1,'settings modal exceeds viewport');
         const tabs=page.locator('.settings-tabs>button');
-        assert.equal(await tabs.count(),4,'Settings must expose General, Commercial, Documents and Security');
+        assert.equal(await tabs.count(),4,'Settings must expose Workspace, Commercial, Documents and Security');
         const labels=(await tabs.allTextContents()).map(value=>value.trim());
-        assert.ok(labels.some(value=>/General|عام/.test(value)),'General/Preferences tab missing');
+        assert.ok(labels.some(value=>/Workspace|مساحة العمل/.test(value)),'Workspace tab missing');
         assert.ok(labels.some(value=>/Commercial|تجاري/.test(value)),'Commercial tab missing');
         assert.ok(labels.some(value=>/Documents|المستندات/.test(value)),'Documents tab missing');
         assert.ok(labels.some(value=>/Security|الأمان/.test(value)),'Security tab missing');
         assert.equal(await page.locator('.account-profile-page').count(),0,'Company profile must not appear in Settings scope');
 
-        const states=['preferences','commercial','documents','security'];
+        const states=['workspace','commercial','documents','security'];
         for(let i=0;i<states.length;i++){
           const tab=tabs.nth(i);
           await tab.scrollIntoViewIfNeeded();
@@ -60,24 +60,28 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
           assert.equal(await tab.getAttribute('aria-current'),'page',`${states[i]} tab did not activate`);
           await audit(page,failures);
           await shot(states[i]);
-          if(states[i]==='preferences'){
+          if(states[i]==='workspace'){
             assert.equal(await page.locator('.account-profile-logo-section').count(),0,'Company logo/profile must stay out of Settings');
-            assert.ok(await page.locator('.settings-document-artwork').count()===1,'document artwork preferences missing');
-            assert.ok(await page.locator('.company-artwork-section').count()===1,'document artwork section missing');
-            assert.ok(await page.locator('.settings-document-artwork input[type="file"]').count()===2,'Settings should manage signature and stamp artwork only');
+            assert.equal(await page.locator('.settings-document-artwork').count(),0,'Document artwork must stay under Documents, not Workspace');
+            assert.ok(await page.locator('.settings-workspace-page').count()===1,'workspace preferences page missing');
             const save=page.locator('.settings-title>.btn');
             await save.scrollIntoViewIfNeeded();
             const box=await save.boundingBox();
-            assert.ok(box&&box.width>=44&&box.height>=40,'settings save action too small');
+            assert.ok(box&&box.width>=44&&box.height>=40,'workspace save action too small');
           }else if(states[i]==='commercial'){
             await page.locator('.commercial-controls-settings').waitFor();
             assert.ok(await page.locator('.commercial-settings-section').count()>=1,'commercial settings sections missing');
           }else if(states[i]==='documents'){
-            await page.locator('.settings-section input').first().fill('QT');
-            await page.locator('.settings-title>.btn').click();
+            assert.ok(await page.locator('.settings-document-artwork').count()===1,'document artwork preferences missing');
+            assert.ok(await page.locator('.company-artwork-section').count()===1,'document artwork section missing');
+            assert.ok(await page.locator('.settings-document-artwork input[type="file"]').count()===2,'Documents should manage signature and stamp artwork only');
+            const numbering=page.locator('.settings-section').filter({has:page.locator('.numbering-preview')});
+            assert.equal(await numbering.count(),1,'numbering section missing');
+            await numbering.locator('input').first().fill('QT');
+            await numbering.locator('.settings-section-heading .btn').click();
             await page.waitForFunction(()=>window.savedSettings?.numbering.proformaPrefix==='QT');
             assert.ok(await page.locator('.numbering-preview').count()===1,'numbering preview missing');
-            assert.ok(await page.locator('.settings-title>.btn').count()===1,'document save action missing');
+            assert.ok(await numbering.locator('.settings-section-heading .btn').count()===1,'document save action missing');
           }else if(states[i]==='security'){
             await page.locator('.security-settings-page').waitFor();
             assert.ok(await page.locator('.settings-recovery-card').count()===1,'encrypted recovery controls missing');
