@@ -195,3 +195,177 @@
     .app-ui :is(.btn,.icon-btn,.dashboard-kpi,.dashboard-document-row,.documents-register-row,.premium-customer-card,.product-library-row){transition:none!important}
   }
 }
+
+/* v250 — Ledger Pulse launch experience.
+   A precise, accounting-ledger inspired startup state: matte, quiet, and deliberately non-3D. */
+@media screen {
+  .loading-screen{
+    isolation:isolate;
+    gap:22px!important;
+    background-color:#080808!important;
+    background-image:
+      linear-gradient(rgba(184,160,113,.025) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(184,160,113,.025) 1px,transparent 1px)!important;
+    background-size:36px 36px!important;
+    background-position:center!important;
+  }
+  .loading-screen::before{
+    content:""!important;
+    display:block!important;
+    position:absolute!important;
+    z-index:0!important;
+    width:min(430px,82vw)!important;
+    height:min(430px,82vw)!important;
+    border:1px solid rgba(184,160,113,.13)!important;
+    border-radius:50%!important;
+    opacity:.72!important;
+    pointer-events:none!important;
+    animation:lourexLedgerOrbit 12s linear infinite!important;
+  }
+  .loading-screen::after{
+    content:""!important;
+    display:block!important;
+    position:absolute!important;
+    z-index:0!important;
+    width:min(560px,88vw)!important;
+    height:1px!important;
+    background:linear-gradient(90deg,transparent,rgba(184,160,113,.34),transparent)!important;
+    pointer-events:none!important;
+  }
+  .loading-screen .brand{
+    width:min(320px,82vw)!important;
+    box-sizing:border-box!important;
+    padding:30px 26px 27px!important;
+    gap:15px!important;
+    border-block:1px solid rgba(184,160,113,.2)!important;
+    background:rgba(8,8,8,.88)!important;
+    animation:lourexLedgerEnter .58s cubic-bezier(.22,.8,.22,1) both!important;
+  }
+  .loading-screen .brand::before{
+    content:"SECURE DOCUMENT WORKSPACE";
+    display:block;
+    margin-bottom:4px;
+    color:#8D8370;
+    font:700 8px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    letter-spacing:.24em;
+    text-indent:.24em;
+    white-space:nowrap;
+  }
+  .loading-screen .brand::after{
+    content:"INVOICE  ·  QUOTATION  ·  RECORDS";
+    display:block;
+    margin-top:2px;
+    color:#66635C;
+    font:650 7px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    letter-spacing:.18em;
+    text-indent:.18em;
+    white-space:nowrap;
+  }
+  .loading-screen .brand-mark{
+    position:relative!important;
+    width:92px!important;
+    height:92px!important;
+    overflow:hidden!important;
+    border:1px solid rgba(184,160,113,.3)!important;
+    border-radius:22px!important;
+    background:#0D0D0D!important;
+    box-shadow:none!important;
+  }
+  .loading-screen .brand-mark img{
+    width:92px!important;
+    height:92px!important;
+    border-radius:21px!important;
+  }
+  .loading-screen .brand-mark::before{
+    content:"";
+    position:absolute;
+    z-index:2;
+    inset:9px;
+    border:1px solid rgba(209,188,145,.16);
+    border-radius:15px;
+    pointer-events:none;
+  }
+  .loading-screen .brand-mark::after{
+    content:"";
+    position:absolute;
+    z-index:3;
+    left:12px;
+    right:12px;
+    top:10px;
+    height:1px;
+    background:linear-gradient(90deg,transparent,#D1BC91,transparent);
+    opacity:.8;
+    pointer-events:none;
+    animation:lourexLedgerScan 2.45s cubic-bezier(.4,0,.2,1) infinite;
+  }
+  .loading-screen .brand-words{display:flex!important;flex-direction:column!important;align-items:center!important;gap:4px!important}
+  .loading-screen .brand-words strong{
+    color:#F2EFE8!important;
+    font-size:22px!important;
+    line-height:1!important;
+    letter-spacing:.31em!important;
+    padding-left:.31em!important;
+    font-weight:760!important;
+  }
+  .loading-screen .loading-line{
+    position:relative!important;
+    width:196px!important;
+    height:2px!important;
+    margin-top:2px!important;
+    overflow:visible!important;
+    border-radius:99px!important;
+    background:#252525!important;
+  }
+  .loading-screen .loading-line::before{
+    content:"PREPARING WORKSPACE";
+    position:absolute;
+    top:13px;
+    left:50%;
+    transform:translateX(-50%);
+    color:#6F6C65;
+    font:700 7px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    letter-spacing:.22em;
+    text-indent:.22em;
+    white-space:nowrap;
+  }
+  .loading-screen .loading-line::after{
+    content:"";
+    position:absolute;
+    inset:0 auto 0 0;
+    width:38%;
+    border-radius:inherit;
+    background:#B8A071!important;
+    animation:lourexLedgerProgress 1.35s cubic-bezier(.65,0,.35,1) infinite!important;
+  }
+  @keyframes lourexLedgerEnter{
+    from{opacity:0;transform:translateY(10px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  @keyframes lourexLedgerScan{
+    0%{transform:translateY(0);opacity:0}
+    18%{opacity:.8}
+    82%{opacity:.8}
+    100%{transform:translateY(70px);opacity:0}
+  }
+  @keyframes lourexLedgerProgress{
+    0%{transform:translateX(-110%)}
+    100%{transform:translateX(365%)}
+  }
+  @keyframes lourexLedgerOrbit{
+    from{transform:rotate(0deg)}
+    to{transform:rotate(360deg)}
+  }
+  @media(max-width:720px){
+    .loading-screen{padding:24px!important;gap:20px!important;background-size:32px 32px!important}
+    .loading-screen .brand{width:min(300px,84vw)!important;padding:28px 22px 25px!important}
+    .loading-screen .brand-mark,.loading-screen .brand-mark img{width:86px!important;height:86px!important;border-radius:21px!important}
+    .loading-screen .brand-mark img{border-radius:20px!important}
+    .loading-screen .brand-words strong{font-size:20px!important}
+    .loading-screen .loading-line{width:176px!important}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .loading-screen::before,.loading-screen .brand,.loading-screen .brand-mark::after,.loading-screen .loading-line::after{animation:none!important}
+    .loading-screen .brand-mark::after{top:50%!important;opacity:.45!important}
+    .loading-screen .loading-line::after{width:100%!important;opacity:.7!important;transform:none!important}
+  }
+}
