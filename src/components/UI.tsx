@@ -1,5 +1,6 @@
 import type { UiLanguage } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
+import { displayPackingPreset } from '../lib/packing-display.js';
 import {
   PACKING_COUNT_CHOICES,
   PACKING_SIZE_CHOICES,
@@ -110,6 +111,7 @@ class PackingControl extends React.Component<PackingControlProps,PackingControlS
     const arabic=isArabic();
     const parsed=parsePackingPreset(this.props.value);
     const types=packingTypeChoices(arabic);
+    const preview=displayPackingPreset(this.props.value,arabic);
     if(this.state.custom){
       return <div className="product-preset-control packing-preset-control is-custom">
         <Select aria-label={this.props.label} value="__custom" onChange={(e:any)=>this.chooseType(String(e.target.value))}>
@@ -136,7 +138,7 @@ class PackingControl extends React.Component<PackingControlProps,PackingControlS
           {PACKING_SIZE_CHOICES.map(size=><option key={size} value={size}>{size}</option>)}
         </Select>
       </div>
-      {this.props.value?<span className="packing-preset-preview">{this.props.value}</span>:null}
+      {preview?<span className="packing-preset-preview">{preview}</span>:null}
     </div>;
   }
 }
