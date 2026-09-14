@@ -11,6 +11,78 @@ const base='http://127.0.0.1:4173/tests/visual';
   const results=[];
   try{
     for(const lang of ['en','ar']){
+      const page=await browser.newPage({viewport:{width:1366,height:768},hasTouch:false,isMobile:false});
+      const failures=[];
+      page.on('pageerror',error=>failures.push(`pageerror: ${String(error)}`));
+      try{
+        await page.goto(`${base}/obsidian-shell.html?lang=${lang}`,{waitUntil:'load'});
+        const sidebar=page.locator('.workspace-sidebar');
+        await sidebar.waitFor();
+        assert.equal(await sidebar.isVisible(),true,'Desktop sidebar must be visible at laptop width');
+        assert.equal(await page.locator('.mobile-bottom-nav').isVisible(),false,'Mobile bottom navigation must stay hidden on desktop');
+        assert.equal(await page.locator('.shell-nav-button').count(),7,'Desktop shell must expose all seven workspace destinations');
+
+        const create=page.locator('.shell-create-button');
+        await create.click();
+        const createMenu=page.locator('#desktop-new-document-menu');
+        await createMenu.waitFor();
+        assert.equal(await createMenu.isVisible(),true,'Desktop New Document menu must open');
+        await createMenu.locator('[role="menuitem"]').first().click();
+        assert.equal(await page.evaluate(()=>window.shellQa.newKind),'proforma','Desktop quotation action must reach the document boundary');
+        assert.equal(await createMenu.count(),0,'Desktop New Document menu must close after choosing a document type');
+
+        const primary=page.locator('.shell-nav-primary .shell-nav-button');
+        await primary.nth(1).click();
+        assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'documents');
+        await primary.nth(2).click();
+        assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'customers');
+        await primary.nth(3).click();
+        assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'items');
+
+        const groups=page.locator('.shell-nav-group');
+        await groups.nth(0).locator('.shell-nav-button').nth(0).click();
+        assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'receivables');
+        await groups.nth(0).locator('.shell-nav-button').nth(1).click();
+        assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'reports');
+        await groups.nth(1).locator('.shell-nav-button').first().click();
+        assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'operations');
+
+        await page.locator('.shell-settings-row').click();
+        assert.equal(await page.evaluate(()=>window.shellQa.settings),1,'Desktop Settings must open through the scoped settings boundary');
+        assert.equal(await page.evaluate(()=>sessionStorage.getItem('lourex-settings-scope')),'settings','Desktop Settings must request the Settings scope');
+
+        await page.locator('.shell-account-row').click();
+        assert.equal(await page.evaluate(()=>window.shellQa.settings),2,'Desktop sidebar Account must open through the scoped settings boundary');
+        assert.equal(await page.evaluate(()=>sessionStorage.getItem('lourex-settings-scope')),'account','Desktop sidebar Account must request the Account scope');
+
+        await page.locator('.shell-account-button').click();
+        assert.equal(await page.evaluate(()=>window.shellQa.settings),3,'Desktop top-bar Account must remain functional');
+        assert.equal(await page.evaluate(()=>sessionStorage.getItem('lourex-settings-scope')),'account','Desktop top-bar Account must request the Account scope');
+
+        const geometry=await page.evaluate(()=>{
+          const box=selector=>document.querySelector(selector)?.getBoundingClientRect();
+          const sidebar=box('.workspace-sidebar');
+          const topbar=box('.workspace-topbar');
+          const content=box('.workspace-content');
+          return {sidebar,topbar,content,scrollWidth:document.documentElement.scrollWidth,width:innerWidth};
+        });
+        assert.ok(geometry.sidebar&&geometry.sidebar.width>=240&&geometry.sidebar.width<=256,`Unexpected desktop sidebar width ${JSON.stringify(geometry.sidebar)}`);
+        assert.ok(geometry.topbar&&geometry.content,'Desktop topbar/content geometry missing');
+        assert.ok(geometry.scrollWidth<=geometry.width+1,`Desktop shell has horizontal overflow ${JSON.stringify(geometry)}`);
+        if(lang==='ar'){
+          assert.ok(geometry.sidebar.left>=geometry.content.right-1,'Arabic desktop sidebar must occupy the right rail');
+          assert.ok(Math.abs(geometry.topbar.right-geometry.content.right)<=1,'Arabic desktop topbar/content rails must align');
+        }else{
+          assert.ok(geometry.sidebar.right<=geometry.content.left+1,'English desktop sidebar must occupy the left rail');
+          assert.ok(Math.abs(geometry.topbar.left-geometry.content.left)<=1,'English desktop topbar/content rails must align');
+        }
+        await page.screenshot({path:`${output}/desktop-shell-${lang}.png`,fullPage:false,animations:'disabled'});
+      }catch(error){failures.push(error?.stack||String(error));}
+      results.push({flow:`desktop-shell-${lang}`,failures});
+      await page.close();
+    }
+
+    for(const lang of ['en','ar']){
       const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
       const failures=[];
       page.on('pageerror',error=>failures.push(`pageerror: ${String(error)}`));
