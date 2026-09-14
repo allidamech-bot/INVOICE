@@ -53,6 +53,7 @@ for(const runtime of requiredRuntimes)if(!sw.includes(runtime))throw new Error(`
 // v245 keeps canonical product category values while localizing catalog labels to the active UI language.
 // v246 extends canonical category localization through Saved Items filters, category browsing, context labels and row chips.
 // v247 localizes known saved-product unit labels in read-only catalog rows while canonical editor/storage values remain unchanged.
+// v248 reorganizes More, Account and Settings around clear workspace, document, commercial and security ownership.
 const releaseMarkers=[
   '// lourex-invoice-v230: editor detail polish refresh.',
   '// lourex-invoice-v231: mobile totals switch geometry refresh.',
@@ -71,7 +72,8 @@ const releaseMarkers=[
   '// lourex-invoice-v244: packing preview locale purity refresh.',
   '// lourex-invoice-v245: product category locale purity refresh.',
   '// lourex-invoice-v246: saved items category locale purity refresh.',
-  '// lourex-invoice-v247: product unit locale purity refresh.'
+  '// lourex-invoice-v247: product unit locale purity refresh.',
+  '// lourex-invoice-v248: More and Settings information architecture refresh.'
 ];
 for(const releaseMarker of releaseMarkers)if(!sw.includes(releaseMarker))sw=`${releaseMarker}\n${sw}`;
 const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";
