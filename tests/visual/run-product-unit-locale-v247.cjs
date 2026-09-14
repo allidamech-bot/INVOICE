@@ -21,10 +21,14 @@ const assert=require('node:assert/strict');
         await row.locator('.product-library-row-main').click();
         const editor=page.locator('.product-library-editor.is-open');
         await editor.waitFor();
-        const unitLabel=editor.getByText(lang==='ar'?'الوحدة':'Unit',{exact:true});
-        await unitLabel.waitFor();
-        const unitInput=unitLabel.locator('xpath=..').locator('input');
-        assert.equal(await unitInput.inputValue(),'PCS','editor must retain the canonical stored unit');
+        const fieldLabel=lang==='ar'?'الوحدة':'Unit';
+        const unitValue=await editor.evaluate((root,label)=>{
+          const fields=Array.from(root.querySelectorAll('.field'));
+          const field=fields.find(node=>node.querySelector('.field-label')?.textContent?.trim()===label);
+          const input=field?.querySelector('input');
+          return input?.value||'';
+        },fieldLabel);
+        assert.equal(unitValue,'PCS','editor must retain the canonical stored unit');
 
         await page.close();
       }
