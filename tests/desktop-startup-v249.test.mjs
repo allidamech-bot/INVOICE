@@ -29,7 +29,7 @@ test('v249 repairs only a genuinely broken desktop boot without deleting busines
   ])assert.ok(script.includes(marker),marker);
   assert.doesNotMatch(script,/indexedDB\.deleteDatabase/,'desktop recovery must never delete the encrypted account database');
   assert.doesNotMatch(script,/localStorage\.clear/,'desktop recovery must never clear account/session metadata wholesale');
-  assert.match(script,/window\.__LOUREX_BOOT_RUNTIME_LOADED__\|\|recoveryUsed\(\)/,'a running app or an already attempted repair must block destructive retry loops');
+  assert.ok(script.includes('window.__LOUREX_BOOT_RUNTIME_LOADED__||recoveryUsed()'),'a running app or an already attempted repair must block destructive retry loops');
 });
 
 test('v249 production build publishes the runtime marker, recovery guard and fresh worker marker',async()=>{
