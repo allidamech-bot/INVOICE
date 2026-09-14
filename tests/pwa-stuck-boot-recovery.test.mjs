@@ -35,7 +35,11 @@ test('boot rescue is gated to pre-React state and never touches encrypted or loc
   assert.match(runtime,/document\.getElementById\('lourex-boot'\)/);
   assert.match(runtime,/!document\.querySelector\('\.app-ui,\.auth-page'\)/);
   assert.match(runtime,/if\(reloading\|\|!bootOnly\(\)\)return/);
-  assert.doesNotMatch(runtime,/localStorage|sessionStorage|indexedDB|putSecurityAndVault|clearSession|deleteDatabase/);
+  assert.doesNotMatch(runtime,/localStorage|indexedDB|putSecurityAndVault|clearSession|deleteDatabase/);
+  assert.match(runtime,/var RECOVERY_KEY='lourex-desktop-boot-recovery-v249'/);
+  assert.match(runtime,/sessionStorage\.getItem\(RECOVERY_KEY\)==='1'/);
+  assert.match(runtime,/sessionStorage\.setItem\(RECOVERY_KEY,'1'\)/);
+  assert.doesNotMatch(runtime,/sessionStorage\.(?:clear|removeItem)\(/);
 });
 
 test('stuck boot rescue retries long enough for a waiting worker to finish installing on slow iPhone networks',async()=>{
