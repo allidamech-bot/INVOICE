@@ -305,8 +305,9 @@ export class SavedItemsModal extends React.Component<Props,State>{
     const favoriteCount=this.props.items.filter(item=>item.favorite).length;
     const categoryPresets=categoryChoices(isArabic());
     const categoryPresetMap=new Map(categoryPresets.map(choice=>[choice.value,choice.label]));
+    const categoryLabel=(value:string)=>categoryPresetMap.get(value)||value;
     const categorySuggestions=[
-      ...categories.map(value=>({value,label:categoryPresetMap.get(value)||value})),
+      ...categories.map(value=>({value,label:categoryLabel(value)})),
       ...categoryPresets.filter(choice=>!categories.includes(choice.value))
     ];
     const tagSuggestions=rankedMetadata(this.props.items,item=>item.tags??[],18);
@@ -341,7 +342,7 @@ export class SavedItemsModal extends React.Component<Props,State>{
         : this.state.view==='recent'
           ? t('Recently used','المستخدمة مؤخرًا')
           : this.state.view==='categories'
-            ? (this.state.category==='__uncategorized'?t('Uncategorized','غير مصنفة'):this.state.category||t('Choose a category','اختر تصنيفًا'))
+            ? (this.state.category==='__uncategorized'?t('Uncategorized','غير مصنفة'):this.state.category?categoryLabel(this.state.category):t('Choose a category','اختر تصنيفًا'))
             : t('All items','كل الأصناف');
 
     const picker=Boolean(this.props.onSelectMany);
@@ -401,7 +402,7 @@ export class SavedItemsModal extends React.Component<Props,State>{
                 const count=basePool.filter(item=>categoryOf(item)===category).length;
                 if(!count)return null;
                 return <button type="button" key={category} className={this.state.filterCategory===category?'active':''} onClick={()=>this.setState({filterCategory:this.state.filterCategory===category?'':category})}>
-                  <span>{category}</span><small>{count}</small>
+                  <span>{categoryLabel(category)}</span><small>{count}</small>
                 </button>;
               })}
               {basePool.some(item=>!categoryOf(item))
@@ -415,7 +416,7 @@ export class SavedItemsModal extends React.Component<Props,State>{
         {this.state.view==='categories'&&!q
           ? <div className="saved-items-categories" aria-label={t('Item categories','تصنيفات الأصناف')}>
               {categories.map(category=><button type="button" key={category} className={this.state.category===category?'active':''} onClick={()=>this.setState({category})}>
-                <span>{category}</span><small>{this.props.items.filter(item=>categoryOf(item)===category).length}</small>
+                <span>{categoryLabel(category)}</span><small>{this.props.items.filter(item=>categoryOf(item)===category).length}</small>
               </button>)}
               {uncategorizedCount
                 ? <button type="button" className={this.state.category==='__uncategorized'?'active':''} onClick={()=>this.setState({category:'__uncategorized'})}>
@@ -426,7 +427,7 @@ export class SavedItemsModal extends React.Component<Props,State>{
           : null}
 
         <div className="saved-items-list-context">
-          <strong>{contextLabel}{this.state.filterCategory?` · ${this.state.filterCategory==='__uncategorized'?t('Uncategorized','غير مصنفة'):this.state.filterCategory}`:''}</strong>
+          <strong>{contextLabel}{this.state.filterCategory?` · ${this.state.filterCategory==='__uncategorized'?t('Uncategorized','غير مصنفة'):categoryLabel(this.state.filterCategory)}`:''}</strong>
           <span><b>{filtered.length}</b>{basePoolCount!==filtered.length?<><i>/</i>{basePoolCount}</>:null}</span>
         </div>
 
@@ -441,7 +442,7 @@ export class SavedItemsModal extends React.Component<Props,State>{
                 <strong>{titleOf(item)}</strong>
                 {item.descriptionEn&&item.descriptionAr?<span dir={isArabic()?'ltr':'rtl'}>{isArabic()?item.descriptionEn:item.descriptionAr}</span>:null}
                 <div className="saved-item-row-meta">
-                  {categoryOf(item)?<em>{categoryOf(item)}</em>:null}
+                  {categoryOf(item)?<em>{categoryLabel(categoryOf(item))}</em>:null}
                   {(item.tags??[]).slice(0,2).map(tag=><em key={tag}>#{tag}</em>)}
                 </div>
                 <small>{[item.unit,item.lastUnitPrice?`${item.lastUnitPrice} ${item.lastCurrency}`:'',item.origin].filter(Boolean).join(' · ')}</small>
@@ -500,14 +501,12 @@ export class SavedItemsModal extends React.Component<Props,State>{
                 <Field label={t('Tags','الوسوم')} hint={tagSuggestions.length?t('Tap a previous tag below or type new tags separated by commas.','اختر وسمًا سابقًا أدناه أو اكتب وسومًا جديدة مفصولة بفواصل.'):t('Separate tags with English or Arabic commas.','افصل الوسوم بفواصل إنجليزية أو عربية.')}>
                   <Input value={(edit.tags??[]).join(', ')} placeholder={t('e.g. 250ml, Energy','مثال: 250مل، طاقة')} onChange={(e:any)=>this.set('tags',parseSavedItemTags(String(e.target.value)))}/>
                   {tagSuggestions.length?<span className="product-metadata-suggestions saved-item-tag-suggestions" aria-label={t('Previous tags','الوسوم السابقة')}>
-                    {tagSuggestions.map(tag=>{const active=(edit.tags??[]).some(value=>value.toLocaleLowerCase()===tag.toLocaleLowerCase());return <button type="button" key={tag} className={active?'active':''} aria-pressed={active} onClick={()=>this.toggleTag(tag)}>#{tag}</button>;})}
-                  </span>:null}
+                    {tagSuggestions.map(tag=>{const active=(edit.tags??[]).some(value=>value.toLocaleLowerCase()===tag.toLocaleLowerCase());return <button type="button" key={tag} className={active?'active':''} aria-pressed={active} onClick={()=>this.toggleTag(tag)}>#{tag}</button>;})}</span>:null}
                 </Field>
                 <Field label="HS Code" hint={hsCodeSuggestions.length?t('Choose from HS codes you used before, or enter a new code.','اختر من أكواد HS التي استخدمتها سابقًا أو أدخل كودًا جديدًا.'):t('Enter the HS code when it is known. Previous codes will appear here automatically.','أدخل HS Code عند معرفته، وستظهر الأكواد السابقة هنا تلقائيًا.')}>
                   <Input inputMode="numeric" value={edit.hsCode} onChange={(e:any)=>this.set('hsCode',e.target.value)}/>
                   {hsCodeSuggestions.length?<span className="product-metadata-suggestions saved-item-hs-suggestions" aria-label={t('Previous HS codes','أكواد HS السابقة')}>
-                    {hsCodeSuggestions.map(code=><button type="button" key={code} className={edit.hsCode===code?'active':''} aria-pressed={edit.hsCode===code} onClick={()=>this.set('hsCode',code)}>{code}</button>)}
-                  </span>:null}
+                    {hsCodeSuggestions.map(code=><button type="button" key={code} className={edit.hsCode===code?'active':''} aria-pressed={edit.hsCode===code} onClick={()=>this.set('hsCode',code)}>{code}</button>)}</span>:null}
                 </Field>
                 <Field label={t('Origin','المنشأ')}><Input value={edit.origin} onChange={(e:any)=>this.set('origin',e.target.value)}/></Field>
                 <Field label={t('Packing','التعبئة')}><Input value={edit.packing} onChange={(e:any)=>this.set('packing',e.target.value)}/></Field>
