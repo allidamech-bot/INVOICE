@@ -20,7 +20,7 @@ test('v217 distinguishes local queue cloud confirmation failure and conflict sta
   const [app,shell]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx')]);
   assert.match(app,/type CloudSyncState='local'\|'queued'\|'syncing'\|'synced'\|'offline'\|'error'\|'conflict'/);
   for(const label of ['Saved locally','Cloud pending','Syncing','Saved to cloud','Offline · Local safe','Sync failed','Sync conflict'])assert.ok(app.includes(label),label);
-  assert.match(shell,/return this\.props\.cloudLabel/);
+  assert.match(shell,/saveLabel=[\s\S]{0,100}this\.props\.cloudLabel/);
   assert.match(shell,/const detail=this\.props\.cloudMessage/);
   assert.match(shell,/title=\{detail\|\|label\}/);
   assert.match(shell,/cloud-conflict-banner/);
