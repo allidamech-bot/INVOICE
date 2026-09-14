@@ -158,7 +158,7 @@
     to{transform:rotate(360deg)}
   }
   @media(max-width:720px){
-    .loading-screen{padding:24px!important;gap:20px!important;background-size:32px 32px!important}
+    .loading-screen{padding:24px!important;gap:22px!important;background-size:32px 32px!important}
     .loading-screen .brand{width:min(300px,84vw)!important;padding:28px 22px 25px!important}
     .loading-screen .brand-mark,.loading-screen .brand-mark img{width:86px!important;height:86px!important;border-radius:21px!important}
     .loading-screen .brand-mark img{border-radius:20px!important}
