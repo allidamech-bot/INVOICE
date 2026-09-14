@@ -6,6 +6,7 @@ const swPath='dist/sw.js';
 const APP_RUNTIME_MARKER='window.__LOUREX_BOOT_RUNTIME_LOADED__=true;';
 const RELEASE_MARKER='// lourex-invoice-v249: desktop startup recovery refresh.';
 const LAUNCH_RELEASE_MARKER='// lourex-invoice-v250: ledger pulse launch experience refresh.';
+const LOGO_RELEASE_MARKER='// lourex-invoice-v251: Safari-safe brand asset refresh.';
 
 let [runtimeConfig,appEntry,sw]=await Promise.all([
   readFile(runtimeConfigPath,'utf8'),
@@ -91,6 +92,7 @@ const desktopRecovery=`
 if(!runtimeConfig.includes('lourex-desktop-boot-recovery-v249'))runtimeConfig+=desktopRecovery;
 if(!sw.includes(RELEASE_MARKER))sw=`${RELEASE_MARKER}\n${sw}`;
 if(!sw.includes(LAUNCH_RELEASE_MARKER))sw=`${LAUNCH_RELEASE_MARKER}\n${sw}`;
+if(!sw.includes(LOGO_RELEASE_MARKER))sw=`${LOGO_RELEASE_MARKER}\n${sw}`;
 
 if(!runtimeConfig.includes('registration.unregister()'))throw new Error('Desktop recovery must unregister a broken service worker before retrying.');
 if(!runtimeConfig.includes("/^lourex-invoice-v/i"))throw new Error('Desktop recovery must stay scoped to LOUREX CacheStorage generations.');
@@ -98,6 +100,7 @@ if(runtimeConfig.includes('indexedDB.deleteDatabase'))throw new Error('Desktop r
 if(!appEntry.includes('__LOUREX_BOOT_RUNTIME_LOADED__'))throw new Error('Desktop recovery app-runtime marker was not injected.');
 if(!sw.includes(RELEASE_MARKER))throw new Error('Desktop recovery service-worker release marker was not injected.');
 if(!sw.includes(LAUNCH_RELEASE_MARKER))throw new Error('Ledger Pulse service-worker release marker was not injected.');
+if(!sw.includes(LOGO_RELEASE_MARKER))throw new Error('Safari-safe logo service-worker release marker was not injected.');
 
 await Promise.all([
   writeFile(runtimeConfigPath,runtimeConfig),
