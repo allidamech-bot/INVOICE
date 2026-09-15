@@ -1,7 +1,7 @@
 import type { Customer, LourexDocument, PaymentRecord } from '../types.js';
 import { calculateTotals, decimalToScaled } from './money.js';
 import { accountedInvoiceCreditNotes, accountedInvoicePayments, invoicePaymentSummary } from './payments.js';
-import { todayIso } from './id.js';
+import { isIsoDate, todayIso } from './id.js';
 
 export type AgingBucket='current'|'days1to30'|'days31to60'|'days61to90'|'days90plus';
 export interface AgingAmounts{current:string;days1to30:string;days31to60:string;days61to90:string;days90plus:string;}
@@ -31,9 +31,9 @@ export function receivableCustomerId(doc:LourexDocument):string{
   }
   return `legacy-document:${doc.id}`;
 }
-export function daysOverdue(dueDate:string,today=todayIso()):number{if(!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)||dueDate>=today)return 0;return Math.max(0,dayNumber(today)-dayNumber(dueDate));}
+export function daysOverdue(dueDate:string,today=todayIso()):number{if(!isIsoDate(dueDate)||!isIsoDate(today)||dueDate>=today)return 0;return Math.max(0,dayNumber(today)-dayNumber(dueDate));}
 export function agingBucketFor(dueDate:string,today=todayIso()):AgingBucket{const days=daysOverdue(dueDate,today);if(days<=0)return'current';if(days<=30)return'days1to30';if(days<=60)return'days31to60';if(days<=90)return'days61to90';return'days90plus';}
-function activeInvoices(documents:LourexDocument[],asOf=''):LourexDocument[]{return documents.filter(doc=>doc.kind==='invoice'&&doc.role!=='credit-note'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&(!asOf||(/^\d{4}-\d{2}-\d{2}$/.test(doc.issueDate)&&doc.issueDate<=asOf)));}
+function activeInvoices(documents:LourexDocument[],asOf=''):LourexDocument[]{return documents.filter(doc=>doc.kind==='invoice'&&doc.role!=='credit-note'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&(!asOf||(isIsoDate(asOf)&&isIsoDate(doc.issueDate)&&doc.issueDate<=asOf)));}
 function customerName(doc:LourexDocument):string{return (doc.customerSnapshot?.companyNameEn||doc.customerSnapshot?.companyNameAr||'').trim();}
 
 export function receivablesByCurrency(documents:LourexDocument[],payments:PaymentRecord[],today=todayIso(),customerId=''):CurrencyReceivableSummary[]{

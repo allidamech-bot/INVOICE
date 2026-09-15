@@ -1,3 +1,4 @@
+// lourex-invoice-v254: strict accounting-date and report-accessibility maintenance refresh.
 // v228 Matte Black — publish the flat, restrained accounting interface without decorative 3D effects.
 // v227 account accessibility — complete keyboard tab behavior and expose one primary page heading.
 // v226 diagnostic recovery — run CSP-safe health checks and refresh localized, touch-safe account entry controls.

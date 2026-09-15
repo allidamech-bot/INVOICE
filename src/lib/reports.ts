@@ -3,7 +3,7 @@ import { calculateTotals, decimalToScaled } from './money.js';
 import { accountedInvoiceCreditNotes, accountedInvoicePayments } from './payments.js';
 import { calculateProfitability } from './profitability.js';
 import { customerReceivables, receivableCustomerId, receivablesByCurrency } from './receivables.js';
-import { todayIso } from './id.js';
+import { isIsoDate, todayIso } from './id.js';
 
 export interface FinancialReportCurrency {
   currency:string;
@@ -77,17 +77,16 @@ function marginString(profit:bigint,revenue:bigint):string{
 }
 
 function compareMoneyDescending(left:string,right:string):number{const a=decimalToScaled(left,2),b=decimalToScaled(right,2);return a===b?0:a>b?-1:1;}
-function validIsoDate(value:string):boolean{return /^\d{4}-\d{2}-\d{2}$/.test(value);}
 export function reportDateInRange(date:string,from:string,to:string):boolean{
-  if(!validIsoDate(date))return false;
+  if(!isIsoDate(date))return false;
   if(from&&date<from)return false;
   if(to&&date>to)return false;
   return true;
 }
 
 export function normalizeReportPeriod(from:string,to:string):{from:string;to:string}{
-  const cleanFrom=validIsoDate(from)?from:'';
-  const cleanTo=validIsoDate(to)?to:todayIso();
+  const cleanFrom=isIsoDate(from)?from:'';
+  const cleanTo=isIsoDate(to)?to:todayIso();
   if(cleanFrom&&cleanFrom>cleanTo)return{from:cleanTo,to:cleanFrom};
   return{from:cleanFrom,to:cleanTo};
 }
@@ -121,8 +120,8 @@ function addDocument(row:Aggregate,doc:LourexDocument):void{
   if(doc.role==='credit-note')row.creditNotes+=1;else row.issuedInvoices+=1;
 }
 
-function asOfDocuments(documents:LourexDocument[],to:string):LourexDocument[]{return financialDocuments(documents).filter(doc=>validIsoDate(doc.issueDate)&&doc.issueDate<=to);}
-function asOfPayments(documents:LourexDocument[],payments:PaymentRecord[],to:string):PaymentRecord[]{return financialPayments(documents,payments).filter(payment=>validIsoDate(payment.date)&&payment.date<=to);}
+function asOfDocuments(documents:LourexDocument[],to:string):LourexDocument[]{return financialDocuments(documents).filter(doc=>isIsoDate(doc.issueDate)&&doc.issueDate<=to);}
+function asOfPayments(documents:LourexDocument[],payments:PaymentRecord[],to:string):PaymentRecord[]{return financialPayments(documents,payments).filter(payment=>isIsoDate(payment.date)&&payment.date<=to);}
 
 export function financialReportByCurrency(documents:LourexDocument[],payments:PaymentRecord[],from='',to=todayIso()):FinancialReportCurrency[]{
   const period=normalizeReportPeriod(from,to);
