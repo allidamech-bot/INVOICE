@@ -12,8 +12,9 @@ test('v194 issued output retries clear stale errors without reissuing the saved 
   const workflow=core.slice(start,end);
   assert.match(workflow,/this\.setState\(\{issuing:true,errors:\{\}\}\)/);
   assert.match(workflow,/if\(!alreadyFinal\)\{[\s\S]*await this\.props\.onSave\(finalDoc,false\)/);
-  assert.match(workflow,/if\(mode!=='issue'\)await this\.props\.onPrint\(finalDoc,mode\)/);
+  assert.match(workflow,/if\(mode!=='issue'\)\{[\s\S]*await this\.props\.onPrint\(finalDoc,mode\);[\s\S]*\}/);
   assert.match(workflow,/reviewMode:null,issuing:false,doc:finalDoc,saveState:'saved',errors:\{\}/);
+  assert.match(workflow,/__LOUREX_PREPARE_PDF__\?\.\(mode\)/,'draft PDF/share must arm the requested output mode after issuing');
 });
 
 test('v194 browser workflow covers autosave, issue, PDF/share, retry, quote conversion and close races',async()=>{

@@ -193,7 +193,13 @@ export class EditorPage extends React.Component<Props,State>{
         await this.props.onSave(finalDoc,false);
         await new Promise<void>(resolve=>this.setState({doc:finalDoc,saveState:'saved'},resolve));
       }
-      if(mode!=='issue')await this.props.onPrint(finalDoc,mode);
+      if(mode!=='issue'){
+        // Draft PDF/share actions open the review step before the output bridge
+        // is armed. Preserve the requested mode after issuing so iPhone does
+        // not fall back to the wrong output action.
+        try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
+        await this.props.onPrint(finalDoc,mode);
+      }
       this.setState({reviewMode:null,issuing:false,doc:finalDoc,saveState:'saved',errors:{}});
     }catch(e){this.setState({issuing:false,errors:{...this.state.errors,global:e instanceof Error?e.message:t('Unable to issue document.','تعذر إصدار المستند.')}});}
   };
