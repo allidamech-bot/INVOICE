@@ -1,3 +1,4 @@
+// lourex-invoice-v255: preserve concurrent payments and draft PDF/share output intent.
 // lourex-invoice-v254: strict accounting-date and report-accessibility maintenance refresh.
 // v228 Matte Black — publish the flat, restrained accounting interface without decorative 3D effects.
 // v227 account accessibility — complete keyboard tab behavior and expose one primary page heading.

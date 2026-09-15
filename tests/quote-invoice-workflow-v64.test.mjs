@@ -72,8 +72,9 @@ test('review-confirmed output arms only after the final save path succeeds',asyn
   assert.match(editor,/__LOUREX_PREPARE_PDF__\?\.\(mode\)/);
   assert.match(editor,/onPrint=\{this\.printWithPreparedMode\}/);
   assert.doesNotMatch(review,/__LOUREX_PREPARE_PDF__/);
-  const saveAt=core.indexOf('await this.props.onSave(finalDoc,false)');
-  const outputAt=core.indexOf("if(mode!=='issue')await this.props.onPrint(finalDoc,mode)");
+  const workflow=core.slice(core.indexOf('private issueAndContinue=async()=>'),core.indexOf('private unlockFinal='));
+  const saveAt=workflow.indexOf('await this.props.onSave(finalDoc,false)');
+  const outputAt=workflow.indexOf('await this.props.onPrint(finalDoc,mode)');
   assert.ok(saveAt>=0&&outputAt>saveAt,'output must begin only after the final snapshot save succeeds');
 });
 

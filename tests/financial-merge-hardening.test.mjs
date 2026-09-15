@@ -42,6 +42,23 @@ test('deleting one payment preserves an unrelated payment added concurrently',()
   assert.deepEqual(merged.payments.map(item=>item.id),['pay-second']);
 });
 
+test('a stale payment delete cannot erase a newer edit from another device',()=>{
+  const base=emptyVault();const invoice=finalInvoice(base);const receipt=payment(invoice,{amount:'40.00'});
+  base.documents=[invoice];base.payments=[receipt];
+  const edited={...receipt,amount:'45.00',updatedAt:'2026-09-05T13:00:00.000Z'};
+  const latest=mergeVaultIntent(base,{...base,payments:[edited]},base);
+  assert.throws(()=>mergeVaultIntent(base,{...base,payments:[]},latest),/Payment changed on another device.*Reopen the invoice/i);
+});
+
+test('concurrent edits to the same payment fail instead of silently choosing one',()=>{
+  const base=emptyVault();const invoice=finalInvoice(base,{amount:'200.00'});const receipt=payment(invoice,{amount:'40.00'});
+  base.documents=[invoice];base.payments=[receipt];
+  const first={...receipt,amount:'45.00',updatedAt:'2026-09-05T13:00:00.000Z'};
+  const second={...receipt,amount:'50.00',updatedAt:'2026-09-05T13:01:00.000Z'};
+  const latest=mergeVaultIntent(base,{...base,payments:[first]},base);
+  assert.throws(()=>mergeVaultIntent(base,{...base,payments:[second]},latest),/Payment changed on another device.*Reopen the invoice/i);
+});
+
 test('malformed legacy payments stay out of balances and statements but block new settlement writes',()=>{
   const base=emptyVault();const invoice=finalInvoice(base);
   const negative=payment(invoice,{id:'pay-negative',amount:'-25.00'});

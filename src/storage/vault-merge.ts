@@ -170,7 +170,7 @@ function guardSavedItemChanges(base:SavedItem[],intended:SavedItem[],merged:Save
   }
 }
 
-function guardConcurrentRecordChanges<T extends {id:string}>(base:T[],intended:T[],latest:T[],label:string):void{
+function guardConcurrentRecordChanges<T extends {id:string}>(base:T[],intended:T[],latest:T[],label:string,recovery='Reopen Operations before saving or deleting it.'):void{
   if(intended===base)return;
   const intendedById=new Map(intended.map(item=>[item.id,item]));
   const latestById=new Map(latest.map(item=>[item.id,item]));
@@ -184,12 +184,12 @@ function guardConcurrentRecordChanges<T extends {id:string}>(base:T[],intended:T
     if(!remoteChanged)continue;
     if(!wanted&&!current)continue;
     if(wanted&&current&&sameRecord(wanted,current))continue;
-    throw new Error(`${label} changed on another device. Reopen Operations before saving or deleting it.`);
+    throw new Error(`${label} changed on another device. ${recovery}`);
   }
   for(const wanted of intended){
     if(baseIds.has(wanted.id))continue;
     const current=latestById.get(wanted.id);
-    if(current&&!sameRecord(current,wanted))throw new Error(`${label} changed on another device. Reopen Operations before saving or deleting it.`);
+    if(current&&!sameRecord(current,wanted))throw new Error(`${label} changed on another device. ${recovery}`);
   }
 }
 function guardDraftPurchaseConflicts(base:PurchaseRecord[],intended:PurchaseRecord[],latest:PurchaseRecord[]):void{
@@ -436,6 +436,9 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const expenses=mergeRecords(base.expenses,intended.expenses,latest.expenses);
   const inventoryMovements=mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   const documents=mergeDocuments(base.documents,intended.documents,latest.documents);
+  // Payments are auditable financial records. A stale edit or delete must not
+  // silently overwrite a newer version saved by another tab or device.
+  guardConcurrentRecordChanges(base.payments,intended.payments,latest.payments,'Payment','Reopen the invoice before saving or deleting the payment.');
   const payments=mergeRecords(base.payments,intended.payments,latest.payments);
   guardCustomerChanges(base.customers,intended.customers,customers);
   guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems);
