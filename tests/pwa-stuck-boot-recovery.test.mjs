@@ -4,6 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
+function desktopBootRecoveryBlock(runtime){
+  const start=runtime.indexOf("var RECOVERY_KEY='lourex-desktop-boot-recovery-v249'");
+  const authGateway=runtime.indexOf("var TRANSITION_KEY='lourex-auth-gateway-transition-v253'",start);
+  assert.ok(start>=0,'desktop boot recovery block must exist');
+  return runtime.slice(start,authGateway>start?authGateway:runtime.length);
+}
+
 test('network-fresh runtime config can rescue an old PWA that is still trapped on the static boot shell',async()=>{
   const [build,runtime,sw,vercel,html]=await Promise.all([
     read('scripts/build.mjs'),
@@ -31,15 +38,16 @@ test('network-fresh runtime config can rescue an old PWA that is still trapped o
 
 test('boot rescue is gated to pre-React state and never touches encrypted or local application data',async()=>{
   const runtime=await read('dist/runtime-config.js');
-  assert.match(runtime,/function bootOnly\(\)/);
-  assert.match(runtime,/document\.getElementById\('lourex-boot'\)/);
-  assert.match(runtime,/!document\.querySelector\('\.app-ui,\.auth-page'\)/);
-  assert.match(runtime,/if\(reloading\|\|!bootOnly\(\)\)return/);
-  assert.doesNotMatch(runtime,/localStorage|indexedDB|putSecurityAndVault|clearSession|deleteDatabase/);
-  assert.match(runtime,/var RECOVERY_KEY='lourex-desktop-boot-recovery-v249'/);
-  assert.match(runtime,/sessionStorage\.getItem\(RECOVERY_KEY\)==='1'/);
-  assert.match(runtime,/sessionStorage\.setItem\(RECOVERY_KEY,'1'\)/);
-  assert.doesNotMatch(runtime,/sessionStorage\.(?:clear|removeItem)\(/);
+  const recovery=desktopBootRecoveryBlock(runtime);
+  assert.match(recovery,/function bootOnly\(\)/);
+  assert.match(recovery,/document\.getElementById\('lourex-boot'\)/);
+  assert.match(recovery,/!document\.querySelector\('\.app-ui,\.auth-page'\)/);
+  assert.match(recovery,/if\(reloading\|\|!bootOnly\(\)\)return/);
+  assert.doesNotMatch(recovery,/localStorage|indexedDB|putSecurityAndVault|clearSession|deleteDatabase/);
+  assert.match(recovery,/var RECOVERY_KEY='lourex-desktop-boot-recovery-v249'/);
+  assert.match(recovery,/sessionStorage\.getItem\(RECOVERY_KEY\)==='1'/);
+  assert.match(recovery,/sessionStorage\.setItem\(RECOVERY_KEY,'1'\)/);
+  assert.doesNotMatch(recovery,/sessionStorage\.(?:clear|removeItem)\(/);
 });
 
 test('stuck boot rescue retries long enough for a waiting worker to finish installing on slow iPhone networks',async()=>{
