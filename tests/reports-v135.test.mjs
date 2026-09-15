@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createBlankDocument } from '../dist/src/lib/documents.js';
 import { defaultCompany } from '../dist/src/lib/defaults.js';
+import { todayIso } from '../dist/src/lib/id.js';
 import { customerPerformanceReport, financialReportByCurrency, monthlyPerformanceReport, normalizeReportPeriod } from '../dist/src/lib/reports.js';
 
 const read=path=>readFile(path,'utf8');
@@ -68,6 +69,13 @@ test('v135 ignores draft voided and proforma documents in financial performance'
   assert.deepEqual(normalizeReportPeriod('2026-03-31','2026-01-01'),{from:'2026-01-01',to:'2026-03-31'});
 });
 
+test('reports reject impossible calendar dates instead of admitting malformed accounting rows',()=>{
+  const malformed=invoice({id:'invalid-date',number:'INV-INVALID',issueDate:'2026-02-31',dueDate:'2026-03-31'});
+  assert.deepEqual(financialReportByCurrency([malformed],[],'2026-02-01','2026-03-31'),[]);
+  assert.deepEqual(normalizeReportPeriod('2026-02-31','2026-03-31'),{from:'',to:'2026-03-31'});
+  assert.deepEqual(normalizeReportPeriod('2026-02-01','2026-13-01'),{from:'2026-02-01',to:todayIso()});
+});
+
 test('reports ignore malformed settlement records instead of disagreeing with receivables',()=>{
   const doc=invoice();
   const valid=payment(doc,{id:'pay-valid',amount:'100.00'});
@@ -102,6 +110,10 @@ test('v135 ships reports navigation print CSV and offline assets without combini
   const [app,shell,page,logic,html,sw,css,recoveryCss]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx'),read('src/components/ReportsPage.tsx'),read('src/lib/reports.ts'),read('index.html'),read('public/sw.js'),read('src/styles/reports-v135.css'),read('src/styles/ux-recovery-v152.css')]);
   assert.ok(app.includes("|'reports'|"),'reports screen remains in the application state');assert.ok(shell.includes("t('Reports','التقارير')"));assert.ok(app.includes('<ReportsPage'));
   for(const term of ['Financial Reports','This Month','This Quarter','This Year','All Time','Export CSV','Print / Save PDF','Monthly Performance','Customer Performance','All currencies — separate'])assert.ok(page.includes(term),term);
+  assert.ok(page.includes("aria-label={t('Search customer performance'"));
+  assert.ok(page.includes('alt={companyDisplayName(this.props.company)}'));
+  assert.ok(page.includes('currencies.includes(requestedCurrency)'));
+  assert.ok(page.includes("value={selected||'ALL'}"));
   assert.ok(page.includes('Currencies are never combined or converted automatically'));
   assert.ok(logic.includes('receivablesByCurrency(asOfDocuments'));
   assert.ok(logic.includes('financialPayments(documents,payments)'));

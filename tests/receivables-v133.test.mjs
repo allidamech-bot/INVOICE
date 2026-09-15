@@ -45,6 +45,13 @@ test('v133 aging boundaries are calendar-day exact',()=>{
   assert.equal(agingBucketFor('2026-08-03','2026-09-02'),'days1to30');
   assert.equal(agingBucketFor('2026-08-02','2026-09-02'),'days31to60');
   assert.equal(agingBucketFor('','2026-09-02'),'current');
+  assert.equal(daysOverdue('2026-02-31','2026-03-31'),0);
+  assert.equal(daysOverdue('2026-02-01','2026-13-01'),0);
+});
+
+test('receivables exclude invoices with impossible issue dates from as-of balances',()=>{
+  const invalid=makeInvoice({id:'invalid-date',number:'INV-INVALID',issueDate:'2026-02-31',dueDate:'2026-03-15'});
+  assert.deepEqual(receivablesByCurrency([invalid],[],'2026-03-31'),[]);
 });
 
 test('v133 receivables never mix currencies',()=>{
@@ -113,6 +120,8 @@ test('v133 UI exposes receivables navigation aging and printable statements offl
   assert.ok(page.includes('printing-customer-statement'));
   assert.ok(page.includes('receivableCustomerId'));
   assert.ok(page.includes('const overdueAccounts=customerReceivables'));
+  assert.ok(page.includes("aria-label={t('Filter customer accounts'"));
+  assert.ok(page.includes("label={t('Clear customer search'"));
   assert.ok(panel.includes('Credit Notes'));assert.ok(panel.includes('Net invoice'));
   assert.ok(panel.includes('payment-integrity-warning'));
   assert.ok(html.includes('receivables-v133.css'));
