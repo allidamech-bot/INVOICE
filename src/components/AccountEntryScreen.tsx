@@ -3,7 +3,10 @@ import { Brand, Button, Field, Input } from './UI.js';
 import { t } from '../lib/i18n.js';
 import { accountPasswordIssue, MAX_ACCOUNT_PASSWORD_LENGTH, MIN_ACCOUNT_PASSWORD_LENGTH } from '../lib/account-security.js';
 import { createCloudUser, friendlyCloudError, sendCloudPasswordReset, signInCloudUser } from '../cloud/firebase.js';
+import type { CloudUser } from '../cloud/firebase.js';
 import { clearPendingGoogleLink, consumeGoogleRedirectResult, googleRedirectPending, GoogleAccountLinkRequiredError, linkGoogleToExistingPasswordAccount, prepareGooglePopupAuth, signInCloudUserWithGoogle } from '../cloud/google-auth.js';
+import { activateAccountStorage } from '../storage/db.js';
+import { setActiveAccountUid } from '../storage/session.js';
 
 interface Props {
   language: UiLanguage;
@@ -28,6 +31,16 @@ export class AccountEntryScreen extends React.Component<Props,State>{
   }
 
   componentWillUnmount():void{clearPendingGoogleLink();}
+
+  private enterAuthenticatedAccount=async(user:CloudUser):Promise<void>=>{
+    // Authentication alone is not enough to leave the public account gateway.
+    // Select the UID-scoped database before reloading so startup resumes against
+    // the authenticated account instead of rendering the signed-out scope again.
+    try{sessionStorage.setItem('lourex-auth-just-signed-in','1');}catch{}
+    setActiveAccountUid(user.uid);
+    await activateAccountStorage(user.uid);
+    window.location.replace(window.location.href);
+  };
 
   private prepareGoogle=async():Promise<void>=>{
     try{
@@ -100,7 +113,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
       const user=await consumeGoogleRedirectResult();
       if(!user){this.setState({busy:false,message:''});return;}
       this.setState({message:t('Google sign-in complete. Restoring your LOUREX data…','تم تسجيل الدخول عبر Google. جارٍ استعادة بيانات LOUREX…')});
-      window.setTimeout(()=>window.location.reload(),450);
+      await this.enterAuthenticatedAccount(user);
     }catch(error:any){this.applyGoogleFailure(error);}
   };
 
@@ -112,7 +125,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
       const user=await signInCloudUserWithGoogle();
       if(!user)return;
       this.setState({message:t('Google sign-in complete. Restoring your LOUREX data…','تم تسجيل الدخول عبر Google. جارٍ استعادة بيانات LOUREX…')});
-      window.setTimeout(()=>window.location.reload(),450);
+      await this.enterAuthenticatedAccount(user);
     }catch(error:any){this.applyGoogleFailure(error);}
   };
 
@@ -132,15 +145,15 @@ export class AccountEntryScreen extends React.Component<Props,State>{
       // "lose" the successful sign-in. Let the one shared preparation settle
       // first; password auth then becomes the final persistence writer.
       if(!this.state.googleLinkPending){try{await prepareGooglePopupAuth();}catch{}}
-      if(this.state.googleLinkPending)await linkGoogleToExistingPasswordAccount(email,password);
-      else if(create)await createCloudUser(email,password);
-      else await signInCloudUser(email,password);
-      try{sessionStorage.setItem('lourex-auth-just-signed-in','1');}catch{}
+      let user:CloudUser;
+      if(this.state.googleLinkPending)user=await linkGoogleToExistingPasswordAccount(email,password);
+      else if(create)user=await createCloudUser(email,password);
+      else user=await signInCloudUser(email,password);
       const message=this.state.googleLinkPending
         ?t('Google connected securely. Restoring your existing LOUREX data…','تم ربط Google بأمان. جارٍ استعادة بيانات LOUREX الحالية…')
         :create?t('Account created. Preparing LOUREX…','تم إنشاء الحساب. جارٍ تجهيز LOUREX…'):t('Signed in. Restoring your LOUREX data…','تم تسجيل الدخول. جارٍ استعادة بيانات LOUREX…');
       this.setState({message,error:''});
-      window.setTimeout(()=>window.location.reload(),500);
+      await this.enterAuthenticatedAccount(user);
     }catch(error:any){
       const code=String(error?.code||'');
       if(create&&code.includes('email-already-in-use')){
