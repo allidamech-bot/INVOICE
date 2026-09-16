@@ -22,14 +22,66 @@ jobs:
       - name: LOUREX static security gate
         run: node scripts/security-check.mjs
       - run: npm run typecheck
-      - name: Full regression suite with captured output
+      - run: npm test
+      - name: Install browser visual QA runtime
         run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install chromium
+      - name: Run browser visual QA
+        run: |
+          npx http-server . -p 4173 -c-1 > /tmp/lourex-visual-qa-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/tests/visual/template-visual-qa.html >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/lourex-visual-qa-server.log
+            exit 1
+          fi
+          node tests/visual/run-pdf-searchable-v222.cjs
+          node tests/visual/run-template-visual-qa.cjs visual-qa-output
+          node tests/visual/run-mobile-final-quote-stack.cjs
+          node tests/visual/run-mobile-modal-overlap-v176.cjs
+          node tests/visual/run-mobile-controls-density-v177.cjs
+          node tests/visual/run-mobile-spacing-fit-v198.cjs
+          node tests/visual/run-mobile-safari-chrome-v199.cjs
+          node tests/visual/run-functional-navigation-auth-v200.cjs
+          node tests/visual/run-save-reliability-v217.cjs
+          node tests/visual/run-premium-auth-gateway-v187.cjs
+          node tests/visual/run-obsidian-foundation.cjs
+          node tests/visual/run-obsidian-shell.cjs
+          node tests/visual/run-obsidian-dashboard.cjs
+          node tests/visual/run-obsidian-documents.cjs
+          node tests/visual/run-obsidian-editor.cjs
+          node tests/visual/run-mobile-preview-fit-v241.cjs
+          node tests/visual/run-functional-document-workflow.cjs
+          node tests/visual/run-functional-editor-controls-v201.cjs
+          node tests/visual/run-functional-payments.cjs
+          node tests/visual/run-functional-customers-v196.cjs
+          node tests/visual/run-functional-products-operations-v197.cjs
+          node tests/visual/run-obsidian-directory.cjs
+          node tests/visual/run-packing-preview-locale-v244.cjs
+          node tests/visual/run-product-category-locale-v245.cjs
+          node tests/visual/run-saved-items-category-locale-v246.cjs
+          node tests/visual/run-product-unit-locale-v247.cjs
+          node tests/visual/run-obsidian-financial.cjs
+          node tests/visual/run-operations-mobile-tabs-v242.cjs
+          node tests/visual/run-obsidian-settings.cjs
+          node tests/visual/run-obsidian-overlays.cjs
           set -o pipefail
-          npm test 2>&1 | tee test-output.log
-      - name: Upload regression output
+          node tests/visual/run-nested-surfaces-v229.cjs 2>&1 | tee visual-qa-output/nested-surfaces-v229.log
+          node tests/visual/run-luminous-noir-v224.cjs
+          node tests/visual/run-luminous-noir-continuity-v225.cjs
+      - name: Upload visual QA evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: accounting-v258-test-output
-          path: test-output.log
-          if-no-files-found: error
+          name: lourex-visual-qa
+          path: visual-qa-output
+          if-no-files-found: ignore
