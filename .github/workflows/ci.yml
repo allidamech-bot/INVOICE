@@ -24,17 +24,26 @@ jobs:
       - run: npm run typecheck
       - name: Build test artifacts
         run: npm run build
-      - name: Tests A-F
+      - name: Pair A-F + G-L
         continue-on-error: true
-        run: node --test tests/[a-f]*.test.mjs
-      - name: Tests G-L
+        run: node --test tests/[a-f]*.test.mjs tests/[g-l]*.test.mjs
+      - name: Pair A-F + M-R
         continue-on-error: true
-        run: node --test tests/[g-l]*.test.mjs
-      - name: Tests M-R
+        run: node --test tests/[a-f]*.test.mjs tests/[m-r]*.test.mjs
+      - name: Pair A-F + S-Z
         continue-on-error: true
-        run: node --test tests/[m-r]*.test.mjs
-      - name: Tests S-Z
+        run: node --test tests/[a-f]*.test.mjs tests/[s-z]*.test.mjs
+      - name: Pair G-L + M-R
         continue-on-error: true
-        run: node --test tests/[s-z]*.test.mjs
+        run: node --test tests/[g-l]*.test.mjs tests/[m-r]*.test.mjs
+      - name: Pair G-L + S-Z
+        continue-on-error: true
+        run: node --test tests/[g-l]*.test.mjs tests/[s-z]*.test.mjs
+      - name: Pair M-R + S-Z
+        continue-on-error: true
+        run: node --test tests/[m-r]*.test.mjs tests/[s-z]*.test.mjs
+      - name: Serial full regression suite
+        continue-on-error: true
+        run: node --test --test-concurrency=1 tests/*.test.mjs
       - name: Full regression suite
         run: node --test tests/*.test.mjs
