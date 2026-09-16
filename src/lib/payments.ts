@@ -6,12 +6,16 @@ const METHODS=new Set<PaymentMethod>(['cash','bank-transfer','card','cheque','ot
 function centsString(cents:bigint):string{const sign=cents<0n?'-':'';const abs=cents<0n?-cents:cents;return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`; }
 function paymentAmountCents(payment:PaymentRecord):bigint|null{if(!isDecimalInput(payment.amount))return null;const cents=decimalToScaled(payment.amount,2);return cents>0n?cents:null;}
 function creditAmountCents(credit:LourexDocument):bigint|null{const cents=decimalToScaled(calculateTotals(credit.items,credit.adjustments).grandTotal,2);return cents>0n?cents:null;}
-function paymentMatchesInvoice(invoice:LourexDocument,payment:PaymentRecord):boolean{return payment.invoiceId===invoice.id&&payment.currency===invoice.currency&&payment.customerId===(invoice.customerSnapshot?.sourceCustomerId||'');}
-function creditMatchesInvoice(invoice:LourexDocument,credit:LourexDocument):boolean{return credit.role==='credit-note'&&credit.creditForId===invoice.id&&credit.status==='final'&&credit.lifecycleStatus!=='voided'&&credit.currency===invoice.currency&&(credit.customerSnapshot?.sourceCustomerId||'')===(invoice.customerSnapshot?.sourceCustomerId||'')&&creditAmountCents(credit)!==null&&isIsoDate(credit.issueDate);}
+function settlementDateIsValid(invoice:LourexDocument,date:string):boolean{return isIsoDate(invoice.issueDate)&&isIsoDate(date)&&date>=invoice.issueDate;}
+function paymentMatchesInvoice(invoice:LourexDocument,payment:PaymentRecord):boolean{return payment.invoiceId===invoice.id&&payment.currency===invoice.currency&&payment.customerId===(invoice.customerSnapshot?.sourceCustomerId||'')&&settlementDateIsValid(invoice,payment.date);}
+function creditMatchesInvoice(invoice:LourexDocument,credit:LourexDocument):boolean{return credit.role==='credit-note'&&credit.creditForId===invoice.id&&credit.status==='final'&&credit.lifecycleStatus!=='voided'&&credit.currency===invoice.currency&&(credit.customerSnapshot?.sourceCustomerId||'')===(invoice.customerSnapshot?.sourceCustomerId||'')&&creditAmountCents(credit)!==null&&settlementDateIsValid(invoice,credit.issueDate);}
+function assertInvoiceIssueDate(invoice:LourexDocument):void{if(!isIsoDate(invoice.issueDate))throw new Error('Invoice issue date is invalid. Correct the invoice before recording or changing settlements.');}
 function assertPaymentRecordIntegrity(invoice:LourexDocument,payment:PaymentRecord):bigint{
   const amount=paymentAmountCents(payment);
   if(amount===null)throw new Error('A recorded payment has an invalid amount. Delete or correct the payment record before continuing.');
   if(!isIsoDate(payment.date))throw new Error('A recorded payment has an invalid date. Delete or correct the payment record before continuing.');
+  assertInvoiceIssueDate(invoice);
+  if(payment.date<invoice.issueDate)throw new Error('Payment date cannot be before the invoice issue date.');
   if(payment.currency!==invoice.currency)throw new Error('Invoice currency cannot change after a payment is recorded.');
   if(payment.customerId!==(invoice.customerSnapshot?.sourceCustomerId||''))throw new Error('Invoice customer cannot change after a payment is recorded.');
   return amount;
@@ -20,12 +24,14 @@ function assertCreditNoteRecordIntegrity(invoice:LourexDocument,credit:LourexDoc
   const amount=creditAmountCents(credit);
   if(amount===null)throw new Error('An issued credit note has an invalid total. Void and replace the credit note before continuing.');
   if(!isIsoDate(credit.issueDate))throw new Error('An issued credit note has an invalid issue date. Void and replace the credit note before continuing.');
+  assertInvoiceIssueDate(invoice);
+  if(credit.issueDate<invoice.issueDate)throw new Error('Credit note issue date cannot be before the source invoice issue date.');
   if(credit.currency!==invoice.currency)throw new Error('Credit note currency must match the source invoice.');
   if((credit.customerSnapshot?.sourceCustomerId||'')!==(invoice.customerSnapshot?.sourceCustomerId||''))throw new Error('Credit note customer must match the source invoice.');
   return amount;
 }
 export function invoicePayments(invoiceId:string,payments:PaymentRecord[],asOf=''):PaymentRecord[]{return payments.filter(payment=>payment.invoiceId===invoiceId&&(!asOf||(isIsoDate(payment.date)&&payment.date<=asOf)));}
-export function accountedInvoicePayments(invoice:LourexDocument,payments:PaymentRecord[],asOf=''):PaymentRecord[]{return payments.filter(payment=>paymentMatchesInvoice(invoice,payment)&&paymentAmountCents(payment)!==null&&isIsoDate(payment.date)&&(!asOf||payment.date<=asOf));}
+export function accountedInvoicePayments(invoice:LourexDocument,payments:PaymentRecord[],asOf=''):PaymentRecord[]{return payments.filter(payment=>paymentMatchesInvoice(invoice,payment)&&paymentAmountCents(payment)!==null&&(!asOf||payment.date<=asOf));}
 export function accountedInvoiceCreditNotes(invoice:LourexDocument,documents:LourexDocument[],asOf=''):LourexDocument[]{return documents.filter(credit=>creditMatchesInvoice(invoice,credit)&&(!asOf||credit.issueDate<=asOf));}
 export function paidAmount(invoiceId:string,payments:PaymentRecord[],asOf=''):string{let cents=0n;for(const payment of invoicePayments(invoiceId,payments,asOf)){const amount=paymentAmountCents(payment);if(amount!==null&&isIsoDate(payment.date))cents+=amount;}return centsString(cents);}
 export function invoiceCreditAmount(invoiceId:string,documents:LourexDocument[],asOf=''):string{
@@ -56,6 +62,8 @@ export function normalizePaymentRecord(invoice:LourexDocument,payments:PaymentRe
   if(invoice.kind!=='invoice'||invoice.role==='credit-note'||invoice.status!=='final'||invoice.lifecycleStatus==='voided')throw new Error('Payments can only be recorded against an active final invoice.');
   if(!isDecimalInput(source.amount)||decimalToScaled(source.amount,2)<=0n)throw new Error('Payment amount must be greater than 0.');
   if(!isIsoDate(source.date))throw new Error('Payment date is invalid.');
+  assertInvoiceIssueDate(invoice);
+  if(source.date<invoice.issueDate)throw new Error('Payment date cannot be before the invoice issue date.');
   const amountCents=decimalToScaled(source.amount,2);
   let otherCents=0n;
   for(const payment of payments)if(payment.invoiceId===invoice.id&&payment.id!==source.id)otherCents+=assertPaymentRecordIntegrity(invoice,payment);
@@ -71,6 +79,7 @@ export function assertInvoicePaymentInvariant(invoice:LourexDocument,payments:Pa
   const credits=documents.filter(document=>document.role==='credit-note'&&document.creditForId===invoice.id&&document.status==='final'&&document.lifecycleStatus!=='voided');
   if(!linked.length&&!credits.length)return;
   if(invoice.kind!=='invoice'||invoice.role==='credit-note'||invoice.status!=='final'||invoice.lifecycleStatus==='voided')throw new Error('An invoice with payments or issued credit notes must remain an active final invoice.');
+  assertInvoiceIssueDate(invoice);
   const totalCents=decimalToScaled(calculateTotals(invoice.items,invoice.adjustments).grandTotal,2);
   let creditCents=0n;for(const credit of credits)creditCents+=assertCreditNoteRecordIntegrity(invoice,credit);
   let paidCents=0n;for(const payment of linked)paidCents+=assertPaymentRecordIntegrity(invoice,payment);
