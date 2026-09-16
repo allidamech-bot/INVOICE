@@ -24,38 +24,33 @@ jobs:
       - run: npm run typecheck
       - name: Build test artifacts
         run: npm run build
-      - name: Diagnostic — localized financial input
-        run: node --test tests/financial-localized-input-v257.test.mjs
-      - name: Diagnostic — financial validation
-        run: node --test tests/financial-validation.test.mjs
-      - name: Diagnostic — save sequencing
-        run: node --test tests/save-sequencing-v257.test.mjs
-      - name: Diagnostic — RTL financial fields
-        run: node --test tests/rtl-financial-fields-v257.test.mjs
-      - name: Diagnostic maintenance — localized engine
+      - name: Runtime — saved document open path
         continue-on-error: true
-        run: node --test --test-name-pattern="localized financial input" tests/maintenance-v257.test.mjs
-      - name: Diagnostic maintenance — editable RTL controls
+        run: node --test --test-name-pattern="saved document open path" tests/runtime-paths-v59.test.mjs
+      - name: Runtime — final revision
         continue-on-error: true
-        run: node --test --test-name-pattern="editable decimal" tests/maintenance-v257.test.mjs
-      - name: Diagnostic maintenance — monetary bidi
+        run: node --test --test-name-pattern="final document revision" tests/runtime-paths-v59.test.mjs
+      - name: Runtime — issued output ordering
         continue-on-error: true
-        run: node --test --test-name-pattern="monetary display" tests/maintenance-v257.test.mjs
-      - name: Diagnostic maintenance — monotonic revision
+        run: node --test --test-name-pattern="newly issued document" tests/runtime-paths-v59.test.mjs
+      - name: Runtime — editor close path
         continue-on-error: true
-        run: node --test --test-name-pattern="monotonic revision" tests/maintenance-v257.test.mjs
-      - name: Diagnostic maintenance — back and issuing
+        run: node --test --test-name-pattern="editor close path" tests/runtime-paths-v59.test.mjs
+      - name: Runtime — white screen boundary
         continue-on-error: true
-        run: node --test --test-name-pattern="back navigation" tests/maintenance-v257.test.mjs
-      - name: Diagnostic maintenance — PWA refresh
+        run: node --test --test-name-pattern="white-screen recovery" tests/runtime-paths-v59.test.mjs
+      - name: Runtime — print assets
         continue-on-error: true
-        run: node --test --test-name-pattern="refreshes installed PWA" tests/maintenance-v257.test.mjs
-      - name: Diagnostic — runtime paths
-        run: node --test tests/runtime-paths-v59.test.mjs
-      - name: Diagnostic — customer UX closeout
-        run: node --test tests/customer-ux-closeout-v114.test.mjs
-      - name: Diagnostic — audit fixes
-        run: node --test tests/audit-fixes-v65.test.mjs
+        run: node --test --test-name-pattern="print/PDF/share path" tests/runtime-paths-v59.test.mjs
+      - name: Runtime — mobile preview
+        continue-on-error: true
+        run: node --test --test-name-pattern="mobile preview remains" tests/runtime-paths-v59.test.mjs
+      - name: Runtime — PWA update
+        continue-on-error: true
+        run: node --test --test-name-pattern="installed PWA update path" tests/runtime-paths-v59.test.mjs
+      - name: Runtime — offline cache
+        continue-on-error: true
+        run: node --test --test-name-pattern="offline cache includes" tests/runtime-paths-v59.test.mjs
       - name: Full regression suite
         run: node --test tests/*.test.mjs
       - name: Install browser visual QA runtime
