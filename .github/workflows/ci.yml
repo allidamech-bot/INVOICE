@@ -22,16 +22,14 @@ jobs:
       - name: LOUREX static security gate
         run: node scripts/security-check.mjs
       - run: npm run typecheck
-      - name: Build test artifacts
-        run: npm run build
-      - name: Full suite concurrency 2
-        continue-on-error: true
-        run: node --test --test-concurrency=2 tests/*.test.mjs
-      - name: Full suite concurrency 4
-        continue-on-error: true
-        run: node --test --test-concurrency=4 tests/*.test.mjs
-      - name: Full suite concurrency 8
-        continue-on-error: true
-        run: node --test --test-concurrency=8 tests/*.test.mjs
-      - name: Serial full regression suite
-        run: node --test --test-concurrency=1 tests/*.test.mjs
+      - name: Full regression suite with captured output
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test-output.log
+      - name: Upload regression output
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: accounting-v258-test-output
+          path: test-output.log
+          if-no-files-found: error
