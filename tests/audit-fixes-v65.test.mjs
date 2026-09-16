@@ -18,7 +18,7 @@ test('final proforma remains convertible without unlocking it for editing',async
 test('final quote conversion action is outside the disabled editor form',async()=>{
   const [wrapper,core]=await Promise.all([read('src/components/EditorPage.tsx'),read('src/components/EditorPageCore.tsx')]);
   assert.match(wrapper,/final-quote-convert-bar/);
-  assert.match(core,/fieldset className="editor-form-lock" disabled=\{locked\}/);
+  assert.match(core,/fieldset className="editor-form-lock" disabled=\{locked\|\|this\.state\.issuing\}/);
   assert.match(core,/Unlock for editing/);
 });
 

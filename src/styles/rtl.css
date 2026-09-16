@@ -25,7 +25,15 @@ html[dir="rtl"] .icon-btn .icon[name="arrowLeft"]{transform:scaleX(-1)}
 html[dir="rtl"] .toggle{direction:ltr}
 html[dir="rtl"] input[type="email"],
 html[dir="rtl"] input[type="url"],
-html[dir="rtl"] input[inputmode="numeric"]{direction:ltr;text-align:left}
+html[dir="rtl"] input[type="tel"],
+html[dir="rtl"] input[type="date"],
+html[dir="rtl"] input[inputmode="numeric"],
+html[dir="rtl"] input[inputmode="decimal"]{direction:ltr;text-align:left;unicode-bidi:isolate}
+html[dir="rtl"] .editor-top-left strong,
+html[dir="rtl"] .editor-grand-total-chip strong,
+html[dir="rtl"] .item-line-total,
+html[dir="rtl"] .premium-item-card footer strong,
+html[dir="rtl"] .document-total{direction:ltr;unicode-bidi:isolate}
 .auth-card{position:relative}
 .auth-language-switch{position:absolute;top:16px;right:16px;border:1px solid #d6d2ca;background:#fff;color:#253642;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;z-index:2}
 html[dir="rtl"] .auth-language-switch{right:auto;left:16px}
