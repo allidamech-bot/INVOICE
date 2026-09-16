@@ -26,6 +26,25 @@ test('v257 isolates monetary display strings from RTL bidi reordering',async()=>
   assert.match(rtl,/\.document-total\{direction:ltr;unicode-bidi:isolate\}/);
 });
 
+test('v257 tracks in-flight edits by monotonic revision instead of millisecond timestamps',async()=>{
+  const editor=await read('src/components/EditorPageCore.tsx');
+  assert.match(editor,/private editRevision=0/);
+  assert.match(editor,/this\.editRevision\+=1/);
+  assert.match(editor,/const revisionAtStart=this\.editRevision;[\s\S]*const hasNewerChanges=this\.editRevision!==revisionAtStart/);
+  assert.doesNotMatch(editor,/hasNewerChanges=this\.state\.doc\.updatedAt!==snapshot\.updatedAt/);
+});
+
+test('v257 back navigation drains newer edits and issuing freezes the editable form',async()=>{
+  const editor=await read('src/components/EditorPageCore.tsx');
+  const closeFlow=editor.slice(editor.indexOf('private saveAndClose=async()=>'),editor.indexOf('private openReview='));
+  assert.match(closeFlow,/for\(;;\)/);
+  assert.match(closeFlow,/const revisionAtStart=this\.editRevision/);
+  assert.match(closeFlow,/await this\.props\.onSave\(snapshot,true\)/);
+  assert.match(closeFlow,/if\(this\.editRevision!==revisionAtStart\)continue/);
+  assert.ok(closeFlow.indexOf('if(this.editRevision!==revisionAtStart)continue')<closeFlow.indexOf('this.props.onClose()'));
+  assert.match(editor,/fieldset className="editor-form-lock" disabled=\{locked\|\|this\.state\.issuing\}/);
+});
+
 test('v257 refreshes installed PWA clients for financial and RTL runtime changes',async()=>{
   const [pwa,sourceWorker]=await Promise.all([read('scripts/pwa-cache-v205.mjs'),read('public/sw.js')]);
   assert.ok(pwa.includes('lourex-invoice-v257: localized financial input and RTL numeric isolation refresh'));
