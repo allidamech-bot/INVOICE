@@ -68,6 +68,7 @@ export class EditorPage extends React.Component<Props,State>{
   private previewMedia:MediaQueryList|null=null;
   private validationAttempted=false;
   private departureFlushQueued=false;
+  private editRevision=0;
 
   constructor(props:Props){
     super(props);
@@ -129,6 +130,7 @@ export class EditorPage extends React.Component<Props,State>{
     if(this.state.doc.status==='final')return;
     this.props.onEditActivity?.();
     this.departureFlushQueued=false;
+    this.editRevision+=1;
     const doc={...fn(this.state.doc),updatedAt:new Date().toISOString()};
     const errors=this.validationAttempted?validateDocument(doc):this.state.errors;
     this.setState({doc,saveState:'unsaved',errors},()=>{this.schedule();this.schedulePreview();});
@@ -146,6 +148,7 @@ export class EditorPage extends React.Component<Props,State>{
   private save=async(auto=false)=>{
     if(this.state.doc.status==='final')return;
     if(this.state.saving){if(auto)this.schedule();return;}
+    const revisionAtStart=this.editRevision;
     const snapshot=structuredClone(this.state.doc);
     if(!auto){
       const errors=validateDocument(snapshot);
@@ -155,7 +158,7 @@ export class EditorPage extends React.Component<Props,State>{
     this.setState({saving:true,saveState:'saving',errors:auto?this.state.errors:{}});
     try{
       await this.props.onSave(snapshot,auto);
-      const hasNewerChanges=this.state.doc.updatedAt!==snapshot.updatedAt;
+      const hasNewerChanges=this.editRevision!==revisionAtStart;
       this.setState({saving:false,saveState:hasNewerChanges?'unsaved':'saved'},()=>{
         if(!hasNewerChanges)return;
         if(document.visibilityState==='hidden')void this.save(true);else this.schedule();
@@ -167,10 +170,17 @@ export class EditorPage extends React.Component<Props,State>{
     if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
     if(this.state.doc.status==='final'||this.state.saveState==='saved'){this.props.onClose();return;}
     if(this.state.saving){window.setTimeout(()=>void this.saveAndClose(),100);return;}
-    const snapshot=structuredClone(this.state.doc);
     this.setState({saving:true,saveState:'saving'});
-    try{await this.props.onSave(snapshot,true);this.props.onClose();}
-    catch(e){this.setState({saving:false,saveState:'unsaved',errors:{...this.state.errors,global:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')}});}
+    try{
+      for(;;){
+        const revisionAtStart=this.editRevision;
+        const snapshot=structuredClone(this.state.doc);
+        await this.props.onSave(snapshot,true);
+        if(this.editRevision!==revisionAtStart)continue;
+        this.props.onClose();
+        return;
+      }
+    }catch(e){this.setState({saving:false,saveState:'unsaved',errors:{...this.state.errors,global:e instanceof Error?e.message:t('Save failed.','فشل الحفظ.')}});}
   };
 
   private openReview=(mode:ReviewMode)=>{if(this.validateCurrent())this.setState({reviewMode:mode,mobilePreview:false});};
@@ -302,7 +312,7 @@ export class EditorPage extends React.Component<Props,State>{
       {errors.global?<div className="editor-global-error">{errors.global}</div>:null}
       {validationCount&&!locked?<div className="editor-validation-summary" role="alert"><span className="validation-dot"/><div><strong>{t('Complete the required information','أكمل البيانات الإلزامية')}</strong><span>{t('Required fields are highlighted below. Fix them, then save again.','تم تحديد الحقول المطلوبة بالأسفل. أكملها ثم اضغط حفظ مرة أخرى.')}</span></div><b>{validationCount}</b></div>:null}
 
-      <div className="editor-layout"><aside className="editor-pane"><div className="editor-scroll"><fieldset className="editor-form-lock" disabled={locked}>
+      <div className="editor-layout"><aside className="editor-pane"><div className="editor-scroll"><fieldset className="editor-form-lock" disabled={locked||this.state.issuing}>
         <section className={`editor-section ${sectionHasError('number','issueDate','dueDate','currency')?'section-has-error':''}`}><div className="section-heading"><span>01</span><h2>{t('Document','المستند')}</h2></div><div className="form-grid two compact-grid"><Field label={t('Number','الرقم')} className="required-field" error={error('number')}><Input value={d.number} onChange={(e:any)=>this.field('number',e.target.value)}/></Field><Field label={t('Issue Date','تاريخ الإصدار')} className="required-field" error={error('issueDate')}><EditorDateInput label={t('Issue Date','تاريخ الإصدار')} value={d.issueDate} onChange={this.issueDate}/></Field><Field label={d.kind==='proforma'?t('Valid Until','صالح حتى'):t('Due Date','تاريخ الاستحقاق')} className={d.kind==='proforma'?'required-field':''} error={error('dueDate')}><EditorDateInput label={d.kind==='proforma'?t('Valid Until','صالح حتى'):t('Due Date','تاريخ الاستحقاق')} value={d.dueDate} onChange={value=>this.field('dueDate',value)}/></Field><Field label={t('Currency','العملة')} className="required-field" error={error('currency')}><Input list="currencies" value={d.currency} onChange={(e:any)=>this.field('currency',e.target.value.toUpperCase())}/><datalist id="currencies">{currencyPresets.map(x=><option key={x} value={x}/>)}</datalist></Field><Field label={t('Document Language','لغة المستند')}><Select value={d.language} onChange={(e:any)=>this.field('language',e.target.value)}><option value="en">English</option><option value="ar">العربية</option><option value="bilingual">{t('Arabic + English','العربية + الإنجليزية')}</option></Select></Field></div></section>
 
         <section className={`editor-section customer-section ${sectionHasError('customer')?'section-has-error':''}`}><div className="section-heading"><span>02</span><h2>{t('Customer','العميل')}</h2></div>{d.customerSnapshot?<div className="selected-customer premium-selected-customer"><span className="customer-avatar"><Icon name="users" size={19}/></span><div><strong>{selectedCustomerName}</strong><span>{[d.customerSnapshot.city,d.customerSnapshot.country].filter(Boolean).join(', ')}</span><small>{[d.customerSnapshot.phone,d.customerSnapshot.email].filter(Boolean).join(' · ')}</small></div><Button variant="ghost" onClick={this.changeCustomer}>{t('Change','تغيير')}</Button></div>:null}{!d.customerSnapshot||this.state.customerOpen?<div className="customer-select-wrap"><Field label={t('Saved Customer','عميل محفوظ')} className="required-field" error={error('customer')}><div className="search-select"><Icon name="search"/><Input value={this.state.customerQuery} placeholder={t('Search customer','ابحث عن عميل')} onFocus={()=>this.setState({customerOpen:true})} onChange={(e:any)=>this.setState({customerQuery:e.target.value,customerOpen:true})}/></div></Field>{this.state.customerOpen?<div className="customer-dropdown">{customers.map(c=><button type="button" key={c.id} onClick={()=>this.selectCustomer(c)}><strong>{(isArabic()?c.companyNameAr:c.companyNameEn)||c.companyNameEn||c.companyNameAr}</strong><span>{[c.city,c.country].filter(Boolean).join(', ')}</span></button>)}{customers.length===0?<div className="customer-search-empty" role="status">{t('No matching customers.','لا يوجد عملاء مطابقون.')}</div>:null}<button type="button" className="new-customer-option" onClick={()=>this.setState({addCustomer:blankCustomer(this.state.customerQuery),customerOpen:false})}><Icon name="plus"/>{t('New Customer','عميل جديد')}</button></div>:null}</div>:null}{!d.customerSnapshot&&!this.state.customerQuery.trim()&&recentCustomers.length?<div className="recent-customer-row"><span>{t('Quick select','اختيار سريع')}</span><div>{recentCustomers.map(c=><button key={c.id} type="button" onClick={()=>this.selectCustomer(c)}>{(isArabic()?c.companyNameAr:c.companyNameEn)||c.companyNameEn||c.companyNameAr}</button>)}</div></div>:null}</section>{credit?<div className={`credit-limit-banner ${credit.exceeded?'is-over':''} ${!credit.comparable?'is-unmatched':''}`}><span className="credit-limit-icon"><Icon name="invoice" size={16}/></span><div><strong>{t('Customer credit control','رقابة ائتمان العميل')}</strong>{credit.comparable?<span>{t(`Outstanding ${credit.outstanding} + this invoice ${credit.candidate} = ${credit.projected} ${credit.currency}`,`المستحق ${credit.outstanding} + هذه الفاتورة ${credit.candidate} = ${credit.projected} ${credit.currency}`)}</span>:<span>{t(`Limit is ${credit.limit} ${credit.creditCurrency}; this invoice is ${credit.currency}. No FX comparison is made.`,`الحد ${credit.limit} ${credit.creditCurrency} وهذه الفاتورة ${credit.currency}. لن تتم مقارنة العملات بدون سعر صرف.`)}</span>}</div><b>{credit.comparable?t(`Limit ${credit.limit}`,`الحد ${credit.limit}`):t('Different currency','عملة مختلفة')}</b></div>:null}
