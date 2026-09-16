@@ -22,7 +22,25 @@ jobs:
       - name: LOUREX static security gate
         run: node scripts/security-check.mjs
       - run: npm run typecheck
-      - run: npm test
+      - name: Build test artifacts
+        run: npm run build
+      - name: Accounting v258 chronology regression
+        continue-on-error: true
+        run: node --test tests/accounting-chronology-v258.test.mjs
+      - name: Financial E2E regression
+        continue-on-error: true
+        run: node --test tests/financial-e2e-v145.test.mjs
+      - name: Receivables regression
+        continue-on-error: true
+        run: node --test tests/receivables-v133.test.mjs
+      - name: Financial merge hardening regression
+        continue-on-error: true
+        run: node --test tests/financial-merge-hardening.test.mjs
+      - name: Accounting hardening regression
+        continue-on-error: true
+        run: node --test tests/hardening-v138.test.mjs
+      - name: Full regression suite
+        run: node --test tests/*.test.mjs
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
