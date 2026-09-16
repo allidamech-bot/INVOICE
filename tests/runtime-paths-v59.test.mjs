@@ -43,10 +43,14 @@ test('newly issued document waits for the saved final snapshot before PDF or sha
   assert.ok(printAt > stateAt, 'PDF/share must start only after the saved final state is visible');
 });
 
-test('editor close path flushes unsaved draft before returning to documents', async () => {
+test('editor close path flushes the latest stable draft before returning to documents', async () => {
   const editor = await read('src/components/EditorPageCore.tsx');
-  assert.match(editor, /private saveAndClose=async\(\)=>/);
-  assert.match(editor, /await this\.props\.onSave\(snapshot,true\);this\.props\.onClose\(\)/);
+  const workflow=editor.slice(editor.indexOf('private saveAndClose=async()=>'),editor.indexOf('private openReview='));
+  assert.match(workflow, /for\(;;\)/);
+  assert.match(workflow, /const revisionAtStart=this\.editRevision/);
+  assert.match(workflow, /await this\.props\.onSave\(snapshot,true\)/);
+  assert.match(workflow, /if\(this\.editRevision!==revisionAtStart\)continue/);
+  assert.ok(workflow.indexOf('if(this.editRevision!==revisionAtStart)continue')<workflow.indexOf('this.props.onClose()'),'editor must close only after the latest revision is saved');
   assert.match(editor, /if\(this\.state\.saving\)\{window\.setTimeout\(\(\)=>void this\.saveAndClose\(\),100\);return;\}/);
   assert.match(editor, /visibilitychange/);
   assert.match(editor, /document\.visibilityState!=='hidden'/);
