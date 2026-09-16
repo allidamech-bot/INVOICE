@@ -6,8 +6,24 @@ const MAX_DECIMAL_DIGITS = 96;
 
 function pow10(n: number): bigint { let v = 1n; for (let i = 0; i < n; i += 1) v *= 10n; return v; }
 
+function normalizeLocalizedNumberCharacters(input:string):string{
+  const arabicIndic='٠١٢٣٤٥٦٧٨٩';
+  const easternArabic='۰۱۲۳۴۵۶۷۸۹';
+  let value='';
+  for(const char of input){
+    const arabicIndex=arabicIndic.indexOf(char);
+    if(arabicIndex>=0){value+=String(arabicIndex);continue;}
+    const easternIndex=easternArabic.indexOf(char);
+    if(easternIndex>=0){value+=String(easternIndex);continue;}
+    value+=char==='٫'?'.':char;
+  }
+  if(!value.includes('٬'))return value;
+  const grouping=/^-?\d{1,3}(?:٬\d{3})+(?:[.,]\d+)?$/;
+  return grouping.test(value)?value.replace(/٬/g,''):value;
+}
+
 function normalizeDecimalSeparators(input: string): string {
-  const raw=(input||'').trim().replace(/[\s\u00a0\u202f]/g,'');
+  const raw=normalizeLocalizedNumberCharacters((input||'').trim().replace(/[\s\u00a0\u202f]/g,''));
   if(!raw)return '';
   const sign=raw.startsWith('-')?'-':'';
   const unsigned=sign?raw.slice(1):raw;
