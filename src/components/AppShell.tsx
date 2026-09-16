@@ -98,7 +98,7 @@ export class AppShell extends React.Component<Props,State>{
     }
   };
 
-  private navButton=(screen:NavTarget,icon:'menu'|'file'|'users'|'items'|'invoice'|'backup',label:string,className='')=>
+  private navButton=(screen:NavTarget,icon:'home'|'file'|'users'|'items'|'invoice'|'backup',label:string,className='')=>
     <button type="button" className={`shell-nav-button ${className} ${this.props.screen===screen?'active':''}`} aria-current={this.props.screen===screen?'page':undefined} onClick={()=>this.navigate(screen)}><Icon name={icon}/><span>{label}</span></button>;
 
   private moreNavButton=(screen:NavTarget,icon:'file'|'items'|'invoice'|'backup',label:string,description:string,tone:MoreTone)=>
@@ -141,7 +141,7 @@ export class AppShell extends React.Component<Props,State>{
         </div>
         <nav className="shell-navigation">
           <div className="shell-nav-primary">
-            {this.navButton('home','menu',t('Home','الرئيسية'))}
+            {this.navButton('home','home',t('Home','الرئيسية'))}
             {this.navButton('documents','file',t('Documents','المستندات'))}
             {this.navButton('customers','users',t('Customers','العملاء'))}
             {this.navButton('items','items',t('Items','الأصناف'))}
@@ -193,7 +193,7 @@ export class AppShell extends React.Component<Props,State>{
           <div className="mobile-more-group group-system"><p><span>{t('System','النظام')}</span></p><button type="button" className="mobile-more-settings" onClick={this.openSettings}><span className="mobile-more-settings-icon"><Icon name="settings"/></span><span className="mobile-more-settings-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Workspace, documents, commercial and security','مساحة العمل والمستندات والتجاري والأمان')}</small></span><span className="mobile-more-chevron" aria-hidden="true"/></button></div>
         </section></>:null}
         <nav className="mobile-bottom-nav" aria-label={t('Mobile navigation','تنقل الجوال')}>
-          <button type="button" className={this.props.screen==='home'?'active':''} aria-current={this.props.screen==='home'?'page':undefined} onClick={()=>this.navigate('home')}><Icon name="menu"/><span>{t('Home','الرئيسية')}</span></button>
+          <button type="button" className={this.props.screen==='home'?'active':''} aria-current={this.props.screen==='home'?'page':undefined} onClick={()=>this.navigate('home')}><Icon name="home"/><span>{t('Home','الرئيسية')}</span></button>
           <button type="button" className={this.props.screen==='documents'?'active':''} aria-current={this.props.screen==='documents'?'page':undefined} onClick={()=>this.navigate('documents')}><Icon name="file"/><span>{t('Documents','المستندات')}</span></button>
           <div className="new-doc-menu mobile-create-wrap">
             <button type="button" className="mobile-create-button" aria-haspopup="menu" aria-expanded={this.props.newMenu} aria-controls="mobile-new-document-menu" aria-label={t('New Document','مستند جديد')} onClick={this.toggleCreate}><Icon name="plus" size={24}/></button>

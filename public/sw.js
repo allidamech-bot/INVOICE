@@ -128,6 +128,7 @@ LOCAL_CORE.push('./styles/save-reliability-v217.css');
 LOCAL_CORE.push('./styles/dark-surface-continuity-v220.css');
 LOCAL_CORE.push('./styles/luminous-noir-v224.css');
 LOCAL_CORE.push('./styles/matte-black-v228.css');
+LOCAL_CORE.push('./styles/interface-polish-v256.css');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
