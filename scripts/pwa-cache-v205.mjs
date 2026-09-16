@@ -73,7 +73,8 @@ const releaseMarkers=[
   '// lourex-invoice-v245: product category locale purity refresh.',
   '// lourex-invoice-v246: saved items category locale purity refresh.',
   '// lourex-invoice-v247: product unit locale purity refresh.',
-  '// lourex-invoice-v248: More and Settings information architecture refresh.'
+  '// lourex-invoice-v248: More and Settings information architecture refresh.',
+  '// lourex-invoice-v257: localized financial input and RTL numeric isolation refresh.'
 ];
 for(const releaseMarker of releaseMarkers)if(!sw.includes(releaseMarker))sw=`${releaseMarker}\n${sw}`;
 const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";
