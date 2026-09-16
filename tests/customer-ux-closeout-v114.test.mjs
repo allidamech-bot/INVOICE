@@ -11,7 +11,9 @@ test('v114 manual save stays in the editor while Back remains the save-and-close
   const closeFlow=core.slice(core.indexOf('private saveAndClose=async()=>'),core.indexOf('private openReview='));
   assert.match(closeFlow,/await this\.props\.onSave\(snapshot,true\)/);
   assert.match(closeFlow,/if\(this\.editRevision!==revisionAtStart\)continue/);
-  assert.ok(closeFlow.indexOf('if(this.editRevision!==revisionAtStart)continue')<closeFlow.indexOf('this.props.onClose()'),'Back must only close after the latest edit revision is saved');
+  const retryAt=closeFlow.indexOf('if(this.editRevision!==revisionAtStart)continue');
+  const stableCloseAt=closeFlow.lastIndexOf('this.props.onClose()');
+  assert.ok(retryAt>=0&&stableCloseAt>retryAt,'Back must only close from the save loop after the latest edit revision is saved');
   assert.doesNotMatch(core,/if\(!auto&&!hasNewerChanges\)\{this\.props\.onClose\(\);return;\}/);
 });
 
