@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decimalToScaled, formatMoney, isDecimalInput, lineTotal } from '../dist/src/lib/money.js';
+import { calculateTotals, decimalToScaled, formatMoney, isDecimalInput, lineTotal, normalizeDecimalInput } from '../dist/src/lib/money.js';
 import { createBlankDocument, validateDocument } from '../dist/src/lib/documents.js';
 import { customerSnapshotFrom, defaultCompany } from '../dist/src/lib/defaults.js';
 
@@ -58,4 +58,21 @@ test('money formatting does not collapse very large fixed-precision values to ze
   const huge='1234567890123456789012345678901234567890.12';
   assert.equal(formatMoney(huge,'USD'),'1,234,567,890,123,456,789,012,345,678,901,234,567,890.12 USD');
   assert.equal(formatMoney('-1000.5','EUR'),'-1,000.50 EUR');
+});
+
+test('Arabic-Indic and Eastern Arabic digits use the same fixed-precision financial engine',()=>{
+  assert.equal(normalizeDecimalInput('١٢٣٫٤٥'),'123.45');
+  assert.equal(normalizeDecimalInput('۱۲۳٫۴۵'),'123.45');
+  assert.equal(decimalToScaled('١٬٢٣٤٫٥٦',2),123456n);
+  assert.equal(decimalToScaled('۱٬۲۳۴٫۵۶',2),123456n);
+  assert.equal(lineTotal('٢٫٥','٤٫٢٠'),'10.50');
+  assert.equal(isDecimalInput('١٢٬٣٤'),false,'malformed Arabic thousands grouping must remain invalid');
+});
+
+test('localized digits flow through discount shipping and tax totals without numeric drift',()=>{
+  const totals=calculateTotals(
+    [{quantity:'٢',unitPrice:'١٠'}],
+    {discountEnabled:true,discountMode:'percent',discountValue:'١٠',shippingEnabled:true,shipping:'٥',otherChargesEnabled:false,otherCharges:'٠',taxEnabled:true,taxPercent:'١٥'}
+  );
+  assert.deepEqual(totals,{subtotal:'20.00',discount:'2.00',shipping:'5.00',otherCharges:'0.00',tax:'3.45',grandTotal:'26.45'});
 });
