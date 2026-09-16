@@ -22,37 +22,7 @@ jobs:
       - name: LOUREX static security gate
         run: node scripts/security-check.mjs
       - run: npm run typecheck
-      - name: Build test artifacts
-        run: npm run build
-      - name: Runtime — saved document open path
-        continue-on-error: true
-        run: node --test --test-name-pattern="saved document open path" tests/runtime-paths-v59.test.mjs
-      - name: Runtime — final revision
-        continue-on-error: true
-        run: node --test --test-name-pattern="final document revision" tests/runtime-paths-v59.test.mjs
-      - name: Runtime — issued output ordering
-        continue-on-error: true
-        run: node --test --test-name-pattern="newly issued document" tests/runtime-paths-v59.test.mjs
-      - name: Runtime — editor close path
-        continue-on-error: true
-        run: node --test --test-name-pattern="editor close path" tests/runtime-paths-v59.test.mjs
-      - name: Runtime — white screen boundary
-        continue-on-error: true
-        run: node --test --test-name-pattern="white-screen recovery" tests/runtime-paths-v59.test.mjs
-      - name: Runtime — print assets
-        continue-on-error: true
-        run: node --test --test-name-pattern="print/PDF/share path" tests/runtime-paths-v59.test.mjs
-      - name: Runtime — mobile preview
-        continue-on-error: true
-        run: node --test --test-name-pattern="mobile preview remains" tests/runtime-paths-v59.test.mjs
-      - name: Runtime — PWA update
-        continue-on-error: true
-        run: node --test --test-name-pattern="installed PWA update path" tests/runtime-paths-v59.test.mjs
-      - name: Runtime — offline cache
-        continue-on-error: true
-        run: node --test --test-name-pattern="offline cache includes" tests/runtime-paths-v59.test.mjs
-      - name: Full regression suite
-        run: node --test tests/*.test.mjs
+      - run: npm test
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
