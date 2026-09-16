@@ -41,7 +41,9 @@ test('v257 back navigation drains newer edits and issuing freezes the editable f
   assert.match(closeFlow,/const revisionAtStart=this\.editRevision/);
   assert.match(closeFlow,/await this\.props\.onSave\(snapshot,true\)/);
   assert.match(closeFlow,/if\(this\.editRevision!==revisionAtStart\)continue/);
-  assert.ok(closeFlow.indexOf('if(this.editRevision!==revisionAtStart)continue')<closeFlow.indexOf('this.props.onClose()'));
+  const retryAt=closeFlow.indexOf('if(this.editRevision!==revisionAtStart)continue');
+  const stableCloseAt=closeFlow.lastIndexOf('this.props.onClose()');
+  assert.ok(retryAt>=0&&stableCloseAt>retryAt,'Back must only close from the save loop after the latest edit revision is stable');
   assert.match(editor,/fieldset className="editor-form-lock" disabled=\{locked\|\|this\.state\.issuing\}/);
 });
 
