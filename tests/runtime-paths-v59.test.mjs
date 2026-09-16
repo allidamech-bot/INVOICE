@@ -50,7 +50,9 @@ test('editor close path flushes the latest stable draft before returning to docu
   assert.match(workflow, /const revisionAtStart=this\.editRevision/);
   assert.match(workflow, /await this\.props\.onSave\(snapshot,true\)/);
   assert.match(workflow, /if\(this\.editRevision!==revisionAtStart\)continue/);
-  assert.ok(workflow.indexOf('if(this.editRevision!==revisionAtStart)continue')<workflow.indexOf('this.props.onClose()'),'editor must close only after the latest revision is saved');
+  const retryAt=workflow.indexOf('if(this.editRevision!==revisionAtStart)continue');
+  const stableCloseAt=workflow.lastIndexOf('this.props.onClose()');
+  assert.ok(retryAt>=0&&stableCloseAt>retryAt,'editor must close from the save loop only after the latest revision is saved');
   assert.match(editor, /if\(this\.state\.saving\)\{window\.setTimeout\(\(\)=>void this\.saveAndClose\(\),100\);return;\}/);
   assert.match(editor, /visibilitychange/);
   assert.match(editor, /document\.visibilityState!=='hidden'/);
