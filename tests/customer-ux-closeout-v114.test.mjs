@@ -8,7 +8,10 @@ test('v114 manual save stays in the editor while Back remains the save-and-close
   const core=await read('src/components/EditorPageCore.tsx');
   assert.match(core,/private save=async\(auto=false\)/);
   assert.match(core,/private saveAndClose=async\(\)=>/);
-  assert.match(core,/try\{await this\.props\.onSave\(snapshot,true\);this\.props\.onClose\(\);\}/);
+  const closeFlow=core.slice(core.indexOf('private saveAndClose=async()=>'),core.indexOf('private openReview='));
+  assert.match(closeFlow,/await this\.props\.onSave\(snapshot,true\)/);
+  assert.match(closeFlow,/if\(this\.editRevision!==revisionAtStart\)continue/);
+  assert.ok(closeFlow.indexOf('if(this.editRevision!==revisionAtStart)continue')<closeFlow.indexOf('this.props.onClose()'),'Back must only close after the latest edit revision is saved');
   assert.doesNotMatch(core,/if\(!auto&&!hasNewerChanges\)\{this\.props\.onClose\(\);return;\}/);
 });
 
