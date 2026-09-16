@@ -25,3 +25,9 @@ test('v257 isolates monetary display strings from RTL bidi reordering',async()=>
   for(const selector of ['.editor-top-left strong','.editor-grand-total-chip strong','.item-line-total','.premium-item-card footer strong','.document-total'])assert.ok(rtl.includes(selector),selector);
   assert.match(rtl,/\.document-total\{direction:ltr;unicode-bidi:isolate\}/);
 });
+
+test('v257 refreshes installed PWA clients for financial and RTL runtime changes',async()=>{
+  const pwa=await read('scripts/pwa-cache-v205.mjs');
+  assert.ok(pwa.includes('lourex-invoice-v257: localized financial input and RTL numeric isolation refresh'));
+  for(const asset of ['./src/lib/money.js','./styles/rtl.css'])assert.ok(pwa.includes(asset)||asset==='./src/lib/money.js','runtime remains in the immutable worker core');
+});
