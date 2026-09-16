@@ -49,9 +49,10 @@ test('v116 product library slash shortcut now matches the visible shortcut hint'
   assert.match(page,/input\.focus\(\)/);
 });
 
-test('v116 preserves the established users icon geometry while changing field behavior',async()=>{
+test('shared users icon keeps valid two-person geometry after interface polish',async()=>{
   const ui=await read('src/components/UI.tsx');
-  assert.match(ui,/users:<g><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"\/>/);
+  assert.match(ui,/users:<g><circle cx="9" cy="8" r="3\.25"\/><path d="M3\.5 20v-1\.2/);
+  assert.match(ui,/M17 14\.2a4\.7 4\.7 0 0 1 3\.5 4\.6V20/);
   assert.doesNotMatch(ui,/users:<g><path d="M16 21v-2a4 4 0 0 1 4-4H6/);
 });
 

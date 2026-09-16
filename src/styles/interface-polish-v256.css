@@ -1,0 +1,173 @@
+/* v256 — restrained interface polish.
+   Aligns application controls, spacing and navigation icon treatment without
+   changing the matte-black art direction or printable document output. */
+@media screen {
+  .app-ui{
+    --polish-control-height:44px;
+    --polish-control-radius:10px;
+    --polish-card-radius:12px;
+    --polish-section-gap:16px;
+  }
+
+  .app-ui .icon{
+    display:block;
+    flex:0 0 auto;
+    shape-rendering:geometricPrecision;
+  }
+
+  .app-ui .workspace-content{overflow-x:clip}
+
+  .app-ui :is(.shell-nav-button,.mobile-bottom-nav>button,.dashboard-shortcut-grid>button)>.icon{
+    width:19px;
+    height:19px;
+    stroke-width:1.9;
+  }
+
+  .app-ui .shell-nav-button{
+    min-height:44px;
+    gap:12px;
+    padding:10px 12px;
+    border-radius:var(--polish-control-radius);
+    line-height:1.2;
+  }
+
+  .app-ui .shell-nav-button.active>.icon{color:var(--ds-accent-bright)}
+  .app-ui .shell-nav-group{gap:6px}
+  .app-ui .shell-nav-group>p{margin-block:9px 4px;line-height:1.2}
+
+  .app-ui :is(.btn,.input,select.input){min-height:var(--polish-control-height)}
+  .app-ui .btn{
+    min-width:0;
+    gap:8px;
+    padding-inline:15px;
+    border-radius:var(--polish-control-radius)!important;
+    line-height:1.2;
+  }
+  .app-ui .btn>span{min-width:0;overflow-wrap:anywhere}
+  .app-ui .icon-btn{width:42px;height:42px;min-width:42px;min-height:42px}
+
+  .app-ui :is(.input,select.input){
+    height:var(--polish-control-height);
+    padding-inline:13px;
+    line-height:1.35;
+  }
+  .app-ui select.input{padding-inline-end:38px}
+  .app-ui :is(textarea.input,.textarea){
+    min-height:88px;
+    padding:11px 13px;
+    line-height:1.55;
+  }
+  .app-ui .field{gap:7px}
+  .app-ui .field-label{font-size:12px;line-height:1.35}
+  .app-ui .form-grid{gap:var(--polish-section-gap)}
+
+  .app-ui :is(.page-heading,.reports-heading,.operations-hero,.workspace-home-hero){
+    gap:22px;
+  }
+  .app-ui :is(.page-heading,.reports-heading,.operations-hero,.workspace-home-hero) h1{
+    text-wrap:balance;
+  }
+  .app-ui :is(.page-subtitle,.reports-heading p,.operations-hero p,.workspace-home-hero>div>p:last-child){
+    max-width:68ch;
+    line-height:1.6;
+  }
+
+  .app-ui :is(.dashboard-kpi,.dashboard-document-row,.documents-register-row,.premium-customer-card,.product-library-row){
+    min-width:0;
+  }
+  .app-ui .dashboard-kpi em{font-size:11px;line-height:1.45}
+  .app-ui .dashboard-document-copy small{line-height:1.4}
+  .app-ui :is(.dashboard-document-customer,.dashboard-document-date){line-height:1.4}
+
+  .app-ui :is(.dashboard-panel,.documents-command,.documents-register,.premium-customer-list,.product-library-body,.reports-panel,.receivables-card,.operations-card,.settings-section,.editor-section){
+    border-radius:var(--polish-card-radius)!important;
+  }
+
+  .app-ui .modal-header{
+    min-height:62px;
+    padding:12px 18px;
+  }
+  .app-ui .modal-header h2{font-size:17px;line-height:1.35}
+  .app-ui .modal-body{padding:22px}
+  .app-ui .modal-footer{min-height:64px;padding:11px 18px}
+  .app-ui .modal-footer-actions{flex-wrap:wrap;justify-content:flex-end;gap:9px}
+
+  .app-ui :is(.segmented,.documents-register-tabs,.operations-tabs,.settings-workspace-tabs){
+    scrollbar-width:none;
+  }
+  .app-ui :is(.segmented,.documents-register-tabs,.operations-tabs,.settings-workspace-tabs)::-webkit-scrollbar{display:none}
+  .app-ui :is(.segmented button,.documents-register-tabs>button,.operations-tabs>button,.settings-workspace-tab){
+    min-height:42px;
+    line-height:1.25;
+  }
+}
+
+@media screen and (max-width:960px){
+  .app-ui .workspace-topbar{min-height:60px}
+  .app-ui .workspace-content{padding-bottom:calc(82px + env(safe-area-inset-bottom))}
+  .app-ui .workspace-shell.is-editor .workspace-content{padding-bottom:0}
+  .app-ui .shell-page-title{min-width:0}
+  .app-ui .shell-page-title strong{font-size:16px;line-height:1.25}
+
+  .app-ui .mobile-bottom-nav{
+    height:calc(70px + env(safe-area-inset-bottom));
+    padding-top:6px;
+  }
+  .app-ui .mobile-bottom-nav>button{
+    min-height:56px;
+    gap:4px;
+    border:1px solid transparent;
+  }
+  .app-ui .mobile-bottom-nav>button>span{font-size:10.5px;line-height:1.15}
+  .app-ui .mobile-bottom-nav>button.active{
+    border-color:var(--ds-line);
+    background:var(--ds-selected)!important;
+  }
+  .app-ui .mobile-bottom-nav>button.active>.icon{color:var(--ds-accent-bright)}
+  .app-ui .mobile-create-button{width:48px!important;height:48px!important;border-radius:12px!important}
+  .app-ui .mobile-shell-new-menu,.app-ui .mobile-more-sheet{bottom:calc(78px + env(safe-area-inset-bottom))!important}
+
+  .app-ui .dashboard-money-stack b{
+    font-size:clamp(18px,5.1vw,21px);
+    letter-spacing:-.01em;
+    white-space:nowrap;
+    overflow-wrap:normal;
+  }
+
+  .app-ui :is(.page-heading,.reports-heading,.operations-hero,.workspace-home-hero){gap:16px}
+  .app-ui :is(.page-heading,.reports-heading,.operations-hero) h1{line-height:1.2}
+  .app-ui :is(.page-heading,.reports-heading,.operations-hero) .page-subtitle,
+  .app-ui :is(.reports-heading,.operations-hero)>div>p{line-height:1.55}
+
+  .app-ui .modal-body{padding:18px}
+  .app-ui .modal-footer{padding-bottom:max(12px,env(safe-area-inset-bottom))}
+  .app-ui .modal-footer-actions{width:100%}
+  .app-ui .modal-footer-actions>.btn{flex:1 1 120px}
+
+  .app-ui :is(.segmented,.documents-register-tabs,.operations-tabs,.settings-workspace-tabs){
+    max-width:100%;
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+}
+
+@media screen and (max-width:720px){
+  .app-ui :is(.form-grid.two,.form-grid.three){grid-template-columns:minmax(0,1fr)}
+  .app-ui :is(.form-grid.two,.form-grid.three)>.span-2{grid-column:auto}
+  .app-ui .form-grid{gap:14px}
+  .app-ui :is(.input,select.input){font-size:16px}
+  .app-ui :is(textarea.input,.textarea){font-size:16px}
+  .app-ui .field-label{font-size:12.5px}
+  .app-ui .modal-header{min-height:60px;padding-inline:16px}
+  .app-ui .modal-body{padding:16px}
+}
+
+@media screen and (max-width:360px){
+  .app-ui .mobile-bottom-nav{padding-inline:3px}
+  .app-ui .mobile-bottom-nav>button{padding-inline:1px}
+  .app-ui .mobile-bottom-nav>button>span{font-size:9.5px}
+  .app-ui .mobile-bottom-nav>button>.icon{width:18px;height:18px}
+  .app-ui .btn{padding-inline:12px}
+  .app-ui .modal-body{padding:14px 12px}
+}
