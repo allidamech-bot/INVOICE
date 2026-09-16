@@ -22,7 +22,26 @@ jobs:
       - name: LOUREX static security gate
         run: node scripts/security-check.mjs
       - run: npm run typecheck
-      - run: npm test
+      - name: Build test artifacts
+        run: npm run build
+      - name: Diagnostic — localized financial input
+        run: node --test tests/financial-localized-input-v257.test.mjs
+      - name: Diagnostic — financial validation
+        run: node --test tests/financial-validation.test.mjs
+      - name: Diagnostic — save sequencing
+        run: node --test tests/save-sequencing-v257.test.mjs
+      - name: Diagnostic — RTL financial fields
+        run: node --test tests/rtl-financial-fields-v257.test.mjs
+      - name: Diagnostic — v257 maintenance
+        run: node --test tests/maintenance-v257.test.mjs
+      - name: Diagnostic — runtime paths
+        run: node --test tests/runtime-paths-v59.test.mjs
+      - name: Diagnostic — customer UX closeout
+        run: node --test tests/customer-ux-closeout-v114.test.mjs
+      - name: Diagnostic — audit fixes
+        run: node --test tests/audit-fixes-v65.test.mjs
+      - name: Full regression suite
+        run: node --test tests/*.test.mjs
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
