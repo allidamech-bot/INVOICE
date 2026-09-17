@@ -1,12 +1,13 @@
 import type { SavedItem } from '../types.js';
-import { importableProducts, parseCsvMatrix, planProductImport, productImportTemplateCsv, type ProductImportPlan } from '../lib/product-import.js';
+import { importableProducts, parseCsvMatrix, planProductImport, productImportTemplateCsv, type ProductImportField, type ProductImportPlan } from '../lib/product-import.js';
+import { analyzeProductImport, applyProductImportMapping, suggestedProductImportMap, type ProductImportAnalysis, type ProductImportColumnMap, type ProductImportConfidence, type ProductImportMappingReason } from '../lib/product-import-intelligence.js';
 import { t } from '../lib/i18n.js';
 import { Button, Icon, IconButton, Modal, Toggle } from './UI.js';
 
 const XLSX_CDN='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
 
 type Matrix=unknown[][];
-type ImportStage='pick'|'preview'|'importing'|'done';
+type ImportStage='pick'|'mapping'|'preview'|'importing'|'done';
 
 interface Props {
   open:boolean;
@@ -20,11 +21,51 @@ interface State {
   stage:ImportStage;
   fileName:string;
   matrix:Matrix;
+  analysis:ProductImportAnalysis|null;
+  mapping:ProductImportColumnMap;
   plan:ProductImportPlan|null;
   updateExisting:boolean;
   error:string;
   total:number;
   imported:number;
+}
+
+const FIELD_OPTIONS:Array<{value:ProductImportField;en:string;ar:string}>=[
+  {value:'sku',en:'SKU / Product code',ar:'SKU / كود الصنف'},
+  {value:'descriptionEn',en:'Product name — English',ar:'اسم الصنف — إنجليزي'},
+  {value:'descriptionAr',en:'Product name — Arabic',ar:'اسم الصنف — عربي'},
+  {value:'lastUnitPrice',en:'Sale price',ar:'سعر البيع'},
+  {value:'lastCurrency',en:'Sale currency',ar:'عملة البيع'},
+  {value:'lastUnitCost',en:'Purchase cost',ar:'تكلفة الشراء'},
+  {value:'lastCostCurrency',en:'Cost currency',ar:'عملة التكلفة'},
+  {value:'unit',en:'Unit',ar:'الوحدة'},
+  {value:'packing',en:'Packing',ar:'التعبئة'},
+  {value:'origin',en:'Country of origin',ar:'بلد المنشأ'},
+  {value:'hsCode',en:'HS code',ar:'HS Code'},
+  {value:'category',en:'Category',ar:'التصنيف'},
+  {value:'tags',en:'Tags',ar:'الوسوم'},
+  {value:'favorite',en:'Favorite',ar:'مفضلة'}
+];
+
+function fieldLabel(field:ProductImportField|null):string{
+  if(!field)return t('Ignore this column','تجاهل هذا العمود');
+  const option=FIELD_OPTIONS.find(entry=>entry.value===field);
+  return option?t(option.en,option.ar):field;
+}
+
+function confidenceLabel(confidence:ProductImportConfidence):string{
+  if(confidence==='high')return t('High confidence','ثقة عالية');
+  if(confidence==='medium')return t('Suggested','مقترح');
+  if(confidence==='low')return t('Review','يحتاج مراجعة');
+  return t('Not mapped','غير مربوط');
+}
+
+function mappingReason(reason:ProductImportMappingReason):string{
+  if(reason==='exact')return t('Known commercial heading','عنوان تجاري معروف');
+  if(reason==='header')return t('Matched from the column heading','تمت المطابقة من عنوان العمود');
+  if(reason==='samples')return t('Suggested from the values in this column','اقتراح مبني على قيم العمود');
+  if(reason==='conflict')return t('Another source column was a stronger match','يوجد عمود مصدر آخر مطابقته أقوى');
+  return t('Choose the correct LOUREX field if this data matters','اختر حقل LOUREX الصحيح إذا كانت هذه البيانات مهمة');
 }
 
 function downloadText(filename:string,text:string,type:string):void{
@@ -89,7 +130,7 @@ export class ProductImportModal extends React.Component<Props,State>{
   private fileInput:HTMLInputElement|null=null;
   private fileReadGeneration=0;
   private applyInFlight=false;
-  state:State={stage:'pick',fileName:'',matrix:[],plan:null,updateExisting:true,error:'',total:0,imported:0};
+  state:State={stage:'pick',fileName:'',matrix:[],analysis:null,mapping:[],plan:null,updateExisting:true,error:'',total:0,imported:0};
 
   componentDidUpdate(prev:Props):void{
     if(this.props.open&&!prev.open)this.reset();
@@ -99,7 +140,7 @@ export class ProductImportModal extends React.Component<Props,State>{
   private reset=()=>{
     this.fileReadGeneration+=1;
     this.applyInFlight=false;
-    this.setState({stage:'pick',fileName:'',matrix:[],plan:null,updateExisting:true,error:'',total:0,imported:0});
+    this.setState({stage:'pick',fileName:'',matrix:[],analysis:null,mapping:[],plan:null,updateExisting:true,error:'',total:0,imported:0});
   };
 
   private close=()=>{
@@ -108,9 +149,20 @@ export class ProductImportModal extends React.Component<Props,State>{
     this.props.onClose();
   };
 
-  private recalculate=(matrix:Matrix,updateExisting:boolean)=>{
-    const plan=planProductImport(matrix,this.props.items,this.props.currency,updateExisting);
-    this.setState({matrix,plan,updateExisting,stage:'preview',error:''});
+  private buildPlan=(matrix:Matrix,analysis:ProductImportAnalysis,mapping:ProductImportColumnMap,updateExisting:boolean):ProductImportPlan=>{
+    const mappedMatrix=applyProductImportMapping(matrix,analysis,mapping);
+    return planProductImport(mappedMatrix,this.props.items,this.props.currency,updateExisting);
+  };
+
+  private enterPreview=()=>{
+    const {matrix,analysis,mapping,updateExisting}=this.state;
+    if(!analysis)return;
+    try{
+      const plan=this.buildPlan(matrix,analysis,mapping,updateExisting);
+      this.setState({plan,stage:'preview',error:''});
+    }catch(e){
+      this.setState({error:e instanceof Error?e.message:String(e)});
+    }
   };
 
   private chooseFile=async(file:File|null)=>{
@@ -120,18 +172,41 @@ export class ProductImportModal extends React.Component<Props,State>{
     try{
       const matrix=await matrixFromFile(file);
       if(generation!==this.fileReadGeneration||!this.props.open)return;
-      this.recalculate(matrix,this.state.updateExisting);
+      const analysis=analyzeProductImport(matrix);
+      if(analysis.headerIndex<0||!analysis.columns.length)throw new Error(t('No usable spreadsheet columns were found in this file.','لم يتم العثور على أعمدة قابلة للاستخدام في هذا الملف.'));
+      this.setState({matrix,analysis,mapping:suggestedProductImportMap(analysis),plan:null,stage:'mapping',error:''});
     }catch(e){
       if(generation!==this.fileReadGeneration||!this.props.open)return;
-      this.setState({stage:'pick',matrix:[],plan:null,error:e instanceof Error?e.message:t('Unable to read this file.','تعذر قراءة الملف.')});
+      this.setState({stage:'pick',matrix:[],analysis:null,mapping:[],plan:null,error:e instanceof Error?e.message:t('Unable to read this file.','تعذر قراءة الملف.')});
     }finally{
       if(generation===this.fileReadGeneration&&this.fileInput)this.fileInput.value='';
     }
   };
 
+  private changeMapping=(columnIndex:number,value:string)=>{
+    const field=(value||null) as ProductImportField|null;
+    const mapping=[...this.state.mapping];
+    if(field){
+      for(let index=0;index<mapping.length;index+=1){if(index!==columnIndex&&mapping[index]===field)mapping[index]=null;}
+    }
+    mapping[columnIndex]=field;
+    this.setState({mapping,plan:null,error:''});
+  };
+
+  private restoreSmartMapping=()=>{
+    const analysis=this.state.analysis;
+    if(!analysis)return;
+    this.setState({mapping:suggestedProductImportMap(analysis),plan:null,error:''});
+  };
+
   private toggleUpdates=(updateExisting:boolean)=>{
-    if(!this.state.matrix.length){this.setState({updateExisting});return;}
-    try{this.recalculate(this.state.matrix,updateExisting);}catch(e){this.setState({error:e instanceof Error?e.message:String(e)});}
+    const {matrix,analysis,mapping}=this.state;
+    if(!matrix.length||!analysis){this.setState({updateExisting});return;}
+    if(this.state.stage!=='preview'){this.setState({updateExisting});return;}
+    try{
+      const plan=this.buildPlan(matrix,analysis,mapping,updateExisting);
+      this.setState({plan,updateExisting,error:''});
+    }catch(e){this.setState({updateExisting,error:e instanceof Error?e.message:String(e)});}
   };
 
   private downloadTemplate=()=>downloadText('LOUREX-Product-Import-Template.csv',productImportTemplateCsv(),'text/csv;charset=utf-8');
@@ -154,41 +229,75 @@ export class ProductImportModal extends React.Component<Props,State>{
   };
 
   render():any{
-    const {plan,stage}=this.state;
+    const {plan,stage,analysis,mapping}=this.state;
     const previewRows=plan?.rows.slice(0,120)??[];
-    const footer=stage==='preview'&&plan
+    const mappedCount=mapping.filter(Boolean).length;
+    const footer=stage==='mapping'&&analysis
       ? <div className="product-import-footer">
-          <Button onClick={this.close}>{t('Cancel','إلغاء')}</Button>
-          <Button variant="primary" icon="upload" disabled={plan.counts.error>0||plan.counts.create+plan.counts.update===0} onClick={()=>void this.apply()}>
-            {plan.counts.error>0?t('Fix file errors first','أصلح أخطاء الملف أولًا'):t(`Import ${plan.counts.create+plan.counts.update} products`,`استيراد ${plan.counts.create+plan.counts.update} صنف`)}
-          </Button>
+          <Button onClick={()=>this.setState({stage:'pick',analysis:null,mapping:[],plan:null,error:''})}>{t('Back','رجوع')}</Button>
+          <Button variant="primary" icon="eye" disabled={mappedCount===0} onClick={this.enterPreview}>{t('Review import','مراجعة الاستيراد')}</Button>
         </div>
-      : stage==='done'
-        ? <div className="product-import-footer"><span/><Button variant="primary" icon="check" onClick={this.close}>{t('Done','تم')}</Button></div>
-        : undefined;
+      : stage==='preview'&&plan
+        ? <div className="product-import-footer">
+            <Button onClick={()=>this.setState({stage:'mapping',plan:null,error:''})}>{t('Column mapping','تعيين الأعمدة')}</Button>
+            <Button variant="primary" icon="upload" disabled={plan.counts.error>0||plan.counts.create+plan.counts.update===0} onClick={()=>void this.apply()}>
+              {plan.counts.error>0?t('Fix file errors first','أصلح أخطاء الملف أولًا'):t(`Import ${plan.counts.create+plan.counts.update} products`,`استيراد ${plan.counts.create+plan.counts.update} صنف`)}
+            </Button>
+          </div>
+        : stage==='done'
+          ? <div className="product-import-footer"><span/><Button variant="primary" icon="check" onClick={this.close}>{t('Done','تم')}</Button></div>
+          : undefined;
 
     return <Modal open={this.props.open} title={t('Import Products','استيراد الأصناف')} size="xl" onClose={this.close} footer={footer}>
       <div className={`product-import-shell stage-${stage}`}>
         {stage==='pick'?<>
           <div className="product-import-hero">
             <div className="product-import-icon"><Icon name="upload" size={28}/></div>
-            <div><p className="eyebrow">{t('Smart catalog import','استيراد ذكي للكتالوج')}</p><h3>{t('Bring your product list in one clean step','أدخل قائمة أصنافك بخطوة مرتبة')}</h3><p>{t('LOUREX now detects common commercial column names, header rows, sale prices, costs, currencies, packing, origin and HS codes before anything is saved.','يتعرّف LOUREX الآن تلقائيًا على أسماء الأعمدة التجارية الشائعة وصف العناوين وأسعار البيع والتكلفة والعملات والتعبئة والمنشأ وHS Code قبل حفظ أي شيء.')}</p></div>
+            <div><p className="eyebrow">{t('Smart catalog import','استيراد ذكي للكتالوج')}</p><h3>{t('Bring your product list in one clean step','أدخل قائمة أصنافك بخطوة مرتبة')}</h3><p>{t('LOUREX analyzes the spreadsheet locally, proposes column matches, then lets you verify every important field before anything is saved.','يحلل LOUREX ملف الجدول محليًا، ويقترح مطابقة الأعمدة، ثم يتيح لك التحقق من كل حقل مهم قبل حفظ أي شيء.')}</p></div>
           </div>
           <button type="button" className="product-import-dropzone" onClick={()=>this.fileInput?.click()}>
             <Icon name="upload" size={23}/><strong>{t('Choose Excel or CSV file','اختر ملف Excel أو CSV')}</strong><span>.xlsx · .xls · .csv</span>
           </button>
           <input ref={(node:any)=>{this.fileInput=node;}} className="product-import-file-input" type="file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={(e:any)=>void this.chooseFile(e.target.files?.[0]??null)}/>
           <div className="product-import-safety-grid">
-            <div><Icon name="eye"/><span><strong>{t('Preview first','معاينة أولًا')}</strong><small>{t('Nothing is saved until you approve the preview.','لا يتم حفظ شيء قبل موافقتك على المعاينة.')}</small></span></div>
-            <div><Icon name="refresh"/><span><strong>{t('One secure write','حفظ آمن بعملية واحدة')}</strong><small>{t('Smart column matching runs before one approved encrypted catalog update.','تتم مطابقة الأعمدة بذكاء قبل تنفيذ تحديث مشفّر واحد للكتالوج بعد موافقتك.')}</small></span></div>
+            <div><Icon name="eye"/><span><strong>{t('Verify the mapping','تحقق من الربط')}</strong><small>{t('Every source column can be confirmed or changed before preview.','يمكن تأكيد أو تعديل كل عمود مصدر قبل المعاينة.')}</small></span></div>
+            <div><Icon name="refresh"/><span><strong>{t('Local intelligence','تحليل محلي ذكي')}</strong><small>{t('Column analysis stays in the app and does not send catalog data to an external AI service.','يبقى تحليل الأعمدة داخل التطبيق ولا يرسل بيانات الكتالوج إلى خدمة ذكاء اصطناعي خارجية.')}</small></span></div>
             <div><Icon name="check"/><span><strong>{t('Duplicate protection','حماية من التكرار')}</strong><small>{t('Repeated SKU and conflicting names are flagged before import.','يتم كشف SKU المكرر وتعارض الأسماء قبل الاستيراد.')}</small></span></div>
           </div>
           <div className="product-import-template-bar"><div><strong>{t('Need the correct columns?','تحتاج الأعمدة الصحيحة؟')}</strong><span>{t('Download the LOUREX CSV template with sale-price and cost fields and fill it in Excel.','حمّل قالب LOUREX الذي يتضمن سعر البيع والتكلفة وافتحه وعبّئه في Excel.')}</span></div><Button icon="download" onClick={this.downloadTemplate}>{t('Download template','تحميل القالب')}</Button></div>
         </>:null}
 
+        {stage==='mapping'&&analysis?<>
+          <div className="product-import-mapping-head">
+            <div className="product-import-file-summary"><span className="product-import-file-icon"><Icon name="file"/></span><div><strong>{this.state.fileName}</strong><small>{t(`Header row ${analysis.headerIndex+1} · ${analysis.columns.length} source columns`,`صف العناوين ${analysis.headerIndex+1} · ${analysis.columns.length} أعمدة مصدر`)}</small></div><IconButton icon="refresh" label={t('Choose another file','اختيار ملف آخر')} onClick={()=>this.setState({stage:'pick',matrix:[],analysis:null,mapping:[],plan:null,error:''})}/></div>
+            <Button icon="refresh" onClick={this.restoreSmartMapping}>{t('Restore smart suggestions','استعادة الاقتراحات الذكية')}</Button>
+          </div>
+          <div className="product-import-intelligence-banner">
+            <span className="product-import-intelligence-icon"><Icon name="check"/></span>
+            <div><p className="eyebrow">{t('LOUREX Intelligence','ذكاء LOUREX')}</p><strong>{t(`${mappedCount} columns mapped automatically`,`${mappedCount} أعمدة تم ربطها تلقائيًا`)}</strong><small>{t('The engine uses headings plus real sample values and prevents two source columns from silently writing to the same accounting field.','يستخدم المحرك عناوين الأعمدة مع عينات القيم الفعلية ويمنع عمودين من الكتابة بصمت إلى نفس الحقل المحاسبي.')}</small></div>
+          </div>
+          <div className="product-import-mapping-list">
+            {analysis.columns.map(column=>{
+              const selected=mapping[column.index]??null;
+              return <div className={`product-import-mapping-row confidence-${column.confidence}`} key={column.index}>
+                <div className="product-import-source-column"><span className="product-import-column-number">{column.index+1}</span><div><strong>{column.header}</strong><small>{column.samples.length?column.samples.slice(0,3).join(' · '):t('No sample values','لا توجد قيم نموذجية')}</small></div></div>
+                <div className="product-import-map-arrow">→</div>
+                <div className="product-import-map-control">
+                  <select className="input product-import-map-select" value={selected??''} onChange={(e:any)=>this.changeMapping(column.index,e.target.value)} aria-label={t(`Map ${column.header}`,`ربط ${column.header}`)}>
+                    <option value="">{fieldLabel(null)}</option>
+                    {FIELD_OPTIONS.map(option=><option key={option.value} value={option.value} disabled={mapping.some((mapped,index)=>index!==column.index&&mapped===option.value)}>{t(option.en,option.ar)}</option>)}
+                  </select>
+                  <div className="product-import-confidence-line"><span className={`product-import-confidence ${column.confidence}`}>{confidenceLabel(column.confidence)}</span><small>{mappingReason(column.reason)}</small></div>
+                </div>
+              </div>;
+            })}
+          </div>
+          <div className="product-import-mapping-note"><Icon name="lock"/><span>{t('Ignored columns are never written to your catalog. Sale price and purchase cost remain separate fields.','الأعمدة المتجاهلة لا تُكتب أبدًا في الكتالوج. ويبقى سعر البيع وتكلفة الشراء حقلين منفصلين.')}</span></div>
+        </>:null}
+
         {stage==='preview'&&plan?<>
           <div className="product-import-preview-head">
-            <div className="product-import-file-summary"><span className="product-import-file-icon"><Icon name="file"/></span><div><strong>{this.state.fileName}</strong><small>{t(`${plan.rows.length} data rows · ${plan.recognizedFields.length} recognized columns`,`${plan.rows.length} صف بيانات · ${plan.recognizedFields.length} أعمدة معروفة`)}</small></div><IconButton icon="refresh" label={t('Choose another file','اختيار ملف آخر')} onClick={()=>this.setState({stage:'pick',plan:null,matrix:[],error:''})}/></div>
+            <div className="product-import-file-summary"><span className="product-import-file-icon"><Icon name="file"/></span><div><strong>{this.state.fileName}</strong><small>{t(`${plan.rows.length} data rows · ${plan.recognizedFields.length} mapped fields`,`${plan.rows.length} صف بيانات · ${plan.recognizedFields.length} حقول مربوطة`)}</small></div><IconButton icon="refresh" label={t('Choose another file','اختيار ملف آخر')} onClick={()=>this.setState({stage:'pick',plan:null,matrix:[],analysis:null,mapping:[],error:''})}/></div>
             <Toggle checked={this.state.updateExisting} onChange={this.toggleUpdates} label={t('Update products that already exist','تحديث الأصناف الموجودة بالفعل')}/>
           </div>
           <div className="product-import-counts" aria-label={t('Import summary','ملخص الاستيراد')}>
@@ -197,7 +306,7 @@ export class ProductImportModal extends React.Component<Props,State>{
             <div className="is-skip"><strong>{plan.counts.skip}</strong><span>{t('Skipped','متخطى')}</span></div>
             <div className={`is-error ${plan.counts.error?'has-value':''}`}><strong>{plan.counts.error}</strong><span>{t('Errors','أخطاء')}</span></div>
           </div>
-          {plan.counts.error?<div className="product-import-alert" role="alert"><Icon name="lock"/><div><strong>{t('Import is locked until file errors are fixed','الاستيراد متوقف حتى يتم إصلاح أخطاء الملف')}</strong><span>{t('This prevents partial or ambiguous catalog changes. Correct the highlighted rows in the source file, then choose it again.','هذا يمنع تغييرات جزئية أو ملتبسة في الكتالوج. صحح الصفوف المحددة في الملف ثم اختره من جديد.')}</span></div></div>:null}
+          {plan.counts.error?<div className="product-import-alert" role="alert"><Icon name="lock"/><div><strong>{t('Import is locked until file errors are fixed','الاستيراد متوقف حتى يتم إصلاح أخطاء الملف')}</strong><span>{t('This prevents partial or ambiguous catalog changes. Fix the mapped field or source row, then review again.','هذا يمنع تغييرات جزئية أو ملتبسة في الكتالوج. صحح الحقل المربوط أو صف المصدر ثم راجع من جديد.')}</span></div></div>:null}
           <div className="product-import-table-wrap">
             <table className="product-import-table"><thead><tr><th>#</th><th>{t('Status','الحالة')}</th><th>SKU</th><th>{t('Product','الصنف')}</th><th>{t('Sale price','سعر البيع')}</th><th>{t('Cost','التكلفة')}</th><th>{t('Imported details','التفاصيل المستوردة')}</th><th>{t('Why','السبب')}</th></tr></thead><tbody>
               {previewRows.map(row=><tr key={`${row.rowNumber}-${row.action}`} className={`row-${row.action}`}><td>{row.rowNumber}</td><td><span className={`import-action-badge ${row.action}`}>{actionLabel(row.action)}</span></td><td><code>{row.item?.sku||'—'}</code></td><td><strong>{productName(row.item)}</strong>{row.item?.descriptionEn&&row.item.descriptionAr?<small>{row.item.descriptionAr}</small>:null}</td><td>{row.item?.lastUnitPrice?<span>{row.item.lastUnitPrice} <small>{row.item.lastCurrency}</small></span>:'—'}</td><td>{row.item?.lastUnitCost?<span>{row.item.lastUnitCost} <small>{row.item.lastCostCurrency||row.item.lastCurrency}</small></span>:'—'}</td><td><small>{productDetails(row.item)}</small></td><td><span>{row.reason}</span></td></tr>)}
