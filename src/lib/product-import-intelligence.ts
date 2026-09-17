@@ -49,8 +49,8 @@ const EXACT_ALIASES:Partial<Record<ProductImportField,string[]>>={
   unit:['unit','uom','unit of measure','sales unit','selling unit','measure unit','unite','unidad','einheit','birim','единица','الوحدة','وحدة','وحدة القياس'],
   lastUnitPrice:['price','unit price','selling price','sale price','sales price','sell price','price per unit','last price','wholesale price','list price','net price','offer price','unit rate','rate','prix','precio','preis','fiyat','цена','سعر','السعر','سعر الوحدة','سعر البيع','سعر المبيع','سعر الجملة','سعر العرض'],
   lastCurrency:['currency','currency code','sale currency','price currency','selling currency','curr','devise','moneda','wahrung','währung','doviz','döviz','валюта','العملة','رمز العملة','عملة البيع','عملة السعر'],
-  lastUnitCost:['cost','unit cost','purchase price','buying price','buy price','purchase cost','buying cost','cost price','unit purchase price','landed cost','last cost','kosten','maliyet','себестоимость','التكلفة','تكلفة','تكلفة الوحدة','سعر الشراء','تكلفة الشراء'],
-  lastCostCurrency:['cost currency','purchase currency','buying currency','cost currency code','عملة التكلفة','عملة الشراء','رمز عملة التكلفة'],
+  lastUnitCost:['cost','unit cost','purchase price','buying price','buy price','purchase cost','buying cost','cost price','unit purchase price','landed cost','last cost','supplier price','vendor price','supplier cost','vendor cost','kosten','maliyet','себестоимость','التكلفة','تكلفة','تكلفة الوحدة','سعر الشراء','تكلفة الشراء'],
+  lastCostCurrency:['cost currency','purchase currency','buying currency','supplier currency','vendor currency','cost currency code','عملة التكلفة','عملة الشراء','رمز عملة التكلفة'],
   category:['category','group','product category','item category','type','family','department','classification','categorie','categoria','kategorie','kategori','категория','التصنيف','الفئة','المجموعة','النوع'],
   tags:['tags','tag','keywords','keyword','labels','mots cles','palabras clave','etiket','теги','وسوم','الوسوم','كلمات مفتاحية'],
   favorite:['favorite','favourite','starred','is favorite','favori','favorito','favorit','избранное','مفضلة','المفضلة','مفضل']
@@ -79,6 +79,12 @@ function cell(value:unknown):string{
 
 function hasAny(value:string,tokens:string[]):boolean{return tokens.some(token=>value.includes(token));}
 
+const COST_WORDS=['cost','purchase','buying','buy price','supplier','vendor','kosten','maliyet','себестоимость','تكلفة','شراء','مورد'];
+const PRICE_WORDS=['price','rate','prix','precio','preis','fiyat','цена','سعر'];
+const SALE_WORDS=['sale','sales','selling','sell ','retail','wholesale','list price','offer price','customer','بيع','مبيع','جملة','عرض'];
+const TRADE_WORDS=['exw','fob','cif','cfr','dap','ddp','fca','fas'];
+const CURRENCY_WORDS=['currency','devise','moneda','wahrung','doviz','валюта','عملة'];
+
 function currencyHint(value:unknown):string{
   const raw=String(value??'').normalize('NFKC').toUpperCase();
   if(/\bUSD\b|US\s*DOLLAR|\$/.test(raw)||raw.includes('دولار'))return 'USD';
@@ -105,17 +111,20 @@ function suggestFromHeader(value:unknown):RawSuggestion{
   const exact=exactField(header);
   if(exact)return {field:exact,confidence:'high',reason:'exact',score:100};
 
-  const costWords=['cost','purchase','buying','buy price','kosten','maliyet','себестоимость','تكلفة','شراء'];
-  const priceWords=['price','rate','prix','precio','preis','fiyat','цена','سعر'];
-  const tradeWords=['exw','fob','cif','cfr','dap','ddp','fca','fas'];
-  const currencyWords=['currency','devise','moneda','wahrung','doviz','валюта','عملة'];
+  const isCost=hasAny(header,COST_WORDS);
+  const isTrade=hasAny(header,TRADE_WORDS);
+  const isExplicitSale=hasAny(header,SALE_WORDS);
+  const isPrice=hasAny(header,PRICE_WORDS);
 
-  if(hasAny(header,['cost currency','purchase currency','buying currency','عملة التكلفة','عملة الشراء']))return {field:'lastCostCurrency',confidence:'high',reason:'header',score:94};
-  if((hasAny(header,currencyWords)||header==='curr')&&!hasAny(header,[...costWords,...priceWords]))return {field:'lastCurrency',confidence:'medium',reason:'header',score:78};
+  if(hasAny(header,['cost currency','purchase currency','buying currency','supplier currency','vendor currency','عملة التكلفة','عملة الشراء']))return {field:'lastCostCurrency',confidence:'high',reason:'header',score:94};
+  if((hasAny(header,CURRENCY_WORDS)||header==='curr')&&isCost)return {field:'lastCostCurrency',confidence:'high',reason:'header',score:92};
+  if((hasAny(header,CURRENCY_WORDS)||header==='curr')&&!isCost&&!isPrice&&!isTrade)return {field:'lastCurrency',confidence:'medium',reason:'header',score:78};
   if((header.includes('hs')&&hasAny(header,['code','رمز','كود']))||hasAny(header,['customs code','tariff','harmonized','commodity code','جمرك']))return {field:'hsCode',confidence:'high',reason:'header',score:92};
   if(hasAny(header,['sku','item code','product code','article','artikel','reference','stock code','stok kodu','артикул','كود الصنف','رمز الصنف','رقم الصنف']))return {field:'sku',confidence:'high',reason:'header',score:91};
-  if(hasAny(header,costWords))return {field:'lastUnitCost',confidence:'high',reason:'header',score:93};
-  if((currencyHint(value)&&hasAny(header,['unit','value',...priceWords,...tradeWords]))||hasAny(header,tradeWords)||hasAny(header,priceWords))return {field:'lastUnitPrice',confidence:hasAny(header,tradeWords)||currencyHint(value)?'high':'medium',reason:'header',score:currencyHint(value)?92:84};
+  if(isCost)return {field:'lastUnitCost',confidence:'high',reason:'header',score:93};
+  if(isTrade&&!isExplicitSale)return {field:null,confidence:'unmapped',reason:'unmapped',score:0};
+  if(isExplicitSale&&(isPrice||currencyHint(value)||header.includes('unit')))return {field:'lastUnitPrice',confidence:'high',reason:'header',score:92};
+  if(isPrice)return {field:'lastUnitPrice',confidence:currencyHint(value)?'high':'medium',reason:'header',score:currencyHint(value)?90:84};
   if(hasAny(header,['origin','made in','coo','origine','origen','ursprung','mensei','menşei','происхожд','منشأ','صنع في']))return {field:'origin',confidence:'high',reason:'header',score:90};
   if(hasAny(header,['packing','packaging','pack size','case pack','carton','emballage','empaque','verpackung','ambalaj','упаков','تعبئة','تغليف','كرتون']))return {field:'packing',confidence:'high',reason:'header',score:90};
   if(hasAny(header,['unit','uom','unite','unidad','einheit','birim','единиц','وحدة']))return {field:'unit',confidence:'medium',reason:'header',score:76};
@@ -153,13 +162,18 @@ function sampleSuggestion(headerValue:unknown,samples:string[]):RawSuggestion{
   const packingRatio=ratio(value=>/\d+\s*(?:x|×|pcs?|pieces?|ctn|cartons?|boxes?|packs?|kg|g|ml|l)\b/i.test(asciiNumeric(value)));
   const numericRatio=ratio(looksNumeric);
   const currencyNumberRatio=ratio(value=>Boolean(currencyHint(value))&&looksNumeric(value));
+  const isCost=hasAny(header,COST_WORDS);
+  const isTrade=hasAny(header,TRADE_WORDS);
+  const isExplicitSale=hasAny(header,SALE_WORDS);
 
-  if(currencyCodeRatio>=.75)return {field:'lastCurrency',confidence:'medium',reason:'samples',score:68};
+  if(currencyCodeRatio>=.75)return {field:isCost?'lastCostCurrency':'lastCurrency',confidence:'medium',reason:'samples',score:68};
   if(boolRatio>=.8)return {field:'favorite',confidence:'low',reason:'samples',score:54};
   if(unitRatio>=.7)return {field:'unit',confidence:'medium',reason:'samples',score:64};
   if(packingRatio>=.65)return {field:'packing',confidence:'low',reason:'samples',score:57};
-  if(currencyNumberRatio>=.6)return {field:hasAny(header,['cost','purchase','buying','تكلفة','شراء'])?'lastUnitCost':'lastUnitPrice',confidence:'medium',reason:'samples',score:66};
-  if(numericRatio>=.8&&hasAny(header,['exw','fob','cif','cfr','dap','ddp','fca','fas','value','amount','price','rate','prix','precio','preis','fiyat','цена','سعر']))return {field:'lastUnitPrice',confidence:'low',reason:'samples',score:58};
+  if(isTrade&&!isCost&&!isExplicitSale)return {field:null,confidence:'unmapped',reason:'unmapped',score:0};
+  if(currencyNumberRatio>=.6)return {field:isCost?'lastUnitCost':'lastUnitPrice',confidence:'medium',reason:'samples',score:66};
+  if(numericRatio>=.8&&isCost)return {field:'lastUnitCost',confidence:'medium',reason:'samples',score:62};
+  if(numericRatio>=.8&&hasAny(header,['value','amount',...PRICE_WORDS]))return {field:'lastUnitPrice',confidence:'low',reason:'samples',score:58};
   return {field:null,confidence:'unmapped',reason:'unmapped',score:0};
 }
 
