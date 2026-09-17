@@ -172,15 +172,35 @@ function activeSamples(matrix:unknown[][],headerIndex:number,columnIndex:number)
   return samples;
 }
 
+function recognizedFieldCount(row:unknown[]):number{
+  const fields=row
+    .map(value=>cell(value))
+    .filter(Boolean)
+    .map(value=>suggestFromHeader(value).field)
+    .filter((field):field is ProductImportField=>Boolean(field));
+  return new Set(fields).size;
+}
+
 function headerRowScore(matrix:unknown[][],rowIndex:number):number{
   const row=matrix[rowIndex]??[];
   const values=row.map(cell).filter(Boolean);
   if(!values.length)return -1;
-  const recognized=values.filter(value=>Boolean(suggestFromHeader(value).field)).length;
+
+  const suggestions=values
+    .map(value=>suggestFromHeader(value).field)
+    .filter((field):field is ProductImportField=>Boolean(field));
+  const recognized=suggestions.length;
+  const distinctRecognized=new Set(suggestions).size;
   const textish=values.filter(value=>!looksNumeric(value)).length;
   const nextRows=matrix.slice(rowIndex+1,rowIndex+4);
-  const continuity=nextRows.filter(next=>next.filter(value=>cell(value)!=='').length>=Math.min(2,Math.max(1,values.length))).length;
-  return recognized*12+Math.min(values.length,12)*1.7+(textish===values.length?2:0)+continuity*1.5;
+  const nextWidths=nextRows.map(next=>next.filter(value=>cell(value)!=='').length);
+  const maxNextWidth=Math.max(...nextWidths,0);
+  const maxNextRecognized=Math.max(...nextRows.map(recognizedFieldCount),0);
+  const continuity=nextWidths.filter(width=>width>=Math.min(2,Math.max(1,values.length))).length;
+  const density=recognized/values.length;
+  const narrowTitlePenalty=values.length===1&&maxNextWidth>=2&&maxNextRecognized>=2?40:0;
+
+  return distinctRecognized*14+recognized*5+Math.min(values.length,12)*1.7+density*4+(textish===values.length?2:0)+continuity*1.5-narrowTitlePenalty;
 }
 
 function detectHeaderRow(matrix:unknown[][]):number{
