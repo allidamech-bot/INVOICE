@@ -1,5 +1,6 @@
-/* v257/v258 — Product library contrast hardening and smart-import mapping polish.
-   Keeps imported catalog content legible in the matte-black application UI. */
+/* v257/v258/v259 — Product library contrast hardening, smart-import mapping polish,
+   and mobile-safe catalog actions. Keeps imported catalog content legible in the
+   matte-black application UI while preserving reachable controls on small screens. */
 @media screen {
   .app-ui .product-library-row-title strong,
   .app-ui .product-library-row-price,
@@ -241,6 +242,191 @@
     color:var(--ds-text-soft);
   }
 
+  /* v259 — catalog action menus and multi-select management. */
+  .app-ui .product-library-commandbar{
+    grid-template-columns:minmax(260px,1fr) minmax(150px,190px) minmax(130px,160px) auto auto 44px;
+  }
+
+  .app-ui .product-library-overflow,
+  .app-ui .product-library-row-menu-wrap{
+    position:relative;
+    min-width:0;
+  }
+
+  .app-ui .product-library-overflow{
+    display:grid;
+    place-items:center;
+  }
+
+  .app-ui .product-library-overflow>.icon-btn,
+  .app-ui .product-library-row-menu-wrap>.icon-btn{
+    width:40px;
+    height:40px;
+    min-width:40px;
+    border:1px solid var(--ds-line);
+    background:var(--ds-surface);
+    color:var(--ds-text-soft);
+  }
+
+  .app-ui .product-library-menu{
+    position:absolute;
+    z-index:40;
+    inset-block-start:calc(100% + 6px);
+    inset-inline-end:0;
+    width:max-content;
+    min-width:190px;
+    max-width:min(260px,calc(100vw - 24px));
+    padding:6px;
+    border:1px solid var(--ds-line-strong,var(--ds-line));
+    border-radius:12px;
+    background:var(--ds-workspace);
+    box-shadow:0 16px 40px rgba(0,0,0,.34);
+  }
+
+  .app-ui .product-library-menu>button{
+    width:100%;
+    min-height:42px;
+    display:flex;
+    align-items:center;
+    gap:9px;
+    padding:8px 10px;
+    border:0;
+    border-radius:9px;
+    background:transparent;
+    color:var(--ds-text);
+    font:inherit;
+    font-size:11px;
+    font-weight:750;
+    text-align:start;
+    cursor:pointer;
+  }
+
+  .app-ui .product-library-menu>button:hover,
+  .app-ui .product-library-menu>button:focus-visible{
+    outline:0;
+    background:var(--ds-selected);
+  }
+
+  .app-ui .product-library-menu>button>.icon{
+    flex:0 0 auto;
+    color:var(--ds-text-soft);
+  }
+
+  .app-ui .product-library-menu>button.danger,
+  .app-ui .product-library-menu>button.danger>.icon{
+    color:var(--ds-danger-text,var(--ds-danger));
+  }
+
+  .app-ui .product-library-row-menu-wrap{
+    display:grid;
+    place-items:center;
+  }
+
+  .app-ui .product-library-row-menu{
+    inset-block-start:calc(50% + 22px);
+  }
+
+  .app-ui .product-library-selection-bar{
+    position:sticky;
+    top:0;
+    z-index:18;
+    min-height:62px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:9px 12px;
+    border-bottom:1px solid var(--ds-line);
+    background:var(--ds-workspace);
+  }
+
+  .app-ui .product-library-selection-bar>div:first-child{
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+
+  .app-ui .product-library-selection-bar strong{
+    color:var(--ds-text);
+    font-size:12px;
+  }
+
+  .app-ui .product-library-selection-bar span{
+    color:var(--ds-text-soft);
+    font-size:9.5px;
+  }
+
+  .app-ui .product-library-selection-actions{
+    min-width:0;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:6px;
+  }
+
+  .app-ui .product-library-selection-actions>.btn{
+    min-width:0;
+    min-height:40px;
+    white-space:nowrap;
+  }
+
+  .app-ui .product-library-list-error{
+    margin:8px 10px;
+  }
+
+  .app-ui .product-library-select-toggle{
+    width:40px;
+    height:44px;
+    display:grid;
+    place-items:center;
+    padding:0;
+    border:0;
+    background:transparent;
+    cursor:pointer;
+  }
+
+  .app-ui .product-library-select-toggle>span{
+    width:22px;
+    height:22px;
+    display:grid;
+    place-items:center;
+    border:1px solid var(--ds-line-strong,var(--ds-line));
+    border-radius:7px;
+    background:var(--ds-workspace);
+    color:var(--ds-text);
+  }
+
+  .app-ui .product-library-row.selected{
+    background:var(--ds-selected);
+    box-shadow:inset 3px 0 0 var(--ds-accent-bright);
+  }
+
+  [dir='rtl'] .app-ui .product-library-row.selected{
+    box-shadow:inset -3px 0 0 var(--ds-accent-bright);
+  }
+
+  .app-ui .product-library-row.selected .product-library-select-toggle>span{
+    border-color:var(--ds-accent-bright);
+    background:var(--ds-selected);
+  }
+
+  .app-ui .product-library-pro.selection-mode .product-library-row{
+    grid-template-columns:44px minmax(0,1fr);
+  }
+
+  @media (max-width:1050px){
+    .app-ui .product-library-commandbar{
+      grid-template-columns:minmax(220px,1fr) 155px 145px auto auto 44px;
+    }
+  }
+
+  @media (max-width:850px){
+    .app-ui .product-library-commandbar{
+      grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto 44px;
+    }
+  }
+
   @media (max-width:760px){
     .app-ui .product-import-mapping-head{
       align-items:stretch;
@@ -252,8 +438,33 @@
       justify-content:center;
     }
 
+    /* Let the modal body own scrolling. A nested 55dvh mapping scroller made the
+       footer fall below Safari's visual viewport and hid Review/Import actions. */
+    .app-ui .modal:has(.product-import-shell){
+      max-height:calc(100svh - max(12px,env(safe-area-inset-top)) - max(16px,env(safe-area-inset-bottom)))!important;
+    }
+
+    .app-ui .modal:has(.product-import-shell)>.modal-body{
+      flex:1 1 auto!important;
+      min-height:0!important;
+      overflow-y:auto!important;
+      overscroll-behavior:contain!important;
+      -webkit-overflow-scrolling:touch!important;
+    }
+
+    .app-ui .modal:has(.product-import-shell)>.modal-footer{
+      flex:0 0 auto!important;
+      position:relative!important;
+      z-index:8!important;
+      display:block!important;
+      visibility:visible!important;
+      opacity:1!important;
+      padding-bottom:max(10px,env(safe-area-inset-bottom))!important;
+    }
+
     .app-ui .product-import-mapping-list{
-      max-height:55dvh;
+      max-height:none;
+      overflow:visible;
     }
 
     .app-ui .product-import-mapping-row{
@@ -279,6 +490,74 @@
     .app-ui .product-import-confidence-line>small{
       white-space:normal;
     }
+
+    .app-ui .product-library-commandbar{
+      grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px;
+    }
+
+    .app-ui .product-library-search{
+      grid-column:1 / -1;
+    }
+
+    .app-ui .product-library-commandbar>select:nth-of-type(1){grid-column:1;grid-row:2;}
+    .app-ui .product-library-commandbar>select:nth-of-type(2){grid-column:2;grid-row:2;}
+    .app-ui .product-library-commandbar>.btn:nth-of-type(1){grid-column:1;grid-row:3;}
+    .app-ui .product-library-commandbar>.btn:nth-of-type(2){grid-column:2 / 4;grid-row:3;}
+    .app-ui .product-library-overflow{grid-column:3;grid-row:2;}
+
+    .app-ui .product-library-overflow>.icon-btn{
+      width:44px;
+      height:44px;
+      min-width:44px;
+    }
+
+    .app-ui .product-library-menu{
+      min-width:178px;
+    }
+
+    .app-ui .product-library-selection-bar{
+      position:sticky;
+      top:0;
+      align-items:stretch;
+      flex-direction:column;
+      gap:8px;
+      padding:9px;
+    }
+
+    .app-ui .product-library-selection-bar>div:first-child{
+      flex-direction:row;
+      align-items:baseline;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .app-ui .product-library-selection-actions{
+      display:grid;
+      grid-template-columns:1fr 1.25fr .7fr;
+      width:100%;
+    }
+
+    .app-ui .product-library-selection-actions>.btn{
+      width:100%;
+      min-height:44px;
+      justify-content:center;
+      padding-inline:8px;
+    }
+
+    .app-ui .product-library-row-menu{
+      inset-inline-end:0;
+      inset-block-start:calc(50% + 24px);
+    }
+  }
+
+  @media (max-width:430px){
+    .app-ui .product-library-selection-actions{
+      grid-template-columns:1fr 1fr;
+    }
+
+    .app-ui .product-library-selection-actions>.btn:last-child{
+      grid-column:1 / -1;
+    }
   }
 
   @media (max-width:390px){
@@ -300,6 +579,7 @@
 
     .app-ui .product-import-footer>.btn{
       width:100%;
+      min-height:44px;
     }
   }
 }
