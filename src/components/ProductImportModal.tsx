@@ -1,12 +1,13 @@
 import type { SavedItem } from '../types.js';
-import { importableProducts, parseCsvMatrix, planProductImport, productImportTemplateCsv, type ProductImportPlan } from '../lib/product-import.js';
+import { importableProducts, parseCsvMatrix, planProductImport, productImportTemplateCsv, type ProductImportField, type ProductImportPlan } from '../lib/product-import.js';
+import { applyProductImportMapping, initialProductImportMapping, inspectProductImportMatrix, PRODUCT_IMPORT_FIELD_ORDER, type ProductImportInspection, type ProductImportMapping } from '../lib/product-import-mapping.js';
 import { t } from '../lib/i18n.js';
-import { Button, Icon, IconButton, Modal, Toggle } from './UI.js';
+import { Button, Icon, IconButton, Modal, Select, Toggle } from './UI.js';
 
 const XLSX_CDN='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
 
 type Matrix=unknown[][];
-type ImportStage='pick'|'preview'|'importing'|'done';
+type ImportStage='pick'|'map'|'preview'|'importing'|'done';
 
 interface Props {
   open:boolean;
@@ -20,6 +21,8 @@ interface State {
   stage:ImportStage;
   fileName:string;
   matrix:Matrix;
+  inspection:ProductImportInspection|null;
+  mapping:ProductImportMapping;
   plan:ProductImportPlan|null;
   updateExisting:boolean;
   error:string;
@@ -85,11 +88,32 @@ function actionLabel(action:string):string{
   return t('Error','خطأ');
 }
 
+function fieldLabel(field:ProductImportField):string{
+  const labels:Record<ProductImportField,[string,string]>={
+    descriptionEn:['Product name — English','اسم الصنف — إنجليزي'],
+    descriptionAr:['Product name — Arabic','اسم الصنف — عربي'],
+    sku:['SKU / Item code','SKU / كود الصنف'],
+    lastUnitPrice:['Sale price','سعر البيع'],
+    lastCurrency:['Sale currency','عملة البيع'],
+    lastUnitCost:['Unit cost / Purchase price','التكلفة / سعر الشراء'],
+    lastCostCurrency:['Cost currency','عملة التكلفة'],
+    packing:['Packing','التعبئة'],
+    unit:['Unit of measure','وحدة القياس'],
+    origin:['Country of origin','بلد المنشأ'],
+    hsCode:['HS Code','HS Code'],
+    category:['Category','التصنيف'],
+    tags:['Tags','الوسوم'],
+    favorite:['Favorite','مفضلة']
+  };
+  const pair=labels[field];
+  return t(pair[0],pair[1]);
+}
+
 export class ProductImportModal extends React.Component<Props,State>{
   private fileInput:HTMLInputElement|null=null;
   private fileReadGeneration=0;
   private applyInFlight=false;
-  state:State={stage:'pick',fileName:'',matrix:[],plan:null,updateExisting:true,error:'',total:0,imported:0};
+  state:State={stage:'pick',fileName:'',matrix:[],inspection:null,mapping:{},plan:null,updateExisting:true,error:'',total:0,imported:0};
 
   componentDidUpdate(prev:Props):void{
     if(this.props.open&&!prev.open)this.reset();
@@ -99,7 +123,7 @@ export class ProductImportModal extends React.Component<Props,State>{
   private reset=()=>{
     this.fileReadGeneration+=1;
     this.applyInFlight=false;
-    this.setState({stage:'pick',fileName:'',matrix:[],plan:null,updateExisting:true,error:'',total:0,imported:0});
+    this.setState({stage:'pick',fileName:'',matrix:[],inspection:null,mapping:{},plan:null,updateExisting:true,error:'',total:0,imported:0});
   };
 
   private close=()=>{
@@ -108,9 +132,14 @@ export class ProductImportModal extends React.Component<Props,State>{
     this.props.onClose();
   };
 
-  private recalculate=(matrix:Matrix,updateExisting:boolean)=>{
-    const plan=planProductImport(matrix,this.props.items,this.props.currency,updateExisting);
-    this.setState({matrix,plan,updateExisting,stage:'preview',error:''});
+  private mappedMatrix=():Matrix=>{
+    const inspection=this.state.inspection;
+    return inspection?applyProductImportMapping(this.state.matrix,inspection,this.state.mapping):this.state.matrix;
+  };
+
+  private recalculate=(updateExisting:boolean)=>{
+    const plan=planProductImport(this.mappedMatrix(),this.props.items,this.props.currency,updateExisting);
+    this.setState({plan,updateExisting,stage:'preview',error:''});
   };
 
   private chooseFile=async(file:File|null)=>{
@@ -120,18 +149,43 @@ export class ProductImportModal extends React.Component<Props,State>{
     try{
       const matrix=await matrixFromFile(file);
       if(generation!==this.fileReadGeneration||!this.props.open)return;
-      this.recalculate(matrix,this.state.updateExisting);
+      const inspection=inspectProductImportMatrix(matrix);
+      if(inspection.headerIndex<0||!inspection.columns.length)throw new Error(t('No usable table header was found in this file.','لم يتم العثور على صف عناوين صالح في هذا الملف.'));
+      this.setState({matrix,inspection,mapping:initialProductImportMapping(inspection),plan:null,stage:'map',error:''});
     }catch(e){
       if(generation!==this.fileReadGeneration||!this.props.open)return;
-      this.setState({stage:'pick',matrix:[],plan:null,error:e instanceof Error?e.message:t('Unable to read this file.','تعذر قراءة الملف.')});
+      this.setState({stage:'pick',matrix:[],inspection:null,mapping:{},plan:null,error:e instanceof Error?e.message:t('Unable to read this file.','تعذر قراءة الملف.')});
     }finally{
       if(generation===this.fileReadGeneration&&this.fileInput)this.fileInput.value='';
     }
   };
 
   private toggleUpdates=(updateExisting:boolean)=>{
-    if(!this.state.matrix.length){this.setState({updateExisting});return;}
-    try{this.recalculate(this.state.matrix,updateExisting);}catch(e){this.setState({error:e instanceof Error?e.message:String(e)});}
+    if(this.state.stage!=='preview'){this.setState({updateExisting});return;}
+    try{this.recalculate(updateExisting);}catch(e){this.setState({error:e instanceof Error?e.message:String(e)});}
+  };
+
+  private setMapping=(index:number,value:string)=>{
+    const field=(value||'') as ProductImportField|'';
+    this.setState(state=>{
+      const mapping={...state.mapping};
+      if(field){
+        Object.keys(mapping).forEach(key=>{if(mapping[Number(key)]===field)mapping[Number(key)]=null;});
+        mapping[index]=field;
+      }else mapping[index]=null;
+      return {mapping,error:''} as Pick<State,'mapping'|'error'>;
+    });
+  };
+
+  private resetMapping=()=>{
+    const inspection=this.state.inspection;
+    if(inspection)this.setState({mapping:initialProductImportMapping(inspection),error:''});
+  };
+
+  private previewMapped=()=>{
+    const mappedCount=Object.values(this.state.mapping).filter(Boolean).length;
+    if(!mappedCount){this.setState({error:t('Map at least one column before continuing.','عيّن عمودًا واحدًا على الأقل قبل المتابعة.')});return;}
+    try{this.recalculate(this.state.updateExisting);}catch(e){this.setState({error:e instanceof Error?e.message:String(e)});}
   };
 
   private downloadTemplate=()=>downloadText('LOUREX-Product-Import-Template.csv',productImportTemplateCsv(),'text/csv;charset=utf-8');
@@ -154,9 +208,15 @@ export class ProductImportModal extends React.Component<Props,State>{
   };
 
   render():any{
-    const {plan,stage}=this.state;
+    const {plan,stage,inspection}=this.state;
     const previewRows=plan?.rows.slice(0,120)??[];
-    const footer=stage==='preview'&&plan
+    const mappedCount=Object.values(this.state.mapping).filter(Boolean).length;
+    const footer=stage==='map'&&inspection
+      ? <div className="product-import-footer">
+          <Button onClick={this.close}>{t('Cancel','إلغاء')}</Button>
+          <Button variant="primary" icon="eye" disabled={!mappedCount} onClick={this.previewMapped}>{t('Continue to preview','متابعة إلى المعاينة')}</Button>
+        </div>
+      : stage==='preview'&&plan
       ? <div className="product-import-footer">
           <Button onClick={this.close}>{t('Cancel','إلغاء')}</Button>
           <Button variant="primary" icon="upload" disabled={plan.counts.error>0||plan.counts.create+plan.counts.update===0} onClick={()=>void this.apply()}>
@@ -172,24 +232,45 @@ export class ProductImportModal extends React.Component<Props,State>{
         {stage==='pick'?<>
           <div className="product-import-hero">
             <div className="product-import-icon"><Icon name="upload" size={28}/></div>
-            <div><p className="eyebrow">{t('Smart catalog import','استيراد ذكي للكتالوج')}</p><h3>{t('Bring your product list in one clean step','أدخل قائمة أصنافك بخطوة مرتبة')}</h3><p>{t('LOUREX now detects common commercial column names, header rows, sale prices, costs, currencies, packing, origin and HS codes before anything is saved.','يتعرّف LOUREX الآن تلقائيًا على أسماء الأعمدة التجارية الشائعة وصف العناوين وأسعار البيع والتكلفة والعملات والتعبئة والمنشأ وHS Code قبل حفظ أي شيء.')}</p></div>
+            <div><p className="eyebrow">{t('Universal catalog import','استيراد شامل للكتالوج')}</p><h3>{t('Bring almost any supplier spreadsheet','أدخل تقريبًا أي ملف أصناف من المورد')}</h3><p>{t('LOUREX detects common columns automatically, then lets you review or correct every mapping before any product is saved.','يتعرّف LOUREX تلقائيًا على الأعمدة الشائعة ثم يتيح لك مراجعة أو تصحيح كل تعيين قبل حفظ أي صنف.')}</p></div>
           </div>
           <button type="button" className="product-import-dropzone" onClick={()=>this.fileInput?.click()}>
             <Icon name="upload" size={23}/><strong>{t('Choose Excel or CSV file','اختر ملف Excel أو CSV')}</strong><span>.xlsx · .xls · .csv</span>
           </button>
           <input ref={(node:any)=>{this.fileInput=node;}} className="product-import-file-input" type="file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={(e:any)=>void this.chooseFile(e.target.files?.[0]??null)}/>
           <div className="product-import-safety-grid">
-            <div><Icon name="eye"/><span><strong>{t('Preview first','معاينة أولًا')}</strong><small>{t('Nothing is saved until you approve the preview.','لا يتم حفظ شيء قبل موافقتك على المعاينة.')}</small></span></div>
-            <div><Icon name="refresh"/><span><strong>{t('One secure write','حفظ آمن بعملية واحدة')}</strong><small>{t('Smart column matching runs before one approved encrypted catalog update.','تتم مطابقة الأعمدة بذكاء قبل تنفيذ تحديث مشفّر واحد للكتالوج بعد موافقتك.')}</small></span></div>
-            <div><Icon name="check"/><span><strong>{t('Duplicate protection','حماية من التكرار')}</strong><small>{t('Repeated SKU and conflicting names are flagged before import.','يتم كشف SKU المكرر وتعارض الأسماء قبل الاستيراد.')}</small></span></div>
+            <div><Icon name="eye"/><span><strong>{t('Review column mapping','راجع تعيين الأعمدة')}</strong><small>{t('Automatic detection is visible and editable before preview.','التعرّف التلقائي ظاهر وقابل للتعديل قبل المعاينة.')}</small></span></div>
+            <div><Icon name="refresh"/><span><strong>{t('One secure write','حفظ آمن بعملية واحدة')}</strong><small>{t('The approved batch is committed together after validation.','يتم حفظ الدفعة المعتمدة معًا بعد التحقق.')}</small></span></div>
+            <div><Icon name="check"/><span><strong>{t('No invented accounting data','لا اختلاق لبيانات محاسبية')}</strong><small>{t('Missing prices and costs stay missing unless they exist in the source.','الأسعار والتكاليف المفقودة تبقى مفقودة ما لم تكن موجودة في المصدر.')}</small></span></div>
           </div>
-          <div className="product-import-template-bar"><div><strong>{t('Need the correct columns?','تحتاج الأعمدة الصحيحة؟')}</strong><span>{t('Download the LOUREX CSV template with sale-price and cost fields and fill it in Excel.','حمّل قالب LOUREX الذي يتضمن سعر البيع والتكلفة وافتحه وعبّئه في Excel.')}</span></div><Button icon="download" onClick={this.downloadTemplate}>{t('Download template','تحميل القالب')}</Button></div>
+          <div className="product-import-template-bar"><div><strong>{t('Prefer a standard template?','تفضّل قالبًا قياسيًا؟')}</strong><span>{t('The LOUREX template remains available, but supplier files no longer need to match it exactly.','يبقى قالب LOUREX متاحًا، لكن ملفات الموردين لم تعد مضطرة لمطابقته حرفيًا.')}</span></div><Button icon="download" onClick={this.downloadTemplate}>{t('Download template','تحميل القالب')}</Button></div>
+        </>:null}
+
+        {stage==='map'&&inspection?<>
+          <div className="product-import-mapping-head">
+            <div className="product-import-file-summary"><span className="product-import-file-icon"><Icon name="file"/></span><div><strong>{this.state.fileName}</strong><small>{t(`Header row ${inspection.headerIndex+1} · ${inspection.columns.length} usable columns`,`صف العناوين ${inspection.headerIndex+1} · ${inspection.columns.length} أعمدة قابلة للاستخدام`)}</small></div><IconButton icon="refresh" label={t('Choose another file','اختيار ملف آخر')} onClick={()=>this.setState({stage:'pick',matrix:[],inspection:null,mapping:{},plan:null,error:''})}/></div>
+            <div className="product-import-mapping-copy"><div><p className="eyebrow">{t('Column mapping','تعيين الأعمدة')}</p><h3>{t('Confirm what each source column means','أكد معنى كل عمود في الملف')}</h3><p>{t('Leave irrelevant columns ignored. If LOUREX guessed incorrectly, change the destination here before previewing the import.','اترك الأعمدة غير المهمة على تجاهل. إذا كان التخمين غير صحيح، غيّر الوجهة هنا قبل معاينة الاستيراد.')}</p></div><Button onClick={this.resetMapping}>{t('Reset auto-detection','إعادة التعرّف التلقائي')}</Button></div>
+          </div>
+          <div className="product-import-mapping-list" role="list">
+            {inspection.columns.map(column=>{
+              const value=this.state.mapping[column.index]??'';
+              return <div key={column.index} className={`product-import-map-row ${value?'is-mapped':'is-ignored'}`} role="listitem">
+                <div className="product-import-map-source"><strong>{column.header}</strong><small>{column.samples.length?column.samples.join(' · '):t('No sample values','لا توجد قيم نموذجية')}</small></div>
+                <span className="product-import-map-arrow" aria-hidden="true">→</span>
+                <Select aria-label={t(`Map ${column.header}`,`تعيين ${column.header}`)} value={value} onChange={(e:any)=>this.setMapping(column.index,e.target.value)}>
+                  <option value="">{t('Ignore this column','تجاهل هذا العمود')}</option>
+                  {PRODUCT_IMPORT_FIELD_ORDER.map(field=><option key={field} value={field}>{fieldLabel(field)}</option>)}
+                </Select>
+              </div>;
+            })}
+          </div>
+          <div className="product-import-mapping-note"><Icon name="check"/><span>{t(`${mappedCount} columns will be imported. Each destination can be used once to prevent ambiguous data.`,`${mappedCount} أعمدة سيتم استيرادها. يمكن استخدام كل وجهة مرة واحدة لمنع البيانات الملتبسة.`)}</span></div>
         </>:null}
 
         {stage==='preview'&&plan?<>
           <div className="product-import-preview-head">
-            <div className="product-import-file-summary"><span className="product-import-file-icon"><Icon name="file"/></span><div><strong>{this.state.fileName}</strong><small>{t(`${plan.rows.length} data rows · ${plan.recognizedFields.length} recognized columns`,`${plan.rows.length} صف بيانات · ${plan.recognizedFields.length} أعمدة معروفة`)}</small></div><IconButton icon="refresh" label={t('Choose another file','اختيار ملف آخر')} onClick={()=>this.setState({stage:'pick',plan:null,matrix:[],error:''})}/></div>
-            <Toggle checked={this.state.updateExisting} onChange={this.toggleUpdates} label={t('Update products that already exist','تحديث الأصناف الموجودة بالفعل')}/>
+            <div className="product-import-file-summary"><span className="product-import-file-icon"><Icon name="file"/></span><div><strong>{this.state.fileName}</strong><small>{t(`${plan.rows.length} data rows · ${plan.recognizedFields.length} mapped fields`,`${plan.rows.length} صف بيانات · ${plan.recognizedFields.length} حقول معيّنة`)}</small></div><IconButton icon="refresh" label={t('Choose another file','اختيار ملف آخر')} onClick={()=>this.setState({stage:'pick',plan:null,matrix:[],inspection:null,mapping:{},error:''})}/></div>
+            <div className="product-import-preview-controls"><Button onClick={()=>this.setState({stage:'map',plan:null,error:''})}>{t('Edit mapping','تعديل التعيين')}</Button><Toggle checked={this.state.updateExisting} onChange={this.toggleUpdates} label={t('Update products that already exist','تحديث الأصناف الموجودة بالفعل')}/></div>
           </div>
           <div className="product-import-counts" aria-label={t('Import summary','ملخص الاستيراد')}>
             <div className="is-create"><strong>{plan.counts.create}</strong><span>{t('New','جديد')}</span></div>
@@ -197,7 +278,7 @@ export class ProductImportModal extends React.Component<Props,State>{
             <div className="is-skip"><strong>{plan.counts.skip}</strong><span>{t('Skipped','متخطى')}</span></div>
             <div className={`is-error ${plan.counts.error?'has-value':''}`}><strong>{plan.counts.error}</strong><span>{t('Errors','أخطاء')}</span></div>
           </div>
-          {plan.counts.error?<div className="product-import-alert" role="alert"><Icon name="lock"/><div><strong>{t('Import is locked until file errors are fixed','الاستيراد متوقف حتى يتم إصلاح أخطاء الملف')}</strong><span>{t('This prevents partial or ambiguous catalog changes. Correct the highlighted rows in the source file, then choose it again.','هذا يمنع تغييرات جزئية أو ملتبسة في الكتالوج. صحح الصفوف المحددة في الملف ثم اختره من جديد.')}</span></div></div>:null}
+          {plan.counts.error?<div className="product-import-alert" role="alert"><Icon name="lock"/><div><strong>{t('Import is locked until file errors are fixed','الاستيراد متوقف حتى يتم إصلاح أخطاء الملف')}</strong><span>{t('Review the mapping first. If a source value is invalid, correct the source file and choose it again.','راجع تعيين الأعمدة أولًا. إذا كانت قيمة المصدر غير صالحة، صحح الملف ثم اختره من جديد.')}</span></div></div>:null}
           <div className="product-import-table-wrap">
             <table className="product-import-table"><thead><tr><th>#</th><th>{t('Status','الحالة')}</th><th>SKU</th><th>{t('Product','الصنف')}</th><th>{t('Sale price','سعر البيع')}</th><th>{t('Cost','التكلفة')}</th><th>{t('Imported details','التفاصيل المستوردة')}</th><th>{t('Why','السبب')}</th></tr></thead><tbody>
               {previewRows.map(row=><tr key={`${row.rowNumber}-${row.action}`} className={`row-${row.action}`}><td>{row.rowNumber}</td><td><span className={`import-action-badge ${row.action}`}>{actionLabel(row.action)}</span></td><td><code>{row.item?.sku||'—'}</code></td><td><strong>{productName(row.item)}</strong>{row.item?.descriptionEn&&row.item.descriptionAr?<small>{row.item.descriptionAr}</small>:null}</td><td>{row.item?.lastUnitPrice?<span>{row.item.lastUnitPrice} <small>{row.item.lastCurrency}</small></span>:'—'}</td><td>{row.item?.lastUnitCost?<span>{row.item.lastUnitCost} <small>{row.item.lastCostCurrency||row.item.lastCurrency}</small></span>:'—'}</td><td><small>{productDetails(row.item)}</small></td><td><span>{row.reason}</span></td></tr>)}
