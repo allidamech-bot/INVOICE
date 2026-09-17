@@ -6,7 +6,7 @@ import { importableProducts, planProductImport } from '../dist/src/lib/product-i
 
 const read=path=>readFile(path,'utf8');
 
-test('v258 local intelligence finds the real header row and separates price from unit',()=>{
+test('v258 local intelligence finds the real header row and leaves ambiguous Incoterm money for review',()=>{
   const matrix=[
     ['Supplier catalogue 2027','',''],
     ['Product','Name','Unit EURO EXW'],
@@ -16,11 +16,23 @@ test('v258 local intelligence finds the real header row and separates price from
   const analysis=analyzeProductImport(matrix);
   assert.equal(analysis.headerIndex,1);
   const byHeader=new Map(analysis.columns.map(column=>[column.header,column]));
-  assert.equal(byHeader.get('Unit EURO EXW')?.field,'lastUnitPrice');
+  assert.equal(byHeader.get('Unit EURO EXW')?.field,null);
   assert.equal(byHeader.get('Name')?.field,'descriptionEn');
   assert.equal(byHeader.get('Product')?.field,null);
-  assert.ok(analysis.recognizedFields.includes('lastUnitPrice'));
+  assert.ok(!analysis.recognizedFields.includes('lastUnitPrice'));
   assert.ok(!analysis.recognizedFields.includes('unit'));
+  assert.equal(analysis.needsReview,true);
+
+  const mapping=suggestedProductImportMap(analysis);
+  mapping[2]='lastUnitCost';
+  const mapped=applyProductImportMapping(matrix,analysis,mapping);
+  assert.equal(mapped[1][2],'Unit Cost EUR');
+  const plan=planProductImport(mapped,[],'USD',true);
+  const item=importableProducts(plan)[0];
+  assert.equal(item.descriptionEn,'Mars 50g');
+  assert.equal(item.lastUnitCost,'0.422');
+  assert.equal(item.lastCostCurrency,'EUR');
+  assert.equal(item.lastUnitPrice,'');
 });
 
 test('v258 understands common multilingual commercial headings without external AI',()=>{
@@ -41,6 +53,24 @@ test('v258 understands common multilingual commercial headings without external 
   assert.equal(item.lastCurrency,'EUR');
   assert.equal(item.packing,'24 x 50g');
   assert.equal(item.origin,'Türkiye');
+});
+
+test('v258 recognizes supplier and purchase language as cost, not sale price',()=>{
+  const matrix=[
+    ['SKU','Product name','Supplier Price USD','Purchase Currency'],
+    ['A-1','Coffee','4.25','USD']
+  ];
+  const analysis=analyzeProductImport(matrix);
+  const byHeader=new Map(analysis.columns.map(column=>[column.header,column]));
+  assert.equal(byHeader.get('Supplier Price USD')?.field,'lastUnitCost');
+  assert.equal(byHeader.get('Purchase Currency')?.field,'lastCostCurrency');
+  assert.ok(!analysis.recognizedFields.includes('lastUnitPrice'));
+  const mapped=applyProductImportMapping(matrix,analysis,suggestedProductImportMap(analysis));
+  const plan=planProductImport(mapped,[],'SAR',true);
+  const item=importableProducts(plan)[0];
+  assert.equal(item.lastUnitCost,'4.25');
+  assert.equal(item.lastCostCurrency,'USD');
+  assert.equal(item.lastUnitPrice,'');
 });
 
 test('v258 manual mapping makes unknown supplier columns importable and never maps duplicates silently',()=>{
@@ -84,4 +114,5 @@ test('v258 mapping UI keeps matte-black contrast, mobile geometry and explicit r
   assert.match(css,/@media \(max-width:390px\)/);
   assert.match(intelligence,/applyProductImportMapping/);
   assert.match(intelligence,/Unit Price/);
+  assert.match(intelligence,/Unit Cost/);
 });
