@@ -4,7 +4,7 @@ import { decimalToScaled, isDecimalInput, normalizeDecimalInput } from './money.
 import { findSavedItemDuplicate, normalizeSavedItemIdentity, normalizeSavedItemSku, parseSavedItemTags } from './saved-items.js';
 
 export type ProductImportAction='create'|'update'|'skip'|'error';
-export type ProductImportField='sku'|'descriptionEn'|'descriptionAr'|'hsCode'|'origin'|'packing'|'unit'|'lastUnitPrice'|'lastCurrency'|'category'|'tags'|'favorite';
+export type ProductImportField='sku'|'descriptionEn'|'descriptionAr'|'hsCode'|'origin'|'packing'|'unit'|'lastUnitPrice'|'lastCurrency'|'lastUnitCost'|'lastCostCurrency'|'category'|'tags'|'favorite';
 
 export interface ProductImportPlanRow {
   rowNumber:number;
@@ -21,28 +21,87 @@ export interface ProductImportPlan {
 }
 
 const HEADER_ALIASES:Record<ProductImportField,string[]>={
-  sku:['sku','item code','itemcode','product code','productcode','code','كود الصنف','رمز الصنف','كود المنتج'],
-  descriptionEn:['description en','description english','english description','product name','name en','english name','name','description','اسم المنتج انجليزي','الوصف بالانجليزية','الوصف الانجليزي'],
-  descriptionAr:['description ar','description arabic','arabic description','name ar','arabic name','اسم المنتج عربي','الوصف بالعربية','الوصف العربي'],
-  hsCode:['hs code','hscode','hs','customs code','tariff code','كود hs','الرمز الجمركي'],
-  origin:['origin','country of origin','made in','المنشأ','بلد المنشأ'],
-  packing:['packing','packaging','pack','التعبئة','التغليف'],
-  unit:['unit','uom','unit of measure','الوحدة'],
-  lastUnitPrice:['price','unit price','last price','last unit price','سعر','السعر','سعر الوحدة','اخر سعر','آخر سعر'],
-  lastCurrency:['currency','currency code','العملة'],
-  category:['category','group','product category','التصنيف','الفئة'],
-  tags:['tags','tag','keywords','وسوم','الوسوم','كلمات مفتاحية'],
-  favorite:['favorite','favourite','starred','مفضلة','المفضلة']
+  sku:[
+    'sku','item sku','product sku','item code','itemcode','product code','productcode','code','reference','ref','article no','article number','item no','item number',
+    'كود الصنف','رمز الصنف','كود المنتج','رقم الصنف','مرجع الصنف','الرمز'
+  ],
+  descriptionEn:[
+    'description en','description english','english description','product name','product name en','item name','item name en','name en','english name','name','description','product','item',
+    'اسم المنتج انجليزي','اسم الصنف انجليزي','الوصف بالانجليزية','الوصف الانجليزي','الاسم بالانجليزية','الاسم الانجليزي'
+  ],
+  descriptionAr:[
+    'description ar','description arabic','arabic description','product name ar','item name ar','name ar','arabic name',
+    'اسم المنتج عربي','اسم الصنف عربي','الوصف بالعربية','الوصف العربي','الاسم بالعربية','الاسم العربي','اسم المنتج','اسم الصنف'
+  ],
+  hsCode:['hs code','hscode','hs','hs-code','customs code','custom code','tariff code','harmonized code','commodity code','كود hs','رمز hs','الرمز الجمركي','التعرفة الجمركية'],
+  origin:['origin','country of origin','origin country','made in','country','coo','المنشأ','بلد المنشأ','دولة المنشأ','صنع في'],
+  packing:[
+    'packing','packaging','pack','pack size','packing size','case pack','carton pack','carton qty','carton quantity','pcs carton','pieces carton','units carton','case size','package',
+    'التعبئة','التغليف','حجم التعبئة','تعبئة الكرتون','عدد بالكرتون','عدد في الكرتون','العبوة'
+  ],
+  unit:['unit','uom','unit of measure','sales unit','selling unit','measure unit','الوحدة','وحدة','وحدة القياس','وحدة البيع'],
+  lastUnitPrice:[
+    'price','unit price','selling price','sale price','sales price','sell price','unit selling price','price per unit','price unit','last price','last unit price','wholesale price','customer price','list price','net price','offer price','unit rate','rate',
+    'price usd','unit price usd','selling price usd','price sar','unit price sar','selling price sar','price eur','unit price eur',
+    'سعر','السعر','سعر الوحدة','سعر البيع','سعر مبيع','سعر المبيع','سعر الجملة','سعر العرض','السعر بالدولار','سعر بالدولار','السعر بالريال','سعر بالريال','اخر سعر','آخر سعر'
+  ],
+  lastCurrency:['currency','currency code','sale currency','price currency','selling currency','curr','العملة','رمز العملة','عملة البيع','عملة السعر'],
+  lastUnitCost:[
+    'cost','unit cost','purchase price','buying price','buy price','purchase cost','buying cost','cost price','unit purchase price','landed cost','last cost','last unit cost',
+    'cost usd','unit cost usd','purchase price usd','cost sar','unit cost sar','purchase price sar','cost eur','unit cost eur',
+    'التكلفة','تكلفة','تكلفة الوحدة','سعر الشراء','سعر شراء','تكلفة الشراء','تكلفة الصنف','اخر تكلفة','آخر تكلفة'
+  ],
+  lastCostCurrency:['cost currency','purchase currency','buying currency','cost currency code','عملة التكلفة','عملة الشراء','رمز عملة التكلفة'],
+  category:['category','group','product category','item category','type','family','department','classification','التصنيف','الفئة','المجموعة','النوع'],
+  tags:['tags','tag','keywords','keyword','labels','وسوم','الوسوم','كلمات مفتاحية','الكلمات المفتاحية'],
+  favorite:['favorite','favourite','starred','is favorite','مفضلة','المفضلة','مفضل']
 };
 
 function normalizeHeader(value:unknown):string{
-  return String(value??'').normalize('NFKC').trim().toLocaleLowerCase().replace(/[_\-]+/g,' ').replace(/\s+/g,' ');
+  return String(value??'')
+    .normalize('NFKC')
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g,'')
+    .replace(/ـ/g,'')
+    .replace(/[\u200E\u200F\u202A-\u202E]/g,'')
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[()\[\]{}:;,.\/\\|]+/g,' ')
+    .replace(/[_\-]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
 }
 
 const ALIAS_TO_FIELD=new Map<string,ProductImportField>();
 (Object.keys(HEADER_ALIASES) as ProductImportField[]).forEach(field=>{
   HEADER_ALIASES[field].forEach(alias=>ALIAS_TO_FIELD.set(normalizeHeader(alias),field));
 });
+
+function includesAny(value:string,tokens:string[]):boolean{return tokens.some(token=>value.includes(token));}
+
+function inferHeaderField(value:unknown):ProductImportField|null{
+  const normalized=normalizeHeader(value);
+  if(!normalized)return null;
+  const exact=ALIAS_TO_FIELD.get(normalized);
+  if(exact)return exact;
+
+  const compact=normalized.replace(/\s+/g,'');
+  if(compact==='sku'||compact==='itemsku'||compact==='productsku')return 'sku';
+  if((normalized.includes('hs')&&includesAny(normalized,['code','رمز','كود']))||includesAny(normalized,['customs code','tariff code','harmonized']))return 'hsCode';
+  if(includesAny(normalized,['cost currency','purchase currency','buying currency','عملة التكلفة','عملة الشراء']))return 'lastCostCurrency';
+  if(includesAny(normalized,['currency','عملة'])&&!includesAny(normalized,['price','سعر','cost','تكلفة']))return 'lastCurrency';
+  if(includesAny(normalized,['cost','purchase price','buying price','buy price','تكلفة','سعر الشراء','سعر شراء']))return 'lastUnitCost';
+  if(includesAny(normalized,['price','rate','سعر'])&&!includesAny(normalized,['purchase','buying','buy price','cost','شراء','تكلفة']))return 'lastUnitPrice';
+  if(includesAny(normalized,['origin','made in','coo','منشأ','صنع في']))return 'origin';
+  if(includesAny(normalized,['packing','packaging','pack size','case pack','carton','تعبئة','تغليف','كرتون']))return 'packing';
+  if(includesAny(normalized,['unit','uom','وحدة']))return 'unit';
+  if(includesAny(normalized,['category','classification','group','family','تصنيف','فئة','مجموعة']))return 'category';
+  if(includesAny(normalized,['tag','keyword','وسوم','كلمات مفتاحية']))return 'tags';
+  if(includesAny(normalized,['favorite','favourite','starred','مفض']))return 'favorite';
+  if(includesAny(normalized,['arabic',' ar','عربي','العربي','بالعربية']))return 'descriptionAr';
+  if(includesAny(normalized,['english',' en','انجليزي','الانجليزي','بالانجليزية']))return 'descriptionEn';
+  if(includesAny(normalized,['product name','item name','description','اسم المنتج','اسم الصنف','الوصف']))return 'descriptionEn';
+  return null;
+}
 
 function cell(value:unknown):string{
   if(value===null||value===undefined)return '';
@@ -83,8 +142,8 @@ export function parseCsvMatrix(text:string):string[][]{
 
 export function productImportTemplateCsv():string{
   return [
-    ['SKU','Description EN','Description AR','HS Code','Origin','Packing','Unit','Unit Price','Currency','Category','Tags','Favorite'],
-    ['RB-250-ORG','Red Bull Original 250ml','ريد بول أصلي 250 مل','220299','Türkiye','24 × 250 ml / Carton','Carton','24.50','USD','Energy Drinks','250ml, Original','yes']
+    ['SKU','Description EN','Description AR','HS Code','Origin','Packing','Unit','Unit Price','Currency','Unit Cost','Cost Currency','Category','Tags','Favorite'],
+    ['RB-250-ORG','Red Bull Original 250ml','ريد بول أصلي 250 مل','220299','Türkiye','24 × 250 ml / Carton','Carton','24.50','USD','18.10','USD','Energy Drinks','250ml, Original','yes']
   ].map(row=>row.map(value=>`"${String(value).replace(/"/g,'""')}"`).join(',')).join('\r\n');
 }
 
@@ -96,17 +155,85 @@ function boolValue(value:string):boolean|undefined{
   return undefined;
 }
 
+function mappedHeaders(row:unknown[]):Array<ProductImportField|null>{
+  return row.map(value=>inferHeaderField(value));
+}
+
 function firstHeaderRow(matrix:unknown[][]):number{
+  let bestIndex=-1;
+  let bestScore=0;
+  const scanLimit=Math.min(matrix.length,30);
+  for(let index=0;index<scanLimit;index+=1){
+    const row=matrix[index]??[];
+    if(!row.some(value=>normalizeHeader(value)!==''))continue;
+    const score=mappedHeaders(row).filter(Boolean).length;
+    if(score>bestScore){bestScore=score;bestIndex=index;}
+  }
+  if(bestIndex>=0)return bestIndex;
   return matrix.findIndex(row=>row.some(value=>normalizeHeader(value)!==''));
 }
 
-function mappedHeaders(row:unknown[]):Array<ProductImportField|null>{
-  return row.map(value=>ALIAS_TO_FIELD.get(normalizeHeader(value))??null);
+function currencyHint(value:unknown):string{
+  const raw=String(value??'').normalize('NFKC').toUpperCase();
+  if(/\bUSD\b|US\s*DOLLAR|\$/.test(raw)||raw.includes('دولار'))return 'USD';
+  if(/\bSAR\b/.test(raw)||raw.includes('ر.س')||raw.includes('ريال'))return 'SAR';
+  if(/\bEUR\b|€/.test(raw)||raw.includes('يورو'))return 'EUR';
+  if(/\bGBP\b|£/.test(raw)||raw.includes('جنيه'))return 'GBP';
+  if(/\bAED\b/.test(raw)||raw.includes('درهم'))return 'AED';
+  if(/\bTRY\b|TL\b|₺/.test(raw)||raw.includes('ليرة تركية'))return 'TRY';
+  return '';
 }
 
-function incomingObject(row:unknown[],headers:Array<ProductImportField|null>):Partial<Record<ProductImportField,string>>{
+function normalizeImportedDecimal(value:string):string{
+  const trimmed=value.trim();
+  if(!trimmed)return '';
+  if(isDecimalInput(trimmed))return normalizeDecimalInput(trimmed);
+
+  let numeric=trimmed
+    .normalize('NFKC')
+    .replace(/[\u00A0\s]/g,'')
+    .replace(/[A-Za-z]{3}/g,'')
+    .replace(/[\$€£₺﷼]/g,'')
+    .replace(/[^0-9,\.\-+]/g,'');
+  if(!numeric)return trimmed;
+
+  const commaCount=(numeric.match(/,/g)||[]).length;
+  const dotCount=(numeric.match(/\./g)||[]).length;
+  if(commaCount&&dotCount){
+    if(numeric.lastIndexOf(',')>numeric.lastIndexOf('.'))numeric=numeric.replace(/\./g,'').replace(/,/g,'.');
+    else numeric=numeric.replace(/,/g,'');
+  }else if(commaCount){
+    if(/^[-+]?\d{1,3}(,\d{3})+$/.test(numeric))numeric=numeric.replace(/,/g,'');
+    else if(commaCount===1)numeric=numeric.replace(',','.');
+    else{
+      const last=numeric.lastIndexOf(',');
+      numeric=numeric.slice(0,last).replace(/,/g,'')+'.'+numeric.slice(last+1);
+    }
+  }else if(dotCount>1){
+    if(/^[-+]?\d{1,3}(\.\d{3})+$/.test(numeric))numeric=numeric.replace(/\./g,'');
+    else{
+      const last=numeric.lastIndexOf('.');
+      numeric=numeric.slice(0,last).replace(/\./g,'')+'.'+numeric.slice(last+1);
+    }
+  }
+  return isDecimalInput(numeric)?normalizeDecimalInput(numeric):trimmed;
+}
+
+function incomingObject(row:unknown[],headers:Array<ProductImportField|null>,headerRow:unknown[]):Partial<Record<ProductImportField,string>>{
   const result:Partial<Record<ProductImportField,string>>={};
-  headers.forEach((field,index)=>{if(field)result[field]=cell(row[index]);});
+  headers.forEach((field,index)=>{
+    if(!field)return;
+    const raw=cell(row[index]);
+    result[field]=(field==='lastUnitPrice'||field==='lastUnitCost')?normalizeImportedDecimal(raw):raw;
+  });
+  if(!result.lastCurrency){
+    const priceIndex=headers.findIndex(field=>field==='lastUnitPrice');
+    if(priceIndex>=0)result.lastCurrency=currencyHint(headerRow[priceIndex]);
+  }
+  if(!result.lastCostCurrency){
+    const costIndex=headers.findIndex(field=>field==='lastUnitCost');
+    if(costIndex>=0)result.lastCostCurrency=currencyHint(headerRow[costIndex]);
+  }
   return result;
 }
 
@@ -123,6 +250,9 @@ function mergeImported(existing:SavedItem,incoming:Partial<Record<ProductImportF
   assign('category',incoming.category);
   if(incoming.lastUnitPrice?.trim())next.lastUnitPrice=normalizeDecimalInput(incoming.lastUnitPrice);
   if(incoming.lastCurrency?.trim())next.lastCurrency=incoming.lastCurrency.trim().toUpperCase();
+  if(incoming.lastUnitCost?.trim())next.lastUnitCost=normalizeDecimalInput(incoming.lastUnitCost);
+  if(incoming.lastCostCurrency?.trim())next.lastCostCurrency=incoming.lastCostCurrency.trim().toUpperCase();
+  else if(incoming.lastUnitCost?.trim()&&!next.lastCostCurrency)next.lastCostCurrency=next.lastCurrency;
   if(incoming.tags?.trim())next.tags=Array.from(new Set(parseSavedItemTags(incoming.tags).map(tag=>tag.trim()).filter(Boolean)));
   const favorite=boolValue(incoming.favorite??'');
   if(favorite!==undefined)next.favorite=favorite;
@@ -130,13 +260,16 @@ function mergeImported(existing:SavedItem,incoming:Partial<Record<ProductImportF
 }
 
 function createImported(incoming:Partial<Record<ProductImportField,string>>,defaultCurrency:string,now:string):SavedItem{
+  const saleCurrency=(incoming.lastCurrency??'').trim().toUpperCase()||defaultCurrency.trim().toUpperCase()||'USD';
+  const cost=(incoming.lastUnitCost??'').trim();
+  const costCurrency=(incoming.lastCostCurrency??'').trim().toUpperCase()||saleCurrency;
   return {
     id:makeId('product'),createdAt:now,updatedAt:now,
     sku:(incoming.sku??'').trim(),
     descriptionEn:(incoming.descriptionEn??'').trim(),descriptionAr:(incoming.descriptionAr??'').trim(),
     hsCode:(incoming.hsCode??'').trim(),origin:(incoming.origin??'').trim(),packing:(incoming.packing??'').trim(),
     unit:(incoming.unit??'').trim()||'PCS',lastUnitPrice:incoming.lastUnitPrice?.trim()?normalizeDecimalInput(incoming.lastUnitPrice):'',
-    lastCurrency:(incoming.lastCurrency??'').trim().toUpperCase()||defaultCurrency.trim().toUpperCase()||'USD',
+    lastCurrency:saleCurrency,lastUnitCost:cost?normalizeDecimalInput(cost):'',lastCostCurrency:cost?costCurrency:'',
     usageCount:0,lastUsedAt:now,category:(incoming.category??'').trim(),
     tags:Array.from(new Set(parseSavedItemTags(incoming.tags??'').map(tag=>tag.trim()).filter(Boolean))),
     favorite:boolValue(incoming.favorite??'')??false
@@ -157,7 +290,8 @@ function incomingNameKeys(incoming:Partial<Record<ProductImportField,string>>):s
 export function planProductImport(matrix:unknown[][],existingItems:SavedItem[],defaultCurrency:string,updateExisting=true):ProductImportPlan{
   const headerIndex=firstHeaderRow(matrix);
   if(headerIndex<0)return {rows:[],recognizedFields:[],counts:{create:0,update:0,skip:0,error:0}};
-  const headers=mappedHeaders(matrix[headerIndex]??[]);
+  const headerRow=matrix[headerIndex]??[];
+  const headers=mappedHeaders(headerRow);
   const recognizedFields=Array.from(new Set(headers.filter((field):field is ProductImportField=>Boolean(field))));
   if(!recognizedFields.length)throw new Error('No supported product columns were found in this file.');
 
@@ -172,7 +306,7 @@ export function planProductImport(matrix:unknown[][],existingItems:SavedItem[],d
   matrix.slice(headerIndex+1).forEach((raw,rowOffset)=>{
     if(!raw.some(value=>cell(value)!==''))return;
     const rowNumber=headerIndex+rowOffset+2;
-    const incoming=incomingObject(raw,headers);
+    const incoming=incomingObject(raw,headers,headerRow);
     const sku=normalizeSavedItemSku(incoming.sku??'');
     if(sku&&seenFileSkus.has(sku)){
       rows.push({rowNumber,action:'error',reason:'Duplicate SKU inside the import file.',item:null,matchedId:''});
@@ -189,6 +323,10 @@ export function planProductImport(matrix:unknown[][],existingItems:SavedItem[],d
 
     if(incoming.lastUnitPrice?.trim()&&(!isDecimalInput(incoming.lastUnitPrice)||decimalToScaled(incoming.lastUnitPrice)<0n)){
       rows.push({rowNumber,action:'error',reason:'Unit price is not a valid non-negative number.',item:null,matchedId:''});
+      return;
+    }
+    if(incoming.lastUnitCost?.trim()&&(!isDecimalInput(incoming.lastUnitCost)||decimalToScaled(incoming.lastUnitCost)<0n)){
+      rows.push({rowNumber,action:'error',reason:'Unit cost is not a valid non-negative number.',item:null,matchedId:''});
       return;
     }
 
