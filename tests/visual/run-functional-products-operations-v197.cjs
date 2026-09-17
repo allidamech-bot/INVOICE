@@ -33,6 +33,8 @@ const doubleClick=async locator=>locator.evaluate(button=>{button.click();button
 
         await page.getByRole('button',{name:'Import',exact:true}).click();
         await page.locator('.product-import-file-input').setInputFiles({name:'products.csv',mimeType:'text/csv',buffer:Buffer.from('SKU,Description EN,Unit,Unit Price,Currency\nSKU-NEW,Imported Product,PCS,12.00,USD\n')});
+        await page.locator('.product-import-mapping-list').waitFor();
+        await page.getByRole('button',{name:'Review import'}).click();
         const importButton=page.getByRole('button',{name:/Import 1 product/});
         await importButton.waitFor();
         await doubleClick(importButton);
