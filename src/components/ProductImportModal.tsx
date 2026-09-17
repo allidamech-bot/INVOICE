@@ -73,6 +73,11 @@ function productName(item:SavedItem|null):string{
   return item.descriptionEn||item.descriptionAr||t('Unnamed product','صنف بلا اسم');
 }
 
+function productDetails(item:SavedItem|null):string{
+  if(!item)return '—';
+  return [item.unit,item.packing,item.origin,item.hsCode?`HS ${item.hsCode}`:''].filter(Boolean).join(' · ')||'—';
+}
+
 function actionLabel(action:string):string{
   if(action==='create')return t('New','جديد');
   if(action==='update')return t('Update','تحديث');
@@ -167,7 +172,7 @@ export class ProductImportModal extends React.Component<Props,State>{
         {stage==='pick'?<>
           <div className="product-import-hero">
             <div className="product-import-icon"><Icon name="upload" size={28}/></div>
-            <div><p className="eyebrow">{t('Fast catalog setup','إعداد سريع للكتالوج')}</p><h3>{t('Bring your product list in one clean step','أدخل قائمة أصنافك بخطوة مرتبة')}</h3><p>{t('Excel and CSV are checked before anything is saved. Existing products are matched by SKU first, then exact product name.','يتم فحص Excel وCSV قبل حفظ أي شيء. تتم مطابقة الأصناف الموجودة بالـSKU أولًا، ثم باسم الصنف المطابق تمامًا.')}</p></div>
+            <div><p className="eyebrow">{t('Smart catalog import','استيراد ذكي للكتالوج')}</p><h3>{t('Bring your product list in one clean step','أدخل قائمة أصنافك بخطوة مرتبة')}</h3><p>{t('LOUREX now detects common commercial column names, header rows, sale prices, costs, currencies, packing, origin and HS codes before anything is saved.','يتعرّف LOUREX الآن تلقائيًا على أسماء الأعمدة التجارية الشائعة وصف العناوين وأسعار البيع والتكلفة والعملات والتعبئة والمنشأ وHS Code قبل حفظ أي شيء.')}</p></div>
           </div>
           <button type="button" className="product-import-dropzone" onClick={()=>this.fileInput?.click()}>
             <Icon name="upload" size={23}/><strong>{t('Choose Excel or CSV file','اختر ملف Excel أو CSV')}</strong><span>.xlsx · .xls · .csv</span>
@@ -175,10 +180,10 @@ export class ProductImportModal extends React.Component<Props,State>{
           <input ref={(node:any)=>{this.fileInput=node;}} className="product-import-file-input" type="file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={(e:any)=>void this.chooseFile(e.target.files?.[0]??null)}/>
           <div className="product-import-safety-grid">
             <div><Icon name="eye"/><span><strong>{t('Preview first','معاينة أولًا')}</strong><small>{t('Nothing is saved until you approve the preview.','لا يتم حفظ شيء قبل موافقتك على المعاينة.')}</small></span></div>
-            <div><Icon name="refresh"/><span><strong>{t('One secure write','حفظ آمن بعملية واحدة')}</strong><small>{t('The approved batch is committed together, avoiding hundreds of repeated vault writes.','يتم حفظ الدفعة المعتمدة معًا لتجنب مئات عمليات كتابة الخزنة المتكررة.')}</small></span></div>
+            <div><Icon name="refresh"/><span><strong>{t('One secure write','حفظ آمن بعملية واحدة')}</strong><small>{t('Smart column matching runs before one approved encrypted catalog update.','تتم مطابقة الأعمدة بذكاء قبل تنفيذ تحديث مشفّر واحد للكتالوج بعد موافقتك.')}</small></span></div>
             <div><Icon name="check"/><span><strong>{t('Duplicate protection','حماية من التكرار')}</strong><small>{t('Repeated SKU and conflicting names are flagged before import.','يتم كشف SKU المكرر وتعارض الأسماء قبل الاستيراد.')}</small></span></div>
           </div>
-          <div className="product-import-template-bar"><div><strong>{t('Need the correct columns?','تحتاج الأعمدة الصحيحة؟')}</strong><span>{t('Download the LOUREX CSV template and fill it in Excel.','حمّل قالب LOUREX بصيغة CSV وافتحه وعبّئه في Excel.')}</span></div><Button icon="download" onClick={this.downloadTemplate}>{t('Download template','تحميل القالب')}</Button></div>
+          <div className="product-import-template-bar"><div><strong>{t('Need the correct columns?','تحتاج الأعمدة الصحيحة؟')}</strong><span>{t('Download the LOUREX CSV template with sale-price and cost fields and fill it in Excel.','حمّل قالب LOUREX الذي يتضمن سعر البيع والتكلفة وافتحه وعبّئه في Excel.')}</span></div><Button icon="download" onClick={this.downloadTemplate}>{t('Download template','تحميل القالب')}</Button></div>
         </>:null}
 
         {stage==='preview'&&plan?<>
@@ -194,8 +199,8 @@ export class ProductImportModal extends React.Component<Props,State>{
           </div>
           {plan.counts.error?<div className="product-import-alert" role="alert"><Icon name="lock"/><div><strong>{t('Import is locked until file errors are fixed','الاستيراد متوقف حتى يتم إصلاح أخطاء الملف')}</strong><span>{t('This prevents partial or ambiguous catalog changes. Correct the highlighted rows in the source file, then choose it again.','هذا يمنع تغييرات جزئية أو ملتبسة في الكتالوج. صحح الصفوف المحددة في الملف ثم اختره من جديد.')}</span></div></div>:null}
           <div className="product-import-table-wrap">
-            <table className="product-import-table"><thead><tr><th>#</th><th>{t('Status','الحالة')}</th><th>SKU</th><th>{t('Product','الصنف')}</th><th>{t('Price','السعر')}</th><th>{t('Why','السبب')}</th></tr></thead><tbody>
-              {previewRows.map(row=><tr key={`${row.rowNumber}-${row.action}`} className={`row-${row.action}`}><td>{row.rowNumber}</td><td><span className={`import-action-badge ${row.action}`}>{actionLabel(row.action)}</span></td><td><code>{row.item?.sku||'—'}</code></td><td><strong>{productName(row.item)}</strong>{row.item?.descriptionEn&&row.item.descriptionAr?<small>{row.item.descriptionAr}</small>:null}</td><td>{row.item?.lastUnitPrice?<span>{row.item.lastUnitPrice} <small>{row.item.lastCurrency}</small></span>:'—'}</td><td><span>{row.reason}</span></td></tr>)}
+            <table className="product-import-table"><thead><tr><th>#</th><th>{t('Status','الحالة')}</th><th>SKU</th><th>{t('Product','الصنف')}</th><th>{t('Sale price','سعر البيع')}</th><th>{t('Cost','التكلفة')}</th><th>{t('Imported details','التفاصيل المستوردة')}</th><th>{t('Why','السبب')}</th></tr></thead><tbody>
+              {previewRows.map(row=><tr key={`${row.rowNumber}-${row.action}`} className={`row-${row.action}`}><td>{row.rowNumber}</td><td><span className={`import-action-badge ${row.action}`}>{actionLabel(row.action)}</span></td><td><code>{row.item?.sku||'—'}</code></td><td><strong>{productName(row.item)}</strong>{row.item?.descriptionEn&&row.item.descriptionAr?<small>{row.item.descriptionAr}</small>:null}</td><td>{row.item?.lastUnitPrice?<span>{row.item.lastUnitPrice} <small>{row.item.lastCurrency}</small></span>:'—'}</td><td>{row.item?.lastUnitCost?<span>{row.item.lastUnitCost} <small>{row.item.lastCostCurrency||row.item.lastCurrency}</small></span>:'—'}</td><td><small>{productDetails(row.item)}</small></td><td><span>{row.reason}</span></td></tr>)}
             </tbody></table>
           </div>
           {plan.rows.length>previewRows.length?<div className="product-import-table-note">{t(`Showing the first ${previewRows.length} of ${plan.rows.length} rows. All rows are still validated and will be processed.`,`يتم عرض أول ${previewRows.length} من ${plan.rows.length} صف. جميع الصفوف ما زالت مفحوصة وسيتم معالجتها.`)}</div>:null}
