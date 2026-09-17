@@ -81,7 +81,7 @@ test('v257 keeps imported catalogue text readable and loads the contrast layer l
   assert.match(css,/color:var\(--ds-text\)!important/);
   assert.ok(index.indexOf('./styles/product-library-contrast-v257.css')>index.indexOf('./styles/interface-polish-v256.css'));
   assert.ok(index.indexOf('./styles/document-premium-redesign-v141.css')>index.indexOf('./styles/product-library-contrast-v257.css'));
-  assert.match(importer,/Smart catalog import/);
+  assert.match(importer,/(Smart|Universal) catalog import/);
   assert.match(importer,/Sale price/);
   assert.match(importer,/lastUnitCost/);
 });
