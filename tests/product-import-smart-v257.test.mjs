@@ -43,6 +43,34 @@ test('v257 understands Arabic commercial headings and localized prices',()=>{
   assert.equal(item.lastCostCurrency,'SAR');
 });
 
+test('v257 treats the real Russian Mars Unit EURO EXW column as an EUR sale price and updates prior imports',()=>{
+  const existing={
+    id:'mars-50',createdAt:'2026-09-17T00:00:00.000Z',updatedAt:'2026-09-17T00:00:00.000Z',
+    sku:'',descriptionEn:'Mars 50g',descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'PCS',
+    lastUnitPrice:'',lastCurrency:'USD',usageCount:0,lastUsedAt:'2026-09-17T00:00:00.000Z'
+  };
+  const matrix=[
+    ['','',''],
+    ['Product','Name','Unit EURO EXW'],
+    ['','Mars 50g','EUR 0.422'],
+    ['','Mars 81g','EUR 0.593']
+  ];
+  const plan=planProductImport(matrix,[existing],'USD',true);
+  assert.deepEqual(plan.counts,{create:1,update:1,skip:0,error:0});
+  assert.ok(plan.recognizedFields.includes('lastUnitPrice'));
+  assert.ok(!plan.recognizedFields.includes('unit'));
+  const updated=importableProducts(plan).find(item=>item.id==='mars-50');
+  assert.ok(updated);
+  assert.equal(updated.lastUnitPrice,'0.422');
+  assert.equal(updated.lastCurrency,'EUR');
+  assert.equal(updated.unit,'PCS');
+  const created=importableProducts(plan).find(item=>item.descriptionEn==='Mars 81g');
+  assert.ok(created);
+  assert.equal(created.lastUnitPrice,'0.593');
+  assert.equal(created.lastCurrency,'EUR');
+  assert.equal(created.unit,'PCS');
+});
+
 test('v257 keeps imported catalogue text readable and loads the contrast layer late',async()=>{
   const [css,index,importer]=await Promise.all([
     read('src/styles/product-library-contrast-v257.css'),
