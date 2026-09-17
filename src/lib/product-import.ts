@@ -42,7 +42,7 @@ const HEADER_ALIASES:Record<ProductImportField,string[]>={
   unit:['unit','uom','unit of measure','sales unit','selling unit','measure unit','الوحدة','وحدة','وحدة القياس','وحدة البيع'],
   lastUnitPrice:[
     'price','unit price','selling price','sale price','sales price','sell price','unit selling price','price per unit','price unit','last price','last unit price','wholesale price','customer price','list price','net price','offer price','unit rate','rate',
-    'price usd','unit price usd','selling price usd','price sar','unit price sar','selling price sar','price eur','unit price eur',
+    'price usd','unit price usd','selling price usd','price sar','unit price sar','selling price sar','price eur','unit price eur','unit euro exw','unit eur exw','unit usd exw','unit sar exw','unit euro fob','unit eur fob','unit usd fob','unit euro cif','unit eur cif','unit usd cif',
     'سعر','السعر','سعر الوحدة','سعر البيع','سعر مبيع','سعر المبيع','سعر الجملة','سعر العرض','السعر بالدولار','سعر بالدولار','السعر بالريال','سعر بالريال','اخر سعر','آخر سعر'
   ],
   lastCurrency:['currency','currency code','sale currency','price currency','selling currency','curr','العملة','رمز العملة','عملة البيع','عملة السعر'],
@@ -90,6 +90,7 @@ function inferHeaderField(value:unknown):ProductImportField|null{
   if(includesAny(normalized,['cost currency','purchase currency','buying currency','عملة التكلفة','عملة الشراء']))return 'lastCostCurrency';
   if(includesAny(normalized,['currency','عملة'])&&!includesAny(normalized,['price','سعر','cost','تكلفة']))return 'lastCurrency';
   if(includesAny(normalized,['cost','purchase price','buying price','buy price','تكلفة','سعر الشراء','سعر شراء']))return 'lastUnitCost';
+  if(currencyHint(value)&&includesAny(normalized,['unit','price','rate','exw','fob','cif','cfr','dap','ddp','fca','fas']))return 'lastUnitPrice';
   if(includesAny(normalized,['price','rate','سعر'])&&!includesAny(normalized,['purchase','buying','buy price','cost','شراء','تكلفة']))return 'lastUnitPrice';
   if(includesAny(normalized,['origin','made in','coo','منشأ','صنع في']))return 'origin';
   if(includesAny(normalized,['packing','packaging','pack size','case pack','carton','تعبئة','تغليف','كرتون']))return 'packing';
@@ -177,7 +178,7 @@ function currencyHint(value:unknown):string{
   const raw=String(value??'').normalize('NFKC').toUpperCase();
   if(/\bUSD\b|US\s*DOLLAR|\$/.test(raw)||raw.includes('دولار'))return 'USD';
   if(/\bSAR\b/.test(raw)||raw.includes('ر.س')||raw.includes('ريال'))return 'SAR';
-  if(/\bEUR\b|€/.test(raw)||raw.includes('يورو'))return 'EUR';
+  if(/\bEUR\b|\bEURO\b|€/.test(raw)||raw.includes('يورو'))return 'EUR';
   if(/\bGBP\b|£/.test(raw)||raw.includes('جنيه'))return 'GBP';
   if(/\bAED\b/.test(raw)||raw.includes('درهم'))return 'AED';
   if(/\bTRY\b|TL\b|₺/.test(raw)||raw.includes('ليرة تركية'))return 'TRY';
