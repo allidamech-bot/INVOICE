@@ -6,7 +6,7 @@ import { importableProducts, planProductImport } from '../dist/src/lib/product-i
 
 const read=path=>readFile(path,'utf8');
 
-test('v258 local intelligence finds the real header row and leaves ambiguous Incoterm money for review',()=>{
+test('v258 local intelligence finds the real header row and maps Incoterm supplier money as purchase cost',()=>{
   const matrix=[
     ['Supplier catalogue 2027','',''],
     ['Product','Name','Unit EURO EXW'],
@@ -16,15 +16,15 @@ test('v258 local intelligence finds the real header row and leaves ambiguous Inc
   const analysis=analyzeProductImport(matrix);
   assert.equal(analysis.headerIndex,1);
   const byHeader=new Map(analysis.columns.map(column=>[column.header,column]));
-  assert.equal(byHeader.get('Unit EURO EXW')?.field,null);
+  assert.equal(byHeader.get('Unit EURO EXW')?.field,'lastUnitCost');
   assert.equal(byHeader.get('Name')?.field,'descriptionEn');
   assert.equal(byHeader.get('Product')?.field,null);
+  assert.ok(analysis.recognizedFields.includes('lastUnitCost'));
   assert.ok(!analysis.recognizedFields.includes('lastUnitPrice'));
   assert.ok(!analysis.recognizedFields.includes('unit'));
   assert.equal(analysis.needsReview,true);
 
   const mapping=suggestedProductImportMap(analysis);
-  mapping[2]='lastUnitCost';
   const mapped=applyProductImportMapping(matrix,analysis,mapping);
   assert.equal(mapped[1][2],'Unit Cost EUR');
   const plan=planProductImport(mapped,[],'USD',true);
@@ -71,6 +71,21 @@ test('v258 recognizes supplier and purchase language as cost, not sale price',()
   assert.equal(item.lastUnitCost,'4.25');
   assert.equal(item.lastCostCurrency,'USD');
   assert.equal(item.lastUnitPrice,'');
+});
+
+test('v258 recognizes numeric Incoterm columns as supplier cost even when the currency is separate',()=>{
+  const matrix=[
+    ['Item name','FOB value','Currency'],
+    ['Biscuit','2.35','USD'],
+    ['Chocolate','3.10','USD']
+  ];
+  const analysis=analyzeProductImport(matrix);
+  const byHeader=new Map(analysis.columns.map(column=>[column.header,column]));
+  assert.equal(byHeader.get('FOB value')?.field,'lastUnitCost');
+  const mapped=applyProductImportMapping(matrix,analysis,suggestedProductImportMap(analysis));
+  const plan=planProductImport(mapped,[],'SAR',true);
+  const item=importableProducts(plan)[0];
+  assert.equal(item.lastUnitCost,'2.35');
 });
 
 test('v258 manual mapping makes unknown supplier columns importable and never maps duplicates silently',()=>{
