@@ -1,0 +1,23 @@
+/* v257 — Product library contrast hardening.
+   Keeps imported catalog content legible in the matte-black application UI. */
+@media screen {
+  .app-ui .product-library-row-title strong,
+  .app-ui .product-library-row-price,
+  .app-ui .product-library-list-head strong,
+  .app-ui .product-import-table td > strong,
+  .app-ui .product-import-table td > span {
+    color:var(--ds-text)!important;
+  }
+
+  .app-ui .product-library-row-main > span,
+  .app-ui .product-library-row-main > small,
+  .app-ui .product-import-table td small,
+  .app-ui .product-import-table-note {
+    color:var(--ds-text-soft)!important;
+  }
+
+  .app-ui .product-library-row-title code,
+  .app-ui .product-import-table code {
+    color:var(--ds-text-soft)!important;
+  }
+}
