@@ -115,6 +115,7 @@ function suggestFromHeader(value:unknown):RawSuggestion{
   const isTrade=hasAny(header,TRADE_WORDS);
   const isExplicitSale=hasAny(header,SALE_WORDS);
   const isPrice=hasAny(header,PRICE_WORDS);
+  const headerCurrency=currencyHint(value);
 
   if(hasAny(header,['cost currency','purchase currency','buying currency','supplier currency','vendor currency','عملة التكلفة','عملة الشراء']))return {field:'lastCostCurrency',confidence:'high',reason:'header',score:94};
   if((hasAny(header,CURRENCY_WORDS)||header==='curr')&&isCost)return {field:'lastCostCurrency',confidence:'high',reason:'header',score:92};
@@ -122,9 +123,10 @@ function suggestFromHeader(value:unknown):RawSuggestion{
   if((header.includes('hs')&&hasAny(header,['code','رمز','كود']))||hasAny(header,['customs code','tariff','harmonized','commodity code','جمرك']))return {field:'hsCode',confidence:'high',reason:'header',score:92};
   if(hasAny(header,['sku','item code','product code','article','artikel','reference','stock code','stok kodu','артикул','كود الصنف','رمز الصنف','رقم الصنف']))return {field:'sku',confidence:'high',reason:'header',score:91};
   if(isCost)return {field:'lastUnitCost',confidence:'high',reason:'header',score:93};
+  if(isTrade&&!isExplicitSale&&(Boolean(headerCurrency)||isPrice||hasAny(header,['value','amount'])))return {field:'lastUnitCost',confidence:headerCurrency?'high':'medium',reason:'header',score:headerCurrency?89:81};
   if(isTrade&&!isExplicitSale)return {field:null,confidence:'unmapped',reason:'unmapped',score:0};
-  if(isExplicitSale&&(isPrice||currencyHint(value)||header.includes('unit')))return {field:'lastUnitPrice',confidence:'high',reason:'header',score:92};
-  if(isPrice)return {field:'lastUnitPrice',confidence:currencyHint(value)?'high':'medium',reason:'header',score:currencyHint(value)?90:84};
+  if(isExplicitSale&&(isPrice||headerCurrency||header.includes('unit')))return {field:'lastUnitPrice',confidence:'high',reason:'header',score:92};
+  if(isPrice)return {field:'lastUnitPrice',confidence:headerCurrency?'high':'medium',reason:'header',score:headerCurrency?90:84};
   if(hasAny(header,['origin','made in','coo','origine','origen','ursprung','mensei','menşei','происхожд','منشأ','صنع في']))return {field:'origin',confidence:'high',reason:'header',score:90};
   if(hasAny(header,['packing','packaging','pack size','case pack','carton','emballage','empaque','verpackung','ambalaj','упаков','تعبئة','تغليف','كرتون']))return {field:'packing',confidence:'high',reason:'header',score:90};
   if(hasAny(header,['unit','uom','unite','unidad','einheit','birim','единиц','وحدة']))return {field:'unit',confidence:'medium',reason:'header',score:76};
@@ -170,6 +172,7 @@ function sampleSuggestion(headerValue:unknown,samples:string[]):RawSuggestion{
   if(boolRatio>=.8)return {field:'favorite',confidence:'low',reason:'samples',score:54};
   if(unitRatio>=.7)return {field:'unit',confidence:'medium',reason:'samples',score:64};
   if(packingRatio>=.65)return {field:'packing',confidence:'low',reason:'samples',score:57};
+  if(isTrade&&!isExplicitSale&&(currencyNumberRatio>=.6||numericRatio>=.8))return {field:'lastUnitCost',confidence:'medium',reason:'samples',score:67};
   if(isTrade&&!isCost&&!isExplicitSale)return {field:null,confidence:'unmapped',reason:'unmapped',score:0};
   if(currencyNumberRatio>=.6)return {field:isCost?'lastUnitCost':'lastUnitPrice',confidence:'medium',reason:'samples',score:66};
   if(numericRatio>=.8&&isCost)return {field:'lastUnitCost',confidence:'medium',reason:'samples',score:62};
