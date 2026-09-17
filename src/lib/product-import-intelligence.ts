@@ -257,11 +257,16 @@ export function applyProductImportMapping(matrix:unknown[][],analysis:ProductImp
   if(!selected.length)throw new Error('Map at least one product field before continuing.');
 
   const output=matrix.map(row=>Array.from(row));
+  const originalHeader=matrix[analysis.headerIndex]??[];
   const header=Array.from(output[analysis.headerIndex]??[]);
   while(header.length<analysis.columnCount)header.push('');
   for(let index=0;index<analysis.columnCount;index+=1){
     const field=mapping[index]??null;
-    header[index]=field?CANONICAL_HEADERS[field]:`Ignored column ${index+1}`;
+    if(!field){header[index]=`Ignored column ${index+1}`;continue;}
+    const currency=currencyHint(originalHeader[index]);
+    if(field==='lastUnitPrice'&&currency)header[index]=`Unit Price ${currency}`;
+    else if(field==='lastUnitCost'&&currency)header[index]=`Unit Cost ${currency}`;
+    else header[index]=CANONICAL_HEADERS[field];
   }
   output[analysis.headerIndex]=header;
   return output;
