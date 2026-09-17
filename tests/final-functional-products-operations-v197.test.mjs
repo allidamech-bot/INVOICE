@@ -20,7 +20,7 @@ test('v197 product library guards same-tick save delete and favorite mutations s
     'await this.props.onSave({...item,favorite:!Boolean(item.favorite)',
     'finally{this.mutationInFlight=false;}'
   ])assert.ok(source.includes(marker),marker);
-  assert.match(source,/private duplicate=\(source:SavedItem\)=>\{\s*if\(this\.mutating\(\)\)return;/);
+  assert.match(source,/private duplicate=\(source:SavedItem\)=>\{\s*if\(this\.mutating\(\)\|\|this\.state\.selectionMode\)return;/);
 });
 
 test('v197 product import rejects duplicate submit intent and stale asynchronous file reads',async()=>{
