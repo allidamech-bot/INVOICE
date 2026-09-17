@@ -1,23 +1,305 @@
-/* v257 — Product library contrast hardening.
+/* v257/v258 — Product library contrast hardening and smart-import mapping polish.
    Keeps imported catalog content legible in the matte-black application UI. */
 @media screen {
   .app-ui .product-library-row-title strong,
   .app-ui .product-library-row-price,
   .app-ui .product-library-list-head strong,
   .app-ui .product-import-table td > strong,
-  .app-ui .product-import-table td > span {
+  .app-ui .product-import-table td > span,
+  .app-ui .product-import-mapping-row strong,
+  .app-ui .product-import-intelligence-banner strong {
     color:var(--ds-text)!important;
   }
 
   .app-ui .product-library-row-main > span,
   .app-ui .product-library-row-main > small,
   .app-ui .product-import-table td small,
-  .app-ui .product-import-table-note {
+  .app-ui .product-import-table-note,
+  .app-ui .product-import-mapping-row small,
+  .app-ui .product-import-intelligence-banner small,
+  .app-ui .product-import-mapping-note {
     color:var(--ds-text-soft)!important;
   }
 
   .app-ui .product-library-row-title code,
   .app-ui .product-import-table code {
     color:var(--ds-text-soft)!important;
+  }
+
+  .app-ui .product-import-mapping-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:10px;
+  }
+
+  .app-ui .product-import-mapping-head>.product-import-file-summary{
+    flex:1 1 auto;
+  }
+
+  .app-ui .product-import-intelligence-banner{
+    display:grid;
+    grid-template-columns:42px minmax(0,1fr);
+    gap:10px;
+    align-items:start;
+    margin-bottom:10px;
+    padding:11px 12px;
+    border:1px solid var(--ds-line);
+    border-radius:12px;
+    background:var(--ds-surface);
+  }
+
+  .app-ui .product-import-intelligence-icon{
+    width:42px;
+    height:42px;
+    display:grid;
+    place-items:center;
+    border:1px solid var(--ds-line);
+    border-radius:11px;
+    background:var(--ds-selected);
+    color:var(--ds-accent-bright);
+  }
+
+  .app-ui .product-import-intelligence-banner>div{
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+
+  .app-ui .product-import-intelligence-banner .eyebrow{
+    margin:0;
+  }
+
+  .app-ui .product-import-intelligence-banner strong{
+    font-size:11.5px;
+  }
+
+  .app-ui .product-import-intelligence-banner small{
+    font-size:9.5px;
+    line-height:1.5;
+  }
+
+  .app-ui .product-import-mapping-list{
+    max-height:49dvh;
+    overflow:auto;
+    border:1px solid var(--ds-line);
+    border-radius:13px;
+    background:var(--ds-surface);
+    scrollbar-width:thin;
+  }
+
+  .app-ui .product-import-mapping-row{
+    min-width:0;
+    display:grid;
+    grid-template-columns:minmax(220px,.95fr) 28px minmax(280px,1.05fr);
+    align-items:center;
+    gap:9px;
+    padding:10px 11px;
+    border-bottom:1px solid var(--ds-line);
+    background:var(--ds-surface);
+  }
+
+  .app-ui .product-import-mapping-row:last-child{
+    border-bottom:0;
+  }
+
+  .app-ui .product-import-mapping-row:focus-within{
+    background:var(--ds-selected);
+  }
+
+  .app-ui .product-import-source-column{
+    min-width:0;
+    display:grid;
+    grid-template-columns:26px minmax(0,1fr);
+    gap:8px;
+    align-items:center;
+  }
+
+  .app-ui .product-import-column-number{
+    width:26px;
+    height:26px;
+    display:grid;
+    place-items:center;
+    border:1px solid var(--ds-line);
+    border-radius:8px;
+    background:var(--ds-workspace);
+    color:var(--ds-text-soft);
+    font-size:8.5px;
+    font-weight:800;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .app-ui .product-import-source-column>div{
+    min-width:0;
+  }
+
+  .app-ui .product-import-source-column strong{
+    display:block;
+    overflow:hidden;
+    font-size:10.5px;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .app-ui .product-import-source-column small{
+    display:block;
+    overflow:hidden;
+    margin-top:2px;
+    font-size:8.5px;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .app-ui .product-import-map-arrow{
+    color:var(--ds-text-soft);
+    font-size:14px;
+    text-align:center;
+  }
+
+  [dir='rtl'] .app-ui .product-import-map-arrow{
+    transform:scaleX(-1);
+  }
+
+  .app-ui .product-import-map-control{
+    min-width:0;
+  }
+
+  .app-ui .product-import-map-select{
+    width:100%;
+    min-height:40px;
+    border-color:var(--ds-line)!important;
+    background:var(--ds-workspace)!important;
+    color:var(--ds-text)!important;
+    color-scheme:dark;
+    font-size:10.5px;
+    font-weight:700;
+  }
+
+  .app-ui .product-import-map-select option{
+    background:var(--ds-workspace);
+    color:var(--ds-text);
+  }
+
+  .app-ui .product-import-confidence-line{
+    min-width:0;
+    display:flex;
+    align-items:center;
+    gap:7px;
+    margin-top:5px;
+  }
+
+  .app-ui .product-import-confidence-line>small{
+    min-width:0;
+    overflow:hidden;
+    font-size:8px;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .app-ui .product-import-confidence{
+    flex:0 0 auto;
+    padding:3px 6px;
+    border:1px solid var(--ds-line);
+    border-radius:999px;
+    background:var(--ds-workspace);
+    color:var(--ds-text-soft);
+    font-size:7.5px;
+    font-weight:900;
+    letter-spacing:.02em;
+  }
+
+  .app-ui .product-import-confidence.high{
+    border-color:var(--ds-accent);
+    background:var(--ds-selected);
+    color:var(--ds-text);
+  }
+
+  .app-ui .product-import-confidence.low,
+  .app-ui .product-import-confidence.unmapped{
+    border-color:var(--ds-line);
+    color:var(--ds-text-soft);
+  }
+
+  .app-ui .product-import-mapping-note{
+    display:flex;
+    align-items:flex-start;
+    gap:7px;
+    margin-top:9px;
+    padding:9px 10px;
+    border:1px solid var(--ds-line);
+    border-radius:10px;
+    background:var(--ds-workspace);
+    font-size:9px;
+    line-height:1.45;
+  }
+
+  .app-ui .product-import-mapping-note>.icon{
+    flex:0 0 auto;
+    margin-top:1px;
+    color:var(--ds-text-soft);
+  }
+
+  @media (max-width:760px){
+    .app-ui .product-import-mapping-head{
+      align-items:stretch;
+      flex-direction:column;
+    }
+
+    .app-ui .product-import-mapping-head>.btn{
+      width:100%;
+      justify-content:center;
+    }
+
+    .app-ui .product-import-mapping-list{
+      max-height:55dvh;
+    }
+
+    .app-ui .product-import-mapping-row{
+      grid-template-columns:1fr;
+      gap:7px;
+      padding:11px;
+    }
+
+    .app-ui .product-import-map-arrow{
+      display:none;
+    }
+
+    .app-ui .product-import-map-select{
+      min-height:44px;
+      font-size:12px;
+    }
+
+    .app-ui .product-import-confidence-line{
+      align-items:flex-start;
+      flex-wrap:wrap;
+    }
+
+    .app-ui .product-import-confidence-line>small{
+      white-space:normal;
+    }
+  }
+
+  @media (max-width:390px){
+    .app-ui .product-import-intelligence-banner{
+      grid-template-columns:36px minmax(0,1fr);
+      padding:9px;
+    }
+
+    .app-ui .product-import-intelligence-icon{
+      width:36px;
+      height:36px;
+      border-radius:10px;
+    }
+
+    .app-ui .product-import-footer{
+      align-items:stretch;
+      flex-direction:column-reverse;
+    }
+
+    .app-ui .product-import-footer>.btn{
+      width:100%;
+    }
   }
 }

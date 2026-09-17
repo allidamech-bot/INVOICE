@@ -106,11 +106,12 @@ test('v113 Product Library Pro exposes SKU, duplicate, dirty-state protection an
   assert.match(importer,/\.xls/);
   assert.match(importer,/\.csv/);
   assert.match(importer,/planProductImport/);
-  assert.match(importer,/Preview first/);
+  assert.match(importer,/Review import/);
+  assert.match(importer,/applyProductImportMapping/);
   assert.match(importer,/onSaveMany:\(items:SavedItem\[\]\)=>Promise<void>/);
   assert.match(importer,/await this\.props\.onSaveMany\(products\)/);
   assert.doesNotMatch(importer,/for\(const item of products\)/);
-  assert.match(importer,/One secure write/);
+  assert.match(importer,/Local intelligence/);
   assert.match(importer,/Fix file errors first/);
 });
 
