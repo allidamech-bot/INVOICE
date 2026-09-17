@@ -35,6 +35,10 @@ const CANONICAL_HEADER:Record<ProductImportField,string>={
   favorite:'Favorite'
 };
 
+const INCOTERMS=['exw','fob','cif','cfr','dap','ddp','fca','fas'];
+const COST_WORDS=['purchase price','buying price','buy price','purchase cost','buying cost','cost price','unit cost','landed cost','cost','تكلفة الوحدة','سعر الشراء','تكلفة الشراء','التكلفة','تكلفة'];
+const SALE_WORDS=['selling price','sale price','sales price','sell price','wholesale price','customer price','list price','net price','offer price','سعر البيع','سعر المبيع','سعر الجملة','سعر العرض'];
+
 function text(value:unknown):string{return String(value??'').normalize('NFKC').trim();}
 function normalized(value:unknown):string{
   return text(value)
@@ -49,25 +53,47 @@ function normalized(value:unknown):string{
 }
 function hasAny(value:string,tokens:string[]):boolean{return tokens.some(token=>value.includes(token));}
 
+function currencyHint(value:unknown):string{
+  const raw=text(value).toUpperCase();
+  if(/\bUSD\b|US\s*DOLLAR|\$/.test(raw)||raw.includes('دولار'))return 'USD';
+  if(/\bSAR\b/.test(raw)||raw.includes('ر.س')||raw.includes('ريال'))return 'SAR';
+  if(/\bEUR\b|\bEURO\b|€/.test(raw)||raw.includes('يورو'))return 'EUR';
+  if(/\bGBP\b|£/.test(raw)||raw.includes('جنيه'))return 'GBP';
+  if(/\bAED\b/.test(raw)||raw.includes('درهم'))return 'AED';
+  if(/\bTRY\b|\bTL\b|₺/.test(raw)||raw.includes('ليرة تركية'))return 'TRY';
+  return '';
+}
+
 function detectField(value:unknown):ProductImportField|null{
   const n=normalized(value);
   if(!n)return null;
   const compact=n.replace(/\s+/g,'');
 
-  if(['sku','itemsku','productsku','itemcode','productcode','articleno','articlenumber'].includes(compact)||hasAny(n,['كود الصنف','رمز الصنف','رقم الصنف']))return 'sku';
+  if(['sku','itemsku','productsku','itemcode','productcode','articleno','articlenumber','article','reference','ref'].includes(compact)||hasAny(n,['كود الصنف','رمز الصنف','رقم الصنف']))return 'sku';
   if((n.includes('hs')&&hasAny(n,['code','كود','رمز']))||hasAny(n,['customs code','tariff code','harmonized code','الرمز الجمركي']))return 'hsCode';
   if(hasAny(n,['cost currency','purchase currency','buying currency','عملة التكلفة','عملة الشراء']))return 'lastCostCurrency';
   if(hasAny(n,['sale currency','price currency','currency code','currency','عملة'])&&!hasAny(n,['cost','purchase','buying','تكلفة','شراء']))return 'lastCurrency';
-  if(hasAny(n,['unit euro exw','unit usd exw','unit sar exw','selling price','sale price','sales price','wholesale price','customer price','list price','net price','offer price','unit price','price per unit','price','rate','سعر البيع','سعر المبيع','سعر الوحدة','السعر']))return 'lastUnitPrice';
-  if(hasAny(n,['purchase price','buying price','buy price','purchase cost','buying cost','cost price','unit cost','landed cost','cost','تكلفة الوحدة','سعر الشراء','تكلفة الشراء','التكلفة']))return 'lastUnitCost';
+
+  // Accounting safety: purchase/cost semantics always win before generic "price" matching.
+  if(hasAny(n,COST_WORDS))return 'lastUnitCost';
+  if(hasAny(n,SALE_WORDS))return 'lastUnitPrice';
+
+  // Incoterm-only monetary headings (for example "Unit EURO EXW") are intentionally
+  // left for user review. They usually describe supplier/commercial basis, not whether
+  // LOUREX should store the value as a sale price or a purchase cost.
+  const hasIncoterm=hasAny(n,INCOTERMS);
+  const looksMonetary=Boolean(currencyHint(value))||hasAny(n,['price','rate','unit price','سعر','السعر']);
+  if(hasIncoterm&&looksMonetary)return null;
+
+  if(hasAny(n,['unit price','price per unit','price unit','price','unit rate','rate','سعر الوحدة','السعر','سعر']))return 'lastUnitPrice';
   if(hasAny(n,['country of origin','origin country','made in','origin','coo','بلد المنشأ','دولة المنشأ','المنشأ','صنع في']))return 'origin';
-  if(hasAny(n,['pack size','case pack','carton pack','carton qty','packing','packaging','package','تعبئة','تغليف','عدد بالكرتون']))return 'packing';
+  if(hasAny(n,['pack size','case pack','case qty','case quantity','carton pack','carton qty','carton quantity','packing','packaging','package','تعبئة','تغليف','عدد بالكرتون']))return 'packing';
   if(hasAny(n,['uom','unit of measure','sales unit','selling unit','measure unit','الوحدة','وحدة القياس']))return 'unit';
   if(hasAny(n,['product category','item category','classification','category','family','group','التصنيف','الفئة','المجموعة']))return 'category';
   if(hasAny(n,['keyword','keywords','tags','tag','وسوم','كلمات مفتاحية']))return 'tags';
   if(hasAny(n,['favorite','favourite','starred','مفض']))return 'favorite';
   if(hasAny(n,['description arabic','arabic description','product name ar','item name ar','name ar','arabic name','اسم المنتج عربي','اسم الصنف عربي','الوصف العربي','الاسم العربي']))return 'descriptionAr';
-  if(hasAny(n,['description english','english description','product name en','item name en','name en','english name','product name','item name','description','product','name','اسم المنتج انجليزي','اسم الصنف انجليزي','الوصف الانجليزي','الاسم الانجليزي']))return 'descriptionEn';
+  if(hasAny(n,['description english','english description','product name en','item name en','name en','english name','product name','item name','item title','product title','description','product','name','اسم المنتج انجليزي','اسم الصنف انجليزي','الوصف الانجليزي','الاسم الانجليزي']))return 'descriptionEn';
   if(hasAny(n,['اسم المنتج','اسم الصنف']))return 'descriptionAr';
   return null;
 }
@@ -115,13 +141,21 @@ export function initialProductImportMapping(inspection:ProductImportInspection):
   return mapping;
 }
 
+function mappedHeader(field:ProductImportField,column:ProductImportColumnInspection):string{
+  const base=CANONICAL_HEADER[field];
+  if(field!=='lastUnitPrice'&&field!=='lastUnitCost')return base;
+  const hints=[currencyHint(column.header),...column.samples.map(currencyHint)].filter(Boolean);
+  const unique=Array.from(new Set(hints));
+  return unique.length===1?`${base} ${unique[0]}`:base;
+}
+
 export function applyProductImportMapping(matrix:unknown[][],inspection:ProductImportInspection,mapping:ProductImportMapping):unknown[][]{
   if(inspection.headerIndex<0)return matrix.map(row=>[...row]);
   const result=matrix.map(row=>[...row]);
   const header=[...(result[inspection.headerIndex]??[])];
   inspection.columns.forEach(column=>{
     const field=mapping[column.index]??null;
-    header[column.index]=field?CANONICAL_HEADER[field]:`__IGNORE_${column.index}__`;
+    header[column.index]=field?mappedHeader(field,column):`__IGNORE_${column.index}__`;
   });
   result[inspection.headerIndex]=header;
   return result;
