@@ -6,7 +6,7 @@ import { importableProducts, planProductImport } from '../dist/src/lib/product-i
 
 const read=path=>readFile(path,'utf8');
 
-test('v258 inspects supplier sheets and exposes editable column mappings',()=>{
+test('v258 inspects supplier sheets and leaves ambiguous Incoterm pricing for review',()=>{
   const matrix=[
     ['Supplier catalogue 2026','','','',''],
     ['Article','Name','Unit EURO EXW','Case Qty','Made In'],
@@ -17,15 +17,43 @@ test('v258 inspects supplier sheets and exposes editable column mappings',()=>{
   assert.equal(inspection.columns.length,5);
   const mapping=initialProductImportMapping(inspection);
   const byHeader=new Map(inspection.columns.map(column=>[column.header,mapping[column.index]]));
-  assert.equal(byHeader.get('Unit EURO EXW'),'lastUnitPrice');
+  assert.equal(byHeader.get('Article'),'sku');
   assert.equal(byHeader.get('Name'),'descriptionEn');
+  assert.equal(byHeader.get('Case Qty'),'packing');
+  assert.equal(byHeader.get('Made In'),'origin');
+  assert.equal(byHeader.get('Unit EURO EXW'),null);
+});
+
+test('v258 manual mapping preserves a source currency hint when an ambiguous commercial value is assigned',()=>{
+  const matrix=[
+    ['Supplier export','',''],
+    ['ARTICLE REF','ITEM TITLE','Unit EURO EXW'],
+    ['A-100','Sample Product','22.75']
+  ];
+  const inspection=inspectProductImportMatrix(matrix);
+  const columns=new Map(inspection.columns.map(column=>[column.header,column.index]));
+  const mapping={
+    [columns.get('ARTICLE REF')]:'sku',
+    [columns.get('ITEM TITLE')]:'descriptionEn',
+    [columns.get('Unit EURO EXW')]:'lastUnitCost'
+  };
+  const mapped=applyProductImportMapping(matrix,inspection,mapping);
+  assert.equal(mapped[1][2],'Unit Cost EUR');
+  const plan=planProductImport(mapped,[],'SAR',true);
+  assert.deepEqual(plan.counts,{create:1,update:0,skip:0,error:0});
+  const item=importableProducts(plan)[0];
+  assert.equal(item.sku,'A-100');
+  assert.equal(item.descriptionEn,'Sample Product');
+  assert.equal(item.lastUnitCost,'22.75');
+  assert.equal(item.lastCostCurrency,'EUR');
+  assert.equal(item.lastUnitPrice,'');
 });
 
 test('v258 manual mapping converts arbitrary supplier headings into the canonical importer',()=>{
   const matrix=[
     ['Internal supplier export','','',''],
     ['ARTICLE REF','ITEM TITLE','COMMERCIAL VALUE','BOX INFO'],
-    ['A-100','Sample Product','22.75','12 pcs / carton']
+    ['A-100','Sample Product','EUR 22.75','12 pcs / carton']
   ];
   const inspection=inspectProductImportMatrix(matrix);
   const columns=new Map(inspection.columns.map(column=>[column.header,column.index]));
@@ -36,7 +64,8 @@ test('v258 manual mapping converts arbitrary supplier headings into the canonica
     [columns.get('BOX INFO')]:'packing'
   };
   const mapped=applyProductImportMapping(matrix,inspection,mapping);
-  const plan=planProductImport(mapped,[],'EUR',true);
+  assert.equal(mapped[1][2],'Unit Price EUR');
+  const plan=planProductImport(mapped,[],'SAR',true);
   assert.deepEqual(plan.counts,{create:1,update:0,skip:0,error:0});
   const item=importableProducts(plan)[0];
   assert.equal(item.sku,'A-100');
@@ -44,6 +73,18 @@ test('v258 manual mapping converts arbitrary supplier headings into the canonica
   assert.equal(item.lastUnitPrice,'22.75');
   assert.equal(item.lastCurrency,'EUR');
   assert.equal(item.packing,'12 pcs / carton');
+});
+
+test('v258 explicit purchase price cannot be misclassified as a sale price',()=>{
+  const matrix=[
+    ['SKU','Product Name','Purchase Price USD','Selling Price USD'],
+    ['A-1','Product A','10.00','14.00']
+  ];
+  const inspection=inspectProductImportMatrix(matrix);
+  const mapping=initialProductImportMapping(inspection);
+  const byHeader=new Map(inspection.columns.map(column=>[column.header,mapping[column.index]]));
+  assert.equal(byHeader.get('Purchase Price USD'),'lastUnitCost');
+  assert.equal(byHeader.get('Selling Price USD'),'lastUnitPrice');
 });
 
 test('v258 importer UI exposes mapping review and keeps dark contrast layer late',async()=>{
@@ -56,6 +97,7 @@ test('v258 importer UI exposes mapping review and keeps dark contrast layer late
   assert.match(modal,/Confirm what each source column means/);
   assert.match(modal,/Ignore this column/);
   assert.match(modal,/Edit mapping/);
+  assert.match(modal,/No invented accounting data/);
   assert.match(modal,/applyProductImportMapping/);
   assert.match(css,/product-import-map-row/);
   assert.match(css,/product-library-row-title strong/);
