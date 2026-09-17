@@ -1,0 +1,254 @@
+/* v258 — Universal product import mapping + matte-black contrast closeout.
+   Application UI only; printable invoice/quotation output is untouched. */
+@media screen {
+  .app-ui .product-import-shell{
+    color:var(--ds-text)!important;
+  }
+
+  .app-ui :is(
+    .product-import-file-summary,
+    .product-import-mapping-copy,
+    .product-import-mapping-list,
+    .product-import-map-row,
+    .product-import-mapping-note,
+    .product-import-preview-controls,
+    .product-import-table-wrap
+  ){
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface)!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .product-import-mapping-head{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-bottom:10px;
+  }
+
+  .app-ui .product-import-mapping-copy{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+    padding:13px 14px;
+    border:1px solid var(--ds-line);
+    border-radius:12px;
+  }
+
+  .app-ui .product-import-mapping-copy>div{
+    min-width:0;
+  }
+
+  .app-ui .product-import-mapping-copy .eyebrow{
+    margin:0 0 3px;
+    color:var(--ds-accent-bright)!important;
+  }
+
+  .app-ui .product-import-mapping-copy h3{
+    margin:0 0 4px;
+    color:var(--ds-text)!important;
+    font-size:15px;
+    line-height:1.35;
+  }
+
+  .app-ui .product-import-mapping-copy p:last-child{
+    max-width:760px;
+    margin:0;
+    color:var(--ds-text-soft)!important;
+    font-size:10.5px;
+    line-height:1.55;
+  }
+
+  .app-ui .product-import-mapping-list{
+    overflow:hidden;
+    border:1px solid var(--ds-line);
+    border-radius:12px;
+  }
+
+  .app-ui .product-import-map-row{
+    min-width:0;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 28px minmax(220px,.72fr);
+    align-items:center;
+    gap:10px;
+    padding:10px 12px;
+    border:0!important;
+    border-bottom:1px solid var(--ds-line)!important;
+    border-radius:0!important;
+  }
+
+  .app-ui .product-import-map-row:last-child{
+    border-bottom:0!important;
+  }
+
+  .app-ui .product-import-map-row.is-mapped{
+    border-inline-start:2px solid var(--ds-accent)!important;
+    background:var(--ds-selected)!important;
+  }
+
+  [dir='rtl'] .app-ui .product-import-map-row.is-mapped{
+    border-inline-start:0!important;
+    border-inline-end:2px solid var(--ds-accent)!important;
+  }
+
+  .app-ui .product-import-map-row.is-ignored{
+    background:var(--ds-surface)!important;
+  }
+
+  .app-ui .product-import-map-source{
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+  }
+
+  .app-ui .product-import-map-source strong{
+    overflow:hidden;
+    color:var(--ds-text)!important;
+    font-size:11px;
+    font-weight:800;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .app-ui .product-import-map-source small{
+    overflow:hidden;
+    color:var(--ds-text-soft)!important;
+    font-size:9px;
+    line-height:1.45;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .app-ui .product-import-map-arrow{
+    color:var(--ds-muted)!important;
+    font-size:14px;
+    text-align:center;
+  }
+
+  [dir='rtl'] .app-ui .product-import-map-arrow{
+    transform:scaleX(-1);
+  }
+
+  .app-ui .product-import-map-row>.input,
+  .app-ui .product-import-map-row>select,
+  .app-ui .product-import-map-row select.input{
+    width:100%;
+    min-width:0;
+    min-height:42px;
+    border-color:var(--ds-input-line)!important;
+    background:var(--ds-input)!important;
+    color:var(--ds-text)!important;
+  }
+
+  .app-ui .product-import-mapping-note{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:9px;
+    padding:9px 11px;
+    border:1px solid var(--ds-line);
+    border-radius:10px;
+    color:var(--ds-text-soft)!important;
+    font-size:9.5px;
+    line-height:1.45;
+  }
+
+  .app-ui .product-import-mapping-note>.icon{
+    flex:0 0 auto;
+    color:var(--ds-accent-bright)!important;
+  }
+
+  .app-ui .product-import-preview-controls{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:7px;
+    border:1px solid var(--ds-line);
+    border-radius:11px;
+  }
+
+  .app-ui .product-import-preview-controls>.toggle-row{
+    margin:0!important;
+    border:0!important;
+    background:transparent!important;
+  }
+
+  .app-ui .product-library-row-title strong,
+  .app-ui .product-library-row-price,
+  .app-ui .product-import-table td strong,
+  .app-ui .product-import-file-summary strong,
+  .app-ui .product-import-hero h3,
+  .app-ui .product-import-template-bar strong{
+    color:var(--ds-text)!important;
+  }
+
+  .app-ui .product-library-row-main>span,
+  .app-ui .product-library-row-main>small,
+  .app-ui .product-import-table td,
+  .app-ui .product-import-table td>small,
+  .app-ui .product-import-file-summary small,
+  .app-ui .product-import-hero p:last-child,
+  .app-ui .product-import-template-bar span{
+    color:var(--ds-text-soft)!important;
+  }
+
+  .app-ui .product-import-table th{
+    background:var(--ds-surface-strong)!important;
+    color:var(--ds-text-soft)!important;
+  }
+
+  .app-ui .product-import-table tbody tr:hover td{
+    background:var(--ds-selected)!important;
+  }
+
+  @media(max-width:850px){
+    .app-ui .product-import-preview-controls{
+      width:100%;
+      justify-content:space-between;
+    }
+  }
+
+  @media(max-width:720px){
+    .app-ui .product-import-mapping-copy{
+      flex-direction:column;
+      gap:10px;
+      padding:11px;
+    }
+
+    .app-ui .product-import-mapping-copy>.btn{
+      width:100%;
+      justify-content:center;
+    }
+
+    .app-ui .product-import-map-row{
+      grid-template-columns:minmax(0,1fr);
+      gap:7px;
+      padding:10px;
+    }
+
+    .app-ui .product-import-map-arrow{
+      display:none;
+    }
+
+    .app-ui .product-import-map-source small{
+      white-space:normal;
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+    }
+
+    .app-ui .product-import-preview-controls{
+      align-items:stretch;
+      flex-direction:column;
+    }
+
+    .app-ui .product-import-preview-controls>.btn,
+    .app-ui .product-import-preview-controls>.toggle-row{
+      width:100%;
+    }
+  }
+}
