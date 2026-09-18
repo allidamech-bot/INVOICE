@@ -121,22 +121,24 @@ function marginString(profit:bigint,revenue:bigint):string{
   return `${sign}${abs/10_000n}.${((abs%10_000n)/100n).toString().padStart(2,'0')}`;
 }
 
+function dateParts(iso:string):{year:number;month:number;day:number}{
+  return{year:Number(iso.slice(0,4)),month:Number(iso.slice(5,7)),day:Number(iso.slice(8,10))};
+}
 function shiftIso(iso:string,days:number):string{
-  const [year,month,day]=iso.split('-').map(Number);
-  const value=new Date(Date.UTC(year,Math.max(0,month-1),day));
+  const {year,month,day}=dateParts(iso);
+  const value=new Date(Date.UTC(year,month-1,day));
   value.setUTCDate(value.getUTCDate()+days);
   return value.toISOString().slice(0,10);
 }
-
 function monthStart(iso:string):string{return `${iso.slice(0,7)}-01`;}
 function previousMonthPeriod(iso:string):{from:string;to:string}{
-  const [year,month]=iso.split('-').map(Number);
+  const {year,month}=dateParts(iso);
   const start=new Date(Date.UTC(year,month-2,1));
   const end=new Date(Date.UTC(year,month-1,0));
   return{from:start.toISOString().slice(0,10),to:end.toISOString().slice(0,10)};
 }
 function historyStart(iso:string):string{
-  const [year,month]=iso.split('-').map(Number);
+  const {year,month}=dateParts(iso);
   return new Date(Date.UTC(year,month-12,1)).toISOString().slice(0,10);
 }
 
@@ -177,7 +179,6 @@ function comparisonRows(current:AiFinanceCurrencyRow[],previous:AiFinanceCurrenc
 function compactReceivable(row:CurrencyReceivableSummary):AiFinanceReceivableRow{
   return{currency:row.currency,outstanding:row.outstanding,overdue:row.overdue,openInvoices:row.openInvoices,overdueInvoices:row.overdueInvoices};
 }
-
 function normalized(value:string):string{return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase();}
 function queryMatchesName(query:string,name:string):boolean{
   const q=normalized(query),n=normalized(name);if(!q||!n)return false;
@@ -185,7 +186,6 @@ function queryMatchesName(query:string,name:string):boolean{
   const tokens=n.split(' ').filter(token=>token.length>=3);
   return tokens.length>0&&tokens.every(token=>q.includes(token));
 }
-
 function customerNameFor(customer:Customer|null|undefined,fallback=''):string{
   return (customer?.companyNameEn||customer?.companyNameAr||fallback||'Customer').trim();
 }
@@ -237,15 +237,14 @@ function needsProductPerformance(query:string):boolean{
   const value=normalized(query);
   return ['product','products','item','items','sku','margin','profitability','منتج','منتجات','صنف','اصناف','أصناف','ربحية','هامش'].some(token=>value.includes(token));
 }
-
 function countedFinancialDocuments(documents:LourexDocument[]):LourexDocument[]{
   const invoices=documents.filter(doc=>doc.kind==='invoice'&&doc.role!=='credit-note'&&doc.status==='final'&&doc.lifecycleStatus!=='voided');
   const credits=new Set<string>();
   for(const invoice of invoices)for(const credit of accountedInvoiceCreditNotes(invoice,documents))credits.add(credit.id);
   return documents.filter(doc=>doc.kind==='invoice'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&(doc.role!=='credit-note'||credits.has(doc.id)));
 }
-
 function nonZero(value:string):boolean{return Boolean(value.trim()&&isDecimalInput(value)&&decimalToScaled(value,2)!==0n);}
+function validUnitCost(value:string):boolean{return Boolean(value.trim()&&isDecimalInput(value)&&decimalToScaled(value,4)>=0n);}
 
 function productPerformance(source:AiFinanceSource,from:string,to:string):AiFinanceContext['productLinePerformance']{
   type Aggregate={name:string;currency:string;revenue:bigint;cost:bigint;complete:boolean;missingCostItems:number;};
@@ -258,7 +257,7 @@ function productPerformance(source:AiFinanceSource,from:string,to:string):AiFina
       const name=(item.descriptionEn||item.descriptionAr||'Item').trim();const currency=(doc.currency||'USD').trim().toUpperCase();const key=`${currency}\u0000${normalized(name)}`;
       let row=map.get(key);if(!row){row={name,currency,revenue:0n,cost:0n,complete:true,missingCostItems:0};map.set(key,row);}
       row.revenue+=decimalToScaled(lineTotal(item.quantity,item.unitPrice),2)*sign;
-      if(!item.unitCost.trim()||!isDecimalInput(item.unitCost)){row.complete=false;row.missingCostItems+=1;continue;}
+      if(!validUnitCost(item.unitCost)){row.complete=false;row.missingCostItems+=1;continue;}
       row.cost+=decimalToScaled(lineTotal(item.quantity,item.unitCost),2)*sign;
     }
   }
@@ -283,10 +282,7 @@ export function buildAiFinanceContext(source:AiFinanceSource,query:string,asOf=t
   return{
     version:1,asOf,basis:'deterministic-finance-engine',
     periods:{today:asOf,yesterday,monthStart:currentMonthStart,previousMonthStart:previous.from,previousMonthEnd:previous.to,historyStart:history},
-    today:todayRows,
-    yesterday:yesterdayRows,
-    monthToDate:monthRows,
-    previousMonth:previousRows,
+    today:todayRows,yesterday:yesterdayRows,monthToDate:monthRows,previousMonth:previousRows,
     comparisons:{todayVsYesterday:comparisonRows(todayRows,yesterdayRows),monthToDateVsPreviousMonth:comparisonRows(monthRows,previousRows)},
     monthlyHistory:monthlyPerformanceReport(source.documents,source.payments,history,asOf).slice(-36).map(row=>({month:row.month,currency:row.currency,netSales:row.netSales,grossProfit:row.profitComplete?row.grossProfit:'',collected:row.collected,profitComplete:row.profitComplete,missingCostItems:row.missingCostItems})),
     receivables:customerReceivables(source.customers,source.documents,source.payments,asOf).flatMap(customer=>customer.currencies).reduce<AiFinanceReceivableRow[]>((rows,row)=>{
