@@ -32,8 +32,6 @@ import { cloudRemoteChangedSinceAnchor, createCloudUser, friendlyCloudError, get
 import type { CloudUser } from '../cloud/firebase.js';
 
 type CloudSyncState='local'|'queued'|'syncing'|'synced'|'offline'|'error'|'conflict';
-// Keep local durability fast, but give consecutive editor saves one quiet
-// window before publishing the complete encrypted vault to Firebase.
 const CLOUD_SAVE_SETTLE_MS=350;
 const CLOUD_EDIT_ACTIVITY_SETTLE_MS=800;
 
@@ -185,8 +183,6 @@ export class App extends React.Component<{},State> {
   private deferQueuedCloudSaveForDocumentEdit=()=>{
     if(this.state.cloudSyncState!=='queued'||!this.cloudTimer)return;
     window.clearTimeout(this.cloudTimer);
-    // Re-arm rather than discard the pending upload: if the new local save
-    // fails, the last durable encrypted snapshot still reaches Firebase.
     this.cloudTimer=window.setTimeout(()=>void this.flushCloudSync(),CLOUD_EDIT_ACTIVITY_SETTLE_MS);
   };
 
@@ -362,7 +358,7 @@ export class App extends React.Component<{},State> {
     return <div className="app-root"><div className="app-ui">
       <AppShell screen={this.state.screen} logoDataUrl={vault.company.logoDataUrl} language={activeLanguage} newMenu={this.state.newMenu} cloudState={this.state.cloudSyncState} cloudLabel={this.cloudHeaderLabel()} cloudMessage={this.state.cloudSyncMessage} onNavigate={navigate} onToggleNew={()=>this.setState(state=>({newMenu:!state.newMenu}))} onNew={(kind)=>void this.newDocument(kind)} onSettings={()=>this.setState({settingsOpen:true})} onCloud={()=>this.setState({cloudModal:true})}>
         <main className={this.state.screen==='editor'?'editor-main':'main-content'}>
-          {this.state.screen==='home'?<WorkspaceHome companyName={vault.company.nameEn||vault.company.nameAr||'LOUREX Invoice'} documents={vault.documents} payments={vault.payments} customerCount={vault.customers.length} itemCount={vault.savedItems.length} onNewDocument={()=>this.setState({newMenu:true})} onOpenDocument={(doc)=>void this.openDocument(doc)} onNavigate={(screen)=>navigate(screen)}/>:null}
+          {this.state.screen==='home'?<WorkspaceHome companyName={vault.company.nameEn||vault.company.nameAr||'LOUREX Invoice'} documents={vault.documents} payments={vault.payments} purchases={vault.purchases} expenses={vault.expenses} inventoryMovements={vault.inventoryMovements} items={vault.savedItems} customerCount={vault.customers.length} onNewDocument={()=>this.setState({newMenu:true})} onOpenDocument={(doc)=>void this.openDocument(doc)} onNavigate={(screen)=>navigate(screen)}/>:null}
           {this.state.screen==='documents'?<DocumentsPage documents={vault.documents} payments={vault.payments} onNew={(k)=>void this.newDocument(k)} onOpen={(d)=>void this.openDocument(d)} onDuplicate={(d)=>void this.duplicate(d)} onConvert={this.convert} onPrint={this.requestPrint} onDelete={(d)=>this.setState({deletingDoc:d})}/>:null}
           {this.state.screen==='customers'?<CustomersPage customers={vault.customers} company={vault.company} onSave={this.saveCustomer} onDelete={this.deleteCustomer} onNewDocument={this.newDocumentForCustomer}/>:null}
           {this.state.screen==='receivables'?<ReceivablesPage customers={vault.customers} documents={vault.documents} payments={vault.payments} company={vault.company}/>:null}
