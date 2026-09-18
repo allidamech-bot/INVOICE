@@ -22,7 +22,14 @@ jobs:
       - name: LOUREX static security gate
         run: node scripts/security-check.mjs
       - run: npm run typecheck
-      - run: npm test
+      - name: Build production bundle
+        run: npm run build
+      - name: Run AI Core v263 regression tests
+        run: node --test tests/ai-core-v263.test.mjs
+      - name: Run legacy regression suite
+        run: |
+          legacy_tests=$(find tests -maxdepth 1 -name '*.test.mjs' ! -name 'ai-core-v263.test.mjs' -print | sort)
+          node --test $legacy_tests
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
