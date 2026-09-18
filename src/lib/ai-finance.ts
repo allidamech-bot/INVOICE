@@ -26,6 +26,26 @@ export interface AiFinanceCurrencyRow {
   missingCostItems:number;
 }
 
+export interface AiFinanceComparisonRow {
+  currency:string;
+  netSalesCurrent:string;
+  netSalesPrevious:string;
+  netSalesChange:string;
+  collectedCurrent:string;
+  collectedPrevious:string;
+  collectedChange:string;
+  outstandingCurrent:string;
+  outstandingPrevious:string;
+  outstandingChange:string;
+  overdueCurrent:string;
+  overduePrevious:string;
+  overdueChange:string;
+  grossProfitCurrent:string;
+  grossProfitPrevious:string;
+  grossProfitChange:string;
+  profitComplete:boolean;
+}
+
 export interface AiFinanceReceivableRow {
   currency:string;
   outstanding:string;
@@ -79,6 +99,7 @@ export interface AiFinanceContext {
   yesterday:AiFinanceCurrencyRow[];
   monthToDate:AiFinanceCurrencyRow[];
   previousMonth:AiFinanceCurrencyRow[];
+  comparisons:{todayVsYesterday:AiFinanceComparisonRow[];monthToDateVsPreviousMonth:AiFinanceComparisonRow[];};
   monthlyHistory:Array<{month:string;currency:string;netSales:string;grossProfit:string;collected:string;profitComplete:boolean;missingCostItems:number;}>;
   receivables:AiFinanceReceivableRow[];
   highestOverdueByCurrency:Array<{currency:string;customerName:string;overdue:string;outstanding:string;openInvoices:number;}>;
@@ -132,6 +153,25 @@ function compactFinancialRows(rows:FinancialReportCurrency[]):AiFinanceCurrencyR
     profitComplete:row.profitComplete,
     missingCostItems:row.missingCostItems
   }));
+}
+
+function comparisonRows(current:AiFinanceCurrencyRow[],previous:AiFinanceCurrencyRow[]):AiFinanceComparisonRow[]{
+  const currencies=new Set([...current.map(row=>row.currency),...previous.map(row=>row.currency)]);
+  const money=(row:AiFinanceCurrencyRow|undefined,key:'netSales'|'collected'|'outstanding'|'overdue'|'grossProfit')=>row?.[key]||'0.00';
+  const change=(a:string,b:string)=>centsString(decimalToScaled(a||'0.00',2)-decimalToScaled(b||'0.00',2));
+  return [...currencies].sort().slice(0,12).map(currency=>{
+    const a=current.find(row=>row.currency===currency),b=previous.find(row=>row.currency===currency);
+    const profitComplete=(a?.profitComplete??true)&&(b?.profitComplete??true);
+    const currentProfit=profitComplete?money(a,'grossProfit'):'',previousProfit=profitComplete?money(b,'grossProfit'):'';
+    return{
+      currency,
+      netSalesCurrent:money(a,'netSales'),netSalesPrevious:money(b,'netSales'),netSalesChange:change(money(a,'netSales'),money(b,'netSales')),
+      collectedCurrent:money(a,'collected'),collectedPrevious:money(b,'collected'),collectedChange:change(money(a,'collected'),money(b,'collected')),
+      outstandingCurrent:money(a,'outstanding'),outstandingPrevious:money(b,'outstanding'),outstandingChange:change(money(a,'outstanding'),money(b,'outstanding')),
+      overdueCurrent:money(a,'overdue'),overduePrevious:money(b,'overdue'),overdueChange:change(money(a,'overdue'),money(b,'overdue')),
+      grossProfitCurrent:currentProfit,grossProfitPrevious:previousProfit,grossProfitChange:profitComplete?change(currentProfit,previousProfit):'',profitComplete
+    };
+  });
 }
 
 function compactReceivable(row:CurrencyReceivableSummary):AiFinanceReceivableRow{
@@ -222,7 +262,11 @@ function productPerformance(source:AiFinanceSource,from:string,to:string):AiFina
       row.cost+=decimalToScaled(lineTotal(item.quantity,item.unitCost),2)*sign;
     }
   }
-  const rows=[...map.values()].sort((a,b)=>{const aa=a.revenue<0n?-a.revenue:a.revenue,bb=b.revenue<0n?-b.revenue:b.revenue;return aa===bb?a.name.localeCompare(b.name):aa>bb?-1:1;}).slice(0,12).map(row=>{
+  const rows=[...map.values()].sort((a,b)=>{
+    if(a.complete!==b.complete)return a.complete?-1:1;
+    if(a.complete&&b.complete){const ap=a.revenue-a.cost,bp=b.revenue-b.cost;if(ap!==bp)return ap>bp?-1:1;}
+    const ar=a.revenue<0n?-a.revenue:a.revenue,br=b.revenue<0n?-b.revenue:b.revenue;return ar===br?a.name.localeCompare(b.name):ar>br?-1:1;
+  }).slice(0,12).map(row=>{
     const profit=row.revenue-row.cost;
     return{name:row.name,currency:row.currency,lineRevenue:centsString(row.revenue),lineCost:row.complete?centsString(row.cost):'',lineGrossProfit:row.complete?centsString(profit):'',marginPercent:row.complete?marginString(profit,row.revenue):'',profitComplete:row.complete,missingCostItems:row.missingCostItems};
   });
@@ -232,13 +276,18 @@ function productPerformance(source:AiFinanceSource,from:string,to:string):AiFina
 export function buildAiFinanceContext(source:AiFinanceSource,query:string,asOf=todayIso()):AiFinanceContext{
   const yesterday=shiftIso(asOf,-1),currentMonthStart=monthStart(asOf),previous=previousMonthPeriod(asOf),history=historyStart(asOf);
   const customers=customerDetails(source,query,asOf);
+  const todayRows=compactFinancialRows(financialReportByCurrency(source.documents,source.payments,asOf,asOf));
+  const yesterdayRows=compactFinancialRows(financialReportByCurrency(source.documents,source.payments,yesterday,yesterday));
+  const monthRows=compactFinancialRows(financialReportByCurrency(source.documents,source.payments,currentMonthStart,asOf));
+  const previousRows=compactFinancialRows(financialReportByCurrency(source.documents,source.payments,previous.from,previous.to));
   return{
     version:1,asOf,basis:'deterministic-finance-engine',
     periods:{today:asOf,yesterday,monthStart:currentMonthStart,previousMonthStart:previous.from,previousMonthEnd:previous.to,historyStart:history},
-    today:compactFinancialRows(financialReportByCurrency(source.documents,source.payments,asOf,asOf)),
-    yesterday:compactFinancialRows(financialReportByCurrency(source.documents,source.payments,yesterday,yesterday)),
-    monthToDate:compactFinancialRows(financialReportByCurrency(source.documents,source.payments,currentMonthStart,asOf)),
-    previousMonth:compactFinancialRows(financialReportByCurrency(source.documents,source.payments,previous.from,previous.to)),
+    today:todayRows,
+    yesterday:yesterdayRows,
+    monthToDate:monthRows,
+    previousMonth:previousRows,
+    comparisons:{todayVsYesterday:comparisonRows(todayRows,yesterdayRows),monthToDateVsPreviousMonth:comparisonRows(monthRows,previousRows)},
     monthlyHistory:monthlyPerformanceReport(source.documents,source.payments,history,asOf).slice(-36).map(row=>({month:row.month,currency:row.currency,netSales:row.netSales,grossProfit:row.profitComplete?row.grossProfit:'',collected:row.collected,profitComplete:row.profitComplete,missingCostItems:row.missingCostItems})),
     receivables:customerReceivables(source.customers,source.documents,source.payments,asOf).flatMap(customer=>customer.currencies).reduce<AiFinanceReceivableRow[]>((rows,row)=>{
       const existing=rows.find(item=>item.currency===row.currency);
