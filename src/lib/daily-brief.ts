@@ -112,17 +112,19 @@ export function dailyBusinessBrief(
   const dormantProducts=items.filter(item=>{
     const used=itemDate(item.lastUsedAt);
     const created=itemDate(item.createdAt);
-    if(item.usageCount>0)return Boolean(used&&used<dormantCutoff);
-    return Boolean(created&&created<dormantCutoff);
+    if(item.usageCount>0)return Boolean(used&&used<=dormantCutoff);
+    return Boolean(created&&created<=dormantCutoff);
   }).length;
 
+  const todayByCurrency=new Map(todayFinancial.map(row=>[currency(row.currency),row]));
   const previousByCurrency=new Map(previousFinancial.map(row=>[currency(row.currency),row]));
+  const comparisonCurrencies=[...new Set([...todayByCurrency.keys(),...previousByCurrency.keys()])].sort();
   const changes:DailyBriefChange[]=[];
-  for(const row of todayFinancial){
-    const code=currency(row.currency);
+  for(const code of comparisonCurrencies){
+    const currentRow=todayByCurrency.get(code);
     const before=previousByCurrency.get(code);
     for(const metric of ['sales','collected'] as const){
-      const current=metric==='sales'?row.netSales:row.collected;
+      const current=metric==='sales'?(currentRow?.netSales||'0.00'):(currentRow?.collected||'0.00');
       const previous=metric==='sales'?(before?.netSales||'0.00'):(before?.collected||'0.00');
       const direction=notableChange(current,previous);
       if(direction)changes.push({currency:code,metric,direction,current,previous});
