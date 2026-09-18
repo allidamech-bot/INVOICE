@@ -77,8 +77,8 @@ const releaseMarkers=[
   '// lourex-invoice-v257: localized financial input and RTL numeric isolation refresh.'
 ];
 for(const releaseMarker of releaseMarkers)if(!sw.includes(releaseMarker))sw=`${releaseMarker}\n${sw}`;
-const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n})()));";
-const criticalInstallTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));\n  await self.skipWaiting();\n})()));";
+const installTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));})()));";
+const criticalInstallTail="await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));await self.skipWaiting();})()));";
 if(sw.includes(installTail))sw=sw.replace(installTail,criticalInstallTail);
 if(!sw.includes('await self.skipWaiting();'))throw new Error('Unable to enable the critical v228 service-worker activation.');
 
