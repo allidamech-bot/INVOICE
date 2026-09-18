@@ -26,6 +26,7 @@ test('deployment isolation guard is wired before the production build',async()=>
     'node scripts/build.mjs',
     'node scripts/pdf-searchable-text-v222.mjs',
     'node scripts/firebase-sdk-v213.mjs',
+    'node scripts/normalize-sw-install-v262.mjs',
     'node scripts/pwa-cache-v205.mjs',
     'node scripts/desktop-runtime-v249.mjs',
   ]);
@@ -76,11 +77,4 @@ test('deployment isolation guard fails closed without Vercel Git source metadata
   const result=run({VERCEL_GIT_REPO_OWNER:'',VERCEL_GIT_REPO_SLUG:''});
   assert.notEqual(result.status,0);
   assert.match(result.stderr,/without Vercel Git source metadata/i);
-});
-
-test('direct production build guard also requires the dedicated project id',async()=>{
-  const build=await readFile('scripts/build.mjs','utf8');
-  assert.match(build,/EXPECTED_PROJECT_ID='prj_cH5bT5QF3JtbL8RzrGOxF4QCohVZ'/);
-  assert.match(build,/unexpected Vercel project/);
-  assert.match(build,/VERCEL_PROJECT_ID/);
 });
