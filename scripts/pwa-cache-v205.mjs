@@ -4,7 +4,7 @@ const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 
 const cacheMarker="LOCAL_CORE.push('./canonical-redirect.js');";
-const requiredRuntimes=['./src/components/AiCopilot.js','./src/lib/settings-scope.js','./src/cloud/google-auth.js','./src/cloud/coalescing.js','./src/lib/packing-display.js','./src/lib/unit-display.js','./src/lib/product-import-intelligence.js','./health.js','./styles/nested-surface-consistency-v229.css','./styles/saved-items-picker-v232.css','./styles/customer-language-purity-v233.css','./styles/ledger-pulse-loading-v250.css'];
+const requiredRuntimes=['./src/components/AiCopilot.js','./src/lib/ai-finance.js','./src/lib/settings-scope.js','./src/cloud/google-auth.js','./src/cloud/coalescing.js','./src/lib/packing-display.js','./src/lib/unit-display.js','./src/lib/product-import-intelligence.js','./health.js','./styles/nested-surface-consistency-v229.css','./styles/saved-items-picker-v232.css','./styles/customer-language-purity-v233.css','./styles/ledger-pulse-loading-v250.css'];
 for(const runtime of requiredRuntimes){
   if(sw.includes(`'${runtime}'`)||sw.includes(`"${runtime}"`))continue;
   if(!sw.includes(cacheMarker))throw new Error('Unable to locate the LOUREX PWA cache insertion point.');

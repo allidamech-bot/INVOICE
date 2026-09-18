@@ -1,9 +1,11 @@
-import type { UiLanguage } from '../types.js';
+import type { LourexDocument, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
+import { buildAiFinanceContext, type AiFinanceContext, type AiFinanceSource } from '../lib/ai-finance.js';
+import { resumeVaultSession } from '../storage/vault.js';
 
 export type AiWorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 export type AiNavTarget=Exclude<AiWorkspaceScreen,'editor'>;
-export type AiCapabilityId='workspace.help'|'workspace.navigate';
+export type AiCapabilityId='workspace.help'|'finance.explain'|'workspace.navigate';
 
 export interface AiCapabilityDefinition {
   id:AiCapabilityId;
@@ -14,14 +16,16 @@ export interface AiCapabilityDefinition {
 
 export const AI_CAPABILITIES:ReadonlyArray<AiCapabilityDefinition>=Object.freeze([
   {id:'workspace.help',mode:'read',requiresApproval:false,dataMutation:false},
+  {id:'finance.explain',mode:'read',requiresApproval:false,dataMutation:false},
   {id:'workspace.navigate',mode:'execute',requiresApproval:true,dataMutation:false}
 ]);
 
 export interface AiContextEnvelope {
-  version:1;
+  version:2;
   screen:AiWorkspaceScreen;
   language:UiLanguage;
   allowedCapabilities:AiCapabilityId[];
+  finance:AiFinanceContext;
 }
 
 export interface AiNavigationProposal {
@@ -38,6 +42,7 @@ interface AiAuditEntry {id:string;at:string;capability:AiCapabilityId;outcome:'r
 interface Props {
   screen:AiWorkspaceScreen;
   language:UiLanguage;
+  activeDocument?:LourexDocument|null;
   onNavigate:(screen:AiNavTarget)=>void;
 }
 
@@ -57,8 +62,8 @@ const MAX_MESSAGE_CHARS=1000;
 
 function id(prefix:string):string{return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;}
 
-export function buildAiContext(screen:AiWorkspaceScreen,language:UiLanguage):AiContextEnvelope{
-  return {version:1,screen,language,allowedCapabilities:AI_CAPABILITIES.map(capability=>capability.id)};
+export function buildAiContext(screen:AiWorkspaceScreen,language:UiLanguage,financeSource:AiFinanceSource,message:string):AiContextEnvelope{
+  return {version:2,screen,language,allowedCapabilities:AI_CAPABILITIES.map(capability=>capability.id),finance:buildAiFinanceContext(financeSource,message)};
 }
 
 export function capabilityRequiresApproval(capability:AiCapabilityId):boolean{
@@ -68,6 +73,11 @@ export function capabilityRequiresApproval(capability:AiCapabilityId):boolean{
 export function safeNavigationProposal(value:any):AiNavigationProposal|null{
   if(!value||value.capability!=='workspace.navigate'||!NAV_TARGETS.has(value.target))return null;
   return {capability:'workspace.navigate',target:value.target,label:String(value.label||'Open section').slice(0,80),rationale:String(value.rationale||'').slice(0,180)};
+}
+
+function financeIntent(message:string):boolean{
+  const value=message.normalize('NFKC').toLocaleLowerCase();
+  return ['sales','profit','margin','collected','outstanding','overdue','receivable','customer balance','invoice total','product','item','revenue','compare','yesterday','today','month','مبيعات','ربح','هامش','محصل','المحصّل','مستحق','متأخر','عميل','فاتورة','منتج','صنف','اليوم','أمس','شهر','قارن'].some(token=>value.includes(token));
 }
 
 function screenLabel(screen:AiWorkspaceScreen):string{
@@ -84,10 +94,12 @@ function screenLabel(screen:AiWorkspaceScreen):string{
 }
 
 function starterPrompts(screen:AiWorkspaceScreen):string[]{
-  if(screen==='reports')return [t('What can I do in reports?','ماذا يمكنني أن أفعل في التقارير؟'),t('Take me to receivables','خذني إلى المستحقات')];
-  if(screen==='receivables')return [t('What is this page for?','ما وظيفة هذه الصفحة؟'),t('Take me to reports','خذني إلى التقارير')];
-  if(screen==='items')return [t('What can I manage here?','ماذا يمكنني إدارة هنا؟'),t('Take me to operations','خذني إلى العمليات')];
-  if(screen==='editor')return [t('What should I review before finalizing?','ماذا أراجع قبل الاعتماد؟'),t('Take me to documents','خذني إلى المستندات')];
+  if(screen==='home')return [t('How are sales today?','كيف مبيعات اليوم؟'),t('What happened yesterday?','ماذا حدث أمس؟')];
+  if(screen==='reports')return [t('Explain this month so far','اشرح أداء هذا الشهر حتى الآن'),t('Compare this month with last month','قارن هذا الشهر بالشهر الماضي')];
+  if(screen==='receivables')return [t('Show overdue balances by currency','اعرض المتأخر حسب العملة'),t('Who has the highest overdue balance?','من لديه أعلى مبلغ متأخر؟')];
+  if(screen==='customers')return [t('Which customers have overdue balances?','أي العملاء لديهم مبالغ متأخرة؟'),t('Take me to receivables','خذني إلى المستحقات')];
+  if(screen==='items')return [t('Which items are most profitable this month?','ما الأصناف الأكثر ربحية هذا الشهر؟'),t('Take me to reports','خذني إلى التقارير')];
+  if(screen==='editor')return [t('Explain this document financially','اشرح هذا المستند ماليًا'),t('What should I review before finalizing?','ماذا أراجع قبل الاعتماد؟')];
   return [t('What can you help me with here?','كيف يمكنك مساعدتي هنا؟'),t('Show me where reports are','أرني أين توجد التقارير')];
 }
 
@@ -110,21 +122,25 @@ export class AiCopilot extends React.Component<Props,State>{
   private ask=async(raw?:string)=>{
     if(this.state.busy)return;
     const message=String(raw??this.state.input).trim().slice(0,MAX_MESSAGE_CHARS);if(!message)return;
+    const capability:AiCapabilityId=financeIntent(message)?'finance.explain':'workspace.help';
     const userMessage:AiMessage={id:id('user'),role:'user',text:message};
     this.setState(state=>({busy:true,error:'',input:'',proposal:null,messages:[...state.messages,userMessage]}));
-    this.addAudit('workspace.help','requested');
+    this.addAudit(capability,'requested');
     try{
-      const response=await fetch('/api/ai-core',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({message,context:buildAiContext(this.props.screen,this.props.language)})});
+      const resumed=await resumeVaultSession();
+      if(!resumed)throw new Error(t('Unlock LOUREX before using financial AI.','افتح قفل LOUREX قبل استخدام التحليل المالي بالذكاء.'));
+      const financeSource:AiFinanceSource={documents:resumed.vault.documents,payments:resumed.vault.payments,customers:resumed.vault.customers,activeDocument:this.props.activeDocument??null};
+      const response=await fetch('/api/ai-core',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({message,context:buildAiContext(this.props.screen,this.props.language,financeSource,message)})});
       let payload:any={};try{payload=await response.json();}catch{}
       if(!response.ok)throw new Error(String(payload?.message||t('LOUREX AI is temporarily unavailable.','ذكاء LOUREX غير متاح مؤقتًا.')));
       const answer=String(payload?.answer||'').trim().slice(0,4000)||t('I could not form a useful answer from this request.','لم أتمكن من تكوين إجابة مفيدة لهذا الطلب.');
       const proposal=safeNavigationProposal(payload?.proposal);
       const assistant:AiMessage={id:id('assistant'),role:'assistant',text:answer};
       this.setState(state=>({busy:false,messages:[...state.messages,assistant],proposal}));
-      this.addAudit('workspace.help','answered');
+      this.addAudit(capability,'answered');
     }catch(error){
       const text=error instanceof Error?error.message:t('LOUREX AI is temporarily unavailable.','ذكاء LOUREX غير متاح مؤقتًا.');
-      this.setState({busy:false,error:text});this.addAudit('workspace.help','failed');
+      this.setState({busy:false,error:text});this.addAudit(capability,'failed');
     }
   };
 
@@ -139,20 +155,20 @@ export class AiCopilot extends React.Component<Props,State>{
   render():any{
     const prompts=starterPrompts(this.props.screen);
     return <>
-      <style data-lourex-ai-core="v263">{AI_CORE_CSS}</style>
-      <button type="button" className="lourex-ai-launcher" aria-label={t('Open LOUREX AI','فتح ذكاء LOUREX')} aria-expanded={this.state.open} aria-controls="lourex-ai-panel" onClick={this.toggle}>✦</button>
+      <style data-lourex-ai-core="v264">{AI_CORE_CSS}</style>
+      <button type="button" className="lourex-ai-launcher" dir={this.props.language==='ar'?'rtl':'ltr'} aria-label={t('Open LOUREX AI','فتح ذكاء LOUREX')} aria-expanded={this.state.open} aria-controls="lourex-ai-panel" onClick={this.toggle}>✦</button>
       {this.state.open?<>
         <button type="button" className="lourex-ai-backdrop" aria-label={t('Close LOUREX AI','إغلاق ذكاء LOUREX')} onClick={this.toggle}/>
         <aside id="lourex-ai-panel" className="lourex-ai-panel" role="dialog" aria-modal="true" aria-label={t('LOUREX AI','ذكاء LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
-          <header className="lourex-ai-head"><div className="lourex-ai-title"><span className="lourex-ai-mark">✦</span><div><strong>{t('LOUREX AI','ذكاء LOUREX')}</strong><small>{t('Business copilot · approval controlled','مساعد الأعمال · التنفيذ بموافقتك')}</small></div></div><button type="button" className="lourex-ai-close" aria-label={t('Close','إغلاق')} onClick={this.toggle}>×</button></header>
+          <header className="lourex-ai-head"><div className="lourex-ai-title"><span className="lourex-ai-mark">✦</span><div><strong>{t('LOUREX AI','ذكاء LOUREX')}</strong><small>{t('Financial copilot · deterministic numbers','مساعد مالي · أرقام من المحرك المحاسبي')}</small></div></div><button type="button" className="lourex-ai-close" aria-label={t('Close','إغلاق')} onClick={this.toggle}>×</button></header>
           <div className="lourex-ai-context">{t('Current context','السياق الحالي')}: {screenLabel(this.props.screen)}</div>
           <div className="lourex-ai-messages" aria-live="polite">
-            {!this.state.messages.length?<div className="lourex-ai-empty"><strong>{t('Ask without leaving your work','اسأل بدون أن تغادر عملك')}</strong><p>{t('This first AI Core release understands your current LOUREX section, explains workflows and can prepare navigation actions. It cannot edit, delete or change financial records.','هذه النسخة الأولى من AI Core تفهم القسم الحالي وتشرح سير العمل ويمكنها تجهيز الانتقال بين الأقسام. لا يمكنها تعديل أو حذف أو تغيير السجلات المالية.')}</p><div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} onClick={()=>void this.ask(prompt)}>{prompt}</button>)}</div></div>:null}
+            {!this.state.messages.length?<div className="lourex-ai-empty"><strong>{t('Ask about your business without leaving your work','اسأل عن أعمالك بدون مغادرة الصفحة')}</strong><p>{t('LOUREX calculates the numbers locally, then AI explains the derived results. Currencies stay separate and profit is never guessed when costs are incomplete.','LOUREX يحسب الأرقام محليًا ثم يشرح الذكاء النتائج المشتقة. العملات تبقى منفصلة ولا يتم تخمين الربح عند نقص التكلفة.')}</p><div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} onClick={()=>void this.ask(prompt)}>{prompt}</button>)}</div></div>:null}
             {this.state.messages.map(message=><div key={message.id} className={`lourex-ai-message ${message.role}`}>{message.text}</div>)}
-            {this.state.busy?<div className="lourex-ai-busy">{t('LOUREX AI is thinking…','ذكاء LOUREX يحلل…')}</div>:null}
+            {this.state.busy?<div className="lourex-ai-busy">{t('LOUREX AI is analyzing…','ذكاء LOUREX يحلل…')}</div>:null}
           </div>
           {this.state.proposal?<section className="lourex-ai-proposal" aria-label={t('Proposed action','إجراء مقترح')}><small>{t('Approval required','يتطلب موافقتك')}</small><strong>{this.state.proposal.label}</strong><p>{this.state.proposal.rationale}</p><div className="lourex-ai-proposal-actions"><button type="button" onClick={this.dismissProposal}>{t('Dismiss','تجاهل')}</button><button type="button" className="primary" onClick={this.approveProposal}>{t('Approve','موافقة')}</button></div></section>:null}
-          <footer className="lourex-ai-compose">{this.state.error?<div className="lourex-ai-error" role="alert">{this.state.error}</div>:null}<form onSubmit={(event:any)=>{event.preventDefault();void this.ask();}}><input value={this.state.input} maxLength={MAX_MESSAGE_CHARS} onChange={(event:any)=>this.setState({input:event.target.value})} placeholder={t('Ask LOUREX…','اسأل LOUREX…')} aria-label={t('Message LOUREX AI','رسالة إلى ذكاء LOUREX')}/><button type="submit" className="lourex-ai-send" disabled={this.state.busy||!this.state.input.trim()} aria-label={t('Send','إرسال')}>→</button></form><div className="lourex-ai-meta"><span>{t('No record changes without approval','لا تغييرات على السجلات دون موافقة')}</span><button type="button" onClick={()=>this.setState(state=>({auditOpen:!state.auditOpen}))}>{t('AI activity','نشاط AI')} · {this.state.audit.length}</button></div>{this.state.auditOpen?<div className="lourex-ai-audit">{this.state.audit.length?this.state.audit.map(entry=><div key={entry.id}><span>{entry.capability}</span><span>{entry.outcome}</span></div>):<div>{t('No AI activity yet','لا يوجد نشاط AI بعد')}</div>}</div>:null}</footer>
+          <footer className="lourex-ai-compose">{this.state.error?<div className="lourex-ai-error" role="alert">{this.state.error}</div>:null}<form onSubmit={(event:any)=>{event.preventDefault();void this.ask();}}><input value={this.state.input} maxLength={MAX_MESSAGE_CHARS} onChange={(event:any)=>this.setState({input:event.target.value})} placeholder={t('Ask LOUREX…','اسأل LOUREX…')} aria-label={t('Message LOUREX AI','رسالة إلى ذكاء LOUREX')}/><button type="submit" className="lourex-ai-send" disabled={this.state.busy||!this.state.input.trim()} aria-label={t('Send','إرسال')}>→</button></form><div className="lourex-ai-meta"><span>{t('Read-only financial analysis · no record changes','تحليل مالي للقراءة فقط · دون تغيير السجلات')}</span><button type="button" onClick={()=>this.setState(state=>({auditOpen:!state.auditOpen}))}>{t('AI activity','نشاط AI')} · {this.state.audit.length}</button></div>{this.state.auditOpen?<div className="lourex-ai-audit">{this.state.audit.length?this.state.audit.map(entry=><div key={entry.id}><span>{entry.capability}</span><span>{entry.outcome}</span></div>):<div>{t('No AI activity yet','لا يوجد نشاط AI بعد')}</div>}</div>:null}</footer>
         </aside>
       </>:null}
     </>;
