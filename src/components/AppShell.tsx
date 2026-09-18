@@ -1,6 +1,5 @@
-import type { DocumentKind, UiLanguage } from '../types.js';
+import type { DocumentKind, LourexDocument, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
-import type { AiFinanceSource } from '../lib/ai-finance.js';
 import { Brand, Button, Icon } from './UI.js';
 import { AiCopilot } from './AiCopilot.js';
 
@@ -14,7 +13,6 @@ interface Props {
   screen:WorkspaceScreen;
   logoDataUrl:string;
   language:UiLanguage;
-  aiFinanceSource:AiFinanceSource;
   newMenu:boolean;
   cloudState:CloudState;
   cloudLabel:string;
@@ -86,6 +84,14 @@ export class AppShell extends React.Component<Props,State>{
   private createDocument=(kind:DocumentKind)=>{
     this.closeMore();
     this.props.onNew(kind);
+  };
+
+  private activeEditorDocument=():LourexDocument|null=>{
+    if(this.props.screen!=='editor')return null;
+    const root:any=this.props.children;
+    const children=Array.isArray(root?.props?.children)?root.props.children:[root?.props?.children];
+    for(const child of children)if(child?.props?.document)return child.props.document as LourexDocument;
+    return null;
   };
 
   private pageTitle=():string=>{
@@ -206,7 +212,7 @@ export class AppShell extends React.Component<Props,State>{
           <button type="button" className={this.state.moreOpen?'active':''} aria-haspopup="dialog" aria-controls="mobile-more-sheet" aria-expanded={this.state.moreOpen} onClick={this.toggleMore}><Icon name="more"/><span>{t('More','المزيد')}</span></button>
         </nav>
       </>:null}
-      <AiCopilot screen={this.props.screen} language={this.props.language} financeSource={this.props.aiFinanceSource} onNavigate={screen=>this.navigate(screen)}/>
+      <AiCopilot screen={this.props.screen} language={this.props.language} activeDocument={this.activeEditorDocument()} onNavigate={screen=>this.navigate(screen)}/>
     </div>;
   }
 }
