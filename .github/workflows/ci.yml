@@ -22,33 +22,7 @@ jobs:
       - name: LOUREX static security gate
         run: node scripts/security-check.mjs
       - run: npm run typecheck
-      - name: Diagnose AI Financial Copilot v264
-        id: ai_financial_v264
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee ai-financial-v264.log
-          node --test tests/ai-financial-copilot-v264.test.mjs 2>&1 | tee -a ai-financial-v264.log
-      - name: Upload AI Financial Copilot v264 diagnostic log
-        if: failure() && steps.ai_financial_v264.outcome == 'failure'
-        uses: actions/upload-artifact@v6
-        with:
-          name: ai-financial-v264-diagnostic
-          path: ai-financial-v264.log
-          if-no-files-found: error
-      - name: Run full test suite with diagnostic log
-        id: full_test_suite
-        shell: bash
-        run: |
-          set -o pipefail
-          npm test 2>&1 | tee npm-test-diagnostic.log
-      - name: Upload full test diagnostic log
-        if: failure() && steps.full_test_suite.outcome == 'failure'
-        uses: actions/upload-artifact@v6
-        with:
-          name: npm-test-v264-diagnostic
-          path: npm-test-diagnostic.log
-          if-no-files-found: error
+      - run: npm test
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
