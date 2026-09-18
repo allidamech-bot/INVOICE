@@ -32,6 +32,8 @@ import { cloudRemoteChangedSinceAnchor, createCloudUser, friendlyCloudError, get
 import type { CloudUser } from '../cloud/firebase.js';
 
 type CloudSyncState='local'|'queued'|'syncing'|'synced'|'offline'|'error'|'conflict';
+// Keep local durability fast, but give consecutive editor saves one quiet
+// window before publishing the complete encrypted vault to Firebase.
 const CLOUD_SAVE_SETTLE_MS=350;
 const CLOUD_EDIT_ACTIVITY_SETTLE_MS=800;
 
@@ -183,6 +185,8 @@ export class App extends React.Component<{},State> {
   private deferQueuedCloudSaveForDocumentEdit=()=>{
     if(this.state.cloudSyncState!=='queued'||!this.cloudTimer)return;
     window.clearTimeout(this.cloudTimer);
+    // Re-arm rather than discard the pending upload: if the new local save
+    // fails, the last durable encrypted snapshot still reaches Firebase.
     this.cloudTimer=window.setTimeout(()=>void this.flushCloudSync(),CLOUD_EDIT_ACTIVITY_SETTLE_MS);
   };
 
