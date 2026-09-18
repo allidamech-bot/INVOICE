@@ -1,6 +1,7 @@
-import type { UiLanguage } from '../types.js';
+import type { LourexDocument, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { buildAiFinanceContext, type AiFinanceContext, type AiFinanceSource } from '../lib/ai-finance.js';
+import { resumeVaultSession } from '../storage/vault.js';
 
 export type AiWorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 export type AiNavTarget=Exclude<AiWorkspaceScreen,'editor'>;
@@ -41,7 +42,7 @@ interface AiAuditEntry {id:string;at:string;capability:AiCapabilityId;outcome:'r
 interface Props {
   screen:AiWorkspaceScreen;
   language:UiLanguage;
-  financeSource:AiFinanceSource;
+  activeDocument?:LourexDocument|null;
   onNavigate:(screen:AiNavTarget)=>void;
 }
 
@@ -126,7 +127,10 @@ export class AiCopilot extends React.Component<Props,State>{
     this.setState(state=>({busy:true,error:'',input:'',proposal:null,messages:[...state.messages,userMessage]}));
     this.addAudit(capability,'requested');
     try{
-      const response=await fetch('/api/ai-core',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({message,context:buildAiContext(this.props.screen,this.props.language,this.props.financeSource,message)})});
+      const resumed=await resumeVaultSession();
+      if(!resumed)throw new Error(t('Unlock LOUREX before using financial AI.','افتح قفل LOUREX قبل استخدام التحليل المالي بالذكاء.'));
+      const financeSource:AiFinanceSource={documents:resumed.vault.documents,payments:resumed.vault.payments,customers:resumed.vault.customers,activeDocument:this.props.activeDocument??null};
+      const response=await fetch('/api/ai-core',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({message,context:buildAiContext(this.props.screen,this.props.language,financeSource,message)})});
       let payload:any={};try{payload=await response.json();}catch{}
       if(!response.ok)throw new Error(String(payload?.message||t('LOUREX AI is temporarily unavailable.','ذكاء LOUREX غير متاح مؤقتًا.')));
       const answer=String(payload?.answer||'').trim().slice(0,4000)||t('I could not form a useful answer from this request.','لم أتمكن من تكوين إجابة مفيدة لهذا الطلب.');
