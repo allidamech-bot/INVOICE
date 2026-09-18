@@ -122,8 +122,8 @@ test('v258 mapping UI keeps matte-black contrast, mobile geometry and explicit r
   assert.match(modal,/LOUREX Intelligence/);
   assert.match(modal,/Review import/);
   assert.match(modal,/product-import-map-select/);
-  assert.match(modal,/AI-assisted import/);
-  assert.match(modal,/local import intelligence remains available/);
+  assert.match(modal,/LOUREX Intelligence \+ Gemini/);
+  assert.match(modal,/Local high-confidence mappings stay protected/);
   assert.match(css,/product-import-mapping-row/);
   assert.match(css,/color:var\(--ds-text\)!important/);
   assert.match(css,/color-scheme:dark/);
