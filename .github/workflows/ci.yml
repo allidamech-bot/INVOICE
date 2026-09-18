@@ -22,7 +22,17 @@ jobs:
       - name: LOUREX static security gate
         run: node scripts/security-check.mjs
       - run: npm run typecheck
-      - run: npm test
+      - name: Run tests with diagnostic log
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee npm-test.log
+      - name: Upload npm test diagnostic
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: npm-test-diagnostic-v264
+          path: npm-test.log
+          if-no-files-found: error
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
