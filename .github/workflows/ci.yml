@@ -32,8 +32,12 @@ jobs:
         run: node --test tests/[g-m]*.test.mjs
       - name: Run legacy regression suite N-S
         run: node --test tests/[n-s]*.test.mjs
-      - name: Run legacy regression suite T-Z
-        run: node --test tests/[t-z]*.test.mjs
+      - name: Run legacy regression suite T-U
+        run: node --test tests/[t-u]*.test.mjs
+      - name: Run legacy regression suite V
+        run: node --test tests/v*.test.mjs
+      - name: Run legacy regression suite W-Z
+        run: node --test tests/[w-z]*.test.mjs
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
