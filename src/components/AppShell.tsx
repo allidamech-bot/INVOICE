@@ -1,6 +1,7 @@
 import type { DocumentKind, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { Brand, Button, Icon } from './UI.js';
+import { AiCopilot } from './AiCopilot.js';
 
 export type WorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 
@@ -203,6 +204,7 @@ export class AppShell extends React.Component<Props,State>{
           <button type="button" className={this.state.moreOpen?'active':''} aria-haspopup="dialog" aria-controls="mobile-more-sheet" aria-expanded={this.state.moreOpen} onClick={this.toggleMore}><Icon name="more"/><span>{t('More','المزيد')}</span></button>
         </nav>
       </>:null}
+      <AiCopilot screen={this.props.screen} language={this.props.language} onNavigate={screen=>this.navigate(screen)}/>
     </div>;
   }
 }
