@@ -27,7 +27,8 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          node --test tests/ai-financial-copilot-v264.test.mjs 2>&1 | tee ai-financial-v264.log
+          npm run build 2>&1 | tee ai-financial-v264.log
+          node --test tests/ai-financial-copilot-v264.test.mjs 2>&1 | tee -a ai-financial-v264.log
       - name: Upload AI Financial Copilot v264 diagnostic log
         if: failure() && steps.ai_financial_v264.outcome == 'failure'
         uses: actions/upload-artifact@v6
