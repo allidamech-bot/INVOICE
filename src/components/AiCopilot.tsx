@@ -59,7 +59,17 @@ function draftReference(vault:VaultPayload,message:string):DraftReference{
 
 export function buildAiContext(screen:AiWorkspaceScreen,language:UiLanguage,financeSource:AiFinanceSource,vault:VaultPayload,message:string):AiContextEnvelope{return{version:3,screen,language,allowedCapabilities:AI_CAPABILITIES.map(capability=>capability.id),finance:buildAiFinanceContext(financeSource,message),business:buildAiBusinessContext(vault),drafting:draftReference(vault,message)};}
 export function capabilityRequiresApproval(capability:AiCapabilityId):boolean{return AI_CAPABILITIES.find(item=>item.id===capability)?.requiresApproval!==false;}
-function safeMetadataPatch(value:any):AiItemProposal['patch']{if(!value||typeof value!=='object')return undefined;const patch:NonNullable<AiItemProposal['patch']>={};const fields:[keyof Omit<NonNullable<AiItemProposal['patch']>,'tags'>,number][]=[['sku',48],['descriptionEn',160],['descriptionAr',160],['hsCode',48],['origin',80],['packing',80],['unit',40],['category',80]];for(const [key,max] of fields){const cleaned=bounded(value[key],max);if(cleaned)patch[key]=cleaned as never;}if(Array.isArray(value.tags))patch.tags=Array.from(new Set(value.tags.map((tag:any)=>bounded(tag,40)).filter(tag=>tag&&tag!==AI_ARCHIVE_TAG))).slice(0,12);return Object.keys(patch).length?patch:undefined;}
+function safeMetadataPatch(value:any):AiItemProposal['patch']{
+  if(!value||typeof value!=='object')return undefined;
+  const patch:NonNullable<AiItemProposal['patch']>={};
+  const fields:[keyof Omit<NonNullable<AiItemProposal['patch']>,'tags'>,number][]=[['sku',48],['descriptionEn',160],['descriptionAr',160],['hsCode',48],['origin',80],['packing',80],['unit',40],['category',80]];
+  for(const [key,max] of fields){const cleaned=bounded(value[key],max);if(cleaned)patch[key]=cleaned as never;}
+  if(Array.isArray(value.tags)){
+    const cleanedTags:string[]=value.tags.map((tag:unknown)=>bounded(tag,40)).filter((tag:string)=>Boolean(tag)&&tag!==AI_ARCHIVE_TAG);
+    patch.tags=Array.from(new Set<string>(cleanedTags)).slice(0,12);
+  }
+  return Object.keys(patch).length?patch:undefined;
+}
 export function safeProposal(value:any,context:AiContextEnvelope):AiProposal|null{
   if(!value||typeof value!=='object')return null;
   if(value.capability==='workspace.navigate'&&NAV_TARGETS.has(value.target))return{capability:'workspace.navigate',target:value.target,label:bounded(value.label||'Open section',80),rationale:bounded(value.rationale,220)};
