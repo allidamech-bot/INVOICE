@@ -36,7 +36,19 @@ jobs:
           name: ai-financial-v264-diagnostic
           path: ai-financial-v264.log
           if-no-files-found: error
-      - run: npm test
+      - name: Run full test suite with diagnostic log
+        id: full_test_suite
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee npm-test-diagnostic.log
+      - name: Upload full test diagnostic log
+        if: failure() && steps.full_test_suite.outcome == 'failure'
+        uses: actions/upload-artifact@v6
+        with:
+          name: npm-test-v264-diagnostic
+          path: npm-test-diagnostic.log
+          if-no-files-found: error
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
