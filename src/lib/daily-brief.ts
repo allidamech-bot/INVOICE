@@ -44,7 +44,9 @@ function centsString(value:bigint):string{
 
 function shiftIsoDate(date:string,days:number):string{
   if(!isIsoDate(date))return date;
-  const [year,month,day]=date.split('-').map(Number);
+  const year=Number(date.slice(0,4));
+  const month=Number(date.slice(5,7));
+  const day=Number(date.slice(8,10));
   const shifted=new Date(Date.UTC(year,month-1,day+days));
   return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth()+1).padStart(2,'0')}-${String(shifted.getUTCDate()).padStart(2,'0')}`;
 }
@@ -58,7 +60,7 @@ function notableChange(current:string,previous:string):'up'|'down'|'new'|null{
   if(before===0n)return now!==0n?'new':null;
   const difference=now-before;
   const absolute=difference<0n?-difference:difference;
-  if(absolute*2n<((before<0n?-before:before)))return null;
+  if(absolute*2n<(before<0n?-before:before))return null;
   return difference>0n?'up':difference<0n?'down':null;
 }
 
