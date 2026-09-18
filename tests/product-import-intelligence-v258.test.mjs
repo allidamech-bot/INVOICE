@@ -35,7 +35,7 @@ test('v258 local intelligence finds the real header row and maps Incoterm suppli
   assert.equal(item.lastUnitPrice,'');
 });
 
-test('v258 understands common multilingual commercial headings without external AI',()=>{
+test('v258 understands common multilingual commercial headings with local intelligence',()=>{
   const matrix=[
     ['Liste fournisseur','','','',''],
     ['Artikelnummer','Bezeichnung','Preis EUR','Verpackung','Ursprung'],
@@ -122,7 +122,8 @@ test('v258 mapping UI keeps matte-black contrast, mobile geometry and explicit r
   assert.match(modal,/LOUREX Intelligence/);
   assert.match(modal,/Review import/);
   assert.match(modal,/product-import-map-select/);
-  assert.match(modal,/does not send catalog data to an external AI service/);
+  assert.match(modal,/LOUREX Intelligence \+ Gemini/);
+  assert.match(modal,/Local high-confidence mappings stay protected/);
   assert.match(css,/product-import-mapping-row/);
   assert.match(css,/color:var\(--ds-text\)!important/);
   assert.match(css,/color-scheme:dark/);

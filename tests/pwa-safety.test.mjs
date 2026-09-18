@@ -7,8 +7,8 @@ const read=path=>readFile(path,'utf8');
 test('service worker never cache-firsts arbitrary cross-origin API traffic',async()=>{
   const sw=await read('public/sw.js');
   assert.match(sw,/EXTERNAL_CORE_SET/);
-  assert.match(sw,/url\.origin !== self\.location\.origin/);
-  assert.match(sw,/if \(!EXTERNAL_CORE_SET\.has\(url\.href\)\) return/);
+  assert.match(sw,/url\.origin\s*!==\s*self\.location\.origin/);
+  assert.match(sw,/if\s*\(!EXTERNAL_CORE_SET\.has\(url\.href\)\)\s*return/);
   assert.doesNotMatch(sw,/firebaseapis\.com|googleapis\.com|identitytoolkit/);
 });
 

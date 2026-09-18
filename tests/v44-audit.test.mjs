@@ -51,7 +51,7 @@ test('current service worker precaches every compiled application module',async(
   assert.match(sw,/preserveExternalRuntime/);
   assert.match(sw,/caches\.match\(asset\)/);
   assert.match(sw,/cache\.put\(asset,existing\.clone\(\)\)/);
-  assert.match(sw,/cache\.put\(event\.request, response\.clone\(\)\)/);
+  assert.match(sw,/cache\.put\(event\.request,\s*response\.clone\(\)\)/);
 });
 
 test('cloud freshness watcher applies account updates only when the UI is safe',async()=>{
