@@ -1,8 +1,9 @@
-import type { LourexDocument, PaymentRecord } from '../types.js';
+import type { ExpenseRecord, InventoryMovementRecord, LourexDocument, PaymentRecord, PurchaseRecord, SavedItem } from '../types.js';
 import { calculateTotals, formatMoney } from '../lib/money.js';
 import { financialReportByCurrency } from '../lib/reports.js';
 import { receivablesByCurrency } from '../lib/receivables.js';
 import { invoicePaymentSummary } from '../lib/payments.js';
+import { dailyBusinessBrief } from '../lib/daily-brief.js';
 import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { Button, Icon } from './UI.js';
@@ -11,8 +12,11 @@ interface Props{
   companyName:string;
   documents:LourexDocument[];
   payments:PaymentRecord[];
+  purchases:PurchaseRecord[];
+  expenses:ExpenseRecord[];
+  inventoryMovements:InventoryMovementRecord[];
+  items:SavedItem[];
   customerCount:number;
-  itemCount:number;
   onNewDocument:()=>void;
   onOpenDocument:(doc:LourexDocument)=>void;
   onNavigate:(screen:'documents'|'customers'|'items'|'receivables'|'reports'|'operations')=>void;
@@ -43,15 +47,26 @@ function documentStatus(doc:LourexDocument,payments:PaymentRecord[],documents:Lo
   return{tone:'issued',label:t('Issued','صادرة')};
 }
 
-export function WorkspaceHome({companyName,documents,payments,customerCount,itemCount,onNewDocument,onOpenDocument,onNavigate}:Props):any{
+export function WorkspaceHome({companyName,documents,payments,purchases,expenses,inventoryMovements,items,customerCount,onNewDocument,onOpenDocument,onNavigate}:Props):any{
   const today=todayIso();
   const monthStart=`${today.slice(0,7)}-01`;
   const receivables=receivablesByCurrency(documents,payments,today);
   const monthly=financialReportByCurrency(documents,payments,monthStart,today);
+  const daily=dailyBusinessBrief(documents,payments,purchases,expenses,inventoryMovements,items,today);
   const openInvoices=receivables.reduce((sum,row)=>sum+row.openInvoices,0);
   const overdueInvoices=receivables.reduce((sum,row)=>sum+row.overdueInvoices,0);
   const drafts=documents.filter(doc=>doc.status==='draft').length;
+  const incompleteAccounting=daily.invalidOperations+daily.missingCostItems;
   const recent=[...documents].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,6);
+  const dailyMoney=(field:'sales'|'collected'|'purchases'|'expenses')=>{
+    const rows=daily.money.filter(row=>row[field]!=='0.00');
+    return rows.length?rows.map(row=>formatMoney(row[field],row.currency)).join(' · '):'—';
+  };
+  const changeLabel=(change:(typeof daily.changes)[number])=>{
+    const metric=change.metric==='sales'?t('Sales','المبيعات'):t('Collections','التحصيل');
+    const direction=change.direction==='new'?t('new','جديد'):change.direction==='up'?'↑':'↓';
+    return `${metric} ${direction} · ${change.currency}`;
+  };
 
   return <section className="workspace-home-page dashboard-page">
     <header className="workspace-home-hero dashboard-hero">
@@ -90,13 +105,27 @@ export function WorkspaceHome({companyName,documents,payments,customerCount,item
       </section>
 
       <aside className="dashboard-side-stack">
+        <section className="dashboard-panel dashboard-daily-brief">
+          <header className="dashboard-panel-heading"><div><small>{t('Today','اليوم')}</small><h2>{t('LOUREX Daily Brief','ملخص LOUREX اليومي')}</h2></div><button type="button" onClick={()=>onNavigate('reports')}>{t('Reports','التقارير')}</button></header>
+          <div className="dashboard-attention-list">
+            <button type="button" onClick={()=>onNavigate('reports')}><span><Icon name="file"/><b>{t(`Sales today · ${daily.issuedInvoices} invoices`,`مبيعات اليوم · ${daily.issuedInvoices} فواتير`)}</b></span><strong>{dailyMoney('sales')}</strong></button>
+            <button type="button" onClick={()=>onNavigate('reports')}><span><Icon name="backup"/><b>{t('Collected today','المحصّل اليوم')}</b></span><strong>{dailyMoney('collected')}</strong></button>
+            <button type="button" onClick={()=>onNavigate('operations')}><span><Icon name="items"/><b>{t(`Purchases today · ${daily.postedPurchases}`,`مشتريات اليوم · ${daily.postedPurchases}`)}</b></span><strong>{dailyMoney('purchases')}</strong></button>
+            <button type="button" onClick={()=>onNavigate('operations')}><span><Icon name="edit"/><b>{t(`Expenses today · ${daily.expenses}`,`مصاريف اليوم · ${daily.expenses}`)}</b></span><strong>{dailyMoney('expenses')}</strong></button>
+            <button type="button" onClick={()=>onNavigate('operations')}><span><Icon name="items"/><b>{t('Inventory movements today','حركات المخزون اليوم')}</b></span><strong>{daily.inventoryMovements}</strong></button>
+            <button type="button" onClick={()=>onNavigate('items')}><span><Icon name="items"/><b>{t('Products used today','أصناف مستخدمة اليوم')}</b></span><strong>{daily.productsUsedToday}</strong></button>
+            {daily.changes.slice(0,2).map(change=><button type="button" key={`${change.currency}-${change.metric}`} className="is-warn" title={t(`Yesterday: ${formatMoney(change.previous,change.currency)}`,`أمس: ${formatMoney(change.previous,change.currency)}`)} onClick={()=>onNavigate('reports')}><span><Icon name="backup"/><b>{changeLabel(change)}</b></span><strong>{formatMoney(change.current,change.currency)}</strong></button>)}
+          </div>
+        </section>
+
         <section className="dashboard-panel dashboard-attention">
           <header className="dashboard-panel-heading"><div><small>{t('Priority','الأولوية')}</small><h2>{t('Needs attention','يحتاج انتباهك')}</h2></div></header>
           <div className="dashboard-attention-list">
             <button type="button" className={overdueInvoices?'is-alert':''} onClick={()=>onNavigate('receivables')}><span><Icon name="invoice"/><b>{t('Overdue invoices','الفواتير المتأخرة')}</b></span><strong>{overdueInvoices}</strong></button>
             <button type="button" className={drafts?'is-warn':''} onClick={()=>onNavigate('documents')}><span><Icon name="edit"/><b>{t('Drafts to finish','مسودات تحتاج إكمال')}</b></span><strong>{drafts}</strong></button>
-            <button type="button" onClick={()=>onNavigate('customers')}><span><Icon name="users"/><b>{t('Customers','العملاء')}</b></span><strong>{customerCount}</strong></button>
-            <button type="button" onClick={()=>onNavigate('items')}><span><Icon name="items"/><b>{t('Saved items','الأصناف المحفوظة')}</b></span><strong>{itemCount}</strong></button>
+            <button type="button" className={daily.draftPurchases?'is-warn':''} onClick={()=>onNavigate('operations')}><span><Icon name="items"/><b>{t('Purchase drafts to finish','مسودات مشتريات تحتاج إكمال')}</b></span><strong>{daily.draftPurchases}</strong></button>
+            <button type="button" className={incompleteAccounting?'is-alert':''} onClick={()=>onNavigate(daily.invalidOperations?'operations':'reports')}><span><Icon name="edit"/><b>{t('Incomplete accounting data','بيانات محاسبية غير مكتملة')}</b></span><strong>{incompleteAccounting}</strong></button>
+            <button type="button" className={daily.dormantProducts?'is-warn':''} onClick={()=>onNavigate('items')}><span><Icon name="items"/><b>{t('Dormant products · 90+ days','أصناف خاملة · أكثر من 90 يوم')}</b></span><strong>{daily.dormantProducts}</strong></button>
           </div>
         </section>
 
@@ -104,8 +133,8 @@ export function WorkspaceHome({companyName,documents,payments,customerCount,item
           <header className="dashboard-panel-heading"><div><small>{t('Shortcuts','اختصارات')}</small><h2>{t('Workspaces','مساحات العمل')}</h2></div></header>
           <div className="dashboard-shortcut-grid">
             <button type="button" onClick={()=>onNavigate('documents')}><Icon name="file"/><span>{t('Documents','المستندات')}</span></button>
-            <button type="button" onClick={()=>onNavigate('customers')}><Icon name="users"/><span>{t('Customers','العملاء')}</span></button>
-            <button type="button" onClick={()=>onNavigate('items')}><Icon name="items"/><span>{t('Items','الأصناف')}</span></button>
+            <button type="button" onClick={()=>onNavigate('customers')}><Icon name="users"/><span>{t(`Customers · ${customerCount}`,`العملاء · ${customerCount}`)}</span></button>
+            <button type="button" onClick={()=>onNavigate('items')}><Icon name="items"/><span>{t(`Items · ${items.length}`,`الأصناف · ${items.length}`)}</span></button>
             <button type="button" onClick={()=>onNavigate('operations')}><Icon name="backup"/><span>{t('Business','الأعمال')}</span></button>
           </div>
         </section>

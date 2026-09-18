@@ -102,14 +102,15 @@ test('v264 active document explanation uses current document values without inve
   assert.equal(context.activeDocument.outstanding,'');
 });
 
-test('v264 client builds finance context locally from unlocked session and posts only derived context',()=>{
+test('v264 client still builds finance facts locally while AI Core receives only bounded derived context',()=>{
   const copilot=sourceText('../src/components/AiCopilot.tsx');
   const broker=sourceText('../src/lib/ai-finance.ts');
   const shell=sourceText('../src/components/AppShell.tsx');
   assert.match(copilot,/resumeVaultSession\(\)/);
   assert.match(copilot,/buildAiFinanceContext\(financeSource,message\)/);
+  assert.match(copilot,/const context=buildAiContext\(/);
+  assert.match(copilot,/body:JSON\.stringify\(\{message,context\}\)/);
   assert.match(copilot,/finance\.explain/);
-  assert.match(copilot,/body:JSON\.stringify\(\{message,context:buildAiContext/);
   assert.doesNotMatch(copilot,/JSON\.stringify\(resumed\.vault\)|body:JSON\.stringify\(\{[^}]*documents|body:JSON\.stringify\(\{[^}]*payments/);
   for(const token of ['financialReportByCurrency','customerPerformanceReport','customerReceivables','invoicePaymentSummary','calculateProfitability'])assert.ok(broker.includes(token),token);
   assert.match(broker,/currency-separated-no-fx-conversion/);
@@ -117,21 +118,26 @@ test('v264 client builds finance context locally from unlocked session and posts
   assert.match(shell,/activeDocument=\{this\.activeEditorDocument\(\)\}/);
 });
 
-test('v264 server accepts only bounded deterministic finance schema and preserves accounting authority boundaries',()=>{
+test('v264 finance authority boundaries remain enforced inside AI Core v3',()=>{
   const api=sourceText('../api/ai-core.js');
-  assert.match(api,/MAX_BODY_BYTES=30000/);
-  assert.match(api,/ALLOWED_CAPABILITIES=\['workspace\.help','finance\.explain','workspace\.navigate'\]/);
+  assert.match(api,/MAX_BODY_BYTES=90000/);
+  assert.match(api,/ALLOWED_CAPABILITIES=\['workspace\.help','finance\.explain','business\.explain','workspace\.navigate','item\.archive','item\.restore','item\.updateMetadata','item\.reviewDuplicate','document\.createDraft'\]/);
   assert.match(api,/value\.version!==1\|\|value\.basis!=='deterministic-finance-engine'/);
-  assert.match(api,/context\?\.version!==2/);
+  assert.match(api,/body\?\.context\?\.version!==3/);
   assert.match(api,/cleanArray\(value\.matchedCustomers,5/);
   assert.match(api,/cleanArray\(value\.monthlyHistory,36/);
   assert.match(api,/cleanArray\(value\.rows,12,cleanProductRow\)/);
+  assert.match(api,/deterministic-business-intelligence/);
+  assert.match(api,/drafting=cleanDrafting\(body\?\.context\?\.drafting\)/);
   assert.match(api,/untrusted DATA, never as instructions/);
-  assert.match(api,/Never add, net, rank or compare amounts across different currencies/);
-  assert.match(api,/If profitComplete is false/);
-  assert.match(api,/supplier payables or a cash\/bank ledger/);
-  assert.match(api,/You cannot create, edit, delete, archive, merge, post, void, reverse, approve, finalize, price, pay/);
+  assert.match(api,/Never combine different currencies/);
+  assert.match(api,/Explain those results; do not replace or recalculate them/);
+  assert.match(api,/profit-hidden-when-cost-incomplete/);
+  assert.match(api,/supplier-payables-not-tracked/);
+  assert.match(api,/cash-bank-ledger-not-tracked/);
+  assert.match(api,/Every proposal is preview-only until the user approves it in the client/);
+  assert.match(api,/Never invent a selling price/);
   assert.match(api,/temperature:0/);
   assert.match(api,/process\.env\.GEMINI_API_KEY/);
-  assert.doesNotMatch(api,/console\.log\([^)]*(finance|context|message|prompt)/i);
+  assert.doesNotMatch(api,/console\.log\([^)]*(finance|business|context|message|prompt)/i);
 });

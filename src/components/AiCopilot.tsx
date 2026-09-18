@@ -1,176 +1,138 @@
-import type { LourexDocument, UiLanguage } from '../types.js';
+import type { DocumentLanguage, LourexDocument, SavedItem, UiLanguage, VaultPayload } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { buildAiFinanceContext, type AiFinanceContext, type AiFinanceSource } from '../lib/ai-finance.js';
-import { resumeVaultSession } from '../storage/vault.js';
+import { AI_ARCHIVE_TAG, aiProductArchived, buildAiBusinessContext, type AiBusinessContext } from '../lib/ai-business.js';
+import { resumeVaultSession, saveVault } from '../storage/vault.js';
+import { createBlankDocument, nextDocumentNumber } from '../lib/documents.js';
+import { customerSnapshotFrom } from '../lib/defaults.js';
+import { applyCustomerCommercialDefaults } from '../lib/commercial-controls.js';
+import { createDocumentEvent } from '../lib/document-lifecycle.js';
+import { documentItemFromSavedItem, findSavedItemDuplicate } from '../lib/saved-items.js';
+import { makeId } from '../lib/id.js';
+import { SupplierDocumentImport } from './SupplierDocumentImport.js';
 
 export type AiWorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 export type AiNavTarget=Exclude<AiWorkspaceScreen,'editor'>;
-export type AiCapabilityId='workspace.help'|'finance.explain'|'workspace.navigate';
+export type AiCapabilityId='workspace.help'|'finance.explain'|'business.explain'|'workspace.navigate'|'item.archive'|'item.restore'|'item.updateMetadata'|'item.reviewDuplicate'|'document.createDraft';
 
-export interface AiCapabilityDefinition {
-  id:AiCapabilityId;
-  mode:'read'|'execute';
-  requiresApproval:boolean;
-  dataMutation:boolean;
-}
-
+export interface AiCapabilityDefinition {id:AiCapabilityId;mode:'read'|'execute';requiresApproval:boolean;dataMutation:boolean;}
 export const AI_CAPABILITIES:ReadonlyArray<AiCapabilityDefinition>=Object.freeze([
   {id:'workspace.help',mode:'read',requiresApproval:false,dataMutation:false},
   {id:'finance.explain',mode:'read',requiresApproval:false,dataMutation:false},
-  {id:'workspace.navigate',mode:'execute',requiresApproval:true,dataMutation:false}
+  {id:'business.explain',mode:'read',requiresApproval:false,dataMutation:false},
+  {id:'workspace.navigate',mode:'execute',requiresApproval:true,dataMutation:false},
+  {id:'item.archive',mode:'execute',requiresApproval:true,dataMutation:true},
+  {id:'item.restore',mode:'execute',requiresApproval:true,dataMutation:true},
+  {id:'item.updateMetadata',mode:'execute',requiresApproval:true,dataMutation:true},
+  {id:'item.reviewDuplicate',mode:'execute',requiresApproval:true,dataMutation:false},
+  {id:'document.createDraft',mode:'execute',requiresApproval:true,dataMutation:true}
 ]);
 
-export interface AiContextEnvelope {
-  version:2;
-  screen:AiWorkspaceScreen;
-  language:UiLanguage;
-  allowedCapabilities:AiCapabilityId[];
-  finance:AiFinanceContext;
-}
+interface DraftReferenceCustomer {id:string;name:string;preferredCurrency:string;paymentTerms:string;}
+interface DraftReferenceItem {id:string;name:string;sku:string;unit:string;lastUnitPrice:string;lastCurrency:string;}
+interface DraftReference {customers:DraftReferenceCustomer[];items:DraftReferenceItem[];defaults:{currency:string;language:DocumentLanguage;incoterm:string;paymentTerms:string;deliveryTime:string};}
 
-export interface AiNavigationProposal {
-  capability:'workspace.navigate';
-  target:AiNavTarget;
-  label:string;
-  rationale:string;
-}
+export interface AiContextEnvelope {version:3;screen:AiWorkspaceScreen;language:UiLanguage;allowedCapabilities:AiCapabilityId[];finance:AiFinanceContext;business:AiBusinessContext;drafting:DraftReference;}
+export interface AiNavigationProposal {capability:'workspace.navigate';target:AiNavTarget;label:string;rationale:string;}
+export interface AiItemProposal {capability:'item.archive'|'item.restore'|'item.updateMetadata'|'item.reviewDuplicate';itemId:string;relatedItemId:string;label:string;rationale:string;patch?:{sku?:string;descriptionEn?:string;descriptionAr?:string;hsCode?:string;origin?:string;packing?:string;unit?:string;category?:string;tags?:string[]};}
+export interface AiDocumentDraftProposal {capability:'document.createDraft';kind:'proforma'|'invoice';customerId:string;currency:string;language:DocumentLanguage;items:Array<{savedItemId:string;descriptionEn:string;descriptionAr:string;quantity:string;unit:string;unitPrice:string}>;incoterm:string;paymentTerms:string;deliveryTime:string;remarks:string;notes:string;label:string;rationale:string;}
+export type AiProposal=AiNavigationProposal|AiItemProposal|AiDocumentDraftProposal;
 
-interface AiServerResponse {answer:string;proposal?:AiNavigationProposal|null;}
 interface AiMessage {id:string;role:'user'|'assistant';text:string;}
 interface AiAuditEntry {id:string;at:string;capability:AiCapabilityId;outcome:'requested'|'answered'|'approved'|'dismissed'|'failed';screen:AiWorkspaceScreen;}
-
-interface Props {
-  screen:AiWorkspaceScreen;
-  language:UiLanguage;
-  activeDocument?:LourexDocument|null;
-  onNavigate:(screen:AiNavTarget)=>void;
-}
-
-interface State {
-  open:boolean;
-  busy:boolean;
-  input:string;
-  error:string;
-  messages:AiMessage[];
-  proposal:AiNavigationProposal|null;
-  audit:AiAuditEntry[];
-  auditOpen:boolean;
-}
+interface Props {screen:AiWorkspaceScreen;language:UiLanguage;activeDocument?:LourexDocument|null;onNavigate:(screen:AiNavTarget)=>void;}
+interface State {open:boolean;busy:boolean;input:string;error:string;messages:AiMessage[];proposal:AiProposal|null;audit:AiAuditEntry[];auditOpen:boolean;}
 
 const NAV_TARGETS=new Set<AiNavTarget>(['home','documents','customers','receivables','reports','items','operations']);
 const MAX_MESSAGE_CHARS=1000;
-
+const MONEY_INPUT=/^\d{1,12}(?:\.\d{1,4})?$/;
 function id(prefix:string):string{return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;}
+function normalized(value:string):string{return value.normalize('NFKC').toLocaleLowerCase().replace(/\s+/g,' ').trim();}
+function bounded(value:unknown,max:number):string{return String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);}
 
-export function buildAiContext(screen:AiWorkspaceScreen,language:UiLanguage,financeSource:AiFinanceSource,message:string):AiContextEnvelope{
-  return {version:2,screen,language,allowedCapabilities:AI_CAPABILITIES.map(capability=>capability.id),finance:buildAiFinanceContext(financeSource,message)};
+function draftReference(vault:VaultPayload,message:string):DraftReference{
+  const q=normalized(message);const tokens=q.split(' ').filter(token=>token.length>=2);const score=(text:string)=>{const value=normalized(text);return tokens.reduce((total,token)=>total+(value.includes(token)?1:0),0);};
+  const customers=[...vault.customers].map(customer=>({customer,score:score([customer.companyNameEn,customer.companyNameAr,customer.contactPerson,customer.email,customer.phone].join(' '))})).sort((a,b)=>b.score-a.score||b.customer.updatedAt.localeCompare(a.customer.updatedAt)).slice(0,12).map(({customer})=>({id:customer.id,name:(customer.companyNameEn||customer.companyNameAr||customer.contactPerson||'Customer').trim(),preferredCurrency:customer.preferredCurrency||'',paymentTerms:customer.paymentTerms||''}));
+  const items=vault.savedItems.filter(item=>!aiProductArchived(item)).map(item=>({item,score:score([item.sku??'',item.descriptionEn,item.descriptionAr,item.hsCode,item.category??'',...(item.tags??[]).filter(tag=>tag!==AI_ARCHIVE_TAG)].join(' '))})).sort((a,b)=>b.score-a.score||b.item.updatedAt.localeCompare(a.item.updatedAt)).slice(0,18).map(({item})=>({id:item.id,name:(item.descriptionEn||item.descriptionAr||item.sku||'Item').trim(),sku:item.sku??'',unit:item.unit||'PCS',lastUnitPrice:item.lastUnitPrice||'',lastCurrency:item.lastCurrency||''}));
+  const smart=vault.appSettings.smartDefaults;return{customers,items,defaults:{currency:smart.currency||vault.company.defaultCurrency||'USD',language:smart.language||vault.company.defaultLanguage||'en',incoterm:smart.incoterm||vault.company.defaultIncoterm||'',paymentTerms:smart.paymentTerms||vault.company.defaultPaymentTerms||'',deliveryTime:smart.deliveryTime||vault.company.defaultDeliveryTime||''}};
 }
 
-export function capabilityRequiresApproval(capability:AiCapabilityId):boolean{
-  return AI_CAPABILITIES.find(item=>item.id===capability)?.requiresApproval!==false;
-}
-
-export function safeNavigationProposal(value:any):AiNavigationProposal|null{
-  if(!value||value.capability!=='workspace.navigate'||!NAV_TARGETS.has(value.target))return null;
-  return {capability:'workspace.navigate',target:value.target,label:String(value.label||'Open section').slice(0,80),rationale:String(value.rationale||'').slice(0,180)};
-}
-
-function financeIntent(message:string):boolean{
-  const value=message.normalize('NFKC').toLocaleLowerCase();
-  return ['sales','profit','margin','collected','outstanding','overdue','receivable','customer balance','invoice total','product','item','revenue','compare','yesterday','today','month','مبيعات','ربح','هامش','محصل','المحصّل','مستحق','متأخر','عميل','فاتورة','منتج','صنف','اليوم','أمس','شهر','قارن'].some(token=>value.includes(token));
-}
-
-function screenLabel(screen:AiWorkspaceScreen):string{
-  switch(screen){
-    case 'home':return t('Home','الرئيسية');
-    case 'documents':return t('Documents','المستندات');
-    case 'customers':return t('Customers','العملاء');
-    case 'receivables':return t('Receivables','المستحقات');
-    case 'reports':return t('Reports','التقارير');
-    case 'items':return t('Items','الأصناف');
-    case 'operations':return t('Operations','العمليات');
-    case 'editor':return t('Document Editor','محرر المستند');
+export function buildAiContext(screen:AiWorkspaceScreen,language:UiLanguage,financeSource:AiFinanceSource,vault:VaultPayload,message:string):AiContextEnvelope{return{version:3,screen,language,allowedCapabilities:AI_CAPABILITIES.map(capability=>capability.id),finance:buildAiFinanceContext(financeSource,message),business:buildAiBusinessContext(vault),drafting:draftReference(vault,message)};}
+export function capabilityRequiresApproval(capability:AiCapabilityId):boolean{return AI_CAPABILITIES.find(item=>item.id===capability)?.requiresApproval!==false;}
+function safeMetadataPatch(value:any):AiItemProposal['patch']{
+  if(!value||typeof value!=='object')return undefined;
+  const patch:NonNullable<AiItemProposal['patch']>={};
+  const fields:[keyof Omit<NonNullable<AiItemProposal['patch']>,'tags'>,number][]=[['sku',48],['descriptionEn',160],['descriptionAr',160],['hsCode',48],['origin',80],['packing',80],['unit',40],['category',80]];
+  for(const [key,max] of fields){const cleaned=bounded(value[key],max);if(cleaned)patch[key]=cleaned as never;}
+  if(Array.isArray(value.tags)){
+    const cleanedTags:string[]=value.tags.map((tag:unknown)=>bounded(tag,40)).filter((tag:string)=>Boolean(tag)&&tag!==AI_ARCHIVE_TAG);
+    patch.tags=Array.from(new Set<string>(cleanedTags)).slice(0,12);
   }
+  return Object.keys(patch).length?patch:undefined;
+}
+export function safeProposal(value:any,context:AiContextEnvelope):AiProposal|null{
+  if(!value||typeof value!=='object')return null;
+  if(value.capability==='workspace.navigate'&&NAV_TARGETS.has(value.target))return{capability:'workspace.navigate',target:value.target,label:bounded(value.label||'Open section',80),rationale:bounded(value.rationale,220)};
+  const productIds=new Set(context.business.products.rows.map(row=>row.id));
+  if(['item.archive','item.restore','item.updateMetadata','item.reviewDuplicate'].includes(value.capability)&&productIds.has(String(value.itemId||''))){const capability=value.capability as AiItemProposal['capability'];const relatedItemId=productIds.has(String(value.relatedItemId||''))?String(value.relatedItemId):'';const patch=capability==='item.updateMetadata'?safeMetadataPatch(value.patch):undefined;if(capability==='item.updateMetadata'&&!patch)return null;return{capability,itemId:String(value.itemId),relatedItemId,label:bounded(value.label||'Review product action',80),rationale:bounded(value.rationale,220),patch};}
+  if(value.capability==='document.createDraft'){
+    const kind=value.kind==='invoice'?'invoice':value.kind==='proforma'?'proforma':null;if(!kind)return null;const customerIds=new Set(context.drafting.customers.map(customer=>customer.id));const itemIds=new Set(context.drafting.items.map(item=>item.id));const currency=bounded(value.currency||context.drafting.defaults.currency,8).toUpperCase();if(!/^[A-Z0-9]{2,8}$/.test(currency))return null;const language:DocumentLanguage=value.language==='ar'||value.language==='bilingual'?value.language:'en';
+    const items=Array.isArray(value.items)?value.items.slice(0,20).map((entry:any)=>{const savedItemId=itemIds.has(String(entry?.savedItemId||''))?String(entry.savedItemId):'';const quantity=bounded(entry?.quantity||'1',20);const unitPrice=bounded(entry?.unitPrice,24);if(!MONEY_INPUT.test(quantity)||unitPrice&&!MONEY_INPUT.test(unitPrice))return null;return{savedItemId,descriptionEn:bounded(entry?.descriptionEn,160),descriptionAr:bounded(entry?.descriptionAr,160),quantity,unit:bounded(entry?.unit||'PCS',40)||'PCS',unitPrice};}).filter(Boolean) as AiDocumentDraftProposal['items']:[];if(!items.length)return null;
+    return{capability:'document.createDraft',kind,customerId:customerIds.has(String(value.customerId||''))?String(value.customerId):'',currency,language,items,incoterm:bounded(value.incoterm||context.drafting.defaults.incoterm,80),paymentTerms:bounded(value.paymentTerms||context.drafting.defaults.paymentTerms,120),deliveryTime:bounded(value.deliveryTime||context.drafting.defaults.deliveryTime,120),remarks:bounded(value.remarks,500),notes:bounded(value.notes,500),label:bounded(value.label||`Create ${kind} draft`,80),rationale:bounded(value.rationale,220)};
+  }
+  return null;
 }
 
-function starterPrompts(screen:AiWorkspaceScreen):string[]{
-  if(screen==='home')return [t('How are sales today?','كيف مبيعات اليوم؟'),t('What happened yesterday?','ماذا حدث أمس؟')];
-  if(screen==='reports')return [t('Explain this month so far','اشرح أداء هذا الشهر حتى الآن'),t('Compare this month with last month','قارن هذا الشهر بالشهر الماضي')];
-  if(screen==='receivables')return [t('Show overdue balances by currency','اعرض المتأخر حسب العملة'),t('Who has the highest overdue balance?','من لديه أعلى مبلغ متأخر؟')];
-  if(screen==='customers')return [t('Which customers have overdue balances?','أي العملاء لديهم مبالغ متأخرة؟'),t('Take me to receivables','خذني إلى المستحقات')];
-  if(screen==='items')return [t('Which items are most profitable this month?','ما الأصناف الأكثر ربحية هذا الشهر؟'),t('Take me to reports','خذني إلى التقارير')];
-  if(screen==='editor')return [t('Explain this document financially','اشرح هذا المستند ماليًا'),t('What should I review before finalizing?','ماذا أراجع قبل الاعتماد؟')];
-  return [t('What can you help me with here?','كيف يمكنك مساعدتي هنا؟'),t('Show me where reports are','أرني أين توجد التقارير')];
-}
+function financeIntent(message:string):boolean{const value=normalized(message);return['sales','profit','margin','collected','outstanding','overdue','receivable','customer balance','invoice total','revenue','compare','yesterday','today','month','مبيعات','ربح','هامش','محصل','المحصّل','مستحق','متأخر','فاتورة','اليوم','أمس','شهر','قارن'].some(token=>value.includes(token));}
+function documentIntent(message:string):boolean{const value=normalized(message);return['create quote','create quotation','create invoice','draft quote','draft invoice','عرض سعر','أنشئ عرض','انشئ عرض','أنشئ فاتورة','انشئ فاتورة','مسودة فاتورة'].some(token=>value.includes(token));}
+function itemActionIntent(message:string):boolean{const value=normalized(message);return['archive','restore','duplicate','category','tag','metadata','أرشف','ارشفة','أرشفة','استعادة','مكرر','تصنيف','وسم'].some(token=>value.includes(token));}
+function businessIntent(message:string):boolean{const value=normalized(message);return['product','item','supplier','purchase','landed','cost','pricing','customer','payment behavior','risk','aging','منتج','صنف','مورد','شراء','تكلفة','تسعير','عميل','سلوك الدفع','مخاطر','أعمار'].some(token=>value.includes(token));}
+function capabilityFor(message:string):AiCapabilityId{return documentIntent(message)?'document.createDraft':itemActionIntent(message)?'business.explain':businessIntent(message)?'business.explain':financeIntent(message)?'finance.explain':'workspace.help';}
+function screenLabel(screen:AiWorkspaceScreen):string{switch(screen){case'home':return t('Home','الرئيسية');case'documents':return t('Documents','المستندات');case'customers':return t('Customers','العملاء');case'receivables':return t('Receivables','المستحقات');case'reports':return t('Reports','التقارير');case'items':return t('Items','الأصناف');case'operations':return t('Operations','العمليات');case'editor':return t('Document Editor','محرر المستند');}}
+function starterPrompts(screen:AiWorkspaceScreen):string[]{if(screen==='home')return[t('Give me today’s business brief','أعطني ملخص الأعمال اليوم'),t('Create a quotation draft','أنشئ مسودة عرض سعر')];if(screen==='reports')return[t('Explain this month so far','اشرح أداء هذا الشهر حتى الآن'),t('Compare this month with last month','قارن هذا الشهر بالشهر الماضي')];if(screen==='receivables')return[t('Who needs collection follow-up first?','من يحتاج متابعة تحصيل أولًا؟'),t('Draft a collection message for an overdue customer','جهز رسالة تحصيل لعميل متأخر')];if(screen==='customers')return[t('Explain customer payment behavior','اشرح سلوك دفع العملاء'),t('Show customers with credit risk signals','اعرض العملاء مع مؤشرات مخاطر ائتمانية')];if(screen==='items')return[t('Show duplicate or dormant products','اعرض الأصناف المكررة أو الخاملة'),t('Show pricing and cost anomalies','اعرض شذوذ الأسعار والتكاليف')];if(screen==='operations')return[t('Compare supplier costs by product','قارن تكاليف الموردين حسب الصنف'),t('Show recent landed-cost increases','اعرض ارتفاعات تكلفة الوصول الأخيرة')];if(screen==='editor')return[t('Review this document before finalizing','راجع هذا المستند قبل الاعتماد'),t('Explain this document financially','اشرح هذا المستند ماليًا')];return[t('What can you help me with here?','كيف يمكنك مساعدتي هنا؟'),t('Show me where reports are','أرني أين توجد التقارير')];}
 
 const AI_CORE_CSS=`
-.lourex-ai-launcher{position:fixed;z-index:1180;right:22px;bottom:22px;width:52px;height:52px;border:1px solid rgba(184,160,113,.35);border-radius:16px;background:#111;color:#f6f0e5;box-shadow:0 14px 34px rgba(0,0,0,.34);display:grid;place-items:center;font:700 21px/1 Inter,sans-serif;cursor:pointer;transition:transform .16s ease,border-color .16s ease,background .16s ease}.lourex-ai-launcher:hover{transform:translateY(-2px);border-color:rgba(184,160,113,.7);background:#171717}.lourex-ai-launcher[aria-expanded="true"]{background:#1b1916;border-color:#b8a071}.lourex-ai-backdrop{position:fixed;inset:0;z-index:1181;background:rgba(0,0,0,.42);backdrop-filter:blur(2px)}.lourex-ai-panel{position:fixed;z-index:1182;top:14px;right:14px;bottom:14px;width:min(410px,calc(100vw - 28px));border:1px solid rgba(255,255,255,.1);border-radius:22px;background:#0d0d0e;color:#f6f4ef;box-shadow:0 24px 80px rgba(0,0,0,.5);display:flex;flex-direction:column;overflow:hidden}.lourex-ai-panel[dir="rtl"]{right:auto;left:14px}.lourex-ai-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:#101011}.lourex-ai-title{display:flex;gap:12px;align-items:center}.lourex-ai-mark{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;border:1px solid rgba(184,160,113,.35);background:#171512;color:#d8c08e}.lourex-ai-title strong{display:block;font-size:15px}.lourex-ai-title small{display:block;color:#9e9b94;margin-top:3px}.lourex-ai-close{border:0;background:transparent;color:#aaa;font-size:24px;line-height:1;cursor:pointer;padding:4px}.lourex-ai-context{padding:9px 16px;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;color:#b8a071;background:#0b0b0c}.lourex-ai-messages{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}.lourex-ai-empty{padding:14px;border:1px solid rgba(255,255,255,.07);border-radius:16px;background:#121213}.lourex-ai-empty strong{display:block;margin-bottom:6px;font-size:14px}.lourex-ai-empty p{margin:0;color:#aaa;font-size:13px;line-height:1.55}.lourex-ai-starters{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.lourex-ai-starters button{border:1px solid rgba(255,255,255,.09);border-radius:999px;background:#181819;color:#ddd;padding:8px 10px;font:600 11px/1.2 Inter,sans-serif;cursor:pointer}.lourex-ai-message{max-width:88%;padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.55;white-space:pre-wrap}.lourex-ai-message.user{align-self:flex-end;background:#23201a;border:1px solid rgba(184,160,113,.24)}.lourex-ai-message.assistant{align-self:flex-start;background:#151516;border:1px solid rgba(255,255,255,.07)}.lourex-ai-proposal{margin:0 16px 12px;padding:12px;border:1px solid rgba(184,160,113,.28);border-radius:16px;background:#171510}.lourex-ai-proposal small{color:#b8a071}.lourex-ai-proposal strong{display:block;margin:4px 0;font-size:13px}.lourex-ai-proposal p{margin:0 0 10px;color:#aaa;font-size:12px;line-height:1.45}.lourex-ai-proposal-actions{display:flex;gap:8px}.lourex-ai-proposal-actions button{flex:1;border-radius:10px;padding:9px 10px;border:1px solid rgba(255,255,255,.1);background:#181819;color:#ddd;font-weight:700;cursor:pointer}.lourex-ai-proposal-actions button.primary{background:#b8a071;color:#111;border-color:#b8a071}.lourex-ai-compose{padding:12px;border-top:1px solid rgba(255,255,255,.08);background:#101011}.lourex-ai-compose form{display:flex;gap:8px}.lourex-ai-compose input{min-width:0;flex:1;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:#171718;color:#f4f2ed;padding:11px 12px;outline:none}.lourex-ai-compose input:focus{border-color:rgba(184,160,113,.55)}.lourex-ai-send{width:42px;border-radius:12px;border:1px solid #b8a071;background:#b8a071;color:#111;font-weight:900;cursor:pointer}.lourex-ai-send:disabled{opacity:.5;cursor:not-allowed}.lourex-ai-error{margin:0 12px 8px;padding:8px 10px;border-radius:10px;background:rgba(153,54,54,.16);color:#e7aaaa;font-size:12px}.lourex-ai-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;color:#777;font-size:10px}.lourex-ai-meta button{border:0;background:transparent;color:#8f8c85;padding:0;cursor:pointer;font-size:10px}.lourex-ai-audit{max-height:110px;overflow:auto;margin-top:8px;padding:8px;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:#0c0c0d}.lourex-ai-audit div{display:flex;justify-content:space-between;gap:8px;padding:3px 0;color:#85827c;font-size:10px}.lourex-ai-busy{color:#8d8a84;font-size:12px;padding:2px 0}.lourex-ai-panel button:focus-visible,.lourex-ai-launcher:focus-visible{outline:2px solid #d5bb86;outline-offset:2px}
+.lourex-ai-launcher{position:fixed;z-index:1180;right:22px;bottom:22px;width:52px;height:52px;border:1px solid rgba(184,160,113,.35);border-radius:16px;background:#111;color:#f6f0e5;box-shadow:0 14px 34px rgba(0,0,0,.34);display:grid;place-items:center;font:700 21px/1 Inter,sans-serif;cursor:pointer;transition:transform .16s ease,border-color .16s ease,background .16s ease}.lourex-ai-launcher:hover{transform:translateY(-2px);border-color:rgba(184,160,113,.7);background:#171717}.lourex-ai-launcher[aria-expanded="true"]{background:#1b1916;border-color:#b8a071}.lourex-ai-backdrop{position:fixed;inset:0;z-index:1181;background:rgba(0,0,0,.42);backdrop-filter:blur(2px)}.lourex-ai-panel{position:fixed;z-index:1182;top:14px;right:14px;bottom:14px;width:min(430px,calc(100vw - 28px));border:1px solid rgba(255,255,255,.1);border-radius:22px;background:#0d0d0e;color:#f6f4ef;box-shadow:0 24px 80px rgba(0,0,0,.5);display:flex;flex-direction:column;overflow:hidden}.lourex-ai-panel[dir="rtl"]{right:auto;left:14px}.lourex-ai-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:#101011}.lourex-ai-title{display:flex;gap:12px;align-items:center}.lourex-ai-mark{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;border:1px solid rgba(184,160,113,.35);background:#171512;color:#d8c08e}.lourex-ai-title strong{display:block;font-size:15px}.lourex-ai-title small{display:block;color:#9e9b94;margin-top:3px}.lourex-ai-close{border:0;background:transparent;color:#aaa;font-size:24px;line-height:1;cursor:pointer;padding:4px}.lourex-ai-context{padding:9px 16px;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;color:#b8a071;background:#0b0b0c}.lourex-ai-messages{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}.lourex-ai-empty{padding:14px;border:1px solid rgba(255,255,255,.07);border-radius:16px;background:#121213}.lourex-ai-empty strong{display:block;margin-bottom:6px;font-size:14px}.lourex-ai-empty p{margin:0;color:#aaa;font-size:13px;line-height:1.55}.lourex-ai-starters{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.lourex-ai-starters button{border:1px solid rgba(255,255,255,.09);border-radius:999px;background:#181819;color:#ddd;padding:8px 10px;font:600 11px/1.2 Inter,sans-serif;cursor:pointer}.lourex-ai-message{max-width:88%;padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.55;white-space:pre-wrap}.lourex-ai-message.user{align-self:flex-end;background:#23201a;border:1px solid rgba(184,160,113,.24)}.lourex-ai-message.assistant{align-self:flex-start;background:#151516;border:1px solid rgba(255,255,255,.07)}.lourex-ai-proposal{margin:0 16px 12px;padding:12px;border:1px solid rgba(184,160,113,.28);border-radius:16px;background:#171510}.lourex-ai-proposal small{color:#b8a071}.lourex-ai-proposal strong{display:block;margin:4px 0;font-size:13px}.lourex-ai-proposal p{margin:0 0 8px;color:#aaa;font-size:12px;line-height:1.45}.lourex-ai-preview{margin:8px 0 10px;padding:8px;border-radius:10px;background:#101011;border:1px solid rgba(255,255,255,.07);color:#c8c4ba;font-size:11px;line-height:1.45;white-space:pre-wrap}.lourex-ai-proposal-actions{display:flex;gap:8px}.lourex-ai-proposal-actions button{flex:1;border-radius:10px;padding:9px 10px;border:1px solid rgba(255,255,255,.1);background:#181819;color:#ddd;font-weight:700;cursor:pointer}.lourex-ai-proposal-actions button.primary{background:#b8a071;color:#111;border-color:#b8a071}.lourex-ai-compose{padding:12px;border-top:1px solid rgba(255,255,255,.08);background:#101011}.lourex-ai-tools{display:flex;justify-content:flex-start;margin-bottom:9px}.lourex-ai-tools button{font-size:11px;padding:7px 9px}.lourex-ai-compose form{display:flex;gap:8px}.lourex-ai-compose input{min-width:0;flex:1;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:#171718;color:#f4f2ed;padding:11px 12px;outline:none}.lourex-ai-compose input:focus{border-color:rgba(184,160,113,.55)}.lourex-ai-send{width:42px;border-radius:12px;border:1px solid #b8a071;background:#b8a071;color:#111;font-weight:900;cursor:pointer}.lourex-ai-send:disabled{opacity:.5;cursor:not-allowed}.lourex-ai-error{margin:0 12px 8px;padding:8px 10px;border-radius:10px;background:rgba(153,54,54,.16);color:#e7aaaa;font-size:12px}.lourex-ai-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;color:#777;font-size:10px}.lourex-ai-meta button{border:0;background:transparent;color:#8f8c85;padding:0;cursor:pointer;font-size:10px}.lourex-ai-audit{max-height:110px;overflow:auto;margin-top:8px;padding:8px;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:#0c0c0d}.lourex-ai-audit div{display:flex;justify-content:space-between;gap:8px;padding:3px 0;color:#85827c;font-size:10px}.lourex-ai-busy{color:#8d8a84;font-size:12px;padding:2px 0}.lourex-ai-panel button:focus-visible,.lourex-ai-launcher:focus-visible{outline:2px solid #d5bb86;outline-offset:2px}
 @media(max-width:720px){.lourex-ai-launcher{right:auto;left:14px;bottom:calc(84px + env(safe-area-inset-bottom));width:50px;height:50px;border-radius:15px}.lourex-ai-launcher:dir(rtl){left:auto;right:14px}.lourex-ai-backdrop{background:rgba(0,0,0,.48)}.lourex-ai-panel,.lourex-ai-panel[dir="rtl"]{top:auto;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));width:auto;height:min(88dvh,760px);border-radius:22px 22px 18px 18px}.lourex-ai-panel:before{content:"";width:38px;height:4px;border-radius:99px;background:#3a3a3c;position:absolute;top:7px;left:50%;transform:translateX(-50%)}.lourex-ai-head{padding-top:20px}.lourex-ai-message{max-width:92%}}
 @media(prefers-reduced-motion:reduce){.lourex-ai-launcher{transition:none}}
 `;
 
 export class AiCopilot extends React.Component<Props,State>{
   state:State={open:false,busy:false,input:'',error:'',messages:[],proposal:null,audit:[],auditOpen:false};
-
   componentDidMount():void{document.addEventListener('keydown',this.onKeyDown);}
   componentWillUnmount():void{document.removeEventListener('keydown',this.onKeyDown);}
-
   private onKeyDown=(event:KeyboardEvent)=>{if(event.key==='Escape'&&this.state.open)this.setState({open:false,proposal:null,error:''});};
-  private addAudit=(capability:AiCapabilityId,outcome:AiAuditEntry['outcome'])=>this.setState(state=>({audit:[{id:id('audit'),at:new Date().toISOString(),capability,outcome,screen:this.props.screen},...state.audit].slice(0,20)}));
+  private addAudit=(capability:AiCapabilityId,outcome:AiAuditEntry['outcome'])=>this.setState(state=>({audit:[{id:id('audit'),at:new Date().toISOString(),capability,outcome,screen:this.props.screen},...state.audit].slice(0,30)}));
   private toggle=()=>this.setState(state=>({open:!state.open,error:'',proposal:state.open?null:state.proposal}));
-
   private ask=async(raw?:string)=>{
-    if(this.state.busy)return;
-    const message=String(raw??this.state.input).trim().slice(0,MAX_MESSAGE_CHARS);if(!message)return;
-    const capability:AiCapabilityId=financeIntent(message)?'finance.explain':'workspace.help';
-    const userMessage:AiMessage={id:id('user'),role:'user',text:message};
-    this.setState(state=>({busy:true,error:'',input:'',proposal:null,messages:[...state.messages,userMessage]}));
-    this.addAudit(capability,'requested');
-    try{
-      const resumed=await resumeVaultSession();
-      if(!resumed)throw new Error(t('Unlock LOUREX before using financial AI.','افتح قفل LOUREX قبل استخدام التحليل المالي بالذكاء.'));
-      const financeSource:AiFinanceSource={documents:resumed.vault.documents,payments:resumed.vault.payments,customers:resumed.vault.customers,activeDocument:this.props.activeDocument??null};
-      const response=await fetch('/api/ai-core',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({message,context:buildAiContext(this.props.screen,this.props.language,financeSource,message)})});
-      let payload:any={};try{payload=await response.json();}catch{}
-      if(!response.ok)throw new Error(String(payload?.message||t('LOUREX AI is temporarily unavailable.','ذكاء LOUREX غير متاح مؤقتًا.')));
-      const answer=String(payload?.answer||'').trim().slice(0,4000)||t('I could not form a useful answer from this request.','لم أتمكن من تكوين إجابة مفيدة لهذا الطلب.');
-      const proposal=safeNavigationProposal(payload?.proposal);
-      const assistant:AiMessage={id:id('assistant'),role:'assistant',text:answer};
-      this.setState(state=>({busy:false,messages:[...state.messages,assistant],proposal}));
-      this.addAudit(capability,'answered');
-    }catch(error){
-      const text=error instanceof Error?error.message:t('LOUREX AI is temporarily unavailable.','ذكاء LOUREX غير متاح مؤقتًا.');
-      this.setState({busy:false,error:text});this.addAudit(capability,'failed');
-    }
+    if(this.state.busy)return;const message=String(raw??this.state.input).trim().slice(0,MAX_MESSAGE_CHARS);if(!message)return;const capability=capabilityFor(message);const userMessage:AiMessage={id:id('user'),role:'user',text:message};this.setState(state=>({busy:true,error:'',input:'',proposal:null,messages:[...state.messages,userMessage]}));this.addAudit(capability,'requested');
+    try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX before using LOUREX AI.','افتح قفل LOUREX قبل استخدام ذكاء LOUREX.'));const financeSource:AiFinanceSource={documents:resumed.vault.documents,payments:resumed.vault.payments,customers:resumed.vault.customers,activeDocument:this.props.activeDocument??null};const context=buildAiContext(this.props.screen,this.props.language,financeSource,resumed.vault,message);const response=await fetch('/api/ai-core',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({message,context})});let payload:any={};try{payload=await response.json();}catch{}if(!response.ok)throw new Error(String(payload?.message||t('LOUREX AI is temporarily unavailable.','ذكاء LOUREX غير متاح مؤقتًا.')));const answer=String(payload?.answer||'').trim().slice(0,4000)||t('I could not form a useful answer from this request.','لم أتمكن من تكوين إجابة مفيدة لهذا الطلب.');const proposal=safeProposal(payload?.proposal,context);const assistant:AiMessage={id:id('assistant'),role:'assistant',text:answer};this.setState(state=>({busy:false,messages:[...state.messages,assistant],proposal}));this.addAudit(capability,'answered');}
+    catch(error){const text=error instanceof Error?error.message:t('LOUREX AI is temporarily unavailable.','ذكاء LOUREX غير متاح مؤقتًا.');this.setState({busy:false,error:text});this.addAudit(capability,'failed');}
   };
-
-  private approveProposal=()=>{
-    const proposal=this.state.proposal;if(!proposal)return;
-    if(!capabilityRequiresApproval(proposal.capability)||!NAV_TARGETS.has(proposal.target))return;
-    this.addAudit(proposal.capability,'approved');
-    this.setState({proposal:null,open:false},()=>this.props.onNavigate(proposal.target));
+  private executeItemProposal=async(proposal:AiItemProposal)=>{
+    if(proposal.capability==='item.reviewDuplicate'){this.setState({proposal:null,open:false},()=>this.props.onNavigate('items'));return;}
+    const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX first.','افتح قفل LOUREX أولًا.'));const index=resumed.vault.savedItems.findIndex(item=>item.id===proposal.itemId);if(index<0)throw new Error(t('Product no longer exists.','الصنف لم يعد موجودًا.'));const current=resumed.vault.savedItems[index]!;let updated:SavedItem;
+    if(proposal.capability==='item.archive'){const tags=Array.from(new Set([...(current.tags??[]).filter(tag=>tag!==AI_ARCHIVE_TAG),AI_ARCHIVE_TAG]));updated={...current,archived:true,tags,updatedAt:new Date().toISOString()};}
+    else if(proposal.capability==='item.restore'){updated={...current,archived:false,tags:(current.tags??[]).filter(tag=>tag!==AI_ARCHIVE_TAG),updatedAt:new Date().toISOString()};}
+    else{const patch=proposal.patch??{};const keepArchive=aiProductArchived(current);const proposedTags=patch.tags??current.tags??[];updated={...current,...patch,tags:keepArchive?Array.from(new Set([...proposedTags.filter(tag=>tag!==AI_ARCHIVE_TAG),AI_ARCHIVE_TAG])):proposedTags.filter(tag=>tag!==AI_ARCHIVE_TAG),updatedAt:new Date().toISOString()};const duplicate=findSavedItemDuplicate(resumed.vault.savedItems,updated);if(duplicate)throw new Error(t('This metadata would create a duplicate product. Review it in Items instead.','هذه البيانات ستنشئ صنفًا مكررًا. راجع الصنف في قسم الأصناف بدلًا من ذلك.'));}
+    const savedItems=[...resumed.vault.savedItems];savedItems[index]=updated;await saveVault(resumed.key,{...resumed.vault,savedItems});window.location.reload();
   };
+  private executeDocumentProposal=async(proposal:AiDocumentDraftProposal)=>{
+    const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX first.','افتح قفل LOUREX أولًا.'));const next=nextDocumentNumber(resumed.vault,proposal.kind);let doc=createBlankDocument(proposal.kind,next.number,resumed.vault.company);const customer=resumed.vault.customers.find(item=>item.id===proposal.customerId);if(customer)doc=applyCustomerCommercialDefaults({...doc,customerSnapshot:customerSnapshotFrom(customer)},customer,resumed.vault.company);doc={...doc,currency:proposal.currency,language:proposal.language,terms:{...doc.terms,incoterm:proposal.incoterm||doc.terms.incoterm,paymentTerms:proposal.paymentTerms||doc.terms.paymentTerms,deliveryTime:proposal.deliveryTime||doc.terms.deliveryTime,remarks:proposal.remarks||doc.terms.remarks},notes:proposal.notes||doc.notes};doc.items=proposal.items.map(entry=>{const saved=resumed.vault.savedItems.find(item=>item.id===entry.savedItemId&&!aiProductArchived(item));if(saved){const line=documentItemFromSavedItem(saved);line.quantity=entry.quantity;line.unit=entry.unit||line.unit;if(entry.unitPrice)line.unitPrice=entry.unitPrice;else if(saved.lastCurrency&&saved.lastCurrency!==proposal.currency)line.unitPrice='';return line;}return{id:makeId('item'),descriptionEn:entry.descriptionEn,descriptionAr:entry.descriptionAr,hsCode:'',origin:'',packing:'',quantity:entry.quantity,unit:entry.unit||'PCS',unitPrice:entry.unitPrice,unitCost:''};});const now=new Date().toISOString();doc={...doc,status:'draft',createdAt:now,updatedAt:now};const vault={...next.vault,documents:[...next.vault.documents,doc],documentEvents:[...next.vault.documentEvents,createDocumentEvent(doc,'created')]};await saveVault(resumed.key,vault);window.location.reload();
+  };
+  private approveProposal=async()=>{const proposal=this.state.proposal;if(!proposal||this.state.busy)return;if(!capabilityRequiresApproval(proposal.capability))return;this.addAudit(proposal.capability,'approved');this.setState({busy:true,error:''});try{if(proposal.capability==='workspace.navigate'){this.setState({busy:false,proposal:null,open:false},()=>this.props.onNavigate(proposal.target));return;}if(proposal.capability==='document.createDraft')await this.executeDocumentProposal(proposal);else await this.executeItemProposal(proposal);}catch(error){const text=error instanceof Error?error.message:t('Unable to apply this AI action.','تعذر تطبيق إجراء الذكاء.');this.setState({busy:false,error:text});this.addAudit(proposal.capability,'failed');}};
   private dismissProposal=()=>{if(this.state.proposal)this.addAudit(this.state.proposal.capability,'dismissed');this.setState({proposal:null});};
+  private proposalPreview=(proposal:AiProposal):string=>{if(proposal.capability==='workspace.navigate')return`${t('Destination','الوجهة')}: ${proposal.target}`;if(proposal.capability==='document.createDraft')return`${t('Type','النوع')}: ${proposal.kind==='invoice'?t('Invoice','فاتورة'):t('Quotation','عرض سعر')}\n${t('Currency','العملة')}: ${proposal.currency}\n${t('Items','الأصناف')}: ${proposal.items.length}${proposal.customerId?`\n${t('Customer linked','العميل مرتبط')}`:''}`;if(proposal.capability==='item.updateMetadata')return Object.entries(proposal.patch??{}).map(([key,value])=>`${key}: ${Array.isArray(value)?value.join(', '):value}`).join('\n');return proposal.relatedItemId?`${t('Related product','الصنف المرتبط')}: ${proposal.relatedItemId}`:'';};
 
-  render():any{
-    const prompts=starterPrompts(this.props.screen);
-    return <>
-      <style data-lourex-ai-core="v264">{AI_CORE_CSS}</style>
-      <button type="button" className="lourex-ai-launcher" dir={this.props.language==='ar'?'rtl':'ltr'} aria-label={t('Open LOUREX AI','فتح ذكاء LOUREX')} aria-expanded={this.state.open} aria-controls="lourex-ai-panel" onClick={this.toggle}>✦</button>
-      {this.state.open?<>
-        <button type="button" className="lourex-ai-backdrop" aria-label={t('Close LOUREX AI','إغلاق ذكاء LOUREX')} onClick={this.toggle}/>
-        <aside id="lourex-ai-panel" className="lourex-ai-panel" role="dialog" aria-modal="true" aria-label={t('LOUREX AI','ذكاء LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
-          <header className="lourex-ai-head"><div className="lourex-ai-title"><span className="lourex-ai-mark">✦</span><div><strong>{t('LOUREX AI','ذكاء LOUREX')}</strong><small>{t('Financial copilot · deterministic numbers','مساعد مالي · أرقام من المحرك المحاسبي')}</small></div></div><button type="button" className="lourex-ai-close" aria-label={t('Close','إغلاق')} onClick={this.toggle}>×</button></header>
-          <div className="lourex-ai-context">{t('Current context','السياق الحالي')}: {screenLabel(this.props.screen)}</div>
-          <div className="lourex-ai-messages" aria-live="polite">
-            {!this.state.messages.length?<div className="lourex-ai-empty"><strong>{t('Ask about your business without leaving your work','اسأل عن أعمالك بدون مغادرة الصفحة')}</strong><p>{t('LOUREX calculates the numbers locally, then AI explains the derived results. Currencies stay separate and profit is never guessed when costs are incomplete.','LOUREX يحسب الأرقام محليًا ثم يشرح الذكاء النتائج المشتقة. العملات تبقى منفصلة ولا يتم تخمين الربح عند نقص التكلفة.')}</p><div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} onClick={()=>void this.ask(prompt)}>{prompt}</button>)}</div></div>:null}
-            {this.state.messages.map(message=><div key={message.id} className={`lourex-ai-message ${message.role}`}>{message.text}</div>)}
-            {this.state.busy?<div className="lourex-ai-busy">{t('LOUREX AI is analyzing…','ذكاء LOUREX يحلل…')}</div>:null}
-          </div>
-          {this.state.proposal?<section className="lourex-ai-proposal" aria-label={t('Proposed action','إجراء مقترح')}><small>{t('Approval required','يتطلب موافقتك')}</small><strong>{this.state.proposal.label}</strong><p>{this.state.proposal.rationale}</p><div className="lourex-ai-proposal-actions"><button type="button" onClick={this.dismissProposal}>{t('Dismiss','تجاهل')}</button><button type="button" className="primary" onClick={this.approveProposal}>{t('Approve','موافقة')}</button></div></section>:null}
-          <footer className="lourex-ai-compose">{this.state.error?<div className="lourex-ai-error" role="alert">{this.state.error}</div>:null}<form onSubmit={(event:any)=>{event.preventDefault();void this.ask();}}><input value={this.state.input} maxLength={MAX_MESSAGE_CHARS} onChange={(event:any)=>this.setState({input:event.target.value})} placeholder={t('Ask LOUREX…','اسأل LOUREX…')} aria-label={t('Message LOUREX AI','رسالة إلى ذكاء LOUREX')}/><button type="submit" className="lourex-ai-send" disabled={this.state.busy||!this.state.input.trim()} aria-label={t('Send','إرسال')}>→</button></form><div className="lourex-ai-meta"><span>{t('Read-only financial analysis · no record changes','تحليل مالي للقراءة فقط · دون تغيير السجلات')}</span><button type="button" onClick={()=>this.setState(state=>({auditOpen:!state.auditOpen}))}>{t('AI activity','نشاط AI')} · {this.state.audit.length}</button></div>{this.state.auditOpen?<div className="lourex-ai-audit">{this.state.audit.length?this.state.audit.map(entry=><div key={entry.id}><span>{entry.capability}</span><span>{entry.outcome}</span></div>):<div>{t('No AI activity yet','لا يوجد نشاط AI بعد')}</div>}</div>:null}</footer>
-        </aside>
-      </>:null}
-    </>;
-  }
+  render():any{const prompts=starterPrompts(this.props.screen);const preview=this.state.proposal?this.proposalPreview(this.state.proposal):'';return <>
+    <style data-lourex-ai-core="v268">{AI_CORE_CSS}</style>
+    <button type="button" className="lourex-ai-launcher" dir={this.props.language==='ar'?'rtl':'ltr'} aria-label={t('Open LOUREX AI','فتح ذكاء LOUREX')} aria-expanded={this.state.open} aria-controls="lourex-ai-panel" onClick={this.toggle}>✦</button>
+    {this.state.open?<><button type="button" className="lourex-ai-backdrop" aria-label={t('Close LOUREX AI','إغلاق ذكاء LOUREX')} onClick={this.toggle}/><aside id="lourex-ai-panel" className="lourex-ai-panel" role="dialog" aria-modal="true" aria-label={t('LOUREX AI','ذكاء LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
+      <header className="lourex-ai-head"><div className="lourex-ai-title"><span className="lourex-ai-mark">✦</span><div><strong>{t('LOUREX AI','ذكاء LOUREX')}</strong><small>{t('Business copilot · deterministic numbers','مساعد أعمال · أرقام من المحركات المحلية')}</small></div></div><button type="button" className="lourex-ai-close" aria-label={t('Close','إغلاق')} onClick={this.toggle}>×</button></header>
+      <div className="lourex-ai-context">{t('Current context','السياق الحالي')}: {screenLabel(this.props.screen)}</div>
+      <div className="lourex-ai-messages" aria-live="polite">{!this.state.messages.length?<div className="lourex-ai-empty"><strong>{t('Ask about the business or prepare a safe action','اسأل عن الأعمال أو جهّز إجراءً آمنًا')}</strong><p>{t('LOUREX calculates accounting and intelligence locally. AI explains the results and may prepare a preview; any record change requires your approval.','LOUREX يحسب المحاسبة والمؤشرات محليًا. الذكاء يشرح النتائج وقد يجهز معاينة؛ أي تغيير على السجلات يحتاج موافقتك.')}</p><div className="lourex-ai-starters">{prompts.map(prompt=><button type="button" key={prompt} onClick={()=>void this.ask(prompt)}>{prompt}</button>)}</div></div>:null}{this.state.messages.map(message=><div key={message.id} className={`lourex-ai-message ${message.role}`}>{message.text}</div>)}{this.state.busy?<div className="lourex-ai-busy">{t('LOUREX AI is working…','ذكاء LOUREX يعمل…')}</div>:null}</div>
+      {this.state.proposal?<section className="lourex-ai-proposal" aria-label={t('Proposed action','إجراء مقترح')}><small>{t('Preview · approval required','معاينة · يتطلب موافقتك')}</small><strong>{this.state.proposal.label}</strong><p>{this.state.proposal.rationale}</p>{preview?<div className="lourex-ai-preview">{preview}</div>:null}<div className="lourex-ai-proposal-actions"><button type="button" disabled={this.state.busy} onClick={this.dismissProposal}>{t('Dismiss','تجاهل')}</button><button type="button" disabled={this.state.busy} className="primary" onClick={()=>void this.approveProposal()}>{t('Approve & apply','موافقة وتطبيق')}</button></div></section>:null}
+      <footer className="lourex-ai-compose">{this.state.error?<div className="lourex-ai-error" role="alert">{this.state.error}</div>:null}<div className="lourex-ai-tools"><SupplierDocumentImport language={this.props.language}/></div><form onSubmit={(event:any)=>{event.preventDefault();void this.ask();}}><input value={this.state.input} maxLength={MAX_MESSAGE_CHARS} onChange={(event:any)=>this.setState({input:event.target.value})} placeholder={t('Ask LOUREX…','اسأل LOUREX…')} aria-label={t('Message LOUREX AI','رسالة إلى ذكاء LOUREX')}/><button type="submit" className="lourex-ai-send" disabled={this.state.busy||!this.state.input.trim()} aria-label={t('Send','إرسال')}>→</button></form><div className="lourex-ai-meta"><span>{t('Accounting stays deterministic · actions need approval','المحاسبة حتمية · الإجراءات تحتاج موافقة')}</span><button type="button" onClick={()=>this.setState(state=>({auditOpen:!state.auditOpen}))}>{t('AI activity','نشاط AI')} · {this.state.audit.length}</button></div>{this.state.auditOpen?<div className="lourex-ai-audit">{this.state.audit.length?this.state.audit.map(entry=><div key={entry.id}><span>{entry.capability}</span><span>{entry.outcome}</span></div>):<div>{t('No AI activity yet','لا يوجد نشاط AI بعد')}</div>}</div>:null}</footer>
+    </aside></>:null}
+  </>;}
 }
