@@ -1,5 +1,8 @@
 import type { LourexDocument } from '../types.js';
-import { calculateTotals, decimalToScaled, isDecimalInput, lineTotal } from './money.js';
+import { calculateTotals, decimalToScaled, isDecimalInput } from './money.js';
+
+const COST_DECIMALS=12;
+const COST_PRODUCT_TO_CENTS=100_000_000_000_000n;
 
 export interface ProfitabilitySummary {
   netRevenue:string;
@@ -20,6 +23,17 @@ function centsString(cents:bigint):string{
   const sign=cents<0n?'-':'';
   const abs=cents<0n?-cents:cents;
   return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`;
+}
+
+function roundDivide(value:bigint,divisor:bigint):bigint{
+  const sign=(value<0n)!==(divisor<0n)?-1n:1n;
+  const a=value<0n?-value:value;
+  const b=divisor<0n?-divisor:divisor;
+  return ((a+b/2n)/b)*sign;
+}
+
+function costLineCents(quantity:string,unitCost:string):bigint{
+  return roundDivide(decimalToScaled(quantity,4)*decimalToScaled(unitCost,COST_DECIMALS),COST_PRODUCT_TO_CENTS);
 }
 
 function nonNegativeScaled(value:unknown,decimals=2):bigint|null{
@@ -48,10 +62,12 @@ export function calculateProfitability(document:LourexDocument):ProfitabilitySum
   let missingCostItems=0;
   let costedItems=0;
   for(const item of document.items){
-    const unitCost=nonNegativeScaled(item.unitCost,4);
+    const unitCost=nonNegativeScaled(item.unitCost,COST_DECIMALS);
     if(unitCost===null){missingCostItems+=1;continue;}
-    // Keep the full 4-decimal unit cost until quantity multiplication; only the line total rounds to cents.
-    itemCost+=decimalToScaled(lineTotal(item.quantity,item.unitCost),2);
+    // Landed purchase costs may require more than four decimals per unit in order
+    // for a high-volume line to reconcile exactly to cents. Preserve that precision
+    // through quantity multiplication and round only the resulting line total.
+    itemCost+=costLineCents(item.quantity,item.unitCost);
     costedItems+=1;
   }
 
