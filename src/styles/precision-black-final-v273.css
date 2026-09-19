@@ -1,0 +1,520 @@
+/* v273 — LOUREX Precision Black final application polish.
+   Settings, account entry, overlays, launch and final RTL/mobile consistency.
+   Business logic and printable document output are deliberately untouched. */
+
+@media screen {
+  /* Settings: sober workspace, no glass or decorative gradients. */
+  .app-ui .modal-backdrop:has(.settings-workspace-v2) {
+    padding:clamp(8px,1.5vw,18px)!important;
+    background:rgba(0,0,0,.82)!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+
+  .app-ui .modal:has(.settings-workspace-v2) {
+    width:min(1160px,calc(100vw - 24px))!important;
+    max-width:1160px!important;
+    max-height:min(94dvh,980px)!important;
+    border:1px solid var(--ds-line-strong)!important;
+    border-radius:14px!important;
+    background:var(--ds-workspace)!important;
+    box-shadow:0 20px 58px rgba(0,0,0,.48)!important;
+  }
+
+  .app-ui .modal:has(.settings-workspace-v2)>.modal-header {
+    min-height:56px!important;
+    padding:10px 14px!important;
+    border-bottom:1px solid var(--ds-line)!important;
+    background:var(--ds-shell)!important;
+    background-image:none!important;
+  }
+
+  .app-ui .modal:has(.settings-workspace-v2)>.modal-header h2 {
+    color:var(--ds-text-strong)!important;
+    font-size:15px!important;
+    font-weight:720!important;
+  }
+
+  .app-ui .modal:has(.settings-workspace-v2)>.modal-body {
+    background:var(--ds-canvas)!important;
+  }
+
+  .app-ui .settings-workspace-v2 {
+    grid-template-columns:204px minmax(0,1fr)!important;
+    background:var(--ds-workspace)!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-tabs {
+    gap:2px!important;
+    padding:12px 9px!important;
+    border-inline-end:1px solid var(--ds-line)!important;
+    background:var(--ds-shell)!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-tabs>button {
+    min-height:40px!important;
+    gap:8px!important;
+    padding:8px 9px!important;
+    border:0!important;
+    border-radius:8px!important;
+    background:transparent!important;
+    color:var(--ds-muted)!important;
+    font-size:12px!important;
+    font-weight:620!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-tabs>button:hover {
+    background:var(--ds-surface)!important;
+    color:var(--ds-text)!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-tabs>button.active {
+    position:relative;
+    background:var(--ds-selected)!important;
+    color:var(--ds-text-strong)!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-tabs>button.active::before {
+    content:"";
+    position:absolute;
+    inset-block:8px;
+    inset-inline-start:0;
+    width:2px;
+    border-radius:99px;
+    background:var(--ds-accent)!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-tabs>button.active .icon {
+    color:var(--ds-accent-bright)!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-panel {
+    background:var(--ds-workspace)!important;
+  }
+
+  .app-ui .settings-tab-page {
+    padding:18px clamp(16px,2.4vw,28px) 28px!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-title {
+    min-height:68px!important;
+    margin:-18px calc(clamp(16px,2.4vw,28px) * -1) 14px!important;
+    padding:11px clamp(16px,2.4vw,28px)!important;
+    border-bottom:1px solid var(--ds-line)!important;
+    background:var(--ds-workspace)!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-title .eyebrow {
+    margin-bottom:1px!important;
+    color:var(--ds-accent-bright)!important;
+    font-size:9px!important;
+    font-weight:680!important;
+    letter-spacing:.07em!important;
+  }
+
+  [dir='rtl'] .app-ui .settings-workspace-v2 .settings-title .eyebrow {
+    letter-spacing:normal!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-title h3 {
+    color:var(--ds-text-strong)!important;
+    font-size:17px!important;
+    font-weight:720!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-title p:not(.eyebrow) {
+    margin-top:3px!important;
+    color:var(--ds-muted)!important;
+    font-size:11px!important;
+    line-height:1.45!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-title>.btn {
+    min-width:92px!important;
+    min-height:38px!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-section {
+    padding:17px 0!important;
+    border:0!important;
+    border-bottom:1px solid var(--ds-line)!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-section:last-child {
+    border-bottom:0!important;
+  }
+
+  .app-ui .settings-workspace-v2 :is(.settings-section>h4,.settings-section-heading h4,.commercial-section-heading h4) {
+    color:var(--ds-text)!important;
+    font-size:13px!important;
+    font-weight:700!important;
+  }
+
+  .app-ui .settings-workspace-v2 :is(.settings-section-heading,.commercial-section-heading) p {
+    color:var(--ds-muted)!important;
+    font-size:11px!important;
+    line-height:1.45!important;
+  }
+
+  .app-ui .settings-workspace-v2 .field-label {
+    color:var(--ds-text-soft)!important;
+    font-size:11px!important;
+    font-weight:620!important;
+  }
+
+  .app-ui .company-artwork-section .asset-settings>label,
+  .app-ui .company-artwork-section .asset-control,
+  .app-ui .settings-workspace-v2 .commercial-row-card {
+    border-color:var(--ds-line)!important;
+    border-radius:10px!important;
+    background:var(--ds-surface)!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .company-artwork-section .asset-preview {
+    border-color:var(--ds-line-strong)!important;
+    border-radius:9px!important;
+    background:var(--ds-input)!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .settings-workspace-v2 .numbering-preview>span {
+    border-color:#4C4231!important;
+    border-radius:9px!important;
+    background:var(--ds-financial-surface)!important;
+    color:var(--ds-accent-bright)!important;
+    box-shadow:none!important;
+  }
+
+  /* Account entry: preserve the strong two-column composition, remove decorative scenery. */
+  .auth-account-page {
+    background:#080808!important;
+    background-image:none!important;
+    color:#F0EFEA!important;
+  }
+
+  .auth-account-page::before,
+  .auth-account-page::after,
+  .auth-account-story::before,
+  .auth-account-story::after {
+    display:none!important;
+    content:none!important;
+  }
+
+  .auth-account-frame {
+    width:min(1080px,100%)!important;
+    min-height:min(680px,calc(100dvh - 48px))!important;
+    grid-template-columns:minmax(0,1fr) minmax(390px,.9fr)!important;
+    border:1px solid #292929!important;
+    border-radius:20px!important;
+    background:#0D0D0D!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+
+  .auth-account-story {
+    gap:28px!important;
+    padding:40px 44px 36px!important;
+    border-inline-end:1px solid #292929!important;
+    background:#111111!important;
+    background-image:none!important;
+  }
+
+  .auth-story-brand .brand-mark {
+    box-shadow:none!important;
+  }
+
+  .auth-story-product {
+    border-color:#4C4231!important;
+    border-radius:999px!important;
+    background:#181713!important;
+    color:#D2BD91!important;
+  }
+
+  .auth-story-kicker {
+    color:#D2BD91!important;
+  }
+
+  .auth-story-copy .auth-story-title {
+    color:#F7F5EE!important;
+    font-size:clamp(32px,4vw,50px)!important;
+    font-weight:740!important;
+    letter-spacing:-.035em!important;
+  }
+
+  [dir='rtl'] .auth-story-copy .auth-story-title {
+    letter-spacing:normal!important;
+  }
+
+  .auth-story-copy>p:last-child {
+    color:#AAA9A4!important;
+  }
+
+  .auth-story-trust {
+    gap:0!important;
+    border:1px solid #292929!important;
+    border-radius:11px!important;
+    overflow:hidden!important;
+  }
+
+  .auth-story-trust>div {
+    padding:12px!important;
+    border:0!important;
+    border-inline-start:1px solid #292929!important;
+    border-radius:0!important;
+    background:transparent!important;
+  }
+
+  .auth-story-trust>div:first-child {
+    border-inline-start:0!important;
+  }
+
+  .auth-trust-mark {
+    width:16px!important;
+    height:2px!important;
+    background:#B8A071!important;
+    background-image:none!important;
+  }
+
+  .auth-story-trust strong {color:#E9E5DC!important}
+  .auth-story-trust small,
+  .auth-story-foot {color:#85837E!important}
+
+  .auth-account-card.account-first-card {
+    background:#0C0C0C!important;
+    background-image:none!important;
+  }
+
+  .auth-account-card .account-entry-tabs {
+    padding:3px!important;
+    border:1px solid #2B2B2B!important;
+    border-radius:10px!important;
+    background:#111111!important;
+  }
+
+  .auth-account-card .account-entry-tabs button {
+    min-height:38px!important;
+    border-radius:7px!important;
+    color:#92918C!important;
+  }
+
+  .auth-account-card .account-entry-tabs button.active {
+    background:#202020!important;
+    color:#F1F0EB!important;
+    box-shadow:none!important;
+  }
+
+  .auth-account-card .account-entry-fields input {
+    min-height:44px!important;
+    border-color:#333!important;
+    border-radius:9px!important;
+    background:#101010!important;
+    color:#F0EFEA!important;
+    caret-color:#D2BD91!important;
+    box-shadow:none!important;
+  }
+
+  .auth-account-card .account-entry-fields input:focus {
+    border-color:#C5AE7E!important;
+    box-shadow:0 0 0 2px rgba(197,174,126,.2)!important;
+  }
+
+  .auth-account-card .premium-auth-primary {
+    min-height:44px!important;
+    border-color:#B8A071!important;
+    border-radius:9px!important;
+    background:#B8A071!important;
+    background-image:none!important;
+    color:#11110F!important;
+    box-shadow:none!important;
+  }
+
+  .auth-account-card .google-auth-button {
+    min-height:44px!important;
+    border-color:#323232!important;
+    border-radius:9px!important;
+    background:#181818!important;
+    background-image:none!important;
+    color:#F0EFEA!important;
+    box-shadow:none!important;
+  }
+
+  .auth-account-card .google-auth-button:hover:not(:disabled) {
+    border-color:#444!important;
+    background:#202020!important;
+    transform:none!important;
+  }
+
+  /* Launch stays intentionally quiet. */
+  .loading-screen {
+    background:#080808!important;
+    background-image:none!important;
+  }
+
+  .loading-screen::before,
+  .loading-screen::after {
+    display:none!important;
+    content:none!important;
+  }
+
+  .loading-screen .brand-mark {
+    box-shadow:none!important;
+  }
+
+  .loading-screen .loading-line {
+    background:#252525!important;
+  }
+
+  .loading-screen .loading-line::after {
+    background:#B8A071!important;
+    background-image:none!important;
+  }
+
+  /* Generic late-layer consistency for overlays and notifications. */
+  .app-ui .modal {
+    border-color:var(--ds-line-strong)!important;
+    background:var(--ds-workspace)!important;
+    background-image:none!important;
+  }
+
+  .app-ui :is(.modal-header,.modal-footer-actions) {
+    border-color:var(--ds-line)!important;
+    background:var(--ds-surface)!important;
+    background-image:none!important;
+  }
+
+  .app-ui :is(.toast,.notification,.popover,.dropdown-menu) {
+    border-color:var(--ds-line-strong)!important;
+    background-color:var(--ds-surface-strong)!important;
+    background-image:none!important;
+  }
+
+  /* Explicit bidi geometry for the context-aware AI launcher. */
+  .lourex-ai-launcher:dir(rtl) {
+    right:auto!important;
+    left:16px!important;
+  }
+
+  @media (max-width:720px) {
+    .app-ui .modal-backdrop:has(.settings-workspace-v2) {
+      padding:0!important;
+    }
+
+    .app-ui .modal:has(.settings-workspace-v2) {
+      width:100vw!important;
+      max-width:100vw!important;
+      height:100dvh!important;
+      max-height:100dvh!important;
+      border:0!important;
+      border-radius:0!important;
+    }
+
+    .app-ui .settings-workspace-v2 {
+      display:flex!important;
+      flex-direction:column!important;
+    }
+
+    .app-ui .settings-workspace-v2 .settings-tabs {
+      flex:0 0 auto!important;
+      width:100%!important;
+      display:flex!important;
+      flex-direction:row!important;
+      gap:2px!important;
+      padding:6px 8px!important;
+      overflow-x:auto!important;
+      border:0!important;
+      border-bottom:1px solid var(--ds-line)!important;
+      background:var(--ds-shell)!important;
+      scrollbar-width:none;
+    }
+
+    .app-ui .settings-workspace-v2 .settings-tabs::-webkit-scrollbar {
+      display:none;
+    }
+
+    .app-ui .settings-workspace-v2 .settings-tabs>button {
+      flex:0 0 auto!important;
+      width:auto!important;
+      min-height:42px!important;
+      padding:7px 9px!important;
+      white-space:nowrap!important;
+    }
+
+    .app-ui .settings-workspace-v2 .settings-tabs>button.active::before {
+      inset:auto 9px 0!important;
+      width:auto!important;
+      height:2px!important;
+    }
+
+    .app-ui .settings-tab-page {
+      padding:14px 12px calc(26px + env(safe-area-inset-bottom))!important;
+    }
+
+    .app-ui .settings-workspace-v2 .settings-title {
+      min-height:62px!important;
+      margin:-14px -12px 12px!important;
+      padding:9px 12px!important;
+    }
+
+    .app-ui .settings-workspace-v2 .settings-title p:not(.eyebrow) {
+      display:none!important;
+    }
+
+    .app-ui .settings-workspace-v2 .form-grid.two {
+      grid-template-columns:minmax(0,1fr)!important;
+    }
+
+    .auth-account-page {
+      padding:max(12px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))!important;
+    }
+
+    .auth-account-frame {
+      width:min(100%,560px)!important;
+      min-height:0!important;
+      display:block!important;
+      border-radius:14px!important;
+    }
+
+    .auth-account-story {
+      padding:22px 20px 18px!important;
+      border:0!important;
+      border-bottom:1px solid #292929!important;
+    }
+
+    .auth-story-copy .auth-story-title {
+      font-size:30px!important;
+    }
+
+    .auth-story-copy>p:last-child,
+    .auth-story-trust,
+    .auth-story-foot {
+      display:none!important;
+    }
+
+    .lourex-ai-launcher:dir(rtl) {
+      right:auto!important;
+      left:max(10px,env(safe-area-inset-left))!important;
+    }
+  }
+
+  @media (prefers-reduced-motion:reduce) {
+    .auth-account-frame,
+    .loading-screen .brand,
+    .loading-screen .loading-line::after {
+      animation:none!important;
+    }
+  }
+}
