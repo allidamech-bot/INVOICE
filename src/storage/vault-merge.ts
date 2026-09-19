@@ -149,7 +149,7 @@ function guardCustomerChanges(base:Customer[],intended:Customer[],merged:Custome
   }
 }
 
-function savedItemSku(value:unknown):string{return text(value).normalize('NFKC').trim().replace(/\s+/g,'').toLocaleUpperCase();}
+function savedItemSku(value:unknown):string{return text(value).normalize('NFKC').trim().replace(/\s+/g,'').toUpperCase();}
 function savedItemIdentityChanged(before:SavedItem|undefined,item:SavedItem):boolean{
   return !before||normalizeSavedItemIdentity(text(before.descriptionEn))!==normalizeSavedItemIdentity(text(item.descriptionEn))||normalizeSavedItemIdentity(text(before.descriptionAr))!==normalizeSavedItemIdentity(text(item.descriptionAr))||savedItemSku(before.sku)!==savedItemSku(item.sku);
 }
