@@ -7,6 +7,8 @@ import { adaptiveCloudSettleMs } from '../cloud/coalescing.js';
 import { t } from '../lib/i18n.js';
 import { activateAccountStorage, activeAccountStorageUid, purgeLegacySafetySnapshot } from '../storage/db.js';
 import { getActiveAccountUid, isCurrentSessionExpired, resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
+import { saveVault } from '../storage/vault.js';
+import { registerVaultMutationBridge } from '../storage/vault-mutation-bridge.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
@@ -30,6 +32,30 @@ class AdaptiveCloudApp extends BaseApp {
       const delay=adaptiveCloudSettleMs(instance.latestEncryptedVault?.cipher?.length??0,true);
       instance.cloudTimer=window.setTimeout(()=>void instance.flushCloudSync(),delay);
     };
+
+    // AI actions and supplier-import drafts live below BaseApp and historically
+    // wrote a full vault snapshot directly. That could race a normal App.persist
+    // autosave and let either stale snapshot overwrite the other. Run those
+    // mutations inside the exact same write tail, against the newest queued vault,
+    // while preserving their review-draft semantics (no extra validation layer).
+    registerVaultMutationBridge(async mutation=>{
+      const operation=instance.vaultWriteTail.catch(()=>null).then(async (queued:any)=>{
+        await instance.waitForProtectedDataOperation();
+        const key=instance.state.key;
+        if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));
+        const latest=queued??instance.state.vault;
+        if(!latest)throw new Error(t('LOUREX workspace is not ready.','مساحة LOUREX غير جاهزة.'));
+        const next=mutation(latest);
+        const encrypted=await saveVault(key,next);
+        instance.latestEncryptedVault=encrypted;
+        if(instance.state.unlocked&&instance.state.key===key)await new Promise<void>(resolve=>instance.setState({vault:next},resolve));
+        instance.scheduleCloudSync();
+        return next;
+      });
+      instance.vaultWriteTail=operation;
+      return await operation;
+    });
+
     // BaseApp already defers a remote vault replacement when cloudReplaceBlocked()
     // is true. Extend that guard to the runtime workspaces that own unsaved local
     // draft state but live below BaseApp (Operations, product editor and shared
