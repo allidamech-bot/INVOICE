@@ -2,7 +2,7 @@ import type { PurchaseRecord, SavedItem, Supplier, UiLanguage } from '../types.j
 import { t } from '../lib/i18n.js';
 import { createPurchase, createPurchaseItem, supplierSnapshotFrom } from '../lib/operations.js';
 import { normalizeSavedItemIdentity, normalizeSavedItemSku } from '../lib/saved-items.js';
-import { resumeVaultSession, saveVault } from '../storage/vault.js';
+import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { Button, Modal } from './UI.js';
 
 const XLSX_RUNTIME='./vendor/xlsx.full.min.js';
@@ -50,7 +50,7 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
   };
   private saveDraft=async()=>{
     const extracted=this.state.draft;if(!extracted||this.state.busy)return;this.setState({busy:true,error:''});
-    try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX first.','افتح قفل LOUREX أولًا.'));const purchase=buildPurchase(extracted,resumed.vault.purchases,resumed.vault.suppliers,resumed.vault.savedItems,resumed.vault.appSettings.smartDefaults.currency||resumed.vault.company.defaultCurrency);await saveVault(resumed.key,{...resumed.vault,purchases:[...resumed.vault.purchases,purchase]});window.location.reload();}
+    try{await mutateVaultSafely(vault=>{const purchase=buildPurchase(extracted,vault.purchases,vault.suppliers,vault.savedItems,vault.appSettings.smartDefaults.currency||vault.company.defaultCurrency);return{...vault,purchases:[...vault.purchases,purchase]};});window.location.reload();}
     catch(error){this.setState({busy:false,error:error instanceof Error?error.message:String(error)});}
   };
   render():any{const d=this.state.draft;return <>
