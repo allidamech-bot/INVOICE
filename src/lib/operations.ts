@@ -1,6 +1,6 @@
 import type { ExpenseRecord, InventoryMovementRecord, InventoryMovementType, PurchaseRecord, SavedItem, Supplier, SupplierSnapshot } from '../types.js';
 import { isIsoDate, makeId, todayIso } from './id.js';
-import { decimalToScaled, isDecimalInput } from './money.js';
+import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput } from './money.js';
 
 const QUANTITY_DECIMALS=4;
 const COST_DECIMALS=12;
@@ -30,8 +30,8 @@ function cents(value:string):bigint{return decimalToScaled(value,2);}
 function lineCents(quantity:string,unitCost:string):bigint{return roundDivide(decimalToScaled(quantity,QUANTITY_DECIMALS)*decimalToScaled(unitCost,COST_DECIMALS),PRODUCT_TO_CENTS);}
 function lineCentsScaled(quantity4:bigint,unit12:bigint):bigint{return roundDivide(quantity4*unit12,PRODUCT_TO_CENTS);}
 function positive(value:string):boolean{return isDecimalInput(value)&&decimalToScaled(value,4)>0n;}
-function nonNegative(value:string):boolean{return isDecimalInput(value)&&decimalToScaled(value,4)>=0n;}
-function nonNegativeCost(value:string):boolean{return isDecimalInput(value)&&decimalToScaled(value,COST_DECIMALS)>=0n;}
+function nonNegative(value:string):boolean{return isNonNegativeDecimalInput(value);}
+function nonNegativeCost(value:string):boolean{return isNonNegativeDecimalInput(value);}
 function nowIso():string{return new Date().toISOString();}
 function cleanCurrency(value:string,fallback='USD'):string{return value.trim().toUpperCase()||fallback;}
 
@@ -237,7 +237,7 @@ export function createManualInventoryMovement(item:SavedItem,type:Extract<Invent
   if(!isIsoDate(date))throw new Error('Movement date is invalid.');
   if(!isDecimalInput(quantity)||decimalToScaled(quantity,4)===0n)throw new Error('Movement quantity cannot be zero.');
   const cost=unitCost.trim();
-  if(cost&&(!isDecimalInput(cost)||decimalToScaled(cost,COST_DECIMALS)<0n))throw new Error('Movement unit cost must be zero or greater.');
+  if(cost&&!isNonNegativeDecimalInput(cost))throw new Error('Movement unit cost must be zero or greater.');
   let scaled=decimalToScaled(quantity,4);
   if(type==='opening')scaled=scaled<0n?-scaled:scaled;
   if(type==='issue')scaled=scaled>0n?-scaled:scaled;
@@ -263,7 +263,7 @@ export function inventoryMovementAccountingIsValid(movement:InventoryMovementRec
   if((movement.type==='issue'||movement.type==='purchase-reversal')&&quantity>0n)return false;
   if((movement.type==='purchase'||movement.type==='purchase-reversal')&&!movement.sourceId.trim())return false;
   const cost=(movement.unitCost||'').trim();
-  if(cost&&(!isDecimalInput(cost)||decimalToScaled(cost,COST_DECIMALS)<0n))return false;
+  if(cost&&!isNonNegativeDecimalInput(cost))return false;
   return movement.type==='opening'||movement.type==='purchase'||movement.type==='purchase-reversal'||movement.type==='issue'||movement.type==='adjustment';
 }
 
