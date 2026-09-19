@@ -326,7 +326,7 @@ export function planProductImport(matrix:unknown[][],existingItems:SavedItem[],d
       rows.push({rowNumber,action:'error',reason:'Unit price is not a valid non-negative number.',item:null,matchedId:''});
       return;
     }
-    if(incoming.lastUnitCost?.trim()&&(!isDecimalInput(incoming.lastUnitCost)||decimalToScaled(incoming.lastUnitCost)<0n)){
+    if(incoming.lastUnitCost?.trim()&&(!isDecimalInput(incoming.lastUnitCost)||decimalToScaled(incoming.lastUnitCost,12)<0n)){
       rows.push({rowNumber,action:'error',reason:'Unit cost is not a valid non-negative number.',item:null,matchedId:''});
       return;
     }
