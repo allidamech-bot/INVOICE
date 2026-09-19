@@ -22,7 +22,56 @@ jobs:
       - name: LOUREX static security gate
         run: node scripts/security-check.mjs
       - run: npm run typecheck
-      - run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Unit tests — group 1 of 8
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          n=${#files[@]}; start=$((n*0/8)); end=$((n*1/8)); count=$((end-start))
+          printf '%s\n' "${files[@]:start:count}"
+          node --test "${files[@]:start:count}"
+      - name: Unit tests — group 2 of 8
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          n=${#files[@]}; start=$((n*1/8)); end=$((n*2/8)); count=$((end-start))
+          printf '%s\n' "${files[@]:start:count}"
+          node --test "${files[@]:start:count}"
+      - name: Unit tests — group 3 of 8
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          n=${#files[@]}; start=$((n*2/8)); end=$((n*3/8)); count=$((end-start))
+          printf '%s\n' "${files[@]:start:count}"
+          node --test "${files[@]:start:count}"
+      - name: Unit tests — group 4 of 8
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          n=${#files[@]}; start=$((n*3/8)); end=$((n*4/8)); count=$((end-start))
+          printf '%s\n' "${files[@]:start:count}"
+          node --test "${files[@]:start:count}"
+      - name: Unit tests — group 5 of 8
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          n=${#files[@]}; start=$((n*4/8)); end=$((n*5/8)); count=$((end-start))
+          printf '%s\n' "${files[@]:start:count}"
+          node --test "${files[@]:start:count}"
+      - name: Unit tests — group 6 of 8
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          n=${#files[@]}; start=$((n*5/8)); end=$((n*6/8)); count=$((end-start))
+          printf '%s\n' "${files[@]:start:count}"
+          node --test "${files[@]:start:count}"
+      - name: Unit tests — group 7 of 8
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          n=${#files[@]}; start=$((n*6/8)); end=$((n*7/8)); count=$((end-start))
+          printf '%s\n' "${files[@]:start:count}"
+          node --test "${files[@]:start:count}"
+      - name: Unit tests — group 8 of 8
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          n=${#files[@]}; start=$((n*7/8)); end=$n; count=$((end-start))
+          printf '%s\n' "${files[@]:start:count}"
+          node --test "${files[@]:start:count}"
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
