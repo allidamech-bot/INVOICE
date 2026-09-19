@@ -64,7 +64,7 @@ function normalizeHeader(value:unknown):string{
     .replace(/ـ/g,'')
     .replace(/[\u200E\u200F\u202A-\u202E]/g,'')
     .trim()
-    .toLocaleLowerCase()
+    .toLowerCase()
     .replace(/[()\[\]{}:;,.\/\\|]+/g,' ')
     .replace(/[_\-]+/g,' ')
     .replace(/\s+/g,' ')
@@ -150,7 +150,7 @@ export function productImportTemplateCsv():string{
 
 function boolValue(value:string):boolean|undefined{
   if(!value)return undefined;
-  const normalized=value.trim().toLocaleLowerCase();
+  const normalized=value.trim().toLowerCase();
   if(['1','true','yes','y','favorite','favourite','نعم','مفضلة'].includes(normalized))return true;
   if(['0','false','no','n','لا'].includes(normalized))return false;
   return undefined;
