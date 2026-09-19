@@ -56,7 +56,7 @@ const NAV_TARGETS=new Set<AiNavTarget>(['home','documents','customers','receivab
 const MAX_MESSAGE_CHARS=1000;
 const MONEY_INPUT=/^\d{1,12}(?:\.\d{1,4})?$/;
 function id(prefix:string):string{return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;}
-function normalized(value:string):string{return value.normalize('NFKC').toLocaleLowerCase().replace(/\s+/g,' ').trim();}
+function normalized(value:string):string{return value.normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();}
 function bounded(value:unknown,max:number):string{return String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);}
 function messageContainsNumber(message:string,value:string):boolean{if(!value)return false;const cleanMessage=message.replace(/,/g,' ');const escaped=value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');return new RegExp(`(^|[^0-9.])${escaped}([^0-9.]|$)`).test(cleanMessage);}
 
