@@ -6,7 +6,7 @@ const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 
 test('v266 product Excel import uses the vendored XLSX runtime in production and offline cache',async()=>{
-  const runtime=await read('dist/src/components/ProductImportModal.js');
+  const runtime=await read('dist/src/lib/spreadsheet-reader.js');
   const sw=await read('dist/sw.js');
   assert.match(runtime,/\.\/vendor\/xlsx\.full\.min\.js/);
   assert.doesNotMatch(runtime,/https:\/\/cdn\.jsdelivr\.net\/npm\/xlsx@/);

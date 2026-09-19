@@ -583,3 +583,302 @@
     }
   }
 }
+
+/* Final import-flow hardening — compact deterministic mapping, shared supplier
+   review states and a single mobile scroll owner with reachable actions. */
+@media screen {
+  .app-ui .product-import-file-summary{grid-template-columns:40px minmax(0,1fr)}
+
+  .app-ui .product-import-mapping-actions{
+    display:flex;
+    flex:0 0 auto;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+    gap:7px;
+  }
+
+  .app-ui .product-import-sheet-picker{
+    display:grid;
+    grid-template-columns:auto minmax(220px,1fr);
+    align-items:center;
+    gap:10px;
+    margin-bottom:10px;
+    padding:8px 10px;
+    border:1px solid var(--ds-line);
+    border-radius:11px;
+    background:var(--ds-surface);
+    color:var(--ds-text-soft);
+    font-size:10px;
+    font-weight:800;
+  }
+
+  .app-ui .product-import-sheet-picker>.input{
+    min-width:0;
+    border-color:var(--ds-line)!important;
+    background:var(--ds-workspace)!important;
+    color:var(--ds-text)!important;
+    color-scheme:dark;
+  }
+
+  .app-ui .product-import-mapping-row.is-unresolved{
+    box-shadow:inset 3px 0 0 var(--ds-accent-bright);
+    background:var(--ds-selected);
+  }
+
+  [dir='rtl'] .app-ui .product-import-mapping-row.is-unresolved{box-shadow:inset -3px 0 0 var(--ds-accent-bright)}
+
+  .app-ui .product-import-ai-mark{
+    display:inline-flex;
+    margin-inline-start:6px;
+    padding:2px 5px;
+    border:1px solid var(--ds-accent);
+    border-radius:999px;
+    color:var(--ds-text-soft);
+    font-size:7px;
+    line-height:1;
+    vertical-align:middle;
+  }
+
+  .app-ui .product-import-preview-note{
+    margin:8px 0;
+    color:var(--ds-text-soft);
+    font-size:9.5px;
+    line-height:1.5;
+  }
+
+  .app-ui .product-import-progress{
+    min-height:260px;
+    flex-direction:row;
+    gap:13px;
+    text-align:start;
+  }
+
+  .app-ui .product-import-progress>div{min-width:0}
+  .app-ui .product-import-progress .eyebrow{margin:0 0 4px}
+  .app-ui .product-import-progress h3{margin:0 0 4px;overflow-wrap:anywhere}
+
+  .app-ui .product-import-progress-icon,
+  .app-ui .supplier-import-icon{
+    width:48px;
+    height:48px;
+    display:grid;
+    flex:0 0 48px;
+    place-items:center;
+    border:1px solid var(--ds-line);
+    border-radius:13px;
+    background:var(--ds-selected);
+    color:var(--ds-accent-bright);
+  }
+
+  .app-ui .supplier-import-file-input{display:none}
+  .app-ui .supplier-import-shell{min-width:0;color:var(--ds-text)}
+
+  .app-ui .supplier-import-start,
+  .app-ui .supplier-import-progress,
+  .app-ui .supplier-import-error-state,
+  .app-ui .supplier-import-saved{
+    min-height:260px;
+    display:grid;
+    grid-template-columns:48px minmax(0,1fr);
+    align-content:center;
+    align-items:start;
+    gap:13px;
+    padding:14px;
+    border:1px solid var(--ds-line);
+    border-radius:14px;
+    background:var(--ds-surface);
+  }
+
+  .app-ui .supplier-import-start>.btn,
+  .app-ui .supplier-import-error-state>.supplier-import-retry-actions{grid-column:2}
+  .app-ui .supplier-import-start h3,
+  .app-ui .supplier-import-progress h3,
+  .app-ui .supplier-import-error-state h3,
+  .app-ui .supplier-import-saved h3{margin:2px 0 5px;color:var(--ds-text);font-size:16px;overflow-wrap:anywhere}
+  .app-ui .supplier-import-start p:last-child,
+  .app-ui .supplier-import-progress p:last-child,
+  .app-ui .supplier-import-error-state p,
+  .app-ui .supplier-import-saved p{margin:0;color:var(--ds-text-soft);font-size:11px;line-height:1.6}
+  .app-ui .supplier-import-icon.is-error{color:var(--ds-danger-text)}
+
+  .app-ui .supplier-import-steps{
+    grid-column:1 / -1;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:6px;
+    margin-top:12px;
+  }
+
+  .app-ui .supplier-import-steps>span{
+    min-width:0;
+    padding:7px 6px;
+    border:1px solid var(--ds-line);
+    border-radius:9px;
+    background:var(--ds-workspace);
+    color:var(--ds-text-soft);
+    font-size:8px;
+    font-weight:800;
+    text-align:center;
+  }
+
+  .app-ui .supplier-import-steps>span.complete,
+  .app-ui .supplier-import-steps>span.active{border-color:var(--ds-accent);background:var(--ds-selected);color:var(--ds-text)}
+  .app-ui .supplier-import-retry-actions{display:flex;flex-wrap:wrap;gap:8px}
+
+  .app-ui .supplier-import-review{display:grid;gap:10px}
+  .app-ui .supplier-import-review-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    padding:11px;
+    border:1px solid var(--ds-line);
+    border-radius:12px;
+    background:var(--ds-surface);
+  }
+  .app-ui .supplier-import-review-head>div{min-width:0}
+  .app-ui .supplier-import-review-head h3{margin:2px 0 3px;color:var(--ds-text);font-size:15px;overflow-wrap:anywhere}
+  .app-ui .supplier-import-review-head small{color:var(--ds-text-soft);font-size:9.5px;overflow-wrap:anywhere}
+  .app-ui .supplier-import-review-head>span{
+    flex:0 0 auto;
+    max-width:42%;
+    padding:4px 7px;
+    border:1px solid var(--ds-line);
+    border-radius:999px;
+    color:var(--ds-text-soft);
+    font-size:8px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .app-ui .supplier-import-items{
+    overflow:hidden;
+    border:1px solid var(--ds-line);
+    border-radius:12px;
+    background:var(--ds-surface);
+  }
+
+  .app-ui .supplier-import-item{
+    min-width:0;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;
+    gap:10px;
+    padding:9px 11px;
+    border-bottom:1px solid var(--ds-line);
+  }
+  .app-ui .supplier-import-item:last-child{border-bottom:0}
+  .app-ui .supplier-import-item>span{min-width:0}
+  .app-ui .supplier-import-item strong,
+  .app-ui .supplier-import-item small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app-ui .supplier-import-item strong{color:var(--ds-text);font-size:10.5px}
+  .app-ui .supplier-import-item small{margin-top:2px;color:var(--ds-text-soft);font-size:8.5px}
+  .app-ui .supplier-import-item>bdi{color:var(--ds-text);font-size:10px;font-weight:800}
+  .app-ui .supplier-import-more{color:var(--ds-text-soft);font-size:9px;text-align:center}
+
+  .app-ui .supplier-import-costs{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 14px;
+    padding:10px 11px;
+    border:1px solid var(--ds-line);
+    border-radius:11px;
+    background:var(--ds-workspace);
+    color:var(--ds-text-soft);
+    font-size:9.5px;
+  }
+  .app-ui .supplier-import-costs strong{width:100%;color:var(--ds-text);font-size:10.5px}
+
+  .app-ui .supplier-import-safety{
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    padding:9px 10px;
+    border:1px solid var(--ds-line);
+    border-radius:10px;
+    background:var(--ds-selected);
+    color:var(--ds-text-soft);
+    font-size:9.5px;
+    line-height:1.5;
+  }
+  .app-ui .supplier-import-safety>.icon{flex:0 0 auto;margin-top:1px}
+  .app-ui .supplier-import-footer{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px}
+}
+
+@media screen and (max-width:760px), screen and (max-height:520px){
+  .app-ui .modal:has(.product-import-shell),
+  .app-ui .modal:has(.supplier-import-shell){
+    height:calc(100dvh - max(12px,env(safe-area-inset-top)) - max(18px,env(safe-area-inset-bottom)))!important;
+    max-height:calc(100dvh - max(12px,env(safe-area-inset-top)) - max(18px,env(safe-area-inset-bottom)))!important;
+  }
+
+  .app-ui .modal:has(.product-import-shell)>.modal-body,
+  .app-ui .modal:has(.supplier-import-shell)>.modal-body{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    overscroll-behavior:contain!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+
+  .app-ui .modal:has(.product-import-shell)>.modal-footer,
+  .app-ui .modal:has(.supplier-import-shell)>.modal-footer{
+    position:relative!important;
+    inset:auto!important;
+    z-index:8!important;
+    flex:0 0 auto!important;
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    padding:7px 9px max(10px,env(safe-area-inset-bottom))!important;
+  }
+
+  .app-ui .product-import-mapping-head{gap:8px}
+  .app-ui .product-import-mapping-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .app-ui .product-import-mapping-actions>.btn{width:100%;min-height:44px;padding-inline:8px}
+  .app-ui .product-import-sheet-picker{grid-template-columns:1fr;gap:5px}
+  .app-ui .product-import-sheet-picker>.input{font-size:16px}
+
+  .app-ui .product-import-mapping-row{
+    grid-template-columns:minmax(0,.9fr) minmax(150px,1.1fr);
+    align-items:center;
+    gap:8px;
+    padding:8px;
+  }
+  .app-ui .product-import-source-column{grid-template-columns:24px minmax(0,1fr);gap:6px}
+  .app-ui .product-import-column-number{width:24px;height:24px}
+  .app-ui .product-import-map-select{min-height:44px;font-size:16px}
+  .app-ui .product-import-mapping-row.is-resolved .product-import-confidence-line>small{display:none}
+  .app-ui .product-import-confidence-line{margin-top:3px;gap:5px}
+  .app-ui .product-import-confidence-line>small{font-size:8px;line-height:1.35}
+
+  .app-ui .product-import-intelligence-banner{grid-template-columns:36px minmax(0,1fr);padding:9px}
+  .app-ui .product-import-intelligence-icon{width:36px;height:36px}
+  .app-ui .product-import-table-wrap{max-height:none}
+  .app-ui .product-import-progress{min-height:210px;padding:20px 10px}
+
+  .app-ui .supplier-import-start,
+  .app-ui .supplier-import-progress,
+  .app-ui .supplier-import-error-state,
+  .app-ui .supplier-import-saved{min-height:210px;padding:11px}
+  .app-ui .supplier-import-steps{grid-template-columns:1fr 1fr}
+  .app-ui .supplier-import-review-head{flex-direction:column}
+  .app-ui .supplier-import-review-head>span{max-width:100%}
+  .app-ui .supplier-import-item{grid-template-columns:minmax(0,1fr) auto;padding:9px}
+  .app-ui .supplier-import-footer>.btn{min-width:0;min-height:44px;flex:1 1 0;padding-inline:8px;white-space:normal}
+}
+
+@media screen and (max-width:360px){
+  .app-ui .product-import-mapping-row{grid-template-columns:minmax(0,1fr);gap:6px}
+  .app-ui .product-import-mapping-actions{grid-template-columns:1fr}
+  .app-ui .supplier-import-start,
+  .app-ui .supplier-import-progress,
+  .app-ui .supplier-import-error-state,
+  .app-ui .supplier-import-saved{grid-template-columns:40px minmax(0,1fr);gap:9px}
+  .app-ui .supplier-import-icon{width:40px;height:40px;flex-basis:40px}
+  .app-ui .supplier-import-start>.btn,
+  .app-ui .supplier-import-error-state>.supplier-import-retry-actions{grid-column:1 / -1}
+  .app-ui .supplier-import-retry-actions{display:grid;grid-template-columns:1fr}
+}

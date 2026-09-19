@@ -111,8 +111,27 @@ function cell(value:unknown):string{
   return String(value).trim();
 }
 
+function delimitedSeparator(source:string):','|';'|'\t'{
+  const counts={',':0,';':0,'\t':0};
+  let quoted=false;let lines=0;
+  for(let index=0;index<source.length&&lines<8;index+=1){
+    const char=source[index]!;
+    if(char==='"'){
+      if(quoted&&source[index+1]==='"'){index+=1;continue;}
+      quoted=!quoted;continue;
+    }
+    if(quoted)continue;
+    if(char==='\n'){lines+=1;continue;}
+    if(char===','||char===';'||char==='\t')counts[char]+=1;
+  }
+  if(counts['\t']>counts[',']&&counts['\t']>counts[';'])return '\t';
+  if(counts[';']>counts[','])return ';';
+  return ',';
+}
+
 export function parseCsvMatrix(text:string):string[][]{
   const source=text.replace(/^\uFEFF/,'');
+  const separator=delimitedSeparator(source);
   const rows:string[][]=[];
   let row:string[]=[];
   let value='';
@@ -126,7 +145,7 @@ export function parseCsvMatrix(text:string):string[][]{
       continue;
     }
     if(ch==='"'){quoted=true;continue;}
-    if(ch===','){row.push(value.trim());value='';continue;}
+    if(ch===separator){row.push(value.trim());value='';continue;}
     if(ch==='\n'){
       row.push(value.trim());value='';
       if(row.some(entry=>entry!==''))rows.push(row);
@@ -185,13 +204,19 @@ function currencyHint(value:unknown):string{
   return '';
 }
 
-function normalizeImportedDecimal(value:string):string{
+export function normalizeImportedDecimal(value:string):string{
   const trimmed=value.trim();
   if(!trimmed)return '';
-  if(isDecimalInput(trimmed))return normalizeDecimalInput(trimmed);
+  const eastern='٠١٢٣٤٥٦٧٨٩';
+  const persian='۰۱۲۳۴۵۶۷۸۹';
+  const localized=trimmed.normalize('NFKC')
+    .replace(/[٠-٩]/g,char=>String(eastern.indexOf(char)))
+    .replace(/[۰-۹]/g,char=>String(persian.indexOf(char)))
+    .replace(/٫/g,'.')
+    .replace(/٬/g,',');
+  if(isDecimalInput(localized))return normalizeDecimalInput(localized);
 
-  let numeric=trimmed
-    .normalize('NFKC')
+  let numeric=localized
     .replace(/[\u00A0\s]/g,'')
     .replace(/[A-Za-z]{3}/g,'')
     .replace(/[\$€£₺﷼]/g,'')

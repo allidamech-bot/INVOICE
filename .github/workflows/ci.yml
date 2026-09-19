@@ -159,6 +159,7 @@ jobs:
           node tests/visual/run-functional-payments.cjs
           node tests/visual/run-functional-customers-v196.cjs
           node tests/visual/run-functional-products-operations-v197.cjs
+          node tests/visual/run-import-final-audit-v267.cjs
           node tests/visual/run-obsidian-directory.cjs
           node tests/visual/run-packing-preview-locale-v244.cjs
           node tests/visual/run-product-category-locale-v245.cjs

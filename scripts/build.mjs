@@ -176,12 +176,10 @@ iosBridge=iosBridge
   .replaceAll('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js','./vendor/jspdf.umd.min.js');
 await writeFile(iosBridgePath,iosBridge);
 
-const productImportPath='dist/src/components/ProductImportModal.js';
-let productImport=await readFile(productImportPath,'utf8');
-productImport=productImport.replaceAll('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','./vendor/xlsx.full.min.js');
-await writeFile(productImportPath,productImport);
+const productImport=await readFile('dist/src/lib/spreadsheet-reader.js','utf8');
+if(!productImport.includes('./vendor/xlsx.full.min.js'))throw new Error('Product Excel import must use the vendored local XLSX runtime.');
 const supplierImport=await readFile('dist/src/components/SupplierDocumentImport.js','utf8');
-if(!supplierImport.includes('./vendor/xlsx.full.min.js'))throw new Error('Supplier document Excel import must use the vendored local XLSX runtime.');
+if(!supplierImport.includes('../lib/spreadsheet-reader.js'))throw new Error('Supplier document Excel import must use the shared local spreadsheet reader.');
 
 const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');

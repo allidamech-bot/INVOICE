@@ -137,7 +137,7 @@ test('a concurrent issued credit note prevents the source invoice from becoming 
 
 test('a stale autosave cannot downgrade a concurrently issued document back to draft',()=>{
   const base=emptyVault();
-  const doc=createBlankDocument('invoice','INV-2026-0100',base.company);base.documents=[doc];
+  const doc={...finalInvoice(base,'inv-stale-autosave'),number:'INV-2026-0100',status:'draft'};base.documents=[doc];
   const finalDoc={...doc,status:'final',updatedAt:'2026-09-05T15:00:01.000Z'};
   const latest=mergeVaultIntent(base,{...base,documents:[finalDoc]},base);
   const staleDraft={...doc,notes:'late autosave',updatedAt:'2026-09-05T15:00:02.000Z'};
@@ -148,7 +148,7 @@ test('a stale autosave cannot downgrade a concurrently issued document back to d
 
 test('a stale draft cannot resurrect a discarded revision after the previous final was restored',()=>{
   const base=emptyVault();
-  const original=createBlankDocument('invoice','INV-2026-0101',base.company);
+  const original={...finalInvoice(base,'inv-stale-revision'),number:'INV-2026-0101'};
   const revisionDraft={...original,revision:2,status:'draft',notes:'revision edits',updatedAt:'2026-09-05T15:01:00.000Z'};
   base.documents=[revisionDraft];
   const restoredFinal={...original,status:'final',revision:1,updatedAt:'2026-09-05T15:01:01.000Z'};

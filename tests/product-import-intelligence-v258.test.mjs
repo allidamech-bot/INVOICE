@@ -119,11 +119,11 @@ test('v258 mapping UI keeps matte-black contrast, mobile geometry and explicit r
     read('src/styles/product-library-contrast-v257.css'),
     read('src/lib/product-import-intelligence.ts')
   ]);
-  assert.match(modal,/LOUREX Intelligence/);
+  assert.match(modal,/Local mapping first/);
   assert.match(modal,/Review import/);
   assert.match(modal,/product-import-map-select/);
-  assert.match(modal,/LOUREX Intelligence \+ Gemini/);
-  assert.match(modal,/Local high-confidence mappings stay protected/);
+  assert.match(modal,/Local mapping first · AI optional/);
+  assert.match(modal,/Prices, costs and quantities are never invented/);
   assert.match(css,/product-import-mapping-row/);
   assert.match(css,/color:var\(--ds-text\)!important/);
   assert.match(css,/color-scheme:dark/);
