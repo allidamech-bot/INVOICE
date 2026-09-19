@@ -70,6 +70,11 @@ export function isDecimalInput(input: string): boolean {
   return /^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(cleaned);
 }
 
+export function isNonNegativeDecimalInput(input:string):boolean{
+  const cleaned=normalizeDecimalSeparators(input);
+  return isDecimalInput(cleaned)&&!cleaned.startsWith('-');
+}
+
 export function decimalToScaled(input: string, decimals = 4): bigint {
   if(!Number.isInteger(decimals)||decimals<0||decimals>12)return 0n;
   const cleaned = normalizeDecimalSeparators(input || '0') || '0';
