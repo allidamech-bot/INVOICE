@@ -180,6 +180,8 @@ const productImportPath='dist/src/components/ProductImportModal.js';
 let productImport=await readFile(productImportPath,'utf8');
 productImport=productImport.replaceAll('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','./vendor/xlsx.full.min.js');
 await writeFile(productImportPath,productImport);
+const supplierImport=await readFile('dist/src/components/SupplierDocumentImport.js','utf8');
+if(!supplierImport.includes('./vendor/xlsx.full.min.js'))throw new Error('Supplier document Excel import must use the vendored local XLSX runtime.');
 
 const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
@@ -195,7 +197,7 @@ const outputFiles=await readdir('dist',{recursive:true});
 const sourceMaps=outputFiles.filter(file=>String(file).endsWith('.map'));
 if(sourceMaps.length)throw new Error(`Production build contains source maps: ${sourceMaps.slice(0,5).join(', ')}`);
 if([...vendorUrlMap.keys()].some(url=>html.includes(url)))throw new Error('Production HTML still references remote runtime JavaScript.');
-if(/https:\/\/cdn\.jsdelivr\.net\/npm\/(?:html2canvas|jspdf|xlsx)@/.test(iosBridge+productImport))throw new Error('Production runtime still references remote PDF/import libraries.');
+if(/https:\/\/cdn\.jsdelivr\.net\/npm\/(?:html2canvas|jspdf|xlsx)@/.test(iosBridge+productImport+supplierImport))throw new Error('Production runtime still references remote PDF/import libraries.');
 if(/preconnect[^>]+(?:cdn\.jsdelivr\.net|www\.gstatic\.com)/.test(html))throw new Error('Production HTML still preconnects to retired runtime CDNs.');
 
-console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; project: ${runtimeConfig.projectId||'local'}; App Check: ${runtimeConfig.firebaseAppCheckEnterpriseKey?'configured':'not configured'}${runtimeConfig.firebaseAppCheckRequired?' / required':''}; ${styleNames.length} CSS layers -> 1 bundle; ${VENDOR_ASSETS.length} runtime libraries vendored; source maps disabled)`);
+console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; project: ${runtimeConfig.projectId||'local'}; App Check: ${runtimeConfig.firebaseAppCheckEnterpriseKey?'configured':'not configured'}${firebaseAppCheckRequired?' / required':''}; ${styleNames.length} CSS layers -> 1 bundle; ${VENDOR_ASSETS.length} runtime libraries vendored; source maps disabled)`);
