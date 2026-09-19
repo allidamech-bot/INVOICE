@@ -93,10 +93,29 @@ jobs:
           n=${#files[@]}; base=$((n*7/8)); span=$((n-base)); cbase=$((base+span*2/4)); cend=$((base+span*3/4)); cspan=$((cend-cbase)); start=$((cbase+cspan*3/4)); end=$cend; count=$((end-start))
           printf '%s\n' "${files[@]:start:count}"
           node --test "${files[@]:start:count}"
-      - name: Unit tests — group 8d
+      - name: Unit tests — group 8d1
         run: |
           mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
-          n=${#files[@]}; base=$((n*7/8)); span=$((n-base)); start=$((base+span*3/4)); end=$n; count=$((end-start))
+          n=${#files[@]}; base=$((n*7/8)); span=$((n-base)); dbase=$((base+span*3/4)); dspan=$((n-dbase)); start=$dbase; end=$((dbase+dspan*1/4)); count=$((end-start))
+          printf '%s\n' "${files[@]:start:count}"
+          node --test "${files[@]:start:count}"
+      - name: Unit tests — group 8d2
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          n=${#files[@]}; base=$((n*7/8)); span=$((n-base)); dbase=$((base+span*3/4)); dspan=$((n-dbase)); start=$((dbase+dspan*1/4)); end=$((dbase+dspan*2/4)); count=$((end-start))
+          printf '%s\n' "${files[@]:start:count}"
+          node --test "${files[@]:start:count}"
+      - name: Unit tests — group 8d3
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          n=${#files[@]}; base=$((n*7/8)); span=$((n-base)); dbase=$((base+span*3/4)); dspan=$((n-dbase)); start=$((dbase+dspan*2/4)); end=$((dbase+dspan*3/4)); count=$((end-start))
+          printf '%s\n' "${files[@]:start:count}"
+          node --test "${files[@]:start:count}"
+      - name: Unit tests — group 8d4
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          n=${#files[@]}; base=$((n*7/8)); span=$((n-base)); dbase=$((base+span*3/4)); dspan=$((n-dbase)); start=$((dbase+dspan*3/4)); end=$n; count=$((end-start))
+          printf '%s\n' "${files[@]:start:count}"
           node --test "${files[@]:start:count}"
       - name: Install browser visual QA runtime
         run: |
