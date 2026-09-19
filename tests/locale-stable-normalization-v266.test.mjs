@@ -1,9 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { importableProducts, planProductImport } from '../dist/src/lib/product-import.js';
 import { normalizeSavedItemIdentity, normalizeSavedItemSku } from '../dist/src/lib/saved-items.js';
+import { receivableCustomerId } from '../dist/src/lib/receivables.js';
+import { paymentTermPresetByLabel } from '../dist/src/lib/commercial-controls.js';
 
-test('v266 product import and saved-item identity stay stable under Turkish locale casing',()=>{
+test('v266 business identity stays stable under Turkish locale casing',async()=>{
   const originalLower=String.prototype.toLocaleLowerCase;
   const originalUpper=String.prototype.toLocaleUpperCase;
   String.prototype.toLocaleLowerCase=function(...args){return args.length?originalLower.apply(this,args):originalLower.call(this,'tr-TR');};
@@ -22,6 +25,15 @@ test('v266 product import and saved-item identity stay stable under Turkish loca
     assert.equal(item.lastUnitCost,'0.80');
     assert.equal(normalizeSavedItemSku('item-i'),'ITEM-I');
     assert.equal(normalizeSavedItemIdentity('INDIGO BISCUIT'),'indigo biscuit');
+
+    const legacyDoc={id:'doc-i',customerSnapshot:{sourceCustomerId:'',companyNameEn:'INDIGO IMPORT',companyNameAr:'',email:'INFO@INDIGO.EXAMPLE',phone:''}};
+    assert.equal(receivableCustomerId(legacyDoc),'legacy:indigo import|info@indigo.example');
+
+    const company={commercial:{paymentTermPresets:[{id:'net-invoice',label:'INVOICE TERMS',days:30}]}};
+    assert.equal(paymentTermPresetByLabel(company,'invoice terms')?.id,'net-invoice');
+
+    const mergeSource=await readFile('src/storage/vault-merge.ts','utf8');
+    assert.doesNotMatch(mergeSource,/savedItemSku[^\n]*toLocaleUpperCase\(\)/);
   }finally{
     String.prototype.toLocaleLowerCase=originalLower;
     String.prototype.toLocaleUpperCase=originalUpper;
