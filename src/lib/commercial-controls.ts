@@ -6,6 +6,8 @@ import { t } from './i18n.js';
 
 export const PRIMARY_BANK_ACCOUNT_ID='primary';
 const ROUNDING_STEPS=new Set(['0.01','0.05','0.10','0.50','1.00']);
+const COST_DECIMALS=12;
+const COST_TO_CENTS=10_000_000_000n;
 
 function cleanCurrency(value:string,fallback='USD'):string{return value.trim().toUpperCase()||fallback;}
 function centsString(cents:bigint):string{const sign=cents<0n?'-':'';const abs=cents<0n?-cents:cents;return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`;}
@@ -60,14 +62,14 @@ export function applyCustomerCommercialDefaults(document:LourexDocument,customer
 
 export function pricingSuggestedUnitPrice(cost:string,policy:PricingPolicy):string{
   if(!cost.trim()||!isDecimalInput(cost)||!policy.percent.trim()||!isDecimalInput(policy.percent))return'';
-  const costScaled=decimalToScaled(cost,4);const percentScaled=decimalToScaled(policy.percent,4);const hundredScaled=1_000_000n;
+  const costScaled=decimalToScaled(cost,COST_DECIMALS);const percentScaled=decimalToScaled(policy.percent,4);const hundredScaled=1_000_000n;
   if(costScaled<0n||percentScaled<=0n)return'';
   let priceScaled:bigint;
   if(policy.method==='margin'){
     const denominator=hundredScaled-percentScaled;if(denominator<=0n)return'';
     priceScaled=(costScaled*hundredScaled+denominator-1n)/denominator;
   }else priceScaled=(costScaled*(hundredScaled+percentScaled)+hundredScaled/2n)/hundredScaled;
-  let cents=(priceScaled+50n)/100n;
+  let cents=(priceScaled+COST_TO_CENTS/2n)/COST_TO_CENTS;
   const rounding=ROUNDING_STEPS.has(policy.rounding)?policy.rounding:'0.01';
   const increment=decimalToScaled(rounding,2);
   if(increment>1n)cents=((cents+increment-1n)/increment)*increment;
