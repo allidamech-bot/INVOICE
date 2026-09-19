@@ -3,6 +3,7 @@ import { pricingSuggestedUnitPrice } from './commercial-controls.js';
 import { decimalToScaled } from './money.js';
 import { purchaseAccountingIsValid } from './operations.js';
 import { normalizeSavedItemIdentity, normalizeSavedItemSku } from './saved-items.js';
+import { buildSupplierPurchasingContext, type SupplierPurchasingContext } from './supplier-purchasing-intelligence.js';
 
 export type PricingHealth='no-cost'|'no-sale-price'|'currency-mismatch'|'below-cost'|'below-policy'|'meets-policy';
 
@@ -47,6 +48,7 @@ export interface ProductPricingContext {
   basis:'deterministic-product-pricing';
   requestedScenario:PricingScenarioRequest|null;
   rows:ProductPricingInsight[];
+  purchasing:SupplierPurchasingContext;
   limitations:string[];
 }
 
@@ -90,7 +92,7 @@ function queryScore(item:SavedItem,message:string):number{
 }
 
 export function buildProductPricingContext(vault:VaultPayload,message:string,asOf:string):ProductPricingContext{
-  const request=parseScenarioRequest(message);const dormantCutoff=shiftIso(asOf,-90);const history=supplierCostHistory(vault.purchases);const policy=vault.company.commercial.pricing;
+  const request=parseScenarioRequest(message);const dormantCutoff=shiftIso(asOf,-90);const history=supplierCostHistory(vault.purchases);const policy=vault.company.commercial.pricing;const purchasing=buildSupplierPurchasingContext(vault,message,asOf);
   const duplicateMap=new Map<string,SavedItem[]>();for(const item of vault.savedItems.filter(item=>!item.archived)){const key=duplicateKey(item);if(!key)continue;const list=duplicateMap.get(key)??[];list.push(item);duplicateMap.set(key,list);}const duplicateWith=new Map<string,string>();for(const group of duplicateMap.values())if(group.length>1){const primary=group[0]!;for(const duplicate of group.slice(1))duplicateWith.set(duplicate.id,primary.id);}
   const rows=vault.savedItems.filter(item=>!item.archived).map(item=>{
     const rows=history.get(item.id)??[];const latest=rows[0];const cost=(item.lastUnitCost||latest?.unitCost||'').trim();const costCurrency=(item.lastCostCurrency||latest?.currency||'').trim().toUpperCase();const salePrice=(item.lastUnitPrice||'').trim();const saleCurrency=(item.lastCurrency||'').trim().toUpperCase();const currency=costCurrency||saleCurrency||vault.company.defaultCurrency||'USD';const comparable=Boolean(cost&&salePrice&&costCurrency&&saleCurrency&&costCurrency===saleCurrency);const suggestedPrice=cost?pricingSuggestedUnitPrice(cost,policy):'';
@@ -100,5 +102,5 @@ export function buildProductPricingContext(vault:VaultPayload,message:string,asO
     const insight:ProductPricingInsight={id:item.id,name:itemName(item),descriptionEn:item.descriptionEn,descriptionAr:item.descriptionAr,sku:item.sku??'',category:item.category??'',tags:(item.tags??[]).filter(tag=>!tag.startsWith('__lourex_')).slice(0,12),hsCode:item.hsCode,unit:item.unit,currency,cost,salePrice,suggestedPrice,policyMethod:policy.method,policyPercent:policy.percent,currentMarginPercent:comparable?marginPercent(salePrice,cost):'',currentMarkupPercent:comparable?markupPercent(salePrice,cost):'',priceVsSuggestedPercent:comparable&&suggestedPrice?differencePercent(salePrice,suggestedPrice):'',costChangePercent:change,pricingHealth,duplicateWith:duplicateWith.get(item.id)||'',dormant,missing,scenario:scenarioFor(cost,policy.rounding,request),signals};
     return{insight,score:queryScore(item,message)};
   }).sort((a,b)=>b.score-a.score||b.insight.signals.length-a.insight.signals.length||a.insight.name.localeCompare(b.insight.name)).slice(0,30).map(row=>row.insight);
-  return{version:1,basis:'deterministic-product-pricing',requestedScenario:request,rows,limitations:['currencies-remain-separate','price-cost-comparisons-require-matching-saved-currencies','scenario-prices-use-company-rounding','ai-may-explain-pricing-results-but-cannot-apply-a-selling-price','missing-or-ambiguous-values-are-not-invented']};
+  return{version:1,basis:'deterministic-product-pricing',requestedScenario:request,rows,purchasing,limitations:['currencies-remain-separate','price-cost-comparisons-require-matching-saved-currencies','scenario-prices-use-company-rounding','ai-may-explain-pricing-results-but-cannot-apply-a-selling-price','missing-or-ambiguous-values-are-not-invented']};
 }
