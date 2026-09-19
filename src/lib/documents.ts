@@ -2,7 +2,7 @@ import type { CompanySettings, DocumentKind, DocumentItem, DocumentLanguage, Lou
 import { addDaysIso, compareIsoDates, isIsoDate, makeId, normalizeValidityDays, todayIso } from './id.js';
 import { companySnapshotFrom } from './defaults.js';
 import { bankAccountIdForDetails, bankDetailsForId, defaultPaymentTermPreset, defaultTaxPreset } from './commercial-controls.js';
-import { decimalToScaled, isDecimalInput, lineTotal } from './money.js';
+import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput, lineTotal } from './money.js';
 import { t } from './i18n.js';
 
 type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number};
@@ -130,9 +130,9 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
     if (!isDecimalInput(item.quantity) || decimalToScaled(item.quantity) <= 0n) errors[`item-${index}-quantity`] = 'Quantity must be greater than 0.';
     if (!item.unit.trim()) errors[`item-${index}-unit`] = 'Unit is required.';
     if (!item.unitPrice.trim()) errors[`item-${index}-price`] = 'Unit price is required.';
-    else if (!isDecimalInput(item.unitPrice) || decimalToScaled(item.unitPrice) < 0n) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
+    else if (!isNonNegativeDecimalInput(item.unitPrice)) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
   });
-  const nonNegative = (value: string) => isDecimalInput(value) && decimalToScaled(value) >= 0n;
+  const nonNegative = (value: string) => isNonNegativeDecimalInput(value);
   if (doc.adjustments.discountEnabled) {
     if(!nonNegative(doc.adjustments.discountValue))errors.discount='Discount must be 0 or greater.';
     else if(doc.adjustments.discountMode==='percent'&&decimalToScaled(doc.adjustments.discountValue)>decimalToScaled('100'))errors.discount='Discount percentage cannot exceed 100%.';
