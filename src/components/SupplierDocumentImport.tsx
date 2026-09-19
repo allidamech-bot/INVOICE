@@ -16,7 +16,7 @@ interface State{open:boolean;busy:boolean;error:string;fileName:string;draft:Imp
 function ensureXlsx():Promise<any>{const existing=(window as any).XLSX;if(existing)return Promise.resolve(existing);return new Promise((resolve,reject)=>{const found=document.querySelector(`script[src="${XLSX_RUNTIME}"]`) as HTMLScriptElement|null;if(found){found.addEventListener('load',()=>resolve((window as any).XLSX),{once:true});found.addEventListener('error',()=>reject(new Error(t('Unable to load the Excel reader.','تعذر تحميل قارئ Excel.'))),{once:true});return;}const script=document.createElement('script');script.src=XLSX_RUNTIME;script.async=true;script.onload=()=>resolve((window as any).XLSX);script.onerror=()=>reject(new Error(t('Unable to load the Excel reader.','تعذر تحميل قارئ Excel.')));document.head.appendChild(script);});}
 function bytesToBase64(buffer:ArrayBuffer):string{const bytes=new Uint8Array(buffer);let binary='';const chunk=0x8000;for(let offset=0;offset<bytes.length;offset+=chunk)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+chunk,bytes.length)));return btoa(binary);}
 async function filePayload(file:File):Promise<{kind:'text'|'file';mimeType:string;text?:string;data?:string}>{
-  const name=file.name.toLocaleLowerCase();
+  const name=file.name.toLowerCase();
   if(name.endsWith('.csv')||name.endsWith('.txt'))return{kind:'text',mimeType:'text/csv',text:(await file.text()).slice(0,MAX_TEXT_CHARS)};
   if(name.endsWith('.xlsx')||name.endsWith('.xls')){
     const XLSX=await ensureXlsx();if(!XLSX?.read||!XLSX?.utils?.sheet_to_csv)throw new Error(t('The Excel reader did not initialize correctly.','لم يبدأ قارئ Excel بشكل صحيح.'));
@@ -28,7 +28,7 @@ async function filePayload(file:File):Promise<{kind:'text'|'file';mimeType:strin
   if(file.size>MAX_BINARY_BYTES)throw new Error(t('This PDF/image is too large for safe AI import. Reduce it below 2.6 MB.','ملف PDF/الصورة كبير للاستيراد الآمن. خفّضه لأقل من 2.6 MB.'));
   return{kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
 }
-function normalize(value:string):string{return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase();}
+function normalize(value:string):string{return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();}
 function supplierMatch(suppliers:Supplier[],draft:ImportDraft):Supplier|undefined{const name=normalize(draft.supplierName);const tax=normalize(draft.supplierTaxId);return suppliers.find(supplier=>(tax&&[supplier.vatTaxNumber,supplier.commercialRegistration].some(value=>normalize(value)===tax))||(name&&[supplier.nameEn,supplier.nameAr].some(value=>normalize(value)===name)));}
 function itemMatch(items:SavedItem[],row:ImportDraft['items'][number]):SavedItem|undefined{const sku=normalizeSavedItemSku(row.sku);if(sku){const exact=items.find(item=>normalizeSavedItemSku(item.sku??'')===sku);if(exact)return exact;}const en=normalizeSavedItemIdentity(row.descriptionEn),ar=normalizeSavedItemIdentity(row.descriptionAr);return items.find(item=>(en&&normalizeSavedItemIdentity(item.descriptionEn)===en)||(ar&&normalizeSavedItemIdentity(item.descriptionAr)===ar));}
 function buildPurchase(draft:ImportDraft,purchases:PurchaseRecord[],suppliers:Supplier[],items:SavedItem[],fallbackCurrency:string):PurchaseRecord{
