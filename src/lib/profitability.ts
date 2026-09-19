@@ -1,5 +1,5 @@
 import type { LourexDocument } from '../types.js';
-import { calculateTotals, decimalToScaled, isDecimalInput } from './money.js';
+import { calculateTotals, decimalToScaled, isNonNegativeDecimalInput } from './money.js';
 
 const COST_DECIMALS=12;
 const COST_PRODUCT_TO_CENTS=100_000_000_000_000n;
@@ -37,9 +37,8 @@ function costLineCents(quantity:string,unitCost:string):bigint{
 }
 
 function nonNegativeScaled(value:unknown,decimals=2):bigint|null{
-  if(typeof value!=='string'||!value.trim()||!isDecimalInput(value))return null;
-  const scaled=decimalToScaled(value,decimals);
-  return scaled<0n?null:scaled;
+  if(typeof value!=='string'||!value.trim()||!isNonNegativeDecimalInput(value))return null;
+  return decimalToScaled(value,decimals);
 }
 
 function marginString(profit:bigint,revenue:bigint):string{
@@ -101,5 +100,5 @@ export function calculateProfitability(document:LourexDocument):ProfitabilitySum
 }
 
 export function validInternalCost(value:string):boolean{
-  return !value.trim()||(isDecimalInput(value)&&decimalToScaled(value,COST_DECIMALS)>=0n);
+  return !value.trim()||isNonNegativeDecimalInput(value);
 }
