@@ -29,8 +29,10 @@ test('deployment isolation guard is wired before the production build',async()=>
     'node scripts/normalize-sw-install-v262.mjs',
     'node scripts/pwa-cache-v205.mjs',
     'node scripts/desktop-runtime-v249.mjs',
+    'node scripts/pwa-auto-precache.mjs',
   ]);
   assert.equal(buildSteps[0],'node scripts/verify-deployment-isolation.mjs');
+  assert.equal(buildSteps.at(-1),'node scripts/pwa-auto-precache.mjs');
 });
 
 test('deployment isolation guard accepts only the canonical INVOICE repository on the dedicated project',()=>{

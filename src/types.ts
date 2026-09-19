@@ -275,6 +275,7 @@ export interface SavedItem {
   category?: string;
   tags?: string[];
   favorite?: boolean;
+  archived?: boolean;
 }
 
 export interface CommercialTerms {
