@@ -37,8 +37,8 @@ export function taxPresetById(company:CompanySettings,id:string):TaxPreset|null{
 export function defaultTaxPreset(company:CompanySettings):TaxPreset|null{return taxPresetById(company,company.commercial?.defaultTaxPresetId||'');}
 export function paymentTermPresetById(company:CompanySettings,id:string):PaymentTermPreset|null{return (company.commercial?.paymentTermPresets??[]).find(item=>item.id===id)??null;}
 export function paymentTermPresetByLabel(company:CompanySettings,label:string):PaymentTermPreset|null{
-  const key=label.trim().toLocaleLowerCase();if(!key)return null;
-  return (company.commercial?.paymentTermPresets??[]).find(item=>item.label.trim().toLocaleLowerCase()===key)??null;
+  const key=label.trim().toLowerCase();if(!key)return null;
+  return (company.commercial?.paymentTermPresets??[]).find(item=>item.label.trim().toLowerCase()===key)??null;
 }
 export function defaultPaymentTermPreset(company:CompanySettings):PaymentTermPreset|null{return paymentTermPresetById(company,company.commercial?.defaultPaymentTermPresetId||'');}
 
