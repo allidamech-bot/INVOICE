@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBlankDocument } from '../dist/src/lib/documents.js';
 import { defaultCompany } from '../dist/src/lib/defaults.js';
-import { calculateProfitability } from '../dist/src/lib/profitability.js';
+import { calculateProfitability, validInternalCost } from '../dist/src/lib/profitability.js';
 
 test('v266 profitability preserves high-precision landed unit costs through quantity multiplication',()=>{
   const company=defaultCompany();
@@ -15,4 +15,20 @@ test('v266 profitability preserves high-precision landed unit costs through quan
   assert.equal(result.netRevenue,'2000.00');
   assert.equal(result.grossProfit,'999.99');
   assert.equal(result.complete,true);
+});
+
+test('v266 profitability rejects negative costs even below calculation precision',()=>{
+  assert.equal(validInternalCost('-0.0000000000001'),false);
+  assert.equal(validInternalCost('0.0000000000001'),true);
+
+  const company=defaultCompany();
+  const doc=createBlankDocument('invoice','INV-2026-9998',company);
+  doc.items=[{...doc.items[0],descriptionEn:'Negative micro cost',quantity:'1',unitPrice:'2.00',unitCost:'-0.0000000000001'}];
+  doc.adjustments={...doc.adjustments,discountEnabled:false,shippingEnabled:false,otherChargesEnabled:false,taxEnabled:false};
+  doc.internalCosts={shippingCost:'-0.001',otherCost:'0.00'};
+  const result=calculateProfitability(doc);
+  assert.equal(result.complete,false);
+  assert.equal(result.missingCostItems,1);
+  assert.equal(result.itemCost,'0.00');
+  assert.equal(result.shippingCost,'0.00');
 });
