@@ -42,11 +42,11 @@ export function documentItemFromSavedItem(saved: SavedItem): DocumentItem {
 }
 
 export function normalizeSavedItemIdentity(value: string): string {
-  return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase();
+  return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
 }
 
 export function normalizeSavedItemSku(value:string):string{
-  return value.normalize('NFKC').trim().replace(/\s+/g,'').toLocaleUpperCase();
+  return value.normalize('NFKC').trim().replace(/\s+/g,'').toUpperCase();
 }
 
 export function parseSavedItemTags(value: string): string[] {
