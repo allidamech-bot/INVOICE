@@ -1,5 +1,5 @@
 import type { DocumentItem, LourexDocument, SavedItem } from '../types.js';
-import { formatMoney, isDecimalInput, lineTotal, normalizeDecimalInput } from '../lib/money.js';
+import { formatMoney, lineTotal, normalizeDecimalInput } from '../lib/money.js';
 import { calculateProfitability, validInternalCost } from '../lib/profitability.js';
 import { findSavedItemMatch } from '../lib/saved-items.js';
 import { t } from '../lib/i18n.js';
@@ -92,7 +92,7 @@ export class ProfitabilityPanel extends React.Component<Props,State>{
     const saved=findSavedItemMatch(this.props.savedItems,item);
     const value=(this.state.unitCosts[item.id]??'').trim();
     if(!saved){this.setState({error:t('Save this item to the Product Library first, then its cost can be reused.','احفظ هذا الصنف في مكتبة الأصناف أولًا، ثم يمكن إعادة استخدام تكلفته.')});return;}
-    if(!value||!isDecimalInput(value)){this.setState({error:t('Enter a valid unit cost first.','أدخل تكلفة وحدة صالحة أولًا.')});return;}
+    if(!value||!validInternalCost(value)){this.setState({error:t('Enter a valid non-negative unit cost first.','أدخل تكلفة وحدة صالحة تساوي صفرًا أو أكثر أولًا.')});return;}
     try{
       await this.props.onSaveSavedItem({...saved,lastUnitCost:normalizeDecimalInput(value),lastCostCurrency:this.props.document.currency,updatedAt:new Date().toISOString()});
       this.setState({error:''});
