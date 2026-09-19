@@ -5,7 +5,7 @@ import { normalizeSavedItemIdentity, normalizeSavedItemSku } from '../lib/saved-
 import { resumeVaultSession, saveVault } from '../storage/vault.js';
 import { Button, Modal } from './UI.js';
 
-const XLSX_CDN='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+const XLSX_RUNTIME='./vendor/xlsx.full.min.js';
 const MAX_BINARY_BYTES=2_600_000;
 const MAX_TEXT_CHARS=120_000;
 
@@ -13,7 +13,7 @@ type ImportDraft={supplierName:string;supplierTaxId:string;documentNumber:string
 interface Props{language:UiLanguage;}
 interface State{open:boolean;busy:boolean;error:string;fileName:string;draft:ImportDraft|null;model:string;}
 
-function ensureXlsx():Promise<any>{const existing=(window as any).XLSX;if(existing)return Promise.resolve(existing);return new Promise((resolve,reject)=>{const found=document.querySelector(`script[src="${XLSX_CDN}"]`) as HTMLScriptElement|null;if(found){found.addEventListener('load',()=>resolve((window as any).XLSX),{once:true});found.addEventListener('error',()=>reject(new Error(t('Unable to load the Excel reader.','تعذر تحميل قارئ Excel.'))),{once:true});return;}const script=document.createElement('script');script.src=XLSX_CDN;script.async=true;script.crossOrigin='anonymous';script.onload=()=>resolve((window as any).XLSX);script.onerror=()=>reject(new Error(t('Unable to load the Excel reader.','تعذر تحميل قارئ Excel.')));document.head.appendChild(script);});}
+function ensureXlsx():Promise<any>{const existing=(window as any).XLSX;if(existing)return Promise.resolve(existing);return new Promise((resolve,reject)=>{const found=document.querySelector(`script[src="${XLSX_RUNTIME}"]`) as HTMLScriptElement|null;if(found){found.addEventListener('load',()=>resolve((window as any).XLSX),{once:true});found.addEventListener('error',()=>reject(new Error(t('Unable to load the Excel reader.','تعذر تحميل قارئ Excel.'))),{once:true});return;}const script=document.createElement('script');script.src=XLSX_RUNTIME;script.async=true;script.onload=()=>resolve((window as any).XLSX);script.onerror=()=>reject(new Error(t('Unable to load the Excel reader.','تعذر تحميل قارئ Excel.')));document.head.appendChild(script);});}
 function bytesToBase64(buffer:ArrayBuffer):string{const bytes=new Uint8Array(buffer);let binary='';const chunk=0x8000;for(let offset=0;offset<bytes.length;offset+=chunk)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+chunk,bytes.length)));return btoa(binary);}
 async function filePayload(file:File):Promise<{kind:'text'|'file';mimeType:string;text?:string;data?:string}>{
   const name=file.name.toLocaleLowerCase();
