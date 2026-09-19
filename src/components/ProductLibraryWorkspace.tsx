@@ -203,7 +203,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
     if(!item.unit.trim()){this.setState({error:t('Unit is required.','الوحدة مطلوبة.')});return;}
     if(item.lastUnitPrice.trim()&&(!isDecimalInput(item.lastUnitPrice)||decimalToScaled(item.lastUnitPrice)<0n)){this.setState({error:t('Enter a valid non-negative sale price.','أدخل سعر بيع صالحًا يساوي صفرًا أو أكثر.')});return;}
     const cost=(item.lastUnitCost??'').trim();
-    if(cost&&(!isDecimalInput(cost)||decimalToScaled(cost)<0n)){this.setState({error:t('Enter a valid non-negative unit cost.','أدخل تكلفة وحدة صالحة تساوي صفرًا أو أكثر.')});return;}
+    if(cost&&(!isDecimalInput(cost)||decimalToScaled(cost,12)<0n)){this.setState({error:t('Enter a valid non-negative unit cost.','أدخل تكلفة وحدة صالحة تساوي صفرًا أو أكثر.')});return;}
     const lastCurrency=(item.lastCurrency||this.props.currency||'USD').trim().toUpperCase();
     const candidate:SavedItem={...item,sku,lastCurrency,lastCostCurrency:cost?(item.lastCostCurrency||lastCurrency).trim().toUpperCase():'',category:categoryOf(item),tags:Array.from(new Set((item.tags??[]).map(tag=>tag.trim()).filter(Boolean))),lastUnitPrice:item.lastUnitPrice.trim()?normalizeDecimalInput(item.lastUnitPrice):'',lastUnitCost:cost?normalizeDecimalInput(cost):'',favorite:Boolean(item.favorite),updatedAt:new Date().toISOString()};
     const duplicate=findSavedItemDuplicate(this.props.items,candidate);
@@ -308,7 +308,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
               const rowFavorite=active?Boolean(edit?.favorite):Boolean(item.favorite);
               const cost=item.lastUnitCost?.trim()?`${item.lastUnitCost} ${item.lastCostCurrency||item.lastCurrency}`:'';
               return <article key={item.id} className={`product-library-row ${active?'active':''} ${selected?'selected':''}`}>
-                {this.state.selectionMode?<button type="button" className="product-library-select-toggle" aria-label={selected?t('Unselect product','إلغاء تحديد الصنف'):t('Select product','تحديد الصنف')} aria-pressed={selected} onClick={()=>this.toggleSelection(item.id)}><span>{selected?<Icon name="check" size={15}/>:null}</span></button>:<button type="button" className={`product-library-star ${rowFavorite?'on':''}`} aria-label={rowFavorite?t('Remove favorite','إزالة من المفضلة'):t('Add favorite','إضافة للمفضلة')} aria-pressed={rowFavorite} onClick={()=>void this.toggleFavorite(item)}>★</button>}
+                {this.state.selectionMode?<button type="button" className="product-library-select-toggle" aria-label={selected?t('Unselect product','إلغاء تحديد الصنف'):t('Select product','تحديد الصنف')} aria-pressed={selected} onClick={()=>this.toggleSelection(item.id)}><span>{selected?<Icon name="check" size={15}/>:null}</button>:<button type="button" className={`product-library-star ${rowFavorite?'on':''}`} aria-label={rowFavorite?t('Remove favorite','إزالة من المفضلة'):t('Add favorite','إضافة للمفضلة')} aria-pressed={rowFavorite} onClick={()=>void this.toggleFavorite(item)}>★</button>}
                 <button type="button" className="product-library-row-main" onClick={()=>this.state.selectionMode?this.toggleSelection(item.id):this.beginEdit(item)}>
                   <div className="product-library-row-title"><strong>{titleOf(item)}</strong>{item.sku?<code>{item.sku}</code>:null}</div>
                   {item.descriptionEn&&item.descriptionAr?<span>{isArabic()?item.descriptionEn:item.descriptionAr}</span>:null}
