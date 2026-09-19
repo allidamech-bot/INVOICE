@@ -8,7 +8,9 @@ function customer(id,name){const now=new Date().toISOString();return{id,companyN
 function savedItem(id,name,sku){const now=new Date().toISOString();return{id,createdAt:now,updatedAt:now,sku,descriptionEn:name,descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'',lastCurrency:'USD',usageCount:0,lastUsedAt:now};}
 function finalInvoice(base,id='inv-settlement',amount='100.00'){
   const doc=createBlankDocument('invoice','INV-2026-0200',base.company);
-  doc.id=id;doc.status='final';doc.lifecycleStatus='active';doc.role='standard';doc.currency='USD';doc.issueDate='2026-09-01';doc.dueDate='2026-09-30';doc.items=[{...doc.items[0],descriptionEn:'Service',quantity:'1',unitPrice:amount}];
+  doc.id=id;doc.status='final';doc.lifecycleStatus='active';doc.role='standard';doc.currency='USD';doc.issueDate='2026-09-01';doc.dueDate='2026-09-30';
+  doc.customerSnapshot={sourceCustomerId:'customer-settlement',companyNameEn:'Settlement Buyer',companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
+  doc.items=[{...doc.items[0],descriptionEn:'Service',quantity:'1',unitPrice:amount}];
   doc.adjustments={discountEnabled:false,discountMode:'fixed',discountValue:'0.00',shippingEnabled:false,shipping:'0.00',otherChargesEnabled:false,otherCharges:'0.00',taxEnabled:false,taxPercent:'0'};
   return doc;
 }
