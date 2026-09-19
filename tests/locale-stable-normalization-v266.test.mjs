@@ -32,8 +32,17 @@ test('v266 business identity stays stable under Turkish locale casing',async()=>
     const company={commercial:{paymentTermPresets:[{id:'net-invoice',label:'INVOICE TERMS',days:30}]}};
     assert.equal(paymentTermPresetByLabel(company,'invoice terms')?.id,'net-invoice');
 
-    const mergeSource=await readFile('src/storage/vault-merge.ts','utf8');
+    const [mergeSource,pricingSource,purchasingSource,financeSource]=await Promise.all([
+      readFile('src/storage/vault-merge.ts','utf8'),
+      readFile('src/lib/product-pricing-intelligence.ts','utf8'),
+      readFile('src/lib/supplier-purchasing-intelligence.ts','utf8'),
+      readFile('src/lib/ai-finance.ts','utf8')
+    ]);
     assert.doesNotMatch(mergeSource,/savedItemSku[^\n]*toLocaleUpperCase\(\)/);
+    for(const source of [pricingSource,purchasingSource,financeSource]){
+      assert.doesNotMatch(source,/\.toLocaleLowerCase\(\)/);
+      assert.doesNotMatch(source,/\.toLocaleUpperCase\(\)/);
+    }
   }finally{
     String.prototype.toLocaleLowerCase=originalLower;
     String.prototype.toLocaleUpperCase=originalUpper;
