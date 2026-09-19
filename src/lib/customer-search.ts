@@ -1,7 +1,7 @@
 import type { Customer } from '../types.js';
 
 function normalizeSearchValue(value:string):string{
-  return value.trim().toLocaleLowerCase();
+  return value.trim().toLowerCase();
 }
 
 export function customerSearchText(customer:Customer):string{

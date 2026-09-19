@@ -18,7 +18,7 @@ function customerName(account:CustomerReceivableSummary,documents:LourexDocument
 }
 function customerSearchNames(account:CustomerReceivableSummary,documents:LourexDocument[]):string{
   const snapshot=accountSnapshot(account,documents);
-  return [account.customer?.companyNameEn,account.customer?.companyNameAr,snapshot?.companyNameEn,snapshot?.companyNameAr,customerName(account,documents)].filter(Boolean).join(' ').toLocaleLowerCase();
+  return [account.customer?.companyNameEn,account.customer?.companyNameAr,snapshot?.companyNameEn,snapshot?.companyNameAr,customerName(account,documents)].filter(Boolean).join(' ').toLowerCase();
 }
 function moneyList(rows:{currency:string;outstanding:string}[]):string{return rows.filter(row=>row.outstanding!=='0.00').map(row=>formatMoney(row.outstanding,row.currency)).join(' · ')||'—';}
 function overdueList(rows:{currency:string;overdue:string}[]):string{return rows.filter(row=>row.overdue!=='0.00').map(row=>formatMoney(row.overdue,row.currency)).join(' · ')||'—';}
@@ -60,11 +60,11 @@ export class ReceivablesPage extends React.Component<Props,State>{
   state:State={query:'',filter:'open',statementCustomerId:''};
   private filteredAccounts():CustomerReceivableSummary[]{
     const accounts=customerReceivables(this.props.customers,this.props.documents,this.props.payments);
-    const q=this.state.query.trim().toLocaleLowerCase();
+    const q=this.state.query.trim().toLowerCase();
     return accounts.filter(account=>{
       const names=customerSearchNames(account,this.props.documents);
       const snapshot=account.customer?undefined:accountSnapshot(account,this.props.documents);
-      const email=(account.customer?.email||snapshot?.email||'').toLocaleLowerCase();
+      const email=(account.customer?.email||snapshot?.email||'').toLowerCase();
       const phone=account.customer?.phone||snapshot?.phone||'';
       const matchesSearch=!q||names.includes(q)||email.includes(q)||phone.includes(q);
       if(!matchesSearch)return false;

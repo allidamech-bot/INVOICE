@@ -61,7 +61,7 @@ async function inspectPage(page,testCase){
 
 (async()=>{
   await mkdir(outputDir,{recursive:true});
-  const browser=await chromium.launch({headless:true,executablePath:chromium.executablePath()});
+  const browser=await chromium.launch({headless:true});
   const context=await browser.newContext({viewport:{width:1440,height:1280},deviceScaleFactor:1});
   const page=await context.newPage();
   const browserErrors=new Set();

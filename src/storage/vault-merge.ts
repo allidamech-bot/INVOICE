@@ -1,6 +1,6 @@
 import type { AppSettings, CompanySettings, Customer, ExpenseRecord, InventoryMovementRecord, LourexDocument, PurchaseRecord, SavedItem, Supplier, VaultPayload } from '../types.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
-import { decimalToScaled, isDecimalInput } from '../lib/money.js';
+import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput } from '../lib/money.js';
 import { assertDocumentLifecycleInvariant } from '../lib/document-lifecycle.js';
 import { assertInvoicePaymentInvariant } from '../lib/payments.js';
 import { inventoryMovementIsManual, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
@@ -141,7 +141,7 @@ function guardCustomerChanges(base:Customer[],intended:Customer[],merged:Custome
       const creditLimit=text(customer.creditLimit).trim();
       const creditCurrency=text(customer.creditCurrency).trim();
       const dueDays=text(customer.paymentDueDays).trim();
-      if(creditLimit&&(!isDecimalInput(creditLimit)||decimalToScaled(creditLimit,2)<0n))throw new Error(t('Credit limit must be zero or greater.','يجب أن يكون حد الائتمان صفرًا أو أكثر.'));
+      if(creditLimit&&!isNonNegativeDecimalInput(creditLimit))throw new Error(t('Credit limit must be zero or greater.','يجب أن يكون حد الائتمان صفرًا أو أكثر.'));
       if(creditLimit&&!creditCurrency)throw new Error(t('Choose a currency for the credit limit.','اختر عملة لحد الائتمان.'));
       if(dueDays&&!/^\d+$/.test(dueDays))throw new Error(t('Payment due days must be a whole number.','يجب أن تكون أيام الاستحقاق رقمًا صحيحًا.'));
       if(/^\d+$/.test(dueDays)&&Number(dueDays)>3650)throw new Error(t('Payment due days cannot exceed 3650.','لا يمكن أن تتجاوز أيام الاستحقاق 3650 يومًا.'));
@@ -149,7 +149,7 @@ function guardCustomerChanges(base:Customer[],intended:Customer[],merged:Custome
   }
 }
 
-function savedItemSku(value:unknown):string{return text(value).normalize('NFKC').trim().replace(/\s+/g,'').toLocaleUpperCase();}
+function savedItemSku(value:unknown):string{return text(value).normalize('NFKC').trim().replace(/\s+/g,'').toUpperCase();}
 function savedItemIdentityChanged(before:SavedItem|undefined,item:SavedItem):boolean{
   return !before||normalizeSavedItemIdentity(text(before.descriptionEn))!==normalizeSavedItemIdentity(text(item.descriptionEn))||normalizeSavedItemIdentity(text(before.descriptionAr))!==normalizeSavedItemIdentity(text(item.descriptionAr))||savedItemSku(before.sku)!==savedItemSku(item.sku);
 }
@@ -160,11 +160,16 @@ function guardSavedItemChanges(base:SavedItem[],intended:SavedItem[],merged:Save
     const before=baseById.get(item.id);
     const identityChanged=savedItemIdentityChanged(before,item);
     const commercialChanged=!before||identityChanged||text(before.unit)!==text(item.unit)||text(before.lastUnitPrice)!==text(item.lastUnitPrice);
+    const costChanged=!before||text(before.lastUnitCost)!==text(item.lastUnitCost)||text(before.lastCostCurrency)!==text(item.lastCostCurrency);
     if(commercialChanged){
       if(!text(item.descriptionEn).trim()&&!text(item.descriptionAr).trim())throw new Error(t('Enter an English or Arabic description.','أدخل وصفًا بالإنجليزية أو العربية.'));
       if(!text(item.unit).trim())throw new Error(t('Unit is required.','الوحدة مطلوبة.'));
       const price=text(item.lastUnitPrice).trim();
-      if(price&&(!isDecimalInput(price)||decimalToScaled(price)<0n))throw new Error(t('Enter a valid non-negative price.','أدخل سعرًا صالحًا يساوي صفرًا أو أكثر.'));
+      if(price&&!isNonNegativeDecimalInput(price))throw new Error(t('Enter a valid non-negative price.','أدخل سعرًا صالحًا يساوي صفرًا أو أكثر.'));
+    }
+    if(costChanged){
+      const cost=text(item.lastUnitCost).trim();
+      if(cost&&!isNonNegativeDecimalInput(cost))throw new Error(t('Enter a valid non-negative unit cost.','أدخل تكلفة وحدة صالحة تساوي صفرًا أو أكثر.'));
     }
     if(identityChanged&&findSavedItemDuplicate(merged,item))throw new Error(t('This item already exists or uses a duplicate SKU. Open the existing item to edit it.','هذا الصنف موجود بالفعل أو يستخدم SKU مكررًا. افتح الصنف الموجود لتعديله.'));
   }
@@ -317,7 +322,7 @@ function guardNewManualMovements(base:VaultPayload,intended:VaultPayload,movemen
     if(movement.type==='opening'&&quantity<0n)throw new Error('Opening stock cannot be negative.');
     if(movement.type==='issue'&&quantity>0n)throw new Error('Stock issues must reduce inventory.');
     const cost=text(movement.unitCost).trim();
-    if(cost&&(!isDecimalInput(cost)||decimalToScaled(cost,4)<0n))throw new Error('Inventory movement unit cost must be zero or greater.');
+    if(cost&&!isNonNegativeDecimalInput(cost))throw new Error('Inventory movement unit cost must be zero or greater.');
     if(movement.sourceId){
       if(movement.type!=='adjustment')throw new Error('Only an adjustment can reverse a prior manual inventory movement.');
       const source=movements.find(item=>item.id===movement.sourceId);
@@ -362,7 +367,7 @@ function guardPurchaseState(purchase:PurchaseRecord,purchases:PurchaseRecord[],m
     if(movement.type==='purchase'&&quantity<0n)throw new Error('Purchase receipt quantity cannot be negative.');
     if(movement.type==='purchase-reversal'&&quantity>0n)throw new Error('Purchase reversal quantity cannot be positive.');
     const cost=text(movement.unitCost).trim();
-    if(cost&&(!isDecimalInput(cost)||decimalToScaled(cost,4)<0n))throw new Error('Purchase inventory unit cost must be zero or greater.');
+    if(cost&&!isNonNegativeDecimalInput(cost))throw new Error('Purchase inventory unit cost must be zero or greater.');
   }
 }
 function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:VaultPayload,suppliers:Supplier[],purchases:PurchaseRecord[],expenses:ExpenseRecord[],movements:InventoryMovementRecord[],savedItems:SavedItem[]):void{
