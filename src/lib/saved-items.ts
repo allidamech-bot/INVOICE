@@ -1,19 +1,17 @@
 import type { DocumentItem, LourexDocument, SavedItem } from '../types.js';
 import { makeId } from './id.js';
-import { decimalToScaled, isDecimalInput, normalizeDecimalInput } from './money.js';
-
-const COST_DECIMALS=12;
+import { isNonNegativeDecimalInput, normalizeDecimalInput } from './money.js';
 
 function safeReusableUnitCost(value:string|undefined):string{
   const cost=(value??'').trim();
-  if(!cost||!isDecimalInput(cost)||decimalToScaled(cost,COST_DECIMALS)<0n)return '';
+  if(!cost||!isNonNegativeDecimalInput(cost))return '';
   return normalizeDecimalInput(cost);
 }
 
 function reusableUnitCostForSave(value:string|undefined):string{
   const cost=(value??'').trim();
   if(!cost)return '';
-  if(!isDecimalInput(cost)||decimalToScaled(cost,COST_DECIMALS)<0n)throw new Error('Unit cost must be zero or greater.');
+  if(!isNonNegativeDecimalInput(cost))throw new Error('Unit cost must be zero or greater.');
   return normalizeDecimalInput(cost);
 }
 
