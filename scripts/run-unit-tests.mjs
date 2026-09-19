@@ -17,13 +17,22 @@ for(let index=0;index<chunkCount;index+=1){
   const chunk=files.slice(start,end);
   if(!chunk.length)continue;
 
-  process.stdout.write(`\n[LOUREX tests] group ${index+1}/${chunkCount}: ${chunk.length} files\n`);
+  const label=`[LOUREX tests] group ${index+1}/${chunkCount}: ${chunk.length} files`;
+  process.stdout.write(`\n${label}\n`);
   const result=spawnSync(process.execPath,['--test',...chunk],{
-    stdio:'inherit',
-    env:process.env
+    encoding:'utf8',
+    env:process.env,
+    maxBuffer:20*1024*1024
   });
   if(result.error)throw result.error;
-  if(result.status!==0)process.exit(result.status??1);
+  if(result.status!==0){
+    process.stderr.write(`\n${label} FAILED\n`);
+    process.stderr.write(`[LOUREX tests] files: ${chunk.join(', ')}\n`);
+    if(result.stdout)process.stderr.write(`\n--- test stdout ---\n${result.stdout}`);
+    if(result.stderr)process.stderr.write(`\n--- test stderr ---\n${result.stderr}`);
+    process.exit(result.status??1);
+  }
+  process.stdout.write(`${label} passed\n`);
 }
 
 process.stdout.write(`\n[LOUREX tests] ${files.length} test files passed across ${chunkCount} groups.\n`);
