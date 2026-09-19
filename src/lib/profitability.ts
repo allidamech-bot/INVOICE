@@ -101,5 +101,5 @@ export function calculateProfitability(document:LourexDocument):ProfitabilitySum
 }
 
 export function validInternalCost(value:string):boolean{
-  return !value.trim()||(isDecimalInput(value)&&decimalToScaled(value)>=0n);
+  return !value.trim()||(isDecimalInput(value)&&decimalToScaled(value,COST_DECIMALS)>=0n);
 }
