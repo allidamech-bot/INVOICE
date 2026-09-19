@@ -12,10 +12,11 @@ interface Props{
   companyName:string;
   documents:LourexDocument[];
   payments:PaymentRecord[];
-  purchases:PurchaseRecord[];
-  expenses:ExpenseRecord[];
-  inventoryMovements:InventoryMovementRecord[];
-  items:SavedItem[];
+  purchases?:PurchaseRecord[];
+  expenses?:ExpenseRecord[];
+  inventoryMovements?:InventoryMovementRecord[];
+  items?:SavedItem[];
+  itemCount?:number;
   customerCount:number;
   onNewDocument:()=>void;
   onOpenDocument:(doc:LourexDocument)=>void;
@@ -47,7 +48,7 @@ function documentStatus(doc:LourexDocument,payments:PaymentRecord[],documents:Lo
   return{tone:'issued',label:t('Issued','صادرة')};
 }
 
-export function WorkspaceHome({companyName,documents,payments,purchases,expenses,inventoryMovements,items,customerCount,onNewDocument,onOpenDocument,onNavigate}:Props):any{
+export function WorkspaceHome({companyName,documents,payments,purchases=[],expenses=[],inventoryMovements=[],items=[],itemCount,customerCount,onNewDocument,onOpenDocument,onNavigate}:Props):any{
   const today=todayIso();
   const monthStart=`${today.slice(0,7)}-01`;
   const receivables=receivablesByCurrency(documents,payments,today);
@@ -58,6 +59,7 @@ export function WorkspaceHome({companyName,documents,payments,purchases,expenses
   const drafts=documents.filter(doc=>doc.status==='draft').length;
   const incompleteAccounting=daily.invalidOperations+daily.missingCostItems;
   const recent=[...documents].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,6);
+  const displayedItemCount=items.length||(itemCount??0);
   const dailyMoney=(field:'sales'|'collected'|'purchases'|'expenses')=>{
     const rows=daily.money.filter(row=>row[field]!=='0.00');
     return rows.length?rows.map(row=>formatMoney(row[field],row.currency)).join(' · '):'—';
@@ -134,7 +136,7 @@ export function WorkspaceHome({companyName,documents,payments,purchases,expenses
           <div className="dashboard-shortcut-grid">
             <button type="button" onClick={()=>onNavigate('documents')}><Icon name="file"/><span>{t('Documents','المستندات')}</span></button>
             <button type="button" onClick={()=>onNavigate('customers')}><Icon name="users"/><span>{t(`Customers · ${customerCount}`,`العملاء · ${customerCount}`)}</span></button>
-            <button type="button" onClick={()=>onNavigate('items')}><Icon name="items"/><span>{t(`Items · ${items.length}`,`الأصناف · ${items.length}`)}</span></button>
+            <button type="button" onClick={()=>onNavigate('items')}><Icon name="items"/><span>{t(`Items · ${displayedItemCount}`,`الأصناف · ${displayedItemCount}`)}</span></button>
             <button type="button" onClick={()=>onNavigate('operations')}><Icon name="backup"/><span>{t('Business','الأعمال')}</span></button>
           </div>
         </section>
