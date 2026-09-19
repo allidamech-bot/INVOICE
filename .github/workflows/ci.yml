@@ -22,10 +22,7 @@ jobs:
       - name: LOUREX static security gate
         run: node scripts/security-check.mjs
       - run: npm run typecheck
-      - name: Diagnostic — production build
-        run: npm run build
-      - name: Diagnostic — complete unit suite
-        run: node --test --test-concurrency=1 tests/*.test.mjs
+      - run: npm test
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
