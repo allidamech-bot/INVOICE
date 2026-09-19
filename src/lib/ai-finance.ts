@@ -1,5 +1,5 @@
 import type { Customer, LourexDocument, PaymentRecord } from '../types.js';
-import { calculateTotals, decimalToScaled, isDecimalInput, lineTotal } from './money.js';
+import { calculateTotals, decimalToScaled, isDecimalInput, isNonNegativeDecimalInput, lineTotal } from './money.js';
 import { todayIso } from './id.js';
 import { customerPerformanceReport, financialReportByCurrency, monthlyPerformanceReport, type FinancialReportCurrency } from './reports.js';
 import { customerReceivables, type CurrencyReceivableSummary } from './receivables.js';
@@ -258,7 +258,7 @@ function countedFinancialDocuments(documents:LourexDocument[]):LourexDocument[]{
   return documents.filter(doc=>doc.kind==='invoice'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&(doc.role!=='credit-note'||credits.has(doc.id)));
 }
 function nonZero(value:string):boolean{return Boolean(value.trim()&&isDecimalInput(value)&&decimalToScaled(value,2)!==0n);}
-function validUnitCost(value:string):boolean{return Boolean(value.trim()&&isDecimalInput(value)&&decimalToScaled(value,COST_DECIMALS)>=0n);}
+function validUnitCost(value:string):boolean{return Boolean(value.trim()&&isNonNegativeDecimalInput(value));}
 
 function productPerformance(source:AiFinanceSource,from:string,to:string):AiFinanceContext['productLinePerformance']{
   type Aggregate={name:string;currency:string;revenue:bigint;cost:bigint;complete:boolean;missingCostItems:number;};
