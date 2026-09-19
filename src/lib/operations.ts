@@ -236,10 +236,12 @@ export function expenseAccountingIsValid(expense:ExpenseRecord):boolean{return v
 export function createManualInventoryMovement(item:SavedItem,type:Extract<InventoryMovementType,'opening'|'issue'|'adjustment'>,quantity:string,date=todayIso(),note='',unitCost='',currency=''):InventoryMovementRecord{
   if(!isIsoDate(date))throw new Error('Movement date is invalid.');
   if(!isDecimalInput(quantity)||decimalToScaled(quantity,4)===0n)throw new Error('Movement quantity cannot be zero.');
+  const cost=unitCost.trim();
+  if(cost&&(!isDecimalInput(cost)||decimalToScaled(cost,COST_DECIMALS)<0n))throw new Error('Movement unit cost must be zero or greater.');
   let scaled=decimalToScaled(quantity,4);
   if(type==='opening')scaled=scaled<0n?-scaled:scaled;
   if(type==='issue')scaled=scaled>0n?-scaled:scaled;
-  return {id:makeId('stock'),itemId:item.id,itemNameEn:item.descriptionEn,itemNameAr:item.descriptionAr,sku:item.sku??'',date,type,quantity:trimFixed(fixed(scaled,4)),unitCost:unitCost.trim(),currency:cleanCurrency(currency||item.lastCostCurrency||'' ,''),sourceId:'',sourceNumber:'',note:note.trim(),createdAt:nowIso()};
+  return {id:makeId('stock'),itemId:item.id,itemNameEn:item.descriptionEn,itemNameAr:item.descriptionAr,sku:item.sku??'',date,type,quantity:trimFixed(fixed(scaled,4)),unitCost:cost,currency:cleanCurrency(currency||item.lastCostCurrency||'' ,''),sourceId:'',sourceNumber:'',note:note.trim(),createdAt:nowIso()};
 }
 
 export function reverseManualInventoryMovement(movement:InventoryMovementRecord,date=todayIso()):InventoryMovementRecord{
