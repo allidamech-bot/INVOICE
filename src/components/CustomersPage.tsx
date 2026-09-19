@@ -22,7 +22,7 @@ type CustomerSort='name'|'recent';
 interface Props { customers: Customer[]; company:CompanySettings; onSave: (customer:Customer)=>Promise<void>; onDelete:(customer:Customer)=>Promise<void>; onNewDocument:(kind:DocumentKind,customer:Customer)=>Promise<void>; }
 interface State { query:string; sort:CustomerSort; editing:Customer|null; editingInitial:string; discardConfirm:boolean; deleting:Customer|null; error:string; busy:boolean; creatingDocument:string; viewingId:string; }
 
-function normalizeCustomerName(value:string):string{return value.trim().replace(/\s+/g,' ').toLocaleLowerCase();}
+function normalizeCustomerName(value:string):string{return value.trim().replace(/\s+/g,' ').toLowerCase();}
 function customerDisplayName(customer:Customer):string{return (isArabic()?(customer.companyNameAr||customer.companyNameEn):(customer.companyNameEn||customer.companyNameAr)).trim();}
 function customerSearchSeed(value:string):string{const seed=value.trim();if(!seed||seed.includes('@')||/^[+\d\s().-]{5,}$/.test(seed))return '';return seed;}
 function visibleValue(value:string):string{return value.trim()||'—';}
@@ -50,10 +50,10 @@ export class CustomersPage extends React.Component<Props,State> {
   };
   private filtered():Customer[]{
     const raw=this.state.query.trim();
-    const terms=raw.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const terms=raw.toLowerCase().split(/\s+/).filter(Boolean);
     const customers=this.props.customers.filter(c=>{
       if(!terms.length)return true;
-      const haystack=[c.companyNameEn,c.companyNameAr,c.contactPerson,c.email,c.phone,c.city,c.country,c.vatTaxNumber,c.commercialRegistration,c.preferredCurrency,c.creditCurrency,c.paymentTerms,c.notes].join(' ').toLocaleLowerCase();
+      const haystack=[c.companyNameEn,c.companyNameAr,c.contactPerson,c.email,c.phone,c.city,c.country,c.vatTaxNumber,c.commercialRegistration,c.preferredCurrency,c.creditCurrency,c.paymentTerms,c.notes].join(' ').toLowerCase();
       return terms.every(term=>haystack.includes(term));
     });
     return customers.sort((a,b)=>{

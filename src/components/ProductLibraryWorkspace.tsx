@@ -54,7 +54,7 @@ function blank(currency:string):SavedItem{
 function ranked(items:SavedItem[],values:(item:SavedItem)=>string[],limit:number):string[]{
   const map=new Map<string,{value:string;score:number;recent:string}>();
   items.forEach(item=>values(item).map(value=>value.trim()).filter(Boolean).forEach(value=>{
-    const key=value.toLocaleLowerCase();
+    const key=value.toLowerCase();
     const current=map.get(key)??{value,score:0,recent:''};
     current.score+=1+Math.max(0,item.usageCount||0);
     if(recentStamp(item)>current.recent)current.recent=recentStamp(item);
@@ -192,8 +192,8 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
 
   private toggleTag=(tag:string)=>{
     const item=this.state.editing;if(!item)return;
-    const current=item.tags??[];const key=tag.toLocaleLowerCase();
-    this.set('tags',current.some(value=>value.toLocaleLowerCase()===key)?current.filter(value=>value.toLocaleLowerCase()!==key):[...current,tag]);
+    const current=item.tags??[];const key=tag.toLowerCase();
+    this.set('tags',current.some(value=>value.toLowerCase()===key)?current.filter(value=>value.toLowerCase()!==key):[...current,tag]);
   };
 
   private save=async()=>{
@@ -203,7 +203,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
     if(!item.unit.trim()){this.setState({error:t('Unit is required.','الوحدة مطلوبة.')});return;}
     if(item.lastUnitPrice.trim()&&(!isDecimalInput(item.lastUnitPrice)||decimalToScaled(item.lastUnitPrice)<0n)){this.setState({error:t('Enter a valid non-negative sale price.','أدخل سعر بيع صالحًا يساوي صفرًا أو أكثر.')});return;}
     const cost=(item.lastUnitCost??'').trim();
-    if(cost&&(!isDecimalInput(cost)||decimalToScaled(cost)<0n)){this.setState({error:t('Enter a valid non-negative unit cost.','أدخل تكلفة وحدة صالحة تساوي صفرًا أو أكثر.')});return;}
+    if(cost&&(!isDecimalInput(cost)||decimalToScaled(cost,12)<0n)){this.setState({error:t('Enter a valid non-negative unit cost.','أدخل تكلفة وحدة صالحة تساوي صفرًا أو أكثر.')});return;}
     const lastCurrency=(item.lastCurrency||this.props.currency||'USD').trim().toUpperCase();
     const candidate:SavedItem={...item,sku,lastCurrency,lastCostCurrency:cost?(item.lastCostCurrency||lastCurrency).trim().toUpperCase():'',category:categoryOf(item),tags:Array.from(new Set((item.tags??[]).map(tag=>tag.trim()).filter(Boolean))),lastUnitPrice:item.lastUnitPrice.trim()?normalizeDecimalInput(item.lastUnitPrice):'',lastUnitCost:cost?normalizeDecimalInput(cost):'',favorite:Boolean(item.favorite),updatedAt:new Date().toISOString()};
     const duplicate=findSavedItemDuplicate(this.props.items,candidate);
@@ -247,7 +247,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
   };
 
   render():any{
-    const query=this.state.query.trim().toLocaleLowerCase();
+    const query=this.state.query.trim().toLowerCase();
     const categories=Array.from(new Set(this.props.items.map(categoryOf).filter(Boolean))).sort((a,b)=>a.localeCompare(b,isArabic()?'ar':'en',{sensitivity:'base'}));
     const categoryPresets=categoryChoices(isArabic());
     const categoryPresetMap=new Map(categoryPresets.map(choice=>[choice.value,choice.label]));
@@ -343,7 +343,7 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
 
               <section className="product-editor-section"><div className="product-editor-section-title"><span>02</span><div><strong>{t('Catalog organization','تنظيم الكتالوج')}</strong><small>{t('Category, tags and customs reference','التصنيف والوسوم والمرجع الجمركي')}</small></div></div><div className="form-grid two">
                 <Field label={t('Category','التصنيف')}><Input value={edit.category??''} placeholder={t('Choose below or type a custom category','اختر أدناه أو اكتب تصنيفًا مخصصًا')} onChange={(e:any)=>this.set('category',e.target.value)}/><span className="product-library-choice-strip">{categorySuggestions.map(choice=><button type="button" key={choice.value} className={categoryOf(edit)===choice.value?'active':''} onClick={()=>this.set('category',choice.value)}>{choice.label}</button>)}</span></Field>
-                <Field label={t('Tags','الوسوم')}><Input value={(edit.tags??[]).join(', ')} placeholder={t('e.g. 250ml, Energy','مثال: 250مل، طاقة')} onChange={(e:any)=>this.set('tags',parseSavedItemTags(String(e.target.value)))}/>{tags.length?<span className="product-library-choice-strip">{tags.map(tag=>{const active=(edit.tags??[]).some(value=>value.toLocaleLowerCase()===tag.toLocaleLowerCase());return <button type="button" key={tag} className={active?'active':''} onClick={()=>this.toggleTag(tag)}>#{tag}</button>;})}</span>:null}</Field>
+                <Field label={t('Tags','الوسوم')}><Input value={(edit.tags??[]).join(', ')} placeholder={t('e.g. 250ml, Energy','مثال: 250مل، طاقة')} onChange={(e:any)=>this.set('tags',parseSavedItemTags(String(e.target.value)))}/>{tags.length?<span className="product-library-choice-strip">{tags.map(tag=>{const active=(edit.tags??[]).some(value=>value.toLowerCase()===tag.toLowerCase());return <button type="button" key={tag} className={active?'active':''} onClick={()=>this.toggleTag(tag)}>#{tag}</button>;})}</span>:null}</Field>
                 <Field label="HS Code"><Input inputMode="numeric" value={edit.hsCode} onChange={(e:any)=>this.set('hsCode',e.target.value)}/>{hsCodes.length?<span className="product-library-choice-strip">{hsCodes.map(code=><button type="button" key={code} className={edit.hsCode===code?'active':''} onClick={()=>this.set('hsCode',code)}>{code}</button>)}</span>:null}</Field>
                 <Field label={t('Origin','المنشأ')}><Input value={edit.origin} onChange={(e:any)=>this.set('origin',e.target.value)}/></Field>
               </div></section>

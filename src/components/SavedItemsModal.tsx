@@ -58,7 +58,7 @@ function rankedMetadata(items:SavedItem[],values:(item:SavedItem)=>string[],limi
   const scores=new Map<string,{value:string,count:number,usage:number,recent:string}>();
   items.forEach(item=>{
     values(item).map(value=>value.trim()).filter(Boolean).forEach(value=>{
-      const key=value.toLocaleLowerCase();
+      const key=value.toLowerCase();
       const current=scores.get(key)??{value,count:0,usage:0,recent:''};
       current.count+=1;
       current.usage+=Math.max(0,item.usageCount||0);
@@ -125,9 +125,9 @@ export class SavedItemsModal extends React.Component<Props,State>{
   private toggleTag=(tag:string)=>{
     const item=this.state.editing;if(!item)return;
     const current=item.tags??[];
-    const normalized=tag.toLocaleLowerCase();
-    const exists=current.some(value=>value.toLocaleLowerCase()===normalized);
-    this.set('tags',exists?current.filter(value=>value.toLocaleLowerCase()!==normalized):[...current,tag]);
+    const normalized=tag.toLowerCase();
+    const exists=current.some(value=>value.toLowerCase()===normalized);
+    this.set('tags',exists?current.filter(value=>value.toLowerCase()!==normalized):[...current,tag]);
   };
 
   private beginEdit=(item:SavedItem)=>{
@@ -501,7 +501,7 @@ export class SavedItemsModal extends React.Component<Props,State>{
                 <Field label={t('Tags','الوسوم')} hint={tagSuggestions.length?t('Tap a previous tag below or type new tags separated by commas.','اختر وسمًا سابقًا أدناه أو اكتب وسومًا جديدة مفصولة بفواصل.'):t('Separate tags with English or Arabic commas.','افصل الوسوم بفواصل إنجليزية أو عربية.')}>
                   <Input value={(edit.tags??[]).join(', ')} placeholder={t('e.g. 250ml, Energy','مثال: 250مل، طاقة')} onChange={(e:any)=>this.set('tags',parseSavedItemTags(String(e.target.value)))}/>
                   {tagSuggestions.length?<span className="product-metadata-suggestions saved-item-tag-suggestions" aria-label={t('Previous tags','الوسوم السابقة')}>
-                    {tagSuggestions.map(tag=>{const active=(edit.tags??[]).some(value=>value.toLocaleLowerCase()===tag.toLocaleLowerCase());return <button type="button" key={tag} className={active?'active':''} aria-pressed={active} onClick={()=>this.toggleTag(tag)}>#{tag}</button>;})}</span>:null}
+                    {tagSuggestions.map(tag=>{const active=(edit.tags??[]).some(value=>value.toLowerCase()===tag.toLowerCase());return <button type="button" key={tag} className={active?'active':''} aria-pressed={active} onClick={()=>this.toggleTag(tag)}>#{tag}</button>;})}</span>:null}
                 </Field>
                 <Field label="HS Code" hint={hsCodeSuggestions.length?t('Choose from HS codes you used before, or enter a new code.','اختر من أكواد HS التي استخدمتها سابقًا أو أدخل كودًا جديدًا.'):t('Enter the HS code when it is known. Previous codes will appear here automatically.','أدخل HS Code عند معرفته، وستظهر الأكواد السابقة هنا تلقائيًا.')}>
                   <Input inputMode="numeric" value={edit.hsCode} onChange={(e:any)=>this.set('hsCode',e.target.value)}/>

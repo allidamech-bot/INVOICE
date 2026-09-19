@@ -32,7 +32,7 @@
   languageObserver.observe(document.documentElement,{attributes:true,attributeFilter:['dir','lang']});
 
   const pageAtTop=()=>window.scrollY<=0&&document.documentElement.scrollTop<=0&&document.body.scrollTop<=0;
-  const blockedTarget=(target)=>target instanceof Element&&Boolean(target.closest('input,textarea,select,[contenteditable="true"],.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.preview-stage,.editor-scroll,.operations-page,.saved-items-page'));
+  const blockedTarget=(target)=>target instanceof Element&&Boolean(target.closest('input,textarea,select,[contenteditable="true"],.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.preview-stage,.editor-scroll,.operations-page,.saved-items-page,.product-library-pro.editor-open'));
   const canStart=(target)=>{
     if(refreshing||!pageAtTop())return false;
     if(!document.querySelector('.app-root .app-ui'))return false;
@@ -41,7 +41,7 @@
     // Operations and Product Library contain inline draft editors. Unlike
     // modal-based forms, those drafts do not have a global before-reload
     // confirmation, so native-style pull refresh must never discard them.
-    if(document.querySelector('.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.operations-page,.saved-items-page'))return false;
+    if(document.querySelector('.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.operations-page,.saved-items-page,.product-library-pro.editor-open'))return false;
     return !blockedTarget(target);
   };
 

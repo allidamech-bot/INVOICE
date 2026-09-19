@@ -1,8 +1,25 @@
 import type { DocumentItem, LourexDocument, SavedItem } from '../types.js';
 import { makeId } from './id.js';
+import { isNonNegativeDecimalInput, normalizeDecimalInput } from './money.js';
+
+function safeReusableUnitCost(value:string|undefined):string{
+  const cost=(value??'').trim();
+  if(!cost||!isNonNegativeDecimalInput(cost))return '';
+  return normalizeDecimalInput(cost);
+}
+
+function reusableUnitCostForSave(value:string|undefined):string{
+  const cost=(value??'').trim();
+  if(!cost)return '';
+  if(!isNonNegativeDecimalInput(cost))throw new Error('Unit cost must be zero or greater.');
+  return normalizeDecimalInput(cost);
+}
 
 export function savedItemFromDocumentItem(item: DocumentItem, currency: string, existing?: SavedItem): SavedItem {
   const now=new Date().toISOString();
+  const incomingCost=reusableUnitCostForSave(item.unitCost);
+  const preservedCost=incomingCost||(existing?.lastUnitCost??'');
+  const preservedCostCurrency=incomingCost?currency.trim().toUpperCase():(existing?.lastCostCurrency??'');
   return {
     id:existing?.id??makeId('product'),
     createdAt:existing?.createdAt??now,
@@ -16,8 +33,8 @@ export function savedItemFromDocumentItem(item: DocumentItem, currency: string, 
     unit:item.unit.trim(),
     lastUnitPrice:item.unitPrice.trim(),
     lastCurrency:currency.trim().toUpperCase(),
-    lastUnitCost:item.unitCost?.trim()??'',
-    lastCostCurrency:item.unitCost?.trim()?currency.trim().toUpperCase():(existing?.lastCostCurrency??''),
+    lastUnitCost:preservedCost,
+    lastCostCurrency:preservedCostCurrency,
     usageCount:(existing?.usageCount??0)+1,
     lastUsedAt:now,
     category:existing?.category??'',
@@ -37,16 +54,16 @@ export function documentItemFromSavedItem(saved: SavedItem): DocumentItem {
     quantity:'1',
     unit:saved.unit||'PCS',
     unitPrice:saved.lastUnitPrice,
-    unitCost:saved.lastUnitCost??''
+    unitCost:safeReusableUnitCost(saved.lastUnitCost)
   };
 }
 
 export function normalizeSavedItemIdentity(value: string): string {
-  return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase();
+  return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
 }
 
 export function normalizeSavedItemSku(value:string):string{
-  return value.normalize('NFKC').trim().replace(/\s+/g,'').toLocaleUpperCase();
+  return value.normalize('NFKC').trim().replace(/\s+/g,'').toUpperCase();
 }
 
 export function parseSavedItemTags(value: string): string[] {
@@ -111,6 +128,7 @@ export function historySuggestions(documents: LourexDocument[]): SavedItem[] {
     for(const item of doc.items){
       const key=(item.descriptionEn.trim().toLowerCase()||item.descriptionAr.trim());
       if(!key||map.has(key))continue;
+      const cost=safeReusableUnitCost(item.unitCost);
       map.set(key,{
         id:`history-${doc.id}-${item.id}`,
         createdAt:doc.createdAt,
@@ -124,8 +142,8 @@ export function historySuggestions(documents: LourexDocument[]): SavedItem[] {
         unit:item.unit,
         lastUnitPrice:item.unitPrice,
         lastCurrency:doc.currency,
-        lastUnitCost:item.unitCost??'',
-        lastCostCurrency:item.unitCost?.trim()?doc.currency:'',
+        lastUnitCost:cost,
+        lastCostCurrency:cost?doc.currency:'',
         usageCount:0,
         lastUsedAt:doc.updatedAt
       });

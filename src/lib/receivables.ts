@@ -20,7 +20,7 @@ function dayNumber(iso:string):number{
   const day=Number(parts[2]??1);
   return Math.floor(Date.UTC(year,month-1,day)/86_400_000);
 }
-function legacyCustomerPart(value:string):string{return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase();}
+function legacyCustomerPart(value:string):string{return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();}
 export function receivableCustomerId(doc:LourexDocument):string{
   const snapshot=doc.customerSnapshot;
   const direct=snapshot?.sourceCustomerId?.trim()||'';

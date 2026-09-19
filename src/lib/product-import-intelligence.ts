@@ -64,7 +64,7 @@ function normalize(value:unknown):string{
     .replace(/ـ/g,'')
     .replace(/[\u200E\u200F\u202A-\u202E]/g,'')
     .trim()
-    .toLocaleLowerCase()
+    .toLowerCase()
     .replace(/[()\[\]{}:;,.\/\\|]+/g,' ')
     .replace(/[_\-]+/g,' ')
     .replace(/\s+/g,' ')

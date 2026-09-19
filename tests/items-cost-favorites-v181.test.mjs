@@ -19,7 +19,7 @@ test('saved-item workspace exposes internal cost without changing customer docum
 test('saved-item workspace validates and normalizes reusable costs',async()=>{
   const workspace=await read('src/components/ProductLibraryWorkspace.tsx');
   assert.match(workspace,/isDecimalInput\(cost\)/);
-  assert.match(workspace,/decimalToScaled\(cost\)<0n/);
+  assert.match(workspace,/decimalToScaled\(cost,12\)<0n/);
   assert.match(workspace,/lastUnitCost:cost\?normalizeDecimalInput\(cost\):''/);
   assert.match(workspace,/lastCostCurrency:cost\?/);
 });

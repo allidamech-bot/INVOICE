@@ -19,7 +19,7 @@ function customerDisplay(row:CustomerPerformanceRow,customers:Customer[]):string
 }
 function customerSearchText(row:CustomerPerformanceRow,customers:Customer[]):string{
   const customer=customers.find(item=>item.id===row.customerId);
-  return [customerDisplay(row,customers),row.customerName,customer?.companyNameEn,customer?.companyNameAr].filter(Boolean).join(' ').toLocaleLowerCase();
+  return [customerDisplay(row,customers),row.customerName,customer?.companyNameEn,customer?.companyNameAr].filter(Boolean).join(' ').toLowerCase();
 }
 function companyDisplayName(company:CompanySettings):string{return (getUiLanguage()==='ar'?(company.nameAr||company.nameEn):(company.nameEn||company.nameAr)||'LOUREX').trim()||'LOUREX';}
 function filterDateLabel(value:string):string{return value?displayDate(value,getUiLanguage()):t('All dates','كل التواريخ');}
@@ -67,7 +67,7 @@ export class ReportsPage extends React.Component<Props,State>{
     const requestedCurrency=this.state.currency==='ALL'?'':this.state.currency;
     const selected=requestedCurrency&&currencies.includes(requestedCurrency)?requestedCurrency:'';
     const visibleSummaries=selected?summaries.filter(row=>row.currency===selected):summaries;
-    const query=this.state.query.trim().toLocaleLowerCase();
+    const query=this.state.query.trim().toLowerCase();
     const visibleCustomers=allCustomers.filter(row=>(!selected||row.currency===selected)&&(!query||customerSearchText(row,this.props.customers).includes(query)));
     const visibleTrends=trends.filter(row=>!selected||row.currency===selected);
     const missingCostItems=visibleSummaries.reduce((sum,row)=>sum+row.missingCostItems,0);
