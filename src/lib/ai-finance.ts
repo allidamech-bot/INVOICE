@@ -179,7 +179,7 @@ function comparisonRows(current:AiFinanceCurrencyRow[],previous:AiFinanceCurrenc
 function compactReceivable(row:CurrencyReceivableSummary):AiFinanceReceivableRow{
   return{currency:row.currency,outstanding:row.outstanding,overdue:row.overdue,openInvoices:row.openInvoices,overdueInvoices:row.overdueInvoices};
 }
-function normalized(value:string):string{return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase();}
+function normalized(value:string):string{return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();}
 function queryMatchesName(query:string,name:string):boolean{
   const q=normalized(query),n=normalized(name);if(!q||!n)return false;
   if(q.includes(n))return true;
