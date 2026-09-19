@@ -67,10 +67,10 @@ function notableChange(current:string,previous:string):'up'|'down'|'new'|null{
 export function dailyBusinessBrief(
   documents:LourexDocument[],
   payments:PaymentRecord[],
-  purchases:PurchaseRecord[],
-  expenses:ExpenseRecord[],
-  inventoryMovements:InventoryMovementRecord[],
-  items:SavedItem[],
+  purchases:PurchaseRecord[]=[],
+  expenses:ExpenseRecord[]=[],
+  inventoryMovements:InventoryMovementRecord[]=[],
+  items:SavedItem[]=[],
   date=todayIso()
 ):DailyBusinessBrief{
   const today=isIsoDate(date)?date:todayIso();
