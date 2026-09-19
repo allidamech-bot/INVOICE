@@ -28,8 +28,8 @@ test('v266 AI finance product performance preserves high-precision landed unit c
   assert.equal(row.missingCostItems,0);
 });
 
-test('v266 AI finance rejects a negative micro-cost instead of rounding it to zero',()=>{
-  const context=buildAiFinanceContext({documents:[invoiceWithCost('-0.00001')],payments:[],customers:[]},'product profitability','2026-09-19');
+test('v266 AI finance rejects a negative micro-cost even below calculation precision',()=>{
+  const context=buildAiFinanceContext({documents:[invoiceWithCost('-0.0000000000001')],payments:[],customers:[]},'product profitability','2026-09-19');
   assert.ok(context.productLinePerformance);
   const row=context.productLinePerformance.rows.find(item=>item.name==='Precision item');
   assert.ok(row);
