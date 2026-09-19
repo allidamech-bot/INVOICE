@@ -1,0 +1,13 @@
+/* v266 — runtime contrast audit.
+   Late screen-only guardrails for controls whose visible surface is a wrapper
+   rather than the native input itself. Printable document pages stay untouched. */
+@media screen {
+  .app-ui .reports-date-control{
+    border-color:var(--ds-input-line)!important;
+    background:var(--ds-input)!important;
+    color:var(--ds-text)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .reports-date-control::after{color:var(--ds-text-soft)!important}
+  .app-ui .reports-date-value{color:var(--ds-text)!important}
+}
