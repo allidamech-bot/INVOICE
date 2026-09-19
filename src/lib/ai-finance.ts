@@ -109,6 +109,9 @@ export interface AiFinanceContext {
   limitations:string[];
 }
 
+const COST_DECIMALS=12;
+const COST_PRODUCT_TO_CENTS=100_000_000_000_000n;
+
 function centsString(cents:bigint):string{
   const sign=cents<0n?'-':'';const abs=cents<0n?-cents:cents;
   return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`;
@@ -119,6 +122,17 @@ function marginString(profit:bigint,revenue:bigint):string{
   const basisPoints=profit*1_000_000n/revenue;
   const sign=basisPoints<0n?'-':'';const abs=basisPoints<0n?-basisPoints:basisPoints;
   return `${sign}${abs/10_000n}.${((abs%10_000n)/100n).toString().padStart(2,'0')}`;
+}
+
+function roundDivide(value:bigint,divisor:bigint):bigint{
+  const sign=(value<0n)!==(divisor<0n)?-1n:1n;
+  const a=value<0n?-value:value;
+  const b=divisor<0n?-divisor:divisor;
+  return ((a+b/2n)/b)*sign;
+}
+
+function costLineCents(quantity:string,unitCost:string):bigint{
+  return roundDivide(decimalToScaled(quantity,4)*decimalToScaled(unitCost,COST_DECIMALS),COST_PRODUCT_TO_CENTS);
 }
 
 function dateParts(iso:string):{year:number;month:number;day:number}{
@@ -244,7 +258,7 @@ function countedFinancialDocuments(documents:LourexDocument[]):LourexDocument[]{
   return documents.filter(doc=>doc.kind==='invoice'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&(doc.role!=='credit-note'||credits.has(doc.id)));
 }
 function nonZero(value:string):boolean{return Boolean(value.trim()&&isDecimalInput(value)&&decimalToScaled(value,2)!==0n);}
-function validUnitCost(value:string):boolean{return Boolean(value.trim()&&isDecimalInput(value)&&decimalToScaled(value,4)>=0n);}
+function validUnitCost(value:string):boolean{return Boolean(value.trim()&&isDecimalInput(value)&&decimalToScaled(value,COST_DECIMALS)>=0n);}
 
 function productPerformance(source:AiFinanceSource,from:string,to:string):AiFinanceContext['productLinePerformance']{
   type Aggregate={name:string;currency:string;revenue:bigint;cost:bigint;complete:boolean;missingCostItems:number;};
@@ -258,7 +272,7 @@ function productPerformance(source:AiFinanceSource,from:string,to:string):AiFina
       let row=map.get(key);if(!row){row={name,currency,revenue:0n,cost:0n,complete:true,missingCostItems:0};map.set(key,row);}
       row.revenue+=decimalToScaled(lineTotal(item.quantity,item.unitPrice),2)*sign;
       if(!validUnitCost(item.unitCost)){row.complete=false;row.missingCostItems+=1;continue;}
-      row.cost+=decimalToScaled(lineTotal(item.quantity,item.unitCost),2)*sign;
+      row.cost+=costLineCents(item.quantity,item.unitCost)*sign;
     }
   }
   const rows=[...map.values()].sort((a,b)=>{
