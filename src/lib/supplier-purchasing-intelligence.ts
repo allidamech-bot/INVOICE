@@ -91,8 +91,8 @@ function moneyFromCents(value:bigint):string{const negative=value<0n;const abs=n
 function percent(current:string,previous:string):string{const now=decimalToScaled(current||'0',4),before=decimalToScaled(previous||'0',4);if(before<=0n)return'';const diff=now-before;const negative=diff<0n;const abs=negative?-diff:diff;const hundredths=abs*10_000n/before;return `${negative?'-':''}${hundredths/100n}.${(hundredths%100n).toString().padStart(2,'0')}`;}
 function ratioPercent(value:string,base:string):string{const numerator=decimalToScaled(value||'0',2),denominator=decimalToScaled(base||'0',2);if(denominator<=0n)return'';const hundredths=numerator*10_000n/denominator;return `${hundredths/100n}.${(hundredths%100n).toString().padStart(2,'0')}`;}
 function absolutePercent(value:string):bigint{return decimalToScaled(value.replace('-','')||'0',2);}
-function queryTokens(message:string):string[]{return message.normalize('NFKC').toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter(token=>token.length>=2);}
-function queryScore(text:string,tokens:string[]):number{const value=text.normalize('NFKC').toLocaleLowerCase();return tokens.reduce((score,token)=>score+(value.includes(token)?1:0),0);}
+function queryTokens(message:string):string[]{return message.normalize('NFKC').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(token=>token.length>=2);}
+function queryScore(text:string,tokens:string[]):number{const value=text.normalize('NFKC').toLowerCase();return tokens.reduce((score,token)=>score+(value.includes(token)?1:0),0);}
 function postedPurchases(vault:VaultPayload,asOf:string):PurchaseRecord[]{return vault.purchases.filter(purchase=>purchase.status==='posted'&&purchase.date<=asOf&&purchaseAccountingIsValid(purchase)).sort((a,b)=>b.date.localeCompare(a.date)||b.postedAt.localeCompare(a.postedAt));}
 function costObservations(vault:VaultPayload,asOf:string):CostObservation[]{
   const savedById=new Map(vault.savedItems.map(item=>[item.id,item]));const result:CostObservation[]=[];
