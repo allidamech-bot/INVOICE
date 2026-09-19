@@ -54,7 +54,7 @@ export interface ProductPricingContext {
 
 const ARABIC_DIGITS='٠١٢٣٤٥٦٧٨٩';
 function latinDigits(value:string):string{return value.replace(/[٠-٩]/g,digit=>String(ARABIC_DIGITS.indexOf(digit))).replace(/[٪﹪]/g,'%');}
-function normalized(value:string):string{return latinDigits(value).normalize('NFKC').toLocaleLowerCase().replace(/\s+/g,' ').trim();}
+function normalized(value:string):string{return latinDigits(value).normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();}
 function isoDate(value:string):string{return /^\d{4}-\d{2}-\d{2}/.test(value)?value.slice(0,10):'';}
 function shiftIso(date:string,days:number):string{const [y,m,d]=date.split('-').map(Number);const next=new Date(Date.UTC(y||0,(m||1)-1,(d||1)+days));return `${next.getUTCFullYear()}-${String(next.getUTCMonth()+1).padStart(2,'0')}-${String(next.getUTCDate()).padStart(2,'0')}`;}
 function centsString(value:bigint):string{const sign=value<0n?'-':'';const abs=value<0n?-value:value;return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`;}
