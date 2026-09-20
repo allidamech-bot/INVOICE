@@ -11,6 +11,7 @@ async function modalMeasurements(page){
     const header=modal?.querySelector('.modal-header');
     const body=modal?.querySelector('.modal-body');
     const footer=modal?.querySelector('.modal-footer');
+    const backdrop=modal?.closest('.modal-backdrop');
     const close=modal?.querySelector('.modal-header button');
     const rect=node=>node?node.getBoundingClientRect():null;
     const blackText=[...modal.querySelectorAll('*')].filter(node=>{
@@ -19,7 +20,8 @@ async function modalMeasurements(page){
       const color=getComputedStyle(node).color.replace(/\s+/g,'');
       return text&&box.width>0&&box.height>0&&(color==='rgb(0,0,0)'||color==='rgba(0,0,0,1)');
     }).slice(0,5).map(node=>`${node.tagName}.${node.className}`);
-    return {modal:rect(modal),header:rect(header),body:rect(body),footer:rect(footer),close:rect(close),closeColor:close?getComputedStyle(close).color:'',viewport:window.visualViewport?.height||innerHeight,bodyOverflow:document.body.style.overflow,docWidth:document.documentElement.scrollWidth,innerWidth,bodyScrollHeight:body?.scrollHeight||0,bodyClientHeight:body?.clientHeight||0,blackText};
+    const browserReserve=backdrop?parseFloat(getComputedStyle(backdrop).getPropertyValue('--modal-browser-bottom-reserve'))||0:0;
+    return {modal:rect(modal),header:rect(header),body:rect(body),footer:rect(footer),close:rect(close),closeColor:close?getComputedStyle(close).color:'',viewport:window.visualViewport?.height||innerHeight,browserReserve,bodyOverflow:document.body.style.overflow,docWidth:document.documentElement.scrollWidth,innerWidth,bodyScrollHeight:body?.scrollHeight||0,bodyClientHeight:body?.clientHeight||0,blackText};
   });
 }
 
@@ -116,7 +118,7 @@ function assertMobileModal(layout,{mustScroll=true}={}){
     });
 
     await run('iphone-safari-toolbar-keeps-product-actions-visible',async()=>{
-      const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
+      const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'});
       try{
         await page.addInitScript(()=>{
           const viewport=new EventTarget();
@@ -134,6 +136,8 @@ function assertMobileModal(layout,{mustScroll=true}={}){
         await page.locator('.product-import-mapping-list').waitFor();
         const layout=await modalMeasurements(page);
         assertMobileModal(layout);
+        assert.ok(layout.browserReserve>=72,`iPhone Safari overlay reserve is missing: ${layout.browserReserve}`);
+        assert.ok(layout.footer.bottom<=layout.viewport-layout.browserReserve+1,`footer ${layout.footer.bottom} remains beneath Safari chrome ending at ${layout.viewport-layout.browserReserve}`);
         assert.equal(await page.getByRole('button',{name:'مراجعة الاستيراد'}).isVisible(),true);
         await page.screenshot({path:`${output}/product-mapping-arabic-safari-toolbar.png`,fullPage:false,animations:'disabled'});
       }finally{await page.close();}
