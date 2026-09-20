@@ -17,10 +17,10 @@ import { setUiLanguage, t } from '../lib/i18n.js';
 import { AuthScreenSelector } from './AuthScreenSelector.js';
 import { DocumentsPage } from '../components/DocumentsPage.js';
 import { CustomersPage } from '../components/CustomersPage.js';
-import { ReceivablesPage } from '../components/ReceivablesPage.js';
 import { ReportsPage } from '../components/ReportsPage.js';
 import { OperationsPage } from '../components/OperationsPage.js';
-import { SavedItemsPage } from '../components/SavedItemsPage.js';
+import { ProductsInventoryWorkspace } from '../components/ProductsInventoryWorkspace.js';
+import { FinanceWorkspace } from '../components/FinanceWorkspace.js';
 import { EditorPage } from '../components/EditorPage.js';
 import { SettingsModal } from '../components/SettingsModal.js';
 import { CloudAccountModal } from '../components/CloudAccountModal.js';
@@ -32,8 +32,6 @@ import { cloudRemoteChangedSinceAnchor, createCloudUser, friendlyCloudError, get
 import type { CloudUser } from '../cloud/firebase.js';
 
 type CloudSyncState='local'|'queued'|'syncing'|'synced'|'offline'|'error'|'conflict';
-// Keep local durability fast, but give consecutive editor saves one quiet
-// window before publishing the complete encrypted vault to Firebase.
 const CLOUD_SAVE_SETTLE_MS=350;
 const CLOUD_EDIT_ACTIVITY_SETTLE_MS=800;
 
@@ -185,8 +183,6 @@ export class App extends React.Component<{},State> {
   private deferQueuedCloudSaveForDocumentEdit=()=>{
     if(this.state.cloudSyncState!=='queued'||!this.cloudTimer)return;
     window.clearTimeout(this.cloudTimer);
-    // Re-arm rather than discard the pending upload: if the new local save
-    // fails, the last durable encrypted snapshot still reaches Firebase.
     this.cloudTimer=window.setTimeout(()=>void this.flushCloudSync(),CLOUD_EDIT_ACTIVITY_SETTLE_MS);
   };
 
@@ -195,110 +191,19 @@ export class App extends React.Component<{},State> {
     if(this.state.cloudSyncState==='conflict')return;
     if(this.cloudTimer)window.clearTimeout(this.cloudTimer);
     const offline=typeof navigator!=='undefined'&&!navigator.onLine;
-    this.setState({
-      cloudSyncState:offline?'offline':'queued',
-      cloudSyncMessage:offline
-        ?t('Offline — saved locally. Cloud sync will resume automatically.','غير متصل — تم الحفظ محليًا وستُستأنف المزامنة تلقائيًا.')
-        :t('Saved locally — cloud sync queued.','تم الحفظ محليًا — المزامنة السحابية في الانتظار.')
-    });
+    this.setState({cloudSyncState:offline?'offline':'queued',cloudSyncMessage:offline?t('Offline — saved locally. Cloud sync will resume automatically.','غير متصل — تم الحفظ محليًا وستُستأنف المزامنة تلقائيًا.'):t('Saved locally — cloud sync queued.','تم الحفظ محليًا — المزامنة السحابية في الانتظار.')});
     this.cloudTimer=window.setTimeout(()=>void this.flushCloudSync(),offline?this.cloudRetryDelay:delay);
   };
   private flushCloudSync=async()=>{
-    this.cloudTimer=undefined;
-    const user=this.state.cloudUser;
-    if(!user||!this.state.cloudLinked)return;
-    if(this.state.cloudSyncState==='conflict')return;
-    if(this.vaultReplacing||this.cloudSyncRunning){this.cloudSyncQueued=true;return;}
-    if(typeof navigator!=='undefined'&&!navigator.onLine){
-      this.setState({cloudSyncState:'offline',cloudSyncMessage:t('Offline — saved locally. Cloud sync will resume automatically.','غير متصل — تم الحفظ محليًا وستُستأنف المزامنة تلقائيًا.')});
-      return;
-    }
-    let linked:Awaited<ReturnType<typeof getCloudAccount>>;
-    let storedLocal:EncryptedVaultRecord|null;
-    try{
-      await this.drainVaultWrites();
-      if(this.vaultReplacing){this.cloudSyncQueued=true;return;}
-      [linked,storedLocal]=await Promise.all([getCloudAccount(),this.latestEncryptedVault?Promise.resolve(this.latestEncryptedVault):getEncryptedVault()]);
-    }catch(e){this.retryCloudSync(e);return;}
-    const local=storedLocal;
-    if(!linked||linked.uid!==user.uid||!local)return;
-    if(local.updatedAt===this.lastCloudSyncedAt){
-      this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});
-      return;
-    }
-    this.cloudSyncRunning=true;
-    this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Syncing in background…','جارٍ المزامنة في الخلفية…')});
-    try{
-      const result=await pushLocalVaultToCloud(user.uid,local);
-      if(result==='remote-changed'){
-        this.deferRemoteCloud();
-        window.setTimeout(this.handleRemoteCloudNewer,0);
-        return;
-      }
-      this.lastCloudSyncedAt=local.updatedAt;
-      this.cloudRetryDelay=5_000;
-      const newest=this.latestEncryptedVault??await getEncryptedVault();
-      if(newest&&newest.updatedAt!==local.updatedAt){
-        this.cloudSyncQueued=true;
-        this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer local changes are waiting to sync.','توجد تعديلات محلية أحدث بانتظار المزامنة.')});
-      }else this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});
-    }catch(e){this.retryCloudSync(e);}finally{
-      this.cloudSyncRunning=false;
-      if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(180);}
-    }
-  };
+    this.cloudTimer=undefined;const user=this.state.cloudUser;if(!user||!this.state.cloudLinked)return;if(this.state.cloudSyncState==='conflict')return;if(this.vaultReplacing||this.cloudSyncRunning){this.cloudSyncQueued=true;return;}if(typeof navigator!=='undefined'&&!navigator.onLine){this.setState({cloudSyncState:'offline',cloudSyncMessage:t('Offline — saved locally. Cloud sync will resume automatically.','غير متصل — تم الحفظ محليًا وستُستأنف المزامنة تلقائيًا.')});return;}let linked:Awaited<ReturnType<typeof getCloudAccount>>;let storedLocal:EncryptedVaultRecord|null;try{await this.drainVaultWrites();if(this.vaultReplacing){this.cloudSyncQueued=true;return;}[linked,storedLocal]=await Promise.all([getCloudAccount(),this.latestEncryptedVault?Promise.resolve(this.latestEncryptedVault):getEncryptedVault()]);}catch(e){this.retryCloudSync(e);return;}const local=storedLocal;if(!linked||linked.uid!==user.uid||!local)return;if(local.updatedAt===this.lastCloudSyncedAt){this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});return;}this.cloudSyncRunning=true;this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Syncing in background…','جارٍ المزامنة في الخلفية…')});try{const result=await pushLocalVaultToCloud(user.uid,local);if(result==='remote-changed'){this.deferRemoteCloud();window.setTimeout(this.handleRemoteCloudNewer,0);return;}this.lastCloudSyncedAt=local.updatedAt;this.cloudRetryDelay=5_000;const newest=this.latestEncryptedVault??await getEncryptedVault();if(newest&&newest.updatedAt!==local.updatedAt){this.cloudSyncQueued=true;this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer local changes are waiting to sync.','توجد تعديلات محلية أحدث بانتظار المزامنة.')});}else this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud is up to date.','السحابة محدثة.')});}catch(e){this.retryCloudSync(e);}finally{this.cloudSyncRunning=false;if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(180);}}};
   private attachCloudUser=async(user:CloudUser)=>{const [linked,configured]=await Promise.all([getCloudAccount(),hasSecurity()]);if(linked&&linked.uid!==user.uid){await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false});throw new Error(t('This device is already linked to another LOUREX cloud account.','هذا الجهاز مرتبط مسبقًا بحساب LOUREX سحابي آخر.'));}if(!linked&&configured){const remote=await getCloudVaultMeta(user.uid);if(remote){await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false});throw new Error(t('This cloud account already contains LOUREX data. Use an empty device to restore it, or sign in with the account originally linked to this device.','هذا الحساب السحابي يحتوي بالفعل على بيانات LOUREX. استخدم جهازًا فارغًا لاستعادتها أو سجّل بالحساب المرتبط أصلًا بهذا الجهاز.'));}}await putCloudAccount(user.uid,user.email);this.setState({cloudUser:user,cloudLinked:true,cloudSyncState:'syncing',cloudSyncMessage:t('Connecting encrypted cloud backup…','جارٍ ربط النسخة السحابية المشفّرة…')});try{const result=await reconcileCloudVault(user.uid);if(result==='pulled'){this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud data restored. This trusted device stays signed in.','تمت استعادة البيانات السحابية وسيبقى هذا الجهاز الموثوق مسجلاً للدخول.')});window.location.reload();return;}if(result==='diverged'){this.handleCloudConflict();return;}this.setState({cloudSyncState:result==='empty'?'local':'synced',cloudSyncMessage:result==='empty'?t('Cloud account linked. Finish local setup to create the first encrypted sync.','تم ربط الحساب السحابي. أكمل الإعداد المحلي لإنشاء أول مزامنة مشفّرة.'):t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}catch(e){this.setState({cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(e)});}};
   private cloudSignIn=async(email:string,password:string)=>{try{const user=await signInCloudUser(email,password);this.setState({cloudUser:user});await this.attachCloudUser(user);}catch(e){throw new Error(friendlyCloudError(e));}};
   private cloudCreate=async(email:string,password:string)=>{try{const user=await createCloudUser(email,password);this.setState({cloudUser:user});await this.attachCloudUser(user);}catch(e){throw new Error(friendlyCloudError(e));}};
   private cloudReset=async(email:string)=>{try{await sendCloudPasswordReset(email);}catch(e){throw new Error(friendlyCloudError(e));}};
-  private cloudRestore=async()=>{
-    this.editorMustBeClosed('restoring account data','استرجاع بيانات الحساب');
-    await this.beginProtectedOperation();
-    try{
-      const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));
-      const linked=await getCloudAccount();if(!linked||linked.uid!==user.uid)throw new Error(t('This device is not linked to the signed-in cloud account.','هذا الجهاز غير مرتبط بالحساب السحابي المسجل حاليًا.'));
-      await resolveCloudConflictWithCloud(user.uid);
-      this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud copy selected. Reloading the protected workspace…','تم اختيار نسخة السحابة. جارٍ إعادة تحميل مساحة العمل المحمية…')});
-    }catch(e){throw new Error(friendlyCloudError(e));}
-    finally{this.endProtectedOperation();}
-  };
-  private keepLocalCloudCopy=async()=>{
-    this.editorMustBeClosed('resolving cloud changes','حل تعارض البيانات السحابية');
-    await this.drainVaultWrites();await this.waitForCloudIdle();
-    await this.beginProtectedOperation();
-    try{
-      const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));
-      await resolveCloudConflictWithLocal(user.uid);
-      const local=await getEncryptedVault();this.lastCloudSyncedAt=local?.updatedAt||'';
-      this.cloudRetryDelay=5_000;
-      this.setState({cloudSyncState:'synced',cloudSyncMessage:t('This device copy is now saved to the cloud.','تم الآن حفظ نسخة هذا الجهاز في السحابة.')});
-    }catch(e){const message=friendlyCloudError(e);this.setState({cloudSyncState:'conflict',cloudSyncMessage:message});throw new Error(message);}
-    finally{this.endProtectedOperation();}
-  };
+  private cloudRestore=async()=>{this.editorMustBeClosed('restoring account data','استرجاع بيانات الحساب');await this.beginProtectedOperation();try{const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));const linked=await getCloudAccount();if(!linked||linked.uid!==user.uid)throw new Error(t('This device is not linked to the signed-in cloud account.','هذا الجهاز غير مرتبط بالحساب السحابي المسجل حاليًا.'));await resolveCloudConflictWithCloud(user.uid);this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Cloud copy selected. Reloading the protected workspace…','تم اختيار نسخة السحابة. جارٍ إعادة تحميل مساحة العمل المحمية…')});}catch(e){throw new Error(friendlyCloudError(e));}finally{this.endProtectedOperation();}};
+  private keepLocalCloudCopy=async()=>{this.editorMustBeClosed('resolving cloud changes','حل تعارض البيانات السحابية');await this.drainVaultWrites();await this.waitForCloudIdle();await this.beginProtectedOperation();try{const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));await resolveCloudConflictWithLocal(user.uid);const local=await getEncryptedVault();this.lastCloudSyncedAt=local?.updatedAt||'';this.cloudRetryDelay=5_000;this.setState({cloudSyncState:'synced',cloudSyncMessage:t('This device copy is now saved to the cloud.','تم الآن حفظ نسخة هذا الجهاز في السحابة.')});}catch(e){const message=friendlyCloudError(e);this.setState({cloudSyncState:'conflict',cloudSyncMessage:message});throw new Error(message);}finally{this.endProtectedOperation();}};
   private cloudSignOut=async()=>{try{await signOutCloudUser();this.setState({cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:t('Signed out of cloud. Local encrypted data remains on this device.','تم تسجيل الخروج من السحابة. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});}catch(e){throw new Error(friendlyCloudError(e));}};
-  private cloudSyncNow=async()=>{
-    this.editorMustBeClosed('syncing from the cloud','المزامنة من السحابة');
-    if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}
-    await this.drainVaultWrites();await this.waitForCloudIdle();
-    try{
-      const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));
-      const linked=await getCloudAccount();if(!linked){await this.attachCloudUser(user);return;}if(linked.uid!==user.uid)throw new Error(t('This device is linked to another cloud account.','هذا الجهاز مرتبط بحساب سحابي آخر.'));
-      this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Checking encrypted cloud data…','جارٍ فحص البيانات السحابية المشفّرة…')});
-      const [local,remoteChanged]=await Promise.all([getEncryptedVault(),cloudRemoteChangedSinceAnchor(user.uid)]);
-      if(remoteChanged){
-        if(this.cloudReplaceBlocked()){this.deferRemoteCloud();return;}
-        await this.beginProtectedOperation();
-        try{
-          if(this.cloudReplaceBlocked()){this.deferRemoteCloud();return;}
-          const result=await reconcileCloudVault(user.uid);if(result==='pulled'){window.location.reload();return;}if(result==='diverged'){this.handleCloudConflict();return;}this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});
-        }finally{this.endProtectedOperation();}
-        return;
-      }
-      this.cloudSyncRunning=true;
-      try{if(local){const result=await pushLocalVaultToCloud(user.uid,local);if(result==='remote-changed'){this.deferRemoteCloud();window.setTimeout(this.handleRemoteCloudNewer,0);return;}this.lastCloudSyncedAt=local.updatedAt;}const newest=this.latestEncryptedVault??await getEncryptedVault();if(local&&newest&&newest.updatedAt!==local.updatedAt){this.cloudSyncQueued=true;this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer local changes are waiting to sync.','توجد تعديلات محلية أحدث بانتظار المزامنة.')});}else this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}
-      finally{this.cloudSyncRunning=false;if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(150);}}
-    }catch(e){const message=friendlyCloudError(e);this.setState({cloudSyncState:'error',cloudSyncMessage:message});throw new Error(message);}
-  };
+  private cloudSyncNow=async()=>{this.editorMustBeClosed('syncing from the cloud','المزامنة من السحابة');if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}await this.drainVaultWrites();await this.waitForCloudIdle();try{const user=this.state.cloudUser;if(!user)throw new Error(t('Sign in to LOUREX Cloud first.','سجّل الدخول إلى سحابة LOUREX أولًا.'));const linked=await getCloudAccount();if(!linked){await this.attachCloudUser(user);return;}if(linked.uid!==user.uid)throw new Error(t('This device is linked to another cloud account.','هذا الجهاز مرتبط بحساب سحابي آخر.'));this.setState({cloudSyncState:'syncing',cloudSyncMessage:t('Checking encrypted cloud data…','جارٍ فحص البيانات السحابية المشفّرة…')});const [local,remoteChanged]=await Promise.all([getEncryptedVault(),cloudRemoteChangedSinceAnchor(user.uid)]);if(remoteChanged){if(this.cloudReplaceBlocked()){this.deferRemoteCloud();return;}await this.beginProtectedOperation();try{if(this.cloudReplaceBlocked()){this.deferRemoteCloud();return;}const result=await reconcileCloudVault(user.uid);if(result==='pulled'){window.location.reload();return;}if(result==='diverged'){this.handleCloudConflict();return;}this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}finally{this.endProtectedOperation();}return;}this.cloudSyncRunning=true;try{if(local){const result=await pushLocalVaultToCloud(user.uid,local);if(result==='remote-changed'){this.deferRemoteCloud();window.setTimeout(this.handleRemoteCloudNewer,0);return;}this.lastCloudSyncedAt=local.updatedAt;}const newest=this.latestEncryptedVault??await getEncryptedVault();if(local&&newest&&newest.updatedAt!==local.updatedAt){this.cloudSyncQueued=true;this.setState({cloudSyncState:'queued',cloudSyncMessage:t('Newer local changes are waiting to sync.','توجد تعديلات محلية أحدث بانتظار المزامنة.')});}else this.setState({cloudSyncState:'synced',cloudSyncMessage:t('Encrypted cloud data is up to date.','البيانات السحابية المشفّرة محدثة.')});}finally{this.cloudSyncRunning=false;if(this.cloudSyncQueued){this.cloudSyncQueued=false;this.scheduleCloudSync(150);}}}catch(e){const message=friendlyCloudError(e);this.setState({cloudSyncState:'error',cloudSyncMessage:message});throw new Error(message);}};
 
   private finishSetup=async(pin:string,company:CompanySettings)=>{const base=emptyVault();const vault={...base,company,appSettings:{...base.appSettings,uiLanguage:this.state.uiLanguage,smartDefaults:{...base.appSettings.smartDefaults,currency:company.defaultCurrency||'USD',language:company.defaultLanguage,incoterm:company.defaultIncoterm,paymentTerms:company.defaultPaymentTerms,deliveryTime:company.defaultDeliveryTime}}};const setup=await setupVault(pin,vault);await establishSession(setup.key);await this.syncPublicPreferences(company.logoDataUrl,this.state.uiLanguage);let cloudLinked=this.state.cloudLinked,cloudSyncState=this.state.cloudSyncState,cloudSyncMessage=this.state.cloudSyncMessage;if(this.state.cloudUser){try{await putCloudAccount(this.state.cloudUser.uid,this.state.cloudUser.email);cloudLinked=true;cloudSyncState='queued';cloudSyncMessage=t('Setup saved locally — cloud backup queued.','تم حفظ الإعداد محليًا — النسخة السحابية في الانتظار.');}catch(e){cloudSyncState='error';cloudSyncMessage=friendlyCloudError(e);}}this.vaultWriteTail=Promise.resolve(setup.vault);this.setState({firstRun:false,unlocked:true,key:setup.key,vault:setup.vault,screen:'home',cloudLinked,cloudSyncState,cloudSyncMessage},()=>{this.resetAutoLock();this.scheduleCloudSync(150);});this.showToast(t('LOUREX Invoice is ready.','نظام LOUREX Invoice جاهز.'),'success');};
   private unlock=async(pin:string)=>{const result=await unlockVault(pin);const needsMigration=!result.vault.appSettings.uiLanguage;const vault=this.normalizedVault(result.vault);if(needsMigration)await saveVault(result.key,vault);await establishSession(result.key);await this.syncPublicPreferences(vault.company.logoDataUrl,vault.appSettings.uiLanguage);this.vaultWriteTail=Promise.resolve(vault);this.setState({unlocked:true,key:result.key,vault,screen:'home',editorDoc:null},()=>{this.resetAutoLock();if(this.state.cloudUser&&this.state.cloudLinked)void this.cloudSyncNow().catch(()=>undefined);else this.scheduleCloudSync(220);});};
@@ -358,17 +263,19 @@ export class App extends React.Component<{},State> {
     if(this.state.firstRun)return this.authCloudShell(<AuthScreenSelector mode="setup" company={defaultCompany()} logoDataUrl={this.state.publicLogo} language={activeLanguage} onLanguageChange={this.changePublicLanguage} onFinish={this.finishSetup}/>);
     if(!this.state.unlocked)return this.authCloudShell(<AuthScreenSelector mode="unlock" logoDataUrl={this.state.publicLogo} language={activeLanguage} onLanguageChange={this.changePublicLanguage} onUnlock={this.unlock}/>);
     const vault=this.requireVault();
+    const defaultCurrency=vault.appSettings.smartDefaults.currency||vault.company.defaultCurrency||'USD';
     const navigate=(screen:'home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations')=>this.setState({screen,editorDoc:null,newMenu:false});
+    const operationsProps={suppliers:vault.suppliers,purchases:vault.purchases,expenses:vault.expenses,inventoryMovements:vault.inventoryMovements,items:vault.savedItems,defaultCurrency,onSaveSupplier:this.saveSupplier,onDeleteSupplier:this.deleteSupplier,onSavePurchase:this.savePurchaseRecord,onDeletePurchase:this.deletePurchaseRecord,onPostPurchase:this.postPurchaseRecord,onReversePurchase:this.reversePurchaseRecord,onSaveExpense:this.saveExpenseRecord,onDeleteExpense:this.deleteExpenseRecord,onSaveInventoryMovement:this.saveInventoryMovement,onDeleteInventoryMovement:this.deleteInventoryMovement};
     return <div className="app-root"><div className="app-ui">
       <AppShell screen={this.state.screen} logoDataUrl={vault.company.logoDataUrl} language={activeLanguage} newMenu={this.state.newMenu} cloudState={this.state.cloudSyncState} cloudLabel={this.cloudHeaderLabel()} cloudMessage={this.state.cloudSyncMessage} onNavigate={navigate} onToggleNew={()=>this.setState(state=>({newMenu:!state.newMenu}))} onNew={(kind)=>void this.newDocument(kind)} onSettings={()=>this.setState({settingsOpen:true})} onCloud={()=>this.setState({cloudModal:true})}>
         <main className={this.state.screen==='editor'?'editor-main':'main-content'}>
           {this.state.screen==='home'?<WorkspaceHome companyName={vault.company.nameEn||vault.company.nameAr||'LOUREX Invoice'} documents={vault.documents} payments={vault.payments} purchases={vault.purchases} expenses={vault.expenses} inventoryMovements={vault.inventoryMovements} items={vault.savedItems} customerCount={vault.customers.length} onNewDocument={()=>this.setState({newMenu:true})} onOpenDocument={(doc)=>void this.openDocument(doc)} onNavigate={(screen)=>navigate(screen)}/>:null}
           {this.state.screen==='documents'?<DocumentsPage documents={vault.documents} payments={vault.payments} onNew={(k)=>void this.newDocument(k)} onOpen={(d)=>void this.openDocument(d)} onDuplicate={(d)=>void this.duplicate(d)} onConvert={this.convert} onPrint={this.requestPrint} onDelete={(d)=>this.setState({deletingDoc:d})}/>:null}
           {this.state.screen==='customers'?<CustomersPage customers={vault.customers} company={vault.company} onSave={this.saveCustomer} onDelete={this.deleteCustomer} onNewDocument={this.newDocumentForCustomer}/>:null}
-          {this.state.screen==='receivables'?<ReceivablesPage customers={vault.customers} documents={vault.documents} payments={vault.payments} company={vault.company}/>:null}
+          {this.state.screen==='receivables'?<FinanceWorkspace customers={vault.customers} documents={vault.documents} payments={vault.payments} company={vault.company} {...operationsProps}/>:null}
           {this.state.screen==='reports'?<ReportsPage company={vault.company} customers={vault.customers} documents={vault.documents} payments={vault.payments}/>:null}
-          {this.state.screen==='items'?<SavedItemsPage items={vault.savedItems} currency={vault.appSettings.smartDefaults.currency||vault.company.defaultCurrency||'USD'} onSave={this.saveSavedItem} onSaveMany={this.saveSavedItemsBatch} onDelete={this.deleteSavedItem}/>:null}
-          {this.state.screen==='operations'?<OperationsPage suppliers={vault.suppliers} purchases={vault.purchases} expenses={vault.expenses} inventoryMovements={vault.inventoryMovements} items={vault.savedItems} defaultCurrency={vault.appSettings.smartDefaults.currency||vault.company.defaultCurrency||'USD'} onSaveSupplier={this.saveSupplier} onDeleteSupplier={this.deleteSupplier} onSavePurchase={this.savePurchaseRecord} onDeletePurchase={this.deletePurchaseRecord} onPostPurchase={this.postPurchaseRecord} onReversePurchase={this.reversePurchaseRecord} onSaveExpense={this.saveExpenseRecord} onDeleteExpense={this.deleteExpenseRecord} onSaveInventoryMovement={this.saveInventoryMovement} onDeleteInventoryMovement={this.deleteInventoryMovement}/>:null}
+          {this.state.screen==='items'?<ProductsInventoryWorkspace items={vault.savedItems} currency={defaultCurrency} onSaveItem={this.saveSavedItem} onSaveItems={this.saveSavedItemsBatch} onDeleteItem={this.deleteSavedItem} {...operationsProps}/>:null}
+          {this.state.screen==='operations'?<OperationsPage mode="purchasing" {...operationsProps}/>:null}
           {this.state.screen==='editor'&&this.state.editorDoc?<EditorPage document={this.state.editorDoc} documents={vault.documents} customers={vault.customers} company={vault.company} savedItems={vault.savedItems} payments={vault.payments} documentEvents={vault.documentEvents} documentRevisions={vault.documentRevisions} smartDefaults={vault.appSettings.smartDefaults} onEditActivity={this.deferQueuedCloudSaveForDocumentEdit} onClose={this.closeEditor} onSave={this.saveDocument} onSaveCustomer={this.saveCustomer} onSaveSavedItem={this.saveSavedItem} onSaveDocumentItem={this.saveDocumentItem} onUseSavedItems={this.useSavedItems} onDeleteSavedItem={this.deleteSavedItem} onSaveSmartDefaults={this.saveSmartDefaults} onSavePayment={this.savePayment} onDeletePayment={this.deletePayment} onBeginRevision={this.beginRevision} onDiscardRevision={this.discardRevision} onVoidDocument={this.voidDocument} onCreateCreditNote={this.createCreditNote} onConvert={this.convert} onPrint={this.requestPrint}/>:null}
         </main>
       </AppShell>
