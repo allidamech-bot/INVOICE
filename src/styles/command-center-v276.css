@@ -111,22 +111,24 @@
     .app-ui .command-performance-grid,.app-ui .command-insight-grid{gap:12px}
     .app-ui .command-chart-heading{align-items:flex-start!important;flex-direction:column!important}
     .app-ui .command-chart-controls{width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
-    .app-ui .command-chart-controls button{min-height:36px;padding-inline:3px}
+    .app-ui .command-chart-controls button{min-height:44px;padding-inline:3px}
     .app-ui .command-chart-mode{overflow-x:auto;padding:10px 10px 0}
-    .app-ui .command-chart-mode button{min-height:36px;white-space:nowrap}
+    .app-ui .command-chart-mode button{min-height:44px;white-space:nowrap}
     .app-ui .command-chart-wrap{padding-inline:6px}
     .app-ui .command-chart{height:200px}
     .app-ui .command-chart-labels{padding-inline:8px;font-size:8px}
     .app-ui .command-chart-footer{align-items:flex-start;flex-direction:column;padding-inline:10px}
     .app-ui .command-data-warning{text-align:start}
     .app-ui .command-position-list{padding-inline:10px}
-    .app-ui .command-position-action{margin-inline:10px}
+    .app-ui .command-position-action{min-height:44px;margin-inline:10px}
     .app-ui .lourex-advisor-head{padding:13px 12px;gap:10px}.app-ui .lourex-advisor-mark{width:34px;height:34px}
     .app-ui .lourex-advisor-identity h2{font-size:14px}.app-ui .lourex-advisor-identity p{font-size:9.5px}
     .app-ui .lourex-advisor-body{padding:11px 12px}.app-ui .lourex-advisor-starters{grid-template-columns:minmax(0,1fr)}
     .app-ui .lourex-advisor-starters button{min-height:44px}
     .app-ui .lourex-advisor-message{max-width:94%}
-    .app-ui .lourex-advisor-compose{padding:10px 12px 12px}.app-ui .lourex-advisor-compose form{min-height:48px}
+    .app-ui .lourex-advisor-compose{padding:10px 12px 12px}
+    .app-ui .lourex-advisor-compose form{grid-template-columns:28px minmax(0,1fr) 44px;min-height:52px}
+    .app-ui .lourex-advisor-compose form>button{width:44px;height:44px}
   }
 
   @media (max-width:480px){
