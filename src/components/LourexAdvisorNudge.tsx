@@ -9,6 +9,9 @@ interface Props{screen:AiWorkspaceScreen;language:UiLanguage;}
 interface State{visible:boolean;title:string;message:string;}
 
 const SESSION_KEY='lourex-advisor-nudge-v276';
+const NUDGE_CSS=`
+.lourex-advisor-nudge{position:fixed;z-index:1176;right:22px;bottom:88px;width:min(360px,calc(100vw - 28px));display:grid;grid-template-columns:38px minmax(0,1fr);gap:11px;padding:14px 15px 14px 14px;border:1px solid #4b402f;border-radius:15px;background:#11110f;color:#f6f4ef;box-shadow:0 18px 52px rgba(0,0,0,.42);font-family:Inter,"Noto Sans Arabic",sans-serif;animation:lourexAdvisorNudgeIn .24s ease-out both}.lourex-advisor-nudge[dir="rtl"]{right:auto;left:22px}.lourex-advisor-nudge-mark{display:grid;place-items:center;width:36px;height:36px;border:1px solid #554a35;border-radius:10px;background:#1b1813;color:#d2bd91;font-size:16px}.lourex-advisor-nudge-copy{min-width:0}.lourex-advisor-nudge-copy small{display:block;padding-inline-end:24px;color:#b8a071;font-size:9px;font-weight:750;letter-spacing:.06em;text-transform:uppercase}.lourex-advisor-nudge[dir="rtl"] .lourex-advisor-nudge-copy small{letter-spacing:normal}.lourex-advisor-nudge-copy strong{display:block;margin-top:2px;padding-inline-end:22px;color:#f1ede4;font-size:12px;line-height:1.4}.lourex-advisor-nudge-copy p{margin:6px 0 10px;color:#aaa69e;font-size:10px;line-height:1.55}.lourex-advisor-nudge-copy>button{min-height:34px;padding:6px 9px;border:1px solid #4a4131;border-radius:8px;background:#1c1914;color:#d2bd91;font:700 10px/1.2 inherit;cursor:pointer}.lourex-advisor-nudge-copy>button:hover{background:#242019;color:#f3e6c9}.lourex-advisor-nudge-close{position:absolute;top:8px;right:8px;width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:8px;background:transparent;color:#777;font:400 20px/1 inherit;cursor:pointer}.lourex-advisor-nudge[dir="rtl"] .lourex-advisor-nudge-close{right:auto;left:8px}.lourex-advisor-nudge-close:hover{background:#1b1b1b;color:#ccc}@keyframes lourexAdvisorNudgeIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}@media(max-width:720px){.lourex-advisor-nudge{right:12px;bottom:calc(96px + env(safe-area-inset-bottom));width:calc(100vw - 24px);grid-template-columns:34px minmax(0,1fr);padding:12px;border-radius:14px}.lourex-advisor-nudge[dir="rtl"]{right:auto;left:12px}.lourex-advisor-nudge-mark{width:32px;height:32px}.lourex-advisor-nudge-copy>button{min-height:40px}}@media(prefers-reduced-motion:reduce){.lourex-advisor-nudge{animation:none}}
+`;
 
 function contextualHelp(screen:AiWorkspaceScreen):string{
   switch(screen){
@@ -84,11 +87,10 @@ export class LourexAdvisorNudge extends React.Component<Props,State>{
   };
 
   render():any{
-    if(!this.state.visible)return null;
-    return <aside className="lourex-advisor-nudge" role="status" dir={this.props.language==='ar'?'rtl':'ltr'}>
+    return <><style data-lourex-advisor-nudge="v276">{NUDGE_CSS}</style>{this.state.visible?<aside className="lourex-advisor-nudge" role="status" dir={this.props.language==='ar'?'rtl':'ltr'}>
       <button type="button" className="lourex-advisor-nudge-close" aria-label={t('Dismiss advisor suggestion','إغلاق اقتراح المستشار')} onClick={this.dismiss}>×</button>
       <span className="lourex-advisor-nudge-mark" aria-hidden="true">✦</span>
       <div className="lourex-advisor-nudge-copy"><small>{t('LOUREX Advisor','مستشار LOUREX')}</small><strong>{this.state.title}</strong><p>{this.state.message}</p><button type="button" onClick={this.openAdvisor}>{t('Ask LOUREX','اسأل LOUREX')} <span aria-hidden="true">→</span></button></div>
-    </aside>;
+    </aside>:null}</>;
   }
 }
