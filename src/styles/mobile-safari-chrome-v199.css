@@ -25,8 +25,10 @@
 
 @media screen and (max-width:960px){
   /* Browser mode: Safari's own bars already protect top/bottom. Standalone mode:
-     the same rules expand by the real notch/home-indicator insets. */
-  .app-ui .workspace-topbar,
+     the same rules expand by the real notch/home-indicator insets. The shell
+     qualifier intentionally keeps these safety rules authoritative even when
+     later visual-theme layers restyle the same chrome. */
+  .app-ui .workspace-shell .workspace-topbar,
   .app-ui .workspace-shell.is-editor .workspace-topbar{
     min-height:calc(58px + var(--app-safe-top))!important;
     padding-top:calc(7px + var(--app-safe-top))!important;
@@ -39,7 +41,7 @@
     padding-bottom:calc(78px + var(--app-safe-bottom))!important;
   }
 
-  .app-ui .mobile-bottom-nav{
+  .app-ui .workspace-shell .mobile-bottom-nav{
     bottom:0!important;
     height:calc(66px + var(--app-safe-bottom))!important;
     padding-top:6px!important;
@@ -48,11 +50,11 @@
     padding-left:max(5px,var(--device-safe-left))!important;
   }
 
-  .app-ui .mobile-shell-new-menu{
+  .app-ui .workspace-shell .mobile-shell-new-menu{
     bottom:calc(76px + var(--app-safe-bottom))!important;
   }
 
-  .app-ui .mobile-more-sheet{
+  .app-ui .workspace-shell .mobile-more-sheet{
     bottom:calc(72px + var(--app-safe-bottom))!important;
   }
 
@@ -79,7 +81,7 @@
 }
 
 @media screen and (max-width:900px){
-  .auth-account-page{
+  body .auth-account-page{
     padding-top:max(10px,var(--app-safe-top))!important;
     padding-right:max(10px,var(--device-safe-right))!important;
     padding-bottom:max(12px,var(--app-safe-bottom))!important;
@@ -90,7 +92,7 @@
 }
 
 @media screen and (max-width:600px){
-  .auth-account-page{
+  body .auth-account-page{
     min-height:100dvh!important;
   }
 }

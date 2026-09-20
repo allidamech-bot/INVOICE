@@ -31,7 +31,7 @@ const scenarios=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
         assert.equal(await page.locator('.documents-heading-actions .btn').first().isVisible(),true,'creation action visible');
         await check('.documents-workspace-v2');
         assert.equal(await page.locator('.documents-heading-actions .btn-primary').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(184, 160, 113)','primary action uses the Matte Black accent');
-        assert.equal(await page.locator('.document-status-pill.status-draft').evaluate(el=>getComputedStyle(el).color),'rgb(170, 169, 164)','draft remains readable');
+        assert.equal(await page.locator('.document-status-pill.status-draft').evaluate(el=>getComputedStyle(el).color),'rgb(176, 174, 167)','draft remains readable');
         await page.screenshot({path:output+'/'+viewport.width+'-'+lang+'-list.png',fullPage:true,animations:'disabled'});
         const search=page.locator('.documents-search-input');
         await search.fill('INV-2026-0042');
@@ -66,7 +66,7 @@ const scenarios=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
         });
         assert.equal(menuState.inside,true,'menu outside viewport');
         assert.equal(menuState.hit,true,'menu occluded');
-        assert.equal(menuState.bg,viewport.width<=900?'rgb(25, 25, 25)':'rgb(20, 20, 20)','action menu uses the intended matte surface');
+        assert.equal(menuState.bg,viewport.width<=900?'rgb(23, 23, 23)':'rgb(19, 19, 19)','action menu uses the intended Precision Black surface');
         const portal=page.locator(viewport.width<=900?'.mobile-document-action-portal':'.document-desktop-action-portal');
         assert.equal(await portal.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)','portal must preserve the workspace beneath it');
         await page.screenshot({path:output+'/'+viewport.width+'-'+lang+'-menu.png',animations:'disabled'});

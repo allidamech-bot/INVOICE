@@ -2,7 +2,7 @@ const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 
 const BASE='http://127.0.0.1:4173/tests/visual';
-const MATTE={shell:'rgb(11, 11, 11)',workspace:'rgb(14, 14, 14)',surface:'rgb(20, 20, 20)',strong:'rgb(25, 25, 25)',selected:'rgb(32, 32, 32)',secondary:'rgb(26, 26, 26)',input:'rgb(16, 16, 16)'};
+const MATTE={shell:'rgb(11, 11, 11)',workspace:'rgb(14, 14, 14)',surface:'rgb(19, 19, 19)',strong:'rgb(23, 23, 23)',selected:'rgb(29, 29, 29)',secondary:'rgb(25, 25, 25)',input:'rgb(16, 16, 16)',transparent:'rgba(0, 0, 0, 0)'};
 
 function isLight(background){
   const rgba=background.match(/[\d.]+/g)?.map(Number)||[];
@@ -38,11 +38,11 @@ async function auditEditor(browser,viewport,lang,kind){
   try{
     await page.goto(`${BASE}/obsidian-editor.html?lang=${lang}&kind=${kind}`,{waitUntil:'load'});
     await page.locator('.editor-section').first().waitFor();
-    await assertBackground(page,'.premium-selected-customer',['rgba(0, 0, 0, 0)'],label,{optional:true});
+    await assertBackground(page,'.premium-selected-customer',[MATTE.transparent],label,{optional:true});
     await assertBackground(page,'.premium-item-card>header',[MATTE.strong],label);
     await assertBackground(page,'.item-line-total',[MATTE.selected],label);
-    await assertBackground(page,'.item-pricing-grid',['rgba(0, 0, 0, 0)'],label);
-    await assertBackground(page,'.editor-totals',['rgba(0, 0, 0, 0)'],label);
+    await assertBackground(page,'.item-pricing-grid',[MATTE.transparent],label);
+    await assertBackground(page,'.editor-totals',[MATTE.transparent],label);
     await assertBackground(page,'.product-metadata-suggestions button',[MATTE.strong,MATTE.selected],label,{optional:true});
     await assertBackground(page,'.commercial-preset-chips button',[MATTE.strong,MATTE.selected],label,{optional:true});
     const images=await page.locator('.editor-pane').evaluate(root=>[...root.querySelectorAll('.premium-selected-customer,.premium-item-card>header,.item-line-total,.recent-customer-row button,.commercial-preset-chips button,.product-metadata-suggestions button')].map(el=>getComputedStyle(el).backgroundImage).filter(value=>value!=='none'));
@@ -61,7 +61,7 @@ async function auditCustomers(browser,viewport,lang){
     await assertBackground(page,'.customer-profile-hero',[MATTE.surface],label);
     await assertBackground(page,'.customer-profile-card',[MATTE.surface],label);
     await assertBackground(page,'.customer-profile-quick-actions>button',[MATTE.secondary],label);
-    await assertBackground(page,'.customer-profile-facts>div,.customer-profile-stack>div',['rgba(0, 0, 0, 0)'],label);
+    await assertBackground(page,'.customer-profile-facts>div,.customer-profile-stack>div',[MATTE.transparent],label);
     await noLightChrome(page,'.customer-profile-page',label);
     await page.locator('.customer-profile-back').click();
     await page.locator('.customers-heading .btn-primary').click();
@@ -84,7 +84,7 @@ async function auditDocuments(browser,viewport,lang){
     await page.locator('.document-detail-page').waitFor();
     await assertBackground(page,'.document-detail-card',[MATTE.surface],label);
     await assertBackground(page,'.document-detail-item-head',[MATTE.workspace],label);
-    await assertBackground(page,'.document-detail-item-row',['rgba(0, 0, 0, 0)'],label);
+    await assertBackground(page,'.document-detail-item-row',[MATTE.transparent],label);
     await assertBackground(page,'.document-detail-secondary-actions>button',[MATTE.secondary],label,{optional:true});
     await noLightChrome(page,'.document-detail-page',label);
   }finally{await page.close();}
@@ -98,8 +98,8 @@ async function auditMore(browser,lang){
     const more=page.locator('.mobile-bottom-nav button[aria-controls="mobile-more-sheet"]');
     await more.click();
     await page.locator('.mobile-more-sheet').waitFor({state:'visible'});
-    await assertBackground(page,'.mobile-more-sheet',[MATTE.surface],label);
-    await assertBackground(page,'.mobile-more-account,.mobile-more-link,.mobile-more-settings',[MATTE.strong],label);
+    await assertBackground(page,'.mobile-more-sheet',[MATTE.strong],label);
+    await assertBackground(page,'.mobile-more-account,.mobile-more-link,.mobile-more-settings',[MATTE.transparent,MATTE.selected],label);
     await assertBackground(page,'.mobile-more-account-icon,.mobile-more-link-icon,.mobile-more-settings-icon',[MATTE.selected],label);
     const effects=await page.locator('.mobile-more-sheet').evaluate(root=>({
       sheetImage:getComputedStyle(root).backgroundImage,
@@ -128,7 +128,7 @@ async function auditSettings(browser,viewport,lang){
       await page.waitForTimeout(50);
       await assertBackground(page,'.settings-section',[MATTE.surface],`${label}/tab${i}`);
       await assertBackground(page,'.settings-workspace-v2 .input,.settings-workspace-v2 select.input,.settings-workspace-v2 textarea.input',[MATTE.input],`${label}/tab${i}`,{optional:true});
-      await assertBackground(page,'.commercial-row-card',[MATTE.surface],`${label}/tab${i}`,{optional:true});
+      await assertBackground(page,'.commercial-row-card',[MATTE.strong],`${label}/tab${i}`,{optional:true});
       await noLightChrome(page,'.settings-workspace-v2',`${label}/tab${i}`);
     }
   }finally{await page.close();}

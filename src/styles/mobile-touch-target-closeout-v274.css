@@ -1,0 +1,172 @@
+/* v274 — LOUREX Precision Black accessibility and shell closeout.
+   Restores existing touch, iOS safe-area and desktop shell geometry contracts
+   after the v267-v273 redesign. Screen chrome only; no print/PDF impact. */
+
+@media screen and (min-width:961px) {
+  .app-ui .workspace-shell {
+    grid-template-columns:248px minmax(0,1fr)!important;
+  }
+}
+
+/* Keep the primary Settings save action comfortably above the compact v273
+   geometry on every viewport. Touch devices receive the full 44px floor below. */
+@media screen {
+  .app-ui .settings-workspace-v2 .settings-title>.btn {
+    min-height:42px!important;
+  }
+
+  /* Selected customer lives inside an editor section; keep the nested surface
+     flat so Precision Black does not render a card inside a card. */
+  .app-ui .premium-selected-customer {
+    background:transparent!important;
+  }
+
+  /* Settings keeps one clear hierarchy: workspace -> section -> nested row.
+     This preserves the dark accounting structure without reintroducing light
+     cards, gradients or glass effects. */
+  .app-ui .settings-workspace-v2 .settings-section {
+    background:var(--ds-surface)!important;
+  }
+
+  .app-ui .settings-workspace-v2 .commercial-row-card {
+    background:var(--ds-surface-strong)!important;
+  }
+}
+
+@media screen and (pointer: coarse) {
+  .app-ui .shell-sync-status,
+  .app-ui .section-heading-actions .btn,
+  .app-ui .dashboard-panel-heading > button {
+    height:44px!important;
+    min-height:44px!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-tabs>button,
+  .app-ui .settings-workspace-v2 .settings-title>.btn,
+  .app-ui .settings-workspace-v2 .settings-section-heading .btn,
+  .app-ui .settings-workspace-v2 .settings-account-actions .btn {
+    min-width:44px!important;
+    min-height:44px!important;
+  }
+
+  /* Precision Black intentionally tightened dense workspaces, but late cascade
+     rules reduced several primary phone actions below the established 44px
+     interaction floor. Restore the physical target without adding visual chrome. */
+  .app-ui :is(
+    .shell-account-button,
+    .dashboard-attention-list > button,
+    .dashboard-shortcut-grid > button,
+    .documents-register-tabs > button,
+    .documents-filter-toggle,
+    .reports-heading-actions .btn,
+    .reports-presets > button,
+    .operations-tabs > button,
+    .editor-section-nav-button,
+    .item-advanced-control > button,
+    .customers-page .page-heading > .btn,
+    .customer-document-action,
+    .customer-actions .icon-btn
+  ) {
+    min-height:44px!important;
+  }
+
+  .app-ui :is(
+    .shell-account-button,
+    .customer-actions .icon-btn,
+    .operations-page .danger-link
+  ) {
+    min-width:44px!important;
+  }
+
+  /* These labels are working controls, not passive metadata. Keep them readable
+     during long phone sessions while preserving the compact ledger geometry. */
+  .app-ui .reports-presets > button {
+    font-size:12px!important;
+  }
+
+  .app-ui .operations-tabs > button,
+  .app-ui .dashboard-shortcut-grid > button {
+    font-size:11px!important;
+  }
+}
+
+/* v199 intentionally applies top/bottom hardware insets only in standalone mode.
+   The later Precision Black shell must not read env(safe-area-inset-*) directly
+   for vertical chrome because mobile Safari already reserves its browser bars. */
+@media screen and (max-width:960px) {
+  .app-ui .workspace-topbar,
+  .app-ui .workspace-shell.is-editor .workspace-topbar {
+    min-height:calc(58px + var(--app-safe-top))!important;
+    padding-top:calc(7px + var(--app-safe-top))!important;
+    padding-right:max(12px,var(--device-safe-right))!important;
+    padding-bottom:7px!important;
+    padding-left:max(12px,var(--device-safe-left))!important;
+  }
+
+  .app-ui .workspace-shell:not(.is-editor) .workspace-content {
+    padding-bottom:calc(78px + var(--app-safe-bottom))!important;
+  }
+
+  .app-ui .mobile-bottom-nav {
+    bottom:0!important;
+    height:calc(66px + var(--app-safe-bottom))!important;
+    padding-top:6px!important;
+    padding-right:max(5px,var(--device-safe-right))!important;
+    padding-bottom:var(--app-safe-bottom)!important;
+    padding-left:max(5px,var(--device-safe-left))!important;
+  }
+
+  .app-ui .mobile-shell-new-menu {
+    bottom:calc(76px + var(--app-safe-bottom))!important;
+  }
+
+  .app-ui .mobile-more-sheet {
+    bottom:calc(72px + var(--app-safe-bottom))!important;
+    padding-bottom:calc(12px + var(--app-safe-bottom))!important;
+  }
+
+  /* v204 carries a more-specific nested card treatment. The final mobile sheet
+     should stay flat: only the active/hover row receives the selected surface. */
+  .app-ui .mobile-more-sheet :is(.mobile-more-account,.mobile-more-link,.mobile-more-settings) {
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .mobile-more-sheet :is(.mobile-more-account,.mobile-more-link,.mobile-more-settings):is(:hover,.active) {
+    background:var(--ds-selected)!important;
+  }
+
+  .lourex-ai-launcher {
+    bottom:calc(70px + var(--app-safe-bottom))!important;
+  }
+}
+
+/* At phone width the AI launcher intentionally shares the editor's lower command
+   zone. Reserve a small physical-left bay for it so it never covers section step
+   01/06. The launcher itself remains reachable and no form content is displaced. */
+@media screen and (max-width:420px) {
+  .app-ui .editor-section-navigator {
+    padding-left:62px!important;
+  }
+
+  .app-ui .mobile-action-buttons .btn span {
+    font-size:10px!important;
+  }
+
+  /* A legacy <=390px rule hid every inactive Settings label. The v273 tab rail
+     already scrolls horizontally, so keep labels visible and make navigation
+     self-explanatory instead of relying on unlabeled icons. */
+  .app-ui .settings-workspace-v2 .settings-tabs>button>span {
+    display:inline!important;
+    max-width:none!important;
+  }
+}
+
+@media screen and (max-width:600px) {
+  /* Arabic display glyphs can overhang their measured line box. Preserve a
+     small optical inset so the account promise never appears to touch the frame. */
+  .auth-account-story .auth-story-copy {
+    padding-inline:10px!important;
+  }
+}

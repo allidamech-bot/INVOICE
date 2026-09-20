@@ -143,6 +143,7 @@ jobs:
           node tests/visual/run-mobile-final-quote-stack.cjs
           node tests/visual/run-mobile-modal-overlap-v176.cjs
           node tests/visual/run-mobile-controls-density-v177.cjs
+          node tests/visual/run-final-touch-targets-v275.cjs
           node tests/visual/run-mobile-spacing-fit-v198.cjs
           node tests/visual/run-mobile-safari-chrome-v199.cjs
           node tests/visual/run-functional-navigation-auth-v200.cjs

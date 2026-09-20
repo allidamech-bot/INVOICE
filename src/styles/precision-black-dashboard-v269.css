@@ -1,0 +1,549 @@
+/* v269 — LOUREX Precision Black dashboard.
+   Financial hierarchy is carried by typography, rhythm and dividers rather than
+   decorative cards. No dashboard rule affects printable documents. */
+
+@media screen {
+  .app-ui .dashboard-page {
+    max-width:1420px!important;
+    margin:0 auto!important;
+    padding:34px clamp(22px,3.2vw,46px) 56px!important;
+  }
+
+  .app-ui .dashboard-hero {
+    align-items:flex-end!important;
+    gap:32px!important;
+    padding:4px 0 28px!important;
+    background:transparent!important;
+    border:0!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .workspace-home-eyebrow {
+    margin:0 0 8px!important;
+    color:var(--ds-accent-bright)!important;
+    font-size:10px!important;
+    font-weight:720!important;
+    letter-spacing:.08em!important;
+  }
+
+  [dir='rtl'] .app-ui .workspace-home-eyebrow {
+    letter-spacing:normal!important;
+  }
+
+  .app-ui .dashboard-hero h1 {
+    margin:0!important;
+    color:var(--ds-text-strong)!important;
+    font-size:clamp(28px,3vw,34px)!important;
+    line-height:1.08!important;
+    font-weight:760!important;
+    letter-spacing:-.03em!important;
+  }
+
+  [dir='rtl'] .app-ui .dashboard-hero h1 {
+    letter-spacing:normal!important;
+  }
+
+  .app-ui .dashboard-hero p:not(.workspace-home-eyebrow) {
+    max-width:620px!important;
+    margin:9px 0 0!important;
+    color:var(--ds-muted)!important;
+    font-size:13px!important;
+    line-height:1.6!important;
+  }
+
+  .app-ui .workspace-home-actions .btn {
+    min-height:42px!important;
+    padding-inline:16px!important;
+  }
+
+  /* Four KPIs read as one financial instrument. */
+  .app-ui .dashboard-kpis {
+    display:grid!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    margin:0 0 20px!important;
+    overflow:hidden!important;
+    border:1px solid var(--ds-line)!important;
+    border-radius:12px!important;
+    background:var(--ds-surface)!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .dashboard-kpis>button {
+    min-height:118px!important;
+    grid-template-columns:30px minmax(0,1fr)!important;
+    gap:10px!important;
+    padding:17px 18px!important;
+    border:0!important;
+    border-inline-start:1px solid var(--ds-line)!important;
+    border-radius:0!important;
+    background:transparent!important;
+    color:var(--ds-text)!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .dashboard-kpis>button:first-child {
+    border-inline-start:0!important;
+  }
+
+  .app-ui .dashboard-kpis>button:hover {
+    background:var(--ds-selected)!important;
+    transform:none!important;
+  }
+
+  .app-ui .dashboard-kpi-icon {
+    width:30px!important;
+    height:30px!important;
+    border:0!important;
+    border-radius:8px!important;
+    background:transparent!important;
+    color:var(--ds-accent-bright)!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .kpi-overdue .dashboard-kpi-icon {
+    background:transparent!important;
+    color:var(--ds-danger-text)!important;
+  }
+
+  .app-ui .dashboard-kpis>button>span:last-child {
+    gap:3px!important;
+  }
+
+  .app-ui .dashboard-kpis small {
+    color:var(--ds-muted)!important;
+    font-size:10px!important;
+    font-weight:650!important;
+  }
+
+  .app-ui .dashboard-kpis strong,
+  .app-ui .dashboard-money-stack b {
+    color:var(--ds-text-strong)!important;
+    font-size:22px!important;
+    line-height:1.24!important;
+    font-weight:760!important;
+    letter-spacing:-.02em!important;
+    font-variant-numeric:tabular-nums lining-nums!important;
+  }
+
+  .app-ui .kpi-overdue .dashboard-money-stack b {
+    color:var(--ds-danger-text)!important;
+  }
+
+  .app-ui .dashboard-kpis em {
+    margin-top:2px!important;
+    color:var(--ds-faint)!important;
+    font-size:10px!important;
+    line-height:1.35!important;
+  }
+
+  .app-ui .dashboard-main-grid {
+    grid-template-columns:minmax(0,1.72fr) minmax(300px,.72fr)!important;
+    gap:16px!important;
+  }
+
+  .app-ui .dashboard-side-stack {
+    gap:16px!important;
+  }
+
+  .app-ui .dashboard-panel {
+    overflow:hidden!important;
+    border:1px solid var(--ds-line)!important;
+    border-radius:12px!important;
+    background:var(--ds-surface)!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .dashboard-panel-heading {
+    min-height:58px!important;
+    gap:14px!important;
+    padding:12px 14px!important;
+    border-bottom:1px solid var(--ds-line)!important;
+    background:transparent!important;
+  }
+
+  .app-ui .dashboard-panel-heading>div {
+    gap:1px!important;
+  }
+
+  .app-ui .dashboard-panel-heading small {
+    color:var(--ds-faint)!important;
+    font-size:9px!important;
+    font-weight:680!important;
+    letter-spacing:.07em!important;
+  }
+
+  [dir='rtl'] .app-ui .dashboard-panel-heading small {
+    letter-spacing:normal!important;
+  }
+
+  .app-ui .dashboard-panel-heading h2 {
+    color:var(--ds-text)!important;
+    font-size:15px!important;
+    line-height:1.3!important;
+    font-weight:710!important;
+  }
+
+  .app-ui .dashboard-panel-heading>button {
+    min-height:34px!important;
+    padding:5px 8px!important;
+    border:0!important;
+    border-radius:8px!important;
+    background:transparent!important;
+    color:var(--ds-accent-bright)!important;
+    font-size:10px!important;
+    font-weight:650!important;
+  }
+
+  .app-ui .dashboard-panel-heading>button:hover {
+    background:var(--ds-selected)!important;
+    color:var(--ds-text)!important;
+  }
+
+  .app-ui .dashboard-document-head,
+  .app-ui .dashboard-document-row {
+    grid-template-columns:32px minmax(105px,.72fr) minmax(110px,1fr) 88px minmax(110px,.7fr) 86px!important;
+    gap:10px!important;
+    padding-inline:14px!important;
+  }
+
+  .app-ui .dashboard-document-head {
+    min-height:32px!important;
+    border-bottom:1px solid var(--ds-line)!important;
+    background:var(--ds-workspace)!important;
+    color:var(--ds-faint)!important;
+    font-size:9px!important;
+    font-weight:650!important;
+  }
+
+  .app-ui .dashboard-document-row {
+    min-height:64px!important;
+    padding-block:8px!important;
+    border-bottom:1px solid var(--ds-line)!important;
+    background:transparent!important;
+  }
+
+  .app-ui .dashboard-document-row:hover {
+    background:var(--ds-selected)!important;
+  }
+
+  .app-ui .dashboard-document-kind {
+    width:30px!important;
+    height:30px!important;
+    border:1px solid var(--ds-line)!important;
+    border-radius:8px!important;
+    background:#181818!important;
+    color:var(--ds-accent-bright)!important;
+  }
+
+  .app-ui .dashboard-document-kind.kind-proforma {
+    border-color:#4B4232!important;
+    background:#1B1813!important;
+    color:var(--ds-accent-bright)!important;
+  }
+
+  .app-ui .dashboard-document-copy strong {
+    color:var(--ds-text)!important;
+    font-size:12px!important;
+    font-weight:700!important;
+  }
+
+  .app-ui :is(.dashboard-document-copy small,.dashboard-document-customer,.dashboard-document-date) {
+    color:var(--ds-muted)!important;
+    font-size:10px!important;
+  }
+
+  .app-ui .dashboard-document-amount {
+    color:var(--ds-text-strong)!important;
+    font-size:11px!important;
+    font-weight:720!important;
+  }
+
+  .app-ui .dashboard-document-status {
+    min-height:22px!important;
+    padding:3px 7px!important;
+    border:1px solid var(--ds-line)!important;
+    border-radius:999px!important;
+    background:transparent!important;
+    color:var(--ds-muted)!important;
+    font-size:9px!important;
+    font-weight:650!important;
+  }
+
+  .app-ui :is(.dashboard-document-status.status-issued,.dashboard-document-status.status-partial) {
+    border-color:#4C4231!important;
+    background:#1C1914!important;
+    color:#D2BD91!important;
+  }
+
+  .app-ui .dashboard-document-status.status-paid {
+    border-color:#31583E!important;
+    background:var(--ds-success-surface)!important;
+    color:#9AC8A8!important;
+  }
+
+  .app-ui .dashboard-document-status.status-overdue {
+    border-color:#643A37!important;
+    background:var(--ds-danger-surface)!important;
+    color:var(--ds-danger-text)!important;
+  }
+
+  .app-ui .dashboard-document-status.status-quotation {
+    border-color:#4C4231!important;
+    background:#1C1914!important;
+    color:var(--ds-accent-bright)!important;
+  }
+
+  .app-ui .dashboard-attention-list {
+    padding:5px 8px!important;
+  }
+
+  .app-ui .dashboard-attention-list>button {
+    min-height:43px!important;
+    padding:7px 8px!important;
+    border:0!important;
+    border-bottom:1px solid #222!important;
+    border-radius:0!important;
+    background:transparent!important;
+    color:var(--ds-text-soft)!important;
+  }
+
+  .app-ui .dashboard-attention-list>button:last-child {
+    border-bottom:0!important;
+  }
+
+  .app-ui .dashboard-attention-list>button:hover {
+    background:var(--ds-selected)!important;
+  }
+
+  .app-ui .dashboard-attention-list b {
+    font-size:10.5px!important;
+    font-weight:620!important;
+  }
+
+  .app-ui .dashboard-attention-list strong {
+    color:var(--ds-text)!important;
+    font-size:13px!important;
+    font-weight:730!important;
+  }
+
+  .app-ui .dashboard-attention-list .is-alert {
+    background:transparent!important;
+    color:var(--ds-danger-text)!important;
+  }
+
+  .app-ui .dashboard-attention-list .is-alert::before {
+    content:"";
+    width:2px;
+    align-self:stretch;
+    border-radius:99px;
+    background:var(--ds-danger)!important;
+  }
+
+  .app-ui .dashboard-attention-list .is-warn {
+    background:transparent!important;
+    color:#D4AF73!important;
+  }
+
+  .app-ui .dashboard-attention-list .is-warn::before {
+    content:"";
+    width:2px;
+    align-self:stretch;
+    border-radius:99px;
+    background:var(--ds-warning)!important;
+  }
+
+  .app-ui .dashboard-shortcut-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:0!important;
+    padding:5px 8px!important;
+  }
+
+  .app-ui .dashboard-shortcut-grid>button {
+    min-height:42px!important;
+    padding:7px 8px!important;
+    border-radius:8px!important;
+    color:var(--ds-muted)!important;
+    font-size:10px!important;
+    font-weight:620!important;
+  }
+
+  .app-ui .dashboard-shortcut-grid>button:hover {
+    background:var(--ds-selected)!important;
+    color:var(--ds-text)!important;
+  }
+
+  @media (max-width:1040px) {
+    .app-ui .dashboard-main-grid {
+      grid-template-columns:minmax(0,1fr)!important;
+    }
+
+    .app-ui .dashboard-side-stack {
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    }
+
+    .app-ui .dashboard-shortcuts {
+      grid-column:1 / -1;
+    }
+  }
+
+  /* Compact tablets use the same 2x2 financial summary as phones so amounts
+     remain readable and the four KPIs never collapse into narrow columns. */
+  @media (max-width:800px) {
+    .app-ui .dashboard-kpis {
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    }
+
+    .app-ui .dashboard-kpis>button {
+      border-inline-start:0!important;
+      border-top:1px solid var(--ds-line)!important;
+    }
+
+    .app-ui .dashboard-kpis>button:nth-child(-n+2) {
+      border-top:0!important;
+    }
+
+    .app-ui .dashboard-kpis>button:nth-child(even) {
+      border-inline-start:1px solid var(--ds-line)!important;
+    }
+  }
+
+  @media (max-width:720px) {
+    .app-ui .dashboard-page {
+      padding:22px 12px calc(88px + env(safe-area-inset-bottom))!important;
+    }
+
+    .app-ui .dashboard-hero {
+      align-items:stretch!important;
+      flex-direction:column!important;
+      gap:16px!important;
+      padding:0 2px 20px!important;
+    }
+
+    .app-ui .dashboard-hero h1 {
+      font-size:27px!important;
+    }
+
+    .app-ui .dashboard-hero p:not(.workspace-home-eyebrow) {
+      margin-top:7px!important;
+      font-size:12px!important;
+    }
+
+    .app-ui .workspace-home-actions .btn {
+      width:100%!important;
+      min-height:44px!important;
+    }
+
+    .app-ui .dashboard-kpis {
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+      border-radius:11px!important;
+    }
+
+    .app-ui .dashboard-kpis>button {
+      min-height:104px!important;
+      grid-template-columns:24px minmax(0,1fr)!important;
+      gap:7px!important;
+      padding:13px 11px!important;
+      border-inline-start:0!important;
+      border-top:1px solid var(--ds-line)!important;
+    }
+
+    .app-ui .dashboard-kpis>button:nth-child(-n+2) {
+      border-top:0!important;
+    }
+
+    .app-ui .dashboard-kpis>button:nth-child(even) {
+      border-inline-start:1px solid var(--ds-line)!important;
+    }
+
+    .app-ui .dashboard-kpi-icon {
+      width:24px!important;
+      height:24px!important;
+    }
+
+    .app-ui .dashboard-kpis strong,
+    .app-ui .dashboard-money-stack b {
+      font-size:17px!important;
+      letter-spacing:-.015em!important;
+    }
+
+    .app-ui .dashboard-kpis em {
+      font-size:9px!important;
+    }
+
+    .app-ui .dashboard-side-stack {
+      grid-template-columns:minmax(0,1fr)!important;
+      gap:12px!important;
+    }
+
+    .app-ui .dashboard-panel {
+      border-radius:11px!important;
+    }
+
+    .app-ui .dashboard-panel-heading {
+      min-height:54px!important;
+      padding:11px 12px!important;
+    }
+
+    .app-ui .dashboard-document-head {
+      display:none!important;
+    }
+
+    .app-ui .dashboard-document-row {
+      min-height:76px!important;
+      display:grid!important;
+      grid-template-columns:30px minmax(0,1fr) auto!important;
+      grid-template-rows:auto auto!important;
+      gap:4px 9px!important;
+      padding:10px 11px!important;
+    }
+
+    .app-ui .dashboard-document-kind {
+      grid-column:1!important;
+      grid-row:1 / 3!important;
+      align-self:center!important;
+    }
+
+    .app-ui .dashboard-document-copy {
+      grid-column:2!important;
+      grid-row:1!important;
+    }
+
+    .app-ui .dashboard-document-customer {
+      grid-column:2!important;
+      grid-row:2!important;
+    }
+
+    .app-ui .dashboard-document-date {
+      display:none!important;
+    }
+
+    .app-ui .dashboard-document-amount {
+      grid-column:3!important;
+      grid-row:1!important;
+      align-self:end!important;
+      font-size:11px!important;
+    }
+
+    .app-ui .dashboard-document-status {
+      grid-column:3!important;
+      grid-row:2!important;
+      justify-self:end!important;
+      align-self:start!important;
+    }
+  }
+
+  @media (max-width:360px) {
+    .app-ui .dashboard-page {
+      padding-inline:9px!important;
+    }
+
+    .app-ui .dashboard-kpis>button {
+      padding-inline:9px!important;
+    }
+
+    .app-ui .dashboard-kpis strong,
+    .app-ui .dashboard-money-stack b {
+      font-size:16px!important;
+    }
+  }
+}

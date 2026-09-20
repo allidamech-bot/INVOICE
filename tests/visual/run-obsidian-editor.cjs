@@ -19,7 +19,7 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
      if(screen.scrollWidth>innerWidth+1)issues.push('editor horizontal overflow');
      for(const el of document.querySelectorAll('.editor-section>.section-heading')){
       const background=getComputedStyle(el).backgroundColor;
-      if(!['rgba(0, 0, 0, 0)','rgb(20, 20, 20)'].includes(background))issues.push('section heading outside matte surface system: '+background);
+      if(!['rgba(0, 0, 0, 0)','rgb(19, 19, 19)'].includes(background))issues.push('section heading outside matte surface system: '+background);
      }
      for(const el of document.querySelectorAll('.editor-scroll *,.editor-topbar,.document-readiness,.mobile-editor-actionbar,.preview-stage')){
       if(el.closest('.invoice-pages,.template-mini,.template-thumbnail')||el.matches('.toggle>span'))continue;
@@ -49,7 +49,7 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
      if(rows.length!==6)issues.push('expected 6 appearance toggle rows, found '+rows.length);
      for(const row of rows){
       const rowRect=row.getBoundingClientRect(),rowCss=getComputedStyle(row),toggle=row.querySelector('.toggle');
-      if(rowCss.backgroundColor!=='rgb(20, 20, 20)')issues.push('appearance row outside canonical surface: '+rowCss.backgroundColor);
+      if(rowCss.backgroundColor!=='rgb(19, 19, 19)')issues.push('appearance row outside canonical surface: '+rowCss.backgroundColor);
       if(rowRect.left<panelRect.left-1||rowRect.right>panelRect.right+1)issues.push('appearance row escapes design panel');
       if(!toggle){issues.push('appearance switch missing');continue;}
       const toggleRect=toggle.getBoundingClientRect();
@@ -134,7 +134,7 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
      const el=document.querySelector(selector);if(!el)continue;
      const r=el.getBoundingClientRect();
      if(r.left<0||r.right>innerWidth+1||r.bottom>innerHeight+1)issues.push(selector+' outside viewport');
-     if(getComputedStyle(el).backgroundColor!=='rgb(20, 20, 20)')issues.push(selector+' not on canonical surface');
+     if(getComputedStyle(el).backgroundColor!=='rgb(19, 19, 19)')issues.push(selector+' not on canonical Precision Black surface');
     }
     if(document.querySelector('.editor-pane').getBoundingClientRect().height<90)issues.push('final editor has insufficient working space');
     return issues;
