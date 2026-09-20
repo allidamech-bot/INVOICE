@@ -4,6 +4,7 @@ import { type AiFinanceSource } from '../lib/ai-finance.js';
 import { advisorCalculation } from '../lib/advisor-calculator.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { buildAiContext } from './AiCopilot.js';
+import { LourexAdvisorNudge } from './LourexAdvisorNudge.js';
 import { Icon } from './UI.js';
 
 interface Props{language:UiLanguage;}
@@ -65,28 +66,31 @@ export class LourexAdvisorCard extends React.Component<Props,State>{
 
   render():any{
     const starterPrompts=starters();
-    return <section className="dashboard-panel lourex-advisor-card" aria-label={t('LOUREX Financial Advisor','مستشار LOUREX المالي')}>
-      <header className="lourex-advisor-head">
-        <div className="lourex-advisor-identity"><span className="lourex-advisor-mark" aria-hidden="true">✦</span><div><small>{t('LOUREX Intelligence','ذكاء LOUREX')}</small><h2>{t('Your financial advisor & accountant','مستشارك المالي والمحاسبي')}</h2><p>{t('Ask naturally about sales, collections, profit, customers, purchasing, costs or any business number.','اسأل بشكل طبيعي عن المبيعات والتحصيل والربح والعملاء والمشتريات والتكاليف أو أي رقم في أعمالك.')}</p></div></div>
-        {this.state.messages.length?<button type="button" className="lourex-advisor-clear" onClick={this.clear}>{t('New conversation','محادثة جديدة')}</button>:null}
-      </header>
+    return <>
+      <LourexAdvisorNudge screen="home" language={this.props.language}/>
+      <section className="dashboard-panel lourex-advisor-card" aria-label={t('LOUREX Financial Advisor','مستشار LOUREX المالي')}>
+        <header className="lourex-advisor-head">
+          <div className="lourex-advisor-identity"><span className="lourex-advisor-mark" aria-hidden="true">✦</span><div><small>{t('LOUREX Intelligence','ذكاء LOUREX')}</small><h2>{t('Your financial advisor & accountant','مستشارك المالي والمحاسبي')}</h2><p>{t('Ask naturally about sales, collections, profit, customers, purchasing, costs or any business number.','اسأل بشكل طبيعي عن المبيعات والتحصيل والربح والعملاء والمشتريات والتكاليف أو أي رقم في أعمالك.')}</p></div></div>
+          {this.state.messages.length?<button type="button" className="lourex-advisor-clear" onClick={this.clear}>{t('New conversation','محادثة جديدة')}</button>:null}
+        </header>
 
-      <div className={`lourex-advisor-body ${this.state.messages.length?'has-conversation':''}`} aria-live="polite">
-        {!this.state.messages.length?<div className="lourex-advisor-welcome">
-          <div className="lourex-advisor-welcome-copy"><strong>{t('I am your LOUREX financial advisor. What would you like to review?','أنا مستشارك المالي في LOUREX. شو حابب نراجع؟')}</strong><span>{t('I use the accounting and business data already inside LOUREX, so you do not have to search through pages first.','أعتمد على البيانات المحاسبية والتجارية الموجودة داخل LOUREX، لذلك لا تحتاج أن تبحث بين الصفحات أولًا.')}</span></div>
-          <div className="lourex-advisor-starters">{starterPrompts.map(prompt=><button type="button" key={prompt} onClick={()=>void this.ask(prompt)}>{prompt}</button>)}</div>
-        </div>:<div className="lourex-advisor-thread">{this.state.messages.map(message=><div key={message.id} className={`lourex-advisor-message ${message.role}`}><span>{message.role==='assistant'?'✦':''}</span><p>{message.text}</p></div>)}{this.state.busy?<div className="lourex-advisor-thinking"><span>✦</span>{t('Reviewing your LOUREX data…','أراجع بيانات LOUREX…')}</div>:null}</div>}
-      </div>
+        <div className={`lourex-advisor-body ${this.state.messages.length?'has-conversation':''}`} aria-live="polite">
+          {!this.state.messages.length?<div className="lourex-advisor-welcome">
+            <div className="lourex-advisor-welcome-copy"><strong>{t('I am your LOUREX financial advisor. What would you like to review?','أنا مستشارك المالي في LOUREX. شو حابب نراجع؟')}</strong><span>{t('I use the accounting and business data already inside LOUREX, so you do not have to search through pages first.','أعتمد على البيانات المحاسبية والتجارية الموجودة داخل LOUREX، لذلك لا تحتاج أن تبحث بين الصفحات أولًا.')}</span></div>
+            <div className="lourex-advisor-starters">{starterPrompts.map(prompt=><button type="button" key={prompt} onClick={()=>void this.ask(prompt)}>{prompt}</button>)}</div>
+          </div>:<div className="lourex-advisor-thread">{this.state.messages.map(message=><div key={message.id} className={`lourex-advisor-message ${message.role}`}><span>{message.role==='assistant'?'✦':''}</span><p>{message.text}</p></div>)}{this.state.busy?<div className="lourex-advisor-thinking"><span>✦</span>{t('Reviewing your LOUREX data…','أراجع بيانات LOUREX…')}</div>:null}</div>}
+        </div>
 
-      <footer className="lourex-advisor-compose">
-        {this.state.error?<div className="lourex-advisor-error" role="alert">{this.state.error}</div>:null}
-        <form onSubmit={(event:any)=>{event.preventDefault();void this.ask();}}>
-          <span className="lourex-advisor-input-icon"><Icon name="edit"/></span>
-          <input value={this.state.input} maxLength={MAX_MESSAGE_CHARS} disabled={this.state.busy} onChange={(event:any)=>this.setState({input:event.target.value})} placeholder={t('Ask LOUREX about your business…','اسأل LOUREX عن أعمالك…')} aria-label={t('Ask your LOUREX financial advisor','اسأل مستشارك المالي في LOUREX')}/>
-          <button type="submit" disabled={this.state.busy||!this.state.input.trim()} aria-label={t('Send','إرسال')}>→</button>
-        </form>
-        <div className="lourex-advisor-trust"><span className="lourex-advisor-status"/><span>{t('Answers use LOUREX data. Financial calculations use deterministic local math.','الإجابات تعتمد على بيانات LOUREX، والحسابات المالية تستخدم محركًا محليًا حتميًا.')}</span></div>
-      </footer>
-    </section>;
+        <footer className="lourex-advisor-compose">
+          {this.state.error?<div className="lourex-advisor-error" role="alert">{this.state.error}</div>:null}
+          <form onSubmit={(event:any)=>{event.preventDefault();void this.ask();}}>
+            <span className="lourex-advisor-input-icon"><Icon name="edit"/></span>
+            <input value={this.state.input} maxLength={MAX_MESSAGE_CHARS} disabled={this.state.busy} onChange={(event:any)=>this.setState({input:event.target.value})} placeholder={t('Ask LOUREX about your business…','اسأل LOUREX عن أعمالك…')} aria-label={t('Ask your LOUREX financial advisor','اسأل مستشارك المالي في LOUREX')}/>
+            <button type="submit" disabled={this.state.busy||!this.state.input.trim()} aria-label={t('Send','إرسال')}>→</button>
+          </form>
+          <div className="lourex-advisor-trust"><span className="lourex-advisor-status"/><span>{t('Answers use LOUREX data. Financial calculations use deterministic local math.','الإجابات تعتمد على بيانات LOUREX، والحسابات المالية تستخدم محركًا محليًا حتميًا.')}</span></div>
+        </footer>
+      </section>
+    </>;
   }
 }
