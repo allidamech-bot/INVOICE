@@ -9,6 +9,17 @@
     background:var(--ds-canvas)!important;
   }
 
+  /* Editor mode has no permanent sidebar. Keep its command bar and workspace on
+     the single full-width column instead of inheriting the 236px shell rail. */
+  .app-ui .workspace-shell.is-editor {
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+
+  .app-ui .workspace-shell.is-editor .workspace-topbar,
+  .app-ui .workspace-shell.is-editor .workspace-content {
+    grid-column:1!important;
+  }
+
   .app-ui .workspace-sidebar {
     gap:12px!important;
     padding:16px 12px max(16px,env(safe-area-inset-bottom))!important;
