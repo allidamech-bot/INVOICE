@@ -1,0 +1,12 @@
+/* v274 — LOUREX Precision Black mobile/touch accessibility closeout.
+   Restores the 44px minimum touch target required by the existing visual QA
+   after the v267-v273 runtime redesign. Screen chrome only; no print/PDF impact. */
+
+@media screen and (pointer: coarse) {
+  .app-ui .shell-sync-status,
+  .app-ui .section-heading-actions .btn,
+  .app-ui .dashboard-panel-heading > button {
+    height:44px!important;
+    min-height:44px!important;
+  }
+}
