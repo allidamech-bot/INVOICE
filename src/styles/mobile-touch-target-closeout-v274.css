@@ -1,7 +1,12 @@
-/* v274 — LOUREX Precision Black mobile/touch accessibility closeout.
-   Restores the 44px minimum touch target and re-applies the established iOS
-   browser-vs-standalone safe-area contract after the v267-v273 redesign.
-   Screen chrome only; no print/PDF impact. */
+/* v274 — LOUREX Precision Black accessibility and shell closeout.
+   Restores existing touch, iOS safe-area and desktop shell geometry contracts
+   after the v267-v273 redesign. Screen chrome only; no print/PDF impact. */
+
+@media screen and (min-width:961px) {
+  .app-ui .workspace-shell {
+    grid-template-columns:248px minmax(0,1fr)!important;
+  }
+}
 
 @media screen and (pointer: coarse) {
   .app-ui .shell-sync-status,
