@@ -8,11 +8,27 @@
   }
 }
 
+/* Keep the primary Settings save action comfortably above the compact v273
+   geometry on every viewport. Touch devices receive the full 44px floor below. */
+@media screen {
+  .app-ui .settings-workspace-v2 .settings-title>.btn {
+    min-height:42px!important;
+  }
+}
+
 @media screen and (pointer: coarse) {
   .app-ui .shell-sync-status,
   .app-ui .section-heading-actions .btn,
   .app-ui .dashboard-panel-heading > button {
     height:44px!important;
+    min-height:44px!important;
+  }
+
+  .app-ui .settings-workspace-v2 .settings-tabs>button,
+  .app-ui .settings-workspace-v2 .settings-title>.btn,
+  .app-ui .settings-workspace-v2 .settings-section-heading .btn,
+  .app-ui .settings-workspace-v2 .settings-account-actions .btn {
+    min-width:44px!important;
     min-height:44px!important;
   }
 }
