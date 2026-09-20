@@ -3,6 +3,9 @@ import { t } from '../lib/i18n.js';
 import { Brand, Button, Icon } from './UI.js';
 import { AiCopilot } from './AiCopilot.js';
 
+// Keep the existing internal screen ids as compatibility aliases while the
+// product architecture is consolidated in later batches. The user-facing
+// navigation already reflects the final ownership model.
 export type WorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 
 type CloudState='local'|'queued'|'syncing'|'synced'|'offline'|'error'|'conflict';
@@ -99,10 +102,10 @@ export class AppShell extends React.Component<Props,State>{
       case 'home':return t('Home','الرئيسية');
       case 'documents':return t('Documents','المستندات');
       case 'customers':return t('Customers','العملاء');
-      case 'receivables':return t('Receivables','المستحقات');
+      case 'receivables':return t('Finance','المالية');
       case 'reports':return t('Reports','التقارير');
-      case 'items':return t('Items','الأصناف');
-      case 'operations':return t('Business','الأعمال');
+      case 'items':return t('Products & Inventory','المنتجات والمخزون');
+      case 'operations':return t('Purchasing','المشتريات');
       case 'editor':return t('Document Editor','محرر المستند');
     }
   };
@@ -153,16 +156,10 @@ export class AppShell extends React.Component<Props,State>{
             {this.navButton('home','home',t('Home','الرئيسية'))}
             {this.navButton('documents','file',t('Documents','المستندات'))}
             {this.navButton('customers','users',t('Customers','العملاء'))}
-            {this.navButton('items','items',t('Items','الأصناف'))}
-          </div>
-          <div className="shell-nav-group">
-            <p>{t('Finance','المالية')}</p>
-            {this.navButton('receivables','invoice',t('Receivables','المستحقات'),'nested')}
-            {this.navButton('reports','file',t('Reports','التقارير'),'nested')}
-          </div>
-          <div className="shell-nav-group">
-            <p>{t('Business','الأعمال')}</p>
-            {this.navButton('operations','backup',t('Operations','العمليات'),'nested')}
+            {this.navButton('items','items',t('Products & Inventory','المنتجات والمخزون'))}
+            {this.navButton('operations','backup',t('Purchasing','المشتريات'))}
+            {this.navButton('receivables','invoice',t('Finance','المالية'))}
+            {this.navButton('reports','file',t('Reports','التقارير'))}
           </div>
         </nav>
         <div className="shell-sidebar-footer">
@@ -187,7 +184,7 @@ export class AppShell extends React.Component<Props,State>{
         {this.state.moreOpen?<><button type="button" className="mobile-more-backdrop" aria-label={t('Close menu','إغلاق القائمة')} onClick={this.closeMore}/><section className="mobile-more-sheet" id="mobile-more-sheet" role="dialog" aria-modal="true" aria-label={t('More','المزيد')} dir={this.props.language==='ar'?'rtl':'ltr'}>
           <div className="mobile-more-handle" aria-hidden="true"/>
           <div className="mobile-more-heading">
-            <div className="mobile-more-heading-copy"><small>{t('Workspace menu','قائمة مساحة العمل')}</small><strong>{t('More','المزيد')}</strong><span>{t('Business tools, account and settings','أدوات العمل والحساب والإعدادات')}</span></div>
+            <div className="mobile-more-heading-copy"><small>{t('Workspace menu','قائمة مساحة العمل')}</small><strong>{t('More','المزيد')}</strong><span>{t('Your business, finance, reports and settings','أعمالك والمالية والتقارير والإعدادات')}</span></div>
             <button type="button" className="mobile-more-close" onClick={this.closeMore} aria-label={t('Close','إغلاق')}><Icon name="x"/></button>
           </div>
           <div className="mobile-more-status-row">{this.syncStatus('mobile-more-sync')}</div>
@@ -196,9 +193,8 @@ export class AppShell extends React.Component<Props,State>{
             <span className="mobile-more-account-copy"><strong>{t('Account','الحساب')}</strong><small>{t('Company identity, logo, legal profile and account access','هوية الشركة والشعار والبيانات القانونية وبيانات الحساب')}</small></span>
             <span className="mobile-more-chevron" aria-hidden="true"/>
           </button>
-          <div className="mobile-more-group group-workspace"><p><span>{t('Workspace','مساحة العمل')}</span></p>{this.moreNavButton('items','items',t('Items','الأصناف'),t('Products and services library','إدارة المنتجات والخدمات'),'items')}</div>
-          <div className="mobile-more-group group-finance"><p><span>{t('Finance','المالية')}</span></p>{this.moreNavButton('receivables','invoice',t('Receivables','المستحقات'),t('Open balances and collections','الأرصدة المفتوحة والتحصيل'),'receivables')}{this.moreNavButton('reports','file',t('Reports','التقارير'),t('Sales and financial insights','تقارير المبيعات والمالية'),'reports')}</div>
-          <div className="mobile-more-group group-business"><p><span>{t('Business','الأعمال')}</span></p>{this.moreNavButton('operations','backup',t('Operations','العمليات'),t('Suppliers, purchases, expenses and inventory','الموردون والمشتريات والمصروفات والمخزون'),'operations')}</div>
+          <div className="mobile-more-group group-workspace"><p><span>{t('Business','الأعمال')}</span></p>{this.moreNavButton('items','items',t('Products & Inventory','المنتجات والمخزون'),t('Products, stock and inventory movement','المنتجات والمخزون وحركة الأصناف'),'items')}{this.moreNavButton('operations','backup',t('Purchasing','المشتريات'),t('Suppliers and purchase workflow','الموردون ودورة المشتريات'),'operations')}</div>
+          <div className="mobile-more-group group-finance"><p><span>{t('Finance & analysis','المالية والتحليل')}</span></p>{this.moreNavButton('receivables','invoice',t('Finance','المالية'),t('Receivables, collections and expenses','المستحقات والتحصيل والمصروفات'),'receivables')}{this.moreNavButton('reports','file',t('Reports','التقارير'),t('Business and financial analysis','تحليل الأعمال والنتائج المالية'),'reports')}</div>
           <div className="mobile-more-group group-system"><p><span>{t('System','النظام')}</span></p><button type="button" className="mobile-more-settings" onClick={this.openSettings}><span className="mobile-more-settings-icon"><Icon name="settings"/></span><span className="mobile-more-settings-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Workspace, documents, commercial and security','مساحة العمل والمستندات والتجاري والأمان')}</small></span><span className="mobile-more-chevron" aria-hidden="true"/></button></div>
         </section></>:null}
         <nav className="mobile-bottom-nav" aria-label={t('Mobile navigation','تنقل الجوال')}>
