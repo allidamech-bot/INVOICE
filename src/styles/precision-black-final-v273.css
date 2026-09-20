@@ -408,6 +408,14 @@
     left:16px!important;
   }
 
+  /* Mobile/tablet shell is a single workspace column; the desktop sidebar is hidden. */
+  @media (max-width:960px) {
+    .app-ui .workspace-shell,
+    .app-ui .workspace-shell.is-editor {
+      grid-template-columns:minmax(0,1fr)!important;
+    }
+  }
+
   @media (max-width:720px) {
     .app-ui .modal-backdrop:has(.settings-workspace-v2) {
       padding:0!important;
