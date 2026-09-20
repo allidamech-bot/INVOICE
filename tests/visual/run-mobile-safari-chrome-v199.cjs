@@ -60,14 +60,20 @@ const viewports=[{width:390,height:844},{width:430,height:932}];
         await page.screenshot({path:`${output}/${viewport.width}-${lang}-standalone-sim.png`,fullPage:false,animations:'disabled'});
 
         /* Reproduce the React launch state from the user's Safari screenshot. It
-           must use the dynamic viewport and keep the logo/progress line compact. */
+           must use the dynamic viewport and keep the logo/progress line compact.
+           CI serves the repository root, so the public asset uses its repository
+           path here rather than the production-build /brand path. */
         await page.evaluate(()=>{
           const root=document.getElementById('root');
           document.documentElement.style.setProperty('--app-safe-top','0px');
           document.documentElement.style.setProperty('--app-safe-bottom','0px');
-          root.innerHTML='<div class="loading-screen"><div class="brand official-brand"><span class="brand-mark"><img src="../../brand/lourex-logo.svg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div><span class="loading-line"></span></div>';
+          root.innerHTML='<div class="loading-screen"><div class="brand official-brand"><span class="brand-mark"><img src="../../public/brand/lourex-logo.svg" alt="LOUREX"></span><span class="brand-words"><strong>LOUREX</strong></span></div><span class="loading-line"></span></div>';
         });
         await page.locator('.loading-screen').waitFor();
+        const launchLogo=page.locator('.loading-screen .brand-mark img');
+        await launchLogo.waitFor();
+        const logoLoaded=await launchLogo.evaluate(img=>img.complete&&img.naturalWidth>0&&img.naturalHeight>0);
+        if(!logoLoaded)failures.push('launch logo failed to load in Safari visual fixture');
         // The launch brand intentionally animates for 450ms. Measure final layout,
         // not the transformed intermediate bounding box captured mid-animation.
         await page.waitForTimeout(520);
@@ -82,7 +88,7 @@ const viewports=[{width:390,height:844},{width:430,height:932}];
         if(launch.scrollWidth>viewport.width+1)failures.push(`launch horizontal overflow ${launch.scrollWidth}`);
         await page.screenshot({path:`${output}/${viewport.width}-${lang}-launch.png`,fullPage:false,animations:'disabled'});
 
-        results.push({viewport,lang,browserMode,standaloneMode,launch,failures});
+        results.push({viewport,lang,browserMode,standaloneMode,launch,logoLoaded,failures});
       }catch(error){
         failures.push(String(error));
         await page.screenshot({path:`${output}/${viewport.width}-${lang}-failure.png`,fullPage:false}).catch(()=>{});
