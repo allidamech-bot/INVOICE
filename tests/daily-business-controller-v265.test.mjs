@@ -42,12 +42,14 @@ test('daily controller exposes today activity, data quality and bounded comparis
   assert.ok(source.includes('changes.length>=4'),'comparison signals are bounded');
 });
 
-test('home receives operational vault data and keeps the daily brief compact',async()=>{
+test('home receives operational vault data and turns the daily controller into command-center exceptions',async()=>{
   const [home,app]=await Promise.all([read('src/components/WorkspaceHome.tsx'),read('src/app/App.tsx')]);
-  for(const token of ['LOUREX Daily Brief','dailyBusinessBrief','Purchases today','Expenses today','Inventory movements today','Products used today','Dormant products','Incomplete accounting data'])assert.ok(home.includes(token),token);
+  for(const token of ['Business command center','dailyBusinessBrief','Needs attention','Purchase drafts to finish','Dormant products · 90+ days','Incomplete accounting data','Inventory health','LourexAdvisorCard'])assert.ok(home.includes(token),token);
   for(const prop of ['purchases={vault.purchases}','expenses={vault.expenses}','inventoryMovements={vault.inventoryMovements}','items={vault.savedItems}'])assert.ok(app.includes(prop),prop);
   assert.ok(home.includes("onNavigate(daily.invalidOperations?'operations':'reports')"));
-  assert.ok(home.includes("daily.changes.slice(0,2)"),'home shows at most two comparison signals');
+  assert.ok(home.includes('const attentionCount='),'daily controller signals feed one bounded attention summary instead of a duplicate management workspace');
+  assert.ok(home.includes('daily.draftPurchases')&&home.includes('daily.dormantProducts')&&home.includes('daily.missingCostItems'));
+  assert.ok(!home.includes('LOUREX Daily Brief'),'the retired daily widget must not duplicate the command center');
 });
 
 test('daily brief does not add navigation or mutate accounting records',async()=>{
