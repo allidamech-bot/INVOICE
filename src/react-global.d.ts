@@ -14,6 +14,7 @@ declare namespace React {
   function createElement(type: any, props?: any, ...children: any[]): any;
   function useState<S>(initialState:S|(()=>S)): [S,Dispatch<SetStateAction<S>>];
   function useMemo<T>(factory:()=>T,deps:readonly any[]):T;
+  function useEffect(effect:()=>void|(()=>void),deps?:readonly any[]):void;
 }
 declare const React: {
   Component: typeof React.Component;
@@ -21,6 +22,7 @@ declare const React: {
   Fragment: any;
   useState: typeof React.useState;
   useMemo: typeof React.useMemo;
+  useEffect: typeof React.useEffect;
 };
 declare const ReactDOM: {
   render(element: any, container: Element | DocumentFragment): void;

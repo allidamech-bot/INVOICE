@@ -15,6 +15,8 @@ interface Props {
   onConvert?: (doc: LourexDocument) => void;
   onPrint: (doc: LourexDocument, mode: 'print'|'pdf'|'share') => Promise<void>;
   onDelete: (doc:LourexDocument) => void;
+  onRecordPayment?: (doc:LourexDocument) => void;
+  onCreateCreditNote?: (doc:LourexDocument) => void;
 }
 
 type WorkspaceStatus='all'|'draft'|'ready'|'final'|'voided';
@@ -220,11 +222,16 @@ export class DocumentsPage extends React.Component<Props,State>{
     const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
     const linkedInvoice=this.linkedInvoiceForQuote(doc);
     const canConvert=Boolean(this.props.onConvert&&doc.kind==='proforma'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
+    const standardFinalInvoice=doc.kind==='invoice'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided';
+    const canCollect=Boolean(this.props.onRecordPayment&&standardFinalInvoice&&invoicePaymentSummary(doc,this.props.payments,undefined,this.props.documents).status!=='paid');
+    const canCredit=Boolean(this.props.onCreateCreditNote&&standardFinalInvoice);
     return <>
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({detailId:doc.id}))}><Icon name="eye"/>{t('View details','عرض التفاصيل')}</button>
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onOpen(doc))}><Icon name="edit"/>{doc.lifecycleStatus==='voided'?t('Open archive','فتح الأرشيف'):doc.status==='final'?t('Open / manage','فتح / إدارة'):t('Continue editing','متابعة التحرير')}</button>
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onDuplicate(doc))}><Icon name="copy"/>{t('Duplicate','نسخ')}</button>
       {linkedInvoice?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({detailId:linkedInvoice.id}))}><Icon name="invoice"/>{t(`Open linked invoice ${linkedInvoice.number}`,`فتح الفاتورة المرتبطة ${linkedInvoice.number}`)}</button>:canConvert?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.convertQuote(doc))}><Icon name="invoice"/>{t('Convert to Invoice','تحويل إلى فاتورة')}</button>:null}
+      {canCollect?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onRecordPayment?.(doc))}><Icon name="invoice"/>{t('Record Payment','تسجيل دفعة')}</button>:null}
+      {canCredit?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onCreateCreditNote?.(doc))}><Icon name="invoice"/>{t('Create Credit Note','إنشاء إشعار دائن')}</button>:null}
       {canOutput?<><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}><Icon name="download"/>{this.state.outputId===doc.id?t('Preparing…','جارٍ التجهيز…'):'PDF'}</button><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}><Icon name="share"/>{t('Share','مشاركة')}</button></>:null}
       {canDelete?<button type="button" role="menuitem" className="danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/>{t('Delete Draft','حذف المسودة')}</button>:null}
     </>;

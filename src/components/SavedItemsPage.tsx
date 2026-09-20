@@ -8,6 +8,8 @@ interface Props {
   onSave:(item:SavedItem)=>Promise<void>;
   onSaveMany:(items:SavedItem[])=>Promise<void>;
   onDelete:(item:SavedItem)=>Promise<void>;
+  onInspectInventory?:(item:SavedItem)=>void;
+  onInspectPurchases?:(item:SavedItem)=>void;
 }
 
 export class SavedItemsPage extends React.Component<Props>{
@@ -28,7 +30,7 @@ export class SavedItemsPage extends React.Component<Props>{
   render():any{
     return <section className="page saved-items-page product-library-page">
       <div className="page-heading saved-items-page-heading product-library-page-heading"><div><p className="eyebrow">{t('Reusable product catalog','كتالوج أصناف قابل لإعادة الاستخدام')}</p><h1>{t('Product Library','مكتبة الأصناف')}</h1><p className="page-subtitle">{t('Organize product data once, reuse it everywhere, and update large catalogs safely from Excel or CSV.','رتّب بيانات الأصناف مرة واحدة، استخدمها في كل مكان، وحدّث الكتالوجات الكبيرة بأمان من Excel أو CSV.')}</p></div></div>
-      <ProductLibraryWorkspace items={this.props.items} currency={this.props.currency} onSave={this.props.onSave} onSaveMany={this.props.onSaveMany} onDelete={this.props.onDelete}/>
+      <ProductLibraryWorkspace items={this.props.items} currency={this.props.currency} onSave={this.props.onSave} onSaveMany={this.props.onSaveMany} onDelete={this.props.onDelete} onInspectInventory={this.props.onInspectInventory} onInspectPurchases={this.props.onInspectPurchases}/>
     </section>;
   }
 }

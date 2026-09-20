@@ -98,7 +98,7 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
     const rows=page.locator('.receivable-account-row');await rows.first().waitFor();assert.ok(await rows.count()>=3,'expected customer accounts');await audit('.receivables-page');await shot('overview');
     const filter=page.locator('.receivable-controls select');await filter.selectOption('overdue');assert.ok(await rows.count()>=1,'overdue filter should retain rows');
     const search=page.locator('.receivable-controls input');await search.fill('Atlas');assert.equal(await rows.count(),1);await shot('filtered');
-    const statement=rows.first().locator('.btn');await reachable(statement);await statement.click();await page.locator('.customer-statement-print').waitFor();
+    const statement=rows.first().getByRole('button',{name:/^(Statement|كشف حساب)$/});await reachable(statement);await statement.click();await page.locator('.customer-statement-print').waitFor();
     const modal=page.locator('.modal').last();const modalBox=await modal.boundingBox();assert.ok(modalBox&&modalBox.width<=viewport.width+1,'statement modal exceeds viewport width');await shot('statement');
    }else{
     await page.locator('.operations-summary').waitFor();await audit('.operations-page');await shot('suppliers');

@@ -14,6 +14,8 @@ interface Props {
   onSave:(item:SavedItem)=>Promise<void>;
   onSaveMany:(items:SavedItem[])=>Promise<void>;
   onDelete:(item:SavedItem)=>Promise<void>;
+  onInspectInventory?:(item:SavedItem)=>void;
+  onInspectPurchases?:(item:SavedItem)=>void;
 }
 
 type SortMode='smart'|'name'|'recent'|'sku';
@@ -67,8 +69,9 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
   private mutationInFlight=false;
   state:State={query:'',category:'',favoriteOnly:false,sortMode:'smart',editing:null,editingInitial:'',deleting:null,busy:false,error:'',importOpen:false,discardAction:'',pendingEdit:null,selectionMode:false,selectedIds:[],libraryMenuOpen:false,rowMenuId:null,bulkDeleteConfirm:false};
 
-  componentDidMount():void{document.addEventListener('pointerdown',this.closeMenus);document.addEventListener('keydown',this.closeMenusOnEscape);}
-  componentWillUnmount():void{document.removeEventListener('pointerdown',this.closeMenus);document.removeEventListener('keydown',this.closeMenusOnEscape);}
+  componentDidMount():void{document.addEventListener('pointerdown',this.closeMenus);document.addEventListener('keydown',this.closeMenusOnEscape);window.addEventListener('lourex-open-product-editor',this.handleQuickCreate);}
+  componentWillUnmount():void{document.removeEventListener('pointerdown',this.closeMenus);document.removeEventListener('keydown',this.closeMenusOnEscape);window.removeEventListener('lourex-open-product-editor',this.handleQuickCreate);}
+  private handleQuickCreate=()=>this.newItem();
 
   private closeMenus=(event:PointerEvent)=>{const target=event.target;if(target instanceof Element&&target.closest('.product-library-overflow,.product-library-row-menu-wrap'))return;if(this.state.libraryMenuOpen||this.state.rowMenuId)this.setState({libraryMenuOpen:false,rowMenuId:null});};
   private closeMenusOnEscape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&(this.state.libraryMenuOpen||this.state.rowMenuId))this.setState({libraryMenuOpen:false,rowMenuId:null});};
@@ -319,6 +322,8 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
                 {!this.state.selectionMode?<div className="product-library-row-menu-wrap">
                   <IconButton icon="more" label={t('Product actions','إجراءات الصنف')} aria-expanded={this.state.rowMenuId===item.id} onClick={()=>this.setState(state=>({rowMenuId:state.rowMenuId===item.id?null:item.id,libraryMenuOpen:false}))}/>
                   {this.state.rowMenuId===item.id?<div className="product-library-menu product-library-row-menu" role="menu">
+                    {this.props.onInspectInventory?<button type="button" role="menuitem" onClick={()=>{this.setState({rowMenuId:null});this.props.onInspectInventory?.(item);}}><Icon name="items"/><span>{t('Stock History','سجل المخزون')}</span></button>:null}
+                    {this.props.onInspectPurchases?<button type="button" role="menuitem" onClick={()=>{this.setState({rowMenuId:null});this.props.onInspectPurchases?.(item);}}><Icon name="backup"/><span>{t('Purchase History','سجل المشتريات')}</span></button>:null}
                     <button type="button" role="menuitem" onClick={()=>this.beginEdit(item)}><Icon name="edit"/><span>{t('Edit','تعديل')}</span></button>
                     <button type="button" role="menuitem" onClick={()=>this.beginSelection(item.id)}><Icon name="check"/><span>{t('Select','تحديد')}</span></button>
                     <button type="button" role="menuitem" className="danger" onClick={()=>this.requestSingleDelete(item)}><Icon name="trash"/><span>{t('Delete','حذف')}</span></button>
@@ -341,12 +346,15 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
                 <Field label={t('Description Arabic','الوصف بالعربية')}><Input autoFocus={isArabic()} dir="rtl" value={edit.descriptionAr} onChange={(e:any)=>this.set('descriptionAr',e.target.value)}/></Field>
               </div></section>
 
-              <section className="product-editor-section"><div className="product-editor-section-title"><span>02</span><div><strong>{t('Catalog organization','تنظيم الكتالوج')}</strong><small>{t('Category, tags and customs reference','التصنيف والوسوم والمرجع الجمركي')}</small></div></div><div className="form-grid two">
+              <details className="product-more-details" open={Boolean(edit.category||(edit.tags??[]).length||edit.hsCode||edit.origin)}>
+                <summary><span>+</span><strong>{t('More Details','تفاصيل إضافية')}</strong><small>{t('Category, tags, HS code and origin','التصنيف والوسوم ورمز HS والمنشأ')}</small></summary>
+                <section className="product-editor-section"><div className="product-editor-section-title"><span>02</span><div><strong>{t('Catalog organization','تنظيم الكتالوج')}</strong><small>{t('Category, tags and customs reference','التصنيف والوسوم والمرجع الجمركي')}</small></div></div><div className="form-grid two">
                 <Field label={t('Category','التصنيف')}><Input value={edit.category??''} placeholder={t('Choose below or type a custom category','اختر أدناه أو اكتب تصنيفًا مخصصًا')} onChange={(e:any)=>this.set('category',e.target.value)}/><span className="product-library-choice-strip">{categorySuggestions.map(choice=><button type="button" key={choice.value} className={categoryOf(edit)===choice.value?'active':''} onClick={()=>this.set('category',choice.value)}>{choice.label}</button>)}</span></Field>
                 <Field label={t('Tags','الوسوم')}><Input value={(edit.tags??[]).join(', ')} placeholder={t('e.g. 250ml, Energy','مثال: 250مل، طاقة')} onChange={(e:any)=>this.set('tags',parseSavedItemTags(String(e.target.value)))}/>{tags.length?<span className="product-library-choice-strip">{tags.map(tag=>{const active=(edit.tags??[]).some(value=>value.toLowerCase()===tag.toLowerCase());return <button type="button" key={tag} className={active?'active':''} onClick={()=>this.toggleTag(tag)}>#{tag}</button>;})}</span>:null}</Field>
                 <Field label="HS Code"><Input inputMode="numeric" value={edit.hsCode} onChange={(e:any)=>this.set('hsCode',e.target.value)}/>{hsCodes.length?<span className="product-library-choice-strip">{hsCodes.map(code=><button type="button" key={code} className={edit.hsCode===code?'active':''} onClick={()=>this.set('hsCode',code)}>{code}</button>)}</span>:null}</Field>
                 <Field label={t('Origin','المنشأ')}><Input value={edit.origin} onChange={(e:any)=>this.set('origin',e.target.value)}/></Field>
               </div></section>
+              </details>
 
               <section className="product-editor-section"><div className="product-editor-section-title"><span>03</span><div><strong>{t('Pricing & commercial details','التسعير والتفاصيل التجارية')}</strong><small>{t('Packing, unit, reusable sale price and internal cost','التعبئة والوحدة وسعر البيع والتكلفة الداخلية')}</small></div></div><div className="form-grid two">
                 <Field label={t('Packing','التعبئة')}><Input value={edit.packing} onChange={(e:any)=>this.set('packing',e.target.value)}/></Field>
