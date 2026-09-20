@@ -386,6 +386,27 @@
     }
   }
 
+  /* Compact tablets use the same 2x2 financial summary as phones so amounts
+     remain readable and the four KPIs never collapse into narrow columns. */
+  @media (max-width:800px) {
+    .app-ui .dashboard-kpis {
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    }
+
+    .app-ui .dashboard-kpis>button {
+      border-inline-start:0!important;
+      border-top:1px solid var(--ds-line)!important;
+    }
+
+    .app-ui .dashboard-kpis>button:nth-child(-n+2) {
+      border-top:0!important;
+    }
+
+    .app-ui .dashboard-kpis>button:nth-child(even) {
+      border-inline-start:1px solid var(--ds-line)!important;
+    }
+  }
+
   @media (max-width:720px) {
     .app-ui .dashboard-page {
       padding:22px 12px calc(88px + env(safe-area-inset-bottom))!important;
