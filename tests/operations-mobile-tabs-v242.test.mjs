@@ -22,7 +22,7 @@ test('v242 makes the mobile Operations tab palette a real-browser regression gat
   ]);
   assert.match(workflow,/node tests\/visual\/run-operations-mobile-tabs-v242\.cjs/);
   assert.match(runner,/rgb\(14, 14, 14\)/);
-  assert.match(runner,/rgb\(32, 32, 32\)/);
+  assert.match(runner,/rgb\(29, 29, 29\)/);
   assert.match(runner,/inactive Operations tab is not transparent/);
 });
 
