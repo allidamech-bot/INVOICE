@@ -26,6 +26,7 @@ import { SettingsModal } from '../components/SettingsModal.js';
 import { CloudAccountModal } from '../components/CloudAccountModal.js';
 import { AppShell } from '../components/AppShell.js';
 import { WorkspaceHome } from '../components/WorkspaceHome.js';
+import { GlobalSearch } from '../components/GlobalSearch.js';
 import { Brand, Button, ConfirmDialog, Toast } from '../components/UI.js';
 import { TemplateRenderer } from '../templates/TemplateRenderer.js';
 import { cloudRemoteChangedSinceAnchor, createCloudUser, friendlyCloudError, getCloudVaultMeta, pushLocalVaultToCloud, reconcileCloudVault, resolveCloudConflictWithCloud, resolveCloudConflictWithLocal, sendCloudPasswordReset, signInCloudUser, signOutCloudUser, waitForCloudUser } from '../cloud/firebase.js';
@@ -279,6 +280,7 @@ export class App extends React.Component<{},State> {
           {this.state.screen==='editor'&&this.state.editorDoc?<EditorPage document={this.state.editorDoc} documents={vault.documents} customers={vault.customers} company={vault.company} savedItems={vault.savedItems} payments={vault.payments} documentEvents={vault.documentEvents} documentRevisions={vault.documentRevisions} smartDefaults={vault.appSettings.smartDefaults} onEditActivity={this.deferQueuedCloudSaveForDocumentEdit} onClose={this.closeEditor} onSave={this.saveDocument} onSaveCustomer={this.saveCustomer} onSaveSavedItem={this.saveSavedItem} onSaveDocumentItem={this.saveDocumentItem} onUseSavedItems={this.useSavedItems} onDeleteSavedItem={this.deleteSavedItem} onSaveSmartDefaults={this.saveSmartDefaults} onSavePayment={this.savePayment} onDeletePayment={this.deletePayment} onBeginRevision={this.beginRevision} onDiscardRevision={this.discardRevision} onVoidDocument={this.voidDocument} onCreateCreditNote={this.createCreditNote} onConvert={this.convert} onPrint={this.requestPrint}/>:null}
         </main>
       </AppShell>
+      <GlobalSearch documents={vault.documents} customers={vault.customers} items={vault.savedItems} suppliers={vault.suppliers} purchases={vault.purchases} language={activeLanguage} onNavigate={navigate} onOpenDocument={(doc)=>void this.openDocument(doc)} onNewDocument={(kind)=>void this.newDocument(kind)}/>
       <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} cloudUser={this.state.cloudUser} onCloudRestore={this.cloudRestore} onCloudSignOut={this.cloudSignOut} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onChangePin={this.changePin} onLock={this.lock} onBackup={this.backup} onRestore={this.restore}/>
       {this.cloudModal()}
       <ConfirmDialog open={Boolean(this.state.deletingDoc)} title={t(`Delete ${this.state.deletingDoc?.number ?? 'document'}?`,`حذف ${this.state.deletingDoc?.number ?? 'المستند'}؟`)} message={t('This action cannot be undone.','لا يمكن التراجع عن هذا الإجراء.')} onCancel={()=>this.setState({deletingDoc:null})} onConfirm={()=>void this.deleteDocument()}/><Toast text={this.state.toast} tone={this.state.toastTone}/></div>

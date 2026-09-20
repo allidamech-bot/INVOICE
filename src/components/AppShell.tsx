@@ -173,6 +173,7 @@ export class AppShell extends React.Component<Props,State>{
         <div className="shell-mobile-brand">{!editor?<button type="button" aria-label={t('Home','الرئيسية')} onClick={()=>this.navigate('home')}><Brand compact logoDataUrl={this.props.logoDataUrl} language={this.props.language}/></button>:<span className="editor-context-mark"><Icon name="edit"/></span>}</div>
         <div className="shell-page-title"><small>{editor?t('Editing','تحرير'):t('LOUREX Invoice','LOUREX Invoice')}</small><strong>{this.pageTitle()}</strong></div>
         <div className="shell-topbar-actions">
+          <button type="button" className="shell-global-search-button" aria-label={t('Search LOUREX','بحث LOUREX')} title={t('Global search · Ctrl/⌘ K','البحث الشامل · Ctrl/⌘ K')} onClick={()=>window.dispatchEvent(new Event('lourex-global-search-open'))}><Icon name="search"/><span>{t('Search','بحث')}</span><kbd>⌘K</kbd></button>
           {this.syncStatus('shell-sync-status')}
           {this.accountButton('shell-account-button',true)}
         </div>
