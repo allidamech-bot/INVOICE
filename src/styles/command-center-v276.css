@@ -25,8 +25,8 @@
   .app-ui .command-chart-line.line-sales{stroke:#d2bd91}
   .app-ui .command-chart-line.line-collected{stroke:#7fa995}
   .app-ui .command-chart-line.line-profit{stroke:#b8a071}
-  .app-ui .command-chart-labels{display:grid;grid-template-columns:repeat(var(--chart-count,12),minmax(0,1fr));grid-auto-flow:column;gap:0;padding:0 20px 10px;color:var(--ds-faint);font-size:9px;line-height:1.2;text-align:center}
-  .app-ui .command-chart-labels span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .app-ui .command-chart-labels{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:0 20px 10px;color:var(--ds-faint);font-size:9px;line-height:1.2;text-align:center}
+  .app-ui .command-chart-labels span{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .app-ui .command-chart-labels span:not(.show){visibility:hidden}
   .app-ui .command-chart-footer{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px 12px;border-top:1px solid var(--ds-line)}
   .app-ui .command-chart-legend{display:flex;align-items:center;gap:14px;color:var(--ds-muted);font-size:10px;font-weight:620}
@@ -43,6 +43,44 @@
   .app-ui .command-position-list strong{color:var(--ds-text-strong);font-size:14px;font-weight:740;font-variant-numeric:tabular-nums lining-nums;text-align:end}
   .app-ui .command-position-action{margin:auto 14px 14px;min-height:38px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 10px;border:1px solid var(--ds-line);border-radius:9px;background:transparent;color:var(--ds-accent-bright);font-size:10px;font-weight:670;cursor:pointer}
   .app-ui .command-position-action:hover{background:var(--ds-selected);color:var(--ds-text)}
+
+  .app-ui .lourex-advisor-card{overflow:hidden;border-color:#3d3528!important;background:linear-gradient(180deg,#11100f 0%,#0e0e0f 100%)!important}
+  .app-ui .lourex-advisor-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:17px 18px;border-bottom:1px solid var(--ds-line)}
+  .app-ui .lourex-advisor-identity{display:flex;align-items:flex-start;gap:12px;min-width:0}
+  .app-ui .lourex-advisor-mark{flex:0 0 auto;display:grid;place-items:center;width:38px;height:38px;border:1px solid #554a35;border-radius:11px;background:#1b1813;color:#d2bd91;font-size:17px}
+  .app-ui .lourex-advisor-identity>div{min-width:0}
+  .app-ui .lourex-advisor-identity small{display:block;color:var(--ds-accent-bright);font-size:9px;font-weight:720;letter-spacing:.07em;text-transform:uppercase}
+  [dir='rtl'] .app-ui .lourex-advisor-identity small{letter-spacing:normal}
+  .app-ui .lourex-advisor-identity h2{margin:2px 0 3px;color:var(--ds-text-strong);font-size:16px;line-height:1.35;font-weight:740}
+  .app-ui .lourex-advisor-identity p{max-width:720px;margin:0;color:var(--ds-muted);font-size:10.5px;line-height:1.55}
+  .app-ui .lourex-advisor-clear{flex:0 0 auto;min-height:34px;padding:6px 9px;border:0;border-radius:8px;background:transparent;color:var(--ds-faint);font-size:10px;font-weight:640;cursor:pointer}
+  .app-ui .lourex-advisor-clear:hover{background:var(--ds-selected);color:var(--ds-text)}
+  .app-ui .lourex-advisor-body{min-height:154px;padding:14px 18px}
+  .app-ui .lourex-advisor-body.has-conversation{max-height:360px;overflow:auto}
+  .app-ui .lourex-advisor-welcome{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(0,1.2fr);gap:18px;align-items:center}
+  .app-ui .lourex-advisor-welcome-copy strong{display:block;color:var(--ds-text);font-size:12px;line-height:1.45;font-weight:700}
+  .app-ui .lourex-advisor-welcome-copy span{display:block;margin-top:5px;color:var(--ds-muted);font-size:10px;line-height:1.55}
+  .app-ui .lourex-advisor-starters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .app-ui .lourex-advisor-starters button{min-height:42px;padding:8px 10px;border:1px solid #2b2925;border-radius:9px;background:#151515;color:var(--ds-text-soft);font:inherit;font-size:10px;line-height:1.35;text-align:start;cursor:pointer}
+  .app-ui .lourex-advisor-starters button:hover{border-color:#514731;background:#191714;color:var(--ds-text)}
+  .app-ui .lourex-advisor-thread{display:flex;flex-direction:column;gap:9px}
+  .app-ui .lourex-advisor-message{display:flex;align-items:flex-start;gap:8px;max-width:82%}
+  .app-ui .lourex-advisor-message>span{flex:0 0 auto;width:18px;padding-top:8px;color:var(--ds-accent-bright);font-size:10px;text-align:center}
+  .app-ui .lourex-advisor-message p{margin:0;padding:9px 11px;border:1px solid #252525;border-radius:11px;background:#151515;color:var(--ds-text-soft);font-size:11px;line-height:1.6;white-space:pre-wrap}
+  .app-ui .lourex-advisor-message.user{align-self:flex-end;flex-direction:row-reverse}
+  .app-ui .lourex-advisor-message.user p{border-color:#49402f;background:#1b1813;color:var(--ds-text)}
+  .app-ui .lourex-advisor-thinking{display:flex;align-items:center;gap:8px;color:var(--ds-muted);font-size:10px}.app-ui .lourex-advisor-thinking>span{color:var(--ds-accent-bright)}
+  .app-ui .lourex-advisor-compose{padding:12px 18px 14px;border-top:1px solid var(--ds-line);background:#0d0d0e}
+  .app-ui .lourex-advisor-compose form{display:grid;grid-template-columns:28px minmax(0,1fr) 36px;align-items:center;gap:4px;min-height:46px;padding:4px;border:1px solid #34312b;border-radius:11px;background:#131313}
+  .app-ui .lourex-advisor-input-icon{display:grid;place-items:center;color:var(--ds-faint)}
+  .app-ui .lourex-advisor-input-icon svg{width:14px;height:14px}
+  .app-ui .lourex-advisor-compose input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--ds-text);font:inherit;font-size:11px}
+  .app-ui .lourex-advisor-compose input::placeholder{color:var(--ds-faint)}
+  .app-ui .lourex-advisor-compose form>button{width:34px;height:34px;border:1px solid #514731;border-radius:9px;background:#201c16;color:var(--ds-accent-bright);font-size:15px;cursor:pointer}
+  .app-ui .lourex-advisor-compose form>button:disabled{opacity:.4;cursor:not-allowed}
+  .app-ui .lourex-advisor-trust{display:flex;align-items:center;gap:7px;margin-top:7px;color:var(--ds-faint);font-size:9px;line-height:1.35}
+  .app-ui .lourex-advisor-status{width:6px;height:6px;border-radius:50%;background:#73937f;box-shadow:0 0 0 3px rgba(115,147,127,.09)}
+  .app-ui .lourex-advisor-error{margin-bottom:7px;padding:7px 9px;border:1px solid #573431;border-radius:8px;background:var(--ds-danger-surface);color:var(--ds-danger-text);font-size:10px}
 
   .app-ui .command-insight-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:16px;align-items:stretch}
   .app-ui .command-clear-state{min-height:188px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:24px;text-align:center}
@@ -62,6 +100,7 @@
   @media (max-width:1050px){
     .app-ui .command-performance-grid,.app-ui .command-insight-grid{grid-template-columns:minmax(0,1fr)}
     .app-ui .command-position-panel,.app-ui .command-inventory-health{min-height:auto}
+    .app-ui .lourex-advisor-welcome{grid-template-columns:minmax(0,1fr)}
   }
 
   @media (max-width:720px){
@@ -82,6 +121,12 @@
     .app-ui .command-data-warning{text-align:start}
     .app-ui .command-position-list{padding-inline:10px}
     .app-ui .command-position-action{margin-inline:10px}
+    .app-ui .lourex-advisor-head{padding:13px 12px;gap:10px}.app-ui .lourex-advisor-mark{width:34px;height:34px}
+    .app-ui .lourex-advisor-identity h2{font-size:14px}.app-ui .lourex-advisor-identity p{font-size:9.5px}
+    .app-ui .lourex-advisor-body{padding:11px 12px}.app-ui .lourex-advisor-starters{grid-template-columns:minmax(0,1fr)}
+    .app-ui .lourex-advisor-starters button{min-height:44px}
+    .app-ui .lourex-advisor-message{max-width:94%}
+    .app-ui .lourex-advisor-compose{padding:10px 12px 12px}.app-ui .lourex-advisor-compose form{min-height:48px}
   }
 
   @media (max-width:480px){
@@ -89,5 +134,6 @@
     .app-ui .command-chart{height:176px}
     .app-ui .command-chart-labels{display:none}
     .app-ui .command-health-number strong{font-size:28px}
+    .app-ui .lourex-advisor-clear{display:none}
   }
 }
