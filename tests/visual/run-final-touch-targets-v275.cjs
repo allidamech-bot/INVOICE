@@ -4,7 +4,14 @@ const assert=require('node:assert/strict');
 const base='http://127.0.0.1:4173/tests/visual';
 const cases=[
   {page:'obsidian-shell.html',selectors:[['.shell-account-button',44,44]]},
-  {page:'obsidian-dashboard.html',selectors:[['.dashboard-attention-list>button',0,44],['.dashboard-shortcut-grid>button',0,44,11]]},
+  {page:'obsidian-dashboard.html',selectors:[
+    ['.dashboard-attention-list>button',0,44],
+    ['.command-chart-controls>button',0,44],
+    ['.command-chart-mode>button',0,44],
+    ['.command-position-action',0,44],
+    ['.lourex-advisor-starters>button',0,44],
+    ['.lourex-advisor-compose form>button',44,44]
+  ]},
   {page:'obsidian-documents.html',selectors:[['.documents-register-tabs>button',0,44],['.documents-filter-toggle',0,44]]},
   {page:'obsidian-editor.html?kind=invoice',selectors:[['.editor-section-nav-button',0,44],['.item-advanced-control>button',0,44],['.mobile-action-buttons .btn span',0,0,10]]},
   {page:'obsidian-directory.html?screen=customers',selectors:[['.customers-page .page-heading>.btn',0,44],['.customer-document-action',0,44],['.customer-actions .icon-btn',44,44]]},
