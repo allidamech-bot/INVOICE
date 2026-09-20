@@ -55,32 +55,32 @@ function documentStatus(doc:LourexDocument,payments:PaymentRecord[],documents:Lo
 }
 
 function shiftIso(iso:string,days:number):string{
-  const [year,month,day]=iso.split('-').map(Number);
+  const year=Number(iso.slice(0,4)),month=Number(iso.slice(5,7)),day=Number(iso.slice(8,10));
   const date=new Date(Date.UTC(year,month-1,day+days));
   return date.toISOString().slice(0,10);
 }
 
 function monthKey(iso:string,offset:number):string{
-  const [year,month]=iso.split('-').map(Number);
+  const year=Number(iso.slice(0,4)),month=Number(iso.slice(5,7));
   const date=new Date(Date.UTC(year,month-1+offset,1));
   return date.toISOString().slice(0,7);
 }
 
 function previousMonthPeriod(today:string):{from:string;to:string}{
-  const [year,month]=today.split('-').map(Number);
+  const year=Number(today.slice(0,4)),month=Number(today.slice(5,7));
   const start=new Date(Date.UTC(year,month-2,1));
   const end=new Date(Date.UTC(year,month-1,0));
   return{from:start.toISOString().slice(0,10),to:end.toISOString().slice(0,10)};
 }
 
 function compactMonthLabel(month:string):string{
-  const [year,value]=month.split('-').map(Number);
+  const year=Number(month.slice(0,4)),value=Number(month.slice(5,7));
   const date=new Date(Date.UTC(year,value-1,1));
   return new Intl.DateTimeFormat(getUiLanguage()==='ar'?'ar':'en',{month:'short'}).format(date);
 }
 
 function compactDayLabel(iso:string):string{
-  const [year,month,day]=iso.split('-').map(Number);
+  const year=Number(iso.slice(0,4)),month=Number(iso.slice(5,7)),day=Number(iso.slice(8,10));
   const date=new Date(Date.UTC(year,month-1,day));
   return new Intl.DateTimeFormat(getUiLanguage()==='ar'?'ar':'en',{day:'numeric',month:'short'}).format(date);
 }
