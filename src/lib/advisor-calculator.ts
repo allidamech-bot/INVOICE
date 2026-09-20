@@ -67,27 +67,28 @@ function freightValue(message:string):string{return capture(message,[`(?:freight
 function dutyValue(message:string):string{return capture(message,[`(?:duty|customs?)\\s*(?:is|=|:)?\\s*${NUMBER}`,`(?:جمارك|الجمارك|رسوم جمركية)\\s*(?:هي|=|:)?\\s*${NUMBER}`]);}
 function otherValue(message:string):string{return capture(message,[`(?:other costs?|other charges?)\\s*(?:is|=|:)?\\s*${NUMBER}`,`(?:تكاليف أخرى|تكاليف اخرى|مصاريف أخرى|مصاريف اخرى)\\s*(?:هي|=|:)?\\s*${NUMBER}`]);}
 
-export function advisorCalculation(message:string):AdvisorCalculation|null{
+export function advisorCalculation(message:string,language:'en'|'ar'='en'):AdvisorCalculation|null{
+  const ar=language==='ar';
   const cost=costValue(message),margin=marginValue(message),markup=markupValue(message);
   if(cost&&margin){
     const costScaled=decimalToScaled(cost,4),marginBasis=decimalToScaled(margin,2);
     if(marginBasis>=0n&&marginBasis<10_000n){
-      const priceScaled=roundedDivide(costScaled*10_000n,10_000n-marginBasis);
-      return{kind:'margin-price',summary:`Deterministic calculator: unit cost ${cost}; target gross margin ${margin}%; required selling price ${scaled4ToMoney(priceScaled)}.`};
+      const price=scaled4ToMoney(roundedDivide(costScaled*10_000n,10_000n-marginBasis));
+      return{kind:'margin-price',summary:ar?`الحسبة: تكلفة الوحدة ${cost}، وهامش الربح المستهدف ${margin}%. سعر البيع المطلوب لتحقيق هذا الهامش هو ${price}.`:`Calculation: unit cost ${cost}, target gross margin ${margin}%. Required selling price: ${price}.`};
     }
   }
   if(cost&&markup){
     const costScaled=decimalToScaled(cost,4),markupBasis=decimalToScaled(markup,2);
     if(markupBasis>=0n){
-      const priceScaled=roundedDivide(costScaled*(10_000n+markupBasis),10_000n);
-      return{kind:'markup-price',summary:`Deterministic calculator: unit cost ${cost}; markup on cost ${markup}%; required selling price ${scaled4ToMoney(priceScaled)}.`};
+      const price=scaled4ToMoney(roundedDivide(costScaled*(10_000n+markupBasis),10_000n));
+      return{kind:'markup-price',summary:ar?`الحسبة: تكلفة الوحدة ${cost}، والزيادة على التكلفة ${markup}%. سعر البيع الناتج هو ${price}.`:`Calculation: unit cost ${cost}, markup on cost ${markup}%. Resulting selling price: ${price}.`};
     }
   }
 
   const quantity=quantityValue(message),selling=sellingValue(message);
   if(quantity&&selling&&cost){
     const revenue=lineTotal(quantity,selling),totalCost=lineTotal(quantity,cost),profit=moneyDifference(revenue,totalCost),marginPercent=percentOf(profit,revenue);
-    return{kind:'sale-profit',summary:`Deterministic calculator: quantity ${quantity}; selling price ${selling}; unit cost ${cost}; revenue ${revenue}; total cost ${totalCost}; gross profit ${profit}; gross margin ${marginPercent}%.`};
+    return{kind:'sale-profit',summary:ar?`الحسبة: الكمية ${quantity}، سعر البيع ${selling}، تكلفة الوحدة ${cost}. إجمالي المبيعات ${revenue}، إجمالي التكلفة ${totalCost}، إجمالي الربح ${profit}، وهامش الربح ${marginPercent}%.`:`Calculation: quantity ${quantity}, selling price ${selling}, unit cost ${cost}. Revenue ${revenue}, total cost ${totalCost}, gross profit ${profit}, gross margin ${marginPercent}%.`};
   }
 
   const freight=freightValue(message),duty=dutyValue(message),other=otherValue(message);
@@ -96,7 +97,8 @@ export function advisorCalculation(message:string):AdvisorCalculation|null{
     const quantityScaled=decimalToScaled(quantity,4);
     if(quantityScaled>0n){
       const landedUnitScaled=roundedDivide(totalCents*1_000_000n,quantityScaled);
-      return{kind:'landed-cost',summary:`Deterministic calculator: quantity ${quantity}; unit purchase cost ${cost}; subtotal ${subtotal}; freight ${freight||'0.00'}; duty/customs ${duty||'0.00'}; other costs ${other||'0.00'}; landed total ${fixed(totalCents,2)}; landed cost per unit ${fixed(landedUnitScaled,4)}.`};
+      const landedTotal=fixed(totalCents,2),landedUnit=fixed(landedUnitScaled,4);
+      return{kind:'landed-cost',summary:ar?`حسبة تكلفة الوصول: الكمية ${quantity}، سعر الشراء للوحدة ${cost}، قيمة البضاعة ${subtotal}، الشحن ${freight||'0.00'}، الجمارك ${duty||'0.00'}، التكاليف الأخرى ${other||'0.00'}. إجمالي تكلفة الوصول ${landedTotal}، وتكلفة الوصول للوحدة ${landedUnit}.`:`Landed-cost calculation: quantity ${quantity}, unit purchase cost ${cost}, goods subtotal ${subtotal}, freight ${freight||'0.00'}, duty/customs ${duty||'0.00'}, other costs ${other||'0.00'}. Landed total ${landedTotal}; landed cost per unit ${landedUnit}.`};
     }
   }
   return null;
