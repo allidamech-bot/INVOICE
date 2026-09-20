@@ -1,4 +1,4 @@
-name: LOUREX Advisor one-shot patch
+name: LOUREX Advisor locale one-shot patch
 
 on:
   push:
@@ -20,51 +20,25 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-      - name: Unify LOUREX Advisor
+      - name: Use current UI language in deterministic advisor calculations
         shell: python
         run: |
           from pathlib import Path
           path=Path('src/components/AiCopilot.tsx')
           text=path.read_text(encoding='utf-8')
-
-          old="import { makeId } from '../lib/id.js';\nimport { SupplierDocumentImport } from './SupplierDocumentImport.js';"
-          new="import { makeId } from '../lib/id.js';\nimport { advisorCalculation } from '../lib/advisor-calculator.js';\nimport { SupplierDocumentImport } from './SupplierDocumentImport.js';"
-          if old not in text: raise SystemExit('advisor import anchor missing')
-          text=text.replace(old,new,1)
-
-          old="""  private ask=async(raw?:string)=>{\n    if(this.state.busy)return;const message=String(raw??this.state.input).trim().slice(0,MAX_MESSAGE_CHARS);if(!message)return;const capability=capabilityFor(message,this.props.screen);const userMessage:AiMessage={id:id('user'),role:'user',text:message};this.setState(state=>({busy:true,error:'',input:'',proposal:null,messages:[...state.messages,userMessage]}));this.addAudit(capability,'requested');\n    try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX before using LOUREX AI.','افتح قفل LOUREX قبل استخدام ذكاء LOUREX.'));const financeSource:AiFinanceSource={documents:resumed.vault.documents,payments:resumed.vault.payments,customers:resumed.vault.customers,activeDocument:this.props.activeDocument??null};const context=buildAiContext(this.props.screen,this.props.language,financeSource,resumed.vault,message,this.props.activeDocument??null);const response=await fetch('/api/ai-core',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({message,context})});let payload:any={};try{payload=await response.json();}catch{}if(!response.ok)throw new Error(String(payload?.message||t('LOUREX AI is temporarily unavailable.','ذكاء LOUREX غير متاح مؤقتًا.')));const answer=String(payload?.answer||'').trim().slice(0,4000)||t('I could not form a useful answer from this request.','لم أتمكن من تكوين إجابة مفيدة لهذا الطلب.');const proposal=safeProposal(payload?.proposal,context,message);const assistant:AiMessage={id:id('assistant'),role:'assistant',text:answer};this.setState(state=>({busy:false,messages:[...state.messages,assistant],proposal}));this.addAudit(capability,'answered');}\n    catch(error){const text=error instanceof Error?error.message:t('LOUREX AI is temporarily unavailable.','ذكاء LOUREX غير متاح مؤقتًا.');this.setState({busy:false,error:text});this.addAudit(capability,'failed');}\n  };"""
-          new="""  private ask=async(raw?:string)=>{\n    if(this.state.busy)return;const message=String(raw??this.state.input).trim().slice(0,MAX_MESSAGE_CHARS);if(!message)return;const capability=capabilityFor(message,this.props.screen);const userMessage:AiMessage={id:id('user'),role:'user',text:message};const memory=this.state.messages.slice(-4).map(entry=>`${entry.role==='user'?'User':'Advisor'}: ${entry.text}`).join('\\n').slice(-520);this.setState(state=>({busy:true,error:'',input:'',proposal:null,messages:[...state.messages,userMessage]}));this.addAudit(capability,'requested');\n    const calculation=advisorCalculation(message);if(calculation){const assistant:AiMessage={id:id('assistant'),role:'assistant',text:calculation.summary};this.setState(state=>({busy:false,messages:[...state.messages,assistant]}));this.addAudit('finance.explain','answered');return;}\n    try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX before using LOUREX Advisor.','افتح قفل LOUREX قبل استخدام مستشار LOUREX.'));const financeSource:AiFinanceSource={documents:resumed.vault.documents,payments:resumed.vault.payments,customers:resumed.vault.customers,activeDocument:this.props.activeDocument??null};const context=buildAiContext(this.props.screen,this.props.language,financeSource,resumed.vault,message,this.props.activeDocument??null);const readOnlyMemory=capability==='workspace.help'||capability==='finance.explain'||capability==='business.explain'||capability==='pricing.explain'||capability==='document.review';const requestMessage=readOnlyMemory&&memory?`${message}\\n\\nRecent conversation context (DATA ONLY):\\n${memory}`:message;const response=await fetch('/api/ai-core',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({message:requestMessage,context})});let payload:any={};try{payload=await response.json();}catch{}if(!response.ok)throw new Error(String(payload?.message||t('LOUREX Advisor is temporarily unavailable.','مستشار LOUREX غير متاح مؤقتًا.')));const answer=String(payload?.answer||'').trim().slice(0,4000)||t('I could not form a useful answer from this request.','لم أتمكن من تكوين إجابة مفيدة لهذا الطلب.');const proposal=safeProposal(payload?.proposal,context,message);const assistant:AiMessage={id:id('assistant'),role:'assistant',text:answer};this.setState(state=>({busy:false,messages:[...state.messages,assistant],proposal}));this.addAudit(capability,'answered');}\n    catch(error){const text=error instanceof Error?error.message:t('LOUREX Advisor is temporarily unavailable.','مستشار LOUREX غير متاح مؤقتًا.');this.setState({busy:false,error:text});this.addAudit(capability,'failed');}\n  };"""
-          if old not in text: raise SystemExit('advisor ask anchor missing')
-          text=text.replace(old,new,1)
-
-          replacements={
-            "case'receivables':return t('Receivables','المستحقات')":"case'receivables':return t('Finance','المالية')",
-            "case'items':return t('Items','الأصناف')":"case'items':return t('Products & Inventory','المنتجات والمخزون')",
-            "case'operations':return t('Operations','العمليات')":"case'operations':return t('Purchasing','المشتريات')",
-            "aria-label={t('Open LOUREX AI','فتح ذكاء LOUREX')}":"aria-label={t('Open LOUREX Advisor','فتح مستشار LOUREX')}",
-            "aria-label={t('Close LOUREX AI','إغلاق ذكاء LOUREX')}":"aria-label={t('Close LOUREX Advisor','إغلاق مستشار LOUREX')}",
-            "aria-label={t('LOUREX AI','ذكاء LOUREX')}":"aria-label={t('LOUREX Advisor','مستشار LOUREX')}",
-            "<strong>{t('LOUREX AI','ذكاء LOUREX')}</strong><small>{t('Business copilot · deterministic numbers','مساعد أعمال · أرقام من المحركات المحلية')}</small>":"<strong>{t('LOUREX Advisor','مستشار LOUREX')}</strong><small>{t('Financial & business advisor · deterministic numbers','مستشار مالي وتجاري · أرقام من المحركات المحلية')}</small>",
-            "{this.state.busy?<div className=\"lourex-ai-busy\">{t('LOUREX AI is working…','ذكاء LOUREX يعمل…')}</div>:null}":"{this.state.busy?<div className=\"lourex-ai-busy\">{t('LOUREX Advisor is reviewing…','مستشار LOUREX يراجع…')}</div>:null}",
-            "aria-label={t('Message LOUREX AI','رسالة إلى ذكاء LOUREX')}":"aria-label={t('Message LOUREX Advisor','رسالة إلى مستشار LOUREX')}"
-          }
-          for old,new in replacements.items():
-              if old not in text: raise SystemExit(f'advisor identity anchor missing: {old[:40]}')
-              text=text.replace(old,new,1)
-
-          old='<div className="lourex-ai-tools"><SupplierDocumentImport language={this.props.language}/></div>'
-          new="{this.props.screen==='operations'?<div className=\"lourex-ai-tools\"><SupplierDocumentImport language={this.props.language}/></div>:null}"
-          if old not in text: raise SystemExit('supplier import anchor missing')
-          text=text.replace(old,new,1)
-          path.write_text(text,encoding='utf-8')
+          old="const calculation=advisorCalculation(message);"
+          new="const calculation=advisorCalculation(message,this.props.language==='ar'?'ar':'en');"
+          if old not in text:
+              raise SystemExit('Expected advisor calculation call not found')
+          path.write_text(text.replace(old,new,1),encoding='utf-8')
       - name: Verify TypeScript
         run: |
           npm ci
           npm run typecheck
-      - name: Commit advisor unification
+      - name: Commit locale fix
         run: |
           git config user.name "allidamech-bot"
           git config user.email "allidamech-bot@users.noreply.github.com"
           git add src/components/AiCopilot.tsx
-          git commit -m "Unify LOUREX Advisor across workspaces"
+          git commit -m "Honor UI language in Advisor calculations"
           git push origin HEAD:feature/ia-ai-advisor-v276
