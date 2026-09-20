@@ -28,7 +28,8 @@
      the same rules expand by the real notch/home-indicator insets. The shell
      qualifier intentionally keeps these safety rules authoritative even when
      later visual-theme layers restyle the same chrome. */
-  .app-ui .workspace-shell .workspace-topbar{
+  .app-ui .workspace-shell .workspace-topbar,
+  .app-ui .workspace-shell.is-editor .workspace-topbar{
     min-height:calc(58px + var(--app-safe-top))!important;
     padding-top:calc(7px + var(--app-safe-top))!important;
     padding-right:max(12px,var(--device-safe-right))!important;
