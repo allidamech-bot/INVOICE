@@ -20,6 +20,17 @@
   .app-ui .premium-selected-customer {
     background:transparent!important;
   }
+
+  /* Settings keeps one clear hierarchy: workspace -> section -> nested row.
+     This preserves the dark accounting structure without reintroducing light
+     cards, gradients or glass effects. */
+  .app-ui .settings-workspace-v2 .settings-section {
+    background:var(--ds-surface)!important;
+  }
+
+  .app-ui .settings-workspace-v2 .commercial-row-card {
+    background:var(--ds-surface-strong)!important;
+  }
 }
 
 @media screen and (pointer: coarse) {
