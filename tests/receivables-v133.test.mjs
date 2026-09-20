@@ -111,11 +111,14 @@ test('anonymous historical invoices reconcile into account-level receivables ins
   assert.equal(statement[0].outstanding,'275.00');
 });
 
-test('v133 UI exposes receivables navigation aging and printable statements offline',async()=>{
-  const [app,shell,page,html,sw,panel]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx'),read('src/components/ReceivablesPage.tsx'),read('index.html'),read('public/sw.js'),read('src/components/InvoicePaymentsPanel.tsx')]);
-  assert.ok(app.includes("|'receivables'|"),'receivables screen remains in the application state');
-  assert.ok(shell.includes("t('Receivables','المستحقات')"));
-  assert.ok(app.includes('<ReceivablesPage'));
+test('v133 UI keeps receivables aging and statements canonically inside Finance offline',async()=>{
+  const [app,shell,finance,page,html,sw,panel]=await Promise.all([read('src/app/App.tsx'),read('src/components/AppShell.tsx'),read('src/components/FinanceWorkspace.tsx'),read('src/components/ReceivablesPage.tsx'),read('index.html'),read('public/sw.js'),read('src/components/InvoicePaymentsPanel.tsx')]);
+  assert.ok(app.includes("|'receivables'|"),'receivables compatibility id remains in application state');
+  assert.ok(shell.includes("case 'receivables':return t('Finance','المالية')"));
+  assert.ok(shell.includes("t('Finance','المالية')"));
+  assert.ok(app.includes('<FinanceWorkspace'));
+  assert.ok(finance.includes('<ReceivablesPage'),'Finance owns receivables and collection management');
+  assert.ok(finance.includes("label={t('Receivables & Collections'"),'Finance exposes receivables as a domain tab, not a duplicate top-level workspace');
   for(const term of ['Receivables Aging','Customer Statement','Print / Save PDF','1–30','31–60','61–90','+90'])assert.ok(page.includes(term),term);
   assert.ok(page.includes('printing-customer-statement'));
   assert.ok(page.includes('receivableCustomerId'));
