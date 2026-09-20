@@ -24,6 +24,11 @@ export function ProductsInventoryWorkspace(props:Props):any{
   const [tab,setTab]=React.useState<Tab>('products');
   const [focusItemId,setFocusItemId]=React.useState('');
   const [historyItem,setHistoryItem]=React.useState<SavedItem|null>(null);
+  React.useEffect(()=>{
+    const create=()=>{setTab('products');window.setTimeout(()=>window.dispatchEvent(new Event('lourex-open-product-editor')),0);};
+    window.addEventListener('lourex-create-product',create);
+    return()=>window.removeEventListener('lourex-create-product',create);
+  },[]);
   const history=historyItem?props.purchases.filter(purchase=>purchase.items.some(line=>line.savedItemId===historyItem.id)).sort((a,b)=>b.date.localeCompare(a.date)||b.updatedAt.localeCompare(a.updatedAt)):[];
   const operationsProps={suppliers:props.suppliers,purchases:props.purchases,expenses:props.expenses,inventoryMovements:props.inventoryMovements,items:props.items,defaultCurrency:props.defaultCurrency,onSaveSupplier:props.onSaveSupplier,onDeleteSupplier:props.onDeleteSupplier,onSavePurchase:props.onSavePurchase,onDeletePurchase:props.onDeletePurchase,onPostPurchase:props.onPostPurchase,onReversePurchase:props.onReversePurchase,onSaveExpense:props.onSaveExpense,onDeleteExpense:props.onDeleteExpense,onSaveInventoryMovement:props.onSaveInventoryMovement,onDeleteInventoryMovement:props.onDeleteInventoryMovement};
   return <section className="domain-workspace products-inventory-workspace">
