@@ -3,6 +3,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
 const assert=require('node:assert/strict');
 const output='visual-qa-output/obsidian-shell';
 const scenarios=[{width:1440,height:900,touch:false},{width:1024,height:768,touch:false},{width:820,height:1180,touch:true},{width:390,height:844,touch:true}];
+const elevatedSurface='rgb(23, 23, 23)';
 (async()=>{
   mkdirSync(output,{recursive:true});
   const browser=await chromium.launch({headless:true});
@@ -40,13 +41,13 @@ const scenarios=[{width:1440,height:900,touch:false},{width:1024,height:768,touc
         await more.click();
         await page.locator('.mobile-more-sheet').waitFor();
         const sheet=await page.locator('.mobile-more-sheet').evaluate(el=>({background:getComputedStyle(el).backgroundColor,bottom:el.getBoundingClientRect().bottom,height:el.getBoundingClientRect().height}));
-        if(sheet.background!=='rgb(20, 20, 20)')failures.push(`more sheet ${sheet.background}`);
+        if(sheet.background!==elevatedSurface)failures.push(`more sheet ${sheet.background}`);
         if(sheet.bottom>scenario.height-64)failures.push(`more sheet overlaps navigation ${sheet.bottom}`);
       }else{
         await page.locator('.shell-create-button').click();
         if(!(await page.locator('.desktop-shell-new-menu').isVisible()))failures.push('desktop create menu did not open');
         const menu=await page.locator('.desktop-shell-new-menu').evaluate(el=>({background:getComputedStyle(el).backgroundColor,stack:getComputedStyle(el.querySelector('button>span')).display}));
-        if(menu.background!=='rgb(20, 20, 20)')failures.push(`desktop create menu ${menu.background}`);
+        if(menu.background!==elevatedSurface)failures.push(`desktop create menu ${menu.background}`);
         if(menu.stack!=='flex')failures.push(`desktop create menu copy ${menu.stack}`);
       }
       await page.screenshot({path:`${output}/${scenario.width}-${lang}.png`,fullPage:false});
