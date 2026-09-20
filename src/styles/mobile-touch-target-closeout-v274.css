@@ -1,6 +1,7 @@
 /* v274 — LOUREX Precision Black mobile/touch accessibility closeout.
-   Restores the 44px minimum touch target required by the existing visual QA
-   after the v267-v273 runtime redesign. Screen chrome only; no print/PDF impact. */
+   Restores the 44px minimum touch target and re-applies the established iOS
+   browser-vs-standalone safe-area contract after the v267-v273 redesign.
+   Screen chrome only; no print/PDF impact. */
 
 @media screen and (pointer: coarse) {
   .app-ui .shell-sync-status,
@@ -8,5 +9,45 @@
   .app-ui .dashboard-panel-heading > button {
     height:44px!important;
     min-height:44px!important;
+  }
+}
+
+/* v199 intentionally applies top/bottom hardware insets only in standalone mode.
+   The later Precision Black shell must not read env(safe-area-inset-*) directly
+   for vertical chrome because mobile Safari already reserves its browser bars. */
+@media screen and (max-width:960px) {
+  .app-ui .workspace-topbar,
+  .app-ui .workspace-shell.is-editor .workspace-topbar {
+    min-height:calc(58px + var(--app-safe-top))!important;
+    padding-top:calc(7px + var(--app-safe-top))!important;
+    padding-right:max(12px,var(--device-safe-right))!important;
+    padding-bottom:7px!important;
+    padding-left:max(12px,var(--device-safe-left))!important;
+  }
+
+  .app-ui .workspace-shell:not(.is-editor) .workspace-content {
+    padding-bottom:calc(78px + var(--app-safe-bottom))!important;
+  }
+
+  .app-ui .mobile-bottom-nav {
+    bottom:0!important;
+    height:calc(66px + var(--app-safe-bottom))!important;
+    padding-top:6px!important;
+    padding-right:max(5px,var(--device-safe-right))!important;
+    padding-bottom:var(--app-safe-bottom)!important;
+    padding-left:max(5px,var(--device-safe-left))!important;
+  }
+
+  .app-ui .mobile-shell-new-menu {
+    bottom:calc(76px + var(--app-safe-bottom))!important;
+  }
+
+  .app-ui .mobile-more-sheet {
+    bottom:calc(72px + var(--app-safe-bottom))!important;
+    padding-bottom:calc(12px + var(--app-safe-bottom))!important;
+  }
+
+  .lourex-ai-launcher {
+    bottom:calc(70px + var(--app-safe-bottom))!important;
   }
 }
