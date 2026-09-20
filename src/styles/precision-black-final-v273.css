@@ -512,7 +512,8 @@
 
   /* Keep the visual language compact while preserving the 44px touch floor. */
   @media (max-width:960px) and (pointer:coarse) {
-    .app-ui :is(.shell-sync-status,.section-heading-actions .btn,.dashboard-panel-heading>button) {
+    .app-ui :is(.shell-sync-status,.section-heading-actions .btn,.dashboard-panel-heading>button),
+    .auth-account-card .account-entry-tabs button {
       min-height:44px!important;
     }
   }
