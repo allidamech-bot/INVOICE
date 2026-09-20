@@ -1,0 +1,93 @@
+/* v276 — LOUREX executive command center.
+   This layer extends the precision-black dashboard without changing printable output. */
+@media screen {
+  .app-ui .command-center-page{display:grid;gap:18px}
+  .app-ui .command-center-hero{margin-bottom:0!important}
+  .app-ui .command-center-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .app-ui .command-period-pill{min-height:40px;display:inline-flex;align-items:center;gap:8px;padding:0 12px;border:1px solid var(--ds-line);border-radius:10px;background:var(--ds-surface);color:var(--ds-muted);font-size:11px;font-weight:650}
+  .app-ui .command-period-pill svg{width:15px;height:15px;color:var(--ds-accent-bright)}
+
+  .app-ui .command-kpis{margin:0!important}
+  .app-ui .command-kpis em{min-height:27px}
+
+  .app-ui .command-performance-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(270px,.58fr);gap:16px;align-items:stretch}
+  .app-ui .command-performance-panel,.app-ui .command-position-panel{min-width:0}
+  .app-ui .command-chart-heading>div>span,.app-ui .command-attention .dashboard-panel-heading>div>span{display:block;margin-top:3px;color:var(--ds-faint);font-size:10px;line-height:1.4}
+  .app-ui .command-chart-controls{display:flex;gap:4px;align-items:center;padding:3px;border:1px solid var(--ds-line);border-radius:9px;background:var(--ds-workspace)}
+  .app-ui .command-chart-controls button,.app-ui .command-chart-mode button{min-height:30px;border:0;border-radius:7px;background:transparent;color:var(--ds-faint);font:inherit;font-size:10px;font-weight:680;padding:4px 8px;cursor:pointer}
+  .app-ui .command-chart-controls button:hover,.app-ui .command-chart-mode button:hover{color:var(--ds-text);background:var(--ds-selected)}
+  .app-ui .command-chart-controls button.active,.app-ui .command-chart-mode button.active{background:#211d17;color:var(--ds-accent-bright);box-shadow:inset 0 0 0 1px #4b402d}
+  .app-ui .command-chart-mode{display:flex;gap:6px;padding:12px 14px 0}
+  .app-ui .command-chart-wrap{padding:8px 14px 2px;overflow:hidden}
+  .app-ui .command-chart{display:block;width:100%;height:240px;overflow:visible}
+  .app-ui .command-chart-grid{stroke:#242424;stroke-width:1;vector-effect:non-scaling-stroke}
+  .app-ui .command-chart-line{fill:none;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+  .app-ui .command-chart-line.line-sales{stroke:#d2bd91}
+  .app-ui .command-chart-line.line-collected{stroke:#7fa995}
+  .app-ui .command-chart-line.line-profit{stroke:#b8a071}
+  .app-ui .command-chart-labels{display:grid;grid-template-columns:repeat(var(--chart-count,12),minmax(0,1fr));grid-auto-flow:column;gap:0;padding:0 20px 10px;color:var(--ds-faint);font-size:9px;line-height:1.2;text-align:center}
+  .app-ui .command-chart-labels span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .app-ui .command-chart-labels span:not(.show){visibility:hidden}
+  .app-ui .command-chart-footer{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px 12px;border-top:1px solid var(--ds-line)}
+  .app-ui .command-chart-legend{display:flex;align-items:center;gap:14px;color:var(--ds-muted);font-size:10px;font-weight:620}
+  .app-ui .command-chart-legend span{display:inline-flex;align-items:center;gap:6px}
+  .app-ui .command-chart-legend span:before{content:"";width:16px;height:2px;border-radius:99px;background:currentColor}
+  .app-ui .legend-sales{color:#d2bd91}.app-ui .legend-collected{color:#7fa995}.app-ui .legend-profit{color:#b8a071}
+  .app-ui .command-data-warning{max-width:420px;border:0;background:transparent;color:var(--ds-warning);font-size:9.5px;line-height:1.45;text-align:end;cursor:pointer}
+
+  .app-ui .command-position-panel{display:flex;flex-direction:column}
+  .app-ui .command-position-list{display:grid;padding:6px 14px 2px}
+  .app-ui .command-position-list>div{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:52px;border-bottom:1px solid #222}
+  .app-ui .command-position-list>div:last-child{border-bottom:0}
+  .app-ui .command-position-list span{color:var(--ds-muted);font-size:10.5px}
+  .app-ui .command-position-list strong{color:var(--ds-text-strong);font-size:14px;font-weight:740;font-variant-numeric:tabular-nums lining-nums;text-align:end}
+  .app-ui .command-position-action{margin:auto 14px 14px;min-height:38px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 10px;border:1px solid var(--ds-line);border-radius:9px;background:transparent;color:var(--ds-accent-bright);font-size:10px;font-weight:670;cursor:pointer}
+  .app-ui .command-position-action:hover{background:var(--ds-selected);color:var(--ds-text)}
+
+  .app-ui .command-insight-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:16px;align-items:stretch}
+  .app-ui .command-clear-state{min-height:188px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:24px;text-align:center}
+  .app-ui .command-clear-icon{display:grid;place-items:center;width:34px;height:34px;border:1px solid #31583e;border-radius:50%;background:var(--ds-success-surface);color:#9ac8a8;font-size:15px;font-weight:800}
+  .app-ui .command-clear-state strong{color:var(--ds-text);font-size:12px}.app-ui .command-clear-state>span:last-child{max-width:390px;color:var(--ds-muted);font-size:10px;line-height:1.55}
+
+  .app-ui .command-inventory-health{display:flex;flex-direction:column}
+  .app-ui .command-health-number{display:flex;align-items:flex-end;gap:9px;padding:18px 14px 12px}
+  .app-ui .command-health-number strong{color:var(--ds-text-strong);font-size:32px;line-height:1;font-weight:760;font-variant-numeric:tabular-nums}
+  .app-ui .command-health-number span{padding-bottom:2px;color:var(--ds-muted);font-size:10.5px}
+  .app-ui .command-health-bars{display:grid;margin-top:auto;padding:0 14px 12px}
+  .app-ui .command-health-bars>div{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:38px;border-top:1px solid #222}
+  .app-ui .command-health-bars span{color:var(--ds-muted);font-size:10px}.app-ui .command-health-bars b{color:var(--ds-text);font-size:12px;font-weight:720;font-variant-numeric:tabular-nums}
+
+  .app-ui .command-recent{min-width:0}
+
+  @media (max-width:1050px){
+    .app-ui .command-performance-grid,.app-ui .command-insight-grid{grid-template-columns:minmax(0,1fr)}
+    .app-ui .command-position-panel,.app-ui .command-inventory-health{min-height:auto}
+  }
+
+  @media (max-width:720px){
+    .app-ui .command-center-page{gap:12px}
+    .app-ui .command-center-actions{justify-content:stretch}
+    .app-ui .command-center-actions .btn{flex:1}
+    .app-ui .command-period-pill{flex:0 0 auto}
+    .app-ui .command-performance-grid,.app-ui .command-insight-grid{gap:12px}
+    .app-ui .command-chart-heading{align-items:flex-start!important;flex-direction:column!important}
+    .app-ui .command-chart-controls{width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+    .app-ui .command-chart-controls button{min-height:36px;padding-inline:3px}
+    .app-ui .command-chart-mode{overflow-x:auto;padding:10px 10px 0}
+    .app-ui .command-chart-mode button{min-height:36px;white-space:nowrap}
+    .app-ui .command-chart-wrap{padding-inline:6px}
+    .app-ui .command-chart{height:200px}
+    .app-ui .command-chart-labels{padding-inline:8px;font-size:8px}
+    .app-ui .command-chart-footer{align-items:flex-start;flex-direction:column;padding-inline:10px}
+    .app-ui .command-data-warning{text-align:start}
+    .app-ui .command-position-list{padding-inline:10px}
+    .app-ui .command-position-action{margin-inline:10px}
+  }
+
+  @media (max-width:480px){
+    .app-ui .command-period-pill{display:none}
+    .app-ui .command-chart{height:176px}
+    .app-ui .command-chart-labels{display:none}
+    .app-ui .command-health-number strong{font-size:28px}
+  }
+}
