@@ -45,11 +45,12 @@ test('v267 local supplier parsing never silently truncates a large sheet',()=>{
 });
 
 test('v267 import UIs keep local-first mapping, bounded previews and explicit confirmation',async()=>{
-  const [product,supplier,reader,css]=await Promise.all([
+  const [product,supplier,reader,css,ui]=await Promise.all([
     read('src/components/ProductImportModal.tsx'),
     read('src/components/SupplierDocumentImport.tsx'),
     read('src/lib/spreadsheet-reader.ts'),
-    read('src/styles/product-library-contrast-v257.css')
+    read('src/styles/product-library-contrast-v257.css'),
+    read('src/components/UI.tsx')
   ]);
   assert.match(reader,/XLSX_RUNTIME='\.\/vendor\/xlsx\.full\.min\.js'/);
   assert.doesNotMatch(product,/cdn\.jsdelivr\.net\/npm\/xlsx/);
@@ -66,6 +67,9 @@ test('v267 import UIs keep local-first mapping, bounded previews and explicit co
   assert.match(supplier,/status:'draft'/);
   assert.doesNotMatch(supplier,/window\.location\.reload/);
   assert.match(css,/modal:has\(\.supplier-import-shell\)/);
-  assert.match(css,/height:calc\(100dvh/);
-  assert.match(css,/env\(safe-area-inset-bottom\)/);
+  assert.match(ui,/window\.visualViewport/);
+  assert.match(ui,/--modal-visual-height/);
+  assert.match(css,/height:var\(--modal-visual-height,100dvh\)/);
+  assert.match(css,/height:calc\(var\(--modal-visual-height,100dvh\)/);
+  assert.match(css,/var\(--app-safe-bottom,0px\)/);
 });
