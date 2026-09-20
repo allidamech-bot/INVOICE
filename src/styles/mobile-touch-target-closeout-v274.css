@@ -74,6 +74,18 @@
     padding-bottom:calc(12px + var(--app-safe-bottom))!important;
   }
 
+  /* v204 carries a more-specific nested card treatment. The final mobile sheet
+     should stay flat: only the active/hover row receives the selected surface. */
+  .app-ui .mobile-more-sheet :is(.mobile-more-account,.mobile-more-link,.mobile-more-settings) {
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .mobile-more-sheet :is(.mobile-more-account,.mobile-more-link,.mobile-more-settings):is(:hover,.active) {
+    background:var(--ds-selected)!important;
+  }
+
   .lourex-ai-launcher {
     bottom:calc(70px + var(--app-safe-bottom))!important;
   }
