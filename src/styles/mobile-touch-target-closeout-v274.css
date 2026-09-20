@@ -14,6 +14,12 @@
   .app-ui .settings-workspace-v2 .settings-title>.btn {
     min-height:42px!important;
   }
+
+  /* Selected customer lives inside an editor section; keep the nested surface
+     flat so Precision Black does not render a card inside a card. */
+  .app-ui .premium-selected-customer {
+    background:transparent!important;
+  }
 }
 
 @media screen and (pointer: coarse) {
