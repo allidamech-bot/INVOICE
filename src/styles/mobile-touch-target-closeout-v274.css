@@ -48,6 +48,46 @@
     min-width:44px!important;
     min-height:44px!important;
   }
+
+  /* Precision Black intentionally tightened dense workspaces, but late cascade
+     rules reduced several primary phone actions below the established 44px
+     interaction floor. Restore the physical target without adding visual chrome. */
+  .app-ui :is(
+    .shell-account-button,
+    .dashboard-attention-list > button,
+    .dashboard-shortcut-grid > button,
+    .documents-register-tabs > button,
+    .documents-filter-toggle,
+    .reports-heading-actions .btn,
+    .reports-presets > button,
+    .operations-tabs > button,
+    .editor-section-nav-button,
+    .item-advanced-control > button,
+    .customers-page .page-heading > .btn,
+    .customer-document-action,
+    .customer-actions .icon-btn
+  ) {
+    min-height:44px!important;
+  }
+
+  .app-ui :is(
+    .shell-account-button,
+    .customer-actions .icon-btn,
+    .operations-page .danger-link
+  ) {
+    min-width:44px!important;
+  }
+
+  /* These labels are working controls, not passive metadata. Keep them readable
+     during long phone sessions while preserving the compact ledger geometry. */
+  .app-ui .reports-presets > button {
+    font-size:12px!important;
+  }
+
+  .app-ui .operations-tabs > button,
+  .app-ui .dashboard-shortcut-grid > button {
+    font-size:11px!important;
+  }
 }
 
 /* v199 intentionally applies top/bottom hardware insets only in standalone mode.
@@ -110,11 +150,23 @@
     padding-left:62px!important;
   }
 
+  .app-ui .mobile-action-buttons .btn span {
+    font-size:10px!important;
+  }
+
   /* A legacy <=390px rule hid every inactive Settings label. The v273 tab rail
      already scrolls horizontally, so keep labels visible and make navigation
      self-explanatory instead of relying on unlabeled icons. */
   .app-ui .settings-workspace-v2 .settings-tabs>button>span {
     display:inline!important;
     max-width:none!important;
+  }
+}
+
+@media screen and (max-width:600px) {
+  /* Arabic display glyphs can overhang their measured line box. Preserve a
+     small optical inset so the account promise never appears to touch the frame. */
+  .auth-account-story .auth-story-copy {
+    padding-inline:10px!important;
   }
 }

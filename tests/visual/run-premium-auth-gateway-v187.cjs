@@ -34,6 +34,11 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
           const r=el.getBoundingClientRect(),s=getComputedStyle(el);
           return {...rectData(r),display:s.display,visibility:s.visibility};
         };
+        const contentBox=selector=>{
+          const el=document.querySelector(selector);if(!el)return null;
+          const r=el.getBoundingClientRect(),s=getComputedStyle(el);
+          return {left:r.left+parseFloat(s.paddingLeft),right:r.right-parseFloat(s.paddingRight)};
+        };
         const textRects=selectors=>selectors.flatMap(selector=>{
           const el=document.querySelector(selector);if(!el||!el.textContent?.trim())return [];
           const range=document.createRange();range.selectNodeContents(el);
@@ -46,7 +51,8 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
           viewport:{width:innerWidth,height:innerHeight},
           scrollWidth:document.documentElement.scrollWidth,
           scrollHeight:document.documentElement.scrollHeight,
-          frame:box('.auth-account-frame'),story:box('.auth-account-story'),card:box('.auth-account-card'),
+          frame:box('.auth-account-frame'),story:box('.auth-account-story'),storyContent:contentBox('.auth-account-story'),card:box('.auth-account-card'),
+          storyTitleTextRects:textRects(['.auth-story-title']),
           languageButton:box('.premium-auth-language'),heading:box('.auth-card-heading'),
           headingTextRects:textRects(['.auth-card-heading .eyebrow','.auth-card-heading h1','.auth-card-heading .subtle']),
           google:box('.google-auth-button'),providerDivider:box('.auth-provider-divider'),
@@ -63,6 +69,7 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
       if(result.scrollWidth>scenario.width+1)failures.push(`${p}: horizontal overflow ${result.scrollWidth}px > ${scenario.width}px`);
       for(const key of ['frame','story','card','languageButton','heading','google','providerDivider','tabs','signinTab','createTab','primary','security'])if(!result[key]||result[key].display==='none'||result[key].visibility==='hidden')failures.push(`${p}: missing/hidden ${key}`);
       if(result.frame&&(result.frame.left<-1||result.frame.right>scenario.width+1))failures.push(`${p}: gateway frame clips horizontally`);
+      if(mobile&&result.storyContent&&result.storyTitleTextRects.some(rect=>rect.left<result.storyContent.left+2||rect.right>result.storyContent.right-2))failures.push(`${p}: story title lacks safe horizontal breathing room`);
       if(result.card&&result.card.width<Math.min(280,scenario.width-20))failures.push(`${p}: auth card too narrow (${result.card.width}px)`);
       if(result.headingTextRects.some(rect=>intersects(result.languageButton,rect)))failures.push(`${p}: language switch overlaps visible heading text`);
       if(result.fields.some(field=>field.width<240&&scenario.width>=320))failures.push(`${p}: input field too narrow`);
