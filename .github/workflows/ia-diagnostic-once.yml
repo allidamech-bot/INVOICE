@@ -24,4 +24,4 @@ jobs:
       - run: npm run typecheck
       - name: Build and run every unit test in one pass
         run: npm test
-      # pass 4: after Finance ownership contract alignment
+      # pass 5: after exact Finance tab assertion fix
