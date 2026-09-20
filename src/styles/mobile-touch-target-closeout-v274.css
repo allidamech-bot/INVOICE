@@ -101,3 +101,20 @@
     bottom:calc(70px + var(--app-safe-bottom))!important;
   }
 }
+
+/* At phone width the AI launcher intentionally shares the editor's lower command
+   zone. Reserve a small physical-left bay for it so it never covers section step
+   01/06. The launcher itself remains reachable and no form content is displaced. */
+@media screen and (max-width:420px) {
+  .app-ui .editor-section-navigator {
+    padding-left:62px!important;
+  }
+
+  /* A legacy <=390px rule hid every inactive Settings label. The v273 tab rail
+     already scrolls horizontally, so keep labels visible and make navigation
+     self-explanatory instead of relying on unlabeled icons. */
+  .app-ui .settings-workspace-v2 .settings-tabs>button>span {
+    display:inline!important;
+    max-width:none!important;
+  }
+}
