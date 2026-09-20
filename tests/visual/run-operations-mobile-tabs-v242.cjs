@@ -41,7 +41,7 @@ const viewports=[{width:320,height:568},{width:390,height:844}];
           }
           for(const button of geometry.buttons){
             assert.ok(button.left>=geometry.left-1&&button.right<=geometry.right+1,`${state}: Operations tab button clipped ${JSON.stringify(button)}`);
-            if(button.active)assert.equal(button.background,'rgb(32, 32, 32)',`${state}: active Operations tab is not canonical selected surface ${JSON.stringify(button)}`);
+            if(button.active)assert.equal(button.background,'rgb(29, 29, 29)',`${state}: active Operations tab is not Precision Black selected surface ${JSON.stringify(button)}`);
             else assert.equal(button.background,'rgba(0, 0, 0, 0)',`${state}: inactive Operations tab is not transparent ${JSON.stringify(button)}`);
           }
         };
