@@ -21,7 +21,7 @@ type WorkspaceStatus='all'|'draft'|'ready'|'final'|'voided';
 type SortMode='latest'|'oldest'|'highest'|'lowest';
 type PaymentFilter='all'|PaymentStatus;
 interface State {
-  tab:'all'|'proforma'|'invoice';
+  tab:'all'|'proforma'|'invoice'|'credit';
   status:WorkspaceStatus;
   payment:PaymentFilter;
   currency:string;
@@ -174,7 +174,9 @@ export class DocumentsPage extends React.Component<Props,State>{
   private filtered():LourexDocument[]{
     const q=this.state.query.trim().toLowerCase();
     return this.props.documents.filter(doc=>{
-      if(this.state.tab!=='all'&&doc.kind!==this.state.tab)return false;
+      if(this.state.tab==='proforma'&&(doc.kind!=='proforma'||doc.role!=='standard'))return false;
+      if(this.state.tab==='invoice'&&(doc.kind!=='invoice'||doc.role!=='standard'))return false;
+      if(this.state.tab==='credit'&&doc.role!=='credit-note')return false;
       if(!matchesWorkspaceStatus(doc,this.state.status))return false;
       if(this.state.currency!=='all'&&doc.currency!==this.state.currency)return false;
       if(this.state.payment!=='all'&&this.paymentStatus(doc)!==this.state.payment)return false;
@@ -326,7 +328,8 @@ export class DocumentsPage extends React.Component<Props,State>{
 
     const docs=this.filtered();
     const quotes=this.props.documents.filter(doc=>doc.kind==='proforma'&&doc.role==='standard').length;
-    const invoices=this.props.documents.filter(doc=>doc.kind==='invoice').length;
+    const invoices=this.props.documents.filter(doc=>doc.kind==='invoice'&&doc.role==='standard').length;
+    const creditNotes=this.props.documents.filter(doc=>doc.role==='credit-note').length;
     const drafts=this.props.documents.filter(doc=>workflowStatus(doc)==='draft').length;
     const issued=this.props.documents.filter(doc=>matchesWorkspaceStatus(doc,'final')).length;
     const resume=[...this.props.documents].filter(doc=>doc.status!=='final').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0]??null;
@@ -336,7 +339,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
     return <section className="page documents-page premium-documents-page documents-workspace-v2">
       <div className="page-heading documents-heading">
-        <div><p className="eyebrow">{t('Sales documents','مستندات المبيعات')}</p><h1>{t('Documents','المستندات')}</h1><p className="page-subtitle">{t('Find, review and manage every quotation and invoice from one workspace.','ابحث وراجع وأدر كل عرض سعر وفاتورة من مساحة عمل واحدة.')}</p></div>
+        <div><p className="eyebrow">{t('Sales documents','مستندات المبيعات')}</p><h1>{t('Documents','المستندات')}</h1><p className="page-subtitle">{t('Find, review and manage every quotation, invoice and credit note from one workspace.','ابحث وراجع وأدر عروض الأسعار والفواتير والإشعارات الدائنة من مساحة عمل واحدة.')}</p></div>
         <div className="heading-actions documents-heading-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('New Quote','عرض سعر جديد')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('New Invoice','فاتورة جديدة')}</Button></div>
       </div>
 
@@ -346,6 +349,7 @@ export class DocumentsPage extends React.Component<Props,State>{
         <button type="button" className={this.overviewActive('all','all')?'active':''} aria-pressed={this.overviewActive('all','all')} onClick={()=>this.setOverview('all','all')}><span>{t('All','الكل')}</span><strong>{this.props.documents.length}</strong></button>
         <button type="button" className={this.overviewActive('proforma','all')?'active':''} aria-pressed={this.overviewActive('proforma','all')} onClick={()=>this.setOverview('proforma','all')}><span>{t('Quotes','عروض الأسعار')}</span><strong>{quotes}</strong></button>
         <button type="button" className={this.overviewActive('invoice','all')?'active':''} aria-pressed={this.overviewActive('invoice','all')} onClick={()=>this.setOverview('invoice','all')}><span>{t('Invoices','الفواتير')}</span><strong>{invoices}</strong></button>
+        <button type="button" className={this.overviewActive('credit','all')?'active':''} aria-pressed={this.overviewActive('credit','all')} onClick={()=>this.setOverview('credit','all')}><span>{t('Credit Notes','الإشعارات الدائنة')}</span><strong>{creditNotes}</strong></button>
         <button type="button" className={`${drafts?'has-drafts ':''}${this.overviewActive('all','draft')?'active':''}`} aria-pressed={this.overviewActive('all','draft')} onClick={()=>this.setOverview('all','draft')}><span>{t('Drafts','المسودات')}</span><strong>{drafts}</strong></button>
         <button type="button" className={this.overviewActive('all','final')?'active':''} aria-pressed={this.overviewActive('all','final')} onClick={()=>this.setOverview('all','final')}><span>{t('Issued','صادرة')}</span><strong>{issued}</strong></button>
       </div>
