@@ -209,12 +209,25 @@ class ModalFrame extends React.Component<ModalFrameProps> {
   private dialog:HTMLElement|null=null;
   private previousFocus:HTMLElement|null=null;
   private titleId=`lourex-modal-title-${++modalFrameSequence}`;
+  private syncVisualViewport=():void=>{
+    if(!this.backdrop)return;
+    const viewport=window.visualViewport;
+    const height=viewport?.height??window.innerHeight;
+    const offsetTop=viewport?.offsetTop??0;
+    if(Number.isFinite(height)&&height>0)this.backdrop.style.setProperty('--modal-visual-height',`${Math.round(height)}px`);
+    if(Number.isFinite(offsetTop))this.backdrop.style.setProperty('--modal-visual-offset-top',`${Math.round(offsetTop)}px`);
+  };
   componentDidMount():void{
     this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
     if(openModalFrames===0){bodyOverflowBeforeModals=document.body.style.overflow;document.body.style.overflow='hidden';}
     openModalFrames+=1;
     document.addEventListener('keydown',this.handleKeyDown);
+    window.addEventListener('resize',this.syncVisualViewport);
+    window.visualViewport?.addEventListener('resize',this.syncVisualViewport);
+    window.visualViewport?.addEventListener('scroll',this.syncVisualViewport);
+    this.syncVisualViewport();
     window.requestAnimationFrame(()=>{
+      this.syncVisualViewport();
       if(!this.dialog||!this.isTopModal())return;
       const active=document.activeElement;
       if(active instanceof Node&&this.dialog.contains(active))return;
@@ -223,6 +236,9 @@ class ModalFrame extends React.Component<ModalFrameProps> {
   }
   componentWillUnmount():void{
     document.removeEventListener('keydown',this.handleKeyDown);
+    window.removeEventListener('resize',this.syncVisualViewport);
+    window.visualViewport?.removeEventListener('resize',this.syncVisualViewport);
+    window.visualViewport?.removeEventListener('scroll',this.syncVisualViewport);
     openModalFrames=Math.max(0,openModalFrames-1);
     if(openModalFrames===0)document.body.style.overflow=bodyOverflowBeforeModals;
     try{this.previousFocus?.focus({preventScroll:true});}catch{}

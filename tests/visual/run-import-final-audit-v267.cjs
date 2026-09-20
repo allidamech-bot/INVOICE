@@ -115,6 +115,30 @@ function assertMobileModal(layout,{mustScroll=true}={}){
       }finally{await page.close();}
     });
 
+    await run('iphone-safari-toolbar-keeps-product-actions-visible',async()=>{
+      const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
+      try{
+        await page.addInitScript(()=>{
+          const viewport=new EventTarget();
+          Object.defineProperties(viewport,{
+            width:{get:()=>390},height:{get:()=>620},
+            offsetLeft:{get:()=>0},offsetTop:{get:()=>0},
+            pageLeft:{get:()=>0},pageTop:{get:()=>0},scale:{get:()=>1}
+          });
+          Object.defineProperty(window,'visualViewport',{configurable:true,value:viewport});
+        });
+        await page.goto(`${BASE}?mode=products&lang=ar`,{waitUntil:'networkidle'});
+        await page.getByRole('button',{name:'استيراد',exact:true}).click();
+        const csv='SKU,Description EN,Description AR,Sale Price\nIP-1,Mobile product,صنف جوال,12.50\n';
+        await page.locator('.product-import-file-input').setInputFiles({name:'iphone-products.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
+        await page.locator('.product-import-mapping-list').waitFor();
+        const layout=await modalMeasurements(page);
+        assertMobileModal(layout);
+        assert.equal(await page.getByRole('button',{name:'مراجعة الاستيراد'}).isVisible(),true);
+        await page.screenshot({path:`${output}/product-mapping-arabic-safari-toolbar.png`,fullPage:false,animations:'disabled'});
+      }finally{await page.close();}
+    });
+
     await run('iphone-supplier-local-draft-single-flight',async()=>{
       const page=await browser.newPage({viewport:{width:390,height:664},hasTouch:true,isMobile:true});
       try{
