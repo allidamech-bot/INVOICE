@@ -1,0 +1,142 @@
+name: LOUREX final closeout patch once
+
+on:
+  push:
+    branches:
+      - feature/final-plan-closeout-v278
+    paths:
+      - .github/workflows/final-closeout-patch-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/final-plan-closeout-v278
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Apply final functional closeout patch
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          def read(path): return Path(path).read_text()
+          def write(path, text): Path(path).write_text(text)
+          def once(text, old, new, label):
+              count=text.count(old)
+              if count != 1: raise SystemExit(f'{label}: expected 1 occurrence, found {count}')
+              return text.replace(old,new,1)
+          def sub_once(text, pattern, repl, label, flags=0):
+              out,count=re.subn(pattern,repl,text,count=1,flags=flags)
+              if count != 1: raise SystemExit(f'{label}: expected 1 regex match, found {count}')
+              return out
+
+          # Product library: contextual actions, quick create, progressive details.
+          path='src/components/ProductLibraryWorkspace.tsx'; s=read(path)
+          s=once(s,
+          "  onDelete:(item:SavedItem)=>Promise<void>;\n}",
+          "  onDelete:(item:SavedItem)=>Promise<void>;\n  onInspectInventory?:(item:SavedItem)=>void;\n  onInspectPurchases?:(item:SavedItem)=>void;\n}", 'product props')
+          s=once(s,
+          "  componentDidMount():void{document.addEventListener('pointerdown',this.closeMenus);document.addEventListener('keydown',this.closeMenusOnEscape);}\n  componentWillUnmount():void{document.removeEventListener('pointerdown',this.closeMenus);document.removeEventListener('keydown',this.closeMenusOnEscape);}",
+          "  componentDidMount():void{document.addEventListener('pointerdown',this.closeMenus);document.addEventListener('keydown',this.closeMenusOnEscape);window.addEventListener('lourex-open-product-editor',this.handleQuickCreate);}\n  componentWillUnmount():void{document.removeEventListener('pointerdown',this.closeMenus);document.removeEventListener('keydown',this.closeMenusOnEscape);window.removeEventListener('lourex-open-product-editor',this.handleQuickCreate);}\n  private handleQuickCreate=()=>this.newItem();", 'product quick create listener')
+          old="""                    <button type=\"button\" role=\"menuitem\" onClick={()=>this.beginEdit(item)}><Icon name=\"edit\"/><span>{t('Edit','تعديل')}</span></button>\n                    <button type=\"button\" role=\"menuitem\" onClick={()=>this.beginSelection(item.id)}><Icon name=\"check\"/><span>{t('Select','تحديد')}</span></button>"""
+          new="""                    {this.props.onInspectInventory?<button type=\"button\" role=\"menuitem\" onClick={()=>{this.setState({rowMenuId:null});this.props.onInspectInventory?.(item);}}><Icon name=\"items\"/><span>{t('Stock History','سجل المخزون')}</span></button>:null}\n                    {this.props.onInspectPurchases?<button type=\"button\" role=\"menuitem\" onClick={()=>{this.setState({rowMenuId:null});this.props.onInspectPurchases?.(item);}}><Icon name=\"backup\"/><span>{t('Purchase History','سجل المشتريات')}</span></button>:null}\n                    <button type=\"button\" role=\"menuitem\" onClick={()=>this.beginEdit(item)}><Icon name=\"edit\"/><span>{t('Edit','تعديل')}</span></button>\n                    <button type=\"button\" role=\"menuitem\" onClick={()=>this.beginSelection(item.id)}><Icon name=\"check\"/><span>{t('Select','تحديد')}</span></button>"""
+          s=once(s,old,new,'product contextual menu')
+          pattern=r'(\s*<section className="product-editor-section"><div className="product-editor-section-title"><span>02</span>.*?</div></section>)\n\n(\s*<section className="product-editor-section"><div className="product-editor-section-title"><span>03</span>)'
+          def wrap(m):
+              section=m.group(1)
+              next_section=m.group(2)
+              return "\n              <details className=\"product-more-details\" open={Boolean(edit.category||(edit.tags??[]).length||edit.hsCode||edit.origin)}>\n                <summary><span>+ </span>{t('More Details','تفاصيل إضافية')}<small>{t('Category, tags, HS code and origin','التصنيف والوسوم ورمز HS والمنشأ')}</small></summary>"+section+"\n              </details>\n\n"+next_section
+          s,count=re.subn(pattern,wrap,s,count=1,flags=re.S)
+          if count!=1: raise SystemExit(f'product progressive details: expected 1, found {count}')
+          write(path,s)
+
+          # Operations: quick-create events, supplier context, explicit inventory views.
+          path='src/components/OperationsPage.tsx'; s=read(path)
+          s=once(s,
+          "  mode?:OperationsWorkspaceMode;\n  suppliers:Supplier[];purchases:PurchaseRecord[];expenses:ExpenseRecord[];inventoryMovements:InventoryMovementRecord[];items:SavedItem[];defaultCurrency:string;",
+          "  mode?:OperationsWorkspaceMode;inventoryView?:'all'|'balances'|'movements';focusItemId?:string;\n  suppliers:Supplier[];purchases:PurchaseRecord[];expenses:ExpenseRecord[];inventoryMovements:InventoryMovementRecord[];items:SavedItem[];defaultCurrency:string;", 'operations props')
+          marker="""  componentDidUpdate(prev:Props):void{\n    if(prev.mode===this.props.mode)return;\n    const allowed=tabsForMode(this.props.mode);\n    if(!allowed.includes(this.state.tab))this.setState({tab:firstTab(this.props.mode),search:'',error:''});\n  }"""
+          replacement="""  componentDidMount():void{\n    window.addEventListener('lourex-create-purchase',this.handleQuickPurchase);\n    window.addEventListener('lourex-open-expense-editor',this.handleQuickExpense);\n    this.applyFocusedItem();\n  }\n  componentWillUnmount():void{\n    window.removeEventListener('lourex-create-purchase',this.handleQuickPurchase);\n    window.removeEventListener('lourex-open-expense-editor',this.handleQuickExpense);\n  }\n  componentDidUpdate(prev:Props):void{\n    if(prev.mode!==this.props.mode){const allowed=tabsForMode(this.props.mode);if(!allowed.includes(this.state.tab))this.setState({tab:firstTab(this.props.mode),search:'',error:''});}\n    if(prev.focusItemId!==this.props.focusItemId)this.applyFocusedItem();\n  }\n  private applyFocusedItem=()=>{const id=this.props.focusItemId;if(!id)return;const item=this.props.items.find(entry=>entry.id===id);if(!item)return;const search=item.sku||item.descriptionEn||item.descriptionAr;this.setState({search,movementItemId:item.id,error:''});};\n  private handleQuickPurchase=()=>{if(this.props.mode!=='purchasing'&&this.props.mode!=='all')return;this.setState({tab:'purchases',search:'',error:''},this.newPurchase);};\n  private handleQuickExpense=()=>{if(this.props.mode!=='finance'&&this.props.mode!=='all')return;this.setState({tab:'expenses',expenseEdit:createExpense(this.props.defaultCurrency),search:'',error:''});};"""
+          s=once(s,marker,replacement,'operations lifecycle/events')
+          s=once(s,
+          "  private newPurchase=()=>{if(this.mutationInFlight)return;const purchase=createPurchase(this.props.purchases,this.props.suppliers,this.props.defaultCurrency);purchase.items=[createPurchaseItem()];this.setState({purchaseEdit:purchase,error:''});};",
+          "  private newPurchase=()=>{if(this.mutationInFlight)return;const purchase=createPurchase(this.props.purchases,this.props.suppliers,this.props.defaultCurrency);purchase.items=[createPurchaseItem()];this.setState({purchaseEdit:purchase,error:''});};\n  private newPurchaseForSupplier=(supplier:Supplier)=>{if(this.mutationInFlight)return;const purchase=createPurchase(this.props.purchases,this.props.suppliers,supplier.defaultCurrency||this.props.defaultCurrency);purchase.supplierSnapshot=supplierSnapshotFrom(supplier);purchase.currency=supplier.defaultCurrency||purchase.currency;purchase.items=[createPurchaseItem()];this.setState({tab:'purchases',purchaseEdit:purchase,search:'',error:''});};\n  private showSupplierPurchaseHistory=(supplier:Supplier)=>this.setState({tab:'purchases',purchaseEdit:null,search:supplierLabel(supplier),error:''});", 'supplier context helpers')
+          old="""<div className=\"row-actions\"><button disabled={this.state.busy} onClick={()=>this.setState({supplierEdit:{...s},error:''})}>{t('Edit','تعديل')}</button><button disabled={this.state.busy} className=\"danger-link\" onClick={()=>void this.deleteSupplier(s)}>{t('Delete','حذف')}</button></div>"""
+          new="""<div className=\"row-actions\"><button disabled={this.state.busy} onClick={()=>this.newPurchaseForSupplier(s)}>{t('New Purchase','شراء جديد')}</button><button disabled={this.state.busy} onClick={()=>this.showSupplierPurchaseHistory(s)}>{t('Purchase History','سجل المشتريات')}</button><button disabled={this.state.busy} onClick={()=>this.setState({supplierEdit:{...s},error:''})}>{t('Edit','تعديل')}</button><button disabled={this.state.busy} className=\"danger-link\" onClick={()=>void this.deleteSupplier(s)}>{t('Delete','حذف')}</button></div>"""
+          s=once(s,old,new,'supplier row contextual actions')
+          start=s.index('  private renderInventory():any{')
+          end=s.index('\n\n  render():any{',start)
+          new_method=r'''  private renderInventory():any{
+    const view=this.props.inventoryView??'all';
+    const balances=inventoryBalances(this.props.items,this.props.inventoryMovements).filter(row=>this.visible(row.item.sku??'',row.item.descriptionEn,row.item.descriptionAr,row.quantity));
+    const movements=[...this.props.inventoryMovements].sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt)).slice(0,80).filter(movement=>this.visible(movement.sku||'',movement.itemNameEn||'',movement.itemNameAr||'',movement.sourceNumber||'',movement.note||''));
+    return <div className={`inventory-workspace inventory-view-${view}`}>
+      {view!=='movements'?<section className="inventory-balances"><div className="operations-panel-head"><div><h2>{t('Inventory Ledger','سجل المخزون')}</h2><p>{t('Stock changes only from posted purchases or explicit manual movements. Invoices do not silently change stock.','يتغير المخزون فقط من المشتريات المرحلة أو الحركات اليدوية الصريحة. الفواتير لا تغيّر المخزون تلقائيًا.')}</p></div></div><div className="inventory-table"><div className="inventory-table-head"><span>{t('Item','الصنف')}</span><span>{t('On hand','المتوفر')}</span><span>{t('Last landed cost','آخر تكلفة وصول')}</span></div>{balances.length?balances.map(row=><div className={`inventory-balance-row ${row.quantityScaled<0n?'is-negative':''}`} key={row.item.id}><span><strong>{itemLabel(row.item)}</strong><small>{row.item.category||''}</small></span><strong>{row.quantity} {row.item.unit}</strong><span>{row.item.lastUnitCost&&row.item.lastCostCurrency?formatMoney(row.item.lastUnitCost,row.item.lastCostCurrency):'—'}</span></div>):<div className="operations-empty">{t('No saved items yet.','لا توجد أصناف محفوظة بعد.')}</div>}</div></section>:null}
+      {view!=='balances'?<><section className="inventory-entry"><h2>{t('Manual Movement','حركة يدوية')}</h2><div className="operations-form-grid compact"><label className="span-2">{t('Saved item','الصنف المحفوظ')}<Select value={this.state.movementItemId} onChange={(e:any)=>this.setState({movementItemId:e.target.value})}><option value="">{t('Choose item','اختر الصنف')}</option>{this.props.items.map(item=><option key={item.id} value={item.id}>{itemLabel(item)}</option>)}</Select></label><label>{t('Type','النوع')}<Select value={this.state.movementType} onChange={(e:any)=>this.setState({movementType:e.target.value})}><option value="opening">{t('Opening stock','رصيد افتتاحي')}</option><option value="issue">{t('Stock issue','إخراج مخزون')}</option><option value="adjustment">{t('Adjustment (+/-)','تسوية (+/-)')}</option></Select></label><label>{t('Date','التاريخ')}<Input type="date" value={this.state.movementDate} onChange={(e:any)=>this.setState({movementDate:e.target.value})}/></label><label>{t('Quantity','الكمية')}<Input inputMode="decimal" value={this.state.movementQuantity} onChange={(e:any)=>this.setState({movementQuantity:e.target.value})}/></label><label>{t('Unit cost (optional)','تكلفة الوحدة (اختياري)')}<Input inputMode="decimal" value={this.state.movementCost} onChange={(e:any)=>this.setState({movementCost:e.target.value})}/></label><label>{t('Currency','العملة')}<Input list="operations-currencies" value={this.state.movementCurrency} onChange={(e:any)=>this.setState({movementCurrency:e.target.value.toUpperCase()})}/></label><label className="span-2">{t('Note','ملاحظة')}<Input value={this.state.movementNote} onChange={(e:any)=>this.setState({movementNote:e.target.value})}/></label></div><Button icon="plus" variant="primary" disabled={this.state.busy} onClick={()=>void this.saveMovement()}>{this.state.busy?t('Working…','جارٍ التنفيذ…'):t('Record Movement','تسجيل الحركة')}</Button></section>
+      <section className="inventory-history"><h2>{t('Recent Movements','الحركات الأخيرة')}</h2><div className="operations-list">{movements.length?movements.map(m=><article key={m.id} className="operation-row"><div><strong>{movementItemLabel(m)}</strong><span>{m.date} · {movementTypeLabel(m.type)}{m.sourceNumber?` · ${m.sourceNumber}`:''}</span></div><strong className={m.quantity.startsWith('-')?'negative-number':'positive-number'}>{m.quantity}</strong>{inventoryMovementIsManual(m)?<div className="row-actions"><button disabled={this.state.busy} className="danger-link" onClick={()=>void this.deleteMovement(m)}>{t('Reverse','عكس')}</button></div>:null}</article>):<div className="operations-empty">{t('No inventory movements yet.','لا توجد حركات مخزون بعد.')}</div>}</div></section></>:null}
+    </div>;
+  }'''
+          s=s[:start]+new_method+s[end:]
+          write(path,s)
+
+          # Customers: quick create and Finance statement shortcut.
+          path='src/components/CustomersPage.tsx'; s=read(path)
+          s=once(s,
+          "interface Props { customers: Customer[]; company:CompanySettings; onSave: (customer:Customer)=>Promise<void>; onDelete:(customer:Customer)=>Promise<void>; onNewDocument:(kind:DocumentKind,customer:Customer)=>Promise<void>; }",
+          "interface Props { customers: Customer[]; company:CompanySettings; onSave: (customer:Customer)=>Promise<void>; onDelete:(customer:Customer)=>Promise<void>; onNewDocument:(kind:DocumentKind,customer:Customer)=>Promise<void>; onViewStatement?:(customer:Customer)=>void; }", 'customers props')
+          s=once(s,
+          "  componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.handleKeyDown);}",
+          "  componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.handleKeyDown);window.addEventListener('lourex-create-customer',this.handleQuickCreate);}", 'customer mount')
+          s=once(s,
+          "  componentWillUnmount():void{this.mounted=false;document.removeEventListener('keydown',this.handleKeyDown);}",
+          "  componentWillUnmount():void{this.mounted=false;document.removeEventListener('keydown',this.handleKeyDown);window.removeEventListener('lourex-create-customer',this.handleQuickCreate);}\n  private handleQuickCreate=()=>this.newCustomer();", 'customer unmount/handler')
+          s=once(s,
+          "<div className=\"customer-profile-top-actions\"><Button icon=\"edit\" onClick={()=>this.beginEdit(customer)}>{t('Edit customer','تعديل العميل')}</Button><Button icon=\"proforma\"",
+          "<div className=\"customer-profile-top-actions\"><Button icon=\"edit\" onClick={()=>this.beginEdit(customer)}>{t('Edit customer','تعديل العميل')}</Button>{this.props.onViewStatement?<Button icon=\"file\" onClick={()=>this.props.onViewStatement?.(customer)}>{t('View Statement','عرض كشف الحساب')}</Button>:null}<Button icon=\"proforma\"", 'customer profile statement')
+          s=once(s,
+          "<section className=\"customer-profile-card customer-profile-quick-actions\"><header><h2>{t('Actions','الإجراءات')}</h2></header><button type=\"button\" disabled={this.state.busy||creatingAny} onClick={()=>void this.createDocument('proforma',customer)}>",
+          "<section className=\"customer-profile-card customer-profile-quick-actions\"><header><h2>{t('Actions','الإجراءات')}</h2></header>{this.props.onViewStatement?<button type=\"button\" onClick={()=>this.props.onViewStatement?.(customer)}><Icon name=\"file\"/><span>{t('View Statement','عرض كشف الحساب')}</span></button>:null}<button type=\"button\" disabled={this.state.busy||creatingAny} onClick={()=>void this.createDocument('proforma',customer)}>", 'customer quick statement')
+          write(path,s)
+
+          # Documents: contextual payment and credit actions.
+          path='src/components/DocumentsPage.tsx'; s=read(path)
+          s=once(s,
+          "  onDelete: (doc:LourexDocument) => void;\n}",
+          "  onDelete: (doc:LourexDocument) => void;\n  onRecordPayment?: (doc:LourexDocument) => void;\n  onCreateCreditNote?: (doc:LourexDocument) => void;\n}", 'documents props')
+          s=once(s,
+          "    const canConvert=Boolean(this.props.onConvert&&doc.kind==='proforma'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);",
+          "    const canConvert=Boolean(this.props.onConvert&&doc.kind==='proforma'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);\n    const standardFinalInvoice=doc.kind==='invoice'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided';\n    const canCollect=Boolean(this.props.onRecordPayment&&standardFinalInvoice&&invoicePaymentSummary(doc,this.props.payments,undefined,this.props.documents).status!=='paid');\n    const canCredit=Boolean(this.props.onCreateCreditNote&&standardFinalInvoice);", 'document action booleans')
+          s=once(s,
+          "      {linkedInvoice?<button type=\"button\" role=\"menuitem\" onClick={()=>this.runAction(()=>this.setState({detailId:linkedInvoice.id}))}><Icon name=\"invoice\"/>{t(`Open linked invoice ${linkedInvoice.number}`,`فتح الفاتورة المرتبطة ${linkedInvoice.number}`)}</button>:canConvert?<button type=\"button\" role=\"menuitem\" onClick={()=>this.runAction(()=>this.convertQuote(doc))}><Icon name=\"invoice\"/>{t('Convert to Invoice','تحويل إلى فاتورة')}</button>:null}\n      {canOutput?",
+          "      {linkedInvoice?<button type=\"button\" role=\"menuitem\" onClick={()=>this.runAction(()=>this.setState({detailId:linkedInvoice.id}))}><Icon name=\"invoice\"/>{t(`Open linked invoice ${linkedInvoice.number}`,`فتح الفاتورة المرتبطة ${linkedInvoice.number}`)}</button>:canConvert?<button type=\"button\" role=\"menuitem\" onClick={()=>this.runAction(()=>this.convertQuote(doc))}><Icon name=\"invoice\"/>{t('Convert to Invoice','تحويل إلى فاتورة')}</button>:null}\n      {canCollect?<button type=\"button\" role=\"menuitem\" onClick={()=>this.runAction(()=>this.props.onRecordPayment?.(doc))}><Icon name=\"invoice\"/>{t('Record Payment','تسجيل دفعة')}</button>:null}\n      {canCredit?<button type=\"button\" role=\"menuitem\" onClick={()=>this.runAction(()=>this.props.onCreateCreditNote?.(doc))}><Icon name=\"invoice\"/>{t('Create Credit Note','إنشاء إشعار دائن')}</button>:null}\n      {canOutput?", 'document contextual buttons')
+          write(path,s)
+
+          # App routes contextual references to canonical owners.
+          path='src/app/App.tsx'; s=read(path)
+          old="""{this.state.screen==='documents'?<DocumentsPage documents={vault.documents} payments={vault.payments} onNew={(k)=>void this.newDocument(k)} onOpen={(d)=>void this.openDocument(d)} onDuplicate={(d)=>void this.duplicate(d)} onConvert={this.convert} onPrint={this.requestPrint} onDelete={(d)=>this.setState({deletingDoc:d})}/>:null}\n          {this.state.screen==='customers'?<CustomersPage customers={vault.customers} company={vault.company} onSave={this.saveCustomer} onDelete={this.deleteCustomer} onNewDocument={this.newDocumentForCustomer}/>:null}\n          {this.state.screen==='receivables'?<FinanceWorkspace customers={vault.customers} documents={vault.documents} payments={vault.payments} company={vault.company} {...operationsProps}/>:null}"""
+          new="""{this.state.screen==='documents'?<DocumentsPage documents={vault.documents} payments={vault.payments} onNew={(k)=>void this.newDocument(k)} onOpen={(d)=>void this.openDocument(d)} onDuplicate={(d)=>void this.duplicate(d)} onConvert={this.convert} onPrint={this.requestPrint} onDelete={(d)=>this.setState({deletingDoc:d})} onRecordPayment={(doc)=>this.setState({screen:'receivables'},()=>window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-payment',{detail:{invoiceId:doc.id}})),0))} onCreateCreditNote={(doc)=>void this.createCreditNote(doc)}/>:null}\n          {this.state.screen==='customers'?<CustomersPage customers={vault.customers} company={vault.company} onSave={this.saveCustomer} onDelete={this.deleteCustomer} onNewDocument={this.newDocumentForCustomer} onViewStatement={(customer)=>this.setState({screen:'receivables'},()=>window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-statement',{detail:{customerId:customer.id}})),0))}/>:null}\n          {this.state.screen==='receivables'?<FinanceWorkspace customers={vault.customers} documents={vault.documents} payments={vault.payments} company={vault.company} onSavePayment={this.savePayment} onDeletePayment={this.deletePayment} {...operationsProps}/>:null}"""
+          s=once(s,old,new,'app contextual routing')
+          write(path,s)
+
+          # Global Search payment now routes into Finance, not the editor.
+          path='src/components/GlobalSearch.tsx'; s=read(path)
+          s=once(s,
+          "  private createPayment=(document:LourexDocument)=>{\n    this.close();\n    this.props.onOpenDocument(document);\n    window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-create-payment',{detail:{invoiceId:document.id}})),0);\n  };",
+          "  private createPayment=(document:LourexDocument)=>{\n    this.close();\n    this.props.onNavigate('receivables');\n    window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-payment',{detail:{invoiceId:document.id}})),0);\n  };", 'global payment owner')
+          write(path,s)
+      - name: Commit patch
+        run: |
+          git config user.name "ALI M.DAAMISH"
+          git config user.email "allidamech@gmail.com"
+          git add src/components src/app
+          git diff --cached --quiet && exit 1
+          git commit -m "Complete contextual UX and domain ownership closeout"
+          git push origin feature/final-plan-closeout-v278
