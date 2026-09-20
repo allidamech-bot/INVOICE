@@ -67,8 +67,8 @@ export class GlobalSearch extends React.Component<Props,State>{
     .slice(0,20);
   private createPayment=(document:LourexDocument)=>{
     this.close();
-    this.props.onOpenDocument(document);
-    window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-create-payment',{detail:{invoiceId:document.id}})),0);
+    this.props.onNavigate('receivables');
+    window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-payment',{detail:{invoiceId:document.id}})),0);
   };
 
   private results=():SearchResult[]=>{
