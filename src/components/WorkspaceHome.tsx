@@ -8,6 +8,7 @@ import { inventoryBalances } from '../lib/operations.js';
 import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { Button, Icon } from './UI.js';
+import { LourexAdvisorCard } from './LourexAdvisorCard.js';
 
 interface Props{
   companyName:string;
@@ -220,6 +221,8 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
         <button type="button" className="command-position-action" onClick={()=>onNavigate('receivables')}><span>{t('Review receivables','مراجعة المستحقات')}</span><span aria-hidden="true">→</span></button>
       </aside>
     </div>
+
+    <LourexAdvisorCard language={getUiLanguage()}/>
 
     <div className="command-insight-grid">
       <section className="dashboard-panel dashboard-attention command-attention">
