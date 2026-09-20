@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+      - name: Prepare narrowed patch target
+        run: python scripts/prepare-final-closeout-patch.py
       - name: Apply guarded closeout patch
         run: python scripts/final-closeout-patch.py
       - name: Commit functional closeout
