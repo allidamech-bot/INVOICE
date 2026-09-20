@@ -11,6 +11,7 @@ async function modalMeasurements(page){
     const header=modal?.querySelector('.modal-header');
     const body=modal?.querySelector('.modal-body');
     const footer=modal?.querySelector('.modal-footer');
+    const stickyActions=modal?.querySelector('.product-import-mobile-actions');
     const backdrop=modal?.closest('.modal-backdrop');
     const close=modal?.querySelector('.modal-header button');
     const rect=node=>node?node.getBoundingClientRect():null;
@@ -21,7 +22,7 @@ async function modalMeasurements(page){
       return text&&box.width>0&&box.height>0&&(color==='rgb(0,0,0)'||color==='rgba(0,0,0,1)');
     }).slice(0,5).map(node=>`${node.tagName}.${node.className}`);
     const browserReserve=backdrop?parseFloat(getComputedStyle(backdrop).getPropertyValue('--modal-browser-bottom-reserve'))||0:0;
-    return {modal:rect(modal),header:rect(header),body:rect(body),footer:rect(footer),close:rect(close),closeColor:close?getComputedStyle(close).color:'',viewport:window.visualViewport?.height||innerHeight,browserReserve,bodyOverflow:document.body.style.overflow,docWidth:document.documentElement.scrollWidth,innerWidth,bodyScrollHeight:body?.scrollHeight||0,bodyClientHeight:body?.clientHeight||0,blackText};
+    return {modal:rect(modal),header:rect(header),body:rect(body),footer:rect(footer),stickyActions:rect(stickyActions),close:rect(close),closeColor:close?getComputedStyle(close).color:'',viewport:window.visualViewport?.height||innerHeight,browserReserve,bodyOverflow:document.body.style.overflow,docWidth:document.documentElement.scrollWidth,innerWidth,bodyScrollHeight:body?.scrollHeight||0,bodyClientHeight:body?.clientHeight||0,blackText};
   });
 }
 
@@ -31,7 +32,9 @@ function assertMobileModal(layout,{mustScroll=true}={}){
   assert.ok(layout.header.top>=-1&&layout.close.bottom<=layout.viewport,'modal header/close must remain reachable');
   assert.ok(layout.close.left>=0&&layout.close.right<=layout.innerWidth&&layout.close.width>=44,'close control must stay fully inside the viewport');
   assert.notEqual(layout.closeColor,'rgb(0, 0, 0)','close icon must remain visible on the dark header');
-  assert.ok(layout.footer&&layout.footer.top>=0&&layout.footer.bottom<=layout.viewport+1,'modal footer must remain visible');
+  const footerVisible=layout.footer&&layout.footer.width>0&&layout.footer.height>0&&layout.footer.top>=0&&layout.footer.bottom<=layout.viewport+1;
+  const stickyVisible=layout.stickyActions&&layout.stickyActions.width>0&&layout.stickyActions.height>0&&layout.stickyActions.top>=0&&layout.stickyActions.bottom<=layout.viewport+1;
+  assert.ok(footerVisible||stickyVisible,'modal actions must remain visible');
   assert.equal(layout.bodyOverflow,'hidden','page scrolling must be locked behind the modal');
   assert.ok(layout.docWidth<=layout.innerWidth+1,`horizontal overflow ${layout.docWidth} > ${layout.innerWidth}`);
   if(mustScroll)assert.ok(layout.bodyScrollHeight>layout.bodyClientHeight,'modal body should own overflow on a short viewport');
@@ -131,14 +134,23 @@ function assertMobileModal(layout,{mustScroll=true}={}){
         });
         await page.goto(`${BASE}?mode=products&lang=ar`,{waitUntil:'networkidle'});
         await page.getByRole('button',{name:'استيراد',exact:true}).click();
-        const csv='SKU,Description EN,Description AR,Sale Price\nIP-1,Mobile product,صنف جوال,12.50\n';
+        const csv='SKU,Description EN,Description AR,HS Code,Origin,Packing,Unit,Currency,Selling Price,Purchase Cost,Barcode,Category,Brand,Notes\nIP-1,Mobile product,صنف جوال,2106.90,Jordan,12 bags,BOX,USD,12.50,8.25,123456789,Food,LOUREX,Mobile audit\n';
         await page.locator('.product-import-file-input').setInputFiles({name:'iphone-products.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
         await page.locator('.product-import-mapping-list').waitFor();
         const layout=await modalMeasurements(page);
         assertMobileModal(layout);
         assert.ok(layout.browserReserve>=72,`iPhone Safari overlay reserve is missing: ${layout.browserReserve}`);
-        assert.ok(layout.footer.bottom<=layout.viewport-layout.browserReserve+1,`footer ${layout.footer.bottom} remains beneath Safari chrome ending at ${layout.viewport-layout.browserReserve}`);
-        assert.equal(await page.getByRole('button',{name:'مراجعة الاستيراد'}).isVisible(),true);
+        assert.ok(layout.stickyActions.bottom<=layout.viewport-layout.browserReserve+1,`sticky actions ${layout.stickyActions.bottom} remain beneath Safari chrome ending at ${layout.viewport-layout.browserReserve}`);
+        const actions=page.locator('.product-import-mobile-actions');
+        const before=await actions.boundingBox();
+        await page.locator('.modal-body').evaluate(node=>{node.scrollTop=node.scrollHeight;});
+        await page.waitForTimeout(50);
+        const after=await actions.boundingBox();
+        assert.ok(before&&after,'sticky product actions must be measurable');
+        assert.ok(Math.abs(after.y-before.y)<=1,`sticky actions moved during modal scroll: ${before.y} -> ${after.y}`);
+        const hit=await actions.evaluate(node=>{const box=node.getBoundingClientRect();const target=document.elementFromPoint(box.left+box.width/2,box.top+box.height/2);return target===node||node.contains(target);});
+        assert.equal(hit,true,'sticky product actions must remain hit-testable after scrolling');
+        assert.equal(await actions.getByRole('button',{name:'مراجعة الاستيراد'}).isVisible(),true);
         await page.screenshot({path:`${output}/product-mapping-arabic-safari-toolbar.png`,fullPage:false,animations:'disabled'});
       }finally{await page.close();}
     });

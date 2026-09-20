@@ -269,14 +269,16 @@ export class ProductImportModal extends React.Component<Props,State>{
     const mappedCount=mapping.filter(Boolean).length;
     const ambiguousCount=analysis?ambiguousProductImportColumns(analysis,mapping).length:0;
     const selectedSheet=sheets[sheetIndex];
-    const footer=stage==='mapping'&&analysis?
+    const renderActions=()=>stage==='mapping'&&analysis?
       <div className="product-import-footer"><Button onClick={()=>this.setState({stage:'pick',sheets:[],matrix:[],analysis:null,mapping:[],plan:null,error:'',aiModel:'',aiIndexes:[]})}>{t('Back','رجوع')}</Button><Button variant="primary" icon="eye" disabled={mappedCount===0||this.state.aiLoading} onClick={this.enterPreview}>{t('Review import','مراجعة الاستيراد')}</Button></div>:
       stage==='preview'&&plan?
         <div className="product-import-footer"><Button onClick={()=>this.setState({stage:'mapping',plan:null,error:''})}>{t('Column mapping','تعيين الأعمدة')}</Button><Button variant="primary" icon="upload" disabled={plan.counts.error>0||plan.counts.create+plan.counts.update===0} onClick={()=>void this.apply()}>{plan.counts.error>0?t('Fix file errors first','أصلح أخطاء الملف أولًا'):t(`Confirm import of ${plan.counts.create+plan.counts.update}`,`تأكيد استيراد ${plan.counts.create+plan.counts.update}`)}</Button></div>:
         stage==='done'?<div className="product-import-footer"><span/><Button variant="primary" icon="check" onClick={this.close}>{t('Done','تم')}</Button></div>:undefined;
+    const footer=renderActions();
 
     return <Modal open={this.props.open} title={t('Import Products','استيراد الأصناف')} size="xl" onClose={this.close} footer={footer}>
       <div className={`product-import-shell stage-${stage}`} data-import-stage={stage} aria-busy={stage==='reading'||stage==='importing'||this.state.aiLoading}>
+        {footer?<div className="product-import-mobile-actions" aria-label={t('Import actions','إجراءات الاستيراد')}>{renderActions()}</div>:null}
         {stage==='pick'?<>
           <div className="product-import-hero"><div className="product-import-icon"><Icon name="upload" size={28}/></div><div><p className="eyebrow">{t('Smart catalog import','استيراد ذكي للكتالوج')}</p><h3>{t('Bring your product list in one clean step','أدخل قائمة أصنافك بخطوة مرتبة')}</h3><p>{t('LOUREX reads the spreadsheet locally first. Gemini is optional and sees only ambiguous headings before you review and confirm.','يقرأ LOUREX الجدول محليًا أولًا. Gemini اختياري ولا يرى إلا العناوين الغامضة قبل المراجعة والتأكيد.')}</p></div></div>
           <button type="button" className="product-import-dropzone" onClick={()=>this.fileInput?.click()}><Icon name="upload" size={23}/><strong>{t('Choose Excel or CSV file','اختر ملف Excel أو CSV')}</strong><span>.xlsx · .xls · .csv</span></button>

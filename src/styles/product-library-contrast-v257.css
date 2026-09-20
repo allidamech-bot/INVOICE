@@ -588,6 +588,7 @@
    review states and a single mobile scroll owner with reachable actions. */
 @media screen {
   .app-ui .product-import-file-summary{grid-template-columns:40px minmax(0,1fr)}
+  .app-ui .product-import-mobile-actions{display:none}
 
   .app-ui .product-import-mapping-actions{
     display:flex;
@@ -843,6 +844,36 @@
     visibility:visible!important;
     opacity:1!important;
     padding:7px 9px max(10px,var(--app-safe-bottom,0px))!important;
+  }
+
+  /* Mobile Safari can move its bottom browser chrome independently of the
+     layout viewport. Keep product-import actions inside the modal's own scroll
+     area, directly below the stable header, instead of relying on that edge. */
+  .app-ui .modal:has(.product-import-shell)>.modal-footer{display:none!important}
+  .app-ui .product-import-mobile-actions{
+    position:sticky;
+    top:0;
+    z-index:20;
+    display:block;
+    margin:0 0 10px;
+    padding:8px;
+    border:1px solid var(--ds-line);
+    border-radius:10px;
+    background:var(--ds-workspace);
+    box-shadow:0 8px 18px rgba(0,0,0,.34);
+  }
+  .app-ui .product-import-mobile-actions .product-import-footer{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    align-items:stretch;
+    gap:8px;
+  }
+  .app-ui .product-import-mobile-actions .product-import-footer>.btn{
+    width:100%;
+    min-width:0;
+    min-height:44px;
+    padding-inline:8px;
+    white-space:normal;
   }
 
   .app-ui .product-import-mapping-head{gap:8px}
