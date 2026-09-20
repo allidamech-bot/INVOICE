@@ -4,12 +4,16 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v248 keeps More as a navigation hub with accurate destinations',async()=>{
+test('v248 keeps More as a navigation hub with accurate final destinations',async()=>{
   const shell=await read('src/components/AppShell.tsx');
-  assert.match(shell,/Business tools, account and settings/);
+  assert.match(shell,/Your business, finance, reports and settings/);
   assert.match(shell,/Company identity, logo, legal profile and account access/);
-  assert.match(shell,/Suppliers, purchases, expenses and inventory/);
+  assert.match(shell,/Products & Inventory/);
+  assert.match(shell,/Suppliers and purchase workflow/);
+  assert.match(shell,/Receivables, collections and expenses/);
+  assert.match(shell,/Business and financial analysis/);
   assert.match(shell,/Workspace, documents, commercial and security/);
+  assert.doesNotMatch(shell,/Suppliers, purchases, expenses and inventory/,'More must not restore the retired mixed Operations destination');
   assert.match(shell,/this\.requestSettingsScope\('account'\)/);
   assert.match(shell,/this\.requestSettingsScope\('settings'\)/);
 });
