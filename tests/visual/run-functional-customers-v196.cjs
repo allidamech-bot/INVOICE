@@ -38,10 +38,10 @@ async function auditProfile(page,lang,viewport){
   assert.equal(state.overflow,false,`${viewport}/${lang}: customer profile overflows viewport`);
   assert.equal(state.primary,expected,`${viewport}/${lang}: customer profile must use active UI language`);
   assert.ok(state.secondaryDisplay===null||state.secondaryDisplay==='none',`${viewport}/${lang}: opposite-language profile name must stay hidden`);
-  assert.equal(state.hero,'rgb(20, 20, 20)',`${viewport}/${lang}: customer hero is outside matte hierarchy`);
-  assert.ok(state.cards.length>=4&&state.cards.every(value=>value==='rgb(20, 20, 20)'),`${viewport}/${lang}: nested customer cards ${JSON.stringify(state.cards)}`);
-  assert.ok(state.badges.every(value=>value==='rgb(25, 25, 25)'),`${viewport}/${lang}: customer badges ${JSON.stringify(state.badges)}`);
-  assert.ok(state.quickActions.length>=3&&state.quickActions.every(value=>value==='rgb(26, 26, 26)'),`${viewport}/${lang}: customer actions ${JSON.stringify(state.quickActions)}`);
+  assert.equal(state.hero,'rgb(19, 19, 19)',`${viewport}/${lang}: customer hero is outside Precision Black hierarchy`);
+  assert.ok(state.cards.length>=4&&state.cards.every(value=>value==='rgb(19, 19, 19)'),`${viewport}/${lang}: nested customer cards ${JSON.stringify(state.cards)}`);
+  assert.ok(state.badges.every(value=>value==='rgb(23, 23, 23)'),`${viewport}/${lang}: customer badges ${JSON.stringify(state.badges)}`);
+  assert.ok(state.quickActions.length>=3&&state.quickActions.every(value=>value==='rgb(25, 25, 25)'),`${viewport}/${lang}: customer actions ${JSON.stringify(state.quickActions)}`);
   assert.ok(state.facts.every(value=>value==='rgba(0, 0, 0, 0)'),`${viewport}/${lang}: facts should stay flat ${JSON.stringify(state.facts)}`);
   assert.deepEqual(state.light,[],`${viewport}/${lang}: light nested customer chrome ${JSON.stringify(state.light)}`);
 }
