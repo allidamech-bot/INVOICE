@@ -134,7 +134,7 @@ const viewports=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
      const el=document.querySelector(selector);if(!el)continue;
      const r=el.getBoundingClientRect();
      if(r.left<0||r.right>innerWidth+1||r.bottom>innerHeight+1)issues.push(selector+' outside viewport');
-     if(getComputedStyle(el).backgroundColor!=='rgb(24, 23, 19)')issues.push(selector+' not on Precision Black financial surface');
+     if(getComputedStyle(el).backgroundColor!=='rgb(19, 19, 19)')issues.push(selector+' not on canonical Precision Black surface');
     }
     if(document.querySelector('.editor-pane').getBoundingClientRect().height<90)issues.push('final editor has insufficient working space');
     return issues;
