@@ -40,7 +40,7 @@ test('editor workbench and final bidi safeguards are explicit',async()=>{
     read('src/styles/precision-black-final-v273.css')
   ]);
   assert.match(editor,/grid-template-columns:minmax\(560px,55%\) minmax\(0,45%\)!important/);
-  assert.match(editor,/\.app-ui \.editor-section\{/);
+  assert.match(editor,/\.app-ui \.editor-section\s*\{/);
   assert.match(finalCss,/\.lourex-ai-launcher:dir\(rtl\)/);
   assert.match(finalCss,/left:max\(10px,env\(safe-area-inset-left\)\)!important/);
 });
