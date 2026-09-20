@@ -4,17 +4,20 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('v204 More sheet exposes a clear compact information hierarchy',async()=>{
+test('v204 More sheet exposes the final compact information hierarchy',async()=>{
   const shell=await read('src/components/AppShell.tsx');
   assert.match(shell,/mobile-more-heading-copy/);
-  assert.match(shell,/Business tools, account and settings/);
+  assert.match(shell,/Your business, finance, reports and settings/);
   assert.match(shell,/mobile-more-status-row/);
   assert.match(shell,/mobile-more-account-copy/);
-  assert.match(shell,/Products and services library/);
-  assert.match(shell,/Open balances and collections/);
-  assert.match(shell,/Sales and financial insights/);
-  assert.match(shell,/Suppliers, purchases, expenses and inventory/);
+  assert.match(shell,/Products & Inventory/);
+  assert.match(shell,/Products, stock and inventory movement/);
+  assert.match(shell,/Purchasing/);
+  assert.match(shell,/Suppliers and purchase workflow/);
+  assert.match(shell,/Receivables, collections and expenses/);
+  assert.match(shell,/Business and financial analysis/);
   assert.match(shell,/Workspace, documents, commercial and security/);
+  assert.doesNotMatch(shell,/Suppliers, purchases, expenses and inventory/,'More must not recreate the retired Operations ownership mix');
   for(const tone of ['items','receivables','reports','operations'])assert.match(shell,new RegExp(`'${tone}'`));
 });
 

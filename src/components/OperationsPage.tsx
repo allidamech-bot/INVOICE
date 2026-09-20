@@ -6,9 +6,11 @@ import { allocateLandedCost, createExpense, createManualInventoryMovement, creat
 import { Button, Icon, Input, Select, Textarea } from './UI.js';
 
 type Tab='suppliers'|'purchases'|'expenses'|'inventory';
+export type OperationsWorkspaceMode='all'|'purchasing'|'finance'|'inventory';
 type ManualMovementType=Extract<InventoryMovementType,'opening'|'issue'|'adjustment'>;
 
 interface Props{
+  mode?:OperationsWorkspaceMode;
   suppliers:Supplier[];purchases:PurchaseRecord[];expenses:ExpenseRecord[];inventoryMovements:InventoryMovementRecord[];items:SavedItem[];defaultCurrency:string;
   onSaveSupplier:(supplier:Supplier)=>Promise<void>;onDeleteSupplier:(supplier:Supplier)=>Promise<void>;
   onSavePurchase:(purchase:PurchaseRecord)=>Promise<void>;onDeletePurchase:(purchase:PurchaseRecord)=>Promise<void>;onPostPurchase:(purchase:PurchaseRecord)=>Promise<void>;onReversePurchase:(purchase:PurchaseRecord,reason:string)=>Promise<void>;
@@ -22,6 +24,8 @@ interface State{
 
 const currencies=['USD','EUR','SAR','TRY','AED','GBP'];
 const expenseCategories=['General','Freight','Customs','Storage','Transport','Marketing','Office','Professional','Bank Fees','Other'];
+function tabsForMode(mode:OperationsWorkspaceMode='all'):Tab[]{return mode==='purchasing'?['suppliers','purchases']:mode==='finance'?['expenses']:mode==='inventory'?['inventory']:['suppliers','purchases','expenses','inventory'];}
+function firstTab(mode:OperationsWorkspaceMode='all'):Tab{return tabsForMode(mode)[0]!;}
 function localizedStored(en:string,ar:string,fallback:string):string{return (t(en||ar,ar||en)||fallback).trim();}
 function supplierLabel(supplier:Supplier):string{return localizedStored(supplier.nameEn,supplier.nameAr,t('Unnamed supplier','مورد بدون اسم'));}
 function purchaseSupplierLabel(purchase:PurchaseRecord):string{return localizedStored(purchase.supplierSnapshot?.nameEn||'',purchase.supplierSnapshot?.nameAr||'',t('No supplier','بدون مورد'));}
@@ -37,7 +41,13 @@ function movementTypeLabel(type:InventoryMovementType):string{
 
 export class OperationsPage extends React.Component<Props,State>{
   private mutationInFlight=false;
-  state:State={tab:'suppliers',search:'',error:'',busy:false,supplierEdit:null,purchaseEdit:null,expenseEdit:null,movementItemId:'',movementType:'opening',movementQuantity:'',movementDate:todayIso(),movementNote:'',movementCost:'',movementCurrency:this.props.defaultCurrency||'USD'};
+  state:State={tab:firstTab(this.props.mode),search:'',error:'',busy:false,supplierEdit:null,purchaseEdit:null,expenseEdit:null,movementItemId:'',movementType:'opening',movementQuantity:'',movementDate:todayIso(),movementNote:'',movementCost:'',movementCurrency:this.props.defaultCurrency||'USD'};
+
+  componentDidUpdate(prev:Props):void{
+    if(prev.mode===this.props.mode)return;
+    const allowed=tabsForMode(this.props.mode);
+    if(!allowed.includes(this.state.tab))this.setState({tab:firstTab(this.props.mode),search:'',error:''});
+  }
 
   private fail=(error:unknown)=>this.setState({error:error instanceof Error?error.message:String(error)});
   private clearError=()=>this.setState({error:''});
@@ -83,8 +93,15 @@ export class OperationsPage extends React.Component<Props,State>{
   private deleteMovement=async(movement:InventoryMovementRecord)=>{if(this.mutationInFlight)return;if(!inventoryMovementIsManual(movement)){this.setState({error:t('Purchase-generated inventory movements cannot be deleted. Reverse the purchase instead.','لا يمكن حذف حركات المخزون الناتجة عن شراء. اعكس الشراء بدلًا من ذلك.')});return;}if(!window.confirm(t('Reverse this manual inventory movement? The original record will stay in history.','عكس حركة المخزون اليدوية؟ سيبقى السجل الأصلي محفوظًا في التاريخ.')))return;await this.runMutation(async()=>{await this.props.onDeleteInventoryMovement(movement);});};
 
   private renderSummary():any{
-    const spend=spendByCurrency(this.props.purchases,this.props.expenses);
+    const mode=this.props.mode??'all';
     const integrity=operationsIntegritySummary(this.props.purchases,this.props.expenses,this.props.inventoryMovements);
+    if(mode!=='all'){
+      const invalid=mode==='purchasing'?integrity.invalidPurchases:mode==='finance'?integrity.invalidExpenses:integrity.invalidMovements;
+      if(!invalid)return null;
+      const noun=mode==='purchasing'?t('purchase records','سجلات مشتريات'):mode==='finance'?t('expense records','سجلات مصروفات'):t('inventory movements','حركات مخزون');
+      return <div className="operations-callout danger operations-integrity-warning" role="status"><strong>{t('Accounting integrity warning','تنبيه سلامة البيانات المحاسبية')}</strong><span>{t(`${invalid} ${noun} are excluded from totals until corrected.`,`${invalid} ${noun} مستبعدة من الإجماليات حتى يتم تصحيحها.`)}</span></div>;
+    }
+    const spend=spendByCurrency(this.props.purchases,this.props.expenses);
     return <><div className="operations-summary">
       <div><strong>{this.props.suppliers.length}</strong><span>{t('Suppliers','الموردون')}</span></div>
       <div><strong>{this.props.purchases.filter(p=>p.status==='posted').length}</strong><span>{t('Posted purchases','مشتريات مرحلة')}</span></div>
@@ -136,6 +153,12 @@ export class OperationsPage extends React.Component<Props,State>{
   }
 
   render():any{
-    return <div className="operations-page" aria-busy={this.state.busy}><datalist id="operations-currencies">{currencies.map(c=><option key={c} value={c}/>)}</datalist><div className="operations-hero"><div><span className="eyebrow">{t('Purchasing & Cost Control','المشتريات وضبط التكلفة')}</span><h1>{t('Operations','العمليات')}</h1><p>{t('Suppliers, purchases, operating expenses, landed cost and a simple auditable inventory ledger.','الموردون والمشتريات والمصروفات التشغيلية وتكلفة الوصول وسجل مخزون بسيط وقابل للتدقيق.')}</p></div><div className="operations-search"><Icon name="search"/><Input type="search" aria-label={t('Search current operations tab','بحث في تبويب العمليات الحالي')} value={this.state.search} placeholder={t('Search current tab…','بحث في التبويب الحالي…')} onChange={(e:any)=>this.setState({search:e.target.value})}/></div></div>{this.renderSummary()}<div className="operations-tabs" role="tablist" aria-label={t('Operations sections','أقسام العمليات')}>{(['suppliers','purchases','expenses','inventory'] as Tab[]).map(tab=><button type="button" disabled={this.state.busy} key={tab} id={`operations-tab-${tab}`} role="tab" aria-selected={this.state.tab===tab} aria-controls={`operations-panel-${tab}`} className={this.state.tab===tab?'active':''} onClick={()=>this.setState({tab,search:'',error:''})}>{tab==='suppliers'?t('Suppliers','الموردون'):tab==='purchases'?t('Purchases','المشتريات'):tab==='expenses'?t('Expenses','المصروفات'):t('Inventory','المخزون')}</button>)}</div>{this.state.error?<div className="operations-error" role="alert"><span>{this.state.error}</span><button type="button" aria-label={t('Dismiss error','إغلاق الخطأ')} onClick={this.clearError}>×</button></div>:null}<div id={`operations-panel-${this.state.tab}`} role="tabpanel" aria-labelledby={`operations-tab-${this.state.tab}`}>{this.state.tab==='suppliers'?this.renderSuppliers():this.state.tab==='purchases'?this.renderPurchases():this.state.tab==='expenses'?this.renderExpenses():this.renderInventory()}</div></div>;
+    const mode=this.props.mode??'all';
+    const allowedTabs=tabsForMode(mode);
+    const heading=mode==='purchasing'?{eyebrow:t('Procurement','التوريد'),title:t('Purchasing','المشتريات'),description:t('Suppliers and purchase records in one clear purchasing workspace.','الموردون وسجلات الشراء في مساحة مشتريات واحدة واضحة.')}:
+      mode==='finance'?{eyebrow:t('Finance','المالية'),title:t('Expenses','المصروفات'),description:t('Record and review operating expenses without mixing them into purchasing.','سجّل وراجع المصروفات التشغيلية بدون خلطها مع المشتريات.')}:
+      mode==='inventory'?{eyebrow:t('Products & Inventory','المنتجات والمخزون'),title:t('Inventory','المخزون'),description:t('Current stock, manual movements and auditable inventory history.','الرصيد الحالي والحركات اليدوية وسجل مخزون قابل للتدقيق.')}:
+      {eyebrow:t('Purchasing & Cost Control','المشتريات وضبط التكلفة'),title:t('Operations','العمليات'),description:t('Suppliers, purchases, operating expenses, landed cost and a simple auditable inventory ledger.','الموردون والمشتريات والمصروفات التشغيلية وتكلفة الوصول وسجل مخزون بسيط وقابل للتدقيق.')};
+    return <div className={`operations-page operations-mode-${mode}`} aria-busy={this.state.busy}><datalist id="operations-currencies">{currencies.map(c=><option key={c} value={c}/>)}</datalist><div className="operations-hero"><div><span className="eyebrow">{heading.eyebrow}</span><h1>{heading.title}</h1><p>{heading.description}</p></div><div className="operations-search"><Icon name="search"/><Input type="search" aria-label={t('Search this workspace','بحث في مساحة العمل')} value={this.state.search} placeholder={t('Search…','بحث…')} onChange={(e:any)=>this.setState({search:e.target.value})}/></div></div>{this.renderSummary()}{allowedTabs.length>1?<div className="operations-tabs" role="tablist" aria-label={t('Workspace sections','أقسام مساحة العمل')}>{allowedTabs.map(tab=><button type="button" disabled={this.state.busy} key={tab} id={`operations-tab-${tab}`} role="tab" aria-selected={this.state.tab===tab} aria-controls={`operations-panel-${tab}`} className={this.state.tab===tab?'active':''} onClick={()=>this.setState({tab,search:'',error:''})}>{tab==='suppliers'?t('Suppliers','الموردون'):tab==='purchases'?t('Purchases','المشتريات'):tab==='expenses'?t('Expenses','المصروفات'):t('Inventory','المخزون')}</button>)}</div>:null}{this.state.error?<div className="operations-error" role="alert"><span>{this.state.error}</span><button type="button" aria-label={t('Dismiss error','إغلاق الخطأ')} onClick={this.clearError}>×</button></div>:null}<div id={`operations-panel-${this.state.tab}`} role="tabpanel" aria-labelledby={`operations-tab-${this.state.tab}`}>{this.state.tab==='suppliers'?this.renderSuppliers():this.state.tab==='purchases'?this.renderPurchases():this.state.tab==='expenses'?this.renderExpenses():this.renderInventory()}</div></div>;
   }
 }

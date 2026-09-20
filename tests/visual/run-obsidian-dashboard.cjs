@@ -32,7 +32,7 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:1024,height:900,tou
       if(state.kpis.length!==4)failures.push(`KPI count ${state.kpis.length}`);
       if(state.kpis.some(item=>item.background!=='rgba(0, 0, 0, 0)'||item.radius!=='0px'))failures.push('KPI cards are not internally divided');
       if(state.whiteSurfaces)failures.push(`white application surfaces ${state.whiteSurfaces}`);
-      if(state.recentRows!==6||state.statuses!==6)failures.push(`recent document structure ${state.recentRows}/${state.statuses}`);
+      if(state.recentRows!==5||state.statuses!==5)failures.push(`recent activity structure ${state.recentRows}/${state.statuses}`);
       if(state.firstRowHeight<64||state.firstRowHeight>(scenario.width<=800?112:82))failures.push(`recent row height ${state.firstRowHeight}`);
       if(scenario.width<=800){if(state.columns!==2)failures.push(`mobile KPI columns ${state.columns}`);if(state.recentHead!=='none')failures.push('mobile table head visible');}
       else{if(state.recentHead==='none')failures.push('desktop table head hidden');}

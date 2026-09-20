@@ -38,14 +38,12 @@ const base='http://127.0.0.1:4173/tests/visual';
         assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'customers');
         await primary.nth(3).click();
         assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'items');
-
-        const groups=page.locator('.shell-nav-group');
-        await groups.nth(0).locator('.shell-nav-button').nth(0).click();
-        assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'receivables');
-        await groups.nth(0).locator('.shell-nav-button').nth(1).click();
-        assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'reports');
-        await groups.nth(1).locator('.shell-nav-button').first().click();
+        await primary.nth(4).click();
         assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'operations');
+        await primary.nth(5).click();
+        assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'receivables');
+        await primary.nth(6).click();
+        assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'reports');
 
         await page.locator('.shell-settings-row').click();
         assert.equal(await page.evaluate(()=>window.shellQa.settings),1,'Desktop Settings must open through the scoped settings boundary');
