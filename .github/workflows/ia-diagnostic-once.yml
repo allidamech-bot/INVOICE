@@ -24,3 +24,4 @@ jobs:
       - run: npm run typecheck
       - name: Build and run every unit test in one pass
         run: npm test
+      # pass 2: after final mobile More IA contract alignment
