@@ -1,6 +1,8 @@
 declare namespace React {
   type ReactNode = any;
   interface SyntheticEvent<T = Element> { currentTarget: T; target: EventTarget & T; preventDefault(): void; stopPropagation(): void; }
+  type SetStateAction<S> = S | ((prevState: S) => S);
+  type Dispatch<A> = (value: A) => void;
   class Component<P = {}, S = {}> {
     constructor(props: P);
     props: Readonly<P>;
@@ -10,8 +12,16 @@ declare namespace React {
   }
   const Fragment: any;
   function createElement(type: any, props?: any, ...children: any[]): any;
+  function useState<S>(initialState:S|(()=>S)): [S,Dispatch<SetStateAction<S>>];
+  function useMemo<T>(factory:()=>T,deps:readonly any[]):T;
 }
-declare const React: { Component: typeof React.Component; createElement: typeof React.createElement; Fragment: any };
+declare const React: {
+  Component: typeof React.Component;
+  createElement: typeof React.createElement;
+  Fragment: any;
+  useState: typeof React.useState;
+  useMemo: typeof React.useMemo;
+};
 declare const ReactDOM: {
   render(element: any, container: Element | DocumentFragment): void;
   createPortal(element: any, container: Element | DocumentFragment): any;
