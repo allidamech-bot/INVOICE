@@ -3,7 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#080808" />
+  <meta name="theme-color" content="#071312" />
+  <script id="lourex-theme-bootstrap">
+    (function(){
+      var key='lourex-ui-theme';
+      var pref='system';
+      try{var saved=window.localStorage.getItem(key);if(saved==='light'||saved==='dark'||saved==='system')pref=saved;}catch(e){}
+      var resolved=pref;
+      if(pref==='system'){try{resolved=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){resolved='dark';}}
+      var root=document.documentElement;
+      root.dataset.uiTheme=resolved;
+      root.dataset.uiThemePreference=pref;
+      root.style.colorScheme=resolved;
+      root.style.backgroundColor=resolved==='light'?'#f4f8f8':'#071312';
+      var meta=document.querySelector('meta[name="theme-color"]');
+      if(meta)meta.setAttribute('content',resolved==='light'?'#f4f8f8':'#071312');
+    })();
+  </script>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,14 +30,16 @@
   <link rel="icon" href="./brand/lourex-app-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" sizes="180x180" href="./brand/lourex-app-icon-180.png" />
   <style id="lourex-boot-style">
-    html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:#080808}
-    #lourex-boot.loading-screen{position:fixed;inset:0;z-index:2147483000;min-height:100vh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-sizing:border-box;padding:32px;background:#080808;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    html[data-ui-theme="light"]{--boot-bg:#f4f8f8;--boot-text:#10201e;--boot-track:#d9e5e3;--boot-accent:#0f9f95}
+    html[data-ui-theme="dark"]{--boot-bg:#071312;--boot-text:#f3fbfa;--boot-track:#1e3b37;--boot-accent:#24c7ba}
+    html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:var(--boot-bg,#071312)}
+    #lourex-boot.loading-screen{position:fixed;inset:0;z-index:2147483000;min-height:100vh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-sizing:border-box;padding:32px;background:var(--boot-bg,#071312);color:var(--boot-text,#fff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     #lourex-boot .brand{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;animation:lourexLaunchIn .45s ease-out both}
     #lourex-boot .brand-mark{display:grid;place-items:center;width:118px;height:118px;border-radius:28px}
     #lourex-boot .brand-mark img{display:block;width:118px;height:118px;border-radius:28px}
-    #lourex-boot .brand-words strong{color:#f8f4ea;font-size:21px;letter-spacing:.28em;padding-left:.28em;font-weight:760}
-    #lourex-boot .loading-line{position:relative;z-index:1;width:126px;height:3px;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.1)}
-    #lourex-boot .loading-line:after{content:"";position:absolute;inset:0 auto 0 0;width:46%;border-radius:inherit;background:#B8A071;animation:lourexLoading 1.05s ease-in-out infinite}
+    #lourex-boot .brand-words strong{color:var(--boot-text,#fff);font-size:21px;letter-spacing:.28em;padding-left:.28em;font-weight:760}
+    #lourex-boot .loading-line{position:relative;z-index:1;width:126px;height:3px;overflow:hidden;border-radius:99px;background:var(--boot-track,#1e3b37)}
+    #lourex-boot .loading-line:after{content:"";position:absolute;inset:0 auto 0 0;width:46%;border-radius:inherit;background:var(--boot-accent,#24c7ba);animation:lourexLoading 1.05s ease-in-out infinite}
     @keyframes lourexLoading{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
     @keyframes lourexLaunchIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
     @media(max-width:720px){#lourex-boot.loading-screen{padding:24px}#lourex-boot .brand-mark,#lourex-boot .brand-mark img{width:104px;height:104px;border-radius:25px}#lourex-boot .brand-words strong{font-size:19px}}
@@ -128,6 +146,7 @@
   <link rel="stylesheet" href="./styles/mobile-touch-target-closeout-v274.css" />
   <link rel="stylesheet" href="./styles/command-center-v276.css" />
   <link rel="stylesheet" href="./styles/global-search-v277.css" />
+  <link rel="stylesheet" href="./styles/modern-fintech-v279.css" />
   <link rel="stylesheet" href="./styles/document-premium-redesign-v141.css" />
   <title>LOUREX Invoice</title>
 </head>
@@ -141,6 +160,55 @@
       <span class="loading-line" aria-hidden="true"></span>
     </div>
   </div>
+  <div id="lourex-global-theme-control" class="lourex-global-theme-control" role="group" aria-label="Appearance">
+    <button type="button" data-theme-preference="system" aria-pressed="false" title="Follow system appearance">◐<span class="theme-label">System</span></button>
+    <button type="button" data-theme-preference="light" aria-pressed="false" title="Light appearance">☼<span class="theme-label">Light</span></button>
+    <button type="button" data-theme-preference="dark" aria-pressed="false" title="Dark appearance">☾<span class="theme-label">Dark</span></button>
+  </div>
+  <script id="lourex-theme-control-runtime">
+    (function(){
+      var key='lourex-ui-theme';
+      var root=document.documentElement;
+      var control=document.getElementById('lourex-global-theme-control');
+      var media=null;
+      try{media=window.matchMedia('(prefers-color-scheme: dark)');}catch(e){}
+      function getPreference(){
+        try{var value=window.localStorage.getItem(key);return value==='light'||value==='dark'||value==='system'?value:'system';}catch(e){return 'system';}
+      }
+      function resolve(pref){return pref==='system'?(media&&media.matches?'dark':'light'):pref;}
+      function apply(pref,persist){
+        var resolved=resolve(pref);
+        if(persist){try{window.localStorage.setItem(key,pref);}catch(e){}}
+        root.dataset.uiTheme=resolved;
+        root.dataset.uiThemePreference=pref;
+        root.style.colorScheme=resolved;
+        root.style.backgroundColor=resolved==='light'?'#f4f8f8':'#071312';
+        var meta=document.querySelector('meta[name="theme-color"]');
+        if(meta)meta.setAttribute('content',resolved==='light'?'#f4f8f8':'#071312');
+        if(control){
+          control.querySelectorAll('[data-theme-preference]').forEach(function(button){
+            var active=button.getAttribute('data-theme-preference')===pref;
+            button.classList.toggle('active',active);
+            button.setAttribute('aria-pressed',active?'true':'false');
+          });
+        }
+        try{window.dispatchEvent(new CustomEvent('lourex-ui-theme-change',{detail:{preference:pref,resolved:resolved}}));}catch(e){}
+      }
+      if(control){
+        control.addEventListener('click',function(event){
+          var target=event.target instanceof Element?event.target.closest('[data-theme-preference]'):null;
+          if(!target)return;
+          var pref=target.getAttribute('data-theme-preference');
+          if(pref==='system'||pref==='light'||pref==='dark')apply(pref,true);
+        });
+      }
+      if(media){
+        var sync=function(){if(getPreference()==='system')apply('system',false);};
+        if(media.addEventListener)media.addEventListener('change',sync);else if(media.addListener)media.addListener(sync);
+      }
+      apply(getPreference(),false);
+    })();
+  </script>
   <script src="./runtime-config.js"></script>
   <script src="./canonical-redirect.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js"></script>
