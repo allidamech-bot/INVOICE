@@ -304,8 +304,8 @@
   .app-ui .fintech-shell-v280 .workspace-topbar {
     grid-column:1;
     grid-row:1;
-    min-height:60px;
-    padding:calc(5px + env(safe-area-inset-top)) 12px 5px;
+    min-height:calc(60px + var(--app-safe-top,0px))!important;
+    padding:calc(5px + var(--app-safe-top,0px)) 12px 5px!important;
     background:var(--ft-shell);
   }
   .app-ui .fintech-shell-v280 .workspace-content { grid-column:1; grid-row:2; min-height:0; }

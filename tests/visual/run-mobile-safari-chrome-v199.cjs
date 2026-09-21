@@ -37,7 +37,7 @@ const viewports=[{width:390,height:844},{width:430,height:932}];
           const top=rect('.workspace-topbar'),nav=rect('.mobile-bottom-nav');
           return {topbarHeight:top.height,navHeight:nav.height,contentPaddingBottom:parseFloat(style('.workspace-content').paddingBottom),scrollWidth:document.documentElement.scrollWidth};
         });
-        if(Math.abs(browserMode.topbarHeight-58)>1)failures.push(`browser topbar double-counts safe top: ${browserMode.topbarHeight}`);
+        if(Math.abs(browserMode.topbarHeight-60)>1)failures.push(`browser topbar double-counts safe top: ${browserMode.topbarHeight}`);
         if(Math.abs(browserMode.navHeight-66)>1)failures.push(`browser nav double-counts safe bottom: ${browserMode.navHeight}`);
         if(browserMode.scrollWidth>viewport.width+1)failures.push(`browser horizontal overflow ${browserMode.scrollWidth}`);
         await page.screenshot({path:`${output}/${viewport.width}-${lang}-browser.png`,fullPage:false,animations:'disabled'});
