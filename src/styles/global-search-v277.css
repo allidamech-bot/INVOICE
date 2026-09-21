@@ -1,5 +1,42 @@
 /* v277 — canonical global search and quick-create command palette. */
 @media screen {
+  /* v279 bootstrap fallback — used only by legacy QA fixtures or if the
+     pre-paint theme bootstrap is unavailable. Real light/dark preferences
+     override these values through html[data-ui-theme]. */
+  html:not([data-ui-theme]) {
+    --mf-canvas:#080808;
+    --mf-shell:#0b0b0b;
+    --mf-workspace:#0d0d0d;
+    --mf-surface:#131313;
+    --mf-surface-2:#171717;
+    --mf-surface-3:#1b1b1b;
+    --mf-input:#101010;
+    --mf-text:#f0efea;
+    --mf-text-strong:#fffdf8;
+    --mf-soft:#c9c5bb;
+    --mf-muted:#9b978e;
+    --mf-faint:#6f6b64;
+    --mf-line:#262626;
+    --mf-line-strong:#333333;
+    --mf-accent:#b8a071;
+    --mf-accent-hover:#c9b27e;
+    --mf-accent-soft:#2b261c;
+    --mf-accent-faint:#1b1812;
+    --mf-on-accent:#101010;
+    --mf-success:#74ad86;
+    --mf-success-soft:#15251a;
+    --mf-warning:#c8a565;
+    --mf-warning-soft:#2e2517;
+    --mf-danger:#d88982;
+    --mf-danger-soft:#261817;
+    --mf-info:#86a9bd;
+    --mf-info-soft:#14232b;
+    --mf-shadow:0 12px 34px rgba(0,0,0,.24);
+    --mf-shadow-pop:0 24px 64px rgba(0,0,0,.42);
+    --mf-focus:0 0 0 3px rgba(184,160,113,.22);
+    color-scheme:dark;
+  }
+
   .app-ui .shell-global-search-button{min-height:34px;display:inline-flex;align-items:center;gap:7px;padding:5px 9px;border:1px solid var(--ds-line);border-radius:9px;background:var(--ds-surface);color:var(--ds-muted);font:inherit;font-size:10px;font-weight:650;cursor:pointer}
   .app-ui .shell-global-search-button:hover{background:var(--ds-selected);color:var(--ds-text)}
   .app-ui .shell-global-search-button kbd{padding:2px 5px;border:1px solid #343434;border-radius:5px;background:#111;color:var(--ds-faint);font:600 9px/1.2 Inter,sans-serif}
