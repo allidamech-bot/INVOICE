@@ -1,0 +1,39 @@
+/* v279 fallback tokens.
+   These values are used only when the early theme bootstrap is unavailable
+   (including legacy visual-QA fixtures that intentionally bypass index.html).
+   Normal production startup always sets data-ui-theme before first paint. */
+@media screen {
+  html:not([data-ui-theme]) {
+    --mf-canvas:#080808;
+    --mf-shell:#0b0b0b;
+    --mf-workspace:#0d0d0d;
+    --mf-surface:#131313;
+    --mf-surface-2:#171717;
+    --mf-surface-3:#1b1b1b;
+    --mf-input:#101010;
+    --mf-text:#f0efea;
+    --mf-text-strong:#fffdf8;
+    --mf-soft:#c9c5bb;
+    --mf-muted:#9b978e;
+    --mf-faint:#6f6b64;
+    --mf-line:#262626;
+    --mf-line-strong:#333333;
+    --mf-accent:#b8a071;
+    --mf-accent-hover:#c9b27e;
+    --mf-accent-soft:#2b261c;
+    --mf-accent-faint:#1b1812;
+    --mf-on-accent:#101010;
+    --mf-success:#74ad86;
+    --mf-success-soft:#15251a;
+    --mf-warning:#c8a565;
+    --mf-warning-soft:#2e2517;
+    --mf-danger:#d88982;
+    --mf-danger-soft:#261817;
+    --mf-info:#86a9bd;
+    --mf-info-soft:#14232b;
+    --mf-shadow:0 12px 34px rgba(0,0,0,.24);
+    --mf-shadow-pop:0 24px 64px rgba(0,0,0,.42);
+    --mf-focus:0 0 0 3px rgba(184,160,113,.22);
+    color-scheme:dark;
+  }
+}
