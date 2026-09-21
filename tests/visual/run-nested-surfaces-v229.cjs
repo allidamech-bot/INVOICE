@@ -6,10 +6,12 @@ const TRANSPARENT='rgba(0, 0, 0, 0)';
 
 async function activateDarkTheme(page){
   await page.evaluate(()=>{
+    localStorage.setItem('lourex-ui-theme','dark');
     document.documentElement.dataset.uiTheme='dark';
     document.documentElement.dataset.uiThemePreference='dark';
     document.documentElement.style.colorScheme='dark';
   });
+  await page.waitForTimeout(450);
 }
 
 async function themeColors(page){
@@ -30,7 +32,8 @@ async function themeColors(page){
       strong:resolve('--ds-surface-strong'),
       selected:resolve('--ds-selected'),
       secondary:resolve('--ds-secondary-button'),
-      input:resolve('--ds-input')
+      input:resolve('--ds-input'),
+      accentFaint:resolve('--ft-accent-faint')
     };
   });
 }
@@ -66,10 +69,10 @@ async function auditEditor(browser,viewport,lang,kind){
     const theme=await themeColors(page);
     await page.locator('.editor-section').first().waitFor();
     await assertBackground(page,'.premium-selected-customer',[TRANSPARENT],label,{optional:true});
-    await assertBackground(page,'.premium-item-card>header',[theme.strong],label);
+    await assertBackground(page,'.premium-item-card>header',[theme.shell,theme.workspace,theme.surface,theme.strong],label);
     await assertBackground(page,'.item-line-total',[theme.selected],label);
     await assertBackground(page,'.item-pricing-grid',[TRANSPARENT],label);
-    await assertBackground(page,'.editor-totals',[TRANSPARENT],label);
+    await assertBackground(page,'.editor-totals',[TRANSPARENT,theme.surface],label);
     await assertBackground(page,'.product-metadata-suggestions button',[theme.strong,theme.selected],label,{optional:true});
     await assertBackground(page,'.commercial-preset-chips button',[theme.strong,theme.selected],label,{optional:true});
     const images=await page.locator('.editor-pane').evaluate(root=>[...root.querySelectorAll('.premium-selected-customer,.premium-item-card>header,.item-line-total,.recent-customer-row button,.commercial-preset-chips button,.product-metadata-suggestions button')].map(el=>getComputedStyle(el).backgroundImage).filter(value=>value!=='none'));
@@ -95,7 +98,7 @@ async function auditCustomers(browser,viewport,lang){
     await page.locator('.customer-profile-back').click();
     await page.locator('.customers-heading .btn-primary').click();
     await page.locator('.customer-form-stack').waitFor();
-    await assertBackground(page,'.customer-form-section',[theme.surface],`${label}/edit`);
+    await assertBackground(page,'.customer-form-section',[TRANSPARENT,theme.surface],`${label}/edit`);
     await assertBackground(page,'.customer-form-section .input',[theme.input],`${label}/edit`);
     await noLightChrome(page,'.modal',`${label}/edit`);
   }finally{await page.close();}
@@ -116,7 +119,7 @@ async function auditDocuments(browser,viewport,lang){
     await assertBackground(page,'.document-detail-card',[theme.surface],label);
     await assertBackground(page,'.document-detail-item-head',[theme.workspace],label);
     await assertBackground(page,'.document-detail-item-row',[TRANSPARENT],label);
-    await assertBackground(page,'.document-detail-secondary-actions>button',[theme.secondary],label,{optional:true});
+    await assertBackground(page,'.document-detail-secondary-actions>button',[theme.workspace,theme.secondary],label,{optional:true});
     await noLightChrome(page,'.document-detail-page',label);
   }finally{await page.close();}
 }
@@ -131,9 +134,9 @@ async function auditMore(browser,lang){
     const more=page.locator('.mobile-bottom-nav button[aria-controls="mobile-more-sheet"]');
     await more.click();
     await page.locator('.mobile-more-sheet').waitFor({state:'visible'});
-    await assertBackground(page,'.mobile-more-sheet',[theme.surface,theme.strong],label);
-    await assertBackground(page,'.mobile-more-account,.mobile-more-link,.mobile-more-settings',[TRANSPARENT,theme.selected,theme.strong],label);
-    await assertBackground(page,'.mobile-more-account-icon,.mobile-more-link-icon,.mobile-more-settings-icon',[theme.selected,theme.strong],label);
+    await assertBackground(page,'.mobile-more-sheet',[theme.shell,theme.surface,theme.strong],label);
+    await assertBackground(page,'.mobile-more-account,.mobile-more-link,.mobile-more-settings',[TRANSPARENT,theme.surface,theme.selected,theme.strong],label);
+    await assertBackground(page,'.mobile-more-account-icon,.mobile-more-link-icon,.mobile-more-settings-icon',[theme.accentFaint,theme.selected,theme.strong],label);
     const effects=await page.locator('.mobile-more-sheet').evaluate(root=>({
       sheetImage:getComputedStyle(root).backgroundImage,
       links:[...root.querySelectorAll('.mobile-more-account,.mobile-more-link,.mobile-more-settings')].map(el=>getComputedStyle(el).backgroundImage)
@@ -152,16 +155,16 @@ async function auditSettings(browser,viewport,lang){
     await activateDarkTheme(page);
     const theme=await themeColors(page);
     await page.locator('.settings-workspace-v2').waitFor();
-    await assertBackground(page,'.settings-workspace-v2',[theme.workspace],label);
-    await assertBackground(page,'.settings-tabs',[theme.shell],label);
-    await assertBackground(page,'.settings-panel',[theme.workspace],label);
+    await assertBackground(page,'.settings-workspace-v2',[theme.workspace,theme.surface],label);
+    await assertBackground(page,'.settings-tabs',[theme.shell,theme.surface],label);
+    await assertBackground(page,'.settings-panel',[TRANSPARENT,theme.workspace,theme.surface],label);
     const tabs=page.locator('.settings-tabs>button');
     for(let i=0;i<await tabs.count();i++){
       await tabs.nth(i).click();
       await page.waitForTimeout(50);
-      await assertBackground(page,'.settings-section',[theme.surface],`${label}/tab${i}`);
+      await assertBackground(page,'.settings-section',[TRANSPARENT,theme.surface],`${label}/tab${i}`);
       await assertBackground(page,'.settings-workspace-v2 .input,.settings-workspace-v2 select.input,.settings-workspace-v2 textarea.input',[theme.input],`${label}/tab${i}`,{optional:true});
-      await assertBackground(page,'.commercial-row-card',[theme.strong],`${label}/tab${i}`,{optional:true});
+      await assertBackground(page,'.commercial-row-card',[theme.workspace,theme.surface,theme.strong],`${label}/tab${i}`,{optional:true});
       await noLightChrome(page,'.settings-workspace-v2',`${label}/tab${i}`);
     }
   }finally{await page.close();}

@@ -400,7 +400,7 @@
     background:rgba(0,10,14,.62);
     backdrop-filter:blur(5px);
   }
-  .app-ui .fintech-shell-v280 .mobile-more-sheet {
+  .app-ui .fintech-shell-v280 .mobile-more-sheet.mobile-more-sheet {
     position:fixed;
     z-index:1090;
     inset-inline:0;
@@ -413,8 +413,8 @@
     border:1px solid var(--ft-line-strong);
     border-bottom:0;
     border-radius:18px 18px 0 0;
-    background:var(--ft-shell);
-    color:var(--ft-text);
+    background:var(--ft-shell)!important;
+    color:var(--ft-text)!important;
     box-shadow:0 -28px 80px rgba(0,0,0,.35);
   }
   .app-ui .mobile-more-handle { width:34px; height:4px; margin:0 auto 10px; border-radius:99px; background:var(--ft-line-strong); }
@@ -465,7 +465,7 @@
 }
 
 @media screen and (max-height:620px) and (max-width:860px) {
-  .app-ui .fintech-shell-v280 .mobile-more-sheet { max-height:90dvh; }
+  .app-ui .fintech-shell-v280 .mobile-more-sheet.mobile-more-sheet { max-height:90dvh; }
 }
 
 @media screen and (display-mode:standalone) and (max-width:860px) {

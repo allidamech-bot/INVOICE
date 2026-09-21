@@ -472,6 +472,13 @@
   .app-ui .mobile-action-buttons { border-color:var(--ft-line); background:var(--ft-shell); }
 }
 
+.app-ui .appearance-auto-note {
+  border-color:var(--ft-line)!important;
+  background:var(--ft-surface-2)!important;
+  color:var(--ft-text-soft)!important;
+}
+.app-ui .appearance-auto-note strong { color:var(--ft-text-strong)!important; }
+
 /* Global search is a portal, so it intentionally owns its semantic surfaces here. */
 @media screen {
   .global-search-backdrop { background:rgba(1,13,18,.66); backdrop-filter:blur(7px); }
