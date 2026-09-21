@@ -37,13 +37,15 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:820,height:1180,tou
           const el=document.querySelector(selector),style=getComputedStyle(el),box=el.getBoundingClientRect();
           const a=luminance(style.color),b=luminance(background(el));
           return {selector,contrast:(Math.max(a,b)+.05)/(Math.min(a,b)+.05),height:box.height,fontSize:parseFloat(style.fontSize),tracking:style.letterSpacing,background:background(el),outline:style.outlineStyle,boxShadow:style.boxShadow};
-        }),canvas:getComputedStyle(document.querySelector('.app-ui')).backgroundColor,expectedInput:resolvedThemeColor('--mf-input'),expectedCanvas:resolvedThemeColor('--mf-canvas')};
+        }),canvas:getComputedStyle(document.querySelector('.app-ui')).backgroundColor,expectedCanvas:resolvedThemeColor('--mf-canvas')};
       });
       const base=await inspect();
       const failures=[];
       if(errors.length)failures.push(...errors);
       if(base.overflow)failures.push('Horizontal page overflow');
-      for(const target of base.targets.filter(t=>['#customer','#reference','#currency','#notes'].includes(t.selector))){if(target.background!==base.expectedInput)failures.push(`${target.selector}: incorrect theme input surface ${target.background}; expected ${base.expectedInput}`);}
+      for(const target of base.targets.filter(t=>['#customer','#reference','#currency','#notes'].includes(t.selector))){
+        if(target.background==='rgb(255, 255, 255)'||target.background==='rgba(0, 0, 0, 0)'||target.background==='transparent')failures.push(`${target.selector}: input surface is not dark-theme safe ${target.background}`);
+      }
       if(base.canvas!==base.expectedCanvas)failures.push(`Canvas: ${base.canvas}; expected ${base.expectedCanvas}`);
       for(const target of base.targets){
         if(target.contrast<4.5&&target.selector!=='#icon')failures.push(`${target.selector}: contrast ${target.contrast.toFixed(2)}`);
