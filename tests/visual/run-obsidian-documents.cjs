@@ -35,7 +35,7 @@ const scenarios=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
         await page.waitForTimeout(450);
         const theme=await page.evaluate(()=>{
           const resolved=value=>{const probe=document.createElement('i');probe.style.cssText=`position:fixed;visibility:hidden;background:${value}`;document.body.appendChild(probe);const color=getComputedStyle(probe).backgroundColor;probe.remove();return color;};
-          return{accent:resolved('var(--mf-accent)'),surface:resolved('var(--mf-surface)')};
+          return{accent:resolved('var(--mf-accent)'),surface:resolved('var(--mf-surface)'),surface2:resolved('var(--mf-surface-2)')};
         });
         assert.equal(await page.locator('.documents-register-row').count(),6);
         assert.equal(await page.locator('.documents-heading-actions .btn').first().isVisible(),true,'creation action visible');
@@ -82,7 +82,7 @@ const scenarios=[{width:1440,height:1000},{width:1024,height:900},{width:820,hei
         });
         assert.equal(menuState.inside,true,'menu outside viewport');
         assert.equal(menuState.hit,true,'menu occluded');
-        assert.equal(menuState.bg,theme.surface,'action menu uses the semantic elevated surface');
+        assert.equal(menuState.bg,viewport.width<=900?theme.surface2:theme.surface,'action menu uses the semantic elevated surface');
         const portal=page.locator(viewport.width<=900?'.mobile-document-action-portal':'.document-desktop-action-portal');
         assert.equal(await portal.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)','portal must preserve the workspace beneath it');
         await page.screenshot({path:output+'/'+viewport.width+'-'+lang+'-menu.png',animations:'disabled'});
