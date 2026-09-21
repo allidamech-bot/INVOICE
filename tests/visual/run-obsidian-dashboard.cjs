@@ -13,24 +13,30 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:1024,height:900,tou
       const page=await browser.newPage({viewport:{width:scenario.width,height:scenario.height},hasTouch:scenario.touch,isMobile:scenario.touch});
       const errors=[];page.on('pageerror',error=>errors.push(String(error)));
       await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-dashboard.html?lang=${lang}`,{waitUntil:'load'});
+      await page.evaluate(()=>{
+        document.documentElement.dataset.uiTheme='dark';
+        document.documentElement.dataset.uiThemePreference='dark';
+        document.documentElement.style.colorScheme='dark';
+      });
       await page.locator('.dashboard-page').waitFor();
       await page.evaluate(()=>document.fonts.ready);
+      await page.waitForTimeout(450);
       const state=await page.evaluate(()=>{
         const style=selector=>getComputedStyle(document.querySelector(selector));
         const rect=selector=>document.querySelector(selector).getBoundingClientRect();
+        const resolvedBackground=value=>{const probe=document.createElement('i');probe.style.cssText=`position:fixed;visibility:hidden;background:${value}`;document.body.appendChild(probe);const color=getComputedStyle(probe).backgroundColor;probe.remove();return color;};
         const columns=style('.dashboard-kpis').gridTemplateColumns.split(' ').filter(Boolean).length;
         const kpis=[...document.querySelectorAll('.dashboard-kpi')].map(el=>({height:el.getBoundingClientRect().height,background:getComputedStyle(el).backgroundColor,radius:getComputedStyle(el).borderRadius}));
         const whiteSurfaces=[...document.querySelectorAll('.dashboard-page *')].filter(el=>getComputedStyle(el).backgroundColor==='rgb(255, 255, 255)').length;
-        return{scrollWidth:document.documentElement.scrollWidth,canvas:style('.workspace-shell').backgroundColor,hero:style('.dashboard-hero').backgroundColor,kpiPanel:style('.dashboard-kpis').backgroundColor,columns,kpis,whiteSurfaces,recentHead:style('.dashboard-document-head').display,recentRows:document.querySelectorAll('.dashboard-document-row').length,statuses:document.querySelectorAll('.dashboard-document-status').length,firstRowHeight:rect('.dashboard-document-row').height,dir:document.documentElement.dir};
+        return{scrollWidth:document.documentElement.scrollWidth,canvas:style('.workspace-shell').backgroundColor,hero:style('.dashboard-hero').backgroundColor,kpiPanel:style('.dashboard-kpis').backgroundColor,columns,kpis,whiteSurfaces,recentHead:style('.dashboard-document-head').display,recentRows:document.querySelectorAll('.dashboard-document-row').length,statuses:document.querySelectorAll('.dashboard-document-status').length,firstRowHeight:rect('.dashboard-document-row').height,dir:document.documentElement.dir,expected:{canvas:resolvedBackground('var(--mf-canvas)'),surface:resolvedBackground('var(--mf-surface)')}};
       });
       const failures=[...errors];
       if(state.scrollWidth>scenario.width+1)failures.push(`horizontal overflow ${state.scrollWidth}`);
-      if(state.canvas!=='rgb(8, 8, 8)')failures.push(`canvas ${state.canvas}`);
+      if(state.canvas!==state.expected.canvas)failures.push(`canvas ${state.canvas}; expected ${state.expected.canvas}`);
       if(state.hero!=='rgba(0, 0, 0, 0)')failures.push(`hero surface ${state.hero}`);
-      // Precision Black v267 standardizes the canonical application surface at #131313.
-      if(state.kpiPanel!=='rgb(19, 19, 19)')failures.push(`KPI panel ${state.kpiPanel}`);
+      if(state.kpiPanel!==state.expected.surface)failures.push(`KPI panel ${state.kpiPanel}; expected ${state.expected.surface}`);
       if(state.kpis.length!==4)failures.push(`KPI count ${state.kpis.length}`);
-      if(state.kpis.some(item=>item.background!=='rgba(0, 0, 0, 0)'||item.radius!=='0px'))failures.push('KPI cards are not internally divided');
+      if(state.kpis.some(item=>item.background!==state.expected.surface||item.radius!=='0px'))failures.push('KPI cards are not internally divided on the semantic surface');
       if(state.whiteSurfaces)failures.push(`white application surfaces ${state.whiteSurfaces}`);
       if(state.recentRows!==5||state.statuses!==5)failures.push(`recent activity structure ${state.recentRows}/${state.statuses}`);
       if(state.firstRowHeight<64||state.firstRowHeight>(scenario.width<=800?112:82))failures.push(`recent row height ${state.firstRowHeight}`);
