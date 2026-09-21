@@ -5,6 +5,12 @@ const assert=require('node:assert/strict');
 const output='visual-qa-output/save-reliability-v217';
 const base='http://127.0.0.1:4173/tests/visual';
 
+const activateCurrentDarkTheme=page=>page.evaluate(()=>{
+  document.documentElement.dataset.uiTheme='dark';
+  document.documentElement.dataset.uiThemePreference='dark';
+  document.documentElement.style.colorScheme='dark';
+});
+
 (async()=>{
   mkdirSync(output,{recursive:true});
   const browser=await chromium.launch({headless:true});
@@ -17,16 +23,19 @@ const base='http://127.0.0.1:4173/tests/visual';
       page.on('pageerror',error=>failures.push(`pageerror: ${String(error)}`));
       try{
         await page.goto(`${base}/obsidian-shell.html?conflict=1&lang=${lang}`,{waitUntil:'load'});
+        await activateCurrentDarkTheme(page);
         const banner=page.locator('.cloud-conflict-banner');
         await banner.waitFor();
         const palette=await page.evaluate(()=>({
           gradient:getComputedStyle(document.querySelector('.cloud-conflict-banner')).backgroundImage,
           icon:getComputedStyle(document.querySelector('.cloud-conflict-icon')).backgroundColor,
-          text:getComputedStyle(document.querySelector('.cloud-conflict-banner')).color
+          text:getComputedStyle(document.querySelector('.cloud-conflict-banner')).color,
+          appText:getComputedStyle(document.querySelector('.app-ui')).color
         }));
         assert.equal(palette.gradient,'none','conflict banner must stay flat without a decorative gradient');
         assert.equal(palette.icon,'rgb(38, 24, 23)','conflict icon must stay on the matte danger surface');
-        assert.equal(palette.text,'rgb(240, 239, 234)','conflict copy must use warm matte text contrast');
+        assert.equal(palette.text,palette.appText,'conflict copy must follow the active application theme contrast');
+        assert.notEqual(palette.text,'rgb(0, 0, 0)','dark-theme conflict copy must never regress to black text');
         const geometry=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,banner:document.querySelector('.cloud-conflict-banner')?.getBoundingClientRect().toJSON()}));
         assert.ok(geometry.scrollWidth<=geometry.width+1,`conflict shell overflow: ${JSON.stringify(geometry)}`);
         await banner.locator('button').click();
@@ -44,10 +53,16 @@ const base='http://127.0.0.1:4173/tests/visual';
       page.on('pageerror',error=>failures.push(`pageerror: ${String(error)}`));
       try{
         await page.goto(`${base}/functional-account-v200.html?user=1&conflict=1&lang=${lang}`,{waitUntil:'load'});
+        await activateCurrentDarkTheme(page);
         const recovery=page.locator('.cloud-conflict-recovery');
         await recovery.waitFor();
         assert.equal(await recovery.evaluate(el=>getComputedStyle(el).backgroundImage),'none','conflict recovery must stay flat without a decorative gradient');
-        assert.equal(await recovery.evaluate(el=>getComputedStyle(el).color),'rgb(240, 239, 234)','conflict recovery must use warm matte text contrast');
+        const recoveryPalette=await page.evaluate(()=>({
+          text:getComputedStyle(document.querySelector('.cloud-conflict-recovery')).color,
+          appText:getComputedStyle(document.querySelector('.app-ui')).color
+        }));
+        assert.equal(recoveryPalette.text,recoveryPalette.appText,'conflict recovery must follow the active application theme contrast');
+        assert.notEqual(recoveryPalette.text,'rgb(0, 0, 0)','dark-theme conflict recovery must never regress to black text');
         const actions=page.locator('.cloud-conflict-actions button');
         assert.equal(await actions.count(),2,'both explicit conflict choices must be visible');
         await actions.first().click();
@@ -69,6 +84,7 @@ const base='http://127.0.0.1:4173/tests/visual';
       const failures=[];
       try{
         await page.goto(`${base}/functional-account-v200.html?user=1&conflict=1&blocked=1`,{waitUntil:'load'});
+        await activateCurrentDarkTheme(page);
         await page.locator('.cloud-conflict-recovery').waitFor();
         assert.equal(await page.locator('.cloud-conflict-actions').count(),0,'destructive choices must stay hidden while an editor or Settings blocks replacement');
         assert.match(await page.locator('.cloud-conflict-recovery').innerText(),/Close the open document or Settings first/);
