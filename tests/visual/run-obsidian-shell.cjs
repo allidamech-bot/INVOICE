@@ -18,6 +18,9 @@ const scenarios=[{width:1440,height:900,touch:false},{width:1024,height:768,touc
         document.documentElement.style.colorScheme='dark';
       });
       await page.locator('.workspace-shell').waitFor();
+      // Theme changes intentionally animate in the application. Sample only after the
+      // transition settles so this QA checks the semantic end state, not an in-flight blend.
+      await page.waitForTimeout(450);
       const state=await page.evaluate(()=>{
         const info=selector=>{const el=document.querySelector(selector);if(!el)return null;const s=getComputedStyle(el),r=el.getBoundingClientRect();return {display:s.display,background:s.backgroundColor,color:s.color,width:r.width,height:r.height,left:r.left,right:r.right,bottom:r.bottom,boxShadow:s.boxShadow,paddingBottom:s.paddingBottom};};
         const resolvedBackground=value=>{const probe=document.createElement('i');probe.style.cssText=`position:fixed;visibility:hidden;background:${value}`;document.body.appendChild(probe);const color=getComputedStyle(probe).backgroundColor;probe.remove();return color;};
