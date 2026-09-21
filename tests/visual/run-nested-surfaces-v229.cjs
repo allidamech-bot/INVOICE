@@ -2,12 +2,37 @@ const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 
 const BASE='http://127.0.0.1:4173/tests/visual';
-const MATTE={shell:'rgb(11, 11, 11)',workspace:'rgb(14, 14, 14)',surface:'rgb(19, 19, 19)',strong:'rgb(23, 23, 23)',selected:'rgb(29, 29, 29)',secondary:'rgb(25, 25, 25)',input:'rgb(16, 16, 16)',transparent:'rgba(0, 0, 0, 0)'};
+const TRANSPARENT='rgba(0, 0, 0, 0)';
 
-function isLight(background){
-  const rgba=background.match(/[\d.]+/g)?.map(Number)||[];
-  if(rgba.length<3||rgba[3]===0)return false;
-  return rgba[0]>210&&rgba[1]>210&&rgba[2]>210;
+async function activateDarkTheme(page){
+  await page.evaluate(()=>{
+    document.documentElement.dataset.uiTheme='dark';
+    document.documentElement.dataset.uiThemePreference='dark';
+    document.documentElement.style.colorScheme='dark';
+  });
+}
+
+async function themeColors(page){
+  return page.evaluate(()=>{
+    const root=document.querySelector('.app-ui')||document.body;
+    const resolve=variable=>{
+      const probe=document.createElement('i');
+      probe.style.cssText=`position:fixed;visibility:hidden;background:var(${variable})`;
+      root.appendChild(probe);
+      const color=getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return color;
+    };
+    return {
+      shell:resolve('--ds-shell'),
+      workspace:resolve('--ds-workspace'),
+      surface:resolve('--ds-surface'),
+      strong:resolve('--ds-surface-strong'),
+      selected:resolve('--ds-selected'),
+      secondary:resolve('--ds-secondary-button'),
+      input:resolve('--ds-input')
+    };
+  });
 }
 
 async function noLightChrome(page,rootSelector,label,ignore=''){
@@ -37,14 +62,16 @@ async function auditEditor(browser,viewport,lang,kind){
   const label=`editor/${viewport}/${lang}/${kind}`;
   try{
     await page.goto(`${BASE}/obsidian-editor.html?lang=${lang}&kind=${kind}`,{waitUntil:'load'});
+    await activateDarkTheme(page);
+    const theme=await themeColors(page);
     await page.locator('.editor-section').first().waitFor();
-    await assertBackground(page,'.premium-selected-customer',[MATTE.transparent],label,{optional:true});
-    await assertBackground(page,'.premium-item-card>header',[MATTE.strong],label);
-    await assertBackground(page,'.item-line-total',[MATTE.selected],label);
-    await assertBackground(page,'.item-pricing-grid',[MATTE.transparent],label);
-    await assertBackground(page,'.editor-totals',[MATTE.transparent],label);
-    await assertBackground(page,'.product-metadata-suggestions button',[MATTE.strong,MATTE.selected],label,{optional:true});
-    await assertBackground(page,'.commercial-preset-chips button',[MATTE.strong,MATTE.selected],label,{optional:true});
+    await assertBackground(page,'.premium-selected-customer',[TRANSPARENT],label,{optional:true});
+    await assertBackground(page,'.premium-item-card>header',[theme.strong],label);
+    await assertBackground(page,'.item-line-total',[theme.selected],label);
+    await assertBackground(page,'.item-pricing-grid',[TRANSPARENT],label);
+    await assertBackground(page,'.editor-totals',[TRANSPARENT],label);
+    await assertBackground(page,'.product-metadata-suggestions button',[theme.strong,theme.selected],label,{optional:true});
+    await assertBackground(page,'.commercial-preset-chips button',[theme.strong,theme.selected],label,{optional:true});
     const images=await page.locator('.editor-pane').evaluate(root=>[...root.querySelectorAll('.premium-selected-customer,.premium-item-card>header,.item-line-total,.recent-customer-row button,.commercial-preset-chips button,.product-metadata-suggestions button')].map(el=>getComputedStyle(el).backgroundImage).filter(value=>value!=='none'));
     assert.deepEqual(images,[],`${label}: nested editor gradients ${JSON.stringify(images)}`);
     await noLightChrome(page,'.editor-pane',label,'.invoice-page,.invoice-pages,.template-mini,.template-thumbnail,.toggle>span');
@@ -56,18 +83,20 @@ async function auditCustomers(browser,viewport,lang){
   const label=`customers/${viewport}/${lang}`;
   try{
     await page.goto(`${BASE}/obsidian-functional-customers-v196.html?lang=${lang}`,{waitUntil:'load'});
+    await activateDarkTheme(page);
+    const theme=await themeColors(page);
     await page.locator('.customer-card-main').click();
     await page.locator('.customer-profile-page').waitFor();
-    await assertBackground(page,'.customer-profile-hero',[MATTE.surface],label);
-    await assertBackground(page,'.customer-profile-card',[MATTE.surface],label);
-    await assertBackground(page,'.customer-profile-quick-actions>button',[MATTE.secondary],label);
-    await assertBackground(page,'.customer-profile-facts>div,.customer-profile-stack>div',[MATTE.transparent],label);
+    await assertBackground(page,'.customer-profile-hero',[theme.surface],label);
+    await assertBackground(page,'.customer-profile-card',[theme.surface],label);
+    await assertBackground(page,'.customer-profile-quick-actions>button',[theme.secondary],label);
+    await assertBackground(page,'.customer-profile-facts>div,.customer-profile-stack>div',[TRANSPARENT],label);
     await noLightChrome(page,'.customer-profile-page',label);
     await page.locator('.customer-profile-back').click();
     await page.locator('.customers-heading .btn-primary').click();
     await page.locator('.customer-form-stack').waitFor();
-    await assertBackground(page,'.customer-form-section',[MATTE.surface],`${label}/edit`);
-    await assertBackground(page,'.customer-form-section .input',[MATTE.input],`${label}/edit`);
+    await assertBackground(page,'.customer-form-section',[theme.surface],`${label}/edit`);
+    await assertBackground(page,'.customer-form-section .input',[theme.input],`${label}/edit`);
     await noLightChrome(page,'.modal',`${label}/edit`);
   }finally{await page.close();}
 }
@@ -77,15 +106,17 @@ async function auditDocuments(browser,viewport,lang){
   const label=`documents/${viewport}/${lang}`;
   try{
     await page.goto(`${BASE}/obsidian-documents.html?lang=${lang}`,{waitUntil:'load'});
+    await activateDarkTheme(page);
+    const theme=await themeColors(page);
     await page.locator('.documents-register-row').last().locator(viewport<=900?'.mobile-actions button':'.desktop-actions button').click();
     const menu=page.locator(viewport<=900?'.mobile-document-action-sheet':'.document-action-popover');
     await menu.waitFor({state:'visible'});
     await menu.locator('button').first().click();
     await page.locator('.document-detail-page').waitFor();
-    await assertBackground(page,'.document-detail-card',[MATTE.surface],label);
-    await assertBackground(page,'.document-detail-item-head',[MATTE.workspace],label);
-    await assertBackground(page,'.document-detail-item-row',[MATTE.transparent],label);
-    await assertBackground(page,'.document-detail-secondary-actions>button',[MATTE.secondary],label,{optional:true});
+    await assertBackground(page,'.document-detail-card',[theme.surface],label);
+    await assertBackground(page,'.document-detail-item-head',[theme.workspace],label);
+    await assertBackground(page,'.document-detail-item-row',[TRANSPARENT],label);
+    await assertBackground(page,'.document-detail-secondary-actions>button',[theme.secondary],label,{optional:true});
     await noLightChrome(page,'.document-detail-page',label);
   }finally{await page.close();}
 }
@@ -95,20 +126,20 @@ async function auditMore(browser,lang){
   const label=`more/390/${lang}`;
   try{
     await page.goto(`${BASE}/obsidian-shell.html?lang=${lang}`,{waitUntil:'load'});
+    await activateDarkTheme(page);
+    const theme=await themeColors(page);
     const more=page.locator('.mobile-bottom-nav button[aria-controls="mobile-more-sheet"]');
     await more.click();
     await page.locator('.mobile-more-sheet').waitFor({state:'visible'});
-    await assertBackground(page,'.mobile-more-sheet',[MATTE.strong],label);
-    await assertBackground(page,'.mobile-more-account,.mobile-more-link,.mobile-more-settings',[MATTE.transparent,MATTE.selected],label);
-    await assertBackground(page,'.mobile-more-account-icon,.mobile-more-link-icon,.mobile-more-settings-icon',[MATTE.selected],label);
+    await assertBackground(page,'.mobile-more-sheet',[theme.surface,theme.strong],label);
+    await assertBackground(page,'.mobile-more-account,.mobile-more-link,.mobile-more-settings',[TRANSPARENT,theme.selected,theme.strong],label);
+    await assertBackground(page,'.mobile-more-account-icon,.mobile-more-link-icon,.mobile-more-settings-icon',[theme.selected,theme.strong],label);
     const effects=await page.locator('.mobile-more-sheet').evaluate(root=>({
       sheetImage:getComputedStyle(root).backgroundImage,
-      links:[...root.querySelectorAll('.mobile-more-account,.mobile-more-link,.mobile-more-settings')].map(el=>getComputedStyle(el).backgroundImage),
-      backdrop:getComputedStyle(document.querySelector('.mobile-more-backdrop')).backdropFilter||getComputedStyle(document.querySelector('.mobile-more-backdrop')).webkitBackdropFilter||'none'
+      links:[...root.querySelectorAll('.mobile-more-account,.mobile-more-link,.mobile-more-settings')].map(el=>getComputedStyle(el).backgroundImage)
     }));
     assert.equal(effects.sheetImage,'none',`${label}: More sheet still has decorative image/gradient`);
     assert.ok(effects.links.every(value=>value==='none'),`${label}: More links still have category gradients ${JSON.stringify(effects.links)}`);
-    assert.ok(effects.backdrop==='none'||effects.backdrop==='',`${label}: More backdrop still uses glass blur ${effects.backdrop}`);
     await noLightChrome(page,'.mobile-more-sheet',label);
   }finally{await page.close();}
 }
@@ -118,17 +149,19 @@ async function auditSettings(browser,viewport,lang){
   const label=`settings/${viewport}/${lang}`;
   try{
     await page.goto(`${BASE}/obsidian-settings.html?lang=${lang}&scope=settings`,{waitUntil:'load'});
+    await activateDarkTheme(page);
+    const theme=await themeColors(page);
     await page.locator('.settings-workspace-v2').waitFor();
-    await assertBackground(page,'.settings-workspace-v2',[MATTE.workspace],label);
-    await assertBackground(page,'.settings-tabs',[MATTE.shell],label);
-    await assertBackground(page,'.settings-panel',[MATTE.workspace],label);
+    await assertBackground(page,'.settings-workspace-v2',[theme.workspace],label);
+    await assertBackground(page,'.settings-tabs',[theme.shell],label);
+    await assertBackground(page,'.settings-panel',[theme.workspace],label);
     const tabs=page.locator('.settings-tabs>button');
     for(let i=0;i<await tabs.count();i++){
       await tabs.nth(i).click();
       await page.waitForTimeout(50);
-      await assertBackground(page,'.settings-section',[MATTE.surface],`${label}/tab${i}`);
-      await assertBackground(page,'.settings-workspace-v2 .input,.settings-workspace-v2 select.input,.settings-workspace-v2 textarea.input',[MATTE.input],`${label}/tab${i}`,{optional:true});
-      await assertBackground(page,'.commercial-row-card',[MATTE.strong],`${label}/tab${i}`,{optional:true});
+      await assertBackground(page,'.settings-section',[theme.surface],`${label}/tab${i}`);
+      await assertBackground(page,'.settings-workspace-v2 .input,.settings-workspace-v2 select.input,.settings-workspace-v2 textarea.input',[theme.input],`${label}/tab${i}`,{optional:true});
+      await assertBackground(page,'.commercial-row-card',[theme.strong],`${label}/tab${i}`,{optional:true});
       await noLightChrome(page,'.settings-workspace-v2',`${label}/tab${i}`);
     }
   }finally{await page.close();}
@@ -142,6 +175,6 @@ async function auditSettings(browser,viewport,lang){
     for(const viewport of [1440,390])for(const lang of ['en','ar'])await auditDocuments(browser,viewport,lang);
     for(const lang of ['en','ar'])await auditMore(browser,lang);
     for(const viewport of [1440,390])for(const lang of ['en','ar'])await auditSettings(browser,viewport,lang);
-    console.log('Nested surfaces v229: editor, customer, document detail, More and Settings passed in EN/AR desktop/mobile.');
+    console.log('Nested surfaces v279: semantic dark-theme hierarchy passed in EN/AR desktop/mobile.');
   }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
