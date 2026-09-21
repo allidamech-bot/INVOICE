@@ -52,13 +52,13 @@ test('v198 compacts only redundant account-entry story content on short phones',
 test('v198 mobile viewport foundation remains part of the current theme-aware immutable PWA generation',async()=>{
   const [html,manifestText,sw]=await Promise.all([read('index.html'),read('public/manifest.webmanifest'),read('public/sw.js')]);
   const manifest=JSON.parse(manifestText);
-  assert.match(html,/<meta name="theme-color" content="#071312" \/>/);
+  assert.match(html,/<meta name="theme-color" content="#061820" \/>/);
   assert.match(html,/id="lourex-theme-bootstrap"/);
-  assert.match(html,/html\[data-ui-theme="light"\]\{--boot-bg:#f4f8f8/);
-  assert.match(html,/html\[data-ui-theme="dark"\]\{--boot-bg:#071312/);
-  assert.match(html,/html,body,#root\{min-height:100%;min-height:100dvh;margin:0;background:var\(--boot-bg,#071312\)\}/);
-  assert.equal(manifest.background_color,'#071312');
-  assert.equal(manifest.theme_color,'#0f9f95');
+  assert.match(html,/html\[data-ui-theme="light"\]\{--boot-bg:#f2f7f8/);
+  assert.match(html,/html\[data-ui-theme="dark"\]\{--boot-bg:#061820/);
+  assert.match(html,/html,body,#root\{min-height:100%;min-height:100dvh;margin:0;background:var\(--boot-bg,#061820\)\}/);
+  assert.equal(manifest.background_color,'#061820');
+  assert.equal(manifest.theme_color,'#061820');
   assert.ok(activeCacheVersion(sw)>=198,'active PWA generation must retain or advance beyond v198');
   assert.match(sw,/lourex-invoice-v197: preserved as a legacy marker/);
   assert.ok(sw.includes("LOCAL_CORE.push('./styles/mobile-spacing-fit-v198.css');"),'v198 stylesheet must remain available to installed/offline clients');

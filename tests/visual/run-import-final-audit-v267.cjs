@@ -96,9 +96,9 @@ function assertMobileModal(layout,{mustScroll=true}={}){
         assertMobileModal(await modalMeasurements(page));
         await page.screenshot({path:`${output}/product-mapping-iphone.png`,fullPage:false,animations:'disabled'});
 
-        await page.getByRole('button',{name:'Review import'}).click();
+        await page.getByLabel('Import actions').getByRole('button',{name:'Review import'}).click();
         await page.locator('.product-import-table').waitFor();
-        assert.equal(await page.getByRole('button',{name:'Confirm import of 2'}).isVisible(),true);
+        assert.equal(await page.getByLabel('Import actions').getByRole('button',{name:'Confirm import of 2'}).isVisible(),true);
         const text=await page.locator('.product-import-table').innerText();
         assert.match(text,/1234\.50 USD/);assert.match(text,/850\.25 USD/);
         assertMobileModal(await modalMeasurements(page),{mustScroll:false});

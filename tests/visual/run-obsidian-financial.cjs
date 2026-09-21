@@ -86,6 +86,7 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
    assert.ok(geometry.tabsDisplay===null||geometry.tabsDisplay==='none','operations tabs must leave focused purchase editor '+JSON.stringify(geometry));
   };
   try{
+   await page.addInitScript(()=>localStorage.setItem('lourex-ui-theme','dark'));
    await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-financial.html?lang=${lang}&screen=${screen}`,{waitUntil:'load'});await page.evaluate(()=>document.fonts.ready);
    if(screen==='reports'){
     const cards=page.locator('.report-currency-card');await cards.first().waitFor();assert.ok(await cards.count()>=2,'expected multi-currency report rail');

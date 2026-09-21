@@ -11,6 +11,7 @@ const scenarios=[{width:1440,height:900,touch:false},{width:1024,height:768,touc
     for(const scenario of scenarios)for(const lang of ['en','ar']){
       const page=await browser.newPage({viewport:{width:scenario.width,height:scenario.height},hasTouch:scenario.touch,isMobile:scenario.touch});
       const errors=[];page.on('pageerror',error=>errors.push(String(error)));
+      await page.addInitScript(()=>localStorage.setItem('lourex-ui-theme','dark'));
       await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-shell.html?lang=${lang}`,{waitUntil:'load'});
       await page.evaluate(()=>{
         document.documentElement.dataset.uiTheme='dark';
@@ -23,12 +24,13 @@ const scenarios=[{width:1440,height:900,touch:false},{width:1024,height:768,touc
       await page.waitForTimeout(450);
       const state=await page.evaluate(()=>{
         const info=selector=>{const el=document.querySelector(selector);if(!el)return null;const s=getComputedStyle(el),r=el.getBoundingClientRect();return {display:s.display,background:s.backgroundColor,color:s.color,width:r.width,height:r.height,left:r.left,right:r.right,bottom:r.bottom,boxShadow:s.boxShadow,paddingBottom:s.paddingBottom};};
+        const pseudoInfo=(selector,pseudo)=>{const el=document.querySelector(selector);if(!el)return null;const s=getComputedStyle(el,pseudo);return {background:s.backgroundColor,insetInlineStart:s.insetInlineStart};};
         const resolvedBackground=value=>{const probe=document.createElement('i');probe.style.cssText=`position:fixed;visibility:hidden;background:${value}`;document.body.appendChild(probe);const color=getComputedStyle(probe).backgroundColor;probe.remove();return color;};
         const mobileTheme=innerWidth<=900;
         return {
           viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,dir:document.documentElement.dir,
-          sidebar:info('.workspace-sidebar'),topbar:info('.workspace-topbar'),active:info('.shell-nav-button.active'),create:info('.shell-create-button'),mobileCreate:info('.mobile-create-button'),bottomNav:info('.mobile-bottom-nav'),content:info('.workspace-content'),logoText:document.querySelector('.shell-brand-button .brand-words strong')?.textContent,
-          expected:{shell:resolvedBackground('var(--mf-shell)'),canvas:resolvedBackground('var(--mf-canvas)'),surface:resolvedBackground('var(--mf-surface)'),accent:resolvedBackground('var(--mf-accent)'),topbar:resolvedBackground(mobileTheme?'var(--mf-shell)':'color-mix(in srgb,var(--mf-shell) 94%,transparent)'),bottomNav:resolvedBackground('color-mix(in srgb,var(--mf-shell) 96%,transparent)')}
+          sidebar:info('.workspace-sidebar'),topbar:info('.workspace-topbar'),active:info('.shell-nav-button.active'),activeMarker:pseudoInfo('.shell-nav-button.active','::before'),create:info('.shell-create-button'),mobileCreate:info('.mobile-create-button'),bottomNav:info('.mobile-bottom-nav'),content:info('.workspace-content'),logoText:document.querySelector('.shell-brand-button .brand-words strong')?.textContent,
+          expected:{shell:resolvedBackground('var(--mf-shell)'),canvas:resolvedBackground('var(--mf-canvas)'),surface:resolvedBackground('var(--mf-surface)'),surface2:resolvedBackground('var(--mf-surface-2)'),accent:resolvedBackground('var(--mf-accent)'),topbar:resolvedBackground(mobileTheme?'var(--mf-shell)':'color-mix(in srgb,var(--mf-shell) 94%,transparent)'),bottomNav:resolvedBackground('color-mix(in srgb,var(--mf-shell) 97%,transparent)')}
         };
       });
       const failures=[...errors];
@@ -40,8 +42,7 @@ const scenarios=[{width:1440,height:900,touch:false},{width:1024,height:768,touc
         if(state.sidebar?.background!==state.expected.shell)failures.push(`sidebar ${state.sidebar?.background}; expected ${state.expected.shell}`);
         if(state.bottomNav?.display!=='none')failures.push('desktop bottom navigation visible');
         if(state.logoText!=='LOUREX')failures.push(`fallback brand ${state.logoText}`);
-        const startShadow=lang==='ar'?state.active?.boxShadow.includes('-3px'):state.active?.boxShadow.includes('3px');
-        if(!startShadow)failures.push(`logical active indicator ${state.active?.boxShadow}`);
+        if(state.activeMarker?.background!==state.expected.accent)failures.push(`logical active indicator ${state.activeMarker?.background}`);
       }else{
         if(state.sidebar?.display!=='none')failures.push('mobile sidebar visible');
         if(!state.bottomNav||state.bottomNav.display==='none')failures.push('mobile bottom navigation hidden');
@@ -55,13 +56,13 @@ const scenarios=[{width:1440,height:900,touch:false},{width:1024,height:768,touc
         await more.click();
         await page.locator('.mobile-more-sheet').waitFor();
         const sheet=await page.locator('.mobile-more-sheet').evaluate(el=>({background:getComputedStyle(el).backgroundColor,bottom:el.getBoundingClientRect().bottom,height:el.getBoundingClientRect().height}));
-        if(sheet.background!==state.expected.surface)failures.push(`more sheet ${sheet.background}; expected ${state.expected.surface}`);
+        if(sheet.background!==state.expected.shell)failures.push(`more sheet ${sheet.background}; expected ${state.expected.shell}`);
         if(sheet.bottom>scenario.height-64)failures.push(`more sheet overlaps navigation ${sheet.bottom}`);
       }else{
         await page.locator('.shell-create-button').click();
         if(!(await page.locator('.desktop-shell-new-menu').isVisible()))failures.push('desktop create menu did not open');
         const menu=await page.locator('.desktop-shell-new-menu').evaluate(el=>({background:getComputedStyle(el).backgroundColor,stack:getComputedStyle(el.querySelector('button>span')).display}));
-        if(menu.background!==state.expected.surface)failures.push(`desktop create menu ${menu.background}; expected ${state.expected.surface}`);
+        if(menu.background!==state.expected.surface2)failures.push(`desktop create menu ${menu.background}; expected ${state.expected.surface2}`);
         if(menu.stack!=='flex')failures.push(`desktop create menu copy ${menu.stack}`);
       }
       await page.screenshot({path:`${output}/${scenario.width}-${lang}.png`,fullPage:false});
@@ -71,5 +72,5 @@ const scenarios=[{width:1440,height:900,touch:false},{width:1024,height:768,touc
   writeFileSync(`${output}/report.json`,JSON.stringify(results,null,2));
   const failures=results.flatMap(r=>r.failures.map(f=>`${r.scenario.width}/${r.lang}: ${f}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`Obsidian shell: ${results.length} responsive/language cases passed.`);
+  console.log(`Modern fintech shell: ${results.length} responsive/language cases passed.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});

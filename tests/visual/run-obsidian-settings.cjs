@@ -33,12 +33,15 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
       page.setDefaultTimeout(12000);
       const failures=[];
       page.on('pageerror',error=>failures.push('pageerror: '+String(error)));
+      await page.addInitScript(()=>localStorage.setItem('lourex-ui-theme','dark'));
       const shot=async state=>page.screenshot({path:`${output}/${viewport.width}-${lang}-settings-${state}.png`,fullPage:true,animations:'disabled'});
       try{
         await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-settings.html?lang=${lang}&scope=settings`,{waitUntil:'load'});
         await page.evaluate(()=>document.fonts.ready);
         const workspace=page.locator('.settings-workspace-v2.settings-preferences-workspace');
         await workspace.waitFor();
+        await page.evaluate(()=>{document.documentElement.dataset.uiTheme='dark';document.documentElement.dataset.uiThemePreference='dark';document.documentElement.style.colorScheme='dark';});
+        await page.waitForTimeout(250);
         assert.equal(await page.locator('html').getAttribute('dir'),lang==='ar'?'rtl':'ltr');
         const modal=page.locator('.modal'),modalBox=await modal.boundingBox();
         assert.ok(modalBox&&modalBox.width<=viewport.width+1&&modalBox.height<=viewport.height+1,'settings modal exceeds viewport');
@@ -113,11 +116,14 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
       page.setDefaultTimeout(12000);
       const failures=[];
       page.on('pageerror',error=>failures.push('pageerror: '+String(error)));
+      await page.addInitScript(()=>localStorage.setItem('lourex-ui-theme','dark'));
       const shot=async state=>page.screenshot({path:`${output}/390-${lang}-account-${state}.png`,fullPage:true,animations:'disabled'});
       try{
         await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-settings.html?lang=${lang}&scope=account`,{waitUntil:'load'});
         await page.evaluate(()=>document.fonts.ready);
         await page.locator('.settings-workspace-v2.account-profile-workspace').waitFor();
+        await page.evaluate(()=>{document.documentElement.dataset.uiTheme='dark';document.documentElement.dataset.uiThemePreference='dark';document.documentElement.style.colorScheme='dark';});
+        await page.waitForTimeout(250);
         assert.equal(await page.locator('html').getAttribute('dir'),lang==='ar'?'rtl':'ltr');
         assert.equal(await page.locator('.settings-tabs').count(),0,'Account must not expose Settings navigation tabs');
         await page.locator('.account-profile-page').waitFor();

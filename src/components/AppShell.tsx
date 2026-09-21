@@ -2,6 +2,7 @@ import type { DocumentKind, LourexDocument, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { Brand, Button, Icon } from './UI.js';
 import { AiCopilot } from './AiCopilot.js';
+import { ThemeControl } from './ThemeControl.js';
 
 // Keep the existing internal screen ids as compatibility aliases while the
 // product architecture is consolidated in later batches. The user-facing
@@ -110,7 +111,7 @@ export class AppShell extends React.Component<Props,State>{
     }
   };
 
-  private navButton=(screen:NavTarget,icon:'home'|'file'|'users'|'items'|'invoice'|'backup',label:string,className='')=>
+  private navButton=(screen:NavTarget,icon:'home'|'file'|'users'|'items'|'invoice'|'backup'|'chart',label:string,className='')=>
     <button type="button" className={`shell-nav-button ${className} ${this.props.screen===screen?'active':''}`} aria-current={this.props.screen===screen?'page':undefined} onClick={()=>this.navigate(screen)}><Icon name={icon}/><span>{label}</span></button>;
 
   private moreNavButton=(screen:NavTarget,icon:'file'|'items'|'invoice'|'backup',label:string,description:string,tone:MoreTone)=>
@@ -144,36 +145,42 @@ export class AppShell extends React.Component<Props,State>{
 
   render():any{
     const editor=this.props.screen==='editor';
-    return <div className={`workspace-shell ${editor?'is-editor':''}`}>
+    return <div className={`workspace-shell fintech-shell-v280 screen-${this.props.screen} ${editor?'is-editor':''}`}>
       {!editor?<aside className="workspace-sidebar" aria-label={t('Main navigation','التنقل الرئيسي')}>
-        <button type="button" className="shell-brand-button" onClick={()=>this.navigate('home')}><Brand compact logoDataUrl={this.props.logoDataUrl} language={this.props.language}/></button>
+        <button type="button" className="shell-brand-button" onClick={()=>this.navigate('home')}><Brand compact logoDataUrl="./brand/lourex-logo.svg" language={this.props.language}/><span className="shell-brand-product"><strong>INVOICE</strong><small>{t('Business workspace','مساحة الأعمال')}</small></span></button>
         <div className="new-doc-menu shell-create-wrap">
           <Button icon="plus" variant="primary" className="shell-create-button" aria-haspopup="menu" aria-expanded={this.props.newMenu} aria-controls="desktop-new-document-menu" onClick={this.toggleCreate}>{t('New Document','مستند جديد')}</Button>
           {this.createMenu('desktop-new-document-menu','desktop-shell-new-menu')}
         </div>
         <nav className="shell-navigation">
-          <div className="shell-nav-primary">
+          <div className="shell-nav-group shell-nav-primary"><p>{t('Workspace','مساحة العمل')}</p>
             {this.navButton('home','home',t('Home','الرئيسية'))}
             {this.navButton('documents','file',t('Documents','المستندات'))}
             {this.navButton('customers','users',t('Customers','العملاء'))}
+          </div>
+          <div className="shell-nav-group"><p>{t('Operations','العمليات')}</p>
             {this.navButton('items','items',t('Products & Inventory','المنتجات والمخزون'))}
             {this.navButton('operations','backup',t('Purchasing','المشتريات'))}
+          </div>
+          <div className="shell-nav-group"><p>{t('Insights','التحليل')}</p>
             {this.navButton('receivables','invoice',t('Finance','المالية'))}
-            {this.navButton('reports','file',t('Reports','التقارير'))}
+            {this.navButton('reports','chart',t('Reports','التقارير'))}
           </div>
         </nav>
         <div className="shell-sidebar-footer">
           {this.syncStatus('shell-sync-row')}
+          <ThemeControl compact language={this.props.language} className="shell-theme-control"/>
           {this.accountButton('shell-account-row')}
           <button type="button" className="shell-settings-row" onClick={this.openSettings}><Icon name="settings"/><span>{t('Settings','الإعدادات')}</span></button>
         </div>
       </aside>:null}
 
       <header className="workspace-topbar">
-        <div className="shell-mobile-brand">{!editor?<button type="button" aria-label={t('Home','الرئيسية')} onClick={()=>this.navigate('home')}><Brand compact logoDataUrl={this.props.logoDataUrl} language={this.props.language}/></button>:<span className="editor-context-mark"><Icon name="edit"/></span>}</div>
+        <div className="shell-mobile-brand">{!editor?<button type="button" aria-label={t('Home','الرئيسية')} onClick={()=>this.navigate('home')}><Brand compact logoDataUrl="./brand/lourex-logo.svg" language={this.props.language}/></button>:<span className="editor-context-mark"><Icon name="edit"/></span>}</div>
         <div className="shell-page-title"><small>{editor?t('Editing','تحرير'):t('LOUREX Invoice','LOUREX Invoice')}</small><strong>{this.pageTitle()}</strong></div>
         <div className="shell-topbar-actions">
           <button type="button" className="shell-global-search-button" aria-label={t('Search LOUREX','بحث LOUREX')} title={t('Global search · Ctrl/⌘ K','البحث الشامل · Ctrl/⌘ K')} onClick={()=>window.dispatchEvent(new Event('lourex-global-search-open'))}><Icon name="search"/><span>{t('Search','بحث')}</span><kbd>⌘K</kbd></button>
+          <ThemeControl compact language={this.props.language} className="shell-topbar-theme"/>
           {this.syncStatus('shell-sync-status')}
           {this.accountButton('shell-account-button',true)}
         </div>
@@ -197,6 +204,7 @@ export class AppShell extends React.Component<Props,State>{
           <div className="mobile-more-group group-workspace"><p><span>{t('Business','الأعمال')}</span></p>{this.moreNavButton('items','items',t('Products & Inventory','المنتجات والمخزون'),t('Products, stock and inventory movement','المنتجات والمخزون وحركة الأصناف'),'items')}{this.moreNavButton('operations','backup',t('Purchasing','المشتريات'),t('Suppliers and purchase workflow','الموردون ودورة المشتريات'),'operations')}</div>
           <div className="mobile-more-group group-finance"><p><span>{t('Finance & analysis','المالية والتحليل')}</span></p>{this.moreNavButton('receivables','invoice',t('Finance','المالية'),t('Receivables, collections and expenses','المستحقات والتحصيل والمصروفات'),'receivables')}{this.moreNavButton('reports','file',t('Reports','التقارير'),t('Business and financial analysis','تحليل الأعمال والنتائج المالية'),'reports')}</div>
           <div className="mobile-more-group group-system"><p><span>{t('System','النظام')}</span></p><button type="button" className="mobile-more-settings" onClick={this.openSettings}><span className="mobile-more-settings-icon"><Icon name="settings"/></span><span className="mobile-more-settings-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Workspace, documents, commercial and security','مساحة العمل والمستندات والتجاري والأمان')}</small></span><span className="mobile-more-chevron" aria-hidden="true"/></button></div>
+          <div className="mobile-more-appearance"><span>{t('Appearance','المظهر')}</span><ThemeControl language={this.props.language}/></div>
         </section></>:null}
         <nav className="mobile-bottom-nav" aria-label={t('Mobile navigation','تنقل الجوال')}>
           <button type="button" className={this.props.screen==='home'?'active':''} aria-current={this.props.screen==='home'?'page':undefined} onClick={()=>this.navigate('home')}><Icon name="home"/><span>{t('Home','الرئيسية')}</span></button>

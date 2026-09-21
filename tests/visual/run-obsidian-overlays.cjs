@@ -7,8 +7,11 @@ const output='visual-qa-output/obsidian-overlays';
  try{for(const viewport of [{width:1440,height:1000},{width:820,height:1180},{width:390,height:844},{width:320,height:568},{width:844,height:390}])for(const lang of ['en','ar'])for(const screen of ['account','confirm','empty','recovery']){
   const page=await browser.newPage({viewport});const failures=[];page.on('pageerror',e=>failures.push(String(e)));
   try{
+   await page.addInitScript(()=>localStorage.setItem('lourex-ui-theme','dark'));
    await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-overlays.html?lang=${lang}&screen=${screen}`,{waitUntil:'load'});
    await page.locator(screen==='recovery'?'.app-recovery':screen==='empty'?'.empty-state':'.modal').first().waitFor();
+   await page.evaluate(()=>{document.documentElement.dataset.uiTheme='dark';document.documentElement.dataset.uiThemePreference='dark';document.documentElement.style.colorScheme='dark';});
+   await page.waitForTimeout(250);
    if(screen==='account'){
     await page.locator('.account-only-actions button').click();await page.locator('.auth-error').waitFor();
     assert.equal(await page.locator('.account-only-actions button').isEnabled(),true,'failed signout must permit retry');

@@ -12,6 +12,7 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:820,height:1180,tou
       const page=await browser.newPage({viewport:{width:scenario.width,height:scenario.height},hasTouch:scenario.touch,isMobile:scenario.touch});
       const errors=[];
       page.on('pageerror',error=>errors.push(String(error)));
+      await page.addInitScript(()=>localStorage.setItem('lourex-ui-theme','dark'));
       await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-foundation.html?lang=${lang}`,{waitUntil:'load'});
       await page.evaluate(()=>{
         document.documentElement.dataset.uiTheme='dark';
@@ -20,6 +21,7 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:820,height:1180,tou
       });
       await page.locator('#customer').waitFor();
       await page.evaluate(()=>document.fonts.ready);
+      await page.waitForTimeout(250);
       const inspect=()=>page.evaluate(()=>{
         const rgb=value=>value.match(/[\d.]+/g).slice(0,3).map(Number);
         const luminance=color=>rgb(color).map(x=>{x/=255;return x<=.04045?x/12.92:((x+.055)/1.055)**2.4}).reduce((sum,x,i)=>sum+x*[.2126,.7152,.0722][i],0);
