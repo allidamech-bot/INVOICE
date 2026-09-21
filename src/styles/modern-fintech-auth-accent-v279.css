@@ -1,0 +1,20 @@
+/* v279 — Keep authentication primary actions on the active modern-fintech accent. */
+@media screen {
+  html[data-ui-theme] .auth-account-card .premium-auth-primary {
+    color:var(--mf-on-accent)!important;
+    background:var(--mf-accent)!important;
+    background-image:none!important;
+    border-color:var(--mf-accent)!important;
+    box-shadow:none!important;
+  }
+
+  html[data-ui-theme] .auth-account-card .premium-auth-primary:hover:not(:disabled) {
+    color:var(--mf-on-accent)!important;
+    background:var(--mf-accent-hover)!important;
+    background-image:none!important;
+    border-color:var(--mf-accent-hover)!important;
+    box-shadow:none!important;
+    filter:none!important;
+    transform:none!important;
+  }
+}
