@@ -34,6 +34,11 @@ function luminance([r,g,b]){
       page.on('pageerror',error=>failures.push(`pageerror: ${String(error)}`));
       try{
         await page.goto(`http://127.0.0.1:4173/tests/visual/${scenario.path}`,{waitUntil:'load'});
+        await page.evaluate(()=>{
+          document.documentElement.dataset.uiTheme='dark';
+          document.documentElement.dataset.uiThemePreference='dark';
+          document.documentElement.style.colorScheme='dark';
+        });
         await page.locator(scenario.ready).first().waitFor();
         await page.evaluate(()=>document.fonts.ready);
         await page.waitForTimeout(120);
@@ -41,6 +46,14 @@ function luminance([r,g,b]){
           const parse=color=>(color.match(/[\d.]+/g)||[]).slice(0,4).map(Number);
           const visible=element=>{const rect=element.getBoundingClientRect(),style=getComputedStyle(element);return rect.width>0&&rect.height>0&&rect.bottom>0&&rect.top<innerHeight&&style.display!=='none'&&style.visibility!=='hidden'&&Number(style.opacity)!==0;};
           const ignored=element=>Boolean(element.closest('.invoice-pages,.invoice-page,.template-mini,.brand-mark,.google-auth-mark,.toggle>span'));
+          const resolve=variable=>{
+            const probe=document.createElement('i');
+            probe.style.cssText=`position:fixed;visibility:hidden;background:var(${variable})`;
+            document.body.appendChild(probe);
+            const color=getComputedStyle(probe).backgroundColor;
+            probe.remove();
+            return color;
+          };
           const light=[];
           for(const element of document.querySelectorAll('body *')){
             if(!visible(element)||ignored(element))continue;
@@ -58,20 +71,17 @@ function luminance([r,g,b]){
             scrollWidth:document.documentElement.scrollWidth,
             viewport:innerWidth,
             rootBackground:rootStyle?.backgroundColor||'',
-            accent:rootStyle?.getPropertyValue('--ds-accent').trim()||'',
+            expectedCanvas:resolve('--mf-canvas'),
+            expectedAccent:resolve('--mf-accent'),
             primary:primaryStyle?{background:primaryStyle.backgroundColor,image:primaryStyle.backgroundImage,color:primaryStyle.color}:null
           };
         });
         assert.ok(state.scrollWidth<=state.viewport+1,`horizontal overflow ${JSON.stringify(state)}`);
         assert.deepEqual(state.light,[],`large light surface leaked into the dark workspace: ${state.light.join(' | ')}`);
         const rootRgb=(state.rootBackground.match(/[\d.]+/g)||[]).slice(0,3).map(Number);
-        assert.ok(rootRgb.length===3&&luminance(rootRgb)<.025,`root is not deep dark: ${state.rootBackground}`);
-        if(scenario.name.startsWith('auth-')){
-          assert.ok(state.primary&&state.primary.background==='rgb(184, 160, 113)',`auth primary is outside Matte Black: ${JSON.stringify(state.primary)}`);
-        }else{
-          assert.equal(state.accent,'#B8A071','workspace must expose the restrained matte accent token');
-          if(state.primary)assert.equal(state.primary.background,'rgb(184, 160, 113)','visible primary must use the matte accent fallback');
-        }
+        assert.ok(rootRgb.length===3&&luminance(rootRgb)<.04,`root is not deep dark: ${state.rootBackground}`);
+        assert.equal(state.rootBackground,state.expectedCanvas,`root must use the active dark canvas: ${JSON.stringify(state)}`);
+        if(state.primary)assert.equal(state.primary.background,state.expectedAccent,'visible primary must use the active semantic accent');
         if(state.primary)assert.equal(state.primary.image,'none','primary action must stay flat without a decorative gradient');
         await page.screenshot({path:`${output}/${scenario.name}.png`,fullPage:true,animations:'disabled'});
       }catch(error){
@@ -85,5 +95,5 @@ function luminance([r,g,b]){
   writeFileSync(`${output}/report.json`,JSON.stringify(results,null,2));
   const failures=results.flatMap(result=>result.failures.map(failure=>`${result.name}: ${failure}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`Matte Black v228: ${results.length} cross-workspace visual flows passed.`);
+  console.log(`Modern fintech v279: ${results.length} cross-workspace dark-theme visual flows passed.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});

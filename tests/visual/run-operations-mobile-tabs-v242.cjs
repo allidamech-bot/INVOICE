@@ -17,21 +17,42 @@ const viewports=[{width:320,height:568},{width:390,height:844}];
       page.on('pageerror',error=>failures.push('pageerror: '+String(error)));
       try{
         await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-financial.html?lang=${lang}&screen=operations`,{waitUntil:'load'});
+        await page.evaluate(()=>{
+          document.documentElement.dataset.uiTheme='dark';
+          document.documentElement.dataset.uiThemePreference='dark';
+          document.documentElement.style.colorScheme='dark';
+        });
         await page.evaluate(()=>document.fonts.ready);
         const tabs=page.locator('.operations-tabs');
         await tabs.waitFor();
         const audit=async state=>{
           const geometry=await tabs.evaluate(el=>{
             const css=getComputedStyle(el),rect=el.getBoundingClientRect();
+            const resolve=variable=>{
+              const probe=document.createElement('i');
+              probe.style.cssText=`position:fixed;visibility:hidden;background:var(${variable})`;
+              el.appendChild(probe);
+              const color=getComputedStyle(probe).backgroundColor;
+              probe.remove();
+              return color;
+            };
             const buttons=[...el.querySelectorAll('button')].map(button=>{
               const style=getComputedStyle(button),r=button.getBoundingClientRect();
               return {id:button.id,active:button.classList.contains('active'),background:style.backgroundColor,color:style.color,left:r.left,right:r.right,width:r.width};
             });
             const launcher=document.querySelector('.lourex-ai-launcher');
             const launcherRect=launcher?.getBoundingClientRect();
-            return {background:css.backgroundColor,borderTopColor:css.borderTopColor,left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,width:rect.width,pageScrollWidth:document.documentElement.scrollWidth,viewport:innerWidth,buttons,launcher:launcherRect?{left:launcherRect.left,right:launcherRect.right,top:launcherRect.top,bottom:launcherRect.bottom}:null};
+            return {
+              background:css.backgroundColor,
+              borderTopColor:css.borderTopColor,
+              expected:{workspace:resolve('--ds-workspace'),line:resolve('--ds-line'),selected:resolve('--ds-selected')},
+              left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,width:rect.width,
+              pageScrollWidth:document.documentElement.scrollWidth,viewport:innerWidth,buttons,
+              launcher:launcherRect?{left:launcherRect.left,right:launcherRect.right,top:launcherRect.top,bottom:launcherRect.bottom}:null
+            };
           });
-          assert.equal(geometry.background,'rgb(14, 14, 14)',`${state}: Operations tabs escaped Matte Black workspace ${JSON.stringify(geometry)}`);
+          assert.equal(geometry.background,geometry.expected.workspace,`${state}: Operations tabs escaped the active v279 workspace ${JSON.stringify(geometry)}`);
+          assert.equal(geometry.borderTopColor,geometry.expected.line,`${state}: Operations tabs border escaped the active v279 hierarchy ${JSON.stringify(geometry)}`);
           assert.ok(geometry.left>=-1&&geometry.right<=viewport.width+1,`${state}: Operations tabs clipped outside phone viewport ${JSON.stringify(geometry)}`);
           assert.ok(geometry.pageScrollWidth<=viewport.width+1,`${state}: Operations tabs cause page overflow ${JSON.stringify(geometry)}`);
           assert.ok(geometry.buttons.length>=4,`${state}: expected all Operations tabs ${JSON.stringify(geometry)}`);
@@ -41,7 +62,7 @@ const viewports=[{width:320,height:568},{width:390,height:844}];
           }
           for(const button of geometry.buttons){
             assert.ok(button.left>=geometry.left-1&&button.right<=geometry.right+1,`${state}: Operations tab button clipped ${JSON.stringify(button)}`);
-            if(button.active)assert.equal(button.background,'rgb(29, 29, 29)',`${state}: active Operations tab is not Precision Black selected surface ${JSON.stringify(button)}`);
+            if(button.active)assert.equal(button.background,geometry.expected.selected,`${state}: active Operations tab is outside the active v279 selection surface ${JSON.stringify(button)}`);
             else assert.equal(button.background,'rgba(0, 0, 0, 0)',`${state}: inactive Operations tab is not transparent ${JSON.stringify(button)}`);
           }
         };
@@ -84,5 +105,5 @@ const viewports=[{width:320,height:568},{width:390,height:844}];
   writeFileSync(`${output}/report.json`,JSON.stringify(results,null,2));
   const failures=results.flatMap(result=>result.failures.map(failure=>`${result.viewport.width}/${result.lang}: ${failure}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`Operations mobile tabs v242: ${results.length} language/phone flows passed.`);
+  console.log(`Operations mobile tabs v279: ${results.length} language/phone flows passed.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});

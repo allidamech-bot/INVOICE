@@ -45,12 +45,12 @@ const output='visual-qa-output/functional-document-workflow';
           };
         });
         assert.deepEqual(reviewSurfaces,{
-          modal:'rgb(14, 14, 14)',
+          modal:'rgb(13, 13, 13)',
           purpose:'rgb(19, 19, 19)',
           identity:'rgb(19, 19, 19)',
-          total:'rgb(24, 23, 19)',
+          total:'rgb(23, 23, 23)',
           asset:'rgb(19, 19, 19)'
-        },'final review must use the Precision Black surface hierarchy');
+        },'final review must preserve the v279 surface hierarchy');
         await snap(page,`review-before-issue-${lang}`);
         assert.equal((await state(page)).lastOutput,undefined,'draft PDF must not output before confirmation');
         await page.locator('.modal-footer-actions .btn-primary').click();

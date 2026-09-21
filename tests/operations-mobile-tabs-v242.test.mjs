@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v242 overrides the legacy light Operations phone tab strip with Matte Black surfaces',async()=>{
+test('v242 overrides the legacy light Operations phone tab strip with semantic workspace surfaces',async()=>{
   const [legacy,late]=await Promise.all([
     read('src/styles/ux-recovery-v152.css'),
     read('src/styles/customer-language-purity-v233.css')
@@ -15,15 +15,19 @@ test('v242 overrides the legacy light Operations phone tab strip with Matte Blac
   assert.match(late,/\.app-ui \.operations-tabs button\.active\{[^}]*background:var\(--ds-selected\)!important/s);
 });
 
-test('v242 makes the mobile Operations tab palette a real-browser regression gate',async()=>{
+test('v279 makes the mobile Operations tab palette a semantic real-browser regression gate',async()=>{
   const [workflow,runner]=await Promise.all([
     read('.github/workflows/ci.yml'),
     read('tests/visual/run-operations-mobile-tabs-v242.cjs')
   ]);
   assert.match(workflow,/node tests\/visual\/run-operations-mobile-tabs-v242\.cjs/);
-  assert.match(runner,/rgb\(14, 14, 14\)/);
-  assert.match(runner,/rgb\(29, 29, 29\)/);
+  assert.match(runner,/--ds-workspace/);
+  assert.match(runner,/--ds-line/);
+  assert.match(runner,/--ds-selected/);
+  assert.match(runner,/active Operations tab is outside the active v279 selection surface/);
   assert.match(runner,/inactive Operations tab is not transparent/);
+  assert.doesNotMatch(runner,/rgb\(14, 14, 14\)/);
+  assert.doesNotMatch(runner,/rgb\(29, 29, 29\)/);
 });
 
 test('v242 refreshes installed PWA clients with the corrected Operations surface',async()=>{

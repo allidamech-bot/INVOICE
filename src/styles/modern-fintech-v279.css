@@ -1,0 +1,765 @@
+/* v279 — LOUREX Modern Fintech visual system.
+   Runtime-only semantic theme layer. Printable documents remain owned by
+   document-premium-redesign-v141.css, which intentionally loads after this file. */
+
+@media screen {
+  html[data-ui-theme='light'] {
+    --mf-canvas:#f4f8f8;
+    --mf-shell:#ffffff;
+    --mf-workspace:#f7fbfb;
+    --mf-surface:#ffffff;
+    --mf-surface-2:#f1f7f7;
+    --mf-surface-3:#e9f2f2;
+    --mf-input:#ffffff;
+    --mf-text:#122120;
+    --mf-text-strong:#071413;
+    --mf-soft:#526563;
+    --mf-muted:#71827f;
+    --mf-faint:#93a3a0;
+    --mf-line:#d9e5e3;
+    --mf-line-strong:#c6d6d3;
+    --mf-accent:#0f9f95;
+    --mf-accent-hover:#0b8d84;
+    --mf-accent-soft:#ddf6f3;
+    --mf-accent-faint:#eefaf8;
+    --mf-on-accent:#ffffff;
+    --mf-success:#2f8b61;
+    --mf-success-soft:#e8f6ee;
+    --mf-warning:#a56b22;
+    --mf-warning-soft:#fbf3e4;
+    --mf-danger:#b64747;
+    --mf-danger-soft:#fbeaea;
+    --mf-info:#356f91;
+    --mf-info-soft:#e8f3f8;
+    --mf-shadow:0 12px 34px rgba(18,55,51,.08);
+    --mf-shadow-pop:0 24px 70px rgba(16,44,41,.16);
+    --mf-focus:0 0 0 3px rgba(15,159,149,.18);
+    color-scheme:light;
+  }
+
+  html[data-ui-theme='dark'] {
+    --mf-canvas:#071312;
+    --mf-shell:#091817;
+    --mf-workspace:#0b1c1a;
+    --mf-surface:#0f2321;
+    --mf-surface-2:#122927;
+    --mf-surface-3:#17312e;
+    --mf-input:#0b1d1b;
+    --mf-text:#eaf5f3;
+    --mf-text-strong:#f7fffe;
+    --mf-soft:#afc4c0;
+    --mf-muted:#88a29d;
+    --mf-faint:#67817c;
+    --mf-line:#1e3b37;
+    --mf-line-strong:#2c4d48;
+    --mf-accent:#24c7ba;
+    --mf-accent-hover:#3bd4c8;
+    --mf-accent-soft:#123d39;
+    --mf-accent-faint:#0c2b28;
+    --mf-on-accent:#041412;
+    --mf-success:#65bf8b;
+    --mf-success-soft:#102c20;
+    --mf-warning:#d1a257;
+    --mf-warning-soft:#302513;
+    --mf-danger:#e0847d;
+    --mf-danger-soft:#321b1b;
+    --mf-info:#80b7d2;
+    --mf-info-soft:#102a34;
+    --mf-shadow:0 14px 38px rgba(0,0,0,.22);
+    --mf-shadow-pop:0 28px 76px rgba(0,0,0,.42);
+    --mf-focus:0 0 0 3px rgba(36,199,186,.18);
+    color-scheme:dark;
+  }
+
+  html,
+  body,
+  #root {
+    background:var(--mf-canvas)!important;
+  }
+
+  body {
+    color:var(--mf-text);
+  }
+
+  .app-ui {
+    --ds-canvas:var(--mf-canvas);
+    --ds-shell:var(--mf-shell);
+    --ds-workspace:var(--mf-workspace);
+    --ds-surface:var(--mf-surface);
+    --ds-surface-strong:var(--mf-surface-2);
+    --ds-selected:var(--mf-accent-soft);
+    --ds-elevated:var(--mf-surface-2);
+    --ds-input:var(--mf-input);
+    --ds-financial-surface:var(--mf-surface-2);
+    --ds-accent:var(--mf-accent);
+    --ds-accent-hover:var(--mf-accent-hover);
+    --ds-accent-bright:var(--mf-accent);
+    --ds-brass:var(--mf-accent);
+    --ds-brass-highlight:var(--mf-accent-hover);
+    --ds-on-action:var(--mf-on-accent);
+    --ds-text:var(--mf-text);
+    --ds-text-strong:var(--mf-text-strong);
+    --ds-text-soft:var(--mf-soft);
+    --ds-muted:var(--mf-muted);
+    --ds-faint:var(--mf-faint);
+    --ds-line:var(--mf-line);
+    --ds-line-strong:var(--mf-line-strong);
+    --ds-input-line:var(--mf-line-strong);
+    --ds-focus-line:var(--mf-accent);
+    --ds-secondary-button:var(--mf-surface-2);
+    --ds-success:var(--mf-success);
+    --ds-success-surface:var(--mf-success-soft);
+    --ds-warning:var(--mf-warning);
+    --ds-warning-surface:var(--mf-warning-soft);
+    --ds-danger:var(--mf-danger);
+    --ds-danger-text:var(--mf-danger);
+    --ds-danger-surface:var(--mf-danger-soft);
+    --ds-info:var(--mf-info);
+    --ds-info-surface:var(--mf-info-soft);
+    --ds-shadow-card:var(--mf-shadow);
+    --ds-shadow-raised:var(--mf-shadow-pop);
+    --ds-focus:var(--mf-focus);
+
+    --shell-navy:var(--mf-shell);
+    --shell-navy-2:var(--mf-surface-2);
+    --shell-gold:var(--mf-accent);
+    --shell-ivory:var(--mf-canvas);
+    --shell-paper:var(--mf-surface);
+    --shell-line:var(--mf-line);
+    --shell-text:var(--mf-text);
+    --shell-muted:var(--mf-muted);
+    --shell-success:var(--mf-success);
+    --shell-warning:var(--mf-warning);
+    --shell-error:var(--mf-danger);
+
+    --ux-app:var(--mf-canvas);
+    --ux-card:var(--mf-surface);
+    --ux-input:var(--mf-input);
+    --ux-navy:var(--mf-workspace);
+    --ux-navy-deep:var(--mf-shell);
+    --ux-navy-soft:var(--mf-surface-2);
+    --ux-ink:var(--mf-text);
+    --ux-body:var(--mf-soft);
+    --ux-muted:var(--mf-muted);
+    --ux-faint:var(--mf-faint);
+    --ux-line:var(--mf-line);
+    --ux-line-strong:var(--mf-line-strong);
+    --ux-gold:var(--mf-accent);
+    --ux-champagne:var(--mf-accent-hover);
+    --ux-shadow:var(--mf-shadow);
+    --ux-shadow-strong:var(--mf-shadow-pop);
+
+    --editor-shell:var(--mf-canvas);
+    --editor-pane:var(--mf-workspace);
+    --editor-card:var(--mf-surface);
+    --editor-card-soft:var(--mf-surface-2);
+    --editor-line:var(--mf-line);
+    --editor-line-strong:var(--mf-line-strong);
+    --editor-ink:var(--mf-text);
+    --editor-muted:var(--mf-muted);
+    --editor-accent:var(--mf-accent);
+    --editor-accent-soft:var(--mf-accent-soft);
+    --editor-gold:var(--mf-accent);
+    --editor-shadow:var(--mf-shadow);
+    --editor-shadow-raised:var(--mf-shadow-pop);
+
+    color:var(--mf-text)!important;
+    background:var(--mf-canvas)!important;
+    color-scheme:inherit;
+  }
+
+  /* Core frame */
+  .app-ui .workspace-shell {
+    background:var(--mf-canvas)!important;
+  }
+
+  .app-ui .workspace-sidebar {
+    background:var(--mf-shell)!important;
+    border-inline-end:1px solid var(--mf-line)!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .workspace-topbar {
+    background:color-mix(in srgb,var(--mf-shell) 94%,transparent)!important;
+    border-bottom:1px solid var(--mf-line)!important;
+    box-shadow:none!important;
+    backdrop-filter:blur(14px) saturate(120%);
+  }
+
+  .app-ui .workspace-content {
+    background:var(--mf-canvas)!important;
+  }
+
+  .app-ui .shell-page-title small,
+  .app-ui .shell-page-title span,
+  .app-ui .shell-account-row small,
+  .app-ui .shell-account-button small {
+    color:var(--mf-muted)!important;
+  }
+
+  .app-ui .shell-page-title strong,
+  .app-ui .shell-account-row strong,
+  .app-ui .shell-account-button strong {
+    color:var(--mf-text-strong)!important;
+  }
+
+  .app-ui .shell-brand-button,
+  .app-ui .shell-settings-row,
+  .app-ui .shell-account-row,
+  .app-ui .shell-account-button,
+  .app-ui .shell-global-search-button,
+  .app-ui .shell-sync-row,
+  .app-ui .shell-sync-status {
+    color:var(--mf-soft)!important;
+    border-color:transparent!important;
+    background:transparent!important;
+  }
+
+  .app-ui .shell-settings-row:hover,
+  .app-ui .shell-account-row:hover,
+  .app-ui .shell-account-button:hover,
+  .app-ui .shell-global-search-button:hover {
+    color:var(--mf-text)!important;
+    background:var(--mf-surface-2)!important;
+    border-color:var(--mf-line)!important;
+  }
+
+  .app-ui .shell-navigation {
+    scrollbar-color:var(--mf-line-strong) transparent;
+  }
+
+  .app-ui .shell-nav-button {
+    color:var(--mf-soft)!important;
+    border:1px solid transparent!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    border-radius:10px!important;
+  }
+
+  .app-ui .shell-nav-button:hover {
+    color:var(--mf-text)!important;
+    background:var(--mf-surface-2)!important;
+  }
+
+  .app-ui .shell-nav-button.active {
+    color:var(--mf-accent)!important;
+    border-color:color-mix(in srgb,var(--mf-accent) 26%,var(--mf-line))!important;
+    background:var(--mf-accent-faint)!important;
+  }
+
+  .app-ui .shell-nav-button.active::before,
+  .app-ui .shell-nav-button.active::after {
+    background:var(--mf-accent)!important;
+  }
+
+  .app-ui .shell-create-button,
+  .app-ui .mobile-create-button,
+  .app-ui .btn.btn-primary {
+    color:var(--mf-on-accent)!important;
+    background:var(--mf-accent)!important;
+    border-color:var(--mf-accent)!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .shell-create-button:hover,
+  .app-ui .mobile-create-button:hover,
+  .app-ui .btn.btn-primary:hover:not(:disabled) {
+    color:var(--mf-on-accent)!important;
+    background:var(--mf-accent-hover)!important;
+    border-color:var(--mf-accent-hover)!important;
+  }
+
+  /* Inputs and secondary controls */
+  .app-ui :is(.input,select.input,textarea.input,.textarea,input:not([type='checkbox']):not([type='radio']),select,textarea) {
+    color:var(--mf-text)!important;
+    background:var(--mf-input)!important;
+    border-color:var(--mf-line-strong)!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui :is(.input,select.input,textarea.input,.textarea,input:not([type='checkbox']):not([type='radio']),select,textarea):focus {
+    border-color:var(--mf-accent)!important;
+    box-shadow:var(--mf-focus)!important;
+  }
+
+  .app-ui input::placeholder,
+  .app-ui textarea::placeholder {
+    color:var(--mf-faint)!important;
+  }
+
+  .app-ui .btn:not(.btn-primary):not(.btn-danger),
+  .app-ui .icon-btn,
+  .app-ui .segmented button,
+  .app-ui [role='tab'] {
+    color:var(--mf-soft)!important;
+    background:var(--mf-surface-2)!important;
+    border-color:var(--mf-line)!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .segmented button.active,
+  .app-ui [role='tab'][aria-selected='true'] {
+    color:var(--mf-accent)!important;
+    background:var(--mf-accent-faint)!important;
+    border-color:color-mix(in srgb,var(--mf-accent) 36%,var(--mf-line))!important;
+  }
+
+  /* Generic application surfaces */
+  .app-ui :is(
+    .card,.panel,.dashboard-panel,.dashboard-kpis,.dashboard-kpi,.kpi-card,.summary-card,
+    .documents-command,.documents-register,.documents-resume,.document-detail-card,
+    .premium-customer-list,.premium-customer-card,.customer-form-section,.customer-card,
+    .product-library-body,.product-library-commandbar,.product-library-row,.product-card,
+    .reports-panel,.reports-filter-panel,.report-currency-card,.aging-panel,
+    .receivable-accounts-panel,.receivable-account-row,.operations-list-panel,.operations-editor,
+    .operations-card,.settings-section,.settings-workspace-card,.account-security-card,
+    .editor-section,.premium-item-card,.item-card,.financial-card,.workspace-card,
+    .advisor-card,.lourex-advisor-card,.daily-brief-card,.needs-attention-card
+  ) {
+    color:var(--mf-text)!important;
+    background:var(--mf-surface)!important;
+    background-image:none!important;
+    border-color:var(--mf-line)!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui :is(.card,.panel,.dashboard-panel,.documents-register,.premium-customer-list,.product-library-body,.reports-panel,.operations-list-panel,.settings-section,.editor-section):hover {
+    border-color:var(--mf-line-strong)!important;
+  }
+
+  .app-ui :is(.eyebrow,.workspace-home-eyebrow,.section-kicker,.auth-story-kicker) {
+    color:var(--mf-accent)!important;
+  }
+
+  .app-ui :is(h1,h2,h3,h4,strong):not(.invoice-pages *) {
+    color:var(--mf-text-strong)!important;
+  }
+
+  .app-ui :is(.muted,.subtle,.helper-text,.field-hint,.section-description,small):not(.invoice-pages *) {
+    color:var(--mf-muted);
+  }
+
+  /* Dashboard / data visual hierarchy */
+  .app-ui .dashboard-kpis,
+  .app-ui .workspace-home-kpis {
+    background:var(--mf-surface)!important;
+    border-color:var(--mf-line)!important;
+  }
+
+  .app-ui .dashboard-kpi + .dashboard-kpi,
+  .app-ui .workspace-home-kpis > * + * {
+    border-color:var(--mf-line)!important;
+  }
+
+  .app-ui .kpi-value,
+  .app-ui .dashboard-kpi-value,
+  .app-ui .workspace-home-kpi-value,
+  .app-ui [class*='amount'],
+  .app-ui [class*='total-value'] {
+    color:var(--mf-text-strong)!important;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .app-ui .needs-attention-card,
+  .app-ui .daily-brief-card,
+  .app-ui .advisor-card,
+  .app-ui .lourex-advisor-card {
+    background:var(--mf-surface)!important;
+  }
+
+  /* Directories and rows */
+  .app-ui :is(.documents-row,.customer-row,.product-library-row,.receivable-account-row,.operations-row,.report-row,.table-row) {
+    color:var(--mf-text)!important;
+    background:transparent!important;
+    border-color:var(--mf-line)!important;
+  }
+
+  .app-ui :is(.documents-row,.customer-row,.product-library-row,.receivable-account-row,.operations-row,.report-row,.table-row):hover {
+    background:var(--mf-surface-2)!important;
+  }
+
+  .app-ui table {
+    color:var(--mf-text)!important;
+    background:transparent!important;
+    border-color:var(--mf-line)!important;
+  }
+
+  .app-ui :is(th,td) {
+    border-color:var(--mf-line)!important;
+  }
+
+  .app-ui th {
+    color:var(--mf-muted)!important;
+    background:var(--mf-surface-2)!important;
+  }
+
+  .app-ui td {
+    color:var(--mf-text)!important;
+    background:transparent!important;
+  }
+
+  /* Semantic statuses */
+  .app-ui :is(.success,.state-synced,.status-success,.tone-success) {
+    color:var(--mf-success)!important;
+  }
+
+  .app-ui :is(.warning,.status-warning,.tone-warning) {
+    color:var(--mf-warning)!important;
+  }
+
+  .app-ui :is(.error,.danger,.status-danger,.tone-danger) {
+    color:var(--mf-danger)!important;
+  }
+
+  .app-ui .state-synced .shell-status-dot { background:var(--mf-success)!important; }
+  .app-ui .state-syncing .shell-status-dot,
+  .app-ui .state-queued .shell-status-dot { background:var(--mf-accent)!important; }
+  .app-ui .state-offline .shell-status-dot { background:var(--mf-muted)!important; }
+  .app-ui .state-error .shell-status-dot,
+  .app-ui .state-conflict .shell-status-dot { background:var(--mf-danger)!important; }
+
+  /* Overlays */
+  .app-ui :is(.modal,.modal-card,.mobile-more-sheet,.mobile-document-action-sheet,.document-action-popover,.shell-new-menu,.customer-dropdown,.popover,.dropdown-menu) {
+    color:var(--mf-text)!important;
+    background:var(--mf-surface)!important;
+    background-image:none!important;
+    border-color:var(--mf-line-strong)!important;
+    box-shadow:var(--mf-shadow-pop)!important;
+  }
+
+  .app-ui :is(.modal-backdrop,.mobile-more-backdrop,.overlay-backdrop) {
+    background:rgba(2,18,16,.52)!important;
+    backdrop-filter:blur(4px);
+  }
+
+  html[data-ui-theme='light'] .app-ui :is(.modal-backdrop,.mobile-more-backdrop,.overlay-backdrop) {
+    background:rgba(20,42,39,.28)!important;
+  }
+
+  .app-ui .mobile-more-heading,
+  .app-ui .mobile-more-group,
+  .app-ui .mobile-more-account,
+  .app-ui .mobile-more-settings,
+  .app-ui .mobile-more-link {
+    border-color:var(--mf-line)!important;
+  }
+
+  .app-ui .mobile-more-link:hover,
+  .app-ui .mobile-more-account:hover,
+  .app-ui .mobile-more-settings:hover {
+    background:var(--mf-surface-2)!important;
+  }
+
+  /* Settings */
+  .app-ui .settings-modal,
+  .app-ui .settings-workspace,
+  .app-ui .settings-body,
+  .app-ui .settings-content,
+  .app-ui .settings-sidebar {
+    color:var(--mf-text)!important;
+    background:var(--mf-workspace)!important;
+    border-color:var(--mf-line)!important;
+  }
+
+  .app-ui .settings-nav button.active {
+    color:var(--mf-accent)!important;
+    background:var(--mf-accent-faint)!important;
+  }
+
+  /* Editor: preserve printable preview styling while modernizing editing chrome. */
+  .app-ui .editor-shell,
+  .app-ui .editor-workspace,
+  .app-ui .editor-form-pane,
+  .app-ui .editor-preview-pane,
+  .app-ui .editor-content {
+    background:var(--mf-canvas)!important;
+    border-color:var(--mf-line)!important;
+  }
+
+  .app-ui .editor-form-pane {
+    background:var(--mf-workspace)!important;
+  }
+
+  .app-ui .editor-section {
+    background:var(--mf-surface)!important;
+  }
+
+  .app-ui .preview-toolbar,
+  .app-ui .editor-toolbar,
+  .app-ui .editor-actions {
+    background:var(--mf-shell)!important;
+    border-color:var(--mf-line)!important;
+  }
+
+  /* Auth / account gateway */
+  .auth-page,
+  .auth-account-page {
+    color:var(--mf-text)!important;
+    background:var(--mf-canvas)!important;
+    background-image:none!important;
+  }
+
+  .auth-account-frame {
+    border-color:var(--mf-line)!important;
+    box-shadow:var(--mf-shadow)!important;
+  }
+
+  .auth-account-story {
+    color:var(--mf-text)!important;
+    background:var(--mf-workspace)!important;
+    background-image:none!important;
+    border-color:var(--mf-line)!important;
+  }
+
+  .auth-account-card,
+  .system-login-card,
+  .unlock-card,
+  .welcome-card {
+    color:var(--mf-text)!important;
+    background:var(--mf-surface)!important;
+    background-image:none!important;
+    border-color:var(--mf-line)!important;
+    box-shadow:none!important;
+  }
+
+  .auth-page h1,
+  .auth-page h2,
+  .auth-page strong,
+  .auth-story-title {
+    color:var(--mf-text-strong)!important;
+  }
+
+  .auth-page :is(p,small,.subtle,.security-note) {
+    color:var(--mf-muted)!important;
+  }
+
+  .auth-story-kicker,
+  .auth-story-product,
+  .auth-trust-mark,
+  .auth-security-dot {
+    color:var(--mf-accent)!important;
+  }
+
+  .auth-trust-mark,
+  .auth-security-dot {
+    background:var(--mf-accent)!important;
+  }
+
+  .auth-language-switch,
+  .google-auth-button,
+  .account-entry-tabs,
+  .account-entry-tabs button {
+    color:var(--mf-soft)!important;
+    background:var(--mf-surface-2)!important;
+    border-color:var(--mf-line)!important;
+    box-shadow:none!important;
+  }
+
+  .account-entry-tabs button.active {
+    color:var(--mf-accent)!important;
+    background:var(--mf-accent-faint)!important;
+    border-color:color-mix(in srgb,var(--mf-accent) 36%,var(--mf-line))!important;
+  }
+
+  .auth-error,
+  .premium-auth-feedback.auth-error {
+    color:var(--mf-danger)!important;
+    background:var(--mf-danger-soft)!important;
+    border-color:color-mix(in srgb,var(--mf-danger) 36%,var(--mf-line))!important;
+  }
+
+  .premium-auth-feedback.success {
+    color:var(--mf-success)!important;
+    background:var(--mf-success-soft)!important;
+    border-color:color-mix(in srgb,var(--mf-success) 34%,var(--mf-line))!important;
+  }
+
+  /* Boot screen */
+  #lourex-boot.loading-screen {
+    background:var(--mf-canvas)!important;
+    color:var(--mf-text-strong)!important;
+  }
+
+  #lourex-boot .brand-words strong {
+    color:var(--mf-text-strong)!important;
+  }
+
+  #lourex-boot .loading-line {
+    background:color-mix(in srgb,var(--mf-line-strong) 70%,transparent)!important;
+  }
+
+  #lourex-boot .loading-line::after {
+    background:var(--mf-accent)!important;
+  }
+
+  /* Global three-state control kept outside React so it is available on login,
+     in settings overlays and in the main shell without touching business state. */
+  .lourex-global-theme-control {
+    position:fixed;
+    z-index:2147482500;
+    inset-block-start:max(12px,env(safe-area-inset-top));
+    inset-inline-end:max(12px,env(safe-area-inset-right));
+    display:flex;
+    align-items:center;
+    gap:3px;
+    padding:4px;
+    min-height:40px;
+    border:1px solid var(--mf-line-strong);
+    border-radius:12px;
+    background:color-mix(in srgb,var(--mf-surface) 94%,transparent);
+    color:var(--mf-soft);
+    box-shadow:var(--mf-shadow);
+    backdrop-filter:blur(16px) saturate(120%);
+    -webkit-backdrop-filter:blur(16px) saturate(120%);
+  }
+
+  .lourex-global-theme-control button {
+    appearance:none;
+    display:grid;
+    place-items:center;
+    width:32px;
+    height:32px;
+    padding:0;
+    border:0;
+    border-radius:8px;
+    background:transparent;
+    color:var(--mf-muted);
+    font:700 15px/1 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    cursor:pointer;
+  }
+
+  .lourex-global-theme-control button:hover {
+    color:var(--mf-text);
+    background:var(--mf-surface-2);
+  }
+
+  .lourex-global-theme-control button.active {
+    color:var(--mf-on-accent);
+    background:var(--mf-accent);
+  }
+
+  .lourex-global-theme-control button:focus-visible {
+    outline:2px solid var(--mf-accent);
+    outline-offset:2px;
+  }
+
+  .lourex-global-theme-control .theme-label {
+    position:absolute;
+    width:1px;
+    height:1px;
+    padding:0;
+    margin:-1px;
+    overflow:hidden;
+    clip:rect(0,0,0,0);
+    white-space:nowrap;
+    border:0;
+  }
+
+  /* Typed React control shares the exact same semantic language. */
+  .mf-theme-control {
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:4px;
+    border:1px solid var(--mf-line);
+    border-radius:12px;
+    background:var(--mf-surface-2);
+  }
+
+  .mf-theme-control button {
+    min-height:34px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:0 10px;
+    border:0;
+    border-radius:8px;
+    background:transparent;
+    color:var(--mf-muted);
+    cursor:pointer;
+  }
+
+  .mf-theme-control button.active {
+    background:var(--mf-accent);
+    color:var(--mf-on-accent);
+  }
+
+  .mf-theme-control.is-compact button {
+    width:34px;
+    padding:0;
+  }
+
+  /* Mobile geometry */
+  @media (max-width:900px) {
+    .app-ui .workspace-topbar {
+      background:var(--mf-shell)!important;
+    }
+
+    .app-ui .mobile-bottom-nav {
+      background:color-mix(in srgb,var(--mf-shell) 96%,transparent)!important;
+      border-color:var(--mf-line)!important;
+      box-shadow:0 -8px 28px rgba(0,0,0,.08)!important;
+      backdrop-filter:blur(16px) saturate(120%);
+    }
+
+    .app-ui .mobile-bottom-nav > button,
+    .app-ui .mobile-bottom-nav .mobile-create-wrap {
+      color:var(--mf-muted)!important;
+    }
+
+    .app-ui .mobile-bottom-nav > button.active {
+      color:var(--mf-accent)!important;
+    }
+
+    .app-ui .mobile-more-sheet {
+      padding-bottom:max(18px,env(safe-area-inset-bottom))!important;
+    }
+
+    .lourex-global-theme-control {
+      inset-block-start:max(8px,env(safe-area-inset-top));
+      inset-inline-end:max(8px,env(safe-area-inset-right));
+      min-height:36px;
+      padding:3px;
+      border-radius:10px;
+      box-shadow:none;
+    }
+
+    .lourex-global-theme-control button {
+      width:30px;
+      height:30px;
+    }
+
+    .auth-account-page .lourex-global-theme-control {
+      position:fixed;
+    }
+  }
+
+  @media (max-width:520px) {
+    .lourex-global-theme-control {
+      gap:2px;
+    }
+
+    .lourex-global-theme-control button {
+      width:29px;
+      height:29px;
+      font-size:14px;
+    }
+  }
+
+  /* Bidi and financial numerals remain predictable in both themes. */
+  html[dir='rtl'] .app-ui :is(input[type='number'],[data-financial-value],.financial-value,.amount,.currency-value) {
+    direction:ltr;
+    text-align:end;
+    unicode-bidi:isolate;
+    font-variant-numeric:tabular-nums;
+  }
+
+  @media (prefers-reduced-motion:reduce) {
+    .lourex-global-theme-control *,
+    .mf-theme-control * {
+      transition:none!important;
+      animation:none!important;
+    }
+  }
+}
