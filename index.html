@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#061820" />
+  <meta name="theme-color" content="#071318" />
   <script id="lourex-theme-bootstrap">
     (function(){
       var key='lourex-ui-theme';
@@ -15,9 +15,9 @@
       root.dataset.uiTheme=resolved;
       root.dataset.uiThemePreference=pref;
       root.style.colorScheme=resolved;
-      root.style.backgroundColor=resolved==='light'?'#f2f7f8':'#061820';
+      root.style.backgroundColor=resolved==='light'?'#f4f7f8':'#071318';
       var meta=document.querySelector('meta[name="theme-color"]');
-      if(meta)meta.setAttribute('content',resolved==='light'?'#f2f7f8':'#061820');
+      if(meta)meta.setAttribute('content',resolved==='light'?'#f4f7f8':'#071318');
     })();
   </script>
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -30,10 +30,10 @@
   <link rel="icon" href="./brand/lourex-app-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" sizes="180x180" href="./brand/lourex-app-icon-180.png" />
   <style id="lourex-boot-style">
-    html[data-ui-theme="light"]{--boot-bg:#f2f7f8;--boot-text:#102329;--boot-track:#d8e4e6;--boot-accent:#0baeb5}
-    html[data-ui-theme="dark"]{--boot-bg:#061820;--boot-text:#eefbfd;--boot-track:#173642;--boot-accent:#20d3db}
-    html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:var(--boot-bg,#061820)}
-    #lourex-boot.loading-screen{position:fixed;inset:0;z-index:2147483000;min-height:100vh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-sizing:border-box;padding:32px;background:var(--boot-bg,#061820);color:var(--boot-text,#fff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    html[data-ui-theme="light"]{--boot-bg:#f4f7f8;--boot-text:#0d242c;--boot-track:#d9e3e5;--boot-accent:#10afb6}
+    html[data-ui-theme="dark"]{--boot-bg:#071318;--boot-text:#f4f9fa;--boot-track:#1b3942;--boot-accent:#27cbd2}
+    html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:var(--boot-bg,#071318)}
+    #lourex-boot.loading-screen{position:fixed;inset:0;z-index:2147483000;min-height:100vh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-sizing:border-box;padding:32px;background:var(--boot-bg,#071318);color:var(--boot-text,#fff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     #lourex-boot .brand{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;animation:lourexLaunchIn .45s ease-out both}
     #lourex-boot .brand-mark{display:grid;place-items:center;width:118px;height:118px;border-radius:28px}
     #lourex-boot .brand-mark img{display:block;width:118px;height:118px;border-radius:28px}
@@ -151,6 +151,7 @@
   <link rel="stylesheet" href="./styles/fintech-workspaces-v280.css" />
   <link rel="stylesheet" href="./styles/fintech-responsive-v280.css" />
   <link rel="stylesheet" href="./styles/document-premium-redesign-v141.css" />
+  <link rel="stylesheet" href="./src/styles/premium-fintech-polish-v281.css" />
   <title>LOUREX Invoice</title>
 </head>
 <body>
