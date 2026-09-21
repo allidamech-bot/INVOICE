@@ -3,7 +3,7 @@ export type ResolvedUiTheme='light'|'dark';
 
 const STORAGE_KEY='lourex-ui-theme';
 const DARK_QUERY='(prefers-color-scheme: dark)';
-const THEME_COLORS:Record<ResolvedUiTheme,string>={light:'#f4f8f8',dark:'#071312'};
+const THEME_COLORS:Record<ResolvedUiTheme,string>={light:'#f2f7f8',dark:'#061820'};
 
 let mediaQuery:MediaQueryList|null=null;
 let mediaHandler:((event:MediaQueryListEvent)=>void)|null=null;

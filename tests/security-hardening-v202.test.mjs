@@ -58,7 +58,7 @@ test('v202 production hardening keeps scripts tightly allowlisted and extends tr
 
 test('v202 publishes a fresh immutable PWA generation and precaches account security runtime',async()=>{
   const sw=await read('public/sw.js');
-  assert.equal(activeCacheVersion(sw),202);
+  assert.equal(activeCacheVersion(sw),280);
   assert.match(sw,/lourex-invoice-v201: preserved as a legacy marker/);
   assert.match(sw,/src\/lib\/account-security\.js/);
 });

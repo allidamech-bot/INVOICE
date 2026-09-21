@@ -12,6 +12,7 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:1024,height:900,tou
     for(const scenario of scenarios)for(const lang of ['en','ar']){
       const page=await browser.newPage({viewport:{width:scenario.width,height:scenario.height},hasTouch:scenario.touch,isMobile:scenario.touch});
       const errors=[];page.on('pageerror',error=>errors.push(String(error)));
+      await page.addInitScript(()=>localStorage.setItem('lourex-ui-theme','dark'));
       await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-dashboard.html?lang=${lang}`,{waitUntil:'load'});
       await page.evaluate(()=>{
         document.documentElement.dataset.uiTheme='dark';
@@ -40,7 +41,7 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:1024,height:900,tou
       if(state.whiteSurfaces)failures.push(`white application surfaces ${state.whiteSurfaces}`);
       if(state.recentRows!==5||state.statuses!==5)failures.push(`recent activity structure ${state.recentRows}/${state.statuses}`);
       if(state.firstRowHeight<64||state.firstRowHeight>(scenario.width<=800?112:82))failures.push(`recent row height ${state.firstRowHeight}`);
-      if(scenario.width<=800){if(state.columns!==2)failures.push(`mobile KPI columns ${state.columns}`);if(state.recentHead!=='none')failures.push('mobile table head visible');}
+      if(scenario.width<=860){if(state.columns!==2)failures.push(`mobile KPI columns ${state.columns}`);if(state.recentHead!=='none')failures.push('mobile table head visible');}
       else{if(state.recentHead==='none')failures.push('desktop table head hidden');}
       await page.screenshot({path:`${output}/${scenario.width}-${lang}.png`,fullPage:true});
       results.push({scenario,lang,state,failures});await page.close();
@@ -49,5 +50,5 @@ const scenarios=[{width:1440,height:1000,touch:false},{width:1024,height:900,tou
   writeFileSync(`${output}/report.json`,JSON.stringify(results,null,2));
   const failures=results.flatMap(result=>result.failures.map(failure=>`${result.scenario.width}/${result.lang}: ${failure}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`Obsidian dashboard: ${results.length} responsive/language cases passed.`);
+  console.log(`Modern fintech dashboard: ${results.length} responsive/language cases passed.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});

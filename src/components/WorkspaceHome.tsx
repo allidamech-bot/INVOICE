@@ -165,7 +165,7 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
   const collectionChange=currentMonth&&priorMonth?percentChange(currentMonth.collected,priorMonth.collected):'';
   const attentionCount=(overdueInvoices?1:0)+(drafts?1:0)+(daily.draftPurchases?1:0)+(incompleteAccounting?1:0)+(daily.dormantProducts?1:0)+(stockExceptions?1:0);
 
-  return <section className="workspace-home-page dashboard-page command-center-page">
+  return <section className="workspace-home-page dashboard-page command-center-page fintech-dashboard-v280">
     <header className="workspace-home-hero dashboard-hero command-center-hero">
       <div>
         <p className="workspace-home-eyebrow">{companyName||'LOUREX Invoice'}</p>
@@ -184,6 +184,13 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
       <button type="button" className="dashboard-kpi kpi-outstanding" onClick={()=>onNavigate('receivables')}><span className="dashboard-kpi-icon"><Icon name="invoice"/></span><span><small>{t('Outstanding','المستحق')}</small>{receivables.length?<span className="dashboard-money-stack">{receivables.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row.outstanding,row.currency)}</b>)}</span>:<strong>—</strong>}<em>{openInvoices?t(`${openInvoices} open invoices`,`${openInvoices} فواتير مفتوحة`):t('No open invoices','لا توجد فواتير مفتوحة')}</em></span></button>
       <button type="button" className="dashboard-kpi kpi-overdue" onClick={()=>onNavigate('receivables')}><span className="dashboard-kpi-icon"><Icon name="invoice"/></span><span><small>{t('Overdue','المتأخر')}</small>{receivables.length?<span className="dashboard-money-stack">{receivables.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row.overdue,row.currency)}</b>)}</span>:<strong>—</strong>}<em>{overdueInvoices?t(`${overdueInvoices} overdue invoices`,`${overdueInvoices} فواتير متأخرة`):t('Nothing overdue','لا توجد مستحقات متأخرة')}</em></span></button>
     </div>
+
+    <section className="dashboard-quick-actions" aria-label={t('Quick actions','إجراءات سريعة')}>
+      <button type="button" className="quick-action-primary" onClick={onNewDocument}><span><Icon name="plus"/></span><strong>{t('New document','مستند جديد')}</strong><small>{t('Quote or invoice','عرض سعر أو فاتورة')}</small></button>
+      <button type="button" onClick={()=>onNavigate('customers')}><span><Icon name="users"/></span><strong>{t('Add customer','إضافة عميل')}</strong><small>{t('Customer directory','دليل العملاء')}</small></button>
+      <button type="button" onClick={()=>onNavigate('items')}><span><Icon name="items"/></span><strong>{t('Add product','إضافة منتج')}</strong><small>{t('Catalog & stock','الكتالوج والمخزون')}</small></button>
+      <button type="button" onClick={()=>onNavigate('operations')}><span><Icon name="backup"/></span><strong>{t('Record purchase','تسجيل شراء')}</strong><small>{t('Suppliers & landed cost','الموردون وتكلفة الوصول')}</small></button>
+    </section>
 
     <div className="command-performance-grid">
       <section className="dashboard-panel command-performance-panel">
@@ -221,8 +228,6 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
         <button type="button" className="command-position-action" onClick={()=>onNavigate('receivables')}><span>{t('Review receivables','مراجعة المستحقات')}</span><span aria-hidden="true">→</span></button>
       </aside>
     </div>
-
-    <LourexAdvisorCard language={getUiLanguage()}/>
 
     <div className="command-insight-grid">
       <section className="dashboard-panel dashboard-attention command-attention">
@@ -263,5 +268,7 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
         </button>;
       })}</div>:<div className="dashboard-empty"><Icon name="file"/><strong>{t('No documents yet','لا توجد مستندات بعد')}</strong><span>{t('Create your first quotation or invoice. LOUREX will build your command center from real activity.','أنشئ أول عرض سعر أو فاتورة وسيبني LOUREX مركز القيادة من نشاطك الحقيقي.')}</span><Button icon="plus" variant="primary" onClick={onNewDocument}>{t('New Document','مستند جديد')}</Button></div>}
     </section>
+
+    <LourexAdvisorCard language={getUiLanguage()}/>
   </section>;
 }

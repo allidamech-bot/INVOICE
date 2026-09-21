@@ -10,9 +10,12 @@ const output='visual-qa-output/functional-document-workflow';
   const open=async(query,viewport={width:390,height:844})=>{
     const page=await browser.newPage({viewport,hasTouch:viewport.width<=820,isMobile:viewport.width<=820});
     page.setDefaultTimeout(12000);
+    await page.addInitScript(()=>localStorage.setItem('lourex-ui-theme','dark'));
     await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${query}`,{waitUntil:'load'});
     await page.locator('.editor-screen').waitFor();
     await page.evaluate(()=>document.fonts.ready);
+    await page.evaluate(()=>{document.documentElement.dataset.uiTheme='dark';document.documentElement.dataset.uiThemePreference='dark';document.documentElement.style.colorScheme='dark';});
+    await page.waitForTimeout(250);
     return page;
   };
   const snap=async(page,name)=>page.screenshot({path:`${output}/${name}.png`,fullPage:true,animations:'disabled'});
@@ -36,21 +39,18 @@ const output='visual-qa-output/functional-document-workflow';
         await page.locator('.issue-review').waitFor();
         const reviewSurfaces=await page.evaluate(()=>{
           const background=selector=>getComputedStyle(document.querySelector(selector)).backgroundColor;
+          const resolved=value=>{const probe=document.createElement('i');probe.style.cssText=`position:fixed;visibility:hidden;background:${value}`;document.body.appendChild(probe);const color=getComputedStyle(probe).backgroundColor;probe.remove();return color;};
           return {
             modal:background('.modal:has(.issue-review)>.modal-body'),
             purpose:background('.issue-review-purpose'),
             identity:background('.issue-review-grid>div'),
             total:background('.issue-total-check'),
-            asset:background('.issue-asset-checks>span')
+            asset:background('.issue-asset-checks>span'),
+            expected:{modal:resolved('var(--ft-surface)'),purpose:resolved('var(--ft-surface-2)'),identity:resolved('var(--ft-surface-2)'),total:resolved('var(--ft-accent-faint)'),asset:resolved('var(--ft-input)')}
           };
         });
-        assert.deepEqual(reviewSurfaces,{
-          modal:'rgb(13, 13, 13)',
-          purpose:'rgb(19, 19, 19)',
-          identity:'rgb(19, 19, 19)',
-          total:'rgb(23, 23, 23)',
-          asset:'rgb(19, 19, 19)'
-        },'final review must preserve the v279 surface hierarchy');
+        const {expected,...actualSurfaces}=reviewSurfaces;
+        assert.deepEqual(actualSurfaces,expected,'final review must preserve the v280 semantic surface hierarchy');
         await snap(page,`review-before-issue-${lang}`);
         assert.equal((await state(page)).lastOutput,undefined,'draft PDF must not output before confirmation');
         await page.locator('.modal-footer-actions .btn-primary').click();

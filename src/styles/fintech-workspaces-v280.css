@@ -1,0 +1,548 @@
+/* v280 — Real workspace composition for dashboard, registers, accounting and editor.
+   This file styles application components only and never printable document templates. */
+@media screen {
+  .app-ui .page,
+  .app-ui .domain-workspace,
+  .app-ui .dashboard-page,
+  .app-ui .operations-page,
+  .app-ui .reports-page {
+    width:min(100%,1440px);
+    margin-inline:auto;
+    padding:24px clamp(16px,2.4vw,34px) 48px;
+  }
+
+  .app-ui .page-heading,
+  .app-ui .operations-hero,
+  .app-ui .reports-heading {
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:18px;
+    margin:0 0 18px;
+    padding:0;
+    border:0;
+    background:transparent;
+    box-shadow:none;
+  }
+  .app-ui .page-heading h1,
+  .app-ui .operations-hero h1,
+  .app-ui .reports-heading h1 {
+    margin:3px 0 0;
+    color:var(--ft-text-strong);
+    font-size:clamp(22px,2.5vw,28px);
+    line-height:1.15;
+    font-weight:800;
+    letter-spacing:-.025em;
+  }
+  [dir="rtl"] .app-ui :where(.page-heading,.operations-hero,.reports-heading) h1 { letter-spacing:0; }
+  .app-ui .page-subtitle,
+  .app-ui .operations-hero p:not(.eyebrow),
+  .app-ui .reports-heading p:not(.eyebrow) { max-width:680px; margin:6px 0 0; color:var(--ft-text-soft); font-size:12px; line-height:1.55; }
+  .app-ui .heading-actions,
+  .app-ui .reports-heading-actions { display:flex; align-items:center; justify-content:flex-end; gap:7px; flex-wrap:wrap; }
+
+  /* Dashboard — dense command center inspired by the supplied LOUREX reference. */
+  .app-ui .fintech-dashboard-v280 { display:grid; gap:14px; }
+  .app-ui .fintech-dashboard-v280 .command-center-hero {
+    min-height:84px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    margin:0;
+    padding:0;
+    border:0;
+    background:transparent;
+    box-shadow:none;
+  }
+  .app-ui .fintech-dashboard-v280 .command-center-hero h1 { margin:3px 0 0; color:var(--ft-text-strong); font-size:clamp(23px,2.7vw,30px); font-weight:800; letter-spacing:-.03em; }
+  [dir="rtl"] .app-ui .fintech-dashboard-v280 .command-center-hero h1 { letter-spacing:0; }
+  .app-ui .fintech-dashboard-v280 .command-center-hero p:not(.workspace-home-eyebrow) { max-width:660px; margin:6px 0 0; color:var(--ft-text-soft); font-size:12px; line-height:1.55; }
+  .app-ui .fintech-dashboard-v280 .workspace-home-eyebrow { margin:0; color:var(--ft-accent); font-size:9px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+  [dir="rtl"] .app-ui .fintech-dashboard-v280 .workspace-home-eyebrow { letter-spacing:0; }
+  .app-ui .fintech-dashboard-v280 .command-center-actions { display:flex; align-items:center; gap:8px; }
+  .app-ui .fintech-dashboard-v280 .command-period-pill { min-height:38px; display:inline-flex; align-items:center; gap:7px; padding:7px 10px; border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-surface); color:var(--ft-muted); font-size:9px; }
+
+  .app-ui .fintech-dashboard-v280 .command-kpis {
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    margin:0;
+    overflow:hidden;
+    border:1px solid var(--ft-line);
+    border-radius:12px;
+    background:var(--ft-surface);
+  }
+  .app-ui .fintech-dashboard-v280 .command-kpis>button {
+    min-height:112px;
+    display:grid;
+    grid-template-columns:34px minmax(0,1fr);
+    gap:10px;
+    align-items:start;
+    padding:16px;
+    border:0;
+    border-inline-start:1px solid var(--ft-line);
+    border-radius:0;
+    background:transparent;
+    color:var(--ft-text);
+    text-align:start;
+    box-shadow:none;
+  }
+  .app-ui .fintech-dashboard-v280 .command-kpis>button:first-child { border-inline-start:0; }
+  .app-ui .fintech-dashboard-v280 .command-kpis>button:hover { background:var(--ft-accent-faint); }
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi-icon { width:34px; height:34px; display:grid; place-items:center; border-radius:9px; background:var(--ft-accent-faint); color:var(--ft-accent); }
+  .app-ui .fintech-dashboard-v280 .kpi-overdue .dashboard-kpi-icon { background:var(--ft-danger-soft); color:var(--ft-danger); }
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi-icon .icon { width:16px; height:16px; }
+  .app-ui .fintech-dashboard-v280 .command-kpis>button>span:last-child { display:flex; min-width:0; flex-direction:column; gap:3px; }
+  .app-ui .fintech-dashboard-v280 .command-kpis small { color:var(--ft-muted); font-size:9px; font-weight:700; }
+  .app-ui .fintech-dashboard-v280 .dashboard-money-stack { display:flex; min-width:0; flex-direction:column; gap:1px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-money-stack b,
+  .app-ui .fintech-dashboard-v280 .command-kpis strong { color:var(--ft-text-strong); font-size:20px; line-height:1.25; font-weight:800; font-variant-numeric:tabular-nums lining-nums; }
+  .app-ui .fintech-dashboard-v280 .kpi-overdue .dashboard-money-stack b { color:var(--ft-danger); }
+  .app-ui .fintech-dashboard-v280 .command-kpis em { min-height:0; margin-top:2px; color:var(--ft-faint); font-size:8.5px; line-height:1.4; font-style:normal; }
+
+  .app-ui .dashboard-quick-actions {
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:8px;
+  }
+  .app-ui .dashboard-quick-actions>button {
+    min-height:62px;
+    display:grid;
+    grid-template-columns:34px minmax(0,1fr);
+    grid-template-rows:auto auto;
+    column-gap:9px;
+    align-items:center;
+    padding:10px 12px;
+    border:1px solid var(--ft-line);
+    border-radius:10px;
+    background:var(--ft-surface);
+    color:var(--ft-text);
+    text-align:start;
+  }
+  .app-ui .dashboard-quick-actions>button:hover { border-color:var(--ft-accent); background:var(--ft-accent-faint); }
+  .app-ui .dashboard-quick-actions>button>span { grid-row:1 / 3; width:34px; height:34px; display:grid; place-items:center; border-radius:9px; background:var(--ft-surface-2); color:var(--ft-accent); }
+  .app-ui .dashboard-quick-actions>button strong { align-self:end; color:var(--ft-text-strong); font-size:10.5px; }
+  .app-ui .dashboard-quick-actions>button small { align-self:start; color:var(--ft-muted); font-size:8.5px; }
+  .app-ui .dashboard-quick-actions>button.quick-action-primary { border-color:var(--ft-accent); background:var(--ft-accent); color:var(--ft-on-accent); }
+  .app-ui .dashboard-quick-actions>button.quick-action-primary>span { background:color-mix(in srgb,var(--ft-on-accent) 13%,transparent); color:var(--ft-on-accent); }
+  .app-ui .dashboard-quick-actions>button.quick-action-primary :where(strong,small) { color:var(--ft-on-accent); }
+
+  .app-ui .fintech-dashboard-v280 .command-performance-grid { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(250px,.55fr); gap:12px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel { overflow:hidden; border:1px solid var(--ft-line); border-radius:11px; background:var(--ft-surface); box-shadow:none; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading { min-height:54px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 13px; border-bottom:1px solid var(--ft-line); background:transparent; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading>div { display:flex; min-width:0; flex-direction:column; gap:1px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading small { color:var(--ft-accent); font-size:8px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading h2 { margin:0; color:var(--ft-text-strong); font-size:13px; font-weight:760; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading span { color:var(--ft-muted); font-size:8.5px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading>button { min-height:32px; padding:5px 8px; border:0; border-radius:7px; background:transparent; color:var(--ft-accent); font-size:9px; font-weight:700; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading>button:hover { background:var(--ft-accent-faint); }
+  .app-ui .fintech-dashboard-v280 .command-chart-controls,
+  .app-ui .fintech-dashboard-v280 .command-chart-mode { display:flex; align-items:center; gap:3px; }
+  .app-ui .fintech-dashboard-v280 .command-chart-controls { padding:3px; border:1px solid var(--ft-line); border-radius:8px; background:var(--ft-input); }
+  .app-ui .fintech-dashboard-v280 .command-chart-mode { padding:9px 12px 0; }
+  .app-ui .fintech-dashboard-v280 :where(.command-chart-controls,.command-chart-mode) button { min-height:28px; padding:4px 7px; border:0; border-radius:6px; background:transparent; color:var(--ft-muted); font-size:8.5px; font-weight:700; }
+  .app-ui .fintech-dashboard-v280 :where(.command-chart-controls,.command-chart-mode) button.active { background:var(--ft-accent-faint); color:var(--ft-accent); box-shadow:none; }
+  .app-ui .fintech-dashboard-v280 .command-chart-wrap { padding:6px 12px 0; }
+  .app-ui .fintech-dashboard-v280 .command-chart { width:100%; height:190px; }
+  .app-ui .fintech-dashboard-v280 .command-chart-grid { stroke:var(--ft-line); }
+  .app-ui .fintech-dashboard-v280 .command-chart-line.line-sales { stroke:var(--ft-accent); }
+  .app-ui .fintech-dashboard-v280 .command-chart-line.line-collected { stroke:var(--ft-success); }
+  .app-ui .fintech-dashboard-v280 .command-chart-line.line-profit { stroke:var(--ft-info); }
+  .app-ui .fintech-dashboard-v280 .legend-sales { color:var(--ft-accent); }
+  .app-ui .fintech-dashboard-v280 .legend-collected { color:var(--ft-success); }
+  .app-ui .fintech-dashboard-v280 .legend-profit { color:var(--ft-info); }
+  .app-ui .fintech-dashboard-v280 .command-chart-footer { min-height:38px; padding:7px 12px 9px; border-top:1px solid var(--ft-line); }
+  .app-ui .fintech-dashboard-v280 .command-position-list { padding:3px 12px; }
+  .app-ui .fintech-dashboard-v280 .command-position-list>div { min-height:44px; border-bottom:1px solid var(--ft-line); }
+  .app-ui .fintech-dashboard-v280 .command-position-list span { color:var(--ft-muted); font-size:9px; }
+  .app-ui .fintech-dashboard-v280 .command-position-list strong { color:var(--ft-text-strong); font-size:12px; font-variant-numeric:tabular-nums; }
+  .app-ui .fintech-dashboard-v280 .command-position-action { min-height:36px; margin:8px 12px 12px; border:1px solid var(--ft-line); border-radius:8px; background:var(--ft-input); color:var(--ft-accent); }
+  .app-ui .fintech-dashboard-v280 .command-insight-grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(250px,.65fr); gap:12px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-attention-list { padding:5px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-attention-list>button { min-height:42px; border-radius:8px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-attention-list .is-alert { background:var(--ft-danger-soft); color:var(--ft-danger); }
+  .app-ui .fintech-dashboard-v280 .dashboard-attention-list .is-warn { background:var(--ft-warning-soft); color:var(--ft-warning); }
+  .app-ui .fintech-dashboard-v280 .command-clear-state { min-height:150px; }
+  .app-ui .fintech-dashboard-v280 .command-health-number { padding:14px 12px 10px; }
+  .app-ui .fintech-dashboard-v280 .command-health-number strong { color:var(--ft-accent); font-size:26px; }
+  .app-ui .fintech-dashboard-v280 .command-health-bars { padding:0 12px 10px; }
+  .app-ui .fintech-dashboard-v280 .command-health-bars>div { min-height:34px; border-top:1px solid var(--ft-line); }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-head,
+  .app-ui .fintech-dashboard-v280 .dashboard-document-row { grid-template-columns:32px minmax(100px,.72fr) minmax(100px,1fr) 86px minmax(110px,.7fr) 82px; gap:9px; padding-inline:13px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-head { min-height:31px; background:var(--ft-workspace); color:var(--ft-muted); font-size:8.5px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-row { min-height:58px; border-bottom:1px solid var(--ft-line); background:transparent; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-row:hover { background:var(--ft-accent-faint); }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-kind { width:30px; height:30px; border-radius:8px; background:var(--ft-accent-faint); color:var(--ft-accent); }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-kind.kind-proforma { background:var(--ft-info-soft); color:var(--ft-info); }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-copy strong,
+  .app-ui .fintech-dashboard-v280 .dashboard-document-amount { color:var(--ft-text-strong); font-size:10.5px; }
+  .app-ui .fintech-dashboard-v280 :where(.dashboard-document-copy small,.dashboard-document-customer,.dashboard-document-date) { color:var(--ft-muted); font-size:9px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-status { min-height:21px; border-color:var(--ft-line); background:var(--ft-input); color:var(--ft-text-soft); font-size:8px; }
+
+  .app-ui .lourex-advisor-card { border-color:var(--ft-line); background:var(--ft-surface); }
+  .app-ui .lourex-advisor-head { padding:13px 14px; border-bottom:1px solid var(--ft-line); }
+  .app-ui .lourex-advisor-mark { width:34px; height:34px; border:1px solid color-mix(in srgb,var(--ft-accent) 32%,var(--ft-line)); border-radius:9px; background:var(--ft-accent-faint); color:var(--ft-accent); }
+  .app-ui .lourex-advisor-mark .icon { width:17px; height:17px; }
+  .app-ui .lourex-advisor-identity small { color:var(--ft-accent); }
+  .app-ui .lourex-advisor-identity h2 { color:var(--ft-text-strong); font-size:13px; }
+  .app-ui .lourex-advisor-identity p { color:var(--ft-muted); font-size:9px; }
+  .app-ui .lourex-advisor-body { min-height:110px; padding:11px 14px; }
+  .app-ui .lourex-advisor-starters button,
+  .app-ui .lourex-advisor-message p { border-color:var(--ft-line); background:var(--ft-input); color:var(--ft-text-soft); }
+  .app-ui .lourex-advisor-starters button:hover { border-color:var(--ft-accent); background:var(--ft-accent-faint); color:var(--ft-text); }
+  .app-ui .lourex-advisor-compose { padding:9px 14px 11px; border-top:1px solid var(--ft-line); background:var(--ft-workspace); }
+  .app-ui .lourex-advisor-compose form { min-height:42px; border-color:var(--ft-line-strong); border-radius:9px; background:var(--ft-input); }
+  .app-ui .lourex-advisor-compose input { color:var(--ft-text); }
+  .app-ui .lourex-advisor-compose form>button { border-color:var(--ft-accent); border-radius:8px; background:var(--ft-accent); color:var(--ft-on-accent); }
+
+  /* Documents — register first, calm command surface. */
+  .app-ui .documents-workspace-v2 { width:min(100%,1440px); padding:24px clamp(16px,2.4vw,34px) 48px; }
+  .app-ui .documents-heading { margin-bottom:14px; padding:0; }
+  .app-ui .documents-resume { margin-bottom:12px; padding:10px 12px; border:1px solid var(--ft-line); border-radius:10px; background:var(--ft-surface); color:var(--ft-text); }
+  .app-ui .documents-resume:hover { border-color:var(--ft-accent); background:var(--ft-accent-faint); }
+  .app-ui .documents-resume .resume-icon { width:32px; height:32px; border-radius:8px; background:var(--ft-accent-faint); color:var(--ft-accent); }
+  .app-ui .documents-register-tabs { display:flex; align-items:stretch; gap:2px; margin-bottom:10px; padding:3px; overflow-x:auto; border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-surface-2); }
+  .app-ui .documents-register-tabs>button { min-height:36px; flex:0 0 auto; display:flex; align-items:center; gap:7px; padding:6px 10px; border:0; border-radius:7px; background:transparent; color:var(--ft-muted); }
+  .app-ui .documents-register-tabs>button.active { background:var(--ft-surface); color:var(--ft-accent); box-shadow:0 2px 8px rgba(0,0,0,.08); }
+  .app-ui .documents-register-tabs span { font-size:9.5px; font-weight:700; }
+  .app-ui .documents-register-tabs strong { min-width:19px; padding:2px 5px; border-radius:99px; background:var(--ft-surface-3); color:inherit; font-size:8px; }
+  .app-ui .documents-command { display:grid; grid-template-columns:auto minmax(0,1fr); gap:8px; align-items:center; margin-bottom:8px; padding:8px; border:1px solid var(--ft-line); border-radius:10px; background:var(--ft-surface); }
+  .app-ui .documents-filter-toggle { min-height:40px; display:flex; align-items:center; gap:7px; padding:7px 9px; border:1px solid var(--ft-line); border-radius:8px; background:var(--ft-input); color:var(--ft-text-soft); }
+  .app-ui .documents-command-search { display:flex; align-items:center; gap:7px; }
+  .app-ui .documents-search-box { flex:1; width:auto; }
+  .app-ui .documents-search-box .input { background:var(--ft-input); }
+  .app-ui .documents-advanced-filters { display:grid; grid-template-columns:repeat(3,minmax(130px,1fr)); gap:8px; }
+  .app-ui .documents-advanced-filters label>span { color:var(--ft-muted); font-size:9px; }
+  .app-ui .documents-results-bar { min-height:32px; color:var(--ft-muted); font-size:9px; }
+  .app-ui .documents-register { overflow:hidden; border:1px solid var(--ft-line); border-radius:11px; background:var(--ft-surface); }
+  .app-ui .documents-register-row { min-height:62px; border:0; border-bottom:1px solid var(--ft-line); border-radius:0; background:transparent; box-shadow:none; }
+  .app-ui .documents-register-row:last-child { border-bottom:0; }
+  .app-ui .documents-register-row:hover { background:var(--ft-accent-faint); }
+  .app-ui .document-register-open { color:var(--ft-text); }
+  .app-ui .register-identity strong,
+  .app-ui .register-customer b,
+  .app-ui .register-amount { color:var(--ft-text-strong); }
+  .app-ui :where(.register-customer small,.register-date) { color:var(--ft-muted); }
+  .app-ui :where(.document-kind-pill.kind-proforma,.dashboard-document-status.status-quotation) { border-color:color-mix(in srgb,var(--ft-info) 35%,var(--ft-line)); background:var(--ft-info-soft); color:var(--ft-info); }
+  .app-ui :where(.document-kind-pill.kind-invoice,.document-status-pill.status-ready,.document-status-pill.status-final,.collection-partially-paid) { border-color:color-mix(in srgb,var(--ft-accent) 35%,var(--ft-line)); background:var(--ft-accent-faint); color:var(--ft-accent); }
+  .app-ui .collection-paid { border-color:color-mix(in srgb,var(--ft-success) 35%,var(--ft-line)); background:var(--ft-success-soft); color:var(--ft-success); }
+  .app-ui .collection-overdue { border-color:color-mix(in srgb,var(--ft-danger) 35%,var(--ft-line)); background:var(--ft-danger-soft); color:var(--ft-danger); }
+
+  /* Directories — customers and products share register geometry. */
+  .app-ui .customers-toolbar { margin-bottom:12px; padding:7px; border:1px solid var(--ft-line); border-radius:10px; background:var(--ft-surface); }
+  .app-ui .customers-search-box { flex:1; width:auto; }
+  .app-ui .customers-results-bar { color:var(--ft-muted); }
+  .app-ui .premium-customer-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .app-ui .premium-customer-card { min-height:100px; padding:12px; border:1px solid var(--ft-line); border-radius:10px; background:var(--ft-surface); }
+  .app-ui .premium-customer-card:hover { border-color:var(--ft-accent); background:var(--ft-accent-faint); }
+  .app-ui .customer-avatar,
+  .app-ui .customer-profile-avatar { border-radius:9px; background:var(--ft-accent-faint); color:var(--ft-accent); }
+  .app-ui .customer-name-row strong,
+  .app-ui .customer-info strong { color:var(--ft-text-strong); }
+  .app-ui :where(.customer-secondary-name,.customer-location,.customer-info small) { color:var(--ft-muted); }
+  .app-ui .customer-document-action { border-color:var(--ft-line); background:var(--ft-input); color:var(--ft-text-soft); }
+  .app-ui .customer-document-action:hover { border-color:var(--ft-accent); color:var(--ft-accent); }
+  .app-ui .customer-profile-hero { border:1px solid var(--ft-line); border-radius:11px; background:var(--ft-surface); box-shadow:none; }
+  .app-ui .customer-profile-facts>div { border-color:var(--ft-line); }
+
+  .app-ui .product-library-commandbar { gap:8px; margin-bottom:10px; padding:7px; border:1px solid var(--ft-line); border-radius:10px; background:var(--ft-surface); }
+  .app-ui .product-library-search { border-color:var(--ft-line-strong); background:var(--ft-input); }
+  .app-ui .product-library-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; margin-bottom:10px; }
+  .app-ui .product-library-metrics>button,
+  .app-ui .product-library-metrics>div { min-height:68px; padding:10px 11px; border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-surface); color:var(--ft-text); box-shadow:none; }
+  .app-ui .product-library-body { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(340px,.75fr); gap:10px; }
+  .app-ui .product-library-list-pane,
+  .app-ui .product-library-editor-pane { overflow:hidden; border:1px solid var(--ft-line); border-radius:11px; background:var(--ft-surface); box-shadow:none; }
+  .app-ui .product-library-list-head,
+  .app-ui .product-library-editor-head { min-height:52px; padding:10px 12px; border-bottom:1px solid var(--ft-line); background:var(--ft-workspace); }
+  .app-ui .product-library-list { padding:0; }
+  .app-ui .product-library-row { min-height:64px; border-bottom:1px solid var(--ft-line); background:transparent; }
+  .app-ui .product-library-row:last-child { border-bottom:0; }
+  .app-ui .product-library-row:hover { background:var(--ft-accent-faint); }
+  .app-ui .product-library-row-title strong { color:var(--ft-text-strong); }
+  .app-ui .product-library-row-title code,
+  .app-ui .product-library-row-chips em { border-color:var(--ft-line); background:var(--ft-input); color:var(--ft-muted); }
+  .app-ui .product-library-row-price { color:var(--ft-accent); font-variant-numeric:tabular-nums; }
+  .app-ui .product-editor-section { margin:0; padding:16px 0; border:0; border-bottom:1px solid var(--ft-line); border-radius:0; background:transparent; }
+  .app-ui .product-editor-section-title>span { background:var(--ft-accent-faint); color:var(--ft-accent); }
+  .app-ui .product-library-choice-strip button { border-color:var(--ft-line); background:var(--ft-input); color:var(--ft-text-soft); }
+  .app-ui .product-library-choice-strip button.active { border-color:var(--ft-accent); background:var(--ft-accent-faint); color:var(--ft-accent); }
+  .app-ui .product-library-editor-actions { border-top:1px solid var(--ft-line); background:var(--ft-workspace); }
+
+  /* Purchasing and inventory. */
+  .app-ui .operations-tabs { display:flex; gap:2px; margin-bottom:10px; padding:3px; overflow-x:auto; border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-surface-2); }
+  .app-ui .operations-tabs>button { min-height:36px; padding:6px 10px; border:0; border-radius:7px; background:transparent; color:var(--ft-muted); }
+  .app-ui .operations-tabs>button.active { background:var(--ft-surface); color:var(--ft-accent); }
+  .app-ui .operations-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; margin-bottom:10px; }
+  .app-ui .operations-summary>button,
+  .app-ui .operations-summary>div { min-height:80px; padding:11px; border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-surface); color:var(--ft-text); box-shadow:none; }
+  .app-ui .operations-summary strong { color:var(--ft-text-strong); font-variant-numeric:tabular-nums; }
+  .app-ui .operations-split { display:grid; grid-template-columns:minmax(0,1fr) minmax(360px,.72fr); gap:10px; }
+  .app-ui .operations-list-panel,
+  .app-ui .operations-editor { overflow:hidden; border:1px solid var(--ft-line); border-radius:11px; background:var(--ft-surface); box-shadow:none; }
+  .app-ui .operations-panel-head { border-bottom:1px solid var(--ft-line); background:var(--ft-workspace); }
+  .app-ui .operations-search { border-color:var(--ft-line); background:var(--ft-input); }
+  .app-ui .operation-row { min-height:62px; border-bottom:1px solid var(--ft-line); background:transparent; color:var(--ft-text); }
+  .app-ui .operation-row:hover { background:var(--ft-accent-faint); }
+  .app-ui .operation-row strong { color:var(--ft-text-strong); }
+  .app-ui .purchase-item { border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-workspace); }
+  .app-ui .purchase-total-strip { border-color:var(--ft-accent); background:var(--ft-accent-faint); color:var(--ft-text); }
+  .app-ui .inventory-table-wrap,
+  .app-ui .inventory-history { border-color:var(--ft-line); background:var(--ft-surface); }
+  .app-ui .inventory-table-head { background:var(--ft-workspace); color:var(--ft-muted); }
+  .app-ui .inventory-table>div { border-color:var(--ft-line); }
+  .app-ui .operations-callout { border-color:var(--ft-line); background:var(--ft-info-soft); color:var(--ft-info); }
+  .app-ui .operations-callout.danger { border-color:color-mix(in srgb,var(--ft-danger) 35%,var(--ft-line)); background:var(--ft-danger-soft); color:var(--ft-danger); }
+
+  /* Finance and reports. */
+  .app-ui .domain-workspace-tabs { display:flex; gap:2px; margin-bottom:10px; padding:3px; overflow-x:auto; border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-surface-2); }
+  .app-ui .domain-workspace-tabs>button { min-height:36px; border:0; border-radius:7px; background:transparent; color:var(--ft-muted); }
+  .app-ui .domain-workspace-tabs>button.active { background:var(--ft-surface); color:var(--ft-accent); }
+  .app-ui .receivable-currency-cards,
+  .app-ui .reports-currency-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px; }
+  .app-ui .receivable-currency-card,
+  .app-ui .report-currency-card { min-height:118px; padding:13px; border:1px solid var(--ft-line); border-radius:10px; background:var(--ft-surface); box-shadow:none; }
+  .app-ui :where(.receivable-currency-card,.report-currency-card) strong { color:var(--ft-text-strong); font-variant-numeric:tabular-nums; }
+  .app-ui :where(.receivable-currency-card,.report-currency-card) small { color:var(--ft-muted); }
+  .app-ui .receivable-controls,
+  .app-ui .reports-filter-panel { margin:10px 0; padding:8px; border:1px solid var(--ft-line); border-radius:10px; background:var(--ft-surface); box-shadow:none; }
+  .app-ui .receivable-account-list { border:1px solid var(--ft-line); border-radius:10px; background:var(--ft-surface); overflow:hidden; }
+  .app-ui .receivable-account-main { min-height:62px; border-bottom:1px solid var(--ft-line); color:var(--ft-text); }
+  .app-ui .receivable-account-main:hover { background:var(--ft-accent-faint); }
+  .app-ui .receivable-account-amount { color:var(--ft-text-strong); font-variant-numeric:tabular-nums; }
+  .app-ui .aging-table-wrap,
+  .app-ui .reports-table-wrap { overflow:auto; border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-surface); }
+  .app-ui :where(.aging-table,.reports-table) th { background:var(--ft-workspace); color:var(--ft-muted); }
+  .app-ui :where(.aging-table,.reports-table) :where(th,td) { border-color:var(--ft-line); }
+  .app-ui :where(.aging-table,.reports-table) td { color:var(--ft-text-soft); }
+  .app-ui :where(.aging-table,.reports-table) td strong { color:var(--ft-text-strong); }
+  .app-ui .reports-panel { margin-top:10px; overflow:hidden; border:1px solid var(--ft-line); border-radius:10px; background:var(--ft-surface); box-shadow:none; }
+  .app-ui .reports-panel-heading { min-height:52px; border-bottom:1px solid var(--ft-line); background:var(--ft-workspace); }
+  .app-ui .reports-presets { border-color:var(--ft-line); background:var(--ft-surface-2); }
+  .app-ui .reports-presets>button.active { background:var(--ft-surface); color:var(--ft-accent); }
+  .app-ui .reports-quality-alert,
+  .app-ui .profit-coverage-warning { border-color:color-mix(in srgb,var(--ft-warning) 35%,var(--ft-line)); background:var(--ft-warning-soft); color:var(--ft-warning); }
+
+  /* Excel import and mapping — never allows dark-on-dark imported values. */
+  .app-ui .product-import-hero,
+  .app-ui .product-import-intelligence-banner,
+  .app-ui .product-import-template-bar,
+  .app-ui .product-import-alert { border-color:var(--ft-line); background:var(--ft-workspace); color:var(--ft-text); }
+  .app-ui .product-import-icon,
+  .app-ui .product-import-file-icon,
+  .app-ui .product-import-intelligence-icon { background:var(--ft-accent-faint); color:var(--ft-accent); }
+  .app-ui .product-import-dropzone { border-color:var(--ft-line-strong); background:var(--ft-input); color:var(--ft-text-soft); }
+  .app-ui .product-import-dropzone:hover { border-color:var(--ft-accent); background:var(--ft-accent-faint); }
+  .app-ui .product-import-mapping-head,
+  .app-ui .product-import-preview-head { background:var(--ft-workspace); color:var(--ft-muted); }
+  .app-ui .product-import-mapping-list,
+  .app-ui .product-import-table-wrap { border-color:var(--ft-line); background:var(--ft-surface); }
+  .app-ui .product-import-map-control,
+  .app-ui .product-import-source-column,
+  .app-ui .product-import-table :where(td,th) { border-color:var(--ft-line); color:var(--ft-text); background:var(--ft-surface); }
+  .app-ui .product-import-table th { background:var(--ft-workspace); color:var(--ft-muted); }
+  .app-ui .product-import-table td,
+  .app-ui .product-import-table td * { color:var(--ft-text); }
+  .app-ui .product-import-table tr.is-create td { background:color-mix(in srgb,var(--ft-success-soft) 55%,var(--ft-surface)); }
+  .app-ui .product-import-table tr.is-update td { background:color-mix(in srgb,var(--ft-info-soft) 55%,var(--ft-surface)); }
+  .app-ui .product-import-table tr.is-skip td { color:var(--ft-muted); background:var(--ft-workspace); }
+
+  /* Editor — deliberate split workbench, compact data entry and stable actions. */
+  .app-ui .fintech-shell-v280 .editor-screen { width:100%; height:100dvh; min-height:0; display:flex; flex-direction:column; overflow:hidden; background:var(--ft-canvas); color:var(--ft-text); }
+  .app-ui .fintech-shell-v280 .editor-topbar {
+    flex:0 0 auto;
+    min-height:62px;
+    display:grid;
+    grid-template-columns:minmax(210px,1fr) auto auto minmax(0,max-content);
+    align-items:center;
+    gap:10px;
+    padding:8px 13px;
+    border:0;
+    border-bottom:1px solid var(--ft-line);
+    border-radius:0;
+    background:var(--ft-shell);
+    box-shadow:none;
+  }
+  .app-ui .editor-top-left { min-width:0; display:flex; align-items:center; gap:9px; }
+  .app-ui .editor-top-left>div { min-width:0; display:flex; flex-direction:column; }
+  .app-ui .editor-top-left strong { overflow:hidden; color:var(--ft-text-strong); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+  .app-ui .editor-top-left span { color:var(--ft-muted); font-size:9px; }
+  .app-ui .editor-workflow-badge,
+  .app-ui .save-indicator { min-height:28px; padding:5px 8px; border:1px solid var(--ft-line); border-radius:7px; background:var(--ft-surface); color:var(--ft-muted); font-size:8.5px; }
+  .app-ui .editor-grand-total-chip { min-width:132px; min-height:42px; padding:6px 10px; border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-surface); box-shadow:none; }
+  .app-ui .editor-grand-total-chip span { color:var(--ft-muted); font-size:8px; }
+  .app-ui .editor-grand-total-chip strong { color:var(--ft-text-strong); font-size:12px; font-variant-numeric:tabular-nums; }
+  .app-ui .editor-actions { gap:5px; }
+  .app-ui .editor-actions .btn { min-height:38px; padding:7px 10px; }
+  .app-ui .document-readiness { min-height:48px; margin:8px 12px 0; padding:7px 10px; border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-surface); box-shadow:none; }
+  .app-ui .readiness-track { background:var(--ft-surface-3); }
+  .app-ui .readiness-track>span { background:var(--ft-accent); }
+  .app-ui .readiness-groups>span { border-color:var(--ft-line); background:var(--ft-input); color:var(--ft-muted); }
+  .app-ui .editor-layout { flex:1 1 0; min-width:0; min-height:0; display:grid; grid-template-columns:minmax(500px,45%) minmax(0,55%); gap:10px; padding:10px 12px 0; overflow:hidden; background:transparent; }
+  .app-ui .editor-pane,
+  .app-ui .preview-pane { min-width:0; min-height:0; height:100%; overflow:hidden; border:1px solid var(--ft-line); border-radius:11px; background:var(--ft-surface); box-shadow:none; }
+  .app-ui .editor-scroll { height:100%; padding:14px 14px 28px; overflow:auto; scrollbar-gutter:stable; }
+  .app-ui .editor-scroll>* { width:100%; max-width:760px; margin-inline:auto; }
+  .app-ui .editor-section { margin:0 0 9px; padding:13px; border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-surface); box-shadow:none; }
+  .app-ui .section-heading { margin-bottom:11px; }
+  .app-ui .section-heading>span { color:var(--ft-accent); }
+  .app-ui .section-heading h2 { color:var(--ft-text-strong); font-size:12px; }
+  .app-ui .selected-customer,
+  .app-ui .item-card,
+  .app-ui .adjustment-row,
+  .app-ui .advanced-panel { border-color:var(--ft-line); background:var(--ft-workspace); color:var(--ft-text); box-shadow:none; }
+  .app-ui .item-card header,
+  .app-ui .item-card footer { border-color:var(--ft-line); background:var(--ft-surface-2); }
+  .app-ui .item-line-total,
+  .app-ui .editor-totals strong { color:var(--ft-text-strong); font-variant-numeric:tabular-nums; }
+  .app-ui .editor-totals { border-color:var(--ft-line); }
+  .app-ui .editor-totals .grand { border-color:var(--ft-line); color:var(--ft-accent); }
+  .app-ui .design-advanced-panel { padding:12px; border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-workspace); }
+  .app-ui .appearance-system-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
+  .app-ui .appearance-toggles { min-width:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; margin:0 0 9px; }
+  .app-ui .appearance-toggles .toggle-row {
+    min-width:0;
+    min-height:44px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    margin:0;
+    padding:7px 8px;
+    overflow:hidden;
+    border:1px solid var(--ft-line);
+    border-radius:8px;
+    background:var(--ft-surface);
+    color:var(--ft-text-soft);
+  }
+  .app-ui .appearance-toggles .toggle-row>span:last-child { min-width:0; flex:1 1 auto; overflow-wrap:anywhere; color:var(--ft-text-soft); }
+  .app-ui .appearance-toggles .toggle { flex:0 0 36px!important; width:36px!important; min-width:36px!important; max-width:36px!important; height:21px!important; min-height:21px!important; max-height:21px!important; padding:2px!important; }
+  .app-ui .appearance-toggles .toggle>span { width:17px!important; min-width:17px!important; max-width:17px!important; height:17px!important; min-height:17px!important; max-height:17px!important; }
+
+  /* Totals toggles keep a full finger target while drawing the same compact
+     switch used throughout the editor. */
+  .app-ui .adjustments-list .toggle-row>.toggle {
+    position:relative!important;
+    flex:0 0 44px!important;
+    width:44px!important;
+    min-width:44px!important;
+    max-width:44px!important;
+    height:44px!important;
+    min-height:44px!important;
+    max-height:44px!important;
+    padding:0!important;
+    overflow:visible!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    direction:ltr!important;
+  }
+  .app-ui .adjustments-list .toggle-row>.toggle::before {
+    content:"";
+    position:absolute;
+    inset-inline-start:4px;
+    inset-block-start:50%;
+    width:36px;
+    height:21px;
+    border-radius:20px;
+    background:var(--ft-surface-3);
+    box-shadow:inset 0 0 0 1px var(--ft-line);
+    transform:translateY(-50%);
+  }
+  .app-ui .adjustments-list .toggle-row>.toggle.on::before { background:var(--ft-accent); }
+  .app-ui .adjustments-list .toggle-row>.toggle>span {
+    position:absolute!important;
+    z-index:1;
+    inset-inline-start:6px;
+    inset-block-start:50%;
+    width:17px!important;
+    min-width:17px!important;
+    max-width:17px!important;
+    height:17px!important;
+    min-height:17px!important;
+    max-height:17px!important;
+    background:var(--ft-text-strong);
+    transform:translateY(-50%)!important;
+  }
+  .app-ui .adjustments-list .toggle-row>.toggle.on>span { transform:translate(15px,-50%)!important; }
+  .app-ui .preview-pane { display:flex; flex-direction:column; background:var(--ft-workspace); }
+  .app-ui .preview-toolbar { min-height:42px; border-bottom:1px solid var(--ft-line); background:var(--ft-surface); color:var(--ft-text-soft); }
+  .app-ui .preview-stage { background:var(--ft-workspace); }
+  .app-ui .mobile-action-buttons { border-color:var(--ft-line); background:var(--ft-shell); }
+}
+
+.app-ui .appearance-auto-note {
+  border-color:var(--ft-line)!important;
+  background:var(--ft-surface-2)!important;
+  color:var(--ft-text-soft)!important;
+}
+.app-ui .appearance-auto-note strong { color:var(--ft-text-strong)!important; }
+
+/* Global search is a portal, so it intentionally owns its semantic surfaces here. */
+@media screen {
+  .global-search-backdrop { background:rgba(1,13,18,.66); backdrop-filter:blur(7px); }
+  .global-search-panel {
+    border-color:var(--ft-line-strong);
+    border-radius:16px;
+    background:var(--ft-surface);
+    color:var(--ft-text);
+    box-shadow:var(--ft-shadow-pop);
+  }
+  .global-search-input-wrap,
+  .global-search-footer { border-color:var(--ft-line); background:var(--ft-surface-2); color:var(--ft-muted); }
+  .global-search-input-wrap>svg { color:var(--ft-accent); }
+  .global-search-input-wrap input { color:var(--ft-text-strong); }
+  .global-search-input-wrap input::placeholder { color:var(--ft-muted); }
+  .global-search-input-wrap kbd,
+  .global-search-footer kbd { border-color:var(--ft-line); background:var(--ft-input); color:var(--ft-muted); }
+  .global-search-section-title { color:var(--ft-text-soft); }
+  .global-search-section-title small { color:var(--ft-muted); }
+  .global-search-back-button { color:var(--ft-accent); }
+  .global-search-back-button:hover { background:var(--ft-accent-faint); color:var(--ft-accent); }
+  .global-search-actions button,
+  .global-search-destinations button {
+    border-color:var(--ft-line);
+    border-radius:10px;
+    background:var(--ft-input);
+    color:var(--ft-text);
+  }
+  .global-search-actions button:hover,
+  .global-search-destinations button:hover { border-color:var(--ft-accent); background:var(--ft-accent-faint); color:var(--ft-text-strong); }
+  .global-search-actions svg,
+  .global-search-destinations svg { color:var(--ft-accent); }
+  .global-search-actions small { color:var(--ft-muted); }
+  .global-search-result { color:var(--ft-text); }
+  .global-search-result:hover { background:var(--ft-accent-faint); }
+  .global-search-result-icon { border-color:var(--ft-line); background:var(--ft-surface-2); color:var(--ft-accent); }
+  .global-search-result-copy small { color:var(--ft-accent); }
+  .global-search-result-copy strong { color:var(--ft-text-strong); }
+  .global-search-result-copy>span,
+  .global-search-result-arrow,
+  .global-search-empty { color:var(--ft-muted); }
+  .global-search-empty svg { color:var(--ft-accent); }
+  .global-search-empty strong { color:var(--ft-text-strong); }
+  .app-ui .plain-close { display:grid; place-items:center; color:var(--ft-muted); }
+  .app-ui .plain-close:hover { background:var(--ft-accent-faint); color:var(--ft-accent); }
+  .app-ui .product-library-star .icon,
+  .app-ui .template-star .icon { width:16px; height:16px; }
+}
+
+@media screen and (max-width:1180px) {
+  .app-ui .fintech-dashboard-v280 .command-performance-grid,
+  .app-ui .fintech-dashboard-v280 .command-insight-grid { grid-template-columns:minmax(0,1fr); }
+  .app-ui .product-library-body,
+  .app-ui .operations-split { grid-template-columns:minmax(0,1fr); }
+  .app-ui .product-library-editor-pane { min-height:420px; }
+  .app-ui .appearance-toggles { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+
+@media screen and (max-width:900px) {
+  .app-ui .fintech-dashboard-v280 .command-kpis,
+  .app-ui .operations-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-ui .fintech-dashboard-v280 .command-kpis>button:nth-child(3) { border-inline-start:0; }
+  .app-ui .fintech-dashboard-v280 .command-kpis>button:nth-child(n+3) { border-top:1px solid var(--ft-line); }
+  .app-ui .dashboard-quick-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-ui .premium-customer-list { grid-template-columns:minmax(0,1fr); }
+  .app-ui .editor-layout { grid-template-columns:minmax(0,1fr); }
+}

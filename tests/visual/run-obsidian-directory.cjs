@@ -58,6 +58,7 @@ const viewports=[{width:1440,height:1000},{width:820,height:1180},{width:390,hei
    assert.ok(state.info.every(item=>item.scrollWidth<=item.clientWidth+1&&item.whiteSpace==='normal'),'picker summary text clipped '+JSON.stringify(state));
   };
   try{
+   await page.addInitScript(()=>localStorage.setItem('lourex-ui-theme','dark'));
    await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-directory.html?lang=${lang}&screen=${screen}`,{waitUntil:'load'});await page.evaluate(()=>document.fonts.ready);
    if(screen==='customers'){
     const rows=page.locator('.premium-customer-card');await rows.first().waitFor();assert.equal(await rows.count(),8);await audit('.customers-page');await shot('list');

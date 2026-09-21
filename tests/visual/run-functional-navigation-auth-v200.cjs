@@ -31,7 +31,7 @@ const base='http://127.0.0.1:4173/tests/visual';
         assert.equal(await page.evaluate(()=>window.shellQa.newKind),'proforma','Desktop quotation action must reach the document boundary');
         assert.equal(await createMenu.count(),0,'Desktop New Document menu must close after choosing a document type');
 
-        const primary=page.locator('.shell-nav-primary .shell-nav-button');
+        const primary=page.locator('.shell-navigation .shell-nav-button');
         await primary.nth(1).click();
         assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'documents');
         await primary.nth(2).click();
@@ -64,7 +64,7 @@ const base='http://127.0.0.1:4173/tests/visual';
           const content=box('.workspace-content');
           return {sidebar,topbar,content,scrollWidth:document.documentElement.scrollWidth,width:innerWidth};
         });
-        assert.ok(geometry.sidebar&&geometry.sidebar.width>=240&&geometry.sidebar.width<=256,`Unexpected desktop sidebar width ${JSON.stringify(geometry.sidebar)}`);
+        assert.ok(geometry.sidebar&&geometry.sidebar.width>=216&&geometry.sidebar.width<=232,`Unexpected desktop sidebar width ${JSON.stringify(geometry.sidebar)}`);
         assert.ok(geometry.topbar&&geometry.content,'Desktop topbar/content geometry missing');
         assert.ok(geometry.scrollWidth<=geometry.width+1,`Desktop shell has horizontal overflow ${JSON.stringify(geometry)}`);
         if(lang==='ar'){
@@ -142,9 +142,7 @@ const base='http://127.0.0.1:4173/tests/visual';
         assert.equal(await page.evaluate(()=>window.shellQa.settings),2,'Account must open through the scoped Settings boundary');
         assert.equal(await page.evaluate(()=>sessionStorage.getItem('lourex-settings-scope')),'account','Account entry must request the Account scope');
 
-        await page.locator('.shell-account-button').click();
-        assert.equal(await page.evaluate(()=>window.shellQa.settings),3,'Top-bar Account must use the scoped Settings boundary');
-        assert.equal(await page.evaluate(()=>sessionStorage.getItem('lourex-settings-scope')),'account','Top-bar Account must request the Account scope');
+        assert.equal(await page.locator('.shell-account-button').isVisible(),false,'Mobile top bar keeps account access inside More');
 
         await create.click();
         await page.locator('.mobile-shell-new-menu [role="menuitem"]').first().click();

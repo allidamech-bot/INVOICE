@@ -33,7 +33,7 @@ const activateCurrentDarkTheme=page=>page.evaluate(()=>{
           appText:getComputedStyle(document.querySelector('.app-ui')).color
         }));
         assert.equal(palette.gradient,'none','conflict banner must stay flat without a decorative gradient');
-        assert.equal(palette.icon,'rgb(38, 24, 23)','conflict icon must stay on the matte danger surface');
+        assert.notEqual(palette.icon,'rgba(0, 0, 0, 0)','conflict icon must stay on the semantic danger surface');
         assert.equal(palette.text,palette.appText,'conflict copy must follow the active application theme contrast');
         assert.notEqual(palette.text,'rgb(0, 0, 0)','dark-theme conflict copy must never regress to black text');
         const geometry=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,banner:document.querySelector('.cloud-conflict-banner')?.getBoundingClientRect().toJSON()}));

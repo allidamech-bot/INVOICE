@@ -1,0 +1,435 @@
+/* v280 — Mobile, tablet, bidi and safe-area behavior. */
+@media screen and (max-width:860px) {
+  .app-ui .page,
+  .app-ui .domain-workspace,
+  .app-ui .dashboard-page,
+  .app-ui .documents-workspace-v2,
+  .app-ui .operations-page,
+  .app-ui .reports-page {
+    width:100%;
+    padding:14px 12px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .app-ui .page-heading,
+  .app-ui .operations-hero,
+  .app-ui .reports-heading {
+    align-items:flex-start;
+    flex-direction:column;
+    gap:10px;
+    margin-bottom:13px;
+  }
+  .app-ui .page-heading h1,
+  .app-ui .operations-hero h1,
+  .app-ui .reports-heading h1 { font-size:22px; }
+  .app-ui .page-subtitle,
+  .app-ui .operations-hero p:not(.eyebrow),
+  .app-ui .reports-heading p:not(.eyebrow) { font-size:11px; line-height:1.5; }
+  .app-ui .heading-actions,
+  .app-ui .reports-heading-actions { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-ui .heading-actions .btn,
+  .app-ui .reports-heading-actions .btn { min-width:0; min-height:42px; }
+
+  .app-ui .fintech-dashboard-v280 { gap:10px; }
+  .app-ui .fintech-dashboard-v280 .command-center-hero {
+    min-height:0;
+    align-items:flex-start;
+    flex-direction:column;
+    gap:10px;
+  }
+  .app-ui .fintech-dashboard-v280 .command-center-hero h1 { font-size:22px; }
+  .app-ui .fintech-dashboard-v280 .command-center-hero p:not(.workspace-home-eyebrow) { font-size:10.5px; }
+  .app-ui .fintech-dashboard-v280 .command-center-actions { width:100%; }
+  .app-ui .fintech-dashboard-v280 .command-center-actions .btn { flex:1; min-height:42px; }
+  .app-ui .fintech-dashboard-v280 .command-period-pill { min-height:42px; }
+
+  .app-ui .fintech-dashboard-v280 .command-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); border-radius:10px; }
+  .app-ui .fintech-dashboard-v280 .command-kpis>button {
+    min-height:100px;
+    grid-template-columns:28px minmax(0,1fr);
+    gap:7px;
+    padding:11px 9px;
+  }
+  .app-ui .fintech-dashboard-v280 .command-kpis>button:nth-child(3) { border-inline-start:0; }
+  .app-ui .fintech-dashboard-v280 .command-kpis>button:nth-child(n+3) { border-top:1px solid var(--ft-line); }
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi-icon { width:28px; height:28px; border-radius:8px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-money-stack b,
+  .app-ui .fintech-dashboard-v280 .command-kpis strong { font-size:15px; overflow-wrap:anywhere; }
+  .app-ui .fintech-dashboard-v280 .command-kpis small { font-size:8.5px; }
+  .app-ui .fintech-dashboard-v280 .command-kpis em { font-size:7.8px; }
+
+  .app-ui .dashboard-quick-actions { grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
+  .app-ui .dashboard-quick-actions>button {
+    min-height:72px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    gap:4px;
+    padding:7px 3px;
+    text-align:center;
+  }
+  .app-ui .dashboard-quick-actions>button>span { grid-row:auto; width:30px; height:30px; border-radius:8px; }
+  .app-ui .dashboard-quick-actions>button strong { font-size:8px; line-height:1.25; }
+  .app-ui .dashboard-quick-actions>button small { display:none; }
+
+  .app-ui .fintech-dashboard-v280 .command-performance-grid,
+  .app-ui .fintech-dashboard-v280 .command-insight-grid { grid-template-columns:minmax(0,1fr); gap:10px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel { border-radius:10px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading { min-height:50px; padding:9px 10px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading h2 { font-size:12px; }
+  .app-ui .fintech-dashboard-v280 .command-chart-heading { align-items:flex-start; flex-direction:column; }
+  .app-ui .fintech-dashboard-v280 .command-chart-controls { width:100%; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .app-ui .fintech-dashboard-v280 :where(.command-chart-controls,.command-chart-mode) button { min-height:38px; }
+  .app-ui .fintech-dashboard-v280 .command-chart-mode { overflow-x:auto; }
+  .app-ui .fintech-dashboard-v280 .command-chart-mode button { white-space:nowrap; }
+  .app-ui .fintech-dashboard-v280 .command-chart { height:160px; }
+  .app-ui .fintech-dashboard-v280 .command-chart-labels { display:none; }
+  .app-ui .fintech-dashboard-v280 .command-chart-footer { align-items:flex-start; flex-direction:column; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-head { display:none; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-row {
+    min-height:66px;
+    grid-template-columns:30px minmax(0,1fr) auto;
+    grid-template-areas:"icon document amount" "icon customer status";
+    gap:2px 8px;
+    padding:9px 10px;
+  }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-kind { grid-area:icon; align-self:center; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-copy { grid-area:document; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-customer { grid-area:customer; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-date { display:none; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-amount { grid-area:amount; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-status { grid-area:status; justify-self:end; }
+
+  .app-ui .lourex-advisor-head { padding:11px; }
+  .app-ui .lourex-advisor-identity p { display:none; }
+  .app-ui .lourex-advisor-body { min-height:0; padding:10px 11px; }
+  .app-ui .lourex-advisor-welcome { grid-template-columns:minmax(0,1fr); gap:9px; }
+  .app-ui .lourex-advisor-welcome-copy span { font-size:8.5px; }
+  .app-ui .lourex-advisor-starters { display:grid; grid-template-columns:minmax(0,1fr); gap:5px; }
+  .app-ui .lourex-advisor-starters button { min-height:38px; padding:7px 9px; }
+  .app-ui .lourex-advisor-compose { padding:8px 10px 10px; }
+  .app-ui .lourex-advisor-compose form { grid-template-columns:26px minmax(0,1fr) 40px; min-height:46px; }
+  .app-ui .lourex-advisor-compose form>button { width:38px; height:38px; }
+  .app-ui .lourex-advisor-trust { display:none; }
+
+  .app-ui .documents-heading-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-ui .documents-resume { gap:8px; padding:9px; }
+  .app-ui .documents-resume .resume-copy { flex-direction:column; align-items:flex-start; gap:1px; }
+  .app-ui .documents-resume .resume-meta { align-items:flex-end; }
+  .app-ui .documents-register-tabs { margin-inline:-2px; scrollbar-width:none; }
+  .app-ui .documents-register-tabs::-webkit-scrollbar { display:none; }
+  .app-ui .documents-register-tabs>button { min-height:40px; padding-inline:9px; }
+  .app-ui .documents-command { grid-template-columns:minmax(0,1fr); padding:7px; }
+  .app-ui .documents-command-search { display:grid; grid-template-columns:minmax(0,1fr); gap:6px; }
+  .app-ui .documents-sort { width:100%; }
+  .app-ui .documents-command-filters { display:none; }
+  .app-ui .documents-command.filters-open .documents-command-filters { display:block; }
+  .app-ui .documents-advanced-filters { grid-template-columns:minmax(0,1fr); padding-top:7px; }
+  .app-ui .documents-register { border:0; border-radius:0; background:transparent; overflow:visible; }
+  .app-ui .documents-register-row {
+    min-height:84px;
+    margin-bottom:7px;
+    border:1px solid var(--ft-line);
+    border-radius:10px;
+    background:var(--ft-surface);
+    overflow:hidden;
+  }
+  .app-ui .document-register-open {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:"identity amount" "customer amount" "date status";
+    gap:4px 9px;
+    padding:10px 42px 10px 10px;
+  }
+  [dir="rtl"] .app-ui .document-register-open { padding:10px 10px 10px 42px; }
+  .app-ui .register-identity { grid-area:identity; }
+  .app-ui .register-customer { grid-area:customer; }
+  .app-ui .register-date { grid-area:date; }
+  .app-ui .register-amount { grid-area:amount; align-self:start; }
+  .app-ui .register-status { grid-area:status; justify-self:end; }
+  .app-ui .documents-register-row .mobile-actions { position:absolute; inset-block-start:50%; inset-inline-end:5px; transform:translateY(-50%); display:block; }
+  .app-ui .documents-register-row .desktop-actions { display:none; }
+
+  .app-ui .customers-toolbar { display:grid; grid-template-columns:minmax(0,1fr); gap:6px; padding:7px; }
+  .app-ui .customers-toolbar .segmented { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-ui .premium-customer-list { grid-template-columns:minmax(0,1fr); gap:7px; }
+  .app-ui .premium-customer-card { min-height:94px; padding:10px; }
+  .app-ui .customer-document-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-ui .customer-profile-grid { grid-template-columns:minmax(0,1fr); }
+  .app-ui .customer-profile-hero { padding:13px; }
+
+  .app-ui .product-library-commandbar { display:grid; grid-template-columns:minmax(0,1fr) auto; padding:6px; }
+  .app-ui .product-library-search { grid-column:1 / -1; }
+  .app-ui .product-library-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; }
+  .app-ui .product-library-metrics>button,
+  .app-ui .product-library-metrics>div { min-height:62px; padding:8px; }
+  .app-ui .product-library-body { display:block; }
+  .app-ui .product-library-list-pane { min-height:0; border-radius:10px; }
+  .app-ui .product-library-editor-pane { position:fixed; z-index:1120; inset:0; width:100%; height:100dvh; border:0; border-radius:0; background:var(--ft-surface); }
+  .app-ui .product-library-editor-head { padding-top:max(10px,env(safe-area-inset-top)); }
+  .app-ui .product-library-editor-scroll { padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
+  .app-ui .product-library-editor-actions { position:fixed; z-index:2; inset-inline:0; inset-block-end:0; padding:8px 10px calc(8px + env(safe-area-inset-bottom)); }
+  .app-ui .fintech-shell-v280:has(.product-library-editor.is-open) .mobile-bottom-nav,
+  .app-ui .fintech-shell-v280:has(.operations-editor.purchase-editor) .mobile-bottom-nav { display:none; }
+  .app-ui .product-library-row { min-height:70px; }
+  .app-ui .product-library-row-main { grid-template-columns:minmax(0,1fr) auto; }
+
+  .app-ui .operations-tabs,
+  .app-ui .domain-workspace-tabs { margin-inline:-2px; scrollbar-width:none; }
+  .app-ui .operations-tabs::-webkit-scrollbar,
+  .app-ui .domain-workspace-tabs::-webkit-scrollbar { display:none; }
+  .app-ui .operations-tabs>button,
+  .app-ui .domain-workspace-tabs>button { min-width:max-content; min-height:42px; }
+  .app-ui .operations-summary { grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; }
+  .app-ui .operations-summary>button,
+  .app-ui .operations-summary>div { min-height:70px; padding:9px; }
+  .app-ui .operations-split { grid-template-columns:minmax(0,1fr); }
+  .app-ui .operations-editor.purchase-editor {
+    position:fixed!important;
+    z-index:1110;
+    inset:0!important;
+    width:100%!important;
+    height:100dvh!important;
+    overflow:auto!important;
+    border:0;
+    border-radius:0;
+    padding-bottom:calc(76px + env(safe-area-inset-bottom));
+    background:var(--ft-surface);
+  }
+  .app-ui .operations-editor.purchase-editor .operations-editor-actions { position:static!important; inset:auto!important; padding:8px 10px calc(8px + env(safe-area-inset-bottom))!important; border-top:1px solid var(--ft-line); background:var(--ft-shell); }
+  .app-ui .purchase-item-grid,
+  .app-ui .operations-form-grid { grid-template-columns:minmax(0,1fr); }
+  .app-ui .span-2 { grid-column:auto; }
+  .app-ui .inventory-balances { min-width:0; overflow:hidden; }
+  .app-ui .inventory-table,
+  .app-ui .inventory-table-wrap { width:100%; min-width:0; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .app-ui .inventory-table-head,
+  .app-ui .inventory-balance-row { min-width:610px; }
+
+  .app-ui .receivable-currency-cards,
+  .app-ui .reports-currency-grid { grid-template-columns:minmax(0,1fr); }
+  .app-ui .receivable-controls,
+  .app-ui .reports-filter-panel { padding:7px; }
+  .app-ui .receivable-accounts-toolbar { display:grid; grid-template-columns:minmax(0,1fr); gap:6px; }
+  .app-ui .reports-presets { width:100%; display:flex; overflow-x:auto; scrollbar-width:none; }
+  .app-ui .reports-presets>button { min-height:42px; white-space:nowrap; }
+  .app-ui .aging-table-wrap,
+  .app-ui .reports-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .app-ui .aging-table,
+  .app-ui .reports-table { min-width:680px; }
+
+  .app-ui .modal-backdrop.modal-backdrop {
+    align-items:flex-end!important;
+    padding:0!important;
+    height:var(--modal-visual-height,100dvh)!important;
+    top:var(--modal-visual-offset-top,0)!important;
+    bottom:auto!important;
+  }
+  .modal-backdrop {
+    align-items:flex-end!important;
+    padding:0!important;
+    height:var(--modal-visual-height,100dvh)!important;
+    top:var(--modal-visual-offset-top,0)!important;
+    bottom:auto!important;
+  }
+  .app-ui .modal-backdrop.modal-backdrop>.modal.modal {
+    width:100%;
+    max-width:none;
+    max-height:min(92dvh,calc(var(--modal-visual-height,100dvh) - var(--modal-browser-bottom-reserve,0px)))!important;
+    border-inline:0;
+    border-bottom:0;
+    border-radius:18px 18px 0 0;
+  }
+  .modal-backdrop>.modal { max-height:min(92dvh,calc(var(--modal-visual-height,100dvh) - var(--modal-browser-bottom-reserve,0px)))!important; }
+  .app-ui .modal-header { min-height:54px; padding:10px 12px; }
+  .app-ui .modal-body { padding:13px 12px; }
+  .app-ui .modal-footer { padding:8px 10px calc(8px + env(safe-area-inset-bottom)); }
+  .app-ui .modal:has(.product-import-shell)>.modal-footer { display:none!important; }
+  .app-ui .product-import-mobile-actions {
+    position:sticky;
+    top:0;
+    z-index:20;
+    display:block;
+    margin:0 0 10px;
+    padding:7px;
+    border:1px solid var(--ft-line);
+    border-radius:10px;
+    background:var(--ft-shell);
+    box-shadow:0 8px 20px rgba(0,0,0,.18);
+  }
+  .app-ui .product-import-mobile-actions .product-import-footer { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+  .app-ui .product-import-mobile-actions .btn { width:100%; min-width:0; min-height:44px; padding-inline:7px; }
+  .app-ui .settings-layout { display:block; }
+  .app-ui .settings-tabs { display:flex; flex-direction:row; gap:3px; padding:6px; overflow-x:auto; border:0; border-bottom:1px solid var(--ft-line); scrollbar-width:none; }
+  .app-ui .settings-tabs::-webkit-scrollbar { display:none; }
+  .app-ui .settings-tabs button { min-width:max-content; min-height:42px; }
+  .app-ui .settings-panel { padding:0 12px; }
+  .app-ui .settings-title { align-items:flex-start; flex-direction:column; gap:8px; }
+  .app-ui .settings-section { padding:15px 0; }
+  .app-ui .form-grid.two { grid-template-columns:minmax(0,1fr); }
+  .app-ui .form-grid .span-2 { grid-column:auto; }
+
+  /* True mobile document editor: form and actions own the viewport. */
+  .app-ui .fintech-shell-v280 .editor-screen {
+    height:100dvh;
+    max-height:100dvh;
+    min-height:0;
+    padding:0;
+    overflow:hidden;
+  }
+  .app-ui .fintech-shell-v280 .editor-topbar {
+    min-height:56px;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:6px;
+    padding:max(6px,env(safe-area-inset-top)) 8px 6px;
+  }
+  .app-ui .editor-top-left { gap:6px; }
+  .app-ui .editor-top-left>.icon-btn { width:38px; height:38px; flex:0 0 38px; }
+  .app-ui .editor-workflow-badge,
+  .app-ui .editor-grand-total-chip,
+  .app-ui .save-indicator { display:none; }
+  .app-ui .editor-actions { gap:4px; }
+  .app-ui .editor-actions .btn { min-width:38px; min-height:38px; padding:6px 8px; }
+  .app-ui .editor-actions .btn:not(.btn-primary):not(.mobile-preview-button) span { display:none; }
+  .app-ui .document-readiness { margin:6px 8px 0; min-height:40px; grid-template-columns:auto minmax(70px,1fr); gap:7px; padding:6px 8px; }
+  .app-ui .readiness-copy { min-width:0; }
+  .app-ui .readiness-copy span,
+  .app-ui .readiness-groups { display:none; }
+  .app-ui .editor-layout { min-height:0; display:block; padding:6px 8px 0; overflow:hidden; }
+  .app-ui .editor-pane { height:100%; border-radius:10px; }
+  .app-ui .editor-scroll {
+    height:100%;
+    padding:10px 9px calc(92px + env(safe-area-inset-bottom));
+    scroll-padding-bottom:calc(110px + env(safe-area-inset-bottom));
+  }
+  .app-ui .editor-section { margin-bottom:7px; padding:11px 9px; border-radius:9px; }
+  .app-ui .section-heading { margin-bottom:9px; }
+  .app-ui .form-grid.two,
+  .app-ui .compact-grid,
+  .app-ui .item-core-grid,
+  .app-ui .item-pricing-grid { grid-template-columns:minmax(0,1fr); }
+  .app-ui .item-card .form-grid { padding:9px; }
+  .app-ui .preview-pane { display:none; }
+  .app-ui .mobile-action-buttons {
+    position:fixed;
+    z-index:1060;
+    inset-inline:0;
+    inset-block-end:0;
+    min-height:calc(62px + env(safe-area-inset-bottom));
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:6px;
+    padding:7px 8px calc(7px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--ft-line);
+    background:color-mix(in srgb,var(--ft-shell) 97%,transparent);
+    box-shadow:0 -10px 30px rgba(0,0,0,.16);
+    backdrop-filter:blur(16px);
+  }
+  .app-ui .mobile-action-buttons .btn { min-width:0; min-height:46px; padding:6px 4px; }
+  .app-ui .mobile-action-buttons .btn span { overflow:hidden; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
+  .app-ui .mobile-preview-overlay {
+    position:fixed;
+    z-index:1200;
+    inset:0;
+    height:100dvh;
+    background:var(--ft-workspace);
+  }
+  .app-ui .mobile-preview-overlay>header { min-height:56px; padding:max(6px,env(safe-area-inset-top)) 8px 6px; border-bottom:1px solid var(--ft-line); background:var(--ft-shell); }
+  .app-ui .mobile-preview-stage { height:calc(100dvh - 56px); padding:12px 8px calc(16px + env(safe-area-inset-bottom)); background:var(--ft-workspace); }
+
+}
+
+@media screen and (max-width:720px) {
+  .app-ui .appearance-system-grid,
+  .app-ui .appearance-toggles { grid-template-columns:minmax(0,1fr); gap:6px; }
+
+  /* Opening a purchase is a focused phone task, like the document editor. */
+  .app-ui:has(.operations-page .purchase-editor) .workspace-topbar,
+  .app-ui:has(.operations-page .purchase-editor) .mobile-bottom-nav,
+  .app-ui .operations-page:has(.purchase-editor)>.operations-hero,
+  .app-ui .operations-page:has(.purchase-editor)>.operations-summary,
+  .app-ui .operations-page:has(.purchase-editor)>.operations-integrity-warning,
+  .app-ui .operations-page:has(.purchase-editor)>.operations-tabs,
+  .app-ui .purchase-layout:has(.purchase-editor)>.operations-list-panel { display:none!important; }
+  .app-ui:has(.operations-page .purchase-editor) .workspace-shell { grid-template-rows:minmax(0,1fr)!important; }
+  .app-ui:has(.operations-page .purchase-editor) .workspace-content { grid-row:1!important; padding-bottom:max(12px,env(safe-area-inset-bottom))!important; }
+  .app-ui .operations-page:has(.purchase-editor) { padding-top:max(10px,env(safe-area-inset-top))!important; }
+}
+
+@media screen and (max-width:430px) {
+  .app-ui .page,
+  .app-ui .domain-workspace,
+  .app-ui .dashboard-page,
+  .app-ui .documents-workspace-v2,
+  .app-ui .operations-page,
+  .app-ui .reports-page { padding-inline:10px; }
+  .app-ui .command-period-pill { display:none; }
+  .app-ui .dashboard-quick-actions>button strong { font-size:7.5px; }
+  .app-ui .documents-heading-actions { grid-template-columns:minmax(0,1fr); }
+  .app-ui .documents-resume .resume-meta em { display:none; }
+  .app-ui .product-library-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-ui .auth-card { padding:20px 16px; }
+
+  /* Six always-visible steps: compact numbers remain discoverable without a
+     horizontally clipped active pill or a gesture-dependent hidden step. */
+  .app-ui .editor-section-nav-slot { padding-inline:7px!important; overflow:hidden!important; }
+  .app-ui .editor-section-navigator {
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    display:grid!important;
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    gap:4px!important;
+    padding:0!important;
+  }
+  .app-ui .editor-section-nav-button,
+  .app-ui .editor-section-nav-button.active {
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    justify-items:center!important;
+    padding:5px 2px!important;
+  }
+  .app-ui .editor-section-nav-button .editor-nav-label,
+  .app-ui .editor-section-nav-button .editor-nav-error-dot { display:none!important; }
+}
+
+@media screen and (max-width:370px) {
+  .app-ui .fintech-dashboard-v280 .command-kpis>button { grid-template-columns:24px minmax(0,1fr); padding-inline:7px; }
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi-icon { width:24px; height:24px; }
+  .app-ui .dashboard-quick-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+
+@media screen and (min-width:861px) and (max-width:1180px) {
+  .app-ui .product-library-metrics,
+  .app-ui .operations-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+
+@media screen and (min-width:1500px) {
+  .app-ui .fintech-shell-v280 { grid-template-columns:236px minmax(0,1fr)!important; }
+  .app-ui .page,
+  .app-ui .domain-workspace,
+  .app-ui .dashboard-page,
+  .app-ui .documents-workspace-v2,
+  .app-ui .operations-page,
+  .app-ui .reports-page { width:min(100%,1520px); }
+}
+
+@media screen and (prefers-reduced-motion:reduce) {
+  .app-ui *,
+  .app-ui *::before,
+  .app-ui *::after { scroll-behavior:auto; transition-duration:.001ms; animation-duration:.001ms; animation-iteration-count:1; }
+}
+
+/* Numeric direction is independent from Arabic interface mirroring. */
+[dir="rtl"] .app-ui :where(.register-amount,.dashboard-document-amount,.receivable-account-amount,.editor-grand-total-chip strong,.editor-totals strong,.document-detail-value strong,.report-primary-metrics strong,.report-secondary-metrics strong,.product-library-row-price) {
+  direction:ltr;
+  unicode-bidi:isolate;
+  text-align:end;
+  font-variant-numeric:tabular-nums lining-nums;
+}
+[dir="rtl"] .app-ui :where(input[inputmode="decimal"],input[inputmode="numeric"],input[type="number"]) {
+  direction:ltr;
+  unicode-bidi:isolate;
+  text-align:right;
+}

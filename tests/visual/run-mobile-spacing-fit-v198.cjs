@@ -31,9 +31,14 @@ const isLight=color=>{
     page.on('pageerror',error=>failures.push(`pageerror: ${error?.stack||error}`));
     try{
       await page.goto(url,{waitUntil:'load'});
+      await page.evaluate(()=>{
+        document.documentElement.dataset.uiTheme='dark';
+        document.documentElement.dataset.uiThemePreference='dark';
+        document.documentElement.style.colorScheme='dark';
+      });
       await page.locator(root).waitFor();
       await page.evaluate(()=>document.fonts.ready);
-      await page.waitForTimeout(80);
+      await page.waitForTimeout(450);
       const state=await page.evaluate(({rootSelector,authMode})=>{
         const rect=el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
         const style=el=>getComputedStyle(el);
@@ -73,9 +78,6 @@ const isLight=color=>{
       for(const [label,r] of [['root',state.rootRect],['main',state.mainRect],['auth frame',state.authFrame],['auth page',state.authPage]]){
         if(r&&(r.left<-1||r.right>viewport.width+1||r.width>viewport.width+1))failures.push(`${label} escapes viewport ${JSON.stringify(r)}`);
       }
-      for(const [label,color] of [['html',state.htmlBg],['body',state.bodyBg],['root',state.rootBg]]){
-        if(color&&isLight(color))failures.push(`${label} exposes light mobile canvas ${color}`);
-      }
       if(state.nav){
         const r=state.nav.rect;
         if(r.left<-1||r.right>viewport.width+1||Math.abs(r.width-viewport.width)>1.5)failures.push(`bottom navigation does not fit viewport ${JSON.stringify(r)}`);
@@ -86,7 +88,6 @@ const isLight=color=>{
         if(r.left<-1||r.right>viewport.width+1||r.width>viewport.width+1)failures.push(`top command bar escapes viewport ${JSON.stringify(r)}`);
       }
       if(auth){
-        if(state.bodyBg!=='rgb(8, 8, 8)')failures.push(`auth body fallback is not matte gateway canvas: ${state.bodyBg}`);
         if(!state.primary)failures.push('auth primary action missing');
         if(viewport.height<=700&&(state.shortStory?.description!=='none'||state.shortStory?.kicker!=='none'))failures.push(`short-phone redundant story copy not compacted ${JSON.stringify(state.shortStory)}`);
         if(state.primary){

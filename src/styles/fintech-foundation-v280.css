@@ -1,0 +1,435 @@
+/* Retired cascade markers: LOUREX Luminous Noir · LOUREX Matte Black.
+   v229 — nested surface consistency pass is superseded by semantic ownership below. */
+/* v280 — Semantic application foundation.
+   Owns color, type, controls and overlays. Printable documents are excluded. */
+@media screen {
+  :root,
+  html[data-ui-theme="light"] {
+    --device-safe-top:0px;
+    --device-safe-right:0px;
+    --device-safe-bottom:0px;
+    --device-safe-left:0px;
+    --app-safe-top:0px;
+    --app-safe-bottom:0px;
+    --ft-canvas:#f2f7f8;
+    --ft-shell:#ffffff;
+    --ft-workspace:#f7fafb;
+    --ft-surface:#ffffff;
+    --ft-surface-2:#edf4f5;
+    --ft-surface-3:#e5eef0;
+    --ft-input:#f8fbfc;
+    --ft-text:#183038;
+    --ft-text-strong:#0a2028;
+    --ft-text-soft:#536d74;
+    --ft-muted:#71868c;
+    --ft-faint:#91a2a7;
+    --ft-line:#d8e4e6;
+    --ft-line-strong:#c3d5d8;
+    --ft-accent:#0baeb5;
+    --ft-accent-hover:#078f96;
+    --ft-accent-soft:#d9f6f7;
+    --ft-accent-faint:#edfafa;
+    --ft-on-accent:#ffffff;
+    --ft-success:#17845e;
+    --ft-success-soft:#e2f5ec;
+    --ft-warning:#a96d19;
+    --ft-warning-soft:#fff1d9;
+    --ft-danger:#c94f57;
+    --ft-danger-soft:#fdecee;
+    --ft-info:#287da0;
+    --ft-info-soft:#e5f3f8;
+    --ft-shadow:0 12px 34px rgba(16,52,63,.08);
+    --ft-shadow-pop:0 24px 70px rgba(10,39,48,.18);
+    --ft-focus:0 0 0 3px rgba(11,174,181,.18);
+    --mf-canvas:var(--ft-canvas);
+    --mf-shell:var(--ft-shell);
+    --mf-workspace:var(--ft-workspace);
+    --mf-surface:var(--ft-surface);
+    --mf-surface-2:var(--ft-surface-2);
+    --mf-input:var(--ft-input);
+    --mf-text:var(--ft-text);
+    --mf-text-strong:var(--ft-text-strong);
+    --mf-text-soft:var(--ft-text-soft);
+    --mf-muted:var(--ft-muted);
+    --mf-line:var(--ft-line);
+    --mf-accent:var(--ft-accent);
+    --mf-on-accent:var(--ft-on-accent);
+    color-scheme:light;
+  }
+
+  html[data-ui-theme="dark"] {
+    --ft-canvas:#061820;
+    --ft-shell:#071d26;
+    --ft-workspace:#08212b;
+    --ft-surface:#0b2833;
+    --ft-surface-2:#0e303c;
+    --ft-surface-3:#123b48;
+    --ft-input:#071e27;
+    --ft-text:#d9e9ed;
+    --ft-text-strong:#f3fbfd;
+    --ft-text-soft:#9eb4ba;
+    --ft-muted:#80999f;
+    --ft-faint:#637e85;
+    --ft-line:#163843;
+    --ft-line-strong:#21505d;
+    --ft-accent:#20d3db;
+    --ft-accent-hover:#51e6eb;
+    --ft-accent-soft:#0a444a;
+    --ft-accent-faint:#083139;
+    --ft-on-accent:#042126;
+    --ft-success:#58c992;
+    --ft-success-soft:#0e3528;
+    --ft-warning:#e2a44f;
+    --ft-warning-soft:#3a2911;
+    --ft-danger:#f07980;
+    --ft-danger-soft:#3b1e24;
+    --ft-info:#65badd;
+    --ft-info-soft:#102f3d;
+    --ft-shadow:0 16px 42px rgba(0,0,0,.2);
+    --ft-shadow-pop:0 30px 80px rgba(0,0,0,.42);
+    --ft-focus:0 0 0 3px rgba(32,211,219,.2);
+    color-scheme:dark;
+  }
+
+  html,
+  body,
+  #root { background:var(--ft-canvas); }
+
+  body {
+    color:var(--ft-text);
+    font-family:Inter,"Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+
+  [dir="rtl"] body,
+  [lang="ar"] body { font-family:"Noto Sans Arabic",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+
+  .app-ui {
+    /* Compatibility aliases for functional layers that predate v280. Visual
+       ownership remains with the semantic fintech tokens above. */
+    --mf-canvas:var(--ft-canvas);
+    --mf-shell:var(--ft-shell);
+    --mf-workspace:var(--ft-workspace);
+    --mf-surface:var(--ft-surface);
+    --mf-surface-2:var(--ft-surface-2);
+    --mf-input:var(--ft-input);
+    --mf-text:var(--ft-text);
+    --mf-text-strong:var(--ft-text-strong);
+    --mf-text-soft:var(--ft-text-soft);
+    --mf-muted:var(--ft-muted);
+    --mf-line:var(--ft-line);
+    --mf-accent:var(--ft-accent);
+    --mf-on-accent:var(--ft-on-accent);
+    --ds-canvas:var(--ft-canvas);
+    --ds-shell:var(--ft-shell);
+    --ds-workspace:var(--ft-workspace);
+    --ds-surface:var(--ft-surface);
+    --ds-surface-strong:var(--ft-surface-2);
+    --ds-selected:var(--ft-accent-faint);
+    --ds-elevated:var(--ft-surface-2);
+    --ds-input:var(--ft-input);
+    --ds-financial-surface:var(--ft-surface-2);
+    --ds-accent:var(--ft-accent);
+    --ds-accent-hover:var(--ft-accent-hover);
+    --ds-accent-bright:var(--ft-accent);
+    --ds-brass:var(--ft-accent);
+    --ds-brass-highlight:var(--ft-accent);
+    --ds-gold-600:var(--ft-accent);
+    --ds-gold-500:var(--ft-accent);
+    --ds-gold-200:var(--ft-accent-soft);
+    --ds-on-action:var(--ft-on-accent);
+    --ds-text:var(--ft-text);
+    --ds-text-strong:var(--ft-text-strong);
+    --ds-text-soft:var(--ft-text-soft);
+    --ds-muted:var(--ft-muted);
+    --ds-faint:var(--ft-faint);
+    --ds-line:var(--ft-line);
+    --ds-line-strong:var(--ft-line-strong);
+    --ds-input-line:var(--ft-line-strong);
+    --ds-focus-line:var(--ft-accent);
+    --ds-secondary-button:var(--ft-surface-2);
+    --ds-success:var(--ft-success);
+    --ds-success-surface:var(--ft-success-soft);
+    --ds-warning:var(--ft-warning);
+    --ds-warning-surface:var(--ft-warning-soft);
+    --ds-danger:var(--ft-danger);
+    --ds-danger-text:var(--ft-danger);
+    --ds-danger-surface:var(--ft-danger-soft);
+    --ds-info:var(--ft-info);
+    --ds-info-surface:var(--ft-info-soft);
+    --ds-shadow-card:var(--ft-shadow);
+    --ds-shadow-raised:var(--ft-shadow-pop);
+    --ds-focus:var(--ft-focus);
+    --shell-navy:var(--ft-shell);
+    --shell-navy-2:var(--ft-surface-2);
+    --shell-gold:var(--ft-accent);
+    --shell-ivory:var(--ft-canvas);
+    --shell-paper:var(--ft-surface);
+    --shell-line:var(--ft-line);
+    --shell-text:var(--ft-text);
+    --shell-muted:var(--ft-muted);
+    --ux-app:var(--ft-canvas);
+    --ux-card:var(--ft-surface);
+    --ux-input:var(--ft-input);
+    --ux-navy:var(--ft-workspace);
+    --ux-navy-deep:var(--ft-shell);
+    --ux-navy-soft:var(--ft-surface-2);
+    --ux-ink:var(--ft-text);
+    --ux-body:var(--ft-text-soft);
+    --ux-muted:var(--ft-muted);
+    --ux-faint:var(--ft-faint);
+    --ux-line:var(--ft-line);
+    --ux-line-strong:var(--ft-line-strong);
+    --ux-gold:var(--ft-accent);
+    --ux-champagne:var(--ft-accent);
+    --editor-shell:var(--ft-canvas);
+    --editor-pane:var(--ft-workspace);
+    --editor-card:var(--ft-surface);
+    --editor-card-soft:var(--ft-surface-2);
+    --editor-line:var(--ft-line);
+    --editor-line-strong:var(--ft-line-strong);
+    --editor-ink:var(--ft-text);
+    --editor-muted:var(--ft-muted);
+    --editor-accent:var(--ft-accent);
+    --editor-accent-soft:var(--ft-accent-soft);
+    --editor-gold:var(--ft-accent);
+    min-height:100dvh;
+    color:var(--ft-text);
+    background:var(--ft-canvas);
+  }
+
+  .app-ui :where(button,input,select,textarea) { font-family:inherit; }
+  .app-ui :where(button,a,[role="button"]) { -webkit-tap-highlight-color:transparent; }
+  .app-ui :where(button,input,select,textarea):focus-visible { outline:0; box-shadow:var(--ft-focus); }
+
+  .app-ui .btn {
+    min-height:40px;
+    height:auto;
+    padding:8px 13px;
+    border:1px solid var(--ft-line-strong);
+    border-radius:9px;
+    background:var(--ft-surface-2);
+    color:var(--ft-text);
+    box-shadow:none;
+    font-size:12px;
+    font-weight:700;
+    transition:background-color .15s ease,border-color .15s ease,color .15s ease,transform .15s ease;
+  }
+  .app-ui .btn:hover { border-color:var(--ft-accent); background:var(--ft-surface-3); }
+  .app-ui .btn:active { transform:translateY(1px); }
+  .app-ui .btn.btn-primary { border-color:var(--ft-accent); background:var(--ft-accent); color:var(--ft-on-accent); }
+  .app-ui .btn.btn-primary:hover { border-color:var(--ft-accent-hover); background:var(--ft-accent-hover); }
+  .app-ui .btn.btn-ghost { border-color:transparent; background:transparent; color:var(--ft-text-soft); }
+  .app-ui .btn.btn-danger { border-color:color-mix(in srgb,var(--ft-danger) 42%,var(--ft-line)); background:var(--ft-danger-soft); color:var(--ft-danger); }
+
+  .app-ui .icon-btn {
+    width:38px;
+    height:38px;
+    border:1px solid transparent;
+    border-radius:9px;
+    background:transparent;
+    color:var(--ft-text-soft);
+  }
+  .app-ui .icon-btn:hover { border-color:var(--ft-line); background:var(--ft-surface-2); color:var(--ft-text); }
+
+  .app-ui .input,
+  .app-ui select.input,
+  .app-ui textarea.input {
+    width:100%;
+    min-height:40px;
+    border:1px solid var(--ft-line-strong);
+    border-radius:9px;
+    background:var(--ft-input);
+    color:var(--ft-text);
+    box-shadow:none;
+    caret-color:var(--ft-accent);
+  }
+  .app-ui .input:hover { border-color:color-mix(in srgb,var(--ft-line-strong) 72%,var(--ft-accent)); }
+  .app-ui .input:focus { border-color:var(--ft-accent); box-shadow:var(--ft-focus); }
+  .app-ui .input::placeholder { color:var(--ft-faint); opacity:1; }
+  .app-ui .input:disabled { background:var(--ft-surface-2); color:var(--ft-muted); }
+  .app-ui .textarea { min-height:78px; line-height:1.55; }
+  .app-ui .field { gap:6px; }
+  .app-ui .field-label { color:var(--ft-text-soft); font-size:10.5px; font-weight:700; }
+  .app-ui .field-hint { color:var(--ft-muted); font-size:10px; }
+  .app-ui .field-error,
+  .app-ui .inline-error,
+  .app-ui .auth-error { color:var(--ft-danger); }
+
+  .app-ui .toggle { border:1px solid var(--ft-line-strong); background:var(--ft-surface-3); }
+  .app-ui .toggle span { background:var(--ft-text-strong); }
+  .app-ui .toggle.on { border-color:var(--ft-accent); background:var(--ft-accent); }
+  .app-ui .toggle.on span { background:var(--ft-on-accent); }
+
+  .app-ui .segmented { border:1px solid var(--ft-line); border-radius:9px; background:var(--ft-surface-2); padding:3px; }
+  .app-ui .segmented button { min-height:34px; border-radius:7px; color:var(--ft-muted); }
+  .app-ui .segmented button.active { background:var(--ft-surface); color:var(--ft-accent); box-shadow:0 2px 8px rgba(0,0,0,.08); }
+
+  .app-ui .eyebrow { margin:0; color:var(--ft-accent); font-size:9px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+  [dir="rtl"] .app-ui .eyebrow { letter-spacing:0; }
+  .app-ui .page-heading h1,
+  .app-ui .settings-title h3,
+  .app-ui .settings-section h4 { color:var(--ft-text-strong); }
+  .app-ui .page-subtitle,
+  .app-ui .subtle,
+  .app-ui .security-note { color:var(--ft-text-soft); }
+
+  .app-ui :where(.dashboard-panel,.settings-section,.reports-panel,.operations-list-panel,.operations-editor,.receivable-accounts-panel,.aging-panel,.report-currency-card,.receivable-currency-card,.customer-card,.customer-profile-card,.product-library-list-pane,.product-library-editor-pane,.document-detail-card) {
+    border-color:var(--ft-line);
+    background:var(--ft-surface);
+    color:var(--ft-text);
+    box-shadow:none;
+  }
+
+  .app-ui .empty-state {
+    border:1px dashed var(--ft-line-strong);
+    background:var(--ft-surface);
+    color:var(--ft-text-soft);
+    box-shadow:none;
+  }
+  .app-ui .empty-state h2,
+  .app-ui .empty-state h3 { color:var(--ft-text-strong); }
+  .app-ui .empty-mark { background:var(--ft-accent-faint); color:var(--ft-accent); }
+
+  .app-ui .modal-backdrop { background:rgba(1,13,18,.68); backdrop-filter:blur(8px); }
+  .app-ui .modal {
+    border:1px solid var(--ft-line-strong);
+    border-radius:15px;
+    background:var(--ft-surface);
+    color:var(--ft-text);
+    box-shadow:var(--ft-shadow-pop);
+  }
+  .app-ui .modal-header,
+  .app-ui .modal-footer { border-color:var(--ft-line); background:var(--ft-surface-2); }
+  .app-ui .modal-header h2 { color:var(--ft-text-strong); }
+  .app-ui .modal-body { background:var(--ft-surface); }
+  .app-ui .new-menu,
+  .app-ui .action-menu,
+  .app-ui .customer-dropdown,
+  .app-ui .product-library-menu {
+    border:1px solid var(--ft-line-strong);
+    background:var(--ft-surface-2);
+    color:var(--ft-text);
+    box-shadow:var(--ft-shadow-pop);
+  }
+  .app-ui :where(.new-menu,.action-menu,.customer-dropdown,.product-library-menu) button { color:var(--ft-text); }
+  .app-ui :where(.new-menu,.action-menu,.customer-dropdown,.product-library-menu) button:hover { background:var(--ft-accent-faint); }
+
+  .app-ui .toast { border:1px solid var(--ft-line-strong); background:var(--ft-surface-3); color:var(--ft-text-strong); box-shadow:var(--ft-shadow-pop); }
+
+  .app-ui .mf-theme-control {
+    display:inline-grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    align-items:center;
+    gap:3px;
+    padding:3px;
+    border:1px solid var(--ft-line);
+    border-radius:9px;
+    background:var(--ft-input);
+  }
+  .app-ui .mf-theme-control button {
+    min-width:0;
+    min-height:34px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:5px 8px;
+    border:0;
+    border-radius:7px;
+    background:transparent;
+    color:var(--ft-muted);
+  }
+  .app-ui .mf-theme-control button:hover { color:var(--ft-text); background:var(--ft-surface-2); }
+  .app-ui .mf-theme-control button.active { color:var(--ft-accent); background:var(--ft-accent-faint); }
+  .app-ui .mf-theme-control strong { font-size:10px; font-weight:700; }
+  .app-ui .mf-theme-control.is-compact button { width:32px; min-height:30px; padding:4px; }
+  .app-ui .mf-theme-control .icon { width:15px; height:15px; }
+
+  .app-ui .settings-layout { gap:0; }
+  .app-ui .settings-tabs { padding:14px; border-inline-end:1px solid var(--ft-line); background:var(--ft-workspace); }
+  .app-ui .settings-tabs button { min-height:42px; border-radius:8px; color:var(--ft-text-soft); }
+  .app-ui .settings-tabs button:hover { background:var(--ft-surface-2); color:var(--ft-text); }
+  .app-ui .settings-tabs button.active { background:var(--ft-accent-faint); color:var(--ft-accent); }
+  .app-ui .settings-panel { background:var(--ft-surface); }
+  .app-ui .settings-section { margin:0; padding:18px 0; border:0; border-bottom:1px solid var(--ft-line); border-radius:0; }
+  .app-ui .settings-section:last-child { border-bottom:0; }
+  .app-ui .settings-section-heading p,
+  .app-ui .settings-title p,
+  .app-ui .settings-note { color:var(--ft-text-soft); }
+  .app-ui .numbering-preview { border-color:var(--ft-line); background:var(--ft-input); color:var(--ft-accent); }
+
+  /* Settings has several legacy !important surface declarations. This focused
+     ownership block keeps the existing forms and behavior while placing every
+     settings/account surface back on the v280 semantic palette. */
+  .app-ui .settings-workspace-v2 { background:var(--ft-surface)!important; color:var(--ft-text)!important; }
+  .app-ui .settings-workspace-v2 .settings-tabs { border-color:var(--ft-line)!important; background:var(--ft-workspace)!important; }
+  .app-ui .settings-workspace-v2 .settings-tabs button { background:transparent!important; color:var(--ft-text-soft)!important; }
+  .app-ui .settings-workspace-v2 .settings-tabs button:hover { background:var(--ft-surface-2)!important; color:var(--ft-text)!important; }
+  .app-ui .settings-workspace-v2 .settings-tabs button.active { background:var(--ft-accent-faint)!important; color:var(--ft-accent)!important; }
+  .app-ui .settings-workspace-v2 .settings-panel,
+  .app-ui .settings-workspace-v2 .settings-title { background:var(--ft-surface)!important; color:var(--ft-text)!important; }
+  .app-ui .settings-workspace-v2 .settings-section { border-color:var(--ft-line)!important; background:var(--ft-surface)!important; color:var(--ft-text)!important; }
+  .app-ui .settings-workspace-v2 :is(.input,select.input,textarea.input) { border-color:var(--ft-line-strong)!important; background:var(--ft-input)!important; color:var(--ft-text)!important; }
+  .app-ui .settings-workspace-v2 :is(.commercial-row-card,.bank-account-row,.asset-control,.asset-preview,.asset-clean-hint,.account-profile-summary,.settings-account-card) {
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
+  }
+  .app-ui .settings-workspace-v2 .asset-file-trigger { border-color:var(--ft-line-strong)!important; background:var(--ft-input)!important; color:var(--ft-text-soft)!important; }
+  .app-ui .settings-workspace-v2 .settings-title>.btn { min-height:44px; }
+  .app-ui .cloud-account-identity { border-color:var(--ft-line)!important; background:var(--ft-surface-2)!important; color:var(--ft-text)!important; }
+  .app-ui .cloud-account-identity strong { color:var(--ft-text-strong)!important; }
+  .app-ui .cloud-account-identity small { color:var(--ft-text-soft)!important; }
+
+  .app-ui .issue-review-purpose,
+  .app-ui .issue-review-grid>div { border-color:var(--ft-line)!important; background:var(--ft-surface-2)!important; color:var(--ft-text)!important; }
+  .app-ui .issue-review-purpose strong,
+  .app-ui .issue-review-grid strong { color:var(--ft-text-strong)!important; }
+  .app-ui .issue-review-purpose span,
+  .app-ui .issue-review-grid span { color:var(--ft-text-soft)!important; }
+  .app-ui .issue-review-grid .issue-total-check { border-color:var(--ft-accent)!important; background:var(--ft-accent-faint)!important; }
+  .app-ui .issue-review-grid .issue-total-check strong { color:var(--ft-accent)!important; }
+  .app-ui .issue-asset-checks>span { border-color:var(--ft-line)!important; background:var(--ft-input)!important; color:var(--ft-muted)!important; }
+  .app-ui .issue-asset-checks>span.ok { border-color:color-mix(in srgb,var(--ft-success) 45%,var(--ft-line))!important; background:var(--ft-success-soft)!important; color:var(--ft-success)!important; }
+
+  .auth-page,
+  .auth-shell { background:var(--ft-canvas); color:var(--ft-text); }
+  .auth-account-frame { border:1px solid var(--ft-line); border-radius:18px; background:var(--ft-surface); box-shadow:var(--ft-shadow-pop); }
+  .auth-account-story { background:var(--ft-shell); color:var(--ft-text); }
+  .auth-story-kicker,
+  .auth-story-product { color:var(--ft-accent); }
+  .auth-story-title { color:var(--ft-text-strong); }
+  .auth-story-copy p,
+  .auth-story-trust small,
+  .auth-story-foot { color:var(--ft-text-soft); }
+  .auth-story-trust>div { border-color:var(--ft-line); background:var(--ft-surface); }
+  .auth-trust-mark,
+  .auth-security-dot { background:var(--ft-accent); box-shadow:0 0 0 4px color-mix(in srgb,var(--ft-accent) 15%,transparent); }
+  .auth-card,
+  .auth-account-card { border:0; background:var(--ft-surface); color:var(--ft-text); box-shadow:none; }
+  .auth-card h1,
+  .auth-card-heading h1 { color:var(--ft-text-strong); }
+  .auth-language-switch,
+  .google-auth-button { border-color:var(--ft-line-strong); background:var(--ft-input); color:var(--ft-text); }
+  .auth-language-switch:hover,
+  .google-auth-button:hover { border-color:var(--ft-accent); background:var(--ft-accent-faint); }
+  .auth-utility-controls {
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:8px;
+    min-height:38px;
+  }
+  .auth-utility-controls .auth-language-switch {
+    position:static;
+    min-height:36px;
+    margin:0;
+  }
+  .auth-utility-controls .mf-theme-control { flex:none; }
+  .auth-provider-divider::before,
+  .auth-provider-divider::after { background:var(--ft-line); }
+  .auth-provider-divider span { color:var(--ft-muted); background:var(--ft-surface); }
+  .premium-auth-primary.btn-primary { border-color:var(--ft-accent); background:var(--ft-accent); color:var(--ft-on-accent); }
+  .auth-error,
+  .premium-auth-feedback.auth-error { border-color:color-mix(in srgb,var(--ft-danger) 40%,var(--ft-line)); background:var(--ft-danger-soft); color:var(--ft-danger); }
+}

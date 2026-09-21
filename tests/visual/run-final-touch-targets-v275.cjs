@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 
 const base='http://127.0.0.1:4173/tests/visual';
 const cases=[
-  {page:'obsidian-shell.html',selectors:[['.shell-account-button',44,44]]},
+  {page:'obsidian-shell.html',selectors:[['.mobile-more-account',44,44]]},
   {page:'obsidian-dashboard.html',selectors:[
     ['.dashboard-attention-list>button',0,44],
     ['.command-chart-controls>button',0,44],
@@ -29,6 +29,7 @@ const cases=[
       const separator=scenario.page.includes('?')?'&':'?';
       await page.goto(`${base}/${scenario.page}${separator}lang=${lang}`,{waitUntil:'load'});
       await page.evaluate(()=>document.fonts.ready);
+      if(scenario.page==='obsidian-shell.html')await page.getByRole('button',{name:lang==='ar'?'المزيد':'More'}).last().click();
       for(const [selector,minWidth,minHeight,minFont=0] of scenario.selectors){
         const metrics=await page.locator(selector).evaluateAll(elements=>elements.flatMap(element=>{
           const style=getComputedStyle(element),rect=element.getBoundingClientRect();

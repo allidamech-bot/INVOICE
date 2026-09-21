@@ -34,8 +34,9 @@ const doubleClick=async locator=>locator.evaluate(button=>{button.click();button
         await page.getByRole('button',{name:'Import',exact:true}).click();
         await page.locator('.product-import-file-input').setInputFiles({name:'products.csv',mimeType:'text/csv',buffer:Buffer.from('SKU,Description EN,Unit,Unit Price,Currency\nSKU-NEW,Imported Product,PCS,12.00,USD\n')});
         await page.locator('.product-import-mapping-list').waitFor();
-        await page.getByRole('button',{name:'Review import'}).click();
-        const importButton=page.getByRole('button',{name:/Confirm import of 1/});
+        const importActions=page.getByLabel('Import actions');
+        await importActions.getByRole('button',{name:'Review import'}).click();
+        const importButton=importActions.getByRole('button',{name:/Confirm import of 1/});
         await importButton.waitFor();
         await doubleClick(importButton);
         await page.waitForFunction(()=>window.importAttempts===1&&window.productState().length===1);

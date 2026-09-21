@@ -16,9 +16,9 @@ test('iPhone startup paints the same launch screen React uses before runtime scr
   assert.match(html,/class="brand-mark"><img src="\.\/brand\/lourex-logo\.svg" alt="LOUREX"/);
   assert.match(html,/class="brand-words"><strong>LOUREX<\/strong>/);
   assert.match(html,/class="loading-line"/);
-  assert.match(html,/html\[data-ui-theme="light"\]\{[^}]*--boot-bg:#f4f8f8/);
-  assert.match(html,/html\[data-ui-theme="dark"\]\{[^}]*--boot-bg:#071312/);
-  assert.match(html,/#lourex-boot\.loading-screen\{[^}]*background:var\(--boot-bg,#071312\)/);
+  assert.match(html,/html\[data-ui-theme="light"\]\{[^}]*--boot-bg:#f2f7f8/);
+  assert.match(html,/html\[data-ui-theme="dark"\]\{[^}]*--boot-bg:#061820/);
+  assert.match(html,/#lourex-boot\.loading-screen\{[^}]*background:var\(--boot-bg,#061820\)/);
   assert.match(html,/prefers-reduced-motion:reduce/);
   assert.match(app,/if\(this\.state\.loading\)return <div className="loading-screen"><Brand logoDataUrl=\{this\.state\.publicLogo\} language=\{activeLanguage\}\/><span className="loading-line"\/><\/div>/);
   assert.match(css,/\.loading-screen\{/);

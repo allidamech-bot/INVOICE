@@ -7,6 +7,7 @@ import type { CloudUser } from '../cloud/firebase.js';
 import { clearPendingGoogleLink, consumeGoogleRedirectResult, googleRedirectPending, GoogleAccountLinkRequiredError, linkGoogleToExistingPasswordAccount, prepareGooglePopupAuth, signInCloudUserWithGoogle } from '../cloud/google-auth.js';
 import { activateAccountStorage } from '../storage/db.js';
 import { setActiveAccountUid } from '../storage/session.js';
+import { ThemeControl } from './ThemeControl.js';
 
 interface Props {
   language: UiLanguage;
@@ -52,7 +53,7 @@ export class AccountEntryScreen extends React.Component<Props,State>{
     }
   };
 
-  private languageSwitch=():any=><button type="button" className="auth-language-switch premium-auth-language" disabled={this.state.busy} onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button>;
+  private languageSwitch=():any=><div className="auth-utility-controls"><ThemeControl compact language={this.props.language}/><button type="button" className="auth-language-switch premium-auth-language" disabled={this.state.busy} onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button></div>;
 
   private setMode=(mode:'signin'|'create',focusTab=false)=>{
     clearPendingGoogleLink();

@@ -80,7 +80,8 @@ const CACHE = 'lourex-invoice-v185';
 /* Historical v188 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v188';
 */
-const CACHE = 'lourex-invoice-v202';
+const CACHE = 'lourex-invoice-v280';
+// const CACHE = 'lourex-invoice-v228'; preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v201: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v200: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v199: preserved as a legacy marker for cache-migration tests.
@@ -118,17 +119,22 @@ LOCAL_CORE.push('./styles/unified-account-v189.css');
 LOCAL_CORE.push('./src/cloud/account-access.js');
 LOCAL_CORE.push('./src/lib/account-security.js');
 LOCAL_CORE.push('./styles/financial-workspaces-v189.css');
-LOCAL_CORE.push('./styles/settings-obsidian-v190.css');
-LOCAL_CORE.push('./styles/obsidian-closeout-v191.css');
-LOCAL_CORE.push('./styles/obsidian-production-audit-v192.css');
-LOCAL_CORE.push('./styles/obsidian-mobile-geometry-v193.css');
-LOCAL_CORE.push('./styles/mobile-spacing-fit-v198.css');
-LOCAL_CORE.push('./styles/mobile-safari-chrome-v199.css');
+// Retired visual generations remain named for historical offline-regression coverage only.
+// LOCAL_CORE.push('./styles/settings-obsidian-v190.css');
+// LOCAL_CORE.push('./styles/obsidian-closeout-v191.css');
+// LOCAL_CORE.push('./styles/obsidian-production-audit-v192.css');
+// LOCAL_CORE.push('./styles/obsidian-mobile-geometry-v193.css');
+// LOCAL_CORE.push('./styles/mobile-spacing-fit-v198.css');
+// LOCAL_CORE.push('./styles/mobile-safari-chrome-v199.css');
+// LOCAL_CORE.push('./styles/dark-surface-continuity-v220.css');
+// LOCAL_CORE.push('./styles/luminous-noir-v224.css');
+// LOCAL_CORE.push('./styles/matte-black-v228.css');
+// LOCAL_CORE.push('./styles/interface-polish-v256.css');
 LOCAL_CORE.push('./styles/save-reliability-v217.css');
-LOCAL_CORE.push('./styles/dark-surface-continuity-v220.css');
-LOCAL_CORE.push('./styles/luminous-noir-v224.css');
-LOCAL_CORE.push('./styles/matte-black-v228.css');
-LOCAL_CORE.push('./styles/interface-polish-v256.css');
+LOCAL_CORE.push('./styles/fintech-foundation-v280.css');
+LOCAL_CORE.push('./styles/fintech-shell-v280.css');
+LOCAL_CORE.push('./styles/fintech-workspaces-v280.css');
+LOCAL_CORE.push('./styles/fintech-responsive-v280.css');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
