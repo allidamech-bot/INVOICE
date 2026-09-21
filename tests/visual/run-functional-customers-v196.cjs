@@ -14,6 +14,14 @@ async function auditProfile(page,lang,viewport){
   const state=await page.locator('.customer-profile-page').evaluate(root=>{
     const background=selector=>getComputedStyle(root.querySelector(selector)).backgroundColor;
     const allBackgrounds=selectors=>[...root.querySelectorAll(selectors)].map(el=>getComputedStyle(el).backgroundColor);
+    const resolvedThemeColor=variable=>{
+      const probe=document.createElement('i');
+      probe.style.cssText=`position:fixed;visibility:hidden;background:var(${variable})`;
+      root.appendChild(probe);
+      const color=getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return color;
+    };
     const light=[];
     for(const el of root.querySelectorAll('*')){
       const rect=el.getBoundingClientRect(),style=getComputedStyle(el);
@@ -31,6 +39,11 @@ async function auditProfile(page,lang,viewport){
       facts:allBackgrounds('.customer-profile-facts>div,.customer-profile-stack>div'),
       primary:root.querySelector('.customer-profile-identity h1')?.textContent?.trim(),
       secondaryDisplay:secondary?getComputedStyle(secondary).display:null,
+      expected:{
+        surface:resolvedThemeColor('--ds-surface'),
+        strong:resolvedThemeColor('--ds-surface-strong'),
+        secondary:resolvedThemeColor('--ds-secondary-button')
+      },
       light:[...new Set(light)]
     };
   });
@@ -38,10 +51,10 @@ async function auditProfile(page,lang,viewport){
   assert.equal(state.overflow,false,`${viewport}/${lang}: customer profile overflows viewport`);
   assert.equal(state.primary,expected,`${viewport}/${lang}: customer profile must use active UI language`);
   assert.ok(state.secondaryDisplay===null||state.secondaryDisplay==='none',`${viewport}/${lang}: opposite-language profile name must stay hidden`);
-  assert.equal(state.hero,'rgb(19, 19, 19)',`${viewport}/${lang}: customer hero is outside Precision Black hierarchy`);
-  assert.ok(state.cards.length>=4&&state.cards.every(value=>value==='rgb(19, 19, 19)'),`${viewport}/${lang}: nested customer cards ${JSON.stringify(state.cards)}`);
-  assert.ok(state.badges.every(value=>value==='rgb(23, 23, 23)'),`${viewport}/${lang}: customer badges ${JSON.stringify(state.badges)}`);
-  assert.ok(state.quickActions.length>=3&&state.quickActions.every(value=>value==='rgb(25, 25, 25)'),`${viewport}/${lang}: customer actions ${JSON.stringify(state.quickActions)}`);
+  assert.equal(state.hero,state.expected.surface,`${viewport}/${lang}: customer hero is outside the active theme hierarchy`);
+  assert.ok(state.cards.length>=4&&state.cards.every(value=>value===state.expected.surface),`${viewport}/${lang}: nested customer cards ${JSON.stringify(state.cards)}`);
+  assert.ok(state.badges.every(value=>value===state.expected.strong),`${viewport}/${lang}: customer badges ${JSON.stringify(state.badges)}`);
+  assert.ok(state.quickActions.length>=3&&state.quickActions.every(value=>value===state.expected.secondary),`${viewport}/${lang}: customer actions ${JSON.stringify(state.quickActions)}`);
   assert.ok(state.facts.every(value=>value==='rgba(0, 0, 0, 0)'),`${viewport}/${lang}: facts should stay flat ${JSON.stringify(state.facts)}`);
   assert.deepEqual(state.light,[],`${viewport}/${lang}: light nested customer chrome ${JSON.stringify(state.light)}`);
 }
@@ -49,6 +62,11 @@ async function auditProfile(page,lang,viewport){
 async function runLanguage(browser,lang,viewport){
   const page=await browser.newPage({viewport:{width:viewport,height:viewport<=430?844:900},deviceScaleFactor:1,hasTouch:viewport<=820,isMobile:viewport<=820});
   await page.goto(`${BASE}?lang=${lang}`,{waitUntil:'networkidle'});
+  await page.evaluate(()=>{
+    document.documentElement.dataset.uiTheme='dark';
+    document.documentElement.dataset.uiThemePreference='dark';
+    document.documentElement.style.colorScheme='dark';
+  });
   const expected=lang==='ar'?'أسواق نورث ستار':'Northstar Markets';
   const listIdentity=await page.locator('.customer-card-main').evaluate(root=>{
     const secondary=root.querySelector('.customer-secondary-name');
@@ -75,6 +93,6 @@ async function runLanguage(browser,lang,viewport){
   const browser=await chromium.launch({headless:true});
   try{
     for(const viewport of [320,390,1024])for(const lang of ['en','ar'])await runLanguage(browser,lang,viewport);
-    console.log('Functional customers v233: locale-pure identity, nested profile + single-flight actions passed.');
+    console.log('Functional customers v279: locale-pure identity, semantic theme hierarchy + single-flight actions passed.');
   }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exit(1);});
