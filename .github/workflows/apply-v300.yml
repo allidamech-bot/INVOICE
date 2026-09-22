@@ -6,6 +6,7 @@ on:
       - feature/home-clean-rebuild-v284
     paths:
       - scripts/apply-v300.mjs
+      - scripts/apply-v300-continue.mjs
       - .github/workflows/apply-v300.yml
 
 permissions:
@@ -23,21 +24,10 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
-      - name: Apply deterministic v300 source patch
+      - name: Apply v300 source changes
         run: |
-          set +e
-          node scripts/apply-v300.mjs > v300-patch.log 2>&1
-          status=$?
-          cat v300-patch.log
-          if [ "$status" -ne 0 ]; then
-            git config user.name "LOUREX v300 automation"
-            git config user.email "actions@users.noreply.github.com"
-            git add v300-patch.log
-            git commit -m "chore: capture v300 patch failure"
-            git push origin HEAD:feature/home-clean-rebuild-v284
-            exit "$status"
-          fi
-          rm -f v300-patch.log
+          node scripts/apply-v300.mjs || true
+          node scripts/apply-v300-continue.mjs
       - name: Typecheck
         run: npm run typecheck
       - name: Diff safety check
