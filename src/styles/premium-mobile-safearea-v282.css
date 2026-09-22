@@ -1,6 +1,5 @@
 /* LOUREX v282 — mobile browser/PWA and visual QA closeout.
-   Keeps the compact 60px browser topbar, expands standalone chrome exactly once,
-   and preserves accessible dark-theme foundation behavior under the premium skin. */
+   Keeps the premium skin aligned with the app's semantic fintech contracts. */
 
 @media screen {
   html[data-ui-theme="dark"] {
@@ -14,6 +13,28 @@
     background-image:none!important;
     color:#032128!important;
   }
+
+  .app-ui .fintech-shell-v280 .workspace-topbar {
+    background:color-mix(in srgb,var(--mf-shell) 94%,transparent)!important;
+  }
+
+  .app-ui .fintech-shell-v280 .mobile-bottom-nav {
+    background:color-mix(in srgb,var(--mf-shell) 97%,transparent)!important;
+  }
+
+  .app-ui .fintech-shell-v280 .shell-nav-button.active::before {
+    background:var(--mf-accent)!important;
+  }
+
+  .app-ui .fintech-shell-v280 .shell-create-button,
+  .app-ui .fintech-shell-v280 .mobile-create-button {
+    background:var(--mf-accent)!important;
+    background-image:none!important;
+  }
+
+  .app-ui .fintech-shell-v280 .desktop-shell-new-menu {
+    background:var(--mf-surface-2)!important;
+  }
 }
 
 @media screen and (max-width:860px) {
@@ -25,5 +46,6 @@
   .app-ui .fintech-shell-v280 .workspace-topbar {
     min-height:calc(60px + var(--app-safe-top,0px))!important;
     padding:calc(5px + var(--app-safe-top,0px)) 12px 5px!important;
+    background:var(--mf-shell)!important;
   }
 }
