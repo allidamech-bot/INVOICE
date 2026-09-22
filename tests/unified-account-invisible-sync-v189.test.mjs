@@ -4,17 +4,18 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v189 fresh setup uses account-managed encryption without asking for a device PIN',async()=>{
+test('v302 fresh setup requires an explicit local PIN after account authentication',async()=>{
   const auth=await read('src/components/AuthScreens.tsx');
   const setup=auth.slice(auth.indexOf('export class SetupScreen'),auth.indexOf('interface UnlockProps'));
-  assert.match(setup,/getOrCreateAccountVaultSecret\(user\.uid\)/);
-  assert.match(setup,/onFinish\(accountSecret, this\.state\.company\)/);
-  assert.match(setup,/No separate access PIN is required/);
-  assert.doesNotMatch(setup,/Create your LOUREX PIN/);
-  assert.doesNotMatch(setup,/Confirm PIN/);
+  assert.match(setup,/PIN_PATTERN/);
+  assert.match(setup,/Confirm PIN/);
+  assert.match(setup,/onFinish\(this\.state\.pin, this\.state\.company\)/);
+  assert.match(setup,/Account \+ PIN protection/);
+  assert.doesNotMatch(setup,/getOrCreateAccountVaultSecret\(user\.uid\)/);
+  assert.doesNotMatch(setup,/No separate access PIN is required/);
 });
 
-test('v189 account access secret is random, UID scoped and stored only below the authenticated user path',async()=>{
+test('v189 account access secret remains random, UID scoped and stored only below the authenticated user path for safe migration',async()=>{
   const source=await read('src/cloud/account-access.ts');
   assert.match(source,/crypto\.getRandomValues\(bytes\)/);
   assert.match(source,/`acct_\$\{bytesToBase64Url\(bytes\)\}`/);
@@ -24,25 +25,33 @@ test('v189 account access secret is random, UID scoped and stored only below the
   assert.match(source,/runTransaction/);
 });
 
-test('v189 legacy PIN vaults require a one-time migration, then use the account secret',async()=>{
+test('v302 account-secret vaults require a one-time migration to a user PIN',async()=>{
   const auth=await read('src/components/AuthScreens.tsx');
   const unlock=auth.slice(auth.indexOf('export class UnlockScreen'));
-  assert.match(unlock,/componentDidMount\(\):void\{void this\.unlockWithAccount\(\);\}/);
-  assert.match(unlock,/await this\.props\.onUnlock\(secret\)/);
-  assert.match(unlock,/await changePin\(this\.state\.legacyPin,secret\)/);
-  assert.match(unlock,/Previous device PIN · one time only/);
-  assert.match(unlock,/will not ask for it again/);
+  assert.match(unlock,/componentDidMount\(\):void\{void this\.detectSecurityMode\(\);\}/);
+  assert.match(unlock,/getAccountVaultSecret\(user\.uid\)/);
+  assert.match(unlock,/await verifyPin\(secret,security\)/);
+  assert.match(unlock,/await changePin\(this\.accountSecret,pin\)/);
+  assert.match(unlock,/await this\.props\.onUnlock\(pin\)/);
+  assert.match(unlock,/Create your LOUREX PIN/);
+  assert.match(unlock,/PIN required on every app start/);
+  assert.doesNotMatch(unlock,/will not ask for it again/);
 });
 
-test('v189 session keys are bound to Firebase UID and suspended, not exposed, on sign-out',async()=>{
+test('v302 persisted session keys never authorize a brand-new runtime without PIN',async()=>{
   const [session,index,modal]=await Promise.all([
     read('src/storage/session.ts'),read('src/app/index.tsx'),read('src/components/CloudAccountModal.tsx')
   ]);
-  assert.match(session,/const ACCOUNT_TOKEN_PREFIX = 'acct:'/);
-  assert.match(session,/resumeAccountSession\(uid:string\)/);
-  assert.match(session,/record\.token\.startsWith\(accountPrefix\(uid\)\)/);
+  assert.match(session,/let runtimePinAuthorized=false/);
+  assert.match(session,/establishSession[\s\S]*runtimePinAuthorized=true/);
+  const resume=session.slice(session.indexOf('export async function resumeAccountSession'),session.indexOf('export function touchSession'));
+  assert.match(resume,/runtimePinAuthorized=false/);
+  assert.match(resume,/return false/);
+  const getter=session.slice(session.indexOf('export async function getSessionKey'),session.indexOf('export async function suspendSession'));
+  assert.match(getter,/if\(!runtimePinAuthorized\)return null/);
   const suspended=session.slice(session.indexOf('export async function suspendSession'),session.indexOf('export async function clearSession'));
-  assert.doesNotMatch(suspended,/deleteRecord\('session-key'\)[^}]*$/);
+  assert.match(suspended,/runtimePinAuthorized=false/);
+  assert.match(suspended,/deleteRecord\('session-key'\)/);
   assert.match(index,/await resumeAccountSession\(user\.uid\)/);
   assert.match(index,/await suspendSession\(\)/);
   assert.match(modal,/await suspendSession\(\)/);
@@ -79,12 +88,14 @@ test('v189 account runtime remains cached as later PWA generations advance',asyn
   assert.match(html,/account-cloud-separation-v186\.css[\s\S]*unified-account-v189\.css[\s\S]*document-premium-redesign-v141\.css/);
 });
 
-test('v189 account migration never deletes the encrypted vault or security records',async()=>{
+test('v302 PIN migration never deletes the encrypted vault or security records',async()=>{
   const [session,auth,db]=await Promise.all([
     read('src/storage/session.ts'),read('src/components/AuthScreens.tsx'),read('src/storage/db.ts')
   ]);
   assert.doesNotMatch(session,/deleteRecord\('vault'\)|deleteRecord\('security'\)/);
-  const migration=auth.slice(auth.indexOf('private migrateLegacy'),auth.indexOf('render(): any'));
+  const migration=auth.slice(auth.indexOf('private detectSecurityMode'),auth.indexOf('private languageSwitch',auth.indexOf('export class UnlockScreen')));
   assert.doesNotMatch(migration,/clearDatabase|deleteRecord/);
+  assert.match(migration,/verifyPin\(secret,security\)/);
+  assert.match(auth,/changePin\(this\.accountSecret,pin\)/);
   assert.match(db,/putSecurityAndVault/);
 });
