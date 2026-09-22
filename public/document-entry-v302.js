@@ -63,10 +63,14 @@
 
   function directAction(kind,index,en,ar,enHint,arHint){
     const button=document.createElement('button');
+    const title=document.createElement('strong');
+    const hint=document.createElement('small');
     button.type='button';
     button.className='v302-direct-document-action';
     button.dataset.kind=kind;
-    button.innerHTML=`<strong>${copy(en,ar)}</strong><small>${copy(enHint,arHint)}</small>`;
+    title.textContent=copy(en,ar);
+    hint.textContent=copy(enHint,arHint);
+    button.append(title,hint);
     button.addEventListener('click',()=>openCreateKind(index));
     return button;
   }
