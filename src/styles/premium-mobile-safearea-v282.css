@@ -14,15 +14,32 @@
     --lx-overlay-surface:#112a32;
   }
 
+  /* Theme activation must not leave primary actions between light/dark colors. */
   html[data-ui-theme="dark"] .app-ui .btn.btn-primary,
   html[data-ui-theme="dark"] .app-ui .btn.btn-primary:hover,
-  html[data-ui-theme="dark"] .app-ui .btn.btn-primary:focus-visible {
-    background:#27cbd2!important;
+  html[data-ui-theme="dark"] .app-ui .btn.btn-primary:focus-visible,
+  html[data-ui-theme="dark"] .app-ui .shell-create-button.btn-primary,
+  html[data-ui-theme="dark"] .app-ui .mobile-create-button {
+    border-color:#27cbd2!important;
+    background-color:#27cbd2!important;
     background-image:none!important;
     color:#032128!important;
+    transition:none!important;
+    animation:none!important;
   }
 
-  /* Auth lives outside the application shell; keep third-party entry dark as well. */
+  /* Auth lives outside the application shell; keep both entry actions theme-semantic. */
+  html[data-ui-theme="dark"] .auth-account-card .premium-auth-primary,
+  html[data-ui-theme="dark"] .auth-account-card .premium-auth-primary:hover:not(:disabled),
+  html[data-ui-theme="dark"] .auth-account-card .premium-auth-primary:focus-visible {
+    border-color:#27cbd2!important;
+    background-color:#27cbd2!important;
+    background-image:none!important;
+    color:#032128!important;
+    transition:none!important;
+    animation:none!important;
+  }
+
   html[data-ui-theme="dark"] .auth-account-card .google-auth-button,
   html[data-ui-theme="dark"] .auth-account-card .google-auth-button:hover:not(:disabled),
   html[data-ui-theme="dark"] .auth-account-card .google-auth-button:focus-visible {
@@ -40,6 +57,8 @@
     background-color:#27cbd2!important;
     background-image:none!important;
     color:#032128!important;
+    transition:none!important;
+    animation:none!important;
   }
 
   .app-ui .fintech-shell-v280 .workspace-topbar {
@@ -52,12 +71,6 @@
 
   html[data-ui-theme="dark"] .app-ui .fintech-shell-v280 .shell-nav-button.active::before {
     background:#27cbd2!important;
-  }
-
-  html[data-ui-theme="dark"] .app-ui .fintech-shell-v280 .shell-create-button,
-  html[data-ui-theme="dark"] .app-ui .fintech-shell-v280 .mobile-create-button {
-    background:#27cbd2!important;
-    background-image:none!important;
   }
 
   html[data-ui-theme="dark"] .app-ui .fintech-shell-v280 .desktop-shell-new-menu {
