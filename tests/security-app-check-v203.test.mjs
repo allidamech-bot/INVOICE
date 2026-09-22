@@ -25,7 +25,8 @@ test('v203 production output wires Firebase App Check before Auth and Firestore'
   assert.match(bootstrap,/ReCaptchaEnterpriseProvider/);
   assert.match(bootstrap,/appCheck\(\)\.activate\(provider,true\)/);
   assert.doesNotMatch(bootstrap,/FIREBASE_APPCHECK_DEBUG_TOKEN/);
-  assert.match(sw,/const CACHE = 'lourex-invoice-v280'/);
+  const activeCache=Number(sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m)?.[1]||0);
+  assert.ok(activeCache>=302,`expected current PWA cache generation >=302, got ${activeCache}`);
   assert.match(sw,/vendor\/firebase-app-check-compat\.js/);
 });
 
