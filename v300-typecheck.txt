@@ -1,0 +1,15 @@
+
+> lourex-invoice@1.0.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+src/components/AiCopilot.tsx(72,35): error TS2322: Type '{ id: string; number: string; kind: DocumentKind; status: DocumentStatus; currency: string; language: DocumentLanguage; customerName: string; items: { ...; }[]; terms: { ...; }; notes: string; } | null' is not assignable to type 'DraftActiveDocument | null'.
+  Type '{ id: string; number: string; kind: DocumentKind; status: DocumentStatus; currency: string; language: DocumentLanguage; customerName: string; items: { ...; }[]; terms: { ...; }; notes: string; }' is not assignable to type 'DraftActiveDocument'.
+    Types of property 'kind' are incompatible.
+      Type 'DocumentKind' is not assignable to type '"proforma" | "invoice"'.
+        Type '"purchase-order"' is not assignable to type '"proforma" | "invoice"'.
+src/lib/documents.ts(34,43): error TS2339: Property 'purchaseOrder' does not exist on type 'NumberReservation'.
+src/lib/documents.ts(46,107): error TS2322: Type '{ year: number; proforma: number; invoice: number; creditNote: number; } | { year: number; proforma: number; invoice: number; creditNote: number; purchaseOrder: number; }' is not assignable to type 'NumberReservation'.
+  Object literal may only specify known properties, and 'purchaseOrder' does not exist in type 'NumberReservation'.
+src/lib/documents.ts(48,105): error TS2339: Property 'purchaseOrder' does not exist on type 'NumberReservation'.
+src/lib/documents.ts(68,108): error TS2322: Type '{ year: number; proforma: number; invoice: number; creditNote: number; } | { year: number; proforma: number; invoice: number; creditNote: number; purchaseOrder: number; }' is not assignable to type 'NumberReservation'.
+  Object literal may only specify known properties, and 'purchaseOrder' does not exist in type 'NumberReservation'.
