@@ -22,6 +22,26 @@
     color:#032128!important;
   }
 
+  /* Auth lives outside the application shell; keep third-party entry dark as well. */
+  html[data-ui-theme="dark"] .auth-account-card .google-auth-button,
+  html[data-ui-theme="dark"] .auth-account-card .google-auth-button:hover:not(:disabled),
+  html[data-ui-theme="dark"] .auth-account-card .google-auth-button:focus-visible {
+    border-color:#28505a!important;
+    background-color:#091b21!important;
+    background-image:none!important;
+    color:#d8e5e8!important;
+  }
+
+  /* The compact mobile Settings save action must resolve to the exact semantic accent. */
+  html[data-ui-theme="dark"] .app-ui .settings-workspace-v2 .settings-title>.btn.btn-primary,
+  html[data-ui-theme="dark"] .app-ui .settings-workspace-v2 .settings-title>.btn.btn-primary:hover,
+  html[data-ui-theme="dark"] .app-ui .settings-workspace-v2 .settings-title>.btn.btn-primary:focus-visible {
+    border-color:#27cbd2!important;
+    background-color:#27cbd2!important;
+    background-image:none!important;
+    color:#032128!important;
+  }
+
   .app-ui .fintech-shell-v280 .workspace-topbar {
     background:color-mix(in srgb,var(--mf-shell) 94%,transparent)!important;
   }
