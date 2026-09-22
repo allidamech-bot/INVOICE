@@ -16,9 +16,9 @@ test('v284 restores approved LOUREX brand colors and corrective Home layer',()=>
   assert.match(css,/\.lourex-advisor-trust\{display:none!important\}/);
 });
 
-test('v284 refreshes the installed PWA cache with the corrected Home assets',()=>{
+test('v284 Home assets remain cached in the current v302 PWA generation',()=>{
   const sw=read('public/sw.js');
-  assert.match(sw,/const CACHE = 'lourex-invoice-v284'/);
+  assert.match(sw,/const CACHE = 'lourex-invoice-v302'/);
   assert.match(sw,/LOCAL_CORE\.push\('\.\/styles\/home-premium-command-center-v283\.css'\)/);
 });
 
