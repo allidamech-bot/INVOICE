@@ -166,6 +166,20 @@ html[data-ui-theme="dark"] .app-ui .fintech-dashboard-v280 .command-recent{box-s
 
   .app-ui .fintech-dashboard-v280 .command-attention:has(.command-clear-state) .command-clear-state{min-height:50px!important;padding:9px 10px!important}
 
+  /* Home owns a single bottom clearance. Do not stack the shell's mobile padding
+     on top of the dashboard padding — that produced the large empty tail seen on Safari. */
+  .app-ui .workspace-shell.screen-home .workspace-content{
+    padding-bottom:0!important;
+    min-height:0!important;
+    height:auto!important;
+    align-self:start!important;
+  }
+  .app-ui .workspace-shell.screen-home .fintech-dashboard-v280{
+    padding-bottom:calc(68px + env(safe-area-inset-bottom,0px))!important;
+    margin-bottom:0!important;
+  }
+  .app-ui .workspace-shell.screen-home .fintech-dashboard-v280 .lourex-advisor-card{margin-bottom:0!important}
+
   /* Bottom navigation active state is centred and readable, not shifted by labels. */
   .app-ui:has(.fintech-dashboard-v280) .mobile-bottom-nav>button{position:relative!important}
   .app-ui:has(.fintech-dashboard-v280) .mobile-bottom-nav>button.active{
