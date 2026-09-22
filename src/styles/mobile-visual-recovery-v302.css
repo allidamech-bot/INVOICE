@@ -1,0 +1,296 @@
+/* LOUREX v302 — mobile geometry, scale, bottom-nav clearance and visual recovery */
+
+@media screen and (max-width:860px){
+  /* Single source of truth for mobile bottom clearance. */
+  .app-ui .fintech-shell-v280:not(.is-editor){padding-bottom:0!important;min-height:100dvh!important;background:var(--ft-canvas)!important}
+  .app-ui .fintech-shell-v280:not(.is-editor)>.workspace-content{
+    min-height:calc(100dvh - 60px)!important;
+    padding-bottom:calc(82px + env(safe-area-inset-bottom,0px))!important;
+    background:var(--ft-canvas)!important;
+    overflow:visible!important;
+  }
+  .app-ui .fintech-shell-v280 .workspace-topbar{
+    min-height:60px!important;
+    padding:6px 12px!important;
+    border-bottom:1px solid var(--ft-line)!important;
+    background:var(--ft-shell)!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  .app-ui .fintech-shell-v280 .shell-page-title strong{font-size:17px!important;line-height:1.15!important;font-weight:850!important}
+  .app-ui .fintech-shell-v280 .shell-page-title small{display:none!important}
+
+  /* Bottom navigation must never overlap page content. */
+  .app-ui .mobile-bottom-nav{
+    position:fixed!important;
+    z-index:1200!important;
+    inset-inline:0!important;
+    inset-block-end:0!important;
+    min-height:calc(66px + env(safe-area-inset-bottom,0px))!important;
+    height:auto!important;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))!important;
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    align-items:end!important;
+    gap:2px!important;
+    border-top:1px solid var(--ft-line)!important;
+    background:var(--ft-shell)!important;
+    box-shadow:0 -8px 28px rgba(0,0,0,.16)!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  .app-ui .mobile-bottom-nav>button{
+    min-width:0!important;
+    min-height:48px!important;
+    height:48px!important;
+    padding:4px 2px!important;
+    gap:3px!important;
+    border:0!important;
+    border-radius:12px!important;
+    background:transparent!important;
+    color:var(--ft-muted)!important;
+    font-size:10px!important;
+    font-weight:800!important;
+    box-shadow:none!important;
+  }
+  .app-ui .mobile-bottom-nav>button .icon{width:21px!important;height:21px!important}
+  .app-ui .mobile-bottom-nav>button.active{color:var(--ft-accent)!important;background:var(--ft-accent-faint)!important}
+  .app-ui .mobile-bottom-nav .mobile-create-button{
+    width:58px!important;
+    min-width:58px!important;
+    height:58px!important;
+    min-height:58px!important;
+    justify-self:center!important;
+    align-self:end!important;
+    margin-top:-16px!important;
+    border-radius:16px!important;
+    background:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
+    box-shadow:0 0 0 5px var(--ft-shell)!important;
+  }
+  .app-ui .mobile-bottom-nav .mobile-create-button .icon{width:28px!important;height:28px!important}
+
+  /* Home: compact, balanced, and fully above the nav. */
+  .app-ui .screen-home .workspace-content{padding-bottom:calc(86px + env(safe-area-inset-bottom,0px))!important}
+  .app-ui .screen-home .workspace-home-page{
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:12px 12px 18px!important;
+    gap:12px!important;
+  }
+  .app-ui .screen-home .workspace-home-hero{padding:16px!important;border-radius:18px!important;min-height:0!important}
+  .app-ui .screen-home .workspace-home-hero h1{font-size:30px!important;line-height:1.04!important;letter-spacing:-.025em!important}
+  .app-ui .screen-home .workspace-home-hero p:not(.workspace-home-eyebrow){font-size:12px!important;line-height:1.55!important}
+  .app-ui .screen-home .workspace-home-actions{gap:8px!important}
+  .app-ui .screen-home .workspace-home-actions .btn{min-height:46px!important;border-radius:13px!important}
+
+  .app-ui .screen-home .dashboard-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+    border:0!important;
+    background:transparent!important;
+    overflow:visible!important;
+  }
+  .app-ui .screen-home .dashboard-kpi{
+    min-height:108px!important;
+    padding:14px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:16px!important;
+    background:var(--ft-surface)!important;
+  }
+  .app-ui .screen-home .dashboard-kpi small{font-size:11px!important}
+  .app-ui .screen-home .dashboard-kpi b,.app-ui .screen-home .dashboard-kpi strong{font-size:22px!important;line-height:1.1!important}
+  .app-ui .screen-home .dashboard-kpi em{font-size:10px!important;line-height:1.35!important}
+
+  .app-ui .screen-home .dashboard-quick-actions{gap:8px!important}
+  .app-ui .screen-home .dashboard-quick-actions>button{
+    min-height:72px!important;
+    padding:12px!important;
+    border-radius:14px!important;
+  }
+  .app-ui .screen-home .dashboard-quick-actions>button:last-child{min-height:72px!important}
+  .app-ui .screen-home .dashboard-quick-actions>button strong{font-size:13px!important}
+
+  .app-ui .screen-home .dashboard-panel,
+  .app-ui .screen-home .command-attention,
+  .app-ui .screen-home .command-inventory-health,
+  .app-ui .screen-home .command-recent,
+  .app-ui .screen-home .lourex-advisor-card{
+    border-radius:16px!important;
+    box-shadow:none!important;
+    overflow:hidden!important;
+  }
+  .app-ui .screen-home .dashboard-panel-heading{min-height:54px!important;padding:12px 14px!important}
+  .app-ui .screen-home .dashboard-panel-heading h2{font-size:19px!important;line-height:1.2!important}
+  .app-ui .screen-home .dashboard-panel-heading small{font-size:10px!important}
+
+  /* Recent documents were visually oversized. */
+  .app-ui .screen-home .dashboard-document-row{
+    min-height:68px!important;
+    padding:9px 10px!important;
+    gap:9px!important;
+    border-radius:0!important;
+  }
+  .app-ui .screen-home .dashboard-document-copy{gap:2px!important}
+  .app-ui .screen-home .dashboard-document-copy strong{font-size:13px!important;line-height:1.2!important}
+  .app-ui .screen-home .dashboard-document-copy small,
+  .app-ui .screen-home .dashboard-document-customer{font-size:10px!important;line-height:1.3!important}
+  .app-ui .screen-home .dashboard-document-total{font-size:12px!important;font-weight:850!important}
+  .app-ui .screen-home .dashboard-document-kind{min-width:36px!important;width:36px!important;height:36px!important;border-radius:10px!important}
+
+  /* AI advisor: compact but usable, with guaranteed clearance above nav. */
+  .app-ui .screen-home .lourex-advisor-card{
+    margin:0 0 12px!important;
+    min-height:0!important;
+    background:var(--ft-surface)!important;
+    border:1px solid color-mix(in srgb,var(--ft-accent) 34%,var(--ft-line))!important;
+  }
+  .app-ui .screen-home .lourex-advisor-head{min-height:58px!important;padding:11px 13px!important}
+  .app-ui .screen-home .lourex-advisor-head h2{font-size:17px!important;line-height:1.25!important}
+  .app-ui .screen-home .lourex-advisor-head p{display:none!important}
+  .app-ui .screen-home .lourex-advisor-head small{font-size:9px!important}
+  .app-ui .screen-home .lourex-advisor-mark{width:38px!important;height:38px!important;border-radius:11px!important}
+  .app-ui .screen-home .lourex-advisor-body{padding:10px 12px!important;max-height:none!important;overflow:visible!important}
+  .app-ui .screen-home .lourex-advisor-welcome{gap:8px!important}
+  .app-ui .screen-home .lourex-advisor-welcome-copy span{display:none!important}
+  .app-ui .screen-home .lourex-advisor-welcome-copy strong{font-size:13px!important;line-height:1.4!important}
+  .app-ui .screen-home .lourex-advisor-starters{
+    display:flex!important;
+    gap:7px!important;
+    overflow-x:auto!important;
+    padding-bottom:2px!important;
+    scrollbar-width:none!important;
+  }
+  .app-ui .screen-home .lourex-advisor-starters::-webkit-scrollbar{display:none!important}
+  .app-ui .screen-home .lourex-advisor-starters>button{
+    flex:0 0 auto!important;
+    min-height:38px!important;
+    max-width:220px!important;
+    padding:8px 10px!important;
+    border-radius:10px!important;
+    font-size:10px!important;
+  }
+  .app-ui .screen-home .lourex-advisor-compose{padding:9px 12px 11px!important}
+  .app-ui .screen-home .lourex-advisor-compose form{min-height:46px!important;border-radius:12px!important}
+  .app-ui .screen-home .lourex-advisor-compose input{font-size:16px!important}
+  .app-ui .screen-home .lourex-advisor-trust{display:none!important}
+
+  /* Documents workspace: reduce bulk and create a clean register. */
+  .app-ui .documents-workspace-v2{
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:12px 12px 18px!important;
+  }
+  .app-ui .documents-heading{display:grid!important;gap:10px!important;padding:0!important;margin:0 0 12px!important}
+  .app-ui .documents-heading .eyebrow{font-size:10px!important;margin-bottom:3px!important}
+  .app-ui .documents-heading h1{font-size:32px!important;line-height:1!important;letter-spacing:-.025em!important;margin:0!important}
+  .app-ui .documents-heading .page-subtitle{font-size:12px!important;line-height:1.5!important;margin:6px 0 0!important;max-width:none!important}
+  .app-ui .documents-heading-actions{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:7px!important;
+    width:100%!important;
+  }
+  .app-ui .documents-heading-actions .btn{
+    min-width:0!important;
+    min-height:50px!important;
+    height:50px!important;
+    padding:7px 8px!important;
+    border-radius:13px!important;
+    font-size:11px!important;
+    line-height:1.15!important;
+    white-space:normal!important;
+  }
+  .app-ui .documents-heading-actions .btn .icon{width:17px!important;height:17px!important}
+  .app-ui .documents-resume{min-height:64px!important;padding:10px 12px!important;border-radius:15px!important;margin-bottom:10px!important}
+  .app-ui .documents-resume strong{font-size:13px!important}
+  .app-ui .documents-resume small{font-size:10px!important}
+
+  .app-ui .documents-register-tabs{
+    display:flex!important;
+    gap:6px!important;
+    overflow-x:auto!important;
+    padding:5px!important;
+    margin:0 0 10px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:14px!important;
+    background:var(--ft-surface)!important;
+    scrollbar-width:none!important;
+  }
+  .app-ui .documents-register-tabs::-webkit-scrollbar{display:none!important}
+  .app-ui .documents-register-tabs>button{
+    flex:0 0 auto!important;
+    min-height:42px!important;
+    padding:7px 11px!important;
+    border-radius:10px!important;
+    font-size:11px!important;
+    gap:6px!important;
+  }
+  .app-ui .documents-register-tabs>button strong{min-width:24px!important;height:24px!important;font-size:10px!important}
+
+  .app-ui .documents-command{padding:8px!important;border-radius:14px!important;margin-bottom:8px!important}
+  .app-ui .documents-command-primary{gap:7px!important}
+  .app-ui .documents-search-wrap{min-height:48px!important;border-radius:12px!important}
+  .app-ui .documents-search-input{font-size:16px!important}
+  .app-ui .documents-filter-toggle{min-height:46px!important;border-radius:12px!important}
+  .app-ui .documents-advanced-filters{gap:7px!important;padding-top:7px!important}
+  .app-ui .documents-results-bar{min-height:30px!important;margin:0 2px 6px!important;font-size:10px!important}
+
+  .app-ui .documents-register{display:grid!important;gap:8px!important;border:0!important;background:transparent!important;overflow:visible!important}
+  .app-ui .documents-register-row{
+    min-height:78px!important;
+    padding:10px 10px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:15px!important;
+    background:var(--ft-surface)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .documents-register-row :where(strong,b){font-size:13px!important;line-height:1.25!important}
+  .app-ui .documents-register-row small{font-size:10px!important;line-height:1.35!important}
+  .app-ui .documents-register-row .mobile-actions{top:8px!important;inset-inline-end:8px!important}
+  .app-ui .documents-register-row .mobile-actions .icon-btn{width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important}
+  .app-ui .document-kind-pill{font-size:10px!important;min-height:28px!important;padding:4px 9px!important}
+  .app-ui .documents-empty{min-height:180px!important}
+
+  /* Editor: consistent scale and less vertical waste. */
+  .app-ui .editor-pane .editor-scroll{padding:10px 10px calc(152px + env(safe-area-inset-bottom,0px))!important}
+  .app-ui .editor-section{padding:14px!important;margin-bottom:10px!important;border-radius:15px!important}
+  .app-ui .editor-section .section-heading{margin:-14px -14px 14px!important;padding:10px 12px!important}
+  .app-ui .editor-section .section-heading h2{font-size:18px!important}
+  .app-ui .editor-section .section-heading>span,.app-ui .editor-section .section-heading>div>span{min-width:30px!important;height:30px!important;border-radius:9px!important}
+  .app-ui .editor-section :where(.input,select.input,textarea.input){min-height:48px!important;border-radius:12px!important}
+  .app-ui .editor-section .toggle-row{min-height:54px!important;border-radius:12px!important}
+  .app-ui .editor-section-nav-slot{min-height:54px!important;padding:5px 8px!important}
+  .app-ui .editor-section-nav-button{min-width:52px!important;height:44px!important;border-radius:11px!important}
+  .app-ui .mobile-editor-actionbar{min-height:66px!important;padding:7px 10px calc(7px + env(safe-area-inset-bottom,0px))!important}
+  .app-ui .mobile-action-buttons{gap:7px!important}
+  .app-ui .mobile-action-buttons .btn{min-height:48px!important;border-radius:11px!important;font-size:12px!important}
+
+  /* Auth + settings stay visually coherent. */
+  .auth-account-page .auth-account-card.account-first-card{padding:68px 16px 20px!important;border-radius:18px!important}
+  .auth-account-page .auth-card-heading h1{font-size:24px!important}
+  .auth-account-page .auth-utility-controls{inset:12px 12px auto 12px!important}
+  .auth-account-page .auth-language-switch,.auth-account-page .mf-theme-toggle{min-height:42px!important;height:42px!important;border-radius:11px!important}
+  .app-ui .settings-workspace-v2{padding:0!important}
+  .app-ui .settings-direct-account-bar{border-radius:12px!important;padding:9px 10px!important}
+  .app-ui .settings-workspace-v2 .settings-tabs{border-radius:12px!important}
+  .app-ui .settings-workspace-v2 .settings-section{border-radius:14px!important}
+}
+
+@media screen and (max-width:390px){
+  .app-ui .documents-heading-actions{grid-template-columns:1fr 1fr!important}
+  .app-ui .documents-heading-actions .btn:last-child{grid-column:1/-1!important}
+  .app-ui .screen-home .dashboard-kpi{min-height:102px!important;padding:12px!important}
+  .app-ui .screen-home .dashboard-kpi b,.app-ui .screen-home .dashboard-kpi strong{font-size:20px!important}
+}
+
+/* Keep the launch surface dark and continuous before React mounts. */
+html[data-lourex-booting="true"],
+html[data-lourex-booting="true"] body,
+html[data-lourex-booting="true"] #root,
+html[data-lourex-booting="true"] #lourex-boot{
+  background:#061820!important;
+  color-scheme:dark!important;
+}
