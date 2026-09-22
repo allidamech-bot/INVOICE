@@ -32,7 +32,8 @@ test('single-language legal identity fields honor output language without losing
   assert.match(renderer,/if\(doc\.language==='ar'\)return <span dir="auto">\{arabic\|\|english\|\|'—'\}<\/span>/);
   assert.match(renderer,/function companyName[\s\S]*return identityPair\(doc, doc\.companySnapshot\.nameEn, doc\.companySnapshot\.nameAr\)/);
   assert.match(renderer,/function customerName[\s\S]*return identityPair\(doc, c\?\.companyNameEn \?\? '', c\?\.companyNameAr \?\? ''\)/);
-  assert.match(renderer,/party-address">\{identityPair\(doc, addressEn, addressAr\)\}/);
+  assert.match(renderer,/const addressVisible=identityOutputValues\(doc,addressEn,addressAr\)\.length>0/);
+  assert.match(renderer,/addressVisible\?<div className="party-address">\{identityPair\(doc,addressEn,addressAr\)\}<\/div>:null/);
   assert.match(renderer,/safeValue\(doc,cityRaw,'neutral'\)/);
   assert.match(renderer,/<bdi>\{city\}<\/bdi>/);
   assert.match(renderer,/\['Bank Name','اسم البنك',b\.bankName,'neutral'\]/);
