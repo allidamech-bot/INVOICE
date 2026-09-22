@@ -121,6 +121,17 @@
     border-radius:9px!important;
   }
 
+  /* Keep KPI cells as one divided premium panel; rounding belongs to the parent only. */
+  .app-ui .fintech-dashboard-v280 .command-kpis { overflow:hidden; }
+  .app-ui .fintech-dashboard-v280 .command-kpis>button {
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  .app-ui .fintech-dashboard-v280 .command-kpis>button:hover {
+    transform:none!important;
+  }
+
   /* Maintain the app's established 44px mobile interaction floor while reducing visual padding. */
   .app-ui .fintech-dashboard-v280 .command-chart-controls>button,
   .app-ui .fintech-dashboard-v280 .command-chart-mode>button,
