@@ -234,6 +234,9 @@ export class EditorPage extends React.Component<Props,State>{
       const validityDays=daysBetweenIso(d.issueDate,d.dueDate)??normalizeValidityDays(this.props.company.defaultValidityDays);
       return {...next,dueDate:addDaysIso(value,validityDays)};
     }
+    // A purchase order owns an explicit requested-delivery date. Changing the
+    // order date must never apply customer invoice terms or overwrite delivery.
+    if(d.kind==='purchase-order')return next;
     const preset=paymentTermPresetById(this.props.company,d.paymentTermPresetId);
     if(preset)return applyPaymentTermPreset(next,preset);
     const customer=this.props.customers.find(item=>item.id===d.customerSnapshot?.sourceCustomerId);
