@@ -9,7 +9,7 @@
   html[data-ui-theme="dark"] .app-ui .btn.btn-primary,
   html[data-ui-theme="dark"] .app-ui .btn.btn-primary:hover,
   html[data-ui-theme="dark"] .app-ui .btn.btn-primary:focus-visible {
-    background:var(--lx-aqua)!important;
+    background:#27cbd2!important;
     background-image:none!important;
     color:#032128!important;
   }
