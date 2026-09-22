@@ -33,6 +33,43 @@
     text-wrap:balance;
   }
 
+  /* Late v277 surfaces still carried hard-coded black styling in light mode. */
+  html[data-ui-theme='light'] .app-ui .product-more-details{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .product-more-details>summary{
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .product-more-details>summary>span{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-accent)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .product-more-details>summary small{color:var(--ft-muted)!important}
+  html[data-ui-theme='light'] .app-ui .product-more-details>.product-editor-section{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .product-purchase-history-row{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .product-purchase-history-row strong{color:var(--ft-text-strong)!important}
+  html[data-ui-theme='light'] .app-ui .product-purchase-history-row span{color:var(--ft-muted)!important}
+  html[data-ui-theme='light'] .app-ui .product-purchase-history-row b{color:var(--vx-amber)!important}
+  html[data-ui-theme='light'] .app-ui .shell-global-search-button kbd{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-muted)!important;
+  }
+
+  /* Semantic distinction for purchasing summaries, without turning the UI into a rainbow. */
+  html[data-ui-theme='light'] .app-ui .operations-summary>:nth-child(4n+1){background:linear-gradient(145deg,var(--vx-blue-soft),var(--ft-surface) 66%)!important}
+  html[data-ui-theme='light'] .app-ui .operations-summary>:nth-child(4n+2){background:linear-gradient(145deg,var(--vx-green-soft),var(--ft-surface) 66%)!important}
+  html[data-ui-theme='light'] .app-ui .operations-summary>:nth-child(4n+3){background:linear-gradient(145deg,var(--vx-amber-soft),var(--ft-surface) 66%)!important}
+  html[data-ui-theme='light'] .app-ui .operations-summary>:nth-child(4n+4){background:linear-gradient(145deg,var(--vx-purple-soft),var(--ft-surface) 66%)!important}
+
   @media(max-width:960px){
     /* The shell no longer owns bottom spacing. main-content owns exactly one nav clearance.
        This removes the repeated empty tail that appeared after nested page padding. */
@@ -86,8 +123,8 @@
 
   @media(max-width:720px){
     /* App bar columns must match the 44px buttons; historical 36/38px tracks caused drift. */
-    .app-ui .workspace-topbar,
     .app-ui:has(.fintech-dashboard-v280) .workspace-topbar{
+      display:grid!important;
       min-height:calc(56px + env(safe-area-inset-top,0px))!important;
       grid-template-columns:44px minmax(0,1fr) 44px!important;
       padding-top:calc(8px + env(safe-area-inset-top,0px))!important;
@@ -120,7 +157,7 @@
     }
     .app-ui .fintech-dashboard-v280 .command-chart-controls button,
     .app-ui .fintech-dashboard-v280 .command-chart-mode button{
-      min-height:40px!important;
+      min-height:44px!important;
       font-size:10.5px!important;
       line-height:1.15!important;
     }
@@ -182,7 +219,6 @@
   }
 
   @media(max-width:390px){
-    .app-ui .workspace-topbar,
     .app-ui:has(.fintech-dashboard-v280) .workspace-topbar{grid-template-columns:44px minmax(0,1fr) 44px!important;padding-inline:8px!important}
     .app-ui .fintech-dashboard-v280 .command-center-actions .btn,
     .app-ui .fintech-dashboard-v280 .command-period-pill{font-size:10.25px!important}
