@@ -1,0 +1,68 @@
+name: Apply LOUREX v302 mobile recovery
+
+on:
+  push:
+    branches:
+      - fix/mobile-visual-recovery-v302
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/mobile-visual-recovery-v302
+          fetch-depth: 0
+      - name: Wire v302 visual layer and cache
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          index = Path('index.html')
+          text = index.read_text()
+          anchor = '  <link rel="stylesheet" href="./styles/visual-features-v300.css?v=301" data-lourex-v300="true" />\n'
+          insert = anchor + '  <link rel="stylesheet" href="./styles/mobile-visual-recovery-v302.css?v=302" data-lourex-v302="true" />\n'
+          if 'data-lourex-v302' not in text:
+              if anchor not in text:
+                  raise SystemExit('v300 stylesheet anchor missing')
+              text = text.replace(anchor, insert, 1)
+          text = text.replace('<meta name="color-scheme" content="dark light" />','<meta name="color-scheme" content="dark" />',1)
+          text = text.replace('html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:var(--boot-bg,#061820)}','html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:#061820} body{min-height:100dvh;overscroll-behavior:none}',1)
+          text = text.replace('./home-final-closeout-v286.js?v=300','./home-final-closeout-v286.js?v=302',1)
+          index.write_text(text)
+
+          sw = Path('public/sw.js')
+          swtext = sw.read_text()
+          swtext = swtext.replace("const CACHE = 'lourex-invoice-v301';","const CACHE = 'lourex-invoice-v302';",1)
+          if "./styles/mobile-visual-recovery-v302.css" not in swtext:
+              marker = "LOCAL_CORE.push('./styles/home-premium-command-center-v283.css');"
+              if marker in swtext:
+                  swtext = swtext.replace(marker, marker+"\nLOCAL_CORE.push('./styles/mobile-visual-recovery-v302.css');", 1)
+              else:
+                  swtext += "\nLOCAL_CORE.push('./styles/mobile-visual-recovery-v302.css');\n"
+          swtext = '// v302 mobile visual recovery — unified nav clearance, compact documents/home, continuous dark boot.\n' + swtext
+          sw.write_text(swtext)
+
+          helper = Path('public/home-final-closeout-v286.js')
+          h = helper.read_text()
+          if "data-lourex-v302" not in h:
+              needle = "    ensureStylesheet('data-lourex-v299','./styles/visual-auth-settings-closeout-v299.css?v=299');"
+              if needle in h:
+                  h = h.replace(needle, needle+"\n    ensureStylesheet('data-lourex-v302','./styles/mobile-visual-recovery-v302.css?v=302');", 1)
+          helper.write_text(h)
+
+          Path('.github/workflows/apply-mobile-visual-recovery-v302.yml').unlink()
+          PY
+      - name: Commit v302 wiring
+        shell: bash
+        run: |
+          git config user.name "ALI M.DAAMISH"
+          git config user.email "allidamech@gmail.com"
+          git add index.html public/sw.js public/home-final-closeout-v286.js .github/workflows/apply-mobile-visual-recovery-v302.yml
+          git commit -m "fix: wire LOUREX v302 mobile recovery"
+          git push origin HEAD:fix/mobile-visual-recovery-v302
