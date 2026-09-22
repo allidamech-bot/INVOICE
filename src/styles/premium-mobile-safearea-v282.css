@@ -22,18 +22,18 @@
     background:color-mix(in srgb,var(--mf-shell) 97%,transparent)!important;
   }
 
-  .app-ui .fintech-shell-v280 .shell-nav-button.active::before {
-    background:var(--mf-accent)!important;
+  html[data-ui-theme="dark"] .app-ui .fintech-shell-v280 .shell-nav-button.active::before {
+    background:#27cbd2!important;
   }
 
-  .app-ui .fintech-shell-v280 .shell-create-button,
-  .app-ui .fintech-shell-v280 .mobile-create-button {
-    background:var(--mf-accent)!important;
+  html[data-ui-theme="dark"] .app-ui .fintech-shell-v280 .shell-create-button,
+  html[data-ui-theme="dark"] .app-ui .fintech-shell-v280 .mobile-create-button {
+    background:#27cbd2!important;
     background-image:none!important;
   }
 
-  .app-ui .fintech-shell-v280 .desktop-shell-new-menu {
-    background:var(--mf-surface-2)!important;
+  html[data-ui-theme="dark"] .app-ui .fintech-shell-v280 .desktop-shell-new-menu {
+    background:#112a32!important;
   }
 }
 
