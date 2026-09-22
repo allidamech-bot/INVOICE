@@ -1,6 +1,6 @@
-/* LOUREX v286/v290 presentation helper.
+/* LOUREX v286/v291 presentation helper.
    Loads the review visual layers after the complete legacy stylesheet stack, with
-   v290 deliberately last, then detects a true zero-baseline cash chart so the Home
+   v291 deliberately last, then detects a true zero-baseline cash chart so the Home
    dashboard can show a compact empty state. No business data is changed. */
 (function(){
   function ensureStylesheet(marker,href){
@@ -16,6 +16,7 @@
     ensureStylesheet('data-lourex-v288','./styles/visual-experience-v288.css?v=288');
     ensureStylesheet('data-lourex-v289','./styles/visual-audit-v289.css?v=289');
     ensureStylesheet('data-lourex-v290','./styles/visual-hardening-v290.css?v=290');
+    ensureStylesheet('data-lourex-v291','./styles/visual-closeout-v291.css?v=291');
     if(document.documentElement.dataset.uiTheme==='light')document.documentElement.style.backgroundColor='#e8eeeb';
   }
 
