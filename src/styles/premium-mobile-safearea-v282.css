@@ -57,6 +57,12 @@
     background-image:none!important;
   }
 
+  /* A settings section remains one card surface even when it also carries account semantics. */
+  .app-ui .settings-workspace-v2 .settings-section.settings-account-card {
+    background:var(--mf-surface)!important;
+    background-image:none!important;
+  }
+
   /* Legacy numbering samples used a fixed ivory chip. Keep them theme-semantic. */
   html[data-ui-theme="dark"] .app-ui .settings-workspace-v2 .numbering-preview>span {
     border-color:var(--ft-line)!important;
