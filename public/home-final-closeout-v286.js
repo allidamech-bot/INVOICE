@@ -25,6 +25,7 @@
     ensureStylesheet('data-lourex-v297','./styles/visual-editor-interaction-v297.css?v=297');
     ensureStylesheet('data-lourex-v298','./styles/visual-overlay-accessibility-v298.css?v=298');
     ensureStylesheet('data-lourex-v299','./styles/visual-auth-settings-closeout-v299.css?v=299');
+    ensureStylesheet('data-lourex-v302','./styles/mobile-visual-recovery-v302.css?v=302');
     if(document.documentElement.dataset.uiTheme==='light')document.documentElement.style.backgroundColor='#e8eeeb';
   }
 
