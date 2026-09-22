@@ -1,0 +1,84 @@
+/* LOUREX v299 — auth, setup and settings mobile consistency closeout.
+   Application UI only. No data, auth logic, PDF or persistence changes. */
+@media screen {
+  @media(max-width:720px){
+    /* Do not depend on pointer:coarse; iPad/Safari may report a fine primary pointer. */
+    .auth-page :where(button,.btn,.auth-language-switch,.account-entry-tabs button,
+      .welcome-primary,.setup-primary-action,.unlock-card>.btn-primary,.setup-actions .btn,
+      .account-forgot,.auth-inline-cloud),
+    .app-ui :where(.cloud-account-actions .btn,.cloud-auth-form .btn,.settings-title>.btn,
+      .settings-tabs>button,.settings-account-actions .btn,.settings-section-heading .btn){
+      min-height:44px!important;
+      max-height:none!important;
+      box-sizing:border-box!important;
+    }
+
+    .auth-page :where(input,select,textarea,.input),
+    .app-ui :where(.cloud-auth-form .input,.settings-workspace-v2 input,.settings-workspace-v2 select,.settings-workspace-v2 textarea){
+      min-height:44px!important;
+      max-width:100%!important;
+      box-sizing:border-box!important;
+      font-size:16px!important;
+    }
+
+    /* Settings hierarchy: compact, but not miniature. */
+    .app-ui .settings-workspace-v2 .settings-title h3{
+      font-size:17px!important;
+      line-height:1.2!important;
+      font-weight:820!important;
+    }
+    .app-ui .settings-workspace-v2 .settings-title p:not(.eyebrow){
+      font-size:11.5px!important;
+      line-height:1.45!important;
+      color:var(--ft-text-soft)!important;
+    }
+    .app-ui .settings-workspace-v2 .settings-tabs>button{
+      font-size:11px!important;
+      line-height:1.2!important;
+      padding-inline:10px!important;
+    }
+    .app-ui .settings-workspace-v2 :where(.settings-section-heading h3,.settings-section h3){
+      font-size:15px!important;
+      line-height:1.25!important;
+      color:var(--ft-text-strong)!important;
+    }
+    .app-ui .settings-workspace-v2 :where(.settings-note,.field-label,.toggle-row small,.settings-section p){
+      font-size:10.5px!important;
+      line-height:1.4!important;
+    }
+
+    /* Auth remains premium and readable without the earlier over-compressed 36–42px geometry. */
+    .auth-account-page .auth-account-card.account-first-card{
+      padding-top:66px!important;
+    }
+    .auth-account-card .account-entry-tabs button{
+      min-height:44px!important;
+      font-size:11.5px!important;
+    }
+    .auth-account-card .premium-auth-language{
+      min-height:44px!important;
+    }
+    .auth-account-card :where(.premium-auth-primary,.google-auth-button,.account-forgot){
+      min-height:44px!important;
+    }
+
+    /* Long Arabic labels wrap rather than compressing adjacent controls. */
+    .app-ui .settings-workspace-v2 :where(.settings-title,.settings-section-heading,.toggle-row,.settings-account-actions){
+      min-width:0!important;
+      max-width:100%!important;
+    }
+    .app-ui .settings-workspace-v2 :where(.settings-title,.settings-section-heading,.settings-account-actions){
+      flex-wrap:wrap!important;
+    }
+  }
+
+  @media(max-width:390px){
+    .app-ui .settings-workspace-v2 .settings-title{
+      gap:8px!important;
+    }
+    .app-ui .settings-workspace-v2 .settings-title>.btn{
+      min-width:0!important;
+      padding-inline:10px!important;
+    }
+  }
+}
