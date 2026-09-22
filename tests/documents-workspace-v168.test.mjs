@@ -31,9 +31,9 @@ test('issued and cancelled filters are mutually consistent with overview counts'
   assert.match(source,/const issued=this\.props\.documents\.filter\(doc=>matchesWorkspaceStatus\(doc,'final'\)\)\.length/);
 });
 
-test('quotation detail uses Valid until rather than invoice due-date wording',async()=>{
+test('document detail uses kind-specific due, validity and requested-delivery wording',async()=>{
   const source=await read('src/components/DocumentsPage.tsx');
-  assert.match(source,/doc\.kind==='invoice'\?t\('Due date','تاريخ الاستحقاق'\):t\('Valid until','صالح حتى'\)/);
+  assert.ok(source.includes("doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):doc.kind==='purchase-order'?t('Requested delivery','التسليم المطلوب'):t('Valid until','صالح حتى')"));
   assert.doesNotMatch(source,/Validity \/ due/);
 });
 

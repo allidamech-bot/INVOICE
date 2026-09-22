@@ -23,7 +23,7 @@ type WorkspaceStatus='all'|'draft'|'ready'|'final'|'voided';
 type SortMode='latest'|'oldest'|'highest'|'lowest';
 type PaymentFilter='all'|PaymentStatus;
 interface State {
-  tab:'all'|'proforma'|'invoice'|'credit';
+  tab:'all'|'proforma'|'invoice'|'purchase-order'|'credit';
   status:WorkspaceStatus;
   payment:PaymentFilter;
   currency:string;
@@ -52,6 +52,10 @@ function itemCountLabel(count:number):string{
   return `${count} item${count===1?'':'s'}`;
 }
 
+function attachmentSizeLabel(size:number):string{
+  return size<1024*1024?`${Math.max(1,Math.round(size/1024))} KB`:`${(size/(1024*1024)).toFixed(1)} MB`;
+}
+
 function customerName(doc:LourexDocument):string{
   const snapshot=doc.customerSnapshot;
   if(!snapshot)return t('No customer','بدون عميل');
@@ -62,7 +66,15 @@ function customerName(doc:LourexDocument):string{
 
 function kindLabel(doc:LourexDocument):string{
   if(doc.role==='credit-note')return t('Credit Note','إشعار دائن');
+  if(doc.kind==='purchase-order')return t('Purchase Order','طلب شراء');
   return doc.kind==='proforma'?t('Quotation','عرض سعر'):t('Invoice','فاتورة');
+}
+
+function partyName(doc:LourexDocument):string{
+  if(doc.kind!=='purchase-order')return customerName(doc);
+  const supplier=doc.supplierSnapshot;
+  if(!supplier)return t('No supplier','بدون مورد');
+  return isArabic()?(supplier.nameAr||supplier.nameEn||t('No supplier','بدون مورد')):(supplier.nameEn||supplier.nameAr||t('No supplier','بدون مورد'));
 }
 
 function paymentLabel(status:PaymentStatus):string{
@@ -74,11 +86,13 @@ function paymentLabel(status:PaymentStatus):string{
 
 function documentSearchText(doc:LourexDocument):string{
   const customer=doc.customerSnapshot;
+  const supplier=doc.supplierSnapshot;
   const itemValues=doc.items.flatMap(item=>[item.descriptionEn,item.descriptionAr,item.hsCode,item.origin,item.packing,item.unit]);
   return [
-    doc.number,doc.currency,doc.creditForNumber,
+    doc.number,doc.currency,doc.creditForNumber,doc.supplierReference,
     customer?.companyNameEn,customer?.companyNameAr,customer?.contactPerson,
     customer?.phone,customer?.email,customer?.city,customer?.country,
+    supplier?.nameEn,supplier?.nameAr,supplier?.contactPerson,supplier?.phone,supplier?.email,supplier?.city,supplier?.country,
     ...itemValues,
     doc.terms.incoterm,doc.terms.paymentTerms,doc.terms.finalDestination,
     doc.terms.countryOfOrigin,doc.terms.portOfLoading,doc.notes
@@ -178,6 +192,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     return this.props.documents.filter(doc=>{
       if(this.state.tab==='proforma'&&(doc.kind!=='proforma'||doc.role!=='standard'))return false;
       if(this.state.tab==='invoice'&&(doc.kind!=='invoice'||doc.role!=='standard'))return false;
+      if(this.state.tab==='purchase-order'&&(doc.kind!=='purchase-order'||doc.role!=='standard'))return false;
       if(this.state.tab==='credit'&&doc.role!=='credit-note')return false;
       if(!matchesWorkspaceStatus(doc,this.state.status))return false;
       if(this.state.currency!=='all'&&doc.currency!==this.state.currency)return false;
@@ -248,8 +263,10 @@ export class DocumentsPage extends React.Component<Props,State>{
     const collection=this.paymentStatus(doc)?invoicePaymentSummary(doc,this.props.payments,undefined,this.props.documents):null;
     const state=workflowStatus(doc);
     const visualState=doc.lifecycleStatus==='voided'?'voided':state;
-    const status=doc.lifecycleStatus==='voided'?(doc.kind==='proforma'?t('Cancelled','ملغى'):t('Voided','ملغى')):state==='draft'?t('Draft','مسودة'):state==='ready'?t('Ready to issue','جاهز للإصدار'):t('Issued','صادر');
+    const status=doc.lifecycleStatus==='voided'?((doc.kind==='proforma'||doc.kind==='purchase-order')?t('Cancelled','ملغى'):t('Voided','ملغى')):state==='draft'?t('Draft','مسودة'):state==='ready'?t('Ready to issue','جاهز للإصدار'):t('Issued','صادر');
     const customer=doc.customerSnapshot;
+    const supplier=doc.supplierSnapshot;
+    const attachments=doc.attachments??[];
     const commercial=[
       [t('Incoterm','الإنكوترم'),doc.terms.incoterm],
       [t('Payment terms','شروط الدفع'),doc.terms.paymentTerms],
@@ -281,7 +298,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       </div>
 
       <header className={`document-detail-hero kind-${doc.kind}`}>
-        <div className="document-detail-identity"><span className="document-detail-kind-icon"><Icon name={doc.kind==='proforma'?'proforma':'invoice'}/></span><div><p>{kindLabel(doc)}</p><h1>{doc.number}</h1><span>{customerName(doc)}</span></div></div>
+        <div className="document-detail-identity"><span className="document-detail-kind-icon"><Icon name={doc.kind==='proforma'?'proforma':doc.kind==='purchase-order'?'file':'invoice'}/></span><div><p>{kindLabel(doc)}</p><h1>{doc.number}</h1><span>{partyName(doc)}</span></div></div>
         <div className="document-detail-value"><small>{t('Total','الإجمالي')}</small><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><div><span className={`document-status-pill status-${visualState}`}>{status}</span>{collection?<span className={`collection-pill collection-${collection.status}`}>{paymentLabel(collection.status)}</span>:null}</div></div>
       </header>
 
@@ -290,8 +307,8 @@ export class DocumentsPage extends React.Component<Props,State>{
           <section className="document-detail-card">
             <header><h2>{t('Document overview','بيانات المستند')}</h2></header>
             <div className="document-detail-facts">
-              <div><small>{t('Issue date','تاريخ الإصدار')}</small><strong>{displayDate(doc.issueDate,getUiLanguage())}</strong></div>
-              <div><small>{doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):t('Valid until','صالح حتى')}</small><strong>{doc.dueDate?displayDate(doc.dueDate,getUiLanguage()):'—'}</strong></div>
+              <div><small>{doc.kind==='purchase-order'?t('Order date','تاريخ الطلب'):t('Issue date','تاريخ الإصدار')}</small><strong>{displayDate(doc.issueDate,getUiLanguage())}</strong></div>
+              <div><small>{doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):doc.kind==='purchase-order'?t('Requested delivery','التسليم المطلوب'):t('Valid until','صالح حتى')}</small><strong>{doc.dueDate?displayDate(doc.dueDate,getUiLanguage()):'—'}</strong></div>
               <div><small>{t('Currency','العملة')}</small><strong>{doc.currency}</strong></div>
               <div><small>{t('Language','اللغة')}</small><strong>{doc.language==='bilingual'?t('Bilingual','ثنائي اللغة'):doc.language==='ar'?t('Arabic','العربية'):t('English','الإنجليزية')}</strong></div>
             </div>
@@ -299,10 +316,10 @@ export class DocumentsPage extends React.Component<Props,State>{
 
           <section className="document-detail-card document-detail-items">
             <header><div><h2>{t('Items','الأصناف')}</h2><small>{itemCountLabel(doc.items.length)}</small></div></header>
-            <div className="document-detail-item-head"><span>{t('Description','الوصف')}</span><span>{t('Qty','الكمية')}</span><span>{t('Unit','الوحدة')}</span><span>{t('Price','السعر')}</span><span>{t('Total','الإجمالي')}</span></div>
+            <div className="document-detail-item-head"><span>{t('Description','الوصف')}</span><span>{t('Qty','الكمية')}</span><span>{t('Unit','الوحدة')}</span><span>{doc.kind==='purchase-order'?t('Unit Cost','تكلفة الوحدة'):t('Price','السعر')}</span><span>{t('Total','الإجمالي')}</span></div>
             <div className="document-detail-item-list">{doc.items.map(item=>{
               const tradeMeta=[item.hsCode?`HS ${item.hsCode}`:'',item.origin?`${t('Origin','المنشأ')}: ${item.origin}`:'',item.packing?`${t('Packing','التعبئة')}: ${item.packing}`:''].filter(Boolean).join(' · ');
-              return <div key={item.id} className="document-detail-item-row"><span><strong>{isArabic()?(item.descriptionAr||item.descriptionEn):(item.descriptionEn||item.descriptionAr)||t('Item','صنف')}</strong>{tradeMeta?<small>{tradeMeta}</small>:null}</span><span data-label={t('Qty: ','الكمية: ')}>{item.quantity}</span><span data-label={t('Unit: ','الوحدة: ')}>{item.unit}</span><span data-label={t('Price: ','السعر: ')}>{formatMoney(item.unitPrice,doc.currency)}</span><span data-label={t('Total: ','الإجمالي: ')}>{formatMoney(lineTotal(item.quantity,item.unitPrice),doc.currency)}</span></div>;
+              return <div key={item.id} className="document-detail-item-row"><span><strong>{isArabic()?(item.descriptionAr||item.descriptionEn):(item.descriptionEn||item.descriptionAr)||t('Item','صنف')}</strong>{tradeMeta?<small>{tradeMeta}</small>:null}</span><span data-label={t('Qty: ','الكمية: ')}>{item.quantity}</span><span data-label={t('Unit: ','الوحدة: ')}>{item.unit}</span><span data-label={doc.kind==='purchase-order'?t('Unit Cost: ','تكلفة الوحدة: '):t('Price: ','السعر: ')}>{formatMoney(item.unitPrice,doc.currency)}</span><span data-label={t('Total: ','الإجمالي: ')}>{formatMoney(lineTotal(item.quantity,item.unitPrice),doc.currency)}</span></div>;
             })}</div>
             <div className="document-detail-totals">
               <div><span>{t('Subtotal','المجموع الفرعي')}</span><strong>{formatMoney(totals.subtotal,doc.currency)}</strong></div>
@@ -316,10 +333,11 @@ export class DocumentsPage extends React.Component<Props,State>{
 
           {commercial.length?<section className="document-detail-card"><header><h2>{t('Commercial terms','الشروط التجارية')}</h2></header><div className="document-detail-terms">{commercial.map(([label,value])=><div key={String(label)}><small>{label}</small><strong>{value}</strong></div>)}</div></section>:null}
           {doc.notes||doc.terms.remarks?<section className="document-detail-card"><header><h2>{t('Notes','الملاحظات')}</h2></header><div className="document-detail-notes">{doc.notes?<p>{doc.notes}</p>:null}{doc.terms.remarks?<p>{doc.terms.remarks}</p>:null}</div></section>:null}
+          {attachments.length?<section className="document-detail-card document-detail-attachments"><header><h2>{t('Attachments','المرفقات')}</h2><small>{attachments.length}</small></header><div className="document-detail-attachment-list">{attachments.map(attachment=><a key={attachment.id} href={attachment.dataUrl} target="_blank" rel="noreferrer"><span className="attachment-file-icon"><Icon name="file"/></span><span><strong>{attachment.name}</strong><small>{attachment.mimeType==='application/pdf'?'PDF':t('Image','صورة')} · {attachmentSizeLabel(attachment.size)}</small></span><em>{t('Open','فتح')}</em></a>)}</div></section>:null}
         </div>
 
         <aside className="document-detail-side">
-          <section className="document-detail-card"><header><h2>{t('Customer','العميل')}</h2></header>{customer?<div className="document-detail-customer"><strong>{customerName(doc)}</strong>{customer.contactPerson?<span>{customer.contactPerson}</span>:null}{customer.phone?<span>{customer.phone}</span>:null}{customer.email?<span>{customer.email}</span>:null}{customer.city||customer.country?<span>{[customer.city,customer.country].filter(Boolean).join(', ')}</span>:null}</div>:<div className="document-detail-muted">{t('No customer attached.','لا يوجد عميل مرتبط.')}</div>}</section>
+          <section className="document-detail-card"><header><h2>{doc.kind==='purchase-order'?t('Supplier','المورد'):t('Customer','العميل')}</h2></header>{doc.kind==='purchase-order'?(supplier?<div className="document-detail-customer"><strong>{partyName(doc)}</strong>{supplier.contactPerson?<span>{supplier.contactPerson}</span>:null}{supplier.phone?<span>{supplier.phone}</span>:null}{supplier.email?<span>{supplier.email}</span>:null}{supplier.city||supplier.country?<span>{[supplier.city,supplier.country].filter(Boolean).join(', ')}</span>:null}{doc.supplierReference?<span>{t('Reference','المرجع')}: {doc.supplierReference}</span>:null}</div>:<div className="document-detail-muted">{t('No supplier attached.','لا يوجد مورد مرتبط.')}</div>):customer?<div className="document-detail-customer"><strong>{customerName(doc)}</strong>{customer.contactPerson?<span>{customer.contactPerson}</span>:null}{customer.phone?<span>{customer.phone}</span>:null}{customer.email?<span>{customer.email}</span>:null}{customer.city||customer.country?<span>{[customer.city,customer.country].filter(Boolean).join(', ')}</span>:null}</div>:<div className="document-detail-muted">{t('No customer attached.','لا يوجد عميل مرتبط.')}</div>}</section>
           {collection?<section className="document-detail-card document-detail-payment"><header><h2>{t('Payment','الدفع')}</h2><span className={`collection-pill collection-${collection.status}`}>{paymentLabel(collection.status)}</span></header><div><span>{t('Invoice total','إجمالي الفاتورة')}</span><strong>{formatMoney(collection.total,doc.currency)}</strong></div>{collection.credits!=='0.00'?<div><span>{t('Credits','الإشعارات الدائنة')}</span><strong>{formatMoney(collection.credits,doc.currency)}</strong></div>:null}<div><span>{t('Paid','المدفوع')}</span><strong>{formatMoney(collection.paid,doc.currency)}</strong></div><div className="remaining"><span>{t('Remaining','المتبقي')}</span><strong>{formatMoney(collection.remaining,doc.currency)}</strong></div></section>:null}
           {relatedDocuments.length?<section className="document-detail-card document-detail-secondary-actions"><header><h2>{t('Related documents','المستندات المرتبطة')}</h2></header>{relatedDocuments.map(related=><button type="button" key={related.id} onClick={()=>this.setState({detailId:related.id,menuId:''})}><Icon name={related.kind==='invoice'?'invoice':'proforma'}/><span>{kindLabel(related)} · {related.number}</span></button>)}</section>:null}
           <section className="document-detail-card document-detail-secondary-actions"><header><h2>{t('Actions','الإجراءات')}</h2></header><button type="button" onClick={()=>this.props.onDuplicate(doc)}><Icon name="copy"/><span>{t('Duplicate document','نسخ المستند')}</span></button>{canDelete?<button type="button" className="danger" onClick={()=>this.props.onDelete(doc)}><Icon name="trash"/><span>{t('Delete draft','حذف المسودة')}</span></button>:null}</section>
@@ -336,6 +354,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     const docs=this.filtered();
     const quotes=this.props.documents.filter(doc=>doc.kind==='proforma'&&doc.role==='standard').length;
     const invoices=this.props.documents.filter(doc=>doc.kind==='invoice'&&doc.role==='standard').length;
+    const purchaseOrders=this.props.documents.filter(doc=>doc.kind==='purchase-order'&&doc.role==='standard').length;
     const creditNotes=this.props.documents.filter(doc=>doc.role==='credit-note').length;
     const drafts=this.props.documents.filter(doc=>workflowStatus(doc)==='draft').length;
     const issued=this.props.documents.filter(doc=>matchesWorkspaceStatus(doc,'final')).length;
@@ -346,16 +365,17 @@ export class DocumentsPage extends React.Component<Props,State>{
 
     return <section className="page documents-page premium-documents-page documents-workspace-v2">
       <div className="page-heading documents-heading">
-        <div><p className="eyebrow">{t('Sales documents','مستندات المبيعات')}</p><h1>{t('Documents','المستندات')}</h1><p className="page-subtitle">{t('Find, review and manage every quotation, invoice and credit note from one workspace.','ابحث وراجع وأدر عروض الأسعار والفواتير والإشعارات الدائنة من مساحة عمل واحدة.')}</p></div>
-        <div className="heading-actions documents-heading-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('New Quote','عرض سعر جديد')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('New Invoice','فاتورة جديدة')}</Button></div>
+        <div><p className="eyebrow">{t('Business documents','مستندات الأعمال')}</p><h1>{t('Documents','المستندات')}</h1><p className="page-subtitle">{t('Find and manage quotations, invoices, purchase orders and credit notes from one workspace.','ابحث وأدر عروض الأسعار والفواتير وطلبات الشراء والإشعارات الدائنة من مساحة عمل واحدة.')}</p></div>
+        <div className="heading-actions documents-heading-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('New Quote','عرض سعر جديد')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('New Invoice','فاتورة جديدة')}</Button><Button icon="file" onClick={()=>this.props.onNew('purchase-order')}>{t('New Purchase Order','طلب شراء جديد')}</Button></div>
       </div>
 
-      {resume?<button type="button" className="documents-resume" onClick={()=>this.props.onOpen(resume)}><span className="resume-icon"><Icon name={resume.kind==='proforma'?'proforma':'invoice'}/></span><span className="resume-copy"><small>{t('Continue where you left off','أكمل من حيث توقفت')}</small><strong>{resume.number}</strong><span>{customerName(resume)}</span></span><span className="resume-meta"><b>{formatMoney(calculateTotals(resume.items,resume.adjustments).grandTotal,resume.currency)}</b><em>{workflowStatus(resume)==='ready'?t('Ready to issue','جاهز للإصدار'):t('Continue editing','متابعة التحرير')} <span className="resume-arrow"><Icon name="arrowLeft"/></span></em></span></button>:null}
+      {resume?<button type="button" className="documents-resume" onClick={()=>this.props.onOpen(resume)}><span className="resume-icon"><Icon name={resume.kind==='proforma'?'proforma':resume.kind==='purchase-order'?'file':'invoice'}/></span><span className="resume-copy"><small>{t('Continue where you left off','أكمل من حيث توقفت')}</small><strong>{resume.number}</strong><span>{partyName(resume)}</span></span><span className="resume-meta"><b>{formatMoney(calculateTotals(resume.items,resume.adjustments).grandTotal,resume.currency)}</b><em>{workflowStatus(resume)==='ready'?t('Ready to issue','جاهز للإصدار'):t('Continue editing','متابعة التحرير')} <span className="resume-arrow"><Icon name="arrowLeft"/></span></em></span></button>:null}
 
       <div className="documents-register-tabs" aria-label={t('Document overview','ملخص المستندات')}>
         <button type="button" className={this.overviewActive('all','all')?'active':''} aria-pressed={this.overviewActive('all','all')} onClick={()=>this.setOverview('all','all')}><span>{t('All','الكل')}</span><strong>{this.props.documents.length}</strong></button>
         <button type="button" className={this.overviewActive('proforma','all')?'active':''} aria-pressed={this.overviewActive('proforma','all')} onClick={()=>this.setOverview('proforma','all')}><span>{t('Quotes','عروض الأسعار')}</span><strong>{quotes}</strong></button>
         <button type="button" className={this.overviewActive('invoice','all')?'active':''} aria-pressed={this.overviewActive('invoice','all')} onClick={()=>this.setOverview('invoice','all')}><span>{t('Invoices','الفواتير')}</span><strong>{invoices}</strong></button>
+        <button type="button" className={this.overviewActive('purchase-order','all')?'active':''} aria-pressed={this.overviewActive('purchase-order','all')} onClick={()=>this.setOverview('purchase-order','all')}><span>{t('Purchase Orders','طلبات الشراء')}</span><strong>{purchaseOrders}</strong></button>
         <button type="button" className={this.overviewActive('credit','all')?'active':''} aria-pressed={this.overviewActive('credit','all')} onClick={()=>this.setOverview('credit','all')}><span>{t('Credit Notes','الإشعارات الدائنة')}</span><strong>{creditNotes}</strong></button>
         <button type="button" className={`${drafts?'has-drafts ':''}${this.overviewActive('all','draft')?'active':''}`} aria-pressed={this.overviewActive('all','draft')} onClick={()=>this.setOverview('all','draft')}><span>{t('Drafts','المسودات')}</span><strong>{drafts}</strong></button>
         <button type="button" className={this.overviewActive('all','final')?'active':''} aria-pressed={this.overviewActive('all','final')} onClick={()=>this.setOverview('all','final')}><span>{t('Issued','صادرة')}</span><strong>{issued}</strong></button>
@@ -379,13 +399,13 @@ export class DocumentsPage extends React.Component<Props,State>{
         const totals=calculateTotals(doc.items,doc.adjustments);
         const state=workflowStatus(doc);
         const visualState=doc.lifecycleStatus==='voided'?'voided':state;
-        const missingCustomer=!hasDocumentCustomer(doc);
+        const missingCustomer=doc.kind==='purchase-order'?!doc.supplierSnapshot:!hasDocumentCustomer(doc);
         const payment=this.paymentStatus(doc);
         const statusLabel=doc.lifecycleStatus==='voided'?(doc.kind==='proforma'?t('Cancelled','ملغى'):t('Voided','ملغى')):state==='draft'?(doc.revision>1?t(`Revision ${doc.revision}`,`مراجعة ${doc.revision}`):t('Draft','مسودة')):state==='ready'?t('Ready','جاهز'):t('Issued','صادر');
         return <article className="documents-register-row" key={doc.id}>
           <button type="button" className="document-register-open" onClick={()=>this.setState({detailId:doc.id,menuId:''})}>
             <span className="register-identity"><strong><bdi>{doc.number}</bdi></strong><span className={`document-kind-pill kind-${doc.kind}`}>{kindLabel(doc)}</span></span>
-            <span className="register-customer"><b>{customerName(doc)}</b><small>{itemCountLabel(doc.items.length)}{missingCustomer? ` · ${t('Customer required','العميل مطلوب')}`:''}</small></span>
+            <span className="register-customer"><b>{partyName(doc)}</b><small>{itemCountLabel(doc.items.length)}{missingCustomer? ` · ${doc.kind==='purchase-order'?t('Supplier required','المورد مطلوب'):t('Customer required','العميل مطلوب')}`:''}</small></span>
             <span className="register-date">{displayDate(doc.issueDate,getUiLanguage())}</span>
             <strong className="register-amount"><bdi>{formatMoney(totals.grandTotal,doc.currency)}</bdi></strong>
             <span className="register-status"><span className={`document-status-pill status-${visualState}`}>{statusLabel}</span>{payment?<span className={`collection-pill collection-${payment}`}>{paymentLabel(payment)}</span>:null}{doc.creditForNumber?<span className="collection-pill lifecycle-link-pill">↳ {doc.creditForNumber}</span>:null}</span>
@@ -393,7 +413,7 @@ export class DocumentsPage extends React.Component<Props,State>{
           <div className="document-actions desktop-actions"><IconButton icon="more" label={t('Document actions','إجراءات المستند')} aria-haspopup="menu" aria-expanded={this.state.menuId===doc.id} onClick={(event:any)=>this.toggleMenu(doc,event)}/></div>
           <div className="mobile-actions"><IconButton icon="more" label={t('Actions','الإجراءات')} aria-haspopup="menu" aria-expanded={this.state.menuId===doc.id} onClick={(event:any)=>this.toggleMenu(doc,event)}/></div>
         </article>;
-      })}</div>:<div className="empty-state documents-empty"><span className="empty-mark"><Icon name="file" size={28}/></span><h2>{filteredView?t('No matching documents','لا توجد مستندات مطابقة'):t('No documents yet','لا توجد مستندات بعد')}</h2><p>{filteredView?t('Try another search or filter.','جرّب بحثًا أو تصفية مختلفة.'):t('Start with a quotation, then issue the invoice when the deal is confirmed.','ابدأ بعرض سعر، ثم أصدر الفاتورة عند تأكيد الصفقة.')}</p>{filteredView?<div className="empty-actions"><Button icon="refresh" onClick={this.clearFilters}>{t('Clear filters','مسح التصفية')}</Button></div>:<div className="empty-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Create Quote','إنشاء عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Create Invoice','إنشاء فاتورة')}</Button></div>}</div>}
+      })}</div>:<div className="empty-state documents-empty"><span className="empty-mark"><Icon name="file" size={28}/></span><h2>{filteredView?t('No matching documents','لا توجد مستندات مطابقة'):t('No documents yet','لا توجد مستندات بعد')}</h2><p>{filteredView?t('Try another search or filter.','جرّب بحثًا أو تصفية مختلفة.'):t('Start with a quotation, then issue the invoice when the deal is confirmed.','ابدأ بعرض سعر، ثم أصدر الفاتورة عند تأكيد الصفقة.')}</p>{filteredView?<div className="empty-actions"><Button icon="refresh" onClick={this.clearFilters}>{t('Clear filters','مسح التصفية')}</Button></div>:<div className="empty-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Create Quote','إنشاء عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Create Invoice','إنشاء فاتورة')}</Button><Button icon="file" onClick={()=>this.props.onNew('purchase-order')}>{t('Create Purchase Order','إنشاء طلب شراء')}</Button></div>}</div>}
       {this.renderMobileActionPortal()}
     </section>;
   }

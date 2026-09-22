@@ -4,20 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#061820" />
+  <meta name="color-scheme" content="dark light" />
   <script id="lourex-theme-bootstrap">
     (function(){
-      var key='lourex-ui-theme';
-      var pref='system';
-      try{var saved=window.localStorage.getItem(key);if(saved==='light'||saved==='dark'||saved==='system')pref=saved;}catch(e){}
-      var resolved=pref;
-      if(pref==='system'){try{resolved=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){resolved='dark';}}
-      var root=document.documentElement;
-      root.dataset.uiTheme=resolved;
-      root.dataset.uiThemePreference=pref;
-      root.style.colorScheme=resolved;
-      root.style.backgroundColor=resolved==='light'?'#f2f7f8':'#061820';
-      var meta=document.querySelector('meta[name="theme-color"]');
-      if(meta)meta.setAttribute('content',resolved==='light'?'#f2f7f8':'#061820');
+      var key='lourex-ui-theme',pref='system';try{var saved=localStorage.getItem(key);if(saved==='light'||saved==='dark'||saved==='system')pref=saved;}catch(e){}
+      var resolved=pref;if(pref==='system'){try{resolved=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){resolved='dark';}}
+      var root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');root.dataset.uiTheme=resolved;root.dataset.uiThemePreference=pref;root.dataset.lourexBooting='true';root.style.colorScheme='dark';root.style.backgroundColor='#061820';root.style.setProperty('--boot-bg','#061820');if(meta)meta.setAttribute('content','#061820');
+      document.addEventListener('DOMContentLoaded',function(){var mount=document.getElementById('root');if(!mount)return;var restore=function(){if(document.getElementById('lourex-boot'))return;delete root.dataset.lourexBooting;root.style.removeProperty('--boot-bg');root.style.colorScheme=resolved;root.style.backgroundColor=resolved==='light'?'#f2f7f8':'#061820';if(meta)meta.setAttribute('content',resolved==='light'?'#f2f7f8':'#061820');observer.disconnect();};var observer=new MutationObserver(restore);observer.observe(mount,{childList:true});restore();},{once:true});
     })();
   </script>
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -30,9 +23,10 @@
   <link rel="icon" href="./brand/lourex-app-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" sizes="180x180" href="./brand/lourex-app-icon-180.png" />
   <style id="lourex-boot-style">
-    html[data-ui-theme="light"]{--boot-bg:#f2f7f8;--boot-text:#102329;--boot-track:#d8e4e6;--boot-accent:#0baeb5}
+    html[data-ui-theme="light"]{--boot-bg:#e8eeeb;--boot-text:#102528;--boot-track:#d0d9d6;--boot-accent:#159fa2}
     html[data-ui-theme="dark"]{--boot-bg:#061820;--boot-text:#eefbfd;--boot-track:#173642;--boot-accent:#20d3db}
     html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:var(--boot-bg,#061820)}
+    html[data-lourex-booting="true"],html[data-lourex-booting="true"] body,html[data-lourex-booting="true"] #root{background:#061820!important;color-scheme:dark!important}
     #lourex-boot.loading-screen{position:fixed;inset:0;z-index:2147483000;min-height:100vh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-sizing:border-box;padding:32px;background:var(--boot-bg,#061820);color:var(--boot-text,#fff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     #lourex-boot .brand{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;animation:lourexLaunchIn .45s ease-out both}
     #lourex-boot .brand-mark{display:grid;place-items:center;width:118px;height:118px;border-radius:28px}
@@ -154,7 +148,22 @@
   <link rel="stylesheet" href="./styles/premium-mobile-closeout-v281.css" />
   <link rel="stylesheet" href="./styles/premium-mobile-safearea-v282.css" />
   <link rel="stylesheet" href="./styles/home-premium-command-center-v283.css" />
+  <link rel="stylesheet" href="./styles/home-review-polish-v285.css" />
+  <link rel="stylesheet" href="./styles/home-final-closeout-v286.css" />
   <link rel="stylesheet" href="./styles/document-premium-redesign-v141.css" />
+  <link rel="stylesheet" href="./styles/visual-experience-v288.css?v=288" data-lourex-v288="true" />
+  <link rel="stylesheet" href="./styles/visual-audit-v289.css?v=289" data-lourex-v289="true" />
+  <link rel="stylesheet" href="./styles/visual-hardening-v290.css?v=290" data-lourex-v290="true" />
+  <link rel="stylesheet" href="./styles/visual-closeout-v291.css?v=291-2" data-lourex-v291="true" />
+  <link rel="stylesheet" href="./styles/visual-deep-audit-v292.css?v=292" data-lourex-v292="true" />
+  <link rel="stylesheet" href="./styles/visual-interaction-closeout-v293.css?v=293" data-lourex-v293="true" />
+  <link rel="stylesheet" href="./styles/visual-workspace-geometry-v294.css?v=294" data-lourex-v294="true" />
+  <link rel="stylesheet" href="./styles/visual-contrast-closeout-v295.css?v=295" data-lourex-v295="true" />
+  <link rel="stylesheet" href="./styles/visual-document-panels-v296.css?v=296" data-lourex-v296="true" />
+  <link rel="stylesheet" href="./styles/visual-editor-interaction-v297.css?v=297" data-lourex-v297="true" />
+  <link rel="stylesheet" href="./styles/visual-overlay-accessibility-v298.css?v=298" data-lourex-v298="true" />
+  <link rel="stylesheet" href="./styles/visual-auth-settings-closeout-v299.css?v=299" data-lourex-v299="true" />
+  <link rel="stylesheet" href="./styles/visual-features-v300.css?v=301" data-lourex-v300="true" />
   <title>LOUREX Invoice</title>
 </head>
 <body>
@@ -176,6 +185,7 @@
   <script crossorigin src="https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore-compat.js"></script>
   <script src="./ios-print-bridge.js"></script>
   <script src="./pull-to-refresh.js"></script>
+  <script src="./home-final-closeout-v286.js?v=300"></script>
   <script type="module" src="./src/app/index.js"></script>
 </body>
 </html>

@@ -1,0 +1,227 @@
+/* LOUREX v291 — visual audit closeout.
+   Preview-only application chrome. Fixes issues found during the live audit:
+   one mobile bottom-clearance owner, correct RTL selectors, 44px touch targets,
+   compact command/search geometry, and stable numeric alignment. */
+@media screen {
+  /* Correct the late Settings RTL selector: html is the direction owner. */
+  html[dir='rtl'][data-ui-theme='light'] .app-ui .settings-workspace-v2 .settings-tabs>button.active{
+    box-shadow:inset -3px 0 0 var(--ft-accent),0 3px 10px rgba(30,54,57,.04)!important;
+  }
+
+  /* Financial values remain LTR internally but align with the reading edge. */
+  html[dir='rtl'] .app-ui :where(
+    .dashboard-money-stack b,.dashboard-document-amount,.command-position-list strong,
+    .command-health-bars b,.register-amount,.product-library-row-price,
+    .receivable-currency-card strong,.report-currency-card strong,.editor-grand-total-chip strong,
+    .item-line-total,.editor-totals strong
+  ){
+    direction:ltr!important;
+    unicode-bidi:isolate!important;
+    text-align:right!important;
+    font-variant-numeric:tabular-nums lining-nums!important;
+  }
+  html[dir='ltr'] .app-ui :where(
+    .dashboard-money-stack b,.dashboard-document-amount,.command-position-list strong,
+    .command-health-bars b,.register-amount,.product-library-row-price,
+    .receivable-currency-card strong,.report-currency-card strong,.editor-grand-total-chip strong,
+    .item-line-total,.editor-totals strong
+  ){text-align:left!important}
+
+  /* Headings should feel editorial, not cramped. */
+  .app-ui :where(.page-heading h1,.documents-heading h1,.operations-hero h1,.reports-heading h1,
+    .fintech-dashboard-v280 .command-center-hero h1,.dashboard-panel-heading h2){
+    text-wrap:balance;
+  }
+
+  /* Late v277 surfaces still carried hard-coded black styling in light mode. */
+  html[data-ui-theme='light'] .app-ui .product-more-details{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .product-more-details>summary{
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .product-more-details>summary>span{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-accent)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .product-more-details>summary small{color:var(--ft-muted)!important}
+  html[data-ui-theme='light'] .app-ui .product-more-details>.product-editor-section{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .product-purchase-history-row{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .product-purchase-history-row strong{color:var(--ft-text-strong)!important}
+  html[data-ui-theme='light'] .app-ui .product-purchase-history-row span{color:var(--ft-muted)!important}
+  html[data-ui-theme='light'] .app-ui .product-purchase-history-row b{color:var(--vx-amber)!important}
+  html[data-ui-theme='light'] .app-ui .shell-global-search-button kbd{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-muted)!important;
+  }
+
+  /* Semantic distinction for purchasing summaries, without turning the UI into a rainbow. */
+  html[data-ui-theme='light'] .app-ui .operations-summary>:nth-child(4n+1){background:linear-gradient(145deg,var(--vx-blue-soft),var(--ft-surface) 66%)!important}
+  html[data-ui-theme='light'] .app-ui .operations-summary>:nth-child(4n+2){background:linear-gradient(145deg,var(--vx-green-soft),var(--ft-surface) 66%)!important}
+  html[data-ui-theme='light'] .app-ui .operations-summary>:nth-child(4n+3){background:linear-gradient(145deg,var(--vx-amber-soft),var(--ft-surface) 66%)!important}
+  html[data-ui-theme='light'] .app-ui .operations-summary>:nth-child(4n+4){background:linear-gradient(145deg,var(--vx-purple-soft),var(--ft-surface) 66%)!important}
+
+  @media(max-width:960px){
+    /* The shell no longer owns bottom spacing. main-content owns exactly one nav clearance.
+       This removes the repeated empty tail that appeared after nested page padding. */
+    .app-ui .workspace-content,
+    .app-ui .workspace-shell:not(.is-editor) .workspace-content{
+      padding-bottom:0!important;
+    }
+    .app-ui .workspace-content>.main-content{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      box-sizing:border-box!important;
+      padding-top:0!important;
+      padding-inline:0!important;
+      padding-bottom:calc(70px + env(safe-area-inset-bottom,0px))!important;
+    }
+    .app-ui .workspace-content>.editor-main{padding-bottom:0!important}
+
+    /* Every workspace supplies only its local breathing room; the parent supplies nav clearance. */
+    .app-ui .main-content>:where(
+      .dashboard-page,.documents-workspace-v2,.documents-page,.customers-page,.customer-profile-page,
+      .product-library-page,.product-library-pro,.saved-items-page,.receivables-page,.reports-page,
+      .profitability-page,.operations-page,.commercial-controls-page,.domain-workspace,.page
+    ){
+      box-sizing:border-box!important;
+      padding-bottom:14px!important;
+      margin-bottom:0!important;
+    }
+
+    /* Finger targets: visually compact, interactively reliable. */
+    .app-ui :where(
+      .shell-mobile-brand>button,.shell-global-search-button,
+      .fintech-dashboard-v280 .command-center-actions .btn,
+      .fintech-dashboard-v280 .command-period-pill,
+      .fintech-dashboard-v280 .dashboard-panel-heading>button,
+      .fintech-dashboard-v280 .command-position-action,
+      .fintech-dashboard-v280 .dashboard-attention-list>button,
+      .settings-workspace-v2 .settings-tabs>button,
+      .modal-header>.icon-btn,
+      .heading-actions>.btn,.documents-heading-actions>.btn,.reports-heading-actions>.btn,
+      .auth-account-card .account-entry-tabs button,.auth-account-card .premium-auth-language
+    ){
+      min-height:44px!important;
+    }
+    .app-ui :where(.shell-mobile-brand>button,.shell-global-search-button,.modal-header>.icon-btn){
+      min-width:44px!important;
+      width:44px!important;
+      height:44px!important;
+    }
+  }
+
+  @media(max-width:720px){
+    /* App bar columns must match the 44px buttons; historical 36/38px tracks caused drift. */
+    .app-ui:has(.fintech-dashboard-v280) .workspace-topbar{
+      display:grid!important;
+      min-height:calc(56px + env(safe-area-inset-top,0px))!important;
+      grid-template-columns:44px minmax(0,1fr) 44px!important;
+      padding-top:calc(8px + env(safe-area-inset-top,0px))!important;
+      padding-inline:10px!important;
+      padding-bottom:8px!important;
+      gap:7px!important;
+    }
+    .app-ui:has(.fintech-dashboard-v280) .shell-mobile-brand,
+    .app-ui:has(.fintech-dashboard-v280) .shell-topbar-actions{
+      width:44px!important;
+      min-width:44px!important;
+    }
+    .app-ui:has(.fintech-dashboard-v280) .shell-topbar-actions{
+      grid-template-columns:44px!important;
+    }
+
+    /* Home uses the same single-clearance contract as every other screen. */
+    .app-ui .workspace-shell.screen-home .fintech-dashboard-v280,
+    .app-ui .fintech-dashboard-v280{
+      padding-bottom:10px!important;
+      margin-bottom:0!important;
+    }
+
+    /* Keep the first screen dense without making controls too small. */
+    .app-ui .fintech-dashboard-v280 .command-center-actions .btn,
+    .app-ui .fintech-dashboard-v280 .command-period-pill{
+      min-height:44px!important;
+      font-size:11px!important;
+      line-height:1.2!important;
+    }
+    .app-ui .fintech-dashboard-v280 .command-chart-controls button,
+    .app-ui .fintech-dashboard-v280 .command-chart-mode button{
+      min-height:44px!important;
+      font-size:10.5px!important;
+      line-height:1.15!important;
+    }
+    .app-ui .fintech-dashboard-v280 .dashboard-panel-heading>button,
+    .app-ui .fintech-dashboard-v280 .command-position-action,
+    .app-ui .fintech-dashboard-v280 .dashboard-attention-list>button{
+      min-height:44px!important;
+    }
+    .app-ui .fintech-dashboard-v280 .dashboard-panel-heading small{
+      font-size:9.5px!important;
+    }
+
+    /* Bottom nav labels/icons stay centered regardless of Arabic/English string width. */
+    .app-ui .mobile-bottom-nav>button{
+      display:flex!important;
+      flex-direction:column!important;
+      min-width:0!important;
+      align-items:center!important;
+      justify-content:center!important;
+    }
+    .app-ui .mobile-bottom-nav>button>span{
+      width:100%!important;
+      max-width:100%!important;
+      overflow:hidden!important;
+      text-overflow:ellipsis!important;
+      white-space:nowrap!important;
+      text-align:center!important;
+      font-size:10.5px!important;
+    }
+
+    /* Quick Create stays compact but readable and scrollable on short Safari viewports. */
+    .global-search-start,.global-search-results{
+      min-height:0!important;
+      overflow-y:auto!important;
+      overscroll-behavior:contain!important;
+      -webkit-overflow-scrolling:touch;
+    }
+    .global-search-actions button{
+      min-height:56px!important;
+      padding:8px 9px!important;
+    }
+    .global-search-actions strong{font-size:11px!important;line-height:1.22!important}
+    .global-search-actions small{font-size:9.25px!important;line-height:1.25!important}
+    .global-search-destinations button{min-height:44px!important}
+    .global-search-footer{flex:0 0 auto!important}
+
+    /* Settings/modal/auth controls retain 44px reachability after compact layout rules. */
+    .app-ui .settings-workspace-v2 .settings-tabs>button{min-height:44px!important}
+    .app-ui .modal-header>.icon-btn{
+      width:44px!important;
+      min-width:44px!important;
+      max-width:44px!important;
+      height:44px!important;
+      min-height:44px!important;
+      max-height:44px!important;
+    }
+    .auth-account-card .account-entry-tabs button,
+    .auth-account-card .premium-auth-language{min-height:44px!important}
+  }
+
+  @media(max-width:390px){
+    .app-ui:has(.fintech-dashboard-v280) .workspace-topbar{grid-template-columns:44px minmax(0,1fr) 44px!important;padding-inline:8px!important}
+    .app-ui .fintech-dashboard-v280 .command-center-actions .btn,
+    .app-ui .fintech-dashboard-v280 .command-period-pill{font-size:10.25px!important}
+    .global-search-actions strong{font-size:10.5px!important}
+  }
+}

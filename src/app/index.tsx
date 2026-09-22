@@ -200,10 +200,11 @@ async function resolveRequiredAccountSession():Promise<boolean>{
     // different account on the same device therefore cannot inherit this user's
     // encrypted vault, session key, preferences or cloud-link metadata.
     await activateAccountStorage(user.uid);
-    // A previously unlocked vault key is bound to the Firebase UID and may be
-    // resumed only after that same account authenticates. This keeps sign-out a
-    // real workspace boundary without making the user enter a second PIN.
-    await resumeAccountSession(user.uid);
+    // Every explicit Firebase/Google login must cross the local encryption PIN gate.
+    // Normal reloads can still resume the UID-bound unlocked session.
+    let freshLogin=false;
+    try{freshLogin=sessionStorage.getItem('lourex-auth-just-signed-in')==='1';if(freshLogin)sessionStorage.removeItem('lourex-auth-just-signed-in');}catch{}
+    if(freshLogin)await suspendSession();else await resumeAccountSession(user.uid);
     return true;
   }
 

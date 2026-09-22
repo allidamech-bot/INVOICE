@@ -1,0 +1,116 @@
+/* LOUREX v297 — mobile editor interaction and readability closeout.
+   Screen editor only. No printable document geometry or business logic. */
+@media screen and (max-width:900px){
+  /* Every editor action is a real finger target. v162 reintroduced 35–42px controls. */
+  .app-ui .editor-top-left>.icon-btn,
+  .app-ui .section-heading-actions .btn,
+  .app-ui .item-card-actions .btn,
+  .app-ui .item-card-actions .icon-btn,
+  .app-ui .editor-section-nav-button,
+  .app-ui .mobile-action-buttons .btn{
+    min-height:44px!important;
+  }
+  .app-ui .editor-top-left>.icon-btn,
+  .app-ui .item-card-actions .icon-btn{
+    width:44px!important;
+    min-width:44px!important;
+    height:44px!important;
+    max-height:44px!important;
+    padding:0!important;
+  }
+
+  .app-ui .editor-topbar{
+    min-height:calc(60px + env(safe-area-inset-top,0px))!important;
+    padding:max(8px,env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-right,0px)) 8px max(10px,env(safe-area-inset-left,0px))!important;
+  }
+  .app-ui .editor-top-left{gap:8px!important}
+  .app-ui .editor-top-left>div>strong{
+    font-size:14px!important;
+    line-height:1.22!important;
+  }
+  .app-ui .editor-workflow-badge{
+    min-height:28px!important;
+    font-size:10.5px!important;
+  }
+
+  /* Section actions remain compact but no longer visually tiny. */
+  .app-ui .section-heading-actions{gap:6px!important}
+  .app-ui .section-heading-actions .btn{
+    padding:7px 9px!important;
+    font-size:11px!important;
+  }
+  .app-ui .section-heading h2{
+    font-size:16px!important;
+    line-height:1.3!important;
+  }
+
+  /* Item row actions were 35px after the canonical editor stylesheet. */
+  .app-ui .item-card-actions{
+    gap:6px!important;
+  }
+  .app-ui .item-card-actions .btn{
+    padding-inline:9px!important;
+    font-size:10.5px!important;
+  }
+
+  /* Step dock: six stages stay reachable and touch-safe. */
+  .app-ui .editor-section-nav-slot{
+    min-height:54px!important;
+    padding-block:5px 6px!important;
+  }
+  .app-ui .editor-section-nav-button{
+    min-height:44px!important;
+    padding:5px 7px!important;
+  }
+  .app-ui .editor-nav-number{
+    width:24px!important;
+    height:24px!important;
+    font-size:9.5px!important;
+  }
+  .app-ui .editor-nav-label{
+    font-size:10.5px!important;
+    line-height:1.2!important;
+  }
+
+  /* Bottom document actions: readable and tap-safe on all phone widths. */
+  .app-ui .mobile-editor-actionbar{
+    min-height:calc(68px + env(safe-area-inset-bottom,0px))!important;
+    gap:7px!important;
+  }
+  .app-ui .mobile-action-buttons{gap:6px!important}
+  .app-ui .mobile-action-buttons .btn{
+    min-height:44px!important;
+    padding:6px 4px!important;
+  }
+  .app-ui .mobile-action-buttons .btn span{
+    font-size:10px!important;
+    line-height:1.15!important;
+  }
+  .app-ui .mobile-total>span{
+    font-size:10px!important;
+    line-height:1.2!important;
+  }
+  .app-ui .mobile-total>strong{
+    font-size:13px!important;
+    line-height:1.2!important;
+  }
+
+  /* Inputs already use 16px to prevent iOS zoom; labels must not feel miniature. */
+  .app-ui .editor-screen .field-label,
+  .app-ui .editor-screen .field>label,
+  .app-ui .editor-screen .toggle-row :where(span,strong){
+    font-size:10.5px!important;
+    line-height:1.35!important;
+  }
+}
+
+@media screen and (max-width:420px){
+  /* v294 owns the six-column no-scroll navigator here; retain its geometry but
+     preserve the 44px interaction target from this layer. */
+  .app-ui .editor-section-nav-button,
+  .app-ui .editor-section-nav-button.active,
+  .app-ui .editor-section-nav-button.has-error{
+    min-height:44px!important;
+  }
+  .app-ui .mobile-action-buttons .btn{min-height:44px!important}
+}

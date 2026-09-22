@@ -1,0 +1,189 @@
+/* LOUREX v290 — late visual hardening.
+   Closes the remaining legacy hard-coded light surfaces in Settings, modals and
+   editor controls. This file is loaded after v289 and remains application-only. */
+@media screen {
+  html[data-ui-theme="light"] .app-ui .settings-workspace-v2{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-workspace-v2 .settings-tabs{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-workspace-v2 .settings-tabs>button{
+    color:var(--ft-text-soft)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-workspace-v2 .settings-tabs>button:hover{
+    background:var(--ft-accent-faint)!important;
+    color:var(--ft-accent)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-workspace-v2 .settings-tabs>button.active{
+    border-color:color-mix(in srgb,var(--ft-accent) 24%,var(--ft-line))!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:inset 3px 0 0 var(--ft-accent),0 3px 10px rgba(30,54,57,.04)!important;
+  }
+  [dir='rtl'] html[data-ui-theme="light"] .app-ui .settings-workspace-v2 .settings-tabs>button.active{
+    box-shadow:inset -3px 0 0 var(--ft-accent),0 3px 10px rgba(30,54,57,.04)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-workspace-v2 .settings-panel{
+    background:var(--ft-surface)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-title{
+    border-color:var(--ft-line)!important;
+    background:color-mix(in srgb,var(--ft-surface) 96%,transparent)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-title h3,
+  html[data-ui-theme="light"] .app-ui .settings-workspace-v2 .settings-section>h4,
+  html[data-ui-theme="light"] .app-ui .settings-section-heading h4{
+    color:var(--ft-text-strong)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-title p:not(.eyebrow),
+  html[data-ui-theme="light"] .app-ui .settings-section-heading p,
+  html[data-ui-theme="light"] .app-ui .settings-note{
+    color:var(--ft-text-soft)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-workspace-v2 .settings-section{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-workspace-v2 :is(.input,select.input,textarea.input){
+    border-color:var(--ft-line-strong)!important;
+    background:var(--ft-input)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-workspace-v2 :is(.input,select.input,textarea.input):focus{
+    border-color:var(--ft-accent)!important;
+    background:var(--ft-surface)!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent) 13%,transparent)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-workspace-v2 .field-label{color:var(--ft-text-soft)!important}
+  html[data-ui-theme="light"] .app-ui .company-artwork-section .asset-preview{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .numbering-preview>span{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text-soft)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-account-card{
+    border-color:color-mix(in srgb,var(--ft-success) 18%,var(--ft-line))!important;
+    background:linear-gradient(145deg,var(--ft-success-soft),var(--ft-surface) 66%)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .settings-account-status strong{color:var(--ft-text-strong)!important}
+  html[data-ui-theme="light"] .app-ui .settings-account-status :is(small,p){color:var(--ft-text-soft)!important}
+  html[data-ui-theme="light"] .app-ui .settings-account-actions{border-color:var(--ft-line)!important}
+  html[data-ui-theme="light"] .app-ui .settings-signout-button{
+    border-color:var(--ft-line-strong)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
+  }
+
+  /* Shared modals inherit the current theme instead of the historical ivory theme. */
+  html[data-ui-theme="light"] .app-ui .modal-backdrop{background:rgba(19,36,40,.46)!important}
+  html[data-ui-theme="light"] .app-ui .modal{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+    box-shadow:var(--ft-shadow-pop)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .modal-header,
+  html[data-ui-theme="light"] .app-ui .modal-footer{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .modal-header>.icon-btn{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text-soft)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .modal-body{background:var(--ft-surface)!important;color:var(--ft-text)!important}
+
+  /* Editor totals and mobile action chrome: distinct, but never hard-white. */
+  html[data-ui-theme="light"] .app-ui .adjustment-row{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .editor-totals{
+    border-color:var(--ft-line)!important;
+    background:linear-gradient(145deg,var(--ft-surface-2),var(--ft-surface))!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="light"] .app-ui .editor-totals .grand{
+    border-color:#1f6167!important;
+    background:linear-gradient(135deg,#164951,#1e6970)!important;
+    color:#f1f8f7!important;
+    box-shadow:0 7px 18px rgba(23,78,84,.14)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .editor-totals .grand :where(span,strong){color:#f1f8f7!important}
+  html[data-ui-theme="light"] .app-ui .mobile-action-buttons{
+    border-color:var(--ft-line)!important;
+    background:color-mix(in srgb,var(--ft-shell) 97%,transparent)!important;
+    box-shadow:0 -7px 20px rgba(19,43,47,.08)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .mobile-action-buttons .btn:not(.btn-primary){
+    border-color:var(--ft-line-strong)!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .document-readiness{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    box-shadow:none!important;
+  }
+
+  /* Make semantic toggles legible in both themes without using a white pill. */
+  html[data-ui-theme="light"] .app-ui .toggle:not(.on){background:var(--ft-surface-3)!important;border-color:var(--ft-line-strong)!important}
+  html[data-ui-theme="light"] .app-ui .toggle.on{background:var(--ft-accent)!important;border-color:var(--ft-accent)!important}
+
+  @media(max-width:720px){
+    /* Settings mobile: horizontally scrollable tabs, compact sections, no full-height white slab. */
+    .app-ui .settings-workspace-v2{
+      min-height:0!important;
+      background:var(--ft-surface)!important;
+    }
+    .app-ui .settings-workspace-v2 .settings-tabs{
+      min-height:50px!important;
+      padding:6px 8px!important;
+      gap:4px!important;
+      background:var(--ft-surface-2)!important;
+      border-bottom-color:var(--ft-line)!important;
+    }
+    .app-ui .settings-workspace-v2 .settings-tabs>button{
+      min-height:40px!important;
+      padding:6px 9px!important;
+      border-radius:9px!important;
+    }
+    .app-ui .settings-tab-page{padding:13px 11px 20px!important}
+    .app-ui .settings-title{
+      min-height:62px!important;
+      margin:-13px -11px 12px!important;
+      padding:10px 11px!important;
+      gap:9px!important;
+    }
+    .app-ui .settings-title h3{font-size:16px!important}
+    .app-ui .settings-workspace-v2 .settings-section{padding:12px!important;margin-bottom:9px!important;border-radius:12px!important}
+    .app-ui .settings-workspace-v2 .form-grid.two{grid-template-columns:1fr!important;gap:9px!important}
+
+    .app-ui .modal-backdrop{
+      padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left))!important;
+    }
+    .app-ui .modal{
+      height:auto!important;
+      max-height:calc(100dvh - max(12px,env(safe-area-inset-top)) - max(18px,env(safe-area-inset-bottom)))!important;
+      align-self:center!important;
+      border-radius:15px!important;
+    }
+    .app-ui .modal-header{min-height:54px!important;padding:6px 8px 6px 11px!important}
+    [dir='rtl'] .app-ui .modal-header{padding:6px 11px 6px 8px!important}
+    .app-ui .modal-header>.icon-btn{width:42px!important;min-width:42px!important;height:42px!important;min-height:42px!important;border-radius:11px!important}
+
+    .app-ui .editor-scroll{padding:10px 9px 22px!important}
+    .app-ui .editor-section{padding:11px!important;margin-bottom:8px!important;border-radius:10px!important}
+    .app-ui .document-readiness{margin:7px 9px 0!important;border-radius:10px!important}
+  }
+}

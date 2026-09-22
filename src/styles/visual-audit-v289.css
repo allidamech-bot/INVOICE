@@ -1,0 +1,600 @@
+/* LOUREX v289 — full visual audit and UX refinement layer.
+   Final preview-only presentation layer. It is intentionally loaded after every
+   historical application stylesheet so old hard-coded surfaces cannot win the cascade.
+   Printable .invoice-page output is not targeted here. */
+
+@media screen {
+  /* --------------------------------------------------------------------------
+     Semantic light theme: calm stone canvas, differentiated but restrained color.
+     -------------------------------------------------------------------------- */
+  html[data-ui-theme="light"] {
+    --ft-canvas:#e8eeeb;
+    --ft-shell:#eef2ef;
+    --ft-workspace:#edf1ef;
+    --ft-surface:#f6f7f3;
+    --ft-surface-2:#edf1ee;
+    --ft-surface-3:#e4eae7;
+    --ft-input:#f0f3f0;
+    --ft-text:#1d3033;
+    --ft-text-strong:#102528;
+    --ft-text-soft:#5b6e71;
+    --ft-muted:#758588;
+    --ft-faint:#909c9e;
+    --ft-line:#d0d9d6;
+    --ft-line-strong:#bdcac6;
+    --ft-accent:#159fa2;
+    --ft-accent-hover:#0b8287;
+    --ft-accent-soft:#d9eeeb;
+    --ft-accent-faint:#e7f2f0;
+    --ft-success:#309a75;
+    --ft-success-soft:#deeee7;
+    --ft-warning:#bf8738;
+    --ft-warning-soft:#f2e8d8;
+    --ft-danger:#ca6671;
+    --ft-danger-soft:#f1e1e4;
+    --ft-info:#4e7dc5;
+    --ft-info-soft:#e2e8f4;
+    --ft-shadow:0 8px 24px rgba(29,54,57,.06);
+    --ft-shadow-pop:0 24px 68px rgba(29,49,53,.16);
+    --vx-purple:#7868d7;
+    --vx-purple-soft:#e9e5f5;
+    --vx-blue:#5578d6;
+    --vx-blue-soft:#e4eaf5;
+    --vx-green:#349976;
+    --vx-green-soft:#deeee7;
+    --vx-amber:#bd883c;
+    --vx-amber-soft:#f2e8d8;
+    --vx-red:#c96772;
+    --vx-red-soft:#f1e1e4;
+    --vx-sky:#448caf;
+    --vx-sky-soft:#e0ebf0;
+  }
+
+  html[data-ui-theme="dark"] {
+    --ft-canvas:#06171e;
+    --ft-shell:#071d25;
+    --ft-workspace:#082129;
+    --ft-surface:#0c2831;
+    --ft-surface-2:#102f38;
+    --ft-surface-3:#153943;
+    --ft-input:#0a232b;
+    --ft-line:#173942;
+    --ft-line-strong:#24505a;
+    --ft-text:#dcebee;
+    --ft-text-strong:#f2f9fa;
+    --ft-text-soft:#a4b6ba;
+    --ft-muted:#839a9f;
+    --ft-faint:#6c8388;
+    --vx-purple:#a08af1;
+    --vx-purple-soft:#1d2237;
+    --vx-blue:#7d98ee;
+    --vx-blue-soft:#17283d;
+    --vx-green:#52c59a;
+    --vx-green-soft:#12352c;
+    --vx-amber:#dfa95c;
+    --vx-amber-soft:#392b19;
+    --vx-red:#ea7d88;
+    --vx-red-soft:#3a2026;
+    --vx-sky:#62afd0;
+    --vx-sky-soft:#16313f;
+  }
+
+  html[data-ui-theme="light"],
+  html[data-ui-theme="light"] body,
+  html[data-ui-theme="light"] #root,
+  html[data-ui-theme="light"] .app-ui,
+  html[data-ui-theme="light"] .app-ui .workspace-shell,
+  html[data-ui-theme="light"] .app-ui .workspace-content,
+  html[data-ui-theme="light"] .app-ui .main-content {
+    background-color:var(--ft-canvas)!important;
+  }
+
+  /* Compatibility aliases used by older UI layers. */
+  html[data-ui-theme="light"] .app-ui {
+    --mf-canvas:var(--ft-canvas);
+    --mf-shell:var(--ft-shell);
+    --mf-workspace:var(--ft-workspace);
+    --mf-surface:var(--ft-surface);
+    --mf-surface-2:var(--ft-surface-2);
+    --mf-input:var(--ft-input);
+    --mf-text:var(--ft-text);
+    --mf-text-strong:var(--ft-text-strong);
+    --mf-text-soft:var(--ft-text-soft);
+    --mf-muted:var(--ft-muted);
+    --mf-line:var(--ft-line);
+    --mf-accent:var(--ft-accent);
+    --ds-canvas:var(--ft-canvas);
+    --ds-shell:var(--ft-shell);
+    --ds-workspace:var(--ft-workspace);
+    --ds-surface:var(--ft-surface);
+    --ds-surface-strong:var(--ft-surface-2);
+    --ds-elevated:var(--ft-surface-2);
+    --ds-input:var(--ft-input);
+    --ds-selected:var(--ft-accent-faint);
+    --ds-text:var(--ft-text);
+    --ds-text-strong:var(--ft-text-strong);
+    --ds-text-soft:var(--ft-text-soft);
+    --ds-muted:var(--ft-muted);
+    --ds-faint:var(--ft-faint);
+    --ds-line:var(--ft-line);
+    --ds-line-strong:var(--ft-line-strong);
+    --ds-input-line:var(--ft-line-strong);
+    --ds-accent:var(--ft-accent);
+    --ds-accent-hover:var(--ft-accent-hover);
+    --ds-accent-bright:var(--ft-accent);
+    --ds-secondary-button:var(--ft-surface-2);
+    --ds-success:var(--ft-success);
+    --ds-success-surface:var(--ft-success-soft);
+    --ds-warning:var(--ft-warning);
+    --ds-warning-surface:var(--ft-warning-soft);
+    --ds-danger:var(--ft-danger);
+    --ds-danger-text:var(--ft-danger);
+    --ds-danger-surface:var(--ft-danger-soft);
+    --ds-info:var(--ft-info);
+    --ds-info-surface:var(--ft-info-soft);
+    --editor-shell:var(--ft-canvas);
+    --editor-pane:var(--ft-workspace);
+    --editor-card:var(--ft-surface);
+    --editor-card-soft:var(--ft-surface-2);
+    --editor-line:var(--ft-line);
+    --editor-line-strong:var(--ft-line-strong);
+    --editor-ink:var(--ft-text);
+    --editor-muted:var(--ft-muted);
+    --editor-accent:var(--ft-accent);
+    --editor-accent-soft:var(--ft-accent-soft);
+  }
+
+  /* --------------------------------------------------------------------------
+     Global application rhythm and controls.
+     -------------------------------------------------------------------------- */
+  .app-ui :where(.page,.domain-workspace,.dashboard-page,.documents-workspace-v2,.operations-page,.reports-page) {
+    color:var(--ft-text)!important;
+  }
+  .app-ui :where(.page-heading,.documents-heading,.operations-hero,.reports-heading) {
+    align-items:flex-end!important;
+    gap:14px!important;
+  }
+  .app-ui :where(.page-heading,.documents-heading,.operations-hero,.reports-heading) h1 {
+    color:var(--ft-text-strong)!important;
+    font-weight:850!important;
+    line-height:1.14!important;
+  }
+  .app-ui :where(.page-subtitle,.operations-hero p:not(.eyebrow),.reports-heading p:not(.eyebrow)) {
+    color:var(--ft-text-soft)!important;
+    line-height:1.55!important;
+  }
+
+  html[data-ui-theme="light"] .app-ui :where(input,select,textarea,.input,.textarea,select.input) {
+    border-color:var(--ft-line-strong)!important;
+    background:var(--ft-input)!important;
+    color:var(--ft-text)!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="light"] .app-ui :where(input,select,textarea,.input,.textarea,select.input):focus {
+    border-color:var(--ft-accent)!important;
+    background:var(--ft-surface)!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent) 13%,transparent)!important;
+  }
+  html[data-ui-theme="light"] .app-ui :where(input,textarea,.input,.textarea)::placeholder {color:#879699!important}
+
+  html[data-ui-theme="light"] .app-ui :where(
+    .editor-section,.editor-totals,.selected-customer,.item-card,.advanced-panel,.design-advanced-panel,
+    .commercial-row-card,.settings-card,.settings-section,.asset-card,.customer-profile-hero,
+    .premium-customer-card,.documents-resume,.documents-command,.documents-register,
+    .product-library-list-pane,.product-library-editor-pane,.operations-list-panel,.operations-editor,
+    .receivable-currency-card,.report-currency-card,.modal
+  ) {
+    border-color:var(--ft-line)!important;
+    background-color:var(--ft-surface)!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="light"] .app-ui :where(
+    .item-card header,.item-card footer,.modal-header,.modal-footer,.product-library-list-head,
+    .product-library-editor-head,.operations-panel-head,.preview-toolbar,.mobile-action-buttons
+  ) {
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .modal-body {background:var(--ft-surface)!important;color:var(--ft-text)!important}
+
+  html[data-ui-theme="light"] .app-ui :where(
+    .main-nav button.active,.documents-toolbar .segmented button.active,.settings-tabs button.active,
+    .logo-mode-switch button.active,.documents-register-tabs>button.active,.operations-tabs>button.active,
+    .domain-workspace-tabs>button.active
+  ) {
+    background:var(--ft-surface)!important;
+    color:var(--ft-accent)!important;
+    border-color:var(--ft-line)!important;
+    box-shadow:0 2px 8px rgba(31,53,56,.06)!important;
+  }
+
+  html[data-ui-theme="light"] .app-ui :where(.preview-quality-pill,.product-meta-chip,.product-metadata-pill) {
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text-soft)!important;
+  }
+
+  .app-ui :where(.btn,button,.icon-btn) {font-family:inherit}
+  .app-ui .btn {border-radius:10px!important;font-weight:760!important}
+  .app-ui .btn.btn-primary {font-weight:820!important}
+
+  /* --------------------------------------------------------------------------
+     Shell and navigation.
+     -------------------------------------------------------------------------- */
+  .app-ui .workspace-topbar {
+    color:var(--ft-text)!important;
+    border-bottom-color:var(--ft-line)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .workspace-topbar {
+    background:color-mix(in srgb,var(--ft-shell) 96%,transparent)!important;
+  }
+  .app-ui .shell-page-title strong {color:var(--ft-text-strong)!important}
+  .app-ui .shell-page-title small {color:var(--ft-muted)!important}
+  .app-ui .shell-global-search-button {color:var(--ft-text-soft)!important}
+  .app-ui .shell-global-search-button:hover {background:var(--ft-accent-faint)!important;color:var(--ft-accent)!important}
+
+  html[data-ui-theme="light"] .app-ui .workspace-sidebar {
+    background:#10272d!important;
+    border-inline-end-color:#1e3c43!important;
+  }
+  html[data-ui-theme="light"] .app-ui .workspace-sidebar :where(.shell-nav-button,.shell-settings-row,.shell-account-row,.shell-sync-row) {color:#abc0c4!important}
+  html[data-ui-theme="light"] .app-ui .workspace-sidebar .shell-nav-button.active {
+    background:#17343b!important;
+    color:#f1f7f6!important;
+    border-color:#28505a!important;
+  }
+
+  /* --------------------------------------------------------------------------
+     Home command center.
+     -------------------------------------------------------------------------- */
+  .app-ui .fintech-dashboard-v280 {align-content:start!important}
+  .app-ui .fintech-dashboard-v280 .command-center-hero {
+    min-height:0!important;
+  }
+  .app-ui .fintech-dashboard-v280 .command-center-actions {
+    align-self:center!important;
+  }
+  [dir="rtl"] .app-ui .fintech-dashboard-v280 .command-center-actions .btn {
+    grid-column:1!important;
+    grid-row:1!important;
+  }
+  [dir="rtl"] .app-ui .fintech-dashboard-v280 .command-center-actions .command-period-pill {
+    grid-column:2!important;
+    grid-row:1!important;
+  }
+  [dir="ltr"] .app-ui .fintech-dashboard-v280 .command-center-actions .btn {
+    grid-column:2!important;
+  }
+  [dir="ltr"] .app-ui .fintech-dashboard-v280 .command-center-actions .command-period-pill {
+    grid-column:1!important;
+  }
+
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi,
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button {
+    text-align:start!important;
+  }
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi>span:last-child,
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button>strong {
+    min-width:0!important;
+  }
+
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .kpi-sales {border-color:color-mix(in srgb,var(--vx-blue) 22%,var(--ft-line))!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .kpi-collected {border-color:color-mix(in srgb,var(--vx-green) 22%,var(--ft-line))!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .kpi-outstanding {border-color:color-mix(in srgb,var(--ft-accent) 22%,var(--ft-line))!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .kpi-overdue {border-color:color-mix(in srgb,var(--vx-red) 22%,var(--ft-line))!important}
+
+  .app-ui .fintech-dashboard-v280 .command-position-list strong,
+  .app-ui .fintech-dashboard-v280 .command-health-bars b,
+  .app-ui .fintech-dashboard-v280 .dashboard-document-amount,
+  .app-ui .fintech-dashboard-v280 .dashboard-money-stack b {
+    direction:ltr!important;
+    unicode-bidi:isolate!important;
+    font-variant-numeric:tabular-nums!important;
+  }
+
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .command-position-action {
+    border-color:color-mix(in srgb,var(--vx-purple) 24%,var(--ft-line))!important;
+    background:var(--vx-purple-soft)!important;
+    color:var(--vx-purple)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .dashboard-attention-list .is-warn {
+    background:var(--vx-amber-soft)!important;
+    color:#9a681e!important;
+  }
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .dashboard-attention-list .is-alert {
+    background:var(--vx-red-soft)!important;
+    color:#a74955!important;
+  }
+
+  .app-ui .fintech-dashboard-v280 .dashboard-document-row {
+    align-items:center!important;
+  }
+  [dir="rtl"] .app-ui .fintech-dashboard-v280 .dashboard-panel-heading>button span[aria-hidden="true"],
+  [dir="rtl"] .app-ui .fintech-dashboard-v280 .command-position-action span:last-child {
+    display:inline-block!important;
+    transform:scaleX(-1)!important;
+  }
+
+  /* --------------------------------------------------------------------------
+     Registers and financial workspaces.
+     -------------------------------------------------------------------------- */
+  html[data-ui-theme="light"] .app-ui :where(
+    .documents-register,.product-library-list-pane,.product-library-editor-pane,.operations-list-panel,
+    .operations-editor,.inventory-table-wrap,.inventory-history
+  ) {
+    background:var(--ft-surface)!important;
+  }
+  html[data-ui-theme="light"] .app-ui :where(.documents-register-tabs,.operations-tabs,.domain-workspace-tabs) {
+    background:var(--ft-surface-2)!important;
+    border-color:var(--ft-line)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .premium-customer-card:nth-child(3n+1) {background:linear-gradient(145deg,var(--vx-blue-soft),var(--ft-surface) 58%)!important}
+  html[data-ui-theme="light"] .app-ui .premium-customer-card:nth-child(3n+2) {background:linear-gradient(145deg,var(--vx-purple-soft),var(--ft-surface) 58%)!important}
+  html[data-ui-theme="light"] .app-ui .premium-customer-card:nth-child(3n+3) {background:linear-gradient(145deg,var(--vx-green-soft),var(--ft-surface) 58%)!important}
+  html[data-ui-theme="light"] .app-ui .product-library-metrics>button:nth-child(4n+1),
+  html[data-ui-theme="light"] .app-ui .product-library-metrics>div:nth-child(4n+1) {background:linear-gradient(145deg,var(--vx-blue-soft),var(--ft-surface) 65%)!important}
+  html[data-ui-theme="light"] .app-ui .product-library-metrics>button:nth-child(4n+2),
+  html[data-ui-theme="light"] .app-ui .product-library-metrics>div:nth-child(4n+2) {background:linear-gradient(145deg,var(--vx-green-soft),var(--ft-surface) 65%)!important}
+  html[data-ui-theme="light"] .app-ui .product-library-metrics>button:nth-child(4n+3),
+  html[data-ui-theme="light"] .app-ui .product-library-metrics>div:nth-child(4n+3) {background:linear-gradient(145deg,var(--vx-amber-soft),var(--ft-surface) 65%)!important}
+  html[data-ui-theme="light"] .app-ui .product-library-metrics>button:nth-child(4n+4),
+  html[data-ui-theme="light"] .app-ui .product-library-metrics>div:nth-child(4n+4) {background:linear-gradient(145deg,var(--vx-purple-soft),var(--ft-surface) 65%)!important}
+
+  .app-ui :where(.documents-register-row,.product-library-row,.operation-row) {transition:background-color .14s ease,border-color .14s ease!important}
+  [dir="rtl"] .app-ui :where(.documents-register-row,.product-library-row,.operation-row,.premium-customer-card) {text-align:right!important}
+
+  /* Finance cards gain functional distinction without rainbow noise. */
+  html[data-ui-theme="light"] .app-ui .receivable-currency-card:nth-child(3n+1),
+  html[data-ui-theme="light"] .app-ui .report-currency-card:nth-child(3n+1) {background:linear-gradient(145deg,var(--vx-blue-soft),var(--ft-surface) 58%)!important}
+  html[data-ui-theme="light"] .app-ui .receivable-currency-card:nth-child(3n+2),
+  html[data-ui-theme="light"] .app-ui .report-currency-card:nth-child(3n+2) {background:linear-gradient(145deg,var(--vx-green-soft),var(--ft-surface) 58%)!important}
+  html[data-ui-theme="light"] .app-ui .receivable-currency-card:nth-child(3n+3),
+  html[data-ui-theme="light"] .app-ui .report-currency-card:nth-child(3n+3) {background:linear-gradient(145deg,var(--vx-purple-soft),var(--ft-surface) 58%)!important}
+
+  /* --------------------------------------------------------------------------
+     Editor and settings: remove legacy hard-white islands and normalize scale.
+     -------------------------------------------------------------------------- */
+  html[data-ui-theme="light"] .app-ui .editor-screen {background:var(--ft-canvas)!important}
+  html[data-ui-theme="light"] .app-ui .editor-header {background:var(--ft-shell)!important;border-color:var(--ft-line)!important}
+  html[data-ui-theme="light"] .app-ui .editor-layout {background:transparent!important}
+  html[data-ui-theme="light"] .app-ui .editor-pane {background:var(--ft-surface)!important;border-color:var(--ft-line)!important}
+  html[data-ui-theme="light"] .app-ui .preview-pane {background:var(--ft-workspace)!important;border-color:var(--ft-line)!important}
+  html[data-ui-theme="light"] .app-ui .editor-totals {
+    background:linear-gradient(145deg,var(--ft-surface-2),var(--ft-surface))!important;
+  }
+  html[data-ui-theme="light"] .app-ui .commercial-row-card {background:var(--ft-surface)!important}
+  html[data-ui-theme="light"] .app-ui .commercial-row-card:nth-child(even) {background:var(--ft-surface-2)!important}
+  html[data-ui-theme="light"] .app-ui .appearance-toggles .toggle-row {background:var(--ft-surface-2)!important}
+  html[data-ui-theme="light"] .app-ui .settings-tabs button:hover {background:var(--ft-accent-faint)!important;color:var(--ft-accent)!important}
+
+  .app-ui .editor-section {border-radius:11px!important}
+  .app-ui .editor-section .section-heading h2 {font-weight:820!important}
+  .app-ui .editor-grand-total-chip strong,
+  .app-ui .item-line-total,
+  .app-ui .editor-totals strong {direction:ltr!important;unicode-bidi:isolate!important}
+
+  /* --------------------------------------------------------------------------
+     Auth gateway.
+     -------------------------------------------------------------------------- */
+  html[data-ui-theme="light"] .auth-account-page {
+    background:
+      radial-gradient(circle at 14% 15%,rgba(21,159,162,.09),transparent 28rem),
+      radial-gradient(circle at 88% 85%,rgba(184,136,73,.08),transparent 26rem),
+      linear-gradient(145deg,#e7eeeb,#edf1ee)!important;
+  }
+  html[data-ui-theme="light"] .auth-account-frame {background:#f2f4f1!important;border-color:#cad4d0!important}
+  html[data-ui-theme="light"] .auth-account-story {
+    background:radial-gradient(circle at 20% 17%,rgba(66,181,181,.14),transparent 21rem),linear-gradient(155deg,#0d3138,#0a252d 52%,#071c24)!important;
+  }
+  html[data-ui-theme="light"] .auth-account-story :where(.auth-story-title,.brand-words strong) {color:#f1f7f5!important}
+  html[data-ui-theme="light"] .auth-account-story .auth-story-product {color:#75cfcc!important;background:rgba(5,24,30,.32)!important;border-color:rgba(117,207,204,.24)!important}
+  html[data-ui-theme="light"] .auth-account-card.account-first-card {background:linear-gradient(180deg,#f5f6f2,#eef1ee)!important;color:var(--ft-text)!important}
+  html[data-ui-theme="light"] .auth-account-card .auth-card-heading h1 {color:var(--ft-text-strong)!important}
+  html[data-ui-theme="light"] .auth-account-card .auth-card-heading .subtle {color:var(--ft-text-soft)!important}
+  html[data-ui-theme="light"] .auth-account-card .account-entry-tabs {background:var(--ft-surface-3)!important;border-color:var(--ft-line)!important}
+  html[data-ui-theme="light"] .auth-account-card .account-entry-tabs button.active {background:var(--ft-surface)!important;color:var(--ft-text-strong)!important}
+  html[data-ui-theme="light"] .google-auth-button {background:var(--ft-surface)!important;color:var(--ft-text-strong)!important;border-color:var(--ft-line)!important}
+  html[data-ui-theme="light"] .auth-provider-divider span {background:#f1f3f0!important;color:var(--ft-muted)!important}
+  html[data-ui-theme="light"] .auth-account-card .welcome-primary {background:linear-gradient(135deg,#c69b5b,#b88749)!important;color:#172a2d!important}
+
+  /* --------------------------------------------------------------------------
+     Global search / quick create.
+     -------------------------------------------------------------------------- */
+  .global-search-panel {overflow:hidden!important}
+  html[data-ui-theme="light"] .global-search-panel {background:#f3f5f2!important;border-color:#c6d1cd!important;color:var(--ft-text)!important}
+  html[data-ui-theme="light"] .global-search-input-wrap,
+  html[data-ui-theme="light"] .global-search-footer {background:#eaefec!important;border-color:var(--ft-line)!important}
+  html[data-ui-theme="light"] .global-search-actions button,
+  html[data-ui-theme="light"] .global-search-destinations button,
+  html[data-ui-theme="light"] .global-search-result {background:var(--ft-surface)!important;border-color:var(--ft-line)!important;color:var(--ft-text)!important}
+  html[data-ui-theme="light"] .global-search-actions button:hover,
+  html[data-ui-theme="light"] .global-search-destinations button:hover,
+  html[data-ui-theme="light"] .global-search-result:hover {background:var(--ft-accent-faint)!important;border-color:color-mix(in srgb,var(--ft-accent) 35%,var(--ft-line))!important}
+
+  /* --------------------------------------------------------------------------
+     RTL correctness and numeric isolation.
+     -------------------------------------------------------------------------- */
+  [dir="rtl"] .app-ui :where(
+    .page-heading,.documents-heading,.operations-hero,.reports-heading,.documents-command,
+    .customers-toolbar,.product-library-commandbar,.operations-panel-head,.settings-section-heading,
+    .modal-header,.mobile-more-heading,.dashboard-panel-heading
+  ) {text-align:right!important}
+  [dir="rtl"] .app-ui :where(.heading-actions,.reports-heading-actions,.editor-actions) {justify-content:flex-start!important}
+  [dir="rtl"] .app-ui :where(.register-amount,.product-library-row-price,.purchase-total-strip strong,.receivable-currency-card strong,.report-currency-card strong) {
+    direction:ltr!important;
+    unicode-bidi:isolate!important;
+  }
+  [dir="rtl"] .global-search-panel {text-align:right!important}
+  [dir="rtl"] .global-search-actions button,
+  [dir="rtl"] .global-search-destinations button,
+  [dir="rtl"] .global-search-result {text-align:right!important}
+  [dir="rtl"] .global-search-result-arrow {transform:scaleX(-1)!important}
+
+  /* --------------------------------------------------------------------------
+     Mobile geometry and touch-first density.
+     -------------------------------------------------------------------------- */
+  @media (max-width:960px) {
+    .app-ui .workspace-content {min-width:0!important;max-width:100%!important}
+    .app-ui :where(.page,.domain-workspace,.dashboard-page,.documents-workspace-v2,.operations-page,.reports-page) {
+      width:100%!important;
+      max-width:100%!important;
+    }
+    .app-ui :where(.heading-actions,.reports-heading-actions) {gap:6px!important}
+  }
+
+  @media (max-width:720px) {
+    .app-ui .workspace-topbar {
+      min-height:56px!important;
+      padding:8px 10px!important;
+    }
+    .app-ui .shell-page-title {min-width:0!important;text-align:start!important}
+    .app-ui .shell-page-title strong {font-size:16px!important}
+
+    .app-ui:has(.fintech-dashboard-v280) .workspace-content,
+    .app-ui:has(.fintech-dashboard-v280) .workspace-content>.main-content {
+      height:auto!important;
+      min-height:0!important;
+      max-height:none!important;
+      padding-bottom:0!important;
+    }
+    .app-ui .fintech-dashboard-v280 {
+      height:auto!important;
+      min-height:0!important;
+      padding:10px 10px calc(58px + env(safe-area-inset-bottom,0px))!important;
+      gap:8px!important;
+    }
+    .app-ui .fintech-dashboard-v280>.lourex-advisor-card:last-child {margin-bottom:0!important}
+
+    .app-ui .fintech-dashboard-v280 .command-center-hero {padding:12px!important;gap:9px!important}
+    .app-ui .fintech-dashboard-v280 .command-center-hero h1 {font-size:clamp(23px,7vw,28px)!important}
+    .app-ui .fintech-dashboard-v280 .command-center-actions {grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}
+    .app-ui .fintech-dashboard-v280 .command-center-actions .btn,
+    .app-ui .fintech-dashboard-v280 .command-period-pill {min-height:40px!important;padding-inline:8px!important;font-size:10.5px!important}
+
+    .app-ui .fintech-dashboard-v280 .dashboard-kpi {min-height:84px!important;padding:10px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-kpi small {font-size:10px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-money-stack b,
+    .app-ui .fintech-dashboard-v280 .dashboard-kpi strong {font-size:15px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button {min-height:54px!important;padding:8px 9px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions strong {font-size:11px!important}
+
+    .app-ui .fintech-dashboard-v280 .dashboard-panel-heading {min-height:50px!important;padding:9px 11px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-panel-heading h2 {font-size:15px!important}
+    .app-ui .fintech-dashboard-v280 .command-chart {height:96px!important;min-height:96px!important}
+    .app-ui .fintech-dashboard-v280 .command-chart-controls {grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px!important;padding:5px 7px 6px!important}
+    .app-ui .fintech-dashboard-v280 .command-chart-controls button {min-height:30px!important;font-size:9.5px!important;padding-inline:2px!important}
+    .app-ui .fintech-dashboard-v280 .command-chart-wrap {padding:2px 8px 0!important}
+    .app-ui .fintech-dashboard-v280 .command-position-list {grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0 10px!important;padding-inline:11px!important}
+    .app-ui .fintech-dashboard-v280 .command-position-list>div {min-height:41px!important}
+    .app-ui .fintech-dashboard-v280 .command-health-number {padding:10px 11px 2px!important}
+    .app-ui .fintech-dashboard-v280 .command-health-bars {padding:0 11px 8px!important}
+    .app-ui .fintech-dashboard-v280 .command-health-bars>div {min-height:34px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-document-row {min-height:54px!important;padding:7px 9px!important}
+
+    /* Bottom navigation: equal visual weight and exact centering in both directions. */
+    .app-ui .mobile-bottom-nav {
+      height:calc(62px + env(safe-area-inset-bottom))!important;
+      grid-template-columns:repeat(5,minmax(0,1fr))!important;
+      align-items:start!important;
+      padding:4px max(5px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(5px,env(safe-area-inset-left))!important;
+      background:color-mix(in srgb,var(--ft-shell) 96%,transparent)!important;
+      border-top-color:var(--ft-line)!important;
+      box-shadow:0 -7px 20px rgba(17,44,48,.10)!important;
+      backdrop-filter:blur(18px)!important;
+      -webkit-backdrop-filter:blur(18px)!important;
+    }
+    [dir="rtl"] .app-ui .mobile-bottom-nav {direction:rtl!important}
+    [dir="ltr"] .app-ui .mobile-bottom-nav {direction:ltr!important}
+    .app-ui .mobile-bottom-nav>button,
+    .app-ui .mobile-create-wrap {
+      width:100%!important;
+      min-width:0!important;
+      margin:0!important;
+      justify-self:stretch!important;
+    }
+    .app-ui .mobile-bottom-nav>button {
+      position:relative!important;
+      isolation:isolate!important;
+      min-height:52px!important;
+      padding:3px 1px!important;
+      align-items:center!important;
+      justify-content:center!important;
+      text-align:center!important;
+      gap:3px!important;
+    }
+    .app-ui .mobile-bottom-nav>button::before {z-index:0!important}
+    .app-ui .mobile-bottom-nav>button>.icon,
+    .app-ui .mobile-bottom-nav>button>span {position:relative!important;z-index:1!important}
+    .app-ui .mobile-bottom-nav>button>span {width:100%!important;text-align:center!important;font-size:10.5px!important;line-height:1.1!important}
+    .app-ui .mobile-create-wrap {display:grid!important;place-items:center!important}
+    .app-ui .mobile-create-button {width:50px!important;height:50px!important;margin-top:-12px!important;border-radius:14px!important}
+
+    /* Documents/customers/operations mobile density. */
+    .app-ui :where(.page,.domain-workspace,.documents-workspace-v2,.operations-page,.reports-page) {
+      padding:11px 10px calc(72px + env(safe-area-inset-bottom))!important;
+    }
+    .app-ui :where(.page-heading,.documents-heading,.operations-hero,.reports-heading) {
+      align-items:flex-start!important;
+      gap:8px!important;
+      margin-bottom:12px!important;
+    }
+    .app-ui :where(.page-heading,.documents-heading,.operations-hero,.reports-heading) h1 {font-size:24px!important}
+    .app-ui :where(.heading-actions,.documents-heading-actions,.reports-heading-actions) {width:100%!important;justify-content:stretch!important}
+    .app-ui :where(.heading-actions,.documents-heading-actions,.reports-heading-actions)>.btn {flex:1 1 auto!important;min-height:42px!important}
+    .app-ui .documents-register-tabs,
+    .app-ui .operations-tabs,
+    .app-ui .domain-workspace-tabs {scrollbar-width:none!important}
+    .app-ui .documents-register-tabs::-webkit-scrollbar,
+    .app-ui .operations-tabs::-webkit-scrollbar,
+    .app-ui .domain-workspace-tabs::-webkit-scrollbar {display:none!important}
+
+    /* Search sheet remains two-column even on phones; this removes the oversized list. */
+    .global-search-panel {
+      top:max(10px,env(safe-area-inset-top))!important;
+      width:calc(100vw - 16px)!important;
+      max-height:calc(100dvh - max(20px,env(safe-area-inset-top)) - max(12px,env(safe-area-inset-bottom)))!important;
+      border-radius:15px!important;
+    }
+    .global-search-input-wrap {padding:8px 10px!important}
+    .global-search-input-wrap input {height:38px!important;font-size:12px!important}
+    .global-search-start,.global-search-results {padding:7px!important}
+    .global-search-section-title {padding:6px 2px!important}
+    .global-search-actions {grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}
+    .global-search-actions button {min-height:52px!important;padding:7px 8px!important;grid-template-columns:28px minmax(0,1fr)!important;gap:7px!important}
+    .global-search-actions svg {width:17px!important;height:17px!important}
+    .global-search-actions strong {font-size:10px!important;line-height:1.2!important}
+    .global-search-actions small {font-size:8.5px!important;line-height:1.2!important}
+    .global-search-destinations {grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important}
+    .global-search-destinations button {min-height:40px!important;padding:6px 8px!important;font-size:9.5px!important}
+    .global-search-footer {min-height:34px!important;padding:6px 9px!important}
+
+    /* Auth becomes compact and readable, not a full-screen stack of oversized blocks. */
+    .auth-account-page {padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom))!important}
+    .auth-account-frame {border-radius:22px!important;min-height:0!important}
+    .auth-account-story {min-height:190px!important;padding:20px!important;gap:14px!important}
+    .auth-account-story .auth-story-brand .brand-mark,
+    .auth-account-story .auth-story-brand .brand-mark img {width:50px!important;height:50px!important;border-radius:14px!important}
+    .auth-account-story .auth-story-copy .auth-story-title {font-size:clamp(27px,7.5vw,36px)!important}
+    .auth-account-card.account-first-card {padding:62px 20px 22px!important}
+    .auth-account-card .auth-card-heading {margin-bottom:16px!important}
+    .auth-account-card .auth-card-heading h1 {font-size:27px!important}
+    .auth-account-card .google-auth-button {min-height:48px!important}
+    .auth-account-card .account-entry-tabs {margin-bottom:14px!important}
+    .auth-account-card .account-entry-tabs button {min-height:42px!important}
+    .auth-account-card .account-entry-fields {gap:11px!important}
+  }
+
+  @media (max-width:390px) {
+    .app-ui .fintech-dashboard-v280 {padding-inline:8px!important}
+    .app-ui .fintech-dashboard-v280 .command-center-actions .btn,
+    .app-ui .fintech-dashboard-v280 .command-period-pill {font-size:9.5px!important;padding-inline:5px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-kpi {min-height:80px!important;padding:9px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button {min-height:52px!important;padding:7px 8px!important}
+    .global-search-actions button {min-height:50px!important}
+  }
+
+  @media (max-width:340px) {
+    .global-search-actions {grid-template-columns:1fr!important}
+  }
+}

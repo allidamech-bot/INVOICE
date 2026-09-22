@@ -1,5 +1,5 @@
-import { applyUiTheme, getUiThemePreference, setUiThemePreference, type UiThemePreference } from '../lib/ui-theme.js';
-import { Icon, type IconName } from './UI.js';
+import { applyUiTheme, getUiThemePreference, resolveUiTheme, setUiThemePreference, type UiThemePreference } from '../lib/ui-theme.js';
+import { Icon } from './UI.js';
 
 interface Props {
   compact?:boolean;
@@ -33,13 +33,11 @@ export class ThemeControl extends React.Component<Props,State>{
 
   render():any{
     const ar=this.props.language==='ar';
-    const options:Array<{value:UiThemePreference;icon:IconName;en:string;ar:string}>=[
-      {value:'system',icon:'system',en:'System',ar:'النظام'},
-      {value:'light',icon:'sun',en:'Light',ar:'فاتح'},
-      {value:'dark',icon:'moon',en:'Dark',ar:'داكن'},
-    ];
-    return <div className={`mf-theme-control ${this.props.compact?'is-compact':''} ${this.props.className||''}`} role="group" aria-label={ar?'مظهر التطبيق':'App appearance'}>
-      {options.map(option=><button key={option.value} type="button" className={this.state.preference===option.value?'active':''} aria-pressed={this.state.preference===option.value} title={ar?option.ar:option.en} onClick={()=>this.setTheme(option.value)}><Icon name={option.icon}/>{this.props.compact?null:<strong>{ar?option.ar:option.en}</strong>}</button>)}
+    const resolved=resolveUiTheme(this.state.preference);
+    const next:UiThemePreference=resolved==='dark'?'light':'dark';
+    const label=next==='dark'?(ar?'الوضع الليلي':'Dark mode'):(ar?'الوضع النهاري':'Light mode');
+    return <div className={`mf-theme-control mf-theme-toggle-control ${this.props.compact?'is-compact':''} ${this.props.className||''}`}>
+      <button type="button" className={`mf-theme-toggle is-${resolved}`} aria-label={label} title={label} onClick={()=>this.setTheme(next)}><Icon name={next==='dark'?'moon':'sun'}/>{this.props.compact?null:<strong>{label}</strong>}</button>
     </div>;
   }
 }

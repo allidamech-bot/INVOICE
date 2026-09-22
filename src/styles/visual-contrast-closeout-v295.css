@@ -1,0 +1,64 @@
+/* LOUREX v295 — light-theme contrast and hierarchy closeout.
+   Screen UI only. Strengthens small-text legibility without returning to harsh white. */
+@media screen {
+  html[data-ui-theme='light']{
+    /* Existing v289 muted/faint values were too low-contrast on the stone surface,
+       especially at 9–11px in Arabic. Keep the calm palette but make it readable. */
+    --ft-text-soft:#53676a;
+    --ft-muted:#5d7073;
+    --ft-faint:#627578;
+    --ft-accent-text:#0a7479;
+    --ft-success:#267a5f;
+    --ft-warning:#91631f;
+    --ft-danger:#aa4f5a;
+    --ft-info:#347594;
+    --vx-purple:#6654ba;
+    --vx-blue:#4568b5;
+    --vx-green:#267a5f;
+    --vx-amber:#91631f;
+    --vx-red:#aa4f5a;
+    --vx-sky:#347594;
+  }
+
+  html[data-ui-theme='light'] .app-ui :where(
+    .workspace-home-eyebrow,.command-chart-heading>div:first-child small,
+    .dashboard-panel-heading small,.settings-title .eyebrow,.operations-hero .eyebrow,
+    .reports-heading .eyebrow,.documents-heading .eyebrow,.page-heading .eyebrow
+  ){
+    color:var(--ft-accent-text)!important;
+  }
+
+  html[data-ui-theme='light'] .app-ui :where(
+    .page-subtitle,.shell-page-title small,.field-label,.settings-note,
+    .documents-register-row small,.premium-customer-card small,.product-library-row small,
+    .operation-row small,.dashboard-document-customer,.dashboard-document-date,
+    .command-position-list span,.command-health-bars span
+  ){
+    color:var(--ft-muted)!important;
+  }
+
+  html[data-ui-theme='light'] .app-ui :where(input,textarea,.input,.textarea)::placeholder,
+  html[data-ui-theme='light'] .global-search-input-wrap input::placeholder,
+  html[data-ui-theme='light'] .auth-account-page input::placeholder{
+    color:#687b7e!important;
+    opacity:1!important;
+  }
+
+  /* Semantic labels retain different colors, but all remain readable on light cards. */
+  html[data-ui-theme='light'] .app-ui .kpi-collected :where(.dashboard-kpi-icon,small){color:var(--vx-green)!important}
+  html[data-ui-theme='light'] .app-ui .kpi-sales :where(.dashboard-kpi-icon,small){color:var(--vx-blue)!important}
+  html[data-ui-theme='light'] .app-ui .kpi-overdue :where(.dashboard-kpi-icon,small){color:var(--vx-red)!important}
+  html[data-ui-theme='light'] .app-ui .command-position-panel .dashboard-panel-heading small{color:var(--vx-purple)!important}
+  html[data-ui-theme='light'] .app-ui .command-attention .dashboard-panel-heading small{color:var(--vx-amber)!important}
+  html[data-ui-theme='light'] .app-ui .command-inventory-health .dashboard-panel-heading small{color:var(--vx-green)!important}
+  html[data-ui-theme='light'] .app-ui .command-recent .dashboard-panel-heading small{color:var(--vx-sky)!important}
+
+  /* Status chips use a tinted surface + dark semantic foreground, never pale text. */
+  html[data-ui-theme='light'] .app-ui :where(.status,.status-badge,.document-status,.operation-status){font-weight:760!important}
+  html[data-ui-theme='light'] .app-ui :where(.status-draft,.status.pending,.is-warn){color:var(--ft-warning)!important}
+  html[data-ui-theme='light'] .app-ui :where(.status-final,.status.paid,.is-success){color:var(--ft-success)!important}
+  html[data-ui-theme='light'] .app-ui :where(.status-overdue,.status.error,.is-alert){color:var(--ft-danger)!important}
+
+  /* Text selection and focus keep the fintech identity without reducing readability. */
+  html[data-ui-theme='light'] ::selection{background:rgba(21,159,162,.22);color:#102528}
+}

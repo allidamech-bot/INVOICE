@@ -1,0 +1,209 @@
+/* LOUREX v286 — final Home visual closeout for review.
+   Home/shell presentation only. No accounting, persistence, Firebase or PDF logic. */
+
+/* Compact true empty state for cash performance. The small helper script only toggles
+   .is-empty-chart when both rendered cash lines sit on the zero baseline. */
+.app-ui .fintech-dashboard-v280 .command-performance-panel.is-empty-chart .command-chart-wrap{
+  min-height:88px!important;
+  padding:0 14px!important;
+  display:grid!important;
+  place-items:center!important;
+  position:relative!important;
+}
+.app-ui .fintech-dashboard-v280 .command-performance-panel.is-empty-chart .command-chart,
+.app-ui .fintech-dashboard-v280 .command-performance-panel.is-empty-chart .command-chart-labels{display:none!important}
+.app-ui .fintech-dashboard-v280 .command-performance-panel.is-empty-chart .command-chart-wrap::before{
+  content:"No activity in this period";
+  display:grid;
+  place-items:center;
+  width:100%;
+  min-height:70px;
+  padding:12px;
+  border:1px dashed color-mix(in srgb,var(--hr-blue) 28%,var(--h-line));
+  border-radius:11px;
+  background:color-mix(in srgb,var(--hr-blue) 5%,var(--h-surface));
+  color:var(--h-muted);
+  font-size:11px;
+  line-height:1.4;
+  font-weight:750;
+  text-align:center;
+}
+html[dir="rtl"] .app-ui .fintech-dashboard-v280 .command-performance-panel.is-empty-chart .command-chart-wrap::before{content:"لا توجد حركة خلال هذه الفترة"}
+.app-ui .fintech-dashboard-v280 .command-performance-panel.is-empty-chart .command-chart-footer{display:none!important}
+
+/* Clear attention is a status strip, not a full panel. */
+.app-ui .fintech-dashboard-v280 .command-insight-grid{align-items:start!important}
+.app-ui .fintech-dashboard-v280 .command-attention:has(.command-clear-state){
+  min-height:0!important;
+  background:linear-gradient(145deg,var(--hr-green-soft),var(--h-surface) 64%)!important;
+  border-color:color-mix(in srgb,var(--hr-green) 20%,var(--h-line))!important;
+}
+.app-ui .fintech-dashboard-v280 .command-attention:has(.command-clear-state) .dashboard-panel-heading{display:none!important}
+.app-ui .fintech-dashboard-v280 .command-attention:has(.command-clear-state) .command-clear-state{
+  min-height:56px!important;
+  padding:10px 12px!important;
+  grid-template-columns:30px minmax(0,1fr)!important;
+}
+.app-ui .fintech-dashboard-v280 .command-attention:has(.command-clear-state) .command-clear-state strong{
+  font-size:11.5px!important;
+  color:var(--h-text)!important;
+}
+
+/* Final type rhythm: fewer sizes, stronger hierarchy, no tiny Arabic. */
+.app-ui .fintech-dashboard-v280 :where(button,.btn){font-family:inherit!important}
+html[dir="rtl"] .app-ui .fintech-dashboard-v280{
+  font-family:"Noto Sans Arabic",Inter,system-ui,sans-serif!important;
+}
+html[dir="rtl"] .app-ui .fintech-dashboard-v280 :where(.dashboard-kpi small,.dashboard-quick-actions strong,.dashboard-panel-heading h2,.command-position-list span,.command-health-bars span,.dashboard-document-copy strong,.dashboard-document-amount){letter-spacing:0!important}
+.app-ui .fintech-dashboard-v280 .dashboard-panel-heading h2,
+.app-ui .fintech-dashboard-v280 .command-chart-heading>div:first-child h2{line-height:1.3!important}
+.app-ui .fintech-dashboard-v280 .dashboard-kpi,
+.app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button,
+.app-ui .fintech-dashboard-v280 .dashboard-panel{transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease!important}
+
+/* Reduce heavy box-within-box feeling while preserving semantic surfaces. */
+.app-ui .fintech-dashboard-v280 .dashboard-panel-heading{background:transparent!important}
+.app-ui .fintech-dashboard-v280 .command-position-panel,
+.app-ui .fintech-dashboard-v280 .command-attention,
+.app-ui .fintech-dashboard-v280 .command-inventory-health,
+.app-ui .fintech-dashboard-v280 .command-recent{box-shadow:0 6px 18px rgba(9,36,48,.035)!important}
+html[data-ui-theme="dark"] .app-ui .fintech-dashboard-v280 .command-position-panel,
+html[data-ui-theme="dark"] .app-ui .fintech-dashboard-v280 .command-attention,
+html[data-ui-theme="dark"] .app-ui .fintech-dashboard-v280 .command-inventory-health,
+html[data-ui-theme="dark"] .app-ui .fintech-dashboard-v280 .command-recent{box-shadow:0 8px 20px rgba(0,0,0,.12)!important}
+
+/* Mobile Home App Bar: one clean title and one search affordance. Account/theme/sync
+   remain available through More, so the first row stays visually calm. */
+@media (max-width:720px){
+  .app-ui:has(.fintech-dashboard-v280) .workspace-topbar{
+    min-height:56px!important;
+    height:auto!important;
+    padding:8px 11px!important;
+    grid-template-columns:38px minmax(0,1fr) 38px!important;
+    gap:8px!important;
+    align-items:center!important;
+    border-bottom:1px solid var(--ft-line)!important;
+    background:color-mix(in srgb,var(--mf-shell) 96%,transparent)!important;
+    backdrop-filter:blur(18px)!important;
+    -webkit-backdrop-filter:blur(18px)!important;
+  }
+  .app-ui:has(.fintech-dashboard-v280) .shell-mobile-brand{
+    width:38px!important;
+    min-width:38px!important;
+    display:grid!important;
+    place-items:center!important;
+  }
+  .app-ui:has(.fintech-dashboard-v280) .shell-mobile-brand>button{
+    width:36px!important;
+    height:36px!important;
+    min-width:36px!important;
+    min-height:36px!important;
+    padding:0!important;
+    margin:0!important;
+    display:grid!important;
+    place-items:center!important;
+    border:0!important;
+    border-radius:10px!important;
+    background:transparent!important;
+  }
+  .app-ui:has(.fintech-dashboard-v280) .shell-page-title{
+    min-width:0!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    text-align:start!important;
+  }
+  .app-ui:has(.fintech-dashboard-v280) .shell-page-title small{display:none!important}
+  .app-ui:has(.fintech-dashboard-v280) .shell-page-title strong{
+    display:block!important;
+    max-width:100%!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    color:var(--ft-text-strong)!important;
+    font-size:15px!important;
+    line-height:1.2!important;
+    font-weight:850!important;
+  }
+  .app-ui:has(.fintech-dashboard-v280) .shell-topbar-actions{
+    width:38px!important;
+    min-width:38px!important;
+    display:grid!important;
+    grid-template-columns:38px!important;
+    gap:0!important;
+    justify-self:end!important;
+  }
+  .app-ui:has(.fintech-dashboard-v280) .shell-topbar-theme,
+  .app-ui:has(.fintech-dashboard-v280) .shell-sync-status,
+  .app-ui:has(.fintech-dashboard-v280) .shell-account-button{display:none!important}
+  .app-ui:has(.fintech-dashboard-v280) .shell-global-search-button{
+    width:38px!important;
+    height:38px!important;
+    min-width:38px!important;
+    min-height:38px!important;
+    padding:0!important;
+    margin:0!important;
+    display:grid!important;
+    place-items:center!important;
+    border-radius:10px!important;
+  }
+  .app-ui:has(.fintech-dashboard-v280) .shell-global-search-button>span,
+  .app-ui:has(.fintech-dashboard-v280) .shell-global-search-button>kbd{display:none!important}
+  .app-ui:has(.fintech-dashboard-v280) .shell-global-search-button>.icon{width:18px!important;height:18px!important;margin:0!important}
+
+  /* First-screen density: title + 4 KPIs + actions should fit before the chart begins. */
+  .app-ui .fintech-dashboard-v280{gap:9px!important}
+  .app-ui .fintech-dashboard-v280 .command-center-hero{padding:12px 13px!important;gap:9px!important}
+  .app-ui .fintech-dashboard-v280 .command-center-hero h1{font-size:22px!important}
+  .app-ui .fintech-dashboard-v280 .workspace-home-eyebrow{font-size:8.75px!important;margin-bottom:3px!important}
+  .app-ui .fintech-dashboard-v280 .command-center-actions .btn,
+  .app-ui .fintech-dashboard-v280 .command-period-pill{min-height:38px!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi{min-height:86px!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button{min-height:50px!important}
+
+  .app-ui .fintech-dashboard-v280 .command-performance-panel.is-empty-chart .command-chart-wrap{min-height:76px!important;padding:0 10px!important}
+  .app-ui .fintech-dashboard-v280 .command-performance-panel.is-empty-chart .command-chart-wrap::before{min-height:60px!important;font-size:10px!important}
+
+  .app-ui .fintech-dashboard-v280 .command-attention:has(.command-clear-state) .command-clear-state{min-height:50px!important;padding:9px 10px!important}
+
+  /* Home owns a single bottom clearance. Do not stack the shell's mobile padding
+     on top of the dashboard padding — that produced the large empty tail seen on Safari. */
+  .app-ui .workspace-shell.screen-home .workspace-content{
+    padding-bottom:0!important;
+    min-height:0!important;
+    height:auto!important;
+    align-self:start!important;
+  }
+  .app-ui .workspace-shell.screen-home .fintech-dashboard-v280{
+    padding-bottom:calc(68px + env(safe-area-inset-bottom,0px))!important;
+    margin-bottom:0!important;
+  }
+  .app-ui .workspace-shell.screen-home .fintech-dashboard-v280 .lourex-advisor-card{margin-bottom:0!important}
+
+  /* Bottom navigation active state is centred and readable, not shifted by labels. */
+  .app-ui:has(.fintech-dashboard-v280) .mobile-bottom-nav>button{position:relative!important}
+  .app-ui:has(.fintech-dashboard-v280) .mobile-bottom-nav>button.active{
+    color:var(--mf-accent)!important;
+    background:transparent!important;
+  }
+  .app-ui:has(.fintech-dashboard-v280) .mobile-bottom-nav>button.active::before{
+    content:"";
+    position:absolute;
+    left:50%;
+    top:3px;
+    width:38px;
+    height:28px;
+    transform:translateX(-50%);
+    border-radius:10px;
+    background:color-mix(in srgb,var(--mf-accent) 10%,transparent);
+    z-index:-1;
+  }
+}
+
+@media (max-width:390px){
+  .app-ui:has(.fintech-dashboard-v280) .workspace-topbar{grid-template-columns:36px minmax(0,1fr) 36px!important;padding-inline:9px!important}
+  .app-ui:has(.fintech-dashboard-v280) .shell-topbar-actions,
+  .app-ui:has(.fintech-dashboard-v280) .shell-global-search-button{width:36px!important;min-width:36px!important}
+  .app-ui .fintech-dashboard-v280 .command-center-hero h1{font-size:21px!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi{min-height:78px!important}
+}

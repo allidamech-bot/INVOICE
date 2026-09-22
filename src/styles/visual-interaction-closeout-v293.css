@@ -1,0 +1,201 @@
+/* LOUREX v293 — interaction, iPhone and overlay closeout.
+   Application UI only; printable documents and accounting behavior are untouched. */
+@media screen {
+  /* The Home already owns a dedicated advisor card. Remove the duplicate floating
+     launcher there so it never covers financial cards or competes with the primary + action. */
+  .app-ui .lourex-ai-launcher.screen-home{display:none!important}
+
+  /* Floating AI is subordinate everywhere else and yields to menus/editors/modals. */
+  .app-ui:has(.mobile-more-sheet) .lourex-ai-launcher,
+  .app-ui:has(.mobile-shell-new-menu) .lourex-ai-launcher,
+  .app-ui:has(.modal-backdrop) .lourex-ai-launcher,
+  .app-ui:has(.product-library-editor.is-open) .lourex-ai-launcher,
+  .app-ui:has(.operations-editor.purchase-editor) .lourex-ai-launcher{visibility:hidden!important;pointer-events:none!important}
+
+  .app-ui .lourex-ai-launcher:not(.screen-home){
+    width:46px!important;height:46px!important;
+    border-radius:13px!important;
+    border-color:color-mix(in srgb,var(--ft-accent) 30%,var(--ft-line))!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-accent)!important;
+    box-shadow:0 10px 26px rgba(16,47,52,.14)!important;
+  }
+  html[data-ui-theme='dark'] .app-ui .lourex-ai-launcher:not(.screen-home){
+    background:var(--ft-surface-2)!important;
+    box-shadow:0 12px 30px rgba(0,0,0,.32)!important;
+  }
+
+  /* AI Core ships its own late inline dark skin. These selectors are deliberately
+     more specific so Light mode follows the same calm stone visual system. */
+  html[data-ui-theme='light'] .app-ui .lourex-ai-panel{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+    box-shadow:0 26px 72px rgba(29,49,53,.22)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .lourex-ai-head,
+  html[data-ui-theme='light'] .app-ui .lourex-ai-compose{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .lourex-ai-context{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-accent-faint)!important;
+    color:var(--ft-accent-hover)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .lourex-ai-title :where(strong,small){color:var(--ft-text)!important}
+  html[data-ui-theme='light'] .app-ui .lourex-ai-title small{color:var(--ft-text-soft)!important}
+  html[data-ui-theme='light'] .app-ui .lourex-ai-mark{
+    border-color:color-mix(in srgb,var(--vx-purple) 26%,var(--ft-line))!important;
+    background:var(--vx-purple-soft)!important;
+    color:var(--vx-purple)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .lourex-ai-close{color:var(--ft-text-soft)!important}
+  html[data-ui-theme='light'] .app-ui .lourex-ai-empty,
+  html[data-ui-theme='light'] .app-ui .lourex-ai-message.assistant,
+  html[data-ui-theme='light'] .app-ui .lourex-ai-preview,
+  html[data-ui-theme='light'] .app-ui .lourex-ai-audit{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .lourex-ai-empty p,
+  html[data-ui-theme='light'] .app-ui .lourex-ai-proposal p,
+  html[data-ui-theme='light'] .app-ui .lourex-ai-meta,
+  html[data-ui-theme='light'] .app-ui .lourex-ai-audit div{color:var(--ft-text-soft)!important}
+  html[data-ui-theme='light'] .app-ui .lourex-ai-message.user{
+    border-color:color-mix(in srgb,var(--ft-accent) 24%,var(--ft-line))!important;
+    background:var(--ft-accent-soft)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .lourex-ai-starters button,
+  html[data-ui-theme='light'] .app-ui .lourex-ai-proposal-actions button{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .lourex-ai-proposal{
+    border-color:color-mix(in srgb,var(--vx-purple) 24%,var(--ft-line))!important;
+    background:var(--vx-purple-soft)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .lourex-ai-proposal small{color:var(--vx-purple)!important}
+  html[data-ui-theme='light'] .app-ui .lourex-ai-proposal-actions button.primary,
+  html[data-ui-theme='light'] .app-ui .lourex-ai-send{
+    border-color:var(--ft-accent)!important;
+    background:var(--ft-accent)!important;
+    color:#062a2d!important;
+  }
+  html[data-ui-theme='light'] .app-ui .lourex-ai-compose input{
+    border-color:var(--ft-line-strong)!important;
+    background:var(--ft-input)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme='light'] .app-ui .lourex-ai-compose input:focus{border-color:var(--ft-accent)!important}
+
+  @media(max-width:860px){
+    /* All mobile pages—not only Home—use a truly centered app bar. Old flex geometry
+       made Arabic page titles look shifted whenever the left/right controls differed. */
+    .app-ui .fintech-shell-v280:not(.is-editor) .workspace-topbar{
+      display:grid!important;
+      grid-template-columns:44px minmax(0,1fr) 44px!important;
+      align-items:center!important;
+      min-height:calc(58px + env(safe-area-inset-top,0px))!important;
+      padding:calc(7px + env(safe-area-inset-top,0px)) 9px 7px!important;
+      gap:6px!important;
+    }
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-mobile-brand,
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-topbar-actions{
+      width:44px!important;min-width:44px!important;max-width:44px!important;
+    }
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-topbar-actions{
+      display:grid!important;grid-template-columns:44px!important;justify-self:end!important;
+    }
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-page-title{
+      width:100%!important;min-width:0!important;
+      align-items:center!important;justify-content:center!important;text-align:center!important;
+    }
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-page-title small{display:none!important}
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-page-title strong{
+      width:100%!important;min-width:0!important;
+      overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+      text-align:center!important;font-size:16px!important;line-height:1.2!important;font-weight:850!important;
+    }
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-mobile-brand>button,
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-global-search-button{
+      width:44px!important;min-width:44px!important;max-width:44px!important;
+      height:44px!important;min-height:44px!important;max-height:44px!important;
+      margin:0!important;padding:0!important;display:grid!important;place-items:center!important;
+    }
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-global-search-button>span,
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-global-search-button>kbd,
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-sync-status,
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-account-button,
+    .app-ui .fintech-shell-v280:not(.is-editor) .shell-topbar-theme{display:none!important}
+
+    /* Put the assistant in the logical reading-start corner above the nav. */
+    .app-ui .lourex-ai-launcher:not(.screen-home):not(.screen-operations){
+      right:auto!important;left:auto!important;
+      inset-inline-start:10px!important;inset-inline-end:auto!important;
+      bottom:calc(72px + env(safe-area-inset-bottom,0px))!important;
+    }
+
+    /* More sheet internals inherit semantic colors rather than legacy dark rows. */
+    .app-ui .mobile-more-sheet :where(
+      .mobile-more-heading,.mobile-more-status-row,.mobile-more-account,.mobile-more-link,
+      .mobile-more-settings,.mobile-more-appearance,.mobile-more-group
+    ){
+      border-color:var(--ft-line)!important;
+      color:var(--ft-text)!important;
+    }
+    .app-ui .mobile-more-sheet :where(.mobile-more-account,.mobile-more-link,.mobile-more-settings){
+      background:transparent!important;
+    }
+    .app-ui .mobile-more-sheet :where(.mobile-more-account,.mobile-more-link,.mobile-more-settings):active{
+      background:var(--ft-accent-faint)!important;
+    }
+    .app-ui .mobile-more-sheet :where(.mobile-more-heading-copy span,.mobile-more-account-copy small,.mobile-more-link-copy small,.mobile-more-settings-copy small){
+      color:var(--ft-text-soft)!important;
+    }
+    .app-ui .mobile-more-sheet :where(.mobile-more-heading-copy strong,.mobile-more-account-copy strong,.mobile-more-link-copy strong,.mobile-more-settings-copy strong){
+      color:var(--ft-text-strong)!important;
+    }
+    .app-ui .mobile-more-close{
+      min-width:44px!important;width:44px!important;min-height:44px!important;height:44px!important;
+      border-color:var(--ft-line)!important;background:var(--ft-surface-2)!important;color:var(--ft-text-soft)!important;
+    }
+  }
+
+  @media(max-width:720px){
+    /* Prevent iOS Safari from auto-zooming inputs (<16px) and shifting the whole layout. */
+    .app-ui :where(input:not([type='checkbox']):not([type='radio']):not([type='range']),select,textarea,.input,.textarea),
+    .auth-account-page :where(input,select,textarea),
+    .global-search-input-wrap input,
+    .lourex-ai-compose input{
+      font-size:16px!important;
+    }
+
+    /* Supporting labels stay readable; tiny 8–9px UI copy was visually weak in Arabic. */
+    .app-ui :where(
+      .register-date,.register-status,.premium-customer-card small,.product-library-row small,
+      .operation-row small,.receivable-currency-card small,.report-currency-card small,
+      .settings-note,.field-label
+    ){font-size:10.5px!important;line-height:1.35!important}
+
+    .app-ui .lourex-ai-panel,
+    .app-ui .lourex-ai-panel[dir='rtl']{
+      left:7px!important;right:7px!important;
+      bottom:calc(7px + env(safe-area-inset-bottom,0px))!important;
+      width:auto!important;
+      height:min(86dvh,720px)!important;
+      max-height:calc(100dvh - max(14px,env(safe-area-inset-top)) - max(14px,env(safe-area-inset-bottom)))!important;
+      border-radius:18px!important;
+    }
+    .app-ui .lourex-ai-head{padding:16px 14px 12px!important}
+    .app-ui .lourex-ai-messages{padding:12px!important}
+    .app-ui .lourex-ai-compose{padding:9px!important}
+    .app-ui .lourex-ai-compose form{min-height:46px!important}
+    .app-ui .lourex-ai-send{min-width:44px!important;width:44px!important;min-height:44px!important}
+  }
+}

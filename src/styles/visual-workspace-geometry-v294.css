@@ -1,0 +1,191 @@
+/* LOUREX v294 — focused workspace geometry and semantic surface closeout.
+   Restores only proven mobile geometry that was lost when older visual generations
+   were retired. Application chrome only; printable documents are excluded. */
+@media screen {
+  /* Close remaining legacy light islands in live form/workspace components. */
+  html[data-ui-theme='light'] .app-ui :where(
+    .selected-customer,.item-card,.product-more-details,.product-editor-section,
+    .commercial-preset-chips button,.pricing-suggestion-chip,.product-metadata-suggestions button,
+    .btn-secondary,.settings-card,.asset-preview,.document-readiness
+  ){
+    border-color:var(--ft-line)!important;
+    background-color:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme='light'] .app-ui :where(
+    .item-card header,.item-card footer,.product-more-details>summary,.product-purchase-history-row,
+    .adjustment-row,.appearance-toggles .toggle-row
+  ){
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme='light'] .app-ui :where(
+    .commercial-preset-chips button:hover,.pricing-suggestion-chip:hover,.product-metadata-suggestions button:hover,
+    .btn-secondary:hover:not(:disabled)
+  ){
+    border-color:color-mix(in srgb,var(--ft-accent) 36%,var(--ft-line))!important;
+    background:var(--ft-accent-faint)!important;
+    color:var(--ft-accent-hover)!important;
+  }
+
+  @media(max-width:720px){
+    /* Focused inline editors own the phone viewport. The fixed app navigation must
+       not cover their fields or sticky save actions. */
+    .app-ui:has(.product-library-pro.editor-open) .mobile-bottom-nav,
+    .app-ui:has(.operations-page .purchase-editor) .mobile-bottom-nav{
+      visibility:hidden!important;
+      pointer-events:none!important;
+      opacity:0!important;
+    }
+    .app-ui:has(.product-library-pro.editor-open) .workspace-content>.main-content,
+    .app-ui:has(.operations-page .purchase-editor) .workspace-content>.main-content{
+      padding-bottom:0!important;
+    }
+    .app-ui:has(.product-library-pro.editor-open) .lourex-ai-launcher,
+    .app-ui:has(.operations-page .purchase-editor) .lourex-ai-launcher{
+      visibility:hidden!important;
+      pointer-events:none!important;
+    }
+
+    /* Product editing is a single, width-safe mobile sheet with its own actions. */
+    .app-ui .product-library-pro.editor-open,
+    .app-ui .product-library-pro.editor-open .product-library-body,
+    .app-ui .product-library-editor.is-open,
+    .app-ui .product-library-editor-scroll,
+    .app-ui .product-library-editor-actions{
+      width:100%!important;
+      min-width:0!important;
+      max-width:100%!important;
+      box-sizing:border-box!important;
+    }
+    .app-ui .product-library-pro.editor-open{
+      padding-bottom:max(8px,env(safe-area-inset-bottom))!important;
+    }
+    .app-ui .product-library-editor.is-open{overflow:hidden!important}
+    .app-ui .product-library-editor-scroll{
+      overflow-x:hidden!important;
+      padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))!important;
+    }
+    .app-ui .product-library-editor-actions{
+      position:sticky!important;
+      bottom:0!important;
+      z-index:24!important;
+      width:100%!important;
+      min-height:58px!important;
+      padding:7px 8px max(8px,env(safe-area-inset-bottom))!important;
+      border-top:1px solid var(--ft-line)!important;
+      background:color-mix(in srgb,var(--ft-surface) 96%,transparent)!important;
+      backdrop-filter:blur(16px)!important;
+      -webkit-backdrop-filter:blur(16px)!important;
+    }
+    .app-ui .product-library-editor-actions .btn{min-height:44px!important}
+
+    /* Purchasing/inventory: remove inherited desktop minimums and horizontal clipping. */
+    .app-ui .operations-page,
+    .app-ui .operations-page>*,
+    .app-ui .operations-split,
+    .app-ui .purchase-layout,
+    .app-ui .operations-list-panel,
+    .app-ui .operations-editor,
+    .app-ui .purchase-editor,
+    .app-ui .operations-panel-head,
+    .app-ui .operations-list,
+    .app-ui .operation-row,
+    .app-ui .operations-form-grid,
+    .app-ui .purchase-items,
+    .app-ui .purchase-item,
+    .app-ui .purchase-item-title,
+    .app-ui .purchase-item-grid,
+    .app-ui .purchase-total-strip,
+    .app-ui .operations-editor-actions,
+    .app-ui .inventory-workspace,
+    .app-ui .inventory-balances,
+    .app-ui .inventory-entry,
+    .app-ui .inventory-history{
+      min-width:0!important;
+      max-width:100%!important;
+      box-sizing:border-box!important;
+    }
+    .app-ui .operations-page{width:100%!important;overflow-x:clip!important}
+    .app-ui .operations-split,
+    .app-ui .purchase-layout,
+    .app-ui .inventory-workspace{
+      display:grid!important;
+      grid-template-columns:minmax(0,1fr)!important;
+      gap:8px!important;
+      width:100%!important;
+    }
+    .app-ui .purchase-layout:has(.purchase-editor) .operations-list-panel{display:none!important}
+    .app-ui .operations-editor{width:100%!important;margin-top:0!important}
+    .app-ui .operations-panel-head{
+      min-width:0!important;
+      flex-wrap:wrap!important;
+      align-items:flex-start!important;
+      gap:7px!important;
+    }
+    .app-ui .operations-panel-head>div{min-width:0!important;flex:1 1 160px!important}
+    .app-ui .operations-panel-head>.btn{min-height:44px!important;max-width:100%!important;white-space:normal!important}
+    .app-ui .operations-search,
+    .app-ui .operations-search .input{width:100%!important;min-width:0!important;max-width:100%!important}
+    .app-ui .operation-row>*,.app-ui .purchase-item-title>*{min-width:0!important}
+    .app-ui .operation-row :where(strong,span,small),
+    .app-ui .purchase-item-title :where(strong,span,small){overflow-wrap:anywhere!important}
+    .app-ui .row-actions,.app-ui .purchase-item-title{flex-wrap:wrap!important}
+    .app-ui .operations-form-grid :where(.input,select.input,textarea.input),
+    .app-ui .purchase-item-grid :where(.input,select.input,textarea.input){
+      width:100%!important;min-width:0!important;max-width:100%!important;
+    }
+    .app-ui .inventory-entry>.btn{width:100%!important;min-width:0!important;max-width:100%!important;min-height:44px!important}
+    .app-ui .operations-editor-actions{
+      position:sticky!important;
+      bottom:0!important;
+      z-index:24!important;
+      width:100%!important;
+      margin:0!important;
+      padding:7px 0 max(8px,env(safe-area-inset-bottom))!important;
+      border-top:1px solid var(--ft-line)!important;
+      background:color-mix(in srgb,var(--ft-surface) 96%,transparent)!important;
+      backdrop-filter:blur(16px)!important;
+      -webkit-backdrop-filter:blur(16px)!important;
+    }
+    .app-ui .operations-editor-actions .btn{min-height:44px!important}
+  }
+
+  @media(max-width:420px){
+    /* Keep all six document-editor stages reachable without a horizontal scroller. */
+    .app-ui .editor-section-navigator{
+      width:100%!important;
+      min-width:0!important;
+      display:grid!important;
+      grid-template-columns:repeat(6,minmax(0,1fr))!important;
+      gap:4px!important;
+      padding-inline:4px!important;
+      overflow:visible!important;
+    }
+    .app-ui .editor-section-nav-button,
+    .app-ui .editor-section-nav-button.active,
+    .app-ui .editor-section-nav-button.has-error{
+      width:100%!important;
+      min-width:0!important;
+      max-width:none!important;
+      min-height:44px!important;
+      padding:4px 2px!important;
+      justify-content:center!important;
+    }
+    .app-ui .editor-section-nav-button .editor-nav-label{display:none!important}
+    .app-ui .editor-section-nav-button .editor-nav-number{margin:0!important}
+
+    .app-ui .operation-row{grid-template-columns:minmax(0,1fr)!important}
+    .app-ui .purchase-row .operation-status{grid-column:auto!important}
+    .app-ui .operation-row .row-actions{grid-column:auto!important;width:100%!important;justify-content:flex-start!important}
+    .app-ui .purchase-items-head{align-items:flex-start!important;flex-wrap:wrap!important;gap:6px!important}
+    .app-ui .purchase-items-head>.btn{min-height:44px!important;max-width:100%!important;white-space:normal!important}
+    .app-ui .purchase-total-strip{display:grid!important;grid-template-columns:minmax(0,1fr)!important;justify-content:stretch!important}
+    .app-ui .purchase-total-strip>*{min-width:0!important;overflow-wrap:anywhere!important}
+    .app-ui .operations-editor-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}
+    .app-ui .operations-editor-actions .btn{width:100%!important;min-width:0!important;padding-inline:6px!important;white-space:normal!important}
+    .app-ui .operations-editor-actions .btn-primary{grid-column:1/-1!important}
+  }
+}

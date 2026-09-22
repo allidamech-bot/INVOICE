@@ -1,4 +1,4 @@
-import type { AppSettings, CompanySettings, Customer, DocumentEventRecord, DocumentItem, DocumentRevisionRecord, LourexDocument, PaymentRecord, SavedItem } from '../types.js';
+import type { AppSettings, CompanySettings, Customer, DocumentEventRecord, DocumentItem, DocumentRevisionRecord, LourexDocument, PaymentRecord, SavedItem, Supplier } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { Button, Icon } from './UI.js';
 import { EditorPage as EditorPageCore } from './EditorPageCore.js';
@@ -7,7 +7,7 @@ import { DocumentLifecyclePanel } from './DocumentLifecyclePanel.js';
 import { ProfitabilityPanel } from './ProfitabilityPanel.js';
 
 interface Props {
-  document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; company:CompanySettings; savedItems:SavedItem[]; payments:PaymentRecord[]; documentEvents:DocumentEventRecord[]; documentRevisions:DocumentRevisionRecord[]; smartDefaults:AppSettings['smartDefaults'];
+  document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; suppliers:Supplier[]; company:CompanySettings; savedItems:SavedItem[]; payments:PaymentRecord[]; documentEvents:DocumentEventRecord[]; documentRevisions:DocumentRevisionRecord[]; smartDefaults:AppSettings['smartDefaults'];
   onEditActivity?:()=>void; onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
   onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onUseSavedItems:(items:SavedItem[])=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
   onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onSavePayment:(payment:PaymentRecord)=>Promise<void>; onDeletePayment:(payment:PaymentRecord)=>Promise<void>; onBeginRevision:(doc:LourexDocument)=>Promise<LourexDocument>; onDiscardRevision:(doc:LourexDocument)=>Promise<void>; onVoidDocument:(doc:LourexDocument,reason:string)=>Promise<void>; onCreateCreditNote:(doc:LourexDocument)=>Promise<void>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>Promise<void>;
@@ -330,8 +330,8 @@ export class EditorPage extends React.Component<Props,State>{
       {this.state.persistenceError?<div className="editor-global-error" role="alert">{this.state.persistenceError}</div>:null}
       <EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry} onSaveCustomer={this.saveCustomerSingleFlight} onSaveDocumentItem={this.saveDocumentItemSingleFlight} onBeginRevision={this.beginRevisionSingleFlight} onPrint={this.printWithPreparedMode}/>
       <DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={this.discardRevisionSingleFlight} onVoid={this.voidDocumentSingleFlight} onCreateCreditNote={this.createCreditNoteSingleFlight}/>
-      <InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>
-      <ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>
+      {props.document.kind!=='purchase-order'?<InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>:null}
+      {props.document.kind!=='purchase-order'?<ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>:null}
       {sectionNavigator&&navSlot?ReactDOM.createPortal(sectionNavigator,navSlot):null}
       {finalQuoteAction&&editorScreen?ReactDOM.createPortal(finalQuoteAction,editorScreen):null}
     </>;

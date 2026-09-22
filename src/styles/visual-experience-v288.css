@@ -1,0 +1,634 @@
+/* LOUREX v288 — premium visual experience review layer.
+   Preview-only visual system pass requested after live iPad/Safari review.
+   No accounting, Firebase, persistence, PDF or business logic changes. */
+
+@media screen {
+  /* =========================================================
+     LIGHT THEME — calm stone canvas, restrained contrast,
+     semantic colour. Avoid hard white-on-white surfaces.
+     ========================================================= */
+  html[data-ui-theme="light"] {
+    --ft-canvas:#e9efed;
+    --ft-shell:#f2f5f3;
+    --ft-workspace:#edf2f0;
+    --ft-surface:#f8f8f5;
+    --ft-surface-2:#f0f3f0;
+    --ft-surface-3:#e7ece9;
+    --ft-input:#f3f5f2;
+    --ft-text:#1b2d30;
+    --ft-text-strong:#102427;
+    --ft-text-soft:#596d70;
+    --ft-muted:#718285;
+    --ft-faint:#8d9b9d;
+    --ft-line:#d1dad7;
+    --ft-line-strong:#bccbc7;
+    --ft-accent:#119da0;
+    --ft-accent-hover:#087f84;
+    --ft-accent-soft:#d9eeeb;
+    --ft-accent-faint:#e7f3f1;
+    --ft-on-accent:#ffffff;
+    --ft-success:#2f9a75;
+    --ft-success-soft:#dff0e8;
+    --ft-warning:#c48a35;
+    --ft-warning-soft:#f4ead8;
+    --ft-danger:#cd6570;
+    --ft-danger-soft:#f3e3e5;
+    --ft-info:#4d83c7;
+    --ft-info-soft:#e1e9f4;
+    --ft-shadow:0 10px 30px rgba(34,58,61,.07);
+    --ft-shadow-pop:0 24px 64px rgba(31,51,55,.16);
+    --ft-focus:0 0 0 3px rgba(17,157,160,.16);
+
+    --vx-purple:#7569d9;
+    --vx-purple-soft:#e9e6f6;
+    --vx-blue:#5279d8;
+    --vx-blue-soft:#e5eaf6;
+    --vx-green:#329a76;
+    --vx-green-soft:#dff0e8;
+    --vx-amber:#c18a39;
+    --vx-amber-soft:#f4ead9;
+    --vx-red:#cb6772;
+    --vx-red-soft:#f3e2e5;
+    --vx-sky:#3e8fb4;
+    --vx-sky-soft:#dfedf2;
+    --vx-ink:#102427;
+    --vx-surface:#f8f8f5;
+    --vx-canvas:#e9efed;
+  }
+
+  html[data-ui-theme="dark"] {
+    --vx-purple:#a28bf7;
+    --vx-purple-soft:#1c2135;
+    --vx-blue:#7d9af7;
+    --vx-blue-soft:#17283f;
+    --vx-green:#50c798;
+    --vx-green-soft:#12352d;
+    --vx-amber:#e0aa5a;
+    --vx-amber-soft:#392b18;
+    --vx-red:#eb7c87;
+    --vx-red-soft:#3a2026;
+    --vx-sky:#5cb1d3;
+    --vx-sky-soft:#153241;
+    --vx-ink:#eef8fa;
+    --vx-surface:#0b2833;
+    --vx-canvas:#061820;
+  }
+
+  html[data-ui-theme="light"],
+  html[data-ui-theme="light"] body,
+  html[data-ui-theme="light"] #root,
+  html[data-ui-theme="light"] .app-ui {
+    background:var(--ft-canvas)!important;
+  }
+
+  html[data-ui-theme="light"] .app-ui {
+    --mf-canvas:var(--ft-canvas);
+    --mf-shell:var(--ft-shell);
+    --mf-workspace:var(--ft-workspace);
+    --mf-surface:var(--ft-surface);
+    --mf-surface-2:var(--ft-surface-2);
+    --mf-input:var(--ft-input);
+    --mf-text:var(--ft-text);
+    --mf-text-strong:var(--ft-text-strong);
+    --mf-text-soft:var(--ft-text-soft);
+    --mf-muted:var(--ft-muted);
+    --mf-line:var(--ft-line);
+    --mf-accent:var(--ft-accent);
+    --mf-on-accent:var(--ft-on-accent);
+    --ds-canvas:var(--ft-canvas);
+    --ds-shell:var(--ft-shell);
+    --ds-workspace:var(--ft-workspace);
+    --ds-surface:var(--ft-surface);
+    --ds-surface-strong:var(--ft-surface-2);
+    --ds-selected:var(--ft-accent-faint);
+    --ds-elevated:var(--ft-surface-2);
+    --ds-input:var(--ft-input);
+    --ds-financial-surface:var(--ft-surface-2);
+    --ds-text:var(--ft-text);
+    --ds-text-strong:var(--ft-text-strong);
+    --ds-text-soft:var(--ft-text-soft);
+    --ds-muted:var(--ft-muted);
+    --ds-faint:var(--ft-faint);
+    --ds-line:var(--ft-line);
+    --ds-line-strong:var(--ft-line-strong);
+    --ds-input-line:var(--ft-line-strong);
+    --ds-accent:var(--ft-accent);
+    --ds-accent-hover:var(--ft-accent-hover);
+    --ds-accent-bright:var(--ft-accent);
+    --ds-brass:#b88747;
+    --ds-brass-highlight:#b88747;
+    --ds-gold-600:#b88747;
+    --ds-gold-500:#c69754;
+    --ds-gold-200:#efe1cb;
+    --ds-on-action:#fff;
+    --ds-success:var(--ft-success);
+    --ds-success-surface:var(--ft-success-soft);
+    --ds-warning:var(--ft-warning);
+    --ds-warning-surface:var(--ft-warning-soft);
+    --ds-danger:var(--ft-danger);
+    --ds-danger-text:var(--ft-danger);
+    --ds-danger-surface:var(--ft-danger-soft);
+    --ds-info:var(--ft-info);
+    --ds-info-surface:var(--ft-info-soft);
+    --editor-shell:var(--ft-canvas);
+    --editor-pane:var(--ft-workspace);
+    --editor-card:var(--ft-surface);
+    --editor-card-soft:var(--ft-surface-2);
+    --editor-line:var(--ft-line);
+    --editor-line-strong:var(--ft-line-strong);
+    --editor-ink:var(--ft-text);
+    --editor-muted:var(--ft-muted);
+    --editor-accent:var(--ft-accent);
+    --editor-accent-soft:var(--ft-accent-soft);
+  }
+
+  html[data-ui-theme="light"] .app-ui :is(.workspace-content,.main-content,.editor-main,.editor-screen,.editor-workspace,.domain-workspace,.page) {
+    background-color:var(--ft-canvas)!important;
+  }
+
+  /* =========================================================
+     AUTH GATEWAY — premium editorial split, correct contrast.
+     Story stays deep petrol in both themes; form becomes warm
+     stone in light theme rather than harsh white or dark mismatch.
+     ========================================================= */
+  html[data-ui-theme="light"] .auth-account-page {
+    background:
+      radial-gradient(circle at 14% 18%,rgba(17,157,160,.10),transparent 30rem),
+      radial-gradient(circle at 88% 84%,rgba(184,135,71,.08),transparent 28rem),
+      linear-gradient(145deg,#e7eeeb 0%,#eef2ef 55%,#e6ece9 100%)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme="light"] .auth-account-frame {
+    border-color:#cbd5d1!important;
+    background:#f4f6f3!important;
+    box-shadow:0 28px 72px rgba(30,53,55,.16)!important;
+  }
+  html[data-ui-theme="light"] .auth-account-story {
+    border-inline-end-color:rgba(255,255,255,.08)!important;
+    background:
+      radial-gradient(circle at 18% 18%,rgba(42,174,177,.14),transparent 23rem),
+      linear-gradient(155deg,#0b3038 0%,#0a252e 50%,#071d25 100%)!important;
+    color:#eef8f7!important;
+  }
+  html[data-ui-theme="light"] .auth-account-story .auth-story-title,
+  html[data-ui-theme="light"] .auth-account-story .brand-words strong {color:#f2f8f6!important}
+  html[data-ui-theme="light"] .auth-account-story .auth-story-kicker {color:#c9a76b!important}
+  html[data-ui-theme="light"] .auth-account-story .auth-story-copy>p:last-child {color:#a7babc!important}
+  html[data-ui-theme="light"] .auth-account-story .auth-story-product {
+    color:#7cd2d0!important;
+    border-color:rgba(124,210,208,.24)!important;
+    background:rgba(6,26,32,.34)!important;
+  }
+  html[data-ui-theme="light"] .auth-account-story .auth-story-trust>div {
+    background:rgba(255,255,255,.035)!important;
+    border-color:rgba(255,255,255,.08)!important;
+  }
+  html[data-ui-theme="light"] .auth-account-story .auth-story-trust strong {color:#e6efed!important}
+  html[data-ui-theme="light"] .auth-account-story .auth-story-trust small {color:#8ca3a7!important}
+
+  html[data-ui-theme="light"] .auth-account-card.account-first-card {
+    background:linear-gradient(180deg,#f6f6f2 0%,#eff2ef 100%)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme="light"] .auth-account-card .auth-card-heading .eyebrow {color:#9a7540!important}
+  html[data-ui-theme="light"] .auth-account-card .auth-card-heading h1 {color:#14282b!important}
+  html[data-ui-theme="light"] .auth-account-card .auth-card-heading .subtle {color:#64777a!important}
+  html[data-ui-theme="light"] .auth-account-card .auth-utility-controls,
+  html[data-ui-theme="light"] .auth-account-card .premium-auth-language {color:#4f6467!important}
+  html[data-ui-theme="light"] .auth-account-card .premium-auth-language {
+    border-color:#ccd7d3!important;
+    background:#edf1ee!important;
+  }
+  html[data-ui-theme="light"] .auth-account-card .account-entry-tabs {
+    border-color:#d1dad7!important;
+    background:#e8eeeb!important;
+  }
+  html[data-ui-theme="light"] .auth-account-card .account-entry-tabs button {color:#65777a!important}
+  html[data-ui-theme="light"] .auth-account-card .account-entry-tabs button.active {
+    background:#f8f8f5!important;
+    color:#162b2e!important;
+    box-shadow:0 4px 14px rgba(39,64,66,.08)!important;
+  }
+  html[data-ui-theme="light"] .auth-account-card .account-entry-fields .field,
+  html[data-ui-theme="light"] .auth-account-card .account-entry-fields label {color:#5e7275!important}
+  html[data-ui-theme="light"] .auth-account-card :is(input,.input) {
+    border-color:#c6d2ce!important;
+    background:#f0f3f0!important;
+    color:#14282b!important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.48)!important;
+  }
+  html[data-ui-theme="light"] .auth-account-card :is(input,.input)::placeholder {color:#8a999b!important}
+  html[data-ui-theme="light"] .google-auth-button {
+    border:1px solid #ccd5d2!important;
+    background:#f8f8f5!important;
+    color:#192c2f!important;
+    box-shadow:0 5px 16px rgba(35,59,61,.06)!important;
+  }
+  html[data-ui-theme="light"] .auth-provider-divider {color:#829194!important}
+  html[data-ui-theme="light"] .auth-provider-divider::before,
+  html[data-ui-theme="light"] .auth-provider-divider::after {background:#d3ddda!important}
+  html[data-ui-theme="light"] .auth-provider-divider span {background:#f3f5f2!important;color:#718285!important}
+  html[data-ui-theme="light"] .auth-account-card .welcome-primary,
+  html[data-ui-theme="light"] .auth-account-card .btn-primary {
+    background:linear-gradient(135deg,#c69a58,#b88647)!important;
+    border-color:#b88647!important;
+    color:#15282b!important;
+    box-shadow:0 9px 22px rgba(184,134,71,.18)!important;
+  }
+
+  /* =========================================================
+     HOME — stronger hierarchy, compact geometry, correct RTL.
+     ========================================================= */
+  .app-ui .fintech-dashboard-v280 {
+    --h-radius:16px;
+    max-width:1180px!important;
+  }
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 {
+    --h-bg:var(--ft-canvas);
+    --h-surface:var(--ft-surface);
+    --h-surface-2:var(--ft-surface-2);
+    --h-line:var(--ft-line);
+    --h-line-strong:var(--ft-line-strong);
+    --h-text:var(--ft-text);
+    --h-muted:var(--ft-muted);
+    --h-soft:var(--ft-faint);
+    --h-accent:var(--ft-accent);
+    --h-accent-strong:var(--ft-accent-hover);
+  }
+
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .command-center-hero {
+    background:
+      radial-gradient(circle at 88% 10%,rgba(117,105,217,.08),transparent 14rem),
+      linear-gradient(135deg,#edf4f1 0%,#f8f8f5 52%,#eef1f5 100%)!important;
+    border-color:#cfd9d6!important;
+    box-shadow:0 10px 26px rgba(38,61,63,.07)!important;
+  }
+  .app-ui .fintech-dashboard-v280 .command-center-hero::before {
+    background:linear-gradient(180deg,var(--ft-accent),var(--vx-purple))!important;
+  }
+  .app-ui .fintech-dashboard-v280 .command-center-actions {
+    min-width:0!important;
+  }
+  .app-ui .fintech-dashboard-v280 .command-center-actions>* {
+    min-width:0!important;
+  }
+  .app-ui .fintech-dashboard-v280 .command-center-actions .btn,
+  .app-ui .fintech-dashboard-v280 .command-period-pill {
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .dashboard-kpi {
+    background:var(--ft-surface)!important;
+    border-color:var(--ft-line)!important;
+    box-shadow:0 5px 16px rgba(33,55,58,.045)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .kpi-sales {background:linear-gradient(145deg,var(--vx-blue-soft),var(--ft-surface) 68%)!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .kpi-collected {background:linear-gradient(145deg,var(--vx-green-soft),var(--ft-surface) 68%)!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .kpi-outstanding {background:linear-gradient(145deg,var(--ft-accent-soft),var(--ft-surface) 68%)!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .kpi-overdue {background:linear-gradient(145deg,var(--vx-red-soft),var(--ft-surface) 68%)!important}
+
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi small {font-weight:780!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-money-stack b,
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi strong {
+    font-variant-numeric:tabular-nums!important;
+    letter-spacing:-.015em!important;
+  }
+  [dir="rtl"] .app-ui .fintech-dashboard-v280 .dashboard-money-stack b,
+  [dir="rtl"] .app-ui .fintech-dashboard-v280 .dashboard-kpi strong {letter-spacing:0!important}
+
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button {
+    background:var(--ft-surface)!important;
+    border-color:var(--ft-line)!important;
+    box-shadow:0 4px 14px rgba(35,58,60,.035)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button:nth-child(2) {background:linear-gradient(145deg,var(--vx-purple-soft),var(--ft-surface) 72%)!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button:nth-child(3) {background:linear-gradient(145deg,var(--vx-amber-soft),var(--ft-surface) 72%)!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button:nth-child(4) {background:linear-gradient(145deg,var(--vx-sky-soft),var(--ft-surface) 72%)!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button:nth-child(2)>span {color:var(--vx-purple)!important;background:var(--vx-purple-soft)!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button:nth-child(3)>span {color:var(--vx-amber)!important;background:var(--vx-amber-soft)!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button:nth-child(4)>span {color:var(--vx-sky)!important;background:var(--vx-sky-soft)!important}
+
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .command-performance-panel {background:linear-gradient(155deg,#eef2f6,var(--ft-surface) 45%)!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .command-position-panel {background:linear-gradient(150deg,var(--vx-purple-soft),var(--ft-surface) 52%)!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .command-attention {background:linear-gradient(150deg,var(--vx-amber-soft),var(--ft-surface) 52%)!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .command-inventory-health {background:linear-gradient(150deg,var(--vx-green-soft),var(--ft-surface) 52%)!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .command-recent {background:linear-gradient(150deg,var(--vx-sky-soft),var(--ft-surface) 50%)!important}
+
+  .app-ui .fintech-dashboard-v280 .command-position-panel .dashboard-panel-heading small {color:var(--vx-purple)!important}
+  .app-ui .fintech-dashboard-v280 .command-attention .dashboard-panel-heading small {color:var(--vx-amber)!important}
+  .app-ui .fintech-dashboard-v280 .command-inventory-health .dashboard-panel-heading small {color:var(--vx-green)!important}
+  .app-ui .fintech-dashboard-v280 .command-recent .dashboard-panel-heading small {color:var(--vx-sky)!important}
+
+  .app-ui .fintech-dashboard-v280 .command-chart-controls {
+    overflow:visible!important;
+    scrollbar-width:none!important;
+  }
+  .app-ui .fintech-dashboard-v280 .command-chart-controls button {font-weight:760!important}
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .command-chart-controls button.active {
+    color:var(--vx-blue)!important;
+    background:var(--vx-blue-soft)!important;
+    border-color:color-mix(in srgb,var(--vx-blue) 30%,var(--ft-line))!important;
+  }
+
+  .app-ui .fintech-dashboard-v280 .command-health-number,
+  .app-ui .fintech-dashboard-v280 .command-health-bars,
+  .app-ui .fintech-dashboard-v280 .command-position-list {align-content:start!important}
+  .app-ui .fintech-dashboard-v280 .command-health-bars>div,
+  .app-ui .fintech-dashboard-v280 .command-position-list>div {min-height:40px!important}
+
+  /* Advisor: keep it premium but no longer a black slab in light theme. */
+  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .lourex-advisor-card {
+    background:linear-gradient(135deg,#172a37,#17353a)!important;
+    border-color:#29474d!important;
+    box-shadow:0 10px 28px rgba(28,49,55,.14)!important;
+  }
+
+  /* =========================================================
+     GLOBAL SEARCH / QUICK CREATE — compact command palette.
+     ========================================================= */
+  .global-search-backdrop {
+    background:rgba(11,24,29,.42)!important;
+    backdrop-filter:blur(8px)!important;
+    -webkit-backdrop-filter:blur(8px)!important;
+  }
+  .global-search-panel {
+    width:min(680px,calc(100vw - 28px))!important;
+    max-height:min(720px,82dvh)!important;
+    border-radius:18px!important;
+  }
+  html[data-ui-theme="light"] .global-search-panel {
+    border-color:#c7d2cf!important;
+    background:#f4f6f3!important;
+    color:#172b2e!important;
+    box-shadow:0 28px 80px rgba(26,46,50,.22)!important;
+  }
+  html[data-ui-theme="light"] .global-search-input-wrap,
+  html[data-ui-theme="light"] .global-search-footer {
+    border-color:#d3dcda!important;
+    background:#edf1ee!important;
+    color:#6f8083!important;
+  }
+  html[data-ui-theme="light"] .global-search-input-wrap>svg {color:var(--ft-accent)!important}
+  html[data-ui-theme="light"] .global-search-input-wrap input {color:#172b2e!important}
+  html[data-ui-theme="light"] .global-search-input-wrap input::placeholder {color:#819093!important}
+  html[data-ui-theme="light"] .global-search-input-wrap kbd,
+  html[data-ui-theme="light"] .global-search-footer kbd {border-color:#c9d4d0!important;background:#f7f8f5!important;color:#718184!important}
+  html[data-ui-theme="light"] .global-search-section-title {color:#65777a!important}
+  html[data-ui-theme="light"] .global-search-section-title small {color:#8c999b!important}
+  .global-search-actions {gap:7px!important}
+  .global-search-actions button {
+    min-height:58px!important;
+    border-radius:12px!important;
+    padding:9px 11px!important;
+  }
+  html[data-ui-theme="light"] .global-search-actions button {
+    border-color:#d1dbd8!important;
+    background:#f8f8f5!important;
+    color:#1a2d30!important;
+  }
+  html[data-ui-theme="light"] .global-search-actions button:nth-child(2) {background:linear-gradient(145deg,var(--vx-blue-soft),#f8f8f5 72%)!important}
+  html[data-ui-theme="light"] .global-search-actions button:nth-child(3) {background:linear-gradient(145deg,var(--vx-purple-soft),#f8f8f5 72%)!important}
+  html[data-ui-theme="light"] .global-search-actions button:nth-child(4) {background:linear-gradient(145deg,var(--vx-green-soft),#f8f8f5 72%)!important}
+  html[data-ui-theme="light"] .global-search-actions button:nth-child(5) {background:linear-gradient(145deg,var(--vx-amber-soft),#f8f8f5 72%)!important}
+  html[data-ui-theme="light"] .global-search-actions button:nth-child(6) {background:linear-gradient(145deg,var(--vx-sky-soft),#f8f8f5 72%)!important}
+  html[data-ui-theme="light"] .global-search-actions button:nth-child(7) {background:linear-gradient(145deg,var(--ft-accent-soft),#f8f8f5 72%)!important}
+  html[data-ui-theme="light"] .global-search-actions svg {color:var(--ft-accent)!important}
+  html[data-ui-theme="light"] .global-search-actions small {color:#728285!important}
+  html[data-ui-theme="light"] .global-search-destinations button,
+  html[data-ui-theme="light"] .global-search-result {
+    border-color:#d5ddda!important;
+    background:#f6f7f4!important;
+    color:#52666a!important;
+  }
+  html[data-ui-theme="light"] .global-search-result-copy strong {color:#1b3033!important}
+  html[data-ui-theme="light"] .global-search-result-copy>span {color:#738386!important}
+  html[data-ui-theme="light"] .global-search-result-icon {border-color:#d3dcda!important;background:#e9efec!important;color:#b38749!important}
+
+  /* =========================================================
+     EDITOR / WORKSPACES — remove hard-white washout.
+     ========================================================= */
+  html[data-ui-theme="light"] .app-ui :is(
+    .editor-card,.editor-section,.editor-panel,.section-card,.form-card,.settings-card,
+    .product-editor-section,.customer-editor-card,.document-editor-card,.workspace-card,
+    .premium-card,.panel,.card
+  ) {
+    border-color:var(--ft-line)!important;
+    background-color:var(--ft-surface)!important;
+  }
+  html[data-ui-theme="light"] .app-ui :is(input,select,textarea,.input,.select,.textarea) {
+    border-color:var(--ft-line-strong)!important;
+    background-color:var(--ft-input)!important;
+    color:var(--ft-text)!important;
+  }
+  html[data-ui-theme="light"] .app-ui :is(.btn:not(.btn-primary),button.secondary,.secondary-button) {
+    border-color:var(--ft-line-strong);
+    background-color:var(--ft-surface-2);
+    color:var(--ft-text);
+  }
+  html[data-ui-theme="light"] .app-ui :is(.toggle,.switch,.segmented-control,.tabs,.editor-tabs) {
+    border-color:var(--ft-line)!important;
+  }
+  html[data-ui-theme="light"] .app-ui .issue-warning.level-info {background:var(--vx-blue-soft)!important;color:#3f619c!important}
+
+  /* =========================================================
+     MOBILE — geometry, RTL, no artificial bottom dead zone.
+     ========================================================= */
+  @media (max-width:720px) {
+    .app-ui:has(.fintech-dashboard-v280) .workspace-shell {
+      min-height:100dvh!important;
+      height:auto!important;
+    }
+    .app-ui:has(.fintech-dashboard-v280) .workspace-content,
+    .app-ui:has(.fintech-dashboard-v280) .workspace-content>.main-content {
+      min-height:0!important;
+      height:auto!important;
+      max-height:none!important;
+      padding-bottom:0!important;
+    }
+    .app-ui .fintech-dashboard-v280 {
+      min-height:0!important;
+      height:auto!important;
+      padding:12px 12px calc(74px + env(safe-area-inset-bottom,0px))!important;
+      gap:9px!important;
+      align-content:start!important;
+    }
+    .app-ui .fintech-dashboard-v280>.lourex-advisor-card:last-child {margin-bottom:0!important}
+
+    .app-ui .fintech-dashboard-v280 .command-center-hero {
+      padding:13px!important;
+      gap:10px!important;
+      border-radius:15px!important;
+    }
+    .app-ui .fintech-dashboard-v280 .command-center-hero h1 {
+      font-size:clamp(24px,7.2vw,29px)!important;
+      line-height:1.12!important;
+    }
+    .app-ui .fintech-dashboard-v280 .command-center-actions {
+      display:grid!important;
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+      gap:7px!important;
+      width:100%!important;
+    }
+    .app-ui .fintech-dashboard-v280 .command-center-actions .btn,
+    .app-ui .fintech-dashboard-v280 .command-period-pill {
+      width:100%!important;
+      min-width:0!important;
+      min-height:42px!important;
+      justify-content:center!important;
+      padding-inline:9px!important;
+      font-size:10.5px!important;
+      border-radius:11px!important;
+    }
+
+    .app-ui .fintech-dashboard-v280 .command-kpis {
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+      gap:7px!important;
+    }
+    .app-ui .fintech-dashboard-v280 .dashboard-kpi {
+      min-height:92px!important;
+      padding:11px!important;
+      border-radius:13px!important;
+      grid-template-columns:30px minmax(0,1fr)!important;
+      gap:8px!important;
+      align-items:start!important;
+    }
+    [dir="rtl"] .app-ui .fintech-dashboard-v280 .dashboard-kpi {
+      grid-template-columns:minmax(0,1fr) 30px!important;
+    }
+    [dir="rtl"] .app-ui .fintech-dashboard-v280 .dashboard-kpi-icon {grid-column:2!important;grid-row:1!important}
+    [dir="rtl"] .app-ui .fintech-dashboard-v280 .dashboard-kpi>span:last-child {grid-column:1!important;grid-row:1!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-kpi-icon {width:30px!important;height:30px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-kpi small {font-size:10px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-money-stack b,
+    .app-ui .fintech-dashboard-v280 .dashboard-kpi strong {font-size:15px!important;line-height:1.15!important}
+
+    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions {
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+      gap:7px!important;
+    }
+    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button {
+      min-height:58px!important;
+      padding:9px 10px!important;
+      border-radius:12px!important;
+      grid-template-columns:30px minmax(0,1fr)!important;
+      gap:8px!important;
+      align-items:center!important;
+    }
+    [dir="rtl"] .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button {grid-template-columns:minmax(0,1fr) 30px!important}
+    [dir="rtl"] .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button>span {grid-column:2!important;grid-row:1!important}
+    [dir="rtl"] .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button>strong {grid-column:1!important;grid-row:1!important;text-align:start!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button>span {width:30px!important;height:30px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions strong {font-size:11px!important;line-height:1.25!important}
+
+    .app-ui .fintech-dashboard-v280 .command-performance-grid,
+    .app-ui .fintech-dashboard-v280 .command-insight-grid {grid-template-columns:1fr!important;gap:9px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-panel-heading {min-height:52px!important;padding:10px 12px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-panel-heading h2 {font-size:15px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-panel-heading small {font-size:8.5px!important}
+
+    .app-ui .fintech-dashboard-v280 .command-chart {height:104px!important;min-height:104px!important}
+    .app-ui .fintech-dashboard-v280 .command-chart-wrap {padding:2px 9px 0!important}
+    .app-ui .fintech-dashboard-v280 .command-chart-controls {
+      display:grid!important;
+      grid-template-columns:repeat(4,minmax(0,1fr))!important;
+      width:100%!important;
+      gap:4px!important;
+      padding:6px 8px 7px!important;
+    }
+    .app-ui .fintech-dashboard-v280 .command-chart-controls button {
+      min-width:0!important;
+      min-height:30px!important;
+      padding-inline:3px!important;
+      font-size:9.5px!important;
+    }
+
+    .app-ui .fintech-dashboard-v280 .command-position-list {grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0 10px!important;padding:4px 12px!important}
+    .app-ui .fintech-dashboard-v280 .command-position-list>div {min-height:43px!important}
+    .app-ui .fintech-dashboard-v280 .command-health-number {padding:12px 12px 4px!important}
+    .app-ui .fintech-dashboard-v280 .command-health-number strong {font-size:26px!important}
+    .app-ui .fintech-dashboard-v280 .command-health-bars {padding:2px 12px 10px!important}
+    .app-ui .fintech-dashboard-v280 .command-health-bars>div {min-height:36px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-document-row {min-height:56px!important;padding:8px 10px!important}
+
+    .app-ui:has(.fintech-dashboard-v280) .mobile-bottom-nav {
+      height:calc(64px + env(safe-area-inset-bottom))!important;
+      padding:5px max(6px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(6px,env(safe-area-inset-left))!important;
+      grid-template-columns:repeat(5,minmax(0,1fr))!important;
+      align-items:start!important;
+      background:color-mix(in srgb,var(--ft-shell) 96%,transparent)!important;
+      border-top:1px solid var(--ft-line)!important;
+      box-shadow:0 -8px 22px rgba(23,48,52,.10)!important;
+      backdrop-filter:blur(18px)!important;
+      -webkit-backdrop-filter:blur(18px)!important;
+    }
+    .app-ui:has(.fintech-dashboard-v280) .mobile-bottom-nav>button {
+      width:100%!important;
+      min-width:0!important;
+      min-height:52px!important;
+      margin:0!important;
+      padding:3px 2px!important;
+      gap:3px!important;
+      align-items:center!important;
+      justify-content:center!important;
+      text-align:center!important;
+    }
+    .app-ui:has(.fintech-dashboard-v280) .mobile-bottom-nav>button>span {
+      width:100%!important;
+      text-align:center!important;
+      font-size:10.5px!important;
+      line-height:1.15!important;
+    }
+
+    /* Search palette: compact enough to feel like a command sheet, not a page. */
+    .global-search-panel {
+      top:max(12px,env(safe-area-inset-top))!important;
+      width:calc(100vw - 20px)!important;
+      max-height:calc(100dvh - max(24px,env(safe-area-inset-top)) - max(18px,env(safe-area-inset-bottom)))!important;
+      border-radius:16px!important;
+    }
+    .global-search-input-wrap {padding:9px 11px!important}
+    .global-search-input-wrap input {height:40px!important;font-size:12.5px!important}
+    .global-search-start,.global-search-results {min-height:0!important;padding:8px!important}
+    .global-search-actions {grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}
+    .global-search-actions button {min-height:56px!important;padding:8px 9px!important;grid-template-columns:30px minmax(0,1fr)!important;gap:8px!important}
+    .global-search-actions strong {font-size:10.5px!important}
+    .global-search-actions small {font-size:9px!important}
+    .global-search-destinations {grid-template-columns:repeat(2,minmax(0,1fr))!important}
+    .global-search-footer {min-height:36px!important;padding:7px 10px!important}
+
+    /* Auth mobile proportions. Story becomes a compact premium banner; form follows. */
+    .auth-account-page {padding:max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom))!important;place-items:start center!important}
+    .auth-account-frame {width:100%!important;min-height:0!important;border-radius:24px!important;grid-template-columns:1fr!important}
+    .auth-account-story {min-height:210px!important;padding:24px 22px!important;gap:20px!important}
+    .auth-account-story .auth-story-brand .brand-mark,
+    .auth-account-story .auth-story-brand .brand-mark img {width:54px!important;height:54px!important;border-radius:15px!important}
+    .auth-account-story .auth-story-brand .brand-words strong {font-size:14px!important}
+    .auth-account-story .auth-story-copy {margin:0!important}
+    .auth-account-story .auth-story-copy .auth-story-title {font-size:clamp(28px,8vw,38px)!important;line-height:1.04!important}
+    .auth-account-story .auth-story-copy>p:last-child {display:none!important}
+    .auth-account-story .auth-story-trust,.auth-account-story .auth-story-foot {display:none!important}
+    .auth-account-card.account-first-card {padding:66px 22px 24px!important;justify-content:flex-start!important}
+    .auth-account-card .auth-card-heading {margin-bottom:18px!important}
+    .auth-account-card .auth-card-heading h1 {font-size:28px!important}
+    .auth-account-card .google-auth-button {min-height:50px!important;border-radius:13px!important}
+    .auth-account-card .account-entry-tabs {margin-bottom:16px!important}
+    .auth-account-card .account-entry-tabs button {min-height:42px!important}
+    .auth-account-card .account-entry-fields {gap:12px!important}
+  }
+
+  @media (max-width:520px) {
+    .global-search-actions {grid-template-columns:1fr!important}
+    .global-search-actions button {min-height:54px!important}
+  }
+
+  @media (max-width:390px) {
+    .app-ui .fintech-dashboard-v280 {padding-inline:9px!important}
+    .app-ui .fintech-dashboard-v280 .command-center-actions {grid-template-columns:1fr 1fr!important}
+    .app-ui .fintech-dashboard-v280 .command-center-actions .btn,
+    .app-ui .fintech-dashboard-v280 .command-period-pill {font-size:9.5px!important;padding-inline:6px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-kpi {min-height:86px!important;padding:10px 9px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button {min-height:54px!important;padding:8px!important}
+  }
+}

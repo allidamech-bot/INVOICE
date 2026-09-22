@@ -5,7 +5,8 @@ import { defaultBankDetails } from './commercial-controls.js';
 // v9 adds encrypted internal cost metadata for profitability analysis.
 // v10 adds commercial controls, bank choices and customer credit policy.
 // v11 adds encrypted suppliers, purchases, expenses and inventory ledger records.
-export const APP_SCHEMA_VERSION = 11;
+// v12 adds purchase-order documents and encrypted image/PDF attachments.
+export const APP_SCHEMA_VERSION = 12;
 export const KDF_ITERATIONS = 310_000;
 
 export function defaultCompany(): CompanySettings {
@@ -39,7 +40,7 @@ export function defaultAppSettings(): AppSettings {
     // their explicit preference for backward compatibility.
     autoLockMinutes: 15,
     uiLanguage: 'en',
-    numbering: { proformaPrefix: 'PI', invoicePrefix: 'INV', creditNotePrefix: 'CN', proformaLast: 0, invoiceLast: 0, creditNoteLast: 0, proformaYear: new Date().getFullYear(), invoiceYear: new Date().getFullYear(), creditNoteYear: new Date().getFullYear() },
+    numbering: { proformaPrefix: 'PI', invoicePrefix: 'INV', creditNotePrefix: 'CN', purchaseOrderPrefix: 'PO', proformaLast: 0, invoiceLast: 0, creditNoteLast: 0, purchaseOrderLast: 0, proformaYear: new Date().getFullYear(), invoiceYear: new Date().getFullYear(), creditNoteYear: new Date().getFullYear(), purchaseOrderYear: new Date().getFullYear() },
     smartDefaults: {
       currency:'USD',
       language:'en',

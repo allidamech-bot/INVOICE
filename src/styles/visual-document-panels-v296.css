@@ -1,0 +1,139 @@
+/* LOUREX v296 — application document panels closeout.
+   Screen UI only: payments, lifecycle and profitability. Printable templates are untouched. */
+@media screen {
+  .app-ui :where(.invoice-payments-panel,.document-lifecycle-panel,.profitability-panel){
+    width:min(100%,1180px)!important;
+    max-width:1180px!important;
+    margin:14px auto 18px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:16px!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+    box-shadow:0 8px 24px rgba(24,52,56,.055)!important;
+    box-sizing:border-box!important;
+  }
+  html[data-ui-theme='dark'] .app-ui :where(.invoice-payments-panel,.document-lifecycle-panel,.profitability-panel){
+    box-shadow:none!important;
+  }
+
+  .app-ui :where(.payments-heading,.lifecycle-heading,.profitability-toggle) :where(h2,strong){
+    color:var(--ft-text-strong)!important;
+  }
+  .app-ui :where(.payments-heading p,.lifecycle-heading p,.profitability-toggle small,
+    .payment-row-details,.payment-empty,.document-timeline small,.document-timeline p,
+    .profitability-summary span,.profitability-summary small,.profitability-line>div:first-child span,
+    .profitability-overheads small,.profitability-actions>span){
+    color:var(--ft-text-soft)!important;
+  }
+
+  .app-ui :where(.payment-summary-grid>div,.payment-entry-form,.profitability-summary>div,
+    .profitability-overheads label,.profitability-lines-head,.lifecycle-facts>div,
+    .profitability-privacy){
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
+  }
+
+  .app-ui .payment-balance-card,
+  .app-ui .profitability-profit{
+    background:linear-gradient(145deg,var(--ft-accent-faint),var(--ft-surface-2))!important;
+  }
+
+  .app-ui :where(.payment-row,.profitability-body,.profitability-line,.document-timeline){
+    border-color:var(--ft-line)!important;
+  }
+
+  .app-ui .void-reason{
+    border-inline-start-color:var(--ft-danger)!important;
+    background:var(--ft-danger-soft)!important;
+    color:var(--ft-danger)!important;
+  }
+  .app-ui .void-reason span{color:var(--ft-danger)!important}
+
+  .app-ui :where(.payment-error,.profitability-error,.lifecycle-error){
+    color:var(--ft-danger)!important;
+  }
+  .app-ui .profitability-error{
+    background:var(--ft-danger-soft)!important;
+  }
+
+  /* Semantic status chips stay readable in both themes. */
+  .app-ui :where(.status-paid,.collection-paid,.profitability-status.complete,.lifecycle-status.is-final){
+    background:var(--ft-success-soft)!important;
+    color:var(--ft-success)!important;
+  }
+  .app-ui :where(.status-partially-paid,.collection-partially-paid,.profitability-status.incomplete,
+    .lifecycle-status.is-revision){
+    background:var(--ft-warning-soft)!important;
+    color:var(--ft-warning)!important;
+  }
+  .app-ui :where(.status-overdue,.collection-overdue,.lifecycle-status.is-voided){
+    background:var(--ft-danger-soft)!important;
+    color:var(--ft-danger)!important;
+  }
+  .app-ui :where(.status-unpaid,.collection-unpaid,.lifecycle-status.is-draft){
+    background:var(--ft-surface-3)!important;
+    color:var(--ft-text-soft)!important;
+  }
+
+  .app-ui :where(.payment-summary-grid strong,.payment-row strong,.profitability-summary strong,
+    .profitability-line strong,.lifecycle-facts strong){
+    font-variant-numeric:tabular-nums!important;
+  }
+  html[dir='rtl'] .app-ui :where(.payment-summary-grid strong,.payment-row strong,
+    .profitability-summary strong,.profitability-line strong,.lifecycle-facts strong){
+    direction:ltr!important;
+    unicode-bidi:isolate!important;
+    text-align:right!important;
+  }
+
+  .app-ui :where(.payment-form-actions .btn,.profitability-actions .btn,.profitability-line-actions .btn,
+    .lifecycle-actions .btn){min-height:44px!important}
+
+  @media(max-width:720px){
+    /* Historical 96/104px margins duplicated the fixed-nav clearance. Remove them. */
+    .app-ui :where(.invoice-payments-panel,.document-lifecycle-panel,.profitability-panel){
+      width:auto!important;
+      max-width:none!important;
+      margin:10px 10px 12px!important;
+      border-radius:14px!important;
+    }
+    .app-ui .invoice-payments-panel{padding:14px!important}
+    .app-ui .document-lifecycle-panel{padding:14px!important}
+
+    .app-ui :where(.payments-heading,.lifecycle-heading){
+      align-items:flex-start!important;
+      flex-direction:column!important;
+      gap:8px!important;
+    }
+    .app-ui :where(.payment-summary-grid,.payment-form-grid,.profitability-summary,
+      .profitability-overheads){grid-template-columns:minmax(0,1fr)!important}
+
+    .app-ui .payment-row{
+      grid-template-columns:minmax(0,1fr) auto!important;
+      gap:6px 10px!important;
+    }
+    .app-ui .payment-row-details{grid-column:1/-1!important}
+
+    .app-ui .lifecycle-facts{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+    .app-ui .lifecycle-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}
+    .app-ui .lifecycle-actions .btn{width:100%!important;min-width:0!important;white-space:normal!important}
+
+    .app-ui .profitability-toggle{
+      grid-template-columns:auto minmax(0,1fr)!important;
+      gap:9px!important;
+      padding:14px!important;
+    }
+    .app-ui .profitability-status{grid-column:1/-1!important;justify-self:start!important}
+    .app-ui .profitability-body{padding:0 14px 14px!important}
+    .app-ui .profitability-line{grid-template-columns:minmax(0,1fr)!important;gap:8px!important}
+    .app-ui .profitability-line-actions{justify-content:flex-start!important}
+    .app-ui .profitability-actions{align-items:stretch!important;flex-direction:column!important;gap:8px!important}
+    .app-ui .profitability-actions .btn{width:100%!important}
+  }
+
+  @media(max-width:380px){
+    .app-ui .lifecycle-facts{grid-template-columns:minmax(0,1fr)!important}
+    .app-ui .lifecycle-actions{grid-template-columns:minmax(0,1fr)!important}
+  }
+}
