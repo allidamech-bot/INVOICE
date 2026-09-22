@@ -1,0 +1,14 @@
+import { readFile, writeFile } from 'node:fs/promises';
+const read=p=>readFile(p,'utf8');const write=(p,s)=>writeFile(p,s,'utf8');
+function replace(s,a,b,label){if(!s.includes(a))throw new Error('Missing '+label);return s.replace(a,b);}
+{
+  let s=await read('src/lib/documents.ts');
+  s=replace(s,'type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number};','type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number;purchaseOrder:number};','NumberReservation purchaseOrder');
+  await write('src/lib/documents.ts',s);
+}
+{
+  let s=await read('src/components/AiCopilot.tsx');
+  s=replace(s,'  const active=activeDocument?{id:activeDocument.id,number:activeDocument.number,kind:activeDocument.kind,status:activeDocument.status,currency:activeDocument.currency,language:activeDocument.language,customerName:activeDocument.customerSnapshot?.companyNameEn||activeDocument.customerSnapshot?.companyNameAr||\'\',items:activeDocument.items.slice(0,40).map(item=>({id:item.id,descriptionEn:item.descriptionEn,descriptionAr:item.descriptionAr,quantity:item.quantity,unit:item.unit,unitPrice:item.unitPrice,hsCode:item.hsCode,origin:item.origin,packing:item.packing})),terms:{incoterm:activeDocument.terms.incoterm,paymentTerms:activeDocument.terms.paymentTerms,packing:activeDocument.terms.packing,deliveryTime:activeDocument.terms.deliveryTime,portOfLoading:activeDocument.terms.portOfLoading,finalDestination:activeDocument.terms.finalDestination,countryOfOrigin:activeDocument.terms.countryOfOrigin,validity:activeDocument.terms.validity,remarks:activeDocument.terms.remarks},notes:activeDocument.notes}:null;','  const active=activeDocument&&activeDocument.kind!==\'purchase-order\'?{id:activeDocument.id,number:activeDocument.number,kind:activeDocument.kind,status:activeDocument.status,currency:activeDocument.currency,language:activeDocument.language,customerName:activeDocument.customerSnapshot?.companyNameEn||activeDocument.customerSnapshot?.companyNameAr||\'\',items:activeDocument.items.slice(0,40).map(item=>({id:item.id,descriptionEn:item.descriptionEn,descriptionAr:item.descriptionAr,quantity:item.quantity,unit:item.unit,unitPrice:item.unitPrice,hsCode:item.hsCode,origin:item.origin,packing:item.packing})),terms:{incoterm:activeDocument.terms.incoterm,paymentTerms:activeDocument.terms.paymentTerms,packing:activeDocument.terms.packing,deliveryTime:activeDocument.terms.deliveryTime,portOfLoading:activeDocument.terms.portOfLoading,finalDestination:activeDocument.terms.finalDestination,countryOfOrigin:activeDocument.terms.countryOfOrigin,validity:activeDocument.terms.validity,remarks:activeDocument.terms.remarks},notes:activeDocument.notes}:null;','AI purchase order guard');
+  await write('src/components/AiCopilot.tsx',s);
+}
+console.log('v300 type integration fixes applied');
