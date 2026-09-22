@@ -71,7 +71,7 @@
     line-height:1.45!important;
   }
   .app-ui .cloud-conflict-banner>.btn {
-    min-height:38px!important;
+    min-height:44px!important;
     border-radius:9px!important;
     font-size:10px!important;
   }
@@ -91,15 +91,15 @@
   .app-ui .premium-customer-card :is(.customer-location,.customer-contact,.customer-secondary-name) { color:var(--ft-muted)!important; }
   .app-ui .customer-document-actions { gap:6px!important; }
   .app-ui .customer-document-action {
-    min-height:42px!important;
+    min-height:44px!important;
     border-radius:10px!important;
     font-size:9.5px!important;
   }
   .app-ui .customer-actions { gap:4px!important; }
   .app-ui .customer-actions .icon-btn {
-    width:40px!important;
-    min-width:40px!important;
-    height:40px!important;
+    width:44px!important;
+    min-width:44px!important;
+    height:44px!important;
     border-radius:10px!important;
   }
 
@@ -116,9 +116,23 @@
   .app-ui .documents-register-tabs::-webkit-scrollbar { display:none; }
   .app-ui .documents-register-tabs>button {
     flex:0 0 auto!important;
-    min-height:40px!important;
+    min-height:44px!important;
     padding-inline:11px!important;
     border-radius:9px!important;
+  }
+
+  /* Maintain the app's established 44px mobile interaction floor while reducing visual padding. */
+  .app-ui .fintech-dashboard-v280 .command-chart-controls>button,
+  .app-ui .fintech-dashboard-v280 .command-chart-mode>button,
+  .app-ui .fintech-dashboard-v280 .command-position-action,
+  .app-ui .lourex-advisor-starters>button {
+    min-height:44px!important;
+  }
+  .app-ui .lourex-advisor-compose form>button {
+    width:44px!important;
+    min-width:44px!important;
+    height:44px!important;
+    min-height:44px!important;
   }
 
   /* AI action belongs above app chrome and uses the same visual language. */
@@ -144,7 +158,7 @@
 
 @media screen and (max-width:430px) {
   .app-ui .documents-heading-actions { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
-  .app-ui .documents-heading-actions .btn { min-height:42px!important; font-size:8.8px!important; }
+  .app-ui .documents-heading-actions .btn { min-height:44px!important; font-size:8.8px!important; }
   .app-ui :is(.customers-heading,.documents-heading) h1 { font-size:23px!important; }
   .app-ui :is(.customers-heading,.documents-heading) .page-subtitle { font-size:10px!important; }
 }
