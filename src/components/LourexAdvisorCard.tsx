@@ -120,6 +120,7 @@ export class LourexAdvisorCard extends React.Component<Props,State>{
   render():any{
     const starterPrompts=starters();
     return <>
+      <link rel="stylesheet" href="./styles/home-review-polish-v285.css"/>
       <section className="dashboard-panel lourex-advisor-card" aria-label={t('LOUREX Financial Advisor','مستشار LOUREX المالي')}>
         <header className="lourex-advisor-head">
           <div className="lourex-advisor-identity"><span className="lourex-advisor-mark" aria-hidden="true"><Icon name="spark"/></span><div><small>{t('LOUREX Intelligence','ذكاء LOUREX')}</small><h2>{t('Your financial advisor & accountant','مستشارك المالي والمحاسبي')}</h2><p>{t('Ask naturally about sales, collections, profit, customers, purchasing, costs or any business number.','اسأل بشكل طبيعي عن المبيعات والتحصيل والربح والعملاء والمشتريات والتكاليف أو أي رقم في أعمالك.')}</p></div></div>
