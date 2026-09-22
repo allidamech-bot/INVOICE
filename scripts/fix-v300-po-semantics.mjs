@@ -36,7 +36,7 @@ function rep(s,a,b,label){if(!s.includes(a))throw new Error(`Missing ${label}`);
 
 {
   let s=await read('tests/v300-purchase-order-attachments-pin.test.mjs');
-  s += `\ntest('v300 purchase-order dates and cancellation stay purchase-order specific',async()=>{const [core,template]=await Promise.all([read('src/components/EditorPageCore.tsx'),read('src/templates/TemplateRenderer.tsx')]);assert.match(core,/if\(d\.kind==='purchase-order'\)return next;/);assert.match(template,/doc\.kind==='proforma'\|\|doc\.kind==='purchase-order'/);});\n`;
+  s += `\ntest('v300 purchase-order dates and cancellation stay purchase-order specific',async()=>{const [core,template]=await Promise.all([read('src/components/EditorPageCore.tsx'),read('src/templates/TemplateRenderer.tsx')]);assert.ok(core.includes("if(d.kind==='purchase-order')return next;"));assert.ok(template.includes("doc.kind==='proforma'||doc.kind==='purchase-order'"));});\n`;
   await write('tests/v300-purchase-order-attachments-pin.test.mjs',s);
 }
 console.log('v300 PO semantic fixes applied');
