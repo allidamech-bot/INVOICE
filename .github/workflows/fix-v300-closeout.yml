@@ -25,6 +25,18 @@ jobs:
       - run: npm ci
       - name: Apply v300 closeout
         run: node scripts/fix-v300-closeout.mjs
+      - name: Repair generated regression assertion
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFile,writeFile} from 'node:fs/promises';
+          const path='tests/v300-purchase-order-attachments-pin.test.mjs';
+          let text=await readFile(path,'utf8');
+          const bad="assert.match(template,/doc.kind==='purchase-order'?'Buyer / From':'Seller / From'/);";
+          const good="assert.ok(template.includes(\"doc.kind==='purchase-order'?'Buyer / From':'Seller / From'\"));";
+          if(!text.includes(bad))throw new Error('Expected generated PO template assertion was not found.');
+          text=text.replace(bad,good);
+          await writeFile(path,text,'utf8');
+          NODE
       - name: Typecheck
         run: npm run typecheck
       - name: Focused v300 regression
