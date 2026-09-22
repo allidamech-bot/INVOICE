@@ -51,6 +51,12 @@
     background-image:none!important;
   }
 
+  /* Settings navigation stays on a semantic card surface, not the workspace canvas. */
+  .app-ui .settings-workspace-v2 .settings-tabs {
+    background:var(--mf-surface)!important;
+    background-image:none!important;
+  }
+
   /* Premium segmented KPI rail: one calm financial surface with clear internal rhythm. */
   .app-ui .fintech-dashboard-v280 .command-kpis {
     gap:0!important;
