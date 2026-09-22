@@ -16,7 +16,7 @@
     ensureStylesheet('data-lourex-v288','./styles/visual-experience-v288.css?v=288');
     ensureStylesheet('data-lourex-v289','./styles/visual-audit-v289.css?v=289');
     ensureStylesheet('data-lourex-v290','./styles/visual-hardening-v290.css?v=290');
-    ensureStylesheet('data-lourex-v291','./styles/visual-closeout-v291.css?v=291');
+    ensureStylesheet('data-lourex-v291','./styles/visual-closeout-v291.css?v=291-2');
     if(document.documentElement.dataset.uiTheme==='light')document.documentElement.style.backgroundColor='#e8eeeb';
   }
 
