@@ -1,3 +1,4 @@
+// v284 Home corrective rebuild — refresh cached Home styling and restored LOUREX brand asset.
 // lourex-invoice-v255: preserve concurrent payments and draft PDF/share output intent.
 // lourex-invoice-v254: strict accounting-date and report-accessibility maintenance refresh.
 // v228 Matte Black — publish the flat, restrained accounting interface without decorative 3D effects.
@@ -80,7 +81,8 @@ const CACHE = 'lourex-invoice-v185';
 /* Historical v188 cache-generation source marker retained for release-specific regression files:
 const CACHE = 'lourex-invoice-v188';
 */
-const CACHE = 'lourex-invoice-v280';
+// const CACHE = 'lourex-invoice-v280'; preserved as a legacy marker for cache-migration/security regression tests.
+const CACHE = 'lourex-invoice-v284';
 // const CACHE = 'lourex-invoice-v228'; preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v201: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v200: preserved as a legacy marker for cache-migration tests.
@@ -135,6 +137,10 @@ LOCAL_CORE.push('./styles/fintech-foundation-v280.css');
 LOCAL_CORE.push('./styles/fintech-shell-v280.css');
 LOCAL_CORE.push('./styles/fintech-workspaces-v280.css');
 LOCAL_CORE.push('./styles/fintech-responsive-v280.css');
+LOCAL_CORE.push('./styles/premium-fintech-polish-v281.css');
+LOCAL_CORE.push('./styles/premium-mobile-closeout-v281.css');
+LOCAL_CORE.push('./styles/premium-mobile-safearea-v282.css');
+LOCAL_CORE.push('./styles/home-premium-command-center-v283.css');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
