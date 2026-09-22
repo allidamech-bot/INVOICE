@@ -1,5 +1,20 @@
-/* LOUREX v282 — mobile browser/PWA safe-area closeout.
-   Keeps the compact 60px browser topbar while expanding the standalone PWA chrome exactly once. */
+/* LOUREX v282 — mobile browser/PWA and visual QA closeout.
+   Keeps the compact 60px browser topbar, expands standalone chrome exactly once,
+   and preserves accessible dark-theme foundation behavior under the premium skin. */
+
+@media screen {
+  html[data-ui-theme="dark"] {
+    --lx-canvas:#071318;
+  }
+
+  html[data-ui-theme="dark"] .app-ui .btn.btn-primary,
+  html[data-ui-theme="dark"] .app-ui .btn.btn-primary:hover,
+  html[data-ui-theme="dark"] .app-ui .btn.btn-primary:focus-visible {
+    background:var(--lx-aqua)!important;
+    background-image:none!important;
+    color:#032128!important;
+  }
+}
 
 @media screen and (max-width:860px) {
   .app-ui .fintech-shell-v280,
