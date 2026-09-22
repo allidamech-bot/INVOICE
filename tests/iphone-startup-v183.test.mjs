@@ -16,8 +16,19 @@ test('iPhone startup paints the same launch screen React uses before runtime scr
   assert.match(html,/class="brand-mark"><img src="\.\/brand\/lourex-logo\.svg" alt="LOUREX"/);
   assert.match(html,/class="brand-words"><strong>LOUREX<\/strong>/);
   assert.match(html,/class="loading-line"/);
-  assert.match(html,/html\[data-ui-theme="light"\]\{[^}]*--boot-bg:#f2f7f8/);
-  assert.match(html,/html\[data-ui-theme="dark"\]\{[^}]*--boot-bg:#061820/);
+  // v300 intentionally keeps the pre-React Safari/PWA launch surface dark in
+  // every saved UI theme so iOS never exposes a white/light viewport band while
+  // the boot shell is still mounted. The requested light/dark theme is restored
+  // only after React replaces #lourex-boot.
+  assert.match(html,/<meta name="theme-color" content="#080808" \/>/);
+  assert.match(html,/root\.dataset\.lourexBooting='true'/);
+  assert.match(html,/root\.style\.colorScheme='dark'/);
+  assert.match(html,/root\.style\.backgroundColor='#080808'/);
+  assert.match(html,/root\.style\.setProperty\('--boot-bg','#080808'\)/);
+  assert.match(html,/html\[data-lourex-booting="true"\][^\{]*\{background:#080808!important;color-scheme:dark!important\}/);
+  assert.match(html,/delete root\.dataset\.lourexBooting/);
+  assert.match(html,/root\.style\.backgroundColor=resolved==='light'\?'#f2f7f8':'#061820'/);
+  assert.match(html,/meta\.setAttribute\('content',resolved==='light'\?'#f2f7f8':'#061820'\)/);
   assert.match(html,/#lourex-boot\.loading-screen\{[^}]*background:var\(--boot-bg,#061820\)/);
   assert.match(html,/prefers-reduced-motion:reduce/);
   assert.match(app,/if\(this\.state\.loading\)return <div className="loading-screen"><Brand logoDataUrl=\{this\.state\.publicLogo\} language=\{activeLanguage\}\/><span className="loading-line"\/><\/div>/);
