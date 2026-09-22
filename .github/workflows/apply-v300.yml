@@ -7,6 +7,7 @@ on:
     paths:
       - scripts/apply-v300.mjs
       - scripts/apply-v300-continue.mjs
+      - scripts/apply-v300-fix.mjs
       - .github/workflows/apply-v300.yml
 
 permissions:
@@ -28,6 +29,7 @@ jobs:
         run: |
           node scripts/apply-v300.mjs || true
           node scripts/apply-v300-continue.mjs
+          node scripts/apply-v300-fix.mjs
       - name: Typecheck
         run: |
           set +e
