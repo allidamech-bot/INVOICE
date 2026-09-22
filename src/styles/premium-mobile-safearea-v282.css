@@ -1,0 +1,14 @@
+/* LOUREX v282 — mobile browser/PWA safe-area closeout.
+   Keeps the compact 60px browser topbar while expanding the standalone PWA chrome exactly once. */
+
+@media screen and (max-width:860px) {
+  .app-ui .fintech-shell-v280,
+  .app-ui .fintech-shell-v280.is-editor {
+    grid-template-rows:calc(60px + var(--app-safe-top,0px)) minmax(0,1fr)!important;
+  }
+
+  .app-ui .fintech-shell-v280 .workspace-topbar {
+    min-height:calc(60px + var(--app-safe-top,0px))!important;
+    padding:calc(5px + var(--app-safe-top,0px)) 12px 5px!important;
+  }
+}
