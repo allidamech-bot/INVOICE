@@ -57,6 +57,13 @@
     background-image:none!important;
   }
 
+  /* Legacy numbering samples used a fixed ivory chip. Keep them theme-semantic. */
+  html[data-ui-theme="dark"] .app-ui .settings-workspace-v2 .numbering-preview>span {
+    border-color:var(--ft-line)!important;
+    background:var(--mf-surface-2)!important;
+    color:var(--ft-text-strong)!important;
+  }
+
   /* Premium segmented KPI rail: one calm financial surface with clear internal rhythm. */
   .app-ui .fintech-dashboard-v280 .command-kpis {
     gap:0!important;
