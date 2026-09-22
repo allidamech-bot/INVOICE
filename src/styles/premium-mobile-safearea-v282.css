@@ -36,6 +36,13 @@
     background:#112a32!important;
   }
 
+  /* Portal menus must use the semantic elevated surface in both desktop and mobile. */
+  .document-desktop-action-portal.app-ui .document-action-popover,
+  .mobile-document-action-portal.app-ui .mobile-document-action-sheet {
+    background-color:var(--mf-surface-2)!important;
+    background-image:none!important;
+  }
+
   /* Premium segmented KPI rail: one calm financial surface with clear internal rhythm. */
   .app-ui .fintech-dashboard-v280 .command-kpis {
     gap:0!important;
