@@ -1,16 +1,21 @@
-/* LOUREX v286/v288 Home presentation helper.
-   Loads the v288 preview visual system after the legacy stylesheet stack, then
-   detects a true zero-baseline cash chart so the dashboard can show a compact
-   empty state instead of a large meaningless grid. No business data is changed. */
+/* LOUREX v286/v289 presentation helper.
+   Loads the review visual layers after the complete legacy stylesheet stack, with
+   v289 deliberately last, then detects a true zero-baseline cash chart so the Home
+   dashboard can show a compact empty state. No business data is changed. */
 (function(){
-  function loadReviewVisualSystem(){
-    if(document.querySelector('link[data-lourex-v288]'))return;
+  function ensureStylesheet(marker,href){
+    if(document.querySelector('link['+marker+']'))return;
     var link=document.createElement('link');
     link.rel='stylesheet';
-    link.href='./styles/visual-experience-v288.css';
-    link.setAttribute('data-lourex-v288','true');
+    link.href=href;
+    link.setAttribute(marker,'true');
     document.head.appendChild(link);
-    if(document.documentElement.dataset.uiTheme==='light')document.documentElement.style.backgroundColor='#e9efed';
+  }
+
+  function loadReviewVisualSystem(){
+    ensureStylesheet('data-lourex-v288','./styles/visual-experience-v288.css?v=288');
+    ensureStylesheet('data-lourex-v289','./styles/visual-audit-v289.css?v=289');
+    if(document.documentElement.dataset.uiTheme==='light')document.documentElement.style.backgroundColor='#e8eeeb';
   }
 
   function polylineOnZeroBaseline(node){
