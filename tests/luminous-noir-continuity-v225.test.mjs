@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('legacy flat launch contract remains safe while v300 prevents Safari boot flashes and v280 supplies theme-aware fintech chrome',async()=>{
+test('legacy flat launch contract remains safe while v302 prevents Safari boot flashes and v280 supplies theme-aware fintech chrome',async()=>{
   const [html,manifestText,patch,launchCss]=await Promise.all([
     read('index.html'),
     read('public/manifest.webmanifest'),
@@ -12,12 +12,12 @@ test('legacy flat launch contract remains safe while v300 prevents Safari boot f
     read('src/styles/auth-entry.css')
   ]);
   const manifest=JSON.parse(manifestText);
-  assert.match(html,/<meta name="theme-color" content="#080808" \/>/);
+  assert.match(html,/<meta name="theme-color" content="#061820" \/>/);
   assert.match(html,/id="lourex-theme-bootstrap"/);
   assert.match(html,/root\.dataset\.lourexBooting='true'/);
-  assert.match(html,/root\.style\.backgroundColor='#080808'/);
-  assert.match(html,/root\.style\.setProperty\('--boot-bg','#080808'\)/);
-  assert.match(html,/html\[data-lourex-booting="true"\][^\{]*\{background:#080808!important;color-scheme:dark!important\}/);
+  assert.match(html,/root\.style\.backgroundColor='#061820'/);
+  assert.match(html,/root\.style\.setProperty\('--boot-bg','#061820'\)/);
+  assert.match(html,/html\[data-lourex-booting="true"\][^\{]*\{background:#061820!important;color-scheme:dark!important\}/);
   assert.match(html,/delete root\.dataset\.lourexBooting/);
   assert.match(html,/resolved==='light'\?'#f2f7f8':'#061820'/);
   assert.match(html,/html\[data-ui-theme="dark"\]\{[^}]*--boot-bg:#061820[^}]*--boot-accent:#20d3db/);
