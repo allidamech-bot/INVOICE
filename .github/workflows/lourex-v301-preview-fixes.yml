@@ -1,222 +1,24 @@
-name: LOUREX v301 direct preview fixes
-
+name: LOUREX v301 preview patch
 on:
   push:
-    branches:
-      - feature/home-clean-rebuild-v284
-
+    branches: [feature/home-clean-rebuild-v284]
 permissions:
   contents: write
-
 jobs:
-  patch-preview:
-    if: github.actor != 'github-actions[bot]'
+  apply:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: feature/home-clean-rebuild-v284
           fetch-depth: 0
-
-      - name: Apply v301 fixes
-        shell: bash
+      - name: Apply patch
+        run: python3 .github/v301_patch.py
+      - name: Commit preview fixes
         run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          def replace(path, old, new):
-              p=Path(path)
-              text=p.read_text()
-              if old not in text:
-                  raise SystemExit(f'missing patch target in {path}: {old[:80]!r}')
-              p.write_text(text.replace(old,new,1))
-
-          # 1) One appearance button only: current light -> dark, current dark -> light.
-          Path('src/components/ThemeControl.tsx').write_text(r'''import { applyUiTheme, getUiThemePreference, resolveUiTheme, setUiThemePreference, type UiThemePreference } from '../lib/ui-theme.js';
-import { Icon } from './UI.js';
-
-interface Props {
-  compact?:boolean;
-  className?:string;
-  language?:'en'|'ar';
-}
-
-interface State { preference:UiThemePreference; }
-
-export class ThemeControl extends React.Component<Props,State>{
-  state:State={preference:getUiThemePreference()};
-
-  componentDidMount():void{
-    applyUiTheme(this.state.preference,false);
-    window.addEventListener('lourex-ui-theme-change',this.handleThemeChange as EventListener);
-  }
-
-  componentWillUnmount():void{
-    window.removeEventListener('lourex-ui-theme-change',this.handleThemeChange as EventListener);
-  }
-
-  private handleThemeChange=(event:CustomEvent<{preference?:UiThemePreference}>)=>{
-    const preference=event.detail?.preference??getUiThemePreference();
-    if(preference!==this.state.preference)this.setState({preference});
-  };
-
-  private setTheme=(preference:UiThemePreference)=>{
-    setUiThemePreference(preference);
-    this.setState({preference});
-  };
-
-  render():any{
-    const ar=this.props.language==='ar';
-    const resolved=resolveUiTheme(this.state.preference);
-    const next:UiThemePreference=resolved==='dark'?'light':'dark';
-    const label=next==='dark'?(ar?'الوضع الليلي':'Dark mode'):(ar?'الوضع النهاري':'Light mode');
-    return <div className={`mf-theme-control mf-theme-toggle-control ${this.props.compact?'is-compact':''} ${this.props.className||''}`}>
-      <button type="button" className={`mf-theme-toggle is-${resolved}`} aria-label={label} title={label} onClick={()=>this.setTheme(next)}><Icon name={next==='dark'?'moon':'sun'}/>{this.props.compact?null:<strong>{label}</strong>}</button>
-    </div>;
-  }
-}
-''')
-
-          # 2) Attachment preview that works inside Safari instead of relying on target=_blank data URLs.
-          Path('src/components/DocumentAttachmentsSection.tsx').write_text(r'''import type { DocumentAttachment, LourexDocument } from '../types.js';
-import { t } from '../lib/i18n.js';
-import { Button, Icon, IconButton } from './UI.js';
-interface Props { document:LourexDocument; onChange:(document:LourexDocument)=>void; }
-interface State { busy:boolean; error:string; preview:DocumentAttachment|null; }
-const MAX_FILE_BYTES=5*1024*1024,MAX_TOTAL_BYTES=20*1024*1024,MAX_FILES=8;
-function asAttachment(file:File):Promise<DocumentAttachment>{return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('Unable to read attachment.'));reader.onload=()=>{if(typeof reader.result!=='string'){reject(new Error('Unable to read attachment.'));return;}resolve({id:'att-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,9),name:file.name,mimeType:file.type||(/\.pdf$/i.test(file.name)?'application/pdf':'image/*'),size:file.size,dataUrl:reader.result,createdAt:new Date().toISOString()});};reader.readAsDataURL(file);});}
-function bytes(value:number):string{return value<1024*1024?Math.max(1,Math.round(value/1024))+' KB':(value/(1024*1024)).toFixed(1)+' MB';}
-export class DocumentAttachmentsSection extends React.Component<Props,State>{
-  state:State={busy:false,error:'',preview:null};private input:HTMLInputElement|null=null;
-  private add=async(event:any)=>{const input=event.target as HTMLInputElement,files=Array.from(input.files??[]),current=this.props.document.attachments??[];if(!files.length)return;
-    if(current.length+files.length>MAX_FILES){this.setState({error:t('A document can contain up to 8 attachments.','يمكن أن يحتوي المستند على 8 مرفقات كحد أقصى.')});input.value='';return;}
-    for(const file of files){const allowed=file.type==='application/pdf'||file.type.startsWith('image/')||/\.(pdf|png|jpe?g|webp|heic|heif)$/i.test(file.name);if(!allowed){this.setState({error:t('Only PDF and image attachments are supported.','المرفقات المدعومة هي PDF والصور فقط.')});input.value='';return;}if(file.size>MAX_FILE_BYTES){this.setState({error:t('Each attachment must be 5 MB or smaller.','يجب ألا يتجاوز حجم كل مرفق 5 ميغابايت.')});input.value='';return;}}
-    if(current.reduce((n,a)=>n+(a.size||0),0)+files.reduce((n,f)=>n+f.size,0)>MAX_TOTAL_BYTES){this.setState({error:t('Attachments are limited to 20 MB per document.','إجمالي مرفقات المستند محدود بـ 20 ميغابايت.')});input.value='';return;}
-    this.setState({busy:true,error:''});try{const added=await Promise.all(files.map(asAttachment));this.props.onChange({...this.props.document,attachments:[...current,...added]});}catch(e){this.setState({error:e instanceof Error?e.message:t('Unable to add attachment.','تعذر إضافة المرفق.')});}finally{this.setState({busy:false});input.value='';}}
-  private remove=(id:string)=>this.props.onChange({...this.props.document,attachments:(this.props.document.attachments??[]).filter(a=>a.id!==id)});
-  private openPreview=(preview:DocumentAttachment)=>this.setState({preview});
-  private closePreview=()=>this.setState({preview:null});
-  render():any{const list=this.props.document.attachments??[],preview=this.state.preview;return <><section className="editor-section document-attachments-section"><div className="section-heading with-action"><div><span>07</span><h2>{t('Attachments','المرفقات')}</h2></div><Button icon="plus" disabled={this.state.busy||list.length>=MAX_FILES} onClick={()=>this.input?.click()}>{this.state.busy?t('Adding…','جارٍ الإضافة…'):t('Add image / PDF','إضافة صورة / PDF')}</Button></div><input ref={(n:HTMLInputElement|null)=>{this.input=n;}} className="document-attachment-input" type="file" accept="image/*,application/pdf,.pdf" multiple onChange={this.add}/><p className="attachment-help">{t('Supporting files are kept inside the encrypted LOUREX workspace and travel with the document backup.','تُحفظ الملفات الداعمة داخل مساحة LOUREX المشفّرة وتنتقل مع نسخة المستند الاحتياطية.')}</p>{this.state.error?<div className="inline-error">{this.state.error}</div>:null}{list.length?<div className="document-attachment-list">{list.map(a=><article key={a.id}><span className="attachment-file-icon"><Icon name="file"/></span><div><strong>{a.name}</strong><small>{a.mimeType==='application/pdf'?'PDF':t('Image','صورة')} · {bytes(a.size)}</small></div><button type="button" className="attachment-open-button" onClick={()=>this.openPreview(a)}>{t('Open','فتح')}</button><IconButton icon="trash" label={t('Remove attachment','حذف المرفق')} onClick={()=>this.remove(a.id)}/></article>)}</div>:<div className="attachments-empty"><Icon name="file"/><span>{t('No attachments yet.','لا توجد مرفقات بعد.')}</span></div>}</section>{preview?<div className="attachment-preview-overlay" role="dialog" aria-modal="true" aria-label={preview.name} onClick={this.closePreview}><div className="attachment-preview-dialog" onClick={(event:any)=>event.stopPropagation()}><header><div><strong>{preview.name}</strong><small>{preview.mimeType==='application/pdf'?'PDF':t('Image preview','معاينة الصورة')}</small></div><IconButton icon="x" label={t('Close preview','إغلاق المعاينة')} onClick={this.closePreview}/></header><div className="attachment-preview-body">{preview.mimeType==='application/pdf'?<iframe title={preview.name} src={preview.dataUrl}/>:<img src={preview.dataUrl} alt={preview.name}/>}</div>{preview.mimeType==='application/pdf'?<a className="attachment-preview-fallback" href={preview.dataUrl} target="_blank" rel="noreferrer">{t('Open PDF in browser','فتح PDF في المتصفح')}</a>:null}</div></div>:null}</>}
-}
-''')
-
-          # 3) Direct sign-out inside Settings, not only under Account.
-          settings_path=Path('src/components/SettingsModal.tsx')
-          settings=settings_path.read_text()
-          old="""      <div className={`settings-layout settings-workspace-v2 ${accountScope?'account-profile-workspace':'settings-preferences-workspace'} ${this.state.accountAction==='restore'?'cloud-account-panel':''}`}>
-        {!accountScope?<nav className=\"settings-tabs\""" 
-          new="""      <div className={`settings-layout settings-workspace-v2 ${accountScope?'account-profile-workspace':'settings-preferences-workspace'} ${this.state.accountAction==='restore'?'cloud-account-panel':''}`}>
-        {!accountScope&&account?<div className=\"settings-direct-account-bar\"><div className=\"settings-direct-account-copy\"><span className=\"settings-account-dot connected\"/><span><small>{t('Signed in','تم تسجيل الدخول')}</small><strong dir=\"ltr\">{account.email||'LOUREX'}</strong></span></div><Button className=\"settings-direct-signout-button\" variant=\"secondary\" disabled={this.state.busy} onClick={()=>void this.signOutFromCloud()}>{this.state.accountAction==='signout'?t('Signing out…','جارٍ تسجيل الخروج…'):t('Sign Out','تسجيل الخروج')}</Button></div>:null}
-        {!accountScope?<nav className=\"settings-tabs\""" 
-          if old not in settings:
-              raise SystemExit('settings render anchor not found')
-          settings=settings.replace(old,new,1)
-          settings=settings.replace("Session locking, device PIN and encrypted cloud recovery. Account identity and sign out stay under Account.","Session locking, device PIN and encrypted cloud recovery. Sign out is available directly from Settings.")
-          settings=settings.replace("قفل الجلسة ورمز PIN والاستعادة السحابية المشفّرة. تبقى هوية الحساب وتسجيل الخروج ضمن الحساب.","قفل الجلسة ورمز PIN والاستعادة السحابية المشفّرة. تسجيل الخروج متاح مباشرة من الإعدادات.")
-          settings_path.write_text(settings)
-
-          # 4) Prevent duplicate document-creation jobs and close the create sheet immediately.
-          app_path=Path('src/app/App.tsx')
-          app=app_path.read_text()
-          old="  private vaultReplacing=false;"
-          new="  private vaultReplacing=false;\n  private documentCreateBusy=false;"
-          if old not in app: raise SystemExit('App field anchor missing')
-          app=app.replace(old,new,1)
-          old="  private newDocument=async(kind:DocumentKind)=>{try{const {doc}=await this.reserveDocument(kind);this.setState({screen:'editor',editorDoc:doc,newMenu:false});}catch(e){this.showToast(e instanceof Error?e.message:t('Unable to create document.','تعذر إنشاء المستند.'),'error');}};"
-          new="  private newDocument=async(kind:DocumentKind)=>{if(this.documentCreateBusy)return;this.documentCreateBusy=true;this.setState({newMenu:false});try{const {doc}=await this.reserveDocument(kind);await new Promise<void>(resolve=>this.setState({screen:'editor',editorDoc:doc,newMenu:false},resolve));}catch(e){this.showToast(e instanceof Error?e.message:t('Unable to create document.','تعذر إنشاء المستند.'),'error');}finally{this.documentCreateBusy=false;}};"
-          if old not in app: raise SystemExit('newDocument anchor missing')
-          app=app.replace(old,new,1)
-          app_path.write_text(app)
-
-          # 5) Avoid re-inserting the same dashboard stylesheet from inside the advisor component.
-          advisor=Path('src/components/LourexAdvisorCard.tsx')
-          text=advisor.read_text()
-          text=text.replace("    return <>\n      <link rel=\"stylesheet\" href=\"./styles/home-review-polish-v285.css\"/>\n      <section className=\"dashboard-panel lourex-advisor-card\"", "    return <section className=\"dashboard-panel lourex-advisor-card\"",1)
-          text=text.replace("      </section>\n    </>;\n", "      </section>;\n",1)
-          advisor.write_text(text)
-
-          # 6) Dark first paint all the way through iPhone safe areas / Safari chrome.
-          index=Path('index.html')
-          text=index.read_text()
-          text=text.replace('<meta name="theme-color" content="#080808" />','<meta name="theme-color" content="#061820" />\n  <meta name="color-scheme" content="dark light" />',1)
-          text=text.replace('#080808','#061820')
-          index.write_text(text)
-
-          # 7) Fresh cache generation so Safari does not keep the old v300 CSS/runtime.
-          sw=Path('public/sw.js')
-          text=sw.read_text()
-          text=text.replace("const CACHE = 'lourex-invoice-v284';","const CACHE = 'lourex-invoice-v301';",1)
-          text='// v301 mobile UX closeout — attachment preview, login/settings polish, stable document creation and dark first paint.\n'+text
-          sw.write_text(text)
-
-          # 8) Focused v301 visual layer appended to the existing last-loaded v300 sheet.
-          css=Path('src/styles/visual-features-v300.css')
-          text=css.read_text()
-          text += r'''
-
-/* LOUREX v301 — mobile visual hierarchy, auth/settings coherence, preview and performance closeout */
-.attachment-open-button{appearance:none;border:0;background:transparent;min-height:40px;padding:0 12px;border-radius:10px;color:var(--ft-accent,var(--accent,#12b8bd));font:800 12px/1 inherit;cursor:pointer}.attachment-open-button:hover{background:var(--ft-accent-faint,rgba(18,184,189,.1))}.attachment-preview-overlay{position:fixed;inset:0;z-index:2147482500;display:grid;place-items:center;padding:20px;background:rgba(2,14,20,.88)}.attachment-preview-dialog{width:min(920px,100%);height:min(820px,calc(100dvh - 40px));display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;border:1px solid var(--ft-line,rgba(133,181,190,.24));border-radius:20px;background:var(--ft-surface,#0b252d);box-shadow:0 24px 80px rgba(0,0,0,.34)}.attachment-preview-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid var(--ft-line,rgba(133,181,190,.22))}.attachment-preview-dialog>header>div{min-width:0;display:grid;gap:2px}.attachment-preview-dialog>header strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.attachment-preview-dialog>header small{color:var(--ft-text-soft,#8ea7ad)}.attachment-preview-body{min-height:0;display:grid;place-items:center;overflow:auto;background:#061820}.attachment-preview-body img{display:block;max-width:100%;max-height:100%;object-fit:contain}.attachment-preview-body iframe{width:100%;height:100%;border:0;background:#fff}.attachment-preview-fallback{display:flex;align-items:center;justify-content:center;min-height:46px;padding:0 16px;border-top:1px solid var(--ft-line,rgba(133,181,190,.22));color:var(--ft-accent,#12b8bd);font-weight:800;text-decoration:none}
-
-.mf-theme-toggle-control{display:inline-flex!important;width:auto!important}.mf-theme-toggle-control .mf-theme-toggle{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;min-width:44px!important;min-height:44px!important;padding:0 12px!important;border:1px solid var(--ft-line,rgba(133,181,190,.24))!important;border-radius:12px!important;background:var(--ft-surface-2,rgba(12,40,48,.75))!important;color:var(--ft-text,#eaf6f7)!important}.mf-theme-toggle-control .mf-theme-toggle:hover{border-color:color-mix(in srgb,var(--ft-accent,#12b8bd) 50%,var(--ft-line))!important;background:var(--ft-accent-faint,rgba(18,184,189,.12))!important}.mf-theme-toggle-control.is-compact .mf-theme-toggle{width:44px!important;padding:0!important}
-
-.settings-direct-account-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--ft-line,rgba(133,181,190,.22));border-radius:14px;background:var(--ft-surface-2,rgba(12,40,48,.72))}.settings-direct-account-copy{display:flex;align-items:center;gap:9px;min-width:0}.settings-direct-account-copy>span:last-child{display:grid;min-width:0;gap:2px}.settings-direct-account-copy small{color:var(--ft-text-soft,#8ea7ad);font-size:11px}.settings-direct-account-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.settings-direct-signout-button{min-height:42px!important;white-space:nowrap!important;border-color:rgba(218,89,94,.36)!important;color:#db5a60!important}
-
-@media screen and (max-width:720px){
-  /* Home: the advisor must be fully scrollable above the fixed navigation. */
-  .app-ui .screen-home .workspace-home-page{padding-bottom:calc(116px + env(safe-area-inset-bottom,0px))!important}
-  .app-ui .screen-home .lourex-advisor-card{margin-bottom:10px!important;scroll-margin-bottom:130px!important}
-  .app-ui .screen-home .dashboard-quick-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
-  .app-ui .screen-home .dashboard-quick-actions>.quick-action-primary{display:none!important}
-  .app-ui .screen-home .dashboard-quick-actions>button{min-width:0!important;min-height:92px!important;padding:14px!important;border:1px solid var(--ft-line)!important;border-radius:16px!important;background:var(--ft-surface)!important;box-shadow:none!important}
-  .app-ui .screen-home .dashboard-quick-actions>button:last-child{grid-column:1/-1!important;min-height:76px!important}
-  .app-ui .screen-home .dashboard-quick-actions>button strong{font-size:14px!important;font-weight:820!important}.app-ui .screen-home .dashboard-quick-actions>button small{font-size:11px!important;color:var(--ft-text-soft)!important}
-  .app-ui .screen-home .command-kpis{gap:1px!important;border:1px solid var(--ft-line)!important;border-radius:18px!important;overflow:hidden!important;background:var(--ft-line)!important}.app-ui .screen-home .dashboard-kpi{border:0!important;border-radius:0!important;box-shadow:none!important}
-  .app-ui .screen-home .command-attention,.app-ui .screen-home .command-inventory-health,.app-ui .screen-home .command-recent{border-color:var(--ft-line)!important;box-shadow:none!important}
-  .app-ui .screen-home .lourex-advisor-card{border:1px solid color-mix(in srgb,var(--ft-accent) 30%,var(--ft-line))!important;background:linear-gradient(180deg,color-mix(in srgb,var(--ft-surface) 92%,var(--ft-accent) 8%),var(--ft-surface))!important}
-
-  /* Auth: one calm mobile card. Remove the oversized marketing column and keep the controls coherent. */
-  .auth-account-page{min-height:100dvh!important;background:var(--ft-page,#061820)!important;padding:0!important}
-  .auth-account-page .auth-account-frame{display:block!important;min-height:100dvh!important;width:100%!important;max-width:none!important;margin:0!important;padding:calc(22px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))!important}
-  .auth-account-page .auth-account-story{display:none!important}
-  .auth-account-page .auth-account-card.account-first-card{position:relative!important;width:min(100%,520px)!important;min-height:auto!important;margin:0 auto!important;padding:76px 18px 22px!important;border:1px solid var(--ft-line)!important;border-radius:22px!important;background:var(--ft-surface,#0b252d)!important;box-shadow:none!important}
-  .auth-account-page .auth-utility-controls{position:absolute!important;inset:16px 16px auto 16px!important;display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:8px!important}
-  .auth-account-page .auth-language-switch,.auth-account-page .mf-theme-toggle{min-width:44px!important;min-height:44px!important;border:1px solid var(--ft-line)!important;border-radius:12px!important;background:var(--ft-surface-2)!important;color:var(--ft-text)!important;box-shadow:none!important}
-  .auth-account-page .auth-language-switch{padding:0 13px!important;font-weight:800!important}
-  .auth-account-page .auth-card-mobile-brand{margin:2px auto 20px!important}.auth-account-page .auth-card-heading{margin-bottom:18px!important}.auth-account-page .auth-card-heading h1{font-size:26px!important;line-height:1.15!important;letter-spacing:-.02em!important}.auth-account-page .auth-card-heading .subtle{font-size:13px!important;line-height:1.6!important;color:var(--ft-text-soft)!important}
-  .auth-account-page .google-auth-button,.auth-account-page .premium-auth-primary{min-height:50px!important;border-radius:13px!important}.auth-account-page .account-entry-tabs{padding:3px!important;border:1px solid var(--ft-line)!important;border-radius:13px!important;background:var(--ft-surface-2)!important}.auth-account-page .account-entry-tabs button{border:0!important;border-radius:10px!important;background:transparent!important;color:var(--ft-text-soft)!important}.auth-account-page .account-entry-tabs button.active{background:var(--ft-accent-faint)!important;color:var(--ft-accent)!important}.auth-account-page .field-label{font-weight:750!important;color:var(--ft-text-soft)!important}.auth-account-page .input{border-color:var(--ft-line)!important;background:var(--ft-surface-2)!important;color:var(--ft-text)!important}.auth-account-page .premium-auth-primary{background:var(--ft-accent)!important;color:#03272b!important;font-weight:850!important;box-shadow:none!important}
-
-  /* Settings: direct account exit and cleaner hierarchy on narrow phones. */
-  .app-ui .settings-direct-account-bar{position:sticky!important;top:0!important;z-index:4!important;margin:-2px 0 10px!important;background:var(--ft-surface)!important}
-  .app-ui .settings-direct-signout-button{min-width:104px!important}
-  .app-ui .settings-workspace-v2 .settings-tabs{gap:4px!important;padding:4px!important;border:1px solid var(--ft-line)!important;border-radius:14px!important;background:var(--ft-surface-2)!important}.app-ui .settings-workspace-v2 .settings-tabs>button{border-radius:10px!important}.app-ui .settings-workspace-v2 .settings-tabs>button.active{background:var(--ft-accent-faint)!important;color:var(--ft-accent)!important}.app-ui .settings-workspace-v2 .settings-section{border:1px solid var(--ft-line)!important;border-radius:16px!important;background:var(--ft-surface)!important;box-shadow:none!important}
-
-  /* Document editor: stronger visual hierarchy, less border noise, safer bottom space. */
-  .app-ui .editor-pane .editor-scroll{padding:12px 12px calc(152px + env(safe-area-inset-bottom,0px))!important;scroll-padding-bottom:152px!important}
-  .app-ui .editor-scroll>*{max-width:760px!important}
-  .app-ui .editor-section{margin:0 0 14px!important;padding:16px!important;border:1px solid var(--ft-line)!important;border-radius:18px!important;background:var(--ft-surface)!important;box-shadow:none!important;overflow:hidden!important}
-  .app-ui .editor-section .section-heading{margin:-16px -16px 16px!important;padding:12px 14px!important;border-bottom:1px solid var(--ft-line)!important;background:var(--ft-surface-2)!important}.app-ui .editor-section .section-heading>span,.app-ui .editor-section .section-heading>div>span{display:grid!important;place-items:center!important;min-width:34px!important;height:34px!important;border-radius:11px!important;background:var(--ft-accent-faint)!important;color:var(--ft-accent)!important;font-size:11px!important;font-weight:900!important}.app-ui .editor-section .section-heading h2{font-size:20px!important;font-weight:900!important;color:var(--ft-text-strong)!important}
-  .app-ui .editor-section .field-label,.app-ui .editor-section .field>label{font-size:12px!important;font-weight:780!important;color:var(--ft-text-soft)!important}.app-ui .editor-section :where(.input,select.input,textarea.input){min-height:50px!important;border:1px solid color-mix(in srgb,var(--ft-line) 82%,var(--ft-text-soft) 18%)!important;border-radius:13px!important;background:var(--ft-surface-2)!important;color:var(--ft-text)!important;box-shadow:none!important}.app-ui .editor-section textarea.input{min-height:96px!important}
-  .app-ui .editor-section .toggle-row{min-height:58px!important;padding:10px 12px!important;border:1px solid var(--ft-line)!important;border-radius:13px!important;background:var(--ft-surface-2)!important}
-  .app-ui .editor-section-nav-slot,.app-ui .mobile-editor-actionbar{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:var(--ft-page,#061820)!important;box-shadow:none!important}.app-ui .editor-section-nav-slot{border-top:1px solid var(--ft-line)!important}.app-ui .mobile-editor-actionbar{border-top:1px solid var(--ft-line)!important}.app-ui .editor-section-nav-button{border-color:var(--ft-line)!important;background:var(--ft-surface)!important}.app-ui .editor-section-nav-button.active{border-color:var(--ft-accent)!important;background:var(--ft-accent-faint)!important;color:var(--ft-accent)!important}.app-ui .mobile-action-buttons .btn{border-radius:12px!important;border-color:var(--ft-line)!important;background:var(--ft-surface)!important;color:var(--ft-text)!important}.app-ui .mobile-action-buttons .btn-primary{border-color:var(--ft-accent)!important;background:var(--ft-accent)!important;color:#03272b!important}
-  .app-ui .document-attachments-section .section-heading.with-action{align-items:center!important}.app-ui .document-attachments-section .section-heading.with-action>.button{border-color:var(--ft-accent)!important;background:var(--ft-accent-faint)!important;color:var(--ft-accent)!important}.app-ui .document-attachment-list article{background:var(--ft-surface-2)!important;border-color:var(--ft-line)!important}
-
-  /* Mobile performance: translucent fixed layers were causing expensive continuous repaint in Safari. */
-  .app-ui :where(.mobile-bottom-nav,.mobile-more-sheet,.editor-section-nav-slot,.mobile-editor-actionbar,.product-library-editor-actions,.operations-editor-actions){backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-  .app-ui .mobile-bottom-nav{background:var(--ft-page,#061820)!important;border-top:1px solid var(--ft-line)!important;box-shadow:none!important}
-  .app-ui *{scroll-behavior:auto!important}
-}
-
-@media screen and (max-width:390px){.auth-account-page .auth-account-frame{padding-inline:10px!important}.auth-account-page .auth-account-card.account-first-card{padding-inline:14px!important}.settings-direct-account-bar{align-items:flex-start!important;flex-direction:column!important}.settings-direct-signout-button{width:100%!important}}
-'''
-          css.write_text(text)
-          PY
-
-      - name: Remove one-shot workflow and commit
-        shell: bash
-        run: |
-          rm -f .github/workflows/lourex-v301-preview-fixes.yml
+          rm -f .github/v301_patch.py .github/workflows/lourex-v301-preview-fixes.yml
           git config user.name "LOUREX v301 automation"
           git config user.email "actions@users.noreply.github.com"
           git add -A
-          git commit -m "fix: mobile visual interaction closeout v301 [skip ci]"
+          git commit -m "fix: complete mobile preview closeout v301 [skip ci]"
           git push origin HEAD:feature/home-clean-rebuild-v284
