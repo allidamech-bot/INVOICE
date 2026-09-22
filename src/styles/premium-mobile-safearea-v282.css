@@ -35,6 +35,32 @@
   html[data-ui-theme="dark"] .app-ui .fintech-shell-v280 .desktop-shell-new-menu {
     background:#112a32!important;
   }
+
+  /* Premium segmented KPI rail: one calm financial surface with clear internal rhythm. */
+  .app-ui .fintech-dashboard-v280 .command-kpis {
+    gap:0!important;
+    border:1px solid var(--lx-line)!important;
+    border-radius:16px!important;
+    overflow:hidden!important;
+    background:var(--lx-paper)!important;
+    box-shadow:var(--lx-shadow-soft)!important;
+  }
+
+  html[data-ui-theme="dark"] .app-ui .fintech-dashboard-v280 .command-kpis {
+    background:#0d2229!important;
+  }
+
+  .app-ui .fintech-dashboard-v280 .command-kpis>button,
+  .app-ui .fintech-dashboard-v280 .command-kpis>button:nth-child(n) {
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .fintech-dashboard-v280 .command-kpis>button+button {
+    border-inline-start:1px solid var(--lx-line)!important;
+  }
 }
 
 @media screen and (max-width:860px) {
@@ -47,5 +73,14 @@
     min-height:calc(60px + var(--app-safe-top,0px))!important;
     padding:calc(5px + var(--app-safe-top,0px)) 12px 5px!important;
     background:var(--mf-shell)!important;
+  }
+
+  .app-ui .fintech-dashboard-v280 .command-kpis>button:nth-child(3) {
+    border-inline-start:0!important;
+    border-top:1px solid var(--lx-line)!important;
+  }
+
+  .app-ui .fintech-dashboard-v280 .command-kpis>button:nth-child(4) {
+    border-top:1px solid var(--lx-line)!important;
   }
 }
