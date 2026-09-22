@@ -2,8 +2,14 @@
    Keeps the premium skin aligned with the app's semantic fintech contracts. */
 
 @media screen {
+  :root,
+  html[data-ui-theme="light"] {
+    --lx-overlay-surface:#f0f4f5;
+  }
+
   html[data-ui-theme="dark"] {
     --lx-canvas:#071318;
+    --lx-overlay-surface:#112a32;
   }
 
   html[data-ui-theme="dark"] .app-ui .btn.btn-primary,
@@ -36,10 +42,10 @@
     background:#112a32!important;
   }
 
-  /* Portal menus must use the semantic elevated surface in both desktop and mobile. */
+  /* Portal menus keep the elevated semantic surface even inside the v282 local skin. */
   .document-desktop-action-portal.app-ui .document-action-popover,
   .mobile-document-action-portal.app-ui .mobile-document-action-sheet {
-    background-color:var(--mf-surface-2)!important;
+    background-color:var(--lx-overlay-surface)!important;
     background-image:none!important;
   }
 
