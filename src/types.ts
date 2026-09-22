@@ -1,4 +1,4 @@
-export type DocumentKind = 'proforma' | 'invoice';
+export type DocumentKind = 'proforma' | 'invoice' | 'purchase-order';
 export type DocumentLanguage = 'en' | 'ar' | 'bilingual';
 export type UiLanguage = 'en' | 'ar';
 export type TemplateId = 'executive' | 'minimal' | 'trade' | 'signature' | 'obsidian' | 'cobalt' | 'editorial' | 'split' | 'prism' | 'slate' | 'horizon' | 'mono' | 'aurora' | 'ledger' | 'noir' | 'midnight' | 'blackivory' | 'carbon';
@@ -255,6 +255,15 @@ export interface DocumentItem {
   unitCost: string;
 }
 
+export interface DocumentAttachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  dataUrl: string;
+  createdAt: string;
+}
+
 export interface SavedItem {
   id: string;
   createdAt: string;
@@ -340,6 +349,9 @@ export interface LourexDocument {
   currency: string;
   language: DocumentLanguage;
   customerSnapshot: CustomerSnapshot | null;
+  supplierSnapshot?: SupplierSnapshot | null;
+  supplierReference?: string;
+  attachments?: DocumentAttachment[];
   companySnapshot: CompanySnapshot;
   items: DocumentItem[];
   terms: CommercialTerms;
@@ -395,12 +407,15 @@ export interface NumberingSettings {
   proformaPrefix: string;
   invoicePrefix: string;
   creditNotePrefix: string;
+  purchaseOrderPrefix?: string;
   proformaLast: number;
   invoiceLast: number;
   creditNoteLast: number;
+  purchaseOrderLast?: number;
   proformaYear: number;
   invoiceYear: number;
   creditNoteYear: number;
+  purchaseOrderYear?: number;
 }
 
 export interface SmartDocumentDefaults {

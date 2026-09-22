@@ -85,9 +85,9 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     autoLockMinutes: AUTO_LOCK_VALUES.has(sourceSettings.autoLockMinutes) ? sourceSettings.autoLockMinutes : defaults.appSettings.autoLockMinutes,
     uiLanguage: uiLanguageValue(sourceSettings.uiLanguage, defaults.appSettings.uiLanguage),
     numbering: {
-      proformaPrefix:cleanPrefix(sourceNumbering.proformaPrefix,defaults.appSettings.numbering.proformaPrefix), invoicePrefix:cleanPrefix(sourceNumbering.invoicePrefix,defaults.appSettings.numbering.invoicePrefix), creditNotePrefix:cleanPrefix(sourceNumbering.creditNotePrefix,defaults.appSettings.numbering.creditNotePrefix),
-      proformaLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.proformaLast,defaults.appSettings.numbering.proformaLast))), invoiceLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.invoiceLast,defaults.appSettings.numbering.invoiceLast))), creditNoteLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.creditNoteLast,defaults.appSettings.numbering.creditNoteLast))),
-      proformaYear:Math.trunc(finiteNumber(sourceNumbering.proformaYear,defaults.appSettings.numbering.proformaYear)), invoiceYear:Math.trunc(finiteNumber(sourceNumbering.invoiceYear,defaults.appSettings.numbering.invoiceYear)), creditNoteYear:Math.trunc(finiteNumber(sourceNumbering.creditNoteYear,defaults.appSettings.numbering.creditNoteYear))
+      proformaPrefix:cleanPrefix(sourceNumbering.proformaPrefix,defaults.appSettings.numbering.proformaPrefix), invoicePrefix:cleanPrefix(sourceNumbering.invoicePrefix,defaults.appSettings.numbering.invoicePrefix), creditNotePrefix:cleanPrefix(sourceNumbering.creditNotePrefix,defaults.appSettings.numbering.creditNotePrefix), purchaseOrderPrefix:cleanPrefix(sourceNumbering.purchaseOrderPrefix,defaults.appSettings.numbering.purchaseOrderPrefix||'PO'),
+      proformaLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.proformaLast,defaults.appSettings.numbering.proformaLast))), invoiceLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.invoiceLast,defaults.appSettings.numbering.invoiceLast))), creditNoteLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.creditNoteLast,defaults.appSettings.numbering.creditNoteLast))), purchaseOrderLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.purchaseOrderLast,defaults.appSettings.numbering.purchaseOrderLast||0))),
+      proformaYear:Math.trunc(finiteNumber(sourceNumbering.proformaYear,defaults.appSettings.numbering.proformaYear)), invoiceYear:Math.trunc(finiteNumber(sourceNumbering.invoiceYear,defaults.appSettings.numbering.invoiceYear)), creditNoteYear:Math.trunc(finiteNumber(sourceNumbering.creditNoteYear,defaults.appSettings.numbering.creditNoteYear)), purchaseOrderYear:Math.trunc(finiteNumber(sourceNumbering.purchaseOrderYear,defaults.appSettings.numbering.purchaseOrderYear||new Date().getFullYear()))
     },
     smartDefaults:{
       currency:cleanCurrency(sourceSmart.currency,defaults.appSettings.smartDefaults.currency), language:languageValue(sourceSmart.language,defaults.appSettings.smartDefaults.language),
@@ -163,6 +163,10 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     const adjustments = document?.adjustments ?? {};
     const internalCosts = document?.internalCosts ?? {};
     const customerSnapshot = document?.customerSnapshot && typeof document.customerSnapshot === 'object' ? document.customerSnapshot : null;
+    const supplierSnapshot = document?.supplierSnapshot && typeof document.supplierSnapshot === 'object' ? document.supplierSnapshot : null;
+    const attachments = Array.isArray(document?.attachments) ? document.attachments.filter((attachment:any)=>attachment&&typeof attachment==='object').slice(0,8).map((attachment:any)=>({
+      id:stringValue(attachment?.id),name:stringValue(attachment?.name),mimeType:stringValue(attachment?.mimeType),size:Math.max(0,Math.trunc(finiteNumber(attachment?.size,0))),dataUrl:stringValue(attachment?.dataUrl),createdAt:stringValue(attachment?.createdAt,nowIso())
+    })).filter((attachment:any)=>attachment.id&&attachment.name&&attachment.dataUrl) : [];
     const normalizedCompanySnapshot = {
       ...fallbackCompanySnapshot,
       ...companySnapshot,
@@ -177,7 +181,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
       signatureDataUrl:stringValue(companySnapshot.signatureDataUrl,fallbackCompanySnapshot.signatureDataUrl), stampDataUrl:stringValue(companySnapshot.stampDataUrl,fallbackCompanySnapshot.stampDataUrl), footerText:stringValue(companySnapshot.footerText,fallbackCompanySnapshot.footerText)
     };
     return {
-      id:stringValue(document?.id), kind:document?.kind === 'invoice' ? 'invoice' : 'proforma', role:document?.role==='credit-note'?'credit-note':'standard', status:document?.status === 'final' ? 'final' : 'draft', lifecycleStatus:document?.lifecycleStatus==='voided'?'voided':'active', revision:Math.max(1,Math.trunc(finiteNumber(document?.revision,1))), creditForId:stringValue(document?.creditForId), creditForNumber:stringValue(document?.creditForNumber), voidedAt:stringValue(document?.voidedAt), voidReason:stringValue(document?.voidReason), bankAccountId:stringValue(document?.bankAccountId), paymentTermPresetId:stringValue(document?.paymentTermPresetId),
+      id:stringValue(document?.id), kind:document?.kind === 'invoice' ? 'invoice' : document?.kind === 'purchase-order' ? 'purchase-order' : 'proforma', role:document?.role==='credit-note'?'credit-note':'standard', status:document?.status === 'final' ? 'final' : 'draft', lifecycleStatus:document?.lifecycleStatus==='voided'?'voided':'active', revision:Math.max(1,Math.trunc(finiteNumber(document?.revision,1))), creditForId:stringValue(document?.creditForId), creditForNumber:stringValue(document?.creditForNumber), voidedAt:stringValue(document?.voidedAt), voidReason:stringValue(document?.voidReason), bankAccountId:stringValue(document?.bankAccountId), paymentTermPresetId:stringValue(document?.paymentTermPresetId),
       number:stringValue(document?.number), issueDate:stringValue(document?.issueDate), dueDate:stringValue(document?.dueDate), currency:cleanCurrency(document?.currency,migrated.appSettings.smartDefaults.currency || migrated.company.defaultCurrency || 'USD'),
       language:languageValue(document?.language,migrated.appSettings.smartDefaults.language),
       customerSnapshot:customerSnapshot ? {
@@ -185,6 +189,10 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
         addressEn:stringValue(customerSnapshot.addressEn), addressAr:stringValue(customerSnapshot.addressAr), city:stringValue(customerSnapshot.city), country:stringValue(customerSnapshot.country), phone:stringValue(customerSnapshot.phone), email:stringValue(customerSnapshot.email),
         vatTaxNumber:stringValue(customerSnapshot.vatTaxNumber), commercialRegistration:stringValue(customerSnapshot.commercialRegistration)
       } : null,
+      supplierSnapshot:supplierSnapshot ? {
+        sourceSupplierId:stringValue(supplierSnapshot.sourceSupplierId),nameEn:stringValue(supplierSnapshot.nameEn),nameAr:stringValue(supplierSnapshot.nameAr),contactPerson:stringValue(supplierSnapshot.contactPerson),address:stringValue(supplierSnapshot.address),city:stringValue(supplierSnapshot.city),country:stringValue(supplierSnapshot.country),phone:stringValue(supplierSnapshot.phone),email:stringValue(supplierSnapshot.email),vatTaxNumber:stringValue(supplierSnapshot.vatTaxNumber),commercialRegistration:stringValue(supplierSnapshot.commercialRegistration)
+      } : null,
+      supplierReference:stringValue(document?.supplierReference),attachments,
       companySnapshot:normalizedCompanySnapshot,
       items:Array.isArray(document?.items) ? document.items.map((item:any)=>({
         id:stringValue(item?.id), descriptionEn:stringValue(item?.descriptionEn), descriptionAr:stringValue(item?.descriptionAr), hsCode:stringValue(item?.hsCode), origin:stringValue(item?.origin), packing:stringValue(item?.packing),

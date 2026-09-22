@@ -5,7 +5,7 @@ import { bankAccountIdForDetails, bankDetailsForId, defaultPaymentTermPreset, de
 import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput, lineTotal } from './money.js';
 import { t } from './i18n.js';
 
-type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number};
+type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number;purchaseOrder:number};
 export type DocumentItemWeight=(item:DocumentItem)=>number;
 const liveNumberReservations=new WeakMap<object,NumberReservation>();
 
@@ -13,47 +13,42 @@ export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { n
   const year = new Date().getFullYear();
   const sourceNumbering=vault.appSettings.numbering;
   const numbering = { ...sourceNumbering };
-  const isProforma = kind === 'proforma';
-  const yearKey = isProforma ? 'proformaYear' : 'invoiceYear';
-  const lastKey = isProforma ? 'proformaLast' : 'invoiceLast';
-  const prefixKey = isProforma ? 'proformaPrefix' : 'invoicePrefix';
-  const fallbackPrefix = isProforma ? 'PI' : 'INV';
+  const isProforma=kind==='proforma';
+  const isPurchaseOrder=kind==='purchase-order';
+  const fallbackPrefix=isProforma?'PI':isPurchaseOrder?'PO':'INV';
+  let prefix='';
+  let seq=0;
+  const live=liveNumberReservations.get(sourceNumbering);
+  const used=new Set(vault.documents.map(document=>document.number.trim().toLowerCase()).filter(Boolean));
 
-  if (numbering[yearKey] !== year) {
-    numbering[yearKey] = year;
-    numbering[lastKey] = 0;
+  if(isProforma){
+    if(numbering.proformaYear!==year){numbering.proformaYear=year;numbering.proformaLast=0;}
+    prefix=(numbering.proformaPrefix||fallbackPrefix).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)||fallbackPrefix;
+    numbering.proformaPrefix=prefix;
+    const reserved=live?.year===year?live.proforma:0;
+    seq=Math.max(0,Math.trunc(numbering.proformaLast||0),reserved);
+  }else if(isPurchaseOrder){
+    if((numbering.purchaseOrderYear??year)!==year){numbering.purchaseOrderYear=year;numbering.purchaseOrderLast=0;}
+    prefix=(numbering.purchaseOrderPrefix||fallbackPrefix).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)||fallbackPrefix;
+    numbering.purchaseOrderPrefix=prefix;
+    const reserved=live?.year===year?live.purchaseOrder:0;
+    seq=Math.max(0,Math.trunc(numbering.purchaseOrderLast||0),reserved);
+  }else{
+    if(numbering.invoiceYear!==year){numbering.invoiceYear=year;numbering.invoiceLast=0;}
+    prefix=(numbering.invoicePrefix||fallbackPrefix).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)||fallbackPrefix;
+    numbering.invoicePrefix=prefix;
+    const reserved=live?.year===year?live.invoice:0;
+    seq=Math.max(0,Math.trunc(numbering.invoiceLast||0),reserved);
   }
 
-  const prefix = (numbering[prefixKey] || fallbackPrefix)
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-    .slice(0, 8) || fallbackPrefix;
-  numbering[prefixKey] = prefix;
-
-  // Calls can overlap before the first encrypted write updates React state.
-  // Keep a short-lived reservation against the exact numbering object so two
-  // same-tab actions can never receive the same sequence from one stale vault.
-  // WeakMap keeps independent vaults/tests isolated and lets old state collect.
-  const live=liveNumberReservations.get(sourceNumbering);
-  const reserved=live?.year===year?(isProforma?live.proforma:live.invoice):0;
-  const used = new Set(vault.documents.map(document => document.number.trim().toLowerCase()).filter(Boolean));
-  let seq = Math.max(0, Math.trunc(numbering[lastKey] || 0),reserved);
-  let number = '';
-  do {
-    seq += 1;
-    number = `${prefix}-${year}-${String(seq).padStart(4, '0')}`;
-  } while (used.has(number.toLowerCase()));
-  numbering[lastKey] = seq;
-  const reservation: NumberReservation = live?.year===year
-    ? {...live}
-    : {year,proforma:0,invoice:0,creditNote:0};
-  if(isProforma)reservation.proforma=seq;else reservation.invoice=seq;
+  let number='';
+  do{seq+=1;number=`${prefix}-${year}-${String(seq).padStart(4, '0')}`;}while(used.has(number.toLowerCase()));
+  const reservation:NumberReservation=live?.year===year?{...live}:{year,proforma:0,invoice:0,creditNote:0,purchaseOrder:0};
+  if(isProforma){numbering.proformaLast=seq;reservation.proforma=seq;}
+  else if(isPurchaseOrder){numbering.purchaseOrderLast=seq;numbering.purchaseOrderYear=year;reservation.purchaseOrder=seq;}
+  else{numbering.invoiceLast=seq;reservation.invoice=seq;}
   liveNumberReservations.set(sourceNumbering,reservation);
-
-  return {
-    number,
-    vault: { ...vault, appSettings: { ...vault.appSettings, numbering } }
-  };
+  return {number,vault:{...vault,appSettings:{...vault.appSettings,numbering}}};
 }
 
 export function nextCreditNoteNumber(vault:VaultPayload):{number:string;vault:VaultPayload}{
@@ -70,7 +65,7 @@ export function nextCreditNoteNumber(vault:VaultPayload):{number:string;vault:Va
   let number='';
   do{seq+=1;number=`${prefix}-${year}-${String(seq).padStart(4, '0')}`;}while(used.has(number.toLowerCase()));
   numbering.creditNoteLast=seq;
-  const reservation: NumberReservation=live?.year===year?{...live}:{year,proforma:0,invoice:0,creditNote:0};
+  const reservation: NumberReservation=live?.year===year?{...live}:{year,proforma:0,invoice:0,creditNote:0,purchaseOrder:0};
   reservation.creditNote=seq;
   liveNumberReservations.set(sourceNumbering,reservation);
   return{number,vault:{...vault,appSettings:{...vault.appSettings,numbering}}};
@@ -87,8 +82,9 @@ export function createBlankDocument(kind: DocumentKind, number: string, company:
   const taxPreset=defaultTaxPreset(company);
   return {
     id: makeId('doc'), kind, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', bankAccountId:company.defaultBankAccountId||'primary', paymentTermPresetId:paymentPreset?.id||'', number, issueDate,
-    dueDate: kind === 'proforma' ? addDaysIso(issueDate, validityDays) : paymentPreset ? addDaysIso(issueDate,paymentPreset.days) : '',
+    dueDate: kind === 'proforma' ? addDaysIso(issueDate, validityDays) : kind === 'purchase-order' ? '' : paymentPreset ? addDaysIso(issueDate,paymentPreset.days) : '',
     currency: company.defaultCurrency, language: company.defaultLanguage, customerSnapshot: null,
+    supplierSnapshot:null, supplierReference:'', attachments:[],
     companySnapshot: companySnapshotFrom(company), items: [emptyItem()],
     terms: { incoterm: company.defaultIncoterm, paymentTerms: paymentPreset?.label||company.defaultPaymentTerms, packing: '', deliveryTime: company.defaultDeliveryTime, portOfLoading: '', finalDestination: '', countryOfOrigin: '', validity: '', remarks: '' },
     adjustments: { discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping: '0.00', otherChargesEnabled: false, otherCharges: '0.00', taxEnabled: Boolean(taxPreset), taxPercent: taxPreset?.rate||'0' },
@@ -96,6 +92,11 @@ export function createBlankDocument(kind: DocumentKind, number: string, company:
     appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: '#b58b4f', latinFont: 'auto', arabicFont: 'auto', showBank: true, showSignature: Boolean(company.signatureDataUrl), showStamp: Boolean(company.stampDataUrl), showHsCode: true, showOrigin: true, showPacking: false },
     notes: company.defaultNotes, convertedFromId: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
   };
+}
+
+export function hasDocumentSupplier(doc:LourexDocument):boolean{
+  const supplier=doc.supplierSnapshot;
+  return Boolean(supplier&&(supplier.nameEn.trim()||supplier.nameAr.trim()));
 }
 
 export function hasDocumentCustomer(doc:LourexDocument):boolean{
@@ -113,10 +114,12 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
   if (!doc.issueDate) errors.issueDate = 'Issue date is required.';
   else if(!isIsoDate(doc.issueDate))errors.issueDate='Issue date is invalid.';
   if (doc.kind === 'proforma' && !doc.dueDate) errors.dueDate = 'Valid until date is required.';
-  if(doc.dueDate&&!isIsoDate(doc.dueDate))errors.dueDate=doc.kind==='proforma'?'Valid until date is invalid.':'Due date is invalid.';
-  else if(doc.dueDate&&isIsoDate(doc.issueDate)&&compareIsoDates(doc.dueDate,doc.issueDate)<0)errors.dueDate=doc.kind==='proforma'?'Valid until date cannot be before issue date.':'Due date cannot be before issue date.';
+  if (doc.kind === 'purchase-order' && !doc.dueDate) errors.dueDate = 'Requested delivery date is required.';
+  if(doc.dueDate&&!isIsoDate(doc.dueDate))errors.dueDate=doc.kind==='proforma'?'Valid until date is invalid.':doc.kind==='purchase-order'?'Requested delivery date is invalid.':'Due date is invalid.';
+  else if(doc.dueDate&&isIsoDate(doc.issueDate)&&compareIsoDates(doc.dueDate,doc.issueDate)<0)errors.dueDate=doc.kind==='proforma'?'Valid until date cannot be before issue date.':doc.kind==='purchase-order'?'Requested delivery cannot be before order date.':'Due date cannot be before issue date.';
   if (!doc.currency.trim()) errors.currency = 'Currency is required.';
-  if (!hasDocumentCustomer(doc)) errors.customer = 'Select a customer.';
+  if(doc.kind==='purchase-order'){if(!hasDocumentSupplier(doc))errors.supplier='Select a supplier.';}
+  else if (!hasDocumentCustomer(doc)) errors.customer = 'Select a customer.';
   if (doc.items.length < 1) errors.items = 'Add at least one item.';
   doc.items.forEach((item, index) => {
     if (doc.language === 'ar') {

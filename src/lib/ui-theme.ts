@@ -26,10 +26,11 @@ export function applyUiTheme(preference:UiThemePreference=getUiThemePreference()
   const root=document.documentElement;
   root.dataset.uiTheme=resolved;
   root.dataset.uiThemePreference=preference;
-  root.style.colorScheme=resolved;
-  root.style.backgroundColor=THEME_COLORS[resolved];
+  const booting=root.dataset.lourexBooting==='true'&&Boolean(document.getElementById('lourex-boot'));
+  root.style.colorScheme=booting?'dark':resolved;
+  root.style.backgroundColor=booting?'#080808':THEME_COLORS[resolved];
   const meta=document.querySelector('meta[name="theme-color"]');
-  if(meta)meta.setAttribute('content',THEME_COLORS[resolved]);
+  if(meta)meta.setAttribute('content',booting?'#080808':THEME_COLORS[resolved]);
   if(persist){try{window.localStorage.setItem(STORAGE_KEY,preference);}catch{}}
   try{window.dispatchEvent(new CustomEvent('lourex-ui-theme-change',{detail:{preference,resolved}}));}catch{}
   return resolved;
