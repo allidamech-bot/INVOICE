@@ -9,6 +9,8 @@
 
   html[data-ui-theme="dark"] {
     --lx-canvas:#071318;
+    --lx-paper:#0d2229;
+    --lx-paper-soft:#112a32;
     --lx-overlay-surface:#112a32;
   }
 
