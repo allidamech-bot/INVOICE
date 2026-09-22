@@ -53,3 +53,11 @@ test('v302 loading surface owns the full dynamic viewport without white seams',a
   assert.match(html,/security-documents-closeout-v302\.css\?v=302/);
   assert.match(html,/document-entry-v302\.js\?v=302/);
 });
+
+test('v302 installs a fresh PWA cache that contains the security and document-entry closeout assets',async()=>{
+  const sw=await read('public/sw.js');
+  assert.match(sw,/const CACHE = 'lourex-invoice-v302';/);
+  assert.match(sw,/LOCAL_CORE\.push\('\.\/styles\/security-documents-closeout-v302\.css'\)/);
+  assert.match(sw,/LOCAL_CORE\.push\('\.\/document-entry-v302\.js'\)/);
+  assert.match(sw,/const CACHE = 'lourex-invoice-v301'; preserved as the immediate pre-v302 cache generation/);
+});
