@@ -281,7 +281,7 @@ export class EditorPage extends React.Component<Props,State>{
     const itemHasError=(index:number)=>validationKeys.some(key=>key.startsWith(`item-${index}-`));
     const customers=this.props.customers.filter(c=>customerMatchesSearch(c,this.state.customerQuery)).slice(0,8);
     const recentCustomers=[...this.props.customers].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,4);
-    const groupLabel=(key:string)=>key==='document'?t('Document','المستند'):key==='customer'?t('Customer','العميل'):key==='items'?t('Items','الأصناف'):t('Pricing','التسعير');
+    const groupLabel=(key:string)=>key==='document'?t('Document','المستند'):key==='customer'?(isPurchaseOrder?t('Supplier','المورد'):t('Customer','العميل')):key==='items'?t('Items','الأصناف'):t('Pricing','التسعير');
     const selectedCustomerName=(isArabic()?d.customerSnapshot?.companyNameAr:d.customerSnapshot?.companyNameEn)||d.customerSnapshot?.companyNameEn||d.customerSnapshot?.companyNameAr||'';
     const defaultTemplateId=d.kind==='proforma'?this.props.smartDefaults.quoteTemplateId:this.props.smartDefaults.invoiceTemplateId;
     const selectedIsDefault=defaultTemplateId===d.appearance.templateId;

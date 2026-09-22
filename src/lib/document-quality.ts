@@ -34,6 +34,7 @@ function visibleIdentityValues(doc:LourexDocument,english:string,arabic:string):
 
 function firstPageCapacity(doc:LourexDocument):number{
   const c=doc.customerSnapshot;
+  const supplier=doc.supplierSnapshot;
   const values=[
     ...visibleIdentityValues(doc,doc.companySnapshot.nameEn,doc.companySnapshot.nameAr),
     ...visibleIdentityValues(doc,doc.companySnapshot.addressEn,doc.companySnapshot.addressAr),
@@ -41,7 +42,8 @@ function firstPageCapacity(doc:LourexDocument):number{
     doc.companySnapshot.phone,doc.companySnapshot.email,doc.companySnapshot.website,doc.companySnapshot.vatNumber,doc.companySnapshot.taxNumber,doc.companySnapshot.commercialRegistration,
     ...visibleIdentityValues(doc,c?.companyNameEn??'',c?.companyNameAr??''),
     ...visibleIdentityValues(doc,c?.addressEn??'',c?.addressAr??''),
-    c?.city??'',c?.country??'',c?.phone??'',c?.email??'',c?.vatTaxNumber??'',c?.commercialRegistration??''
+    c?.city??'',c?.country??'',c?.phone??'',c?.email??'',c?.vatTaxNumber??'',c?.commercialRegistration??'',
+    ...visibleIdentityValues(doc,supplier?.nameEn??'',supplier?.nameAr??''),supplier?.address??'',supplier?.city??'',supplier?.country??'',supplier?.phone??'',supplier?.email??'',supplier?.vatTaxNumber??'',supplier?.commercialRegistration??'',doc.supplierReference??''
   ].map(value=>value.trim()).filter(Boolean);
   const chars=values.reduce((sum,value)=>sum+value.length,0);
   const pressure=chars+values.length*18+(doc.language==='bilingual'?120:0);

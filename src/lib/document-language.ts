@@ -110,15 +110,16 @@ export function hasDocumentLanguageMismatch(doc:LourexDocument):boolean{
     [doc.companySnapshot.city,'neutral'],[doc.companySnapshot.country,'country'],
     [doc.companySnapshot.bank.bankName,'neutral'],[doc.companySnapshot.bank.accountName,'neutral'],[doc.companySnapshot.bank.currency,'currency'],
     [doc.customerSnapshot?.city??'','neutral'],[doc.customerSnapshot?.country??'','country'],
+    [doc.supplierSnapshot?.address??'','neutral'],[doc.supplierSnapshot?.city??'','neutral'],[doc.supplierSnapshot?.country??'','country'],[doc.supplierReference??'','neutral'],
     [doc.terms.paymentTerms,'prose'],[doc.terms.packing,'prose'],[doc.terms.deliveryTime,'prose'],[doc.terms.portOfLoading,'neutral'],
     [doc.terms.finalDestination,'neutral'],[doc.terms.countryOfOrigin,'country'],[doc.terms.validity,'prose'],[doc.terms.remarks,'prose'],[doc.notes,'prose']
   ];
   for(const item of doc.items){values.push([item.origin,'country'],[item.packing,'prose'],[item.unit,'unit']);}
   if(doc.language==='en'){
-    values.push([doc.companySnapshot.nameEn,'prose'],[doc.companySnapshot.addressEn,'prose'],[doc.customerSnapshot?.companyNameEn??'','prose'],[doc.customerSnapshot?.addressEn??'','prose']);
+    values.push([doc.companySnapshot.nameEn,'prose'],[doc.companySnapshot.addressEn,'prose'],[doc.customerSnapshot?.companyNameEn??'','prose'],[doc.customerSnapshot?.addressEn??'','prose'],[doc.supplierSnapshot?.nameEn??'','prose']);
     for(const item of doc.items)values.push([item.descriptionEn,'prose']);
   }else{
-    values.push([doc.companySnapshot.nameAr,'prose'],[doc.companySnapshot.addressAr,'prose'],[doc.customerSnapshot?.companyNameAr??'','prose'],[doc.customerSnapshot?.addressAr??'','prose']);
+    values.push([doc.companySnapshot.nameAr,'prose'],[doc.companySnapshot.addressAr,'prose'],[doc.customerSnapshot?.companyNameAr??'','prose'],[doc.customerSnapshot?.addressAr??'','prose'],[doc.supplierSnapshot?.nameAr??'','prose']);
     for(const item of doc.items)values.push([item.descriptionAr,'prose']);
   }
   return values.some(([value,kind])=>documentLanguageMismatch(value,doc.language,kind));

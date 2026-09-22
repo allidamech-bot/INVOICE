@@ -30,7 +30,7 @@ export function getDocumentReadiness(doc: LourexDocument): DocumentReadiness {
   ];
   requirements.push(...documentChecks);
 
-  const customerComplete = !errors.customer;
+  const customerComplete = doc.kind==='purchase-order' ? !errors.supplier : !errors.customer;
   requirements.push(customerComplete);
 
   const itemDetailChecks: boolean[] = [];

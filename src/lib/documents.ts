@@ -89,7 +89,7 @@ export function createBlankDocument(kind: DocumentKind, number: string, company:
     terms: { incoterm: company.defaultIncoterm, paymentTerms: paymentPreset?.label||company.defaultPaymentTerms, packing: '', deliveryTime: company.defaultDeliveryTime, portOfLoading: '', finalDestination: '', countryOfOrigin: '', validity: '', remarks: '' },
     adjustments: { discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping: '0.00', otherChargesEnabled: false, otherCharges: '0.00', taxEnabled: Boolean(taxPreset), taxPercent: taxPreset?.rate||'0' },
     internalCosts:{shippingCost:'0.00',otherCost:'0.00'},
-    appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: '#b58b4f', latinFont: 'auto', arabicFont: 'auto', showBank: true, showSignature: Boolean(company.signatureDataUrl), showStamp: Boolean(company.stampDataUrl), showHsCode: true, showOrigin: true, showPacking: false },
+    appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: '#b58b4f', latinFont: 'auto', arabicFont: 'auto', showBank: kind!=='purchase-order', showSignature: Boolean(company.signatureDataUrl), showStamp: Boolean(company.stampDataUrl), showHsCode: true, showOrigin: true, showPacking: false },
     notes: company.defaultNotes, convertedFromId: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
   };
 }
