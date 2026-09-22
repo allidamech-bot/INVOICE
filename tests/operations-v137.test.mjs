@@ -28,8 +28,8 @@ test('v137 migrates legacy vaults to first-class encrypted operations collection
   const legacy=emptyVault();legacy.schemaVersion=10;
   delete legacy.suppliers;delete legacy.purchases;delete legacy.expenses;delete legacy.inventoryMovements;
   const migrated=migrateVault(legacy);
-  assert.equal(APP_SCHEMA_VERSION,11);
-  assert.equal(migrated.schemaVersion,11);
+  assert.ok(APP_SCHEMA_VERSION>=11);
+  assert.equal(migrated.schemaVersion,APP_SCHEMA_VERSION);
   assert.deepEqual(migrated.suppliers,[]);assert.deepEqual(migrated.purchases,[]);assert.deepEqual(migrated.expenses,[]);assert.deepEqual(migrated.inventoryMovements,[]);
 });
 
