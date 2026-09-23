@@ -3,14 +3,20 @@
 
   const pendingKindKey='lourex:pending-document-kind';
   const styleMarker='data-lourex-v303-coherence';
+  const attachmentStyleMarker='data-lourex-v304-attachments';
 
-  function ensureVisualCoherence(){
-    if(document.querySelector(`link[${styleMarker}]`))return;
+  function ensureStylesheet(marker,href){
+    if(document.querySelector(`link[${marker}]`))return;
     const link=document.createElement('link');
     link.rel='stylesheet';
-    link.href='./visual-coherence-v303.css?v=303';
-    link.setAttribute(styleMarker,'true');
+    link.href=href;
+    link.setAttribute(marker,'true');
     document.head.appendChild(link);
+  }
+
+  function ensureVisualCoherence(){
+    ensureStylesheet(styleMarker,'./visual-coherence-v303.css?v=303');
+    ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');
 
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){
