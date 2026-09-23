@@ -242,6 +242,20 @@ function startAccountSignOutWatcher():void{
         })();
         return;
       }
+      if(!selectedStorageUid){
+        // Firebase can restore a persisted account after the public gateway has
+        // already mounted on slow Safari/WebKit startup. Never let setup/PIN
+        // writes continue in the public database: switch to the UID database and
+        // rehydrate the app from that account boundary first.
+        if(signOutTransitionRunning)return;
+        signOutTransitionRunning=true;
+        accountWasAuthenticated=true;
+        void (async()=>{
+          try{setActiveAccountUid(user.uid);await activateAccountStorage(user.uid);}
+          finally{window.location.reload();}
+        })();
+        return;
+      }
       setActiveAccountUid(user.uid);
       accountWasAuthenticated=true;
       return;
@@ -310,10 +324,18 @@ function safeSignedOutAuthGatewayForAutomaticReload():boolean{
 // The account layer may install a newer account copy while the UI is idle.
 // Reloading here rehydrates React from the exact encrypted account copy, but
 // never discard a document, inline Operations draft, product draft, or modal.
+let cloudAppliedReloadTimer:number|undefined;
 window.addEventListener('lourex-cloud-applied',()=>{
   if(reloadUnsafeWorkspaceOpen())return;
-  rememberWorkspaceBeforeAutomaticReload();
-  window.location.reload();
+  if(cloudAppliedReloadTimer)window.clearTimeout(cloudAppliedReloadTimer);
+  // A document click can race the final cloud callback by a few milliseconds.
+  // Re-check after React has had a chance to mount the editor before reloading.
+  cloudAppliedReloadTimer=window.setTimeout(()=>{
+    cloudAppliedReloadTimer=undefined;
+    if(reloadUnsafeWorkspaceOpen())return;
+    rememberWorkspaceBeforeAutomaticReload();
+    window.location.reload();
+  },360);
 });
 
 // Page-level "/" shortcuts must never steal focus from the page behind an open
