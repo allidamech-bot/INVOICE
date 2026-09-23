@@ -16,11 +16,9 @@ test('batch 6 keeps the canonical modal close control reachable on iPhone',async
 });
 
 test('batch 6 exposes account sign out without deleting local encrypted data',async()=>{
-  const [settings,app]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/app/App.tsx')]);
+  const [settings,app,shell]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/app/App.tsx'),read('src/components/AppShell.tsx')]);
   assert.match(settings,/onCloudSignOut:\(\)=>Promise<void>/);
   assert.match(settings,/private signOutFromCloud=async/);
-  assert.match(settings,/Sign Out/);
-  assert.match(settings,/تسجيل الخروج/);
   assert.match(settings,/Signing out does not delete the encrypted data already stored on this device/);
   const signOut=settings.slice(settings.indexOf('private signOutFromCloud=async'),settings.indexOf('private saveButton'));
   assert.match(signOut,/await this\.props\.onCloudSignOut\(\)/);
@@ -28,6 +26,11 @@ test('batch 6 exposes account sign out without deleting local encrypted data',as
   assert.doesNotMatch(signOut,/window\.location\.reload/);
   assert.match(app,/cloudUser=\{this\.state\.cloudUser\}[\s\S]{0,120}onCloudSignOut=\{this\.cloudSignOut\}/);
   assert.match(app,/private cloudSignOut=async\(\)=>\{try\{await signOutCloudUser\(\)/);
+  assert.match(shell,/private signOutFromMore=async/);
+  assert.match(shell,/await signOutCloudUser\(\)/);
+  assert.match(shell,/await clearSession\(\)/);
+  assert.match(shell,/settings-signout-button/);
+  assert.match(shell,/t\('Sign Out','تسجيل الخروج'\)/);
 });
 
 test('batch 6 separates automatic account protection from explicit cloud recovery and exposes session locking',async()=>{
