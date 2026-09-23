@@ -1,5 +1,6 @@
 import type { CompanySettings, Customer, ExpenseRecord, InventoryMovementRecord, LourexDocument, PaymentRecord, PurchaseRecord, SavedItem, Supplier } from '../types.js';
 import { t } from '../lib/i18n.js';
+import { confirmWorkspaceDeparture } from '../lib/workspace-dirty.js';
 import { ReceivablesPage } from './ReceivablesPage.js';
 import { OperationsPage } from './OperationsPage.js';
 import { DomainWorkspaceTabs } from './DomainWorkspaceTabs.js';
@@ -17,10 +18,11 @@ type Tab='receivables'|'expenses';
 
 export function FinanceWorkspace(props:Props):any{
   const [tab,setTab]=React.useState<Tab>('receivables');
+  const changeTab=(next:Tab)=>{if(next===tab)return;if(!confirmWorkspaceDeparture())return;setTab(next);};
   React.useEffect(()=>{
-    const expense=()=>{setTab('expenses');window.setTimeout(()=>window.dispatchEvent(new Event('lourex-open-expense-editor')),0);};
-    const payment=(event:Event)=>{const detail=(event as CustomEvent).detail;setTab('receivables');window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-payment-open',{detail})),0);};
-    const statement=(event:Event)=>{const detail=(event as CustomEvent).detail;setTab('receivables');window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-statement-open',{detail})),0);};
+    const expense=()=>{if(!confirmWorkspaceDeparture())return;setTab('expenses');window.setTimeout(()=>window.dispatchEvent(new Event('lourex-open-expense-editor')),0);};
+    const payment=(event:Event)=>{const detail=(event as CustomEvent).detail;if(!confirmWorkspaceDeparture())return;setTab('receivables');window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-payment-open',{detail})),0);};
+    const statement=(event:Event)=>{const detail=(event as CustomEvent).detail;if(!confirmWorkspaceDeparture())return;setTab('receivables');window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-statement-open',{detail})),0);};
     window.addEventListener('lourex-create-expense',expense);
     window.addEventListener('lourex-finance-payment',payment as EventListener);
     window.addEventListener('lourex-finance-statement',statement as EventListener);
@@ -31,7 +33,7 @@ export function FinanceWorkspace(props:Props):any{
     };
   },[]);
   return <section className="domain-workspace finance-workspace">
-    <DomainWorkspaceTabs value={tab} onChange={setTab} ariaLabel={t('Finance sections','أقسام المالية')} options={[
+    <DomainWorkspaceTabs value={tab} onChange={changeTab} ariaLabel={t('Finance sections','أقسام المالية')} options={[
       {id:'receivables',label:t('Receivables & Collections','المستحقات والتحصيل'),description:t('Balances, aging, payments & statements','الأرصدة والأعمار والمدفوعات وكشوف الحساب')},
       {id:'expenses',label:t('Expenses','المصروفات'),description:t('Operating cash out','المصروفات التشغيلية')}
     ]}/>

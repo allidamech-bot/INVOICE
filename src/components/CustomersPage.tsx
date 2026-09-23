@@ -2,6 +2,7 @@ import type { CompanySettings, Customer, DocumentKind } from '../types.js';
 import { makeId } from '../lib/id.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { validateCustomerCommercial } from '../lib/commercial-controls.js';
+import { setWorkspaceDirty } from '../lib/workspace-dirty.js';
 import { Button, ConfirmDialog, Field, Icon, IconButton, Input, Modal, Select, Textarea } from './UI.js';
 
 export function blankCustomer(seed=''): Customer { const now=new Date().toISOString(); const name=seed.trim(); const arabic=isArabic(); return { id:makeId('customer'),createdAt:now,updatedAt:now,companyNameEn:arabic?'':name,companyNameAr:arabic?name:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:'',preferredCurrency:'',paymentTermPresetId:'',paymentTerms:'',paymentDueDays:'',creditLimit:'',creditCurrency:'',notes:''}; }
@@ -30,15 +31,16 @@ function visibleValue(value:string):string{return value.trim()||'—';}
 export class CustomersPage extends React.Component<Props,State> {
   state:State={query:'',sort:'name',editing:null,editingInitial:'',discardConfirm:false,deleting:null,error:'',busy:false,creatingDocument:'',viewingId:''};
   private mounted=false;
-  componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.handleKeyDown);window.addEventListener('lourex-create-customer',this.handleQuickCreate);}
+  componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.handleKeyDown);window.addEventListener('lourex-create-customer',this.handleQuickCreate);window.addEventListener('beforeunload',this.handleBeforeUnload);this.syncDirtyMarker();}
   componentDidUpdate(prevProps:Props,prevState:State):void{
     if(prevProps.customers!==this.props.customers&&this.state.viewingId&&!this.props.customers.some(customer=>customer.id===this.state.viewingId))this.setState({viewingId:''});
     if(prevState.viewingId!==this.state.viewingId){
       if(this.state.viewingId)document.querySelector<HTMLButtonElement>('.customer-profile-back')?.focus();
       else Array.from(document.querySelectorAll<HTMLElement>('[data-customer-id]')).find(node=>node.dataset.customerId===prevState.viewingId)?.querySelector<HTMLButtonElement>('.customer-card-main')?.focus();
     }
+    this.syncDirtyMarker();
   }
-  componentWillUnmount():void{this.mounted=false;document.removeEventListener('keydown',this.handleKeyDown);window.removeEventListener('lourex-create-customer',this.handleQuickCreate);}
+  componentWillUnmount():void{this.mounted=false;document.removeEventListener('keydown',this.handleKeyDown);window.removeEventListener('lourex-create-customer',this.handleQuickCreate);window.removeEventListener('beforeunload',this.handleBeforeUnload);setWorkspaceDirty('customers',false);}
   private handleQuickCreate=()=>this.newCustomer();
   private handleKeyDown=(event:KeyboardEvent)=>{
     if(event.defaultPrevented||event.metaKey||event.ctrlKey||event.altKey||this.state.editing||document.querySelector('.modal-backdrop'))return;
@@ -66,6 +68,8 @@ export class CustomersPage extends React.Component<Props,State> {
   private openProfile=(customer:Customer)=>this.setState({viewingId:customer.id,error:''});
   private newCustomer=()=>this.beginEdit(blankCustomer(customerSearchSeed(this.state.query)));
   private editingDirty=()=>Boolean(this.state.editing&&this.state.editingInitial&&JSON.stringify(this.state.editing)!==this.state.editingInitial);
+  private syncDirtyMarker=()=>setWorkspaceDirty('customers',this.editingDirty());
+  private handleBeforeUnload=(event:BeforeUnloadEvent)=>{if(!this.editingDirty())return;event.preventDefault();event.returnValue='';};
   private closeEditing=()=>this.setState({editing:null,editingInitial:'',discardConfirm:false,error:''});
   private requestClose=()=>{if(this.state.busy)return;if(this.editingDirty())this.setState({discardConfirm:true});else this.closeEditing();};
   private duplicateCustomer=(candidate:Customer):Customer|undefined=>{
