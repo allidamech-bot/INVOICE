@@ -18,7 +18,18 @@ jobs:
           ref: feature/v312-business-document-suite
           fetch-depth: 0
       - name: Apply v312 document suite
-        run: python3 .github/v312_patch.py
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('.github/v312_patch.py')
+          s=p.read_text()
+          old="s = replace_once(s, marker, aux, 'auxiliary numbering')"
+          new="s = s.replace(marker, aux, 1)"
+          if old not in s:
+              raise SystemExit('number allocator patch marker missing')
+          p.write_text(s.replace(old,new,1))
+          PY
+          python3 .github/v312_patch.py
       - name: Commit application changes
         run: |
           git diff --check
