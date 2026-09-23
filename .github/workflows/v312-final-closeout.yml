@@ -26,6 +26,19 @@ jobs:
           cache: npm
       - name: Apply final audited patch
         run: python3 scripts/v312-final-closeout.py
+      - name: Guard optional RFQ response interval
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/components/EditorPageCore.tsx')
+          s=p.read_text()
+          old="      const responseDays=daysBetweenIso(d.issueDate,d.dueDate);\n      return {...next,dueDate:addDaysIso(value,responseDays)};"
+          new="      const responseDays=daysBetweenIso(d.issueDate,d.dueDate);\n      if(responseDays===null)return next;\n      return {...next,dueDate:addDaysIso(value,responseDays)};"
+          if new not in s:
+            if old not in s: raise SystemExit('RFQ response interval block missing')
+            s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
       - name: Normalize touched text files
         run: |
           python3 - <<'PY'
