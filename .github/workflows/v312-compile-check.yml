@@ -41,7 +41,7 @@ jobs:
           ])
 
           patch('src/components/EditorPageCore.tsx',[
-            ("    if(d.kind==='proforma'){\n      if(!isIsoDate(value))return next;","    if(d.kind==='proforma'||d.kind==='proforma-invoice'||d.kind==='rfq'){\n      if(!isIsoDate(value))return next;",'validity date kinds'),
+            ("    if(d.kind==='proforma'||d.kind==='proforma-invoice'){\n      if(!isIsoDate(value))return next;","    if(d.kind==='proforma'||d.kind==='proforma-invoice'||d.kind==='rfq'){\n      if(!isIsoDate(value))return next;",'validity date kinds'),
             ("    if(d.kind==='purchase-order')return next;\n    const preset=paymentTermPresetById(this.props.company,d.paymentTermPresetId);","    if(d.kind!=='invoice')return next;\n    const preset=paymentTermPresetById(this.props.company,d.paymentTermPresetId);",'invoice-only payment due logic'),
           ])
 
