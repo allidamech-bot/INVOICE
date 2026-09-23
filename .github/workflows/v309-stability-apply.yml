@@ -1,0 +1,32 @@
+name: v309 stability integration
+on:
+  push:
+    branches: [fix/v309-draft-pin-mobile-stability]
+permissions:
+  contents: write
+jobs:
+  apply-build:
+    if: ${{ !contains(github.event.head_commit.message, '[skip v309]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v309-draft-pin-mobile-stability
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply v309 stability fixes
+        run: node scripts/v309-apply-stability.mjs
+      - name: Install dependencies
+        run: npm ci
+      - name: Build only
+        run: npm run build
+      - name: Commit verified v309 fixes
+        run: |
+          rm -f scripts/v309-apply-stability.mjs .github/workflows/v309-stability-apply.yml
+          git config user.name "allidamech-bot"
+          git config user.email "228416871+allidamech-bot@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(v309): stabilize draft PIN and mobile editor [skip v309]"
+          git push origin HEAD:fix/v309-draft-pin-mobile-stability
