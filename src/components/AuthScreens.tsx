@@ -2,7 +2,7 @@ import type { CompanySettings, UiLanguage } from '../types.js';
 import { Brand, Button, Field, Input } from './UI.js';
 import { fileToDataUrl } from '../lib/files.js';
 import { t } from '../lib/i18n.js';
-import { currentCloudUser, resolveCloudConflictWithLocal } from '../cloud/firebase.js';
+import { currentCloudUser, pushLocalVaultToCloud } from '../cloud/firebase.js';
 import { getAccountVaultSecret, retireAccountVaultSecret } from '../cloud/account-access.js';
 import { changePin } from '../storage/vault.js';
 import { getSecurity } from '../storage/db.js';
@@ -138,13 +138,13 @@ export class UnlockScreen extends React.Component<UnlockProps, UnlockState> {
         const user=currentCloudUser();
         if(!user)throw new Error(t('Your account session ended. Sign in again.','انتهت جلسة حسابك. سجّل الدخول مرة أخرى.'));
         await changePin(this.accountSecret,pin);
-        // The user just proved ownership of the legacy account-key encrypted
-        // workspace and explicitly chose a new PIN. Publish that re-keyed local
-        // vault as the authoritative account copy even when an old sync anchor
-        // is absent, then retire the historical automatic unlock secret.
+        // Publish only through the normal divergence-safe cloud path. Missing or
+        // stale anchors must never turn a PIN migration into a forced overwrite
+        // of newer data from another device. The local PIN remains authoritative
+        // immediately; the legacy secret is retired once safe publication lands.
         try{
-          await resolveCloudConflictWithLocal(user.uid);
-          await retireAccountVaultSecret(user.uid);
+          const result=await pushLocalVaultToCloud(user.uid);
+          if(result==='pushed'||result==='same')await retireAccountVaultSecret(user.uid);
         }catch{}
         this.accountSecret='';
       }
