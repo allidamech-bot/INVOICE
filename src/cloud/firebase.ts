@@ -61,8 +61,13 @@ function writeSyncAnchor(uid:string,meta:Pick<CloudVaultMeta,'revision'|'cipherS
 function notifyCloudApplied():void{try{window.dispatchEvent(new Event('lourex-cloud-applied'));}catch{}}
 function inlineDraftWorkspaceOpen():boolean{
   try{
-    if(document.documentElement.hasAttribute('data-lourex-document-editor')||document.querySelector('.editor-screen,.operations-page,.product-library-pro.editor-open'))return true;
+    // Block cloud replacement for actual unsaved work, not merely because the
+    // user is browsing an Operations page. All inline business editors publish
+    // the shared workspace-dirty marker; document editors keep their own marker.
+    if(document.documentElement.hasAttribute('data-lourex-document-editor')||document.documentElement.hasAttribute('data-lourex-workspace-dirty')||document.querySelector('.editor-screen'))return true;
     const modal=document.querySelector('.modal-backdrop');
+    // The explicit cloud restore/account flow must be allowed to perform the
+    // replacement it was opened for. Other dialogs still block replacement.
     return Boolean(modal&&!modal.querySelector('.cloud-account-panel,.cloud-auth-form'));
   }catch{return false;}
 }
