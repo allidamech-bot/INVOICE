@@ -6,6 +6,7 @@
   const attachmentStyleMarker='data-lourex-v304-attachments';
   const mobileCloseoutStyleMarker='data-lourex-v305-mobile-closeout';
   const releaseHardeningStyleMarker='data-lourex-v306-release-hardening';
+  const settingsMoreStyleMarker='data-lourex-v307-loading-more-settings';
   const sessionMarkerKey='lourex-invoice-session-v1';
 
   function ensureStylesheet(marker,href){
@@ -22,6 +23,7 @@
     ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');
     ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');
     ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');
+    ensureStylesheet(settingsMoreStyleMarker,'./loading-more-settings-v307.css?v=307');
 
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){

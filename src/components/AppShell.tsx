@@ -1,5 +1,7 @@
 import type { DocumentKind, LourexDocument, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
+import { signOutCloudUser } from '../cloud/firebase.js';
+import { clearSession } from '../storage/session.js';
 import { Brand, Button, Icon } from './UI.js';
 import { AiCopilot } from './AiCopilot.js';
 import { ThemeControl } from './ThemeControl.js';
@@ -29,13 +31,13 @@ interface Props {
   children:any;
 }
 
-interface State { moreOpen:boolean; }
+interface State { moreOpen:boolean; signingOut:boolean; }
 
 type NavTarget=Exclude<WorkspaceScreen,'editor'>;
 type MoreTone='items'|'receivables'|'reports'|'operations';
 
 export class AppShell extends React.Component<Props,State>{
-  state:State={moreOpen:false};
+  state:State={moreOpen:false,signingOut:false};
 
   componentDidMount():void{document.addEventListener('keydown',this.handleKeyDown);}
   componentWillUnmount():void{document.removeEventListener('keydown',this.handleKeyDown);}
@@ -88,6 +90,27 @@ export class AppShell extends React.Component<Props,State>{
   private createDocument=(kind:DocumentKind)=>{
     this.closeMore();
     this.props.onNew(kind);
+  };
+
+  private hasSignedInAccount=():boolean=>{
+    try{
+      const firebaseApi=(window as any).firebase;
+      return Boolean(firebaseApi&&firebaseApi.auth&&firebaseApi.auth().currentUser);
+    }catch{return false;}
+  };
+
+  private signOutFromMore=async()=>{
+    if(this.state.signingOut)return;
+    document.documentElement.dataset.lourexSigningOut='true';
+    this.setState({signingOut:true});
+    try{
+      await signOutCloudUser();
+      await clearSession();
+      window.location.replace(window.location.href);
+    }catch{
+      delete document.documentElement.dataset.lourexSigningOut;
+      this.setState({signingOut:false});
+    }
   };
 
   private activeEditorDocument=():LourexDocument|null=>{
@@ -146,6 +169,7 @@ export class AppShell extends React.Component<Props,State>{
 
   render():any{
     const editor=this.props.screen==='editor';
+    const signedIn=this.hasSignedInAccount();
     return <div className={`workspace-shell fintech-shell-v280 screen-${this.props.screen} ${editor?'is-editor':''}`}>
       {!editor?<aside className="workspace-sidebar" aria-label={t('Main navigation','التنقل الرئيسي')}>
         <button type="button" className="shell-brand-button" onClick={()=>this.navigate('home')}><Brand compact logoDataUrl="./brand/lourex-logo.svg" language={this.props.language}/><span className="shell-brand-product"><strong>INVOICE</strong><small>{t('Business workspace','مساحة الأعمال')}</small></span></button>
@@ -196,6 +220,10 @@ export class AppShell extends React.Component<Props,State>{
             <div className="mobile-more-heading-copy"><small>{t('Workspace menu','قائمة مساحة العمل')}</small><strong>{t('More','المزيد')}</strong><span>{t('Your business, finance, reports and settings','أعمالك والمالية والتقارير والإعدادات')}</span></div>
             <button type="button" className="mobile-more-close" onClick={this.closeMore} aria-label={t('Close','إغلاق')}><Icon name="x"/></button>
           </div>
+          <div className="mobile-more-utility-row">
+            <ThemeControl language={this.props.language} className="mobile-more-theme-control"/>
+            {signedIn?<button type="button" className="mobile-more-signout settings-signout-button" disabled={this.state.signingOut} onClick={()=>void this.signOutFromMore()}><Icon name="lock"/><strong>{this.state.signingOut?t('Signing out…','جارٍ تسجيل الخروج…'):t('Sign Out','تسجيل الخروج')}</strong></button>:null}
+          </div>
           <div className="mobile-more-status-row">{this.syncStatus('mobile-more-sync')}</div>
           <button type="button" className="mobile-more-account" onClick={this.openAccount}>
             <span className="mobile-more-account-icon"><Icon name="users"/></span>
@@ -205,7 +233,6 @@ export class AppShell extends React.Component<Props,State>{
           <div className="mobile-more-group group-workspace"><p><span>{t('Business','الأعمال')}</span></p>{this.moreNavButton('items','items',t('Products & Inventory','المنتجات والمخزون'),t('Products, stock and inventory movement','المنتجات والمخزون وحركة الأصناف'),'items')}{this.moreNavButton('operations','backup',t('Purchasing','المشتريات'),t('Suppliers and purchase workflow','الموردون ودورة المشتريات'),'operations')}</div>
           <div className="mobile-more-group group-finance"><p><span>{t('Finance & analysis','المالية والتحليل')}</span></p>{this.moreNavButton('receivables','invoice',t('Finance','المالية'),t('Receivables, collections and expenses','المستحقات والتحصيل والمصروفات'),'receivables')}{this.moreNavButton('reports','file',t('Reports','التقارير'),t('Business and financial analysis','تحليل الأعمال والنتائج المالية'),'reports')}</div>
           <div className="mobile-more-group group-system"><p><span>{t('System','النظام')}</span></p><button type="button" className="mobile-more-settings" onClick={this.openSettings}><span className="mobile-more-settings-icon"><Icon name="settings"/></span><span className="mobile-more-settings-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Workspace, documents, commercial and security','مساحة العمل والمستندات والتجاري والأمان')}</small></span><span className="mobile-more-chevron" aria-hidden="true"/></button></div>
-          <div className="mobile-more-appearance"><span>{t('Appearance','المظهر')}</span><ThemeControl language={this.props.language}/></div>
         </section></>:null}
         <nav className="mobile-bottom-nav" aria-label={t('Mobile navigation','تنقل الجوال')}>
           <button type="button" className={this.props.screen==='home'?'active':''} aria-current={this.props.screen==='home'?'page':undefined} onClick={()=>this.navigate('home')}><Icon name="home"/><span>{t('Home','الرئيسية')}</span></button>
