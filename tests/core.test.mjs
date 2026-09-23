@@ -139,7 +139,9 @@ test('PIN verifier rejects wrong PIN and encrypted vault round-trips', async () 
 test('backup is encrypted, validates PIN, and restores complete payload', async () => {
   const vault = emptyVault(); vault.company.nameEn = 'LOUREX';
   const backup = await createEncryptedBackup('123456', vault);
-  assert.equal(JSON.stringify(backup).includes('LOUREX'), false);
+  const serialized = JSON.stringify(backup);
+  assert.equal(backup.format, 'LOUREX_BACKUP');
+  assert.equal(serialized.includes('"nameEn":"LOUREX"'), false);
   await assert.rejects(() => decryptBackup('000000', backup));
   const restored = await decryptBackup('123456', backup);
   assert.equal(restored.company.nameEn, 'LOUREX');
