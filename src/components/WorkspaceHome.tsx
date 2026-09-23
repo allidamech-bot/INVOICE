@@ -9,7 +9,7 @@ import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { Button, Icon } from './UI.js';
 import { LourexAdvisorCard } from './LourexAdvisorCard.js';
-import { documentKindLabel, isSupplierDocumentKind } from '../lib/document-kinds.js';
+import { documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';
 
 interface Props{
   companyName:string;
@@ -55,6 +55,7 @@ function documentStatus(doc:LourexDocument,payments:PaymentRecord[],documents:Lo
   if(doc.kind==='proforma')return{tone:'quotation',label:t('Quotation','عرض سعر')};
   if(doc.kind==='purchase-order')return{tone:'issued',label:t('Issued PO','طلب شراء صادر')};
   if(doc.role==='credit-note')return{tone:'issued',label:t('Issued','صادر')};
+  if(doc.kind!=='invoice')return{tone:'issued',label:t('Issued','صادر')};
   const payment=invoicePaymentSummary(doc,payments,today,documents).status;
   if(payment==='paid')return{tone:'paid',label:t('Paid','مدفوعة')};
   if(payment==='partially-paid')return{tone:'partial',label:t('Partially paid','مدفوعة جزئيًا')};
@@ -271,7 +272,7 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
           <span className="dashboard-document-copy"><strong>{doc.number}</strong><small>{documentLabel(doc)}</small></span>
           <span className="dashboard-document-customer">{customerName(doc)}</span>
           <span className="dashboard-document-date">{displayDate(doc.issueDate,getUiLanguage())}</span>
-          <strong className="dashboard-document-amount">{doc.kind==='draft'?'—':formatMoney(total,doc.currency)}</strong>
+          <strong className="dashboard-document-amount">{doc.kind==='draft'||documentPriceOptional(doc.kind)?'—':formatMoney(total,doc.currency)}</strong>
           <span className={`dashboard-document-status status-${status.tone}`}>{status.label}</span>
         </button>;
       })}</div>:<div className="dashboard-empty"><Icon name="file"/><strong>{t('No documents yet','لا توجد مستندات بعد')}</strong><span>{t('Create your first business document. LOUREX will build your command center from real activity.','أنشئ أول مستند أعمال وسيبني LOUREX مركز القيادة من نشاطك الحقيقي.')}</span><Button icon="plus" variant="primary" onClick={onNewDocument}>{t('New Document','مستند جديد')}</Button></div>}

@@ -137,8 +137,8 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
   if(doc.kind==='draft')return errors;
   if ((doc.kind === 'proforma' || doc.kind === 'proforma-invoice') && !doc.dueDate) errors.dueDate = 'Valid until date is required.';
   if (doc.kind === 'purchase-order' && !doc.dueDate) errors.dueDate = 'Requested delivery date is required.';
-  if(doc.dueDate&&!isIsoDate(doc.dueDate))errors.dueDate=(doc.kind==='proforma'||doc.kind==='proforma-invoice')?'Valid until date is invalid.':doc.kind==='purchase-order'?'Requested delivery date is invalid.':'Due date is invalid.';
-  else if(doc.dueDate&&isIsoDate(doc.issueDate)&&compareIsoDates(doc.dueDate,doc.issueDate)<0)errors.dueDate=(doc.kind==='proforma'||doc.kind==='proforma-invoice')?'Valid until date cannot be before issue date.':doc.kind==='purchase-order'?'Requested delivery cannot be before order date.':'Due date cannot be before issue date.';
+  if(doc.dueDate&&!isIsoDate(doc.dueDate))errors.dueDate=(doc.kind==='proforma'||doc.kind==='proforma-invoice'||doc.kind==='rfq')?'Valid until date is invalid.':doc.kind==='purchase-order'?'Requested delivery date is invalid.':'Due date is invalid.';
+  else if(doc.dueDate&&isIsoDate(doc.issueDate)&&compareIsoDates(doc.dueDate,doc.issueDate)<0)errors.dueDate=(doc.kind==='proforma'||doc.kind==='proforma-invoice'||doc.kind==='rfq')?'Valid until date cannot be before issue date.':doc.kind==='purchase-order'?'Requested delivery cannot be before order date.':'Due date cannot be before issue date.';
   if (!doc.currency.trim()) errors.currency = 'Currency is required.';
   if(isSupplierDocumentKind(doc.kind)){if(!hasDocumentSupplier(doc))errors.supplier='Select a supplier.';}
   else if (!hasDocumentCustomer(doc)) errors.customer = 'Select a customer.';

@@ -242,14 +242,14 @@ export class EditorPage extends React.Component<Props,State>{
   private field=(key:keyof LourexDocument,value:any)=>this.mutate(d=>({...d,[key]:value}));
   private issueDate=(value:string)=>this.mutate(d=>{
     let next={...d,issueDate:value};
-    if(d.kind==='proforma'||d.kind==='proforma-invoice'){
+    if(d.kind==='proforma'||d.kind==='proforma-invoice'||d.kind==='rfq'){
       if(!isIsoDate(value))return next;
       const validityDays=daysBetweenIso(d.issueDate,d.dueDate)??normalizeValidityDays(this.props.company.defaultValidityDays);
       return {...next,dueDate:addDaysIso(value,validityDays)};
     }
     // A purchase order owns an explicit requested-delivery date. Changing the
     // order date must never apply customer invoice terms or overwrite delivery.
-    if(d.kind==='purchase-order')return next;
+    if(d.kind!=='invoice')return next;
     const preset=paymentTermPresetById(this.props.company,d.paymentTermPresetId);
     if(preset)return applyPaymentTermPreset(next,preset);
     const customer=this.props.customers.find(item=>item.id===d.customerSnapshot?.sourceCustomerId);
