@@ -1,0 +1,28 @@
+name: v308 integration patch
+on:
+  push:
+    branches: [feature/v308-watermark-draft-letterhead]
+    paths: [scripts/v308-apply.mjs]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/v308-watermark-draft-letterhead
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply v308 integration
+        run: node scripts/v308-apply.mjs
+      - name: Commit integration
+        run: |
+          rm -f scripts/v308-apply.mjs .github/workflows/v308-apply.yml
+          git config user.name "allidamech-bot"
+          git config user.email "228416871+allidamech-bot@users.noreply.github.com"
+          git add -A
+          git commit -m "feat(v308): integrate watermark and company draft studio"
+          git push origin HEAD:feature/v308-watermark-draft-letterhead
