@@ -5,6 +5,8 @@
   const styleMarker='data-lourex-v303-coherence';
   const attachmentStyleMarker='data-lourex-v304-attachments';
   const mobileCloseoutStyleMarker='data-lourex-v305-mobile-closeout';
+  const releaseHardeningStyleMarker='data-lourex-v306-release-hardening';
+  const sessionMarkerKey='lourex-invoice-session-v1';
 
   function ensureStylesheet(marker,href){
     if(document.querySelector(`link[${marker}]`))return;
@@ -19,6 +21,7 @@
     ensureStylesheet(styleMarker,'./visual-coherence-v303.css?v=303');
     ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');
     ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');
+    ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');
 
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){
@@ -79,6 +82,34 @@
     document.querySelectorAll('.v302-direct-document-actions,.v302-attachments-shortcut').forEach(node=>node.remove());
   }
 
+  function enforceSignOutBoundary(event){
+    const target=event.target;
+    if(!(target instanceof Element))return;
+    const button=target.closest('.settings-direct-signout-button,.settings-signout-button');
+    if(!(button instanceof HTMLButtonElement)||button.disabled)return;
+
+    const root=document.documentElement;
+    root.dataset.lourexSigningOut='true';
+    try{window.localStorage.removeItem(sessionMarkerKey);}catch{}
+    try{window.sessionStorage.removeItem(sessionMarkerKey);}catch{}
+
+    let attempts=0;
+    const finish=()=>{
+      let signedOut=false;
+      try{
+        const firebaseApi=window.firebase;
+        signedOut=Boolean(firebaseApi&&firebaseApi.auth&&!firebaseApi.auth().currentUser);
+      }catch{}
+      if(signedOut||attempts>=14){
+        window.location.replace(window.location.href);
+        return;
+      }
+      attempts+=1;
+      window.setTimeout(finish,100);
+    };
+    window.setTimeout(finish,80);
+  }
+
   let scheduled=false;
   function reconcile(){
     scheduled=false;
@@ -96,6 +127,7 @@
 
   ensureVisualCoherence();
   document.addEventListener('click',rememberNativeDocumentKind,true);
+  document.addEventListener('click',enforceSignOutBoundary,true);
   const observer=new MutationObserver(schedule);
   observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['dir','lang','data-ui-theme','data-lourex-booting']});
   document.addEventListener('DOMContentLoaded',schedule,{once:true});
