@@ -67,3 +67,12 @@ export async function getOrCreateAccountVaultSecret(uid:string):Promise<string>{
     return secret;
   });
 }
+
+// The account-secret document exists only for the one-time migration from the
+// historical automatic-account unlock model to a user-chosen local PIN. Delete
+// it only after the re-keyed vault has been confirmed in cloud storage; until
+// then it remains the recovery credential for older encrypted metadata.
+export async function retireAccountVaultSecret(uid:string):Promise<void>{
+  requireUid(uid);
+  await accessRef(uid).delete();
+}
