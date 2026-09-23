@@ -26,6 +26,20 @@ jobs:
           cache: npm
       - name: Apply final audited patch
         run: python3 scripts/v312-final-closeout.py
+      - name: Normalize touched text files
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          paths=[
+            'src/lib/document-kinds.ts','src/lib/defaults.ts','src/storage/vault.ts','src/lib/documents.ts',
+            'src/app/App.tsx','src/components/EditorPageCore.tsx','src/templates/TemplateRenderer.tsx',
+            'src/lib/document-quality.ts','src/components/DocumentLifecyclePanel.tsx','src/lib/i18n.ts',
+            'tests/v312-business-document-suite.test.mjs'
+          ]
+          for path in paths:
+            p=Path(path)
+            if p.exists(): p.write_text(p.read_text().rstrip()+"\n")
+          PY
       - name: Diff sanity
         run: git diff --check
       - name: Install dependencies
