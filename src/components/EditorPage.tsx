@@ -1,3 +1,5 @@
+import { DraftDocumentEditor } from './DraftDocumentEditor.js';
+import { isLetterDocument } from '../lib/document-extras.js';
 import type { AppSettings, CompanySettings, Customer, DocumentEventRecord, DocumentItem, DocumentRevisionRecord, LourexDocument, PaymentRecord, SavedItem, Supplier } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { Button, Icon } from './UI.js';
@@ -302,6 +304,7 @@ export class EditorPage extends React.Component<Props,State>{
 
   render():any{
     const props=this.props;
+    if(isLetterDocument(props.document))return <DraftDocumentEditor document={props.document} company={props.company} onClose={props.onClose} onSave={props.onSave} onPrint={props.onPrint} onEditActivity={props.onEditActivity}/>;
     const finalQuote=props.document.kind==='proforma'&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
     const linkedInvoice=finalQuote?props.documents.find(item=>item.kind==='invoice'&&item.role==='standard'&&item.convertedFromId===props.document.id&&item.lifecycleStatus!=='voided'):undefined;
     const canConvertFinalQuote=finalQuote&&!linkedInvoice;

@@ -56,7 +56,8 @@
     if(!(menu instanceof HTMLElement))return;
     const buttons=Array.from(menu.querySelectorAll('button[role="menuitem"]'));
     const index=buttons.indexOf(button);
-    const kind=index===0?'proforma':index===1?'invoice':index===2?'purchase-order':'';
+    const explicit=button.dataset.kind||'';
+    const kind=explicit|| (index===0?'proforma':index===1?'invoice':index===2?'purchase-order':index===3?'draft':'');
     if(!kind)return;
     try{window.sessionStorage.setItem(pendingKindKey,kind);}catch{}
   }
@@ -70,7 +71,8 @@
 
     if(!kind){
       const text=String(editor.textContent||'').toLowerCase();
-      if(text.includes('purchase order')||text.includes('طلب شراء'))kind='purchase-order';
+      if(text.includes('company document studio')||text.includes('استديو مستندات الشركة')||text.includes('مسودة حرة'))kind='draft';
+      else if(text.includes('purchase order')||text.includes('طلب شراء'))kind='purchase-order';
       else if(text.includes('quotation')||text.includes('عرض سعر')||text.includes('proforma'))kind='proforma';
       else if(text.includes('invoice')||text.includes('فاتورة'))kind='invoice';
     }

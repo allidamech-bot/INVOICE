@@ -44,7 +44,7 @@ function customerName(doc:LourexDocument):string{
 
 function documentLabel(doc:LourexDocument):string{
   if(doc.role==='credit-note')return t('Credit note','إشعار دائن');
-  return doc.kind==='proforma'?t('Quotation','عرض سعر'):doc.kind==='purchase-order'?t('Purchase Order','طلب شراء'):t('Invoice','فاتورة');
+  return doc.kind==='proforma'?t('Quotation','عرض سعر'):doc.kind==='purchase-order'?t('Purchase Order','طلب شراء'):doc.kind==='draft'?t('Draft','مسودة'):t('Invoice','فاتورة');
 }
 
 function documentStatus(doc:LourexDocument,payments:PaymentRecord[],documents:LourexDocument[],today:string):{tone:string;label:string}{

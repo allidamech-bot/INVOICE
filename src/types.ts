@@ -1,4 +1,4 @@
-export type DocumentKind = 'proforma' | 'invoice' | 'purchase-order';
+export type DocumentKind = 'proforma' | 'invoice' | 'purchase-order' | 'draft';
 export type DocumentLanguage = 'en' | 'ar' | 'bilingual';
 export type UiLanguage = 'en' | 'ar';
 export type TemplateId = 'executive' | 'minimal' | 'trade' | 'signature' | 'obsidian' | 'cobalt' | 'editorial' | 'split' | 'prism' | 'slate' | 'horizon' | 'mono' | 'aurora' | 'ledger' | 'noir' | 'midnight' | 'blackivory' | 'carbon';
@@ -316,6 +316,59 @@ export interface InternalCostAdjustments {
   otherCost: string;
 }
 
+export interface DocumentWatermark {
+  enabled: boolean;
+  type: 'text' | 'logo';
+  pattern: 'single' | 'repeat';
+  text: string;
+  opacity: number;
+  color: string;
+  angle: number;
+  size: number;
+}
+
+export type LetterBlockType = 'paragraph' | 'heading' | 'subheading' | 'bullet' | 'quote' | 'spacer';
+export type LetterDirection = 'auto' | 'ltr' | 'rtl';
+export type LetterAlign = 'start' | 'center' | 'end' | 'justify';
+export type LetterFontId = 'system' | 'inter' | 'source-sans' | 'montserrat' | 'playfair' | 'cairo' | 'tajawal' | 'noto-kufi' | 'noto-naskh';
+
+export interface LetterBlock {
+  id: string;
+  type: LetterBlockType;
+  text: string;
+  direction: LetterDirection;
+  align: LetterAlign;
+  font: LetterFontId;
+  size: number;
+  color: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  lineHeight: number;
+  spacingBefore: number;
+  spacingAfter: number;
+}
+
+export interface LetterDocumentData {
+  preset: 'blank' | 'formal-letter' | 'memo' | 'notice';
+  recipient: string;
+  attention: string;
+  subject: string;
+  reference: string;
+  pageStyle: 'plain' | 'ruled' | 'grid';
+  headerStyle: 'classic' | 'minimal' | 'accent';
+  footerStyle: 'company' | 'minimal' | 'none';
+  showLogo: boolean;
+  showCompanyDetails: boolean;
+  showDate: boolean;
+  showReference: boolean;
+  showSignature: boolean;
+  showStamp: boolean;
+  accentColor: string;
+  bodyWidth: 'narrow' | 'comfortable' | 'wide';
+  blocks: LetterBlock[];
+}
+
 export interface DocumentAppearance {
   templateId: TemplateId;
   paletteMode: PaletteMode;
@@ -328,6 +381,7 @@ export interface DocumentAppearance {
   showHsCode: boolean;
   showOrigin: boolean;
   showPacking: boolean;
+  watermark: DocumentWatermark;
 }
 
 export interface LourexDocument {
@@ -358,6 +412,7 @@ export interface LourexDocument {
   adjustments: FinancialAdjustments;
   internalCosts: InternalCostAdjustments;
   appearance: DocumentAppearance;
+  letter: LetterDocumentData | null;
   notes: string;
   convertedFromId: string;
   createdAt: string;
@@ -408,14 +463,17 @@ export interface NumberingSettings {
   invoicePrefix: string;
   creditNotePrefix: string;
   purchaseOrderPrefix?: string;
+  draftPrefix?: string;
   proformaLast: number;
   invoiceLast: number;
   creditNoteLast: number;
   purchaseOrderLast?: number;
+  draftLast?: number;
   proformaYear: number;
   invoiceYear: number;
   creditNoteYear: number;
   purchaseOrderYear?: number;
+  draftYear?: number;
 }
 
 export interface SmartDocumentDefaults {
