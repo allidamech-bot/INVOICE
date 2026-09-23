@@ -29,3 +29,4 @@ jobs:
           git add src/app/App.tsx src/components/DocumentsPage.tsx
           git commit -m "fix(v311): keep company drafts outside accounting defaults [skip v311]"
           git push origin HEAD:audit/v311-full-site-quality-pass
+# retry: idempotent source patch
