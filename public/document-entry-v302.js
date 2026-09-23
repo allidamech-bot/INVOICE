@@ -4,6 +4,7 @@
   const pendingKindKey='lourex:pending-document-kind';
   const styleMarker='data-lourex-v303-coherence';
   const attachmentStyleMarker='data-lourex-v304-attachments';
+  const mobileCloseoutStyleMarker='data-lourex-v305-mobile-closeout';
 
   function ensureStylesheet(marker,href){
     if(document.querySelector(`link[${marker}]`))return;
@@ -17,6 +18,7 @@
   function ensureVisualCoherence(){
     ensureStylesheet(styleMarker,'./visual-coherence-v303.css?v=303');
     ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');
+    ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');
 
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){

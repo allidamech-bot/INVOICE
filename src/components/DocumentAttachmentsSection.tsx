@@ -22,7 +22,11 @@ export class DocumentAttachmentsSection extends React.Component<Props,State>{
     const list=this.props.document.attachments??[],preview=this.state.preview;
     return <>
       <section id="document-attachments" data-attachment-count={list.length} className="editor-section document-attachments-section" aria-label={t('Document attachments','مرفقات المستند')}>
-        <div className="section-heading with-action"><div><span>07</span><h2>{t('Attachments','المرفقات')}</h2></div><Button icon="plus" disabled={this.state.busy||list.length>=MAX_FILES} onClick={()=>this.input?.click()}>{this.state.busy?t('Adding…','جارٍ الإضافة…'):t('Add attachment','إضافة مرفق')}</Button></div>
+        <div className="section-heading"><div><span>07</span><h2>{t('Attachments','المرفقات')}</h2></div></div>
+        <div className="attachment-add-row">
+          <Button className="attachment-add-button" icon="plus" disabled={this.state.busy||list.length>=MAX_FILES} onClick={()=>this.input?.click()}>{this.state.busy?t('Adding…','جارٍ الإضافة…'):t('Add attachment','إضافة مرفق')}</Button>
+          <span className="attachment-add-note">{t('Images or PDF · up to 5 MB each','صور أو PDF · حتى 5 ميغابايت لكل ملف')}</span>
+        </div>
         <input ref={(n:HTMLInputElement|null)=>{this.input=n;}} className="document-attachment-input" type="file" accept="image/*,application/pdf,.pdf" multiple onChange={this.add}/>
         <p className="attachment-help">{t('Attach supplier files, purchase documents, scans, product images, or any supporting PDF directly to this document. Files stay inside the encrypted LOUREX workspace.','أرفق ملفات المورد أو مستندات الشراء أو الصور الممسوحة أو صور المنتجات أو أي PDF داعم مباشرة بهذا المستند. تبقى الملفات داخل مساحة LOUREX المشفّرة.')}</p>
         {this.state.error?<div className="inline-error">{this.state.error}</div>:null}
