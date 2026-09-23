@@ -2,7 +2,9 @@ import { getCloudAccount, putCloudAccount } from '../storage/db.js';
 import { currentCloudUser, getCloudVaultMeta, reconcileCloudVault, waitForCloudUser } from './firebase.js';
 import type { CloudSyncResult } from './firebase.js';
 
-const STARTUP_CLOUD_BUDGET_MS=2_200;
+// Keep a very small opportunity for an already-ready cloud fast-forward, but do
+// not make local encrypted startup depend on Firebase/network responsiveness.
+const STARTUP_CLOUD_BUDGET_MS=450;
 type StartupCloudResult=CloudSyncResult|'skipped';
 
 /**
@@ -17,9 +19,9 @@ type StartupCloudResult=CloudSyncResult|'skipped';
  * The pre-render cloud check is deliberately time-bounded. Firebase Auth and
  * Firestore can occasionally leave a promise pending for a long time on iOS even
  * though the local encrypted vault is healthy. A slow cloud request must never
- * hold the entire UI on the boot screen forever. After the budget expires React
- * is allowed to hydrate the local-first app, while the existing freshness watcher
- * continues guarded reconciliation in the background.
+ * hold the entire UI on the boot screen. After the small budget expires React
+ * hydrates the local-first app immediately, while the same guarded reconciliation
+ * continues in the background and only signals when a proven-safe pull completed.
  */
 async function runAuthoritativeCloudStartup():Promise<StartupCloudResult>{
   if(typeof navigator!=='undefined'&&!navigator.onLine)return 'skipped';
