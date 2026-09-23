@@ -20,7 +20,7 @@ test('v312 keeps the requested ten-document order and labels',async()=>{
   ];
   let last=-1;
   for(const [kind,en,ar] of expected){
-    assert.match(catalog,new RegExp(`kind:'${kind.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')}'`));
+    assert.ok(catalog.includes(`kind:'${kind}'`));
     assert.ok(catalog.includes(`en:'${en}'`));
     assert.ok(catalog.includes(`ar:'${ar}'`));
     const at=shell.indexOf(`data-kind=\"${kind}\"`);
