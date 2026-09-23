@@ -1,4 +1,4 @@
-import { cloudRemoteChangedSinceAnchor, currentCloudUser, reconcileCloudVault, subscribeCloudVaultChanges } from './firebase.js';
+import { cloudRemoteChangedSinceAnchor, currentCloudUser, subscribeCloudVaultChanges } from './firebase.js';
 import { getCloudAccount, putCloudAccount } from '../storage/db.js';
 
 let timer:number|undefined;
@@ -7,6 +7,7 @@ let running=false;
 let stopped=false;
 let realtimeOff:(()=>void)|undefined;
 let realtimeUid='';
+let remoteUpdateNotified=false;
 
 const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen';
 type RestorableWorkspace='home'|'documents'|'customers'|'receivables'|'reports'|'items';
@@ -25,11 +26,6 @@ function rememberWorkspaceBeforeAutomaticReload():void{
     if(match)sessionStorage.setItem(WORKSPACE_RESUME_KEY,match[0]);
     else sessionStorage.removeItem(WORKSPACE_RESUME_KEY);
   }catch{}
-}
-
-function reloadPreservingWorkspace():void{
-  rememberWorkspaceBeforeAutomaticReload();
-  window.location.reload();
 }
 
 function isStandalonePwa():boolean{
@@ -105,13 +101,12 @@ async function checkCloudFreshness():Promise<void>{
 
   running=true;
   try{
-    if(!await cloudRemoteChangedSinceAnchor(user.uid))return;
-    const result=await reconcileCloudVault(user.uid);
-    if(result==='diverged'){
-      window.dispatchEvent(new Event('lourex-cloud-conflict'));
-      return;
+    const remoteChanged=await cloudRemoteChangedSinceAnchor(user.uid);
+    if(!remoteChanged){remoteUpdateNotified=false;return;}
+    if(!remoteUpdateNotified){
+      remoteUpdateNotified=true;
+      window.dispatchEvent(new Event('lourex-cloud-refresh-available'));
     }
-    if(result==='pulled')reloadPreservingWorkspace();
   }catch{
     // Transient failures retry automatically. Confirmed divergence is surfaced
     // separately so the customer can make an explicit, non-destructive choice.
