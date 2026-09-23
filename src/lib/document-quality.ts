@@ -2,6 +2,7 @@ import type { DocumentItem, LourexDocument } from '../types.js';
 import { paginateItems } from './documents.js';
 import { decimalToScaled, isDecimalInput } from './money.js';
 import { documentDisplayValue, hasDocumentLanguageMismatch, type DocumentValueKind } from './document-language.js';
+import { documentBankAllowed, documentPriceOptional, documentUsesCommercialDefaults } from './document-kinds.js';
 
 export type DocumentQualityCode =
   | 'company-name-missing'
@@ -78,6 +79,7 @@ function termKind(key:string):DocumentValueKind{
   return 'prose';
 }
 function displayedClosingValues(doc:LourexDocument):string[]{
+  if(!documentUsesCommercialDefaults(doc.kind))return[];
   const t=doc.terms;
   const rows:Array<[string,string]>=[['Incoterm',t.incoterm],['Payment Terms',t.paymentTerms],['Packing',t.packing],['Delivery Time',t.deliveryTime],['Port of Loading',t.portOfLoading],['Final Destination',t.finalDestination],['Country of Origin',t.countryOfOrigin],['Validity',t.validity],['Remarks',t.remarks]];
   return rows.map(([key,value])=>documentDisplayValue(value,doc.language,termKind(key))).filter(Boolean);
@@ -88,7 +90,7 @@ function usesSeparateDetailsPage(doc:LourexDocument):boolean{
   const termsCount=values.length;
   const notes=documentDisplayValue(doc.notes,doc.language);
   const detailsChars=values.reduce((sum,value)=>sum+value.length,0)+notes.length;
-  const bank=doc.appearance.showBank&&Object.values(doc.companySnapshot.bank).some(value=>value.trim());
+  const bank=documentBankAllowed(doc.kind,doc.role)&&doc.appearance.showBank&&Object.values(doc.companySnapshot.bank).some(value=>value.trim());
   const signing=(doc.appearance.showSignature&&Boolean(doc.companySnapshot.signatureDataUrl))||(doc.appearance.showStamp&&Boolean(doc.companySnapshot.stampDataUrl));
   const adjustments=[doc.adjustments.discountEnabled,doc.adjustments.shippingEnabled,doc.adjustments.otherChargesEnabled,doc.adjustments.taxEnabled].filter(Boolean).length;
   const score=termsCount+(notes?3:0)+(bank?4:0)+(signing?3:0)+adjustments;
@@ -126,14 +128,14 @@ export function documentQualityIssues(doc: LourexDocument): DocumentQualityIssue
   if(!companyName)issues.push({code:'company-name-missing',level:'warning'});
   const logo=doc.companySnapshot.logoDataUrl.trim();
   if(!logo||logo.includes('lourex-logo.svg'))issues.push({code:'logo-missing',level:'info'});
-  if(doc.appearance.showBank){
+  if(documentBankAllowed(doc.kind,doc.role)&&doc.appearance.showBank){
     const bank=doc.companySnapshot.bank;
     const essential=[bank.bankName,bank.accountName,bank.iban,bank.swift].filter(value=>value.trim()).length;
     if(essential<2)issues.push({code:'bank-incomplete',level:'warning'});
   }
   if(doc.appearance.showSignature&&!doc.companySnapshot.signatureDataUrl.trim())issues.push({code:'signature-missing',level:'warning'});
   if(doc.appearance.showStamp&&!doc.companySnapshot.stampDataUrl.trim())issues.push({code:'stamp-missing',level:'warning'});
-  if(doc.items.some(item=>isDecimalInput(item.unitPrice)&&decimalToScaled(item.unitPrice)===0n))issues.push({code:'zero-price',level:'warning'});
+  if(!documentPriceOptional(doc.kind)&&doc.items.some(item=>isDecimalInput(item.unitPrice)&&decimalToScaled(item.unitPrice)===0n))issues.push({code:'zero-price',level:'warning'});
   if(hasDocumentLanguageMismatch(doc))issues.push({code:'language-mismatch',level:'warning'});
   if(estimatedDocumentPageCount(doc)>1)issues.push({code:'multi-page',level:'info'});
   if(doc.items.some(item=>displayedItemText(doc,item.descriptionEn,item.descriptionAr).length>900))issues.push({code:'long-description',level:'info'});

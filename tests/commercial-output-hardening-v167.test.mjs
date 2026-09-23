@@ -37,7 +37,7 @@ test('legal names and commercial locations do not create false language mismatch
   company.footerText='';
   company.defaultPaymentTerms='';
   company.defaultDeliveryTime='';
-  const doc=createBlankDocument('proforma','PI-2026-0100',company);
+  const doc=createBlankDocument('proforma','QUO-2026-0100',company);
   doc.language='ar';
   doc.currency='KWD';
   doc.customerSnapshot=customerSnapshotFrom({id:'c1',companyNameEn:'',companyNameAr:'العميل',contactPerson:'',addressEn:'',addressAr:'الرياض',city:'Riyadh',country:'Saudi Arabia',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''});
@@ -56,7 +56,7 @@ test('quality pagination counts long neutral commercial locations in Arabic outp
   company.footerText='';
   company.defaultPaymentTerms='';
   company.defaultDeliveryTime='';
-  const doc=createBlankDocument('proforma','PI-2026-0101',company);
+  const doc=createBlankDocument('proforma','QUO-2026-0101',company);
   doc.language='ar';
   doc.appearance.showBank=false;
   doc.customerSnapshot=customerSnapshotFrom({id:'c2',companyNameEn:'',companyNameAr:'العميل',contactPerson:'',addressEn:'',addressAr:'الرياض',city:'Riyadh',country:'Saudi Arabia',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''});
@@ -110,18 +110,19 @@ test('hidden party translations do not consume English A4 capacity or satisfy En
   assert.ok(documentQualityIssues(doc).some(issue=>issue.code==='company-name-missing'));
 });
 
-test('renderer keeps Quotation terminology and adds Purchase Order without changing the internal proforma kind',async()=>{
-  const renderer=await read('src/templates/TemplateRenderer.tsx');
-  assert.ok(renderer.includes("doc.kind === 'proforma' ? 'QUOTATION' : doc.kind === 'purchase-order' ? 'PURCHASE ORDER' : 'INVOICE'"));
-  assert.doesNotMatch(renderer,/PROFORMA INVOICE/);
-  assert.ok(renderer.includes("doc.kind === 'proforma' ? 'عرض سعر' : doc.kind === 'purchase-order' ? 'طلب شراء' : 'فاتورة'"));
+test('renderer uses the centralized v312 document catalog without changing the internal quotation kind',async()=>{
+  const [renderer,catalog]=await Promise.all([read('src/templates/TemplateRenderer.tsx'),read('src/lib/document-kinds.ts')]);
+  assert.match(renderer,/documentKindTitle\(doc\.kind,doc\.role\)/);
+  assert.ok(catalog.includes("kind:'proforma',order:3,en:'Quotation',ar:'عرض سعر',titleEn:'QUOTATION'"));
+  assert.ok(catalog.includes("kind:'proforma-invoice',order:4,en:'Proforma Invoice',ar:'فاتورة مبدئية',titleEn:'PROFORMA INVOICE'"));
+  assert.ok(catalog.includes("kind:'purchase-order',order:5,en:'Purchase Order',ar:'طلب شراء',titleEn:'PURCHASE ORDER'"));
 });
 
-test('editor uses Quotation and Purchase Order terminology with document-neutral navigation',async()=>{
+test('editor uses centralized document terminology with document-neutral navigation',async()=>{
   const core=await read('src/components/EditorPageCore.tsx');
   const wrapper=await read('src/components/EditorPage.tsx');
-  assert.ok(core.includes("d.kind==='proforma'?t('Quotation','عرض سعر'):isPurchaseOrder?t('Purchase Order','طلب شراء'):t('Invoice','فاتورة')"));
-  assert.doesNotMatch(core,/t\('Proforma Invoice','عرض سعر'\)/);
+  assert.match(core,/documentKindLabel\(d\.kind,d\.role\)/);
+  assert.match(core,/t\(kindLabel\.en,kindLabel\.ar\)/);
   assert.match(wrapper,/aria-label=\{t\('Document editing steps','مراحل تحرير المستند'\)\}/);
   assert.doesNotMatch(wrapper,/Invoice editing steps/);
 });

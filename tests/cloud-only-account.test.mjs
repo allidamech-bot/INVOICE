@@ -30,12 +30,14 @@ test('cloud restore uses the signed-in account without a backup PIN prompt',asyn
   assert.doesNotMatch(settings,/Backup PIN|restorePin/);
 });
 
-test('automatic cloud reconciliation fails closed on ambiguous divergence and safe pulls do not create local recovery snapshots',async()=>{
+test('automatic cloud reconciliation is startup-gated and fails closed after the workspace mounts',async()=>{
   const cloud=await read('src/cloud/firebase.ts');
   assert.doesNotMatch(cloud,/createSafetySnapshot/);
+  assert.match(cloud,/const startup=Boolean\(document\.querySelector\('\.loading-screen'\)\)&&!document\.querySelector\('\.app-ui,\.auth-page'\)/);
   assert.match(cloud,/if\(!anchor\)return 'diverged'/);
   assert.match(cloud,/if\(localChanged&&remoteChanged\)return 'diverged'/);
-  assert.match(cloud,/if\(remoteChanged\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.match(cloud,/if\(!local&&remote\)\{\s*if\(!startup\)return 'diverged';\s*await installCloudVault\(uid\);return 'pulled';\s*\}/);
+  assert.match(cloud,/if\(remoteChanged\)\{\s*if\(!startup\)return 'diverged';\s*await installCloudVault\(uid\);return 'pulled';\s*\}/);
   assert.doesNotMatch(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
   const push=cloud.slice(cloud.indexOf('export async function pushLocalVaultToCloud'),cloud.indexOf('// Compatibility exports'));
   assert.match(push,/if\(!anchor\)return 'remote-changed'/);

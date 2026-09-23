@@ -14,7 +14,8 @@ test('automatic reconcile fails closed when no verified anchor exists',async()=>
   const cloud=await read('src/cloud/firebase.ts');
   assert.match(cloud,/if\(!anchor\)return 'diverged'/);
   assert.match(cloud,/if\(localChanged&&remoteChanged\)return 'diverged'/);
-  assert.match(cloud,/if\(remoteChanged\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.match(cloud,/const startup=Boolean\(document\.querySelector\('\.loading-screen'\)\)/);
+  assert.match(cloud,/if\(remoteChanged\)\{\s*if\(!startup\)return 'diverged';\s*await installCloudVault\(uid\);return 'pulled';\s*\}/s);
   assert.doesNotMatch(cloud,/if\(!anchor\)\{await installCloudVault\(uid\);return 'pulled';\}/);
   assert.doesNotMatch(cloud,/if\(remote\.updatedAt>local\.updatedAt\)\{await installCloudVault/);
 });

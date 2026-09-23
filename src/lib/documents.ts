@@ -5,10 +5,12 @@ import { bankAccountIdForDetails, bankDetailsForId, defaultPaymentTermPreset, de
 import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput, lineTotal } from './money.js';
 import { t } from './i18n.js';
 import { defaultLetterData, defaultWatermark } from './document-extras.js';
+import { documentBankAllowed, documentNumberPrefix, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from './document-kinds.js';
 
 type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number;purchaseOrder:number;draft:number};
 export type DocumentItemWeight=(item:DocumentItem)=>number;
 const liveNumberReservations=new WeakMap<object,NumberReservation>();
+const liveAuxiliaryReservations=new WeakMap<object,{year:number;values:Record<string,number>}>();
 
 export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { number: string; vault: VaultPayload } {
   const year = new Date().getFullYear();
@@ -17,11 +19,23 @@ export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { n
   const isProforma=kind==='proforma';
   const isPurchaseOrder=kind==='purchase-order';
   const isDraft=kind==='draft';
-  const fallbackPrefix=isProforma?'PI':isPurchaseOrder?'PO':isDraft?'DR':'INV';
+  const fallbackPrefix=isProforma?'QUO':isPurchaseOrder?'PO':isDraft?'DR':'INV';
   let prefix='';
   let seq=0;
   const live=liveNumberReservations.get(sourceNumbering);
   const used=new Set(vault.documents.map(document=>document.number.trim().toLowerCase()).filter(Boolean));
+  const auxiliaryKind=kind==='rfq'||kind==='proforma-invoice'||kind==='delivery-note'||kind==='payment-receipt';
+  if(auxiliaryKind){
+    prefix=documentNumberPrefix(kind);
+    const escapedPrefix=prefix.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const matchPattern=new RegExp(`^${escapedPrefix}-${year}-(\\d+)$`,'i');
+    const scanned=vault.documents.reduce((max,document)=>{const match=document.number.trim().match(matchPattern);return match?Math.max(max,Number(match[1])||0):max;},0);
+    const live=liveAuxiliaryReservations.get(sourceNumbering);const reserved=live?.year===year?(live.values[kind]??0):0;seq=Math.max(scanned,reserved);
+    let number='';
+    do{seq+=1;number=`${prefix}-${year}-${String(seq).padStart(4,'0')}`;}while(used.has(number.toLowerCase()));
+    const values=live?.year===year?{...live.values}:{};values[kind]=seq;liveAuxiliaryReservations.set(sourceNumbering,{year,values});
+    return {number,vault};
+  }
 
   if(isProforma){
     if(numbering.proformaYear!==year){numbering.proformaYear=year;numbering.proformaLast=0;}
@@ -89,16 +103,17 @@ export function createBlankDocument(kind: DocumentKind, number: string, company:
   const validityDays=normalizeValidityDays(company.defaultValidityDays);
   const paymentPreset=defaultPaymentTermPreset(company);
   const taxPreset=defaultTaxPreset(company);
+  const usesCommercialDefaults=documentUsesCommercialDefaults(kind);
   return {
-    id: makeId('doc'), kind, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', bankAccountId:company.defaultBankAccountId||'primary', paymentTermPresetId:paymentPreset?.id||'', number, issueDate,
-    dueDate: kind === 'proforma' ? addDaysIso(issueDate, validityDays) : kind === 'purchase-order' || kind === 'draft' ? '' : paymentPreset ? addDaysIso(issueDate,paymentPreset.days) : '',
+    id: makeId('doc'), kind, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', bankAccountId:company.defaultBankAccountId||'primary', paymentTermPresetId:usesCommercialDefaults?(paymentPreset?.id||''):'', number, issueDate,
+    dueDate: (kind === 'proforma' || kind === 'proforma-invoice') ? addDaysIso(issueDate, validityDays) : kind === 'purchase-order' || kind === 'draft' || kind === 'rfq' || kind === 'delivery-note' || kind === 'payment-receipt' ? '' : paymentPreset ? addDaysIso(issueDate,paymentPreset.days) : '',
     currency: company.defaultCurrency, language: company.defaultLanguage, customerSnapshot: null,
     supplierSnapshot:null, supplierReference:'', attachments:[],
     companySnapshot: companySnapshotFrom(company), items: kind==='draft'?[]:[emptyItem()],
-    terms: { incoterm: company.defaultIncoterm, paymentTerms: paymentPreset?.label||company.defaultPaymentTerms, packing: '', deliveryTime: company.defaultDeliveryTime, portOfLoading: '', finalDestination: '', countryOfOrigin: '', validity: '', remarks: '' },
-    adjustments: { discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping: '0.00', otherChargesEnabled: false, otherCharges: '0.00', taxEnabled: Boolean(taxPreset), taxPercent: taxPreset?.rate||'0' },
+    terms: { incoterm: usesCommercialDefaults?company.defaultIncoterm:'', paymentTerms: usesCommercialDefaults?(paymentPreset?.label||company.defaultPaymentTerms):'', packing: '', deliveryTime: usesCommercialDefaults?company.defaultDeliveryTime:'', portOfLoading: '', finalDestination: '', countryOfOrigin: '', validity: '', remarks: '' },
+    adjustments: documentPriceOptional(kind)?{ discountEnabled:false, discountMode:'fixed', discountValue:'0.00', shippingEnabled:false, shipping:'0.00', otherChargesEnabled:false, otherCharges:'0.00', taxEnabled:false, taxPercent:'0' }:{ discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping: '0.00', otherChargesEnabled: false, otherCharges:'0.00', taxEnabled: Boolean(taxPreset), taxPercent: taxPreset?.rate||'0' },
     internalCosts:{shippingCost:'0.00',otherCost:'0.00'},
-    appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: kind==='draft'?'#8e7cf3':'#b58b4f', latinFont: 'auto', arabicFont: 'auto', showBank: kind!=='purchase-order'&&kind!=='draft', showSignature: Boolean(company.signatureDataUrl), showStamp: Boolean(company.stampDataUrl), showHsCode: true, showOrigin: true, showPacking: false, watermark: defaultWatermark() },
+    appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: kind==='draft'?'#8e7cf3':kind==='rfq'?'#2563eb':kind==='purchase-order'?'#c88f37':kind==='delivery-note'?'#7c8b95':kind==='payment-receipt'?'#0f9f7f':'#159fa7', latinFont: 'auto', arabicFont: 'auto', showBank: documentBankAllowed(kind), showSignature: Boolean(company.signatureDataUrl), showStamp: Boolean(company.stampDataUrl), showHsCode: true, showOrigin: true, showPacking: false, watermark: defaultWatermark() },
     letter: kind==='draft'?defaultLetterData(company.defaultLanguage):null,
     notes: kind==='draft'?'':company.defaultNotes, convertedFromId: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
   };
@@ -124,12 +139,13 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
   if (!doc.issueDate) errors.issueDate = 'Issue date is required.';
   else if(!isIsoDate(doc.issueDate))errors.issueDate='Issue date is invalid.';
   if(doc.kind==='draft')return errors;
-  if (doc.kind === 'proforma' && !doc.dueDate) errors.dueDate = 'Valid until date is required.';
-  if (doc.kind === 'purchase-order' && !doc.dueDate) errors.dueDate = 'Requested delivery date is required.';
-  if(doc.dueDate&&!isIsoDate(doc.dueDate))errors.dueDate=doc.kind==='proforma'?'Valid until date is invalid.':doc.kind==='purchase-order'?'Requested delivery date is invalid.':'Due date is invalid.';
-  else if(doc.dueDate&&isIsoDate(doc.issueDate)&&compareIsoDates(doc.dueDate,doc.issueDate)<0)errors.dueDate=doc.kind==='proforma'?'Valid until date cannot be before issue date.':doc.kind==='purchase-order'?'Requested delivery cannot be before order date.':'Due date cannot be before issue date.';
+  const secondaryDate=documentSecondaryDateKind(doc.kind,doc.role);
+  if(secondaryDate==='valid-until'&&!doc.dueDate)errors.dueDate='Valid until date is required.';
+  if(secondaryDate==='requested-delivery'&&!doc.dueDate)errors.dueDate='Requested delivery date is required.';
+  if(doc.dueDate&&!isIsoDate(doc.dueDate))errors.dueDate=secondaryDate==='valid-until'?'Valid until date is invalid.':secondaryDate==='requested-delivery'?'Requested delivery date is invalid.':secondaryDate==='response-due'?'Response due date is invalid.':'Due date is invalid.';
+  else if(doc.dueDate&&isIsoDate(doc.issueDate)&&compareIsoDates(doc.dueDate,doc.issueDate)<0)errors.dueDate=secondaryDate==='valid-until'?'Valid until date cannot be before issue date.':secondaryDate==='requested-delivery'?'Requested delivery cannot be before order date.':secondaryDate==='response-due'?'Response due date cannot be before issue date.':'Due date cannot be before issue date.';
   if (!doc.currency.trim()) errors.currency = 'Currency is required.';
-  if(doc.kind==='purchase-order'){if(!hasDocumentSupplier(doc))errors.supplier='Select a supplier.';}
+  if(isSupplierDocumentKind(doc.kind)){if(!hasDocumentSupplier(doc))errors.supplier='Select a supplier.';}
   else if (!hasDocumentCustomer(doc)) errors.customer = 'Select a customer.';
   if (doc.items.length < 1) errors.items = 'Add at least one item.';
   doc.items.forEach((item, index) => {
@@ -143,8 +159,8 @@ export function validateDocument(doc: LourexDocument): Record<string, string> {
     }
     if (!isDecimalInput(item.quantity) || decimalToScaled(item.quantity) <= 0n) errors[`item-${index}-quantity`] = 'Quantity must be greater than 0.';
     if (!item.unit.trim()) errors[`item-${index}-unit`] = 'Unit is required.';
-    if (!item.unitPrice.trim()) errors[`item-${index}-price`] = 'Unit price is required.';
-    else if (!isNonNegativeDecimalInput(item.unitPrice)) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
+    if (!documentPriceOptional(doc.kind) && !item.unitPrice.trim()) errors[`item-${index}-price`] = 'Unit price is required.';
+    else if (item.unitPrice.trim() && !isNonNegativeDecimalInput(item.unitPrice)) errors[`item-${index}-price`] = 'Unit price must be 0 or greater.';
   });
   const nonNegative = (value: string) => isNonNegativeDecimalInput(value);
   if (doc.adjustments.discountEnabled) {

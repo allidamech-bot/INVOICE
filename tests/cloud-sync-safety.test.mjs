@@ -10,7 +10,9 @@ test('cloud sync never blindly overwrites changes from another device', async ()
   assert.match(cloud, /writeSyncAnchor/);
   assert.match(cloud, /remoteChanged/);
   assert.match(cloud, /commitMetaIfUnchanged/);
-  assert.match(cloud, /if\(remoteChanged\)\{await installCloudVault\(uid\);return 'pulled';\}/);
+  assert.match(cloud, /if\(!anchor\)return 'diverged'/);
+  assert.match(cloud, /if\(localChanged&&remoteChanged\)return 'diverged'/);
+  assert.match(cloud, /if\(remoteChanged\)\{\s*if\(!startup\)return 'diverged';\s*await installCloudVault\(uid\);return 'pulled';\s*\}/);
 });
 
 test('cloud restore installs the authoritative encrypted account copy without retired recovery snapshots', async () => {
@@ -19,6 +21,7 @@ test('cloud restore installs the authoritative encrypted account copy without re
   const replace = cloud.indexOf('putSecurityAndVault(remote.security,remote.vault)', install);
   assert.ok(install >= 0);
   assert.ok(replace > install);
+  assert.match(cloud,/resolveCloudConflictWithCloud[\s\S]*installCloudVault\(uid,true\)/);
   assert.doesNotMatch(cloud, /createSafetySnapshot/);
 });
 

@@ -17,9 +17,14 @@ test('startup uses guarded reconcile instead of installing remote data directly'
   assert.doesNotMatch(startup,/installCloudVault\(user\.uid,false\)/);
 });
 
-test('automatic cloud freshness does not reload or overwrite on divergence',async()=>{
+test('automatic cloud freshness surfaces remote change without reloading or overwriting the running workspace',async()=>{
   const freshness=await read('src/cloud/freshness.ts');
-  assert.match(freshness,/result==='diverged'/);
+  assert.match(freshness,/cloudRemoteChangedSinceAnchor\(user\.uid\)/);
+  assert.match(freshness,/lourex-cloud-refresh-available/);
+  assert.match(freshness,/remoteUpdateNotified/);
+  assert.doesNotMatch(freshness,/installCloudVault\(/);
+  assert.doesNotMatch(freshness,/reconcileCloudVault\(/);
+  assert.doesNotMatch(freshness,/window\.location\.(?:reload|replace)/);
 });
 
 test('explicit cloud restore remains available while automatic divergence is blocked',async()=>{

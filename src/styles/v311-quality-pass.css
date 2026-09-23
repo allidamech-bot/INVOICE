@@ -22,3 +22,20 @@ html body .lourex-ios-output-cancel{background:#103943!important;border-color:#2
   .app-ui .fintech-dashboard-v280{padding-bottom:calc(86px + env(safe-area-inset-bottom,0px))!important}
   .app-ui .fintech-dashboard-v280>.lourex-advisor-card:last-child{margin-bottom:0!important}
 }
+
+
+/* v312 — ordered ten-document business catalog. */
+.app-ui .shell-new-menu{
+  max-height:min(72vh,680px)!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+  scrollbar-gutter:stable;
+}
+.app-ui .shell-new-menu>button{min-height:52px!important;flex:0 0 auto!important}
+.app-ui .shell-new-menu>button>span{min-width:0!important}
+.app-ui .shell-new-menu>button strong,.app-ui .shell-new-menu>button small{white-space:normal!important}
+@media(max-width:800px){
+  .app-ui .mobile-shell-new-menu{max-height:min(66dvh,620px)!important;padding-bottom:max(10px,env(safe-area-inset-bottom,0px))!important}
+  .app-ui .documents-register-tabs.document-type-tabs{overflow-x:auto!important;scroll-snap-type:x proximity;overscroll-behavior-inline:contain!important}
+  .app-ui .documents-register-tabs.document-type-tabs>button{min-width:max-content!important;scroll-snap-align:start}
+}
