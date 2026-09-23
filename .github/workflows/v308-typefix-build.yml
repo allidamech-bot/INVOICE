@@ -1,0 +1,32 @@
+name: v308 typefix build gate
+on:
+  push:
+    branches: [feature/v308-watermark-draft-letterhead]
+permissions:
+  contents: write
+jobs:
+  fix-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/v308-watermark-draft-letterhead
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply v308 type fixes
+        run: node scripts/v308-type-fixes.mjs
+      - run: npm ci
+      - name: Build only
+        run: npm run build
+      - name: Commit verified integration and remove temporary runners
+        run: |
+          rm -f scripts/v308-type-fixes.mjs scripts/v308-apply.mjs scripts/v308-fix-app-print.mjs
+          rm -f .github/workflows/v308-typefix-build.yml .github/workflows/v308-build-only.yml .github/workflows/v308-apply.yml .github/workflows/v308-hotfix.yml
+          git config user.name "allidamech-bot"
+          git config user.email "228416871+allidamech-bot@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(v308): complete draft studio type integration [skip v308 build]"
+          git push origin HEAD:feature/v308-watermark-draft-letterhead
