@@ -22,3 +22,4 @@ jobs:
           git add src/app/App.tsx src/components/CustomersPage.tsx src/components/FinanceWorkspace.tsx src/components/ProductsInventoryWorkspace.tsx src/components/OperationsPage.tsx
           git commit -m "fix(v311): protect unsaved workspace edits [skip v311]"
           git push origin HEAD:audit/v311-full-site-quality-pass
+# retry after patch-runner syntax fix
