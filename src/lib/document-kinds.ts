@@ -1,7 +1,7 @@
 import type { DocumentKind, DocumentRole } from '../types.js';
 
 export interface BusinessDocumentDefinition {
-  kind: DocumentKind | 'credit-note';
+  kind: DocumentKind | 'credit-note' | 'statement-account';
   order: number;
   en: string;
   ar: string;
@@ -57,4 +57,4 @@ export function isSupplierDocumentKind(kind:DocumentKind):boolean{return documen
 export function isFreeformDocumentKind(kind:DocumentKind):boolean{return documentParty(kind)==='freeform';}
 export function isFinancialDocumentKind(kind:DocumentKind,role:DocumentRole='standard'):boolean{return businessDocumentDefinition(kind,role).financial;}
 export function documentPriceOptional(kind:DocumentKind):boolean{return businessDocumentDefinition(kind).priceOptional;}
-export function documentBankAllowed(kind:DocumentKind):boolean{return businessDocumentDefinition(kind).bankAllowed;}
+export function documentBankAllowed(kind:DocumentKind,role:DocumentRole='standard'):boolean{return businessDocumentDefinition(kind,role).bankAllowed;}

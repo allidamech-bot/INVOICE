@@ -162,7 +162,7 @@ export class AppShell extends React.Component<Props,State>{
     <button type="button" role="menuitem" data-kind="delivery-note" data-order="7" onClick={()=>this.createDocument('delivery-note')}><Icon name="file"/><span><strong>{t('Delivery Note','سند تسليم')}</strong><small>{t('Confirm goods delivered to a customer','إثبات تسليم البضاعة للعميل')}</small></span></button>
     <button type="button" role="menuitem" data-kind="payment-receipt" data-order="8" onClick={()=>this.createDocument('payment-receipt')}><Icon name="invoice"/><span><strong>{t('Payment Receipt','إيصال دفع')}</strong><small>{t('Acknowledge a received payment','إثبات استلام دفعة')}</small></span></button>
     <button type="button" role="menuitem" data-kind="credit-note" data-order="9" onClick={()=>this.navigate('documents')}><Icon name="invoice"/><span><strong>{t('Credit Note','إشعار دائن')}</strong><small>{t('Create from an issued Commercial Invoice','يُنشأ من فاتورة تجارية صادرة')}</small></span></button>
-    <button type="button" role="menuitem" data-kind="statement-account" data-order="10" onClick={()=>this.createDocument('statement-account')}><Icon name="file"/><span><strong>{t('Statement of Account','كشف حساب')}</strong><small>{t('Customer account statement','كشف حركة ورصيد حساب العميل')}</small></span></button>
+    <button type="button" role="menuitem" data-kind="statement-account" data-order="10" onClick={()=>this.navigate('receivables')}><Icon name="file"/><span><strong>{t('Statement of Account','كشف حساب')}</strong><small>{t('Open the existing customer statement workflow in Finance','فتح كشف حساب العميل الموجود في المالية')}</small></span></button>
   </div>:null;
 
   private saveLabel=():string=>this.props.cloudLabel;

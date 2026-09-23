@@ -1,6 +1,7 @@
 import type { LourexDocument } from '../types.js';
 import { validateDocument } from './documents.js';
 import { decimalToScaled, isDecimalInput } from './money.js';
+import { documentPriceOptional, isSupplierDocumentKind } from './document-kinds.js';
 
 export interface ReadinessGroup {
   key: 'document'|'customer'|'items'|'pricing';
@@ -21,6 +22,7 @@ const fixedNonNegative = (value: string) => isDecimalInput(value) && decimalToSc
 
 export function getDocumentReadiness(doc: LourexDocument): DocumentReadiness {
   const errors=validateDocument(doc);
+  const priceOptional=documentPriceOptional(doc.kind);
   const requirements: boolean[] = [];
   const documentChecks = [
     !errors.number,
@@ -30,7 +32,7 @@ export function getDocumentReadiness(doc: LourexDocument): DocumentReadiness {
   ];
   requirements.push(...documentChecks);
 
-  const customerComplete = (doc.kind==='purchase-order'||doc.kind==='rfq') ? !errors.supplier : !errors.customer;
+  const customerComplete = isSupplierDocumentKind(doc.kind) ? !errors.supplier : !errors.customer;
   requirements.push(customerComplete);
 
   const itemDetailChecks: boolean[] = [];
@@ -42,15 +44,20 @@ export function getDocumentReadiness(doc: LourexDocument): DocumentReadiness {
       : doc.language === 'bilingual'
         ? Boolean(item.descriptionEn.trim() && item.descriptionAr.trim())
         : Boolean(item.descriptionEn.trim());
-    itemDetailChecks.push(descriptionComplete, Boolean(item.unit.trim()), fixedPositive(item.quantity));
-    pricingChecks.push(fixedNonNegative(item.unitPrice));
-    requirements.push(descriptionComplete, Boolean(item.unit.trim()), fixedPositive(item.quantity), fixedNonNegative(item.unitPrice));
+    const details=[descriptionComplete,Boolean(item.unit.trim()),fixedPositive(item.quantity)];
+    itemDetailChecks.push(...details);
+    requirements.push(...details);
+    if(!priceOptional){
+      const priceComplete=fixedNonNegative(item.unitPrice);
+      pricingChecks.push(priceComplete);
+      requirements.push(priceComplete);
+    }
   }
 
-  if (doc.adjustments.discountEnabled) requirements.push(!errors.discount);
-  if (doc.adjustments.shippingEnabled) requirements.push(!errors.shipping);
-  if (doc.adjustments.otherChargesEnabled) requirements.push(!errors.otherCharges);
-  if (doc.adjustments.taxEnabled) requirements.push(!errors.tax);
+  if (!priceOptional && doc.adjustments.discountEnabled) requirements.push(!errors.discount);
+  if (!priceOptional && doc.adjustments.shippingEnabled) requirements.push(!errors.shipping);
+  if (!priceOptional && doc.adjustments.otherChargesEnabled) requirements.push(!errors.otherCharges);
+  if (!priceOptional && doc.adjustments.taxEnabled) requirements.push(!errors.tax);
 
   const total = Math.max(1, requirements.length);
   const complete = requirements.filter(Boolean).length;
@@ -65,7 +72,7 @@ export function getDocumentReadiness(doc: LourexDocument): DocumentReadiness {
       { key: 'document', complete: documentChecks.every(Boolean) },
       { key: 'customer', complete: customerComplete },
       { key: 'items', complete: doc.items.length > 0 && itemDetailChecks.every(Boolean) },
-      { key: 'pricing', complete: doc.items.length > 0 && pricingChecks.every(Boolean) && !errors.discount && !errors.shipping && !errors.otherCharges && !errors.tax }
+      { key: 'pricing', complete: priceOptional || (doc.items.length > 0 && pricingChecks.every(Boolean) && !errors.discount && !errors.shipping && !errors.otherCharges && !errors.tax) }
     ]
   };
 }

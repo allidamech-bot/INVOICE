@@ -1,5 +1,6 @@
 import type { Customer, DocumentKind, LourexDocument, PurchaseRecord, SavedItem, Supplier, UiLanguage } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
+import { documentKindLabel, isSupplierDocumentKind } from '../lib/document-kinds.js';
 import { Icon } from './UI.js';
 
 export type GlobalSearchTarget='documents'|'customers'|'items'|'operations'|'receivables'|'reports';
@@ -21,7 +22,7 @@ interface SearchResult{key:string;kind:ResultKind;title:string;subtitle:string;s
 const OPEN_EVENT='lourex-global-search-open';
 function normalize(value:string):string{return value.normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();}
 function localized(primary:string,secondary:string,fallback:string):string{return (isArabic()?(secondary||primary):(primary||secondary))||fallback;}
-function documentCustomer(document:LourexDocument):string{return localized(document.customerSnapshot?.companyNameEn||'',document.customerSnapshot?.companyNameAr||'',t('No customer','بدون عميل'));}
+function documentCustomer(document:LourexDocument):string{if(document.kind==='draft')return document.letter?.subject||document.letter?.recipient||t('Company document','مستند شركة');if(isSupplierDocumentKind(document.kind))return localized(document.supplierSnapshot?.nameEn||'',document.supplierSnapshot?.nameAr||'',t('No supplier','بدون مورد'));return localized(document.customerSnapshot?.companyNameEn||'',document.customerSnapshot?.companyNameAr||'',t('No customer','بدون عميل'));}
 function kindLabel(kind:ResultKind):string{
   if(kind==='document')return t('Document','مستند');
   if(kind==='customer')return t('Customer','عميل');
@@ -77,7 +78,7 @@ export class GlobalSearch extends React.Component<Props,State>{
     const candidates:SearchResult[]=[];
     for(const document of this.props.documents){
       const customer=documentCustomer(document);
-      const label=document.role==='credit-note'?t('Credit note','إشعار دائن'):document.kind==='invoice'?t('Invoice','فاتورة'):t('Quotation','عرض سعر');
+      const kind=documentKindLabel(document.kind,document.role);const label=t(kind.en,kind.ar);
       candidates.push({key:`doc-${document.id}`,kind:'document',title:document.number,subtitle:`${label} · ${customer}`,searchText:[document.number,customer,document.currency,document.issueDate,label].join(' '),action:()=>this.openDocument(document)});
     }
     for(const customer of this.props.customers){

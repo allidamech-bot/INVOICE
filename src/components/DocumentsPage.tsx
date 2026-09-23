@@ -19,6 +19,7 @@ interface Props {
   onDelete: (doc:LourexDocument) => void;
   onRecordPayment?: (doc:LourexDocument) => void;
   onCreateCreditNote?: (doc:LourexDocument) => void;
+  onOpenStatements?: () => void;
 }
 
 type WorkspaceStatus='all'|'draft'|'ready'|'final'|'voided';
@@ -365,7 +366,6 @@ export class DocumentsPage extends React.Component<Props,State>{
     const deliveryNotes=typeCount('delivery-note');
     const paymentReceipts=typeCount('payment-receipt');
     const creditNotes=this.props.documents.filter(doc=>doc.role==='credit-note').length;
-    const statements=typeCount('statement-account');
     const drafts=this.props.documents.filter(doc=>workflowStatus(doc)==='draft').length;
     const issued=this.props.documents.filter(doc=>matchesWorkspaceStatus(doc,'final')).length;
     const resume=[...this.props.documents].filter(doc=>doc.status!=='final').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0]??null;
@@ -379,7 +379,7 @@ export class DocumentsPage extends React.Component<Props,State>{
         <div className="heading-actions documents-heading-actions"><Button icon="edit" className="new-draft-button" onClick={()=>this.props.onNew('draft')}>{t('Draft','مسودة')}</Button><Button icon="file" onClick={()=>this.props.onNew('rfq')}>{t('RFQ','طلب عرض سعر')}</Button><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Quotation','عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Commercial Invoice','فاتورة تجارية')}</Button></div>
       </div>
 
-      {resume?<button type="button" className="documents-resume" onClick={()=>this.props.onOpen(resume)}><span className="resume-icon"><Icon name={resume.kind==='proforma'?'proforma':resume.kind==='purchase-order'?'file':'invoice'}/></span><span className="resume-copy"><small>{t('Continue where you left off','أكمل من حيث توقفت')}</small><strong>{resume.number}</strong><span>{partyName(resume)}</span></span><span className="resume-meta"><b>{resume.kind==='draft'?(resume.letter?.subject||t('Company Draft','مسودة شركة')):formatMoney(calculateTotals(resume.items,resume.adjustments).grandTotal,resume.currency)}</b><em>{workflowStatus(resume)==='ready'?t('Ready to issue','جاهز للإصدار'):t('Continue editing','متابعة التحرير')} <span className="resume-arrow"><Icon name="arrowLeft"/></span></em></span></button>:null}
+      {resume?<button type="button" className="documents-resume" onClick={()=>this.props.onOpen(resume)}><span className="resume-icon"><Icon name={resume.kind==='proforma'?'proforma':resume.kind==='purchase-order'?'file':'invoice'}/></span><span className="resume-copy"><small>{t('Continue where you left off','أكمل من حيث توقفت')}</small><strong>{resume.number}</strong><span>{partyName(resume)}</span></span><span className="resume-meta"><b>{resume.kind==='draft'?(resume.letter?.subject||t('Company Draft','مسودة شركة')):documentPriceOptional(resume.kind)?'—':formatMoney(calculateTotals(resume.items,resume.adjustments).grandTotal,resume.currency)}</b><em>{workflowStatus(resume)==='ready'?t('Ready to issue','جاهز للإصدار'):t('Continue editing','متابعة التحرير')} <span className="resume-arrow"><Icon name="arrowLeft"/></span></em></span></button>:null}
 
       <div className="documents-register-tabs document-type-tabs" aria-label={t('Document types','أنواع المستندات')}>
         <button type="button" className={this.overviewActive('all','all')?'active':''} aria-pressed={this.overviewActive('all','all')} onClick={()=>this.setOverview('all','all')}><span>{t('All','الكل')}</span><strong>{this.props.documents.length}</strong></button>
@@ -392,7 +392,7 @@ export class DocumentsPage extends React.Component<Props,State>{
         <button type="button" className={this.overviewActive('delivery-note','all')?'active':''} aria-pressed={this.overviewActive('delivery-note','all')} onClick={()=>this.setOverview('delivery-note','all')}><span>7 · {t('Delivery Note','سند تسليم')}</span><strong>{deliveryNotes}</strong></button>
         <button type="button" className={this.overviewActive('payment-receipt','all')?'active':''} aria-pressed={this.overviewActive('payment-receipt','all')} onClick={()=>this.setOverview('payment-receipt','all')}><span>8 · {t('Payment Receipt','إيصال دفع')}</span><strong>{paymentReceipts}</strong></button>
         <button type="button" className={this.overviewActive('credit','all')?'active':''} aria-pressed={this.overviewActive('credit','all')} onClick={()=>this.setOverview('credit','all')}><span>9 · {t('Credit Note','إشعار دائن')}</span><strong>{creditNotes}</strong></button>
-        <button type="button" className={this.overviewActive('statement-account','all')?'active':''} aria-pressed={this.overviewActive('statement-account','all')} onClick={()=>this.setOverview('statement-account','all')}><span>10 · {t('Statement of Account','كشف حساب')}</span><strong>{statements}</strong></button>
+        <button type="button" onClick={()=>this.props.onOpenStatements?.()}><span>10 · {t('Statement of Account','كشف حساب')}</span><strong aria-hidden="true">↗</strong></button>
         <button type="button" className={`${drafts?'has-drafts ':''}${this.overviewActive('all','draft')?'active':''}`} aria-pressed={this.overviewActive('all','draft')} onClick={()=>this.setOverview('all','draft')}><span>{t('In progress','قيد التحرير')}</span><strong>{drafts}</strong></button>
         <button type="button" className={this.overviewActive('all','final')?'active':''} aria-pressed={this.overviewActive('all','final')} onClick={()=>this.setOverview('all','final')}><span>{t('Issued','صادرة')}</span><strong>{issued}</strong></button>
       </div>
@@ -423,7 +423,7 @@ export class DocumentsPage extends React.Component<Props,State>{
             <span className="register-identity"><strong><bdi>{doc.number}</bdi></strong><span className={`document-kind-pill kind-${doc.kind}`}>{kindLabel(doc)}</span></span>
             <span className="register-customer"><b>{partyName(doc)}</b><small>{doc.kind==='draft'?t(`${doc.letter?.blocks.length??0} content blocks`,`${doc.letter?.blocks.length??0} فقرات محتوى`):itemCountLabel(doc.items.length)}{missingCustomer? ` · ${isSupplierDocumentKind(doc.kind)?t('Supplier required','المورد مطلوب'):t('Customer required','العميل مطلوب')}`:''}</small></span>
             <span className="register-date">{displayDate(doc.issueDate,getUiLanguage())}</span>
-            <strong className="register-amount"><bdi>{doc.kind==='draft'?'—':formatMoney(totals.grandTotal,doc.currency)}</bdi></strong>
+            <strong className="register-amount"><bdi>{doc.kind==='draft'||documentPriceOptional(doc.kind)?'—':formatMoney(totals.grandTotal,doc.currency)}</bdi></strong>
             <span className="register-status"><span className={`document-status-pill status-${visualState}`}>{statusLabel}</span>{payment?<span className={`collection-pill collection-${payment}`}>{paymentLabel(payment)}</span>:null}{doc.creditForNumber?<span className="collection-pill lifecycle-link-pill">↳ {doc.creditForNumber}</span>:null}</span>
           </button>
           <div className="document-actions desktop-actions"><IconButton icon="more" label={t('Document actions','إجراءات المستند')} aria-haspopup="menu" aria-expanded={this.state.menuId===doc.id} onClick={(event:any)=>this.toggleMenu(doc,event)}/></div>

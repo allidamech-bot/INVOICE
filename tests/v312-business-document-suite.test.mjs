@@ -35,7 +35,8 @@ test('v312 preserves new kinds through vault reload and keeps accounting scoped'
     read('src/components/EditorPage.tsx'),
     read('src/lib/documents.ts')
   ]);
-  for(const kind of ['rfq','proforma-invoice','delivery-note','payment-receipt','statement-account'])assert.ok(vault.includes(`'${kind}'`));
+  for(const kind of ['rfq','proforma-invoice','delivery-note','payment-receipt'])assert.ok(vault.includes(`'${kind}'`));
+  assert.ok(!vault.includes("'statement-account'"),'statement workflow must remain owned by Finance rather than vault document kinds');
   assert.match(vault,/kind:documentKindValue\(document\?\.kind\)/);
   assert.match(vault,/snapshot\.kind=documentKindValue\(snapshot\.kind\)/);
   assert.match(editor,/props\.document\.kind==='invoice'\?<InvoicePaymentsPanel/);
@@ -48,4 +49,22 @@ test('v312 output titles are centralized and PWA recognizes every new kind',asyn
   const [renderer,entry]=await Promise.all([read('src/templates/TemplateRenderer.tsx'),read('public/document-entry-v302.js')]);
   assert.match(renderer,/documentKindTitle\(doc\.kind,doc\.role\)/);
   for(const kind of ['rfq','proforma-invoice','delivery-note','payment-receipt','statement-account'])assert.ok(entry.includes(`kind='${kind}'`)||entry.includes(`'${kind}'`));
+});
+
+
+test('v312 pre-merge audit keeps search, readiness and routing semantically aligned',async()=>{
+  const [search,readiness,shell,entry,page,quality]=await Promise.all([
+    read('src/components/GlobalSearch.tsx'),read('src/lib/readiness.ts'),read('src/components/AppShell.tsx'),
+    read('public/document-entry-v302.js'),read('src/components/DocumentsPage.tsx'),read('src/lib/document-quality.ts')
+  ]);
+  assert.ok(search.includes('documentKindLabel(document.kind,document.role)'));
+  assert.ok(search.includes('isSupplierDocumentKind(document.kind)'));
+  assert.ok(readiness.includes('const priceOptional=documentPriceOptional(doc.kind)'));
+  assert.ok(readiness.includes('isSupplierDocumentKind(doc.kind)'));
+  assert.ok(shell.includes('data-kind="statement-account"'));
+  assert.ok(shell.includes("onClick={()=>this.navigate('receivables')}"));
+  assert.ok(entry.includes('const creatableKinds=new Set'));
+  assert.ok(entry.includes('removeItem(pendingKindKey)'));
+  assert.ok(page.includes("documentPriceOptional(doc.kind)?'—'"));
+  assert.ok(quality.includes('!documentPriceOptional(doc.kind)'));
 });

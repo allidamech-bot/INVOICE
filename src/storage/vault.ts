@@ -14,7 +14,7 @@ const PAYMENT_METHODS = new Set(['cash','bank-transfer','card','cheque','other']
 const DOCUMENT_EVENT_TYPES = new Set(['created','issued','reissued','revision-started','revision-discarded','voided','credit-note-created','payment-recorded','payment-deleted','converted']);
 const PURCHASE_STATUSES = new Set(['draft','posted','reversed']);
 const INVENTORY_MOVEMENT_TYPES = new Set(['opening','purchase','purchase-reversal','issue','adjustment']);
-const DOCUMENT_KINDS = new Set<DocumentKind>(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt','statement-account']);
+const DOCUMENT_KINDS = new Set<DocumentKind>(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt']);
 
 function stringValue(value: unknown, fallback = ''): string {
   if (typeof value === 'string') return value;

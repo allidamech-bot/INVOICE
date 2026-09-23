@@ -62,7 +62,8 @@
     const explicit=button.dataset.kind||'';
     const fallbackKinds=['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt','credit-note','statement-account'];
     const kind=explicit||fallbackKinds[index]||'';
-    if(!kind)return;
+    const creatableKinds=new Set(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt']);
+    if(!kind||!creatableKinds.has(kind)){try{window.sessionStorage.removeItem(pendingKindKey);}catch{}return;}
     try{window.sessionStorage.setItem(pendingKindKey,kind);}catch{}
   }
 

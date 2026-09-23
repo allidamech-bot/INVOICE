@@ -23,7 +23,7 @@ export function nextDocumentNumber(vault: VaultPayload, kind: DocumentKind): { n
   let seq=0;
   const live=liveNumberReservations.get(sourceNumbering);
   const used=new Set(vault.documents.map(document=>document.number.trim().toLowerCase()).filter(Boolean));
-  const auxiliaryKind=kind==='rfq'||kind==='proforma-invoice'||kind==='delivery-note'||kind==='payment-receipt'||kind==='statement-account';
+  const auxiliaryKind=kind==='rfq'||kind==='proforma-invoice'||kind==='delivery-note'||kind==='payment-receipt';
   if(auxiliaryKind){
     prefix=documentNumberPrefix(kind);
     const escapedPrefix=prefix.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -102,14 +102,14 @@ export function createBlankDocument(kind: DocumentKind, number: string, company:
   const taxPreset=defaultTaxPreset(company);
   return {
     id: makeId('doc'), kind, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', bankAccountId:company.defaultBankAccountId||'primary', paymentTermPresetId:paymentPreset?.id||'', number, issueDate,
-    dueDate: (kind === 'proforma' || kind === 'proforma-invoice') ? addDaysIso(issueDate, validityDays) : kind === 'purchase-order' || kind === 'draft' || kind === 'rfq' || kind === 'delivery-note' || kind === 'payment-receipt' || kind === 'statement-account' ? '' : paymentPreset ? addDaysIso(issueDate,paymentPreset.days) : '',
+    dueDate: (kind === 'proforma' || kind === 'proforma-invoice') ? addDaysIso(issueDate, validityDays) : kind === 'purchase-order' || kind === 'draft' || kind === 'rfq' || kind === 'delivery-note' || kind === 'payment-receipt' ? '' : paymentPreset ? addDaysIso(issueDate,paymentPreset.days) : '',
     currency: company.defaultCurrency, language: company.defaultLanguage, customerSnapshot: null,
     supplierSnapshot:null, supplierReference:'', attachments:[],
     companySnapshot: companySnapshotFrom(company), items: kind==='draft'?[]:[emptyItem()],
     terms: { incoterm: company.defaultIncoterm, paymentTerms: paymentPreset?.label||company.defaultPaymentTerms, packing: '', deliveryTime: company.defaultDeliveryTime, portOfLoading: '', finalDestination: '', countryOfOrigin: '', validity: '', remarks: '' },
     adjustments: { discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping: '0.00', otherChargesEnabled: false, otherCharges: '0.00', taxEnabled: Boolean(taxPreset), taxPercent: taxPreset?.rate||'0' },
     internalCosts:{shippingCost:'0.00',otherCost:'0.00'},
-    appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: kind==='draft'?'#8e7cf3':kind==='rfq'?'#2563eb':kind==='purchase-order'?'#c88f37':kind==='delivery-note'?'#7c8b95':kind==='payment-receipt'?'#0f9f7f':kind==='statement-account'?'#6d5bd0':'#159fa7', latinFont: 'auto', arabicFont: 'auto', showBank: documentBankAllowed(kind), showSignature: Boolean(company.signatureDataUrl), showStamp: Boolean(company.stampDataUrl), showHsCode: true, showOrigin: true, showPacking: false, watermark: defaultWatermark() },
+    appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: kind==='draft'?'#8e7cf3':kind==='rfq'?'#2563eb':kind==='purchase-order'?'#c88f37':kind==='delivery-note'?'#7c8b95':kind==='payment-receipt'?'#0f9f7f':'#159fa7', latinFont: 'auto', arabicFont: 'auto', showBank: documentBankAllowed(kind), showSignature: Boolean(company.signatureDataUrl), showStamp: Boolean(company.stampDataUrl), showHsCode: true, showOrigin: true, showPacking: false, watermark: defaultWatermark() },
     letter: kind==='draft'?defaultLetterData(company.defaultLanguage):null,
     notes: kind==='draft'?'':company.defaultNotes, convertedFromId: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
   };
