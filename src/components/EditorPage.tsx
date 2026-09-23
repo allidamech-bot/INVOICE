@@ -304,7 +304,7 @@ export class EditorPage extends React.Component<Props,State>{
 
   render():any{
     const props=this.props;
-    if(isLetterDocument(props.document))return <DraftDocumentEditor document={props.document} company={props.company} onClose={props.onClose} onSave={props.onSave} onPrint={props.onPrint} onEditActivity={props.onEditActivity}/>;
+    if(isLetterDocument(props.document))return <DraftDocumentEditor key={props.document.id} document={props.document} company={props.company} onClose={props.onClose} onSave={this.saveWithProtectedRetry} onPrint={this.printWithPreparedMode} onEditActivity={props.onEditActivity}/>;
     const finalQuote=props.document.kind==='proforma'&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
     const linkedInvoice=finalQuote?props.documents.find(item=>item.kind==='invoice'&&item.role==='standard'&&item.convertedFromId===props.document.id&&item.lifecycleStatus!=='voided'):undefined;
     const canConvertFinalQuote=finalQuote&&!linkedInvoice;
