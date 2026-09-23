@@ -26,6 +26,8 @@ interface Props {
   onNavigate:(screen:Exclude<WorkspaceScreen,'editor'>)=>void;
   onToggleNew:()=>void;
   onNew:(kind:DocumentKind)=>void;
+  onCreditNote:()=>void;
+  onStatementAccount:()=>void;
   onSettings:()=>void;
   onCloud:()=>void;
   children:any;
@@ -97,7 +99,20 @@ export class AppShell extends React.Component<Props,State>{
 
   private createDocument=(kind:DocumentKind)=>{
     this.closeMore();
-    this.props.onNew(kind);
+    this.closeCreateMenu();
+    window.requestAnimationFrame(()=>this.props.onNew(kind));
+  };
+
+  private openCreditNote=()=>{
+    this.closeMore();
+    this.closeCreateMenu();
+    window.requestAnimationFrame(()=>this.props.onCreditNote());
+  };
+
+  private openStatementAccount=()=>{
+    this.closeMore();
+    this.closeCreateMenu();
+    window.requestAnimationFrame(()=>this.props.onStatementAccount());
   };
 
   private hasSignedInAccount=():boolean=>{
@@ -161,8 +176,8 @@ export class AppShell extends React.Component<Props,State>{
     <button type="button" role="menuitem" data-kind="invoice" data-order="6" onClick={()=>this.createDocument('invoice')}><Icon name="invoice"/><span><strong>{t('Commercial Invoice','فاتورة تجارية')}</strong><small>{t('Final commercial sales invoice','فاتورة البيع التجارية النهائية')}</small></span></button>
     <button type="button" role="menuitem" data-kind="delivery-note" data-order="7" onClick={()=>this.createDocument('delivery-note')}><Icon name="file"/><span><strong>{t('Delivery Note','سند تسليم')}</strong><small>{t('Confirm goods delivered to a customer','إثبات تسليم البضاعة للعميل')}</small></span></button>
     <button type="button" role="menuitem" data-kind="payment-receipt" data-order="8" onClick={()=>this.createDocument('payment-receipt')}><Icon name="invoice"/><span><strong>{t('Payment Receipt','إيصال دفع')}</strong><small>{t('Acknowledge a received payment','إثبات استلام دفعة')}</small></span></button>
-    <button type="button" role="menuitem" data-kind="credit-note" data-order="9" onClick={()=>this.navigate('documents')}><Icon name="invoice"/><span><strong>{t('Credit Note','إشعار دائن')}</strong><small>{t('Create from an issued Commercial Invoice','يُنشأ من فاتورة تجارية صادرة')}</small></span></button>
-    <button type="button" role="menuitem" data-kind="statement-account" data-order="10" onClick={()=>this.navigate('receivables')}><Icon name="file"/><span><strong>{t('Statement of Account','كشف حساب')}</strong><small>{t('Open the existing customer statement workflow in Finance','فتح كشف حساب العميل الموجود في المالية')}</small></span></button>
+    <button type="button" role="menuitem" data-kind="credit-note" data-order="9" onClick={this.openCreditNote}><Icon name="invoice"/><span><strong>{t('Credit Note','إشعار دائن')}</strong><small>{t('Choose an issued Commercial Invoice','اختر فاتورة تجارية صادرة')}</small></span></button>
+    <button type="button" role="menuitem" data-kind="statement-account" data-order="10" onClick={this.openStatementAccount}><Icon name="file"/><span><strong>{t('Statement of Account','كشف حساب')}</strong><small>{t('Choose a customer and open the statement','اختر العميل وافتح كشف الحساب')}</small></span></button>
   </div>:null;
 
   private saveLabel=():string=>this.props.cloudLabel;

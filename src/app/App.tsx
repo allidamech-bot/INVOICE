@@ -28,7 +28,7 @@ import { CloudAccountModal } from '../components/CloudAccountModal.js';
 import { AppShell } from '../components/AppShell.js';
 import { WorkspaceHome } from '../components/WorkspaceHome.js';
 import { GlobalSearch } from '../components/GlobalSearch.js';
-import { Brand, Button, ConfirmDialog, Toast } from '../components/UI.js';
+import { Brand, Button, ConfirmDialog, Modal, Select, Toast } from '../components/UI.js';
 import { TemplateRenderer } from '../templates/TemplateRenderer.js';
 import { DraftDocumentRenderer } from '../components/DraftDocumentRenderer.js';
 import { isLetterDocument } from '../lib/document-extras.js';
@@ -37,6 +37,7 @@ import { cloudRemoteChangedSinceAnchor, createCloudUser, friendlyCloudError, get
 import type { CloudUser } from '../cloud/firebase.js';
 
 type CloudSyncState='local'|'queued'|'syncing'|'synced'|'offline'|'error'|'conflict';
+type CatalogLauncher=''|'credit-note'|'statement-account';
 const CLOUD_SAVE_SETTLE_MS=350;
 const CLOUD_EDIT_ACTIVITY_SETTLE_MS=800;
 
@@ -46,10 +47,11 @@ interface State {
   deletingDoc:LourexDocument|null; toast:string; toastTone:'default'|'success'|'error'; printDoc:LourexDocument|null;
   publicLogo:string; uiLanguage:UiLanguage;
   cloudUser:CloudUser|null; cloudLinked:boolean; cloudModal:boolean; cloudSyncState:CloudSyncState; cloudSyncMessage:string;
+  catalogLauncher:CatalogLauncher; catalogSourceId:string;
 }
 
 export class App extends React.Component<{},State> {
-  state:State={loading:true,firstRun:false,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,deletingDoc:null,toast:'',toastTone:'default',printDoc:null,publicLogo:'./brand/lourex-logo.svg',uiLanguage:'en',cloudUser:null,cloudLinked:false,cloudModal:false,cloudSyncState:'local',cloudSyncMessage:''};
+  state:State={loading:true,firstRun:false,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,deletingDoc:null,toast:'',toastTone:'default',printDoc:null,publicLogo:'./brand/lourex-logo.svg',uiLanguage:'en',cloudUser:null,cloudLinked:false,cloudModal:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:''};
   private lockTimer:number|undefined;
   private toastTimer:number|undefined;
   private cloudTimer:number|undefined;
@@ -264,6 +266,45 @@ export class App extends React.Component<{},State> {
   private authCloudShell=(content:any)=> <div className="auth-shell">{content}<div className={`auth-cloud-launcher cloud-${this.state.cloudSyncState}`}><Button icon="backup" onClick={()=>this.setState({cloudModal:true})}>{this.state.cloudUser?t('Cloud Account','الحساب السحابي'):t('Cloud Sign In','الدخول السحابي')}</Button></div>{this.cloudModal()}</div>;
   private cloudHeaderLabel=()=>this.state.cloudSyncState==='local'?t('Saved locally','محفوظ محليًا'):this.state.cloudSyncState==='queued'?t('Cloud pending','بانتظار السحابة'):this.state.cloudSyncState==='syncing'?t('Syncing','جارٍ المزامنة'):this.state.cloudSyncState==='synced'?t('Saved to cloud','محفوظ سحابيًا'):this.state.cloudSyncState==='offline'?t('Offline · Local safe','غير متصل · محليًا آمن'):this.state.cloudSyncState==='error'?t('Sync failed','فشلت المزامنة'):t('Sync conflict','تعارض مزامنة');
 
+  private openCreditNoteLauncher=()=>{
+    const vault=this.requireVault();
+    const eligible=vault.documents.filter(doc=>doc.kind==='invoice'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&invoiceCreditCapacity(doc,vault.documents,vault.payments).available!=='0.00');
+    if(!eligible.length){this.setState({newMenu:false,screen:'documents'});this.showToast(t('Issue a Commercial Invoice with remaining balance before creating a Credit Note.','أصدر فاتورة تجارية فيها رصيد متبقٍ قبل إنشاء إشعار دائن.'),'error');return;}
+    this.setState({newMenu:false,catalogLauncher:'credit-note',catalogSourceId:eligible.length===1?eligible[0]!.id:''});
+  };
+  private openStatementLauncher=()=>{
+    const vault=this.requireVault();
+    if(!vault.customers.length){this.setState({newMenu:false,screen:'customers'});this.showToast(t('Add a customer before opening a Statement of Account.','أضف عميلًا قبل فتح كشف الحساب.'),'error');return;}
+    this.setState({newMenu:false,catalogLauncher:'statement-account',catalogSourceId:vault.customers.length===1?vault.customers[0]!.id:''});
+  };
+  private closeCatalogLauncher=()=>this.setState({catalogLauncher:'',catalogSourceId:''});
+  private confirmCatalogLauncher=()=>{
+    const vault=this.requireVault();
+    const sourceId=this.state.catalogSourceId;
+    if(!sourceId)return;
+    if(this.state.catalogLauncher==='credit-note'){
+      const source=vault.documents.find(doc=>doc.id===sourceId&&doc.kind==='invoice'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided');
+      if(!source){this.showToast(t('Select an eligible Commercial Invoice.','اختر فاتورة تجارية صالحة.'),'error');return;}
+      this.setState({catalogLauncher:'',catalogSourceId:''},()=>void this.createCreditNote(source));
+      return;
+    }
+    if(this.state.catalogLauncher==='statement-account'){
+      const customer=vault.customers.find(item=>item.id===sourceId);
+      if(!customer){this.showToast(t('Select a customer.','اختر العميل.'),'error');return;}
+      this.setState({catalogLauncher:'',catalogSourceId:'',screen:'receivables',editorDoc:null,newMenu:false},()=>window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-statement',{detail:{customerId:customer.id}})),0));
+    }
+  };
+  private catalogLauncherModal=(vault:VaultPayload)=>{
+    const launcher=this.state.catalogLauncher;
+    if(!launcher)return null;
+    const credit=launcher==='credit-note';
+    const invoices=credit?vault.documents.filter(doc=>doc.kind==='invoice'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&invoiceCreditCapacity(doc,vault.documents,vault.payments).available!=='0.00'):[];
+    const valid=credit?invoices.some(doc=>doc.id===this.state.catalogSourceId):vault.customers.some(customer=>customer.id===this.state.catalogSourceId);
+    return <Modal open title={credit?t('Create Credit Note','إنشاء إشعار دائن'):t('Statement of Account','كشف حساب')} onClose={this.closeCatalogLauncher} footer={<div className="modal-footer-actions"><Button onClick={this.closeCatalogLauncher}>{t('Cancel','إلغاء')}</Button><Button variant="primary" disabled={!valid} onClick={this.confirmCatalogLauncher}>{credit?t('Create Credit Note','إنشاء إشعار دائن'):t('Open Statement','فتح كشف الحساب')}</Button></div>}>
+      <div className="field-stack"><label><span>{credit?t('Issued Commercial Invoice','الفاتورة التجارية الصادرة'):t('Customer','العميل')}</span><Select value={this.state.catalogSourceId} onChange={(event:any)=>this.setState({catalogSourceId:event.target.value})}><option value="">{credit?t('Select invoice…','اختر الفاتورة…'):t('Select customer…','اختر العميل…')}</option>{credit?invoices.map(doc=><option key={doc.id} value={doc.id}>{doc.number} — {doc.customerSnapshot?.companyNameEn||doc.customerSnapshot?.companyNameAr||t('Customer','عميل')}</option>):vault.customers.map(customer=><option key={customer.id} value={customer.id}>{customer.companyNameEn||customer.companyNameAr||t('Customer','عميل')}</option>)}</Select></label><p className="field-hint">{credit?t('Credit Notes stay linked to the original invoice and remaining credit balance.','يبقى الإشعار الدائن مرتبطًا بالفاتورة الأصلية والرصيد المتاح لها.'):t('The statement opens from finalized invoices, payments and active credit notes for the selected customer.','يُفتح الكشف من الفواتير النهائية والمدفوعات والإشعارات الدائنة الفعالة للعميل المحدد.')}</p></div>
+    </Modal>;
+  };
+
   render():any{
     const activeLanguage=this.state.vault?.appSettings.uiLanguage??this.state.uiLanguage;setUiLanguage(activeLanguage);
     if(this.state.loading)return <div className="loading-screen"><Brand logoDataUrl={this.state.publicLogo} language={activeLanguage}/><span className="loading-line"/></div>;
@@ -274,7 +315,7 @@ export class App extends React.Component<{},State> {
     const navigate=(screen:'home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations')=>{if(screen===this.state.screen)return;if(this.state.screen==='editor'){this.showToast(t('Save and close the document with Back before navigating away.','احفظ وأغلق المستند بزر الرجوع قبل الانتقال إلى قسم آخر.'),'error');return;}if(!confirmWorkspaceDeparture())return;this.setState({screen,editorDoc:null,newMenu:false});};
     const operationsProps={suppliers:vault.suppliers,purchases:vault.purchases,expenses:vault.expenses,inventoryMovements:vault.inventoryMovements,items:vault.savedItems,defaultCurrency,onSaveSupplier:this.saveSupplier,onDeleteSupplier:this.deleteSupplier,onSavePurchase:this.savePurchaseRecord,onDeletePurchase:this.deletePurchaseRecord,onPostPurchase:this.postPurchaseRecord,onReversePurchase:this.reversePurchaseRecord,onSaveExpense:this.saveExpenseRecord,onDeleteExpense:this.deleteExpenseRecord,onSaveInventoryMovement:this.saveInventoryMovement,onDeleteInventoryMovement:this.deleteInventoryMovement};
     return <div className="app-root"><div className="app-ui">
-      <AppShell screen={this.state.screen} logoDataUrl={vault.company.logoDataUrl} language={activeLanguage} newMenu={this.state.newMenu} cloudState={this.state.cloudSyncState} cloudLabel={this.cloudHeaderLabel()} cloudMessage={this.state.cloudSyncMessage} onNavigate={navigate} onToggleNew={()=>this.setState(state=>({newMenu:!state.newMenu}))} onNew={(kind)=>void this.newDocument(kind)} onSettings={()=>this.setState({settingsOpen:true})} onCloud={()=>this.setState({cloudModal:true})}>
+      <AppShell screen={this.state.screen} logoDataUrl={vault.company.logoDataUrl} language={activeLanguage} newMenu={this.state.newMenu} cloudState={this.state.cloudSyncState} cloudLabel={this.cloudHeaderLabel()} cloudMessage={this.state.cloudSyncMessage} onNavigate={navigate} onToggleNew={()=>this.setState(state=>({newMenu:!state.newMenu}))} onNew={(kind)=>void this.newDocument(kind)} onCreditNote={this.openCreditNoteLauncher} onStatementAccount={this.openStatementLauncher} onSettings={()=>this.setState({settingsOpen:true})} onCloud={()=>this.setState({cloudModal:true})}>
         <main className={this.state.screen==='editor'?'editor-main':'main-content'}>
           {this.state.screen==='home'?<WorkspaceHome companyName={vault.company.nameEn||vault.company.nameAr||'LOUREX Invoice'} documents={vault.documents} payments={vault.payments} purchases={vault.purchases} expenses={vault.expenses} inventoryMovements={vault.inventoryMovements} items={vault.savedItems} customerCount={vault.customers.length} onNewDocument={()=>this.setState({newMenu:true})} onOpenDocument={(doc)=>void this.openDocument(doc)} onNavigate={(screen)=>navigate(screen)}/>:null}
           {this.state.screen==='documents'?<DocumentsPage documents={vault.documents} payments={vault.payments} onNew={(k)=>void this.newDocument(k)} onOpen={(d)=>void this.openDocument(d)} onDuplicate={(d)=>void this.duplicate(d)} onConvert={this.convert} onPrint={this.requestPrint} onDelete={(d)=>this.setState({deletingDoc:d})} onRecordPayment={(doc)=>this.setState({screen:'receivables'},()=>window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-payment',{detail:{invoiceId:doc.id}})),0))} onCreateCreditNote={(doc)=>void this.createCreditNote(doc)} onOpenStatements={()=>navigate('receivables')}/>:null}
@@ -289,6 +330,7 @@ export class App extends React.Component<{},State> {
       <GlobalSearch documents={vault.documents} customers={vault.customers} items={vault.savedItems} suppliers={vault.suppliers} purchases={vault.purchases} language={activeLanguage} onNavigate={navigate} onOpenDocument={(doc)=>void this.openDocument(doc)} onNewDocument={(kind)=>void this.newDocument(kind)}/>
       <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} cloudUser={this.state.cloudUser} onCloudRestore={this.cloudRestore} onCloudSignOut={this.cloudSignOut} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onChangePin={this.changePin} onLock={this.lock} onBackup={this.backup} onRestore={this.restore}/>
       {this.cloudModal()}
+      {this.catalogLauncherModal(vault)}
       <ConfirmDialog open={Boolean(this.state.deletingDoc)} title={t(`Delete ${this.state.deletingDoc?.number ?? 'document'}?`,`حذف ${this.state.deletingDoc?.number ?? 'المستند'}؟`)} message={t('This action cannot be undone.','لا يمكن التراجع عن هذا الإجراء.')} onCancel={()=>this.setState({deletingDoc:null})} onConfirm={()=>void this.deleteDocument()}/><Toast text={this.state.toast} tone={this.state.toastTone}/></div>
       <div className="print-portal">{this.state.printDoc?(isLetterDocument(this.state.printDoc)?<DraftDocumentRenderer document={this.state.printDoc} scale={1}/>:<TemplateRenderer document={this.state.printDoc} scale={1}/>):null}</div></div>;
   }
