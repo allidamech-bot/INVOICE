@@ -14,4 +14,11 @@ html body .lourex-ios-output-spinner{border-color:rgba(32,201,210,.18)!important
 html body .lourex-ios-output-primary{background:#20c9d2!important;border-color:#20c9d2!important;color:#06242b!important}
 html body .lourex-ios-output-cancel{background:#103943!important;border-color:#2c5963!important;color:#eefbfd!important}
 .app-ui .mobile-more-sheet :is(button,a):focus-visible{outline:3px solid rgba(32,211,219,.35)!important;outline-offset:2px!important}
-@media(max-width:800px){.app-ui .mobile-more-sheet{overscroll-behavior:contain!important}.app-ui .mobile-more-sheet :is(button,.theme-control){min-height:44px}}
+@media(max-width:800px){
+  .app-ui .mobile-more-sheet{overscroll-behavior:contain!important}
+  .app-ui .mobile-more-sheet :is(button,.theme-control){min-height:44px}
+  .app-ui:has(.fintech-dashboard-v280) .workspace-content,
+  .app-ui:has(.fintech-dashboard-v280) .workspace-content>.main-content{scroll-padding-bottom:calc(86px + env(safe-area-inset-bottom,0px))!important}
+  .app-ui .fintech-dashboard-v280{padding-bottom:calc(86px + env(safe-area-inset-bottom,0px))!important}
+  .app-ui .fintech-dashboard-v280>.lourex-advisor-card:last-child{margin-bottom:0!important}
+}
