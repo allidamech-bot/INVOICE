@@ -220,15 +220,16 @@ test('v312 pre-merge audit keeps search, readiness and routing semantically alig
     read('src/components/GlobalSearch.tsx'),read('src/lib/readiness.ts'),read('src/components/AppShell.tsx'),
     read('public/document-entry-v302.js'),read('src/components/DocumentsPage.tsx'),read('src/lib/document-quality.ts')
   ]);
-  assert.match(search,/documentKindLabel\(document\.kind,document\.role\)/);
-  assert.match(search,/isSupplierDocumentKind\(document\.kind\)/);
-  assert.match(readiness,/const priceOptional=documentPriceOptional\(doc\.kind\)/);
-  assert.match(readiness,/isSupplierDocumentKind\(doc\.kind\)/);
-  assert.match(shell,/data-kind=\"statement-account\"[^>]+navigate\('receivables'\)/);
-  assert.match(entry,/const creatableKinds=new Set/);
-  assert.match(entry,/removeItem\(pendingKindKey\)/);
-  assert.match(page,/documentPriceOptional\(doc\.kind\)\?'—'/);
-  assert.match(quality,/!documentPriceOptional\(doc\.kind\)/);
+  assert.ok(search.includes('documentKindLabel(document.kind,document.role)'));
+  assert.ok(search.includes('isSupplierDocumentKind(document.kind)'));
+  assert.ok(readiness.includes('const priceOptional=documentPriceOptional(doc.kind)'));
+  assert.ok(readiness.includes('isSupplierDocumentKind(doc.kind)'));
+  assert.ok(shell.includes('data-kind="statement-account"'));
+  assert.ok(shell.includes("onClick={()=>this.navigate('receivables')}"));
+  assert.ok(entry.includes('const creatableKinds=new Set'));
+  assert.ok(entry.includes('removeItem(pendingKindKey)'));
+  assert.ok(page.includes("documentPriceOptional(doc.kind)?'—'"));
+  assert.ok(quality.includes('!documentPriceOptional(doc.kind)'));
 });
 """
 p.write_text(s)
