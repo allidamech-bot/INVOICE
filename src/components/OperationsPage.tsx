@@ -43,12 +43,16 @@ export class OperationsPage extends React.Component<Props,State>{
   private mutationInFlight=false;
   state:State={tab:firstTab(this.props.mode),search:'',error:'',busy:false,supplierEdit:null,purchaseEdit:null,expenseEdit:null,movementItemId:'',movementType:'opening',movementQuantity:'',movementDate:todayIso(),movementNote:'',movementCost:'',movementCurrency:this.props.defaultCurrency||'USD'};
 
-  componentDidMount():void{window.addEventListener('lourex-create-purchase',this.handleQuickPurchase);window.addEventListener('lourex-open-expense-editor',this.handleQuickExpense);this.applyFocusedItem();}
-  componentWillUnmount():void{window.removeEventListener('lourex-create-purchase',this.handleQuickPurchase);window.removeEventListener('lourex-open-expense-editor',this.handleQuickExpense);}
+  componentDidMount():void{window.addEventListener('lourex-create-purchase',this.handleQuickPurchase);window.addEventListener('lourex-open-expense-editor',this.handleQuickExpense);window.addEventListener('beforeunload',this.handleBeforeUnload);this.applyFocusedItem();this.syncDirtyMarker();}
+  componentWillUnmount():void{window.removeEventListener('lourex-create-purchase',this.handleQuickPurchase);window.removeEventListener('lourex-open-expense-editor',this.handleQuickExpense);window.removeEventListener('beforeunload',this.handleBeforeUnload);if(document.documentElement.getAttribute('data-lourex-workspace-dirty')==='operations')document.documentElement.removeAttribute('data-lourex-workspace-dirty');}
   componentDidUpdate(prev:Props):void{
     if(prev.mode!==this.props.mode){const allowed=tabsForMode(this.props.mode);if(!allowed.includes(this.state.tab))this.setState({tab:firstTab(this.props.mode),search:'',error:''});}
     if(prev.focusItemId!==this.props.focusItemId)this.applyFocusedItem();
+    this.syncDirtyMarker();
   }
+  private hasUnsavedWorkspaceInput=():boolean=>Boolean(this.state.supplierEdit||this.state.purchaseEdit||this.state.expenseEdit||this.state.movementQuantity.trim()||this.state.movementNote.trim()||this.state.movementCost.trim());
+  private syncDirtyMarker=()=>{const root=document.documentElement;if(this.hasUnsavedWorkspaceInput())root.setAttribute('data-lourex-workspace-dirty','operations');else if(root.getAttribute('data-lourex-workspace-dirty')==='operations')root.removeAttribute('data-lourex-workspace-dirty');};
+  private handleBeforeUnload=(event:BeforeUnloadEvent)=>{if(!this.hasUnsavedWorkspaceInput())return;event.preventDefault();event.returnValue='';};
   private applyFocusedItem=()=>{const id=this.props.focusItemId;if(!id)return;const item=this.props.items.find(entry=>entry.id===id);if(!item)return;this.setState({search:item.sku||item.descriptionEn||item.descriptionAr,movementItemId:item.id,error:''});};
   private handleQuickPurchase=()=>{if(this.props.mode!=='purchasing'&&this.props.mode!=='all')return;this.setState({tab:'purchases',search:'',error:''},this.newPurchase);};
   private handleQuickExpense=()=>{if(this.props.mode!=='finance'&&this.props.mode!=='all')return;this.setState({tab:'expenses',expenseEdit:createExpense(this.props.defaultCurrency),search:'',error:''});};
