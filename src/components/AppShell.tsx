@@ -145,9 +145,10 @@ export class AppShell extends React.Component<Props,State>{
     </button>;
 
   private createMenu=(id:string,className:string)=>this.props.newMenu?<div className={`new-menu shell-new-menu ${className}`} id={id} role="menu" aria-label={t('New Document','مستند جديد')}>
-    <button type="button" role="menuitem" onClick={()=>this.createDocument('proforma')}><Icon name="proforma"/><span><strong>{t('Quotation','عرض سعر')}</strong><small>{t('Commercial quotation','عرض تجاري')}</small></span></button>
-    <button type="button" role="menuitem" onClick={()=>this.createDocument('invoice')}><Icon name="invoice"/><span><strong>{t('Invoice','فاتورة')}</strong><small>{t('Final invoice','فاتورة نهائية')}</small></span></button>
-    <button type="button" role="menuitem" onClick={()=>this.createDocument('purchase-order')}><Icon name="file"/><span><strong>{t('Purchase Order','طلب شراء')}</strong><small>{t('Supplier order and delivery terms','طلب للمورد وشروط التسليم')}</small></span></button>
+    <button type="button" role="menuitem" data-kind="proforma" onClick={()=>this.createDocument('proforma')}><Icon name="proforma"/><span><strong>{t('Quotation','عرض سعر')}</strong><small>{t('Commercial quotation','عرض تجاري')}</small></span></button>
+    <button type="button" role="menuitem" data-kind="invoice" onClick={()=>this.createDocument('invoice')}><Icon name="invoice"/><span><strong>{t('Invoice','فاتورة')}</strong><small>{t('Final invoice','فاتورة نهائية')}</small></span></button>
+    <button type="button" role="menuitem" data-kind="purchase-order" onClick={()=>this.createDocument('purchase-order')}><Icon name="file"/><span><strong>{t('Purchase Order','طلب شراء')}</strong><small>{t('Supplier order and delivery terms','طلب للمورد وشروط التسليم')}</small></span></button>
+    <button type="button" role="menuitem" data-kind="draft" onClick={()=>this.createDocument('draft')}><Icon name="edit"/><span><strong>{t('Draft','مسودة')}</strong><small>{t('Letterhead, notices and free-form company documents','خطابات ومذكرات ومستندات شركة حرة')}</small></span></button>
   </div>:null;
 
   private saveLabel=():string=>this.props.cloudLabel;

@@ -5,6 +5,7 @@ import { hasDocumentCustomer, validateDocument } from '../lib/documents.js';
 import { invoicePaymentSummary } from '../lib/payments.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { Button, Icon, IconButton, Input, Select } from './UI.js';
+import { letterPlainText } from '../lib/document-extras.js';
 
 interface Props {
   documents: LourexDocument[];
@@ -23,7 +24,7 @@ type WorkspaceStatus='all'|'draft'|'ready'|'final'|'voided';
 type SortMode='latest'|'oldest'|'highest'|'lowest';
 type PaymentFilter='all'|PaymentStatus;
 interface State {
-  tab:'all'|'proforma'|'invoice'|'purchase-order'|'credit';
+  tab:'all'|'proforma'|'invoice'|'purchase-order'|'draft'|'credit';
   status:WorkspaceStatus;
   payment:PaymentFilter;
   currency:string;
@@ -67,10 +68,12 @@ function customerName(doc:LourexDocument):string{
 function kindLabel(doc:LourexDocument):string{
   if(doc.role==='credit-note')return t('Credit Note','إشعار دائن');
   if(doc.kind==='purchase-order')return t('Purchase Order','طلب شراء');
+  if(doc.kind==='draft')return t('Draft','مسودة');
   return doc.kind==='proforma'?t('Quotation','عرض سعر'):t('Invoice','فاتورة');
 }
 
 function partyName(doc:LourexDocument):string{
+  if(doc.kind==='draft')return doc.letter?.subject||t('Company document','مستند شركة');
   if(doc.kind!=='purchase-order')return customerName(doc);
   const supplier=doc.supplierSnapshot;
   if(!supplier)return t('No supplier','بدون مورد');
@@ -95,7 +98,7 @@ function documentSearchText(doc:LourexDocument):string{
     supplier?.nameEn,supplier?.nameAr,supplier?.contactPerson,supplier?.phone,supplier?.email,supplier?.city,supplier?.country,
     ...itemValues,
     doc.terms.incoterm,doc.terms.paymentTerms,doc.terms.finalDestination,
-    doc.terms.countryOfOrigin,doc.terms.portOfLoading,doc.notes
+    doc.terms.countryOfOrigin,doc.terms.portOfLoading,doc.notes,letterPlainText(doc.letter??undefined)
   ].filter(Boolean).join(' ').toLowerCase();
 }
 
@@ -193,6 +196,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       if(this.state.tab==='proforma'&&(doc.kind!=='proforma'||doc.role!=='standard'))return false;
       if(this.state.tab==='invoice'&&(doc.kind!=='invoice'||doc.role!=='standard'))return false;
       if(this.state.tab==='purchase-order'&&(doc.kind!=='purchase-order'||doc.role!=='standard'))return false;
+      if(this.state.tab==='draft'&&(doc.kind!=='draft'||doc.role!=='standard'))return false;
       if(this.state.tab==='credit'&&doc.role!=='credit-note')return false;
       if(!matchesWorkspaceStatus(doc,this.state.status))return false;
       if(this.state.currency!=='all'&&doc.currency!==this.state.currency)return false;
@@ -233,7 +237,7 @@ export class DocumentsPage extends React.Component<Props,State>{
   private overviewActive=(tab:State['tab'],status:WorkspaceStatus)=>this.state.tab===tab&&this.state.status===status&&this.state.payment==='all'&&this.state.currency==='all'&&!this.state.query.trim();
 
   private actionButtons=(doc:LourexDocument):any=>{
-    const canOutput=doc.status==='final';
+    const canOutput=doc.kind==='draft'||doc.status==='final';
     const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
     const linkedInvoice=this.linkedInvoiceForQuote(doc);
     const canConvert=Boolean(this.props.onConvert&&doc.kind==='proforma'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
@@ -259,6 +263,7 @@ export class DocumentsPage extends React.Component<Props,State>{
   };
 
   private renderDetail=(doc:LourexDocument):any=>{
+    if(doc.kind==='draft'){const letter=doc.letter;const canDelete=doc.status!=='final';return <section className="page document-detail-page draft-document-detail"><div className="document-detail-topbar"><button type="button" className="document-detail-back" onClick={()=>this.setState({detailId:'',menuId:''})}><Icon name="arrowLeft"/><span>{t('Documents','المستندات')}</span></button><div className="document-detail-actions"><Button icon="edit" variant="primary" onClick={()=>this.props.onOpen(doc)}>{t('Open Studio','فتح الاستديو')}</Button><Button icon="download" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}>PDF</Button><Button icon="share" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}>{t('Share','مشاركة')}</Button></div></div><header className="document-detail-hero kind-draft"><div className="document-detail-identity"><span className="document-detail-kind-icon"><Icon name="edit"/></span><div><p>{t('Company Draft','مسودة شركة')}</p><h1>{doc.number}</h1><span>{letter?.subject||t('Untitled company document','مستند شركة بدون عنوان')}</span></div></div><div className="document-detail-value draft-document-date"><small>{t('Date','التاريخ')}</small><strong>{displayDate(doc.issueDate,getUiLanguage())}</strong></div></header><div className="draft-detail-grid"><section className="document-detail-card"><header><h2>{t('Document overview','بيانات المستند')}</h2></header><div className="document-detail-facts"><div><small>{t('Recipient','المستلم')}</small><strong>{letter?.recipient||'—'}</strong></div><div><small>{t('Reference','المرجع')}</small><strong>{letter?.reference||'—'}</strong></div><div><small>{t('Subject','الموضوع')}</small><strong>{letter?.subject||'—'}</strong></div><div><small>{t('Language','اللغة')}</small><strong>{doc.language==='ar'?t('Arabic','العربية'):doc.language==='bilingual'?t('Bilingual','ثنائي اللغة'):t('English','الإنجليزية')}</strong></div></div></section><section className="document-detail-card draft-detail-content"><header><h2>{t('Content','المحتوى')}</h2><small>{letter?.blocks.length||0}</small></header><div>{letter?.blocks.filter(block=>block.type!=='spacer').map(block=><p key={block.id} dir={block.direction}>{block.text||'—'}</p>)}</div></section><section className="document-detail-card document-detail-secondary-actions"><header><h2>{t('Actions','الإجراءات')}</h2></header><button type="button" onClick={()=>this.props.onDuplicate(doc)}><Icon name="copy"/><span>{t('Duplicate document','نسخ المستند')}</span></button>{canDelete?<button type="button" className="danger" onClick={()=>this.props.onDelete(doc)}><Icon name="trash"/><span>{t('Delete draft','حذف المسودة')}</span></button>:null}</section></div>{this.renderMobileActionPortal()}</section>;}
     const totals=calculateTotals(doc.items,doc.adjustments);
     const collection=this.paymentStatus(doc)?invoicePaymentSummary(doc,this.props.payments,undefined,this.props.documents):null;
     const state=workflowStatus(doc);
@@ -355,6 +360,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     const quotes=this.props.documents.filter(doc=>doc.kind==='proforma'&&doc.role==='standard').length;
     const invoices=this.props.documents.filter(doc=>doc.kind==='invoice'&&doc.role==='standard').length;
     const purchaseOrders=this.props.documents.filter(doc=>doc.kind==='purchase-order'&&doc.role==='standard').length;
+    const freeDrafts=this.props.documents.filter(doc=>doc.kind==='draft'&&doc.role==='standard').length;
     const creditNotes=this.props.documents.filter(doc=>doc.role==='credit-note').length;
     const drafts=this.props.documents.filter(doc=>workflowStatus(doc)==='draft').length;
     const issued=this.props.documents.filter(doc=>matchesWorkspaceStatus(doc,'final')).length;
@@ -365,17 +371,18 @@ export class DocumentsPage extends React.Component<Props,State>{
 
     return <section className="page documents-page premium-documents-page documents-workspace-v2">
       <div className="page-heading documents-heading">
-        <div><p className="eyebrow">{t('Business documents','مستندات الأعمال')}</p><h1>{t('Documents','المستندات')}</h1><p className="page-subtitle">{t('Find and manage quotations, invoices, purchase orders and credit notes from one workspace.','ابحث وأدر عروض الأسعار والفواتير وطلبات الشراء والإشعارات الدائنة من مساحة عمل واحدة.')}</p></div>
-        <div className="heading-actions documents-heading-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('New Quote','عرض سعر جديد')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('New Invoice','فاتورة جديدة')}</Button><Button icon="file" onClick={()=>this.props.onNew('purchase-order')}>{t('New Purchase Order','طلب شراء جديد')}</Button></div>
+        <div><p className="eyebrow">{t('Business documents','مستندات الأعمال')}</p><h1>{t('Documents','المستندات')}</h1><p className="page-subtitle">{t('Find and manage quotations, invoices, purchase orders, company drafts and credit notes from one workspace.','ابحث وأدر عروض الأسعار والفواتير وطلبات الشراء والمسودات والإشعارات الدائنة من مساحة عمل واحدة.')}</p></div>
+        <div className="heading-actions documents-heading-actions"><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('New Quote','عرض سعر جديد')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('New Invoice','فاتورة جديدة')}</Button><Button icon="file" onClick={()=>this.props.onNew('purchase-order')}>{t('New Purchase Order','طلب شراء جديد')}</Button><Button icon="edit" className="new-draft-button" onClick={()=>this.props.onNew('draft')}>{t('Draft','مسودة')}</Button></div>
       </div>
 
-      {resume?<button type="button" className="documents-resume" onClick={()=>this.props.onOpen(resume)}><span className="resume-icon"><Icon name={resume.kind==='proforma'?'proforma':resume.kind==='purchase-order'?'file':'invoice'}/></span><span className="resume-copy"><small>{t('Continue where you left off','أكمل من حيث توقفت')}</small><strong>{resume.number}</strong><span>{partyName(resume)}</span></span><span className="resume-meta"><b>{formatMoney(calculateTotals(resume.items,resume.adjustments).grandTotal,resume.currency)}</b><em>{workflowStatus(resume)==='ready'?t('Ready to issue','جاهز للإصدار'):t('Continue editing','متابعة التحرير')} <span className="resume-arrow"><Icon name="arrowLeft"/></span></em></span></button>:null}
+      {resume?<button type="button" className="documents-resume" onClick={()=>this.props.onOpen(resume)}><span className="resume-icon"><Icon name={resume.kind==='proforma'?'proforma':resume.kind==='purchase-order'?'file':'invoice'}/></span><span className="resume-copy"><small>{t('Continue where you left off','أكمل من حيث توقفت')}</small><strong>{resume.number}</strong><span>{partyName(resume)}</span></span><span className="resume-meta"><b>{resume.kind==='draft'?(resume.letter?.subject||t('Company Draft','مسودة شركة')):formatMoney(calculateTotals(resume.items,resume.adjustments).grandTotal,resume.currency)}</b><em>{workflowStatus(resume)==='ready'?t('Ready to issue','جاهز للإصدار'):t('Continue editing','متابعة التحرير')} <span className="resume-arrow"><Icon name="arrowLeft"/></span></em></span></button>:null}
 
       <div className="documents-register-tabs" aria-label={t('Document overview','ملخص المستندات')}>
         <button type="button" className={this.overviewActive('all','all')?'active':''} aria-pressed={this.overviewActive('all','all')} onClick={()=>this.setOverview('all','all')}><span>{t('All','الكل')}</span><strong>{this.props.documents.length}</strong></button>
         <button type="button" className={this.overviewActive('proforma','all')?'active':''} aria-pressed={this.overviewActive('proforma','all')} onClick={()=>this.setOverview('proforma','all')}><span>{t('Quotes','عروض الأسعار')}</span><strong>{quotes}</strong></button>
         <button type="button" className={this.overviewActive('invoice','all')?'active':''} aria-pressed={this.overviewActive('invoice','all')} onClick={()=>this.setOverview('invoice','all')}><span>{t('Invoices','الفواتير')}</span><strong>{invoices}</strong></button>
         <button type="button" className={this.overviewActive('purchase-order','all')?'active':''} aria-pressed={this.overviewActive('purchase-order','all')} onClick={()=>this.setOverview('purchase-order','all')}><span>{t('Purchase Orders','طلبات الشراء')}</span><strong>{purchaseOrders}</strong></button>
+        <button type="button" className={'draft-tab '+(this.overviewActive('draft','all')?'active':'')} aria-pressed={this.overviewActive('draft','all')} onClick={()=>this.setOverview('draft','all')}><span>{t('Company Drafts','المسودات الحرة')}</span><strong>{freeDrafts}</strong></button>
         <button type="button" className={this.overviewActive('credit','all')?'active':''} aria-pressed={this.overviewActive('credit','all')} onClick={()=>this.setOverview('credit','all')}><span>{t('Credit Notes','الإشعارات الدائنة')}</span><strong>{creditNotes}</strong></button>
         <button type="button" className={`${drafts?'has-drafts ':''}${this.overviewActive('all','draft')?'active':''}`} aria-pressed={this.overviewActive('all','draft')} onClick={()=>this.setOverview('all','draft')}><span>{t('Drafts','المسودات')}</span><strong>{drafts}</strong></button>
         <button type="button" className={this.overviewActive('all','final')?'active':''} aria-pressed={this.overviewActive('all','final')} onClick={()=>this.setOverview('all','final')}><span>{t('Issued','صادرة')}</span><strong>{issued}</strong></button>
