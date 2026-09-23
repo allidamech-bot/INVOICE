@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: v312-premerge-audit-fix
+  cancel-in-progress: true
+
 jobs:
   audit-fix:
     runs-on: ubuntu-latest
