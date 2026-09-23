@@ -1,0 +1,226 @@
+/* LOUREX v311 — focused release audit layer.
+   Owns only current auth/loading/mobile alignment and transient UI contracts. */
+
+@media screen {
+  :root{
+    --v311-bg:#061820;
+    --v311-surface:#0b2830;
+    --v311-surface-2:#10343d;
+    --v311-line:#275663;
+    --v311-line-soft:#1d4650;
+    --v311-text:#eefbfd;
+    --v311-muted:#a8c4ca;
+    --v311-accent:#27d8df;
+    --v311-accent-strong:#38e3e9;
+    --v311-accent-ink:#042229;
+  }
+
+  /* Launch must look like the application itself, including Safari safe areas. */
+  html:has(#lourex-boot),body:has(#lourex-boot),#root:has(#lourex-boot){
+    background:var(--v311-bg)!important;
+    min-height:100dvh!important;
+    margin:0!important;
+  }
+  #lourex-boot.loading-screen,
+  #root>.loading-screen{
+    inset:0!important;
+    width:100%!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    padding:max(28px,env(safe-area-inset-top,0px)) max(24px,env(safe-area-inset-right,0px)) max(28px,env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px))!important;
+    background:var(--v311-bg)!important;
+    box-shadow:none!important;
+    border:0!important;
+  }
+  #lourex-boot .brand-mark,
+  #lourex-boot .brand-mark img{box-shadow:none!important}
+  #lourex-boot .loading-line{background:#173a44!important}
+  #lourex-boot .loading-line::after{background:var(--v311-accent)!important}
+
+  /* PIN / security gateway — readable, deliberate and consistent with fintech UI. */
+  .auth-page:has(.pin-unlock-card),
+  .auth-page:has(.account-managed-setup){
+    background:var(--v311-bg)!important;
+    color:var(--v311-text)!important;
+    min-height:100dvh!important;
+  }
+  .pin-unlock-card,
+  .account-managed-setup{
+    width:min(620px,calc(100vw - 28px))!important;
+    border:1px solid var(--v311-line)!important;
+    border-radius:24px!important;
+    background:var(--v311-surface)!important;
+    color:var(--v311-text)!important;
+    box-shadow:0 24px 72px rgba(0,0,0,.2)!important;
+  }
+  .pin-unlock-card :is(h1,.eyebrow,strong,label),
+  .account-managed-setup :is(h1,.eyebrow,strong,label){color:var(--v311-text)!important}
+  .pin-unlock-card .eyebrow,
+  .account-managed-setup .eyebrow{color:#e6aa42!important}
+  .pin-unlock-card :is(.subtle,.security-note),
+  .account-managed-setup :is(.subtle,.security-note,.setup-later-note span){
+    color:var(--v311-muted)!important;
+    opacity:1!important;
+  }
+  .pin-lock-badge,
+  .pin-required-note,
+  .account-managed-security-note{
+    background:#0c343d!important;
+    border:1px solid #238995!important;
+    color:var(--v311-text)!important;
+  }
+  .pin-lock-badge span,
+  .pin-required-note span,
+  .account-managed-security-note span{color:#bcd5da!important;opacity:1!important}
+  .pin-unlock-card .field>label,
+  .account-managed-setup .field>label{font-weight:800!important;color:#d8ebee!important}
+  .pin-unlock-card :is(input,select,textarea),
+  .account-managed-setup :is(input,select,textarea){
+    min-height:54px!important;
+    background:#f6fafb!important;
+    border:2px solid #a9bec3!important;
+    color:#0a2026!important;
+    border-radius:14px!important;
+    box-shadow:none!important;
+    font-size:17px!important;
+    font-weight:750!important;
+  }
+  .pin-unlock-card :is(input,select,textarea):focus,
+  .account-managed-setup :is(input,select,textarea):focus{
+    border-color:var(--v311-accent)!important;
+    outline:3px solid rgba(39,216,223,.24)!important;
+    outline-offset:1px!important;
+  }
+  .pin-unlock-card .btn-primary,
+  .pin-unlock-card button[type="submit"],
+  .account-managed-setup .setup-primary-action{
+    min-height:52px!important;
+    background:var(--v311-accent)!important;
+    border-color:var(--v311-accent)!important;
+    color:var(--v311-accent-ink)!important;
+    font-weight:900!important;
+    box-shadow:none!important;
+  }
+  .pin-unlock-card .btn-primary:hover,
+  .pin-unlock-card button[type="submit"]:hover,
+  .account-managed-setup .setup-primary-action:hover{background:var(--v311-accent-strong)!important}
+  .pin-unlock-card .auth-utility-controls button,
+  .account-managed-setup .auth-utility-controls button,
+  .pin-unlock-card .mf-theme-toggle,
+  .account-managed-setup .mf-theme-toggle{
+    min-height:44px!important;
+    border:1px solid #3e7180!important;
+    background:#10343d!important;
+    color:var(--v311-text)!important;
+  }
+
+  /* Home: physical box alignment must stay centered in both LTR and RTL. */
+  .workspace-home-page,
+  .workspace-home-page :is(.dashboard-panel,.dashboard-recent,.dashboard-document-list){
+    box-sizing:border-box!important;
+    min-width:0!important;
+    max-width:100%!important;
+  }
+  .workspace-home-page .dashboard-recent{
+    width:100%!important;
+    margin-inline:auto!important;
+    inset-inline:auto!important;
+    transform:none!important;
+  }
+  .workspace-home-page .dashboard-document-list{
+    width:100%!important;
+    margin-inline:0!important;
+    padding-inline:0!important;
+  }
+  .workspace-home-page .dashboard-document-row,
+  .workspace-home-page .dashboard-document-head{
+    width:100%!important;
+    max-width:100%!important;
+    margin-inline:0!important;
+    box-sizing:border-box!important;
+  }
+  [dir="rtl"] .workspace-home-page .dashboard-recent,
+  [dir="rtl"] .workspace-home-page .dashboard-document-list,
+  [dir="rtl"] .workspace-home-page .dashboard-document-row{
+    left:auto!important;
+    right:auto!important;
+    translate:none!important;
+  }
+
+  /* More and Settings: hierarchy and readable secondary copy in dark mode. */
+  .mobile-more-sheet,
+  .settings-modal,
+  .settings-workspace,
+  .settings-preferences-workspace{color:var(--v311-text)!important}
+  .mobile-more-sheet :is(small,p,.mobile-more-link-copy small,.mobile-more-account-copy small,.mobile-more-settings-copy small),
+  .settings-modal :is(.subtle,small,p),
+  .settings-workspace :is(.subtle,small,p){
+    color:var(--v311-muted)!important;
+    opacity:1!important;
+  }
+  .mobile-more-sheet :is(strong,h2,h3),
+  .settings-modal :is(h1,h2,h3,strong),
+  .settings-workspace :is(h1,h2,h3,strong){color:var(--v311-text)!important}
+  .mobile-more-link,
+  .mobile-more-account,
+  .mobile-more-settings{
+    border-color:var(--v311-line-soft)!important;
+  }
+
+  /* Runtime notices should not resurrect the retired black/brass generation. */
+  .pwa-update-toast,
+  [data-lourex-cloud-refresh],
+  [data-lourex-update]{
+    background:#0b2830!important;
+    color:var(--v311-text)!important;
+    border:1px solid var(--v311-line)!important;
+    box-shadow:0 18px 48px rgba(0,0,0,.28)!important;
+  }
+  .pwa-update-toast small,
+  [data-lourex-cloud-refresh] small,
+  [data-lourex-update] small{color:var(--v311-muted)!important;opacity:1!important}
+  [data-lourex-cloud-refresh] button,
+  [data-lourex-update] button{
+    background:var(--v311-accent)!important;
+    color:var(--v311-accent-ink)!important;
+    border-color:var(--v311-accent)!important;
+    border-radius:11px!important;
+    font-weight:900!important;
+  }
+}
+
+html[data-ui-theme="light"]{
+  --v311-bg:#edf5f6;
+  --v311-surface:#ffffff;
+  --v311-surface-2:#f4f9fa;
+  --v311-line:#c9dadd;
+  --v311-line-soft:#dce7e9;
+  --v311-text:#102b32;
+  --v311-muted:#58747b;
+  --v311-accent:#159fa7;
+  --v311-accent-strong:#108e95;
+  --v311-accent-ink:#ffffff;
+}
+html[data-ui-theme="light"] .pin-unlock-card,
+html[data-ui-theme="light"] .account-managed-setup{box-shadow:0 24px 64px rgba(25,68,78,.12)!important}
+html[data-ui-theme="light"] .pin-lock-badge,
+html[data-ui-theme="light"] .pin-required-note,
+html[data-ui-theme="light"] .account-managed-security-note{background:#edfafa!important;border-color:#8fcfd2!important}
+html[data-ui-theme="light"] .pin-lock-badge span,
+html[data-ui-theme="light"] .pin-required-note span,
+html[data-ui-theme="light"] .account-managed-security-note span{color:#496c73!important}
+
+@media(max-width:720px){
+  .pin-unlock-card,
+  .account-managed-setup{
+    width:calc(100vw - 24px)!important;
+    padding:22px 18px!important;
+    border-radius:22px!important;
+  }
+  .pin-unlock-card h1,
+  .account-managed-setup h1{font-size:clamp(27px,8vw,38px)!important;line-height:1.18!important}
+  .workspace-home-page .dashboard-recent{margin-inline:0!important}
+  .workspace-home-page .dashboard-document-row{overflow:hidden!important}
+  .workspace-home-page .dashboard-document-copy,
+  .workspace-home-page .dashboard-document-customer{min-width:0!important}
+}
