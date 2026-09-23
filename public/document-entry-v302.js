@@ -1,6 +1,7 @@
 (()=>{
   'use strict';
   const marker='data-lourex-v302-entry';
+  const pendingKindKey='lourex:pending-document-kind';
   const isArabic=()=>document.documentElement.dir==='rtl'||String(document.documentElement.lang||'').toLowerCase().startsWith('ar');
   const copy=(en,ar)=>isArabic()?ar:en;
 
@@ -48,17 +49,30 @@
     });
   }
 
-  function openCreateKind(index){
-    const opener=document.querySelector('.dashboard-quick-actions .quick-action-primary')||document.querySelector('.shell-create-button');
+  function visibleCreateMenu(){
+    return Array.from(document.querySelectorAll('.shell-new-menu[role="menu"]'))
+      .find(node=>node instanceof HTMLElement&&node.getClientRects().length);
+  }
+
+  function selectCreateKind(index){
+    const menu=visibleCreateMenu();
+    const buttons=menu?Array.from(menu.querySelectorAll('button[role="menuitem"]')):[];
+    const target=buttons[index];
+    if(!(target instanceof HTMLButtonElement))return false;
+    target.click();
+    return true;
+  }
+
+  function openCreateKind(kind,index){
+    try{window.sessionStorage.setItem(pendingKindKey,kind);}catch{}
+    if(selectCreateKind(index))return;
+    const opener=document.querySelector('.shell-create-button');
     if(!(opener instanceof HTMLButtonElement))return;
     opener.click();
-    window.setTimeout(()=>{
-      const menus=Array.from(document.querySelectorAll('.shell-new-menu[role="menu"]'));
-      const menu=menus.find(node=>node instanceof HTMLElement&&node.getClientRects().length)||menus[0];
-      const buttons=menu?Array.from(menu.querySelectorAll('button[role="menuitem"]')):[];
-      const target=buttons[index];
-      if(target instanceof HTMLButtonElement)target.click();
-    },0);
+    window.requestAnimationFrame(()=>{
+      if(selectCreateKind(index))return;
+      window.setTimeout(()=>selectCreateKind(index),0);
+    });
   }
 
   function directAction(kind,index,en,ar,enHint,arHint){
@@ -71,7 +85,7 @@
     title.textContent=copy(en,ar);
     hint.textContent=copy(enHint,arHint);
     button.append(title,hint);
-    button.addEventListener('click',()=>openCreateKind(index));
+    button.addEventListener('click',()=>openCreateKind(kind,index));
     return button;
   }
 
@@ -90,11 +104,46 @@
     host.insertBefore(strip,host.firstChild);
   }
 
+  function normalizeAuthControls(){
+    document.querySelectorAll('.auth-utility-controls').forEach(host=>{
+      if(!(host instanceof HTMLElement))return;
+      const themes=Array.from(host.querySelectorAll('.mf-theme-control'));
+      themes.forEach((node,index)=>{
+        if(!(node instanceof HTMLElement))return;
+        if(index===0){
+          node.hidden=false;
+          node.removeAttribute('aria-hidden');
+        }else{
+          node.hidden=true;
+          node.setAttribute('aria-hidden','true');
+        }
+      });
+    });
+  }
+
+  function inferEditorKind(){
+    const editor=document.querySelector('.editor-screen');
+    if(!(editor instanceof HTMLElement))return;
+    let kind='';
+    try{kind=window.sessionStorage.getItem(pendingKindKey)||'';}catch{}
+    if(!kind){
+      const text=String(editor.textContent||'').toLowerCase();
+      if(text.includes('purchase order')||text.includes('طلب شراء'))kind='purchase-order';
+      else if(text.includes('quotation')||text.includes('عرض سعر')||text.includes('proforma'))kind='proforma';
+      else if(text.includes('invoice')||text.includes('فاتورة'))kind='invoice';
+    }
+    if(!kind)return;
+    editor.dataset.documentKind=kind;
+    try{window.sessionStorage.removeItem(pendingKindKey);}catch{}
+  }
+
   let scheduled=false;
   function reconcile(){
     scheduled=false;
+    normalizeAuthControls();
     ensureAttachmentShortcuts();
     ensureDirectDocumentActions();
+    inferEditorKind();
   }
   function schedule(){
     if(scheduled)return;
