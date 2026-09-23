@@ -35,7 +35,8 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
     doc.appearance={...doc.appearance,watermark:normalizeWatermark(doc.appearance.watermark??defaultWatermark())};
     this.state={doc,saving:false,saveState:'saved',mobilePreview:false,outputBusy:false,activeBlockId:doc.letter.blocks[0]?.id||'',error:''};
   }
-  componentWillUnmount():void{if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);if(this.state.saveState!=='saved'&&!this.state.saving)void this.props.onSave(structuredClone(this.state.doc),true).catch(()=>undefined);}
+  componentDidMount():void{document.documentElement.setAttribute('data-lourex-document-editor',this.state.doc.id||'draft');}
+  componentWillUnmount():void{document.documentElement.removeAttribute('data-lourex-document-editor');if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);if(this.state.saveState!=='saved'&&!this.state.saving)void this.props.onSave(structuredClone(this.state.doc),true).catch(()=>undefined);}
 
   private letter=():LetterDocumentData=>normalizeLetterData(this.state.doc.letter,this.state.doc.language);
   private mutate=(fn:(doc:LourexDocument)=>LourexDocument)=>{

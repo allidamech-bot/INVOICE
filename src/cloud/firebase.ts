@@ -61,7 +61,7 @@ function writeSyncAnchor(uid:string,meta:Pick<CloudVaultMeta,'revision'|'cipherS
 function notifyCloudApplied():void{try{window.dispatchEvent(new Event('lourex-cloud-applied'));}catch{}}
 function inlineDraftWorkspaceOpen():boolean{
   try{
-    if(document.querySelector('.editor-screen,.operations-page,.product-library-pro.editor-open'))return true;
+    if(document.documentElement.hasAttribute('data-lourex-document-editor')||document.querySelector('.editor-screen,.operations-page,.product-library-pro.editor-open'))return true;
     const modal=document.querySelector('.modal-backdrop');
     return Boolean(modal&&!modal.querySelector('.cloud-account-panel,.cloud-auth-form'));
   }catch{return false;}
@@ -95,7 +95,7 @@ export async function waitForCloudUser():Promise<CloudUser|null>{
   const timeoutMs=recent?10_000:5_000;
   return new Promise(resolve=>{
     let settled=false;let off:undefined|(()=>void);
-    const finish=(value:CloudUser|null)=>{if(settled)return;settled=true;if(off)off();try{if(value)sessionStorage.removeItem('lourex-auth-just-signed-in');}catch{}resolve(value);};
+    const finish=(value:CloudUser|null)=>{if(settled)return;settled=true;if(off)off();resolve(value);};
     const timeout=window.setTimeout(()=>finish(userFrom(auth().currentUser)),timeoutMs);
     off=auth().onAuthStateChanged((user:any)=>{window.clearTimeout(timeout);finish(userFrom(user));},()=>{window.clearTimeout(timeout);finish(null);});
   });
