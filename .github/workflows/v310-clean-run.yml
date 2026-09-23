@@ -1,0 +1,33 @@
+name: v310 clean run
+on:
+  push:
+    branches:
+      - fix/v310-no-auto-reload-contrast-rtl
+    paths:
+      - .github/workflows/v310-clean-run.yml
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v310-no-auto-reload-contrast-rtl
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply patch
+        run: python scripts/v310_patch.py
+      - name: Install
+        run: npm ci
+      - name: Build only
+        run: npm run build
+      - name: Commit
+        run: |
+          git config user.name allidamech-bot
+          git config user.email 228416871+allidamech-bot@users.noreply.github.com
+          git add src/app/index.tsx src/cloud/freshness.ts src/cloud/firebase.ts public/pull-to-refresh.js src/styles/v310-stability-contrast.css index.html scripts/v303-visual-cache-refresh.mjs
+          git commit -m "fix(v310): eliminate automatic reloads and correct mobile UI [skip v310]"
+          git push origin HEAD:fix/v310-no-auto-reload-contrast-rtl
