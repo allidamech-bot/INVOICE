@@ -7,7 +7,9 @@
   const mobileCloseoutStyleMarker='data-lourex-v305-mobile-closeout';
   const releaseHardeningStyleMarker='data-lourex-v306-release-hardening';
   const settingsMoreStyleMarker='data-lourex-v307-loading-more-settings';
+  const auditStyleMarker='data-lourex-v311-release-audit';
   const sessionMarkerKey='lourex-invoice-session-v1';
+  const accountScopeRecoveryKey='lourex-account-scope-recovery-v311';
 
   function ensureStylesheet(marker,href){
     if(document.querySelector(`link[${marker}]`))return;
@@ -24,6 +26,7 @@
     ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');
     ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');
     ensureStylesheet(settingsMoreStyleMarker,'./loading-more-settings-v307.css?v=307');
+    ensureStylesheet(auditStyleMarker,'./release-audit-v311.css?v=311');
 
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){
@@ -114,6 +117,30 @@
     window.setTimeout(finish,80);
   }
 
+  // Safari/WebKit can restore Firebase after the public setup screen has already
+  // mounted. index.tsx switches IndexedDB to the UID scope before emitting this
+  // event. If setup is still visible, reload exactly once at this safe pre-work
+  // boundary so React rehydrates from the account database instead of letting a
+  // second PIN be created in stale public state. Never reload an active editor.
+  function recoverLateAuthenticatedAccount(){
+    const setup=document.querySelector('.account-managed-setup');
+    if(!setup)return;
+    if(document.documentElement.hasAttribute('data-lourex-document-editor')||document.querySelector('.editor-screen'))return;
+    let uid='';
+    try{uid=String(window.firebase?.auth?.().currentUser?.uid||'');}catch{}
+    if(!uid)return;
+    const now=Date.now();
+    try{
+      const raw=window.sessionStorage.getItem(accountScopeRecoveryKey);
+      if(raw){
+        const parsed=JSON.parse(raw);
+        if(parsed&&parsed.uid===uid&&Number.isFinite(parsed.at)&&now-parsed.at<15_000)return;
+      }
+      window.sessionStorage.setItem(accountScopeRecoveryKey,JSON.stringify({uid,at:now}));
+    }catch{}
+    window.location.replace(window.location.href);
+  }
+
   let scheduled=false;
   function reconcile(){
     scheduled=false;
@@ -132,6 +159,7 @@
   ensureVisualCoherence();
   document.addEventListener('click',rememberNativeDocumentKind,true);
   document.addEventListener('click',enforceSignOutBoundary,true);
+  window.addEventListener('lourex-cloud-refresh-available',recoverLateAuthenticatedAccount);
   const observer=new MutationObserver(schedule);
   observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['dir','lang','data-ui-theme','data-lourex-booting']});
   document.addEventListener('DOMContentLoaded',schedule,{once:true});

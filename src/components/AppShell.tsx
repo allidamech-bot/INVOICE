@@ -42,14 +42,22 @@ export class AppShell extends React.Component<Props,State>{
   componentDidMount():void{document.addEventListener('keydown',this.handleKeyDown);}
   componentWillUnmount():void{document.removeEventListener('keydown',this.handleKeyDown);}
 
-  componentDidUpdate(prev:Props):void{
-    if(prev.screen!==this.props.screen&&this.state.moreOpen)this.setState({moreOpen:false});
+  componentDidUpdate(prevProps:Props,prevState:State):void{
+    if(prevProps.screen!==this.props.screen&&this.state.moreOpen){this.setState({moreOpen:false});return;}
+    if(!prevState.moreOpen&&this.state.moreOpen)window.requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('#mobile-more-sheet .mobile-more-close')?.focus({preventScroll:true}));
+    if(prevState.moreOpen&&!this.state.moreOpen&&prevProps.screen===this.props.screen)window.requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('button[aria-controls="mobile-more-sheet"]')?.focus({preventScroll:true}));
   }
 
   private handleKeyDown=(event:KeyboardEvent)=>{
-    if(event.key!=='Escape'||!this.state.moreOpen)return;
-    event.preventDefault();
-    this.setState({moreOpen:false});
+    if(!this.state.moreOpen)return;
+    if(event.key==='Escape'){event.preventDefault();this.setState({moreOpen:false});return;}
+    if(event.key!=='Tab')return;
+    const sheet=document.getElementById('mobile-more-sheet');if(!sheet)return;
+    const focusable=Array.from(sheet.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(node=>node.offsetParent!==null);
+    if(!focusable.length){event.preventDefault();return;}
+    const first=focusable[0]!,last=focusable[focusable.length-1]!;
+    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
   };
 
   private closeCreateMenu=()=>{if(this.props.newMenu)this.props.onToggleNew();};

@@ -37,6 +37,7 @@ interface State {
 }
 
 function workflowStatus(doc:LourexDocument):Exclude<WorkspaceStatus,'all'|'voided'>{
+  if(doc.kind==='draft')return 'draft';
   if(doc.status==='final')return 'final';
   return Object.keys(validateDocument(doc)).length===0?'ready':'draft';
 }
@@ -275,12 +276,12 @@ export class DocumentsPage extends React.Component<Props,State>{
     const commercial=[
       [t('Incoterm','الإنكوترم'),doc.terms.incoterm],
       [t('Payment terms','شروط الدفع'),doc.terms.paymentTerms],
-      [t('Delivery','التسليم'),doc.terms.deliveryTime],
+      [doc.kind==='purchase-order'?t('Delivery / Lead Time','مدة التوريد'):t('Delivery','التسليم'),doc.terms.deliveryTime],
       [t('Packing','التعبئة'),doc.terms.packing],
       [t('Origin','المنشأ'),doc.terms.countryOfOrigin],
-      [t('Destination','الوجهة النهائية'),doc.terms.finalDestination],
+      [doc.kind==='purchase-order'?t('Ship To / Delivery Address','عنوان التسليم'):t('Destination','الوجهة النهائية'),doc.terms.finalDestination],
       [t('Port of loading','ميناء التحميل'),doc.terms.portOfLoading],
-      [t('Validity','الصلاحية'),doc.terms.validity]
+      ...(doc.kind==='purchase-order'?[]:[[t('Validity','الصلاحية'),doc.terms.validity]])
     ].filter(([,value])=>Boolean(value));
     const canOutput=doc.status==='final';
     const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
@@ -304,7 +305,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
       <header className={`document-detail-hero kind-${doc.kind}`}>
         <div className="document-detail-identity"><span className="document-detail-kind-icon"><Icon name={doc.kind==='proforma'?'proforma':doc.kind==='purchase-order'?'file':'invoice'}/></span><div><p>{kindLabel(doc)}</p><h1>{doc.number}</h1><span>{partyName(doc)}</span></div></div>
-        <div className="document-detail-value"><small>{t('Total','الإجمالي')}</small><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><div><span className={`document-status-pill status-${visualState}`}>{status}</span>{collection?<span className={`collection-pill collection-${collection.status}`}>{paymentLabel(collection.status)}</span>:null}</div></div>
+        <div className="document-detail-value"><small>{doc.kind==='purchase-order'?t('Order Total','إجمالي الطلب'):t('Total','الإجمالي')}</small><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><div><span className={`document-status-pill status-${visualState}`}>{status}</span>{collection?<span className={`collection-pill collection-${collection.status}`}>{paymentLabel(collection.status)}</span>:null}</div></div>
       </header>
 
       <div className="document-detail-grid">
@@ -406,15 +407,15 @@ export class DocumentsPage extends React.Component<Props,State>{
         const totals=calculateTotals(doc.items,doc.adjustments);
         const state=workflowStatus(doc);
         const visualState=doc.lifecycleStatus==='voided'?'voided':state;
-        const missingCustomer=doc.kind==='purchase-order'?!doc.supplierSnapshot:!hasDocumentCustomer(doc);
+        const missingCustomer=doc.kind==='draft'?false:doc.kind==='purchase-order'?!doc.supplierSnapshot:!hasDocumentCustomer(doc);
         const payment=this.paymentStatus(doc);
-        const statusLabel=doc.lifecycleStatus==='voided'?(doc.kind==='proforma'?t('Cancelled','ملغى'):t('Voided','ملغى')):state==='draft'?(doc.revision>1?t(`Revision ${doc.revision}`,`مراجعة ${doc.revision}`):t('Draft','مسودة')):state==='ready'?t('Ready','جاهز'):t('Issued','صادر');
+        const statusLabel=doc.lifecycleStatus==='voided'?((doc.kind==='proforma'||doc.kind==='purchase-order')?t('Cancelled','ملغى'):t('Voided','ملغى')):state==='draft'?(doc.revision>1?t(`Revision ${doc.revision}`,`مراجعة ${doc.revision}`):t('Draft','مسودة')):state==='ready'?t('Ready','جاهز'):t('Issued','صادر');
         return <article className="documents-register-row" key={doc.id}>
           <button type="button" className="document-register-open" onClick={()=>this.setState({detailId:doc.id,menuId:''})}>
             <span className="register-identity"><strong><bdi>{doc.number}</bdi></strong><span className={`document-kind-pill kind-${doc.kind}`}>{kindLabel(doc)}</span></span>
-            <span className="register-customer"><b>{partyName(doc)}</b><small>{itemCountLabel(doc.items.length)}{missingCustomer? ` · ${doc.kind==='purchase-order'?t('Supplier required','المورد مطلوب'):t('Customer required','العميل مطلوب')}`:''}</small></span>
+            <span className="register-customer"><b>{partyName(doc)}</b><small>{doc.kind==='draft'?t(`${doc.letter?.blocks.length??0} content blocks`,`${doc.letter?.blocks.length??0} فقرات محتوى`):itemCountLabel(doc.items.length)}{missingCustomer? ` · ${doc.kind==='purchase-order'?t('Supplier required','المورد مطلوب'):t('Customer required','العميل مطلوب')}`:''}</small></span>
             <span className="register-date">{displayDate(doc.issueDate,getUiLanguage())}</span>
-            <strong className="register-amount"><bdi>{formatMoney(totals.grandTotal,doc.currency)}</bdi></strong>
+            <strong className="register-amount"><bdi>{doc.kind==='draft'?'—':formatMoney(totals.grandTotal,doc.currency)}</bdi></strong>
             <span className="register-status"><span className={`document-status-pill status-${visualState}`}>{statusLabel}</span>{payment?<span className={`collection-pill collection-${payment}`}>{paymentLabel(payment)}</span>:null}{doc.creditForNumber?<span className="collection-pill lifecycle-link-pill">↳ {doc.creditForNumber}</span>:null}</span>
           </button>
           <div className="document-actions desktop-actions"><IconButton icon="more" label={t('Document actions','إجراءات المستند')} aria-haspopup="menu" aria-expanded={this.state.menuId===doc.id} onClick={(event:any)=>this.toggleMenu(doc,event)}/></div>

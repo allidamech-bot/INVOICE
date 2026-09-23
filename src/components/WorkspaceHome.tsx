@@ -30,6 +30,7 @@ type ChartMode='cash'|'profit';
 interface ChartPoint{key:string;label:string;sales:number;collected:number;profit:number;profitComplete:boolean;}
 
 function customerName(doc:LourexDocument):string{
+  if(doc.kind==='draft')return doc.letter?.recipient||doc.letter?.subject||t('Company document','مستند شركة');
   if(doc.kind==='purchase-order'){
     const supplier=doc.supplierSnapshot;
     if(!supplier)return t('No supplier','بدون مورد');
@@ -48,7 +49,7 @@ function documentLabel(doc:LourexDocument):string{
 }
 
 function documentStatus(doc:LourexDocument,payments:PaymentRecord[],documents:LourexDocument[],today:string):{tone:string;label:string}{
-  if(doc.lifecycleStatus==='voided')return{tone:'void',label:t('Void','ملغى')};
+  if(doc.lifecycleStatus==='voided')return{tone:'void',label:(doc.kind==='proforma'||doc.kind==='purchase-order')?t('Cancelled','ملغى'):t('Void','ملغى')};
   if(doc.status==='draft')return{tone:'draft',label:t('Draft','مسودة')};
   if(doc.kind==='proforma')return{tone:'quotation',label:t('Quotation','عرض سعر')};
   if(doc.kind==='purchase-order')return{tone:'issued',label:t('Issued PO','طلب شراء صادر')};
@@ -121,7 +122,7 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
   const daily=dailyBusinessBrief(documents,payments,purchases,expenses,inventoryMovements,items,today);
   const openInvoices=receivables.reduce((sum,row)=>sum+row.openInvoices,0);
   const overdueInvoices=receivables.reduce((sum,row)=>sum+row.overdueInvoices,0);
-  const drafts=documents.filter(doc=>doc.status==='draft').length;
+  const drafts=documents.filter(doc=>doc.kind!=='draft'&&doc.status==='draft').length;
   const incompleteAccounting=daily.invalidOperations+daily.missingCostItems;
   const recent=[...documents].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,5);
   const displayedItemCount=items.length||(itemCount??0);
@@ -192,7 +193,7 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
     </div>
 
     <section className="dashboard-quick-actions" aria-label={t('Quick actions','إجراءات سريعة')}>
-      <button type="button" className="quick-action-primary" onClick={onNewDocument}><span><Icon name="plus"/></span><strong>{t('New document','مستند جديد')}</strong><small>{t('Quote, invoice or purchase order','عرض سعر أو فاتورة أو طلب شراء')}</small></button>
+      <button type="button" className="quick-action-primary" onClick={onNewDocument}><span><Icon name="plus"/></span><strong>{t('New document','مستند جديد')}</strong><small>{t('Quote, invoice, purchase order or company draft','عرض سعر أو فاتورة أو طلب شراء أو مسودة شركة')}</small></button>
       <button type="button" onClick={()=>onNavigate('customers')}><span><Icon name="users"/></span><strong>{t('Add customer','إضافة عميل')}</strong><small>{t('Customer directory','دليل العملاء')}</small></button>
       <button type="button" onClick={()=>onNavigate('items')}><span><Icon name="items"/></span><strong>{t('Add product','إضافة منتج')}</strong><small>{t('Catalog & stock','الكتالوج والمخزون')}</small></button>
       <button type="button" onClick={()=>onNavigate('operations')}><span><Icon name="backup"/></span><strong>{t('Record purchase','تسجيل شراء')}</strong><small>{t('Suppliers & landed cost','الموردون وتكلفة الوصول')}</small></button>
@@ -261,18 +262,18 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
 
     <section className="dashboard-panel dashboard-recent command-recent">
       <header className="dashboard-panel-heading"><div><small>{t('Recent activity','آخر النشاط')}</small><h2>{t('Recent documents','آخر المستندات')}</h2></div><button type="button" onClick={()=>onNavigate('documents')}>{t('View all','عرض الكل')} <span aria-hidden="true">→</span></button></header>
-      {recent.length?<div className="dashboard-document-list"><div className="dashboard-document-head" aria-hidden="true"><span/><span>{t('Document','المستند')}</span><span>{t('Customer','العميل')}</span><span>{t('Date','التاريخ')}</span><span>{t('Amount','المبلغ')}</span><span>{t('Status','الحالة')}</span></div>{recent.map(doc=>{
+      {recent.length?<div className="dashboard-document-list"><div className="dashboard-document-head" aria-hidden="true"><span/><span>{t('Document','المستند')}</span><span>{t('Party / subject','الطرف / الموضوع')}</span><span>{t('Date','التاريخ')}</span><span>{t('Amount','المبلغ')}</span><span>{t('Status','الحالة')}</span></div>{recent.map(doc=>{
         const total=calculateTotals(doc.items,doc.adjustments).grandTotal;
         const status=documentStatus(doc,payments,documents,today);
         return <button type="button" key={doc.id} className="dashboard-document-row" onClick={()=>onOpenDocument(doc)}>
-          <span className={`dashboard-document-kind kind-${doc.kind}`}><Icon name={doc.kind==='proforma'?'proforma':'invoice'}/></span>
+          <span className={`dashboard-document-kind kind-${doc.kind}`}><Icon name={doc.kind==='proforma'?'proforma':doc.kind==='purchase-order'?'file':doc.kind==='draft'?'edit':'invoice'}/></span>
           <span className="dashboard-document-copy"><strong>{doc.number}</strong><small>{documentLabel(doc)}</small></span>
           <span className="dashboard-document-customer">{customerName(doc)}</span>
           <span className="dashboard-document-date">{displayDate(doc.issueDate,getUiLanguage())}</span>
-          <strong className="dashboard-document-amount">{formatMoney(total,doc.currency)}</strong>
+          <strong className="dashboard-document-amount">{doc.kind==='draft'?'—':formatMoney(total,doc.currency)}</strong>
           <span className={`dashboard-document-status status-${status.tone}`}>{status.label}</span>
         </button>;
-      })}</div>:<div className="dashboard-empty"><Icon name="file"/><strong>{t('No documents yet','لا توجد مستندات بعد')}</strong><span>{t('Create your first quotation or invoice. LOUREX will build your command center from real activity.','أنشئ أول عرض سعر أو فاتورة وسيبني LOUREX مركز القيادة من نشاطك الحقيقي.')}</span><Button icon="plus" variant="primary" onClick={onNewDocument}>{t('New Document','مستند جديد')}</Button></div>}
+      })}</div>:<div className="dashboard-empty"><Icon name="file"/><strong>{t('No documents yet','لا توجد مستندات بعد')}</strong><span>{t('Create your first business document. LOUREX will build your command center from real activity.','أنشئ أول مستند أعمال وسيبني LOUREX مركز القيادة من نشاطك الحقيقي.')}</span><Button icon="plus" variant="primary" onClick={onNewDocument}>{t('New Document','مستند جديد')}</Button></div>}
     </section>
 
     <LourexAdvisorCard language={getUiLanguage()}/>

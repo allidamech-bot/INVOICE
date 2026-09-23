@@ -48,7 +48,11 @@ class AdaptiveCloudApp extends BaseApp {
         const next=mutation(latest);
         const encrypted=await saveVault(key,next);
         instance.latestEncryptedVault=encrypted;
-        if(instance.state.unlocked&&instance.state.key===key)await new Promise<void>(resolve=>instance.setState({vault:next},resolve));
+        if(instance.state.unlocked&&instance.state.key===key){
+          const currentEditor=instance.state.editorDoc;
+          const refreshedEditor=currentEditor?next.documents.find((doc:any)=>doc.id===currentEditor.id):null;
+          await new Promise<void>(resolve=>instance.setState(refreshedEditor?{vault:next,editorDoc:structuredClone(refreshedEditor)}:{vault:next},resolve));
+        }
         instance.scheduleCloudSync();
         return next;
       });
@@ -200,8 +204,9 @@ async function resolveRequiredAccountSession():Promise<boolean>{
     // different account on the same device therefore cannot inherit this user's
     // encrypted vault, session key, preferences or cloud-link metadata.
     await activateAccountStorage(user.uid);
-    // Every explicit Firebase/Google login must cross the local encryption PIN gate.
-    // Normal reloads can still resume the UID-bound unlocked session.
+    // Every explicit Firebase/Google login and every new page runtime must cross
+    // the local encryption PIN gate. resumeAccountSession() intentionally selects
+    // the UID scope without authorizing a persisted CryptoKey.
     let freshLogin=false;
     try{freshLogin=sessionStorage.getItem('lourex-auth-just-signed-in')==='1';if(freshLogin)sessionStorage.removeItem('lourex-auth-just-signed-in');}catch{}
     if(freshLogin)await suspendSession();else await resumeAccountSession(user.uid);
@@ -312,12 +317,16 @@ function inventoryEntryHasDraftInput():boolean{
 
 function manualLockUnsafeWorkspaceOpen():boolean{
   if(isDocumentEditorOpen())return true;
-  const editableOperations=Boolean(document.querySelector('.operations-editor:not(.purchase-editor),.purchase-editor fieldset:not([disabled])'));
-  return editableOperations||Boolean(document.querySelector('.product-library-pro.editor-open,.modal-backdrop'))||inventoryEntryHasDraftInput();
+  // Settings is itself a modal and owns its own unsaved-settings check before it
+  // calls onLock(). Do not reject a deliberate Lock merely because that modal is
+  // open. Only real inline draft state should block a manual lock.
+  return document.documentElement.hasAttribute('data-lourex-workspace-dirty')||inventoryEntryHasDraftInput();
 }
 
 function reloadUnsafeWorkspaceOpen():boolean{
-  return isDocumentEditorOpen()||Boolean(document.querySelector('.operations-page,.product-library-pro.editor-open,.modal-backdrop'));
+  // Browsing Operations is safe. Reload protection follows actual dirty state,
+  // document editors and active dialogs rather than the mere presence of a page.
+  return isDocumentEditorOpen()||document.documentElement.hasAttribute('data-lourex-workspace-dirty')||Boolean(document.querySelector('.modal-backdrop'));
 }
 
 function safeSignedOutAuthGatewayForAutomaticReload():boolean{

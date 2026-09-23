@@ -69,8 +69,9 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
   private mutationInFlight=false;
   state:State={query:'',category:'',favoriteOnly:false,sortMode:'smart',editing:null,editingInitial:'',deleting:null,busy:false,error:'',importOpen:false,discardAction:'',pendingEdit:null,selectionMode:false,selectedIds:[],libraryMenuOpen:false,rowMenuId:null,bulkDeleteConfirm:false};
 
-  componentDidMount():void{document.addEventListener('pointerdown',this.closeMenus);document.addEventListener('keydown',this.closeMenusOnEscape);window.addEventListener('lourex-open-product-editor',this.handleQuickCreate);}
-  componentWillUnmount():void{document.removeEventListener('pointerdown',this.closeMenus);document.removeEventListener('keydown',this.closeMenusOnEscape);window.removeEventListener('lourex-open-product-editor',this.handleQuickCreate);}
+  componentDidMount():void{document.addEventListener('pointerdown',this.closeMenus);document.addEventListener('keydown',this.closeMenusOnEscape);window.addEventListener('lourex-open-product-editor',this.handleQuickCreate);window.addEventListener('beforeunload',this.handleBeforeUnload);this.syncDirtyMarker();}
+  componentDidUpdate():void{this.syncDirtyMarker();}
+  componentWillUnmount():void{document.removeEventListener('pointerdown',this.closeMenus);document.removeEventListener('keydown',this.closeMenusOnEscape);window.removeEventListener('lourex-open-product-editor',this.handleQuickCreate);window.removeEventListener('beforeunload',this.handleBeforeUnload);if(document.documentElement.getAttribute('data-lourex-workspace-dirty')==='products')document.documentElement.removeAttribute('data-lourex-workspace-dirty');}
   private handleQuickCreate=()=>this.newItem();
 
   private closeMenus=(event:PointerEvent)=>{const target=event.target;if(target instanceof Element&&target.closest('.product-library-overflow,.product-library-row-menu-wrap'))return;if(this.state.libraryMenuOpen||this.state.rowMenuId)this.setState({libraryMenuOpen:false,rowMenuId:null});};
@@ -84,6 +85,8 @@ export class ProductLibraryWorkspace extends React.Component<Props,State>{
   };
 
   private editingDirty=():boolean=>Boolean(this.state.editing&&(!this.state.editingInitial||JSON.stringify(this.state.editing)!==this.state.editingInitial));
+  private syncDirtyMarker=()=>{const root=document.documentElement;if(this.editingDirty())root.setAttribute('data-lourex-workspace-dirty','products');else if(root.getAttribute('data-lourex-workspace-dirty')==='products')root.removeAttribute('data-lourex-workspace-dirty');};
+  private handleBeforeUnload=(event:BeforeUnloadEvent)=>{if(!this.editingDirty())return;event.preventDefault();event.returnValue='';};
 
   private beginEdit=(item:SavedItem)=>{
     if(this.mutating()||this.state.selectionMode||this.state.editing?.id===item.id)return;

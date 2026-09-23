@@ -28,6 +28,7 @@ const SIZE_OPTIONS=[10,11,12,13,14,15,16,18,20,22,24,28,32,36,42,48];
 export class DraftDocumentEditor extends React.Component<Props,State>{
   private autosaveTimer:number|undefined;
   private revision=0;
+  private departureFlushQueued=false;
   constructor(props:Props){
     super(props);
     const doc=structuredClone(props.document);
@@ -35,12 +36,35 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
     doc.appearance={...doc.appearance,watermark:normalizeWatermark(doc.appearance.watermark??defaultWatermark())};
     this.state={doc,saving:false,saveState:'saved',mobilePreview:false,outputBusy:false,activeBlockId:doc.letter.blocks[0]?.id||'',error:''};
   }
-  componentDidMount():void{document.documentElement.setAttribute('data-lourex-document-editor',this.state.doc.id||'draft');}
-  componentWillUnmount():void{document.documentElement.removeAttribute('data-lourex-document-editor');if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);if(this.state.saveState!=='saved'&&!this.state.saving)void this.props.onSave(structuredClone(this.state.doc),true).catch(()=>undefined);}
+  componentDidMount():void{
+    document.documentElement.setAttribute('data-lourex-document-editor',this.state.doc.id||'draft');
+    document.addEventListener('visibilitychange',this.handleVisibilityChange);
+    window.addEventListener('beforeunload',this.handleBeforeUnload);
+    window.addEventListener('pagehide',this.handlePageHide);
+  }
+  componentWillUnmount():void{
+    document.removeEventListener('visibilitychange',this.handleVisibilityChange);
+    window.removeEventListener('beforeunload',this.handleBeforeUnload);
+    window.removeEventListener('pagehide',this.handlePageHide);
+    if(document.documentElement.getAttribute('data-lourex-document-editor')===(this.state.doc.id||'draft'))document.documentElement.removeAttribute('data-lourex-document-editor');
+    if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);
+    this.flushPendingSnapshot();
+  }
+  private handleVisibilityChange=()=>{if(document.visibilityState!=='hidden'||this.state.saveState==='saved')return;if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);void this.save(true);};
+  private handleBeforeUnload=(event:BeforeUnloadEvent)=>{if(this.state.saveState==='saved'&&!this.state.saving)return;this.flushPendingSnapshot();event.preventDefault();event.returnValue='';};
+  private handlePageHide=()=>this.flushPendingSnapshot();
+  private flushPendingSnapshot=()=>{
+    if(this.departureFlushQueued||this.state.saveState==='saved'&&!this.state.saving)return;
+    this.departureFlushQueued=true;
+    if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);
+    const snapshot=structuredClone(this.state.doc);
+    void this.props.onSave(snapshot,true).catch(()=>{this.departureFlushQueued=false;});
+  };
 
   private letter=():LetterDocumentData=>normalizeLetterData(this.state.doc.letter,this.state.doc.language);
   private mutate=(fn:(doc:LourexDocument)=>LourexDocument)=>{
     this.props.onEditActivity?.();
+    this.departureFlushQueued=false;
     this.revision+=1;
     const doc={...fn(this.state.doc),updatedAt:new Date().toISOString()};
     this.setState({doc,saveState:'unsaved',error:''},this.schedule);
@@ -57,12 +81,28 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
     try{await this.props.onSave(doc,auto);const newer=start!==this.revision;this.setState({saving:false,saveState:newer?'unsaved':'saved'},()=>{if(newer)this.schedule();});}
     catch(e){this.setState({saving:false,saveState:'unsaved',error:e instanceof Error?e.message:t('Unable to save document.','تعذر حفظ المستند.')});}
   };
-  private saveAndClose=async()=>{if(this.state.saveState==='saved'){this.props.onClose();return;}await this.save(true);if(!this.state.error)this.props.onClose();};
+  private persistStable=async():Promise<LourexDocument|null>=>{
+    if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);
+    while(this.state.saving)await new Promise<void>(resolve=>window.setTimeout(resolve,40));
+    for(;;){
+      const doc=structuredClone(this.state.doc);
+      if(!doc.number.trim()){this.setState({error:t('Document number is required.','رقم المستند مطلوب.'),saveState:'unsaved'});return null;}
+      if(!doc.issueDate){this.setState({error:t('Document date is required.','تاريخ المستند مطلوب.'),saveState:'unsaved'});return null;}
+      const start=this.revision;
+      this.setState({saving:true,saveState:'saving',error:''});
+      try{await this.props.onSave(doc,true);}
+      catch(e){this.setState({saving:false,saveState:'unsaved',error:e instanceof Error?e.message:t('Unable to save document.','تعذر حفظ المستند.')});return null;}
+      if(start!==this.revision){this.setState({saving:false,saveState:'unsaved'});continue;}
+      this.departureFlushQueued=false;
+      this.setState({saving:false,saveState:'saved',error:''});
+      return doc;
+    }
+  };
+  private saveAndClose=async()=>{if(this.state.saveState==='saved'){this.props.onClose();return;}const saved=await this.persistStable();if(saved)this.props.onClose();};
   private output=async(mode:'print'|'pdf'|'share')=>{
     if(this.state.outputBusy)return;
-    if(this.state.saveState!=='saved')await this.save(true);
-    const doc=structuredClone(this.state.doc);
-    if(!doc.number.trim()||!doc.issueDate)return;
+    const doc=this.state.saveState==='saved'?structuredClone(this.state.doc):await this.persistStable();
+    if(!doc)return;
     try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
     this.setState({outputBusy:true,error:'',mobilePreview:false});
     try{await this.props.onPrint(doc,mode);}catch(e){this.setState({error:e instanceof Error?e.message:t('Unable to prepare document.','تعذر تجهيز المستند.')});}

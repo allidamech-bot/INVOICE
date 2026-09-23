@@ -4,18 +4,30 @@ import { Button, Icon, IconButton } from './UI.js';
 interface Props { document:LourexDocument; onChange:(document:LourexDocument)=>void; }
 interface State { busy:boolean; error:string; preview:DocumentAttachment|null; }
 const MAX_FILE_BYTES=5*1024*1024,MAX_TOTAL_BYTES=20*1024*1024,MAX_FILES=8;
-const IMAGE_EXTENSION=/\.(png|jpe?g|webp|heic|heif)$/i;
+const IMAGE_EXTENSION=/\.(png|jpe?g|webp|gif|heic|heif)$/i;
 const PDF_EXTENSION=/\.pdf$/i;
 type AttachmentKind='image'|'pdf';
 function attachmentKind(file:File):AttachmentKind|null{
   const mime=(file.type||'').trim().toLowerCase();
+  const safeImages=new Set(['image/png','image/jpeg','image/webp','image/gif','image/heic','image/heif']);
   if(mime==='application/pdf')return'pdf';
-  if(mime.startsWith('image/'))return'image';
+  if(safeImages.has(mime))return'image';
   if(!mime||mime==='application/octet-stream'){
     if(PDF_EXTENSION.test(file.name))return'pdf';
     if(IMAGE_EXTENSION.test(file.name))return'image';
   }
   return null;
+}
+function ascii(bytes:Uint8Array,start:number,length:number):string{return String.fromCharCode(...bytes.slice(start,start+length));}
+async function genuineAttachment(file:File,kind:AttachmentKind):Promise<boolean>{
+  const bytes=new Uint8Array(await file.slice(0,32).arrayBuffer());
+  if(kind==='pdf')return bytes.length>=5&&ascii(bytes,0,5)==='%PDF-';
+  if(bytes.length>=8&&bytes[0]===0x89&&ascii(bytes,1,3)==='PNG'&&bytes[4]===0x0d&&bytes[5]===0x0a&&bytes[6]===0x1a&&bytes[7]===0x0a)return true;
+  if(bytes.length>=3&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)return true;
+  if(bytes.length>=12&&ascii(bytes,0,4)==='RIFF'&&ascii(bytes,8,4)==='WEBP')return true;
+  if(bytes.length>=6&&(ascii(bytes,0,6)==='GIF87a'||ascii(bytes,0,6)==='GIF89a'))return true;
+  if(bytes.length>=12&&ascii(bytes,4,4)==='ftyp'){const brand=ascii(bytes,8,4).toLowerCase();if(['heic','heix','hevc','hevx','heim','heis','mif1','msf1'].includes(brand))return true;}
+  return false;
 }
 function normalizedMime(file:File,kind:AttachmentKind):string{
   if(kind==='pdf')return'application/pdf';
@@ -24,6 +36,7 @@ function normalizedMime(file:File,kind:AttachmentKind):string{
   const lower=file.name.toLowerCase();
   if(lower.endsWith('.png'))return'image/png';
   if(lower.endsWith('.webp'))return'image/webp';
+  if(lower.endsWith('.gif'))return'image/gif';
   if(lower.endsWith('.heic'))return'image/heic';
   if(lower.endsWith('.heif'))return'image/heif';
   return'image/jpeg';
@@ -35,9 +48,12 @@ function isPdfAttachment(attachment:DocumentAttachment):boolean{return attachmen
 function isImageAttachment(attachment:DocumentAttachment):boolean{return attachment.mimeType.startsWith('image/')||IMAGE_EXTENSION.test(attachment.name);}
 export class DocumentAttachmentsSection extends React.Component<Props,State>{
   state:State={busy:false,error:'',preview:null};private input:HTMLInputElement|null=null;
+  componentDidMount():void{document.addEventListener('keydown',this.handleKeyDown);}
+  componentWillUnmount():void{document.removeEventListener('keydown',this.handleKeyDown);}
+  private handleKeyDown=(event:KeyboardEvent)=>{if(event.key==='Escape'&&this.state.preview){event.preventDefault();this.closePreview();}};
   private add=async(event:any)=>{const input=event.target as HTMLInputElement,files=Array.from(input.files??[]),current=this.props.document.attachments??[];if(!files.length)return;
     if(current.length+files.length>MAX_FILES){this.setState({error:t('A document can contain up to 8 attachments.','يمكن أن يحتوي المستند على 8 مرفقات كحد أقصى.')});input.value='';return;}
-    for(const file of files){if(!attachmentKind(file)){this.setState({error:t('Only genuine PDF and image attachments are supported.','المرفقات المدعومة هي ملفات PDF والصور الفعلية فقط.')});input.value='';return;}if(file.size>MAX_FILE_BYTES){this.setState({error:t('Each attachment must be 5 MB or smaller.','يجب ألا يتجاوز حجم كل مرفق 5 ميغابايت.')});input.value='';return;}}
+    for(const file of files){const kind=attachmentKind(file);if(!kind||!await genuineAttachment(file,kind)){this.setState({error:t('Only genuine PDF, PNG, JPEG, WebP, GIF, HEIC and HEIF files are supported.','تُقبل فقط ملفات PDF وPNG وJPEG وWebP وGIF وHEIC وHEIF الأصلية.')});input.value='';return;}if(file.size>MAX_FILE_BYTES){this.setState({error:t('Each attachment must be 5 MB or smaller.','يجب ألا يتجاوز حجم كل مرفق 5 ميغابايت.')});input.value='';return;}}
     if(current.reduce((n,a)=>n+(a.size||0),0)+files.reduce((n,f)=>n+f.size,0)>MAX_TOTAL_BYTES){this.setState({error:t('Attachments are limited to 20 MB per document.','إجمالي مرفقات المستند محدود بـ 20 ميغابايت.')});input.value='';return;}
     this.setState({busy:true,error:''});try{const added=await Promise.all(files.map(asAttachment));this.props.onChange({...this.props.document,attachments:[...current,...added]});}catch(e){this.setState({error:e instanceof Error?e.message:t('Unable to add attachment.','تعذر إضافة المرفق.')});}finally{this.setState({busy:false});input.value='';}}
   private remove=(id:string)=>this.props.onChange({...this.props.document,attachments:(this.props.document.attachments??[]).filter(a=>a.id!==id)});
@@ -52,7 +68,7 @@ export class DocumentAttachmentsSection extends React.Component<Props,State>{
           <Button className="attachment-add-button" icon="plus" disabled={this.state.busy||list.length>=MAX_FILES} onClick={()=>this.input?.click()}>{this.state.busy?t('Adding…','جارٍ الإضافة…'):t('Add attachment','إضافة مرفق')}</Button>
           <span className="attachment-add-note">{t('Images or PDF · up to 5 MB each','صور أو PDF · حتى 5 ميغابايت لكل ملف')}</span>
         </div>
-        <input ref={(n:HTMLInputElement|null)=>{this.input=n;}} className="document-attachment-input" type="file" accept="image/*,application/pdf,.pdf" multiple onChange={this.add}/>
+        <input ref={(n:HTMLInputElement|null)=>{this.input=n;}} className="document-attachment-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/heic,image/heif,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.gif,.heic,.heif" multiple onChange={this.add}/>
         <p className="attachment-help">{t('Attach supplier files, purchase documents, scans, product images, or any supporting PDF directly to this document. Files stay inside the encrypted LOUREX workspace.','أرفق ملفات المورد أو مستندات الشراء أو الصور الممسوحة أو صور المنتجات أو أي PDF داعم مباشرة بهذا المستند. تبقى الملفات داخل مساحة LOUREX المشفّرة.')}</p>
         {this.state.error?<div className="inline-error">{this.state.error}</div>:null}
         {list.length?<div className="document-attachment-list">{list.map(attachment=>{

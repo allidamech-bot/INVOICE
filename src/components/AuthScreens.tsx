@@ -2,8 +2,8 @@ import type { CompanySettings, UiLanguage } from '../types.js';
 import { Brand, Button, Field, Input } from './UI.js';
 import { fileToDataUrl } from '../lib/files.js';
 import { t } from '../lib/i18n.js';
-import { currentCloudUser } from '../cloud/firebase.js';
-import { getAccountVaultSecret } from '../cloud/account-access.js';
+import { currentCloudUser, pushLocalVaultToCloud } from '../cloud/firebase.js';
+import { getAccountVaultSecret, retireAccountVaultSecret } from '../cloud/account-access.js';
 import { changePin } from '../storage/vault.js';
 import { getSecurity } from '../storage/db.js';
 import { verifyPin } from '../crypto/crypto.js';
@@ -135,7 +135,18 @@ export class UnlockScreen extends React.Component<UnlockProps, UnlockState> {
     try{
       if(this.state.migrateAccountSecret){
         if(!this.accountSecret)throw new Error(t('Secure upgrade data is unavailable. Reload and try again.','بيانات الترقية الآمنة غير متاحة. أعد تحميل الصفحة وحاول مجددًا.'));
+        const user=currentCloudUser();
+        if(!user)throw new Error(t('Your account session ended. Sign in again.','انتهت جلسة حسابك. سجّل الدخول مرة أخرى.'));
         await changePin(this.accountSecret,pin);
+        // Publish only through the normal divergence-safe cloud path. Missing or
+        // stale anchors must never turn a PIN migration into a forced overwrite
+        // of newer data from another device. The local PIN remains authoritative
+        // immediately; the legacy secret is retired once safe publication lands.
+        try{
+          const result=await pushLocalVaultToCloud(user.uid);
+          if(result==='pushed'||result==='same')await retireAccountVaultSecret(user.uid);
+        }catch{}
+        this.accountSecret='';
       }
       await this.props.onUnlock(pin);
     }catch(error){
