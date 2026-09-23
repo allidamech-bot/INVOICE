@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   closeout:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -47,7 +48,7 @@ jobs:
             'src/lib/document-kinds.ts','src/lib/defaults.ts','src/storage/vault.ts','src/lib/documents.ts',
             'src/app/App.tsx','src/components/EditorPageCore.tsx','src/templates/TemplateRenderer.tsx',
             'src/lib/document-quality.ts','src/components/DocumentLifecyclePanel.tsx','src/lib/i18n.ts',
-            'tests/v312-business-document-suite.test.mjs'
+            'tests/v312-business-document-suite.test.mjs','tests/account-authoritative-sync.test.mjs','tests/audit-batch3.test.mjs'
           ]
           for path in paths:
             p=Path(path)
@@ -61,6 +62,8 @@ jobs:
         run: npm run typecheck
       - name: Production build
         run: npm run build
+      - name: Full unit suite
+        run: node scripts/run-unit-tests.mjs
       - name: v312 focused regression
         run: node --test tests/v312-business-document-suite.test.mjs
       - name: Related document regression
@@ -68,6 +71,7 @@ jobs:
       - name: Commit clean closeout
         run: |
           rm scripts/v312-final-closeout.py
+          rm -f scripts/v312-final-clean-audit.py
           rm .github/workflows/v312-final-closeout.yml
           git diff --check
           git config user.name "github-actions[bot]"
