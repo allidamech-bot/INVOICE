@@ -254,7 +254,7 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
   const termsCount=values.length;
   const notes=safeValue(doc,doc.notes);
   const detailsChars=values.reduce((sum,value)=>sum+value.length,0)+notes.length;
-  const bank = doc.appearance.showBank && Object.values(doc.companySnapshot.bank).some(value => value.trim());
+  const bank = documentBankAllowed(doc.kind) && doc.appearance.showBank && Object.values(doc.companySnapshot.bank).some(value => value.trim());
   const signing = (doc.appearance.showSignature && Boolean(doc.companySnapshot.signatureDataUrl)) || (doc.appearance.showStamp && Boolean(doc.companySnapshot.stampDataUrl));
   const adjustments = [doc.adjustments.discountEnabled, doc.adjustments.shippingEnabled, doc.adjustments.otherChargesEnabled, doc.adjustments.taxEnabled].filter(Boolean).length;
   const score = termsCount + (notes ? 3 : 0) + (bank ? 4 : 0) + (signing ? 3 : 0) + adjustments;

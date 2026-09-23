@@ -311,7 +311,7 @@ export class DocumentsPage extends React.Component<Props,State>{
             <header><h2>{t('Document overview','بيانات المستند')}</h2></header>
             <div className="document-detail-facts">
               <div><small>{doc.kind==='purchase-order'?t('Order date','تاريخ الطلب'):t('Issue date','تاريخ الإصدار')}</small><strong>{displayDate(doc.issueDate,getUiLanguage())}</strong></div>
-              <div><small>{doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):doc.kind==='purchase-order'?t('Requested delivery','التسليم المطلوب'):(doc.kind==='proforma'||doc.kind==='proforma-invoice'||doc.kind==='rfq')?t('Valid until','صالح حتى'):t('Additional date','تاريخ إضافي')}</small><strong>{doc.dueDate?displayDate(doc.dueDate,getUiLanguage()):'—'}</strong></div>
+              <div><small>{doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):doc.kind==='purchase-order'?t('Requested delivery','التسليم المطلوب'):(doc.kind==='proforma'||doc.kind==='proforma-invoice')?t('Valid until','صالح حتى'):t('Additional date','تاريخ إضافي')}</small><strong>{doc.dueDate?displayDate(doc.dueDate,getUiLanguage()):'—'}</strong></div>
               <div><small>{t('Currency','العملة')}</small><strong>{doc.currency}</strong></div>
               <div><small>{t('Language','اللغة')}</small><strong>{doc.language==='bilingual'?t('Bilingual','ثنائي اللغة'):doc.language==='ar'?t('Arabic','العربية'):t('English','الإنجليزية')}</strong></div>
             </div>
@@ -324,14 +324,14 @@ export class DocumentsPage extends React.Component<Props,State>{
               const tradeMeta=[item.hsCode?`HS ${item.hsCode}`:'',item.origin?`${t('Origin','المنشأ')}: ${item.origin}`:'',item.packing?`${t('Packing','التعبئة')}: ${item.packing}`:''].filter(Boolean).join(' · ');
               return <div key={item.id} className="document-detail-item-row"><span><strong>{isArabic()?(item.descriptionAr||item.descriptionEn):(item.descriptionEn||item.descriptionAr)||t('Item','صنف')}</strong>{tradeMeta?<small>{tradeMeta}</small>:null}</span><span data-label={t('Qty: ','الكمية: ')}>{item.quantity}</span><span data-label={t('Unit: ','الوحدة: ')}>{item.unit}</span><span data-label={doc.kind==='purchase-order'?t('Unit Cost: ','تكلفة الوحدة: '):t('Price: ','السعر: ')}>{priceOptional?'—':formatMoney(item.unitPrice,doc.currency)}</span><span data-label={t('Total: ','الإجمالي: ')}>{priceOptional?'—':formatMoney(lineTotal(item.quantity,item.unitPrice),doc.currency)}</span></div>;
             })}</div>
-            <div className="document-detail-totals">
+            {!priceOptional?<div className="document-detail-totals">
               <div><span>{t('Subtotal','المجموع الفرعي')}</span><strong>{formatMoney(totals.subtotal,doc.currency)}</strong></div>
               {doc.adjustments.discountEnabled?<div><span>{t('Discount','الخصم')}</span><strong>- {formatMoney(totals.discount,doc.currency)}</strong></div>:null}
               {doc.adjustments.shippingEnabled?<div><span>{t('Shipping','الشحن')}</span><strong>{formatMoney(totals.shipping,doc.currency)}</strong></div>:null}
               {doc.adjustments.otherChargesEnabled?<div><span>{t('Other charges','رسوم أخرى')}</span><strong>{formatMoney(totals.otherCharges,doc.currency)}</strong></div>:null}
               {doc.adjustments.taxEnabled?<div><span>{t(`Tax ${doc.adjustments.taxPercent}%`,`الضريبة ${doc.adjustments.taxPercent}%`)}</span><strong>{formatMoney(totals.tax,doc.currency)}</strong></div>:null}
               <div className="grand"><span>{t('Grand total','الإجمالي النهائي')}</span><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong></div>
-            </div>
+            </div>:null}
           </section>
 
           {commercial.length?<section className="document-detail-card"><header><h2>{t('Commercial terms','الشروط التجارية')}</h2></header><div className="document-detail-terms">{commercial.map(([label,value])=><div key={String(label)}><small>{label}</small><strong>{value}</strong></div>)}</div></section>:null}
