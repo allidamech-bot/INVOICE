@@ -83,13 +83,24 @@ export class EditorPage extends React.Component<Props,State>{
     document.addEventListener('visibilitychange',this.handleVisibilityChange);
     window.addEventListener('beforeunload',this.handleBeforeUnload);
     window.addEventListener('pagehide',this.handlePageHide);
+    window.addEventListener('lourex-ai-document-updated',this.handleAiDocumentUpdated as EventListener);
     this.previewMedia=window.matchMedia('(min-width:1181px)');
     this.previewMedia.addEventListener?.('change',this.handlePreviewMedia);
   }
   componentDidUpdate(prevProps:Props):void{if(prevProps.company!==this.props.company&&this.state.doc.status==='draft')this.mutate(doc=>draftWithLatestCompany(doc,this.props.company));}
-  componentWillUnmount():void{this.flushPendingSnapshot();if(this.autosaveTimer)clearTimeout(this.autosaveTimer);if(this.previewTimer)clearTimeout(this.previewTimer);this.previewMedia?.removeEventListener?.('change',this.handlePreviewMedia);document.removeEventListener('visibilitychange',this.handleVisibilityChange);window.removeEventListener('beforeunload',this.handleBeforeUnload);window.removeEventListener('pagehide',this.handlePageHide);}
+  componentWillUnmount():void{this.flushPendingSnapshot();if(this.autosaveTimer)clearTimeout(this.autosaveTimer);if(this.previewTimer)clearTimeout(this.previewTimer);this.previewMedia?.removeEventListener?.('change',this.handlePreviewMedia);document.removeEventListener('visibilitychange',this.handleVisibilityChange);window.removeEventListener('beforeunload',this.handleBeforeUnload);window.removeEventListener('pagehide',this.handlePageHide);window.removeEventListener('lourex-ai-document-updated',this.handleAiDocumentUpdated as EventListener);}
 
   private handlePreviewMedia=(event:MediaQueryListEvent)=>this.setState(state=>({desktopPreview:event.matches,previewDoc:event.matches?structuredClone(state.doc):state.previewDoc}));
+  private handleAiDocumentUpdated=(event:Event)=>{
+    const updated=(event as CustomEvent<LourexDocument>).detail;
+    if(!updated||updated.id!==this.state.doc.id||this.state.doc.status==='final')return;
+    if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);
+    if(this.previewTimer)window.clearTimeout(this.previewTimer);
+    this.departureFlushQueued=false;
+    this.editRevision+=1;
+    const doc=structuredClone(updated);
+    this.setState({doc,previewDoc:structuredClone(doc),saving:false,saveState:'saved',errors:{}});
+  };
 
   private handleVisibilityChange=()=>{
     if(document.visibilityState!=='hidden'||this.state.doc.status==='final'||this.state.saveState==='saved')return;

@@ -48,7 +48,11 @@ class AdaptiveCloudApp extends BaseApp {
         const next=mutation(latest);
         const encrypted=await saveVault(key,next);
         instance.latestEncryptedVault=encrypted;
-        if(instance.state.unlocked&&instance.state.key===key)await new Promise<void>(resolve=>instance.setState({vault:next},resolve));
+        if(instance.state.unlocked&&instance.state.key===key){
+          const currentEditor=instance.state.editorDoc;
+          const refreshedEditor=currentEditor?next.documents.find((doc:any)=>doc.id===currentEditor.id):null;
+          await new Promise<void>(resolve=>instance.setState(refreshedEditor?{vault:next,editorDoc:structuredClone(refreshedEditor)}:{vault:next},resolve));
+        }
         instance.scheduleCloudSync();
         return next;
       });
