@@ -1,3 +1,4 @@
+// v314 Batch 0 stability — network-fresh app shell, resilient precache, scoped cache cleanup.
 // v302 real PIN + document entry closeout — recache mandatory PIN access, attachment/PO shortcuts and zero-gap startup.
 // v301 mobile UX closeout — preview, settings, document-create stability and dark first paint.
 // v284 Home corrective rebuild — refresh cached Home styling and restored LOUREX brand asset.
@@ -85,7 +86,8 @@ const CACHE = 'lourex-invoice-v188';
 */
 // const CACHE = 'lourex-invoice-v280'; preserved as a legacy marker for cache-migration/security regression tests.
 // const CACHE = 'lourex-invoice-v301'; preserved as the immediate pre-v302 cache generation.
-const CACHE = 'lourex-invoice-v302';
+// const CACHE = 'lourex-invoice-v302'; preserved as the immediate pre-Batch-0 cache generation.
+const CACHE = 'lourex-invoice-v314';
 // const CACHE = 'lourex-invoice-v228'; preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v201: preserved as a legacy marker for cache-migration tests.
 // lourex-invoice-v200: preserved as a legacy marker for cache-migration tests.
@@ -151,15 +153,24 @@ LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
 const FRESH_PATHS = new Set(['/ios-print-bridge.js','/pull-to-refresh.js']);
+const APP_CACHE_PREFIX='lourex-invoice-';
 
 function isAppRuntimePath(pathname){
-  return pathname.startsWith('/src/') || pathname.startsWith('/styles/');
+  return pathname.startsWith('/src/') || pathname.startsWith('/styles/') || pathname==='/manifest.webmanifest' || pathname==='/document-entry-v302.js' || pathname==='/canonical-redirect.js';
 }
 
 async function preserveExternalRuntime(cache,asset){
   const existing=await caches.match(asset);
   if(existing){await cache.put(asset,existing.clone());return;}
   try{const response=await fetch(asset);if(response.ok)await cache.put(asset,response.clone());}catch{}
+}
+
+async function precacheLocalAsset(cache,asset){
+  try{
+    const request=new Request(asset,{cache:'reload'});
+    const response=await fetch(request);
+    if(response.ok)await cache.put(asset,response.clone());
+  }catch{}
 }
 
 async function cacheFirst(request){
@@ -169,7 +180,40 @@ async function cacheFirst(request){
   try{const response=await fetch(request);if(response.ok)void cache.put(request,response.clone());return response;}catch{if(request.mode==='navigate')return (await cache.match('./index.html'))||new Response('',{status:504,statusText:'Offline'});return new Response('',{status:504,statusText:'Offline'});}
 }
 
-self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.addAll(LOCAL_CORE);await Promise.all(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));})()));
+async function networkFirst(request){
+  const cache=await caches.open(CACHE);
+  try{
+    const response=await fetch(request,{cache:'no-store'});
+    if(response.ok)void cache.put(request,response.clone());
+    return response;
+  }catch{
+    const cached=await cache.match(request);
+    if(cached)return cached;
+    if(request.mode==='navigate')return (await cache.match('./index.html'))||(await cache.match('./'))||new Response('',{status:504,statusText:'Offline'});
+    return new Response('',{status:504,statusText:'Offline'});
+  }
+}
+
+self.addEventListener('install',event=>event.waitUntil((async()=>{
+  const cache=await caches.open(CACHE);
+  await Promise.allSettled(LOCAL_CORE.map(asset=>precacheLocalAsset(cache,asset)));
+  await Promise.allSettled(EXTERNAL_CORE.map(asset=>preserveExternalRuntime(cache,asset)));
+})()));
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')void self.skipWaiting();});
-self.addEventListener('activate',event=>event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)));await self.clients.claim();})()));
-self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;const url=new URL(event.request.url);if(url.origin!==self.location.origin){if(!EXTERNAL_CORE_SET.has(url.href))return;event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone())).catch(()=>undefined);return response;})));return;}if(url.pathname.endsWith('/runtime-config.js')){event.respondWith(fetch(event.request,{cache:'no-store'}));return;}if(event.request.mode==='navigate'||FRESH_PATHS.has(url.pathname)||isAppRuntimePath(url.pathname)){event.respondWith(cacheFirst(event.request));return;}event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone())).catch(()=>undefined);return response;}).catch(()=>event.request.mode==='navigate'?caches.match('./index.html'):new Response('',{status:504,statusText:'Offline'}))));});
+self.addEventListener('activate',event=>event.waitUntil((async()=>{
+  const keys=await caches.keys();
+  await Promise.all(keys.filter(key=>key!==CACHE&&key.startsWith(APP_CACHE_PREFIX)).map(key=>caches.delete(key)));
+  await self.clients.claim();
+})()));
+self.addEventListener('fetch',event=>{
+  if(event.request.method!=='GET')return;
+  const url=new URL(event.request.url);
+  if(url.origin!==self.location.origin){
+    if(!EXTERNAL_CORE_SET.has(url.href))return;
+    event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone())).catch(()=>undefined);return response;})));
+    return;
+  }
+  if(url.pathname.endsWith('/runtime-config.js')){event.respondWith(fetch(event.request,{cache:'no-store'}));return;}
+  if(event.request.mode==='navigate'||FRESH_PATHS.has(url.pathname)||isAppRuntimePath(url.pathname)){event.respondWith(networkFirst(event.request));return;}
+  event.respondWith(cacheFirst(event.request));
+});
