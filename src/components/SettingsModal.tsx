@@ -289,7 +289,7 @@ export class SettingsModal extends React.Component<Props,State> {
     const tabItems=([['company',t('Workspace','مساحة العمل'),'settings'],['commercial',t('Commercial','تجاري'),'invoice'],['documents',t('Documents','المستندات'),'file'],['security',t('Security','الأمان'),'lock']] as const);
     return <Modal open={this.props.open} title={accountScope?t('Account','الحساب'):t('Settings','الإعدادات')} size="xl" onClose={this.requestClose}>
       <div className={`settings-layout settings-workspace-v2 ${accountScope?'account-profile-workspace':'settings-preferences-workspace'} ${this.state.accountAction==='restore'?'cloud-account-panel':''}`}>
-        {!accountScope&&account?<div className="settings-direct-account-bar"><div className="settings-direct-account-copy"><span className="settings-account-dot connected"/><span><small>{t('Signed in','تم تسجيل الدخول')}</small><strong dir="ltr">{account.email||'LOUREX'}</strong></span></div><Button className="settings-direct-signout-button" variant="secondary" disabled={this.state.busy} onClick={()=>void this.signOutFromCloud()}>{this.state.accountAction==='signout'?t('Signing out…','جارٍ تسجيل الخروج…'):t('Sign Out','تسجيل الخروج')}</Button></div>:null}
+        
         {!accountScope?<nav className="settings-tabs" aria-label={t('Settings sections','أقسام الإعدادات')}>{tabItems.map(([id,label,icon])=><button type="button" key={id} className={this.state.tab===id?'active':''} aria-current={this.state.tab===id?'page':undefined} onClick={()=>this.setState({tab:id,error:'',message:'',savedSection:null})}><Icon name={icon}/><span>{label}</span></button>)}</nav>:null}
         <div className="settings-panel">
           {accountScope?this.accountProfile():null}
