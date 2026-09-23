@@ -1,0 +1,31 @@
+name: v311 document semantics
+on:
+  push:
+    branches: [audit/v311-full-site-quality-pass]
+    paths: [.github/workflows/v311-document-semantics.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/v311-full-site-quality-pass
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply source patch
+        run: python3 scripts/v311_document_semantics_patch.py
+      - name: Install
+        run: npm ci
+      - name: Build only
+        run: npm run build
+      - name: Commit source changes
+        run: |
+          git config user.name "allidamech-bot"
+          git config user.email "228416871+allidamech-bot@users.noreply.github.com"
+          git add src/app/App.tsx src/components/DocumentsPage.tsx
+          git commit -m "fix(v311): keep company drafts outside accounting defaults [skip v311]"
+          git push origin HEAD:audit/v311-full-site-quality-pass
