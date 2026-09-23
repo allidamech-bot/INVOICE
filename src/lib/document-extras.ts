@@ -61,7 +61,7 @@ export function defaultLetterData(language:DocumentLanguage='en'):LetterDocument
 export function letterPreset(preset:LetterDocumentData['preset'],language:DocumentLanguage='en'):LetterDocumentData{
   const base=defaultLetterData(language),rtl=language==='ar';
   const font=rtl?'cairo':'inter';
-  const block=(type:LetterBlock['type'],text:string)=>({...defaultLetterBlock(type,text),direction:rtl?'rtl':'auto' as const,font:font as LetterBlock['font']});
+  const block=(type:LetterBlock['type'],text:string):LetterBlock=>{const next=defaultLetterBlock(type,text);next.direction=rtl?'rtl':'auto';next.font=font as LetterBlock['font'];return next;};
   if(preset==='formal-letter')return {...base,preset,subject:rtl?'الموضوع':'Subject',blocks:[block('paragraph',rtl?'السادة المحترمون،':'Dear Sir / Madam,'),block('paragraph',''),block('paragraph',rtl?'وتفضلوا بقبول فائق الاحترام.':'Sincerely,')]};
   if(preset==='memo')return {...base,preset,headerStyle:'minimal',footerStyle:'minimal',blocks:[block('heading',rtl?'مذكرة داخلية':'INTERNAL MEMO'),block('paragraph','')]};
   if(preset==='notice')return {...base,preset,headerStyle:'accent',blocks:[block('heading',rtl?'إشعار رسمي':'OFFICIAL NOTICE'),block('paragraph','')]};

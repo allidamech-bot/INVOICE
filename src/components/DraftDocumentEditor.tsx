@@ -56,7 +56,7 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
     try{await this.props.onSave(doc,auto);const newer=start!==this.revision;this.setState({saving:false,saveState:newer?'unsaved':'saved'},()=>{if(newer)this.schedule();});}
     catch(e){this.setState({saving:false,saveState:'unsaved',error:e instanceof Error?e.message:t('Unable to save document.','تعذر حفظ المستند.')});}
   };
-  private saveAndClose=async()=>{if(this.state.saveState==='saved'){this.props.onClose();return;}await this.save(true);if(this.state.saveState==='saved'||!this.state.error)this.props.onClose();};
+  private saveAndClose=async()=>{if(this.state.saveState==='saved'){this.props.onClose();return;}await this.save(true);if(!this.state.error)this.props.onClose();};
   private output=async(mode:'print'|'pdf'|'share')=>{
     if(this.state.outputBusy)return;
     if(this.state.saveState!=='saved')await this.save(true);
@@ -76,9 +76,9 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
     this.mutate(doc=>{const letter=normalizeLetterData(doc.letter,doc.language);return{...doc,letter:{...letter,blocks:[...letter.blocks,block]}};});
     this.setState({activeBlockId:block.id});
   };
-  private duplicateBlock=(id:string)=>this.mutate(doc=>{const letter=normalizeLetterData(doc.letter,doc.language);const at=letter.blocks.findIndex(block=>block.id===id);if(at<0)return doc;const source=letter.blocks[at];const copy={...source,id:defaultLetterBlock().id};const blocks=[...letter.blocks];blocks.splice(at+1,0,copy);return{...doc,letter:{...letter,blocks}};});
+  private duplicateBlock=(id:string)=>this.mutate(doc=>{const letter=normalizeLetterData(doc.letter,doc.language);const at=letter.blocks.findIndex(block=>block.id===id);if(at<0)return doc;const source=letter.blocks[at]!;const copy:LetterBlock={...source,id:defaultLetterBlock().id};const blocks=[...letter.blocks];blocks.splice(at+1,0,copy);return{...doc,letter:{...letter,blocks}};});
   private removeBlock=(id:string)=>this.mutate(doc=>{const letter=normalizeLetterData(doc.letter,doc.language);const blocks=letter.blocks.filter(block=>block.id!==id);return{...doc,letter:{...letter,blocks:blocks.length?blocks:[defaultLetterBlock()]}};});
-  private moveBlock=(id:string,delta:number)=>this.mutate(doc=>{const letter=normalizeLetterData(doc.letter,doc.language);const blocks=[...letter.blocks];const at=blocks.findIndex(block=>block.id===id),to=at+delta;if(at<0||to<0||to>=blocks.length)return doc;[blocks[at],blocks[to]]=[blocks[to],blocks[at]];return{...doc,letter:{...letter,blocks}};});
+  private moveBlock=(id:string,delta:number)=>this.mutate(doc=>{const letter=normalizeLetterData(doc.letter,doc.language);const blocks=[...letter.blocks];const at=blocks.findIndex(block=>block.id===id),to=at+delta;if(at<0||to<0||to>=blocks.length)return doc;const current=blocks[at]!,target=blocks[to]!;blocks[at]=target;blocks[to]=current;return{...doc,letter:{...letter,blocks}};});
   private applyPreset=(preset:LetterDocumentData['preset'])=>this.mutate(doc=>{const old=normalizeLetterData(doc.letter,doc.language),next=letterPreset(preset,doc.language);return{...doc,letter:{...next,recipient:old.recipient,attention:old.attention,reference:old.reference,subject:old.subject||next.subject,accentColor:old.accentColor,showLogo:old.showLogo,showCompanyDetails:old.showCompanyDetails,showSignature:old.showSignature,showStamp:old.showStamp}};});
   private setWatermark=(patch:Partial<ReturnType<typeof defaultWatermark>>)=>this.mutate(doc=>({...doc,appearance:{...doc.appearance,watermark:{...normalizeWatermark(doc.appearance.watermark),...patch}}}));
 
