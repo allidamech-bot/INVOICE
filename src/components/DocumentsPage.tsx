@@ -276,12 +276,12 @@ export class DocumentsPage extends React.Component<Props,State>{
     const commercial=[
       [t('Incoterm','الإنكوترم'),doc.terms.incoterm],
       [t('Payment terms','شروط الدفع'),doc.terms.paymentTerms],
-      [t('Delivery','التسليم'),doc.terms.deliveryTime],
+      [doc.kind==='purchase-order'?t('Delivery / Lead Time','مدة التوريد'):t('Delivery','التسليم'),doc.terms.deliveryTime],
       [t('Packing','التعبئة'),doc.terms.packing],
       [t('Origin','المنشأ'),doc.terms.countryOfOrigin],
-      [t('Destination','الوجهة النهائية'),doc.terms.finalDestination],
+      [doc.kind==='purchase-order'?t('Ship To / Delivery Address','عنوان التسليم'):t('Destination','الوجهة النهائية'),doc.terms.finalDestination],
       [t('Port of loading','ميناء التحميل'),doc.terms.portOfLoading],
-      [t('Validity','الصلاحية'),doc.terms.validity]
+      ...(doc.kind==='purchase-order'?[]:[[t('Validity','الصلاحية'),doc.terms.validity]])
     ].filter(([,value])=>Boolean(value));
     const canOutput=doc.status==='final';
     const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
@@ -305,7 +305,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
       <header className={`document-detail-hero kind-${doc.kind}`}>
         <div className="document-detail-identity"><span className="document-detail-kind-icon"><Icon name={doc.kind==='proforma'?'proforma':doc.kind==='purchase-order'?'file':'invoice'}/></span><div><p>{kindLabel(doc)}</p><h1>{doc.number}</h1><span>{partyName(doc)}</span></div></div>
-        <div className="document-detail-value"><small>{t('Total','الإجمالي')}</small><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><div><span className={`document-status-pill status-${visualState}`}>{status}</span>{collection?<span className={`collection-pill collection-${collection.status}`}>{paymentLabel(collection.status)}</span>:null}</div></div>
+        <div className="document-detail-value"><small>{doc.kind==='purchase-order'?t('Order Total','إجمالي الطلب'):t('Total','الإجمالي')}</small><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong><div><span className={`document-status-pill status-${visualState}`}>{status}</span>{collection?<span className={`collection-pill collection-${collection.status}`}>{paymentLabel(collection.status)}</span>:null}</div></div>
       </header>
 
       <div className="document-detail-grid">
