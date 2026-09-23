@@ -17,7 +17,7 @@ jobs:
         with:
           ref: feature/v312-business-document-suite
           fetch-depth: 0
-      - name: Apply semantic closeout
+      - name: Apply final semantic closeout
         shell: bash
         run: |
           python3 - <<'PY'
@@ -53,8 +53,8 @@ jobs:
             'AI supplier ownership')
 
           patch('src/components/EditorPageCore.tsx',
-            "    // A purchase order owns an explicit requested-delivery date. Changing the\n    // order date must never apply customer invoice terms or overwrite delivery.\n    if(d.kind==='purchase-order')return next;\n    const preset=paymentTermPresetById(this.props.company,d.paymentTermPresetId);",
-            "    // Only a Commercial Invoice owns customer payment-due calculations.\n    // RFQ, PO, delivery, receipt and statement dates must never inherit invoice terms.\n    if(d.kind!=='invoice')return next;\n    const preset=paymentTermPresetById(this.props.company,d.paymentTermPresetId);",
+            "    if(d.kind==='purchase-order')return next;",
+            "    if(d.kind!=='invoice')return next;",
             'invoice-only payment due logic')
 
           patch('src/app/App.tsx',
@@ -91,8 +91,12 @@ jobs:
             "              <div className=\"grand\"><span>{t('Grand total','الإجمالي النهائي')}</span><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong></div>\n            </div>\n          </section>",
             "              <div className=\"grand\"><span>{t('Grand total','الإجمالي النهائي')}</span><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong></div>\n            </div>:null}\n          </section>",
             'detail totals closing')
+          patch('src/components/DocumentsPage.tsx',
+            "(doc.kind==='proforma'||doc.kind==='proforma-invoice'||doc.kind==='rfq')?t('Valid until','صالح حتى')",
+            "(doc.kind==='proforma'||doc.kind==='proforma-invoice')?t('Valid until','صالح حتى')",
+            'detail validity label')
           PY
-      - name: Commit semantic fixes and remove temporary workflow
+      - name: Commit and remove temporary workflow
         run: |
           rm .github/workflows/v312-semantic-finalize.yml
           git diff --check
