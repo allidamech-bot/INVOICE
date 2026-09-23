@@ -1,0 +1,30 @@
+name: LOUREX v312 pre-merge audit patch
+on:
+  push:
+    branches:
+      - feature/v312-business-document-suite
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/v312-business-document-suite
+          fetch-depth: 0
+      - name: Apply audited fixes
+        run: python3 scripts/v312-premerge-audit-fixes.py
+      - name: Verify diff
+        run: git diff --check
+      - name: Commit and clean temporary files
+        run: |
+          rm scripts/v312-premerge-audit-fixes.py
+          rm .github/workflows/v312-premerge-audit-run.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(v312): close pre-merge document audit gaps"
+          git push origin HEAD:feature/v312-business-document-suite
