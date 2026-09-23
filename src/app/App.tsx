@@ -287,6 +287,6 @@ export class App extends React.Component<{},State> {
       <SettingsModal open={this.state.settingsOpen} company={vault.company} appSettings={vault.appSettings} cloudUser={this.state.cloudUser} onCloudRestore={this.cloudRestore} onCloudSignOut={this.cloudSignOut} onClose={()=>this.setState({settingsOpen:false})} onSaveCompany={this.saveCompany} onSaveAppSettings={this.saveAppSettings} onChangePin={this.changePin} onLock={this.lock} onBackup={this.backup} onRestore={this.restore}/>
       {this.cloudModal()}
       <ConfirmDialog open={Boolean(this.state.deletingDoc)} title={t(`Delete ${this.state.deletingDoc?.number ?? 'document'}?`,`حذف ${this.state.deletingDoc?.number ?? 'المستند'}؟`)} message={t('This action cannot be undone.','لا يمكن التراجع عن هذا الإجراء.')} onCancel={()=>this.setState({deletingDoc:null})} onConfirm={()=>void this.deleteDocument()}/><Toast text={this.state.toast} tone={this.state.toastTone}/></div>
-      <div className="print-portal">{this.state.printDoc?{isLetterDocument(this.state.printDoc)?<DraftDocumentRenderer document={this.state.printDoc} scale={1}/>:<TemplateRenderer document={this.state.printDoc} scale={1}/>} :null}</div></div>;
+      <div className="print-portal">{this.state.printDoc?(isLetterDocument(this.state.printDoc)?<DraftDocumentRenderer document={this.state.printDoc} scale={1}/>:<TemplateRenderer document={this.state.printDoc} scale={1}/>):null}</div></div>;
   }
 }
