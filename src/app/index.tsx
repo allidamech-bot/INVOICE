@@ -252,7 +252,10 @@ function startAccountSignOutWatcher():void{
         accountWasAuthenticated=true;
         void (async()=>{
           try{setActiveAccountUid(user.uid);await activateAccountStorage(user.uid);}
-          finally{window.location.reload();}
+          finally{
+            signOutTransitionRunning=false;
+            window.dispatchEvent(new Event('lourex-cloud-refresh-available'));
+          }
         })();
         return;
       }
@@ -321,22 +324,38 @@ function safeSignedOutAuthGatewayForAutomaticReload():boolean{
   return !currentCloudUser()&&!reloadUnsafeWorkspaceOpen()&&Boolean(document.querySelector('.auth-page'));
 }
 
-// The account layer may install a newer account copy while the UI is idle.
-// Reloading here rehydrates React from the exact encrypted account copy, but
-// never discard a document, inline Operations draft, product draft, or modal.
-let cloudAppliedReloadTimer:number|undefined;
+// v310: cloud changes never hard-reload the running workspace.
+// Startup reconciliation already runs before React mounts. Runtime changes wait
+// for an explicit user action so Draft Studio and autosave cannot be interrupted.
 window.addEventListener('lourex-cloud-applied',()=>{
-  if(reloadUnsafeWorkspaceOpen())return;
-  if(cloudAppliedReloadTimer)window.clearTimeout(cloudAppliedReloadTimer);
-  // A document click can race the final cloud callback by a few milliseconds.
-  // Re-check after React has had a chance to mount the editor before reloading.
-  cloudAppliedReloadTimer=window.setTimeout(()=>{
-    cloudAppliedReloadTimer=undefined;
-    if(reloadUnsafeWorkspaceOpen())return;
+  try{document.documentElement.dataset.lourexCloudApplied='true';}catch{}
+});
+
+function showCloudRefreshAvailable():void{
+  if(document.querySelector('[data-lourex-cloud-refresh]'))return;
+  const notice=document.createElement('div');
+  notice.className='toast pwa-update-toast';
+  notice.setAttribute('data-lourex-cloud-refresh','true');
+  notice.setAttribute('role','status');
+  const copy=document.createElement('span');
+  copy.style.display='flex';copy.style.flexDirection='column';copy.style.gap='2px';
+  const title=document.createElement('strong');title.textContent='Cloud changes available / توجد تحديثات سحابية';
+  const detail=document.createElement('small');detail.textContent='Apply after you finish editing / طبّقها بعد الانتهاء من التحرير';
+  copy.append(title,detail);
+  const reload=document.createElement('button');
+  reload.type='button';reload.textContent='Apply / تطبيق';reload.style.minHeight='44px';reload.style.padding='0 12px';reload.style.borderRadius='10px';reload.style.fontWeight='800';
+  reload.addEventListener('click',()=>{
+    if(reloadUnsafeWorkspaceOpen()){
+      detail.textContent='Close the open editor first / أغلق المحرر المفتوح أولًا';
+      return;
+    }
     rememberWorkspaceBeforeAutomaticReload();
     window.location.reload();
-  },360);
-});
+  });
+  notice.append(copy,reload);
+  document.body.appendChild(notice);
+}
+window.addEventListener('lourex-cloud-refresh-available',showCloudRefreshAvailable);
 
 // Page-level "/" shortcuts must never steal focus from the page behind an open
 // dialog. Keep typing inside dialog fields untouched while stopping only the
@@ -426,7 +445,6 @@ if('serviceWorker' in navigator){
         // A signed-out auth gateway has no editable business state to protect.
         // Reload it automatically after a newly activated worker takes control
         // so Safari cannot keep executing a stale Firebase auth runtime.
-        if(safeSignedOutAuthGatewayForAutomaticReload())window.location.replace(window.location.href);
         return;
       }
       // Activation is asynchronous. Re-check immediately before the actual

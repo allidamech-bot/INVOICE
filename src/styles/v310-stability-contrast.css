@@ -1,0 +1,32 @@
+/* LOUREX v310 — PIN clarity + mobile RTL geometry */
+.pin-unlock-card{border-color:rgba(44,207,216,.34)!important;background:#0b3038!important;box-shadow:0 18px 48px rgba(0,0,0,.22)!important}
+.pin-unlock-card .brand-words strong{color:#eefbfd!important;opacity:1!important;text-shadow:none!important}
+.pin-unlock-card h1{color:#f5fbfc!important;text-shadow:none!important}
+.pin-unlock-card .subtle{color:#c3d4d8!important;opacity:1!important}
+.pin-unlock-card .eyebrow{color:#f0b65f!important;opacity:1!important;font-weight:850!important}
+.pin-unlock-card .pin-lock-badge{border-color:rgba(44,207,216,.42)!important;background:rgba(28,157,166,.12)!important}
+.pin-unlock-card .pin-lock-badge strong{color:#f4fbfc!important;font-weight:900!important}
+.pin-unlock-card .pin-lock-badge span{color:#c8d9dc!important;opacity:1!important}
+.pin-unlock-card .field-label{color:#e1ecee!important;font-weight:850!important;opacity:1!important}
+.pin-unlock-card .input{min-height:54px!important;border:1.5px solid #6d8790!important;background:#f8fbfc!important;color:#18242a!important;box-shadow:none!important;font-weight:750!important}
+.pin-unlock-card .input:focus{border-color:#20d3db!important;outline:3px solid rgba(32,211,219,.20)!important;outline-offset:1px!important}
+.pin-unlock-card .btn-primary,.pin-unlock-card button[type='submit']{min-height:52px!important;background:#20c9d2!important;border-color:#20c9d2!important;color:#06242b!important;font-weight:900!important;box-shadow:0 8px 20px rgba(32,201,210,.16)!important}
+.pin-unlock-card .btn-primary:hover,.pin-unlock-card .btn-primary:focus-visible,.pin-unlock-card button[type='submit']:focus-visible{background:#43d7de!important;border-color:#43d7de!important;color:#041c22!important}
+.pin-unlock-card .auth-utility-controls button{min-height:46px!important;color:#eef9fa!important;border-color:#47717a!important;background:#103740!important;font-weight:800!important}
+.pin-unlock-card .auth-utility-controls button:hover,.pin-unlock-card .auth-utility-controls button:focus-visible{border-color:#20d3db!important;background:#154751!important;color:#fff!important}
+.pin-unlock-card .security-note{color:#aebfc4!important;opacity:1!important}
+.pin-unlock-card .auth-error{color:#ffd7da!important;background:rgba(196,66,76,.17)!important;border-color:rgba(255,118,128,.38)!important}
+
+@media(max-width:800px){
+  .app-ui .fintech-dashboard-v280 .command-recent{width:100%!important;max-width:100%!important;margin-inline:0!important;box-sizing:border-box!important;overflow:hidden!important}
+  .app-ui .fintech-dashboard-v280 .command-recent .dashboard-panel-heading,
+  .app-ui .fintech-dashboard-v280 .dashboard-document-list,
+  .app-ui .fintech-dashboard-v280 .dashboard-document-row{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;margin-inline:0!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-document-row{padding-inline:12px!important;overflow:hidden!important}
+  [dir='rtl'] .app-ui .fintech-dashboard-v280 .dashboard-document-row{direction:rtl!important;text-align:right!important}
+  [dir='rtl'] .app-ui .fintech-dashboard-v280 .dashboard-document-copy,
+  [dir='rtl'] .app-ui .fintech-dashboard-v280 .dashboard-document-customer,
+  [dir='rtl'] .app-ui .fintech-dashboard-v280 .dashboard-document-date{text-align:right!important;justify-self:stretch!important}
+  [dir='rtl'] .app-ui .fintech-dashboard-v280 .dashboard-document-amount{text-align:left!important;justify-self:end!important}
+  [dir='rtl'] .app-ui .fintech-dashboard-v280 .dashboard-document-status{justify-self:end!important}
+}

@@ -94,10 +94,18 @@ export async function waitForCloudUser():Promise<CloudUser|null>{
   let recent=false;try{recent=sessionStorage.getItem('lourex-auth-just-signed-in')==='1';}catch{}
   const timeoutMs=recent?10_000:5_000;
   return new Promise(resolve=>{
-    let settled=false;let off:undefined|(()=>void);
-    const finish=(value:CloudUser|null)=>{if(settled)return;settled=true;if(off)off();resolve(value);};
+    let settled=false;let off:undefined|(()=>void);let nullTimer:number|undefined;
+    const finish=(value:CloudUser|null)=>{if(settled)return;settled=true;if(nullTimer)window.clearTimeout(nullTimer);if(off)off();resolve(value);};
     const timeout=window.setTimeout(()=>finish(userFrom(auth().currentUser)),timeoutMs);
-    off=auth().onAuthStateChanged((user:any)=>{window.clearTimeout(timeout);finish(userFrom(user));},()=>{window.clearTimeout(timeout);finish(null);});
+    off=auth().onAuthStateChanged((user:any)=>{
+      const resolved=userFrom(user);
+      if(resolved){window.clearTimeout(timeout);finish(resolved);return;}
+      if(nullTimer)window.clearTimeout(nullTimer);
+      nullTimer=window.setTimeout(()=>{
+        window.clearTimeout(timeout);
+        finish(userFrom(auth().currentUser));
+      },1200);
+    },()=>{window.clearTimeout(timeout);finish(null);});
   });
 }
 export function currentCloudUser():CloudUser|null{try{return userFrom(auth().currentUser);}catch{return null;}}

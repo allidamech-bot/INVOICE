@@ -1,4 +1,6 @@
 (()=>{
+  // v310: ordinary iPhone scrolling must never be interpreted as an app reload.
+  if(!document.documentElement.hasAttribute('data-lourex-enable-pull-refresh'))return;
   const THRESHOLD=76;
   const MAX_PULL=128;
   const RELOAD_DELAY=180;
