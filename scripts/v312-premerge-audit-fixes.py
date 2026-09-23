@@ -1,0 +1,247 @@
+from pathlib import Path
+import re
+
+
+def load(path):
+    return Path(path).read_text()
+
+
+def save(path, text):
+    Path(path).write_text(text)
+
+
+def replace(path, old, new, *, required=True, all=False):
+    s = load(path)
+    if new in s and old not in s:
+        return
+    if old not in s:
+        if required:
+            raise SystemExit(f"{path}: missing expected text: {old[:120]!r}")
+        return
+    s = s.replace(old, new) if all else s.replace(old, new, 1)
+    save(path, s)
+
+
+def insert_after(path, marker, addition):
+    s = load(path)
+    if addition.strip() in s:
+        return
+    if marker not in s:
+        raise SystemExit(f"{path}: missing insert marker: {marker[:120]!r}")
+    save(path, s.replace(marker, marker + addition, 1))
+
+
+def regex(path, pattern, repl, *, flags=0, required=True):
+    s = load(path)
+    out, count = re.subn(pattern, repl, s, count=1, flags=flags)
+    if count == 0 and required:
+        raise SystemExit(f"{path}: regex did not match: {pattern[:120]}")
+    if count:
+        save(path, out)
+
+
+# Central semantics.
+insert_after(
+    'src/lib/document-kinds.ts',
+    "export function documentBankAllowed(kind:DocumentKind):boolean{return businessDocumentDefinition(kind).bankAllowed;}",
+    "\n\nexport type DocumentSecondaryDateKind='none'|'valid-until'|'requested-delivery'|'due-date'|'response-due';\n"
+    "export function documentSecondaryDateKind(kind:DocumentKind,role:DocumentRole='standard'):DocumentSecondaryDateKind{\n"
+    "  if(role==='credit-note'||kind==='draft'||kind==='delivery-note'||kind==='payment-receipt'||kind==='statement-account')return'none';\n"
+    "  if(kind==='proforma'||kind==='proforma-invoice')return'valid-until';\n"
+    "  if(kind==='purchase-order')return'requested-delivery';\n"
+    "  if(kind==='rfq')return'response-due';\n"
+    "  return'due-date';\n"
+    "}\n"
+    "export function documentUsesCommercialDefaults(kind:DocumentKind):boolean{return kind!=='draft'&&kind!=='payment-receipt'&&kind!=='statement-account';}\n"
+)
+
+# Numbering, defaults and validation.
+replace(
+    'src/lib/documents.ts',
+    "import { documentBankAllowed, documentNumberPrefix, documentPriceOptional, isSupplierDocumentKind } from './document-kinds.js';",
+    "import { documentBankAllowed, documentNumberPrefix, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from './document-kinds.js';"
+)
+insert_after(
+    'src/lib/documents.ts',
+    "const liveNumberReservations=new WeakMap<object,NumberReservation>();",
+    "\nconst liveAuxiliaryReservations=new WeakMap<object,{year:number;values:Record<string,number>}>();"
+)
+replace(
+    'src/lib/documents.ts',
+    "    seq=vault.documents.reduce((max,document)=>{const match=document.number.trim().match(matchPattern);return match?Math.max(max,Number(match[1])||0):max;},0);\n"
+    "    let number='';\n"
+    "    do{seq+=1;number=`${prefix}-${year}-${String(seq).padStart(4,'0')}`;}while(used.has(number.toLowerCase()));\n"
+    "    return {number,vault};",
+    "    const scanned=vault.documents.reduce((max,document)=>{const match=document.number.trim().match(matchPattern);return match?Math.max(max,Number(match[1])||0):max;},0);\n"
+    "    const auxiliaryLive=liveAuxiliaryReservations.get(sourceNumbering);\n"
+    "    const reserved=auxiliaryLive?.year===year?(auxiliaryLive.values[kind]??0):0;\n"
+    "    seq=Math.max(scanned,reserved);\n"
+    "    let number='';\n"
+    "    do{seq+=1;number=`${prefix}-${year}-${String(seq).padStart(4,'0')}`;}while(used.has(number.toLowerCase()));\n"
+    "    const values=auxiliaryLive?.year===year?{...auxiliaryLive.values}:{};values[kind]=seq;\n"
+    "    liveAuxiliaryReservations.set(sourceNumbering,{year,values});\n"
+    "    return {number,vault};"
+)
+replace(
+    'src/lib/documents.ts',
+    "  const taxPreset=defaultTaxPreset(company);\n  return {",
+    "  const taxPreset=defaultTaxPreset(company);\n  const usesCommercialDefaults=documentUsesCommercialDefaults(kind);\n  return {"
+)
+replace(
+    'src/lib/documents.ts',
+    "    terms: { incoterm: company.defaultIncoterm, paymentTerms: paymentPreset?.label||company.defaultPaymentTerms, packing: '', deliveryTime: company.defaultDeliveryTime, portOfLoading: '', finalDestination: '', countryOfOrigin: '', validity: '', remarks: '' },",
+    "    terms: { incoterm: usesCommercialDefaults?company.defaultIncoterm:'', paymentTerms: usesCommercialDefaults?(paymentPreset?.label||company.defaultPaymentTerms):'', packing: '', deliveryTime: usesCommercialDefaults?company.defaultDeliveryTime:'', portOfLoading: '', finalDestination: '', countryOfOrigin: '', validity: '', remarks: '' },"
+)
+replace(
+    'src/lib/documents.ts',
+    "    adjustments: { discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping: '0.00', otherChargesEnabled: false, otherCharges: '0.00', taxEnabled: Boolean(taxPreset), taxPercent: taxPreset?.rate||'0' },",
+    "    adjustments: { discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping: '0.00', otherChargesEnabled: false, otherCharges: '0.00', taxEnabled: !documentPriceOptional(kind)&&Boolean(taxPreset), taxPercent: taxPreset?.rate||'0' },"
+)
+replace(
+    'src/lib/documents.ts',
+    "  if ((doc.kind === 'proforma' || doc.kind === 'proforma-invoice') && !doc.dueDate) errors.dueDate = 'Valid until date is required.';\n"
+    "  if (doc.kind === 'purchase-order' && !doc.dueDate) errors.dueDate = 'Requested delivery date is required.';\n"
+    "  if(doc.dueDate&&!isIsoDate(doc.dueDate))errors.dueDate=(doc.kind==='proforma'||doc.kind==='proforma-invoice'||doc.kind==='rfq')?'Valid until date is invalid.':doc.kind==='purchase-order'?'Requested delivery date is invalid.':'Due date is invalid.';\n"
+    "  else if(doc.dueDate&&isIsoDate(doc.issueDate)&&compareIsoDates(doc.dueDate,doc.issueDate)<0)errors.dueDate=(doc.kind==='proforma'||doc.kind==='proforma-invoice'||doc.kind==='rfq')?'Valid until date cannot be before issue date.':doc.kind==='purchase-order'?'Requested delivery cannot be before order date.':'Due date cannot be before issue date.';",
+    "  const secondaryDate=documentSecondaryDateKind(doc.kind,doc.role);\n"
+    "  if (secondaryDate==='valid-until' && !doc.dueDate) errors.dueDate = 'Valid until date is required.';\n"
+    "  if (secondaryDate==='requested-delivery' && !doc.dueDate) errors.dueDate = 'Requested delivery date is required.';\n"
+    "  if(doc.dueDate&&!isIsoDate(doc.dueDate))errors.dueDate=secondaryDate==='valid-until'?'Valid until date is invalid.':secondaryDate==='requested-delivery'?'Requested delivery date is invalid.':secondaryDate==='response-due'?'Response due date is invalid.':'Due date is invalid.';\n"
+    "  else if(doc.dueDate&&isIsoDate(doc.issueDate)&&compareIsoDates(doc.dueDate,doc.issueDate)<0)errors.dueDate=secondaryDate==='valid-until'?'Valid until date cannot be before issue date.':secondaryDate==='requested-delivery'?'Requested delivery cannot be before order date.':secondaryDate==='response-due'?'Response due date cannot be before issue date.':'Due date cannot be before issue date.';"
+)
+
+# Readiness follows price/supplier semantics.
+replace('src/lib/readiness.ts', "import { decimalToScaled, isDecimalInput } from './money.js';", "import { decimalToScaled, isDecimalInput } from './money.js';\nimport { documentPriceOptional, isSupplierDocumentKind } from './document-kinds.js';")
+replace('src/lib/readiness.ts', "  const errors=validateDocument(doc);\n  const requirements: boolean[] = [];", "  const errors=validateDocument(doc);\n  const priceOptional=documentPriceOptional(doc.kind);\n  const requirements: boolean[] = [];")
+replace('src/lib/readiness.ts', "  const customerComplete = (doc.kind==='purchase-order'||doc.kind==='rfq') ? !errors.supplier : !errors.customer;", "  const customerComplete = isSupplierDocumentKind(doc.kind) ? !errors.supplier : !errors.customer;")
+replace('src/lib/readiness.ts', "    pricingChecks.push(fixedNonNegative(item.unitPrice));\n    requirements.push(descriptionComplete, Boolean(item.unit.trim()), fixedPositive(item.quantity), fixedNonNegative(item.unitPrice));", "    const priceComplete=priceOptional||fixedNonNegative(item.unitPrice);\n    pricingChecks.push(priceComplete);\n    requirements.push(descriptionComplete, Boolean(item.unit.trim()), fixedPositive(item.quantity), priceComplete);")
+replace('src/lib/readiness.ts', "  if (doc.adjustments.discountEnabled) requirements.push(!errors.discount);\n  if (doc.adjustments.shippingEnabled) requirements.push(!errors.shipping);\n  if (doc.adjustments.otherChargesEnabled) requirements.push(!errors.otherCharges);\n  if (doc.adjustments.taxEnabled) requirements.push(!errors.tax);", "  if (!priceOptional&&doc.adjustments.discountEnabled) requirements.push(!errors.discount);\n  if (!priceOptional&&doc.adjustments.shippingEnabled) requirements.push(!errors.shipping);\n  if (!priceOptional&&doc.adjustments.otherChargesEnabled) requirements.push(!errors.otherCharges);\n  if (!priceOptional&&doc.adjustments.taxEnabled) requirements.push(!errors.tax);")
+replace('src/lib/readiness.ts', "      { key: 'pricing', complete: doc.items.length > 0 && pricingChecks.every(Boolean) && !errors.discount && !errors.shipping && !errors.otherCharges && !errors.tax }", "      { key: 'pricing', complete: priceOptional || (doc.items.length > 0 && pricingChecks.every(Boolean) && !errors.discount && !errors.shipping && !errors.otherCharges && !errors.tax) }")
+
+# Arabic validation strings.
+insert_after('src/lib/i18n.ts', "    'Due date cannot be before issue date.':'لا يمكن أن يكون تاريخ الاستحقاق قبل تاريخ الإصدار.',", "\n    'Requested delivery date is required.':'تاريخ التسليم المطلوب مطلوب.',\n    'Requested delivery date is invalid.':'تاريخ التسليم المطلوب غير صالح.',\n    'Requested delivery cannot be before order date.':'لا يمكن أن يكون التسليم المطلوب قبل تاريخ الطلب.',\n    'Response due date is invalid.':'تاريخ استلام الرد غير صالح.',\n    'Response due date cannot be before issue date.':'لا يمكن أن يكون تاريخ استلام الرد قبل تاريخ الإصدار.',")
+insert_after('src/lib/i18n.ts', "    'Select a customer.':'اختر عميلاً.',", "\n    'Select a supplier.':'اختر موردًا.',")
+
+# PWA menu must not leave a stale credit-note pending kind.
+replace('public/document-entry-v302.js', "    const kind=explicit||fallbackKinds[index]||'';\n    if(!kind)return;\n    try{window.sessionStorage.setItem(pendingKindKey,kind);}catch{}", "    const kind=explicit||fallbackKinds[index]||'';\n    if(!kind)return;\n    if(kind==='credit-note'){try{window.sessionStorage.removeItem(pendingKindKey);}catch{}return;}\n    try{window.sessionStorage.setItem(pendingKindKey,kind);}catch{}")
+replace('public/document-entry-v302.js', "      else if(text.includes('commercial invoice')||text.includes('فاتورة تجارية'))kind='invoice';", "      else if(text.includes('credit note')||text.includes('إشعار دائن'))kind='credit-note';\n      else if(text.includes('commercial invoice')||text.includes('فاتورة تجارية'))kind='invoice';")
+
+# Global Search must label and search parties correctly.
+replace('src/components/GlobalSearch.tsx', "import { Icon } from './UI.js';", "import { Icon } from './UI.js';\nimport { documentKindLabel, isSupplierDocumentKind } from '../lib/document-kinds.js';")
+insert_after('src/components/GlobalSearch.tsx', "function documentCustomer(document:LourexDocument):string{return localized(document.customerSnapshot?.companyNameEn||'',document.customerSnapshot?.companyNameAr||'',t('No customer','بدون عميل'));}", "\nfunction documentParty(document:LourexDocument):string{\n  if(document.kind==='draft')return document.letter?.subject||document.letter?.recipient||t('Company document','مستند شركة');\n  if(isSupplierDocumentKind(document.kind))return localized(document.supplierSnapshot?.nameEn||'',document.supplierSnapshot?.nameAr||'',t('No supplier','بدون مورد'));\n  return documentCustomer(document);\n}")
+replace('src/components/GlobalSearch.tsx', "      const customer=documentCustomer(document);\n      const label=document.role==='credit-note'?t('Credit note','إشعار دائن'):document.kind==='invoice'?t('Invoice','فاتورة'):t('Quotation','عرض سعر');\n      candidates.push({key:`doc-${document.id}`,kind:'document',title:document.number,subtitle:`${label} · ${customer}`,searchText:[document.number,customer,document.currency,document.issueDate,label].join(' '),action:()=>this.openDocument(document)});", "      const party=documentParty(document);\n      const labelMeta=documentKindLabel(document.kind,document.role);\n      const label=t(labelMeta.en,labelMeta.ar);\n      candidates.push({key:`doc-${document.id}`,kind:'document',title:document.number,subtitle:`${label} · ${party}`,searchText:[document.number,party,document.customerSnapshot?.companyNameEn,document.customerSnapshot?.companyNameAr,document.supplierSnapshot?.nameEn,document.supplierSnapshot?.nameAr,document.supplierReference,document.currency,document.issueDate,label].join(' '),action:()=>this.openDocument(document)});")
+
+# App-level defaults and supplier output naming.
+insert_after('src/app/App.tsx', "import { isLetterDocument } from '../lib/document-extras.js';", "\nimport { documentUsesCommercialDefaults, isSupplierDocumentKind } from '../lib/document-kinds.js';")
+replace('src/app/App.tsx', "const paymentTerms=smart.paymentTerms||base.terms.paymentTerms;let doc={...base,currency:smart.currency||base.currency,language:smart.language||base.language,terms:{...base.terms,incoterm:smart.incoterm,paymentTerms,deliveryTime:smart.deliveryTime},appearance:", "const paymentTerms=smart.paymentTerms||base.terms.paymentTerms;const usesCommercialDefaults=documentUsesCommercialDefaults(kind);let doc={...base,currency:smart.currency||base.currency,language:smart.language||base.language,terms:usesCommercialDefaults?{...base.terms,incoterm:smart.incoterm,paymentTerms,deliveryTime:smart.deliveryTime}:base.terms,appearance:")
+replace('src/app/App.tsx', "const updatesSmartDefaults=!auto&&updated.kind!=='draft';", "const updatesSmartDefaults=!auto&&documentUsesCommercialDefaults(updated.kind);")
+replace('src/app/App.tsx', "if(!auto)this.showToast(updated.kind==='draft'?t('Company draft saved.','تم حفظ مسودة الشركة.'):t('Document saved. Smart defaults updated.','تم حفظ المستند وتحديث الإعدادات الذكية.'),'success');", "if(!auto)this.showToast(updated.kind==='draft'?t('Company draft saved.','تم حفظ مسودة الشركة.'):updatesSmartDefaults?t('Document saved. Smart defaults updated.','تم حفظ المستند وتحديث الإعدادات الذكية.'):t('Document saved.','تم حفظ المستند.'),'success');")
+replace('src/app/App.tsx', "const prepared=applyCustomerCommercialDefaults({...doc,customerSnapshot:customerSnapshotFrom(customer)},customer,this.requireVault().company);", "const customerDoc={...doc,customerSnapshot:customerSnapshotFrom(customer)};const prepared=documentUsesCommercialDefaults(kind)?applyCustomerCommercialDefaults(customerDoc,customer,this.requireVault().company):customerDoc;")
+replace('src/app/App.tsx', "const party=(target.kind==='purchase-order'||target.kind==='rfq')?(target.supplierSnapshot?.nameEn||target.supplierSnapshot?.nameAr||t('Supplier','المورد')):", "const party=isSupplierDocumentKind(target.kind)?(target.supplierSnapshot?.nameEn||target.supplierSnapshot?.nameAr||t('Supplier','المورد')):")
+
+# Documents workspace.
+replace('src/components/DocumentsPage.tsx', "import { documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';", "import { documentKindLabel, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from '../lib/document-kinds.js';")
+insert_after('src/components/DocumentsPage.tsx', "function paymentLabel(status:PaymentStatus):string{\n  return status==='paid'?t('Paid','مدفوعة')\n    :status==='partially-paid'?t('Partially Paid','مدفوعة جزئيًا')\n    :status==='overdue'?t('Overdue','متأخرة')\n    :t('Unpaid','غير مدفوعة');\n}", "\nfunction secondaryDateLabel(doc:LourexDocument):string{\n  const kind=documentSecondaryDateKind(doc.kind,doc.role);\n  return kind==='valid-until'?t('Valid until','صالح حتى'):kind==='requested-delivery'?t('Requested delivery','التسليم المطلوب'):kind==='response-due'?t('Response due','موعد استلام الرد'):t('Due date','تاريخ الاستحقاق');\n}")
+replace('src/components/DocumentsPage.tsx', "<b>{resume.kind==='draft'?(resume.letter?.subject||t('Company Draft','مسودة شركة')):formatMoney(calculateTotals(resume.items,resume.adjustments).grandTotal,resume.currency)}</b>", "<b>{resume.kind==='draft'?(resume.letter?.subject||t('Company Draft','مسودة شركة')):documentPriceOptional(resume.kind)?'—':formatMoney(calculateTotals(resume.items,resume.adjustments).grandTotal,resume.currency)}</b>")
+replace('src/components/DocumentsPage.tsx', "<bdi>{doc.kind==='draft'?'—':formatMoney(totals.grandTotal,doc.currency)}</bdi>", "<bdi>{doc.kind==='draft'||documentPriceOptional(doc.kind)?'—':formatMoney(totals.grandTotal,doc.currency)}</bdi>")
+regex('src/components/DocumentsPage.tsx', r"<div><small>\{doc\.kind==='invoice'\?t\('Due date','تاريخ الاستحقاق'\):doc\.kind==='purchase-order'\?t\('Requested delivery','التسليم المطلوب'\):\(doc\.kind==='proforma'\|\|doc\.kind==='proforma-invoice'\)\?t\('Valid until','صالح حتى'\):t\('Additional date','تاريخ إضافي'\)\}</small><strong>\{doc\.dueDate\?displayDate\(doc\.dueDate,getUiLanguage\(\)\):'—'\}</strong></div>", "{documentSecondaryDateKind(doc.kind,doc.role)!=='none'?<div><small>{secondaryDateLabel(doc)}</small><strong>{doc.dueDate?displayDate(doc.dueDate,getUiLanguage()):'—'}</strong></div>:null}")
+replace('src/components/DocumentsPage.tsx', "    const commercial=[", "    const commercial=documentUsesCommercialDefaults(doc.kind)?[")
+replace('src/components/DocumentsPage.tsx', "    ].filter(([,value])=>Boolean(value));", "    ].filter(([,value])=>Boolean(value)):[];")
+
+# Editor semantic UI.
+replace('src/components/EditorPageCore.tsx', "import { documentBankAllowed, documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';", "import { documentBankAllowed, documentKindLabel, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from '../lib/document-kinds.js';")
+replace('src/components/EditorPageCore.tsx', "    if(d.kind==='proforma'||d.kind==='proforma-invoice'||d.kind==='rfq'){\n      if(!isIsoDate(value))return next;\n      const validityDays=daysBetweenIso(d.issueDate,d.dueDate)??normalizeValidityDays(this.props.company.defaultValidityDays);\n      return {...next,dueDate:addDaysIso(value,validityDays)};\n    }", "    if(d.kind==='proforma'||d.kind==='proforma-invoice'){\n      if(!isIsoDate(value))return next;\n      const validityDays=daysBetweenIso(d.issueDate,d.dueDate)??normalizeValidityDays(this.props.company.defaultValidityDays);\n      return {...next,dueDate:addDaysIso(value,validityDays)};\n    }\n    if(d.kind==='rfq'){\n      if(!isIsoDate(value)||!d.dueDate)return next;\n      const responseDays=daysBetweenIso(d.issueDate,d.dueDate);\n      return responseDays===null?next:{...next,dueDate:addDaysIso(value,responseDays)};\n    }")
+replace('src/components/EditorPageCore.tsx', "    const priceOptional=documentPriceOptional(d.kind);\n    const error=", "    const priceOptional=documentPriceOptional(d.kind);\n    const secondaryDateKind=documentSecondaryDateKind(d.kind,d.role);\n    const secondaryDateLabel=secondaryDateKind==='valid-until'?t('Valid Until','صالح حتى'):secondaryDateKind==='requested-delivery'?t('Requested Delivery','التسليم المطلوب'):secondaryDateKind==='response-due'?t('Response Due','موعد استلام الرد'):t('Due Date','تاريخ الاستحقاق');\n    const secondaryDateRequired=secondaryDateKind==='valid-until'||secondaryDateKind==='requested-delivery';\n    const usesCommercialDefaults=documentUsesCommercialDefaults(d.kind);\n    const error=")
+replace('src/components/EditorPageCore.tsx', "    const defaultTemplateId=d.kind==='proforma'?this.props.smartDefaults.quoteTemplateId:this.props.smartDefaults.invoiceTemplateId;", "    const defaultTemplateId=(d.kind==='proforma'||d.kind==='proforma-invoice'||d.kind==='rfq')?this.props.smartDefaults.quoteTemplateId:this.props.smartDefaults.invoiceTemplateId;")
+replace('src/components/EditorPageCore.tsx', "<div className=\"editor-grand-total-chip\"><span>{isPurchaseOrder?t('Order Total','إجمالي الطلب'):t('Grand Total','الإجمالي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div>", "<div className=\"editor-grand-total-chip\"><span>{priceOptional?t('Non-financial','غير مالي'):isPurchaseOrder?t('Order Total','إجمالي الطلب'):t('Grand Total','الإجمالي')}</span><strong>{priceOptional?'—':formatMoney(totals.grandTotal,d.currency)}</strong></div>")
+old_expr = "(d.kind==='proforma'||d.kind==='proforma-invoice')?t('Valid Until','صالح حتى'):isPurchaseOrder?t('Requested Delivery','التسليم المطلوب'):t('Due Date','تاريخ الاستحقاق')"
+replace('src/components/EditorPageCore.tsx', old_expr, "secondaryDateLabel", all=True)
+replace('src/components/EditorPageCore.tsx', "className={d.kind==='proforma'||d.kind==='proforma-invoice'||isPurchaseOrder?'required-field':''} error={error('dueDate')}", "className={secondaryDateRequired?'required-field':''} error={error('dueDate')}")
+replace('src/components/EditorPageCore.tsx', "<Field label={secondaryDateLabel} className={secondaryDateRequired?'required-field':''} error={error('dueDate')}>", "{secondaryDateKind!=='none'?<Field label={secondaryDateLabel} className={secondaryDateRequired?'required-field':''} error={error('dueDate')}>")
+replace('src/components/EditorPageCore.tsx', "<EditorDateInput label={secondaryDateLabel} value={d.dueDate} onChange={value=>this.field('dueDate',value)}/></Field><Field label={t('Currency','العملة')}", "<EditorDateInput label={secondaryDateLabel} value={d.dueDate} onChange={value=>this.field('dueDate',value)}/></Field>:null}<Field label={t('Currency','العملة')}")
+replace('src/components/EditorPageCore.tsx', "className=\"required-field\" error={error(`item-${index}-price`)}><Input inputMode=\"decimal\" enterKeyHint=\"done\" value={i.unitPrice}", "className={priceOptional?'':'required-field'} error={error(`item-${index}-price`)}><Input inputMode=\"decimal\" enterKeyHint=\"done\" value={i.unitPrice}")
+replace('src/components/EditorPageCore.tsx', "{suggestedPrice&&suggestedPrice!==i.unitPrice?<button", "{!priceOptional&&suggestedPrice&&suggestedPrice!==i.unitPrice?<button")
+replace('src/components/EditorPageCore.tsx', "{zeroPrice?<div className=\"zero-price-warning", "{!priceOptional&&zeroPrice?<div className=\"zero-price-warning")
+replace('src/components/EditorPageCore.tsx', "{formatMoney(lineTotal(i.quantity,i.unitPrice),d.currency)}", "{priceOptional?'—':formatMoney(lineTotal(i.quantity,i.unitPrice),d.currency)}", all=True)
+replace('src/components/EditorPageCore.tsx', "        <section className={`editor-section ${sectionHasError('discount','shipping','otherCharges','tax')?'section-has-error':''}`}><div className=\"section-heading\"><span>04</span>", "        {!priceOptional?<section className={`editor-section ${sectionHasError('discount','shipping','otherCharges','tax')?'section-has-error':''}`}><div className=\"section-heading\"><span>04</span>")
+replace('src/components/EditorPageCore.tsx', "</section>\n\n        <section className=\"editor-section\"><div className=\"section-heading\"><span>05</span>", "</section>:null}\n\n        {usesCommercialDefaults?<section className=\"editor-section\"><div className=\"section-heading\"><span>05</span>")
+replace('src/components/EditorPageCore.tsx', "</section>\n\n        <section className=\"editor-section\"><div className=\"section-heading\"><span>06</span>", "</section>:null}\n\n        <section className=\"editor-section\"><div className=\"section-heading\"><span>06</span>")
+
+# PDF/live output.
+replace('src/templates/TemplateRenderer.tsx', "import { documentBankAllowed, documentKindTitle, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';", "import { documentBankAllowed, documentKindTitle, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from '../lib/document-kinds.js';")
+regex('src/templates/TemplateRenderer.tsx', r"function MetaBlock\(\{ document: doc \}: \{ document: LourexDocument \}\): any \{.*?\n\}\nfunction PartyBlock", """function MetaBlock({ document: doc }: { document: LourexDocument }): any {
+  const currency=documentCurrency(doc);
+  const secondary=documentSecondaryDateKind(doc.kind,doc.role);
+  const dateEn=secondary==='valid-until'?'Valid Until':secondary==='requested-delivery'?'Requested Delivery':secondary==='response-due'?'Response Due':'Due Date';
+  const dateAr=secondary==='valid-until'?'صالح حتى':secondary==='requested-delivery'?'التسليم المطلوب':secondary==='response-due'?'موعد استلام الرد':'تاريخ الاستحقاق';
+  return <div className=\"doc-meta\"><div className=\"meta-number\"><b>{localized(doc, 'No.', 'الرقم')}</b><span>{doc.number}</span></div>{doc.revision>1?<div className=\"meta-revision\"><b>{localized(doc,'Revision','المراجعة')}</b><span>R{doc.revision}</span></div>:null}{doc.creditForNumber?<div className=\"meta-source\"><b>{localized(doc,'Source Invoice','الفاتورة الأصلية')}</b><span>{doc.creditForNumber}</span></div>:null}<div className=\"meta-issue\"><b>{localized(doc, doc.kind==='purchase-order'?'Order Date':'Issue Date', doc.kind==='purchase-order'?'تاريخ الطلب':'تاريخ الإصدار')}</b><span>{displayDate(doc.issueDate, doc.language)}</span></div>{doc.dueDate&&secondary!=='none'?<div className=\"meta-due\"><b>{localized(doc,dateEn,dateAr)}</b><span>{displayDate(doc.dueDate, doc.language)}</span></div>:null}<div className=\"meta-currency\"><b>{localized(doc, 'Currency', 'العملة')}</b><span>{currency}</span></div></div>;
+}
+function PartyBlock""", flags=re.S)
+replace('src/templates/TemplateRenderer.tsx', "function Terms({ document: doc }: { document: LourexDocument }): any {\n  const t = doc.terms;", "function Terms({ document: doc }: { document: LourexDocument }): any {\n  if(!documentUsesCommercialDefaults(doc.kind))return null;\n  const t = doc.terms;")
+replace('src/templates/TemplateRenderer.tsx', "function displayedClosingValues(doc:LourexDocument):string[]{\n  const t=doc.terms;", "function displayedClosingValues(doc:LourexDocument):string[]{\n  if(!documentUsesCommercialDefaults(doc.kind))return[];\n  const t=doc.terms;")
+replace('src/templates/TemplateRenderer.tsx', "  const adjustments = [doc.adjustments.discountEnabled, doc.adjustments.shippingEnabled, doc.adjustments.otherChargesEnabled, doc.adjustments.taxEnabled].filter(Boolean).length;", "  const adjustments = documentPriceOptional(doc.kind)?0:[doc.adjustments.discountEnabled, doc.adjustments.shippingEnabled, doc.adjustments.otherChargesEnabled, doc.adjustments.taxEnabled].filter(Boolean).length;")
+
+# Quality checks use same semantics.
+replace('src/lib/document-quality.ts', "import { documentDisplayValue, hasDocumentLanguageMismatch, type DocumentValueKind } from './document-language.js';", "import { documentDisplayValue, hasDocumentLanguageMismatch, type DocumentValueKind } from './document-language.js';\nimport { documentBankAllowed, documentPriceOptional, documentUsesCommercialDefaults } from './document-kinds.js';")
+replace('src/lib/document-quality.ts', "function displayedClosingValues(doc:LourexDocument):string[]{\n  const t=doc.terms;", "function displayedClosingValues(doc:LourexDocument):string[]{\n  if(!documentUsesCommercialDefaults(doc.kind))return[];\n  const t=doc.terms;")
+replace('src/lib/document-quality.ts', "  const bank=doc.appearance.showBank&&Object.values(doc.companySnapshot.bank).some(value=>value.trim());", "  const bank=documentBankAllowed(doc.kind)&&doc.appearance.showBank&&Object.values(doc.companySnapshot.bank).some(value=>value.trim());")
+replace('src/lib/document-quality.ts', "  const adjustments=[doc.adjustments.discountEnabled,doc.adjustments.shippingEnabled,doc.adjustments.otherChargesEnabled,doc.adjustments.taxEnabled].filter(Boolean).length;", "  const adjustments=documentPriceOptional(doc.kind)?0:[doc.adjustments.discountEnabled,doc.adjustments.shippingEnabled,doc.adjustments.otherChargesEnabled,doc.adjustments.taxEnabled].filter(Boolean).length;")
+replace('src/lib/document-quality.ts', "  if(doc.appearance.showBank){", "  if(documentBankAllowed(doc.kind)&&doc.appearance.showBank){")
+replace('src/lib/document-quality.ts', "  if(doc.items.some(item=>isDecimalInput(item.unitPrice)&&decimalToScaled(item.unitPrice)===0n))issues.push({code:'zero-price',level:'warning'});", "  if(!documentPriceOptional(doc.kind)&&doc.items.some(item=>isDecimalInput(item.unitPrice)&&decimalToScaled(item.unitPrice)===0n))issues.push({code:'zero-price',level:'warning'});")
+
+# Non-invoice lifecycle copy should not mention financial settlement.
+replace('src/components/DocumentLifecyclePanel.tsx', "const status=voided?((doc.kind==='proforma'||doc.kind==='purchase-order')?t('Cancelled','ملغى'):t('Voided','ملغى')):", "const status=voided?((doc.kind==='proforma'||doc.kind==='proforma-invoice'||doc.kind==='rfq'||doc.kind==='purchase-order')?t('Cancelled','ملغى'):t('Voided','ملغى')):")
+replace('src/components/DocumentLifecyclePanel.tsx', "<p>{doc.kind==='purchase-order'?t('Issued purchase orders are preserved. Revisions and cancellations stay traceable.','طلبات الشراء الصادرة محفوظة، وتبقى المراجعات والإلغاءات قابلة للتتبع.'):t('Issued versions are preserved. Revisions, voids, credits and payments stay traceable.','النسخ الصادرة محفوظة، وتبقى المراجعات والإلغاءات والإشعارات الدائنة والمدفوعات قابلة للتتبع.')}</p>", "<p>{doc.kind==='invoice'?t('Issued versions are preserved. Revisions, voids, credits and payments stay traceable.','النسخ الصادرة محفوظة، وتبقى المراجعات والإلغاءات والإشعارات الدائنة والمدفوعات قابلة للتتبع.'):doc.kind==='purchase-order'?t('Issued purchase orders are preserved. Revisions and cancellations stay traceable.','طلبات الشراء الصادرة محفوظة، وتبقى المراجعات والإلغاءات قابلة للتتبع.'):t('Issued versions are preserved. Revisions and cancellations stay traceable.','النسخ الصادرة محفوظة، وتبقى المراجعات والإلغاءات قابلة للتتبع.')}</p>")
+
+# Regression guards.
+p = Path('tests/v312-business-document-suite.test.mjs')
+tests = p.read_text()
+addition = r'''
+
+test('v312 pre-merge audit keeps search, pending kind and non-financial UI coherent',async()=>{
+  const [search,entry,workspace,core,readiness]=await Promise.all([
+    read('src/components/GlobalSearch.tsx'),read('public/document-entry-v302.js'),read('src/components/DocumentsPage.tsx'),read('src/components/EditorPageCore.tsx'),read('src/lib/readiness.ts')
+  ]);
+  assert.match(search,/documentKindLabel\(document\.kind,document\.role\)/);
+  assert.match(search,/isSupplierDocumentKind\(document\.kind\)/);
+  assert.match(entry,/kind==='credit-note'.*removeItem\(pendingKindKey\)/s);
+  assert.match(workspace,/documentPriceOptional\(resume\.kind\)\?'—'/);
+  assert.match(workspace,/doc\.kind==='draft'\|\|documentPriceOptional\(doc\.kind\)\?'—'/);
+  assert.match(core,/secondaryDateKind==='response-due'/);
+  assert.match(core,/priceOptional\?'—':formatMoney\(totals\.grandTotal/);
+  assert.match(readiness,/const priceComplete=priceOptional\|\|fixedNonNegative\(item\.unitPrice\)/);
+});
+
+test('v312 pre-merge audit protects numbering and output semantics',async()=>{
+  const [kinds,docs,renderer,quality,app]=await Promise.all([
+    read('src/lib/document-kinds.ts'),read('src/lib/documents.ts'),read('src/templates/TemplateRenderer.tsx'),read('src/lib/document-quality.ts'),read('src/app/App.tsx')
+  ]);
+  assert.match(kinds,/documentSecondaryDateKind/);
+  assert.match(kinds,/documentUsesCommercialDefaults/);
+  assert.match(docs,/liveAuxiliaryReservations/);
+  assert.match(docs,/Response due date is invalid/);
+  assert.match(renderer,/documentUsesCommercialDefaults\(doc\.kind\)/);
+  assert.match(renderer,/secondary==='response-due'\?'Response Due'/);
+  assert.match(quality,/!documentPriceOptional\(doc\.kind\).*zero-price/s);
+  assert.match(app,/documentUsesCommercialDefaults\(kind\)/);
+  assert.match(app,/isSupplierDocumentKind\(target\.kind\)/);
+});
+'''
+if 'v312 pre-merge audit keeps search' not in tests:
+    p.write_text(tests + addition)
+
+# Patch-level invariants.
+checks = {
+    'src/components/GlobalSearch.tsx': ['documentKindLabel(document.kind,document.role)', 'documentParty(document)'],
+    'public/document-entry-v302.js': ["kind==='credit-note'", 'removeItem(pendingKindKey)'],
+    'src/lib/documents.ts': ['liveAuxiliaryReservations', 'documentSecondaryDateKind(doc.kind,doc.role)'],
+    'src/components/EditorPageCore.tsx': ['secondaryDateKind', 'usesCommercialDefaults', '!priceOptional&&zeroPrice'],
+    'src/templates/TemplateRenderer.tsx': ['documentSecondaryDateKind(doc.kind,doc.role)', 'documentUsesCommercialDefaults(doc.kind)'],
+}
+for path, needles in checks.items():
+    text = load(path)
+    for needle in needles:
+        if needle not in text:
+            raise SystemExit(f'{path}: final invariant missing {needle}')
+
+print('v312 pre-merge audit fixes applied')
