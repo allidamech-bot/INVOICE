@@ -1,0 +1,182 @@
+name: v310 stability integration
+on:
+  push:
+    branches: [fix/v310-no-auto-reload-contrast-rtl]
+    paths: [.github/workflows/v310-stability-apply.yml]
+permissions:
+  contents: write
+jobs:
+  apply-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v310-no-auto-reload-contrast-rtl
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply v310 stability fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p=Path('src/cloud/freshness.ts')
+          s=p.read_text()
+          s=s.replace("import { cloudRemoteChangedSinceAnchor, currentCloudUser, reconcileCloudVault, subscribeCloudVaultChanges } from './firebase.js';","import { cloudRemoteChangedSinceAnchor, currentCloudUser, subscribeCloudVaultChanges } from './firebase.js';")
+          s=s.replace("let realtimeUid='';","let realtimeUid='';\nlet remoteUpdateNotified=false;")
+          old="""    if(!await cloudRemoteChangedSinceAnchor(user.uid))return;
+    const result=await reconcileCloudVault(user.uid);
+    if(result==='diverged'){
+      window.dispatchEvent(new Event('lourex-cloud-conflict'));
+      return;
+    }
+    if(result==='pulled')reloadPreservingWorkspace();"""
+          new="""    const remoteChanged=await cloudRemoteChangedSinceAnchor(user.uid);
+    if(!remoteChanged){remoteUpdateNotified=false;return;}
+    // Never replace the active encrypted workspace underneath React. Applying a
+    // remote copy during a live session can race autosave and caused Safari to
+    // appear to refresh itself. Announce once and wait for an explicit safe apply.
+    if(!remoteUpdateNotified){remoteUpdateNotified=true;window.dispatchEvent(new Event('lourex-cloud-refresh-available'));}"""
+          if old not in s: raise SystemExit('freshness apply block not found')
+          s=s.replace(old,new)
+          s=s.replace("function reloadPreservingWorkspace():void{\n  rememberWorkspaceBeforeAutomaticReload();\n  window.location.reload();\n}\n\n","")
+          p.write_text(s)
+
+          p=Path('src/app/index.tsx')
+          s=p.read_text()
+          old="""// The account layer may install a newer account copy while the UI is idle.
+// Reloading here rehydrates React from the exact encrypted account copy, but
+// never discard a document, inline Operations draft, product draft, or modal.
+let cloudAppliedReloadTimer:number|undefined;
+window.addEventListener('lourex-cloud-applied',()=>{
+  if(reloadUnsafeWorkspaceOpen())return;
+  if(cloudAppliedReloadTimer)window.clearTimeout(cloudAppliedReloadTimer);
+  // A document click can race the final cloud callback by a few milliseconds.
+  // Re-check after React has had a chance to mount the editor before reloading.
+  cloudAppliedReloadTimer=window.setTimeout(()=>{
+    cloudAppliedReloadTimer=undefined;
+    if(reloadUnsafeWorkspaceOpen())return;
+    rememberWorkspaceBeforeAutomaticReload();
+    window.location.reload();
+  },360);
+});
+"""
+          new="""// Startup reconciliation already happens before React mounts. Runtime cloud
+// events must never hard-reload a live workspace; that can interrupt autosave and
+// was especially disruptive in Draft Studio on iPhone.
+window.addEventListener('lourex-cloud-applied',()=>{
+  try{document.documentElement.dataset.lourexCloudApplied='true';}catch{}
+});
+
+function showCloudRefreshAvailable():void{
+  if(document.querySelector('[data-lourex-cloud-refresh]'))return;
+  const notice=document.createElement('div');
+  notice.className='toast pwa-update-toast';
+  notice.setAttribute('data-lourex-cloud-refresh','true');
+  notice.setAttribute('role','status');
+  const copy=document.createElement('span');copy.style.display='flex';copy.style.flexDirection='column';copy.style.gap='2px';
+  const title=document.createElement('strong');title.textContent='Cloud changes available / توجد تحديثات سحابية';
+  const detail=document.createElement('small');detail.textContent='Apply them after you finish editing / طبّقها بعد الانتهاء من التحرير';
+  copy.append(title,detail);
+  const reload=document.createElement('button');reload.type='button';reload.textContent='Apply / تطبيق';reload.style.minHeight='44px';reload.style.padding='0 12px';reload.style.borderRadius='10px';reload.style.fontWeight='800';
+  reload.addEventListener('click',()=>{
+    if(reloadUnsafeWorkspaceOpen()){detail.textContent='Close the open editor first / أغلق المحرر المفتوح أولًا';return;}
+    rememberWorkspaceBeforeAutomaticReload();window.location.reload();
+  });
+  notice.append(copy,reload);document.body.appendChild(notice);
+}
+window.addEventListener('lourex-cloud-refresh-available',showCloudRefreshAvailable);
+"""
+          if old not in s: raise SystemExit('cloud applied listener not found')
+          s=s.replace(old,new)
+          s=s.replace("        if(safeSignedOutAuthGatewayForAutomaticReload())window.location.replace(window.location.href);\n        return;","        // Never refresh automatically on service-worker activation.\n        return;")
+          old="""        void (async()=>{
+          try{setActiveAccountUid(user.uid);await activateAccountStorage(user.uid);}
+          finally{window.location.reload();}
+        })();"""
+          new="""        void (async()=>{
+          try{setActiveAccountUid(user.uid);await activateAccountStorage(user.uid);}
+          finally{signOutTransitionRunning=false;window.dispatchEvent(new Event('lourex-cloud-refresh-available'));}
+        })();"""
+          if old not in s: raise SystemExit('late auth reload block not found')
+          s=s.replace(old,new)
+          p.write_text(s)
+
+          p=Path('src/cloud/firebase.ts')
+          s=p.read_text()
+          old="""  return new Promise(resolve=>{
+    let settled=false;let off:undefined|(()=>void);
+    const finish=(value:CloudUser|null)=>{if(settled)return;settled=true;if(off)off();resolve(value);};
+    const timeout=window.setTimeout(()=>finish(userFrom(auth().currentUser)),timeoutMs);
+    off=auth().onAuthStateChanged((user:any)=>{window.clearTimeout(timeout);finish(userFrom(user));},()=>{window.clearTimeout(timeout);finish(null);});
+  });"""
+          new="""  return new Promise(resolve=>{
+    let settled=false;let off:undefined|(()=>void);let nullTimer:number|undefined;
+    const finish=(value:CloudUser|null)=>{if(settled)return;settled=true;if(nullTimer)window.clearTimeout(nullTimer);if(off)off();resolve(value);};
+    const timeout=window.setTimeout(()=>finish(userFrom(auth().currentUser)),timeoutMs);
+    off=auth().onAuthStateChanged((user:any)=>{
+      const resolved=userFrom(user);
+      if(resolved){window.clearTimeout(timeout);finish(resolved);return;}
+      if(nullTimer)window.clearTimeout(nullTimer);
+      nullTimer=window.setTimeout(()=>{window.clearTimeout(timeout);finish(userFrom(auth().currentUser));},1200);
+    },()=>{window.clearTimeout(timeout);finish(null);});
+  });"""
+          if old not in s: raise SystemExit('waitForCloudUser block not found')
+          s=s.replace(old,new)
+          p.write_text(s)
+
+          p=Path('public/pull-to-refresh.js')
+          s=p.read_text()
+          needle="(()=>{\n  const THRESHOLD=76;"
+          repl="(()=>{\n  // v310: disabled unless explicitly opted in; normal iPhone scrolling must never reload LOUREX.\n  if(!document.documentElement.hasAttribute('data-lourex-enable-pull-refresh'))return;\n  const THRESHOLD=76;"
+          if needle not in s: raise SystemExit('pull refresh entry not found')
+          s=s.replace(needle,repl,1)
+          p.write_text(s)
+
+          Path('src/styles/v310-stability-contrast.css').write_text(r'''/* LOUREX v310 — stability + contrast + RTL geometry */
+.pin-unlock-card{border-color:rgba(44,207,216,.34)!important;background:#0b3038!important;box-shadow:0 18px 48px rgba(0,0,0,.22)!important}
+.pin-unlock-card h1{color:#f5fbfc!important}.pin-unlock-card .subtle{color:#b7cbd0!important;opacity:1!important}.pin-unlock-card .eyebrow{color:#f0b65f!important;opacity:1!important;font-weight:850!important}
+.pin-unlock-card .pin-lock-badge{border-color:rgba(44,207,216,.42)!important;background:rgba(28,157,166,.12)!important}.pin-unlock-card .pin-lock-badge strong{color:#f4fbfc!important;font-weight:900!important}.pin-unlock-card .pin-lock-badge span{color:#c1d4d8!important;opacity:1!important}
+.pin-unlock-card .field-label{color:#d5e3e6!important;font-weight:800!important;opacity:1!important}.pin-unlock-card .input{border-color:#5b7780!important;background:#f8fbfc!important;color:#18242a!important;box-shadow:none!important}.pin-unlock-card .input:focus{border-color:#20d3db!important;outline:3px solid rgba(32,211,219,.20)!important;outline-offset:1px!important}
+.pin-unlock-card .btn-primary,.pin-unlock-card button[type='submit']{background:#20c9d2!important;border-color:#20c9d2!important;color:#06242b!important;font-weight:900!important;box-shadow:0 8px 20px rgba(32,201,210,.16)!important}.pin-unlock-card .auth-utility-controls button{color:#eaf5f6!important;border-color:#35616b!important;background:#103740!important}
+.pin-unlock-card .auth-error{color:#ffd7da!important;background:rgba(196,66,76,.17)!important;border-color:rgba(255,118,128,.38)!important}
+@media(max-width:800px){
+.app-ui .fintech-dashboard-v280 .command-recent{width:100%!important;max-width:100%!important;margin-inline:0!important;box-sizing:border-box!important;overflow:hidden!important}
+.app-ui .fintech-dashboard-v280 .command-recent .dashboard-panel-heading,.app-ui .fintech-dashboard-v280 .dashboard-document-list,.app-ui .fintech-dashboard-v280 .dashboard-document-row{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;margin-inline:0!important}
+.app-ui .fintech-dashboard-v280 .dashboard-document-row{padding-inline:12px!important;overflow:hidden!important}
+[dir='rtl'] .app-ui .fintech-dashboard-v280 .dashboard-document-row{direction:rtl!important;text-align:right!important}
+[dir='rtl'] .app-ui .fintech-dashboard-v280 .dashboard-document-copy,[dir='rtl'] .app-ui .fintech-dashboard-v280 .dashboard-document-customer,[dir='rtl'] .app-ui .fintech-dashboard-v280 .dashboard-document-date{text-align:right!important;justify-self:stretch!important}
+[dir='rtl'] .app-ui .fintech-dashboard-v280 .dashboard-document-amount{text-align:left!important;justify-self:end!important}
+[dir='rtl'] .app-ui .fintech-dashboard-v280 .dashboard-document-status{justify-self:end!important}
+}
+''')
+
+          p=Path('index.html')
+          s=p.read_text()
+          marker='  <link rel="stylesheet" href="./styles/v308-document-studio.css?v=308" data-lourex-v308="true" />'
+          if marker not in s: raise SystemExit('index v308 marker not found')
+          s=s.replace(marker,marker+'\n  <link rel="stylesheet" href="./styles/v310-stability-contrast.css?v=310" data-lourex-v310="true" />',1)
+          p.write_text(s)
+
+          p=Path('scripts/v303-visual-cache-refresh.mjs')
+          s=p.read_text()
+          s=s.replace("const generations=['302','303','304','305','306','307'];","const generations=['302','303','304','305','306','307','308','309'];")
+          s=s.replace("const CACHE = 'lourex-invoice-v308';","const CACHE = 'lourex-invoice-v310';")
+          s=s.replace("pre-v308 cache generation","pre-v310 cache generation")
+          s=s.replace("!sw.includes(\"const CACHE = 'lourex-invoice-v308';\")","!sw.includes(\"const CACHE = 'lourex-invoice-v310';\")")
+          s=s.replace("promote the LOUREX PWA cache to v308","promote the LOUREX PWA cache to v310")
+          s=s.replace("'./styles/v308-document-studio.css'];","'./styles/v308-document-studio.css','./styles/v310-stability-contrast.css'];")
+          s=s.replace("v308 document studio cache generation ready","v310 stability cache generation ready")
+          p.write_text(s)
+      - name: Install dependencies
+        run: npm ci
+      - name: Build only
+        run: npm run build
+      - name: Commit verified v310 fixes
+        run: |
+          git config user.name "allidamech-bot"
+          git config user.email "228416871+allidamech-bot@users.noreply.github.com"
+          git add src/app/index.tsx src/cloud/freshness.ts src/cloud/firebase.ts public/pull-to-refresh.js src/styles/v310-stability-contrast.css index.html scripts/v303-visual-cache-refresh.mjs
+          git commit -m "fix(v310): stop automatic reloads and polish PIN RTL UI [skip v310]"
+          git push origin HEAD:fix/v310-no-auto-reload-contrast-rtl
