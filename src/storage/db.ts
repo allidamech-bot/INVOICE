@@ -6,6 +6,7 @@ const ACCOUNT_DB_PREFIX = 'lourex-invoice-account-';
 const DB_VERSION = 1;
 const STORE = 'records';
 const MIGRATION_MARKER_PREFIX = 'lourex-account-storage-v1-migrated:';
+const PUBLIC_RECOVERY_MARKER_PREFIX = 'lourex-account-storage-public-v2-migrated:';
 
 type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord | SafetySnapshotRecord;
 
@@ -16,6 +17,7 @@ let openDbName='';
 function accountDbName(uid:string):string{return `${ACCOUNT_DB_PREFIX}${encodeURIComponent(uid)}`;}
 function scopedDbName():string{return activeStorageUid?accountDbName(activeStorageUid):PUBLIC_DB_NAME;}
 function migrationMarker(uid:string):string{return `${MIGRATION_MARKER_PREFIX}${uid}`;}
+function publicRecoveryMarker(uid:string):string{return `${PUBLIC_RECOVERY_MARKER_PREFIX}${uid}`;}
 
 function openNamedDb(name:string):Promise<IDBDatabase>{
   return new Promise((resolve,reject)=>{
@@ -63,11 +65,25 @@ async function targetAlreadyInitialized(db:IDBDatabase):Promise<boolean>{
   return false;
 }
 
+async function targetHasProtectedWorkspace(db:IDBDatabase):Promise<boolean>{
+  const [security,vault]=await Promise.all([
+    namedGet<SecurityMetadata>(db,'security'),
+    namedGet<EncryptedVaultRecord>(db,'vault')
+  ]);
+  return Boolean(security||vault);
+}
+
 function migrationAlreadyHandled(uid:string):boolean{
   try{return localStorage.getItem(migrationMarker(uid))==='1';}catch{return false;}
 }
 function markMigrationHandled(uid:string):void{
   try{localStorage.setItem(migrationMarker(uid),'1');}catch{}
+}
+function publicRecoveryAlreadyHandled(uid:string):boolean{
+  try{return localStorage.getItem(publicRecoveryMarker(uid))==='1';}catch{return false;}
+}
+function markPublicRecoveryHandled(uid:string):void{
+  try{localStorage.setItem(publicRecoveryMarker(uid),'1');}catch{}
 }
 
 async function migrateLegacyAccountIfOwned(uid:string):Promise<void>{
@@ -90,6 +106,36 @@ async function migrateLegacyAccountIfOwned(uid:string):Promise<void>{
   }finally{target.close();}
 }
 
+// v311 recovery: a slow Safari/Firebase restore could previously mount setup in
+// the signed-out public scope, then let the user create a PIN there before the
+// UID-specific scope was selected. Recover that encrypted workspace exactly once,
+// but only when the public database itself proves ownership through cloud-account.
+// Never overwrite an account database that already contains protected data.
+async function migrateAccidentalPublicAccountIfOwned(uid:string):Promise<void>{
+  if(publicRecoveryAlreadyHandled(uid))return;
+  const target=await openNamedDb(accountDbName(uid));
+  try{
+    if(await targetHasProtectedWorkspace(target)){markPublicRecoveryHandled(uid);return;}
+    const publicDb=await openNamedDb(PUBLIC_DB_NAME);
+    try{
+      const owner=await namedGet<CloudAccountRecord>(publicDb,'cloud-account');
+      if(!owner||owner.uid!==uid){markPublicRecoveryHandled(uid);return;}
+      const security=await namedGet<SecurityMetadata>(publicDb,'security');
+      const vault=await namedGet<EncryptedVaultRecord>(publicDb,'vault');
+      // Security and encrypted vault are an atomic pair. A partial public record
+      // is not trustworthy enough to import into an account boundary.
+      if(!security||!vault){markPublicRecoveryHandled(uid);return;}
+      const records:DbRecord[]=[security,vault,owner];
+      for(const id of ['public-preferences','session-key'] as const){
+        const record=await namedGet<DbRecord>(publicDb,id as any);
+        if(record)records.push(record);
+      }
+      await namedPutMany(target,records);
+      markPublicRecoveryHandled(uid);
+    }finally{publicDb.close();}
+  }finally{target.close();}
+}
+
 /**
  * Select the local encrypted workspace for one authenticated Firebase UID.
  * Each account gets a physically distinct IndexedDB database on this device.
@@ -99,7 +145,10 @@ export async function activateAccountStorage(uid:string|null):Promise<void>{
   const normalized=uid?.trim()||null;
   if(normalized===activeStorageUid&&openDbName===scopedDbName())return;
   await closeActiveDb();
-  if(normalized)await migrateLegacyAccountIfOwned(normalized);
+  if(normalized){
+    await migrateLegacyAccountIfOwned(normalized);
+    await migrateAccidentalPublicAccountIfOwned(normalized);
+  }
   activeStorageUid=normalized;
 }
 
@@ -111,7 +160,7 @@ function openDb(): Promise<IDBDatabase> {
   dbPromise=new Promise((resolve, reject) => {
     const request = indexedDB.open(name, DB_VERSION);
     request.onupgradeneeded = () => {
-      const db = request.result;
+      const db=request.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
     };
     request.onsuccess = () => {
@@ -150,23 +199,23 @@ export async function putRecord(record: DbRecord): Promise<void> {
 export async function deleteRecord(id: DbRecord['id']): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
+    const tx = db.transaction(STORE,'readwrite');
     tx.objectStore(STORE).delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB write failed.'));
-    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB write aborted.'));
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error??new Error('IndexedDB write failed.'));
+    tx.onabort=()=>reject(tx.error??new Error('IndexedDB write aborted.'));
   });
 }
 
 export async function putSecurityAndVault(security: SecurityMetadata, vault: EncryptedVaultRecord): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    const store = tx.objectStore(STORE);
+    const tx = db.transaction(STORE,'readwrite');
+    const store=tx.objectStore(STORE);
     store.put(security); store.put(vault);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error('Unable to commit encrypted data.'));
-    tx.onabort = () => reject(tx.error ?? new Error('Encrypted data transaction aborted.'));
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error??new Error('Unable to commit encrypted data.'));
+    tx.onabort=()=>reject(tx.error??new Error('Encrypted data transaction aborted.'));
   });
 }
 
