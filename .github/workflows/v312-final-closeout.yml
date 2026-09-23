@@ -1,0 +1,50 @@
+name: LOUREX v312 final document closeout
+
+on:
+  push:
+    branches:
+      - feature/v312-business-document-suite
+
+permissions:
+  contents: write
+
+concurrency:
+  group: v312-final-document-closeout
+  cancel-in-progress: true
+
+jobs:
+  closeout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/v312-business-document-suite
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply final audited patch
+        run: python3 scripts/v312-final-closeout.py
+      - name: Diff sanity
+        run: git diff --check
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: v312 focused regression
+        run: node --test tests/v312-business-document-suite.test.mjs
+      - name: Related document regression
+        run: node --test tests/editor-flow-hardening-v167.test.mjs tests/documents-workspace-v168.test.mjs tests/commercial-output-hardening-v167.test.mjs tests/v300-purchase-order-attachments-pin.test.mjs
+      - name: Commit clean closeout
+        run: |
+          rm scripts/v312-final-closeout.py
+          rm .github/workflows/v312-final-closeout.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(v312): finalize document suite semantics"
+          git push origin HEAD:feature/v312-business-document-suite
