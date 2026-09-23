@@ -25,21 +25,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Apply final audited patch
+      - name: Apply final audited document patch
         run: python3 scripts/v312-final-closeout.py
-      - name: Guard optional RFQ response interval
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('src/components/EditorPageCore.tsx')
-          s=p.read_text()
-          old="      const responseDays=daysBetweenIso(d.issueDate,d.dueDate);\n      return {...next,dueDate:addDaysIso(value,responseDays)};"
-          new="      const responseDays=daysBetweenIso(d.issueDate,d.dueDate);\n      if(responseDays===null)return next;\n      return {...next,dueDate:addDaysIso(value,responseDays)};"
-          if new not in s:
-            if old not in s: raise SystemExit('RFQ response interval block missing')
-            s=s.replace(old,new,1)
-          p.write_text(s)
-          PY
+      - name: Apply clean regression audit
+        run: python3 scripts/v312-final-clean-audit.py
       - name: Normalize touched text files
         run: |
           python3 - <<'PY'
@@ -48,7 +37,9 @@ jobs:
             'src/lib/document-kinds.ts','src/lib/defaults.ts','src/storage/vault.ts','src/lib/documents.ts',
             'src/app/App.tsx','src/components/EditorPageCore.tsx','src/templates/TemplateRenderer.tsx',
             'src/lib/document-quality.ts','src/components/DocumentLifecyclePanel.tsx','src/lib/i18n.ts',
-            'tests/v312-business-document-suite.test.mjs','tests/account-authoritative-sync.test.mjs','tests/audit-batch3.test.mjs'
+            'tests/v312-business-document-suite.test.mjs','tests/account-authoritative-sync.test.mjs','tests/audit-batch3.test.mjs',
+            'tests/commercial-output-hardening-v167.test.mjs','tests/documents-workspace-v168.test.mjs',
+            'tests/v300-purchase-order-attachments-pin.test.mjs'
           ]
           for path in paths:
             p=Path(path)
@@ -71,7 +62,7 @@ jobs:
       - name: Commit clean closeout
         run: |
           rm scripts/v312-final-closeout.py
-          rm -f scripts/v312-final-clean-audit.py
+          rm scripts/v312-final-clean-audit.py
           rm .github/workflows/v312-final-closeout.yml
           git diff --check
           git config user.name "github-actions[bot]"
