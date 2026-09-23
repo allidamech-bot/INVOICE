@@ -42,11 +42,13 @@ test('v132 final documents preserve audit history through void and block destruc
 });
 
 test('v132 credit notes are linked capped and cannot accept payments',async()=>{
-  const [lifecycle,payments,renderer,docs]=await Promise.all([read('src/lib/document-lifecycle.ts'),read('src/lib/payments.ts'),read('src/templates/TemplateRenderer.tsx'),read('src/components/DocumentsPage.tsx')]);
+  const [lifecycle,payments,renderer,catalog,docs]=await Promise.all([read('src/lib/document-lifecycle.ts'),read('src/lib/payments.ts'),read('src/templates/TemplateRenderer.tsx'),read('src/lib/document-kinds.ts'),read('src/components/DocumentsPage.tsx')]);
   assert.ok(lifecycle.includes('Credit note cannot exceed the remaining invoice balance after payments and prior credits'));
   assert.ok(lifecycle.includes('creditForId:source.id'));
   assert.ok(payments.includes("invoice.role==='credit-note'"));
-  assert.ok(renderer.includes('CREDIT NOTE'));
+  assert.match(renderer,/documentKindTitle\(doc\.kind,doc\.role\)/);
+  assert.ok(catalog.includes("kind:'credit-note'"));
+  assert.ok(catalog.includes("titleEn:'CREDIT NOTE'"));
   assert.ok(renderer.includes('Source Invoice'));
   assert.ok(docs.includes('Credit Note'));
 });
