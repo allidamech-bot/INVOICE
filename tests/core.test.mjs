@@ -5,6 +5,7 @@ import { defaultCompany, emptyVault, customerSnapshotFrom } from '../dist/src/li
 import { createBlankDocument, duplicateDocument, convertToInvoice, nextDocumentNumber, paginateItems, validateDocument } from '../dist/src/lib/documents.js';
 import { getDocumentReadiness } from '../dist/src/lib/readiness.js';
 import { createSecurity, verifyPin, encryptVault, decryptVault, createEncryptedBackup, decryptBackup } from '../dist/src/crypto/crypto.js';
+import { migrateVault } from '../dist/src/storage/vault.js';
 
 function customer(overrides = {}) {
   return {
@@ -120,43 +121,42 @@ test('pagination handles 30+ items and preserves all rows', () => {
   const doc = createBlankDocument('invoice', 'INV-2026-0004', defaultCompany());
   const base = doc.items[0];
   doc.items = Array.from({ length: 35 }, (_, i) => ({ ...base, id: `i-${i}`, descriptionEn: `Item ${i}`, unitPrice: '1' }));
-  const pages = paginateItems(doc);
+  const pages = paginateItems(doc.items);
   assert.ok(pages.length >= 2);
-  assert.equal(pages.flatMap(p => p.items).length, 35);
+  assert.equal(pages.flat().length, 35);
 });
 
 test('PIN verifier rejects wrong PIN and encrypted vault round-trips', async () => {
-  const security = await createSecurity('123456');
-  assert.equal(await verifyPin('000000', security), false);
-  assert.equal(await verifyPin('123456', security), true);
+  const { metadata, key } = await createSecurity('123456');
+  await assert.rejects(() => verifyPin('000000', metadata), /Wrong PIN/);
+  const verifiedKey = await verifyPin('123456', metadata);
   const vault = emptyVault(); vault.company.nameEn = 'LOUREX';
-  const record = await encryptVault('123456', security, vault);
-  const restored = await decryptVault('123456', record);
+  const record = await encryptVault(key, vault);
+  const restored = await decryptVault(verifiedKey, record);
   assert.equal(restored.company.nameEn, 'LOUREX');
 });
 
 test('backup is encrypted, validates PIN, and restores complete payload', async () => {
   const vault = emptyVault(); vault.company.nameEn = 'LOUREX';
   const backup = await createEncryptedBackup('123456', vault);
-  assert.equal(backup.includes('LOUREX'), false);
+  assert.equal(JSON.stringify(backup).includes('LOUREX'), false);
   await assert.rejects(() => decryptBackup('000000', backup));
   const restored = await decryptBackup('123456', backup);
   assert.equal(restored.company.nameEn, 'LOUREX');
 });
 
 test('backup decryption rejects abusive or malformed crypto parameters without unbounded KDF work', async () => {
-  const backup = JSON.parse(await createEncryptedBackup('123456', emptyVault()));
+  const backup = await createEncryptedBackup('123456', emptyVault());
   backup.kdf.iterations = 999999999;
-  await assert.rejects(() => decryptBackup('123456', JSON.stringify(backup)), /Invalid backup security parameters/);
+  await assert.rejects(() => decryptBackup('123456', backup), /Backup password\/PIN is incorrect or the file is corrupted/);
   backup.kdf.iterations = 210000;
   backup.kdf.salt = 'not-base64!!!';
-  await assert.rejects(() => decryptBackup('123456', JSON.stringify(backup)), /Invalid backup format/);
+  await assert.rejects(() => decryptBackup('123456', backup), /Backup password\/PIN is incorrect or the file is corrupted/);
 });
 
 test('migration rejects duplicate IDs instead of silently corrupting restored data', async () => {
-  const backup = JSON.parse(await createEncryptedBackup('123456', emptyVault()));
-  const raw = await decryptBackup('123456', JSON.stringify(backup));
+  const backup = await createEncryptedBackup('123456', emptyVault());
+  const raw = await decryptBackup('123456', backup);
   raw.customers = [customer({id:'dup'}), customer({id:'dup',companyNameEn:'Different'})];
-  const duplicateBackup = await createEncryptedBackup('123456', raw);
-  await assert.rejects(() => decryptBackup('123456', duplicateBackup), /Duplicate customer ID/);
+  assert.throws(() => migrateVault(raw), /duplicate or invalid customer IDs/i);
 });
