@@ -265,13 +265,20 @@ export async function reconcileCloudVault(uid:string):Promise<CloudSyncResult>{
   requireCurrentUid(uid);
   const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(uid)]);
   if(!local&&!remote)return 'empty';
-  const startup=Boolean(document.querySelector('.loading-screen'));
+  // Automatic cloud installation is a startup-only capability. Once React has
+  // mounted an auth/workspace surface, a newer remote copy must become an
+  // explicit conflict/choice instead of replacing IndexedDB and triggering a
+  // surprise reload while the user is working.
+  const startup=Boolean(document.querySelector('.loading-screen'))&&!document.querySelector('.app-ui,.auth-page');
   if(local&&!remote){
     if(startup){window.setTimeout(()=>void pushLocalVaultToCloud(uid).catch(()=>undefined),500);return 'same';}
     const security=await getSecurity();if(!security)throw new Error('Security settings are missing.');
     await publishVault(uid,security,local,null);return 'pushed';
   }
-  if(!local&&remote){await installCloudVault(uid);return 'pulled';}
+  if(!local&&remote){
+    if(!startup)return 'diverged';
+    await installCloudVault(uid);return 'pulled';
+  }
   if(!local||!remote)return 'empty';
   const localHash=await sha256(local.cipher);
   if(localHash===remote.cipherSha256){writeSyncAnchor(uid,remote);return 'same';}
@@ -280,7 +287,10 @@ export async function reconcileCloudVault(uid:string):Promise<CloudSyncResult>{
   const localChanged=localHash!==anchor.cipherSha256;
   const remoteChanged=remote.revision!==anchor.revision||remote.cipherSha256!==anchor.cipherSha256;
   if(localChanged&&remoteChanged)return 'diverged';
-  if(remoteChanged){await installCloudVault(uid);return 'pulled';}
+  if(remoteChanged){
+    if(!startup)return 'diverged';
+    await installCloudVault(uid);return 'pulled';
+  }
   if(localChanged){
     if(startup){window.setTimeout(()=>void pushLocalVaultToCloud(uid).catch(()=>undefined),500);return 'same';}
     const security=await getSecurity();if(!security)throw new Error('Security settings are missing.');
