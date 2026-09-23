@@ -1,4 +1,4 @@
-export type DocumentKind = 'proforma' | 'invoice' | 'purchase-order' | 'draft';
+export type DocumentKind = 'draft' | 'rfq' | 'proforma' | 'proforma-invoice' | 'purchase-order' | 'invoice' | 'delivery-note' | 'payment-receipt' | 'statement-account';
 export type DocumentLanguage = 'en' | 'ar' | 'bilingual';
 export type UiLanguage = 'en' | 'ar';
 export type TemplateId = 'executive' | 'minimal' | 'trade' | 'signature' | 'obsidian' | 'cobalt' | 'editorial' | 'split' | 'prism' | 'slate' | 'horizon' | 'mono' | 'aurora' | 'ledger' | 'noir' | 'midnight' | 'blackivory' | 'carbon';

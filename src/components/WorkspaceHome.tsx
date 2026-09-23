@@ -9,6 +9,7 @@ import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { Button, Icon } from './UI.js';
 import { LourexAdvisorCard } from './LourexAdvisorCard.js';
+import { documentKindLabel, isSupplierDocumentKind } from '../lib/document-kinds.js';
 
 interface Props{
   companyName:string;
@@ -31,7 +32,7 @@ interface ChartPoint{key:string;label:string;sales:number;collected:number;profi
 
 function customerName(doc:LourexDocument):string{
   if(doc.kind==='draft')return doc.letter?.recipient||doc.letter?.subject||t('Company document','مستند شركة');
-  if(doc.kind==='purchase-order'){
+  if(isSupplierDocumentKind(doc.kind)){
     const supplier=doc.supplierSnapshot;
     if(!supplier)return t('No supplier','بدون مورد');
     return isArabic()?(supplier.nameAr||supplier.nameEn||t('No supplier','بدون مورد')):(supplier.nameEn||supplier.nameAr||t('No supplier','بدون مورد'));
@@ -44,8 +45,8 @@ function customerName(doc:LourexDocument):string{
 }
 
 function documentLabel(doc:LourexDocument):string{
-  if(doc.role==='credit-note')return t('Credit note','إشعار دائن');
-  return doc.kind==='proforma'?t('Quotation','عرض سعر'):doc.kind==='purchase-order'?t('Purchase Order','طلب شراء'):doc.kind==='draft'?t('Draft','مسودة'):t('Invoice','فاتورة');
+  const label=documentKindLabel(doc.kind,doc.role);
+  return t(label.en,label.ar);
 }
 
 function documentStatus(doc:LourexDocument,payments:PaymentRecord[],documents:LourexDocument[],today:string):{tone:string;label:string}{
@@ -193,7 +194,7 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
     </div>
 
     <section className="dashboard-quick-actions" aria-label={t('Quick actions','إجراءات سريعة')}>
-      <button type="button" className="quick-action-primary" onClick={onNewDocument}><span><Icon name="plus"/></span><strong>{t('New document','مستند جديد')}</strong><small>{t('Quote, invoice, purchase order or company draft','عرض سعر أو فاتورة أو طلب شراء أو مسودة شركة')}</small></button>
+      <button type="button" className="quick-action-primary" onClick={onNewDocument}><span><Icon name="plus"/></span><strong>{t('New document','مستند جديد')}</strong><small>{t('10 business document workflows','10 أنواع رئيسية لمستندات الأعمال')}</small></button>
       <button type="button" onClick={()=>onNavigate('customers')}><span><Icon name="users"/></span><strong>{t('Add customer','إضافة عميل')}</strong><small>{t('Customer directory','دليل العملاء')}</small></button>
       <button type="button" onClick={()=>onNavigate('items')}><span><Icon name="items"/></span><strong>{t('Add product','إضافة منتج')}</strong><small>{t('Catalog & stock','الكتالوج والمخزون')}</small></button>
       <button type="button" onClick={()=>onNavigate('operations')}><span><Icon name="backup"/></span><strong>{t('Record purchase','تسجيل شراء')}</strong><small>{t('Suppliers & landed cost','الموردون وتكلفة الوصول')}</small></button>

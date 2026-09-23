@@ -5,6 +5,7 @@ import { paginateItems } from '../lib/documents.js';
 import { resolvedAccent, resolvedAccentInk, resolvedArabicFont, resolvedLatinFont } from '../lib/appearance.js';
 import { documentCurrency, documentDisplayValue, type DocumentValueKind } from '../lib/document-language.js';
 import { normalizeWatermark } from '../lib/document-extras.js';
+import { documentKindTitle, isSupplierDocumentKind } from '../lib/document-kinds.js';
 
 interface Props { document: LourexDocument; scale?: number; compact?: boolean; }
 interface PageProps { document: LourexDocument; items: DocumentItem[]; pageIndex: number; totalPages: number; finalPage: boolean; variant: TemplateId; compact?: boolean; }
@@ -124,16 +125,17 @@ function LogoBlock({ document: doc, inverse = false }: { document: LourexDocumen
   return <div className={`doc-logo ${inverse ? 'inverse' : ''}`}><img src={src} alt={doc.companySnapshot.nameEn || doc.companySnapshot.nameAr || 'Company logo'} /></div>;
 }
 function DocumentTitle({ document: doc, inverse = false }: { document: LourexDocument; inverse?: boolean }): any {
-  const typeEn = doc.role==='credit-note' ? 'CREDIT NOTE' : doc.kind === 'proforma' ? 'QUOTATION' : doc.kind === 'purchase-order' ? 'PURCHASE ORDER' : 'INVOICE';
-  const typeAr = doc.role==='credit-note' ? 'إشعار دائن' : doc.kind === 'proforma' ? 'عرض سعر' : doc.kind === 'purchase-order' ? 'طلب شراء' : 'فاتورة';
+  const title=documentKindTitle(doc.kind,doc.role);
+  const typeEn=title.en;
+  const typeAr=title.ar;
   return <div className={`doc-title ${inverse ? 'inverse' : ''}`}>{doc.language === 'en' ? <span>{typeEn}</span> : doc.language === 'ar' ? <span className="doc-title-primary-ar" dir="rtl">{typeAr}</span> : <><span>{typeEn}</span><em dir="rtl">{typeAr}</em></>}</div>;
 }
 function MetaBlock({ document: doc }: { document: LourexDocument }): any {
   const currency=documentCurrency(doc);
-  return <div className="doc-meta"><div className="meta-number"><b>{localized(doc, 'No.', 'الرقم')}</b><span>{doc.number}</span></div>{doc.revision>1?<div className="meta-revision"><b>{localized(doc,'Revision','المراجعة')}</b><span>R{doc.revision}</span></div>:null}{doc.creditForNumber?<div className="meta-source"><b>{localized(doc,'Source Invoice','الفاتورة الأصلية')}</b><span>{doc.creditForNumber}</span></div>:null}<div className="meta-issue"><b>{localized(doc, doc.kind==='purchase-order'?'Order Date':'Issue Date', doc.kind==='purchase-order'?'تاريخ الطلب':'تاريخ الإصدار')}</b><span>{displayDate(doc.issueDate, doc.language)}</span></div>{doc.dueDate ? <div className="meta-due"><b>{localized(doc, doc.kind === 'proforma' ? 'Valid Until' : doc.kind==='purchase-order' ? 'Requested Delivery' : 'Due Date', doc.kind === 'proforma' ? 'صالح حتى' : doc.kind==='purchase-order' ? 'التسليم المطلوب' : 'تاريخ الاستحقاق')}</b><span>{displayDate(doc.dueDate, doc.language)}</span></div> : null}<div className="meta-currency"><b>{localized(doc, 'Currency', 'العملة')}</b><span>{currency}</span></div></div>;
+  return <div className="doc-meta"><div className="meta-number"><b>{localized(doc, 'No.', 'الرقم')}</b><span>{doc.number}</span></div>{doc.revision>1?<div className="meta-revision"><b>{localized(doc,'Revision','المراجعة')}</b><span>R{doc.revision}</span></div>:null}{doc.creditForNumber?<div className="meta-source"><b>{localized(doc,'Source Invoice','الفاتورة الأصلية')}</b><span>{doc.creditForNumber}</span></div>:null}<div className="meta-issue"><b>{localized(doc, doc.kind==='purchase-order'?'Order Date':'Issue Date', doc.kind==='purchase-order'?'تاريخ الطلب':'تاريخ الإصدار')}</b><span>{displayDate(doc.issueDate, doc.language)}</span></div>{doc.dueDate ? <div className="meta-due"><b>{localized(doc, (doc.kind === 'proforma'||doc.kind==='proforma-invoice') ? 'Valid Until' : doc.kind==='purchase-order' ? 'Requested Delivery' : 'Due Date', (doc.kind === 'proforma'||doc.kind==='proforma-invoice') ? 'صالح حتى' : doc.kind==='purchase-order' ? 'التسليم المطلوب' : 'تاريخ الاستحقاق')}</b><span>{displayDate(doc.dueDate, doc.language)}</span></div> : null}<div className="meta-currency"><b>{localized(doc, 'Currency', 'العملة')}</b><span>{currency}</span></div></div>;
 }
 function PartyBlock({ document: doc, type }: { document: LourexDocument; type: 'seller' | 'customer' }): any {
-  const isSeller=type==='seller',isSupplier=!isSeller&&doc.kind==='purchase-order',c=doc.customerSnapshot,supplier=doc.supplierSnapshot;
+  const isSeller=type==='seller',isSupplier=!isSeller&&isSupplierDocumentKind(doc.kind),c=doc.customerSnapshot,supplier=doc.supplierSnapshot;
   const name=isSeller?companyName(doc):isSupplier?identityPair(doc,supplier?.nameEn??'',supplier?.nameAr??''):customerName(doc);
   const addressEn=isSeller?doc.companySnapshot.addressEn:isSupplier?(supplier?.address??''):(c?.addressEn??'');
   const addressAr=isSeller?doc.companySnapshot.addressAr:isSupplier?(supplier?.address??''):(c?.addressAr??'');
@@ -143,7 +145,7 @@ function PartyBlock({ document: doc, type }: { document: LourexDocument; type: '
   const phone=isSeller?doc.companySnapshot.phone:isSupplier?(supplier?.phone??''):(c?.phone??'');const email=isSeller?doc.companySnapshot.email:isSupplier?(supplier?.email??''):(c?.email??'');const website=isSeller?doc.companySnapshot.website:'';
   const identifiers:Array<[string,string,string]>=isSeller?[['VAT No.','رقم ضريبة القيمة المضافة',doc.companySnapshot.vatNumber],['Tax No.','الرقم الضريبي',doc.companySnapshot.taxNumber],['Commercial Registration','السجل التجاري',doc.companySnapshot.commercialRegistration]]:isSupplier?[['VAT / Tax','الضريبة',supplier?.vatTaxNumber??''],['Commercial Registration','السجل التجاري',supplier?.commercialRegistration??''],['Supplier Ref.','مرجع المورد',doc.supplierReference??'']]:[['VAT / Tax','الضريبة',c?.vatTaxNumber??''],['Commercial Registration','السجل التجاري',c?.commercialRegistration??'']];
   const visibleIdentifiers=identifiers.filter(([, ,value],index,array)=>Boolean(value.trim())&&array.findIndex(row=>row[2].trim()===value.trim())===index);
-  const labelEn=isSeller?(doc.kind==='purchase-order'?'Buyer / From':'Seller / From'):isSupplier?'Supplier / Vendor':'Bill To / Customer';const labelAr=isSeller?(doc.kind==='purchase-order'?'المشتري / من':'البائع / من'):isSupplier?'المورد':'إلى / العميل';
+  const labelEn=isSeller?(isSupplierDocumentKind(doc.kind)?'Buyer / From':'Seller / From'):isSupplier?'Supplier / Vendor':'Bill To / Customer';const labelAr=isSeller?(isSupplierDocumentKind(doc.kind)?'المشتري / من':'البائع / من'):isSupplier?'المورد':'إلى / العميل';
   return <section className={'party-block party-'+type+(isSupplier?' party-supplier':'')}><div className="section-kicker">{localized(doc,labelEn,labelAr)}</div><div className="party-name">{name}</div>{addressVisible?<div className="party-address">{identityPair(doc,addressEn,addressAr)}</div>:null}{(city||country)?<div className="party-location">{city?<bdi>{city}</bdi>:null}{city&&country?', ':null}{country?<bdi>{country}</bdi>:null}</div>:null}{(phone||email||website)?<div className="party-contact">{[phone,email,website].filter(Boolean).join(' • ')}</div>:null}{visibleIdentifiers.length?<div className="party-identifiers">{visibleIdentifiers.map(([en,ar,value])=><div key={en+'-'+value}><b>{localized(doc,en,ar)}</b><span>{value}</span></div>)}</div>:null}</section>;
 }
 function ItemsTable({ document: doc, items, continued }: { document: LourexDocument; items: DocumentItem[]; continued: boolean }): any {
