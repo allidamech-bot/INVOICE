@@ -25,9 +25,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Apply final audited document patch
-        run: python3 scripts/v312-final-closeout.py
-      - name: Apply clean regression audit
+      - name: Apply consolidated clean audit
         run: python3 scripts/v312-final-clean-audit.py
       - name: Normalize touched text files
         run: |
