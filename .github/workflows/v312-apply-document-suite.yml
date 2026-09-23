@@ -1,0 +1,31 @@
+name: LOUREX v312 document suite patch
+
+on:
+  push:
+    branches:
+      - feature/v312-business-document-suite
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/v312-business-document-suite
+          fetch-depth: 0
+      - name: Apply v312 document suite
+        run: python3 .github/v312_patch.py
+      - name: Commit application changes
+        run: |
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat(v312): add ordered business document suite"
+          git push origin HEAD:feature/v312-business-document-suite
+
+# v312 trigger: apply once, then the patch removes this workflow from the branch.
