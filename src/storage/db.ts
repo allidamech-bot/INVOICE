@@ -70,7 +70,10 @@ async function targetHasProtectedWorkspace(db:IDBDatabase):Promise<boolean>{
     namedGet<SecurityMetadata>(db,'security'),
     namedGet<EncryptedVaultRecord>(db,'vault')
   ]);
-  return Boolean(security||vault);
+  // Security + vault are one protected workspace. A single orphan record can be
+  // left by an interrupted historical setup and must not block recovery of a
+  // complete, ownership-proven pair from the old public scope.
+  return Boolean(security&&vault);
 }
 
 function migrationAlreadyHandled(uid:string):boolean{
@@ -110,7 +113,7 @@ async function migrateLegacyAccountIfOwned(uid:string):Promise<void>{
 // the signed-out public scope, then let the user create a PIN there before the
 // UID-specific scope was selected. Recover that encrypted workspace exactly once,
 // but only when the public database itself proves ownership through cloud-account.
-// Never overwrite an account database that already contains protected data.
+// Never overwrite a complete account workspace.
 async function migrateAccidentalPublicAccountIfOwned(uid:string):Promise<void>{
   if(publicRecoveryAlreadyHandled(uid))return;
   const target=await openNamedDb(accountDbName(uid));
