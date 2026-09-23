@@ -7,6 +7,7 @@
   const mobileCloseoutStyleMarker='data-lourex-v305-mobile-closeout';
   const releaseHardeningStyleMarker='data-lourex-v306-release-hardening';
   const settingsMoreStyleMarker='data-lourex-v307-loading-more-settings';
+  const auditStyleMarker='data-lourex-v311-release-audit';
   const sessionMarkerKey='lourex-invoice-session-v1';
   const accountScopeRecoveryKey='lourex-account-scope-recovery-v311';
 
@@ -25,6 +26,7 @@
     ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');
     ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');
     ensureStylesheet(settingsMoreStyleMarker,'./loading-more-settings-v307.css?v=307');
+    ensureStylesheet(auditStyleMarker,'./release-audit-v311.css?v=311');
 
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){
