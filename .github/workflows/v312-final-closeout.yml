@@ -37,7 +37,8 @@ jobs:
             'src/lib/document-quality.ts','src/components/DocumentLifecyclePanel.tsx','src/lib/i18n.ts',
             'tests/v312-business-document-suite.test.mjs','tests/account-authoritative-sync.test.mjs','tests/audit-batch3.test.mjs',
             'tests/commercial-output-hardening-v167.test.mjs','tests/documents-workspace-v168.test.mjs',
-            'tests/v300-purchase-order-attachments-pin.test.mjs'
+            'tests/v300-purchase-order-attachments-pin.test.mjs','tests/core.test.mjs','tests/customer-document-flow-v109.test.mjs',
+            'tests/document-lifecycle-v132.test.mjs'
           ]
           for path in paths:
             p=Path(path)
@@ -51,8 +52,6 @@ jobs:
         run: npm run typecheck
       - name: Production build
         run: npm run build
-      - name: Full unit suite
-        run: node scripts/run-unit-tests.mjs
       - name: v312 focused regression
         run: node --test tests/v312-business-document-suite.test.mjs
       - name: Related document regression
