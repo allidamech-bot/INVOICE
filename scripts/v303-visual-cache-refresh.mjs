@@ -8,14 +8,14 @@ let promoted=false;
 for(const generation of generations){
   const marker=`const CACHE = 'lourex-invoice-v${generation}';`;
   if(!sw.includes(marker))continue;
-  sw=sw.replace(marker,`const CACHE = 'lourex-invoice-v308';\n// const CACHE = 'lourex-invoice-v${generation}'; preserved as the immediate pre-v306 cache generation.`);
+  sw=sw.replace(marker,`const CACHE = 'lourex-invoice-v308';\n// const CACHE = 'lourex-invoice-v${generation}'; preserved as the immediate pre-v308 cache generation.`);
   promoted=true;
   break;
 }
 if(!promoted&&!sw.includes("const CACHE = 'lourex-invoice-v308';"))throw new Error('Unable to promote the LOUREX PWA cache to v308.');
 
 const marker="LOCAL_CORE.push('./canonical-redirect.js');";
-const visualRuntimes=['./visual-coherence-v303.css','./attachment-gallery-v304.css','./mobile-layout-closeout-v305.css','./release-hardening-v306.css','./styles/v308-document-studio.css'];
+const visualRuntimes=['./visual-coherence-v303.css','./attachment-gallery-v304.css','./mobile-layout-closeout-v305.css','./release-hardening-v306.css','./loading-more-settings-v307.css','./styles/v308-document-studio.css'];
 for(const visualRuntime of visualRuntimes){
   if(sw.includes(visualRuntime))continue;
   if(!sw.includes(marker))throw new Error('Unable to locate the LOUREX PWA cache insertion point.');
