@@ -14,13 +14,13 @@ test('configured devices restore their encrypted local session before background
   assert.match(initialize,/void this\.initializeConfiguredCloud\(\)/);
 });
 
-test('newer remote revisions are reconciled automatically without a manual sync event',async()=>{
+test('newer remote revisions are surfaced without destructive automatic reloads',async()=>{
   const freshness=await read('src/cloud/freshness.ts');
   assert.match(freshness,/cloudRemoteChangedSinceAnchor/);
-  assert.match(freshness,/reconcileCloudVault/);
-  assert.match(freshness,/result==='pulled'/);
-  assert.match(freshness,/window\.location\.reload\(\)/);
-  assert.doesNotMatch(freshness,/lourex-cloud-remote-newer/);
+  assert.match(freshness,/subscribeCloudVaultChanges/);
+  assert.match(freshness,/lourex-cloud-refresh-available/);
+  assert.doesNotMatch(freshness,/reconcileCloudVault/);
+  assert.doesNotMatch(freshness,/window\.location\.reload\(\)/);
   assert.doesNotMatch(freshness,/dispatchEvent\(new Event\('online'\)\)/);
 });
 
