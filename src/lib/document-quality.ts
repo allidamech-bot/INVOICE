@@ -2,7 +2,7 @@ import type { DocumentItem, LourexDocument } from '../types.js';
 import { paginateItems } from './documents.js';
 import { decimalToScaled, isDecimalInput } from './money.js';
 import { documentDisplayValue, hasDocumentLanguageMismatch, type DocumentValueKind } from './document-language.js';
-import { documentBankAllowed, documentPriceOptional } from './document-kinds.js';
+import { documentBankAllowed, documentPriceOptional, documentUsesCommercialDefaults } from './document-kinds.js';
 
 export type DocumentQualityCode =
   | 'company-name-missing'
@@ -79,6 +79,7 @@ function termKind(key:string):DocumentValueKind{
   return 'prose';
 }
 function displayedClosingValues(doc:LourexDocument):string[]{
+  if(!documentUsesCommercialDefaults(doc.kind))return[];
   const t=doc.terms;
   const rows:Array<[string,string]>=[['Incoterm',t.incoterm],['Payment Terms',t.paymentTerms],['Packing',t.packing],['Delivery Time',t.deliveryTime],['Port of Loading',t.portOfLoading],['Final Destination',t.finalDestination],['Country of Origin',t.countryOfOrigin],['Validity',t.validity],['Remarks',t.remarks]];
   return rows.map(([key,value])=>documentDisplayValue(value,doc.language,termKind(key))).filter(Boolean);

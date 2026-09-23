@@ -58,3 +58,12 @@ export function isFreeformDocumentKind(kind:DocumentKind):boolean{return documen
 export function isFinancialDocumentKind(kind:DocumentKind,role:DocumentRole='standard'):boolean{return businessDocumentDefinition(kind,role).financial;}
 export function documentPriceOptional(kind:DocumentKind):boolean{return businessDocumentDefinition(kind).priceOptional;}
 export function documentBankAllowed(kind:DocumentKind,role:DocumentRole='standard'):boolean{return businessDocumentDefinition(kind,role).bankAllowed;}
+export type DocumentSecondaryDateKind='none'|'valid-until'|'requested-delivery'|'due-date'|'response-due';
+export function documentSecondaryDateKind(kind:DocumentKind,role:DocumentRole='standard'):DocumentSecondaryDateKind{
+  if(role==='credit-note'||kind==='draft'||kind==='delivery-note'||kind==='payment-receipt')return'none';
+  if(kind==='proforma'||kind==='proforma-invoice')return'valid-until';
+  if(kind==='purchase-order')return'requested-delivery';
+  if(kind==='rfq')return'response-due';
+  return'due-date';
+}
+export function documentUsesCommercialDefaults(kind:DocumentKind):boolean{return kind!=='draft'&&kind!=='payment-receipt';}

@@ -68,3 +68,24 @@ test('v312 pre-merge audit keeps search, readiness and routing semantically alig
   assert.ok(page.includes("documentPriceOptional(doc.kind)?'—'"));
   assert.ok(quality.includes('!documentPriceOptional(doc.kind)'));
 });
+
+
+test('v312 final clean audit separates numbering and document semantics',async()=>{
+  const [defaults,vault,kinds,docs,app,editor,renderer]=await Promise.all([
+    read('src/lib/defaults.ts'),read('src/storage/vault.ts'),read('src/lib/document-kinds.ts'),read('src/lib/documents.ts'),read('src/app/App.tsx'),read('src/components/EditorPageCore.tsx'),read('src/templates/TemplateRenderer.tsx')
+  ]);
+  assert.match(defaults,/APP_SCHEMA_VERSION = 14/);
+  assert.match(defaults,/proformaPrefix: 'QUO'/);
+  assert.match(vault,/sourceVersion<14&&migrated\.appSettings\.numbering\.proformaPrefix==='PI'/);
+  assert.match(kinds,/documentSecondaryDateKind/);
+  assert.match(kinds,/documentUsesCommercialDefaults/);
+  assert.match(docs,/liveAuxiliaryReservations/);
+  assert.match(docs,/fallbackPrefix=isProforma\?'QUO'/);
+  assert.match(docs,/Response due date is invalid/);
+  assert.match(app,/documentUsesCommercialDefaults\(updated\.kind\)/);
+  assert.match(editor,/secondaryDateKind/);
+  assert.match(editor,/priceOptional\?'—':formatMoney\(lineTotal/);
+  assert.match(editor,/\{!priceOptional\?<section/);
+  assert.match(renderer,/secondary!=='none'/);
+  assert.match(renderer,/documentUsesCommercialDefaults\(doc\.kind\)/);
+});

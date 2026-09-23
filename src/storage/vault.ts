@@ -109,6 +109,9 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
       deliveryTime:migrated.company.defaultDeliveryTime || migrated.appSettings.smartDefaults.deliveryTime
     };
   }
+  // v14 reserves PI for Proforma Invoice. Existing Quotation documents remain intact; only future quotation numbering moves to QUO.
+  if(sourceVersion<14&&migrated.appSettings.numbering.proformaPrefix==='PI')migrated.appSettings.numbering.proformaPrefix='QUO';
+
 
   migrated.customers = Array.isArray((vault as any).customers) ? (vault as any).customers.map((customer:any) => ({
     id:stringValue(customer?.id), createdAt:stringValue(customer?.createdAt,nowIso()), updatedAt:stringValue(customer?.updatedAt,customer?.createdAt ? stringValue(customer.createdAt) : nowIso()),
