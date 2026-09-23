@@ -242,7 +242,7 @@ export class EditorPage extends React.Component<Props,State>{
   private field=(key:keyof LourexDocument,value:any)=>this.mutate(d=>({...d,[key]:value}));
   private issueDate=(value:string)=>this.mutate(d=>{
     let next={...d,issueDate:value};
-    if(d.kind==='proforma'){
+    if(d.kind==='proforma'||d.kind==='proforma-invoice'){
       if(!isIsoDate(value))return next;
       const validityDays=daysBetweenIso(d.issueDate,d.dueDate)??normalizeValidityDays(this.props.company.defaultValidityDays);
       return {...next,dueDate:addDaysIso(value,validityDays)};

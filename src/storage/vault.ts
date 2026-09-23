@@ -1,4 +1,4 @@
-import type { EncryptedVaultRecord, SecurityMetadata, VaultPayload } from '../types.js';
+import type { DocumentKind, EncryptedVaultRecord, SecurityMetadata, VaultPayload } from '../types.js';
 import { APP_SCHEMA_VERSION, companySnapshotFrom, emptyVault } from '../lib/defaults.js';
 import { normalizeValidityDays } from '../lib/id.js';
 import { normalizeLetterData, normalizeWatermark } from '../lib/document-extras.js';
@@ -14,6 +14,7 @@ const PAYMENT_METHODS = new Set(['cash','bank-transfer','card','cheque','other']
 const DOCUMENT_EVENT_TYPES = new Set(['created','issued','reissued','revision-started','revision-discarded','voided','credit-note-created','payment-recorded','payment-deleted','converted']);
 const PURCHASE_STATUSES = new Set(['draft','posted','reversed']);
 const INVENTORY_MOVEMENT_TYPES = new Set(['opening','purchase','purchase-reversal','issue','adjustment']);
+const DOCUMENT_KINDS = new Set<DocumentKind>(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt','statement-account']);
 
 function stringValue(value: unknown, fallback = ''): string {
   if (typeof value === 'string') return value;
@@ -27,6 +28,7 @@ function finiteNumber(value: unknown, fallback: number): number { return typeof 
 function languageValue(value: unknown, fallback: 'en'|'ar'|'bilingual' = 'en'): 'en'|'ar'|'bilingual' { return value === 'en' || value === 'ar' || value === 'bilingual' ? value : fallback; }
 function uiLanguageValue(value: unknown, fallback: 'en'|'ar' = 'en'): 'en'|'ar' { return value === 'ar' || value === 'en' ? value : fallback; }
 function templateValue(value: unknown, fallback: any = 'executive'): any { return typeof value === 'string' && TEMPLATE_IDS.has(value) ? value : fallback; }
+function documentKindValue(value:unknown,fallback:DocumentKind='proforma'):DocumentKind{return typeof value==='string'&&DOCUMENT_KINDS.has(value as DocumentKind)?value as DocumentKind:fallback;}
 function nowIso(): string { return new Date().toISOString(); }
 function normalizeBankAccounts(value:unknown):any[]{
   if(!Array.isArray(value))return[];const seen=new Set<string>();const result:any[]=[];
@@ -182,7 +184,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
       signatureDataUrl:stringValue(companySnapshot.signatureDataUrl,fallbackCompanySnapshot.signatureDataUrl), stampDataUrl:stringValue(companySnapshot.stampDataUrl,fallbackCompanySnapshot.stampDataUrl), footerText:stringValue(companySnapshot.footerText,fallbackCompanySnapshot.footerText)
     };
     return {
-      id:stringValue(document?.id), kind:document?.kind === 'invoice' ? 'invoice' : document?.kind === 'purchase-order' ? 'purchase-order' : document?.kind === 'draft' ? 'draft' : 'proforma', role:document?.role==='credit-note'?'credit-note':'standard', status:document?.status === 'final' ? 'final' : 'draft', lifecycleStatus:document?.lifecycleStatus==='voided'?'voided':'active', revision:Math.max(1,Math.trunc(finiteNumber(document?.revision,1))), creditForId:stringValue(document?.creditForId), creditForNumber:stringValue(document?.creditForNumber), voidedAt:stringValue(document?.voidedAt), voidReason:stringValue(document?.voidReason), bankAccountId:stringValue(document?.bankAccountId), paymentTermPresetId:stringValue(document?.paymentTermPresetId),
+      id:stringValue(document?.id), kind:documentKindValue(document?.kind), role:document?.role==='credit-note'?'credit-note':'standard', status:document?.status === 'final' ? 'final' : 'draft', lifecycleStatus:document?.lifecycleStatus==='voided'?'voided':'active', revision:Math.max(1,Math.trunc(finiteNumber(document?.revision,1))), creditForId:stringValue(document?.creditForId), creditForNumber:stringValue(document?.creditForNumber), voidedAt:stringValue(document?.voidedAt), voidReason:stringValue(document?.voidReason), bankAccountId:stringValue(document?.bankAccountId), paymentTermPresetId:stringValue(document?.paymentTermPresetId),
       number:stringValue(document?.number), issueDate:stringValue(document?.issueDate), dueDate:stringValue(document?.dueDate), currency:cleanCurrency(document?.currency,migrated.appSettings.smartDefaults.currency || migrated.company.defaultCurrency || 'USD'),
       language:languageValue(document?.language,migrated.appSettings.smartDefaults.language),
       customerSnapshot:customerSnapshot ? {
@@ -225,7 +227,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   })) : [];
   migrated.documentRevisions = Array.isArray((vault as any).documentRevisions) ? (vault as any).documentRevisions.map((revision:any)=>{
     const snapshot=revision?.snapshot&&typeof revision.snapshot==='object'?structuredClone(revision.snapshot):null;if(!snapshot)return null;
-    snapshot.role=snapshot.role==='credit-note'?'credit-note':'standard';snapshot.lifecycleStatus=snapshot.lifecycleStatus==='voided'?'voided':'active';snapshot.revision=Math.max(1,Math.trunc(finiteNumber(snapshot.revision,1)));snapshot.creditForId=stringValue(snapshot.creditForId);snapshot.creditForNumber=stringValue(snapshot.creditForNumber);snapshot.voidedAt=stringValue(snapshot.voidedAt);snapshot.voidReason=stringValue(snapshot.voidReason);
+    snapshot.kind=documentKindValue(snapshot.kind);snapshot.role=snapshot.role==='credit-note'?'credit-note':'standard';snapshot.lifecycleStatus=snapshot.lifecycleStatus==='voided'?'voided':'active';snapshot.revision=Math.max(1,Math.trunc(finiteNumber(snapshot.revision,1)));snapshot.creditForId=stringValue(snapshot.creditForId);snapshot.creditForNumber=stringValue(snapshot.creditForNumber);snapshot.voidedAt=stringValue(snapshot.voidedAt);snapshot.voidReason=stringValue(snapshot.voidReason);
     snapshot.items=Array.isArray(snapshot.items)?snapshot.items.map((item:any)=>({...item,unitCost:stringValue(item?.unitCost)})):[];
     snapshot.internalCosts={shippingCost:stringValue(snapshot.internalCosts?.shippingCost,'0.00'),otherCost:stringValue(snapshot.internalCosts?.otherCost,'0.00')};
     return{id:stringValue(revision?.id),documentId:stringValue(revision?.documentId),documentNumber:stringValue(revision?.documentNumber),revision:Math.max(1,Math.trunc(finiteNumber(revision?.revision,1))),snapshot,createdAt:stringValue(revision?.createdAt,nowIso())};

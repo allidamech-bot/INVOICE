@@ -60,7 +60,8 @@
     const buttons=Array.from(menu.querySelectorAll('button[role="menuitem"]'));
     const index=buttons.indexOf(button);
     const explicit=button.dataset.kind||'';
-    const kind=explicit|| (index===0?'proforma':index===1?'invoice':index===2?'purchase-order':index===3?'draft':'');
+    const fallbackKinds=['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt','credit-note','statement-account'];
+    const kind=explicit||fallbackKinds[index]||'';
     if(!kind)return;
     try{window.sessionStorage.setItem(pendingKindKey,kind);}catch{}
   }
@@ -75,8 +76,14 @@
     if(!kind){
       const text=String(editor.textContent||'').toLowerCase();
       if(text.includes('company document studio')||text.includes('استديو مستندات الشركة')||text.includes('مسودة حرة'))kind='draft';
+      else if(text.includes('request for quotation')||text.includes('طلب عرض سعر')||text.includes('rfq'))kind='rfq';
+      else if(text.includes('proforma invoice')||text.includes('فاتورة مبدئية'))kind='proforma-invoice';
       else if(text.includes('purchase order')||text.includes('طلب شراء'))kind='purchase-order';
-      else if(text.includes('quotation')||text.includes('عرض سعر')||text.includes('proforma'))kind='proforma';
+      else if(text.includes('delivery note')||text.includes('سند تسليم'))kind='delivery-note';
+      else if(text.includes('payment receipt')||text.includes('إيصال دفع'))kind='payment-receipt';
+      else if(text.includes('statement of account')||text.includes('كشف حساب'))kind='statement-account';
+      else if(text.includes('commercial invoice')||text.includes('فاتورة تجارية'))kind='invoice';
+      else if(text.includes('quotation')||text.includes('عرض سعر'))kind='proforma';
       else if(text.includes('invoice')||text.includes('فاتورة'))kind='invoice';
     }
 
