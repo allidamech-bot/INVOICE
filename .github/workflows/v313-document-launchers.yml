@@ -1,0 +1,66 @@
+name: LOUREX v313 document launchers
+
+on:
+  push:
+    branches: [fix/v313-document-launchers]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: fix/v313-document-launchers
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Apply launcher fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          shell=Path('src/components/AppShell.tsx')
+          s=shell.read_text()
+          s=s.replace("  onNew:(kind:DocumentKind)=>void;\n  onSettings:()=>void;", "  onNew:(kind:DocumentKind)=>void;\n  onCreditNote:()=>void;\n  onStatementAccount:()=>void;\n  onSettings:()=>void;")
+          s=s.replace("  private createDocument=(kind:DocumentKind)=>{\n    this.closeMore();\n    this.props.onNew(kind);\n  };", "  private createDocument=(kind:DocumentKind)=>{\n    this.closeMore();\n    this.closeCreateMenu();\n    window.requestAnimationFrame(()=>this.props.onNew(kind));\n  };\n\n  private openCreditNote=()=>{\n    this.closeMore();\n    this.closeCreateMenu();\n    window.requestAnimationFrame(()=>this.props.onCreditNote());\n  };\n\n  private openStatementAccount=()=>{\n    this.closeMore();\n    this.closeCreateMenu();\n    window.requestAnimationFrame(()=>this.props.onStatementAccount());\n  };")
+          s=s.replace("    <button type=\"button\" role=\"menuitem\" data-kind=\"credit-note\" data-order=\"9\" onClick={()=>this.navigate('documents')}><Icon name=\"invoice\"/><span><strong>{t('Credit Note','إشعار دائن')}</strong><small>{t('Create from an issued Commercial Invoice','يُنشأ من فاتورة تجارية صادرة')}</small></span></button>\n    <button type=\"button\" role=\"menuitem\" data-kind=\"statement-account\" data-order=\"10\" onClick={()=>this.navigate('receivables')}><Icon name=\"file\"/><span><strong>{t('Statement of Account','كشف حساب')}</strong><small>{t('Open the existing customer statement workflow in Finance','فتح كشف حساب العميل الموجود في المالية')}</small></span></button>", "    <button type=\"button\" role=\"menuitem\" data-kind=\"credit-note\" data-order=\"9\" onClick={this.openCreditNote}><Icon name=\"invoice\"/><span><strong>{t('Credit Note','إشعار دائن')}</strong><small>{t('Choose an issued Commercial Invoice','اختر فاتورة تجارية صادرة')}</small></span></button>\n    <button type=\"button\" role=\"menuitem\" data-kind=\"statement-account\" data-order=\"10\" onClick={this.openStatementAccount}><Icon name=\"file\"/><span><strong>{t('Statement of Account','كشف حساب')}</strong><small>{t('Choose a customer and open the statement','اختر العميل وافتح كشف الحساب')}</small></span></button>")
+          shell.write_text(s)
+
+          app=Path('src/app/App.tsx')
+          a=app.read_text()
+          a=a.replace("import { Brand, Button, ConfirmDialog, Toast } from '../components/UI.js';", "import { Brand, Button, ConfirmDialog, Modal, Select, Toast } from '../components/UI.js';")
+          a=a.replace("type CloudSyncState='local'|'queued'|'syncing'|'synced'|'offline'|'error'|'conflict';", "type CloudSyncState='local'|'queued'|'syncing'|'synced'|'offline'|'error'|'conflict';\ntype CatalogLauncher=''|'credit-note'|'statement-account';")
+          a=a.replace("  cloudUser:CloudUser|null; cloudLinked:boolean; cloudModal:boolean; cloudSyncState:CloudSyncState; cloudSyncMessage:string;\n}", "  cloudUser:CloudUser|null; cloudLinked:boolean; cloudModal:boolean; cloudSyncState:CloudSyncState; cloudSyncMessage:string;\n  catalogLauncher:CatalogLauncher; catalogSourceId:string;\n}")
+          a=a.replace("cloudUser:null,cloudLinked:false,cloudModal:false,cloudSyncState:'local',cloudSyncMessage:''};", "cloudUser:null,cloudLinked:false,cloudModal:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:''};")
+          anchor="  private cloudHeaderLabel=()=>this.state.cloudSyncState==='local'?t('Saved locally','محفوظ محليًا'):this.state.cloudSyncState==='queued'?t('Cloud pending','بانتظار السحابة'):this.state.cloudSyncState==='syncing'?t('Syncing','جارٍ المزامنة'):this.state.cloudSyncState==='synced'?t('Saved to cloud','محفوظ سحابيًا'):this.state.cloudSyncState==='offline'?t('Offline · Local safe','غير متصل · محليًا آمن'):this.state.cloudSyncState==='error'?t('Sync failed','فشلت المزامنة'):t('Sync conflict','تعارض مزامنة');\n"
+          insert=anchor+"\n  private openCreditNoteLauncher=()=>{\n    const vault=this.requireVault();\n    const eligible=vault.documents.filter(doc=>doc.kind==='invoice'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&invoiceCreditCapacity(doc,vault.documents,vault.payments).available!=='0.00');\n    if(!eligible.length){this.setState({newMenu:false,screen:'documents'});this.showToast(t('Issue a Commercial Invoice with remaining balance before creating a Credit Note.','أصدر فاتورة تجارية فيها رصيد متبقٍ قبل إنشاء إشعار دائن.'),'error');return;}\n    this.setState({newMenu:false,catalogLauncher:'credit-note',catalogSourceId:eligible.length===1?eligible[0]!.id:''});\n  };\n  private openStatementLauncher=()=>{\n    const vault=this.requireVault();\n    if(!vault.customers.length){this.setState({newMenu:false,screen:'customers'});this.showToast(t('Add a customer before opening a Statement of Account.','أضف عميلًا قبل فتح كشف الحساب.'),'error');return;}\n    this.setState({newMenu:false,catalogLauncher:'statement-account',catalogSourceId:vault.customers.length===1?vault.customers[0]!.id:''});\n  };\n  private closeCatalogLauncher=()=>this.setState({catalogLauncher:'',catalogSourceId:''});\n  private confirmCatalogLauncher=()=>{\n    const vault=this.requireVault();\n    const sourceId=this.state.catalogSourceId;\n    if(!sourceId)return;\n    if(this.state.catalogLauncher==='credit-note'){\n      const source=vault.documents.find(doc=>doc.id===sourceId&&doc.kind==='invoice'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided');\n      if(!source){this.showToast(t('Select an eligible Commercial Invoice.','اختر فاتورة تجارية صالحة.'),'error');return;}\n      this.setState({catalogLauncher:'',catalogSourceId:''},()=>void this.createCreditNote(source));\n      return;\n    }\n    if(this.state.catalogLauncher==='statement-account'){\n      const customer=vault.customers.find(item=>item.id===sourceId);\n      if(!customer){this.showToast(t('Select a customer.','اختر العميل.'),'error');return;}\n      this.setState({catalogLauncher:'',catalogSourceId:'',screen:'receivables',editorDoc:null,newMenu:false},()=>window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-statement',{detail:{customerId:customer.id}})),0));\n    }\n  };\n  private catalogLauncherModal=(vault:VaultPayload)=>{\n    const launcher=this.state.catalogLauncher;\n    if(!launcher)return null;\n    const credit=launcher==='credit-note';\n    const invoices=credit?vault.documents.filter(doc=>doc.kind==='invoice'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&invoiceCreditCapacity(doc,vault.documents,vault.payments).available!=='0.00'):[];\n    const valid=credit?invoices.some(doc=>doc.id===this.state.catalogSourceId):vault.customers.some(customer=>customer.id===this.state.catalogSourceId);\n    return <Modal open title={credit?t('Create Credit Note','إنشاء إشعار دائن'):t('Statement of Account','كشف حساب')} onClose={this.closeCatalogLauncher} footer={<div className=\"modal-footer-actions\"><Button onClick={this.closeCatalogLauncher}>{t('Cancel','إلغاء')}</Button><Button variant=\"primary\" disabled={!valid} onClick={this.confirmCatalogLauncher}>{credit?t('Create Credit Note','إنشاء إشعار دائن'):t('Open Statement','فتح كشف الحساب')}</Button></div>}>\n      <div className=\"field-stack\"><label><span>{credit?t('Issued Commercial Invoice','الفاتورة التجارية الصادرة'):t('Customer','العميل')}</span><Select value={this.state.catalogSourceId} onChange={(event:any)=>this.setState({catalogSourceId:event.target.value})}><option value=\"\">{credit?t('Select invoice…','اختر الفاتورة…'):t('Select customer…','اختر العميل…')}</option>{credit?invoices.map(doc=><option key={doc.id} value={doc.id}>{doc.number} — {doc.customerSnapshot?.companyNameEn||doc.customerSnapshot?.companyNameAr||t('Customer','عميل')}</option>):vault.customers.map(customer=><option key={customer.id} value={customer.id}>{customer.companyNameEn||customer.companyNameAr||t('Customer','عميل')}</option>)}</Select></label><p className=\"field-hint\">{credit?t('Credit Notes stay linked to the original invoice and remaining credit balance.','يبقى الإشعار الدائن مرتبطًا بالفاتورة الأصلية والرصيد المتاح لها.'):t('The statement opens from finalized invoices, payments and active credit notes for the selected customer.','يُفتح الكشف من الفواتير النهائية والمدفوعات والإشعارات الدائنة الفعالة للعميل المحدد.')}</p></div>\n    </Modal>;\n  };\n"
+          if anchor not in a:
+              raise SystemExit('cloudHeaderLabel anchor not found')
+          a=a.replace(anchor,insert)
+          old="<AppShell screen={this.state.screen} logoDataUrl={vault.company.logoDataUrl} language={activeLanguage} newMenu={this.state.newMenu} cloudState={this.state.cloudSyncState} cloudLabel={this.cloudHeaderLabel()} cloudMessage={this.state.cloudSyncMessage} onNavigate={navigate} onToggleNew={()=>this.setState(state=>({newMenu:!state.newMenu}))} onNew={(kind)=>void this.newDocument(kind)} onSettings={()=>this.setState({settingsOpen:true})} onCloud={()=>this.setState({cloudModal:true})}>"
+          new="<AppShell screen={this.state.screen} logoDataUrl={vault.company.logoDataUrl} language={activeLanguage} newMenu={this.state.newMenu} cloudState={this.state.cloudSyncState} cloudLabel={this.cloudHeaderLabel()} cloudMessage={this.state.cloudSyncMessage} onNavigate={navigate} onToggleNew={()=>this.setState(state=>({newMenu:!state.newMenu}))} onNew={(kind)=>void this.newDocument(kind)} onCreditNote={this.openCreditNoteLauncher} onStatementAccount={this.openStatementLauncher} onSettings={()=>this.setState({settingsOpen:true})} onCloud={()=>this.setState({cloudModal:true})}>"
+          if old not in a:
+              raise SystemExit('AppShell render anchor not found')
+          a=a.replace(old,new)
+          a=a.replace("      {this.cloudModal()}\n      <ConfirmDialog", "      {this.cloudModal()}\n      {this.catalogLauncherModal(vault)}\n      <ConfirmDialog")
+          app.write_text(a)
+
+          test=Path('tests/v313-document-launchers.test.mjs')
+          test.write_text("""import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport fs from 'node:fs';\n\nconst shell=fs.readFileSync('src/components/AppShell.tsx','utf8');\nconst app=fs.readFileSync('src/app/App.tsx','utf8');\n\ntest('all ten document menu entries have active launch actions',()=>{\n  assert.match(shell,/data-kind=\\\"credit-note\\\"[\\s\\S]*onClick=\\{this\\.openCreditNote\\}/);\n  assert.match(shell,/data-kind=\\\"statement-account\\\"[\\s\\S]*onClick=\\{this\\.openStatementAccount\\}/);\n  assert.match(shell,/onCreditNote:\\(\\)=>void/);\n  assert.match(shell,/onStatementAccount:\\(\\)=>void/);\n});\n\ntest('credit note and statement launchers open real workflows',()=>{\n  assert.match(app,/openCreditNoteLauncher/);\n  assert.match(app,/invoiceCreditCapacity/);\n  assert.match(app,/catalogLauncherModal/);\n  assert.match(app,/lourex-finance-statement/);\n  assert.match(app,/onCreditNote=\\{this\\.openCreditNoteLauncher\\}/);\n  assert.match(app,/onStatementAccount=\\{this\\.openStatementLauncher\\}/);\n});\n""")
+          PY
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: node --test tests/v313-document-launchers.test.mjs
+      - name: Commit fix and remove temporary workflow
+        run: |
+          rm .github/workflows/v313-document-launchers.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/AppShell.tsx src/app/App.tsx tests/v313-document-launchers.test.mjs .github/workflows/v313-document-launchers.yml
+          git commit -m "Fix all business document launch actions"
+          git push origin HEAD:fix/v313-document-launchers
