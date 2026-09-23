@@ -1,0 +1,257 @@
+/* LOUREX v304 — attachment gallery + mobile bottom-nav clearance */
+
+.app-ui .document-attachments-section>.section-heading.with-action{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:12px!important;
+}
+.app-ui .document-attachments-section>.section-heading.with-action>.btn{
+  width:auto!important;
+  min-width:0!important;
+  white-space:nowrap!important;
+  flex:none!important;
+}
+.app-ui .document-attachment-list{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr))!important;
+  gap:10px!important;
+}
+.app-ui .document-attachment-list .attachment-card{
+  min-width:0!important;
+  display:grid!important;
+  grid-template-columns:76px minmax(0,1fr)!important;
+  grid-template-areas:"visual copy" "visual actions"!important;
+  align-items:center!important;
+  column-gap:12px!important;
+  row-gap:8px!important;
+  padding:10px!important;
+  border:1px solid var(--v303-line)!important;
+  border-radius:15px!important;
+  background:var(--v303-surface-2)!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+}
+.app-ui .attachment-visual{
+  grid-area:visual!important;
+  width:76px!important;
+  height:76px!important;
+  min-width:76px!important;
+  min-height:76px!important;
+  padding:0!important;
+  overflow:hidden!important;
+  border:1px solid var(--v303-line)!important;
+  border-radius:13px!important;
+  background:var(--v303-surface-3)!important;
+  box-shadow:none!important;
+  cursor:pointer!important;
+}
+.app-ui .attachment-visual:focus-visible{
+  outline:3px solid color-mix(in srgb,var(--doc-accent,var(--v303-accent)) 28%,transparent)!important;
+  outline-offset:2px!important;
+}
+.app-ui .attachment-visual img{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+  object-position:center!important;
+}
+.app-ui .attachment-pdf-mark{
+  width:100%!important;
+  height:100%!important;
+  display:grid!important;
+  place-items:center!important;
+  align-content:center!important;
+  gap:4px!important;
+  color:var(--doc-accent,var(--v303-accent))!important;
+  background:color-mix(in srgb,var(--doc-accent,var(--v303-accent)) 8%,var(--v303-surface-2))!important;
+}
+.app-ui .attachment-pdf-mark .icon{width:24px!important;height:24px!important}
+.app-ui .attachment-pdf-mark b{font-size:10px!important;letter-spacing:.08em!important}
+.app-ui .attachment-copy{
+  grid-area:copy!important;
+  min-width:0!important;
+  align-self:end!important;
+}
+.app-ui .attachment-copy strong{
+  display:block!important;
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  color:var(--v303-strong)!important;
+  font-size:13px!important;
+  line-height:1.35!important;
+}
+.app-ui .attachment-copy small{
+  display:block!important;
+  margin-top:3px!important;
+  color:var(--v303-muted)!important;
+  font-size:11px!important;
+  line-height:1.35!important;
+}
+.app-ui .attachment-card-actions{
+  grid-area:actions!important;
+  min-width:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:7px!important;
+  align-self:start!important;
+}
+[dir="rtl"] .app-ui .attachment-card-actions{justify-content:flex-end!important}
+.app-ui .attachment-card-actions .attachment-open-button{
+  min-width:0!important;
+  min-height:36px!important;
+  padding:0 12px!important;
+  border:1px solid color-mix(in srgb,var(--doc-accent,var(--v303-accent)) 24%,var(--v303-line))!important;
+  border-radius:10px!important;
+  background:color-mix(in srgb,var(--doc-accent,var(--v303-accent)) 8%,var(--v303-surface))!important;
+  color:var(--doc-accent,var(--v303-accent))!important;
+  font-size:11px!important;
+  font-weight:850!important;
+  box-shadow:none!important;
+}
+.app-ui .attachment-card-actions>.icon-btn{
+  position:static!important;
+  grid-column:auto!important;
+  grid-row:auto!important;
+  width:36px!important;
+  min-width:36px!important;
+  height:36px!important;
+  min-height:36px!important;
+  margin:0!important;
+  border:1px solid color-mix(in srgb,var(--v303-danger) 26%,var(--v303-line))!important;
+  border-radius:10px!important;
+  color:var(--v303-danger)!important;
+  background:color-mix(in srgb,var(--v303-danger) 6%,var(--v303-surface))!important;
+  box-shadow:none!important;
+}
+
+.app-ui .attachment-preview-overlay{
+  position:fixed!important;
+  inset:0!important;
+  z-index:2147482500!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:max(14px,env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) max(14px,env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px))!important;
+  background:rgba(2,13,17,.82)!important;
+  backdrop-filter:blur(14px)!important;
+}
+.app-ui .attachment-preview-dialog{
+  width:min(920px,100%)!important;
+  max-height:calc(100dvh - 28px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+  display:grid!important;
+  grid-template-rows:auto minmax(0,1fr) auto!important;
+  overflow:hidden!important;
+  border:1px solid var(--v303-line-strong)!important;
+  border-radius:20px!important;
+  background:var(--v303-surface)!important;
+  box-shadow:0 30px 90px rgba(0,0,0,.45)!important;
+}
+.app-ui .attachment-preview-dialog>header{
+  min-height:58px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  padding:10px 12px!important;
+  border-bottom:1px solid var(--v303-line)!important;
+  background:var(--v303-surface)!important;
+}
+.app-ui .attachment-preview-dialog>header>div{min-width:0!important}
+.app-ui .attachment-preview-dialog>header strong{
+  display:block!important;
+  max-width:min(72vw,720px)!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  color:var(--v303-strong)!important;
+}
+.app-ui .attachment-preview-dialog>header small{color:var(--v303-muted)!important}
+.app-ui .attachment-preview-body{
+  min-height:0!important;
+  overflow:auto!important;
+  display:grid!important;
+  place-items:center!important;
+  padding:12px!important;
+  background:var(--v303-canvas)!important;
+}
+.app-ui .attachment-preview-body img{
+  display:block!important;
+  max-width:100%!important;
+  max-height:calc(100dvh - 150px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+  width:auto!important;
+  height:auto!important;
+  object-fit:contain!important;
+  border-radius:12px!important;
+}
+.app-ui .attachment-preview-body iframe{
+  width:100%!important;
+  height:min(72dvh,780px)!important;
+  border:0!important;
+  border-radius:12px!important;
+  background:#fff!important;
+}
+.app-ui .attachment-preview-fallback{
+  min-height:44px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:8px 14px!important;
+  border-top:1px solid var(--v303-line)!important;
+  color:var(--doc-accent,var(--v303-accent))!important;
+  font-weight:800!important;
+}
+
+@media(max-width:900px){
+  /* The Home bottom navigation is fixed; keep the final advisor card fully scrollable above it. */
+  .app-ui .fintech-dashboard-v280{
+    padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;
+  }
+  .app-ui .lourex-advisor-card{
+    margin-bottom:0!important;
+    scroll-margin-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;
+  }
+
+  .app-ui .document-attachments-section>.section-heading.with-action{
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:8px!important;
+  }
+  .app-ui .document-attachments-section>.section-heading.with-action>.btn{
+    min-height:38px!important;
+    padding:0 9px!important;
+    font-size:10.5px!important;
+  }
+  .app-ui .document-attachment-list{
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:9px!important;
+  }
+  .app-ui .document-attachment-list .attachment-card{
+    grid-template-columns:66px minmax(0,1fr)!important;
+    grid-template-areas:"visual copy" "visual actions"!important;
+    min-height:86px!important;
+    column-gap:10px!important;
+    row-gap:6px!important;
+    padding:9px!important;
+  }
+  .app-ui .attachment-visual{
+    width:66px!important;
+    min-width:66px!important;
+    height:66px!important;
+    min-height:66px!important;
+    border-radius:12px!important;
+  }
+  .app-ui .attachment-copy strong{font-size:12px!important}
+  .app-ui .attachment-copy small{font-size:10.5px!important}
+  .app-ui .attachment-card-actions{gap:6px!important}
+  .app-ui .attachment-card-actions .attachment-open-button{min-height:34px!important;padding-inline:10px!important}
+  .app-ui .attachment-card-actions>.icon-btn{width:34px!important;min-width:34px!important;height:34px!important;min-height:34px!important}
+  .app-ui .attachment-preview-overlay{padding:max(7px,env(safe-area-inset-top,0px)) max(7px,env(safe-area-inset-right,0px)) max(7px,env(safe-area-inset-bottom,0px)) max(7px,env(safe-area-inset-left,0px))!important}
+  .app-ui .attachment-preview-dialog{max-height:calc(100dvh - 14px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;border-radius:16px!important}
+  .app-ui .attachment-preview-body{padding:8px!important}
+  .app-ui .attachment-preview-body img{max-height:calc(100dvh - 118px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important}
+}

@@ -28,6 +28,7 @@ test('deployment isolation guard is wired before the production build',async()=>
     'node scripts/firebase-sdk-v213.mjs',
     'node scripts/normalize-sw-install-v262.mjs',
     'node scripts/pwa-cache-v205.mjs',
+    'node scripts/v303-visual-cache-refresh.mjs',
     'node scripts/desktop-runtime-v249.mjs',
     'node scripts/pwa-auto-precache.mjs',
   ]);

@@ -5,6 +5,11 @@ const SESSION_STORAGE_KEY = 'lourex-invoice-session-v1';
 const ACTIVE_ACCOUNT_UID_KEY = 'lourex-invoice-active-account-v1';
 const ACCOUNT_TOKEN_PREFIX = 'acct:';
 
+// A persisted CryptoKey may support the currently open runtime, but it must never
+// authorize a brand-new page load. The user explicitly crosses the PIN gate on
+// every LOUREX start/reload; establishSession() is the only runtime unlock point.
+let runtimePinAuthorized=false;
+
 interface SessionMarker {
   token: string;
   lastActivity: number;
@@ -76,6 +81,7 @@ function normalizeAutoLockMinutes(value:number):AutoLockMinutes{
 }
 
 export function isCurrentSessionExpired(autoLockMinutes: number, now = Date.now()): boolean {
+  if(!runtimePinAuthorized)return true;
   const marker = readMarker();
   return !marker || isSessionExpired(marker.lastActivity, normalizeAutoLockMinutes(autoLockMinutes), now);
 }
@@ -88,8 +94,10 @@ export async function establishSession(key: CryptoKey): Promise<boolean> {
     const record: SessionKeyRecord = { id: 'session-key', token, key, updatedAt: new Date().toISOString() };
     await putRecord(record);
     writeMarker(marker);
+    runtimePinAuthorized=true;
     return true;
   } catch {
+    runtimePinAuthorized=false;
     removeMarker();
     return false;
   }
@@ -98,15 +106,15 @@ export async function establishSession(key: CryptoKey): Promise<boolean> {
 export async function resumeAccountSession(uid:string):Promise<boolean>{
   if(!uid)return false;
   setActiveAccountUid(uid);
-  try{
-    const record=await getRecord<SessionKeyRecord>('session-key');
-    if(!record?.key||!record.token.startsWith(accountPrefix(uid)))return false;
-    writeMarker({token:record.token,lastActivity:Date.now()});
-    return true;
-  }catch{return false;}
+  // Intentionally do not authorize a new JS runtime from a persisted key.
+  // Authentication selects the correct account database; the PIN screen then
+  // performs the actual local-vault unlock for this runtime.
+  runtimePinAuthorized=false;
+  return false;
 }
 
 export function touchSession(now = Date.now()): void {
+  if(!runtimePinAuthorized)return;
   const marker = readMarker();
   if (!marker) return;
   marker.lastActivity = now;
@@ -114,6 +122,7 @@ export function touchSession(now = Date.now()): void {
 }
 
 export async function getSessionKey(): Promise<{ key: CryptoKey; lastActivity: number } | null> {
+  if(!runtimePinAuthorized)return null;
   const marker = readMarker();
   if (!marker) {
     try {
@@ -132,9 +141,9 @@ export async function getSessionKey(): Promise<{ key: CryptoKey; lastActivity: n
 }
 
 // Signing out is a hard local security boundary. The encrypted vault and its
-// metadata stay on the device, but the usable CryptoKey is removed. The same
-// authenticated Firebase UID can derive a fresh key again from account access.
+// metadata stay on the device, but the usable CryptoKey is removed.
 export async function suspendSession():Promise<void>{
+  runtimePinAuthorized=false;
   removeMarker();
   try { await deleteRecord('session-key'); } catch { /* no-op */ }
 }
@@ -142,6 +151,7 @@ export async function suspendSession():Promise<void>{
 // Destructive session clearing remains available for corruption/expiry recovery.
 // The encrypted vault and security metadata are never deleted here.
 export async function clearSession(): Promise<void> {
+  runtimePinAuthorized=false;
   removeMarker();
   try { await deleteRecord('session-key'); } catch { /* no-op */ }
 }

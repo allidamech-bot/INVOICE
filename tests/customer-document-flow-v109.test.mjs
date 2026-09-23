@@ -40,7 +40,7 @@ test('v109 stylesheet remains app-only and precedes the canonical document outpu
   const v109 = './styles/customer-document-flow-v109.css';
   const v100 = './styles/performance-polish-v100.css';
   const documentLayer = './styles/document-premium-redesign-v141.css';
-  const currentVisualLayer = './styles/visual-features-v300.css?v=300';
+  const currentVisualLayer = './styles/security-documents-closeout-v302.css?v=302';
   assert.ok(html.includes(v109));
   assert.ok(sw.includes(v109));
   assert.ok(html.indexOf(v109) < html.indexOf(v100));

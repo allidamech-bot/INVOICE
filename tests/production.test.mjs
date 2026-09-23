@@ -113,11 +113,12 @@ test('Firebase cloud sync stores the encrypted vault under owner-only user paths
   assert.match(app, /CloudAccountModal/);
 });
 
-test('first-run onboarding uses one LOUREX account and account-managed vault protection', async () => {
+test('first-run onboarding requires one LOUREX account plus a separate local PIN', async () => {
   const html = await read('dist/index.html');
   const auth = await read('src/components/AuthScreens.tsx');
   const account = await read('src/components/AccountEntryScreen.tsx');
   const selector = await read('src/app/AuthScreenSelector.tsx');
+  const session = await read('src/storage/session.ts');
   const css = await read('dist/styles/app.bundle.css');
   assert.match(html, /styles\/app\.bundle\.css/);
   assert.match(css, /\/\* --- auth-entry\.css --- \*\//);
@@ -126,9 +127,15 @@ test('first-run onboarding uses one LOUREX account and account-managed vault pro
   assert.match(account, /createCloudUser/);
   assert.match(account, /signInCloudUser/);
   assert.match(account, /Confirm Password/);
-  assert.match(auth, /getOrCreateAccountVaultSecret\(user\.uid\)/);
-  assert.match(auth, /No separate access PIN is required/);
-  assert.doesNotMatch(auth, /Create your LOUREX PIN/);
+  assert.match(auth, /Create PIN · 4–12 digits/);
+  assert.match(auth, /Confirm PIN/);
+  assert.match(auth, /onFinish\(this\.state\.pin, this\.state\.company\)/);
+  assert.match(auth, /PIN required on every app start/);
+  assert.match(auth, /getAccountVaultSecret\(user\.uid\)/);
+  assert.match(auth, /changePin\(this\.accountSecret,pin\)/);
+  assert.doesNotMatch(auth, /No separate access PIN is required/);
+  assert.match(session, /let runtimePinAuthorized=false/);
+  assert.match(session, /if\(!runtimePinAuthorized\)return null/);
   assert.match(selector, /if \(!currentCloudUser\(\)\)/);
   assert.match(selector, /return <AccountEntryScreen/);
   assert.doesNotMatch(auth, /Restore Backup|Choose Backup File|restoreOpen/);
