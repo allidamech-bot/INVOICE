@@ -102,12 +102,18 @@ function percentChange(current:string,previous:string):string{
   return `${value>=0?'↑':'↓'} ${Math.abs(Number(rounded))}%`;
 }
 
-function linePoints(values:number[],width:number,height:number,pad:number,max:number):string{
+function chartY(value:number,height:number,pad:number,min:number,max:number):number{
+  const range=max-min||1;
+  const safe=Number.isFinite(value)?value:0;
+  return height-pad-((safe-min)/range)*(height-pad*2);
+}
+
+function linePoints(values:number[],width:number,height:number,pad:number,min:number,max:number):string{
   if(!values.length)return'';
   const span=Math.max(1,values.length-1);
   return values.map((value,index)=>{
     const x=pad+(index/span)*(width-pad*2);
-    const y=height-pad-(Math.max(0,value)/max)*(height-pad*2);
+    const y=chartY(value,height,pad,min,max);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');
 }
@@ -161,11 +167,15 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
   },[chartRange,chartCurrency,documents,payments,history,today]);
 
   const chartValues=chartMode==='profit'?chartData.map(row=>row.profit):chartData.flatMap(row=>[row.sales,row.collected]);
-  const chartMax=Math.max(1,...chartValues.filter(value=>Number.isFinite(value)&&value>=0));
+  const finiteChartValues=chartValues.filter(Number.isFinite);
+  const chartMin=Math.min(0,...finiteChartValues);
+  const chartMax=Math.max(0,...finiteChartValues);
+  const chartHasActivity=finiteChartValues.some(value=>Math.abs(value)>0.000001);
   const chartWidth=760,chartHeight=220,chartPad=22;
-  const salesPoints=linePoints(chartData.map(row=>row.sales),chartWidth,chartHeight,chartPad,chartMax);
-  const collectionPoints=linePoints(chartData.map(row=>row.collected),chartWidth,chartHeight,chartPad,chartMax);
-  const profitPoints=linePoints(chartData.map(row=>row.profit),chartWidth,chartHeight,chartPad,chartMax);
+  const salesPoints=linePoints(chartData.map(row=>row.sales),chartWidth,chartHeight,chartPad,chartMin,chartMax);
+  const collectionPoints=linePoints(chartData.map(row=>row.collected),chartWidth,chartHeight,chartPad,chartMin,chartMax);
+  const profitPoints=linePoints(chartData.map(row=>row.profit),chartWidth,chartHeight,chartPad,chartMin,chartMax);
+  const chartZeroY=chartY(0,chartHeight,chartPad,chartMin,chartMax);
   const chartProfitComplete=chartData.every(row=>row.profitComplete);
   const currentChartReceivable=receivables.find(row=>row.currency===chartCurrency);
   const currentMonth=monthly.find(row=>row.currency===chartCurrency);
@@ -202,20 +212,21 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
     </section>
 
     <div className="command-performance-grid">
-      <section className="dashboard-panel command-performance-panel">
+      <section className={`dashboard-panel command-performance-panel ${chartHasActivity?'':'is-empty-chart'}`}>
         <header className="dashboard-panel-heading command-chart-heading">
           <div><small>{t('Performance','الأداء')}</small><h2>{t('Business performance','أداء الأعمال')}</h2><span>{t(`Currency · ${chartCurrency}`,`العملة · ${chartCurrency}`)}</span></div>
-          <div className="command-chart-controls" aria-label={t('Chart period','فترة الرسم')}>
-            {(['7d','30d','6m','1y'] as ChartRange[]).map(value=><button type="button" key={value} className={chartRange===value?'active':''} onClick={()=>setChartRange(value)}>{value==='7d'?t('7D','7 أيام'):value==='30d'?t('30D','30 يوم'):value==='6m'?t('6M','6 أشهر'):t('1Y','سنة')}</button>)}
+          <div className="command-chart-controls" role="group" aria-label={t('Chart period','فترة الرسم')}>
+            {(['7d','30d','6m','1y'] as ChartRange[]).map(value=><button type="button" key={value} className={chartRange===value?'active':''} aria-pressed={chartRange===value} onClick={()=>setChartRange(value)}>{value==='7d'?t('7D','7 أيام'):value==='30d'?t('30D','30 يوم'):value==='6m'?t('6M','6 أشهر'):t('1Y','سنة')}</button>)}
           </div>
         </header>
         <div className="command-chart-mode" role="group" aria-label={t('Chart metric','مؤشر الرسم')}>
-          <button type="button" className={chartMode==='cash'?'active':''} onClick={()=>setChartMode('cash')}>{t('Sales & collections','المبيعات والتحصيل')}</button>
-          <button type="button" className={chartMode==='profit'?'active':''} onClick={()=>setChartMode('profit')}>{t('Gross profit','إجمالي الربح')}</button>
+          <button type="button" className={chartMode==='cash'?'active':''} aria-pressed={chartMode==='cash'} onClick={()=>setChartMode('cash')}>{t('Sales & collections','المبيعات والتحصيل')}</button>
+          <button type="button" className={chartMode==='profit'?'active':''} aria-pressed={chartMode==='profit'} onClick={()=>setChartMode('profit')}>{t('Gross profit','إجمالي الربح')}</button>
         </div>
         <div className="command-chart-wrap">
           <svg className="command-chart" viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label={chartMode==='cash'?t(`Sales and collections trend in ${chartCurrency}`,`اتجاه المبيعات والتحصيل بعملة ${chartCurrency}`):t(`Gross profit trend in ${chartCurrency}`,`اتجاه إجمالي الربح بعملة ${chartCurrency}`)} preserveAspectRatio="none">
             {[0.25,0.5,0.75].map(ratio=><line key={ratio} className="command-chart-grid" x1={chartPad} x2={chartWidth-chartPad} y1={chartPad+(chartHeight-chartPad*2)*ratio} y2={chartPad+(chartHeight-chartPad*2)*ratio}/>)}
+            {chartMin<0?<line className="command-chart-zero" x1={chartPad} x2={chartWidth-chartPad} y1={chartZeroY} y2={chartZeroY}/>:null}
             {chartMode==='cash'?<><polyline className="command-chart-line line-sales" points={salesPoints}/><polyline className="command-chart-line line-collected" points={collectionPoints}/></>:<polyline className="command-chart-line line-profit" points={profitPoints}/>} 
           </svg>
           <div className="command-chart-labels" aria-hidden="true">{chartData.map((row,index)=>{const show=chartData.length<=7||index===0||index===chartData.length-1||index%Math.ceil(chartData.length/6)===0;return <span key={row.key} className={show?'show':''}>{show?row.label:''}</span>;})}</div>
