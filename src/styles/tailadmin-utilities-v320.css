@@ -19,6 +19,29 @@
   .document-kind-pill.kind-purchase-order,.ta-doc-kind-pill.kind-purchase-order{border-color:color-mix(in srgb,var(--ft-warning) 24%,var(--ft-line))!important;background:var(--ft-warning-soft)!important;color:var(--ft-warning)!important}
   .purchase-order-reference{margin-top:10px!important}
 
+  /* Retained v176 recovery CSS has intentionally high-specificity modal safety
+     rules. Reassert the v320 TailAdmin visual owner here so those safety rules
+     cannot repaint dialogs with the retired Obsidian palette. */
+  .app-ui .modal-backdrop{
+    z-index:1300!important;
+    background:rgba(16,24,40,.38)!important;
+    backdrop-filter:blur(3px)!important;
+  }
+  .app-ui .modal{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+    box-shadow:0 24px 64px rgba(16,24,40,.22)!important;
+  }
+  html[data-ui-theme="dark"] .app-ui .modal{box-shadow:0 24px 64px rgba(0,0,0,.46)!important}
+  .app-ui .modal-header,.app-ui .modal-footer{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+  }
+  .app-ui .modal-body{background:var(--ft-surface)!important;color:var(--ft-text)!important}
+  .app-ui .modal-header h2{color:var(--ft-text-strong)!important}
+
   [dir="rtl"] :where(.mf-theme-control,.mf-theme-toggle-control){direction:rtl!important}
 }
 
@@ -46,4 +69,45 @@
   ){
     min-height:44px!important;
   }
+}
+
+@media screen and (max-width:720px){
+  /* v155 sized the old editor against a 104px legacy header. The v320 editor
+     lives inside the TailAdmin grid row, so consume that row instead of leaving
+     a phantom header gap or clipping the lower editor. */
+  .app-ui .ta-shell.is-editor .editor-screen{
+    height:100%!important;
+    max-height:none!important;
+    min-height:100%!important;
+  }
+
+  /* Keep the v176 reachability protection but restore the TailAdmin mobile
+     bottom-sheet composition and visual hierarchy. */
+  .app-ui .modal-backdrop{
+    display:grid!important;
+    align-items:end!important;
+    justify-items:stretch!important;
+    padding:0!important;
+    overflow:auto!important;
+  }
+  .app-ui .modal{
+    width:100%!important;
+    max-width:none!important;
+    height:auto!important;
+    max-height:92dvh!important;
+    align-self:end!important;
+    margin:0!important;
+    border-radius:14px 14px 0 0!important;
+    border-inline:0!important;
+    border-bottom:0!important;
+  }
+  .app-ui .modal-footer-actions{
+    width:100%!important;
+    display:flex!important;
+    flex-direction:column-reverse!important;
+    align-items:stretch!important;
+    gap:8px!important;
+  }
+  .app-ui .modal-footer-actions>.btn,
+  .app-ui .modal-footer-actions .btn{width:100%!important;min-height:44px!important}
 }
