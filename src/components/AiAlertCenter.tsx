@@ -13,6 +13,15 @@ interface AlertItem{id:string;tone:AlertTone;title:string;detail:string;metric:s
 interface Props{language:UiLanguage;onNavigate:(screen:AiAlertTarget)=>void;}
 interface State{open:boolean;busy:boolean;error:string;items:AlertItem[];updatedAt:number;}
 
+const MOBILE_CLOSEOUT_ID='lourex-v319-mobile-closeout';
+function ensureMobileCloseoutStyle():void{
+  if(document.getElementById(MOBILE_CLOSEOUT_ID))return;
+  const link=document.createElement('link');
+  link.id=MOBILE_CLOSEOUT_ID;
+  link.rel='stylesheet';
+  link.href='./styles/v319-mobile-header-more-fix.css?v=319';
+  document.head.appendChild(link);
+}
 function monthStart(today:string):string{return `${today.slice(0,7)}-01`;}
 function relativeUpdated(at:number,language:UiLanguage):string{
   if(!at)return'';
@@ -30,6 +39,7 @@ export class AiAlertCenter extends React.Component<Props,State>{
 
   componentDidMount():void{
     this.mounted=true;
+    ensureMobileCloseoutStyle();
     document.addEventListener('visibilitychange',this.visibilityHandler);
     window.setTimeout(()=>void this.refresh(false),650);
   }
