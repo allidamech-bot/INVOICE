@@ -159,11 +159,19 @@
     .ta-range-control>button,
     .ta-segmented-control>button,
     .ta-editor-step-list>button,
+    .ta-settings-segmented>button,
     .segmented>button,
     .global-search-destinations>button,
     .global-search-section-title>button
   ){
     min-height:44px!important;
+  }
+
+  .app-ui .ta-settings-link-action{
+    min-height:44px!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    padding-block:8px!important;
   }
 
   .app-ui .mobile-preview-overlay>header .btn,
