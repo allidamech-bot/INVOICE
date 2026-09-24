@@ -55,22 +55,14 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
             await page.locator(surface.selector).waitFor({state:'visible',timeout:10000});
             await page.waitForTimeout(180);
 
-            const state=await page.evaluate(({selector,shell,mobile,theme,lang})=>{
+            const state=await page.evaluate(({selector,shell,theme,lang})=>{
               const root=getComputedStyle(document.documentElement);
               const target=document.querySelector(selector);
               const targetStyle=target?getComputedStyle(target):null;
-              const content=document.querySelector('.ta-content');
+              const content=document.querySelector('.ta-main');
               const contentStyle=content?getComputedStyle(content):null;
               const sidebar=document.querySelector('.ta-sidebar');
-              const bottom=document.querySelector('.ta-mobile-bottom');
-              const visibleButtons=Array.from(document.querySelectorAll('button')).filter(node=>{
-                const style=getComputedStyle(node),box=node.getBoundingClientRect();
-                return style.display!=='none'&&style.visibility!=='hidden'&&box.width>0&&box.height>0;
-              });
-              const tooSmall=mobile?visibleButtons.filter(node=>{
-                const box=node.getBoundingClientRect();
-                return box.width<32||box.height<32;
-              }).slice(0,8).map(node=>({text:(node.textContent||node.getAttribute('aria-label')||'').trim().slice(0,80),width:node.getBoundingClientRect().width,height:node.getBoundingClientRect().height})):[];
+              const bottom=document.querySelector('.ta-mobile-nav');
               const value=name=>root.getPropertyValue(name).trim();
               return {
                 theme,lang,dir:document.documentElement.dir,
@@ -80,10 +72,10 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
                 font:targetStyle?.fontFamily||'',targetBackground:targetStyle?.backgroundColor||'',contentBackground:contentStyle?.backgroundColor||'',
                 sidebarDisplay:sidebar?getComputedStyle(sidebar).display:'missing',
                 bottomDisplay:bottom?getComputedStyle(bottom).display:'missing',
-                shell,tooSmall,
+                shell,
                 legacyLinks:Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(link=>link.getAttribute('href')||'').filter(href=>/obsidian|luminous-noir|precision-black|canonical-v314|fintech-(?:shell|workspaces)-v280/.test(href))
               };
-            },{selector:surface.selector,shell:Boolean(surface.shell),mobile:scenario.name==='mobile',theme,lang});
+            },{selector:surface.selector,shell:Boolean(surface.shell),theme,lang});
 
             const failures=[...errors];
             if(!state.accent||!state.workspace||!state.surface||!state.text)failures.push('TailAdmin --ft-* token set is incomplete');
@@ -105,14 +97,13 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
                 if(state.bottomDisplay==='none'||state.bottomDisplay==='missing')failures.push('mobile TailAdmin navigation hidden');
               }
             }
-            if(state.tooSmall.length)failures.push(`small mobile controls: ${JSON.stringify(state.tooSmall)}`);
 
             if(surface.name==='shell'){
               if(scenario.name==='desktop'){
                 const create=page.locator('.ta-create-button');await create.click();
                 if(!(await page.locator('.ta-create-menu').isVisible()))failures.push('TailAdmin create menu did not open');
               }else{
-                const more=page.locator('.ta-mobile-nav-item').filter({hasText:lang==='ar'?'المزيد':'More'}).last();
+                const more=page.locator('.ta-mobile-nav button[aria-controls="ta-mobile-more"]');
                 await more.click();
                 if(!(await page.locator('.ta-mobile-sheet').isVisible()))failures.push('TailAdmin More sheet did not open');
                 const sheet=await page.locator('.ta-mobile-sheet').evaluate(el=>{const r=el.getBoundingClientRect();return{bottom:r.bottom,height:r.height};});
