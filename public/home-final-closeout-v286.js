@@ -12,7 +12,7 @@
      visual generation are retired here. Mobile/Safari/output/feature CSS stays. */
   var legacyVisualOwners=[
     'app-shell-v161.css','mobile-shell-v71.css','fintech-shell-v280.css',
-    'dashboard-documents.css','document-premium-redesign-v141.css','customers-premium-v170.css','customer-document-flow-v109.css',
+    'dashboard-documents.css','customers-premium-v170.css','customer-document-flow-v109.css',
     'financial-workspaces-v189.css','receivables-v133.css','reports-v135.css','operations-v137.css',
     'settings-workspace-v108.css','settings-account-v163.css','auth-entry.css','onboarding-simplification-v115.css','mobile-auth-modal-v150.css','account-cloud-separation-v186.css','unified-account-v189.css',
     'editor-system.css','editor-workflow-v61.css','editor-hierarchy-v93.css','editor-guided-flow-v107.css','editor-workspace-v162.css',
