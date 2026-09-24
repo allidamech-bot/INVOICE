@@ -1,6 +1,6 @@
 # LOUREX v320 — TailAdmin Finance full UI migration matrix
 
-This branch replaces the legacy LOUREX visual system with the TailAdmin Finance design language. The release is not considered complete until the structural migration, no-legacy audit and final Arabic/English + Light/Dark + responsive verification are all green.
+This branch replaces the legacy LOUREX visual system with the TailAdmin Finance design language. The release is not considered complete until the migration, no-legacy visual-owner audit and final Arabic/English + Light/Dark + responsive verification are all green.
 
 ## Guardrails
 - Preserve v318 persistence, iPhone/Safari stability, encrypted vault, PIN, Firebase/Auth, accounting calculations, document lifecycle, PDF and print behavior.
@@ -8,7 +8,7 @@ This branch replaces the legacy LOUREX visual system with the TailAdmin Finance 
 - No production publish before final visual review and verification.
 - Preview deployments are manual/intentional only; feature branches must not auto-deploy on every commit.
 - TailAdmin Community/MIT assets and patterns may be reused with the required copyright/license notice. Proprietary TailAdmin Finance source is not copied unless a licensed source package is supplied.
-- v320 is a structural replacement. A surface is not considered migrated merely because a late CSS layer recolors legacy markup.
+- v320 prefers structural replacement. Where a security/reliability-sensitive component keeps its proven semantic markup, TailAdmin must still be its sole visual owner and the legacy visual owner must be retired.
 
 ## Coverage matrix
 
@@ -20,9 +20,9 @@ This branch replaces the legacy LOUREX visual system with the TailAdmin Finance 
 | Home / Finance dashboard | STRUCTURE DONE / QA PENDING | 1-3 |
 | Documents register/search/filter/detail | STRUCTURE DONE / QA PENDING | 1-3 |
 | Document editor frame / step navigation | STRUCTURE DONE / QA PENDING | 3 |
-| Commercial document editor core | STRUCTURE DONE / QA PENDING | 3 |
-| Draft Studio / editor inner sections | STRUCTURE DONE / QA PENDING | 3 |
-| Document attachments / preview | STRUCTURE DONE / QA PENDING | 3 |
+| Commercial document editor core | TAILADMIN OWNER DONE / QA PENDING | 3 |
+| Draft Studio / editor inner sections | TAILADMIN OWNER DONE / QA PENDING | 3 |
+| Document attachments / preview | TAILADMIN OWNER DONE / QA PENDING | 3 |
 | Customers + customer profile | STRUCTURE DONE / QA PENDING | 4 |
 | Products & Inventory | STRUCTURE DONE / QA PENDING | 4 |
 | Purchasing / suppliers / operations | STRUCTURE DONE / QA PENDING | 5 |
@@ -31,13 +31,13 @@ This branch replaces the legacy LOUREX visual system with the TailAdmin Finance 
 | Settings / Account / Security / PIN | STRUCTURE DONE / QA PENDING | 6 |
 | Authentication / onboarding / lock screens | STRUCTURE DONE / QA PENDING | 6 |
 | Cloud conflict / account recovery | STRUCTURE DONE / QA PENDING | 6 |
-| AI surfaces / approval / activity audit | STRUCTURE DONE / QA PENDING | 6 |
-| Modals / popovers / menus / global search / empty states | STRUCTURE DONE / QA PENDING | 7 |
+| AI surfaces / approval / activity audit | TAILADMIN OWNER DONE / QA PENDING | 6 |
+| Modals / popovers / menus / global search / empty states | TAILADMIN OWNER DONE / QA PENDING | 7 |
 | Recovery / PWA refresh / iOS output fallback | TAILADMIN OWNER DONE / QA PENDING | 7 |
 | RTL Arabic pass | QA PENDING | 7-8 |
 | Light/Dark parity pass | QA PENDING | 7-8 |
 | iPhone/iPad/Safari geometry + safe-area pass | QA PENDING | 7-8 |
-| Final no-legacy-visual audit | STRUCTURAL HANDOFF DONE / STATIC AUDIT IN PROGRESS | 8 |
+| Final no-legacy-visual audit | STATIC AUDIT IN PROGRESS | 8 |
 | Final unit/build/visual verification | TODO — RUN ONLY AFTER UI EDITS FINISH | 8 |
 
 ## Batch 2 — Shell structural replacement
@@ -52,7 +52,7 @@ Navigation callbacks, Firebase sign-out, encrypted session clearing, cloud-confl
 
 `DocumentsPage.tsx` owns the document register and detail hierarchy. Search, filters, lifecycle/status, quotation conversion, payments, credit notes, attachments, PDF/share preparation, keyboard navigation and iPhone attachment-memory safeguards remain unchanged.
 
-`EditorPage.tsx`, the commercial document editor core and `DraftDocumentEditor.tsx` now use TailAdmin visual owners. Autosave, revision single-flight protection, final-document locking, Safari/iPhone memory safeguards, PDF/print/share preparation and Draft Studio departure flush behavior remain on the existing logic paths.
+`EditorPage.tsx` supplies the TailAdmin editor frame and step hierarchy. The commercial editor core and `DraftDocumentEditor.tsx` intentionally keep their proven semantic editing markup because those components contain autosave, revision single-flight, final-document locking, departure flush and iPhone/Safari safeguards. Their historical visual owners are retired; `tailadmin-editor-core-v320.css` is now the presentation owner.
 
 `tailadmin-attachments-v320.css` owns the attachment gallery and preview while the encrypted attachment data path remains unchanged.
 
@@ -76,7 +76,7 @@ Settings, Account, company artwork, commercial defaults, document defaults, clou
 
 Account entry, account creation, Google authentication/linking, initial workspace setup, PIN unlock and one-time legacy PIN upgrade now use TailAdmin gateway markup. Firebase persistence ordering, UID-scoped storage activation, encrypted vault migration and account recovery behavior remain unchanged.
 
-The LOUREX Advisor keeps deterministic local accounting/pricing context, explicit approval for mutations and activity audit behavior. Its previous injected dark visual owner is retired at runtime and the panel is owned by `tailadmin-ai-v320.css`.
+The LOUREX Advisor keeps its existing capability/approval/audit markup because it is tightly coupled to deterministic local accounting context and guarded vault mutations. Its historical injected dark stylesheet is actively retired at runtime and `tailadmin-ai-v320.css` is its sole visual owner.
 
 ## Batch 7 — Global overlays and reliability surfaces
 
@@ -90,7 +90,11 @@ The LOUREX Advisor keeps deterministic local accounting/pricing context, explici
 
 `index.html` no longer loads the historical visual generations or v314 canonical theme stack. It retains only base/component support and reliability geometry required by existing React/runtime behavior, followed by the v320 TailAdmin owners as the final cascade.
 
-`public/home-final-closeout-v286.js` no longer installs historical generations. It now acts as a defensive owner boundary: it removes known legacy visual styles if an old cached/runtime path reinjects them, removes the old inline AI stylesheet, normalizes the TailAdmin canvas/theme color and ensures the v320 owners exist.
+`public/home-final-closeout-v286.js` no longer installs historical generations. It acts as a defensive owner boundary: it removes known legacy visual styles if an old cached/runtime path reinjects them, removes the old inline AI stylesheet, normalizes the TailAdmin canvas/theme color and ensures the v320 owners exist.
+
+`public/document-entry-v302.js` now recognizes the TailAdmin create menu, preserves selected Light/Dark boot colors, injects only retained reliability layers, and re-promotes TailAdmin styles after those runtime layers so a retained compatibility stylesheet cannot retake visual ownership.
+
+`scripts/v303-visual-cache-refresh.mjs` promotes the offline cache generation to v320 and caches the exact TailAdmin owner versions used by production output, including utilities and the reliability bridge.
 
 ## Acceptance rule
-No partial legacy styling is accepted at release. A page is only DONE after final QA confirms shell, headings, controls, search, filters, tables/lists, cards, states, overlays, responsive behavior, Arabic RTL and Light/Dark all use the same TailAdmin visual grammar and the final verification suite is green.
+No partial legacy visual ownership is accepted at release. A page is only DONE after final QA confirms shell, headings, controls, search, filters, tables/lists, cards, states, overlays, responsive behavior, Arabic RTL and Light/Dark all use the same TailAdmin visual grammar and the final verification suite is green.
