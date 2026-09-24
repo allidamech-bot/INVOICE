@@ -1,5 +1,6 @@
 import { DraftDocumentEditor } from './DraftDocumentEditor.js';
 import { isLetterDocument } from '../lib/document-extras.js';
+import { documentCanConvertToInvoice } from '../lib/document-kinds.js';
 import type { AppSettings, CompanySettings, Customer, DocumentEventRecord, DocumentItem, DocumentRevisionRecord, LourexDocument, PaymentRecord, SavedItem, Supplier } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { Button, Icon } from './UI.js';
@@ -28,9 +29,6 @@ interface State {
   persistenceError:string;
 }
 
-// Keep the editor's internal draft state scoped to one document identity.
-// A new invoice created from a proforma must mount a fresh editor instead of
-// retaining the source document's local state.
 export class EditorPage extends React.Component<Props,State>{
   private static readonly activeEditorAttribute='data-lourex-document-editor';
   private resetFrame:number|undefined;
@@ -55,8 +53,6 @@ export class EditorPage extends React.Component<Props,State>{
 
   componentDidMount():void{
     this.mounted=true;
-    // Keep a durable page-level editing signal for cloud/PWA reload guards.
-    // DOM-only checks can briefly miss the editor while React is reconciling.
     document.documentElement.setAttribute(EditorPage.activeEditorAttribute,this.props.document.id);
     this.ensureInitialDraftPersisted();
     this.resetScroll();
@@ -182,8 +178,6 @@ export class EditorPage extends React.Component<Props,State>{
     const form=document.querySelector('.editor-pane .editor-form-lock');
     if(form){
       this.navMutationObserver=new MutationObserver(()=>this.syncSectionMeta());
-      // Validation state is reflected on section class names. Watching text and
-      // child mutations made every controlled input update rescan the full form.
       this.navMutationObserver.observe(form,{attributes:true,subtree:true,attributeFilter:['class']});
     }
     this.syncActiveSection();
@@ -206,9 +200,6 @@ export class EditorPage extends React.Component<Props,State>{
     window.setTimeout(()=>this.syncActiveSection(),reduceMotion?0:360);
   };
 
-  // Internal cost metadata can be updated by the profitability panel while the
-  // core editor still holds an older local draft. Merge the latest internal
-  // fields into core saves so a later autosave can never erase cost data.
   private withLatestInternalCosts=(doc:LourexDocument):LourexDocument=>{
     const latest=this.props.document;
     if(latest.id!==doc.id)return doc;
@@ -293,7 +284,9 @@ export class EditorPage extends React.Component<Props,State>{
     }
     if(this.initialDraftPersisted)return;
     this.initialDraftPersisted=true;
-    void this.saveWithProtectedRetry(structuredClone(doc),true).then(()=>{
+    // The document tree is immutable while crossing this boundary. Passing the
+    // reference avoids cloning attachment payloads before the very first local save.
+    void this.saveWithProtectedRetry(doc,true).then(()=>{
       if(this.mounted&&this.state.persistenceError)this.setState({persistenceError:''});
     }).catch(e=>{
       this.initialDraftPersisted=false;
@@ -305,7 +298,8 @@ export class EditorPage extends React.Component<Props,State>{
   render():any{
     const props=this.props;
     if(isLetterDocument(props.document))return <DraftDocumentEditor key={props.document.id} document={props.document} company={props.company} onClose={props.onClose} onSave={this.saveWithProtectedRetry} onPrint={this.printWithPreparedMode} onEditActivity={props.onEditActivity}/>;
-    const finalQuote=props.document.kind==='proforma'&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
+    const finalQuote=documentCanConvertToInvoice(props.document.kind)&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
+    const sourceIsProformaInvoice=props.document.kind==='proforma-invoice';
     const linkedInvoice=finalQuote?props.documents.find(item=>item.kind==='invoice'&&item.role==='standard'&&item.convertedFromId===props.document.id&&item.lifecycleStatus!=='voided'):undefined;
     const canConvertFinalQuote=finalQuote&&!linkedInvoice;
     const sections=this.state.sections;
@@ -324,10 +318,10 @@ export class EditorPage extends React.Component<Props,State>{
       <span className="editor-nav-live-status" aria-live="polite">{sections.find(section=>section.id===this.state.activeSectionId)?.label||''}</span>
     </nav>:null;
     const finalQuoteAction=finalQuote?(linkedInvoice?<div className="final-quote-convert-bar is-converted" role="status">
-      <div><Icon name="check" size={18}/><span><strong>{t('Invoice already created from this quote.','تم إنشاء فاتورة من عرض السعر هذا بالفعل.')}</strong><small>{t(`Linked invoice: ${linkedInvoice.number}. Cancel that invoice before creating a replacement from this quote.`,`الفاتورة المرتبطة: ${linkedInvoice.number}. ألغِ تلك الفاتورة قبل إنشاء بديل من عرض السعر هذا.`)}</small></span></div>
-    </div>:canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final quote actions','إجراءات عرض السعر النهائي')}>
-      <div><Icon name="invoice" size={18}/><span><strong>{t('Deal confirmed? Create the invoice.','تم تأكيد الصفقة؟ أنشئ الفاتورة.')}</strong><small>{t('The quote stays Final and unchanged. A new invoice is created with its own number.','يبقى عرض السعر نهائيًا دون تغيير، ويتم إنشاء فاتورة جديدة برقم مستقل.')}</small></span></div>
-      <Button icon="invoice" variant="primary" onClick={this.convertFinalQuote}>{t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>
+      <div><Icon name="check" size={18}/><span><strong>{sourceIsProformaInvoice?t('Commercial Invoice already created from this Proforma Invoice.','تم إنشاء فاتورة تجارية من الفاتورة المبدئية هذه بالفعل.'):t('Invoice already created from this quote.','تم إنشاء فاتورة من عرض السعر هذا بالفعل.')}</strong><small>{t(`Linked invoice: ${linkedInvoice.number}. Cancel that invoice before creating a replacement.`,`الفاتورة المرتبطة: ${linkedInvoice.number}. ألغِ تلك الفاتورة قبل إنشاء بديل.`)}</small></span></div>
+    </div>:canConvertFinalQuote?<div className="final-quote-convert-bar" role="region" aria-label={t('Final document conversion','تحويل المستند النهائي')}>
+      <div><Icon name="invoice" size={18}/><span><strong>{sourceIsProformaInvoice?t('Ready for the Commercial Invoice?','جاهز لإنشاء الفاتورة التجارية؟'):t('Deal confirmed? Create the invoice.','تم تأكيد الصفقة؟ أنشئ الفاتورة.')}</strong><small>{sourceIsProformaInvoice?t('The Proforma Invoice stays Final and unchanged. A new Commercial Invoice gets its own number.','تبقى الفاتورة المبدئية نهائية دون تغيير، ويتم إنشاء فاتورة تجارية جديدة برقم مستقل.'):t('The quote stays Final and unchanged. A new invoice is created with its own number.','يبقى عرض السعر نهائيًا دون تغيير، ويتم إنشاء فاتورة جديدة برقم مستقل.')}</small></span></div>
+      <Button icon="invoice" variant="primary" onClick={this.convertFinalQuote}>{sourceIsProformaInvoice?t('Create Commercial Invoice','إنشاء فاتورة تجارية'):t('Create Invoice from Quote','إنشاء فاتورة من عرض السعر')}</Button>
     </div>:null):null;
     return <>
       {this.state.persistenceError?<div className="editor-global-error" role="alert">{this.state.persistenceError}</div>:null}
