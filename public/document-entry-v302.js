@@ -130,17 +130,16 @@
   function armDocumentLaunch(kind){
     const root=document.documentElement;
     if(root.hasAttribute(documentLaunchAttr))return false;
+    // A dedicated launch marker protects the same click turn without pretending
+    // the editor already exists. App.tsx remains the sole owner of editor state,
+    // so cancelling a dirty-workspace confirmation cannot leave a false editor.
     root.setAttribute(documentLaunchAttr,kind);
-    // Arm the editor reload guard in the same click turn, before React closes the
-    // menu and before any cloud/PWA callback can run between frames on Safari.
-    if(!root.hasAttribute('data-lourex-document-editor'))root.setAttribute('data-lourex-document-editor','opening');
     writeLaunchState(kind);
     ensureMobileEditorSafeMode();
     window.setTimeout(()=>{
       const state=readLaunchState();
       if(!state||Date.now()-state.at<documentLaunchTimeoutMs)return;
       if(document.querySelector('.editor-screen'))return;
-      if(root.getAttribute('data-lourex-document-editor')==='opening')root.removeAttribute('data-lourex-document-editor');
       clearLaunchState();
     },documentLaunchTimeoutMs+80);
     return true;
@@ -157,7 +156,6 @@
     const state=readLaunchState();
     if(!state)return;
     if(Date.now()-state.at<=documentLaunchTimeoutMs)return;
-    if(root.getAttribute('data-lourex-document-editor')==='opening')root.removeAttribute('data-lourex-document-editor');
     clearLaunchState();
   }
 
