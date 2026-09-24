@@ -23,19 +23,159 @@ html body .lourex-ios-output-cancel{background:#103943!important;border-color:#2
   .app-ui .fintech-dashboard-v280>.lourex-advisor-card:last-child{margin-bottom:0!important}
 }
 
-
 /* v312 — ordered ten-document business catalog. */
 .app-ui .shell-new-menu{
-  max-height:min(72vh,680px)!important;
+  --catalog-bg:#f5f9fa;
+  --catalog-card:#ffffff;
+  --catalog-border:rgba(12,54,63,.11);
+  --catalog-text:#0b2c34;
+  --catalog-muted:#667e84;
+  width:min(520px,calc(100vw - 28px))!important;
+  max-height:min(76vh,720px)!important;
   overflow-y:auto!important;
   overscroll-behavior:contain!important;
   scrollbar-gutter:stable;
+  padding:12px!important;
+  border:1px solid rgba(19,92,101,.14)!important;
+  border-radius:20px!important;
+  background:var(--catalog-bg)!important;
+  box-shadow:0 24px 60px rgba(7,31,37,.18),0 1px 0 rgba(255,255,255,.8) inset!important;
+  gap:8px!important;
 }
-.app-ui .shell-new-menu>button{min-height:52px!important;flex:0 0 auto!important}
-.app-ui .shell-new-menu>button>span{min-width:0!important}
-.app-ui .shell-new-menu>button strong,.app-ui .shell-new-menu>button small{white-space:normal!important}
+.app-ui .shell-new-menu>button{
+  --doc-accent:#20aeb8;
+  --doc-soft:#e5f8f9;
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:46px minmax(0,1fr) 22px!important;
+  align-items:center!important;
+  gap:11px!important;
+  min-height:72px!important;
+  margin:0!important;
+  padding:10px 10px 10px 11px!important;
+  flex:0 0 auto!important;
+  border:1px solid var(--catalog-border)!important;
+  border-radius:15px!important;
+  background:var(--catalog-card)!important;
+  color:var(--catalog-text)!important;
+  box-shadow:0 4px 14px rgba(12,48,56,.055)!important;
+  text-align:start!important;
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,background .16s ease!important;
+}
+.app-ui .shell-new-menu>button:hover,
+.app-ui .shell-new-menu>button:focus-visible{
+  transform:translateY(-1px)!important;
+  border-color:var(--doc-accent)!important;
+  box-shadow:0 10px 22px rgba(10,47,55,.10)!important;
+  background:#fbfefe!important;
+}
+.app-ui .shell-new-menu>button:focus-visible{outline:3px solid color-mix(in srgb,var(--doc-accent) 22%,transparent)!important;outline-offset:1px!important}
+.app-ui .shell-new-menu>button>.icon{
+  width:42px!important;
+  height:42px!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:12px!important;
+  background:var(--doc-soft)!important;
+  color:var(--doc-accent)!important;
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--doc-accent) 14%,transparent) inset!important;
+}
+.app-ui .shell-new-menu>button>span{min-width:0!important;display:flex!important;flex-direction:column!important;gap:3px!important}
+.app-ui .shell-new-menu>button strong{
+  color:var(--catalog-text)!important;
+  font-size:13.5px!important;
+  line-height:1.25!important;
+  font-weight:850!important;
+  letter-spacing:-.01em!important;
+  white-space:normal!important;
+}
+.app-ui .shell-new-menu>button small{
+  color:var(--catalog-muted)!important;
+  font-size:11.5px!important;
+  line-height:1.35!important;
+  font-weight:600!important;
+  white-space:normal!important;
+}
+.app-ui .shell-new-menu>button::before{
+  content:attr(data-order)!important;
+  position:absolute!important;
+  inset-block-start:7px!important;
+  inset-inline-end:8px!important;
+  min-width:18px!important;
+  height:18px!important;
+  padding:0 4px!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:999px!important;
+  background:var(--doc-soft)!important;
+  color:var(--doc-accent)!important;
+  font-size:9px!important;
+  line-height:1!important;
+  font-weight:900!important;
+  letter-spacing:.02em!important;
+}
+.app-ui .shell-new-menu>button::after{
+  content:'›'!important;
+  justify-self:end!important;
+  align-self:center!important;
+  color:var(--doc-accent)!important;
+  font-size:24px!important;
+  line-height:1!important;
+  font-weight:500!important;
+  opacity:.72!important;
+}
+[dir="rtl"] .app-ui .shell-new-menu>button::after{content:'‹'!important}
+.app-ui .shell-new-menu>button[data-kind="draft"]{--doc-accent:#7567d8;--doc-soft:#f0edff}
+.app-ui .shell-new-menu>button[data-kind="rfq"]{--doc-accent:#3f83d8;--doc-soft:#eaf3ff}
+.app-ui .shell-new-menu>button[data-kind="proforma"]{--doc-accent:#11aab5;--doc-soft:#e2f8fa}
+.app-ui .shell-new-menu>button[data-kind="proforma-invoice"]{--doc-accent:#2a9a70;--doc-soft:#e9f7f1}
+.app-ui .shell-new-menu>button[data-kind="purchase-order"]{--doc-accent:#b97d28;--doc-soft:#fff3df}
+.app-ui .shell-new-menu>button[data-kind="invoice"]{--doc-accent:#087f91;--doc-soft:#e2f2f5}
+.app-ui .shell-new-menu>button[data-kind="delivery-note"]{--doc-accent:#448bb8;--doc-soft:#eaf5fb}
+.app-ui .shell-new-menu>button[data-kind="payment-receipt"]{--doc-accent:#278d61;--doc-soft:#e8f6ef}
+.app-ui .shell-new-menu>button[data-kind="credit-note"]{--doc-accent:#bf6174;--doc-soft:#fbecef}
+.app-ui .shell-new-menu>button[data-kind="statement-account"]{--doc-accent:#6d70b8;--doc-soft:#efeffb}
+
+@media(min-width:801px){
+  .app-ui .desktop-shell-new-menu{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;align-content:start!important}
+}
+
+html[data-ui-theme="dark"] .app-ui .shell-new-menu{
+  --catalog-bg:#0a2229;
+  --catalog-card:#102d35;
+  --catalog-border:rgba(147,196,202,.13);
+  --catalog-text:#effafb;
+  --catalog-muted:#9db7bc;
+  border-color:rgba(64,172,181,.20)!important;
+  background:#0a2229!important;
+  box-shadow:0 28px 70px rgba(0,0,0,.42),0 1px 0 rgba(255,255,255,.035) inset!important;
+}
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button{
+  background:#102d35!important;
+  box-shadow:0 5px 16px rgba(0,0,0,.16)!important;
+}
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button:hover,
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button:focus-visible{background:#143740!important;box-shadow:0 12px 28px rgba(0,0,0,.22)!important}
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button[data-kind="draft"]{--doc-soft:rgba(117,103,216,.16)}
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button[data-kind="rfq"]{--doc-soft:rgba(63,131,216,.16)}
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button[data-kind="proforma"]{--doc-soft:rgba(17,170,181,.16)}
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button[data-kind="proforma-invoice"]{--doc-soft:rgba(42,154,112,.16)}
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button[data-kind="purchase-order"]{--doc-soft:rgba(185,125,40,.17)}
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button[data-kind="invoice"]{--doc-soft:rgba(8,127,145,.18)}
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button[data-kind="delivery-note"]{--doc-soft:rgba(68,139,184,.17)}
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button[data-kind="payment-receipt"]{--doc-soft:rgba(39,141,97,.17)}
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button[data-kind="credit-note"]{--doc-soft:rgba(191,97,116,.17)}
+html[data-ui-theme="dark"] .app-ui .shell-new-menu>button[data-kind="statement-account"]{--doc-soft:rgba(109,112,184,.17)}
+
 @media(max-width:800px){
-  .app-ui .mobile-shell-new-menu{max-height:min(66dvh,620px)!important;padding-bottom:max(10px,env(safe-area-inset-bottom,0px))!important}
+  .app-ui .mobile-shell-new-menu{
+    width:calc(100vw - 20px)!important;
+    max-height:min(70dvh,660px)!important;
+    padding:10px!important;
+    padding-bottom:max(12px,env(safe-area-inset-bottom,0px))!important;
+    border-radius:22px!important;
+  }
+  .app-ui .mobile-shell-new-menu>button{min-height:68px!important;border-radius:14px!important;padding-block:9px!important}
   .app-ui .documents-register-tabs.document-type-tabs{overflow-x:auto!important;scroll-snap-type:x proximity;overscroll-behavior-inline:contain!important}
   .app-ui .documents-register-tabs.document-type-tabs>button{min-width:max-content!important;scroll-snap-align:start}
 }
