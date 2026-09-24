@@ -1,7 +1,7 @@
-/* LOUREX v286/v299 presentation helper.
-   Loads the review visual layers after the complete legacy stylesheet stack, with
-   v299 deliberately last, then detects a true zero-baseline cash chart so the Home
-   dashboard can show a compact empty state. No business data is changed. */
+/* LOUREX Home presentation bootstrap — v314 canonical ownership.
+   Historical Home-only styles are retired here, while the shared visual-system
+   layers remain intact. The canonical v314 Home stylesheet is appended last so
+   dashboard geometry has one predictable owner. No business data is changed. */
 (function(){
   function ensureStylesheet(marker,href){
     if(document.querySelector('link['+marker+']'))return;
@@ -28,6 +28,23 @@
     if(document.documentElement.dataset.uiTheme==='light')document.documentElement.style.backgroundColor='#e8eeeb';
   }
 
+  function retireHistoricalHomeStyles(){
+    var historical=[
+      'home-premium-command-center-v283.css',
+      'home-review-polish-v285.css',
+      'home-final-closeout-v286.css'
+    ];
+    document.querySelectorAll('link[rel="stylesheet"][href]').forEach(function(link){
+      var href=String(link.getAttribute('href')||'');
+      if(historical.some(function(name){return href.indexOf(name)!==-1;}))link.remove();
+    });
+  }
+
+  function installCanonicalHome(){
+    retireHistoricalHomeStyles();
+    ensureStylesheet('data-lourex-home-v314','./styles/home-canonical-v314.css?v=314');
+  }
+
   function polylineOnZeroBaseline(node){
     if(!node)return false;
     var raw=String(node.getAttribute('points')||'').trim();
@@ -37,7 +54,7 @@
     return points.every(function(pair){return Math.abs(pair[1]-198)<=0.6;});
   }
 
-  function refresh(){
+  function refreshEmptyState(){
     document.querySelectorAll('.fintech-dashboard-v280 .command-performance-panel').forEach(function(panel){
       var sales=panel.querySelector('.command-chart-line.line-sales');
       var collected=panel.querySelector('.command-chart-line.line-collected');
@@ -48,15 +65,17 @@
 
   function start(){
     loadReviewVisualSystem();
-    refresh();
+    installCanonicalHome();
+    refreshEmptyState();
     var root=document.getElementById('root')||document.body;
     if(!root)return;
-    var observer=new MutationObserver(function(){requestAnimationFrame(refresh);});
+    var observer=new MutationObserver(function(){requestAnimationFrame(refreshEmptyState);});
     observer.observe(root,{subtree:true,childList:true,attributes:true,attributeFilter:['points']});
-    window.addEventListener('resize',refresh,{passive:true});
+    window.addEventListener('resize',refreshEmptyState,{passive:true});
   }
 
   loadReviewVisualSystem();
+  installCanonicalHome();
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
   else start();
 })();
