@@ -1,0 +1,54 @@
+name: LOUREX v320 Targeted Settings Repair
+
+on:
+  push:
+    branches:
+      - feature/v320-tailadmin-finance-full-ui-rebuild
+    paths:
+      - .github/workflows/v320-repair-settings.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feature/v320-tailadmin-finance-full-ui-rebuild
+      - name: Repair only the three malformed direct setState calls
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('src/components/SettingsModal.tsx')
+          text=path.read_text()
+          pairs=[
+            ("catch(e){this.setState({busy:false,accountAction:'',error:e instanceof Error?e.message:t('Unable to restore account data.','تعذر استرجاع بيانات الحساب.')}));}",
+             "catch(e){this.setState({busy:false,accountAction:'',error:e instanceof Error?e.message:t('Unable to restore account data.','تعذر استرجاع بيانات الحساب.')});}"),
+            ("try{await this.props.onCloudSignOut();this.setState({busy:false,accountAction:'',message:t('Signed out. Encrypted local data remains on this device.','تم تسجيل الخروج. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')}));}",
+             "try{await this.props.onCloudSignOut();this.setState({busy:false,accountAction:'',message:t('Signed out. Encrypted local data remains on this device.','تم تسجيل الخروج. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});}"),
+            ("catch(e){this.setState({busy:false,accountAction:'',error:e instanceof Error?e.message:t('Unable to sign out.','تعذر تسجيل الخروج.')}));}",
+             "catch(e){this.setState({busy:false,accountAction:'',error:e instanceof Error?e.message:t('Unable to sign out.','تعذر تسجيل الخروج.')});}")
+          ]
+          changed=0
+          for old,new in pairs:
+            if old in text:
+              text=text.replace(old,new,1); changed+=1
+            elif new not in text:
+              raise SystemExit('Expected SettingsModal syntax target not found; refusing broad edit.')
+          if changed:
+            path.write_text(text)
+          print(f'targeted replacements: {changed}')
+          PY
+      - name: Commit targeted repair
+        run: |
+          if git diff --quiet -- src/components/SettingsModal.tsx; then
+            echo 'No repair needed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/SettingsModal.tsx
+          git commit -m 'fix(v320): repair settings cloud action syntax'
+          git push origin HEAD:feature/v320-tailadmin-finance-full-ui-rebuild
