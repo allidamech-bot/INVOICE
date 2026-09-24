@@ -14,7 +14,7 @@
     ensureStylesheet('data-lourex-home-v314','./styles/home-canonical-v314.css?v=314');ensureStylesheet('data-lourex-shell-v314','./styles/shell-canonical-v314.css?v=314');ensureStylesheet('data-lourex-shell-overlays-v314','./styles/shell-overlays-v314.css?v=314');ensureStylesheet('data-lourex-documents-v314','./styles/documents-canonical-v314.css?v=314');ensureStylesheet('data-lourex-editor-v314','./styles/editor-canonical-v314.css?v=314');ensureStylesheet('data-lourex-customers-v314','./styles/customers-canonical-v314.css?v=314');ensureStylesheet('data-lourex-products-v314','./styles/products-canonical-v314.css?v=314');ensureStylesheet('data-lourex-operations-v314','./styles/operations-canonical-v314.css?v=314');ensureStylesheet('data-lourex-finance-v314','./styles/finance-canonical-v314.css?v=314');ensureStylesheet('data-lourex-reports-v314','./styles/reports-canonical-v314.css?v=314');ensureStylesheet('data-lourex-settings-v314','./styles/settings-canonical-v314.css?v=314');ensureStylesheet('data-lourex-auth-v314','./styles/auth-canonical-v314.css?v=314');ensureStylesheet('data-lourex-overlays-v314','./styles/overlays-canonical-v314.css?v=314');
   }
   function retireReplacedLayers(){
-    var replaced=['app-shell-v161.css','mobile-shell-v71.css','fintech-shell-v280.css','shell-canonical-v314.css','shell-overlays-v314.css','home-canonical-v314.css','documents-canonical-v314.css','dashboard-documents.css','document-premium-redesign-v141.css','customers-canonical-v314.css','customers-premium-v170.css','customer-document-flow-v109.css','products-canonical-v314.css'];
+    var replaced=['app-shell-v161.css','mobile-shell-v71.css','fintech-shell-v280.css','shell-canonical-v314.css','shell-overlays-v314.css','home-canonical-v314.css','documents-canonical-v314.css','dashboard-documents.css','document-premium-redesign-v141.css','customers-canonical-v314.css','customers-premium-v170.css','customer-document-flow-v109.css','products-canonical-v314.css','finance-canonical-v314.css','receivables-v133.css','reports-canonical-v314.css','reports-v135.css'];
     document.querySelectorAll('link[rel="stylesheet"][href]').forEach(function(link){var href=String(link.getAttribute('href')||'');if(replaced.some(function(name){return href.indexOf(name)!==-1;}))link.remove();});
   }
   function installTailAdminV320(){
@@ -26,6 +26,7 @@
     ensureStylesheet('data-lourex-tailadmin-editor-frame-v320','./styles/tailadmin-editor-frame-v320.css?v=320-1');
     ensureStylesheet('data-lourex-tailadmin-customers-v320','./styles/tailadmin-customers-v320.css?v=320-1');
     ensureStylesheet('data-lourex-tailadmin-products-v320','./styles/tailadmin-products-v320.css?v=320-1');
+    ensureStylesheet('data-lourex-tailadmin-finance-workspaces-v320','./styles/tailadmin-finance-workspaces-v320.css?v=320-1');
   }
   function install(){loadReviewVisualSystem();installCanonicalLayers();installTailAdminV320();}
   install();if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
