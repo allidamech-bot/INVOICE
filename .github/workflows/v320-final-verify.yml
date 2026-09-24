@@ -1,3 +1,4 @@
+# Temporary isolated verifier for PR #389. Remove after the v320 final gate is green.
 name: LOUREX v320 Final Verify
 
 on:
