@@ -11,6 +11,11 @@
   const sessionMarkerKey='lourex-invoice-session-v1';
   const accountScopeRecoveryKey='lourex-account-scope-recovery-v311';
   const cloudApplyReloadKey='lourex-cloud-apply-reload-v314';
+  const documentLaunchKey='lourex-document-launch-v315';
+  const documentLaunchAttr='data-lourex-document-launching';
+  const mobileSafeAttr='data-lourex-mobile-editor-safe';
+  const mobileSafeStyleMarker='data-lourex-mobile-editor-safe-style';
+  const documentLaunchTimeoutMs=12_000;
 
   function ensureStylesheet(marker,href){
     if(document.querySelector(`link[${marker}]`))return;
@@ -21,6 +26,44 @@
     document.head.appendChild(link);
   }
 
+  function isMobileWebKit(){
+    try{
+      const ua=String(navigator.userAgent||'');
+      const ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&Number(navigator.maxTouchPoints)>1);
+      return ios&&window.matchMedia('(max-width:1180px)').matches;
+    }catch{return false;}
+  }
+
+  function ensureMobileEditorSafeMode(){
+    if(!isMobileWebKit())return;
+    const root=document.documentElement;
+    root.setAttribute(mobileSafeAttr,'true');
+    if(document.querySelector(`style[${mobileSafeStyleMarker}]`))return;
+    const style=document.createElement('style');
+    style.setAttribute(mobileSafeStyleMarker,'true');
+    style.textContent=`
+      @media (max-width:1180px){
+        html[${mobileSafeAttr}='true'][data-lourex-document-editor] .editor-screen,
+        html[${mobileSafeAttr}='true'][data-lourex-document-editor] .editor-screen *,
+        html[${mobileSafeAttr}='true'][data-lourex-document-editor] .mobile-preview-overlay,
+        html[${mobileSafeAttr}='true'][data-lourex-document-editor] .mobile-preview-overlay *{
+          -webkit-backdrop-filter:none!important;
+          backdrop-filter:none!important;
+        }
+        html[${mobileSafeAttr}='true'][data-lourex-document-editor] .draft-studio-preview,
+        html[${mobileSafeAttr}='true'][data-lourex-document-editor] .preview-pane{
+          display:none!important;
+        }
+        html[${mobileSafeAttr}='true'][data-lourex-document-editor] .editor-screen,
+        html[${mobileSafeAttr}='true'][data-lourex-document-editor] .draft-studio{
+          transform:none!important;
+          filter:none!important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   function ensureVisualCoherence(){
     ensureStylesheet(styleMarker,'./visual-coherence-v303.css?v=303');
     ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');
@@ -28,6 +71,7 @@
     ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');
     ensureStylesheet(settingsMoreStyleMarker,'./loading-more-settings-v307.css?v=307');
     ensureStylesheet(auditStyleMarker,'./release-audit-v311.css?v=311');
+    ensureMobileEditorSafeMode();
 
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){
@@ -63,6 +107,65 @@
       :'The PIN protects the encrypted vault on this device. A normal refresh keeps a valid active protected session open. The PIN is required again after manual lock, sign-out and later sign-in, auto-lock timeout, or when the protected session is no longer valid.';
   }
 
+  function writeLaunchState(kind){
+    try{window.sessionStorage.setItem(documentLaunchKey,JSON.stringify({kind,at:Date.now()}));}catch{}
+  }
+
+  function readLaunchState(){
+    try{
+      const raw=window.sessionStorage.getItem(documentLaunchKey);
+      if(!raw)return null;
+      const parsed=JSON.parse(raw);
+      if(!parsed||typeof parsed.kind!=='string'||!Number.isFinite(parsed.at))return null;
+      return parsed;
+    }catch{return null;}
+  }
+
+  function clearLaunchState(){
+    const root=document.documentElement;
+    root.removeAttribute(documentLaunchAttr);
+    try{window.sessionStorage.removeItem(documentLaunchKey);}catch{}
+  }
+
+  function armDocumentLaunch(kind){
+    const root=document.documentElement;
+    if(root.hasAttribute(documentLaunchAttr))return false;
+    root.setAttribute(documentLaunchAttr,kind);
+    // Arm the editor reload guard in the same click turn, before React closes the
+    // menu and before any cloud/PWA callback can run between frames on Safari.
+    if(!root.hasAttribute('data-lourex-document-editor'))root.setAttribute('data-lourex-document-editor','opening');
+    writeLaunchState(kind);
+    ensureMobileEditorSafeMode();
+    window.setTimeout(()=>{
+      const state=readLaunchState();
+      if(!state||Date.now()-state.at<documentLaunchTimeoutMs)return;
+      if(document.querySelector('.editor-screen'))return;
+      if(root.getAttribute('data-lourex-document-editor')==='opening')root.removeAttribute('data-lourex-document-editor');
+      clearLaunchState();
+    },documentLaunchTimeoutMs+80);
+    return true;
+  }
+
+  function settleDocumentLaunch(){
+    const root=document.documentElement;
+    const editor=document.querySelector('.editor-screen');
+    if(editor){
+      root.removeAttribute(documentLaunchAttr);
+      try{window.sessionStorage.removeItem(documentLaunchKey);}catch{}
+      return;
+    }
+    const state=readLaunchState();
+    if(!state)return;
+    if(Date.now()-state.at<=documentLaunchTimeoutMs)return;
+    if(root.getAttribute('data-lourex-document-editor')==='opening')root.removeAttribute('data-lourex-document-editor');
+    clearLaunchState();
+  }
+
+  function protectedWorkspaceActive(){
+    const root=document.documentElement;
+    return root.hasAttribute(documentLaunchAttr)||root.hasAttribute('data-lourex-document-editor')||root.hasAttribute('data-lourex-workspace-dirty')||Boolean(document.querySelector('.editor-screen'));
+  }
+
   function rememberNativeDocumentKind(event){
     const target=event.target;
     if(!(target instanceof Element))return;
@@ -77,12 +180,20 @@
     const kind=explicit||fallbackKinds[index]||'';
     const creatableKinds=new Set(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt']);
     if(!kind||!creatableKinds.has(kind)){try{window.sessionStorage.removeItem(pendingKindKey);}catch{}return;}
+    const root=document.documentElement;
+    if(root.hasAttribute(documentLaunchAttr)){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     try{window.sessionStorage.setItem(pendingKindKey,kind);}catch{}
+    armDocumentLaunch(kind);
   }
 
   function inferEditorKind(){
     const editor=document.querySelector('.editor-screen');
     if(!(editor instanceof HTMLElement))return;
+    settleDocumentLaunch();
     if(editor.dataset.documentKind)return;
 
     let kind='';
@@ -147,7 +258,7 @@
   function recoverLateAuthenticatedAccount(){
     const setup=document.querySelector('.account-managed-setup');
     if(!setup)return;
-    if(document.documentElement.hasAttribute('data-lourex-document-editor')||document.querySelector('.editor-screen'))return;
+    if(protectedWorkspaceActive())return;
     let uid='';
     try{uid=String(window.firebase?.auth?.().currentUser?.uid||'');}catch{}
     if(!uid)return;
@@ -168,8 +279,7 @@
   // key/vault in memory, so a clean workspace must rehydrate from IndexedDB after
   // the replacement. Never interrupt an editor or unsaved inline workspace.
   function rehydrateAppliedCloudVault(){
-    const root=document.documentElement;
-    if(root.hasAttribute('data-lourex-document-editor')||root.hasAttribute('data-lourex-workspace-dirty')||document.querySelector('.editor-screen'))return;
+    if(protectedWorkspaceActive())return;
     const now=Date.now();
     try{
       const previous=Number(window.sessionStorage.getItem(cloudApplyReloadKey)||'0');
@@ -187,6 +297,7 @@
     normalizeSecurityCopy();
     removeLegacyInjectedControls();
     inferEditorKind();
+    settleDocumentLaunch();
     observeAppUiSurfaces();
   }
 
@@ -225,11 +336,11 @@
   window.addEventListener('lourex-cloud-refresh-available',recoverLateAuthenticatedAccount);
   window.addEventListener('lourex-cloud-applied',rehydrateAppliedCloudVault);
 
-  // v314: do not observe the entire React subtree. EditorPage already exposes a
-  // durable html[data-lourex-document-editor] signal, while auth/setup replaces
-  // the root surface. This keeps document entry out of normal field/render churn.
+  // v315: editor launch state joins the durable editor attribute. This closes the
+  // Safari gap between a catalog tap and React mounting the editor, and keeps
+  // cloud/PWA recovery callbacks from reloading during that transition.
   const stateObserver=new MutationObserver(schedule);
-  stateObserver.observe(document.documentElement,{attributes:true,attributeFilter:['dir','lang','data-ui-theme','data-lourex-booting','data-lourex-document-editor']});
+  stateObserver.observe(document.documentElement,{attributes:true,attributeFilter:['dir','lang','data-ui-theme','data-lourex-booting','data-lourex-document-editor',documentLaunchAttr]});
 
   const root=document.getElementById('root');
   if(root){
