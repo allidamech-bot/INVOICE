@@ -1,14 +1,4 @@
 (()=>{
-  // Never allow a silent hard reload to interrupt an active document editor.
-  // This guard runs even when the optional custom pull-to-refresh gesture is off,
-  // covering browser/PWA/auth/service-worker reload races from one early script.
-  const editorOpen=()=>document.documentElement.hasAttribute('data-lourex-document-editor')||Boolean(document.querySelector('.editor-screen'));
-  window.addEventListener('beforeunload',(event)=>{
-    if(!editorOpen())return;
-    event.preventDefault();
-    event.returnValue='';
-  });
-
   // v310: ordinary iPhone scrolling must never be interpreted as an app reload.
   if(!document.documentElement.hasAttribute('data-lourex-enable-pull-refresh'))return;
   const THRESHOLD=76;
@@ -49,7 +39,7 @@
     if(refreshing||!pageAtTop())return false;
     if(!document.querySelector('.app-root .app-ui'))return false;
     if(document.body.classList.contains('printing'))return false;
-    if(editorOpen())return false;
+    if(document.documentElement.hasAttribute('data-lourex-document-editor'))return false;
     // Operations and Product Library contain inline draft editors. Unlike
     // modal-based forms, those drafts do not have a global before-reload
     // confirmation, so native-style pull refresh must never discard them.
@@ -100,7 +90,6 @@
   };
 
   const reload=async()=>{
-    if(editorOpen()){reset();return;}
     detachMoveListener();
     refreshing=true;
     tracking=false;
@@ -117,10 +106,7 @@
         ]);
       }
     }catch{}
-    window.setTimeout(()=>{
-      if(editorOpen()){refreshing=false;reset();return;}
-      window.location.reload();
-    },RELOAD_DELAY);
+    window.setTimeout(()=>window.location.reload(),RELOAD_DELAY);
   };
 
   const onStart=(event)=>{
@@ -134,7 +120,6 @@
 
   function onMove(event){
     if(!tracking||refreshing||event.touches.length!==1)return;
-    if(editorOpen()){reset();return;}
     const touch=event.touches[0];
     const dy=touch.clientY-startY;
     const dx=Math.abs(touch.clientX-startX);
@@ -148,7 +133,6 @@
 
   const onEnd=()=>{
     if(!tracking||refreshing){detachMoveListener();return;}
-    if(editorOpen()){reset();return;}
     if(moved&&distance>=THRESHOLD){void reload();return;}
     reset();
   };

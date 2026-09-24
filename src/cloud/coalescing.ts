@@ -2,30 +2,18 @@
 // These quiet windows only reduce redundant Firebase publications after the local
 // encrypted vault is already durable. Urgent recovery/manual sync paths pass an
 // explicit delay and therefore bypass this size-aware policy.
-export const CLOUD_SAVE_SETTLE_MS=1_200;
-export const CLOUD_EDIT_ACTIVITY_SETTLE_MS=45_000;
+export const CLOUD_SAVE_SETTLE_MS=350;
+export const CLOUD_EDIT_ACTIVITY_SETTLE_MS=800;
 export const CLOUD_MEDIUM_CIPHER_LENGTH=1_200_000;
 export const CLOUD_LARGE_CIPHER_LENGTH=4_800_000;
-export const CLOUD_MEDIUM_SAVE_SETTLE_MS=2_500;
-export const CLOUD_LARGE_SAVE_SETTLE_MS=5_000;
-export const CLOUD_MEDIUM_EDIT_SETTLE_MS=75_000;
-export const CLOUD_LARGE_EDIT_SETTLE_MS=120_000;
-
-function documentEditorOpen():boolean{
-  try{
-    return document.documentElement.hasAttribute('data-lourex-document-editor')||Boolean(document.querySelector('.editor-screen'));
-  }catch{return false;}
-}
+export const CLOUD_MEDIUM_SAVE_SETTLE_MS=650;
+export const CLOUD_LARGE_SAVE_SETTLE_MS=1_200;
+export const CLOUD_MEDIUM_EDIT_SETTLE_MS=1_200;
+export const CLOUD_LARGE_EDIT_SETTLE_MS=2_000;
 
 export function adaptiveCloudSettleMs(cipherLength:number,editing=false):number{
   const safeLength=Number.isFinite(cipherLength)&&cipherLength>0?cipherLength:0;
-  // App.persist() schedules cloud publication after each durable local autosave.
-  // While a document editor is mounted, treat every such save as active editing
-  // even if the caller did not explicitly pass editing=true. Local encrypted save
-  // remains immediate; only the remote full-vault publication waits for a long
-  // quiet window so typing, scrolling and preview work stay responsive.
-  const activeEditing=editing||documentEditorOpen();
-  if(safeLength>=CLOUD_LARGE_CIPHER_LENGTH)return activeEditing?CLOUD_LARGE_EDIT_SETTLE_MS:CLOUD_LARGE_SAVE_SETTLE_MS;
-  if(safeLength>=CLOUD_MEDIUM_CIPHER_LENGTH)return activeEditing?CLOUD_MEDIUM_EDIT_SETTLE_MS:CLOUD_MEDIUM_SAVE_SETTLE_MS;
-  return activeEditing?CLOUD_EDIT_ACTIVITY_SETTLE_MS:CLOUD_SAVE_SETTLE_MS;
+  if(safeLength>=CLOUD_LARGE_CIPHER_LENGTH)return editing?CLOUD_LARGE_EDIT_SETTLE_MS:CLOUD_LARGE_SAVE_SETTLE_MS;
+  if(safeLength>=CLOUD_MEDIUM_CIPHER_LENGTH)return editing?CLOUD_MEDIUM_EDIT_SETTLE_MS:CLOUD_MEDIUM_SAVE_SETTLE_MS;
+  return editing?CLOUD_EDIT_ACTIVITY_SETTLE_MS:CLOUD_SAVE_SETTLE_MS;
 }

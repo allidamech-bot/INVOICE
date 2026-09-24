@@ -5,7 +5,7 @@ import { bankAccountIdForDetails, bankDetailsForId, defaultPaymentTermPreset, de
 import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput, lineTotal } from './money.js';
 import { t } from './i18n.js';
 import { defaultLetterData, defaultWatermark } from './document-extras.js';
-import { documentBankAllowed, documentCanConvertToInvoice, documentNumberPrefix, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from './document-kinds.js';
+import { documentBankAllowed, documentNumberPrefix, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from './document-kinds.js';
 
 type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number;purchaseOrder:number;draft:number};
 export type DocumentItemWeight=(item:DocumentItem)=>number;
@@ -195,15 +195,14 @@ export function duplicateDocument(source: LourexDocument, number: string): Loure
 }
 
 function conversionReference(source:LourexDocument):string{
-  const proformaInvoice=source.kind==='proforma-invoice';
-  if(source.language==='ar')return `${proformaInvoice?'مرجع الفاتورة المبدئية':'مرجع عرض السعر'}: ${source.number}`;
-  if(source.language==='bilingual')return `${proformaInvoice?'Based on Proforma Invoice':'Based on Quotation'} ${source.number} / ${proformaInvoice?'مرجع الفاتورة المبدئية':'مرجع عرض السعر'}: ${source.number}`;
-  return `${proformaInvoice?'Based on Proforma Invoice':'Based on Quotation'} ${source.number}`;
+  if(source.language==='ar')return `مرجع عرض السعر: ${source.number}`;
+  if(source.language==='bilingual')return `Based on ${source.number} / مرجع عرض السعر: ${source.number}`;
+  return `Based on ${source.number}`;
 }
 
 export function convertToInvoice(source: LourexDocument, number: string): LourexDocument {
-  if(!documentCanConvertToInvoice(source.kind)||source.role!=='standard'||source.status!=='final'||source.lifecycleStatus==='voided'){
-    throw new Error(t('Only an active Final quotation or proforma invoice can be converted to a Commercial Invoice.','يمكن تحويل عرض سعر أو فاتورة مبدئية نهائية ونشطة فقط إلى فاتورة تجارية.'));
+  if(source.kind!=='proforma'||source.role!=='standard'||source.status!=='final'||source.lifecycleStatus==='voided'){
+    throw new Error(t('Only an active Final quotation can be converted to an invoice.','يمكن تحويل عرض سعر نهائي ونشط فقط إلى فاتورة.'));
   }
   const d = duplicateDocument(source, number);
   const reference=conversionReference(source);

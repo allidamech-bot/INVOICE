@@ -22,30 +22,6 @@ const fixedNonNegative = (value: string) => isDecimalInput(value) && decimalToSc
 
 export function getDocumentReadiness(doc: LourexDocument): DocumentReadiness {
   const errors=validateDocument(doc);
-
-  // Draft Studio is intentionally a free-form company document. Its contract only
-  // requires a document number and issue date; customer, item and pricing checks
-  // belong to transactional documents and must never make a valid Draft appear
-  // incomplete in shared readiness/status surfaces.
-  if(doc.kind==='draft'){
-    const documentChecks=[!errors.number,!errors.issueDate];
-    const total=documentChecks.length;
-    const complete=documentChecks.filter(Boolean).length;
-    return {
-      percent:Math.round((complete/total)*100),
-      complete,
-      total,
-      remaining:total-complete,
-      ready:Object.keys(errors).length===0,
-      groups:[
-        {key:'document',complete:documentChecks.every(Boolean)},
-        {key:'customer',complete:true},
-        {key:'items',complete:true},
-        {key:'pricing',complete:true}
-      ]
-    };
-  }
-
   const priceOptional=documentPriceOptional(doc.kind);
   const requirements: boolean[] = [];
   const documentChecks = [
