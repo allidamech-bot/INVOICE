@@ -13,6 +13,7 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -20,7 +21,9 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Isolate unit test failures
+      - name: Production build prerequisite
+        run: npm run build
+      - name: Isolate unit test failures after production build
         run: |
           mkdir -p /tmp/unit-logs
           : > /tmp/unit-failures.txt
@@ -35,15 +38,9 @@ jobs:
               echo "$file" >> /tmp/unit-failures.txt
             fi
           done
-          echo '## Failing unit test files' >> "$GITHUB_STEP_SUMMARY"
+          echo '## Failing unit test files after production build' >> "$GITHUB_STEP_SUMMARY"
           if [ -s /tmp/unit-failures.txt ]; then
             cat /tmp/unit-failures.txt | tee -a "$GITHUB_STEP_SUMMARY"
-            echo '--- concise failure excerpts ---'
-            while IFS= read -r file; do
-              base=$(basename "$file")
-              echo "===== $file ====="
-              grep -E -B3 -A10 'not ok|AssertionError|ERR_ASSERTION|Error:|error:' "/tmp/unit-logs/${base}.log" | tail -80 || tail -80 "/tmp/unit-logs/${base}.log"
-            done < /tmp/unit-failures.txt
             exit 1
           else
             echo 'None' | tee -a "$GITHUB_STEP_SUMMARY"
@@ -52,7 +49,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: v320-unit-diagnostics
+          name: v320-unit-diagnostics-built
           path: |
             /tmp/unit-failures.txt
             /tmp/unit-logs
