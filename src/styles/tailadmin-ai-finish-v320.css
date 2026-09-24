@@ -44,5 +44,21 @@
     .lourex-ai-messages{padding:13px!important;}
     .lourex-ai-compose{padding:11px 12px!important;}
     .lourex-advisor-nudge{padding:13px!important;}
+
+    .lourex-ai-close,
+    .lourex-advisor-nudge-close{
+      width:44px!important;
+      min-width:44px!important;
+      height:44px!important;
+      min-height:44px!important;
+    }
+    .lourex-advisor-nudge-close{top:2px!important;right:2px!important;}
+    .lourex-advisor-nudge[dir="rtl"] .lourex-advisor-nudge-close{right:auto!important;left:2px!important;}
+    .lourex-advisor-nudge-copy small,
+    .lourex-advisor-nudge-copy strong{padding-inline-end:42px!important;}
+    .lourex-ai-starters button,
+    .lourex-ai-proposal-actions button,
+    .lourex-advisor-nudge-copy>button,
+    .lourex-ai-meta button{min-height:44px!important;}
   }
 }
