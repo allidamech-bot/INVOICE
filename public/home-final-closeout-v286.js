@@ -6,10 +6,7 @@
   function ensureStylesheet(marker,href){
     if(document.querySelector('link['+marker+']'))return;
     var link=document.createElement('link');
-    link.rel='stylesheet';
-    link.href=href;
-    link.setAttribute(marker,'true');
-    document.head.appendChild(link);
+    link.rel='stylesheet';link.href=href;link.setAttribute(marker,'true');document.head.appendChild(link);
   }
 
   function loadReviewVisualSystem(){
@@ -30,11 +27,7 @@
   }
 
   function retireHistoricalHomeStyles(){
-    var historical=[
-      'home-premium-command-center-v283.css',
-      'home-review-polish-v285.css',
-      'home-final-closeout-v286.css'
-    ];
+    var historical=['home-premium-command-center-v283.css','home-review-polish-v285.css','home-final-closeout-v286.css'];
     document.querySelectorAll('link[rel="stylesheet"][href]').forEach(function(link){
       var href=String(link.getAttribute('href')||'');
       if(historical.some(function(name){return href.indexOf(name)!==-1;}))link.remove();
@@ -59,17 +52,7 @@
   }
 
   function retireReplacedLayers(){
-    var replaced=[
-      'app-shell-v161.css',
-      'mobile-shell-v71.css',
-      'fintech-shell-v280.css',
-      'shell-canonical-v314.css',
-      'shell-overlays-v314.css',
-      'home-canonical-v314.css',
-      'documents-canonical-v314.css',
-      'dashboard-documents.css',
-      'document-premium-redesign-v141.css'
-    ];
+    var replaced=['app-shell-v161.css','mobile-shell-v71.css','fintech-shell-v280.css','shell-canonical-v314.css','shell-overlays-v314.css','home-canonical-v314.css','documents-canonical-v314.css','dashboard-documents.css','document-premium-redesign-v141.css'];
     document.querySelectorAll('link[rel="stylesheet"][href]').forEach(function(link){
       var href=String(link.getAttribute('href')||'');
       if(replaced.some(function(name){return href.indexOf(name)!==-1;}))link.remove();
@@ -82,14 +65,10 @@
     ensureStylesheet('data-lourex-tailadmin-shell-v320','./styles/tailadmin-shell-v320.css?v=320-2');
     ensureStylesheet('data-lourex-tailadmin-dashboard-v320','./styles/tailadmin-dashboard-v320.css?v=320-2');
     ensureStylesheet('data-lourex-tailadmin-documents-v320','./styles/tailadmin-documents-v320.css?v=320-2');
+    ensureStylesheet('data-lourex-tailadmin-editor-frame-v320','./styles/tailadmin-editor-frame-v320.css?v=320-1');
   }
 
-  function install(){
-    loadReviewVisualSystem();
-    installCanonicalLayers();
-    installTailAdminV320();
-  }
-
+  function install(){loadReviewVisualSystem();installCanonicalLayers();installTailAdminV320();}
   install();
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
 })();
