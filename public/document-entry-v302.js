@@ -9,7 +9,30 @@
   const settingsMoreStyleMarker='data-lourex-v307-loading-more-settings';
   const auditStyleMarker='data-lourex-v311-release-audit';
   const sessionMarkerKey='lourex-invoice-session-v1';
-  const accountScopeRecoveryKey='lourex-account-scope-recovery-v311';
+  const accountScopeRecoveryKey='lourex-account-scope-recovery-v317';
+  const iosRuntimeRepairKey='lourex-ios-runtime-repair-v317';
+
+  function isIosWebKit(){
+    try{return /iP(?:hone|ad|od)/i.test(navigator.userAgent||'');}catch{return false;}
+  }
+
+  function retireStaleIosRuntime(){
+    if(!isIosWebKit())return;
+    try{
+      if(window.sessionStorage.getItem(iosRuntimeRepairKey)==='1')return;
+      window.sessionStorage.setItem(iosRuntimeRepairKey,'1');
+    }catch{}
+    try{
+      if('serviceWorker' in navigator){
+        void navigator.serviceWorker.getRegistrations().then(registrations=>Promise.all(registrations.map(registration=>registration.unregister()))).catch(()=>undefined);
+      }
+    }catch{}
+    try{
+      if('caches' in window){
+        void caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('lourex-invoice-')).map(key=>caches.delete(key)))).catch(()=>undefined);
+      }
+    }catch{}
+  }
 
   function ensureStylesheet(marker,href){
     if(document.querySelector(`link[${marker}]`))return;
@@ -139,10 +162,9 @@
   }
 
   // Safari/WebKit can restore Firebase after the public setup screen has already
-  // mounted. index.tsx switches IndexedDB to the UID scope before emitting this
-  // event. If setup is still visible, reload exactly once at this safe pre-work
-  // boundary so React rehydrates from the account database instead of letting a
-  // second PIN be created in stale public state. Never reload an active editor.
+  // mounted. Reload at most once per account in a tab session. If setup is still
+  // visible after that single recovery reload, stay on the page instead of entering
+  // an endless 15-second reload loop that eventually crashes iPhone Safari.
   function recoverLateAuthenticatedAccount(){
     const setup=document.querySelector('.account-managed-setup');
     if(!setup)return;
@@ -150,22 +172,13 @@
     let uid='';
     try{uid=String(window.firebase?.auth?.().currentUser?.uid||'');}catch{}
     if(!uid)return;
-    const now=Date.now();
     try{
-      const raw=window.sessionStorage.getItem(accountScopeRecoveryKey);
-      if(raw){
-        const parsed=JSON.parse(raw);
-        if(parsed&&parsed.uid===uid&&Number.isFinite(parsed.at)&&now-parsed.at<15_000)return;
-      }
-      window.sessionStorage.setItem(accountScopeRecoveryKey,JSON.stringify({uid,at:now}));
+      if(window.sessionStorage.getItem(accountScopeRecoveryKey)===uid)return;
+      window.sessionStorage.setItem(accountScopeRecoveryKey,uid);
     }catch{}
     window.location.replace(window.location.href);
   }
 
-  // Runtime cloud activity must never force a hard reload. React/index.tsx owns
-  // the explicit Apply flow. Keeping this handler side-effect free prevents
-  // drafts, quotations, invoices and purchase orders from being interrupted by
-  // a cloud event while the user is typing or while an editor is mounting.
   function noteAppliedCloudVault(){
     try{document.documentElement.dataset.lourexCloudApplied='true';}catch{}
   }
@@ -205,20 +218,16 @@
         if(Array.from(mutation.addedNodes).some(nodeContainsRelevantUi)||Array.from(mutation.removedNodes).some(nodeContainsRelevantUi)){schedule();return;}
       }
     });
-    // App-level modals are direct children of .app-ui. Watching only this level
-    // catches Settings/Cloud/Auth surface changes without observing editor churn.
     appUiObserver.observe(appUi,{childList:true,subtree:false});
   }
 
+  retireStaleIosRuntime();
   ensureVisualCoherence();
   document.addEventListener('click',rememberNativeDocumentKind,true);
   document.addEventListener('click',enforceSignOutBoundary,true);
   window.addEventListener('lourex-cloud-refresh-available',recoverLateAuthenticatedAccount);
   window.addEventListener('lourex-cloud-applied',noteAppliedCloudVault);
 
-  // v314: do not observe the entire React subtree. EditorPage already exposes a
-  // durable html[data-lourex-document-editor] signal, while auth/setup replaces
-  // the root surface. This keeps document entry out of normal field/render churn.
   const stateObserver=new MutationObserver(schedule);
   stateObserver.observe(document.documentElement,{attributes:true,attributeFilter:['dir','lang','data-ui-theme','data-lourex-booting','data-lourex-document-editor']});
 
