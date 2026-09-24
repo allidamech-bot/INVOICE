@@ -35,3 +35,10 @@ jobs:
           trap 'kill $server_pid || true' EXIT
           for i in {1..30}; do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
           node tests/visual/run-tailadmin-v320.cjs
+      - name: Upload v322 visual evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: v322-mobile-visual-evidence
+          path: visual-qa-output/tailadmin-v320
+          if-no-files-found: ignore
