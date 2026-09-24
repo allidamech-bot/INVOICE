@@ -1,0 +1,63 @@
+/* v319 mobile closeout: reserve the single header action slot for smart alerts and
+   make the More sheet a clean, direct list with theme first and sign-out last. */
+@media screen and (max-width:860px){
+  .app-ui .fintech-shell-v280:not(.is-editor) .shell-topbar-actions{
+    width:44px!important;
+    min-width:44px!important;
+    height:44px!important;
+    display:grid!important;
+    grid-template-columns:44px!important;
+    grid-template-rows:44px!important;
+    place-items:center!important;
+    overflow:visible!important;
+  }
+  .app-ui .fintech-shell-v280:not(.is-editor) .shell-global-search-button{display:none!important}
+  .app-ui .fintech-shell-v280:not(.is-editor) .shell-topbar-actions>.ai-alert-center{
+    width:44px!important;
+    height:44px!important;
+    display:grid!important;
+    place-items:center!important;
+    margin:0!important;
+  }
+  .app-ui .fintech-shell-v280:not(.is-editor) .ai-alert-trigger{
+    width:42px!important;height:42px!important;min-width:42px!important;min-height:42px!important;
+  }
+
+  .app-ui .mobile-more-sheet.mobile-more-sheet{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:0!important;
+    padding:8px 14px calc(14px + env(safe-area-inset-bottom,0px))!important;
+  }
+  .app-ui .mobile-more-handle{order:0!important}
+  .app-ui .mobile-more-heading{order:1!important}
+  .app-ui .mobile-more-utility-row{display:contents!important}
+  .app-ui .mobile-more-theme-control{order:2!important;margin:10px 0 8px!important}
+  .app-ui .mobile-more-status-row{order:3!important;margin:0 0 6px!important;padding:5px 2px!important}
+  .app-ui .mobile-more-account{order:4!important;margin-top:0!important}
+  .app-ui .mobile-more-group.group-workspace{order:5!important}
+  .app-ui .mobile-more-group.group-finance{order:6!important}
+  .app-ui .mobile-more-group.group-system{order:7!important}
+  .app-ui .mobile-more-signout{order:20!important;margin-top:14px!important}
+  .app-ui .mobile-more-group>p{display:none!important}
+  .app-ui .mobile-more-group{padding-top:0!important}
+  .app-ui :where(.mobile-more-account,.mobile-more-link,.mobile-more-settings){
+    min-height:66px!important;
+    margin:0!important;
+    padding:10px 7px!important;
+    border:0!important;
+    border-bottom:1px solid var(--ft-line)!important;
+    border-radius:0!important;
+    background:transparent!important;
+  }
+  .app-ui .mobile-more-account{border-top:1px solid var(--ft-line)!important}
+  .app-ui .mobile-more-heading-copy small{display:none!important}
+}
+
+@media screen and (max-width:390px){
+  .app-ui .fintech-shell-v280:not(.is-editor) .shell-topbar-actions,
+  .app-ui .fintech-shell-v280:not(.is-editor) .shell-topbar-actions>.ai-alert-center{
+    width:42px!important;min-width:42px!important;max-width:42px!important;height:42px!important;
+  }
+  .app-ui .fintech-shell-v280:not(.is-editor) .ai-alert-trigger{width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important}
+}
