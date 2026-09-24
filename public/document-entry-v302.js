@@ -10,6 +10,7 @@
   const auditStyleMarker='data-lourex-v311-release-audit';
   const sessionMarkerKey='lourex-invoice-session-v1';
   const accountScopeRecoveryKey='lourex-account-scope-recovery-v311';
+  const cloudApplyReloadKey='lourex-cloud-apply-reload-v314';
 
   function ensureStylesheet(marker,href){
     if(document.querySelector(`link[${marker}]`))return;
@@ -25,7 +26,7 @@
     ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');
     ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');
     ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');
-    ensureStylesheet(settingsMoreStyleMarker,'./loading-more-settings-v307.css?v=307');
+    ensureStylesheet(settingsMoreStyleMarker,'./loading-more-settings-v307-loading-more-settings.css?v=307');
     ensureStylesheet(auditStyleMarker,'./release-audit-v311.css?v=311');
 
     const root=document.documentElement;
@@ -149,6 +150,22 @@
     window.location.replace(window.location.href);
   }
 
+  // A cloud vault replacement updates both encrypted data and its PIN-derived
+  // security metadata. The currently mounted React tree may still hold the old
+  // key/vault in memory, so a clean workspace must rehydrate from IndexedDB after
+  // the replacement. Never interrupt an editor or unsaved inline workspace.
+  function rehydrateAppliedCloudVault(){
+    const root=document.documentElement;
+    if(root.hasAttribute('data-lourex-document-editor')||root.hasAttribute('data-lourex-workspace-dirty')||document.querySelector('.editor-screen'))return;
+    const now=Date.now();
+    try{
+      const previous=Number(window.sessionStorage.getItem(cloudApplyReloadKey)||'0');
+      if(Number.isFinite(previous)&&now-previous<8_000)return;
+      window.sessionStorage.setItem(cloudApplyReloadKey,String(now));
+    }catch{}
+    window.location.replace(window.location.href);
+  }
+
   let scheduled=false;
   function reconcile(){
     scheduled=false;
@@ -168,6 +185,7 @@
   document.addEventListener('click',rememberNativeDocumentKind,true);
   document.addEventListener('click',enforceSignOutBoundary,true);
   window.addEventListener('lourex-cloud-refresh-available',recoverLateAuthenticatedAccount);
+  window.addEventListener('lourex-cloud-applied',rehydrateAppliedCloudVault);
   const observer=new MutationObserver(schedule);
   observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['dir','lang','data-ui-theme','data-lourex-booting']});
   document.addEventListener('DOMContentLoaded',schedule,{once:true});
