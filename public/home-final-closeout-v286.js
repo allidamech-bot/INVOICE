@@ -82,6 +82,7 @@
     ensureStylesheet('data-lourex-tailadmin-ai-v320','./styles/tailadmin-ai-v320.css?v=320-2');
     ensureStylesheet('data-lourex-tailadmin-overlays-v320','./styles/tailadmin-overlays-v320.css?v=320-2');
     ensureStylesheet('data-lourex-tailadmin-utilities-v320','./styles/tailadmin-utilities-v320.css?v=320-1');
+    ensureStylesheet('data-lourex-tailadmin-visual-finish-v320','./styles/tailadmin-visual-finish-v320.css?v=320-1');
     ensureStylesheet('data-lourex-tailadmin-reliability-v320','./styles/tailadmin-reliability-bridge-v320.css?v=320-2');
     normalizeCanvas();
   }
