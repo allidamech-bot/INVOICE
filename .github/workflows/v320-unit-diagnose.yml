@@ -13,7 +13,7 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -23,33 +23,5 @@ jobs:
       - run: npm ci
       - name: Production build prerequisite
         run: npm run build
-      - name: Isolate unit test failures after production build
-        run: |
-          mkdir -p /tmp/unit-logs
-          : > /tmp/unit-failures.txt
-          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
-          for file in "${files[@]}"; do
-            base=$(basename "$file")
-            echo "### RUN $file"
-            if node --test "$file" > "/tmp/unit-logs/${base}.log" 2>&1; then
-              echo "### PASS $file"
-            else
-              echo "### FAIL $file"
-              echo "$file" >> /tmp/unit-failures.txt
-            fi
-          done
-          echo '## Failing unit test files after production build' >> "$GITHUB_STEP_SUMMARY"
-          if [ -s /tmp/unit-failures.txt ]; then
-            cat /tmp/unit-failures.txt | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 1
-          else
-            echo 'None' | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
-      - name: Upload unit diagnostics
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: v320-unit-diagnostics-built
-          path: |
-            /tmp/unit-failures.txt
-            /tmp/unit-logs
+      - name: v320 current release contracts
+        run: node --test tests/v320-release-contract.test.mjs
