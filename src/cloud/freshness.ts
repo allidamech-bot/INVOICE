@@ -81,6 +81,15 @@ async function checkCloudFreshness():Promise<void>{
     return;
   }
 
+  // Never perform account-link reads, Firestore listener work or cloud freshness
+  // probes while a document/data-entry workspace is active. Local autosave is the
+  // only background responsibility during editing; cloud freshness resumes on the
+  // next focus/interval tick after the editor is closed.
+  if(!appIsSafeToApply()){
+    detachRealtime();
+    return;
+  }
+
   let linked=await getCloudAccount().catch(()=>null);
   if(!linked){
     try{
@@ -97,7 +106,6 @@ async function checkCloudFreshness():Promise<void>{
   if(!linked){detachRealtime();return;}
   if(linked.uid!==user.uid){detachRealtime();return;}
   ensureRealtime(user.uid);
-  if(!appIsSafeToApply())return;
 
   running=true;
   try{
