@@ -6,7 +6,7 @@ let sw=await readFile(swPath,'utf8');
 const activeCacheMatch=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
 const activeCacheGeneration=activeCacheMatch?Number(activeCacheMatch[1]):0;
 if(activeCacheGeneration>0&&activeCacheGeneration<311){
-  const marker=activeCacheMatch![0];
+  const marker=activeCacheMatch[0];
   sw=sw.replace(marker,`const CACHE = 'lourex-invoice-v311';\n// ${marker} preserved as the immediate pre-v311 cache generation.`);
 }else if(activeCacheGeneration<311){
   throw new Error('Unable to promote the LOUREX PWA cache to v311 or verify a newer cache generation.');
