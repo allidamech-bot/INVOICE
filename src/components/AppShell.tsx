@@ -41,25 +41,87 @@ type MoreTone='items'|'receivables'|'reports'|'operations';
 export class AppShell extends React.Component<Props,State>{
   state:State={moreOpen:false,signingOut:false};
 
-  componentDidMount():void{document.addEventListener('keydown',this.handleKeyDown);}
-  componentWillUnmount():void{document.removeEventListener('keydown',this.handleKeyDown);}
-
-  componentDidUpdate(prevProps:Props,prevState:State):void{
-    if(prevProps.screen!==this.props.screen&&this.state.moreOpen){this.setState({moreOpen:false});return;}
-    if(!prevState.moreOpen&&this.state.moreOpen)window.requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('#mobile-more-sheet .mobile-more-close')?.focus({preventScroll:true}));
-    if(prevState.moreOpen&&!this.state.moreOpen&&prevProps.screen===this.props.screen)window.requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('button[aria-controls="mobile-more-sheet"]')?.focus({preventScroll:true}));
+  componentDidMount():void{
+    document.addEventListener('keydown',this.handleKeyDown);
+    this.syncOverlayState();
   }
 
-  private handleKeyDown=(event:KeyboardEvent)=>{
-    if(!this.state.moreOpen)return;
-    if(event.key==='Escape'){event.preventDefault();this.setState({moreOpen:false});return;}
-    if(event.key!=='Tab')return;
-    const sheet=document.getElementById('mobile-more-sheet');if(!sheet)return;
-    const focusable=Array.from(sheet.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(node=>node.offsetParent!==null);
+  componentWillUnmount():void{
+    document.removeEventListener('keydown',this.handleKeyDown);
+    this.applyOverlayLock(false);
+  }
+
+  componentDidUpdate(prevProps:Props,prevState:State):void{
+    if(prevProps.screen!==this.props.screen){
+      if(this.state.moreOpen)this.setState({moreOpen:false});
+      if(this.props.newMenu)this.props.onToggleNew();
+    }
+
+    this.syncOverlayState();
+
+    if(!prevState.moreOpen&&this.state.moreOpen){
+      window.requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('#mobile-more-sheet .mobile-more-close')?.focus({preventScroll:true}));
+    }
+    if(prevState.moreOpen&&!this.state.moreOpen&&prevProps.screen===this.props.screen){
+      window.requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('button[aria-controls="mobile-more-sheet"]')?.focus({preventScroll:true}));
+    }
+    if(!prevProps.newMenu&&this.props.newMenu){
+      window.requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>(`#${this.activeCreateMenuId()} button[role="menuitem"]`)?.focus({preventScroll:true}));
+    }
+    if(prevProps.newMenu&&!this.props.newMenu&&prevProps.screen===this.props.screen){
+      window.requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>(`button[aria-controls="${this.activeCreateMenuId()}"]`)?.focus({preventScroll:true}));
+    }
+  }
+
+  private isMobileShell=():boolean=>typeof window!=='undefined'&&window.matchMedia('(max-width:860px)').matches;
+
+  private activeCreateMenuId=():string=>this.isMobileShell()?'mobile-new-document-menu':'desktop-new-document-menu';
+
+  private applyOverlayLock=(locked:boolean)=>{
+    const root=document.documentElement;
+    const body=document.body;
+    if(locked){
+      root.dataset.lourexShellOverlay='true';
+      body.dataset.lourexShellOverlay='true';
+      return;
+    }
+    delete root.dataset.lourexShellOverlay;
+    delete body.dataset.lourexShellOverlay;
+  };
+
+  private syncOverlayState=()=>{
+    const editor=this.props.screen==='editor';
+    this.applyOverlayLock(!editor&&(this.state.moreOpen||this.props.newMenu));
+  };
+
+  private focusableIn=(root:HTMLElement):HTMLElement[]=>Array.from(root.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(node=>node.offsetParent!==null);
+
+  private trapOverlayFocus=(event:KeyboardEvent,root:HTMLElement)=>{
+    const focusable=this.focusableIn(root);
     if(!focusable.length){event.preventDefault();return;}
     const first=focusable[0]!,last=focusable[focusable.length-1]!;
     if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
     else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+  };
+
+  private handleKeyDown=(event:KeyboardEvent)=>{
+    if(event.key==='Escape'){
+      if(this.state.moreOpen){event.preventDefault();this.setState({moreOpen:false});return;}
+      if(this.props.newMenu){event.preventDefault();this.closeCreateMenu();return;}
+      return;
+    }
+    if(event.key!=='Tab')return;
+
+    if(this.state.moreOpen){
+      const sheet=document.getElementById('mobile-more-sheet');
+      if(sheet)this.trapOverlayFocus(event,sheet);
+      return;
+    }
+
+    if(this.props.newMenu&&this.isMobileShell()){
+      const menu=document.getElementById('mobile-new-document-menu');
+      if(menu)this.trapOverlayFocus(event,menu);
+    }
   };
 
   private closeCreateMenu=()=>{if(this.props.newMenu)this.props.onToggleNew();};
@@ -244,6 +306,7 @@ export class AppShell extends React.Component<Props,State>{
       <div className="workspace-content">{this.conflictBanner()}{this.props.children}</div>
 
       {!editor?<>
+        {this.props.newMenu?<button type="button" className="shell-create-backdrop" aria-label={t('Close new document menu','إغلاق قائمة المستند الجديد')} onClick={this.closeCreateMenu}/>:null}
         {this.state.moreOpen?<><button type="button" className="mobile-more-backdrop" aria-label={t('Close menu','إغلاق القائمة')} onClick={this.closeMore}/><section className="mobile-more-sheet" id="mobile-more-sheet" role="dialog" aria-modal="true" aria-label={t('More','المزيد')} dir={this.props.language==='ar'?'rtl':'ltr'}>
           <div className="mobile-more-handle" aria-hidden="true"/>
           <div className="mobile-more-heading">
