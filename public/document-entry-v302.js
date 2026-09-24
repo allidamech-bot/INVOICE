@@ -71,6 +71,7 @@
   function inferEditorKind(){
     const editor=document.querySelector('.editor-screen');
     if(!(editor instanceof HTMLElement))return;
+    if(editor.dataset.documentKind)return;
 
     let kind='';
     try{kind=window.sessionStorage.getItem(pendingKindKey)||'';}catch{}
@@ -181,13 +182,34 @@
     window.requestAnimationFrame(reconcile);
   }
 
+  function nodeContainsRelevantUi(node){
+    if(!(node instanceof Element))return false;
+    if(node.matches('.editor-screen,.auth-account-page,.auth-page,.settings-modal,.settings-workspace,.v302-direct-document-actions,.v302-attachments-shortcut'))return true;
+    return Boolean(node.querySelector('.editor-screen,.auth-account-page,.auth-page,.settings-modal,.settings-workspace,.v302-direct-document-actions,.v302-attachments-shortcut'));
+  }
+
   ensureVisualCoherence();
   document.addEventListener('click',rememberNativeDocumentKind,true);
   document.addEventListener('click',enforceSignOutBoundary,true);
   window.addEventListener('lourex-cloud-refresh-available',recoverLateAuthenticatedAccount);
   window.addEventListener('lourex-cloud-applied',rehydrateAppliedCloudVault);
-  const observer=new MutationObserver(schedule);
-  observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['dir','lang','data-ui-theme','data-lourex-booting']});
+
+  // v314: do not observe the entire React subtree. EditorPage already exposes a
+  // durable html[data-lourex-document-editor] signal, while auth/setup replaces
+  // the root surface. This keeps document entry out of normal field/render churn.
+  const stateObserver=new MutationObserver(schedule);
+  stateObserver.observe(document.documentElement,{attributes:true,attributeFilter:['dir','lang','data-ui-theme','data-lourex-booting','data-lourex-document-editor']});
+
+  const root=document.getElementById('root');
+  if(root){
+    const surfaceObserver=new MutationObserver(mutations=>{
+      for(const mutation of mutations){
+        if(Array.from(mutation.addedNodes).some(nodeContainsRelevantUi)||Array.from(mutation.removedNodes).some(nodeContainsRelevantUi)){schedule();return;}
+      }
+    });
+    surfaceObserver.observe(root,{childList:true,subtree:false});
+  }
+
   document.addEventListener('DOMContentLoaded',schedule,{once:true});
   schedule();
 })();
