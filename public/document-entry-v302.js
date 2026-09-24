@@ -26,7 +26,7 @@
     ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');
     ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');
     ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');
-    ensureStylesheet(settingsMoreStyleMarker,'./loading-more-settings-v307-loading-more-settings.css?v=307');
+    ensureStylesheet(settingsMoreStyleMarker,'./loading-more-settings-v307.css?v=307');
     ensureStylesheet(auditStyleMarker,'./release-audit-v311.css?v=311');
 
     const root=document.documentElement;
