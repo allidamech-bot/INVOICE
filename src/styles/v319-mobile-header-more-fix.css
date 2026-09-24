@@ -1,3 +1,5 @@
+@import url('./v319-hostinger-smoothness-closeout.css?v=3192');
+
 /* v319 mobile closeout: reserve the single header action slot for smart alerts and
    make the More sheet a clean, direct list with theme first and sign-out last. */
 @media screen and (max-width:860px){
