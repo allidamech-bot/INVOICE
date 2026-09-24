@@ -3,6 +3,7 @@ import { t } from '../lib/i18n.js';
 import { todayIso } from '../lib/id.js';
 import { financialReportByCurrency } from '../lib/reports.js';
 import { receivablesByCurrency } from '../lib/receivables.js';
+import { dailyBusinessBrief } from '../lib/daily-brief.js';
 import { formatMoney } from '../lib/money.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { Icon } from './UI.js';
@@ -57,22 +58,39 @@ export class AiAlertCenter extends React.Component<Props,State>{
       const vault=resumed.vault;
       const today=todayIso();
       const items:AlertItem[]=[];
+      const daily=dailyBusinessBrief(vault.documents,vault.payments,vault.purchases,vault.expenses,vault.inventoryMovements,vault.savedItems,today);
       const receivables=receivablesByCurrency(vault.documents,vault.payments,today);
       const overdueRows=receivables.filter(row=>Number(row.overdue)>0).sort((a,b)=>Number(b.overdue)-Number(a.overdue));
       const overdueInvoices=receivables.reduce((sum,row)=>sum+row.overdueInvoices,0);
+
+      if(daily.invalidOperations){
+        items.push({id:'integrity',tone:'danger',title:t('Accounting data needs review','بيانات محاسبية تحتاج مراجعة'),detail:t('LOUREX found operational records that need integrity review.','وجد LOUREX سجلات تشغيلية تحتاج مراجعة سلامة البيانات.'),metric:String(daily.invalidOperations),target:'operations'});
+      }
       if(overdueInvoices){
         const metric=overdueRows.slice(0,2).map(row=>formatMoney(row.overdue,row.currency)).join(' · ');
         items.push({id:'overdue',tone:'danger',title:t('Collection needs attention','التحصيل يحتاج انتباهك'),detail:t(`${overdueInvoices} overdue invoices should be reviewed.`,`${overdueInvoices} فواتير متأخرة تحتاج مراجعة.`),metric,target:'receivables'});
       }
 
+      const notable=daily.changes[0];
+      if(notable){
+        const metric=formatMoney(notable.current,notable.currency);
+        const direction=notable.direction==='down'?t('down versus yesterday','أقل من أمس'):notable.direction==='new'?t('new activity today','حركة جديدة اليوم'):t('up versus yesterday','أعلى من أمس');
+        const metricName=notable.metric==='sales'?t('Sales','المبيعات'):t('Collections','التحصيل');
+        items.push({id:'daily-change',tone:notable.direction==='down'?'warn':'good',title:t('A meaningful change today','تغيّر مهم اليوم'),detail:`${metricName} · ${direction}`,metric,target:'reports'});
+      }
+
       const draftDocs=vault.documents.filter(doc=>doc.status==='draft').length;
       if(draftDocs)items.push({id:'drafts',tone:'warn',title:t('Documents still in progress','مستندات ما زالت قيد العمل'),detail:t('Finish or review open drafts before they are forgotten.','أكمل أو راجع المسودات المفتوحة قبل أن تُنسى.'),metric:String(draftDocs),target:'documents'});
 
-      const draftPurchases=vault.purchases.filter(purchase=>purchase.status==='draft').length;
-      if(draftPurchases)items.push({id:'purchases',tone:'warn',title:t('Purchase drafts waiting','مسودات مشتريات بانتظارك'),detail:t('Supplier purchases have not been posted yet.','هناك مشتريات موردين لم يتم ترحيلها بعد.'),metric:String(draftPurchases),target:'operations'});
+      if(daily.draftPurchases)items.push({id:'purchases',tone:'warn',title:t('Purchase drafts waiting','مسودات مشتريات بانتظارك'),detail:t('Supplier purchases have not been posted yet.','هناك مشتريات موردين لم يتم ترحيلها بعد.'),metric:String(daily.draftPurchases),target:'operations'});
 
       const missingCost=vault.savedItems.filter(item=>!String(item.lastUnitCost||'').trim()).length;
       if(missingCost)items.push({id:'costs',tone:'info',title:t('Profit data can be improved','يمكن تحسين بيانات الربح'),detail:t('Some products are missing a recorded unit cost.','بعض المنتجات لا تحتوي على تكلفة وحدة مسجلة.'),metric:String(missingCost),target:'items'});
+
+      if(daily.postedPurchases||daily.expenses||daily.inventoryMovements){
+        const detail=t(`Today: ${daily.postedPurchases} purchases · ${daily.expenses} expenses · ${daily.inventoryMovements} stock moves.`,`اليوم: ${daily.postedPurchases} مشتريات · ${daily.expenses} مصروفات · ${daily.inventoryMovements} حركات مخزون.`);
+        items.push({id:'operations-today',tone:'info',title:t('Operations recorded today','نشاط تشغيلي مسجل اليوم'),detail,metric:String(daily.postedPurchases+daily.expenses+daily.inventoryMovements),target:'operations'});
+      }
 
       const monthly=financialReportByCurrency(vault.documents,vault.payments,monthStart(today),today).filter(row=>Number(row.netSales)!==0||Number(row.collected)!==0);
       if(monthly.length){
