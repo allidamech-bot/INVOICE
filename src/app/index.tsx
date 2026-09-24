@@ -17,20 +17,31 @@ const iosWebKit=(()=>{try{return /iP(?:hone|ad|od)/i.test(navigator.userAgent||'
 
 // BaseApp keeps the encryption/Firebase protocol unchanged. This runtime subclass
 // replaces runtime scheduling/safety hooks after BaseApp's own class fields have
-// initialized. Explicit recovery/manual sync delays still pass straight through.
+// initialized. During document editing even callers that request a short explicit
+// sync delay are clamped to the adaptive editor quiet window. This closes the
+// remaining 80/120/180ms paths that could otherwise push a multi-megabyte vault
+// while Safari is typing, laying out and encrypting the same document locally.
 class AdaptiveCloudApp extends BaseApp {
   adaptiveCloudRuntime=(()=>{
     const instance=this as any;
     const scheduleCloudSync=instance.scheduleCloudSync.bind(instance);
-    instance.scheduleCloudSync=(delay?:number)=>scheduleCloudSync(
-      typeof delay==='number'
-        ?delay
-        :adaptiveCloudSettleMs(instance.latestEncryptedVault?.cipher?.length??0,false)
-    );
+    instance.scheduleCloudSync=(delay?:number)=>{
+      const cipherLength=instance.latestEncryptedVault?.cipher?.length??0;
+      const editing=isDocumentEditorOpen();
+      const adaptive=adaptiveCloudSettleMs(cipherLength,editing);
+      const requested=typeof delay==='number'?delay:adaptive;
+      const editorSafe=editing?Math.max(requested,adaptive):requested;
+      // iPhone/WebKit gets an additional floor while an editor is mounted. Local
+      // encrypted persistence is unaffected; this only postpones remote Firebase
+      // publication until the user has had a meaningful quiet period.
+      const guarded=iosWebKit&&editing?Math.max(30_000,editorSafe):editorSafe;
+      return scheduleCloudSync(guarded);
+    };
     instance.deferQueuedCloudSaveForDocumentEdit=()=>{
       if(instance.state.cloudSyncState!=='queued'||!instance.cloudTimer)return;
       window.clearTimeout(instance.cloudTimer);
-      const delay=adaptiveCloudSettleMs(instance.latestEncryptedVault?.cipher?.length??0,true);
+      const adaptive=adaptiveCloudSettleMs(instance.latestEncryptedVault?.cipher?.length??0,true);
+      const delay=iosWebKit?Math.max(30_000,adaptive):adaptive;
       instance.cloudTimer=window.setTimeout(()=>void instance.flushCloudSync(),delay);
     };
 
@@ -52,7 +63,9 @@ class AdaptiveCloudApp extends BaseApp {
         if(instance.state.unlocked&&instance.state.key===key){
           const currentEditor=instance.state.editorDoc;
           const refreshedEditor=currentEditor?next.documents.find((doc:any)=>doc.id===currentEditor.id):null;
-          await new Promise<void>(resolve=>instance.setState(refreshedEditor?{vault:next,editorDoc:structuredClone(refreshedEditor)}:{vault:next},resolve));
+          // Documents are edited immutably. A shallow identity refresh is enough
+          // here and avoids duplicating attachment data URLs in Safari memory.
+          await new Promise<void>(resolve=>instance.setState(refreshedEditor?{vault:next,editorDoc:{...refreshedEditor}}:{vault:next},resolve));
         }
         instance.scheduleCloudSync();
         return next;
