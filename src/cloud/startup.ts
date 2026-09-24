@@ -1,9 +1,10 @@
-import { getCloudAccount, putCloudAccount } from '../storage/db.js';
-import { currentCloudUser, getCloudVaultMeta, reconcileCloudVault, waitForCloudUser } from './firebase.js';
+import { getCloudAccount, getEncryptedVault, putCloudAccount } from '../storage/db.js';
+import { currentCloudUser, getCloudVaultMeta, installCloudVault, reconcileCloudVault, waitForCloudUser } from './firebase.js';
 import type { CloudSyncResult } from './firebase.js';
 
-// Keep a very small opportunity for an already-ready cloud fast-forward, but do
-// not make local encrypted startup depend on Firebase/network responsiveness.
+// Existing local encrypted workspaces stay strictly local-first. A fresh browser
+// origin/device has no local vault to hydrate, so it must restore the account's
+// encrypted cloud workspace before React decides whether this is first-run setup.
 const STARTUP_CLOUD_BUDGET_MS=450;
 type StartupCloudResult=CloudSyncResult|'skipped';
 
@@ -16,19 +17,14 @@ type StartupCloudResult=CloudSyncResult|'skipped';
  * sync anchor. Ambiguous divergence is left untouched for the explicit recovery
  * path instead of silently choosing one side.
  *
- * The pre-render cloud check is deliberately time-bounded. Firebase Auth and
- * Firestore can occasionally leave a promise pending for a long time on iOS even
- * though the local encrypted vault is healthy. A slow cloud request must never
- * hold the entire UI on the boot screen. After the small budget expires React
- * hydrates the local-first app immediately, while the same guarded reconciliation
- * continues in the background and only signals when a proven-safe pull completed.
+ * A fresh origin/device is different: there is no local business workspace to
+ * overwrite. In that case restore the cloud security metadata and encrypted vault
+ * before the app decides between Setup and Unlock. This preserves the user's
+ * existing PIN instead of incorrectly asking them to create a new one.
  */
 async function runAuthoritativeCloudStartup():Promise<StartupCloudResult>{
   if(typeof navigator!=='undefined'&&!navigator.onLine)return 'skipped';
 
-  // Firebase often already restored the signed-in user by the time the module
-  // executes. Use that ready session immediately instead of paying the slower
-  // persistence bootstrap again on every iPhone/Safari launch.
   let user=currentCloudUser();
   if(!user){
     try{user=await waitForCloudUser();}catch{return 'skipped';}
@@ -43,11 +39,17 @@ async function runAuthoritativeCloudStartup():Promise<StartupCloudResult>{
     if(linked&&linked.uid!==user.uid)return 'skipped';
     if(!linked)await putCloudAccount(user.uid,user.email);
 
+    const local=await getEncryptedVault();
+    if(!local){
+      const installed=await installCloudVault(user.uid);
+      return installed?'pulled':'skipped';
+    }
+
     return await reconcileCloudVault(user.uid);
   }catch{
-    // Startup must remain usable when cloud/local lineage is ambiguous, offline,
-    // or during transient cloud failures. Never replace local data from here
-    // unless reconcileCloudVault can prove that the pull is a safe fast-forward.
+    // Existing local workspaces stay usable through transient cloud failures.
+    // On a genuinely empty origin, failure simply leaves setup unavailable until
+    // the account data can be resolved rather than overwriting another workspace.
     return 'skipped';
   }
 }
@@ -60,7 +62,18 @@ function signalDeferredCloudPull(result:StartupCloudResult):void{
 export async function hydrateAuthoritativeCloudBeforeApp():Promise<void>{
   if(typeof navigator!=='undefined'&&!navigator.onLine)return;
 
+  const localBeforeStartup=await getEncryptedVault().catch(()=>null);
   const cloudWork=runAuthoritativeCloudStartup();
+
+  // When this authenticated origin has no local vault, do not render the Setup
+  // screen while the existing encrypted account workspace is still being restored.
+  // There is no local state to delay, and rendering early is what caused the false
+  // "Create PIN" flow on Preview/new devices.
+  if(!localBeforeStartup){
+    await cloudWork;
+    return;
+  }
+
   let timer:number|undefined;
   const outcome=await Promise.race([
     cloudWork.then(result=>({kind:'done' as const,result})),
