@@ -1,9 +1,7 @@
-/* LOUREX presentation bootstrap — v314 canonical ownership.
-   Historical Home-only styles are retired here, while the shared visual-system
-   layers remain intact. Canonical Home, Shell, Documents, Editor, Customers,
-   Products, Operations, Finance, Reports, Settings, Auth and Overlay styles are
-   appended after the historical stack so each live surface has one final owner.
-   Home data and empty-state logic are owned by React and no DOM-wide observer is used. */
+/* LOUREX presentation bootstrap — v320 TailAdmin Finance replacement.
+   v314 canonical functional geometry remains available underneath while the new
+   TailAdmin visual system becomes the final screen-only owner. No business logic,
+   persistence, PDF or print behavior is changed here. */
 (function(){
   function ensureStylesheet(marker,href){
     if(document.querySelector('link['+marker+']'))return;
@@ -27,7 +25,8 @@
     ensureStylesheet('data-lourex-v297','./styles/visual-editor-interaction-v297.css?v=297');
     ensureStylesheet('data-lourex-v298','./styles/visual-overlay-accessibility-v298.css?v=298');
     ensureStylesheet('data-lourex-v299','./styles/visual-auth-settings-closeout-v299.css?v=299');
-    if(document.documentElement.dataset.uiTheme==='light')document.documentElement.style.backgroundColor='#e8eeeb';
+    if(document.documentElement.dataset.uiTheme==='light')document.documentElement.style.backgroundColor='#f9fafb';
+    if(document.documentElement.dataset.uiTheme==='dark')document.documentElement.style.backgroundColor='#0c111d';
   }
 
   function retireHistoricalHomeStyles(){
@@ -59,9 +58,14 @@
     ensureStylesheet('data-lourex-overlays-v314','./styles/overlays-canonical-v314.css?v=314');
   }
 
+  function installTailAdminV320(){
+    ensureStylesheet('data-lourex-tailadmin-v320','./styles/tailadmin-finance-v320.css?v=320');
+  }
+
   function install(){
     loadReviewVisualSystem();
     installCanonicalLayers();
+    installTailAdminV320();
   }
 
   install();

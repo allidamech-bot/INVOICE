@@ -1,0 +1,419 @@
+/*
+ * LOUREX v320 — TailAdmin Finance visual replacement, batch 1.
+ * TailAdmin Community design tokens and interaction patterns are adapted from the
+ * MIT-licensed TailAdmin React community edition.
+ * Copyright (c) 2023 TailAdmin — MIT License.
+ *
+ * This layer is screen-only. It intentionally does not touch PDF/print templates,
+ * persistence, encryption, accounting logic, Firebase, PIN, or autosave behavior.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap");
+
+@media screen {
+  html[data-ui-theme="light"] {
+    --ta-brand-25:#f2f7ff;
+    --ta-brand-50:#ecf3ff;
+    --ta-brand-100:#dde9ff;
+    --ta-brand-200:#c2d6ff;
+    --ta-brand-300:#9cb9ff;
+    --ta-brand-400:#7592ff;
+    --ta-brand-500:#465fff;
+    --ta-brand-600:#3641f5;
+    --ta-brand-700:#2a31d8;
+    --ta-gray-25:#fcfcfd;
+    --ta-gray-50:#f9fafb;
+    --ta-gray-100:#f2f4f7;
+    --ta-gray-200:#e4e7ec;
+    --ta-gray-300:#d0d5dd;
+    --ta-gray-400:#98a2b3;
+    --ta-gray-500:#667085;
+    --ta-gray-600:#475467;
+    --ta-gray-700:#344054;
+    --ta-gray-800:#1d2939;
+    --ta-gray-900:#101828;
+    --ta-success:#039855;
+    --ta-success-soft:#ecfdf3;
+    --ta-warning:#dc6803;
+    --ta-warning-soft:#fffaeb;
+    --ta-danger:#d92d20;
+    --ta-danger-soft:#fef3f2;
+    --ta-shadow-xs:0 1px 2px rgba(16,24,40,.05);
+    --ta-shadow-sm:0 1px 3px rgba(16,24,40,.10),0 1px 2px rgba(16,24,40,.06);
+    --ta-shadow-md:0 4px 8px -2px rgba(16,24,40,.10),0 2px 4px -2px rgba(16,24,40,.06);
+    --ta-focus:0 0 0 4px rgba(70,95,255,.12);
+
+    --ft-canvas:var(--ta-gray-50)!important;
+    --ft-shell:#fff!important;
+    --ft-workspace:var(--ta-gray-50)!important;
+    --ft-surface:#fff!important;
+    --ft-surface-2:var(--ta-gray-50)!important;
+    --ft-surface-3:var(--ta-gray-100)!important;
+    --ft-input:#fff!important;
+    --ft-text:var(--ta-gray-700)!important;
+    --ft-text-strong:var(--ta-gray-900)!important;
+    --ft-text-soft:var(--ta-gray-600)!important;
+    --ft-muted:var(--ta-gray-500)!important;
+    --ft-faint:var(--ta-gray-400)!important;
+    --ft-line:var(--ta-gray-200)!important;
+    --ft-line-strong:var(--ta-gray-300)!important;
+    --ft-accent:var(--ta-brand-500)!important;
+    --ft-accent-hover:var(--ta-brand-600)!important;
+    --ft-accent-soft:var(--ta-brand-50)!important;
+    --ft-accent-faint:var(--ta-brand-25)!important;
+    --ft-on-accent:#fff!important;
+    --ft-success:var(--ta-success)!important;
+    --ft-success-soft:var(--ta-success-soft)!important;
+    --ft-warning:var(--ta-warning)!important;
+    --ft-warning-soft:var(--ta-warning-soft)!important;
+    --ft-danger:var(--ta-danger)!important;
+    --ft-danger-soft:var(--ta-danger-soft)!important;
+    --ft-info:var(--ta-brand-600)!important;
+    --ft-info-soft:var(--ta-brand-50)!important;
+    --ft-shadow:var(--ta-shadow-sm)!important;
+    --ft-shadow-pop:var(--ta-shadow-md)!important;
+    --ft-focus:var(--ta-focus)!important;
+  }
+
+  html[data-ui-theme="dark"] {
+    --ta-brand-400:#7592ff;
+    --ta-brand-500:#465fff;
+    --ta-gray-50:#f9fafb;
+    --ta-gray-100:#f2f4f7;
+    --ta-gray-300:#d0d5dd;
+    --ta-gray-400:#98a2b3;
+    --ta-gray-500:#667085;
+    --ta-gray-700:#344054;
+    --ta-gray-800:#1d2939;
+    --ta-gray-900:#101828;
+    --ta-gray-950:#0c111d;
+    --ta-shadow-sm:0 1px 3px rgba(0,0,0,.30),0 1px 2px rgba(0,0,0,.25);
+    --ta-shadow-md:0 12px 24px rgba(0,0,0,.30);
+    --ta-focus:0 0 0 4px rgba(70,95,255,.18);
+
+    --ft-canvas:#0c111d!important;
+    --ft-shell:#101828!important;
+    --ft-workspace:#0c111d!important;
+    --ft-surface:#101828!important;
+    --ft-surface-2:#1d2939!important;
+    --ft-surface-3:#263244!important;
+    --ft-input:#101828!important;
+    --ft-text:#d0d5dd!important;
+    --ft-text-strong:#f9fafb!important;
+    --ft-text-soft:#98a2b3!important;
+    --ft-muted:#98a2b3!important;
+    --ft-faint:#667085!important;
+    --ft-line:#1d2939!important;
+    --ft-line-strong:#344054!important;
+    --ft-accent:#7592ff!important;
+    --ft-accent-hover:#9cb9ff!important;
+    --ft-accent-soft:rgba(70,95,255,.12)!important;
+    --ft-accent-faint:rgba(70,95,255,.08)!important;
+    --ft-on-accent:#fff!important;
+    --ft-success:#32d583!important;
+    --ft-success-soft:rgba(18,183,106,.12)!important;
+    --ft-warning:#fdb022!important;
+    --ft-warning-soft:rgba(247,144,9,.12)!important;
+    --ft-danger:#f97066!important;
+    --ft-danger-soft:rgba(240,68,56,.12)!important;
+    --ft-info:#7592ff!important;
+    --ft-info-soft:rgba(70,95,255,.12)!important;
+    --ft-shadow:var(--ta-shadow-sm)!important;
+    --ft-shadow-pop:var(--ta-shadow-md)!important;
+    --ft-focus:var(--ta-focus)!important;
+  }
+
+  html,body,#root,.app-ui { background:var(--ft-canvas)!important; }
+  .app-ui {
+    color:var(--ft-text)!important;
+    font-family:"Outfit","Noto Sans Arabic",system-ui,-apple-system,"Segoe UI",sans-serif!important;
+    font-weight:400!important;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  [dir="rtl"] .app-ui { font-family:"Noto Sans Arabic","Outfit",system-ui,-apple-system,"Segoe UI",sans-serif!important; }
+  .app-ui * { box-sizing:border-box; }
+
+  /* TailAdmin shared control grammar */
+  .app-ui :where(.btn,button.btn) {
+    min-height:44px!important;
+    border-radius:8px!important;
+    padding:10px 16px!important;
+    gap:8px!important;
+    border:1px solid var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+    box-shadow:var(--ta-shadow-xs)!important;
+    font-size:14px!important;
+    line-height:20px!important;
+    font-weight:600!important;
+    letter-spacing:0!important;
+  }
+  .app-ui .btn-primary {
+    border-color:var(--ft-accent)!important;
+    background:var(--ft-accent)!important;
+    color:#fff!important;
+    box-shadow:0 1px 2px rgba(16,24,40,.05)!important;
+  }
+  .app-ui .btn-primary:hover { background:var(--ft-accent-hover)!important;border-color:var(--ft-accent-hover)!important; }
+  .app-ui .btn-secondary:hover,.app-ui .btn-ghost:hover { background:var(--ft-surface-2)!important; }
+  .app-ui :where(.btn,.icon-btn,button):focus-visible { outline:0!important;box-shadow:var(--ft-focus)!important; }
+  .app-ui .icon-btn {
+    width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;
+    display:inline-grid!important;place-items:center!important;
+    border:1px solid var(--ft-line)!important;border-radius:8px!important;
+    background:var(--ft-surface)!important;color:var(--ft-muted)!important;
+    box-shadow:var(--ta-shadow-xs)!important;
+  }
+  .app-ui .icon-btn:hover { background:var(--ft-surface-2)!important;color:var(--ft-text-strong)!important; }
+
+  .app-ui :where(.input,input.input,select.input,textarea.input),
+  .app-ui :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea) {
+    min-height:44px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:8px!important;
+    background:var(--ft-input)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:var(--ta-shadow-xs)!important;
+    font-size:14px!important;
+    line-height:20px!important;
+  }
+  .app-ui :where(input,select,textarea)::placeholder { color:var(--ft-faint)!important;opacity:1!important; }
+  .app-ui :where(input,select,textarea):focus { outline:0!important;border-color:#9cb9ff!important;box-shadow:var(--ft-focus)!important; }
+  .app-ui label>span,.app-ui .field-label { color:var(--ft-text-soft)!important;font-size:14px!important;font-weight:500!important; }
+
+  /* Main shell — mirrors TailAdmin community proportions and surfaces. */
+  .app-ui .fintech-shell-v280:not(.is-editor) {
+    width:100%!important;height:100dvh!important;min-height:100dvh!important;
+    display:grid!important;
+    grid-template-columns:290px minmax(0,1fr)!important;
+    grid-template-rows:76px minmax(0,1fr)!important;
+    overflow:hidden!important;
+    background:var(--ft-canvas)!important;
+  }
+  .app-ui .fintech-shell-v280:not(.is-editor)>.workspace-sidebar {
+    grid-column:1!important;grid-row:1/3!important;
+    width:290px!important;min-width:290px!important;height:100dvh!important;
+    position:relative!important;inset:auto!important;
+    display:flex!important;flex-direction:column!important;
+    padding:0 16px 18px!important;
+    overflow:hidden!important;
+    border:0!important;border-inline-end:1px solid var(--ft-line)!important;
+    border-radius:0!important;
+    background:var(--ft-shell)!important;
+    box-shadow:none!important;
+    z-index:50!important;
+  }
+  html[dir="rtl"] .app-ui .fintech-shell-v280:not(.is-editor) {
+    grid-template-columns:minmax(0,1fr) 290px!important;
+  }
+  html[dir="rtl"] .app-ui .fintech-shell-v280:not(.is-editor)>.workspace-sidebar {
+    grid-column:2!important;border-inline-end:0!important;border-inline-start:1px solid var(--ft-line)!important;
+  }
+  .app-ui .fintech-shell-v280:not(.is-editor)>.workspace-topbar {
+    grid-column:2!important;grid-row:1!important;
+    position:relative!important;inset:auto!important;
+    min-width:0!important;height:76px!important;min-height:76px!important;
+    display:flex!important;align-items:center!important;justify-content:space-between!important;
+    gap:20px!important;padding:0 24px!important;
+    border:0!important;border-bottom:1px solid var(--ft-line)!important;
+    background:var(--ft-shell)!important;box-shadow:none!important;
+    z-index:40!important;
+  }
+  html[dir="rtl"] .app-ui .fintech-shell-v280:not(.is-editor)>.workspace-topbar { grid-column:1!important; }
+  .app-ui .fintech-shell-v280:not(.is-editor)>.workspace-content {
+    grid-column:2!important;grid-row:2!important;
+    min-width:0!important;min-height:0!important;
+    overflow:auto!important;
+    padding:0!important;
+    background:var(--ft-canvas)!important;
+  }
+  html[dir="rtl"] .app-ui .fintech-shell-v280:not(.is-editor)>.workspace-content { grid-column:1!important; }
+
+  .app-ui .workspace-sidebar .shell-brand-button {
+    height:78px!important;min-height:78px!important;width:100%!important;
+    display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:10px!important;
+    padding:0 8px!important;margin:0!important;
+    border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;
+    color:var(--ft-text-strong)!important;
+  }
+  .app-ui .workspace-sidebar .shell-brand-button:hover { background:transparent!important; }
+  .app-ui .workspace-sidebar .brand { min-width:0!important; }
+  .app-ui .workspace-sidebar .shell-brand-product { display:flex!important;flex-direction:column!important;gap:0!important;text-align:start!important; }
+  .app-ui .workspace-sidebar .shell-brand-product strong { color:var(--ft-text-strong)!important;font-size:14px!important;line-height:20px!important;font-weight:700!important;letter-spacing:.02em!important; }
+  .app-ui .workspace-sidebar .shell-brand-product small { color:var(--ft-muted)!important;font-size:12px!important;line-height:18px!important;font-weight:400!important; }
+
+  .app-ui .workspace-sidebar .shell-create-wrap { margin:6px 0 20px!important;padding:0!important; }
+  .app-ui .workspace-sidebar .shell-create-button {
+    width:100%!important;min-height:44px!important;justify-content:center!important;
+    border-radius:8px!important;background:var(--ft-accent)!important;border-color:var(--ft-accent)!important;color:#fff!important;
+  }
+  .app-ui .workspace-sidebar .shell-navigation { flex:1 1 auto!important;min-height:0!important;overflow:auto!important;padding:0!important;margin:0!important; }
+  .app-ui .workspace-sidebar .shell-nav-group { margin:0 0 18px!important;padding:0!important;display:flex!important;flex-direction:column!important;gap:4px!important; }
+  .app-ui .workspace-sidebar .shell-nav-group>p {
+    margin:0 0 6px!important;padding:0 12px!important;
+    color:var(--ft-faint)!important;font-size:11px!important;line-height:18px!important;font-weight:600!important;text-transform:uppercase!important;letter-spacing:.06em!important;
+  }
+  [dir="rtl"] .app-ui .workspace-sidebar .shell-nav-group>p { letter-spacing:0!important; }
+  .app-ui .workspace-sidebar .shell-nav-button {
+    width:100%!important;min-height:44px!important;
+    display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:12px!important;
+    padding:10px 12px!important;margin:0!important;
+    border:0!important;border-radius:8px!important;
+    background:transparent!important;color:var(--ft-text)!important;box-shadow:none!important;
+    font-size:14px!important;line-height:20px!important;font-weight:500!important;text-align:start!important;
+  }
+  .app-ui .workspace-sidebar .shell-nav-button .icon { width:20px!important;height:20px!important;color:var(--ft-muted)!important; }
+  .app-ui .workspace-sidebar .shell-nav-button:hover { background:var(--ft-surface-2)!important;color:var(--ft-text-strong)!important; }
+  .app-ui .workspace-sidebar .shell-nav-button.active {
+    background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;font-weight:600!important;
+  }
+  .app-ui .workspace-sidebar .shell-nav-button.active .icon { color:var(--ft-accent)!important; }
+  .app-ui .workspace-sidebar .shell-sidebar-footer {
+    flex:0 0 auto!important;display:flex!important;flex-direction:column!important;gap:4px!important;
+    padding:14px 0 0!important;margin:14px 0 0!important;border-top:1px solid var(--ft-line)!important;
+  }
+  .app-ui .workspace-sidebar :where(.shell-sync-row,.shell-theme-control,.shell-account-row,.shell-settings-row) {
+    width:100%!important;min-height:42px!important;padding:8px 10px!important;border:0!important;border-radius:8px!important;background:transparent!important;box-shadow:none!important;
+  }
+  .app-ui .workspace-sidebar :where(.shell-account-row,.shell-settings-row):hover { background:var(--ft-surface-2)!important; }
+
+  .app-ui .workspace-topbar .shell-mobile-brand { display:none!important; }
+  .app-ui .workspace-topbar .shell-page-title { min-width:160px!important;display:flex!important;flex-direction:column!important;gap:1px!important; }
+  .app-ui .workspace-topbar .shell-page-title small { color:var(--ft-muted)!important;font-size:11px!important;line-height:16px!important;font-weight:500!important; }
+  .app-ui .workspace-topbar .shell-page-title strong { color:var(--ft-text-strong)!important;font-size:18px!important;line-height:24px!important;font-weight:600!important;letter-spacing:0!important; }
+  .app-ui .workspace-topbar .shell-topbar-actions { margin-inline-start:auto!important;display:flex!important;align-items:center!important;gap:10px!important; }
+  .app-ui .workspace-topbar .shell-global-search-button {
+    order:-1!important;width:min(430px,34vw)!important;min-height:44px!important;
+    display:grid!important;grid-template-columns:20px minmax(0,1fr) auto!important;align-items:center!important;gap:10px!important;
+    padding:0 12px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;
+    background:var(--ft-input)!important;color:var(--ft-muted)!important;box-shadow:var(--ta-shadow-xs)!important;text-align:start!important;
+  }
+  .app-ui .workspace-topbar .shell-global-search-button>span { overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:14px!important;font-weight:400!important; }
+  .app-ui .workspace-topbar .shell-global-search-button kbd {
+    min-width:42px!important;padding:3px 6px!important;border:1px solid var(--ft-line)!important;border-radius:6px!important;background:var(--ft-surface-2)!important;color:var(--ft-muted)!important;font:500 11px/16px "Outfit",sans-serif!important;
+  }
+  .app-ui .workspace-topbar :where(.shell-topbar-theme,.shell-account-button) {
+    min-height:44px!important;height:44px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface)!important;box-shadow:var(--ta-shadow-xs)!important;
+  }
+  .app-ui .workspace-topbar .shell-sync-status { min-height:34px!important;padding:6px 10px!important;border-radius:999px!important;background:var(--ft-surface-2)!important;color:var(--ft-muted)!important;font-size:12px!important; }
+
+  /* Shared TailAdmin surfaces. */
+  .app-ui :where(.dashboard-kpi,.dashboard-panel,.command-performance-panel,.command-position-panel,.dashboard-recent,.documents-command,.documents-register,.documents-resume,.document-detail-card,.customers-card,.customer-card,.product-card,.items-card,.operations-card,.receivables-card,.report-card,.settings-card,.auth-card,.modal-card,.modal,.panel) {
+    border:1px solid var(--ft-line)!important;border-radius:12px!important;background:var(--ft-surface)!important;box-shadow:var(--ta-shadow-xs)!important;
+  }
+  .app-ui :where(.page,.workspace-home-page,.documents-workspace-v2,.customers-page,.product-library-pro,.operations-page,.receivables-page,.reports-page,.settings-page) {
+    color:var(--ft-text)!important;background:transparent!important;
+  }
+  .app-ui :where(.page h1,.page h2,.page h3,.workspace-home-page h1,.workspace-home-page h2) { color:var(--ft-text-strong)!important;letter-spacing:0!important; }
+
+  /* Finance-style Home baseline. */
+  .app-ui .fintech-dashboard-v280 {
+    width:100%!important;max-width:1600px!important;margin:0 auto!important;padding:28px 28px 56px!important;gap:20px!important;background:transparent!important;
+  }
+  .app-ui .fintech-dashboard-v280 .workspace-home-hero {
+    min-height:auto!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:var(--ft-text)!important;
+  }
+  .app-ui .fintech-dashboard-v280 .workspace-home-hero::before,.app-ui .fintech-dashboard-v280 .workspace-home-hero::after { display:none!important; }
+  .app-ui .fintech-dashboard-v280 .workspace-home-hero h1 { color:var(--ft-text-strong)!important;font-size:30px!important;line-height:38px!important;font-weight:600!important; }
+  .app-ui .fintech-dashboard-v280 .workspace-home-hero p { color:var(--ft-muted)!important;font-size:14px!important;line-height:20px!important; }
+  .app-ui .fintech-dashboard-v280 .workspace-home-eyebrow { color:var(--ft-muted)!important;font-size:12px!important;line-height:18px!important;font-weight:500!important;text-transform:none!important;letter-spacing:0!important; }
+  .app-ui .fintech-dashboard-v280 .workspace-home-actions .command-period-pill { border:1px solid var(--ft-line)!important;background:var(--ft-surface)!important;color:var(--ft-text-soft)!important;border-radius:8px!important;box-shadow:var(--ta-shadow-xs)!important; }
+  .app-ui .fintech-dashboard-v280 .command-kpis { gap:16px!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi {
+    min-height:124px!important;padding:18px!important;border-radius:12px!important;background:var(--ft-surface)!important;box-shadow:var(--ta-shadow-xs)!important;
+  }
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi::before,.app-ui .fintech-dashboard-v280 .dashboard-kpi::after { display:none!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi-icon { width:40px!important;height:40px!important;border-radius:8px!important;background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi small { color:var(--ft-muted)!important;font-size:13px!important;font-weight:500!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi strong,.app-ui .fintech-dashboard-v280 .dashboard-money-stack b { color:var(--ft-text-strong)!important;font-size:24px!important;line-height:32px!important;font-weight:600!important;letter-spacing:0!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi em { color:var(--ft-muted)!important;font-size:12px!important;font-style:normal!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions { gap:12px!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button {
+    min-height:76px!important;padding:14px!important;border:1px solid var(--ft-line)!important;border-radius:12px!important;background:var(--ft-surface)!important;box-shadow:var(--ta-shadow-xs)!important;
+  }
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button::before,.app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button::after { display:none!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button:hover { border-color:var(--ft-line-strong)!important;background:var(--ft-surface-2)!important;transform:none!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button>span:first-child { width:40px!important;height:40px!important;border-radius:8px!important;background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions strong { color:var(--ft-text-strong)!important;font-size:14px!important;font-weight:600!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions small { color:var(--ft-muted)!important;font-size:12px!important; }
+  .app-ui .fintech-dashboard-v280 :where(.dashboard-panel,.command-performance-panel,.command-position-panel,.dashboard-recent) { border-radius:12px!important;box-shadow:var(--ta-shadow-xs)!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading { min-height:64px!important;padding:16px 18px!important;border-bottom:1px solid var(--ft-line)!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading h2 { color:var(--ft-text-strong)!important;font-size:18px!important;line-height:28px!important;font-weight:600!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading small { color:var(--ft-muted)!important;font-size:12px!important;font-weight:500!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-row { min-height:62px!important;padding:10px 12px!important;border:0!important;border-bottom:1px solid var(--ft-line)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-row:last-child { border-bottom:0!important; }
+  .app-ui .fintech-dashboard-v280 .dashboard-document-row:hover { background:var(--ft-surface-2)!important; }
+
+  /* Documents baseline using TailAdmin table/search grammar. */
+  .app-ui .documents-workspace-v2 { width:100%!important;max-width:1600px!important;margin:0 auto!important;padding:28px 28px 56px!important;gap:16px!important; }
+  .app-ui .documents-heading { align-items:center!important;margin:0 0 4px!important; }
+  .app-ui .documents-heading .eyebrow { color:var(--ft-muted)!important;font-size:12px!important;font-weight:500!important;text-transform:none!important;letter-spacing:0!important; }
+  .app-ui .documents-heading h1 { color:var(--ft-text-strong)!important;font-size:30px!important;line-height:38px!important;font-weight:600!important;letter-spacing:0!important; }
+  .app-ui .documents-heading .page-subtitle { color:var(--ft-muted)!important;font-size:14px!important;line-height:20px!important; }
+  .app-ui .documents-heading-actions { gap:8px!important; }
+  .app-ui .documents-resume { min-height:78px!important;padding:14px 16px!important;border-radius:12px!important;background:var(--ft-surface)!important;box-shadow:var(--ta-shadow-xs)!important; }
+  .app-ui .documents-resume::before,.app-ui .documents-resume::after { display:none!important; }
+  .app-ui .documents-resume .resume-icon { width:40px!important;height:40px!important;border-radius:8px!important;background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important; }
+  .app-ui .documents-register-tabs.document-type-tabs { padding:4px!important;gap:4px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface)!important;box-shadow:var(--ta-shadow-xs)!important; }
+  .app-ui .documents-register-tabs.document-type-tabs>button { min-height:38px!important;padding:7px 12px!important;border:0!important;border-radius:6px!important;background:transparent!important;color:var(--ft-muted)!important;font-size:13px!important;font-weight:500!important;box-shadow:none!important; }
+  .app-ui .documents-register-tabs.document-type-tabs>button.active { background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important; }
+  .app-ui .documents-command { padding:12px!important;border-radius:12px!important;background:var(--ft-surface)!important;box-shadow:var(--ta-shadow-xs)!important; }
+  .app-ui .documents-search-box { min-height:44px!important;padding:0 12px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-input)!important;box-shadow:var(--ta-shadow-xs)!important; }
+  .app-ui .documents-search-input { min-height:42px!important;border:0!important;box-shadow:none!important;background:transparent!important; }
+  .app-ui .documents-search-shortcut { border:1px solid var(--ft-line)!important;border-radius:6px!important;background:var(--ft-surface-2)!important;color:var(--ft-muted)!important; }
+  .app-ui .documents-register { border-radius:12px!important;overflow:hidden!important;box-shadow:var(--ta-shadow-xs)!important; }
+  .app-ui .documents-register-row { min-height:72px!important;border-bottom:1px solid var(--ft-line)!important;background:var(--ft-surface)!important; }
+  .app-ui .documents-register-row:last-child { border-bottom:0!important; }
+  .app-ui .documents-register-row:hover { background:var(--ft-surface-2)!important; }
+  .app-ui .document-kind-pill,.app-ui :where(.document-status-pill,.collection-pill) { border-radius:6px!important;font-weight:500!important; }
+
+  /* Remove legacy decorative gradients/glows from application chrome. */
+  .app-ui :where(.workspace-sidebar,.workspace-topbar,.dashboard-kpi,.dashboard-panel,.dashboard-quick-actions>button,.documents-resume,.documents-command,.documents-register,.document-detail-card,.customers-page,.product-library-pro,.operations-page,.receivables-page,.reports-page,.settings-page)::before,
+  .app-ui :where(.workspace-sidebar,.workspace-topbar,.dashboard-kpi,.dashboard-panel,.dashboard-quick-actions>button,.documents-resume,.documents-command,.documents-register,.document-detail-card,.customers-page,.product-library-pro,.operations-page,.receivables-page,.reports-page,.settings-page)::after { filter:none!important; }
+
+  /* Generic TailAdmin page baseline for pages not yet structurally migrated. */
+  .app-ui :where(.customers-page,.customer-profile-page,.product-library-pro,.saved-items-page,.operations-page,.receivables-page,.reports-page,.settings-page) {
+    width:100%!important;max-width:1600px!important;margin:0 auto!important;padding:28px 28px 56px!important;background:transparent!important;
+  }
+  .app-ui :where(.customers-page,.customer-profile-page,.product-library-pro,.saved-items-page,.operations-page,.receivables-page,.reports-page,.settings-page) :where(section,article,.card,.panel) {
+    border-color:var(--ft-line)!important;box-shadow:none!important;
+  }
+
+  .app-ui :where(.modal-backdrop,.dialog-backdrop) { background:rgba(16,24,40,.45)!important;backdrop-filter:blur(4px)!important;-webkit-backdrop-filter:blur(4px)!important; }
+  .app-ui :where(.modal,.dialog,.modal-card) { border:1px solid var(--ft-line)!important;border-radius:12px!important;background:var(--ft-surface)!important;box-shadow:0 20px 24px -4px rgba(16,24,40,.10),0 8px 8px -4px rgba(16,24,40,.04)!important; }
+
+  @media(max-width:1100px){
+    .app-ui .fintech-shell-v280:not(.is-editor){grid-template-columns:250px minmax(0,1fr)!important}
+    html[dir="rtl"] .app-ui .fintech-shell-v280:not(.is-editor){grid-template-columns:minmax(0,1fr) 250px!important}
+    .app-ui .fintech-shell-v280:not(.is-editor)>.workspace-sidebar{width:250px!important;min-width:250px!important}
+    .app-ui .workspace-topbar .shell-global-search-button{width:min(340px,30vw)!important}
+  }
+
+  @media(max-width:860px){
+    .app-ui .fintech-shell-v280:not(.is-editor){display:flex!important;flex-direction:column!important;height:100dvh!important;overflow:hidden!important}
+    .app-ui .fintech-shell-v280:not(.is-editor)>.workspace-sidebar{display:none!important}
+    .app-ui .fintech-shell-v280:not(.is-editor)>.workspace-topbar{
+      width:100%!important;height:64px!important;min-height:64px!important;padding:max(8px,env(safe-area-inset-top)) 14px 8px!important;display:grid!important;grid-template-columns:auto minmax(0,1fr) auto!important;gap:10px!important;
+    }
+    .app-ui .workspace-topbar .shell-mobile-brand{display:flex!important;align-items:center!important}
+    .app-ui .workspace-topbar .shell-page-title{min-width:0!important;text-align:start!important}
+    .app-ui .workspace-topbar .shell-page-title small{display:none!important}
+    .app-ui .workspace-topbar .shell-page-title strong{font-size:16px!important;line-height:22px!important}
+    .app-ui .workspace-topbar .shell-global-search-button{width:44px!important;min-width:44px!important;height:44px!important;padding:0!important;display:grid!important;place-items:center!important;border-radius:8px!important}
+    .app-ui .workspace-topbar .shell-global-search-button>span,.app-ui .workspace-topbar .shell-global-search-button kbd{display:none!important}
+    .app-ui .workspace-topbar .shell-sync-status,.app-ui .workspace-topbar .shell-topbar-theme,.app-ui .workspace-topbar .shell-account-button{display:none!important}
+    .app-ui .fintech-shell-v280:not(.is-editor)>.workspace-content{flex:1 1 auto!important;min-height:0!important;overflow:auto!important;padding-bottom:calc(78px + env(safe-area-inset-bottom))!important}
+    .app-ui .mobile-bottom-nav{
+      height:calc(68px + env(safe-area-inset-bottom))!important;padding:8px 10px env(safe-area-inset-bottom)!important;border-top:1px solid var(--ft-line)!important;background:var(--ft-shell)!important;box-shadow:none!important;
+    }
+    .app-ui .mobile-bottom-nav>button{color:var(--ft-muted)!important;font-size:11px!important;font-weight:500!important}
+    .app-ui .mobile-bottom-nav>button.active{color:var(--ft-accent)!important}
+    .app-ui .mobile-create-button{background:var(--ft-accent)!important;color:#fff!important;border-color:var(--ft-accent)!important;border-radius:10px!important;box-shadow:var(--ta-shadow-sm)!important}
+    .app-ui .fintech-dashboard-v280,.app-ui .documents-workspace-v2,
+    .app-ui :where(.customers-page,.customer-profile-page,.product-library-pro,.saved-items-page,.operations-page,.receivables-page,.reports-page,.settings-page){padding:20px 16px 36px!important}
+  }
+
+  @media(prefers-reduced-motion:reduce){
+    .app-ui *, .app-ui *::before,.app-ui *::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
+  }
+}
