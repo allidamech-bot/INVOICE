@@ -13,6 +13,7 @@ import { registerVaultMutationBridge } from '../storage/vault-mutation-bridge.js
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
 const appRoot=root;
+const iosWebKit=(()=>{try{return /iP(?:hone|ad|od)/i.test(navigator.userAgent||'');}catch{return false;}})();
 
 // BaseApp keeps the encryption/Firebase protocol unchanged. This runtime subclass
 // replaces runtime scheduling/safety hooks after BaseApp's own class fields have
@@ -79,9 +80,6 @@ class AdaptiveCloudApp extends BaseApp {
     };
 
     // Restore the live inactivity timer promised by AppSettings.autoLockMinutes.
-    // Session expiry on startup already exists; this closes the runtime gap so an
-    // app left open does not remain unlocked indefinitely. Activity in BaseApp
-    // calls resetAutoLock(), so normal typing/taps keep extending the deadline.
     instance.resetAutoLock=()=>{
       if(instance.lockTimer){window.clearTimeout(instance.lockTimer);instance.lockTimer=undefined;}
       const minutes=Number(instance.state.vault?.appSettings?.autoLockMinutes??0);
@@ -91,9 +89,6 @@ class AdaptiveCloudApp extends BaseApp {
         void instance.lockNow(true);
       },minutes*60_000);
     };
-    // Mobile browsers may suspend timers while backgrounded. Check the persisted
-    // last-activity timestamp before BaseApp touches it when the app becomes visible,
-    // otherwise a long background period could silently bypass auto-lock.
     const handleVisibilityChange=instance.handleVisibilityChange.bind(instance);
     instance.handleVisibilityChange=()=>{
       if(document.visibilityState==='visible'&&instance.state.unlocked){
@@ -110,9 +105,6 @@ class AdaptiveCloudApp extends BaseApp {
   })();
 }
 
-// Preserve the established root contract used by recovery and runtime guards:
-// AppErrorBoundary still wraps <App/> directly, while App resolves to the
-// adaptive runtime implementation for this release.
 const App=AdaptiveCloudApp;
 
 let accountWasAuthenticated=false;
@@ -171,7 +163,6 @@ function restoreWorkspaceAfterAutomaticReload():void{
   if(screen==='home'){clearPendingWorkspace();return;}
   const deadline=Date.now()+12_000;
   const attempt=()=>{
-    // Never carry a workspace destination through an account/auth boundary.
     if(document.querySelector('.auth-page')){clearPendingWorkspace();return;}
     const button=workspaceNavigationButton(screen);
     if(button){clearPendingWorkspace();button.click();return;}
@@ -200,21 +191,13 @@ async function resolveRequiredAccountSession():Promise<boolean>{
   accountWasAuthenticated=Boolean(user);
   if(user){
     setActiveAccountUid(user.uid);
-    // Select the UID-specific local database before any vault/session read. A
-    // different account on the same device therefore cannot inherit this user's
-    // encrypted vault, session key, preferences or cloud-link metadata.
     await activateAccountStorage(user.uid);
-    // Every explicit Firebase/Google login and every new page runtime must cross
-    // the local encryption PIN gate. resumeAccountSession() intentionally selects
-    // the UID scope without authorizing a persisted CryptoKey.
     let freshLogin=false;
     try{freshLogin=sessionStorage.getItem('lourex-auth-just-signed-in')==='1';if(freshLogin)sessionStorage.removeItem('lourex-auth-just-signed-in');}catch{}
     if(freshLogin)await suspendSession();else await resumeAccountSession(user.uid);
     return true;
   }
 
-  // Signed-out users must never keep an active workspace marker. Suspend the
-  // previous UID inside its own database before moving to the public scope.
   await suspendPreviousAccountStorage();
   return false;
 }
@@ -222,9 +205,6 @@ async function resolveRequiredAccountSession():Promise<boolean>{
 function startAccountSignOutWatcher():void{
   subscribeCloudUser(user=>{
     if(user){
-      // The selected IndexedDB scope is the authoritative runtime boundary.
-      // localStorage markers are shared by browser tabs and therefore must not
-      // be trusted to decide whether this live workspace belongs to the new UID.
       const selectedStorageUid=activeAccountStorageUid();
       if(selectedStorageUid&&selectedStorageUid!==user.uid){
         if(signOutTransitionRunning)return;
@@ -232,11 +212,6 @@ function startAccountSignOutWatcher():void{
         accountWasAuthenticated=false;
         void (async()=>{
           try{
-            // Firebase can replace one authenticated user with another without
-            // emitting an intermediate signed-out state. Never keep account A's
-            // React workspace alive while account B is authenticated. Destroy A's
-            // usable key in A's own database, move to the public scope, then reload.
-            // Startup will select B's physical database before reading any vault.
             await activateAccountStorage(selectedStorageUid);
             await suspendSession();
           }finally{
@@ -248,10 +223,6 @@ function startAccountSignOutWatcher():void{
         return;
       }
       if(!selectedStorageUid){
-        // Firebase can restore a persisted account after the public gateway has
-        // already mounted on slow Safari/WebKit startup. Never let setup/PIN
-        // writes continue in the public database: switch to the UID database and
-        // rehydrate the app from that account boundary first.
         if(signOutTransitionRunning)return;
         signOutTransitionRunning=true;
         accountWasAuthenticated=true;
@@ -266,36 +237,30 @@ function startAccountSignOutWatcher():void{
       }
       setActiveAccountUid(user.uid);
       accountWasAuthenticated=true;
+      try{delete document.documentElement.dataset.lourexCloudSessionLost;}catch{}
       return;
     }
-    if(!accountWasAuthenticated||signOutTransitionRunning)return;
 
-    signOutTransitionRunning=true;
+    // Firebase/Auth can briefly report null on Safari while restoring persistence
+    // or recovering connectivity. The application is local-first, so a transient
+    // null state must never clear the encrypted session or reload the page. Explicit
+    // sign-out controls already clear the session and navigate intentionally.
+    if(!accountWasAuthenticated||signOutTransitionRunning)return;
     accountWasAuthenticated=false;
-    void (async()=>{
-      try{
-        // Keep the old account scope selected until its usable key is removed.
-        // Only then expose the signed-out public scope and reload the gateway.
-        await suspendSession();
-      }finally{
-        setActiveAccountUid(null);
-        await activateAccountStorage(null);
-        try{sessionStorage.setItem('lourex-auth-just-signed-out','1');}catch{}
-        window.location.reload();
-      }
-    })();
+    try{document.documentElement.dataset.lourexCloudSessionLost='true';}catch{}
   });
 }
 
 async function start():Promise<void>{
   const accountReady=await resolveRequiredAccountSession();
-  // Only reconcile account data when an authenticated account session exists.
-  // Signed-out users reach the account gateway immediately.
   if(accountReady)await hydrateAuthoritativeCloudBeforeApp();
   ReactDOM.render(<AppErrorBoundary><App/></AppErrorBoundary>,appRoot);
   restoreWorkspaceAfterAutomaticReload();
   void purgeLegacySafetySnapshot();
-  startCloudFreshnessWatcher();
+  // iOS Safari stability mode: cloud saving remains available through App, but
+  // the independent realtime freshness watcher is disabled to remove a second
+  // Firestore listener/polling loop from the mobile editing runtime.
+  if(!iosWebKit)startCloudFreshnessWatcher();
   startAccountSignOutWatcher();
 }
 void start();
@@ -317,15 +282,10 @@ function inventoryEntryHasDraftInput():boolean{
 
 function manualLockUnsafeWorkspaceOpen():boolean{
   if(isDocumentEditorOpen())return true;
-  // Settings is itself a modal and owns its own unsaved-settings check before it
-  // calls onLock(). Do not reject a deliberate Lock merely because that modal is
-  // open. Only real inline draft state should block a manual lock.
   return document.documentElement.hasAttribute('data-lourex-workspace-dirty')||inventoryEntryHasDraftInput();
 }
 
 function reloadUnsafeWorkspaceOpen():boolean{
-  // Browsing Operations is safe. Reload protection follows actual dirty state,
-  // document editors and active dialogs rather than the mere presence of a page.
   return isDocumentEditorOpen()||document.documentElement.hasAttribute('data-lourex-workspace-dirty')||Boolean(document.querySelector('.modal-backdrop'));
 }
 
@@ -333,9 +293,6 @@ function safeSignedOutAuthGatewayForAutomaticReload():boolean{
   return !currentCloudUser()&&!reloadUnsafeWorkspaceOpen()&&Boolean(document.querySelector('.auth-page'));
 }
 
-// v310: cloud changes never hard-reload the running workspace.
-// Startup reconciliation already runs before React mounts. Runtime changes wait
-// for an explicit user action so Draft Studio and autosave cannot be interrupted.
 window.addEventListener('lourex-cloud-applied',()=>{
   try{document.documentElement.dataset.lourexCloudApplied='true';}catch{}
 });
@@ -366,9 +323,6 @@ function showCloudRefreshAvailable():void{
 }
 window.addEventListener('lourex-cloud-refresh-available',showCloudRefreshAvailable);
 
-// Page-level "/" shortcuts must never steal focus from the page behind an open
-// dialog. Keep typing inside dialog fields untouched while stopping only the
-// background-search shortcut at the capture boundary.
 window.addEventListener('keydown',(event:KeyboardEvent)=>{
   if(event.key!=='/'||event.defaultPrevented||event.metaKey||event.ctrlKey||event.altKey||!document.querySelector('.modal-backdrop'))return;
   const target=event.target;
@@ -445,27 +399,27 @@ function showUpdateNotice(worker?:ServiceWorker|null):void{
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
+    if(iosWebKit){
+      // The iPhone release temporarily runs network/local-first without a service
+      // worker. Existing registrations and app caches are retired without touching
+      // IndexedDB, PIN metadata or business data. This removes controller/update
+      // churn as a source of WebKit reload loops.
+      void navigator.serviceWorker.getRegistrations().then(registrations=>Promise.all(registrations.map(registration=>registration.unregister()))).catch(()=>undefined);
+      try{if('caches' in window)void caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('lourex-invoice-')).map(key=>caches.delete(key)))).catch(()=>undefined);}catch{}
+      return;
+    }
+
     const hadController=Boolean(navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange',()=>{
       const userRequestedReload=reloadForUpdate;
       pendingUpdateWorker=null;
       if(hadController)showUpdateNotice();
-      if(!userRequestedReload){
-        // A signed-out auth gateway has no editable business state to protect.
-        // Reload it automatically after a newly activated worker takes control
-        // so Safari cannot keep executing a stale Firebase auth runtime.
-        return;
-      }
-      // Activation is asynchronous. Re-check immediately before the actual
-      // reload so work started after the Update click cannot be discarded.
+      if(!userRequestedReload)return;
       if(reloadUnsafeWorkspaceOpen()){updateNoticeDeferredForWorkspace();return;}
       rememberWorkspaceBeforeAutomaticReload();
       window.location.replace(window.location.href);
     });
 
-    // Preserve the established non-fatal registration path: registration/update
-    // never forces a reload by itself. Waiting-worker inspection is handled
-    // separately so only an explicit user action activates a new version.
     void navigator.serviceWorker.register('./sw.js').then(registration=>registration.update()).catch(()=>undefined);
     void navigator.serviceWorker.ready.then(registration=>{
       if(hadController&&registration.waiting)showUpdateNotice(registration.waiting);
