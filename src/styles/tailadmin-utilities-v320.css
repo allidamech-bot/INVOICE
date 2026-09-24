@@ -8,6 +8,14 @@
   .mf-theme-toggle-control .mf-theme-toggle>.icon{width:17px!important;height:17px!important;color:var(--ft-accent)!important}
   .mf-theme-toggle-control .mf-theme-toggle>strong{color:inherit!important;font-size:12px!important;font-weight:600!important;white-space:nowrap!important}
 
+  /* AppShell assigns utility wrapper classes to ThemeControl itself. Keep the
+     wrapper visually transparent so only the canonical TailAdmin button owns
+     border/background/shadow; this prevents double chrome in Topbar and More. */
+  .app-ui :where(.ta-theme-control,.ta-sheet-theme){border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important}
+  .app-ui .ta-theme-control .mf-theme-toggle{width:42px!important;min-width:42px!important;height:42px!important;min-height:42px!important;padding:0!important}
+  .app-ui .ta-sheet-theme{width:100%!important;min-width:0!important}
+  .app-ui .ta-sheet-theme .mf-theme-toggle{width:100%!important;min-width:0!important;min-height:44px!important;justify-content:center!important}
+
   .document-kind-pill.kind-purchase-order,.ta-doc-kind-pill.kind-purchase-order{border-color:color-mix(in srgb,var(--ft-warning) 24%,var(--ft-line))!important;background:var(--ft-warning-soft)!important;color:var(--ft-warning)!important}
   .purchase-order-reference{margin-top:10px!important}
 
