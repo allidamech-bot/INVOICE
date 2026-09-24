@@ -1,9 +1,9 @@
 /* LOUREX presentation bootstrap — v314 canonical ownership.
    Historical Home-only styles are retired here, while the shared visual-system
-   layers remain intact. Canonical Home, Shell, Documents, Editor and Customers
-   styles are appended after the historical stack so each live workspace has one
-   final owner. Home data/empty-state logic is owned by React and no DOM-wide
-   observer is used. */
+   layers remain intact. Canonical Home, Shell, Documents, Editor, Customers and
+   Products styles are appended after the historical stack so each live workspace
+   has one final owner. Home data/empty-state logic is owned by React and no
+   DOM-wide observer is used. */
 (function(){
   function ensureStylesheet(marker,href){
     if(document.querySelector('link['+marker+']'))return;
@@ -50,6 +50,7 @@
     ensureStylesheet('data-lourex-documents-v314','./styles/documents-canonical-v314.css?v=314');
     ensureStylesheet('data-lourex-editor-v314','./styles/editor-canonical-v314.css?v=314');
     ensureStylesheet('data-lourex-customers-v314','./styles/customers-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-products-v314','./styles/products-canonical-v314.css?v=314');
   }
 
   function install(){
