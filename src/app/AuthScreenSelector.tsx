@@ -22,6 +22,13 @@ type Props =
     });
 
 type RecoveryState='idle'|'checking'|'blocked'|'error';
+const CLOUD_INSTALL_RELOAD_KEY='lourex-cloud-install-reload-v317';
+
+function cloudInstallAlreadyReloaded(uid:string):boolean{
+  try{return window.sessionStorage.getItem(CLOUD_INSTALL_RELOAD_KEY)===uid;}catch{return false;}
+}
+function markCloudInstallReload(uid:string):void{try{window.sessionStorage.setItem(CLOUD_INSTALL_RELOAD_KEY,uid);}catch{}}
+function clearCloudInstallReload():void{try{window.sessionStorage.removeItem(CLOUD_INSTALL_RELOAD_KEY);}catch{}}
 
 export function AuthScreenSelector(props: Props): any {
   // LOUREX is account-first: an authenticated account session is required before
@@ -30,7 +37,11 @@ export function AuthScreenSelector(props: Props): any {
   const [recoveryState,setRecoveryState]=React.useState<RecoveryState>('idle');
 
   React.useEffect(()=>{
-    if(!cloudUser||props.mode!=='setup'){setRecoveryState('idle');return;}
+    if(!cloudUser||props.mode!=='setup'){
+      setRecoveryState('idle');
+      if(props.mode==='unlock')clearCloudInstallReload();
+      return;
+    }
     let cancelled=false;
     setRecoveryState('checking');
     void (async()=>{
@@ -42,9 +53,13 @@ export function AuthScreenSelector(props: Props): any {
         // automatic path is only for a genuinely empty local workspace, such as
         // a new browser origin/device or a fresh Preview deployment.
         if(localVault){setRecoveryState('blocked');return;}
+        // A cloud install is allowed to reload the page exactly once. If Safari
+        // returns to Setup after that reload, stop and surface recovery instead of
+        // repeating install -> reload until WebKit terminates the page.
+        if(cloudInstallAlreadyReloaded(cloudUser.uid)){setRecoveryState('error');return;}
         const installed=await installCloudVault(cloudUser.uid);
         if(cancelled)return;
-        if(installed){window.location.reload();return;}
+        if(installed){markCloudInstallReload(cloudUser.uid);window.location.reload();return;}
         setRecoveryState('error');
       }catch{
         // A network/Firebase failure is NOT proof that this is a new account.
