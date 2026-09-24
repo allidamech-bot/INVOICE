@@ -1,0 +1,21 @@
+/* LOUREX v314 — canonical shell overlay stacking.
+   Split from shell geometry intentionally: this file owns only stacking contexts
+   for Create/More overlays so menus stay above their own navigation containers. */
+@media screen {
+  /* Desktop Create lives inside the sticky sidebar (z60), so the dimmer must sit
+     below that sidebar while still covering the top bar/content beneath it. */
+  .app-ui .shell-create-backdrop{z-index:55!important}
+
+  @media(max-width:860px){
+    /* Mobile Create lives inside the fixed bottom nav (z1000). Keep the dimmer just
+       below the nav so the + control and its fixed menu remain reachable. */
+    .app-ui .shell-create-backdrop{z-index:990!important}
+    .app-ui .mobile-bottom-nav{z-index:1000!important}
+    .app-ui .mobile-create-wrap{z-index:3!important}
+    .app-ui .mobile-shell-new-menu{z-index:4!important}
+
+    /* More is a true modal sheet and intentionally covers the bottom nav. */
+    .app-ui .mobile-more-backdrop{z-index:1200!important}
+    .app-ui .mobile-more-sheet.mobile-more-sheet{z-index:1210!important}
+  }
+}
