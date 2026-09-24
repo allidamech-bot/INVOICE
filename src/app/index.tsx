@@ -5,6 +5,8 @@ import { hydrateAuthoritativeCloudBeforeApp } from '../cloud/startup.js';
 import { currentCloudUser, subscribeCloudUser, waitForCloudUser } from '../cloud/firebase.js';
 import { adaptiveCloudSettleMs } from '../cloud/coalescing.js';
 import { t } from '../lib/i18n.js';
+import { createBlankDocument, nextDocumentNumber } from '../lib/documents.js';
+import { applyPaymentTermPreset, paymentTermPresetByLabel } from '../lib/commercial-controls.js';
 import { activateAccountStorage, activeAccountStorageUid, purgeLegacySafetySnapshot } from '../storage/db.js';
 import { getActiveAccountUid, isCurrentSessionExpired, resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
 import { saveVault } from '../storage/vault.js';
@@ -31,6 +33,30 @@ class AdaptiveCloudApp extends BaseApp {
       window.clearTimeout(instance.cloudTimer);
       const delay=adaptiveCloudSettleMs(instance.latestEncryptedVault?.cipher?.length??0,true);
       instance.cloudTimer=window.setTimeout(()=>void instance.flushCloudSync(),delay);
+    };
+
+    // Opening a new document used to encrypt the entire vault once merely to
+    // reserve its number and then immediately encrypt the whole vault again when
+    // EditorPage persisted the initial draft. On iPhone/WebKit that duplicate
+    // full-vault work can create a sharp memory/CPU spike exactly during the
+    // catalog -> editor transition. Keep the numbered vault as the live write-tail
+    // baseline and let the editor's mandatory initial-draft save persist number +
+    // document together in one encrypted write. documentCreateBusy/live number
+    // reservations still prevent duplicate numbers inside the running workspace.
+    instance.reserveDocument=async(kind:any)=>{
+      if(instance.vaultReplacing)await instance.waitForProtectedDataOperation();
+      await instance.drainVaultWrites();
+      const vault=instance.requireVault();
+      const next=nextDocumentNumber(vault,kind);
+      const current=next.vault;
+      const smart=current.appSettings.smartDefaults;
+      const base=createBlankDocument(kind,next.number,current.company);
+      const paymentTerms=smart.paymentTerms||base.terms.paymentTerms;
+      let doc={...base,currency:smart.currency||base.currency,language:smart.language||base.language,terms:{...base.terms,incoterm:smart.incoterm,paymentTerms,deliveryTime:smart.deliveryTime},appearance:{...base.appearance,templateId:(kind==='proforma'||kind==='proforma-invoice'||kind==='rfq')?smart.quoteTemplateId:kind==='invoice'?smart.invoiceTemplateId:base.appearance.templateId}};
+      const paymentPreset=paymentTermPresetByLabel(current.company,paymentTerms);
+      if(paymentPreset&&(kind==='invoice'||kind==='proforma'||kind==='proforma-invoice'))doc=applyPaymentTermPreset(doc,paymentPreset);
+      instance.vaultWriteTail=Promise.resolve(current);
+      return{doc,vault:current,reservation:Promise.resolve()};
     };
 
     // AI actions and supplier-import drafts live below BaseApp and historically
@@ -301,7 +327,8 @@ async function start():Promise<void>{
 void start();
 
 function isDocumentEditorOpen():boolean{
-  return document.documentElement.hasAttribute('data-lourex-document-editor')||Boolean(document.querySelector('.editor-screen'));
+  const root=document.documentElement;
+  return root.hasAttribute('data-lourex-document-launching')||root.hasAttribute('data-lourex-document-editor')||Boolean(document.querySelector('.editor-screen'));
 }
 
 function inventoryEntryHasDraftInput():boolean{
