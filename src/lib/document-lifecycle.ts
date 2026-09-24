@@ -1,4 +1,4 @@
-import type { DocumentEventRecord, DocumentEventType, DocumentRevisionRecord, LourexDocument, PaymentRecord, VaultPayload } from '../types.js';
+import type { DocumentAttachment, DocumentEventRecord, DocumentEventType, DocumentRevisionRecord, LourexDocument, PaymentRecord, VaultPayload } from '../types.js';
 import { duplicateDocument, emptyItem, validateDocument } from './documents.js';
 import { isIsoDate, makeId } from './id.js';
 import { calculateTotals, decimalToScaled } from './money.js';
@@ -16,9 +16,38 @@ export function invoiceCreditCapacity(invoice:LourexDocument,documents:LourexDoc
   const available=total-paid-credited;return{total:centsString(total),paid:centsString(paid),credited:centsString(credited),available:centsString(available>0n?available:0n)};
 }
 export function createDocumentEvent(doc:LourexDocument,type:DocumentEventType,note='',related?:LourexDocument,amount=''):DocumentEventRecord{const now=new Date().toISOString();return{id:makeId('event'),documentId:doc.id,documentNumber:doc.number,type,at:now,note,relatedDocumentId:related?.id||'',relatedDocumentNumber:related?.number||'',amount,currency:doc.currency};}
-export function createRevisionRecord(doc:LourexDocument):DocumentRevisionRecord{return{id:makeId('revision'),documentId:doc.id,documentNumber:doc.number,revision:documentRevision(doc),snapshot:structuredClone(doc),createdAt:new Date().toISOString()};}
-export function beginRevisionDraft(doc:LourexDocument):LourexDocument{if(doc.status!=='final'||doc.lifecycleStatus==='voided')throw new Error('Only an active final document can start a revision.');if(doc.role==='credit-note')throw new Error('Void a final credit note and create a replacement instead of revising it.');return{...structuredClone(doc),status:'draft',revision:documentRevision(doc)+1,updatedAt:new Date().toISOString()};}
-export function restoreRevisionSnapshot(current:LourexDocument,revisions:DocumentRevisionRecord[]):LourexDocument{const targetRevision=documentRevision(current)-1;const record=[...revisions].filter(item=>item.documentId===current.id&&item.revision===targetRevision).sort((a,b)=>b.createdAt.localeCompare(a.createdAt))[0];if(!record)throw new Error('Previous final revision snapshot was not found.');return{...structuredClone(record.snapshot),updatedAt:new Date().toISOString()};}
+
+// Supporting-file payloads are deliberately not versioned inside every financial
+// revision snapshot. They are immutable multi-megabyte data URLs already stored on
+// the live document; copying them into every revision multiplies encrypted-vault
+// size and can terminate WebKit during encrypt/clone/JSON work. Revision history
+// still records attachment identity/name/type/size for audit context. Restoring a
+// prior business revision preserves the live attachment set rather than deleting
+// or resurrecting file payloads. Older snapshots that already contain payloads
+// continue to load normally.
+function attachmentAuditMetadata(attachments:DocumentAttachment[]|undefined):DocumentAttachment[]{return (attachments??[]).map(attachment=>({...attachment,dataUrl:''}));}
+function cloneDocumentForRevision(doc:LourexDocument,includeAttachmentPayload:boolean):LourexDocument{
+  const attachments=includeAttachmentPayload?(doc.attachments??[]).map(attachment=>({...attachment})):attachmentAuditMetadata(doc.attachments);
+  const clone=structuredClone({...doc,attachments:[]}) as LourexDocument;
+  return {...clone,attachments};
+}
+
+export function createRevisionRecord(doc:LourexDocument):DocumentRevisionRecord{return{id:makeId('revision'),documentId:doc.id,documentNumber:doc.number,revision:documentRevision(doc),snapshot:cloneDocumentForRevision(doc,false),createdAt:new Date().toISOString()};}
+export function beginRevisionDraft(doc:LourexDocument):LourexDocument{if(doc.status!=='final'||doc.lifecycleStatus==='voided')throw new Error('Only an active final document can start a revision.');if(doc.role==='credit-note')throw new Error('Void a final credit note and create a replacement instead of revising it.');return{...cloneDocumentForRevision(doc,true),status:'draft',revision:documentRevision(doc)+1,updatedAt:new Date().toISOString()};}
+export function restoreRevisionSnapshot(current:LourexDocument,revisions:DocumentRevisionRecord[]):LourexDocument{
+  const targetRevision=documentRevision(current)-1;
+  const record=[...revisions].filter(item=>item.documentId===current.id&&item.revision===targetRevision).sort((a,b)=>b.createdAt.localeCompare(a.createdAt))[0];
+  if(!record)throw new Error('Previous final revision snapshot was not found.');
+  const restored=cloneDocumentForRevision(record.snapshot,true);
+  // v318 snapshots keep attachment audit metadata only. Preserve the current live
+  // supporting files across revision discard/restore. For legacy snapshots that
+  // contain payloads, prefer the snapshot payload only when the current document
+  // has no attachment set, retaining backwards compatibility without re-bloating
+  // new revision records.
+  const legacyPayload=(record.snapshot.attachments??[]).some(attachment=>Boolean(attachment.dataUrl));
+  const attachments=(current.attachments??[]).length?(current.attachments??[]).map(attachment=>({...attachment})):legacyPayload?(record.snapshot.attachments??[]).map(attachment=>({...attachment})):[];
+  return{...restored,attachments,updatedAt:new Date().toISOString()};
+}
 export function createCreditNoteDraft(source:LourexDocument,number:string,available:string):LourexDocument{if(source.kind!=='invoice'||source.role==='credit-note'||source.status!=='final'||source.lifecycleStatus==='voided')throw new Error('Credit notes can only be created from an active final invoice.');const copy=duplicateDocument(source,number);const sourceTotal=calculateTotals(source.items,source.adjustments).grandTotal;const fullCredit=decimalToScaled(available,2)===decimalToScaled(sourceTotal,2);let items=copy.items;let adjustments=copy.adjustments;if(!fullCredit){const item=emptyItem();item.descriptionEn=`Credit against ${source.number}`;item.descriptionAr=`إشعار دائن مقابل ${source.number}`;item.quantity='1';item.unit='Unit';item.unitPrice=available;items=[item];adjustments={discountEnabled:false,discountMode:'fixed',discountValue:'0.00',shippingEnabled:false,shipping:'0.00',otherChargesEnabled:false,otherCharges:'0.00',taxEnabled:false,taxPercent:'0'};}const reference=source.language==='ar'?`مرجع الفاتورة: ${source.number}`:source.language==='bilingual'?`Credit against ${source.number} / مرجع الفاتورة: ${source.number}`:`Credit against ${source.number}`;const remarks=[reference,copy.terms.remarks.trim()].filter(Boolean).join('\n');const internalCosts=fullCredit?{...copy.internalCosts}:{shippingCost:'0.00',otherCost:'0.00'};return{...copy,kind:'invoice',role:'credit-note',status:'draft',lifecycleStatus:'active',revision:1,creditForId:source.id,creditForNumber:source.number,voidedAt:'',voidReason:'',convertedFromId:'',dueDate:'',items,adjustments,internalCosts,appearance:{...copy.appearance,showBank:false},terms:{...copy.terms,remarks}};}
 export function assertDocumentLifecycleInvariant(doc:LourexDocument,documents:LourexDocument[],payments:PaymentRecord[]):void{
   if(doc.lifecycleStatus==='voided'&&doc.status!=='final')throw new Error('A voided document must remain final.');

@@ -5,7 +5,7 @@ import { bankAccountIdForDetails, bankDetailsForId, defaultPaymentTermPreset, de
 import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput, lineTotal } from './money.js';
 import { t } from './i18n.js';
 import { defaultLetterData, defaultWatermark } from './document-extras.js';
-import { documentBankAllowed, documentNumberPrefix, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from './document-kinds.js';
+import { documentBankAllowed, documentCanConvertToInvoice, documentNumberPrefix, documentPriceOptional, documentSecondaryDateKind, documentUsesCommercialDefaults, isSupplierDocumentKind } from './document-kinds.js';
 
 type NumberReservation={year:number;proforma:number;invoice:number;creditNote:number;purchaseOrder:number;draft:number};
 export type DocumentItemWeight=(item:DocumentItem)=>number;
@@ -111,7 +111,7 @@ export function createBlankDocument(kind: DocumentKind, number: string, company:
     supplierSnapshot:null, supplierReference:'', attachments:[],
     companySnapshot: companySnapshotFrom(company), items: kind==='draft'?[]:[emptyItem()],
     terms: { incoterm: usesCommercialDefaults?company.defaultIncoterm:'', paymentTerms: usesCommercialDefaults?(paymentPreset?.label||company.defaultPaymentTerms):'', packing: '', deliveryTime: usesCommercialDefaults?company.defaultDeliveryTime:'', portOfLoading: '', finalDestination: '', countryOfOrigin: '', validity: '', remarks: '' },
-    adjustments: documentPriceOptional(kind)?{ discountEnabled:false, discountMode:'fixed', discountValue:'0.00', shippingEnabled:false, shipping:'0.00', otherChargesEnabled:false, otherCharges:'0.00', taxEnabled:false, taxPercent:'0' }:{ discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping: '0.00', otherChargesEnabled: false, otherCharges:'0.00', taxEnabled: Boolean(taxPreset), taxPercent: taxPreset?.rate||'0' },
+    adjustments: documentPriceOptional(kind)?{ discountEnabled:false, discountMode:'fixed', discountValue:'0.00', shippingEnabled:false, shipping:'0.00', otherChargesEnabled:false, otherCharges:'0.00', taxEnabled:false, taxPercent:'0' }:{ discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping:'0.00', otherChargesEnabled: false, otherCharges:'0.00', taxEnabled: Boolean(taxPreset), taxPercent: taxPreset?.rate||'0' },
     internalCosts:{shippingCost:'0.00',otherCost:'0.00'},
     appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: kind==='draft'?'#8e7cf3':kind==='rfq'?'#2563eb':kind==='purchase-order'?'#c88f37':kind==='delivery-note'?'#7c8b95':kind==='payment-receipt'?'#0f9f7f':'#159fa7', latinFont: 'auto', arabicFont: 'auto', showBank: documentBankAllowed(kind), showSignature: Boolean(company.signatureDataUrl), showStamp: Boolean(company.stampDataUrl), showHsCode: true, showOrigin: true, showPacking: false, watermark: defaultWatermark() },
     letter: kind==='draft'?defaultLetterData(company.defaultLanguage):null,
@@ -184,25 +184,29 @@ function daysBetween(start:string,end:string):number{
 export function duplicateDocument(source: LourexDocument, number: string): LourexDocument {
   const now = new Date().toISOString();
   const issueDate = todayIso();
-  // Preserve the original commercial date interval instead of silently dropping
-  // invoice due dates. Proformas keep their validity window and invoices keep
-  // their payment due window relative to the new issue date.
   let dueDate = source.dueDate;
   if (source.issueDate && source.dueDate) {
     dueDate = addDaysIso(issueDate, daysBetween(source.issueDate,source.dueDate));
   }
-  return { ...structuredClone(source), id: makeId('doc'), number, issueDate, dueDate, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', convertedFromId: '', createdAt: now, updatedAt: now, items: source.items.map(i => ({ ...structuredClone(i), id: makeId('item') })) };
+  // Attachment data URLs can be multi-megabyte immutable strings. Remove them
+  // from structuredClone so WebKit does not allocate another transient copy of
+  // every payload just to duplicate the surrounding document object. Metadata is
+  // still copied and the duplicate intentionally keeps the same attachment files.
+  const attachmentRefs=(source.attachments??[]).map(attachment=>({...attachment}));
+  const clone=structuredClone({...source,attachments:[]}) as LourexDocument;
+  return { ...clone, attachments:attachmentRefs, id: makeId('doc'), number, issueDate, dueDate, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', convertedFromId: '', createdAt: now, updatedAt: now, items: source.items.map(i => ({ ...i, id: makeId('item') })) };
 }
 
 function conversionReference(source:LourexDocument):string{
-  if(source.language==='ar')return `مرجع عرض السعر: ${source.number}`;
-  if(source.language==='bilingual')return `Based on ${source.number} / مرجع عرض السعر: ${source.number}`;
-  return `Based on ${source.number}`;
+  const proformaInvoice=source.kind==='proforma-invoice';
+  if(source.language==='ar')return `${proformaInvoice?'مرجع الفاتورة المبدئية':'مرجع عرض السعر'}: ${source.number}`;
+  if(source.language==='bilingual')return `${proformaInvoice?'Based on Proforma Invoice':'Based on Quotation'} ${source.number} / ${proformaInvoice?'مرجع الفاتورة المبدئية':'مرجع عرض السعر'}: ${source.number}`;
+  return `${proformaInvoice?'Based on Proforma Invoice':'Based on Quotation'} ${source.number}`;
 }
 
 export function convertToInvoice(source: LourexDocument, number: string): LourexDocument {
-  if(source.kind!=='proforma'||source.role!=='standard'||source.status!=='final'||source.lifecycleStatus==='voided'){
-    throw new Error(t('Only an active Final quotation can be converted to an invoice.','يمكن تحويل عرض سعر نهائي ونشط فقط إلى فاتورة.'));
+  if(!documentCanConvertToInvoice(source.kind)||source.role!=='standard'||source.status!=='final'||source.lifecycleStatus==='voided'){
+    throw new Error(t('Only an active Final quotation or proforma invoice can be converted to a Commercial Invoice.','يمكن تحويل عرض سعر أو فاتورة مبدئية نهائية ونشطة فقط إلى فاتورة تجارية.'));
   }
   const d = duplicateDocument(source, number);
   const reference=conversionReference(source);

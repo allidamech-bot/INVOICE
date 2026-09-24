@@ -24,6 +24,7 @@ import { documentBankAllowed, documentKindLabel, documentPriceOptional, document
 const currencyPresets=['USD','EUR','SYP','SAR','TRY','AED','GBP'];
 const unitPresets=['PCS','Carton','Box','Pallet','KG','Unit','Set'];
 const incoterms=['EXW','FCA','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'];
+const IOS_WEBKIT=(()=>{try{return /iP(?:hone|ad|od)/i.test(navigator.userAgent||'');}catch{return false;}})();
 
 function EditorDateInput(props:{value:string;label:string;onChange:(value:string)=>void}):any{
   const visible=props.value?displayDate(props.value,getUiLanguage()):t('Choose date','اختر التاريخ');
@@ -43,11 +44,19 @@ interface State {
   previewDoc:LourexDocument; desktopPreview:boolean;
 }
 
+function previewDocument(doc:LourexDocument):LourexDocument{
+  // A4 templates do not render supporting attachments. Keeping their multi-MB
+  // data URLs out of preview snapshots prevents repeated base64 copies in WebKit.
+  return doc.attachments?.length?{...doc,attachments:[]}:doc;
+}
+
+function attachmentBytes(doc:LourexDocument):number{return (doc.attachments??[]).reduce((sum,item)=>sum+Math.max(0,Number(item.size)||0),0);}
+
 function draftWithLatestCompany(doc:LourexDocument,company:CompanySettings):LourexDocument{
-  if(doc.status!=='draft')return structuredClone(doc);
+  if(doc.status!=='draft')return doc;
   const hadSignature=Boolean(doc.companySnapshot.signatureDataUrl);
   const hadStamp=Boolean(doc.companySnapshot.stampDataUrl);
-  const refreshed=refreshCompanySnapshot(structuredClone(doc),company);
+  const refreshed=refreshCompanySnapshot(doc,company);
   return {...refreshed,appearance:{...refreshed.appearance,showSignature:!hadSignature&&Boolean(company.signatureDataUrl)?true:refreshed.appearance.showSignature,showStamp:!hadStamp&&Boolean(company.stampDataUrl)?true:refreshed.appearance.showStamp}};
 }
 
@@ -77,7 +86,7 @@ export class EditorPage extends React.Component<Props,State>{
   constructor(props:Props){
     super(props);
     const initial=draftWithLatestCompany(props.document,props.company);
-    this.state={doc:initial,errors:{},saving:false,saveState:'saved',customerQuery:(isArabic()?initial.customerSnapshot?.companyNameAr:initial.customerSnapshot?.companyNameEn)||initial.customerSnapshot?.companyNameEn||initial.customerSnapshot?.companyNameAr||'',customerOpen:false,addCustomer:null,addCustomerError:'',mobilePreview:false,confirmClose:false,expandedItems:{},savedItemsOpen:false,suggestingItemId:'',advancedOpen:false,reviewMode:null,issuing:false,unlockConfirm:false,previewDoc:structuredClone(initial),desktopPreview:typeof window==='undefined'||window.matchMedia('(min-width:1181px)').matches};
+    this.state={doc:initial,errors:{},saving:false,saveState:'saved',customerQuery:(isArabic()?initial.customerSnapshot?.companyNameAr:initial.customerSnapshot?.companyNameEn)||initial.customerSnapshot?.companyNameEn||initial.customerSnapshot?.companyNameAr||'',customerOpen:false,addCustomer:null,addCustomerError:'',mobilePreview:false,confirmClose:false,expandedItems:{},savedItemsOpen:false,suggestingItemId:'',advancedOpen:false,reviewMode:null,issuing:false,unlockConfirm:false,previewDoc:previewDocument(initial),desktopPreview:typeof window==='undefined'||window.matchMedia('(min-width:1181px)').matches};
   }
 
   componentDidMount():void{
@@ -91,7 +100,7 @@ export class EditorPage extends React.Component<Props,State>{
   componentDidUpdate(prevProps:Props):void{if(prevProps.company!==this.props.company&&this.state.doc.status==='draft')this.mutate(doc=>draftWithLatestCompany(doc,this.props.company));}
   componentWillUnmount():void{this.flushPendingSnapshot();if(this.autosaveTimer)clearTimeout(this.autosaveTimer);if(this.previewTimer)clearTimeout(this.previewTimer);this.previewMedia?.removeEventListener?.('change',this.handlePreviewMedia);document.removeEventListener('visibilitychange',this.handleVisibilityChange);window.removeEventListener('beforeunload',this.handleBeforeUnload);window.removeEventListener('pagehide',this.handlePageHide);window.removeEventListener('lourex-ai-document-updated',this.handleAiDocumentUpdated as EventListener);}
 
-  private handlePreviewMedia=(event:MediaQueryListEvent)=>this.setState(state=>({desktopPreview:event.matches,previewDoc:event.matches?structuredClone(state.doc):state.previewDoc}));
+  private handlePreviewMedia=(event:MediaQueryListEvent)=>this.setState(state=>({desktopPreview:event.matches,previewDoc:event.matches?previewDocument(state.doc):state.previewDoc}));
   private handleAiDocumentUpdated=(event:Event)=>{
     const updated=(event as CustomEvent<LourexDocument>).detail;
     if(!updated||updated.id!==this.state.doc.id||this.state.doc.status==='final')return;
@@ -99,8 +108,8 @@ export class EditorPage extends React.Component<Props,State>{
     if(this.previewTimer)window.clearTimeout(this.previewTimer);
     this.departureFlushQueued=false;
     this.editRevision+=1;
-    const doc=structuredClone(updated);
-    this.setState({doc,previewDoc:structuredClone(doc),saving:false,saveState:'saved',errors:{}});
+    const doc={...updated};
+    this.setState({doc,previewDoc:previewDocument(doc),saving:false,saveState:'saved',errors:{}});
   };
 
   private handleVisibilityChange=()=>{
@@ -119,7 +128,7 @@ export class EditorPage extends React.Component<Props,State>{
     if(this.departureFlushQueued||this.state.doc.status==='final'||this.state.saveState==='saved'&&!this.state.saving)return;
     this.departureFlushQueued=true;
     if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
-    const snapshot=structuredClone(this.state.doc);
+    const snapshot=this.state.doc;
     void this.props.onSave(snapshot,true).catch(()=>{this.departureFlushQueued=false;});
   };
 
@@ -151,20 +160,25 @@ export class EditorPage extends React.Component<Props,State>{
     this.setState({doc,saveState:'unsaved',errors},()=>{this.schedule();this.schedulePreview();});
   };
 
-  private schedule=()=>{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);this.autosaveTimer=window.setTimeout(()=>void this.save(true),450);};
+  private autosaveDelay=()=>{
+    const bytes=attachmentBytes(this.state.doc);
+    if(IOS_WEBKIT)return bytes>=3*1024*1024?2400:bytes>0?1900:1400;
+    return bytes>=5*1024*1024?1600:bytes>0?1200:800;
+  };
+  private schedule=()=>{if(this.autosaveTimer)clearTimeout(this.autosaveTimer);this.autosaveTimer=window.setTimeout(()=>void this.save(true),this.autosaveDelay());};
   private schedulePreview=()=>{
     if(!this.state.desktopPreview)return;
     if(this.previewTimer)window.clearTimeout(this.previewTimer);
-    // The A4 tree is deliberately one beat behind typing. This removes the
-    // multi-page renderer from the keystroke path without changing output data.
-    this.previewTimer=window.setTimeout(()=>this.setState({previewDoc:structuredClone(this.state.doc)}),180);
+    // The A4 tree is deliberately one beat behind typing. It also receives a
+    // payload-free preview object so supporting files never enter render churn.
+    this.previewTimer=window.setTimeout(()=>this.setState({previewDoc:previewDocument(this.state.doc)}),250);
   };
 
   private save=async(auto=false)=>{
     if(this.state.doc.status==='final')return;
     if(this.state.saving){if(auto)this.schedule();return;}
     const revisionAtStart=this.editRevision;
-    const snapshot=structuredClone(this.state.doc);
+    const snapshot=this.state.doc;
     if(!auto){
       const errors=validateDocument(snapshot);
       this.validationAttempted=true;
@@ -189,7 +203,7 @@ export class EditorPage extends React.Component<Props,State>{
     try{
       for(;;){
         const revisionAtStart=this.editRevision;
-        const snapshot=structuredClone(this.state.doc);
+        const snapshot=this.state.doc;
         await this.props.onSave(snapshot,true);
         if(this.editRevision!==revisionAtStart)continue;
         this.props.onClose();
@@ -204,14 +218,14 @@ export class EditorPage extends React.Component<Props,State>{
     if(this.state.doc.status!=='final'){this.setState({reviewMode:mode,mobilePreview:false});return;}
     try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
     this.setState({issuing:true,mobilePreview:false,errors:{}});
-    try{await this.props.onPrint(structuredClone(this.state.doc),mode);}
+    try{await this.props.onPrint(this.state.doc,mode);}
     catch(e){this.setGlobalError(e instanceof Error?e.message:t('Unable to prepare document.','تعذر تجهيز المستند.'));}
     finally{this.setState({issuing:false});}
   };
   private issueAndContinue=async()=>{
     const mode=this.state.reviewMode;if(!mode)return;
     const alreadyFinal=this.state.doc.status==='final';
-    const finalDoc=alreadyFinal?structuredClone(this.state.doc):{...structuredClone(this.state.doc),status:'final' as const,updatedAt:new Date().toISOString()};
+    const finalDoc=alreadyFinal?this.state.doc:{...this.state.doc,status:'final' as const,updatedAt:new Date().toISOString()};
     this.setState({issuing:true,errors:{}});
     try{
       if(!alreadyFinal){
@@ -219,9 +233,6 @@ export class EditorPage extends React.Component<Props,State>{
         await new Promise<void>(resolve=>this.setState({doc:finalDoc,saveState:'saved'},resolve));
       }
       if(mode!=='issue'){
-        // Draft PDF/share actions open the review step before the output bridge
-        // is armed. Preserve the requested mode after issuing so iPhone does
-        // not fall back to the wrong output action.
         try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
         await this.props.onPrint(finalDoc,mode);
       }
@@ -232,7 +243,7 @@ export class EditorPage extends React.Component<Props,State>{
     if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
     this.setState({unlockConfirm:false,saving:true,saveState:'saving',errors:{}});
     try{
-      const doc=await this.props.onBeginRevision(structuredClone(this.state.doc));
+      const doc=await this.props.onBeginRevision(this.state.doc);
       this.setState({doc,saving:false,saveState:'saved'});
     }catch(e){
       this.setState({saving:false,saveState:'saved',errors:{global:e instanceof Error?e.message:t('Unable to start revision.','تعذر بدء المراجعة.')}});
@@ -248,8 +259,6 @@ export class EditorPage extends React.Component<Props,State>{
       return {...next,dueDate:addDaysIso(value,validityDays)};
     }
     if(d.kind==='rfq'){if(!isIsoDate(value)||!d.dueDate)return next;const responseDays=daysBetweenIso(d.issueDate,d.dueDate);return responseDays===null?next:{...next,dueDate:addDaysIso(value,responseDays)};}
-    // A purchase order owns an explicit requested-delivery date. Changing the
-    // order date must never apply customer invoice terms or overwrite delivery.
     if(d.kind!=='invoice')return next;
     const preset=paymentTermPresetById(this.props.company,d.paymentTermPresetId);
     if(preset)return applyPaymentTermPreset(next,preset);
@@ -266,7 +275,7 @@ export class EditorPage extends React.Component<Props,State>{
   private selectCustomer=(c:Customer)=>{this.mutate(d=>{const next={...d,customerSnapshot:customerSnapshotFrom(c)};return documentUsesCommercialDefaults(d.kind)?applyCustomerCommercialDefaults(next,c,this.props.company):next;});this.setState({customerQuery:(isArabic()?c.companyNameAr:c.companyNameEn)||c.companyNameEn||c.companyNameAr,customerOpen:false});};
   private changeCustomer=()=>this.setState({customerQuery:'',customerOpen:true});
   private toggleItemDetails=(id:string)=>this.setState(state=>({expandedItems:{...state.expandedItems,[id]:!state.expandedItems[id]}}));
-  private duplicateItem=(item:DocumentItem)=>this.mutate(doc=>{const clone=structuredClone(item);clone.id=emptyItem().id;const at=doc.items.findIndex(x=>x.id===item.id);const items=[...doc.items];items.splice(at+1,0,clone);return {...doc,items};});
+  private duplicateItem=(item:DocumentItem)=>this.mutate(doc=>{const clone={...item,id:emptyItem().id};const at=doc.items.findIndex(x=>x.id===item.id);const items=[...doc.items];items.splice(at+1,0,clone);return {...doc,items};});
   private addCustomer=async()=>{const c=this.state.addCustomer;if(!c)return;if(!c.companyNameEn.trim()&&!c.companyNameAr.trim()){this.setState({addCustomerError:t('Company name is required.','اسم الشركة مطلوب.')});return;}try{await this.props.onSaveCustomer(c);this.selectCustomer(c);this.setState({addCustomer:null,addCustomerError:''});}catch(e){this.setState({addCustomerError:e instanceof Error?e.message:t('Unable to save customer.','تعذر حفظ العميل.')});}};
   private suggestionItems=(item:DocumentItem):SavedItem[]=>{
     const q=(item.descriptionEn.trim()||item.descriptionAr.trim()).toLowerCase();if(!q)return [];
@@ -356,7 +365,7 @@ export class EditorPage extends React.Component<Props,State>{
       <section className="preview-pane"><div className="preview-toolbar"><span>{t('Live A4 Preview','معاينة A4 مباشرة')}</span><span className={`preview-quality-pill ${quality.some(item=>item.level==='warning')?'has-warning':'clean'}`}>{quality.length?`${quality.length} ${t('quality notes','تنبيهات جودة')}`:t('Quality check passed','فحص الجودة ناجح')}</span></div><div className="preview-stage">{this.state.desktopPreview?<TemplateRenderer document={this.state.previewDoc} scale={0.82}/>:null}</div></section></div>
       <div className="editor-section-nav-slot" data-editor-nav-slot/>
       <div className={`mobile-editor-actionbar mobile-workflow-${workflow}`} role="toolbar" aria-label={t('Document actions','إجراءات المستند')}><div className="mobile-total"><span>{isPurchaseOrder?t('Order Total','إجمالي الطلب'):t('Grand Total','الإجمالي')}</span><strong>{formatMoney(totals.grandTotal,d.currency)}</strong></div><div className="mobile-action-buttons">{locked?(revisionAllowed?<Button icon="edit" variant="primary" onClick={()=>this.setState({unlockConfirm:true})}>{t('Revise','مراجعة')}</Button>:null):readiness.ready?<Button icon="check" variant="primary" onClick={()=>this.openReview('issue')}>{t('Issue','إصدار')}</Button>:<Button icon="save" variant="primary" disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save','حفظ')}</Button>}<Button icon="eye" disabled={this.state.issuing} onClick={()=>this.setState({mobilePreview:true})}>{t('Preview','معاينة')}</Button><Button icon="download" disabled={this.state.issuing} onClick={()=>void this.output('pdf')}>PDF</Button><Button icon="share" disabled={this.state.issuing} onClick={()=>void this.output('share')}>{t('Share','مشاركة')}</Button></div></div>
-      <div className="mobile-preview-overlay" aria-hidden={!this.state.mobilePreview}><header><strong>{t('Preview','معاينة')}</strong><div><Button icon="download" disabled={this.state.issuing} onClick={()=>void this.output('pdf')}>PDF</Button><Button icon="share" disabled={this.state.issuing} onClick={()=>void this.output('share')}>{t('Share','مشاركة')}</Button><IconButton icon="x" label={t('Close','إغلاق')} onClick={()=>this.setState({mobilePreview:false})}/></div></header><div className="mobile-preview-stage"><TemplateRenderer document={d} scale={0.48}/></div></div>
+      <div className="mobile-preview-overlay" aria-hidden={!this.state.mobilePreview}><header><strong>{t('Preview','معاينة')}</strong><div><Button icon="download" disabled={this.state.issuing} onClick={()=>void this.output('pdf')}>PDF</Button><Button icon="share" disabled={this.state.issuing} onClick={()=>void this.output('share')}>{t('Share','مشاركة')}</Button><IconButton icon="x" label={t('Close','إغلاق')} onClick={()=>this.setState({mobilePreview:false})}/></div></header><div className="mobile-preview-stage"><TemplateRenderer document={previewDocument(d)} scale={0.48}/></div></div>
       <ConfirmDialog open={this.state.confirmClose} title={t('Discard unsaved changes?','تجاهل التغييرات غير المحفوظة؟')} message={t('Your latest changes have not been saved.','لم يتم حفظ آخر تغييراتك.')} confirmLabel={t('Discard','تجاهل')} destructive onCancel={()=>this.setState({confirmClose:false})} onConfirm={()=>this.props.onClose()}/>
       <ConfirmDialog open={this.state.unlockConfirm} title={t('Create a safe revision?','إنشاء مراجعة آمنة؟')} message={t('The current Final is saved permanently in Document History before Revision '+String(d.revision+1)+' opens. The document number stays unchanged.','سيتم حفظ النسخة النهائية الحالية بشكل دائم في سجل المستند قبل فتح المراجعة '+String(d.revision+1)+'، وسيبقى رقم المستند كما هو.')} confirmLabel={t('Create Revision','إنشاء مراجعة')} destructive={false} onCancel={()=>this.setState({unlockConfirm:false})} onConfirm={()=>void this.unlockFinal()}/>
       <Modal open={Boolean(this.state.addCustomer)} title={t('New Customer','عميل جديد')} size="lg" onClose={()=>this.setState({addCustomer:null,addCustomerError:''})} footer={<div className="modal-footer-actions"><Button onClick={()=>this.setState({addCustomer:null})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" onClick={()=>void this.addCustomer()}>{t('Save & Select','حفظ واختيار')}</Button></div>}>{this.state.addCustomer?<CustomerForm company={this.props.company} customer={this.state.addCustomer} onChange={addCustomer=>this.setState({addCustomer})}/>:null}{this.state.addCustomerError?<div className="inline-error">{this.state.addCustomerError}</div>:null}</Modal>
