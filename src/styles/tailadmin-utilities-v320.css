@@ -21,3 +21,29 @@
 
   [dir="rtl"] :where(.mf-theme-control,.mf-theme-toggle-control){direction:rtl!important}
 }
+
+/* v320 mobile/touch contract: every frequently tapped chrome or segmented
+   action keeps a 44px physical target. This is presentation-only and leaves
+   navigation, search, filters and document logic untouched. */
+@media screen and (max-width:900px), screen and (pointer:coarse) {
+  .app-ui .ta-mobile-brand>button,
+  .app-ui .ta-search-trigger,
+  .app-ui .ta-theme-control .mf-theme-toggle{
+    width:44px!important;
+    min-width:44px!important;
+    height:44px!important;
+    min-height:44px!important;
+  }
+
+  .app-ui :where(
+    .ta-doc-type-tabs>button,
+    .ta-domain-tabs>button,
+    .ta-range-control>button,
+    .ta-segmented-control>button,
+    .segmented>button,
+    .global-search-destinations>button,
+    .global-search-section-title>button
+  ){
+    min-height:44px!important;
+  }
+}
