@@ -2,12 +2,9 @@
   'use strict';
 
   const pendingKindKey='lourex:pending-document-kind';
-  const styleMarker='data-lourex-v303-coherence';
   const attachmentStyleMarker='data-lourex-v304-attachments';
   const mobileCloseoutStyleMarker='data-lourex-v305-mobile-closeout';
   const releaseHardeningStyleMarker='data-lourex-v306-release-hardening';
-  const settingsMoreStyleMarker='data-lourex-v307-loading-more-settings';
-  const auditStyleMarker='data-lourex-v311-release-audit';
   const sessionMarkerKey='lourex-invoice-session-v1';
   const accountScopeRecoveryKey='lourex-account-scope-recovery-v317';
   const iosRuntimeRepairKey='lourex-ios-runtime-repair-v317';
@@ -43,20 +40,20 @@
     document.head.appendChild(link);
   }
 
-  function ensureVisualCoherence(){
-    ensureStylesheet(styleMarker,'./visual-coherence-v303.css?v=303');
+  /* v320: only feature/reliability layers remain runtime-injected here.
+     Retired visual-coherence, Settings/More and release-audit themes must never
+     re-enter after TailAdmin has taken ownership of those surfaces. */
+  function ensureRuntimeReliability(){
     ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');
     ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');
     ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');
-    ensureStylesheet(settingsMoreStyleMarker,'./loading-more-settings-v307.css?v=307');
-    ensureStylesheet(auditStyleMarker,'./release-audit-v311.css?v=311');
 
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){
-      root.style.backgroundColor='#061820';
-      if(document.body)document.body.style.backgroundColor='#061820';
+      root.style.backgroundColor='#0c111d';
+      if(document.body)document.body.style.backgroundColor='#0c111d';
       const theme=document.querySelector('meta[name="theme-color"]');
-      if(theme)theme.setAttribute('content','#061820');
+      if(theme)theme.setAttribute('content','#0c111d');
     }
   }
 
@@ -161,10 +158,6 @@
     window.setTimeout(finish,80);
   }
 
-  // Safari/WebKit can restore Firebase after the public setup screen has already
-  // mounted. Reload at most once per account in a tab session. If setup is still
-  // visible after that single recovery reload, stay on the page instead of entering
-  // an endless 15-second reload loop that eventually crashes iPhone Safari.
   function recoverLateAuthenticatedAccount(){
     const setup=document.querySelector('.account-managed-setup');
     if(!setup)return;
@@ -186,7 +179,7 @@
   let scheduled=false;
   function reconcile(){
     scheduled=false;
-    ensureVisualCoherence();
+    ensureRuntimeReliability();
     normalizeAuthControls();
     normalizeSecurityCopy();
     removeLegacyInjectedControls();
@@ -222,7 +215,7 @@
   }
 
   retireStaleIosRuntime();
-  ensureVisualCoherence();
+  ensureRuntimeReliability();
   document.addEventListener('click',rememberNativeDocumentKind,true);
   document.addEventListener('click',enforceSignOutBoundary,true);
   window.addEventListener('lourex-cloud-refresh-available',recoverLateAuthenticatedAccount);
