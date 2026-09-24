@@ -117,6 +117,7 @@ const App=AdaptiveCloudApp;
 
 let accountWasAuthenticated=false;
 let signOutTransitionRunning=false;
+let accountBoundaryGeneration=0;
 
 const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen';
 type RestorableWorkspace='home'|'documents'|'customers'|'receivables'|'reports'|'items';
@@ -219,24 +220,48 @@ async function resolveRequiredAccountSession():Promise<boolean>{
   return false;
 }
 
+function runAccountBoundaryWhenSafe(action:()=>Promise<void>):void{
+  const generation=++accountBoundaryGeneration;
+  const attempt=()=>{
+    if(generation!==accountBoundaryGeneration)return;
+    if(reloadUnsafeWorkspaceOpen()){
+      window.setTimeout(attempt,250);
+      return;
+    }
+    void action();
+  };
+  attempt();
+}
+
+function cancelDeferredAccountBoundary():void{accountBoundaryGeneration+=1;}
+
 function startAccountSignOutWatcher():void{
   subscribeCloudUser(user=>{
     if(user){
+      // If Firebase briefly reported a signed-out state while this same account's
+      // editor was active, cancel the deferred boundary transition instead of
+      // ejecting the user from a valid local editing session.
+      const selectedStorageUid=activeAccountStorageUid();
+      if(signOutTransitionRunning&&selectedStorageUid===user.uid){
+        cancelDeferredAccountBoundary();
+        signOutTransitionRunning=false;
+        setActiveAccountUid(user.uid);
+        accountWasAuthenticated=true;
+        return;
+      }
       // The selected IndexedDB scope is the authoritative runtime boundary.
       // localStorage markers are shared by browser tabs and therefore must not
       // be trusted to decide whether this live workspace belongs to the new UID.
-      const selectedStorageUid=activeAccountStorageUid();
       if(selectedStorageUid&&selectedStorageUid!==user.uid){
         if(signOutTransitionRunning)return;
         signOutTransitionRunning=true;
         accountWasAuthenticated=false;
-        void (async()=>{
+        runAccountBoundaryWhenSafe(async()=>{
           try{
             // Firebase can replace one authenticated user with another without
-            // emitting an intermediate signed-out state. Never keep account A's
-            // React workspace alive while account B is authenticated. Destroy A's
-            // usable key in A's own database, move to the public scope, then reload.
-            // Startup will select B's physical database before reading any vault.
+            // emitting an intermediate signed-out state. Keep account A's local
+            // editor alive only until it is closed; then destroy A's usable key,
+            // move to the public scope and reload into the new account boundary.
             await activateAccountStorage(selectedStorageUid);
             await suspendSession();
           }finally{
@@ -244,7 +269,7 @@ function startAccountSignOutWatcher():void{
             await activateAccountStorage(null);
             window.location.reload();
           }
-        })();
+        });
         return;
       }
       if(!selectedStorageUid){
@@ -272,10 +297,11 @@ function startAccountSignOutWatcher():void{
 
     signOutTransitionRunning=true;
     accountWasAuthenticated=false;
-    void (async()=>{
+    runAccountBoundaryWhenSafe(async()=>{
       try{
-        // Keep the old account scope selected until its usable key is removed.
-        // Only then expose the signed-out public scope and reload the gateway.
+        // A transient/auth-expiry event must not reload a live document editor.
+        // Keep the old account scope and its encrypted local autosave available
+        // until the editor/data-entry surface is closed, then enforce sign-out.
         await suspendSession();
       }finally{
         setActiveAccountUid(null);
@@ -283,7 +309,7 @@ function startAccountSignOutWatcher():void{
         try{sessionStorage.setItem('lourex-auth-just-signed-out','1');}catch{}
         window.location.reload();
       }
-    })();
+    });
   });
 }
 
