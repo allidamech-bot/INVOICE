@@ -1,6 +1,7 @@
-/* LOUREX v322 — mobile header action correction.
+/* LOUREX v322 — mobile header and action geometry correction.
  * Keep the Advisor available without allowing a floating launcher to cover
  * dashboard cards, document rows, sheets, or the bottom navigation dock.
+ * Keep document primary actions inside the phone viewport as a deliberate grid.
  */
 @media screen and (max-width:900px){
   html body .lourex-ai-launcher,
@@ -27,5 +28,31 @@
     opacity:0!important;
     pointer-events:none!important;
     transform:none!important;
+  }
+
+  html body .app-ui .ta-documents-header-actions{
+    width:100%!important;
+    min-width:0!important;
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+    overflow:visible!important;
+  }
+  html body .app-ui .ta-documents-header-actions>.btn{
+    width:100%!important;
+    min-width:0!important;
+    min-height:44px!important;
+    padding:8px 10px!important;
+    border-radius:11px!important;
+    font-size:11px!important;
+    line-height:15px!important;
+    white-space:normal!important;
+    text-align:center!important;
+    justify-content:center!important;
+  }
+  html body .app-ui .ta-documents-header-actions>.btn .icon{
+    flex:0 0 auto!important;
+    width:17px!important;
+    height:17px!important;
   }
 }
