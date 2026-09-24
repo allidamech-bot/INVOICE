@@ -58,13 +58,14 @@
     ensureStylesheet('data-lourex-overlays-v314','./styles/overlays-canonical-v314.css?v=314');
   }
 
-  function retireReplacedShellLayers(){
+  function retireReplacedLayers(){
     var replaced=[
       'app-shell-v161.css',
       'mobile-shell-v71.css',
       'fintech-shell-v280.css',
       'shell-canonical-v314.css',
-      'shell-overlays-v314.css'
+      'shell-overlays-v314.css',
+      'home-canonical-v314.css'
     ];
     document.querySelectorAll('link[rel="stylesheet"][href]').forEach(function(link){
       var href=String(link.getAttribute('href')||'');
@@ -73,9 +74,10 @@
   }
 
   function installTailAdminV320(){
-    retireReplacedShellLayers();
+    retireReplacedLayers();
     ensureStylesheet('data-lourex-tailadmin-v320','./styles/tailadmin-finance-v320.css?v=320');
     ensureStylesheet('data-lourex-tailadmin-shell-v320','./styles/tailadmin-shell-v320.css?v=320-2');
+    ensureStylesheet('data-lourex-tailadmin-dashboard-v320','./styles/tailadmin-dashboard-v320.css?v=320-2');
   }
 
   function install(){
