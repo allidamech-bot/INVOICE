@@ -45,6 +45,7 @@
     retireHistoricalHomeStyles();
     ensureStylesheet('data-lourex-home-v314','./styles/home-canonical-v314.css?v=314');
     ensureStylesheet('data-lourex-shell-v314','./styles/shell-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-shell-overlays-v314','./styles/shell-overlays-v314.css?v=314');
   }
 
   function install(){
