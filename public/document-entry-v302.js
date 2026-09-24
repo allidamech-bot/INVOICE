@@ -67,8 +67,8 @@
 
   function rememberNativeDocumentKind(event){
     const target=event.target;if(!(target instanceof Element))return;
-    const button=target.closest('.shell-new-menu button[role="menuitem"]');if(!(button instanceof HTMLButtonElement))return;
-    const menu=button.closest('.shell-new-menu');if(!(menu instanceof HTMLElement))return;
+    const button=target.closest('.ta-create-menu button[role="menuitem"],.shell-new-menu button[role="menuitem"]');if(!(button instanceof HTMLButtonElement))return;
+    const menu=button.closest('.ta-create-menu,.shell-new-menu');if(!(menu instanceof HTMLElement))return;
     const buttons=Array.from(menu.querySelectorAll('button[role="menuitem"]'));const index=buttons.indexOf(button);const explicit=button.dataset.kind||'';
     const fallbackKinds=['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt','credit-note','statement-account'];
     const kind=explicit||fallbackKinds[index]||'';const creatableKinds=new Set(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt']);
