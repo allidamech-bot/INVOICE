@@ -402,7 +402,7 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
     const mergedQuantity=inventoryQuantity(itemId,movements);
     if(mergedQuantity<0n&&mergedQuantity<latestQuantity)throw new Error('Inventory cannot fall below zero. Reduce the issue or restore stock before reversing it.');
   }
-  guardSavedItemInventoryRemoval(base,intended,purchases,movements);
+  guardSavedItemInventoryRemoval(base,intended,purchases,inventoryMovements);
 }
 
 function mergeCompany(base:CompanySettings,intended:CompanySettings,latest:CompanySettings):CompanySettings{
@@ -425,7 +425,7 @@ function mergeAppSettings(base:AppSettings,intended:AppSettings,latest:AppSettin
   const next:AppSettings={...latest,numbering:{...latest.numbering},smartDefaults:{...latest.smartDefaults,favoriteTemplateIds:[...latest.smartDefaults.favoriteTemplateIds]}};
   if(intended.autoLockMinutes!==base.autoLockMinutes)next.autoLockMinutes=intended.autoLockMinutes;
   if(intended.uiLanguage!==base.uiLanguage)next.uiLanguage=intended.uiLanguage;
-  const numberingKeys:Array<keyof AppSettings['numbering']>=['proformaPrefix','invoicePrefix','creditNotePrefix','purchaseOrderPrefix','proformaLast','invoiceLast','creditNoteLast','purchaseOrderLast','proformaYear','invoiceYear','creditNoteYear','purchaseOrderYear'];
+  const numberingKeys:Array<keyof AppSettings['numbering']>=['proformaPrefix','invoicePrefix','creditNotePrefix','purchaseOrderPrefix','draftPrefix','proformaLast','invoiceLast','creditNoteLast','purchaseOrderLast','draftLast','proformaYear','invoiceYear','creditNoteYear','purchaseOrderYear','draftYear'];
   for(const key of numberingKeys)if(intended.numbering[key]!==base.numbering[key])(next.numbering as any)[key]=intended.numbering[key];
   const smartKeys:Array<Exclude<keyof AppSettings['smartDefaults'],'favoriteTemplateIds'>>=['currency','language','incoterm','paymentTerms','deliveryTime','quoteTemplateId','invoiceTemplateId'];
   for(const key of smartKeys)if(intended.smartDefaults[key]!==base.smartDefaults[key])(next.smartDefaults as any)[key]=intended.smartDefaults[key];
