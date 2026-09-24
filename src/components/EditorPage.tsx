@@ -231,7 +231,11 @@ export class EditorPage extends React.Component<Props,State>{
     if(this.outputPromise)return this.outputPromise;
     const operation=(async()=>{
       try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
-      await this.props.onPrint(doc,mode);
+      // Supporting attachments are not part of the printable A4 document. Keep
+      // their base64 payloads out of App.requestPrint(), which deep-clones the
+      // output document before mounting the print portal.
+      const outputDocument=doc.attachments?.length?{...doc,attachments:[]}:doc;
+      await this.props.onPrint(outputDocument,mode);
     })().finally(()=>{if(this.outputPromise===operation)this.outputPromise=null;});
     this.outputPromise=operation;
     return operation;

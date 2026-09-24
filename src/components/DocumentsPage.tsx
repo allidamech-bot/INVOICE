@@ -6,7 +6,7 @@ import { invoicePaymentSummary } from '../lib/payments.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { Button, Icon, IconButton, Input, Select } from './UI.js';
 import { letterPlainText } from '../lib/document-extras.js';
-import { documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';
+import { documentCanConvertToInvoice, documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';
 
 interface Props {
   documents: LourexDocument[];
@@ -187,7 +187,7 @@ export class DocumentsPage extends React.Component<Props,State>{
   };
 
   private linkedInvoiceForQuote=(doc:LourexDocument):LourexDocument|undefined=>{
-    if(doc.kind!=='proforma'||doc.role!=='standard')return undefined;
+    if(!documentCanConvertToInvoice(doc.kind)||doc.role!=='standard')return undefined;
     return this.props.documents.find(item=>item.kind==='invoice'&&item.role==='standard'&&item.convertedFromId===doc.id&&item.lifecycleStatus!=='voided');
   };
 
@@ -226,7 +226,13 @@ export class DocumentsPage extends React.Component<Props,State>{
     if(this.state.outputId)return;
     this.reserveOutput(mode);
     this.setState({menuId:'',outputId:doc.id});
-    try{await this.props.onPrint(doc,mode);}catch{/* App surfaces actionable output errors. */}
+    try{
+      // Supporting attachments are not rendered in the A4 document. Removing
+      // their base64 payloads from output preparation prevents App.requestPrint()
+      // from deep-cloning multi-megabyte files on iPhone/Safari.
+      const outputDocument=doc.attachments?.length?{...doc,attachments:[]}:doc;
+      await this.props.onPrint(outputDocument,mode);
+    }catch{/* App surfaces actionable output errors. */}
     finally{this.setState({outputId:''});}
   };
   private clearFilters=()=>this.setState({tab:'all',status:'all',payment:'all',currency:'all',query:'',sort:'latest',menuId:'',filtersOpen:false});
@@ -238,7 +244,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     const canOutput=doc.kind==='draft'||doc.status==='final';
     const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
     const linkedInvoice=this.linkedInvoiceForQuote(doc);
-    const canConvert=Boolean(this.props.onConvert&&doc.kind==='proforma'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
+    const canConvert=Boolean(this.props.onConvert&&documentCanConvertToInvoice(doc.kind)&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
     const standardFinalInvoice=doc.kind==='invoice'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided';
     const canCollect=Boolean(this.props.onRecordPayment&&standardFinalInvoice&&invoicePaymentSummary(doc,this.props.payments,undefined,this.props.documents).status!=='paid');
     const canCredit=Boolean(this.props.onCreateCreditNote&&standardFinalInvoice);
@@ -288,7 +294,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     const sourceInvoice=doc.creditForId?this.props.documents.find(item=>item.id===doc.creditForId):undefined;
     const creditNotes=doc.kind==='invoice'&&doc.role==='standard'?this.props.documents.filter(item=>item.role==='credit-note'&&item.creditForId===doc.id):[];
     const relatedDocuments=[linkedInvoice,sourceQuote,sourceInvoice,...creditNotes].filter((item,index,array):item is LourexDocument=>Boolean(item&&item.id!==doc.id)&&array.findIndex(candidate=>candidate?.id===item?.id)===index);
-    const canConvert=Boolean(this.props.onConvert&&doc.kind==='proforma'&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
+    const canConvert=Boolean(this.props.onConvert&&documentCanConvertToInvoice(doc.kind)&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
 
     return <section className="page document-detail-page">
       <div className="document-detail-topbar">
