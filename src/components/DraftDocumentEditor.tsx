@@ -14,6 +14,8 @@ interface Props{
 }
 interface State{
   doc:LourexDocument;
+  previewDoc:LourexDocument;
+  desktopPreview:boolean;
   saving:boolean;
   saveState:'saved'|'saving'|'unsaved';
   mobilePreview:boolean;
@@ -24,32 +26,44 @@ interface State{
 
 const FONT_OPTIONS:Array<[LetterBlock['font'],string]>=[['system','System'],['inter','Inter'],['source-sans','Source Sans'],['montserrat','Montserrat'],['playfair','Playfair'],['cairo','Cairo'],['tajawal','Tajawal'],['noto-kufi','Noto Kufi Arabic'],['noto-naskh','Noto Naskh Arabic']];
 const SIZE_OPTIONS=[10,11,12,13,14,15,16,18,20,22,24,28,32,36,42,48];
+const IOS_WEBKIT=(()=>{try{return /iP(?:hone|ad|od)/i.test(navigator.userAgent||'');}catch{return false;}})();
 
 export class DraftDocumentEditor extends React.Component<Props,State>{
   private autosaveTimer:number|undefined;
+  private previewTimer:number|undefined;
+  private previewMedia:MediaQueryList|null=null;
   private revision=0;
   private departureFlushQueued=false;
   constructor(props:Props){
     super(props);
-    const doc=structuredClone(props.document);
+    // Draft edits are immutable below this component. Avoid a full structuredClone
+    // on entry; this is especially important if a migrated/duplicated Draft ever
+    // carries attachment metadata or other large immutable payloads.
+    const doc={...props.document};
     doc.letter=normalizeLetterData(doc.letter??defaultLetterData(doc.language),doc.language);
     doc.appearance={...doc.appearance,watermark:normalizeWatermark(doc.appearance.watermark??defaultWatermark())};
-    this.state={doc,saving:false,saveState:'saved',mobilePreview:false,outputBusy:false,activeBlockId:doc.letter.blocks[0]?.id||'',error:''};
+    const desktopPreview=typeof window==='undefined'||window.matchMedia('(min-width:1181px)').matches;
+    this.state={doc,previewDoc:doc,desktopPreview,saving:false,saveState:'saved',mobilePreview:false,outputBusy:false,activeBlockId:doc.letter.blocks[0]?.id||'',error:''};
   }
   componentDidMount():void{
     document.documentElement.setAttribute('data-lourex-document-editor',this.state.doc.id||'draft');
     document.addEventListener('visibilitychange',this.handleVisibilityChange);
     window.addEventListener('beforeunload',this.handleBeforeUnload);
     window.addEventListener('pagehide',this.handlePageHide);
+    this.previewMedia=window.matchMedia('(min-width:1181px)');
+    this.previewMedia.addEventListener?.('change',this.handlePreviewMedia);
   }
   componentWillUnmount():void{
     document.removeEventListener('visibilitychange',this.handleVisibilityChange);
     window.removeEventListener('beforeunload',this.handleBeforeUnload);
     window.removeEventListener('pagehide',this.handlePageHide);
+    this.previewMedia?.removeEventListener?.('change',this.handlePreviewMedia);
     if(document.documentElement.getAttribute('data-lourex-document-editor')===(this.state.doc.id||'draft'))document.documentElement.removeAttribute('data-lourex-document-editor');
     if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);
+    if(this.previewTimer)window.clearTimeout(this.previewTimer);
     this.flushPendingSnapshot();
   }
+  private handlePreviewMedia=(event:MediaQueryListEvent)=>this.setState(state=>({desktopPreview:event.matches,previewDoc:event.matches?state.doc:state.previewDoc}));
   private handleVisibilityChange=()=>{if(document.visibilityState!=='hidden'||this.state.saveState==='saved')return;if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);void this.save(true);};
   private handleBeforeUnload=(event:BeforeUnloadEvent)=>{if(this.state.saveState==='saved'&&!this.state.saving)return;this.flushPendingSnapshot();event.preventDefault();event.returnValue='';};
   private handlePageHide=()=>this.flushPendingSnapshot();
@@ -57,7 +71,7 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
     if(this.departureFlushQueued||this.state.saveState==='saved'&&!this.state.saving)return;
     this.departureFlushQueued=true;
     if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);
-    const snapshot=structuredClone(this.state.doc);
+    const snapshot=this.state.doc;
     void this.props.onSave(snapshot,true).catch(()=>{this.departureFlushQueued=false;});
   };
 
@@ -67,13 +81,21 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
     this.departureFlushQueued=false;
     this.revision+=1;
     const doc={...fn(this.state.doc),updatedAt:new Date().toISOString()};
-    this.setState({doc,saveState:'unsaved',error:''},this.schedule);
+    this.setState({doc,saveState:'unsaved',error:''},()=>{this.schedule();this.schedulePreview();});
   };
-  private schedule=()=>{if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);this.autosaveTimer=window.setTimeout(()=>void this.save(true),550);};
+  private autosaveDelay=()=>IOS_WEBKIT?1600:900;
+  private schedule=()=>{if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);this.autosaveTimer=window.setTimeout(()=>void this.save(true),this.autosaveDelay());};
+  private schedulePreview=()=>{
+    if(!this.state.desktopPreview)return;
+    if(this.previewTimer)window.clearTimeout(this.previewTimer);
+    // The A4 renderer is intentionally kept off the keystroke path. On iPhone it
+    // is not mounted at all until the user explicitly opens Preview.
+    this.previewTimer=window.setTimeout(()=>this.setState({previewDoc:this.state.doc}),260);
+  };
   private save=async(auto=false)=>{
-    if(this.state.saving)return;
+    if(this.state.saving){if(auto)this.schedule();return;}
     if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);
-    const doc=structuredClone(this.state.doc);
+    const doc=this.state.doc;
     if(!doc.number.trim()){this.setState({error:t('Document number is required.','رقم المستند مطلوب.')});return;}
     if(!doc.issueDate){this.setState({error:t('Document date is required.','تاريخ المستند مطلوب.')});return;}
     const start=this.revision;
@@ -85,7 +107,7 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
     if(this.autosaveTimer)window.clearTimeout(this.autosaveTimer);
     while(this.state.saving)await new Promise<void>(resolve=>window.setTimeout(resolve,40));
     for(;;){
-      const doc=structuredClone(this.state.doc);
+      const doc=this.state.doc;
       if(!doc.number.trim()){this.setState({error:t('Document number is required.','رقم المستند مطلوب.'),saveState:'unsaved'});return null;}
       if(!doc.issueDate){this.setState({error:t('Document date is required.','تاريخ المستند مطلوب.'),saveState:'unsaved'});return null;}
       const start=this.revision;
@@ -101,7 +123,7 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
   private saveAndClose=async()=>{if(this.state.saveState==='saved'){this.props.onClose();return;}const saved=await this.persistStable();if(saved)this.props.onClose();};
   private output=async(mode:'print'|'pdf'|'share')=>{
     if(this.state.outputBusy)return;
-    const doc=this.state.saveState==='saved'?structuredClone(this.state.doc):await this.persistStable();
+    const doc=this.state.saveState==='saved'?this.state.doc:await this.persistStable();
     if(!doc)return;
     try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
     this.setState({outputBusy:true,error:'',mobilePreview:false});
@@ -147,7 +169,7 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
         </section>
 
         <section className="draft-control-section draft-content-section"><div className="draft-section-heading with-action"><span>03</span><div><h2>{t('Content studio','استديو الكتابة')}</h2><p>{t('Compose structured content with independent RTL/LTR and typography per block.','اكتب المحتوى مع تحكم مستقل بالاتجاه والخط لكل فقرة.')}</p></div><Button icon="plus" variant="primary" onClick={()=>this.addBlock('paragraph')}>{t('Add block','إضافة فقرة')}</Button></div><div className="draft-quick-add"><button type="button" onClick={()=>this.addBlock('heading')}>{t('Heading','عنوان')}</button><button type="button" onClick={()=>this.addBlock('paragraph')}>{t('Paragraph','فقرة')}</button><button type="button" onClick={()=>this.addBlock('bullet')}>{t('Bullet','نقطة')}</button><button type="button" onClick={()=>this.addBlock('quote')}>{t('Quote','اقتباس')}</button><button type="button" onClick={()=>this.addBlock('spacer')}>{t('Space','مسافة')}</button></div><div className="draft-block-list">{blocks.map((block,index)=><article key={block.id} className={`draft-block-card ${this.state.activeBlockId===block.id?'active':''}`} onFocus={()=>this.setState({activeBlockId:block.id})}>{this.blockToolbar(block,index,blocks.length)}{block.type!=='spacer'?<Textarea dir={block.direction} rows={block.type==='heading'?2:5} value={block.text} placeholder={block.type==='heading'?t('Write a heading…','اكتب عنوانًا…'):t('Write freely here…','اكتب هنا بحرية…')} onChange={(e:any)=>this.patchBlock(block.id,{text:e.target.value})}/>:<div className="draft-spacer-preview">{t('Flexible vertical space','مسافة عمودية مرنة')}</div>}<div className="draft-block-spacing"><label>{t('Line height','تباعد السطور')}<input type="range" min="1" max="2.6" step="0.05" value={block.lineHeight} onChange={(e:any)=>this.patchBlock(block.id,{lineHeight:Number(e.target.value)})}/><span>{block.lineHeight.toFixed(2)}</span></label><label>{t('Space after','مسافة بعد')}<input type="range" min="0" max="48" step="2" value={block.spacingAfter} onChange={(e:any)=>this.patchBlock(block.id,{spacingAfter:Number(e.target.value)})}/><span>{block.spacingAfter}px</span></label></div></article>)}</div></section>
-      </div></aside><section className="draft-studio-preview"><header><div><small>{t('Live A4 preview','معاينة A4 مباشرة')}</small><strong>{letter.subject||t('Untitled company document','مستند شركة بدون عنوان')}</strong></div><span>{t('Print-ready','جاهز للطباعة')}</span></header><div className="draft-preview-stage"><DraftDocumentRenderer document={d} scale={0.78}/></div></section></div>
+      </div></aside><section className="draft-studio-preview"><header><div><small>{t('Live A4 preview','معاينة A4 مباشرة')}</small><strong>{letter.subject||t('Untitled company document','مستند شركة بدون عنوان')}</strong></div><span>{t('Print-ready','جاهز للطباعة')}</span></header><div className="draft-preview-stage">{this.state.desktopPreview?<DraftDocumentRenderer document={this.state.previewDoc} scale={0.78}/>:null}</div></section></div>
       <div className={`draft-mobile-actionbar state-${this.state.saveState}`}><Button icon="eye" onClick={()=>this.setState({mobilePreview:true})}>{t('Preview','معاينة')}</Button><Button icon="download" disabled={this.state.outputBusy} onClick={()=>void this.output('pdf')}>PDF</Button><Button icon="share" disabled={this.state.outputBusy} onClick={()=>void this.output('share')}>{t('Share','مشاركة')}</Button><Button icon="save" variant="primary" disabled={this.state.saving} onClick={()=>void this.save(false)}>{t('Save','حفظ')}</Button></div>
       {this.state.mobilePreview?<div className="mobile-preview-overlay draft-mobile-preview"><header><strong>{t('Draft Preview','معاينة المسودة')}</strong><IconButton icon="x" label={t('Close','إغلاق')} onClick={()=>this.setState({mobilePreview:false})}/></header><div className="mobile-preview-stage"><DraftDocumentRenderer document={d} scale={0.48}/></div></div>:null}
     </div>;
