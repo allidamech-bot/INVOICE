@@ -7,5 +7,12 @@
 .lourex-pull-refresh.is-refreshing{opacity:1;transform:translate(-50%,2px)}
 .lourex-pull-refresh.is-refreshing .lourex-pull-icon{animation:lourex-pull-spin .72s linear infinite;background:#B8A071;color:#11110F}
 @keyframes lourex-pull-spin{to{transform:rotate(360deg)}}
+
+/* A document editor is a protected data-entry surface. Prevent the browser/PWA
+   overscroll chain from reaching the viewport refresh gesture while keeping the
+   editor's own scroll containers fully touch-scrollable. */
+html[data-lourex-document-editor],html[data-lourex-document-editor] body{overscroll-behavior-y:none}
+html[data-lourex-document-editor] .editor-main,html[data-lourex-document-editor] .editor-screen,html[data-lourex-document-editor] .editor-scroll{overscroll-behavior-y:contain}
+
 @media (max-width:720px){html.lourex-pull-refresh-enabled{overscroll-behavior-y:contain}.lourex-pull-refresh{font-size:11.5px;min-height:40px;padding:7px 12px}.lourex-pull-icon{width:24px;height:24px}}
 @media print{.lourex-pull-refresh{display:none!important}}
