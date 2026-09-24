@@ -17,8 +17,8 @@ This branch replaces the legacy LOUREX visual system with the TailAdmin Finance 
 | Global TailAdmin tokens, typography, buttons, inputs, focus states | IN PROGRESS | 1-2 |
 | Desktop shell/sidebar/topbar/search | DONE | 2 |
 | Mobile shell/navigation/create menu/more sheet/safe areas | DONE | 2 |
-| Home / Finance dashboard | IN PROGRESS | 1-3 |
-| Documents register/search/filter/detail | IN PROGRESS | 1-3 |
+| Home / Finance dashboard | STRUCTURE DONE / QA PENDING | 1-3 |
+| Documents register/search/filter/detail | STRUCTURE DONE / QA PENDING | 1-3 |
 | Document editor / Draft Studio | TODO | 3 |
 | Customers + customer profile | TODO | 4 |
 | Products & Inventory | TODO | 4 |
@@ -40,6 +40,14 @@ This branch replaces the legacy LOUREX visual system with the TailAdmin Finance 
 The application shell is no longer the old shell with a TailAdmin color overlay. `AppShell.tsx` now renders a dedicated TailAdmin-style hierarchy for the sidebar, grouped navigation, top bar, global search trigger, account affordance, sync state, create-document menu, mobile bottom navigation and mobile More sheet. The v320 bootstrap retires the replaced shell-specific legacy style owners before installing the new structural shell stylesheet.
 
 The shell replacement deliberately keeps the existing callbacks and security/reliability contracts intact: navigation callbacks, Firebase sign-out, encrypted session clearing, cloud-conflict handling, AI navigation, create-document actions, overlay focus trapping and iPhone safe-area behavior remain functionally owned by the existing LOUREX logic.
+
+## Batch 3 structural replacement in progress
+
+`WorkspaceHome.tsx` now owns a TailAdmin Finance dashboard hierarchy rather than the old command-center markup. The financial calculations still come from LOUREX report, receivables, payments, inventory and daily-brief libraries; only the presentation hierarchy changed. Its previous canonical Home visual owner is retired by the v320 bootstrap.
+
+`DocumentsPage.tsx` now owns a TailAdmin document register and detail hierarchy. Search, filters, document lifecycle/status, quotation conversion, payments, credit notes, attachments, PDF/share preparation, keyboard navigation and iPhone attachment-memory safeguards remain on the existing LOUREX logic paths. Its old canonical document visual owners are retired by the v320 bootstrap.
+
+Home and Documents remain marked QA PENDING until dedicated Arabic/English, Light/Dark, mobile/tablet/desktop visual review is completed. Structural migration alone does not satisfy final acceptance.
 
 ## Acceptance rule
 No partial legacy styling is accepted at release. A page is only DONE when its shell, headings, controls, search, filters, tables/lists, cards, states, overlays, responsive behavior, RTL and dark mode all use the same TailAdmin visual grammar.
