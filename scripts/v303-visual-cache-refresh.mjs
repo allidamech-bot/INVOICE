@@ -3,16 +3,14 @@ import { readFile, writeFile } from 'node:fs/promises';
 const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 
-const generations=['302','303','304','305','306','307','308','309','310'];
-let promoted=false;
-for(const generation of generations){
-  const marker=`const CACHE = 'lourex-invoice-v${generation}';`;
-  if(!sw.includes(marker))continue;
-  sw=sw.replace(marker,`const CACHE = 'lourex-invoice-v311';\n// const CACHE = 'lourex-invoice-v${generation}'; preserved as the immediate pre-v311 cache generation.`);
-  promoted=true;
-  break;
+const activeCacheMatch=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
+const activeCacheGeneration=activeCacheMatch?Number(activeCacheMatch[1]):0;
+if(activeCacheGeneration>0&&activeCacheGeneration<311){
+  const marker=activeCacheMatch![0];
+  sw=sw.replace(marker,`const CACHE = 'lourex-invoice-v311';\n// ${marker} preserved as the immediate pre-v311 cache generation.`);
+}else if(activeCacheGeneration<311){
+  throw new Error('Unable to promote the LOUREX PWA cache to v311 or verify a newer cache generation.');
 }
-if(!promoted&&!sw.includes("const CACHE = 'lourex-invoice-v311';"))throw new Error('Unable to promote the LOUREX PWA cache to v311.');
 
 const marker="LOCAL_CORE.push('./canonical-redirect.js');";
 // Cache the exact URLs requested by index.html/document-entry-v302.js. CacheStorage
@@ -46,4 +44,4 @@ if(html.includes(oldRuntime))html=html.replace(oldRuntime,releaseRuntime);
 else if(!html.includes(releaseRuntime))throw new Error('Unable to version the v311 document runtime in production HTML.');
 await writeFile(htmlPath,html);
 
-console.log('[LOUREX PWA] v311 quality cache generation ready.');
+console.log(`[LOUREX PWA] cache generation v${activeCacheGeneration<311?311:activeCacheGeneration} ready with v311 visual runtime set.`);
