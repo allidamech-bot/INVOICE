@@ -3,11 +3,11 @@
  * dashboard cards, document rows, sheets, or the bottom navigation dock.
  */
 @media screen and (max-width:900px){
-  html body .app-ui .lourex-ai-launcher,
-  html[dir="ltr"] body .app-ui .lourex-ai-launcher,
-  html[dir="rtl"] body .app-ui .lourex-ai-launcher,
-  html body .app-ui .lourex-ai-launcher.screen-operations,
-  html[dir="rtl"] body .app-ui .lourex-ai-launcher.screen-operations{
+  html body .lourex-ai-launcher,
+  html[dir="ltr"] body .lourex-ai-launcher,
+  html[dir="rtl"] body .lourex-ai-launcher,
+  html body .lourex-ai-launcher.screen-operations,
+  html[dir="rtl"] body .lourex-ai-launcher.screen-operations{
     position:fixed!important;
     top:calc(12px + env(safe-area-inset-top,0px))!important;
     bottom:auto!important;
@@ -22,8 +22,8 @@
     box-shadow:0 4px 14px rgba(16,24,40,.055)!important;
     transform:none!important;
   }
-  html[data-lourex-shell-overlay="true"] body .app-ui .lourex-ai-launcher,
-  body:has(.ta-doc-mobile-action-portal) .app-ui .lourex-ai-launcher{
+  html[data-lourex-shell-overlay="true"] body .lourex-ai-launcher,
+  body:has(.ta-doc-mobile-action-portal) .lourex-ai-launcher{
     opacity:0!important;
     pointer-events:none!important;
     transform:none!important;
