@@ -10,7 +10,6 @@
   const auditStyleMarker='data-lourex-v311-release-audit';
   const sessionMarkerKey='lourex-invoice-session-v1';
   const accountScopeRecoveryKey='lourex-account-scope-recovery-v311';
-  const cloudApplyReloadKey='lourex-cloud-apply-reload-v314';
 
   function ensureStylesheet(marker,href){
     if(document.querySelector(`link[${marker}]`))return;
@@ -163,20 +162,12 @@
     window.location.replace(window.location.href);
   }
 
-  // A cloud vault replacement updates both encrypted data and its PIN-derived
-  // security metadata. The currently mounted React tree may still hold the old
-  // key/vault in memory, so a clean workspace must rehydrate from IndexedDB after
-  // the replacement. Never interrupt an editor or unsaved inline workspace.
-  function rehydrateAppliedCloudVault(){
-    const root=document.documentElement;
-    if(root.hasAttribute('data-lourex-document-editor')||root.hasAttribute('data-lourex-workspace-dirty')||document.querySelector('.editor-screen'))return;
-    const now=Date.now();
-    try{
-      const previous=Number(window.sessionStorage.getItem(cloudApplyReloadKey)||'0');
-      if(Number.isFinite(previous)&&now-previous<8_000)return;
-      window.sessionStorage.setItem(cloudApplyReloadKey,String(now));
-    }catch{}
-    window.location.replace(window.location.href);
+  // Runtime cloud activity must never force a hard reload. React/index.tsx owns
+  // the explicit Apply flow. Keeping this handler side-effect free prevents
+  // drafts, quotations, invoices and purchase orders from being interrupted by
+  // a cloud event while the user is typing or while an editor is mounting.
+  function noteAppliedCloudVault(){
+    try{document.documentElement.dataset.lourexCloudApplied='true';}catch{}
   }
 
   let scheduled=false;
@@ -223,7 +214,7 @@
   document.addEventListener('click',rememberNativeDocumentKind,true);
   document.addEventListener('click',enforceSignOutBoundary,true);
   window.addEventListener('lourex-cloud-refresh-available',recoverLateAuthenticatedAccount);
-  window.addEventListener('lourex-cloud-applied',rehydrateAppliedCloudVault);
+  window.addEventListener('lourex-cloud-applied',noteAppliedCloudVault);
 
   // v314: do not observe the entire React subtree. EditorPage already exposes a
   // durable html[data-lourex-document-editor] signal, while auth/setup replaces
