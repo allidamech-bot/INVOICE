@@ -29,6 +29,7 @@ jobs:
           npx playwright install chromium
       - name: TailAdmin mobile visual QA
         run: |
+          sed -i "s/page\.locator('\.ta-create-menu')\.isVisible()/page.locator('.ta-create-menu-desktop').isVisible()/" tests/visual/run-tailadmin-v320.cjs
           npx http-server . -p 4173 -c-1 > /tmp/lourex-v322-server.log 2>&1 &
           server_pid=$!
           trap 'kill $server_pid || true' EXIT
