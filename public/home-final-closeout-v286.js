@@ -65,7 +65,10 @@
       'fintech-shell-v280.css',
       'shell-canonical-v314.css',
       'shell-overlays-v314.css',
-      'home-canonical-v314.css'
+      'home-canonical-v314.css',
+      'documents-canonical-v314.css',
+      'dashboard-documents.css',
+      'document-premium-redesign-v141.css'
     ];
     document.querySelectorAll('link[rel="stylesheet"][href]').forEach(function(link){
       var href=String(link.getAttribute('href')||'');
@@ -78,6 +81,7 @@
     ensureStylesheet('data-lourex-tailadmin-v320','./styles/tailadmin-finance-v320.css?v=320');
     ensureStylesheet('data-lourex-tailadmin-shell-v320','./styles/tailadmin-shell-v320.css?v=320-2');
     ensureStylesheet('data-lourex-tailadmin-dashboard-v320','./styles/tailadmin-dashboard-v320.css?v=320-2');
+    ensureStylesheet('data-lourex-tailadmin-documents-v320','./styles/tailadmin-documents-v320.css?v=320-2');
   }
 
   function install(){
