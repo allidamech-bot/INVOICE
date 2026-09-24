@@ -54,7 +54,6 @@ function normalizedMime(file:File,kind:AttachmentKind):string{
 function normalizeDataUrl(value:string,mime:string):string{return value.replace(/^data:[^;,]*/i,`data:${mime}`);}
 function asAttachment(file:File):Promise<DocumentAttachment>{return new Promise((resolve,reject)=>{const kind=attachmentKind(file);if(!kind){reject(new Error('Unsupported attachment type.'));return;}const mimeType=normalizedMime(file,kind);const reader=new FileReader();reader.onerror=()=>reject(new Error('Unable to read attachment.'));reader.onload=()=>{if(typeof reader.result!=='string'){reject(new Error('Unable to read attachment.'));return;}resolve({id:'att-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,9),name:file.name,mimeType,size:file.size,dataUrl:normalizeDataUrl(reader.result,mimeType),createdAt:new Date().toISOString()});};reader.readAsDataURL(file);});}
 function bytes(value:number):string{return value<MB?Math.max(1,Math.round(value/1024))+' KB':(value/MB).toFixed(1)+' MB';}
-function limitMb(value:number):string=>never;
 function isPdfAttachment(attachment:DocumentAttachment):boolean{return attachment.mimeType==='application/pdf'||PDF_EXTENSION.test(attachment.name);}
 function isImageAttachment(attachment:DocumentAttachment):boolean{return attachment.mimeType.startsWith('image/')||IMAGE_EXTENSION.test(attachment.name);}
 function totalAttachmentBytes(list:DocumentAttachment[]):number{return list.reduce((sum,attachment)=>sum+Math.max(0,Number(attachment.size)||0),0);}
