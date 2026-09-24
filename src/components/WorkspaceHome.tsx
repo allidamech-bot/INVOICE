@@ -118,6 +118,11 @@ function linePoints(values:number[],width:number,height:number,pad:number,min:nu
   }).join(' ');
 }
 
+function moneyStack(rows:Array<{currency:string;netSales?:string;collected?:string;outstanding?:string;overdue?:string}>,key:'netSales'|'collected'|'outstanding'|'overdue'):any{
+  if(!rows.length)return <strong>—</strong>;
+  return <span className="ta-kpi-money-stack">{rows.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row[key]||'0.00',row.currency)}</b>)}</span>;
+}
+
 export function WorkspaceHome({companyName,documents,payments,purchases=[],expenses=[],inventoryMovements=[],items=[],itemCount,customerCount,onNewDocument,onOpenDocument,onNavigate}:Props):any{
   const [chartRange,setChartRange]=React.useState<ChartRange>('6m');
   const [chartMode,setChartMode]=React.useState<ChartMode>('cash');
@@ -132,7 +137,7 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
   const overdueInvoices=receivables.reduce((sum,row)=>sum+row.overdueInvoices,0);
   const drafts=documents.filter(doc=>doc.kind!=='draft'&&doc.status==='draft').length;
   const incompleteAccounting=daily.invalidOperations+daily.missingCostItems;
-  const recent=[...documents].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,5);
+  const recent=[...documents].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,6);
   const displayedItemCount=items.length||(itemCount??0);
   const balances=inventoryBalances(items,inventoryMovements);
   const positiveStock=balances.filter(row=>row.quantityScaled>0n).length;
@@ -184,111 +189,129 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
   const collectionChange=currentMonth&&priorMonth?percentChange(currentMonth.collected,priorMonth.collected):'';
   const attentionCount=(overdueInvoices?1:0)+(drafts?1:0)+(daily.draftPurchases?1:0)+(incompleteAccounting?1:0)+(daily.dormantProducts?1:0)+(stockExceptions?1:0);
 
-  return <section className="workspace-home-page dashboard-page command-center-page fintech-dashboard-v280">
-    <header className="workspace-home-hero dashboard-hero command-center-hero">
-      <div>
-        <p className="workspace-home-eyebrow">{companyName||'LOUREX Invoice'}</p>
-        <h1>{t('Business command center','مركز قيادة الأعمال')}</h1>
-        <p>{t('See what is happening, what needs attention, and what changed without searching through the system.','اعرف ما يحدث وما يحتاج انتباهك وما الذي تغيّر دون البحث داخل النظام.')}</p>
+  return <section className="ta-finance-dashboard">
+    <header className="ta-dashboard-header">
+      <div className="ta-dashboard-heading">
+        <span className="ta-dashboard-eyebrow">{companyName||'LOUREX Invoice'}</span>
+        <h1>{t('Finance overview','نظرة مالية شاملة')}</h1>
+        <p>{t('Track sales, collections, receivables, inventory and the work that needs attention.','تابع المبيعات والتحصيل والمستحقات والمخزون وما يحتاج إلى انتباهك.')}</p>
       </div>
-      <div className="workspace-home-actions command-center-actions">
-        <span className="command-period-pill"><Icon name="file"/><span>{t('This month','هذا الشهر')}</span></span>
+      <div className="ta-dashboard-header-actions">
+        <span className="ta-period-chip"><Icon name="file"/><span>{t('This month','هذا الشهر')}</span></span>
         <Button icon="plus" variant="primary" onClick={onNewDocument}>{t('New Document','مستند جديد')}</Button>
       </div>
     </header>
 
-    <div className="dashboard-kpis command-kpis" aria-label={t('Business summary','ملخص الأعمال')}>
-      <button type="button" className="dashboard-kpi kpi-sales" onClick={()=>onNavigate('reports')}><span className="dashboard-kpi-icon"><Icon name="file"/></span><span><small>{t('Sales','المبيعات')}</small>{monthly.length?<span className="dashboard-money-stack">{monthly.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row.netSales,row.currency)}</b>)}</span>:<strong>—</strong>}<em>{salesChange?`${salesChange} · ${t('vs previous month','مقارنة بالشهر السابق')}`:t('Net issued this month','صافي الصادر هذا الشهر')}</em></span></button>
-      <button type="button" className="dashboard-kpi kpi-collected" onClick={()=>onNavigate('reports')}><span className="dashboard-kpi-icon"><Icon name="backup"/></span><span><small>{t('Collected','المحصّل')}</small>{monthly.length?<span className="dashboard-money-stack">{monthly.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row.collected,row.currency)}</b>)}</span>:<strong>—</strong>}<em>{collectionChange?`${collectionChange} · ${t('vs previous month','مقارنة بالشهر السابق')}`:t('Payments this month','مدفوعات هذا الشهر')}</em></span></button>
-      <button type="button" className="dashboard-kpi kpi-outstanding" onClick={()=>onNavigate('receivables')}><span className="dashboard-kpi-icon"><Icon name="invoice"/></span><span><small>{t('Outstanding','المستحق')}</small>{receivables.length?<span className="dashboard-money-stack">{receivables.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row.outstanding,row.currency)}</b>)}</span>:<strong>—</strong>}<em>{openInvoices?t(`${openInvoices} open invoices`,`${openInvoices} فواتير مفتوحة`):t('No open invoices','لا توجد فواتير مفتوحة')}</em></span></button>
-      <button type="button" className="dashboard-kpi kpi-overdue" onClick={()=>onNavigate('receivables')}><span className="dashboard-kpi-icon"><Icon name="invoice"/></span><span><small>{t('Overdue','المتأخر')}</small>{receivables.length?<span className="dashboard-money-stack">{receivables.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row.overdue,row.currency)}</b>)}</span>:<strong>—</strong>}<em>{overdueInvoices?t(`${overdueInvoices} overdue invoices`,`${overdueInvoices} فواتير متأخرة`):t('Nothing overdue','لا توجد مستحقات متأخرة')}</em></span></button>
-    </div>
-
-    <section className="dashboard-quick-actions" aria-label={t('Quick actions','إجراءات سريعة')}>
-      <button type="button" className="quick-action-primary" onClick={onNewDocument}><span><Icon name="plus"/></span><strong>{t('New document','مستند جديد')}</strong><small>{t('10 business document workflows','10 أنواع رئيسية لمستندات الأعمال')}</small></button>
-      <button type="button" onClick={()=>onNavigate('customers')}><span><Icon name="users"/></span><strong>{t('Add customer','إضافة عميل')}</strong><small>{t('Customer directory','دليل العملاء')}</small></button>
-      <button type="button" onClick={()=>onNavigate('items')}><span><Icon name="items"/></span><strong>{t('Add product','إضافة منتج')}</strong><small>{t('Catalog & stock','الكتالوج والمخزون')}</small></button>
-      <button type="button" onClick={()=>onNavigate('operations')}><span><Icon name="backup"/></span><strong>{t('Record purchase','تسجيل شراء')}</strong><small>{t('Suppliers & landed cost','الموردون وتكلفة الوصول')}</small></button>
+    <section className="ta-kpi-grid" aria-label={t('Business summary','ملخص الأعمال')}>
+      <button type="button" className="ta-kpi-card" onClick={()=>onNavigate('reports')}>
+        <span className="ta-kpi-icon"><Icon name="chart"/></span>
+        <span className="ta-kpi-copy"><small>{t('Net sales','صافي المبيعات')}</small>{moneyStack(monthly,'netSales')}<em>{salesChange?`${salesChange} · ${t('vs previous month','مقارنة بالشهر السابق')}`:t('Issued this month','الصادر هذا الشهر')}</em></span>
+      </button>
+      <button type="button" className="ta-kpi-card" onClick={()=>onNavigate('reports')}>
+        <span className="ta-kpi-icon"><Icon name="backup"/></span>
+        <span className="ta-kpi-copy"><small>{t('Collected','المحصّل')}</small>{moneyStack(monthly,'collected')}<em>{collectionChange?`${collectionChange} · ${t('vs previous month','مقارنة بالشهر السابق')}`:t('Payments this month','مدفوعات هذا الشهر')}</em></span>
+      </button>
+      <button type="button" className="ta-kpi-card" onClick={()=>onNavigate('receivables')}>
+        <span className="ta-kpi-icon"><Icon name="invoice"/></span>
+        <span className="ta-kpi-copy"><small>{t('Outstanding','المستحق')}</small>{moneyStack(receivables,'outstanding')}<em>{openInvoices?t(`${openInvoices} open invoices`,`${openInvoices} فواتير مفتوحة`):t('No open invoices','لا توجد فواتير مفتوحة')}</em></span>
+      </button>
+      <button type="button" className="ta-kpi-card ta-kpi-danger" onClick={()=>onNavigate('receivables')}>
+        <span className="ta-kpi-icon"><Icon name="invoice"/></span>
+        <span className="ta-kpi-copy"><small>{t('Overdue','المتأخر')}</small>{moneyStack(receivables,'overdue')}<em>{overdueInvoices?t(`${overdueInvoices} overdue invoices`,`${overdueInvoices} فواتير متأخرة`):t('Nothing overdue','لا توجد مستحقات متأخرة')}</em></span>
+      </button>
     </section>
 
-    <div className="command-performance-grid">
-      <section className={`dashboard-panel command-performance-panel ${chartHasActivity?'':'is-empty-chart'}`}>
-        <header className="dashboard-panel-heading command-chart-heading">
-          <div><small>{t('Performance','الأداء')}</small><h2>{t('Business performance','أداء الأعمال')}</h2><span>{t(`Currency · ${chartCurrency}`,`العملة · ${chartCurrency}`)}</span></div>
-          <div className="command-chart-controls" role="group" aria-label={t('Chart period','فترة الرسم')}>
-            {(['7d','30d','6m','1y'] as ChartRange[]).map(value=><button type="button" key={value} className={chartRange===value?'active':''} aria-pressed={chartRange===value} onClick={()=>setChartRange(value)}>{value==='7d'?t('7D','7 أيام'):value==='30d'?t('30D','30 يوم'):value==='6m'?t('6M','6 أشهر'):t('1Y','سنة')}</button>)}
+    <section className="ta-quick-actions" aria-label={t('Quick actions','إجراءات سريعة')}>
+      <button type="button" onClick={onNewDocument}><span className="ta-quick-icon"><Icon name="plus"/></span><span><strong>{t('New document','مستند جديد')}</strong><small>{t('Create a business document','إنشاء مستند أعمال')}</small></span></button>
+      <button type="button" onClick={()=>onNavigate('customers')}><span className="ta-quick-icon"><Icon name="users"/></span><span><strong>{t('Customers','العملاء')}</strong><small>{t('Directory and profiles','الدليل والملفات')}</small></span></button>
+      <button type="button" onClick={()=>onNavigate('items')}><span className="ta-quick-icon"><Icon name="items"/></span><span><strong>{t('Products','المنتجات')}</strong><small>{t('Catalog and inventory','الكتالوج والمخزون')}</small></span></button>
+      <button type="button" onClick={()=>onNavigate('operations')}><span className="ta-quick-icon"><Icon name="backup"/></span><span><strong>{t('Purchasing','المشتريات')}</strong><small>{t('Suppliers and costs','الموردون والتكاليف')}</small></span></button>
+    </section>
+
+    <div className="ta-dashboard-primary-grid">
+      <section className="ta-dashboard-card ta-performance-card">
+        <header className="ta-card-header">
+          <div><small>{t('Performance','الأداء')}</small><h2>{t('Cashflow overview','نظرة على التدفق النقدي')}</h2><span>{t(`Currency · ${chartCurrency}`,`العملة · ${chartCurrency}`)}</span></div>
+          <div className="ta-range-control" role="group" aria-label={t('Chart period','فترة الرسم')}>
+            {(['7d','30d','6m','1y'] as ChartRange[]).map(value=><button type="button" key={value} className={chartRange===value?'is-active':''} aria-pressed={chartRange===value} onClick={()=>setChartRange(value)}>{value==='7d'?t('7D','7 أيام'):value==='30d'?t('30D','30 يوم'):value==='6m'?t('6M','6 أشهر'):t('1Y','سنة')}</button>)}
           </div>
         </header>
-        <div className="command-chart-mode" role="group" aria-label={t('Chart metric','مؤشر الرسم')}>
-          <button type="button" className={chartMode==='cash'?'active':''} aria-pressed={chartMode==='cash'} onClick={()=>setChartMode('cash')}>{t('Sales & collections','المبيعات والتحصيل')}</button>
-          <button type="button" className={chartMode==='profit'?'active':''} aria-pressed={chartMode==='profit'} onClick={()=>setChartMode('profit')}>{t('Gross profit','إجمالي الربح')}</button>
+
+        <div className="ta-chart-toolbar">
+          <div className="ta-segmented-control" role="group" aria-label={t('Chart metric','مؤشر الرسم')}>
+            <button type="button" className={chartMode==='cash'?'is-active':''} aria-pressed={chartMode==='cash'} onClick={()=>setChartMode('cash')}>{t('Sales & collections','المبيعات والتحصيل')}</button>
+            <button type="button" className={chartMode==='profit'?'is-active':''} aria-pressed={chartMode==='profit'} onClick={()=>setChartMode('profit')}>{t('Gross profit','إجمالي الربح')}</button>
+          </div>
+          <div className="ta-chart-legend" aria-hidden="true">{chartMode==='cash'?<><span className="is-sales">{t('Sales','المبيعات')}</span><span className="is-collected">{t('Collections','التحصيل')}</span></>:<span className="is-profit">{t('Gross profit','إجمالي الربح')}</span>}</div>
         </div>
-        <div className="command-chart-wrap">
-          <svg className="command-chart" viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label={chartMode==='cash'?t(`Sales and collections trend in ${chartCurrency}`,`اتجاه المبيعات والتحصيل بعملة ${chartCurrency}`):t(`Gross profit trend in ${chartCurrency}`,`اتجاه إجمالي الربح بعملة ${chartCurrency}`)} preserveAspectRatio="none">
-            {[0.25,0.5,0.75].map(ratio=><line key={ratio} className="command-chart-grid" x1={chartPad} x2={chartWidth-chartPad} y1={chartPad+(chartHeight-chartPad*2)*ratio} y2={chartPad+(chartHeight-chartPad*2)*ratio}/>)}
-            {chartMin<0?<line className="command-chart-zero" x1={chartPad} x2={chartWidth-chartPad} y1={chartZeroY} y2={chartZeroY}/>:null}
-            {chartMode==='cash'?<><polyline className="command-chart-line line-sales" points={salesPoints}/><polyline className="command-chart-line line-collected" points={collectionPoints}/></>:<polyline className="command-chart-line line-profit" points={profitPoints}/>} 
+
+        <div className={`ta-chart-stage ${chartHasActivity?'':'is-empty'}`}>
+          <svg className="ta-finance-chart" viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label={chartMode==='cash'?t(`Sales and collections trend in ${chartCurrency}`,`اتجاه المبيعات والتحصيل بعملة ${chartCurrency}`):t(`Gross profit trend in ${chartCurrency}`,`اتجاه إجمالي الربح بعملة ${chartCurrency}`)} preserveAspectRatio="none">
+            {[0.25,0.5,0.75].map(ratio=><line key={ratio} className="ta-chart-gridline" x1={chartPad} x2={chartWidth-chartPad} y1={chartPad+(chartHeight-chartPad*2)*ratio} y2={chartPad+(chartHeight-chartPad*2)*ratio}/>)}
+            {chartMin<0?<line className="ta-chart-zero" x1={chartPad} x2={chartWidth-chartPad} y1={chartZeroY} y2={chartZeroY}/>:null}
+            {chartMode==='cash'?<><polyline className="ta-chart-line ta-line-sales" points={salesPoints}/><polyline className="ta-chart-line ta-line-collected" points={collectionPoints}/></>:<polyline className="ta-chart-line ta-line-profit" points={profitPoints}/>}
           </svg>
-          <div className="command-chart-labels" aria-hidden="true">{chartData.map((row,index)=>{const show=chartData.length<=7||index===0||index===chartData.length-1||index%Math.ceil(chartData.length/6)===0;return <span key={row.key} className={show?'show':''}>{show?row.label:''}</span>;})}</div>
+          {!chartHasActivity?<div className="ta-chart-empty"><Icon name="chart"/><strong>{t('No activity in this period','لا يوجد نشاط في هذه الفترة')}</strong><span>{t('Financial activity will appear here as documents and payments are recorded.','سيظهر النشاط المالي هنا عند تسجيل المستندات والمدفوعات.')}</span></div>:null}
+          <div className="ta-chart-labels" aria-hidden="true">{chartData.map((row,index)=>{const show=chartData.length<=7||index===0||index===chartData.length-1||index%Math.ceil(chartData.length/6)===0;return <span key={row.key} className={show?'is-visible':''}>{show?row.label:''}</span>;})}</div>
         </div>
-        <footer className="command-chart-footer">
-          {chartMode==='cash'?<div className="command-chart-legend"><span className="legend-sales">{t('Sales','المبيعات')}</span><span className="legend-collected">{t('Collections','التحصيل')}</span></div>:<div className="command-chart-legend"><span className="legend-profit">{t('Gross profit','إجمالي الربح')}</span></div>}
-          {chartMode==='profit'&&!chartProfitComplete?<button type="button" className="command-data-warning" onClick={()=>onNavigate('reports')}>{t('Profit data is incomplete because some product costs are missing.','بيانات الربح غير مكتملة لأن تكلفة بعض الأصناف مفقودة.')}</button>:null}
-        </footer>
+
+        {chartMode==='profit'&&!chartProfitComplete?<button type="button" className="ta-data-warning" onClick={()=>onNavigate('reports')}>{t('Profit data is incomplete because some product costs are missing.','بيانات الربح غير مكتملة لأن تكلفة بعض الأصناف مفقودة.')}</button>:null}
       </section>
 
-      <aside className="dashboard-panel command-position-panel">
-        <header className="dashboard-panel-heading"><div><small>{t('Position','الوضع')}</small><h2>{t('Financial position','الوضع المالي')}</h2></div><button type="button" onClick={()=>onNavigate('receivables')}>{t('Finance','المالية')}</button></header>
-        <div className="command-position-list">
-          <div><span>{t('Outstanding','المستحق')}</span><strong>{currentChartReceivable?formatMoney(currentChartReceivable.outstanding,chartCurrency):formatMoney('0.00',chartCurrency)}</strong></div>
+      <aside className="ta-dashboard-card ta-position-card">
+        <header className="ta-card-header"><div><small>{t('Position','الوضع')}</small><h2>{t('Financial position','الوضع المالي')}</h2><span>{chartCurrency}</span></div><button type="button" className="ta-text-action" onClick={()=>onNavigate('receivables')}>{t('View finance','عرض المالية')}</button></header>
+        <div className="ta-position-balance"><span>{t('Outstanding balance','الرصيد المستحق')}</span><strong>{currentChartReceivable?formatMoney(currentChartReceivable.outstanding,chartCurrency):formatMoney('0.00',chartCurrency)}</strong><small>{t('Across open commercial invoices','عبر الفواتير التجارية المفتوحة')}</small></div>
+        <div className="ta-position-list">
           <div><span>{t('Overdue','المتأخر')}</span><strong>{currentChartReceivable?formatMoney(currentChartReceivable.overdue,chartCurrency):formatMoney('0.00',chartCurrency)}</strong></div>
           <div><span>{t('Open invoices','الفواتير المفتوحة')}</span><strong>{currentChartReceivable?.openInvoices??0}</strong></div>
           <div><span>{t('Overdue invoices','الفواتير المتأخرة')}</span><strong>{currentChartReceivable?.overdueInvoices??0}</strong></div>
         </div>
-        <button type="button" className="command-position-action" onClick={()=>onNavigate('receivables')}><span>{t('Review receivables','مراجعة المستحقات')}</span><span aria-hidden="true">→</span></button>
+        <button type="button" className="ta-card-primary-action" onClick={()=>onNavigate('receivables')}><span>{t('Review receivables','مراجعة المستحقات')}</span><span aria-hidden="true">→</span></button>
       </aside>
     </div>
 
-    <div className="command-insight-grid">
-      <section className="dashboard-panel dashboard-attention command-attention">
-        <header className="dashboard-panel-heading"><div><small>{t('Priority','الأولوية')}</small><h2>{t('Needs attention','يحتاج انتباهك')}</h2><span>{attentionCount?t(`${attentionCount} areas need review`,`${attentionCount} أمور تحتاج مراجعة`):t('Everything important is under control','الأمور المهمة تحت السيطرة')}</span></div></header>
-        {attentionCount?<div className="dashboard-attention-list">
-          {overdueInvoices?<button type="button" className="is-alert" onClick={()=>onNavigate('receivables')}><span><Icon name="invoice"/><b>{t('Overdue invoices','الفواتير المتأخرة')}</b></span><strong>{overdueInvoices}</strong></button>:null}
-          {drafts?<button type="button" className="is-warn" onClick={()=>onNavigate('documents')}><span><Icon name="edit"/><b>{t('Drafts to finish','مسودات تحتاج إكمال')}</b></span><strong>{drafts}</strong></button>:null}
-          {daily.draftPurchases?<button type="button" className="is-warn" onClick={()=>onNavigate('operations')}><span><Icon name="items"/><b>{t('Purchase drafts to finish','مسودات مشتريات تحتاج إكمال')}</b></span><strong>{daily.draftPurchases}</strong></button>:null}
-          {incompleteAccounting?<button type="button" className="is-alert" onClick={()=>onNavigate(daily.invalidOperations?'operations':'reports')}><span><Icon name="edit"/><b>{t('Incomplete accounting data','بيانات محاسبية غير مكتملة')}</b></span><strong>{incompleteAccounting}</strong></button>:null}
-          {stockExceptions?<button type="button" className="is-warn" onClick={()=>onNavigate('items')}><span><Icon name="items"/><b>{t('Stock exceptions','حالات مخزون تحتاج مراجعة')}</b></span><strong>{stockExceptions}</strong></button>:null}
-          {daily.dormantProducts?<button type="button" className="is-warn" onClick={()=>onNavigate('items')}><span><Icon name="items"/><b>{t('Dormant products · 90+ days','أصناف خاملة · أكثر من 90 يوم')}</b></span><strong>{daily.dormantProducts}</strong></button>:null}
-        </div>:<div className="command-clear-state"><span className="command-clear-icon">✓</span><strong>{t('No urgent issues','لا توجد أمور عاجلة')}</strong><span>{t('LOUREX will surface important exceptions here when they need your attention.','سيعرض LOUREX هنا الحالات المهمة عندما تحتاج إلى انتباهك.')}</span></div>}
+    <div className="ta-dashboard-secondary-grid">
+      <section className="ta-dashboard-card ta-attention-card">
+        <header className="ta-card-header"><div><small>{t('Priority','الأولوية')}</small><h2>{t('Needs attention','يحتاج انتباهك')}</h2><span>{attentionCount?t(`${attentionCount} areas need review`,`${attentionCount} أمور تحتاج مراجعة`):t('Everything important is under control','الأمور المهمة تحت السيطرة')}</span></div></header>
+        {attentionCount?<div className="ta-attention-list">
+          {overdueInvoices?<button type="button" className="is-danger" onClick={()=>onNavigate('receivables')}><span><Icon name="invoice"/><b>{t('Overdue invoices','الفواتير المتأخرة')}</b></span><strong>{overdueInvoices}</strong></button>:null}
+          {drafts?<button type="button" onClick={()=>onNavigate('documents')}><span><Icon name="edit"/><b>{t('Drafts to finish','مسودات تحتاج إكمال')}</b></span><strong>{drafts}</strong></button>:null}
+          {daily.draftPurchases?<button type="button" onClick={()=>onNavigate('operations')}><span><Icon name="items"/><b>{t('Purchase drafts','مسودات المشتريات')}</b></span><strong>{daily.draftPurchases}</strong></button>:null}
+          {incompleteAccounting?<button type="button" className="is-danger" onClick={()=>onNavigate(daily.invalidOperations?'operations':'reports')}><span><Icon name="edit"/><b>{t('Incomplete accounting data','بيانات محاسبية غير مكتملة')}</b></span><strong>{incompleteAccounting}</strong></button>:null}
+          {stockExceptions?<button type="button" onClick={()=>onNavigate('items')}><span><Icon name="items"/><b>{t('Stock exceptions','حالات مخزون تحتاج مراجعة')}</b></span><strong>{stockExceptions}</strong></button>:null}
+          {daily.dormantProducts?<button type="button" onClick={()=>onNavigate('items')}><span><Icon name="items"/><b>{t('Dormant products · 90+ days','أصناف خاملة · أكثر من 90 يوم')}</b></span><strong>{daily.dormantProducts}</strong></button>:null}
+        </div>:<div className="ta-clear-state"><span>✓</span><strong>{t('No urgent issues','لا توجد أمور عاجلة')}</strong><small>{t('Important exceptions will appear here automatically.','ستظهر الحالات المهمة هنا تلقائياً.')}</small></div>}
       </section>
 
-      <section className="dashboard-panel command-inventory-health">
-        <header className="dashboard-panel-heading"><div><small>{t('Stock','المخزون')}</small><h2>{t('Inventory health','حالة المخزون')}</h2></div><button type="button" onClick={()=>onNavigate('items')}>{t('Products & Inventory','المنتجات والمخزون')}</button></header>
-        <div className="command-health-number"><strong>{displayedItemCount}</strong><span>{t('products in your library','منتجًا في مكتبتك')}</span></div>
-        <div className="command-health-bars">
-          <div><span>{t('Positive stock','رصيد موجب')}</span><b>{positiveStock}</b></div>
-          <div><span>{t('Zero / negative','صفر / سالب')}</span><b>{stockExceptions}</b></div>
-          <div><span>{t('Customers','العملاء')}</span><b>{customerCount}</b></div>
+      <section className="ta-dashboard-card ta-inventory-card">
+        <header className="ta-card-header"><div><small>{t('Stock','المخزون')}</small><h2>{t('Inventory health','حالة المخزون')}</h2><span>{t('Live inventory summary','ملخص المخزون الحالي')}</span></div><button type="button" className="ta-text-action" onClick={()=>onNavigate('items')}>{t('Open inventory','فتح المخزون')}</button></header>
+        <div className="ta-inventory-total"><strong>{displayedItemCount}</strong><span>{t('products in library','منتجاً في المكتبة')}</span></div>
+        <div className="ta-inventory-stats">
+          <div><span className="is-success"/><small>{t('Positive stock','رصيد موجب')}</small><strong>{positiveStock}</strong></div>
+          <div><span className="is-warning"/><small>{t('Zero / negative','صفر / سالب')}</small><strong>{stockExceptions}</strong></div>
+          <div><span className="is-brand"/><small>{t('Customers','العملاء')}</small><strong>{customerCount}</strong></div>
         </div>
       </section>
     </div>
 
-    <section className="dashboard-panel dashboard-recent command-recent">
-      <header className="dashboard-panel-heading"><div><small>{t('Recent activity','آخر النشاط')}</small><h2>{t('Recent documents','آخر المستندات')}</h2></div><button type="button" onClick={()=>onNavigate('documents')}>{t('View all','عرض الكل')} <span aria-hidden="true">→</span></button></header>
-      {recent.length?<div className="dashboard-document-list"><div className="dashboard-document-head" aria-hidden="true"><span/><span>{t('Document','المستند')}</span><span>{t('Party / subject','الطرف / الموضوع')}</span><span>{t('Date','التاريخ')}</span><span>{t('Amount','المبلغ')}</span><span>{t('Status','الحالة')}</span></div>{recent.map(doc=>{
-        const total=calculateTotals(doc.items,doc.adjustments).grandTotal;
-        const status=documentStatus(doc,payments,documents,today);
-        return <button type="button" key={doc.id} className="dashboard-document-row" onClick={()=>onOpenDocument(doc)}>
-          <span className={`dashboard-document-kind kind-${doc.kind}`}><Icon name={doc.kind==='proforma'?'proforma':doc.kind==='purchase-order'?'file':doc.kind==='draft'?'edit':'invoice'}/></span>
-          <span className="dashboard-document-copy"><strong>{doc.number}</strong><small>{documentLabel(doc)}</small></span>
-          <span className="dashboard-document-customer">{customerName(doc)}</span>
-          <span className="dashboard-document-date">{displayDate(doc.issueDate,getUiLanguage())}</span>
-          <strong className="dashboard-document-amount">{doc.kind==='draft'||documentPriceOptional(doc.kind)?'—':formatMoney(total,doc.currency)}</strong>
-          <span className={`dashboard-document-status status-${status.tone}`}>{status.label}</span>
-        </button>;
-      })}</div>:<div className="dashboard-empty"><Icon name="file"/><strong>{t('No documents yet','لا توجد مستندات بعد')}</strong><span>{t('Create your first business document. LOUREX will build your command center from real activity.','أنشئ أول مستند أعمال وسيبني LOUREX مركز القيادة من نشاطك الحقيقي.')}</span><Button icon="plus" variant="primary" onClick={onNewDocument}>{t('New Document','مستند جديد')}</Button></div>}
+    <section className="ta-dashboard-card ta-recent-card">
+      <header className="ta-card-header"><div><small>{t('Recent activity','آخر النشاط')}</small><h2>{t('Recent documents','آخر المستندات')}</h2><span>{t('Latest saved and issued work','أحدث الأعمال المحفوظة والصادرة')}</span></div><button type="button" className="ta-text-action" onClick={()=>onNavigate('documents')}>{t('View all','عرض الكل')} <span aria-hidden="true">→</span></button></header>
+      {recent.length?<div className="ta-recent-table" role="table">
+        <div className="ta-recent-head" role="row"><span>{t('Document','المستند')}</span><span>{t('Party / subject','الطرف / الموضوع')}</span><span>{t('Date','التاريخ')}</span><span>{t('Amount','المبلغ')}</span><span>{t('Status','الحالة')}</span></div>
+        {recent.map(doc=>{
+          const total=calculateTotals(doc.items,doc.adjustments).grandTotal;
+          const status=documentStatus(doc,payments,documents,today);
+          return <button type="button" role="row" key={doc.id} className="ta-recent-row" onClick={()=>onOpenDocument(doc)}>
+            <span className="ta-recent-document"><span className={`ta-document-icon kind-${doc.kind}`}><Icon name={doc.kind==='proforma'?'proforma':doc.kind==='purchase-order'?'file':doc.kind==='draft'?'edit':'invoice'}/></span><span><strong>{doc.number}</strong><small>{documentLabel(doc)}</small></span></span>
+            <span className="ta-recent-party">{customerName(doc)}</span>
+            <span className="ta-recent-date">{displayDate(doc.issueDate,getUiLanguage())}</span>
+            <strong className="ta-recent-amount">{doc.kind==='draft'||documentPriceOptional(doc.kind)?'—':formatMoney(total,doc.currency)}</strong>
+            <span className={`ta-status-badge status-${status.tone}`}>{status.label}</span>
+          </button>;
+        })}
+      </div>:<div className="ta-dashboard-empty"><Icon name="file"/><strong>{t('No documents yet','لا توجد مستندات بعد')}</strong><span>{t('Create your first business document to start building the dashboard.','أنشئ أول مستند أعمال لبدء بناء لوحة التحكم.')}</span><Button icon="plus" variant="primary" onClick={onNewDocument}>{t('New Document','مستند جديد')}</Button></div>}
     </section>
 
-    <LourexAdvisorCard language={getUiLanguage()}/>
+    <section className="ta-advisor-slot"><LourexAdvisorCard language={getUiLanguage()}/></section>
   </section>;
 }
