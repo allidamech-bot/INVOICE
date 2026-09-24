@@ -19,7 +19,7 @@
     'global-search-v277.css',
     'fintech-workspaces-v280.css','fintech-responsive-v280.css','premium-fintech-polish-v281.css','premium-mobile-closeout-v281.css',
     'home-premium-command-center-v283.css','home-review-polish-v285.css','home-final-closeout-v286.css',
-    'visual-experience-v288.css','visual-audit-v289.css','visual-hardening-v290.css','visual-closeout-v291.css','visual-deep-audit-v292.css','visual-interaction-closeout-v293.css','visual-workspace-geometry-v294.css','visual-contrast-closeout-v295.css','visual-document-panels-v296.css','visual-editor-interaction-v297.css','visual-overlay-accessibility-v298.css','visual-auth-settings-closeout-v299.css',
+    'visual-experience-v288.css','visual-audit-v289.css','visual-hardening-v290.css','visual-closeout-v291.css','visual-deep-audit-v292.css','visual-interaction-closeout-v293.css','visual-workspace-geometry-v294.css','visual-contrast-closeout-v295.css','visual-document-panels-v296.css','visual-editor-interaction-v297.css','visual-overlay-accessibility-v298.css','visual-auth-settings-closeout-v299.css','visual-features-v300.css',
     'security-documents-closeout-v302.css','v308-document-studio.css','v310-stability-contrast.css','v311-quality-pass.css',
     'home-canonical-v314.css','shell-canonical-v314.css','shell-overlays-v314.css','documents-canonical-v314.css','editor-canonical-v314.css','customers-canonical-v314.css','products-canonical-v314.css','operations-canonical-v314.css','finance-canonical-v314.css','reports-canonical-v314.css','settings-canonical-v314.css','auth-canonical-v314.css','overlays-canonical-v314.css',
     'visual-coherence-v303.css','loading-more-settings-v307.css','release-audit-v311.css'
@@ -81,6 +81,7 @@
     ensureStylesheet('data-lourex-tailadmin-cloud-account-v320','./styles/tailadmin-cloud-account-v320.css?v=320-2');
     ensureStylesheet('data-lourex-tailadmin-ai-v320','./styles/tailadmin-ai-v320.css?v=320-2');
     ensureStylesheet('data-lourex-tailadmin-overlays-v320','./styles/tailadmin-overlays-v320.css?v=320-2');
+    ensureStylesheet('data-lourex-tailadmin-utilities-v320','./styles/tailadmin-utilities-v320.css?v=320-1');
     ensureStylesheet('data-lourex-tailadmin-reliability-v320','./styles/tailadmin-reliability-bridge-v320.css?v=320-2');
     normalizeCanvas();
   }
