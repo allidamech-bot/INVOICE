@@ -1,8 +1,8 @@
-/* LOUREX Home presentation bootstrap — v314 canonical ownership.
+/* LOUREX presentation bootstrap — v314 canonical ownership.
    Historical Home-only styles are retired here, while the shared visual-system
-   layers remain intact. The canonical v314 Home stylesheet is appended last so
-   dashboard geometry has one predictable owner. Home data/empty-state logic is
-   owned by React and no longer needs a DOM-wide MutationObserver. */
+   layers remain intact. Canonical Home and Shell styles are appended after the
+   historical stack so dashboard and application chrome each have one final owner.
+   Home data/empty-state logic is owned by React and no DOM-wide observer is used. */
 (function(){
   function ensureStylesheet(marker,href){
     if(document.querySelector('link['+marker+']'))return;
@@ -41,14 +41,15 @@
     });
   }
 
-  function installCanonicalHome(){
+  function installCanonicalLayers(){
     retireHistoricalHomeStyles();
     ensureStylesheet('data-lourex-home-v314','./styles/home-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-shell-v314','./styles/shell-canonical-v314.css?v=314');
   }
 
   function install(){
     loadReviewVisualSystem();
-    installCanonicalHome();
+    installCanonicalLayers();
   }
 
   install();
