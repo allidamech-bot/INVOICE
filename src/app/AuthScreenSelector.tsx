@@ -21,7 +21,7 @@ type Props =
       onUnlock: (pin: string) => Promise<void>;
     });
 
-type RecoveryState='idle'|'checking'|'blocked';
+type RecoveryState='idle'|'checking'|'blocked'|'error';
 
 export function AuthScreenSelector(props: Props): any {
   // LOUREX is account-first: an authenticated account session is required before
@@ -45,9 +45,12 @@ export function AuthScreenSelector(props: Props): any {
         const installed=await installCloudVault(cloudUser.uid);
         if(cancelled)return;
         if(installed){window.location.reload();return;}
-        setRecoveryState('idle');
+        setRecoveryState('error');
       }catch{
-        if(!cancelled)setRecoveryState('idle');
+        // A network/Firebase failure is NOT proof that this is a new account.
+        // Never fall through to Setup/Create PIN when account recovery is merely
+        // uncertain, otherwise an existing PIN can appear to be "forgotten".
+        if(!cancelled)setRecoveryState('error');
       }
     })();
     return()=>{cancelled=true;};
@@ -69,6 +72,9 @@ export function AuthScreenSelector(props: Props): any {
   }
   if(recoveryState==='blocked'){
     return <div className="loading-screen" role="alert">Existing encrypted local data needs recovery before this account can be restored. / توجد بيانات محلية مشفّرة تحتاج إلى استعادة قبل تحميل هذا الحساب.</div>;
+  }
+  if(recoveryState==='error'){
+    return <div className="loading-screen" role="alert"><span>LOUREX could not verify the encrypted account yet. A new PIN will not be created. / تعذّر التحقق من الحساب المشفّر حاليًا. لن يتم إنشاء PIN جديد.</span><button type="button" className="button primary" onClick={()=>window.location.reload()}>Retry / إعادة المحاولة</button></div>;
   }
 
   return <SetupScreen initialCompany={props.company} logoDataUrl={props.logoDataUrl} language={props.language} onLanguageChange={props.onLanguageChange} onFinish={props.onFinish}/>;
