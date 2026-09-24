@@ -3,7 +3,10 @@ import { t } from '../lib/i18n.js';
 import { Button, Icon, IconButton } from './UI.js';
 interface Props { document:LourexDocument; onChange:(document:LourexDocument)=>void; }
 interface State { busy:boolean; error:string; preview:DocumentAttachment|null; }
-const MAX_FILE_BYTES=5*1024*1024,MAX_TOTAL_BYTES=20*1024*1024,MAX_FILES=8;
+// Attachments live inside the encrypted vault as data URLs. Keep one useful 5 MB
+// PDF/image allowance, but cap the aggregate payload so normal document autosave
+// does not repeatedly encrypt/write a 20+ MB vault on mobile Safari/PWA.
+const MAX_FILE_BYTES=5*1024*1024,MAX_TOTAL_BYTES=8*1024*1024,MAX_FILES=8;
 const IMAGE_EXTENSION=/\.(png|jpe?g|webp|gif|heic|heif)$/i;
 const PDF_EXTENSION=/\.pdf$/i;
 type AttachmentKind='image'|'pdf';
@@ -54,19 +57,19 @@ export class DocumentAttachmentsSection extends React.Component<Props,State>{
   private add=async(event:any)=>{const input=event.target as HTMLInputElement,files=Array.from(input.files??[]),current=this.props.document.attachments??[];if(!files.length)return;
     if(current.length+files.length>MAX_FILES){this.setState({error:t('A document can contain up to 8 attachments.','يمكن أن يحتوي المستند على 8 مرفقات كحد أقصى.')});input.value='';return;}
     for(const file of files){const kind=attachmentKind(file);if(!kind||!await genuineAttachment(file,kind)){this.setState({error:t('Only genuine PDF, PNG, JPEG, WebP, GIF, HEIC and HEIF files are supported.','تُقبل فقط ملفات PDF وPNG وJPEG وWebP وGIF وHEIC وHEIF الأصلية.')});input.value='';return;}if(file.size>MAX_FILE_BYTES){this.setState({error:t('Each attachment must be 5 MB or smaller.','يجب ألا يتجاوز حجم كل مرفق 5 ميغابايت.')});input.value='';return;}}
-    if(current.reduce((n,a)=>n+(a.size||0),0)+files.reduce((n,f)=>n+f.size,0)>MAX_TOTAL_BYTES){this.setState({error:t('Attachments are limited to 20 MB per document.','إجمالي مرفقات المستند محدود بـ 20 ميغابايت.')});input.value='';return;}
+    if(current.reduce((n,a)=>n+(a.size||0),0)+files.reduce((n,f)=>n+f.size,0)>MAX_TOTAL_BYTES){this.setState({error:t('Attachments are limited to 8 MB per document to keep encrypted saving fast and reliable.','إجمالي مرفقات المستند محدود بـ 8 ميغابايت للحفاظ على سرعة وموثوقية الحفظ المشفّر.')});input.value='';return;}
     this.setState({busy:true,error:''});try{const added=await Promise.all(files.map(asAttachment));this.props.onChange({...this.props.document,attachments:[...current,...added]});}catch(e){this.setState({error:e instanceof Error?e.message:t('Unable to add attachment.','تعذر إضافة المرفق.')});}finally{this.setState({busy:false});input.value='';}}
   private remove=(id:string)=>this.props.onChange({...this.props.document,attachments:(this.props.document.attachments??[]).filter(a=>a.id!==id)});
   private openPreview=(preview:DocumentAttachment)=>this.setState({preview});
   private closePreview=()=>this.setState({preview:null});
   render():any{
-    const list=this.props.document.attachments??[],preview=this.state.preview;
+    const list=this.props.document.attachments??[],preview=this.state.preview,totalSize=list.reduce((sum,attachment)=>sum+(attachment.size||0),0);
     return <>
       <section id="document-attachments" data-attachment-count={list.length} className="editor-section document-attachments-section" aria-label={t('Document attachments','مرفقات المستند')}>
         <div className="section-heading"><div><span>07</span><h2>{t('Attachments','المرفقات')}</h2></div></div>
         <div className="attachment-add-row">
-          <Button className="attachment-add-button" icon="plus" disabled={this.state.busy||list.length>=MAX_FILES} onClick={()=>this.input?.click()}>{this.state.busy?t('Adding…','جارٍ الإضافة…'):t('Add attachment','إضافة مرفق')}</Button>
-          <span className="attachment-add-note">{t('Images or PDF · up to 5 MB each','صور أو PDF · حتى 5 ميغابايت لكل ملف')}</span>
+          <Button className="attachment-add-button" icon="plus" disabled={this.state.busy||list.length>=MAX_FILES||totalSize>=MAX_TOTAL_BYTES} onClick={()=>this.input?.click()}>{this.state.busy?t('Adding…','جارٍ الإضافة…'):t('Add attachment','إضافة مرفق')}</Button>
+          <span className="attachment-add-note">{t(`Images or PDF · 5 MB each · ${bytes(totalSize)} of 8 MB used`,`صور أو PDF · 5 ميغابايت لكل ملف · مستخدم ${bytes(totalSize)} من 8 ميغابايت`)}</span>
         </div>
         <input ref={(n:HTMLInputElement|null)=>{this.input=n;}} className="document-attachment-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/heic,image/heif,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.gif,.heic,.heif" multiple onChange={this.add}/>
         <p className="attachment-help">{t('Attach supplier files, purchase documents, scans, product images, or any supporting PDF directly to this document. Files stay inside the encrypted LOUREX workspace.','أرفق ملفات المورد أو مستندات الشراء أو الصور الممسوحة أو صور المنتجات أو أي PDF داعم مباشرة بهذا المستند. تبقى الملفات داخل مساحة LOUREX المشفّرة.')}</p>
