@@ -123,13 +123,16 @@ const stuckBootRecovery=`
 await writeFile('dist/runtime-config.js',`window.__LOUREX_RUNTIME__=${JSON.stringify(runtimeConfig)};\n${stuckBootRecovery}`);
 
 let html = await readFile('index.html','utf8');
-const localStylePattern=/<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>/g;
+/* v320 stylesheet links carry cache-busting query strings and data owner markers.
+   Bundle them in source order and strip only the query string when reading disk. */
+const localStylePattern=/<link\s+rel="stylesheet"\s+href="\.\/styles\/([^"?]+\.css)(?:\?[^\"]*)?"[^>]*\/>/g;
 const localImportPattern=/@import url\("\.\/styles\/([^\"]+\.css)"\);/g;
-const styleReferencePattern=/(?:<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>|@import url\("\.\/styles\/([^\"]+\.css)"\);)/g;
+const styleReferencePattern=/(?:<link\s+rel="stylesheet"\s+href="\.\/styles\/([^"?]+\.css)(?:\?[^\"]*)?"[^>]*\/>|@import url\("\.\/styles\/([^\"]+\.css)"\);)/g;
 const styleNames=[...html.matchAll(styleReferencePattern)].map(match=>match[1]||match[2]);
 if(!styleNames.length) throw new Error('No local stylesheet layers found in index.html.');
 if(new Set(styleNames).size!==styleNames.length) throw new Error('Duplicate local stylesheet layer detected in index.html.');
-if(styleNames.at(-1)!=='document-premium-redesign-v141.css') throw new Error('v141 premium document redesign must remain the final local stylesheet in the production cascade.');
+if(styleNames.at(-1)!=='tailadmin-reliability-bridge-v320.css') throw new Error('v320 TailAdmin reliability bridge must remain the final local stylesheet in the production cascade.');
+if(!styleNames.includes('tailadmin-finance-v320.css')||!styleNames.includes('tailadmin-overlays-v320.css'))throw new Error('The canonical v320 TailAdmin visual owners are missing from the production cascade.');
 
 const styleParts=await Promise.all(styleNames.map(async name=>{
   const css=await readFile(`src/styles/${name}`,'utf8');
@@ -145,6 +148,7 @@ html=html.replace(localStylePattern,()=>{
 });
 html=html.replace(/<style>\s*(?:@import url\("\.\/styles\/[^\"]+\.css"\);)+\s*<\/style>/g,'');
 if([...html.matchAll(localImportPattern)].length) throw new Error('Production HTML still contains local stylesheet @import references.');
+if(!bundleInserted)throw new Error('Production HTML did not replace the local stylesheet stack with app.bundle.css.');
 const vendorUrlMap=new Map([
   ['https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js','./vendor/react.production.min.js'],
   ['https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react-dom.production.min.js','./vendor/react-dom.production.min.js'],
