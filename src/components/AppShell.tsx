@@ -5,6 +5,7 @@ import { clearSession } from '../storage/session.js';
 import { Brand, Button, Icon } from './UI.js';
 import { AiCopilot } from './AiCopilot.js';
 import { ThemeControl } from './ThemeControl.js';
+import { AiAlertCenter } from './AiAlertCenter.js';
 
 // Keep the existing internal screen ids as compatibility aliases while the
 // product architecture is consolidated in later batches. The user-facing
@@ -297,6 +298,7 @@ export class AppShell extends React.Component<Props,State>{
         <div className="shell-page-title"><small>{editor?t('Editing','تحرير'):t('LOUREX Invoice','LOUREX Invoice')}</small><strong>{this.pageTitle()}</strong></div>
         <div className="shell-topbar-actions">
           <button type="button" className="shell-global-search-button" aria-label={t('Search LOUREX','بحث LOUREX')} title={t('Global search · Ctrl/⌘ K','البحث الشامل · Ctrl/⌘ K')} onClick={()=>window.dispatchEvent(new Event('lourex-global-search-open'))}><Icon name="search"/><span>{t('Search','بحث')}</span><kbd>⌘K</kbd></button>
+          {!editor?<AiAlertCenter language={this.props.language} onNavigate={screen=>this.navigate(screen)}/>:null}
           <ThemeControl compact language={this.props.language} className="shell-topbar-theme"/>
           {this.syncStatus('shell-sync-status')}
           {this.accountButton('shell-account-button',true)}
