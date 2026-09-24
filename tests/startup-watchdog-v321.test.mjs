@@ -22,8 +22,8 @@ test('v321 production boot uses the vendorable ReactDOM runtime and a data-safe 
   assert.ok(build.includes(`['${reactDomRuntime}','./vendor/react-dom.production.min.js']`),'production build must vendor the exact ReactDOM URL used by index.html');
   assert.doesNotMatch(vercel,/script-src[^\n]*cdn\.jsdelivr\.net/,'Production CSP must not rely on jsDelivr for application runtime JavaScript');
 
-  const watchdogScript=html.indexOf('./startup-watchdog-v321.js?v=321');
-  const appModule=html.indexOf('./src/app/index.js');
+  const watchdogScript=html.indexOf('<script src="./startup-watchdog-v321.js?v=321"></script>');
+  const appModule=html.indexOf('<script type="module" src="./src/app/index.js"></script>');
   assert.ok(watchdogScript>=0,'v321 startup watchdog must be present in index.html');
   assert.ok(appModule>watchdogScript,'startup watchdog must execute before the React application module');
 
