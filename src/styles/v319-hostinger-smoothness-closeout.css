@@ -1,417 +1,463 @@
-/* LOUREX v319 smoothness closeout
-   Goal: Hostinger-like clarity and flow without copying its layout or branding.
-   This file is visual-only and loads after the v319 feature layer. */
+/* LOUREX v319 — Hostinger-style visual system closeout.
+   Reproduces the same design grammar: restrained purple/neutral palette,
+   oversized clean typography, flat sections, rounded segmented controls,
+   large search fields, simple lists and minimal shadows.
+   LOUREX branding/content remain original; no third-party assets or code copied. */
 @media screen {
+  :root,
   html[data-ui-theme="light"]{
-    --ft-canvas:#f8f8fb!important;
-    --ft-shell:#ffffff!important;
-    --ft-workspace:#fafafe!important;
-    --ft-surface:#ffffff!important;
-    --ft-surface-2:#f6f4fb!important;
-    --ft-surface-3:#efecf7!important;
+    --h-purple:#673de6;
+    --h-purple-strong:#5025d1;
+    --h-purple-deep:#2f1c6a;
+    --h-purple-dark:#1f1346;
+    --h-lilac:#f2efff;
+    --h-lilac-2:#ebe4ff;
+    --h-bg:#ffffff;
+    --h-bg-soft:#f8f7fb;
+    --h-panel:#ffffff;
+    --h-text:#2f1c6a;
+    --h-text-strong:#1d123f;
+    --h-text-soft:#72707d;
+    --h-line:#e5e2ec;
+    --h-line-strong:#d8d3e4;
+    --h-shadow:0 16px 44px rgba(47,28,106,.10);
+    --ft-canvas:var(--h-bg)!important;
+    --ft-shell:var(--h-bg)!important;
+    --ft-workspace:var(--h-bg)!important;
+    --ft-surface:var(--h-panel)!important;
+    --ft-surface-2:var(--h-bg-soft)!important;
+    --ft-surface-3:#f0eef5!important;
     --ft-input:#ffffff!important;
-    --ft-text:#2b2b33!important;
-    --ft-text-strong:#17171d!important;
-    --ft-text-soft:#666672!important;
-    --ft-muted:#858590!important;
-    --ft-faint:#a5a5ae!important;
-    --ft-line:#e8e6ee!important;
-    --ft-line-strong:#d9d5e4!important;
-    --ft-accent:#673de6!important;
-    --ft-accent-hover:#5632c5!important;
-    --ft-accent-soft:#ece6ff!important;
-    --ft-accent-faint:#f7f4ff!important;
+    --ft-text:#342c46!important;
+    --ft-text-strong:var(--h-text-strong)!important;
+    --ft-text-soft:#6f697c!important;
+    --ft-muted:#888290!important;
+    --ft-faint:#aaa5b2!important;
+    --ft-line:var(--h-line)!important;
+    --ft-line-strong:var(--h-line-strong)!important;
+    --ft-accent:var(--h-purple)!important;
+    --ft-accent-hover:var(--h-purple-strong)!important;
+    --ft-accent-soft:var(--h-lilac-2)!important;
+    --ft-accent-faint:var(--h-lilac)!important;
     --ft-on-accent:#ffffff!important;
-    --ft-success:#17875d!important;
-    --ft-success-soft:#eaf8f1!important;
-    --ft-warning:#b57417!important;
-    --ft-warning-soft:#fff5df!important;
-    --ft-danger:#c94f69!important;
-    --ft-danger-soft:#fff0f3!important;
-    --ft-info:#376fd0!important;
-    --ft-info-soft:#edf3ff!important;
-    --ft-shadow:0 10px 30px rgba(40,32,78,.07)!important;
-    --ft-shadow-pop:0 24px 70px rgba(40,32,78,.15)!important;
+    --ft-shadow:0 8px 24px rgba(47,28,106,.07)!important;
+    --ft-shadow-pop:var(--h-shadow)!important;
     --ft-focus:0 0 0 3px rgba(103,61,230,.16)!important;
-    --v319-violet:#673de6!important;
-    --v319-violet-soft:#eee9ff!important;
-    --v319-blue:#506de8!important;
-    --v319-blue-soft:#eef1ff!important;
-    --v319-cyan:#19aeb6!important;
-    --v319-cyan-soft:#eaf9f9!important;
-    --v319-green:#258b65!important;
-    --v319-green-soft:#eaf8f1!important;
-    --v319-amber:#bd7c1f!important;
-    --v319-amber-soft:#fff5df!important;
-    --v319-rose:#cf5a74!important;
-    --v319-rose-soft:#fff0f3!important;
+    color-scheme:light;
   }
 
   html[data-ui-theme="dark"]{
-    --ft-canvas:#0f0c1b!important;
-    --ft-shell:#151121!important;
-    --ft-workspace:#171326!important;
-    --ft-surface:#1d182d!important;
-    --ft-surface-2:#241e36!important;
-    --ft-surface-3:#2b2440!important;
-    --ft-input:#191526!important;
-    --ft-text:#ebe9f3!important;
+    --h-purple:#8b6cf2;
+    --h-purple-strong:#9f85f6;
+    --h-purple-deep:#31205f;
+    --h-purple-dark:#171126;
+    --h-lilac:#271d3d;
+    --h-lilac-2:#31264a;
+    --h-bg:#171126;
+    --h-bg-soft:#1d1730;
+    --h-panel:#201832;
+    --h-text:#f6f1ff;
+    --h-text-strong:#ffffff;
+    --h-text-soft:#bdb4ce;
+    --h-line:#33294a;
+    --h-line-strong:#45395f;
+    --h-shadow:0 22px 60px rgba(0,0,0,.38);
+    --ft-canvas:var(--h-bg)!important;
+    --ft-shell:var(--h-bg)!important;
+    --ft-workspace:var(--h-bg)!important;
+    --ft-surface:var(--h-panel)!important;
+    --ft-surface-2:var(--h-bg-soft)!important;
+    --ft-surface-3:#281f3b!important;
+    --ft-input:#1e1730!important;
+    --ft-text:#ece6f7!important;
     --ft-text-strong:#ffffff!important;
-    --ft-text-soft:#b7b2c7!important;
-    --ft-muted:#918ba4!important;
-    --ft-faint:#746e84!important;
-    --ft-line:#332c46!important;
-    --ft-line-strong:#433a5c!important;
-    --ft-accent:#9a7cff!important;
-    --ft-accent-hover:#ad96ff!important;
-    --ft-accent-soft:#2c2347!important;
-    --ft-accent-faint:#211b35!important;
+    --ft-text-soft:#bbb3c8!important;
+    --ft-muted:#9289a4!important;
+    --ft-faint:#776f88!important;
+    --ft-line:var(--h-line)!important;
+    --ft-line-strong:var(--h-line-strong)!important;
+    --ft-accent:var(--h-purple)!important;
+    --ft-accent-hover:var(--h-purple-strong)!important;
+    --ft-accent-soft:var(--h-lilac-2)!important;
+    --ft-accent-faint:var(--h-lilac)!important;
     --ft-on-accent:#ffffff!important;
-    --ft-success:#63d3a1!important;
-    --ft-success-soft:#19392d!important;
-    --ft-warning:#efbd66!important;
-    --ft-warning-soft:#3b2c17!important;
-    --ft-danger:#ff8da5!important;
-    --ft-danger-soft:#40222e!important;
-    --ft-info:#83a8ff!important;
-    --ft-info-soft:#202d4d!important;
-    --ft-shadow:0 14px 42px rgba(0,0,0,.24)!important;
-    --ft-shadow-pop:0 30px 86px rgba(0,0,0,.46)!important;
-    --ft-focus:0 0 0 3px rgba(154,124,255,.2)!important;
+    --ft-shadow:0 10px 30px rgba(0,0,0,.25)!important;
+    --ft-shadow-pop:var(--h-shadow)!important;
+    --ft-focus:0 0 0 3px rgba(139,108,242,.20)!important;
+    color-scheme:dark;
   }
 
-  html[data-ui-theme="light"] body,
-  html[data-ui-theme="light"] #root,
-  html[data-ui-theme="light"] .app-ui,
-  html[data-ui-theme="light"] .app-ui :where(.workspace-shell,.workspace-content,.main-content){
-    background:var(--ft-canvas)!important;
-  }
+  html,body,#root,.app-ui,
+  .app-ui :where(.workspace-shell,.workspace-content,.main-content){background:var(--h-bg)!important}
 
-  .app-ui :where(button,.btn,.icon-btn,input,select,textarea,.dashboard-kpi,.dashboard-document-row,.documents-register-row,.mobile-more-link,.mobile-more-account,.mobile-more-settings){
+  body{font-family:Inter,"Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important}
+  [dir="rtl"] body,[lang="ar"] body{font-family:"Noto Sans Arabic",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important}
+
+  /* Core Hostinger-like controls */
+  .app-ui :where(button,.btn,.icon-btn,input,select,textarea){
+    font:inherit!important;
     transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .16s ease,opacity .16s ease!important;
   }
   .app-ui :where(button,.btn,.icon-btn):active{transform:scale(.985)}
-
-  /* Shell: calm, flat, readable. */
-  html[data-ui-theme="light"] .app-ui .fintech-shell-v280:not(.is-editor) .workspace-topbar,
-  html[data-ui-theme="light"] .app-ui .fintech-shell-v280:not(.is-editor) .mobile-bottom-nav{
-    background:rgba(255,255,255,.94)!important;
-    border-color:var(--ft-line)!important;
+  .app-ui :where(.btn,button:not(.unstyled)){
     box-shadow:none!important;
-    backdrop-filter:blur(18px) saturate(120%)!important;
-    -webkit-backdrop-filter:blur(18px) saturate(120%)!important;
+  }
+  .app-ui .btn{
+    min-height:48px!important;
+    border-radius:12px!important;
+    border:1px solid var(--h-line-strong)!important;
+    background:transparent!important;
+    color:var(--h-text-strong)!important;
+    font-weight:750!important;
+  }
+  .app-ui .btn:hover{border-color:var(--h-purple)!important;background:var(--h-lilac)!important;color:var(--h-purple)!important}
+  .app-ui .btn.btn-primary,
+  .app-ui .btn-primary{
+    border-color:var(--h-purple)!important;
+    background:var(--h-purple)!important;
+    color:#fff!important;
+  }
+  .app-ui .btn.btn-primary:hover,.app-ui .btn-primary:hover{background:var(--h-purple-strong)!important;color:#fff!important}
+  .app-ui :where(input,select,textarea){
+    border:1px solid var(--h-line-strong)!important;
+    border-radius:12px!important;
+    background:var(--ft-input)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  .app-ui :where(input,select,textarea):focus{border-color:var(--h-purple)!important;box-shadow:var(--ft-focus)!important;outline:0!important}
+
+  /* Top shell — same calm, flat hierarchy as Hostinger mobile header. */
+  .app-ui .fintech-shell-v280:not(.is-editor) .workspace-topbar{
+    min-height:68px!important;
+    padding-inline:18px!important;
+    background:var(--h-bg)!important;
+    border-bottom:1px solid var(--h-line)!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
   }
   .app-ui .fintech-shell-v280:not(.is-editor) .shell-page-title strong{
-    font-size:18px!important;
+    font-size:22px!important;
+    line-height:1.15!important;
     font-weight:800!important;
-    letter-spacing:-.02em!important;
-    color:var(--ft-text-strong)!important;
+    color:var(--h-text-strong)!important;
+    letter-spacing:-.025em!important;
   }
   [dir="rtl"] .app-ui .fintech-shell-v280:not(.is-editor) .shell-page-title strong{letter-spacing:0!important}
-  .app-ui .mobile-bottom-nav>button{font-weight:700!important;color:var(--ft-muted)!important}
-  .app-ui .mobile-bottom-nav>button.active{color:var(--ft-accent)!important}
-  .app-ui .mobile-bottom-nav>button.active>.icon{filter:none!important}
+  .app-ui .ai-alert-trigger{
+    width:44px!important;height:44px!important;min-width:44px!important;
+    border:0!important;border-radius:12px!important;
+    background:var(--h-lilac)!important;color:var(--h-purple)!important;box-shadow:none!important;
+  }
+  .app-ui .ai-alert-badge{background:#ff6b8a!important;color:#fff!important;border-color:var(--h-bg)!important}
+
+  /* Bottom nav follows a plain app-bar treatment, not floating neon tiles. */
+  .app-ui .mobile-bottom-nav{
+    min-height:72px!important;
+    padding:7px 14px calc(7px + env(safe-area-inset-bottom,0px))!important;
+    background:var(--h-bg)!important;
+    border-top:1px solid var(--h-line)!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  .app-ui .mobile-bottom-nav>button{
+    color:var(--ft-muted)!important;
+    font-weight:700!important;
+    background:transparent!important;
+    border:0!important;
+    border-radius:10px!important;
+  }
+  .app-ui .mobile-bottom-nav>button.active{color:var(--h-purple)!important;background:var(--h-lilac)!important}
   .app-ui .mobile-create-wrap>button{
-    background:var(--ft-accent)!important;
-    color:#fff!important;
-    border:0!important;
-    box-shadow:0 10px 26px rgba(103,61,230,.22)!important;
+    width:58px!important;height:58px!important;border-radius:16px!important;
+    border:0!important;background:var(--h-purple)!important;color:#fff!important;
+    box-shadow:0 10px 26px rgba(103,61,230,.24)!important;
   }
 
-  /* HOME: one strong brand moment, everything else quiet. */
-  .app-ui .fintech-dashboard-v280{
-    gap:14px!important;
+  /* HOME — one dominant purple hero, then quiet white/neutral sections. */
+  .app-ui .fintech-dashboard-v280{gap:18px!important}
+  .app-ui .fintech-dashboard-v280 .workspace-home-hero{
+    position:relative!important;overflow:hidden!important;
+    min-height:230px!important;
+    padding:34px 32px!important;
+    border:0!important;border-radius:28px!important;
+    background:linear-gradient(135deg,var(--h-purple-deep) 0%,var(--h-purple) 72%,#7c5ce8 100%)!important;
+    color:#fff!important;box-shadow:none!important;
   }
-  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .workspace-home-hero{
-    min-height:190px!important;
-    padding:28px!important;
-    border:0!important;
-    border-radius:26px!important;
-    background:
-      radial-gradient(80% 120% at 88% 12%,rgba(169,137,255,.42),transparent 54%),
-      radial-gradient(60% 120% at 8% 100%,rgba(53,208,215,.18),transparent 62%),
-      linear-gradient(135deg,#4320b6 0%,#673de6 52%,#8257ee 100%)!important;
-    box-shadow:0 22px 52px rgba(83,48,190,.20)!important;
-    color:#fff!important;
+  .app-ui .fintech-dashboard-v280 .workspace-home-hero::before{
+    content:"";position:absolute;inset:auto -90px -150px auto;width:330px;height:330px;border-radius:50%;
+    background:rgba(255,255,255,.10);pointer-events:none;
   }
-  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .workspace-home-hero :where(h1,p,.workspace-home-eyebrow){color:#fff!important}
-  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .workspace-home-hero .workspace-home-eyebrow{opacity:.78!important}
-  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .workspace-home-hero>div>p:last-child{opacity:.86!important;max-width:52ch!important}
+  .app-ui .fintech-dashboard-v280 .workspace-home-hero :where(.workspace-home-eyebrow,h1,p){color:#fff!important}
   .app-ui .fintech-dashboard-v280 .workspace-home-hero h1{
-    font-size:clamp(30px,4vw,46px)!important;
-    line-height:1.04!important;
-    font-weight:800!important;
+    margin:8px 0 12px!important;font-size:clamp(36px,5vw,58px)!important;line-height:1!important;font-weight:700!important;letter-spacing:-.04em!important;
   }
-  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .workspace-home-actions .command-period-pill{
-    background:rgba(255,255,255,.12)!important;
-    border:1px solid rgba(255,255,255,.18)!important;
-    color:#fff!important;
+  [dir="rtl"] .app-ui .fintech-dashboard-v280 .workspace-home-hero h1{letter-spacing:0!important}
+  .app-ui .fintech-dashboard-v280 .workspace-home-hero>div>p:last-child{max-width:650px!important;font-size:15px!important;line-height:1.75!important;opacity:.92!important}
+  .app-ui .fintech-dashboard-v280 .workspace-home-actions{gap:10px!important}
+  .app-ui .fintech-dashboard-v280 .workspace-home-actions .command-period-pill{
+    min-height:48px!important;padding:0 16px!important;border:1px solid rgba(255,255,255,.28)!important;border-radius:12px!important;background:rgba(255,255,255,.10)!important;color:#fff!important;
   }
-  html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .workspace-home-actions .btn-primary{
-    background:#fff!important;
-    color:#24154f!important;
-    border:0!important;
-    box-shadow:none!important;
-    font-weight:800!important;
-  }
+  .app-ui .fintech-dashboard-v280 .workspace-home-actions .btn-primary{background:#fff!important;border-color:#fff!important;color:var(--h-purple-deep)!important}
 
-  .app-ui .fintech-dashboard-v280 .command-kpis{
-    gap:12px!important;
-  }
+  .app-ui .fintech-dashboard-v280 .command-kpis{gap:12px!important}
   .app-ui .fintech-dashboard-v280 .dashboard-kpi{
-    min-height:112px!important;
-    padding:16px!important;
-    border:1px solid var(--ft-line)!important;
-    border-radius:20px!important;
-    background:var(--ft-surface)!important;
-    box-shadow:none!important;
+    min-height:118px!important;padding:18px!important;border:1px solid var(--h-line)!important;border-radius:18px!important;background:var(--h-panel)!important;box-shadow:none!important;
   }
-  .app-ui .fintech-dashboard-v280 .dashboard-kpi::after{height:0!important}
-  .app-ui .fintech-dashboard-v280 .dashboard-kpi:hover{border-color:var(--ft-line-strong)!important;box-shadow:0 10px 28px rgba(40,32,78,.06)!important;transform:translateY(-1px)}
-  .app-ui .fintech-dashboard-v280 .dashboard-kpi-icon{width:38px!important;height:38px!important;border-radius:12px!important}
-  .app-ui .fintech-dashboard-v280 .dashboard-kpi small{font-size:11px!important;font-weight:700!important;color:var(--ft-text-soft)!important}
-  .app-ui .fintech-dashboard-v280 .dashboard-money-stack b,
-  .app-ui .fintech-dashboard-v280 .dashboard-kpi strong{font-size:20px!important;font-weight:800!important;letter-spacing:-.02em!important;color:var(--ft-text-strong)!important}
-  .app-ui .fintech-dashboard-v280 .dashboard-kpi em{font-size:10px!important;color:var(--ft-muted)!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi::after{display:none!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi-icon{width:42px!important;height:42px!important;border-radius:12px!important;background:var(--h-lilac)!important;color:var(--h-purple)!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi small{color:var(--ft-text-soft)!important;font-size:11px!important;font-weight:700!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi :where(strong,.dashboard-money-stack b){font-size:22px!important;font-weight:800!important;color:var(--h-text-strong)!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-kpi em{font-size:10.5px!important;color:var(--ft-muted)!important}
 
-  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions{
-    gap:12px!important;
-  }
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions{gap:12px!important}
   .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button{
-    min-height:88px!important;
-    padding:15px!important;
-    border:1px solid var(--ft-line)!important;
-    border-radius:20px!important;
-    background:var(--ft-surface)!important;
-    box-shadow:none!important;
+    min-height:94px!important;padding:16px!important;border:1px solid var(--h-line)!important;border-radius:18px!important;background:var(--h-panel)!important;box-shadow:none!important;
   }
-  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button:hover{border-color:var(--ft-line-strong)!important;box-shadow:0 10px 28px rgba(40,32,78,.06)!important;transform:translateY(-1px)}
-  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button>span:first-child{width:42px!important;height:42px!important;border-radius:13px!important}
-  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button:nth-child(1){background:linear-gradient(135deg,var(--ft-accent-faint),var(--ft-surface))!important;border-color:color-mix(in srgb,var(--ft-accent) 22%,var(--ft-line))!important}
-  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button:nth-child(n+2){background:var(--ft-surface)!important}
-  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button strong{font-size:14px!important;font-weight:800!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button:nth-child(n){background:var(--h-panel)!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button>span:first-child{width:44px!important;height:44px!important;border-radius:12px!important;background:var(--h-lilac)!important;color:var(--h-purple)!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button:first-child>span:first-child{background:var(--h-purple)!important;color:#fff!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button strong{font-size:14px!important;font-weight:800!important;color:var(--h-text-strong)!important}
   .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button small{font-size:10.5px!important;color:var(--ft-muted)!important}
 
-  /* Performance / recent: content first, chrome second. */
   .app-ui .fintech-dashboard-v280 :where(.dashboard-panel,.command-performance-panel,.command-position-panel,.dashboard-recent){
-    border:1px solid var(--ft-line)!important;
-    border-radius:22px!important;
-    background:var(--ft-surface)!important;
-    box-shadow:none!important;
+    border:1px solid var(--h-line)!important;border-radius:20px!important;background:var(--h-panel)!important;box-shadow:none!important;
   }
-  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading{
-    min-height:64px!important;
-    padding:16px 18px!important;
-    border-bottom:1px solid var(--ft-line)!important;
-  }
-  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading small{font-size:10px!important;color:var(--ft-accent)!important;font-weight:700!important}
-  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading h2{font-size:20px!important;font-weight:800!important;color:var(--ft-text-strong)!important}
-  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading>button{
-    min-height:38px!important;
-    padding:8px 12px!important;
-    border:1px solid var(--ft-line)!important;
-    border-radius:11px!important;
-    background:var(--ft-surface)!important;
-    color:var(--ft-accent)!important;
-    box-shadow:none!important;
-  }
-  .app-ui .fintech-dashboard-v280 .dashboard-document-list{padding:0 14px 10px!important}
-  .app-ui .fintech-dashboard-v280 .dashboard-document-row{
-    min-height:62px!important;
-    padding:9px 8px!important;
-    border:0!important;
-    border-bottom:1px solid var(--ft-line)!important;
-    border-radius:0!important;
-    background:transparent!important;
-    box-shadow:none!important;
-  }
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading{min-height:70px!important;padding:18px 20px!important;border-bottom:1px solid var(--h-line)!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading small{color:var(--h-purple)!important;font-size:10px!important;font-weight:750!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading h2{font-size:21px!important;font-weight:800!important;color:var(--h-text-strong)!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-panel-heading>button{min-height:40px!important;padding:8px 13px!important;border:1px solid var(--h-line-strong)!important;border-radius:10px!important;background:transparent!important;color:var(--h-purple)!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-document-list{padding:0 18px 10px!important}
+  .app-ui .fintech-dashboard-v280 .dashboard-document-row{min-height:68px!important;padding:10px 4px!important;border:0!important;border-bottom:1px solid var(--h-line)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
   .app-ui .fintech-dashboard-v280 .dashboard-document-row:last-child{border-bottom:0!important}
-  .app-ui .fintech-dashboard-v280 .dashboard-document-row:hover{background:var(--ft-accent-faint)!important}
-  .app-ui .fintech-dashboard-v280 .dashboard-document-kind{border-radius:10px!important}
 
-  /* DOCUMENTS: clean register, less boxed-in. */
+  /* DOCUMENTS — recreated using Hostinger's hero + segmented control + search grammar. */
   .app-ui .documents-workspace-v2{
-    gap:14px!important;
+    width:100%!important;max-width:1180px!important;margin-inline:auto!important;padding:26px clamp(18px,3vw,36px) 72px!important;gap:0!important;background:var(--h-bg)!important;
   }
-  .app-ui .documents-workspace-v2 :where(.documents-command,.documents-register,.documents-resume){
+  .app-ui .documents-heading{
+    position:relative!important;overflow:hidden!important;
+    display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:24px!important;
+    margin:0 0 22px!important;padding:32px!important;
+    border:0!important;border-radius:26px!important;
+    background:linear-gradient(135deg,var(--h-purple-deep),var(--h-purple))!important;
     box-shadow:none!important;
   }
-  html[data-ui-theme="light"] .app-ui .documents-workspace-v2 .documents-resume{
-    border:0!important;
-    border-radius:22px!important;
-    background:linear-gradient(135deg,#f2edff 0%,#f8f6ff 48%,#eefafa 100%)!important;
-    box-shadow:none!important;
+  .app-ui .documents-heading::after{content:"";position:absolute;width:280px;height:280px;border-radius:50%;inset:auto -100px -150px auto;background:rgba(255,255,255,.10);pointer-events:none}
+  .app-ui .documents-heading>div:first-child{max-width:760px!important;position:relative;z-index:1}
+  .app-ui .documents-heading .eyebrow{margin:0 0 8px!important;color:#d9cffd!important;font-size:12px!important;font-weight:700!important;letter-spacing:0!important;text-transform:none!important}
+  .app-ui .documents-heading h1{margin:0!important;color:#fff!important;font-size:clamp(40px,6vw,64px)!important;line-height:1!important;font-weight:700!important;letter-spacing:-.04em!important}
+  [dir="rtl"] .app-ui .documents-heading h1{letter-spacing:0!important}
+  .app-ui .documents-heading .page-subtitle{max-width:720px!important;margin:14px 0 0!important;color:#eee9ff!important;font-size:15px!important;line-height:1.75!important}
+  .app-ui .documents-heading-actions{
+    position:relative;z-index:1!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important;width:100%!important;max-width:none!important;padding:6px!important;border-radius:16px!important;background:#fff!important;
   }
-  .app-ui .documents-workspace-v2 .documents-resume::before{display:none!important}
-  .app-ui .documents-workspace-v2 .documents-resume .resume-icon{
-    background:var(--ft-accent)!important;
-    color:#fff!important;
-    box-shadow:none!important;
+  .app-ui .documents-heading-actions>.btn{
+    min-height:52px!important;padding:10px 12px!important;border:0!important;border-radius:11px!important;background:#fff!important;color:var(--h-purple-deep)!important;font-size:12px!important;font-weight:800!important;box-shadow:none!important;
   }
-  .app-ui .documents-workspace-v2 .resume-copy small{color:var(--ft-accent)!important}
-  .app-ui .documents-workspace-v2 .resume-arrow{background:#fff!important;color:var(--ft-accent)!important;border:1px solid var(--ft-line)!important}
-  .app-ui .documents-workspace-v2 .documents-command,
-  .app-ui .documents-workspace-v2 .documents-register{
-    border:1px solid var(--ft-line)!important;
-    border-radius:20px!important;
-    background:var(--ft-surface)!important;
-  }
-  .app-ui .documents-workspace-v2 .document-type-tabs>button{
-    min-height:44px!important;
-    border-radius:12px!important;
-    box-shadow:none!important;
-  }
+  .app-ui .documents-heading-actions>.btn:hover{background:var(--h-lilac)!important;color:var(--h-purple)!important}
+  .app-ui .documents-heading-actions>.btn.btn-primary{background:var(--h-purple-dark)!important;color:#fff!important}
+  .app-ui .documents-heading-actions>.btn .icon{color:currentColor!important}
 
-  /* AI: in light mode it belongs to the page instead of looking like a dark embed. */
-  html[data-ui-theme="light"] .app-ui .lourex-advisor-v319{
-    border:0!important;
-    border-radius:26px!important;
-    background:
-      radial-gradient(70% 120% at 100% 0%,rgba(103,61,230,.16),transparent 58%),
-      radial-gradient(70% 140% at 0% 100%,rgba(25,174,182,.10),transparent 58%),
-      linear-gradient(135deg,#f5f1ff 0%,#ffffff 58%,#f1fbfb 100%)!important;
-    box-shadow:none!important;
+  .app-ui .documents-resume{
+    min-height:104px!important;display:grid!important;grid-template-columns:56px minmax(0,1fr) auto!important;align-items:center!important;gap:16px!important;
+    margin:0 0 20px!important;padding:18px 20px!important;border:1px solid var(--h-line)!important;border-radius:20px!important;background:var(--h-lilac)!important;color:var(--ft-text)!important;box-shadow:none!important;
   }
-  html[data-ui-theme="light"] .app-ui .lourex-advisor-v319 :where(.lourex-advisor-identity h2,.lourex-advisor-welcome-copy strong,.lourex-ai-report-head strong,.lourex-ai-insight strong){color:#1d1830!important}
-  html[data-ui-theme="light"] .app-ui .lourex-advisor-v319 :where(.lourex-advisor-identity p,.lourex-advisor-welcome-copy span,.lourex-ai-report-head span,.lourex-ai-insight p){color:#6b6679!important}
-  .app-ui .lourex-advisor-v319 .lourex-advisor-head{padding:22px 22px 15px!important}
-  .app-ui .lourex-advisor-v319 .lourex-advisor-identity{gap:14px!important}
-  .app-ui .lourex-advisor-v319 .lourex-advisor-identity h2{font-size:clamp(22px,2.4vw,30px)!important;line-height:1.14!important;font-weight:800!important}
-  .app-ui .lourex-advisor-v319 .lourex-advisor-identity small{color:var(--ft-accent)!important;font-size:10.5px!important;font-weight:800!important}
-  .app-ui .lourex-ai-core{
-    width:58px!important;height:58px!important;min-width:58px!important;
-    border:0!important;border-radius:18px!important;
-    background:linear-gradient(145deg,#6d46e8,#8b69f4)!important;
-    box-shadow:0 12px 28px rgba(103,61,230,.20)!important;
+  .app-ui .documents-resume::before{display:none!important}
+  .app-ui .documents-resume .resume-icon{width:54px!important;height:54px!important;border:0!important;border-radius:14px!important;background:var(--h-purple)!important;color:#fff!important;box-shadow:none!important}
+  .app-ui .documents-resume .resume-copy small{color:var(--h-purple)!important;font-size:11px!important;font-weight:800!important}
+  .app-ui .documents-resume .resume-copy strong{color:var(--h-text-strong)!important;font-size:19px!important;font-weight:800!important}
+  .app-ui .documents-resume .resume-copy>span{color:var(--ft-text-soft)!important;font-size:11.5px!important}
+  .app-ui .documents-resume .resume-meta b{color:var(--h-text-strong)!important;font-size:16px!important;font-weight:800!important}
+  .app-ui .documents-resume .resume-meta em{color:var(--ft-text-soft)!important;font-size:11px!important}
+  .app-ui .documents-resume .resume-arrow{width:36px!important;height:36px!important;display:grid!important;place-items:center!important;border:1px solid var(--h-line-strong)!important;border-radius:10px!important;background:#fff!important;color:var(--h-purple)!important}
+
+  .app-ui .documents-register-tabs.document-type-tabs{
+    width:100%!important;display:flex!important;align-items:center!important;gap:4px!important;margin:0 0 18px!important;padding:6px!important;overflow-x:auto!important;
+    border:1px solid var(--h-line)!important;border-radius:16px!important;background:var(--h-bg-soft)!important;box-shadow:none!important;
   }
-  .app-ui .lourex-ai-core>.icon{color:#fff!important;opacity:.28!important}
-  .app-ui .ai-core-eye{background:#fff!important;box-shadow:0 0 10px rgba(255,255,255,.65)!important}
-  .app-ui .lourex-advisor-tabs{
-    margin:0 22px 14px!important;
-    padding:4px!important;
-    border:1px solid var(--ft-line)!important;
-    border-radius:14px!important;
-    background:rgba(255,255,255,.72)!important;
-    box-shadow:none!important;
+  .app-ui .documents-register-tabs.document-type-tabs>button{
+    flex:0 0 auto!important;min-height:48px!important;padding:8px 14px!important;border:0!important;border-radius:11px!important;background:transparent!important;color:var(--ft-text-soft)!important;font-size:11.5px!important;font-weight:750!important;box-shadow:none!important;
   }
-  html[data-ui-theme="dark"] .app-ui .lourex-advisor-tabs{background:var(--ft-surface-2)!important}
-  .app-ui .lourex-advisor-tabs>button{min-height:44px!important;border-radius:10px!important;font-size:13px!important}
-  .app-ui .lourex-advisor-tabs>button.active{
-    background:var(--ft-surface)!important;
-    color:var(--ft-accent)!important;
-    box-shadow:0 5px 16px rgba(40,32,78,.08)!important;
+  .app-ui .documents-register-tabs.document-type-tabs>button strong{min-width:24px!important;height:24px!important;border:0!important;background:transparent!important;color:inherit!important;font-size:10px!important}
+  .app-ui .documents-register-tabs.document-type-tabs>button.active{background:var(--h-purple-dark)!important;color:#fff!important;box-shadow:none!important}
+  .app-ui .documents-register-tabs.document-type-tabs>button.active strong{background:rgba(255,255,255,.14)!important;color:#fff!important}
+  .app-ui .documents-register-tabs.document-type-tabs>button.has-drafts:not(.active) strong{background:transparent!important;color:inherit!important}
+
+  .app-ui .documents-command{
+    display:grid!important;grid-template-columns:1fr!important;gap:10px!important;margin:0 0 14px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;
   }
+  .app-ui .documents-command-search{display:grid!important;grid-template-columns:minmax(0,1fr) 220px!important;gap:10px!important;order:1!important}
+  .app-ui .documents-search-box{
+    position:relative!important;min-height:58px!important;display:grid!important;grid-template-columns:26px minmax(0,1fr) auto!important;align-items:center!important;gap:10px!important;
+    padding:0 10px 0 18px!important;border:2px solid var(--h-purple-deep)!important;border-radius:18px!important;background:var(--h-bg)!important;box-shadow:none!important;
+  }
+  [dir="rtl"] .app-ui .documents-search-box{padding:0 18px 0 10px!important}
+  .app-ui .documents-search-box>.icon{width:22px!important;height:22px!important;color:var(--h-purple-deep)!important}
+  .app-ui .documents-search-input{height:54px!important;padding:0!important;border:0!important;background:transparent!important;color:var(--h-text-strong)!important;font-size:14px!important;box-shadow:none!important}
+  .app-ui .documents-search-input::placeholder{color:#8b8794!important}
+  .app-ui .documents-search-shortcut{display:grid!important;place-items:center!important;min-width:42px!important;height:42px!important;border:0!important;border-radius:12px!important;background:var(--h-purple-deep)!important;color:#fff!important;font-size:12px!important}
+  .app-ui .documents-search-clear{width:42px!important;height:42px!important;min-width:42px!important;border:0!important;border-radius:12px!important;background:var(--h-purple-deep)!important;color:#fff!important}
+  .app-ui .documents-sort{min-height:58px!important;border:1px solid var(--h-line-strong)!important;border-radius:16px!important;background:var(--h-bg)!important;color:var(--h-text-strong)!important;font-weight:700!important}
+
+  .app-ui .documents-command-filters{display:block!important;order:2!important}
+  .app-ui .documents-advanced-filters{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;padding:0!important}
+  .app-ui .documents-advanced-filters label{gap:6px!important}
+  .app-ui .documents-advanced-filters label>span{color:var(--ft-muted)!important;font-size:10px!important;font-weight:700!important}
+  .app-ui .documents-advanced-filters select{min-height:50px!important;border-radius:14px!important;background:var(--h-bg-soft)!important}
+
+  .app-ui .documents-results-bar{min-height:36px!important;margin:4px 0 10px!important;padding:0 2px!important;color:var(--ft-muted)!important;font-size:11px!important}
+  .app-ui .documents-results-bar strong{font-size:12px!important;color:var(--h-text-strong)!important}
+  .app-ui .documents-clear-filters{min-height:34px!important;padding:6px 10px!important;border:0!important;border-radius:9px!important;background:var(--h-lilac)!important;color:var(--h-purple)!important;font-weight:750!important}
+
+  .app-ui .documents-register{
+    overflow:hidden!important;border:1px solid var(--h-line)!important;border-radius:18px!important;background:var(--h-panel)!important;box-shadow:none!important;
+  }
+  .app-ui .documents-register-row{min-height:76px!important;border:0!important;border-bottom:1px solid var(--h-line)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+  .app-ui .documents-register-row:last-child{border-bottom:0!important}
+  .app-ui .documents-register-row:hover{background:var(--h-lilac)!important}
+  .app-ui .document-register-open{min-height:76px!important;padding-block:12px!important}
+  .app-ui .register-identity>strong{font-size:13px!important;font-weight:800!important;color:var(--h-text-strong)!important}
+  .app-ui .document-kind-pill{padding:3px 0!important;border:0!important;border-radius:0!important;background:transparent!important;color:var(--h-purple)!important;font-size:9.5px!important;font-weight:750!important}
+  .app-ui .register-customer b{font-size:12px!important;font-weight:750!important;color:var(--ft-text)!important}
+  .app-ui .register-customer small,.app-ui .register-date{color:var(--ft-muted)!important}
+  .app-ui .register-amount{font-size:13px!important;font-weight:800!important;color:var(--h-text-strong)!important}
+  .app-ui :where(.document-status-pill,.collection-pill){border-radius:999px!important;padding:4px 8px!important;font-size:9px!important;font-weight:750!important}
+  .app-ui .documents-register-row :where(.desktop-actions .icon-btn,.mobile-actions .icon-btn){border:0!important;background:transparent!important;color:var(--ft-muted)!important}
+
+  /* Detail screens — same flat section rhythm. */
+  .app-ui .document-detail-page{max-width:1180px!important;padding:26px clamp(18px,3vw,36px) 72px!important}
+  .app-ui .document-detail-topbar{margin-bottom:16px!important}
+  .app-ui .document-detail-back{min-height:44px!important;border:0!important;background:transparent!important;color:var(--h-purple)!important;font-weight:750!important}
+  .app-ui .document-detail-hero{
+    border:0!important;border-radius:24px!important;background:linear-gradient(135deg,var(--h-purple-deep),var(--h-purple))!important;color:#fff!important;box-shadow:none!important;
+  }
+  .app-ui .document-detail-hero :where(h1,p,span,small,strong){color:#fff!important}
+  .app-ui .document-detail-kind-icon{background:rgba(255,255,255,.12)!important;border:1px solid rgba(255,255,255,.22)!important;color:#fff!important}
+  .app-ui .document-detail-card{border:1px solid var(--h-line)!important;border-radius:18px!important;background:var(--h-panel)!important;box-shadow:none!important}
+  .app-ui .document-detail-card>header{border-bottom:1px solid var(--h-line)!important}
+  .app-ui .document-detail-card>header h2{color:var(--h-text-strong)!important;font-weight:800!important}
+  .app-ui .document-detail-items,.app-ui .document-detail-side>.document-detail-card:first-child,.app-ui .document-detail-secondary-actions{background:var(--h-panel)!important;border-color:var(--h-line)!important}
+  .app-ui .document-detail-totals .grand{background:var(--h-lilac)!important;color:var(--h-text-strong)!important}
+
+  /* AI uses one refined purple family, no toy-like rainbow. */
+  .app-ui .lourex-ai-launcher{
+    width:52px!important;height:52px!important;min-width:52px!important;min-height:52px!important;border:0!important;border-radius:16px!important;background:var(--h-purple-dark)!important;color:#fff!important;box-shadow:0 12px 26px rgba(47,28,106,.22)!important;animation:none!important;
+  }
+  .app-ui .lourex-ai-launcher::before{display:none!important}
+  .app-ui .lourex-ai-launcher .icon{color:#fff!important;filter:none!important}
+  .app-ui .lourex-advisor-v319{
+    border:0!important;border-radius:24px!important;background:var(--h-purple-deep)!important;color:#fff!important;box-shadow:none!important;
+  }
+  .app-ui .lourex-ai-aura{display:none!important}
+  .app-ui .lourex-advisor-v319 .lourex-advisor-head{padding:22px 22px 14px!important;background:transparent!important}
+  .app-ui .lourex-advisor-v319 .lourex-advisor-identity :where(h2,p,small){color:#fff!important}
+  .app-ui .lourex-advisor-v319 .lourex-advisor-identity small{opacity:.72!important;letter-spacing:0!important}
+  .app-ui .lourex-ai-core{border:1px solid rgba(255,255,255,.22)!important;border-radius:18px!important;background:rgba(255,255,255,.10)!important;box-shadow:none!important}
+  .app-ui .lourex-ai-core>.icon{color:#fff!important;opacity:.25!important}
+  .app-ui .ai-core-eye{background:#fff!important;box-shadow:none!important}
+  .app-ui .lourex-advisor-tabs{margin:0 22px 14px!important;padding:5px!important;border:0!important;border-radius:14px!important;background:#fff!important}
+  .app-ui .lourex-advisor-tabs>button{min-height:46px!important;border:0!important;border-radius:10px!important;background:#fff!important;color:#6a6377!important;font-weight:750!important}
+  .app-ui .lourex-advisor-tabs>button.active{background:var(--h-purple-dark)!important;color:#fff!important;box-shadow:none!important}
+  .app-ui .lourex-advisor-tabs>button>b{background:#f1ecff!important;color:var(--h-purple)!important}
   .app-ui .lourex-advisor-body,.app-ui .lourex-advisor-compose{padding-inline:22px!important}
-  .app-ui .lourex-advisor-v319 .lourex-advisor-compose form{
-    min-height:56px!important;
-    border:1px solid var(--ft-line-strong)!important;
-    border-radius:16px!important;
-    background:var(--ft-surface)!important;
-    box-shadow:none!important;
-  }
-  .app-ui .lourex-advisor-v319 .lourex-advisor-compose form>button{
-    width:46px!important;height:46px!important;border-radius:13px!important;background:var(--ft-accent)!important;box-shadow:none!important;
-  }
+  .app-ui .lourex-advisor-v319 .lourex-advisor-compose form{min-height:58px!important;border:0!important;border-radius:14px!important;background:#fff!important;box-shadow:none!important}
+  .app-ui .lourex-advisor-v319 .lourex-advisor-compose input{color:#2f1c6a!important;background:transparent!important}
+  .app-ui .lourex-advisor-v319 .lourex-advisor-compose form>button{width:46px!important;height:46px!important;border:0!important;border-radius:11px!important;background:var(--h-purple)!important;color:#fff!important}
   .app-ui .lourex-ai-report{padding:0 22px 22px!important}
-  .app-ui .lourex-ai-insight{
-    min-height:94px!important;
-    border:1px solid var(--ft-line)!important;
-    border-radius:16px!important;
-    background:rgba(255,255,255,.72)!important;
-    box-shadow:none!important;
-  }
-  html[data-ui-theme="dark"] .app-ui .lourex-ai-insight{background:var(--ft-surface-2)!important}
+  .app-ui .lourex-ai-report :where(strong,span,p,small){color:#fff!important}
+  .app-ui .lourex-ai-insight{border:1px solid rgba(255,255,255,.16)!important;border-radius:14px!important;background:rgba(255,255,255,.08)!important;box-shadow:none!important}
+  .app-ui .lourex-ai-insight-signal{background:#fff!important;opacity:.55!important}
 
-  /* Smart header alerts: quiet until there is something to show. */
-  .app-ui .ai-alert-trigger{
-    border:0!important;
-    background:var(--ft-accent-faint)!important;
-    color:var(--ft-accent)!important;
-    box-shadow:none!important;
-  }
-  .app-ui .ai-alert-popover{
-    border:1px solid var(--ft-line)!important;
-    border-radius:20px!important;
-    background:var(--ft-surface)!important;
-    box-shadow:var(--ft-shadow-pop)!important;
-  }
-  .app-ui .ai-alert-item{border:0!important;border-bottom:1px solid var(--ft-line)!important;border-radius:0!important;background:transparent!important}
+  .app-ui .ai-alert-popover{border:1px solid var(--h-line)!important;border-radius:18px!important;background:var(--h-panel)!important;box-shadow:var(--h-shadow)!important}
+  .app-ui .ai-alert-item{border:0!important;border-bottom:1px solid var(--h-line)!important;border-radius:0!important;background:transparent!important}
   .app-ui .ai-alert-item:last-child{border-bottom:0!important}
-  .app-ui .ai-alert-item:hover{background:var(--ft-accent-faint)!important}
+  .app-ui .ai-alert-item-dot{background:var(--h-purple)!important}
 
-  /* More sheet follows the same clean menu rhythm. */
-  html[data-ui-theme="light"] .app-ui .mobile-more-sheet{
-    background:#fff!important;
-    box-shadow:0 -18px 60px rgba(40,32,78,.14)!important;
-  }
-  .app-ui .mobile-more-heading-copy strong{font-size:26px!important;font-weight:800!important}
-  .app-ui .mobile-more-theme-control{border:1px solid var(--ft-line)!important;background:var(--ft-surface-2)!important}
-  .app-ui :where(.mobile-more-account,.mobile-more-link,.mobile-more-settings){min-height:64px!important}
-  .app-ui :where(.mobile-more-account-copy,.mobile-more-link-copy,.mobile-more-settings-copy) strong{font-size:14px!important;font-weight:750!important}
+  /* More menu — direct, spacious list like Hostinger's mobile drawer. */
+  .app-ui .mobile-more-sheet{padding:14px 20px calc(20px + env(safe-area-inset-bottom,0px))!important;border-radius:0!important;background:var(--h-bg)!important;box-shadow:none!important}
+  .app-ui .mobile-more-handle{display:none!important}
+  .app-ui .mobile-more-heading{min-height:72px!important;padding:8px 0 18px!important;border-bottom:1px solid var(--h-line)!important}
+  .app-ui .mobile-more-heading-copy strong{font-size:30px!important;font-weight:700!important;color:var(--h-text-strong)!important}
+  .app-ui .mobile-more-heading-copy span{font-size:12px!important;color:var(--ft-text-soft)!important}
+  .app-ui .mobile-more-theme-control{min-height:58px!important;margin:14px 0!important;border:1px solid var(--h-line)!important;border-radius:14px!important;background:var(--h-bg-soft)!important}
+  .app-ui .mobile-more-status-row{padding:0 0 12px!important}
+  .app-ui :where(.mobile-more-account,.mobile-more-link,.mobile-more-settings){min-height:72px!important;margin:0!important;padding:12px 0!important;border:0!important;border-bottom:1px solid var(--h-line)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+  .app-ui :where(.mobile-more-account-icon,.mobile-more-link-icon,.mobile-more-settings-icon){width:38px!important;height:38px!important;border-radius:10px!important;background:transparent!important;color:var(--h-text-strong)!important}
+  .app-ui :where(.mobile-more-account-copy,.mobile-more-link-copy,.mobile-more-settings-copy) strong{font-size:16px!important;font-weight:650!important;color:var(--h-text-strong)!important}
   .app-ui :where(.mobile-more-account-copy,.mobile-more-link-copy,.mobile-more-settings-copy) small{font-size:10.5px!important;color:var(--ft-muted)!important}
-  .app-ui .mobile-more-signout{background:transparent!important;border:0!important;border-top:1px solid var(--ft-line)!important;border-radius:0!important;color:var(--ft-danger)!important}
+  .app-ui .mobile-more-signout{min-height:56px!important;margin-top:16px!important;border:0!important;border-top:1px solid var(--h-line)!important;border-radius:0!important;background:transparent!important;color:var(--ft-danger)!important}
 
-  /* Draft/editor chrome: softer, clearer, no purple slab. */
-  html[data-ui-theme="light"] .app-ui .draft-studio-topbar{
-    background:#fff!important;
-    border-bottom:1px solid var(--ft-line)!important;
-    box-shadow:none!important;
-  }
-  .app-ui .draft-control-section{
-    border:1px solid var(--ft-line)!important;
-    border-inline-start:1px solid var(--ft-line)!important;
-    border-radius:18px!important;
-    background:var(--ft-surface)!important;
-    box-shadow:none!important;
-  }
-  .app-ui .draft-control-section:nth-child(1){border-top:3px solid var(--v319-blue)!important}
-  .app-ui .draft-control-section:nth-child(2){border-top:3px solid var(--v319-cyan)!important}
-  .app-ui .draft-control-section:nth-child(3){border-top:3px solid var(--v319-violet)!important}
-  .app-ui .draft-block-card{border-radius:16px!important}
-  .app-ui .draft-mobile-actionbar{
-    background:color-mix(in srgb,var(--ft-shell) 94%,transparent)!important;
-    border-top:1px solid var(--ft-line)!important;
-    box-shadow:0 -12px 34px rgba(40,32,78,.08)!important;
-    backdrop-filter:blur(18px)!important;
-    -webkit-backdrop-filter:blur(18px)!important;
-  }
+  /* Draft/editor — same product grammar: white/neutral canvas, purple controls. */
+  .app-ui .draft-studio{--draft-accent:var(--h-purple)!important;background:var(--h-bg)!important}
+  .app-ui .draft-studio-topbar{background:var(--h-bg)!important;border-bottom:1px solid var(--h-line)!important;box-shadow:none!important}
+  .app-ui .draft-studio-identity>span{background:var(--h-lilac)!important;border:0!important;color:var(--h-purple)!important}
+  .app-ui .draft-control-section{border:1px solid var(--h-line)!important;border-radius:18px!important;background:var(--h-panel)!important;box-shadow:none!important}
+  .app-ui .draft-control-section:nth-child(n){border-inline-start:1px solid var(--h-line)!important;border-top:1px solid var(--h-line)!important}
+  .app-ui .draft-section-heading>span{background:var(--h-lilac)!important;color:var(--h-purple)!important}
+  .app-ui .draft-block-card{border:1px solid var(--h-line)!important;border-radius:15px!important;background:var(--h-bg-soft)!important;box-shadow:none!important}
+  .app-ui .draft-block-card.active,.app-ui .draft-block-card:focus-within{border-color:var(--h-purple)!important;background:var(--h-lilac)!important;box-shadow:none!important}
+  .app-ui .draft-studio .draft-studio-actions .btn:nth-child(n),.app-ui .draft-mobile-actionbar .btn:nth-child(n){border-color:var(--h-line-strong)!important;background:transparent!important;color:var(--h-text-strong)!important}
+  .app-ui .draft-studio .draft-studio-actions .btn.btn-primary,.app-ui .draft-mobile-actionbar .btn.btn-primary{border-color:var(--h-purple)!important;background:var(--h-purple)!important;color:#fff!important}
+  .app-ui .draft-mobile-actionbar{background:var(--h-bg)!important;border-top:1px solid var(--h-line)!important;box-shadow:none!important}
 
   @media(max-width:900px){
-    .app-ui .fintech-dashboard-v280{gap:12px!important}
-    html[data-ui-theme="light"] .app-ui .fintech-dashboard-v280 .workspace-home-hero{
-      min-height:170px!important;
-      padding:22px 18px!important;
-      border-radius:22px!important;
-    }
-    .app-ui .fintech-dashboard-v280 .workspace-home-hero h1{font-size:34px!important}
-    .app-ui .fintech-dashboard-v280 .command-kpis{gap:9px!important}
-    .app-ui .fintech-dashboard-v280 .dashboard-kpi{min-height:98px!important;padding:13px!important;border-radius:17px!important}
-    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions{gap:9px!important}
-    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button{min-height:82px!important;border-radius:17px!important;padding:12px!important}
-    .app-ui .fintech-dashboard-v280 :where(.dashboard-panel,.command-performance-panel,.command-position-panel,.dashboard-recent){border-radius:18px!important}
-    .app-ui .fintech-dashboard-v280 .dashboard-panel-heading{padding:14px!important}
-    .app-ui .fintech-dashboard-v280 .dashboard-panel-heading h2{font-size:18px!important}
-    .app-ui .fintech-dashboard-v280 .dashboard-document-list{padding:0 10px 8px!important}
-    .app-ui .fintech-dashboard-v280 .dashboard-document-row{min-height:60px!important;padding:8px 6px!important}
+    .app-ui .documents-workspace-v2,.app-ui .document-detail-page{padding:18px 18px 86px!important}
+    .app-ui .documents-heading{padding:24px 20px!important;border-radius:22px!important;gap:20px!important}
+    .app-ui .documents-heading h1{font-size:44px!important}
+    .app-ui .documents-heading-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+    .app-ui .documents-command-search{grid-template-columns:1fr!important}
+    .app-ui .documents-advanced-filters{grid-template-columns:1fr!important}
+    .app-ui .documents-resume{grid-template-columns:52px minmax(0,1fr)!important}
+    .app-ui .documents-resume .resume-meta{grid-column:2!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;width:100%!important}
+    .app-ui .documents-register{border-radius:16px!important}
     .app-ui .lourex-advisor-v319{border-radius:20px!important}
-    .app-ui .lourex-advisor-v319 .lourex-advisor-head{padding:18px 15px 12px!important}
-    .app-ui .lourex-advisor-tabs{margin:0 15px 12px!important}
-    .app-ui .lourex-advisor-body,.app-ui .lourex-advisor-compose{padding-inline:15px!important}
-    .app-ui .lourex-ai-report{padding:0 15px 16px!important}
+    .app-ui .lourex-advisor-v319 .lourex-advisor-head{padding:18px 16px 12px!important}
+    .app-ui .lourex-advisor-tabs{margin:0 16px 12px!important}
+    .app-ui .lourex-advisor-body,.app-ui .lourex-advisor-compose{padding-inline:16px!important}
+    .app-ui .lourex-ai-report{padding:0 16px 16px!important}
   }
 
   @media(max-width:720px){
-    .app-ui .fintech-dashboard-v280 .workspace-home-hero h1{font-size:30px!important}
-    .app-ui .fintech-dashboard-v280 .workspace-home-hero>div>p:last-child{font-size:12px!important;line-height:1.6!important}
-    .app-ui .fintech-dashboard-v280 .dashboard-kpi{min-height:94px!important}
-    .app-ui .fintech-dashboard-v280 .dashboard-money-stack b,.app-ui .fintech-dashboard-v280 .dashboard-kpi strong{font-size:17px!important}
-    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button{min-height:80px!important}
-    .app-ui .lourex-advisor-v319 .lourex-advisor-identity h2{font-size:20px!important}
-    .app-ui .lourex-ai-core{width:52px!important;height:52px!important;min-width:52px!important;border-radius:16px!important}
-    .app-ui .lourex-advisor-tabs>button{font-size:12.5px!important}
+    .app-ui .fintech-dashboard-v280{gap:14px!important}
+    .app-ui .fintech-dashboard-v280 .workspace-home-hero{min-height:190px!important;padding:26px 20px!important;border-radius:22px!important}
+    .app-ui .fintech-dashboard-v280 .workspace-home-hero h1{font-size:38px!important}
+    .app-ui .fintech-dashboard-v280 .workspace-home-hero>div>p:last-child{font-size:12.5px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-kpi{min-height:102px!important;padding:14px!important;border-radius:16px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-quick-actions>button{min-height:84px!important;padding:12px!important;border-radius:16px!important}
+    .app-ui .fintech-dashboard-v280 :where(.dashboard-panel,.command-performance-panel,.command-position-panel,.dashboard-recent){border-radius:16px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-panel-heading{padding:14px!important}
+    .app-ui .fintech-dashboard-v280 .dashboard-document-list{padding:0 10px 8px!important}
+
+    .app-ui .documents-workspace-v2{padding-inline:14px!important}
+    .app-ui .documents-heading{padding:22px 18px!important;border-radius:20px!important}
+    .app-ui .documents-heading .eyebrow{font-size:10.5px!important}
+    .app-ui .documents-heading h1{font-size:40px!important}
+    .app-ui .documents-heading .page-subtitle{font-size:12px!important;line-height:1.7!important}
+    .app-ui .documents-heading-actions{padding:5px!important;border-radius:14px!important;gap:5px!important}
+    .app-ui .documents-heading-actions>.btn{min-height:50px!important;border-radius:10px!important;font-size:11px!important}
+    .app-ui .documents-resume{min-height:112px!important;padding:15px!important;border-radius:18px!important}
+    .app-ui .documents-register-tabs.document-type-tabs{margin-bottom:14px!important;border-radius:14px!important}
+    .app-ui .documents-register-tabs.document-type-tabs>button{min-height:46px!important;padding-inline:12px!important}
+    .app-ui .documents-search-box{min-height:56px!important;border-radius:16px!important}
+    .app-ui .documents-sort{min-height:54px!important;border-radius:14px!important}
+    .app-ui .documents-command-filters{display:none!important}
+    .app-ui .documents-filter-toggle{display:flex!important;align-items:center!important;justify-content:space-between!important;min-height:54px!important;padding:0 16px!important;border:1px solid var(--h-line-strong)!important;border-radius:14px!important;background:var(--h-bg)!important;color:var(--h-text-strong)!important;font-weight:750!important}
+    .app-ui .documents-filter-toggle[aria-expanded="true"]{border-color:var(--h-purple)!important;color:var(--h-purple)!important}
+    .app-ui .documents-filter-toggle[aria-expanded="true"] + .documents-command-filters{display:block!important}
+    .app-ui .documents-register-row{min-height:82px!important}
+    .app-ui .document-register-open{min-height:82px!important}
+
+    .app-ui .mobile-bottom-nav{min-height:70px!important}
+    .app-ui .mobile-create-wrap>button{width:56px!important;height:56px!important}
+    .app-ui .lourex-ai-launcher{width:50px!important;height:50px!important;min-width:50px!important;min-height:50px!important;border-radius:15px!important}
+    .app-ui .mobile-more-sheet{padding-inline:18px!important}
   }
 
   @media(prefers-reduced-motion:reduce){
-    .app-ui :where(button,.btn,.icon-btn,input,select,textarea,.dashboard-kpi,.dashboard-document-row,.documents-register-row,.mobile-more-link,.mobile-more-account,.mobile-more-settings){transition:none!important}
+    .app-ui :where(button,.btn,.icon-btn,input,select,textarea){transition:none!important}
   }
 }
