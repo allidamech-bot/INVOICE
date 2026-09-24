@@ -1,6 +1,7 @@
 import type { UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { formatMoney } from '../lib/money.js';
+import { todayIso } from '../lib/id.js';
 import { buildAiFinanceContext, type AiFinanceSource } from '../lib/ai-finance.js';
 import { advisorCalculation } from '../lib/advisor-calculator.js';
 import { resumeVaultSession } from '../storage/vault.js';
@@ -9,7 +10,20 @@ import { Icon } from './UI.js';
 
 interface Props{language:UiLanguage;}
 interface AdvisorMessage{id:string;role:'user'|'assistant';text:string;}
-interface State{input:string;busy:boolean;error:string;messages:AdvisorMessage[];}
+type AdvisorMode='chat'|'report';
+type InsightTone='good'|'info'|'warn'|'danger';
+interface AdvisorInsight{id:string;tone:InsightTone;title:string;detail:string;metric?:string;}
+interface State{
+  input:string;
+  busy:boolean;
+  error:string;
+  messages:AdvisorMessage[];
+  mode:AdvisorMode;
+  reportBusy:boolean;
+  reportError:string;
+  reportItems:AdvisorInsight[];
+  reportUpdatedAt:number;
+}
 
 const MAX_MESSAGE_CHARS=1000;
 const HISTORY_MESSAGES=6;
@@ -30,12 +44,6 @@ function conversationRequest(current:string,messages:AdvisorMessage[]):string{
 
 function includesAny(value:string,tokens:string[]):boolean{return tokens.some(token=>value.includes(token));}
 
-/**
- * Deterministic finance fallback for the Home advisor's core starter questions.
- * It never invents figures: every amount below comes from the same local finance
- * engine used to build the server-side AI context. Open-ended questions still go
- * to AI and surface a truthful service error when the upstream service is down.
- */
 function localFinanceFallback(source:AiFinanceSource,message:string,language:UiLanguage):string{
   const query=message.normalize('NFKC').toLowerCase();
   const collectionIntent=includesAny(query,['collection','collect','follow up','overdue','تحصيل','أتابع','متأخر','المتأخر']);
@@ -72,8 +80,21 @@ function localFinanceFallback(source:AiFinanceSource,message:string,language:UiL
   return arabic?`ملخص هذا الشهر: ${details.join(' • ')}.`:`This month's summary: ${details.join(' • ')}.`;
 }
 
+function reportAge(at:number,language:UiLanguage):string{
+  if(!at)return'';
+  const minutes=Math.max(0,Math.round((Date.now()-at)/60000));
+  if(minutes<1)return language==='ar'?'الآن':'now';
+  if(minutes<60)return language==='ar'?`منذ ${minutes} دقيقة`:`${minutes} min ago`;
+  const hours=Math.max(1,Math.round(minutes/60));
+  return language==='ar'?`منذ ${hours} ساعة`:`${hours}h ago`;
+}
+
 export class LourexAdvisorCard extends React.Component<Props,State>{
-  state:State={input:'',busy:false,error:'',messages:[]};
+  state:State={input:'',busy:false,error:'',messages:[],mode:'chat',reportBusy:false,reportError:'',reportItems:[],reportUpdatedAt:0};
+
+  componentDidMount():void{
+    window.setTimeout(()=>void this.loadReport(false),900);
+  }
 
   private ask=async(raw?:string)=>{
     if(this.state.busy)return;
@@ -115,19 +136,94 @@ export class LourexAdvisorCard extends React.Component<Props,State>{
     }
   };
 
+  private loadReport=async(showBusy=true)=>{
+    if(this.state.reportBusy)return;
+    if(showBusy)this.setState({reportBusy:true,reportError:''});
+    try{
+      const resumed=await resumeVaultSession();
+      if(!resumed)throw new Error(t('Unlock LOUREX to build your AI report.','افتح قفل LOUREX لإنشاء تقرير الذكاء الاصطناعي.'));
+      const vault=resumed.vault;
+      const source:AiFinanceSource={documents:vault.documents,payments:vault.payments,customers:vault.customers,activeDocument:null};
+      const finance=buildAiFinanceContext(source,'business report');
+      const arabic=this.props.language==='ar';
+      const items:AdvisorInsight[]=[];
+
+      const monthRows=finance.monthToDate.slice(0,3);
+      monthRows.forEach(row=>items.push({
+        id:`month-${row.currency}`,
+        tone:Number(row.overdue)>0?'warn':'good',
+        title:arabic?`ملخص ${row.currency} هذا الشهر`:`${row.currency} month-to-date`,
+        detail:arabic
+          ? `مبيعات ${formatMoney(row.netSales,row.currency)} · تحصيل ${formatMoney(row.collected,row.currency)} · مستحق ${formatMoney(row.outstanding,row.currency)}`
+          : `Sales ${formatMoney(row.netSales,row.currency)} · collected ${formatMoney(row.collected,row.currency)} · outstanding ${formatMoney(row.outstanding,row.currency)}`,
+        metric:Number(row.overdue)>0?(arabic?`متأخر ${formatMoney(row.overdue,row.currency)}`:`Overdue ${formatMoney(row.overdue,row.currency)}`):undefined
+      }));
+
+      const overdue=finance.highestOverdueByCurrency.slice(0,2);
+      overdue.forEach(row=>items.push({
+        id:`overdue-${row.currency}-${row.customerName}`,
+        tone:'danger',
+        title:arabic?`تحصيل يحتاج متابعة · ${row.customerName}`:`Collection follow-up · ${row.customerName}`,
+        detail:arabic?'هذا من أعلى الأرصدة المتأخرة المسجلة حاليًا.':'This is one of the highest overdue balances currently recorded.',
+        metric:formatMoney(row.overdue,row.currency)
+      }));
+
+      const comparisons=finance.comparisons.monthToDateVsPreviousMonth.slice(0,2);
+      comparisons.forEach(row=>{
+        const current=Number(row.netSalesCurrent),previous=Number(row.netSalesPrevious);
+        const tone:InsightTone=current>=previous?'good':'info';
+        items.push({
+          id:`compare-${row.currency}`,
+          tone,
+          title:arabic?`اتجاه المبيعات · ${row.currency}`:`Sales direction · ${row.currency}`,
+          detail:arabic
+            ? `هذا الشهر ${formatMoney(row.netSalesCurrent,row.currency)} مقابل ${formatMoney(row.netSalesPrevious,row.currency)} في الشهر السابق.`
+            : `This month ${formatMoney(row.netSalesCurrent,row.currency)} versus ${formatMoney(row.netSalesPrevious,row.currency)} in the previous month.`
+        });
+      });
+
+      const openDrafts=vault.documents.filter(doc=>doc.status==='draft').length;
+      if(openDrafts)items.push({id:'drafts',tone:'warn',title:t('Open document work','عمل مستندي مفتوح'),detail:t('Draft documents are still waiting to be completed or issued.','هناك مستندات ما زالت بحاجة للإكمال أو الإصدار.'),metric:String(openDrafts)});
+      const draftPurchases=vault.purchases.filter(purchase=>purchase.status==='draft').length;
+      if(draftPurchases)items.push({id:'purchase-drafts',tone:'warn',title:t('Purchasing queue','قائمة المشتريات'),detail:t('Purchase drafts are waiting to be posted.','هناك مسودات مشتريات بانتظار الترحيل.'),metric:String(draftPurchases)});
+      const missingCosts=vault.savedItems.filter(item=>!String(item.lastUnitCost||'').trim()).length;
+      if(missingCosts)items.push({id:'costs',tone:'info',title:t('Cost coverage','تغطية التكاليف'),detail:t('Adding missing product costs will make profit analysis more complete.','إضافة تكاليف المنتجات الناقصة تجعل تحليل الربحية أدق.'),metric:String(missingCosts)});
+
+      const latest=[...vault.documents].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0];
+      if(latest)items.push({id:'latest-document',tone:'info',title:t('Latest workspace activity','آخر نشاط في مساحة العمل'),detail:`${latest.number} · ${latest.status==='final'?t('Issued','صادر'):t('Draft','مسودة')}`});
+      if(!items.length)items.push({id:'clear',tone:'good',title:t('Business data looks calm','بيانات الأعمال مستقرة'),detail:t('No major exceptions are visible in the current LOUREX workspace.','لا توجد استثناءات كبيرة ظاهرة في مساحة LOUREX الحالية.'),metric:'✓'});
+
+      this.setState({reportBusy:false,reportError:'',reportItems:items.slice(0,10),reportUpdatedAt:Date.now()});
+    }catch(error){
+      this.setState({reportBusy:false,reportError:error instanceof Error?error.message:t('Unable to build the AI report.','تعذر إنشاء تقرير الذكاء الاصطناعي.')});
+    }
+  };
+
+  private openReport=()=>this.setState({mode:'report'},()=>{if(!this.state.reportItems.length||Date.now()-this.state.reportUpdatedAt>90_000)void this.loadReport(true);});
   private clear=()=>this.setState({messages:[],input:'',error:''});
 
   render():any{
     const starterPrompts=starters();
-    return <section className="dashboard-panel lourex-advisor-card" aria-label={t('LOUREX Financial Advisor','مستشار LOUREX المالي')}>
-        <header className="lourex-advisor-head">
-          <div className="lourex-advisor-identity"><span className="lourex-advisor-mark" aria-hidden="true"><Icon name="spark"/></span><div><small>{t('LOUREX Intelligence','ذكاء LOUREX')}</small><h2>{t('Your financial advisor & accountant','مستشارك المالي والمحاسبي')}</h2><p>{t('Ask naturally about sales, collections, profit, customers, purchasing, costs or any business number.','اسأل بشكل طبيعي عن المبيعات والتحصيل والربح والعملاء والمشتريات والتكاليف أو أي رقم في أعمالك.')}</p></div></div>
-          {this.state.messages.length?<button type="button" className="lourex-advisor-clear" onClick={this.clear}>{t('New conversation','محادثة جديدة')}</button>:null}
-        </header>
+    const reportCount=this.state.reportItems.filter(item=>item.tone==='danger'||item.tone==='warn').length;
+    return <section className="dashboard-panel lourex-advisor-card lourex-advisor-v319" aria-label={t('LOUREX Financial Advisor','مستشار LOUREX المالي')}>
+      <div className="lourex-ai-aura" aria-hidden="true"><span/><span/><span/></div>
+      <header className="lourex-advisor-head">
+        <div className="lourex-advisor-identity">
+          <span className="lourex-advisor-mark lourex-ai-core" aria-hidden="true"><span className="ai-core-eye left"/><span className="ai-core-eye right"/><span className="ai-core-pulse"/><Icon name="spark"/></span>
+          <div><small>{t('LOUREX Intelligence','ذكاء LOUREX')}</small><h2>{t('Your financial advisor & accountant','مستشارك المالي والمحاسبي')}</h2><p>{t('A living intelligence layer for your sales, collections, profit, purchasing and business activity.','طبقة ذكاء حيّة تراقب المبيعات والتحصيل والربح والمشتريات ونشاط أعمالك.')}</p></div>
+        </div>
+        {this.state.mode==='chat'&&this.state.messages.length?<button type="button" className="lourex-advisor-clear" onClick={this.clear}>{t('New conversation','محادثة جديدة')}</button>:null}
+      </header>
 
+      <div className="lourex-advisor-tabs" role="tablist" aria-label={t('LOUREX Intelligence modes','أوضاع ذكاء LOUREX')}>
+        <button type="button" role="tab" aria-selected={this.state.mode==='chat'} className={this.state.mode==='chat'?'active':''} onClick={()=>this.setState({mode:'chat'})}><Icon name="spark"/><span>{t('Advisor','المستشار')}</span></button>
+        <button type="button" role="tab" aria-selected={this.state.mode==='report'} className={this.state.mode==='report'?'active':''} onClick={this.openReport}><Icon name="chart"/><span>{t('My AI report','تقريري الذكي')}</span>{reportCount?<b>{reportCount}</b>:null}</button>
+      </div>
+
+      {this.state.mode==='chat'?<>
         <div className={`lourex-advisor-body ${this.state.messages.length?'has-conversation':''}`} aria-live="polite">
           {!this.state.messages.length?<div className="lourex-advisor-welcome">
-            <div className="lourex-advisor-welcome-copy"><strong>{t('I am your LOUREX financial advisor. What would you like to review?','أنا مستشارك المالي في LOUREX. شو حابب نراجع؟')}</strong><span>{t('I use the accounting and business data already inside LOUREX, so you do not have to search through pages first.','أعتمد على البيانات المحاسبية والتجارية الموجودة داخل LOUREX، لذلك لا تحتاج أن تبحث بين الصفحات أولًا.')}</span></div>
+            <div className="lourex-advisor-welcome-copy"><strong>{t('Ask me about the business. I already know the LOUREX workspace.','اسألني عن أعمالك. أنا أقرأ مساحة LOUREX الموجودة أمامك.')}</strong><span>{t('Use natural language. Financial calculations stay deterministic and your business data remains the source of truth.','استخدم لغتك الطبيعية، والحسابات المالية تبقى حتمية وبيانات أعمالك هي مصدر الحقيقة.')}</span></div>
             <div className="lourex-advisor-starters">{starterPrompts.map(prompt=><button type="button" key={prompt} onClick={()=>void this.ask(prompt)}>{prompt}</button>)}</div>
           </div>:<div className="lourex-advisor-thread">{this.state.messages.map(message=><div key={message.id} className={`lourex-advisor-message ${message.role}`}><span>{message.role==='assistant'?<Icon name="spark"/>:null}</span><p>{message.text}</p></div>)}{this.state.busy?<div className="lourex-advisor-thinking"><span><Icon name="spark"/></span>{t('Reviewing your LOUREX data…','أراجع بيانات LOUREX…')}</div>:null}</div>}
         </div>
@@ -141,6 +237,12 @@ export class LourexAdvisorCard extends React.Component<Props,State>{
           </form>
           <div className="lourex-advisor-trust"><span className="lourex-advisor-status"/><span>{t('Answers use LOUREX data. Financial calculations use deterministic local math.','الإجابات تعتمد على بيانات LOUREX، والحسابات المالية تستخدم محركًا محليًا حتميًا.')}</span></div>
         </footer>
-      </section>;
+      </>:<div className="lourex-ai-report" role="tabpanel">
+        <header className="lourex-ai-report-head"><div><small>{t('Whole-workspace intelligence','ذكاء مساحة العمل كاملة')}</small><strong>{t('Your AI business report','تقرير أعمالك الذكي')}</strong><span>{t('A concise reading of what changed, what needs attention and what the numbers are saying.','قراءة مختصرة لما تغيّر وما يحتاج انتباهك وما الذي تقوله الأرقام.')}</span></div><button type="button" disabled={this.state.reportBusy} onClick={()=>void this.loadReport(true)}><Icon name="refresh"/>{t('Refresh','تحديث')}</button></header>
+        {this.state.reportError?<div className="lourex-advisor-error" role="alert">{this.state.reportError}</div>:null}
+        {this.state.reportBusy&&!this.state.reportItems.length?<div className="lourex-ai-report-loading"><span/><span/><span/></div>:<div className="lourex-ai-report-grid">{this.state.reportItems.map(item=><article key={item.id} className={`lourex-ai-insight tone-${item.tone}`}><span className="lourex-ai-insight-signal"/><div><strong>{item.title}</strong><p>{item.detail}</p></div>{item.metric?<b>{item.metric}</b>:null}</article>)}</div>}
+        <footer className="lourex-ai-report-foot"><span className="lourex-advisor-status"/><span>{t('Report updated','تم تحديث التقرير')} {reportAge(this.state.reportUpdatedAt,this.props.language)}</span><em>{todayIso()}</em></footer>
+      </div>}
+    </section>;
   }
 }
