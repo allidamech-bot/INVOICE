@@ -194,14 +194,14 @@ export class SettingsModal extends React.Component<Props,State> {
     if(!user){this.setState({confirmCloudRestore:false,error:t('Sign in to your LOUREX account first.','سجّل الدخول إلى حساب LOUREX أولًا.')});return;}
     await new Promise<void>(resolve=>this.setState({confirmCloudRestore:false,busy:true,accountAction:'restore',error:'',message:'',savedSection:null},resolve));
     try{await this.props.onCloudRestore();this.setState({message:t('Account data restored from the cloud.','تم استرجاع بيانات الحساب من السحابة.')});window.setTimeout(()=>window.location.reload(),220);}
-    catch(e){this.setState({busy:false,accountAction:'',error:e instanceof Error?e.message:t('Unable to restore account data.','تعذر استرجاع بيانات الحساب.')}));}
+    catch(e){this.setState({busy:false,accountAction:'',error:e instanceof Error?e.message:t('Unable to restore account data.','تعذر استرجاع بيانات الحساب.')});}
   };
 
   private signOutFromCloud=async()=>{
     if(this.state.busy)return;
     this.setState({busy:true,accountAction:'signout',error:'',message:'',savedSection:null});
-    try{await this.props.onCloudSignOut();this.setState({busy:false,accountAction:'',message:t('Signed out. Encrypted local data remains on this device.','تم تسجيل الخروج. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')}));}
-    catch(e){this.setState({busy:false,accountAction:'',error:e instanceof Error?e.message:t('Unable to sign out.','تعذر تسجيل الخروج.')}));}
+    try{await this.props.onCloudSignOut();this.setState({busy:false,accountAction:'',message:t('Signed out. Encrypted local data remains on this device.','تم تسجيل الخروج. تبقى البيانات المحلية المشفّرة على هذا الجهاز.')});}
+    catch(e){this.setState({busy:false,accountAction:'',error:e instanceof Error?e.message:t('Unable to sign out.','تعذر تسجيل الخروج.')});}
   };
 
   private saveButton(section:'company'|'documents'):any{
