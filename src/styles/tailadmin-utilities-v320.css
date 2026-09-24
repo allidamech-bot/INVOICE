@@ -42,7 +42,38 @@
   .app-ui .modal-body{background:var(--ft-surface)!important;color:var(--ft-text)!important}
   .app-ui .modal-header h2{color:var(--ft-text-strong)!important}
 
+  /* Retained final-document accessibility geometry remains useful, but its old
+     ds-* colors must not become a visual owner inside the TailAdmin editor. */
+  .app-ui .editor-screen>.final-quote-convert-bar{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+    box-shadow:var(--ta-shadow-xs)!important;
+  }
+  .app-ui .editor-screen>.final-quote-convert-bar>div{color:var(--ft-accent)!important}
+  .app-ui .editor-screen>.final-quote-convert-bar strong{color:var(--ft-text-strong)!important}
+  .app-ui .editor-screen>.final-quote-convert-bar small{color:var(--ft-muted)!important}
+  .app-ui .editor-date-control{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-input)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:var(--ta-shadow-xs)!important;
+  }
+  .app-ui .editor-date-control::after{color:var(--ft-muted)!important}
+  .app-ui .editor-date-value{color:var(--ft-text-strong)!important}
+
   [dir="rtl"] :where(.mf-theme-control,.mf-theme-toggle-control){direction:rtl!important}
+}
+
+/* v309 correctly gives Draft Studio one internal scroll owner, but 100dvh was
+   measured before the TailAdmin editor shell existed. Inside v320 consume the
+   shell's remaining grid row instead, so tablet/iPad never counts the topbar twice. */
+@media screen and (max-width:1180px){
+  .app-ui .ta-shell.is-editor .draft-studio.editor-screen{
+    height:100%!important;
+    max-height:none!important;
+    min-height:0!important;
+  }
 }
 
 /* v320 mobile/touch contract: every frequently tapped chrome or segmented
@@ -68,6 +99,20 @@
     .global-search-section-title>button
   ){
     min-height:44px!important;
+  }
+
+  /* Higher specificity is intentional: Draft finish is loaded later, while
+     these are physical touch-target constraints rather than visual styling. */
+  .app-ui .draft-studio .draft-quick-add>button,
+  .app-ui .draft-studio .letter-format-buttons>button,
+  .app-ui .draft-studio .letter-block-toolbar select,
+  .app-ui .draft-studio .watermark-presets>button{
+    min-height:44px!important;
+  }
+  .app-ui .draft-studio .letter-format-buttons>button{
+    width:44px!important;
+    min-width:44px!important;
+    height:44px!important;
   }
 }
 
