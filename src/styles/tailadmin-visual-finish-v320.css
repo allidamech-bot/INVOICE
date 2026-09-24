@@ -186,6 +186,78 @@
   .app-ui .ta-account-access strong,.app-ui .ta-recovery-status strong{font-size:13.5px!important;}
   .app-ui .ta-settings-toast{font-size:12px!important;}
 
+  /* Editor + Draft Studio: close the remaining micro-type and hierarchy gaps. */
+  .app-ui .ta-editor-persistence-error strong{font-size:12.5px!important;line-height:18px!important;}
+  .app-ui .ta-editor-persistence-error span:last-child{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-editor-step-nav{border-radius:12px!important;}
+  .app-ui .ta-editor-step-nav-heading small{font-size:10.5px!important;line-height:15px!important;font-weight:700!important;}
+  .app-ui .ta-editor-step-nav-heading strong{font-size:13px!important;line-height:18px!important;}
+  .app-ui .ta-editor-step-list>button{min-height:42px!important;}
+  .app-ui .ta-editor-step-number{font-size:10.5px!important;font-weight:700!important;}
+  .app-ui .ta-editor-step-label{font-size:11.5px!important;line-height:16px!important;font-weight:600!important;}
+  .app-ui .ta-editor-step-error{font-size:10px!important;}
+  .app-ui .ta-editor-convert-card{border-radius:12px!important;}
+  .app-ui .ta-editor-convert-card strong{font-size:12.5px!important;line-height:18px!important;}
+  .app-ui .ta-editor-convert-card small{font-size:11px!important;line-height:16px!important;}
+  .app-ui .editor-top-left strong{font-size:15px!important;font-weight:700!important;}
+  .app-ui .editor-top-left span{font-size:11.5px!important;}
+  .app-ui .editor-workflow-badge{font-size:10.5px!important;font-weight:700!important;}
+  .app-ui .editor-grand-total-chip span,.app-ui .save-indicator{font-size:10.5px!important;}
+  .app-ui .editor-grand-total-chip strong{font-size:16px!important;font-weight:700!important;}
+  .app-ui .readiness-copy strong{font-size:19px!important;font-weight:700!important;}
+  .app-ui .readiness-copy span{font-size:11.5px!important;}
+  .app-ui .readiness-groups>span{font-size:10.5px!important;}
+  .app-ui .final-lock-banner strong{font-size:13px!important;}
+  .app-ui .final-lock-banner span{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .editor-validation-summary strong{font-size:12.5px!important;}
+  .app-ui .editor-validation-summary span,.app-ui .editor-global-error{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .editor-pane,.app-ui .editor-preview-pane,.app-ui .preview-pane{border-radius:14px!important;}
+  .app-ui .editor-section{border-radius:13px!important;padding:17px!important;}
+  .app-ui .section-heading>span,.app-ui .section-heading>div>span{font-size:10.5px!important;}
+  .app-ui .section-heading h2{font-size:15.5px!important;line-height:22px!important;font-weight:700!important;}
+  .app-ui .editor-section .field>label,.app-ui .editor-section .field-label{font-size:11.5px!important;}
+  .app-ui .field-error,.app-ui .inline-error{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .selected-customer strong{font-size:13px!important;}
+  .app-ui .selected-customer span,.app-ui .selected-customer small{font-size:10.5px!important;}
+  .app-ui .customer-dropdown strong{font-size:12px!important;}
+  .app-ui .customer-dropdown span,.app-ui .recent-customer-row>span,.app-ui .recent-customer-row button{font-size:10.5px!important;}
+  .app-ui .credit-limit-banner strong{font-size:11.5px!important;}
+  .app-ui .credit-limit-banner span,.app-ui .credit-limit-banner>b{font-size:10.5px!important;}
+  .app-ui .item-card>header strong{font-size:12.5px!important;}
+  .app-ui .item-line-total{font-size:10.5px!important;}
+  .app-ui details>summary{font-size:12px!important;}
+
+  /* Attachments. */
+  .app-ui .document-attachments-section .attachment-add-button{font-size:12px!important;}
+  .app-ui .document-attachments-section .attachment-add-note,.app-ui .document-attachments-section .attachment-help{font-size:11px!important;line-height:16px!important;}
+  .app-ui .attachment-pdf-mark b{font-size:10.5px!important;}
+  .app-ui .attachment-copy strong{font-size:12.5px!important;}
+  .app-ui .attachment-copy small{font-size:10.5px!important;}
+  .app-ui .attachment-card-actions .attachment-open-button{font-size:10.5px!important;}
+  .app-ui .attachment-preview-dialog>header strong{font-size:13px!important;}
+  .app-ui .attachment-preview-dialog>header small{font-size:10.5px!important;}
+  .app-ui .attachment-preview-fallback{font-size:11px!important;}
+  .app-ui .attachment-pdf-preview strong{font-size:14px!important;}
+  .app-ui .attachment-pdf-preview small{font-size:11px!important;}
+
+  /* Global overlays / search / modal surfaces. */
+  .modal-header h2{font-size:18px!important;line-height:25px!important;font-weight:700!important;}
+  .modal-message{font-size:13px!important;line-height:20px!important;}
+  .segmented button{font-size:11.5px!important;}
+  .toast{font-size:12px!important;line-height:18px!important;}
+  .global-search-input-wrap kbd,.global-search-footer kbd{font-size:10px!important;}
+  .global-search-section-title>span,.global-search-section-title>button{font-size:11.5px!important;}
+  .global-search-section-title small{font-size:10.5px!important;}
+  .global-search-actions strong{font-size:12px!important;}
+  .global-search-actions small{font-size:10.5px!important;}
+  .global-search-destinations button{font-size:11px!important;}
+  .global-search-result-copy small{font-size:10.5px!important;}
+  .global-search-result-copy strong{font-size:12.5px!important;}
+  .global-search-result-copy span{font-size:11px!important;}
+  .global-search-empty strong{font-size:13px!important;}
+  .global-search-empty span{font-size:11.5px!important;line-height:17px!important;}
+  .global-search-footer{font-size:10.5px!important;}
+
   /* Authentication / PIN gateway. */
   .ta-auth-aside-copy h1{font-size:38px!important;font-weight:700!important;}
   .ta-auth-aside-copy>span{font-size:12px!important;}
@@ -215,6 +287,8 @@
     .app-ui .ta-mobile-create{width:52px!important;height:52px!important;min-width:52px!important;min-height:52px!important;}
     .app-ui .ta-create-menu-grid strong{font-size:13px!important;line-height:18px!important;}
     .app-ui .ta-create-menu-grid small{font-size:11px!important;line-height:16px!important;}
+    .app-ui .ta-editor-step-list>button{min-height:40px!important;}
+    .app-ui .ta-editor-step-label{font-size:11px!important;}
     .ta-auth-card-header h1,.ta-auth-card-header h2{font-size:25px!important;line-height:32px!important;}
   }
 
@@ -228,6 +302,7 @@
     .app-ui .ta-card-header h2{font-size:16px!important;line-height:22px!important;}
     .app-ui .ta-recent-document strong,.app-ui .ta-recent-amount{font-size:12px!important;}
     .app-ui .ta-settings-page-header h3{font-size:23px!important;line-height:31px!important;}
+    .app-ui .editor-topbar{gap:8px!important;}
   }
 
   @media (max-width:430px){
