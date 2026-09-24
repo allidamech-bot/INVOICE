@@ -402,7 +402,7 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
     const mergedQuantity=inventoryQuantity(itemId,movements);
     if(mergedQuantity<0n&&mergedQuantity<latestQuantity)throw new Error('Inventory cannot fall below zero. Reduce the issue or restore stock before reversing it.');
   }
-  guardSavedItemInventoryRemoval(base,intended,purchases,inventoryMovements);
+  guardSavedItemInventoryRemoval(base,intended,purchases,movements);
 }
 
 function mergeCompany(base:CompanySettings,intended:CompanySettings,latest:CompanySettings):CompanySettings{
