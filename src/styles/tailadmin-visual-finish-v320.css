@@ -1,0 +1,322 @@
+/* LOUREX v320 — final TailAdmin visual finish.
+ * Screen-only visual hierarchy polish for the v320 TailAdmin surfaces.
+ * No accounting, persistence, auth, PDF, print or document logic is changed here.
+ */
+@media screen {
+  /* Stronger hierarchy and less visually tiny UI text. */
+  .app-ui .ta-page-title strong{font-size:19px!important;line-height:25px!important;font-weight:700!important;}
+  .app-ui .ta-nav-item,.app-ui .ta-sidebar-utility{font-size:14.5px!important;font-weight:550!important;}
+  .app-ui .ta-nav-section>p{font-size:11.5px!important;font-weight:700!important;}
+  .app-ui .ta-sidebar-account .ta-account-copy strong{font-size:13.5px!important;}
+  .app-ui .ta-sidebar-account .ta-account-copy small{font-size:11.5px!important;}
+  .app-ui .ta-search-trigger>span{font-size:13.5px!important;}
+
+  .app-ui .ta-dashboard-heading h1,
+  .app-ui .ta-documents-header h1,
+  .app-ui .ta-customers-header h1,
+  .app-ui .ta-products-workspace-header h1,
+  .app-ui .ta-ops-page-header h1,
+  .app-ui .ta-page-header h1{font-size:30px!important;line-height:38px!important;font-weight:700!important;letter-spacing:-.012em!important;}
+  [dir="rtl"] .app-ui .ta-dashboard-heading h1,
+  [dir="rtl"] .app-ui .ta-documents-header h1,
+  [dir="rtl"] .app-ui .ta-customers-header h1,
+  [dir="rtl"] .app-ui .ta-products-workspace-header h1,
+  [dir="rtl"] .app-ui .ta-ops-page-header h1,
+  [dir="rtl"] .app-ui .ta-page-header h1{letter-spacing:0!important;}
+  .app-ui .ta-dashboard-heading p,
+  .app-ui .ta-documents-header p,
+  .app-ui .ta-customers-header p,
+  .app-ui .ta-products-workspace-header p,
+  .app-ui .ta-ops-page-header p,
+  .app-ui .ta-page-header p{font-size:14px!important;line-height:22px!important;}
+
+  /* Dashboard: premium density without micro-text. */
+  .app-ui .ta-finance-dashboard{gap:20px!important;}
+  .app-ui .ta-kpi-card{min-height:136px!important;padding:18px!important;border-radius:14px!important;box-shadow:0 1px 2px rgba(16,24,40,.05),0 4px 12px rgba(16,24,40,.035)!important;}
+  html[data-ui-theme="dark"] .app-ui .ta-kpi-card{box-shadow:0 1px 2px rgba(0,0,0,.28)!important;}
+  .app-ui .ta-kpi-copy>small{font-size:13px!important;line-height:19px!important;font-weight:600!important;}
+  .app-ui .ta-kpi-copy>strong,.app-ui .ta-kpi-money-stack b{font-size:24px!important;line-height:31px!important;font-weight:700!important;}
+  .app-ui .ta-kpi-money-stack b+b{font-size:14px!important;line-height:20px!important;font-weight:600!important;}
+  .app-ui .ta-kpi-copy em{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-quick-actions>button{min-height:72px!important;border-radius:12px!important;padding:12px 13px!important;}
+  .app-ui .ta-quick-actions strong{font-size:14px!important;line-height:19px!important;font-weight:650!important;}
+  .app-ui .ta-quick-actions small{font-size:11.5px!important;line-height:16px!important;}
+  .app-ui .ta-dashboard-card{border-radius:14px!important;box-shadow:0 1px 2px rgba(16,24,40,.05),0 4px 14px rgba(16,24,40,.03)!important;}
+  html[data-ui-theme="dark"] .app-ui .ta-dashboard-card{box-shadow:0 1px 2px rgba(0,0,0,.24)!important;}
+  .app-ui .ta-card-header{min-height:74px!important;padding:18px 20px!important;}
+  .app-ui .ta-card-header small{font-size:11px!important;line-height:16px!important;font-weight:700!important;}
+  .app-ui .ta-card-header h2{font-size:18px!important;line-height:25px!important;font-weight:700!important;}
+  .app-ui .ta-card-header span{font-size:12px!important;line-height:18px!important;}
+  .app-ui .ta-text-action{font-size:12px!important;line-height:17px!important;min-height:36px!important;}
+  .app-ui :where(.ta-range-control,.ta-segmented-control)>button{font-size:11.5px!important;line-height:16px!important;min-height:32px!important;}
+  .app-ui .ta-chart-legend{font-size:11px!important;}
+  .app-ui .ta-chart-labels{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .ta-position-balance>span,.app-ui .ta-position-list span{font-size:12px!important;line-height:18px!important;}
+  .app-ui .ta-position-balance>small{font-size:11px!important;line-height:16px!important;}
+  .app-ui .ta-position-list strong{font-size:13px!important;}
+  .app-ui .ta-attention-list b{font-size:12.5px!important;}
+  .app-ui .ta-attention-list strong{font-size:11px!important;}
+  .app-ui .ta-clear-state strong{font-size:13px!important;}
+  .app-ui .ta-clear-state small{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-inventory-total span{font-size:12px!important;}
+  .app-ui .ta-inventory-stats small{font-size:11px!important;line-height:15px!important;}
+  .app-ui .ta-inventory-stats strong{font-size:16px!important;}
+  .app-ui .ta-recent-head{font-size:11px!important;line-height:16px!important;}
+  .app-ui .ta-recent-document strong,.app-ui .ta-recent-amount{font-size:12.5px!important;line-height:18px!important;}
+  .app-ui .ta-recent-document small,.app-ui .ta-recent-party,.app-ui .ta-recent-date{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-status-badge{font-size:10.5px!important;line-height:15px!important;font-weight:700!important;}
+  .app-ui .ta-dashboard-empty strong{font-size:14px!important;}
+  .app-ui .ta-dashboard-empty>span{font-size:12px!important;line-height:18px!important;}
+
+  /* Documents: make the register readable instead of spreadsheet-micro. */
+  .app-ui .ta-doc-summary-grid>button{min-height:108px!important;border-radius:13px!important;padding:16px!important;}
+  .app-ui .ta-doc-summary-grid small{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-doc-summary-grid strong{font-size:23px!important;line-height:30px!important;font-weight:700!important;}
+  .app-ui .ta-doc-summary-grid em{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .ta-doc-resume-copy small{font-size:10.5px!important;}
+  .app-ui .ta-doc-resume-copy strong{font-size:14px!important;line-height:20px!important;}
+  .app-ui .ta-doc-resume-copy span,.app-ui .ta-doc-resume-meta em{font-size:11px!important;line-height:16px!important;}
+  .app-ui .ta-doc-resume-meta b{font-size:12.5px!important;}
+  .app-ui .ta-doc-register-card{border-radius:14px!important;}
+  .app-ui .ta-doc-type-tabs>button{font-size:11.5px!important;line-height:16px!important;min-height:36px!important;}
+  .app-ui .ta-doc-type-tabs>button strong{font-size:10.5px!important;}
+  .app-ui .ta-doc-filter-button{font-size:12px!important;}
+  .app-ui .ta-doc-filters label{font-size:11.5px!important;}
+  .app-ui .ta-doc-register-meta{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-doc-register-meta button{font-size:11.5px!important;}
+  .app-ui .ta-doc-table-head{font-size:10.5px!important;line-height:15px!important;}
+
+  /* Customers: same hierarchy/readability as Documents. */
+  .app-ui .ta-customers-summary>div{min-height:106px!important;border-radius:13px!important;padding:16px!important;}
+  .app-ui .ta-customers-summary small{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-customers-summary strong{font-size:23px!important;line-height:30px!important;font-weight:700!important;}
+  .app-ui .ta-customers-summary em{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .ta-customers-register{border-radius:14px!important;}
+  .app-ui .ta-customers-meta{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-customers-meta button{font-size:11.5px!important;}
+  .app-ui .ta-customers-table-head{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .ta-customer-identity strong,.app-ui .ta-customer-contact strong{font-size:12.5px!important;line-height:18px!important;}
+  .app-ui .ta-customer-identity small,.app-ui .ta-customer-contact small,.app-ui .ta-customer-location,.app-ui .ta-customer-defaults{font-size:11px!important;line-height:16px!important;}
+  .app-ui .ta-customer-create-actions>button{font-size:10.5px!important;min-height:36px!important;}
+  .app-ui .ta-customers-empty h2{font-size:17px!important;}
+  .app-ui .ta-customers-empty p{font-size:12px!important;line-height:18px!important;}
+  .app-ui .ta-customer-page-error,.app-ui .ta-customer-form-error{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-customer-profile-identity small,.app-ui .ta-customer-profile-identity>span,.app-ui .ta-customer-profile-identity>strong{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-customer-profile-badges>span{font-size:10.5px!important;}
+  .app-ui .ta-customer-panel>header small{font-size:10.5px!important;}
+  .app-ui .ta-customer-panel>header h2{font-size:15.5px!important;line-height:22px!important;}
+
+  /* Products / inventory: remove the 8–10px dense legacy feel. */
+  .app-ui .ta-products-overview>div{min-height:106px!important;border-radius:13px!important;padding:16px!important;}
+  .app-ui .ta-products-overview small{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-products-overview strong{font-size:23px!important;line-height:30px!important;font-weight:700!important;}
+  .app-ui .ta-products-overview em{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .ta-domain-tabs strong{font-size:12.5px!important;line-height:18px!important;}
+  .app-ui .ta-domain-tabs small{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .ta-product-page-eyebrow{font-size:11.5px!important;}
+  .app-ui .ta-product-page-header h1{font-size:22px!important;line-height:29px!important;font-weight:700!important;}
+  .app-ui .ta-product-page-header p{font-size:12.5px!important;line-height:19px!important;}
+  .app-ui .ta-product-page-note strong{font-size:11.5px!important;}
+  .app-ui .ta-product-page-note small{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .ta-product-menu>button{font-size:11px!important;min-height:40px!important;}
+  .app-ui .ta-product-metrics small{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .ta-product-metrics strong{font-size:18px!important;font-weight:700!important;}
+  .app-ui .ta-product-register,.app-ui .ta-product-editor{border-radius:13px!important;}
+  .app-ui .ta-product-register-header small{font-size:10.5px!important;}
+  .app-ui .ta-product-register-header h2{font-size:15.5px!important;line-height:22px!important;}
+  .app-ui .ta-product-register-header span,.app-ui .ta-product-selection-bar span{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .ta-product-register-header>button{font-size:10.5px!important;}
+  .app-ui .ta-product-selection-bar strong{font-size:12px!important;}
+  .app-ui .ta-product-error{font-size:11px!important;line-height:16px!important;}
+  .app-ui .ta-product-table-head{font-size:10.5px!important;line-height:15px!important;}
+
+  /* Operations / purchasing. */
+  .app-ui .ta-ops-page-header h1{font-weight:700!important;}
+  .app-ui .ta-ops-summary>div{min-height:110px!important;border-radius:13px!important;}
+  .app-ui .ta-ops-summary small,.app-ui .ta-ops-summary span{font-size:12px!important;line-height:18px!important;}
+  .app-ui .ta-ops-summary strong{font-size:24px!important;font-weight:700!important;}
+  .app-ui .ta-ops-list-card,.app-ui .ta-ops-editor-card{border-radius:14px!important;}
+  .app-ui .ta-ops-card-head span{font-size:11.5px!important;}
+  .app-ui .ta-ops-card-head h2{font-size:18.5px!important;font-weight:700!important;}
+  .app-ui .ta-ops-card-head p{font-size:12.5px!important;line-height:19px!important;}
+  .app-ui .ta-ops-row-copy strong{font-size:13.5px!important;}
+  .app-ui .ta-ops-row-copy small{font-size:11.5px!important;}
+  .app-ui .ta-ops-row-actions button{font-size:11.5px!important;}
+  .app-ui .ta-ops-status{font-size:10.5px!important;}
+  .app-ui .ta-ops-form-grid label,.app-ui .ta-ops-block-field{font-size:11.5px!important;}
+  .app-ui .ta-purchase-item-grid label{font-size:11px!important;}
+  .app-ui .ta-purchase-total-strip span{font-size:11.5px!important;}
+  .app-ui .ta-inventory-row small{font-size:11px!important;}
+
+  /* Finance + reports. */
+  .app-ui .ta-page-header h1{font-weight:700!important;}
+  .app-ui .ta-finance-kpi,.app-ui .ta-report-kpi,.app-ui .ta-panel,.app-ui .ta-report-filterbar{border-radius:14px!important;}
+  .app-ui .ta-finance-kpi>small{font-size:12.5px!important;}
+  .app-ui .ta-finance-kpi>strong{font-size:25px!important;line-height:33px!important;font-weight:700!important;}
+  .app-ui .ta-finance-kpi-meta span{font-size:11.5px!important;}
+  .app-ui .ta-panel-header span{font-size:11.5px!important;}
+  .app-ui .ta-panel-header h2{font-size:18.5px!important;font-weight:700!important;}
+  .app-ui .ta-panel-header p{font-size:12.5px!important;line-height:19px!important;}
+  .app-ui .ta-table th{font-size:11.5px!important;}
+  .app-ui .ta-table td{font-size:13.5px!important;line-height:20px!important;}
+  .app-ui .ta-table td small{font-size:11.5px!important;}
+  .app-ui .ta-account-party small,.app-ui .ta-account-value span{font-size:11.5px!important;}
+  .app-ui .ta-account-party strong,.app-ui .ta-account-value strong{font-size:14.5px!important;}
+  .app-ui .ta-report-date,.app-ui .ta-report-currency{font-size:11.5px!important;}
+  .app-ui .ta-report-kpi header small,.app-ui .ta-report-kpi-primary span,.app-ui .ta-report-kpi-secondary small{font-size:11.5px!important;}
+  .app-ui .ta-report-kpi-primary strong{font-size:19px!important;font-weight:700!important;}
+  .app-ui .ta-report-kpi-warning,.app-ui .ta-data-alert p{font-size:11.5px!important;line-height:17px!important;}
+
+  /* Settings: clearer form hierarchy and stronger section labels. */
+  .app-ui .ta-settings-sidebar-head span{font-size:12px!important;}
+  .app-ui .ta-settings-sidebar-head strong{font-size:19px!important;font-weight:700!important;}
+  .app-ui .ta-settings-nav strong{font-size:14px!important;}
+  .app-ui .ta-settings-nav small{font-size:11px!important;line-height:16px!important;}
+  .app-ui .ta-settings-page-header>div:first-child>span{font-size:12px!important;}
+  .app-ui .ta-settings-page-header h3{font-size:26px!important;line-height:34px!important;font-weight:700!important;}
+  .app-ui .ta-settings-page-header p{font-size:13px!important;line-height:20px!important;}
+  .app-ui .ta-settings-card{border-radius:14px!important;}
+  .app-ui .ta-settings-card>header h4{font-size:16px!important;line-height:23px!important;font-weight:700!important;}
+  .app-ui .ta-settings-card>header p{font-size:12px!important;line-height:18px!important;}
+  .app-ui .ta-settings-card .field>label,.app-ui .ta-settings-card .field-label{font-size:12px!important;}
+  .app-ui .ta-settings-asset-upload>span:first-child{font-size:13px!important;}
+  .app-ui .ta-settings-asset-trigger,.app-ui .ta-settings-link-action{font-size:12px!important;}
+  .app-ui .ta-settings-segmented button{font-size:12px!important;}
+  .app-ui .ta-settings-note,.app-ui .ta-account-access small,.app-ui .ta-recovery-status small,.app-ui .ta-account-access p{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-account-access strong,.app-ui .ta-recovery-status strong{font-size:13.5px!important;}
+  .app-ui .ta-settings-toast{font-size:12px!important;}
+
+  /* Editor + Draft Studio: close the remaining micro-type and hierarchy gaps. */
+  .app-ui .ta-editor-persistence-error strong{font-size:12.5px!important;line-height:18px!important;}
+  .app-ui .ta-editor-persistence-error span:last-child{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-editor-step-nav{border-radius:12px!important;}
+  .app-ui .ta-editor-step-nav-heading small{font-size:10.5px!important;line-height:15px!important;font-weight:700!important;}
+  .app-ui .ta-editor-step-nav-heading strong{font-size:13px!important;line-height:18px!important;}
+  .app-ui .ta-editor-step-list>button{min-height:42px!important;}
+  .app-ui .ta-editor-step-number{font-size:10.5px!important;font-weight:700!important;}
+  .app-ui .ta-editor-step-label{font-size:11.5px!important;line-height:16px!important;font-weight:600!important;}
+  .app-ui .ta-editor-step-error{font-size:10px!important;}
+  .app-ui .ta-editor-convert-card{border-radius:12px!important;}
+  .app-ui .ta-editor-convert-card strong{font-size:12.5px!important;line-height:18px!important;}
+  .app-ui .ta-editor-convert-card small{font-size:11px!important;line-height:16px!important;}
+  .app-ui .editor-top-left strong{font-size:15px!important;font-weight:700!important;}
+  .app-ui .editor-top-left span{font-size:11.5px!important;}
+  .app-ui .editor-workflow-badge{font-size:10.5px!important;font-weight:700!important;}
+  .app-ui .editor-grand-total-chip span,.app-ui .save-indicator{font-size:10.5px!important;}
+  .app-ui .editor-grand-total-chip strong{font-size:16px!important;font-weight:700!important;}
+  .app-ui .readiness-copy strong{font-size:19px!important;font-weight:700!important;}
+  .app-ui .readiness-copy span{font-size:11.5px!important;}
+  .app-ui .readiness-groups>span{font-size:10.5px!important;}
+  .app-ui .final-lock-banner strong{font-size:13px!important;}
+  .app-ui .final-lock-banner span{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .editor-validation-summary strong{font-size:12.5px!important;}
+  .app-ui .editor-validation-summary span,.app-ui .editor-global-error{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .editor-pane,.app-ui .editor-preview-pane,.app-ui .preview-pane{border-radius:14px!important;}
+  .app-ui .editor-section{border-radius:13px!important;padding:17px!important;}
+  .app-ui .section-heading>span,.app-ui .section-heading>div>span{font-size:10.5px!important;}
+  .app-ui .section-heading h2{font-size:15.5px!important;line-height:22px!important;font-weight:700!important;}
+  .app-ui .editor-section .field>label,.app-ui .editor-section .field-label{font-size:11.5px!important;}
+  .app-ui .field-error,.app-ui .inline-error{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .selected-customer strong{font-size:13px!important;}
+  .app-ui .selected-customer span,.app-ui .selected-customer small{font-size:10.5px!important;}
+  .app-ui .customer-dropdown strong{font-size:12px!important;}
+  .app-ui .customer-dropdown span,.app-ui .recent-customer-row>span,.app-ui .recent-customer-row button{font-size:10.5px!important;}
+  .app-ui .credit-limit-banner strong{font-size:11.5px!important;}
+  .app-ui .credit-limit-banner span,.app-ui .credit-limit-banner>b{font-size:10.5px!important;}
+  .app-ui .item-card>header strong{font-size:12.5px!important;}
+  .app-ui .item-line-total{font-size:10.5px!important;}
+  .app-ui details>summary{font-size:12px!important;}
+
+  /* Attachments. */
+  .app-ui .document-attachments-section .attachment-add-button{font-size:12px!important;}
+  .app-ui .document-attachments-section .attachment-add-note,.app-ui .document-attachments-section .attachment-help{font-size:11px!important;line-height:16px!important;}
+  .app-ui .attachment-pdf-mark b{font-size:10.5px!important;}
+  .app-ui .attachment-copy strong{font-size:12.5px!important;}
+  .app-ui .attachment-copy small{font-size:10.5px!important;}
+  .app-ui .attachment-card-actions .attachment-open-button{font-size:10.5px!important;}
+  .app-ui .attachment-preview-dialog>header strong{font-size:13px!important;}
+  .app-ui .attachment-preview-dialog>header small{font-size:10.5px!important;}
+  .app-ui .attachment-preview-fallback{font-size:11px!important;}
+  .app-ui .attachment-pdf-preview strong{font-size:14px!important;}
+  .app-ui .attachment-pdf-preview small{font-size:11px!important;}
+
+  /* Global overlays / search / modal surfaces. */
+  .modal-header h2{font-size:18px!important;line-height:25px!important;font-weight:700!important;}
+  .modal-message{font-size:13px!important;line-height:20px!important;}
+  .segmented button{font-size:11.5px!important;}
+  .toast{font-size:12px!important;line-height:18px!important;}
+  .global-search-input-wrap kbd,.global-search-footer kbd{font-size:10px!important;}
+  .global-search-section-title>span,.global-search-section-title>button{font-size:11.5px!important;}
+  .global-search-section-title small{font-size:10.5px!important;}
+  .global-search-actions strong{font-size:12px!important;}
+  .global-search-actions small{font-size:10.5px!important;}
+  .global-search-destinations button{font-size:11px!important;}
+  .global-search-result-copy small{font-size:10.5px!important;}
+  .global-search-result-copy strong{font-size:12.5px!important;}
+  .global-search-result-copy span{font-size:11px!important;}
+  .global-search-empty strong{font-size:13px!important;}
+  .global-search-empty span{font-size:11.5px!important;line-height:17px!important;}
+  .global-search-footer{font-size:10.5px!important;}
+
+  /* Authentication / PIN gateway. */
+  .ta-auth-aside-copy h1{font-size:38px!important;font-weight:700!important;}
+  .ta-auth-aside-copy>span{font-size:12px!important;}
+  .ta-auth-feature-list strong{font-size:13px!important;}
+  .ta-auth-feature-list small{font-size:11px!important;line-height:16px!important;}
+  .ta-auth-aside footer{font-size:11px!important;}
+  .ta-auth-card-header>span{font-size:12px!important;}
+  .ta-auth-card-header h1,.ta-auth-card-header h2{font-size:29px!important;line-height:37px!important;font-weight:700!important;}
+  .ta-auth-card-header p{font-size:13px!important;line-height:20px!important;}
+  .ta-google-button{font-size:13px!important;}
+  .ta-auth-divider{font-size:11px!important;}
+  .ta-auth-card .field>label,.ta-auth-card .field-label{font-size:12px!important;}
+  .ta-auth-note,.ta-auth-feedback{font-size:11.5px!important;line-height:17px!important;}
+  .ta-auth-link{font-size:12px!important;}
+  .ta-auth-security small{font-size:10.5px!important;}
+  .ta-auth-account-chip small,.ta-auth-info-card small,.ta-setup-logo-upload small{font-size:10.5px!important;line-height:16px!important;}
+  .ta-auth-account-chip strong,.ta-auth-info-card strong,.ta-setup-logo-upload strong{font-size:12.5px!important;}
+
+  /* Cross-workspace TailAdmin readability floor for table/meta UI. */
+  .app-ui [class*="ta-"][class*="-table-head"]{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui [class*="ta-"][class*="-meta"]{font-size:11.5px!important;line-height:17px!important;}
+
+  @media (max-width:900px){
+    .app-ui .ta-page-title strong{font-size:17px!important;line-height:23px!important;max-width:48vw!important;}
+    .app-ui .ta-mobile-nav>button{font-size:11px!important;line-height:15px!important;font-weight:600!important;}
+    .app-ui .ta-mobile-nav{min-height:calc(72px + env(safe-area-inset-bottom,0px))!important;padding-top:7px!important;}
+    .app-ui .ta-mobile-create{width:52px!important;height:52px!important;min-width:52px!important;min-height:52px!important;}
+    .app-ui .ta-create-menu-grid strong{font-size:13px!important;line-height:18px!important;}
+    .app-ui .ta-create-menu-grid small{font-size:11px!important;line-height:16px!important;}
+    .app-ui .ta-editor-step-list>button{min-height:40px!important;}
+    .app-ui .ta-editor-step-label{font-size:11px!important;}
+    .ta-auth-card-header h1,.ta-auth-card-header h2{font-size:25px!important;line-height:32px!important;}
+  }
+
+  @media (max-width:680px){
+    .app-ui .ta-finance-dashboard,.app-ui .ta-documents-page,.app-ui .ta-doc-detail-page,.app-ui .ta-customers-page,.app-ui .ta-customer-profile,.app-ui .ta-products-workspace,.app-ui .ta-operations-page,.app-ui .ta-finance-page,.app-ui .ta-reports-page{padding-inline:14px!important;}
+    .app-ui .ta-dashboard-heading h1,.app-ui .ta-documents-header h1,.app-ui .ta-customers-header h1,.app-ui .ta-products-workspace-header h1,.app-ui .ta-ops-page-header h1,.app-ui .ta-page-header h1{font-size:24px!important;line-height:31px!important;}
+    .app-ui .ta-dashboard-heading p,.app-ui .ta-documents-header p,.app-ui .ta-customers-header p,.app-ui .ta-products-workspace-header p,.app-ui .ta-ops-page-header p,.app-ui .ta-page-header p{font-size:13px!important;line-height:20px!important;}
+    .app-ui .ta-kpi-card{min-height:122px!important;padding:14px!important;}
+    .app-ui .ta-kpi-copy>strong,.app-ui .ta-kpi-money-stack b{font-size:19px!important;line-height:25px!important;}
+    .app-ui .ta-card-header{padding:15px 14px!important;}
+    .app-ui .ta-card-header h2{font-size:16px!important;line-height:22px!important;}
+    .app-ui .ta-recent-document strong,.app-ui .ta-recent-amount{font-size:12px!important;}
+    .app-ui .ta-settings-page-header h3{font-size:23px!important;line-height:31px!important;}
+    .app-ui .editor-topbar{gap:8px!important;}
+  }
+
+  @media (max-width:430px){
+    /* Preserve premium compactness: two useful columns instead of long single-column walls. */
+    .app-ui .ta-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+    .app-ui .ta-quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+    .app-ui .ta-kpi-card{grid-template-columns:32px minmax(0,1fr)!important;gap:8px!important;padding:12px!important;}
+    .app-ui .ta-kpi-icon{width:32px!important;height:32px!important;}
+    .app-ui .ta-kpi-copy>small{font-size:11.5px!important;}
+    .app-ui .ta-kpi-copy>strong,.app-ui .ta-kpi-money-stack b{font-size:17px!important;line-height:23px!important;}
+    .app-ui .ta-kpi-money-stack b+b{font-size:11px!important;line-height:15px!important;}
+    .app-ui .ta-kpi-copy em{font-size:10.5px!important;line-height:15px!important;}
+    .app-ui .ta-quick-actions>button{min-height:68px!important;padding:10px!important;}
+    .app-ui .ta-quick-actions strong{font-size:12.5px!important;}
+    .app-ui .ta-quick-actions small{font-size:10.5px!important;}
+  }
+}

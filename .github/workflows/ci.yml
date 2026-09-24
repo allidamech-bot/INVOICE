@@ -119,7 +119,7 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install chromium
-      - name: Run browser visual QA
+      - name: Run browser functional + TailAdmin v320 QA
         run: |
           npx http-server . -p 4173 -c-1 > /tmp/lourex-visual-qa-server.log 2>&1 &
           server_pid=$!
@@ -147,11 +147,6 @@ jobs:
           node tests/visual/run-functional-navigation-auth-v200.cjs
           node tests/visual/run-save-reliability-v217.cjs
           node tests/visual/run-premium-auth-gateway-v187.cjs
-          node tests/visual/run-obsidian-foundation.cjs
-          node tests/visual/run-obsidian-shell.cjs
-          node tests/visual/run-obsidian-dashboard.cjs
-          node tests/visual/run-obsidian-documents.cjs
-          node tests/visual/run-obsidian-editor.cjs
           node tests/visual/run-mobile-preview-fit-v241.cjs
           node tests/visual/run-functional-document-workflow.cjs
           node tests/visual/run-functional-editor-controls-v201.cjs
@@ -159,19 +154,12 @@ jobs:
           node tests/visual/run-functional-customers-v196.cjs
           node tests/visual/run-functional-products-operations-v197.cjs
           node tests/visual/run-import-final-audit-v267.cjs
-          node tests/visual/run-obsidian-directory.cjs
           node tests/visual/run-packing-preview-locale-v244.cjs
           node tests/visual/run-product-category-locale-v245.cjs
           node tests/visual/run-saved-items-category-locale-v246.cjs
           node tests/visual/run-product-unit-locale-v247.cjs
-          node tests/visual/run-obsidian-financial.cjs
           node tests/visual/run-operations-mobile-tabs-v242.cjs
-          node tests/visual/run-obsidian-settings.cjs
-          node tests/visual/run-obsidian-overlays.cjs
-          set -o pipefail
-          node tests/visual/run-nested-surfaces-v229.cjs 2>&1 | tee visual-qa-output/nested-surfaces-v229.log
-          node tests/visual/run-luminous-noir-v224.cjs
-          node tests/visual/run-luminous-noir-continuity-v225.cjs
+          node tests/visual/run-tailadmin-v320.cjs
       - name: Upload visual QA evidence
         if: always()
         uses: actions/upload-artifact@v6

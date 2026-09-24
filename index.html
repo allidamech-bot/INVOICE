@@ -3,14 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#061820" />
+  <meta name="theme-color" content="#0c111d" />
   <meta name="color-scheme" content="dark light" />
   <script id="lourex-theme-bootstrap">
     (function(){
-      var key='lourex-ui-theme',pref='system';try{var saved=localStorage.getItem(key);if(saved==='light'||saved==='dark'||saved==='system')pref=saved;}catch(e){}
-      var resolved=pref;if(pref==='system'){try{resolved=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){resolved='dark';}}
-      var root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');root.dataset.uiTheme=resolved;root.dataset.uiThemePreference=pref;root.dataset.lourexBooting='true';root.style.colorScheme='dark';root.style.backgroundColor='#061820';root.style.setProperty('--boot-bg','#061820');if(meta)meta.setAttribute('content','#061820');
-      document.addEventListener('DOMContentLoaded',function(){var mount=document.getElementById('root');if(!mount)return;var restore=function(){if(document.getElementById('lourex-boot'))return;delete root.dataset.lourexBooting;root.style.removeProperty('--boot-bg');root.style.colorScheme=resolved;root.style.backgroundColor=resolved==='light'?'#f2f7f8':'#061820';if(meta)meta.setAttribute('content',resolved==='light'?'#f2f7f8':'#061820');observer.disconnect();};var observer=new MutationObserver(restore);observer.observe(mount,{childList:true});restore();},{once:true});
+      var key='lourex-ui-theme',pref='system';
+      try{var saved=localStorage.getItem(key);if(saved==='light'||saved==='dark'||saved==='system')pref=saved;}catch(e){}
+      var resolved=pref;
+      if(pref==='system'){try{resolved=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){resolved='dark';}}
+      var root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');
+      var dark='#0c111d',light='#f9fafb',bg=resolved==='light'?light:dark;
+      root.dataset.uiTheme=resolved;root.dataset.uiThemePreference=pref;root.dataset.lourexBooting='true';
+      root.style.colorScheme=resolved;root.style.backgroundColor=bg;root.style.setProperty('--boot-bg',bg);
+      if(meta)meta.setAttribute('content',bg);
+      document.addEventListener('DOMContentLoaded',function(){
+        var mount=document.getElementById('root');if(!mount)return;
+        var restore=function(){
+          if(document.getElementById('lourex-boot'))return;
+          delete root.dataset.lourexBooting;root.style.removeProperty('--boot-bg');root.style.colorScheme=resolved;root.style.backgroundColor=bg;
+          if(meta)meta.setAttribute('content',bg);observer.disconnect();
+        };
+        var observer=new MutationObserver(restore);observer.observe(mount,{childList:true});restore();
+      },{once:true});
     })();
   </script>
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -23,166 +37,90 @@
   <link rel="icon" href="./brand/lourex-app-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" sizes="180x180" href="./brand/lourex-app-icon-180.png" />
   <style id="lourex-boot-style">
-    html[data-ui-theme="light"]{--boot-bg:#e8eeeb;--boot-text:#102528;--boot-track:#d0d9d6;--boot-accent:#159fa2}
-    html[data-ui-theme="dark"]{--boot-bg:#061820;--boot-text:#eefbfd;--boot-track:#173642;--boot-accent:#20d3db}
-    html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:var(--boot-bg,#061820)}
-    html[data-lourex-booting="true"]{overflow:hidden!important;background:#061820!important;color-scheme:dark!important}
-    html[data-lourex-booting="true"] body,html[data-lourex-booting="true"] #root{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;margin:0!important;overflow:hidden!important;background:#061820!important;color-scheme:dark!important;overscroll-behavior:none!important}
-    #lourex-boot.loading-screen{position:fixed;inset:-2px;z-index:2147483000;min-height:calc(100dvh + 4px);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-sizing:border-box;padding:max(32px,env(safe-area-inset-top,0px)) max(32px,env(safe-area-inset-right,0px)) max(32px,env(safe-area-inset-bottom,0px)) max(32px,env(safe-area-inset-left,0px));background:#061820;color:var(--boot-text,#fff);box-shadow:0 0 0 100vmax #061820;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-text-size-adjust:100%;overscroll-behavior:none}
-    #lourex-boot .brand{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;animation:lourexLaunchIn .45s ease-out both}
-    #lourex-boot .brand-mark{display:grid;place-items:center;width:118px;height:118px;border-radius:28px}
-    #lourex-boot .brand-mark img{display:block;width:118px;height:118px;border-radius:28px}
-    #lourex-boot .brand-words strong{color:var(--boot-text,#fff);font-size:21px;letter-spacing:.28em;padding-left:.28em;font-weight:760}
-    #lourex-boot .loading-line{position:relative;z-index:1;width:126px;height:3px;overflow:hidden;border-radius:99px;background:var(--boot-track,#1e3b37)}
-    #lourex-boot .loading-line:after{content:"";position:absolute;inset:0 auto 0 0;width:46%;border-radius:inherit;background:var(--boot-accent,#24c7ba);animation:lourexLoading 1.05s ease-in-out infinite}
+    html[data-ui-theme="light"]{--boot-bg:#f9fafb;--boot-text:#101828;--boot-track:#e4e7ec;--boot-accent:#465fff}
+    html[data-ui-theme="dark"]{--boot-bg:#0c111d;--boot-text:#f9fafb;--boot-track:#344054;--boot-accent:#7592ff}
+    html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:var(--boot-bg,#0c111d)}
+    html[data-lourex-booting="true"]{overflow:hidden!important;background:var(--boot-bg,#0c111d)!important}
+    html[data-lourex-booting="true"] body,html[data-lourex-booting="true"] #root{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;margin:0!important;overflow:hidden!important;background:var(--boot-bg,#0c111d)!important;overscroll-behavior:none!important}
+    #lourex-boot.loading-screen{position:fixed;inset:-2px;z-index:2147483000;min-height:calc(100dvh + 4px);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;box-sizing:border-box;padding:max(32px,env(safe-area-inset-top,0px)) max(32px,env(safe-area-inset-right,0px)) max(32px,env(safe-area-inset-bottom,0px)) max(32px,env(safe-area-inset-left,0px));background:var(--boot-bg,#0c111d);color:var(--boot-text,#fff);box-shadow:0 0 0 100vmax var(--boot-bg,#0c111d);font-family:Outfit,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-text-size-adjust:100%;overscroll-behavior:none}
+    #lourex-boot .brand{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;animation:lourexLaunchIn .35s ease-out both}
+    #lourex-boot .brand-mark{display:grid;place-items:center;width:108px;height:108px;border-radius:24px}
+    #lourex-boot .brand-mark img{display:block;width:108px;height:108px;border-radius:24px}
+    #lourex-boot .brand-words strong{color:var(--boot-text,#fff);font-size:20px;letter-spacing:.24em;padding-left:.24em;font-weight:700}
+    #lourex-boot .loading-line{position:relative;z-index:1;width:128px;height:3px;overflow:hidden;border-radius:99px;background:var(--boot-track,#344054)}
+    #lourex-boot .loading-line:after{content:"";position:absolute;inset:0 auto 0 0;width:46%;border-radius:inherit;background:var(--boot-accent,#7592ff);animation:lourexLoading 1.05s ease-in-out infinite}
     @keyframes lourexLoading{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
-    @keyframes lourexLaunchIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
-    @media(max-width:720px){#lourex-boot.loading-screen{padding:max(24px,env(safe-area-inset-top,0px)) max(22px,env(safe-area-inset-right,0px)) max(26px,env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left,0px))}#lourex-boot .brand-mark,#lourex-boot .brand-mark img{width:104px;height:104px;border-radius:25px}#lourex-boot .brand-words strong{font-size:19px}}
+    @keyframes lourexLaunchIn{from{opacity:0;transform:translateY(6px) scale(.99)}to{opacity:1;transform:none}}
+    @media(max-width:720px){#lourex-boot.loading-screen{padding:max(24px,env(safe-area-inset-top,0px)) max(22px,env(safe-area-inset-right,0px)) max(26px,env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left,0px))}#lourex-boot .brand-mark,#lourex-boot .brand-mark img{width:98px;height:98px;border-radius:22px}#lourex-boot .brand-words strong{font-size:18px}}
     @media(prefers-reduced-motion:reduce){#lourex-boot .brand{animation:none}#lourex-boot .loading-line:after{animation:none;width:100%;opacity:.65}}
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+Arabic:wght@400;500;600;700;800;900&amp;family=Outfit:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
   <link rel="modulepreload" href="./src/app/index.js" />
   <link rel="modulepreload" href="./src/app/App.js" />
+
+  <!-- Base/component/output support retained where React or PDF rendering relies on it. -->
   <link rel="stylesheet" href="./styles/app.css" />
   <link rel="stylesheet" href="./styles/rtl.css" />
-  <link rel="stylesheet" href="./styles/refinement.css" />
   <link rel="stylesheet" href="./styles/tablet-editor.css" />
-  <link rel="stylesheet" href="./styles/premium.css" />
-  <link rel="stylesheet" href="./styles/cloud.css" />
-  <link rel="stylesheet" href="./styles/auth-entry.css" />
   <link rel="stylesheet" href="./styles/company-assets.css" />
-  <link rel="stylesheet" href="./styles/system-polish.css" />
-  <link rel="stylesheet" href="./styles/experience.css" />
-  <link rel="stylesheet" href="./styles/accounting-polish.css" />
-  <link rel="stylesheet" href="./styles/workflow-premium.css" />
   <link rel="stylesheet" href="./styles/template-preferences.css" />
-  <link rel="stylesheet" href="./styles/workflow-closeout.css" />
-  <link rel="stylesheet" href="./styles/v44-audit.css" />
-  <link rel="stylesheet" href="./styles/editor-system.css" />
-  <link rel="stylesheet" href="./styles/editor-workflow-v61.css" />
   <link rel="stylesheet" href="./styles/mobile-item-editor-v66.css" />
   <link rel="stylesheet" href="./styles/iphone-fit-v70.css" />
-  <link rel="stylesheet" href="./styles/mobile-shell-v71.css" />
   <link rel="stylesheet" href="./styles/mobile-editor-scroll-v75.css" />
   <link rel="stylesheet" href="./styles/mobile-modal-v81.css" />
   <link rel="stylesheet" href="./styles/pull-to-refresh-v86.css" />
-  <link rel="stylesheet" href="./styles/editor-hierarchy-v93.css" />
-  <link rel="stylesheet" href="./styles/workspace-mobile-v94.css" />
-  <link rel="stylesheet" href="./styles/saved-items-v95.css" />
-  <link rel="stylesheet" href="./styles/premium-smoothness-v99.css" />
-  <link rel="stylesheet" href="./styles/items-library-v106.css" />
-  <link rel="stylesheet" href="./styles/editor-guided-flow-v107.css" />
-  <link rel="stylesheet" href="./styles/settings-workspace-v108.css" />
-  <link rel="stylesheet" href="./styles/customer-document-flow-v109.css" />
-  <link rel="stylesheet" href="./styles/system-closeout-v110.css" />
+  <link rel="stylesheet" href="./styles/performance-polish-v100.css" />
   <link rel="stylesheet" href="./styles/product-preset-fields-v111.css" />
   <link rel="stylesheet" href="./styles/product-metadata-assist-v112.css" />
-  <link rel="stylesheet" href="./styles/product-library-pro-v113.css" />
-  <link rel="stylesheet" href="./styles/customer-ux-closeout-v114.css" />
-  <link rel="stylesheet" href="./styles/onboarding-simplification-v115.css" />
+  <link rel="stylesheet" href="./styles/mobile-document-actions-v125.css" />
   <link rel="stylesheet" href="./styles/payments-v131.css" />
   <link rel="stylesheet" href="./styles/document-lifecycle-v132.css" />
-  <link rel="stylesheet" href="./styles/receivables-v133.css" />
   <link rel="stylesheet" href="./styles/profitability-v134.css" />
-  <link rel="stylesheet" href="./styles/reports-v135.css" />
   <link rel="stylesheet" href="./styles/commercial-controls-v136.css" />
-  <link rel="stylesheet" href="./styles/operations-v137.css" />
-  <link rel="stylesheet" href="./styles/mobile-ui-rebalance-v146.css" />
-  <link rel="stylesheet" href="./styles/mobile-workspaces-v148.css" />
   <link rel="stylesheet" href="./styles/mobile-editor-recovery-v149.css" />
-  <link rel="stylesheet" href="./styles/mobile-auth-modal-v150.css" />
-  <link rel="stylesheet" href="./styles/performance-polish-v100.css" />
-  <link rel="stylesheet" href="./styles/mobile-document-actions-v125.css" />
   <link rel="stylesheet" href="./styles/ux-recovery-v152.css" />
   <link rel="stylesheet" href="./styles/mobile-safe-area-v155.css" />
   <link rel="stylesheet" href="./styles/mobile-preview-v156.css" />
   <link rel="stylesheet" href="./styles/document-output-quality-v157.css" />
-  <link rel="stylesheet" href="./styles/app-shell-v161.css" />
-  <link rel="stylesheet" href="./styles/dashboard-documents.css" />
-  <link rel="stylesheet" href="./styles/editor-workspace-v162.css" />
-  <link rel="stylesheet" href="./styles/settings-account-v163.css" />
-  <link rel="stylesheet" href="./styles/design-system-v164.css" />
+  <link rel="stylesheet" href="./styles/document-premium-redesign-v141.css" />
   <link rel="stylesheet" href="./styles/final-mobile-accessibility-v168.css" />
   <link rel="stylesheet" href="./styles/mobile-overlap-recovery-v176.css" />
   <link rel="stylesheet" href="./styles/mobile-controls-density-v177.css" />
-  <link rel="stylesheet" href="./styles/account-cloud-separation-v186.css" />
-  <link rel="stylesheet" href="./styles/unified-account-v189.css" />
-  <link rel="stylesheet" href="./styles/financial-workspaces-v189.css" />
-  <!-- retired visual generation: ./styles/settings-obsidian-v190.css -->
-  <!-- retired visual generation: ./styles/obsidian-closeout-v191.css -->
-  <!-- retired visual generation: ./styles/obsidian-production-audit-v192.css -->
-  <!-- retired visual generation: ./styles/obsidian-mobile-geometry-v193.css -->
-  <!-- retired visual generation: ./styles/mobile-spacing-fit-v198.css -->
-  <!-- retired visual generation: ./styles/mobile-safari-chrome-v199.css -->
-  <!-- retired visual generation: ./styles/mobile-more-visual-v204.css -->
   <link rel="stylesheet" href="./styles/maintenance-closeout-v207.css" />
   <link rel="stylesheet" href="./styles/save-reliability-v217.css" />
-  <!-- retired visual generation: ./styles/dark-surface-continuity-v220.css -->
-  <!-- retired visual generation: ./styles/luminous-noir-v224.css -->
-  <!-- retired visual generation: ./styles/matte-black-v228.css -->
-  <link rel="stylesheet" href="./styles/ledger-pulse-loading-v250.css" />
-  <!-- retired visual generation: ./styles/nested-surface-consistency-v229.css -->
   <link rel="stylesheet" href="./styles/saved-items-picker-v232.css" />
   <link rel="stylesheet" href="./styles/customer-language-purity-v233.css" />
-  <!-- retired visual generation: ./styles/interface-polish-v256.css -->
-  <!-- retired visual generation: ./styles/product-library-contrast-v257.css -->
-  <!-- retired visual generation: ./styles/runtime-contrast-audit-v266.css -->
-  <!-- retired visual generation: ./styles/precision-black-foundation-v267.css -->
-  <!-- retired visual generation: ./styles/precision-black-shell-v268.css -->
-  <!-- retired visual generation: ./styles/precision-black-dashboard-v269.css -->
-  <!-- retired visual generation: ./styles/precision-black-directory-v270.css -->
-  <!-- retired visual generation: ./styles/precision-black-finance-v271.css -->
-  <!-- retired visual generation: ./styles/precision-black-editor-v272.css -->
-  <!-- retired visual generation: ./styles/precision-black-final-v273.css -->
+  <link rel="stylesheet" href="./styles/ledger-pulse-loading-v250.css" />
   <link rel="stylesheet" href="./styles/mobile-touch-target-closeout-v274.css" />
-  <!-- retired visual generation: ./styles/command-center-v276.css -->
-  <link rel="stylesheet" href="./styles/global-search-v277.css" />
-  <link rel="stylesheet" href="./styles/fintech-foundation-v280.css" />
-  <link rel="stylesheet" href="./styles/fintech-shell-v280.css" />
-  <link rel="stylesheet" href="./styles/fintech-workspaces-v280.css" />
-  <link rel="stylesheet" href="./styles/fintech-responsive-v280.css" />
-  <link rel="stylesheet" href="./styles/premium-fintech-polish-v281.css" />
-  <link rel="stylesheet" href="./styles/premium-mobile-closeout-v281.css" />
-  <link rel="stylesheet" href="./styles/premium-mobile-safearea-v282.css" />
-  <link rel="stylesheet" href="./styles/home-premium-command-center-v283.css" />
-  <link rel="stylesheet" href="./styles/home-review-polish-v285.css" />
-  <link rel="stylesheet" href="./styles/home-final-closeout-v286.css" />
-  <link rel="stylesheet" href="./styles/document-premium-redesign-v141.css" />
-  <link rel="stylesheet" href="./styles/visual-experience-v288.css?v=288" data-lourex-v288="true" />
-  <link rel="stylesheet" href="./styles/visual-audit-v289.css?v=289" data-lourex-v289="true" />
-  <link rel="stylesheet" href="./styles/visual-hardening-v290.css?v=290" data-lourex-v290="true" />
-  <link rel="stylesheet" href="./styles/visual-closeout-v291.css?v=291-2" data-lourex-v291="true" />
-  <link rel="stylesheet" href="./styles/visual-deep-audit-v292.css?v=292" data-lourex-v292="true" />
-  <link rel="stylesheet" href="./styles/visual-interaction-closeout-v293.css?v=293" data-lourex-v293="true" />
-  <link rel="stylesheet" href="./styles/visual-workspace-geometry-v294.css?v=294" data-lourex-v294="true" />
-  <link rel="stylesheet" href="./styles/visual-contrast-closeout-v295.css?v=295" data-lourex-v295="true" />
-  <link rel="stylesheet" href="./styles/visual-document-panels-v296.css?v=296" data-lourex-v296="true" />
-  <link rel="stylesheet" href="./styles/visual-editor-interaction-v297.css?v=297" data-lourex-v297="true" />
-  <link rel="stylesheet" href="./styles/visual-overlay-accessibility-v298.css?v=298" data-lourex-v298="true" />
-  <link rel="stylesheet" href="./styles/visual-auth-settings-closeout-v299.css?v=299" data-lourex-v299="true" />
-  <link rel="stylesheet" href="./styles/visual-features-v300.css?v=301" data-lourex-v300="true" />
-  <link rel="stylesheet" href="./styles/security-documents-closeout-v302.css?v=302" data-lourex-v302="true" />
-  <link rel="stylesheet" href="./styles/v308-document-studio.css?v=308" data-lourex-v308="true" />
   <link rel="stylesheet" href="./styles/v309-draft-pin-stability.css?v=309" data-lourex-v309="true" />
-  <link rel="stylesheet" href="./styles/v310-stability-contrast.css?v=310" data-lourex-v310="true" />
-  <link rel="stylesheet" href="./styles/v311-quality-pass.css?v=311" data-lourex-v311="true" />
-  <link rel="stylesheet" href="./styles/home-canonical-v314.css?v=314" data-lourex-home-v314="true" />
-  <link rel="stylesheet" href="./styles/shell-canonical-v314.css?v=314" data-lourex-shell-v314="true" />
-  <link rel="stylesheet" href="./styles/shell-overlays-v314.css?v=314" data-lourex-shell-overlays-v314="true" />
-  <link rel="stylesheet" href="./styles/documents-canonical-v314.css?v=314" data-lourex-documents-v314="true" />
-  <link rel="stylesheet" href="./styles/editor-canonical-v314.css?v=314" data-lourex-editor-v314="true" />
-  <link rel="stylesheet" href="./styles/customers-canonical-v314.css?v=314" data-lourex-customers-v314="true" />
-  <link rel="stylesheet" href="./styles/products-canonical-v314.css?v=314" data-lourex-products-v314="true" />
-  <link rel="stylesheet" href="./styles/operations-canonical-v314.css?v=314" data-lourex-operations-v314="true" />
-  <link rel="stylesheet" href="./styles/finance-canonical-v314.css?v=314" data-lourex-finance-v314="true" />
-  <link rel="stylesheet" href="./styles/reports-canonical-v314.css?v=314" data-lourex-reports-v314="true" />
-  <link rel="stylesheet" href="./styles/settings-canonical-v314.css?v=314" data-lourex-settings-v314="true" />
-  <link rel="stylesheet" href="./styles/auth-canonical-v314.css?v=314" data-lourex-auth-v314="true" />
-  <link rel="stylesheet" href="./styles/overlays-canonical-v314.css?v=314" data-lourex-overlays-v314="true" />
+
+  <!-- v320 canonical TailAdmin Finance visual owners. These must remain last. -->
+  <link rel="stylesheet" href="./styles/tailadmin-finance-v320.css?v=320-3" data-lourex-tailadmin-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-shell-v320.css?v=320-3" data-lourex-tailadmin-shell-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-dashboard-v320.css?v=320-3" data-lourex-tailadmin-dashboard-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-documents-v320.css?v=320-3" data-lourex-tailadmin-documents-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-editor-frame-v320.css?v=320-2" data-lourex-tailadmin-editor-frame-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-editor-core-v320.css?v=320-2" data-lourex-tailadmin-editor-core-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-attachments-v320.css?v=320-1" data-lourex-tailadmin-attachments-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-customers-v320.css?v=320-2" data-lourex-tailadmin-customers-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-products-v320.css?v=320-2" data-lourex-tailadmin-products-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-finance-workspaces-v320.css?v=320-2" data-lourex-tailadmin-finance-workspaces-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-operations-v320.css?v=320-2" data-lourex-tailadmin-operations-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-settings-v320.css?v=320-2" data-lourex-tailadmin-settings-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-auth-v320.css?v=320-2" data-lourex-tailadmin-auth-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-cloud-account-v320.css?v=320-2" data-lourex-tailadmin-cloud-account-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-ai-v320.css?v=320-2" data-lourex-tailadmin-ai-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-overlays-v320.css?v=320-2" data-lourex-tailadmin-overlays-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-utilities-v320.css?v=320-1" data-lourex-tailadmin-utilities-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-visual-finish-v320.css?v=320-1" data-lourex-tailadmin-visual-finish-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-draft-finish-v320.css?v=320-1" data-lourex-tailadmin-draft-finish-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-ai-finish-v320.css?v=320-1" data-lourex-tailadmin-ai-finish-v320="true" />
+  <link rel="stylesheet" href="./styles/tailadmin-reliability-bridge-v320.css?v=320-2" data-lourex-tailadmin-reliability-v320="true" />
+
   <title>LOUREX Invoice</title>
 </head>
 <body>
@@ -198,13 +136,13 @@
   <script src="./runtime-config.js"></script>
   <script src="./canonical-redirect.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js"></script>
-  <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react.production.min.js"></script>
   <script crossorigin src="https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js"></script>
   <script crossorigin src="https://www.gstatic.com/firebasejs/12.17.1/firebase-auth-compat.js"></script>
   <script crossorigin src="https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore-compat.js"></script>
   <script src="./ios-print-bridge.js"></script>
   <script src="./pull-to-refresh.js"></script>
-  <script src="./home-final-closeout-v286.js?v=314"></script>
+  <script src="./home-final-closeout-v286.js?v=320"></script>
   <script src="./document-entry-v302.js?v=314"></script>
   <script type="module" src="./src/app/index.js"></script>
 </body>
