@@ -3,21 +3,19 @@ import { readFile, writeFile } from 'node:fs/promises';
 const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 
-const generations=['302','303','304','305','306','307','308','309','310'];
-let promoted=false;
-for(const generation of generations){
-  const marker=`const CACHE = 'lourex-invoice-v${generation}';`;
-  if(!sw.includes(marker))continue;
-  sw=sw.replace(marker,`const CACHE = 'lourex-invoice-v311';\n// const CACHE = 'lourex-invoice-v${generation}'; preserved as the immediate pre-v311 cache generation.`);
-  promoted=true;
-  break;
+const RELEASE_GENERATION=314;
+const activeCacheMatch=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
+const activeCacheGeneration=activeCacheMatch?Number(activeCacheMatch[1]):0;
+if(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION){
+  const marker=activeCacheMatch[0];
+  sw=sw.replace(marker,`const CACHE = 'lourex-invoice-v${RELEASE_GENERATION}';\n// ${marker} preserved as the immediate pre-v${RELEASE_GENERATION} cache generation.`);
+}else if(activeCacheGeneration<RELEASE_GENERATION){
+  throw new Error(`Unable to promote the LOUREX PWA cache to v${RELEASE_GENERATION} or verify a newer cache generation.`);
 }
-if(!promoted&&!sw.includes("const CACHE = 'lourex-invoice-v311';"))throw new Error('Unable to promote the LOUREX PWA cache to v311.');
 
 const marker="LOCAL_CORE.push('./canonical-redirect.js');";
-// Cache the exact URLs requested by index.html/document-entry-v302.js. CacheStorage
-// matches query strings by default, so precaching an unversioned path would not
-// satisfy a first offline request for the release-versioned URL.
+// Cache the exact URLs requested by index.html. CacheStorage matches query strings
+// by default, so release-versioned runtime/CSS URLs must be precached verbatim.
 const visualRuntimes=[
   './visual-coherence-v303.css?v=303',
   './attachment-gallery-v304.css?v=304',
@@ -29,7 +27,20 @@ const visualRuntimes=[
   './styles/v310-stability-contrast.css?v=310',
   './styles/v311-quality-pass.css?v=311',
   './release-audit-v311.css?v=311',
-  './document-entry-v302.js?v=311'
+  './styles/home-canonical-v314.css?v=314',
+  './styles/shell-canonical-v314.css?v=314',
+  './styles/documents-canonical-v314.css?v=314',
+  './styles/editor-canonical-v314.css?v=314',
+  './styles/customers-canonical-v314.css?v=314',
+  './styles/products-canonical-v314.css?v=314',
+  './styles/operations-canonical-v314.css?v=314',
+  './styles/finance-canonical-v314.css?v=314',
+  './styles/reports-canonical-v314.css?v=314',
+  './styles/settings-canonical-v314.css?v=314',
+  './styles/auth-canonical-v314.css?v=314',
+  './styles/overlays-canonical-v314.css?v=314',
+  './home-final-closeout-v286.js?v=314',
+  './document-entry-v302.js?v=314'
 ];
 for(const visualRuntime of visualRuntimes){
   if(sw.includes(`'${visualRuntime}'`)||sw.includes(`"${visualRuntime}"`))continue;
@@ -40,10 +51,12 @@ await writeFile(swPath,sw);
 
 const htmlPath='dist/index.html';
 let html=await readFile(htmlPath,'utf8');
-const oldRuntime='./document-entry-v302.js?v=302';
-const releaseRuntime='./document-entry-v302.js?v=311';
-if(html.includes(oldRuntime))html=html.replace(oldRuntime,releaseRuntime);
-else if(!html.includes(releaseRuntime))throw new Error('Unable to version the v311 document runtime in production HTML.');
+const releaseRuntime='./document-entry-v302.js?v=314';
+for(const legacyRuntime of ['./document-entry-v302.js?v=302','./document-entry-v302.js?v=311']){
+  if(html.includes(legacyRuntime))html=html.replace(legacyRuntime,releaseRuntime);
+}
+if(!html.includes(releaseRuntime))throw new Error('Unable to verify the v314 document runtime in production HTML.');
+if(!html.includes('./home-final-closeout-v286.js?v=314'))throw new Error('Unable to verify the v314 Home runtime in production HTML.');
 await writeFile(htmlPath,html);
 
-console.log('[LOUREX PWA] v311 quality cache generation ready.');
+console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with v314 runtime set.`);

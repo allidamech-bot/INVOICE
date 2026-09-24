@@ -1,7 +1,9 @@
-/* LOUREX v286/v299 presentation helper.
-   Loads the review visual layers after the complete legacy stylesheet stack, with
-   v299 deliberately last, then detects a true zero-baseline cash chart so the Home
-   dashboard can show a compact empty state. No business data is changed. */
+/* LOUREX presentation bootstrap — v314 canonical ownership.
+   Historical Home-only styles are retired here, while the shared visual-system
+   layers remain intact. Canonical Home, Shell, Documents, Editor, Customers,
+   Products, Operations, Finance, Reports, Settings, Auth and Overlay styles are
+   appended after the historical stack so each live surface has one final owner.
+   Home data and empty-state logic are owned by React and no DOM-wide observer is used. */
 (function(){
   function ensureStylesheet(marker,href){
     if(document.querySelector('link['+marker+']'))return;
@@ -28,35 +30,40 @@
     if(document.documentElement.dataset.uiTheme==='light')document.documentElement.style.backgroundColor='#e8eeeb';
   }
 
-  function polylineOnZeroBaseline(node){
-    if(!node)return false;
-    var raw=String(node.getAttribute('points')||'').trim();
-    if(!raw)return true;
-    var points=raw.split(/\s+/).map(function(pair){return pair.split(',').map(Number);}).filter(function(pair){return pair.length===2&&Number.isFinite(pair[1]);});
-    if(!points.length)return true;
-    return points.every(function(pair){return Math.abs(pair[1]-198)<=0.6;});
-  }
-
-  function refresh(){
-    document.querySelectorAll('.fintech-dashboard-v280 .command-performance-panel').forEach(function(panel){
-      var sales=panel.querySelector('.command-chart-line.line-sales');
-      var collected=panel.querySelector('.command-chart-line.line-collected');
-      var zeroCash=Boolean(sales&&collected&&polylineOnZeroBaseline(sales)&&polylineOnZeroBaseline(collected));
-      panel.classList.toggle('is-empty-chart',zeroCash);
+  function retireHistoricalHomeStyles(){
+    var historical=[
+      'home-premium-command-center-v283.css',
+      'home-review-polish-v285.css',
+      'home-final-closeout-v286.css'
+    ];
+    document.querySelectorAll('link[rel="stylesheet"][href]').forEach(function(link){
+      var href=String(link.getAttribute('href')||'');
+      if(historical.some(function(name){return href.indexOf(name)!==-1;}))link.remove();
     });
   }
 
-  function start(){
-    loadReviewVisualSystem();
-    refresh();
-    var root=document.getElementById('root')||document.body;
-    if(!root)return;
-    var observer=new MutationObserver(function(){requestAnimationFrame(refresh);});
-    observer.observe(root,{subtree:true,childList:true,attributes:true,attributeFilter:['points']});
-    window.addEventListener('resize',refresh,{passive:true});
+  function installCanonicalLayers(){
+    retireHistoricalHomeStyles();
+    ensureStylesheet('data-lourex-home-v314','./styles/home-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-shell-v314','./styles/shell-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-shell-overlays-v314','./styles/shell-overlays-v314.css?v=314');
+    ensureStylesheet('data-lourex-documents-v314','./styles/documents-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-editor-v314','./styles/editor-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-customers-v314','./styles/customers-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-products-v314','./styles/products-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-operations-v314','./styles/operations-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-finance-v314','./styles/finance-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-reports-v314','./styles/reports-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-settings-v314','./styles/settings-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-auth-v314','./styles/auth-canonical-v314.css?v=314');
+    ensureStylesheet('data-lourex-overlays-v314','./styles/overlays-canonical-v314.css?v=314');
   }
 
-  loadReviewVisualSystem();
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
-  else start();
+  function install(){
+    loadReviewVisualSystem();
+    installCanonicalLayers();
+  }
+
+  install();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
 })();
