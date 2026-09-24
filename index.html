@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#061820" />
+  <meta name="theme-color" content="#100b1f" />
   <meta name="color-scheme" content="dark light" />
   <script id="lourex-theme-bootstrap">
     (function(){
       var key='lourex-ui-theme',pref='system';try{var saved=localStorage.getItem(key);if(saved==='light'||saved==='dark'||saved==='system')pref=saved;}catch(e){}
       var resolved=pref;if(pref==='system'){try{resolved=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){resolved='dark';}}
-      var root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');root.dataset.uiTheme=resolved;root.dataset.uiThemePreference=pref;root.dataset.lourexBooting='true';root.style.colorScheme='dark';root.style.backgroundColor='#061820';root.style.setProperty('--boot-bg','#061820');if(meta)meta.setAttribute('content','#061820');
-      document.addEventListener('DOMContentLoaded',function(){var mount=document.getElementById('root');if(!mount)return;var restore=function(){if(document.getElementById('lourex-boot'))return;delete root.dataset.lourexBooting;root.style.removeProperty('--boot-bg');root.style.colorScheme=resolved;root.style.backgroundColor=resolved==='light'?'#f2f7f8':'#061820';if(meta)meta.setAttribute('content',resolved==='light'?'#f2f7f8':'#061820');observer.disconnect();};var observer=new MutationObserver(restore);observer.observe(mount,{childList:true});restore();},{once:true});
+      var root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');root.dataset.uiTheme=resolved;root.dataset.uiThemePreference=pref;root.dataset.lourexBooting='true';root.style.colorScheme='dark';root.style.backgroundColor='#100b1f';root.style.setProperty('--boot-bg','#100b1f');if(meta)meta.setAttribute('content','#100b1f');
+      document.addEventListener('DOMContentLoaded',function(){var mount=document.getElementById('root');if(!mount)return;var restore=function(){if(document.getElementById('lourex-boot'))return;delete root.dataset.lourexBooting;root.style.removeProperty('--boot-bg');root.style.colorScheme=resolved;root.style.backgroundColor=resolved==='light'?'#f8f8fb':'#0f0c1b';if(meta)meta.setAttribute('content',resolved==='light'?'#f8f8fb':'#0f0c1b');observer.disconnect();};var observer=new MutationObserver(restore);observer.observe(mount,{childList:true});restore();},{once:true});
     })();
   </script>
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -23,18 +23,18 @@
   <link rel="icon" href="./brand/lourex-app-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" sizes="180x180" href="./brand/lourex-app-icon-180.png" />
   <style id="lourex-boot-style">
-    html[data-ui-theme="light"]{--boot-bg:#e8eeeb;--boot-text:#102528;--boot-track:#d0d9d6;--boot-accent:#159fa2}
-    html[data-ui-theme="dark"]{--boot-bg:#061820;--boot-text:#eefbfd;--boot-track:#173642;--boot-accent:#20d3db}
-    html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:var(--boot-bg,#061820)}
-    html[data-lourex-booting="true"]{overflow:hidden!important;background:#061820!important;color-scheme:dark!important}
-    html[data-lourex-booting="true"] body,html[data-lourex-booting="true"] #root{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;margin:0!important;overflow:hidden!important;background:#061820!important;color-scheme:dark!important;overscroll-behavior:none!important}
-    #lourex-boot.loading-screen{position:fixed;inset:-2px;z-index:2147483000;min-height:calc(100dvh + 4px);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-sizing:border-box;padding:max(32px,env(safe-area-inset-top,0px)) max(32px,env(safe-area-inset-right,0px)) max(32px,env(safe-area-inset-bottom,0px)) max(32px,env(safe-area-inset-left,0px));background:#061820;color:var(--boot-text,#fff);box-shadow:0 0 0 100vmax #061820;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-text-size-adjust:100%;overscroll-behavior:none}
+    html[data-ui-theme="light"]{--boot-bg:#f8f8fb;--boot-text:#24154f;--boot-track:#e6e2ef;--boot-accent:#673de6}
+    html[data-ui-theme="dark"]{--boot-bg:#100b1f;--boot-text:#f5f2ff;--boot-track:#2b2341;--boot-accent:#9a7cff}
+    html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:var(--boot-bg,#100b1f)}
+    html[data-lourex-booting="true"]{overflow:hidden!important;background:#100b1f!important;color-scheme:dark!important}
+    html[data-lourex-booting="true"] body,html[data-lourex-booting="true"] #root{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;margin:0!important;overflow:hidden!important;background:#100b1f!important;color-scheme:dark!important;overscroll-behavior:none!important}
+    #lourex-boot.loading-screen{position:fixed;inset:-2px;z-index:2147483000;min-height:calc(100dvh + 4px);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-sizing:border-box;padding:max(32px,env(safe-area-inset-top,0px)) max(32px,env(safe-area-inset-right,0px)) max(32px,env(safe-area-inset-bottom,0px)) max(32px,env(safe-area-inset-left,0px));background:#100b1f;color:var(--boot-text,#fff);box-shadow:0 0 0 100vmax #100b1f;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-text-size-adjust:100%;overscroll-behavior:none}
     #lourex-boot .brand{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;animation:lourexLaunchIn .45s ease-out both}
     #lourex-boot .brand-mark{display:grid;place-items:center;width:118px;height:118px;border-radius:28px}
     #lourex-boot .brand-mark img{display:block;width:118px;height:118px;border-radius:28px}
     #lourex-boot .brand-words strong{color:var(--boot-text,#fff);font-size:21px;letter-spacing:.28em;padding-left:.28em;font-weight:760}
-    #lourex-boot .loading-line{position:relative;z-index:1;width:126px;height:3px;overflow:hidden;border-radius:99px;background:var(--boot-track,#1e3b37)}
-    #lourex-boot .loading-line:after{content:"";position:absolute;inset:0 auto 0 0;width:46%;border-radius:inherit;background:var(--boot-accent,#24c7ba);animation:lourexLoading 1.05s ease-in-out infinite}
+    #lourex-boot .loading-line{position:relative;z-index:1;width:126px;height:3px;overflow:hidden;border-radius:99px;background:var(--boot-track,#2b2341)}
+    #lourex-boot .loading-line:after{content:"";position:absolute;inset:0 auto 0 0;width:46%;border-radius:inherit;background:var(--boot-accent,#9a7cff);animation:lourexLoading 1.05s ease-in-out infinite}
     @keyframes lourexLoading{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
     @keyframes lourexLaunchIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
     @media(max-width:720px){#lourex-boot.loading-screen{padding:max(24px,env(safe-area-inset-top,0px)) max(22px,env(safe-area-inset-right,0px)) max(26px,env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left,0px))}#lourex-boot .brand-mark,#lourex-boot .brand-mark img{width:104px;height:104px;border-radius:25px}#lourex-boot .brand-words strong{font-size:19px}}
@@ -184,6 +184,8 @@
   <link rel="stylesheet" href="./styles/auth-canonical-v314.css?v=314" data-lourex-auth-v314="true" />
   <link rel="stylesheet" href="./styles/overlays-canonical-v314.css?v=314" data-lourex-overlays-v314="true" />
   <link rel="stylesheet" href="./styles/v319-hostinger-ai-visual-refresh.css?v=319" data-lourex-v319="true" />
+  <link rel="stylesheet" href="./styles/v319-hostinger-smoothness-closeout.css?v=3192" data-lourex-v319-smoothness="true" />
+  <link rel="stylesheet" href="./styles/v319-mobile-header-more-fix.css?v=3192" data-lourex-v319-mobile="true" />
   <title>LOUREX Invoice</title>
 </head>
 <body>
