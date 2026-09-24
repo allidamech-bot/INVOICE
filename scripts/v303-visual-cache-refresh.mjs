@@ -3,9 +3,9 @@ import { readFile, writeFile } from 'node:fs/promises';
 const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 
-/* v320 is a real visual-generation boundary. The previous cache must never keep
-   retired v303/v307/v310/v311/canonical visual owners alive after deployment. */
-const RELEASE_GENERATION=320;
+/* v321 is a runtime-recovery boundary. Force a genuinely new application cache
+   so an installed Safari/PWA client cannot keep a mixed v320 boot/runtime set. */
+const RELEASE_GENERATION=321;
 const activeCacheMatch=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
 const activeCacheGeneration=activeCacheMatch?Number(activeCacheMatch[1]):0;
 if(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION){
@@ -16,7 +16,8 @@ if(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION){
 }
 
 const marker="LOCAL_CORE.push('./canonical-redirect.js');";
-// Cache only retained feature/reliability layers and the v320 visual owners.
+// Cache only retained feature/reliability layers and the v320 visual owners,
+// plus the v321 startup watchdog that can recover a stuck static boot safely.
 // CacheStorage matches query strings by default, so these must match runtime URLs.
 const visualRuntimes=[
   './attachment-gallery-v304.css?v=304',
@@ -45,7 +46,8 @@ const visualRuntimes=[
   './styles/tailadmin-ai-finish-v320.css?v=320-1',
   './styles/tailadmin-reliability-bridge-v320.css?v=320-2',
   './home-final-closeout-v286.js?v=320',
-  './document-entry-v302.js?v=320'
+  './document-entry-v302.js?v=320',
+  './startup-watchdog-v321.js?v=321'
 ];
 for(const visualRuntime of visualRuntimes){
   if(sw.includes(`'${visualRuntime}'`)||sw.includes(`"${visualRuntime}"`))continue;
@@ -58,12 +60,14 @@ const htmlPath='dist/index.html';
 let html=await readFile(htmlPath,'utf8');
 const homeRuntime='./home-final-closeout-v286.js?v=320';
 const documentRuntime='./document-entry-v302.js?v=320';
+const startupWatchdog='./startup-watchdog-v321.js?v=321';
 for(const legacyRuntime of ['./home-final-closeout-v286.js?v=314','./document-entry-v302.js?v=302','./document-entry-v302.js?v=311','./document-entry-v302.js?v=314']){
   if(!html.includes(legacyRuntime))continue;
   html=html.replace(legacyRuntime,legacyRuntime.includes('home-final')?homeRuntime:documentRuntime);
 }
 if(!html.includes(homeRuntime))throw new Error('Unable to verify the v320 presentation bootstrap in production HTML.');
 if(!html.includes(documentRuntime))throw new Error('Unable to verify the v320 document runtime in production HTML.');
+if(!html.includes(startupWatchdog))throw new Error('Unable to verify the v321 startup watchdog in production HTML.');
 await writeFile(htmlPath,html);
 
-console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with v320 runtime set.`);
+console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with v320 runtime set + v321 startup recovery.`);
