@@ -190,6 +190,29 @@
     armDocumentLaunch(kind);
   }
 
+  function armCreditNoteConfirmation(event){
+    const target=event.target;
+    if(!(target instanceof Element))return;
+    const button=target.closest('.modal-footer-actions button');
+    if(!(button instanceof HTMLButtonElement)||button.disabled)return;
+    const modal=button.closest('.modal');
+    if(!(modal instanceof HTMLElement))return;
+    const buttonText=String(button.textContent||'').trim();
+    const modalText=String(modal.textContent||'');
+    const isCreditConfirm=(buttonText.includes('Create Credit Note')||buttonText.includes('إنشاء إشعار دائن'))&&(modalText.includes('Credit Note')||modalText.includes('إشعار دائن'));
+    if(!isCreditConfirm)return;
+    const root=document.documentElement;
+    if(root.hasAttribute(documentLaunchAttr)){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    // Credit notes reuse the commercial-invoice editor with role=credit-note.
+    // Protect the async persist -> editor transition just like direct catalog kinds.
+    try{window.sessionStorage.setItem(pendingKindKey,'invoice');}catch{}
+    armDocumentLaunch('credit-note');
+  }
+
   function inferEditorKind(){
     const editor=document.querySelector('.editor-screen');
     if(!(editor instanceof HTMLElement))return;
@@ -332,6 +355,7 @@
 
   ensureVisualCoherence();
   document.addEventListener('click',rememberNativeDocumentKind,true);
+  document.addEventListener('click',armCreditNoteConfirmation,true);
   document.addEventListener('click',enforceSignOutBoundary,true);
   window.addEventListener('lourex-cloud-refresh-available',recoverLateAuthenticatedAccount);
   window.addEventListener('lourex-cloud-applied',rehydrateAppliedCloudVault);
