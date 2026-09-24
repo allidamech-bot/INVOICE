@@ -51,6 +51,18 @@
     });
   }
 
+  function normalizeSecurityCopy(){
+    const copy=document.querySelector('.device-security-section .settings-section-heading p');
+    if(!(copy instanceof HTMLElement))return;
+    const text=String(copy.textContent||'');
+    const stale=text.includes('Every account sign-in and every new page start or reload requires the PIN')||text.includes('يتطلب كل تسجيل دخول للحساب وكل تشغيل جديد للصفحة أو إعادة تحميل إدخال PIN');
+    if(!stale)return;
+    const arabic=document.documentElement.dir==='rtl'||String(document.documentElement.lang||'').toLowerCase().startsWith('ar');
+    copy.textContent=arabic
+      ?'يحمي رمز PIN الخزنة المشفّرة على هذا الجهاز. لا تتطلب إعادة التحميل العادية إدخال PIN ما دامت الجلسة المحمية النشطة صالحة. يُطلب PIN مجددًا بعد القفل اليدوي، أو تسجيل الخروج ثم الدخول لاحقًا، أو انتهاء مهلة القفل التلقائي، أو عندما تصبح الجلسة المحمية غير صالحة.'
+      :'The PIN protects the encrypted vault on this device. A normal refresh keeps a valid active protected session open. The PIN is required again after manual lock, sign-out and later sign-in, auto-lock timeout, or when the protected session is no longer valid.';
+  }
+
   function rememberNativeDocumentKind(event){
     const target=event.target;
     if(!(target instanceof Element))return;
@@ -172,8 +184,10 @@
     scheduled=false;
     ensureVisualCoherence();
     normalizeAuthControls();
+    normalizeSecurityCopy();
     removeLegacyInjectedControls();
     inferEditorKind();
+    observeAppUiSurfaces();
   }
 
   function schedule(){
@@ -184,8 +198,25 @@
 
   function nodeContainsRelevantUi(node){
     if(!(node instanceof Element))return false;
-    if(node.matches('.editor-screen,.auth-account-page,.auth-page,.settings-modal,.settings-workspace,.v302-direct-document-actions,.v302-attachments-shortcut'))return true;
-    return Boolean(node.querySelector('.editor-screen,.auth-account-page,.auth-page,.settings-modal,.settings-workspace,.v302-direct-document-actions,.v302-attachments-shortcut'));
+    if(node.matches('.editor-screen,.auth-account-page,.auth-page,.settings-layout,.modal-backdrop,.v302-direct-document-actions,.v302-attachments-shortcut'))return true;
+    return Boolean(node.querySelector('.editor-screen,.auth-account-page,.auth-page,.settings-layout,.modal-backdrop,.v302-direct-document-actions,.v302-attachments-shortcut'));
+  }
+
+  let appUiObserver=null;
+  let observedAppUi=null;
+  function observeAppUiSurfaces(){
+    const appUi=document.querySelector('.app-ui');
+    if(!(appUi instanceof HTMLElement)||appUi===observedAppUi)return;
+    appUiObserver?.disconnect();
+    observedAppUi=appUi;
+    appUiObserver=new MutationObserver(mutations=>{
+      for(const mutation of mutations){
+        if(Array.from(mutation.addedNodes).some(nodeContainsRelevantUi)||Array.from(mutation.removedNodes).some(nodeContainsRelevantUi)){schedule();return;}
+      }
+    });
+    // App-level modals are direct children of .app-ui. Watching only this level
+    // catches Settings/Cloud/Auth surface changes without observing editor churn.
+    appUiObserver.observe(appUi,{childList:true,subtree:false});
   }
 
   ensureVisualCoherence();
