@@ -1,7 +1,8 @@
 /* LOUREX Home presentation bootstrap — v314 canonical ownership.
    Historical Home-only styles are retired here, while the shared visual-system
    layers remain intact. The canonical v314 Home stylesheet is appended last so
-   dashboard geometry has one predictable owner. No business data is changed. */
+   dashboard geometry has one predictable owner. Home data/empty-state logic is
+   owned by React and no longer needs a DOM-wide MutationObserver. */
 (function(){
   function ensureStylesheet(marker,href){
     if(document.querySelector('link['+marker+']'))return;
@@ -45,37 +46,11 @@
     ensureStylesheet('data-lourex-home-v314','./styles/home-canonical-v314.css?v=314');
   }
 
-  function polylineOnZeroBaseline(node){
-    if(!node)return false;
-    var raw=String(node.getAttribute('points')||'').trim();
-    if(!raw)return true;
-    var points=raw.split(/\s+/).map(function(pair){return pair.split(',').map(Number);}).filter(function(pair){return pair.length===2&&Number.isFinite(pair[1]);});
-    if(!points.length)return true;
-    return points.every(function(pair){return Math.abs(pair[1]-198)<=0.6;});
-  }
-
-  function refreshEmptyState(){
-    document.querySelectorAll('.fintech-dashboard-v280 .command-performance-panel').forEach(function(panel){
-      var sales=panel.querySelector('.command-chart-line.line-sales');
-      var collected=panel.querySelector('.command-chart-line.line-collected');
-      var zeroCash=Boolean(sales&&collected&&polylineOnZeroBaseline(sales)&&polylineOnZeroBaseline(collected));
-      panel.classList.toggle('is-empty-chart',zeroCash);
-    });
-  }
-
-  function start(){
+  function install(){
     loadReviewVisualSystem();
     installCanonicalHome();
-    refreshEmptyState();
-    var root=document.getElementById('root')||document.body;
-    if(!root)return;
-    var observer=new MutationObserver(function(){requestAnimationFrame(refreshEmptyState);});
-    observer.observe(root,{subtree:true,childList:true,attributes:true,attributeFilter:['points']});
-    window.addEventListener('resize',refreshEmptyState,{passive:true});
   }
 
-  loadReviewVisualSystem();
-  installCanonicalHome();
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
-  else start();
+  install();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
 })();
