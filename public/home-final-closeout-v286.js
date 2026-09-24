@@ -17,6 +17,8 @@
     var replaced=['app-shell-v161.css','mobile-shell-v71.css','fintech-shell-v280.css','shell-canonical-v314.css','shell-overlays-v314.css','home-canonical-v314.css','documents-canonical-v314.css','dashboard-documents.css','document-premium-redesign-v141.css','customers-canonical-v314.css','customers-premium-v170.css','customer-document-flow-v109.css','products-canonical-v314.css','finance-canonical-v314.css','receivables-v133.css','reports-canonical-v314.css','reports-v135.css','operations-canonical-v314.css','operations-v137.css','settings-canonical-v314.css','settings-workspace-v108.css','settings-account-v163.css','auth-canonical-v314.css','auth-entry.css','onboarding-simplification-v115.css','mobile-auth-modal-v150.css','account-cloud-separation-v186.css','unified-account-v189.css','visual-auth-settings-closeout-v299.css'];
     document.querySelectorAll('link[rel="stylesheet"][href]').forEach(function(link){var href=String(link.getAttribute('href')||'');if(replaced.some(function(name){return href.indexOf(name)!==-1;}))link.remove();});
   }
+  function retireInlineLegacyOwners(){document.querySelectorAll('style[data-lourex-ai-core]').forEach(function(style){style.remove();});}
+  function watchInlineLegacyOwners(){retireInlineLegacyOwners();if(!document.body)return;var observer=new MutationObserver(function(){retireInlineLegacyOwners();});observer.observe(document.body,{childList:true,subtree:true});}
   function installTailAdminV320(){
     retireReplacedLayers();
     ensureStylesheet('data-lourex-tailadmin-v320','./styles/tailadmin-finance-v320.css?v=320');
@@ -31,6 +33,8 @@
     ensureStylesheet('data-lourex-tailadmin-settings-v320','./styles/tailadmin-settings-v320.css?v=320-1');
     ensureStylesheet('data-lourex-tailadmin-auth-v320','./styles/tailadmin-auth-v320.css?v=320-1');
     ensureStylesheet('data-lourex-tailadmin-cloud-account-v320','./styles/tailadmin-cloud-account-v320.css?v=320-1');
+    ensureStylesheet('data-lourex-tailadmin-ai-v320','./styles/tailadmin-ai-v320.css?v=320-1');
+    watchInlineLegacyOwners();
   }
   function install(){loadReviewVisualSystem();installCanonicalLayers();installTailAdminV320();}
   install();if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
