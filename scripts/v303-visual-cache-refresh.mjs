@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 
-const RELEASE_GENERATION=314;
+const RELEASE_GENERATION=315;
 const activeCacheMatch=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
 const activeCacheGeneration=activeCacheMatch?Number(activeCacheMatch[1]):0;
 if(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION){
@@ -40,7 +40,7 @@ const visualRuntimes=[
   './styles/auth-canonical-v314.css?v=314',
   './styles/overlays-canonical-v314.css?v=314',
   './home-final-closeout-v286.js?v=314',
-  './document-entry-v302.js?v=314'
+  './document-entry-v302.js?v=315'
 ];
 for(const visualRuntime of visualRuntimes){
   if(sw.includes(`'${visualRuntime}'`)||sw.includes(`"${visualRuntime}"`))continue;
@@ -51,12 +51,12 @@ await writeFile(swPath,sw);
 
 const htmlPath='dist/index.html';
 let html=await readFile(htmlPath,'utf8');
-const releaseRuntime='./document-entry-v302.js?v=314';
-for(const legacyRuntime of ['./document-entry-v302.js?v=302','./document-entry-v302.js?v=311']){
+const releaseRuntime='./document-entry-v302.js?v=315';
+for(const legacyRuntime of ['./document-entry-v302.js?v=302','./document-entry-v302.js?v=311','./document-entry-v302.js?v=314']){
   if(html.includes(legacyRuntime))html=html.replace(legacyRuntime,releaseRuntime);
 }
-if(!html.includes(releaseRuntime))throw new Error('Unable to verify the v314 document runtime in production HTML.');
+if(!html.includes(releaseRuntime))throw new Error('Unable to verify the v315 document runtime in production HTML.');
 if(!html.includes('./home-final-closeout-v286.js?v=314'))throw new Error('Unable to verify the v314 Home runtime in production HTML.');
 await writeFile(htmlPath,html);
 
-console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with v314 runtime set.`);
+console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with v315 document runtime.`);

@@ -102,7 +102,16 @@ function SignatureArea({doc,letter}:{doc:LourexDocument;letter:LetterDocumentDat
   return <div className="letter-signing">{letter.showSignature&&doc.companySnapshot.signatureDataUrl?<div><img src={doc.companySnapshot.signatureDataUrl} alt="Signature"/><span>{doc.language==='ar'?'التوقيع':'Signature'}</span></div>:null}{letter.showStamp&&doc.companySnapshot.stampDataUrl?<div><img src={doc.companySnapshot.stampDataUrl} alt="Stamp"/><span>{doc.language==='ar'?'الختم':'Stamp'}</span></div>:null}</div>;
 }
 
+function deferHiddenDesktopPreview(scale:number,compact:boolean):boolean{
+  if(compact||scale!==0.78||typeof window==='undefined'||typeof window.matchMedia!=='function')return false;
+  return window.matchMedia('(max-width:1180px)').matches;
+}
+
 export function DraftDocumentRenderer({document:doc,scale=1,compact=false}:Props):any{
+  // On phones/tablets the desktop Draft preview is CSS-hidden, so building its
+  // full A4 tree only wastes WebKit memory. The real mobile preview (scale .48)
+  // still renders on demand when the user explicitly opens it.
+  if(deferHiddenDesktopPreview(scale,compact))return <div className="invoice-pages draft-letter-pages deferred-mobile-preview" aria-hidden="true"/>;
   const letter=normalizeLetterData(doc.letter??defaultLetterData(doc.language),doc.language);
   const pages=paginate(letter);
   const direction=doc.language==='ar'?'rtl':'ltr';
