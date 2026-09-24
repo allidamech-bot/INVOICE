@@ -1,7 +1,7 @@
 /* LOUREX presentation bootstrap — v320 TailAdmin Finance replacement.
-   v314 canonical functional geometry remains available underneath while the new
-   TailAdmin visual system becomes the final screen-only owner. No business logic,
-   persistence, PDF or print behavior is changed here. */
+   v320 progressively retires legacy visual owners as each React surface is
+   structurally replaced. Business logic, persistence, PDF and print behavior
+   remain outside this bootstrap. */
 (function(){
   function ensureStylesheet(marker,href){
     if(document.querySelector('link['+marker+']'))return;
@@ -58,8 +58,24 @@
     ensureStylesheet('data-lourex-overlays-v314','./styles/overlays-canonical-v314.css?v=314');
   }
 
+  function retireReplacedShellLayers(){
+    var replaced=[
+      'app-shell-v161.css',
+      'mobile-shell-v71.css',
+      'fintech-shell-v280.css',
+      'shell-canonical-v314.css',
+      'shell-overlays-v314.css'
+    ];
+    document.querySelectorAll('link[rel="stylesheet"][href]').forEach(function(link){
+      var href=String(link.getAttribute('href')||'');
+      if(replaced.some(function(name){return href.indexOf(name)!==-1;}))link.remove();
+    });
+  }
+
   function installTailAdminV320(){
+    retireReplacedShellLayers();
     ensureStylesheet('data-lourex-tailadmin-v320','./styles/tailadmin-finance-v320.css?v=320');
+    ensureStylesheet('data-lourex-tailadmin-shell-v320','./styles/tailadmin-shell-v320.css?v=320-2');
   }
 
   function install(){
