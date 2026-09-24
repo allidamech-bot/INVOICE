@@ -52,8 +52,11 @@ export class ProfitabilityPanel extends React.Component<Props,State>{
   private setOtherCost=(otherCost:string)=>this.setState({otherCost,dirty:true,error:''});
 
   private workingDocument=():LourexDocument=>({
-    ...structuredClone(this.props.document),
-    items:this.props.document.items.map(item=>({...structuredClone(item),unitCost:this.state.unitCosts[item.id]??item.unitCost??''})),
+    // Document edits are immutable. Only the item cost fields and internal-cost
+    // object need copies here; cloning the whole document used to duplicate every
+    // attachment data URL each time profitability rendered or saved.
+    ...this.props.document,
+    items:this.props.document.items.map(item=>({...item,unitCost:this.state.unitCosts[item.id]??item.unitCost??''})),
     internalCosts:{shippingCost:this.state.shippingCost||'0.00',otherCost:this.state.otherCost||'0.00'}
   });
 
