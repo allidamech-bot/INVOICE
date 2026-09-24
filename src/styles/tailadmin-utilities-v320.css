@@ -1,5 +1,53 @@
 /* LOUREX v320 — TailAdmin utility controls shared outside the primary workspaces. */
 @media screen {
+  /* Compatibility palette bridge for retained feature/reliability CSS. Older
+     components may still reference ds-* tokens for geometry-safe styling, but
+     in v320 those names resolve exclusively to the TailAdmin visual system. */
+  .app-ui{
+    --ds-canvas:var(--ft-canvas)!important;
+    --ds-shell:var(--ft-shell)!important;
+    --ds-workspace:var(--ft-workspace)!important;
+    --ds-surface:var(--ft-surface)!important;
+    --ds-surface-strong:var(--ft-surface)!important;
+    --ds-selected:var(--ft-accent-faint)!important;
+    --ds-financial-surface:var(--ft-surface-2)!important;
+    --ds-input:var(--ft-input)!important;
+    --ds-accent:var(--ft-accent)!important;
+    --ds-accent-hover:var(--ft-accent-hover)!important;
+    --ds-accent-bright:var(--ft-accent)!important;
+    --ds-brass:var(--ft-accent)!important;
+    --ds-brass-highlight:var(--ft-accent)!important;
+    --ds-text:var(--ft-text-strong)!important;
+    --ds-text-soft:var(--ft-text-soft)!important;
+    --ds-muted:var(--ft-muted)!important;
+    --ds-faint:var(--ft-faint)!important;
+    --ds-line:var(--ft-line)!important;
+    --ds-line-strong:var(--ft-line-strong)!important;
+    --ds-input-line:var(--ft-line)!important;
+    --ds-focus-line:var(--ft-accent)!important;
+    --ds-success:var(--ft-success)!important;
+    --ds-warning:var(--ft-warning)!important;
+    --ds-danger:var(--ft-danger)!important;
+    --ds-danger-text:var(--ft-danger)!important;
+    --ds-info:var(--ft-info)!important;
+    --ds-on-action:var(--ft-on-accent)!important;
+    --ds-secondary-button:var(--ft-surface-2)!important;
+    --ds-navy-950:var(--ft-shell)!important;
+    --ds-navy-900:var(--ft-workspace)!important;
+    --ds-navy-800:var(--ft-accent-faint)!important;
+    --ds-navy-700:var(--ft-accent)!important;
+    --ds-gold-600:var(--ft-accent)!important;
+    --ds-gold-500:var(--ft-accent)!important;
+    --ds-gold-200:var(--ft-accent-soft)!important;
+    --ds-ivory-100:var(--ft-canvas)!important;
+    --ds-ivory-50:var(--ft-surface)!important;
+    --ds-shadow-card:var(--ta-shadow-xs)!important;
+    --ds-shadow-raised:var(--ta-shadow-md)!important;
+    --ds-focus:var(--ft-focus)!important;
+    --ds-font-ui:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important;
+    --ds-font-ar:"Noto Sans Arabic","Outfit",sans-serif!important;
+  }
+
   .mf-theme-control,.mf-theme-toggle-control{display:inline-flex!important;align-items:center!important;width:auto!important;min-width:0!important}
   .mf-theme-toggle-control .mf-theme-toggle{min-width:44px!important;min-height:44px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;padding:0 11px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface)!important;color:var(--ft-text-soft)!important;box-shadow:var(--ta-shadow-xs)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important;font-size:12px!important;font-weight:600!important}
   .mf-theme-toggle-control .mf-theme-toggle:hover{border-color:var(--ft-line-strong)!important;background:var(--ft-surface-2)!important;color:var(--ft-text-strong)!important}
@@ -41,6 +89,11 @@
   }
   .app-ui .modal-body{background:var(--ft-surface)!important;color:var(--ft-text)!important}
   .app-ui .modal-header h2{color:var(--ft-text-strong)!important}
+  .app-ui .modal-header .icon-btn,.app-ui .modal-header .icon-btn-ghost{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text-soft)!important;
+  }
 
   /* Retained final-document accessibility geometry remains useful, but its old
      ds-* colors must not become a visual owner inside the TailAdmin editor. */
@@ -61,6 +114,17 @@
   }
   .app-ui .editor-date-control::after{color:var(--ft-muted)!important}
   .app-ui .editor-date-value{color:var(--ft-text-strong)!important}
+
+  /* Mobile preview geometry is retained from v156, while its palette belongs to
+     TailAdmin in v320. This covers both commercial documents and Draft preview. */
+  .app-ui .mobile-preview-overlay{background:var(--ft-workspace)!important}
+  .app-ui .mobile-preview-overlay>header{
+    border-bottom-color:var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    box-shadow:var(--ta-shadow-xs)!important;
+  }
+  .app-ui .mobile-preview-overlay>header>strong{color:var(--ft-text-strong)!important}
+  .app-ui .mobile-preview-stage{background:var(--ft-surface-2)!important}
 
   [dir="rtl"] :where(.mf-theme-control,.mf-theme-toggle-control){direction:rtl!important}
 }
@@ -99,6 +163,16 @@
     .global-search-section-title>button
   ){
     min-height:44px!important;
+  }
+
+  .app-ui .mobile-preview-overlay>header .btn,
+  .app-ui .mobile-preview-overlay>header .icon-btn{
+    min-height:44px!important;
+    height:44px!important;
+  }
+  .app-ui .mobile-preview-overlay>header .icon-btn{
+    width:44px!important;
+    min-width:44px!important;
   }
 
   /* Higher specificity is intentional: Draft finish is loaded later, while
