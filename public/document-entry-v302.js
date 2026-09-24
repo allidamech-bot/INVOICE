@@ -38,10 +38,13 @@
 
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){
-      root.style.backgroundColor='#0c111d';
-      if(document.body)document.body.style.backgroundColor='#0c111d';
+      const dark=root.dataset.uiTheme==='dark';
+      const bootBackground=dark?'#0c111d':'#f9fafb';
+      root.style.backgroundColor=bootBackground;
+      root.style.setProperty('--boot-bg',bootBackground);
+      if(document.body)document.body.style.backgroundColor=bootBackground;
       const theme=document.querySelector('meta[name="theme-color"]');
-      if(theme)theme.setAttribute('content','#0c111d');
+      if(theme)theme.setAttribute('content',bootBackground);
     }
   }
 
