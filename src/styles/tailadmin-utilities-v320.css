@@ -1,0 +1,15 @@
+/* LOUREX v320 — TailAdmin utility controls shared outside the primary workspaces. */
+@media screen {
+  .mf-theme-control,.mf-theme-toggle-control{display:inline-flex!important;align-items:center!important;width:auto!important;min-width:0!important}
+  .mf-theme-toggle-control .mf-theme-toggle{min-width:44px!important;min-height:44px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;padding:0 11px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface)!important;color:var(--ft-text-soft)!important;box-shadow:var(--ta-shadow-xs)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important;font-size:12px!important;font-weight:600!important}
+  .mf-theme-toggle-control .mf-theme-toggle:hover{border-color:var(--ft-line-strong)!important;background:var(--ft-surface-2)!important;color:var(--ft-text-strong)!important}
+  .mf-theme-toggle-control .mf-theme-toggle:focus-visible{outline:0!important;box-shadow:var(--ft-focus)!important}
+  .mf-theme-toggle-control.is-compact .mf-theme-toggle{width:44px!important;min-width:44px!important;padding:0!important}
+  .mf-theme-toggle-control .mf-theme-toggle>.icon{width:17px!important;height:17px!important;color:var(--ft-accent)!important}
+  .mf-theme-toggle-control .mf-theme-toggle>strong{color:inherit!important;font-size:12px!important;font-weight:600!important;white-space:nowrap!important}
+
+  .document-kind-pill.kind-purchase-order,.ta-doc-kind-pill.kind-purchase-order{border-color:color-mix(in srgb,var(--ft-warning) 24%,var(--ft-line))!important;background:var(--ft-warning-soft)!important;color:var(--ft-warning)!important}
+  .purchase-order-reference{margin-top:10px!important}
+
+  [dir="rtl"] :where(.mf-theme-control,.mf-theme-toggle-control){direction:rtl!important}
+}
