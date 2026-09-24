@@ -2,13 +2,15 @@
  * Keep the Advisor available without allowing a floating launcher to cover
  * dashboard cards, document rows, sheets, or the bottom navigation dock.
  * Keep document primary actions inside the phone viewport as a deliberate grid.
+ * The .ta-shell qualifier intentionally outranks the reliability bridge's
+ * generic launcher position rules while leaving reliability behavior intact.
  */
 @media screen and (max-width:900px){
-  html body .lourex-ai-launcher,
-  html[dir="ltr"] body .lourex-ai-launcher,
-  html[dir="rtl"] body .lourex-ai-launcher,
-  html body .lourex-ai-launcher.screen-operations,
-  html[dir="rtl"] body .lourex-ai-launcher.screen-operations{
+  html body .ta-shell .lourex-ai-launcher,
+  html[dir="ltr"] body .ta-shell .lourex-ai-launcher,
+  html[dir="rtl"] body .ta-shell .lourex-ai-launcher,
+  html body .ta-shell .lourex-ai-launcher.screen-operations,
+  html[dir="rtl"] body .ta-shell .lourex-ai-launcher.screen-operations{
     position:fixed!important;
     top:calc(12px + env(safe-area-inset-top,0px))!important;
     bottom:auto!important;
@@ -23,8 +25,8 @@
     box-shadow:0 4px 14px rgba(16,24,40,.055)!important;
     transform:none!important;
   }
-  html[data-lourex-shell-overlay="true"] body .lourex-ai-launcher,
-  body:has(.ta-doc-mobile-action-portal) .lourex-ai-launcher{
+  html[data-lourex-shell-overlay="true"] body .ta-shell .lourex-ai-launcher,
+  body:has(.ta-doc-mobile-action-portal) .ta-shell .lourex-ai-launcher{
     opacity:0!important;
     pointer-events:none!important;
     transform:none!important;
