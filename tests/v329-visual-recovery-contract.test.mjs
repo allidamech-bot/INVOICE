@@ -33,3 +33,15 @@ test('v329 printable recovery cannot change document geometry or pagination', as
   assert.doesNotMatch(printable, /page-break|break-(before|after|inside)|@page|grid-template-columns|width\s*:|height\s*:|min-height\s*:|max-height\s*:|padding\s*:|margin\s*:|font-size\s*:/i);
   assert.doesNotMatch(printable, /\.invoice-page\s*\{/);
 });
+
+test('v329 recovery remains downstream of canonical document/editor owners', async () => {
+  const [html, css] = await Promise.all([
+    read('index.html'),
+    read('src/styles/tailadmin-shell-contract-v326.css'),
+  ]);
+  const printable = html.indexOf('./styles/document-premium-redesign-v141.css');
+  const editor = html.indexOf('./styles/tailadmin-editor-core-v320.css');
+  const recovery = html.indexOf('./styles/tailadmin-shell-contract-v326.css');
+  assert.ok(printable >= 0 && editor >= 0 && recovery > printable && recovery > editor);
+  assert.match(css, /printable template hierarchy recovery/);
+});
