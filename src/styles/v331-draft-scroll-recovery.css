@@ -227,3 +227,66 @@
     height:calc(100svh - 96px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
   }
 }
+
+/* LOUREX v339 — iPadOS Desktop Website landscape closeout.
+ * Common iPad landscape viewports (including 1194px and 1366px) sit above the
+ * historical 1180px tablet breakpoint even though they still run mobile WebKit.
+ * v338 marks those browsers explicitly. Keep Draft on the same single outer
+ * scroll owner and suppress the desktop A4 pane there; normal laptops/desktops
+ * never receive this root marker and therefore retain the desktop layout. */
+@media screen and (min-width:1181px) and (max-width:1366px){
+  html[data-lourex-ios-webkit="true"] body .app-ui .ta-shell.is-editor:has(.draft-studio)>.ta-main,
+  html[data-lourex-ios-webkit="true"] body .app-ui .ta-shell.screen-editor:has(.draft-studio)>.ta-main{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    align-self:stretch!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior-y:contain!important;
+    touch-action:pan-y!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace,
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio.editor-screen,
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-layout,
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-controls,
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio.editor-screen,
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-layout{
+    display:block!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-controls{
+    border-inline-end:0!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
+    touch-action:auto!important;
+    -webkit-overflow-scrolling:auto!important;
+    padding-bottom:32px!important;
+    scroll-padding-bottom:32px!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-preview{
+    display:none!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-topbar{
+    position:sticky!important;
+    top:0!important;
+    z-index:45!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui:has(.draft-studio) .lourex-ai-launcher{
+    display:none!important;
+  }
+}
