@@ -101,7 +101,6 @@
 
   /* .ta-main is the one workspace scroll owner. */
   .app-ui .ta-main{overscroll-behavior:contain!important}
-  .app-ui :where(.ta-finance-dashboard,.ta-documents-page,.ta-doc-detail-page,.ta-customers-page,.ta-customer-profile,.ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page){min-height:auto!important}
 }
 
 @media screen and (max-width:720px){
