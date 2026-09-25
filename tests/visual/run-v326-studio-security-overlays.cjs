@@ -54,7 +54,7 @@ async function metrics(page, surface) {
       const r = el.getBoundingClientRect();
       return { w: r.width, h: r.height, font: px(getComputedStyle(el).fontSize) };
     });
-    const scrollProbe = (scrollerSelector, contentSelector) => {
+    const scrollProbe = (scrollerSelector, contentSelector, endSelector='') => {
       const scroller = document.querySelector(scrollerSelector);
       const content = document.querySelector(contentSelector) || scroller;
       if (!(scroller instanceof HTMLElement) || !(content instanceof Element)) return null;
@@ -68,7 +68,8 @@ async function metrics(page, surface) {
         const position = getComputedStyle(el).position;
         return position !== 'fixed' && position !== 'absolute';
       });
-      const last = candidates.at(-1) || content;
+      const explicitEnd = endSelector ? document.querySelector(endSelector) : null;
+      const last = visible(explicitEnd) ? explicitEnd : (candidates.at(-1) || content);
       const sr = scroller.getBoundingClientRect();
       const lr = last.getBoundingClientRect();
       const result = {
@@ -107,12 +108,14 @@ async function metrics(page, surface) {
     } else if (surfaceName === 'draft') {
       const main=document.querySelector('.ta-main');
       const nested=document.querySelector('.draft-studio-scroll');
-      data.reach = scrollProbe('.ta-main','.draft-studio');
+      data.reach = scrollProbe('.ta-main','.draft-studio','.draft-block-card:last-child');
       data.mainRect = rect(main);
       data.shellRect = rect(document.querySelector('.ta-shell'));
       data.nestedOverflowY = nested ? getComputedStyle(nested).overflowY : 'missing';
       data.nestedHeight = nested ? getComputedStyle(nested).height : 'missing';
+      data.nestedRange = nested instanceof HTMLElement ? Math.max(0,nested.scrollHeight-nested.clientHeight) : -1;
       data.sectionCount = document.querySelectorAll('.draft-control-section,.draft-block-card').length;
+      data.blockCount = document.querySelectorAll('.draft-block-card').length;
       data.topbarRect = rect(document.querySelector('.draft-studio-topbar'));
     } else if (surfaceName === 'settings' || surfaceName === 'account') {
       data.targets = boxes('.ta-settings-nav button,.ta-settings-segmented button,.ta-settings-link-action,.ta-settings-asset-trigger,.ta-recovery-status .btn');
@@ -178,7 +181,9 @@ async function metrics(page, surface) {
                 }
                 if (surface.name === 'draft' && viewport.width <= 1180) {
                   assert(['visible','clip'].includes(m.nestedOverflowY), label, `Draft nested scroller regained overflow-y=${m.nestedOverflowY}`);
+                  assert(m.nestedRange >= 0 && m.nestedRange <= 2, label, `Draft nested scroller still owns ${m.nestedRange}px of hidden vertical range`);
                   assert(m.sectionCount >= 10, label, `Draft fixture did not create enough long-form content (${m.sectionCount})`);
+                  assert(m.blockCount >= 16, label, `Draft fixture did not render all long-form blocks (${m.blockCount})`);
                 }
                 if ((viewport.width <= 900 && m.reach) || (surface.name === 'draft' && viewport.width <= 1180 && m.reach)) {
                   assert(['auto','scroll'].includes(m.reach.overflowY) || m.reach.max <= 2, label, `scroll owner overflow-y=${m.reach.overflowY} with ${m.reach.max}px hidden range`);
