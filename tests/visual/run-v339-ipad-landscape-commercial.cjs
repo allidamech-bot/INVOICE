@@ -52,7 +52,12 @@ async function runCase(browser,kind){
   await page.waitForTimeout(250);
   const after=await page.evaluate(()=>{
     const scroll=document.querySelector('.editor-scroll');
-    const target=document.getElementById('document-attachments');
+    // TailAdmin's section navigator assigns runtime step IDs to direct editor
+    // sections. The attachment section remains the same semantic/rendered section,
+    // but its authored #document-attachments ID is replaced after mount. Target
+    // the stable component class so this QA checks reachability rather than an
+    // implementation-detail ID owned by the step navigator.
+    const target=document.querySelector('.document-attachments-section');
     const sr=scroll?.getBoundingClientRect(),tr=target?.getBoundingClientRect();
     return {
       editorPresent:Boolean(document.querySelector('.editor-screen')),
