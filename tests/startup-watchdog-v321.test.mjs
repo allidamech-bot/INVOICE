@@ -37,7 +37,8 @@ test('v321 production boot uses the vendorable ReactDOM runtime and a data-safe 
   assert.match(watchdog,/\.\/health\.html/);
 
   assert.match(cacheRefresh,/RELEASE_GENERATION=337/);
-  assert.match(cacheRefresh,/v331-draft-scroll-recovery\.css\?v=337-2/);
-  assert.match(cacheRefresh,/document-entry-v302\.js\?v=337-2/);
+  assert.match(cacheRefresh,/v337-template-layout-balance\.css\?v=337-3/);
+  assert.match(cacheRefresh,/v331-draft-scroll-recovery\.css\?v=337-3/);
+  assert.match(cacheRefresh,/document-entry-v302\.js\?v=337-3/);
   assert.match(cacheRefresh,/startup-watchdog-v321\.js\?v=321/);
 });
