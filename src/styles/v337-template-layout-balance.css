@@ -313,6 +313,12 @@
     display:block!important;
     flex:0 0 auto!important;
     min-height:0!important;
+    padding-top:0!important;
+  }
+  /* v119 keeps a historical :not(.details-only) auto-anchor with !important.
+     Match that selector's specificity here so the later v337 owner really wins
+     in the browser cascade instead of only looking correct in an isolated file. */
+  .invoice-page:not(.details-only) .final-details{
     margin-top:6mm!important;
     padding-top:0!important;
   }
