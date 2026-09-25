@@ -66,7 +66,7 @@ test('v312 pre-merge audit keeps search, readiness and routing semantically alig
   assert.ok(readiness.includes('const priceOptional=documentPriceOptional(doc.kind)'));
   assert.ok(readiness.includes('isSupplierDocumentKind(doc.kind)'));
   assert.match(shell,/onClick=\{this\.openStatementAccount\}/);
-  assert.ok(shell.includes("onClick={()=>this.navigate('receivables')}"));
+  assert.ok(shell.includes("mobileSheetItem('receivables'"));
   assert.ok(entry.includes('const creatableKinds=new Set'));
   assert.ok(entry.includes('removeItem(pendingKindKey)'));
   assert.match(entry,/menuLabelKinds=new Map/);
