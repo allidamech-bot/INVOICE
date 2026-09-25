@@ -1,7 +1,6 @@
 /* LOUREX v326 — reliability bridge only.
-   This file intentionally owns runtime/recovery geometry and MUST NOT retheme
-   application workspaces, navigation, dashboard, documents, editor, AI or sheets.
-   Visual ownership belongs to the TailAdmin visual layers loaded before it. */
+   This file intentionally owns runtime/recovery geometry and UI safety contracts.
+   It MUST NOT retheme dashboard, documents, editor, AI or workspace content. */
 :root{
   --v303-canvas:var(--ft-workspace,#f9fafb);
   --v303-surface:var(--ft-surface,#fff);
@@ -15,6 +14,16 @@
   --v303-accent:var(--ft-accent,#465fff);
   --v303-accent-strong:var(--ta-brand-600,#3641f5);
   --v303-danger:var(--ft-danger,#d92d20);
+  --lourex-z-shell:60;
+  --lourex-z-nav:120;
+  --lourex-z-backdrop:1100;
+  --lourex-z-popover:1120;
+  --lourex-z-sheet:1140;
+  --lourex-z-search:1200;
+  --lourex-z-ai:1220;
+  --lourex-z-modal:1300;
+  --lourex-z-toast:1360;
+  --lourex-z-critical:1500;
 }
 
 @media screen {
@@ -54,6 +63,45 @@
   .app-ui .document-attachments-section{scroll-margin-top:88px!important}
   .app-ui .document-attachments-section :where(input,select,textarea,button,a){min-width:0}
   .app-ui .document-attachment-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+
+  /* v326 overlay ladder: structural ownership only. */
+  .app-ui .ta-sidebar{z-index:var(--lourex-z-shell)!important}
+  .app-ui .ta-mobile-nav{z-index:var(--lourex-z-nav)!important}
+  .app-ui .ta-overlay-backdrop{z-index:var(--lourex-z-backdrop)!important}
+  .app-ui .ta-mobile-sheet{z-index:var(--lourex-z-sheet)!important}
+  .global-search-backdrop{z-index:var(--lourex-z-search)!important}
+  .global-search-panel{z-index:calc(var(--lourex-z-search) + 1)!important}
+  .lourex-ai-panel{z-index:var(--lourex-z-ai)!important}
+  .modal-backdrop{z-index:var(--lourex-z-modal)!important}
+  .toast,.pwa-update-toast,[data-lourex-cloud-refresh],[data-lourex-update]{z-index:var(--lourex-z-toast)!important}
+  .app-ui .ta-doc-mobile-action-portal{z-index:var(--lourex-z-critical)!important}
+
+  /* The Create menu still lives in the bottom-nav subtree. Elevate that stacking
+     context only while Create is open, and disable unrelated dock hit targets. */
+  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-nav{z-index:calc(var(--lourex-z-backdrop) + 2)!important}
+  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-nav>button{pointer-events:none!important}
+  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-create-wrap{position:relative!important;z-index:2!important;pointer-events:auto!important}
+  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-create,
+  body:has(#ta-mobile-create-menu) .app-ui .ta-create-menu-mobile{pointer-events:auto!important}
+  body:has(#ta-mobile-create-menu) .app-ui .ta-create-menu-mobile{z-index:3!important}
+
+  body:has(#ta-mobile-more) .app-ui .ta-mobile-nav{z-index:var(--lourex-z-nav)!important;pointer-events:none!important}
+
+  /* Runtime notices stay within the viewport and above the dock without owning
+     application layout. Physical centering is deliberate for RTL/LTR Safari. */
+  html body .pwa-update-toast,
+  html body [data-lourex-cloud-refresh],
+  html body [data-lourex-update]{
+    position:fixed!important;
+    left:50%!important;right:auto!important;inset-inline:auto!important;
+    top:auto!important;bottom:calc(96px + env(safe-area-inset-bottom,0px))!important;
+    width:min(340px,calc(100vw - 24px))!important;max-width:calc(100vw - 24px)!important;
+    margin:0!important;transform:translateX(-50%)!important;
+  }
+
+  /* .ta-main is the one workspace scroll owner. */
+  .app-ui .ta-main{overscroll-behavior:contain!important}
+  .app-ui :where(.ta-finance-dashboard,.ta-documents-page,.ta-doc-detail-page,.ta-customers-page,.ta-customer-profile,.ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page){min-height:auto!important}
 }
 
 @media screen and (max-width:720px){
@@ -61,4 +109,5 @@
   .app-recovery{padding:max(16px,env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) max(18px,env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px))!important}
   .app-recovery>section{padding:17px!important}
   .lourex-ios-output-card{max-width:calc(100vw - 24px)!important}
+  html body .pwa-update-toast,html body [data-lourex-cloud-refresh],html body [data-lourex-update]{bottom:calc(94px + env(safe-area-inset-bottom,0px))!important}
 }
