@@ -15,11 +15,14 @@ test('v339 runtime safety blocks account/settings sign-out before reload handler
   const entryAt=html.indexOf('document-entry-v302.js?v=337-3');
   assert.ok(guardAt>=0&&entryAt>guardAt,'runtime safety must register before the legacy sign-out boundary');
   assert.match(guard,/const SIGNOUT_BUTTON='\.settings-direct-signout-button,\.settings-signout-button,\.ta-cloud-account-actions button'/);
-  assert.match(guard,/if\(!\(button instanceof HTMLButtonElement\)\|\|button\.disabled\|\|!unsafeWorkspaceOpen\(\)\)return/);
+  assert.match(guard,/function signOutUnsafeWorkspaceOpen\(\)/);
+  assert.match(guard,/if\(!\(button instanceof HTMLButtonElement\)\|\|button\.disabled\|\|!signOutUnsafeWorkspaceOpen\(\)\)return/);
   assert.match(guard,/event\.preventDefault\(\);\s*event\.stopImmediatePropagation\(\);\s*explainBlockedSignOut\(button\)/);
   assert.match(guard,/data-lourex-document-editor/);
   assert.match(guard,/data-lourex-workspace-dirty/);
   assert.match(guard,/manualInventoryDraftOpen\(\)/);
+  const signOutGuard=guard.slice(guard.indexOf('function signOutUnsafeWorkspaceOpen'),guard.indexOf('function explainDeferred'));
+  assert.doesNotMatch(signOutGuard,/modal-backdrop/,'the account modal must not block its own sign-out when no editable work is open');
   assert.match(entry,/window\.location\.replace\(window\.location\.href\)/);
   assert.match(cloud,/window\.location\.reload\(\)/);
 });
