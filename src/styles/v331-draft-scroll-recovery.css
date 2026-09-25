@@ -11,10 +11,12 @@
  * Draft Studio no longer depends on a nested percentage-height scroller, which is
  * fragile in WebKit when the browser chrome changes the visual viewport.
  *
- * Important: .ta-main lives in the SECOND grid row below the editor top bar. It
- * must stretch to that grid track, not claim another full 100dvh. A full viewport
- * height here would extend the scroll owner below the visible shell by the header
- * height and can clip the real scroll end in Safari.
+ * Important: .ta-main must stretch to whichever grid track the active shell owns,
+ * never claim an independent 100dvh. At <=900px v327 hides the AppShell top bar
+ * and gives Document Studio the single full-viewport grid row. At wider tablet
+ * widths Draft Studio keeps the normal top-bar row and .ta-main occupies row 2.
+ * In both cases grid stretch defines the usable height without double-counting
+ * browser/header geometry or clipping the true Safari scroll end.
  * No document data, autosave, accounting, output, PDF, Firebase or PIN logic changes. */
 
 /* Commercial document editors: RFQ, Quotation, Proforma, Purchase Order,
