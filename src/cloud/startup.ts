@@ -6,7 +6,22 @@ import type { CloudSyncResult } from './firebase.js';
 // origin/device has no local vault to hydrate, so it must restore the account's
 // encrypted cloud workspace before React decides whether this is first-run setup.
 const STARTUP_CLOUD_BUDGET_MS=450;
+const STARTUP_CLOUD_GUARD='startup-cloud-budget';
 type StartupCloudResult=CloudSyncResult|'skipped';
+
+function markLateStartupCloudApplyUnsafe():void{
+  try{
+    const root=document.documentElement;
+    if(!root.hasAttribute('data-lourex-workspace-dirty'))root.setAttribute('data-lourex-workspace-dirty',STARTUP_CLOUD_GUARD);
+  }catch{}
+}
+
+function clearLateStartupCloudApplyGuard():void{
+  try{
+    const root=document.documentElement;
+    if(root.getAttribute('data-lourex-workspace-dirty')===STARTUP_CLOUD_GUARD)root.removeAttribute('data-lourex-workspace-dirty');
+  }catch{}
+}
 
 /**
  * Resolve the signed-in cloud account before React hydrates local encrypted data.
@@ -84,8 +99,11 @@ export async function hydrateAuthoritativeCloudBeforeApp():Promise<void>{
   if(timer!==undefined)window.clearTimeout(timer);
   if(outcome.kind==='done')return;
 
-  // Do not abandon a request that was already safely in flight. If it later
-  // proves that a newer cloud vault was pulled, notify the mounted UI so the
-  // existing safe-reload guard can rehydrate from that exact encrypted copy.
-  void cloudWork.then(signalDeferredCloudPull).catch(()=>undefined);
+  // Once React is allowed to mount, an in-flight startup pull must no longer be
+  // allowed to replace IndexedDB behind the in-memory application state. Reuse the
+  // shared workspace-dirty commit-boundary guard until that startup request settles.
+  // The guard is removed only if it still belongs to this startup flow, so a real
+  // editor/draft marker that appears meanwhile is never cleared accidentally.
+  markLateStartupCloudApplyUnsafe();
+  void cloudWork.then(signalDeferredCloudPull).catch(()=>undefined).finally(clearLateStartupCloudApplyGuard);
 }
