@@ -62,6 +62,7 @@ export class AppShell extends React.Component<Props,State>{
     if(prevProps.screen!==this.props.screen){
       if(this.state.moreOpen)this.setState({moreOpen:false});
       if(this.props.newMenu)this.props.onToggleNew();
+      this.resetWorkspaceScroll();
     }
 
     this.syncOverlayState();
@@ -83,6 +84,18 @@ export class AppShell extends React.Component<Props,State>{
   private isMobileShell=():boolean=>typeof window!=='undefined'&&window.matchMedia('(max-width: 900px)').matches;
 
   private activeCreateMenuId=():string=>this.isMobileShell()?'ta-mobile-create-menu':'ta-desktop-create-menu';
+
+  private resetWorkspaceScroll=()=>{
+    const reset=()=>{
+      const main=document.querySelector<HTMLElement>('.ta-main');
+      if(main){main.scrollTop=0;main.scrollLeft=0;}
+      window.scrollTo(0,0);
+      document.documentElement.scrollTop=0;
+      document.body.scrollTop=0;
+    };
+    reset();
+    window.requestAnimationFrame(reset);
+  };
 
   private applyOverlayLock=(locked:boolean)=>{
     const root=document.documentElement;
