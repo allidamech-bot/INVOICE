@@ -159,3 +159,148 @@
   html body .app-ui .ta-mobile-sheet .ta-sheet-link-copy small{display:none!important;}
   html body .app-ui .ta-sheet-account .ta-sheet-link-copy small{display:block!important;}
 }
+
+/* v329 — Document Studio visual recovery.
+ * Deliberately visual-only: do not take ownership of editor scrolling, document
+ * state, persistence, calculations, PDF pagination or mobile dock geometry. */
+@media screen{
+  .app-ui .editor-screen{
+    background:
+      radial-gradient(circle at 14% 0%,color-mix(in srgb,var(--ft-accent) 7%,transparent),transparent 28%),
+      var(--ft-workspace)!important;
+  }
+  .app-ui .editor-topbar{
+    border-bottom-color:color-mix(in srgb,var(--ft-line-strong) 82%,transparent)!important;
+    background:color-mix(in srgb,var(--ft-surface) 94%,transparent)!important;
+    box-shadow:0 1px 0 color-mix(in srgb,var(--ft-line) 82%,transparent),0 10px 28px rgba(16,24,40,.035)!important;
+  }
+  html[data-ui-theme="dark"] .app-ui .editor-topbar{
+    box-shadow:0 1px 0 color-mix(in srgb,var(--ft-line) 82%,transparent),0 12px 30px rgba(0,0,0,.14)!important;
+  }
+  .app-ui .editor-top-left strong{font-weight:780!important;letter-spacing:-.012em!important;}
+  html[dir="rtl"] .app-ui .editor-top-left strong{letter-spacing:0!important;}
+  .app-ui .editor-workflow-badge{
+    border:1px solid color-mix(in srgb,var(--ft-line-strong) 72%,transparent)!important;
+    background:var(--ft-surface-2)!important;
+  }
+  .app-ui .editor-grand-total-chip{
+    border-color:color-mix(in srgb,var(--ft-accent) 18%,var(--ft-line))!important;
+    background:linear-gradient(145deg,var(--ft-accent-faint),var(--ft-surface))!important;
+    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ft-accent) 4%,transparent)!important;
+  }
+  .app-ui .editor-grand-total-chip strong{color:var(--ft-accent)!important;font-weight:780!important;}
+  .app-ui .document-readiness{
+    border-color:color-mix(in srgb,var(--ft-accent) 12%,var(--ft-line))!important;
+    background:linear-gradient(135deg,var(--ft-surface),color-mix(in srgb,var(--ft-accent-faint) 42%,var(--ft-surface)))!important;
+    box-shadow:0 8px 24px rgba(16,24,40,.04)!important;
+  }
+  .app-ui .readiness-track{height:7px!important;}
+  .app-ui .readiness-track>span{box-shadow:0 0 14px color-mix(in srgb,var(--ft-accent) 25%,transparent)!important;}
+
+  .app-ui .editor-pane,.app-ui .editor-preview-pane,.app-ui .preview-pane{
+    border-color:color-mix(in srgb,var(--ft-line-strong) 76%,transparent)!important;
+    box-shadow:0 1px 2px rgba(16,24,40,.04),0 14px 38px rgba(16,24,40,.055)!important;
+  }
+  html[data-ui-theme="dark"] .app-ui .editor-pane,
+  html[data-ui-theme="dark"] .app-ui .editor-preview-pane,
+  html[data-ui-theme="dark"] .app-ui .preview-pane{
+    box-shadow:0 1px 2px rgba(0,0,0,.28),0 18px 42px rgba(0,0,0,.16)!important;
+  }
+  .app-ui .editor-scroll{
+    background:linear-gradient(180deg,color-mix(in srgb,var(--ft-surface-2) 78%,var(--ft-workspace)),var(--ft-workspace))!important;
+  }
+  .app-ui .editor-section{
+    border-color:color-mix(in srgb,var(--ft-line-strong) 70%,transparent)!important;
+    border-radius:16px!important;
+    background:var(--ft-surface)!important;
+    box-shadow:0 1px 2px rgba(16,24,40,.035),0 9px 24px rgba(16,24,40,.04)!important;
+  }
+  html[data-ui-theme="dark"] .app-ui .editor-section{box-shadow:0 1px 2px rgba(0,0,0,.2),0 10px 24px rgba(0,0,0,.10)!important;}
+  .app-ui .section-heading{
+    margin-bottom:16px!important;
+    padding-bottom:13px!important;
+    border-bottom-color:color-mix(in srgb,var(--ft-line) 76%,transparent)!important;
+  }
+  .app-ui .section-heading>span,.app-ui .section-heading>div>span{
+    width:31px!important;height:31px!important;
+    border:1px solid color-mix(in srgb,var(--ft-accent) 18%,var(--ft-line))!important;
+    border-radius:9px!important;
+    background:linear-gradient(145deg,var(--ft-accent-soft),var(--ft-accent-faint))!important;
+    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ft-accent) 3%,transparent)!important;
+  }
+  .app-ui .section-heading h2{font-weight:780!important;letter-spacing:-.01em!important;}
+  html[dir="rtl"] .app-ui .section-heading h2{letter-spacing:0!important;}
+  .app-ui .editor-section .field>label,.app-ui .editor-section .field-label{
+    color:var(--ft-text-soft)!important;
+    font-weight:680!important;
+  }
+  .app-ui .editor-section input,.app-ui .editor-section select,.app-ui .editor-section textarea{
+    border-color:color-mix(in srgb,var(--ft-line-strong) 78%,transparent)!important;
+    background:color-mix(in srgb,var(--ft-input) 96%,var(--ft-surface))!important;
+    box-shadow:0 1px 2px rgba(16,24,40,.025)!important;
+  }
+  .app-ui .editor-section input:hover,.app-ui .editor-section select:hover,.app-ui .editor-section textarea:hover{
+    border-color:color-mix(in srgb,var(--ft-accent) 28%,var(--ft-line-strong))!important;
+  }
+  .app-ui .premium-selected-customer,.app-ui .selected-customer,
+  .app-ui .premium-item-card,.app-ui .item-card{
+    border-color:color-mix(in srgb,var(--ft-line-strong) 72%,transparent)!important;
+    background:linear-gradient(145deg,var(--ft-surface-2),color-mix(in srgb,var(--ft-surface) 94%,var(--ft-accent-faint)))!important;
+  }
+  .app-ui .item-card>header{border-bottom-color:color-mix(in srgb,var(--ft-line) 75%,transparent)!important;}
+  .app-ui .item-card>header strong{font-weight:760!important;}
+
+  .app-ui .template-selector{gap:12px!important;}
+  .app-ui .template-card-wrap .template-card{
+    border-color:color-mix(in srgb,var(--ft-line-strong) 78%,transparent)!important;
+    border-radius:16px!important;
+    background:var(--ft-surface)!important;
+    box-shadow:0 1px 2px rgba(16,24,40,.035),0 8px 20px rgba(16,24,40,.035)!important;
+  }
+  .app-ui .template-card-wrap .template-card:hover{
+    transform:translateY(-2px)!important;
+    border-color:color-mix(in srgb,var(--ft-accent) 34%,var(--ft-line-strong))!important;
+    box-shadow:0 12px 28px rgba(16,24,40,.09)!important;
+  }
+  .app-ui .template-card.selected{
+    border-color:var(--ft-accent)!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent) 12%,transparent),0 12px 30px rgba(16,24,40,.09)!important;
+  }
+  .app-ui .template-card>span>b{color:var(--ft-text-strong)!important;font-weight:760!important;}
+  .app-ui .template-card>span>small{color:var(--ft-muted)!important;}
+  .app-ui .template-preference-bar{
+    border-color:color-mix(in srgb,var(--ft-accent) 14%,var(--ft-line))!important;
+    background:linear-gradient(145deg,var(--ft-surface-2),var(--ft-surface))!important;
+    box-shadow:none!important;
+  }
+
+  .app-ui .editor-preview-pane,.app-ui .preview-pane{
+    background:
+      linear-gradient(45deg,color-mix(in srgb,var(--ft-line) 26%,transparent) 25%,transparent 25%) 0 0/18px 18px,
+      linear-gradient(-45deg,color-mix(in srgb,var(--ft-line) 26%,transparent) 25%,transparent 25%) 0 0/18px 18px,
+      var(--ft-surface-2)!important;
+  }
+}
+
+@media screen and (max-width:900px){
+  .app-ui .editor-section{border-radius:15px!important;box-shadow:0 1px 2px rgba(16,24,40,.035),0 8px 20px rgba(16,24,40,.035)!important;}
+  .app-ui .section-heading{margin-bottom:14px!important;padding-bottom:11px!important;}
+  .app-ui .editor-grand-total-chip{box-shadow:none!important;}
+  .app-ui .template-card-wrap .template-card{box-shadow:0 1px 2px rgba(16,24,40,.035)!important;}
+}
+
+/* v329 — printable template hierarchy recovery.
+ * No dimensions, pagination, item counts or document data are changed here. */
+.invoice-page .doc-title>span{font-weight:800;}
+.invoice-page .party-name{font-weight:780;}
+.invoice-page .party-customer .party-name{font-weight:820;}
+.invoice-page .items-table th{letter-spacing:.045em;}
+.invoice-page .items-table td{color:#263842;}
+.invoice-page .items-table .description-cell{font-weight:590;}
+.invoice-page .totals-block{box-shadow:inset 0 0 0 .18mm color-mix(in srgb,var(--rule) 74%,transparent);}
+.invoice-page .grand-total>span,.invoice-page .grand-total>strong{font-weight:820;}
+.invoice-page .doc-footer{color:#65727a;}
+.invoice-page.lang-ar .doc-title>span,.invoice-page.lang-ar .party-name,.invoice-page [dir="rtl"]{letter-spacing:0!important;}
+.template-executive .header-executive,.template-noir .header-modern,.template-midnight .header-modern,.template-blackivory .header-modern,.template-carbon .header-modern{isolation:isolate;}
+.template-executive .items-table th,.template-midnight .items-table th,.template-noir .items-table th,.template-blackivory .items-table th,.template-carbon .items-table th{font-weight:760;}
+.template-minimal .items-table th,.template-horizon .items-table th,.template-mono .items-table th{font-weight:780;}
