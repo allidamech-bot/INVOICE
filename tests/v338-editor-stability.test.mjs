@@ -22,6 +22,9 @@ test('v338 recognizes desktop-UA iPadOS and retires service-worker update churn'
   assert.match(runtime,/key=>key\.startsWith\('lourex-invoice-'\)/);
   assert.match(runtime,/Object\.defineProperty\(container,'register'/);
   assert.match(runtime,/Service worker disabled for iPadOS editor stability/);
+  assert.match(runtime,/window\.setTimeout\(\(\)=>void retireServiceWorkers\(\),0\)/);
+  assert.match(runtime,/window\.setTimeout\(\(\)=>void retireServiceWorkers\(\),750\)/);
+  assert.match(runtime,/window\.setTimeout\(\(\)=>void retireServiceWorkers\(\),2500\)/);
 });
 
 test('v338 maps real mobile text input to the existing inactivity activity channel',async()=>{
@@ -37,4 +40,14 @@ test('v338 guard is editor-scoped and does not reload or navigate the applicatio
   assert.doesNotMatch(runtime,/location\.(?:reload|replace|assign)/);
   assert.doesNotMatch(runtime,/history\.(?:go|back|forward|pushState|replaceState)/);
   assert.match(runtime,/__LOUREX_EDITOR_STABILITY_V338__/);
+});
+
+test('startup watchdog can never auto-reload over an active editor or dirty workspace',async()=>{
+  const watchdog=await read('public/startup-watchdog-v321.js');
+  assert.match(watchdog,/function editingWorkspaceOpen\(\)/);
+  assert.match(watchdog,/data-lourex-document-editor/);
+  assert.match(watchdog,/data-lourex-workspace-dirty/);
+  assert.match(watchdog,/\.editor-screen/);
+  assert.match(watchdog,/if\(editingWorkspaceOpen\(\)\)\{clearAttempt\(\);return;\}/);
+  assert.match(watchdog,/await refreshStaticRuntime\(\);[\s\S]*if\(editingWorkspaceOpen\(\)\)\{clearAttempt\(\);return;\}[\s\S]*window\.location\.replace\(retryUrl\(\)\)/);
 });
