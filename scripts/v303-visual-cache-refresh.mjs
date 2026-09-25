@@ -94,10 +94,10 @@ if(!html.includes('data-lourex-v331-draft-recovery="true"'))throw new Error('Una
 if(!html.includes(startupWatchdog))throw new Error('Unable to verify the v321 startup watchdog in production HTML.');
 await writeFile(htmlPath,html);
 
-/* public/document-entry-v302.js has a defensive stylesheet injector for unusual
-   startup paths where the index marker is absent. Keep the historical source file
-   untouched, but guarantee the production dist fallback uses the same cache-busted
-   scroll owner as index.html. This avoids a mixed pre-337-3 runtime on Safari. */
+/* document-entry-v302.js already requests the current v337-3 owner in source.
+   Keep this production migration guard anyway: older copied/build-cache variants
+   must be normalized before release so no unusual Safari/PWA startup path can
+   reintroduce a stale 331-1/336-1/337-2 stylesheet URL. */
 const entryPath='dist/document-entry-v302.js';
 let entry=await readFile(entryPath,'utf8');
 for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2']){
