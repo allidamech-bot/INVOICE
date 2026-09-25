@@ -46,12 +46,12 @@ const visualRuntimes=[
   './styles/tailadmin-draft-finish-v320.css?v=320-1',
   './styles/tailadmin-ai-finish-v320.css?v=320-1',
   './styles/v333-critical-documents-visual-functional-closeout.css?v=333-1',
-  './styles/v337-template-layout-balance.css?v=337-1',
-  './styles/v331-draft-scroll-recovery.css?v=337-2',
+  './styles/v337-template-layout-balance.css?v=337-3',
+  './styles/v331-draft-scroll-recovery.css?v=337-3',
   './styles/v332-critical-documents-deep-closeout.css?v=332-1',
   './styles/tailadmin-reliability-bridge-v320.css?v=320-2',
   './home-final-closeout-v286.js?v=320',
-  './document-entry-v302.js?v=337-2',
+  './document-entry-v302.js?v=337-3',
   './startup-watchdog-v321.js?v=321'
 ];
 for(const visualRuntime of visualRuntimes){
@@ -64,14 +64,14 @@ await writeFile(swPath,sw);
 const htmlPath='dist/index.html';
 let html=await readFile(htmlPath,'utf8');
 const homeRuntime='./home-final-closeout-v286.js?v=320';
-const documentRuntime='./document-entry-v302.js?v=337-2';
-const draftScrollRuntime='./styles/v331-draft-scroll-recovery.css?v=337-2';
+const documentRuntime='./document-entry-v302.js?v=337-3';
+const draftScrollRuntime='./styles/v331-draft-scroll-recovery.css?v=337-3';
 const startupWatchdog='./startup-watchdog-v321.js?v=321';
-for(const legacyRuntime of ['./home-final-closeout-v286.js?v=314','./document-entry-v302.js?v=302','./document-entry-v302.js?v=311','./document-entry-v302.js?v=314','./document-entry-v302.js?v=320']){
+for(const legacyRuntime of ['./home-final-closeout-v286.js?v=314','./document-entry-v302.js?v=302','./document-entry-v302.js?v=311','./document-entry-v302.js?v=314','./document-entry-v302.js?v=320','./document-entry-v302.js?v=337-2']){
   if(!html.includes(legacyRuntime))continue;
   html=html.replace(legacyRuntime,legacyRuntime.includes('home-final')?homeRuntime:documentRuntime);
 }
-for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1']){
+for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2']){
   if(html.includes(legacyStyle))html=html.replace(legacyStyle,draftScrollRuntime);
 }
 if(!html.includes(homeRuntime))throw new Error('Unable to verify the v320 presentation bootstrap in production HTML.');
@@ -83,13 +83,14 @@ await writeFile(htmlPath,html);
 /* public/document-entry-v302.js has a defensive stylesheet injector for unusual
    startup paths where the index marker is absent. Keep the historical source file
    untouched, but guarantee the production dist fallback uses the same cache-busted
-   scroll owner as index.html. This avoids a mixed 331-1/337-2 runtime on Safari. */
+   scroll owner as index.html. This avoids a mixed pre-337-3 runtime on Safari. */
 const entryPath='dist/document-entry-v302.js';
 let entry=await readFile(entryPath,'utf8');
-entry=entry.replaceAll('./styles/v331-draft-scroll-recovery.css?v=331-1',draftScrollRuntime);
-entry=entry.replaceAll('./styles/v331-draft-scroll-recovery.css?v=336-1',draftScrollRuntime);
+for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2']){
+  entry=entry.replaceAll(legacyStyle,draftScrollRuntime);
+}
 if(!entry.includes(draftScrollRuntime))throw new Error('Unable to verify the v337 scroll-owner fallback inside production document-entry runtime.');
-if(entry.includes('v331-draft-scroll-recovery.css?v=331-1'))throw new Error('Stale v331-1 document scroll fallback survived production build.');
+if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/.test(entry))throw new Error('Stale pre-337-3 document scroll fallback survived production build.');
 await writeFile(entryPath,entry);
 
-console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with v337 document scroll/template reliability + v321 startup recovery.`);
+console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with v337-3 document scroll/template reliability + v321 startup recovery.`);
