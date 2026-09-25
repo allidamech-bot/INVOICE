@@ -100,3 +100,429 @@
   html body .app-ui .screen-editor .mobile-action-buttons .btn{padding-inline:4px!important;}
   html body .app-ui .screen-editor .mobile-action-buttons .btn span{font-size:10px!important;}
 }
+
+/* v333 — critical document visual/interaction closeout.
+ * This block deliberately outranks legacy document layers without changing
+ * persistence, calculations, autosave, PDF pagination or business callbacks. */
+@media screen {
+  /* Distinct document workspace tokens. Light and dark both keep three clearly
+     separated elevations: workspace -> card -> field. */
+  html[data-ui-theme="light"] body .app-ui .screen-editor{
+    --v333-workspace:#eef3f8;
+    --v333-card:#ffffff;
+    --v333-card-soft:#f7f9fc;
+    --v333-field:#fbfcfe;
+    --v333-field-focus:#ffffff;
+    --v333-line:#d8e1ec;
+    --v333-line-strong:#b9c7d7;
+    --v333-text:#1b2737;
+    --v333-muted:#64748b;
+    --v333-accent:#4f6ff7;
+    --v333-accent-soft:#edf2ff;
+  }
+  html[data-ui-theme="dark"] body .app-ui .screen-editor{
+    --v333-workspace:#07111f;
+    --v333-card:#101c2c;
+    --v333-card-soft:#142338;
+    --v333-field:#0b1726;
+    --v333-field-focus:#0e1c2d;
+    --v333-line:#263a52;
+    --v333-line-strong:#3b526d;
+    --v333-text:#f4f7fb;
+    --v333-muted:#9bacc1;
+    --v333-accent:#7d98ff;
+    --v333-accent-soft:rgba(95,122,255,.14);
+  }
+
+  html body .app-ui .screen-editor .editor-screen{
+    background:var(--v333-workspace)!important;
+    color:var(--v333-text)!important;
+  }
+  html body .app-ui .screen-editor .editor-topbar{
+    border-color:var(--v333-line)!important;
+    background:color-mix(in srgb,var(--v333-card) 96%,transparent)!important;
+  }
+
+  /* The completion meter consumed scarce mobile space and did not affect document
+     validity. Validation remains active at Save/Issue time. */
+  html body .app-ui .screen-editor .document-readiness{display:none!important;}
+
+  /* One coherent surface system. This closes the white/ivory leaks visible in
+     Design, table-column toggles, company refresh, totals and legacy cards. */
+  html body .app-ui .screen-editor :is(
+    .editor-section,.premium-selected-customer,.selected-customer,.premium-item-card,.item-card,
+    .terms-card,.bank-details-card,.appearance-card,.template-card,.advanced-card,.advanced-panel,
+    .design-advanced-panel,.watermark-editor-card,.appearance-auto-note,.appearance-toggles,
+    .appearance-table-columns,.adjustments-list,.adjustment-row,.editor-totals,.template-preference-bar,
+    .document-attachments-section,.attachments-empty,.attachment-add-row,.recent-customer-row
+  ){
+    border-color:var(--v333-line)!important;
+    background:var(--v333-card)!important;
+    color:var(--v333-text)!important;
+  }
+  html body .app-ui .screen-editor :is(.premium-item-card,.item-card,.adjustment-row,.recent-customer-row,.appearance-auto-note){
+    background:var(--v333-card-soft)!important;
+  }
+  html body .app-ui .screen-editor .editor-section{
+    border:1px solid var(--v333-line)!important;
+    box-shadow:0 10px 30px rgba(15,23,42,.055)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .screen-editor .editor-section{
+    box-shadow:0 12px 34px rgba(0,0,0,.18)!important;
+  }
+  html body .app-ui .screen-editor .section-heading{
+    border-color:var(--v333-line)!important;
+  }
+  html body .app-ui .screen-editor .section-heading h2,
+  html body .app-ui .screen-editor :is(.editor-section,.document-attachments-section) :is(h2,h3,strong){
+    color:var(--v333-text)!important;
+  }
+  html body .app-ui .screen-editor :is(.field-label,.field>label,.attachment-help,.attachment-add-note,.editor-section small){
+    color:var(--v333-muted)!important;
+  }
+
+  /* Safari/WebKit focus fix: legacy focus/autofill rules could paint the control
+     white while keeping dark-mode ink white. Force both paint and text-fill. */
+  html body .app-ui .screen-editor .editor-section :is(input:not([type="range"]),select,textarea,.input),
+  html body .app-ui .screen-editor .document-attachments-section :is(input:not([type="file"]),select,textarea){
+    border:1px solid var(--v333-line-strong)!important;
+    background-color:var(--v333-field)!important;
+    background-image:none!important;
+    color:var(--v333-text)!important;
+    -webkit-text-fill-color:var(--v333-text)!important;
+    caret-color:var(--v333-accent)!important;
+    box-shadow:none!important;
+  }
+  html body .app-ui .screen-editor .editor-section :is(input:not([type="range"]),select,textarea,.input):focus,
+  html body .app-ui .screen-editor .editor-section :is(input:not([type="range"]),select,textarea,.input):focus-visible{
+    border-color:var(--v333-accent)!important;
+    background-color:var(--v333-field-focus)!important;
+    color:var(--v333-text)!important;
+    -webkit-text-fill-color:var(--v333-text)!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--v333-accent) 18%,transparent)!important;
+    outline:none!important;
+  }
+  html body .app-ui .screen-editor .editor-section :is(input,textarea):-webkit-autofill,
+  html body .app-ui .screen-editor .editor-section :is(input,textarea):-webkit-autofill:hover,
+  html body .app-ui .screen-editor .editor-section :is(input,textarea):-webkit-autofill:focus{
+    -webkit-text-fill-color:var(--v333-text)!important;
+    -webkit-box-shadow:0 0 0 1000px var(--v333-field-focus) inset!important;
+    box-shadow:0 0 0 1000px var(--v333-field-focus) inset!important;
+    transition:background-color 9999s ease-out 0s!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .screen-editor :is(input,select,textarea){color-scheme:dark!important;}
+  html[data-ui-theme="light"] body .app-ui .screen-editor :is(input,select,textarea){color-scheme:light!important;}
+  html body .app-ui .screen-editor select option{
+    background:var(--v333-card)!important;
+    color:var(--v333-text)!important;
+  }
+  html body .app-ui .screen-editor :is(input,textarea)::placeholder{
+    color:color-mix(in srgb,var(--v333-muted) 78%,transparent)!important;
+    -webkit-text-fill-color:color-mix(in srgb,var(--v333-muted) 78%,transparent)!important;
+    opacity:1!important;
+  }
+
+  /* Toggle rows stay compact and inherit the same theme instead of exposing pale
+     legacy surfaces. */
+  html body .app-ui .screen-editor .toggle-row{color:var(--v333-muted)!important;}
+  html body .app-ui .screen-editor .toggle-row>.toggle{
+    border-color:var(--v333-line-strong)!important;
+    background:var(--v333-field)!important;
+  }
+  html body .app-ui .screen-editor .toggle-row>.toggle.on{
+    border-color:var(--v333-accent)!important;
+    background:var(--v333-accent)!important;
+  }
+
+  /* Attachment studio — modern upload surface, not a warning-like text block. */
+  html body .app-ui .screen-editor .document-attachments-section{
+    overflow:hidden!important;
+  }
+  html body .app-ui .screen-editor .document-attachments-section .attachment-add-row{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    align-items:center!important;
+    gap:10px 14px!important;
+    margin:0 0 12px!important;
+    padding:14px!important;
+    border:1px solid var(--v333-line)!important;
+    border-radius:14px!important;
+    background:linear-gradient(135deg,var(--v333-card-soft),color-mix(in srgb,var(--v333-accent-soft) 42%,var(--v333-card)))!important;
+  }
+  html body .app-ui .screen-editor .document-attachments-section .attachment-add-button{
+    grid-column:2!important;
+    grid-row:1/3!important;
+    min-height:44px!important;
+    padding:0 16px!important;
+    border-color:var(--v333-accent)!important;
+    background:var(--v333-accent)!important;
+    color:#fff!important;
+    border-radius:10px!important;
+    font-size:12px!important;
+    font-weight:750!important;
+  }
+  html body .app-ui .screen-editor .document-attachments-section .attachment-add-note{
+    grid-column:1!important;
+    margin:0!important;
+    font-size:11px!important;
+    line-height:17px!important;
+  }
+  html body .app-ui .screen-editor .attachments-empty{
+    min-height:150px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:10px!important;
+    padding:22px 18px!important;
+    border:1px dashed var(--v333-line-strong)!important;
+    border-radius:16px!important;
+    background:var(--v333-card-soft)!important;
+    color:var(--v333-muted)!important;
+    text-align:center!important;
+    font-size:12px!important;
+    line-height:19px!important;
+  }
+  html body .app-ui .screen-editor .attachments-empty>.icon{
+    width:42px!important;
+    height:42px!important;
+    padding:10px!important;
+    border-radius:12px!important;
+    background:var(--v333-accent-soft)!important;
+    color:var(--v333-accent)!important;
+  }
+  html body .app-ui .screen-editor .attachment-card{
+    border-color:var(--v333-line)!important;
+    background:var(--v333-card-soft)!important;
+  }
+
+  /* Create Center — distinct enterprise identities per document. The monograms
+     replace the repeated generic file glyph while keeping the existing callbacks. */
+  html body .app-ui .ta-create-menu.new-doc-menu{
+    border-color:var(--ft-line-strong)!important;
+    border-radius:20px!important;
+    background:var(--ft-surface)!important;
+    box-shadow:0 28px 80px rgba(15,23,42,.22)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .ta-create-menu.new-doc-menu{
+    box-shadow:0 30px 86px rgba(0,0,0,.48)!important;
+  }
+  html body .app-ui .ta-create-menu-grid{
+    gap:10px!important;
+  }
+  html body .app-ui .ta-create-menu-grid>button{
+    position:relative!important;
+    min-height:84px!important;
+    display:grid!important;
+    grid-template-columns:48px minmax(0,1fr)!important;
+    align-items:center!important;
+    gap:12px!important;
+    padding:12px!important;
+    border:1px solid color-mix(in srgb,var(--v333-kind,#64748b) 22%,var(--ft-line))!important;
+    border-radius:16px!important;
+    background:linear-gradient(145deg,var(--ft-surface),color-mix(in srgb,var(--v333-kind,#64748b) 6%,var(--ft-surface-2)))!important;
+    color:var(--ft-text)!important;
+    text-align:start!important;
+    overflow:hidden!important;
+  }
+  html[dir="rtl"] body .app-ui .ta-create-menu-grid>button{
+    grid-template-columns:minmax(0,1fr) 48px!important;
+  }
+  html body .app-ui .ta-create-menu-grid>button>.icon{display:none!important;}
+  html body .app-ui .ta-create-menu-grid>button>span{grid-column:2!important;min-width:0!important;}
+  html[dir="rtl"] body .app-ui .ta-create-menu-grid>button>span{grid-column:1!important;}
+  html body .app-ui .ta-create-menu-grid>button::after{
+    content:var(--v333-code,"DOC");
+    grid-column:1!important;
+    grid-row:1!important;
+    width:48px!important;
+    height:48px!important;
+    display:grid!important;
+    place-items:center!important;
+    border:1px solid color-mix(in srgb,var(--v333-kind,#64748b) 30%,var(--ft-line))!important;
+    border-radius:14px!important;
+    background:color-mix(in srgb,var(--v333-kind,#64748b) 12%,var(--ft-surface))!important;
+    color:var(--v333-kind,#64748b)!important;
+    font:800 10px/1 "Outfit","Noto Sans Arabic",sans-serif!important;
+    letter-spacing:.04em!important;
+    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--v333-kind,#64748b) 5%,transparent)!important;
+  }
+  html[dir="rtl"] body .app-ui .ta-create-menu-grid>button::after{grid-column:2!important;}
+  html body .app-ui .ta-create-menu-grid>button::before{
+    width:3px!important;
+    background:var(--v333-kind,#64748b)!important;
+    opacity:.88!important;
+  }
+  html body .app-ui .ta-create-menu-grid>button strong{
+    color:var(--ft-text-strong)!important;
+    font-size:13px!important;
+    line-height:18px!important;
+    font-weight:780!important;
+  }
+  html body .app-ui .ta-create-menu-grid>button small{
+    display:block!important;
+    margin-top:3px!important;
+    color:var(--ft-muted)!important;
+    font-size:10px!important;
+    line-height:15px!important;
+  }
+  html body .app-ui .ta-create-menu-grid>button:hover,
+  html body .app-ui .ta-create-menu-grid>button:focus-visible{
+    transform:translateY(-1px)!important;
+    border-color:color-mix(in srgb,var(--v333-kind,#64748b) 46%,var(--ft-line))!important;
+    background:color-mix(in srgb,var(--v333-kind,#64748b) 9%,var(--ft-surface))!important;
+  }
+  html body .app-ui .ta-create-menu-grid>button:nth-child(1){--v333-kind:#8b6fe8;--v333-code:"DR";}
+  html body .app-ui .ta-create-menu-grid>button:nth-child(2){--v333-kind:#3182ce;--v333-code:"RFQ";}
+  html body .app-ui .ta-create-menu-grid>button:nth-child(3){--v333-kind:#6c63d9;--v333-code:"QT";}
+  html body .app-ui .ta-create-menu-grid>button:nth-child(4){--v333-kind:#4263c7;--v333-code:"PI";}
+  html body .app-ui .ta-create-menu-grid>button:nth-child(5){--v333-kind:#c58a2c;--v333-code:"PO";}
+  html body .app-ui .ta-create-menu-grid>button:nth-child(6){--v333-kind:#1f9d73;--v333-code:"INV";}
+  html body .app-ui .ta-create-menu-grid>button:nth-child(7){--v333-kind:#3c8db3;--v333-code:"DN";}
+  html body .app-ui .ta-create-menu-grid>button:nth-child(8){--v333-kind:#198d7a;--v333-code:"RC";}
+  html body .app-ui .ta-create-menu-grid>button:nth-child(9){--v333-kind:#c76562;--v333-code:"CN";}
+  html body .app-ui .ta-create-menu-grid>button:nth-child(10){--v333-kind:#68778e;--v333-code:"SOA";}
+}
+
+@media screen and (max-width:900px){
+  /* Mobile editor uses the shell as its single scroll owner and now consumes the
+     full useful width instead of nesting a narrow bordered pane inside it. */
+  html body .app-ui .screen-editor .editor-layout{
+    display:block!important;
+    width:100%!important;
+    max-width:none!important;
+    padding:10px 8px calc(96px + env(safe-area-inset-bottom,0px))!important;
+  }
+  html body .app-ui .screen-editor .editor-pane{
+    width:100%!important;
+    max-width:none!important;
+    height:auto!important;
+    min-height:0!important;
+    overflow:visible!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  html body .app-ui .screen-editor .editor-scroll{
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    overflow:visible!important;
+    padding:0!important;
+    background:transparent!important;
+  }
+  html body .app-ui .screen-editor .editor-form-lock{
+    gap:12px!important;
+  }
+  html body .app-ui .screen-editor .editor-section{
+    width:100%!important;
+    padding:14px!important;
+    border-radius:15px!important;
+  }
+  html body .app-ui .screen-editor .editor-topbar{
+    min-height:70px!important;
+    padding:10px 12px!important;
+  }
+  html body .app-ui .screen-editor .editor-top-left{min-width:0!important;}
+  html body .app-ui .screen-editor .lourex-ai-launcher{
+    position:fixed!important;
+    left:auto!important;
+    right:max(14px,env(safe-area-inset-right,0px))!important;
+    top:auto!important;
+    bottom:calc(90px + env(safe-area-inset-bottom,0px))!important;
+    transform:none!important;
+    z-index:119!important;
+  }
+  html body .app-ui .screen-editor .document-attachments-section .attachment-add-row{
+    grid-template-columns:1fr!important;
+    min-height:0!important;
+    padding:14px!important;
+  }
+  html body .app-ui .screen-editor .document-attachments-section .attachment-add-button{
+    grid-column:1!important;
+    grid-row:auto!important;
+    width:100%!important;
+    min-height:48px!important;
+  }
+  html body .app-ui .screen-editor .document-attachments-section .attachment-add-note{
+    grid-column:1!important;
+    text-align:center!important;
+  }
+  html body .app-ui .screen-editor .document-attachments-section>.attachment-help{
+    display:none!important;
+  }
+  html body .app-ui .ta-create-menu-mobile.new-doc-menu{
+    width:min(520px,calc(100vw - 20px))!important;
+    max-height:min(78dvh,720px)!important;
+    padding:12px!important;
+    border-radius:22px!important;
+  }
+  html body .app-ui .ta-create-menu-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:9px!important;
+  }
+  html body .app-ui .ta-create-menu-grid>button{
+    min-height:88px!important;
+    padding:11px!important;
+    gap:9px!important;
+  }
+}
+
+@media screen and (max-width:430px){
+  html body .app-ui .ta-create-menu-grid>button{
+    grid-template-columns:42px minmax(0,1fr)!important;
+    min-height:82px!important;
+  }
+  html[dir="rtl"] body .app-ui .ta-create-menu-grid>button{
+    grid-template-columns:minmax(0,1fr) 42px!important;
+  }
+  html body .app-ui .ta-create-menu-grid>button::after{
+    width:42px!important;height:42px!important;border-radius:12px!important;font-size:9px!important;
+  }
+}
+
+/* Printed/previewed A4 is intentionally independent from app Light/Dark. Keep
+   dark mastheads readable and anchor bank/signature/stamp near the footer instead
+   of floating immediately below totals on short documents. */
+@media screen, print {
+  .invoice-page.template-executive .header-executive{
+    color:#fff!important;
+  }
+  .invoice-page.template-executive .header-executive :is(.doc-title>span,.doc-title>em,.doc-meta>div>span){
+    color:#fff!important;
+  }
+  .invoice-page.template-executive .header-executive :is(.doc-meta b){
+    color:#c8d3da!important;
+  }
+  .invoice-page.template-executive .header-executive .doc-title>span{
+    text-shadow:0 1px 1px rgba(0,0,0,.14)!important;
+  }
+  .invoice-page .final-details{
+    display:flex!important;
+    flex:1 1 auto!important;
+    min-height:0!important;
+    flex-direction:column!important;
+  }
+  .invoice-page .bottom-grid{
+    margin-top:auto!important;
+    padding-top:5mm!important;
+    align-items:end!important;
+  }
+  .invoice-page .signature-block{
+    align-self:end!important;
+    width:100%!important;
+  }
+  .invoice-page .signature-media{
+    min-height:24mm!important;
+    align-items:end!important;
+  }
+  .invoice-page .signature-media .signature-image{
+    max-height:19mm!important;
+    object-position:center bottom!important;
+  }
+  .invoice-page .signature-media .stamp-image{
+    max-height:21mm!important;
+    object-position:center bottom!important;
+  }
+}
