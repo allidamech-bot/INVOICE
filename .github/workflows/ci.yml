@@ -103,7 +103,15 @@ jobs:
           status=0
           run_qa(){
             echo "::group::$*"
-            "$@" || { code=$?; echo "QA command failed ($code): $*"; status=1; }
+            timeout --signal=TERM --kill-after=15s 180s "$@" || {
+              code=$?
+              if [ "$code" -eq 124 ] || [ "$code" -eq 137 ]; then
+                echo "QA command timed out ($code): $*"
+              else
+                echo "QA command failed ($code): $*"
+              fi
+              status=1
+            }
             echo "::endgroup::"
           }
           run_qa node tests/visual/run-pdf-searchable-v222.cjs
