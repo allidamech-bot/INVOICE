@@ -68,14 +68,15 @@ test('Create Center exposes ten visually distinct business-document identities',
   assert.match(runtime, /normalizeCreateMenuKinds\(\)/);
 });
 
-test('printable templates keep header contrast while v337 restores one compact lower-page closing zone', async () => {
+test('printable templates keep header contrast while v337 restores one compact natural-flow closing zone', async () => {
   const legacy = await read('src/styles/v330-template-contrast-guard.css');
   const base = await read('src/styles/document-premium-redesign-v141.css');
   const balance = await read('src/styles/v337-template-layout-balance.css');
   assert.match(legacy, /\.invoice-page\.template-executive \.header-executive[\s\S]*color:#fff!important/);
   assert.match(base, /\.doc-body\{[^}]*display:flex[^}]*flex-direction:column/);
-  assert.match(balance, /\.invoice-page \.final-details\{[\s\S]*flex:0 0 auto!important[\s\S]*margin-top:auto!important[\s\S]*padding-top:6mm!important/);
+  assert.match(balance, /\.invoice-page \.final-details\{[\s\S]*flex:0 0 auto!important[\s\S]*margin-top:6mm!important[\s\S]*padding-top:0!important/);
   assert.match(balance, /\.invoice-page \.bottom-grid\{[\s\S]*margin-top:4\.5mm!important[\s\S]*padding-top:0!important[\s\S]*align-items:start!important/);
+  assert.doesNotMatch(balance, /\.invoice-page \.final-details\{[\s\S]{0,220}margin-top:auto!important/);
   assert.doesNotMatch(balance, /\.invoice-page \.bottom-grid\{[\s\S]{0,180}margin-top:auto!important/);
   assert.match(balance, /\.signature-media \.stamp-image\{[\s\S]*object-position:center bottom!important/);
 });
