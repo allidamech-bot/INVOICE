@@ -108,15 +108,20 @@ async function metrics(page, surface) {
     } else if (surfaceName === 'draft') {
       const main=document.querySelector('.ta-main');
       const nested=document.querySelector('.draft-studio-scroll');
+      const actionbar=document.querySelector('.draft-mobile-actionbar');
       data.reach = scrollProbe('.ta-main','.draft-studio','.draft-block-card:last-child');
       data.mainRect = rect(main);
       data.shellRect = rect(document.querySelector('.ta-shell'));
       data.nestedOverflowY = nested ? getComputedStyle(nested).overflowY : 'missing';
       data.nestedHeight = nested ? getComputedStyle(nested).height : 'missing';
       data.nestedRange = nested instanceof HTMLElement ? Math.max(0,nested.scrollHeight-nested.clientHeight) : -1;
+      data.nestedPaddingBottom = nested ? px(getComputedStyle(nested).paddingBottom) : -1;
       data.sectionCount = document.querySelectorAll('.draft-control-section,.draft-block-card').length;
       data.blockCount = document.querySelectorAll('.draft-block-card').length;
       data.topbarRect = rect(document.querySelector('.draft-studio-topbar'));
+      data.actionbarRect = visible(actionbar) ? rect(actionbar) : null;
+      data.actionbarPosition = actionbar ? getComputedStyle(actionbar).position : 'missing';
+      data.actionbarTargets = boxes('.draft-mobile-actionbar .btn');
     } else if (surfaceName === 'settings' || surfaceName === 'account') {
       data.targets = boxes('.ta-settings-nav button,.ta-settings-segmented button,.ta-settings-link-action,.ta-settings-asset-trigger,.ta-recovery-status .btn');
       data.micro = boxes('.ta-settings-nav small,.ta-settings-card>header p,.ta-settings-note,.ta-account-summary span,.ta-account-access small,.ta-recovery-status small,.ta-account-access p,.ta-settings-toast');
@@ -184,6 +189,18 @@ async function metrics(page, surface) {
                   assert(m.nestedRange >= 0 && m.nestedRange <= 2, label, `Draft nested scroller still owns ${m.nestedRange}px of hidden vertical range`);
                   assert(m.sectionCount >= 10, label, `Draft fixture did not create enough long-form content (${m.sectionCount})`);
                   assert(m.blockCount >= 16, label, `Draft fixture did not render all long-form blocks (${m.blockCount})`);
+                  assert(Boolean(m.actionbarRect), label, 'Draft fixed mobile action bar is missing');
+                  assert(m.actionbarPosition === 'fixed', label, `Draft mobile action bar position=${m.actionbarPosition}, expected fixed`);
+                  assert((m.actionbarTargets || []).length === 4, label, `Draft mobile action bar expected 4 actions, found ${(m.actionbarTargets || []).length}`);
+                  for (const [index,target] of (m.actionbarTargets || []).entries()) {
+                    assert(target.h >= 43.5 && target.w >= 43.5, label, `Draft action ${index+1} target ${target.w.toFixed(1)}x${target.h.toFixed(1)} < 44px`);
+                  }
+                  if (m.actionbarRect) {
+                    assert(m.actionbarRect.left >= -1.5 && m.actionbarRect.right <= m.viewportWidth + 1.5, label, `Draft action bar leaves viewport horizontally: ${m.actionbarRect.left}..${m.actionbarRect.right}`);
+                    assert(m.actionbarRect.top >= -1.5 && m.actionbarRect.bottom <= m.viewportHeight + 1.5, label, `Draft action bar leaves viewport vertically: ${m.actionbarRect.top}..${m.actionbarRect.bottom}`);
+                    assert(m.nestedPaddingBottom >= m.actionbarRect.h + 16, label, `Draft bottom reserve ${m.nestedPaddingBottom.toFixed(1)}px is smaller than action bar ${m.actionbarRect.h.toFixed(1)}px + 16px clearance`);
+                    if (m.reach) assert(m.reach.lastBottom <= m.actionbarRect.top - 8, label, `last Draft block remains behind fixed action bar: ${m.reach.lastBottom.toFixed(1)} > safe top ${(m.actionbarRect.top-8).toFixed(1)}`);
+                  }
                 }
                 if ((viewport.width <= 900 && m.reach) || (surface.name === 'draft' && viewport.width <= 1180 && m.reach)) {
                   assert(['auto','scroll'].includes(m.reach.overflowY) || m.reach.max <= 2, label, `scroll owner overflow-y=${m.reach.overflowY} with ${m.reach.max}px hidden range`);
