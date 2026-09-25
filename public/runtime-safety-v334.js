@@ -23,6 +23,13 @@
     return manualInventoryDraftOpen();
   }
 
+  function signOutUnsafeWorkspaceOpen(){
+    if(ROOT.hasAttribute('data-lourex-document-editor'))return true;
+    if(ROOT.hasAttribute('data-lourex-workspace-dirty'))return true;
+    if(document.querySelector('.editor-screen,.product-library-pro.editor-open'))return true;
+    return manualInventoryDraftOpen();
+  }
+
   function explainDeferred(button){
     const notice=button.closest('[data-lourex-update],[data-lourex-cloud-refresh]');
     const detail=notice?.querySelector('small');
@@ -65,13 +72,13 @@
 
   /* Account/Settings sign-out paths intentionally reload after Firebase confirms
      the sign-out. Never let those handlers start while a document editor or inline
-     business draft owns unsaved state. This listener loads before document-entry,
-     so its capture-phase stop also prevents the legacy sign-out reload boundary. */
+     business draft owns unsaved state. The account modal itself is not considered
+     unsafe; otherwise its own Sign Out button would be blocked permanently. */
   document.addEventListener('click',event=>{
     const target=event.target;
     if(!(target instanceof Element))return;
     const button=target.closest(SIGNOUT_BUTTON);
-    if(!(button instanceof HTMLButtonElement)||button.disabled||!unsafeWorkspaceOpen())return;
+    if(!(button instanceof HTMLButtonElement)||button.disabled||!signOutUnsafeWorkspaceOpen())return;
     event.preventDefault();
     event.stopImmediatePropagation();
     explainBlockedSignOut(button);
