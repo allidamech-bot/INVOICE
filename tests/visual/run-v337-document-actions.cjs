@@ -4,11 +4,19 @@ const {mkdirSync,writeFileSync}=require('node:fs');
 
 const output='visual-qa-output/v337-document-actions';
 const cases=[
-  ['chromium-mobile',chromium,{width:390,height:844,isMobile:true,hasTouch:true}],
-  ['webkit-mobile',webkit,{width:390,height:844,isMobile:true,hasTouch:true}],
+  ['chromium-320',chromium,{width:320,height:700,isMobile:true,hasTouch:true}],
+  ['webkit-320',webkit,{width:320,height:700,isMobile:true,hasTouch:true}],
+  ['chromium-390',chromium,{width:390,height:844,isMobile:true,hasTouch:true}],
+  ['webkit-390',webkit,{width:390,height:844,isMobile:true,hasTouch:true}],
   ['chromium-desktop',chromium,{width:1440,height:900,isMobile:false,hasTouch:false}],
   ['webkit-desktop',webkit,{width:1280,height:900,isMobile:false,hasTouch:false}]
 ];
+
+function outsideViewport(box,viewport){
+  if(!box)return true;
+  const right=box.x+box.width,bottom=box.y+box.height;
+  return box.x<-2||right>viewport.width+2||box.y<-2||bottom>viewport.height+2;
+}
 
 async function runCase(name,browserType,viewport,lang){
   const browser=await browserType.launch({headless:true});
@@ -33,14 +41,20 @@ async function runCase(name,browserType,viewport,lang){
     await menu.waitFor({state:'visible'});
     const menuBox=await menu.boundingBox();
     if(!menuBox)failures.push('document action menu has no visible box');
-    else{
-      const right=menuBox.x+menuBox.width,bottom=menuBox.y+menuBox.height;
-      if(menuBox.x<0||right>viewport.width+2||menuBox.y<0||bottom>viewport.height+2)failures.push(`document action menu leaves viewport: ${JSON.stringify(menuBox)}`);
-    }
+    else if(outsideViewport(menuBox,viewport))failures.push(`document action menu leaves viewport: ${JSON.stringify({...menuBox,right:menuBox.x+menuBox.width,bottom:menuBox.y+menuBox.height})}`);
+    const menuMetrics=await menu.evaluate(el=>{const s=getComputedStyle(el);return{scrollHeight:el.scrollHeight,clientHeight:el.clientHeight,overflowY:s.overflowY};});
+    if(menuMetrics.scrollHeight>menuMetrics.clientHeight+2&&!['auto','scroll'].includes(menuMetrics.overflowY))failures.push(`document action menu hides ${menuMetrics.scrollHeight-menuMetrics.clientHeight}px without scrolling`);
+
     const buttons=page.locator(`${menuSelector} button[role="menuitem"]`);
     const count=await buttons.count();
     if(count<3)failures.push(`document action menu only has ${count} items`);
-    for(let index=0;index<Math.min(count,8);index+=1){const b=await buttons.nth(index).boundingBox();if(b&&b.height<43.5)failures.push(`menu item ${index+1} below 44px: ${b.height}`);}
+    for(let index=0;index<Math.min(count,8);index+=1){
+      const button=buttons.nth(index);
+      await button.scrollIntoViewIfNeeded();
+      const b=await button.boundingBox();
+      if(!b||b.height<43.5)failures.push(`menu item ${index+1} below 44px: ${b?b.height:'missing'}`);
+      else if(outsideViewport(b,viewport))failures.push(`menu item ${index+1} is not reachable: ${JSON.stringify({...b,right:b.x+b.width,bottom:b.y+b.height})}`);
+    }
 
     if(count>=3){
       await buttons.nth(2).click();
@@ -60,7 +74,7 @@ async function runCase(name,browserType,viewport,lang){
     await page.locator(`${menuSelector} button[role="menuitem"]`).first().click();
     await page.locator('.ta-doc-detail-page').waitFor({state:'visible'});
     const detail=await page.locator('.ta-doc-detail-page').boundingBox();
-    if(!detail||detail.x<0||detail.x+detail.width>viewport.width+2)failures.push(`document detail leaves viewport: ${JSON.stringify(detail)}`);
+    if(!detail||detail.x<-2||detail.x+detail.width>viewport.width+2)failures.push(`document detail leaves viewport: ${JSON.stringify(detail)}`);
 
     const shot=`${output}/${name}-${lang}.png`;
     await page.screenshot({path:shot,fullPage:false});
@@ -76,5 +90,5 @@ async function runCase(name,browserType,viewport,lang){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.failures.map(f=>`${row.name}/${row.lang}: ${f}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v337 document action menus: ${rows.length} Chromium/WebKit mobile/desktop cases passed.`);
+  console.log(`v337 document action menus: ${rows.length} Chromium/WebKit mobile/desktop cases passed down to 320px.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
