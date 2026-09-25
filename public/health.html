@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#080808" />
-  <title>LOUREX Invoice — System Health</title>
+  <title>LOUREX Invoice — Unified Diagnostics</title>
   <style>
     :root{font-family:Inter,Arial,sans-serif;color:#F0EFEA;background:#080808;color-scheme:dark}
     *{box-sizing:border-box}
@@ -34,8 +34,8 @@
     .card-title-row strong{display:block;font-size:15px;color:#F0EFEA}
     .card-title-row small{display:block;margin-top:4px;color:#92918C;font-size:12px}
     .note{margin-top:12px;color:#92918C;font-size:12px;line-height:1.65}
-    pre{max-height:260px;overflow:auto;padding:12px;border:1px solid #292929;border-radius:9px;background:#0C0C0C;color:#B9B7B0;font-size:11px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
-    #diagnosticLog{max-height:430px}
+    pre{max-height:280px;overflow:auto;padding:12px;border:1px solid #292929;border-radius:9px;background:#0C0C0C;color:#B9B7B0;font-size:11px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+    #diagnosticLog{max-height:500px}
     @media(max-width:650px){body{padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}.grid{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.actions{width:100%}.actions .btn{flex:1}.card-title-row .actions{width:100%}}
   </style>
   <script src="./runtime-config.js"></script>
@@ -44,16 +44,16 @@
 <body>
 <main>
   <div class="head">
-    <div class="brand"><img src="./brand/lourex-logo.svg" alt="LOUREX" /><div><h1>System Health / صحة النظام</h1><p>Privacy-safe diagnostics — no invoice contents are displayed.</p></div></div>
-    <div class="actions"><button class="btn secondary" id="back">Back / رجوع</button><button class="btn primary" id="copy">Copy report / نسخ التقرير</button></div>
+    <div class="brand"><img src="./brand/lourex-logo.svg" alt="LOUREX" /><div><h1>Unified Diagnostics / التشخيص الشامل</h1><p>One privacy-safe report for runtime, Safari, auth, navigation, storage and vault state.</p></div></div>
+    <div class="actions"><button class="btn secondary" id="back">Back / رجوع</button><button class="btn primary" id="copy">Copy full report / نسخ التقرير الكامل</button></div>
   </div>
-  <section class="card"><div class="summary" role="status" aria-live="polite"><span class="dot" id="summaryDot"></span><span id="summaryText">Checking… / جارٍ الفحص…</span></div><div class="grid" id="grid"></div><div class="note">This page reports platform state only: deployment source, browser storage availability, PWA cache, service worker and the existence of scoped encrypted local storage. It never opens, decrypts or prints business data.<br><span dir="rtl">تعرض هذه الصفحة حالة النظام فقط ولا تقوم بفتح أو فك تشفير أو عرض بيانات الفواتير والعملاء.</span></div></section>
+  <section class="card"><div class="summary" role="status" aria-live="polite"><span class="dot" id="summaryDot"></span><span id="summaryText">Checking… / جارٍ الفحص…</span></div><div class="grid" id="grid"></div><div class="note">The top button copies one combined report containing deployment health, browser/PWA state, storage and vault-size metadata, plus the complete runtime event log. It does not open or print decrypted business content.<br><span dir="rtl">زر النسخ بالأعلى ينسخ تقريرًا واحدًا يجمع حالة النشر والمتصفح والتخزين والخزنة وسجل التشغيل كاملًا، بدون فتح أو عرض محتوى أعمالك المشفّر.</span></div></section>
   <section class="card">
-    <div class="card-title-row"><div><strong>Runtime diagnostic log / سجل تشخيص التشغيل</strong><small id="diagnosticCount">0 events stored on this device</small></div><div class="actions"><button class="btn primary" id="copyDiag">Copy diagnostic log / نسخ سجل التشخيص</button><button class="btn danger" id="clearDiag">Clear / مسح</button></div></div>
-    <div class="note">Use LOUREX normally. If Safari refreshes or returns you to another screen, open this page immediately and copy this log. It records only lifecycle events such as pagehide/pageshow, visibility, JavaScript errors, Service Worker state, Firebase sign-in state, cloud-refresh events and the current LOUREX screen. It does not read invoice, customer or supplier content.<br><span dir="rtl">استخدم LOUREX بشكل طبيعي. إذا حدث تحديث أو رجوع مفاجئ افتح هذه الصفحة مباشرة وانسخ السجل. لا يتم تسجيل محتوى المستندات أو العملاء أو الموردين.</span></div>
+    <div class="card-title-row"><div><strong>Unified runtime timeline / سجل التشغيل الشامل</strong><small id="diagnosticCount">0 events stored on this device</small></div><div class="actions"><button class="btn primary" id="copyDiag">Copy timeline only / نسخ السجل فقط</button><button class="btn danger" id="clearDiag">Clear / مسح</button></div></div>
+    <div class="note">Use LOUREX normally. The recorder follows lifecycle, screen transitions, intentional navigation/reload markers, JavaScript and Promise errors, failed resources, Firebase auth state, cloud events, workspace dirty/editor state, network, Service Worker, viewport and periodic storage estimates. Repeated identical errors are grouped with a repeat counter so one failure cannot flood the report.<br><span dir="rtl">يسجل النظام دورة حياة الصفحة والتنقلات والأخطاء وحالة تسجيل الدخول والسحابة والمحرر والشبكة والتخزين، ويجمع الأخطاء المتكررة بدل إغراق التقرير. لا يتم تسجيل أسماء العملاء أو المستندات أو المبالغ أو كلمات المرور أو PIN أو محتوى المرفقات.</span></div>
     <pre id="diagnosticLog">No runtime events recorded yet.</pre>
   </section>
-  <section class="card"><strong>Technical report / التقرير التقني</strong><pre id="report">Checking…</pre></section>
+  <section class="card"><strong>System health / صحة النظام</strong><pre id="report">Checking…</pre></section>
 </main>
 </body>
 </html>
