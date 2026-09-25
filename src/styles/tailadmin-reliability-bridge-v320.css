@@ -1,8 +1,8 @@
-/* LOUREX v320 — reliability surfaces expressed in the TailAdmin system.
-   These rules replace visual-only v302/v310/v311 styling while preserving the
-   iPhone boot cover, recovery, PWA refresh, iOS output and mobile focus geometry. */
+/* LOUREX v326 — reliability bridge only.
+   This file intentionally owns runtime/recovery geometry and MUST NOT retheme
+   application workspaces, navigation, dashboard, documents, editor, AI or sheets.
+   Visual ownership belongs to the TailAdmin visual layers loaded before it. */
 :root{
-  /* Compatibility aliases for retained v304/v306 feature/reliability CSS. */
   --v303-canvas:var(--ft-workspace,#f9fafb);
   --v303-surface:var(--ft-surface,#fff);
   --v303-surface-2:var(--ft-surface-2,#f9fafb);
@@ -16,17 +16,32 @@
   --v303-accent-strong:var(--ta-brand-600,#3641f5);
   --v303-danger:var(--ft-danger,#d92d20);
 }
+
 @media screen {
   html:has(.loading-screen),body:has(.loading-screen),#root:has(.loading-screen){margin:0!important;padding:0!important;width:100%!important;min-width:100%!important;height:100%!important;min-height:100%!important;min-height:100dvh!important;background:var(--boot-bg,#0c111d)!important;overflow:hidden!important;overscroll-behavior:none!important}
   html:has(.loading-screen)::before{content:"";position:fixed;inset:-160px;z-index:2147482999;background:var(--boot-bg,#0c111d);pointer-events:none}
   #root>.loading-screen,#lourex-boot.loading-screen{position:fixed!important;inset:-112px 0!important;z-index:2147483000!important;width:100vw!important;max-width:none!important;height:auto!important;min-height:calc(100dvh + 224px)!important;margin:0!important;padding-top:calc(112px + max(24px,env(safe-area-inset-top,0px)))!important;padding-right:max(24px,env(safe-area-inset-right,0px))!important;padding-bottom:calc(112px + max(24px,env(safe-area-inset-bottom,0px)))!important;padding-left:max(24px,env(safe-area-inset-left,0px))!important;box-sizing:border-box!important;border:0!important;background:var(--boot-bg,#0c111d)!important;background-image:none!important;overflow:hidden!important;overscroll-behavior:none!important;box-shadow:0 0 0 160px var(--boot-bg,#0c111d)!important}
   #root>.loading-screen::before,#root>.loading-screen::after,#lourex-boot.loading-screen::before,#lourex-boot.loading-screen::after{display:none!important}
 
-  .app-recovery{min-height:100dvh!important;display:grid!important;place-items:center!important;padding:24px!important;background:var(--ft-workspace,#f9fafb)!important;color:var(--ft-text,#344054)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important}.app-recovery>section{width:min(560px,100%)!important;padding:22px!important;border:1px solid var(--ft-line,#eaecf0)!important;border-radius:14px!important;background:var(--ft-surface,#fff)!important;color:var(--ft-text)!important;box-shadow:var(--ta-shadow-lg,0 18px 44px rgba(16,24,40,.14))!important}.app-recovery :where(h1,h2,h3,strong){color:var(--ft-text-strong,#101828)!important}.app-recovery :where(p,small,summary){color:var(--ft-muted,#667085)!important}.app-recovery button{min-height:40px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface)!important;color:var(--ft-text-soft)!important;font-weight:600!important}.app-recovery button:first-of-type{background:var(--ft-accent,#465fff)!important;border-color:var(--ft-accent,#465fff)!important;color:#fff!important}.app-recovery details{margin-top:12px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface-2)!important}.app-recovery pre{max-height:220px!important;overflow:auto!important;padding:10px!important;border-radius:7px!important;background:var(--ft-workspace)!important;color:var(--ft-text-soft)!important;font-size:10px!important}
+  .app-recovery{min-height:100dvh!important;display:grid!important;place-items:center!important;padding:24px!important;background:var(--ft-workspace,#f9fafb)!important;color:var(--ft-text,#344054)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important}
+  .app-recovery>section{width:min(560px,100%)!important;padding:22px!important;border:1px solid var(--ft-line,#eaecf0)!important;border-radius:14px!important;background:var(--ft-surface,#fff)!important;color:var(--ft-text)!important;box-shadow:var(--ta-shadow-lg,0 18px 44px rgba(16,24,40,.14))!important}
+  .app-recovery :where(h1,h2,h3,strong){color:var(--ft-text-strong,#101828)!important}
+  .app-recovery :where(p,small,summary){color:var(--ft-muted,#667085)!important}
+  .app-recovery button{min-height:40px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface)!important;color:var(--ft-text-soft)!important;font-weight:600!important}
+  .app-recovery button:first-of-type{background:var(--ft-accent,#465fff)!important;border-color:var(--ft-accent,#465fff)!important;color:#fff!important}
+  .app-recovery details{margin-top:12px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface-2)!important}
+  .app-recovery pre{max-height:220px!important;overflow:auto!important;padding:10px!important;border-radius:7px!important;background:var(--ft-workspace)!important;color:var(--ft-text-soft)!important;font-size:10px!important}
 
-  html body .pwa-update-toast,html body [data-lourex-cloud-refresh],html body [data-lourex-update]{border:1px solid var(--ft-line)!important;border-radius:10px!important;background:var(--ft-surface)!important;color:var(--ft-text)!important;box-shadow:var(--ta-shadow-lg)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important}.pwa-update-toast :is(strong,small),[data-lourex-cloud-refresh] :is(strong,small),[data-lourex-update] :is(strong,small){color:inherit!important;opacity:1!important}.pwa-update-toast button,[data-lourex-cloud-refresh] button,[data-lourex-update] button{min-height:38px!important;border:1px solid var(--ft-accent)!important;border-radius:7px!important;background:var(--ft-accent)!important;color:#fff!important;font-weight:600!important}
+  html body .pwa-update-toast,html body [data-lourex-cloud-refresh],html body [data-lourex-update]{border:1px solid var(--ft-line)!important;border-radius:10px!important;background:var(--ft-surface)!important;color:var(--ft-text)!important;box-shadow:var(--ta-shadow-lg)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important}
+  .pwa-update-toast :is(strong,small),[data-lourex-cloud-refresh] :is(strong,small),[data-lourex-update] :is(strong,small){color:inherit!important;opacity:1!important}
+  .pwa-update-toast button,[data-lourex-cloud-refresh] button,[data-lourex-update] button{min-height:38px!important;border:1px solid var(--ft-accent)!important;border-radius:7px!important;background:var(--ft-accent)!important;color:#fff!important;font-weight:600!important}
 
-  html body .lourex-ios-output-fallback{background:rgba(16,24,40,.58)!important;backdrop-filter:blur(6px)!important}.lourex-ios-output-card{border:1px solid var(--ft-line)!important;border-radius:14px!important;background:var(--ft-surface)!important;color:var(--ft-text)!important;box-shadow:0 24px 60px rgba(16,24,40,.24)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important}.lourex-ios-output-card :is(strong,span){color:var(--ft-text-strong)!important}.lourex-ios-output-spinner{border-color:color-mix(in srgb,var(--ft-accent) 16%,var(--ft-line))!important;border-top-color:var(--ft-accent)!important}.lourex-ios-output-primary{border:1px solid var(--ft-accent)!important;border-radius:8px!important;background:var(--ft-accent)!important;color:#fff!important}.lourex-ios-output-cancel{border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface-2)!important;color:var(--ft-text-soft)!important}
+  html body .lourex-ios-output-fallback{background:rgba(16,24,40,.58)!important;backdrop-filter:blur(6px)!important}
+  .lourex-ios-output-card{border:1px solid var(--ft-line)!important;border-radius:14px!important;background:var(--ft-surface)!important;color:var(--ft-text)!important;box-shadow:0 24px 60px rgba(16,24,40,.24)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important}
+  .lourex-ios-output-card :is(strong,span){color:var(--ft-text-strong)!important}
+  .lourex-ios-output-spinner{border-color:color-mix(in srgb,var(--ft-accent) 16%,var(--ft-line))!important;border-top-color:var(--ft-accent)!important}
+  .lourex-ios-output-primary{border:1px solid var(--ft-accent)!important;border-radius:8px!important;background:var(--ft-accent)!important;color:#fff!important}
+  .lourex-ios-output-cancel{border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface-2)!important;color:var(--ft-text-soft)!important}
 
   html[data-lourex-signing-out="true"] .app-ui,html[data-lourex-signing-out="true"] .ta-auth-page{pointer-events:none!important;user-select:none!important}
   html[data-lourex-signing-out="true"] body::before{content:"";position:fixed;inset:0;z-index:2147483600;background:rgba(16,24,40,.58);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
@@ -36,318 +51,14 @@
   .app-ui :where(.ta-mobile-sheet,.mobile-more-sheet) :is(button,a):focus-visible{outline:3px solid color-mix(in srgb,var(--ft-accent) 28%,transparent)!important;outline-offset:2px!important}
   .app-ui :where(.ta-mobile-sheet,.mobile-more-sheet){overscroll-behavior:contain!important}
   .app-ui :where(.ta-mobile-sheet,.mobile-more-sheet) :is(button,.theme-control,.mf-theme-control){min-height:44px}
-  .app-ui .document-attachments-section{scroll-margin-top:88px!important}.app-ui .document-attachments-section :where(input,select,textarea,button,a){min-width:0}.app-ui .document-attachment-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
-}
-@media screen and (max-width:720px){#root>.loading-screen,#lourex-boot.loading-screen{inset:-112px 0!important;padding-top:calc(112px + max(18px,env(safe-area-inset-top,0px)))!important;padding-right:max(18px,env(safe-area-inset-right,0px))!important;padding-bottom:calc(112px + max(18px,env(safe-area-inset-bottom,0px)))!important;padding-left:max(18px,env(safe-area-inset-left,0px))!important}.app-recovery{padding:max(16px,env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) max(18px,env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px))!important}.app-recovery>section{padding:17px!important}.lourex-ios-output-card{max-width:calc(100vw - 24px)!important}}
-
-/* --------------------------------------------------------------------------
- * LOUREX v322 — premium mobile owner
- * One final mobile hierarchy owns shell geometry, dashboard density, document
- * actions and transient overlays. It is intentionally presentation-only.
- * -------------------------------------------------------------------------- */
-@media screen and (max-width:900px){
-  .app-ui{
-    --v322-gutter:14px;
-    --v322-nav-height:72px;
-    --v322-radius:16px;
-    --v322-radius-lg:20px;
-  }
-
-  .app-ui .ta-shell,
-  html[dir="rtl"] .app-ui .ta-shell{
-    grid-template-rows:68px minmax(0,1fr)!important;
-    padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;
-  }
-
-  .app-ui .ta-topbar,
-  html[dir="rtl"] .app-ui .ta-topbar{
-    height:68px!important;
-    min-height:68px!important;
-    padding:max(8px,env(safe-area-inset-top,0px)) 14px 8px!important;
-    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 90%,transparent)!important;
-    background:color-mix(in srgb,var(--ft-shell) 97%,transparent)!important;
-    box-shadow:0 8px 22px rgba(16,24,40,.035)!important;
-    backdrop-filter:blur(18px)!important;
-    -webkit-backdrop-filter:blur(18px)!important;
-  }
-
-  .app-ui .ta-topbar-leading{flex:1 1 auto!important;gap:10px!important;}
-  .app-ui .ta-mobile-brand>button{
-    width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;
-    border:1px solid var(--ft-line)!important;border-radius:13px!important;
-    background:var(--ft-surface)!important;box-shadow:0 4px 14px rgba(16,24,40,.055)!important;
-  }
-  .app-ui .ta-mobile-brand .brand{transform:scale(.84)!important;}
-  .app-ui .ta-page-title{gap:1px!important;}
-  .app-ui .ta-page-title strong{max-width:52vw!important;font-size:18px!important;line-height:24px!important;font-weight:750!important;letter-spacing:-.01em!important;}
-  [dir="rtl"] .app-ui .ta-page-title strong{letter-spacing:0!important;}
-  .app-ui .ta-topbar-actions{flex:0 0 auto!important;gap:7px!important;}
-  .app-ui .ta-search-trigger{
-    width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;
-    border-radius:13px!important;background:var(--ft-surface)!important;
-    box-shadow:0 4px 14px rgba(16,24,40,.055)!important;
-  }
-  .app-ui .ta-search-trigger .icon{width:20px!important;height:20px!important;}
-  .app-ui .ta-theme-control,.app-ui .ta-topbar-sync,.app-ui .ta-topbar-account{display:none!important;}
-
-  .app-ui .ta-main,
-  html[dir="rtl"] .app-ui .ta-main{
-    scroll-padding-top:12px!important;
-    scroll-padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;
-  }
-
-  /* Docked navigation — a contained control, not a second full-width page footer. */
-  .app-ui .ta-mobile-nav{
-    inset-inline:12px!important;bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;
-    width:auto!important;min-height:var(--v322-nav-height)!important;
-    grid-template-columns:repeat(5,minmax(0,1fr))!important;
-    align-items:center!important;
-    padding:7px 8px!important;
-    border:1px solid color-mix(in srgb,var(--ft-line) 92%,transparent)!important;
-    border-radius:20px!important;
-    background:color-mix(in srgb,var(--ft-surface) 97%,transparent)!important;
-    box-shadow:0 18px 42px rgba(16,24,40,.18)!important;
-    backdrop-filter:blur(22px)!important;-webkit-backdrop-filter:blur(22px)!important;
-  }
-  .app-ui .ta-mobile-nav>button{
-    min-height:54px!important;gap:4px!important;padding:5px 3px!important;border-radius:13px!important;
-    font-size:10.5px!important;line-height:14px!important;font-weight:650!important;
-  }
-  .app-ui .ta-mobile-nav>button .icon{width:21px!important;height:21px!important;}
-  .app-ui .ta-mobile-nav>button.is-active{
-    background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;
-  }
-  .app-ui .ta-mobile-create-wrap{align-items:center!important;}
-  .app-ui .ta-mobile-create{
-    width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;
-    transform:none!important;border:0!important;border-radius:15px!important;
-    background:var(--ft-accent)!important;color:#fff!important;
-    box-shadow:0 10px 22px color-mix(in srgb,var(--ft-accent) 32%,transparent)!important;
-  }
-
-  /* Menus stop colliding with the bottom dock. */
-  .app-ui .ta-create-menu-mobile{
-    inset-inline:12px!important;bottom:calc(92px + env(safe-area-inset-bottom,0px))!important;
-    max-height:min(66dvh,600px)!important;border-radius:20px!important;
-    box-shadow:0 24px 60px rgba(16,24,40,.28)!important;
-  }
-  .app-ui .ta-mobile-sheet{
-    inset-inline:12px!important;bottom:calc(92px + env(safe-area-inset-bottom,0px))!important;
-    max-height:min(72dvh,680px)!important;padding:10px 14px 15px!important;
-    border-radius:22px!important;box-shadow:0 28px 72px rgba(16,24,40,.3)!important;
-  }
-  .app-ui .ta-sheet-header{padding:5px 2px 13px!important;}
-  .app-ui .ta-sheet-header strong{font-size:20px!important;line-height:26px!important;font-weight:750!important;}
-  .app-ui .ta-sheet-group{gap:4px!important;margin-top:10px!important;padding-top:10px!important;}
-  .app-ui .ta-sheet-link,.app-ui .ta-sheet-account{
-    min-height:58px!important;padding:8px 9px!important;border-radius:12px!important;
-  }
-  .app-ui .ta-sheet-link-icon{border-radius:11px!important;}
-  .app-ui .ta-sheet-link-copy strong{font-size:13px!important;font-weight:700!important;}
-  .app-ui .ta-sheet-link-copy small{font-size:10.5px!important;}
-
-  /* Floating AI stays above the dock and disappears whenever another mobile layer owns focus. */
-  html[dir="ltr"] body .lourex-ai-launcher,
-  html[dir="rtl"] body .lourex-ai-launcher{
-    right:auto!important;left:auto!important;inset-inline-end:16px!important;
-    bottom:calc(98px + env(safe-area-inset-bottom,0px))!important;
-    width:48px!important;height:48px!important;border-radius:15px!important;
-    box-shadow:0 14px 30px color-mix(in srgb,var(--ft-accent) 28%,transparent)!important;
-  }
-  html[data-lourex-shell-overlay="true"] .lourex-ai-launcher,
-  body:has(.ta-doc-mobile-action-portal) .lourex-ai-launcher{opacity:0!important;pointer-events:none!important;transform:translateY(8px)!important;}
-
-  /* Cloud/PWA notices become a compact status banner under the app bar instead of
-     sitting on top of the navigation and primary actions. */
-  html body .pwa-update-toast,
-  html body [data-lourex-cloud-refresh],
-  html body [data-lourex-update]{
-    position:fixed!important;top:calc(76px + env(safe-area-inset-top,0px))!important;bottom:auto!important;
-    left:auto!important;right:auto!important;inset-inline:12px!important;
-    width:auto!important;max-width:none!important;min-height:58px!important;
-    display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;
-    gap:10px!important;padding:9px 10px 9px 12px!important;margin:0!important;
-    transform:none!important;border-radius:14px!important;z-index:1320!important;
-    box-shadow:0 16px 38px rgba(16,24,40,.18)!important;
-  }
-  html body [data-lourex-cloud-refresh]>span,
-  html body [data-lourex-update]>span,
-  html body .pwa-update-toast>span{min-width:0!important;gap:1px!important;}
-  html body [data-lourex-cloud-refresh] strong,
-  html body [data-lourex-update] strong,
-  html body .pwa-update-toast strong{font-size:11.5px!important;line-height:16px!important;font-weight:750!important;}
-  html body [data-lourex-cloud-refresh] small,
-  html body [data-lourex-update] small,
-  html body .pwa-update-toast small{display:-webkit-box!important;overflow:hidden!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;font-size:9.5px!important;line-height:14px!important;color:var(--ft-muted)!important;}
-  html body [data-lourex-cloud-refresh] button,
-  html body [data-lourex-update] button,
-  html body .pwa-update-toast button{min-width:72px!important;min-height:40px!important;padding:7px 10px!important;border-radius:10px!important;font-size:10.5px!important;white-space:normal!important;}
-
-  /* Dashboard — denser, more deliberate hierarchy with strong card rhythm. */
-  .app-ui .ta-finance-dashboard{
-    padding:18px var(--v322-gutter) calc(112px + env(safe-area-inset-bottom,0px))!important;
-    gap:14px!important;
-  }
-  .app-ui .ta-dashboard-header{gap:10px!important;padding:2px 2px 0!important;}
-  .app-ui .ta-dashboard-heading{gap:5px!important;}
-  .app-ui .ta-dashboard-eyebrow{font-size:11px!important;line-height:16px!important;font-weight:700!important;letter-spacing:.08em!important;text-transform:uppercase!important;}
-  [dir="rtl"] .app-ui .ta-dashboard-eyebrow{letter-spacing:0!important;}
-  .app-ui .ta-dashboard-heading h1{font-size:28px!important;line-height:34px!important;font-weight:780!important;letter-spacing:-.025em!important;}
-  [dir="rtl"] .app-ui .ta-dashboard-heading h1{letter-spacing:0!important;}
-  .app-ui .ta-dashboard-heading p{max-width:100%!important;font-size:12.5px!important;line-height:19px!important;}
-  .app-ui .ta-dashboard-header-actions{
-    width:100%!important;display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;gap:8px!important;
-  }
-  .app-ui .ta-period-chip{
-    width:auto!important;min-width:118px!important;min-height:46px!important;padding:9px 12px!important;
-    border-radius:13px!important;background:var(--ft-surface)!important;
-  }
-  .app-ui .ta-dashboard-header-actions>.btn{
-    width:100%!important;min-height:46px!important;border-radius:13px!important;font-size:13px!important;font-weight:750!important;
-    box-shadow:0 10px 22px color-mix(in srgb,var(--ft-accent) 18%,transparent)!important;
-  }
-
-  .app-ui .ta-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;}
-  .app-ui .ta-kpi-card{
-    min-height:102px!important;grid-template-columns:34px minmax(0,1fr)!important;gap:9px!important;
-    padding:13px!important;border-radius:16px!important;
-    box-shadow:0 6px 20px rgba(16,24,40,.045)!important;
-  }
-  .app-ui .ta-kpi-card:nth-child(1){border-color:color-mix(in srgb,var(--ft-accent) 20%,var(--ft-line))!important;}
-  .app-ui .ta-kpi-card:nth-child(2) .ta-kpi-icon{background:var(--ft-success-soft)!important;color:var(--ft-success)!important;}
-  .app-ui .ta-kpi-card:nth-child(3) .ta-kpi-icon{background:var(--ft-warning-soft)!important;color:var(--ft-warning)!important;}
-  .app-ui .ta-kpi-icon{width:34px!important;height:34px!important;border-radius:10px!important;}
-  .app-ui .ta-kpi-copy{gap:3px!important;}
-  .app-ui .ta-kpi-copy>small{font-size:11px!important;line-height:16px!important;font-weight:650!important;}
-  .app-ui .ta-kpi-copy>strong,.app-ui .ta-kpi-money-stack b{font-size:18px!important;line-height:24px!important;font-weight:750!important;}
-  .app-ui .ta-kpi-money-stack b+ b{font-size:11px!important;line-height:16px!important;}
-  .app-ui .ta-kpi-copy em{font-size:9.5px!important;line-height:14px!important;}
-
-  .app-ui .ta-quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;}
-  .app-ui .ta-quick-actions>button{
-    min-height:64px!important;grid-template-columns:36px minmax(0,1fr)!important;gap:9px!important;
-    padding:10px 11px!important;border-radius:15px!important;box-shadow:none!important;
-  }
-  .app-ui .ta-quick-icon{width:36px!important;height:36px!important;border-radius:10px!important;}
-  .app-ui .ta-quick-actions strong{font-size:12.5px!important;line-height:17px!important;font-weight:700!important;}
-  .app-ui .ta-quick-actions small{font-size:9.5px!important;line-height:14px!important;}
-
-  .app-ui .ta-dashboard-card{border-radius:18px!important;box-shadow:0 8px 24px rgba(16,24,40,.05)!important;}
-  .app-ui .ta-card-header{min-height:64px!important;padding:14px!important;gap:10px!important;}
-  .app-ui .ta-card-header h2{font-size:16px!important;line-height:22px!important;font-weight:730!important;}
-  .app-ui .ta-card-header small{font-size:9.5px!important;font-weight:700!important;}
-  .app-ui .ta-card-header span{font-size:10.5px!important;}
-  .app-ui .ta-chart-toolbar{padding-inline:14px!important;}
-  .app-ui .ta-chart-stage{padding-inline:12px!important;}
-  .app-ui .ta-position-card{min-height:0!important;}
-  .app-ui .ta-position-balance{padding:16px 14px 12px!important;}
-  .app-ui .ta-position-balance>strong{font-size:25px!important;line-height:31px!important;font-weight:760!important;}
-  .app-ui .ta-position-list{padding-inline:14px!important;}
-  .app-ui .ta-card-primary-action{margin:12px 14px 14px!important;border-radius:11px!important;}
-
-  /* Advisor: keep it useful but stop letting it dominate an entire mobile viewport. */
-  .app-ui .lourex-advisor-card{
-    overflow:hidden!important;border:1px solid color-mix(in srgb,var(--ft-accent) 18%,var(--ft-line))!important;
-    border-radius:18px!important;background:var(--ft-surface)!important;
-    box-shadow:0 10px 28px rgba(16,24,40,.06)!important;
-  }
-  .app-ui .lourex-advisor-head{padding:15px!important;gap:10px!important;}
-  .app-ui .lourex-advisor-identity{gap:10px!important;}
-  .app-ui .lourex-advisor-mark{width:38px!important;height:38px!important;border-radius:11px!important;}
-  .app-ui .lourex-advisor-identity h2{margin:2px 0 3px!important;font-size:17px!important;line-height:23px!important;font-weight:760!important;}
-  .app-ui .lourex-advisor-identity p{margin:0!important;font-size:11px!important;line-height:17px!important;color:var(--ft-muted)!important;}
-  .app-ui .lourex-advisor-body{padding:12px 14px!important;}
-  .app-ui .lourex-advisor-welcome-copy strong{font-size:13px!important;line-height:19px!important;}
-  .app-ui .lourex-advisor-welcome-copy span{font-size:10.5px!important;line-height:16px!important;}
-  .app-ui .lourex-advisor-starters{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;margin-top:10px!important;}
-  .app-ui .lourex-advisor-starters>button{
-    min-height:46px!important;margin:0!important;padding:8px 10px!important;border:1px solid var(--ft-line)!important;
-    border-radius:12px!important;background:var(--ft-surface-2)!important;color:var(--ft-text-soft)!important;
-    font-size:10.5px!important;line-height:15px!important;font-weight:600!important;text-align:start!important;
-  }
-  .app-ui .lourex-advisor-compose{padding:11px 14px 13px!important;}
-  .app-ui .lourex-advisor-compose form{display:grid!important;grid-template-columns:34px minmax(0,1fr) 44px!important;align-items:center!important;gap:7px!important;}
-  .app-ui .lourex-advisor-compose input{min-height:44px!important;border-radius:11px!important;font-size:12px!important;}
-  .app-ui .lourex-advisor-compose button[type="submit"]{width:44px!important;height:44px!important;border-radius:11px!important;}
-  .app-ui .lourex-advisor-trust{margin-top:8px!important;font-size:9.5px!important;line-height:14px!important;}
-
-  /* Documents — compact information architecture and non-overlapping actions. */
-  .app-ui .ta-documents-page,.app-ui .ta-doc-detail-page{
-    padding:18px var(--v322-gutter) calc(112px + env(safe-area-inset-bottom,0px))!important;
-    gap:13px!important;
-  }
-  .app-ui .ta-documents-header{gap:9px!important;}
-  .app-ui .ta-documents-header h1{font-size:27px!important;line-height:33px!important;font-weight:780!important;}
-  .app-ui .ta-documents-header p{font-size:11.5px!important;line-height:18px!important;}
-  .app-ui .ta-documents-header-actions{gap:7px!important;}
-  .app-ui .ta-documents-header-actions>.btn{min-height:42px!important;border-radius:11px!important;}
-  .app-ui .ta-doc-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
-  .app-ui .ta-doc-summary-grid>button{
-    min-height:86px!important;grid-template-columns:32px minmax(0,1fr)!important;gap:8px!important;
-    padding:11px!important;border-radius:15px!important;
-  }
-  .app-ui .ta-doc-summary-icon{width:32px!important;height:32px!important;border-radius:9px!important;}
-  .app-ui .ta-doc-summary-grid strong{font-size:19px!important;line-height:24px!important;font-weight:750!important;}
-  .app-ui .ta-doc-register-card{border-radius:18px!important;box-shadow:0 8px 24px rgba(16,24,40,.045)!important;}
-  .app-ui .ta-doc-type-tabs{padding:9px!important;gap:5px!important;}
-  .app-ui .ta-doc-type-tabs>button{min-height:36px!important;border-radius:10px!important;font-size:10.5px!important;}
-  .app-ui .ta-doc-commandbar{padding:10px!important;gap:7px!important;}
-  .app-ui .ta-doc-search{height:44px!important;border-radius:11px!important;}
-  .app-ui .ta-doc-filter-button,.app-ui .ta-doc-sort{height:42px!important;border-radius:11px!important;}
-  .app-ui .ta-doc-row{min-height:92px!important;border-bottom-color:color-mix(in srgb,var(--ft-line) 90%,transparent)!important;}
-  .app-ui .ta-doc-row-open{
-    grid-template-columns:minmax(0,1fr) auto!important;
-    grid-template-areas:"identity amount" "party status" "date status"!important;
-    gap:4px 8px!important;padding:11px 6px 11px 11px!important;
-  }
-  [dir="rtl"] .app-ui .ta-doc-row-open{padding:11px 11px 11px 6px!important;}
-  .app-ui .ta-doc-row-identity{grid-area:identity!important;}
-  .app-ui .ta-doc-row-party{grid-area:party!important;padding-inline-start:45px!important;}
-  .app-ui .ta-doc-row-date{grid-area:date!important;padding-inline-start:45px!important;}
-  .app-ui .ta-doc-row-amount{grid-area:amount!important;justify-self:end!important;align-self:start!important;padding-top:2px!important;}
-  .app-ui .ta-doc-row-status{grid-area:status!important;justify-self:end!important;align-self:end!important;justify-content:flex-end!important;}
-  .app-ui .ta-doc-row-icon{border-radius:10px!important;}
-
-  .app-ui .ta-doc-mobile-action-portal{z-index:1500!important;}
-  .app-ui .ta-doc-action-backdrop{background:rgba(16,24,40,.56)!important;backdrop-filter:blur(4px)!important;-webkit-backdrop-filter:blur(4px)!important;}
-  .app-ui .ta-doc-mobile-action-sheet{
-    inset-inline:12px!important;bottom:calc(92px + env(safe-area-inset-bottom,0px))!important;
-    max-height:min(64dvh,560px)!important;padding:8px!important;border-radius:22px!important;
-    box-shadow:0 28px 72px rgba(16,24,40,.34)!important;
-  }
-  .app-ui .ta-doc-sheet-handle{margin:3px auto 9px!important;}
-  .app-ui .ta-doc-mobile-action-sheet>button{
-    width:100%!important;min-height:50px!important;display:grid!important;grid-template-columns:24px minmax(0,1fr)!important;
-    align-items:center!important;gap:11px!important;margin:0!important;padding:9px 11px!important;
-    border:0!important;border-bottom:1px solid var(--ft-line)!important;border-radius:0!important;
-    background:transparent!important;color:var(--ft-text)!important;box-shadow:none!important;
-    font-size:12px!important;line-height:17px!important;font-weight:600!important;text-align:start!important;
-  }
-  .app-ui .ta-doc-mobile-action-sheet>button:last-child{border-bottom:0!important;}
-  .app-ui .ta-doc-mobile-action-sheet>button .icon{width:19px!important;height:19px!important;color:var(--ft-muted)!important;}
-  .app-ui .ta-doc-mobile-action-sheet>button:active{background:var(--ft-surface-2)!important;}
-
-  .app-ui .ta-doc-detail-toolbar{gap:8px!important;}
-  .app-ui .ta-doc-detail-toolbar-actions{gap:6px!important;}
-  .app-ui .ta-doc-detail-hero{border-radius:18px!important;padding:15px!important;}
-  .app-ui .ta-doc-panel{border-radius:16px!important;overflow:hidden!important;}
+  .app-ui .document-attachments-section{scroll-margin-top:88px!important}
+  .app-ui .document-attachments-section :where(input,select,textarea,button,a){min-width:0}
+  .app-ui .document-attachment-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
 }
 
-@media screen and (max-width:430px){
-  /* Deliberately keep the useful two-column business summaries on phones. The
-     old single-column fallback produced tall empty cards and excessive scrolling. */
-  .app-ui .ta-kpi-grid,.app-ui .ta-doc-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
-  .app-ui .ta-quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
-  .app-ui .ta-dashboard-header-actions{grid-template-columns:auto minmax(0,1fr)!important;}
-  .app-ui .ta-kpi-card{min-height:100px!important;padding:11px!important;}
-  .app-ui .ta-kpi-copy>strong,.app-ui .ta-kpi-money-stack b{font-size:16.5px!important;}
-  .app-ui .ta-doc-summary-grid>button{min-height:82px!important;}
-  .app-ui .ta-doc-row{min-height:94px!important;}
-  .app-ui .ta-doc-row-open{
-    grid-template-columns:minmax(0,1fr) auto!important;
-    grid-template-areas:"identity amount" "party status" "date status"!important;
-  }
-  .app-ui .ta-doc-row-amount,.app-ui .ta-doc-row-status{justify-self:end!important;padding-inline-start:0!important;}
-  .app-ui .ta-doc-row-status{justify-content:flex-end!important;}
-  .app-ui .lourex-advisor-starters{grid-template-columns:1fr!important;}
+@media screen and (max-width:720px){
+  #root>.loading-screen,#lourex-boot.loading-screen{inset:-112px 0!important;padding-top:calc(112px + max(18px,env(safe-area-inset-top,0px)))!important;padding-right:max(18px,env(safe-area-inset-right,0px))!important;padding-bottom:calc(112px + max(18px,env(safe-area-inset-bottom,0px)))!important;padding-left:max(18px,env(safe-area-inset-left,0px))!important}
+  .app-recovery{padding:max(16px,env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) max(18px,env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px))!important}
+  .app-recovery>section{padding:17px!important}
+  .lourex-ios-output-card{max-width:calc(100vw - 24px)!important}
 }
