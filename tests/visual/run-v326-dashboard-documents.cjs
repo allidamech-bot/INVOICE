@@ -29,6 +29,16 @@ async function inspect(page,{surface,width,height,lang}){
     const within=(outer,inner,tolerance=1)=>Boolean(outer&&inner&&inner.left>=outer.left-tolerance&&inner.right<=outer.right+tolerance&&inner.top>=outer.top-tolerance&&inner.bottom<=outer.bottom+tolerance);
     const horizontallyWithin=(outer,inner,tolerance=1)=>Boolean(outer&&inner&&inner.left>=outer.left-tolerance&&inner.right<=outer.right+tolerance&&inner.top>=outer.top-tolerance);
     const rect=el=>{if(!el)return null;const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
+    const visible=el=>{if(!(el instanceof Element))return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;};
+    const lastFlowContent=root=>{
+      if(!(root instanceof Element))return null;
+      const candidates=[...root.children].filter(el=>{
+        if(!visible(el))return false;
+        const position=getComputedStyle(el).position;
+        return position!=='fixed'&&position!=='absolute';
+      });
+      return candidates.at(-1)||root;
+    };
     const root=document.documentElement;
     const selector=surface==='dashboard'?'.ta-finance-dashboard':surface==='documents'?'.ta-documents-page':surface==='editor'?'.editor-screen':'.ta-customers-page';
     const pageRoot=document.querySelector(selector);
@@ -64,14 +74,15 @@ async function inspect(page,{surface,width,height,lang}){
       const before=main.scrollTop;
       main.scrollTop=Math.max(0,main.scrollHeight-main.clientHeight);
       const after=main.scrollTop;
-      const endPage=rect(pageRoot);
       const endMain=rect(main);
       const endNav=rect(nav);
+      const lastContent=lastFlowContent(pageRoot);
+      const endContent=rect(lastContent);
       const needsScroll=main.scrollHeight>main.clientHeight+2;
       push('mobile-main-reaches-scroll-end',!needsScroll||after>before+1,{before,after,scrollHeight:main.scrollHeight,clientHeight:main.clientHeight});
-      push('mobile-page-end-reachable',!endPage||!endMain||endPage.bottom<=endMain.bottom+3,{page:endPage,main:endMain});
-      if(nav&&navStyle?.display!=='none'&&endPage&&endNav){
-        push('mobile-content-clears-bottom-nav',endPage.bottom<=endNav.top+3,{pageBottom:endPage.bottom,navTop:endNav.top,nav:endNav});
+      push('mobile-last-content-reachable',!endContent||!endMain||endContent.bottom<=endMain.bottom+3,{content:endContent,main:endMain,tag:lastContent?.className||lastContent?.tagName||''});
+      if(nav&&navStyle?.display!=='none'&&endContent&&endNav){
+        push('mobile-last-content-clears-bottom-nav',endContent.bottom<=endNav.top-2,{contentBottom:endContent.bottom,navTop:endNav.top,content:lastContent?.className||lastContent?.tagName||'',nav:endNav});
       }
       main.scrollTop=before;
     }
@@ -93,13 +104,13 @@ async function inspect(page,{surface,width,height,lang}){
         const gridStyle=grid?getComputedStyle(grid):null;
         push('mobile-kpi-two-column-grid',Boolean(gridStyle&&gridStyle.gridTemplateColumns.split(' ').length===2),{columns:gridStyle?.gridTemplateColumns||''});
         const actions=[...document.querySelectorAll('.ta-quick-actions>button')];
-        actions.forEach((button,index)=>push(`quick-${index}-touch-target`,rect(button).height>=44,{height:rect(button).height}));
+        actions.forEach((button,index)=>push(`quick-${index}-touch-target`,(rect(button)?.height||0)>=44,{height:rect(button)?.height||0}));
       }
     }else if(surface==='documents'){
       const summary=[...document.querySelectorAll('.ta-doc-summary-grid>button')];
       summary.forEach((card,index)=>push(`doc-summary-${index}-inside-page`,within(rect(pageRoot),rect(card),2),{card:rect(card)}));
       const tabs=[...document.querySelectorAll('.ta-doc-type-tabs>button')];
-      if(width<=900)tabs.forEach((tab,index)=>push(`doc-tab-${index}-touch-target`,rect(tab).height>=44,{height:rect(tab).height}));
+      if(width<=900)tabs.forEach((tab,index)=>push(`doc-tab-${index}-touch-target`,(rect(tab)?.height||0)>=44,{height:rect(tab)?.height||0}));
       const command=document.querySelector('.ta-doc-commandbar');
       push('doc-commandbar-inside-page',within(rect(pageRoot),rect(command),2),{command:rect(command),page:rect(pageRoot)});
       if(width<=900){
@@ -107,9 +118,9 @@ async function inspect(page,{surface,width,height,lang}){
         const filter=document.querySelector('.ta-doc-filter-button');
         const sort=document.querySelector('.ta-doc-sort');
         const kbd=document.querySelector('.ta-doc-search kbd');
-        push('doc-search-touch-height',rect(search)?.height>=44,{height:rect(search)?.height||0});
-        push('doc-filter-44-square',rect(filter)?.height>=44&&rect(filter)?.width>=44,{rect:rect(filter)});
-        push('doc-sort-touch-height',rect(sort)?.height>=44,{height:rect(sort)?.height||0});
+        push('doc-search-touch-height',(rect(search)?.height||0)>=44,{height:rect(search)?.height||0});
+        push('doc-filter-44-square',(rect(filter)?.height||0)>=44&&(rect(filter)?.width||0)>=44,{rect:rect(filter)});
+        push('doc-sort-touch-height',(rect(sort)?.height||0)>=44,{height:rect(sort)?.height||0});
         push('doc-mobile-kbd-hidden',!kbd||getComputedStyle(kbd).display==='none',{display:kbd?getComputedStyle(kbd).display:'missing'});
       }
     }else if(surface==='editor'){
@@ -128,7 +139,7 @@ async function inspect(page,{surface,width,height,lang}){
       push('customers-render-content',cards.length>0||Boolean(document.querySelector('.ta-customers-empty')),{cards:cards.length});
       if(width<=900){
         const controls=[...document.querySelectorAll('.ta-customers-page button,.ta-customers-page input')].filter(el=>getComputedStyle(el).display!=='none');
-        controls.slice(0,12).forEach((control,index)=>push(`customer-control-${index}-touch-target`,rect(control)?.height>=40,{height:rect(control)?.height||0}));
+        controls.slice(0,12).forEach((control,index)=>push(`customer-control-${index}-touch-target`,(rect(control)?.height||0)>=40,{height:rect(control)?.height||0}));
       }
     }
     return result;
