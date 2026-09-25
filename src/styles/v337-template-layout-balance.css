@@ -1,13 +1,13 @@
 /* LOUREX v337 — printable template structural balance.
  * Presentation-only repair for the A4 preview/PDF surface.
- * The canonical v141/v119 document system already supports a disciplined bottom
- * closing zone; v330 accidentally made .final-details itself stretch and then
- * pushed .bottom-grid independently to the page bottom. That split totals/terms
- * from bank/signature and produced the large dead zone visible in Safari preview.
+ * The canonical v141/v119 document system already supports disciplined A4 output;
+ * v330 accidentally made .final-details itself stretch and then pushed .bottom-grid
+ * independently to the page bottom. That split totals/terms from bank/signature and
+ * produced the large dead zone visible in Safari preview.
  *
- * v337 keeps the entire commercial close as ONE compact block. Sparse documents
- * may place that complete block lower on the A4 page, but nothing inside it is
- * allowed to absorb leftover height or jump away from its siblings. */
+ * v337 keeps the entire commercial close as ONE compact, normal-flow block. Items
+ * are followed by totals/terms, notes and bank/authorization with deliberate gaps.
+ * The footer remains the only bottom-anchored visual zone. */
 
 @media screen, print {
   .invoice-page .doc-body{
@@ -17,14 +17,14 @@
   }
 
   /* One complete closing band: totals + terms + notes + bank + authorization.
-     margin-top:auto may position the WHOLE band lower on a sparse A4 page; flex:0
-     prevents the band from stretching, which is the key distinction from v330. */
+     Cancel both historical auto anchoring and v330 flex growth. Sparse A4 pages
+     keep unused paper AFTER the content band, never as a split inside it. */
   .invoice-page .final-details{
     display:block!important;
     flex:0 0 auto!important;
     min-height:0!important;
-    margin-top:auto!important;
-    padding-top:6mm!important;
+    margin-top:6mm!important;
+    padding-top:0!important;
   }
   .invoice-page.details-only .final-details{
     margin-top:0!important;
@@ -68,7 +68,7 @@
     object-position:center bottom!important;
   }
 
-  /* Footer is always its own compact A4 zone below the complete commercial close. */
+  /* Footer is always its own compact A4 zone below the document body. */
   .invoice-page .doc-footer{
     flex:0 0 10mm!important;
     height:10mm!important;
