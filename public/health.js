@@ -3,6 +3,7 @@
   const PUBLIC_DB_NAME='lourex-invoice-public',ACCOUNT_DB_PREFIX='lourex-invoice-account-';
   const DIAG_LOG_KEY='lourex-runtime-diagnostics-v340',DIAG_META_KEY='lourex-runtime-diagnostics-meta-v340';
   const ACTIVE_SCOPE_META_KEY='lourex-active-storage-meta-v341',ACTIVE_VAULT_META_KEY='lourex-active-vault-meta-v341';
+  const VAULT_BREAKDOWN_KEY='lourex-vault-payload-breakdown-v342';
   const PROBE_TIMEOUT_MS=1800,HEALTH_DEADLINE_MS=8000;
   const MB=1024*1024;
   const rows=[]; const details=[];
@@ -74,6 +75,39 @@
     add('Active encrypted vault',label,cipherChars>64*MB?'warn':'ok');
     if(vault.measuredAt)add('Vault size measured',String(vault.measuredAt),'ok');
   }
+  function vaultBreakdownStatus(){
+    const scope=readJson(ACTIVE_SCOPE_META_KEY,null);
+    const breakdown=readJson(VAULT_BREAKDOWN_KEY,null);
+    if(!breakdown||typeof breakdown!=='object'){
+      add('Vault payload breakdown','Awaiting one successful vault unlock/resume','warn');
+      return;
+    }
+    if(scope&&scope.fingerprint&&breakdown.fingerprint&&scope.fingerprint!==breakdown.fingerprint){
+      add('Vault payload breakdown','Stored measurement belongs to a different local account scope','warn');
+      return;
+    }
+    const strings=breakdown.strings&&typeof breakdown.strings==='object'?breakdown.strings:{};
+    const current=breakdown.currentAttachments&&typeof breakdown.currentAttachments==='object'?breakdown.currentAttachments:{};
+    const revisions=breakdown.revisionAttachments&&typeof breakdown.revisionAttachments==='object'?breakdown.revisionAttachments:{};
+    const assets=breakdown.assets&&typeof breakdown.assets==='object'?breakdown.assets:{};
+    const collections=breakdown.collections&&typeof breakdown.collections==='object'?breakdown.collections:{};
+    const dataUrlChars=Math.max(0,Number(strings.dataUrlChars)||0);
+    const dataUrlApproxBytes=Math.max(0,Number(strings.dataUrlApproxBytes)||0);
+    const totalStringChars=Math.max(0,Number(strings.totalStringChars)||0);
+    const nonDataStringChars=Math.max(0,Number(strings.nonDataStringChars)||0);
+    const dataUrlCount=Math.max(0,Number(strings.dataUrlCount)||0);
+    add('Vault embedded payload',`${dataUrlCount} data URL(s); ${formatMb(dataUrlChars)} Base64 characters (~${formatMb(dataUrlApproxBytes)} decoded binary)`,dataUrlChars>24*MB?'warn':'ok');
+    add('Vault non-binary strings',`${formatMb(nonDataStringChars)} character-equivalent; ${formatMb(totalStringChars)} total string characters`,nonDataStringChars>12*MB?'warn':'ok');
+    const currentCount=Math.max(0,Number(current.count)||0),currentDeclared=Math.max(0,Number(current.declaredBytes)||0),currentChars=Math.max(0,Number(current.dataUrlChars)||0),currentLargest=Math.max(0,Number(current.largestDeclaredBytes)||0);
+    add('Current document attachments',`${currentCount} file(s); ${formatMb(currentDeclared)} declared; ${formatMb(currentChars)} Base64; largest ${formatMb(currentLargest)}`,currentChars>8*MB?'warn':'ok');
+    const revisionCount=Math.max(0,Number(revisions.count)||0),revisionDeclared=Math.max(0,Number(revisions.declaredBytes)||0),revisionChars=Math.max(0,Number(revisions.dataUrlChars)||0);
+    add('Revision attachment payloads',`${revisionCount} historical file payload(s); ${formatMb(revisionDeclared)} declared; ${formatMb(revisionChars)} Base64`,revisionChars>4*MB?'warn':'ok');
+    const currentCompany=Math.max(0,Number(assets.currentCompanyDataUrlChars)||0),documentSnapshots=Math.max(0,Number(assets.documentSnapshotDataUrlChars)||0),revisionSnapshots=Math.max(0,Number(assets.revisionSnapshotDataUrlChars)||0);
+    const repeatedAssets=documentSnapshots+revisionSnapshots;
+    add('Company asset payloads',`current=${formatMb(currentCompany)}; document snapshots=${formatMb(documentSnapshots)}; revision snapshots=${formatMb(revisionSnapshots)}`,repeatedAssets>8*MB?'warn':'ok');
+    add('Vault collections',`documents=${Number(collections.documents)||0}; revisions=${Number(collections.revisions)||0}; customers=${Number(collections.customers)||0}; suppliers=${Number(collections.suppliers)||0}; purchases=${Number(collections.purchases)||0}; savedItems=${Number(collections.savedItems)||0}`,'ok');
+    if(breakdown.measuredAt)add('Payload breakdown measured',String(breakdown.measuredAt),'ok');
+  }
   async function dbStatus(){
     if(!('indexedDB' in window)){add('IndexedDB','Unavailable','bad');return;}
     if(typeof indexedDB.databases!=='function'){add('IndexedDB','Available (scoped database enumeration unsupported here)','warn');return;}
@@ -108,6 +142,7 @@
       if(navigator.storage?.estimate){try{const estimate=await withTimeout(navigator.storage.estimate(),'Browser storage estimate');const used=Math.round((estimate.usage||0)/1024/1024*10)/10;const quota=Math.round((estimate.quota||0)/1024/1024);add('Browser storage',`${used} MB used / ${quota} MB quota`,quota?'ok':'warn');}catch(error){add('Browser storage',error?.message||'Estimate unavailable','warn');}}
       else add('Browser storage','Estimate unavailable','warn');
       vaultSizeStatus();
+      vaultBreakdownStatus();
       await dbStatus();
     }catch(error){add('Health runner',error?.message||'Unexpected diagnostic failure','warn');}
     finally{finished=true;render();}

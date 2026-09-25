@@ -10,6 +10,10 @@ const MIN_SALT_BYTES = 16;
 const MAX_SALT_BYTES = 64;
 const GCM_IV_BYTES = 12;
 const ACCOUNT_SECRET_PATTERN=/^acct_[A-Za-z0-9_-]{43}$/;
+const ACTIVE_SCOPE_META_KEY='lourex-active-storage-meta-v341';
+const VAULT_BREAKDOWN_KEY='lourex-vault-payload-breakdown-v342';
+const BREAKDOWN_MIN_INTERVAL_MS=5*60*1000;
+let lastBreakdownAt=0;
 
 function bytesToB64(bytes: Uint8Array): string {
   let binary = '';
@@ -32,6 +36,111 @@ function validateKdf(iterations: number, salt: Uint8Array): void {
   if (salt.byteLength < MIN_SALT_BYTES || salt.byteLength > MAX_SALT_BYTES) {
     throw new Error('Invalid encryption parameters.');
   }
+}
+
+function activeScopeFingerprint():string{
+  try{
+    const value=JSON.parse(localStorage.getItem(ACTIVE_SCOPE_META_KEY)||'null');
+    return value&&typeof value==='object'&&typeof value.fingerprint==='string'?value.fingerprint:'';
+  }catch{return '';}
+}
+
+function dataUrlApproxBytes(value:string):number{
+  if(!value.startsWith('data:'))return 0;
+  const comma=value.indexOf(',');
+  if(comma<0)return 0;
+  const payloadChars=Math.max(0,value.length-comma-1);
+  const marker=value.indexOf(';base64,');
+  if(marker>=0&&marker<comma+1){
+    let padding=0;
+    if(value.endsWith('=='))padding=2;
+    else if(value.endsWith('='))padding=1;
+    return Math.max(0,Math.floor(payloadChars*3/4)-padding);
+  }
+  return payloadChars;
+}
+
+function dataUrlChars(value:unknown):number{return typeof value==='string'&&value.startsWith('data:')?value.length:0;}
+function assetChars(company:any):number{
+  if(!company||typeof company!=='object')return 0;
+  return dataUrlChars(company.logoDataUrl)+dataUrlChars(company.signatureDataUrl)+dataUrlChars(company.stampDataUrl);
+}
+
+function attachmentStats(documents:any[]):{count:number;declaredBytes:number;dataUrlChars:number;approxBytes:number;largestDeclaredBytes:number;largestDataUrlChars:number}{
+  let count=0,declaredBytes=0,dataChars=0,approxBytes=0,largestDeclaredBytes=0,largestDataUrlChars=0;
+  for(const document of documents){
+    const attachments=Array.isArray(document?.attachments)?document.attachments:[];
+    for(const attachment of attachments){
+      count+=1;
+      const declared=Math.max(0,Number(attachment?.size)||0);
+      const data=typeof attachment?.dataUrl==='string'?attachment.dataUrl:'';
+      const chars=dataUrlChars(data);
+      declaredBytes+=declared;
+      dataChars+=chars;
+      approxBytes+=dataUrlApproxBytes(data);
+      largestDeclaredBytes=Math.max(largestDeclaredBytes,declared);
+      largestDataUrlChars=Math.max(largestDataUrlChars,chars);
+    }
+  }
+  return{count,declaredBytes,dataUrlChars:dataChars,approxBytes,largestDeclaredBytes,largestDataUrlChars};
+}
+
+function scanVaultStrings(vault:VaultPayload):{totalStringChars:number;dataUrlCount:number;dataUrlChars:number;dataUrlApproxBytes:number;nonDataStringChars:number}{
+  let totalStringChars=0,dataUrlCount=0,totalDataChars=0,totalDataBytes=0;
+  const stack:any[]=[vault];
+  while(stack.length){
+    const value=stack.pop();
+    if(typeof value==='string'){
+      totalStringChars+=value.length;
+      if(value.startsWith('data:')){dataUrlCount+=1;totalDataChars+=value.length;totalDataBytes+=dataUrlApproxBytes(value);}
+      continue;
+    }
+    if(Array.isArray(value)){
+      for(let index=0;index<value.length;index+=1)stack.push(value[index]);
+      continue;
+    }
+    if(value&&typeof value==='object')for(const entry of Object.values(value))stack.push(entry);
+  }
+  return{totalStringChars,dataUrlCount,dataUrlChars:totalDataChars,dataUrlApproxBytes:totalDataBytes,nonDataStringChars:Math.max(0,totalStringChars-totalDataChars)};
+}
+
+function recordVaultPayloadBreakdown(vault:VaultPayload,force=false):void{
+  const now=Date.now();
+  if(!force&&now-lastBreakdownAt<BREAKDOWN_MIN_INTERVAL_MS)return;
+  lastBreakdownAt=now;
+  try{
+    const documents=Array.isArray(vault.documents)?vault.documents:[];
+    const revisions=Array.isArray(vault.documentRevisions)?vault.documentRevisions:[];
+    const revisionDocuments=revisions.map((revision:any)=>revision?.snapshot).filter(Boolean);
+    const currentAttachments=attachmentStats(documents);
+    const revisionAttachments=attachmentStats(revisionDocuments);
+    const scan=scanVaultStrings(vault);
+    const currentCompanyAssetChars=assetChars((vault as any).company);
+    const documentSnapshotAssetChars=documents.reduce((sum:number,document:any)=>sum+assetChars(document?.companySnapshot),0);
+    const revisionSnapshotAssetChars=revisionDocuments.reduce((sum:number,document:any)=>sum+assetChars(document?.companySnapshot),0);
+    const payload={
+      version:342,
+      measuredAt:new Date(now).toISOString(),
+      fingerprint:activeScopeFingerprint(),
+      collections:{
+        documents:documents.length,
+        revisions:revisions.length,
+        customers:Array.isArray(vault.customers)?vault.customers.length:0,
+        suppliers:Array.isArray(vault.suppliers)?vault.suppliers.length:0,
+        purchases:Array.isArray(vault.purchases)?vault.purchases.length:0,
+        expenses:Array.isArray(vault.expenses)?vault.expenses.length:0,
+        inventoryMovements:Array.isArray(vault.inventoryMovements)?vault.inventoryMovements.length:0,
+        documentEvents:Array.isArray(vault.documentEvents)?vault.documentEvents.length:0,
+        payments:Array.isArray(vault.payments)?vault.payments.length:0,
+        savedItems:Array.isArray(vault.savedItems)?vault.savedItems.length:0
+      },
+      strings:scan,
+      currentAttachments,
+      revisionAttachments,
+      assets:{currentCompanyDataUrlChars:currentCompanyAssetChars,documentSnapshotDataUrlChars:documentSnapshotAssetChars,revisionSnapshotDataUrlChars:revisionSnapshotAssetChars}
+    };
+    localStorage.setItem(VAULT_BREAKDOWN_KEY,JSON.stringify(payload));
+  }catch{}
 }
 
 export function randomBytes(length: number): Uint8Array {
@@ -95,13 +204,16 @@ export async function verifyPin(pin: string, metadata: SecurityMetadata): Promis
 }
 
 export async function encryptVault(key: CryptoKey, vault: VaultPayload): Promise<EncryptedVaultRecord> {
+  recordVaultPayloadBreakdown(vault);
   const payload = await encryptBytes(key, encoder.encode(JSON.stringify(vault)));
   return { id: 'vault', schemaVersion: vault.schemaVersion, iv: payload.iv, cipher: payload.cipher, updatedAt: new Date().toISOString() };
 }
 
 export async function decryptVault(key: CryptoKey, record: EncryptedVaultRecord): Promise<VaultPayload> {
   const plain = await decryptBytes(key, record.iv, record.cipher);
-  return JSON.parse(decoder.decode(plain)) as VaultPayload;
+  const vault=JSON.parse(decoder.decode(plain)) as VaultPayload;
+  recordVaultPayloadBreakdown(vault,true);
+  return vault;
 }
 
 export async function createEncryptedBackup(pin: string, vault: VaultPayload): Promise<EncryptedBackupFile> {
