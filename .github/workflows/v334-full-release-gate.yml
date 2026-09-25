@@ -30,6 +30,16 @@ jobs:
       - name: Full unit suite
         shell: bash
         run: |
-          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
-          echo "Running ${#files[@]} unit contract files"
-          node --test "${files[@]}"
+          set +e
+          failed=0
+          while IFS= read -r file; do
+            echo "::group::$file"
+            node --test "$file"
+            code=$?
+            echo "::endgroup::"
+            if [ "$code" -ne 0 ]; then
+              echo "::error file=$file::Unit contract failed: $file"
+              failed=1
+            fi
+          done < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          exit "$failed"
