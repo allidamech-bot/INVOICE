@@ -1,4 +1,4 @@
-/* v330 template contrast guard — presentation only, geometry neutral. */
+/* v330 template contrast + responsive guard. Presentation only. */
 .template-obsidian{--paper:#fff;--ink:#17242e;--muted:#6c767e;--rule:#d8dddf;--soft:#f2f4f4;}
 .template-obsidian .header-modern{color:#fff!important;background:linear-gradient(125deg,#080a0c,#171c21 72%,#242b30)!important;}
 .template-obsidian .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span){color:#fff!important;}
@@ -18,3 +18,20 @@
 .template-midnight .header-modern :where(.modern-title>small,.doc-meta b),
 .template-blackivory .header-modern :where(.modern-title>small,.doc-meta b),
 .template-carbon .header-modern :where(.modern-title>small,.doc-meta b){color:#d9c8a4!important;}
+
+@media screen and (min-width:901px) and (max-width:1180px){
+  html body .app-ui .screen-editor .editor-layout{
+    grid-template-columns:minmax(0,.96fr) minmax(0,1.04fr)!important;
+    gap:12px!important;
+    padding-inline:12px!important;
+  }
+  html body .app-ui .screen-editor .editor-pane,
+  html body .app-ui .screen-editor .editor-preview-pane,
+  html body .app-ui .screen-editor .preview-pane{min-width:0!important;}
+  html body .app-ui .screen-editor .editor-topbar{
+    grid-template-columns:minmax(0,1fr) auto auto!important;
+    gap:9px!important;
+    padding-inline:12px!important;
+  }
+  html body .app-ui .screen-editor .editor-grand-total-chip{min-width:124px!important;}
+}
