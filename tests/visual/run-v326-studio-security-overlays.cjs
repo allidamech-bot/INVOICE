@@ -111,7 +111,7 @@ async function metrics(page, surface) {
       data.shellRect = rect(document.querySelector('.ta-shell'));
       data.nestedOverflowY = nested ? getComputedStyle(nested).overflowY : 'missing';
       data.nestedHeight = nested ? getComputedStyle(nested).height : 'missing';
-      data.sectionCount = document.querySelectorAll('.draft-control-section,.letter-block-editor').length;
+      data.sectionCount = document.querySelectorAll('.draft-control-section,.draft-block-card').length;
       data.topbarRect = rect(document.querySelector('.draft-studio-topbar'));
     } else if (surfaceName === 'settings' || surfaceName === 'account') {
       data.targets = boxes('.ta-settings-nav button,.ta-settings-segmented button,.ta-settings-link-action,.ta-settings-asset-trigger,.ta-recovery-status .btn');
@@ -172,7 +172,7 @@ async function metrics(page, surface) {
                   assert(['visible','clip'].includes(m.nestedOverflowY), label, `Draft nested scroller regained overflow-y=${m.nestedOverflowY}`);
                   assert(m.sectionCount >= 10, label, `Draft fixture did not create enough long-form content (${m.sectionCount})`);
                 }
-                if (viewport.width <= 900 && m.reach || surface.name === 'draft' && viewport.width <= 1180 && m.reach) {
+                if ((viewport.width <= 900 && m.reach) || (surface.name === 'draft' && viewport.width <= 1180 && m.reach)) {
                   assert(['auto','scroll'].includes(m.reach.overflowY) || m.reach.max <= 2, label, `scroll owner overflow-y=${m.reach.overflowY} with ${m.reach.max}px hidden range`);
                   assert(m.reach.reachesEnd, label, `cannot reach scroll end ${m.reach.after}/${m.reach.max}`);
                   assert(m.reach.lastReachable, label, `last content ${m.reach.lastClass} remains clipped ${m.reach.lastBottom.toFixed(1)} > ${m.reach.scrollerBottom.toFixed(1)}`);
