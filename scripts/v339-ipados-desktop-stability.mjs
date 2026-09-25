@@ -9,6 +9,7 @@ const compatibilityTargets=[
   'dist/document-entry-v302.js'
 ];
 const appTarget='dist/src/app/App.js';
+const cssTarget='dist/styles/app.bundle.css';
 
 const legacyIosExpression=/\/iP\(\?:hone\|ad\|od\)\/i\.test\(navigator\.userAgent\s*\|\|\s*''\)/g;
 const legacyIosReplacement="(/iP(?:hone|ad|od)/i.test(navigator.userAgent||'')||(String(navigator.platform||'')==='MacIntel'&&Number(navigator.maxTouchPoints||0)>1))";
@@ -100,4 +101,26 @@ for(const path of compatibilityTargets){
   await writeFile(appTarget,source);
 }
 
-console.log('v339 iPadOS Desktop Website runtime, editor timing, attachment-memory, A4-output and live-preview safeguards installed.');
+// Several historical compact layers still land before/inside the final TailAdmin
+// bundle and can override the established 44px coarse-pointer target floor. Patch
+// only the two confirmed current regressions in the generated production cascade:
+// template favorite (38px) and dashboard advisor send (42px). Hidden retired shell
+// controls are deliberately not resurrected.
+{
+  let css=await readFile(cssTarget,'utf8');
+  const favoritePattern=/(\.app-ui\s+\.template-favorite-button\s*\{[^}]*?)width\s*:\s*38px!important;\s*height\s*:\s*38px!important;\s*min-height\s*:\s*38px!important;/g;
+  const favoriteMatches=css.match(favoritePattern)?.length??0;
+  if(favoriteMatches!==1)throw new Error(`v339 expected one late 38px template favorite override; found ${favoriteMatches}.`);
+  css=css.replace(favoritePattern,'$1width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;');
+
+  const advisorPattern=/(\.app-ui\s+\.lourex-advisor-compose\s+form>button\s*\{)width\s*:\s*42px!important;\s*min-width\s*:\s*42px!important;\s*height\s*:\s*42px!important;/g;
+  const advisorMatches=css.match(advisorPattern)?.length??0;
+  if(advisorMatches!==1)throw new Error(`v339 expected one late 42px advisor send override; found ${advisorMatches}.`);
+  css=css.replace(advisorPattern,'$1width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;');
+
+  if(/\.app-ui\s+\.template-favorite-button\s*\{[^}]*min-height\s*:\s*38px!important/.test(css))throw new Error('v339 template favorite 38px override remains in production CSS.');
+  if(/\.app-ui\s+\.lourex-advisor-compose\s+form>button\s*\{[^}]*width\s*:\s*42px!important/.test(css))throw new Error('v339 advisor send 42px override remains in production CSS.');
+  await writeFile(cssTarget,css);
+}
+
+console.log('v339 iPadOS Desktop Website runtime, editor timing, attachment-memory, A4-output, touch-target and live-preview safeguards installed.');
