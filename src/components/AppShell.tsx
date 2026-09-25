@@ -261,7 +261,7 @@ export class AppShell extends React.Component<Props,State>{
       <span className="ta-sheet-chevron" aria-hidden="true">›</span>
     </button>;
 
-  private createMenu=(id:string,className:string)=>this.props.newMenu?<div className={`ta-create-menu ${className}`} id={id} role="menu" aria-label={t('New Document','مستند جديد')}>
+  private createMenu=(id:string,className:string)=>this.props.newMenu?<div className={`ta-create-menu new-doc-menu ${className}`} id={id} role="menu" aria-label={t('New Document','مستند جديد')}>
     <div className="ta-create-menu-heading"><small>{t('Create','إنشاء')}</small><strong>{t('New document','مستند جديد')}</strong></div>
     <div className="ta-create-menu-grid">
       <button type="button" role="menuitem" onClick={()=>this.createDocument('draft')}><Icon name="edit"/><span><strong>{t('Draft','مسودة')}</strong><small>{t('Free-form company document','مستند شركة حر')}</small></span></button>

@@ -167,7 +167,7 @@ export class App extends React.Component<{},State> {
   private announceRemoteCloudUpdate=()=>{if(!this.state.cloudUser||!this.state.cloudLinked||this.state.cloudSyncState==='conflict')return;this.deferRemoteCloud();try{window.dispatchEvent(new Event('lourex-cloud-refresh-available'));}catch{}};
   private handleRemoteCloudNewer=()=>{if(!this.state.cloudUser||!this.state.cloudLinked||this.state.cloudSyncState==='conflict')return;this.announceRemoteCloudUpdate();};
   private handleVisibilityChange=()=>{if(document.visibilityState!=='visible'||!this.state.unlocked)return;touchSession();this.resetAutoLock();this.scheduleCloudSync(120);};
-  private closeTransientMenus=(event:PointerEvent)=>{if(!this.state.newMenu)return;const target=event.target;if(target instanceof Element&&target.closest('.new-doc-menu'))return;this.setState({newMenu:false});};
+  private closeTransientMenus=(event:PointerEvent)=>{if(!this.state.newMenu)return;const target=event.target;if(target instanceof Element&&target.closest('.ta-create-menu, .new-doc-menu'))return;this.setState({newMenu:false});};
   private closeTransientMenusOnEscape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&this.state.newMenu)this.setState({newMenu:false});};
   private resetAutoLock=()=>{if(this.lockTimer){window.clearTimeout(this.lockTimer);this.lockTimer=undefined;}};
   private showToast=(toast:string,tone:'default'|'success'|'error'='default')=>{if(this.toastTimer)clearTimeout(this.toastTimer);this.setState({toast,toastTone:tone});this.toastTimer=window.setTimeout(()=>this.setState({toast:''}),3600);};
