@@ -93,12 +93,13 @@ test('pagination, natural-flow closing band, RTL isolation and print break prote
   assert.match(renderer,/hardOverflow/);
   assert.match(renderer,/lastWeight>allowedLastWeight/);
   /* v119 retains its historical auto-anchor as a base fallback. v337 is the final
-     presentation owner and explicitly cancels it so sparse documents keep their
-     commercial close directly after the items instead of creating a dead zone. */
+     presentation owner and explicitly cancels it with the same selector specificity,
+     so sparse documents keep their close directly after the items instead of a dead zone. */
   assert.match(output,/\.invoice-page:not\(\.details-only\) \.final-details\{\s*margin-top:auto!important/);
-  assert.match(balance,/\.invoice-page \.final-details\{[\s\S]*flex:0 0 auto!important[\s\S]*margin-top:6mm!important[\s\S]*padding-top:0!important/);
+  assert.match(balance,/\.invoice-page \.final-details\{[\s\S]*display:block!important[\s\S]*flex:0 0 auto!important[\s\S]*padding-top:0!important/);
+  assert.match(balance,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]*margin-top:6mm!important[\s\S]*padding-top:0!important/);
   assert.match(balance,/\.invoice-page \.bottom-grid\{[\s\S]*margin-top:4\.5mm!important[\s\S]*padding-top:0!important/);
-  assert.doesNotMatch(balance,/\.invoice-page \.final-details\{[\s\S]{0,220}margin-top:auto!important/);
+  assert.doesNotMatch(balance,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]{0,180}margin-top:auto!important/);
   assert.doesNotMatch(balance,/\.invoice-page \.bottom-grid\{[\s\S]{0,180}margin-top:auto!important/);
   assert.doesNotMatch(balance,/\.invoice-page \.final-details\{[\s\S]{0,180}flex:1 1 auto!important/);
   assert.match(direction,/unicode-bidi:isolate/);
