@@ -23,25 +23,28 @@
   html body .app-ui :where(.ta-dashboard-heading h1,.ta-documents-header h1,.ta-customers-header h1,.ta-products-workspace-header h1,.ta-ops-page-header h1,.ta-page-header h1){font-size:26px!important;line-height:33px!important;font-weight:760!important;}
   html body .app-ui :where(.ta-dashboard-heading p,.ta-documents-header p,.ta-customers-header p,.ta-products-workspace-header p,.ta-ops-page-header p,.ta-page-header p){font-size:12.5px!important;line-height:19px!important;}
 
-  /* Dashboard: preserve the two-column finance scan while giving numbers enough
-     horizontal room to remain useful instead of truncating to ellipses. */
+  /* Dashboard: keep the 2x2 finance scan, but stack each card internally so the
+     monetary value receives the full card width instead of competing with icon. */
   html body .app-ui .ta-kpi-grid,
   html body .app-ui .ta-quick-actions,
   html body .app-ui .ta-doc-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;}
   html body .app-ui .ta-kpi-card{
-    min-height:108px!important;
-    grid-template-columns:30px minmax(0,1fr)!important;
+    min-height:124px!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-template-rows:auto minmax(0,1fr)!important;
+    align-content:start!important;
     gap:7px!important;
     padding:12px!important;
     border-radius:15px!important;
   }
-  html body .app-ui .ta-kpi-icon{width:30px!important;height:30px!important;border-radius:9px!important;}
+  html body .app-ui .ta-kpi-icon{width:30px!important;height:30px!important;justify-self:start!important;border-radius:9px!important;}
   html body .app-ui .ta-kpi-icon .icon{width:17px!important;height:17px!important;}
   html body .app-ui .ta-kpi-copy{width:100%!important;min-width:0!important;gap:2px!important;}
   html body .app-ui .ta-kpi-copy>small{font-size:10.5px!important;line-height:15px!important;font-weight:680!important;}
   html body .app-ui .ta-kpi-money-stack{width:100%!important;min-width:0!important;}
   html body .app-ui .ta-kpi-copy>strong,
   html body .app-ui .ta-kpi-money-stack b{
+    width:100%!important;
     overflow:visible!important;
     text-overflow:clip!important;
     white-space:nowrap!important;
@@ -118,7 +121,7 @@
   html body .app-ui .ta-doc-search{min-width:0!important;width:100%!important;height:44px!important;}
   html body .app-ui .ta-doc-search kbd{display:none!important;}
   html body .app-ui .ta-doc-search .ta-doc-search-input{font-size:12px!important;}
-  html body .app-ui .ta-doc-filter-button{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;padding:0!important;}
+  html body .app-ui .ta-doc-filter-button{position:relative!important;width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;padding:0!important;}
   html body .app-ui .ta-doc-filter-button>span{display:none!important;}
   html body .app-ui .ta-doc-filter-button b{position:absolute!important;inset-block-start:3px!important;inset-inline-end:3px!important;min-width:16px!important;min-height:16px!important;padding:0 4px!important;font-size:8px!important;}
   html body .app-ui .ta-doc-sort{grid-column:1/-1!important;width:100%!important;height:44px!important;min-height:44px!important;}
@@ -145,7 +148,7 @@
 @media screen and (max-width:350px){
   html body .app-ui .ta-kpi-grid,
   html body .app-ui .ta-doc-summary-grid{gap:7px!important;}
-  html body .app-ui .ta-kpi-card{grid-template-columns:28px minmax(0,1fr)!important;gap:6px!important;padding:10px!important;}
+  html body .app-ui .ta-kpi-card{grid-template-columns:minmax(0,1fr)!important;gap:6px!important;padding:10px!important;}
   html body .app-ui .ta-kpi-icon{width:28px!important;height:28px!important;}
   html body .app-ui .ta-kpi-copy>strong,
   html body .app-ui .ta-kpi-money-stack b{font-size:15px!important;}
