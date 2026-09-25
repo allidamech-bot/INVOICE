@@ -40,3 +40,10 @@ test('mobile editor scroll owner stays inside the shell grid row instead of clai
     assert.doesNotMatch(block,/\.ta-main[\s\S]{0,260}height:100dvh!important/);
   }
 });
+
+test('production entry cache-busts the repaired Safari scroll owner and document runtime',async()=>{
+  const html=await read('index.html');
+  assert.match(html,/v331-draft-scroll-recovery\.css\?v=337-2/);
+  assert.doesNotMatch(html,/v331-draft-scroll-recovery\.css\?v=331-1/);
+  assert.match(html,/document-entry-v302\.js\?v=337-2/);
+});
