@@ -20,6 +20,8 @@ const chromiumScenarios=[
   {name:'desktop-dark',width:1440,height:900,theme:'dark'}
 ];
 const webkitScenarios=[
+  {name:'iphone320-light',width:320,height:700,theme:'light'},
+  {name:'iphone320-dark',width:320,height:700,theme:'dark'},
   {name:'iphone390-light',width:390,height:844,theme:'light'},
   {name:'iphone390-dark',width:390,height:844,theme:'dark'},
   {name:'iphone430-light',width:430,height:932,theme:'light'}
@@ -96,11 +98,12 @@ async function probeGlobalSearchResults(page,state,scenario){
     const after=scroller.scrollTop;
     const sr=scroller.getBoundingClientRect();
     const lr=last?.getBoundingClientRect()||null;
-    const data={overflowY:style.overflowY,max,after,resultCount:results.length,lastReachable:!lr||lr.bottom<=sr.bottom+2,lastBottom:lr?.bottom??null,scrollerBottom:sr.bottom};
+    const data={overflowY:style.overflowY,touchAction:style.touchAction,max,after,resultCount:results.length,lastReachable:!lr||lr.bottom<=sr.bottom+2,lastBottom:lr?.bottom??null,scrollerBottom:sr.bottom};
     scroller.scrollTop=before;
     return data;
   });
   if(!probe){state.failures.push('global-search results scroller missing');return;}
+  if(scenario.width<=900&&probe.touchAction!=='pan-y')state.failures.push(`global-search touch-action=${probe.touchAction||'missing'}, expected pan-y`);
   if(scenario.width<=900&&probe.max<=2)state.failures.push(`global-search fixture did not force scrolling (max=${probe.max})`);
   if(probe.max>2&&!['auto','scroll'].includes(probe.overflowY))state.failures.push(`global-search overflow-y=${probe.overflowY} with ${probe.max}px hidden range`);
   if(probe.max>2&&probe.after<probe.max-2)state.failures.push(`global-search cannot reach scroll end ${probe.after}/${probe.max}`);
@@ -150,5 +153,5 @@ async function runEngine(engine,browserType,scenarios){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.state.failures.map(f=>`${row.engine}/${row.surface}/${row.scenario}/${row.lang}: ${f}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v337 access surfaces: ${rows.length} Chromium/WebKit scenarios passed, including forced global-search result scrolling.`);
+  console.log(`v337 access surfaces: ${rows.length} Chromium/WebKit scenarios passed, including 320px Safari Global Search pan-y scrolling.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
