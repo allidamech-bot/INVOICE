@@ -63,4 +63,7 @@ test('production entry cache-busts the repaired Safari scroll owner and document
     'v332-critical-documents-deep-closeout.css\\?v=332-1',
     'document-entry-v302.js\\?v=337-2'
   ])assert.match(cacheRefresh,new RegExp(asset));
+  assert.match(cacheRefresh,/const entryPath='dist\/document-entry-v302\.js'/);
+  assert.match(cacheRefresh,/replaceAll\('\.\/styles\/v331-draft-scroll-recovery\.css\?v=331-1',draftScrollRuntime\)/);
+  assert.match(cacheRefresh,/Stale v331-1 document scroll fallback survived production build/);
 });
