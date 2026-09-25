@@ -1,7 +1,7 @@
 (() => {
   const EXPECTED_OWNER='allidamech-bot',EXPECTED_REPO='INVOICE';
   const PUBLIC_DB_NAME='lourex-invoice-public',ACCOUNT_DB_PREFIX='lourex-invoice-account-';
-  const DIAG_LOG_KEY='lourex-runtime-diagnostics-v340',DIAG_META_KEY='lourex-runtime-diagnostics-meta-v340';
+  const DIAG_LOG_KEY='lourex-runtime-diagnostics-v340',DIAG_META_KEY='lourex-runtime-diagnostics-meta-v340',DIAG_SNAPSHOT_KEY='lourex-runtime-diagnostics-snapshot-v344';
   const ACTIVE_SCOPE_META_KEY='lourex-active-storage-meta-v341',ACTIVE_VAULT_META_KEY='lourex-active-vault-meta-v341';
   const VAULT_BREAKDOWN_KEY='lourex-vault-payload-breakdown-v342';
   const PROBE_TIMEOUT_MS=1800,HEALTH_DEADLINE_MS=8000;
@@ -21,27 +21,38 @@
   const readJson=(key,fallback)=>{try{const value=JSON.parse(localStorage.getItem(key)||'null');return value??fallback;}catch{return fallback;}};
   const readDiagnostics=()=>{const value=readJson(DIAG_LOG_KEY,[]);return Array.isArray(value)?value:[];};
   const readDiagnosticMeta=()=>{const value=readJson(DIAG_META_KEY,null);return value&&typeof value==='object'?value:null;};
+  const readDiagnosticSnapshot=()=>{const value=readJson(DIAG_SNAPSHOT_KEY,null);return value&&typeof value==='object'?value:null;};
+  const repeatOf=event=>Math.max(1,Number(event?.repeat)||1);
+  const diagnosticCounts=()=>{
+    const counts={};
+    for(const event of readDiagnostics())counts[event?.type||'unknown']=(counts[event?.type||'unknown']||0)+repeatOf(event);
+    return counts;
+  };
   const formatDiagnosticEvent=event=>{
     const at=String(event?.at||'n/a');
     const type=String(event?.type||'unknown');
     const screen=String(event?.screen||'unknown');
     const visibility=String(event?.visibility||'unknown');
     const online=event?.online===false?'offline':'online';
+    const repeat=repeatOf(event);
     const detail=String(event?.detail||'').trim();
-    return `${at} | ${type} | screen=${screen} | ${visibility} | ${online}${detail?` | ${detail}`:''}`;
+    return `${at} | ${type} | screen=${screen} | ${visibility} | ${online}${repeat>1?` | repeat=${repeat}`:''}${detail?` | ${detail}`:''}`;
   };
   const diagnosticText=()=>{
-    const log=readDiagnostics();
-    const meta=readDiagnosticMeta();
+    const log=readDiagnostics(),meta=readDiagnosticMeta(),snapshot=readDiagnosticSnapshot(),counts=diagnosticCounts();
     const header=[
-      'LOUREX v341 runtime diagnostics',
+      'LOUREX v344 unified runtime diagnostics',
       `events=${log.length}`,
+      `counts=${JSON.stringify(counts)}`,
       `currentMeta=${meta?JSON.stringify(meta):'none'}`,
-      'privacy=Lifecycle metadata only. No invoice/customer/supplier contents are collected.',
+      `snapshot=${snapshot?JSON.stringify(snapshot):'none'}`,
+      'privacy=Runtime/lifecycle metadata only. No invoice/customer/supplier content, passwords, PINs, amounts, attachment contents or decrypted business fields are collected.',
       ''
     ];
     return [...header,...log.map(formatDiagnosticEvent)].join('\n');
   };
+  const systemReportText=()=>['LOUREX Invoice system health',`time=${new Date().toISOString()}`,...details,`runtimeDiagnosticEvents=${readDiagnostics().length}`,`userAgent=${navigator.userAgent}`].join('\n');
+  const fullReportText=()=>`${systemReportText()}\n\n${diagnosticText()}`;
   const renderDiagnostics=()=>{
     const pre=document.getElementById('diagnosticLog');
     if(pre)pre.textContent=diagnosticText();
@@ -53,10 +64,26 @@
     const grid=document.getElementById('grid');grid.innerHTML='';
     rows.forEach(row=>{const el=document.createElement('div');el.className='row';el.innerHTML=`<span class="label"></span><span class="value ${row.status}Text"></span>`;el.querySelector('.label').textContent=row.label;el.querySelector('.value').textContent=row.value;grid.appendChild(el);});
     const bad=rows.filter(row=>row.status==='bad').length,warn=rows.filter(row=>row.status==='warn').length;const dot=document.getElementById('summaryDot');dot.className=`dot ${bad?'bad':warn?'warn':'ok'}`;document.getElementById('summaryText').textContent=bad?`${bad} critical check(s) need attention / توجد مشكلة حرجة`:warn?`Core checks passed with ${warn} warning(s) / الفحص الأساسي سليم مع تنبيهات`:'All core checks passed / جميع الفحوص الأساسية سليمة';
-    const diag=readDiagnostics();
-    document.getElementById('report').textContent=['LOUREX Invoice system health',`time=${new Date().toISOString()}`,...details,`runtimeDiagnosticEvents=${diag.length}`,`userAgent=${navigator.userAgent}`].join('\n');
+    document.getElementById('report').textContent=systemReportText();
     renderDiagnostics();
   };
+  function diagnosticStatus(){
+    const log=readDiagnostics(),counts=diagnosticCounts(),snapshot=readDiagnosticSnapshot(),meta=readDiagnosticMeta();
+    const js=(counts['javascript-error']||0)+(counts['react-error-boundary']||0);
+    const promises=counts['unhandled-rejection']||0;
+    const resources=counts['resource-error']||0;
+    const nav=counts['navigation-request']||0;
+    const authErrors=counts['auth-recovery-error']||0;
+    const errorTotal=js+promises+resources+authErrors;
+    add('Unified diagnostics',`v344; ${log.length} stored event(s); ${errorTotal} error signal(s)`,errorTotal?'warn':'ok');
+    add('Diagnostic error signals',`javascript/react=${js}; promise=${promises}; resource=${resources}; auth=${authErrors}`,errorTotal?'warn':'ok');
+    add('Intentional navigation markers',`${nav} navigation request(s) recorded`,'ok');
+    if(snapshot){
+      const root=snapshot.root&&typeof snapshot.root==='object'?snapshot.root:{};
+      add('Last runtime snapshot',`screen=${snapshot.screen||'unknown'}; nav=${snapshot.nav||'unknown'}; visible=${snapshot.visibility||'unknown'}; editor=${root.editor?'yes':'no'}; dirty=${root.dirty?'yes':'no'}`,'ok');
+    }else add('Last runtime snapshot','Not recorded yet — open LOUREX once, then return here','warn');
+    if(meta?.lastSeen)add('Last runtime heartbeat',`${meta.lastSeen}; screen=${meta.lastScreen||'unknown'}; event=${meta.lastEvent||'unknown'}`,'ok');
+  }
   function vaultSizeStatus(){
     const scope=readJson(ACTIVE_SCOPE_META_KEY,null);
     const vault=readJson(ACTIVE_VAULT_META_KEY,null);
@@ -132,7 +159,7 @@
       add('Build time',runtime.buildTime||'n/a',runtime.buildTime?'ok':'warn');
       add('Secure context',yesNo(window.isSecureContext),window.isSecureContext?'ok':'bad');
       add('Network',navigator.onLine?'Online':'Offline',navigator.onLine?'ok':'warn');
-      add('Runtime diagnostics',`${readDiagnostics().length} stored event(s)`,'ok');
+      diagnosticStatus();
       add('Service worker support',yesNo('serviceWorker' in navigator),'serviceWorker' in navigator?'ok':'bad');
       if('serviceWorker' in navigator){
         try{const reg=await withTimeout(navigator.serviceWorker.getRegistration(),'Service worker check');add('PWA worker',reg?(reg.waiting?'Update waiting':navigator.serviceWorker.controller?'Active':'Installed'):'Not registered',reg?'ok':'warn');}catch(error){add('PWA worker',error?.message||'Check failed','warn');}
@@ -153,10 +180,10 @@
     render();
   },HEALTH_DEADLINE_MS);
   document.getElementById('back').addEventListener('click',()=>{if(history.length>1)history.back();else location.href='./';});
-  document.getElementById('copy').addEventListener('click',async()=>{const text=document.getElementById('report').textContent||'';try{await navigator.clipboard.writeText(text);document.getElementById('copy').textContent='Copied / تم النسخ';}catch{}});
+  document.getElementById('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(fullReportText());document.getElementById('copy').textContent='Copied full report / تم النسخ';}catch{}});
   document.getElementById('copyDiag')?.addEventListener('click',async()=>{const text=diagnosticText();try{await navigator.clipboard.writeText(text);document.getElementById('copyDiag').textContent='Copied / تم النسخ';}catch{}});
   document.getElementById('clearDiag')?.addEventListener('click',()=>{
-    try{localStorage.removeItem(DIAG_LOG_KEY);localStorage.removeItem(DIAG_META_KEY);}catch{}
+    try{localStorage.removeItem(DIAG_LOG_KEY);localStorage.removeItem(DIAG_META_KEY);localStorage.removeItem(DIAG_SNAPSHOT_KEY);}catch{}
     renderDiagnostics();
     const button=document.getElementById('clearDiag');if(button)button.textContent='Cleared / تم المسح';
   });
