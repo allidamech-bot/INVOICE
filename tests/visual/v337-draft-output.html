@@ -28,7 +28,8 @@
 
     const params=new URLSearchParams(location.search);
     const lang=params.get('lang')==='ar'?'ar':'en';
-    const uiLang=params.get('ui')==='ar'?'ar':'en';
+    const explicitUi=params.get('ui');
+    const uiLang=explicitUi==='ar'||explicitUi==='en'?explicitUi:(lang==='ar'?'en':'ar');
     const pageStyle=['plain','ruled','grid'].includes(params.get('page'))?params.get('page'):'plain';
     const headerStyle=['classic','minimal','accent'].includes(params.get('header'))?params.get('header'):'accent';
     const footerStyle=['company','minimal','none'].includes(params.get('footer'))?params.get('footer'):'company';
