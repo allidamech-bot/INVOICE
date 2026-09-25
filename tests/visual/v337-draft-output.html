@@ -12,7 +12,8 @@
     body{padding:24px}
     #root{min-height:100%}
     .draft-output-fixture{display:flex;justify-content:center;align-items:flex-start;min-width:0}
-    @media print{body{padding:0;background:#fff}.draft-output-fixture{display:block}}
+    .draft-output-fixture>.print-portal{display:flex!important;justify-content:center;align-items:flex-start;width:100%;min-width:0}
+    @media print{body{padding:0;background:#fff}.draft-output-fixture{display:block}.draft-output-fixture>.print-portal{display:block!important;width:auto}}
   </style>
 </head>
 <body>
@@ -96,7 +97,14 @@
     doc.letter=letter;
 
     window.__DRAFT_OUTPUT_QA__={lang,uiLang,pageStyle,headerStyle,footerStyle,bodyWidth,blockCount:blocks.length};
-    ReactDOM.render(React.createElement('main',{className:'draft-output-fixture'},React.createElement(DraftDocumentRenderer,{document:doc,scale:1})),document.getElementById('root'));
+    ReactDOM.render(
+      React.createElement('main',{className:'draft-output-fixture'},
+        React.createElement('div',{className:'print-portal'},
+          React.createElement(DraftDocumentRenderer,{document:doc,scale:1})
+        )
+      ),
+      document.getElementById('root')
+    );
     requestAnimationFrame(()=>{document.documentElement.dataset.ready='true';});
   </script>
 </body>
