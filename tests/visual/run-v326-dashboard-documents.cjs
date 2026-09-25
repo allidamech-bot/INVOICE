@@ -131,7 +131,7 @@ async function inspect(page,{surface,width,height,lang}){
         const scrollStyle=scroll?getComputedStyle(scroll):null;
         const mainRect=rect(main),shellRect=rect(shell);
         push('editor-has-single-outer-scroll-owner',Boolean(main&&scroll&&['visible','clip'].includes(scrollStyle?.overflowY||'visible')),{mainOverflow:mainStyle?.overflowY||'',editorScrollOverflow:scrollStyle?.overflowY||''});
-        push('editor-main-starts-below-topbar',Boolean(mainRect&&mainRect.top>0),{main:mainRect,viewportHeight:height});
+        push('editor-main-owns-full-mobile-viewport-top',Boolean(mainRect&&Math.abs(mainRect.top)<=1),{main:mainRect,viewportHeight:height});
         push('editor-main-stays-inside-viewport',Boolean(mainRect&&mainRect.bottom<=height+1),{main:mainRect,viewportHeight:height});
         push('editor-main-stays-inside-shell',Boolean(mainRect&&shellRect&&mainRect.top>=shellRect.top-1&&mainRect.bottom<=shellRect.bottom+1),{main:mainRect,shell:shellRect});
         const actionbar=document.querySelector('.mobile-editor-actionbar');
