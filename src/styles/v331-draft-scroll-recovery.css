@@ -136,7 +136,7 @@
      range sliders or form gestures elsewhere in the app. */
   html body .app-ui :where(.ta-mobile-sheet,.ta-create-menu-mobile),
   html body :where(.global-search-start,.global-search-results),
-  html body .mobile-document-action-portal :where(.ta-doc-mobile-action-sheet,.mobile-document-action-sheet){
+  html body :where(.mobile-document-action-portal,.ta-doc-mobile-action-portal) :where(.ta-doc-mobile-action-sheet,.mobile-document-action-sheet){
     min-height:0!important;
     overflow-y:auto!important;
     overscroll-behavior-y:contain!important;
