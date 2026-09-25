@@ -180,20 +180,17 @@ export class AppShell extends React.Component<Props,State>{
 
   private createDocument=(kind:DocumentKind)=>{
     this.closeMore();
-    this.closeCreateMenu();
-    window.requestAnimationFrame(()=>this.props.onNew(kind));
+    this.props.onNew(kind);
   };
 
   private openCreditNote=()=>{
     this.closeMore();
-    this.closeCreateMenu();
-    window.requestAnimationFrame(()=>this.props.onCreditNote());
+    this.props.onCreditNote();
   };
 
   private openStatementAccount=()=>{
     this.closeMore();
-    this.closeCreateMenu();
-    window.requestAnimationFrame(()=>this.props.onStatementAccount());
+    this.props.onStatementAccount();
   };
 
   private hasSignedInAccount=():boolean=>{

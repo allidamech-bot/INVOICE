@@ -260,45 +260,37 @@
 }
 
 
-/* v327 — hard mobile editor viewport chain.
-   Legacy mobile styles may allow the document tree to grow with content; the
-   Document Studio instead owns exactly one viewport and one vertical scroller. */
+/* v328 — balanced mobile editor viewport chain.
+   The shell owns the viewport once. Document Studio consumes the available row,
+   the action dock stays in flow, and editor-scroll is the sole vertical scroller. */
 @media screen and (max-width:900px){
   .app-ui .ta-shell.is-editor .editor-screen{
-    width:100%!important;
-    height:100dvh!important;
-    max-height:100dvh!important;
-    min-height:0!important;
-    display:flex!important;
-    flex-direction:column!important;
-    overflow:hidden!important;
+    width:100%!important;height:100dvh!important;max-height:100dvh!important;min-height:0!important;
+    display:flex!important;flex-direction:column!important;overflow:hidden!important;
   }
   .app-ui .ta-shell.is-editor .editor-screen>.editor-layout{
-    flex:1 1 0!important;
-    width:100%!important;
-    height:0!important;
-    max-height:none!important;
-    min-height:0!important;
-    display:block!important;
-    overflow:hidden!important;
+    flex:1 1 auto!important;width:100%!important;height:auto!important;max-height:none!important;min-height:0!important;
+    display:block!important;overflow:hidden!important;
   }
   .app-ui .ta-shell.is-editor .editor-layout>.editor-pane{
-    width:100%!important;
-    height:100%!important;
-    max-height:100%!important;
-    min-height:0!important;
-    overflow:hidden!important;
+    width:100%!important;height:100%!important;max-height:100%!important;min-height:0!important;overflow:hidden!important;
   }
   .app-ui .ta-shell.is-editor .editor-pane>.editor-scroll{
-    width:100%!important;
-    height:100%!important;
-    max-height:100%!important;
-    min-height:0!important;
-    overflow-x:hidden!important;
-    overflow-y:auto!important;
-    touch-action:pan-y!important;
-    overscroll-behavior-x:none!important;
-    overscroll-behavior-y:contain!important;
-    -webkit-overflow-scrolling:touch!important;
+    width:100%!important;height:100%!important;max-height:100%!important;min-height:0!important;
+    overflow-x:hidden!important;overflow-y:auto!important;touch-action:pan-y!important;
+    overscroll-behavior-x:none!important;overscroll-behavior-y:contain!important;-webkit-overflow-scrolling:touch!important;
+    padding-top:0!important;
   }
+  .app-ui .ta-shell.is-editor .editor-section-nav-slot{
+    position:sticky!important;top:0!important;z-index:64!important;display:block!important;
+    margin:0 -2px 10px!important;padding:8px 2px 4px!important;
+    background:linear-gradient(180deg,var(--ft-canvas) 78%,color-mix(in srgb,var(--ft-canvas) 0%,transparent))!important;
+    backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important;
+  }
+  .app-ui .ta-shell.is-editor .ta-editor-step-nav{
+    position:relative!important;inset:auto!important;margin:0!important;border-radius:14px!important;
+    background:color-mix(in srgb,var(--ft-surface) 96%,transparent)!important;
+    box-shadow:0 7px 22px rgba(15,23,42,.08)!important;
+  }
+  html[data-ui-theme="dark"] .app-ui .ta-shell.is-editor .ta-editor-step-nav{box-shadow:0 8px 22px rgba(0,0,0,.24)!important;}
 }

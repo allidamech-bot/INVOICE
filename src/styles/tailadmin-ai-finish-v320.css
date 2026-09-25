@@ -373,31 +373,65 @@
 }
 
 
-/* v327 — robotic AI identity and compact mobile copilot. */
+/* v328 — unified AI identity: compact robot control + dashboard intelligence workspace. */
 @media screen{
-  .app-ui .lourex-ai-launcher{isolation:isolate!important;overflow:visible!important;border-radius:17px!important;
-    background:linear-gradient(145deg,#6d5df5 0%,#4776ef 48%,#24b7c7 100%)!important;
-    box-shadow:0 12px 34px rgba(71,118,239,.30)!important;}
-  .app-ui .lourex-ai-launcher>.icon{position:relative;z-index:2;width:25px!important;height:25px!important;stroke-width:1.85!important;}
-  .app-ui .lourex-ai-launcher:before{content:"";position:absolute;inset:-5px;border:1px solid rgba(91,124,250,.26);border-radius:22px;animation:lourex-ai-orbit 3.2s ease-in-out infinite;}
-  .app-ui .lourex-ai-launcher:after{content:"";position:absolute;width:7px;height:7px;right:-3px;top:4px;border-radius:999px;background:#55e4d4;box-shadow:0 0 0 4px rgba(85,228,212,.13),0 0 14px rgba(85,228,212,.8);animation:lourex-ai-pulse 1.8s ease-in-out infinite;}
-  .app-ui .lourex-ai-mark{background:linear-gradient(145deg,rgba(109,93,245,.13),rgba(36,183,199,.12))!important;color:#5f72f2!important;}
-  .app-ui .lourex-ai-mark>.icon{width:23px!important;height:23px!important;}
-  @keyframes lourex-ai-orbit{0%,100%{transform:scale(.96);opacity:.45}50%{transform:scale(1.05);opacity:.9}}
-  @keyframes lourex-ai-pulse{0%,100%{transform:scale(.86);opacity:.7}50%{transform:scale(1.16);opacity:1}}
+  .app-ui .lourex-ai-launcher{
+    isolation:isolate!important;overflow:hidden!important;width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;
+    border-radius:13px!important;border:1px solid color-mix(in srgb,#6d5df5 42%,var(--ft-line))!important;
+    background:linear-gradient(145deg,#6d5df5 0%,#4f79ee 52%,#20b8c7 100%)!important;color:#fff!important;
+    box-shadow:0 8px 20px rgba(79,121,238,.22)!important;transform:none!important;
+  }
+  .app-ui .lourex-ai-launcher>.icon{position:relative;z-index:2;width:21px!important;height:21px!important;stroke-width:1.9!important;}
+  .app-ui .lourex-ai-launcher:before{content:"";position:absolute;inset:3px;border:1px solid rgba(255,255,255,.22);border-radius:10px;opacity:.8;pointer-events:none;}
+  .app-ui .lourex-ai-launcher:after{content:"";position:absolute;width:5px;height:5px;inset-inline-end:5px;top:5px;border-radius:999px;background:#65eadc;box-shadow:0 0 9px rgba(101,234,220,.8);pointer-events:none;}
+  .app-ui .lourex-ai-launcher:hover,.app-ui .lourex-ai-launcher[aria-expanded="true"]{transform:none!important;filter:brightness(1.04)!important;box-shadow:0 9px 24px rgba(79,121,238,.28)!important;}
+  .app-ui .lourex-ai-mark{background:linear-gradient(145deg,color-mix(in srgb,#6d5df5 16%,var(--ft-surface)),color-mix(in srgb,#20b8c7 12%,var(--ft-surface)))!important;color:#6378ef!important;}
+  .app-ui .lourex-ai-mark>.icon{width:22px!important;height:22px!important;}
+
+  .app-ui .lourex-advisor-card{
+    position:relative!important;overflow:hidden!important;border:1px solid color-mix(in srgb,#6676ee 18%,var(--ft-line))!important;
+    border-radius:22px!important;background:linear-gradient(150deg,color-mix(in srgb,#6d5df5 6%,var(--ft-surface)) 0%,var(--ft-surface) 46%,color-mix(in srgb,#20b8c7 5%,var(--ft-surface)) 100%)!important;
+    box-shadow:0 14px 36px rgba(15,23,42,.08)!important;
+  }
+  html[data-ui-theme="dark"] .app-ui .lourex-advisor-card{box-shadow:0 18px 40px rgba(0,0,0,.25)!important;}
+  .app-ui .lourex-advisor-head{padding:16px 17px 10px!important;border-bottom:0!important;}
+  .app-ui .lourex-advisor-identity{gap:11px!important;align-items:center!important;}
+  .app-ui .lourex-advisor-mark{display:grid!important;place-items:center!important;width:42px!important;height:42px!important;min-width:42px!important;border-radius:13px!important;border:1px solid rgba(105,111,239,.25)!important;background:linear-gradient(145deg,#6d5df5,#4f79ee 55%,#20b8c7)!important;color:#fff!important;box-shadow:0 8px 20px rgba(79,121,238,.20)!important;}
+  .app-ui .lourex-advisor-mark .icon{width:21px!important;height:21px!important;}
+  .app-ui .lourex-advisor-identity small{color:#6577e8!important;font-size:10px!important;line-height:14px!important;font-weight:780!important;letter-spacing:.05em!important;}
+  [dir="rtl"] .app-ui .lourex-advisor-identity small{letter-spacing:0!important;}
+  .app-ui .lourex-advisor-identity h2{margin:2px 0 0!important;color:var(--ft-text-strong)!important;font-size:18px!important;line-height:24px!important;font-weight:800!important;}
+  .app-ui .lourex-advisor-identity p{max-width:620px!important;margin:4px 0 0!important;color:var(--ft-muted)!important;font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .lourex-advisor-body{padding:4px 17px 12px!important;}
+  .app-ui .lourex-advisor-welcome{display:block!important;}
+  .app-ui .lourex-advisor-welcome-copy{display:none!important;}
+  .app-ui .lourex-advisor-starters{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;margin:0!important;}
+  .app-ui .lourex-advisor-starters>button{min-height:48px!important;padding:9px 11px!important;border:1px solid var(--ft-line)!important;border-radius:13px!important;background:color-mix(in srgb,var(--ft-surface-2) 92%,transparent)!important;color:var(--ft-text-soft)!important;font-size:11px!important;line-height:16px!important;font-weight:680!important;text-align:start!important;box-shadow:none!important;}
+  .app-ui .lourex-advisor-starters>button:hover{border-color:color-mix(in srgb,#6577e8 28%,var(--ft-line))!important;background:color-mix(in srgb,#6577e8 7%,var(--ft-surface-2))!important;color:var(--ft-text-strong)!important;}
+  .app-ui .lourex-advisor-compose{padding:10px 17px 13px!important;border-top:1px solid color-mix(in srgb,var(--ft-line) 70%,transparent)!important;background:transparent!important;}
+  .app-ui .lourex-advisor-compose form{min-height:48px!important;padding:3px 4px!important;border:1px solid var(--ft-line)!important;border-radius:14px!important;background:var(--ft-input)!important;box-shadow:none!important;}
+  .app-ui .lourex-advisor-compose form:focus-within{border-color:color-mix(in srgb,#6577e8 48%,var(--ft-line))!important;box-shadow:0 0 0 3px rgba(101,119,232,.10)!important;}
+  .app-ui .lourex-advisor-compose form>button{width:42px!important;min-width:42px!important;height:42px!important;border-radius:11px!important;background:linear-gradient(145deg,#6676ee,#3ea5d7)!important;color:#fff!important;}
+  .app-ui .lourex-advisor-trust{margin-top:6px!important;color:var(--ft-faint)!important;font-size:9.5px!important;line-height:14px!important;}
 }
 @media screen and (max-width:860px){
-  .app-ui .lourex-ai-panel,.app-ui .lourex-ai-panel[dir="rtl"]{
-    top:auto!important;left:10px!important;right:10px!important;bottom:calc(94px + env(safe-area-inset-bottom,0px))!important;
-    width:auto!important;height:min(72dvh,680px)!important;max-height:72dvh!important;border-radius:26px!important;
-  }
-  .app-ui .lourex-ai-head{min-height:64px!important;padding:11px 13px!important;}
-  .app-ui .lourex-ai-context{margin:0 13px 6px!important;}
-  .app-ui .lourex-ai-messages{padding:10px 13px 12px!important;}
-  .app-ui .lourex-ai-empty{padding:10px 1px 5px!important;}
-  .app-ui .lourex-ai-empty strong{font-size:16.5px!important;line-height:23px!important;}
-  .app-ui .lourex-ai-compose{padding:9px 11px 10px!important;}
+  .app-ui .lourex-ai-panel,.app-ui .lourex-ai-panel[dir="rtl"]{top:auto!important;left:10px!important;right:10px!important;bottom:calc(94px + env(safe-area-inset-bottom,0px))!important;width:auto!important;height:min(70dvh,650px)!important;max-height:70dvh!important;border-radius:24px!important;}
+  .app-ui .lourex-ai-head{min-height:62px!important;padding:10px 12px!important;}
+  .app-ui .lourex-ai-context{margin:0 12px 5px!important;}
+  .app-ui .lourex-ai-messages{padding:9px 12px 11px!important;}
+  .app-ui .lourex-ai-empty{padding:9px 1px 4px!important;}
+  .app-ui .lourex-ai-empty strong{font-size:16px!important;line-height:22px!important;}
+  .app-ui .lourex-ai-compose{padding:8px 10px 9px!important;}
+  .app-ui .lourex-advisor-card{border-radius:20px!important;}
+  .app-ui .lourex-advisor-head{padding:13px 13px 8px!important;}
+  .app-ui .lourex-advisor-mark{width:40px!important;height:40px!important;min-width:40px!important;}
+  .app-ui .lourex-advisor-identity h2{font-size:17px!important;line-height:23px!important;}
+  .app-ui .lourex-advisor-identity p{display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important;font-size:11px!important;line-height:16px!important;}
+  .app-ui .lourex-advisor-body{padding:3px 13px 10px!important;}
+  .app-ui .lourex-advisor-starters{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;}
+  .app-ui .lourex-advisor-starters>button{min-height:50px!important;padding:8px 9px!important;font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .lourex-advisor-compose{padding:9px 13px 11px!important;}
+  .app-ui .lourex-advisor-trust>span:last-child{display:block!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
 }
-@media(prefers-reduced-motion:reduce){
-  .app-ui .lourex-ai-launcher:before,.app-ui .lourex-ai-launcher:after{animation:none!important;}
-}
+@media screen and (max-width:350px){.app-ui .lourex-advisor-starters{grid-template-columns:1fr!important;}.app-ui .lourex-advisor-identity p{display:none!important;}}
+@media(prefers-reduced-motion:reduce){.app-ui .lourex-ai-launcher{transition:none!important;}}
