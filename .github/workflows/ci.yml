@@ -29,7 +29,20 @@ jobs:
         run: |
           mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
           n=${#files[@]}; start=$((n*0/8)); end=$((n*1/8)); count=$((end-start))
-          node --test "${files[@]:start:count}"
+          printf 'group 1 files (%s):\n' "$count" | tee unit-group-1.log
+          printf '%s\n' "${files[@]:start:count}" | tee -a unit-group-1.log
+          set +e
+          node --test "${files[@]:start:count}" 2>&1 | tee -a unit-group-1.log
+          status=${PIPESTATUS[0]}
+          set -e
+          exit "$status"
+      - name: Upload unit group 1 diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lourex-unit-group-1
+          path: unit-group-1.log
+          if-no-files-found: error
       - name: Unit tests — group 2 of 8
         run: |
           mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
