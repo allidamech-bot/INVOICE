@@ -118,8 +118,8 @@ jobs:
       - name: Install browser visual QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install chromium
-      - name: Run browser functional + TailAdmin v320 QA
+          npx playwright install --with-deps chromium webkit
+      - name: Run browser functional + TailAdmin v320/v337 QA
         run: |
           npx http-server . -p 4173 -c-1 > /tmp/lourex-visual-qa-server.log 2>&1 &
           server_pid=$!
@@ -160,6 +160,12 @@ jobs:
           node tests/visual/run-product-unit-locale-v247.cjs
           node tests/visual/run-operations-mobile-tabs-v242.cjs
           node tests/visual/run-tailadmin-v320.cjs
+          node tests/visual/run-v326-dashboard-documents.cjs
+          node tests/visual/run-v326-business-workspaces.cjs
+          node tests/visual/run-v326-access-surfaces.cjs
+          node tests/visual/run-v326-studio-security-overlays.cjs
+          node tests/visual/run-v337-create-center.cjs
+          node tests/visual/run-v337-document-actions.cjs
       - name: Upload visual QA evidence
         if: always()
         uses: actions/upload-artifact@v6
