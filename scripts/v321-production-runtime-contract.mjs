@@ -31,6 +31,14 @@ if(!html.includes('./startup-watchdog-v321.js?v=321')){
 if(!html.includes('./styles/v331-draft-scroll-recovery.css?v=337-3')){
   throw new Error('v337-3 production contract: repaired Safari document-scroll owner is missing from dist/index.html.');
 }
+if(!html.includes('data-lourex-v331-draft-recovery="true"')){
+  throw new Error('v337-3 production contract: standalone document-scroll owner marker is missing from dist/index.html.');
+}
+const bundleIndex=html.indexOf('./styles/app.bundle.css');
+const recoveryIndex=html.indexOf('./styles/v331-draft-scroll-recovery.css?v=337-3');
+if(bundleIndex<0||recoveryIndex<=bundleIndex){
+  throw new Error('v337-3 production contract: standalone document-scroll owner must load after app.bundle.css.');
+}
 if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/.test(html)){
   throw new Error('v337-3 production contract: stale document-scroll owner survived in dist/index.html.');
 }
