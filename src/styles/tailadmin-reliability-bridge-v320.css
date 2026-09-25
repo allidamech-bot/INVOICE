@@ -1,6 +1,7 @@
 /* LOUREX v326 — reliability bridge only.
    This file intentionally owns runtime/recovery geometry and UI safety contracts.
    It MUST NOT retheme dashboard, documents, editor, AI or workspace content. */
+@import url('./v330-critical-documents-closeout.css?v=330-1');
 :root{
   --v303-canvas:var(--ft-workspace,#f9fafb);
   --v303-surface:var(--ft-surface,#fff);
