@@ -3,7 +3,10 @@
 
   const ROOT=document.documentElement;
   const UPDATE_BUTTON='[data-lourex-update] button,[data-lourex-cloud-refresh] button';
-  const SIGNOUT_BUTTON='.settings-direct-signout-button,.settings-signout-button,.ta-cloud-account-actions button';
+  const SIGNOUT_BUTTON='.settings-direct-signout-button,.settings-signout-button,.ta-cloud-account-actions button,.ta-sheet-signout';
+  const WORKSPACE_CONTINUITY_KEY='lourex-workspace-continuity-v340';
+  const WORKSPACE_CONTINUITY_MAX_AGE=2*60*60*1000;
+  const WORKSPACE_ORDER=['home','documents','customers','items','operations','receivables','reports'];
 
   function manualInventoryDraftOpen(){
     const entry=document.querySelector('.operations-page .ta-inventory-entry,.operations-page .inventory-entry');
@@ -75,6 +78,81 @@
       :'Save and close the current document or data-entry workspace before signing out.';
   }
 
+  function currentWorkspace(){
+    const shell=document.querySelector('.workspace-shell');
+    if(!(shell instanceof HTMLElement))return '';
+    for(const screen of WORKSPACE_ORDER)if(shell.classList.contains(`screen-${screen}`))return screen;
+    return '';
+  }
+
+  function continuityPayload(screen){return JSON.stringify({screen,at:Date.now()});}
+
+  function saveWorkspaceContinuity(){
+    const screen=currentWorkspace();
+    if(!screen)return;
+    const payload=continuityPayload(screen);
+    try{sessionStorage.setItem(WORKSPACE_CONTINUITY_KEY,payload);}catch{}
+    try{localStorage.setItem(WORKSPACE_CONTINUITY_KEY,payload);}catch{}
+  }
+
+  function clearWorkspaceContinuity(){
+    try{sessionStorage.removeItem(WORKSPACE_CONTINUITY_KEY);}catch{}
+    try{localStorage.removeItem(WORKSPACE_CONTINUITY_KEY);}catch{}
+  }
+
+  function readWorkspaceContinuity(){
+    let raw='';
+    try{raw=sessionStorage.getItem(WORKSPACE_CONTINUITY_KEY)||'';}catch{}
+    if(!raw){try{raw=localStorage.getItem(WORKSPACE_CONTINUITY_KEY)||'';}catch{}}
+    if(!raw)return '';
+    try{
+      const value=JSON.parse(raw);
+      const screen=String(value?.screen||'');
+      const at=Number(value?.at||0);
+      if(!WORKSPACE_ORDER.includes(screen)||!at||Date.now()-at>WORKSPACE_CONTINUITY_MAX_AGE){clearWorkspaceContinuity();return '';}
+      return screen;
+    }catch{clearWorkspaceContinuity();return '';}
+  }
+
+  function navigationButtonFor(screen){
+    const index=WORKSPACE_ORDER.indexOf(screen);
+    if(index<0)return null;
+    const items=Array.from(document.querySelectorAll('.ta-sidebar-nav .ta-nav-item'));
+    const button=items[index];
+    return button instanceof HTMLButtonElement?button:null;
+  }
+
+  function installWorkspaceContinuity(){
+    const wanted=readWorkspaceContinuity();
+    const deadline=Date.now()+12000;
+    const settle=()=>{
+      const shell=document.querySelector('.workspace-shell');
+      if(!(shell instanceof HTMLElement)){
+        if(Date.now()<deadline)window.setTimeout(settle,60);
+        return;
+      }
+
+      const active=currentWorkspace();
+      if(wanted&&wanted!=='home'&&active==='home'&&!ROOT.hasAttribute('data-lourex-signing-out')){
+        const button=navigationButtonFor(wanted);
+        if(button){button.click();}
+      }
+
+      const observeShell=()=>{
+        const liveShell=document.querySelector('.workspace-shell');
+        if(!(liveShell instanceof HTMLElement))return;
+        saveWorkspaceContinuity();
+        const observer=new MutationObserver(()=>saveWorkspaceContinuity());
+        observer.observe(liveShell,{attributes:true,attributeFilter:['class']});
+      };
+      window.setTimeout(observeShell,80);
+    };
+    settle();
+
+    window.addEventListener('pagehide',saveWorkspaceContinuity,{capture:true});
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveWorkspaceContinuity();});
+  }
+
   /* Account switching is requested asynchronously by the Firebase auth watcher and
      can be deferred while an editor is open. A request is valid only while Firebase
      still exposes the same UID. If auth became null or changed meanwhile, release
@@ -104,13 +182,24 @@
     const target=event.target;
     if(!(target instanceof Element))return;
     const button=target.closest(SIGNOUT_BUTTON);
-    if(!(button instanceof HTMLButtonElement)||button.disabled||!signOutUnsafeWorkspaceOpen())return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    explainBlockedSignOut(button);
+    if(!(button instanceof HTMLButtonElement)||button.disabled)return;
+    if(signOutUnsafeWorkspaceOpen()){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      explainBlockedSignOut(button);
+      return;
+    }
+    clearWorkspaceContinuity();
   },true);
 
-  /* Expose a read-only predicate for diagnostics/tests and future runtime guards.
-     It does not mutate application state or business data. */
+  /* Safari/iOS can discard and recreate a tab process under memory pressure. The
+     encrypted data survives, but React screen state used to return to Home because
+     v217's restore code still targets the retired pre-TailAdmin navigation and did
+     not include Purchasing/Operations. Keep only the current top-level workspace,
+     never an editor or draft, and restore it for a short continuity window. */
+  installWorkspaceContinuity();
+
+  /* Expose read-only predicates for diagnostics and future runtime guards. */
   try{Object.defineProperty(window,'__LOUREX_UNSAFE_WORKSPACE_OPEN__',{value:unsafeWorkspaceOpen,writable:false,configurable:true});}catch{}
+  try{Object.defineProperty(window,'__LOUREX_WORKSPACE_CONTINUITY_V340__',{value:{current:currentWorkspace,save:saveWorkspaceContinuity},writable:false,configurable:true});}catch{}
 })();
