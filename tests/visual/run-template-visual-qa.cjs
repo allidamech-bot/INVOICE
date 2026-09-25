@@ -25,7 +25,19 @@ async function inspectPage(page,testCase){
     for(const [pageIndex,sheet] of pages.entries()){
       const bounds=rect(sheet);
       if(sheet.scrollHeight>sheet.clientHeight+2)violations.push(`page ${pageIndex+1}: vertical overflow ${sheet.scrollHeight-sheet.clientHeight}px`);
-      if(sheet.scrollWidth>sheet.clientWidth+2)violations.push(`page ${pageIndex+1}: horizontal overflow ${sheet.scrollWidth-sheet.clientWidth}px`);
+      if(sheet.scrollWidth>sheet.clientWidth+2){
+        const escapers=[...sheet.querySelectorAll('*')].filter(element=>{
+          const style=getComputedStyle(element),r=rect(element);
+          if(style.display==='none'||style.visibility==='hidden'||Number(style.opacity)===0)return false;
+          if(r.width<=0||r.height<=0)return false;
+          return r.left<bounds.left-1||r.right>bounds.right+1;
+        });
+        if(escapers.length){
+          const culprit=escapers[0];
+          const name=typeof culprit.className==='string'&&culprit.className.trim()?`.${culprit.className.trim().split(/\s+/).join('.')}`:culprit.tagName.toLowerCase();
+          violations.push(`page ${pageIndex+1}: horizontal overflow ${sheet.scrollWidth-sheet.clientWidth}px via ${name}`);
+        }
+      }
       for(const selector of ['.header-executive','.header-minimal','.header-trade','.header-signature','.header-modern','.continuation-header','.doc-body','.doc-footer','.party-grid','.items-wrap','.final-details','.totals-block','.bottom-grid','.signature-media']){
         for(const element of sheet.querySelectorAll(selector)){
           const r=rect(element);
