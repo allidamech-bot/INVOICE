@@ -7,7 +7,7 @@ const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 test('v334 runtime guard loads before document entry/app runtime and blocks unsafe update buttons in capture phase',async()=>{
   const [html,guard]=await Promise.all([read('index.html'),read('public/runtime-safety-v334.js')]);
   const runtime=html.indexOf('runtime-safety-v334.js?v=334');
-  const entry=html.indexOf('document-entry-v302.js?v=337-2');
+  const entry=html.indexOf('document-entry-v302.js?v=337-3');
   const app=html.indexOf('<script type="module" src="./src/app/index.js"></script>');
   assert.ok(runtime>0&&runtime<entry&&entry<app);
   assert.match(guard,/manualInventoryDraftOpen\(\)/);
