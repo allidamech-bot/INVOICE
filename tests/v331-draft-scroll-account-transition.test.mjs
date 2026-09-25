@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v336 restores ta-main as the Safari-safe mobile document scroll owner',async()=>{
+test('v337 restores ta-main as the Safari-safe mobile document scroll owner',async()=>{
   const css=await read('src/styles/v331-draft-scroll-recovery.css');
   assert.match(css,/\.ta-shell\.is-editor>\.ta-main,[\s\S]*\.ta-shell\.screen-editor>\.ta-main,[\s\S]*\.screen-editor \.ta-main\{[\s\S]*overflow-y:auto!important[\s\S]*touch-action:pan-y!important/);
   assert.match(css,/\.ta-shell\.is-editor:has\(\.draft-studio\)>\.ta-main,[\s\S]*\.ta-shell\.screen-editor:has\(\.draft-studio\)>\.ta-main\{[\s\S]*overflow-y:auto!important/);
@@ -23,15 +23,16 @@ test('v331 defers automatic account/storage transitions while any editor is open
   assert.match(runtime,/window\.addEventListener\('lourex-account-transition-request',guardAutomaticAccountTransition,true\)/);
 });
 
-test('v331 runtime promotes the recovery stylesheet after TailAdmin owners',async()=>{
+test('v337 runtime promotes the current recovery stylesheet after TailAdmin owners',async()=>{
   const runtime=await read('public/document-entry-v302.js');
   const promote=runtime.indexOf('promoteTailAdminOwners();');
   const draft=runtime.indexOf('promoteDraftRecovery();');
   assert.ok(promote>=0&&draft>promote);
-  assert.match(runtime,/v331-draft-scroll-recovery\.css\?v=331-1/);
+  assert.match(runtime,/v331-draft-scroll-recovery\.css\?v=337-3/);
+  assert.doesNotMatch(runtime,/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/);
 });
 
-test('v336 scroll recovery does not change Draft save PDF share behavior',async()=>{
+test('v337 scroll recovery does not change Draft save PDF share behavior',async()=>{
   const editor=await read('src/components/DraftDocumentEditor.tsx');
   assert.match(editor,/onClick=\{\(\)=>void this\.output\('pdf'\)\}>PDF/);
   assert.match(editor,/onClick=\{\(\)=>void this\.output\('share'\)\}/);
