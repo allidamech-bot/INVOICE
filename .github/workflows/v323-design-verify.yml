@@ -26,7 +26,8 @@ jobs:
       - name: Install browser QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0 http-server@14.1.1
-          npx playwright install chromium webkit
+          npx playwright install chromium
+          npx playwright install --with-deps webkit
       - name: Design visual QA
         run: |
           python - <<'PY'
@@ -150,14 +151,9 @@ jobs:
                 await page.locator(item.selector).waitFor({state:'visible'});
                 await page.waitForTimeout(100);
                 const state=await page.evaluate(({name})=>{
-                  const visible=e=>e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden';
                   const rect=e=>e?.getBoundingClientRect();
                   const root=document.documentElement;
-                  const buttons=[...document.querySelectorAll('button')].filter(visible).map(e=>({r:rect(e),cls:e.className||'',label:e.textContent?.trim()||e.getAttribute('aria-label')||''}));
-                  const top=rect(document.querySelector('.ta-topbar'));
-                  const nav=rect(document.querySelector('.ta-mobile-nav'));
-                  const modal=rect(document.querySelector('.modal.modal-xl'));
-                  return {name,sw:root.scrollWidth,iw:innerWidth,ih:innerHeight,dir:root.dir,top,nav,modal,buttons};
+                  return {name,sw:root.scrollWidth,iw:innerWidth,ih:innerHeight,dir:root.dir,top:rect(document.querySelector('.ta-topbar')),nav:rect(document.querySelector('.ta-mobile-nav')),modal:rect(document.querySelector('.modal.modal-xl'))};
                 },{name:item.name});
                 if(state.sw>state.iw+2)failures.push(`${item.name} ${vp.width} ${lang}: WebKit overflow ${state.sw}/${state.iw}`);
                 if(lang==='ar'&&state.dir!=='rtl')failures.push(`${item.name} ${vp.width}: WebKit Arabic not RTL`);
@@ -167,7 +163,6 @@ jobs:
                   if(!state.nav||state.nav.left<-1||state.nav.right>state.iw+1||state.nav.bottom>state.ih+1)failures.push(`shell ${vp.width} ${lang}: WebKit nav outside viewport`);
                 }
                 if(item.name==='documents'){
-                  const tabs=state.buttons.filter(b=>String(b.cls).includes('')&&b.r&&b.r.height>0);
                   const docTabs=await page.locator('.ta-doc-type-tabs>button').evaluateAll(es=>es.filter(e=>getComputedStyle(e).display!=='none').map(e=>e.getBoundingClientRect().height));
                   if(docTabs.some(h=>h<44-.25))failures.push(`documents ${vp.width} ${lang}: WebKit tab below 44px`);
                 }
