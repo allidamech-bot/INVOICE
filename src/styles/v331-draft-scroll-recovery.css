@@ -1,79 +1,120 @@
 @import url("./v333-critical-documents-visual-functional-closeout.css?v=333-1");
 
-/* LOUREX v331 — Draft Studio scroll recovery after v330.
- * Scope is intentionally Draft-only. Commercial quotation/invoice editor geometry
- * remains owned by v330. No document data, autosave, output or PDF logic changes. */
+/* LOUREX v336 — Safari/iPhone/iPad document scroll owner recovery.
+ * Runtime promotes the TailAdmin owner styles after v330. One of those owners
+ * intentionally locks .ta-main with overflow:hidden for the editor shell, which
+ * can override the older mobile document scroll rule in production. This layer
+ * is itself runtime-promoted after TailAdmin, so it is the final geometry owner.
+ *
+ * Contract: one vertical scroll owner per mobile/tablet document editor: .ta-main.
+ * Draft Studio no longer depends on a nested percentage-height scroller, which is
+ * fragile in WebKit when the browser chrome changes the visual viewport.
+ * No document data, autosave, accounting, output, PDF, Firebase or PIN logic changes. */
 
+/* Commercial document editors: RFQ, Quotation, Proforma, Purchase Order,
+ * Commercial Invoice, Delivery Note, Payment Receipt and related editor roles. */
+@media screen and (max-width:900px){
+  html body .app-ui .ta-shell.is-editor>.ta-main,
+  html body .app-ui .ta-shell.screen-editor>.ta-main,
+  html body .app-ui .screen-editor .ta-main{
+    height:100vh!important;
+    height:100dvh!important;
+    min-height:0!important;
+    max-height:100dvh!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior-y:contain!important;
+    touch-action:pan-y!important;
+  }
+
+  /* Keep every commercial editor descendant in normal document flow so no
+     nested overflow container can intercept a vertical Safari swipe. */
+  html body .app-ui .screen-editor :where(
+    .ta-editor-workspace,
+    .ta-editor-core-slot,
+    .editor-screen,
+    .editor-layout,
+    .editor-pane,
+    .editor-scroll,
+    .editor-form-lock
+  ){
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+  }
+
+  html body .app-ui .screen-editor :where(
+    .ta-editor-workspace,
+    .ta-editor-core-slot,
+    .editor-screen,
+    .editor-layout,
+    .editor-pane,
+    .editor-scroll,
+    .editor-form-lock,
+    .editor-section
+  ){
+    overflow:visible!important;
+  }
+
+  html body .app-ui .screen-editor .editor-scroll{
+    touch-action:pan-y!important;
+    -webkit-overflow-scrolling:auto!important;
+  }
+}
+
+/* Draft Studio uses the same outer scroll owner through tablet widths. This
+ * deliberately replaces the old nested .draft-studio-scroll owner. */
 @media screen and (max-width:1180px){
-  /* Draft owns one internal viewport. v330 makes the commercial editor's outer
-     .ta-main the scroll owner; that model must not leak into Draft Studio. */
+  html body .app-ui .ta-shell.is-editor:has(.draft-studio)>.ta-main,
   html body .app-ui .ta-shell.screen-editor:has(.draft-studio)>.ta-main{
-    height:100%!important;
+    height:100vh!important;
+    height:100dvh!important;
     min-height:0!important;
-    overflow:hidden!important;
-    overscroll-behavior:none!important;
-    touch-action:auto!important;
+    max-height:100dvh!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior-y:contain!important;
+    touch-action:pan-y!important;
   }
 
-  html body .app-ui .screen-editor .ta-draft-studio-workspace{
-    width:100%!important;
-    height:100%!important;
-    min-height:0!important;
-    max-height:100%!important;
-    overflow:hidden!important;
-  }
-
-  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio.editor-screen{
-    width:100%!important;
-    height:100%!important;
-    min-height:0!important;
-    max-height:100%!important;
-    display:flex!important;
-    flex-direction:column!important;
-    overflow:hidden!important;
-    overscroll-behavior:none!important;
-  }
-
-  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-topbar,
-  html body .app-ui .screen-editor .ta-draft-studio-workspace .editor-global-error{
-    flex:0 0 auto!important;
-  }
-
-  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-layout{
-    flex:1 1 auto!important;
+  html body .app-ui .screen-editor .ta-draft-studio-workspace,
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio.editor-screen,
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-layout,
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-controls,
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
     width:100%!important;
     height:auto!important;
     min-height:0!important;
     max-height:none!important;
+    overflow:visible!important;
+  }
+
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio.editor-screen{
     display:block!important;
-    overflow:hidden!important;
+    overscroll-behavior:contain!important;
+  }
+
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-layout{
+    display:block!important;
   }
 
   html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-controls{
-    width:100%!important;
-    height:100%!important;
-    min-height:0!important;
-    max-height:100%!important;
-    overflow:hidden!important;
     border-inline-end:0!important;
   }
 
   html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
-    width:100%!important;
-    height:100%!important;
-    min-height:0!important;
-    max-height:none!important;
-    overflow-y:auto!important;
-    overflow-x:hidden!important;
-    overscroll-behavior-y:contain!important;
-    -webkit-overflow-scrolling:touch!important;
-    touch-action:pan-y!important;
-    scroll-padding-bottom:calc(118px + env(safe-area-inset-bottom,0px))!important;
+    touch-action:auto!important;
+    -webkit-overflow-scrolling:auto!important;
+    padding-bottom:calc(132px + env(safe-area-inset-bottom,0px))!important;
+    scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom,0px))!important;
   }
 
-  /* Draft preview is not a second scroll owner while editing on phones/tablets. */
-  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-preview{
-    min-height:0!important;
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-topbar{
+    position:sticky!important;
+    top:0!important;
+    z-index:45!important;
   }
 
   /* Draft has its own focused writing workflow; keep the global AI launcher out. */
@@ -86,10 +127,12 @@
   html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-layout{
     padding:10px!important;
   }
+
   html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
-    padding:10px 10px calc(124px + env(safe-area-inset-bottom,0px))!important;
-    scroll-padding-bottom:calc(124px + env(safe-area-inset-bottom,0px))!important;
+    padding:10px 10px calc(138px + env(safe-area-inset-bottom,0px))!important;
+    scroll-padding-bottom:calc(138px + env(safe-area-inset-bottom,0px))!important;
   }
+
   html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-control-section{
     scroll-margin-top:10px!important;
   }
