@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en" data-lourex-document-editor="qa-document">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>v339 sign-out guard</title></head>
+<body>
+  <section class="ta-cloud-account">
+    <div id="editable-state">Document editor active</div>
+    <footer class="ta-cloud-account-actions"><button id="signout" type="button">Sign Out</button></footer>
+  </section>
+  <script src="/runtime-safety-v334.js?v=334"></script>
+  <script>
+    window.__qaSignOutCalls=0;
+    document.getElementById('signout').addEventListener('click',()=>{window.__qaSignOutCalls+=1;});
+  </script>
+</body>
+</html>
