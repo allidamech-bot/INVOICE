@@ -42,6 +42,19 @@ test('mobile editor scroll owner stays inside the shell grid row instead of clai
   }
 });
 
+test('Safari command sheets share one explicit vertical touch-scroll contract',async()=>{
+  const recovery=await read('src/styles/v331-draft-scroll-recovery.css');
+  assert.match(recovery,/\.ta-mobile-sheet,\.ta-create-menu-mobile/);
+  assert.match(recovery,/\.global-search-start,\.global-search-results/);
+  assert.match(recovery,/\.ta-doc-mobile-action-sheet,\.mobile-document-action-sheet/);
+  const contract=recovery.slice(recovery.indexOf('/* v337 — the newer TailAdmin command sheets'),recovery.indexOf('@media screen and (max-width:720px)'));
+  assert.match(contract,/overflow-y:auto!important/);
+  assert.match(contract,/overscroll-behavior-y:contain!important/);
+  assert.match(contract,/-webkit-overflow-scrolling:touch!important/);
+  assert.match(contract,/touch-action:pan-y!important/);
+  assert.doesNotMatch(contract,/overflow-y:hidden|touch-action:none/i);
+});
+
 test('later document-semantic owner cannot retake editor scroll geometry from v331',async()=>{
   const semantics=await read('src/styles/v332-critical-documents-deep-closeout.css');
   assert.doesNotMatch(semantics,/\.ta-main/);
