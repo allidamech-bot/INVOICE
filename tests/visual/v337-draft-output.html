@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <base href="../../dist/">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles/app.bundle.css">
+  <link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css?v=337-3" data-lourex-qa-runtime-document-owner="true">
+  <style>
+    html,body{margin:0;min-height:100%;background:#e8ecee;color:#17222b}
+    body{padding:24px}
+    #root{min-height:100%}
+    .draft-output-fixture{display:flex;justify-content:center;align-items:flex-start;min-width:0}
+    @media print{body{padding:0;background:#fff}.draft-output-fixture{display:block}}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="vendor/react.production.min.js"></script>
+  <script src="vendor/react-dom.production.min.js"></script>
+  <script type="module">
+    import {DraftDocumentRenderer} from './src/components/DraftDocumentRenderer.js';
+    import {createBlankDocument} from './src/lib/documents.js';
+    import {defaultCompany} from './src/lib/defaults.js';
+    import {defaultLetterBlock,defaultLetterData} from './src/lib/document-extras.js';
+    import {setUiLanguage} from './src/lib/i18n.js';
+
+    const params=new URLSearchParams(location.search);
+    const lang=params.get('lang')==='ar'?'ar':'en';
+    const pageStyle=['plain','ruled','grid'].includes(params.get('page'))?params.get('page'):'plain';
+    const headerStyle=['classic','minimal','accent'].includes(params.get('header'))?params.get('header'):'accent';
+    const footerStyle=['company','minimal','none'].includes(params.get('footer'))?params.get('footer'):'company';
+    const bodyWidth=['narrow','comfortable','wide'].includes(params.get('width'))?params.get('width'):'comfortable';
+    setUiLanguage(lang);
+    document.documentElement.lang=lang;
+    document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+
+    const company=defaultCompany();
+    company.nameEn='LOUREX Trading & Supply';
+    company.nameAr='لوركس للتجارة والتوريد';
+    company.addressEn='Istanbul Business District';
+    company.addressAr='منطقة إسطنبول للأعمال';
+    company.city='Istanbul';
+    company.country='Türkiye';
+    company.phone='+90 539 241 1642';
+    company.email='qa@lourex.example';
+    company.website='www.lou-rex.com';
+    company.footerText='LOUREX Trading & Supply · Istanbul · qa@lourex.example · www.lou-rex.com';
+    const svg=value=>`data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="240" height="100" viewBox="0 0 240 100"><rect width="240" height="100" rx="18" fill="white"/><path d="M22 68 C54 20 91 86 133 34 S195 76 220 28" fill="none" stroke="#213547" stroke-width="7" stroke-linecap="round"/><text x="26" y="88" font-family="Arial" font-size="18" fill="#213547">${value}</text></svg>`)}`;
+    company.logoDataUrl=svg('LOUREX');
+    company.signatureDataUrl=svg('SIGNATURE');
+    company.stampDataUrl=svg('STAMP');
+
+    const doc=createBlankDocument('draft','DR-2026-QA',company);
+    doc.language=lang;
+    doc.issueDate='2026-09-25';
+    doc.appearance.watermark={enabled:true,type:'text',pattern:'repeat',text:lang==='ar'?'مسودة':'DRAFT',opacity:.055,color:'#2d6370',angle:-28,size:66};
+
+    const letter=defaultLetterData(lang);
+    letter.pageStyle=pageStyle;
+    letter.headerStyle=headerStyle;
+    letter.footerStyle=footerStyle;
+    letter.bodyWidth=bodyWidth;
+    letter.recipient=lang==='ar'?'السادة شركة الاختبار للتجارة':'QA Trading Company';
+    letter.attention=lang==='ar'?'إدارة المشتريات':'Purchasing Department';
+    letter.subject=lang==='ar'?'اختبار إخراج المسودة متعدد الصفحات':'Multi-page Draft Output Verification';
+    letter.reference='QA-V337-3';
+    letter.showLogo=true;
+    letter.showCompanyDetails=true;
+    letter.showDate=true;
+    letter.showReference=true;
+    letter.showSignature=true;
+    letter.showStamp=true;
+    letter.accentColor='#2f7d86';
+
+    const paragraphEn='This verification paragraph intentionally contains enough commercial correspondence text to exercise real line wrapping, page pagination, footer clearance, watermark stacking, and selectable document output without depending on the retired Draft Studio visual layer.';
+    const paragraphAr='هذه فقرة تحقق طويلة صممت لاختبار التفاف النص الحقيقي وتقسيم الصفحات ومساحة التذييل وترتيب العلامة المائية وإخراج المستند العربي بشكل صحيح من دون الاعتماد على طبقة واجهة المسودة القديمة.';
+    const blocks=[];
+    const heading=defaultLetterBlock('heading',lang==='ar'?'خطاب أعمال رسمي':'FORMAL BUSINESS LETTER');
+    heading.id='qa-heading';heading.direction=lang==='ar'?'rtl':'ltr';heading.font=lang==='ar'?'cairo':'inter';blocks.push(heading);
+    for(let index=0;index<14;index+=1){
+      const type=index===5?'quote':index===9?'bullet':'paragraph';
+      const block=defaultLetterBlock(type,`${lang==='ar'?paragraphAr:paragraphEn} ${lang==='ar'?'الفقرة':'Paragraph'} ${index+1}.`);
+      block.id=`qa-block-${index+1}`;
+      block.direction=lang==='ar'?'rtl':'ltr';
+      block.align=index%4===3?'justify':'start';
+      block.font=lang==='ar'?'cairo':'inter';
+      block.size=14;
+      blocks.push(block);
+      if(index===7){const spacer=defaultLetterBlock('spacer','');spacer.id='qa-spacer';spacer.spacingAfter=22;blocks.push(spacer);}
+    }
+    letter.blocks=blocks;
+    doc.letter=letter;
+
+    window.__DRAFT_OUTPUT_QA__={lang,pageStyle,headerStyle,footerStyle,bodyWidth,blockCount:blocks.length};
+    ReactDOM.render(React.createElement('main',{className:'draft-output-fixture'},React.createElement(DraftDocumentRenderer,{document:doc,scale:1})),document.getElementById('root'));
+    requestAnimationFrame(()=>{document.documentElement.dataset.ready='true';});
+  </script>
+</body>
+</html>
