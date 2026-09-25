@@ -100,3 +100,57 @@
   html body .app-ui .ta-kpi-card{padding:12px!important;}
   html body .app-ui .ta-documents-header-actions>.btn{font-size:10.5px!important;}
 }
+
+/* LOUREX v324 — cloud/update notices must never cover page headings on mobile.
+ * Keep the action visible, but reduce the notice to a compact bottom toast above
+ * the navigation dock. This is presentation-only; cloud/update behavior is unchanged. */
+@media screen and (max-width:900px){
+  html body .pwa-update-toast.pwa-update-toast.pwa-update-toast,
+  html body [data-lourex-cloud-refresh][data-lourex-cloud-refresh][data-lourex-cloud-refresh],
+  html body [data-lourex-update][data-lourex-update][data-lourex-update]{
+    position:fixed!important;
+    top:auto!important;
+    bottom:calc(92px + env(safe-area-inset-bottom,0px))!important;
+    left:50%!important;
+    right:auto!important;
+    inset-inline:auto!important;
+    width:min(340px,calc(100vw - 28px))!important;
+    max-width:min(340px,calc(100vw - 28px))!important;
+    min-height:52px!important;
+    padding:6px 7px 6px 11px!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    align-items:center!important;
+    gap:8px!important;
+    transform:translateX(-50%)!important;
+    border-radius:14px!important;
+    box-shadow:0 16px 38px rgba(0,0,0,.24)!important;
+  }
+  html body .pwa-update-toast.pwa-update-toast.pwa-update-toast small,
+  html body [data-lourex-cloud-refresh][data-lourex-cloud-refresh][data-lourex-cloud-refresh] small,
+  html body [data-lourex-update][data-lourex-update][data-lourex-update] small{display:none!important;}
+  html body .pwa-update-toast.pwa-update-toast.pwa-update-toast strong,
+  html body [data-lourex-cloud-refresh][data-lourex-cloud-refresh][data-lourex-cloud-refresh] strong,
+  html body [data-lourex-update][data-lourex-update][data-lourex-update] strong{
+    display:block!important;
+    min-width:0!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    font-size:11px!important;
+    line-height:16px!important;
+    font-weight:700!important;
+  }
+  html body .pwa-update-toast.pwa-update-toast.pwa-update-toast button,
+  html body [data-lourex-cloud-refresh][data-lourex-cloud-refresh][data-lourex-cloud-refresh] button,
+  html body [data-lourex-update][data-lourex-update][data-lourex-update] button{
+    min-width:68px!important;
+    min-height:40px!important;
+    height:40px!important;
+    padding:0 10px!important;
+    border-radius:9px!important;
+    font-size:10.5px!important;
+    line-height:14px!important;
+    white-space:nowrap!important;
+  }
+}
