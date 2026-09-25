@@ -24,7 +24,10 @@ const webkitScenarios=[
   {name:'iphone320-dark',width:320,height:700,theme:'dark'},
   {name:'iphone390-light',width:390,height:844,theme:'light'},
   {name:'iphone390-dark',width:390,height:844,theme:'dark'},
-  {name:'iphone430-light',width:430,height:932,theme:'light'}
+  {name:'iphone430-light',width:430,height:932,theme:'light'},
+  {name:'ipad820-light',width:820,height:1180,theme:'light'},
+  {name:'ipad820-dark',width:820,height:1180,theme:'dark'},
+  {name:'ipad-landscape1180-light',width:1180,height:820,theme:'light'}
 ];
 const languages=['en','ar'];
 
@@ -46,7 +49,7 @@ async function inspect(page,surface,scenario,lang){
     if(document.documentElement.scrollWidth>scenario.width+2)failures.push(`horizontal overflow ${document.documentElement.scrollWidth}px > ${scenario.width}px`);
     if(lang==='ar'&&document.documentElement.dir!=='rtl')failures.push(`Arabic dir=${document.documentElement.dir}`);
     if(lang==='en'&&document.documentElement.dir==='rtl')failures.push('English remained rtl');
-    if(scenario.width<=900&&targetBox.width>scenario.width+3)failures.push(`surface width ${targetBox.width.toFixed(1)} exceeds viewport ${scenario.width}`);
+    if(scenario.width<=1180&&targetBox.width>scenario.width+3)failures.push(`surface width ${targetBox.width.toFixed(1)} exceeds viewport ${scenario.width}`);
 
     if(surface.name==='editor'){
       checkFonts(['.ta-editor-step-label'],10.5,'editor');
@@ -63,7 +66,7 @@ async function inspect(page,surface,scenario,lang){
     if(surface.name.startsWith('auth-')){
       checkTargets(['.ta-auth-language','.ta-auth-tabs button','.ta-google-button','.ta-auth-primary','.ta-auth-link'],'auth');
       checkFonts(['.ta-auth-security small'],10,'auth');
-      if(scenario.width<=900){const r=target.getBoundingClientRect();if(r.left<-2||r.right>scenario.width+2)failures.push(`auth frame leaves viewport ${JSON.stringify(box(target))}`);}
+      if(scenario.width<=1180){const r=target.getBoundingClientRect();if(r.left<-2||r.right>scenario.width+2)failures.push(`auth frame leaves viewport ${JSON.stringify(box(target))}`);}
     }
     if(surface.name==='modal'){
       const r=target.getBoundingClientRect();if(r.top<-2||r.bottom>scenario.height+2)failures.push(`modal leaves viewport ${JSON.stringify(box(target))}`);
@@ -103,8 +106,8 @@ async function probeGlobalSearchResults(page,state,scenario){
     return data;
   });
   if(!probe){state.failures.push('global-search results scroller missing');return;}
-  if(scenario.width<=900&&probe.touchAction!=='pan-y')state.failures.push(`global-search touch-action=${probe.touchAction||'missing'}, expected pan-y`);
-  if(scenario.width<=900&&probe.max<=2)state.failures.push(`global-search fixture did not force scrolling (max=${probe.max})`);
+  if(scenario.width<=1180&&probe.touchAction!=='pan-y')state.failures.push(`global-search touch-action=${probe.touchAction||'missing'}, expected pan-y through tablet widths`);
+  if(scenario.width<=1180&&scenario.height<=900&&probe.max<=2)state.failures.push(`global-search short tablet/mobile fixture did not force scrolling (max=${probe.max})`);
   if(probe.max>2&&!['auto','scroll'].includes(probe.overflowY))state.failures.push(`global-search overflow-y=${probe.overflowY} with ${probe.max}px hidden range`);
   if(probe.max>2&&probe.after<probe.max-2)state.failures.push(`global-search cannot reach scroll end ${probe.after}/${probe.max}`);
   if(!probe.lastReachable)state.failures.push(`global-search last result clipped ${probe.lastBottom} > ${probe.scrollerBottom}`);
@@ -116,7 +119,8 @@ async function runEngine(engine,browserType,scenarios){
   const rows=[];
   try{
     for(const surface of surfaces){for(const scenario of scenarios){for(const lang of languages){
-      const context=await browser.newContext({viewport:{width:scenario.width,height:scenario.height},hasTouch:scenario.width<=900,isMobile:scenario.width<=900});
+      const touchLike=scenario.width<=1180;
+      const context=await browser.newContext({viewport:{width:scenario.width,height:scenario.height},hasTouch:touchLike,isMobile:scenario.width<=900});
       const page=await context.newPage();const errors=[];
       page.on('pageerror',error=>errors.push(`pageerror: ${String(error)}`));
       page.on('console',message=>{if(message.type()==='error')errors.push(`console: ${message.text()}`);});
@@ -153,5 +157,5 @@ async function runEngine(engine,browserType,scenarios){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.state.failures.map(f=>`${row.engine}/${row.surface}/${row.scenario}/${row.lang}: ${f}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v337 access surfaces: ${rows.length} Chromium/WebKit scenarios passed, including 320px Safari Global Search pan-y scrolling.`);
+  console.log(`v337 access surfaces: ${rows.length} Chromium/WebKit scenarios passed, including iPhone + iPad Global Search pan-y reachability.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
