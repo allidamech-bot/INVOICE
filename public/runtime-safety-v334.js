@@ -153,17 +153,8 @@
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveWorkspaceContinuity();});
   }
 
-  /* Account switching is requested asynchronously by the Firebase auth watcher and
-     can be deferred while an editor is open. A request is valid only while Firebase
-     still exposes the same UID. If auth became null or changed meanwhile, release
-     the watcher's in-flight flag and wait for a fresh auth callback/request instead
-     of switching IndexedDB to a stale deferred account. This listener is registered
-     before document-entry and the React application listeners. */
   window.addEventListener('lourex-account-transition-request',guardStaleAccountTransition,true);
 
-  /* Capture before the update/cloud button handler. This is an independent last
-     guard for Safari timing windows where React has accepted an inventory edit but
-     the shared dirty marker has not reached the root element yet. */
   document.addEventListener('click',event=>{
     const target=event.target;
     if(!(target instanceof Element))return;
@@ -174,10 +165,6 @@
     explainDeferred(button);
   },true);
 
-  /* Account/Settings sign-out paths intentionally reload after Firebase confirms
-     the sign-out. Never let those handlers start while a document editor or inline
-     business draft owns unsaved state. The account modal itself is not considered
-     unsafe; otherwise its own Sign Out button would be blocked permanently. */
   document.addEventListener('click',event=>{
     const target=event.target;
     if(!(target instanceof Element))return;
@@ -192,14 +179,181 @@
     clearWorkspaceContinuity();
   },true);
 
-  /* Safari/iOS can discard and recreate a tab process under memory pressure. The
-     encrypted data survives, but React screen state used to return to Home because
-     v217's restore code still targets the retired pre-TailAdmin navigation and did
-     not include Purchasing/Operations. Keep only the current top-level workspace,
-     never an editor or draft, and restore it for a short continuity window. */
   installWorkspaceContinuity();
 
-  /* Expose read-only predicates for diagnostics and future runtime guards. */
   try{Object.defineProperty(window,'__LOUREX_UNSAFE_WORKSPACE_OPEN__',{value:unsafeWorkspaceOpen,writable:false,configurable:true});}catch{}
   try{Object.defineProperty(window,'__LOUREX_WORKSPACE_CONTINUITY_V340__',{value:{current:currentWorkspace,save:saveWorkspaceContinuity},writable:false,configurable:true});}catch{}
+})();
+
+/* v340 — privacy-safe client runtime recorder. It stores only browser/app lifecycle
+   metadata in this device's localStorage. It never opens document, customer,
+   supplier, invoice or encrypted-vault contents. */
+(()=>{
+  'use strict';
+
+  const LOG_KEY='lourex-runtime-diagnostics-v340';
+  const META_KEY='lourex-runtime-diagnostics-meta-v340';
+  const MAX_EVENTS=120;
+  const HEARTBEAT_MS=5000;
+  const sessionId=`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+  const startedAt=new Date().toISOString();
+  let lastScreen='boot';
+  let authHooked=false;
+
+  const clean=(value,max=120)=>String(value??'').replace(/[\r\n\t]+/g,' ').replace(/\s{2,}/g,' ').slice(0,max);
+
+  const navigationType=()=>{
+    try{
+      const entry=performance.getEntriesByType?.('navigation')?.[0];
+      return clean(entry?.type||'unknown',40);
+    }catch{return 'unknown';}
+  };
+
+  const currentScreen=()=>{
+    try{
+      const shell=document.querySelector('.ta-shell,.workspace-shell');
+      if(shell instanceof HTMLElement){
+        const match=Array.from(shell.classList).find(name=>name.startsWith('screen-'));
+        if(match)return clean(match.slice(7),48);
+      }
+      if(document.querySelector('.auth-page,.ta-auth-page'))return 'auth';
+      if(document.querySelector('.loading-screen,#lourex-boot'))return 'loading';
+      if(document.querySelector('.app-recovery,.app-recovery-screen'))return 'recovery';
+    }catch{}
+    return 'unknown';
+  };
+
+  const standalone=()=>{
+    try{return Boolean(window.matchMedia?.('(display-mode: standalone)').matches||navigator.standalone);}catch{return false;}
+  };
+
+  const readLog=()=>{
+    try{
+      const parsed=JSON.parse(localStorage.getItem(LOG_KEY)||'[]');
+      return Array.isArray(parsed)?parsed:[];
+    }catch{return [];}
+  };
+
+  const readMeta=()=>{
+    try{
+      const parsed=JSON.parse(localStorage.getItem(META_KEY)||'null');
+      return parsed&&typeof parsed==='object'?parsed:null;
+    }catch{return null;}
+  };
+
+  const writeMeta=(eventType)=>{
+    try{
+      localStorage.setItem(META_KEY,JSON.stringify({
+        sessionId,
+        startedAt,
+        lastSeen:new Date().toISOString(),
+        lastEvent:clean(eventType,64),
+        lastScreen:currentScreen(),
+        visibility:document.visibilityState,
+        online:navigator.onLine!==false
+      }));
+    }catch{}
+  };
+
+  const mark=(type,detail='')=>{
+    const event={
+      at:new Date().toISOString(),
+      session:sessionId,
+      type:clean(type,64),
+      screen:currentScreen(),
+      visibility:clean(document.visibilityState||'unknown',24),
+      online:navigator.onLine!==false,
+      detail:clean(detail,180)
+    };
+    try{
+      const log=readLog();
+      log.push(event);
+      if(log.length>MAX_EVENTS)log.splice(0,log.length-MAX_EVENTS);
+      localStorage.setItem(LOG_KEY,JSON.stringify(log));
+    }catch{}
+    writeMeta(type);
+    return event;
+  };
+
+  const clear=()=>{
+    try{localStorage.removeItem(LOG_KEY);localStorage.removeItem(META_KEY);}catch{}
+  };
+
+  const previous=readMeta();
+  if(previous&&previous.sessionId&&previous.sessionId!==sessionId){
+    const parsedAt=previous.lastSeen?Date.parse(previous.lastSeen):NaN;
+    const age=Number.isFinite(parsedAt)?Math.max(0,Date.now()-parsedAt):NaN;
+    mark('previous-session',`last=${clean(previous.lastEvent,48)} screen=${clean(previous.lastScreen,32)} visibility=${clean(previous.visibility,16)} ageMs=${Number.isFinite(age)?age:'n/a'}`);
+  }
+
+  try{
+    Object.defineProperty(window,'__LOUREX_DIAGNOSTICS__',{
+      configurable:true,
+      value:{version:'v340',sessionId,mark,read:()=>readLog().slice(),meta:()=>readMeta(),clear}
+    });
+  }catch{}
+
+  mark('runtime-init',`nav=${navigationType()} standalone=${standalone()?'yes':'no'} ios=${/iP(?:hone|ad|od)/i.test(navigator.userAgent||'')?'yes':'no'}`);
+
+  document.addEventListener('DOMContentLoaded',()=>mark('dom-content-loaded'),{once:true});
+  window.addEventListener('load',()=>mark('window-load'),{once:true});
+  window.addEventListener('pageshow',event=>mark('pageshow',`persisted=${event.persisted?'yes':'no'} nav=${navigationType()}`));
+  window.addEventListener('pagehide',event=>mark('pagehide',`persisted=${event.persisted?'yes':'no'}`));
+  window.addEventListener('beforeunload',()=>mark('beforeunload'));
+  document.addEventListener('visibilitychange',()=>mark('visibilitychange',document.visibilityState));
+  window.addEventListener('online',()=>mark('network-online'));
+  window.addEventListener('offline',()=>mark('network-offline'));
+  window.addEventListener('error',event=>{
+    const file=(()=>{try{return clean(String(event.filename||'').split('/').pop()||'',72);}catch{return '';}})();
+    mark('javascript-error',`source=${file||'unknown'} line=${Number(event.lineno)||0}:${Number(event.colno)||0} name=${clean(event.error?.name||'Error',48)}`);
+  },true);
+  window.addEventListener('unhandledrejection',event=>mark('unhandled-rejection',`name=${clean(event.reason?.name||typeof event.reason,64)}`));
+
+  for(const name of ['lourex-cloud-refresh-available','lourex-cloud-applied','lourex-cloud-remote-newer','lourex-cloud-conflict','lourex-account-transition-request','lourex-account-transition-complete']){
+    window.addEventListener(name,()=>mark(name));
+  }
+
+  document.addEventListener('click',event=>{
+    const target=event.target;
+    if(!(target instanceof Element))return;
+    if(target.closest('[data-lourex-cloud-refresh] button'))mark('user-cloud-refresh-apply');
+    else if(target.closest('[data-lourex-update] button'))mark('user-pwa-update-apply');
+    else if(target.closest('.settings-direct-signout-button,.settings-signout-button,.ta-cloud-account-actions button,.ta-sheet-signout'))mark('user-signout-action');
+  },true);
+
+  try{
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.addEventListener('controllerchange',()=>mark('service-worker-controllerchange'));
+      void navigator.serviceWorker.getRegistration?.().then(reg=>{
+        mark('service-worker-state',reg?(reg.waiting?'waiting':navigator.serviceWorker.controller?'controlled':'registered'):'none');
+      }).catch(()=>mark('service-worker-state','check-failed'));
+    }
+  }catch{}
+
+  const hookFirebaseAuth=()=>{
+    if(authHooked)return true;
+    try{
+      const firebase=window.firebase;
+      if(!firebase?.auth)return false;
+      const auth=firebase.auth();
+      if(!auth?.onAuthStateChanged)return false;
+      authHooked=true;
+      auth.onAuthStateChanged(user=>mark('firebase-auth-state',user?'signed-in':'signed-out'),()=>mark('firebase-auth-state','observer-error'));
+      return true;
+    }catch{return false;}
+  };
+  if(!hookFirebaseAuth()){
+    let attempts=0;
+    const authTimer=window.setInterval(()=>{
+      attempts+=1;
+      if(hookFirebaseAuth()||attempts>=20)window.clearInterval(authTimer);
+    },250);
+  }
+
+  lastScreen=currentScreen();
+  window.setInterval(()=>{
+    const screen=currentScreen();
+    if(screen!==lastScreen){mark('screen-change',`${lastScreen}->${screen}`);lastScreen=screen;}
+    else writeMeta('heartbeat');
+  },HEARTBEAT_MS);
 })();
