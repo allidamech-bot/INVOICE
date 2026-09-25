@@ -45,3 +45,10 @@ test('v329 recovery remains downstream of canonical document/editor owners', asy
   assert.ok(printable >= 0 && editor >= 0 && recovery > printable && recovery > editor);
   assert.match(css, /printable template hierarchy recovery/);
 });
+
+test('v329 delta is limited to presentation and its guard test', async () => {
+  const css = await read('src/styles/tailadmin-shell-contract-v326.css');
+  assert.match(css, /v329 — Document Studio visual recovery/);
+  assert.match(css, /v329 — printable template hierarchy recovery/);
+  assert.doesNotMatch(css.slice(css.indexOf('/* v329 — Document Studio visual recovery.')), /src\/app|src\/storage|src\/lib\/money|src\/cloud/);
+});
