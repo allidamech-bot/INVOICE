@@ -72,20 +72,27 @@
     window.addEventListener('load',retireAfterLoad,{once:true});
 
     // Block a late re-registration attempt from code paths that only inspected the
-    // legacy UA string. LOUREX is local-first; IndexedDB/PIN/business data are not
-    // touched by this guard. Scheduled retirement above remains the fallback if a
-    // browser refuses to shadow ServiceWorkerContainer.register.
+    // legacy UA string. Scheduled retirement above remains a second guard if Safari
+    // refuses to shadow the instance method.
     try{
       if('serviceWorker' in navigator){
         const container=navigator.serviceWorker;
-        const register=container.register.bind(container);
-        Object.defineProperty(container,'register',{
-          configurable:true,
-          value:(...args)=>{
-            if(appleMobile)return Promise.reject(new DOMException('Service worker disabled for iPadOS editor stability.','NotSupportedError'));
-            return register(...args);
-          }
-        });
+        const nativeRegister=container.register.bind(container);
+        const blockedRegister=(...args)=>{
+          if(appleMobile)return Promise.reject(new DOMException('Service worker disabled for iPadOS editor stability.','NotSupportedError'));
+          return nativeRegister(...args);
+        };
+        let installed=false;
+        try{
+          Object.defineProperty(container,'register',{configurable:true,value:blockedRegister});
+          installed=container.register!==nativeRegister;
+        }catch{}
+        if(!installed){
+          try{
+            const proto=Object.getPrototypeOf(container);
+            Object.defineProperty(proto,'register',{configurable:true,value:blockedRegister});
+          }catch{}
+        }
       }
     }catch{}
   }
