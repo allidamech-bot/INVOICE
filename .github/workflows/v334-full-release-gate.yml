@@ -1,0 +1,35 @@
+name: v334 full release gate
+
+on:
+  push:
+    branches:
+      - audit/v334-global-shell-runtime-reliability
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Dependency security audit
+        run: npm audit --audit-level=high
+      - name: Static security gate
+        run: node scripts/security-check.mjs
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Full unit suite
+        shell: bash
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          echo "Running ${#files[@]} unit contract files"
+          node --test "${files[@]}"
