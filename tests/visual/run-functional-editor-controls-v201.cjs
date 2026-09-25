@@ -29,8 +29,8 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
       const page=await open('lang=en&kind=invoice');
       try{
         const sections=page.locator('.editor-form-lock > .editor-section');
-        assert.equal(await sections.count(),6,'editor must expose all six editing sections');
-        await page.waitForFunction(()=>document.querySelectorAll('.editor-section-nav-button').length===6);
+        assert.equal(await sections.count(),7,'editor must expose all seven editing sections including attachments');
+        await page.waitForFunction(()=>document.querySelectorAll('.editor-section-nav-button').length===7);
 
         const documentSection=sections.nth(0);
         await documentSection.locator('input').first().fill('INV-2026-0091');
