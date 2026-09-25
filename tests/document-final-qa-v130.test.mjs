@@ -74,10 +74,11 @@ test('closing zone and footer stay intentional under sparse optional data',async
   assert.match(qa,/max-width:78%/);
 });
 
-test('pagination, bottom anchoring, RTL isolation and print break protections remain intact',async()=>{
-  const [renderer,output,direction,qa,sw]=await Promise.all([
+test('pagination, corrected closing flow, RTL isolation and print break protections remain intact',async()=>{
+  const [renderer,output,balance,direction,qa,sw]=await Promise.all([
     read('src/templates/TemplateRenderer.tsx'),
     read('src/styles/document-output-v119.css'),
+    read('src/styles/v337-template-layout-balance.css'),
     read('src/styles/document-direction-v78.css'),
     read('src/styles/document-final-qa-v130.css'),
     read('public/sw.js')
@@ -85,7 +86,12 @@ test('pagination, bottom anchoring, RTL isolation and print break protections re
   assert.match(renderer,/shouldUseDetailsPage/);
   assert.match(renderer,/hardOverflow/);
   assert.match(renderer,/lastWeight>allowedLastWeight/);
+  /* v119 retains its historical sparse-document fallback, but v337 is the final
+     presentation owner and deliberately cancels the large blank-middle anchoring. */
   assert.match(output,/\.invoice-page:not\(\.details-only\) \.final-details\{\s*margin-top:auto!important/);
+  assert.match(balance,/\.invoice-page \.final-details\{[\s\S]*flex:0 0 auto!important[\s\S]*margin-top:6mm!important/);
+  assert.match(balance,/\.invoice-page \.bottom-grid\{[\s\S]*margin-top:4\.5mm!important[\s\S]*padding-top:0!important/);
+  assert.doesNotMatch(balance,/\.invoice-page \.bottom-grid\{[\s\S]{0,180}margin-top:auto!important/);
   assert.match(direction,/unicode-bidi:isolate/);
   assert.match(direction,/\.invoice-page\.lang-ar/);
   assert.match(qa,/@media print/);
