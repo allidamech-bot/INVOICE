@@ -47,11 +47,25 @@ test('PIN session is account-bound and never persists a raw PIN',async()=>{
   assert.doesNotMatch(session,/sessionStorage\.setItem\([^\n]*pin/i);
 });
 
-test('cloud freshness cannot replace an active document, Operations, modal or product edit',async()=>{
+test('workspace dirty contract covers the inline inventory timing window without marking all Operations browsing dirty',async()=>{
+  const dirty=await read('src/lib/workspace-dirty.ts');
+  assert.match(dirty,/function operationsInlineMovementDraft\(\):boolean/);
+  assert.match(dirty,/\.ta-inventory-entry/);
+  assert.match(dirty,/input\[inputmode="decimal"\]/);
+  assert.match(dirty,/document\.activeElement/);
+  assert.match(dirty,/entry\.contains\(active\)/);
+  assert.match(dirty,/document\.documentElement\.hasAttribute\(ATTRIBUTE\)\|\|operationsInlineMovementDraft\(\)/);
+  assert.doesNotMatch(dirty,/querySelector\(['"]\.operations-page['"]\)/);
+});
+
+test('cloud freshness blocks actual unsaved work, editors and modals without freezing ordinary Operations browsing',async()=>{
   const freshness=await read('src/cloud/freshness.ts');
   assert.match(freshness,/function appIsSafeToApply\(\):boolean/);
   assert.match(freshness,/data-lourex-document-editor/);
-  assert.match(freshness,/\.editor-screen,\.modal-backdrop,\.operations-page,\.product-library-pro\.editor-open/);
+  assert.match(freshness,/workspaceHasUnsavedChanges/);
+  assert.match(freshness,/if\(workspaceHasUnsavedChanges\(\)\)return false/);
+  assert.match(freshness,/\.editor-screen,\.modal-backdrop,\.product-library-pro\.editor-open/);
+  assert.doesNotMatch(freshness,/\.editor-screen,\.modal-backdrop,\.operations-page/);
   assert.match(freshness,/window\.dispatchEvent\(new Event\('lourex-cloud-refresh-available'\)\)/);
   assert.doesNotMatch(freshness,/window\.location\.(?:reload|replace)/);
 });
@@ -82,6 +96,13 @@ test('PWA update/controller reload remains user-requested and editor-safe',async
   assert.match(index,/if\(!userRequestedReload\)return/);
   assert.match(index,/if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
   assert.match(index,/waiting\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
+});
+
+test('account recovery reload is one-shot and only allowed when no local encrypted vault exists',async()=>{
+  const source=await read('src/app/AuthScreenSelector.tsx');
+  assert.match(source,/if\(localVault\)\{setRecoveryState\('blocked'\);return;\}/);
+  assert.match(source,/cloudInstallAlreadyReloaded\(cloudUser\.uid\)/);
+  assert.match(source,/markCloudInstallReload\(cloudUser\.uid\);window\.location\.reload\(\)/);
 });
 
 test('Operations owns a real dirty marker for supplier, purchase, expense and movement drafts',async()=>{
