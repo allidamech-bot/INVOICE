@@ -28,13 +28,14 @@
 
     const params=new URLSearchParams(location.search);
     const lang=params.get('lang')==='ar'?'ar':'en';
+    const uiLang=params.get('ui')==='ar'?'ar':'en';
     const pageStyle=['plain','ruled','grid'].includes(params.get('page'))?params.get('page'):'plain';
     const headerStyle=['classic','minimal','accent'].includes(params.get('header'))?params.get('header'):'accent';
     const footerStyle=['company','minimal','none'].includes(params.get('footer'))?params.get('footer'):'company';
     const bodyWidth=['narrow','comfortable','wide'].includes(params.get('width'))?params.get('width'):'comfortable';
-    setUiLanguage(lang);
-    document.documentElement.lang=lang;
-    document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+    setUiLanguage(uiLang);
+    document.documentElement.lang=uiLang;
+    document.documentElement.dir=uiLang==='ar'?'rtl':'ltr';
 
     const company=defaultCompany();
     company.nameEn='LOUREX Trading & Supply';
@@ -93,7 +94,7 @@
     letter.blocks=blocks;
     doc.letter=letter;
 
-    window.__DRAFT_OUTPUT_QA__={lang,pageStyle,headerStyle,footerStyle,bodyWidth,blockCount:blocks.length};
+    window.__DRAFT_OUTPUT_QA__={lang,uiLang,pageStyle,headerStyle,footerStyle,bodyWidth,blockCount:blocks.length};
     ReactDOM.render(React.createElement('main',{className:'draft-output-fixture'},React.createElement(DraftDocumentRenderer,{document:doc,scale:1})),document.getElementById('root'));
     requestAnimationFrame(()=>{document.documentElement.dataset.ready='true';});
   </script>
