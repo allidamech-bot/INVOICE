@@ -164,6 +164,7 @@ jobs:
           node tests/visual/run-v326-business-workspaces.cjs
           node tests/visual/run-v326-access-surfaces.cjs
           node tests/visual/run-v326-studio-security-overlays.cjs
+          node tests/visual/run-v337-draft-output.cjs
           node tests/visual/run-v337-create-center.cjs
           node tests/visual/run-v337-document-actions.cjs
           node tests/visual/run-v337-shell-navigation.cjs
