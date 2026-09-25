@@ -19,7 +19,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply deterministic recovery patch
-        run: python scripts/v327-production-recovery.py
+        run: |
+          python scripts/v327-production-recovery.py
+          python scripts/v327-production-recovery-stage2.py
 
       - name: Install
         run: npm ci
@@ -46,6 +48,7 @@ jobs:
           if(!core.includes('data-editor-support-slot')) throw new Error('Editor support slot missing');
           if(!wrapper.includes('ReactDOM.createPortal(supportPanels,supportSlot)')) throw new Error('Editor support panels are outside canonical scroll');
           if(!utility.includes('touch-action:pan-y!important')) throw new Error('Editor touch scroll contract missing');
+          if(!utility.includes('v327 — hard mobile editor viewport chain')) throw new Error('Hard editor viewport chain missing');
           if(!ai.includes('<Icon name="bot"/>')) throw new Error('AI robot identity missing');
           console.log('v327 static recovery contracts PASS');
           NODE
