@@ -25,7 +25,11 @@
   function editorInputTarget(target){
     if(!(target instanceof Element))return false;
     if(!target.closest(editableSelector))return false;
-    return Boolean(target.closest('.editor-screen'))||root.hasAttribute('data-lourex-document-editor');
+    // The inactivity timer lives at the App level, not only inside Document
+    // Studio. iOS keyboards can miss keydown in Purchasing, Products, Finance,
+    // Settings and other More workspaces too, so every editable app surface must
+    // feed the same existing activity channel.
+    return Boolean(target.closest('.app-ui'))||Boolean(target.closest('.editor-screen'))||root.hasAttribute('data-lourex-document-editor');
   }
 
   function signalEditorActivity(event){
@@ -144,7 +148,8 @@
 
   // iOS/iPadOS software keyboards do not reliably emit keydown for every text
   // mutation. BaseApp's inactivity timer listens to keydown/touchstart/pointerdown,
-  // so mirror actual editor text mutations into that existing activity channel.
+  // so mirror actual text mutations from every unlocked app workspace into that
+  // existing activity channel, not only the document editor.
   for(const type of ['beforeinput','input','compositionupdate','compositionend','paste','change']){
     document.addEventListener(type,signalEditorActivity,true);
   }
