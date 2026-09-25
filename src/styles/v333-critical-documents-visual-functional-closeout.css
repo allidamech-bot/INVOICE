@@ -1,0 +1,150 @@
+/* LOUREX v333 — critical-document visual/functional closeout supplement.
+ * Draft Studio presentation only. v331 remains the sole Draft scroll owner.
+ * No persistence, autosave, business logic, PDF data or lifecycle ownership. */
+@media screen {
+  /* Draft shares the same three-level surface grammar as the commercial editor. */
+  html body .app-ui .screen-editor .draft-studio{
+    background:var(--v333-workspace,var(--ft-workspace))!important;
+    color:var(--v333-text,var(--ft-text))!important;
+  }
+  html body .app-ui .screen-editor .draft-studio-topbar{
+    border-color:var(--v333-line,var(--ft-line))!important;
+    background:color-mix(in srgb,var(--v333-card,var(--ft-surface)) 96%,transparent)!important;
+  }
+  html body .app-ui .screen-editor .draft-studio-controls,
+  html body .app-ui .screen-editor .draft-studio-preview{
+    border-color:var(--v333-line,var(--ft-line))!important;
+    background:var(--v333-card,var(--ft-surface))!important;
+  }
+  html body .app-ui .screen-editor .draft-studio-scroll{
+    background:var(--v333-card,var(--ft-surface))!important;
+  }
+  html body .app-ui .screen-editor .draft-control-section{
+    border-bottom-color:var(--v333-line,var(--ft-line))!important;
+    color:var(--v333-text,var(--ft-text))!important;
+  }
+  html body .app-ui .screen-editor .draft-section-heading h2,
+  html body .app-ui .screen-editor .draft-block-card :is(strong,b),
+  html body .app-ui .screen-editor .draft-studio :is(.field-label,.field>label){
+    color:var(--v333-text,var(--ft-text-strong))!important;
+  }
+  html body .app-ui .screen-editor .draft-section-heading p,
+  html body .app-ui .screen-editor .draft-studio :is(small,.draft-save-state,.letter-color-control){
+    color:var(--v333-muted,var(--ft-muted))!important;
+  }
+
+  /* Presets and writing blocks remain visually separate from their parent surface. */
+  html body .app-ui .screen-editor .draft-preset-grid>button,
+  html body .app-ui .screen-editor .draft-block-card,
+  html body .app-ui .screen-editor .draft-watermark-card,
+  html body .app-ui .screen-editor .draft-quick-add>button,
+  html body .app-ui .screen-editor .draft-spacer-preview{
+    border-color:var(--v333-line,var(--ft-line))!important;
+    background:var(--v333-card-soft,var(--ft-surface-2))!important;
+    color:var(--v333-text,var(--ft-text))!important;
+  }
+  html body .app-ui .screen-editor .draft-block-card.active,
+  html body .app-ui .screen-editor .draft-preset-grid>button.active{
+    border-color:color-mix(in srgb,var(--v333-accent,var(--ft-accent)) 44%,var(--v333-line,var(--ft-line)))!important;
+    background:color-mix(in srgb,var(--v333-accent-soft,var(--ft-accent-faint)) 45%,var(--v333-card-soft,var(--ft-surface-2)))!important;
+  }
+
+  /* Safari/WebKit field paint contract. This is deliberately Draft-scoped so an
+     iPhone focus/autofill paint cannot turn the field white while text stays white. */
+  html body .app-ui .screen-editor .draft-studio :is(
+    input:not([type="range"]):not([type="color"]),select,textarea,.input,.select,.textarea
+  ){
+    border:1px solid var(--v333-line-strong,var(--ft-line-strong))!important;
+    background-color:var(--v333-field,var(--ft-input))!important;
+    background-image:none!important;
+    color:var(--v333-text,var(--ft-text-strong))!important;
+    -webkit-text-fill-color:var(--v333-text,var(--ft-text-strong))!important;
+    caret-color:var(--v333-accent,var(--ft-accent))!important;
+    box-shadow:none!important;
+  }
+  html body .app-ui .screen-editor .draft-studio :is(
+    input:not([type="range"]):not([type="color"]),select,textarea,.input,.select,.textarea
+  ):focus,
+  html body .app-ui .screen-editor .draft-studio :is(
+    input:not([type="range"]):not([type="color"]),select,textarea,.input,.select,.textarea
+  ):focus-visible{
+    border-color:var(--v333-accent,var(--ft-accent))!important;
+    background-color:var(--v333-field-focus,var(--ft-input))!important;
+    color:var(--v333-text,var(--ft-text-strong))!important;
+    -webkit-text-fill-color:var(--v333-text,var(--ft-text-strong))!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--v333-accent,var(--ft-accent)) 18%,transparent)!important;
+    outline:none!important;
+  }
+  html body .app-ui .screen-editor .draft-studio :is(input,textarea):-webkit-autofill,
+  html body .app-ui .screen-editor .draft-studio :is(input,textarea):-webkit-autofill:hover,
+  html body .app-ui .screen-editor .draft-studio :is(input,textarea):-webkit-autofill:focus{
+    -webkit-text-fill-color:var(--v333-text,var(--ft-text-strong))!important;
+    -webkit-box-shadow:0 0 0 1000px var(--v333-field-focus,var(--ft-input)) inset!important;
+    box-shadow:0 0 0 1000px var(--v333-field-focus,var(--ft-input)) inset!important;
+    transition:background-color 9999s ease-out 0s!important;
+  }
+  html body .app-ui .screen-editor .draft-studio :is(input,textarea)::placeholder{
+    color:color-mix(in srgb,var(--v333-muted,var(--ft-muted)) 78%,transparent)!important;
+    -webkit-text-fill-color:color-mix(in srgb,var(--v333-muted,var(--ft-muted)) 78%,transparent)!important;
+    opacity:1!important;
+  }
+  html body .app-ui .screen-editor .draft-studio select option{
+    background:var(--v333-card,var(--ft-surface))!important;
+    color:var(--v333-text,var(--ft-text-strong))!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .screen-editor .draft-studio :is(input,select,textarea){color-scheme:dark!important;}
+  html[data-ui-theme="light"] body .app-ui .screen-editor .draft-studio :is(input,select,textarea){color-scheme:light!important;}
+
+  /* Date controls on Safari inherit the same ink instead of WebKit's pale native text. */
+  html body .app-ui .screen-editor .draft-studio input[type="date"]::-webkit-date-and-time-value{
+    color:var(--v333-text,var(--ft-text-strong))!important;
+    -webkit-text-fill-color:var(--v333-text,var(--ft-text-strong))!important;
+    opacity:1!important;
+  }
+
+  html body .app-ui .screen-editor .draft-studio .letter-format-buttons>button,
+  html body .app-ui .screen-editor .draft-studio .letter-block-order>button{
+    border-color:var(--v333-line,var(--ft-line))!important;
+    background:var(--v333-card,var(--ft-surface))!important;
+    color:var(--v333-muted,var(--ft-text-soft))!important;
+  }
+  html body .app-ui .screen-editor .draft-studio .letter-format-buttons>button.active{
+    border-color:var(--v333-accent,var(--ft-accent))!important;
+    background:var(--v333-accent-soft,var(--ft-accent-soft))!important;
+    color:var(--v333-accent,var(--ft-accent))!important;
+  }
+
+  /* Preview chrome follows the app theme; the actual document remains paper-white. */
+  html body .app-ui .screen-editor .draft-preview-stage,
+  html body .app-ui .screen-editor .draft-mobile-preview{
+    background:var(--v333-workspace,var(--ft-workspace))!important;
+  }
+  html body .app-ui .screen-editor .draft-mobile-preview>header,
+  html body .app-ui .screen-editor .draft-mobile-actionbar{
+    border-color:var(--v333-line,var(--ft-line))!important;
+    background:color-mix(in srgb,var(--v333-card,var(--ft-surface)) 96%,transparent)!important;
+  }
+}
+
+@media screen and (max-width:720px){
+  html body .app-ui .screen-editor .draft-studio-controls{
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    background:transparent!important;
+  }
+  html body .app-ui .screen-editor .draft-studio-scroll{
+    background:var(--v333-workspace,var(--ft-workspace))!important;
+  }
+  html body .app-ui .screen-editor .draft-control-section{
+    margin-bottom:10px!important;
+    padding:15px!important;
+    border:1px solid var(--v333-line,var(--ft-line))!important;
+    border-radius:15px!important;
+    background:var(--v333-card,var(--ft-surface))!important;
+    box-shadow:0 8px 24px rgba(15,23,42,.045)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .screen-editor .draft-control-section{
+    box-shadow:0 10px 26px rgba(0,0,0,.16)!important;
+  }
+}
