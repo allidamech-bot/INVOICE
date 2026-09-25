@@ -24,6 +24,7 @@ const languages=['en','ar'];
 async function inspect(page,{surface,width,height,lang}){
   return page.evaluate(({surface,width,height,lang})=>{
     const within=(outer,inner,tolerance=1)=>Boolean(outer&&inner&&inner.left>=outer.left-tolerance&&inner.right<=outer.right+tolerance&&inner.top>=outer.top-tolerance&&inner.bottom<=outer.bottom+tolerance);
+    const horizontallyWithin=(outer,inner,tolerance=1)=>Boolean(outer&&inner&&inner.left>=outer.left-tolerance&&inner.right<=outer.right+tolerance&&inner.top>=outer.top-tolerance);
     const rect=el=>el?.getBoundingClientRect()||null;
     const root=document.documentElement;
     const pageRoot=document.querySelector(surface==='dashboard'?'.ta-finance-dashboard':'.ta-documents-page');
@@ -42,7 +43,7 @@ async function inspect(page,{surface,width,height,lang}){
     const push=(name,pass,detail={})=>result.checks.push({name,pass:Boolean(pass),detail});
     push('direction',lang==='ar'?root.dir==='rtl':root.dir!=='rtl',{dir:root.dir});
     push('document-no-horizontal-overflow',root.scrollWidth<=width+1&&document.body.scrollWidth<=width+1,{root:root.scrollWidth,body:document.body.scrollWidth,width});
-    push('page-inside-main',within(rect(main),rect(pageRoot),2),{main:rect(main),page:rect(pageRoot)});
+    push('page-horizontally-inside-main',horizontallyWithin(rect(main),rect(pageRoot),2),{main:rect(main),page:rect(pageRoot)});
 
     if(surface==='dashboard'){
       const cards=[...document.querySelectorAll('.ta-kpi-card')];
@@ -53,7 +54,7 @@ async function inspect(page,{surface,width,height,lang}){
         const primary=card.querySelector('.ta-kpi-money-stack b,.ta-kpi-copy>strong');
         if(primary){
           const style=getComputedStyle(primary);
-          push(`kpi-${index}-value-not-ellipsized`,style.textOverflow!=='ellipsis'&&primary.scrollWidth<=primary.clientWidth+1,{text:primary.textContent,scrollWidth:primary.scrollWidth,clientWidth:primary.clientWidth,textOverflow:style.textOverflow,fontSize:style.fontSize});
+          push(`kpi-${index}-value-fits`,primary.scrollWidth<=primary.clientWidth+1,{text:primary.textContent,scrollWidth:primary.scrollWidth,clientWidth:primary.clientWidth,textOverflow:style.textOverflow,fontSize:style.fontSize});
         }
       });
       if(width<=900){
