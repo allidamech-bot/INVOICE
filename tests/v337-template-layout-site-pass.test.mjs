@@ -66,12 +66,23 @@ test('later document-semantic owner cannot retake scroll or A4 closing geometry'
   assert.doesNotMatch(semantics,/margin-top\s*:\s*auto|flex\s*:\s*1\s+1\s+auto/i);
 });
 
-test('production entry cache-busts the repaired Safari scroll owner and document runtime',async()=>{
-  const [html,cacheRefresh,finalContract]=await Promise.all([read('index.html'),read('scripts/v303-visual-cache-refresh.mjs'),read('scripts/v321-production-runtime-contract.mjs')]);
+test('production entry restores the standalone v337 owner after CSS bundling and cache-busts the document runtime',async()=>{
+  const [html,cacheRefresh,finalContract,build]=await Promise.all([
+    read('index.html'),
+    read('scripts/v303-visual-cache-refresh.mjs'),
+    read('scripts/v321-production-runtime-contract.mjs'),
+    read('scripts/build.mjs')
+  ]);
   assert.match(html,/v331-draft-scroll-recovery\.css\?v=337-3/);
   assert.doesNotMatch(html,/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/);
   assert.match(html,/document-entry-v302\.js\?v=337-3/);
+  assert.match(build,/app\.bundle\.css/);
+  assert.match(build,/html=html\.replace\(localStylePattern/);
   assert.match(cacheRefresh,/RELEASE_GENERATION=337/);
+  assert.match(cacheRefresh,/const bundleTag='<link rel="stylesheet" href="\.\/styles\/app\.bundle\.css" \/>'/);
+  assert.match(cacheRefresh,/runtimeTag=`<link rel="stylesheet" href="\$\{draftScrollRuntime\}" data-lourex-v331-draft-recovery="true" \/>`/);
+  assert.match(cacheRefresh,/html=html\.replace\(bundleTag,`\$\{bundleTag\}\\n  \$\{runtimeTag\}`\)/);
+  assert.match(cacheRefresh,/data-lourex-v331-draft-recovery=\"true\"/);
   for(const asset of [
     'v333-critical-documents-visual-functional-closeout.css\\?v=333-1',
     'v337-template-layout-balance.css\\?v=337-3',
@@ -81,6 +92,8 @@ test('production entry cache-busts the repaired Safari scroll owner and document
   ])assert.match(cacheRefresh,new RegExp(asset));
   assert.match(cacheRefresh,/const entryPath='dist\/document-entry-v302\.js'/);
   assert.match(cacheRefresh,/Stale pre-337-3 document scroll fallback survived production build/);
+  assert.match(finalContract,/data-lourex-v331-draft-recovery=\"true\"/);
+  assert.match(finalContract,/bundleIndex=html\.indexOf\('\.\/styles\/app\.bundle\.css'\)/);
   assert.match(finalContract,/v337-template-layout-balance\.css\?v=337-3/);
   assert.match(finalContract,/v331-draft-scroll-recovery\.css\?v=337-3/);
   assert.match(finalContract,/document-entry-v302\.js\?v=337-3/);
