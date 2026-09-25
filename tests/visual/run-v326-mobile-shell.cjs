@@ -30,7 +30,7 @@ const ownsPoint=async locator=>locator.evaluate(node=>{
         await page.goto(`${shellBase}?lang=${lang}`,{waitUntil:'load'});
         await page.locator('.ta-mobile-nav').waitFor();
 
-        let geometry=await page.evaluate(()=>{
+        const geometry=await page.evaluate(()=>{
           const rect=selector=>{const r=document.querySelector(selector)?.getBoundingClientRect();return r?{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}:null;};
           return {scrollWidth:document.documentElement.scrollWidth,width:innerWidth,nav:rect('.ta-mobile-nav'),topbar:rect('.ta-topbar')};
         });
@@ -47,7 +47,7 @@ const ownsPoint=async locator=>locator.evaluate(node=>{
         const firstHit=await ownsPoint(menu.locator('[role="menuitem"]').first());
         assert.equal(firstHit.owns,true,`Create option is covered ${JSON.stringify(firstHit)}`);
         const aiWhileCreate=await page.locator('.lourex-ai-launcher').evaluate(el=>({opacity:getComputedStyle(el).opacity,pointer:getComputedStyle(el).pointerEvents})).catch(()=>null);
-        if(aiWhileCreate){assert.equal(aiWhileCreate.pointer,'none','AI launcher must not intercept Create surface');}
+        if(aiWhileCreate)assert.equal(aiWhileCreate.pointer,'none','AI launcher must not intercept Create surface');
         await page.keyboard.press('Escape');
         await menu.waitFor({state:'detached'});
 
@@ -74,15 +74,15 @@ const ownsPoint=async locator=>locator.evaluate(node=>{
         await previewButton.click();
         const preview=page.locator('.mobile-preview-overlay');
         await preview.waitFor({state:'visible'});
-        const headerHit=await ownsPoint(preview.locator('header'));
-        assert.equal(headerHit.owns,true,`Preview header is covered ${JSON.stringify(headerHit)}`);
+        const headerHit=await ownsPoint(preview.locator(':scope > header'));
+        assert.equal(headerHit.owns,true,`Preview chrome header is covered ${JSON.stringify(headerHit)}`);
         const layers=await page.evaluate(()=>{
           const preview=document.querySelector('.mobile-preview-overlay');
           const ai=document.querySelector('.lourex-ai-launcher');
           return {previewZ:preview?getComputedStyle(preview).zIndex:null,aiOpacity:ai?getComputedStyle(ai).opacity:null,aiPointer:ai?getComputedStyle(ai).pointerEvents:null,scrollWidth:document.documentElement.scrollWidth,width:innerWidth};
         });
         assert.equal(layers.previewZ,'1400','Preview must use the v326 overlay level');
-        if(layers.aiOpacity!==null){assert.equal(layers.aiPointer,'none','AI launcher must not intercept Preview');}
+        if(layers.aiOpacity!==null)assert.equal(layers.aiPointer,'none','AI launcher must not intercept Preview');
         assert.ok(layers.scrollWidth<=layers.width+1,`Preview has horizontal viewport overflow ${JSON.stringify(layers)}`);
         await page.screenshot({path:`${output}/preview-${lang}-390.png`,animations:'disabled'});
       }finally{await page.close();}
