@@ -227,3 +227,120 @@
     height:calc(100svh - 96px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
   }
 }
+
+/* LOUREX v339 — iPadOS Desktop Website landscape closeout.
+ * Common iPad landscape viewports (including 1194px and 1366px) sit above the
+ * historical 1180px tablet breakpoint even though they still run mobile WebKit.
+ * v338 marks those browsers explicitly. Keep Draft on the same single outer
+ * scroll owner and suppress the desktop A4 pane there; normal laptops/desktops
+ * never receive this root marker and therefore retain the desktop layout. */
+@media screen and (min-width:1181px) and (max-width:1366px){
+  html[data-lourex-ios-webkit="true"] body .app-ui .ta-shell.is-editor:has(.draft-studio)>.ta-main,
+  html[data-lourex-ios-webkit="true"] body .app-ui .ta-shell.screen-editor:has(.draft-studio)>.ta-main{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    align-self:stretch!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior-y:contain!important;
+    touch-action:pan-y!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace,
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio.editor-screen,
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-layout,
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-controls,
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio.editor-screen,
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-layout{
+    display:block!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-controls{
+    border-inline-end:0!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
+    touch-action:auto!important;
+    -webkit-overflow-scrolling:auto!important;
+    padding-bottom:32px!important;
+    scroll-padding-bottom:32px!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-preview{
+    display:none!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-topbar{
+    position:sticky!important;
+    top:0!important;
+    z-index:45!important;
+  }
+
+  html[data-lourex-ios-webkit="true"] body .app-ui:has(.draft-studio) .lourex-ai-launcher{
+    display:none!important;
+  }
+}
+
+/* LOUREX v339 — Product Import Safari visual-viewport closeout.
+ * ModalFrame publishes the real visualViewport height and a browser-toolbar
+ * reserve on the backdrop. Historical mobile modal layers still contain 100dvh
+ * / inset:0 owners, so a non-standalone iPhone can otherwise position the dialog
+ * against the layout viewport while its actions are already constrained for the
+ * smaller visible viewport. Make Product Import use one explicit geometry owner:
+ * the backdrop occupies only the usable visual viewport and the modal body owns
+ * vertical scrolling. Other application modals are intentionally untouched. */
+@media screen and (max-width:860px){
+  html body .app-ui .modal-backdrop.modal-backdrop:has(.product-import-shell){
+    box-sizing:border-box!important;
+    position:fixed!important;
+    top:var(--modal-visual-offset-top,0px)!important;
+    right:0!important;
+    bottom:auto!important;
+    left:0!important;
+    width:100vw!important;
+    height:calc(var(--modal-visual-height,100dvh) - var(--modal-browser-bottom-reserve,0px))!important;
+    min-height:0!important;
+    max-height:calc(var(--modal-visual-height,100dvh) - var(--modal-browser-bottom-reserve,0px))!important;
+    display:flex!important;
+    align-items:flex-end!important;
+    justify-content:center!important;
+    overflow:hidden!important;
+    padding:0!important;
+  }
+
+  html body .app-ui .modal-backdrop.modal-backdrop:has(.product-import-shell)>.modal.modal{
+    position:relative!important;
+    inset:auto!important;
+    align-self:flex-end!important;
+    box-sizing:border-box!important;
+    width:100%!important;
+    max-width:none!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:100%!important;
+    margin:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+    transform:none!important;
+  }
+
+  html body .app-ui .modal-backdrop.modal-backdrop:has(.product-import-shell)>.modal.modal>.modal-body{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    overscroll-behavior:contain!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+}

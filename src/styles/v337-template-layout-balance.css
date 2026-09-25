@@ -16,6 +16,14 @@
     position:relative!important;
     isolation:isolate;
   }
+  /* WebKit can preserve an SVG image's intrinsic width inside several modern
+     masthead grids even when the logo wrapper is correctly constrained. Make the
+     image itself obey its wrapper so sparse English documents cannot widen A4. */
+  .invoice-page .doc-logo img{
+    max-width:100%!important;
+    height:auto!important;
+    object-fit:contain!important;
+  }
   .invoice-page .document-custom-watermark{
     --wm-opacity:.08;
     --wm-color:#0f6f7a;
@@ -90,7 +98,13 @@
     --letter-muted:#657b80;
     --letter-line:#d9e2e4;
     display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
     grid-template-rows:auto minmax(0,1fr) auto!important;
+    grid-auto-flow:row!important;
+    align-items:stretch!important;
+    justify-items:stretch!important;
+    justify-content:stretch!important;
+    gap:0!important;
     padding:0!important;
     background:#fff!important;
     color:var(--letter-ink)!important;

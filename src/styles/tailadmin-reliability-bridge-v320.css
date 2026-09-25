@@ -65,6 +65,18 @@
   .app-ui .document-attachments-section :where(input,select,textarea,button,a){min-width:0}
   .app-ui .document-attachment-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
 
+  /* v339 — Product Import actions must remain pinned to the modal body's own
+     Safari visual-viewport scroll owner. Earlier product layers already request
+     sticky positioning; reassert it here in the final reliability owner so late
+     modal geometry cannot demote the action rail back into normal flow. */
+  html body .app-ui .modal-backdrop:has(.product-import-shell) .product-import-mobile-actions{
+    position:sticky!important;
+    top:0!important;
+    inset-block-start:0!important;
+    z-index:30!important;
+    transform:none!important;
+  }
+
   /* One structural overlay ladder. Visual skin remains with each surface owner. */
   .app-ui .ta-sidebar{z-index:var(--lourex-z-shell)!important}
   .app-ui .ta-mobile-nav{z-index:var(--lourex-z-nav)!important}

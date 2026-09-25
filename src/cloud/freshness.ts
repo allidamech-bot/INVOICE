@@ -35,6 +35,16 @@ function isStandalonePwa():boolean{
   }catch{return false;}
 }
 
+function appleMobileWebKit():boolean{
+  try{
+    if(Boolean((window as Window&{__LOUREX_IOS_WEBKIT__?:boolean}).__LOUREX_IOS_WEBKIT__))return true;
+    const ua=String(navigator.userAgent||'');
+    const platform=String(navigator.platform||'');
+    const touchPoints=Number(navigator.maxTouchPoints||0);
+    return /iP(?:hone|ad|od)/i.test(ua)||(platform==='MacIntel'&&touchPoints>1);
+  }catch{return false;}
+}
+
 function appIsSafeToApply():boolean{
   if(document.visibilityState!=='visible')return false;
   if(typeof navigator!=='undefined'&&!navigator.onLine)return false;
@@ -116,6 +126,16 @@ async function checkCloudFreshness():Promise<void>{
 }
 
 export function startCloudFreshnessWatcher():()=>void{
+  // Apple mobile WebKit keeps local encrypted persistence and explicit cloud sync,
+  // but the independent realtime watcher is deliberately retired. iPadOS Desktop
+  // Website mode reports MacIntel, so it must share the same stability policy.
+  if(appleMobileWebKit()){
+    stopped=true;
+    if(pending)window.clearTimeout(pending);pending=undefined;
+    if(timer)window.clearInterval(timer);timer=undefined;
+    detachRealtime();
+    return ()=>undefined;
+  }
   stopped=false;
   const standalone=isStandalonePwa();
   const onFocus=()=>schedule(standalone?10:30);

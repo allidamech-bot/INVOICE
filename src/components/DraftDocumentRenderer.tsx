@@ -64,7 +64,7 @@ function CompanyHeader({doc,letter}:{doc:LourexDocument;letter:LetterDocumentDat
   const companyName=doc.language==='ar'?(company.nameAr||company.nameEn):(company.nameEn||company.nameAr);
   const address=doc.language==='ar'?(company.addressAr||company.addressEn):(company.addressEn||company.addressAr);
   const details=[address,[company.city,company.country].filter(Boolean).join(', '),company.phone,company.email,company.website].filter(Boolean);
-  return <header className={`letterhead-header header-${letter.headerStyle}`}>
+  return <header className="letterhead-header">
     <div className="letterhead-brand">{letter.showLogo&&company.logoDataUrl?<img src={company.logoDataUrl} alt={companyName||'Company logo'}/>:null}<div><strong>{companyName||'LOUREX'}</strong>{letter.showCompanyDetails&&details.length?<span>{details.join(' · ')}</span>:null}</div></div>
     <span className="letterhead-accent"/>
   </header>;

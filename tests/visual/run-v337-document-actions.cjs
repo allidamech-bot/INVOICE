@@ -36,7 +36,8 @@ async function runCase(name,browserType,viewport,lang){
     if(triggerCount<1)failures.push('document action trigger missing');
     const trigger=triggers.first();
     const triggerBox=await trigger.boundingBox();
-    if(!triggerBox||triggerBox.width<43.5||triggerBox.height<43.5)failures.push(`document action trigger below 44px: ${triggerBox?`${triggerBox.width}x${triggerBox.height}`:'missing'}`);
+    if(!triggerBox)failures.push('document action trigger missing visible box');
+    else if(viewport.hasTouch&&(triggerBox.width<43.5||triggerBox.height<43.5))failures.push(`touch document action trigger below 44px: ${triggerBox.width}x${triggerBox.height}`);
 
     await trigger.click();
     const menu=page.locator(menuSelector).first();
@@ -64,7 +65,8 @@ async function runCase(name,browserType,viewport,lang){
       const button=buttons.nth(index);
       await button.scrollIntoViewIfNeeded();
       const b=await button.boundingBox();
-      if(!b||b.height<43.5)failures.push(`menu item ${index+1} below 44px: ${b?b.height:'missing'}`);
+      if(!b)failures.push(`menu item ${index+1} missing visible box`);
+      else if(viewport.hasTouch&&b.height<43.5)failures.push(`touch menu item ${index+1} below 44px: ${b.height}`);
       else if(outsideViewport(b,viewport))failures.push(`menu item ${index+1} is not reachable: ${JSON.stringify({...b,right:b.x+b.width,bottom:b.y+b.height})}`);
     }
 
@@ -102,5 +104,5 @@ async function runCase(name,browserType,viewport,lang){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.failures.map(f=>`${row.name}/${row.lang}: ${f}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v337 document action menus: ${rows.length} Chromium/WebKit phone+iPad+desktop cases passed; every action remains reachable.`);
+  console.log(`v337 document action menus: ${rows.length} Chromium/WebKit phone+iPad+desktop cases passed; every action remains reachable and coarse-pointer actions keep a 44px floor.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
