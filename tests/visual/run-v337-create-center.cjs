@@ -8,6 +8,8 @@ const cases=[
   ['webkit-320',webkit,{width:320,height:700,isMobile:true,hasTouch:true}],
   ['chromium-390',chromium,{width:390,height:844,isMobile:true,hasTouch:true}],
   ['webkit-390',webkit,{width:390,height:844,isMobile:true,hasTouch:true}],
+  ['webkit-ipad820',webkit,{width:820,height:1180,isMobile:true,hasTouch:true}],
+  ['webkit-ipad1024-landscape',webkit,{width:1024,height:768,isMobile:false,hasTouch:true}],
   ['chromium-desktop',chromium,{width:1440,height:900,isMobile:false,hasTouch:false}]
 ];
 const kinds=['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt'];
@@ -80,5 +82,5 @@ async function runCase(name,browserType,viewport,lang){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.failures.map(failure=>`${row.name}/${row.lang}: ${failure}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v337 Create Center interaction QA: ${rows.length} Chromium/WebKit cases passed; all 10 actions remain reachable with mobile pan-y scrolling down to 320px.`);
+  console.log(`v337 Create Center interaction QA: ${rows.length} Chromium/WebKit phone+iPad+desktop cases passed; all 10 actions remain reachable.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
