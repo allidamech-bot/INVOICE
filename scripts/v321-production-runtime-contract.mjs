@@ -1,9 +1,10 @@
 import {readFile,stat} from 'node:fs/promises';
 
-const [html,documentRuntime,sw]=await Promise.all([
+const [html,documentRuntime,sw,draftOwner]=await Promise.all([
   readFile('dist/index.html','utf8'),
   readFile('dist/document-entry-v302.js','utf8'),
-  readFile('dist/sw.js','utf8')
+  readFile('dist/sw.js','utf8'),
+  readFile('dist/styles/v331-draft-scroll-recovery.css','utf8')
 ]);
 
 const forbiddenExternalRuntime=/https:\/\/(?:cdn\.jsdelivr\.net|unpkg\.com)\/npm\/(?:react|react-dom)@/i;
@@ -42,6 +43,9 @@ if(bundleIndex<0||recoveryIndex<=bundleIndex){
 if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/.test(html)){
   throw new Error('v337-3 production contract: stale document-scroll owner survived in dist/index.html.');
 }
+if(!draftOwner.startsWith('@import url("./v333-critical-documents-visual-functional-closeout.css?v=333-1");\n@import url("./v337-template-layout-balance.css?v=337-3");')){
+  throw new Error('v337-3 production contract: standalone v331 owner lost the v333/v337 import chain.');
+}
 if(!html.includes('./document-entry-v302.js?v=337-3')){
   throw new Error('v337-3 production contract: cache-busted document runtime is missing from dist/index.html.');
 }
@@ -72,7 +76,9 @@ for(const file of [
   'dist/vendor/react.production.min.js',
   'dist/vendor/react-dom.production.min.js',
   'dist/startup-watchdog-v321.js',
-  'dist/document-entry-v302.js'
+  'dist/document-entry-v302.js',
+  'dist/styles/v331-draft-scroll-recovery.css',
+  'dist/styles/v337-template-layout-balance.css'
 ]){
   const info=await stat(file);
   if(info.size<500)throw new Error(`v321/v337 production contract: runtime file is unexpectedly small: ${file}.`);
