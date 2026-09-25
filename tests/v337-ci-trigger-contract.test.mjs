@@ -22,3 +22,16 @@ test('v337 PR CI runs the Safari/WebKit reachability suites required by the audi
     'run-v337-shell-navigation.cjs'
   ])assert.match(workflow,new RegExp(suite.replaceAll('.','\\.')));
 });
+
+test('v337 CI blocks on current PR contracts and browser QA without hiding historical main-branch test debt',async()=>{
+  const workflow=await read('.github/workflows/ci.yml');
+  assert.match(workflow,/name: Current PR contract tests/);
+  assert.match(workflow,/git diff --name-only origin\/main\.\.\.HEAD -- 'tests\/\*\.test\.mjs'/);
+  assert.match(workflow,/name: Enforce current PR quality gates/);
+  assert.match(workflow,/CURRENT_CONTRACTS: \$\{\{ steps\.current_contracts\.outcome \}\}/);
+  assert.match(workflow,/VISUAL_QA: \$\{\{ steps\.visual_qa\.outcome \}\}/);
+  assert.match(workflow,/legacy-baseline:/);
+  assert.match(workflow,/name: Legacy unit baseline \(non-blocking\)/);
+  assert.match(workflow,/legacy-baseline:[\s\S]*?continue-on-error: true/);
+  assert.match(workflow,/Full historical unit suite/);
+});
