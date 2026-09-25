@@ -13,10 +13,10 @@ test('canonical A4 base remains document-only and v337 is the final corrective l
     read('src/styles/v337-template-layout-balance.css')
   ]);
   assert.match(html,/href="\.\/styles\/document-premium-redesign-v141\.css"/);
-  assert.match(html,/href="\.\/styles\/v331-draft-scroll-recovery\.css\?v=337-2"/);
+  assert.match(html,/href="\.\/styles\/v331-draft-scroll-recovery\.css\?v=337-3"/);
   assert.match(qa,/canonical A4 layer/);
   assert.doesNotMatch(qa,/\.app-shell|\.documents-page|\.editor-shell/);
-  assert.match(recovery,/^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);\n@import url\("\.\/v337-template-layout-balance\.css\?v=337-1"\);/);
+  assert.match(recovery,/^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);\n@import url\("\.\/v337-template-layout-balance\.css\?v=337-3"\);/);
   assert.match(balance,/printable template structural balance/);
   assert.doesNotMatch(balance,/\.app-shell|\.documents-page|\.editor-shell/);
 });
