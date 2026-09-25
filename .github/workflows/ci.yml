@@ -166,6 +166,7 @@ jobs:
           node tests/visual/run-v326-studio-security-overlays.cjs
           node tests/visual/run-v337-create-center.cjs
           node tests/visual/run-v337-document-actions.cjs
+          node tests/visual/run-v337-shell-navigation.cjs
       - name: Upload visual QA evidence
         if: always()
         uses: actions/upload-artifact@v6
