@@ -28,10 +28,10 @@ jobs:
           node --test tests/v326-foundation-recovery.test.mjs
           node --test tests/v326-business-workspaces.test.mjs
           node --test tests/v326-access-surfaces.test.mjs
-      - name: Install Chromium and WebKit
+      - name: Install Chromium
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium webkit
+          npx playwright install --with-deps chromium
       - name: Start QA server
         run: |
           python3 -m http.server 4173 > /tmp/lourex-v326-final-server.log 2>&1 &
@@ -42,18 +42,6 @@ jobs:
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then cat /tmp/lourex-v326-final-server.log; exit 1; fi
-      - name: Foundation and shell QA
-        run: |
-          node tests/visual/run-v326-foundation-hit-testing.cjs
-          node tests/visual/run-v326-mobile-shell.cjs
-      - name: Dashboard documents QA
-        run: node tests/visual/run-v326-dashboard-documents.cjs
-      - name: Business workspaces QA
-        run: node tests/visual/run-v326-business-workspaces.cjs
-      - name: Access surfaces QA
-        run: node tests/visual/run-v326-access-surfaces.cjs
-      - name: Studio security overlays QA
-        run: node tests/visual/run-v326-studio-security-overlays.cjs
       - name: Mobile preview fit QA
         run: node tests/visual/run-mobile-preview-fit-v241.cjs
       - name: Mobile modal overlap QA
@@ -64,6 +52,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: lourex-v326-final-design-closeout
+          name: lourex-v326-final-design-closeout-tail
           path: visual-qa-output
           if-no-files-found: ignore
