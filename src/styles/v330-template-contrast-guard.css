@@ -1,0 +1,20 @@
+/* v330 template contrast guard — presentation only, geometry neutral. */
+.template-obsidian{--paper:#fff;--ink:#17242e;--muted:#6c767e;--rule:#d8dddf;--soft:#f2f4f4;}
+.template-obsidian .header-modern{color:#fff!important;background:linear-gradient(125deg,#080a0c,#171c21 72%,#242b30)!important;}
+.template-obsidian .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span){color:#fff!important;}
+.template-obsidian .header-modern :where(.modern-title>small,.doc-meta b){color:#c5ccd1!important;}
+.template-obsidian .party-name,.template-obsidian .items-table td,.template-obsidian .grand-total>span,.template-obsidian .grand-total>strong{color:#17242e!important;}
+.template-obsidian .party-address,.template-obsidian .party-location,.template-obsidian .party-contact{color:#53616a!important;}
+.template-obsidian .items-table tbody tr:nth-child(even){background:#f2f4f4!important;}
+.template-obsidian .totals-block{background:#f5f3ee!important;color:#17242e!important;}
+
+.template-cobalt .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span){color:#fff!important;}
+.template-cobalt .header-modern :where(.modern-title>small,.doc-meta b){color:#d7e6f1!important;}
+.template-noir .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span),
+.template-midnight .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span),
+.template-blackivory .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span),
+.template-carbon .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span){color:#fff!important;}
+.template-noir .header-modern :where(.modern-title>small,.doc-meta b),
+.template-midnight .header-modern :where(.modern-title>small,.doc-meta b),
+.template-blackivory .header-modern :where(.modern-title>small,.doc-meta b),
+.template-carbon .header-modern :where(.modern-title>small,.doc-meta b){color:#d9c8a4!important;}
