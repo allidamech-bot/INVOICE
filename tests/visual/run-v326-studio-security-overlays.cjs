@@ -14,12 +14,14 @@ const viewports = [
   ['320x568', { width: 320, height: 568 }],
   ['390x844', { width: 390, height: 844 }],
   ['430x932', { width: 430, height: 932 }],
+  ['ipad820x1180', { width: 820, height: 1180 }],
   ['desktop', { width: 1440, height: 900 }],
 ];
 const langs = ['en', 'ar'];
 const themes = ['light', 'dark'];
 const surfaces = [
   { name: 'editor', url: '/tests/visual/obsidian-editor.html', selector: '.ta-editor-workspace' },
+  { name: 'draft', url: '/tests/visual/obsidian-draft-editor.html', selector: '.draft-studio' },
   { name: 'settings', url: '/tests/visual/obsidian-settings.html?scope=settings', selector: '.ta-settings-shell' },
   { name: 'account', url: '/tests/visual/obsidian-settings.html?scope=account', selector: '.ta-settings-shell' },
   { name: 'modal', url: '/tests/visual/obsidian-overlays.html', selector: '.modal' },
@@ -41,6 +43,11 @@ async function metrics(page, surface) {
       const cs = getComputedStyle(el);
       const r = el.getBoundingClientRect();
       return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0;
+    };
+    const rect = (el) => {
+      if (!(el instanceof Element)) return null;
+      const r = el.getBoundingClientRect();
+      return { left:r.left, right:r.right, top:r.top, bottom:r.bottom, w:r.width, h:r.height };
     };
     const boxes = (selector) => [...document.querySelectorAll(selector)].filter(visible).map((el) => {
       const r = el.getBoundingClientRect();
@@ -73,6 +80,7 @@ async function metrics(page, surface) {
         lastReachable: lr.bottom <= sr.bottom + 2,
         lastBottom: lr.bottom,
         scrollerBottom: sr.bottom,
+        scrollerTop: sr.top,
         lastClass: String(last.className || last.tagName || ''),
       };
       scroller.scrollTop = before;
@@ -80,8 +88,10 @@ async function metrics(page, surface) {
     };
     const root = document.documentElement;
     const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
     const data = {
       viewportWidth,
+      viewportHeight,
       scrollWidth: Math.max(root.scrollWidth, document.body?.scrollWidth || 0),
       dir: root.dir || document.body?.dir || getComputedStyle(document.body).direction,
       surface: surfaceName,
@@ -90,6 +100,19 @@ async function metrics(page, surface) {
       data.targets = boxes('.ta-editor-step-list>button');
       data.labels = boxes('.ta-editor-step-label');
       data.micro = boxes('.ta-editor-step-nav-heading small,.ta-editor-convert-card small,.ta-editor-persistence-error span:last-child');
+      data.reach = scrollProbe('.ta-main','.editor-screen');
+      data.mainRect = rect(document.querySelector('.ta-main'));
+      data.shellRect = rect(document.querySelector('.ta-shell'));
+    } else if (surfaceName === 'draft') {
+      const main=document.querySelector('.ta-main');
+      const nested=document.querySelector('.draft-studio-scroll');
+      data.reach = scrollProbe('.ta-main','.draft-studio');
+      data.mainRect = rect(main);
+      data.shellRect = rect(document.querySelector('.ta-shell'));
+      data.nestedOverflowY = nested ? getComputedStyle(nested).overflowY : 'missing';
+      data.nestedHeight = nested ? getComputedStyle(nested).height : 'missing';
+      data.sectionCount = document.querySelectorAll('.draft-control-section,.letter-block-editor').length;
+      data.topbarRect = rect(document.querySelector('.draft-studio-topbar'));
     } else if (surfaceName === 'settings' || surfaceName === 'account') {
       data.targets = boxes('.ta-settings-nav button,.ta-settings-segmented button,.ta-settings-link-action,.ta-settings-asset-trigger,.ta-recovery-status .btn');
       data.micro = boxes('.ta-settings-nav small,.ta-settings-card>header p,.ta-settings-note,.ta-account-summary span,.ta-account-access small,.ta-recovery-status small,.ta-account-access p,.ta-settings-toast');
@@ -114,7 +137,7 @@ async function metrics(page, surface) {
     const browser = await engine.launch({ headless: true });
     try {
       for (const [viewportName, viewport] of viewports) {
-        const context = await browser.newContext({ viewport });
+        const context = await browser.newContext({ viewport, hasTouch:viewport.width<=900, isMobile:viewport.width<=900 });
         const page = await context.newPage();
         for (const lang of langs) {
           for (const theme of themes) {
@@ -137,7 +160,19 @@ async function metrics(page, surface) {
                 if (m.shell) assert(m.shell.w <= m.viewportWidth + 1.5, label, `settings shell ${m.shell.w}px too wide`);
                 if (m.modal) assert(m.modal.w <= m.viewportWidth + 1.5 && m.modal.h <= viewport.height + 1.5, label, `modal out of viewport ${m.modal.w}x${m.modal.h}`);
                 if (m.frame) assert(m.frame.w <= m.viewportWidth + 1.5, label, `auth frame ${m.frame.w}px too wide`);
-                if (viewport.width <= 900 && m.reach) {
+                if (viewport.width <= 1180 && (surface.name === 'editor' || surface.name === 'draft')) {
+                  assert(Boolean(m.mainRect), label, 'missing .ta-main scroll owner');
+                  if (m.mainRect) {
+                    assert(m.mainRect.top > 0, label, `editor main starts at ${m.mainRect.top}px instead of below the shell header`);
+                    assert(m.mainRect.bottom <= m.viewportHeight + 1.5, label, `editor main extends below viewport: ${m.mainRect.bottom}px > ${m.viewportHeight}px`);
+                  }
+                  if (m.mainRect && m.shellRect) assert(m.mainRect.bottom <= m.shellRect.bottom + 1.5, label, `editor main extends below shell: ${m.mainRect.bottom}px > ${m.shellRect.bottom}px`);
+                }
+                if (surface.name === 'draft' && viewport.width <= 1180) {
+                  assert(['visible','clip'].includes(m.nestedOverflowY), label, `Draft nested scroller regained overflow-y=${m.nestedOverflowY}`);
+                  assert(m.sectionCount >= 10, label, `Draft fixture did not create enough long-form content (${m.sectionCount})`);
+                }
+                if (viewport.width <= 900 && m.reach || surface.name === 'draft' && viewport.width <= 1180 && m.reach) {
                   assert(['auto','scroll'].includes(m.reach.overflowY) || m.reach.max <= 2, label, `scroll owner overflow-y=${m.reach.overflowY} with ${m.reach.max}px hidden range`);
                   assert(m.reach.reachesEnd, label, `cannot reach scroll end ${m.reach.after}/${m.reach.max}`);
                   assert(m.reach.lastReachable, label, `last content ${m.reach.lastClass} remains clipped ${m.reach.lastBottom.toFixed(1)} > ${m.reach.scrollerBottom.toFixed(1)}`);
