@@ -4,6 +4,60 @@
   var ATTEMPT_KEY='lourex-startup-recovery-v321';
   var CHECK_MS=9000;
   var CACHE_PREFIX='lourex-invoice-';
+  var DIAG_LOG_KEY='lourex-runtime-diagnostics-v340';
+  var DIAG_META_KEY='lourex-runtime-diagnostics-meta-v340';
+  var DIAG_MAX_EVENTS=120;
+
+  function currentScreen(){
+    try{
+      var shell=document.querySelector('.ta-shell,.workspace-shell');
+      if(shell instanceof HTMLElement){
+        var classes=Array.from(shell.classList);
+        for(var i=0;i<classes.length;i++)if(classes[i].indexOf('screen-')===0)return classes[i].slice(7);
+      }
+      if(document.querySelector('.editor-screen'))return 'editor';
+      if(document.querySelector('.auth-page,.ta-auth-page'))return 'auth';
+      if(document.querySelector('.loading-screen,#lourex-boot'))return 'loading';
+    }catch(_error){}
+    return 'unknown';
+  }
+
+  function markNavigation(reason,detail){
+    try{
+      var helper=window.__LOUREX_DIAGNOSTICS__&&window.__LOUREX_DIAGNOSTICS__.mark;
+      if(typeof helper==='function'){
+        helper('navigation-request','reason='+String(reason||'unknown')+(detail?' '+String(detail):''));
+        return;
+      }
+      var raw=localStorage.getItem(DIAG_LOG_KEY)||'[]';
+      var log=JSON.parse(raw);
+      if(!Array.isArray(log))log=[];
+      var now=new Date().toISOString();
+      var event={
+        at:now,
+        session:'navigation-v341',
+        type:'navigation-request',
+        screen:currentScreen(),
+        visibility:document.visibilityState||'unknown',
+        online:navigator.onLine!==false,
+        detail:'reason='+String(reason||'unknown').slice(0,80)+(detail?' '+String(detail).slice(0,96):'')
+      };
+      log.push(event);
+      if(log.length>DIAG_MAX_EVENTS)log.splice(0,log.length-DIAG_MAX_EVENTS);
+      localStorage.setItem(DIAG_LOG_KEY,JSON.stringify(log));
+      localStorage.setItem(DIAG_META_KEY,JSON.stringify({
+        sessionId:'navigation-v341',
+        startedAt:now,
+        lastSeen:now,
+        lastEvent:'navigation-request',
+        lastScreen:event.screen,
+        visibility:event.visibility,
+        online:event.online
+      }));
+    }catch(_error){}
+  }
+
+  try{Object.defineProperty(window,'__LOUREX_MARK_NAVIGATION__',{value:markNavigation,writable:false,configurable:true});}catch(_error){try{window.__LOUREX_MARK_NAVIGATION__=markNavigation;}catch(_ignored){}}
 
   function bootStillVisible(){
     return Boolean(document.getElementById('lourex-boot'))&&!document.querySelector('.app-ui,.auth-page,.app-recovery-screen');
@@ -126,6 +180,7 @@
     actions.appendChild(buildButton('Retry / إعادة المحاولة',function(){
       if(editingWorkspaceOpen())return;
       clearAttempt();
+      markNavigation('startup-recovery-retry');
       window.location.replace(retryUrl());
     }));
 
@@ -159,6 +214,7 @@
       await refreshStaticRuntime();
       if(editingWorkspaceOpen()){clearAttempt();return;}
       if(!bootStillVisible()){clearAttempt();return;}
+      markNavigation('startup-watchdog-auto');
       window.location.replace(retryUrl());
       return;
     }

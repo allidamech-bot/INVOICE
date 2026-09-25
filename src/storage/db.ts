@@ -7,6 +7,8 @@ const DB_VERSION = 1;
 const STORE = 'records';
 const MIGRATION_MARKER_PREFIX = 'lourex-account-storage-v1-migrated:';
 const PUBLIC_RECOVERY_MARKER_PREFIX = 'lourex-account-storage-public-v2-migrated:';
+const ACTIVE_SCOPE_META_KEY='lourex-active-storage-meta-v341';
+const ACTIVE_VAULT_META_KEY='lourex-active-vault-meta-v341';
 
 type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord | SafetySnapshotRecord;
 
@@ -18,6 +20,14 @@ function accountDbName(uid:string):string{return `${ACCOUNT_DB_PREFIX}${encodeUR
 function scopedDbName():string{return activeStorageUid?accountDbName(activeStorageUid):PUBLIC_DB_NAME;}
 function migrationMarker(uid:string):string{return `${MIGRATION_MARKER_PREFIX}${uid}`;}
 function publicRecoveryMarker(uid:string):string{return `${PUBLIC_RECOVERY_MARKER_PREFIX}${uid}`;}
+function scopeFingerprint(value:string):string{let hash=2166136261;for(let i=0;i<value.length;i++){hash^=value.charCodeAt(i);hash=Math.imul(hash,16777619);}return (hash>>>0).toString(36);}
+function decodedBase64Bytes(value:string):number{const text=String(value||'');if(!text)return 0;let padding=0;if(text.endsWith('=='))padding=2;else if(text.endsWith('='))padding=1;return Math.max(0,Math.floor(text.length*3/4)-padding);}
+function rememberActiveScope():void{
+  try{localStorage.setItem(ACTIVE_SCOPE_META_KEY,JSON.stringify({fingerprint:scopeFingerprint(scopedDbName()),kind:activeStorageUid?'account':'public',measuredAt:new Date().toISOString()}));}catch{}
+}
+function rememberVaultMeta(vault:EncryptedVaultRecord):void{
+  try{localStorage.setItem(ACTIVE_VAULT_META_KEY,JSON.stringify({fingerprint:scopeFingerprint(scopedDbName()),kind:activeStorageUid?'account':'public',cipherChars:String(vault.cipher||'').length,encryptedBytes:decodedBase64Bytes(vault.cipher),updatedAt:vault.updatedAt||'',measuredAt:new Date().toISOString()}));}catch{}
+}
 
 function openNamedDb(name:string):Promise<IDBDatabase>{
   return new Promise((resolve,reject)=>{
@@ -146,13 +156,14 @@ async function migrateAccidentalPublicAccountIfOwned(uid:string):Promise<void>{
  */
 export async function activateAccountStorage(uid:string|null):Promise<void>{
   const normalized=uid?.trim()||null;
-  if(normalized===activeStorageUid&&openDbName===scopedDbName())return;
+  if(normalized===activeStorageUid&&openDbName===scopedDbName()){rememberActiveScope();return;}
   await closeActiveDb();
   if(normalized){
     await migrateLegacyAccountIfOwned(normalized);
     await migrateAccidentalPublicAccountIfOwned(normalized);
   }
   activeStorageUid=normalized;
+  rememberActiveScope();
 }
 
 export function activeAccountStorageUid():string|null{return activeStorageUid;}
@@ -191,12 +202,13 @@ export async function getRecord<T extends DbRecord>(id: T['id']): Promise<T | nu
 export async function putRecord(record: DbRecord): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
+    const tx = db.transaction(STORE,'readwrite');
     tx.objectStore(STORE).put(record);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error ?? new Error('IndexedDB write failed.'));
     tx.onabort = () => reject(tx.error ?? new Error('IndexedDB write aborted.'));
   });
+  if(record.id==='vault')rememberVaultMeta(record as EncryptedVaultRecord);
 }
 
 export async function deleteRecord(id: DbRecord['id']): Promise<void> {
@@ -220,6 +232,7 @@ export async function putSecurityAndVault(security: SecurityMetadata, vault: Enc
     tx.onerror=()=>reject(tx.error??new Error('Unable to commit encrypted data.'));
     tx.onabort=()=>reject(tx.error??new Error('Encrypted data transaction aborted.'));
   });
+  rememberVaultMeta(vault);
 }
 
 // Local recovery snapshots were retired when LOUREX moved to an account-first
@@ -243,7 +256,11 @@ export async function swapSafetySnapshotIntoCurrent():Promise<SafetySnapshotReco
 
 export async function hasSecurity(): Promise<boolean> { return Boolean(await getRecord<SecurityMetadata>('security')); }
 export async function getSecurity(): Promise<SecurityMetadata | null> { return getRecord<SecurityMetadata>('security'); }
-export async function getEncryptedVault(): Promise<EncryptedVaultRecord | null> { return getRecord<EncryptedVaultRecord>('vault'); }
+export async function getEncryptedVault(): Promise<EncryptedVaultRecord | null> {
+  const vault=await getRecord<EncryptedVaultRecord>('vault');
+  if(vault)rememberVaultMeta(vault);
+  return vault;
+}
 export async function getPublicPreferences(): Promise<PublicPreferencesRecord | null> { return getRecord<PublicPreferencesRecord>('public-preferences'); }
 export async function putPublicPreferences(preferences: Omit<PublicPreferencesRecord, 'id'|'updatedAt'>): Promise<void> {
   await putRecord({ id:'public-preferences', ...preferences, updatedAt:new Date().toISOString() });
