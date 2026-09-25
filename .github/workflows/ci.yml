@@ -53,7 +53,7 @@ jobs:
           path: current-contract-tests.log
           if-no-files-found: error
 
-      - name: Install browser visual QA runtime
+      - name: Install browser stability runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium webkit
@@ -83,11 +83,51 @@ jobs:
           node tests/visual/run-v339-shell-overlay-release.cjs
           node tests/visual/run-v339-signout-guard.cjs
 
-      - name: Run complete browser functional + TailAdmin QA matrix
-        id: visual_qa
-        continue-on-error: true
+      - name: Enforce current PR contract + stability gates
+        if: always()
+        env:
+          CURRENT_CONTRACTS: ${{ steps.current_contracts.outcome }}
+          STABILITY_QA: ${{ steps.stability_qa.outcome }}
         run: |
-          npx http-server . -p 4173 -c-1 > /tmp/lourex-visual-qa-server.log 2>&1 &
+          echo "Current PR contract tests: $CURRENT_CONTRACTS"
+          echo "v338/v339 editor + navigation stability: $STABILITY_QA"
+          if [ "$CURRENT_CONTRACTS" != 'success' ] || [ "$STABILITY_QA" != 'success' ]; then
+            exit 1
+          fi
+
+  browser-qa:
+    name: Browser/TailAdmin QA (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - templates
+          - mobile-layout
+          - mobile-runtime
+          - auth-documents
+          - business-flows
+          - locales-operations
+          - tailadmin-v326
+          - v337-shell
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Production build
+        run: npm run build
+      - name: Install browser QA runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Run ${{ matrix.shard }} QA shard
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          npx http-server . -p 4173 -c-1 > "/tmp/lourex-${SHARD}-qa-server.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
           ready=0
@@ -99,16 +139,19 @@ jobs:
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then
-            cat /tmp/lourex-visual-qa-server.log
+            cat "/tmp/lourex-${SHARD}-qa-server.log"
             exit 1
           fi
+
           status=0
           run_qa(){
+            limit="$1"
+            shift
             echo "::group::$*"
-            timeout --signal=TERM --kill-after=15s 180s "$@" || {
+            timeout --signal=TERM --kill-after=15s "${limit}s" "$@" || {
               code=$?
               if [ "$code" -eq 124 ] || [ "$code" -eq 137 ]; then
-                echo "QA command timed out ($code): $*"
+                echo "QA command timed out ($code after ${limit}s): $*"
               else
                 echo "QA command failed ($code): $*"
               fi
@@ -116,58 +159,86 @@ jobs:
             }
             echo "::endgroup::"
           }
-          run_qa node tests/visual/run-pdf-searchable-v222.cjs
-          run_qa node tests/visual/run-template-visual-qa.cjs visual-qa-output
-          run_qa node tests/visual/run-mobile-final-quote-stack.cjs
-          run_qa node tests/visual/run-mobile-modal-overlap-v176.cjs
-          run_qa node tests/visual/run-mobile-controls-density-v177.cjs
-          run_qa node tests/visual/run-final-touch-targets-v275.cjs
-          run_qa node tests/visual/run-mobile-spacing-fit-v198.cjs
-          run_qa node tests/visual/run-mobile-safari-chrome-v199.cjs
-          run_qa node tests/visual/run-functional-navigation-auth-v200.cjs
-          run_qa node tests/visual/run-save-reliability-v217.cjs
-          run_qa node tests/visual/run-premium-auth-gateway-v187.cjs
-          run_qa node tests/visual/run-mobile-preview-fit-v241.cjs
-          run_qa node tests/visual/run-functional-document-workflow.cjs
-          run_qa node tests/visual/run-functional-editor-controls-v201.cjs
-          run_qa node tests/visual/run-functional-payments.cjs
-          run_qa node tests/visual/run-functional-customers-v196.cjs
-          run_qa node tests/visual/run-functional-products-operations-v197.cjs
-          run_qa node tests/visual/run-import-final-audit-v267.cjs
-          run_qa node tests/visual/run-packing-preview-locale-v244.cjs
-          run_qa node tests/visual/run-product-category-locale-v245.cjs
-          run_qa node tests/visual/run-saved-items-category-locale-v246.cjs
-          run_qa node tests/visual/run-product-unit-locale-v247.cjs
-          run_qa node tests/visual/run-operations-mobile-tabs-v242.cjs
-          run_qa node tests/visual/run-tailadmin-v320.cjs
-          run_qa node tests/visual/run-v326-dashboard-documents.cjs
-          run_qa node tests/visual/run-v326-business-workspaces.cjs
-          run_qa node tests/visual/run-v326-access-surfaces.cjs
-          run_qa node tests/visual/run-v326-studio-security-overlays.cjs
-          run_qa node tests/visual/run-v337-draft-output.cjs
-          run_qa node tests/visual/run-v337-create-center.cjs
-          run_qa node tests/visual/run-v337-document-actions.cjs
-          run_qa node tests/visual/run-v337-shell-navigation.cjs
-          exit "$status"
 
-      - name: Upload visual QA evidence
+          case "$SHARD" in
+            templates)
+              run_qa 180 node tests/visual/run-pdf-searchable-v222.cjs
+              run_qa 300 node tests/visual/run-template-visual-qa.cjs visual-qa-output
+              ;;
+            mobile-layout)
+              run_qa 180 node tests/visual/run-mobile-final-quote-stack.cjs
+              run_qa 180 node tests/visual/run-mobile-modal-overlap-v176.cjs
+              run_qa 180 node tests/visual/run-mobile-controls-density-v177.cjs
+              run_qa 180 node tests/visual/run-final-touch-targets-v275.cjs
+              ;;
+            mobile-runtime)
+              run_qa 180 node tests/visual/run-mobile-spacing-fit-v198.cjs
+              run_qa 180 node tests/visual/run-mobile-safari-chrome-v199.cjs
+              run_qa 180 node tests/visual/run-functional-navigation-auth-v200.cjs
+              run_qa 180 node tests/visual/run-save-reliability-v217.cjs
+              ;;
+            auth-documents)
+              run_qa 180 node tests/visual/run-premium-auth-gateway-v187.cjs
+              run_qa 180 node tests/visual/run-mobile-preview-fit-v241.cjs
+              run_qa 180 node tests/visual/run-functional-document-workflow.cjs
+              run_qa 180 node tests/visual/run-functional-editor-controls-v201.cjs
+              ;;
+            business-flows)
+              run_qa 180 node tests/visual/run-functional-payments.cjs
+              run_qa 180 node tests/visual/run-functional-customers-v196.cjs
+              run_qa 180 node tests/visual/run-functional-products-operations-v197.cjs
+              run_qa 180 node tests/visual/run-import-final-audit-v267.cjs
+              ;;
+            locales-operations)
+              run_qa 180 node tests/visual/run-packing-preview-locale-v244.cjs
+              run_qa 180 node tests/visual/run-product-category-locale-v245.cjs
+              run_qa 180 node tests/visual/run-saved-items-category-locale-v246.cjs
+              run_qa 180 node tests/visual/run-product-unit-locale-v247.cjs
+              run_qa 180 node tests/visual/run-operations-mobile-tabs-v242.cjs
+              ;;
+            tailadmin-v326)
+              run_qa 180 node tests/visual/run-tailadmin-v320.cjs
+              run_qa 180 node tests/visual/run-v326-dashboard-documents.cjs
+              run_qa 180 node tests/visual/run-v326-business-workspaces.cjs
+              run_qa 180 node tests/visual/run-v326-access-surfaces.cjs
+              run_qa 180 node tests/visual/run-v326-studio-security-overlays.cjs
+              ;;
+            v337-shell)
+              run_qa 180 node tests/visual/run-v337-draft-output.cjs
+              run_qa 180 node tests/visual/run-v337-create-center.cjs
+              run_qa 180 node tests/visual/run-v337-document-actions.cjs
+              run_qa 180 node tests/visual/run-v337-shell-navigation.cjs
+              ;;
+            *)
+              echo "Unknown QA shard: $SHARD"
+              exit 2
+              ;;
+          esac
+          exit "$status"
+      - name: Upload shard QA evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: lourex-visual-qa
+          name: lourex-visual-qa-${{ matrix.shard }}
           path: visual-qa-output
           if-no-files-found: ignore
-      - name: Enforce current PR quality gates
-        if: always()
+
+  quality-gate:
+    name: Current PR quality gate
+    if: always()
+    needs:
+      - verify
+      - browser-qa
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce verify + all browser QA shards
         env:
-          CURRENT_CONTRACTS: ${{ steps.current_contracts.outcome }}
-          STABILITY_QA: ${{ steps.stability_qa.outcome }}
-          VISUAL_QA: ${{ steps.visual_qa.outcome }}
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          BROWSER_QA_RESULT: ${{ needs.browser-qa.result }}
         run: |
-          echo "Current PR contract tests: $CURRENT_CONTRACTS"
-          echo "v338/v339 editor + navigation stability: $STABILITY_QA"
-          echo "Complete browser/WebKit baseline: $VISUAL_QA"
-          if [ "$CURRENT_CONTRACTS" != 'success' ] || [ "$STABILITY_QA" != 'success' ] || [ "$VISUAL_QA" != 'success' ]; then
+          echo "Verify result: $VERIFY_RESULT"
+          echo "Browser/TailAdmin QA result: $BROWSER_QA_RESULT"
+          if [ "$VERIFY_RESULT" != 'success' ] || [ "$BROWSER_QA_RESULT" != 'success' ]; then
             exit 1
           fi
 
