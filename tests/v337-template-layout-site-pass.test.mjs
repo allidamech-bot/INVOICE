@@ -42,6 +42,17 @@ test('mobile editor scroll owner stays inside the shell grid row instead of clai
   }
 });
 
+test('Draft mobile action bar geometry is owned by v337 instead of retired v308',async()=>{
+  const recovery=await read('src/styles/v331-draft-scroll-recovery.css');
+  const desktop=recovery.slice(recovery.indexOf('@media screen and (min-width:1181px)'),recovery.indexOf('/* Commercial document editors'));
+  const draft=recovery.slice(recovery.indexOf('@media screen and (max-width:1180px)'),recovery.indexOf('@media screen and (max-width:720px)'));
+  assert.match(desktop,/\.draft-mobile-actionbar\{[\s\S]*display:none!important/);
+  assert.match(draft,/\.draft-mobile-actionbar\{[\s\S]*position:fixed!important[\s\S]*z-index:180!important[\s\S]*left:0!important[\s\S]*right:0!important[\s\S]*bottom:0!important/);
+  assert.match(draft,/\.draft-mobile-actionbar\{[\s\S]*display:grid!important[\s\S]*grid-template-columns:repeat\(4,minmax\(0,1fr\)\)!important/);
+  assert.match(draft,/\.draft-mobile-actionbar\{[\s\S]*env\(safe-area-inset-bottom,0px\)/);
+  assert.match(draft,/\.draft-mobile-actionbar \.btn\{[\s\S]*min-width:0!important/);
+});
+
 test('Safari command sheets share one explicit vertical touch-scroll contract',async()=>{
   const recovery=await read('src/styles/v331-draft-scroll-recovery.css');
   assert.match(recovery,/\.ta-mobile-sheet,\.ta-create-menu-mobile/);
