@@ -1,0 +1,287 @@
+/*
+ * LOUREX v323 — design-only full UI closeout.
+ * Final screen presentation owner for spacing, typography, density, responsive
+ * geometry, cards, tables, overlays and theme separation.
+ * No business logic, persistence, auth, accounting, PDF, print or data behavior.
+ */
+@media screen {
+  .app-ui{
+    --v323-page-max:1480px;
+    --v323-gutter:clamp(20px,2.2vw,34px);
+    --v323-radius-sm:10px;
+    --v323-radius:14px;
+    --v323-radius-lg:18px;
+    --v323-control:44px;
+    --v323-card-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.045);
+    --v323-pop-shadow:0 24px 64px rgba(16,24,40,.18);
+  }
+  html[data-ui-theme="light"] .app-ui{
+    --ft-canvas:#f7f8fb!important;
+    --ft-workspace:#f7f8fb!important;
+    --ft-shell:#ffffff!important;
+    --ft-surface:#ffffff!important;
+    --ft-surface-2:#f9fafc!important;
+    --ft-surface-3:#f1f3f7!important;
+    --ft-line:#e6e8ee!important;
+    --ft-line-strong:#d4d8e2!important;
+  }
+  html[data-ui-theme="dark"] .app-ui{
+    --ft-canvas:#090f1b!important;
+    --ft-workspace:#090f1b!important;
+    --ft-shell:#0f1726!important;
+    --ft-surface:#111b2c!important;
+    --ft-surface-2:#162235!important;
+    --ft-surface-3:#1c2a40!important;
+    --ft-line:#243249!important;
+    --ft-line-strong:#34445f!important;
+    --v323-card-shadow:0 1px 2px rgba(0,0,0,.28),0 12px 30px rgba(0,0,0,.16);
+    --v323-pop-shadow:0 28px 72px rgba(0,0,0,.42);
+  }
+
+  /* Global visual grammar */
+  .app-ui{font-size:14px!important;line-height:1.5!important;}
+  .app-ui :where(button,input,select,textarea){font:inherit;}
+  .app-ui :where(.btn,button.btn,.icon-btn,input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea){
+    min-height:var(--v323-control)!important;
+    border-radius:var(--v323-radius-sm)!important;
+  }
+  .app-ui :where(.btn,button.btn){padding:10px 15px!important;font-size:13.5px!important;line-height:20px!important;font-weight:650!important;}
+  .app-ui :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea){font-size:13.5px!important;line-height:20px!important;}
+  .app-ui :where(.field>label,.field-label,label>span){font-size:12px!important;line-height:18px!important;font-weight:650!important;color:var(--ft-text-soft)!important;}
+  .app-ui :where(.ta-dashboard-card,.ta-doc-register-card,.ta-customers-register,.ta-product-register,.ta-product-editor,.ta-ops-list-card,.ta-ops-editor-card,.ta-panel,.ta-report-filterbar,.ta-settings-card){
+    border-radius:var(--v323-radius)!important;
+    border-color:var(--ft-line)!important;
+    box-shadow:var(--v323-card-shadow)!important;
+  }
+
+  /* Desktop shell — deliberate proportions and clearer hierarchy. */
+  .app-ui .ta-shell{
+    grid-template-columns:272px minmax(0,1fr)!important;
+    grid-template-rows:68px minmax(0,1fr)!important;
+  }
+  html[dir="rtl"] .app-ui .ta-shell{grid-template-columns:minmax(0,1fr) 272px!important;}
+  .app-ui .ta-sidebar{width:272px!important;min-width:272px!important;padding:0 14px 15px!important;}
+  .app-ui .ta-sidebar-brand-row{height:68px!important;min-height:68px!important;}
+  .app-ui .ta-brand-button{height:48px!important;min-height:48px!important;border-radius:12px!important;}
+  .app-ui .ta-brand-copy strong{font-size:15.5px!important;font-weight:800!important;}
+  .app-ui .ta-brand-copy small{font-size:10.5px!important;font-weight:700!important;}
+  .app-ui .ta-sidebar-create{margin:6px 2px 18px!important;}
+  .app-ui .ta-create-button{border-radius:11px!important;font-size:13.5px!important;box-shadow:0 8px 20px color-mix(in srgb,var(--ft-accent) 18%,transparent)!important;}
+  .app-ui .ta-nav-section{gap:5px!important;margin-bottom:16px!important;}
+  .app-ui .ta-nav-section>p{margin-bottom:5px!important;font-size:11px!important;line-height:17px!important;font-weight:750!important;}
+  .app-ui .ta-nav-item,.app-ui .ta-sidebar-utility{min-height:43px!important;padding:9px 10px!important;border-radius:10px!important;font-size:13.5px!important;font-weight:600!important;}
+  .app-ui .ta-nav-item.is-active{box-shadow:inset 3px 0 0 var(--ft-accent)!important;}
+  [dir="rtl"] .app-ui .ta-nav-item.is-active{box-shadow:inset -3px 0 0 var(--ft-accent)!important;}
+  .app-ui .ta-sidebar-footer{padding-top:12px!important;}
+  .app-ui .ta-sidebar-account{border-radius:11px!important;}
+  .app-ui .ta-topbar{height:68px!important;min-height:68px!important;padding:0 22px!important;gap:16px!important;}
+  .app-ui .ta-page-title strong{font-size:18px!important;line-height:24px!important;font-weight:750!important;}
+  .app-ui .ta-page-title small{font-size:10.5px!important;line-height:16px!important;}
+  .app-ui .ta-search-trigger{min-width:300px!important;height:42px!important;min-height:42px!important;border-radius:11px!important;box-shadow:none!important;}
+  .app-ui .ta-search-trigger>span{font-size:13px!important;}
+  .app-ui .ta-topbar-account{min-height:42px!important;border-radius:11px!important;}
+
+  /* Shared page containers and page headings. */
+  .app-ui :where(.ta-finance-dashboard,.ta-documents-page,.ta-doc-detail-page,.ta-customers-page,.ta-customer-profile,.ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page){
+    width:100%!important;max-width:var(--v323-page-max)!important;margin:0 auto!important;
+    padding:28px var(--v323-gutter) 64px!important;
+  }
+  .app-ui :where(.ta-dashboard-header,.ta-documents-header,.ta-customers-header,.ta-products-workspace-header,.ta-ops-page-header,.ta-page-header){gap:18px!important;margin-bottom:0!important;}
+  .app-ui :where(.ta-dashboard-heading h1,.ta-documents-header h1,.ta-customers-header h1,.ta-products-workspace-header h1,.ta-ops-page-header h1,.ta-page-header h1){
+    font-size:30px!important;line-height:38px!important;font-weight:760!important;letter-spacing:-.018em!important;
+  }
+  [dir="rtl"] .app-ui :where(.ta-dashboard-heading h1,.ta-documents-header h1,.ta-customers-header h1,.ta-products-workspace-header h1,.ta-ops-page-header h1,.ta-page-header h1){letter-spacing:0!important;}
+  .app-ui :where(.ta-dashboard-heading p,.ta-documents-header p,.ta-customers-header p,.ta-products-workspace-header p,.ta-ops-page-header p,.ta-page-header p){
+    max-width:780px!important;font-size:13.5px!important;line-height:21px!important;color:var(--ft-muted)!important;
+  }
+  .app-ui :where(.ta-dashboard-eyebrow,.ta-documents-eyebrow,.ta-customers-eyebrow,.ta-products-workspace-eyebrow){font-size:11.5px!important;line-height:17px!important;font-weight:700!important;}
+
+  /* Dashboard — stronger rhythm and better space utilization. */
+  .app-ui .ta-finance-dashboard{gap:18px!important;}
+  .app-ui .ta-kpi-grid{gap:14px!important;}
+  .app-ui .ta-kpi-card{min-height:128px!important;padding:16px!important;border-radius:var(--v323-radius)!important;box-shadow:var(--v323-card-shadow)!important;}
+  .app-ui .ta-kpi-icon{width:38px!important;height:38px!important;border-radius:10px!important;}
+  .app-ui .ta-kpi-copy>small{font-size:12px!important;line-height:18px!important;font-weight:650!important;}
+  .app-ui .ta-kpi-copy>strong,.app-ui .ta-kpi-money-stack b{font-size:23px!important;line-height:30px!important;font-weight:760!important;}
+  .app-ui .ta-kpi-money-stack b+b{font-size:13px!important;line-height:19px!important;font-weight:600!important;}
+  .app-ui .ta-kpi-copy em{font-size:11px!important;line-height:16px!important;}
+  .app-ui .ta-quick-actions{gap:10px!important;}
+  .app-ui .ta-quick-actions>button{min-height:70px!important;padding:11px 12px!important;border-radius:12px!important;box-shadow:none!important;}
+  .app-ui .ta-quick-actions strong{font-size:13px!important;line-height:18px!important;font-weight:700!important;}
+  .app-ui .ta-quick-actions small{font-size:11px!important;line-height:16px!important;}
+  .app-ui .ta-dashboard-primary-grid,.app-ui .ta-dashboard-secondary-grid{gap:14px!important;}
+  .app-ui .ta-card-header{min-height:70px!important;padding:16px 18px!important;}
+  .app-ui .ta-card-header h2{font-size:17px!important;line-height:24px!important;font-weight:750!important;}
+  .app-ui .ta-card-header small{font-size:10.5px!important;line-height:15px!important;font-weight:750!important;}
+  .app-ui .ta-card-header span{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-chart-stage{min-height:260px!important;padding-inline:16px!important;}
+  .app-ui .ta-finance-chart{height:230px!important;}
+  .app-ui .ta-chart-labels{font-size:10.5px!important;line-height:15px!important;}
+
+  /* Documents and data registers — readable, dense but not spreadsheet-micro. */
+  .app-ui .ta-documents-page{gap:15px!important;}
+  .app-ui .ta-doc-summary-grid{gap:10px!important;}
+  .app-ui .ta-doc-summary-grid>button{min-height:102px!important;padding:14px!important;border-radius:13px!important;}
+  .app-ui .ta-doc-summary-grid small{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .ta-doc-summary-grid strong{font-size:22px!important;line-height:29px!important;font-weight:750!important;}
+  .app-ui .ta-doc-summary-grid em{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .ta-doc-type-tabs{padding:9px 10px!important;gap:5px!important;}
+  .app-ui .ta-doc-type-tabs>button{min-height:36px!important;padding:6px 10px!important;border-radius:9px!important;font-size:11.5px!important;}
+  .app-ui .ta-doc-commandbar{padding:11px!important;gap:8px!important;}
+  .app-ui .ta-doc-search{height:44px!important;border-radius:10px!important;}
+  .app-ui .ta-doc-sort,.app-ui .ta-doc-filter-button{height:44px!important;min-height:44px!important;border-radius:10px!important;}
+  .app-ui .ta-doc-register-meta{min-height:40px!important;font-size:11.5px!important;}
+  .app-ui .ta-doc-table-head{min-height:40px!important;font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .ta-doc-row{min-height:74px!important;}
+  .app-ui .ta-doc-row-open{padding-block:10px!important;}
+  .app-ui .ta-doc-row-identity strong,.app-ui .ta-doc-row-party strong{font-size:12.5px!important;line-height:18px!important;}
+  .app-ui .ta-doc-row-identity small,.app-ui .ta-doc-row-party small{font-size:11px!important;line-height:16px!important;}
+
+  /* Customers / products / purchasing / finance use the same visual density. */
+  .app-ui :where(.ta-customers-summary,.ta-products-overview,.ta-ops-summary){gap:10px!important;}
+  .app-ui :where(.ta-customers-summary>div,.ta-products-overview>div,.ta-ops-summary>div){border-radius:13px!important;box-shadow:var(--v323-card-shadow)!important;}
+  .app-ui :where(.ta-customers-summary small,.ta-products-overview small,.ta-ops-summary small){font-size:11.5px!important;line-height:17px!important;}
+  .app-ui :where(.ta-customers-summary strong,.ta-products-overview strong,.ta-ops-summary strong){font-weight:750!important;}
+  .app-ui :where(.ta-customers-table-head,.ta-product-table-head,[class*="ta-"][class*="-table-head"]){font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .ta-table th{font-size:11px!important;line-height:16px!important;font-weight:700!important;}
+  .app-ui .ta-table td{font-size:13px!important;line-height:19px!important;}
+  .app-ui .ta-table td small{font-size:11px!important;line-height:16px!important;}
+  .app-ui :where(.ta-finance-kpi,.ta-report-kpi){border-radius:13px!important;box-shadow:var(--v323-card-shadow)!important;}
+  .app-ui .ta-finance-kpi>small{font-size:12px!important;}
+  .app-ui .ta-finance-kpi>strong{font-size:24px!important;line-height:32px!important;font-weight:760!important;}
+  .app-ui .ta-panel-header h2{font-size:17px!important;font-weight:750!important;}
+  .app-ui .ta-panel-header p{font-size:12px!important;line-height:18px!important;}
+
+  /* Settings — product-like left rail on desktop, clean cards on all sizes. */
+  .ta-settings-shell{grid-template-columns:236px minmax(0,1fr)!important;margin:0!important;background:var(--ft-workspace)!important;}
+  .ta-settings-sidebar{padding:18px 12px!important;gap:16px!important;}
+  .ta-settings-nav button{min-height:54px!important;border-radius:10px!important;}
+  .ta-settings-nav strong{font-size:13px!important;font-weight:700!important;}
+  .ta-settings-nav small{font-size:10.5px!important;line-height:15px!important;}
+  .ta-settings-content{padding:26px!important;}
+  .ta-settings-page{max-width:1040px!important;}
+  .ta-settings-page-header{margin-bottom:16px!important;}
+  .ta-settings-page-header h3{font-size:25px!important;line-height:33px!important;font-weight:760!important;}
+  .ta-settings-page-header p{font-size:12.5px!important;line-height:19px!important;}
+  .ta-settings-card{margin-bottom:14px!important;border-radius:var(--v323-radius)!important;box-shadow:var(--v323-card-shadow)!important;}
+  .ta-settings-card>header{padding:15px 17px!important;}
+  .ta-settings-card>header h4{font-size:15.5px!important;line-height:22px!important;font-weight:750!important;}
+  .ta-settings-card-body{padding:17px!important;}
+
+  /* Editor — improve hierarchy without touching preview/document output. */
+  .app-ui .editor-topbar{min-height:68px!important;}
+  .app-ui .editor-top-left strong{font-size:15px!important;font-weight:750!important;}
+  .app-ui .editor-top-left span{font-size:11.5px!important;}
+  .app-ui .ta-editor-step-nav{border-radius:13px!important;box-shadow:var(--v323-card-shadow)!important;}
+  .app-ui .ta-editor-step-list>button{min-height:42px!important;border-radius:9px!important;}
+  .app-ui .ta-editor-step-label{font-size:11.5px!important;line-height:16px!important;font-weight:650!important;}
+  .app-ui .editor-pane,.app-ui .editor-preview-pane{border-radius:var(--v323-radius)!important;}
+  .app-ui .editor-section{border-radius:13px!important;padding:16px!important;}
+  .app-ui .section-heading h2{font-size:15.5px!important;line-height:22px!important;font-weight:750!important;}
+  .app-ui .section-heading>span,.app-ui .section-heading>div>span{font-size:10.5px!important;line-height:15px!important;}
+
+  /* Overlays / search / toasts — consistent with the product shell. */
+  .modal-backdrop{background:rgba(9,15,27,.44)!important;backdrop-filter:blur(5px)!important;}
+  .modal{border-radius:16px!important;box-shadow:var(--v323-pop-shadow)!important;}
+  .modal-header{min-height:64px!important;padding:14px 18px!important;}
+  .modal-header h2{font-size:18px!important;line-height:25px!important;font-weight:750!important;}
+  .modal-body{padding:18px!important;}
+  .modal-footer{padding:12px 18px!important;}
+  .global-search-panel{border-radius:16px!important;box-shadow:var(--v323-pop-shadow)!important;}
+  .global-search-input-wrap{min-height:64px!important;}
+  .global-search-section-title>span,.global-search-section-title>button{font-size:11.5px!important;}
+  .global-search-actions strong{font-size:12px!important;}
+  .global-search-actions small{font-size:10.5px!important;}
+  .global-search-result-copy strong{font-size:12.5px!important;}
+  .global-search-result-copy small,.global-search-result-copy span{font-size:10.5px!important;}
+  .toast{border-radius:11px!important;font-size:12px!important;line-height:18px!important;box-shadow:var(--v323-pop-shadow)!important;}
+
+  /* Authentication / PIN — less empty space, clearer card hierarchy. */
+  .ta-auth-card{border-radius:18px!important;box-shadow:var(--v323-pop-shadow)!important;}
+  .ta-auth-card-header h1,.ta-auth-card-header h2{font-size:29px!important;line-height:37px!important;font-weight:760!important;}
+  .ta-auth-card-header p{font-size:13px!important;line-height:20px!important;}
+  .ta-google-button{min-height:46px!important;border-radius:11px!important;}
+  .ta-auth-card :where(input,select,textarea){min-height:46px!important;border-radius:11px!important;}
+
+  /* Tablet */
+  @media(max-width:1180px){
+    .app-ui .ta-shell{grid-template-columns:248px minmax(0,1fr)!important;}
+    html[dir="rtl"] .app-ui .ta-shell{grid-template-columns:minmax(0,1fr) 248px!important;}
+    .app-ui .ta-sidebar{width:248px!important;min-width:248px!important;}
+    .app-ui .ta-search-trigger{min-width:220px!important;}
+    .app-ui .ta-kpi-grid,.app-ui .ta-doc-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+    .app-ui .ta-dashboard-primary-grid,.app-ui .ta-dashboard-secondary-grid{grid-template-columns:1fr!important;}
+    .app-ui .ta-quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+    .app-ui .ta-doc-commandbar{grid-template-columns:minmax(220px,1fr) auto!important;}
+    .app-ui .ta-doc-sort{grid-column:2!important;}
+  }
+
+  @media(max-width:980px){
+    .ta-settings-shell{grid-template-columns:210px minmax(0,1fr)!important;}
+    .ta-settings-content{padding:20px!important;}
+  }
+
+  /* Mobile owner. Preserve v322 structure while eliminating remaining collisions. */
+  @media(max-width:900px){
+    .app-ui{--v323-gutter:14px;}
+    .app-ui .ta-shell,html[dir="rtl"] .app-ui .ta-shell{grid-template-columns:1fr!important;grid-template-rows:68px minmax(0,1fr)!important;}
+    .app-ui .ta-topbar{height:68px!important;min-height:68px!important;padding:max(8px,env(safe-area-inset-top,0px)) 14px 8px!important;}
+    .app-ui .ta-page-title strong{max-width:46vw!important;font-size:17px!important;line-height:23px!important;}
+    .app-ui .ta-search-trigger{min-width:44px!important;width:44px!important;height:44px!important;min-height:44px!important;padding:0!important;}
+    .app-ui .ta-search-trigger>span,.app-ui .ta-search-trigger kbd{display:none!important;}
+    .app-ui .ta-finance-dashboard,.app-ui .ta-documents-page,.app-ui .ta-doc-detail-page,.app-ui .ta-customers-page,.app-ui .ta-customer-profile,.app-ui .ta-products-workspace,.app-ui .ta-operations-page,.app-ui .ta-finance-page,.app-ui .ta-reports-page{
+      padding:18px 14px calc(112px + env(safe-area-inset-bottom,0px))!important;
+    }
+    .app-ui :where(.ta-dashboard-heading h1,.ta-documents-header h1,.ta-customers-header h1,.ta-products-workspace-header h1,.ta-ops-page-header h1,.ta-page-header h1){font-size:26px!important;line-height:33px!important;}
+    .app-ui :where(.ta-dashboard-heading p,.ta-documents-header p,.ta-customers-header p,.ta-products-workspace-header p,.ta-ops-page-header p,.ta-page-header p){font-size:12.5px!important;line-height:19px!important;}
+    .app-ui .ta-kpi-grid,.app-ui .ta-quick-actions,.app-ui .ta-doc-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;}
+    .app-ui .ta-kpi-card{min-height:104px!important;grid-template-columns:34px minmax(0,1fr)!important;gap:9px!important;padding:13px!important;border-radius:15px!important;}
+    .app-ui .ta-kpi-icon{width:34px!important;height:34px!important;}
+    .app-ui .ta-kpi-copy>small{font-size:11px!important;line-height:16px!important;}
+    .app-ui .ta-kpi-copy>strong,.app-ui .ta-kpi-money-stack b{font-size:18px!important;line-height:24px!important;}
+    .app-ui .ta-kpi-money-stack b+b{font-size:11px!important;line-height:16px!important;}
+    .app-ui .ta-kpi-copy em{font-size:9.75px!important;line-height:14px!important;}
+    .app-ui .ta-quick-actions>button{min-height:64px!important;grid-template-columns:36px minmax(0,1fr)!important;padding:10px 11px!important;border-radius:14px!important;}
+    .app-ui .ta-quick-actions strong{font-size:12.5px!important;line-height:17px!important;}
+    .app-ui .ta-quick-actions small{font-size:9.75px!important;line-height:14px!important;}
+    .app-ui .ta-dashboard-card{border-radius:17px!important;}
+    .app-ui .ta-card-header{min-height:62px!important;padding:13px 14px!important;}
+    .app-ui .ta-card-header h2{font-size:15.5px!important;line-height:22px!important;}
+    .app-ui .ta-card-header span{font-size:10.5px!important;}
+    .app-ui .ta-documents-header-actions{width:100%!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
+    .app-ui .ta-documents-header-actions>.btn{width:100%!important;min-width:0!important;min-height:44px!important;padding:8px 9px!important;font-size:11px!important;white-space:normal!important;}
+    .app-ui .ta-doc-summary-grid>button{min-height:84px!important;padding:11px!important;border-radius:14px!important;}
+    .app-ui .ta-doc-commandbar{grid-template-columns:minmax(0,1fr) auto!important;padding:9px!important;}
+    .app-ui .ta-doc-sort{grid-column:1/-1!important;width:100%!important;}
+    .app-ui .ta-mobile-nav{inset-inline:12px!important;bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;width:auto!important;min-height:72px!important;padding:7px 8px!important;border-radius:20px!important;box-shadow:0 18px 42px rgba(0,0,0,.20)!important;}
+    .app-ui .ta-mobile-nav>button{min-height:54px!important;border-radius:13px!important;font-size:10.5px!important;line-height:14px!important;}
+    .app-ui .ta-mobile-create{width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;border-radius:15px!important;}
+    html body .ta-shell .lourex-ai-launcher,html[dir="ltr"] body .ta-shell .lourex-ai-launcher,html[dir="rtl"] body .ta-shell .lourex-ai-launcher{
+      position:fixed!important;top:calc(12px + env(safe-area-inset-top,0px))!important;bottom:auto!important;inset-inline-end:68px!important;width:42px!important;height:42px!important;border-radius:12px!important;transform:none!important;
+    }
+    html[data-lourex-shell-overlay="true"] body .ta-shell .lourex-ai-launcher,body:has(.ta-doc-mobile-action-portal) .ta-shell .lourex-ai-launcher{opacity:0!important;pointer-events:none!important;}
+    html body .pwa-update-toast,html body [data-lourex-cloud-refresh],html body [data-lourex-update]{
+      top:calc(76px + env(safe-area-inset-top,0px))!important;bottom:auto!important;inset-inline:12px!important;width:auto!important;max-width:none!important;min-height:54px!important;padding:8px 9px 8px 11px!important;border-radius:13px!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;box-shadow:0 14px 34px rgba(0,0,0,.18)!important;
+    }
+    html body :where(.pwa-update-toast,[data-lourex-cloud-refresh],[data-lourex-update]) strong{font-size:11px!important;line-height:15px!important;}
+    html body :where(.pwa-update-toast,[data-lourex-cloud-refresh],[data-lourex-update]) small{-webkit-line-clamp:1!important;font-size:9.5px!important;line-height:14px!important;}
+    html body :where(.pwa-update-toast,[data-lourex-cloud-refresh],[data-lourex-update]) button{min-width:70px!important;min-height:38px!important;padding:6px 9px!important;font-size:10px!important;border-radius:9px!important;}
+    .modal{border-radius:20px 20px 0 0!important;max-height:90dvh!important;}
+    .modal-header{min-height:60px!important;padding:13px 14px!important;}
+    .modal-body{padding:14px!important;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))!important;}
+    .global-search-panel{width:calc(100vw - 16px)!important;border-radius:16px!important;}
+    .ta-settings-shell{display:block!important;margin:0!important;}
+    .ta-settings-sidebar{padding:9px 10px!important;}
+    .ta-settings-content{padding:15px 12px calc(24px + env(safe-area-inset-bottom,0px))!important;}
+    .ta-settings-card{border-radius:14px!important;}
+    .ta-auth-card{border-radius:17px!important;}
+  }
+
+  @media(max-width:430px){
+    .app-ui .ta-page-title strong{max-width:43vw!important;}
+    .app-ui :where(.ta-dashboard-heading h1,.ta-documents-header h1,.ta-customers-header h1,.ta-products-workspace-header h1,.ta-ops-page-header h1,.ta-page-header h1){font-size:25px!important;line-height:32px!important;}
+    .app-ui .ta-kpi-card{padding:12px!important;}
+    .app-ui .ta-documents-header-actions>.btn{font-size:10.5px!important;}
+    .ta-auth-card-header h1,.ta-auth-card-header h2{font-size:24px!important;line-height:31px!important;}
+  }
+}
