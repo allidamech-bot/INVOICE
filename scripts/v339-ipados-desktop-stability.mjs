@@ -103,9 +103,7 @@ for(const path of compatibilityTargets){
 
 // Several historical compact layers still land before/inside the final TailAdmin
 // bundle and can override the established 44px coarse-pointer target floor. Patch
-// only the two confirmed current regressions in the generated production cascade:
-// template favorite (38px) and dashboard advisor send (42px). Hidden retired shell
-// controls are deliberately not resurrected.
+// only the confirmed current regressions in the generated production cascade.
 {
   let css=await readFile(cssTarget,'utf8');
   const favoritePattern=/(\.app-ui\s+\.template-favorite-button\s*\{[^}]*?)width\s*:\s*38px!important;\s*height\s*:\s*38px!important;\s*min-height\s*:\s*38px!important;/g;
@@ -118,9 +116,22 @@ for(const path of compatibilityTargets){
   if(advisorMatches!==1)throw new Error(`v339 expected one late 42px advisor send override; found ${advisorMatches}.`);
   css=css.replace(advisorPattern,'$1width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;');
 
+  // iPadOS Desktop Website is wider than the phone breakpoint but is still a
+  // coarse-pointer surface. Keep document actions at the same 44px floor there.
+  const coarsePointerActions=`\n@media (pointer:coarse),(any-pointer:coarse){\n.app-ui .ta-doc-actions .icon-btn{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important}\n.app-ui .ta-doc-action-popover button[role="menuitem"]{min-height:44px!important}\n}\n`;
+
+  // Safari's visual viewport can be much shorter than the layout viewport while
+  // browser chrome is expanded. The import dialog owns its own body scroller, so
+  // the outer flex item must be allowed to shrink and anchor to the visible top
+  // instead of being vertically centered outside the visual viewport.
+  const safariImportViewport=`\n@media screen and (max-width:760px),screen and (max-height:520px){\n.app-ui .modal-backdrop:has(.product-import-shell),.app-ui .modal-backdrop:has(.supplier-import-shell){align-items:flex-start!important;justify-content:center!important;overflow:hidden!important}\n.app-ui .modal:has(.product-import-shell),.app-ui .modal:has(.supplier-import-shell){min-height:0!important;align-self:flex-start!important}\n}\n`;
+  css+=coarsePointerActions+safariImportViewport;
+
   if(/\.app-ui\s+\.template-favorite-button\s*\{[^}]*min-height\s*:\s*38px!important/.test(css))throw new Error('v339 template favorite 38px override remains in production CSS.');
   if(/\.app-ui\s+\.lourex-advisor-compose\s+form>button\s*\{[^}]*width\s*:\s*42px!important/.test(css))throw new Error('v339 advisor send 42px override remains in production CSS.');
+  if(!css.includes('.app-ui .ta-doc-action-popover button[role="menuitem"]{min-height:44px!important}'))throw new Error('v339 coarse-pointer document action hardening is missing.');
+  if(!css.includes('.app-ui .modal:has(.product-import-shell),.app-ui .modal:has(.supplier-import-shell){min-height:0!important;align-self:flex-start!important}'))throw new Error('v339 Safari import visual-viewport hardening is missing.');
   await writeFile(cssTarget,css);
 }
 
-console.log('v339 iPadOS Desktop Website runtime, editor timing, attachment-memory, A4-output, touch-target and live-preview safeguards installed.');
+console.log('v339 iPadOS Desktop Website runtime, editor timing, attachment-memory, A4-output, Safari viewport, touch-target and live-preview safeguards installed.');
