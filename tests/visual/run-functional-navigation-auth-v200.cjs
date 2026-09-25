@@ -69,11 +69,11 @@ const base='http://127.0.0.1:4173/tests/visual';
         assert.ok(geometry.topbar&&geometry.content,'Desktop topbar/content geometry missing');
         assert.ok(geometry.scrollWidth<=geometry.width+1,`Desktop shell has horizontal overflow ${JSON.stringify(geometry)}`);
         if(lang==='ar'){
-          assert.ok(geometry.sidebar.left>=geometry.content.right-1,'Arabic desktop sidebar must occupy the right rail');
-          assert.ok(Math.abs(geometry.topbar.right-geometry.content.right)<=1,'Arabic desktop topbar/content rails must align');
+          assert.ok(geometry.sidebar.left>=geometry.content.right-1,`Arabic desktop sidebar must occupy the right rail ${JSON.stringify(geometry)}`);
+          assert.ok(Math.abs(geometry.topbar.right-geometry.content.right)<=1,`Arabic desktop topbar/content rails must align ${JSON.stringify(geometry)}`);
         }else{
-          assert.ok(geometry.sidebar.right<=geometry.content.left+1,'English desktop sidebar must occupy the left rail');
-          assert.ok(Math.abs(geometry.topbar.left-geometry.content.left)<=1,'English desktop topbar/content rails must align');
+          assert.ok(geometry.sidebar.right<=geometry.content.left+1,`English desktop sidebar must occupy the left rail ${JSON.stringify(geometry)}`);
+          assert.ok(Math.abs(geometry.topbar.left-geometry.content.left)<=1,`English desktop topbar/content rails must align ${JSON.stringify(geometry)}`);
         }
         await page.screenshot({path:`${output}/desktop-shell-${lang}.png`,fullPage:false,animations:'disabled'});
       }catch(error){failures.push(error?.stack||String(error));}
@@ -93,7 +93,7 @@ const base='http://127.0.0.1:4173/tests/visual';
 
         await create.click();
         await page.locator('#ta-mobile-create-menu').waitFor();
-        await page.locator('.ta-create-backdrop').click();
+        await page.locator('.ta-create-backdrop').click({position:{x:4,y:4}});
         await page.locator('#ta-mobile-create-menu').waitFor({state:'detached'});
         await more.click();
         assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Create menu must be closed before More opens');
