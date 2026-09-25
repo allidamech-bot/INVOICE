@@ -106,6 +106,7 @@
         ]);
       }
     }catch{}
+    try{window.__LOUREX_MARK_NAVIGATION__?.('pull-to-refresh');}catch{}
     window.setTimeout(()=>window.location.reload(),RELOAD_DELAY);
   };
 
