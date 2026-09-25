@@ -24,13 +24,11 @@ const webkitScenarios=[
 ];
 const languages=['en','ar'];
 
-function px(value){const n=parseFloat(String(value||'0'));return Number.isFinite(n)?n:0;}
-function visible(el){const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;}
-
 async function inspect(page,surface,scenario,lang){
   return page.evaluate(({surface,scenario,lang})=>{
     const target=document.querySelector(surface.selector);
     const failures=[];
+    const toPx=value=>{const n=parseFloat(String(value||'0'));return Number.isFinite(n)?n:0;};
     const rect=el=>{const r=el.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};
     const isVisible=el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;};
     const checkTargets=(selectors,label)=>{
@@ -55,7 +53,7 @@ async function inspect(page,surface,scenario,lang){
     if(surface.name==='operations'){
       const metrics=[...document.querySelectorAll('.ta-ops-metrics>div')];
       if(metrics.length!==4)failures.push(`operations metrics count=${metrics.length}, expected 4`);
-      const cards=metrics.map(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return{...rect(el),background:s.backgroundColor,border:px(s.borderTopWidth),radius:px(s.borderTopLeftRadius)};});
+      const cards=metrics.map(el=>{const s=getComputedStyle(el);return{...rect(el),background:s.backgroundColor,border:toPx(s.borderTopWidth),radius:toPx(s.borderTopLeftRadius)};});
       for(const card of cards){if(card.border<.5)failures.push('operations metric lost card border');if(card.background==='rgba(0, 0, 0, 0)'||card.background==='transparent')failures.push('operations metric background is transparent');if(card.width<80||card.height<78)failures.push(`operations metric too small ${card.width.toFixed(1)}x${card.height.toFixed(1)}`);}
       if(cards.length===4&&scenario.width>900){const ys=new Set(cards.map(card=>Math.round(card.y)));if(ys.size!==1)failures.push(`desktop operations metrics not one row: ${[...ys].join(',')}`);}
       if(cards.length===4&&scenario.width<=540){const firstY=Math.round(cards[0].y),secondY=Math.round(cards[1].y);if(Math.abs(firstY-secondY)>3)failures.push('mobile operations metrics are not a 2-column first row');}
@@ -73,7 +71,7 @@ async function inspect(page,surface,scenario,lang){
       const tabs=[...document.querySelectorAll('.ta-domain-tabs>button')].filter(isVisible);
       if(tabs.length<3)failures.push(`product domain tabs=${tabs.length}`);
       if(scenario.width<=900&&cards.length===4){const ys=cards.map(el=>Math.round(el.getBoundingClientRect().y));if(new Set(ys).size!==2)failures.push(`product overview expected 2x2 grid, rows=${new Set(ys).size}`);}
-      for(const el of document.querySelectorAll('.ta-product-name strong,.ta-product-name small,.ta-product-commercial small,.ta-product-category,.ta-product-price')){if(!isVisible(el))continue;const fs=px(getComputedStyle(el).fontSize);if(fs<9.5)failures.push(`product visible text too small ${fs}px on ${el.className||el.tagName}`);}
+      for(const el of document.querySelectorAll('.ta-product-name strong,.ta-product-name small,.ta-product-commercial small,.ta-product-category,.ta-product-price')){if(!isVisible(el))continue;const fs=toPx(getComputedStyle(el).fontSize);if(fs<9.5)failures.push(`product visible text too small ${fs}px on ${el.className||el.tagName}`);}
     }
 
     if(surface.name==='receivables'&&scenario.width<=900){
