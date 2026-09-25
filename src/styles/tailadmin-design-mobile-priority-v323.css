@@ -1,7 +1,24 @@
-/* LOUREX v323 — mobile-only visual priority layer.
+/* LOUREX v323 — mobile visual priority + final geometry corrections.
  * Loaded before the reliability bridge but intentionally uses #root specificity
  * so presentation fixes can win without changing reliability logic or build rules.
  */
+@media screen {
+  /* AppShell already renders LOUREX / INVOICE beside Brand compact. The compact
+     Brand also contains LOUREX, so hide that duplicate word and keep its mark. */
+  html body #root .app-ui .ta-brand-button>.brand.compact>.brand-words{display:none!important;}
+  html body #root .app-ui .ta-brand-button>.brand.compact{width:34px!important;min-width:34px!important;max-width:34px!important;overflow:visible!important;}
+  html body #root .app-ui .ta-brand-button>.brand.compact>.brand-mark,
+  html body #root .app-ui .ta-brand-button>.brand.compact>.brand-mark img{width:34px!important;height:34px!important;min-width:34px!important;border-radius:9px!important;}
+  html body #root .app-ui .ta-brand-copy{min-width:0!important;max-width:calc(100% - 44px)!important;overflow:hidden!important;white-space:nowrap!important;}
+  html body #root .app-ui .ta-brand-copy :where(strong,small){flex:0 0 auto!important;white-space:nowrap!important;}
+
+  @media(pointer:coarse){
+    html body #root .app-ui .segmented>button,
+    html body #root .app-ui .status-filter>button,
+    html body #root .app-ui .ta-settings-segmented>button{min-height:44px!important;height:auto!important;max-height:none!important;padding-block:8px!important;}
+  }
+}
+
 @media screen and (max-width:900px){
   #root .app-ui .ta-shell,
   html[dir="rtl"] #root .app-ui .ta-shell{grid-template-columns:1fr!important;grid-template-rows:68px minmax(0,1fr)!important;}
@@ -48,6 +65,14 @@
   #root :where(.pwa-update-toast,[data-lourex-cloud-refresh],[data-lourex-update]) strong{font-size:11px!important;line-height:15px!important;}
   #root :where(.pwa-update-toast,[data-lourex-cloud-refresh],[data-lourex-update]) small{display:-webkit-box!important;overflow:hidden!important;-webkit-line-clamp:1!important;-webkit-box-orient:vertical!important;font-size:9.5px!important;line-height:14px!important;}
   #root :where(.pwa-update-toast,[data-lourex-cloud-refresh],[data-lourex-update]) button{min-width:70px!important;min-height:38px!important;padding:6px 9px!important;font-size:10px!important;border-radius:9px!important;}
+
+  /* Settings and Account are workspaces, not tiny confirmation dialogs. */
+  html body .modal-backdrop:has(.ta-settings-shell){align-items:flex-end!important;padding:0!important;}
+  html body .modal.modal-xl:has(.ta-settings-shell){width:100%!important;max-width:100%!important;height:calc(100% - 8px)!important;min-height:0!important;max-height:calc(100% - 8px)!important;margin:8px 0 0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;border-radius:20px 20px 0 0!important;}
+  html body .modal.modal-xl:has(.ta-settings-shell)>.modal-header{flex:0 0 auto!important;min-height:60px!important;padding:12px 14px!important;}
+  html body .modal.modal-xl:has(.ta-settings-shell)>.modal-body{flex:1 1 auto!important;min-height:0!important;padding:0!important;overflow:hidden!important;}
+  html body .modal.modal-xl:has(.ta-settings-shell) .ta-settings-shell{width:100%!important;height:100%!important;min-height:0!important;max-height:100%!important;margin:0!important;overflow:hidden!important;}
+  html body .modal.modal-xl:has(.ta-settings-shell) .ta-settings-content{height:100%!important;min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch!important;}
 }
 
 @media screen and (max-width:430px){
