@@ -19,6 +19,8 @@ async function inspectPage(page,testCase){
     const rect=(element)=>{const r=element.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
     const pages=[...document.querySelectorAll('.invoice-page')];
     const violations=[];
+    let maxClosingGap=0;
+    let minFooterClearance=Number.POSITIVE_INFINITY;
     for(const [pageIndex,sheet] of pages.entries()){
       const bounds=rect(sheet);
       if(sheet.scrollHeight>sheet.clientHeight+2)violations.push(`page ${pageIndex+1}: vertical overflow ${sheet.scrollHeight-sheet.clientHeight}px`);
@@ -40,6 +42,25 @@ async function inspectPage(page,testCase){
         const overlap=Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1;
         if(overlap)violations.push(`page ${pageIndex+1}: signature and stamp overlap`);
       }
+
+      /* v337 regression: the commercial closing band must remain contiguous.
+         v330 once stretched .final-details and pushed .bottom-grid independently
+         to the footer, creating a several-hundred-pixel dead zone on short docs. */
+      const bottom=sheet.querySelector('.bottom-grid');
+      if(bottom){
+        const previous=bottom.previousElementSibling;
+        if(previous){
+          const gap=Math.max(0,rect(bottom).top-rect(previous).bottom);
+          maxClosingGap=Math.max(maxClosingGap,gap);
+          if(gap>48)violations.push(`page ${pageIndex+1}: commercial closing zone split by ${Math.round(gap)}px`);
+        }
+        const footer=sheet.querySelector('.doc-footer');
+        if(footer){
+          const clearance=rect(footer).top-rect(bottom).bottom;
+          minFooterClearance=Math.min(minFooterClearance,clearance);
+          if(clearance<-1)violations.push(`page ${pageIndex+1}: closing zone overlaps footer by ${Math.round(Math.abs(clearance))}px`);
+        }
+      }
     }
     const first=pages[0];
     const seller=first?.querySelector('.party-seller');
@@ -53,6 +74,8 @@ async function inspectPage(page,testCase){
       customerX:customer?rect(customer).left:null,
       bilingualRtlCount:first?.querySelectorAll('[dir="rtl"]').length||0,
       grandTotalCount:document.querySelectorAll('.grand-total').length,
+      maxClosingGap,
+      minFooterClearance:Number.isFinite(minFooterClearance)?minFooterClearance:null,
       violations:[...new Set(violations)],
       consoleText:document.querySelector('.qa-error')?.textContent||''
     };
