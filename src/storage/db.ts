@@ -9,13 +9,20 @@ const MIGRATION_MARKER_PREFIX = 'lourex-account-storage-v1-migrated:';
 const PUBLIC_RECOVERY_MARKER_PREFIX = 'lourex-account-storage-public-v2-migrated:';
 const ACTIVE_SCOPE_META_KEY='lourex-active-storage-meta-v341';
 const ACTIVE_VAULT_META_KEY='lourex-active-vault-meta-v341';
+const VAULT_WRITE_DIAG_INTERVAL_MS=30_000;
 
 type DbRecord = SecurityMetadata | EncryptedVaultRecord | PublicPreferencesRecord | SessionKeyRecord | CloudAccountRecord | SafetySnapshotRecord;
 
 let activeStorageUid:string|null=null;
 let dbPromise:Promise<IDBDatabase>|null=null;
 let openDbName='';
+let lastVaultWriteDiagnosticAt=0;
 
+function diag(type:string,detail=''):void{try{if(typeof window!=='undefined')(window as any).__LOUREX_DIAGNOSTICS__?.mark?.(type,detail);}catch{}}
+function nowTick():number{return typeof performance!=='undefined'&&performance.now?performance.now():Date.now();}
+function elapsedMs(start:number):number{return Math.max(0,Math.round(nowTick()-start));}
+function errorName(error:unknown):string{return error instanceof Error?error.name:'UnknownError';}
+function scopeKind():string{return activeStorageUid?'account':'public';}
 function accountDbName(uid:string):string{return `${ACCOUNT_DB_PREFIX}${encodeURIComponent(uid)}`;}
 function scopedDbName():string{return activeStorageUid?accountDbName(activeStorageUid):PUBLIC_DB_NAME;}
 function migrationMarker(uid:string):string{return `${MIGRATION_MARKER_PREFIX}${uid}`;}
@@ -80,9 +87,6 @@ async function targetHasProtectedWorkspace(db:IDBDatabase):Promise<boolean>{
     namedGet<SecurityMetadata>(db,'security'),
     namedGet<EncryptedVaultRecord>(db,'vault')
   ]);
-  // Security + vault are one protected workspace. A single orphan record can be
-  // left by an interrupted historical setup and must not block recovery of a
-  // complete, ownership-proven pair from the old public scope.
   return Boolean(security&&vault);
 }
 
@@ -107,8 +111,6 @@ async function migrateLegacyAccountIfOwned(uid:string):Promise<void>{
     const legacy=await openNamedDb(LEGACY_DB_NAME);
     try{
       const owner=await namedGet<CloudAccountRecord>(legacy,'cloud-account');
-      // Never adopt legacy local data unless the durable account record proves
-      // that it belongs to the exact authenticated Firebase UID.
       if(!owner||owner.uid!==uid){markMigrationHandled(uid);return;}
       const ids:Array<DbRecord['id']>=['security','vault','public-preferences','session-key','cloud-account','safety-snapshot'];
       const records:DbRecord[]=[];
@@ -119,11 +121,6 @@ async function migrateLegacyAccountIfOwned(uid:string):Promise<void>{
   }finally{target.close();}
 }
 
-// v311 recovery: a slow Safari/Firebase restore could previously mount setup in
-// the signed-out public scope, then let the user create a PIN there before the
-// UID-specific scope was selected. Recover that encrypted workspace exactly once,
-// but only when the public database itself proves ownership through cloud-account.
-// Never overwrite a complete account workspace.
 async function migrateAccidentalPublicAccountIfOwned(uid:string):Promise<void>{
   if(publicRecoveryAlreadyHandled(uid))return;
   const target=await openNamedDb(accountDbName(uid));
@@ -135,8 +132,6 @@ async function migrateAccidentalPublicAccountIfOwned(uid:string):Promise<void>{
       if(!owner||owner.uid!==uid){markPublicRecoveryHandled(uid);return;}
       const security=await namedGet<SecurityMetadata>(publicDb,'security');
       const vault=await namedGet<EncryptedVaultRecord>(publicDb,'vault');
-      // Security and encrypted vault are an atomic pair. A partial public record
-      // is not trustworthy enough to import into an account boundary.
       if(!security||!vault){markPublicRecoveryHandled(uid);return;}
       const records:DbRecord[]=[security,vault,owner];
       for(const id of ['public-preferences','session-key'] as const){
@@ -157,13 +152,20 @@ async function migrateAccidentalPublicAccountIfOwned(uid:string):Promise<void>{
 export async function activateAccountStorage(uid:string|null):Promise<void>{
   const normalized=uid?.trim()||null;
   if(normalized===activeStorageUid&&openDbName===scopedDbName()){rememberActiveScope();return;}
-  await closeActiveDb();
-  if(normalized){
-    await migrateLegacyAccountIfOwned(normalized);
-    await migrateAccidentalPublicAccountIfOwned(normalized);
+  const started=nowTick();
+  try{
+    await closeActiveDb();
+    if(normalized){
+      await migrateLegacyAccountIfOwned(normalized);
+      await migrateAccidentalPublicAccountIfOwned(normalized);
+    }
+    activeStorageUid=normalized;
+    rememberActiveScope();
+    diag('storage-scope-activated',`kind=${normalized?'account':'public'} durationMs=${elapsedMs(started)}`);
+  }catch(error){
+    diag('storage-scope-error',`kind=${normalized?'account':'public'} name=${errorName(error)} durationMs=${elapsedMs(started)}`);
+    throw error;
   }
-  activeStorageUid=normalized;
-  rememberActiveScope();
 }
 
 export function activeAccountStorageUid():string|null{return activeStorageUid;}
@@ -171,6 +173,7 @@ export function activeAccountStorageUid():string|null{return activeStorageUid;}
 function openDb(): Promise<IDBDatabase> {
   const name=scopedDbName();
   if(dbPromise&&openDbName===name)return dbPromise;
+  const started=nowTick();
   dbPromise=new Promise((resolve, reject) => {
     const request = indexedDB.open(name, DB_VERSION);
     request.onupgradeneeded = () => {
@@ -180,64 +183,92 @@ function openDb(): Promise<IDBDatabase> {
     request.onsuccess = () => {
       const db=request.result;
       openDbName=name;
-      db.onversionchange=()=>{db.close();dbPromise=null;openDbName='';};
-      db.onclose=()=>{dbPromise=null;openDbName='';};
+      db.onversionchange=()=>{diag('indexeddb-versionchange',`kind=${scopeKind()}`);db.close();dbPromise=null;openDbName='';};
+      db.onclose=()=>{diag('indexeddb-close',`kind=${scopeKind()}`);dbPromise=null;openDbName='';};
+      diag('indexeddb-open-success',`kind=${scopeKind()} durationMs=${elapsedMs(started)}`);
       resolve(db);
     };
-    request.onerror = () => {dbPromise=null;openDbName='';reject(request.error ?? new Error('Unable to open IndexedDB.'));};
+    request.onerror = () => {
+      const error=request.error??new Error('Unable to open IndexedDB.');
+      diag('indexeddb-open-error',`kind=${scopeKind()} name=${errorName(error)} durationMs=${elapsedMs(started)}`);
+      dbPromise=null;openDbName='';reject(error);
+    };
+    request.onblocked=()=>diag('indexeddb-open-blocked',`kind=${scopeKind()} durationMs=${elapsedMs(started)}`);
   });
   return dbPromise;
 }
 
 export async function getRecord<T extends DbRecord>(id: T['id']): Promise<T | null> {
-  const db = await openDb();
-  return new Promise<T | null>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).get(id);
-    req.onsuccess = () => resolve((req.result as T | undefined) ?? null);
-    req.onerror = () => reject(req.error ?? new Error('IndexedDB read failed.'));
-  });
+  const started=nowTick(),vaultRead=id==='vault';
+  try{
+    const db = await openDb();
+    const value=await new Promise<T | null>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).get(id);
+      req.onsuccess = () => resolve((req.result as T | undefined) ?? null);
+      req.onerror = () => reject(req.error ?? new Error('IndexedDB read failed.'));
+    });
+    if(vaultRead)diag('vault-storage-read-success',`durationMs=${elapsedMs(started)} present=${value?'yes':'no'}`);
+    return value;
+  }catch(error){
+    if(vaultRead)diag('vault-storage-read-error',`name=${errorName(error)} durationMs=${elapsedMs(started)}`);
+    throw error;
+  }
 }
 
 export async function putRecord(record: DbRecord): Promise<void> {
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE,'readwrite');
-    tx.objectStore(STORE).put(record);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB write failed.'));
-    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB write aborted.'));
-  });
-  if(record.id==='vault')rememberVaultMeta(record as EncryptedVaultRecord);
+  const started=nowTick(),vaultWrite=record.id==='vault';
+  try{
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE,'readwrite');
+      tx.objectStore(STORE).put(record);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error('IndexedDB write failed.'));
+      tx.onabort = () => reject(tx.error ?? new Error('IndexedDB write aborted.'));
+    });
+    if(vaultWrite){
+      rememberVaultMeta(record as EncryptedVaultRecord);
+      const duration=elapsedMs(started),now=Date.now();
+      if(duration>=150||now-lastVaultWriteDiagnosticAt>=VAULT_WRITE_DIAG_INTERVAL_MS){lastVaultWriteDiagnosticAt=now;diag('vault-storage-write-success',`durationMs=${duration} cipherChars=${String((record as EncryptedVaultRecord).cipher||'').length}`);}
+    }
+  }catch(error){
+    diag(vaultWrite?'vault-storage-write-error':'indexeddb-write-error',`record=${String(record.id)} name=${errorName(error)} durationMs=${elapsedMs(started)}`);
+    throw error;
+  }
 }
 
 export async function deleteRecord(id: DbRecord['id']): Promise<void> {
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE,'readwrite');
-    tx.objectStore(STORE).delete(id);
-    tx.oncomplete=()=>resolve();
-    tx.onerror=()=>reject(tx.error??new Error('IndexedDB write failed.'));
-    tx.onabort=()=>reject(tx.error??new Error('IndexedDB write aborted.'));
-  });
+  const started=nowTick();
+  try{
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE,'readwrite');
+      tx.objectStore(STORE).delete(id);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error??new Error('IndexedDB write failed.'));
+      tx.onabort=()=>reject(tx.error??new Error('IndexedDB write aborted.'));
+    });
+  }catch(error){diag('indexeddb-delete-error',`record=${String(id)} name=${errorName(error)} durationMs=${elapsedMs(started)}`);throw error;}
 }
 
 export async function putSecurityAndVault(security: SecurityMetadata, vault: EncryptedVaultRecord): Promise<void> {
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE,'readwrite');
-    const store=tx.objectStore(STORE);
-    store.put(security); store.put(vault);
-    tx.oncomplete=()=>resolve();
-    tx.onerror=()=>reject(tx.error??new Error('Unable to commit encrypted data.'));
-    tx.onabort=()=>reject(tx.error??new Error('Encrypted data transaction aborted.'));
-  });
-  rememberVaultMeta(vault);
+  const started=nowTick();
+  try{
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE,'readwrite');
+      const store=tx.objectStore(STORE);
+      store.put(security); store.put(vault);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error??new Error('Unable to commit encrypted data.'));
+      tx.onabort=()=>reject(tx.error??new Error('Encrypted data transaction aborted.'));
+    });
+    rememberVaultMeta(vault);
+    diag('security-vault-write-success',`durationMs=${elapsedMs(started)} cipherChars=${String(vault.cipher||'').length}`);
+  }catch(error){diag('security-vault-write-error',`name=${errorName(error)} durationMs=${elapsedMs(started)}`);throw error;}
 }
 
-// Local recovery snapshots were retired when LOUREX moved to an account-first
-// cloud model. Keep these compatibility functions so older code cannot recreate
-// a durable local backup; any legacy snapshot is deleted instead.
 export async function purgeLegacySafetySnapshot():Promise<void>{
   try{await deleteRecord('safety-snapshot');}catch{}
 }
@@ -274,13 +305,14 @@ export async function putCloudAccount(uid:string,email:string): Promise<void> {
 }
 export async function clearCloudAccount(): Promise<void> { await deleteRecord('cloud-account'); }
 
-// Clear only the currently selected local account scope. Other users on the same
-// device keep their own encrypted databases untouched.
 export async function clearDatabase(): Promise<void> {
-  const name=scopedDbName();
-  await closeActiveDb();
-  await new Promise<void>((resolve, reject) => {
-    const req=indexedDB.deleteDatabase(name);
-    req.onsuccess=()=>resolve(); req.onerror=()=>reject(req.error??new Error('Unable to clear local database.')); req.onblocked=()=>reject(new Error('Database is currently in use.'));
-  });
+  const name=scopedDbName(),kind=scopeKind(),started=nowTick();
+  try{
+    await closeActiveDb();
+    await new Promise<void>((resolve, reject) => {
+      const req=indexedDB.deleteDatabase(name);
+      req.onsuccess=()=>resolve(); req.onerror=()=>reject(req.error??new Error('Unable to clear local database.')); req.onblocked=()=>reject(new Error('Database is currently in use.'));
+    });
+    diag('indexeddb-clear-success',`kind=${kind} durationMs=${elapsedMs(started)}`);
+  }catch(error){diag('indexeddb-clear-error',`kind=${kind} name=${errorName(error)} durationMs=${elapsedMs(started)}`);throw error;}
 }
