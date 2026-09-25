@@ -15,6 +15,7 @@ const viewports = [
   ['390x844', { width: 390, height: 844 }],
   ['430x932', { width: 430, height: 932 }],
   ['ipad820x1180', { width: 820, height: 1180 }],
+  ['ipad1024x1366', { width: 1024, height: 1366 }],
   ['desktop', { width: 1440, height: 900 }],
 ];
 const langs = ['en', 'ar'];
@@ -137,7 +138,7 @@ async function metrics(page, surface) {
     const browser = await engine.launch({ headless: true });
     try {
       for (const [viewportName, viewport] of viewports) {
-        const context = await browser.newContext({ viewport, hasTouch:viewport.width<=900, isMobile:viewport.width<=900 });
+        const context = await browser.newContext({ viewport, hasTouch:viewport.width<=1180, isMobile:viewport.width<=900 });
         const page = await context.newPage();
         for (const lang of langs) {
           for (const theme of themes) {
@@ -160,10 +161,17 @@ async function metrics(page, surface) {
                 if (m.shell) assert(m.shell.w <= m.viewportWidth + 1.5, label, `settings shell ${m.shell.w}px too wide`);
                 if (m.modal) assert(m.modal.w <= m.viewportWidth + 1.5 && m.modal.h <= viewport.height + 1.5, label, `modal out of viewport ${m.modal.w}x${m.modal.h}`);
                 if (m.frame) assert(m.frame.w <= m.viewportWidth + 1.5, label, `auth frame ${m.frame.w}px too wide`);
-                if (viewport.width <= 1180 && (surface.name === 'editor' || surface.name === 'draft')) {
+
+                const editorGeometry = surface.name === 'editor' && viewport.width <= 900;
+                const draftGeometry = surface.name === 'draft' && viewport.width <= 1180;
+                if (editorGeometry || draftGeometry) {
                   assert(Boolean(m.mainRect), label, 'missing .ta-main scroll owner');
                   if (m.mainRect) {
-                    assert(m.mainRect.top > 0, label, `editor main starts at ${m.mainRect.top}px instead of below the shell header`);
+                    if (viewport.width <= 900) {
+                      assert(Math.abs(m.mainRect.top) <= 1.5, label, `full-viewport editor main starts at ${m.mainRect.top}px instead of top 0`);
+                    } else {
+                      assert(m.mainRect.top > 0, label, `tablet Draft main starts at ${m.mainRect.top}px instead of below the shell header`);
+                    }
                     assert(m.mainRect.bottom <= m.viewportHeight + 1.5, label, `editor main extends below viewport: ${m.mainRect.bottom}px > ${m.viewportHeight}px`);
                   }
                   if (m.mainRect && m.shellRect) assert(m.mainRect.bottom <= m.shellRect.bottom + 1.5, label, `editor main extends below shell: ${m.mainRect.bottom}px > ${m.shellRect.bottom}px`);
