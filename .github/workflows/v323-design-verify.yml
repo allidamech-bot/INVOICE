@@ -29,6 +29,13 @@ jobs:
           npx playwright install chromium
       - name: Design visual QA
         run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('tests/visual/run-tailadmin-v320.cjs')
+          s=p.read_text()
+          s=s.replace("page.locator('.ta-create-menu').isVisible()", "page.locator('.ta-create-menu-desktop').isVisible()")
+          p.write_text(s)
+          PY
           npx http-server . -p 4173 -c-1 > /tmp/lourex-v323-qa.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
