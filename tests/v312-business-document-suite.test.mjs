@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 const read=(path)=>readFile(path,'utf8');
 
 test('v312 keeps the requested ten-document order and labels',async()=>{
-  const [catalog,shell]=await Promise.all([read('src/lib/document-kinds.ts'),read('src/components/AppShell.tsx')]);
+  const [catalog,shell,entry]=await Promise.all([read('src/lib/document-kinds.ts'),read('src/components/AppShell.tsx'),read('public/document-entry-v302.js')]);
   const expected=[
     ['draft','Draft','مسودة'],
     ['rfq','RFQ','طلب عرض سعر'],
@@ -19,15 +19,19 @@ test('v312 keeps the requested ten-document order and labels',async()=>{
     ['credit-note','Credit Note','إشعار دائن'],
     ['statement-account','Statement of Account','كشف حساب']
   ];
-  let last=-1;
+  let catalogLast=-1;
   for(const [kind,en,ar] of expected){
-    assert.ok(catalog.includes(`kind:'${kind}'`));
+    const at=catalog.indexOf(`kind:'${kind}'`);
+    assert.ok(at>catalogLast,`${kind} should follow requested catalog order`);
+    catalogLast=at;
     assert.ok(catalog.includes(`en:'${en}'`));
     assert.ok(catalog.includes(`ar:'${ar}'`));
-    const at=shell.indexOf(`data-kind=\"${kind}\"`);
-    assert.ok(at>last,`${kind} should follow requested order`);
-    last=at;
+    assert.ok(entry.includes(`'${kind}'`)||entry.includes(`\"${kind}\"`),`${kind} needs a stable runtime identity`);
   }
+  for(const kind of ['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt'])assert.ok(shell.includes(`createDocument('${kind}')`));
+  assert.match(shell,/onClick=\{this\.openCreditNote\}/);
+  assert.match(shell,/onClick=\{this\.openStatementAccount\}/);
+  assert.match(entry,/normalizeCreateMenuKinds/);
 });
 
 test('v312 preserves new kinds through vault reload and keeps accounting scoped',async()=>{
@@ -52,7 +56,6 @@ test('v312 output titles are centralized and PWA recognizes every new kind',asyn
   for(const kind of ['rfq','proforma-invoice','delivery-note','payment-receipt','statement-account'])assert.ok(entry.includes(`kind='${kind}'`)||entry.includes(`'${kind}'`));
 });
 
-
 test('v312 pre-merge audit keeps search, readiness and routing semantically aligned',async()=>{
   const [search,readiness,shell,entry,page,quality]=await Promise.all([
     read('src/components/GlobalSearch.tsx'),read('src/lib/readiness.ts'),read('src/components/AppShell.tsx'),
@@ -62,14 +65,15 @@ test('v312 pre-merge audit keeps search, readiness and routing semantically alig
   assert.ok(search.includes('isSupplierDocumentKind(document.kind)'));
   assert.ok(readiness.includes('const priceOptional=documentPriceOptional(doc.kind)'));
   assert.ok(readiness.includes('isSupplierDocumentKind(doc.kind)'));
-  assert.ok(shell.includes('data-kind="statement-account"'));
+  assert.match(shell,/onClick=\{this\.openStatementAccount\}/);
   assert.ok(shell.includes("onClick={()=>this.navigate('receivables')}"));
   assert.ok(entry.includes('const creatableKinds=new Set'));
   assert.ok(entry.includes('removeItem(pendingKindKey)'));
+  assert.match(entry,/menuLabelKinds=new Map/);
+  assert.match(entry,/normalizeCreateMenuKinds/);
   assert.ok(page.includes("documentPriceOptional(doc.kind)?'—'"));
   assert.ok(quality.includes('!documentPriceOptional(doc.kind)'));
 });
-
 
 test('v312 final clean audit separates numbering and document semantics',async()=>{
   const [defaults,vault,kinds,docs,app,editor,renderer]=await Promise.all([
