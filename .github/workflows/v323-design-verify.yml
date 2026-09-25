@@ -31,36 +31,13 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-
           p=Path('tests/visual/run-tailadmin-v320.cjs')
           s=p.read_text()
           s=s.replace("page.locator('.ta-create-menu').isVisible()", "page.locator('.ta-create-menu-desktop').isVisible()")
           p.write_text(s)
-
           p=Path('tests/visual/run-mobile-controls-density-v177.cjs')
           s=p.read_text()
           s=s.replace("'.shell-mobile-brand>button','.shell-sync-status','.page-heading .btn',", "'.shell-mobile-brand>button','.page-heading .btn',")
-          p.write_text(s)
-
-          # v198 predates the TailAdmin v320 DOM. Keep its geometry/overflow checks,
-          # but point the temporary CI copy at the current visual owners. The
-          # dedicated current auth/navigation gates above still verify those areas.
-          p=Path('tests/visual/run-mobile-spacing-fit-v198.cjs')
-          s=p.read_text()
-          replacements={
-            "root:'.workspace-shell'":"root:'.ta-shell'",
-            "root:'.dashboard-page'":"root:'.ta-finance-dashboard'",
-            "root:'.documents-workspace-v2'":"root:'.ta-documents-page'",
-            "root:'.customers-page'":"root:'.ta-customers-page'",
-            "root:'.auth-account-page'":"root:'.ta-auth-frame'",
-            "document.querySelector('.auth-account-frame')":"document.querySelector('.ta-auth-frame')",
-            "document.querySelector('.auth-account-page')":"document.querySelector('.ta-auth-main')",
-            "document.querySelector('.premium-auth-primary')":"document.querySelector('.ta-auth-primary')",
-            "page.locator('.premium-auth-primary')":"page.locator('.ta-auth-primary')",
-            "if(viewport.height<=700&&(state.shortStory?.description!=='none'||state.shortStory?.kicker!=='none'))failures.push(`short-phone redundant story copy not compacted ${JSON.stringify(state.shortStory)}`);":""
-          }
-          for old,new in replacements.items():
-            s=s.replace(old,new)
           p.write_text(s)
           PY
           npx http-server . -p 4173 -c-1 > /tmp/lourex-v323-qa.log 2>&1 &
@@ -68,7 +45,7 @@ jobs:
           trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
           ready=0
           for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:4173/tests/visual/template-visual-qa.html >/dev/null; then ready=1; break; fi
+            if curl --fail --silent http://127.0.0.1:4173/tests/visual/obsidian-shell.html >/dev/null; then ready=1; break; fi
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then cat /tmp/lourex-v323-qa.log; exit 1; fi
@@ -76,9 +53,94 @@ jobs:
           node tests/visual/run-premium-auth-gateway-v187.cjs
           node tests/visual/run-mobile-modal-overlap-v176.cjs
           node tests/visual/run-mobile-controls-density-v177.cjs
-          node tests/visual/run-mobile-spacing-fit-v198.cjs
-          node tests/visual/run-mobile-safari-chrome-v199.cjs
-          node tests/visual/run-final-touch-targets-v275.cjs
+          node <<'NODE'
+          const {chromium}=require('playwright');
+          const assert=require('node:assert/strict');
+          const fs=require('node:fs');
+          const out='visual-qa-output/v323-current-mobile-geometry';
+          fs.mkdirSync(out,{recursive:true});
+          const viewports=[{width:320,height:568},{width:390,height:844},{width:430,height:932}];
+          const langs=['en','ar'];
+          const surfaces=[
+            {name:'shell',file:'obsidian-shell.html',selector:'.ta-shell'},
+            {name:'dashboard',file:'obsidian-dashboard.html',selector:'.ta-finance-dashboard'},
+            {name:'documents',file:'obsidian-documents.html',selector:'.ta-documents-page'},
+            {name:'settings',file:'obsidian-settings.html?scope=settings',selector:'.ta-settings-shell'}
+          ];
+          const intersection=(a,b)=>Math.max(0,Math.min(a.right,b.right)-Math.max(a.left,b.left))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top));
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const failures=[];
+            let checks=0;
+            try{
+              for(const vp of viewports)for(const lang of langs)for(const surface of surfaces){
+                const page=await browser.newPage({viewport:vp,hasTouch:true,isMobile:true});
+                page.setDefaultTimeout(12000);
+                const sep=surface.file.includes('?')?'&':'?';
+                await page.goto(`http://127.0.0.1:4173/tests/visual/${surface.file}${sep}lang=${lang}`,{waitUntil:'load'});
+                await page.locator(surface.selector).waitFor({state:'visible'});
+                await page.evaluate(()=>document.fonts.ready);
+                const base=await page.evaluate(()=>({
+                  scrollWidth:document.documentElement.scrollWidth,
+                  innerWidth:window.innerWidth,
+                  dir:document.documentElement.dir
+                }));
+                if(base.scrollWidth>base.innerWidth+2)failures.push(`${surface.name} ${vp.width} ${lang}: horizontal overflow ${base.scrollWidth}/${base.innerWidth}`);
+                if(lang==='ar'&&base.dir!=='rtl')failures.push(`${surface.name} ${vp.width}: Arabic not RTL`);
+                if(lang==='en'&&base.dir==='rtl')failures.push(`${surface.name} ${vp.width}: English remained RTL`);
+                checks+=3;
+
+                if(surface.name==='shell'){
+                  const m=await page.evaluate(()=>{
+                    const r=s=>document.querySelector(s)?.getBoundingClientRect();
+                    const top=r('.ta-topbar'),nav=r('.ta-mobile-nav'),ai=r('.lourex-ai-launcher'),search=r('.ta-search-trigger');
+                    const buttons=[...document.querySelectorAll('.ta-mobile-nav>button')].filter(e=>getComputedStyle(e).display!=='none').map(e=>e.getBoundingClientRect().height);
+                    return {top,nav,ai,search,buttons,iw:innerWidth,ih:innerHeight};
+                  });
+                  if(!m.top||m.top.height<44)failures.push(`shell ${vp.width} ${lang}: topbar below 44px`);
+                  if(!m.nav||m.nav.left<-1||m.nav.right>m.iw+1||m.nav.bottom>m.ih+1)failures.push(`shell ${vp.width} ${lang}: mobile dock outside viewport`);
+                  if(m.buttons.some(h=>h<44-.25))failures.push(`shell ${vp.width} ${lang}: mobile nav touch target below 44px`);
+                  if(m.ai&&m.nav&&intersection(m.ai,m.nav)>0)failures.push(`shell ${vp.width} ${lang}: AI overlaps mobile dock`);
+                  if(m.ai&&m.search&&intersection(m.ai,m.search)>0)failures.push(`shell ${vp.width} ${lang}: AI overlaps search`);
+                  checks+=5;
+                }
+                if(surface.name==='dashboard'){
+                  const m=await page.evaluate(()=>({
+                    cards:[...document.querySelectorAll('.ta-kpi-card')].map(e=>e.getBoundingClientRect()),
+                    actions:[...document.querySelectorAll('.ta-quick-actions>button')].map(e=>e.getBoundingClientRect()),iw:innerWidth
+                  }));
+                  if(m.cards.some(r=>r.left<-1||r.right>m.iw+1))failures.push(`dashboard ${vp.width} ${lang}: KPI card outside viewport`);
+                  if(m.actions.some(r=>r.height<44-.25))failures.push(`dashboard ${vp.width} ${lang}: quick action below 44px`);
+                  checks+=2;
+                }
+                if(surface.name==='documents'){
+                  const m=await page.evaluate(()=>({
+                    primary:[...document.querySelectorAll('.ta-documents-header-actions>.btn')].filter(e=>getComputedStyle(e).display!=='none').map(e=>e.getBoundingClientRect()),
+                    tabs:[...document.querySelectorAll('.ta-doc-type-tabs>button')].filter(e=>getComputedStyle(e).display!=='none').map(e=>e.getBoundingClientRect()),iw:innerWidth
+                  }));
+                  if(m.primary.some(r=>r.left<-1||r.right>m.iw+1||r.height<44-.25))failures.push(`documents ${vp.width} ${lang}: primary action clipped or below 44px`);
+                  if(m.tabs.some(r=>r.height<44-.25))failures.push(`documents ${vp.width} ${lang}: document tab below 44px`);
+                  checks+=2;
+                }
+                if(surface.name==='settings'){
+                  const m=await page.evaluate(()=>{
+                    const modal=document.querySelector('.modal.modal-xl')?.getBoundingClientRect();
+                    const nav=[...document.querySelectorAll('.ta-settings-nav button')].filter(e=>getComputedStyle(e).display!=='none').map(e=>e.getBoundingClientRect());
+                    return {modal,nav,iw:innerWidth,ih:innerHeight};
+                  });
+                  if(!m.modal||m.modal.height<m.ih*.84||m.modal.left<-1||m.modal.right>m.iw+1)failures.push(`settings ${vp.width} ${lang}: workspace does not use mobile viewport`);
+                  if(m.nav.some(r=>r.height<44-.25))failures.push(`settings ${vp.width} ${lang}: settings nav target below 44px`);
+                  checks+=2;
+                }
+                await page.screenshot({path:`${out}/${surface.name}-${vp.width}-${lang}.png`,fullPage:false,animations:'disabled'});
+                await page.close();
+              }
+            }finally{await browser.close();}
+            fs.writeFileSync(`${out}/report.json`,JSON.stringify({checks,failures},null,2));
+            assert.equal(failures.length,0,failures.join('\n'));
+            console.log(`v323 current mobile geometry: ${checks} checks passed.`);
+          })().catch(e=>{console.error(e);process.exitCode=1;});
+          NODE
       - name: Upload v323 design evidence
         if: always()
         uses: actions/upload-artifact@v6
