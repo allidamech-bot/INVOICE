@@ -46,6 +46,7 @@ test('Safari command sheets share one explicit vertical touch-scroll contract',a
   const recovery=await read('src/styles/v331-draft-scroll-recovery.css');
   assert.match(recovery,/\.ta-mobile-sheet,\.ta-create-menu-mobile/);
   assert.match(recovery,/\.global-search-start,\.global-search-results/);
+  assert.match(recovery,/\.mobile-document-action-portal,\.ta-doc-mobile-action-portal/);
   assert.match(recovery,/\.ta-doc-mobile-action-sheet,\.mobile-document-action-sheet/);
   const contract=recovery.slice(recovery.indexOf('/* v337 — the newer TailAdmin command sheets'),recovery.indexOf('@media screen and (max-width:720px)'));
   assert.match(contract,/overflow-y:auto!important/);
