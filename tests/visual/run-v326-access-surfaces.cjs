@@ -31,8 +31,8 @@ async function inspect(page,surface,scenario,lang){
     const failures=[];
     const target=document.querySelector(surface.selector);
     const toPx=value=>{const n=parseFloat(String(value||'0'));return Number.isFinite(n)?n:0;};
-    const isVisible=el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;};
-    const box=el=>{const r=el.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};
+    const isVisible=el=>{if(!el)return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;};
+    const box=el=>{if(!el)return null;const r=el.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};
     const checkTargets=(selectors,label)=>{
       for(const selector of selectors){for(const el of document.querySelectorAll(selector)){if(!isVisible(el))continue;const r=el.getBoundingClientRect();if(r.width<43.5||r.height<43.5)failures.push(`${label} touch target ${selector} is ${r.width.toFixed(1)}x${r.height.toFixed(1)}`);}}
     };
@@ -78,6 +78,36 @@ async function inspect(page,surface,scenario,lang){
   },{surface,scenario,lang});
 }
 
+async function probeGlobalSearchResults(page,state,scenario){
+  const input=page.locator('.global-search-input-wrap input');
+  await input.fill('QA');
+  await page.waitForTimeout(80);
+  const resultCount=await page.locator('.global-search-results .global-search-result').count();
+  if(resultCount<8)state.failures.push(`global-search expected many QA results, found ${resultCount}`);
+  const probe=await page.evaluate(()=>{
+    const scroller=document.querySelector('.global-search-results');
+    if(!(scroller instanceof HTMLElement))return null;
+    const results=[...scroller.querySelectorAll('.global-search-result')].filter(el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return s.display!=='none'&&r.width>0&&r.height>0;});
+    const last=results.at(-1)||null;
+    const style=getComputedStyle(scroller);
+    const before=scroller.scrollTop;
+    const max=Math.max(0,scroller.scrollHeight-scroller.clientHeight);
+    scroller.scrollTop=max;
+    const after=scroller.scrollTop;
+    const sr=scroller.getBoundingClientRect();
+    const lr=last?.getBoundingClientRect()||null;
+    const data={overflowY:style.overflowY,max,after,resultCount:results.length,lastReachable:!lr||lr.bottom<=sr.bottom+2,lastBottom:lr?.bottom??null,scrollerBottom:sr.bottom};
+    scroller.scrollTop=before;
+    return data;
+  });
+  if(!probe){state.failures.push('global-search results scroller missing');return;}
+  if(scenario.width<=900&&probe.max<=2)state.failures.push(`global-search fixture did not force scrolling (max=${probe.max})`);
+  if(probe.max>2&&!['auto','scroll'].includes(probe.overflowY))state.failures.push(`global-search overflow-y=${probe.overflowY} with ${probe.max}px hidden range`);
+  if(probe.max>2&&probe.after<probe.max-2)state.failures.push(`global-search cannot reach scroll end ${probe.after}/${probe.max}`);
+  if(!probe.lastReachable)state.failures.push(`global-search last result clipped ${probe.lastBottom} > ${probe.scrollerBottom}`);
+  await input.fill('');
+}
+
 async function runEngine(engine,browserType,scenarios){
   const browser=await browserType.launch({headless:true});
   const rows=[];
@@ -94,12 +124,15 @@ async function runEngine(engine,browserType,scenarios){
       await page.locator(surface.selector).first().waitFor({state:'visible',timeout:10000});
       await page.waitForTimeout(180);
       const state=await inspect(page,surface,scenario,lang);state.failures.push(...errors);
-      if(surface.name==='global-search'&&scenario.width<=720){
-        const payment=page.locator('.global-search-actions>button').filter({hasText:lang==='ar'?'تسجيل دفعة':'Record payment'}).first();
-        if(await payment.count()){
-          await payment.click();await page.waitForTimeout(50);
-          const back=page.locator('.global-search-back-button');
-          if(await back.isVisible()){const bb=await back.boundingBox();if(!bb||bb.height<43.5||bb.width<43.5)state.failures.push(`search back target ${bb?`${bb.width.toFixed(1)}x${bb.height.toFixed(1)}`:'missing'}`);await back.click();}
+      if(surface.name==='global-search'){
+        await probeGlobalSearchResults(page,state,scenario);
+        if(scenario.width<=720){
+          const payment=page.locator('.global-search-actions>button').filter({hasText:lang==='ar'?'تسجيل دفعة':'Record payment'}).first();
+          if(await payment.count()){
+            await payment.click();await page.waitForTimeout(50);
+            const back=page.locator('.global-search-back-button');
+            if(await back.isVisible()){const bb=await back.boundingBox();if(!bb||bb.height<43.5||bb.width<43.5)state.failures.push(`search back target ${bb?`${bb.width.toFixed(1)}x${bb.height.toFixed(1)}`:'missing'}`);await back.click();}
+          }
         }
       }
       const screenshot=`${output}/${engine}-${surface.name}-${scenario.name}-${lang}.png`;
@@ -117,5 +150,5 @@ async function runEngine(engine,browserType,scenarios){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.state.failures.map(f=>`${row.engine}/${row.surface}/${row.scenario}/${row.lang}: ${f}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v326 access surfaces: ${rows.length} Chromium/WebKit scenarios passed.`);
+  console.log(`v337 access surfaces: ${rows.length} Chromium/WebKit scenarios passed, including forced global-search result scrolling.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
