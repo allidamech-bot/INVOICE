@@ -41,8 +41,9 @@ const base='http://127.0.0.1:4173/tests/visual/obsidian-shell.html';
           assert.ok(hit.menuRect.left>=-1&&hit.menuRect.right<=hit.viewport.width+1,`Create menu leaves viewport: ${JSON.stringify(hit)}`);
 
           await menu.locator('[role="menuitem"]').nth(2).click();
+          await page.waitForFunction(()=>window.shellQa.newKind==='proforma');
           assert.equal(await page.evaluate(()=>window.shellQa.newKind),'proforma','Create menu click must reach the document boundary');
-          assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Create menu must close after selection');
+          await page.locator('#ta-mobile-create-menu').waitFor({state:'detached'});
 
           const more=page.locator('.ta-mobile-nav button[aria-controls="ta-mobile-more"]');
           await more.click();
