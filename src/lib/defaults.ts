@@ -8,7 +8,8 @@ import { defaultBankDetails } from './commercial-controls.js';
 // v12 adds purchase-order documents and encrypted image/PDF attachments.
 // v13 adds optional watermarks and encrypted free-form company Draft documents.
 // v14 separates Quotation (QUO) from Proforma Invoice (PI) and finalizes the v312 business-document suite.
-export const APP_SCHEMA_VERSION = 14;
+// v15 deduplicates repeated company logo/signature/stamp payloads from document snapshots.
+export const APP_SCHEMA_VERSION = 15;
 export const KDF_ITERATIONS = 310_000;
 
 export function defaultCompany(): CompanySettings {
@@ -57,7 +58,7 @@ export function defaultAppSettings(): AppSettings {
 }
 
 export function emptyVault(): VaultPayload {
-  return { schemaVersion: APP_SCHEMA_VERSION, company: defaultCompany(), appSettings: defaultAppSettings(), customers: [], suppliers: [], purchases: [], expenses: [], inventoryMovements: [], documents: [], documentEvents: [], documentRevisions: [], payments: [], savedItems: [] };
+  return { schemaVersion: APP_SCHEMA_VERSION, company: defaultCompany(), appSettings: defaultAppSettings(), customers: [], suppliers: [], purchases: [], expenses: [], inventoryMovements: [], documents: [], documentEvents: [], documentRevisions: [], payments: [], savedItems: [], companyAssets: [] } as VaultPayload & {companyAssets:Array<{id:string;dataUrl:string}>};
 }
 
 export function customerSnapshotFrom(customer: { id: string; companyNameEn: string; companyNameAr: string; contactPerson: string; addressEn: string; addressAr: string; city: string; country: string; phone: string; email: string; vatTaxNumber: string; commercialRegistration: string }): CustomerSnapshot {
