@@ -140,7 +140,7 @@ export class EditorPage extends React.Component<Props,State>{
     if(this.navScrollRoot)this.navScrollRoot.addEventListener('scroll',this.handleSectionScroll,{passive:true});else window.addEventListener('scroll',this.handleSectionScroll,{passive:true});
     window.addEventListener('resize',this.handleSectionScroll,{passive:true});
     const form=document.querySelector('.editor-pane .editor-form-lock');
-    if(form){this.navMutationObserver=new MutationObserver(()=>this.syncSectionMeta());this.navMutationObserver.observe(form,{attributes:true,subtree:true,attributeFilter:['class']});}
+    if(form){this.navMutationObserver=new MutationObserver(()=>{this.syncSectionMeta();this.syncActiveSection();});this.navMutationObserver.observe(form,{attributes:true,childList:true,subtree:true,attributeFilter:['class']});}
     this.syncActiveSection();
   };
 
