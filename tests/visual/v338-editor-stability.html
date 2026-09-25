@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <base href="../../dist/">
+  <title>v338 editor stability QA</title>
+</head>
+<body>
+  <main class="app-ui">
+    <section class="editor-screen">
+      <label>Draft body<textarea id="draft-input">Initial text</textarea></label>
+    </section>
+  </main>
+  <script>
+    window.__activityEvents=0;
+    window.addEventListener('keydown',function(){window.__activityEvents+=1;});
+  </script>
+  <script src="editor-stability-v338.js?v=338"></script>
+</body>
+</html>
