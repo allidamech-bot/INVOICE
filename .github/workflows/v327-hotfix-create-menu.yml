@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  patch-and-verify:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -18,224 +18,8 @@ jobs:
           ref: hotfix/v327-production-create-menu-scroll
           fetch-depth: 0
 
-      - name: Apply v327 structural recovery
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          def replace_once(path, old, new, label):
-              p=Path(path); s=p.read_text()
-              if new in s:
-                  print(label, 'already applied'); return
-              if old not in s:
-                  raise SystemExit(f'{label}: expected source not found')
-              p.write_text(s.replace(old,new,1)); print(label, 'applied')
-
-          # 1. Create-menu pointer contract: actual menu clicks must never be seen as outside clicks.
-          replace_once('src/app/App.tsx',
-            "if(target instanceof Element&&target.closest('.new-doc-menu'))return;",
-            "if(target instanceof Element&&target.closest('.ta-create-menu, .new-doc-menu'))return;",
-            'create menu outside-click contract')
-          replace_once('src/components/AppShell.tsx',
-            '<div className={`ta-create-menu ${className}`} id={id} role="menu"',
-            '<div className={`ta-create-menu new-doc-menu ${className}`} id={id} role="menu"',
-            'create menu compatibility class')
-
-          # 2. Move lifecycle/payments/profitability into the one true editor scroll owner.
-          p=Path('src/components/EditorPageCore.tsx'); s=p.read_text()
-          if 'data-editor-support-slot' not in s:
-              pattern=r'</fieldset>\s*</div></aside>\s*<section className="preview-pane">'
-              replacement='</fieldset><div className="ta-editor-support-slot" data-editor-support-slot/></div></aside><section className="preview-pane">'
-              s2,n=re.subn(pattern,replacement,s,count=1)
-              if n!=1: raise SystemExit('EditorPageCore support-slot insertion point not found')
-              p.write_text(s2); print('editor support slot applied')
-          else: print('editor support slot already applied')
-
-          p=Path('src/components/EditorPage.tsx'); s=p.read_text()
-          if "querySelector('[data-editor-support-slot]')" not in s:
-              s=s.replace(
-                "const navSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-nav-slot]');",
-                "const navSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-nav-slot]');\n    const supportSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-support-slot]');",
-                1)
-          # Extract existing support panel markup and convert it to a portal payload.
-          if 'const supportPanels=' not in s:
-              m=re.search(r'      (<div className="ta-editor-support-panels"><DocumentLifecyclePanel[\s\S]*?</div>)\n      \{sectionNavigator',s)
-              if not m: raise SystemExit('EditorPage support panel block not found')
-              block=m.group(1)
-              s=s[:m.start()] + '      {supportPanels&&supportSlot?ReactDOM.createPortal(supportPanels,supportSlot):null}\n      {sectionNavigator' + s[m.end():]
-              anchor='    const finalQuoteAction=finalQuote?this.renderQuoteAction(linkedInvoice,sourceIsProformaInvoice):null;'
-              if anchor not in s: raise SystemExit('EditorPage support panel declaration anchor not found')
-              s=s.replace(anchor,anchor+'\n    const supportPanels='+block.strip()+';',1)
-          p.write_text(s); print('editor support portal applied')
-
-          # 3. Add a dedicated robot glyph without changing AI capabilities or actions.
-          p=Path('src/components/UI.tsx'); s=p.read_text()
-          if "|'bot'|'star'" not in s:
-              if "|'spark'|'star'" not in s: raise SystemExit('IconName spark/star anchor not found')
-              s=s.replace("|'spark'|'star'","|'spark'|'bot'|'star'",1)
-          if 'bot:<g>' not in s:
-              anchor='  star:<g>'
-              bot='  bot:<g><path d="M9 4h6"/><path d="M12 4V2"/><rect x="4.5" y="6" width="15" height="13" rx="4"/><path d="M4.5 11H2.8v4h1.7M19.5 11h1.7v4h-1.7"/><circle cx="9" cy="12" r="1.15" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.15" fill="currentColor" stroke="none"/><path d="M9 16h6"/></g>,\n'
-              if anchor not in s: raise SystemExit('Icon path star anchor not found')
-              s=s.replace(anchor,bot+anchor,1)
-          p.write_text(s); print('robot icon applied')
-
-          p=Path('src/components/AiCopilot.tsx'); s=p.read_text()
-          # Only visual glyphs change; capability engine stays untouched.
-          old_count=s.count('<Icon name="spark"/>')
-          if old_count:
-              s=s.replace('<Icon name="spark"/>','<Icon name="bot"/>')
-              print('AI robot glyph replacements',old_count)
-          elif '<Icon name="bot"/>' not in s:
-              raise SystemExit('AI visual icon anchors not found')
-          p.write_text(s)
-
-          # 4. Editor shell guard: mobile app shell must never re-own Document Studio.
-          p=Path('src/styles/tailadmin-mobile-header-v322.css'); s=p.read_text()
-          guard='''\n\n/* v327 — Document Studio owns its own viewport. The normal mobile shell must not\n   reserve header/nav geometry inside the editor. */\n@media screen and (max-width:900px){\n  html body .app-ui .ta-shell.is-editor,\n  html[dir="rtl"] body .app-ui .ta-shell.is-editor{\n    height:100dvh!important;min-height:100dvh!important;padding:0!important;\n    grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;overflow:hidden!important;\n  }\n  html body .app-ui .ta-shell.is-editor>.ta-topbar,\n  html[dir="rtl"] body .app-ui .ta-shell.is-editor>.ta-topbar{display:none!important;}\n  html body .app-ui .ta-shell.is-editor>.ta-main,\n  html[dir="rtl"] body .app-ui .ta-shell.is-editor>.ta-main{\n    grid-column:1!important;grid-row:1!important;height:100dvh!important;min-height:0!important;padding:0!important;overflow:hidden!important;\n  }\n}\n'''
-          if 'v327 — Document Studio owns its own viewport' not in s:
-              s+=guard
-
-          # Upgrade Create Center visually while keeping the same real buttons/callbacks.
-          create_polish='''\n\n/* v327 — Create Center: semantic, tactile, and still the same functional actions. */\n@media screen and (max-width:900px){\n  html body .app-ui .ta-create-menu-mobile{\n    padding:12px!important;border-radius:26px!important;\n    background:color-mix(in srgb,var(--ft-surface) 96%,#fff 4%)!important;\n    box-shadow:0 28px 80px rgba(8,15,28,.34)!important;\n  }\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-heading{padding:6px 7px 12px!important;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-heading:before{\n    content:"";display:block;width:40px;height:4px;margin:-4px auto 12px;border-radius:999px;background:var(--ft-line-strong);\n  }\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid{gap:8px!important;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button{\n    --create-accent:var(--ft-accent);min-height:74px!important;padding:10px!important;border-radius:16px!important;\n    border-color:color-mix(in srgb,var(--create-accent) 18%,var(--ft-line))!important;\n    background:linear-gradient(145deg,color-mix(in srgb,var(--create-accent) 7%,var(--ft-surface-2)),var(--ft-surface-2))!important;\n    transition:transform .14s ease,border-color .14s ease,background .14s ease!important;\n  }\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:active{transform:scale(.975)!important;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:focus-visible{outline:0!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--create-accent) 18%,transparent)!important;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button>.icon{\n    width:20px!important;height:20px!important;padding:7px!important;border-radius:11px!important;\n    background:color-mix(in srgb,var(--create-accent) 13%,var(--ft-surface))!important;color:var(--create-accent)!important;\n  }\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(1){--create-accent:#7c6cf2;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(2){--create-accent:#25a7c7;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(3){--create-accent:#5b7cfa;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(4){--create-accent:#9b67e8;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(5){--create-accent:#e69a32;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(6){--create-accent:#2ba777;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(7){--create-accent:#3d91d8;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(8){--create-accent:#22a69a;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(9){--create-accent:#d16b79;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button:nth-child(10){--create-accent:#66758d;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid strong{font-size:12.5px!important;line-height:18px!important;}\n  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid small{font-size:10px!important;line-height:14px!important;color:var(--ft-muted)!important;}\n}\n'''
-          if 'v327 — Create Center' not in s:
-              s+=create_polish
-          p.write_text(s); print('mobile shell/editor guard and create design applied')
-
-          # 5. Remove the later fixed action-bar regression and restore one scroll owner.
-          p=Path('src/styles/tailadmin-utilities-v320.css'); s=p.read_text()
-          old='''.app-ui .ta-shell.is-editor .editor-pane .editor-scroll{\n    padding:0!important;\n    scroll-padding-bottom:0!important;\n  }'''
-          new='''.app-ui .ta-shell.is-editor .editor-pane .editor-scroll{\n    padding:10px max(10px,env(safe-area-inset-right,0px)) 24px max(10px,env(safe-area-inset-left,0px))!important;\n    scroll-padding-top:12px!important;scroll-padding-bottom:24px!important;touch-action:pan-y!important;-webkit-overflow-scrolling:touch!important;\n  }'''
-          if old in s: s=s.replace(old,new,1)
-          elif new not in s: raise SystemExit('TailAdmin editor-scroll override anchor not found')
-
-          pattern=r'''  \.app-ui \.mobile-editor-actionbar\{\n    position:fixed!important;[\s\S]*?\n  \}\n  html\[data-ui-theme="dark"\] \.app-ui \.mobile-editor-actionbar\{box-shadow:0 -8px 22px rgba\(0,0,0,\.22\)!important\}'''
-          replacement='''  .app-ui .mobile-editor-actionbar{\n    position:relative!important;inset:auto!important;left:auto!important;right:auto!important;bottom:auto!important;z-index:52!important;\n    flex:0 0 auto!important;width:100%!important;min-width:0!important;\n    min-height:calc(68px + env(safe-area-inset-bottom,0px))!important;margin:0!important;\n    padding:8px max(10px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px))!important;\n    border:0!important;border-top:1px solid var(--ft-line)!important;border-radius:0!important;\n    background:color-mix(in srgb,var(--ft-surface) 97%,transparent)!important;box-shadow:0 -6px 20px rgba(16,24,40,.07)!important;\n    backdrop-filter:blur(14px)!important;-webkit-backdrop-filter:blur(14px)!important;\n  }\n  html[data-ui-theme="dark"] .app-ui .mobile-editor-actionbar{box-shadow:0 -8px 22px rgba(0,0,0,.22)!important}'''
-          s2,n=re.subn(pattern,replacement,s,count=1)
-          if n==1: s=s2
-          elif 'position:relative!important;inset:auto!important;left:auto!important' not in s: raise SystemExit('Fixed mobile actionbar regression block not found')
-          p.write_text(s); print('editor scroll/action owner repaired')
-
-          # 6. Style support panels now that they live inside editor-scroll.
-          p=Path('src/styles/editor-canonical-v314.css'); s=p.read_text()
-          support_css='''\n\n@media screen{\n  .app-ui .ta-editor-support-slot{width:100%!important;max-width:1000px!important;margin:0 auto!important;}\n  .app-ui .ta-editor-support-panels{display:grid!important;gap:12px!important;width:100%!important;min-width:0!important;padding:0 0 18px!important;}\n  .app-ui .ta-editor-support-panels>*{min-width:0!important;margin:0!important;}\n}\n@media screen and (max-width:900px){\n  .app-ui .ta-editor-support-slot{max-width:740px!important;}\n  .app-ui .ta-editor-support-panels{gap:10px!important;padding:4px 2px 18px!important;}\n  .app-ui .editor-section-navigator{position:relative!important;inset:auto!important;}\n}\n'''
-          if '.ta-editor-support-slot{width:100%' not in s: s+=support_css
-          p.write_text(s)
-
-          # 7. AI becomes recognisably robotic and alive, while all logic stays intact.
-          p=Path('src/styles/tailadmin-ai-finish-v320.css'); s=p.read_text()
-          ai_css='''\n\n/* v327 — robotic AI identity and compact mobile copilot. */\n@media screen{\n  .app-ui .lourex-ai-launcher{isolation:isolate!important;overflow:visible!important;border-radius:17px!important;\n    background:linear-gradient(145deg,#6d5df5 0%,#4776ef 48%,#24b7c7 100%)!important;\n    box-shadow:0 12px 34px rgba(71,118,239,.30)!important;}\n  .app-ui .lourex-ai-launcher>.icon{position:relative;z-index:2;width:25px!important;height:25px!important;stroke-width:1.85!important;}\n  .app-ui .lourex-ai-launcher:before{content:"";position:absolute;inset:-5px;border:1px solid rgba(91,124,250,.26);border-radius:22px;animation:lourex-ai-orbit 3.2s ease-in-out infinite;}\n  .app-ui .lourex-ai-launcher:after{content:"";position:absolute;width:7px;height:7px;right:-3px;top:4px;border-radius:999px;background:#55e4d4;box-shadow:0 0 0 4px rgba(85,228,212,.13),0 0 14px rgba(85,228,212,.8);animation:lourex-ai-pulse 1.8s ease-in-out infinite;}\n  .app-ui .lourex-ai-mark{background:linear-gradient(145deg,rgba(109,93,245,.13),rgba(36,183,199,.12))!important;color:#5f72f2!important;}\n  .app-ui .lourex-ai-mark>.icon{width:23px!important;height:23px!important;}\n  @keyframes lourex-ai-orbit{0%,100%{transform:scale(.96);opacity:.45}50%{transform:scale(1.05);opacity:.9}}\n  @keyframes lourex-ai-pulse{0%,100%{transform:scale(.86);opacity:.7}50%{transform:scale(1.16);opacity:1}}\n}\n@media screen and (max-width:860px){\n  .app-ui .lourex-ai-panel,.app-ui .lourex-ai-panel[dir="rtl"]{\n    top:auto!important;left:10px!important;right:10px!important;bottom:calc(94px + env(safe-area-inset-bottom,0px))!important;\n    width:auto!important;height:min(72dvh,680px)!important;max-height:72dvh!important;border-radius:26px!important;\n  }\n  .app-ui .lourex-ai-head{min-height:64px!important;padding:11px 13px!important;}\n  .app-ui .lourex-ai-context{margin:0 13px 6px!important;}\n  .app-ui .lourex-ai-messages{padding:10px 13px 12px!important;}\n  .app-ui .lourex-ai-empty{padding:10px 1px 5px!important;}\n  .app-ui .lourex-ai-empty strong{font-size:16.5px!important;line-height:23px!important;}\n  .app-ui .lourex-ai-compose{padding:9px 11px 10px!important;}\n}\n@media(prefers-reduced-motion:reduce){\n  .app-ui .lourex-ai-launcher:before,.app-ui .lourex-ai-launcher:after{animation:none!important;}\n}\n'''
-          if 'v327 — robotic AI identity' not in s: s+=ai_css
-          p.write_text(s); print('AI robot design applied')
-
-          # 8. Documents rail visibly communicates swipe/overflow.
-          p=Path('src/styles/tailadmin-design-mobile-priority-v323.css'); s=p.read_text()
-          docs_css='''\n\n/* v327 — document type rail explicitly reads as swipeable on touch screens. */\n@media screen and (max-width:900px){\n  html body .app-ui .ta-doc-type-tabs{\n    scroll-snap-type:x proximity!important;overscroll-behavior-inline:contain!important;\n    padding-inline:10px 42px!important;\n    -webkit-mask-image:linear-gradient(to right,transparent 0,#000 12px,#000 calc(100% - 34px),transparent 100%)!important;\n    mask-image:linear-gradient(to right,transparent 0,#000 12px,#000 calc(100% - 34px),transparent 100%)!important;\n  }\n  html body .app-ui .ta-doc-type-tabs>button{scroll-snap-align:start!important;flex:0 0 auto!important;min-height:44px!important;}\n  html body .app-ui .ta-doc-type-tabs>button.is-active,\n  html body .app-ui .ta-doc-type-tabs>button[aria-selected="true"]{box-shadow:0 4px 14px color-mix(in srgb,var(--ft-accent) 13%,transparent)!important;}\n}\n'''
-          if 'v327 — document type rail' not in s: s+=docs_css
-          p.write_text(s); print('documents swipe affordance applied')
-
-          # 9. Test fixture models the real document pointerdown boundary and all ten actions.
-          p=Path('tests/visual/obsidian-shell.html'); s=p.read_text()
-          if "credit:0,statement:0" not in s:
-              s=s.replace("window.shellQa={settings:0,account:0,newKind:'',navigations:[]};","window.shellQa={settings:0,account:0,newKind:'',credit:0,statement:0,navigations:[]};",1)
-          if 'componentDidMount(){this.outsideCreatePointer=' not in s:
-              s=s.replace("    state={newMenu:false,screen:'home'};\n    render(){", "    state={newMenu:false,screen:'home'};\n    componentDidMount(){this.outsideCreatePointer=event=>{if(!this.state.newMenu)return;const target=event.target;if(target instanceof Element&&target.closest('.ta-create-menu, .new-doc-menu'))return;this.setState({newMenu:false});};document.addEventListener('pointerdown',this.outsideCreatePointer);}\n    componentWillUnmount(){document.removeEventListener('pointerdown',this.outsideCreatePointer);}\n    render(){",1)
-          old="onNew:kind=>{window.shellQa.newKind=kind;this.setState({newMenu:false});},onSettings:()=>{window.shellQa.settings+=1;}"
-          new="onNew:kind=>{window.shellQa.newKind=kind;this.setState({newMenu:false});},onCreditNote:()=>{window.shellQa.credit+=1;this.setState({newMenu:false});},onStatementAccount:()=>{window.shellQa.statement+=1;this.setState({newMenu:false});},onSettings:()=>{window.shellQa.settings+=1;}"
-          if old in s: s=s.replace(old,new,1)
-          elif 'onCreditNote:()=>{window.shellQa.credit+=1' not in s: raise SystemExit('obsidian-shell action fixture anchor missing')
-          p.write_text(s)
-
-          # 10. Durable regression runner: function + scroll + layering + AI + swipe affordance.
-          test=Path('tests/visual/run-v327-production-recovery.cjs')
-          test.write_text(r'''const {chromium,webkit}=require('playwright');
-const assert=require('node:assert/strict');
-const base='http://127.0.0.1:4173/tests/visual';
-const expected=['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt'];
-(async()=>{
-  const failures=[];
-  for(const browserType of [chromium,webkit]){
-    const browser=await browserType.launch({headless:true});
-    try{
-      for(const lang of ['en','ar']){
-        const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-        try{
-          await page.goto(`${base}/obsidian-shell.html?lang=${lang}`,{waitUntil:'load'});
-          for(let index=0;index<expected.length;index++){
-            await page.evaluate(()=>{window.shellQa.newKind='';});
-            await page.locator('.ta-mobile-create').click();
-            const item=page.locator('#ta-mobile-create-menu [role="menuitem"]').nth(index);
-            await item.click();
-            await page.waitForFunction(kind=>window.shellQa.newKind===kind,expected[index]);
-            assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,`menu must close after ${expected[index]}`);
-          }
-          await page.locator('.ta-mobile-create').click();
-          await page.locator('#ta-mobile-create-menu [role="menuitem"]').nth(8).click();
-          await page.waitForFunction(()=>window.shellQa.credit===1);
-          await page.locator('.ta-mobile-create').click();
-          await page.locator('#ta-mobile-create-menu [role="menuitem"]').nth(9).click();
-          await page.waitForFunction(()=>window.shellQa.statement===1);
-          const createStyle=await page.locator('.ta-create-menu-grid>button').first().evaluate(el=>{const s=getComputedStyle(el);return{h:el.getBoundingClientRect().height,r:s.borderRadius,bg:s.backgroundImage};});
-          assert.ok(createStyle.h>=70,`Create tile too small ${JSON.stringify(createStyle)}`);
-          assert.notEqual(createStyle.bg,'none','Create tile needs modern surface treatment');
-
-          const ai=page.locator('.lourex-ai-launcher');
-          await ai.click();
-          const panel=page.locator('.lourex-ai-panel');await panel.waitFor();
-          const aiGeom=await panel.evaluate(el=>{const r=el.getBoundingClientRect();return{h:r.height,vh:innerHeight};});
-          assert.ok(aiGeom.h<=aiGeom.vh*.76,`AI panel is still visually oversized ${JSON.stringify(aiGeom)}`);
-          await page.locator('.lourex-ai-close').click();
-          await panel.waitFor({state:'detached'});
-        }catch(e){failures.push(`${browserType.name()} shell ${lang}: ${e.stack||e}`);}finally{await page.close();}
-
-        const editor=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-        try{
-          await editor.goto(`${base}/obsidian-editor.html?lang=${lang}&kind=proforma`,{waitUntil:'load'});
-          const scroll=editor.locator('.editor-scroll');await scroll.waitFor();
-          await editor.waitForTimeout(120);
-          const before=await editor.evaluate(()=>{
-            const shell=document.querySelector('.ta-shell.is-editor');
-            const topbar=document.querySelector('.ta-shell.is-editor>.ta-topbar');
-            const el=document.querySelector('.editor-scroll');
-            const action=document.querySelector('.mobile-editor-actionbar');
-            const nav=document.querySelector('.editor-section-navigator');
-            const support=document.querySelector('[data-editor-support-slot] .ta-editor-support-panels');
-            return {scrollHeight:el?.scrollHeight||0,clientHeight:el?.clientHeight||0,overflowY:el?getComputedStyle(el).overflowY:'',actionPosition:action?getComputedStyle(action).position:'',navPosition:nav?getComputedStyle(nav).position:'',topbarDisplay:topbar?getComputedStyle(topbar).display:'missing',supportInside:Boolean(support),shellHeight:shell?.getBoundingClientRect().height||0,vh:innerHeight};
-          });
-          assert.ok(before.scrollHeight>before.clientHeight+100,`editor must have real internal scroll ${JSON.stringify(before)}`);
-          assert.match(before.overflowY,/auto|scroll/);
-          assert.notEqual(before.actionPosition,'fixed','mobile editor action dock must remain in flow');
-          assert.notEqual(before.navPosition,'fixed','editor step navigator must remain in flow');
-          assert.equal(before.topbarDisplay,'none','normal app topbar must not duplicate Document Studio header');
-          assert.equal(before.supportInside,true,'lifecycle/payment/profitability panels must live inside editor scroll');
-          await scroll.evaluate(el=>{el.scrollTop=el.scrollHeight;});await editor.waitForTimeout(80);
-          const down=await scroll.evaluate(el=>el.scrollTop);
-          assert.ok(down>100,`editor failed to scroll down (${down})`);
-          await scroll.evaluate(el=>{el.scrollTop=0;});await editor.waitForTimeout(40);
-          assert.ok((await scroll.evaluate(el=>el.scrollTop))<2,'editor failed to return to top');
-        }catch(e){failures.push(`${browserType.name()} editor ${lang}: ${e.stack||e}`);}finally{await editor.close();}
-
-        const docs=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-        try{
-          await docs.goto(`${base}/obsidian-documents.html?lang=${lang}`,{waitUntil:'load'});
-          const rail=docs.locator('.ta-doc-type-tabs');await rail.waitFor();
-          const info=await rail.evaluate(el=>({client:el.clientWidth,scroll:el.scrollWidth,mask:getComputedStyle(el).maskImage||getComputedStyle(el).webkitMaskImage}));
-          assert.ok(info.scroll>info.client,`document rail must actually overflow ${JSON.stringify(info)}`);
-          assert.ok(info.mask&&info.mask!=='none',`document rail needs a visible swipe affordance ${JSON.stringify(info)}`);
-          await rail.evaluate(el=>{el.scrollLeft=el.scrollWidth;});await docs.waitForTimeout(50);
-          assert.notEqual(await rail.evaluate(el=>el.scrollLeft),0,'document rail must move horizontally');
-        }catch(e){failures.push(`${browserType.name()} documents ${lang}: ${e.stack||e}`);}finally{await docs.close();}
-      }
-    }finally{await browser.close();}
-  }
-  assert.equal(failures.length,0,failures.join('\n\n'));
-  console.log('v327 production recovery: create actions, editor scroll, AI and document rail PASS on Chromium + WebKit, EN + AR.');
-})().catch(e=>{console.error(e);process.exit(1);});
-''')
-          print('v327 regression runner written')
-          PY
+      - name: Apply deterministic recovery patch
+        run: python scripts/v327-production-recovery.py
 
       - name: Install
         run: npm ci
@@ -257,13 +41,12 @@ const expected=['draft','rfq','proforma','proforma-invoice','purchase-order','in
           const wrapper=fs.readFileSync('src/components/EditorPage.tsx','utf8');
           const utility=fs.readFileSync('src/styles/tailadmin-utilities-v320.css','utf8');
           const ai=fs.readFileSync('src/components/AiCopilot.tsx','utf8');
-          if(!app.includes("target.closest('.ta-create-menu, .new-doc-menu')"))throw new Error('Create outside-click boundary missing');
-          if(!shell.includes('ta-create-menu new-doc-menu'))throw new Error('Create menu compatibility class missing');
-          if(!core.includes('data-editor-support-slot'))throw new Error('Editor support slot missing');
-          if(!wrapper.includes('ReactDOM.createPortal(supportPanels,supportSlot)'))throw new Error('Editor support panels are not portaled into scroll');
-          if(!utility.includes('touch-action:pan-y!important'))throw new Error('Editor touch scrolling contract missing');
-          if(/@media screen and \(max-width:720px\)[\s\S]*?\.app-ui \.mobile-editor-actionbar\{[\s\S]*?position:fixed!important/.test(utility))throw new Error('Fixed editor actionbar regression still present');
-          if(!ai.includes('<Icon name="bot"/>'))throw new Error('AI robot identity missing');
+          if(!app.includes("target.closest('.ta-create-menu, .new-doc-menu')")) throw new Error('Create outside-click boundary missing');
+          if(!shell.includes('ta-create-menu new-doc-menu')) throw new Error('Create menu compatibility class missing');
+          if(!core.includes('data-editor-support-slot')) throw new Error('Editor support slot missing');
+          if(!wrapper.includes('ReactDOM.createPortal(supportPanels,supportSlot)')) throw new Error('Editor support panels are outside canonical scroll');
+          if(!utility.includes('touch-action:pan-y!important')) throw new Error('Editor touch scroll contract missing');
+          if(!ai.includes('<Icon name="bot"/>')) throw new Error('AI robot identity missing');
           console.log('v327 static recovery contracts PASS');
           NODE
 
@@ -280,21 +63,30 @@ const expected=['draft','rfq','proforma','proforma-invoice','purchase-order','in
           trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
           ready=0
           for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:4173/tests/visual/obsidian-shell.html >/dev/null; then ready=1; break; fi
+            if curl --fail --silent http://127.0.0.1:4173/tests/visual/obsidian-shell.html >/dev/null; then
+              ready=1
+              break
+            fi
             sleep 1
           done
-          if [ "$ready" -ne 1 ]; then cat /tmp/lourex-v327-server.log; exit 1; fi
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/lourex-v327-server.log
+            exit 1
+          fi
           node tests/visual/run-functional-navigation-auth-v200.cjs
           node tests/visual/run-v327-production-recovery.cjs
           node tests/visual/run-mobile-final-quote-stack.cjs
           node tests/visual/run-mobile-modal-overlap-v176.cjs
 
-      - name: Commit verified recovery
+      - name: Commit verified source recovery
         shell: bash
         run: |
-          if git diff --quiet; then echo 'No source changes to commit.'; exit 0; fi
+          if git diff --quiet -- src tests/visual/obsidian-shell.html; then
+            echo 'No source changes to commit.'
+            exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src tests/visual/obsidian-shell.html tests/visual/run-v327-production-recovery.cjs
-          git commit -m 'fix(v327): recover mobile creation editor scroll and AI experience'
+          git add src tests/visual/obsidian-shell.html
+          git commit -m 'fix(v327): recover creation editor scrolling and AI experience'
           git push origin HEAD:hotfix/v327-production-create-menu-scroll
