@@ -30,6 +30,24 @@
     return manualInventoryDraftOpen();
   }
 
+  function currentFirebaseUid(){
+    try{return String(window.firebase?.auth?.().currentUser?.uid||'').trim();}catch{return '';}
+  }
+
+  function completeRejectedAccountTransition(uid){
+    try{window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid,rejectedByRuntimeSafety:true}}));}catch{}
+  }
+
+  function guardStaleAccountTransition(event){
+    if(!(event instanceof CustomEvent))return;
+    const uid=String(event.detail?.uid||'').trim();
+    if(!uid)return;
+    const currentUid=currentFirebaseUid();
+    if(currentUid===uid)return;
+    event.stopImmediatePropagation();
+    completeRejectedAccountTransition(uid);
+  }
+
   function explainDeferred(button){
     const notice=button.closest('[data-lourex-update],[data-lourex-cloud-refresh]');
     const detail=notice?.querySelector('small');
@@ -56,6 +74,14 @@
       ?'احفظ وأغلق المستند أو مساحة الإدخال الحالية قبل تسجيل الخروج.'
       :'Save and close the current document or data-entry workspace before signing out.';
   }
+
+  /* Account switching is requested asynchronously by the Firebase auth watcher and
+     can be deferred while an editor is open. A request is valid only while Firebase
+     still exposes the same UID. If auth became null or changed meanwhile, release
+     the watcher's in-flight flag and wait for a fresh auth callback/request instead
+     of switching IndexedDB to a stale deferred account. This listener is registered
+     before document-entry and the React application listeners. */
+  window.addEventListener('lourex-account-transition-request',guardStaleAccountTransition,true);
 
   /* Capture before the update/cloud button handler. This is an independent last
      guard for Safari timing windows where React has accepted an inventory edit but
