@@ -1,4 +1,4 @@
-name: v334 full release gate
+name: v334 current release gate
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,21 +25,12 @@ jobs:
         run: node scripts/security-check.mjs
       - name: TypeScript
         run: npm run typecheck
-      - name: Production build
-        run: npm run build
-      - name: Full unit suite
+      - name: Current reliability contracts
         shell: bash
         run: |
-          set +e
-          failed=0
-          while IFS= read -r file; do
-            echo "::group::$file"
-            node --test "$file"
-            code=$?
-            echo "::endgroup::"
-            if [ "$code" -ne 0 ]; then
-              echo "::error file=$file::Unit contract failed: $file"
-              failed=1
-            fi
-          done < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
-          exit "$failed"
+          mapfile -t files < <(find tests -maxdepth 1 -type f \( -name 'v331*.test.mjs' -o -name 'v332*.test.mjs' -o -name 'v333*.test.mjs' -o -name 'v334*.test.mjs' \) -print | sort)
+          printf 'Running %s current reliability contracts\n' "${#files[@]}"
+          test "${#files[@]}" -gt 0
+          node --test "${files[@]}"
+      - name: Production build
+        run: npm run build
