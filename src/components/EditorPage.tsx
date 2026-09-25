@@ -260,14 +260,16 @@ export class EditorPage extends React.Component<Props,State>{
     const sourceIsProformaInvoice=props.document.kind==='proforma-invoice';
     const linkedInvoice=finalQuote?props.documents.find(item=>item.kind==='invoice'&&item.role==='standard'&&item.convertedFromId===props.document.id&&item.lifecycleStatus!=='voided'):undefined;
     const navSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-nav-slot]');
+    const supportSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-support-slot]');
     const editorScreen=typeof document==='undefined'?null:document.querySelector('.editor-screen');
     const sectionNavigator=this.renderSectionNavigator();
     const finalQuoteAction=finalQuote?this.renderQuoteAction(linkedInvoice,sourceIsProformaInvoice):null;
+    const supportPanels=<div className="ta-editor-support-panels"><DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={this.discardRevisionSingleFlight} onVoid={this.voidDocumentSingleFlight} onCreateCreditNote={this.createCreditNoteSingleFlight}/>{props.document.kind==='invoice'?<InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>:null}{(props.document.kind==='proforma'||props.document.kind==='proforma-invoice'||props.document.kind==='invoice')?<ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>:null}</div>;
 
     return <div className="ta-editor-workspace" data-v320-editor="true">
       {this.state.persistenceError?<div className="ta-editor-persistence-error" role="alert"><span className="ta-editor-error-icon">!</span><div><strong>{t('Local save needs attention','الحفظ المحلي يحتاج انتباهك')}</strong><span>{this.state.persistenceError}</span></div></div>:null}
       <div className="ta-editor-core-slot"><EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry} onSaveCustomer={this.saveCustomerSingleFlight} onSaveDocumentItem={this.saveDocumentItemSingleFlight} onBeginRevision={this.beginRevisionSingleFlight} onPrint={this.printWithPreparedMode}/></div>
-      <div className="ta-editor-support-panels"><DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={this.discardRevisionSingleFlight} onVoid={this.voidDocumentSingleFlight} onCreateCreditNote={this.createCreditNoteSingleFlight}/>{props.document.kind==='invoice'?<InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>:null}{(props.document.kind==='proforma'||props.document.kind==='proforma-invoice'||props.document.kind==='invoice')?<ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>:null}</div>
+      {supportPanels&&supportSlot?ReactDOM.createPortal(supportPanels,supportSlot):null}
       {sectionNavigator&&navSlot?ReactDOM.createPortal(sectionNavigator,navSlot):null}
       {finalQuoteAction&&editorScreen?ReactDOM.createPortal(finalQuoteAction,editorScreen):null}
     </div>;
