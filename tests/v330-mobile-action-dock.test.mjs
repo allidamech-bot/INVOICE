@@ -11,6 +11,10 @@ test('v330 keeps Save Preview PDF Share reachable after single-scroll recovery',
   ]);
   assert.match(editor, /mobile-editor-actionbar/);
   assert.match(editor, /mobile-action-buttons/);
+  assert.match(editor, /onClick=\{\(\)=>this\.setState\(\{mobilePreview:true\}\)\}/);
+  assert.match(editor, /onClick=\{\(\)=>void this\.output\('pdf'\)\}>PDF/);
+  assert.match(editor, /onClick=\{\(\)=>void this\.output\('share'\)\}/);
+  assert.match(editor, /onClick=\{\(\)=>void this\.save\(false\)\}/);
   assert.match(css, /\.screen-editor \.mobile-editor-actionbar\s*\{[\s\S]*?position:fixed!important[\s\S]*?bottom:0!important/);
   assert.match(css, /\.screen-editor \.mobile-action-buttons\s*\{[\s\S]*?grid-template-columns:repeat\(4,minmax\(0,1fr\)\)!important/);
   assert.match(css, /\.screen-editor \.mobile-total\{display:none!important\}/);
