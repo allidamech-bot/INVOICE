@@ -62,9 +62,9 @@ test('v326 mobile shell has one presentation owner',async()=>{
 
 test('v326 shell correction contract keeps RTL rails and More affordance stable',async()=>{
   const css=await read('src/styles/tailadmin-shell-contract-v326.css');
-  assert.match(css,/html\[dir="rtl"\][\s\S]*\.ta-shell\{[\s\S]*grid-template-columns:272px minmax\(0,1fr\)!important/);
-  assert.match(css,/html\[dir="rtl"\][\s\S]*\.ta-sidebar\{[\s\S]*grid-column:1!important/);
-  assert.match(css,/\.ta-topbar,[\s\S]*\.ta-main\{[\s\S]*grid-column:2!important/);
+  assert.match(css,/html\[dir="rtl"\][\s\S]*\.ta-shell\{[\s\S]*direction:ltr!important;[\s\S]*grid-template-columns:minmax\(0,1fr\) 272px!important/);
+  assert.match(css,/html\[dir="rtl"\][\s\S]*\.ta-sidebar\{[\s\S]*grid-column:2!important;[\s\S]*direction:rtl!important/);
+  assert.match(css,/\.ta-topbar,[\s\S]*\.ta-main\{[\s\S]*grid-column:1!important;[\s\S]*direction:rtl!important/);
   assert.match(css,/\.ta-mobile-sheet \.ta-sheet-chevron\{[\s\S]*display:block!important/);
   const html=await read('index.html');
   const closeout=html.indexOf('tailadmin-design-closeout-v323.css');
