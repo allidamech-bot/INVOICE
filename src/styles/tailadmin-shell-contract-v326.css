@@ -1,0 +1,161 @@
+/* LOUREX v326 — structural shell correction contract.
+ * Owns shell geometry/affordance corrections that must outrank legacy TailAdmin
+ * layers. Workspace/page visuals remain in their dedicated owners. */
+@media screen and (min-width:901px){
+  /* Pin the desktop grid itself to a physical LTR axis, then restore RTL on each
+     visible region. This makes the sidebar rail deterministic across browsers. */
+  html[dir="rtl"] body .app-ui .ta-shell{
+    direction:ltr!important;
+    grid-template-columns:minmax(0,1fr) 272px!important;
+  }
+  html[dir="rtl"] body .app-ui .ta-sidebar{
+    grid-column:2!important;
+    direction:rtl!important;
+    border-inline-start:1px solid var(--ft-line)!important;
+    border-inline-end:0!important;
+  }
+  html[dir="rtl"] body .app-ui .ta-topbar,
+  html[dir="rtl"] body .app-ui .ta-main{
+    grid-column:1!important;
+    direction:rtl!important;
+  }
+}
+
+@media screen and (min-width:901px) and (max-width:1180px){
+  html[dir="rtl"] body .app-ui .ta-shell{
+    grid-template-columns:minmax(0,1fr) 248px!important;
+  }
+}
+
+@media screen and (max-width:900px){
+  /* More is a compact navigation sheet. It must read as navigation, not as a
+     stack of equally weighted cards. */
+  html body .app-ui .ta-mobile-sheet{
+    max-width:520px!important;
+    max-height:min(66dvh,590px)!important;
+    margin-inline:auto!important;
+    overflow-x:hidden!important;
+    padding:8px 11px 12px!important;
+    border-radius:22px!important;
+  }
+  html body .app-ui .ta-sheet-header{
+    align-items:center!important;
+    padding:1px 1px 10px!important;
+  }
+  html body .app-ui .ta-sheet-header small{display:none!important;}
+  html body .app-ui .ta-sheet-header strong{
+    font-size:19px!important;
+    line-height:25px!important;
+    font-weight:780!important;
+  }
+  html body .app-ui .ta-sheet-header span{
+    margin-top:1px!important;
+    color:var(--ft-muted)!important;
+    font-size:11px!important;
+    line-height:16px!important;
+  }
+  html body .app-ui .ta-sheet-utilities{
+    gap:6px!important;
+    padding:8px 0 6px!important;
+  }
+  html body .app-ui .ta-sheet-theme,
+  html body .app-ui .ta-sheet-signout{
+    min-height:44px!important;
+    border-radius:11px!important;
+    box-shadow:none!important;
+  }
+  html body .app-ui .ta-sheet-sync{
+    width:max-content!important;
+    max-width:100%!important;
+    min-height:30px!important;
+    margin:0 0 5px!important;
+    padding:5px 9px!important;
+    border-color:color-mix(in srgb,var(--ft-line) 70%,transparent)!important;
+    border-radius:999px!important;
+    background:transparent!important;
+    color:var(--ft-muted)!important;
+    font-size:10.5px!important;
+  }
+  html body .app-ui .ta-sheet-account{
+    min-height:58px!important;
+    margin:1px 0 2px!important;
+    padding:8px 9px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:13px!important;
+    background:var(--ft-surface-2)!important;
+  }
+  html body .app-ui .ta-sheet-group{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:5px!important;
+    margin-top:7px!important;
+    padding-top:7px!important;
+    border-top:1px solid color-mix(in srgb,var(--ft-line) 76%,transparent)!important;
+  }
+  html body .app-ui .ta-sheet-group>p{
+    padding:0 5px 1px!important;
+    color:var(--ft-faint)!important;
+    font-size:10px!important;
+    line-height:15px!important;
+    font-weight:760!important;
+    letter-spacing:.02em!important;
+  }
+  html[dir="rtl"] body .app-ui .ta-sheet-group>p{letter-spacing:0!important;}
+  html body .app-ui .ta-mobile-sheet .ta-sheet-link{
+    min-height:58px!important;
+    grid-template-columns:34px minmax(0,1fr) 16px!important;
+    gap:8px!important;
+    padding:8px!important;
+    border:1px solid transparent!important;
+    border-radius:12px!important;
+    background:transparent!important;
+  }
+  html body .app-ui .ta-mobile-sheet .ta-sheet-link:hover,
+  html body .app-ui .ta-mobile-sheet .ta-sheet-link.is-active{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+  }
+  html body .app-ui .ta-mobile-sheet .ta-sheet-link-copy strong{
+    font-size:12px!important;
+    line-height:17px!important;
+    font-weight:720!important;
+  }
+  html body .app-ui .ta-mobile-sheet .ta-sheet-link-copy small{
+    margin-top:1px!important;
+    color:var(--ft-muted)!important;
+    font-size:10px!important;
+    line-height:14px!important;
+  }
+  html body .app-ui .ta-mobile-sheet .ta-sheet-chevron{
+    display:block!important;
+    justify-self:end!important;
+    color:var(--ft-faint)!important;
+    font-size:18px!important;
+    line-height:1!important;
+    opacity:.82!important;
+  }
+  html[dir="rtl"] body .app-ui .ta-mobile-sheet .ta-sheet-chevron{
+    justify-self:start!important;
+    transform:scaleX(-1)!important;
+  }
+}
+
+@media screen and (max-width:350px){
+  /* Keep More compact even on 320px phones: two destinations per row, with the
+     secondary descriptions removed before collapsing the navigation hierarchy. */
+  html body .app-ui .ta-mobile-sheet{max-height:min(69dvh,570px)!important;}
+  html body .app-ui .ta-mobile-sheet .ta-sheet-group{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  html body .app-ui .ta-mobile-sheet .ta-sheet-link{
+    min-height:54px!important;
+    grid-template-columns:30px minmax(0,1fr) 12px!important;
+    gap:6px!important;
+    padding:7px!important;
+  }
+  html body .app-ui .ta-mobile-sheet .ta-sheet-link-icon{
+    width:30px!important;
+    height:30px!important;
+  }
+  html body .app-ui .ta-mobile-sheet .ta-sheet-link-copy small{display:none!important;}
+  html body .app-ui .ta-sheet-account .ta-sheet-link-copy small{display:block!important;}
+}

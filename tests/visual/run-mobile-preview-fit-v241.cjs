@@ -19,7 +19,7 @@ const expectedScale=width=>width<=340?.38:width<=360?.405:width<=375?.43:.445;
       page.on('pageerror',error=>failures.push(error.stack||String(error)));
       try{
         await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?lang=${lang}&kind=${kind}`,{waitUntil:'load'});
-        await page.locator('.editor-section-nav-button').first().waitFor();
+        await page.locator('.ta-editor-step-list>button').first().waitFor();
         await page.evaluate(()=>document.fonts.ready);
         await page.locator('.mobile-action-buttons .btn').nth(1).click();
         await page.locator('.mobile-preview-overlay').waitFor({state:'visible'});

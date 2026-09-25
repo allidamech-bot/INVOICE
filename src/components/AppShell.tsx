@@ -39,11 +39,9 @@ interface State {
 }
 
 /**
- * v320 shell: a structural TailAdmin-style application frame.
- *
- * This component intentionally owns presentation structure only. Navigation,
+ * TailAdmin-style application shell. Presentation structure only: navigation,
  * Firebase sign-out, encrypted session handling, cloud conflict handling and all
- * LOUREX callbacks remain the same contracts used before v320.
+ * LOUREX business callbacks remain owned by their existing boundaries.
  */
 export class AppShell extends React.Component<Props,State>{
   state:State={moreOpen:false,signingOut:false};
@@ -62,6 +60,7 @@ export class AppShell extends React.Component<Props,State>{
     if(prevProps.screen!==this.props.screen){
       if(this.state.moreOpen)this.setState({moreOpen:false});
       if(this.props.newMenu)this.props.onToggleNew();
+      this.resetWorkspaceScroll();
     }
 
     this.syncOverlayState();
@@ -81,8 +80,19 @@ export class AppShell extends React.Component<Props,State>{
   }
 
   private isMobileShell=():boolean=>typeof window!=='undefined'&&window.matchMedia('(max-width: 900px)').matches;
-
   private activeCreateMenuId=():string=>this.isMobileShell()?'ta-mobile-create-menu':'ta-desktop-create-menu';
+
+  private resetWorkspaceScroll=()=>{
+    const reset=()=>{
+      const main=document.querySelector<HTMLElement>('.ta-main');
+      if(main){main.scrollTop=0;main.scrollLeft=0;}
+      window.scrollTo(0,0);
+      document.documentElement.scrollTop=0;
+      document.body.scrollTop=0;
+    };
+    reset();
+    window.requestAnimationFrame(reset);
+  };
 
   private applyOverlayLock=(locked:boolean)=>{
     const root=document.documentElement;
@@ -285,7 +295,8 @@ export class AppShell extends React.Component<Props,State>{
   render():any{
     const editor=this.props.screen==='editor';
     const signedIn=this.hasSignedInAccount();
-    const logo=this.props.logoDataUrl||'./brand/lourex-logo.svg';
+    const logo='./brand/lourex-logo.svg';
+    const mobile=this.isMobileShell();
 
     return <div className={`workspace-shell fintech-shell-v280 ta-shell screen-${this.props.screen} ${editor?'is-editor':''}`}>
       {!editor?<aside className="workspace-sidebar ta-sidebar" aria-label={t('Main navigation','التنقل الرئيسي')}>
@@ -298,7 +309,7 @@ export class AppShell extends React.Component<Props,State>{
 
         <div className="ta-sidebar-create">
           <Button icon="plus" variant="primary" className="ta-create-button" aria-haspopup="menu" aria-expanded={this.props.newMenu} aria-controls="ta-desktop-create-menu" onClick={this.toggleCreate}>{t('New Document','مستند جديد')}</Button>
-          {this.createMenu('ta-desktop-create-menu','ta-create-menu-desktop')}
+          {!mobile?this.createMenu('ta-desktop-create-menu','ta-create-menu-desktop'):null}
         </div>
 
         <nav className="ta-sidebar-nav">
@@ -348,6 +359,7 @@ export class AppShell extends React.Component<Props,State>{
 
       {!editor?<>
         {this.props.newMenu?<button type="button" className="ta-overlay-backdrop ta-create-backdrop" aria-label={t('Close new document menu','إغلاق قائمة المستند الجديد')} onClick={this.closeCreateMenu}/>:null}
+        {this.props.newMenu&&mobile?this.createMenu('ta-mobile-create-menu','ta-create-menu-mobile'):null}
 
         {this.state.moreOpen?<>
           <button type="button" className="ta-overlay-backdrop ta-sheet-backdrop" aria-label={t('Close menu','إغلاق القائمة')} onClick={this.closeMore}/>
@@ -374,7 +386,6 @@ export class AppShell extends React.Component<Props,State>{
           <button type="button" className={this.props.screen==='documents'?'is-active':''} aria-current={this.props.screen==='documents'?'page':undefined} onClick={()=>this.navigate('documents')}><Icon name="file"/><span>{t('Documents','المستندات')}</span></button>
           <div className="ta-mobile-create-wrap">
             <button type="button" className="ta-mobile-create" aria-haspopup="menu" aria-expanded={this.props.newMenu} aria-controls="ta-mobile-create-menu" aria-label={t('New Document','مستند جديد')} onClick={this.toggleCreate}><Icon name="plus" size={24}/></button>
-            {this.createMenu('ta-mobile-create-menu','ta-create-menu-mobile')}
           </div>
           <button type="button" className={this.props.screen==='customers'?'is-active':''} aria-current={this.props.screen==='customers'?'page':undefined} onClick={()=>this.navigate('customers')}><Icon name="users"/><span>{t('Customers','العملاء')}</span></button>
           <button type="button" className={this.state.moreOpen?'is-active':''} aria-haspopup="dialog" aria-controls="ta-mobile-more" aria-expanded={this.state.moreOpen} onClick={this.toggleMore}><Icon name="more"/><span>{t('More','المزيد')}</span></button>

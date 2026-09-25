@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {GlobalSearch} from './src/components/GlobalSearch.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),lang=params.get('lang')==='ar'?'ar':'en',h=React.createElement;
+setUiLanguage(lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+const noop=()=>{};
+ReactDOM.render(h(GlobalSearch,{documents:[],customers:[],items:[],suppliers:[],purchases:[],language:lang,onNavigate:noop,onOpenDocument:noop,onNewDocument:noop}),document.getElementById('root'));
+requestAnimationFrame(()=>window.dispatchEvent(new Event('lourex-global-search-open')));
+</script></body></html>

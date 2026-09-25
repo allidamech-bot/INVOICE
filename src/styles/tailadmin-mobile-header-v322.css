@@ -1,60 +1,468 @@
-/* LOUREX v322 — mobile header and action geometry correction.
- * Keep the Advisor available without allowing a floating launcher to cover
- * dashboard cards, document rows, sheets, or the bottom navigation dock.
- * Keep document primary actions inside the phone viewport as a deliberate grid.
- * The .ta-shell qualifier intentionally outranks the reliability bridge's
- * generic launcher position rules while leaving reliability behavior intact.
+/*
+ * LOUREX v326 — premium mobile shell owner.
+ * Owns only mobile shell presentation: top bar, app identity, bottom dock,
+ * Create surface, More sheet and launcher placement. Workspace/page styling lives
+ * in the dedicated TailAdmin page owners; runtime safety lives in reliability.
  */
 @media screen and (max-width:900px){
-  html body .ta-shell .lourex-ai-launcher,
-  html[dir="ltr"] body .ta-shell .lourex-ai-launcher,
-  html[dir="rtl"] body .ta-shell .lourex-ai-launcher,
-  html body .ta-shell .lourex-ai-launcher.screen-operations,
-  html[dir="rtl"] body .ta-shell .lourex-ai-launcher.screen-operations{
+  html body .app-ui .ta-shell,
+  html[dir="rtl"] body .app-ui .ta-shell{
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-template-rows:70px minmax(0,1fr)!important;
+    padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))!important;
+    background:var(--ft-canvas)!important;
+  }
+
+  html body .app-ui .ta-sidebar{display:none!important;}
+
+  html body .app-ui .ta-topbar,
+  html[dir="rtl"] body .app-ui .ta-topbar{
+    grid-column:1!important;
+    grid-row:1!important;
+    height:70px!important;
+    min-height:70px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:10px!important;
+    padding:max(8px,env(safe-area-inset-top,0px)) 14px 8px!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 88%,transparent)!important;
+    background:color-mix(in srgb,var(--ft-shell) 96%,transparent)!important;
+    box-shadow:0 1px 0 color-mix(in srgb,var(--ft-line) 42%,transparent),0 8px 26px rgba(16,24,40,.035)!important;
+    backdrop-filter:blur(20px)!important;
+    -webkit-backdrop-filter:blur(20px)!important;
+  }
+
+  html[data-ui-theme="dark"] body .app-ui .ta-topbar{
+    box-shadow:0 1px 0 rgba(255,255,255,.025),0 12px 30px rgba(0,0,0,.14)!important;
+  }
+
+  html body .app-ui .ta-topbar-leading{
+    flex:1 1 auto!important;
+    min-width:0!important;
+    gap:10px!important;
+  }
+
+  html body .app-ui .ta-mobile-brand{display:block!important;flex:0 0 auto!important;}
+  html body .app-ui .ta-mobile-brand>button{
+    width:44px!important;
+    height:44px!important;
+    min-width:44px!important;
+    min-height:44px!important;
+    display:grid!important;
+    place-items:center!important;
+    padding:0!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:13px!important;
+    background:var(--ft-surface)!important;
+    box-shadow:0 3px 12px rgba(16,24,40,.055)!important;
+    overflow:hidden!important;
+  }
+
+  /* Application chrome always uses the LOUREX app mark. Company artwork belongs
+     to documents/settings and must never turn the app header into a product image. */
+  html body .app-ui .ta-mobile-brand .brand.compact,
+  html body .app-ui .ta-brand-button .brand.compact{
+    width:34px!important;
+    min-width:34px!important;
+    height:34px!important;
+    position:relative!important;
+  }
+  html body .app-ui .ta-mobile-brand .brand-mark,
+  html body .app-ui .ta-brand-button .brand-mark{
+    width:34px!important;
+    height:34px!important;
+    min-width:34px!important;
+    border-radius:9px!important;
+    overflow:hidden!important;
+    background:url("../brand/lourex-logo.svg") center/contain no-repeat!important;
+  }
+  html body .app-ui .ta-mobile-brand .brand-mark img,
+  html body .app-ui .ta-brand-button .brand-mark img{opacity:0!important;}
+  html body .app-ui .ta-mobile-brand .brand-words,
+  html body .app-ui .ta-brand-button>.brand.compact>.brand-words{display:none!important;}
+
+  html body .app-ui .ta-page-title{min-width:0!important;gap:0!important;}
+  html body .app-ui .ta-page-title small{display:none!important;}
+  html body .app-ui .ta-page-title strong{
+    display:block!important;
+    max-width:48vw!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    color:var(--ft-text-strong)!important;
+    font-size:18px!important;
+    line-height:24px!important;
+    font-weight:780!important;
+    letter-spacing:-.012em!important;
+  }
+  html[dir="rtl"] body .app-ui .ta-page-title strong{letter-spacing:0!important;}
+
+  html body .app-ui .ta-topbar-actions{
+    flex:0 0 auto!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:7px!important;
+  }
+  html body .app-ui .ta-search-trigger{
+    width:44px!important;
+    min-width:44px!important;
+    height:44px!important;
+    min-height:44px!important;
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    place-items:center!important;
+    padding:0!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:13px!important;
+    background:var(--ft-surface)!important;
+    box-shadow:0 3px 12px rgba(16,24,40,.055)!important;
+  }
+  html body .app-ui .ta-search-trigger>span,
+  html body .app-ui .ta-search-trigger kbd{display:none!important;}
+  html body .app-ui .ta-search-trigger .icon{width:20px!important;height:20px!important;}
+  html body .app-ui .ta-theme-control,
+  html body .app-ui .ta-topbar-sync,
+  html body .app-ui .ta-topbar-account{display:none!important;}
+
+  html body .app-ui .ta-main,
+  html[dir="rtl"] body .app-ui .ta-main{
+    grid-column:1!important;
+    grid-row:2!important;
+    min-width:0!important;
+    min-height:0!important;
+    padding:0!important;
+    scroll-padding-top:14px!important;
+    scroll-padding-bottom:calc(116px + env(safe-area-inset-bottom,0px))!important;
+  }
+
+  /* Compact floating dock: enough breathing room for iPhone without consuming the
+     content canvas. */
+  html body .app-ui .ta-mobile-nav{
     position:fixed!important;
-    top:calc(12px + env(safe-area-inset-top,0px))!important;
+    inset-inline:12px!important;
+    bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;
+    width:auto!important;
+    min-height:72px!important;
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    align-items:center!important;
+    gap:2px!important;
+    padding:7px 8px!important;
+    border:1px solid color-mix(in srgb,var(--ft-line) 92%,transparent)!important;
+    border-radius:22px!important;
+    background:color-mix(in srgb,var(--ft-surface) 96%,transparent)!important;
+    box-shadow:0 18px 44px rgba(16,24,40,.18)!important;
+    backdrop-filter:blur(22px)!important;
+    -webkit-backdrop-filter:blur(22px)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .ta-mobile-nav{
+    background:color-mix(in srgb,var(--ft-surface) 94%,transparent)!important;
+    box-shadow:0 20px 48px rgba(0,0,0,.38)!important;
+  }
+
+  html body .app-ui .ta-mobile-nav>button{
+    min-width:0!important;
+    min-height:54px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:4px!important;
+    padding:5px 3px!important;
+    border:0!important;
+    border-radius:14px!important;
+    background:transparent!important;
+    color:var(--ft-muted)!important;
+    box-shadow:none!important;
+    font-size:10.5px!important;
+    line-height:14px!important;
+    font-weight:650!important;
+  }
+  html body .app-ui .ta-mobile-nav>button .icon{width:21px!important;height:21px!important;}
+  html body .app-ui .ta-mobile-nav>button.is-active{
+    background:var(--ft-accent-soft)!important;
+    color:var(--ft-accent)!important;
+  }
+
+  html body .app-ui .ta-mobile-create-wrap{
+    position:relative!important;
+    min-width:0!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+  }
+  html body .app-ui .ta-mobile-create{
+    width:52px!important;
+    height:52px!important;
+    min-width:52px!important;
+    min-height:52px!important;
+    display:grid!important;
+    place-items:center!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:16px!important;
+    background:var(--ft-accent)!important;
+    color:#fff!important;
+    box-shadow:0 10px 24px color-mix(in srgb,var(--ft-accent) 34%,transparent)!important;
+    transform:none!important;
+  }
+  html body .app-ui .ta-mobile-create:active{transform:scale(.96)!important;}
+
+  /* Create is a focused mobile surface, not a desktop dropdown squeezed above the
+     dock. Two-column choices keep ten document types reachable without a tall list. */
+  html body .app-ui .ta-create-menu-mobile{
+    position:fixed!important;
+    inset-inline:12px!important;
+    bottom:calc(92px + env(safe-area-inset-bottom,0px))!important;
+    width:auto!important;
+    max-height:min(68dvh,590px)!important;
+    overflow:auto!important;
+    overscroll-behavior:contain!important;
+    padding:10px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:22px!important;
+    background:var(--ft-surface)!important;
+    box-shadow:0 28px 70px rgba(16,24,40,.30)!important;
+  }
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-heading{
+    padding:6px 6px 10px!important;
+    border-bottom:1px solid var(--ft-line)!important;
+  }
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-heading small{
+    font-size:10.5px!important;
+    line-height:15px!important;
+    color:var(--ft-muted)!important;
+  }
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-heading strong{
+    font-size:15px!important;
+    line-height:21px!important;
+    font-weight:760!important;
+  }
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+    padding-top:8px!important;
+  }
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button{
+    min-width:0!important;
+    min-height:66px!important;
+    grid-template-columns:32px minmax(0,1fr)!important;
+    align-items:center!important;
+    gap:8px!important;
+    padding:9px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:13px!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
+  }
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button>.icon{
+    width:19px!important;
+    height:19px!important;
+    padding:6px!important;
+    box-sizing:content-box!important;
+    border-radius:9px!important;
+    background:var(--ft-accent-soft)!important;
+    color:var(--ft-accent)!important;
+  }
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid strong{
+    font-size:12px!important;
+    line-height:17px!important;
+    font-weight:720!important;
+  }
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid small{
+    margin-top:1px!important;
+    display:block!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    font-size:9.5px!important;
+    line-height:14px!important;
+  }
+
+  html body .app-ui .ta-create-backdrop,
+  html body .app-ui .ta-sheet-backdrop{
+    display:block!important;
+    background:rgba(9,15,27,.48)!important;
+    backdrop-filter:blur(5px)!important;
+    -webkit-backdrop-filter:blur(5px)!important;
+  }
+
+  /* More becomes a compact command sheet. Groups use two columns where possible
+     so the user sees the whole workspace instead of scrolling a giant menu. */
+  html body .app-ui .ta-mobile-sheet{
+    position:fixed!important;
+    inset-inline:12px!important;
+    bottom:calc(92px + env(safe-area-inset-bottom,0px))!important;
+    width:auto!important;
+    max-height:min(68dvh,620px)!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:auto!important;
+    overscroll-behavior:contain!important;
+    padding:9px 12px 13px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:22px!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+    box-shadow:0 28px 70px rgba(16,24,40,.30)!important;
+  }
+  html body .app-ui .ta-sheet-handle{
+    width:38px!important;
+    height:4px!important;
+    margin:1px auto 8px!important;
+    border-radius:999px!important;
+    background:var(--ft-line-strong)!important;
+  }
+  html body .app-ui .ta-sheet-header{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 44px!important;
+    align-items:start!important;
+    gap:10px!important;
+    padding:2px 2px 11px!important;
+    border-bottom:1px solid var(--ft-line)!important;
+  }
+  html body .app-ui .ta-sheet-header>div{gap:1px!important;}
+  html body .app-ui .ta-sheet-header small{font-size:10px!important;line-height:15px!important;}
+  html body .app-ui .ta-sheet-header strong{font-size:20px!important;line-height:26px!important;font-weight:780!important;}
+  html body .app-ui .ta-sheet-header span{font-size:10.5px!important;line-height:15px!important;}
+  html body .app-ui .ta-sheet-close{
+    width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;
+    border:1px solid var(--ft-line)!important;border-radius:12px!important;background:var(--ft-surface-2)!important;
+  }
+  html body .app-ui .ta-sheet-utilities{
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:7px!important;
+    padding:9px 0 7px!important;
+  }
+  html body .app-ui .ta-sheet-theme,
+  html body .app-ui .ta-sheet-signout{
+    min-height:44px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:11px!important;
+    background:var(--ft-surface-2)!important;
+  }
+  html body .app-ui .ta-sheet-sync{
+    min-height:36px!important;
+    margin:0 0 5px!important;
+    padding:6px 9px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:10px!important;
+    background:var(--ft-surface-2)!important;
+  }
+  html body .app-ui .ta-sheet-account{
+    min-height:58px!important;
+    margin:1px 0!important;
+    padding:8px!important;
+    border:1px solid transparent!important;
+    border-radius:12px!important;
+  }
+  html body .app-ui .ta-sheet-group{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:5px!important;
+    margin-top:8px!important;
+    padding-top:8px!important;
+    border-top:1px solid var(--ft-line)!important;
+  }
+  html body .app-ui .ta-sheet-group>p{
+    grid-column:1/-1!important;
+    margin:0!important;
+    padding:0 6px 2px!important;
+    font-size:9.5px!important;
+    line-height:14px!important;
+    font-weight:700!important;
+  }
+  html body .app-ui .ta-sheet-link{
+    min-width:0!important;
+    min-height:60px!important;
+    grid-template-columns:34px minmax(0,1fr)!important;
+    gap:8px!important;
+    padding:8px!important;
+    border:1px solid transparent!important;
+    border-radius:12px!important;
+    background:transparent!important;
+  }
+  html body .app-ui .ta-sheet-link:hover,
+  html body .app-ui .ta-sheet-link.is-active{background:var(--ft-surface-2)!important;border-color:var(--ft-line)!important;}
+  html body .app-ui .ta-sheet-link-icon{width:34px!important;height:34px!important;border-radius:10px!important;}
+  html body .app-ui .ta-sheet-link-copy strong{font-size:12px!important;line-height:17px!important;font-weight:720!important;}
+  html body .app-ui .ta-sheet-link-copy small{font-size:9.5px!important;line-height:14px!important;}
+  html body .app-ui .ta-sheet-link .ta-sheet-chevron{display:none!important;}
+
+  /* AI is a shell action on normal workspaces. Full-screen document/preview
+     surfaces outrank it and never allow it to float over document controls. */
+  html body .app-ui .ta-shell .lourex-ai-launcher,
+  html[dir="ltr"] body .app-ui .ta-shell .lourex-ai-launcher,
+  html[dir="rtl"] body .app-ui .ta-shell .lourex-ai-launcher,
+  html body .app-ui .ta-shell .lourex-ai-launcher.screen-operations,
+  html[dir="rtl"] body .app-ui .ta-shell .lourex-ai-launcher.screen-operations{
+    position:fixed!important;
+    top:calc(13px + env(safe-area-inset-top,0px))!important;
     bottom:auto!important;
     right:auto!important;
     left:auto!important;
     inset-inline-end:68px!important;
-    width:42px!important;
-    min-width:42px!important;
-    height:42px!important;
-    min-height:42px!important;
-    border-radius:12px!important;
-    box-shadow:0 4px 14px rgba(16,24,40,.055)!important;
+    width:44px!important;
+    min-width:44px!important;
+    height:44px!important;
+    min-height:44px!important;
+    border-radius:13px!important;
+    box-shadow:0 5px 16px color-mix(in srgb,var(--ft-accent) 18%,rgba(16,24,40,.08))!important;
     transform:none!important;
   }
-  html[data-lourex-shell-overlay="true"] body .ta-shell .lourex-ai-launcher,
-  body:has(.ta-doc-mobile-action-portal) .ta-shell .lourex-ai-launcher{
+  html[data-lourex-shell-overlay="true"] body .app-ui .ta-shell .lourex-ai-launcher,
+  body:has(.ta-doc-mobile-action-portal) .app-ui .ta-shell .lourex-ai-launcher,
+  body:has(.mobile-preview-open) .app-ui .ta-shell .lourex-ai-launcher,
+  body:has(.draft-mobile-preview) .app-ui .ta-shell .lourex-ai-launcher,
+  body:has(.modal-backdrop) .app-ui .ta-shell .lourex-ai-launcher{
     opacity:0!important;
     pointer-events:none!important;
     transform:none!important;
   }
 
-  html body .app-ui .ta-documents-header-actions{
-    width:100%!important;
-    min-width:0!important;
-    display:grid!important;
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
-    gap:8px!important;
-    overflow:visible!important;
+  html body .app-ui .ta-conflict-banner{
+    margin:10px 12px 0!important;
+    grid-template-columns:34px minmax(0,1fr)!important;
   }
-  html body .app-ui .ta-documents-header-actions>.btn{
-    width:100%!important;
-    min-width:0!important;
-    min-height:44px!important;
+  html body .app-ui .ta-conflict-banner>.btn{grid-column:1/-1!important;width:100%!important;}
+
+  html body .app-ui .ta-shell.is-editor,
+  html[dir="rtl"] body .app-ui .ta-shell.is-editor{
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-template-rows:60px minmax(0,1fr)!important;
+    padding-bottom:0!important;
+  }
+  html body .app-ui .ta-shell.is-editor .ta-topbar{
+    height:60px!important;
+    min-height:60px!important;
     padding:8px 10px!important;
-    border-radius:11px!important;
-    font-size:11px!important;
-    line-height:15px!important;
-    white-space:normal!important;
-    text-align:center!important;
-    justify-content:center!important;
   }
-  html body .app-ui .ta-documents-header-actions>.btn .icon{
-    flex:0 0 auto!important;
-    width:17px!important;
-    height:17px!important;
-  }
+  html body .app-ui .ta-shell.is-editor .ta-page-title strong{max-width:60vw!important;}
+  html body .app-ui .ta-shell.is-editor .ta-topbar-sync{display:none!important;}
+}
+
+@media screen and (max-width:430px){
+  html body .app-ui .ta-page-title strong{max-width:43vw!important;font-size:17px!important;}
+  html body .app-ui .ta-mobile-nav{inset-inline:10px!important;}
+  html body .app-ui .ta-create-menu-mobile,
+  html body .app-ui .ta-mobile-sheet{inset-inline:10px!important;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid small{display:none!important;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button{min-height:58px!important;}
+}
+
+@media screen and (max-width:350px){
+  html body .app-ui .ta-mobile-nav{inset-inline:7px!important;padding-inline:6px!important;}
+  html body .app-ui .ta-mobile-nav>button{font-size:9.5px!important;}
+  html body .app-ui .ta-create-menu-mobile,
+  html body .app-ui .ta-mobile-sheet{inset-inline:7px!important;}
+  html body .app-ui .ta-sheet-group{grid-template-columns:1fr!important;}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .app-ui .ta-mobile-create,
+  .app-ui .ta-mobile-sheet,
+  .app-ui .ta-create-menu{transition:none!important;animation:none!important;}
 }

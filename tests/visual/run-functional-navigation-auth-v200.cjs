@@ -28,6 +28,7 @@ const base='http://127.0.0.1:4173/tests/visual';
         await createMenu.waitFor();
         assert.equal(await createMenu.isVisible(),true,'Desktop New Document menu must open');
         await createMenu.locator('[role="menuitem"]').nth(2).click();
+        await page.waitForFunction(()=>window.shellQa.newKind==='proforma');
         assert.equal(await page.evaluate(()=>window.shellQa.newKind),'proforma','Desktop quotation action must reach the document boundary');
         assert.equal(await createMenu.count(),0,'Desktop New Document menu must close after choosing a document type');
 
@@ -68,11 +69,11 @@ const base='http://127.0.0.1:4173/tests/visual';
         assert.ok(geometry.topbar&&geometry.content,'Desktop topbar/content geometry missing');
         assert.ok(geometry.scrollWidth<=geometry.width+1,`Desktop shell has horizontal overflow ${JSON.stringify(geometry)}`);
         if(lang==='ar'){
-          assert.ok(geometry.sidebar.left>=geometry.content.right-1,'Arabic desktop sidebar must occupy the right rail');
-          assert.ok(Math.abs(geometry.topbar.right-geometry.content.right)<=1,'Arabic desktop topbar/content rails must align');
+          assert.ok(geometry.sidebar.left>=geometry.content.right-1,`Arabic desktop sidebar must occupy the right rail ${JSON.stringify(geometry)}`);
+          assert.ok(Math.abs(geometry.topbar.right-geometry.content.right)<=1,`Arabic desktop topbar/content rails must align ${JSON.stringify(geometry)}`);
         }else{
-          assert.ok(geometry.sidebar.right<=geometry.content.left+1,'English desktop sidebar must occupy the left rail');
-          assert.ok(Math.abs(geometry.topbar.left-geometry.content.left)<=1,'English desktop topbar/content rails must align');
+          assert.ok(geometry.sidebar.right<=geometry.content.left+1,`English desktop sidebar must occupy the left rail ${JSON.stringify(geometry)}`);
+          assert.ok(Math.abs(geometry.topbar.left-geometry.content.left)<=1,`English desktop topbar/content rails must align ${JSON.stringify(geometry)}`);
         }
         await page.screenshot({path:`${output}/desktop-shell-${lang}.png`,fullPage:false,animations:'disabled'});
       }catch(error){failures.push(error?.stack||String(error));}
@@ -92,8 +93,10 @@ const base='http://127.0.0.1:4173/tests/visual';
 
         await create.click();
         await page.locator('#ta-mobile-create-menu').waitFor();
+        await page.locator('.ta-create-backdrop').click({position:{x:4,y:4}});
+        await page.locator('#ta-mobile-create-menu').waitFor({state:'detached'});
         await more.click();
-        assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Create menu must close before More opens');
+        assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Create menu must be closed before More opens');
         await page.locator('#ta-mobile-more').waitFor();
         assert.equal(await page.locator('#ta-mobile-more').getAttribute('aria-modal'),'true');
         assert.equal(await page.locator('#ta-mobile-more').getAttribute('dir'),lang==='ar'?'rtl':'ltr','More sheet must declare the active writing direction');
@@ -113,13 +116,16 @@ const base='http://127.0.0.1:4173/tests/visual';
         }
 
         await page.keyboard.press('Escape');
+        await page.locator('#ta-mobile-more').waitFor({state:'detached'});
         assert.equal(await page.locator('#ta-mobile-more').count(),0,'Escape must close More');
 
         await create.click();
         await page.locator('#ta-mobile-create-menu').waitFor();
+        await page.keyboard.press('Escape');
+        await page.locator('#ta-mobile-create-menu').waitFor({state:'detached'});
         const primaryTabs=page.locator('.ta-mobile-nav > button');
         await primaryTabs.nth(2).click();
-        assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Navigation must close Create menu');
+        assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Create menu must be closed before primary navigation');
         assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'customers');
 
         await more.click();
@@ -146,6 +152,7 @@ const base='http://127.0.0.1:4173/tests/visual';
 
         await create.click();
         await page.locator('#ta-mobile-create-menu [role="menuitem"]').nth(2).click();
+        await page.waitForFunction(()=>window.shellQa.newKind==='proforma');
         assert.equal(await page.evaluate(()=>window.shellQa.newKind),'proforma');
         assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Create menu must close after choosing document type');
 

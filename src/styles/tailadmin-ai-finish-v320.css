@@ -1,64 +1,373 @@
-/* LOUREX v320 — TailAdmin AI readability finish.
- * Presentation-only polish for Advisor panel, proposals, audit trail and nudge surfaces.
+/* LOUREX v326 — premium AI Copilot closeout.
+ * Presentation only. AI capabilities, approvals, deterministic calculations,
+ * mutations and audit behavior remain owned by AiCopilot.tsx.
  */
 @media screen {
-  .lourex-ai-launcher{width:50px!important;height:50px!important;border-radius:13px!important;}
-  .lourex-ai-panel{border-radius:15px!important;}
-  .lourex-ai-head{padding:17px 18px!important;}
-  .lourex-ai-title strong{font-size:15px!important;line-height:21px!important;font-weight:700!important;}
-  .lourex-ai-title small{font-size:11px!important;line-height:16px!important;}
-  .lourex-ai-context{font-size:11.5px!important;line-height:17px!important;}
-  .lourex-ai-messages{gap:11px!important;padding:17px!important;}
-  .lourex-ai-empty{padding:15px!important;border-radius:11px!important;}
-  .lourex-ai-empty strong{font-size:14px!important;line-height:20px!important;font-weight:700!important;}
-  .lourex-ai-empty p{font-size:12px!important;line-height:18px!important;}
-  .lourex-ai-starters button{min-height:40px!important;font-size:11.5px!important;line-height:17px!important;}
-  .lourex-ai-message{padding:10px 12px!important;border-radius:11px!important;font-size:12.5px!important;line-height:19px!important;}
-  .lourex-ai-busy{font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .lourex-ai-launcher{
+    width:50px!important;
+    height:50px!important;
+    border-radius:15px!important;
+    border:1px solid color-mix(in srgb,var(--ft-accent) 22%,var(--ft-line))!important;
+    background:linear-gradient(145deg,var(--ft-accent),color-mix(in srgb,var(--ft-accent) 76%,#111827))!important;
+    color:var(--ft-on-accent)!important;
+    box-shadow:0 12px 30px color-mix(in srgb,var(--ft-accent) 24%,transparent)!important;
+  }
+  .app-ui .lourex-ai-launcher:hover,
+  .app-ui .lourex-ai-launcher[aria-expanded="true"]{
+    border-color:color-mix(in srgb,var(--ft-accent) 48%,var(--ft-line))!important;
+    background:var(--ft-accent)!important;
+    box-shadow:0 15px 34px color-mix(in srgb,var(--ft-accent) 30%,transparent)!important;
+  }
 
-  .lourex-ai-proposal{padding:14px!important;border-radius:11px!important;}
-  .lourex-ai-proposal>small{font-size:10.5px!important;line-height:15px!important;font-weight:700!important;}
-  .lourex-ai-proposal>strong{font-size:13px!important;line-height:19px!important;font-weight:700!important;}
-  .lourex-ai-proposal>p{font-size:11.5px!important;line-height:17px!important;}
-  .lourex-ai-preview{font-size:10.5px!important;line-height:16px!important;}
-  .lourex-ai-proposal-actions button{min-height:40px!important;font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .lourex-ai-backdrop{
+    background:rgba(15,23,42,.42)!important;
+    backdrop-filter:blur(7px)!important;
+    -webkit-backdrop-filter:blur(7px)!important;
+  }
 
-  .lourex-ai-compose{padding:13px 15px!important;}
-  .lourex-ai-error{font-size:11.5px!important;line-height:17px!important;}
-  .lourex-ai-compose input{min-height:44px!important;font-size:13px!important;line-height:19px!important;}
-  .lourex-ai-send{width:44px!important;min-width:44px!important;}
-  .lourex-ai-meta{font-size:10.5px!important;line-height:15px!important;}
-  .lourex-ai-meta button{font-size:10.5px!important;line-height:15px!important;font-weight:600!important;}
-  .lourex-ai-audit{padding:8px!important;}
-  .lourex-ai-audit>div{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .lourex-ai-panel{
+    width:min(468px,calc(100vw - 36px))!important;
+    border:1px solid color-mix(in srgb,var(--ft-line-strong) 78%,transparent)!important;
+    border-radius:22px!important;
+    background:var(--ft-surface)!important;
+    box-shadow:0 34px 90px rgba(15,23,42,.28)!important;
+    overflow:hidden!important;
+  }
+  html[data-ui-theme="dark"] .app-ui .lourex-ai-panel{
+    box-shadow:0 36px 96px rgba(0,0,0,.48)!important;
+  }
 
-  .lourex-advisor-nudge{border-radius:13px!important;padding:15px!important;}
-  .lourex-advisor-nudge-copy small{font-size:10.5px!important;line-height:15px!important;}
-  .lourex-advisor-nudge-copy strong{font-size:13px!important;line-height:19px!important;font-weight:700!important;}
-  .lourex-advisor-nudge-copy p{font-size:11.5px!important;line-height:18px!important;}
-  .lourex-advisor-nudge-copy>button{min-height:38px!important;font-size:11.5px!important;line-height:17px!important;}
+  .app-ui .lourex-ai-head{
+    min-height:72px!important;
+    align-items:center!important;
+    padding:14px 16px!important;
+    border-bottom:0!important;
+    background:var(--ft-surface)!important;
+  }
+  .app-ui .lourex-ai-title{gap:11px!important;min-width:0!important;}
+  .app-ui .lourex-ai-mark{
+    width:40px!important;
+    height:40px!important;
+    min-width:40px!important;
+    border:1px solid color-mix(in srgb,var(--ft-accent) 18%,var(--ft-line))!important;
+    border-radius:13px!important;
+    background:linear-gradient(145deg,var(--ft-accent-soft),var(--ft-accent-faint))!important;
+    color:var(--ft-accent)!important;
+  }
+  .app-ui .lourex-ai-title>div{min-width:0!important;}
+  .app-ui .lourex-ai-title strong{
+    display:block!important;
+    color:var(--ft-text-strong)!important;
+    font-size:16px!important;
+    line-height:22px!important;
+    font-weight:760!important;
+    letter-spacing:-.01em!important;
+  }
+  html[dir="rtl"] .app-ui .lourex-ai-title strong{letter-spacing:0!important;}
+  .app-ui .lourex-ai-title small{
+    display:block!important;
+    max-width:315px!important;
+    margin-top:1px!important;
+    overflow:hidden!important;
+    color:var(--ft-muted)!important;
+    font-size:11px!important;
+    line-height:16px!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+  .app-ui .lourex-ai-close{
+    width:44px!important;
+    min-width:44px!important;
+    height:44px!important;
+    min-height:44px!important;
+    border:0!important;
+    border-radius:12px!important;
+    background:transparent!important;
+    color:var(--ft-muted)!important;
+  }
+  .app-ui .lourex-ai-close:hover{background:var(--ft-surface-2)!important;color:var(--ft-text-strong)!important;}
+
+  /* Context is a quiet chip, not another full-width card. */
+  .app-ui .lourex-ai-context{
+    align-self:flex-start!important;
+    min-height:28px!important;
+    margin:0 16px 8px!important;
+    padding:5px 10px!important;
+    border:1px solid color-mix(in srgb,var(--ft-accent) 16%,var(--ft-line))!important;
+    border-radius:999px!important;
+    background:var(--ft-accent-faint)!important;
+    color:var(--ft-accent)!important;
+    font-size:10.5px!important;
+    line-height:16px!important;
+    font-weight:650!important;
+  }
+
+  .app-ui .lourex-ai-messages{
+    gap:12px!important;
+    padding:12px 16px 16px!important;
+    background:var(--ft-surface)!important;
+    scrollbar-gutter:stable!important;
+  }
+
+  /* Empty state reads like a modern assistant canvas, not a card inside a card. */
+  .app-ui .lourex-ai-empty{
+    padding:16px 2px 8px!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  .app-ui .lourex-ai-empty strong{
+    display:block!important;
+    max-width:350px!important;
+    margin:0 0 7px!important;
+    color:var(--ft-text-strong)!important;
+    font-size:18px!important;
+    line-height:25px!important;
+    font-weight:760!important;
+    letter-spacing:-.012em!important;
+  }
+  html[dir="rtl"] .app-ui .lourex-ai-empty strong{letter-spacing:0!important;}
+  .app-ui .lourex-ai-empty p{
+    max-width:390px!important;
+    margin:0!important;
+    color:var(--ft-muted)!important;
+    font-size:12.5px!important;
+    line-height:19px!important;
+  }
+  .app-ui .lourex-ai-starters{
+    display:flex!important;
+    flex-direction:row!important;
+    flex-wrap:wrap!important;
+    gap:7px!important;
+    margin-top:15px!important;
+  }
+  .app-ui .lourex-ai-starters button{
+    flex:0 1 auto!important;
+    min-height:44px!important;
+    padding:9px 12px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:999px!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text-soft)!important;
+    font-size:11.5px!important;
+    line-height:16px!important;
+    font-weight:650!important;
+    text-align:start!important;
+    box-shadow:none!important;
+  }
+  .app-ui .lourex-ai-starters button:hover{
+    border-color:color-mix(in srgb,var(--ft-accent) 28%,var(--ft-line))!important;
+    background:var(--ft-accent-faint)!important;
+    color:var(--ft-accent)!important;
+  }
+
+  .app-ui .lourex-ai-message{
+    max-width:88%!important;
+    padding:10px 12px!important;
+    border:0!important;
+    border-radius:15px!important;
+    font-size:12.5px!important;
+    line-height:19px!important;
+    box-shadow:none!important;
+  }
+  .app-ui .lourex-ai-message.assistant{
+    align-self:flex-start!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
+    border-end-start-radius:5px!important;
+  }
+  .app-ui .lourex-ai-message.user{
+    align-self:flex-end!important;
+    background:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
+    border-end-end-radius:5px!important;
+  }
+  .app-ui .lourex-ai-busy{
+    align-self:flex-start!important;
+    padding:7px 10px!important;
+    border:0!important;
+    border-radius:999px!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-muted)!important;
+    font-size:11px!important;
+    line-height:16px!important;
+  }
+
+  /* Proposal is the one intentional action card in the conversation. */
+  .app-ui .lourex-ai-proposal{
+    margin:0 16px 12px!important;
+    padding:14px!important;
+    border:1px solid color-mix(in srgb,var(--ft-accent) 26%,var(--ft-line))!important;
+    border-radius:15px!important;
+    background:linear-gradient(145deg,var(--ft-accent-faint),var(--ft-surface))!important;
+    box-shadow:none!important;
+  }
+  .app-ui .lourex-ai-proposal>small{
+    display:block!important;
+    color:var(--ft-accent)!important;
+    font-size:10.5px!important;
+    line-height:15px!important;
+    font-weight:750!important;
+  }
+  .app-ui .lourex-ai-proposal>strong{
+    display:block!important;
+    margin:4px 0 3px!important;
+    color:var(--ft-text-strong)!important;
+    font-size:14px!important;
+    line-height:20px!important;
+    font-weight:750!important;
+  }
+  .app-ui .lourex-ai-proposal>p{
+    margin:0 0 10px!important;
+    color:var(--ft-muted)!important;
+    font-size:11.5px!important;
+    line-height:17px!important;
+  }
+  .app-ui .lourex-ai-preview{
+    margin:9px 0 11px!important;
+    padding:10px 11px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:10px!important;
+    background:color-mix(in srgb,var(--ft-surface-2) 88%,transparent)!important;
+    color:var(--ft-text-soft)!important;
+    font-size:10.5px!important;
+    line-height:16px!important;
+  }
+  .app-ui .lourex-ai-proposal-actions{gap:8px!important;}
+  .app-ui .lourex-ai-proposal-actions button{
+    min-height:44px!important;
+    border-radius:11px!important;
+    font-size:11.5px!important;
+    line-height:17px!important;
+    font-weight:700!important;
+  }
+
+  /* Composer is one cohesive control; metadata stays secondary. */
+  .app-ui .lourex-ai-compose{
+    padding:10px 14px 12px!important;
+    border-top:1px solid color-mix(in srgb,var(--ft-line) 72%,transparent)!important;
+    background:color-mix(in srgb,var(--ft-surface) 97%,transparent)!important;
+    backdrop-filter:blur(18px)!important;
+    -webkit-backdrop-filter:blur(18px)!important;
+  }
+  .app-ui .lourex-ai-tools{margin-bottom:8px!important;}
+  .app-ui .lourex-ai-compose form{
+    gap:5px!important;
+    padding:4px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:15px!important;
+    background:var(--ft-input)!important;
+    box-shadow:0 4px 14px rgba(15,23,42,.045)!important;
+  }
+  .app-ui .lourex-ai-compose form:focus-within{
+    border-color:color-mix(in srgb,var(--ft-accent) 58%,var(--ft-line))!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent) 11%,transparent)!important;
+  }
+  .app-ui .lourex-ai-compose input{
+    min-height:44px!important;
+    padding:9px 10px!important;
+    border:0!important;
+    border-radius:11px!important;
+    background:transparent!important;
+    color:var(--ft-text-strong)!important;
+    font-size:13px!important;
+    line-height:19px!important;
+    box-shadow:none!important;
+  }
+  .app-ui .lourex-ai-compose input:focus{border:0!important;box-shadow:none!important;}
+  .app-ui .lourex-ai-send{
+    width:44px!important;
+    min-width:44px!important;
+    height:44px!important;
+    min-height:44px!important;
+    border-radius:11px!important;
+    background:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
+  }
+  .app-ui .lourex-ai-meta{
+    min-height:28px!important;
+    margin-top:5px!important;
+    color:var(--ft-faint)!important;
+    font-size:10px!important;
+    line-height:15px!important;
+  }
+  .app-ui .lourex-ai-meta button{
+    min-height:32px!important;
+    padding:4px 3px!important;
+    color:var(--ft-muted)!important;
+    font-size:10.5px!important;
+    line-height:15px!important;
+    font-weight:650!important;
+  }
+  .app-ui .lourex-ai-meta button:hover{color:var(--ft-accent)!important;}
+  .app-ui .lourex-ai-audit{
+    max-height:124px!important;
+    margin-top:4px!important;
+    padding:8px 10px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:10px!important;
+    background:var(--ft-surface-2)!important;
+  }
+  .app-ui .lourex-ai-audit>div{
+    min-height:26px!important;
+    align-items:center!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 62%,transparent)!important;
+    color:var(--ft-muted)!important;
+    font-size:10.5px!important;
+    line-height:15px!important;
+  }
+  .app-ui .lourex-ai-audit>div:last-child{border-bottom:0!important;}
+  .app-ui .lourex-ai-error{
+    margin:0 0 8px!important;
+    border-radius:10px!important;
+    font-size:11.5px!important;
+    line-height:17px!important;
+  }
+
+  .app-ui .lourex-advisor-nudge{
+    border-radius:16px!important;
+    padding:14px!important;
+    box-shadow:0 20px 50px rgba(15,23,42,.16)!important;
+  }
+  .app-ui .lourex-advisor-nudge-copy small{font-size:10.5px!important;line-height:15px!important;}
+  .app-ui .lourex-advisor-nudge-copy strong{font-size:13.5px!important;line-height:19px!important;font-weight:740!important;}
+  .app-ui .lourex-advisor-nudge-copy p{font-size:11.5px!important;line-height:18px!important;}
+  .app-ui .lourex-advisor-nudge-copy>button{min-height:44px!important;font-size:11.5px!important;line-height:17px!important;}
 
   @media(max-width:860px){
-    .lourex-ai-panel,.lourex-ai-panel[dir="rtl"]{border-radius:13px!important;}
-    .lourex-ai-head{padding:14px 15px!important;}
-    .lourex-ai-messages{padding:13px!important;}
-    .lourex-ai-compose{padding:11px 12px!important;}
-    .lourex-advisor-nudge{padding:13px!important;}
-
-    .lourex-ai-close,
-    .lourex-advisor-nudge-close{
-      width:44px!important;
-      min-width:44px!important;
-      height:44px!important;
-      min-height:44px!important;
+    .app-ui .lourex-ai-panel,
+    .app-ui .lourex-ai-panel[dir="rtl"]{
+      top:max(8px,env(safe-area-inset-top,0px))!important;
+      right:8px!important;
+      bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
+      left:8px!important;
+      width:auto!important;
+      height:auto!important;
+      max-height:none!important;
+      border-radius:22px!important;
     }
-    .lourex-advisor-nudge-close{top:2px!important;right:2px!important;}
-    .lourex-advisor-nudge[dir="rtl"] .lourex-advisor-nudge-close{right:auto!important;left:2px!important;}
-    .lourex-advisor-nudge-copy small,
-    .lourex-advisor-nudge-copy strong{padding-inline-end:42px!important;}
-    .lourex-ai-starters button,
-    .lourex-ai-proposal-actions button,
-    .lourex-advisor-nudge-copy>button,
-    .lourex-ai-meta button{min-height:44px!important;}
+    .app-ui .lourex-ai-panel:before{display:none!important;}
+    .app-ui .lourex-ai-head{min-height:68px!important;padding:12px 12px 10px!important;}
+    .app-ui .lourex-ai-title small{max-width:58vw!important;}
+    .app-ui .lourex-ai-context{margin:0 12px 5px!important;}
+    .app-ui .lourex-ai-messages{padding:10px 12px 12px!important;}
+    .app-ui .lourex-ai-empty{padding-top:12px!important;}
+    .app-ui .lourex-ai-empty strong{font-size:17px!important;line-height:23px!important;}
+    .app-ui .lourex-ai-starters{display:grid!important;grid-template-columns:1fr!important;}
+    .app-ui .lourex-ai-starters button{width:100%!important;border-radius:12px!important;}
+    .app-ui .lourex-ai-message{max-width:92%!important;}
+    .app-ui .lourex-ai-proposal{margin:0 12px 10px!important;}
+    .app-ui .lourex-ai-compose{padding:8px 10px max(9px,env(safe-area-inset-bottom,0px))!important;}
+    .app-ui .lourex-ai-meta>span{max-width:55%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+    .app-ui .lourex-advisor-nudge{padding:12px!important;}
+  }
+
+  @media(max-width:350px){
+    .app-ui .lourex-ai-title small{display:none!important;}
+    .app-ui .lourex-ai-context{font-size:10px!important;}
+    .app-ui .lourex-ai-empty p{font-size:11.5px!important;line-height:17px!important;}
+    .app-ui .lourex-ai-proposal-actions{flex-direction:column!important;}
+    .app-ui .lourex-ai-meta>span{display:none!important;}
   }
 }
