@@ -28,6 +28,24 @@ test('v337 normalizes signature and stamp geometry without changing document out
   assert.doesNotMatch(css,/firebase|indexedDB|localStorage|calculateTotals|saveVault|persist\(|onSave|onPrint/i);
 });
 
+test('current DraftDocumentRenderer has an output-only A4 owner without reviving retired v308 UI',async()=>{
+  const [renderer,css]=await Promise.all([
+    read('src/components/DraftDocumentRenderer.tsx'),
+    read('src/styles/v337-template-layout-balance.css')
+  ]);
+  for(const token of ['draft-letter-page','letterhead-header','letterhead-brand','letter-page-body','letter-meta','letter-blocks','letter-block','letter-bullet','letter-signing','letterhead-footer','document-custom-watermark']){
+    assert.match(renderer,new RegExp(token.replaceAll('-','\\-')));
+    assert.match(css,new RegExp(`\\.${token.replaceAll('-','\\-')}`));
+  }
+  for(const variant of ['header-minimal','header-classic','width-narrow','width-wide','page-ruled','page-grid','footer-minimal','footer-none'])assert.match(css,new RegExp(`\\.${variant}`));
+  assert.match(css,/\.invoice-page \.document-custom-watermark\.is-repeat/);
+  assert.match(css,/\.draft-letter-page\{[\s\S]*display:grid!important[\s\S]*grid-template-rows:auto minmax\(0,1fr\) auto!important/);
+  assert.match(css,/@media print[\s\S]*\.draft-letter-page \.letterhead-header[\s\S]*break-inside:avoid!important/);
+  const outputOnly=css.slice(css.indexOf('/* Current Company Draft A4 renderer.'),css.indexOf('/* Commercial document closing balance.'));
+  assert.ok(outputOnly.length>1000,'Draft A4 output contract is missing');
+  assert.doesNotMatch(outputOnly,/\.app-ui|draft-studio|draft-mobile-actionbar/);
+});
+
 test('mobile editor scroll owner stays inside the shell grid row instead of claiming a second full viewport',async()=>{
   const recovery=await read('src/styles/v331-draft-scroll-recovery.css');
   const commercial=recovery.slice(recovery.indexOf('@media screen and (max-width:900px)'),recovery.indexOf('/* Draft Studio uses'));
