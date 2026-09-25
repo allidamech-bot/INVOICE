@@ -1,0 +1,36 @@
+name: v334 isolate historical suite
+
+on:
+  push:
+    branches:
+      - diagnostic/v334-test-isolation
+
+permissions:
+  contents: read
+
+jobs:
+  group:
+    name: group-${{ matrix.group }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [0,1,2,3,4,5,6,7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+      - name: Run group
+        shell: bash
+        run: |
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
+          n=${#files[@]}
+          start=$((n * ${{ matrix.group }} / 8))
+          end=$((n * (${{ matrix.group }} + 1) / 8))
+          count=$((end-start))
+          printf 'GROUP %s RANGE %s..%s OF %s\n' '${{ matrix.group }}' "$start" "$end" "$n"
+          printf '%s\n' "${files[@]:start:count}"
+          node --test "${files[@]:start:count}"
