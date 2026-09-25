@@ -211,10 +211,10 @@ export async function encryptVault(key: CryptoKey, vault: VaultPayload): Promise
 
 export async function decryptVault(key: CryptoKey, record: EncryptedVaultRecord): Promise<VaultPayload> {
   const plain = await decryptBytes(key, record.iv, record.cipher);
-  return JSON.parse(decoder.decode(plain)) as VaultPayload;
+  const vault=JSON.parse(decoder.decode(plain)) as VaultPayload;
+  recordVaultPayloadBreakdown(vault,true);
+  return vault;
 }
-
-export function recordActiveVaultPayloadBreakdown(vault:VaultPayload):void{recordVaultPayloadBreakdown(vault,true);}
 
 export async function createEncryptedBackup(pin: string, vault: VaultPayload): Promise<EncryptedBackupFile> {
   if (!pin) throw new Error('PIN is required to encrypt the backup.');
