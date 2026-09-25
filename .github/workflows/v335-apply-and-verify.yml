@@ -9,8 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  apply-verify:
-    if: github.event.head_commit.message == 'ci: apply and verify v335 inventory purchasing closeout'
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -22,67 +21,8 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-      - name: Apply audited v335 fixes
-        shell: bash
-        run: |
-          node <<'NODE'
-          const fs=require('fs');
-          function edit(path, fn){
-            const before=fs.readFileSync(path,'utf8');
-            const after=fn(before);
-            if(after===before) throw new Error(`No change made to ${path}`);
-            fs.writeFileSync(path,after);
-          }
-          function replaceOnce(src, from, to, label){
-            const first=src.indexOf(from);
-            if(first<0) throw new Error(`Missing ${label}`);
-            if(src.indexOf(from,first+1)>=0) throw new Error(`Duplicate match ${label}`);
-            return src.slice(0,first)+to+src.slice(first+from.length);
-          }
-
-          edit('src/lib/operations.ts',src=>{
-            const oldValidate=`export function validatePurchase(purchase:PurchaseRecord,savedItems:SavedItem[]=[]):string[]{\n  const errors:string[]=[];\n  if(!purchase.number.trim())errors.push('Purchase number is required.');\n  if(!isIsoDate(purchase.date))errors.push('Purchase date is invalid.');\n  if(!purchase.supplierSnapshot?.sourceSupplierId)errors.push('Supplier is required.');\n  if(!purchase.currency.trim())errors.push('Purchase currency is required.');\n  if(!purchase.items.length)errors.push('Add at least one purchase item.');\n  for(const [index,item] of purchase.items.entries()){\n    if(!item.descriptionEn.trim()&&!item.descriptionAr.trim())errors.push(\`Item \${index+1}: description is required.\`);\n    if(!positive(item.quantity))errors.push(\`Item \${index+1}: quantity must be greater than zero.\`);\n    if(!nonNegativeCost(item.unitCost))errors.push(\`Item \${index+1}: unit cost must be zero or greater.\`);\n    if(item.savedItemId&&!savedItems.some(saved=>saved.id===item.savedItemId))errors.push(\`Item \${index+1}: linked saved item no longer exists.\`);\n  }\n  for(const [label,value] of [['Freight',purchase.freight],['Duty',purchase.duty],['Other costs',purchase.otherCosts]] as const){if(!nonNegative(value||'0'))errors.push(\`\${label} must be zero or greater.\`);}\n  return errors;\n}\n\nexport function purchaseAccountingIsValid(purchase:PurchaseRecord):boolean{\n  if(!purchase.number.trim()||!isIsoDate(purchase.date)||!purchase.currency.trim()||!purchase.items.length)return false;\n  for(const item of purchase.items){\n    if(!positive(item.quantity)||!nonNegativeCost(item.unitCost))return false;\n  }\n  return [purchase.freight,purchase.duty,purchase.otherCosts].every(value=>nonNegative(value||'0'));\n}`;
-            const newValidate=`export function validatePurchase(purchase:PurchaseRecord,savedItems:SavedItem[]=[]):string[]{\n  const errors:string[]=[];\n  const linkedItems=new Set<string>();\n  if(!purchase.number.trim())errors.push('Purchase number is required.');\n  if(!isIsoDate(purchase.date))errors.push('Purchase date is invalid.');\n  if(!purchase.supplierSnapshot?.sourceSupplierId)errors.push('Supplier is required.');\n  if(!purchase.currency.trim())errors.push('Purchase currency is required.');\n  if(!purchase.items.length)errors.push('Add at least one purchase item.');\n  for(const [index,item] of purchase.items.entries()){\n    if(!item.descriptionEn.trim()&&!item.descriptionAr.trim())errors.push(\`Item \${index+1}: description is required.\`);\n    if(!positive(item.quantity))errors.push(\`Item \${index+1}: quantity must be greater than zero.\`);\n    if(!nonNegativeCost(item.unitCost))errors.push(\`Item \${index+1}: unit cost must be zero or greater.\`);\n    if(item.savedItemId){\n      if(!savedItems.some(saved=>saved.id===item.savedItemId))errors.push(\`Item \${index+1}: linked saved item no longer exists.\`);\n      if(linkedItems.has(item.savedItemId))errors.push(\`Item \${index+1}: the same saved item cannot appear more than once in one purchase.\`);\n      linkedItems.add(item.savedItemId);\n    }\n  }\n  for(const [label,value] of [['Freight',purchase.freight],['Duty',purchase.duty],['Other costs',purchase.otherCosts]] as const){if(!nonNegative(value||'0'))errors.push(\`\${label} must be zero or greater.\`);}\n  return errors;\n}\n\nexport function purchaseAccountingIsValid(purchase:PurchaseRecord):boolean{\n  if(!purchase.number.trim()||!isIsoDate(purchase.date)||!purchase.supplierSnapshot?.sourceSupplierId||!purchase.currency.trim()||!purchase.items.length)return false;\n  const linkedItems=new Set<string>();\n  for(const item of purchase.items){\n    if(!positive(item.quantity)||!nonNegativeCost(item.unitCost))return false;\n    if(item.savedItemId){if(linkedItems.has(item.savedItemId))return false;linkedItems.add(item.savedItemId);}\n  }\n  return [purchase.freight,purchase.duty,purchase.otherCosts].every(value=>nonNegative(value||'0'));\n}`;
-            return replaceOnce(src,oldValidate,newValidate,'purchase validation/accounting block');
-          });
-
-          edit('src/components/OperationsPage.tsx',src=>{
-            src=src.replace(/const movementDirty=Boolean\(this\.state\.movementQuantity\.trim\(\)\|\|this\.state\.movementNote\.trim\(\)\|\|this\.state\.movementCost\.trim\(\)\);/,`const movementDirty=Boolean(this.state.movementQuantity.trim()||this.state.movementNote.trim()||this.state.movementCost.trim()||this.state.movementType!=='opening'||this.state.movementDate!==todayIso()||this.state.movementCurrency.trim().toUpperCase()!==(this.props.defaultCurrency||'USD').trim().toUpperCase());`);
-            if(!src.includes(`this.state.movementType!=='opening'`))throw new Error('movement dirty replacement failed');
-            const oldNew=`private newPurchase=(confirmed=false)=>{if(this.mutationInFlight||(!confirmed&&!this.confirmDiscardCurrent()))return;const purchase=createPurchase(this.props.purchases,this.props.suppliers,this.props.defaultCurrency);purchase.items=[createPurchaseItem()];this.setState({purchaseEdit:purchase,supplierEdit:null,expenseEdit:null,error:''});};`;
-            const newNew=`private newPurchase=(confirmed=false)=>{if(this.mutationInFlight||(!confirmed&&!this.confirmDiscardCurrent()))return;const purchase=createPurchase(this.props.purchases,this.props.suppliers,this.props.defaultCurrency);purchase.supplierSnapshot=null;purchase.currency=(this.props.defaultCurrency||'USD').trim().toUpperCase();purchase.items=[createPurchaseItem()];this.setState({purchaseEdit:purchase,supplierEdit:null,expenseEdit:null,error:''});};`;
-            src=replaceOnce(src,oldNew,newNew,'explicit supplier purchase creation');
-            const oldSave=`this.setState({movementQuantity:'',movementNote:'',movementCost:'',error:''});`;
-            const newSave=`this.setState({movementType:'opening',movementQuantity:'',movementDate:todayIso(),movementNote:'',movementCost:'',movementCurrency:(this.props.defaultCurrency||'USD').trim().toUpperCase(),error:''});`;
-            src=replaceOnce(src,oldSave,newSave,'movement reset');
-            return src;
-          });
-
-          edit('src/app/App.tsx',src=>{
-            const saveNeedle=`const identityChanged=!current||normalizeSavedItemIdentity(current.descriptionEn)!==normalizeSavedItemIdentity(item.descriptionEn)||normalizeSavedItemIdentity(current.descriptionAr)!==normalizeSavedItemIdentity(item.descriptionAr);`;
-            const saveInsert=saveNeedle+`if(current&&current.unit!==item.unit&&vault.inventoryMovements.some(movement=>movement.itemId===item.id))throw new Error(t('Unit cannot be changed after inventory history exists. Create a new item for a different stock unit.','لا يمكن تغيير الوحدة بعد وجود سجل مخزون. أنشئ صنفًا جديدًا عند استخدام وحدة مخزون مختلفة.'));`;
-            src=replaceOnce(src,saveNeedle,saveInsert,'saved-item unit history guard');
-            const deleteNeedle=`private deleteSupplier=async(supplier:Supplier)=>{const vault=this.requireVault();if(vault.expenses.some(expense=>expense.supplierId===supplier.id))throw new Error(t('This supplier is referenced by historical expenses and cannot be deleted.','هذا المورد مرتبط بمصروفات تاريخية ولا يمكن حذفه.'));`;
-            const deleteReplace=`private deleteSupplier=async(supplier:Supplier)=>{const vault=this.requireVault();if(vault.purchases.some(purchase=>purchase.status==='draft'&&purchase.supplierSnapshot?.sourceSupplierId===supplier.id))throw new Error(t('This supplier is used by a draft purchase. Change or delete the draft first.','هذا المورد مستخدم في مسودة شراء. غيّر المورد أو احذف المسودة أولًا.'));if(vault.expenses.some(expense=>expense.supplierId===supplier.id))throw new Error(t('This supplier is referenced by historical expenses and cannot be deleted.','هذا المورد مرتبط بمصروفات تاريخية ولا يمكن حذفه.'));`;
-            return replaceOnce(src,deleteNeedle,deleteReplace,'supplier deletion guard');
-          });
-
-          edit('src/storage/vault-merge.ts',src=>{
-            const sig=`function guardSavedItemChanges(base:SavedItem[],intended:SavedItem[],merged:SavedItem[]):void{`;
-            src=replaceOnce(src,sig,`function guardSavedItemChanges(base:SavedItem[],intended:SavedItem[],merged:SavedItem[],movements:InventoryMovementRecord[]):void{`,'saved item guard signature');
-            const costLine=`    const costChanged=!before||text(before.lastUnitCost)!==text(item.lastUnitCost)||text(before.lastCostCurrency)!==text(item.lastCostCurrency);`;
-            src=replaceOnce(src,costLine,costLine+`\n    if(before&&text(before.unit)!==text(item.unit)&&movements.some(movement=>movement.itemId===item.id))throw new Error(t('Unit cannot be changed after inventory history exists. Create a new item for a different stock unit.','لا يمكن تغيير الوحدة بعد وجود سجل مخزون. أنشئ صنفًا جديدًا عند استخدام وحدة مخزون مختلفة.'));`,'central unit history guard');
-            const call=`  guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems);`;
-            src=replaceOnce(src,call,`  guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems,inventoryMovements);`,'saved item guard call');
-            const draft=`  guardDraftPurchaseConflicts(base.purchases,intended.purchases,latest.purchases);`;
-            const refs=draft+`\n  const intendedSupplierIds=new Set(intended.suppliers.map(supplier=>supplier.id));\n  for(const supplier of base.suppliers){\n    if(intendedSupplierIds.has(supplier.id))continue;\n    if(purchases.some(purchase=>purchase.status==='draft'&&purchase.supplierSnapshot?.sourceSupplierId===supplier.id))throw new Error('Cannot delete a supplier used by a draft purchase. Change or delete the draft first.');\n    if(expenses.some(expense=>expense.supplierId===supplier.id))throw new Error('Cannot delete a supplier referenced by an expense.');\n  }`;
-            return replaceOnce(src,draft,refs,'central supplier reference guard');
-          });
-
-          edit('src/styles/tailadmin-operations-v320.css',src=>src+`\n\n/* LOUREX v335 — inventory/purchasing mobile closeout. */\n@media screen and (max-width:1180px){\n  .ta-ops-split>.ta-ops-editor,.ta-ops-split>.ta-ops-editor-card{order:-1}\n}\n@media screen and (max-width:860px){\n  .ta-operations-page{padding-inline:max(10px,env(safe-area-inset-left,0px),env(safe-area-inset-right,0px))}\n  .ta-ops-list-card,:is(.ta-ops-editor,.ta-ops-editor-card){border-radius:12px}\n  .ta-ops-editor-scroll{padding:14px 12px}\n  .ta-inventory-movement-grid{gap:12px}\n}\n`);
-
-          fs.writeFileSync('tests/v335-inventory-purchasing-deep-closeout.test.mjs',`import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { readFile } from 'node:fs/promises';\nimport { emptyVault } from '../dist/src/lib/defaults.js';\nimport { createManualInventoryMovement, createPurchase, createPurchaseItem, createSupplier, purchaseAccountingIsValid, validatePurchase } from '../dist/src/lib/operations.js';\nimport { mergeVaultIntent } from '../dist/src/storage/vault-merge.js';\n\nconst root=new URL('../',import.meta.url);\nconst read=path=>readFile(new URL(path,root),'utf8');\nfunction item(id='sku-a'){return {id,createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-01-01T00:00:00.000Z',sku:id.toUpperCase(),descriptionEn:'Item',descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'20',lastCurrency:'USD',lastUnitCost:'10',lastCostCurrency:'USD',usageCount:0,lastUsedAt:'',category:'',tags:[],favorite:false};}\nfunction purchaseWith(itemRecord){const supplier=createSupplier();supplier.nameEn='Supplier';const purchase=createPurchase([], [supplier], 'USD');purchase.items=[createPurchaseItem(itemRecord)];purchase.items[0].unitCost='10';return {supplier,purchase};}\n\ntest('v335 rejects duplicate saved-item lines before landed cost can become ambiguous',()=>{const saved=item();const {purchase}=purchaseWith(saved);purchase.items.push({...createPurchaseItem(saved),id:'second',unitCost:'20'});const errors=validatePurchase(purchase,[saved]);assert.ok(errors.some(error=>/same saved item cannot appear more than once/i.test(error)));assert.equal(purchaseAccountingIsValid(purchase),false);});\n\ntest('v335 accounting integrity requires a supplier on posted purchase data',()=>{const saved=item();const {purchase}=purchaseWith(saved);purchase.supplierSnapshot=null;assert.equal(purchaseAccountingIsValid(purchase),false);});\n\ntest('v335 inventory history locks the stock unit at the persistence boundary',()=>{const base=emptyVault();const saved=item();base.savedItems=[saved];base.inventoryMovements=[createManualInventoryMovement(saved,'opening','5','2026-09-01','Opening')];const intended=structuredClone(base),latest=structuredClone(base);intended.savedItems[0].unit='KG';assert.throws(()=>mergeVaultIntent(base,intended,latest),/Unit cannot be changed after inventory history exists/i);});\n\ntest('v335 supplier referenced by a draft purchase cannot disappear through a merged write',()=>{const base=emptyVault();const saved=item();const {supplier,purchase}=purchaseWith(saved);base.savedItems=[saved];base.suppliers=[supplier];base.purchases=[purchase];const intended=structuredClone(base),latest=structuredClone(base);intended.suppliers=[];assert.throws(()=>mergeVaultIntent(base,intended,latest),/supplier used by a draft purchase/i);});\n\ntest('v335 generic purchase creation requires an explicit supplier and movement dirty state covers non-quantity edits',async()=>{const page=await read('src/components/OperationsPage.tsx');assert.match(page,/purchase\\.supplierSnapshot=null/);assert.match(page,/movementType!==['"]opening['"]/);assert.match(page,/movementDate!==todayIso\\(\\)/);assert.match(page,/movementCurrency\\.trim\\(\\)\\.toUpperCase\\(\\)/);assert.match(page,/movementType:'opening'.*movementDate:todayIso\\(\\).*movementCurrency:/s);});\n\ntest('v335 mobile editors open before long Operations lists',async()=>{const css=await read('src/styles/tailadmin-operations-v320.css');assert.match(css,/max-width:1180px[\\s\\S]*ta-ops-split>\\.ta-ops-editor[\\s\\S]*order:-1/);});\n`);
-          NODE
+      - name: Apply audited v335 edits
+        run: node scripts/v335-apply.mjs
       - run: npm ci
       - name: Dependency audit
         run: npm audit --audit-level=high
@@ -92,14 +32,14 @@ jobs:
         run: npm run typecheck
       - name: Production build
         run: npm run build
-      - name: Inventory/purchasing regression tests
+      - name: Inventory and purchasing regressions
         run: node --test tests/operations-production-hardening.test.mjs tests/v335-inventory-purchasing-deep-closeout.test.mjs
       - name: Commit verified v335 changes
         shell: bash
         run: |
           git config user.name 'allidamech-bot'
           git config user.email 'allidamech@gmail.com'
-          git rm .github/workflows/v335-apply-and-verify.yml
+          git rm .github/workflows/v335-apply-and-verify.yml scripts/v335-apply.mjs
           git add src/lib/operations.ts src/components/OperationsPage.tsx src/app/App.tsx src/storage/vault-merge.ts src/styles/tailadmin-operations-v320.css tests/v335-inventory-purchasing-deep-closeout.test.mjs
           git commit -m 'v335: harden inventory and purchasing workflows'
           git push origin HEAD:audit/v335-inventory-purchasing-deep-closeout
