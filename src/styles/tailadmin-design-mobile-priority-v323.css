@@ -14,7 +14,10 @@
     html body .app-ui .segmented>button,
     html body .app-ui .status-filter>button,
     html body .app-ui .ta-settings-segmented>button,
-    html body .app-ui .ta-doc-type-tabs>button{min-height:44px!important;height:auto!important;max-height:none!important;padding-block:8px!important;}
+    html body .app-ui .ta-doc-type-tabs>button,
+    html body .app-ui .ta-domain-tabs>button,
+    html body .app-ui .ta-ops-tabs>button,
+    html body .app-ui .ta-report-presets>button{min-height:44px!important;height:auto!important;max-height:none!important;padding-block:8px!important;}
   }
 }
 
@@ -23,101 +26,44 @@
   html body .app-ui :where(.ta-dashboard-heading h1,.ta-documents-header h1,.ta-customers-header h1,.ta-products-workspace-header h1,.ta-ops-page-header h1,.ta-page-header h1){font-size:26px!important;line-height:33px!important;font-weight:760!important;}
   html body .app-ui :where(.ta-dashboard-heading p,.ta-documents-header p,.ta-customers-header p,.ta-products-workspace-header p,.ta-ops-page-header p,.ta-page-header p){font-size:12.5px!important;line-height:19px!important;}
 
-  /* Dashboard: keep the 2x2 finance scan, but stack each card internally so the
-     monetary value receives the full card width instead of competing with icon. */
+  /* Dashboard. */
   html body .app-ui .ta-kpi-grid,
   html body .app-ui .ta-quick-actions,
   html body .app-ui .ta-doc-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;}
-  html body .app-ui .ta-kpi-card{
-    min-height:124px!important;
-    grid-template-columns:minmax(0,1fr)!important;
-    grid-template-rows:auto minmax(0,1fr)!important;
-    align-content:start!important;
-    gap:7px!important;
-    padding:12px!important;
-    border-radius:15px!important;
-  }
+  html body .app-ui .ta-kpi-card{min-height:124px!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto minmax(0,1fr)!important;align-content:start!important;gap:7px!important;padding:12px!important;border-radius:15px!important;}
   html body .app-ui .ta-kpi-icon{width:30px!important;height:30px!important;justify-self:start!important;border-radius:9px!important;}
   html body .app-ui .ta-kpi-icon .icon{width:17px!important;height:17px!important;}
   html body .app-ui .ta-kpi-copy{width:100%!important;min-width:0!important;gap:2px!important;}
   html body .app-ui .ta-kpi-copy>small{font-size:10.5px!important;line-height:15px!important;font-weight:680!important;}
   html body .app-ui .ta-kpi-money-stack{width:100%!important;min-width:0!important;}
   html body .app-ui .ta-kpi-copy>strong,
-  html body .app-ui .ta-kpi-money-stack b{
-    width:100%!important;
-    overflow:visible!important;
-    text-overflow:clip!important;
-    white-space:nowrap!important;
-    max-width:none!important;
-    font-size:clamp(15px,4.2vw,17px)!important;
-    line-height:22px!important;
-    font-weight:780!important;
-    letter-spacing:-.015em!important;
-    font-variant-numeric:tabular-nums!important;
-  }
+  html body .app-ui .ta-kpi-money-stack b{width:100%!important;overflow:visible!important;text-overflow:clip!important;white-space:nowrap!important;max-width:none!important;font-size:clamp(15px,4.2vw,17px)!important;line-height:22px!important;font-weight:780!important;letter-spacing:-.015em!important;font-variant-numeric:tabular-nums!important;}
   html[dir="rtl"] body .app-ui .ta-kpi-copy>strong,
   html[dir="rtl"] body .app-ui .ta-kpi-money-stack b{letter-spacing:0!important;}
   html body .app-ui .ta-kpi-money-stack b+b{font-size:10.5px!important;line-height:15px!important;font-weight:650!important;letter-spacing:0!important;}
   html body .app-ui .ta-kpi-copy em{font-size:9.5px!important;line-height:14px!important;}
-
-  html body .app-ui .ta-quick-actions>button{
-    min-height:66px!important;
-    grid-template-columns:34px minmax(0,1fr)!important;
-    gap:8px!important;
-    padding:10px!important;
-    border-radius:14px!important;
-  }
+  html body .app-ui .ta-quick-actions>button{min-height:66px!important;grid-template-columns:34px minmax(0,1fr)!important;gap:8px!important;padding:10px!important;border-radius:14px!important;}
   html body .app-ui .ta-quick-icon{width:34px!important;height:34px!important;border-radius:10px!important;}
   html body .app-ui .ta-quick-actions strong{font-size:12px!important;line-height:17px!important;}
-  html body .app-ui .ta-quick-actions small{
-    display:-webkit-box!important;
-    overflow:hidden!important;
-    white-space:normal!important;
-    text-overflow:clip!important;
-    -webkit-box-orient:vertical!important;
-    -webkit-line-clamp:2!important;
-    font-size:9.5px!important;
-    line-height:13px!important;
-  }
+  html body .app-ui .ta-quick-actions small{display:-webkit-box!important;overflow:hidden!important;white-space:normal!important;text-overflow:clip!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2!important;font-size:9.5px!important;line-height:13px!important;}
   html body .app-ui .ta-dashboard-card{border-radius:17px!important;}
   html body .app-ui .ta-card-header{min-height:62px!important;padding:13px 14px!important;}
   html body .app-ui .ta-card-header h2{font-size:15.5px!important;line-height:22px!important;}
   html body .app-ui .ta-card-header span{font-size:10.5px!important;}
 
-  /* Documents: keep create actions obvious, make summary cards denser, and let
-     the register controls breathe on a phone without shrinking touch targets. */
+  /* Documents. */
   html body .app-ui .ta-documents-header-actions{width:100%!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;overflow:visible!important;}
   html body .app-ui .ta-documents-header-actions>.btn{width:100%!important;min-width:0!important;min-height:44px!important;padding:8px 9px!important;font-size:11px!important;line-height:15px!important;white-space:normal!important;justify-content:center!important;}
-  html body .app-ui .ta-doc-summary-grid>button{
-    min-height:82px!important;
-    grid-template-columns:32px minmax(0,1fr)!important;
-    gap:8px!important;
-    padding:10px!important;
-    border-radius:14px!important;
-  }
+  html body .app-ui .ta-doc-summary-grid>button{min-height:82px!important;grid-template-columns:32px minmax(0,1fr)!important;gap:8px!important;padding:10px!important;border-radius:14px!important;}
   html body .app-ui .ta-doc-summary-icon{width:32px!important;height:32px!important;border-radius:9px!important;}
   html body .app-ui .ta-doc-summary-grid small{font-size:10px!important;line-height:14px!important;}
   html body .app-ui .ta-doc-summary-grid strong{font-size:20px!important;line-height:25px!important;font-weight:760!important;font-variant-numeric:tabular-nums!important;}
   html body .app-ui .ta-doc-summary-grid em{font-size:9.25px!important;line-height:13px!important;}
-
-  html body .app-ui .ta-doc-type-tabs{
-    gap:5px!important;
-    padding:7px!important;
-    overflow-x:auto!important;
-    overflow-y:hidden!important;
-    scroll-padding-inline:7px!important;
-    scrollbar-width:none!important;
-    -webkit-overflow-scrolling:touch!important;
-  }
+  html body .app-ui .ta-doc-type-tabs{gap:5px!important;padding:7px!important;overflow-x:auto!important;overflow-y:hidden!important;scroll-padding-inline:7px!important;scrollbar-width:none!important;-webkit-overflow-scrolling:touch!important;}
   html body .app-ui .ta-doc-type-tabs::-webkit-scrollbar{display:none!important;}
   html body .app-ui .ta-doc-type-tabs>button{flex:0 0 auto!important;min-height:44px!important;padding:8px 10px!important;border-radius:10px!important;font-size:11px!important;line-height:16px!important;}
   html body .app-ui .ta-doc-type-tabs>button strong{font-size:10px!important;}
-
-  html body .app-ui .ta-doc-commandbar{
-    grid-template-columns:minmax(0,1fr) 44px!important;
-    padding:8px!important;
-    gap:7px!important;
-  }
+  html body .app-ui .ta-doc-commandbar{grid-template-columns:minmax(0,1fr) 44px!important;padding:8px!important;gap:7px!important;}
   html body .app-ui .ta-doc-search{min-width:0!important;width:100%!important;height:44px!important;}
   html body .app-ui .ta-doc-search kbd{display:none!important;}
   html body .app-ui .ta-doc-search .ta-doc-search-input{font-size:12px!important;}
@@ -130,7 +76,118 @@
   html body .app-ui .ta-doc-register-meta button{min-height:44px!important;padding:8px 9px!important;}
   html body .app-ui .ta-doc-actions button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;}
 
-  /* Settings and Account behave as mobile workspaces rather than tiny dialogs. */
+  /* Customers — keep the overview compact while making every mobile action a
+     real touch target. */
+  html body .app-ui .ta-customers-header{flex-direction:column!important;gap:12px!important;}
+  html body .app-ui .ta-customers-header>.btn{width:100%!important;min-height:44px!important;}
+  html body .app-ui .ta-customers-summary{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;}
+  html body .app-ui .ta-customers-summary>div{min-height:94px!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:30px auto!important;gap:6px!important;padding:10px!important;border-radius:14px!important;}
+  html body .app-ui .ta-customers-summary-icon{width:30px!important;height:30px!important;border-radius:9px!important;}
+  html body .app-ui .ta-customers-summary small{font-size:9.5px!important;line-height:14px!important;}
+  html body .app-ui .ta-customers-summary strong{font-size:19px!important;line-height:24px!important;font-weight:760!important;font-variant-numeric:tabular-nums!important;}
+  html body .app-ui .ta-customers-summary em{font-size:9px!important;line-height:13px!important;}
+  html body .app-ui .ta-customers-toolbar{grid-template-columns:1fr!important;gap:8px!important;padding:9px!important;}
+  html body .app-ui .ta-customers-search{width:100%!important;height:44px!important;}
+  html body .app-ui .ta-customers-search kbd{display:none!important;}
+  html body .app-ui .ta-customers-search button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;}
+  html body .app-ui .ta-customers-sort{width:100%!important;min-height:44px!important;}
+  html body .app-ui .ta-customers-meta{min-height:44px!important;padding:7px 10px!important;font-size:10.5px!important;}
+  html body .app-ui .ta-customers-meta button{min-height:44px!important;padding:8px 9px!important;}
+  html body .app-ui .ta-customer-create-actions>button{min-height:44px!important;padding:8px!important;font-size:10.5px!important;}
+  html body .app-ui .ta-customer-row-actions button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;}
+  html body .app-ui .ta-customer-profile-toolbar{align-items:stretch!important;flex-direction:column!important;gap:8px!important;}
+  html body .app-ui .ta-customer-profile-toolbar>div{width:100%!important;justify-content:stretch!important;}
+  html body .app-ui .ta-customer-profile-toolbar .btn{flex:1 1 0!important;min-height:44px!important;}
+  html body .app-ui .ta-customer-profile-back{min-height:44px!important;}
+  html body .app-ui .ta-customer-profile-hero{grid-template-columns:48px minmax(0,1fr)!important;gap:11px!important;padding:14px!important;border-radius:15px!important;}
+  html body .app-ui .ta-customer-profile-avatar{width:48px!important;height:48px!important;}
+  html body .app-ui .ta-customer-profile-badges{grid-column:1/-1!important;justify-content:flex-start!important;}
+
+  /* Products — keep the 2x2 overview at phone width, avoid 8px metadata, and
+     promote all list/menu/editor controls to touch-safe sizes. */
+  html body .app-ui .ta-products-workspace-header{flex-direction:column!important;gap:11px!important;}
+  html body .app-ui .ta-products-workspace-header>.btn{width:100%!important;min-height:44px!important;}
+  html body .app-ui .ta-products-overview{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
+  html body .app-ui .ta-products-overview>div{min-height:88px!important;grid-template-columns:32px minmax(0,1fr)!important;gap:8px!important;padding:10px!important;border-radius:14px!important;}
+  html body .app-ui .ta-products-overview-icon{width:32px!important;height:32px!important;border-radius:9px!important;}
+  html body .app-ui .ta-products-overview small{font-size:10px!important;line-height:14px!important;}
+  html body .app-ui .ta-products-overview strong{font-size:19px!important;line-height:24px!important;font-weight:760!important;font-variant-numeric:tabular-nums!important;}
+  html body .app-ui .ta-products-overview em{font-size:9.25px!important;line-height:13px!important;}
+  html body .app-ui .ta-domain-tabs{padding:5px!important;scroll-padding-inline:5px!important;}
+  html body .app-ui .ta-domain-tabs>button{flex:0 0 154px!important;min-height:50px!important;padding:7px 9px!important;}
+  html body .app-ui .ta-domain-tabs strong{font-size:11.5px!important;line-height:16px!important;}
+  html body .app-ui .ta-domain-tabs small{font-size:9.5px!important;line-height:14px!important;}
+  html body .app-ui .ta-product-page-eyebrow{font-size:10.5px!important;line-height:15px!important;}
+  html body .app-ui .ta-product-page-header h1{font-size:21px!important;line-height:28px!important;font-weight:720!important;}
+  html body .app-ui .ta-product-page-header p{font-size:11.5px!important;line-height:17px!important;}
+  html body .app-ui .ta-product-page-note strong{font-size:11px!important;line-height:16px!important;}
+  html body .app-ui .ta-product-page-note small{font-size:10px!important;line-height:15px!important;}
+  html body .app-ui .ta-product-commandbar{grid-template-columns:1fr 1fr!important;padding:8px!important;gap:7px!important;}
+  html body .app-ui .ta-product-search{grid-column:1/-1!important;width:100%!important;height:44px!important;}
+  html body .app-ui .ta-product-search kbd{display:none!important;}
+  html body .app-ui .ta-product-search button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;}
+  html body .app-ui .ta-product-filter,
+  html body .app-ui .ta-product-sort{width:100%!important;height:44px!important;min-height:44px!important;}
+  html body .app-ui .ta-product-commandbar>.btn{width:100%!important;min-width:0!important;min-height:44px!important;}
+  html body .app-ui .ta-product-overflow>button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;}
+  html body .app-ui .ta-product-menu>button{min-height:44px!important;padding:9px!important;font-size:11px!important;}
+  html body .app-ui .ta-product-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;}
+  html body .app-ui .ta-product-metrics>button,
+  html body .app-ui .ta-product-metrics>div{min-height:66px!important;padding:9px!important;border-radius:12px!important;}
+  html body .app-ui .ta-product-metrics small{font-size:10px!important;line-height:14px!important;}
+  html body .app-ui .ta-product-metrics strong{font-size:18px!important;line-height:24px!important;font-weight:740!important;}
+  html body .app-ui .ta-product-register-header small,
+  html body .app-ui .ta-product-register-header span,
+  html body .app-ui .ta-product-selection-bar span{font-size:10px!important;line-height:14px!important;}
+  html body .app-ui .ta-product-register-header>button{min-height:44px!important;padding:8px 9px!important;font-size:10.5px!important;}
+  html body .app-ui .ta-product-favorite,
+  html body .app-ui .ta-product-select,
+  html body .app-ui .ta-product-row-menu-wrap>button,
+  html body .app-ui .ta-product-editor-header>button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;}
+  html body .app-ui .ta-product-name strong{font-size:11.5px!important;line-height:16px!important;}
+  html body .app-ui :where(.ta-product-name small,.ta-product-commercial small,.ta-product-commercial em,.ta-product-category){font-size:10px!important;line-height:14px!important;}
+  html body .app-ui .ta-product-price{font-size:11.5px!important;line-height:16px!important;}
+  html body .app-ui .ta-product-row-main code{font-size:9.5px!important;line-height:14px!important;}
+  html body .app-ui .ta-product-editor-section>header strong{font-size:11px!important;line-height:16px!important;}
+  html body .app-ui .ta-product-editor-section>header small,
+  html body .app-ui .ta-product-sku-note,
+  html body .app-ui .ta-product-more>summary small{font-size:9.5px!important;line-height:14px!important;}
+  html body .app-ui .ta-product-choice-strip>button{min-height:36px!important;padding:6px 9px!important;font-size:9.5px!important;}
+
+  /* Operations — the base owner fixes class drift; mobile only controls density
+     and touch geometry here. */
+  html body .app-ui .ta-ops-search button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;}
+  html body .app-ui .ta-ops-tabs{width:100%!important;}
+  html body .app-ui .ta-ops-tabs>button{min-height:44px!important;}
+  html body .app-ui .ta-ops-row-actions>button{min-height:44px!important;padding:8px 10px!important;}
+  html body .app-ui .ta-ops-error>button,
+  html body .app-ui .ta-ops-editor-head>button,
+  html body .app-ui .ta-purchase-item-title>button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;}
+
+  /* Finance / Reports — mobile filters remain information-dense but touch safe. */
+  html body .app-ui .ta-page-actions,
+  html body .app-ui .ta-header-badges{width:100%!important;justify-content:flex-start!important;}
+  html body .app-ui .ta-page-actions>.btn{min-height:44px!important;}
+  html body .app-ui .ta-header-badges>span{min-height:44px!important;}
+  html body .app-ui .ta-finance-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;}
+  html body .app-ui .ta-finance-kpi{padding:13px!important;border-radius:14px!important;}
+  html body .app-ui .ta-finance-kpi>small{font-size:10.5px!important;line-height:15px!important;}
+  html body .app-ui .ta-finance-kpi>strong{font-size:19px!important;line-height:25px!important;font-weight:760!important;font-variant-numeric:tabular-nums!important;}
+  html body .app-ui .ta-finance-kpi-meta{gap:5px!important;margin-top:10px!important;padding-top:9px!important;}
+  html body .app-ui .ta-finance-kpi-meta span{font-size:10px!important;line-height:15px!important;}
+  html body .app-ui .ta-report-filterbar{padding:10px!important;gap:9px!important;}
+  html body .app-ui .ta-report-presets{overflow-x:auto!important;scrollbar-width:none!important;-webkit-overflow-scrolling:touch!important;}
+  html body .app-ui .ta-report-presets::-webkit-scrollbar{display:none!important;}
+  html body .app-ui .ta-report-presets>button{min-height:44px!important;padding:8px 11px!important;white-space:nowrap!important;}
+  html body .app-ui .ta-date-input,
+  html body .app-ui .ta-report-date input,
+  html body .app-ui .ta-report-currency select,
+  html body .app-ui .ta-search-field,
+  html body .app-ui .ta-account-controls select{min-height:44px!important;}
+  html body .app-ui .ta-search-clear{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;}
+  html body .app-ui .ta-account-actions>.btn{min-height:44px!important;}
+
+  /* Settings and Account. */
   html body .modal-backdrop:has(.ta-settings-shell){align-items:flex-end!important;padding:0!important;}
   html body .modal.modal-xl:has(.ta-settings-shell){width:100%!important;max-width:100%!important;height:calc(100% - 8px)!important;min-height:0!important;max-height:calc(100% - 8px)!important;margin:8px 0 0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;border-radius:20px 20px 0 0!important;}
   html body .modal.modal-xl:has(.ta-settings-shell)>.modal-header{flex:0 0 auto!important;min-height:60px!important;padding:12px 14px!important;}
@@ -143,6 +200,13 @@
   html body .app-ui :where(.ta-dashboard-heading h1,.ta-documents-header h1,.ta-customers-header h1,.ta-products-workspace-header h1,.ta-ops-page-header h1,.ta-page-header h1){font-size:25px!important;line-height:32px!important;}
   html body .app-ui .ta-kpi-card{padding:11px!important;}
   html body .app-ui .ta-documents-header-actions>.btn{font-size:10.5px!important;}
+  html body .app-ui .ta-customers-summary{gap:6px!important;}
+  html body .app-ui .ta-customers-summary>div{padding:8px!important;}
+  html body .app-ui .ta-products-overview{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  html body .app-ui .ta-product-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  html body .app-ui .ta-product-commandbar{grid-template-columns:1fr 1fr!important;}
+  html body .app-ui .ta-product-commandbar>.ta-product-search{grid-column:1/-1!important;}
+  html body .app-ui .ta-finance-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
 }
 
 @media screen and (max-width:350px){
@@ -152,4 +216,8 @@
   html body .app-ui .ta-kpi-icon{width:28px!important;height:28px!important;}
   html body .app-ui .ta-kpi-copy>strong,
   html body .app-ui .ta-kpi-money-stack b{font-size:15px!important;}
+  html body .app-ui .ta-customers-summary{grid-template-columns:1fr!important;}
+  html body .app-ui .ta-products-overview,
+  html body .app-ui .ta-product-metrics,
+  html body .app-ui .ta-finance-kpi-grid{grid-template-columns:1fr!important;}
 }
