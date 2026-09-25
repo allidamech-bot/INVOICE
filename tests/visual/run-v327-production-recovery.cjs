@@ -102,13 +102,16 @@ const expected=['draft','rfq','proforma','proforma-invoice','purchase-order','in
           const info=await rail.evaluate(el=>({
             clientWidth:el.clientWidth,
             scrollWidth:el.scrollWidth,
-            mask:getComputedStyle(el).maskImage||getComputedStyle(el).webkitMaskImage
+            mask:getComputedStyle(el).maskImage||getComputedStyle(el).webkitMaskImage,
+            direction:getComputedStyle(el).direction
           }));
           assert.ok(info.scrollWidth>info.clientWidth,`Document rail must overflow horizontally: ${JSON.stringify(info)}`);
           assert.ok(info.mask&&info.mask!=='none',`Document rail needs a visible swipe affordance: ${JSON.stringify(info)}`);
-          await rail.evaluate(el=>{el.scrollLeft=el.scrollWidth;});
+          const beforeScroll=await rail.evaluate(el=>el.scrollLeft);
+          await rail.evaluate(el=>{el.scrollLeft=getComputedStyle(el).direction==='rtl'?-120:120;});
           await docs.waitForTimeout(50);
-          assert.notEqual(await rail.evaluate(el=>el.scrollLeft),0,'Document rail must actually move horizontally');
+          const afterScroll=await rail.evaluate(el=>el.scrollLeft);
+          assert.ok(Math.abs(afterScroll-beforeScroll)>1,`Document rail must actually move horizontally: ${JSON.stringify({info,beforeScroll,afterScroll})}`);
         }catch(error){
           failures.push(`${browserType.name()} documents ${lang}: ${error?.stack||error}`);
         }finally{
