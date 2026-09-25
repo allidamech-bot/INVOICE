@@ -59,27 +59,33 @@ for(const path of compatibilityTargets){
 // immutable dataUrl strings remain shared. A4 output needs no attachments at all.
 {
   let source=await readFile(appTarget,'utf8');
-  const editorClonePattern=/editorDoc:structuredClone\(doc\)/g;
+  // TypeScript's emitted JavaScript intentionally preserves formatting spaces.
+  // Match semantics rather than one exact whitespace layout so the production
+  // hardening remains stable across compiler formatting changes.
+  const editorClonePattern=/editorDoc\s*:\s*structuredClone\s*\(\s*doc\s*\)/g;
   const editorMatches=source.match(editorClonePattern)?.length??0;
   if(editorMatches!==1)throw new Error(`v339 expected exactly one existing-document editor deep clone in ${appTarget}; found ${editorMatches}.`);
   source=source.replace(editorClonePattern,'editorDoc:__lourexCloneDocumentWithAttachmentRefs(doc)');
 
-  const requestStart=source.indexOf('requestPrint=async');
-  const requestEnd=requestStart<0?-1:source.indexOf('afterPrint=',requestStart);
+  const requestStartMatch=/requestPrint\s*=\s*async/.exec(source);
+  const requestStart=requestStartMatch?.index??-1;
+  const requestTail=requestStart<0?'':source.slice(requestStart);
+  const requestEndMatch=/afterPrint\s*=/.exec(requestTail);
+  const requestEnd=requestStart<0||!requestEndMatch?-1:requestStart+requestEndMatch.index;
   if(requestStart<0||requestEnd<=requestStart)throw new Error('v339 could not isolate App.requestPrint for output memory hardening.');
   let request=source.slice(requestStart,requestEnd);
 
-  const directOutputPattern=/target=structuredClone\(doc\)/g;
+  const directOutputPattern=/target\s*=\s*structuredClone\s*\(\s*doc\s*\)/g;
   const directOutputMatches=request.match(directOutputPattern)?.length??0;
   if(directOutputMatches!==2)throw new Error(`v339 expected two direct print snapshot clones; found ${directOutputMatches}.`);
   request=request.replace(directOutputPattern,'target=__lourexOutputDocument(doc)');
 
-  const issueClonePattern=/target=\{\.\.\.structuredClone\(doc\),status:'final'/g;
+  const issueClonePattern=/target\s*=\s*\{\s*\.\.\.\s*structuredClone\s*\(\s*doc\s*\)\s*,\s*status\s*:\s*'final'/g;
   const issueCloneMatches=request.match(issueClonePattern)?.length??0;
   if(issueCloneMatches!==1)throw new Error(`v339 expected one issue/save document clone; found ${issueCloneMatches}.`);
   request=request.replace(issueClonePattern,"target={...__lourexCloneDocumentWithAttachmentRefs(doc),status:'final'");
 
-  const savedOutputPattern=/target=structuredClone\(this\.requireVault\(\)\.documents\.find\(saved=>saved\.id===target\.id\)\?\?target\)/g;
+  const savedOutputPattern=/target\s*=\s*structuredClone\s*\(\s*this\.requireVault\(\)\.documents\.find\s*\(\s*saved\s*=>\s*saved\.id\s*===\s*target\.id\s*\)\s*\?\?\s*target\s*\)/g;
   const savedOutputMatches=request.match(savedOutputPattern)?.length??0;
   if(savedOutputMatches!==1)throw new Error(`v339 expected one post-issue print snapshot clone; found ${savedOutputMatches}.`);
   request=request.replace(savedOutputPattern,'target=__lourexOutputDocument(this.requireVault().documents.find(saved=>saved.id===target.id)??target)');
@@ -88,7 +94,7 @@ for(const path of compatibilityTargets){
   const appMemoryHelpers=`\nfunction __lourexCloneDocumentWithAttachmentRefs(doc){\n  const attachments=(doc.attachments??[]).map(attachment=>({...attachment}));\n  return {...structuredClone({...doc,attachments:[]}),attachments};\n}\nfunction __lourexOutputDocument(doc){\n  return {...structuredClone({...doc,attachments:[]}),attachments:[]};\n}\n`;
   source+=appMemoryHelpers;
 
-  if(source.includes('editorDoc:structuredClone(doc)'))throw new Error('v339 editor attachment memory hardening did not replace the full-payload deep clone.');
+  if(/editorDoc\s*:\s*structuredClone\s*\(\s*doc\s*\)/.test(source))throw new Error('v339 editor attachment memory hardening did not replace the full-payload deep clone.');
   if(!source.includes('editorDoc:__lourexCloneDocumentWithAttachmentRefs(doc)'))throw new Error('v339 editor attachment payload-sharing clone is missing.');
   if(!source.includes('target=__lourexOutputDocument(doc)'))throw new Error('v339 A4 output attachment stripping is missing.');
   await writeFile(appTarget,source);
