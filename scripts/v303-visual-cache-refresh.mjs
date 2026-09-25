@@ -80,4 +80,16 @@ if(!html.includes(draftScrollRuntime))throw new Error('Unable to verify the v337
 if(!html.includes(startupWatchdog))throw new Error('Unable to verify the v321 startup watchdog in production HTML.');
 await writeFile(htmlPath,html);
 
+/* public/document-entry-v302.js has a defensive stylesheet injector for unusual
+   startup paths where the index marker is absent. Keep the historical source file
+   untouched, but guarantee the production dist fallback uses the same cache-busted
+   scroll owner as index.html. This avoids a mixed 331-1/337-2 runtime on Safari. */
+const entryPath='dist/document-entry-v302.js';
+let entry=await readFile(entryPath,'utf8');
+entry=entry.replaceAll('./styles/v331-draft-scroll-recovery.css?v=331-1',draftScrollRuntime);
+entry=entry.replaceAll('./styles/v331-draft-scroll-recovery.css?v=336-1',draftScrollRuntime);
+if(!entry.includes(draftScrollRuntime))throw new Error('Unable to verify the v337 scroll-owner fallback inside production document-entry runtime.');
+if(entry.includes('v331-draft-scroll-recovery.css?v=331-1'))throw new Error('Stale v331-1 document scroll fallback survived production build.');
+await writeFile(entryPath,entry);
+
 console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with v337 document scroll/template reliability + v321 startup recovery.`);
