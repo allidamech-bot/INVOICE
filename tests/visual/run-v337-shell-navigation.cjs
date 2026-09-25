@@ -7,7 +7,8 @@ const cases=[
   ['chromium-320',chromium,{width:320,height:700}],
   ['webkit-320',webkit,{width:320,height:700}],
   ['chromium-390',chromium,{width:390,height:844}],
-  ['webkit-390',webkit,{width:390,height:844}]
+  ['webkit-390',webkit,{width:390,height:844}],
+  ['webkit-ipad820',webkit,{width:820,height:1180}]
 ];
 
 async function runCase(name,browserType,viewport,lang){
@@ -117,5 +118,5 @@ async function runCase(name,browserType,viewport,lang){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.failures.map(f=>`${row.name}/${row.lang}: ${f}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v337 shell navigation: ${rows.length} Chromium/WebKit mobile cases passed with pan-y More-menu reachability.`);
+  console.log(`v337 shell navigation: ${rows.length} Chromium/WebKit phone+iPad cases passed with pan-y More-menu reachability.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
