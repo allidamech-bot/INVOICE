@@ -101,9 +101,9 @@
   html body .app-ui .ta-documents-header-actions>.btn{font-size:10.5px!important;}
 }
 
-/* LOUREX v324 — cloud/update notices must never cover page headings on mobile.
- * Keep the action visible, but reduce the notice to a compact bottom toast above
- * the navigation dock. This is presentation-only; cloud/update behavior is unchanged. */
+/* LOUREX v324/v325 — cloud/update notices must never cover page headings or leave
+ * the viewport on mobile. Reset logical insets first, then apply physical centering
+ * so Safari cannot override left:50% through inset-inline in RTL/LTR. */
 @media screen and (max-width:900px){
   html body .pwa-update-toast.pwa-update-toast.pwa-update-toast,
   html body [data-lourex-cloud-refresh][data-lourex-cloud-refresh][data-lourex-cloud-refresh],
@@ -111,9 +111,9 @@
     position:fixed!important;
     top:auto!important;
     bottom:calc(92px + env(safe-area-inset-bottom,0px))!important;
+    inset-inline:auto!important;
     left:50%!important;
     right:auto!important;
-    inset-inline:auto!important;
     width:min(340px,calc(100vw - 28px))!important;
     max-width:min(340px,calc(100vw - 28px))!important;
     min-height:52px!important;
