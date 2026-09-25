@@ -78,6 +78,7 @@ jobs:
           fi
           node tests/visual/run-v338-editor-stability.cjs
           node tests/visual/run-v339-ipad-landscape-draft.cjs
+          node tests/visual/run-v339-ipad-portrait-draft.cjs
           node tests/visual/run-v337-shell-navigation.cjs
           node tests/visual/run-v339-signout-guard.cjs
 
