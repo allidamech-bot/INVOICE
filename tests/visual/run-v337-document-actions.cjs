@@ -29,11 +29,14 @@ async function runCase(name,browserType,viewport,lang){
     if(!triggerBox||triggerBox.width<43.5||triggerBox.height<43.5)failures.push(`document action trigger below 44px: ${triggerBox?`${triggerBox.width}x${triggerBox.height}`:'missing'}`);
 
     await trigger.click();
-    const menu=page.locator(menuSelector).filter({visible:true}).first();
-    await page.locator(menuSelector).first().waitFor({state:'visible'});
-    const menuBox=await page.locator(menuSelector).first().boundingBox();
+    const menu=page.locator(menuSelector).first();
+    await menu.waitFor({state:'visible'});
+    const menuBox=await menu.boundingBox();
     if(!menuBox)failures.push('document action menu has no visible box');
-    else if(menuBox.left<0||menuBox.right>viewport.width+2||menuBox.top<0||menuBox.bottom>viewport.height+2)failures.push(`document action menu leaves viewport: ${JSON.stringify(menuBox)}`);
+    else{
+      const right=menuBox.x+menuBox.width,bottom=menuBox.y+menuBox.height;
+      if(menuBox.x<0||right>viewport.width+2||menuBox.y<0||bottom>viewport.height+2)failures.push(`document action menu leaves viewport: ${JSON.stringify(menuBox)}`);
+    }
     const buttons=page.locator(`${menuSelector} button[role="menuitem"]`);
     const count=await buttons.count();
     if(count<3)failures.push(`document action menu only has ${count} items`);
@@ -47,17 +50,17 @@ async function runCase(name,browserType,viewport,lang){
     }
 
     await trigger.click();
-    await page.locator(menuSelector).first().waitFor({state:'visible'});
+    await menu.waitFor({state:'visible'});
     await page.keyboard.press('Escape');
     await page.waitForTimeout(30);
-    if(await page.locator(menuSelector).first().isVisible().catch(()=>false))failures.push('Escape did not close document action menu');
+    if(await menu.isVisible().catch(()=>false))failures.push('Escape did not close document action menu');
 
     await trigger.click();
-    await page.locator(menuSelector).first().waitFor({state:'visible'});
+    await menu.waitFor({state:'visible'});
     await page.locator(`${menuSelector} button[role="menuitem"]`).first().click();
     await page.locator('.ta-doc-detail-page').waitFor({state:'visible'});
     const detail=await page.locator('.ta-doc-detail-page').boundingBox();
-    if(!detail||detail.left<0||detail.right>viewport.width+2)failures.push(`document detail leaves viewport: ${JSON.stringify(detail)}`);
+    if(!detail||detail.x<0||detail.x+detail.width>viewport.width+2)failures.push(`document detail leaves viewport: ${JSON.stringify(detail)}`);
 
     const shot=`${output}/${name}-${lang}.png`;
     await page.screenshot({path:shot,fullPage:false});
