@@ -55,6 +55,15 @@
   .app-ui .editor-screen[data-document-kind="delivery-note"] .item-pricing-grid{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
   }
+  .app-ui .editor-screen[data-document-kind="rfq"] .mobile-total,
+  .app-ui .editor-screen[data-document-kind="delivery-note"] .mobile-total{
+    display:none!important;
+  }
+  .app-ui .editor-screen[data-document-kind="rfq"] .mobile-action-buttons,
+  .app-ui .editor-screen[data-document-kind="delivery-note"] .mobile-action-buttons{
+    width:100%!important;
+    flex:1 1 100%!important;
+  }
 
   /* RFQ is a request to a supplier, not a sales quote. Keep its identity obvious. */
   .app-ui .editor-screen[data-document-kind="rfq"] .purchase-order-reference .field-label::after{
@@ -78,7 +87,7 @@
   }
   .app-ui .ta-doc-detail-page[data-document-kind="rfq"] .ta-doc-facts>div:nth-child(2)>small::after{
     content:"Response due";
-    font-size:inherit;
+    font-size:12px;
   }
   [dir="rtl"] .app-ui .ta-doc-detail-page[data-document-kind="rfq"] .ta-doc-facts>div:nth-child(2)>small::after{content:"موعد الرد";}
   .app-ui .ta-doc-detail-page[data-document-kind="delivery-note"] .ta-doc-facts>div:nth-child(2),
@@ -102,6 +111,15 @@
     border-color:color-mix(in srgb,#238a74 30%,var(--ft-line))!important;
     background:color-mix(in srgb,#238a74 8%,var(--ft-surface))!important;
   }
+  .app-ui .editor-screen[data-document-kind="payment-receipt"] .item-pricing-grid{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .app-ui .editor-screen[data-document-kind="payment-receipt"] .item-pricing-grid>.field:nth-child(1),
+  .app-ui .editor-screen[data-document-kind="payment-receipt"] .item-pricing-grid>.field:nth-child(2){display:none!important;}
+  .app-ui .editor-screen[data-document-kind="payment-receipt"] .item-price-control{grid-column:1/-1!important;}
+  .app-ui .editor-screen[data-document-kind="payment-receipt"] .mobile-total>span{font-size:0!important;}
+  .app-ui .editor-screen[data-document-kind="payment-receipt"] .mobile-total>span::after{content:"Receipt Amount";font-size:11px;}
+  [dir="rtl"] .app-ui .editor-screen[data-document-kind="payment-receipt"] .mobile-total>span::after{content:"مبلغ الإيصال";}
   .app-ui .ta-doc-detail-page[data-document-kind="payment-receipt"] .ta-doc-items-head,
   .app-ui .ta-doc-detail-page[data-document-kind="payment-receipt"] .ta-doc-item-row{
     grid-template-columns:minmax(0,1fr) minmax(120px,.34fr)!important;
@@ -109,6 +127,35 @@
   .app-ui .ta-doc-detail-page[data-document-kind="payment-receipt"] :is(.ta-doc-items-head,.ta-doc-item-row)>:nth-child(2),
   .app-ui .ta-doc-detail-page[data-document-kind="payment-receipt"] :is(.ta-doc-items-head,.ta-doc-item-row)>:nth-child(3),
   .app-ui .ta-doc-detail-page[data-document-kind="payment-receipt"] :is(.ta-doc-items-head,.ta-doc-item-row)>:nth-child(4){display:none!important;}
+
+  /* Final-review surfaces must follow the active app theme. Old workflow CSS used
+     fixed pale backgrounds that leaked into dark mode. */
+  .app-ui .issue-review-status,
+  .app-ui .issue-review-purpose,
+  .app-ui .issue-review-grid>div,
+  .app-ui .issue-asset-checks,
+  .app-ui .issue-warning,
+  .app-ui .issue-clean{
+    border-color:var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
+  }
+  .app-ui .issue-review-status strong,
+  .app-ui .issue-review-purpose strong,
+  .app-ui .issue-review-grid strong{color:var(--ft-text-strong)!important;}
+  .app-ui .issue-review-status span,
+  .app-ui .issue-review-purpose span,
+  .app-ui .issue-review-grid span,
+  .app-ui .issue-review-grid small{color:var(--ft-muted)!important;}
+  .app-ui .issue-review-status.status-ready,
+  .app-ui .issue-clean{
+    border-color:color-mix(in srgb,#23936e 34%,var(--ft-line))!important;
+    background:color-mix(in srgb,#23936e 8%,var(--ft-surface))!important;
+  }
+  .app-ui .issue-review-status.status-final{
+    border-color:color-mix(in srgb,var(--ft-accent) 32%,var(--ft-line))!important;
+    background:var(--ft-accent-faint)!important;
+  }
 
   /* Keep Credit Note visually separate from a normal invoice while reusing its
      audited invoice lifecycle and calculations. */
