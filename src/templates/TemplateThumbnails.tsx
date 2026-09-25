@@ -32,14 +32,16 @@ interface Props {
 
 function StaticTemplatePreview({ id }:{ id:TemplateId }):any{
   return <div className={`template-mini template-mini-static template-preview-${id}`} aria-hidden="true">
+    <span className="template-preview-glow"/>
     <span className="template-mock-rail"/>
-    <span className="template-mock-mark"/>
-    <span className="template-mock-title"/>
-    <span className="template-mock-meta"/>
-    <span className="template-mock-party party-a"/>
-    <span className="template-mock-party party-b"/>
-    <span className="template-mock-table"><i/><i/><i/><i/></span>
-    <span className="template-mock-total"/>
+    <span className="template-mock-brand"><i/><i/></span>
+    <span className="template-mock-title"><i/><i/></span>
+    <span className="template-mock-meta"><i/><i/><i/></span>
+    <span className="template-mock-party party-a"><i/><i/></span>
+    <span className="template-mock-party party-b"><i/><i/></span>
+    <span className="template-mock-table"><i/><i/><i/><i/><i/></span>
+    <span className="template-mock-total"><i/><i/></span>
+    <span className="template-mock-footer"><i/><i/></span>
   </div>;
 }
 
@@ -49,10 +51,11 @@ export function TemplateThumbnails({ document:doc,onSelect,favoriteIds=[],defaul
   return <div className="template-selector">{ordered.map(template=>{
     const favorite=favorites.has(template.id);
     const isDefault=defaultId===template.id;
-    return <div className={`template-card-wrap ${favorite?'is-favorite':''}`} key={template.id}>
-      <button type="button" className={`template-card ${doc.appearance.templateId===template.id?'selected':''}`} onClick={()=>onSelect(template.id)}>
+    const selected=doc.appearance.templateId===template.id;
+    return <div className={`template-card-wrap ${favorite?'is-favorite':''} ${selected?'is-selected':''}`} key={template.id}>
+      <button type="button" className={`template-card ${selected?'selected':''}`} aria-pressed={selected} onClick={()=>onSelect(template.id)}>
         <StaticTemplatePreview id={template.id}/>
-        <span><b>{t(template.nameEn,template.nameAr)}</b><small>{t(template.subEn,template.subAr)}</small></span>
+        <span className="template-card-copy"><b>{t(template.nameEn,template.nameAr)}</b><small>{t(template.subEn,template.subAr)}</small><em>{selected?t('Selected','محدد'):t('Tap to preview','اضغط للمعاينة')}</em></span>
         {isDefault?<em className="template-default-badge">{t('Default','افتراضي')}</em>:null}
       </button>
       {onToggleFavorite?<button type="button" className={`template-favorite-button ${favorite?'active':''}`} aria-label={favorite?t('Remove from favorites','إزالة من المفضلة'):t('Add to favorites','إضافة للمفضلة')} title={favorite?t('Remove from favorites','إزالة من المفضلة'):t('Add to favorites','إضافة للمفضلة')} onClick={()=>onToggleFavorite(template.id)}>{favorite?'★':'☆'}</button>:null}
