@@ -9,6 +9,14 @@
     return Boolean(document.getElementById('lourex-boot'))&&!document.querySelector('.app-ui,.auth-page,.app-recovery-screen');
   }
 
+  function editingWorkspaceOpen(){
+    try{
+      return document.documentElement.hasAttribute('data-lourex-document-editor')||
+        document.documentElement.hasAttribute('data-lourex-workspace-dirty')||
+        Boolean(document.querySelector('.editor-screen,.modal-backdrop,.product-library-pro.editor-open'));
+    }catch(_error){return false;}
+  }
+
   function currentAttempt(){
     try{return Number(sessionStorage.getItem(ATTEMPT_KEY)||'0')||0;}catch(_error){return 0;}
   }
@@ -70,7 +78,7 @@
   }
 
   function showRecovery(){
-    if(!bootStillVisible())return;
+    if(!bootStillVisible()||editingWorkspaceOpen())return;
     var root=document.getElementById('root');
     if(!root)return;
 
@@ -116,6 +124,7 @@
     actions.style.gap='10px';
 
     actions.appendChild(buildButton('Retry / إعادة المحاولة',function(){
+      if(editingWorkspaceOpen())return;
       clearAttempt();
       window.location.replace(retryUrl());
     }));
@@ -142,11 +151,13 @@
   }
 
   async function recoverIfNeeded(){
+    if(editingWorkspaceOpen()){clearAttempt();return;}
     if(!bootStillVisible()){clearAttempt();return;}
     var attempt=currentAttempt();
     if(attempt<1){
       markAttempt(1);
       await refreshStaticRuntime();
+      if(editingWorkspaceOpen()){clearAttempt();return;}
       if(!bootStillVisible()){clearAttempt();return;}
       window.location.replace(retryUrl());
       return;
