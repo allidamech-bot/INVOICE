@@ -17,6 +17,9 @@ const doc=createBlankDocument('draft','DR-2026-QA',company);doc.language=ar?'ar'
 const lines=Array.from({length:16},(_,index)=>ar?`هذه فقرة اختبار طويلة رقم ${index+1} للتأكد من أن شاشة المسودة تسمح بالتمرير حتى نهاية المحتوى على سفاري وآيباد وآيفون بدون قص الحقول أو حبس حركة اللمس.`:`This is long Draft Studio QA paragraph ${index+1}, used to verify Safari, iPad and iPhone can scroll all the way through the editor without clipping controls or trapping vertical touch gestures.`);
 doc.letter={...doc.letter,recipient:ar?'شركة الاختبار':'QA Trading Company',subject:ar?'اختبار التمرير الكامل للمسودة':'Draft Studio full-scroll QA',reference:'QA-337',blocks:lines.map((text,index)=>{const block=defaultLetterBlock(index===0?'heading':'paragraph',text);block.id=`qa-block-${index+1}`;block.direction=ar?'rtl':'ltr';block.font=ar?'cairo':'inter';return block;})};
 window.draftQa={saveCount:0,closeCount:0,outputCount:0};const noop=()=>{};
-const editor=React.createElement(DraftDocumentEditor,{document:doc,company,onClose:()=>{window.draftQa.closeCount+=1;},onSave:async()=>{window.draftQa.saveCount+=1;},onPrint:async()=>{window.draftQa.outputCount+=1;},onEditActivity:noop});
+const draftEditor=React.createElement(DraftDocumentEditor,{document:doc,company,onClose:()=>{window.draftQa.closeCount+=1;},onSave:async()=>{window.draftQa.saveCount+=1;},onPrint:async()=>{window.draftQa.outputCount+=1;},onEditActivity:noop});
+// Match EditorPage production DOM exactly: v331/v339 scroll ownership deliberately scopes
+// Draft-specific geometry beneath this wrapper so unrelated editor workspaces are untouched.
+const editor=React.createElement('div',{className:'ta-editor-workspace ta-draft-studio-workspace'},draftEditor);
 ReactDOM.render(React.createElement(AppShell,{screen:'editor',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:noop,onToggleNew:noop,onNew:noop,onCreditNote:noop,onStatementAccount:noop,onSettings:noop,onCloud:noop},editor),document.getElementById('root'));
 </script></body></html>
