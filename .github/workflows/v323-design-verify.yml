@@ -35,6 +35,10 @@ jobs:
           s=p.read_text()
           s=s.replace("page.locator('.ta-create-menu').isVisible()", "page.locator('.ta-create-menu-desktop').isVisible()")
           p.write_text(s)
+          p=Path('tests/visual/run-mobile-controls-density-v177.cjs')
+          s=p.read_text()
+          s=s.replace("'.shell-mobile-brand>button','.shell-sync-status','.page-heading .btn',", "'.shell-mobile-brand>button','.page-heading .btn',")
+          p.write_text(s)
           PY
           npx http-server . -p 4173 -c-1 > /tmp/lourex-v323-qa.log 2>&1 &
           server_pid=$!
