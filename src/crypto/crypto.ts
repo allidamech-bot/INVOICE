@@ -1,5 +1,6 @@
 import type { EncryptedBackupFile, EncryptedVaultRecord, SecurityMetadata, VaultPayload } from '../types.js';
-import { KDF_ITERATIONS } from '../lib/defaults.js';
+import { APP_SCHEMA_VERSION, KDF_ITERATIONS } from '../lib/defaults.js';
+import { compactCompanySnapshotAssets, hydrateCompanySnapshotAssets } from '../lib/company-asset-dedup.js';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -119,7 +120,7 @@ function recordVaultPayloadBreakdown(vault:VaultPayload,force=false):void{
     const documentSnapshotAssetChars=documents.reduce((sum:number,document:any)=>sum+assetChars(document?.companySnapshot),0);
     const revisionSnapshotAssetChars=revisionDocuments.reduce((sum:number,document:any)=>sum+assetChars(document?.companySnapshot),0);
     const payload={
-      version:342,
+      version:343,
       measuredAt:new Date(now).toISOString(),
       fingerprint:activeScopeFingerprint(),
       collections:{
@@ -204,16 +205,21 @@ export async function verifyPin(pin: string, metadata: SecurityMetadata): Promis
 }
 
 export async function encryptVault(key: CryptoKey, vault: VaultPayload): Promise<EncryptedVaultRecord> {
-  recordVaultPayloadBreakdown(vault);
-  const payload = await encryptBytes(key, encoder.encode(JSON.stringify(vault)));
+  const restore=compactCompanySnapshotAssets(vault);
+  let serialized='';
+  try{
+    recordVaultPayloadBreakdown(vault);
+    serialized=JSON.stringify(vault);
+  }finally{restore();}
+  const payload = await encryptBytes(key, encoder.encode(serialized));
   return { id: 'vault', schemaVersion: vault.schemaVersion, iv: payload.iv, cipher: payload.cipher, updatedAt: new Date().toISOString() };
 }
 
 export async function decryptVault(key: CryptoKey, record: EncryptedVaultRecord): Promise<VaultPayload> {
   const plain = await decryptBytes(key, record.iv, record.cipher);
   const vault=JSON.parse(decoder.decode(plain)) as VaultPayload;
-  recordVaultPayloadBreakdown(vault,true);
-  return vault;
+  if(record.schemaVersion===APP_SCHEMA_VERSION)recordVaultPayloadBreakdown(vault,true);
+  return hydrateCompanySnapshotAssets(vault);
 }
 
 export async function createEncryptedBackup(pin: string, vault: VaultPayload): Promise<EncryptedBackupFile> {
@@ -221,7 +227,10 @@ export async function createEncryptedBackup(pin: string, vault: VaultPayload): P
   const salt = randomBytes(24);
   const iterations = KDF_ITERATIONS;
   const key = await deriveKey(pin, salt, iterations);
-  const encrypted = await encryptBytes(key, encoder.encode(JSON.stringify(vault)));
+  const restore=compactCompanySnapshotAssets(vault);
+  let serialized='';
+  try{serialized=JSON.stringify(vault);}finally{restore();}
+  const encrypted = await encryptBytes(key, encoder.encode(serialized));
   return {
     format: 'LOUREX_BACKUP', version: 1, createdAt: new Date().toISOString(),
     kdf: { name: 'PBKDF2', hash: 'SHA-256', iterations, salt: bytesToB64(salt) },
@@ -239,7 +248,8 @@ export async function decryptBackup(pin: string, file: EncryptedBackupFile): Pro
     const salt = b64ToBytes(file.kdf.salt);
     const key = await deriveKey(pin, salt, file.kdf.iterations);
     const plain = await decryptBytes(key, file.cipher.iv, file.cipher.data);
-    return JSON.parse(decoder.decode(plain)) as VaultPayload;
+    const vault=JSON.parse(decoder.decode(plain)) as VaultPayload;
+    return hydrateCompanySnapshotAssets(vault);
   } catch {
     throw new Error('Backup password/PIN is incorrect or the file is corrupted.');
   }
