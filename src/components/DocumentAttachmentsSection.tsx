@@ -8,7 +8,7 @@ interface State { busy:boolean; error:string; preview:DocumentAttachment|null; }
 // much tighter practical memory budget than desktop browsers: a compressed image
 // can expand to tens of megabytes once decoded and base64 itself adds ~33% before
 // encryption. Use a smaller iOS budget and never decode every thumbnail at once.
-const IOS_WEBKIT=(()=>{try{return /iP(?:hone|ad|od)/i.test(navigator.userAgent||'');}catch{return false;}})();
+const IOS_WEBKIT=(()=>{try{if(Boolean((window as Window&{__LOUREX_IOS_WEBKIT__?:boolean}).__LOUREX_IOS_WEBKIT__))return true;const ua=String(navigator.userAgent||'');const platform=String(navigator.platform||'');const touchPoints=Number(navigator.maxTouchPoints||0);return /iP(?:hone|ad|od)/i.test(ua)||(platform==='MacIntel'&&touchPoints>1);}catch{return false;}})();
 const MB=1024*1024;
 const MAX_FILE_BYTES=(IOS_WEBKIT?3:5)*MB;
 const MAX_TOTAL_BYTES=(IOS_WEBKIT?5:8)*MB;
@@ -99,7 +99,7 @@ export class DocumentAttachmentsSection extends React.Component<Props,State>{
         </div>
         <input ref={(n:HTMLInputElement|null)=>{this.input=n;}} className="document-attachment-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/heic,image/heif,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.gif,.heic,.heif" multiple onChange={this.add}/>
         <p className="attachment-help">{t('Attach supplier files, purchase documents, scans, product images, or any supporting PDF directly to this document. Files stay inside the encrypted LOUREX workspace.','أرفق ملفات المورد أو مستندات الشراء أو الصور الممسوحة أو صور المنتجات أو أي PDF داعم مباشرة بهذا المستند. تبقى الملفات داخل مساحة LOUREX المشفّرة.')}</p>
-        {IOS_WEBKIT?<p className="attachment-help">{t('iPhone stability mode uses a smaller attachment budget and opens image previews only on demand.','وضع استقرار iPhone يستخدم حد مرفقات أصغر ولا يفك ترميز الصور إلا عند فتح المعاينة.')}</p>:null}
+        {IOS_WEBKIT?<p className="attachment-help">{t('iPhone/iPad stability mode uses a smaller attachment budget and opens image previews only on demand.','وضع استقرار iPhone/iPad يستخدم حد مرفقات أصغر ولا يفك ترميز الصور إلا عند فتح المعاينة.')}</p>:null}
         {this.state.error?<div className="inline-error">{this.state.error}</div>:null}
         {list.length?<div className="document-attachment-list">{list.map(attachment=>{
           const pdf=isPdfAttachment(attachment),image=isImageAttachment(attachment),decodeThumbnail=image&&!IOS_WEBKIT;
