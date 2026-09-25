@@ -1,0 +1,132 @@
+/* LOUREX v332 — deep closeout for the user-defined critical document suite.
+ * Presentation semantics only. Accounting, persistence, lifecycle and PDF data flow stay unchanged. */
+
+@media screen {
+  /* Create Center: each business document keeps a distinct, readable identity. */
+  .app-ui .ta-create-menu-grid>button[data-kind]{
+    position:relative!important;
+    overflow:hidden!important;
+    isolation:isolate!important;
+  }
+  .app-ui .ta-create-menu-grid>button[data-kind]::before{
+    content:"";
+    position:absolute;
+    inset:0 auto 0 0;
+    width:3px;
+    background:var(--v332-kind-accent,var(--ft-accent));
+    opacity:.9;
+  }
+  [dir="rtl"] .app-ui .ta-create-menu-grid>button[data-kind]::before{inset:0 0 0 auto;}
+  .app-ui .ta-create-menu-grid>button[data-kind]>.icon{color:var(--v332-kind-accent,var(--ft-accent))!important;}
+  .app-ui .ta-create-menu-grid>button[data-kind]:hover,
+  .app-ui .ta-create-menu-grid>button[data-kind]:focus-visible{
+    border-color:color-mix(in srgb,var(--v332-kind-accent,var(--ft-accent)) 34%,var(--ft-line))!important;
+    background:color-mix(in srgb,var(--v332-kind-accent,var(--ft-accent)) 7%,var(--ft-surface))!important;
+  }
+  .app-ui [data-kind="draft"]{--v332-kind-accent:#8b72e6;}
+  .app-ui [data-kind="rfq"]{--v332-kind-accent:#477be8;}
+  .app-ui [data-kind="proforma"]{--v332-kind-accent:#159fa7;}
+  .app-ui [data-kind="proforma-invoice"]{--v332-kind-accent:#5071d8;}
+  .app-ui [data-kind="purchase-order"]{--v332-kind-accent:#bd8738;}
+  .app-ui [data-kind="invoice"]{--v332-kind-accent:#23936e;}
+  .app-ui [data-kind="delivery-note"]{--v332-kind-accent:#4d8fae;}
+  .app-ui [data-kind="payment-receipt"]{--v332-kind-accent:#238a74;}
+  .app-ui [data-kind="credit-note"]{--v332-kind-accent:#bc684f;}
+  .app-ui [data-kind="statement-account"]{--v332-kind-accent:#68758e;}
+
+  /* The commercial editor gets its document identity immediately after mount.
+     Non-priced operational documents should not look like incomplete invoices. */
+  .app-ui .editor-screen[data-document-kind="rfq"],
+  .app-ui .editor-screen[data-document-kind="delivery-note"]{
+    --editor-doc-accent:#477be8;
+  }
+  .app-ui .editor-screen[data-document-kind="delivery-note"]{--editor-doc-accent:#4d8fae;}
+  .app-ui .editor-screen[data-document-kind="rfq"] .editor-grand-total-chip,
+  .app-ui .editor-screen[data-document-kind="delivery-note"] .editor-grand-total-chip,
+  .app-ui .editor-screen[data-document-kind="rfq"] .item-line-total,
+  .app-ui .editor-screen[data-document-kind="delivery-note"] .item-line-total,
+  .app-ui .editor-screen[data-document-kind="rfq"] .item-price-control,
+  .app-ui .editor-screen[data-document-kind="delivery-note"] .item-price-control,
+  .app-ui .editor-screen[data-document-kind="rfq"] .premium-item-card>footer,
+  .app-ui .editor-screen[data-document-kind="delivery-note"] .premium-item-card>footer{
+    display:none!important;
+  }
+  .app-ui .editor-screen[data-document-kind="rfq"] .item-pricing-grid,
+  .app-ui .editor-screen[data-document-kind="delivery-note"] .item-pricing-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  /* RFQ is a request to a supplier, not a sales quote. Keep its identity obvious. */
+  .app-ui .editor-screen[data-document-kind="rfq"] .purchase-order-reference .field-label::after{
+    content:" · RFQ";
+    color:var(--ft-accent);
+    font-weight:700;
+  }
+
+  /* Document register detail pages use the type stamped by runtime. */
+  .app-ui .ta-doc-detail-page[data-document-kind="rfq"] .ta-doc-detail-total>strong,
+  .app-ui .ta-doc-detail-page[data-document-kind="delivery-note"] .ta-doc-detail-total>strong{
+    display:none!important;
+  }
+  .app-ui .ta-doc-detail-page[data-document-kind="rfq"] .ta-doc-detail-total>small,
+  .app-ui .ta-doc-detail-page[data-document-kind="delivery-note"] .ta-doc-detail-total>small{
+    font-size:12px!important;
+    color:var(--ft-muted)!important;
+  }
+  .app-ui .ta-doc-detail-page[data-document-kind="rfq"] .ta-doc-items-head,
+  .app-ui .ta-doc-detail-page[data-document-kind="delivery-note"] .ta-doc-items-head,
+  .app-ui .ta-doc-detail-page[data-document-kind="rfq"] .ta-doc-item-row,
+  .app-ui .ta-doc-detail-page[data-document-kind="delivery-note"] .ta-doc-item-row{
+    grid-template-columns:minmax(0,1fr) minmax(70px,.25fr) minmax(90px,.3fr)!important;
+  }
+  .app-ui .ta-doc-detail-page[data-document-kind="rfq"] :is(.ta-doc-items-head,.ta-doc-item-row)>:nth-last-child(-n+2),
+  .app-ui .ta-doc-detail-page[data-document-kind="delivery-note"] :is(.ta-doc-items-head,.ta-doc-item-row)>:nth-last-child(-n+2){
+    display:none!important;
+  }
+
+  /* Payment receipt reads as receipt-oriented, not as an invoice clone. */
+  .app-ui .editor-screen[data-document-kind="payment-receipt"] .editor-grand-total-chip span::before{content:"";}
+  .app-ui .editor-screen[data-document-kind="payment-receipt"] .editor-grand-total-chip{
+    border-color:color-mix(in srgb,#238a74 30%,var(--ft-line))!important;
+    background:color-mix(in srgb,#238a74 8%,var(--ft-surface))!important;
+  }
+
+  /* Keep Credit Note visually separate from a normal invoice while reusing its
+     audited invoice lifecycle and calculations. */
+  .app-ui .editor-screen[data-document-role="credit-note"]{
+    --editor-doc-accent:#bc684f;
+  }
+
+  /* Mobile Create Center: distinct cards without increasing density. */
+  @media (max-width:720px){
+    .app-ui .ta-create-menu-grid>button[data-kind]{min-height:76px!important;}
+    .app-ui .editor-screen[data-document-kind="rfq"] .item-pricing-grid,
+    .app-ui .editor-screen[data-document-kind="delivery-note"] .item-pricing-grid{
+      grid-template-columns:1fr 1fr!important;
+    }
+  }
+}
+
+/* Output semantics: RFQ and Delivery Note contain quantity/trade detail, not empty
+   price columns. The underlying data remains untouched, so conversion/history is safe. */
+@media screen, print {
+  .invoice-page.kind-rfq .items-table col:nth-last-child(-n+2),
+  .invoice-page.kind-delivery-note .items-table col:nth-last-child(-n+2),
+  .invoice-page.kind-rfq .items-table th:nth-last-child(-n+2),
+  .invoice-page.kind-delivery-note .items-table th:nth-last-child(-n+2),
+  .invoice-page.kind-rfq .items-table td:nth-last-child(-n+2),
+  .invoice-page.kind-delivery-note .items-table td:nth-last-child(-n+2){
+    display:none!important;
+  }
+  .invoice-page.kind-rfq .items-table .col-description,
+  .invoice-page.kind-delivery-note .items-table .col-description{width:auto!important;}
+
+  /* Delivery notes keep logistics-relevant terms and suppress sales/payment terms. */
+  .invoice-page.kind-delivery-note .meta-currency,
+  .invoice-page.kind-delivery-note .terms-block [data-term="incoterm"],
+  .invoice-page.kind-delivery-note .terms-block [data-term="payment-terms"],
+  .invoice-page.kind-delivery-note .terms-block [data-term="delivery-time"],
+  .invoice-page.kind-delivery-note .terms-block [data-term="validity"]{
+    display:none!important;
+  }
+}
