@@ -58,10 +58,10 @@ jobs:
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium webkit
 
-      - name: Run v338 editor stability WebKit gate
+      - name: Run v338/v339 editor stability WebKit gates
         id: stability_qa
         run: |
-          npx http-server . -p 4173 -c-1 > /tmp/lourex-v338-stability-server.log 2>&1 &
+          npx http-server . -p 4173 -c-1 > /tmp/lourex-v339-stability-server.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
           ready=0
@@ -73,10 +73,11 @@ jobs:
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then
-            cat /tmp/lourex-v338-stability-server.log
+            cat /tmp/lourex-v339-stability-server.log
             exit 1
           fi
           node tests/visual/run-v338-editor-stability.cjs
+          node tests/visual/run-v339-ipad-landscape-draft.cjs
 
       - name: Run browser functional + TailAdmin v320/v337 QA
         id: visual_qa
@@ -145,7 +146,7 @@ jobs:
           VISUAL_QA: ${{ steps.visual_qa.outcome }}
         run: |
           echo "Current PR contract tests: $CURRENT_CONTRACTS"
-          echo "v338 editor stability WebKit: $STABILITY_QA"
+          echo "v338/v339 editor stability WebKit: $STABILITY_QA"
           echo "Browser/WebKit baseline: $VISUAL_QA"
           if [ "$CURRENT_CONTRACTS" != 'success' ] || [ "$STABILITY_QA" != 'success' ] || [ "$VISUAL_QA" != 'success' ]; then
             exit 1
