@@ -11,7 +11,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,7 +21,7 @@ jobs:
       - run: npm ci
       - name: TypeScript
         run: npm run typecheck
-      - name: v332 release gate
-        run: node --test tests/v332-critical-documents-deep-closeout.test.mjs tests/v313-document-launchers.test.mjs tests/v312-business-document-suite.test.mjs
+      - name: Full unit and contract suite
+        run: node --test tests/*.test.mjs
       - name: Production build
         run: npm run build
