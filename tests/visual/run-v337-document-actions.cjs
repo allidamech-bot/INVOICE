@@ -42,13 +42,23 @@ async function runCase(name,browserType,viewport,lang){
     const menuBox=await menu.boundingBox();
     if(!menuBox)failures.push('document action menu has no visible box');
     else if(outsideViewport(menuBox,viewport))failures.push(`document action menu leaves viewport: ${JSON.stringify({...menuBox,right:menuBox.x+menuBox.width,bottom:menuBox.y+menuBox.height})}`);
-    const menuMetrics=await menu.evaluate(el=>{const s=getComputedStyle(el);return{scrollHeight:el.scrollHeight,clientHeight:el.clientHeight,overflowY:s.overflowY};});
+    const menuMetrics=await menu.evaluate(el=>{
+      const s=getComputedStyle(el),before=el.scrollTop,max=Math.max(0,el.scrollHeight-el.clientHeight);
+      el.scrollTop=max;const after=el.scrollTop;
+      const last=el.querySelector('button[role="menuitem"]:last-of-type');
+      const mr=el.getBoundingClientRect(),lr=last?.getBoundingClientRect()||null;
+      el.scrollTop=before;
+      return{scrollHeight:el.scrollHeight,clientHeight:el.clientHeight,overflowY:s.overflowY,touchAction:s.touchAction,max,after,lastReachable:!lr||lr.bottom<=mr.bottom+2,lastBottom:lr?.bottom??null,menuBottom:mr.bottom};
+    });
     if(menuMetrics.scrollHeight>menuMetrics.clientHeight+2&&!['auto','scroll'].includes(menuMetrics.overflowY))failures.push(`document action menu hides ${menuMetrics.scrollHeight-menuMetrics.clientHeight}px without scrolling`);
+    if(viewport.width<=900&&menuMetrics.touchAction!=='pan-y')failures.push(`document action sheet touch-action=${menuMetrics.touchAction||'missing'}, expected pan-y`);
+    if(menuMetrics.max>2&&menuMetrics.after<menuMetrics.max-2)failures.push(`document action sheet cannot reach scroll end ${menuMetrics.after}/${menuMetrics.max}`);
+    if(!menuMetrics.lastReachable)failures.push(`document action last item clipped ${menuMetrics.lastBottom} > ${menuMetrics.menuBottom}`);
 
     const buttons=page.locator(`${menuSelector} button[role="menuitem"]`);
     const count=await buttons.count();
     if(count<3)failures.push(`document action menu only has ${count} items`);
-    for(let index=0;index<Math.min(count,8);index+=1){
+    for(let index=0;index<count;index+=1){
       const button=buttons.nth(index);
       await button.scrollIntoViewIfNeeded();
       const b=await button.boundingBox();
@@ -90,5 +100,5 @@ async function runCase(name,browserType,viewport,lang){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.failures.map(f=>`${row.name}/${row.lang}: ${f}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v337 document action menus: ${rows.length} Chromium/WebKit mobile/desktop cases passed down to 320px.`);
+  console.log(`v337 document action menus: ${rows.length} Chromium/WebKit cases passed; every action is reachable and mobile sheets own pan-y scrolling down to 320px.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
