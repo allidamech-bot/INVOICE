@@ -27,9 +27,18 @@ async function runCase(name,browserType,viewport,lang){
       await trigger.click();
       const menu=page.locator(viewport.width<=900?'#ta-mobile-create-menu':'#ta-desktop-create-menu');
       await menu.waitFor({state:'visible'});
-      const geometry=await menu.evaluate(el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,scrollHeight:el.scrollHeight,clientHeight:el.clientHeight,overflowY:s.overflowY};});
+      const geometry=await menu.evaluate(el=>{
+        const r=el.getBoundingClientRect(),s=getComputedStyle(el),before=el.scrollTop,max=Math.max(0,el.scrollHeight-el.clientHeight);
+        el.scrollTop=max;const after=el.scrollTop;
+        const last=el.querySelector('button[role="menuitem"]:last-of-type'),lr=last?.getBoundingClientRect()||null;
+        el.scrollTop=before;
+        return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,scrollHeight:el.scrollHeight,clientHeight:el.clientHeight,overflowY:s.overflowY,touchAction:s.touchAction,max,after,lastReachable:!lr||lr.bottom<=r.bottom+2,lastBottom:lr?.bottom??null};
+      });
       if(geometry.left<-2||geometry.right>viewport.width+2||geometry.top<-2||geometry.bottom>viewport.height+2)failures.push(`Create menu leaves viewport: ${JSON.stringify(geometry)}`);
+      if(viewport.width<=900&&geometry.touchAction!=='pan-y')failures.push(`Create menu touch-action=${geometry.touchAction||'missing'}, expected pan-y`);
       if(geometry.scrollHeight>geometry.clientHeight+2&&!['auto','scroll'].includes(geometry.overflowY))failures.push(`Create menu hides ${geometry.scrollHeight-geometry.clientHeight}px without vertical scrolling`);
+      if(geometry.max>2&&geometry.after<geometry.max-2)failures.push(`Create menu cannot reach scroll end ${geometry.after}/${geometry.max}`);
+      if(!geometry.lastReachable)failures.push(`Create menu last action clipped ${geometry.lastBottom} > ${geometry.bottom}`);
       return menu;
     };
 
@@ -71,5 +80,5 @@ async function runCase(name,browserType,viewport,lang){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.failures.map(failure=>`${row.name}/${row.lang}: ${failure}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v337 Create Center interaction QA: ${rows.length} Chromium/WebKit cases passed; all 10 actions remain reachable and dispatch correctly down to 320px.`);
+  console.log(`v337 Create Center interaction QA: ${rows.length} Chromium/WebKit cases passed; all 10 actions remain reachable with mobile pan-y scrolling down to 320px.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
