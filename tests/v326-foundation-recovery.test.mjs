@@ -14,24 +14,56 @@ test('v326 reliability bridge does not retheme application workspaces',async()=>
   assert.match(css,/runtime\/recovery geometry and UI safety contracts/i);
 });
 
-test('v326 defines one structural overlay ladder and protects mobile Create hit testing',async()=>{
+test('v326 defines one structural overlay ladder',async()=>{
   const css=await read('src/styles/tailadmin-reliability-bridge-v320.css');
-  for(const token of ['--lourex-z-nav','--lourex-z-backdrop','--lourex-z-sheet','--lourex-z-search','--lourex-z-ai','--lourex-z-modal','--lourex-z-toast','--lourex-z-critical']){
+  for(const token of ['--lourex-z-nav','--lourex-z-backdrop','--lourex-z-popover','--lourex-z-sheet','--lourex-z-search','--lourex-z-ai','--lourex-z-modal','--lourex-z-toast','--lourex-z-preview','--lourex-z-critical']){
     assert.ok(css.includes(token),`missing overlay token ${token}`);
   }
-  assert.match(css,/body:has\(#ta-mobile-create-menu\)[\s\S]*\.ta-mobile-nav\{z-index:calc\(var\(--lourex-z-backdrop\) \+ 2\)!important\}/);
-  assert.match(css,/body:has\(#ta-mobile-create-menu\)[\s\S]*\.ta-mobile-nav>button\{pointer-events:none!important\}/);
-  assert.match(css,/\.ta-mobile-create-wrap\{[\s\S]*pointer-events:auto!important/);
-  assert.match(css,/\.ta-create-menu-mobile\{pointer-events:auto!important\}/);
+  assert.match(css,/\.ta-create-menu-mobile\{z-index:var\(--lourex-z-popover\)!important;pointer-events:auto!important\}/);
+  assert.match(css,/\.mobile-preview-overlay,[\s\S]*\.draft-mobile-preview\{z-index:var\(--lourex-z-preview\)!important\}/);
+  assert.doesNotMatch(css,/body:has\(#ta-mobile-create-menu\)[\s\S]*\.ta-mobile-nav\{z-index/);
 });
 
-test('v326 keeps transient cloud placement out of the visual priority layer',async()=>{
-  const visual=await read('src/styles/tailadmin-design-mobile-priority-v323.css');
-  assert.doesNotMatch(visual,/data-lourex-cloud-refresh/);
-  assert.doesNotMatch(visual,/data-lourex-update/);
+test('v326 mobile Create menu is structurally outside the bottom navigation stacking context',async()=>{
+  const shell=await read('src/components/AppShell.tsx');
+  const navStart=shell.indexOf('<nav className="ta-mobile-nav"');
+  const navEnd=shell.indexOf('</nav>',navStart);
+  assert.ok(navStart>=0&&navEnd>navStart,'mobile nav markup must exist');
+  const navMarkup=shell.slice(navStart,navEnd);
+  assert.doesNotMatch(navMarkup,/createMenu\('ta-mobile-create-menu'/,'Create menu must not be nested inside the dock');
+  assert.match(shell,/this\.props\.newMenu&&mobile\?this\.createMenu\('ta-mobile-create-menu','ta-create-menu-mobile'\):null/);
+  assert.match(navMarkup,/aria-controls="ta-mobile-create-menu"/,'dock Create trigger must still own menu semantics');
+});
+
+test('v326 keeps transient cloud placement out of page visual layers',async()=>{
+  const mobileVisual=await read('src/styles/tailadmin-design-mobile-priority-v323.css');
+  const closeout=await read('src/styles/tailadmin-design-closeout-v323.css');
+  for(const visual of [mobileVisual,closeout]){
+    assert.doesNotMatch(visual,/data-lourex-cloud-refresh/);
+    assert.doesNotMatch(visual,/data-lourex-update/);
+  }
   const reliability=await read('src/styles/tailadmin-reliability-bridge-v320.css');
   assert.match(reliability,/left:50%!important;right:auto!important;inset-inline:auto!important/);
   assert.match(reliability,/bottom:calc\(96px \+ env\(safe-area-inset-bottom,0px\)\)!important/);
+});
+
+test('v326 mobile shell has one presentation owner',async()=>{
+  const shellOwner=await read('src/styles/tailadmin-mobile-header-v322.css');
+  const pagePriority=await read('src/styles/tailadmin-design-mobile-priority-v323.css');
+  assert.match(shellOwner,/premium mobile shell owner/i);
+  assert.match(shellOwner,/\.ta-mobile-nav/);
+  assert.match(shellOwner,/\.ta-create-menu-mobile/);
+  assert.match(shellOwner,/\.ta-mobile-sheet/);
+  assert.match(shellOwner,/\.lourex-ai-launcher/);
+  assert.doesNotMatch(pagePriority,/\.ta-mobile-nav/);
+  assert.doesNotMatch(pagePriority,/\.ta-mobile-create/);
+  assert.doesNotMatch(pagePriority,/\.lourex-ai-launcher/);
+});
+
+test('v326 application chrome always uses official LOUREX identity',async()=>{
+  const shell=await read('src/components/AppShell.tsx');
+  assert.match(shell,/const logo='\.\/brand\/lourex-logo\.svg'/);
+  assert.doesNotMatch(shell,/const logo=this\.props\.logoDataUrl/);
 });
 
 test('v326 resets the workspace scroll owner whenever the active screen changes',async()=>{
