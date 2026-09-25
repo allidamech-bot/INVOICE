@@ -10,12 +10,17 @@ test('v337 is loaded by the runtime-promoted document owner after v333',async()=
 });
 
 test('v337 keeps the complete commercial closing zone contiguous in normal flow instead of splitting or bottom-anchoring it',async()=>{
-  const css=await read('src/styles/v337-template-layout-balance.css');
-  assert.match(css,/\.invoice-page \.final-details\{[\s\S]*display:block!important[\s\S]*flex:0 0 auto!important[\s\S]*margin-top:6mm!important[\s\S]*padding-top:0!important/);
+  const [legacy,css]=await Promise.all([
+    read('src/styles/document-output-v119.css'),
+    read('src/styles/v337-template-layout-balance.css')
+  ]);
+  assert.match(legacy,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]*margin-top:auto!important/);
+  assert.match(css,/\.invoice-page \.final-details\{[\s\S]*display:block!important[\s\S]*flex:0 0 auto!important[\s\S]*padding-top:0!important/);
+  assert.match(css,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]*margin-top:6mm!important[\s\S]*padding-top:0!important/);
   assert.match(css,/\.invoice-page\.details-only \.final-details\{[\s\S]*margin-top:0!important[\s\S]*padding-top:0!important/);
   assert.match(css,/\.invoice-page \.bottom-grid\{[\s\S]*margin-top:4\.5mm!important[\s\S]*padding-top:0!important[\s\S]*align-items:start!important/);
   assert.doesNotMatch(css,/\.invoice-page \.bottom-grid\{[\s\S]{0,180}margin-top:auto!important/);
-  assert.doesNotMatch(css,/\.invoice-page \.final-details\{[\s\S]{0,220}margin-top:auto!important/);
+  assert.doesNotMatch(css,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]{0,180}margin-top:auto!important/);
   assert.doesNotMatch(css,/\.invoice-page \.final-details\{[\s\S]{0,180}flex:1 1 auto!important/);
 });
 
