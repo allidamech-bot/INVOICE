@@ -1,8 +1,12 @@
 import {readFile,writeFile} from 'node:fs/promises';
 
-const targets=[
+const editorTargets=[
   'dist/src/components/EditorPageCore.js',
   'dist/src/components/DraftDocumentEditor.js'
+];
+const compatibilityTargets=[
+  'dist/src/app/index.js',
+  'dist/document-entry-v302.js'
 ];
 
 const legacyIosExpression=/\/iP\(\?:hone\|ad\|od\)\/i\.test\(navigator\.userAgent\s*\|\|\s*''\)/g;
@@ -11,7 +15,7 @@ const desktopPreviewMatch=/window\.matchMedia\('\(min-width:1181px\)'\)\.matches
 const previewEventMatch=/event\.matches/g;
 const runtimeHelper=`\nfunction __lourexAppleMobileWebKit(){\n  try{\n    if(Boolean(window.__LOUREX_IOS_WEBKIT__))return true;\n    const ua=String(navigator.userAgent||'');\n    const platform=String(navigator.platform||'');\n    const touchPoints=Number(navigator.maxTouchPoints||0);\n    return /iP(?:hone|ad|od)/i.test(ua)||(platform==='MacIntel'&&touchPoints>1);\n  }catch{return false;}\n}\n`;
 
-for(const path of targets){
+for(const path of editorTargets){
   let source=await readFile(path,'utf8');
 
   const iosMatches=source.match(legacyIosExpression)?.length??0;
@@ -36,4 +40,15 @@ for(const path of targets){
   await writeFile(path,source+runtimeHelper);
 }
 
-console.log('v339 iPadOS Desktop Website editor timing + live-preview safeguards installed.');
+for(const path of compatibilityTargets){
+  let source=await readFile(path,'utf8');
+  const matches=source.match(legacyIosExpression)?.length??0;
+  if(matches!==1)throw new Error(`v339 expected exactly one compatibility iOS detector in ${path}; found ${matches}.`);
+  source=source.replace(legacyIosExpression,legacyIosReplacement);
+  if(!source.includes("platform||'')==='MacIntel'&&Number(navigator.maxTouchPoints||0)>1")){
+    throw new Error(`v339 desktop-UA iPadOS compatibility detector was not installed in ${path}.`);
+  }
+  await writeFile(path,source);
+}
+
+console.log('v339 iPadOS Desktop Website runtime, editor timing and live-preview safeguards installed.');
