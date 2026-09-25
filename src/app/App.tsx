@@ -8,10 +8,10 @@ import { inventoryMovementIsManual, postPurchase, reverseManualInventoryMovement
 import { findSavedItemDuplicate, findSavedItemMatch, markSavedItemsUsed, normalizeSavedItemIdentity, savedItemFromDocumentItem } from '../lib/saved-items.js';
 import { exportBackup, readBackup } from '../lib/backup.js';
 import { safeFilename } from '../lib/id.js';
-import { getCloudAccount, getEncryptedVault, getPublicPreferences, getSecurity, hasSecurity, putCloudAccount, putPublicPreferences } from '../storage/db.js';
+import { activateAccountStorage, getCloudAccount, getEncryptedVault, getPublicPreferences, getSecurity, hasSecurity, putCloudAccount, putPublicPreferences } from '../storage/db.js';
 import { changePin, restoreVaultWithCurrentKey, resumeVaultSession, saveVault, setupVault, unlockVault } from '../storage/vault.js';
 import { mergeVaultIntent } from '../storage/vault-merge.js';
-import { clearSession, establishSession, touchSession } from '../storage/session.js';
+import { clearSession, establishSession, setActiveAccountUid, suspendSession, touchSession } from '../storage/session.js';
 import { verifyPin } from '../crypto/crypto.js';
 import { setUiLanguage, t } from '../lib/i18n.js';
 import { confirmWorkspaceDeparture } from '../lib/workspace-dirty.js';
@@ -64,6 +64,7 @@ export class App extends React.Component<{},State> {
   private vaultWriteTail:Promise<VaultPayload|null>=Promise.resolve(null);
   private vaultReplacing=false;
   private documentCreateBusy=false;
+  private accountTransitionRunning=false;
 
   componentDidMount():void{
     void this.initialize();
@@ -75,6 +76,7 @@ export class App extends React.Component<{},State> {
     window.addEventListener('online',this.handleOnline);
     window.addEventListener('lourex-cloud-remote-newer',this.handleRemoteCloudNewer);
     window.addEventListener('lourex-cloud-conflict',this.handleCloudConflict);
+    window.addEventListener('lourex-account-transition-request',this.handleAccountTransitionRequest as EventListener);
   }
   componentWillUnmount():void{
     ['pointerdown','keydown','touchstart'].forEach(ev=>window.removeEventListener(ev,this.activity));
@@ -85,6 +87,7 @@ export class App extends React.Component<{},State> {
     window.removeEventListener('online',this.handleOnline);
     window.removeEventListener('lourex-cloud-remote-newer',this.handleRemoteCloudNewer);
     window.removeEventListener('lourex-cloud-conflict',this.handleCloudConflict);
+    window.removeEventListener('lourex-account-transition-request',this.handleAccountTransitionRequest as EventListener);
     if(this.lockTimer)clearTimeout(this.lockTimer);
     if(this.toastTimer)clearTimeout(this.toastTimer);
     if(this.cloudTimer)clearTimeout(this.cloudTimer);
@@ -161,6 +164,32 @@ export class App extends React.Component<{},State> {
     this.lastActivityTouch=now;
     touchSession(now);
     this.resetAutoLock();
+  };
+  private handleAccountTransitionRequest=(event:Event)=>{
+    const uid=String((event as CustomEvent<{uid?:string}>).detail?.uid??'').trim();
+    if(!uid||this.accountTransitionRunning)return;
+    this.accountTransitionRunning=true;
+    void (async()=>{
+      try{
+        if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}
+        this.cloudSyncQueued=false;
+        await this.drainVaultWrites();
+        await this.waitForCloudIdle();
+        await suspendSession();
+        setActiveAccountUid(uid);
+        await activateAccountStorage(uid);
+        await suspendSession();
+        this.latestEncryptedVault=null;
+        this.vaultWriteTail=Promise.resolve(null);
+        await new Promise<void>(resolve=>this.setState({loading:true,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,settingsOpen:false,newMenu:false,cloudModal:false,cloudUser:null,cloudLinked:false,cloudSyncState:'local',cloudSyncMessage:'',catalogLauncher:'',catalogSourceId:''},resolve));
+        await this.initialize();
+      }catch(error){
+        this.setState({loading:false,unlocked:false,key:null,vault:null,screen:'home',editorDoc:null,newMenu:false,cloudSyncState:'error',cloudSyncMessage:friendlyCloudError(error)});
+      }finally{
+        this.accountTransitionRunning=false;
+        window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid}}));
+      }
+    })();
   };
   private handleOnline=()=>{this.scheduleCloudSync(80);};
   private handleCloudConflict=()=>{if(this.cloudTimer){window.clearTimeout(this.cloudTimer);this.cloudTimer=undefined;}this.cloudSyncQueued=false;this.setState({cloudSyncState:'conflict',cloudSyncMessage:t('This device and the cloud both contain newer changes. Neither copy was overwritten. Choose which copy to keep.','يحتوي هذا الجهاز والسحابة على تعديلات أحدث. لم يتم استبدال أي نسخة. اختر النسخة التي تريد الاحتفاظ بها.')});};

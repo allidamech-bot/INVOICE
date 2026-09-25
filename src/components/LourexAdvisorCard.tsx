@@ -121,7 +121,7 @@ export class LourexAdvisorCard extends React.Component<Props,State>{
     const starterPrompts=starters();
     return <section className="dashboard-panel lourex-advisor-card" aria-label={t('LOUREX Financial Advisor','مستشار LOUREX المالي')}>
         <header className="lourex-advisor-head">
-          <div className="lourex-advisor-identity"><span className="lourex-advisor-mark" aria-hidden="true"><Icon name="spark"/></span><div><small>{t('LOUREX Intelligence','ذكاء LOUREX')}</small><h2>{t('Your financial advisor & accountant','مستشارك المالي والمحاسبي')}</h2><p>{t('Ask naturally about sales, collections, profit, customers, purchasing, costs or any business number.','اسأل بشكل طبيعي عن المبيعات والتحصيل والربح والعملاء والمشتريات والتكاليف أو أي رقم في أعمالك.')}</p></div></div>
+          <div className="lourex-advisor-identity"><span className="lourex-advisor-mark" aria-hidden="true"><Icon name="bot"/></span><div><small>{t('LOUREX Intelligence','ذكاء LOUREX')}</small><h2>{t('Your financial advisor & accountant','مستشارك المالي والمحاسبي')}</h2><p>{t('Ask naturally about sales, collections, profit, customers, purchasing, costs or any business number.','اسأل بشكل طبيعي عن المبيعات والتحصيل والربح والعملاء والمشتريات والتكاليف أو أي رقم في أعمالك.')}</p></div></div>
           {this.state.messages.length?<button type="button" className="lourex-advisor-clear" onClick={this.clear}>{t('New conversation','محادثة جديدة')}</button>:null}
         </header>
 
@@ -129,7 +129,7 @@ export class LourexAdvisorCard extends React.Component<Props,State>{
           {!this.state.messages.length?<div className="lourex-advisor-welcome">
             <div className="lourex-advisor-welcome-copy"><strong>{t('I am your LOUREX financial advisor. What would you like to review?','أنا مستشارك المالي في LOUREX. شو حابب نراجع؟')}</strong><span>{t('I use the accounting and business data already inside LOUREX, so you do not have to search through pages first.','أعتمد على البيانات المحاسبية والتجارية الموجودة داخل LOUREX، لذلك لا تحتاج أن تبحث بين الصفحات أولًا.')}</span></div>
             <div className="lourex-advisor-starters">{starterPrompts.map(prompt=><button type="button" key={prompt} onClick={()=>void this.ask(prompt)}>{prompt}</button>)}</div>
-          </div>:<div className="lourex-advisor-thread">{this.state.messages.map(message=><div key={message.id} className={`lourex-advisor-message ${message.role}`}><span>{message.role==='assistant'?<Icon name="spark"/>:null}</span><p>{message.text}</p></div>)}{this.state.busy?<div className="lourex-advisor-thinking"><span><Icon name="spark"/></span>{t('Reviewing your LOUREX data…','أراجع بيانات LOUREX…')}</div>:null}</div>}
+          </div>:<div className="lourex-advisor-thread">{this.state.messages.map(message=><div key={message.id} className={`lourex-advisor-message ${message.role}`}><span>{message.role==='assistant'?<Icon name="bot"/>:null}</span><p>{message.text}</p></div>)}{this.state.busy?<div className="lourex-advisor-thinking"><span><Icon name="bot"/></span>{t('Reviewing your LOUREX data…','أراجع بيانات LOUREX…')}</div>:null}</div>}
         </div>
 
         <footer className="lourex-advisor-compose">

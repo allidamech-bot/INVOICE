@@ -400,7 +400,7 @@
   html body .app-ui .ta-shell .lourex-ai-launcher.screen-operations,
   html[dir="rtl"] body .app-ui .ta-shell .lourex-ai-launcher.screen-operations{
     position:fixed!important;
-    top:calc(13px + env(safe-area-inset-top,0px))!important;
+    top:calc(10px + env(safe-area-inset-top,0px))!important;
     bottom:auto!important;
     right:auto!important;
     left:auto!important;

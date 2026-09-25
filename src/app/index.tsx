@@ -222,17 +222,16 @@ function startAccountSignOutWatcher():void{
       if(selectedStorageUid&&selectedStorageUid!==user.uid){
         if(signOutTransitionRunning)return;
         signOutTransitionRunning=true;
-        accountWasAuthenticated=false;
-        void (async()=>{
-          try{
-            await activateAccountStorage(selectedStorageUid);
-            await suspendSession();
-          }finally{
-            setActiveAccountUid(null);
-            await activateAccountStorage(null);
-            window.location.reload();
-          }
-        })();
+        accountWasAuthenticated=true;
+        const targetUid=user.uid;
+        const complete=((event:Event)=>{
+          const detail=(event as CustomEvent<{uid?:string}>).detail;
+          if(detail?.uid!==targetUid)return;
+          signOutTransitionRunning=false;
+          window.removeEventListener('lourex-account-transition-complete',complete as EventListener);
+        }) as EventListener;
+        window.addEventListener('lourex-account-transition-complete',complete);
+        window.dispatchEvent(new CustomEvent('lourex-account-transition-request',{detail:{uid:targetUid}}));
         return;
       }
       if(!selectedStorageUid){
