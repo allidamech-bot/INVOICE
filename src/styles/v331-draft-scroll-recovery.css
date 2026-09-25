@@ -19,6 +19,15 @@
  * browser/header geometry or clipping the true Safari scroll end.
  * No document data, autosave, accounting, output, PDF, Firebase or PIN logic changes. */
 
+/* v308 originally owned the Draft mobile action-bar positioning but that visual
+ * generation is retired from the active cascade. Keep only the geometry contract
+ * here so the current Draft runtime never depends on a retired stylesheet. */
+@media screen and (min-width:1181px){
+  html body .app-ui .screen-editor .draft-mobile-actionbar{
+    display:none!important;
+  }
+}
+
 /* Commercial document editors: RFQ, Quotation, Proforma, Purchase Order,
  * Commercial Invoice, Delivery Note, Payment Receipt and related editor roles. */
 @media screen and (max-width:900px){
@@ -117,6 +126,24 @@
     -webkit-overflow-scrolling:auto!important;
     padding-bottom:calc(132px + env(safe-area-inset-bottom,0px))!important;
     scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom,0px))!important;
+  }
+
+  html body .app-ui .screen-editor .draft-mobile-actionbar{
+    position:fixed!important;
+    z-index:180!important;
+    left:0!important;
+    right:0!important;
+    bottom:0!important;
+    width:auto!important;
+    max-width:none!important;
+    box-sizing:border-box!important;
+    display:grid!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:7px!important;
+    padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px))!important;
+  }
+  html body .app-ui .screen-editor .draft-mobile-actionbar .btn{
+    min-width:0!important;
   }
 
   html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-topbar{
