@@ -23,6 +23,13 @@ test('v340 restores the previous workspace after PIN, shell re-init or Safari re
   assert.match(runtime,/removeWorkspace\(WORKSPACE_RESUME_KEY\)/);
 });
 
+test('v340 counts real iOS text mutations as activity across More workspaces',async()=>{
+  const runtime=await read('public/editor-stability-v338.js');
+  assert.match(runtime,/target\.closest\('\.app-ui'\)/);
+  for(const event of ['beforeinput','input','compositionupdate','compositionend','paste','change'])assert.match(runtime,new RegExp(`'${event}'`));
+  assert.match(runtime,/window\.dispatchEvent\(new KeyboardEvent\('keydown'/);
+});
+
 test('v340 keeps Apple mobile free of app-level pull reload and preserves sign-out semantics',async()=>{
   const runtime=await read('public/editor-stability-v338.js');
   assert.match(runtime,/root\.removeAttribute\('data-lourex-enable-pull-refresh'\)/);
