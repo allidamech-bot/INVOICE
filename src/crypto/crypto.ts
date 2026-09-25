@@ -14,7 +14,14 @@ const ACCOUNT_SECRET_PATTERN=/^acct_[A-Za-z0-9_-]{43}$/;
 const ACTIVE_SCOPE_META_KEY='lourex-active-storage-meta-v341';
 const VAULT_BREAKDOWN_KEY='lourex-vault-payload-breakdown-v342';
 const BREAKDOWN_MIN_INTERVAL_MS=5*60*1000;
+const SAVE_DIAG_INTERVAL_MS=30_000;
 let lastBreakdownAt=0;
+let lastVaultSaveDiagnosticAt=0;
+
+function diag(type:string,detail=''):void{try{if(typeof window!=='undefined')(window as any).__LOUREX_DIAGNOSTICS__?.mark?.(type,detail);}catch{}}
+function errorName(error:unknown):string{return error instanceof Error?error.name:'UnknownError';}
+function elapsedMs(start:number):number{return Math.max(0,Math.round((typeof performance!=='undefined'&&performance.now?performance.now():Date.now())-start));}
+function nowTick():number{return typeof performance!=='undefined'&&performance.now?performance.now():Date.now();}
 
 function bytesToB64(bytes: Uint8Array): string {
   let binary = '';
@@ -193,49 +200,70 @@ export async function createSecurity(pin: string): Promise<{ metadata: SecurityM
 }
 
 export async function verifyPin(pin: string, metadata: SecurityMetadata): Promise<CryptoKey> {
+  const started=nowTick();
   try {
     const salt = b64ToBytes(metadata.salt);
     const key = await deriveKey(pin, salt, metadata.iterations);
     const plain = await decryptBytes(key, metadata.verifierIv, metadata.verifierCipher);
     if (decoder.decode(plain) !== VERIFY_TEXT) throw new Error('Wrong PIN');
+    diag('pin-verify-success',`durationMs=${elapsedMs(started)}`);
     return key;
-  } catch {
+  } catch (error) {
+    diag('pin-verify-error',`name=${errorName(error)} durationMs=${elapsedMs(started)}`);
     throw new Error('Wrong PIN');
   }
 }
 
 export async function encryptVault(key: CryptoKey, vault: VaultPayload): Promise<EncryptedVaultRecord> {
-  const restore=compactCompanySnapshotAssets(vault);
-  let serialized='';
+  const started=nowTick();
   try{
-    recordVaultPayloadBreakdown(vault);
-    serialized=JSON.stringify(vault);
-  }finally{restore();}
-  const payload = await encryptBytes(key, encoder.encode(serialized));
-  return { id: 'vault', schemaVersion: vault.schemaVersion, iv: payload.iv, cipher: payload.cipher, updatedAt: new Date().toISOString() };
+    const restore=compactCompanySnapshotAssets(vault);
+    let serialized='';
+    try{
+      recordVaultPayloadBreakdown(vault);
+      serialized=JSON.stringify(vault);
+    }finally{restore();}
+    const payload=await encryptBytes(key,encoder.encode(serialized));
+    const duration=elapsedMs(started),now=Date.now();
+    if(duration>=350||now-lastVaultSaveDiagnosticAt>=SAVE_DIAG_INTERVAL_MS){lastVaultSaveDiagnosticAt=now;diag('vault-encrypt-success',`durationMs=${duration} serializedChars=${serialized.length} cipherChars=${payload.cipher.length}`);}
+    return { id: 'vault', schemaVersion: vault.schemaVersion, iv: payload.iv, cipher: payload.cipher, updatedAt: new Date().toISOString() };
+  }catch(error){
+    diag('vault-encrypt-error',`name=${errorName(error)} durationMs=${elapsedMs(started)}`);
+    throw error;
+  }
 }
 
 export async function decryptVault(key: CryptoKey, record: EncryptedVaultRecord): Promise<VaultPayload> {
-  const plain = await decryptBytes(key, record.iv, record.cipher);
-  const vault=JSON.parse(decoder.decode(plain)) as VaultPayload;
-  if(record.schemaVersion===APP_SCHEMA_VERSION)recordVaultPayloadBreakdown(vault,true);
-  return hydrateCompanySnapshotAssets(vault);
+  const started=nowTick();
+  try{
+    const plain=await decryptBytes(key,record.iv,record.cipher);
+    const vault=JSON.parse(decoder.decode(plain)) as VaultPayload;
+    if(record.schemaVersion===APP_SCHEMA_VERSION)recordVaultPayloadBreakdown(vault,true);
+    const hydrated=hydrateCompanySnapshotAssets(vault);
+    diag('vault-decrypt-success',`durationMs=${elapsedMs(started)} cipherChars=${record.cipher.length} schema=${record.schemaVersion}`);
+    return hydrated;
+  }catch(error){
+    diag('vault-decrypt-error',`name=${errorName(error)} durationMs=${elapsedMs(started)} cipherChars=${record.cipher?.length||0} schema=${record.schemaVersion}`);
+    throw error;
+  }
 }
 
 export async function createEncryptedBackup(pin: string, vault: VaultPayload): Promise<EncryptedBackupFile> {
   if (!pin) throw new Error('PIN is required to encrypt the backup.');
-  const salt = randomBytes(24);
-  const iterations = KDF_ITERATIONS;
-  const key = await deriveKey(pin, salt, iterations);
-  const restore=compactCompanySnapshotAssets(vault);
-  let serialized='';
-  try{serialized=JSON.stringify(vault);}finally{restore();}
-  const encrypted = await encryptBytes(key, encoder.encode(serialized));
-  return {
-    format: 'LOUREX_BACKUP', version: 1, createdAt: new Date().toISOString(),
-    kdf: { name: 'PBKDF2', hash: 'SHA-256', iterations, salt: bytesToB64(salt) },
-    cipher: { name: 'AES-GCM', iv: encrypted.iv, data: encrypted.cipher }
-  };
+  const started=nowTick();
+  try{
+    const salt=randomBytes(24),iterations=KDF_ITERATIONS,key=await deriveKey(pin,salt,iterations);
+    const restore=compactCompanySnapshotAssets(vault);
+    let serialized='';
+    try{serialized=JSON.stringify(vault);}finally{restore();}
+    const encrypted=await encryptBytes(key,encoder.encode(serialized));
+    diag('backup-encrypt-success',`durationMs=${elapsedMs(started)} serializedChars=${serialized.length}`);
+    return {
+      format: 'LOUREX_BACKUP', version: 1, createdAt: new Date().toISOString(),
+      kdf: { name: 'PBKDF2', hash: 'SHA-256', iterations, salt: bytesToB64(salt) },
+      cipher: { name: 'AES-GCM', iv: encrypted.iv, data: encrypted.cipher }
+    };
+  }catch(error){diag('backup-encrypt-error',`name=${errorName(error)} durationMs=${elapsedMs(started)}`);throw error;}
 }
 
 export async function decryptBackup(pin: string, file: EncryptedBackupFile): Promise<VaultPayload> {
@@ -244,13 +272,17 @@ export async function decryptBackup(pin: string, file: EncryptedBackupFile): Pro
     file.kdf?.name !== 'PBKDF2' || file.kdf?.hash !== 'SHA-256' ||
     file.cipher?.name !== 'AES-GCM'
   ) throw new Error('Invalid LOUREX backup file.');
+  const started=nowTick();
   try {
     const salt = b64ToBytes(file.kdf.salt);
     const key = await deriveKey(pin, salt, file.kdf.iterations);
     const plain = await decryptBytes(key, file.cipher.iv, file.cipher.data);
     const vault=JSON.parse(decoder.decode(plain)) as VaultPayload;
-    return hydrateCompanySnapshotAssets(vault);
-  } catch {
+    const hydrated=hydrateCompanySnapshotAssets(vault);
+    diag('backup-decrypt-success',`durationMs=${elapsedMs(started)} cipherChars=${file.cipher.data.length}`);
+    return hydrated;
+  } catch (error) {
+    diag('backup-decrypt-error',`name=${errorName(error)} durationMs=${elapsedMs(started)}`);
     throw new Error('Backup password/PIN is incorrect or the file is corrupted.');
   }
 }
