@@ -159,7 +159,7 @@
   html body .app-ui .ta-ops-search button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;}
   html body .app-ui .ta-ops-tabs{width:100%!important;}
   html body .app-ui .ta-ops-tabs>button{min-height:44px!important;}
-  html body .app-ui .ta-ops-row-actions>button{min-height:44px!important;padding:8px 10px!important;}
+  html body .app-ui .ta-ops-row-actions>button{min-width:44px!important;min-height:44px!important;padding:8px 10px!important;}
   html body .app-ui .ta-ops-error>button,
   html body .app-ui .ta-ops-editor-head>button,
   html body .app-ui .ta-purchase-item-title>button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;}
@@ -200,7 +200,7 @@
   html body .app-ui :where(.ta-dashboard-heading h1,.ta-documents-header h1,.ta-customers-header h1,.ta-products-workspace-header h1,.ta-ops-page-header h1,.ta-page-header h1){font-size:25px!important;line-height:32px!important;}
   html body .app-ui .ta-kpi-card{padding:11px!important;}
   html body .app-ui .ta-documents-header-actions>.btn{font-size:10.5px!important;}
-  html body .app-ui .ta-customers-summary{gap:6px!important;}
+  html body .app-ui .ta-customers-summary{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;}
   html body .app-ui .ta-customers-summary>div{padding:8px!important;}
   html body .app-ui .ta-products-overview{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
   html body .app-ui .ta-product-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
@@ -216,8 +216,9 @@
   html body .app-ui .ta-kpi-icon{width:28px!important;height:28px!important;}
   html body .app-ui .ta-kpi-copy>strong,
   html body .app-ui .ta-kpi-money-stack b{font-size:15px!important;}
-  html body .app-ui .ta-customers-summary{grid-template-columns:1fr!important;}
+  html body .app-ui .ta-customers-summary{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important;}
+  html body .app-ui .ta-customers-summary>div{padding:7px!important;}
   html body .app-ui .ta-products-overview,
   html body .app-ui .ta-product-metrics,
-  html body .app-ui .ta-finance-kpi-grid{grid-template-columns:1fr!important;}
+  html body .app-ui .ta-finance-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;}
 }
