@@ -63,7 +63,7 @@
     font-weight:700;
   }
 
-  /* Document register detail pages use the type stamped by runtime. */
+  /* Document detail semantics. */
   .app-ui .ta-doc-detail-page[data-document-kind="rfq"] .ta-doc-detail-total>strong,
   .app-ui .ta-doc-detail-page[data-document-kind="delivery-note"] .ta-doc-detail-total>strong{
     display:none!important;
@@ -73,6 +73,18 @@
     font-size:12px!important;
     color:var(--ft-muted)!important;
   }
+  .app-ui .ta-doc-detail-page[data-document-kind="rfq"] .ta-doc-facts>div:nth-child(2)>small{
+    font-size:0!important;
+  }
+  .app-ui .ta-doc-detail-page[data-document-kind="rfq"] .ta-doc-facts>div:nth-child(2)>small::after{
+    content:"Response due";
+    font-size:inherit;
+  }
+  [dir="rtl"] .app-ui .ta-doc-detail-page[data-document-kind="rfq"] .ta-doc-facts>div:nth-child(2)>small::after{content:"موعد الرد";}
+  .app-ui .ta-doc-detail-page[data-document-kind="delivery-note"] .ta-doc-facts>div:nth-child(2),
+  .app-ui .ta-doc-detail-page[data-document-kind="delivery-note"] .ta-doc-facts>div:nth-child(3),
+  .app-ui .ta-doc-detail-page[data-document-kind="payment-receipt"] .ta-doc-facts>div:nth-child(2){display:none!important;}
+
   .app-ui .ta-doc-detail-page[data-document-kind="rfq"] .ta-doc-items-head,
   .app-ui .ta-doc-detail-page[data-document-kind="delivery-note"] .ta-doc-items-head,
   .app-ui .ta-doc-detail-page[data-document-kind="rfq"] .ta-doc-item-row,
@@ -84,12 +96,19 @@
     display:none!important;
   }
 
-  /* Payment receipt reads as receipt-oriented, not as an invoice clone. */
-  .app-ui .editor-screen[data-document-kind="payment-receipt"] .editor-grand-total-chip span::before{content:"";}
+  /* Payment receipt reads as a monetary acknowledgement rather than a sales invoice. */
+  .app-ui .editor-screen[data-document-kind="payment-receipt"]{--editor-doc-accent:#238a74;}
   .app-ui .editor-screen[data-document-kind="payment-receipt"] .editor-grand-total-chip{
     border-color:color-mix(in srgb,#238a74 30%,var(--ft-line))!important;
     background:color-mix(in srgb,#238a74 8%,var(--ft-surface))!important;
   }
+  .app-ui .ta-doc-detail-page[data-document-kind="payment-receipt"] .ta-doc-items-head,
+  .app-ui .ta-doc-detail-page[data-document-kind="payment-receipt"] .ta-doc-item-row{
+    grid-template-columns:minmax(0,1fr) minmax(120px,.34fr)!important;
+  }
+  .app-ui .ta-doc-detail-page[data-document-kind="payment-receipt"] :is(.ta-doc-items-head,.ta-doc-item-row)>:nth-child(2),
+  .app-ui .ta-doc-detail-page[data-document-kind="payment-receipt"] :is(.ta-doc-items-head,.ta-doc-item-row)>:nth-child(3),
+  .app-ui .ta-doc-detail-page[data-document-kind="payment-receipt"] :is(.ta-doc-items-head,.ta-doc-item-row)>:nth-child(4){display:none!important;}
 
   /* Keep Credit Note visually separate from a normal invoice while reusing its
      audited invoice lifecycle and calculations. */
@@ -115,18 +134,37 @@
   .invoice-page.kind-rfq .items-table th:nth-last-child(-n+2),
   .invoice-page.kind-delivery-note .items-table th:nth-last-child(-n+2),
   .invoice-page.kind-rfq .items-table td:nth-last-child(-n+2),
-  .invoice-page.kind-delivery-note .items-table td:nth-last-child(-n+2){
-    display:none!important;
-  }
+  .invoice-page.kind-delivery-note .items-table td:nth-last-child(-n+2){display:none!important;}
   .invoice-page.kind-rfq .items-table .col-description,
   .invoice-page.kind-delivery-note .items-table .col-description{width:auto!important;}
+
+  /* Receipt output: Description + Amount. Keep the underlying quantity=1 line
+     representation untouched for compatibility with calculations and old files. */
+  .invoice-page.kind-payment-receipt .items-table col.col-qty,
+  .invoice-page.kind-payment-receipt .items-table col.col-unit,
+  .invoice-page.kind-payment-receipt .items-table col.col-price,
+  .invoice-page.kind-payment-receipt .items-table th:nth-last-child(4),
+  .invoice-page.kind-payment-receipt .items-table th:nth-last-child(3),
+  .invoice-page.kind-payment-receipt .items-table th:nth-last-child(2),
+  .invoice-page.kind-payment-receipt .items-table td:nth-last-child(4),
+  .invoice-page.kind-payment-receipt .items-table td:nth-last-child(3),
+  .invoice-page.kind-payment-receipt .items-table td:nth-last-child(2){display:none!important;}
+  .invoice-page.kind-payment-receipt .items-table .col-description{width:auto!important;}
+  .invoice-page.kind-payment-receipt .items-table th:last-child{font-size:0!important;}
+  .invoice-page.kind-payment-receipt .items-table th:last-child small{display:none!important;}
+  .invoice-page.kind-payment-receipt.lang-en .items-table th:last-child::after{content:"Amount";font-size:9pt;}
+  .invoice-page.kind-payment-receipt.lang-ar .items-table th:last-child::after{content:"المبلغ";font-size:9pt;}
+  .invoice-page.kind-payment-receipt.lang-bilingual .items-table th:last-child::after{content:"Amount / المبلغ";font-size:8.5pt;}
+  .invoice-page.kind-payment-receipt .totals-block .total-row[data-total="subtotal"]{display:none!important;}
+  .invoice-page.kind-payment-receipt .grand-total>span{font-size:0!important;}
+  .invoice-page.kind-payment-receipt.lang-en .grand-total>span::after{content:"Receipt Amount";font-size:9pt;}
+  .invoice-page.kind-payment-receipt.lang-ar .grand-total>span::after{content:"مبلغ الإيصال";font-size:9pt;}
+  .invoice-page.kind-payment-receipt.lang-bilingual .grand-total>span::after{content:"Receipt Amount / مبلغ الإيصال";font-size:8.5pt;}
 
   /* Delivery notes keep logistics-relevant terms and suppress sales/payment terms. */
   .invoice-page.kind-delivery-note .meta-currency,
   .invoice-page.kind-delivery-note .terms-block [data-term="incoterm"],
   .invoice-page.kind-delivery-note .terms-block [data-term="payment-terms"],
   .invoice-page.kind-delivery-note .terms-block [data-term="delivery-time"],
-  .invoice-page.kind-delivery-note .terms-block [data-term="validity"]{
-    display:none!important;
-  }
+  .invoice-page.kind-delivery-note .terms-block [data-term="validity"]{display:none!important;}
 }
