@@ -8,6 +8,7 @@ const compatibilityTargets=[
   'dist/src/app/index.js',
   'dist/document-entry-v302.js'
 ];
+const appTarget='dist/src/app/App.js';
 
 const legacyIosExpression=/\/iP\(\?:hone\|ad\|od\)\/i\.test\(navigator\.userAgent\s*\|\|\s*''\)/g;
 const legacyIosReplacement="(/iP(?:hone|ad|od)/i.test(navigator.userAgent||'')||(String(navigator.platform||'')==='MacIntel'&&Number(navigator.maxTouchPoints||0)>1))";
@@ -51,4 +52,22 @@ for(const path of compatibilityTargets){
   await writeFile(path,source);
 }
 
-console.log('v339 iPadOS Desktop Website runtime, editor timing and live-preview safeguards installed.');
+// Opening an existing document historically deep-cloned the entire document,
+// including multi-megabyte base64 attachment payloads already retained by the
+// encrypted vault. Attachment dataUrl strings are immutable and LOUREX already
+// uses this payload-sharing clone pattern for document duplication/revision work:
+// deep-clone the mutable document graph without attachments, then copy attachment
+// metadata objects while sharing only their immutable string payloads. This keeps
+// editor isolation but avoids a second large Safari/WebKit memory allocation.
+{
+  let source=await readFile(appTarget,'utf8');
+  const editorClonePattern=/editorDoc:structuredClone\(doc\)/g;
+  const matches=source.match(editorClonePattern)?.length??0;
+  if(matches!==1)throw new Error(`v339 expected exactly one existing-document editor deep clone in ${appTarget}; found ${matches}.`);
+  source=source.replace(editorClonePattern,"editorDoc:{...structuredClone({...doc,attachments:[]}),attachments:(doc.attachments??[]).map(attachment=>({...attachment}))}");
+  if(source.includes('editorDoc:structuredClone(doc)'))throw new Error('v339 editor attachment memory hardening did not replace the full-payload deep clone.');
+  if(!source.includes('attachments:(doc.attachments??[]).map(attachment=>({...attachment}))'))throw new Error('v339 editor attachment payload-sharing clone is missing.');
+  await writeFile(appTarget,source);
+}
+
+console.log('v339 iPadOS Desktop Website runtime, editor timing, attachment-memory and live-preview safeguards installed.');
