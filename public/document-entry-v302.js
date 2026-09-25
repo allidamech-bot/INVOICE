@@ -6,11 +6,26 @@
   const mobileCloseoutStyleMarker='data-lourex-v305-mobile-closeout';
   const releaseHardeningStyleMarker='data-lourex-v306-release-hardening';
   const draftScrollRecoveryStyleMarker='data-lourex-v331-draft-recovery';
+  const criticalDocumentsStyleMarker='data-lourex-v332-critical-documents';
   const sessionMarkerKey='lourex-invoice-session-v1';
   const accountScopeRecoveryKey='lourex-account-scope-recovery-v317';
   const iosRuntimeRepairKey='lourex-ios-runtime-repair-v317';
   let deferredAccountUid='';
   let deferredAccountTimer=0;
+
+  const menuKinds=['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt','credit-note','statement-account'];
+  const menuLabelKinds=new Map([
+    ['draft','draft'],['مسودة','draft'],
+    ['rfq','rfq'],['طلب عرض سعر','rfq'],
+    ['quotation','proforma'],['عرض سعر','proforma'],
+    ['proforma invoice','proforma-invoice'],['فاتورة مبدئية','proforma-invoice'],
+    ['purchase order','purchase-order'],['طلب شراء','purchase-order'],
+    ['commercial invoice','invoice'],['فاتورة تجارية','invoice'],
+    ['delivery note','delivery-note'],['سند تسليم','delivery-note'],
+    ['payment receipt','payment-receipt'],['إيصال دفع','payment-receipt'],
+    ['credit note','credit-note'],['إشعار دائن','credit-note'],
+    ['statement of account','statement-account'],['كشف حساب','statement-account']
+  ]);
 
   function isIosWebKit(){try{return /iP(?:hone|ad|od)/i.test(navigator.userAgent||'');}catch{return false;}}
 
@@ -36,17 +51,24 @@
     if(link)head.appendChild(link);
   }
 
-  /* v320: only feature/reliability layers remain runtime-injected here.
-     TailAdmin owners are re-promoted afterwards so retained v304-v306 geometry
-     can never become the visual theme by winning the cascade. v331 is then
-     promoted last because it is a narrow Draft-only geometry recovery layer. */
+  function promoteCriticalDocuments(){
+    const head=document.head;if(!head)return;
+    const link=head.querySelector(`link[${criticalDocumentsStyleMarker}]`);
+    if(link)head.appendChild(link);
+  }
+
+  /* v320 feature/reliability layers remain runtime-injected. TailAdmin owners are
+     re-promoted afterwards; v331 then restores Draft geometry and v332 owns only
+     document-type semantics/presentation. */
   function ensureRuntimeReliability(){
     ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');
     ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');
     ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');
     ensureStylesheet(draftScrollRecoveryStyleMarker,'./styles/v331-draft-scroll-recovery.css?v=331-1');
+    ensureStylesheet(criticalDocumentsStyleMarker,'./styles/v332-critical-documents-deep-closeout.css?v=332-1');
     promoteTailAdminOwners();
     promoteDraftRecovery();
+    promoteCriticalDocuments();
 
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){
@@ -117,34 +139,73 @@
       :'The PIN protects the encrypted vault on this device. A normal refresh keeps a valid active protected session open. The PIN is required again after manual lock, sign-out and later sign-in, auto-lock timeout, or when the protected session is no longer valid.';
   }
 
+  function kindFromMenuButton(button,index=-1){
+    const explicit=button?.dataset?.kind||'';
+    if(explicit)return explicit;
+    const strong=button?.querySelector?.('strong');
+    const label=String(strong?.textContent||'').trim().toLowerCase();
+    if(menuLabelKinds.has(label))return menuLabelKinds.get(label)||'';
+    return index>=0?(menuKinds[index]||''):'';
+  }
+
+  function normalizeCreateMenuKinds(){
+    document.querySelectorAll('.ta-create-menu,.shell-new-menu').forEach(menu=>{
+      const buttons=Array.from(menu.querySelectorAll('button[role="menuitem"]'));
+      buttons.forEach((button,index)=>{
+        if(!(button instanceof HTMLButtonElement)||button.dataset.kind)return;
+        const kind=kindFromMenuButton(button,index);
+        if(kind)button.dataset.kind=kind;
+      });
+    });
+  }
+
   function rememberNativeDocumentKind(event){
     const target=event.target;if(!(target instanceof Element))return;
     const button=target.closest('.ta-create-menu button[role="menuitem"],.shell-new-menu button[role="menuitem"]');if(!(button instanceof HTMLButtonElement))return;
     const menu=button.closest('.ta-create-menu,.shell-new-menu');if(!(menu instanceof HTMLElement))return;
-    const buttons=Array.from(menu.querySelectorAll('button[role="menuitem"]'));const index=buttons.indexOf(button);const explicit=button.dataset.kind||'';
-    const fallbackKinds=['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt','credit-note','statement-account'];
-    const kind=explicit||fallbackKinds[index]||'';const creatableKinds=new Set(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt']);
+    const buttons=Array.from(menu.querySelectorAll('button[role="menuitem"]'));const index=buttons.indexOf(button);
+    const kind=kindFromMenuButton(button,index);const creatableKinds=new Set(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt']);
     if(!kind||!creatableKinds.has(kind)){try{window.sessionStorage.removeItem(pendingKindKey);}catch{}return;}
+    button.dataset.kind=kind;
     try{window.sessionStorage.setItem(pendingKindKey,kind);}catch{}
   }
 
   function inferEditorKind(){
-    const editor=document.querySelector('.editor-screen');if(!(editor instanceof HTMLElement)||editor.dataset.documentKind)return;
-    let kind='';try{kind=window.sessionStorage.getItem(pendingKindKey)||'';}catch{}
+    const editor=document.querySelector('.editor-screen');if(!(editor instanceof HTMLElement))return;
+    let kind=editor.dataset.documentKind||'';
+    let role=editor.dataset.documentRole||'';
+    let pending='';try{pending=window.sessionStorage.getItem(pendingKindKey)||'';}catch{}
+    const text=String(editor.textContent||'').toLowerCase();
+    if(!kind)kind=pending;
     if(!kind){
-      const text=String(editor.textContent||'').toLowerCase();
       if(text.includes('company document studio')||text.includes('استديو مستندات الشركة')||text.includes('مسودة حرة'))kind='draft';
       else if(text.includes('request for quotation')||text.includes('طلب عرض سعر')||text.includes('rfq'))kind='rfq';
       else if(text.includes('proforma invoice')||text.includes('فاتورة مبدئية'))kind='proforma-invoice';
       else if(text.includes('purchase order')||text.includes('طلب شراء'))kind='purchase-order';
       else if(text.includes('delivery note')||text.includes('سند تسليم'))kind='delivery-note';
       else if(text.includes('payment receipt')||text.includes('إيصال دفع'))kind='payment-receipt';
-      else if(text.includes('statement of account')||text.includes('كشف حساب'))kind='statement-account';
       else if(text.includes('commercial invoice')||text.includes('فاتورة تجارية'))kind='invoice';
       else if(text.includes('quotation')||text.includes('عرض سعر'))kind='proforma';
+      else if(text.includes('credit note')||text.includes('إشعار دائن'))kind='invoice';
       else if(text.includes('invoice')||text.includes('فاتورة'))kind='invoice';
     }
-    if(!kind)return;editor.dataset.documentKind=kind;try{window.sessionStorage.removeItem(pendingKindKey);}catch{}
+    if(!role&&(text.includes('credit note')||text.includes('إشعار دائن')))role='credit-note';
+    if(kind)editor.dataset.documentKind=kind;
+    editor.dataset.documentRole=role||'standard';
+    if(kind&&pending){try{window.sessionStorage.removeItem(pendingKindKey);}catch{}}
+  }
+
+  function normalizeDetailDocumentKind(){
+    const detail=document.querySelector('.ta-doc-detail-page');
+    if(!(detail instanceof HTMLElement)||detail.dataset.documentKind)return;
+    const icon=detail.querySelector('.ta-doc-detail-icon');
+    if(icon instanceof HTMLElement){
+      const token=Array.from(icon.classList).find(name=>name.startsWith('kind-'));
+      if(token){detail.dataset.documentKind=token.slice(5);}
+    }
+    const label=String(detail.querySelector('.ta-doc-detail-title small')?.textContent||'').trim().toLowerCase();
+    if(label==='credit note'||label==='إشعار دائن')detail.dataset.documentRole='credit-note';
+    else detail.dataset.documentRole='standard';
   }
 
   function removeLegacyInjectedControls(){document.querySelectorAll('.v302-direct-document-actions,.v302-attachments-shortcut').forEach(node=>node.remove());}
@@ -168,9 +229,9 @@
   function noteAppliedCloudVault(){try{document.documentElement.dataset.lourexCloudApplied='true';}catch{}}
 
   let scheduled=false;
-  function reconcile(){scheduled=false;ensureRuntimeReliability();normalizeAuthControls();normalizeSecurityCopy();removeLegacyInjectedControls();inferEditorKind();observeAppUiSurfaces();}
+  function reconcile(){scheduled=false;ensureRuntimeReliability();normalizeAuthControls();normalizeSecurityCopy();normalizeCreateMenuKinds();removeLegacyInjectedControls();inferEditorKind();normalizeDetailDocumentKind();observeAppUiSurfaces();}
   function schedule(){if(scheduled)return;scheduled=true;window.requestAnimationFrame(reconcile);}
-  function nodeContainsRelevantUi(node){if(!(node instanceof Element))return false;if(node.matches('.editor-screen,.auth-account-page,.auth-page,.settings-layout,.modal-backdrop,.v302-direct-document-actions,.v302-attachments-shortcut'))return true;return Boolean(node.querySelector('.editor-screen,.auth-account-page,.auth-page,.settings-layout,.modal-backdrop,.v302-direct-document-actions,.v302-attachments-shortcut'));}
+  function nodeContainsRelevantUi(node){if(!(node instanceof Element))return false;if(node.matches('.editor-screen,.ta-doc-detail-page,.ta-create-menu,.shell-new-menu,.auth-account-page,.auth-page,.settings-layout,.modal-backdrop,.v302-direct-document-actions,.v302-attachments-shortcut'))return true;return Boolean(node.querySelector('.editor-screen,.ta-doc-detail-page,.ta-create-menu,.shell-new-menu,.auth-account-page,.auth-page,.settings-layout,.modal-backdrop,.v302-direct-document-actions,.v302-attachments-shortcut'));}
 
   let appUiObserver=null;let observedAppUi=null;
   function observeAppUiSurfaces(){
