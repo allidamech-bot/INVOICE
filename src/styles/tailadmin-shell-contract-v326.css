@@ -2,25 +2,28 @@
  * Owns only geometry/affordance corrections that must outrank legacy TailAdmin
  * shell layers. Workspace/page visuals remain in their dedicated owners. */
 @media screen and (min-width:901px){
-  /* CSS Grid already mirrors the inline axis under direction:rtl. Reversing both
-     the tracks and their placements moves the sidebar to the wrong physical rail. */
+  /* Pin the desktop grid itself to a physical LTR axis, then restore RTL on each
+     visible region. This makes the sidebar rail deterministic across browsers. */
   html[dir="rtl"] body .app-ui .ta-shell{
-    grid-template-columns:272px minmax(0,1fr)!important;
+    direction:ltr!important;
+    grid-template-columns:minmax(0,1fr) 272px!important;
   }
   html[dir="rtl"] body .app-ui .ta-sidebar{
-    grid-column:1!important;
-    border-inline-start:0!important;
-    border-inline-end:1px solid var(--ft-line)!important;
+    grid-column:2!important;
+    direction:rtl!important;
+    border-inline-start:1px solid var(--ft-line)!important;
+    border-inline-end:0!important;
   }
   html[dir="rtl"] body .app-ui .ta-topbar,
   html[dir="rtl"] body .app-ui .ta-main{
-    grid-column:2!important;
+    grid-column:1!important;
+    direction:rtl!important;
   }
 }
 
 @media screen and (min-width:901px) and (max-width:1180px){
   html[dir="rtl"] body .app-ui .ta-shell{
-    grid-template-columns:248px minmax(0,1fr)!important;
+    grid-template-columns:minmax(0,1fr) 248px!important;
   }
 }
 
