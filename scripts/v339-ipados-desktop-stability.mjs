@@ -52,22 +52,46 @@ for(const path of compatibilityTargets){
   await writeFile(path,source);
 }
 
-// Opening an existing document historically deep-cloned the entire document,
-// including multi-megabyte base64 attachment payloads already retained by the
-// encrypted vault. Attachment dataUrl strings are immutable and LOUREX already
-// uses this payload-sharing clone pattern for document duplication/revision work:
-// deep-clone the mutable document graph without attachments, then copy attachment
-// metadata objects while sharing only their immutable string payloads. This keeps
-// editor isolation but avoids a second large Safari/WebKit memory allocation.
+// Existing-document editing and document issuing need an isolated mutable document
+// graph, but they do not need a second copy of each multi-megabyte base64 attachment
+// string. LOUREX already uses this exact pattern in document duplication/revision:
+// deep-clone without attachments, then copy attachment metadata objects while the
+// immutable dataUrl strings remain shared. A4 output needs no attachments at all.
 {
   let source=await readFile(appTarget,'utf8');
   const editorClonePattern=/editorDoc:structuredClone\(doc\)/g;
-  const matches=source.match(editorClonePattern)?.length??0;
-  if(matches!==1)throw new Error(`v339 expected exactly one existing-document editor deep clone in ${appTarget}; found ${matches}.`);
-  source=source.replace(editorClonePattern,"editorDoc:{...structuredClone({...doc,attachments:[]}),attachments:(doc.attachments??[]).map(attachment=>({...attachment}))}");
+  const editorMatches=source.match(editorClonePattern)?.length??0;
+  if(editorMatches!==1)throw new Error(`v339 expected exactly one existing-document editor deep clone in ${appTarget}; found ${editorMatches}.`);
+  source=source.replace(editorClonePattern,'editorDoc:__lourexCloneDocumentWithAttachmentRefs(doc)');
+
+  const requestStart=source.indexOf('requestPrint=async');
+  const requestEnd=requestStart<0?-1:source.indexOf('afterPrint=',requestStart);
+  if(requestStart<0||requestEnd<=requestStart)throw new Error('v339 could not isolate App.requestPrint for output memory hardening.');
+  let request=source.slice(requestStart,requestEnd);
+
+  const directOutputPattern=/target=structuredClone\(doc\)/g;
+  const directOutputMatches=request.match(directOutputPattern)?.length??0;
+  if(directOutputMatches!==2)throw new Error(`v339 expected two direct print snapshot clones; found ${directOutputMatches}.`);
+  request=request.replace(directOutputPattern,'target=__lourexOutputDocument(doc)');
+
+  const issueClonePattern=/target=\{\.\.\.structuredClone\(doc\),status:'final'/g;
+  const issueCloneMatches=request.match(issueClonePattern)?.length??0;
+  if(issueCloneMatches!==1)throw new Error(`v339 expected one issue/save document clone; found ${issueCloneMatches}.`);
+  request=request.replace(issueClonePattern,"target={...__lourexCloneDocumentWithAttachmentRefs(doc),status:'final'");
+
+  const savedOutputPattern=/target=structuredClone\(this\.requireVault\(\)\.documents\.find\(saved=>saved\.id===target\.id\)\?\?target\)/g;
+  const savedOutputMatches=request.match(savedOutputPattern)?.length??0;
+  if(savedOutputMatches!==1)throw new Error(`v339 expected one post-issue print snapshot clone; found ${savedOutputMatches}.`);
+  request=request.replace(savedOutputPattern,'target=__lourexOutputDocument(this.requireVault().documents.find(saved=>saved.id===target.id)??target)');
+
+  source=source.slice(0,requestStart)+request+source.slice(requestEnd);
+  const appMemoryHelpers=`\nfunction __lourexCloneDocumentWithAttachmentRefs(doc){\n  const attachments=(doc.attachments??[]).map(attachment=>({...attachment}));\n  return {...structuredClone({...doc,attachments:[]}),attachments};\n}\nfunction __lourexOutputDocument(doc){\n  return {...structuredClone({...doc,attachments:[]}),attachments:[]};\n}\n`;
+  source+=appMemoryHelpers;
+
   if(source.includes('editorDoc:structuredClone(doc)'))throw new Error('v339 editor attachment memory hardening did not replace the full-payload deep clone.');
-  if(!source.includes('attachments:(doc.attachments??[]).map(attachment=>({...attachment}))'))throw new Error('v339 editor attachment payload-sharing clone is missing.');
+  if(!source.includes('editorDoc:__lourexCloneDocumentWithAttachmentRefs(doc)'))throw new Error('v339 editor attachment payload-sharing clone is missing.');
+  if(!source.includes('target=__lourexOutputDocument(doc)'))throw new Error('v339 A4 output attachment stripping is missing.');
   await writeFile(appTarget,source);
 }
 
-console.log('v339 iPadOS Desktop Website runtime, editor timing, attachment-memory and live-preview safeguards installed.');
+console.log('v339 iPadOS Desktop Website runtime, editor timing, attachment-memory, A4-output and live-preview safeguards installed.');
