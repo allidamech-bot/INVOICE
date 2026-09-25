@@ -85,7 +85,7 @@ test('automatic account/cloud/PWA transitions remain editor-safe', async () => {
   const runtime = await read('public/document-entry-v302.js');
   assert.match(index, /function reloadUnsafeWorkspaceOpen\(\):boolean\{[\s\S]*isDocumentEditorOpen\(\)/);
   assert.match(index, /reload\.addEventListener\('click',[\s\S]*if\(reloadUnsafeWorkspaceOpen\(\)\)[\s\S]*window\.location\.reload\(\)/);
-  assert.match(index, /if\(reloadUnsafeWorkspaceOpen\(\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
+  assert.match(index, /if\(reloadUnsafeWorkspaceOpen\(\)\)\{updateNoticeDeferredForWorkspace\(\);return;\}/);
   assert.match(runtime, /function guardAutomaticAccountTransition\(event\)[\s\S]*editorOrUnsafeWorkspaceOpen\(\)[\s\S]*stopImmediatePropagation/);
   assert.match(runtime, /function recoverLateAuthenticatedAccount\(\)[\s\S]*if\(editorOrUnsafeWorkspaceOpen\(\)\)return/);
 });
