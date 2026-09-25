@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {ProductsInventoryWorkspace} from './src/components/ProductsInventoryWorkspace.js';
+import {createSupplier} from './src/lib/operations.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),lang=params.get('lang')==='ar'?'ar':'en';
+setUiLanguage(lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+const now='2026-09-25T06:00:00.000Z';
+const items=[
+{id:'p1',createdAt:now,updatedAt:now,sku:'LRX-001',descriptionEn:'Premium sunflower oil',descriptionAr:'زيت دوار الشمس الممتاز',hsCode:'151219',origin:'Türkiye',packing:'12 x 1 L',unit:'PCS',lastUnitPrice:'18.50',lastCurrency:'USD',lastUnitCost:'12.25',lastCostCurrency:'USD',usageCount:8,lastUsedAt:now,category:'Food',tags:['oil'],favorite:true},
+{id:'p2',createdAt:now,updatedAt:now,sku:'LRX-002',descriptionEn:'Roasted coffee sachets',descriptionAr:'أكياس قهوة محمصة',hsCode:'210111',origin:'Malaysia',packing:'24 bags',unit:'Carton',lastUnitPrice:'52.00',lastCurrency:'USD',lastUnitCost:'39.00',lastCostCurrency:'USD',usageCount:4,lastUsedAt:now,category:'Beverage',tags:['coffee'],favorite:false}
+];
+const supplier={...createSupplier(),id:'s1',nameEn:'LOUREX Test Supplier',nameAr:'مورد لوريكس التجريبي',defaultCurrency:'USD'};
+const noop=async()=>{};
+ReactDOM.render(React.createElement(ProductsInventoryWorkspace,{items,currency:'USD',suppliers:[supplier],purchases:[],expenses:[],inventoryMovements:[],defaultCurrency:'USD',onSaveItem:noop,onSaveItems:noop,onDeleteItem:noop,onSaveSupplier:noop,onDeleteSupplier:noop,onSavePurchase:noop,onDeletePurchase:noop,onPostPurchase:noop,onReversePurchase:noop,onSaveExpense:noop,onDeleteExpense:noop,onSaveInventoryMovement:noop,onDeleteInventoryMovement:noop}),document.getElementById('root'));
+</script></body></html>
