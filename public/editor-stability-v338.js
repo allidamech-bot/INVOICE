@@ -6,7 +6,6 @@
   const platform=String(navigator.platform||'');
   const touchPoints=Number(navigator.maxTouchPoints||0);
   const appleMobile=/iP(?:hone|ad|od)/i.test(ua)||(platform==='MacIntel'&&touchPoints>1);
-  const editorSelector='.editor-screen,[data-lourex-document-editor]';
   const editableSelector='input,textarea,select,[contenteditable="true"],[contenteditable=""]';
   let lastEditorInputAt=0;
 
@@ -59,13 +58,23 @@
       }catch{}
     };
 
+    const retireAfterLoad=()=>{
+      void retireServiceWorkers();
+      // The app runtime installs its own load callback. Run again after that callback
+      // and once more after Safari has settled any asynchronous registration work.
+      window.setTimeout(()=>void retireServiceWorkers(),0);
+      window.setTimeout(()=>void retireServiceWorkers(),750);
+      window.setTimeout(()=>void retireServiceWorkers(),2500);
+    };
+
     void retireServiceWorkers();
     window.addEventListener('pageshow',()=>void retireServiceWorkers());
-    window.addEventListener('load',()=>void retireServiceWorkers(),{once:true});
+    window.addEventListener('load',retireAfterLoad,{once:true});
 
     // Block a late re-registration attempt from code paths that only inspected the
     // legacy UA string. LOUREX is local-first; IndexedDB/PIN/business data are not
-    // touched by this guard.
+    // touched by this guard. Scheduled retirement above remains the fallback if a
+    // browser refuses to shadow ServiceWorkerContainer.register.
     try{
       if('serviceWorker' in navigator){
         const container=navigator.serviceWorker;
