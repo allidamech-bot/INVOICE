@@ -1,0 +1,90 @@
+name: v327 Hotfix Create Menu
+
+on:
+  push:
+    branches:
+      - hotfix/v327-production-create-menu-scroll
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/v327-production-create-menu-scroll
+          fetch-depth: 0
+
+      - name: Apply create-menu interaction contract
+        id: patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/app/App.tsx')
+          s = p.read_text()
+          old = "if(target instanceof Element&&target.closest('.new-doc-menu'))return;"
+          new = "if(target instanceof Element&&target.closest('.ta-create-menu, .new-doc-menu'))return;"
+          if old in s:
+              p.write_text(s.replace(old, new, 1))
+              print('patched App.tsx outside-click selector')
+          elif new in s:
+              print('App.tsx already patched')
+          else:
+              raise SystemExit('Expected closeTransientMenus selector not found')
+
+          p = Path('src/components/AppShell.tsx')
+          s = p.read_text()
+          old = "<div className={`ta-create-menu ${className}`} id={id} role=\"menu\""
+          new = "<div className={`ta-create-menu new-doc-menu ${className}`} id={id} role=\"menu\""
+          if old in s:
+              p.write_text(s.replace(old, new, 1))
+              print('patched AppShell compatibility class')
+          elif new in s:
+              print('AppShell already patched')
+          else:
+              raise SystemExit('Expected createMenu wrapper not found')
+          PY
+
+      - name: Install
+        run: npm ci
+
+      - name: TypeScript
+        run: npm run typecheck --if-present
+
+      - name: Production build
+        run: npm run build
+
+      - name: Static interaction contract
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const app=fs.readFileSync('src/app/App.tsx','utf8');
+          const shell=fs.readFileSync('src/components/AppShell.tsx','utf8');
+          if(!app.includes("target.closest('.ta-create-menu, .new-doc-menu')")) throw new Error('App outside-click contract missing');
+          if(!shell.includes('ta-create-menu new-doc-menu')) throw new Error('Create menu compatibility class missing');
+          const kinds=['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt'];
+          for(const kind of kinds){
+            if(!shell.includes(`this.createDocument('${kind}')`)) throw new Error(`Missing create action: ${kind}`);
+          }
+          if(!shell.includes('this.openCreditNote')) throw new Error('Missing credit-note action');
+          if(!shell.includes('this.openStatementAccount')) throw new Error('Missing statement-account action');
+          console.log('Create menu static contract PASS');
+          NODE
+
+      - name: Commit verified hotfix
+        shell: bash
+        run: |
+          if git diff --quiet -- src/app/App.tsx src/components/AppShell.tsx; then
+            echo 'No source changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/app/App.tsx src/components/AppShell.tsx
+          git commit -m 'fix(v327): restore mobile create-menu actions'
+          git push origin HEAD:hotfix/v327-production-create-menu-scroll
