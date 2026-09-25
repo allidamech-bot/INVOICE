@@ -18,6 +18,8 @@ const chromiumScenarios=[
   {name:'desktop-dark',width:1440,height:900,theme:'dark'}
 ];
 const webkitScenarios=[
+  {name:'iphone320-light',width:320,height:700,theme:'light'},
+  {name:'iphone320-dark',width:320,height:700,theme:'dark'},
   {name:'iphone390-light',width:390,height:844,theme:'light'},
   {name:'iphone390-dark',width:390,height:844,theme:'dark'},
   {name:'iphone430-light',width:430,height:932,theme:'light'}
