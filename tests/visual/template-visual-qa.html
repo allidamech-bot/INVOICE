@@ -6,6 +6,9 @@
   <title>LOUREX template visual QA</title>
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="../../dist/styles/app.bundle.css" />
+  <!-- Match the real app cascade: document-entry injects/promotes v331 after the
+       production bundle; v331 imports v333 and the v337 template balance repair. -->
+  <link rel="stylesheet" href="../../dist/styles/v331-draft-scroll-recovery.css?v=337-3" data-lourex-qa-runtime-document-owner="true" />
   <style>
     html,body{margin:0;min-height:100%;background:#dfe3e5;color:#17222b;font-family:Inter,Arial,sans-serif}
     .qa-shell{min-height:100vh;padding:28px}.qa-caption{width:min(100%,210mm);margin:0 auto 16px;display:flex;justify-content:space-between;gap:16px;font-size:13px;font-weight:700}.qa-stage{display:flex;justify-content:center;overflow:visible;margin:0 auto}.qa-stage.preview-stage{width:210mm}.qa-stage.mode-tablet{width:834px;overflow:hidden}.qa-stage.mode-mobile{width:390px;overflow:hidden}.qa-error{margin:40px auto;max-width:760px;padding:24px;background:#fff;border:1px solid #b8c0c4;white-space:pre-wrap}

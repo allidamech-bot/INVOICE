@@ -1,13 +1,26 @@
 <!doctype html>
-<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css?v=337-3" data-lourex-qa-runtime-document-owner="true"></head>
 <body><div id="root" class="app-ui"></div>
 <script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
 <script type="module">
 import {GlobalSearch} from './src/components/GlobalSearch.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {defaultCompany} from './src/lib/defaults.js';
 import {setUiLanguage} from './src/lib/i18n.js';
 const params=new URLSearchParams(location.search),lang=params.get('lang')==='ar'?'ar':'en',h=React.createElement;
 setUiLanguage(lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+const company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة'};
+const documents=Array.from({length:14},(_,index)=>{
+  const doc=createBlankDocument(index%2===0?'invoice':'proforma',`QA-${String(index+1).padStart(4,'0')}`,company);
+  doc.id=`qa-document-${index+1}`;
+  doc.status=index%2===0?'final':'draft';
+  doc.lifecycleStatus='active';
+  doc.customerSnapshot={sourceCustomerId:`qa-customer-${index+1}`,companyNameEn:`QA Customer ${index+1}`,companyNameAr:`عميل اختبار ${index+1}`,contactPerson:`QA Contact ${index+1}`,addressEn:'QA Business District',addressAr:'منطقة اختبار الأعمال',city:'Istanbul',country:'Türkiye',phone:`+90 555 000 ${String(index+1).padStart(4,'0')}`,email:`qa-${index+1}@example.test`,vatTaxNumber:'',commercialRegistration:''};
+  return doc;
+});
+const customers=Array.from({length:8},(_,index)=>({id:`qa-customer-${index+1}`,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),companyNameEn:`QA Customer ${index+1}`,companyNameAr:`عميل اختبار ${index+1}`,contactPerson:`QA Contact ${index+1}`,addressEn:'QA Business District',addressAr:'منطقة اختبار الأعمال',city:'Istanbul',country:'Türkiye',phone:`+90 555 100 ${String(index+1).padStart(4,'0')}`,email:`qa-customer-${index+1}@example.test`,vatTaxNumber:'',commercialRegistration:'',preferredCurrency:'USD',paymentTermPresetId:'',paymentTerms:'Net 30',paymentDueDays:'30',creditLimit:'10000',creditCurrency:'USD',notes:''}));
 const noop=()=>{};
-ReactDOM.render(h(GlobalSearch,{documents:[],customers:[],items:[],suppliers:[],purchases:[],language:lang,onNavigate:noop,onOpenDocument:noop,onNewDocument:noop}),document.getElementById('root'));
+window.searchQa={navigate:'',opened:'',created:''};
+ReactDOM.render(h(GlobalSearch,{documents,customers,items:[],suppliers:[],purchases:[],language:lang,onNavigate:screen=>{window.searchQa.navigate=screen;},onOpenDocument:doc=>{window.searchQa.opened=doc.id;},onNewDocument:kind=>{window.searchQa.created=kind;}}),document.getElementById('root'));
 requestAnimationFrame(()=>window.dispatchEvent(new Event('lourex-global-search-open')));
 </script></body></html>

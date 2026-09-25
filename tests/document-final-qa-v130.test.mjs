@@ -5,14 +5,20 @@ import { readFile } from 'node:fs/promises';
 const read=path=>readFile(path,'utf8');
 const allTemplates=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 
-test('canonical document QA layer loads last and remains document-only',async()=>{
-  const [html,qa]=await Promise.all([
+test('canonical A4 base remains document-only and v337 is the final corrective layout owner',async()=>{
+  const [html,qa,recovery,balance]=await Promise.all([
     read('index.html'),
-    read('src/styles/document-premium-redesign-v141.css')
+    read('src/styles/document-premium-redesign-v141.css'),
+    read('src/styles/v331-draft-scroll-recovery.css'),
+    read('src/styles/v337-template-layout-balance.css')
   ]);
-  assert.equal([...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].at(-1)?.[1],'document-premium-redesign-v141.css');
+  assert.match(html,/href="\.\/styles\/document-premium-redesign-v141\.css"/);
+  assert.match(html,/href="\.\/styles\/v331-draft-scroll-recovery\.css\?v=337-3"/);
   assert.match(qa,/canonical A4 layer/);
   assert.doesNotMatch(qa,/\.app-shell|\.documents-page|\.editor-shell/);
+  assert.match(recovery,/^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);\n@import url\("\.\/v337-template-layout-balance\.css\?v=337-3"\);/);
+  assert.match(balance,/printable template structural balance/);
+  assert.doesNotMatch(balance,/\.app-shell|\.documents-page|\.editor-shell/);
 });
 
 test('all 18 templates are covered by the combined v128 and v129 art direction',async()=>{
@@ -74,10 +80,11 @@ test('closing zone and footer stay intentional under sparse optional data',async
   assert.match(qa,/max-width:78%/);
 });
 
-test('pagination, bottom anchoring, RTL isolation and print break protections remain intact',async()=>{
-  const [renderer,output,direction,qa,sw]=await Promise.all([
+test('pagination, natural-flow closing band, RTL isolation and print break protections remain intact',async()=>{
+  const [renderer,output,balance,direction,qa,sw]=await Promise.all([
     read('src/templates/TemplateRenderer.tsx'),
     read('src/styles/document-output-v119.css'),
+    read('src/styles/v337-template-layout-balance.css'),
     read('src/styles/document-direction-v78.css'),
     read('src/styles/document-final-qa-v130.css'),
     read('public/sw.js')
@@ -85,11 +92,20 @@ test('pagination, bottom anchoring, RTL isolation and print break protections re
   assert.match(renderer,/shouldUseDetailsPage/);
   assert.match(renderer,/hardOverflow/);
   assert.match(renderer,/lastWeight>allowedLastWeight/);
+  /* v119 retains its historical auto-anchor as a base fallback. v337 is the final
+     presentation owner and explicitly cancels it with the same selector specificity,
+     so sparse documents keep their close directly after the items instead of a dead zone. */
   assert.match(output,/\.invoice-page:not\(\.details-only\) \.final-details\{\s*margin-top:auto!important/);
+  assert.match(balance,/\.invoice-page \.final-details\{[\s\S]*display:block!important[\s\S]*flex:0 0 auto!important[\s\S]*padding-top:0!important/);
+  assert.match(balance,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]*margin-top:6mm!important[\s\S]*padding-top:0!important/);
+  assert.match(balance,/\.invoice-page \.bottom-grid\{[\s\S]*margin-top:4\.5mm!important[\s\S]*padding-top:0!important/);
+  assert.doesNotMatch(balance,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]{0,180}margin-top:auto!important/);
+  assert.doesNotMatch(balance,/\.invoice-page \.bottom-grid\{[\s\S]{0,180}margin-top:auto!important/);
+  assert.doesNotMatch(balance,/\.invoice-page \.final-details\{[\s\S]{0,180}flex:1 1 auto!important/);
   assert.match(direction,/unicode-bidi:isolate/);
   assert.match(direction,/\.invoice-page\.lang-ar/);
   assert.match(qa,/@media print/);
   assert.match(qa,/break-inside:avoid/);
-  assert.match(sw,/pathname\.startsWith\('\/styles\/'\)/);
-  assert.match(sw,/cacheFirst\(event\.request\)/);
+  assert.match(sw,/function isAppRuntimePath\(pathname\)[\s\S]*pathname\.startsWith\('\/styles\/'\)/);
+  assert.match(sw,/isAppRuntimePath\(url\.pathname\)[\s\S]*networkFirst\(event\.request\)/);
 });

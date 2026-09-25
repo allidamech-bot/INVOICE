@@ -1,0 +1,391 @@
+/* LOUREX v337 — printable template structural balance.
+ * Presentation-only repair for A4 preview/PDF surfaces.
+ *
+ * Commercial documents: v330 accidentally made .final-details stretch and then
+ * pushed .bottom-grid independently to the page bottom. v337 keeps totals, terms,
+ * notes, bank and authorization in one compact normal-flow closing band.
+ *
+ * Company Draft output: the retired v308 generation originally owned the printable
+ * letterhead/watermark geometry. Its application UI must stay retired, but the
+ * current DraftDocumentRenderer still emits those output classes. v337 therefore
+ * owns the output-only contract below, with no .app-ui selectors or business logic. */
+
+@media screen, print {
+  /* Shared watermark output used by commercial templates and Company Draft. */
+  .invoice-page{
+    position:relative!important;
+    isolation:isolate;
+  }
+  .invoice-page .document-custom-watermark{
+    --wm-opacity:.08;
+    --wm-color:#0f6f7a;
+    --wm-angle:-32deg;
+    --wm-size:72px;
+    position:absolute;
+    inset:0;
+    z-index:1;
+    pointer-events:none;
+    user-select:none;
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--wm-color);
+    opacity:var(--wm-opacity);
+  }
+  .invoice-page .document-custom-watermark.is-text>span{
+    font-size:var(--wm-size);
+    font-weight:900;
+    letter-spacing:.12em;
+    line-height:1;
+    text-transform:uppercase;
+    white-space:nowrap;
+    transform:rotate(var(--wm-angle));
+  }
+  .invoice-page .document-custom-watermark.is-logo>img{
+    width:min(56%,360px);
+    height:auto;
+    max-height:42%;
+    object-fit:contain;
+    filter:grayscale(.12);
+    transform:rotate(var(--wm-angle));
+  }
+  .invoice-page .document-custom-watermark.is-repeat{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-rows:repeat(3,minmax(0,1fr));
+    gap:8mm;
+    padding:18mm 12mm;
+  }
+  .invoice-page .document-custom-watermark.is-repeat .wm-tile{
+    display:flex;
+    min-width:0;
+    align-items:center;
+    justify-content:center;
+    color:var(--wm-color);
+    transform:rotate(var(--wm-angle));
+  }
+  .invoice-page .document-custom-watermark.is-repeat .wm-tile b{
+    font-size:calc(var(--wm-size)*.34);
+    letter-spacing:.08em;
+    white-space:nowrap;
+  }
+  .invoice-page .document-custom-watermark.is-repeat .wm-tile img{
+    width:78%;
+    max-height:48mm;
+    object-fit:contain;
+    filter:grayscale(.12);
+  }
+  .invoice-page>.document-custom-watermark~*{
+    position:relative;
+    z-index:2;
+  }
+  .invoice-page .document-void-watermark{
+    z-index:8!important;
+  }
+
+  /* Current Company Draft A4 renderer. These rules are deliberately output-only. */
+  .draft-letter-page{
+    --letter-ink:#172d34;
+    --letter-muted:#657b80;
+    --letter-line:#d9e2e4;
+    display:grid!important;
+    grid-template-rows:auto minmax(0,1fr) auto!important;
+    padding:0!important;
+    background:#fff!important;
+    color:var(--letter-ink)!important;
+    overflow:hidden!important;
+    text-align:start!important;
+  }
+  .draft-letter-page[dir="ltr"]{direction:ltr!important;text-align:left!important;}
+  .draft-letter-page[dir="rtl"]{direction:rtl!important;text-align:right!important;}
+  .draft-letter-page .letterhead-header{
+    position:relative;
+    z-index:2;
+    min-height:31mm;
+    padding:13mm 15mm 7mm;
+    display:grid;
+    align-content:end;
+    gap:6mm;
+    background:#fff;
+  }
+  .draft-letter-page .letterhead-brand{
+    display:flex;
+    align-items:center;
+    gap:5mm;
+    min-width:0;
+  }
+  .draft-letter-page .letterhead-brand>img{
+    width:22mm;
+    height:22mm;
+    object-fit:contain;
+    border-radius:4mm;
+  }
+  .draft-letter-page .letterhead-brand>div{
+    display:grid;
+    gap:1.5mm;
+    min-width:0;
+  }
+  .draft-letter-page .letterhead-brand strong{
+    color:#132f36;
+    font-size:18px;
+    line-height:1.2;
+    overflow-wrap:anywhere;
+  }
+  .draft-letter-page .letterhead-brand span{
+    color:#667d82;
+    font-size:8.5px;
+    line-height:1.5;
+    overflow-wrap:anywhere;
+  }
+  .draft-letter-page .letterhead-accent{
+    display:block;
+    height:1.2mm;
+    border-radius:999px;
+    background:var(--letter-accent,#2fc4cf);
+  }
+  .draft-letter-page.header-minimal .letterhead-header{
+    min-height:24mm;
+    padding-top:10mm;
+  }
+  .draft-letter-page.header-minimal .letterhead-brand>img{
+    width:15mm;
+    height:15mm;
+  }
+  .draft-letter-page.header-minimal .letterhead-accent{
+    height:.45mm;
+    opacity:.65;
+  }
+  .draft-letter-page.header-classic .letterhead-accent{
+    background:linear-gradient(90deg,var(--letter-accent,#2fc4cf) 0 22%,#dce4e6 22% 100%);
+  }
+
+  .draft-letter-page .letter-page-body{
+    position:relative;
+    z-index:2;
+    min-height:0;
+    padding:5mm 16mm 8mm;
+    display:flex;
+    flex-direction:column;
+  }
+  .draft-letter-page.width-narrow .letter-page-body{padding-inline:25mm;}
+  .draft-letter-page.width-wide .letter-page-body{padding-inline:11mm;}
+  .draft-letter-page.page-ruled .letter-page-body{
+    background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 8.8mm,rgba(55,91,100,.10) 8.8mm,rgba(55,91,100,.10) 9.05mm);
+    background-position:0 6mm;
+  }
+  .draft-letter-page.page-grid .letter-page-body{
+    background-image:linear-gradient(rgba(55,91,100,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(55,91,100,.055) 1px,transparent 1px);
+    background-size:7mm 7mm;
+  }
+
+  .draft-letter-page .letter-meta{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:2.2mm 7mm;
+    margin-bottom:2mm;
+    padding:4mm 0 5mm;
+    border-bottom:.35mm solid var(--letter-line);
+  }
+  .draft-letter-page .letter-meta>div{
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr);
+    gap:2.5mm;
+    align-items:baseline;
+    min-width:0;
+  }
+  .draft-letter-page .letter-meta b{
+    color:#73878b;
+    font-size:8px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+  }
+  .draft-letter-page .letter-meta span{
+    color:#20383e;
+    font-size:10px;
+    overflow-wrap:anywhere;
+  }
+  .draft-letter-page .letter-continuation{
+    display:flex;
+    justify-content:flex-end;
+    margin-bottom:3mm;
+    padding-bottom:3mm;
+    border-bottom:.25mm solid var(--letter-line);
+  }
+  .draft-letter-page .letter-continuation span{
+    color:#71868b;
+    font-size:8px;
+    letter-spacing:.05em;
+  }
+
+  .draft-letter-page .letter-blocks{min-height:0;}
+  .draft-letter-page .letter-block{
+    position:relative;
+    z-index:2;
+    margin-inline:0;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+  }
+  .draft-letter-page .block-heading{letter-spacing:-.015em;}
+  .draft-letter-page .block-subheading{letter-spacing:-.008em;}
+  .draft-letter-page .block-quote{
+    padding-inline:5mm;
+    border-inline-start:1mm solid color-mix(in srgb,var(--letter-accent,#2fc4cf) 55%,#d8e3e5);
+    background:color-mix(in srgb,var(--letter-accent,#2fc4cf) 5%,transparent);
+  }
+  .draft-letter-page .block-bullet{
+    display:flex;
+    gap:2.5mm;
+  }
+  .draft-letter-page .letter-bullet{
+    flex:0 0 auto;
+    color:var(--letter-accent,#2fc4cf);
+    font-size:1.2em;
+    line-height:inherit;
+  }
+  .draft-letter-page .letter-block-spacer{flex:0 0 auto;}
+
+  .draft-letter-page .letter-signing{
+    margin-top:auto;
+    padding-top:8mm;
+    display:flex;
+    gap:10mm;
+    align-items:flex-end;
+  }
+  .draft-letter-page .letter-signing>div{
+    display:grid;
+    justify-items:center;
+    gap:1.5mm;
+    min-width:34mm;
+  }
+  .draft-letter-page .letter-signing img{
+    max-width:34mm;
+    max-height:22mm;
+    object-fit:contain;
+  }
+  .draft-letter-page .letter-signing span{
+    color:#6e858a;
+    font-size:8px;
+  }
+
+  .draft-letter-page .letterhead-footer{
+    position:relative;
+    z-index:2;
+    min-height:14mm;
+    padding:4mm 15mm 5mm;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8mm;
+    border-top:.3mm solid #d8e3e5;
+    background:#fff;
+    color:#6d8287;
+  }
+  .draft-letter-page .letterhead-footer span{
+    min-width:0;
+    font-size:7.6px;
+    line-height:1.4;
+    overflow-wrap:anywhere;
+  }
+  .draft-letter-page .letterhead-footer b{
+    flex:0 0 auto;
+    color:#7a8d91;
+    font-size:7.6px;
+    white-space:nowrap;
+  }
+  .draft-letter-page .footer-minimal span{display:none;}
+  .draft-letter-page .footer-none{
+    min-height:8mm;
+    padding-top:0;
+    border-top:0;
+    background:transparent;
+    justify-content:flex-end;
+  }
+
+  /* Commercial document closing balance. */
+  .invoice-page .doc-body{
+    display:flex!important;
+    flex-direction:column!important;
+    min-height:0!important;
+  }
+  .invoice-page .final-details{
+    display:block!important;
+    flex:0 0 auto!important;
+    min-height:0!important;
+    padding-top:0!important;
+  }
+  /* v119 keeps a historical :not(.details-only) auto-anchor with !important.
+     Match that selector's specificity here so the later v337 owner really wins
+     in the browser cascade instead of only looking correct in an isolated file. */
+  .invoice-page:not(.details-only) .final-details{
+    margin-top:6mm!important;
+    padding-top:0!important;
+  }
+  .invoice-page.details-only .final-details{
+    margin-top:0!important;
+    padding-top:0!important;
+  }
+  .invoice-page .lower-grid{align-items:start!important;}
+  .invoice-page .notes-block{margin-top:4.5mm!important;}
+  .invoice-page .bottom-grid{
+    margin-top:4.5mm!important;
+    padding-top:0!important;
+    align-items:start!important;
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+  .invoice-page .bank-block,
+  .invoice-page .signature-block{
+    align-self:start!important;
+    width:100%!important;
+  }
+  .invoice-page .signature-media{
+    min-height:21mm!important;
+    align-items:end!important;
+    padding-top:1mm!important;
+  }
+  .invoice-page .signature-media .signature-image{
+    height:20mm!important;
+    max-height:20mm!important;
+    object-fit:contain!important;
+    object-position:center bottom!important;
+  }
+  .invoice-page .signature-media .stamp-image{
+    height:22mm!important;
+    max-height:22mm!important;
+    object-fit:contain!important;
+    object-position:center bottom!important;
+  }
+  .invoice-page .doc-footer{
+    flex:0 0 10mm!important;
+    height:10mm!important;
+    min-height:10mm!important;
+    margin-inline:11mm!important;
+    align-items:center!important;
+  }
+}
+
+/* Compact preview must use identical A4 geometry; only the outer preview scales. */
+@media screen {
+  .preview-stage .invoice-page .final-details,
+  .mobile-preview-stage .invoice-page .final-details{
+    flex:0 0 auto!important;
+  }
+}
+
+@media print {
+  .document-custom-watermark,
+  .draft-letter-page,
+  .draft-letter-page.page-ruled .letter-page-body,
+  .draft-letter-page.page-grid .letter-page-body{
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
+  .draft-letter-page .letterhead-header,
+  .draft-letter-page .letterhead-footer,
+  .draft-letter-page .letter-signing{
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+}

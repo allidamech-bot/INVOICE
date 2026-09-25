@@ -18,6 +18,8 @@ const chromiumScenarios=[
   {name:'desktop-dark',width:1440,height:900,theme:'dark'}
 ];
 const webkitScenarios=[
+  {name:'iphone320-light',width:320,height:700,theme:'light'},
+  {name:'iphone320-dark',width:320,height:700,theme:'dark'},
   {name:'iphone390-light',width:390,height:844,theme:'light'},
   {name:'iphone390-dark',width:390,height:844,theme:'dark'},
   {name:'iphone430-light',width:430,height:932,theme:'light'}
@@ -29,8 +31,13 @@ async function inspect(page,surface,scenario,lang){
     const target=document.querySelector(surface.selector);
     const failures=[];
     const toPx=value=>{const n=parseFloat(String(value||'0'));return Number.isFinite(n)?n:0;};
-    const rect=el=>{const r=el.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};
-    const isVisible=el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;};
+    const rect=el=>{if(!el)return null;const r=el.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};
+    const isVisible=el=>{if(!el)return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;};
+    const lastFlowChild=root=>{
+      if(!(root instanceof Element))return null;
+      const nodes=[...root.children].filter(el=>{if(!isVisible(el))return false;const p=getComputedStyle(el).position;return p!=='fixed'&&p!=='absolute';});
+      return nodes.at(-1)||root;
+    };
     const checkTargets=(selectors,label)=>{
       for(const selector of selectors){for(const el of document.querySelectorAll(selector)){if(!isVisible(el))continue;const r=el.getBoundingClientRect();if(r.width<43.5||r.height<43.5)failures.push(`${label} touch target ${selector} is ${r.width.toFixed(1)}x${r.height.toFixed(1)}`);}}
     };
@@ -48,6 +55,23 @@ async function inspect(page,surface,scenario,lang){
       if(surface.name==='operations')checkTargets([...common,'.ta-ops-search button','.ta-ops-row-actions button','.ta-ops-editor-head>button','.ta-purchase-item-title>button'],'operations');
       if(surface.name==='receivables')checkTargets([...common,'.ta-search-clear','.ta-account-controls select','.ta-account-actions .btn'],'receivables');
       if(surface.name==='reports')checkTargets([...common,'.ta-report-presets>button','.ta-date-input','.ta-report-currency select','.ta-search-clear'],'reports');
+
+      /* v337: mobile workspaces must be able to reach the final real content on
+         WebKit, not merely fit horizontally. This catches the same class of
+         clipped-bottom regressions that affected the document editors. */
+      const main=document.querySelector('.ta-main');
+      const nav=document.querySelector('.ta-mobile-nav');
+      if(main){
+        const before=main.scrollTop;
+        const max=Math.max(0,main.scrollHeight-main.clientHeight);
+        main.scrollTop=max;
+        const after=main.scrollTop;
+        if(max>2&&after<max-2)failures.push(`main cannot reach scroll end ${after}/${max}`);
+        const content=lastFlowChild(target),contentRect=rect(content),mainRect=rect(main),navRect=isVisible(nav)?rect(nav):null;
+        if(contentRect&&mainRect&&contentRect.bottom>mainRect.bottom+3)failures.push(`last content is not reachable: bottom ${contentRect.bottom.toFixed(1)} > main ${mainRect.bottom.toFixed(1)}`);
+        if(contentRect&&navRect&&contentRect.bottom>navRect.top-2)failures.push(`last content remains behind bottom nav: ${contentRect.bottom.toFixed(1)} > ${navRect.top.toFixed(1)}`);
+        main.scrollTop=before;
+      }
     }
 
     if(surface.name==='operations'){
@@ -120,5 +144,5 @@ async function runEngine(engineName,browserType,scenarios){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.state.failures.map(f=>`${row.engine}/${row.surface}/${row.scenario}/${row.lang}: ${f}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v326 business workspaces: ${rows.length} Chromium/WebKit scenarios passed.`);
+  console.log(`v337 business workspaces reachability: ${rows.length} Chromium/WebKit scenarios passed.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});

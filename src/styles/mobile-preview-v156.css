@@ -35,7 +35,7 @@
     box-sizing:border-box!important;
     width:100%!important;
     min-width:0!important;
-    min-height:calc(56px + env(safe-area-inset-top))!important;
+    min-height:calc(60px + env(safe-area-inset-top))!important;
     height:auto!important;
     display:flex!important;
     align-items:flex-end!important;
@@ -59,7 +59,7 @@
     color:var(--ds-text)!important;
     font-size:14px!important;
     font-weight:800!important;
-    line-height:40px!important;
+    line-height:44px!important;
     white-space:nowrap!important;
   }
 
@@ -72,11 +72,13 @@
     gap:6px!important;
   }
 
+  /* v337 — preview actions use the same 44px touch contract as the rest of the
+     mobile editor. The previous 40px controls were noticeably undersized on Safari. */
   .app-ui .mobile-preview-overlay>header .btn,
   .app-ui .mobile-preview-overlay>header .icon-btn{
     flex:0 0 auto!important;
-    min-height:40px!important;
-    height:40px!important;
+    min-height:44px!important;
+    height:44px!important;
     margin:0!important;
     border-radius:11px!important;
     box-shadow:none!important;
@@ -88,8 +90,8 @@
   }
 
   .app-ui .mobile-preview-overlay>header .icon-btn{
-    width:40px!important;
-    min-width:40px!important;
+    width:44px!important;
+    min-width:44px!important;
     padding:0!important;
   }
 
@@ -118,14 +120,14 @@
 
 @media (max-width:720px){
   .app-ui .mobile-preview-overlay>header{
-    min-height:calc(54px + env(safe-area-inset-top))!important;
+    min-height:calc(58px + env(safe-area-inset-top))!important;
     gap:6px!important;
     padding-bottom:7px!important;
   }
 
   .app-ui .mobile-preview-overlay>header>strong{
     font-size:13.5px!important;
-    line-height:40px!important;
+    line-height:44px!important;
   }
 
   .app-ui .mobile-preview-overlay>header>div{

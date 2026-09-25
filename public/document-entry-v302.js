@@ -36,7 +36,16 @@
     try{if('caches' in window){void caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('lourex-invoice-')).map(key=>caches.delete(key)))).catch(()=>undefined);}}catch{}
   }
 
-  function ensureStylesheet(marker,href){if(document.querySelector(`link[${marker}]`))return;const link=document.createElement('link');link.rel='stylesheet';link.href=href;link.setAttribute(marker,'true');document.head.appendChild(link);}
+  function stylesheetHrefMatches(link,href){
+    try{return new URL(link.getAttribute('href')||link.href,document.baseURI).href===new URL(href,document.baseURI).href;}
+    catch{return link.getAttribute('href')===href;}
+  }
+
+  function ensureStylesheet(marker,href){
+    const existing=document.querySelector(`link[${marker}]`);
+    if(existing instanceof HTMLLinkElement){if(!stylesheetHrefMatches(existing,href))existing.href=href;return;}
+    const link=document.createElement('link');link.rel='stylesheet';link.href=href;link.setAttribute(marker,'true');document.head.appendChild(link);
+  }
 
   function promoteTailAdminOwners(){
     const head=document.head;if(!head)return;
@@ -64,7 +73,7 @@
     ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');
     ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');
     ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');
-    ensureStylesheet(draftScrollRecoveryStyleMarker,'./styles/v331-draft-scroll-recovery.css?v=331-1');
+    ensureStylesheet(draftScrollRecoveryStyleMarker,'./styles/v331-draft-scroll-recovery.css?v=337-3');
     ensureStylesheet(criticalDocumentsStyleMarker,'./styles/v332-critical-documents-deep-closeout.css?v=332-1');
     promoteTailAdminOwners();
     promoteDraftRecovery();
