@@ -4,14 +4,14 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('v338 editor stability guard loads before application runtime',async()=>{
+test('v338 editor stability guard loads before executable application runtime',async()=>{
   const html=await read('index.html');
-  const guard=html.indexOf('./editor-stability-v338.js?v=338');
-  const entry=html.indexOf('./document-entry-v302.js?v=337-3');
-  const app=html.indexOf('./src/app/index.js');
-  assert.ok(guard>=0,'editor stability guard missing');
-  assert.ok(entry>guard,'document runtime must load after editor stability guard');
-  assert.ok(app>guard,'React app runtime must load after editor stability guard');
+  const guard=html.indexOf('<script src="./editor-stability-v338.js?v=338"></script>');
+  const entry=html.indexOf('<script src="./document-entry-v302.js?v=337-3"></script>');
+  const app=html.indexOf('<script type="module" src="./src/app/index.js"></script>');
+  assert.ok(guard>=0,'editor stability guard executable script missing');
+  assert.ok(entry>guard,'document runtime must execute after editor stability guard');
+  assert.ok(app>guard,'React app runtime must execute after editor stability guard');
 });
 
 test('v338 recognizes desktop-UA iPadOS and retires service-worker update churn',async()=>{
