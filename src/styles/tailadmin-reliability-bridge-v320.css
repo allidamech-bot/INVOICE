@@ -23,6 +23,7 @@
   --lourex-z-ai:1220;
   --lourex-z-modal:1300;
   --lourex-z-toast:1360;
+  --lourex-z-preview:1400;
   --lourex-z-critical:1500;
 }
 
@@ -64,28 +65,22 @@
   .app-ui .document-attachments-section :where(input,select,textarea,button,a){min-width:0}
   .app-ui .document-attachment-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
 
-  /* v326 overlay ladder: structural ownership only. */
+  /* One structural overlay ladder. Visual skin remains with each surface owner. */
   .app-ui .ta-sidebar{z-index:var(--lourex-z-shell)!important}
   .app-ui .ta-mobile-nav{z-index:var(--lourex-z-nav)!important}
   .app-ui .ta-overlay-backdrop{z-index:var(--lourex-z-backdrop)!important}
+  .app-ui .ta-create-menu-mobile{z-index:var(--lourex-z-popover)!important;pointer-events:auto!important}
   .app-ui .ta-mobile-sheet{z-index:var(--lourex-z-sheet)!important}
   .global-search-backdrop{z-index:var(--lourex-z-search)!important}
   .global-search-panel{z-index:calc(var(--lourex-z-search) + 1)!important}
   .lourex-ai-panel{z-index:var(--lourex-z-ai)!important}
   .modal-backdrop{z-index:var(--lourex-z-modal)!important}
   .toast,.pwa-update-toast,[data-lourex-cloud-refresh],[data-lourex-update]{z-index:var(--lourex-z-toast)!important}
+  .app-ui .mobile-preview-overlay,.app-ui .draft-mobile-preview{z-index:var(--lourex-z-preview)!important}
   .app-ui .ta-doc-mobile-action-portal{z-index:var(--lourex-z-critical)!important}
 
-  /* The Create menu still lives in the bottom-nav subtree. Elevate that stacking
-     context only while Create is open, and disable unrelated dock hit targets. */
-  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-nav{z-index:calc(var(--lourex-z-backdrop) + 2)!important}
-  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-nav>button{pointer-events:none!important}
-  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-create-wrap{position:relative!important;z-index:2!important;pointer-events:auto!important}
-  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-create,
-  body:has(#ta-mobile-create-menu) .app-ui .ta-create-menu-mobile{pointer-events:auto!important}
-  body:has(#ta-mobile-create-menu) .app-ui .ta-create-menu-mobile{z-index:3!important}
-
-  body:has(#ta-mobile-more) .app-ui .ta-mobile-nav{z-index:var(--lourex-z-nav)!important;pointer-events:none!important}
+  /* More is modal navigation: while open the dock cannot accept stray taps. */
+  body:has(#ta-mobile-more) .app-ui .ta-mobile-nav{pointer-events:none!important}
 
   /* Runtime notices stay within the viewport and above the dock without owning
      application layout. Physical centering is deliberate for RTL/LTR Safari. */
@@ -99,7 +94,7 @@
     margin:0!important;transform:translateX(-50%)!important;
   }
 
-  /* .ta-main is the one workspace scroll owner. */
+  /* .ta-main is the single workspace scroll owner. */
   .app-ui .ta-main{overscroll-behavior:contain!important}
 }
 
