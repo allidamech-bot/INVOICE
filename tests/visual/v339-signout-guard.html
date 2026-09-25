@@ -11,10 +11,18 @@
     <div id="editable-state">Document editor active</div>
     <footer class="ta-cloud-account-actions"><button id="signout" type="button">Sign Out</button></footer>
   </section>
+  <script>
+    window.__qaCurrentUid='account-a';
+    window.firebase={auth:()=>({get currentUser(){return window.__qaCurrentUid?{uid:window.__qaCurrentUid}:null;}})};
+    window.__qaSignOutCalls=0;
+    window.__qaTransitionCalls=0;
+    window.__qaTransitionComplete=[];
+  </script>
   <script src="runtime-safety-v334.js?v=334"></script>
   <script>
-    window.__qaSignOutCalls=0;
     document.getElementById('signout').addEventListener('click',()=>{window.__qaSignOutCalls+=1;});
+    window.addEventListener('lourex-account-transition-request',()=>{window.__qaTransitionCalls+=1;});
+    window.addEventListener('lourex-account-transition-complete',event=>{window.__qaTransitionComplete.push(event.detail||{});});
   </script>
 </body>
 </html>
