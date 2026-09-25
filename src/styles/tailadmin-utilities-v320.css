@@ -210,28 +210,20 @@
     padding-bottom:0!important;
   }
   .app-ui .ta-shell.is-editor .editor-pane .editor-scroll{
-    padding:0!important;
-    scroll-padding-bottom:0!important;
+    padding:10px max(10px,env(safe-area-inset-right,0px)) 24px max(10px,env(safe-area-inset-left,0px))!important;
+    scroll-padding-top:12px!important;scroll-padding-bottom:24px!important;touch-action:pan-y!important;-webkit-overflow-scrolling:touch!important;
   }
 
   /* Commercial editor uses the same TailAdmin bottom command grammar as Draft
      Studio: one full-width safe-area bar rather than the retired floating pill. */
   .app-ui .mobile-editor-actionbar{
-    position:fixed!important;
-    inset-inline:0!important;
-    left:0!important;
-    right:0!important;
-    bottom:0!important;
-    width:100%!important;
-    min-height:calc(64px + env(safe-area-inset-bottom,0px))!important;
-    margin:0!important;
-    padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px))!important;
-    border:0!important;
-    border-top:1px solid var(--ft-line)!important;
-    border-radius:0!important;
-    background:color-mix(in srgb,var(--ft-surface) 97%,transparent)!important;
-    box-shadow:0 -6px 20px rgba(16,24,40,.07)!important;
-    backdrop-filter:blur(14px)!important;
+    position:relative!important;inset:auto!important;left:auto!important;right:auto!important;bottom:auto!important;z-index:52!important;
+    flex:0 0 auto!important;width:100%!important;min-width:0!important;
+    min-height:calc(68px + env(safe-area-inset-bottom,0px))!important;margin:0!important;
+    padding:8px max(10px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px))!important;
+    border:0!important;border-top:1px solid var(--ft-line)!important;border-radius:0!important;
+    background:color-mix(in srgb,var(--ft-surface) 97%,transparent)!important;box-shadow:0 -6px 20px rgba(16,24,40,.07)!important;
+    backdrop-filter:blur(14px)!important;-webkit-backdrop-filter:blur(14px)!important;
   }
   html[data-ui-theme="dark"] .app-ui .mobile-editor-actionbar{box-shadow:0 -8px 22px rgba(0,0,0,.22)!important}
   .app-ui .mobile-action-buttons .btn{min-height:44px!important;height:auto!important}
@@ -265,4 +257,48 @@
   }
   .app-ui .modal-footer-actions>.btn,
   .app-ui .modal-footer-actions .btn{width:100%!important;min-height:44px!important}
+}
+
+
+/* v327 — hard mobile editor viewport chain.
+   Legacy mobile styles may allow the document tree to grow with content; the
+   Document Studio instead owns exactly one viewport and one vertical scroller. */
+@media screen and (max-width:900px){
+  .app-ui .ta-shell.is-editor .editor-screen{
+    width:100%!important;
+    height:100dvh!important;
+    max-height:100dvh!important;
+    min-height:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+  }
+  .app-ui .ta-shell.is-editor .editor-screen>.editor-layout{
+    flex:1 1 0!important;
+    width:100%!important;
+    height:0!important;
+    max-height:none!important;
+    min-height:0!important;
+    display:block!important;
+    overflow:hidden!important;
+  }
+  .app-ui .ta-shell.is-editor .editor-layout>.editor-pane{
+    width:100%!important;
+    height:100%!important;
+    max-height:100%!important;
+    min-height:0!important;
+    overflow:hidden!important;
+  }
+  .app-ui .ta-shell.is-editor .editor-pane>.editor-scroll{
+    width:100%!important;
+    height:100%!important;
+    max-height:100%!important;
+    min-height:0!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    touch-action:pan-y!important;
+    overscroll-behavior-x:none!important;
+    overscroll-behavior-y:contain!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
 }

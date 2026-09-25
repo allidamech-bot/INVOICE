@@ -140,7 +140,7 @@ export class EditorPage extends React.Component<Props,State>{
     if(this.navScrollRoot)this.navScrollRoot.addEventListener('scroll',this.handleSectionScroll,{passive:true});else window.addEventListener('scroll',this.handleSectionScroll,{passive:true});
     window.addEventListener('resize',this.handleSectionScroll,{passive:true});
     const form=document.querySelector('.editor-pane .editor-form-lock');
-    if(form){this.navMutationObserver=new MutationObserver(()=>this.syncSectionMeta());this.navMutationObserver.observe(form,{attributes:true,subtree:true,attributeFilter:['class']});}
+    if(form){this.navMutationObserver=new MutationObserver(()=>{this.syncSectionMeta();this.syncActiveSection();});this.navMutationObserver.observe(form,{attributes:true,childList:true,subtree:true,attributeFilter:['class']});}
     this.syncActiveSection();
   };
 
@@ -260,14 +260,16 @@ export class EditorPage extends React.Component<Props,State>{
     const sourceIsProformaInvoice=props.document.kind==='proforma-invoice';
     const linkedInvoice=finalQuote?props.documents.find(item=>item.kind==='invoice'&&item.role==='standard'&&item.convertedFromId===props.document.id&&item.lifecycleStatus!=='voided'):undefined;
     const navSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-nav-slot]');
+    const supportSlot=typeof document==='undefined'?null:document.querySelector('[data-editor-support-slot]');
     const editorScreen=typeof document==='undefined'?null:document.querySelector('.editor-screen');
     const sectionNavigator=this.renderSectionNavigator();
     const finalQuoteAction=finalQuote?this.renderQuoteAction(linkedInvoice,sourceIsProformaInvoice):null;
+    const supportPanels=<div className="ta-editor-support-panels"><DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={this.discardRevisionSingleFlight} onVoid={this.voidDocumentSingleFlight} onCreateCreditNote={this.createCreditNoteSingleFlight}/>{props.document.kind==='invoice'?<InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>:null}{(props.document.kind==='proforma'||props.document.kind==='proforma-invoice'||props.document.kind==='invoice')?<ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>:null}</div>;
 
     return <div className="ta-editor-workspace" data-v320-editor="true">
       {this.state.persistenceError?<div className="ta-editor-persistence-error" role="alert"><span className="ta-editor-error-icon">!</span><div><strong>{t('Local save needs attention','الحفظ المحلي يحتاج انتباهك')}</strong><span>{this.state.persistenceError}</span></div></div>:null}
       <div className="ta-editor-core-slot"><EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry} onSaveCustomer={this.saveCustomerSingleFlight} onSaveDocumentItem={this.saveDocumentItemSingleFlight} onBeginRevision={this.beginRevisionSingleFlight} onPrint={this.printWithPreparedMode}/></div>
-      <div className="ta-editor-support-panels"><DocumentLifecyclePanel document={props.document} documents={props.documents} payments={props.payments} events={props.documentEvents} revisions={props.documentRevisions} onDiscardRevision={this.discardRevisionSingleFlight} onVoid={this.voidDocumentSingleFlight} onCreateCreditNote={this.createCreditNoteSingleFlight}/>{props.document.kind==='invoice'?<InvoicePaymentsPanel document={props.document} documents={props.documents} payments={props.payments} onSave={props.onSavePayment} onDelete={props.onDeletePayment}/>:null}{(props.document.kind==='proforma'||props.document.kind==='proforma-invoice'||props.document.kind==='invoice')?<ProfitabilityPanel document={props.document} savedItems={props.savedItems} onSave={props.onSave} onSaveSavedItem={props.onSaveSavedItem}/>:null}</div>
+      {supportPanels&&supportSlot?ReactDOM.createPortal(supportPanels,supportSlot):null}
       {sectionNavigator&&navSlot?ReactDOM.createPortal(sectionNavigator,navSlot):null}
       {finalQuoteAction&&editorScreen?ReactDOM.createPortal(finalQuoteAction,editorScreen):null}
     </div>;

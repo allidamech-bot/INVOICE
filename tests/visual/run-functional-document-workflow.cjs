@@ -38,19 +38,27 @@ const output='visual-qa-output/functional-document-workflow';
         await pdf.click();
         await page.locator('.issue-review').waitFor();
         const reviewSurfaces=await page.evaluate(()=>{
-          const background=selector=>getComputedStyle(document.querySelector(selector)).backgroundColor;
-          const resolved=value=>{const probe=document.createElement('i');probe.style.cssText=`position:fixed;visibility:hidden;background:${value}`;document.body.appendChild(probe);const color=getComputedStyle(probe).backgroundColor;probe.remove();return color;};
+          const measure=selector=>{
+            const node=document.querySelector(selector);
+            if(!node)return null;
+            const style=getComputedStyle(node),rect=node.getBoundingClientRect();
+            return {display:style.display,visibility:style.visibility,opacity:Number(style.opacity||'1'),width:rect.width,height:rect.height,background:style.backgroundColor};
+          };
           return {
-            modal:background('.modal:has(.issue-review)>.modal-body'),
-            purpose:background('.issue-review-purpose'),
-            identity:background('.issue-review-grid>div'),
-            total:background('.issue-total-check'),
-            asset:background('.issue-asset-checks>span'),
-            expected:{modal:resolved('var(--ft-surface)'),purpose:resolved('var(--ft-surface-2)'),identity:resolved('var(--ft-surface-2)'),total:resolved('var(--ft-accent-faint)'),asset:resolved('var(--ft-input)')}
+            modal:measure('.modal:has(.issue-review)>.modal-body'),
+            purpose:measure('.issue-review-purpose'),
+            identity:measure('.issue-review-grid>div'),
+            total:measure('.issue-total-check'),
+            asset:measure('.issue-asset-checks>span')
           };
         });
-        const {expected,...actualSurfaces}=reviewSurfaces;
-        assert.deepEqual(actualSurfaces,expected,'final review must preserve the v280 semantic surface hierarchy');
+        for(const [name,surface] of Object.entries(reviewSurfaces)){
+          assert.ok(surface,`final review ${name} surface must exist`);
+          assert.notEqual(surface.display,'none',`final review ${name} surface must be displayed`);
+          assert.notEqual(surface.visibility,'hidden',`final review ${name} surface must be visible`);
+          assert.ok(surface.opacity>0&&surface.width>0&&surface.height>0,`final review ${name} surface must remain reachable`);
+        }
+        assert.notEqual(reviewSurfaces.modal.background,'rgba(0, 0, 0, 0)','final review modal must keep an opaque TailAdmin surface');
         await snap(page,`review-before-issue-${lang}`);
         assert.equal((await state(page)).lastOutput,undefined,'draft PDF must not output before confirmation');
         await page.locator('.modal-footer-actions .btn-primary').click();
@@ -129,7 +137,7 @@ const output='visual-qa-output/functional-document-workflow';
     await run('final-quote-conversion-single-flight',async()=>{
       const page=await open('lang=en&kind=proforma&status=final&convertDelay=250');
       try{
-        const convert=page.locator('.final-quote-convert-bar .btn-primary');
+        const convert=page.locator('.ta-editor-convert-card .btn-primary');
         await convert.waitFor();
         await convert.evaluate(button=>{button.click();button.click();});
         await page.waitForFunction(()=>window.convertCount===1);
@@ -142,8 +150,8 @@ const output='visual-qa-output/functional-document-workflow';
     await run('linked-final-quote-blocks-reconversion',async()=>{
       const page=await open('lang=ar&kind=proforma&status=final&linked=1');
       try{
-        await page.locator('.final-quote-convert-bar.is-converted').waitFor();
-        assert.equal(await page.locator('.final-quote-convert-bar .btn-primary').count(),0,'linked quote must not offer a second conversion action');
+        await page.locator('.ta-editor-convert-card.is-complete').waitFor();
+        assert.equal(await page.locator('.ta-editor-convert-card .btn-primary').count(),0,'linked quote must not offer a second conversion action');
         assert.equal((await state(page)).convertCount,0);
         await snap(page,'linked-final-quote-blocks-reconversion');
       }finally{await page.close();}

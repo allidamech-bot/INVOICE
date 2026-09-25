@@ -371,3 +371,33 @@
     .app-ui .lourex-ai-meta>span{display:none!important;}
   }
 }
+
+
+/* v327 — robotic AI identity and compact mobile copilot. */
+@media screen{
+  .app-ui .lourex-ai-launcher{isolation:isolate!important;overflow:visible!important;border-radius:17px!important;
+    background:linear-gradient(145deg,#6d5df5 0%,#4776ef 48%,#24b7c7 100%)!important;
+    box-shadow:0 12px 34px rgba(71,118,239,.30)!important;}
+  .app-ui .lourex-ai-launcher>.icon{position:relative;z-index:2;width:25px!important;height:25px!important;stroke-width:1.85!important;}
+  .app-ui .lourex-ai-launcher:before{content:"";position:absolute;inset:-5px;border:1px solid rgba(91,124,250,.26);border-radius:22px;animation:lourex-ai-orbit 3.2s ease-in-out infinite;}
+  .app-ui .lourex-ai-launcher:after{content:"";position:absolute;width:7px;height:7px;right:-3px;top:4px;border-radius:999px;background:#55e4d4;box-shadow:0 0 0 4px rgba(85,228,212,.13),0 0 14px rgba(85,228,212,.8);animation:lourex-ai-pulse 1.8s ease-in-out infinite;}
+  .app-ui .lourex-ai-mark{background:linear-gradient(145deg,rgba(109,93,245,.13),rgba(36,183,199,.12))!important;color:#5f72f2!important;}
+  .app-ui .lourex-ai-mark>.icon{width:23px!important;height:23px!important;}
+  @keyframes lourex-ai-orbit{0%,100%{transform:scale(.96);opacity:.45}50%{transform:scale(1.05);opacity:.9}}
+  @keyframes lourex-ai-pulse{0%,100%{transform:scale(.86);opacity:.7}50%{transform:scale(1.16);opacity:1}}
+}
+@media screen and (max-width:860px){
+  .app-ui .lourex-ai-panel,.app-ui .lourex-ai-panel[dir="rtl"]{
+    top:auto!important;left:10px!important;right:10px!important;bottom:calc(94px + env(safe-area-inset-bottom,0px))!important;
+    width:auto!important;height:min(72dvh,680px)!important;max-height:72dvh!important;border-radius:26px!important;
+  }
+  .app-ui .lourex-ai-head{min-height:64px!important;padding:11px 13px!important;}
+  .app-ui .lourex-ai-context{margin:0 13px 6px!important;}
+  .app-ui .lourex-ai-messages{padding:10px 13px 12px!important;}
+  .app-ui .lourex-ai-empty{padding:10px 1px 5px!important;}
+  .app-ui .lourex-ai-empty strong{font-size:16.5px!important;line-height:23px!important;}
+  .app-ui .lourex-ai-compose{padding:9px 11px 10px!important;}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-ui .lourex-ai-launcher:before,.app-ui .lourex-ai-launcher:after{animation:none!important;}
+}

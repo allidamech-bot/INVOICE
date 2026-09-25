@@ -29,8 +29,8 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
       const page=await open('lang=en&kind=invoice');
       try{
         const sections=page.locator('.editor-form-lock > .editor-section');
-        assert.equal(await sections.count(),6,'editor must expose all six editing sections');
-        await page.waitForFunction(()=>document.querySelectorAll('.editor-section-nav-button').length===6);
+        assert.equal(await sections.count(),7,'editor must expose all seven editing sections including attachments');
+        await page.waitForFunction(()=>document.querySelectorAll('.ta-editor-step-list>button').length===7);
 
         const documentSection=sections.nth(0);
         await documentSection.locator('input').first().fill('INV-2026-0091');
@@ -96,7 +96,7 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
         await page.locator('.mobile-preview-overlay button[aria-label="Close"]').click();
         await page.waitForFunction(()=>!document.querySelector('.editor-screen')?.classList.contains('mobile-preview-open'));
 
-        const geometry=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,navButtons:document.querySelectorAll('.editor-section-nav-button').length}));
+        const geometry=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,navButtons:document.querySelectorAll('.ta-editor-step-list>button').length}));
         if(geometry.scrollWidth>geometry.width+1)failures.push(`editor horizontal overflow ${JSON.stringify(geometry)}`);
         await snap(page,'invoice-controls-en');
       }finally{await page.close();}
@@ -187,7 +187,7 @@ const url=query=>`http://127.0.0.1:4173/tests/visual/obsidian-editor.html?${quer
         await save.click();
         await page.locator('.editor-validation-summary').waitFor();
         assert.ok(await page.locator('.editor-form-lock > .editor-section').first().locator('.field-error').count(),'invalid required field must surface its error');
-        const smallTargets=await page.evaluate(()=>[...document.querySelectorAll('.mobile-editor-actionbar button,.editor-section-nav-button')].map(button=>{const r=button.getBoundingClientRect();return {w:r.width,h:r.height,text:button.textContent?.trim()||button.getAttribute('aria-label')||''};}).filter(item=>item.w>0&&item.h>0&&(item.w<40||item.h<40)));
+        const smallTargets=await page.evaluate(()=>[...document.querySelectorAll('.mobile-editor-actionbar button,.ta-editor-step-list>button')].map(button=>{const r=button.getBoundingClientRect();return {w:r.width,h:r.height,text:button.textContent?.trim()||button.getAttribute('aria-label')||''};}).filter(item=>item.w>0&&item.h>0&&(item.w<40||item.h<40)));
         if(smallTargets.length)failures.push(`undersized mobile controls ${JSON.stringify(smallTargets.slice(0,8))}`);
       }finally{await page.close();}
     });

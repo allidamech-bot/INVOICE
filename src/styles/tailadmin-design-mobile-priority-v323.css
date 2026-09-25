@@ -222,3 +222,17 @@
   html body .app-ui .ta-product-metrics,
   html body .app-ui .ta-finance-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;}
 }
+
+
+/* v327 — document type rail explicitly reads as swipeable on touch screens. */
+@media screen and (max-width:900px){
+  html body .app-ui .ta-doc-type-tabs{
+    scroll-snap-type:x proximity!important;overscroll-behavior-inline:contain!important;
+    padding-inline:10px 42px!important;
+    -webkit-mask-image:linear-gradient(to right,transparent 0,#000 12px,#000 calc(100% - 34px),transparent 100%)!important;
+    mask-image:linear-gradient(to right,transparent 0,#000 12px,#000 calc(100% - 34px),transparent 100%)!important;
+  }
+  html body .app-ui .ta-doc-type-tabs>button{scroll-snap-align:start!important;flex:0 0 auto!important;min-height:44px!important;}
+  html body .app-ui .ta-doc-type-tabs>button.is-active,
+  html body .app-ui .ta-doc-type-tabs>button[aria-selected="true"]{box-shadow:0 4px 14px color-mix(in srgb,var(--ft-accent) 13%,transparent)!important;}
+}

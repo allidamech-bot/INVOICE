@@ -461,3 +461,15 @@
   .app-ui .editor-section-nav-slot,
   .app-ui .mobile-editor-actionbar{display:none!important}
 }
+
+
+@media screen{
+  .app-ui .ta-editor-support-slot{width:100%!important;max-width:1000px!important;margin:0 auto!important;}
+  .app-ui .ta-editor-support-panels{display:grid!important;gap:12px!important;width:100%!important;min-width:0!important;padding:0 0 18px!important;}
+  .app-ui .ta-editor-support-panels>*{min-width:0!important;margin:0!important;}
+}
+@media screen and (max-width:900px){
+  .app-ui .ta-editor-support-slot{max-width:740px!important;}
+  .app-ui .ta-editor-support-panels{gap:10px!important;padding:4px 2px 18px!important;}
+  .app-ui .editor-section-navigator{position:relative!important;inset:auto!important;}
+}

@@ -14,7 +14,7 @@ import {
 } from '../lib/product-presets.js';
 import { deliveryTimeChoices, incotermChoices, paymentTermChoices } from '../lib/workflow-presets.js';
 
-export type IconName = 'plus'|'home'|'settings'|'search'|'file'|'users'|'items'|'save'|'download'|'share'|'copy'|'trash'|'edit'|'lock'|'x'|'chevronDown'|'chevronUp'|'arrowLeft'|'printer'|'check'|'alert'|'more'|'eye'|'upload'|'backup'|'restore'|'refresh'|'invoice'|'proforma'|'menu'|'sun'|'moon'|'system'|'chart'|'wallet'|'spark'|'star';
+export type IconName = 'plus'|'home'|'settings'|'search'|'file'|'users'|'items'|'save'|'download'|'share'|'copy'|'trash'|'edit'|'lock'|'x'|'chevronDown'|'chevronUp'|'arrowLeft'|'printer'|'check'|'alert'|'more'|'eye'|'upload'|'backup'|'restore'|'refresh'|'invoice'|'proforma'|'menu'|'sun'|'moon'|'system'|'chart'|'wallet'|'spark'|'bot'|'star';
 
 const paths: Record<IconName, any> = {
   plus: <g><path d="M12 5v14M5 12h14"/></g>, home:<g><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9M9 20v-6h6v6"/></g>, settings:<g><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></g>,
@@ -27,6 +27,7 @@ const paths: Record<IconName, any> = {
   chart:<g><path d="M4 20V10M10 20V4M16 20v-7M22 20V7"/></g>,
   wallet:<g><path d="M4 6.5h15a2 2 0 0 1 2 2v10H4a2 2 0 0 1-2-2v-12a2 2 0 0 1 2-2h13v4"/><path d="M15 11h6v4h-6a2 2 0 0 1 0-4Z"/></g>,
   spark:<g><path d="m12 2 1.6 5.1L19 9l-5.4 1.9L12 16l-1.6-5.1L5 9l5.4-1.9Z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7Z"/></g>,
+  bot:<g><path d="M9 4h6"/><path d="M12 4V2"/><rect x="4.5" y="6" width="15" height="13" rx="4"/><path d="M4.5 11H2.8v4h1.7M19.5 11h1.7v4h-1.7"/><circle cx="9" cy="12" r="1.15" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.15" fill="currentColor" stroke="none"/><path d="M9 16h6"/></g>,
   star:<g><path d="m12 3 2.75 5.57 6.15.9-4.45 4.33 1.05 6.12L12 17.03l-5.5 2.89 1.05-6.12L3.1 9.47l6.15-.9Z"/></g>
 };
 
