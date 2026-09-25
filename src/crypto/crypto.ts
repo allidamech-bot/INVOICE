@@ -1,5 +1,5 @@
 import type { EncryptedBackupFile, EncryptedVaultRecord, SecurityMetadata, VaultPayload } from '../types.js';
-import { KDF_ITERATIONS } from '../lib/defaults.js';
+import { APP_SCHEMA_VERSION, KDF_ITERATIONS } from '../lib/defaults.js';
 import { compactCompanySnapshotAssets, hydrateCompanySnapshotAssets } from '../lib/company-asset-dedup.js';
 
 const encoder = new TextEncoder();
@@ -218,7 +218,7 @@ export async function encryptVault(key: CryptoKey, vault: VaultPayload): Promise
 export async function decryptVault(key: CryptoKey, record: EncryptedVaultRecord): Promise<VaultPayload> {
   const plain = await decryptBytes(key, record.iv, record.cipher);
   const vault=JSON.parse(decoder.decode(plain)) as VaultPayload;
-  recordVaultPayloadBreakdown(vault,true);
+  if(record.schemaVersion===APP_SCHEMA_VERSION)recordVaultPayloadBreakdown(vault,true);
   return hydrateCompanySnapshotAssets(vault);
 }
 
