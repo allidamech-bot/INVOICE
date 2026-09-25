@@ -2,6 +2,7 @@ import type { LourexDocument } from '../types.js';
 import type { DocumentQualityIssue } from '../lib/document-quality.js';
 import { calculateTotals, formatMoney } from '../lib/money.js';
 import { documentDisplayValue } from '../lib/document-language.js';
+import { documentBankAllowed, documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';
 import { t } from '../lib/i18n.js';
 import { Button, Icon, Modal } from './UI.js';
 
@@ -48,25 +49,46 @@ function reviewIdentityName(language:LourexDocument['language'],english:string,a
   return [en,ar].filter(Boolean).join(' / ');
 }
 
+function reviewParty(doc:LourexDocument):{name:string;label:string}{
+  if(isSupplierDocumentKind(doc.kind)){
+    const supplier=doc.supplierSnapshot;
+    return {
+      name:reviewIdentityName(doc.language,supplier?.nameEn??'',supplier?.nameAr??''),
+      label:t('Supplier','المورد')
+    };
+  }
+  const customer=doc.customerSnapshot;
+  return {
+    name:reviewIdentityName(doc.language,customer?.companyNameEn??'',customer?.companyNameAr??''),
+    label:t('Customer','العميل')
+  };
+}
+
 export function DocumentReviewModal({document:doc,mode,issues,working,onClose,onConfirm}:{document:LourexDocument;mode:ReviewMode|null;issues:DocumentQualityIssue[];working:boolean;onClose:()=>void;onConfirm:()=>void}):any{
   if(!mode)return null;
   const totals=calculateTotals(doc.items,doc.adjustments);
-  const customer=reviewIdentityName(doc.language,doc.customerSnapshot?.companyNameEn??'',doc.customerSnapshot?.companyNameAr??'');
+  const party=reviewParty(doc);
   const company=reviewIdentityName(doc.language,doc.companySnapshot.nameEn,doc.companySnapshot.nameAr);
   const final=doc.status==='final';
-  const identityReady=Boolean(customer&&company);
+  const identityReady=Boolean(party.name&&company);
+  const nonFinancial=documentPriceOptional(doc.kind);
+  const kind=documentKindLabel(doc.kind,doc.role);
   const bank=doc.companySnapshot.bank;
-  const bankShown=doc.appearance.showBank&&[bank.bankName,bank.accountName,bank.iban,bank.swift].some(value=>value.trim());
+  const bankAllowed=documentBankAllowed(doc.kind,doc.role);
+  const bankShown=bankAllowed&&doc.appearance.showBank&&[bank.bankName,bank.accountName,bank.iban,bank.swift].some(value=>value.trim());
   const signatureShown=doc.appearance.showSignature&&Boolean(doc.companySnapshot.signatureDataUrl);
   const stampShown=doc.appearance.showStamp&&Boolean(doc.companySnapshot.stampDataUrl);
   const warningCount=issues.filter(issue=>issue.level==='warning').length;
   const blocked=!final&&!identityReady;
+  const identityMissingCopy=isSupplierDocumentKind(doc.kind)
+    ?t('Add company and supplier names that are visible in the selected document language before issuing.','أضف اسم الشركة واسم المورد بحيث يظهرا في لغة المستند المختارة قبل الإصدار.')
+    :t('Add company and customer names that are visible in the selected document language before issuing.','أضف اسم الشركة واسم العميل بحيث يظهرا في لغة المستند المختارة قبل الإصدار.');
   return <Modal open title={final?t('Final document action','إجراء على مستند نهائي'):t('Final check before issue','الفحص النهائي قبل الإصدار')} size="md" onClose={onClose} footer={<div className="modal-footer-actions"><Button onClick={onClose}>{t('Back to document','العودة للمستند')}</Button><Button icon={mode==='pdf'?'download':mode==='share'?'share':mode==='print'?'printer':'check'} variant="primary" disabled={working||blocked||mode==='issue'&&final} onClick={onConfirm}>{working?t('Working…','جارٍ التنفيذ…'):actionLabel(mode,final)}</Button></div>}>
     <div className="issue-review">
-      <div className={`issue-review-status status-${final?'final':'ready'}`}><Icon name={final?'lock':blocked?'more':'check'} size={18}/><div><strong>{final?t('Final document','مستند نهائي'):blocked?t('Document identity incomplete','هوية المستند غير مكتملة'):t('Ready for final confirmation','جاهز للتأكيد النهائي')}</strong><span>{final?t('The document is locked against accidental edits.','المستند مقفل ضد التعديل غير المقصود.'):blocked?t('Add company and customer names that are visible in the selected document language before issuing.','أضف اسم الشركة واسم العميل بحيث يظهرا في لغة المستند المختارة قبل الإصدار.'):t('Required fields passed validation. Verify the identity and total below before confirming.','تم اجتياز الحقول الإلزامية. تحقق من هوية المستند والإجمالي أدناه قبل التأكيد.')}</span></div></div>
+      <div className={`issue-review-status status-${final?'final':'ready'}`}><Icon name={final?'lock':blocked?'more':'check'} size={18}/><div><strong>{final?t('Final document','مستند نهائي'):blocked?t('Document identity incomplete','هوية المستند غير مكتملة'):t('Ready for final confirmation','جاهز للتأكيد النهائي')}</strong><span>{final?t('The document is locked against accidental edits.','المستند مقفل ضد التعديل غير المقصود.'):blocked?identityMissingCopy:t('Required fields passed validation. Verify the identity and document details below before confirming.','تم اجتياز الحقول الإلزامية. تحقق من هوية المستند وبياناته أدناه قبل التأكيد.')}</span></div></div>
       <div className="issue-review-purpose"><Icon name={final?'lock':'check'} size={16}/><div><strong>{final?t('What happens next','ما الذي سيحدث الآن'):t('Confirmation effect','نتيجة التأكيد')}</strong><span>{modePurpose(mode,final)}</span></div></div>
-      <div className="issue-review-grid"><div><span>{t('Document','المستند')}</span><strong>{doc.number}</strong></div><div><span>{t('Customer','العميل')}</span><strong>{customer||'—'}</strong></div><div><span>{t('Items','الأصناف')}</span><strong>{doc.items.length}</strong></div><div className="issue-total-check"><span>{t('Grand Total','الإجمالي النهائي')}</span><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong></div></div>
-      <div className="issue-asset-checks"><span className={bankShown?'ok':''}><Icon name={bankShown?'check':'more'} size={14}/>{t('Bank details','بيانات البنك')}</span><span className={signatureShown?'ok':''}><Icon name={signatureShown?'check':'more'} size={14}/>{t('Signature','التوقيع')}</span><span className={stampShown?'ok':''}><Icon name={stampShown?'check':'more'} size={14}/>{t('Stamp','الختم')}</span></div>
+      <div className="issue-review-grid"><div><span>{t('Document','المستند')}</span><strong>{t(kind.en,kind.ar)}</strong><small>{doc.number}</small></div><div><span>{party.label}</span><strong>{party.name||'—'}</strong></div><div><span>{t('Items','الأصناف')}</span><strong>{doc.items.length}</strong></div>{nonFinancial?<div className="issue-total-check is-nonfinancial"><span>{t('Pricing','التسعير')}</span><strong>{t('Not required','غير مطلوب')}</strong></div>:<div className="issue-total-check"><span>{doc.kind==='purchase-order'?t('Order Total','إجمالي الطلب'):doc.role==='credit-note'?t('Credit Total','إجمالي الإشعار الدائن'):doc.kind==='payment-receipt'?t('Receipt Amount','مبلغ الإيصال'):t('Grand Total','الإجمالي النهائي')}</span><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong></div>}</div>
+      <div className="issue-asset-checks">{bankAllowed?<span className={bankShown?'ok':''}><Icon name={bankShown?'check':'more'} size={14}/>{t('Bank details','بيانات البنك')}</span>:null}<span className={signatureShown?'ok':''}><Icon name={signatureShown?'check':'more'} size={14}/>{t('Signature','التوقيع')}</span><span className={stampShown?'ok':''}><Icon name={stampShown?'check':'more'} size={14}/>{t('Stamp','الختم')}</span></div>
       {issues.length?<div className="issue-warnings"><strong>{warningCount?t(`${warningCount} warning${warningCount===1?'':'s'} to review`,`يوجد ${warningCount} تنبيه للمراجعة`):t('Quality notes','ملاحظات الجودة')}</strong>{issues.map((issue,index)=><div className={`issue-warning level-${issue.level}`} key={`${issue.code}-${index}`}><span>!</span><p>{issueText(issue)}</p></div>)}</div>:<div className="issue-clean"><Icon name="check" size={16}/>{t('No quality warnings detected.','لم يتم اكتشاف أي تنبيهات جودة.')}</div>}
     </div>
   </Modal>;

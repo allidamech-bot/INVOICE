@@ -98,22 +98,32 @@ export function emptyItem(): DocumentItem {
   return { id: makeId('item'), descriptionEn: '', descriptionAr: '', hsCode: '', origin: '', packing: '', quantity: '1', unit: 'Carton', unitPrice: '', unitCost:'' };
 }
 
+function initialItemForDocument(kind:DocumentKind):DocumentItem{
+  const item=emptyItem();
+  // Receipts acknowledge money, not cartons. Keep quantity=1 so the existing
+  // audited line-total model can safely represent the received amount.
+  if(kind==='payment-receipt')item.unit='Unit';
+  return item;
+}
+
 export function createBlankDocument(kind: DocumentKind, number: string, company: CompanySettings): LourexDocument {
   const issueDate = todayIso();
   const validityDays=normalizeValidityDays(company.defaultValidityDays);
   const paymentPreset=defaultPaymentTermPreset(company);
   const taxPreset=defaultTaxPreset(company);
   const usesCommercialDefaults=documentUsesCommercialDefaults(kind);
+  const paymentReceipt=kind==='payment-receipt';
+  const noAdjustments=documentPriceOptional(kind)||paymentReceipt;
   return {
     id: makeId('doc'), kind, role:'standard', status: 'draft', lifecycleStatus:'active', revision:1, creditForId:'', creditForNumber:'', voidedAt:'', voidReason:'', bankAccountId:company.defaultBankAccountId||'primary', paymentTermPresetId:usesCommercialDefaults?(paymentPreset?.id||''):'', number, issueDate,
     dueDate: (kind === 'proforma' || kind === 'proforma-invoice') ? addDaysIso(issueDate, validityDays) : kind === 'purchase-order' || kind === 'draft' || kind === 'rfq' || kind === 'delivery-note' || kind === 'payment-receipt' ? '' : paymentPreset ? addDaysIso(issueDate,paymentPreset.days) : '',
     currency: company.defaultCurrency, language: company.defaultLanguage, customerSnapshot: null,
     supplierSnapshot:null, supplierReference:'', attachments:[],
-    companySnapshot: companySnapshotFrom(company), items: kind==='draft'?[]:[emptyItem()],
+    companySnapshot: companySnapshotFrom(company), items: kind==='draft'?[]:[initialItemForDocument(kind)],
     terms: { incoterm: usesCommercialDefaults?company.defaultIncoterm:'', paymentTerms: usesCommercialDefaults?(paymentPreset?.label||company.defaultPaymentTerms):'', packing: '', deliveryTime: usesCommercialDefaults?company.defaultDeliveryTime:'', portOfLoading: '', finalDestination: '', countryOfOrigin: '', validity: '', remarks: '' },
-    adjustments: documentPriceOptional(kind)?{ discountEnabled:false, discountMode:'fixed', discountValue:'0.00', shippingEnabled:false, shipping:'0.00', otherChargesEnabled:false, otherCharges:'0.00', taxEnabled:false, taxPercent:'0' }:{ discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping:'0.00', otherChargesEnabled: false, otherCharges:'0.00', taxEnabled: Boolean(taxPreset), taxPercent: taxPreset?.rate||'0' },
+    adjustments: noAdjustments?{ discountEnabled:false, discountMode:'fixed', discountValue:'0.00', shippingEnabled:false, shipping:'0.00', otherChargesEnabled:false, otherCharges:'0.00', taxEnabled:false, taxPercent:'0' }:{ discountEnabled: false, discountMode: 'fixed', discountValue: '0.00', shippingEnabled: false, shipping:'0.00', otherChargesEnabled: false, otherCharges:'0.00', taxEnabled: Boolean(taxPreset), taxPercent: taxPreset?.rate||'0' },
     internalCosts:{shippingCost:'0.00',otherCost:'0.00'},
-    appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: kind==='draft'?'#8e7cf3':kind==='rfq'?'#2563eb':kind==='purchase-order'?'#c88f37':kind==='delivery-note'?'#7c8b95':kind==='payment-receipt'?'#0f9f7f':'#159fa7', latinFont: 'auto', arabicFont: 'auto', showBank: documentBankAllowed(kind), showSignature: Boolean(company.signatureDataUrl), showStamp: Boolean(company.stampDataUrl), showHsCode: true, showOrigin: true, showPacking: false, watermark: defaultWatermark() },
+    appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: kind==='draft'?'#8e7cf3':kind==='rfq'?'#2563eb':kind==='purchase-order'?'#c88f37':kind==='delivery-note'?'#7c8b95':kind==='payment-receipt'?'#0f9f7f':'#159fa7', latinFont: 'auto', arabicFont: 'auto', showBank: documentBankAllowed(kind), showSignature: Boolean(company.signatureDataUrl), showStamp: Boolean(company.stampDataUrl), showHsCode: !paymentReceipt, showOrigin: !paymentReceipt, showPacking: false, watermark: defaultWatermark() },
     letter: kind==='draft'?defaultLetterData(company.defaultLanguage):null,
     notes: kind==='draft'?'':company.defaultNotes, convertedFromId: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
   };
