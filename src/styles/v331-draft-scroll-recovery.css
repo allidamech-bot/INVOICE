@@ -1,7 +1,7 @@
 @import url("./v333-critical-documents-visual-functional-closeout.css?v=333-1");
 @import url("./v337-template-layout-balance.css?v=337-1");
 
-/* LOUREX v336 — Safari/iPhone/iPad document scroll owner recovery.
+/* LOUREX v336/v337 — Safari/iPhone/iPad document scroll owner recovery.
  * Runtime promotes the TailAdmin owner styles after v330. One of those owners
  * intentionally locks .ta-main with overflow:hidden for the editor shell, which
  * can override the older mobile document scroll rule in production. This layer
@@ -10,6 +10,11 @@
  * Contract: one vertical scroll owner per mobile/tablet document editor: .ta-main.
  * Draft Studio no longer depends on a nested percentage-height scroller, which is
  * fragile in WebKit when the browser chrome changes the visual viewport.
+ *
+ * Important: .ta-main lives in the SECOND grid row below the editor top bar. It
+ * must stretch to that grid track, not claim another full 100dvh. A full viewport
+ * height here would extend the scroll owner below the visible shell by the header
+ * height and can clip the real scroll end in Safari.
  * No document data, autosave, accounting, output, PDF, Firebase or PIN logic changes. */
 
 /* Commercial document editors: RFQ, Quotation, Proforma, Purchase Order,
@@ -18,10 +23,10 @@
   html body .app-ui .ta-shell.is-editor>.ta-main,
   html body .app-ui .ta-shell.screen-editor>.ta-main,
   html body .app-ui .screen-editor .ta-main{
-    height:100vh!important;
-    height:100dvh!important;
+    height:auto!important;
     min-height:0!important;
-    max-height:100dvh!important;
+    max-height:none!important;
+    align-self:stretch!important;
     overflow-x:hidden!important;
     overflow-y:auto!important;
     -webkit-overflow-scrolling:touch!important;
@@ -69,10 +74,10 @@
 @media screen and (max-width:1180px){
   html body .app-ui .ta-shell.is-editor:has(.draft-studio)>.ta-main,
   html body .app-ui .ta-shell.screen-editor:has(.draft-studio)>.ta-main{
-    height:100vh!important;
-    height:100dvh!important;
+    height:auto!important;
     min-height:0!important;
-    max-height:100dvh!important;
+    max-height:none!important;
+    align-self:stretch!important;
     overflow-x:hidden!important;
     overflow-y:auto!important;
     -webkit-overflow-scrolling:touch!important;
