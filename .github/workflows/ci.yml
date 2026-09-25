@@ -79,6 +79,7 @@ jobs:
           node tests/visual/run-v338-editor-stability.cjs
           node tests/visual/run-v339-ipad-landscape-draft.cjs
           node tests/visual/run-v337-shell-navigation.cjs
+          node tests/visual/run-v339-signout-guard.cjs
 
       - name: Run complete browser functional + TailAdmin QA matrix
         id: visual_qa
