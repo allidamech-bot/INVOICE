@@ -80,7 +80,7 @@ test('closing zone and footer stay intentional under sparse optional data',async
   assert.match(qa,/max-width:78%/);
 });
 
-test('pagination, corrected closing flow, RTL isolation and print break protections remain intact',async()=>{
+test('pagination, grouped closing flow, RTL isolation and print break protections remain intact',async()=>{
   const [renderer,output,balance,direction,qa,sw]=await Promise.all([
     read('src/templates/TemplateRenderer.tsx'),
     read('src/styles/document-output-v119.css'),
@@ -92,12 +92,14 @@ test('pagination, corrected closing flow, RTL isolation and print break protecti
   assert.match(renderer,/shouldUseDetailsPage/);
   assert.match(renderer,/hardOverflow/);
   assert.match(renderer,/lastWeight>allowedLastWeight/);
-  /* v119 retains its historical sparse-document fallback, but v337 is the final
-     presentation owner and deliberately cancels the large blank-middle anchoring. */
+  /* v119 intentionally positions the complete closing zone lower on sparse A4
+     pages. v337 preserves that outer placement but removes v330's internal stretch
+     and independent bottom-grid auto margin that split the zone in production. */
   assert.match(output,/\.invoice-page:not\(\.details-only\) \.final-details\{\s*margin-top:auto!important/);
-  assert.match(balance,/\.invoice-page \.final-details\{[\s\S]*flex:0 0 auto!important[\s\S]*margin-top:6mm!important/);
+  assert.match(balance,/\.invoice-page \.final-details\{[\s\S]*flex:0 0 auto!important[\s\S]*margin-top:auto!important[\s\S]*padding-top:6mm!important/);
   assert.match(balance,/\.invoice-page \.bottom-grid\{[\s\S]*margin-top:4\.5mm!important[\s\S]*padding-top:0!important/);
   assert.doesNotMatch(balance,/\.invoice-page \.bottom-grid\{[\s\S]{0,180}margin-top:auto!important/);
+  assert.doesNotMatch(balance,/\.invoice-page \.final-details\{[\s\S]{0,180}flex:1 1 auto!important/);
   assert.match(direction,/unicode-bidi:isolate/);
   assert.match(direction,/\.invoice-page\.lang-ar/);
   assert.match(qa,/@media print/);
