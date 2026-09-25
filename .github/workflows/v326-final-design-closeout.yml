@@ -1,0 +1,69 @@
+name: LOUREX v326 Final Design Closeout
+
+on:
+  push:
+    branches:
+      - feature/v326-foundation-recovery
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Security gate
+        run: node scripts/security-check.mjs
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: v326 design contracts
+        run: |
+          node --test tests/v326-foundation-recovery.test.mjs
+          node --test tests/v326-business-workspaces.test.mjs
+          node --test tests/v326-access-surfaces.test.mjs
+      - name: Install Chromium and WebKit
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Start QA server
+        run: |
+          python3 -m http.server 4173 > /tmp/lourex-v326-final-server.log 2>&1 &
+          echo $! > /tmp/lourex-v326-final-server.pid
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/tests/visual/obsidian-editor.html >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/lourex-v326-final-server.log; exit 1; fi
+      - name: Foundation and shell QA
+        run: |
+          node tests/visual/run-v326-foundation-hit-testing.cjs
+          node tests/visual/run-v326-mobile-shell.cjs
+      - name: Dashboard documents QA
+        run: node tests/visual/run-v326-dashboard-documents.cjs
+      - name: Business workspaces QA
+        run: node tests/visual/run-v326-business-workspaces.cjs
+      - name: Access surfaces QA
+        run: node tests/visual/run-v326-access-surfaces.cjs
+      - name: Studio security overlays QA
+        run: node tests/visual/run-v326-studio-security-overlays.cjs
+      - name: Mobile preview fit QA
+        run: node tests/visual/run-mobile-preview-fit-v241.cjs
+      - name: Mobile modal overlap QA
+        run: node tests/visual/run-mobile-modal-overlap-v176.cjs
+      - name: Document template visual QA
+        run: node tests/visual/run-template-visual-qa.cjs visual-qa-output/v326-final-templates
+      - name: Upload final design evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lourex-v326-final-design-closeout
+          path: visual-qa-output
+          if-no-files-found: ignore
