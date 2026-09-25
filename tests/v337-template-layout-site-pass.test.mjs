@@ -26,3 +26,17 @@ test('v337 normalizes signature and stamp geometry without changing document out
   assert.match(css,/\.invoice-page \.doc-footer\{[\s\S]*flex:0 0 10mm!important[\s\S]*margin-inline:11mm!important/);
   assert.doesNotMatch(css,/firebase|indexedDB|localStorage|calculateTotals|saveVault|persist\(|onSave|onPrint/i);
 });
+
+test('mobile editor scroll owner stays inside the shell grid row instead of claiming a second full viewport',async()=>{
+  const recovery=await read('src/styles/v331-draft-scroll-recovery.css');
+  const commercial=recovery.slice(recovery.indexOf('@media screen and (max-width:900px)'),recovery.indexOf('/* Draft Studio uses'));
+  const draft=recovery.slice(recovery.indexOf('@media screen and (max-width:1180px)'),recovery.indexOf('@media screen and (max-width:720px)'));
+  for(const block of [commercial,draft]){
+    assert.match(block,/\.ta-main[\s\S]*height:auto!important/);
+    assert.match(block,/\.ta-main[\s\S]*min-height:0!important/);
+    assert.match(block,/\.ta-main[\s\S]*max-height:none!important/);
+    assert.match(block,/\.ta-main[\s\S]*align-self:stretch!important/);
+    assert.match(block,/\.ta-main[\s\S]*overflow-y:auto!important/);
+    assert.doesNotMatch(block,/\.ta-main[\s\S]{0,260}height:100dvh!important/);
+  }
+});
