@@ -26,7 +26,7 @@ test('commercial document fields keep readable ink through Safari focus and auto
   assert.match(css, /::placeholder/);
 });
 
-test('Draft Studio receives the same Safari-safe field contract without taking scroll ownership from v331', async () => {
+test('Draft Studio keeps the Safari-safe field contract while v336 makes ta-main the scroll owner', async () => {
   const css = await read('src/styles/v333-critical-documents-visual-functional-closeout.css');
   const recovery = await read('src/styles/v331-draft-scroll-recovery.css');
   assert.match(recovery, /^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);/);
@@ -34,8 +34,8 @@ test('Draft Studio receives the same Safari-safe field contract without taking s
   assert.match(css, /::-webkit-date-and-time-value/);
   assert.match(css, /-webkit-text-fill-color:var\(--v333-text/);
   assert.doesNotMatch(css, /\.draft-studio-scroll[\s\S]{0,180}overflow-y/);
-  assert.match(recovery, /\.draft-studio-scroll\{[\s\S]*overflow-y:auto!important/);
-  assert.match(recovery, /touch-action:pan-y!important/);
+  assert.match(recovery, /\.ta-shell\.is-editor:has\(\.draft-studio\)>\.ta-main,[\s\S]*overflow-y:auto!important/);
+  assert.match(recovery, /\.ta-draft-studio-workspace \.draft-studio-scroll\{[\s\S]*overflow:visible!important/);
 });
 
 test('mobile commercial editor is full-width and avoids a nested bordered scroll pane', async () => {
