@@ -6,7 +6,7 @@ const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('v337 is loaded by the runtime-promoted document owner after v333',async()=>{
   const owner=await read('src/styles/v331-draft-scroll-recovery.css');
-  assert.match(owner,/^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);\n@import url\("\.\/v337-template-layout-balance\.css\?v=337-1"\);/);
+  assert.match(owner,/^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);\n@import url\("\.\/v337-template-layout-balance\.css\?v=337-3"\);/);
 });
 
 test('v337 keeps the complete commercial closing zone contiguous in normal flow instead of splitting or bottom-anchoring it',async()=>{
@@ -64,19 +64,21 @@ test('later document-semantic owner cannot retake editor scroll geometry from v3
 });
 
 test('production entry cache-busts the repaired Safari scroll owner and document runtime',async()=>{
-  const [html,cacheRefresh]=await Promise.all([read('index.html'),read('scripts/v303-visual-cache-refresh.mjs')]);
-  assert.match(html,/v331-draft-scroll-recovery\.css\?v=337-2/);
-  assert.doesNotMatch(html,/v331-draft-scroll-recovery\.css\?v=331-1/);
-  assert.match(html,/document-entry-v302\.js\?v=337-2/);
+  const [html,cacheRefresh,finalContract]=await Promise.all([read('index.html'),read('scripts/v303-visual-cache-refresh.mjs'),read('scripts/v321-production-runtime-contract.mjs')]);
+  assert.match(html,/v331-draft-scroll-recovery\.css\?v=337-3/);
+  assert.doesNotMatch(html,/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/);
+  assert.match(html,/document-entry-v302\.js\?v=337-3/);
   assert.match(cacheRefresh,/RELEASE_GENERATION=337/);
   for(const asset of [
     'v333-critical-documents-visual-functional-closeout.css\\?v=333-1',
-    'v337-template-layout-balance.css\\?v=337-1',
-    'v331-draft-scroll-recovery.css\\?v=337-2',
+    'v337-template-layout-balance.css\\?v=337-3',
+    'v331-draft-scroll-recovery.css\\?v=337-3',
     'v332-critical-documents-deep-closeout.css\\?v=332-1',
-    'document-entry-v302.js\\?v=337-2'
+    'document-entry-v302.js\\?v=337-3'
   ])assert.match(cacheRefresh,new RegExp(asset));
   assert.match(cacheRefresh,/const entryPath='dist\/document-entry-v302\.js'/);
-  assert.match(cacheRefresh,/replaceAll\('\.\/styles\/v331-draft-scroll-recovery\.css\?v=331-1',draftScrollRuntime\)/);
-  assert.match(cacheRefresh,/Stale v331-1 document scroll fallback survived production build/);
+  assert.match(cacheRefresh,/Stale pre-337-3 document scroll fallback survived production build/);
+  assert.match(finalContract,/v337-template-layout-balance\.css\?v=337-3/);
+  assert.match(finalContract,/v331-draft-scroll-recovery\.css\?v=337-3/);
+  assert.match(finalContract,/document-entry-v302\.js\?v=337-3/);
 });
