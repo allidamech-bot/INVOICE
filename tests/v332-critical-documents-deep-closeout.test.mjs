@@ -43,8 +43,8 @@ test('quotation family and invoice conversion remain explicit and safe',()=>{
   assert.match(kinds,/documentCanConvertToInvoice\(kind:DocumentKind\):boolean\{return kind==='proforma'\|\|kind==='proforma-invoice'/);
   assert.match(docs,/Only an active Final quotation or proforma invoice can be converted/);
   assert.match(docs,/kind: 'invoice'/);
-  assert.match(app,/convertedFromId/);
-  assert.match(app,/documentCanConvertToInvoice/);
+  assert.match(docs,/convertedFromId: source\.id/);
+  assert.match(app,/convertToInvoice/);
 });
 
 test('RFQ and Delivery Note are non-priced documents in editor, detail and output',()=>{
