@@ -1,0 +1,94 @@
+/* LOUREX v331 — Draft Studio scroll recovery after v330.
+ * Scope is intentionally Draft-only. Commercial quotation/invoice editor geometry
+ * remains owned by v330. No document data, autosave, output or PDF logic changes. */
+
+@media screen and (max-width:1180px){
+  /* Draft owns one internal viewport. v330 makes the commercial editor's outer
+     .ta-main the scroll owner; that model must not leak into Draft Studio. */
+  html body .app-ui .ta-shell.screen-editor:has(.draft-studio)>.ta-main{
+    height:100%!important;
+    min-height:0!important;
+    overflow:hidden!important;
+    overscroll-behavior:none!important;
+    touch-action:auto!important;
+  }
+
+  html body .app-ui .screen-editor .ta-draft-studio-workspace{
+    width:100%!important;
+    height:100%!important;
+    min-height:0!important;
+    max-height:100%!important;
+    overflow:hidden!important;
+  }
+
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio.editor-screen{
+    width:100%!important;
+    height:100%!important;
+    min-height:0!important;
+    max-height:100%!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+    overscroll-behavior:none!important;
+  }
+
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-topbar,
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .editor-global-error{
+    flex:0 0 auto!important;
+  }
+
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-layout{
+    flex:1 1 auto!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    display:block!important;
+    overflow:hidden!important;
+  }
+
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-controls{
+    width:100%!important;
+    height:100%!important;
+    min-height:0!important;
+    max-height:100%!important;
+    overflow:hidden!important;
+    border-inline-end:0!important;
+  }
+
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
+    width:100%!important;
+    height:100%!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    overscroll-behavior-y:contain!important;
+    -webkit-overflow-scrolling:touch!important;
+    touch-action:pan-y!important;
+    scroll-padding-bottom:calc(118px + env(safe-area-inset-bottom,0px))!important;
+  }
+
+  /* Draft preview is not a second scroll owner while editing on phones/tablets. */
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-preview{
+    min-height:0!important;
+  }
+
+  /* Draft has its own focused writing workflow; keep the global AI launcher out. */
+  html body .app-ui:has(.draft-studio) .lourex-ai-launcher{
+    display:none!important;
+  }
+}
+
+@media screen and (max-width:720px){
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-layout{
+    padding:10px!important;
+  }
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
+    padding:10px 10px calc(124px + env(safe-area-inset-bottom,0px))!important;
+    scroll-padding-bottom:calc(124px + env(safe-area-inset-bottom,0px))!important;
+  }
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-control-section{
+    scroll-margin-top:10px!important;
+  }
+}
