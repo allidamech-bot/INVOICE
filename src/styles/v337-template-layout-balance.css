@@ -95,9 +95,10 @@
     background:#fff!important;
     color:var(--letter-ink)!important;
     overflow:hidden!important;
-    direction:inherit!important;
     text-align:start!important;
   }
+  .draft-letter-page[dir="ltr"]{direction:ltr!important;text-align:left!important;}
+  .draft-letter-page[dir="rtl"]{direction:rtl!important;text-align:right!important;}
   .draft-letter-page .letterhead-header{
     position:relative;
     z-index:2;
