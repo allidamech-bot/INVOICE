@@ -68,14 +68,15 @@ test('Create Center exposes ten visually distinct business-document identities',
   assert.match(runtime, /normalizeCreateMenuKinds\(\)/);
 });
 
-test('printable templates keep dark-header contrast and footer-zone signature/stamp anchoring', async () => {
-  const css = await read('src/styles/v330-template-contrast-guard.css');
+test('printable templates keep header contrast while v337 restores one contiguous closing zone', async () => {
+  const legacy = await read('src/styles/v330-template-contrast-guard.css');
   const base = await read('src/styles/document-premium-redesign-v141.css');
-  assert.match(css, /\.invoice-page\.template-executive \.header-executive[\s\S]*color:#fff!important/);
-  assert.match(css, /\.invoice-page \.final-details\{[\s\S]*flex:1 1 auto!important/);
-  assert.match(css, /\.invoice-page \.bottom-grid\{[\s\S]*margin-top:auto!important[\s\S]*padding-top:5mm!important/);
-  assert.match(css, /\.signature-media \.stamp-image\{[\s\S]*object-position:center bottom!important/);
+  const balance = await read('src/styles/v337-template-layout-balance.css');
+  assert.match(legacy, /\.invoice-page\.template-executive \.header-executive[\s\S]*color:#fff!important/);
   assert.match(base, /\.doc-body\{[^}]*display:flex[^}]*flex-direction:column/);
+  assert.match(balance, /\.invoice-page \.final-details\{[\s\S]*flex:0 0 auto!important[\s\S]*margin-top:6mm!important/);
+  assert.match(balance, /\.invoice-page \.bottom-grid\{[\s\S]*margin-top:4\.5mm!important[\s\S]*padding-top:0!important[\s\S]*align-items:start!important/);
+  assert.match(balance, /\.signature-media \.stamp-image\{[\s\S]*object-position:center bottom!important/);
 });
 
 test('automatic account/cloud/PWA transitions remain editor-safe', async () => {
@@ -88,9 +89,10 @@ test('automatic account/cloud/PWA transitions remain editor-safe', async () => {
   assert.match(runtime, /function recoverLateAuthenticatedAccount\(\)[\s\S]*if\(editorOrUnsafeWorkspaceOpen\(\)\)return/);
 });
 
-test('v333 visual layers do not own business persistence or accounting', async () => {
+test('v333/v337 visual layers do not own business persistence or accounting', async () => {
   const commercial = await read('src/styles/v330-template-contrast-guard.css');
   const draft = await read('src/styles/v333-critical-documents-visual-functional-closeout.css');
-  const combined = `${commercial}\n${draft}`;
+  const balance = await read('src/styles/v337-template-layout-balance.css');
+  const combined = `${commercial}\n${draft}\n${balance}`;
   assert.doesNotMatch(combined, /firebase|indexedDB|localStorage|saveVault|calculateTotals|invoicePaymentSummary|persist\(/i);
 });
