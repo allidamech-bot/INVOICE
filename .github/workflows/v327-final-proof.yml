@@ -1,0 +1,50 @@
+name: v327 Final Proof
+
+on:
+  push:
+    branches:
+      - hotfix/v327-production-create-menu-scroll
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Install browser runtimes
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Run v327 focused browser proof
+        shell: bash
+        run: |
+          npx http-server . -p 4173 -c-1 > /tmp/lourex-v327-final-proof.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/tests/visual/template-visual-qa.html >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/lourex-v327-final-proof.log
+            exit 1
+          fi
+          node tests/visual/run-template-visual-qa.cjs visual-qa-output/v327-templates
+          node tests/visual/run-functional-document-workflow.cjs
+          node tests/visual/run-functional-editor-controls-v201.cjs
+          node tests/visual/run-v327-production-recovery.cjs
+          node tests/visual/run-mobile-final-quote-stack.cjs
+          node tests/visual/run-mobile-modal-overlap-v176.cjs
