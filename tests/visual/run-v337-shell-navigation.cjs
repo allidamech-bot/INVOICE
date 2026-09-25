@@ -40,10 +40,19 @@ async function runCase(name,browserType,viewport,lang){
       await more.click();
       const sheet=page.locator('#ta-mobile-more');
       await sheet.waitFor({state:'visible'});
-      const probe=await sheet.evaluate(el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);const before=el.scrollTop,max=Math.max(0,el.scrollHeight-el.clientHeight);el.scrollTop=max;const after=el.scrollTop;el.scrollTop=before;return{top:r.top,bottom:r.bottom,height:r.height,overflowY:s.overflowY,max,after};});
+      const probe=await sheet.evaluate(el=>{
+        const r=el.getBoundingClientRect(),s=getComputedStyle(el),before=el.scrollTop,max=Math.max(0,el.scrollHeight-el.clientHeight);
+        el.scrollTop=max;const after=el.scrollTop;
+        const buttons=[...el.querySelectorAll('button')].filter(button=>{const br=button.getBoundingClientRect(),bs=getComputedStyle(button);return bs.display!=='none'&&br.width>0&&br.height>0;});
+        const last=buttons.at(-1)||null,lr=last?.getBoundingClientRect()||null;
+        el.scrollTop=before;
+        return{top:r.top,bottom:r.bottom,height:r.height,overflowY:s.overflowY,touchAction:s.touchAction,max,after,lastReachable:!lr||lr.bottom<=r.bottom+2,lastBottom:lr?.bottom??null};
+      });
       if(probe.top<0||probe.bottom>viewport.height+2)failures.push(`More sheet leaves viewport: ${JSON.stringify(probe)}`);
+      if(probe.touchAction!=='pan-y')failures.push(`More sheet touch-action=${probe.touchAction||'missing'}, expected pan-y`);
       if(probe.max>2&&!['auto','scroll'].includes(probe.overflowY))failures.push(`More sheet has hidden range ${probe.max}px but overflow-y=${probe.overflowY}`);
       if(probe.max>2&&probe.after<probe.max-2)failures.push(`More sheet cannot reach scroll end ${probe.after}/${probe.max}`);
+      if(!probe.lastReachable)failures.push(`More sheet last action clipped ${probe.lastBottom} > ${probe.bottom}`);
       return sheet;
     };
 
@@ -108,5 +117,5 @@ async function runCase(name,browserType,viewport,lang){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.failures.map(f=>`${row.name}/${row.lang}: ${f}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v337 shell navigation: ${rows.length} Chromium/WebKit mobile cases passed.`);
+  console.log(`v337 shell navigation: ${rows.length} Chromium/WebKit mobile cases passed with pan-y More-menu reachability.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
