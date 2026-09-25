@@ -60,6 +60,20 @@ test('v326 mobile shell has one presentation owner',async()=>{
   assert.doesNotMatch(pagePriority,/\.lourex-ai-launcher/);
 });
 
+test('v326 shell correction contract keeps RTL rails and More affordance stable',async()=>{
+  const css=await read('src/styles/tailadmin-shell-contract-v326.css');
+  assert.match(css,/html\[dir="rtl"\][\s\S]*\.ta-shell\{[\s\S]*grid-template-columns:272px minmax\(0,1fr\)!important/);
+  assert.match(css,/html\[dir="rtl"\][\s\S]*\.ta-sidebar\{[\s\S]*grid-column:1!important/);
+  assert.match(css,/\.ta-topbar,[\s\S]*\.ta-main\{[\s\S]*grid-column:2!important/);
+  assert.match(css,/\.ta-mobile-sheet \.ta-sheet-chevron\{[\s\S]*display:block!important/);
+  const html=await read('index.html');
+  const closeout=html.indexOf('tailadmin-design-closeout-v323.css');
+  const contract=html.indexOf('tailadmin-shell-contract-v326.css');
+  const priority=html.indexOf('tailadmin-design-mobile-priority-v323.css');
+  const reliability=html.indexOf('tailadmin-reliability-bridge-v320.css');
+  assert.ok(closeout>=0&&contract>closeout&&priority>contract&&reliability>priority,'shell contract must load after page closeout and before mobile priority/reliability');
+});
+
 test('v326 application chrome always uses official LOUREX identity',async()=>{
   const shell=await read('src/components/AppShell.tsx');
   assert.match(shell,/const logo='\.\/brand\/lourex-logo\.svg'/);
