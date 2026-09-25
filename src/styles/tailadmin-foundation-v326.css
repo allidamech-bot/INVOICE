@@ -1,0 +1,98 @@
+/*
+ * LOUREX v326 — UI foundation contract.
+ * Architecture only: overlay ordering, hit-testing, viewport ownership and
+ * transient-surface geometry. Business logic, document output and persistence
+ * remain untouched.
+ */
+@media screen {
+  :root{
+    --lourex-z-shell:60;
+    --lourex-z-nav:120;
+    --lourex-z-backdrop:1100;
+    --lourex-z-popover:1120;
+    --lourex-z-sheet:1140;
+    --lourex-z-search:1200;
+    --lourex-z-ai:1220;
+    --lourex-z-modal:1300;
+    --lourex-z-toast:1360;
+    --lourex-z-critical:1500;
+  }
+
+  /* One documented overlay ladder. Components may be visually themed elsewhere,
+     but they may not invent competing z-index ranges. */
+  .app-ui .ta-sidebar{z-index:var(--lourex-z-shell)!important;}
+  .app-ui .ta-mobile-nav{z-index:var(--lourex-z-nav)!important;}
+  .app-ui .ta-overlay-backdrop{z-index:var(--lourex-z-backdrop)!important;}
+  .app-ui .ta-mobile-sheet{z-index:var(--lourex-z-sheet)!important;}
+  .global-search-backdrop{z-index:var(--lourex-z-search)!important;}
+  .global-search-panel{z-index:calc(var(--lourex-z-search) + 1)!important;}
+  .lourex-ai-panel{z-index:var(--lourex-z-ai)!important;}
+  .modal-backdrop{z-index:var(--lourex-z-modal)!important;}
+  .toast,.pwa-update-toast,[data-lourex-cloud-refresh],[data-lourex-update]{z-index:var(--lourex-z-toast)!important;}
+  .app-ui .ta-doc-mobile-action-portal{z-index:var(--lourex-z-critical)!important;}
+
+  /* The mobile create menu currently lives inside the fixed bottom nav. When it
+     is open, elevate that stacking context above its own backdrop and disable all
+     unrelated dock actions. This makes the visible menu the real hit-test owner. */
+  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-nav{
+    z-index:calc(var(--lourex-z-backdrop) + 2)!important;
+  }
+  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-nav>button{
+    pointer-events:none!important;
+  }
+  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-create-wrap{
+    position:relative!important;
+    z-index:2!important;
+    pointer-events:auto!important;
+  }
+  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-create,
+  body:has(#ta-mobile-create-menu) .app-ui .ta-create-menu-mobile{
+    pointer-events:auto!important;
+  }
+  body:has(#ta-mobile-create-menu) .app-ui .ta-create-menu-mobile{
+    z-index:3!important;
+  }
+
+  /* More owns focus independently; the dock stays below its backdrop. */
+  body:has(#ta-mobile-more) .app-ui .ta-mobile-nav{
+    z-index:var(--lourex-z-nav)!important;
+    pointer-events:none!important;
+  }
+
+  /* Runtime cloud/PWA notices are transient reliability surfaces. Keep them in
+     the viewport and out of document/editor content on every writing direction. */
+  html body .pwa-update-toast,
+  html body [data-lourex-cloud-refresh],
+  html body [data-lourex-update]{
+    position:fixed!important;
+    left:50%!important;
+    right:auto!important;
+    inset-inline:auto!important;
+    top:auto!important;
+    bottom:calc(96px + env(safe-area-inset-bottom,0px))!important;
+    width:min(340px,calc(100vw - 24px))!important;
+    max-width:calc(100vw - 24px)!important;
+    margin:0!important;
+    transform:translateX(-50%)!important;
+  }
+
+  /* Workspace pages have one scroll owner: .ta-main. Nested page roots must not
+     create accidental full-height scrollers that preserve stale page positions. */
+  .app-ui .ta-main{overscroll-behavior:contain!important;}
+  .app-ui :where(.ta-finance-dashboard,.ta-documents-page,.ta-doc-detail-page,.ta-customers-page,.ta-customer-profile,.ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page){
+    min-height:auto!important;
+  }
+}
+
+@media screen and (max-width:900px){
+  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-nav>button,
+  body:has(#ta-mobile-create-menu) .app-ui .ta-mobile-create-wrap{
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  html body .pwa-update-toast,
+  html body [data-lourex-cloud-refresh],
+  html body [data-lourex-update]{
+    bottom:calc(94px + env(safe-area-inset-bottom,0px))!important;
+  }
+}
