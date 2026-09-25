@@ -1,9 +1,13 @@
 /* LOUREX v337 — printable template structural balance.
  * Presentation-only repair for the A4 preview/PDF surface.
- * The canonical v141 template system already defines the intended header/body/footer
- * geometry; later v330 rules accidentally stretched .final-details and pushed the
- * bank/signature block to the bottom independently, creating a large dead zone.
- * This layer restores one contiguous commercial closing zone across all templates. */
+ * The canonical v141/v119 document system already supports a disciplined bottom
+ * closing zone; v330 accidentally made .final-details itself stretch and then
+ * pushed .bottom-grid independently to the page bottom. That split totals/terms
+ * from bank/signature and produced the large dead zone visible in Safari preview.
+ *
+ * v337 keeps the entire commercial close as ONE compact block. Sparse documents
+ * may place that complete block lower on the A4 page, but nothing inside it is
+ * allowed to absorb leftover height or jump away from its siblings. */
 
 @media screen, print {
   .invoice-page .doc-body{
@@ -12,17 +16,19 @@
     min-height:0!important;
   }
 
-  /* Keep totals/terms/notes/bank/signature together in normal document flow.
-     Do not let the closing zone itself absorb the remaining A4 height. */
+  /* One complete closing band: totals + terms + notes + bank + authorization.
+     margin-top:auto may position the WHOLE band lower on a sparse A4 page; flex:0
+     prevents the band from stretching, which is the key distinction from v330. */
   .invoice-page .final-details{
     display:block!important;
     flex:0 0 auto!important;
     min-height:0!important;
-    margin-top:6mm!important;
-    padding-top:0!important;
+    margin-top:auto!important;
+    padding-top:6mm!important;
   }
   .invoice-page.details-only .final-details{
     margin-top:0!important;
+    padding-top:0!important;
   }
   .invoice-page .lower-grid{
     align-items:start!important;
@@ -62,21 +68,13 @@
     object-position:center bottom!important;
   }
 
-  /* Preserve the canonical footer as a compact, independent footer instead of
-     using it as a visual anchor for the commercial closing content. */
+  /* Footer is always its own compact A4 zone below the complete commercial close. */
   .invoice-page .doc-footer{
     flex:0 0 10mm!important;
     height:10mm!important;
     min-height:10mm!important;
     margin-inline:11mm!important;
     align-items:center!important;
-  }
-
-  /* Short documents should read top-to-bottom naturally. The empty A4 remainder
-     stays below the completed business content rather than splitting that content. */
-  .invoice-page:not(.details-only) .items-wrap + .final-details,
-  .invoice-page:not(.details-only) .party-grid + .final-details{
-    margin-top:6mm!important;
   }
 }
 
