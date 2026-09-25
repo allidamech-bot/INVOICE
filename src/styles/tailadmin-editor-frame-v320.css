@@ -22,7 +22,7 @@
   [dir="rtl"] .app-ui .ta-editor-step-nav-heading small { letter-spacing:0!important; }
   .app-ui .ta-editor-step-nav-heading strong { color:var(--ft-text-strong)!important;font-size:12px!important;line-height:18px!important;font-weight:650!important; }
   .app-ui .ta-editor-step-list { display:flex!important;flex-direction:column!important;gap:3px!important; }
-  .app-ui .ta-editor-step-list>button { width:100%!important;min-height:44px!important;display:grid!important;grid-template-columns:30px minmax(0,1fr) 20px!important;align-items:center!important;gap:8px!important;padding:6px 8px!important;border:0!important;border-radius:8px!important;background:transparent!important;color:var(--ft-muted)!important;box-shadow:none!important;text-align:start!important; }
+  html body .app-ui .ta-editor-step-list>button { width:100%!important;min-height:44px!important;display:grid!important;grid-template-columns:30px minmax(0,1fr) 20px!important;align-items:center!important;gap:8px!important;padding:6px 8px!important;border:0!important;border-radius:8px!important;background:transparent!important;color:var(--ft-muted)!important;box-shadow:none!important;text-align:start!important; }
   .app-ui .ta-editor-step-list>button:hover { background:var(--ft-surface-2)!important;color:var(--ft-text-strong)!important; }
   .app-ui .ta-editor-step-list>button.is-active { background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important; }
   .app-ui .ta-editor-step-number { width:30px!important;height:30px!important;display:grid!important;place-items:center!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface-2)!important;color:var(--ft-muted)!important;font-size:10px!important;line-height:1!important;font-weight:700!important;font-variant-numeric:tabular-nums!important; }
@@ -46,7 +46,7 @@
     .app-ui .ta-editor-step-nav::-webkit-scrollbar { display:none!important; }
     .app-ui .ta-editor-step-nav-heading { display:none!important; }
     .app-ui .ta-editor-step-list { flex-direction:row!important;gap:5px!important; }
-    .app-ui .ta-editor-step-list>button { width:auto!important;min-width:max-content!important;min-height:44px!important;grid-template-columns:30px auto 20px!important;padding:6px 9px!important; }
+    html body .app-ui .ta-editor-step-list>button { width:auto!important;min-width:max-content!important;min-height:44px!important;grid-template-columns:30px auto 20px!important;padding:6px 9px!important; }
     .app-ui .ta-editor-step-number { width:30px!important;height:30px!important; }
   }
 
