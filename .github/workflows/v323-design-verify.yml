@@ -1,0 +1,54 @@
+name: v323 Design-Only Verification
+
+on:
+  push:
+    branches:
+      - audit/v323-design-only-full-ui-pass
+
+permissions:
+  contents: read
+
+jobs:
+  verify-v323-design:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Security gate
+        run: node scripts/security-check.mjs
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Install browser QA runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0 http-server@14.1.1
+          npx playwright install chromium
+      - name: Design visual QA
+        run: |
+          npx http-server . -p 4173 -c-1 > /tmp/lourex-v323-qa.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/tests/visual/template-visual-qa.html >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/lourex-v323-qa.log; exit 1; fi
+          node tests/visual/run-tailadmin-v320.cjs
+          node tests/visual/run-premium-auth-gateway-v187.cjs
+          node tests/visual/run-mobile-modal-overlap-v176.cjs
+          node tests/visual/run-mobile-controls-density-v177.cjs
+          node tests/visual/run-mobile-spacing-fit-v198.cjs
+          node tests/visual/run-mobile-safari-chrome-v199.cjs
+          node tests/visual/run-final-touch-targets-v275.cjs
+      - name: Upload v323 design evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: v323-design-evidence
+          path: visual-qa-output
+          if-no-files-found: ignore
