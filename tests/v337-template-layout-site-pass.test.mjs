@@ -56,12 +56,14 @@ test('Safari command sheets share one explicit vertical touch-scroll contract',a
   assert.doesNotMatch(contract,/overflow-y:hidden|touch-action:none/i);
 });
 
-test('later document-semantic owner cannot retake editor scroll geometry from v331',async()=>{
+test('later document-semantic owner cannot retake scroll or A4 closing geometry',async()=>{
   const semantics=await read('src/styles/v332-critical-documents-deep-closeout.css');
   assert.doesNotMatch(semantics,/\.ta-main/);
   assert.doesNotMatch(semantics,/draft-studio-scroll/);
   assert.doesNotMatch(semantics,/overflow-y\s*:\s*hidden/i);
   assert.doesNotMatch(semantics,/height\s*:\s*100dvh/i);
+  assert.doesNotMatch(semantics,/\.final-details|\.bottom-grid|\.signature-media|\.doc-footer/);
+  assert.doesNotMatch(semantics,/margin-top\s*:\s*auto|flex\s*:\s*1\s+1\s+auto/i);
 });
 
 test('production entry cache-busts the repaired Safari scroll owner and document runtime',async()=>{
