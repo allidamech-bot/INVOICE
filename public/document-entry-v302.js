@@ -36,7 +36,16 @@
     try{if('caches' in window){void caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('lourex-invoice-')).map(key=>caches.delete(key)))).catch(()=>undefined);}}catch{}
   }
 
-  function ensureStylesheet(marker,href){if(document.querySelector(`link[${marker}]`))return;const link=document.createElement('link');link.rel='stylesheet';link.href=href;link.setAttribute(marker,'true');document.head.appendChild(link);}
+  function stylesheetHrefMatches(link,href){
+    try{return new URL(link.getAttribute('href')||link.href,document.baseURI).href===new URL(href,document.baseURI).href;}
+    catch{return link.getAttribute('href')===href;}
+  }
+
+  function ensureStylesheet(marker,href){
+    const existing=document.querySelector(`link[${marker}]`);
+    if(existing instanceof HTMLLinkElement){if(!stylesheetHrefMatches(existing,href))existing.href=href;return;}
+    const link=document.createElement('link');link.rel='stylesheet';link.href=href;link.setAttribute(marker,'true');document.head.appendChild(link);
+  }
 
   function promoteTailAdminOwners(){
     const head=document.head;if(!head)return;
