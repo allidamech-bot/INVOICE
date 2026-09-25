@@ -19,6 +19,7 @@ async function inspectPage(page,testCase){
     const rect=(element)=>{const r=element.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
     const pages=[...document.querySelectorAll('.invoice-page')];
     const violations=[];
+    let maxItemsToClosingGap=0;
     let maxClosingGap=0;
     let minFooterClearance=Number.POSITIVE_INFINITY;
     for(const [pageIndex,sheet] of pages.entries()){
@@ -46,9 +47,17 @@ async function inspectPage(page,testCase){
         if(overlap)violations.push(`page ${pageIndex+1}: signature and stamp overlap`);
       }
 
-      /* v337 regression: the commercial closing band must remain contiguous.
-         v330 once stretched .final-details and pushed .bottom-grid independently
-         to the footer, creating a several-hundred-pixel dead zone on short docs. */
+      /* v337 regression: no auto-margin is allowed to reopen a dead zone between
+         the item table and the commercial close. The close itself must then remain
+         compact through totals/terms/notes/bank/signature. */
+      const itemsWrap=sheet.querySelector('.items-wrap');
+      const finalDetails=sheet.querySelector('.final-details');
+      if(itemsWrap&&finalDetails){
+        const gap=Math.max(0,rect(finalDetails).top-rect(itemsWrap).bottom);
+        maxItemsToClosingGap=Math.max(maxItemsToClosingGap,gap);
+        if(gap>48)violations.push(`page ${pageIndex+1}: item table and commercial close split by ${Math.round(gap)}px`);
+      }
+
       const bottom=sheet.querySelector('.bottom-grid');
       if(bottom){
         const previous=bottom.previousElementSibling;
@@ -77,6 +86,7 @@ async function inspectPage(page,testCase){
       customerX:customer?rect(customer).left:null,
       bilingualRtlCount:first?.querySelectorAll('[dir="rtl"]').length||0,
       grandTotalCount:document.querySelectorAll('.grand-total').length,
+      maxItemsToClosingGap,
       maxClosingGap,
       minFooterClearance:Number.isFinite(minFooterClearance)?minFooterClearance:null,
       violations:[...new Set(violations)],
