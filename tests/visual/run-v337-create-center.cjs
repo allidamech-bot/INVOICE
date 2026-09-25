@@ -44,7 +44,10 @@ async function runCase(name,browserType,viewport,lang){
       await target.scrollIntoViewIfNeeded();
       const box=await target.boundingBox();
       if(!box||box.height<43.5)failures.push(`item ${index+1} touch target ${box?box.height.toFixed(1):'missing'}px`);
-      if(box&&(box.left<-2||box.right>viewport.width+2||box.top<-2||box.bottom>viewport.height+2))failures.push(`item ${index+1} is not reachable inside viewport: ${JSON.stringify(box)}`);
+      if(box){
+        const right=box.x+box.width,bottom=box.y+box.height;
+        if(box.x<-2||right>viewport.width+2||box.y<-2||bottom>viewport.height+2)failures.push(`item ${index+1} is not reachable inside viewport: ${JSON.stringify({...box,right,bottom})}`);
+      }
       await target.click();
       await page.waitForTimeout(30);
       const after=await page.evaluate(()=>({newKind:window.shellQa.newKind,credit:window.shellQa.credit,statement:window.shellQa.statement,open:Boolean(document.querySelector('.ta-create-menu'))}));
