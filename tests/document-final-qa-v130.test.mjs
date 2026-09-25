@@ -5,14 +5,20 @@ import { readFile } from 'node:fs/promises';
 const read=path=>readFile(path,'utf8');
 const allTemplates=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 
-test('canonical document QA layer loads last and remains document-only',async()=>{
-  const [html,qa]=await Promise.all([
+test('canonical A4 base remains document-only and v337 is the final corrective layout owner',async()=>{
+  const [html,qa,recovery,balance]=await Promise.all([
     read('index.html'),
-    read('src/styles/document-premium-redesign-v141.css')
+    read('src/styles/document-premium-redesign-v141.css'),
+    read('src/styles/v331-draft-scroll-recovery.css'),
+    read('src/styles/v337-template-layout-balance.css')
   ]);
-  assert.equal([...html.matchAll(/href="\.\/styles\/([^"]+\.css)"/g)].at(-1)?.[1],'document-premium-redesign-v141.css');
+  assert.match(html,/href="\.\/styles\/document-premium-redesign-v141\.css"/);
+  assert.match(html,/href="\.\/styles\/v331-draft-scroll-recovery\.css\?v=331-1"/);
   assert.match(qa,/canonical A4 layer/);
   assert.doesNotMatch(qa,/\.app-shell|\.documents-page|\.editor-shell/);
+  assert.match(recovery,/^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);\n@import url\("\.\/v337-template-layout-balance\.css\?v=337-1"\);/);
+  assert.match(balance,/printable template structural balance/);
+  assert.doesNotMatch(balance,/\.app-shell|\.documents-page|\.editor-shell/);
 });
 
 test('all 18 templates are covered by the combined v128 and v129 art direction',async()=>{
@@ -96,6 +102,6 @@ test('pagination, corrected closing flow, RTL isolation and print break protecti
   assert.match(direction,/\.invoice-page\.lang-ar/);
   assert.match(qa,/@media print/);
   assert.match(qa,/break-inside:avoid/);
-  assert.match(sw,/pathname\.startsWith\('\/styles\/'\)/);
-  assert.match(sw,/cacheFirst\(event\.request\)/);
+  assert.match(sw,/function isAppRuntimePath\(pathname\)[\s\S]*pathname\.startsWith\('\/styles\/'\)/);
+  assert.match(sw,/isAppRuntimePath\(url\.pathname\)[\s\S]*networkFirst\(event\.request\)/);
 });
