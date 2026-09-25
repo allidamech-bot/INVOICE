@@ -26,7 +26,7 @@ jobs:
       - name: Install browser QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0 http-server@14.1.1
-          npx playwright install chromium
+          npx playwright install chromium webkit
       - name: Design visual QA
         run: |
           python - <<'PY'
@@ -80,16 +80,11 @@ jobs:
                 await page.goto(`http://127.0.0.1:4173/tests/visual/${surface.file}${sep}lang=${lang}`,{waitUntil:'load'});
                 await page.locator(surface.selector).waitFor({state:'visible'});
                 await page.evaluate(()=>document.fonts.ready);
-                const base=await page.evaluate(()=>({
-                  scrollWidth:document.documentElement.scrollWidth,
-                  innerWidth:window.innerWidth,
-                  dir:document.documentElement.dir
-                }));
+                const base=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,innerWidth:window.innerWidth,dir:document.documentElement.dir}));
                 if(base.scrollWidth>base.innerWidth+2)failures.push(`${surface.name} ${vp.width} ${lang}: horizontal overflow ${base.scrollWidth}/${base.innerWidth}`);
                 if(lang==='ar'&&base.dir!=='rtl')failures.push(`${surface.name} ${vp.width}: Arabic not RTL`);
                 if(lang==='en'&&base.dir==='rtl')failures.push(`${surface.name} ${vp.width}: English remained RTL`);
                 checks+=3;
-
                 if(surface.name==='shell'){
                   const m=await page.evaluate(()=>{
                     const r=s=>document.querySelector(s)?.getBoundingClientRect();
@@ -105,29 +100,19 @@ jobs:
                   checks+=5;
                 }
                 if(surface.name==='dashboard'){
-                  const m=await page.evaluate(()=>({
-                    cards:[...document.querySelectorAll('.ta-kpi-card')].map(e=>e.getBoundingClientRect()),
-                    actions:[...document.querySelectorAll('.ta-quick-actions>button')].map(e=>e.getBoundingClientRect()),iw:innerWidth
-                  }));
+                  const m=await page.evaluate(()=>({cards:[...document.querySelectorAll('.ta-kpi-card')].map(e=>e.getBoundingClientRect()),actions:[...document.querySelectorAll('.ta-quick-actions>button')].map(e=>e.getBoundingClientRect()),iw:innerWidth}));
                   if(m.cards.some(r=>r.left<-1||r.right>m.iw+1))failures.push(`dashboard ${vp.width} ${lang}: KPI card outside viewport`);
                   if(m.actions.some(r=>r.height<44-.25))failures.push(`dashboard ${vp.width} ${lang}: quick action below 44px`);
                   checks+=2;
                 }
                 if(surface.name==='documents'){
-                  const m=await page.evaluate(()=>({
-                    primary:[...document.querySelectorAll('.ta-documents-header-actions>.btn')].filter(e=>getComputedStyle(e).display!=='none').map(e=>e.getBoundingClientRect()),
-                    tabs:[...document.querySelectorAll('.ta-doc-type-tabs>button')].filter(e=>getComputedStyle(e).display!=='none').map(e=>e.getBoundingClientRect()),iw:innerWidth
-                  }));
+                  const m=await page.evaluate(()=>({primary:[...document.querySelectorAll('.ta-documents-header-actions>.btn')].filter(e=>getComputedStyle(e).display!=='none').map(e=>e.getBoundingClientRect()),tabs:[...document.querySelectorAll('.ta-doc-type-tabs>button')].filter(e=>getComputedStyle(e).display!=='none').map(e=>e.getBoundingClientRect()),iw:innerWidth}));
                   if(m.primary.some(r=>r.left<-1||r.right>m.iw+1||r.height<44-.25))failures.push(`documents ${vp.width} ${lang}: primary action clipped or below 44px`);
                   if(m.tabs.some(r=>r.height<44-.25))failures.push(`documents ${vp.width} ${lang}: document tab below 44px`);
                   checks+=2;
                 }
                 if(surface.name==='settings'){
-                  const m=await page.evaluate(()=>{
-                    const modal=document.querySelector('.modal.modal-xl')?.getBoundingClientRect();
-                    const nav=[...document.querySelectorAll('.ta-settings-nav button')].filter(e=>getComputedStyle(e).display!=='none').map(e=>e.getBoundingClientRect());
-                    return {modal,nav,iw:innerWidth,ih:innerHeight};
-                  });
+                  const m=await page.evaluate(()=>{const modal=document.querySelector('.modal.modal-xl')?.getBoundingClientRect();const nav=[...document.querySelectorAll('.ta-settings-nav button')].filter(e=>getComputedStyle(e).display!=='none').map(e=>e.getBoundingClientRect());return {modal,nav,iw:innerWidth,ih:innerHeight};});
                   if(!m.modal||m.modal.height<m.ih*.84||m.modal.left<-1||m.modal.right>m.iw+1)failures.push(`settings ${vp.width} ${lang}: workspace does not use mobile viewport`);
                   if(m.nav.some(r=>r.height<44-.25))failures.push(`settings ${vp.width} ${lang}: settings nav target below 44px`);
                   checks+=2;
@@ -139,6 +124,62 @@ jobs:
             fs.writeFileSync(`${out}/report.json`,JSON.stringify({checks,failures},null,2));
             assert.equal(failures.length,0,failures.join('\n'));
             console.log(`v323 current mobile geometry: ${checks} checks passed.`);
+          })().catch(e=>{console.error(e);process.exitCode=1;});
+          NODE
+          node <<'NODE'
+          const {webkit}=require('playwright');
+          const assert=require('node:assert/strict');
+          const fs=require('node:fs');
+          const out='visual-qa-output/v323-webkit-mobile';
+          fs.mkdirSync(out,{recursive:true});
+          const cases=[
+            {name:'shell',file:'obsidian-shell.html',selector:'.ta-shell'},
+            {name:'documents',file:'obsidian-documents.html',selector:'.ta-documents-page'},
+            {name:'settings',file:'obsidian-settings.html?scope=settings',selector:'.ta-settings-shell'}
+          ];
+          (async()=>{
+            const browser=await webkit.launch({headless:true});
+            const failures=[];
+            let checks=0;
+            try{
+              for(const vp of [{width:390,height:844},{width:430,height:932}])for(const lang of ['en','ar'])for(const item of cases){
+                const page=await browser.newPage({viewport:vp,hasTouch:true,isMobile:true});
+                page.setDefaultTimeout(15000);
+                const sep=item.file.includes('?')?'&':'?';
+                await page.goto(`http://127.0.0.1:4173/tests/visual/${item.file}${sep}lang=${lang}`,{waitUntil:'load'});
+                await page.locator(item.selector).waitFor({state:'visible'});
+                await page.waitForTimeout(100);
+                const state=await page.evaluate(({name})=>{
+                  const visible=e=>e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden';
+                  const rect=e=>e?.getBoundingClientRect();
+                  const root=document.documentElement;
+                  const buttons=[...document.querySelectorAll('button')].filter(visible).map(e=>({r:rect(e),cls:e.className||'',label:e.textContent?.trim()||e.getAttribute('aria-label')||''}));
+                  const top=rect(document.querySelector('.ta-topbar'));
+                  const nav=rect(document.querySelector('.ta-mobile-nav'));
+                  const modal=rect(document.querySelector('.modal.modal-xl'));
+                  return {name,sw:root.scrollWidth,iw:innerWidth,ih:innerHeight,dir:root.dir,top,nav,modal,buttons};
+                },{name:item.name});
+                if(state.sw>state.iw+2)failures.push(`${item.name} ${vp.width} ${lang}: WebKit overflow ${state.sw}/${state.iw}`);
+                if(lang==='ar'&&state.dir!=='rtl')failures.push(`${item.name} ${vp.width}: WebKit Arabic not RTL`);
+                if(lang==='en'&&state.dir==='rtl')failures.push(`${item.name} ${vp.width}: WebKit English remained RTL`);
+                if(item.name==='shell'){
+                  if(!state.top||state.top.height<44)failures.push(`shell ${vp.width} ${lang}: WebKit topbar invalid`);
+                  if(!state.nav||state.nav.left<-1||state.nav.right>state.iw+1||state.nav.bottom>state.ih+1)failures.push(`shell ${vp.width} ${lang}: WebKit nav outside viewport`);
+                }
+                if(item.name==='documents'){
+                  const tabs=state.buttons.filter(b=>String(b.cls).includes('')&&b.r&&b.r.height>0);
+                  const docTabs=await page.locator('.ta-doc-type-tabs>button').evaluateAll(es=>es.filter(e=>getComputedStyle(e).display!=='none').map(e=>e.getBoundingClientRect().height));
+                  if(docTabs.some(h=>h<44-.25))failures.push(`documents ${vp.width} ${lang}: WebKit tab below 44px`);
+                }
+                if(item.name==='settings'&&(!state.modal||state.modal.height<state.ih*.84))failures.push(`settings ${vp.width} ${lang}: WebKit settings workspace too short`);
+                checks+=6;
+                await page.screenshot({path:`${out}/${item.name}-${vp.width}-${lang}.png`,fullPage:false,animations:'disabled'});
+                await page.close();
+              }
+            }finally{await browser.close();}
+            fs.writeFileSync(`${out}/report.json`,JSON.stringify({checks,failures},null,2));
+            assert.equal(failures.length,0,failures.join('\n'));
+            console.log(`v323 WebKit mobile geometry: ${checks} checks passed.`);
           })().catch(e=>{console.error(e);process.exitCode=1;});
           NODE
       - name: Upload v323 design evidence
