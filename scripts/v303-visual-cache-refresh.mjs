@@ -74,9 +74,23 @@ for(const legacyRuntime of ['./home-final-closeout-v286.js?v=314','./document-en
 for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2']){
   if(html.includes(legacyStyle))html=html.replace(legacyStyle,draftScrollRuntime);
 }
+
+/* scripts/build.mjs intentionally collapses the source stylesheet stack into
+   app.bundle.css. v331 must still exist as a standalone production owner because
+   it is runtime-promoted after TailAdmin and because its leading @imports (v333 +
+   v337) are only valid when v331 starts its own stylesheet. Restore that explicit
+   owner after bundling instead of assuming the source <link> survived the build. */
+if(!html.includes(draftScrollRuntime)){
+  const bundleTag='<link rel="stylesheet" href="./styles/app.bundle.css" />';
+  if(!html.includes(bundleTag))throw new Error('Unable to locate app.bundle.css while restoring the v337 Safari document-scroll owner.');
+  const runtimeTag=`<link rel="stylesheet" href="${draftScrollRuntime}" data-lourex-v331-draft-recovery="true" />`;
+  html=html.replace(bundleTag,`${bundleTag}\n  ${runtimeTag}`);
+}
+
 if(!html.includes(homeRuntime))throw new Error('Unable to verify the v320 presentation bootstrap in production HTML.');
 if(!html.includes(documentRuntime))throw new Error('Unable to verify the v337 document runtime cache boundary in production HTML.');
 if(!html.includes(draftScrollRuntime))throw new Error('Unable to verify the v337 Safari document-scroll owner in production HTML.');
+if(!html.includes('data-lourex-v331-draft-recovery="true"'))throw new Error('Unable to verify the v337 document-scroll owner marker in production HTML.');
 if(!html.includes(startupWatchdog))throw new Error('Unable to verify the v321 startup watchdog in production HTML.');
 await writeFile(htmlPath,html);
 
