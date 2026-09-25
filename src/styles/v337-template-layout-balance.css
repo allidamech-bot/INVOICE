@@ -1,0 +1,89 @@
+/* LOUREX v337 — printable template structural balance.
+ * Presentation-only repair for the A4 preview/PDF surface.
+ * The canonical v141 template system already defines the intended header/body/footer
+ * geometry; later v330 rules accidentally stretched .final-details and pushed the
+ * bank/signature block to the bottom independently, creating a large dead zone.
+ * This layer restores one contiguous commercial closing zone across all templates. */
+
+@media screen, print {
+  .invoice-page .doc-body{
+    display:flex!important;
+    flex-direction:column!important;
+    min-height:0!important;
+  }
+
+  /* Keep totals/terms/notes/bank/signature together in normal document flow.
+     Do not let the closing zone itself absorb the remaining A4 height. */
+  .invoice-page .final-details{
+    display:block!important;
+    flex:0 0 auto!important;
+    min-height:0!important;
+    margin-top:6mm!important;
+    padding-top:0!important;
+  }
+  .invoice-page.details-only .final-details{
+    margin-top:0!important;
+  }
+  .invoice-page .lower-grid{
+    align-items:start!important;
+  }
+  .invoice-page .notes-block{
+    margin-top:4.5mm!important;
+  }
+  .invoice-page .bottom-grid{
+    margin-top:4.5mm!important;
+    padding-top:0!important;
+    align-items:start!important;
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+
+  /* Bank and authorization are peers in the same closing band. */
+  .invoice-page .bank-block,
+  .invoice-page .signature-block{
+    align-self:start!important;
+    width:100%!important;
+  }
+  .invoice-page .signature-media{
+    min-height:21mm!important;
+    align-items:end!important;
+    padding-top:1mm!important;
+  }
+  .invoice-page .signature-media .signature-image{
+    height:20mm!important;
+    max-height:20mm!important;
+    object-fit:contain!important;
+    object-position:center bottom!important;
+  }
+  .invoice-page .signature-media .stamp-image{
+    height:22mm!important;
+    max-height:22mm!important;
+    object-fit:contain!important;
+    object-position:center bottom!important;
+  }
+
+  /* Preserve the canonical footer as a compact, independent footer instead of
+     using it as a visual anchor for the commercial closing content. */
+  .invoice-page .doc-footer{
+    flex:0 0 10mm!important;
+    height:10mm!important;
+    min-height:10mm!important;
+    margin-inline:11mm!important;
+    align-items:center!important;
+  }
+
+  /* Short documents should read top-to-bottom naturally. The empty A4 remainder
+     stays below the completed business content rather than splitting that content. */
+  .invoice-page:not(.details-only) .items-wrap + .final-details,
+  .invoice-page:not(.details-only) .party-grid + .final-details{
+    margin-top:6mm!important;
+  }
+}
+
+/* Compact preview must use identical A4 geometry; only the outer preview scales. */
+@media screen {
+  .preview-stage .invoice-page .final-details,
+  .mobile-preview-stage .invoice-page .final-details{
+    flex:0 0 auto!important;
+  }
+}
