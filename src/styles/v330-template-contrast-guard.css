@@ -3,20 +3,47 @@
  * No .invoice-page/template color/final-details rules belong in this layer. */
 
 @media screen and (min-width:901px) and (max-width:1180px){
+  /* Tablet preview is intentionally on-demand. Once the desktop preview pane
+     is hidden, the editor must own the complete row instead of retaining the
+     old two-column desktop track and leaving half the viewport empty. */
   html body .app-ui .screen-editor .editor-layout{
-    grid-template-columns:minmax(0,.96fr) minmax(0,1.04fr)!important;
-    gap:12px!important;
-    padding-inline:12px!important;
+    display:block!important;
+    width:100%!important;
+    max-width:none!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:0!important;
+    padding:0 12px 22px!important;
   }
-  html body .app-ui .screen-editor .editor-pane,
+  html body .app-ui .screen-editor .editor-pane{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    height:auto!important;
+    min-height:0!important;
+  }
   html body .app-ui .screen-editor .editor-preview-pane,
-  html body .app-ui .screen-editor .preview-pane{min-width:0!important;}
+  html body .app-ui .screen-editor .preview-pane{display:none!important;}
+
+  /* Four topbar children cannot fit reliably in one iPad row. Keep identity,
+     total and save state on row one; actions get a real second row so they
+     never overlap the horizontal step navigator below. */
   html body .app-ui .screen-editor .editor-topbar{
     grid-template-columns:minmax(0,1fr) auto auto!important;
-    gap:9px!important;
-    padding-inline:12px!important;
+    grid-template-rows:auto auto!important;
+    gap:8px 9px!important;
+    padding:10px 12px!important;
   }
-  html body .app-ui .screen-editor .editor-grand-total-chip{min-width:124px!important;}
+  html body .app-ui .screen-editor .editor-top-left{grid-column:1!important;grid-row:1!important;}
+  html body .app-ui .screen-editor .editor-grand-total-chip{grid-column:2!important;grid-row:1!important;min-width:124px!important;}
+  html body .app-ui .screen-editor .save-indicator{grid-column:3!important;grid-row:1!important;}
+  html body .app-ui .screen-editor .editor-actions{
+    grid-column:1/-1!important;
+    grid-row:2!important;
+    width:100%!important;
+    min-width:0!important;
+    justify-content:flex-end!important;
+    flex-wrap:wrap!important;
+  }
 }
 
 @media screen and (max-width:900px){
