@@ -215,8 +215,7 @@
   html body .app-ui .ta-kpi-icon{width:28px!important;height:28px!important;}
   html body .app-ui .ta-kpi-copy>strong,
   html body .app-ui .ta-kpi-money-stack b{font-size:15px!important;}
-  html body .app-ui .ta-customers-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;}
-  html body .app-ui .ta-customers-summary>div:last-child:nth-child(odd){grid-column:1/-1!important;}
+  html body .app-ui .ta-customers-summary{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important;}
   html body .app-ui .ta-products-overview,
   html body .app-ui .ta-product-metrics,
   html body .app-ui .ta-finance-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;}
