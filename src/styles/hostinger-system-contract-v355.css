@@ -139,6 +139,23 @@
 
   .app-ui :is(.ta-settings-asset-upload,.ta-setup-logo-upload,.attachment-dropzone,.upload-tile,.file-picker){transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease!important;}
 
+  /* Entry / PIN visual closeout. Keep one brand wordmark and use the same violet
+     primary-action language as the signed-in workspace. */
+  .ta-auth-page .ta-auth-brand>span{display:none!important;}
+  .ta-auth-page .ta-auth-primary{
+    min-height:46px!important;
+    border:1px solid #673de6!important;
+    border-radius:11px!important;
+    background:linear-gradient(135deg,#673de6,#7c5cf1)!important;
+    color:#fff!important;
+    box-shadow:0 9px 22px rgba(103,61,230,.20)!important;
+    font-weight:700!important;
+  }
+  html[data-ui-theme="dark"] .ta-auth-page .ta-auth-primary{border-color:#9279ff!important;background:linear-gradient(135deg,#8064f4,#9a84ff)!important;box-shadow:0 10px 26px rgba(103,61,230,.28)!important;}
+  .ta-auth-page .ta-auth-primary:hover:not(:disabled){transform:translateY(-1px)!important;box-shadow:0 12px 28px rgba(103,61,230,.25)!important;}
+  .ta-auth-page .ta-auth-link{color:var(--ft-accent)!important;font-weight:620!important;}
+  .ta-auth-page .ta-auth-security>span{background:var(--ft-success)!important;box-shadow:0 0 0 4px color-mix(in srgb,var(--ft-success) 10%,transparent)!important;}
+
   .app-ui button:disabled,.ta-auth-page button:disabled,.global-search-panel button:disabled{filter:saturate(.72);opacity:.55!important;}
 }
 
@@ -152,4 +169,5 @@
 
 @media (prefers-reduced-motion:reduce){
   .app-ui :is(.ta-product-row,.ta-ops-row,.ta-account-row,.ta-recent-row,.ta-customer-row,.ta-doc-row,.ta-settings-asset-upload,.ta-setup-logo-upload,.attachment-dropzone,.upload-tile,.file-picker){transition:none!important;}
+  .ta-auth-page .ta-auth-primary{transform:none!important;}
 }
