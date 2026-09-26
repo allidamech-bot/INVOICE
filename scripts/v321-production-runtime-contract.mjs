@@ -69,9 +69,10 @@ if(staleServiceWorkerRuntime.test(sw))throw new Error('v351 production contract:
 
 /* app.bundle.css owns all ordinary application styles. Only the dependencies
    imported by standalone v331 plus v331/v332 themselves may remain as explicit
-   stylesheet pushes in the production Service Worker. */
+   stylesheet pushes in the production Service Worker. Commented historical
+   markers are intentionally ignored; only executable whole-line pushes count. */
 const allowedStandaloneStylePushes=new Set([draftPaintUrl,draftOutputUrl,recoveryUrl,criticalDocumentsUrl]);
-const activeStandaloneStylePushes=[...sw.matchAll(/LOCAL_CORE\.push\((['"])(\.\/styles\/[^'"\r\n]+\.css(?:\?[^'"\r\n]*)?)\1\);/g)].map(match=>match[2]);
+const activeStandaloneStylePushes=[...sw.matchAll(/^\s*LOCAL_CORE\.push\((['"])(\.\/styles\/[^'"\r\n]+\.css(?:\?[^'"\r\n]*)?)\1\);\s*$/gm)].map(match=>match[2]);
 for(const style of activeStandaloneStylePushes){
   if(!allowedStandaloneStylePushes.has(style))throw new Error(`v351 production contract: historical stylesheet still precached outside app.bundle.css: ${style}.`);
 }
