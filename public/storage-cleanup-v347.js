@@ -27,11 +27,37 @@
       String(candidate.iv||'')!==''&&String(candidate.iv||'')===String(active.iv||'')&&
       String(candidate.cipher||'')!==''&&String(candidate.cipher||'')===String(active.cipher||'');
   }
+  function sameSecurity(candidate,active){
+    if(!candidate||!active)return false;
+    return Number(candidate.version)===Number(active.version)&&
+      Number(candidate.iterations)===Number(active.iterations)&&
+      String(candidate.salt||'')!==''&&String(candidate.salt||'')===String(active.salt||'')&&
+      String(candidate.verifierIv||'')!==''&&String(candidate.verifierIv||'')===String(active.verifierIv||'')&&
+      String(candidate.verifierCipher||'')!==''&&String(candidate.verifierCipher||'')===String(active.verifierCipher||'');
+  }
   function duplicateRelation(candidate,active){
     if(sameEncryptedVault(candidate,active))return 'same';
     const candidateAt=timestamp(candidate?.updatedAt),activeAt=timestamp(active?.updatedAt);
     if(candidateAt&&activeAt)return candidateAt<=activeAt?'older':'newer';
     return 'unknown';
+  }
+  function activeWorkspaceVerified(){
+    try{
+      if(document.querySelector('.auth-page,.ta-auth-page,.app-recovery,.app-recovery-screen,.loading-screen'))return false;
+      return Boolean(document.querySelector('.app-root .app-ui .ta-shell,.app-root .app-ui .editor-screen'));
+    }catch{return false;}
+  }
+  function cleanupDecision(candidate,active){
+    if(!candidate||!active||candidate.uid!==active.uid)return 'foreign';
+    const relation=duplicateRelation(candidate.vault,active.vault);
+    // Byte-identical encrypted data plus byte-identical verifier metadata is a
+    // true duplicate even before unlock. Anything merely older/different is only
+    // disposable after the active encrypted workspace has actually mounted.
+    if(relation==='same'&&sameSecurity(candidate.security,active.security))return 'remove-exact';
+    if((relation==='same'||relation==='older')&&activeWorkspaceVerified())return 'remove-verified';
+    if(relation==='same'||relation==='older')return 'deferred-unverified';
+    if(relation==='newer')return 'kept-newer';
+    return 'kept-unknown';
   }
 
   async function databaseNames(){
@@ -75,7 +101,7 @@
 
   async function protectedWorkspace(db){
     const [security,vault,owner]=await Promise.all([readRecord(db,'security'),readRecord(db,'vault'),readRecord(db,'cloud-account')]);
-    return security&&vault&&owner&&typeof owner.uid==='string'?{uid:owner.uid,vault}:null;
+    return security&&vault&&owner&&typeof owner.uid==='string'?{uid:owner.uid,security,vault}:null;
   }
 
   function deleteDatabase(name){
@@ -173,15 +199,18 @@
     if(running)return;
     running=true;
     try{
+      // Preference restoration is safe and independent of account ownership. Do it
+      // before requiring active-scope metadata so a Safari crash immediately after
+      // deleting the public DB cannot strand the staged preference record.
+      const stagedResult=await recoverStagedPublicPreferences();
+      if(stagedResult!=='none')diag('storage-public-preferences-recovery',`result=${stagedResult}`);
+      if(stagedResult==='blocked')return;
+
       const meta=activeMeta();
       if(!meta||meta.kind!=='account'||!meta.fingerprint)return;
       const fp=String(meta.fingerprint);
       const names=await databaseNames();
       if(!names.length)return;
-
-      const stagedResult=await recoverStagedPublicPreferences();
-      if(stagedResult!=='none')diag('storage-public-preferences-recovery',`result=${stagedResult}`);
-      if(stagedResult==='blocked')return;
 
       const activeName=names.find(name=>name.startsWith(ACCOUNT_PREFIX)&&fingerprint(name)===fp);
       if(!activeName)return;
@@ -201,11 +230,10 @@
         try{
           legacyDb=await openExisting(LEGACY_DB);
           const duplicate=await protectedWorkspace(legacyDb);
-          const relation=duplicate&&duplicate.uid===active.uid?duplicateRelation(duplicate.vault,active.vault):'foreign';
+          const decision=cleanupDecision(duplicate,active);
           legacyDb.close();legacyDb=null;
-          if(relation==='same'||relation==='older')legacyState=await deleteDatabase(LEGACY_DB)?'removed':'blocked';
-          else if(relation==='newer')legacyState='kept-newer';
-          else if(relation==='unknown')legacyState='kept-unknown';
+          if(decision==='remove-exact'||decision==='remove-verified')legacyState=await deleteDatabase(LEGACY_DB)?'removed':'blocked';
+          else legacyState=decision;
         }catch{legacyState='blocked';}finally{try{legacyDb?.close();}catch{}}
       }
 
@@ -214,20 +242,20 @@
         try{
           publicDb=await openExisting(PUBLIC_DB);
           const duplicate=await protectedWorkspace(publicDb);
-          const relation=duplicate&&duplicate.uid===active.uid?duplicateRelation(duplicate.vault,active.vault):'foreign';
-          if(relation==='same'||relation==='older'){
+          const decision=cleanupDecision(duplicate,active);
+          if(decision==='remove-exact'||decision==='remove-verified'){
             const current=publicDb;publicDb=null;
             publicState=await rebuildDuplicatePublic(current)?'rebuilt':'blocked';
-          }else if(relation==='newer')publicState='kept-newer';
-          else if(relation==='unknown')publicState='kept-unknown';
+          }else publicState=decision;
         }catch{publicState='blocked';}finally{try{publicDb?.close();}catch{}}
       }
 
-      const retryNeeded=['blocked','kept-newer','kept-unknown'].includes(legacyState)||['blocked','kept-newer','kept-unknown'].includes(publicState);
+      const retryStates=['blocked','kept-newer','kept-unknown','deferred-unverified'];
+      const retryNeeded=retryStates.includes(legacyState)||retryStates.includes(publicState);
       if(!retryNeeded)markDone(fp);
       let usage='';
       try{const estimate=await navigator.storage?.estimate?.();if(estimate?.usage)usage=` usageMb=${(estimate.usage/1048576).toFixed(1)}`;}catch{}
-      diag('storage-duplicate-cleanup',`legacy=${legacyState} public=${publicState} retry=${retryNeeded?'yes':'no'} snapshotsRemoved=${snapshotResult.removed} snapshotsBlocked=${snapshotResult.blocked}${usage}`);
+      diag('storage-duplicate-cleanup',`legacy=${legacyState} public=${publicState} retry=${retryNeeded?'yes':'no'} verified=${activeWorkspaceVerified()?'yes':'no'} snapshotsRemoved=${snapshotResult.removed} snapshotsBlocked=${snapshotResult.blocked}${usage}`);
     }catch(error){
       diag('storage-duplicate-cleanup-error',`name=${String(error?.name||'Error')}`);
     }finally{running=false;}
