@@ -1,7 +1,6 @@
 /* LOUREX v351 — attachment PDF fallback only.
    Startup paint belongs exclusively to v347-startup-single-layer.css and the
-   sign-out privacy surface belongs to tailadmin-reliability-bridge-v320.css.
-   Keeping those rules here as a late runtime stylesheet created competing owners. */
+   sign-out privacy surface belongs to tailadmin-reliability-bridge-v320.css. */
 
 /* CSP-safe PDF attachment state. Images keep the true thumbnail/preview flow;
    PDFs show a clear attachment card with an explicit download action instead
@@ -42,7 +41,7 @@
   font-size:11px;
 }
 .app-ui .attachment-pdf-preview .attachment-preview-fallback{
-  min-height:42px!important;
+  min-height:44px!important;
   display:inline-flex!important;
   align-items:center!important;
   justify-content:center!important;
