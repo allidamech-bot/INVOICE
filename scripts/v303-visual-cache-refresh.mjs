@@ -3,10 +3,10 @@ import { readFile, writeFile } from 'node:fs/promises';
 const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 
-/* v337 is the Safari/iPad document-scroll + printable-template reliability
-   boundary. Force a genuinely new application cache so an installed PWA cannot
-   retain the pre-fix v331 stylesheet or an older document-entry runtime. */
-const RELEASE_GENERATION=337;
+/* v351 changes the canonical visual stack, first-paint palette and PWA launch
+   assets. Force a genuinely new application cache so an installed PWA cannot
+   retain pre-v351 HTML, manifest, palette or runtime references. */
+const RELEASE_GENERATION=351;
 const activeCacheMatch=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
 const activeCacheGeneration=activeCacheMatch?Number(activeCacheMatch[1]):0;
 if(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION){
@@ -82,4 +82,4 @@ if(!entry.includes(draftScrollRuntime))throw new Error('Unable to verify the v33
 if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/.test(entry))throw new Error('Stale pre-337-3 document scroll fallback survived production build.');
 await writeFile(entryPath,entry);
 
-console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with the single bundled app stack plus standalone v337 document owners.`);
+console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with the v351 single bundled app stack plus standalone v337 document owners.`);
