@@ -3,7 +3,10 @@
    the universal 44px interaction floor and narrow-viewport containment needed
    by legacy functional controls that still share the common UI primitives. */
 
-@media (max-width:960px) and (pointer:coarse){
+/* iPadOS Desktop Website can report a 1024–1366px layout viewport while remaining
+   a coarse-pointer device. Keep one physical touch target floor across phone,
+   tablet portrait and tablet landscape without changing desktop mouse density. */
+@media (max-width:1366px) and (pointer:coarse){
   .app-ui :where(button,.btn,.icon-btn,select,.input){
     box-sizing:border-box!important;
     min-height:44px!important;
