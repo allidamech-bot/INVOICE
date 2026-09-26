@@ -108,7 +108,7 @@
           legacyDb.close();legacyDb=null;
           if(eligible)legacyState=await deleteDatabase(LEGACY_DB)?'removed':'blocked';
           else if(newer)legacyState='kept-newer';
-        }catch{}finally{try{legacyDb?.close();}catch{}}
+        }catch{legacyState='blocked';}finally{try{legacyDb?.close();}catch{}}
       }
 
       if(names.includes(PUBLIC_DB)){
@@ -120,13 +120,14 @@
           const newer=duplicate&&duplicate.uid===active.uid&&!sameOrOlder(duplicate.vault,active.vault);
           if(eligible)publicState=await deletePublicProtectedRecords(publicDb)?'cleared':'blocked';
           else if(newer)publicState='kept-newer';
-        }catch{}finally{try{publicDb?.close();}catch{}}
+        }catch{publicState='blocked';}finally{try{publicDb?.close();}catch{}}
       }
 
-      if(legacyState!=='kept-newer'&&publicState!=='kept-newer'&&legacyState!=='blocked'&&publicState!=='blocked')markDone(fp);
+      const retryNeeded=legacyState==='blocked'||publicState==='blocked'||legacyState==='kept-newer'||publicState==='kept-newer';
+      if(!retryNeeded)markDone(fp);
       let usage='';
       try{const estimate=await navigator.storage?.estimate?.();if(estimate?.usage)usage=` usageMb=${(estimate.usage/1048576).toFixed(1)}`;}catch{}
-      diag('storage-duplicate-cleanup',`legacy=${legacyState} public=${publicState}${usage}`);
+      diag('storage-duplicate-cleanup',`legacy=${legacyState} public=${publicState} retry=${retryNeeded?'yes':'no'}${usage}`);
     }catch(error){
       diag('storage-duplicate-cleanup-error',`name=${String(error?.name||'Error')}`);
     }finally{running=false;}
