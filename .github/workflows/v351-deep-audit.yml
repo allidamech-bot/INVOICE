@@ -13,7 +13,7 @@ permissions:
 jobs:
   targeted-diagnostics:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -36,7 +36,7 @@ jobs:
           done
           cat /tmp/lourex-targeted-server.log
           exit 1
-      - name: Run targeted mobile and WebKit diagnostics
+      - name: Run targeted mobile, document, menu and WebKit diagnostics
         shell: bash
         run: |
           mkdir -p targeted-diagnostics
@@ -45,7 +45,7 @@ jobs:
             name="$1"; shift
             echo "===== $name =====" | tee "targeted-diagnostics/${name}.log"
             set +e
-            timeout --signal=TERM --kill-after=10s 240s "$@" 2>&1 | tee -a "targeted-diagnostics/${name}.log"
+            timeout --signal=TERM --kill-after=10s 300s "$@" 2>&1 | tee -a "targeted-diagnostics/${name}.log"
             code=${PIPESTATUS[0]}
             set -e
             echo "exit=$code" | tee -a "targeted-diagnostics/${name}.log"
@@ -53,12 +53,17 @@ jobs:
           }
           run_case mobile-final node tests/visual/run-mobile-final-quote-stack.cjs
           run_case mobile-modal node tests/visual/run-mobile-modal-overlap-v176.cjs
+          run_case mobile-preview node tests/visual/run-mobile-preview-fit-v241.cjs
+          run_case templates node tests/visual/run-template-visual-qa.cjs
           run_case editor-stability node tests/visual/run-v338-editor-stability.cjs
           run_case ipad-landscape-draft node tests/visual/run-v339-ipad-landscape-draft.cjs
           run_case ipad-landscape-commercial node tests/visual/run-v339-ipad-landscape-commercial.cjs
           run_case ipad-portrait-draft node tests/visual/run-v339-ipad-portrait-draft.cjs
           run_case shell-navigation node tests/visual/run-v337-shell-navigation.cjs
           run_case shell-overlay-release node tests/visual/run-v339-shell-overlay-release.cjs
+          run_case shell-mobile node tests/visual/run-v326-mobile-shell.cjs
+          run_case foundation-hit-testing node tests/visual/run-v326-foundation-hit-testing.cjs
+          run_case more-menu-contract node --test tests/v338-more-menu-scroll.test.mjs
           run_case signout-guard node tests/visual/run-v339-signout-guard.cjs
           cp /tmp/lourex-targeted-server.log targeted-diagnostics/server.log || true
           exit "$status"
