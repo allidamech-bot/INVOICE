@@ -38,12 +38,13 @@ const inside=(box,viewport,tolerance=.75)=>box.left>=-tolerance&&box.top>=-toler
           footer:box('.modal-footer'),
           cancel:box('[data-cancel]'),
           del:box('[data-delete]'),
-          sheet:box('.mobile-document-action-portal')
+          sheet:box('.ta-doc-mobile-action-portal,.mobile-document-action-portal')
         };
       });
       const prefix=`${scenario.label} ${scenario.width}x${scenario.height}`;
       const visible=b=>b&&b.display!=='none'&&b.visibility!=='hidden'&&b.opacity>0&&b.width>0&&b.height>0;
       for(const key of ['backdrop','modal','header','body','footer','cancel','del'])if(!visible(result[key]))failures.push(`${prefix}: ${key} is not visible`);
+      if(visible(result.sheet))failures.push(`${prefix}: document action sheet remained open behind modal`);
       if(result.modal&&!inside(result.modal,result.viewport))failures.push(`${prefix}: modal escapes viewport ${JSON.stringify(result.modal)}`);
       if(result.footer&&!inside(result.footer,result.viewport))failures.push(`${prefix}: footer escapes viewport ${JSON.stringify(result.footer)}`);
       if(result.del&&!inside(result.del,result.viewport))failures.push(`${prefix}: Delete action escapes viewport ${JSON.stringify(result.del)}`);
@@ -53,7 +54,6 @@ const inside=(box,viewport,tolerance=.75)=>box.left>=-tolerance&&box.top>=-toler
       if(result.header&&result.body&&result.header.bottom>result.body.top+.75)failures.push(`${prefix}: header overlaps scroll body`);
       if(result.body&&result.footer&&result.body.bottom>result.footer.top+.75)failures.push(`${prefix}: scroll body overlaps footer`);
       if(result.scrollWidth>result.viewport.width+1)failures.push(`${prefix}: horizontal overflow ${result.scrollWidth}px > ${result.viewport.width}px`);
-      if(result.backdrop&&result.sheet&&result.backdrop.zIndex<=result.sheet.zIndex)failures.push(`${prefix}: modal layer z-index ${result.backdrop.zIndex} is not above action portal ${result.sheet.zIndex}`);
       if(scenario.height<=390&&result.body&&result.body.overflowY!=='auto')failures.push(`${prefix}: short landscape modal body is not the scroll owner`);
       await page.close();
     }
