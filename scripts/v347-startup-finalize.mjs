@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 const htmlPath='dist/index.html';
 const cssPath='dist/styles/app.bundle.css';
 const runtimePath='dist/runtime-config.js';
+const swPath='dist/sw.js';
 
 let html=await readFile(htmlPath,'utf8');
 const inlineTheme=/<script id="lourex-theme-bootstrap">[\s\S]*?<\/script>/;
@@ -40,11 +41,23 @@ if(runtime.includes(autoReload)||runtime.includes("waiting.postMessage({type:'SK
 }
 await writeFile(runtimePath,runtime);
 
+let sw=await readFile(swPath,'utf8');
+const cacheMarker="LOCAL_CORE.push('./canonical-redirect.js');";
+if(!sw.includes(cacheMarker))throw new Error('v347: service-worker cache insertion marker is missing.');
+for(const asset of ['./theme-bootstrap-v347.js','./storage-cleanup-v347.js']){
+  if(!sw.includes(`LOCAL_CORE.push('${asset}')`))sw=sw.replace(cacheMarker,`LOCAL_CORE.push('${asset}');\n${cacheMarker}`);
+}
+await writeFile(swPath,sw);
+
 const finalHtml=await readFile(htmlPath,'utf8');
 const finalCss=await readFile(cssPath,'utf8');
+const finalSw=await readFile(swPath,'utf8');
 if(finalHtml.includes('<script id="lourex-theme-bootstrap">'))throw new Error('v347: inline theme bootstrap remains in production HTML.');
 if(!finalHtml.includes('theme-bootstrap-v347.js?v=347'))throw new Error('v347: external theme bootstrap is not wired.');
 if(!finalHtml.includes('storage-cleanup-v347.js?v=347'))throw new Error('v347: safe storage cleanup is not wired.');
 if(!finalCss.includes('v347-startup-single-layer.css — final startup owner'))throw new Error('v347: startup single-layer CSS is not final in the production bundle.');
+for(const asset of ['./theme-bootstrap-v347.js','./storage-cleanup-v347.js']){
+  if(!finalSw.includes(`LOCAL_CORE.push('${asset}')`))throw new Error(`v347: ${asset} is missing from PWA local core.`);
+}
 
 console.log('LOUREX v347 startup finalization applied: single loading layer, CSP-safe theme bootstrap, no automatic stuck-boot reload, safe duplicate-storage cleanup.');
