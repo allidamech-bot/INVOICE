@@ -1,7 +1,6 @@
-/* LOUREX v351 — tablet responsive preview ownership only.
-   Scroll height, scroll padding and WebKit pan ownership belong to the current
-   TailAdmin editor + v331 Safari recovery. This layer only switches the desktop
-   two-pane editor into the tablet single-pane + explicit Preview workflow. */
+/* LOUREX v351 — tablet editor mode switch only.
+   Scroll ownership belongs to TailAdmin + v331. Mobile Preview visibility and
+   full-screen geometry belong exclusively to mobile-preview-v156.css. */
 @media (max-width:1180px){
   .app-ui .editor-layout{
     display:block!important;
@@ -20,13 +19,5 @@
 
   .app-ui .mobile-preview-button{
     display:inline-flex!important;
-  }
-
-  .app-ui .mobile-preview-overlay{
-    display:none;
-  }
-
-  .app-ui .mobile-preview-open .mobile-preview-overlay{
-    display:flex;
   }
 }
