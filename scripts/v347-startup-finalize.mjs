@@ -124,7 +124,8 @@ if(!finalCss.includes(startupMarker))throw new Error('v351: startup single-layer
 if((finalCss.match(/\/\* --- v346-template-color-visual-closeout\.css --- \*\//g)||[]).length!==1)throw new Error('v351: application palette owner appears more than once in the production bundle.');
 if(/@import\s+url\([^)]*v346-template-color-visual-closeout/i.test(finalCss))throw new Error('v351: late v346 runtime @import remains in the production bundle.');
 if(finalEntry.includes("const bootBackground=dark?'#0c111d':'#f9fafb';"))throw new Error('v351: stale document-entry boot canvas survived finalization.');
+for(const retiredRuntimeStyle of ['attachment-gallery-v304.css','mobile-layout-closeout-v305.css','release-hardening-v306.css'])if(finalEntry.includes(retiredRuntimeStyle))throw new Error(`v351: retired empty runtime stylesheet request survived finalization: ${retiredRuntimeStyle}.`);
 for(const asset of [newWatchdog,themeBootstrap,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime])if(!finalSw.includes(asset))throw new Error(`v351: service worker is missing ${asset}.`);
 if(finalSw.includes('./storage-cleanup-v347.js?v=347'))throw new Error('v351: stale storage cleanup cache key remains in service worker.');
 
-console.log('LOUREX v351 startup finalization verified: canonical source/production palette, one loading owner, standalone v331/v332 document owners, no automatic stuck-boot reload, conservative storage cleanup, Preview output feedback and final PWA precache aligned.');
+console.log('LOUREX v351 startup finalization verified: canonical source/production palette, one loading owner, standalone v331/v332 document owners, no retired empty runtime CSS requests, no automatic stuck-boot reload, conservative storage cleanup, Preview output feedback and final PWA precache aligned.');
