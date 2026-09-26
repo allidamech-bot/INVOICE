@@ -106,11 +106,17 @@ test('PWA update/controller reload remains user-requested and editor-safe',async
   assert.match(index,/waiting\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
 });
 
-test('account recovery reload is one-shot and only allowed when no local encrypted vault exists',async()=>{
+test('account recovery never overwrites a local vault and reloads only from the explicit Open account action',async()=>{
   const source=await read('src/app/AuthScreenSelector.tsx');
-  assert.match(source,/if\(localVault\)\{setRecoveryState\('blocked'\);return;\}/);
+  assert.match(source,/if\(localVault\)\{diag\('auth-recovery-stage','stage=blocked-local-vault'\);setRecoveryState\('blocked'\);return;\}/);
   assert.match(source,/cloudInstallAlreadyReloaded\(cloudUser\.uid\)/);
-  assert.match(source,/markCloudInstallReload\(cloudUser\.uid\);window\.location\.reload\(\)/);
+  assert.match(source,/if\(installed\)[\s\S]*setRecoveryState\('ready'\)[\s\S]*return/);
+  const openAction=source.slice(source.indexOf("if(recoveryState==='ready')"),source.indexOf('return <SetupScreen'));
+  assert.match(openAction,/markCloudInstallReload\(cloudUser\.uid\)/);
+  assert.match(openAction,/markReload\('auth-cloud-install-user-open'\)/);
+  assert.match(openAction,/window\.location\.reload\(\)/);
+  const recoveryEffect=source.slice(source.indexOf('React.useEffect'),source.indexOf('if (!cloudUser)'));
+  assert.doesNotMatch(recoveryEffect,/window\.location\.(?:reload|replace)/);
 });
 
 test('Operations owns a real dirty marker for supplier, purchase, expense and movement drafts',async()=>{
