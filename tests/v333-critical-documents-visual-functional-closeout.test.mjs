@@ -68,18 +68,17 @@ test('Create Center exposes ten visually distinct business-document identities',
   assert.match(runtime, /normalizeCreateMenuKinds\(\)/);
 });
 
-test('printable templates keep header contrast while v337 restores one compact natural-flow closing zone', async () => {
-  const legacy = await read('src/styles/v330-template-contrast-guard.css');
+test('printable templates use v141 as the sole commercial close owner', async () => {
+  const editorLayer = await read('src/styles/v330-template-contrast-guard.css');
   const base = await read('src/styles/document-premium-redesign-v141.css');
   const balance = await read('src/styles/v337-template-layout-balance.css');
-  assert.match(legacy, /\.invoice-page\.template-executive \.header-executive[\s\S]*color:#fff!important/);
+  assert.match(base, /\.header-executive\{[^}]*background:#09273c[^}]*color:#fff/);
   assert.match(base, /\.doc-body\{[^}]*display:flex[^}]*flex-direction:column/);
-  assert.match(balance, /\.invoice-page \.final-details\{[\s\S]*flex:0 0 auto!important[\s\S]*padding-top:0!important/);
-  assert.match(balance, /\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]*margin-top:6mm!important[\s\S]*padding-top:0!important/);
-  assert.match(balance, /\.invoice-page \.bottom-grid\{[\s\S]*margin-top:4\.5mm!important[\s\S]*padding-top:0!important[\s\S]*align-items:start!important/);
-  assert.doesNotMatch(balance, /\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]{0,180}margin-top:auto!important/);
-  assert.doesNotMatch(balance, /\.invoice-page \.bottom-grid\{[\s\S]{0,180}margin-top:auto!important/);
-  assert.match(balance, /\.signature-media \.stamp-image\{[\s\S]*object-position:center bottom!important/);
+  assert.match(base, /\.final-details\{[^}]*flex:0 0 auto[^}]*margin-top:auto[^}]*padding-top:6mm/);
+  assert.match(base, /\.bottom-grid\{[^}]*margin-top:4\.5mm[^}]*align-items:start/);
+  assert.match(base, /\.signature-media \.stamp-image\{height:22mm\}/);
+  assert.doesNotMatch(editorLayer, /\.invoice-page(?:\.template| \.final-details| \.bottom-grid| \.signature-media)/);
+  assert.doesNotMatch(balance, /\.invoice-page(?:\:not\([^)]*\))? \.final-details\s*\{|\.invoice-page \.bottom-grid\s*\{|\.invoice-page \.signature-media\s*\{/);
 });
 
 test('automatic account/cloud/PWA transitions remain editor-safe', async () => {

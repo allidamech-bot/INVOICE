@@ -7,7 +7,7 @@
   "scripts": {
     "clean": "node scripts/clean.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "build": "node scripts/verify-deployment-isolation.mjs && node scripts/build.mjs && node scripts/pdf-searchable-text-v222.mjs && node scripts/firebase-sdk-v213.mjs && node scripts/normalize-sw-install-v262.mjs && node scripts/pwa-cache-v205.mjs && node scripts/v303-visual-cache-refresh.mjs && node scripts/desktop-runtime-v249.mjs && node scripts/v339-ipados-desktop-stability.mjs && node scripts/pwa-auto-precache.mjs && node scripts/v321-production-runtime-contract.mjs",
+    "build": "node scripts/verify-deployment-isolation.mjs && node scripts/build.mjs && node scripts/pdf-searchable-text-v222.mjs && node scripts/firebase-sdk-v213.mjs && node scripts/normalize-sw-install-v262.mjs && node scripts/pwa-cache-v205.mjs && node scripts/v303-visual-cache-refresh.mjs && node scripts/desktop-runtime-v249.mjs && node scripts/v339-ipados-desktop-stability.mjs && node scripts/v350-rendering-storage-hardening.mjs && node scripts/pwa-auto-precache.mjs && node scripts/v321-production-runtime-contract.mjs && node scripts/v347-startup-finalize.mjs",
     "preview": "http-server dist -p 4173 -c-1",
     "dev": "node scripts/dev.mjs"
   },

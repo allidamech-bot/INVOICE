@@ -22,7 +22,7 @@ if(vercelEnvironment==='production'){
 
 const VENDOR_ASSETS=[
   {name:'react.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js','https://unpkg.com/react@17.0.2/umd/react.production.min.js']},
-  {name:'react-dom.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react-dom.production.min.js','https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js']},
+  {name:'react-dom.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react.production.min.js','https://unpkg.com/react@17.0.2/umd/react-dom.production.min.js']},
   {name:'firebase-app-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js','https://unpkg.com/firebase@12.17.1/firebase-app-compat.js']},
   {name:'firebase-app-check-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-app-check-compat.js','https://unpkg.com/firebase@12.17.1/firebase-app-check-compat.js']},
   {name:'firebase-auth-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-auth-compat.js','https://unpkg.com/firebase@12.17.1/firebase-auth-compat.js']},
@@ -72,55 +72,10 @@ const runtimeConfig={
   buildTime:new Date().toISOString()
 };
 
-// runtime-config.js is deliberately fetched with no-store by the service worker
-// and by Vercel headers. That makes it the one recovery path an already-installed
-// stale PWA can still receive even while its old worker keeps serving cached
-// index/app bytes. Use that path only while the static LOUREX boot shell is still
-// present and React has not mounted. In that state there is no editor or data-entry
-// workspace to lose, so activating a waiting worker and reloading is safe. Once
-// React mounts, the existing explicit-update workflow remains authoritative.
-const stuckBootRecovery=`
-;(function(){
-  if(!('serviceWorker' in navigator))return;
-  var reloading=false;
-  function bootOnly(){
-    return Boolean(document.getElementById('lourex-boot'))&&!document.querySelector('.app-ui,.auth-page');
-  }
-  function activateWaiting(registration){
-    if(!bootOnly())return false;
-    var waiting=registration&&registration.waiting;
-    if(!waiting)return false;
-    function reloadIfStillBooting(){
-      if(reloading||!bootOnly())return;
-      reloading=true;
-      window.location.replace(window.location.href);
-    }
-    navigator.serviceWorker.addEventListener('controllerchange',reloadIfStillBooting,{once:true});
-    try{waiting.postMessage({type:'SKIP_WAITING'});}catch(_error){}
-    return true;
-  }
-  async function rescue(){
-    if(!bootOnly())return;
-    var registration;
-    try{registration=await navigator.serviceWorker.getRegistration();}catch(_error){return;}
-    if(!registration)return;
-    try{await registration.update();}catch(_error){}
-    if(activateWaiting(registration))return;
-    var installing=registration.installing;
-    if(!installing)return;
-    function onStateChange(){
-      if(installing.state!=='installed')return;
-      installing.removeEventListener('statechange',onStateChange);
-      activateWaiting(registration);
-    }
-    installing.addEventListener('statechange',onStateChange);
-  }
-  window.setTimeout(function(){void rescue();},750);
-  window.setTimeout(function(){void rescue();},2500);
-  window.setTimeout(function(){void rescue();},6000);
-})();
-`;
-await writeFile('dist/runtime-config.js',`window.__LOUREX_RUNTIME__=${JSON.stringify(runtimeConfig)};\n${stuckBootRecovery}`);
+// runtime-config.js is configuration only. Startup recovery must never activate a
+// worker, replace the current location, or reload the page behind React. Update
+// installation remains an explicit user/runtime action owned outside boot.
+await writeFile('dist/runtime-config.js',`window.__LOUREX_RUNTIME__=${JSON.stringify(runtimeConfig)};\n`);
 
 let html = await readFile('index.html','utf8');
 /* v320 stylesheet links carry cache-busting query strings and data owner markers.
@@ -131,8 +86,15 @@ const styleReferencePattern=/(?:<link\s+rel="stylesheet"\s+href="\.\/styles\/([^
 const styleNames=[...html.matchAll(styleReferencePattern)].map(match=>match[1]||match[2]);
 if(!styleNames.length) throw new Error('No local stylesheet layers found in index.html.');
 if(new Set(styleNames).size!==styleNames.length) throw new Error('Duplicate local stylesheet layer detected in index.html.');
-if(styleNames.at(-1)!=='tailadmin-reliability-bridge-v320.css') throw new Error('v320 TailAdmin reliability bridge must remain the final local stylesheet in the production cascade.');
+if(styleNames.at(-1)!=='tailadmin-reliability-bridge-v320.css') throw new Error('v320 TailAdmin reliability bridge must remain the final linked stylesheet in the production cascade.');
 if(!styleNames.includes('tailadmin-finance-v320.css')||!styleNames.includes('tailadmin-overlays-v320.css'))throw new Error('The canonical v320 TailAdmin visual owners are missing from the production cascade.');
+
+/* v350 palette is an explicit build owner, not a runtime @import. Put it immediately
+   before the reliability bridge so local/dev and production resolve the same token
+   contract in one CSS file with no late network-delivered recolor. */
+const paletteOwner='v346-template-color-visual-closeout.css';
+if(styleNames.includes(paletteOwner))throw new Error('v350 palette owner must not also be linked/imported by index.html.');
+styleNames.splice(styleNames.length-1,0,paletteOwner);
 
 const styleParts=await Promise.all(styleNames.map(async name=>{
   const css=await readFile(`src/styles/${name}`,'utf8');
