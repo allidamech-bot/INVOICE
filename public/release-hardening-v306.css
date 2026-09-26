@@ -1,55 +1,7 @@
-/* LOUREX v306 — release hardening only. No design-direction changes. */
-
-/* Keep the launch surface physically larger than the drawable viewport so
-   iPhone Safari/PWA cannot expose a light seam while the app is booting. */
-html[data-lourex-booting="true"],
-html[data-lourex-booting="true"] body,
-html[data-lourex-booting="true"] #root{
-  background:#061820!important;
-  overscroll-behavior:none!important;
-}
-#lourex-boot.loading-screen,
-#root>.loading-screen{
-  inset:-2px!important;
-  min-height:calc(100dvh + 4px)!important;
-  box-shadow:0 0 0 32px #061820!important;
-}
-
-/* Signing out is a hard privacy boundary. The runtime helper reloads once the
-   Firebase session clears (or after a short fallback window), while this layer
-   prevents the already-open workspace from remaining interactive meanwhile. */
-html[data-lourex-signing-out="true"] .app-ui,
-html[data-lourex-signing-out="true"] .auth-page{
-  pointer-events:none!important;
-  user-select:none!important;
-}
-html[data-lourex-signing-out="true"] body::before{
-  content:"";
-  position:fixed;
-  inset:0;
-  z-index:2147483600;
-  background:rgba(3,18,23,.82);
-  backdrop-filter:blur(10px);
-  -webkit-backdrop-filter:blur(10px);
-}
-html[data-lourex-signing-out="true"] body::after{
-  content:"Signing out…";
-  position:fixed;
-  left:50%;
-  top:50%;
-  z-index:2147483601;
-  transform:translate(-50%,-50%);
-  min-width:170px;
-  padding:14px 18px;
-  border:1px solid rgba(102,205,210,.26);
-  border-radius:14px;
-  background:#0b2229;
-  color:#f1fbfb;
-  box-shadow:0 24px 64px rgba(0,0,0,.35);
-  font:800 14px/1.2 Inter,"Noto Sans Arabic",system-ui,sans-serif;
-  text-align:center;
-}
-html[dir="rtl"][data-lourex-signing-out="true"] body::after{content:"جارٍ تسجيل الخروج…"}
+/* LOUREX v351 — attachment PDF fallback only.
+   Startup paint belongs exclusively to v347-startup-single-layer.css and the
+   sign-out privacy surface belongs to tailadmin-reliability-bridge-v320.css.
+   Keeping those rules here as a late runtime stylesheet created competing owners. */
 
 /* CSP-safe PDF attachment state. Images keep the true thumbnail/preview flow;
    PDFs show a clear attachment card with an explicit download action instead
@@ -106,5 +58,4 @@ html[dir="rtl"][data-lourex-signing-out="true"] body::after{content:"جارٍ ت
 
 @media(max-width:900px){
   .app-ui .attachment-pdf-preview{min-height:220px;padding:22px 16px;border-radius:14px}
-  html[data-lourex-signing-out="true"] body::after{min-width:150px;font-size:13px}
 }
