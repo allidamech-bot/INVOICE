@@ -22,9 +22,16 @@ if(!html.includes('storage-cleanup-v347.js')){
 }
 await writeFile(htmlPath,html);
 
+/* v350 ownership order inside the single production CSS bundle:
+   application palette first, then the startup owner last. Neither is a runtime
+   @import, so Safari never sees a late network-delivered recolor layer. */
 let css=await readFile(cssPath,'utf8');
+const paletteCss=await readFile('src/styles/v346-template-color-visual-closeout.css','utf8');
 const startupCss=await readFile('src/styles/v347-startup-single-layer.css','utf8');
-if(!css.includes('LOUREX v347 — startup is one visual layer only.')){
+if(!css.includes('v346-template-color-visual-closeout.css — application palette owner')){
+  css+=`\n\n/* --- v346-template-color-visual-closeout.css — application palette owner --- */\n${paletteCss.trim()}\n`;
+}
+if(!css.includes('v347-startup-single-layer.css — final startup owner')){
   css+=`\n\n/* --- v347-startup-single-layer.css — final startup owner --- */\n${startupCss.trim()}\n`;
 }
 await writeFile(cssPath,css);
@@ -61,9 +68,11 @@ if(finalHtml.includes('<script id="lourex-theme-bootstrap">'))throw new Error('v
 if(!finalHtml.includes('theme-bootstrap-v347.js?v=347'))throw new Error('v347: external theme bootstrap is not wired.');
 if(!finalHtml.includes('storage-cleanup-v347.js?v=347'))throw new Error('v347: safe storage cleanup is not wired.');
 if(!finalHtml.includes(newWatchdog))throw new Error('v347: cache-busted startup watchdog is not wired.');
+if(!finalCss.includes('v346-template-color-visual-closeout.css — application palette owner'))throw new Error('v350: application palette is not bundled explicitly.');
 if(!finalCss.includes('v347-startup-single-layer.css — final startup owner'))throw new Error('v347: startup single-layer CSS is not final in the production bundle.');
+if(/@import\s+url\([^)]*v346-template-color-visual-closeout/i.test(finalCss))throw new Error('v350: late v346 runtime @import remains in the production bundle.');
 for(const asset of [newWatchdog,'./theme-bootstrap-v347.js?v=347','./storage-cleanup-v347.js?v=347']){
   if(!finalSw.includes(asset))throw new Error(`v347: service worker is missing ${asset}.`);
 }
 
-console.log('LOUREX v347 startup finalization applied: single loading layer, CSP-safe theme bootstrap, no automatic stuck-boot reload, safe duplicate-storage cleanup, final PWA precache aligned.');
+console.log('LOUREX v350 startup finalization applied: explicit palette bundle, single loading owner, CSP-safe theme bootstrap, no automatic stuck-boot reload, safe duplicate-storage cleanup, final PWA precache aligned.');
