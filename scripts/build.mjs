@@ -100,22 +100,30 @@ const standaloneRuntimeStyles=new Set([
 
 /* Superseded visual/geometry layers remain in source history for traceability but
    are intentionally not production owners anymore:
-   - v70/v75/v149/v155: pre-TailAdmin mobile editor viewport/scroll generations;
+   - v66/v70/v75/v149/v155: pre-TailAdmin mobile editor/item viewport generations;
      v168/v177 + TailAdmin editor core + standalone v331 now own those contracts.
    - v81: pre-v176 modal viewport geometry; v176 + TailAdmin overlays own it now.
    - v152: full legacy UX/theme generation that competes with TailAdmin palette.
+   - v207/v217/v250/v309: compatibility stubs whose current consumers moved to
+     TailAdmin Settings/Operations/Auth, TailAdmin cloud status, v347 startup and
+     v331 Draft scroll ownership respectively.
    - v274: Precision Black shell/spacing generation; v322/v323/v326 own shell and
      mobile spacing now.
    - tailadmin-visual-finish-v320: intermediate density/readability pass replaced
      by the explicit v323 application design owner. */
 const retiredVisualLayers=new Set([
+  'mobile-item-editor-v66.css',
   'iphone-fit-v70.css',
   'mobile-editor-scroll-v75.css',
   'mobile-modal-v81.css',
   'mobile-editor-recovery-v149.css',
   'ux-recovery-v152.css',
   'mobile-safe-area-v155.css',
+  'maintenance-closeout-v207.css',
+  'save-reliability-v217.css',
+  'ledger-pulse-loading-v250.css',
   'mobile-touch-target-closeout-v274.css',
+  'v309-draft-pin-stability.css',
   'tailadmin-visual-finish-v320.css'
 ]);
 let styleNames=sourceStyleNames.filter(name=>!standaloneRuntimeStyles.has(name)&&!retiredVisualLayers.has(name));
