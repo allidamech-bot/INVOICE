@@ -3,7 +3,7 @@ export type ResolvedUiTheme='light'|'dark';
 
 const STORAGE_KEY='lourex-ui-theme';
 const DARK_QUERY='(prefers-color-scheme: dark)';
-const THEME_COLORS:Record<ResolvedUiTheme,string>={light:'#f2f7f8',dark:'#061820'};
+const THEME_COLORS:Record<ResolvedUiTheme,string>={light:'#f4f7fb',dark:'#081321'};
 
 let mediaQuery:MediaQueryList|null=null;
 let mediaHandler:((event:MediaQueryListEvent)=>void)|null=null;
@@ -26,11 +26,12 @@ export function applyUiTheme(preference:UiThemePreference=getUiThemePreference()
   const root=document.documentElement;
   root.dataset.uiTheme=resolved;
   root.dataset.uiThemePreference=preference;
-  const booting=root.dataset.lourexBooting==='true'&&Boolean(document.getElementById('lourex-boot'));
-  root.style.colorScheme=booting?'dark':resolved;
-  root.style.backgroundColor=booting?'#080808':THEME_COLORS[resolved];
+  const booting=root.dataset.lourexBooting==='true'&&Boolean(document.querySelector('#root > .loading-screen'));
+  root.style.colorScheme=resolved;
+  root.style.backgroundColor=THEME_COLORS[resolved];
+  if(booting)root.style.setProperty('--boot-bg',THEME_COLORS[resolved]);
   const meta=document.querySelector('meta[name="theme-color"]');
-  if(meta)meta.setAttribute('content',booting?'#080808':THEME_COLORS[resolved]);
+  if(meta)meta.setAttribute('content',THEME_COLORS[resolved]);
   if(persist){try{window.localStorage.setItem(STORAGE_KEY,preference);}catch{}}
   try{window.dispatchEvent(new CustomEvent('lourex-ui-theme-change',{detail:{preference,resolved}}));}catch{}
   return resolved;
