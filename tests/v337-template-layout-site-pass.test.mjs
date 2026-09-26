@@ -9,27 +9,27 @@ test('v337 is loaded by the runtime-promoted document owner after v333',async()=
   assert.match(owner,/^@import url\("\.\/v333-critical-documents-visual-functional-closeout\.css\?v=333-1"\);\n@import url\("\.\/v337-template-layout-balance\.css\?v=337-3"\);/);
 });
 
-test('v337 keeps the complete commercial closing zone contiguous in normal flow instead of splitting or bottom-anchoring it',async()=>{
-  const [legacy,css]=await Promise.all([
-    read('src/styles/document-output-v119.css'),
+test('v350 retires commercial closing geometry from v337 and keeps it in canonical v141',async()=>{
+  const [canonical,css]=await Promise.all([
+    read('src/styles/document-premium-redesign-v141.css'),
     read('src/styles/v337-template-layout-balance.css')
   ]);
-  assert.match(legacy,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]*margin-top:auto!important/);
-  assert.match(css,/\.invoice-page \.final-details\{[\s\S]*display:block!important[\s\S]*flex:0 0 auto!important[\s\S]*padding-top:0!important/);
-  assert.match(css,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]*margin-top:6mm!important[\s\S]*padding-top:0!important/);
-  assert.match(css,/\.invoice-page\.details-only \.final-details\{[\s\S]*margin-top:0!important[\s\S]*padding-top:0!important/);
-  assert.match(css,/\.invoice-page \.bottom-grid\{[\s\S]*margin-top:4\.5mm!important[\s\S]*padding-top:0!important[\s\S]*align-items:start!important/);
-  assert.doesNotMatch(css,/\.invoice-page \.bottom-grid\{[\s\S]{0,180}margin-top:auto!important/);
-  assert.doesNotMatch(css,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]{0,180}margin-top:auto!important/);
-  assert.doesNotMatch(css,/\.invoice-page \.final-details\{[\s\S]{0,180}flex:1 1 auto!important/);
+  assert.match(canonical,/\.final-details\{[^}]*margin-top:auto[^}]*padding-top:6mm/);
+  assert.match(canonical,/\.details-only \.final-details\{margin-top:0;padding-top:0\}/);
+  assert.match(canonical,/\.bottom-grid\{[^}]*margin-top:4\.5mm[^}]*align-items:start/);
+  assert.match(canonical,/\.signature-media\{[^}]*min-height:21mm[^}]*padding-top:1mm/);
+  assert.doesNotMatch(css,/\.invoice-page(?:\:not\([^)]*\))? \.final-details\s*\{/);
+  assert.doesNotMatch(css,/\.invoice-page \.bottom-grid\s*\{/);
+  assert.doesNotMatch(css,/\.invoice-page \.signature-media\s*\{/);
+  assert.doesNotMatch(css,/\.invoice-page \.doc-footer\s*\{/);
 });
 
-test('v337 normalizes signature and stamp geometry without changing document output logic',async()=>{
-  const css=await read('src/styles/v337-template-layout-balance.css');
-  assert.match(css,/\.invoice-page \.signature-media\{[\s\S]*min-height:21mm!important/);
-  assert.match(css,/\.signature-image\{[\s\S]*height:20mm!important[\s\S]*object-position:center bottom!important/);
-  assert.match(css,/\.stamp-image\{[\s\S]*height:22mm!important[\s\S]*object-position:center bottom!important/);
-  assert.match(css,/\.invoice-page \.doc-footer\{[\s\S]*flex:0 0 10mm!important[\s\S]*margin-inline:11mm!important/);
+test('canonical v141 owns signature stamp and footer geometry',async()=>{
+  const css=await read('src/styles/document-premium-redesign-v141.css');
+  assert.match(css,/\.signature-media\{[^}]*min-height:21mm[^}]*padding-top:1mm/);
+  assert.match(css,/\.signature-media \.signature-image\{height:20mm\}/);
+  assert.match(css,/\.signature-media \.stamp-image\{height:22mm\}/);
+  assert.match(css,/\.doc-footer\{[^}]*height:10mm[^}]*margin:0 11mm/);
   assert.doesNotMatch(css,/firebase|indexedDB|localStorage|calculateTotals|saveVault|persist\(|onSave|onPrint/i);
 });
 
@@ -46,7 +46,7 @@ test('current DraftDocumentRenderer has an output-only A4 owner without reviving
   assert.match(css,/\.invoice-page \.document-custom-watermark\.is-repeat/);
   assert.match(css,/\.draft-letter-page\{[\s\S]*display:grid!important[\s\S]*grid-template-rows:auto minmax\(0,1fr\) auto!important/);
   assert.match(css,/@media print[\s\S]*\.draft-letter-page \.letterhead-header[\s\S]*break-inside:avoid!important/);
-  const outputOnly=css.slice(css.indexOf('/* Current Company Draft A4 renderer.'),css.indexOf('/* Commercial document closing balance.'));
+  const outputOnly=css.slice(css.indexOf('/* Current Company Draft A4 renderer.'));
   assert.ok(outputOnly.length>1000,'Draft A4 output contract is missing');
   assert.doesNotMatch(outputOnly,/\.app-ui|draft-studio|draft-mobile-actionbar/);
 });
@@ -100,7 +100,7 @@ test('later document-semantic owner cannot retake scroll or A4 closing geometry'
   assert.doesNotMatch(semantics,/margin-top\s*:\s*auto|flex\s*:\s*1\s+1\s+auto/i);
 });
 
-test('production entry restores the standalone v337 owner after CSS bundling and cache-busts the document runtime',async()=>{
+test('production entry restores the standalone v337 Draft owner after CSS bundling and cache-busts the document runtime',async()=>{
   const [html,cacheRefresh,finalContract,build,pkg]=await Promise.all([
     read('index.html'),
     read('scripts/v303-visual-cache-refresh.mjs'),
@@ -140,5 +140,5 @@ test('production entry restores the standalone v337 owner after CSS bundling and
   const bundleStep=buildCommand.indexOf('node scripts/build.mjs');
   const restoreStep=buildCommand.indexOf('node scripts/v303-visual-cache-refresh.mjs');
   const finalStep=buildCommand.indexOf('node scripts/v321-production-runtime-contract.mjs');
-  assert.ok(bundleStep>=0&&restoreStep>bundleStep&&finalStep>restoreStep,'v337 standalone owner must be restored after bundling and verified in the final build step');
+  assert.ok(bundleStep>=0&&restoreStep>bundleStep&&finalStep>restoreStep,'v337 standalone Draft owner must be restored after bundling and verified in the final build step');
 });
