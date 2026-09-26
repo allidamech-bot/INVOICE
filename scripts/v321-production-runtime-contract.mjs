@@ -24,22 +24,30 @@ const storageCleanup='./storage-cleanup-v347.js?v=351';
 const presentationGuard='./home-final-closeout-v286.js?v=351';
 const documentEntry='./document-entry-v302.js?v=351';
 const recoveryUrl='./styles/v331-draft-scroll-recovery.css?v=337-3';
+const criticalDocumentsUrl='./styles/v332-critical-documents-deep-closeout.css?v=332-1';
 const recoveryMarker='data-lourex-v331-draft-recovery="true"';
+const criticalDocumentsMarker='data-lourex-v332-critical-documents="true"';
 
 for(const runtime of [startupWatchdog,themeBootstrap,storageCleanup,presentationGuard,documentEntry]){
   if(!html.includes(runtime))throw new Error(`v351 production contract: missing canonical runtime reference ${runtime}.`);
 }
 
-/* v331/v337 remain the standalone Safari document owner after the consolidated
+/* v331/v337 and v332 remain standalone document owners after the consolidated
    application bundle. This contract runs after normal precache generation and
    before the final idempotent startup verifier. */
 const recoveryTags=[...html.matchAll(/<link\b[^>]*href=["']\.\/styles\/v331-draft-scroll-recovery\.css\?v=337-3["'][^>]*>/g)];
+const criticalTags=[...html.matchAll(/<link\b[^>]*href=["']\.\/styles\/v332-critical-documents-deep-closeout\.css\?v=332-1["'][^>]*>/g)];
 if(recoveryTags.length!==1)throw new Error(`v351 production contract: expected exactly one standalone document-scroll owner, found ${recoveryTags.length}.`);
+if(criticalTags.length!==1)throw new Error(`v351 production contract: expected exactly one standalone critical-document owner, found ${criticalTags.length}.`);
 const recoveryMarkerCount=(html.match(/data-lourex-v331-draft-recovery="true"/g)||[]).length;
+const criticalMarkerCount=(html.match(/data-lourex-v332-critical-documents="true"/g)||[]).length;
 if(recoveryMarkerCount!==1)throw new Error(`v351 production contract: expected exactly one document-scroll owner marker, found ${recoveryMarkerCount}.`);
+if(criticalMarkerCount!==1)throw new Error(`v351 production contract: expected exactly one critical-document owner marker, found ${criticalMarkerCount}.`);
+if(!html.includes(recoveryMarker)||!html.includes(criticalDocumentsMarker))throw new Error('v351 production contract: standalone document owner marker is missing from dist/index.html.');
 const bundleIndex=html.indexOf('./styles/app.bundle.css');
 const recoveryIndex=html.indexOf(recoveryUrl);
-if(bundleIndex<0||recoveryIndex<=bundleIndex)throw new Error('v351 production contract: standalone document-scroll owner must load after app.bundle.css.');
+const criticalIndex=html.indexOf(criticalDocumentsUrl);
+if(bundleIndex<0||recoveryIndex<=bundleIndex||criticalIndex<=recoveryIndex)throw new Error('v351 production contract: standalone document owners must load app.bundle.css -> v331 -> v332.');
 if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/.test(html))throw new Error('v351 production contract: stale document-scroll owner survived in dist/index.html.');
 if(!draftOwner.startsWith('@import url("./v333-critical-documents-visual-functional-closeout.css?v=333-1");\n@import url("./v337-template-layout-balance.css?v=337-3");'))throw new Error('v351 production contract: standalone v331 owner lost the v333/v337 import chain.');
 
@@ -57,6 +65,7 @@ if(staleServiceWorkerRuntime.test(sw))throw new Error('v351 production contract:
 for(const requiredAsset of [
   './styles/v337-template-layout-balance.css?v=337-3',
   recoveryUrl,
+  criticalDocumentsUrl,
   startupWatchdog,
   themeBootstrap,
   storageCleanup,
@@ -76,10 +85,11 @@ for(const file of [
   'dist/home-final-closeout-v286.js',
   'dist/document-entry-v302.js',
   'dist/styles/v331-draft-scroll-recovery.css',
+  'dist/styles/v332-critical-documents-deep-closeout.css',
   'dist/styles/v337-template-layout-balance.css'
 ]){
   const info=await stat(file);
   if(info.size<250)throw new Error(`v351 production contract: runtime file is unexpectedly small: ${file}.`);
 }
 
-console.log(`LOUREX v351 production runtime contract: PASS (PWA cache v${cacheGeneration}; canonical startup/storage refs; one standalone v331 owner; no stale active runtime URLs).`);
+console.log(`LOUREX v351 production runtime contract: PASS (PWA cache v${cacheGeneration}; canonical startup/storage refs; standalone v331/v332 owners; no stale active runtime URLs).`);
