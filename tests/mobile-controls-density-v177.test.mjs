@@ -22,14 +22,15 @@ test('v351 establishes one 44px coarse-pointer floor through iPad Desktop Websit
   assert.doesNotMatch(css,/max-width:960px\) and \(pointer:coarse/);
 });
 
-test('v351 bottom navigation clearance is not duplicated inside every mobile page',async()=>{
-  const [css,shell]=await Promise.all([
+test('v351 v177 does not own page dock clearance; final reliability owns reachability after TailAdmin page layers',async()=>{
+  const [css,reliability,shell]=await Promise.all([
     read('src/styles/mobile-controls-density-v177.css'),
+    read('src/styles/tailadmin-reliability-bridge-v320.css'),
     read('src/styles/tailadmin-mobile-header-v322.css')
   ]);
+  assert.doesNotMatch(css,/\.ta-finance-dashboard|\.ta-documents-page|\.ta-reports-page/);
   assert.match(shell,/padding-bottom:calc\(92px \+ env\(safe-area-inset-bottom,0px\)\)!important/);
-  assert.match(css,/\.ta-finance-dashboard,[\s\S]*\.ta-reports-page[\s\S]*padding-bottom:24px!important/);
-  assert.doesNotMatch(css,/padding-bottom:calc\(112px \+ env\(safe-area-inset-bottom/);
+  assert.match(reliability,/\.ta-finance-dashboard,[\s\S]*\.ta-reports-page[\s\S]*padding-bottom:24px!important/);
 });
 
 test('v351 narrow headings, forms and tab lanes remain reachable instead of clipping',async()=>{
