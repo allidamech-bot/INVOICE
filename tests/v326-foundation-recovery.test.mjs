@@ -47,6 +47,16 @@ test('v326 keeps transient cloud placement out of page visual layers',async()=>{
   assert.match(reliability,/bottom:calc\(96px \+ env\(safe-area-inset-bottom,0px\)\)!important/);
 });
 
+test('v351 mobile dock clearance is reserved once by the shell instead of again inside every page',async()=>{
+  const [shellOwner,controls]=await Promise.all([
+    read('src/styles/tailadmin-mobile-header-v322.css'),
+    read('src/styles/mobile-controls-density-v177.css')
+  ]);
+  assert.match(shellOwner,/padding-bottom:calc\(92px \+ env\(safe-area-inset-bottom,0px\)\)!important/);
+  assert.match(controls,/\.ta-finance-dashboard,[\s\S]*\.ta-reports-page[\s\S]*padding-bottom:24px!important/);
+  assert.doesNotMatch(controls,/padding-bottom:calc\((?:9[0-9]|1[01][0-9])px \+ env\(safe-area-inset-bottom/);
+});
+
 test('v326 mobile shell has one presentation owner',async()=>{
   const shellOwner=await read('src/styles/tailadmin-mobile-header-v322.css');
   const pagePriority=await read('src/styles/tailadmin-design-mobile-priority-v323.css');
