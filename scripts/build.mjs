@@ -86,8 +86,15 @@ const styleReferencePattern=/(?:<link\s+rel="stylesheet"\s+href="\.\/styles\/([^
 const styleNames=[...html.matchAll(styleReferencePattern)].map(match=>match[1]||match[2]);
 if(!styleNames.length) throw new Error('No local stylesheet layers found in index.html.');
 if(new Set(styleNames).size!==styleNames.length) throw new Error('Duplicate local stylesheet layer detected in index.html.');
-if(styleNames.at(-1)!=='tailadmin-reliability-bridge-v320.css') throw new Error('v320 TailAdmin reliability bridge must remain the final local stylesheet in the production cascade.');
+if(styleNames.at(-1)!=='tailadmin-reliability-bridge-v320.css') throw new Error('v320 TailAdmin reliability bridge must remain the final linked stylesheet in the production cascade.');
 if(!styleNames.includes('tailadmin-finance-v320.css')||!styleNames.includes('tailadmin-overlays-v320.css'))throw new Error('The canonical v320 TailAdmin visual owners are missing from the production cascade.');
+
+/* v350 palette is an explicit build owner, not a runtime @import. Put it immediately
+   before the reliability bridge so local/dev and production resolve the same token
+   contract in one CSS file with no late network-delivered recolor. */
+const paletteOwner='v346-template-color-visual-closeout.css';
+if(styleNames.includes(paletteOwner))throw new Error('v350 palette owner must not also be linked/imported by index.html.');
+styleNames.splice(styleNames.length-1,0,paletteOwner);
 
 const styleParts=await Promise.all(styleNames.map(async name=>{
   const css=await readFile(`src/styles/${name}`,'utf8');
