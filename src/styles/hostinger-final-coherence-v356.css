@@ -27,6 +27,22 @@
 
   /* Keep visual depth subtle and consistent with the rest of the Hostinger-inspired
      shell instead of allowing generic modal borders to read as bright frames. */
+  html body .modal{
+    border-width:1px!important;
+    border-color:color-mix(in srgb,var(--ft-line-strong) 72%,var(--ft-line))!important;
+    outline:0!important;
+    box-shadow:0 28px 72px rgba(31,24,58,.18),0 2px 10px rgba(31,24,58,.08)!important;
+  }
+  html[data-ui-theme="dark"] body .modal{
+    border-color:color-mix(in srgb,var(--ft-line-strong) 78%,transparent)!important;
+    box-shadow:0 32px 84px rgba(0,0,0,.50),0 2px 12px rgba(0,0,0,.28)!important;
+  }
+  html body .modal:focus,
+  html body .modal:focus-visible{outline:0!important;}
+  html body .modal-header :where(.icon-btn,button):focus-visible{
+    outline:0!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent) 18%,transparent)!important;
+  }
   html body .app-ui .modal.modal-xl:has(.ta-settings-shell.is-account){
     border:1px solid var(--ft-line)!important;
     background:var(--ft-surface)!important;
@@ -45,10 +61,72 @@
     grid-template-columns:minmax(260px,360px) minmax(0,1fr)!important;
     align-items:stretch!important;
   }
+
+  /* Keep every primary surface on the violet contract even when older TailAdmin
+     layers contain dark-theme teal fallbacks. */
+  html body .app-ui :where(.ta-create-button,.ta-card-primary-action){
+    border-color:var(--ft-accent)!important;
+    background:var(--ft-accent)!important;
+    color:var(--ft-on-accent,#fff)!important;
+    background-image:none!important;
+  }
+  html body .app-ui :where(.ta-create-button,.ta-card-primary-action):hover:not(:disabled){
+    border-color:var(--ft-accent-hover,var(--ta-brand-700))!important;
+    background:var(--ft-accent-hover,var(--ta-brand-700))!important;
+  }
+  html body .app-ui .ta-kpi-card:first-child .ta-kpi-icon{
+    background:var(--ft-accent)!important;
+    color:var(--ft-on-accent,#fff)!important;
+  }
+
+  /* Small interaction details: quiet elevation, clear focus and no glossy legacy
+     treatment on controls that sit on premium surfaces. */
+  html body .app-ui :where(.ta-search-trigger,.ta-theme-control,.ta-topbar-account,.ta-sidebar-account){
+    background-image:none!important;
+  }
+  html body .app-ui :where(.ta-nav-item,.ta-sidebar-utility,.ta-sheet-link,.ta-settings-nav button):focus-visible{
+    outline:0!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent) 16%,transparent)!important;
+  }
 }
 
 @media screen and (max-width:720px){
   html body .app-ui .ta-account-page .ta-account-logo-grid{
     grid-template-columns:minmax(0,1fr)!important;
   }
+
+  /* Settings is a full-height mobile workspace. Integrate the sheet edge with the
+     viewport and reveal nearly three destinations at once instead of hard clipping. */
+  html body .modal.modal-xl:has(.ta-settings-shell){
+    border-inline:0!important;
+    border-bottom:0!important;
+    border-top-color:color-mix(in srgb,var(--ft-line-strong) 72%,var(--ft-line))!important;
+    box-shadow:0 -18px 52px rgba(31,24,58,.14)!important;
+  }
+  html[data-ui-theme="dark"] body .modal.modal-xl:has(.ta-settings-shell){
+    border-top-color:color-mix(in srgb,var(--ft-line-strong) 76%,transparent)!important;
+    box-shadow:0 -20px 62px rgba(0,0,0,.44)!important;
+  }
+  html body .app-ui .ta-settings-sidebar{padding-inline:8px!important;}
+  html body .app-ui .ta-settings-nav{gap:4px!important;scroll-padding-inline:4px!important;}
+  html body .app-ui .ta-settings-nav button{
+    min-width:120px!important;
+    min-height:54px!important;
+    padding:8px 9px!important;
+    border-radius:11px!important;
+  }
+  html body .app-ui .ta-settings-nav-icon{
+    width:32px!important;
+    height:32px!important;
+    border-radius:9px!important;
+  }
+  html body .app-ui .ta-settings-nav strong{
+    font-size:11.5px!important;
+    line-height:16px!important;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  html body .modal,
+  html body .app-ui :where(.ta-create-button,.ta-card-primary-action){transition:none!important;}
 }
