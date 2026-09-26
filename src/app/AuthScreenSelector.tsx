@@ -24,6 +24,8 @@ type Props =
 type RecoveryState='idle'|'checking'|'blocked'|'error';
 const CLOUD_INSTALL_RELOAD_KEY='lourex-cloud-install-reload-v317';
 
+function diag(type:string,detail=''):void{try{(window as any).__LOUREX_DIAGNOSTICS__?.mark?.(type,detail);}catch{}}
+function markReload(reason:string):void{try{(window as any).__LOUREX_MARK_NAVIGATION__?.(reason,'mode=reload source=AuthScreenSelector');}catch{}}
 function cloudInstallAlreadyReloaded(uid:string):boolean{
   try{return window.sessionStorage.getItem(CLOUD_INSTALL_RELOAD_KEY)===uid;}catch{return false;}
 }
@@ -44,27 +46,38 @@ export function AuthScreenSelector(props: Props): any {
     }
     let cancelled=false;
     setRecoveryState('checking');
+    diag('auth-recovery-stage','stage=checking mode=setup');
     void (async()=>{
       try{
         const [localVault,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(cloudUser.uid)]);
         if(cancelled)return;
+        diag('auth-recovery-stage',`stage=checked local=${localVault?'present':'empty'} remote=${remote?'present':'empty'}`);
         if(!remote){setRecoveryState('idle');return;}
         // Never replace an unknown local encrypted payload automatically. The
         // automatic path is only for a genuinely empty local workspace, such as
         // a new browser origin/device or a fresh Preview deployment.
-        if(localVault){setRecoveryState('blocked');return;}
+        if(localVault){diag('auth-recovery-stage','stage=blocked-local-vault');setRecoveryState('blocked');return;}
         // A cloud install is allowed to reload the page exactly once. If Safari
         // returns to Setup after that reload, stop and surface recovery instead of
         // repeating install -> reload until WebKit terminates the page.
-        if(cloudInstallAlreadyReloaded(cloudUser.uid)){setRecoveryState('error');return;}
+        if(cloudInstallAlreadyReloaded(cloudUser.uid)){diag('auth-recovery-stage','stage=repeat-install-blocked');setRecoveryState('error');return;}
+        diag('auth-recovery-stage','stage=install-cloud-start');
         const installed=await installCloudVault(cloudUser.uid);
         if(cancelled)return;
-        if(installed){markCloudInstallReload(cloudUser.uid);window.location.reload();return;}
+        if(installed){
+          diag('auth-recovery-stage','stage=install-cloud-success');
+          markCloudInstallReload(cloudUser.uid);
+          markReload('auth-cloud-install-complete');
+          window.location.reload();
+          return;
+        }
+        diag('auth-recovery-stage','stage=install-cloud-failed');
         setRecoveryState('error');
-      }catch{
+      }catch(error:any){
         // A network/Firebase failure is NOT proof that this is a new account.
         // Never fall through to Setup/Create PIN when account recovery is merely
         // uncertain, otherwise an existing PIN can appear to be "forgotten".
+        diag('auth-recovery-error',`name=${String(error?.name||'Error')} code=${String(error?.code||'unknown')}`);
         if(!cancelled)setRecoveryState('error');
       }
     })();
@@ -89,7 +102,7 @@ export function AuthScreenSelector(props: Props): any {
     return <div className="loading-screen" role="alert">Existing encrypted local data needs recovery before this account can be restored. / توجد بيانات محلية مشفّرة تحتاج إلى استعادة قبل تحميل هذا الحساب.</div>;
   }
   if(recoveryState==='error'){
-    return <div className="loading-screen" role="alert"><span>LOUREX could not verify the encrypted account yet. A new PIN will not be created. / تعذّر التحقق من الحساب المشفّر حاليًا. لن يتم إنشاء PIN جديد.</span><button type="button" className="button primary" onClick={()=>window.location.reload()}>Retry / إعادة المحاولة</button></div>;
+    return <div className="loading-screen" role="alert"><span>LOUREX could not verify the encrypted account yet. A new PIN will not be created. / تعذّر التحقق من الحساب المشفّر حاليًا. لن يتم إنشاء PIN جديد.</span><button type="button" className="button primary" onClick={()=>{diag('auth-recovery-stage','stage=user-retry');markReload('auth-recovery-user-retry');window.location.reload();}}>Retry / إعادة المحاولة</button></div>;
   }
 
   return <SetupScreen initialCompany={props.company} logoDataUrl={props.logoDataUrl} language={props.language} onLanguageChange={props.onLanguageChange} onFinish={props.onFinish}/>;

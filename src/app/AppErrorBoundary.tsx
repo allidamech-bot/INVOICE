@@ -6,6 +6,9 @@ interface State {
   copied: boolean;
 }
 
+function diag(type:string,detail=''):void{try{(window as any).__LOUREX_DIAGNOSTICS__?.mark?.(type,detail);}catch{}}
+function markNavigation(reason:string,detail=''):void{try{(window as any).__LOUREX_MARK_NAVIGATION__?.(reason,detail);}catch{}}
+
 export class AppErrorBoundary extends React.Component<{ children?: any }, State> {
   state: State = { failed: false, message: '', copied: false };
 
@@ -14,11 +17,14 @@ export class AppErrorBoundary extends React.Component<{ children?: any }, State>
   }
 
   componentDidCatch(error: unknown, info: unknown): void {
+    const name=error instanceof Error?error.name:'UnknownError';
+    diag('react-error-boundary',`name=${name}`);
     console.error('LOUREX Invoice UI error', error, info);
   }
 
   private diagnostics=():string=>{
     const runtime=(window as any).__LOUREX_RUNTIME__||{};
+    const unified=(window as any).__LOUREX_DIAGNOSTICS__;
     return [
       'LOUREX Invoice diagnostics',
       `time=${new Date().toISOString()}`,
@@ -31,12 +37,14 @@ export class AppErrorBoundary extends React.Component<{ children?: any }, State>
       `secureContext=${window.isSecureContext}`,
       `serviceWorker=${Boolean(navigator.serviceWorker?.controller)}`,
       `error=${this.state.message || 'Unknown screen error'}`,
+      `unifiedDiagnostics=${unified?.version||'unavailable'}`,
       `userAgent=${navigator.userAgent}`
     ].join('\n');
   };
 
   private copyDiagnostics=async()=>{
-    const text=this.diagnostics();
+    const unified=(window as any).__LOUREX_DIAGNOSTICS__;
+    const text=[this.diagnostics(),'',typeof unified?.exportText==='function'?unified.exportText():''].filter(Boolean).join('\n');
     try{
       if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(text);
       else{
@@ -57,9 +65,9 @@ export class AppErrorBoundary extends React.Component<{ children?: any }, State>
         <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'14px'}}><span aria-hidden="true" style={{width:'12px',height:'12px',borderRadius:'50%',background:'#27d8df',boxShadow:'0 0 0 6px rgba(39,216,223,.1)'}}/><strong style={{display:'block',fontSize:'22px',letterSpacing:'.02em'}}>LOUREX Invoice</strong></div>
         <p style={{margin:'0 0 20px',lineHeight:1.8,color:'#c6d9dd'}}>{t('An unexpected screen error occurred. Your saved invoice data remains stored on this device.','حدث خطأ غير متوقع في الشاشة. بيانات الفواتير المحفوظة تبقى محفوظة على هذا الجهاز.')}</p>
         <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
-          <button type="button" onClick={()=>window.location.reload()} style={primary}>{t('Reload LOUREX','إعادة تحميل LOUREX')}</button>
+          <button type="button" onClick={()=>{markNavigation('error-boundary-user-reload','mode=reload');window.location.reload();}} style={primary}>{t('Reload LOUREX','إعادة تحميل LOUREX')}</button>
           <button type="button" onClick={()=>void this.copyDiagnostics()} style={secondary}>{this.state.copied?t('Copied','تم النسخ'):t('Copy diagnostics','نسخ التشخيص')}</button>
-          <button type="button" onClick={()=>{window.location.href='./health.html';}} style={secondary}>{t('System health','صحة النظام')}</button>
+          <button type="button" onClick={()=>{markNavigation('error-boundary-health-open','mode=href');window.location.href='./health.html';}} style={secondary}>{t('System health','صحة النظام')}</button>
         </div>
         <details style={{marginTop:'18px',paddingTop:'16px',borderTop:'1px solid #1d4650'}}>
           <summary style={{cursor:'pointer',fontSize:'14px',fontWeight:750,color:'#9fc1c8'}}>{t('Technical details','التفاصيل التقنية')}</summary>
