@@ -65,7 +65,7 @@ test('v351 coarse-pointer controls retain a final 44px physical target floor wit
   assert.match(html,/mobile-controls-density-v177\.css/);
   assert.match(html,/tailadmin-design-mobile-priority-v323\.css/);
   assert.match(html,/tailadmin-reliability-bridge-v320\.css/);
-  assert.match(controls,/@media \(max-width:960px\) and \(pointer:coarse\)/);
+  assert.match(controls,/@media \(max-width:1366px\) and \(pointer:coarse\)/);
   assert.match(controls,/min-height:44px!important/);
   assert.match(mobile,/\.ta-doc-actions button\{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important/);
   assert.match(reliability,/\.template-favorite-button\{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important\}/);
