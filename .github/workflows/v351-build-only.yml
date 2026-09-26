@@ -47,6 +47,18 @@ jobs:
             changed=true;
           }
 
+          const tabletPath='src/styles/v330-template-contrast-guard.css';
+          let tablet=fs.readFileSync(tabletPath,'utf8');
+          const tabletFrom='  html body .app-ui .screen-editor .editor-topbar{\n    grid-template-columns:minmax(0,1fr) auto auto!important;';
+          const tabletTo='  html body .app-ui .screen-editor .editor-topbar{\n    height:auto!important;\n    grid-template-columns:minmax(0,1fr) auto auto!important;';
+          if(tablet.includes(tabletFrom)){
+            tablet=tablet.replace(tabletFrom,tabletTo);
+            fs.writeFileSync(tabletPath,tablet);
+            changed=true;
+          } else if(!tablet.includes(tabletTo)) {
+            throw new Error('iPad editor topbar owner missing');
+          }
+
           const index=fs.readFileSync('index.html','utf8');
           if(!/family=Outfit:wght@400;500;600;700;800/.test(index))throw new Error('Canonical Outfit preload is missing from index.html');
 
@@ -54,13 +66,13 @@ jobs:
           NODE
       - name: Commit final visual closeout if needed
         run: |
-          if git diff --quiet -- src/styles/v331-draft-scroll-recovery.css src/styles/tailadmin-finance-v320.css; then
+          if git diff --quiet -- src/styles/v331-draft-scroll-recovery.css src/styles/tailadmin-finance-v320.css src/styles/v330-template-contrast-guard.css; then
             exit 0
           fi
           git config user.name "allidamech-bot"
           git config user.email "allidamech@gmail.com"
-          git add src/styles/v331-draft-scroll-recovery.css src/styles/tailadmin-finance-v320.css
-          git commit -m "fix: close v351 draft spacing and font loading"
+          git add src/styles/v331-draft-scroll-recovery.css src/styles/tailadmin-finance-v320.css src/styles/v330-template-contrast-guard.css
+          git commit -m "fix: finish v351 iPad topbar flow"
           git push origin HEAD:audit/v351-layer-spacing-dedup-closeout
       - run: npm ci
       - name: Production build only
