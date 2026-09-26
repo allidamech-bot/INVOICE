@@ -7,6 +7,7 @@
   const STORE='records';
   const ACTIVE_META_KEY='lourex-active-storage-meta-v341';
   const DONE_PREFIX='lourex-storage-dedup-v347:';
+  const SNAPSHOT_DONE_KEY='lourex-retired-snapshot-cleanup-v350';
   let running=false;
 
   function diag(type,detail=''){try{window.__LOUREX_DIAGNOSTICS__?.mark?.(type,detail);}catch{}}
@@ -15,6 +16,8 @@
   function doneKey(fp){return `${DONE_PREFIX}${fp}`;}
   function wasDone(fp){try{return localStorage.getItem(doneKey(fp))==='1';}catch{return false;}}
   function markDone(fp){try{localStorage.setItem(doneKey(fp),'1');}catch{}}
+  function snapshotsDone(){try{return localStorage.getItem(SNAPSHOT_DONE_KEY)==='1';}catch{return false;}}
+  function markSnapshotsDone(){try{localStorage.setItem(SNAPSHOT_DONE_KEY,'1');}catch{}}
   function timestamp(value){const parsed=Date.parse(String(value||''));return Number.isFinite(parsed)?parsed:0;}
   function sameOrOlder(candidate,active){
     const candidateAt=timestamp(candidate?.updatedAt),activeAt=timestamp(active?.updatedAt);
@@ -79,6 +82,41 @@
     });
   }
 
+  function deleteRetiredSafetySnapshot(db){
+    return new Promise((resolve,reject)=>{
+      if(!db.objectStoreNames.contains(STORE)){resolve('none');return;}
+      const tx=db.transaction(STORE,'readwrite');
+      const store=tx.objectStore(STORE);
+      const get=store.get('safety-snapshot');
+      let present=false;
+      get.onsuccess=()=>{
+        present=Boolean(get.result);
+        if(present)store.delete('safety-snapshot');
+      };
+      get.onerror=()=>{try{tx.abort();}catch{}};
+      tx.oncomplete=()=>resolve(present?'removed':'none');
+      tx.onerror=()=>reject(tx.error||new Error('Retired snapshot cleanup failed.'));
+      tx.onabort=()=>reject(tx.error||new Error('Retired snapshot cleanup aborted.'));
+    });
+  }
+
+  async function cleanupRetiredSnapshots(names){
+    if(snapshotsDone())return {removed:0,blocked:0};
+    let removed=0,blocked=0;
+    const accountNames=names.filter(name=>name.startsWith(ACCOUNT_PREFIX));
+    for(const name of accountNames){
+      let db=null;
+      try{
+        db=await openExisting(name);
+        const result=await deleteRetiredSafetySnapshot(db);
+        if(result==='removed')removed+=1;
+      }catch{blocked+=1;}
+      finally{try{db?.close();}catch{}}
+    }
+    if(!blocked)markSnapshotsDone();
+    return {removed,blocked};
+  }
+
   async function cleanup(){
     if(running)return;
     running=true;
@@ -86,9 +124,11 @@
       const meta=activeMeta();
       if(!meta||meta.kind!=='account'||!meta.fingerprint)return;
       const fp=String(meta.fingerprint);
-      if(wasDone(fp))return;
       const names=await databaseNames();
       if(!names.length)return;
+      const snapshotResult=await cleanupRetiredSnapshots(names);
+      if(snapshotResult.removed||snapshotResult.blocked)diag('storage-retired-snapshot-cleanup',`removed=${snapshotResult.removed} blocked=${snapshotResult.blocked}`);
+      if(wasDone(fp))return;
       const activeName=names.find(name=>name.startsWith(ACCOUNT_PREFIX)&&fingerprint(name)===fp);
       if(!activeName)return;
 
@@ -127,7 +167,7 @@
       if(!retryNeeded)markDone(fp);
       let usage='';
       try{const estimate=await navigator.storage?.estimate?.();if(estimate?.usage)usage=` usageMb=${(estimate.usage/1048576).toFixed(1)}`;}catch{}
-      diag('storage-duplicate-cleanup',`legacy=${legacyState} public=${publicState} retry=${retryNeeded?'yes':'no'}${usage}`);
+      diag('storage-duplicate-cleanup',`legacy=${legacyState} public=${publicState} retry=${retryNeeded?'yes':'no'} snapshotsRemoved=${snapshotResult.removed} snapshotsBlocked=${snapshotResult.blocked}${usage}`);
     }catch(error){
       diag('storage-duplicate-cleanup-error',`name=${String(error?.name||'Error')}`);
     }finally{running=false;}
