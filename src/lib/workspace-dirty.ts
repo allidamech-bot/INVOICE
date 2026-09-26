@@ -2,6 +2,29 @@ import { t } from './i18n.js';
 
 const ATTRIBUTE='data-lourex-workspace-dirty';
 
+const OWNER_ROOTS:Record<string,string>={
+  customers:'.customers-page,.customer-profile-page',
+  operations:'.operations-page'
+};
+
+function publishedDirtyOwnerIsActive():boolean{
+  if(typeof document==='undefined')return false;
+  const root=document.documentElement;
+  const owner=(root.getAttribute(ATTRIBUTE)||'').trim();
+  if(!owner)return false;
+
+  const selector=OWNER_ROOTS[owner];
+  if(!selector)return true;
+  if(document.querySelector(selector))return true;
+
+  // A workspace can unmount between its last component update and the shell's
+  // next navigation click. Never let that stale marker make unrelated LOUREX
+  // pages look dirty. Known owners are safe to self-heal because their real
+  // beforeunload handlers remain mounted only while their workspace is mounted.
+  if(root.getAttribute(ATTRIBUTE)===owner)root.removeAttribute(ATTRIBUTE);
+  return false;
+}
+
 function operationsInlineMovementDraft():boolean{
   if(typeof document==='undefined')return false;
   const entry=document.querySelector('.ta-inventory-entry');
@@ -26,7 +49,7 @@ function operationsInlineMovementDraft():boolean{
 
 export function workspaceHasUnsavedChanges():boolean{
   if(typeof document==='undefined')return false;
-  return document.documentElement.hasAttribute(ATTRIBUTE)||operationsInlineMovementDraft();
+  return publishedDirtyOwnerIsActive()||operationsInlineMovementDraft();
 }
 
 export function setWorkspaceDirty(owner:string,dirty:boolean):void{
