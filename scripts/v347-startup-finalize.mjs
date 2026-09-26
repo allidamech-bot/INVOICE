@@ -20,6 +20,11 @@ if(!html.includes(runtimeSafety))throw new Error('v347: runtime safety script re
 if(!html.includes('storage-cleanup-v347.js')){
   html=html.replace(runtimeSafety,`${runtimeSafety}\n  <script src="./storage-cleanup-v347.js?v=347"></script>`);
 }
+const iosOutputBridge='<script src="./ios-print-bridge.js"></script>';
+if(!html.includes(iosOutputBridge))throw new Error('v350: iOS output bridge reference was not found.');
+if(!html.includes('mobile-preview-output-v350.js')){
+  html=html.replace(iosOutputBridge,`${iosOutputBridge}\n  <script src="./mobile-preview-output-v350.js?v=350"></script>`);
+}
 await writeFile(htmlPath,html);
 
 /* v350 ownership order inside the single production CSS bundle:
@@ -50,13 +55,13 @@ if(runtime.includes(autoReload)||runtime.includes("waiting.postMessage({type:'SK
 }
 await writeFile(runtimePath,runtime);
 
-/* v347 runs after the normal precache passes. Keep final HTML and SW cache in
-   lockstep so non-iOS/offline launches never reference uncached startup assets. */
+/* v347/v350 run after the normal precache passes. Keep final HTML and SW cache in
+   lockstep so non-iOS/offline launches never reference uncached runtime assets. */
 let sw=await readFile(swPath,'utf8');
 sw=sw.replaceAll(oldWatchdog,newWatchdog);
 const cacheMarker="LOCAL_CORE.push('./canonical-redirect.js');";
 if(!sw.includes(cacheMarker))throw new Error('v347: service-worker cache insertion marker is missing.');
-for(const asset of ['./theme-bootstrap-v347.js?v=347','./storage-cleanup-v347.js?v=347']){
+for(const asset of ['./theme-bootstrap-v347.js?v=347','./storage-cleanup-v347.js?v=347','./mobile-preview-output-v350.js?v=350']){
   if(!sw.includes(`LOCAL_CORE.push('${asset}');`))sw=sw.replace(cacheMarker,`LOCAL_CORE.push('${asset}');\n${cacheMarker}`);
 }
 await writeFile(swPath,sw);
@@ -67,12 +72,13 @@ const finalSw=await readFile(swPath,'utf8');
 if(finalHtml.includes('<script id="lourex-theme-bootstrap">'))throw new Error('v347: inline theme bootstrap remains in production HTML.');
 if(!finalHtml.includes('theme-bootstrap-v347.js?v=347'))throw new Error('v347: external theme bootstrap is not wired.');
 if(!finalHtml.includes('storage-cleanup-v347.js?v=347'))throw new Error('v347: safe storage cleanup is not wired.');
+if(!finalHtml.includes('mobile-preview-output-v350.js?v=350'))throw new Error('v350: mobile preview output validation bridge is not wired.');
 if(!finalHtml.includes(newWatchdog))throw new Error('v347: cache-busted startup watchdog is not wired.');
 if(!finalCss.includes('v346-template-color-visual-closeout.css — application palette owner'))throw new Error('v350: application palette is not bundled explicitly.');
 if(!finalCss.includes('v347-startup-single-layer.css — final startup owner'))throw new Error('v347: startup single-layer CSS is not final in the production bundle.');
 if(/@import\s+url\([^)]*v346-template-color-visual-closeout/i.test(finalCss))throw new Error('v350: late v346 runtime @import remains in the production bundle.');
-for(const asset of [newWatchdog,'./theme-bootstrap-v347.js?v=347','./storage-cleanup-v347.js?v=347']){
-  if(!finalSw.includes(asset))throw new Error(`v347: service worker is missing ${asset}.`);
+for(const asset of [newWatchdog,'./theme-bootstrap-v347.js?v=347','./storage-cleanup-v347.js?v=347','./mobile-preview-output-v350.js?v=350']){
+  if(!finalSw.includes(asset))throw new Error(`v350: service worker is missing ${asset}.`);
 }
 
-console.log('LOUREX v350 startup finalization applied: explicit palette bundle, single loading owner, CSP-safe theme bootstrap, no automatic stuck-boot reload, safe duplicate-storage cleanup, final PWA precache aligned.');
+console.log('LOUREX v350 startup finalization applied: explicit palette bundle, single loading owner, no automatic stuck-boot reload, safe storage cleanup, mobile Preview output feedback, final PWA precache aligned.');
