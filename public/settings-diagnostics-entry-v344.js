@@ -143,3 +143,91 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
   else install();
 })();
+
+(()=>{
+  'use strict';
+
+  const STYLE_ID='lourex-cloud-refresh-settings-only-style-v352';
+  const NOTICE_ID='lourex-cloud-refresh-settings-only-v352';
+  const FLOATING_SELECTOR='[data-lourex-cloud-refresh]';
+  const ROOT_FLAG='lourexCloudRefreshAvailable';
+  let available=false;
+  let scheduled=false;
+
+  const isArabic=()=>document.documentElement.dir==='rtl'||document.documentElement.lang==='ar';
+
+  const setAvailable=value=>{
+    available=Boolean(value);
+    try{
+      if(available)document.documentElement.dataset[ROOT_FLAG]='true';
+      else delete document.documentElement.dataset[ROOT_FLAG];
+    }catch{}
+  };
+
+  const ensureStyle=()=>{
+    if(document.getElementById(STYLE_ID))return;
+    const style=document.createElement('style');
+    style.id=STYLE_ID;
+    style.textContent=`
+      ${FLOATING_SELECTOR}{display:none!important}
+      #${NOTICE_ID}{display:grid;gap:4px;margin:0 0 14px;padding:12px 13px;border:1px solid color-mix(in srgb,#4ed4d0 38%,transparent);border-radius:10px;background:color-mix(in srgb,#4ed4d0 9%,transparent)}
+      #${NOTICE_ID} strong{font-size:13px;line-height:1.45}
+      #${NOTICE_ID} small{font-size:11px;line-height:1.65;opacity:.78}
+    `;
+    (document.head||document.documentElement).appendChild(style);
+  };
+
+  const removeFloating=()=>{
+    document.querySelectorAll(FLOATING_SELECTOR).forEach(node=>node.remove());
+  };
+
+  const recoveryBody=()=>{
+    const status=document.querySelector('.ta-settings-shell.is-settings .ta-security-page .ta-recovery-status');
+    const card=status?.closest?.('.ta-settings-card');
+    return card?.querySelector?.('.ta-settings-card-body')||null;
+  };
+
+  const renderSettingsNotice=()=>{
+    const current=document.getElementById(NOTICE_ID);
+    if(!available){current?.remove();return;}
+    const body=recoveryBody();
+    if(!(body instanceof HTMLElement)){current?.remove();return;}
+    let notice=current;
+    if(!(notice instanceof HTMLElement)){
+      notice=document.createElement('div');
+      notice.id=NOTICE_ID;
+      notice.setAttribute('data-lourex-cloud-refresh-settings-only','true');
+      notice.setAttribute('role','status');
+      notice.setAttribute('aria-live','polite');
+      const title=document.createElement('strong');title.setAttribute('data-cloud-refresh-title','true');
+      const detail=document.createElement('small');detail.setAttribute('data-cloud-refresh-detail','true');
+      notice.append(title,detail);
+    }
+    const ar=isArabic();
+    const title=notice.querySelector('[data-cloud-refresh-title]');
+    const detail=notice.querySelector('[data-cloud-refresh-detail]');
+    if(title)title.textContent=ar?'توجد تحديثات سحابية':'Cloud changes available';
+    if(detail)detail.textContent=ar?'تتم إدارة تحديثات السحابة من هنا فقط. استخدم «استرجاع من السحابة» عندما تكون جاهزًا لتطبيق نسخة الحساب السحابية.':'Cloud updates are managed here only. Use “Restore from Cloud” when you are ready to apply the account cloud copy.';
+    if(notice.parentElement!==body)body.prepend(notice);
+  };
+
+  const sync=()=>{
+    ensureStyle();
+    removeFloating();
+    renderSettingsNotice();
+  };
+
+  const schedule=()=>{
+    if(scheduled)return;
+    scheduled=true;
+    queueMicrotask(()=>{scheduled=false;sync();});
+  };
+
+  window.addEventListener('lourex-cloud-refresh-available',()=>{setAvailable(true);schedule();});
+  window.addEventListener('lourex-cloud-applied',()=>{setAvailable(false);schedule();});
+
+  const observer=new MutationObserver(schedule);
+  observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['dir','lang','class']});
+  ensureStyle();
+  sync();
+})();
