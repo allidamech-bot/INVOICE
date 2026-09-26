@@ -17,26 +17,6 @@
   }
 }
 
-/* The fixed mobile dock clearance is owned by tailadmin-mobile-header-v322 on
-   .ta-shell. Keep only normal end-of-page breathing room here so Dashboard,
-   Documents, Customers, Products, Operations, Finance and Reports do not reserve
-   the same 92–116px dock space a second time inside their own content. */
-@media (max-width:900px){
-  .app-ui :where(
-    .ta-finance-dashboard,
-    .ta-documents-page,
-    .ta-doc-detail-page,
-    .ta-customers-page,
-    .ta-customer-profile,
-    .ta-products-workspace,
-    .ta-operations-page,
-    .ta-finance-page,
-    .ta-reports-page
-  ){
-    padding-bottom:24px!important;
-  }
-}
-
 @media (max-width:720px){
   /* Common action/header containers may wrap, but may never become a hidden
      horizontal viewport of their own. */
