@@ -1,0 +1,136 @@
+/* LOUREX v347 — startup is one visual layer only.
+ * This file is loaded before the legacy reliability bridge, so selectors are
+ * intentionally more specific than historical loading rules. */
+
+@media screen {
+  html[data-ui-theme]:has(body #root > .loading-screen),
+  html[data-ui-theme]:has(body #root > .loading-screen) body,
+  html[data-ui-theme]:has(body #root > .loading-screen) body #root{
+    margin:0!important;
+    padding:0!important;
+    width:100%!important;
+    min-width:100%!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    overflow:hidden!important;
+    overscroll-behavior:none!important;
+    background:var(--boot-bg,var(--ft-canvas,#0c111d))!important;
+  }
+
+  /* Retire historical background pseudo-layers. They were visually identical in
+     isolation but stacked as separate full-viewport paints in Safari. */
+  html[data-ui-theme]:has(body #root > .loading-screen)::before,
+  html[data-ui-theme]:has(body #root > .loading-screen)::after,
+  html[data-ui-theme]:has(body #root > .loading-screen) body::before,
+  html[data-ui-theme]:has(body #root > .loading-screen) body::after,
+  html[data-ui-theme] body #root:has(> .loading-screen)::before,
+  html[data-ui-theme] body #root:has(> .loading-screen)::after{
+    content:none!important;
+    display:none!important;
+    background:none!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+
+  html[data-ui-theme] body #root > #lourex-boot.loading-screen,
+  html[data-ui-theme] body #root > .loading-screen.loading-screen{
+    position:fixed!important;
+    inset:0!important;
+    z-index:2147483000!important;
+    box-sizing:border-box!important;
+    width:100vw!important;
+    min-width:100vw!important;
+    max-width:100vw!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    max-height:100dvh!important;
+    margin:0!important;
+    padding:max(24px,env(safe-area-inset-top,0px)) max(22px,env(safe-area-inset-right,0px)) max(26px,env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left,0px))!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:20px!important;
+    overflow:hidden!important;
+    border:0!important;
+    border-radius:0!important;
+    background:var(--boot-bg,var(--ft-canvas,#0c111d))!important;
+    background-image:none!important;
+    color:var(--boot-text,var(--ft-text-strong,#f9fafb))!important;
+    box-shadow:none!important;
+    filter:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    isolation:isolate!important;
+  }
+
+  html[data-ui-theme] body #root > #lourex-boot.loading-screen::before,
+  html[data-ui-theme] body #root > #lourex-boot.loading-screen::after,
+  html[data-ui-theme] body #root > .loading-screen.loading-screen::before,
+  html[data-ui-theme] body #root > .loading-screen.loading-screen::after{
+    content:none!important;
+    display:none!important;
+  }
+
+  html[data-ui-theme] body #root > .loading-screen .brand{
+    position:relative!important;
+    z-index:1!important;
+    margin:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:13px!important;
+    text-align:center!important;
+  }
+  html[data-ui-theme] body #root > .loading-screen .brand-mark,
+  html[data-ui-theme] body #root > .loading-screen .brand-mark img{
+    width:96px!important;
+    height:96px!important;
+    max-width:96px!important;
+    max-height:96px!important;
+    border-radius:22px!important;
+    object-fit:contain!important;
+  }
+  html[data-ui-theme] body #root > .loading-screen .brand-words strong{
+    color:inherit!important;
+    font-size:18px!important;
+    font-weight:750!important;
+    letter-spacing:.22em!important;
+    padding-inline-start:.22em!important;
+  }
+  html[data-ui-theme] body #root > .loading-screen > .loading-line{
+    position:relative!important;
+    z-index:1!important;
+    width:126px!important;
+    height:3px!important;
+    flex:0 0 3px!important;
+    margin:0!important;
+    overflow:hidden!important;
+    border-radius:999px!important;
+    background:var(--boot-track,var(--ft-line-strong,#344054))!important;
+    box-shadow:none!important;
+  }
+
+  /* Account recovery is content inside the auth gateway, never another fixed
+     loading overlay. */
+  .app-ui .auth-recovery-state,
+  .ta-auth-page .auth-recovery-state,
+  .auth-page .auth-recovery-state{
+    width:min(100%,520px)!important;
+    margin:0 auto!important;
+    padding:20px!important;
+    display:grid!important;
+    gap:12px!important;
+    border:1px solid var(--ft-line,#d8e3eb)!important;
+    border-radius:16px!important;
+    background:var(--ft-surface,#fff)!important;
+    color:var(--ft-text,#33475b)!important;
+    box-shadow:none!important;
+  }
+  .auth-recovery-state strong{color:var(--ft-text-strong,#102235)!important;font-size:16px!important;}
+  .auth-recovery-state p{margin:0!important;color:var(--ft-text-soft,#62758a)!important;line-height:1.65!important;}
+  .auth-recovery-state .auth-recovery-actions{display:flex!important;flex-wrap:wrap!important;gap:8px!important;}
+  .auth-recovery-state .button{min-height:44px!important;}
+}
