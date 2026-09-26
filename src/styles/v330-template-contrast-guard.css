@@ -1,23 +1,6 @@
-/* v330 template contrast + responsive guard. Presentation only. */
-.template-obsidian{--paper:#fff;--ink:#17242e;--muted:#6c767e;--rule:#d8dddf;--soft:#f2f4f4;}
-.template-obsidian .header-modern{color:#fff!important;background:linear-gradient(125deg,#080a0c,#171c21 72%,#242b30)!important;}
-.template-obsidian .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span){color:#fff!important;}
-.template-obsidian .header-modern :where(.modern-title>small,.doc-meta b){color:#c5ccd1!important;}
-.template-obsidian .party-name,.template-obsidian .items-table td,.template-obsidian .grand-total>span,.template-obsidian .grand-total>strong{color:#17242e!important;}
-.template-obsidian .party-address,.template-obsidian .party-location,.template-obsidian .party-contact{color:#53616a!important;}
-.template-obsidian .items-table tbody tr:nth-child(even){background:#f2f4f4!important;}
-.template-obsidian .totals-block{background:#f5f3ee!important;color:#17242e!important;}
-
-.template-cobalt .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span){color:#fff!important;}
-.template-cobalt .header-modern :where(.modern-title>small,.doc-meta b){color:#d7e6f1!important;}
-.template-noir .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span),
-.template-midnight .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span),
-.template-blackivory .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span),
-.template-carbon .header-modern :where(.doc-title>span,.doc-title>em,.doc-meta>div>span){color:#fff!important;}
-.template-noir .header-modern :where(.modern-title>small,.doc-meta b),
-.template-midnight .header-modern :where(.modern-title>small,.doc-meta b),
-.template-blackivory .header-modern :where(.modern-title>small,.doc-meta b),
-.template-carbon .header-modern :where(.modern-title>small,.doc-meta b){color:#d9c8a4!important;}
+/* LOUREX v350 — responsive editor and document-studio guard only.
+ * Commercial A4 templates are owned exclusively by document-premium-redesign-v141.css.
+ * No .invoice-page/template color/final-details rules belong in this layer. */
 
 @media screen and (min-width:901px) and (max-width:1180px){
   html body .app-ui .screen-editor .editor-layout{
@@ -37,8 +20,6 @@
 }
 
 @media screen and (max-width:900px){
-  /* With .ta-main as the only editor scroller, keep primary output actions
-     independently reachable and reserve matching content space in v330. */
   html body .app-ui .screen-editor .mobile-editor-actionbar{
     position:fixed!important;
     left:0!important;
@@ -58,9 +39,7 @@
     -webkit-backdrop-filter:blur(18px)!important;
     z-index:var(--lourex-z-nav,120)!important;
   }
-  html[data-ui-theme="dark"] body .app-ui .screen-editor .mobile-editor-actionbar{
-    box-shadow:0 -12px 30px rgba(0,0,0,.28)!important;
-  }
+  html[data-ui-theme="dark"] body .app-ui .screen-editor .mobile-editor-actionbar{box-shadow:0 -12px 30px rgba(0,0,0,.28)!important;}
   html body .app-ui .screen-editor .mobile-total{display:none!important;}
   html body .app-ui .screen-editor .mobile-action-buttons{
     width:100%!important;
@@ -83,9 +62,6 @@
     white-space:nowrap!important;
     font-size:11px!important;
   }
-
-  /* Final editor AI position: a right-side FAB above the document action dock,
-     never inside or competing with the title/header. */
   html body .app-ui .screen-editor .lourex-ai-launcher{
     left:auto!important;
     right:max(12px,env(safe-area-inset-right,0px))!important;
@@ -101,12 +77,8 @@
   html body .app-ui .screen-editor .mobile-action-buttons .btn span{font-size:10px!important;}
 }
 
-/* v333 — critical document visual/interaction closeout.
- * This block deliberately outranks legacy document layers without changing
- * persistence, calculations, autosave, PDF pagination or business callbacks. */
+/* Critical document editor visual/interaction closeout. */
 @media screen {
-  /* Distinct document workspace tokens. Light and dark both keep three clearly
-     separated elevations: workspace -> card -> field. */
   html[data-ui-theme="light"] body .app-ui .screen-editor{
     --v333-workspace:#eef3f8;
     --v333-card:#ffffff;
@@ -142,13 +114,8 @@
     border-color:var(--v333-line)!important;
     background:color-mix(in srgb,var(--v333-card) 96%,transparent)!important;
   }
-
-  /* The completion meter consumed scarce mobile space and did not affect document
-     validity. Validation remains active at Save/Issue time. */
   html body .app-ui .screen-editor .document-readiness{display:none!important;}
 
-  /* One coherent surface system. This closes the white/ivory leaks visible in
-     Design, table-column toggles, company refresh, totals and legacy cards. */
   html body .app-ui .screen-editor :is(
     .editor-section,.premium-selected-customer,.selected-customer,.premium-item-card,.item-card,
     .terms-card,.bank-details-card,.appearance-card,.template-card,.advanced-card,.advanced-panel,
@@ -160,29 +127,17 @@
     background:var(--v333-card)!important;
     color:var(--v333-text)!important;
   }
-  html body .app-ui .screen-editor :is(.premium-item-card,.item-card,.adjustment-row,.recent-customer-row,.appearance-auto-note){
-    background:var(--v333-card-soft)!important;
-  }
+  html body .app-ui .screen-editor :is(.premium-item-card,.item-card,.adjustment-row,.recent-customer-row,.appearance-auto-note){background:var(--v333-card-soft)!important;}
   html body .app-ui .screen-editor .editor-section{
     border:1px solid var(--v333-line)!important;
     box-shadow:0 10px 30px rgba(15,23,42,.055)!important;
   }
-  html[data-ui-theme="dark"] body .app-ui .screen-editor .editor-section{
-    box-shadow:0 12px 34px rgba(0,0,0,.18)!important;
-  }
-  html body .app-ui .screen-editor .section-heading{
-    border-color:var(--v333-line)!important;
-  }
+  html[data-ui-theme="dark"] body .app-ui .screen-editor .editor-section{box-shadow:0 12px 34px rgba(0,0,0,.18)!important;}
+  html body .app-ui .screen-editor .section-heading{border-color:var(--v333-line)!important;}
   html body .app-ui .screen-editor .section-heading h2,
-  html body .app-ui .screen-editor :is(.editor-section,.document-attachments-section) :is(h2,h3,strong){
-    color:var(--v333-text)!important;
-  }
-  html body .app-ui .screen-editor :is(.field-label,.field>label,.attachment-help,.attachment-add-note,.editor-section small){
-    color:var(--v333-muted)!important;
-  }
+  html body .app-ui .screen-editor :is(.editor-section,.document-attachments-section) :is(h2,h3,strong){color:var(--v333-text)!important;}
+  html body .app-ui .screen-editor :is(.field-label,.field>label,.attachment-help,.attachment-add-note,.editor-section small){color:var(--v333-muted)!important;}
 
-  /* Safari/WebKit focus fix: legacy focus/autofill rules could paint the control
-     white while keeping dark-mode ink white. Force both paint and text-fill. */
   html body .app-ui .screen-editor .editor-section :is(input:not([type="range"]),select,textarea,.input),
   html body .app-ui .screen-editor .document-attachments-section :is(input:not([type="file"]),select,textarea){
     border:1px solid var(--v333-line-strong)!important;
@@ -212,18 +167,13 @@
   }
   html[data-ui-theme="dark"] body .app-ui .screen-editor :is(input,select,textarea){color-scheme:dark!important;}
   html[data-ui-theme="light"] body .app-ui .screen-editor :is(input,select,textarea){color-scheme:light!important;}
-  html body .app-ui .screen-editor select option{
-    background:var(--v333-card)!important;
-    color:var(--v333-text)!important;
-  }
+  html body .app-ui .screen-editor select option{background:var(--v333-card)!important;color:var(--v333-text)!important;}
   html body .app-ui .screen-editor :is(input,textarea)::placeholder{
     color:color-mix(in srgb,var(--v333-muted) 78%,transparent)!important;
     -webkit-text-fill-color:color-mix(in srgb,var(--v333-muted) 78%,transparent)!important;
     opacity:1!important;
   }
 
-  /* Toggle rows stay compact and inherit the same theme instead of exposing pale
-     legacy surfaces. */
   html body .app-ui .screen-editor .toggle-row{color:var(--v333-muted)!important;}
   html body .app-ui .screen-editor .toggle-row>.toggle{
     border-color:var(--v333-line-strong)!important;
@@ -234,10 +184,7 @@
     background:var(--v333-accent)!important;
   }
 
-  /* Attachment studio — modern upload surface, not a warning-like text block. */
-  html body .app-ui .screen-editor .document-attachments-section{
-    overflow:hidden!important;
-  }
+  html body .app-ui .screen-editor .document-attachments-section{overflow:hidden!important;}
   html body .app-ui .screen-editor .document-attachments-section .attachment-add-row{
     display:grid!important;
     grid-template-columns:minmax(0,1fr) auto!important;
@@ -291,25 +238,16 @@
     background:var(--v333-accent-soft)!important;
     color:var(--v333-accent)!important;
   }
-  html body .app-ui .screen-editor .attachment-card{
-    border-color:var(--v333-line)!important;
-    background:var(--v333-card-soft)!important;
-  }
+  html body .app-ui .screen-editor .attachment-card{border-color:var(--v333-line)!important;background:var(--v333-card-soft)!important;}
 
-  /* Create Center — distinct enterprise identities per document. The monograms
-     replace the repeated generic file glyph while keeping the existing callbacks. */
   html body .app-ui .ta-create-menu.new-doc-menu{
     border-color:var(--ft-line-strong)!important;
     border-radius:20px!important;
     background:var(--ft-surface)!important;
     box-shadow:0 28px 80px rgba(15,23,42,.22)!important;
   }
-  html[data-ui-theme="dark"] body .app-ui .ta-create-menu.new-doc-menu{
-    box-shadow:0 30px 86px rgba(0,0,0,.48)!important;
-  }
-  html body .app-ui .ta-create-menu-grid{
-    gap:10px!important;
-  }
+  html[data-ui-theme="dark"] body .app-ui .ta-create-menu.new-doc-menu{box-shadow:0 30px 86px rgba(0,0,0,.48)!important;}
+  html body .app-ui .ta-create-menu-grid{gap:10px!important;}
   html body .app-ui .ta-create-menu-grid>button{
     position:relative!important;
     min-height:84px!important;
@@ -325,9 +263,7 @@
     text-align:start!important;
     overflow:hidden!important;
   }
-  html[dir="rtl"] body .app-ui .ta-create-menu-grid>button{
-    grid-template-columns:minmax(0,1fr) 48px!important;
-  }
+  html[dir="rtl"] body .app-ui .ta-create-menu-grid>button{grid-template-columns:minmax(0,1fr) 48px!important;}
   html body .app-ui .ta-create-menu-grid>button>.icon{display:none!important;}
   html body .app-ui .ta-create-menu-grid>button>span{grid-column:2!important;min-width:0!important;}
   html[dir="rtl"] body .app-ui .ta-create-menu-grid>button>span{grid-column:1!important;}
@@ -348,24 +284,9 @@
     box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--v333-kind,#64748b) 5%,transparent)!important;
   }
   html[dir="rtl"] body .app-ui .ta-create-menu-grid>button::after{grid-column:2!important;}
-  html body .app-ui .ta-create-menu-grid>button::before{
-    width:3px!important;
-    background:var(--v333-kind,#64748b)!important;
-    opacity:.88!important;
-  }
-  html body .app-ui .ta-create-menu-grid>button strong{
-    color:var(--ft-text-strong)!important;
-    font-size:13px!important;
-    line-height:18px!important;
-    font-weight:780!important;
-  }
-  html body .app-ui .ta-create-menu-grid>button small{
-    display:block!important;
-    margin-top:3px!important;
-    color:var(--ft-muted)!important;
-    font-size:10px!important;
-    line-height:15px!important;
-  }
+  html body .app-ui .ta-create-menu-grid>button::before{width:3px!important;background:var(--v333-kind,#64748b)!important;opacity:.88!important;}
+  html body .app-ui .ta-create-menu-grid>button strong{color:var(--ft-text-strong)!important;font-size:13px!important;line-height:18px!important;font-weight:780!important;}
+  html body .app-ui .ta-create-menu-grid>button small{display:block!important;margin-top:3px!important;color:var(--ft-muted)!important;font-size:10px!important;line-height:15px!important;}
   html body .app-ui .ta-create-menu-grid>button:hover,
   html body .app-ui .ta-create-menu-grid>button:focus-visible{
     transform:translateY(-1px)!important;
@@ -385,8 +306,6 @@
 }
 
 @media screen and (max-width:900px){
-  /* Mobile editor uses the shell as its single scroll owner and now consumes the
-     full useful width instead of nesting a narrow bordered pane inside it. */
   html body .app-ui .screen-editor .editor-layout{
     display:block!important;
     width:100%!important;
@@ -412,18 +331,9 @@
     padding:0!important;
     background:transparent!important;
   }
-  html body .app-ui .screen-editor .editor-form-lock{
-    gap:12px!important;
-  }
-  html body .app-ui .screen-editor .editor-section{
-    width:100%!important;
-    padding:14px!important;
-    border-radius:15px!important;
-  }
-  html body .app-ui .screen-editor .editor-topbar{
-    min-height:70px!important;
-    padding:10px 12px!important;
-  }
+  html body .app-ui .screen-editor .editor-form-lock{gap:12px!important;}
+  html body .app-ui .screen-editor .editor-section{width:100%!important;padding:14px!important;border-radius:15px!important;}
+  html body .app-ui .screen-editor .editor-topbar{min-height:70px!important;padding:10px 12px!important;}
   html body .app-ui .screen-editor .editor-top-left{min-width:0!important;}
   html body .app-ui .screen-editor .lourex-ai-launcher{
     position:fixed!important;
@@ -434,95 +344,22 @@
     transform:none!important;
     z-index:119!important;
   }
-  html body .app-ui .screen-editor .document-attachments-section .attachment-add-row{
-    grid-template-columns:1fr!important;
-    min-height:0!important;
-    padding:14px!important;
-  }
-  html body .app-ui .screen-editor .document-attachments-section .attachment-add-button{
-    grid-column:1!important;
-    grid-row:auto!important;
-    width:100%!important;
-    min-height:48px!important;
-  }
-  html body .app-ui .screen-editor .document-attachments-section .attachment-add-note{
-    grid-column:1!important;
-    text-align:center!important;
-  }
-  html body .app-ui .screen-editor .document-attachments-section>.attachment-help{
-    display:none!important;
-  }
+  html body .app-ui .screen-editor .document-attachments-section .attachment-add-row{grid-template-columns:1fr!important;min-height:0!important;padding:14px!important;}
+  html body .app-ui .screen-editor .document-attachments-section .attachment-add-button{grid-column:1!important;grid-row:auto!important;width:100%!important;min-height:48px!important;}
+  html body .app-ui .screen-editor .document-attachments-section .attachment-add-note{grid-column:1!important;text-align:center!important;}
+  html body .app-ui .screen-editor .document-attachments-section>.attachment-help{display:none!important;}
   html body .app-ui .ta-create-menu-mobile.new-doc-menu{
     width:min(520px,calc(100vw - 20px))!important;
     max-height:min(78dvh,720px)!important;
     padding:12px!important;
     border-radius:22px!important;
   }
-  html body .app-ui .ta-create-menu-grid{
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
-    gap:9px!important;
-  }
-  html body .app-ui .ta-create-menu-grid>button{
-    min-height:88px!important;
-    padding:11px!important;
-    gap:9px!important;
-  }
+  html body .app-ui .ta-create-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;}
+  html body .app-ui .ta-create-menu-grid>button{min-height:88px!important;padding:11px!important;gap:9px!important;}
 }
 
 @media screen and (max-width:430px){
-  html body .app-ui .ta-create-menu-grid>button{
-    grid-template-columns:42px minmax(0,1fr)!important;
-    min-height:82px!important;
-  }
-  html[dir="rtl"] body .app-ui .ta-create-menu-grid>button{
-    grid-template-columns:minmax(0,1fr) 42px!important;
-  }
-  html body .app-ui .ta-create-menu-grid>button::after{
-    width:42px!important;height:42px!important;border-radius:12px!important;font-size:9px!important;
-  }
-}
-
-/* Printed/previewed A4 is intentionally independent from app Light/Dark. Keep
-   dark mastheads readable and anchor bank/signature/stamp near the footer instead
-   of floating immediately below totals on short documents. */
-@media screen, print {
-  .invoice-page.template-executive .header-executive{
-    color:#fff!important;
-  }
-  .invoice-page.template-executive .header-executive :is(.doc-title>span,.doc-title>em,.doc-meta>div>span){
-    color:#fff!important;
-  }
-  .invoice-page.template-executive .header-executive :is(.doc-meta b){
-    color:#c8d3da!important;
-  }
-  .invoice-page.template-executive .header-executive .doc-title>span{
-    text-shadow:0 1px 1px rgba(0,0,0,.14)!important;
-  }
-  .invoice-page .final-details{
-    display:flex!important;
-    flex:1 1 auto!important;
-    min-height:0!important;
-    flex-direction:column!important;
-  }
-  .invoice-page .bottom-grid{
-    margin-top:auto!important;
-    padding-top:5mm!important;
-    align-items:end!important;
-  }
-  .invoice-page .signature-block{
-    align-self:end!important;
-    width:100%!important;
-  }
-  .invoice-page .signature-media{
-    min-height:24mm!important;
-    align-items:end!important;
-  }
-  .invoice-page .signature-media .signature-image{
-    max-height:19mm!important;
-    object-position:center bottom!important;
-  }
-  .invoice-page .signature-media .stamp-image{
-    max-height:21mm!important;
-    object-position:center bottom!important;
-  }
+  html body .app-ui .ta-create-menu-grid>button{grid-template-columns:42px minmax(0,1fr)!important;min-height:82px!important;}
+  html[dir="rtl"] body .app-ui .ta-create-menu-grid>button{grid-template-columns:minmax(0,1fr) 42px!important;}
+  html body .app-ui .ta-create-menu-grid>button::after{width:42px!important;height:42px!important;border-radius:12px!important;font-size:9px!important;}
 }
