@@ -15,6 +15,13 @@
   function doneKey(fp){return `${DONE_PREFIX}${fp}`;}
   function wasDone(fp){try{return localStorage.getItem(doneKey(fp))==='1';}catch{return false;}}
   function markDone(fp){try{localStorage.setItem(doneKey(fp),'1');}catch{}}
+  function timestamp(value){const parsed=Date.parse(String(value||''));return Number.isFinite(parsed)?parsed:0;}
+  function sameOrOlder(candidate,active){
+    const candidateAt=timestamp(candidate?.updatedAt),activeAt=timestamp(active?.updatedAt);
+    if(candidateAt&&activeAt)return candidateAt<=activeAt;
+    if(candidateAt&&!activeAt)return false;
+    return true;
+  }
 
   async function databaseNames(){
     try{
@@ -48,7 +55,7 @@
 
   async function protectedWorkspace(db){
     const [security,vault,owner]=await Promise.all([readRecord(db,'security'),readRecord(db,'vault'),readRecord(db,'cloud-account')]);
-    return security&&vault&&owner&&typeof owner.uid==='string'?{uid:owner.uid}:null;
+    return security&&vault&&owner&&typeof owner.uid==='string'?{uid:owner.uid,vault}:null;
   }
 
   function deleteDatabase(name){
@@ -90,15 +97,17 @@
       try{active=await protectedWorkspace(activeDb);}finally{activeDb.close();}
       if(!active)return;
 
-      let legacyRemoved=false,publicDuplicateCleared=false;
+      let legacyState='none',publicState='none';
       if(names.includes(LEGACY_DB)){
         let legacyDb=null;
         try{
           legacyDb=await openExisting(LEGACY_DB);
-          const owner=await readRecord(legacyDb,'cloud-account');
-          const owned=owner&&owner.uid===active.uid;
+          const duplicate=await protectedWorkspace(legacyDb);
+          const eligible=duplicate&&duplicate.uid===active.uid&&sameOrOlder(duplicate.vault,active.vault);
+          const newer=duplicate&&duplicate.uid===active.uid&&!sameOrOlder(duplicate.vault,active.vault);
           legacyDb.close();legacyDb=null;
-          if(owned)legacyRemoved=await deleteDatabase(LEGACY_DB);
+          if(eligible)legacyState=await deleteDatabase(LEGACY_DB)?'removed':'blocked';
+          else if(newer)legacyState='kept-newer';
         }catch{}finally{try{legacyDb?.close();}catch{}}
       }
 
@@ -107,14 +116,17 @@
         try{
           publicDb=await openExisting(PUBLIC_DB);
           const duplicate=await protectedWorkspace(publicDb);
-          if(duplicate&&duplicate.uid===active.uid)publicDuplicateCleared=await deletePublicProtectedRecords(publicDb);
+          const eligible=duplicate&&duplicate.uid===active.uid&&sameOrOlder(duplicate.vault,active.vault);
+          const newer=duplicate&&duplicate.uid===active.uid&&!sameOrOlder(duplicate.vault,active.vault);
+          if(eligible)publicState=await deletePublicProtectedRecords(publicDb)?'cleared':'blocked';
+          else if(newer)publicState='kept-newer';
         }catch{}finally{try{publicDb?.close();}catch{}}
       }
 
-      markDone(fp);
+      if(legacyState!=='kept-newer'&&publicState!=='kept-newer'&&legacyState!=='blocked'&&publicState!=='blocked')markDone(fp);
       let usage='';
       try{const estimate=await navigator.storage?.estimate?.();if(estimate?.usage)usage=` usageMb=${(estimate.usage/1048576).toFixed(1)}`;}catch{}
-      diag('storage-duplicate-cleanup',`legacy=${legacyRemoved?'removed':'none'} public=${publicDuplicateCleared?'cleared':'none'}${usage}`);
+      diag('storage-duplicate-cleanup',`legacy=${legacyState} public=${publicState}${usage}`);
     }catch(error){
       diag('storage-duplicate-cleanup-error',`name=${String(error?.name||'Error')}`);
     }finally{running=false;}
