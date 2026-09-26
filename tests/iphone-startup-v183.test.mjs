@@ -4,35 +4,41 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('iPhone startup paints the same launch screen React uses before runtime scripts execute',async()=>{
-  const [html,app,css]=await Promise.all([read('index.html'),read('src/app/App.tsx'),read('src/styles/auth-entry.css')]);
+/* Historical filename retained for stable discovery. v351 replaces the old
+   forced-dark startup generation with one palette-aware launch surface. */
+
+test('v351 iPhone startup keeps one static boot owner and one canonical palette through finalization',async()=>{
+  const [html,app,bootstrap,theme,startupCss,manifestText,finalizer]=await Promise.all([
+    read('index.html'),
+    read('src/app/App.tsx'),
+    read('public/theme-bootstrap-v347.js'),
+    read('src/lib/ui-theme.ts'),
+    read('src/styles/v347-startup-single-layer.css'),
+    read('public/manifest.webmanifest'),
+    read('scripts/v347-startup-finalize.mjs')
+  ]);
+  const manifest=JSON.parse(manifestText);
   const boot=html.indexOf('id="lourex-boot"');
   const react=html.indexOf('react.production.min.js');
   const themeBootstrap=html.indexOf('id="lourex-theme-bootstrap"');
+
   assert.ok(boot>=0&&react>boot,'boot shell must be present before runtime scripts');
-  assert.ok(themeBootstrap>=0&&themeBootstrap<boot,'theme preference must resolve before the boot shell paints');
+  assert.ok(themeBootstrap>=0&&themeBootstrap<boot,'source bootstrap must resolve the preference before the boot shell paints');
   assert.match(html,/id="lourex-boot" class="loading-screen"/);
   assert.match(html,/class="brand official-brand"/);
   assert.match(html,/class="brand-mark"><img src="\.\/brand\/lourex-logo\.svg" alt="LOUREX"/);
-  assert.match(html,/class="brand-words"><strong>LOUREX<\/strong>/);
   assert.match(html,/class="loading-line"/);
-  // v302 keeps the pre-React Safari/PWA launch surface on the current deep LOUREX
-  // background so iOS never exposes a white/light viewport or safe-area band while
-  // the boot shell is still mounted. The requested light/dark theme is restored
-  // only after React replaces #lourex-boot.
-  assert.match(html,/<meta name="theme-color" content="#061820" \/>/);
-  assert.match(html,/root\.dataset\.lourexBooting='true'/);
-  assert.match(html,/root\.style\.colorScheme='dark'/);
-  assert.match(html,/root\.style\.backgroundColor='#061820'/);
-  assert.match(html,/root\.style\.setProperty\('--boot-bg','#061820'\)/);
-  assert.match(html,/html\[data-lourex-booting="true"\][^\{]*\{background:#061820!important;color-scheme:dark!important\}/);
-  assert.match(html,/delete root\.dataset\.lourexBooting/);
-  assert.match(html,/root\.style\.backgroundColor=resolved==='light'\?'#f2f7f8':'#061820'/);
-  assert.match(html,/meta\.setAttribute\('content',resolved==='light'\?'#f2f7f8':'#061820'\)/);
-  assert.match(html,/#lourex-boot\.loading-screen\{[^}]*background:var\(--boot-bg,#061820\)/);
-  assert.match(html,/prefers-reduced-motion:reduce/);
+  assert.match(bootstrap,/dark='#081321',light='#f4f7fb'/);
+  assert.match(theme,/THEME_COLORS:Record<ResolvedUiTheme,string>=\{light:'#f4f7fb',dark:'#081321'\}/);
+  assert.doesNotMatch(theme,/#080808|#061820|#f2f7f8/);
+  assert.match(startupCss,/background:var\(--boot-bg,var\(--ft-canvas,#081321\)\)!important/);
+  assert.equal(manifest.background_color,'#081321');
+  assert.equal(manifest.theme_color,'#081321');
+  assert.match(finalizer,/theme-bootstrap-v347\.js\?v=351/);
+  assert.match(finalizer,/canonicalLightBoot/);
+  assert.match(finalizer,/canonicalDarkBoot/);
+  assert.match(finalizer,/document-entry-v302\.js\?v=351/);
   assert.match(app,/if\(this\.state\.loading\)return <div className="loading-screen"><Brand logoDataUrl=\{this\.state\.publicLogo\} language=\{activeLanguage\}\/><span className="loading-line"\/><\/div>/);
-  assert.match(css,/\.loading-screen\{/);
 });
 
 test('cloud bootstrap uses an already-restored Firebase user before the slower auth wait',async()=>{
@@ -44,19 +50,12 @@ test('cloud bootstrap uses an already-restored Firebase user before the slower a
   assert.ok(ready>=0&&wait>ready&&reconcile>wait);
 });
 
-test('startup still resolves its bounded cloud preflight before React renders',async()=>{
-  const entry=await read('src/app/index.tsx');
+test('startup remains bounded and never performs an automatic watchdog reload',async()=>{
+  const [entry,watchdog]=await Promise.all([read('src/app/index.tsx'),read('public/startup-watchdog-v321.js')]);
   const hydrate=entry.indexOf('await hydrateAuthoritativeCloudBeforeApp()');
   const render=entry.indexOf('ReactDOM.render');
   assert.ok(hydrate>=0&&render>hydrate);
-});
-
-test('v185 recaches the unified launch shell while preserving v184 recovery history',async()=>{
-  const sw=await read('public/sw.js');
-  assert.match(sw,/^const CACHE = 'lourex-invoice-v185';$/m);
-  assert.match(sw,/lourex-invoice-v184: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v183: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v182: preserved as a legacy marker/);
-  assert.ok(sw.includes('./index.html'));
-  assert.ok(sw.includes('./src/app/App.js'));
+  assert.match(watchdog,/automaticReload=no/);
+  assert.match(watchdog,/startup-recovery-user-retry/);
+  assert.doesNotMatch(watchdog,/setTimeout\(\(\)=>window\.location\.reload\(\)/);
 });
