@@ -105,7 +105,8 @@
     --v333-accent-soft:var(--ft-accent-soft)!important;
   }
 
-  /* One loaded-app paint. Cards/panels create separation; shell/main/workspace do not. */
+  /* One loaded-app paint. Use the shorthand so older `background:` declarations
+     that consumed --ft-canvas cannot keep a stale navy layer in dark mode. */
   html[data-ui-theme] body,
   html[data-ui-theme] #root,
   html[data-ui-theme] body .app-root,
@@ -116,7 +117,25 @@
   html[data-ui-theme] body .app-ui .editor-main,
   html[data-ui-theme] body .app-ui .workspace,
   html[data-ui-theme] body .app-ui .ta-editor-workspace{
-    background-color:var(--ft-workspace)!important;
+    background:var(--ft-workspace)!important;
+  }
+
+  /* Retire the last hard-coded teal accents from the historical dark TailAdmin
+     closeout. Purple owns application actions; green remains reserved for semantic
+     success/collections data. */
+  html[data-ui-theme="dark"] body .app-ui .ta-kpi-card:first-child .ta-kpi-icon{
+    background:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :where(.btn-primary,.ta-create-button,.ta-card-primary-action){
+    background:var(--ft-accent)!important;
+    border-color:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :where(.btn-primary,.ta-create-button,.ta-card-primary-action):hover:not(:disabled){
+    background:var(--ft-accent-hover)!important;
+    border-color:var(--ft-accent-hover)!important;
+    color:var(--ft-on-accent)!important;
   }
 
   /* Shared control grammar. Feature layouts may size controls, but not retheme them. */
