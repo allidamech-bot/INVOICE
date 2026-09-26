@@ -2,6 +2,7 @@
  * Modal presentation belongs to tailadmin-overlays-v320.css.
  * Preview geometry/palette belongs to mobile-preview-v156.css.
  * Commercial/Draft Safari scroll ownership belongs to v331.
+ * Mobile commercial actionbar geometry belongs to v330 template/editor guard.
  * This file keeps compatibility tokens and utility controls only. */
 @media screen {
   /* Compatibility palette bridge for retained feature/reliability CSS. */
@@ -91,23 +92,6 @@
   ){min-height:44px!important}
 
   .app-ui .ta-settings-link-action{min-height:44px!important;display:inline-flex!important;align-items:center!important;padding-block:8px!important}
-}
-
-/* The commercial mobile actionbar is a real layout row; v331 owns the scrolling
-   viewport around it and v168 owns row ordering. */
-@media screen and (max-width:720px){
-  .app-ui .mobile-editor-actionbar{
-    position:relative!important;inset:auto!important;left:auto!important;right:auto!important;bottom:auto!important;
-    z-index:52!important;flex:0 0 auto!important;width:100%!important;min-width:0!important;
-    min-height:calc(68px + env(safe-area-inset-bottom,0px))!important;margin:0!important;
-    padding:8px max(10px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px))!important;
-    border:0!important;border-top:1px solid var(--ft-line)!important;border-radius:0!important;
-    background:color-mix(in srgb,var(--ft-surface) 97%,transparent)!important;
-    box-shadow:0 -6px 20px rgba(16,24,40,.07)!important;
-    backdrop-filter:blur(14px)!important;-webkit-backdrop-filter:blur(14px)!important;
-  }
-  html[data-ui-theme="dark"] .app-ui .mobile-editor-actionbar{box-shadow:0 -8px 22px rgba(0,0,0,.22)!important}
-  .app-ui .mobile-action-buttons .btn{min-height:44px!important;height:auto!important}
 }
 
 /* Step navigation presentation only. The editor viewport itself is deliberately
