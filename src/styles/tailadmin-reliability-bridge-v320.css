@@ -1,8 +1,7 @@
-@import url("./v346-template-color-visual-closeout.css?v=346-1");
-
-/* LOUREX v326 — reliability bridge only.
-   This file intentionally owns runtime/recovery geometry and UI safety contracts.
-   It MUST NOT retheme dashboard, documents, editor, AI or workspace content. */
+/* LOUREX v350 — reliability bridge only.
+   Runtime/recovery geometry and UI safety contracts live here.
+   Startup paint is owned exclusively by v347-startup-single-layer.css.
+   Application palette is owned by v346-template-color-visual-closeout.css. */
 :root{
   --v303-canvas:var(--ft-workspace,#f9fafb);
   --v303-surface:var(--ft-surface,#fff);
@@ -30,11 +29,6 @@
 }
 
 @media screen {
-  html:has(.loading-screen),body:has(.loading-screen),#root:has(.loading-screen){margin:0!important;padding:0!important;width:100%!important;min-width:100%!important;height:100%!important;min-height:100%!important;min-height:100dvh!important;background:var(--boot-bg,#0c111d)!important;overflow:hidden!important;overscroll-behavior:none!important}
-  html:has(.loading-screen)::before{content:"";position:fixed;inset:-160px;z-index:2147482999;background:var(--boot-bg,#0c111d);pointer-events:none}
-  #root>.loading-screen,#lourex-boot.loading-screen{position:fixed!important;inset:-112px 0!important;z-index:2147483000!important;width:100vw!important;max-width:none!important;height:auto!important;min-height:calc(100dvh + 224px)!important;margin:0!important;padding-top:calc(112px + max(24px,env(safe-area-inset-top,0px)))!important;padding-right:max(24px,env(safe-area-inset-right,0px))!important;padding-bottom:calc(112px + max(24px,env(safe-area-inset-bottom,0px)))!important;padding-left:max(24px,env(safe-area-inset-left,0px))!important;box-sizing:border-box!important;border:0!important;background:var(--boot-bg,#0c111d)!important;background-image:none!important;overflow:hidden!important;overscroll-behavior:none!important;box-shadow:0 0 0 160px var(--boot-bg,#0c111d)!important}
-  #root>.loading-screen::before,#root>.loading-screen::after,#lourex-boot.loading-screen::before,#lourex-boot.loading-screen::after{display:none!important}
-
   .app-recovery{min-height:100dvh!important;display:grid!important;place-items:center!important;padding:24px!important;background:var(--ft-workspace,#f9fafb)!important;color:var(--ft-text,#344054)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important}
   .app-recovery>section{width:min(560px,100%)!important;padding:22px!important;border:1px solid var(--ft-line,#eaecf0)!important;border-radius:14px!important;background:var(--ft-surface,#fff)!important;color:var(--ft-text)!important;box-shadow:var(--ta-shadow-lg,0 18px 44px rgba(16,24,40,.14))!important}
   .app-recovery :where(h1,h2,h3,strong){color:var(--ft-text-strong,#101828)!important}
@@ -67,10 +61,6 @@
   .app-ui .document-attachments-section :where(input,select,textarea,button,a){min-width:0}
   .app-ui .document-attachment-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
 
-  /* v339 — Product Import actions must remain pinned to the modal body's own
-     Safari visual-viewport scroll owner. Earlier product layers already request
-     sticky positioning; reassert it here in the final reliability owner so late
-     modal geometry cannot demote the action rail back into normal flow. */
   html body .app-ui .modal-backdrop:has(.product-import-shell) .product-import-mobile-actions{
     position:sticky!important;
     top:0!important;
@@ -79,7 +69,6 @@
     transform:none!important;
   }
 
-  /* One structural overlay ladder. Visual skin remains with each surface owner. */
   .app-ui .ta-sidebar{z-index:var(--lourex-z-shell)!important}
   .app-ui .ta-mobile-nav{z-index:var(--lourex-z-nav)!important}
   .app-ui .ta-overlay-backdrop{z-index:var(--lourex-z-backdrop)!important}
@@ -93,11 +82,8 @@
   .app-ui .mobile-preview-overlay,.app-ui .draft-mobile-preview{z-index:var(--lourex-z-preview)!important}
   .app-ui .ta-doc-mobile-action-portal{z-index:var(--lourex-z-critical)!important}
 
-  /* More is modal navigation: while open the dock cannot accept stray taps. */
   body:has(#ta-mobile-more) .app-ui .ta-mobile-nav{pointer-events:none!important}
 
-  /* Runtime notices stay within the viewport and above the dock without owning
-     application layout. Physical centering is deliberate for RTL/LTR Safari. */
   html body .pwa-update-toast,
   html body [data-lourex-cloud-refresh],
   html body [data-lourex-update]{
@@ -108,12 +94,10 @@
     margin:0!important;transform:translateX(-50%)!important;
   }
 
-  /* .ta-main is the single workspace scroll owner. */
   .app-ui .ta-main{overscroll-behavior:contain!important}
 }
 
 @media screen and (max-width:720px){
-  #root>.loading-screen,#lourex-boot.loading-screen{inset:-112px 0!important;padding-top:calc(112px + max(18px,env(safe-area-inset-top,0px)))!important;padding-right:max(18px,env(safe-area-inset-right,0px))!important;padding-bottom:calc(112px + max(18px,env(safe-area-inset-bottom,0px)))!important;padding-left:max(18px,env(safe-area-inset-left,0px))!important}
   .app-recovery{padding:max(16px,env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) max(18px,env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px))!important}
   .app-recovery>section{padding:17px!important}
   .lourex-ios-output-card{max-width:calc(100vw - 24px)!important}
