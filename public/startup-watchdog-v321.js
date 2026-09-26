@@ -1,12 +1,11 @@
 ;(function(){
   'use strict';
 
-  var ATTEMPT_KEY='lourex-startup-recovery-v321';
-  var CHECK_MS=9000;
+  var CHECK_MS=12000;
   var CACHE_PREFIX='lourex-invoice-';
   var DIAG_LOG_KEY='lourex-runtime-diagnostics-v340';
   var DIAG_META_KEY='lourex-runtime-diagnostics-meta-v340';
-  var DIAG_MAX_EVENTS=120;
+  var DIAG_MAX_EVENTS=250;
 
   function currentScreen(){
     try{
@@ -35,7 +34,7 @@
       var now=new Date().toISOString();
       var event={
         at:now,
-        session:'navigation-v341',
+        session:'startup-navigation-v347',
         type:'navigation-request',
         screen:currentScreen(),
         visibility:document.visibilityState||'unknown',
@@ -46,21 +45,39 @@
       if(log.length>DIAG_MAX_EVENTS)log.splice(0,log.length-DIAG_MAX_EVENTS);
       localStorage.setItem(DIAG_LOG_KEY,JSON.stringify(log));
       localStorage.setItem(DIAG_META_KEY,JSON.stringify({
-        sessionId:'navigation-v341',
-        startedAt:now,
-        lastSeen:now,
-        lastEvent:'navigation-request',
-        lastScreen:event.screen,
-        visibility:event.visibility,
-        online:event.online
+        sessionId:'startup-navigation-v347',startedAt:now,lastSeen:now,lastEvent:'navigation-request',
+        lastScreen:event.screen,visibility:event.visibility,online:event.online
       }));
     }catch(_error){}
   }
 
-  try{Object.defineProperty(window,'__LOUREX_MARK_NAVIGATION__',{value:markNavigation,writable:false,configurable:true});}catch(_error){try{window.__LOUREX_MARK_NAVIGATION__=markNavigation;}catch(_ignored){}}
+  function markDiagnostic(type,detail){
+    try{
+      var helper=window.__LOUREX_DIAGNOSTICS__&&window.__LOUREX_DIAGNOSTICS__.mark;
+      if(typeof helper==='function'){helper(type,detail||'');return;}
+      var raw=localStorage.getItem(DIAG_LOG_KEY)||'[]';
+      var log=JSON.parse(raw);if(!Array.isArray(log))log=[];
+      var now=new Date().toISOString();
+      log.push({at:now,session:'startup-v347',type:type,screen:currentScreen(),visibility:document.visibilityState||'unknown',online:navigator.onLine!==false,detail:String(detail||'').slice(0,180)});
+      if(log.length>DIAG_MAX_EVENTS)log.splice(0,log.length-DIAG_MAX_EVENTS);
+      localStorage.setItem(DIAG_LOG_KEY,JSON.stringify(log));
+    }catch(_error){}
+  }
+
+  try{Object.defineProperty(window,'__LOUREX_MARK_NAVIGATION__',{value:markNavigation,writable:false,configurable:true});}
+  catch(_error){try{window.__LOUREX_MARK_NAVIGATION__=markNavigation;}catch(_ignored){}}
+
+  function startupSurface(){
+    try{
+      var root=document.getElementById('root');
+      if(!root)return null;
+      var direct=root.querySelector(':scope > .loading-screen');
+      return direct instanceof HTMLElement?direct:null;
+    }catch(_error){return null;}
+  }
 
   function bootStillVisible(){
-    return Boolean(document.getElementById('lourex-boot'))&&!document.querySelector('.app-ui,.auth-page,.app-recovery-screen');
+    return Boolean(startupSurface())&&!document.querySelector('.app-ui,.auth-page,.ta-auth-page,.app-recovery,.app-recovery-screen');
   }
 
   function editingWorkspaceOpen(){
@@ -69,26 +86,6 @@
         document.documentElement.hasAttribute('data-lourex-workspace-dirty')||
         Boolean(document.querySelector('.editor-screen,.modal-backdrop,.product-library-pro.editor-open'));
     }catch(_error){return false;}
-  }
-
-  function currentAttempt(){
-    try{return Number(sessionStorage.getItem(ATTEMPT_KEY)||'0')||0;}catch(_error){return 0;}
-  }
-
-  function markAttempt(value){
-    try{sessionStorage.setItem(ATTEMPT_KEY,String(value));}catch(_error){}
-  }
-
-  function clearAttempt(){
-    try{sessionStorage.removeItem(ATTEMPT_KEY);}catch(_error){}
-  }
-
-  function themedBackground(){
-    try{return document.documentElement.dataset.uiTheme==='light'?'#f9fafb':'#0c111d';}catch(_error){return '#0c111d';}
-  }
-
-  function themedText(){
-    try{return document.documentElement.dataset.uiTheme==='light'?'#101828':'#f9fafb';}catch(_error){return '#f9fafb';}
   }
 
   async function refreshStaticRuntime(){
@@ -116,110 +113,69 @@
     }catch(_error){return window.location.href;}
   }
 
-  function buildButton(label,handler){
+  function buildButton(label,handler,secondary){
     var button=document.createElement('button');
-    button.type='button';
-    button.textContent=label;
-    button.style.minHeight='44px';
-    button.style.padding='0 16px';
-    button.style.borderRadius='10px';
-    button.style.border='1px solid #465fff';
-    button.style.background='#465fff';
-    button.style.color='#fff';
-    button.style.font='600 14px Outfit,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    button.type='button';button.textContent=label;
+    button.style.minHeight='44px';button.style.padding='0 16px';button.style.borderRadius='10px';
+    button.style.border=secondary?'1px solid rgba(152,162,179,.45)':'1px solid #129da1';
+    button.style.background=secondary?'transparent':'#129da1';button.style.color=secondary?'inherit':'#fff';
+    button.style.font='700 14px Outfit,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
     button.addEventListener('click',handler);
     return button;
   }
 
   function showRecovery(){
     if(!bootStillVisible()||editingWorkspaceOpen())return;
-    var root=document.getElementById('root');
-    if(!root)return;
-
-    var screen=document.createElement('div');
-    screen.className='app-recovery-screen';
+    var screen=startupSurface();if(!screen)return;
+    if(screen.dataset.lourexStartupRecovery==='true')return;
+    screen.dataset.lourexStartupRecovery='true';
     screen.setAttribute('role','alert');
-    screen.style.position='fixed';
-    screen.style.inset='0';
-    screen.style.zIndex='2147483001';
-    screen.style.display='flex';
-    screen.style.alignItems='center';
-    screen.style.justifyContent='center';
-    screen.style.padding='24px';
-    screen.style.boxSizing='border-box';
-    screen.style.background=themedBackground();
-    screen.style.color=themedText();
-    screen.style.fontFamily='Outfit,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    screen.setAttribute('aria-live','assertive');
 
-    var card=document.createElement('div');
-    card.style.width='min(100%,460px)';
-    card.style.padding='24px';
-    card.style.border='1px solid rgba(152,162,179,.28)';
-    card.style.borderRadius='16px';
-    card.style.background=document.documentElement.dataset.uiTheme==='light'?'#ffffff':'#161b26';
-    card.style.boxShadow='0 12px 32px rgba(16,24,40,.18)';
+    var card=document.createElement('section');
+    card.style.width='min(100%,460px)';card.style.padding='22px';card.style.boxSizing='border-box';
+    card.style.border='1px solid rgba(152,162,179,.28)';card.style.borderRadius='16px';
+    card.style.background=document.documentElement.dataset.uiTheme==='light'?'#ffffff':'#0f1c2d';
+    card.style.color=document.documentElement.dataset.uiTheme==='light'?'#102235':'#f7fbff';
+    card.style.boxShadow='0 18px 46px rgba(6,14,25,.18)';
 
     var title=document.createElement('h1');
-    title.textContent='LOUREX startup did not finish';
-    title.style.margin='0 0 8px';
-    title.style.fontSize='20px';
-    title.style.lineHeight='1.35';
+    title.textContent='LOUREX needs your action / يحتاج LOUREX إلى إجراء منك';
+    title.style.margin='0 0 8px';title.style.fontSize='19px';title.style.lineHeight='1.4';
 
     var message=document.createElement('p');
-    message.textContent='The application startup is taking too long. Your encrypted local data was not deleted or reset. / استغرق تشغيل LOUREX وقتاً أطول من المتوقع. لم يتم حذف أو تصفير بياناتك المحلية المشفّرة.';
-    message.style.margin='0 0 18px';
-    message.style.fontSize='14px';
-    message.style.lineHeight='1.7';
-    message.style.opacity='.8';
+    message.textContent='Startup is taking longer than expected. LOUREX will not reload itself. You can retry safely or open diagnostics. / استغرق التشغيل وقتًا أطول من المتوقع. لن يعيد LOUREX تحميل نفسه تلقائيًا. يمكنك إعادة المحاولة بأمان أو فتح التشخيص.';
+    message.style.margin='0 0 18px';message.style.fontSize='14px';message.style.lineHeight='1.7';message.style.opacity='.82';
 
-    var actions=document.createElement('div');
-    actions.style.display='flex';
-    actions.style.flexWrap='wrap';
-    actions.style.gap='10px';
-
-    actions.appendChild(buildButton('Retry / إعادة المحاولة',function(){
-      if(editingWorkspaceOpen())return;
-      clearAttempt();
-      markNavigation('startup-recovery-retry');
-      window.location.replace(retryUrl());
-    }));
+    var actions=document.createElement('div');actions.style.display='flex';actions.style.flexWrap='wrap';actions.style.gap='10px';
+    var retry=buildButton('Retry safely / إعادة المحاولة بأمان',function(){
+      if(editingWorkspaceOpen()||retry.disabled)return;
+      retry.disabled=true;
+      markDiagnostic('startup-recovery-user-retry','manual=yes');
+      void refreshStaticRuntime().finally(function(){
+        markNavigation('startup-recovery-user-retry','mode=replace source=startup-watchdog-v347');
+        window.location.replace(retryUrl());
+      });
+    },false);
+    actions.appendChild(retry);
 
     var diagnostics=document.createElement('a');
-    diagnostics.href='./health.html';
-    diagnostics.textContent='Diagnostics / التشخيص';
-    diagnostics.style.minHeight='44px';
-    diagnostics.style.display='inline-flex';
-    diagnostics.style.alignItems='center';
-    diagnostics.style.justifyContent='center';
-    diagnostics.style.padding='0 16px';
-    diagnostics.style.border='1px solid rgba(152,162,179,.45)';
-    diagnostics.style.borderRadius='10px';
-    diagnostics.style.color='inherit';
-    diagnostics.style.textDecoration='none';
-    diagnostics.style.fontWeight='600';
-
+    diagnostics.href='./health.html';diagnostics.textContent='Diagnostics / التشخيص';
+    diagnostics.style.minHeight='44px';diagnostics.style.display='inline-flex';diagnostics.style.alignItems='center';diagnostics.style.justifyContent='center';
+    diagnostics.style.padding='0 16px';diagnostics.style.border='1px solid rgba(152,162,179,.45)';diagnostics.style.borderRadius='10px';
+    diagnostics.style.color='inherit';diagnostics.style.textDecoration='none';diagnostics.style.fontWeight='700';
+    diagnostics.addEventListener('click',function(){markNavigation('startup-recovery-health-open','mode=href');});
     actions.appendChild(diagnostics);
+
     card.append(title,message,actions);
-    screen.appendChild(card);
-    root.replaceChildren(screen);
-    try{delete document.documentElement.dataset.lourexBooting;document.documentElement.style.removeProperty('--boot-bg');}catch(_error){}
+    screen.replaceChildren(card);
   }
 
-  async function recoverIfNeeded(){
-    if(editingWorkspaceOpen()){clearAttempt();return;}
-    if(!bootStillVisible()){clearAttempt();return;}
-    var attempt=currentAttempt();
-    if(attempt<1){
-      markAttempt(1);
-      await refreshStaticRuntime();
-      if(editingWorkspaceOpen()){clearAttempt();return;}
-      if(!bootStillVisible()){clearAttempt();return;}
-      markNavigation('startup-watchdog-auto');
-      window.location.replace(retryUrl());
-      return;
-    }
+  function recoverIfNeeded(){
+    if(editingWorkspaceOpen()||!bootStillVisible())return;
+    markDiagnostic('startup-watchdog-timeout','automaticReload=no');
     showRecovery();
   }
 
-  window.setTimeout(function(){void recoverIfNeeded();},CHECK_MS);
+  window.setTimeout(recoverIfNeeded,CHECK_MS);
 })();
