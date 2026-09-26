@@ -159,6 +159,28 @@
   .app-ui button:disabled,.ta-auth-page button:disabled,.global-search-panel button:disabled{filter:saturate(.72);opacity:.55!important;}
 }
 
+/* Account uses the same XL workspace modal as Settings on desktop. A historical
+   content-width rule could otherwise shrink the account scope into a narrow column. */
+@media screen and (min-width:901px){
+  html body .modal.modal-xl:has(.ta-settings-shell.is-account){
+    width:min(1040px,calc(100vw - 56px))!important;
+    max-width:1040px!important;
+    height:min(790px,calc(100dvh - 56px))!important;
+    min-height:620px!important;
+    max-height:calc(100dvh - 56px)!important;
+    margin:0!important;
+    border-color:var(--ft-line)!important;
+    border-radius:20px!important;
+    overflow:hidden!important;
+  }
+  html body .modal.modal-xl:has(.ta-settings-shell.is-account)>.modal-header{min-height:64px!important;padding:14px 18px!important;border-color:var(--ft-line)!important;}
+  html body .modal.modal-xl:has(.ta-settings-shell.is-account)>.modal-body{flex:1 1 auto!important;min-height:0!important;padding:0!important;overflow:hidden!important;}
+  html body .modal.modal-xl:has(.ta-settings-shell.is-account) .ta-settings-shell.is-account{width:100%!important;height:100%!important;min-height:0!important;margin:0!important;}
+  html body .modal.modal-xl:has(.ta-settings-shell.is-account) .ta-settings-content{height:100%!important;padding:28px!important;}
+  html body .modal.modal-xl:has(.ta-settings-shell.is-account) .ta-account-page{width:100%!important;max-width:940px!important;margin-inline:auto!important;}
+  html body .modal.modal-xl:has(.ta-settings-shell.is-account) .ta-settings-page-header{align-items:flex-start!important;}
+}
+
 @media screen and (max-width:900px){
   .app-ui .ta-page-title strong{font-size:17px!important;line-height:23px!important;}
   .app-ui .ta-page-title small{font-size:10.5px!important;line-height:15px!important;}
