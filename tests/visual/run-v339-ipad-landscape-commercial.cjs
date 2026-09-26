@@ -39,14 +39,21 @@ async function runCase(browser,kind){
   if(initial.scrollHeight<=initial.clientHeight)failures.push(`commercial editor fixture has no real scroll range ${initial.scrollHeight}/${initial.clientHeight}`);
   if(initial.previewChildren!==0)failures.push(`live A4 renderer remained mounted on iPad landscape (${initial.previewChildren} child nodes)`);
 
-  const textInput=page.locator('.editor-scroll input[type="text"],.editor-scroll input:not([type])').first();
-  if(await textInput.count()){
+  // Exercise a persisted document field, not an incidental searchable/control input.
+  // The previous generic first-text-input selector could hit UI-only state and report
+  // a false autosave regression even though the document model had not changed.
+  const documentNumberIndex=await page.locator('.editor-scroll input').evaluateAll((nodes,docKind)=>nodes.findIndex(node=>{
+    const value=String(node.value||'');
+    return docKind==='invoice'?value.startsWith('INV-'):value.startsWith('PI-');
+  }),kind);
+  if(documentNumberIndex>=0){
+    const textInput=page.locator('.editor-scroll input').nth(documentNumberIndex);
     const before=await textInput.inputValue();
     await textInput.fill(`${before} QA`);
     await page.waitForTimeout(1700);
     const saves=await page.evaluate(()=>Number(window.saveAttempts||0));
-    if(saves<1)failures.push('commercial editor typing did not autosave on iPad landscape');
-  }else failures.push('commercial editor text input missing');
+    if(saves<1)failures.push('commercial document field did not autosave on iPad landscape');
+  }else failures.push('commercial document number input missing');
 
   await page.evaluate(()=>{const scroll=document.querySelector('.editor-scroll');if(scroll)scroll.scrollTop=scroll.scrollHeight;});
   await page.waitForTimeout(250);
