@@ -8,7 +8,7 @@
     catch(e){resolved='dark';}
   }
   var root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');
-  var dark='#0c111d',light='#f9fafb',bg=resolved==='light'?light:dark;
+  var dark='#081321',light='#f4f7fb',bg=resolved==='light'?light:dark;
   root.dataset.uiTheme=resolved;
   root.dataset.uiThemePreference=pref;
   root.dataset.lourexBooting='true';
