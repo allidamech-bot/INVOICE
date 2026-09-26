@@ -19,13 +19,9 @@ if(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION){
 const marker="LOCAL_CORE.push('./canonical-redirect.js');";
 /* v351: app.bundle.css is already part of the application core. Do not precache
    every TailAdmin source stylesheet a second time. Cache only CSS/JS that remains
-   a real standalone runtime owner or a dependency of one. This keeps PWA storage
-   smaller and prevents stale historical TailAdmin files from looking like active
-   production layers during recovery. */
+   a real standalone runtime owner or a dependency of one. The retired v304-v306
+   attachment CSS paths are compatibility stubs and are intentionally omitted. */
 const visualRuntimes=[
-  './attachment-gallery-v304.css?v=304',
-  './mobile-layout-closeout-v305.css?v=305',
-  './release-hardening-v306.css?v=306',
   './styles/v333-critical-documents-visual-functional-closeout.css?v=333-1',
   './styles/v337-template-layout-balance.css?v=337-3',
   './styles/v331-draft-scroll-recovery.css?v=337-3',
