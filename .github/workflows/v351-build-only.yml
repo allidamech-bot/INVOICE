@@ -6,7 +6,7 @@ on:
       - audit/v351-layer-spacing-dedup-closeout
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-preview:
@@ -18,6 +18,50 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
+      - name: Apply final v351 visual closeout
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          let changed=false;
+
+          const draftPath='src/styles/v331-draft-scroll-recovery.css';
+          let draft=fs.readFileSync(draftPath,'utf8');
+          const replacements=[
+            ['padding-bottom:calc(132px + env(safe-area-inset-bottom,0px))!important;','padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))!important;'],
+            ['scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom,0px))!important;','scroll-padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))!important;'],
+            ['padding:10px 10px calc(138px + env(safe-area-inset-bottom,0px))!important;','padding:10px 10px calc(76px + env(safe-area-inset-bottom,0px))!important;'],
+            ['scroll-padding-bottom:calc(138px + env(safe-area-inset-bottom,0px))!important;','scroll-padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))!important;']
+          ];
+          for(const [from,to] of replacements){
+            if(draft.includes(from)){draft=draft.replace(from,to);changed=true;}
+            else if(!draft.includes(to))throw new Error(`Draft spacing owner missing: ${from}`);
+          }
+          if(changed)fs.writeFileSync(draftPath,draft);
+
+          const financePath='src/styles/tailadmin-finance-v320.css';
+          let finance=fs.readFileSync(financePath,'utf8');
+          const duplicate='@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap");\n\n';
+          if(finance.includes(duplicate)){
+            finance=finance.replace(duplicate,'');
+            fs.writeFileSync(financePath,finance);
+            changed=true;
+          }
+
+          const index=fs.readFileSync('index.html','utf8');
+          if(!/family=Outfit:wght@400;500;600;700;800/.test(index))throw new Error('Canonical Outfit preload is missing from index.html');
+
+          console.log(changed?'Applied final v351 visual closeout.':'Final v351 visual closeout already present.');
+          NODE
+      - name: Commit final visual closeout if needed
+        run: |
+          if git diff --quiet -- src/styles/v331-draft-scroll-recovery.css src/styles/tailadmin-finance-v320.css; then
+            exit 0
+          fi
+          git config user.name "allidamech-bot"
+          git config user.email "allidamech@gmail.com"
+          git add src/styles/v331-draft-scroll-recovery.css src/styles/tailadmin-finance-v320.css
+          git commit -m "fix: close v351 draft spacing and font loading"
+          git push origin HEAD:audit/v351-layer-spacing-dedup-closeout
       - run: npm ci
       - name: Production build only
         run: npm run build
