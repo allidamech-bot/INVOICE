@@ -55,6 +55,14 @@ if(!html.includes(iosOutputBridge))throw new Error('v351: iOS output bridge refe
 const mobilePreviewOutput='./mobile-preview-output-v350.js?v=350';
 if(!html.includes('mobile-preview-output-v350.js'))html=html.replace(iosOutputBridge,`${iosOutputBridge}\n  <script src="${mobilePreviewOutput}"></script>`);
 if(!html.includes(mobilePreviewOutput))throw new Error('v351: mobile Preview output bridge is missing.');
+
+const draftScrollRuntime='./styles/v331-draft-scroll-recovery.css?v=337-3';
+const criticalDocumentsRuntime='./styles/v332-critical-documents-deep-closeout.css?v=332-1';
+const bundleTag='<link rel="stylesheet" href="./styles/app.bundle.css" />';
+if(!html.includes(bundleTag)||!html.includes(draftScrollRuntime)||!html.includes(criticalDocumentsRuntime))throw new Error('v351: standalone v331/v332 document owner is missing before finalization.');
+if((html.match(/data-lourex-v331-draft-recovery="true"/g)||[]).length!==1)throw new Error('v351: expected exactly one v331 standalone owner marker.');
+if((html.match(/data-lourex-v332-critical-documents="true"/g)||[]).length!==1)throw new Error('v351: expected exactly one v332 standalone owner marker.');
+if(html.indexOf(draftScrollRuntime)<=html.indexOf(bundleTag)||html.indexOf(criticalDocumentsRuntime)<=html.indexOf(draftScrollRuntime))throw new Error('v351: standalone document owner order must be app.bundle.css -> v331 -> v332.');
 await writeFile(htmlPath,html);
 
 /* build.mjs owns the palette insertion point. Finalization owns only the final
@@ -93,7 +101,7 @@ sw=sw.replaceAll(oldDocumentEntry,newDocumentEntry);
 sw=sw.replaceAll('./storage-cleanup-v347.js?v=347',storageCleanup);
 const cacheMarker="LOCAL_CORE.push('./canonical-redirect.js');";
 if(!sw.includes(cacheMarker))throw new Error('v351: service-worker cache insertion marker is missing.');
-for(const asset of [themeBootstrap,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry]){
+for(const asset of [themeBootstrap,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime]){
   if(!sw.includes(`LOCAL_CORE.push('${asset}');`))sw=sw.replace(cacheMarker,`LOCAL_CORE.push('${asset}');\n${cacheMarker}`);
 }
 await writeFile(swPath,sw);
@@ -109,13 +117,14 @@ if(finalHtml.includes(legacyLightBoot)||finalHtml.includes(legacyDarkBoot))throw
 if(!finalHtml.includes('<meta name="theme-color" content="#081321" />'))throw new Error('v351: production theme-color meta is not canonical.');
 if(!finalHtml.includes(storageCleanup)||finalHtml.includes('./storage-cleanup-v347.js?v=347'))throw new Error('v351: storage cleanup cache key is not canonical.');
 if(!finalHtml.includes(mobilePreviewOutput))throw new Error('v351: mobile Preview output validation bridge is not wired.');
-for(const asset of [newWatchdog,newPresentationGuard,newDocumentEntry])if(!finalHtml.includes(asset))throw new Error(`v351: production HTML is missing ${asset}.`);
+for(const asset of [newWatchdog,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime])if(!finalHtml.includes(asset))throw new Error(`v351: production HTML is missing ${asset}.`);
+if(finalHtml.indexOf(draftScrollRuntime)<=finalHtml.indexOf(bundleTag)||finalHtml.indexOf(criticalDocumentsRuntime)<=finalHtml.indexOf(draftScrollRuntime))throw new Error('v351: final standalone document owner order is invalid.');
 if(!finalCss.includes(paletteMarker))throw new Error('v351: explicit application palette owner is not bundled.');
 if(!finalCss.includes(startupMarker))throw new Error('v351: startup single-layer CSS is not final in the production bundle.');
 if((finalCss.match(/\/\* --- v346-template-color-visual-closeout\.css --- \*\//g)||[]).length!==1)throw new Error('v351: application palette owner appears more than once in the production bundle.');
 if(/@import\s+url\([^)]*v346-template-color-visual-closeout/i.test(finalCss))throw new Error('v351: late v346 runtime @import remains in the production bundle.');
 if(finalEntry.includes("const bootBackground=dark?'#0c111d':'#f9fafb';"))throw new Error('v351: stale document-entry boot canvas survived finalization.');
-for(const asset of [newWatchdog,themeBootstrap,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry])if(!finalSw.includes(asset))throw new Error(`v351: service worker is missing ${asset}.`);
+for(const asset of [newWatchdog,themeBootstrap,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime])if(!finalSw.includes(asset))throw new Error(`v351: service worker is missing ${asset}.`);
 if(finalSw.includes('./storage-cleanup-v347.js?v=347'))throw new Error('v351: stale storage cleanup cache key remains in service worker.');
 
-console.log('LOUREX v351 startup finalization verified: canonical source/production palette, one loading owner, no automatic stuck-boot reload, conservative storage cleanup, Preview output feedback and final PWA precache aligned.');
+console.log('LOUREX v351 startup finalization verified: canonical source/production palette, one loading owner, standalone v331/v332 document owners, no automatic stuck-boot reload, conservative storage cleanup, Preview output feedback and final PWA precache aligned.');
