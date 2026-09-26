@@ -7,8 +7,6 @@
  * This layer is screen-only. It intentionally does not touch PDF/print templates,
  * persistence, encryption, accounting logic, Firebase, PIN, or autosave behavior.
  */
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap");
-
 @media screen {
   html[data-ui-theme="light"] {
     --ta-brand-25:#f2f7ff;
