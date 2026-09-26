@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="../../src/styles/settings-account-v163.css">
   <link rel="stylesheet" href="../../src/styles/design-system-v164.css">
   <link rel="stylesheet" href="../../src/styles/final-mobile-accessibility-v168.css">
+  <link rel="stylesheet" href="../../src/styles/tailadmin-reliability-bridge-v320.css">
   <link rel="stylesheet" href="../../src/styles/mobile-overlap-recovery-v176.css">
   <style>
     html,body{margin:0;width:100%;min-height:100%;font-family:Arial,sans-serif;background:#f5f1e9}
@@ -20,9 +21,6 @@
     .fixture-page{min-height:100dvh;padding:18px 12px 96px}
     .fixture-card{max-width:520px;margin:0 auto;padding:18px;border:1px solid #ddd5ca;border-radius:18px;background:#fff}
     .fixture-card h1{margin:0 0 10px;font-size:20px}.fixture-card p{margin:0;line-height:1.7}
-    .mobile-document-action-portal{display:block!important;position:fixed!important;inset:0!important;z-index:6000!important;pointer-events:none}
-    .mobile-document-action-sheet{position:absolute!important;left:8px!important;right:8px!important;bottom:8px!important;min-height:132px;padding:14px;border-radius:18px;background:#fff;border:1px solid #ddd;box-shadow:0 16px 40px rgba(0,0,0,.18)}
-    .mobile-document-action-sheet strong{display:block;margin-bottom:10px}
     .modal-message{font-size:14px}
   </style>
 </head>
@@ -35,13 +33,7 @@
       </section>
     </main>
 
-    <div class="mobile-document-action-portal" aria-hidden="true">
-      <section class="mobile-document-action-sheet action-menu">
-        <strong>إجراءات المستند</strong>
-        <div>هذه الطبقة يجب أن تبقى خلف نافذة التأكيد.</div>
-      </section>
-    </div>
-
+    <!-- Current DocumentsPage closes its action portal before opening a dialog. -->
     <div class="modal-backdrop" data-testid="backdrop">
       <section class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="fixture-title">
         <header class="modal-header">
