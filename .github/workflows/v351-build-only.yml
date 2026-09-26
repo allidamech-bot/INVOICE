@@ -1,0 +1,23 @@
+name: LOUREX v351 Build Only
+
+on:
+  push:
+    branches:
+      - audit/v351-layer-spacing-dedup-closeout
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Production build only
+        run: npm run build
