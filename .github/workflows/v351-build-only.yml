@@ -1,4 +1,4 @@
-name: LOUREX v351 Build Only
+name: LOUREX v351 Build + Preview
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  build-preview:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -21,3 +21,37 @@ jobs:
       - run: npm ci
       - name: Production build only
         run: npm run build
+      - name: Start built preview
+        run: |
+          npx http-server dist -p 4173 -c-1 >/tmp/lourex-preview.log 2>&1 &
+          echo $! >/tmp/lourex-preview.pid
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/lourex-preview.log
+          exit 1
+      - name: Capture real browser previews
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME" ]; then
+            echo "No Chrome/Chromium executable available on runner"
+            exit 1
+          fi
+          mkdir -p preview-artifacts
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --virtual-time-budget=8000 --window-size=390,844 --screenshot=preview-artifacts/app-iphone-390x844.png http://127.0.0.1:4173/
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --virtual-time-budget=8000 --window-size=1024,1366 --screenshot=preview-artifacts/app-ipad-1024x1366.png http://127.0.0.1:4173/
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --virtual-time-budget=8000 --window-size=1440,1000 --screenshot=preview-artifacts/app-desktop-1440x1000.png http://127.0.0.1:4173/
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --virtual-time-budget=10000 --window-size=390,844 --screenshot=preview-artifacts/editor-iphone-390x844.png 'http://127.0.0.1:4173/qa/obsidian-editor.html'
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --virtual-time-budget=10000 --window-size=1024,1366 --screenshot=preview-artifacts/editor-ipad-1024x1366.png 'http://127.0.0.1:4173/qa/obsidian-editor.html'
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --virtual-time-budget=10000 --window-size=390,844 --screenshot=preview-artifacts/editor-ar-iphone-390x844.png 'http://127.0.0.1:4173/qa/obsidian-editor.html?lang=ar'
+          curl -fsS http://127.0.0.1:4173/health.html > preview-artifacts/health.html
+          cat /tmp/lourex-preview.log > preview-artifacts/server.log || true
+      - name: Upload preview artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lourex-v351-preview
+          path: preview-artifacts/
+          if-no-files-found: error
+          retention-days: 3
