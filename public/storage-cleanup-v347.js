@@ -19,11 +19,17 @@
   function snapshotsDone(){try{return localStorage.getItem(SNAPSHOT_DONE_KEY)==='1';}catch{return false;}}
   function markSnapshotsDone(){try{localStorage.setItem(SNAPSHOT_DONE_KEY,'1');}catch{}}
   function timestamp(value){const parsed=Date.parse(String(value||''));return Number.isFinite(parsed)?parsed:0;}
-  function sameOrOlder(candidate,active){
+  function sameEncryptedVault(candidate,active){
+    if(!candidate||!active)return false;
+    return Number(candidate.schemaVersion)===Number(active.schemaVersion)&&
+      String(candidate.iv||'')!==''&&String(candidate.iv||'')===String(active.iv||'')&&
+      String(candidate.cipher||'')!==''&&String(candidate.cipher||'')===String(active.cipher||'');
+  }
+  function duplicateRelation(candidate,active){
+    if(sameEncryptedVault(candidate,active))return 'same';
     const candidateAt=timestamp(candidate?.updatedAt),activeAt=timestamp(active?.updatedAt);
-    if(candidateAt&&activeAt)return candidateAt<=activeAt;
-    if(candidateAt&&!activeAt)return false;
-    return true;
+    if(candidateAt&&activeAt)return candidateAt<=activeAt?'older':'newer';
+    return 'unknown';
   }
 
   async function databaseNames(){
@@ -166,11 +172,11 @@
         try{
           legacyDb=await openExisting(LEGACY_DB);
           const duplicate=await protectedWorkspace(legacyDb);
-          const eligible=duplicate&&duplicate.uid===active.uid&&sameOrOlder(duplicate.vault,active.vault);
-          const newer=duplicate&&duplicate.uid===active.uid&&!sameOrOlder(duplicate.vault,active.vault);
+          const relation=duplicate&&duplicate.uid===active.uid?duplicateRelation(duplicate.vault,active.vault):'foreign';
           legacyDb.close();legacyDb=null;
-          if(eligible)legacyState=await deleteDatabase(LEGACY_DB)?'removed':'blocked';
-          else if(newer)legacyState='kept-newer';
+          if(relation==='same'||relation==='older')legacyState=await deleteDatabase(LEGACY_DB)?'removed':'blocked';
+          else if(relation==='newer')legacyState='kept-newer';
+          else if(relation==='unknown')legacyState='kept-unknown';
         }catch{legacyState='blocked';}finally{try{legacyDb?.close();}catch{}}
       }
 
@@ -179,16 +185,16 @@
         try{
           publicDb=await openExisting(PUBLIC_DB);
           const duplicate=await protectedWorkspace(publicDb);
-          const eligible=duplicate&&duplicate.uid===active.uid&&sameOrOlder(duplicate.vault,active.vault);
-          const newer=duplicate&&duplicate.uid===active.uid&&!sameOrOlder(duplicate.vault,active.vault);
-          if(eligible){
+          const relation=duplicate&&duplicate.uid===active.uid?duplicateRelation(duplicate.vault,active.vault):'foreign';
+          if(relation==='same'||relation==='older'){
             const current=publicDb;publicDb=null;
             publicState=await rebuildDuplicatePublic(current)?'rebuilt':'blocked';
-          }else if(newer)publicState='kept-newer';
+          }else if(relation==='newer')publicState='kept-newer';
+          else if(relation==='unknown')publicState='kept-unknown';
         }catch{publicState='blocked';}finally{try{publicDb?.close();}catch{}}
       }
 
-      const retryNeeded=legacyState==='blocked'||publicState==='blocked'||legacyState==='kept-newer'||publicState==='kept-newer';
+      const retryNeeded=['blocked','kept-newer','kept-unknown'].includes(legacyState)||['blocked','kept-newer','kept-unknown'].includes(publicState);
       if(!retryNeeded)markDone(fp);
       let usage='';
       try{const estimate=await navigator.storage?.estimate?.();if(estimate?.usage)usage=` usageMb=${(estimate.usage/1048576).toFixed(1)}`;}catch{}
