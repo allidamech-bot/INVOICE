@@ -45,8 +45,10 @@ html=html.replaceAll(oldDocumentEntry,newDocumentEntry);
 
 const runtimeSafety='<script src="./runtime-safety-v334.js?v=344"></script>';
 if(!html.includes(runtimeSafety))throw new Error('v347: runtime safety script reference was not found.');
+const storageCleanup='./storage-cleanup-v347.js?v=351';
+html=html.replaceAll('./storage-cleanup-v347.js?v=347',storageCleanup);
 if(!html.includes('storage-cleanup-v347.js')){
-  html=html.replace(runtimeSafety,`${runtimeSafety}\n  <script src="./storage-cleanup-v347.js?v=347"></script>`);
+  html=html.replace(runtimeSafety,`${runtimeSafety}\n  <script src="${storageCleanup}"></script>`);
 }
 const iosOutputBridge='<script src="./ios-print-bridge.js"></script>';
 if(!html.includes(iosOutputBridge))throw new Error('v350: iOS output bridge reference was not found.');
@@ -96,9 +98,10 @@ let sw=await readFile(swPath,'utf8');
 sw=sw.replaceAll(oldWatchdog,newWatchdog);
 sw=sw.replaceAll(oldPresentationGuard,newPresentationGuard);
 sw=sw.replaceAll(oldDocumentEntry,newDocumentEntry);
+sw=sw.replaceAll('./storage-cleanup-v347.js?v=347',storageCleanup);
 const cacheMarker="LOCAL_CORE.push('./canonical-redirect.js');";
 if(!sw.includes(cacheMarker))throw new Error('v347: service-worker cache insertion marker is missing.');
-for(const asset of [themeBootstrap,'./storage-cleanup-v347.js?v=347','./mobile-preview-output-v350.js?v=350',newPresentationGuard,newDocumentEntry]){
+for(const asset of [themeBootstrap,storageCleanup,'./mobile-preview-output-v350.js?v=350',newPresentationGuard,newDocumentEntry]){
   if(!sw.includes(`LOCAL_CORE.push('${asset}');`))sw=sw.replace(cacheMarker,`LOCAL_CORE.push('${asset}');\n${cacheMarker}`);
 }
 await writeFile(swPath,sw);
@@ -112,7 +115,8 @@ if(!finalHtml.includes(themeBootstrap))throw new Error('v351: external theme boo
 if(!finalHtml.includes(canonicalLightBoot)||!finalHtml.includes(canonicalDarkBoot))throw new Error('v351: canonical first-paint boot palette is missing from production HTML.');
 if(finalHtml.includes(legacyLightBoot)||finalHtml.includes(legacyDarkBoot))throw new Error('v351: legacy first-paint boot palette remains in production HTML.');
 if(!finalHtml.includes('<meta name="theme-color" content="#081321" />'))throw new Error('v351: production theme-color meta is not canonical.');
-if(!finalHtml.includes('storage-cleanup-v347.js?v=347'))throw new Error('v347: safe storage cleanup is not wired.');
+if(!finalHtml.includes(storageCleanup))throw new Error('v351: safe storage cleanup is not wired with the current cache key.');
+if(finalHtml.includes('./storage-cleanup-v347.js?v=347'))throw new Error('v351: stale storage cleanup cache key remains in production HTML.');
 if(!finalHtml.includes('mobile-preview-output-v350.js?v=350'))throw new Error('v350: mobile preview output validation bridge is not wired.');
 if(!finalHtml.includes(newWatchdog))throw new Error('v347: cache-busted startup watchdog is not wired.');
 if(!finalHtml.includes(newPresentationGuard))throw new Error('v351: presentation guard is not wired with the current cache key.');
@@ -122,8 +126,9 @@ if(!finalCss.includes(startupMarker))throw new Error('v347: startup single-layer
 if((finalCss.match(/\/\* --- v346-template-color-visual-closeout\.css --- \*\//g)||[]).length!==1)throw new Error('v350: application palette owner appears more than once in the production bundle.');
 if(/@import\s+url\([^)]*v346-template-color-visual-closeout/i.test(finalCss))throw new Error('v350: late v346 runtime @import remains in the production bundle.');
 if(finalEntry.includes("const bootBackground=dark?'#0c111d':'#f9fafb';"))throw new Error('v351: stale document-entry boot canvas survived finalization.');
-for(const asset of [newWatchdog,themeBootstrap,'./storage-cleanup-v347.js?v=347','./mobile-preview-output-v350.js?v=350',newPresentationGuard,newDocumentEntry]){
+for(const asset of [newWatchdog,themeBootstrap,storageCleanup,'./mobile-preview-output-v350.js?v=350',newPresentationGuard,newDocumentEntry]){
   if(!finalSw.includes(asset))throw new Error(`v351: service worker is missing ${asset}.`);
 }
+if(finalSw.includes('./storage-cleanup-v347.js?v=347'))throw new Error('v351: stale storage cleanup cache key remains in service worker.');
 
-console.log('LOUREX v351 startup finalization applied: canonical first-paint/runtime palette, single loading owner, no automatic stuck-boot reload, safe storage cleanup, mobile Preview output feedback, presentation guard and final PWA precache aligned.');
+console.log('LOUREX v351 startup finalization applied: canonical first-paint/runtime palette, single loading owner, no automatic stuck-boot reload, conservative storage cleanup, mobile Preview output feedback, presentation guard and final PWA precache aligned.');
