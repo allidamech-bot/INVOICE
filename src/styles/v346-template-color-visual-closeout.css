@@ -1,7 +1,7 @@
-/* LOUREX v350 — application palette closeout only.
- * Commercial document A4 layout, typography, preview scaling and template colors
- * are owned exclusively by document-premium-redesign-v141.css.
- * This file now owns only application theme tokens and profitability surfaces. */
+/* LOUREX v350 — application palette + control design owner.
+ * Commercial A4 rendering stays exclusively in document-premium-redesign-v141.css.
+ * Full-page canvas and shared Button/Toggle primitives are centralized here so
+ * historical feature styles cannot create nested page backgrounds or native-gray controls. */
 
 @media screen {
   html[data-ui-theme="light"] {
@@ -15,9 +15,9 @@
     --ta-brand-600:#0d858a!important;
     --ta-brand-700:#0f6b70!important;
 
-    --ft-canvas:#f3f7fa!important;
-    --ft-shell:#ffffff!important;
-    --ft-workspace:#f6f9fc!important;
+    --ft-canvas:#f4f7fb!important;
+    --ft-shell:#f4f7fb!important;
+    --ft-workspace:#f4f7fb!important;
     --ft-surface:#ffffff!important;
     --ft-surface-2:#eef4f7!important;
     --ft-surface-3:#e5edf2!important;
@@ -34,6 +34,12 @@
     --ft-accent-soft:rgba(18,157,161,.11)!important;
     --ft-accent-faint:rgba(18,157,161,.065)!important;
     --ft-on-accent:#ffffff!important;
+    --ft-success:#178b68!important;
+    --ft-success-soft:rgba(23,139,104,.10)!important;
+    --ft-warning:#b7791f!important;
+    --ft-warning-soft:rgba(183,121,31,.10)!important;
+    --ft-danger:#c33d3d!important;
+    --ft-danger-soft:rgba(195,61,61,.10)!important;
     --ft-info:#147ea1!important;
     --ft-info-soft:rgba(20,126,161,.10)!important;
   }
@@ -49,9 +55,9 @@
     --ta-brand-600:#70e0db!important;
     --ta-brand-700:#9bece8!important;
 
-    --ft-canvas:#070e19!important;
-    --ft-shell:#0b1626!important;
-    --ft-workspace:#091321!important;
+    --ft-canvas:#081321!important;
+    --ft-shell:#081321!important;
+    --ft-workspace:#081321!important;
     --ft-surface:#0f1c2d!important;
     --ft-surface-2:#15263a!important;
     --ft-surface-3:#1c3048!important;
@@ -76,6 +82,79 @@
     --ft-danger-soft:rgba(255,128,120,.12)!important;
     --ft-info:#6cb8ef!important;
     --ft-info-soft:rgba(108,184,239,.12)!important;
+  }
+
+  /* One full-page paint. Cards/panels create separation; shell/main/workspace do not. */
+  html[data-ui-theme] body,
+  html[data-ui-theme] #root,
+  html[data-ui-theme] body .app-root,
+  html[data-ui-theme] body .app-ui,
+  html[data-ui-theme] body .app-ui .ta-shell,
+  html[data-ui-theme] body .app-ui .ta-main,
+  html[data-ui-theme] body .app-ui .main-content,
+  html[data-ui-theme] body .app-ui .editor-main,
+  html[data-ui-theme] body .app-ui .workspace,
+  html[data-ui-theme] body .app-ui .ta-editor-workspace{
+    background-color:var(--ft-canvas)!important;
+  }
+
+  /* Shared control grammar. Feature layouts may size controls, but not retheme them. */
+  .app-ui .btn{
+    min-height:40px;
+    border:1px solid var(--ft-line-strong)!important;
+    border-radius:10px!important;
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+    font-weight:650!important;
+    transition:background-color .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease!important;
+  }
+  .app-ui .btn:hover:not(:disabled){border-color:color-mix(in srgb,var(--ft-accent) 34%,var(--ft-line-strong))!important;background:var(--ft-surface-2)!important;transform:none!important;}
+  .app-ui .btn:focus-visible,.app-ui .icon-btn:focus-visible{outline:0!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent) 18%,transparent)!important;}
+  .app-ui .btn:disabled,.app-ui .icon-btn:disabled{opacity:.5!important;cursor:not-allowed!important;}
+
+  .app-ui .btn-primary{
+    border-color:var(--ft-accent)!important;
+    background:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
+  }
+  .app-ui .btn-primary:hover:not(:disabled){border-color:var(--ft-accent-hover)!important;background:var(--ft-accent-hover)!important;color:var(--ft-on-accent)!important;}
+  .app-ui .btn-secondary{
+    border-color:var(--ft-line-strong)!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text-strong)!important;
+  }
+  .app-ui .btn-ghost{
+    border-color:transparent!important;
+    background:transparent!important;
+    color:var(--ft-text-soft)!important;
+  }
+  .app-ui .btn-ghost:hover:not(:disabled){border-color:var(--ft-line)!important;background:var(--ft-surface-2)!important;color:var(--ft-text-strong)!important;}
+  .app-ui .btn-danger{
+    border-color:color-mix(in srgb,var(--ft-danger) 48%,var(--ft-line))!important;
+    background:var(--ft-danger-soft)!important;
+    color:var(--ft-danger)!important;
+  }
+  .app-ui .btn-danger:hover:not(:disabled){border-color:var(--ft-danger)!important;background:color-mix(in srgb,var(--ft-danger) 16%,var(--ft-surface))!important;color:var(--ft-danger)!important;}
+
+  .app-ui .icon-btn{
+    border:1px solid transparent!important;
+    border-radius:10px!important;
+    background:transparent!important;
+    color:var(--ft-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .icon-btn:hover:not(:disabled){border-color:var(--ft-line)!important;background:var(--ft-surface-2)!important;color:var(--ft-text-strong)!important;}
+
+  .app-ui .toggle{
+    border-color:var(--ft-line-strong)!important;
+    background:var(--ft-input)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .toggle.on{
+    border-color:var(--ft-accent)!important;
+    background:var(--ft-accent)!important;
   }
 
   .app-ui .profitability-panel{
