@@ -2,9 +2,6 @@
   'use strict';
 
   const pendingKindKey='lourex:pending-document-kind';
-  const attachmentStyleMarker='data-lourex-v304-attachments';
-  const mobileCloseoutStyleMarker='data-lourex-v305-mobile-closeout';
-  const releaseHardeningStyleMarker='data-lourex-v306-release-hardening';
   const draftScrollRecoveryStyleMarker='data-lourex-v331-draft-recovery';
   const criticalDocumentsStyleMarker='data-lourex-v332-critical-documents';
   const sessionMarkerKey='lourex-invoice-session-v1';
@@ -66,13 +63,10 @@
     if(link)head.appendChild(link);
   }
 
-  /* v320 feature/reliability layers remain runtime-injected. TailAdmin owners are
-     re-promoted afterwards; v331 then restores Draft geometry and v332 owns only
-     document-type semantics/presentation. */
+  /* TailAdmin owners are re-promoted first; v331 then restores Safari/Draft
+     geometry and v332 remains the final document-type semantics/presentation
+     owner. Retired v304-v306 compatibility styles are never requested. */
   function ensureRuntimeReliability(){
-    ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');
-    ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');
-    ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');
     ensureStylesheet(draftScrollRecoveryStyleMarker,'./styles/v331-draft-scroll-recovery.css?v=337-3');
     ensureStylesheet(criticalDocumentsStyleMarker,'./styles/v332-critical-documents-deep-closeout.css?v=332-1');
     promoteTailAdminOwners();
@@ -82,7 +76,7 @@
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){
       const dark=root.dataset.uiTheme==='dark';
-      const bootBackground=dark?'#0c111d':'#f9fafb';
+      const bootBackground=dark?'#081321':'#f4f7fb';
       root.style.backgroundColor=bootBackground;
       root.style.setProperty('--boot-bg',bootBackground);
       if(document.body)document.body.style.backgroundColor=bootBackground;
