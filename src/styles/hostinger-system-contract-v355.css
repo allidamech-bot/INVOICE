@@ -67,7 +67,7 @@
   .ta-auth-page,.ta-auth-page button,.ta-auth-page input,.ta-auth-page select,
   .global-search-panel,.global-search-panel button,.global-search-panel input,
   .modal,.modal button,.modal input,.modal select,.modal textarea{
-    font-family:Inter,"Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+    font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important;
   }
 
   ::selection{background:rgba(103,61,230,.20);color:var(--ft-text-strong);}
