@@ -37,7 +37,7 @@
   function normalizeCanvas(){
     var root=document.documentElement;
     var dark=root.dataset.uiTheme==='dark';
-    var background=dark?'#0c111d':'#f9fafb';
+    var background=dark?'#081321':'#f4f7fb';
     root.style.backgroundColor=background;
     if(!root.dataset.lourexBooting){
       var theme=document.querySelector('meta[name="theme-color"]');
