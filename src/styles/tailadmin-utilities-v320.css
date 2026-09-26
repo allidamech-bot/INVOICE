@@ -1,11 +1,10 @@
-/* LOUREX v351 — TailAdmin utility bridge and editor utility contracts.
+/* LOUREX v351 — TailAdmin utility bridge and utility-control contracts.
  * Modal presentation belongs to tailadmin-overlays-v320.css.
  * Preview geometry/palette belongs to mobile-preview-v156.css.
  * Commercial/Draft Safari scroll ownership belongs to v331.
- * Mobile commercial actionbar geometry belongs to v330 template/editor guard.
+ * Mobile commercial actionbar + mobile section-navigation flow belong to v330.
  * This file keeps compatibility tokens and utility controls only. */
 @media screen {
-  /* Compatibility palette bridge for retained feature/reliability CSS. */
   .app-ui{
     --ds-canvas:var(--ft-canvas)!important;
     --ds-shell:var(--ft-shell)!important;
@@ -66,19 +65,17 @@
 
   .document-kind-pill.kind-purchase-order,.ta-doc-kind-pill.kind-purchase-order{border-color:color-mix(in srgb,var(--ft-warning) 24%,var(--ft-line))!important;background:var(--ft-warning-soft)!important;color:var(--ft-warning)!important}
   .purchase-order-reference{margin-top:10px!important}
-
   [dir="rtl"] :where(.mf-theme-control,.mf-theme-toggle-control){direction:rtl!important}
 }
 
-/* Shared utility touch-target constraints. Generic application controls are
-   covered by v177; these selectors cover TailAdmin-specific utility surfaces. */
+/* Generic application controls are covered by v177; these are TailAdmin-specific
+   utility surfaces that also need the same physical touch floor. */
 @media screen and (max-width:900px), screen and (pointer:coarse) {
   .app-ui .ta-mobile-brand>button,
   .app-ui .ta-search-trigger,
   .app-ui .ta-theme-control .mf-theme-toggle{
     width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;
   }
-
   .app-ui :where(
     .ta-doc-type-tabs>button,
     .ta-domain-tabs>button,
@@ -90,23 +87,5 @@
     .global-search-destinations>button,
     .global-search-section-title>button
   ){min-height:44px!important}
-
   .app-ui .ta-settings-link-action{min-height:44px!important;display:inline-flex!important;align-items:center!important;padding-block:8px!important}
-}
-
-/* Step navigation presentation only. The editor viewport itself is deliberately
-   not owned here; v331 remains the final Safari/mobile scroll owner. */
-@media screen and (max-width:900px){
-  .app-ui .ta-shell.is-editor .editor-section-nav-slot{
-    position:sticky!important;top:0!important;z-index:64!important;display:block!important;
-    margin:0 -2px 10px!important;padding:8px 2px 4px!important;
-    background:linear-gradient(180deg,var(--ft-canvas) 78%,color-mix(in srgb,var(--ft-canvas) 0%,transparent))!important;
-    backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important;
-  }
-  .app-ui .ta-shell.is-editor .ta-editor-step-nav{
-    position:relative!important;inset:auto!important;margin:0!important;border-radius:14px!important;
-    background:color-mix(in srgb,var(--ft-surface) 96%,transparent)!important;
-    box-shadow:0 7px 22px rgba(15,23,42,.08)!important;
-  }
-  html[data-ui-theme="dark"] .app-ui .ta-shell.is-editor .ta-editor-step-nav{box-shadow:0 8px 22px rgba(0,0,0,.24)!important}
 }
