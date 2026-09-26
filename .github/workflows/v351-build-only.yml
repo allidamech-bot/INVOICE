@@ -59,6 +59,15 @@ jobs:
             throw new Error('iPad editor topbar owner missing');
           }
 
+          const mobileHeaderPath='src/styles/tailadmin-mobile-header-v322.css';
+          let mobileHeader=fs.readFileSync(mobileHeaderPath,'utf8');
+          const aiMarker='/* LOUREX v351 — full-screen editors own mobile chrome; keep the global AI launcher out. */';
+          if(!mobileHeader.includes(aiMarker)){
+            mobileHeader += `\n\n${aiMarker}\n@media screen and (max-width:900px){\n  html body .app-ui .ta-shell.is-editor .lourex-ai-launcher,\n  html[dir="ltr"] body .app-ui .ta-shell.is-editor .lourex-ai-launcher,\n  html[dir="rtl"] body .app-ui .ta-shell.is-editor .lourex-ai-launcher{\n    display:none!important;\n  }\n}\n`;
+            fs.writeFileSync(mobileHeaderPath,mobileHeader);
+            changed=true;
+          }
+
           const index=fs.readFileSync('index.html','utf8');
           if(!/family=Outfit:wght@400;500;600;700;800/.test(index))throw new Error('Canonical Outfit preload is missing from index.html');
 
@@ -66,13 +75,13 @@ jobs:
           NODE
       - name: Commit final visual closeout if needed
         run: |
-          if git diff --quiet -- src/styles/v331-draft-scroll-recovery.css src/styles/tailadmin-finance-v320.css src/styles/v330-template-contrast-guard.css; then
+          if git diff --quiet -- src/styles/v331-draft-scroll-recovery.css src/styles/tailadmin-finance-v320.css src/styles/v330-template-contrast-guard.css src/styles/tailadmin-mobile-header-v322.css; then
             exit 0
           fi
           git config user.name "allidamech-bot"
           git config user.email "allidamech@gmail.com"
-          git add src/styles/v331-draft-scroll-recovery.css src/styles/tailadmin-finance-v320.css src/styles/v330-template-contrast-guard.css
-          git commit -m "fix: finish v351 iPad topbar flow"
+          git add src/styles/v331-draft-scroll-recovery.css src/styles/tailadmin-finance-v320.css src/styles/v330-template-contrast-guard.css src/styles/tailadmin-mobile-header-v322.css
+          git commit -m "fix: keep AI launcher out of mobile document editor"
           git push origin HEAD:audit/v351-layer-spacing-dedup-closeout
       - run: npm ci
       - name: Production build only
