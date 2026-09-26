@@ -37,20 +37,20 @@
   align-items:center!important;
   gap:12px!important;
   overflow:visible!important;
-  border:1px solid var(--ds-line)!important;
+  border:1px solid var(--ft-line)!important;
   border-radius:13px!important;
-  background:var(--ds-surface)!important;
+  background:var(--ft-surface)!important;
   box-shadow:none!important;
   backdrop-filter:none!important;
   transform:none!important;
 }
 
 .app-ui .editor-screen>.final-quote-convert-bar.is-converted{grid-template-columns:minmax(0,1fr)!important}
-.app-ui .editor-screen>.final-quote-convert-bar>div{color:var(--ds-accent-bright)!important;min-width:0!important;display:flex!important;align-items:flex-start!important;gap:9px!important}
+.app-ui .editor-screen>.final-quote-convert-bar>div{color:var(--ft-accent)!important;min-width:0!important;display:flex!important;align-items:flex-start!important;gap:9px!important}
 .app-ui .editor-screen>.final-quote-convert-bar>div>svg{flex:0 0 auto!important;margin-top:2px!important}
 .app-ui .editor-screen>.final-quote-convert-bar span{min-width:0!important;display:grid!important;gap:2px!important}
-.app-ui .editor-screen>.final-quote-convert-bar strong{color:var(--ds-text)!important;font-size:12px!important;line-height:1.35!important;overflow-wrap:anywhere!important}
-.app-ui .editor-screen>.final-quote-convert-bar small{color:var(--ds-text-soft)!important;font-size:10px!important;line-height:1.45!important;overflow-wrap:anywhere!important}
+.app-ui .editor-screen>.final-quote-convert-bar strong{color:var(--ft-text-strong)!important;font-size:12px!important;line-height:1.35!important;overflow-wrap:anywhere!important}
+.app-ui .editor-screen>.final-quote-convert-bar small{color:var(--ft-muted)!important;font-size:10px!important;line-height:1.45!important;overflow-wrap:anywhere!important}
 .app-ui .editor-screen>.final-quote-convert-bar>.btn{min-width:190px!important;min-height:44px!important;white-space:nowrap!important}
 
 @media (max-width:900px) and (min-width:721px){
@@ -71,7 +71,7 @@
     border-inline:0!important;
     border-bottom:0!important;
     border-radius:0!important;
-    background:var(--ds-surface)!important;
+    background:var(--ft-surface)!important;
   }
   .app-ui .editor-screen>.final-quote-convert-bar small{display:none!important}
   .app-ui .editor-screen>.final-quote-convert-bar strong{font-size:11px!important}
@@ -103,17 +103,17 @@
     min-width:0!important;
     padding:0 36px 0 11px!important;
     overflow:hidden!important;
-    border:1px solid var(--ds-input-line)!important;
+    border:1px solid var(--ft-line-strong)!important;
     border-radius:10px!important;
-    background:var(--ds-input)!important;
-    color:var(--ds-text)!important;
+    background:var(--ft-input)!important;
+    color:var(--ft-text-strong)!important;
   }
   [dir='rtl'] .app-ui .editor-date-control{padding:0 11px 0 36px!important}
   .app-ui .editor-date-control::after{
     content:'▾';
     position:absolute!important;
     inset-inline-end:12px!important;
-    color:var(--ds-text-soft)!important;
+    color:var(--ft-muted)!important;
     font-size:12px!important;
     pointer-events:none!important;
   }
