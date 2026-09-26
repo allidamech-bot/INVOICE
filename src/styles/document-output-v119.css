@@ -2,15 +2,17 @@
    Loaded after the document template/content layers and before the final app-only
    performance layer. This intentionally affects every Proforma/Invoice template. */
 
-/* Keep the commercial closing zone at the bottom of the usable A4 body whenever
-   it fits on the page. Earlier v83 styling accidentally replaced the intended
-   auto margin with a fixed 6mm margin, which pulled terms/totals into mid-page. */
+/* Keep the commercial closing zone in natural document flow. Historical output
+   pushed the whole close to the bottom of A4 with margin-top:auto, producing a
+   large dead zone after short item tables in preview and print. The close remains
+   one non-shrinking flex item with 6mm internal separation, while dense documents
+   still use the renderer's details-page safeguards. */
 .invoice-page .doc-body{
   display:flex;
   flex-direction:column;
 }
 .invoice-page:not(.details-only) .final-details{
-  margin-top:auto!important;
+  margin-top:0!important;
   padding-top:6mm;
 }
 .invoice-page.details-only .final-details{
@@ -81,7 +83,7 @@
 
 @media print{
   .invoice-page:not(.details-only) .final-details{
-    margin-top:auto!important;
+    margin-top:0!important;
   }
   .invoice-page .final-details,
   .invoice-page .lower-grid,
