@@ -20,6 +20,12 @@
     align-items:flex-start!important;
     justify-content:space-between!important;
     gap:20px!important;
+    padding:22px 24px!important;
+    border:1px solid var(--ft-line)!important;
+    border-inline-start:3px solid var(--ft-accent)!important;
+    border-radius:16px!important;
+    background:color-mix(in srgb,var(--ft-surface) 93%,var(--ft-accent-soft))!important;
+    box-shadow:var(--v323-card-shadow,var(--ta-shadow-xs))!important;
   }
 
   .app-ui .ta-dashboard-heading {
@@ -450,7 +456,7 @@
 
   @media (max-width:680px) {
     .app-ui .ta-finance-dashboard { padding:16px 12px calc(104px + env(safe-area-inset-bottom,0px))!important;gap:12px!important; }
-    .app-ui .ta-dashboard-header { flex-direction:column!important;gap:12px!important; }
+    .app-ui .ta-dashboard-header { flex-direction:column!important;gap:12px!important;padding:17px!important; }
     .app-ui .ta-dashboard-heading h1 { font-size:22px!important;line-height:29px!important; }
     .app-ui .ta-dashboard-heading p { font-size:12px!important;line-height:18px!important; }
     .app-ui .ta-dashboard-header-actions { width:100%!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important; }

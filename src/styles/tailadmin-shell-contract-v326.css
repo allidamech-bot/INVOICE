@@ -8,6 +8,10 @@
     direction:ltr!important;
     grid-template-columns:minmax(0,1fr) 272px!important;
   }
+  /* The editor has no sidebar; its RTL shell must use the full viewport. */
+  html[dir="rtl"] body .app-ui .ta-shell.is-editor{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
   html[dir="rtl"] body .app-ui .ta-sidebar{
     grid-column:2!important;
     direction:rtl!important;

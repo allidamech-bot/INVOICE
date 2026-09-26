@@ -175,7 +175,7 @@
     background:transparent!important;
     color:var(--ft-muted)!important;
     box-shadow:none!important;
-    font-size:10.5px!important;
+    font-size:11px!important;
     line-height:14px!important;
     font-weight:650!important;
   }
@@ -277,7 +277,7 @@
     overflow:hidden!important;
     text-overflow:ellipsis!important;
     white-space:nowrap!important;
-    font-size:9.5px!important;
+    font-size:11px!important;
     line-height:14px!important;
   }
 
@@ -371,13 +371,13 @@
     grid-column:1/-1!important;
     margin:0!important;
     padding:0 6px 2px!important;
-    font-size:9.5px!important;
+    font-size:11px!important;
     line-height:14px!important;
     font-weight:700!important;
   }
   html body .app-ui .ta-sheet-link{
     min-width:0!important;
-    min-height:60px!important;
+    min-height:68px!important;
     grid-template-columns:34px minmax(0,1fr)!important;
     gap:8px!important;
     padding:8px!important;
@@ -389,7 +389,7 @@
   html body .app-ui .ta-sheet-link.is-active{background:var(--ft-surface-2)!important;border-color:var(--ft-line)!important;}
   html body .app-ui .ta-sheet-link-icon{width:34px!important;height:34px!important;border-radius:10px!important;}
   html body .app-ui .ta-sheet-link-copy strong{font-size:12px!important;line-height:17px!important;font-weight:720!important;}
-  html body .app-ui .ta-sheet-link-copy small{font-size:9.5px!important;line-height:14px!important;}
+  html body .app-ui .ta-sheet-link-copy small{font-size:11px!important;line-height:16px!important;}
   html body .app-ui .ta-sheet-link .ta-sheet-chevron{display:none!important;}
 
   /* AI is a shell action on normal workspaces. Full-screen document/preview
