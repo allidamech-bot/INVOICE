@@ -1,14 +1,6 @@
-/* LOUREX v351 — overlay stacking safety only.
-   TailAdmin overlays now own modal geometry, spacing, mobile reachability and
-   touch targets. Keep only the one contract that is still structurally unique:
-   confirmations opened from a document action portal must render above that
-   portal (document action portals intentionally use z-index 6000). */
-@media screen {
-  .app-ui .modal-backdrop{
-    z-index:7000!important;
-  }
-}
-
-@media print{
-  .app-ui .modal-backdrop{display:none!important}
-}
+/* LOUREX v351 — retired compatibility stub.
+ * The old 6000-level mobile document action portal is no longer emitted, so its
+ * 7000-level modal escape hatch is no longer valid. Overlay ordering is owned by
+ * tailadmin-reliability-bridge-v320.css through the single --lourex-z-* ladder.
+ * This path remains only for historical/cache compatibility and intentionally
+ * contains no visual, geometry, pointer or z-index rules. */
