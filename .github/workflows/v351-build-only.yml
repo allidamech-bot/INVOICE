@@ -6,7 +6,7 @@ on:
       - audit/v351-layer-spacing-dedup-closeout
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-preview:
@@ -18,6 +18,88 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
+      - name: Apply canonical iPad editor owner correction
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const path='src/styles/v330-template-contrast-guard.css';
+          let css=fs.readFileSync(path,'utf8');
+          const oldBlock=`@media screen and (min-width:901px) and (max-width:1180px){
+            html body .app-ui .screen-editor .editor-layout{
+              grid-template-columns:minmax(0,.96fr) minmax(0,1.04fr)!important;
+              gap:12px!important;
+              padding-inline:12px!important;
+            }
+            html body .app-ui .screen-editor .editor-pane,
+            html body .app-ui .screen-editor .editor-preview-pane,
+            html body .app-ui .screen-editor .preview-pane{min-width:0!important;}
+            html body .app-ui .screen-editor .editor-topbar{
+              grid-template-columns:minmax(0,1fr) auto auto!important;
+              gap:9px!important;
+              padding-inline:12px!important;
+            }
+            html body .app-ui .screen-editor .editor-grand-total-chip{min-width:124px!important;}
+          }`;
+          const newBlock=`@media screen and (min-width:901px) and (max-width:1180px){
+            /* Tablet preview is intentionally on-demand. Once the desktop preview pane
+               is hidden, the editor must own the complete row instead of retaining the
+               old two-column desktop track and leaving half the viewport empty. */
+            html body .app-ui .screen-editor .editor-layout{
+              display:block!important;
+              width:100%!important;
+              max-width:none!important;
+              grid-template-columns:minmax(0,1fr)!important;
+              gap:0!important;
+              padding:0 12px 22px!important;
+            }
+            html body .app-ui .screen-editor .editor-pane{
+              width:100%!important;
+              max-width:none!important;
+              min-width:0!important;
+              height:auto!important;
+              min-height:0!important;
+            }
+            html body .app-ui .screen-editor .editor-preview-pane,
+            html body .app-ui .screen-editor .preview-pane{display:none!important;}
+
+            /* Four topbar children cannot fit reliably in one iPad row. Keep identity,
+               total and save state on row one; actions get a real second row so they
+               never overlap the horizontal step navigator below. */
+            html body .app-ui .screen-editor .editor-topbar{
+              grid-template-columns:minmax(0,1fr) auto auto!important;
+              grid-template-rows:auto auto!important;
+              gap:8px 9px!important;
+              padding:10px 12px!important;
+            }
+            html body .app-ui .screen-editor .editor-top-left{grid-column:1!important;grid-row:1!important;}
+            html body .app-ui .screen-editor .editor-grand-total-chip{grid-column:2!important;grid-row:1!important;min-width:124px!important;}
+            html body .app-ui .screen-editor .save-indicator{grid-column:3!important;grid-row:1!important;}
+            html body .app-ui .screen-editor .editor-actions{
+              grid-column:1/-1!important;
+              grid-row:2!important;
+              width:100%!important;
+              min-width:0!important;
+              justify-content:flex-end!important;
+              flex-wrap:wrap!important;
+            }
+          }`;
+          if(css.includes(oldBlock)){
+            css=css.replace(oldBlock,newBlock);
+            fs.writeFileSync(path,css);
+          }else if(!css.includes('Tablet preview is intentionally on-demand')){
+            throw new Error('Expected v330 iPad editor block was not found.');
+          }
+          NODE
+      - name: Commit iPad editor source correction if needed
+        run: |
+          if git diff --quiet -- src/styles/v330-template-contrast-guard.css; then
+            exit 0
+          fi
+          git config user.name "allidamech-bot"
+          git config user.email "allidamech@gmail.com"
+          git add src/styles/v330-template-contrast-guard.css
+          git commit -m "fix: collapse iPad editor to one real column"
+          git push origin HEAD:audit/v351-layer-spacing-dedup-closeout
       - run: npm ci
       - name: Production build only
         run: npm run build
