@@ -91,21 +91,36 @@ if(!sourceStyleNames.includes('tailadmin-finance-v320.css')||!sourceStyleNames.i
 if(!sourceStyleNames.includes('tailadmin-design-closeout-v323.css'))throw new Error('The v323 application density/spacing owner is missing from the production cascade.');
 
 /* v351 single-owner contract.
-   - v331/v332 are deliberately standalone runtime document owners. Keeping them
-     inside app.bundle.css as well made the same rules participate twice.
-   - tailadmin-visual-finish-v320 was an intermediate readability/spacing pass.
-     v323 now owns typography, density, cards and page hierarchy, so bundling the
-     older finish layer only creates a redundant override tier. */
+   v331/v332 are deliberately standalone runtime document owners. Keeping them in
+   app.bundle.css as well made the same declarations participate twice. */
 const standaloneRuntimeStyles=new Set([
   'v331-draft-scroll-recovery.css',
   'v332-critical-documents-deep-closeout.css'
 ]);
+
+/* Superseded visual/geometry layers remain in source history for traceability but
+   are intentionally not production owners anymore:
+   - v70/v75/v149/v155: pre-TailAdmin mobile editor viewport/scroll generations;
+     v168/v177 + TailAdmin editor core + standalone v331 now own those contracts.
+   - v81: pre-v176 modal viewport geometry; v176 + TailAdmin overlays own it now.
+   - v152: full legacy UX/theme generation that competes with TailAdmin palette.
+   - v274: Precision Black shell/spacing generation; v322/v323/v326 own shell and
+     mobile spacing now.
+   - tailadmin-visual-finish-v320: intermediate density/readability pass replaced
+     by the explicit v323 application design owner. */
 const retiredVisualLayers=new Set([
+  'iphone-fit-v70.css',
+  'mobile-editor-scroll-v75.css',
+  'mobile-modal-v81.css',
+  'mobile-editor-recovery-v149.css',
+  'ux-recovery-v152.css',
+  'mobile-safe-area-v155.css',
+  'mobile-touch-target-closeout-v274.css',
   'tailadmin-visual-finish-v320.css'
 ]);
 let styleNames=sourceStyleNames.filter(name=>!standaloneRuntimeStyles.has(name)&&!retiredVisualLayers.has(name));
-if(styleNames.includes('v331-draft-scroll-recovery.css')||styleNames.includes('v332-critical-documents-deep-closeout.css'))throw new Error('Runtime document owners leaked into app.bundle.css.');
-if(styleNames.includes('tailadmin-visual-finish-v320.css'))throw new Error('Retired v320 visual finish layer leaked into app.bundle.css.');
+if(styleNames.some(name=>standaloneRuntimeStyles.has(name)))throw new Error('Standalone runtime document owner leaked into app.bundle.css.');
+if(styleNames.some(name=>retiredVisualLayers.has(name)))throw new Error('Retired visual/geometry layer leaked into app.bundle.css.');
 
 /* v350 palette is an explicit build owner, not a runtime @import. Put it immediately
    before the reliability bridge so local/dev and production resolve the same token
@@ -182,4 +197,4 @@ if([...vendorUrlMap.keys()].some(url=>html.includes(url)))throw new Error('Produ
 if(/https:\/\/cdn\.jsdelivr\.net\/npm\/(?:html2canvas|jspdf|xlsx)@/.test(iosBridge+productImport+supplierImport))throw new Error('Production runtime still references remote PDF/import libraries.');
 if(/preconnect[^>]+(?:cdn\.jsdelivr\.net|www\.gstatic\.com)/.test(html))throw new Error('Production HTML still preconnects to retired runtime CDNs.');
 
-console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; project: ${runtimeConfig.projectId||'local'}; App Check: ${runtimeConfig.firebaseAppCheckEnterpriseKey?'configured':'not configured'}${firebaseAppCheckRequired?' / required':''}; ${styleNames.length} CSS bundle layers + ${standaloneRuntimeStyles.size} standalone document owners; ${VENDOR_ASSETS.length} runtime libraries vendored; source maps disabled)`);
+console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; project: ${runtimeConfig.projectId||'local'}; App Check: ${runtimeConfig.firebaseAppCheckEnterpriseKey?'configured':'not configured'}${firebaseAppCheckRequired?' / required':''}; ${styleNames.length} CSS bundle layers + ${standaloneRuntimeStyles.size} standalone document owners; ${retiredVisualLayers.size} superseded layers retired; ${VENDOR_ASSETS.length} runtime libraries vendored; source maps disabled)`);
