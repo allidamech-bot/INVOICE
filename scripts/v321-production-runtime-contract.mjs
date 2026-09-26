@@ -54,6 +54,9 @@ if(!draftOwner.startsWith('@import url("./v333-critical-documents-visual-functio
 if(/document-entry-v302\.js\?v=(?:302|311|314|320|337-2|337-3)/.test(html))throw new Error('v351 production contract: stale document-entry runtime URL survived in dist/index.html.');
 if(!documentRuntime.includes(recoveryUrl))throw new Error('v351 production contract: document-entry fallback does not request the repaired Safari scroll owner.');
 if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/.test(documentRuntime))throw new Error('v351 production contract: stale document-scroll fallback survived in dist/document-entry-v302.js.');
+for(const retiredRuntimeStyle of ['attachment-gallery-v304.css','mobile-layout-closeout-v305.css','release-hardening-v306.css']){
+  if(documentRuntime.includes(retiredRuntimeStyle))throw new Error(`v351 production contract: retired empty runtime stylesheet request survived: ${retiredRuntimeStyle}.`);
+}
 
 const cacheMatch=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
 const cacheGeneration=cacheMatch?Number(cacheMatch[1]):0;
@@ -92,4 +95,4 @@ for(const file of [
   if(info.size<250)throw new Error(`v351 production contract: runtime file is unexpectedly small: ${file}.`);
 }
 
-console.log(`LOUREX v351 production runtime contract: PASS (PWA cache v${cacheGeneration}; canonical startup/storage refs; standalone v331/v332 owners; no stale active runtime URLs).`);
+console.log(`LOUREX v351 production runtime contract: PASS (PWA cache v${cacheGeneration}; canonical startup/storage refs; standalone v331/v332 owners; no stale/retired runtime CSS requests).`);
