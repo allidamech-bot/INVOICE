@@ -20,10 +20,14 @@ test('v351 iPhone startup keeps one static boot owner and one canonical palette 
   const manifest=JSON.parse(manifestText);
   const boot=html.indexOf('id="lourex-boot"');
   const react=html.indexOf('react.production.min.js');
-  const themeBootstrap=html.indexOf('id="lourex-theme-bootstrap"');
+  const themeBootstrap=html.indexOf('src="./theme-bootstrap-v347.js?v=351"');
 
   assert.ok(boot>=0&&react>boot,'boot shell must be present before runtime scripts');
-  assert.ok(themeBootstrap>=0&&themeBootstrap<boot,'source bootstrap must resolve the preference before the boot shell paints');
+  assert.ok(themeBootstrap>=0&&themeBootstrap<boot,'external source bootstrap must resolve the preference before the boot shell paints');
+  assert.doesNotMatch(html,/id="lourex-theme-bootstrap"/);
+  assert.match(html,/<meta name="theme-color" content="#081321" \/>/);
+  assert.match(html,/html\[data-ui-theme="light"\]\{--boot-bg:#f4f7fb/);
+  assert.match(html,/html\[data-ui-theme="dark"\]\{--boot-bg:#081321/);
   assert.match(html,/id="lourex-boot" class="loading-screen"/);
   assert.match(html,/class="brand official-brand"/);
   assert.match(html,/class="brand-mark"><img src="\.\/brand\/lourex-logo\.svg" alt="LOUREX"/);
@@ -38,6 +42,7 @@ test('v351 iPhone startup keeps one static boot owner and one canonical palette 
   assert.match(finalizer,/canonicalLightBoot/);
   assert.match(finalizer,/canonicalDarkBoot/);
   assert.match(finalizer,/document-entry-v302\.js\?v=351/);
+  assert.match(finalizer,/storage-cleanup-v347\.js\?v=351/);
   assert.match(app,/if\(this\.state\.loading\)return <div className="loading-screen"><Brand logoDataUrl=\{this\.state\.publicLogo\} language=\{activeLanguage\}\/><span className="loading-line"\/><\/div>/);
 });
 
