@@ -109,7 +109,7 @@
    page owners still carry larger fallback paddings, but this final reachability
    contract removes the second 108–112px dock reservation from actual runtime. */
 @media screen and (max-width:900px){
-  html body .app-ui :where(
+  html body .app-ui :is(
     .ta-finance-dashboard,
     .ta-documents-page,
     .ta-doc-detail-page,
