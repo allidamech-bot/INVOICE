@@ -22,7 +22,7 @@ if(vercelEnvironment==='production'){
 
 const VENDOR_ASSETS=[
   {name:'react.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js','https://unpkg.com/react@17.0.2/umd/react.production.min.js']},
-  {name:'react-dom.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react.production.min.js','https://unpkg.com/react@17.0.2/umd/react-dom.production.min.js']},
+  {name:'react-dom.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react-dom.production.min.js','https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js']},
   {name:'firebase-app-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js','https://unpkg.com/firebase@12.17.1/firebase-app-compat.js']},
   {name:'firebase-app-check-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-app-check-compat.js','https://unpkg.com/firebase@12.17.1/firebase-app-check-compat.js']},
   {name:'firebase-auth-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-auth-compat.js','https://unpkg.com/firebase@12.17.1/firebase-auth-compat.js']},
@@ -83,17 +83,35 @@ let html = await readFile('index.html','utf8');
 const localStylePattern=/<link\s+rel="stylesheet"\s+href="\.\/styles\/([^"?]+\.css)(?:\?[^\"]*)?"[^>]*\/>/g;
 const localImportPattern=/@import url\("\.\/styles\/([^\"]+\.css)"\);/g;
 const styleReferencePattern=/(?:<link\s+rel="stylesheet"\s+href="\.\/styles\/([^"?]+\.css)(?:\?[^\"]*)?"[^>]*\/>|@import url\("\.\/styles\/([^\"]+\.css)"\);)/g;
-const styleNames=[...html.matchAll(styleReferencePattern)].map(match=>match[1]||match[2]);
-if(!styleNames.length) throw new Error('No local stylesheet layers found in index.html.');
-if(new Set(styleNames).size!==styleNames.length) throw new Error('Duplicate local stylesheet layer detected in index.html.');
-if(styleNames.at(-1)!=='tailadmin-reliability-bridge-v320.css') throw new Error('v320 TailAdmin reliability bridge must remain the final linked stylesheet in the production cascade.');
-if(!styleNames.includes('tailadmin-finance-v320.css')||!styleNames.includes('tailadmin-overlays-v320.css'))throw new Error('The canonical v320 TailAdmin visual owners are missing from the production cascade.');
+const sourceStyleNames=[...html.matchAll(styleReferencePattern)].map(match=>match[1]||match[2]);
+if(!sourceStyleNames.length) throw new Error('No local stylesheet layers found in index.html.');
+if(new Set(sourceStyleNames).size!==sourceStyleNames.length) throw new Error('Duplicate local stylesheet layer detected in index.html.');
+if(sourceStyleNames.at(-1)!=='tailadmin-reliability-bridge-v320.css') throw new Error('v320 TailAdmin reliability bridge must remain the final linked stylesheet in the production cascade.');
+if(!sourceStyleNames.includes('tailadmin-finance-v320.css')||!sourceStyleNames.includes('tailadmin-overlays-v320.css'))throw new Error('The canonical v320 TailAdmin visual owners are missing from the production cascade.');
+if(!sourceStyleNames.includes('tailadmin-design-closeout-v323.css'))throw new Error('The v323 application density/spacing owner is missing from the production cascade.');
+
+/* v351 single-owner contract.
+   - v331/v332 are deliberately standalone runtime document owners. Keeping them
+     inside app.bundle.css as well made the same rules participate twice.
+   - tailadmin-visual-finish-v320 was an intermediate readability/spacing pass.
+     v323 now owns typography, density, cards and page hierarchy, so bundling the
+     older finish layer only creates a redundant override tier. */
+const standaloneRuntimeStyles=new Set([
+  'v331-draft-scroll-recovery.css',
+  'v332-critical-documents-deep-closeout.css'
+]);
+const retiredVisualLayers=new Set([
+  'tailadmin-visual-finish-v320.css'
+]);
+let styleNames=sourceStyleNames.filter(name=>!standaloneRuntimeStyles.has(name)&&!retiredVisualLayers.has(name));
+if(styleNames.includes('v331-draft-scroll-recovery.css')||styleNames.includes('v332-critical-documents-deep-closeout.css'))throw new Error('Runtime document owners leaked into app.bundle.css.');
+if(styleNames.includes('tailadmin-visual-finish-v320.css'))throw new Error('Retired v320 visual finish layer leaked into app.bundle.css.');
 
 /* v350 palette is an explicit build owner, not a runtime @import. Put it immediately
    before the reliability bridge so local/dev and production resolve the same token
    contract in one CSS file with no late network-delivered recolor. */
 const paletteOwner='v346-template-color-visual-closeout.css';
-if(styleNames.includes(paletteOwner))throw new Error('v350 palette owner must not also be linked/imported by index.html.');
+if(sourceStyleNames.includes(paletteOwner))throw new Error('v350 palette owner must not also be linked/imported by index.html.');
 styleNames.splice(styleNames.length-1,0,paletteOwner);
 
 const styleParts=await Promise.all(styleNames.map(async name=>{
@@ -164,4 +182,4 @@ if([...vendorUrlMap.keys()].some(url=>html.includes(url)))throw new Error('Produ
 if(/https:\/\/cdn\.jsdelivr\.net\/npm\/(?:html2canvas|jspdf|xlsx)@/.test(iosBridge+productImport+supplierImport))throw new Error('Production runtime still references remote PDF/import libraries.');
 if(/preconnect[^>]+(?:cdn\.jsdelivr\.net|www\.gstatic\.com)/.test(html))throw new Error('Production HTML still preconnects to retired runtime CDNs.');
 
-console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; project: ${runtimeConfig.projectId||'local'}; App Check: ${runtimeConfig.firebaseAppCheckEnterpriseKey?'configured':'not configured'}${firebaseAppCheckRequired?' / required':''}; ${styleNames.length} CSS layers -> 1 bundle; ${VENDOR_ASSETS.length} runtime libraries vendored; source maps disabled)`);
+console.log(`LOUREX Invoice production build ready in dist/ (${runtimeConfig.environment}${runtimeConfig.canonicalHost?`, canonical: ${runtimeConfig.canonicalHost}`:''}; source: ${runtimeConfig.sourceRepoOwner}/${runtimeConfig.sourceRepoSlug}; project: ${runtimeConfig.projectId||'local'}; App Check: ${runtimeConfig.firebaseAppCheckEnterpriseKey?'configured':'not configured'}${firebaseAppCheckRequired?' / required':''}; ${styleNames.length} CSS bundle layers + ${standaloneRuntimeStyles.size} standalone document owners; ${VENDOR_ASSETS.length} runtime libraries vendored; source maps disabled)`);
