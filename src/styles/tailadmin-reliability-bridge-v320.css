@@ -105,6 +105,23 @@
   .app-ui .ta-main{overscroll-behavior:contain!important}
 }
 
+/* The fixed mobile navigation clearance is reserved once by the shell. Historical
+   page owners still carry larger fallback paddings, but this final reachability
+   contract removes the second 108–112px dock reservation from actual runtime. */
+@media screen and (max-width:900px){
+  html body .app-ui :where(
+    .ta-finance-dashboard,
+    .ta-documents-page,
+    .ta-doc-detail-page,
+    .ta-customers-page,
+    .ta-customer-profile,
+    .ta-products-workspace,
+    .ta-operations-page,
+    .ta-finance-page,
+    .ta-reports-page
+  ){padding-bottom:24px!important}
+}
+
 @media screen and (max-width:720px){
   .app-recovery{padding:max(16px,env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) max(18px,env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px))!important}
   .app-recovery>section{padding:17px!important}
