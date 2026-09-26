@@ -17,39 +17,19 @@ if(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION){
 }
 
 const marker="LOCAL_CORE.push('./canonical-redirect.js');";
-// Cache retained feature/reliability layers, TailAdmin visual owners, and the
-// final document-scroll/template owners required by Safari/PWA offline startup.
-// CacheStorage matches query strings by default, so these match production URLs.
+/* v351: app.bundle.css is already part of the application core. Do not precache
+   every TailAdmin source stylesheet a second time. Cache only CSS/JS that remains
+   a real standalone runtime owner or a dependency of one. This keeps PWA storage
+   smaller and prevents stale historical TailAdmin files from looking like active
+   production layers during recovery. */
 const visualRuntimes=[
   './attachment-gallery-v304.css?v=304',
   './mobile-layout-closeout-v305.css?v=305',
   './release-hardening-v306.css?v=306',
-  './styles/v309-draft-pin-stability.css?v=309',
-  './styles/tailadmin-finance-v320.css?v=320-3',
-  './styles/tailadmin-shell-v320.css?v=320-3',
-  './styles/tailadmin-dashboard-v320.css?v=320-3',
-  './styles/tailadmin-documents-v320.css?v=320-3',
-  './styles/tailadmin-editor-frame-v320.css?v=320-2',
-  './styles/tailadmin-editor-core-v320.css?v=320-2',
-  './styles/tailadmin-attachments-v320.css?v=320-1',
-  './styles/tailadmin-customers-v320.css?v=320-2',
-  './styles/tailadmin-products-v320.css?v=320-2',
-  './styles/tailadmin-finance-workspaces-v320.css?v=320-2',
-  './styles/tailadmin-operations-v320.css?v=320-2',
-  './styles/tailadmin-settings-v320.css?v=320-2',
-  './styles/tailadmin-auth-v320.css?v=320-2',
-  './styles/tailadmin-cloud-account-v320.css?v=320-2',
-  './styles/tailadmin-ai-v320.css?v=320-2',
-  './styles/tailadmin-overlays-v320.css?v=320-2',
-  './styles/tailadmin-utilities-v320.css?v=320-1',
-  './styles/tailadmin-visual-finish-v320.css?v=320-1',
-  './styles/tailadmin-draft-finish-v320.css?v=320-1',
-  './styles/tailadmin-ai-finish-v320.css?v=320-1',
   './styles/v333-critical-documents-visual-functional-closeout.css?v=333-1',
   './styles/v337-template-layout-balance.css?v=337-3',
   './styles/v331-draft-scroll-recovery.css?v=337-3',
   './styles/v332-critical-documents-deep-closeout.css?v=332-1',
-  './styles/tailadmin-reliability-bridge-v320.css?v=320-2',
   './home-final-closeout-v286.js?v=320',
   './document-entry-v302.js?v=337-3',
   './startup-watchdog-v321.js?v=321'
@@ -75,11 +55,10 @@ for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./s
   if(html.includes(legacyStyle))html=html.replace(legacyStyle,draftScrollRuntime);
 }
 
-/* scripts/build.mjs intentionally collapses the source stylesheet stack into
-   app.bundle.css. v331 must still exist as a standalone production owner because
-   it is runtime-promoted after TailAdmin and because its leading @imports (v333 +
-   v337) are only valid when v331 starts its own stylesheet. Restore that explicit
-   owner after bundling instead of assuming the source <link> survived the build. */
+/* scripts/build.mjs intentionally excludes v331 from app.bundle.css. v331 must
+   remain a standalone production owner because it carries the Safari document
+   scroll contract and its v333/v337 imports must start a stylesheet. Restore the
+   explicit owner after bundling. */
 if(!html.includes(draftScrollRuntime)){
   const bundleTag='<link rel="stylesheet" href="./styles/app.bundle.css" />';
   if(!html.includes(bundleTag))throw new Error('Unable to locate app.bundle.css while restoring the v337 Safari document-scroll owner.');
@@ -87,7 +66,7 @@ if(!html.includes(draftScrollRuntime)){
   html=html.replace(bundleTag,`${bundleTag}\n  ${runtimeTag}`);
 }
 
-if(!html.includes(homeRuntime))throw new Error('Unable to verify the v320 presentation bootstrap in production HTML.');
+if(!html.includes(homeRuntime))throw new Error('Unable to verify the v320 presentation guard in production HTML.');
 if(!html.includes(documentRuntime))throw new Error('Unable to verify the v337 document runtime cache boundary in production HTML.');
 if(!html.includes(draftScrollRuntime))throw new Error('Unable to verify the v337 Safari document-scroll owner in production HTML.');
 if(!html.includes('data-lourex-v331-draft-recovery="true"'))throw new Error('Unable to verify the v337 document-scroll owner marker in production HTML.');
@@ -107,4 +86,4 @@ if(!entry.includes(draftScrollRuntime))throw new Error('Unable to verify the v33
 if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/.test(entry))throw new Error('Stale pre-337-3 document scroll fallback survived production build.');
 await writeFile(entryPath,entry);
 
-console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with v337-3 document scroll/template reliability + v321 startup recovery.`);
+console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with the single bundled app stack plus standalone v337 document owners.`);
