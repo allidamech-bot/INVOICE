@@ -23,6 +23,8 @@ const themeBootstrap='./theme-bootstrap-v347.js?v=351';
 const storageCleanup='./storage-cleanup-v347.js?v=351';
 const presentationGuard='./home-final-closeout-v286.js?v=351';
 const documentEntry='./document-entry-v302.js?v=351';
+const draftPaintUrl='./styles/v333-critical-documents-visual-functional-closeout.css?v=333-1';
+const draftOutputUrl='./styles/v337-template-layout-balance.css?v=337-3';
 const recoveryUrl='./styles/v331-draft-scroll-recovery.css?v=337-3';
 const criticalDocumentsUrl='./styles/v332-critical-documents-deep-closeout.css?v=332-1';
 const recoveryMarker='data-lourex-v331-draft-recovery="true"';
@@ -65,8 +67,22 @@ if(cacheGeneration<351)throw new Error(`v351 production contract: PWA cache gene
 const staleServiceWorkerRuntime=/(?:document-entry-v302\.js\?v=(?:302|311|314|320|337-2|337-3)|v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)|storage-cleanup-v347\.js\?v=347|home-final-closeout-v286\.js\?v=320|startup-watchdog-v321\.js\?v=321)/;
 if(staleServiceWorkerRuntime.test(sw))throw new Error('v351 production contract: stale active runtime URL survived in the service-worker precache.');
 
+/* app.bundle.css owns all ordinary application styles. Only the dependencies
+   imported by standalone v331 plus v331/v332 themselves may remain as explicit
+   stylesheet pushes in the production Service Worker. */
+const allowedStandaloneStylePushes=new Set([draftPaintUrl,draftOutputUrl,recoveryUrl,criticalDocumentsUrl]);
+const activeStandaloneStylePushes=[...sw.matchAll(/LOCAL_CORE\.push\((['"])(\.\/styles\/[^'"\r\n]+\.css(?:\?[^'"\r\n]*)?)\1\);/g)].map(match=>match[2]);
+for(const style of activeStandaloneStylePushes){
+  if(!allowedStandaloneStylePushes.has(style))throw new Error(`v351 production contract: historical stylesheet still precached outside app.bundle.css: ${style}.`);
+}
+for(const style of allowedStandaloneStylePushes){
+  const occurrences=activeStandaloneStylePushes.filter(item=>item===style).length;
+  if(occurrences!==1)throw new Error(`v351 production contract: expected exactly one active standalone stylesheet push for ${style}, found ${occurrences}.`);
+}
+
 for(const requiredAsset of [
-  './styles/v337-template-layout-balance.css?v=337-3',
+  draftPaintUrl,
+  draftOutputUrl,
   recoveryUrl,
   criticalDocumentsUrl,
   startupWatchdog,
@@ -95,4 +111,4 @@ for(const file of [
   if(info.size<250)throw new Error(`v351 production contract: runtime file is unexpectedly small: ${file}.`);
 }
 
-console.log(`LOUREX v351 production runtime contract: PASS (PWA cache v${cacheGeneration}; canonical startup/storage refs; standalone v331/v332 owners; no stale/retired runtime CSS requests).`);
+console.log(`LOUREX v351 production runtime contract: PASS (PWA cache v${cacheGeneration}; canonical startup/storage refs; only four active standalone CSS precache pushes; standalone v331/v332 owners; no stale/retired runtime CSS requests).`);
