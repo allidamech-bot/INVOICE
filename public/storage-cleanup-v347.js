@@ -46,6 +46,15 @@
     });
   }
 
+  function openFreshPublic(){
+    return new Promise((resolve,reject)=>{
+      const request=indexedDB.open(PUBLIC_DB,1);
+      request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains(STORE))request.result.createObjectStore(STORE,{keyPath:'id'});};
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error||new Error('Public database rebuild failed.'));
+    });
+  }
+
   function readRecord(db,id){
     return new Promise((resolve,reject)=>{
       if(!db.objectStoreNames.contains(STORE)){resolve(null);return;}
@@ -70,16 +79,30 @@
     });
   }
 
-  function deletePublicProtectedRecords(db){
+  function putOnlyPublicPreferences(db,preferences){
+    if(!preferences)return Promise.resolve();
     return new Promise((resolve,reject)=>{
-      if(!db.objectStoreNames.contains(STORE)){resolve(false);return;}
       const tx=db.transaction(STORE,'readwrite');
-      const store=tx.objectStore(STORE);
-      for(const id of ['security','vault','session-key','cloud-account','safety-snapshot'])store.delete(id);
-      tx.oncomplete=()=>resolve(true);
-      tx.onerror=()=>reject(tx.error||new Error('IndexedDB cleanup failed.'));
-      tx.onabort=()=>reject(tx.error||new Error('IndexedDB cleanup aborted.'));
+      tx.objectStore(STORE).put(preferences);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error||new Error('Public preferences restore failed.'));
+      tx.onabort=()=>reject(tx.error||new Error('Public preferences restore aborted.'));
     });
+  }
+
+  /* Deleting records from a large Safari IDB file does not guarantee physical
+     space reclamation. When public contains a proven same-account duplicate,
+     rebuild that non-business database and restore only public-preferences. */
+  async function rebuildDuplicatePublic(db){
+    const preferences=await readRecord(db,'public-preferences');
+    db.close();
+    if(!await deleteDatabase(PUBLIC_DB))return false;
+    let fresh=null;
+    try{
+      fresh=await openFreshPublic();
+      await putOnlyPublicPreferences(fresh,preferences);
+      return true;
+    }finally{try{fresh?.close();}catch{}}
   }
 
   function deleteRetiredSafetySnapshot(db){
@@ -158,8 +181,10 @@
           const duplicate=await protectedWorkspace(publicDb);
           const eligible=duplicate&&duplicate.uid===active.uid&&sameOrOlder(duplicate.vault,active.vault);
           const newer=duplicate&&duplicate.uid===active.uid&&!sameOrOlder(duplicate.vault,active.vault);
-          if(eligible)publicState=await deletePublicProtectedRecords(publicDb)?'cleared':'blocked';
-          else if(newer)publicState='kept-newer';
+          if(eligible){
+            const current=publicDb;publicDb=null;
+            publicState=await rebuildDuplicatePublic(current)?'rebuilt':'blocked';
+          }else if(newer)publicState='kept-newer';
         }catch{publicState='blocked';}finally{try{publicDb?.close();}catch{}}
       }
 
