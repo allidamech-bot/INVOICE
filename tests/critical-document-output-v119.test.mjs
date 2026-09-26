@@ -14,11 +14,11 @@ test('canonical document output layer is the single final A4 stylesheet',async()
   assert.match(sw,/const CACHE = 'lourex-invoice-v146'/);
 });
 
-test('v119 keeps terms totals notes and other closing details at the bottom of the A4 body',async()=>{
+test('v119 keeps the commercial close in natural flow without an A4 dead zone',async()=>{
   const css=await read('src/styles/document-output-v119.css');
-  assert.match(css,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]*?margin-top:auto!important/);
+  assert.match(css,/\.invoice-page:not\(\.details-only\) \.final-details\{[\s\S]*?margin-top:0!important[\s\S]*?padding-top:6mm/);
   assert.match(css,/\.invoice-page \.doc-body\{[\s\S]*?display:flex;[\s\S]*?flex-direction:column/);
-  assert.match(css,/@media print\{[\s\S]*?\.final-details[\s\S]*?margin-top:auto!important/);
+  assert.match(css,/@media print\{[\s\S]*?\.final-details[\s\S]*?margin-top:0!important/);
   assert.match(css,/break-inside:avoid!important/);
 });
 
