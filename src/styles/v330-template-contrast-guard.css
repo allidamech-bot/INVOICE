@@ -28,6 +28,7 @@
      total and save state on row one; actions get a real second row so they
      never overlap the horizontal step navigator below. */
   html body .app-ui .screen-editor .editor-topbar{
+    height:auto!important;
     grid-template-columns:minmax(0,1fr) auto auto!important;
     grid-template-rows:auto auto!important;
     gap:8px 9px!important;
