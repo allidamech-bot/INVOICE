@@ -1,81 +1,11 @@
-/* LOUREX v309 — Draft/PIN/mobile stability closeout. */
+/* LOUREX v351 compatibility stub.
+   The v309 nested Draft Studio viewport/scroll generation is retired.
 
-/* Draft Studio must own the mobile viewport. The old generic editor rules let the
-   document body become the scroll owner while a fixed action bar sat above it,
-   which could leave the lower sections unreachable on iPhone Safari. */
-@media (max-width:1180px){
-  .app-ui .draft-studio.editor-screen{
-    width:100%!important;
-    height:100dvh!important;
-    min-height:0!important;
-    max-height:100dvh!important;
-    display:flex!important;
-    flex-direction:column!important;
-    overflow:hidden!important;
-    overscroll-behavior:none!important;
-  }
-  .app-ui .draft-studio-topbar{
-    position:relative!important;
-    top:auto!important;
-    flex:0 0 auto!important;
-  }
-  .app-ui .draft-studio-layout{
-    flex:1 1 auto!important;
-    width:100%!important;
-    height:auto!important;
-    min-height:0!important;
-    max-height:none!important;
-    display:block!important;
-    overflow:hidden!important;
-  }
-  .app-ui .draft-studio-controls{
-    width:100%!important;
-    height:100%!important;
-    min-height:0!important;
-    overflow:hidden!important;
-    border-inline-end:0!important;
-  }
-  .app-ui .draft-studio-scroll{
-    width:100%!important;
-    height:100%!important;
-    min-height:0!important;
-    max-height:none!important;
-    overflow-y:auto!important;
-    overflow-x:hidden!important;
-    padding-bottom:calc(118px + env(safe-area-inset-bottom,0px))!important;
-    scroll-padding-bottom:calc(118px + env(safe-area-inset-bottom,0px))!important;
-    overscroll-behavior-y:contain!important;
-    -webkit-overflow-scrolling:touch!important;
-    touch-action:pan-y!important;
-  }
+   Current ownership:
+   - Draft presentation: tailadmin-draft-finish-v320.css
+   - mobile/iPad Draft scroll + action-bar geometry: standalone
+     v331-draft-scroll-recovery.css
 
-  /* Every field stays inside the section card, including iOS date controls. */
-  .app-ui .draft-studio :is(.form-grid,.field,.field>*,.input,.select,.textarea){
-    min-width:0!important;
-    max-width:100%!important;
-    box-sizing:border-box!important;
-  }
-  .app-ui .draft-studio :is(.input,.select,.textarea){width:100%!important;}
-  .app-ui .draft-studio input[type='date']{
-    display:block!important;
-    inline-size:100%!important;
-    min-inline-size:0!important;
-  }
-
-  /* The global AI launcher covers Draft Studio section headings on phones. Draft
-     Studio already has its own focused writing workflow, so keep the launcher out. */
-  .app-ui:has(.draft-studio) .lourex-ai-launcher{display:none!important;}
-}
-
-@media (max-width:720px){
-  .app-ui .draft-studio-topbar{
-    padding-top:max(8px,env(safe-area-inset-top,0px))!important;
-  }
-  .app-ui .draft-studio-scroll{
-    padding:10px 10px calc(116px + env(safe-area-inset-bottom,0px))!important;
-  }
-  .app-ui .draft-mobile-actionbar{
-    padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;
-  }
-  .app-ui .draft-control-section{scroll-margin-top:10px!important;}
-}
+   v309 previously imposed 100dvh + overflow:hidden + nested .draft-studio-scroll
+   before v331 reversed that geometry. Keeping both caused unnecessary layout
+   re-resolution and Safari scroll instability. This file intentionally adds no CSS. */
