@@ -93,6 +93,24 @@ test('active PWA shell uses network-first for navigation/runtime and cache-first
   assert.match(entry,/waiting\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
 });
 
+test('v351 storage cleanup never deletes by fingerprint or timestamp alone',async()=>{
+  const cleanup=await read('public/storage-cleanup-v347.js');
+  assert.match(cleanup,/function currentAuthenticatedUid\(\)/);
+  assert.match(cleanup,/firebaseApi\.auth\(\)\.currentUser\?\.uid/);
+  assert.match(cleanup,/if\(!authenticatedUid\|\|active\.uid!==authenticatedUid\)[\s\S]*account-identity-unverified[\s\S]*return/);
+  assert.match(cleanup,/function activeWorkspaceVerified\(\)/);
+  assert.match(cleanup,/function sameSecurity\(candidate,active\)/);
+  assert.match(cleanup,/relation==='same'&&sameSecurity\(candidate\.security,active\.security\)/);
+  assert.match(cleanup,/\(relation==='same'\|\|relation==='older'\)&&activeWorkspaceVerified\(\)/);
+  assert.match(cleanup,/deferred-unverified/);
+  assert.match(cleanup,/kept-newer/);
+  assert.match(cleanup,/kept-unknown/);
+  const cleanupBody=cleanup.slice(cleanup.indexOf('async function cleanup()'));
+  assert.ok(cleanupBody.indexOf('recoverStagedPublicPreferences()')<cleanupBody.indexOf('const meta=activeMeta()'));
+  assert.match(cleanup,/if\(!await deleteDatabase\(PUBLIC_DB\)\)\{clearStagedPublicPreferences\(\);return false;\}/);
+  assert.match(cleanup,/catch\{return false;\}[\s\S]*finally\{try\{fresh\?\.close\(\)/);
+});
+
 test('financial CSV export neutralizes spreadsheet formulas while preserving numeric negatives',async()=>{
   const page=await read('src/components/ReportsPage.tsx');
   const csv=page.slice(page.indexOf('function csvCell'),page.indexOf('export class ReportsPage'));
