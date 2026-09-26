@@ -12,6 +12,22 @@ if(!inlineTheme.test(html))throw new Error('v347: production HTML is missing the
 const themeBootstrap='./theme-bootstrap-v347.js?v=351';
 html=html.replace(inlineTheme,`<script src="${themeBootstrap}"></script>`);
 
+/* The parser can paint the static boot surface before any application module runs.
+   Normalize that literal HTML/CSS palette too so there is no one-frame blue/gray
+   generation between navigation and the canonical v351 turquoise application. */
+const legacyLightBoot='html[data-ui-theme="light"]{--boot-bg:#f9fafb;--boot-text:#101828;--boot-track:#e4e7ec;--boot-accent:#465fff}';
+const canonicalLightBoot='html[data-ui-theme="light"]{--boot-bg:#f4f7fb;--boot-text:#102235;--boot-track:#c3d1dc;--boot-accent:#129da1}';
+const legacyDarkBoot='html[data-ui-theme="dark"]{--boot-bg:#0c111d;--boot-text:#f9fafb;--boot-track:#344054;--boot-accent:#7592ff}';
+const canonicalDarkBoot='html[data-ui-theme="dark"]{--boot-bg:#081321;--boot-text:#f7fbff;--boot-track:#354c67;--boot-accent:#4ed4d0}';
+if(!html.includes(legacyLightBoot)||!html.includes(legacyDarkBoot))throw new Error('v351: expected legacy inline boot palette was not found for canonicalization.');
+html=html
+  .replace('<meta name="theme-color" content="#0c111d" />','<meta name="theme-color" content="#081321" />')
+  .replace(legacyLightBoot,canonicalLightBoot)
+  .replace(legacyDarkBoot,canonicalDarkBoot)
+  .replaceAll('var(--boot-bg,#0c111d)','var(--boot-bg,#081321)')
+  .replaceAll('var(--boot-track,#344054)','var(--boot-track,#354c67)')
+  .replaceAll('var(--boot-accent,#7592ff)','var(--boot-accent,#4ed4d0)');
+
 const oldWatchdog='./startup-watchdog-v321.js?v=321';
 const newWatchdog='./startup-watchdog-v321.js?v=347';
 if(!html.includes(oldWatchdog))throw new Error('v347: startup watchdog script reference was not found.');
@@ -93,6 +109,9 @@ const finalSw=await readFile(swPath,'utf8');
 const finalEntry=await readFile(entryPath,'utf8');
 if(finalHtml.includes('<script id="lourex-theme-bootstrap">'))throw new Error('v347: inline theme bootstrap remains in production HTML.');
 if(!finalHtml.includes(themeBootstrap))throw new Error('v351: external theme bootstrap is not wired with the current cache key.');
+if(!finalHtml.includes(canonicalLightBoot)||!finalHtml.includes(canonicalDarkBoot))throw new Error('v351: canonical first-paint boot palette is missing from production HTML.');
+if(finalHtml.includes(legacyLightBoot)||finalHtml.includes(legacyDarkBoot))throw new Error('v351: legacy first-paint boot palette remains in production HTML.');
+if(!finalHtml.includes('<meta name="theme-color" content="#081321" />'))throw new Error('v351: production theme-color meta is not canonical.');
 if(!finalHtml.includes('storage-cleanup-v347.js?v=347'))throw new Error('v347: safe storage cleanup is not wired.');
 if(!finalHtml.includes('mobile-preview-output-v350.js?v=350'))throw new Error('v350: mobile preview output validation bridge is not wired.');
 if(!finalHtml.includes(newWatchdog))throw new Error('v347: cache-busted startup watchdog is not wired.');
@@ -107,4 +126,4 @@ for(const asset of [newWatchdog,themeBootstrap,'./storage-cleanup-v347.js?v=347'
   if(!finalSw.includes(asset))throw new Error(`v351: service worker is missing ${asset}.`);
 }
 
-console.log('LOUREX v351 startup finalization applied: canonical palette-aligned bootstrap/runtime, single loading owner, no automatic stuck-boot reload, safe storage cleanup, mobile Preview output feedback, presentation guard and final PWA precache aligned.');
+console.log('LOUREX v351 startup finalization applied: canonical first-paint/runtime palette, single loading owner, no automatic stuck-boot reload, safe storage cleanup, mobile Preview output feedback, presentation guard and final PWA precache aligned.');
