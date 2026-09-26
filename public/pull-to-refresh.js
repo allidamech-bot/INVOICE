@@ -1,6 +1,12 @@
 (()=>{
-  // v310: ordinary iPhone scrolling must never be interpreted as an app reload.
-  if(!document.documentElement.hasAttribute('data-lourex-enable-pull-refresh'))return;
+  // v351: ordinary Safari/iPhone/iPad scrolling and command-sheet scrolling must
+  // never be interpreted as an app reload. Pull refresh stays explicit opt-in on
+  // supported non-Apple surfaces only.
+  const ua=String(navigator.userAgent||'');
+  const platform=String(navigator.platform||'');
+  const touchPoints=Number(navigator.maxTouchPoints||0);
+  const appleMobile=/iP(?:hone|ad|od)/i.test(ua)||(platform==='MacIntel'&&touchPoints>1);
+  if(appleMobile||!document.documentElement.hasAttribute('data-lourex-enable-pull-refresh'))return;
   const THRESHOLD=76;
   const MAX_PULL=128;
   const RELOAD_DELAY=180;
@@ -34,16 +40,21 @@
   languageObserver.observe(document.documentElement,{attributes:true,attributeFilter:['dir','lang']});
 
   const pageAtTop=()=>window.scrollY<=0&&document.documentElement.scrollTop<=0&&document.body.scrollTop<=0;
-  const blockedTarget=(target)=>target instanceof Element&&Boolean(target.closest('input,textarea,select,[contenteditable="true"],.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.preview-stage,.editor-scroll,.operations-page,.saved-items-page,.product-library-pro.editor-open'));
+  const blockedTarget=(target)=>target instanceof Element&&Boolean(target.closest('input,textarea,select,[contenteditable="true"],.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.preview-stage,.editor-scroll,.operations-page,.saved-items-page,.product-library-pro.editor-open,.ta-mobile-sheet,.ta-create-menu-mobile,.global-search-panel,.ta-doc-mobile-action-portal,.mobile-document-action-portal'));
   const canStart=(target)=>{
     if(refreshing||!pageAtTop())return false;
+    // Re-check opt-in at gesture time too. A runtime stability guard may revoke it
+    // after this file was parsed, and an old cached HTML file must not keep the
+    // gesture alive for the remainder of the page session.
+    if(!document.documentElement.hasAttribute('data-lourex-enable-pull-refresh'))return false;
+    if(Boolean(window.__LOUREX_IOS_WEBKIT__))return false;
     if(!document.querySelector('.app-root .app-ui'))return false;
     if(document.body.classList.contains('printing'))return false;
     if(document.documentElement.hasAttribute('data-lourex-document-editor'))return false;
     // Operations and Product Library contain inline draft editors. Unlike
     // modal-based forms, those drafts do not have a global before-reload
     // confirmation, so native-style pull refresh must never discard them.
-    if(document.querySelector('.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.operations-page,.saved-items-page,.product-library-pro.editor-open'))return false;
+    if(document.querySelector('.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.operations-page,.saved-items-page,.product-library-pro.editor-open,.ta-mobile-sheet,.ta-create-menu-mobile,.global-search-panel,.ta-doc-mobile-action-portal,.mobile-document-action-portal'))return false;
     return !blockedTarget(target);
   };
 
