@@ -1,62 +1,9 @@
-/* v233 — customer identity language purity.
-   Application UI only. Customer data stays bilingual in storage and edit forms,
-   while list/profile identity surfaces show the active UI language. The existing
-   customerDisplayName helper already provides the opposite-language fallback when
-   the active-language name is empty. Printable documents are untouched. */
+/* v351 — customer identity language purity only.
+   Customer data remains bilingual in storage/edit forms; identity surfaces show
+   the active UI language with the existing opposite-language fallback. */
 @media screen {
   .app-ui .customer-secondary-name,
   .app-ui .customer-profile-secondary-name{
     display:none!important;
-  }
-}
-
-/* v242 — mobile Operations tabs must remain inside the Matte Black surface
-   system. A legacy v152 phone override uses #dfe7e9!important, so this late
-   application-only layer explicitly restores the canonical dark workspace.
-   Printable invoice/quotation output is intentionally untouched. */
-@media screen and (max-width:720px) {
-  .app-ui .operations-tabs{
-    border:1px solid var(--ds-line)!important;
-    background:var(--ds-workspace)!important;
-    background-image:none!important;
-    box-shadow:none!important;
-  }
-  .app-ui .operations-tabs button{
-    background:transparent!important;
-    background-image:none!important;
-    color:var(--ds-text-soft)!important;
-    box-shadow:none!important;
-  }
-  .app-ui .operations-tabs button:hover,
-  .app-ui .operations-tabs button:focus-visible{
-    background:var(--ds-surface-strong)!important;
-    color:var(--ds-text)!important;
-  }
-  .app-ui .operations-tabs button.active{
-    background:var(--ds-selected)!important;
-    color:var(--ds-text)!important;
-    box-shadow:inset 0 -2px 0 var(--ds-accent)!important;
-  }
-}
-
-/* Four short section labels fit as one stable row even on a 320px iPhone-sized
-   viewport. Equal tracks prevent the final Inventory tab from starting outside
-   the tab surface while preserving a 44px touch target in both directions. */
-@media screen and (max-width:360px) {
-  .app-ui .operations-tabs{
-    display:grid!important;
-    grid-template-columns:repeat(4,minmax(0,1fr))!important;
-    gap:2px!important;
-    padding:3px!important;
-    overflow:visible!important;
-  }
-  .app-ui .operations-tabs button{
-    width:100%!important;
-    min-width:0!important;
-    min-height:44px!important;
-    padding:5px 2px!important;
-    font-size:10px!important;
-    overflow:hidden!important;
-    text-overflow:ellipsis!important;
   }
 }
