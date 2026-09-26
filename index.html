@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#081321" />
+  <meta name="theme-color" content="#15141b" />
   <meta name="color-scheme" content="dark light" />
   <script src="./theme-bootstrap-v347.js?v=351"></script>
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -16,18 +16,18 @@
   <link rel="icon" href="./brand/lourex-app-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" sizes="180x180" href="./brand/lourex-app-icon-180.png" />
   <style id="lourex-boot-style">
-    html[data-ui-theme="light"]{--boot-bg:#f4f7fb;--boot-text:#102235;--boot-track:#c3d1dc;--boot-accent:#129da1}
-    html[data-ui-theme="dark"]{--boot-bg:#081321;--boot-text:#f7fbff;--boot-track:#354c67;--boot-accent:#4ed4d0}
-    html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:var(--boot-bg,#081321)}
-    html[data-lourex-booting="true"]{overflow:hidden!important;background:var(--boot-bg,#081321)!important}
-    html[data-lourex-booting="true"] body,html[data-lourex-booting="true"] #root{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;margin:0!important;overflow:hidden!important;background:var(--boot-bg,#081321)!important;overscroll-behavior:none!important}
-    #lourex-boot.loading-screen{position:fixed;inset:-2px;z-index:2147483000;min-height:calc(100dvh + 4px);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;box-sizing:border-box;padding:max(32px,env(safe-area-inset-top,0px)) max(32px,env(safe-area-inset-right,0px)) max(32px,env(safe-area-inset-bottom,0px)) max(32px,env(safe-area-inset-left,0px));background:var(--boot-bg,#081321);color:var(--boot-text,#f7fbff);box-shadow:0 0 0 100vmax var(--boot-bg,#081321);font-family:Outfit,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-text-size-adjust:100%;overscroll-behavior:none}
+    html[data-ui-theme="light"]{--boot-bg:#f7f7fb;--boot-text:#17151f;--boot-track:#ded9ea;--boot-accent:#673de6}
+    html[data-ui-theme="dark"]{--boot-bg:#15141b;--boot-text:#fbfaff;--boot-track:#3c3849;--boot-accent:#8f75ff}
+    html,body,#root{min-height:100%;min-height:100dvh;margin:0;background:var(--boot-bg,#15141b)}
+    html[data-lourex-booting="true"]{overflow:hidden!important;background:var(--boot-bg,#15141b)!important}
+    html[data-lourex-booting="true"] body,html[data-lourex-booting="true"] #root{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;margin:0!important;overflow:hidden!important;background:var(--boot-bg,#15141b)!important;overscroll-behavior:none!important}
+    #lourex-boot.loading-screen{position:fixed;inset:-2px;z-index:2147483000;min-height:calc(100dvh + 4px);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;box-sizing:border-box;padding:max(32px,env(safe-area-inset-top,0px)) max(32px,env(safe-area-inset-right,0px)) max(32px,env(safe-area-inset-bottom,0px)) max(32px,env(safe-area-inset-left,0px));background:var(--boot-bg,#15141b);color:var(--boot-text,#fbfaff);box-shadow:0 0 0 100vmax var(--boot-bg,#15141b);font-family:Outfit,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-text-size-adjust:100%;overscroll-behavior:none}
     #lourex-boot .brand{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;animation:lourexLaunchIn .35s ease-out both}
     #lourex-boot .brand-mark{display:grid;place-items:center;width:108px;height:108px;border-radius:24px}
     #lourex-boot .brand-mark img{display:block;width:108px;height:108px;border-radius:24px}
-    #lourex-boot .brand-words strong{color:var(--boot-text,#f7fbff);font-size:20px;letter-spacing:.24em;padding-left:.24em;font-weight:700}
-    #lourex-boot .loading-line{position:relative;z-index:1;width:128px;height:3px;overflow:hidden;border-radius:99px;background:var(--boot-track,#354c67)}
-    #lourex-boot .loading-line:after{content:"";position:absolute;inset:0 auto 0 0;width:46%;border-radius:inherit;background:var(--boot-accent,#4ed4d0);animation:lourexLoading 1.05s ease-in-out infinite}
+    #lourex-boot .brand-words strong{color:var(--boot-text,#fbfaff);font-size:20px;letter-spacing:.24em;padding-left:.24em;font-weight:700}
+    #lourex-boot .loading-line{position:relative;z-index:1;width:128px;height:3px;overflow:hidden;border-radius:99px;background:var(--boot-track,#3c3849)}
+    #lourex-boot .loading-line:after{content:"";position:absolute;inset:0 auto 0 0;width:46%;border-radius:inherit;background:var(--boot-accent,#8f75ff);animation:lourexLoading 1.05s ease-in-out infinite}
     @keyframes lourexLoading{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
     @keyframes lourexLaunchIn{from{opacity:0;transform:translateY(6px) scale(.99)}to{opacity:1;transform:none}}
     @media(max-width:720px){#lourex-boot.loading-screen{padding:max(24px,env(safe-area-inset-top,0px)) max(22px,env(safe-area-inset-right,0px)) max(26px,env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left,0px))}#lourex-boot .brand-mark,#lourex-boot .brand-mark img{width:98px;height:98px;border-radius:22px}#lourex-boot .brand-words strong{font-size:18px}}
@@ -93,6 +93,7 @@
   <link rel="stylesheet" href="./styles/v330-template-contrast-guard.css?v=330-1" data-lourex-v330-template-guard="true" />
   <link rel="stylesheet" href="./styles/v331-draft-scroll-recovery.css?v=337-3" data-lourex-v331-draft-recovery="true" />
   <link rel="stylesheet" href="./styles/v332-critical-documents-deep-closeout.css?v=332-1" data-lourex-v332-critical-documents="true" />
+  <link rel="stylesheet" href="./styles/hostinger-inspired-v353.css?v=353-1" data-lourex-hostinger-v353="true" />
   <link rel="stylesheet" href="./styles/tailadmin-reliability-bridge-v320.css?v=320-2" data-lourex-tailadmin-reliability-v320="true" />
 
   <title>LOUREX Invoice</title>
