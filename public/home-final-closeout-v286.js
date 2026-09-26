@@ -1,15 +1,8 @@
-/* LOUREX presentation bootstrap — v320 TailAdmin Finance full replacement.
-   Legacy visual owners are retired before React mounts. Feature, print and
-   reliability layers remain available underneath; TailAdmin owns the UI. */
+/* LOUREX presentation guard — v351 single-owner visual stack.
+   The stylesheet stack is owned by index.html in source/dev and by app.bundle.css
+   in built output. This runtime may retire stale historical owners, but it must
+   never append, reorder, or duplicate active TailAdmin styles after first paint. */
 (function(){
-  function ensureStylesheet(marker,href){
-    if(document.querySelector('link['+marker+']'))return;
-    var link=document.createElement('link');
-    link.rel='stylesheet';link.href=href;link.setAttribute(marker,'true');document.head.appendChild(link);
-  }
-
-  /* Deliberately conservative: only files whose responsibility is a superseded
-     visual generation are retired here. Mobile/Safari/output/feature CSS stays. */
   var legacyVisualOwners=[
     'app-shell-v161.css','mobile-shell-v71.css','fintech-shell-v280.css',
     'dashboard-documents.css','customers-premium-v170.css','customer-document-flow-v109.css',
@@ -25,71 +18,60 @@
     'visual-coherence-v303.css','loading-more-settings-v307.css','release-audit-v311.css'
   ];
 
+  function isLegacyVisualLink(node){
+    if(!(node instanceof HTMLLinkElement)||node.rel!=='stylesheet')return false;
+    var href=String(node.getAttribute('href')||'');
+    return legacyVisualOwners.some(function(name){return href.indexOf(name)!==-1;});
+  }
+
   function retireLegacyVisualLayers(){
     document.querySelectorAll('link[rel="stylesheet"][href]').forEach(function(link){
-      var href=String(link.getAttribute('href')||'');
-      if(legacyVisualOwners.some(function(name){return href.indexOf(name)!==-1;}))link.remove();
+      if(isLegacyVisualLink(link))link.remove();
     });
   }
 
-  function retireInlineLegacyOwners(){document.querySelectorAll('style[data-lourex-ai-core]').forEach(function(style){style.remove();});}
+  function retireInlineLegacyOwners(){
+    document.querySelectorAll('style[data-lourex-ai-core]').forEach(function(style){style.remove();});
+  }
 
   function normalizeCanvas(){
     var root=document.documentElement;
     var dark=root.dataset.uiTheme==='dark';
-    root.style.backgroundColor=dark?'#0c111d':'#f9fafb';
+    var background=dark?'#0c111d':'#f9fafb';
+    root.style.backgroundColor=background;
     if(!root.dataset.lourexBooting){
       var theme=document.querySelector('meta[name="theme-color"]');
-      if(theme)theme.setAttribute('content',dark?'#0c111d':'#f9fafb');
+      if(theme)theme.setAttribute('content',background);
     }
   }
 
   function watchLegacyReinjection(){
-    retireInlineLegacyOwners();
-    var callback=function(mutations){
+    var observer=new MutationObserver(function(mutations){
       mutations.forEach(function(mutation){
         mutation.addedNodes.forEach(function(node){
           if(!(node instanceof Element))return;
-          if(node.matches('style[data-lourex-ai-core]'))node.remove();
-          if(node.matches('link[rel="stylesheet"][href]')){
-            var href=String(node.getAttribute('href')||'');
-            if(legacyVisualOwners.some(function(name){return href.indexOf(name)!==-1;}))node.remove();
-          }
+          if(node.matches('style[data-lourex-ai-core]')){node.remove();return;}
+          if(isLegacyVisualLink(node)){node.remove();return;}
+          node.querySelectorAll&&node.querySelectorAll('style[data-lourex-ai-core]').forEach(function(style){style.remove();});
+          node.querySelectorAll&&node.querySelectorAll('link[rel="stylesheet"][href]').forEach(function(link){if(isLegacyVisualLink(link))link.remove();});
         });
       });
-    };
-    var observer=new MutationObserver(callback);
-    if(document.head)observer.observe(document.head,{childList:true});
+    });
+    if(document.head)observer.observe(document.head,{childList:true,subtree:true});
     if(document.body)observer.observe(document.body,{childList:true,subtree:true});
   }
 
-  function installTailAdminV320(){
+  /* v351 deliberately does not call ensureStylesheet() and does not move active
+     TailAdmin <link> nodes. In production app.bundle.css already contains the
+     canonical stack; appending those files again caused duplicate cascade layers,
+     extra cache entries and spacing/layout re-resolution after startup. */
+  function installPresentationGuard(){
     retireLegacyVisualLayers();
-    ensureStylesheet('data-lourex-tailadmin-v320','./styles/tailadmin-finance-v320.css?v=320-3');
-    ensureStylesheet('data-lourex-tailadmin-shell-v320','./styles/tailadmin-shell-v320.css?v=320-3');
-    ensureStylesheet('data-lourex-tailadmin-dashboard-v320','./styles/tailadmin-dashboard-v320.css?v=320-3');
-    ensureStylesheet('data-lourex-tailadmin-documents-v320','./styles/tailadmin-documents-v320.css?v=320-3');
-    ensureStylesheet('data-lourex-tailadmin-editor-frame-v320','./styles/tailadmin-editor-frame-v320.css?v=320-2');
-    ensureStylesheet('data-lourex-tailadmin-editor-core-v320','./styles/tailadmin-editor-core-v320.css?v=320-2');
-    ensureStylesheet('data-lourex-tailadmin-attachments-v320','./styles/tailadmin-attachments-v320.css?v=320-1');
-    ensureStylesheet('data-lourex-tailadmin-customers-v320','./styles/tailadmin-customers-v320.css?v=320-2');
-    ensureStylesheet('data-lourex-tailadmin-products-v320','./styles/tailadmin-products-v320.css?v=320-2');
-    ensureStylesheet('data-lourex-tailadmin-finance-workspaces-v320','./styles/tailadmin-finance-workspaces-v320.css?v=320-2');
-    ensureStylesheet('data-lourex-tailadmin-operations-v320','./styles/tailadmin-operations-v320.css?v=320-2');
-    ensureStylesheet('data-lourex-tailadmin-settings-v320','./styles/tailadmin-settings-v320.css?v=320-2');
-    ensureStylesheet('data-lourex-tailadmin-auth-v320','./styles/tailadmin-auth-v320.css?v=320-2');
-    ensureStylesheet('data-lourex-tailadmin-cloud-account-v320','./styles/tailadmin-cloud-account-v320.css?v=320-2');
-    ensureStylesheet('data-lourex-tailadmin-ai-v320','./styles/tailadmin-ai-v320.css?v=320-2');
-    ensureStylesheet('data-lourex-tailadmin-overlays-v320','./styles/tailadmin-overlays-v320.css?v=320-2');
-    ensureStylesheet('data-lourex-tailadmin-utilities-v320','./styles/tailadmin-utilities-v320.css?v=320-1');
-    ensureStylesheet('data-lourex-tailadmin-visual-finish-v320','./styles/tailadmin-visual-finish-v320.css?v=320-1');
-    ensureStylesheet('data-lourex-tailadmin-draft-finish-v320','./styles/tailadmin-draft-finish-v320.css?v=320-1');
-    ensureStylesheet('data-lourex-tailadmin-ai-finish-v320','./styles/tailadmin-ai-finish-v320.css?v=320-1');
-    ensureStylesheet('data-lourex-tailadmin-reliability-v320','./styles/tailadmin-reliability-bridge-v320.css?v=320-2');
+    retireInlineLegacyOwners();
     normalizeCanvas();
+    watchLegacyReinjection();
   }
 
-  installTailAdminV320();
-  watchLegacyReinjection();
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){retireLegacyVisualLayers();normalizeCanvas();},{once:true});
+  installPresentationGuard();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){retireLegacyVisualLayers();retireInlineLegacyOwners();normalizeCanvas();},{once:true});
 })();
