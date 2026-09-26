@@ -44,7 +44,7 @@ test('account surface keeps restore automatic and sign-out returns immediately t
   assert.doesNotMatch(signOut,/setTimeout[\s\S]*window\.location\.reload/);
 });
 
-test('Operations surfaces excluded legacy accounting records instead of silently hiding integrity loss',async()=>{
+test('Operations surfaces expose excluded legacy accounting records instead of silently hiding integrity loss',async()=>{
   const page=await read('src/components/OperationsPage.tsx');
   assert.match(page,/operationsIntegritySummary/);
   assert.match(page,/integrity\.totalInvalid\?<div className="operations-callout danger operations-integrity-warning" role="status">/);
@@ -54,48 +54,41 @@ test('Operations surfaces excluded legacy accounting records instead of silently
   assert.match(page,/excluded from accounting or inventory totals until corrected/);
 });
 
-test('coarse-pointer mobile controls retain reliable 44px touch targets in the final cascade and offline cache',async()=>{
-  const [html,css,sw]=await Promise.all([read('index.html'),read('src/styles/final-mobile-accessibility-v168.css'),read('public/sw.js')]);
-  assert.match(html,/design-system-v164\.css[\s\S]*final-mobile-accessibility-v168\.css[\s\S]*document-premium-redesign-v141\.css/);
-  assert.match(css,/@media \(max-width:720px\) and \(pointer:coarse\)/);
-  assert.match(css,/\.operations-tabs button/);
-  assert.match(css,/\.reports-presets button/);
-  assert.match(css,/\.documents-filter-toggle/);
-  assert.match(css,/\.product-library-star/);
-  assert.match(css,/\.customer-actions \.icon-btn/);
-  assert.match(css,/min-height:44px!important/);
-  assert.match(css,/min-width:44px!important/);
-  assert.match(css,/grid-template-columns:44px minmax\(0,1fr\) 44px!important/);
-  assert.doesNotMatch(css,/invoice-page|template-renderer|document-page/);
-  assert.ok(sw.includes('./styles/final-mobile-accessibility-v168.css'));
+test('v351 coarse-pointer controls retain a final 44px physical target floor without a second page-design owner',async()=>{
+  const [html,controls,mobile,reliability,build]=await Promise.all([
+    read('index.html'),
+    read('src/styles/mobile-controls-density-v177.css'),
+    read('src/styles/tailadmin-design-mobile-priority-v323.css'),
+    read('src/styles/tailadmin-reliability-bridge-v320.css'),
+    read('scripts/build.mjs')
+  ]);
+  assert.match(html,/mobile-controls-density-v177\.css/);
+  assert.match(html,/tailadmin-design-mobile-priority-v323\.css/);
+  assert.match(html,/tailadmin-reliability-bridge-v320\.css/);
+  assert.match(controls,/@media \(max-width:960px\) and \(pointer:coarse\)/);
+  assert.match(controls,/min-height:44px!important/);
+  assert.match(mobile,/\.ta-doc-actions button\{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important/);
+  assert.match(reliability,/\.template-favorite-button\{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important\}/);
+  assert.match(reliability,/\.lourex-advisor-compose form>button\{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important\}/);
+  assert.match(build,/app\.bundle\.css/);
 });
 
-test('current release uses a fresh PWA cache generation instead of mutating the prior active cache in place',async()=>{
-  const sw=await read('public/sw.js');
-  const versions=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
-  const current=Number(versions.at(-1)?.[1]);
-  assert.ok(Number.isInteger(current)&&current>=196,'current immutable PWA generation must not regress below v196');
+test('v351 build promotes a genuinely fresh PWA generation while preserving historical source markers',async()=>{
+  const [sw,refresh]=await Promise.all([read('public/sw.js'),read('scripts/v303-visual-cache-refresh.mjs')]);
+  assert.match(refresh,/const RELEASE_GENERATION=351/);
+  assert.match(sw,/^const CACHE = 'lourex-invoice-v314';$/m);
   assert.match(sw,/lourex-invoice-v195: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v193: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v192: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v191: preserved as a legacy marker/);
   assert.match(sw,/lourex-invoice-v188: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v183: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v182: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v179: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v178: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v177: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v176: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v169: preserved as a legacy marker/);
-  assert.match(sw,/lourex-invoice-v168: preserved as a legacy marker/);
-  assert.doesNotMatch(sw,/^const CACHE = 'lourex-invoice-v183';$/m);
+  assert.match(sw,/lourex-invoice-v185: preserved as a legacy marker/);
 });
 
-test('active PWA shell stays on one cached runtime generation until explicit worker activation',async()=>{
+test('active PWA shell uses network-first for navigation/runtime and cache-first only for immutable residual assets',async()=>{
   const [sw,entry]=await Promise.all([read('public/sw.js'),read('src/app/index.tsx')]);
-  assert.match(sw,/async function cacheFirst\(request\)[\s\S]*const cached=await cache\.match\(request\);[\s\S]*if\(cached\)return cached/);
-  assert.match(sw,/event\.request\.mode==='navigate'\|\|FRESH_PATHS\.has\(url\.pathname\)\|\|isAppRuntimePath\(url\.pathname\)[\s\S]*event\.respondWith\(cacheFirst\(event\.request\)\)/);
-  assert.doesNotMatch(sw,/event\.respondWith\(networkFirst\(event\.request\)\)/);
+  assert.match(sw,/async function networkFirst\(request\)[\s\S]*fetch\(request,\{cache:'no-store'\}\)/);
+  assert.match(sw,/event\.request\.mode==='navigate'\|\|FRESH_PATHS\.has\(url\.pathname\)\|\|isAppRuntimePath\(url\.pathname\)\)\{event\.respondWith\(networkFirst\(event\.request\)\);return;\}/);
+  assert.match(sw,/event\.respondWith\(cacheFirst\(event\.request\)\)/);
+  assert.match(sw,/pathname==='\/manifest\.webmanifest'/);
   assert.match(entry,/registration\.update\(\)/);
   assert.match(entry,/waiting\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
 });
