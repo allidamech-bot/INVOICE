@@ -14,6 +14,13 @@
   function diag(type,detail=''){try{window.__LOUREX_DIAGNOSTICS__?.mark?.(type,detail);}catch{}}
   function fingerprint(value){let hash=2166136261;for(let i=0;i<value.length;i++){hash^=value.charCodeAt(i);hash=Math.imul(hash,16777619);}return (hash>>>0).toString(36);}
   function activeMeta(){try{const value=JSON.parse(localStorage.getItem(ACTIVE_META_KEY)||'null');return value&&typeof value==='object'?value:null;}catch{return null;}}
+  function currentAuthenticatedUid(){
+    try{
+      const firebaseApi=window.firebase;
+      const uid=firebaseApi&&firebaseApi.auth&&firebaseApi.auth().currentUser?.uid;
+      return typeof uid==='string'&&uid.trim()?uid.trim():'';
+    }catch{return '';}
+  }
   function doneKey(fp){return `${DONE_PREFIX}${fp}`;}
   function wasDone(fp){try{return localStorage.getItem(doneKey(fp))==='1';}catch{return false;}}
   function markDone(fp){try{localStorage.setItem(doneKey(fp),'1');}catch{}}
@@ -219,6 +226,17 @@
       let active;
       try{active=await protectedWorkspace(activeDb);}finally{activeDb.close();}
       if(!active)return;
+
+      // The hashed database fingerprint is a discovery hint, not an authorization
+      // boundary. Before any destructive operation, prove that the protected owner
+      // inside the selected account DB is the currently authenticated Firebase UID.
+      // If Firebase is not ready/offline enough to expose currentUser, defer instead
+      // of guessing. This also makes a theoretical 32-bit fingerprint collision safe.
+      const authenticatedUid=currentAuthenticatedUid();
+      if(!authenticatedUid||active.uid!==authenticatedUid){
+        diag('storage-duplicate-cleanup-deferred',`reason=account-identity-unverified auth=${authenticatedUid?'present':'missing'}`);
+        return;
+      }
 
       const snapshotResult=await cleanupActiveRetiredSnapshot(activeName,fp);
       if(snapshotResult.removed||snapshotResult.blocked)diag('storage-retired-snapshot-cleanup',`removed=${snapshotResult.removed} blocked=${snapshotResult.blocked}`);
