@@ -1,6 +1,8 @@
-/* LOUREX v347 — startup is one visual layer only.
- * This file is loaded before the legacy reliability bridge, so selectors are
- * intentionally more specific than historical loading rules. */
+/* LOUREX v351 — startup is one visual layer only.
+ * Production finalization appends this startup-only contract after app.bundle.css;
+ * source first-paint CSS mirrors the same palette before the bundle is available.
+ * Selectors deliberately retire historical pseudo/background loading layers and
+ * never take ownership of normal application page geometry after startup. */
 
 @media screen {
   html[data-ui-theme]:has(body #root > .loading-screen),
