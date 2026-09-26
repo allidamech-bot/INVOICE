@@ -21,8 +21,14 @@
     var mount=document.getElementById('root');
     if(!mount)return;
     var observer;
+    var startupSurface=function(){
+      try{return mount.querySelector(':scope > .loading-screen');}catch(e){return document.getElementById('lourex-boot');}
+    };
     var restore=function(){
-      if(document.getElementById('lourex-boot'))return;
+      // React replaces the static #lourex-boot node during mount. Treat its
+      // direct .loading-screen successor as the same startup owner so the theme
+      // bootstrap cannot release the page background between those two paints.
+      if(startupSurface())return;
       delete root.dataset.lourexBooting;
       root.style.removeProperty('--boot-bg');
       root.style.colorScheme=resolved;
