@@ -344,3 +344,34 @@
     -webkit-overflow-scrolling:touch!important;
   }
 }
+
+/* LOUREX v348 — mobile document action sheet bottom-navigation clearance.
+ * The command sheet is rendered in a body portal while the app's fixed bottom
+ * navigation sits above it. Keep the whole sheet above that navigation instead of
+ * letting the final actions (especially Delete) exist underneath it. The sheet
+ * remains its own WebKit scroll owner when the action list is taller than the
+ * available visual viewport. */
+@media screen and (max-width:900px){
+  html body .ta-doc-mobile-action-portal .ta-doc-mobile-action-sheet{
+    bottom:calc(86px + env(safe-area-inset-bottom,0px))!important;
+    max-height:calc(100svh - 132px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    overscroll-behavior-y:contain!important;
+    -webkit-overflow-scrolling:touch!important;
+    touch-action:pan-y!important;
+    scroll-padding-bottom:18px!important;
+    padding-bottom:max(18px,env(safe-area-inset-bottom,0px))!important;
+  }
+
+  html body .ta-doc-mobile-action-portal .ta-doc-mobile-action-sheet>button:last-child{
+    margin-bottom:2px!important;
+  }
+}
+
+@media screen and (max-width:900px) and (max-height:620px){
+  html body .ta-doc-mobile-action-portal .ta-doc-mobile-action-sheet{
+    bottom:calc(78px + env(safe-area-inset-bottom,0px))!important;
+    max-height:calc(100svh - 104px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+  }
+}
