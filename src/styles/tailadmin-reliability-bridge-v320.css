@@ -66,6 +66,8 @@
      may normalize the same values earlier; this final contract is idempotent. */
   .app-ui .template-favorite-button{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important}
   .app-ui .lourex-advisor-compose form>button{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important}
+  .app-ui :where(.lourex-ai-close,.lourex-ai-starters button,.lourex-ai-proposal-actions button,.lourex-ai-meta button,.lourex-ai-new-conversation){min-height:44px!important}
+  .app-ui .lourex-ai-close{width:44px!important;min-width:44px!important;height:44px!important}
 
   html body .app-ui .modal-backdrop:has(.product-import-shell) .product-import-mobile-actions{
     position:sticky!important;
