@@ -7,7 +7,8 @@
   const STORE='records';
   const ACTIVE_META_KEY='lourex-active-storage-meta-v341';
   const DONE_PREFIX='lourex-storage-dedup-v347:';
-  const SNAPSHOT_DONE_KEY='lourex-retired-snapshot-cleanup-v350';
+  const SNAPSHOT_DONE_PREFIX='lourex-retired-snapshot-cleanup-v351:';
+  const PUBLIC_PREF_BACKUP_KEY='lourex-public-preferences-rebuild-v351';
   let running=false;
 
   function diag(type,detail=''){try{window.__LOUREX_DIAGNOSTICS__?.mark?.(type,detail);}catch{}}
@@ -16,8 +17,9 @@
   function doneKey(fp){return `${DONE_PREFIX}${fp}`;}
   function wasDone(fp){try{return localStorage.getItem(doneKey(fp))==='1';}catch{return false;}}
   function markDone(fp){try{localStorage.setItem(doneKey(fp),'1');}catch{}}
-  function snapshotsDone(){try{return localStorage.getItem(SNAPSHOT_DONE_KEY)==='1';}catch{return false;}}
-  function markSnapshotsDone(){try{localStorage.setItem(SNAPSHOT_DONE_KEY,'1');}catch{}}
+  function snapshotDoneKey(fp){return `${SNAPSHOT_DONE_PREFIX}${fp}`;}
+  function snapshotsDone(fp){try{return localStorage.getItem(snapshotDoneKey(fp))==='1';}catch{return false;}}
+  function markSnapshotsDone(fp){try{localStorage.setItem(snapshotDoneKey(fp),'1');}catch{}}
   function timestamp(value){const parsed=Date.parse(String(value||''));return Number.isFinite(parsed)?parsed:0;}
   function sameEncryptedVault(candidate,active){
     if(!candidate||!active)return false;
@@ -96,19 +98,45 @@
     });
   }
 
+  function stagePublicPreferences(preferences){
+    if(!preferences)return true;
+    try{localStorage.setItem(PUBLIC_PREF_BACKUP_KEY,JSON.stringify(preferences));return true;}catch{return false;}
+  }
+  function stagedPublicPreferences(){
+    try{const value=JSON.parse(localStorage.getItem(PUBLIC_PREF_BACKUP_KEY)||'null');return value&&value.id==='public-preferences'?value:null;}catch{return null;}
+  }
+  function clearStagedPublicPreferences(){try{localStorage.removeItem(PUBLIC_PREF_BACKUP_KEY);}catch{}}
+  async function recoverStagedPublicPreferences(){
+    const preferences=stagedPublicPreferences();
+    if(!preferences)return 'none';
+    let db=null;
+    try{
+      db=await openFreshPublic();
+      await putOnlyPublicPreferences(db,preferences);
+      clearStagedPublicPreferences();
+      return 'restored';
+    }catch{return 'blocked';}
+    finally{try{db?.close();}catch{}}
+  }
+
   /* Deleting records from a large Safari IDB file does not guarantee physical
      space reclamation. When public contains a proven same-account duplicate,
-     rebuild that non-business database and restore only public-preferences. */
+     rebuild that non-business database and restore only public-preferences. The
+     preference record is staged outside IDB first so an interrupted rebuild can
+     restore it on the next cleanup pass. */
   async function rebuildDuplicatePublic(db){
     const preferences=await readRecord(db,'public-preferences');
+    if(!stagePublicPreferences(preferences)){db.close();return false;}
     db.close();
-    if(!await deleteDatabase(PUBLIC_DB))return false;
+    if(!await deleteDatabase(PUBLIC_DB)){clearStagedPublicPreferences();return false;}
     let fresh=null;
     try{
       fresh=await openFreshPublic();
       await putOnlyPublicPreferences(fresh,preferences);
+      clearStagedPublicPreferences();
       return true;
-    }finally{try{fresh?.close();}catch{}}
+    }catch{return false;}
+    finally{try{fresh?.close();}catch{}}
   }
 
   function deleteRetiredSafetySnapshot(db){
@@ -129,21 +157,16 @@
     });
   }
 
-  async function cleanupRetiredSnapshots(names){
-    if(snapshotsDone())return {removed:0,blocked:0};
-    let removed=0,blocked=0;
-    const accountNames=names.filter(name=>name.startsWith(ACCOUNT_PREFIX));
-    for(const name of accountNames){
-      let db=null;
-      try{
-        db=await openExisting(name);
-        const result=await deleteRetiredSafetySnapshot(db);
-        if(result==='removed')removed+=1;
-      }catch{blocked+=1;}
-      finally{try{db?.close();}catch{}}
-    }
-    if(!blocked)markSnapshotsDone();
-    return {removed,blocked};
+  async function cleanupActiveRetiredSnapshot(activeName,fp){
+    if(snapshotsDone(fp))return {removed:0,blocked:0};
+    let db=null;
+    try{
+      db=await openExisting(activeName);
+      const result=await deleteRetiredSafetySnapshot(db);
+      markSnapshotsDone(fp);
+      return {removed:result==='removed'?1:0,blocked:0};
+    }catch{return {removed:0,blocked:1};}
+    finally{try{db?.close();}catch{}}
   }
 
   async function cleanup(){
@@ -155,9 +178,11 @@
       const fp=String(meta.fingerprint);
       const names=await databaseNames();
       if(!names.length)return;
-      const snapshotResult=await cleanupRetiredSnapshots(names);
-      if(snapshotResult.removed||snapshotResult.blocked)diag('storage-retired-snapshot-cleanup',`removed=${snapshotResult.removed} blocked=${snapshotResult.blocked}`);
-      if(wasDone(fp))return;
+
+      const stagedResult=await recoverStagedPublicPreferences();
+      if(stagedResult!=='none')diag('storage-public-preferences-recovery',`result=${stagedResult}`);
+      if(stagedResult==='blocked')return;
+
       const activeName=names.find(name=>name.startsWith(ACCOUNT_PREFIX)&&fingerprint(name)===fp);
       if(!activeName)return;
 
@@ -165,6 +190,10 @@
       let active;
       try{active=await protectedWorkspace(activeDb);}finally{activeDb.close();}
       if(!active)return;
+
+      const snapshotResult=await cleanupActiveRetiredSnapshot(activeName,fp);
+      if(snapshotResult.removed||snapshotResult.blocked)diag('storage-retired-snapshot-cleanup',`removed=${snapshotResult.removed} blocked=${snapshotResult.blocked}`);
+      if(wasDone(fp))return;
 
       let legacyState='none',publicState='none';
       if(names.includes(LEGACY_DB)){
