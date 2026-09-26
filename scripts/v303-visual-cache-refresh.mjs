@@ -85,12 +85,21 @@ if((html.match(/data-lourex-v332-critical-documents="true"/g)||[]).length!==1)th
 if(html.indexOf(draftScrollRuntime)<=html.indexOf(bundleTag)||html.indexOf(criticalDocumentsRuntime)<=html.indexOf(draftScrollRuntime))throw new Error('Standalone document owners are not ordered app.bundle.css -> v331 -> v332.');
 await writeFile(htmlPath,html);
 
-/* Normalize only the historical v331 fallback URLs inside document-entry. */
+/* Normalize only the historical v331 fallback URLs inside document-entry and
+   retire empty v304-v306 stylesheet requests. Those files remain as compatibility
+   paths for stale caches, but no current production runtime should fetch them. */
 const entryPath='dist/document-entry-v302.js';
 let entry=await readFile(entryPath,'utf8');
 for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2'])entry=entry.replaceAll(legacyStyle,draftScrollRuntime);
+const retiredRuntimeStyleCalls=[
+  "ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');",
+  "ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');",
+  "ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');"
+];
+for(const call of retiredRuntimeStyleCalls)entry=entry.replaceAll(call,'');
 if(!entry.includes(draftScrollRuntime))throw new Error('Unable to verify the v337 scroll-owner fallback inside production document-entry runtime.');
 if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/.test(entry))throw new Error('Stale pre-337-3 document scroll fallback survived production build.');
+for(const retired of ['attachment-gallery-v304.css','mobile-layout-closeout-v305.css','release-hardening-v306.css'])if(entry.includes(retired))throw new Error(`Retired empty runtime stylesheet request survived production build: ${retired}`);
 await writeFile(entryPath,entry);
 
-console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with canonical v351 runtime refs and standalone v331/v332 document owners.`);
+console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with canonical v351 runtime refs, no retired empty CSS requests and standalone v331/v332 document owners.`);
