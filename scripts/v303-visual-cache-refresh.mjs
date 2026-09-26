@@ -3,10 +3,10 @@ import { readFile, writeFile } from 'node:fs/promises';
 const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
 
-/* v337 is the Safari/iPad document-scroll + printable-template reliability
-   boundary. Force a genuinely new application cache so an installed PWA cannot
-   retain the pre-fix v331 stylesheet or an older document-entry runtime. */
-const RELEASE_GENERATION=337;
+/* v351 changes the canonical visual stack, first-paint palette and PWA launch
+   assets. Force a genuinely new application cache so an installed PWA cannot
+   retain pre-v351 HTML, manifest, palette or runtime references. */
+const RELEASE_GENERATION=351;
 const activeCacheMatch=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
 const activeCacheGeneration=activeCacheMatch?Number(activeCacheMatch[1]):0;
 if(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION){
@@ -17,42 +17,28 @@ if(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION){
 }
 
 const marker="LOCAL_CORE.push('./canonical-redirect.js');";
-// Cache retained feature/reliability layers, TailAdmin visual owners, and the
-// final document-scroll/template owners required by Safari/PWA offline startup.
-// CacheStorage matches query strings by default, so these match production URLs.
+const themeBootstrap='./theme-bootstrap-v347.js?v=351';
+const storageCleanup='./storage-cleanup-v347.js?v=351';
+const mobilePreviewOutput='./mobile-preview-output-v350.js?v=350';
+const homeRuntime='./home-final-closeout-v286.js?v=351';
+const documentRuntime='./document-entry-v302.js?v=351';
+const startupWatchdog='./startup-watchdog-v321.js?v=347';
+const draftScrollRuntime='./styles/v331-draft-scroll-recovery.css?v=337-3';
+const criticalDocumentsRuntime='./styles/v332-critical-documents-deep-closeout.css?v=332-1';
+
+/* app.bundle.css owns the application stack. Cache only standalone runtime
+   owners/dependencies here; v304-v306 are compatibility stubs and stay omitted. */
 const visualRuntimes=[
-  './attachment-gallery-v304.css?v=304',
-  './mobile-layout-closeout-v305.css?v=305',
-  './release-hardening-v306.css?v=306',
-  './styles/v309-draft-pin-stability.css?v=309',
-  './styles/tailadmin-finance-v320.css?v=320-3',
-  './styles/tailadmin-shell-v320.css?v=320-3',
-  './styles/tailadmin-dashboard-v320.css?v=320-3',
-  './styles/tailadmin-documents-v320.css?v=320-3',
-  './styles/tailadmin-editor-frame-v320.css?v=320-2',
-  './styles/tailadmin-editor-core-v320.css?v=320-2',
-  './styles/tailadmin-attachments-v320.css?v=320-1',
-  './styles/tailadmin-customers-v320.css?v=320-2',
-  './styles/tailadmin-products-v320.css?v=320-2',
-  './styles/tailadmin-finance-workspaces-v320.css?v=320-2',
-  './styles/tailadmin-operations-v320.css?v=320-2',
-  './styles/tailadmin-settings-v320.css?v=320-2',
-  './styles/tailadmin-auth-v320.css?v=320-2',
-  './styles/tailadmin-cloud-account-v320.css?v=320-2',
-  './styles/tailadmin-ai-v320.css?v=320-2',
-  './styles/tailadmin-overlays-v320.css?v=320-2',
-  './styles/tailadmin-utilities-v320.css?v=320-1',
-  './styles/tailadmin-visual-finish-v320.css?v=320-1',
-  './styles/tailadmin-draft-finish-v320.css?v=320-1',
-  './styles/tailadmin-ai-finish-v320.css?v=320-1',
   './styles/v333-critical-documents-visual-functional-closeout.css?v=333-1',
   './styles/v337-template-layout-balance.css?v=337-3',
-  './styles/v331-draft-scroll-recovery.css?v=337-3',
-  './styles/v332-critical-documents-deep-closeout.css?v=332-1',
-  './styles/tailadmin-reliability-bridge-v320.css?v=320-2',
-  './home-final-closeout-v286.js?v=320',
-  './document-entry-v302.js?v=337-3',
-  './startup-watchdog-v321.js?v=321'
+  draftScrollRuntime,
+  criticalDocumentsRuntime,
+  themeBootstrap,
+  storageCleanup,
+  mobilePreviewOutput,
+  homeRuntime,
+  documentRuntime,
+  startupWatchdog
 ];
 for(const visualRuntime of visualRuntimes){
   if(sw.includes(`'${visualRuntime}'`)||sw.includes(`"${visualRuntime}"`))continue;
@@ -63,48 +49,57 @@ await writeFile(swPath,sw);
 
 const htmlPath='dist/index.html';
 let html=await readFile(htmlPath,'utf8');
-const homeRuntime='./home-final-closeout-v286.js?v=320';
-const documentRuntime='./document-entry-v302.js?v=337-3';
-const draftScrollRuntime='./styles/v331-draft-scroll-recovery.css?v=337-3';
-const startupWatchdog='./startup-watchdog-v321.js?v=321';
-for(const legacyRuntime of ['./home-final-closeout-v286.js?v=314','./document-entry-v302.js?v=302','./document-entry-v302.js?v=311','./document-entry-v302.js?v=314','./document-entry-v302.js?v=320','./document-entry-v302.js?v=337-2']){
-  if(!html.includes(legacyRuntime))continue;
-  html=html.replace(legacyRuntime,legacyRuntime.includes('home-final')?homeRuntime:documentRuntime);
-}
-for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2']){
-  if(html.includes(legacyStyle))html=html.replace(legacyStyle,draftScrollRuntime);
+for(const [legacy,current] of [
+  ['./home-final-closeout-v286.js?v=314',homeRuntime],
+  ['./home-final-closeout-v286.js?v=320',homeRuntime],
+  ['./document-entry-v302.js?v=302',documentRuntime],
+  ['./document-entry-v302.js?v=311',documentRuntime],
+  ['./document-entry-v302.js?v=314',documentRuntime],
+  ['./document-entry-v302.js?v=320',documentRuntime],
+  ['./document-entry-v302.js?v=337-2',documentRuntime],
+  ['./document-entry-v302.js?v=337-3',documentRuntime],
+  ['./startup-watchdog-v321.js?v=321',startupWatchdog],
+  ['./storage-cleanup-v347.js?v=347',storageCleanup]
+])html=html.replaceAll(legacy,current);
+for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2'])html=html.replaceAll(legacyStyle,draftScrollRuntime);
+
+/* scripts/build.mjs intentionally excludes v331 and v332 from app.bundle.css.
+   They are both standalone document owners and must be restored exactly once
+   after the consolidated bundle. v331 carries the Safari scroll/import chain;
+   v332 carries critical-document-specific screen/output closeout rules. */
+const bundleTag='<link rel="stylesheet" href="./styles/app.bundle.css" />';
+if(!html.includes(bundleTag))throw new Error('Unable to locate app.bundle.css while restoring standalone document owners.');
+if(!html.includes(draftScrollRuntime)||!html.includes(criticalDocumentsRuntime)){
+  html=html.replace(/\s*<link\b[^>]*href=["']\.\/styles\/v331-draft-scroll-recovery\.css\?v=337-3["'][^>]*\/>/g,'');
+  html=html.replace(/\s*<link\b[^>]*href=["']\.\/styles\/v332-critical-documents-deep-closeout\.css\?v=332-1["'][^>]*\/>/g,'');
+  const draftTag=`<link rel="stylesheet" href="${draftScrollRuntime}" data-lourex-v331-draft-recovery="true" />`;
+  const criticalTag=`<link rel="stylesheet" href="${criticalDocumentsRuntime}" data-lourex-v332-critical-documents="true" />`;
+  html=html.replace(bundleTag,`${bundleTag}\n  ${draftTag}\n  ${criticalTag}`);
 }
 
-/* scripts/build.mjs intentionally collapses the source stylesheet stack into
-   app.bundle.css. v331 must still exist as a standalone production owner because
-   it is runtime-promoted after TailAdmin and because its leading @imports (v333 +
-   v337) are only valid when v331 starts its own stylesheet. Restore that explicit
-   owner after bundling instead of assuming the source <link> survived the build. */
-if(!html.includes(draftScrollRuntime)){
-  const bundleTag='<link rel="stylesheet" href="./styles/app.bundle.css" />';
-  if(!html.includes(bundleTag))throw new Error('Unable to locate app.bundle.css while restoring the v337 Safari document-scroll owner.');
-  const runtimeTag=`<link rel="stylesheet" href="${draftScrollRuntime}" data-lourex-v331-draft-recovery="true" />`;
-  html=html.replace(bundleTag,`${bundleTag}\n  ${runtimeTag}`);
+for(const asset of [themeBootstrap,storageCleanup,mobilePreviewOutput,homeRuntime,documentRuntime,startupWatchdog,draftScrollRuntime,criticalDocumentsRuntime]){
+  if(!html.includes(asset))throw new Error(`Unable to verify ${asset} in production HTML.`);
 }
-
-if(!html.includes(homeRuntime))throw new Error('Unable to verify the v320 presentation bootstrap in production HTML.');
-if(!html.includes(documentRuntime))throw new Error('Unable to verify the v337 document runtime cache boundary in production HTML.');
-if(!html.includes(draftScrollRuntime))throw new Error('Unable to verify the v337 Safari document-scroll owner in production HTML.');
-if(!html.includes('data-lourex-v331-draft-recovery="true"'))throw new Error('Unable to verify the v337 document-scroll owner marker in production HTML.');
-if(!html.includes(startupWatchdog))throw new Error('Unable to verify the v321 startup watchdog in production HTML.');
+if((html.match(/data-lourex-v331-draft-recovery="true"/g)||[]).length!==1)throw new Error('Expected exactly one v331 standalone document-scroll owner marker.');
+if((html.match(/data-lourex-v332-critical-documents="true"/g)||[]).length!==1)throw new Error('Expected exactly one v332 standalone critical-document owner marker.');
+if(html.indexOf(draftScrollRuntime)<=html.indexOf(bundleTag)||html.indexOf(criticalDocumentsRuntime)<=html.indexOf(draftScrollRuntime))throw new Error('Standalone document owners are not ordered app.bundle.css -> v331 -> v332.');
 await writeFile(htmlPath,html);
 
-/* document-entry-v302.js already requests the current v337-3 owner in source.
-   Keep this production migration guard anyway: older copied/build-cache variants
-   must be normalized before release so no unusual Safari/PWA startup path can
-   reintroduce a stale 331-1/336-1/337-2 stylesheet URL. */
+/* Normalize only the historical v331 fallback URLs inside document-entry and
+   retire empty v304-v306 stylesheet requests. Those files remain as compatibility
+   paths for stale caches, but no current production runtime should fetch them. */
 const entryPath='dist/document-entry-v302.js';
 let entry=await readFile(entryPath,'utf8');
-for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2']){
-  entry=entry.replaceAll(legacyStyle,draftScrollRuntime);
-}
+for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2'])entry=entry.replaceAll(legacyStyle,draftScrollRuntime);
+const retiredRuntimeStyleCalls=[
+  "ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');",
+  "ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');",
+  "ensureStylesheet(releaseHardeningStyleMarker,'./release-hardening-v306.css?v=306');"
+];
+for(const call of retiredRuntimeStyleCalls)entry=entry.replaceAll(call,'');
 if(!entry.includes(draftScrollRuntime))throw new Error('Unable to verify the v337 scroll-owner fallback inside production document-entry runtime.');
 if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/.test(entry))throw new Error('Stale pre-337-3 document scroll fallback survived production build.');
+for(const retired of ['attachment-gallery-v304.css','mobile-layout-closeout-v305.css','release-hardening-v306.css'])if(entry.includes(retired))throw new Error(`Retired empty runtime stylesheet request survived production build: ${retired}`);
 await writeFile(entryPath,entry);
 
-console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with v337-3 document scroll/template reliability + v321 startup recovery.`);
+console.log(`[LOUREX PWA] cache generation v${Math.max(activeCacheGeneration,RELEASE_GENERATION)} ready with canonical v351 runtime refs, no retired empty CSS requests and standalone v331/v332 document owners.`);

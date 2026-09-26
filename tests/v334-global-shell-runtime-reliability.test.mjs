@@ -4,10 +4,10 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('v334 runtime guard loads before document entry/app runtime and blocks unsafe update buttons in capture phase',async()=>{
+test('v351 runtime guard loads before document entry/app runtime and blocks unsafe update buttons in capture phase',async()=>{
   const [html,guard]=await Promise.all([read('index.html'),read('public/runtime-safety-v334.js')]);
-  const runtime=html.indexOf('runtime-safety-v334.js?v=334');
-  const entry=html.indexOf('document-entry-v302.js?v=337-3');
+  const runtime=html.indexOf('runtime-safety-v334.js?v=344');
+  const entry=html.indexOf('document-entry-v302.js?v=351');
   const app=html.indexOf('<script type="module" src="./src/app/index.js"></script>');
   assert.ok(runtime>0&&runtime<entry&&entry<app);
   assert.match(guard,/manualInventoryDraftOpen\(\)/);
@@ -23,18 +23,26 @@ test('v334 global runtime guard is read-only with respect to business state',asy
   assert.doesNotMatch(guard,/\.value\s*=|setAttribute\(['"]data-lourex-workspace-dirty/i);
 });
 
-test('startup watchdog can only recover while the boot shell is still the only UI',async()=>{
+test('v351 startup watchdog never reloads automatically and only exposes explicit recovery while boot is alone',async()=>{
   const watchdog=await read('public/startup-watchdog-v321.js');
-  assert.match(watchdog,/function bootStillVisible\(\)[\s\S]*getElementById\('lourex-boot'\)[\s\S]*!document\.querySelector\('\.app-ui,\.auth-page,\.app-recovery-screen'\)/);
-  assert.match(watchdog,/if\(!bootStillVisible\(\)\)\{clearAttempt\(\);return;\}/);
+  assert.match(watchdog,/function startupSurface\(\)/);
+  assert.match(watchdog,/function bootStillVisible\(\)[\s\S]*startupSurface\(\)[\s\S]*!document\.querySelector\('\.app-ui,\.auth-page,\.ta-auth-page,\.app-recovery,\.app-recovery-screen'\)/);
+  assert.match(watchdog,/function recoverIfNeeded\(\)[\s\S]*automaticReload=no[\s\S]*showRecovery\(\)/);
+  assert.match(watchdog,/startup-recovery-user-retry/);
+  assert.doesNotMatch(watchdog,/setTimeout\([^\n]*location\.(?:reload|replace)/);
 });
 
-test('pull-to-refresh is opt-in and cannot start in business editors or Operations',async()=>{
+test('v351 pull-to-refresh cannot start on Apple, editors, Operations or mobile command sheets',async()=>{
   const pull=await read('public/pull-to-refresh.js');
-  assert.match(pull,/if\(!document\.documentElement\.hasAttribute\('data-lourex-enable-pull-refresh'\)\)return/);
+  assert.match(pull,/platform==='MacIntel'&&touchPoints>1/);
+  assert.match(pull,/if\(appleMobile\|\|!document\.documentElement\.hasAttribute\('data-lourex-enable-pull-refresh'\)\)return/);
   assert.match(pull,/data-lourex-document-editor/);
   assert.match(pull,/\.operations-page/);
   assert.match(pull,/\.product-library-pro\.editor-open/);
+  assert.match(pull,/\.ta-mobile-sheet/);
+  assert.match(pull,/\.ta-create-menu-mobile/);
+  assert.match(pull,/\.global-search-panel/);
+  assert.match(pull,/\.ta-doc-mobile-action-portal/);
 });
 
 test('PIN session is account-bound and never persists a raw PIN',async()=>{
@@ -98,11 +106,17 @@ test('PWA update/controller reload remains user-requested and editor-safe',async
   assert.match(index,/waiting\.postMessage\(\{type:'SKIP_WAITING'\}\)/);
 });
 
-test('account recovery reload is one-shot and only allowed when no local encrypted vault exists',async()=>{
+test('account recovery never overwrites a local vault and reloads only from the explicit Open account action',async()=>{
   const source=await read('src/app/AuthScreenSelector.tsx');
-  assert.match(source,/if\(localVault\)\{setRecoveryState\('blocked'\);return;\}/);
+  assert.match(source,/if\(localVault\)\{diag\('auth-recovery-stage','stage=blocked-local-vault'\);setRecoveryState\('blocked'\);return;\}/);
   assert.match(source,/cloudInstallAlreadyReloaded\(cloudUser\.uid\)/);
-  assert.match(source,/markCloudInstallReload\(cloudUser\.uid\);window\.location\.reload\(\)/);
+  assert.match(source,/if\(installed\)[\s\S]*setRecoveryState\('ready'\)[\s\S]*return/);
+  const openAction=source.slice(source.indexOf("if(recoveryState==='ready')"),source.indexOf('return <SetupScreen'));
+  assert.match(openAction,/markCloudInstallReload\(cloudUser\.uid\)/);
+  assert.match(openAction,/markReload\('auth-cloud-install-user-open'\)/);
+  assert.match(openAction,/window\.location\.reload\(\)/);
+  const recoveryEffect=source.slice(source.indexOf('React.useEffect'),source.indexOf('if (!cloudUser)'));
+  assert.doesNotMatch(recoveryEffect,/window\.location\.(?:reload|replace)/);
 });
 
 test('Operations owns a real dirty marker for supplier, purchase, expense and movement drafts',async()=>{

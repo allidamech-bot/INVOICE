@@ -1,20 +1,20 @@
-/* LOUREX v350 — reliability bridge only.
+/* LOUREX v351 — reliability bridge only.
    Runtime/recovery geometry and UI safety contracts live here.
    Startup paint is owned exclusively by v347-startup-single-layer.css.
    Application palette is owned by v346-template-color-visual-closeout.css. */
 :root{
-  --v303-canvas:var(--ft-workspace,#f9fafb);
+  --v303-canvas:var(--ft-workspace,#f4f7fb);
   --v303-surface:var(--ft-surface,#fff);
-  --v303-surface-2:var(--ft-surface-2,#f9fafb);
-  --v303-surface-3:var(--ft-surface-3,#f2f4f7);
-  --v303-text:var(--ft-text,#344054);
-  --v303-strong:var(--ft-text-strong,#101828);
-  --v303-muted:var(--ft-muted,#667085);
-  --v303-line:var(--ft-line,#eaecf0);
-  --v303-line-strong:var(--ft-line-strong,#d0d5dd);
-  --v303-accent:var(--ft-accent,#465fff);
-  --v303-accent-strong:var(--ta-brand-600,#3641f5);
-  --v303-danger:var(--ft-danger,#d92d20);
+  --v303-surface-2:var(--ft-surface-2,#eef4f7);
+  --v303-surface-3:var(--ft-surface-3,#e5edf2);
+  --v303-text:var(--ft-text,#33475b);
+  --v303-strong:var(--ft-text-strong,#102235);
+  --v303-muted:var(--ft-muted,#73869a);
+  --v303-line:var(--ft-line,#d8e3eb);
+  --v303-line-strong:var(--ft-line-strong,#c3d1dc);
+  --v303-accent:var(--ft-accent,#129da1);
+  --v303-accent-strong:var(--ta-brand-600,#0d858a);
+  --v303-danger:var(--ft-danger,#c33d3d);
   --lourex-z-shell:60;
   --lourex-z-nav:120;
   --lourex-z-backdrop:1100;
@@ -29,25 +29,25 @@
 }
 
 @media screen {
-  .app-recovery{min-height:100dvh!important;display:grid!important;place-items:center!important;padding:24px!important;background:var(--ft-workspace,#f9fafb)!important;color:var(--ft-text,#344054)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important}
-  .app-recovery>section{width:min(560px,100%)!important;padding:22px!important;border:1px solid var(--ft-line,#eaecf0)!important;border-radius:14px!important;background:var(--ft-surface,#fff)!important;color:var(--ft-text)!important;box-shadow:var(--ta-shadow-lg,0 18px 44px rgba(16,24,40,.14))!important}
-  .app-recovery :where(h1,h2,h3,strong){color:var(--ft-text-strong,#101828)!important}
-  .app-recovery :where(p,small,summary){color:var(--ft-muted,#667085)!important}
-  .app-recovery button{min-height:40px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface)!important;color:var(--ft-text-soft)!important;font-weight:600!important}
-  .app-recovery button:first-of-type{background:var(--ft-accent,#465fff)!important;border-color:var(--ft-accent,#465fff)!important;color:#fff!important}
+  .app-recovery{min-height:100dvh!important;display:grid!important;place-items:center!important;padding:24px!important;background:var(--ft-workspace,#f4f7fb)!important;color:var(--ft-text,#33475b)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important}
+  .app-recovery>section{width:min(560px,100%)!important;padding:22px!important;border:1px solid var(--ft-line,#d8e3eb)!important;border-radius:14px!important;background:var(--ft-surface,#fff)!important;color:var(--ft-text)!important;box-shadow:var(--ta-shadow-lg,0 18px 44px rgba(16,24,40,.14))!important}
+  .app-recovery :where(h1,h2,h3,strong){color:var(--ft-text-strong,#102235)!important}
+  .app-recovery :where(p,small,summary){color:var(--ft-muted,#73869a)!important}
+  .app-recovery button{min-height:44px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface)!important;color:var(--ft-text-soft)!important;font-weight:600!important}
+  .app-recovery button:first-of-type{background:var(--ft-accent,#129da1)!important;border-color:var(--ft-accent,#129da1)!important;color:#fff!important}
   .app-recovery details{margin-top:12px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface-2)!important}
   .app-recovery pre{max-height:220px!important;overflow:auto!important;padding:10px!important;border-radius:7px!important;background:var(--ft-workspace)!important;color:var(--ft-text-soft)!important;font-size:10px!important}
 
   html body .pwa-update-toast,html body [data-lourex-cloud-refresh],html body [data-lourex-update]{border:1px solid var(--ft-line)!important;border-radius:10px!important;background:var(--ft-surface)!important;color:var(--ft-text)!important;box-shadow:var(--ta-shadow-lg)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important}
   .pwa-update-toast :is(strong,small),[data-lourex-cloud-refresh] :is(strong,small),[data-lourex-update] :is(strong,small){color:inherit!important;opacity:1!important}
-  .pwa-update-toast button,[data-lourex-cloud-refresh] button,[data-lourex-update] button{min-height:38px!important;border:1px solid var(--ft-accent)!important;border-radius:7px!important;background:var(--ft-accent)!important;color:#fff!important;font-weight:600!important}
+  .pwa-update-toast button,[data-lourex-cloud-refresh] button,[data-lourex-update] button{min-height:44px!important;border:1px solid var(--ft-accent)!important;border-radius:7px!important;background:var(--ft-accent)!important;color:#fff!important;font-weight:600!important}
 
   html body .lourex-ios-output-fallback{background:rgba(16,24,40,.58)!important;backdrop-filter:blur(6px)!important}
   .lourex-ios-output-card{border:1px solid var(--ft-line)!important;border-radius:14px!important;background:var(--ft-surface)!important;color:var(--ft-text)!important;box-shadow:0 24px 60px rgba(16,24,40,.24)!important;font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important}
   .lourex-ios-output-card :is(strong,span){color:var(--ft-text-strong)!important}
   .lourex-ios-output-spinner{border-color:color-mix(in srgb,var(--ft-accent) 16%,var(--ft-line))!important;border-top-color:var(--ft-accent)!important}
-  .lourex-ios-output-primary{border:1px solid var(--ft-accent)!important;border-radius:8px!important;background:var(--ft-accent)!important;color:#fff!important}
-  .lourex-ios-output-cancel{border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface-2)!important;color:var(--ft-text-soft)!important}
+  .lourex-ios-output-primary{min-height:44px!important;border:1px solid var(--ft-accent)!important;border-radius:8px!important;background:var(--ft-accent)!important;color:#fff!important}
+  .lourex-ios-output-cancel{min-height:44px!important;border:1px solid var(--ft-line)!important;border-radius:8px!important;background:var(--ft-surface-2)!important;color:var(--ft-text-soft)!important}
 
   html[data-lourex-signing-out="true"] .app-ui,html[data-lourex-signing-out="true"] .ta-auth-page{pointer-events:none!important;user-select:none!important}
   html[data-lourex-signing-out="true"] body::before{content:"";position:fixed;inset:0;z-index:2147483600;background:rgba(16,24,40,.58);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
@@ -60,6 +60,14 @@
   .app-ui .document-attachments-section{scroll-margin-top:88px!important}
   .app-ui .document-attachments-section :where(input,select,textarea,button,a){min-width:0}
   .app-ui .document-attachment-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+
+  /* Final physical touch-target floor for compact source/dev controls whose older
+     visual owners intentionally remain earlier in the cascade. Production hardening
+     may normalize the same values earlier; this final contract is idempotent. */
+  .app-ui .template-favorite-button{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important}
+  .app-ui .lourex-advisor-compose form>button{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important}
+  .app-ui :where(.lourex-ai-close,.lourex-ai-starters button,.lourex-ai-proposal-actions button,.lourex-ai-meta button,.lourex-ai-new-conversation){min-height:44px!important}
+  .app-ui .lourex-ai-close{width:44px!important;min-width:44px!important;height:44px!important}
 
   html body .app-ui .modal-backdrop:has(.product-import-shell) .product-import-mobile-actions{
     position:sticky!important;
@@ -95,6 +103,23 @@
   }
 
   .app-ui .ta-main{overscroll-behavior:contain!important}
+}
+
+/* The fixed mobile navigation clearance is reserved once by the shell. Historical
+   page owners still carry larger fallback paddings, but this final reachability
+   contract removes the second 108–112px dock reservation from actual runtime. */
+@media screen and (max-width:900px){
+  html body .app-ui :is(
+    .ta-finance-dashboard,
+    .ta-documents-page,
+    .ta-doc-detail-page,
+    .ta-customers-page,
+    .ta-customer-profile,
+    .ta-products-workspace,
+    .ta-operations-page,
+    .ta-finance-page,
+    .ta-reports-page
+  ){padding-bottom:24px!important}
 }
 
 @media screen and (max-width:720px){

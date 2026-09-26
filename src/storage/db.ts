@@ -77,9 +77,7 @@ function namedPutMany(db:IDBDatabase,records:DbRecord[]):Promise<void>{
 }
 
 async function targetAlreadyInitialized(db:IDBDatabase):Promise<boolean>{
-  const ids:Array<DbRecord['id']>=['cloud-account','security','vault','session-key','public-preferences'];
-  for(const id of ids)if(await namedGet(db,id as any))return true;
-  return false;
+  return targetHasProtectedWorkspace(db);
 }
 
 async function targetHasProtectedWorkspace(db:IDBDatabase):Promise<boolean>{

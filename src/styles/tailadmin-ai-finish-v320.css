@@ -43,7 +43,7 @@
   .app-ui .lourex-advisor-nudge-copy small{color:var(--ft-accent)!important;font-size:10px!important;font-weight:750!important;}
   .app-ui .lourex-advisor-nudge-copy strong{color:var(--ft-text-strong)!important;font-size:13px!important;line-height:18px!important;font-weight:740!important;}
   .app-ui .lourex-advisor-nudge-copy p{color:var(--ft-muted)!important;font-size:11px!important;line-height:17px!important;}
-  .app-ui .lourex-advisor-nudge-copy>button{min-height:40px!important;border:1px solid var(--ft-line)!important;border-radius:9px!important;background:var(--ft-surface-2)!important;color:var(--ft-accent)!important;font-weight:700!important;}
+  .app-ui .lourex-advisor-nudge-copy>button{min-height:44px!important;border:1px solid var(--ft-line)!important;border-radius:9px!important;background:var(--ft-surface-2)!important;color:var(--ft-accent)!important;font-weight:700!important;}
   .app-ui .lourex-advisor-nudge-close{border:0!important;background:transparent!important;color:var(--ft-muted)!important;}
 
   @media(max-width:860px){

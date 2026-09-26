@@ -124,8 +124,8 @@
   html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
     touch-action:auto!important;
     -webkit-overflow-scrolling:auto!important;
-    padding-bottom:calc(132px + env(safe-area-inset-bottom,0px))!important;
-    scroll-padding-bottom:calc(132px + env(safe-area-inset-bottom,0px))!important;
+    padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))!important;
+    scroll-padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))!important;
   }
 
   html body .app-ui .screen-editor .draft-mobile-actionbar{
@@ -178,8 +178,8 @@
   }
 
   html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
-    padding:10px 10px calc(138px + env(safe-area-inset-bottom,0px))!important;
-    scroll-padding-bottom:calc(138px + env(safe-area-inset-bottom,0px))!important;
+    padding:10px 10px calc(76px + env(safe-area-inset-bottom,0px))!important;
+    scroll-padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))!important;
   }
 
   html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-control-section{

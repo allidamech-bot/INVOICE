@@ -3,67 +3,54 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
-const activeCacheVersion=sw=>{
-  const matches=[...sw.matchAll(/^const CACHE = 'lourex-invoice-v(\d+)';$/gm)];
-  return matches.length?Number(matches.at(-1)[1]):0;
-};
 
-test('v198 remains the screen-only mobile fit foundation before newer mobile and printable layers',async()=>{
-  const [html,css]=await Promise.all([read('index.html'),read('src/styles/mobile-spacing-fit-v198.css')]);
-  const mobileLayer='mobile-spacing-fit-v198.css';
-  const documentLayer='document-premium-redesign-v141.css';
-  assert.ok(html.includes(`./styles/${mobileLayer}`),'v198 mobile fit stylesheet must be loaded');
-  assert.ok(html.indexOf(mobileLayer)>html.indexOf('obsidian-mobile-geometry-v193.css'),'v198 must follow earlier mobile geometry layers');
-  assert.ok(html.indexOf(documentLayer)>html.indexOf(mobileLayer),'printable v141 document layer must remain final');
-  const styleNames=[...html.matchAll(/<link rel="stylesheet" href="\.\/styles\/([^\"]+\.css)" \/>/g)].map(match=>match[1]);
-  assert.equal(styleNames.at(-1),documentLayer);
-  assert.match(css,/@media screen and \(max-width:960px\)/);
-  assert.doesNotMatch(css,/\.invoice-page|\.template-(executive|minimal|trade|signature|obsidian|cobalt|editorial|split|prism|slate|horizon|mono|aurora|ledger|noir|midnight|blackivory|carbon)/);
+/* Historical filename retained for stable discovery. The pre-TailAdmin v198 mobile
+   spacing generation is retired; v351 protects the current mobile owner split. */
+
+test('v351 source stack no longer loads the retired v198 mobile spacing generation',async()=>{
+  const [html,build]=await Promise.all([read('index.html'),read('scripts/build.mjs')]);
+  assert.doesNotMatch(html,/mobile-spacing-fit-v198\.css/);
+  assert.match(html,/tailadmin-mobile-header-v322\.css/);
+  assert.match(html,/tailadmin-design-mobile-priority-v323\.css/);
+  assert.match(html,/mobile-controls-density-v177\.css/);
+  assert.match(html,/v331-draft-scroll-recovery\.css/);
+  assert.match(build,/app\.bundle\.css/);
+  assert.match(build,/standaloneRuntimeStyles/);
 });
 
-test('v198 removes light root seams and uses dynamic mobile viewport geometry',async()=>{
-  const css=await read('src/styles/mobile-spacing-fit-v198.css');
-  assert.match(css,/html,\s*\n\s*body,\s*\n\s*#root\{[\s\S]*overflow-x:clip;[\s\S]*background:#091218/);
-  assert.match(css,/body\{[\s\S]*min-height:100vh;[\s\S]*min-height:100svh;[\s\S]*min-height:100dvh/);
-  assert.match(css,/html:has\(\.auth-account-page\),[\s\S]*body:has\(\.auth-account-page\),[\s\S]*#root:has\(\.auth-account-page\)\{[\s\S]*background:#05121b!important/);
-  assert.match(css,/\.auth-account-page\{[\s\S]*min-height:100svh!important;[\s\S]*min-height:100dvh!important;[\s\S]*overflow-x:clip!important/);
-  assert.match(css,/overscroll-behavior-y:none/);
+test('v351 mobile spacing has one page clearance owner and one universal 44px touch floor',async()=>{
+  const [mobile,controls,shell]=await Promise.all([
+    read('src/styles/tailadmin-design-mobile-priority-v323.css'),
+    read('src/styles/mobile-controls-density-v177.css'),
+    read('src/styles/tailadmin-mobile-header-v322.css')
+  ]);
+  assert.match(mobile,/padding:18px 14px calc\(112px \+ env\(safe-area-inset-bottom,0px\)\)!important/);
+  assert.match(controls,/@media \(max-width:960px\) and \(pointer:coarse\)/);
+  assert.match(controls,/min-height:44px!important/);
+  assert.match(shell,/scroll-padding-bottom:calc\(116px \+ env\(safe-area-inset-bottom,0px\)\)!important/);
 });
 
-test('v198 keeps phone gutters, bottom navigation clearance and narrow forms inside the physical viewport',async()=>{
-  const css=await read('src/styles/mobile-spacing-fit-v198.css');
-  assert.match(css,/--phone-gutter-start:max\(12px,env\(safe-area-inset-left\)\)/);
-  assert.match(css,/--phone-gutter-end:max\(12px,env\(safe-area-inset-right\)\)/);
-  assert.match(css,/--phone-bottom-clearance:calc\(78px \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(css,/\.app-ui \.workspace-topbar\{[\s\S]*max-width:100vw!important/);
-  assert.match(css,/\.app-ui \.mobile-bottom-nav\{[\s\S]*width:100%!important;[\s\S]*max-width:100vw!important/);
-  assert.match(css,/\.workspace-shell:not\(\.is-editor\) \.workspace-content\{[\s\S]*padding-bottom:var\(--phone-bottom-clearance\)!important/);
-  assert.match(css,/@media screen and \(max-width:380px\)[\s\S]*\.form-grid\.two[\s\S]*grid-template-columns:minmax\(0,1fr\)!important/);
+test('v351 Safari document scrolling is owned by ta-main instead of nested mobile editor scrollers',async()=>{
+  const recovery=await read('src/styles/v331-draft-scroll-recovery.css');
+  assert.match(recovery,/\.ta-shell\.is-editor>\.ta-main/);
+  assert.match(recovery,/overflow-y:auto!important/);
+  assert.match(recovery,/touch-action:pan-y!important/);
+  assert.match(recovery,/\.editor-scroll\{[\s\S]*-webkit-overflow-scrolling:auto!important/);
+  assert.match(recovery,/\.draft-studio-scroll\{[\s\S]*overflow:visible!important/);
 });
 
-test('v198 compacts only redundant account-entry story content on short phones',async()=>{
-  const css=await read('src/styles/mobile-spacing-fit-v198.css');
-  assert.match(css,/@media screen and \(max-width:600px\) and \(max-height:700px\)/);
-  assert.match(css,/\.auth-account-story\{[\s\S]*min-height:0!important/);
-  assert.match(css,/\.auth-story-copy>p:last-child,[\s\S]*\.auth-story-kicker\{[\s\S]*display:none!important/);
-  assert.match(css,/\.auth-story-copy \.auth-story-title\{[\s\S]*font-size:clamp\(25px,8\.5vw,31px\)!important/);
-});
-
-test('v198 mobile viewport foundation remains part of the current theme-aware immutable PWA generation',async()=>{
-  const [html,manifestText,sw]=await Promise.all([read('index.html'),read('public/manifest.webmanifest'),read('public/sw.js')]);
+test('v351 PWA launch palette matches the canonical application canvas',async()=>{
+  const [manifestText,bootstrap,theme,palette]=await Promise.all([
+    read('public/manifest.webmanifest'),
+    read('public/theme-bootstrap-v347.js'),
+    read('src/lib/ui-theme.ts'),
+    read('src/styles/v346-template-color-visual-closeout.css')
+  ]);
   const manifest=JSON.parse(manifestText);
-  assert.match(html,/<meta name="theme-color" content="#061820" \/>/);
-  assert.match(html,/id="lourex-theme-bootstrap"/);
-  assert.match(html,/root\.dataset\.lourexBooting='true'/);
-  assert.match(html,/root\.style\.backgroundColor='#061820'/);
-  assert.match(html,/resolved==='light'\?'#f2f7f8':'#061820'/);
-  assert.match(html,/html\[data-ui-theme="light"\]\{--boot-bg:#e8eeeb/);
-  assert.match(html,/html\[data-ui-theme="dark"\]\{--boot-bg:#061820/);
-  assert.match(html,/html\[data-lourex-booting="true"\][\s\S]*background:#061820!important/);
-  assert.match(html,/html,body,#root\{min-height:100%;min-height:100dvh;margin:0;background:var\(--boot-bg,#061820\)\}/);
-  assert.equal(manifest.background_color,'#061820');
-  assert.equal(manifest.theme_color,'#061820');
-  assert.ok(activeCacheVersion(sw)>=198,'active PWA generation must retain or advance beyond v198');
-  assert.match(sw,/lourex-invoice-v197: preserved as a legacy marker/);
-  assert.ok(sw.includes("LOCAL_CORE.push('./styles/mobile-spacing-fit-v198.css');"),'v198 stylesheet must remain available to installed/offline clients');
+  assert.equal(manifest.background_color,'#081321');
+  assert.equal(manifest.theme_color,'#081321');
+  assert.match(bootstrap,/dark='#081321',light='#f4f7fb'/);
+  assert.match(theme,/light:'#f4f7fb',dark:'#081321'/);
+  assert.match(palette,/--ft-canvas:#f4f7fb!important/);
+  assert.match(palette,/--ft-canvas:#081321!important/);
 });

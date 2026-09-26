@@ -1,40 +1,67 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-ui-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#080808" />
+  <meta name="theme-color" content="#081321" />
+  <script>
+    (function(){
+      var pref='system';
+      try{var saved=localStorage.getItem('lourex-ui-theme');if(saved==='light'||saved==='dark'||saved==='system')pref=saved;}catch(e){}
+      var resolved=pref;
+      if(pref==='system'){try{resolved=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){resolved='dark';}}
+      document.documentElement.dataset.uiTheme=resolved;
+      document.documentElement.style.colorScheme=resolved;
+      var meta=document.querySelector('meta[name="theme-color"]');
+      if(meta)meta.setAttribute('content',resolved==='dark'?'#081321':'#f4f7fb');
+    })();
+  </script>
   <title>LOUREX Invoice — Unified Diagnostics</title>
   <style>
-    :root{font-family:Inter,Arial,sans-serif;color:#F0EFEA;background:#080808;color-scheme:dark}
+    :root{
+      font-family:Outfit,Inter,Arial,sans-serif;
+      --canvas:#081321;--surface:#0f1c2d;--surface-2:#15263a;--input:#0b1828;
+      --text:#d7e2ef;--strong:#f7fbff;--soft:#a8b8ca;--muted:#8799ae;
+      --line:#263a52;--line-strong:#354c67;--accent:#4ed4d0;--accent-soft:rgba(78,212,208,.14);--on-accent:#061417;
+      --success:#46d7a3;--warning:#f4bd5e;--danger:#ff8078;
+      color:var(--text);background:var(--canvas);color-scheme:dark;
+    }
+    html[data-ui-theme="light"]{
+      --canvas:#f4f7fb;--surface:#ffffff;--surface-2:#eef4f7;--input:#ffffff;
+      --text:#33475b;--strong:#102235;--soft:#62758a;--muted:#73869a;
+      --line:#d8e3eb;--line-strong:#c3d1dc;--accent:#129da1;--accent-soft:rgba(18,157,161,.11);--on-accent:#ffffff;
+      --success:#178b68;--warning:#b7791f;--danger:#c33d3d;
+      color-scheme:light;
+    }
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;min-height:100dvh;padding:24px;background:#080808}
+    body{margin:0;min-height:100vh;min-height:100dvh;padding:24px;background:var(--canvas);color:var(--text)}
     main{width:min(900px,100%);margin:0 auto}
     .head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
     .brand{display:flex;align-items:center;gap:12px}
     .brand img{width:48px;height:48px;object-fit:contain;border-radius:11px}
-    .brand h1{font-size:22px;margin:0;color:#F0EFEA}
-    .brand p{margin:3px 0 0;color:#92918C;font-size:13px}
-    .card{margin-bottom:14px;padding:18px;border:1px solid #292929;border-radius:12px;background:#141414;box-shadow:none}
+    .brand h1{font-size:22px;margin:0;color:var(--strong)}
+    .brand p{margin:3px 0 0;color:var(--muted);font-size:13px}
+    .card{margin-bottom:14px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 12px 30px rgba(16,24,40,.06)}
+    html[data-ui-theme="dark"] .card{box-shadow:0 14px 34px rgba(0,0,0,.18)}
     .summary{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
-    .dot{width:10px;height:10px;border-radius:50%;background:#74736F}
-    .dot.ok{background:#52C596}.dot.warn{background:#D9A84E}.dot.bad{background:#E06E68}
+    .dot{width:10px;height:10px;border-radius:50%;background:var(--muted)}
+    .dot.ok{background:var(--success)}.dot.warn{background:var(--warning)}.dot.bad{background:var(--danger)}
     .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
-    .row{padding:12px;border:1px solid #292929;border-radius:9px;background:#101010}
-    .label{display:block;margin-bottom:5px;color:#92918C;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
-    .value{color:#E6E4DE;font-weight:700;word-break:break-word}
-    .okText{color:#8BE0BD}.warnText{color:#F0C979}.badText{color:#FF9A92}
+    .row{padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+    .label{display:block;margin-bottom:5px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+    .value{color:var(--strong);font-weight:700;word-break:break-word}
+    .okText{color:var(--success)}.warnText{color:var(--warning)}.badText{color:var(--danger)}
     .actions{display:flex;gap:8px;flex-wrap:wrap}
-    .btn{min-height:44px;padding:0 15px;border:1px solid #383838;border-radius:9px;background:#1A1A1A;color:#F0EFEA;font-weight:800;cursor:pointer}
-    .btn:focus-visible{outline:2px solid #C8B184;outline-offset:2px;box-shadow:none}
-    .primary{border-color:#B8A071;background:#B8A071;color:#11110F}
-    .secondary{background:#1A1A1A;color:#F0EFEA}
-    .danger{border-color:#5c2f2f;color:#ffaaa4;background:#211313}
+    .btn{min-height:44px;padding:0 15px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface-2);color:var(--strong);font-weight:800;cursor:pointer}
+    .btn:focus-visible{outline:0;box-shadow:0 0 0 3px var(--accent-soft)}
+    .primary{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}
+    .secondary{background:var(--surface-2);color:var(--strong)}
+    .danger{border-color:color-mix(in srgb,var(--danger) 48%,var(--line));color:var(--danger);background:color-mix(in srgb,var(--danger) 10%,var(--surface))}
     .card-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
-    .card-title-row strong{display:block;font-size:15px;color:#F0EFEA}
-    .card-title-row small{display:block;margin-top:4px;color:#92918C;font-size:12px}
-    .note{margin-top:12px;color:#92918C;font-size:12px;line-height:1.65}
-    pre{max-height:280px;overflow:auto;padding:12px;border:1px solid #292929;border-radius:9px;background:#0C0C0C;color:#B9B7B0;font-size:11px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+    .card-title-row strong{display:block;font-size:15px;color:var(--strong)}
+    .card-title-row small{display:block;margin-top:4px;color:var(--muted);font-size:12px}
+    .note{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.65}
+    pre{max-height:280px;overflow:auto;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--input);color:var(--soft);font-size:11px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
     #diagnosticLog{max-height:500px}
     @media(max-width:650px){body{padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}.grid{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.actions{width:100%}.actions .btn{flex:1}.card-title-row .actions{width:100%}}
   </style>

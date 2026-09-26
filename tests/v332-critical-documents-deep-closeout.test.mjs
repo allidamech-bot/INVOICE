@@ -128,9 +128,11 @@ test('no automatic account, cloud or pull refresh can tear down an open document
   assert.match(runtime,/function reloadUnsafeWorkspaceOpen\(\):boolean/);
   assert.match(runtime,/isDocumentEditorOpen\(\)/);
   assert.match(runtime,/if\(reloadUnsafeWorkspaceOpen\(\)\)/);
-  assert.match(pull,/if\(!document\.documentElement\.hasAttribute\('data-lourex-enable-pull-refresh'\)\)return/);
+  assert.match(pull,/if\(appleMobile\|\|!document\.documentElement\.hasAttribute\('data-lourex-enable-pull-refresh'\)\)return/);
   assert.match(pull,/data-lourex-document-editor/);
   assert.match(pull,/\.editor-main,.editor-screen/);
+  assert.match(pull,/\.ta-mobile-sheet/);
+  assert.match(pull,/\.ta-create-menu-mobile/);
 });
 
 test('v332 owns theme-safe final review surfaces and document-specific mobile semantics',()=>{
