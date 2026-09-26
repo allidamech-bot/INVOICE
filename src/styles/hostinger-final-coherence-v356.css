@@ -1,0 +1,54 @@
+/* LOUREX v356 — final Hostinger visual coherence fixes.
+   Presentation only. Runtime/data/business behavior is untouched. */
+
+@media screen {
+  /* Startup keeps its hardened --ft-canvas token at root. Once the application is
+     mounted, legacy TailAdmin surfaces that still consume --ft-canvas should resolve
+     to the loaded workspace palette rather than the startup navy canvas. */
+  html[data-ui-theme] body .app-ui{
+    --ft-canvas:var(--ft-workspace)!important;
+  }
+
+  /* Account mode intentionally removes the Settings sidebar. Collapse the two-column
+     settings grid as well; otherwise the main account page is trapped in the old
+     238px sidebar track on wide screens. */
+  html body .app-ui .ta-settings-shell.is-account{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  html body .app-ui .ta-settings-shell.is-account>.ta-settings-content{
+    grid-column:1!important;
+    width:100%!important;
+    min-width:0!important;
+  }
+  html body .app-ui .ta-settings-shell.is-account .ta-account-page{
+    width:100%!important;
+    min-width:0!important;
+  }
+
+  /* Keep visual depth subtle and consistent with the rest of the Hostinger-inspired
+     shell instead of allowing generic modal borders to read as bright frames. */
+  html body .app-ui .modal.modal-xl:has(.ta-settings-shell.is-account){
+    border:1px solid var(--ft-line)!important;
+    background:var(--ft-surface)!important;
+    box-shadow:0 30px 90px rgba(42,28,91,.20)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .modal.modal-xl:has(.ta-settings-shell.is-account){
+    box-shadow:0 34px 96px rgba(0,0,0,.52)!important;
+  }
+
+  /* Account content gets the same calm max-width rhythm as the main workspaces. */
+  html body .app-ui .ta-account-page .ta-settings-page-header,
+  html body .app-ui .ta-account-page .ta-settings-card{
+    width:100%!important;
+  }
+  html body .app-ui .ta-account-page .ta-account-logo-grid{
+    grid-template-columns:minmax(260px,360px) minmax(0,1fr)!important;
+    align-items:stretch!important;
+  }
+}
+
+@media screen and (max-width:720px){
+  html body .app-ui .ta-account-page .ta-account-logo-grid{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+}
