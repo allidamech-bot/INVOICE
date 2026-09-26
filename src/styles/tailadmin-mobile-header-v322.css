@@ -522,3 +522,13 @@
   html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid strong{font-size:12.5px!important;line-height:18px!important;}
   html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid small{font-size:10px!important;line-height:14px!important;color:var(--ft-muted)!important;}
 }
+
+
+/* LOUREX v351 — full-screen editors own mobile chrome; keep the global AI launcher out. */
+@media screen and (max-width:900px){
+  html body .app-ui .ta-shell.is-editor .lourex-ai-launcher,
+  html[dir="ltr"] body .app-ui .ta-shell.is-editor .lourex-ai-launcher,
+  html[dir="rtl"] body .app-ui .ta-shell.is-editor .lourex-ai-launcher{
+    display:none!important;
+  }
+}
