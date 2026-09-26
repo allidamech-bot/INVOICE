@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 const htmlPath='dist/index.html';
 const cssPath='dist/styles/app.bundle.css';
 const runtimePath='dist/runtime-config.js';
+const entryPath='dist/document-entry-v302.js';
 const swPath='dist/sw.js';
 
 let html=await readFile(htmlPath,'utf8');
@@ -20,6 +21,11 @@ const oldPresentationGuard='./home-final-closeout-v286.js?v=320';
 const newPresentationGuard='./home-final-closeout-v286.js?v=351';
 if(!html.includes(oldPresentationGuard))throw new Error('v351: presentation guard script reference was not found.');
 html=html.replaceAll(oldPresentationGuard,newPresentationGuard);
+
+const oldDocumentEntry='./document-entry-v302.js?v=337-3';
+const newDocumentEntry='./document-entry-v302.js?v=351';
+if(!html.includes(oldDocumentEntry))throw new Error('v351: document-entry runtime reference was not found.');
+html=html.replaceAll(oldDocumentEntry,newDocumentEntry);
 
 const runtimeSafety='<script src="./runtime-safety-v334.js?v=344"></script>';
 if(!html.includes(runtimeSafety))throw new Error('v347: runtime safety script reference was not found.');
@@ -59,14 +65,24 @@ if(runtime.includes(autoReload)||runtime.includes("waiting.postMessage({type:'SK
 }
 await writeFile(runtimePath,runtime);
 
+/* document-entry historically repainted the active boot canvas with the pre-v351
+   gray/navy colors whenever its reconciliation loop ran. Keep the behavior but
+   resolve it to the same canonical palette used by bootstrap/ui-theme/v346. */
+let entry=await readFile(entryPath,'utf8');
+entry=entry.replaceAll("const bootBackground=dark?'#0c111d':'#f9fafb';","const bootBackground=dark?'#081321':'#f4f7fb';");
+if(entry.includes("const bootBackground=dark?'#0c111d':'#f9fafb';"))throw new Error('v351: stale document-entry boot canvas colors remain.');
+if(!entry.includes("const bootBackground=dark?'#081321':'#f4f7fb';"))throw new Error('v351: canonical document-entry boot canvas contract is missing.');
+await writeFile(entryPath,entry);
+
 /* v347/v351 run after the normal precache passes. Keep final HTML and SW cache in
    lockstep so non-iOS/offline launches never reference uncached runtime assets. */
 let sw=await readFile(swPath,'utf8');
 sw=sw.replaceAll(oldWatchdog,newWatchdog);
 sw=sw.replaceAll(oldPresentationGuard,newPresentationGuard);
+sw=sw.replaceAll(oldDocumentEntry,newDocumentEntry);
 const cacheMarker="LOCAL_CORE.push('./canonical-redirect.js');";
 if(!sw.includes(cacheMarker))throw new Error('v347: service-worker cache insertion marker is missing.');
-for(const asset of [themeBootstrap,'./storage-cleanup-v347.js?v=347','./mobile-preview-output-v350.js?v=350',newPresentationGuard]){
+for(const asset of [themeBootstrap,'./storage-cleanup-v347.js?v=347','./mobile-preview-output-v350.js?v=350',newPresentationGuard,newDocumentEntry]){
   if(!sw.includes(`LOCAL_CORE.push('${asset}');`))sw=sw.replace(cacheMarker,`LOCAL_CORE.push('${asset}');\n${cacheMarker}`);
 }
 await writeFile(swPath,sw);
@@ -74,18 +90,21 @@ await writeFile(swPath,sw);
 const finalHtml=await readFile(htmlPath,'utf8');
 const finalCss=await readFile(cssPath,'utf8');
 const finalSw=await readFile(swPath,'utf8');
+const finalEntry=await readFile(entryPath,'utf8');
 if(finalHtml.includes('<script id="lourex-theme-bootstrap">'))throw new Error('v347: inline theme bootstrap remains in production HTML.');
 if(!finalHtml.includes(themeBootstrap))throw new Error('v351: external theme bootstrap is not wired with the current cache key.');
 if(!finalHtml.includes('storage-cleanup-v347.js?v=347'))throw new Error('v347: safe storage cleanup is not wired.');
 if(!finalHtml.includes('mobile-preview-output-v350.js?v=350'))throw new Error('v350: mobile preview output validation bridge is not wired.');
 if(!finalHtml.includes(newWatchdog))throw new Error('v347: cache-busted startup watchdog is not wired.');
 if(!finalHtml.includes(newPresentationGuard))throw new Error('v351: presentation guard is not wired with the current cache key.');
+if(!finalHtml.includes(newDocumentEntry))throw new Error('v351: document-entry runtime is not wired with the current cache key.');
 if(!finalCss.includes(paletteMarker))throw new Error('v350: explicit application palette owner is not bundled.');
 if(!finalCss.includes(startupMarker))throw new Error('v347: startup single-layer CSS is not final in the production bundle.');
 if((finalCss.match(/\/\* --- v346-template-color-visual-closeout\.css --- \*\//g)||[]).length!==1)throw new Error('v350: application palette owner appears more than once in the production bundle.');
 if(/@import\s+url\([^)]*v346-template-color-visual-closeout/i.test(finalCss))throw new Error('v350: late v346 runtime @import remains in the production bundle.');
-for(const asset of [newWatchdog,themeBootstrap,'./storage-cleanup-v347.js?v=347','./mobile-preview-output-v350.js?v=350',newPresentationGuard]){
+if(finalEntry.includes("const bootBackground=dark?'#0c111d':'#f9fafb';"))throw new Error('v351: stale document-entry boot canvas survived finalization.');
+for(const asset of [newWatchdog,themeBootstrap,'./storage-cleanup-v347.js?v=347','./mobile-preview-output-v350.js?v=350',newPresentationGuard,newDocumentEntry]){
   if(!finalSw.includes(asset))throw new Error(`v351: service worker is missing ${asset}.`);
 }
 
-console.log('LOUREX v351 startup finalization applied: canonical palette-aligned bootstrap, single loading owner, no automatic stuck-boot reload, safe storage cleanup, mobile Preview output feedback, presentation guard and final PWA precache aligned.');
+console.log('LOUREX v351 startup finalization applied: canonical palette-aligned bootstrap/runtime, single loading owner, no automatic stuck-boot reload, safe storage cleanup, mobile Preview output feedback, presentation guard and final PWA precache aligned.');
