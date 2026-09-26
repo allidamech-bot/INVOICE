@@ -1,0 +1,298 @@
+/* LOUREX v346 — template balance + application color closeout.
+ * Presentation only. No document/accounting/auth/storage behavior changes.
+ *
+ * Goals:
+ * 1) keep commercial totals/bank/signature/stamp in the lower A4 closing zone
+ *    when the page has spare room, while dense pages remain normal-flow safe;
+ * 2) improve printable/read-only document hierarchy and mobile preview legibility;
+ * 3) replace washed-out gray application surfaces with one coherent premium
+ *    navy/aqua palette in both light and dark themes. */
+
+@media screen {
+  /* Premium application palette. Keep the existing TailAdmin token contract but
+     give every surface a deliberate relationship instead of mixed neutral grays. */
+  html[data-ui-theme="light"] {
+    --ta-brand-25:#effafa!important;
+    --ta-brand-50:#e2f7f6!important;
+    --ta-brand-100:#c6efed!important;
+    --ta-brand-200:#9de1df!important;
+    --ta-brand-300:#68cecc!important;
+    --ta-brand-400:#32b7b8!important;
+    --ta-brand-500:#129da1!important;
+    --ta-brand-600:#0d858a!important;
+    --ta-brand-700:#0f6b70!important;
+
+    --ft-canvas:#f3f7fa!important;
+    --ft-shell:#ffffff!important;
+    --ft-workspace:#f6f9fc!important;
+    --ft-surface:#ffffff!important;
+    --ft-surface-2:#eef4f7!important;
+    --ft-surface-3:#e5edf2!important;
+    --ft-input:#ffffff!important;
+    --ft-text:#33475b!important;
+    --ft-text-strong:#102235!important;
+    --ft-text-soft:#62758a!important;
+    --ft-muted:#73869a!important;
+    --ft-faint:#8fa0b1!important;
+    --ft-line:#d8e3eb!important;
+    --ft-line-strong:#c3d1dc!important;
+    --ft-accent:#129da1!important;
+    --ft-accent-hover:#0d858a!important;
+    --ft-accent-soft:rgba(18,157,161,.11)!important;
+    --ft-accent-faint:rgba(18,157,161,.065)!important;
+    --ft-on-accent:#ffffff!important;
+    --ft-info:#147ea1!important;
+    --ft-info-soft:rgba(20,126,161,.10)!important;
+  }
+
+  html[data-ui-theme="dark"] {
+    --ta-brand-25:#0b2227!important;
+    --ta-brand-50:#0c2a30!important;
+    --ta-brand-100:#10373d!important;
+    --ta-brand-200:#15505a!important;
+    --ta-brand-300:#1d727a!important;
+    --ta-brand-400:#39bfc1!important;
+    --ta-brand-500:#4ed4d0!important;
+    --ta-brand-600:#70e0db!important;
+    --ta-brand-700:#9bece8!important;
+
+    --ft-canvas:#070e19!important;
+    --ft-shell:#0b1626!important;
+    --ft-workspace:#091321!important;
+    --ft-surface:#0f1c2d!important;
+    --ft-surface-2:#15263a!important;
+    --ft-surface-3:#1c3048!important;
+    --ft-input:#0b1828!important;
+    --ft-text:#d7e2ef!important;
+    --ft-text-strong:#f7fbff!important;
+    --ft-text-soft:#a8b8ca!important;
+    --ft-muted:#8799ae!important;
+    --ft-faint:#697c92!important;
+    --ft-line:#263a52!important;
+    --ft-line-strong:#354c67!important;
+    --ft-accent:#4ed4d0!important;
+    --ft-accent-hover:#70e0db!important;
+    --ft-accent-soft:rgba(78,212,208,.14)!important;
+    --ft-accent-faint:rgba(78,212,208,.075)!important;
+    --ft-on-accent:#061417!important;
+    --ft-success:#46d7a3!important;
+    --ft-success-soft:rgba(70,215,163,.12)!important;
+    --ft-warning:#f4bd5e!important;
+    --ft-warning-soft:rgba(244,189,94,.12)!important;
+    --ft-danger:#ff8078!important;
+    --ft-danger-soft:rgba(255,128,120,.12)!important;
+    --ft-info:#6cb8ef!important;
+    --ft-info-soft:rgba(108,184,239,.12)!important;
+  }
+
+  /* The profitability block was the most visible color break in the editor:
+     some summary cards could resolve to a light neutral while the rest of the
+     editor remained dark. Own those surfaces explicitly and add semantic accents. */
+  .app-ui .profitability-panel{
+    background:var(--ft-surface)!important;
+    border-color:var(--ft-line)!important;
+    color:var(--ft-text)!important;
+  }
+  .app-ui .profitability-summary>div{
+    position:relative!important;
+    overflow:hidden!important;
+    background:var(--ft-surface-2)!important;
+    border-color:var(--ft-line-strong)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .profitability-summary>div::before{
+    content:"";
+    position:absolute;
+    inset-block:0;
+    inset-inline-start:0;
+    width:3px;
+    border-radius:99px;
+    background:var(--ft-accent);
+  }
+  .app-ui .profitability-summary>div:nth-child(2)::before{background:var(--ft-warning)!important;}
+  .app-ui .profitability-summary>.profitability-profit::before{background:var(--ft-success)!important;}
+  .app-ui .profitability-summary span,
+  .app-ui .profitability-summary small,
+  .app-ui .profitability-lines-head span,
+  .app-ui .profitability-line>div:first-child span{
+    color:var(--ft-text-soft)!important;
+  }
+  .app-ui .profitability-summary strong,
+  .app-ui .profitability-lines-head strong,
+  .app-ui .profitability-line>div:first-child strong{
+    color:var(--ft-text-strong)!important;
+  }
+  .app-ui .profitability-profit{
+    background:color-mix(in srgb,var(--ft-success-soft) 58%,var(--ft-surface-2))!important;
+  }
+  .app-ui .profitability-lines,
+  .app-ui .profitability-line,
+  .app-ui .profitability-lines-head,
+  .app-ui .profitability-overheads label{
+    border-color:var(--ft-line)!important;
+  }
+  .app-ui .profitability-lines-head,
+  .app-ui .profitability-overheads label{
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
+  }
+
+  /* Use nearly the full phone width for A4 preview. The printable sheet remains
+     exactly 210x297mm; only the screen transform changes. */
+  @media (min-width:391px) and (max-width:720px){
+    .app-ui .mobile-preview-stage>.invoice-pages{--preview-scale:.515!important;}
+  }
+  @media (max-width:390px){
+    .app-ui .mobile-preview-stage>.invoice-pages{--preview-scale:.465!important;}
+  }
+  @media (max-width:375px){
+    .app-ui .mobile-preview-stage>.invoice-pages{--preview-scale:.445!important;}
+  }
+  @media (max-width:360px){
+    .app-ui .mobile-preview-stage>.invoice-pages{--preview-scale:.425!important;}
+  }
+  @media (max-width:340px){
+    .app-ui .mobile-preview-stage>.invoice-pages{--preview-scale:.395!important;}
+  }
+}
+
+@media screen, print {
+  /* A4 hierarchy: slightly larger commercial typography without changing the
+     canonical sheet dimensions or pagination logic. */
+  .invoice-page{
+    font-size:8.9px!important;
+    line-height:1.5!important;
+  }
+  .invoice-page .doc-meta b{font-size:6.7px!important;}
+  .invoice-page .doc-meta>div>span{font-size:8.7px!important;}
+  .invoice-page .section-kicker{font-size:6.9px!important;}
+  .invoice-page .party-name{font-size:12.6px!important;}
+  .invoice-page .party-customer .party-name{font-size:13.5px!important;}
+  .invoice-page .party-address,
+  .invoice-page .party-location,
+  .invoice-page .party-contact{font-size:8px!important;}
+
+  .invoice-page .items-table th{
+    padding:2.4mm 1.5mm!important;
+    font-size:6.75px!important;
+  }
+  .invoice-page .items-table td{
+    padding:2.2mm 1.5mm!important;
+    font-size:7.8px!important;
+    line-height:1.42!important;
+  }
+  .invoice-page .items-table .description-cell{font-size:8.15px!important;}
+  .invoice-page .items-table .trade-cell{font-size:7.2px!important;}
+
+  /* Restore the professional invoice composition: the complete commercial close
+     anchors to the bottom whenever free vertical space exists. If content is
+     dense, auto margin naturally collapses to zero and the close stays in flow. */
+  .invoice-page .doc-body{
+    display:flex!important;
+    flex:1 1 auto!important;
+    flex-direction:column!important;
+    min-height:0!important;
+  }
+  .invoice-page:not(.details-only) .final-details{
+    margin-top:auto!important;
+    padding-top:8mm!important;
+    flex:0 0 auto!important;
+  }
+  .invoice-page.details-only .final-details{
+    margin-top:0!important;
+    padding-top:3.5mm!important;
+  }
+  .invoice-page .lower-grid{
+    gap:8mm!important;
+    align-items:start!important;
+  }
+
+  .invoice-page .totals-block{
+    padding:3mm 4mm 3.4mm!important;
+    border-radius:1.4mm!important;
+  }
+  .invoice-page .total-row{padding:1.55mm 0!important;}
+  .invoice-page .total-row>span{font-size:7.05px!important;}
+  .invoice-page .total-row>strong{font-size:8px!important;}
+  .invoice-page .grand-total{
+    margin-top:2mm!important;
+    padding-top:2.5mm!important;
+  }
+  .invoice-page .grand-total>span{font-size:8.6px!important;}
+  .invoice-page .grand-total>strong{font-size:14px!important;}
+
+  /* Bank + authorization finish as the lowest visual band. Signature and stamp
+     are given enough physical size to read as real authorization marks. */
+  .invoice-page .bottom-grid{
+    margin-top:6mm!important;
+    gap:8mm!important;
+    align-items:end!important;
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+  .invoice-page .bank-block,
+  .invoice-page .signature-block{
+    align-self:end!important;
+  }
+  .invoice-page .signature-media{
+    min-height:26mm!important;
+    padding-top:1.5mm!important;
+    align-items:end!important;
+  }
+  .invoice-page .signature-media .signature-image{
+    width:auto!important;
+    max-width:44mm!important;
+    height:auto!important;
+    max-height:23mm!important;
+    object-fit:contain!important;
+    object-position:center bottom!important;
+  }
+  .invoice-page .signature-media .stamp-image{
+    width:auto!important;
+    max-width:35mm!important;
+    height:auto!important;
+    max-height:25mm!important;
+    object-fit:contain!important;
+    object-position:center bottom!important;
+  }
+
+  /* Refine the neutral/light template family without erasing each template's
+     authored identity. This is especially visible on Slate/Minimal-style invoices. */
+  .invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon){
+    --rule:#d5dfe3!important;
+    --soft:#f4f7f7!important;
+    --muted:#62717a!important;
+  }
+  .invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .totals-block{
+    background:#f2f6f5!important;
+    border-color:#24424c!important;
+  }
+  .invoice-page:not(.template-noir):not(.template-midnight):not(.template-blackivory):not(.template-carbon) .grand-total{
+    border-color:var(--template-accent)!important;
+  }
+
+  .template-slate{
+    --template-accent:#157984!important;
+    --navy:#213d47!important;
+    --soft:#f1f6f7!important;
+  }
+  .template-slate .header-modern{
+    background:linear-gradient(180deg,#edf5f6 0%,#fbfcfc 100%)!important;
+    border-bottom:.7mm solid #157984!important;
+  }
+  .template-slate .items-table th{background:#213d47!important;}
+  .template-slate .totals-block{background:#edf5f3!important;border-top:1mm solid #213d47!important;}
+
+  .invoice-page .doc-footer{
+    color:#718089!important;
+  }
+}
+
+@media print {
+  .invoice-page:not(.details-only) .final-details{margin-top:auto!important;}
+  .invoice-page :is(.final-details,.lower-grid,.bottom-grid,.totals-block,.bank-block,.signature-block){
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+}
