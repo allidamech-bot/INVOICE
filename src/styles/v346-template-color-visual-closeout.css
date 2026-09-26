@@ -1,4 +1,4 @@
-/* LOUREX v350 — application palette + control design owner.
+/* LOUREX v351 — application palette + control design owner.
  * Commercial A4 rendering stays exclusively in document-premium-redesign-v141.css.
  * Full-page canvas and shared Button/Toggle primitives are centralized here so
  * historical feature styles cannot create nested page backgrounds or native-gray controls. */
@@ -82,6 +82,23 @@
     --ft-danger-soft:rgba(255,128,120,.12)!important;
     --ft-info:#6cb8ef!important;
     --ft-info-soft:rgba(108,184,239,.12)!important;
+  }
+
+  /* v330 uses v333-* names for critical editor contrast. Palette ownership stays
+     here: those compatibility names always resolve to the active TailAdmin theme
+     instead of forming an independent blue/navy theme inside the editor. */
+  html[data-ui-theme] body .app-ui .screen-editor{
+    --v333-workspace:var(--ft-workspace)!important;
+    --v333-card:var(--ft-surface)!important;
+    --v333-card-soft:var(--ft-surface-2)!important;
+    --v333-field:var(--ft-input)!important;
+    --v333-field-focus:var(--ft-input)!important;
+    --v333-line:var(--ft-line)!important;
+    --v333-line-strong:var(--ft-line-strong)!important;
+    --v333-text:var(--ft-text-strong)!important;
+    --v333-muted:var(--ft-muted)!important;
+    --v333-accent:var(--ft-accent)!important;
+    --v333-accent-soft:var(--ft-accent-soft)!important;
   }
 
   /* One full-page paint. Cards/panels create separation; shell/main/workspace do not. */
