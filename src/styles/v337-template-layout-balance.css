@@ -1,14 +1,8 @@
-/* LOUREX v337 — printable template structural balance.
- * Presentation-only repair for A4 preview/PDF surfaces.
- *
- * Commercial documents: v330 accidentally made .final-details stretch and then
- * pushed .bottom-grid independently to the page bottom. v337 keeps totals, terms,
- * notes, bank and authorization in one compact normal-flow closing band.
- *
- * Company Draft output: the retired v308 generation originally owned the printable
- * letterhead/watermark geometry. Its application UI must stay retired, but the
- * current DraftDocumentRenderer still emits those output classes. v337 therefore
- * owns the output-only contract below, with no .app-ui selectors or business logic. */
+/* LOUREX v350 — Draft/watermark output support only.
+ * Commercial A4 invoices are owned exclusively by document-premium-redesign-v141.css.
+ * This layer retains the shared custom watermark and current Company Draft output
+ * contract; it must not override .final-details, totals, bank, signature or preview
+ * geometry for commercial documents. */
 
 @media screen, print {
   /* Shared watermark output used by commercial templates and Company Draft. */
@@ -17,8 +11,7 @@
     isolation:isolate;
   }
   /* WebKit can preserve an SVG image's intrinsic width inside several modern
-     masthead grids even when the logo wrapper is correctly constrained. Make the
-     image itself obey its wrapper so sparse English documents cannot widen A4. */
+     masthead grids even when the logo wrapper is correctly constrained. */
   .invoice-page .doc-logo img{
     max-width:100%!important;
     height:auto!important;
@@ -88,9 +81,7 @@
     position:relative;
     z-index:2;
   }
-  .invoice-page .document-void-watermark{
-    z-index:8!important;
-  }
+  .invoice-page .document-void-watermark{z-index:8!important;}
 
   /* Current Company Draft A4 renderer. These rules are deliberately output-only. */
   .draft-letter-page{
@@ -123,65 +114,18 @@
     gap:6mm;
     background:#fff;
   }
-  .draft-letter-page .letterhead-brand{
-    display:flex;
-    align-items:center;
-    gap:5mm;
-    min-width:0;
-  }
-  .draft-letter-page .letterhead-brand>img{
-    width:22mm;
-    height:22mm;
-    object-fit:contain;
-    border-radius:4mm;
-  }
-  .draft-letter-page .letterhead-brand>div{
-    display:grid;
-    gap:1.5mm;
-    min-width:0;
-  }
-  .draft-letter-page .letterhead-brand strong{
-    color:#132f36;
-    font-size:18px;
-    line-height:1.2;
-    overflow-wrap:anywhere;
-  }
-  .draft-letter-page .letterhead-brand span{
-    color:#667d82;
-    font-size:8.5px;
-    line-height:1.5;
-    overflow-wrap:anywhere;
-  }
-  .draft-letter-page .letterhead-accent{
-    display:block;
-    height:1.2mm;
-    border-radius:999px;
-    background:var(--letter-accent,#2fc4cf);
-  }
-  .draft-letter-page.header-minimal .letterhead-header{
-    min-height:24mm;
-    padding-top:10mm;
-  }
-  .draft-letter-page.header-minimal .letterhead-brand>img{
-    width:15mm;
-    height:15mm;
-  }
-  .draft-letter-page.header-minimal .letterhead-accent{
-    height:.45mm;
-    opacity:.65;
-  }
-  .draft-letter-page.header-classic .letterhead-accent{
-    background:linear-gradient(90deg,var(--letter-accent,#2fc4cf) 0 22%,#dce4e6 22% 100%);
-  }
+  .draft-letter-page .letterhead-brand{display:flex;align-items:center;gap:5mm;min-width:0;}
+  .draft-letter-page .letterhead-brand>img{width:22mm;height:22mm;object-fit:contain;border-radius:4mm;}
+  .draft-letter-page .letterhead-brand>div{display:grid;gap:1.5mm;min-width:0;}
+  .draft-letter-page .letterhead-brand strong{color:#132f36;font-size:18px;line-height:1.2;overflow-wrap:anywhere;}
+  .draft-letter-page .letterhead-brand span{color:#667d82;font-size:8.5px;line-height:1.5;overflow-wrap:anywhere;}
+  .draft-letter-page .letterhead-accent{display:block;height:1.2mm;border-radius:999px;background:var(--letter-accent,#2fc4cf);}
+  .draft-letter-page.header-minimal .letterhead-header{min-height:24mm;padding-top:10mm;}
+  .draft-letter-page.header-minimal .letterhead-brand>img{width:15mm;height:15mm;}
+  .draft-letter-page.header-minimal .letterhead-accent{height:.45mm;opacity:.65;}
+  .draft-letter-page.header-classic .letterhead-accent{background:linear-gradient(90deg,var(--letter-accent,#2fc4cf) 0 22%,#dce4e6 22% 100%);}
 
-  .draft-letter-page .letter-page-body{
-    position:relative;
-    z-index:2;
-    min-height:0;
-    padding:5mm 16mm 8mm;
-    display:flex;
-    flex-direction:column;
-  }
+  .draft-letter-page .letter-page-body{position:relative;z-index:2;min-height:0;padding:5mm 16mm 8mm;display:flex;flex-direction:column;}
   .draft-letter-page.width-narrow .letter-page-body{padding-inline:25mm;}
   .draft-letter-page.width-wide .letter-page-body{padding-inline:11mm;}
   .draft-letter-page.page-ruled .letter-page-body{
@@ -201,46 +145,14 @@
     padding:4mm 0 5mm;
     border-bottom:.35mm solid var(--letter-line);
   }
-  .draft-letter-page .letter-meta>div{
-    display:grid;
-    grid-template-columns:auto minmax(0,1fr);
-    gap:2.5mm;
-    align-items:baseline;
-    min-width:0;
-  }
-  .draft-letter-page .letter-meta b{
-    color:#73878b;
-    font-size:8px;
-    font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:.06em;
-  }
-  .draft-letter-page .letter-meta span{
-    color:#20383e;
-    font-size:10px;
-    overflow-wrap:anywhere;
-  }
-  .draft-letter-page .letter-continuation{
-    display:flex;
-    justify-content:flex-end;
-    margin-bottom:3mm;
-    padding-bottom:3mm;
-    border-bottom:.25mm solid var(--letter-line);
-  }
-  .draft-letter-page .letter-continuation span{
-    color:#71868b;
-    font-size:8px;
-    letter-spacing:.05em;
-  }
+  .draft-letter-page .letter-meta>div{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2.5mm;align-items:baseline;min-width:0;}
+  .draft-letter-page .letter-meta b{color:#73878b;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+  .draft-letter-page .letter-meta span{color:#20383e;font-size:10px;overflow-wrap:anywhere;}
+  .draft-letter-page .letter-continuation{display:flex;justify-content:flex-end;margin-bottom:3mm;padding-bottom:3mm;border-bottom:.25mm solid var(--letter-line);}
+  .draft-letter-page .letter-continuation span{color:#71868b;font-size:8px;letter-spacing:.05em;}
 
   .draft-letter-page .letter-blocks{min-height:0;}
-  .draft-letter-page .letter-block{
-    position:relative;
-    z-index:2;
-    margin-inline:0;
-    white-space:pre-wrap;
-    overflow-wrap:anywhere;
-  }
+  .draft-letter-page .letter-block{position:relative;z-index:2;margin-inline:0;white-space:pre-wrap;overflow-wrap:anywhere;}
   .draft-letter-page .block-heading{letter-spacing:-.015em;}
   .draft-letter-page .block-subheading{letter-spacing:-.008em;}
   .draft-letter-page .block-quote{
@@ -248,40 +160,14 @@
     border-inline-start:1mm solid color-mix(in srgb,var(--letter-accent,#2fc4cf) 55%,#d8e3e5);
     background:color-mix(in srgb,var(--letter-accent,#2fc4cf) 5%,transparent);
   }
-  .draft-letter-page .block-bullet{
-    display:flex;
-    gap:2.5mm;
-  }
-  .draft-letter-page .letter-bullet{
-    flex:0 0 auto;
-    color:var(--letter-accent,#2fc4cf);
-    font-size:1.2em;
-    line-height:inherit;
-  }
+  .draft-letter-page .block-bullet{display:flex;gap:2.5mm;}
+  .draft-letter-page .letter-bullet{flex:0 0 auto;color:var(--letter-accent,#2fc4cf);font-size:1.2em;line-height:inherit;}
   .draft-letter-page .letter-block-spacer{flex:0 0 auto;}
 
-  .draft-letter-page .letter-signing{
-    margin-top:auto;
-    padding-top:8mm;
-    display:flex;
-    gap:10mm;
-    align-items:flex-end;
-  }
-  .draft-letter-page .letter-signing>div{
-    display:grid;
-    justify-items:center;
-    gap:1.5mm;
-    min-width:34mm;
-  }
-  .draft-letter-page .letter-signing img{
-    max-width:34mm;
-    max-height:22mm;
-    object-fit:contain;
-  }
-  .draft-letter-page .letter-signing span{
-    color:#6e858a;
-    font-size:8px;
-  }
+  .draft-letter-page .letter-signing{margin-top:auto;padding-top:8mm;display:flex;gap:10mm;align-items:flex-end;}
+  .draft-letter-page .letter-signing>div{display:grid;justify-items:center;gap:1.5mm;min-width:34mm;}
+  .draft-letter-page .letter-signing img{max-width:34mm;max-height:22mm;object-fit:contain;}
+  .draft-letter-page .letter-signing span{color:#6e858a;font-size:8px;}
 
   .draft-letter-page .letterhead-footer{
     position:relative;
@@ -296,96 +182,10 @@
     background:#fff;
     color:#6d8287;
   }
-  .draft-letter-page .letterhead-footer span{
-    min-width:0;
-    font-size:7.6px;
-    line-height:1.4;
-    overflow-wrap:anywhere;
-  }
-  .draft-letter-page .letterhead-footer b{
-    flex:0 0 auto;
-    color:#7a8d91;
-    font-size:7.6px;
-    white-space:nowrap;
-  }
+  .draft-letter-page .letterhead-footer span{min-width:0;font-size:7.6px;line-height:1.4;overflow-wrap:anywhere;}
+  .draft-letter-page .letterhead-footer b{flex:0 0 auto;color:#7a8d91;font-size:7.6px;white-space:nowrap;}
   .draft-letter-page .footer-minimal span{display:none;}
-  .draft-letter-page .footer-none{
-    min-height:8mm;
-    padding-top:0;
-    border-top:0;
-    background:transparent;
-    justify-content:flex-end;
-  }
-
-  /* Commercial document closing balance. */
-  .invoice-page .doc-body{
-    display:flex!important;
-    flex-direction:column!important;
-    min-height:0!important;
-  }
-  .invoice-page .final-details{
-    display:block!important;
-    flex:0 0 auto!important;
-    min-height:0!important;
-    padding-top:0!important;
-  }
-  /* v119 keeps a historical :not(.details-only) auto-anchor with !important.
-     Match that selector's specificity here so the later v337 owner really wins
-     in the browser cascade instead of only looking correct in an isolated file. */
-  .invoice-page:not(.details-only) .final-details{
-    margin-top:6mm!important;
-    padding-top:0!important;
-  }
-  .invoice-page.details-only .final-details{
-    margin-top:0!important;
-    padding-top:0!important;
-  }
-  .invoice-page .lower-grid{align-items:start!important;}
-  .invoice-page .notes-block{margin-top:4.5mm!important;}
-  .invoice-page .bottom-grid{
-    margin-top:4.5mm!important;
-    padding-top:0!important;
-    align-items:start!important;
-    break-inside:avoid!important;
-    page-break-inside:avoid!important;
-  }
-  .invoice-page .bank-block,
-  .invoice-page .signature-block{
-    align-self:start!important;
-    width:100%!important;
-  }
-  .invoice-page .signature-media{
-    min-height:21mm!important;
-    align-items:end!important;
-    padding-top:1mm!important;
-  }
-  .invoice-page .signature-media .signature-image{
-    height:20mm!important;
-    max-height:20mm!important;
-    object-fit:contain!important;
-    object-position:center bottom!important;
-  }
-  .invoice-page .signature-media .stamp-image{
-    height:22mm!important;
-    max-height:22mm!important;
-    object-fit:contain!important;
-    object-position:center bottom!important;
-  }
-  .invoice-page .doc-footer{
-    flex:0 0 10mm!important;
-    height:10mm!important;
-    min-height:10mm!important;
-    margin-inline:11mm!important;
-    align-items:center!important;
-  }
-}
-
-/* Compact preview must use identical A4 geometry; only the outer preview scales. */
-@media screen {
-  .preview-stage .invoice-page .final-details,
-  .mobile-preview-stage .invoice-page .final-details{
-    flex:0 0 auto!important;
-  }
+  .draft-letter-page .footer-none{min-height:8mm;padding-top:0;border-top:0;background:transparent;justify-content:flex-end;}
 }
 
 @media print {
