@@ -14,7 +14,7 @@
     min-height:100dvh!important;
     overflow:hidden!important;
     overscroll-behavior:none!important;
-    background:var(--boot-bg,var(--ft-canvas,#0c111d))!important;
+    background:var(--boot-bg,var(--ft-canvas,#081321))!important;
   }
 
   /* Retire historical background pseudo-layers. They were visually identical in
@@ -55,9 +55,9 @@
     overflow:hidden!important;
     border:0!important;
     border-radius:0!important;
-    background:var(--boot-bg,var(--ft-canvas,#0c111d))!important;
+    background:var(--boot-bg,var(--ft-canvas,#081321))!important;
     background-image:none!important;
-    color:var(--boot-text,var(--ft-text-strong,#f9fafb))!important;
+    color:var(--boot-text,var(--ft-text-strong,#f7fbff))!important;
     box-shadow:none!important;
     filter:none!important;
     backdrop-filter:none!important;
@@ -109,7 +109,7 @@
     margin:0!important;
     overflow:hidden!important;
     border-radius:999px!important;
-    background:var(--boot-track,var(--ft-line-strong,#344054))!important;
+    background:var(--boot-track,var(--ft-line-strong,#354c67))!important;
     box-shadow:none!important;
   }
 
