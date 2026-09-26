@@ -406,9 +406,9 @@
 
   .app-ui .ta-create-menu-desktop { top:calc(100% + 8px)!important;inset-inline-start:0!important; }
   .app-ui .ta-create-menu-heading { display:flex!important;align-items:baseline!important;justify-content:space-between!important;gap:12px!important;padding:7px 8px 10px!important;border-bottom:1px solid var(--ft-line)!important; }
-  .app-ui .ta-create-menu-heading small { color:var(--ft-muted)!important;font-size:11px!important;font-weight:500!important; }
-  .app-ui .ta-create-menu-heading strong { color:var(--ft-text-strong)!important;font-size:13px!important;font-weight:600!important; }
-  .app-ui .ta-create-menu-grid { display:grid!important;grid-template-columns:1fr 1fr!important;gap:4px!important;padding-top:6px!important; }
+  .app-ui .ta-create-menu-heading small { color:var(--ft-muted)!important;font-size:12px!important;font-weight:500!important; }
+  .app-ui .ta-create-menu-heading strong { color:var(--ft-text-strong)!important;font-size:14px!important;font-weight:700!important; }
+  .app-ui .ta-create-menu-grid { display:grid!important;grid-template-columns:1fr 1fr!important;gap:6px!important;padding-top:8px!important; }
 
   .app-ui .ta-create-menu-grid>button {
     min-height:60px!important;
@@ -416,7 +416,7 @@
     grid-template-columns:32px minmax(0,1fr)!important;
     align-items:center!important;
     gap:9px!important;
-    padding:8px 9px!important;
+    padding:10px 11px!important;
     border:0!important;
     border-radius:8px!important;
     background:transparent!important;
@@ -428,8 +428,8 @@
   .app-ui .ta-create-menu-grid>button:hover { background:var(--ft-surface-2)!important; }
   .app-ui .ta-create-menu-grid>button>.icon { width:18px!important;height:18px!important;color:var(--ft-accent)!important; }
   .app-ui .ta-create-menu-grid>button>span { min-width:0!important;display:flex!important;flex-direction:column!important;gap:2px!important; }
-  .app-ui .ta-create-menu-grid strong { color:var(--ft-text-strong)!important;font-size:12px!important;line-height:17px!important;font-weight:600!important; }
-  .app-ui .ta-create-menu-grid small { color:var(--ft-muted)!important;font-size:10px!important;line-height:15px!important;font-weight:400!important; }
+  .app-ui .ta-create-menu-grid strong { color:var(--ft-text-strong)!important;font-size:13px!important;line-height:19px!important;font-weight:650!important; }
+  .app-ui .ta-create-menu-grid small { color:var(--ft-muted)!important;font-size:11.5px!important;line-height:17px!important;font-weight:400!important; }
 
   .app-ui .ta-overlay-backdrop {
     position:fixed!important;
@@ -549,7 +549,7 @@
       border-radius:14px!important;
       background:var(--ft-accent)!important;
       color:#fff!important;
-      box-shadow:0 6px 16px rgba(70,95,255,.28)!important;
+      box-shadow:0 6px 16px rgba(8,127,131,.24)!important;
     }
 
     .app-ui .ta-create-menu-mobile {

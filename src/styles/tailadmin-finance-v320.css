@@ -9,15 +9,15 @@
  */
 @media screen {
   html[data-ui-theme="light"] {
-    --ta-brand-25:#f2f7ff;
-    --ta-brand-50:#ecf3ff;
-    --ta-brand-100:#dde9ff;
-    --ta-brand-200:#c2d6ff;
-    --ta-brand-300:#9cb9ff;
-    --ta-brand-400:#7592ff;
-    --ta-brand-500:#465fff;
-    --ta-brand-600:#3641f5;
-    --ta-brand-700:#2a31d8;
+    --ta-brand-25:#f4fbfa;
+    --ta-brand-50:#eaf7f5;
+    --ta-brand-100:#d1efeb;
+    --ta-brand-200:#a5dfd9;
+    --ta-brand-300:#77cbc5;
+    --ta-brand-400:#39aaa9;
+    --ta-brand-500:#087f83;
+    --ta-brand-600:#086b70;
+    --ta-brand-700:#07565b;
     --ta-gray-25:#fcfcfd;
     --ta-gray-50:#f9fafb;
     --ta-gray-100:#f2f4f7;
@@ -35,25 +35,25 @@
     --ta-warning-soft:#fffaeb;
     --ta-danger:#d92d20;
     --ta-danger-soft:#fef3f2;
-    --ta-shadow-xs:0 1px 2px rgba(16,24,40,.05);
-    --ta-shadow-sm:0 1px 3px rgba(16,24,40,.10),0 1px 2px rgba(16,24,40,.06);
-    --ta-shadow-md:0 4px 8px -2px rgba(16,24,40,.10),0 2px 4px -2px rgba(16,24,40,.06);
-    --ta-focus:0 0 0 4px rgba(70,95,255,.12);
+    --ta-shadow-xs:0 1px 2px rgba(14,35,46,.055);
+    --ta-shadow-sm:0 2px 5px rgba(14,35,46,.055),0 12px 28px rgba(14,35,46,.035);
+    --ta-shadow-md:0 14px 42px rgba(14,35,46,.12),0 3px 10px rgba(14,35,46,.06);
+    --ta-focus:0 0 0 4px rgba(8,127,131,.16);
 
-    --ft-canvas:var(--ta-gray-50)!important;
+    --ft-canvas:#f3f7f7!important;
     --ft-shell:#fff!important;
-    --ft-workspace:var(--ta-gray-50)!important;
+    --ft-workspace:#f3f7f7!important;
     --ft-surface:#fff!important;
-    --ft-surface-2:var(--ta-gray-50)!important;
-    --ft-surface-3:var(--ta-gray-100)!important;
+    --ft-surface-2:#f7faf9!important;
+    --ft-surface-3:#ebf2f1!important;
     --ft-input:#fff!important;
     --ft-text:var(--ta-gray-700)!important;
     --ft-text-strong:var(--ta-gray-900)!important;
     --ft-text-soft:var(--ta-gray-600)!important;
     --ft-muted:var(--ta-gray-500)!important;
     --ft-faint:var(--ta-gray-400)!important;
-    --ft-line:var(--ta-gray-200)!important;
-    --ft-line-strong:var(--ta-gray-300)!important;
+    --ft-line:#dce7e5!important;
+    --ft-line-strong:#bbcfcc!important;
     --ft-accent:var(--ta-brand-500)!important;
     --ft-accent-hover:var(--ta-brand-600)!important;
     --ft-accent-soft:var(--ta-brand-50)!important;
@@ -73,8 +73,8 @@
   }
 
   html[data-ui-theme="dark"] {
-    --ta-brand-400:#7592ff;
-    --ta-brand-500:#465fff;
+    --ta-brand-400:#73d6ce;
+    --ta-brand-500:#73d6ce;
     --ta-gray-50:#f9fafb;
     --ta-gray-100:#f2f4f7;
     --ta-gray-300:#d0d5dd;
@@ -86,35 +86,35 @@
     --ta-gray-950:#0c111d;
     --ta-shadow-sm:0 1px 3px rgba(0,0,0,.30),0 1px 2px rgba(0,0,0,.25);
     --ta-shadow-md:0 12px 24px rgba(0,0,0,.30);
-    --ta-focus:0 0 0 4px rgba(70,95,255,.18);
+    --ta-focus:0 0 0 4px rgba(115,214,206,.22);
 
-    --ft-canvas:#0c111d!important;
-    --ft-shell:#101828!important;
-    --ft-workspace:#0c111d!important;
-    --ft-surface:#101828!important;
-    --ft-surface-2:#1d2939!important;
-    --ft-surface-3:#263244!important;
-    --ft-input:#101828!important;
+    --ft-canvas:#091719!important;
+    --ft-shell:#0e2023!important;
+    --ft-workspace:#091719!important;
+    --ft-surface:#122629!important;
+    --ft-surface-2:#193035!important;
+    --ft-surface-3:#213c40!important;
+    --ft-input:#122629!important;
     --ft-text:#d0d5dd!important;
     --ft-text-strong:#f9fafb!important;
     --ft-text-soft:#98a2b3!important;
     --ft-muted:#98a2b3!important;
     --ft-faint:#667085!important;
-    --ft-line:#1d2939!important;
-    --ft-line-strong:#344054!important;
-    --ft-accent:#7592ff!important;
-    --ft-accent-hover:#9cb9ff!important;
-    --ft-accent-soft:rgba(70,95,255,.12)!important;
-    --ft-accent-faint:rgba(70,95,255,.08)!important;
-    --ft-on-accent:#fff!important;
+    --ft-line:#2a4447!important;
+    --ft-line-strong:#3c5c60!important;
+    --ft-accent:#73d6ce!important;
+    --ft-accent-hover:#9be7df!important;
+    --ft-accent-soft:rgba(115,214,206,.13)!important;
+    --ft-accent-faint:rgba(115,214,206,.08)!important;
+    --ft-on-accent:#082b2d!important;
     --ft-success:#32d583!important;
     --ft-success-soft:rgba(18,183,106,.12)!important;
     --ft-warning:#fdb022!important;
     --ft-warning-soft:rgba(247,144,9,.12)!important;
     --ft-danger:#f97066!important;
     --ft-danger-soft:rgba(240,68,56,.12)!important;
-    --ft-info:#7592ff!important;
-    --ft-info-soft:rgba(70,95,255,.12)!important;
+    --ft-info:#73d6ce!important;
+    --ft-info-soft:rgba(115,214,206,.12)!important;
     --ft-shadow:var(--ta-shadow-sm)!important;
     --ft-shadow-pop:var(--ta-shadow-md)!important;
     --ft-focus:var(--ta-focus)!important;
@@ -149,7 +149,7 @@
   .app-ui .btn-primary {
     border-color:var(--ft-accent)!important;
     background:var(--ft-accent)!important;
-    color:#fff!important;
+    color:var(--ft-on-accent)!important;
     box-shadow:0 1px 2px rgba(16,24,40,.05)!important;
   }
   .app-ui .btn-primary:hover { background:var(--ft-accent-hover)!important;border-color:var(--ft-accent-hover)!important; }
@@ -176,7 +176,7 @@
     line-height:20px!important;
   }
   .app-ui :where(input,select,textarea)::placeholder { color:var(--ft-faint)!important;opacity:1!important; }
-  .app-ui :where(input,select,textarea):focus { outline:0!important;border-color:#9cb9ff!important;box-shadow:var(--ft-focus)!important; }
+  .app-ui :where(input,select,textarea):focus { outline:0!important;border-color:var(--ft-accent)!important;box-shadow:var(--ft-focus)!important; }
   .app-ui label>span,.app-ui .field-label { color:var(--ft-text-soft)!important;font-size:14px!important;font-weight:500!important; }
 
   /* Main shell — mirrors TailAdmin community proportions and surfaces. */
