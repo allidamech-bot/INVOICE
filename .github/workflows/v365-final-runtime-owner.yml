@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   verify-and-apply:
+    # Rerun after aligning the historical v337 assertions with the current draftTag/criticalTag runtime.
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
