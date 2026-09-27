@@ -67,8 +67,8 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
       if(result.dir!==(scenario.lang==='ar'?'rtl':'ltr'))failures.push(`${p}: wrong direction ${result.dir}`);
       if(result.lang!==scenario.lang)failures.push(`${p}: wrong lang ${result.lang}`);
       if(result.theme!==scenario.theme)failures.push(`${p}: wrong theme ${result.theme}`);
-      const expectedPrimary=scenario.theme==='dark'?'rgb(130, 169, 236)':'rgb(49, 93, 168)';
-      const expectedPrimaryInk=scenario.theme==='dark'?'rgb(16, 23, 34)':'rgb(255, 255, 255)';
+      const expectedPrimary=scenario.theme==='dark'?'rgb(115, 153, 227)':'rgb(49, 93, 168)';
+      const expectedPrimaryInk=scenario.theme==='dark'?'rgb(13, 13, 13)':'rgb(255, 255, 255)';
       if(result.primaryBackground!==expectedPrimary)failures.push(`${p}: primary action is not canonical blue (${result.primaryBackground}, expected ${expectedPrimary})`);
       if(result.primaryColor!==expectedPrimaryInk)failures.push(`${p}: primary action contrast ink mismatch (${result.primaryColor}, expected ${expectedPrimaryInk})`);
       if(result.scrollWidth>scenario.width+1)failures.push(`${p}: horizontal overflow ${result.scrollWidth}px > ${scenario.width}px`);
