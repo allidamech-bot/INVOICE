@@ -4,9 +4,18 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('v363 hardening layer is loaded after the visual system through the reliability bridge', async () => {
+test('v363 hardening layers are loaded after the visual system through the reliability bridge', async () => {
   const bridge = await read('src/styles/tailadmin-reliability-bridge-v320.css');
-  assert.match(bridge, /^@import url\("\.\/mobile-ux-functional-hardening-v363\.css\?v=363-1"\);/);
+  assert.match(bridge, /^@import url\("\.\/mobile-ux-functional-hardening-v363\.css\?v=363-1"\);\n@import url\("\.\/modal-viewport-reconciliation-v363\.css\?v=363-1"\);/);
+});
+
+test('v363 reconciles Safari visualViewport inline geometry with floating modal cards', async () => {
+  const css = await read('src/styles/modal-viewport-reconciliation-v363.css');
+  assert.match(css, /\.modal-backdrop>\.modal:not\(:has\(\.ta-settings-shell\)\)/);
+  assert.match(css, /width:calc\(100% - 16px\)!important/);
+  assert.match(css, /\.modal-backdrop:has\(\.modal-sm \.modal-message\)>\.modal-sm/);
+  assert.match(css, /align-self:center!important/);
+  assert.match(css, /margin-bottom:max\(8px,env\(safe-area-inset-bottom,0px\)\)!important/);
 });
 
 test('v363 turns product and operations editors into reachable mobile sheets with visible validation', async () => {
