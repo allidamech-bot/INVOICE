@@ -42,10 +42,14 @@ test('v363 bounds more/create menus and compact confirmations to the phone viewp
 test('financial and lifecycle destructive actions use LOUREX dialogs instead of browser confirms', async () => {
   const payments = await read('src/components/InvoicePaymentsPanel.tsx');
   const lifecycle = await read('src/components/DocumentLifecyclePanel.tsx');
+  const paymentBrowser = await read('tests/visual/run-functional-payments.cjs');
   assert.doesNotMatch(payments, /window\.confirm\(/);
   assert.match(payments, /<ConfirmDialog/);
   assert.doesNotMatch(lifecycle, /window\.confirm\(/);
   assert.match(lifecycle, /<ConfirmDialog/);
+  assert.doesNotMatch(paymentBrowser, /window\.confirm\s*=/);
+  assert.match(paymentBrowser, /modal-footer-actions/);
+  assert.match(paymentBrowser, /rapid LOUREX confirmation clicks must create one destructive request/);
 });
 
 test('operations uses app dialogs for business actions and only keeps the synchronous unsaved-work guard', async () => {
