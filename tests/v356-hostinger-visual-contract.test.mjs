@@ -41,10 +41,12 @@ test('v356 closes the loaded-app canvas, account grid and mobile settings contra
   assert.match(coherence,/\.ta-mobile-create/);
 });
 
-test('v357 keeps command menus premium and low-noise',()=>{
+test('v357 keeps command menus premium, neutral and inside the desktop sidebar',()=>{
   assert.match(interaction,/\.ta-create-menu\{[\s\S]*?border-radius:18px!important/);
-  assert.match(interaction,/\.ta-create-menu-grid>button\{[\s\S]*?background:color-mix\(in srgb,var\(--ft-surface\) 98%,transparent\)!important/);
-  assert.match(interaction,/\.ta-create-menu-grid>button:hover\{[\s\S]*?transform:translateY\(-1px\)!important/);
+  assert.match(interaction,/\.ta-sidebar-create \.ta-create-menu \.ta-create-menu-grid>button,[\s\S]*?background:color-mix\(in srgb,var\(--ft-surface\) 98%,transparent\)!important/);
+  assert.match(interaction,/\.ta-sidebar-create \.ta-create-menu \.ta-create-menu-grid>button:hover,[\s\S]*?transform:translateY\(-1px\)!important/);
+  assert.match(interaction,/\.ta-sidebar-create \.ta-create-menu-desktop\{[\s\S]*?width:100%!important[\s\S]*?overflow-y:auto!important/);
+  assert.match(interaction,/\.ta-sidebar-create \.ta-create-menu-desktop \.ta-create-menu-grid\{[\s\S]*?grid-template-columns:minmax\(0,1fr\)!important/);
   assert.match(interaction,/\.ta-mobile-sheet\{[\s\S]*?backdrop-filter:blur\(22px\) saturate\(1\.12\)!important/);
   assert.doesNotMatch(interaction,/z-index\s*:/i,'interaction polish must not replace the reliability stacking contract');
 });
