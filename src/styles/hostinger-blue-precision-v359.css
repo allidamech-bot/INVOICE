@@ -37,6 +37,24 @@
     box-shadow:0 9px 22px color-mix(in srgb,var(--ft-accent) 19%,transparent)!important;
     transform:none!important;
   }
+  /* v355 had a theme-specific gradient with higher specificity. Keep the actual
+     dark sign-in/create button on the canonical flat Premium Blue token. */
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-primary{
+    border-color:var(--ft-accent)!important;
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    color:var(--ft-on-accent)!important;
+    box-shadow:0 7px 18px color-mix(in srgb,var(--ft-accent) 16%,transparent)!important;
+    transform:none!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-primary:hover:not(:disabled){
+    border-color:var(--ft-accent-hover)!important;
+    background:var(--ft-accent-hover)!important;
+    background-image:none!important;
+    color:var(--ft-on-accent)!important;
+    box-shadow:0 9px 22px color-mix(in srgb,var(--ft-accent) 19%,transparent)!important;
+    transform:none!important;
+  }
   html body .app-ui .ta-sidebar-create>.btn{
     border-color:var(--ft-accent)!important;
     background:var(--ft-accent)!important;
