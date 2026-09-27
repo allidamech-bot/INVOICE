@@ -92,15 +92,19 @@ const output='visual-qa-output/functional-payments';
     await run('payment-delete-single-flight',async()=>{
       const page=await open('lang=en&existing=300&deleteDelay=250');
       try{
-        await page.evaluate(()=>{window.confirm=()=>true;});
         const remove=page.locator('.payment-history .payment-row button').first();
         await remove.evaluate(button=>{button.click();button.click();});
+        const dialog=page.locator('.modal-backdrop').filter({has:page.locator('.modal-message')}).last();
+        await dialog.waitFor();
+        const confirm=dialog.locator('.modal-footer-actions').getByRole('button',{name:'Delete'});
+        await confirm.evaluate(button=>{button.click();button.click();});
         await page.waitForFunction(()=>window.paymentsState().length===0);
         await page.waitForTimeout(350);
         const current=await state(page);
-        assert.equal(current.deleteAttempts,1,'rapid Delete clicks must create one destructive request');
+        assert.equal(current.deleteAttempts,1,'rapid LOUREX confirmation clicks must create one destructive request');
         assert.equal(current.payments.length,0);
         assert.equal(current.summary.remaining,'1000.00');
+        await dialog.waitFor({state:'detached'});
         await snap(page,'payment-delete-single-flight');
       }finally{await page.close();}
     });
