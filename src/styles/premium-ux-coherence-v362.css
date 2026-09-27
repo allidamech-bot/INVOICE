@@ -64,6 +64,13 @@
   html body .app-ui .ta-product-editor-header>button { width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important; }
   html body .app-ui :is(.ta-product-empty,.ta-product-editor-empty,.ta-product-history-empty) { min-height:150px!important; }
   html body .app-ui .ta-report-presets>button[aria-pressed="true"] { background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;font-weight:700!important; }
+  html body .app-ui :is(.section-heading,.draft-section-heading) h2 { font-size:15px!important;line-height:22px!important;font-weight:700!important; }
+  html body .app-ui :is(.draft-section-heading p,.ta-product-editor-section>header small) { font-size:11.5px!important;line-height:17px!important; }
+  html body .app-ui .draft-preset-grid strong { font-size:13px!important;line-height:19px!important; }
+  html body .app-ui .draft-preset-grid span { font-size:11.5px!important;line-height:17px!important; }
+  html body .app-ui .customer-dropdown strong { font-size:13px!important;line-height:19px!important; }
+  html body .app-ui .customer-dropdown span { font-size:11.5px!important;line-height:17px!important; }
+  html body .app-ui .customer-dropdown button { min-height:44px!important;padding:9px 11px!important; }
 
   html[data-ui-theme="dark"] body .app-ui :is(.editor-pane,.editor-section,.draft-control-section,.ta-product-editor-section,.ta-product-commandbar,.ta-product-row,.ta-product-menu,.ta-product-metrics>div,.ta-product-metrics>button,.ta-ops-form-section,.ta-ops-panel,.ta-ops-list-card,.ta-ops-editor-card,.ta-ops-callout,.ta-purchase-item,.ta-inventory-row,.ta-report-filterbar,.ta-report-kpi,.ta-panel,.ta-empty-card,.ta-settings-card) {
     background:#191919!important;
@@ -104,6 +111,7 @@
     html body .app-ui .section-heading { margin-bottom:11px!important;padding-bottom:9px!important; }
     html body .app-ui .ta-product-commandbar { gap:8px!important; }
     html body .app-ui .ta-product-editor-section>header { min-height:48px!important; }
+    html body .app-ui .draft-preset-grid button { min-height:70px!important; }
     html body .app-ui .ta-product-form-grid { gap:9px!important;padding:10px!important; }
     html body .app-ui .ta-product-editor-footer { flex-wrap:wrap!important; }
     html body .app-ui .ta-product-editor-footer>div { min-width:0!important;flex-wrap:wrap!important; }
