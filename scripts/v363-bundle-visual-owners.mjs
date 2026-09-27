@@ -5,7 +5,8 @@ const bridgeMarker='/* --- tailadmin-reliability-bridge-v320.css --- */';
 const owners=[
   ['mobile-ux-functional-hardening-v363.css','@import url("./mobile-ux-functional-hardening-v363.css?v=363-1");'],
   ['modal-viewport-reconciliation-v363.css','@import url("./modal-viewport-reconciliation-v363.css?v=363-1");'],
-  ['mobile-ux-deep-audit-v363.css','@import url("./mobile-ux-deep-audit-v363.css?v=363-1");']
+  ['mobile-ux-deep-audit-v363.css','@import url("./mobile-ux-deep-audit-v363.css?v=363-1");'],
+  ['mobile-core-workflows-v364.css','@import url("./mobile-core-workflows-v364.css?v=364-1");']
 ];
 
 let bundle=await readFile(bundlePath,'utf8');

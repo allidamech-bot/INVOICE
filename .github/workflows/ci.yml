@@ -173,6 +173,7 @@ jobs:
               run_qa 180 node tests/visual/run-mobile-final-quote-stack.cjs
               run_qa 180 node tests/visual/run-mobile-modal-overlap-v176.cjs
               run_qa 180 node tests/visual/run-functional-navigation-auth-v200.cjs
+              run_qa 180 node tests/visual/run-v364-core-workflows.cjs
               ;;
             auth-documents)
               run_qa 180 node tests/visual/run-premium-auth-gateway-v187.cjs
