@@ -40,7 +40,7 @@
   languageObserver.observe(document.documentElement,{attributes:true,attributeFilter:['dir','lang']});
 
   const pageAtTop=()=>window.scrollY<=0&&document.documentElement.scrollTop<=0&&document.body.scrollTop<=0;
-  const blockedTarget=(target)=>target instanceof Element&&Boolean(target.closest('input,textarea,select,[contenteditable="true"],.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.preview-stage,.editor-scroll,.ta-operations-page,.operations-page,.saved-items-page,.ta-product-editor.is-open,.product-library-pro.editor-open,.ta-mobile-sheet,.ta-create-menu-mobile,.global-search-panel,.ta-doc-mobile-action-portal,.mobile-document-action-portal'));
+  const blockedTarget=(target)=>target instanceof Element&&Boolean(target.closest('input,textarea,select,[contenteditable="true"],.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.preview-stage,.editor-scroll,.ta-operations-page,.operations-page,.ta-products-workspace,.saved-items-page,.ta-product-editor.is-open,.product-library-pro.editor-open,.ta-mobile-sheet,.ta-create-menu-mobile,.global-search-panel,.ta-doc-mobile-action-portal,.mobile-document-action-portal'));
   const canStart=(target)=>{
     if(refreshing||!pageAtTop())return false;
     // Re-check opt-in at gesture time too. A runtime stability guard may revoke it
@@ -51,10 +51,11 @@
     if(!document.querySelector('.app-root .app-ui'))return false;
     if(document.body.classList.contains('printing'))return false;
     if(document.documentElement.hasAttribute('data-lourex-document-editor'))return false;
+    if(document.documentElement.hasAttribute('data-lourex-workspace-dirty'))return false;
     // Operations and Product Library contain inline draft editors. Unlike
     // modal-based forms, those drafts do not have a global before-reload
     // confirmation, so native-style pull refresh must never discard them.
-    if(document.querySelector('.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.ta-operations-page,.operations-page,.saved-items-page,.ta-product-editor.is-open,.product-library-pro.editor-open,.ta-mobile-sheet,.ta-create-menu-mobile,.global-search-panel,.ta-doc-mobile-action-portal,.mobile-document-action-portal'))return false;
+    if(document.querySelector('.modal-backdrop,.mobile-preview-overlay,.editor-main,.editor-screen,.ta-operations-page,.operations-page,.ta-products-workspace,.saved-items-page,.ta-product-editor.is-open,.product-library-pro.editor-open,.ta-mobile-sheet,.ta-create-menu-mobile,.global-search-panel,.ta-doc-mobile-action-portal,.mobile-document-action-portal'))return false;
     return !blockedTarget(target);
   };
 
