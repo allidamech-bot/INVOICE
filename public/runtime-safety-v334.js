@@ -9,7 +9,7 @@
   const WORKSPACE_ORDER=['home','documents','customers','items','operations','receivables','reports'];
 
   function manualInventoryDraftOpen(){
-    const entry=document.querySelector('.operations-page .ta-inventory-entry,.operations-page .inventory-entry');
+    const entry=document.querySelector('.ta-operations-page .ta-inventory-entry,.operations-page .ta-inventory-entry,.operations-page .inventory-entry');
     if(!(entry instanceof HTMLElement))return false;
     const savedItem=entry.querySelector('select');
     if(savedItem&&String(savedItem.value||'').trim())return true;
