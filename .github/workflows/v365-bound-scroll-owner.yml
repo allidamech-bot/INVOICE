@@ -1,0 +1,32 @@
+name: v365 bound mobile editor scroll owner
+
+on:
+  push:
+    branches:
+      - fix/v365-mobile-editor-scroll-draft-templates
+    paths:
+      - .github/workflows/v365-bound-scroll-owner.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v365-mobile-editor-scroll-draft-templates
+          fetch-depth: 0
+      - name: Apply bounded viewport scroll owner
+        run: python scripts/v365-bound-scroll-owner.py
+      - name: Verify contract and commit
+        run: |
+          git diff --check
+          node --test tests/v365-mobile-editor-scroll-draft-templates.test.mjs
+          git diff -- src/styles/v365-mobile-editor-scroll-draft-templates.css tests/v365-mobile-editor-scroll-draft-templates.test.mjs
+          git config user.name "lourex-v365-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/styles/v365-mobile-editor-scroll-draft-templates.css tests/v365-mobile-editor-scroll-draft-templates.test.mjs
+          git commit -m "v365 bound mobile editor scroll owner to viewport"
+          git push origin HEAD:fix/v365-mobile-editor-scroll-draft-templates
