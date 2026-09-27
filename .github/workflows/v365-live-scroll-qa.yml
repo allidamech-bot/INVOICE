@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   live-qa:
+    # Retry after binding the runtime-promoted .ta-main owner to its shell grid row.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
