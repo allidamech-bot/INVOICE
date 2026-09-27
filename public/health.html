@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#081321" />
+  <meta name="theme-color" content="#0D0D0D" />
   <script>
     (function(){
       var pref='system';
@@ -13,17 +13,17 @@
       document.documentElement.dataset.uiTheme=resolved;
       document.documentElement.style.colorScheme=resolved;
       var meta=document.querySelector('meta[name="theme-color"]');
-      if(meta)meta.setAttribute('content',resolved==='dark'?'#081321':'#f4f7fb');
+      if(meta)meta.setAttribute('content',resolved==='dark'?'#0D0D0D':'#f4f7fb');
     })();
   </script>
   <title>LOUREX Invoice — Unified Diagnostics</title>
   <style>
     :root{
       font-family:Outfit,Inter,Arial,sans-serif;
-      --canvas:#081321;--surface:#0f1c2d;--surface-2:#15263a;--input:#0b1828;
-      --text:#d7e2ef;--strong:#f7fbff;--soft:#a8b8ca;--muted:#8799ae;
-      --line:#263a52;--line-strong:#354c67;--accent:#4ed4d0;--accent-soft:rgba(78,212,208,.14);--on-accent:#061417;
-      --success:#46d7a3;--warning:#f4bd5e;--danger:#ff8078;
+      --canvas:#0D0D0D;--surface:#191919;--surface-2:#202020;--input:#161616;
+      --text:#D2D2D2;--strong:#F7F7F7;--soft:#C8C8C8;--muted:#A9A9A9;
+      --line:#303030;--line-strong:#464646;--accent:#7399E3;--accent-soft:rgba(115,153,227,.16);--on-accent:#0D0D0D;
+      --success:#d2d2d2;--warning:#ef737a;--danger:#ef737a;
       color:var(--text);background:var(--canvas);color-scheme:dark;
     }
     html[data-ui-theme="light"]{
@@ -42,7 +42,7 @@
     .brand h1{font-size:22px;margin:0;color:var(--strong)}
     .brand p{margin:3px 0 0;color:var(--muted);font-size:13px}
     .card{margin-bottom:14px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 12px 30px rgba(16,24,40,.06)}
-    html[data-ui-theme="dark"] .card{box-shadow:0 14px 34px rgba(0,0,0,.18)}
+    html[data-ui-theme="dark"] .card{box-shadow:none}
     .summary{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
     .dot{width:10px;height:10px;border-radius:50%;background:var(--muted)}
     .dot.ok{background:var(--success)}.dot.warn{background:var(--warning)}.dot.bad{background:var(--danger)}

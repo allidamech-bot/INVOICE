@@ -55,7 +55,10 @@
     .ta-doc-toolbar,.ta-doc-filters,
     .ta-doc-table-head,.ta-quick-actions,.ta-dashboard-primary-grid,
     .ta-doc-row,.ta-customer-card,.ta-customers-summary,.ta-ops-editor-card,
-    .ta-ops-list-card,.ta-settings-card,.ta-sheet-group,.ta-sheet-account,
+    .ta-ops-list-card,.ta-ops-metrics>div,.ta-ops-summary>div,
+    .ta-products-overview>div,.ta-product-register,.ta-product-editor,
+    .ta-finance-kpi,.ta-finance-card,.ta-report-kpi,.ta-report-filterbar,
+    .ta-settings-card,.ta-sheet-group,.ta-sheet-account,
     .ta-mobile-sheet,.ta-search-trigger,.ta-topbar-account,.ta-doc-search,
     .global-search-panel,.lourex-advisor-card
   ) {
@@ -83,6 +86,21 @@
     background-image:none!important;
     border-color:#383838!important;
   }
+  html[data-ui-theme="dark"] body :is(.ta-settings-card,.lourex-diagnostics-stat) {
+    background:#191919!important;
+    background-image:none!important;
+    border-color:#383838!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body :is(.ta-settings-card>header,.lourex-diagnostics-stat) {
+    background:#202020!important;
+  }
+  html[data-ui-theme="dark"] body .lourex-diagnostics-action {
+    background:#7399e3!important;
+    border-color:#7399e3!important;
+    color:#0d0d0d!important;
+    box-shadow:none!important;
+  }
   html[data-ui-theme="dark"] body .app-ui .ta-doc-type-tabs>button,
   html[data-ui-theme="dark"] body :is(.global-search-input-wrap,.global-search-footer) {
     background:#202020!important;
@@ -98,6 +116,21 @@
     box-shadow:none!important;
     color:#f7f7f7!important;
   }
+  html[data-ui-theme="dark"] body :is(.global-search-start,.global-search-results,.global-search-actions>button,.global-search-destinations>button,.global-search-result) {
+    background:#191919!important;
+    background-image:none!important;
+    border-color:#383838!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body :is(.global-search-actions>button,.global-search-destinations>button,.global-search-result):hover {
+    background:#242424!important;
+  }
+  html[data-ui-theme="dark"] body .ta-settings-card :is(input,select,textarea) {
+    background:#161616!important;
+    border-color:#3b3b3b!important;
+    color:#f7f7f7!important;
+    box-shadow:none!important;
+  }
   html[data-ui-theme="dark"] body :is(.modal-header,.modal-footer,.ta-settings-sidebar),
   html[data-ui-theme="dark"] body .app-ui .ta-settings-nav button {
     background:#191919!important;
@@ -105,8 +138,8 @@
     border-color:#383838!important;
     box-shadow:none!important;
   }
-  html[data-ui-theme="dark"] body .app-ui .ta-settings-nav button.is-active,
-  html[data-ui-theme="dark"] body .app-ui .ta-settings-nav button.is-active .ta-settings-nav-icon {
+  html[data-ui-theme="dark"] body .ta-settings-nav button.is-active,
+  html[data-ui-theme="dark"] body .ta-settings-nav button.is-active .ta-settings-nav-icon {
     background:#292929!important;
     color:#f7f7f7!important;
     box-shadow:none!important;
@@ -154,7 +187,7 @@
   /* Active states are neutral; blue is reserved for the actual action and focus. */
   html[data-ui-theme="dark"] body .app-ui .ta-sidebar .ta-nav-item.is-active,
   html[data-ui-theme="dark"] body .app-ui .ta-mobile-nav>button.is-active,
-  html[data-ui-theme="dark"] body .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-segmented-control,.ta-range-control) >button.is-active {
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-ops-tabs,.ta-segmented-control,.ta-range-control) >button.is-active {
     background:#292929!important;
     background-image:none!important;
     border-color:#464646!important;
@@ -178,7 +211,7 @@
     background:none!important;
     box-shadow:none!important;
   }
-  html[data-ui-theme="dark"] body .app-ui :is(.ta-kpi-icon,.ta-customers-summary-icon,.ta-product-metric-icon,.ta-doc-row-icon,.ta-sheet-link-icon,.global-search-result-icon) {
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-kpi-icon,.ta-customers-summary-icon,.ta-product-metric-icon,.ta-ops-metric-icon,.ta-ops-empty>span,.ta-doc-row-icon,.ta-sheet-link-icon,.global-search-result-icon) {
     background:#292929!important;
     background-image:none!important;
     border-color:#383838!important;
