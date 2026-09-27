@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   verify-and-apply:
-    # Rerun after aligning the historical v337 assertions with the current draftTag/criticalTag runtime.
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -22,6 +21,25 @@ jobs:
           fetch-depth: 0
       - name: Apply final runtime owner and cache-key patch
         run: python scripts/v365-final-runtime-owner.py
+      - name: Align historical v337 contract with current dual-owner runtime
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('tests/v337-template-layout-site-pass.test.mjs')
+          text=path.read_text()
+          old_runtime='''  assert.match(cacheRefresh,/runtimeTag=`<link rel="stylesheet" href="\\$\\{draftScrollRuntime\\}" data-lourex-v331-draft-recovery="true" \\/>`/);\n  assert.match(cacheRefresh,/html=html\\.replace\\(bundleTag,`\\$\\{bundleTag\\}\\\\n  \\$\\{runtimeTag\\}`\\)/);'''
+          new_runtime='''  assert.match(cacheRefresh,/const draftTag=/);\n  assert.match(cacheRefresh,/const criticalTag=/);\n  assert.match(cacheRefresh,/data-lourex-v331-draft-recovery=\\"true\\"/);\n  assert.match(cacheRefresh,/data-lourex-v332-critical-documents=\\"true\\"/);\n  assert.match(cacheRefresh,/Standalone document owners are not ordered app\\.bundle\\.css -> v331 -> v332/);'''
+          if old_runtime not in text:
+              raise SystemExit('stale runtimeTag assertions not found after v365 helper patch')
+          text=text.replace(old_runtime,new_runtime,1)
+          old_final='''  assert.match(finalContract,/data-lourex-v331-draft-recovery=\\"true\\"/);'''
+          new_final='''  assert.match(finalContract,/data-lourex-v331-draft-recovery=\\"true\\"/);\n  assert.match(finalContract,/data-lourex-v332-critical-documents=\\"true\\"/);\n  assert.match(finalContract,/v332-critical-documents-deep-closeout\\.css\\?v=332-1/);\n  assert.match(finalContract,/cacheGeneration<361/);'''
+          if old_final not in text:
+              raise SystemExit('current v331 final-contract marker assertion not found')
+          text=text.replace(old_final,new_final,1)
+          path.write_text(text)
+          PY
       - name: Validate patch scope
         run: |
           git diff --check
