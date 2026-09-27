@@ -74,10 +74,15 @@ async function assertScrollToEnd(page,{nestedSelector,dockSelector,lastSelector,
         const templates=page.locator('.draft-pdf-design-section .template-card');
         assert.equal(await templates.count(),18,'Draft must expose all 18 shared visual templates');
         const loi=page.getByRole('button',{name:/خطاب نوايا/}).first();
-        await loi.scrollIntoViewIfNeeded();await loi.click();
+        await loi.scrollIntoViewIfNeeded();
+        await loi.click();
+        await page.waitForFunction(()=>document.querySelector('.draft-studio-topbar')?.textContent?.includes('خطاب نوايا'),null,{timeout:3000});
+        assert.match((await loi.getAttribute('class'))||'',/active/,'Letter of Intent purpose did not become active');
         assert.ok((await page.locator('.draft-studio-topbar').innerText()).includes('خطاب نوايا'),'Draft topbar does not reflect Letter of Intent purpose');
         const minimal=page.getByRole('button',{name:/بسيط/}).first();
-        await minimal.scrollIntoViewIfNeeded();await minimal.click();
+        await minimal.scrollIntoViewIfNeeded();
+        await minimal.click();
+        await page.waitForFunction(()=>document.querySelector('.draft-pdf-design-section .template-card[aria-pressed="true"]')?.textContent?.includes('بسيط'),null,{timeout:3000});
         assert.equal(await minimal.getAttribute('aria-pressed'),'true','Minimal shared template was not selected');
         const metrics=await assertScrollToEnd(page,{nestedSelector:'.draft-studio-scroll',dockSelector:'.draft-mobile-actionbar',lastSelector:'.draft-studio-scroll .draft-control-section:last-of-type',label:'draft'});
         await page.locator('.draft-mobile-actionbar').getByRole('button',{name:'معاينة'}).click();
