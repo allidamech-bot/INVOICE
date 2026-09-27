@@ -21,6 +21,19 @@ jobs:
           fetch-depth: 0
       - name: Apply final runtime owner patch
         run: python scripts/v365-final-runtime-owner.py
+      - name: Align historical runtime assertion with current production entry
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('tests/v337-template-layout-site-pass.test.mjs')
+          text=path.read_text()
+          old=r"assert.match(html,/document-entry-v302\.js\?v=337-3/);"
+          new=r"assert.match(html,/document-entry-v302\.js\?v=361/);"
+          if old not in text:
+              raise SystemExit('stale v337 document-entry assertion not found')
+          path.write_text(text.replace(old,new,1))
+          PY
       - name: Validate patch scope
         run: |
           git diff --check
