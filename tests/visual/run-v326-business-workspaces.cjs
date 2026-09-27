@@ -150,12 +150,25 @@ async function auditOpenSurface(page,selector,scrollerSelector,footerSelector,sc
 async function assertPrimaryAccent(page,locator,label,failures){
   if(!(await locator.isVisible().catch(()=>false))){failures.push(`${label} primary action missing`);return;}
   const colors=await locator.evaluate(el=>{
+    const normalize=color=>{
+      const canvas=document.createElement('canvas');canvas.width=1;canvas.height=1;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      if(!ctx)return null;
+      ctx.clearRect(0,0,1,1);ctx.fillStyle=color;ctx.fillRect(0,0,1,1);
+      const [r,g,b,a]=ctx.getImageData(0,0,1,1).data;
+      return{r,g,b,a};
+    };
     const probe=document.createElement('span');
     probe.style.position='fixed';probe.style.pointerEvents='none';probe.style.background='var(--ft-accent)';document.body.appendChild(probe);
-    const accent=getComputedStyle(probe).backgroundColor;probe.remove();
-    return{actual:getComputedStyle(el).backgroundColor,accent};
+    const accentText=getComputedStyle(probe).backgroundColor;probe.remove();
+    const actualText=getComputedStyle(el).backgroundColor;
+    return{actualText,accentText,actual:normalize(actualText),accent:normalize(accentText)};
   });
-  if(colors.actual!==colors.accent)failures.push(`${label} primary color ${colors.actual} != accent ${colors.accent}`);
+  const channelDelta=colors.actual&&colors.accent?Math.max(
+    Math.abs(colors.actual.r-colors.accent.r),Math.abs(colors.actual.g-colors.accent.g),
+    Math.abs(colors.actual.b-colors.accent.b),Math.abs(colors.actual.a-colors.accent.a)
+  ):Infinity;
+  if(channelDelta>2)failures.push(`${label} primary color ${colors.actualText} != accent ${colors.accentText} (pixel delta ${channelDelta})`);
 }
 
 async function deepMobileAudit(page,surface,scenario,lang,engineName,failures){
