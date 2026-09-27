@@ -287,6 +287,10 @@ function isDocumentEditorOpen():boolean{
   return document.documentElement.hasAttribute('data-lourex-document-editor')||Boolean(document.querySelector('.editor-screen'));
 }
 
+function activeDataEntryEditorOpen():boolean{
+  return Boolean(document.querySelector('.ta-product-editor.is-open,.ta-operations-page .ta-ops-editor,.product-library-pro.editor-open,.operations-page .purchase-editor'));
+}
+
 function inventoryEntryHasDraftInput():boolean{
   const entry=document.querySelector('.ta-operations-page .ta-inventory-entry,.operations-page .ta-inventory-entry,.operations-page .inventory-entry');
   if(!(entry instanceof HTMLElement))return false;
@@ -300,11 +304,11 @@ function inventoryEntryHasDraftInput():boolean{
 
 function manualLockUnsafeWorkspaceOpen():boolean{
   if(isDocumentEditorOpen())return true;
-  return document.documentElement.hasAttribute('data-lourex-workspace-dirty')||inventoryEntryHasDraftInput();
+  return document.documentElement.hasAttribute('data-lourex-workspace-dirty')||activeDataEntryEditorOpen()||inventoryEntryHasDraftInput();
 }
 
 function reloadUnsafeWorkspaceOpen():boolean{
-  return isDocumentEditorOpen()||document.documentElement.hasAttribute('data-lourex-workspace-dirty')||Boolean(document.querySelector('.modal-backdrop'));
+  return isDocumentEditorOpen()||document.documentElement.hasAttribute('data-lourex-workspace-dirty')||activeDataEntryEditorOpen()||Boolean(document.querySelector('.modal-backdrop'));
 }
 
 function safeSignedOutAuthGatewayForAutomaticReload():boolean{
