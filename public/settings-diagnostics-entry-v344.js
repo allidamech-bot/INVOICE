@@ -170,7 +170,7 @@
     style.id=STYLE_ID;
     style.textContent=`
       ${FLOATING_SELECTOR}{display:none!important}
-      #${NOTICE_ID}{display:grid;gap:4px;margin:0 0 14px;padding:12px 13px;border:1px solid color-mix(in srgb,#4ed4d0 38%,transparent);border-radius:10px;background:color-mix(in srgb,#4ed4d0 9%,transparent)}
+      #${NOTICE_ID}{display:grid;gap:4px;margin:0 0 14px;padding:12px 13px;border:1px solid color-mix(in srgb,#7399E3 38%,transparent);border-radius:10px;background:color-mix(in srgb,#7399E3 9%,transparent)}
       #${NOTICE_ID} strong{font-size:13px;line-height:1.45}
       #${NOTICE_ID} small{font-size:11px;line-height:1.65;opacity:.78}
     `;
