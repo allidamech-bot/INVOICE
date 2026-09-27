@@ -16,6 +16,7 @@ test('v365 gives mobile document editors one bounded scroll owner with action-do
   assert.match(css,/\.ta-editor-workspace \.editor-scroll,[\s\S]*?\.ta-draft-studio-workspace \.draft-studio-scroll[\s\S]*?padding-bottom:calc\(116px \+ env\(safe-area-inset-bottom,0px\)\)!important;/);
   assert.match(css,/\.mobile-editor-actionbar,[\s\S]*?\.draft-mobile-actionbar[\s\S]*?position:fixed!important;/);
   assert.match(css,/bottom:calc\(8px \+ env\(safe-area-inset-bottom,0px\)\)!important/);
+  assert.match(css,/draft-studio-identity>span[\s\S]*?display:inline-flex!important/);
 });
 
 test('v365 Draft uses the exact shared 18-template selector instead of a separate four-design fork',async()=>{

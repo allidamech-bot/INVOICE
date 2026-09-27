@@ -423,3 +423,33 @@ html body .app-ui .draft-studio .draft-pdf-design-section .template-card.selecte
 @media print{
   .draft-letter-page .draft-document-purpose{break-inside:avoid;page-break-inside:avoid;}
 }
+
+
+/* v365 mobile Draft purpose badge: replace generic Studio text with the actual document purpose. */
+@media screen and (max-width:760px){
+  html body .app-ui .screen-editor .draft-studio-identity{
+    flex:1 1 auto!important;
+    gap:7px!important;
+    min-width:0!important;
+  }
+  html body .app-ui .screen-editor .draft-studio-identity small{display:none!important;}
+  html body .app-ui .screen-editor .draft-studio-identity>div{
+    flex:0 1 auto!important;
+    min-width:0!important;
+    max-width:92px!important;
+  }
+  html body .app-ui .screen-editor .draft-studio-identity>span{
+    display:inline-flex!important;
+    align-items:center!important;
+    flex:0 1 auto!important;
+    min-width:0!important;
+    max-width:118px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+}
+@media screen and (max-width:390px){
+  html body .app-ui .screen-editor .draft-studio-identity>div{max-width:78px!important;}
+  html body .app-ui .screen-editor .draft-studio-identity>span{max-width:96px!important;}
+}
