@@ -71,6 +71,36 @@
     background-image:none!important;
     border-color:#303030!important;
   }
+  html[data-ui-theme="dark"] body .ta-auth-page :is(.ta-auth-frame,.ta-auth-main,.ta-auth-card,.ta-auth-tabs,.ta-auth-feature-list>div,.ta-auth-account-chip,.ta-auth-info-card) {
+    background:#191919!important;
+    background-image:none!important;
+    border-color:#383838!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-main {
+    background:#101010!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-aside::before {
+    display:none!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-feature-list>div {
+    background:#242424!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page :is(.ta-auth-aside-copy>span,.ta-auth-card-header>span) {
+    color:#d2d2d2!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page :is(.ta-google-button,.ta-auth-language,.ta-auth-card input,.ta-auth-card select) {
+    background:#161616!important;
+    border-color:#3b3b3b!important;
+    color:#f7f7f7!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-tabs button.is-active {
+    background:#292929!important;
+    color:#f7f7f7!important;
+    box-shadow:none!important;
+  }
 
   /* Active states are neutral; blue is reserved for the actual action and focus. */
   html[data-ui-theme="dark"] body .app-ui .ta-sidebar .ta-nav-item.is-active,
