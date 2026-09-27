@@ -257,16 +257,17 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
   const signing = (doc.appearance.showSignature && Boolean(doc.companySnapshot.signatureDataUrl)) || (doc.appearance.showStamp && Boolean(doc.companySnapshot.stampDataUrl));
   const adjustments = [doc.adjustments.discountEnabled, doc.adjustments.shippingEnabled, doc.adjustments.otherChargesEnabled, doc.adjustments.taxEnabled].filter(Boolean).length;
   const score = termsCount + (notes ? 3 : 0) + (bank ? 4 : 0) + (signing ? 3 : 0) + adjustments;
-  // v364: a standard terms/bank/signature stack belongs with the financial close.
-  // A dedicated details page is now reserved for genuinely exceptional copy density.
+  // v364: normal commercial features are not overflow. Only genuinely dense
+  // prose may earn a dedicated closing page; bank/signature/totals stay with the
+  // financial close whenever their text footprint is routine.
   const hardOverflow=detailsChars>1900||values.some(value=>value.length>700)||notes.length>1200;
   if(hardOverflow)return true;
-  const exceptionalClosing=score>=18||detailsChars>1250||values.some(value=>value.length>460)||notes.length>780;
+  const exceptionalClosing=detailsChars>1300||values.some(value=>value.length>500)||notes.length>820||(score>=24&&detailsChars>900);
   if(!exceptionalClosing)return false;
   const tentative=paginateItems(doc.items,true,firstPageItemCapacity(doc),doc.language,item=>itemWeight(doc,item));
   const last=tentative[tentative.length-1]??[];
   const lastWeight=last.reduce((sum,item)=>sum+itemWeight(doc,item),0);
-  const allowedLastWeight=score>=22?1:score>=20?2:3;
+  const allowedLastWeight=detailsChars>1650?1:detailsChars>1400?2:3;
   return lastWeight>allowedLastWeight;
 }
 
