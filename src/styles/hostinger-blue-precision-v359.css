@@ -134,6 +134,26 @@
   }
 }
 
+/* The mobile command palette must size to its actual content. Historical search
+ * layers used tall minimum bodies; once the footer and extra quick actions are hidden
+ * that created an empty lower half. Keep one scroll owner and preserve result-space
+ * only when results actually need it. */
+@media screen and (max-width:900px){
+  html body .global-search-panel{
+    height:auto!important;
+    min-height:0!important;
+    max-height:min(82dvh,680px)!important;
+  }
+  html body :is(.global-search-start,.global-search-results){
+    flex:0 1 auto!important;
+    min-height:0!important;
+    max-height:calc(min(82dvh,680px) - 58px)!important;
+    overflow-y:auto!important;
+  }
+  html body .global-search-start{padding-bottom:12px!important;}
+  html body .global-search-empty{min-height:180px!important;}
+}
+
 @media (prefers-reduced-motion:reduce){
   html body .app-ui :is(.btn-primary,button.btn-primary,.lourex-ai-launcher){transition:none!important;transform:none!important;}
 }
