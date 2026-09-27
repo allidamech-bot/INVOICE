@@ -19,10 +19,10 @@ for(const runtime of [
 ])if(!html.includes(runtime))throw new Error(`v351 production contract: missing local runtime reference ${runtime}.`);
 
 const startupWatchdog='./startup-watchdog-v321.js?v=347';
-const themeBootstrap='./theme-bootstrap-v347.js?v=351';
+const themeBootstrap='./theme-bootstrap-v347.js?v=361';
 const storageCleanup='./storage-cleanup-v347.js?v=351';
-const presentationGuard='./home-final-closeout-v286.js?v=351';
-const documentEntry='./document-entry-v302.js?v=351';
+const presentationGuard='./home-final-closeout-v286.js?v=361';
+const documentEntry='./document-entry-v302.js?v=361';
 const draftPaintUrl='./styles/v333-critical-documents-visual-functional-closeout.css?v=333-1';
 const draftOutputUrl='./styles/v337-template-layout-balance.css?v=337-3';
 const recoveryUrl='./styles/v331-draft-scroll-recovery.css?v=337-3';
@@ -62,7 +62,7 @@ for(const retiredRuntimeStyle of ['attachment-gallery-v304.css','mobile-layout-c
 
 const cacheMatch=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
 const cacheGeneration=cacheMatch?Number(cacheMatch[1]):0;
-if(cacheGeneration<351)throw new Error(`v351 production contract: PWA cache generation is ${cacheGeneration||'missing'}, expected >=351.`);
+if(cacheGeneration<361)throw new Error(`v351 production contract: PWA cache generation is ${cacheGeneration||'missing'}, expected >=361.`);
 
 const staleServiceWorkerRuntime=/(?:document-entry-v302\.js\?v=(?:302|311|314|320|337-2|337-3)|v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)|storage-cleanup-v347\.js\?v=347|home-final-closeout-v286\.js\?v=320|startup-watchdog-v321\.js\?v=321)/;
 if(staleServiceWorkerRuntime.test(sw))throw new Error('v351 production contract: stale active runtime URL survived in the service-worker precache.');
