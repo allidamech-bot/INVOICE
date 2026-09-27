@@ -36,6 +36,7 @@
   html[data-ui-theme="dark"] body .app-ui :is(
     .ta-dashboard-hero,.ta-dashboard-card,.ta-kpi-card,.ta-panel,.ta-doc-panel,
     .ta-doc-register-card,.ta-doc-summary-grid,.ta-doc-type-tabs,.ta-doc-table,
+    .ta-doc-toolbar,.ta-doc-filters,
     .ta-doc-table-head,.ta-quick-actions,.ta-dashboard-primary-grid,
     .ta-doc-row,.ta-customer-card,.ta-customers-summary,.ta-ops-editor-card,
     .ta-ops-list-card,.ta-settings-card,.ta-sheet-group,.ta-sheet-account,
@@ -61,10 +62,21 @@
     background:#242424!important;
     background-image:none!important;
   }
-  html[data-ui-theme="dark"] body :is(.modal,.ta-settings-modal,.ta-settings-dialog,.global-search-panel,.ta-mobile-sheet,.ta-cloud-account,.ta-cloud-auth-form) {
+  html[data-ui-theme="dark"] body :is(.modal,.ta-settings-modal,.ta-settings-dialog,.ta-settings-shell,.ta-settings-content,.ta-settings-nav,.global-search-panel,.ta-mobile-sheet,.ta-cloud-account,.ta-cloud-auth-form) {
     background:#191919!important;
     background-image:none!important;
     border-color:#383838!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .ta-doc-type-tabs>button,
+  html[data-ui-theme="dark"] body :is(.global-search-input-wrap,.global-search-footer) {
+    background:#202020!important;
+    background-image:none!important;
+    border-color:#383838!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .global-search-backdrop {
+    background:rgba(0,0,0,.72)!important;
+    backdrop-filter:none!important;
   }
   html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-aside {
     background:#181818!important;
