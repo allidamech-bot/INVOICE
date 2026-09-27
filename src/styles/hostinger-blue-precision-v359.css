@@ -133,6 +133,14 @@
     color:var(--ft-accent)!important;
   }
 
+  /* Routine sync status belongs inside Settings/Account. These selectors purposely
+     outrank the historical shell display:flex rules; conflict recovery remains intact. */
+  html body .app-ui .ta-sidebar-sync,
+  html body .app-ui .ta-topbar-sync,
+  html body .app-ui .ta-sheet-sync{
+    display:none!important;
+  }
+
   /* Focus is blue across app, search and auth; no legacy purple halo remains. */
   html body .app-ui :is(button,a,[role="button"],input,select,textarea):focus-visible,
   html body .global-search-panel :is(button,input):focus-visible,
