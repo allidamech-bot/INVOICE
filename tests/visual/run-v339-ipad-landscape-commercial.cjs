@@ -43,9 +43,14 @@ async function runCase(browser,kind){
   if(await textInput.count()){
     const before=await textInput.inputValue();
     await textInput.fill(`${before} QA`);
-    await page.waitForTimeout(1700);
-    const saves=await page.evaluate(()=>Number(window.saveAttempts||0));
-    if(saves<1)failures.push('commercial editor typing did not autosave on iPad landscape');
+    // iPad WebKit intentionally uses a longer autosave delay to reduce encrypted
+    // vault-write pressure. Poll the observable save event rather than relying on a
+    // narrow fixed sleep that becomes flaky under loaded CI runners.
+    try{
+      await page.waitForFunction(()=>Number(window.saveAttempts||0)>=1,undefined,{timeout:4500});
+    }catch{
+      failures.push('commercial editor typing did not autosave on iPad landscape');
+    }
   }else failures.push('commercial editor text input missing');
 
   await page.evaluate(()=>{const scroll=document.querySelector('.editor-scroll');if(scroll)scroll.scrollTop=scroll.scrollHeight;});

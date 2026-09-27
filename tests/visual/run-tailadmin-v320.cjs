@@ -100,15 +100,74 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
 
             if(surface.name==='shell'){
               if(scenario.name==='desktop'){
-                const create=page.locator('.ta-create-button');await create.click();
-                if(!(await page.locator('.ta-create-menu').isVisible()))failures.push('TailAdmin create menu did not open');
+                const create=page.locator('.ta-create-button');
+                await create.click();
+                const menu=page.locator('.ta-create-menu');
+                if(!(await menu.isVisible()))failures.push('TailAdmin create menu did not open');
+                else{
+                  const menuState=await page.evaluate(()=>{
+                    const sidebar=document.querySelector('.ta-sidebar');
+                    const menu=document.querySelector('.ta-create-menu');
+                    const trigger=document.querySelector('.ta-create-button');
+                    const command=document.querySelector('.ta-create-menu-grid>button');
+                    if(!(sidebar&&menu&&trigger&&command))return null;
+                    const sr=sidebar.getBoundingClientRect();
+                    const mr=menu.getBoundingClientRect();
+                    return {
+                      sidebarLeft:sr.left,sidebarRight:sr.right,
+                      menuLeft:mr.left,menuRight:mr.right,
+                      menuClientWidth:menu.clientWidth,menuScrollWidth:menu.scrollWidth,
+                      triggerBackground:getComputedStyle(trigger).backgroundColor,
+                      commandBackground:getComputedStyle(command).backgroundColor
+                    };
+                  });
+                  if(!menuState)failures.push('TailAdmin create menu metrics unavailable');
+                  else{
+                    if(menuState.menuLeft<menuState.sidebarLeft-1||menuState.menuRight>menuState.sidebarRight+1)failures.push(`create menu escaped sidebar bounds ${menuState.menuLeft}-${menuState.menuRight} vs ${menuState.sidebarLeft}-${menuState.sidebarRight}`);
+                    if(menuState.menuScrollWidth>menuState.menuClientWidth+2)failures.push(`create menu horizontal clipping ${menuState.menuScrollWidth}>${menuState.menuClientWidth}`);
+                    if(distance(rgb(menuState.triggerBackground),rgb(menuState.commandBackground))<55)failures.push(`create submenu inherited saturated trigger background ${menuState.commandBackground}`);
+                  }
+                  await page.screenshot({path:`${output}/create-menu-${scenario.name}-${theme}-${lang}.png`,fullPage:false});
+                }
+                await create.click();
+                await menu.waitFor({state:'hidden',timeout:3000}).catch(()=>{});
               }else{
                 const more=page.locator('.ta-mobile-nav button[aria-controls="ta-mobile-more"]');
                 await more.click();
-                if(!(await page.locator('.ta-mobile-sheet').isVisible()))failures.push('TailAdmin More sheet did not open');
-                const sheet=await page.locator('.ta-mobile-sheet').evaluate(el=>{const r=el.getBoundingClientRect();return{bottom:r.bottom,height:r.height};});
+                const sheetLocator=page.locator('.ta-mobile-sheet');
+                if(!(await sheetLocator.isVisible()))failures.push('TailAdmin More sheet did not open');
+                const sheet=await sheetLocator.evaluate(el=>{const r=el.getBoundingClientRect();return{bottom:r.bottom,height:r.height};});
                 if(sheet.bottom>scenario.height+1)failures.push(`More sheet exceeds viewport: ${sheet.bottom}`);
+                await page.screenshot({path:`${output}/more-sheet-${scenario.name}-${theme}-${lang}.png`,fullPage:false});
+                const backdrop=page.locator('.ta-overlay-backdrop');
+                if(await backdrop.isVisible())await backdrop.click({position:{x:4,y:4}});
+                await sheetLocator.waitFor({state:'hidden',timeout:3000}).catch(()=>{});
               }
+
+              const search=page.locator('.ta-search-trigger');
+              await search.click();
+              const searchPanel=page.locator('.global-search-panel');
+              await searchPanel.waitFor({state:'visible',timeout:3000}).catch(()=>{});
+              if(!(await searchPanel.isVisible()))failures.push('Global Search did not open from TailAdmin search trigger');
+              else{
+                const searchState=await searchPanel.evaluate(el=>{
+                  const r=el.getBoundingClientRect();
+                  const input=document.querySelector('.global-search-input-wrap');
+                  return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,borderRadius:getComputedStyle(el).borderRadius,inputHeight:input?.getBoundingClientRect().height||0};
+                });
+                if(searchState.left<0||searchState.right>scenario.width+1||searchState.top<0||searchState.bottom>scenario.height+1)failures.push(`Global Search exceeds viewport ${JSON.stringify(searchState)}`);
+                if(scenario.name==='desktop'&&searchState.width<620)failures.push(`desktop Global Search too narrow: ${searchState.width}`);
+                if(scenario.name==='mobile'&&searchState.width<scenario.width-32)failures.push(`mobile Global Search too narrow: ${searchState.width}`);
+                if(searchState.inputHeight<56)failures.push(`Global Search command input too short: ${searchState.inputHeight}`);
+                await page.screenshot({path:`${output}/search-${scenario.name}-${theme}-${lang}.png`,fullPage:false});
+              }
+              await page.keyboard.press('Escape');
+              await searchPanel.waitFor({state:'hidden',timeout:3000}).catch(()=>{});
+
+              /* Preserve the historical shell evidence state after the additional
+                 command-search contract screenshots. */
+              if(scenario.name==='desktop')await page.locator('.ta-create-button').click();
+              else await page.locator('.ta-mobile-nav button[aria-controls="ta-mobile-more"]').click();
             }
 
             const screenshot=`${output}/${surface.name}-${scenario.name}-${theme}-${lang}.png`;
