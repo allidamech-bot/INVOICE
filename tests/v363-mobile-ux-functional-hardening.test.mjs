@@ -86,10 +86,12 @@ test('manual lock and automatic reload continuity use current TailAdmin roots an
   assert.match(app, /\.ta-auth-page,\.auth-page/);
 });
 
-test('pull-to-refresh cannot start inside the current TailAdmin operations workspace', async () => {
+test('pull-to-refresh cannot start inside current TailAdmin operations or product editors', async () => {
   const pull = await read('public/pull-to-refresh.js');
   assert.match(pull, /blockedTarget=.*\.ta-operations-page/);
+  assert.match(pull, /blockedTarget=.*\.ta-product-editor\.is-open/);
   assert.match(pull, /document\.querySelector\('[^']*\.ta-operations-page[^']*'\)\)return false/);
+  assert.match(pull, /document\.querySelector\('[^']*\.ta-product-editor\.is-open[^']*'\)\)return false/);
 });
 
 test('reports keep phone filters and labeled-record tables within the final mobile contract', async () => {
