@@ -41,6 +41,13 @@
   }
 
   @media (max-width:900px){
+    /* Safari zooms focused text inputs below 16px. Keep the AI composer visually
+       compact through line-height/padding while retaining a physical 16px input. */
+    html body .lourex-ai-compose input{
+      font-size:16px!important;
+      line-height:20px!important;
+    }
+
     /* Complex import dialogs may be tall, but must still read as bounded premium
        sheets rather than a second full-screen application. */
     html body .modal-backdrop:has(.product-import-shell),
