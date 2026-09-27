@@ -2,7 +2,7 @@ import type { CompanySettings, UiLanguage } from '../types.js';
 import { Brand, Button, Field, Input } from './UI.js';
 import { fileToDataUrl } from '../lib/files.js';
 import { t } from '../lib/i18n.js';
-import { currentCloudUser, pushLocalVaultToCloud, reconcileCloudVault } from '../cloud/firebase.js';
+import { currentCloudUser, pushLocalVaultToCloud, reconcileCloudVault, resolveCloudConflictWithCloud, resolveCloudConflictWithLocal } from '../cloud/firebase.js';
 import { getAccountVaultSecret, retireAccountVaultSecret } from '../cloud/account-access.js';
 import { changePin } from '../storage/vault.js';
 import { getSecurity } from '../storage/db.js';
@@ -60,9 +60,9 @@ export class SetupScreen extends React.Component<SetupProps,SetupState>{
 }
 
 interface UnlockProps {onUnlock:(pin:string)=>Promise<void>;logoDataUrl:string;language:UiLanguage;onLanguageChange:(language:UiLanguage)=>Promise<void>;}
-interface UnlockState {pin:string;confirmPin:string;error:string;busy:boolean;checking:boolean;migrateAccountSecret:boolean;}
+interface UnlockState {pin:string;confirmPin:string;error:string;busy:boolean;checking:boolean;migrateAccountSecret:boolean;migrationConflict:boolean;conflictChoice:''|'keep-local'|'use-cloud';}
 export class UnlockScreen extends React.Component<UnlockProps,UnlockState>{
-  state:UnlockState={pin:'',confirmPin:'',error:'',busy:false,checking:true,migrateAccountSecret:false};
+  state:UnlockState={pin:'',confirmPin:'',error:'',busy:false,checking:true,migrateAccountSecret:false,migrationConflict:false,conflictChoice:''};
   private accountSecret='';
   componentDidMount():void{void this.detectSecurityMode();}
   private pinValue=(value:string)=>value.replace(/\D/g,'').slice(0,12);
@@ -81,20 +81,37 @@ export class UnlockScreen extends React.Component<UnlockProps,UnlockState>{
     e.preventDefault();if(this.state.busy)return;const pin=this.state.pin;
     if(!PIN_PATTERN.test(pin)){this.setState({error:t('Enter a PIN containing 4–12 digits.','أدخل رمز PIN مكوّنًا من 4 إلى 12 رقمًا.')});return;}
     if(this.state.migrateAccountSecret&&pin!==this.state.confirmPin){this.setState({error:t('PIN confirmation does not match.','تأكيد رمز PIN غير مطابق.')});return;}
-    this.setState({busy:true,error:''});
+    this.setState({busy:true,error:'',migrationConflict:false,conflictChoice:''});
     try{
       if(this.state.migrateAccountSecret){
         if(!this.accountSecret)throw new Error(t('Secure upgrade data is unavailable. Reload and try again.','بيانات الترقية الآمنة غير متاحة. أعد تحميل الصفحة وحاول مجددًا.'));
         const user=currentCloudUser();if(!user)throw new Error(t('Your account session ended. Sign in again.','انتهت جلسة حسابك. سجّل الدخول مرة أخرى.'));
         if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error(t('Internet connection is required to complete this one-time PIN upgrade safely.','يلزم اتصال بالإنترنت لإكمال ترقية PIN هذه لمرة واحدة بأمان.'));
-        const baseline=await reconcileCloudVault(user.uid);if(baseline==='diverged')throw new Error(t('Your cloud data changed on another device. Reload LOUREX before upgrading the PIN so no newer data is overwritten.','تغيرت بياناتك السحابية على جهاز آخر. أعد تحميل LOUREX قبل ترقية PIN حتى لا يتم استبدال أي بيانات أحدث.'));
-        await changePin(this.accountSecret,pin);let published=false;
-        try{const result=await pushLocalVaultToCloud(user.uid);if(result==='remote-changed')throw new Error(t('Your cloud data changed while the PIN upgrade was being completed. Reload and try again.','تغيرت بيانات السحابة أثناء إكمال ترقية PIN. أعد التحميل وحاول مرة أخرى.'));published=result==='pushed'||result==='same';if(!published)throw new Error(t('The new PIN could not be confirmed in your cloud account.','تعذر تأكيد رمز PIN الجديد في حسابك السحابي.'));}
-        catch(error){try{await changePin(pin,this.accountSecret);}catch{}throw error;}
+        const baseline=await reconcileCloudVault(user.uid);if(baseline==='diverged'){this.setState({busy:false,migrationConflict:true,pin:'',confirmPin:'',error:''});return;}
+        await changePin(this.accountSecret,pin);let published=false,cloudChangedDuringUpgrade=false;
+        try{const result=await pushLocalVaultToCloud(user.uid);if(result==='remote-changed'){cloudChangedDuringUpgrade=true;throw new Error(t('Your cloud data changed while the PIN upgrade was being completed. Reload and try again.','تغيرت بيانات السحابة أثناء إكمال ترقية PIN. أعد التحميل وحاول مرة أخرى.'));}published=result==='pushed'||result==='same';if(!published)throw new Error(t('The new PIN could not be confirmed in your cloud account.','تعذر تأكيد رمز PIN الجديد في حسابك السحابي.'));}
+        catch(error){try{await changePin(pin,this.accountSecret);}catch{}if(cloudChangedDuringUpgrade){this.setState({busy:false,migrationConflict:true,conflictChoice:'',pin:'',confirmPin:'',error:''});return;}throw error;}
         try{await retireAccountVaultSecret(user.uid);}catch{}this.accountSecret='';
       }
       await this.props.onUnlock(pin);
-    }catch(error){const message=error instanceof Error?error.message:t('Unable to open your workspace.','تعذر فتح مساحة العمل.');this.setState({busy:false,error:/wrong pin/i.test(message)?t('Incorrect PIN.','رمز PIN غير صحيح.'):message,pin:'',confirmPin:''});}
+    }catch(error){const message=error instanceof Error?error.message:t('Unable to open your workspace.','تعذر فتح مساحة العمل.');const cloudConflict=/data changed on another device/i.test(message);this.setState({busy:false,migrationConflict:cloudConflict,conflictChoice:'',error:cloudConflict?'':/wrong pin/i.test(message)?t('Incorrect PIN.','رمز PIN غير صحيح.'):message,pin:'',confirmPin:''});}
+  };
+
+  private resolveMigrationConflict=async():Promise<void>=>{
+    const choice=this.state.conflictChoice;if(!choice||this.state.busy)return;
+    const user=currentCloudUser();if(!user){this.setState({error:t('Your account session ended. Sign in again.','انتهت جلسة حسابك. سجّل الدخول مرة أخرى.')});return;}
+    this.setState({busy:true,error:''});
+    try{
+      if(choice==='keep-local'){
+        await resolveCloudConflictWithLocal(user.uid);
+        this.setState({busy:false,migrationConflict:false,conflictChoice:'',error:'',pin:'',confirmPin:''});
+        return;
+      }
+      await resolveCloudConflictWithCloud(user.uid);
+      window.location.reload();
+    }catch(error){
+      this.setState({busy:false,error:error instanceof Error?error.message:t('Unable to resolve the account data conflict.','تعذر حل تعارض بيانات الحساب.')});
+    }
   };
 
   private languageSwitch():any{return <div className="ta-auth-utilities"><ThemeControl compact language={this.props.language}/><button type="button" className="ta-auth-language" disabled={this.state.busy||this.state.checking} onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button></div>;}
@@ -108,7 +125,10 @@ export class UnlockScreen extends React.Component<UnlockProps,UnlockState>{
       <div className="ta-auth-info-card"><span><strong>{t('PIN protects the encrypted vault','PIN يحمي الخزنة المشفّرة')}</strong><small>{t('LOUREX asks again after sign-out, manual lock, security timeout, or when the saved protected session cannot be resumed safely.','يطلب LOUREX الرمز مجددًا بعد تسجيل الخروج أو القفل اليدوي أو انتهاء مهلة الأمان أو عندما يتعذر استئناف الجلسة المحمية بأمان.')}</small></span></div>
       <div className="ta-auth-fields"><Field label={migrating?t('Create PIN · 4–12 digits','إنشاء PIN · من 4 إلى 12 رقمًا'):t('PIN · 4–12 digits','PIN · من 4 إلى 12 رقمًا')}><Input autoFocus inputMode="numeric" autoComplete="off" maxLength="12" type="password" value={this.state.pin} onChange={(e:any)=>this.setState({pin:this.pinValue(e.target.value),error:''})}/></Field>{migrating?<Field label={t('Confirm PIN','تأكيد PIN')}><Input inputMode="numeric" autoComplete="off" maxLength="12" type="password" value={this.state.confirmPin} onChange={(e:any)=>this.setState({confirmPin:this.pinValue(e.target.value),error:''})}/></Field>:null}</div>
       {this.state.error?<div className="ta-auth-feedback is-error" role="alert">{this.state.error}</div>:null}
-      <Button className="ta-auth-primary" variant="primary" type="submit" disabled={this.state.busy||!this.state.pin||(migrating&&!this.state.confirmPin)}>{this.state.busy?(migrating?t('Securing account…','جارٍ تأمين الحساب…'):t('Unlocking…','جارٍ فتح القفل…')):migrating?t('Create PIN & Complete Upgrade','إنشاء PIN وإكمال الترقية'):t('Unlock LOUREX','فتح LOUREX')}</Button>
+      {this.state.migrationConflict?<section className="ta-auth-info-card is-subtle" role="region" aria-label={t('Account data conflict','تعارض بيانات الحساب')}><div className="ta-auth-conflict-copy"><strong>{t('Choose which account copy to keep','اختر النسخة التي تريد الاحتفاظ بها')}</strong><small>{t('This phone and the cloud both have different changes. Nothing has been overwritten. Keep This Device Copy publishes this phone’s encrypted workspace to the cloud. Use Cloud Copy replaces this phone’s encrypted workspace with the cloud version. Choose only after deciding which copy contains your latest work.','هذا الهاتف والسحابة لديهما تغييرات مختلفة، ولم يتم استبدال أي نسخة. «الاحتفاظ بنسخة هذا الجهاز» يرفع مساحة العمل المشفّرة من هذا الهاتف إلى السحابة. «استخدام نسخة السحابة» يستبدل مساحة العمل على هذا الهاتف بنسخة السحابة. اختر بعد التأكد من النسخة التي تحتوي على أحدث عملك.')}</small>
+        {this.state.conflictChoice?<div className="ta-auth-conflict-confirm"><strong>{this.state.conflictChoice==='keep-local'?t('Confirm: keep this phone’s copy?','تأكيد: الاحتفاظ بنسخة هذا الهاتف؟'):t('Confirm: use the cloud copy?','تأكيد: استخدام نسخة السحابة؟')}</strong><small>{this.state.conflictChoice==='keep-local'?t('The current cloud revision will be replaced by this phone’s data.','ستُستبدل نسخة السحابة الحالية ببيانات هذا الهاتف.'):t('The encrypted data currently on this phone will be replaced by the cloud copy.','ستُستبدل البيانات المشفّرة الموجودة على هذا الهاتف بنسخة السحابة.')}</small><div><Button disabled={this.state.busy} onClick={()=>this.setState({conflictChoice:'',error:''})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" disabled={this.state.busy} onClick={()=>void this.resolveMigrationConflict()}>{this.state.busy?t('Working…','جارٍ التنفيذ…'):t('Confirm choice','تأكيد الاختيار')}</Button></div></div>:<div className="ta-auth-conflict-actions"><Button disabled={this.state.busy} onClick={()=>this.setState({conflictChoice:'keep-local',error:''})}>{t('Keep This Device Copy','الاحتفاظ بنسخة هذا الجهاز')}</Button><Button variant="primary" disabled={this.state.busy} onClick={()=>this.setState({conflictChoice:'use-cloud',error:''})}>{t('Use Cloud Copy','استخدام نسخة السحابة')}</Button></div>}
+      </div></section>:null}
+      <Button className="ta-auth-primary" variant="primary" type="submit" disabled={this.state.busy||this.state.migrationConflict||!this.state.pin||(migrating&&!this.state.confirmPin)}>{this.state.busy?(migrating?t('Securing account…','جارٍ تأمين الحساب…'):t('Unlocking…','جارٍ فتح القفل…')):migrating?t('Create PIN & Complete Upgrade','إنشاء PIN وإكمال الترقية'):t('Unlock LOUREX','فتح LOUREX')}</Button>
       <p className="ta-auth-note">{t('Your PIN is used locally to derive the key that unlocks the encrypted vault. The PIN itself is never displayed or uploaded as plain text.','يُستخدم رمز PIN محليًا لاشتقاق المفتاح الذي يفتح الخزنة المشفّرة. ولا يتم عرض رمز PIN نفسه أو رفعه كنص صريح.')}</p>
     </form></div></main>;
   }
