@@ -35,7 +35,10 @@
   html body .app-ui .ta-doc-summary-grid>button { min-height:74px!important;padding:9px!important; }
   html body .app-ui .ta-customers-summary>div { min-height:76px!important;padding:9px 7px!important; }
   html body .app-ui .ta-customers-summary-icon { width:28px!important;height:28px!important; }
-  html body .app-ui .ta-ops-metrics>div { padding:10px!important; }
+  html body .app-ui .ta-customers-empty { min-height:170px!important;padding:16px!important; }
+  html body .app-ui .ta-ops-metrics>div,
+  html body .app-ui .ta-ops-summary>div { min-height:78px!important;padding:9px!important;gap:5px!important; }
+  html body .app-ui .ta-ops-empty { min-height:144px!important;padding:16px!important; }
   html body .app-ui .ta-finance-kpi,
   html body .app-ui .ta-report-kpi { padding:10px!important; }
   html body .app-ui .ta-report-filterbar { padding:10px!important; }
@@ -43,6 +46,14 @@
     padding-top:0!important;
     padding-inline:0!important;
   }
+  html body .app-ui .ta-products-workspace-body :is(.ta-product-page-header,.ta-product-page-note) { display:none!important; }
+
+  html body .ta-settings-content { padding:12px 10px calc(18px + env(safe-area-inset-bottom,0px))!important; }
+  html body .ta-settings-page-header { gap:7px!important; }
+  html body .ta-settings-page-header h3 { font-size:20px!important;line-height:27px!important; }
+  html body .ta-settings-card>header,
+  html body .ta-settings-card-body { padding:12px!important; }
+  html body .ta-settings-nav button { min-height:48px!important; }
 
   html body .global-search-panel { width:calc(100vw - 20px)!important;max-height:86dvh!important; }
   html body .global-search-input-wrap { min-height:52px!important; }
