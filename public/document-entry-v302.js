@@ -67,7 +67,7 @@
      geometry and v332 remains the final document-type semantics/presentation
      owner. Retired v304-v306 compatibility styles are never requested. */
   function ensureRuntimeReliability(){
-    ensureStylesheet(draftScrollRecoveryStyleMarker,'./styles/v331-draft-scroll-recovery.css?v=337-3');
+    ensureStylesheet(draftScrollRecoveryStyleMarker,'./styles/v331-draft-scroll-recovery.css?v=365-1');
     ensureStylesheet(criticalDocumentsStyleMarker,'./styles/v332-critical-documents-deep-closeout.css?v=332-1');
     promoteTailAdminOwners();
     promoteDraftRecovery();

@@ -11,12 +11,12 @@
  * Draft Studio no longer depends on a nested percentage-height scroller, which is
  * fragile in WebKit when the browser chrome changes the visual viewport.
  *
- * Important: .ta-main must stretch to whichever grid track the active shell owns,
- * never claim an independent 100dvh. At <=900px v327 hides the AppShell top bar
- * and gives Document Studio the single full-viewport grid row. At wider tablet
- * widths Draft Studio keeps the normal top-bar row and .ta-main occupies row 2.
- * In both cases grid stretch defines the usable height without double-counting
- * browser/header geometry or clipping the true Safari scroll end.
+ * Important: .ta-main must remain explicitly bounded or Safari expands it to the
+ * full document height and removes its usable scroll range. At <=900px v327 hides
+ * the AppShell top bar, so the commercial editor owner is exactly 100dvh. Draft
+ * Studio keeps its fixed command dock clear with a 64px viewport reserve through
+ * tablet/iPadOS Desktop Website widths. Descendants remain in normal document flow
+ * so there is still exactly one vertical scroll owner.
  * No document data, autosave, accounting, output, PDF, Firebase or PIN logic changes. */
 
 /* v308 originally owned the Draft mobile action-bar positioning but that visual
@@ -34,9 +34,9 @@
   html body .app-ui .ta-shell.is-editor>.ta-main,
   html body .app-ui .ta-shell.screen-editor>.ta-main,
   html body .app-ui .screen-editor .ta-main{
-    height:auto!important;
+    height:100dvh!important;
     min-height:0!important;
-    max-height:none!important;
+    max-height:100dvh!important;
     align-self:stretch!important;
     overflow-x:hidden!important;
     overflow-y:auto!important;
@@ -85,9 +85,9 @@
 @media screen and (max-width:1180px){
   html body .app-ui .ta-shell.is-editor:has(.draft-studio)>.ta-main,
   html body .app-ui .ta-shell.screen-editor:has(.draft-studio)>.ta-main{
-    height:auto!important;
+    height:calc(100dvh - 64px)!important;
     min-height:0!important;
-    max-height:none!important;
+    max-height:calc(100dvh - 64px)!important;
     align-self:stretch!important;
     overflow-x:hidden!important;
     overflow-y:auto!important;
@@ -237,9 +237,9 @@
 @media screen and (min-width:1181px) and (max-width:1366px){
   html[data-lourex-ios-webkit="true"] body .app-ui .ta-shell.is-editor:has(.draft-studio)>.ta-main,
   html[data-lourex-ios-webkit="true"] body .app-ui .ta-shell.screen-editor:has(.draft-studio)>.ta-main{
-    height:auto!important;
+    height:calc(100dvh - 64px)!important;
     min-height:0!important;
-    max-height:none!important;
+    max-height:calc(100dvh - 64px)!important;
     align-self:stretch!important;
     overflow-x:hidden!important;
     overflow-y:auto!important;

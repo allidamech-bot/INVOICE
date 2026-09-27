@@ -56,7 +56,7 @@ const mobilePreviewOutput='./mobile-preview-output-v350.js?v=350';
 if(!html.includes('mobile-preview-output-v350.js'))html=html.replace(iosOutputBridge,`${iosOutputBridge}\n  <script src="${mobilePreviewOutput}"></script>`);
 if(!html.includes(mobilePreviewOutput))throw new Error('v351: mobile Preview output bridge is missing.');
 
-const draftScrollRuntime='./styles/v331-draft-scroll-recovery.css?v=337-3';
+const draftScrollRuntime='./styles/v331-draft-scroll-recovery.css?v=365-1';
 const criticalDocumentsRuntime='./styles/v332-critical-documents-deep-closeout.css?v=332-1';
 const bundleTag='<link rel="stylesheet" href="./styles/app.bundle.css" />';
 if(!html.includes(bundleTag)||!html.includes(draftScrollRuntime)||!html.includes(criticalDocumentsRuntime))throw new Error('v351: standalone v331/v332 document owner is missing before finalization.');
