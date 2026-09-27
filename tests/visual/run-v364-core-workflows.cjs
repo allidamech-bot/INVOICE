@@ -246,6 +246,18 @@ async function assertPartyDropdownInFlow(page,partySelector,label){
         }finally{await page.close();}
       }
     });
+
+    await run('Arabic Documents heading aligns to the right edge on a phone',async()=>{
+      const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true});
+      try{
+        await page.setContent('<!doctype html><html dir="rtl" data-ui-theme="dark"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div class="app-ui"><section class="ta-documents-page"><header class="ta-documents-header"><div><span class="ta-documents-eyebrow">مستندات الأعمال</span><h1>المستندات</h1><p>أنشئ وأصدر وأدر دورة مستندات LOUREX التجارية الكاملة.</p></div></header></section></div></body></html>');
+        await page.addStyleTag({path:'src/styles/premium-ux-coherence-v362.css'});
+        const metrics=await page.locator('.ta-documents-header>div:first-child').evaluate(el=>({width:el.getBoundingClientRect().width,viewport:innerWidth,align:getComputedStyle(el).textAlign,children:[...el.children].map(child=>({text:child.innerText,align:getComputedStyle(child).textAlign,width:child.getBoundingClientRect().width}))}));
+        assert.equal(metrics.align,'right',`Arabic Documents copy must align right: ${JSON.stringify(metrics)}`);
+        assert.ok(metrics.width>=metrics.viewport-20,`Heading copy must span the available mobile width: ${JSON.stringify(metrics)}`);
+        assert.ok(metrics.children.every(child=>child.align==='right'&&child.width>=metrics.width-1),`Eyebrow, title and subtitle must share the right edge: ${JSON.stringify(metrics)}`);
+      }finally{await page.close();}
+    });
   }finally{await browser.close();}
   if(failures.length){console.error(failures.join('\n\n'));process.exitCode=1;}else console.log('v364 mobile core workflows: all browser scenarios passed.');
 })();
