@@ -122,6 +122,8 @@
       radial-gradient(560px 360px at 25% 0%,rgba(255,255,255,.08),transparent 60%),
       linear-gradient(150deg,#142b4b 0%,#315DA8 58%,#1c3c69 100%)!important;
   }
+  html body .ta-auth-page .ta-auth-aside .brand-words strong{color:#fff!important;}
+  html body .ta-auth-page .ta-auth-mobile-brand .brand-words strong{color:var(--ft-text-strong)!important;}
   html body :is(.ta-cloud-auth-form,.ta-cloud-account) :is(header>span,.ta-auth-link,.ta-cloud-account-header small){color:var(--ft-accent)!important;}
   html body :is(.ta-cloud-auth-form,.ta-auth-page) .ta-auth-tabs button.is-active{
     background:var(--ft-surface)!important;
