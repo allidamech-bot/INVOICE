@@ -245,7 +245,9 @@ export function paginateItems(items: DocumentItem[], reserveFinalDetails = true,
     const value=customWeight?customWeight(item):defaultWeight(item);
     return Number.isFinite(value)?Math.max(1,Math.ceil(value)):1;
   };
-  const safeFirstPageCapacity=Math.max(1,Math.min(7,Math.trunc(firstPageCapacity)||7));
+  // v364: callers with measured A4 identity pressure may use up to ten weighted
+  // rows on the first page; the default remains seven for legacy call sites.
+  const safeFirstPageCapacity=Math.max(1,Math.min(10,Math.trunc(firstPageCapacity)||7));
   const capacity = () => pages.length === 0 ? safeFirstPageCapacity : 13;
   for (const item of items) {
     const weight = weightOf(item);
