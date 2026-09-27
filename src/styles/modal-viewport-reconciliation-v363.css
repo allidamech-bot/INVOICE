@@ -1,0 +1,43 @@
+/* LOUREX v363 — reconcile ModalFrame's iOS visualViewport geometry with the
+ * final card presentation. ModalFrame intentionally owns usable viewport height;
+ * this layer owns the dialog's spacing/alignment inside that viewport.
+ *
+ * On <=860px ModalFrame applies inline !important align-items:flex-end and
+ * padding:0 to the backdrop. Child sizing/margins/align-self are therefore the
+ * reliable place to preserve safe spacing and compact confirmation geometry. */
+@media screen and (max-width:860px){
+  html body .modal-backdrop>.modal:not(:has(.ta-settings-shell)){
+    width:calc(100% - 16px)!important;
+    max-width:min(720px,calc(100% - 16px))!important;
+    margin-inline:auto!important;
+    margin-bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
+  }
+
+  /* ConfirmDialog must stay a compact review card, not inherit Safari's forced
+     bottom alignment. align-self overrides the parent's inline align-items. */
+  html body .modal-backdrop:has(.modal-sm .modal-message)>.modal-sm{
+    align-self:center!important;
+    width:min(390px,calc(100% - 24px))!important;
+    max-width:calc(100% - 24px)!important;
+    margin-block:auto!important;
+    margin-inline:auto!important;
+  }
+
+  /* Customer forms are intentionally bottom-oriented, but retain a visible
+     floating edge and home-indicator clearance despite backdrop padding:0. */
+  html body .modal-backdrop:has(.ta-customer-form)>.modal{
+    align-self:flex-end!important;
+    width:calc(100% - 16px)!important;
+    max-width:min(680px,calc(100% - 16px))!important;
+    margin-inline:auto!important;
+    margin-bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
+  }
+
+  /* Import/history/statement dialogs can be large, but they should never touch
+     the physical phone edges just because visualViewport removed backdrop padding. */
+  html body .modal-backdrop>.modal.modal-lg:not(:has(.ta-settings-shell)),
+  html body .modal-backdrop>.modal.modal-xl:not(:has(.ta-settings-shell)){
+    width:calc(100% - 16px)!important;
+    max-width:calc(100% - 16px)!important;
+  }
+}
