@@ -5,9 +5,13 @@
   /* One primary-action language across current and older business workflows.
      Several retained import/payment/product surfaces still carried the retired
      violet primary treatment at narrow widths. Keep semantic variants intact,
-     but make every real primary action use the current Hostinger-blue token. */
+     but make every real primary action use the current Hostinger-blue token.
+     Import QA/runtime roots can be mounted without the normal .app-ui/.modal
+     ancestors, so include their actual roots explicitly. */
   html body .app-ui :is(.btn.btn-primary,button.btn-primary),
-  html body .modal :is(.btn.btn-primary,button.btn-primary){
+  html body .modal :is(.btn.btn-primary,button.btn-primary),
+  html body .product-import-shell :is(.btn.btn-primary,button.btn-primary),
+  html body .supplier-import-shell :is(.btn.btn-primary,button.btn-primary){
     background:var(--ft-accent,#315da8)!important;
     background-image:none!important;
     border-color:var(--ft-accent,#315da8)!important;
@@ -15,14 +19,18 @@
     box-shadow:0 8px 20px color-mix(in srgb,var(--ft-accent,#315da8) 18%,transparent)!important;
   }
   html body .app-ui :is(.btn.btn-primary,button.btn-primary):hover:not(:disabled),
-  html body .modal :is(.btn.btn-primary,button.btn-primary):hover:not(:disabled){
+  html body .modal :is(.btn.btn-primary,button.btn-primary):hover:not(:disabled),
+  html body .product-import-shell :is(.btn.btn-primary,button.btn-primary):hover:not(:disabled),
+  html body .supplier-import-shell :is(.btn.btn-primary,button.btn-primary):hover:not(:disabled){
     background:color-mix(in srgb,var(--ft-accent,#315da8) 88%,#000)!important;
     background-image:none!important;
     border-color:color-mix(in srgb,var(--ft-accent,#315da8) 88%,#000)!important;
     color:#fff!important;
   }
   html body .app-ui :is(.btn.btn-primary,button.btn-primary):active:not(:disabled),
-  html body .modal :is(.btn.btn-primary,button.btn-primary):active:not(:disabled){
+  html body .modal :is(.btn.btn-primary,button.btn-primary):active:not(:disabled),
+  html body .product-import-shell :is(.btn.btn-primary,button.btn-primary):active:not(:disabled),
+  html body .supplier-import-shell :is(.btn.btn-primary,button.btn-primary):active:not(:disabled){
     transform:translateY(1px)!important;
     box-shadow:0 4px 12px color-mix(in srgb,var(--ft-accent,#315da8) 16%,transparent)!important;
   }
