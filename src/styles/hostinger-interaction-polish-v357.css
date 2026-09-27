@@ -2,6 +2,20 @@
    Visual layer only. No navigation, document, storage, auth, cloud or accounting behavior changes. */
 
 @media screen {
+  /* The sidebar action itself may stay branded, but its descendant command menu must
+     not inherit the old saturated button treatment. */
+  html body .app-ui .ta-sidebar-create>.ta-create-button{
+    border-color:var(--ft-accent)!important;
+    background:linear-gradient(135deg,var(--ft-accent),color-mix(in srgb,var(--ft-accent) 82%,#a98cff))!important;
+    color:var(--ft-on-accent,#fff)!important;
+    box-shadow:0 9px 24px color-mix(in srgb,var(--ft-accent) 22%,transparent)!important;
+  }
+  html body .app-ui .ta-sidebar-create>.ta-create-button:hover{
+    border-color:var(--ft-accent-hover,var(--ta-brand-700))!important;
+    background:linear-gradient(135deg,var(--ft-accent-hover,var(--ta-brand-700)),var(--ft-accent))!important;
+    box-shadow:0 12px 30px color-mix(in srgb,var(--ft-accent) 28%,transparent)!important;
+  }
+
   /* New-document command menu: calm surface hierarchy instead of saturated tiles. */
   html body .app-ui .ta-create-menu{
     border-color:color-mix(in srgb,var(--ft-line-strong) 76%,var(--ft-line))!important;
@@ -30,21 +44,31 @@
   html body .app-ui .ta-create-menu-grid{
     gap:8px!important;
   }
-  html body .app-ui .ta-create-menu-grid>button{
+
+  /* Deliberately more specific than the historical `.ta-sidebar-create :is(.btn,button)`
+     rule so submenu commands remain neutral cards. */
+  html body .app-ui .ta-sidebar-create .ta-create-menu .ta-create-menu-grid>button,
+  html body .app-ui .ta-create-menu .ta-create-menu-grid>button{
     border:1px solid var(--ft-line)!important;
     border-radius:12px!important;
     background:color-mix(in srgb,var(--ft-surface) 98%,transparent)!important;
+    background-image:none!important;
     color:var(--ft-text)!important;
     box-shadow:0 1px 2px rgba(31,24,58,.035)!important;
+    transform:none!important;
     transition:background-color .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease!important;
   }
-  html body .app-ui .ta-create-menu-grid>button:hover{
+  html body .app-ui .ta-sidebar-create .ta-create-menu .ta-create-menu-grid>button:hover,
+  html body .app-ui .ta-create-menu .ta-create-menu-grid>button:hover{
     border-color:color-mix(in srgb,var(--ft-accent) 24%,var(--ft-line-strong))!important;
     background:color-mix(in srgb,var(--ft-accent) 4%,var(--ft-surface))!important;
+    background-image:none!important;
+    color:var(--ft-text-strong)!important;
     box-shadow:0 8px 22px color-mix(in srgb,var(--ft-accent) 7%,transparent)!important;
     transform:translateY(-1px)!important;
   }
-  html body .app-ui .ta-create-menu-grid>button:focus-visible{
+  html body .app-ui .ta-sidebar-create .ta-create-menu .ta-create-menu-grid>button:focus-visible,
+  html body .app-ui .ta-create-menu .ta-create-menu-grid>button:focus-visible{
     outline:0!important;
     border-color:color-mix(in srgb,var(--ft-accent) 55%,var(--ft-line))!important;
     box-shadow:0 0 0 4px color-mix(in srgb,var(--ft-accent) 11%,transparent)!important;
@@ -65,6 +89,25 @@
   }
   html body .app-ui .ta-create-menu-grid small{
     color:var(--ft-muted)!important;
+  }
+
+  /* The desktop menu lives inside an overflow-contained sidebar. Keep it intentionally
+     within that rail, single-column and scrollable; this prevents the old second
+     column from being visibly cropped at the workspace boundary. */
+  html body .app-ui .ta-sidebar-create .ta-create-menu-desktop{
+    width:100%!important;
+    max-width:100%!important;
+    max-height:calc(100dvh - 190px)!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    box-sizing:border-box!important;
+  }
+  html body .app-ui .ta-sidebar-create .ta-create-menu-desktop .ta-create-menu-grid{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  html body .app-ui .ta-sidebar-create .ta-create-menu-desktop .ta-create-menu-grid>button{
+    min-height:54px!important;
+    padding:8px 9px!important;
   }
 
   /* Shell overlays remain quiet and contextual; content stays visually dominant. */
