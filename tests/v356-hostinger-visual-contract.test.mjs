@@ -99,6 +99,8 @@ test('v359 consolidates the visible identity onto the canonical blue tokens',()=
   assert.match(precision,/\.ta-sidebar-create>\.btn\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important/);
   assert.match(precision,/\.lourex-ai-launcher\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important/);
   assert.match(precision,/\.ta-auth-page \.ta-auth-aside\{[\s\S]*?linear-gradient\(150deg,#203f70 0%,#315DA8 56%,#244d86 100%\)!important/);
+  assert.match(precision,/\.ta-auth-aside \.brand-words strong\{color:#fff!important;\}/,'desktop auth wordmark must remain legible on the blue story panel');
+  assert.match(precision,/\.ta-auth-mobile-brand \.brand-words strong\{color:var\(--ft-text-strong\)!important;\}/,'mobile auth wordmark must follow theme text contrast');
   assert.match(precision,/\.ta-auth-tabs button\.is-active\{[\s\S]*?color:var\(--ft-accent\)!important/);
   assert.match(precision,/html\[data-ui-theme="dark"\] body \.ta-auth-page \.ta-auth-primary\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important[\s\S]*?color:var\(--ft-on-accent\)!important/,'v359 must outrank the retired dark auth gradient');
 });
