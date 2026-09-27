@@ -2,14 +2,30 @@
    Light mode, document print output and application behavior are untouched. */
 @media screen {
   html[data-ui-theme="dark"] {
+    /* Resolve the inherited Hostinger layer at its source, not per screen. */
+    --hx2-canvas:#0d0d0d!important;
+    --hx2-surface:#191919!important;
+    --hx2-surface-soft:#202020!important;
+    --hx2-surface-raised:#242424!important;
+    --hx2-border:#383838!important;
+    --hx2-border-strong:#484848!important;
+    --hx2-text:#d2d2d2!important;
+    --hx2-text-strong:#f7f7f7!important;
+    --hx2-muted:#a9a9a9!important;
+    --hx2-success-soft:#242424!important;
+    --hx2-warning-soft:#242424!important;
+    --hx2-danger-soft:#332124!important;
+    --hx2-shadow-1:none!important;
+    --hx2-shadow-2:none!important;
+    --hx2-shadow-3:none!important;
     --hx-purple:#7399e3;
     --hx-purple-strong:#91b0ed;
     --hx-violet:#7399e3;
     --hx-lilac:#252525;
     --hx-lilac-2:#1d1d1d;
-    --hx2-violet:#7399e3;
-    --hx2-violet-2:#91b0ed;
-    --hx2-violet-3:#91b0ed;
+    --hx2-violet:#a9a9a9!important;
+    --hx2-violet-2:#d2d2d2!important;
+    --hx2-violet-3:#f7f7f7!important;
     --hx2-accent-soft:#252525;
     --hx2-glow:none;
     --lbx-shadow-card:none;
