@@ -60,14 +60,14 @@ test('v358 canonical application palette is premium blue in both themes',()=>{
 });
 
 test('v358 removes shell sync chrome without touching conflict recovery',()=>{
-  assert.match(blue,/\.app-ui\s+:where\(\.ta-sidebar-sync,\.ta-topbar-sync,\.ta-sheet-sync\)\{display:none!important\}/);
+  assert.match(blue,/\.app-ui\s+:where\(\.ta-sidebar-sync,\.ta-topbar-sync,\.ta-sheet-sync\)\{display:none!important;\}/);
   assert.doesNotMatch(blue,/\.ta-conflict-banner\s*\{[^}]*display:none/i);
   assert.match(reliability,/--lourex-z-modal:1300/);
   assert.match(reliability,/--lourex-z-critical:1500/);
 });
 
 test('v358 mobile documents and overlays own reachable scroll geometry',()=>{
-  assert.match(blue,/\.ta-documents-header-actions\{display:none!important\}/);
+  assert.match(blue,/\.ta-documents-header-actions\{display:none!important;\}/);
   assert.match(blue,/\.ta-doc-type-tabs\{[\s\S]*?overflow-x:auto!important[\s\S]*?scroll-snap-type:x proximity!important/);
   assert.match(blue,/\.ta-doc-register-card\{order:2!important/);
   assert.match(blue,/\.ta-doc-summary-grid\{order:4!important/);
@@ -76,10 +76,10 @@ test('v358 mobile documents and overlays own reachable scroll geometry',()=>{
 });
 
 test('v358 search and advisor reduce mobile visual competition',()=>{
-  assert.match(blue,/\.lourex-advisor-starters>button:nth-child\(n\+3\)\{display:none!important\}/);
-  assert.match(blue,/\.global-search-input-wrap kbd\{display:none!important\}/);
-  assert.match(blue,/\.global-search-actions>button:nth-child\(n\+4\)\{display:none!important\}/);
-  assert.match(blue,/\.global-search-footer\{display:none!important\}/);
+  assert.match(blue,/\.lourex-advisor-starters>button:nth-child\(n\+3\)\{display:none!important;\}/);
+  assert.match(blue,/\.global-search-input-wrap kbd\{display:none!important;\}/);
+  assert.match(blue,/\.global-search-actions>button:nth-child\(n\+4\)\{display:none!important;\}/);
+  assert.match(blue,/\.global-search-footer\{display:none!important;\}/);
 });
 
 test('v358 does not replace the canonical overlay ladder',()=>{
