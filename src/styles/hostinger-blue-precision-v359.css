@@ -1,0 +1,139 @@
+/* LOUREX v359 — Premium Blue precision closeout.
+ * Final cosmetic color consolidation only. No runtime, data, accounting, auth,
+ * persistence, sync, document lifecycle, attachment or printable output behavior.
+ * This layer retires the last hard-coded violet accents left by older visual owners.
+ */
+
+@media screen {
+  :root{
+    --hx-purple:var(--ft-accent);
+    --hx-purple-strong:var(--ft-accent-hover);
+    --hx-violet:var(--ft-accent);
+    --hx-lilac:var(--ft-accent-soft);
+    --hx-lilac-2:var(--ft-accent-faint);
+    --hx2-violet:var(--ft-accent);
+    --hx2-violet-2:var(--ft-accent-hover);
+    --hx2-violet-3:#82A9EC;
+    --hx2-accent-soft:var(--ft-accent-soft);
+    --hx2-glow:0 0 0 1px color-mix(in srgb,var(--ft-accent) 5%,transparent),0 14px 38px color-mix(in srgb,var(--ft-accent) 7%,transparent);
+  }
+
+  /* Primary actions: one canonical enterprise-blue treatment everywhere. */
+  html body .app-ui :is(.btn-primary,button.btn-primary,.ta-create-button,.ta-card-primary-action),
+  html body .ta-auth-page :is(.btn-primary,button.btn-primary,.ta-auth-primary){
+    border-color:var(--ft-accent)!important;
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    color:var(--ft-on-accent)!important;
+    box-shadow:0 7px 18px color-mix(in srgb,var(--ft-accent) 16%,transparent)!important;
+    transform:none!important;
+  }
+  html body .app-ui :is(.btn-primary,button.btn-primary,.ta-create-button,.ta-card-primary-action):hover:not(:disabled),
+  html body .ta-auth-page :is(.btn-primary,button.btn-primary,.ta-auth-primary):hover:not(:disabled){
+    border-color:var(--ft-accent-hover)!important;
+    background:var(--ft-accent-hover)!important;
+    background-image:none!important;
+    color:var(--ft-on-accent)!important;
+    box-shadow:0 9px 22px color-mix(in srgb,var(--ft-accent) 19%,transparent)!important;
+    transform:none!important;
+  }
+  html body .app-ui .ta-sidebar-create>.btn{
+    border-color:var(--ft-accent)!important;
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    color:var(--ft-on-accent)!important;
+    box-shadow:0 7px 18px color-mix(in srgb,var(--ft-accent) 16%,transparent)!important;
+  }
+
+  /* Identity accents must read blue, not legacy violet. */
+  html body .app-ui :is(.ta-customer-avatar,.customer-avatar){
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    color:var(--ft-on-accent)!important;
+    box-shadow:0 6px 16px color-mix(in srgb,var(--ft-accent) 16%,transparent)!important;
+  }
+  html body .app-ui :is(.ta-kpi-icon,.ta-customers-summary-icon,.ta-customer-form-icon,.ta-products-overview-icon,.ta-product-metric-icon,.ta-doc-row-icon,.document-type-icon,.ta-account-avatar,.ta-sheet-link-icon,.global-search-result-icon){
+    background:var(--ft-accent-soft)!important;
+    background-image:none!important;
+    color:var(--ft-accent)!important;
+    border-color:transparent!important;
+  }
+  html body .app-ui .ta-kpi-card::after{
+    background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--ft-accent) 34%,transparent),transparent)!important;
+  }
+
+  /* AI and editor selection accents inherited literal violet gradients previously. */
+  html body .app-ui .lourex-ai-launcher{
+    border-color:color-mix(in srgb,var(--ft-accent) 30%,var(--ft-line))!important;
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    color:var(--ft-on-accent)!important;
+    box-shadow:0 12px 30px color-mix(in srgb,var(--ft-accent) 22%,transparent)!important;
+  }
+  html body .app-ui .lourex-ai-launcher:hover{
+    background:var(--ft-accent-hover)!important;
+    background-image:none!important;
+    box-shadow:0 14px 34px color-mix(in srgb,var(--ft-accent) 25%,transparent)!important;
+    transform:none!important;
+  }
+  html body .app-ui .template-card.selected{
+    border-color:var(--ft-accent)!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent) 12%,transparent)!important;
+  }
+
+  /* Account/auth surfaces use the same blue language while keeping all auth logic intact. */
+  html body .ta-auth-page{
+    background:
+      radial-gradient(760px 420px at 12% 0%,color-mix(in srgb,var(--ft-accent) 12%,transparent),transparent 68%),
+      radial-gradient(620px 360px at 100% 8%,color-mix(in srgb,var(--ft-accent) 6%,transparent),transparent 65%),
+      var(--ft-workspace)!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page{
+    background:
+      radial-gradient(760px 440px at 12% 0%,color-mix(in srgb,var(--ft-accent) 15%,transparent),transparent 68%),
+      radial-gradient(600px 360px at 100% 8%,color-mix(in srgb,var(--ft-accent) 8%,transparent),transparent 65%),
+      var(--ft-workspace)!important;
+  }
+  html body .ta-auth-page .ta-auth-aside{
+    background:
+      radial-gradient(560px 360px at 25% 0%,rgba(255,255,255,.10),transparent 60%),
+      linear-gradient(150deg,#203f70 0%,#315DA8 56%,#244d86 100%)!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-aside{
+    background:
+      radial-gradient(560px 360px at 25% 0%,rgba(255,255,255,.08),transparent 60%),
+      linear-gradient(150deg,#142b4b 0%,#315DA8 58%,#1c3c69 100%)!important;
+  }
+  html body :is(.ta-cloud-auth-form,.ta-cloud-account) :is(header>span,.ta-auth-link,.ta-cloud-account-header small){color:var(--ft-accent)!important;}
+  html body :is(.ta-cloud-auth-form,.ta-auth-page) .ta-auth-tabs button.is-active{
+    background:var(--ft-surface)!important;
+    color:var(--ft-accent)!important;
+    box-shadow:0 1px 3px color-mix(in srgb,var(--ft-text-strong) 8%,transparent)!important;
+  }
+  html body .ta-cloud-account .ta-avatar{
+    background:var(--ft-accent-soft)!important;
+    color:var(--ft-accent)!important;
+  }
+
+  /* Focus is blue across app, search and auth; no legacy purple halo remains. */
+  html body .app-ui :is(button,a,[role="button"],input,select,textarea):focus-visible,
+  html body .global-search-panel :is(button,input):focus-visible,
+  html body .ta-auth-page :is(button,input,select):focus-visible{
+    outline:3px solid color-mix(in srgb,var(--ft-accent) 23%,transparent)!important;
+    outline-offset:2px!important;
+  }
+
+  /* Retire inherited gradients on frequent interactive shells without flattening status colors. */
+  html body .app-ui :is(.ta-nav-item.is-active,.ta-mobile-nav>button.is-active,.ta-domain-tabs>button.is-active){
+    background:var(--ft-accent-soft)!important;
+    background-image:none!important;
+    color:var(--ft-accent)!important;
+  }
+  html body .app-ui :is(.ta-chart-toolbar .ta-segmented-control>button.is-active,.ta-chart-toolbar .ta-range-control>button.is-active,.ta-settings-segmented button.is-active){
+    color:var(--ft-accent)!important;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  html body .app-ui :is(.btn-primary,button.btn-primary,.lourex-ai-launcher){transition:none!important;transform:none!important;}
+}
