@@ -218,17 +218,15 @@ function firstPageItemCapacity(doc:LourexDocument):number{
     supplier?.nameEn??'',supplier?.nameAr??'',supplier?.address??'',supplier?.city??'',supplier?.country??'',supplier?.phone??'',supplier?.email??'',supplier?.vatTaxNumber??'',supplier?.commercialRegistration??'',doc.supplierReference??''
   ].map(value=>value.trim()).filter(Boolean);
   const chars=values.reduce((sum,value)=>sum+value.length,0);
-  const pressure=chars+values.length*18+(doc.language==='bilingual'?120:0);
-  // Browser QA shows that the legacy thresholds left roughly half of page one
-  // unused for ordinary commercial identities. Keep the 2/3-row safety bands
-  // for genuinely extreme headers, but let normal dense business data use the
-  // remaining A4 space before creating a continuation page.
-  if(pressure>1600)return 2;
-  if(pressure>1300)return 3;
-  if(pressure>950)return 4;
-  if(pressure>700)return 5;
-  if(pressure>500)return 6;
-  return 7;
+  const pressure=chars+values.length*18+(doc.language==='bilingual'?140:0);
+  // v364: use the measured A4 room above the footer instead of the historical
+  // seven-weight ceiling. Dense identity blocks remain deliberately conservative.
+  if(pressure>2200)return 4;
+  if(pressure>1800)return 5;
+  if(pressure>1450)return 6;
+  if(pressure>1150)return 7;
+  if(pressure>850)return 8;
+  return 10;
 }
 function docItemText(doc:LourexDocument,item:DocumentItem):string{
   if(doc.language==='en')return item.descriptionEn.trim();
@@ -260,14 +258,17 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
   const signing = (doc.appearance.showSignature && Boolean(doc.companySnapshot.signatureDataUrl)) || (doc.appearance.showStamp && Boolean(doc.companySnapshot.stampDataUrl));
   const adjustments = [doc.adjustments.discountEnabled, doc.adjustments.shippingEnabled, doc.adjustments.otherChargesEnabled, doc.adjustments.taxEnabled].filter(Boolean).length;
   const score = termsCount + (notes ? 3 : 0) + (bank ? 4 : 0) + (signing ? 3 : 0) + adjustments;
-  const hardOverflow=detailsChars>1400||values.some(value=>value.length>520)||notes.length>900;
+  // v364: normal commercial features are not overflow. Only genuinely dense
+  // prose may earn a dedicated closing page; bank/signature/totals stay with the
+  // financial close whenever their text footprint is routine.
+  const hardOverflow=detailsChars>1900||values.some(value=>value.length>700)||notes.length>1200;
   if(hardOverflow)return true;
-  const complexClosing=score>=10||detailsChars>700||values.some(value=>value.length>260)||notes.length>420;
-  if(!complexClosing)return false;
+  const exceptionalClosing=detailsChars>1300||values.some(value=>value.length>500)||notes.length>820||(score>=24&&detailsChars>900);
+  if(!exceptionalClosing)return false;
   const tentative=paginateItems(doc.items,true,firstPageItemCapacity(doc),doc.language,item=>itemWeight(doc,item));
   const last=tentative[tentative.length-1]??[];
   const lastWeight=last.reduce((sum,item)=>sum+itemWeight(doc,item),0);
-  const allowedLastWeight=score>=16?2:score>=13?3:5;
+  const allowedLastWeight=detailsChars>1650?1:detailsChars>1400?2:3;
   return lastWeight>allowedLastWeight;
 }
 

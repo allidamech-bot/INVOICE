@@ -1,8 +1,10 @@
+@import url("./v364-document-template-layout-refinement.css?v=364-1");
+
 /* LOUREX v350 — Draft/watermark output support only.
- * Commercial A4 invoices are owned exclusively by document-premium-redesign-v141.css.
- * This layer retains the shared custom watermark and current Company Draft output
- * contract; it must not override .final-details, totals, bank, signature or preview
- * geometry for commercial documents. */
+ * Commercial A4 invoices are owned by document-premium-redesign-v141.css with
+ * the v364 closing-composition refinement imported above. This layer retains the
+ * shared custom watermark and current Company Draft output contract; it must not
+ * override commercial pagination or accounting semantics. */
 
 @media screen, print {
   /* Shared watermark output used by commercial templates and Company Draft. */
