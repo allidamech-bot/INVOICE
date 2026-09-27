@@ -38,6 +38,7 @@ test('v364 mobile document suggestions and purchase editor sections remain reach
   assert.match(css, /issue-review-grid\{[\s\S]*display:grid!important/);
   assert.match(css, /issue-warning>p\{[\s\S]*overflow-wrap:anywhere!important/);
   assert.match(css, /max-width:560px\)[\s\S]*issue-review-grid\{grid-template-columns:minmax\(0,1fr\)!important/);
+  assert.match(css, /ta-ops-panel-head>\.btn-primary,[\s\S]*ta-ops-split :is\(\.btn\.btn-primary,button\.btn-primary\)\{[\s\S]*background:var\(--ft-accent\)!important/);
 });
 
 test('PDF color normalization covers modern logical borders and inherited scrollbar colors', async () => {

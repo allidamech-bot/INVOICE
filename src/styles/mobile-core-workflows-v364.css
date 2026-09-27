@@ -2,6 +2,18 @@
  * Keep customer/supplier suggestions in the document flow, and give purchase
  * sections and totals enough structure to scan on narrow screens. */
 @media screen and (max-width:900px){
+  /* Legacy Hostinger rules still assign a violet fill to operations actions
+   * on some mobile routes. Keep every primary business action on the current
+   * workspace accent, including supplier, purchase, expense and stock forms. */
+  html body .app-ui .ta-ops-panel-head>.btn-primary,
+  html body .app-ui .ta-ops-split :is(.btn.btn-primary,button.btn-primary){
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    border-color:var(--ft-accent)!important;
+    color:var(--ft-on-accent,#fff)!important;
+    box-shadow:none!important;
+  }
+
   html body .app-ui .editor-screen:not(.draft-studio) .customer-select-wrap>.customer-dropdown{
     position:static!important;
     inset:auto!important;
