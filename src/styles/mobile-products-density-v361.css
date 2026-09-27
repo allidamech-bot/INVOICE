@@ -1,0 +1,59 @@
+/* Mobile geometry for the Products & Inventory workspace. The active theme
+   continues to own all colors; preserve a single scroll owner in .ta-main. */
+@media screen and (max-width:900px) {
+  html body .app-ui .ta-main { scrollbar-gutter:auto!important; }
+
+  html body .app-ui .ta-products-workspace {
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding-block:12px 24px!important;
+    padding-inline:max(10px,env(safe-area-inset-left,0px)) max(10px,env(safe-area-inset-right,0px))!important;
+    gap:12px!important;
+  }
+  html body .app-ui .ta-products-workspace-header { gap:10px!important; }
+  html body .app-ui .ta-products-workspace-header>div { gap:3px!important; }
+  html body .app-ui .ta-products-workspace-header>div>span { display:none!important; }
+  html body .app-ui .ta-products-workspace-header h1 { font-size:22px!important;line-height:1.35!important; }
+  html body .app-ui .ta-products-workspace-header p {
+    font-size:12px!important;
+    line-height:1.5!important;
+    max-width:100%!important;
+  }
+  html body .app-ui .ta-products-workspace-header>.btn { min-height:44px!important;max-height:44px!important;padding-block:0!important; }
+
+  html body .app-ui .ta-products-overview { gap:8px!important; }
+  html body .app-ui .ta-products-overview>div {
+    min-height:74px!important;
+    padding:9px!important;
+    grid-template-columns:28px minmax(0,1fr)!important;
+    gap:7px!important;
+    align-items:center!important;
+  }
+  html body .app-ui .ta-products-overview-icon { width:28px!important;height:28px!important; }
+  html body .app-ui .ta-products-overview-icon .icon { width:16px!important;height:16px!important; }
+  html body .app-ui .ta-products-overview small { font-size:10.5px!important;line-height:14px!important; }
+  html body .app-ui .ta-products-overview strong { font-size:18px!important;line-height:22px!important; }
+  html body .app-ui .ta-products-overview em { font-size:9.5px!important;line-height:13px!important; }
+
+  html body .app-ui .ta-domain-tabs { max-width:100%!important; }
+  html body .app-ui .ta-domain-tabs>button { min-height:48px!important; }
+
+  html body .app-ui .ta-mobile-nav {
+    min-height:66px!important;
+    padding:5px!important;
+    inset-inline:max(10px,env(safe-area-inset-left,0px)) max(10px,env(safe-area-inset-right,0px))!important;
+  }
+  html body .app-ui .ta-mobile-nav>button { min-height:52px!important; }
+  html body .app-ui .ta-mobile-create {
+    width:48px!important;height:48px!important;
+    min-width:48px!important;min-height:48px!important;
+    transform:translateY(-8px)!important;
+  }
+}
+
+@media screen and (max-width:370px) {
+  html body .app-ui .ta-products-overview>div { min-height:70px!important;padding:7px!important;gap:5px!important; }
+  html body .app-ui .ta-products-overview em { display:none!important; }
+  html body .app-ui .ta-products-workspace-header h1 { font-size:20px!important; }
+}
