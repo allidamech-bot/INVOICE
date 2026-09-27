@@ -14,6 +14,6 @@ const items=[
 {id:'p2',createdAt:now,updatedAt:now,sku:'LRX-002',descriptionEn:'Roasted coffee sachets',descriptionAr:'أكياس قهوة محمصة',hsCode:'210111',origin:'Malaysia',packing:'24 bags',unit:'Carton',lastUnitPrice:'52.00',lastCurrency:'USD',lastUnitCost:'39.00',lastCostCurrency:'USD',usageCount:4,lastUsedAt:now,category:'Beverage',tags:['coffee'],favorite:false}
 ];
 const supplier={...createSupplier(),id:'s1',nameEn:'LOUREX Test Supplier',nameAr:'مورد لوريكس التجريبي',defaultCurrency:'USD'};
-const noop=async()=>{};
-ReactDOM.render(React.createElement(ProductsInventoryWorkspace,{items,currency:'USD',suppliers:[supplier],purchases:[],expenses:[],inventoryMovements:[],defaultCurrency:'USD',onSaveItem:noop,onSaveItems:noop,onDeleteItem:noop,onSaveSupplier:noop,onDeleteSupplier:noop,onSavePurchase:noop,onDeletePurchase:noop,onPostPurchase:noop,onReversePurchase:noop,onSaveExpense:noop,onDeleteExpense:noop,onSaveInventoryMovement:noop,onDeleteInventoryMovement:noop}),document.getElementById('root'));
+const noop=async()=>{};window.productSaveCount=0;window.productDeleteCount=0;window.savedProduct=null;
+ReactDOM.render(React.createElement(ProductsInventoryWorkspace,{items,currency:'USD',suppliers:[supplier],purchases:[],expenses:[],inventoryMovements:[],defaultCurrency:'USD',onSaveItem:async item=>{window.productSaveCount+=1;window.savedProduct=structuredClone(item);},onSaveItems:noop,onDeleteItem:async()=>{window.productDeleteCount+=1;},onSaveSupplier:noop,onDeleteSupplier:noop,onSavePurchase:noop,onDeletePurchase:noop,onPostPurchase:noop,onReversePurchase:noop,onSaveExpense:noop,onDeleteExpense:noop,onSaveInventoryMovement:noop,onDeleteInventoryMovement:noop}),document.getElementById('root'));
 </script></body></html>

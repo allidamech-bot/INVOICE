@@ -16,6 +16,7 @@
   const LATIN_TEXT_RE = /[A-Za-z\u00c0-\u02af]/;
   const COLOR_PROPS = [
     'color','background-color','border-top-color','border-right-color','border-bottom-color','border-left-color',
+    'border-block-start-color','border-block-end-color','border-inline-start-color','border-inline-end-color','scrollbar-color',
     'outline-color','text-decoration-color','column-rule-color','caret-color','fill','stroke','flood-color',
     'lighting-color','stop-color','box-shadow','text-shadow','background-image'
   ];

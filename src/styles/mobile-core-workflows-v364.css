@@ -1,0 +1,345 @@
+/* LOUREX v364 — mobile document and operations workflow closure.
+ * Keep customer/supplier suggestions in the document flow, and give purchase
+ * sections and totals enough structure to scan on narrow screens. */
+@media screen and (max-width:900px){
+  /* Legacy Hostinger rules still assign a violet fill to operations actions
+   * on some mobile routes. Keep every primary business action on the current
+   * workspace accent, including supplier, purchase, expense and stock forms. */
+  html body .app-ui .ta-ops-panel-head>.btn-primary,
+  html body .app-ui .ta-ops-split :is(.btn.btn-primary,button.btn-primary){
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    border-color:var(--ft-accent)!important;
+    color:var(--ft-on-accent,#fff)!important;
+    box-shadow:none!important;
+  }
+  html body .app-ui .ta-ops-panel-head>.btn-primary:hover:not(:disabled),
+  html body .app-ui .ta-ops-split :is(.btn.btn-primary,button.btn-primary):hover:not(:disabled),
+  html body .app-ui .ta-ops-panel-head>.btn-primary:active:not(:disabled),
+  html body .app-ui .ta-ops-split :is(.btn.btn-primary,button.btn-primary):active:not(:disabled){
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    border-color:var(--ft-accent)!important;
+    color:var(--ft-on-accent,#fff)!important;
+    box-shadow:none!important;
+  }
+
+  html body .app-ui .editor-screen:not(.draft-studio) .customer-select-wrap>.customer-dropdown{
+    position:static!important;
+    inset:auto!important;
+    top:auto!important;
+    width:100%!important;
+    max-height:min(240px,36svh)!important;
+    margin:7px 0 0!important;
+    overflow:auto!important;
+    overscroll-behavior:contain!important;
+    box-shadow:none!important;
+  }
+
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-ops-form-section{
+    min-width:0!important;
+    padding:11px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:13px!important;
+    background:var(--ft-surface)!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor>.ta-ops-editor-scroll>fieldset{
+    min-width:0!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-ops-form-section>header{
+    min-width:0!important;
+    display:grid!important;
+    grid-template-columns:30px minmax(0,1fr)!important;
+    align-items:start!important;
+    gap:8px!important;
+    margin:0 0 11px!important;
+    padding:0 0 10px!important;
+    border-bottom:1px solid var(--ft-line)!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-ops-form-section>header>span:first-child{
+    width:28px!important;
+    height:28px!important;
+    display:grid!important;
+    place-items:center!important;
+    border:1px solid color-mix(in srgb,var(--ft-accent) 22%,var(--ft-line))!important;
+    border-radius:9px!important;
+    background:var(--ft-accent-soft)!important;
+    color:var(--ft-accent)!important;
+    font-size:10px!important;
+    line-height:14px!important;
+    font-weight:750!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-ops-form-section>header>div{
+    min-width:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    gap:2px!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-ops-form-section>header strong{
+    display:block!important;
+    color:var(--ft-text-strong)!important;
+    font-size:13px!important;
+    line-height:19px!important;
+    font-weight:700!important;
+    overflow-wrap:anywhere!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-ops-form-section>header small{
+    display:block!important;
+    color:var(--ft-muted)!important;
+    font-size:11px!important;
+    line-height:16px!important;
+    font-weight:450!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-ops-form-section>header>.btn{
+    grid-column:1/-1!important;
+    width:100%!important;
+    min-width:0!important;
+    min-height:44px!important;
+    margin-top:1px!important;
+    justify-content:center!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-purchase-item>header{
+    min-width:0!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:8px!important;
+    margin:0 0 10px!important;
+    padding:0 0 8px!important;
+    border-bottom:1px solid var(--ft-line)!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-purchase-item>header>strong{
+    min-width:0!important;
+    color:var(--ft-text-strong)!important;
+    font-size:12px!important;
+    line-height:18px!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-purchase-item>header>button{
+    width:38px!important;
+    height:38px!important;
+    min-width:38px!important;
+    min-height:38px!important;
+    flex:0 0 auto!important;
+    display:grid!important;
+    place-items:center!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:10px!important;
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-muted)!important;
+    font-size:20px!important;
+    line-height:1!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-purchase-totals{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+    margin:0!important;
+    padding:9px 10px!important;
+    border-top:1px solid var(--ft-line)!important;
+    background:var(--ft-surface-2)!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-purchase-totals>span{
+    min-width:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    gap:3px!important;
+    color:var(--ft-muted)!important;
+    font-size:10px!important;
+    line-height:14px!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor .ta-purchase-totals strong{
+    max-width:100%!important;
+    color:var(--ft-text-strong)!important;
+    font-size:12px!important;
+    line-height:17px!important;
+    font-variant-numeric:tabular-nums!important;
+    overflow-wrap:anywhere!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor>.ta-ops-editor-actions{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    align-items:stretch!important;
+    gap:6px!important;
+    padding:8px max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))!important;
+  }
+  html body .app-ui .ta-ops-split>.ta-ops-editor>.ta-ops-editor-actions>.btn{
+    width:100%!important;
+    min-width:0!important;
+    min-height:48px!important;
+    padding:5px 4px!important;
+    font-size:11px!important;
+    line-height:15px!important;
+    white-space:normal!important;
+    overflow-wrap:anywhere!important;
+  }
+}
+
+@media screen{
+  html body .app-ui .draft-pdf-design-section{
+    margin:0 0 12px!important;
+    padding:14px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:14px!important;
+    background:var(--ft-surface)!important;
+  }
+  html body .app-ui .draft-pdf-design-section>.draft-section-heading{margin:0 0 12px!important;}
+  html body .app-ui .draft-pdf-template-grid{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+  }
+  html body .app-ui .draft-pdf-template-grid>button{
+    min-width:0!important;
+    min-height:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    gap:7px!important;
+    padding:8px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:12px!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text)!important;
+    text-align:start!important;
+    cursor:pointer!important;
+    transition:border-color .16s ease,box-shadow .16s ease,background .16s ease!important;
+  }
+  html body .app-ui .draft-pdf-template-grid>button:hover{border-color:color-mix(in srgb,var(--ft-accent) 48%,var(--ft-line))!important;}
+  html body .app-ui .draft-pdf-template-grid>button.is-active{border-color:var(--ft-accent)!important;box-shadow:0 0 0 2px color-mix(in srgb,var(--ft-accent) 18%,transparent)!important;background:color-mix(in srgb,var(--ft-accent-soft) 36%,var(--ft-surface))!important;}
+  html body .app-ui .draft-pdf-template-preview{
+    height:62px!important;
+    display:grid!important;
+    place-items:center!important;
+    overflow:hidden!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:8px!important;
+    background:var(--ft-surface-2)!important;
+  }
+  html body .app-ui .draft-pdf-template-sheet{
+    position:relative!important;
+    width:43px!important;
+    height:52px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    gap:4px!important;
+    padding:9px 5px 6px!important;
+    overflow:hidden!important;
+    border:1px solid color-mix(in srgb,var(--ft-line-strong) 78%,white)!important;
+    border-radius:2px!important;
+    background:#fff!important;
+    box-shadow:0 3px 7px rgba(12,28,45,.12)!important;
+  }
+  html body .app-ui .draft-pdf-template-sheet i{height:2px!important;display:block!important;border-radius:2px!important;background:#d9e1e9!important;}
+  html body .app-ui .draft-pdf-template-sheet i:nth-child(3){width:78%!important;}
+  html body .app-ui .draft-pdf-template-sheet i:nth-child(4){width:91%!important;}
+  html body .app-ui .draft-pdf-template-sheet i:nth-child(5){width:67%!important;}
+  html body .app-ui .draft-pdf-template-sheet .draft-pdf-template-brand{width:14px!important;height:5px!important;margin-bottom:2px!important;background:var(--draft-template-accent,var(--ft-accent))!important;}
+  html body .app-ui .draft-pdf-template-sheet .draft-pdf-template-title{width:24px!important;height:4px!important;background:#738294!important;}
+  html body .app-ui .draft-pdf-template-sheet .draft-pdf-template-footer{width:100%!important;height:1px!important;margin-top:auto!important;background:#d6dde5!important;}
+  html body .app-ui .draft-pdf-template-preview.preview-minimal .draft-pdf-template-brand{display:none!important;}
+  html body .app-ui .draft-pdf-template-preview.preview-minimal .draft-pdf-template-title{width:17px!important;}
+  html body .app-ui .draft-pdf-template-preview.preview-commercial .draft-pdf-template-sheet{padding-top:12px!important;border-top:3px solid var(--draft-template-accent,var(--ft-accent))!important;}
+  html body .app-ui .draft-pdf-template-preview.preview-commercial .draft-pdf-template-brand{width:100%!important;height:4px!important;}
+  html body .app-ui .draft-pdf-template-preview.preview-official .draft-pdf-template-sheet{border-inline-start:3px solid var(--draft-template-accent,var(--ft-accent))!important;}
+  html body .app-ui .draft-pdf-template-copy{min-width:0!important;display:flex!important;flex-direction:column!important;gap:2px!important;}
+  html body .app-ui .draft-pdf-template-copy strong{color:var(--ft-text-strong)!important;font-size:11.5px!important;line-height:16px!important;font-weight:700!important;}
+  html body .app-ui .draft-pdf-template-copy small{color:var(--ft-muted)!important;font-size:9.5px!important;line-height:13px!important;}
+  html[dir="rtl"] body .app-ui .draft-pdf-template-copy small{line-height:15px!important;}
+}
+
+/* The TailAdmin runtime no longer links workflow-closeout.css. Restore its
+ * essential issue-review layout here so Arabic labels and values cannot share
+ * the same inline line box when a document is issued or exported. */
+@media screen{
+  html body .app-ui .issue-review-status,
+  html body .app-ui .issue-review-purpose{
+    min-width:0!important;
+    display:flex!important;
+    align-items:flex-start!important;
+    gap:10px!important;
+    text-align:start!important;
+  }
+  html body .app-ui .issue-review-status>div,
+  html body .app-ui .issue-review-purpose>div{
+    min-width:0!important;
+    flex:1 1 auto!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    gap:3px!important;
+    line-height:1.5!important;
+    overflow-wrap:anywhere!important;
+  }
+  html body .app-ui .issue-review-status>div>strong,
+  html body .app-ui .issue-review-status>div>span,
+  html body .app-ui .issue-review-purpose>div>strong,
+  html body .app-ui .issue-review-purpose>div>span{
+    max-width:100%!important;
+    display:block!important;
+    white-space:normal!important;
+    overflow-wrap:anywhere!important;
+    text-align:start!important;
+    line-height:1.5!important;
+  }
+  html body .app-ui .issue-review-grid{
+    min-width:0!important;
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+  }
+  html body .app-ui .issue-review-grid>div{
+    min-width:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    gap:3px!important;
+    overflow:hidden!important;
+  }
+  html body .app-ui .issue-review-grid>div>span,
+  html body .app-ui .issue-review-grid>div>strong,
+  html body .app-ui .issue-review-grid>div>small{
+    max-width:100%!important;
+    display:block!important;
+    white-space:normal!important;
+    overflow-wrap:anywhere!important;
+    text-align:start!important;
+    line-height:1.45!important;
+  }
+  html body .app-ui .issue-asset-checks{
+    min-width:0!important;
+    display:flex!important;
+    flex-wrap:wrap!important;
+    gap:6px!important;
+  }
+  html body .app-ui .issue-warnings{
+    min-width:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    gap:7px!important;
+  }
+  html body .app-ui .issue-warnings>strong{display:block!important;line-height:1.45!important;}
+  html body .app-ui .issue-warning{
+    min-width:0!important;
+    display:flex!important;
+    align-items:flex-start!important;
+    gap:8px!important;
+  }
+  html body .app-ui .issue-warning>span{flex:0 0 20px!important;}
+  html body .app-ui .issue-warning>p{
+    min-width:0!important;
+    flex:1 1 auto!important;
+    margin:1px 0 0!important;
+    overflow-wrap:anywhere!important;
+    line-height:1.5!important;
+    text-align:start!important;
+  }
+}
+
+@media screen and (max-width:560px){
+  html body .app-ui .issue-review-grid{grid-template-columns:minmax(0,1fr)!important;}
+}
