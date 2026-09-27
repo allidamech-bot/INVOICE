@@ -8,6 +8,7 @@ const html=await read('index.html');
 const coherence=await read('src/styles/hostinger-final-coherence-v356.css');
 const interaction=await read('src/styles/hostinger-interaction-polish-v357.css');
 const blue=await read('src/styles/hostinger-blue-luxury-v358.css');
+const precision=await read('src/styles/hostinger-blue-precision-v359.css');
 const palette=await read('src/styles/v346-template-color-visual-closeout.css');
 const reliability=await read('src/styles/tailadmin-reliability-bridge-v320.css');
 
@@ -15,7 +16,7 @@ function stylesheetNames(source){
   return [...source.matchAll(/<link\s+rel="stylesheet"\s+href="\.\/styles\/([^"?]+\.css)(?:\?[^\"]*)?"[^>]*\/>/g)].map(match=>match[1]);
 }
 
-test('Hostinger visual owners load once and v358 is the final design owner before reliability',()=>{
+test('Hostinger visual owners load once and v359 is the final design owner before reliability',()=>{
   const names=stylesheetNames(html);
   for(const name of [
     'hostinger-inspired-v353.css',
@@ -23,14 +24,16 @@ test('Hostinger visual owners load once and v358 is the final design owner befor
     'hostinger-system-contract-v355.css',
     'hostinger-final-coherence-v356.css',
     'hostinger-interaction-polish-v357.css',
-    'hostinger-blue-luxury-v358.css'
+    'hostinger-blue-luxury-v358.css',
+    'hostinger-blue-precision-v359.css'
   ]){
     assert.equal(names.filter(value=>value===name).length,1,`${name} must load exactly once`);
   }
   assert.equal(names.at(-1),'tailadmin-reliability-bridge-v320.css','reliability bridge must remain the final stylesheet');
   assert.ok(names.indexOf('hostinger-final-coherence-v356.css')<names.indexOf('hostinger-interaction-polish-v357.css'));
   assert.ok(names.indexOf('hostinger-interaction-polish-v357.css')<names.indexOf('hostinger-blue-luxury-v358.css'));
-  assert.ok(names.indexOf('hostinger-blue-luxury-v358.css')<names.indexOf('tailadmin-reliability-bridge-v320.css'));
+  assert.ok(names.indexOf('hostinger-blue-luxury-v358.css')<names.indexOf('hostinger-blue-precision-v359.css'));
+  assert.ok(names.indexOf('hostinger-blue-precision-v359.css')<names.indexOf('tailadmin-reliability-bridge-v320.css'));
   assert.doesNotMatch(html,/hostinger-final-polish-v356\.css/,'deleted duplicate v356 layer must not return');
 });
 
@@ -86,5 +89,22 @@ test('v358 does not replace the canonical overlay ladder',()=>{
   assert.doesNotMatch(blue,/--lourex-z-/);
   assert.doesNotMatch(blue,/z-index\s*:/i);
   assert.match(reliability,/\.modal-backdrop\{z-index:var\(--lourex-z-modal\)!important\}/);
+  assert.match(reliability,/\.app-ui \.ta-doc-mobile-action-portal\{z-index:var\(--lourex-z-critical\)!important\}/);
+});
+
+test('v359 consolidates the visible identity onto the canonical blue tokens',()=>{
+  assert.match(precision,/--hx-purple:var\(--ft-accent\)/);
+  assert.match(precision,/--hx2-violet:var\(--ft-accent\)/);
+  assert.match(precision,/\.ta-sidebar-create>\.btn\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important/);
+  assert.match(precision,/\.lourex-ai-launcher\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important/);
+  assert.match(precision,/\.ta-auth-page \.ta-auth-aside\{[\s\S]*?linear-gradient\(150deg,#203f70 0%,#315DA8 56%,#244d86 100%\)!important/);
+  assert.match(precision,/\.ta-auth-tabs button\.is-active\{[\s\S]*?color:var\(--ft-accent\)!important/);
+});
+
+test('v359 remains cosmetic and leaves the canonical reliability ladder untouched',()=>{
+  assert.doesNotMatch(precision,/--lourex-z-/);
+  assert.doesNotMatch(precision,/z-index\s*:/i);
+  assert.doesNotMatch(precision,/display\s*:\s*none/i,'precision layer must not hide application functionality');
+  assert.match(reliability,/\.global-search-panel\{z-index:calc\(var\(--lourex-z-search\) \+ 1\)!important\}/);
   assert.match(reliability,/\.app-ui \.ta-doc-mobile-action-portal\{z-index:var\(--lourex-z-critical\)!important\}/);
 });
