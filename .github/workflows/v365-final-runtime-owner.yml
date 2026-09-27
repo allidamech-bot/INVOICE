@@ -1,0 +1,71 @@
+name: v365 final runtime scroll owner QA
+
+on:
+  push:
+    branches:
+      - fix/v365-mobile-editor-scroll-draft-templates
+    paths:
+      - .github/workflows/v365-final-runtime-owner.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v365-mobile-editor-scroll-draft-templates
+          fetch-depth: 0
+      - name: Apply final runtime owner patch
+        run: python scripts/v365-final-runtime-owner.py
+      - name: Validate patch scope
+        run: |
+          git diff --check
+          git status --short
+          git diff -- src/styles/v331-draft-scroll-recovery.css tests/v337-template-layout-site-pass.test.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Typecheck and production build
+        run: |
+          npm run typecheck
+          npm run build
+      - name: Install Chromium and WebKit
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Static regression contracts
+        run: node --test tests/v365-mobile-editor-scroll-draft-templates.test.mjs tests/v337-template-layout-site-pass.test.mjs
+      - name: Live Chromium and WebKit editor QA
+        run: |
+          npx http-server . -p 4173 -c-1 > /tmp/v365-final-runtime-owner.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/tests/visual/v365-mobile-editor-scroll.html >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/v365-final-runtime-owner.log; exit 1; fi
+          node tests/visual/run-v365-mobile-editor-scroll.cjs
+          node tests/visual/run-v365-iphone-document-editors.cjs
+          node tests/visual/run-v364-core-workflows.cjs
+      - name: Commit verified runtime owner changes
+        run: |
+          git config user.name "lourex-v365-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/styles/v331-draft-scroll-recovery.css tests/v337-template-layout-site-pass.test.mjs
+          git diff --cached --quiet && { echo 'No runtime owner changes to commit'; exit 1; }
+          git commit -m "v365 bind runtime document scroll owner to viewport"
+          git push origin HEAD:fix/v365-mobile-editor-scroll-draft-templates
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v365-final-runtime-owner-qa
+          path: visual-qa-output
+          if-no-files-found: warn
