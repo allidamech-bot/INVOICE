@@ -7,7 +7,7 @@ import { Button, Icon, Input, Select } from './UI.js';
 
 interface Props{company:CompanySettings;customers:Customer[];documents:LourexDocument[];payments:PaymentRecord[];}
 type PeriodPreset='month'|'quarter'|'year'|'all';
-interface State{from:string;to:string;currency:string;query:string;}
+interface State{from:string;to:string;currency:string;query:string;preset:PeriodPreset|null;}
 
 function startOfMonth(today:string):string{return `${today.slice(0,7)}-01`;}
 function startOfQuarter(today:string):string{const year=today.slice(0,4);const month=Number(today.slice(5,7));const start=Math.floor((month-1)/3)*3+1;return `${year}-${String(start).padStart(2,'0')}-01`;}
@@ -33,7 +33,7 @@ function csvCell(value:string|number):string{
 }
 
 export class ReportsPage extends React.Component<Props,State>{
-  state:State={from:`${todayIso().slice(0,4)}-01-01`,to:todayIso(),currency:'ALL',query:''};
+  state:State={from:`${todayIso().slice(0,4)}-01-01`,to:todayIso(),currency:'ALL',query:'',preset:'year'};
 
   componentDidMount():void{window.addEventListener('afterprint',this.afterPrint);}
   componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);document.body.classList.remove('printing-financial-report');}
@@ -41,10 +41,10 @@ export class ReportsPage extends React.Component<Props,State>{
 
   private setPreset=(preset:PeriodPreset)=>{
     const today=todayIso();
-    if(preset==='month'){this.setState({from:startOfMonth(today),to:today});return;}
-    if(preset==='quarter'){this.setState({from:startOfQuarter(today),to:today});return;}
-    if(preset==='year'){this.setState({from:`${today.slice(0,4)}-01-01`,to:today});return;}
-    this.setState({from:'',to:today});
+    if(preset==='month'){this.setState({from:startOfMonth(today),to:today,preset});return;}
+    if(preset==='quarter'){this.setState({from:startOfQuarter(today),to:today,preset});return;}
+    if(preset==='year'){this.setState({from:`${today.slice(0,4)}-01-01`,to:today,preset});return;}
+    this.setState({from:'',to:today,preset});
   };
 
   private print=()=>{document.body.classList.add('printing-financial-report');window.setTimeout(()=>window.print(),40);};
@@ -78,9 +78,9 @@ export class ReportsPage extends React.Component<Props,State>{
       </header>
 
       <section className="ta-report-filterbar" aria-label={t('Report filters','فلاتر التقرير')}>
-        <div className="ta-report-presets" role="group" aria-label={t('Period presets','فترات جاهزة')}><button type="button" onClick={()=>this.setPreset('month')}>{t('This Month','هذا الشهر')}</button><button type="button" onClick={()=>this.setPreset('quarter')}>{t('This Quarter','هذا الربع')}</button><button type="button" onClick={()=>this.setPreset('year')}>{t('This Year','هذه السنة')}</button><button type="button" onClick={()=>this.setPreset('all')}>{t('All Time','كل الفترات')}</button></div>
-        <label className="ta-report-date"><span>{t('From','من')}</span><span className="ta-date-input"><span aria-hidden="true">{filterDateLabel(this.state.from)}</span><Input aria-label={t('From date','تاريخ البداية')} type="date" value={this.state.from} onChange={(e:any)=>this.setState({from:e.target.value})}/></span></label>
-        <label className="ta-report-date"><span>{t('To','إلى')}</span><span className="ta-date-input"><span aria-hidden="true">{filterDateLabel(this.state.to)}</span><Input aria-label={t('To date','تاريخ النهاية')} type="date" value={this.state.to} onChange={(e:any)=>this.setState({to:e.target.value})}/></span></label>
+        <div className="ta-report-presets" role="group" aria-label={t('Period presets','فترات جاهزة')}><button type="button" aria-pressed={this.state.preset==='month'} onClick={()=>this.setPreset('month')}>{t('This Month','هذا الشهر')}</button><button type="button" aria-pressed={this.state.preset==='quarter'} onClick={()=>this.setPreset('quarter')}>{t('This Quarter','هذا الربع')}</button><button type="button" aria-pressed={this.state.preset==='year'} onClick={()=>this.setPreset('year')}>{t('This Year','هذه السنة')}</button><button type="button" aria-pressed={this.state.preset==='all'} onClick={()=>this.setPreset('all')}>{t('All Time','كل الفترات')}</button></div>
+        <label className="ta-report-date"><span>{t('From','من')}</span><span className="ta-date-input"><span aria-hidden="true">{filterDateLabel(this.state.from)}</span><Input aria-label={t('From date','تاريخ البداية')} type="date" value={this.state.from} onChange={(e:any)=>this.setState({from:e.target.value,preset:null})}/></span></label>
+        <label className="ta-report-date"><span>{t('To','إلى')}</span><span className="ta-date-input"><span aria-hidden="true">{filterDateLabel(this.state.to)}</span><Input aria-label={t('To date','تاريخ النهاية')} type="date" value={this.state.to} onChange={(e:any)=>this.setState({to:e.target.value,preset:null})}/></span></label>
         <label className="ta-report-currency"><span>{t('Currency','العملة')}</span><Select value={selected||'ALL'} onChange={(e:any)=>this.setState({currency:e.target.value})}><option value="ALL">{t('All currencies — separate','كل العملات — منفصلة')}</option>{currencies.map(currency=><option key={currency} value={currency}>{currency}</option>)}</Select></label>
       </section>
 
@@ -101,13 +101,13 @@ export class ReportsPage extends React.Component<Props,State>{
 
       <section className="ta-panel ta-report-panel">
         <header className="ta-panel-header"><div><span>{t('Trend','الاتجاه')}</span><h2>{t('Monthly Performance','الأداء الشهري')}</h2></div><div className="ta-panel-status">{reportTitle}</div></header>
-        <div className="ta-table-wrap"><table className="ta-table"><thead><tr><th>{t('Month','الشهر')}</th>{!selected?<th>{t('Currency','العملة')}</th>:null}<th>{t('Net Sales','صافي المبيعات')}</th><th>{t('Gross Profit','الربح الإجمالي')}</th><th>{t('Margin status','حالة الهامش')}</th><th>{t('Collected','المحصّل')}</th></tr></thead><tbody>{visibleTrends.map(row=><tr key={`${row.month}-${row.currency}`}><td>{monthLabel(row.month)}</td>{!selected?<td><b>{row.currency}</b></td>:null}<td>{formatMoney(row.netSales,row.currency)}</td><td>{row.profitComplete?formatMoney(row.grossProfit,row.currency):'—'}</td><td>{row.profitComplete?t('Complete','مكتمل'):t('Cost data missing','تكلفة ناقصة')}</td><td>{formatMoney(row.collected,row.currency)}</td></tr>)}</tbody></table></div>
+        <div className="ta-table-wrap"><table className="ta-table"><thead><tr><th>{t('Month','الشهر')}</th>{!selected?<th>{t('Currency','العملة')}</th>:null}<th>{t('Net Sales','صافي المبيعات')}</th><th>{t('Gross Profit','الربح الإجمالي')}</th><th>{t('Margin status','حالة الهامش')}</th><th>{t('Collected','المحصّل')}</th></tr></thead><tbody>{visibleTrends.map(row=><tr key={`${row.month}-${row.currency}`}><td data-label={t('Month','الشهر')}>{monthLabel(row.month)}</td>{!selected?<td data-label={t('Currency','العملة')}><b>{row.currency}</b></td>:null}<td data-label={t('Net Sales','صافي المبيعات')}>{formatMoney(row.netSales,row.currency)}</td><td data-label={t('Gross Profit','الربح الإجمالي')}>{row.profitComplete?formatMoney(row.grossProfit,row.currency):'—'}</td><td data-label={t('Margin status','حالة الهامش')}>{row.profitComplete?t('Complete','مكتمل'):t('Cost data missing','تكلفة ناقصة')}</td><td data-label={t('Collected','المحصّل')}>{formatMoney(row.collected,row.currency)}</td></tr>)}</tbody></table></div>
         {!visibleTrends.length?<div className="ta-panel-empty compact"><strong>{t('No monthly activity for the selected period.','لا توجد حركة شهرية ضمن الفترة المحددة.')}</strong></div>:null}
       </section>
 
       <section className="ta-panel ta-report-panel">
         <header className="ta-panel-header ta-customer-report-header"><div><span>{t('Customers','العملاء')}</span><h2>{t('Customer Performance','أداء العملاء')}</h2><p>{t('Revenue is period-based; outstanding and overdue are balances as of the report end date.','الإيراد حسب الفترة المحددة، أما المتبقي والمتأخر فهما الرصيد حتى تاريخ نهاية التقرير.')}</p></div><div className="ta-search-field"><Icon name="search"/><Input aria-label={t('Search customer performance','بحث أداء العملاء')} value={this.state.query} placeholder={t('Search customer','بحث عن عميل')} onChange={(e:any)=>this.setState({query:e.target.value})}/></div></header>
-        <div className="ta-table-wrap"><table className="ta-table ta-customer-performance-table"><thead><tr><th>{t('Customer','العميل')}</th>{!selected?<th>{t('Currency','العملة')}</th>:null}<th>{t('Net Sales','صافي المبيعات')}</th><th>{t('Gross Profit','الربح الإجمالي')}</th><th>{t('Margin','الهامش')}</th><th>{t('Collected','المحصّل')}</th><th>{t('Outstanding','المتبقي')}</th><th>{t('Overdue','المتأخر')}</th></tr></thead><tbody>{visibleCustomers.map(row=><tr key={`${row.customerId}-${row.currency}`}><td><strong>{customerDisplay(row,this.props.customers)}</strong><small>{row.issuedInvoices} {t('invoices','فواتير')}{row.creditNotes?` · ${row.creditNotes} ${t('credits','دائن')}`:''}</small></td>{!selected?<td><b>{row.currency}</b></td>:null}<td>{formatMoney(row.netSales,row.currency)}</td><td>{row.profitComplete?formatMoney(row.grossProfit,row.currency):'—'}</td><td>{row.profitComplete?`${row.marginPercent}%`:'—'}</td><td>{formatMoney(row.collected,row.currency)}</td><td>{formatMoney(row.outstanding,row.currency)}</td><td className={row.overdue!=='0.00'?'is-danger':''}>{formatMoney(row.overdue,row.currency)}</td></tr>)}</tbody></table></div>
+        <div className="ta-table-wrap"><table className="ta-table ta-customer-performance-table"><thead><tr><th>{t('Customer','العميل')}</th>{!selected?<th>{t('Currency','العملة')}</th>:null}<th>{t('Net Sales','صافي المبيعات')}</th><th>{t('Gross Profit','الربح الإجمالي')}</th><th>{t('Margin','الهامش')}</th><th>{t('Collected','المحصّل')}</th><th>{t('Outstanding','المتبقي')}</th><th>{t('Overdue','المتأخر')}</th></tr></thead><tbody>{visibleCustomers.map(row=><tr key={`${row.customerId}-${row.currency}`}><td data-label={t('Customer','العميل')}><strong>{customerDisplay(row,this.props.customers)}</strong><small>{row.issuedInvoices} {t('invoices','فواتير')}{row.creditNotes?` · ${row.creditNotes} ${t('credits','دائن')}`:''}</small></td>{!selected?<td data-label={t('Currency','العملة')}><b>{row.currency}</b></td>:null}<td data-label={t('Net Sales','صافي المبيعات')}>{formatMoney(row.netSales,row.currency)}</td><td data-label={t('Gross Profit','الربح الإجمالي')}>{row.profitComplete?formatMoney(row.grossProfit,row.currency):'—'}</td><td data-label={t('Margin','الهامش')}>{row.profitComplete?`${row.marginPercent}%`:'—'}</td><td data-label={t('Collected','المحصّل')}>{formatMoney(row.collected,row.currency)}</td><td data-label={t('Outstanding','المتبقي')}>{formatMoney(row.outstanding,row.currency)}</td><td className={row.overdue!=='0.00'?'is-danger':''} data-label={t('Overdue','المتأخر')}>{formatMoney(row.overdue,row.currency)}</td></tr>)}</tbody></table></div>
         {!visibleCustomers.length?<div className="ta-panel-empty compact"><strong>{t('No customer activity matches these filters.','لا توجد حركة عملاء مطابقة لهذه الفلاتر.')}</strong></div>:null}
       </section>
 
