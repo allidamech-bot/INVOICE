@@ -158,7 +158,8 @@
  * only when results actually need it. */
 @media screen and (max-width:900px){
   html body .global-search-panel{
-    height:auto!important;
+    bottom:auto!important;
+    height:max-content!important;
     min-height:0!important;
     max-height:min(82dvh,680px)!important;
   }
