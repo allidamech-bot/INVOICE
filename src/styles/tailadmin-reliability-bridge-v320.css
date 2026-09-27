@@ -1,3 +1,7 @@
+@import url("./mobile-ux-functional-hardening-v363.css?v=363-1");
+@import url("./modal-viewport-reconciliation-v363.css?v=363-1");
+@import url("./mobile-ux-deep-audit-v363.css?v=363-1");
+
 /* LOUREX v351 — reliability bridge only.
    Runtime/recovery geometry and UI safety contracts live here.
    Startup paint is owned exclusively by v347-startup-single-layer.css.

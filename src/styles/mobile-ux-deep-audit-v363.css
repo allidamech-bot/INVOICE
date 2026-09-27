@@ -1,0 +1,85 @@
+/* LOUREX v363 — final deep-audit visual coherence.
+ * Targeted late-cascade fixes found by reviewing current Chromium/WebKit evidence.
+ * Visual only: no accounting, persistence, Firebase, document, import or cloud logic. */
+@media screen {
+  /* Native file controls are implementation details. The import components expose
+     translated 44px choose-file buttons and programmatically trigger these inputs. */
+  html body .product-import-file-input,
+  html body .supplier-import-file-input{display:none!important}
+
+  /* One primary-action language across current and older business workflows.
+     Several retained import/payment/product surfaces still carried the retired
+     violet primary treatment at narrow widths. Keep semantic variants intact,
+     but make every real primary action use the current Hostinger-blue token.
+     Import QA/runtime roots can be mounted without the normal .app-ui/.modal
+     ancestors, so include their actual roots explicitly. */
+  html body .app-ui :is(.btn.btn-primary,button.btn-primary),
+  html body .modal :is(.btn.btn-primary,button.btn-primary),
+  html body .product-import-shell :is(.btn.btn-primary,button.btn-primary),
+  html body .supplier-import-shell :is(.btn.btn-primary,button.btn-primary){
+    background:var(--ft-accent,#315da8)!important;
+    background-image:none!important;
+    border-color:var(--ft-accent,#315da8)!important;
+    color:#fff!important;
+    box-shadow:0 8px 20px color-mix(in srgb,var(--ft-accent,#315da8) 18%,transparent)!important;
+  }
+  html body .app-ui :is(.btn.btn-primary,button.btn-primary):hover:not(:disabled),
+  html body .modal :is(.btn.btn-primary,button.btn-primary):hover:not(:disabled),
+  html body .product-import-shell :is(.btn.btn-primary,button.btn-primary):hover:not(:disabled),
+  html body .supplier-import-shell :is(.btn.btn-primary,button.btn-primary):hover:not(:disabled){
+    background:color-mix(in srgb,var(--ft-accent,#315da8) 88%,#000)!important;
+    background-image:none!important;
+    border-color:color-mix(in srgb,var(--ft-accent,#315da8) 88%,#000)!important;
+    color:#fff!important;
+  }
+  html body .app-ui :is(.btn.btn-primary,button.btn-primary):active:not(:disabled),
+  html body .modal :is(.btn.btn-primary,button.btn-primary):active:not(:disabled),
+  html body .product-import-shell :is(.btn.btn-primary,button.btn-primary):active:not(:disabled),
+  html body .supplier-import-shell :is(.btn.btn-primary,button.btn-primary):active:not(:disabled){
+    transform:translateY(1px)!important;
+    box-shadow:0 4px 12px color-mix(in srgb,var(--ft-accent,#315da8) 16%,transparent)!important;
+  }
+
+  @media (max-width:900px){
+    /* Safari zooms focused text inputs below 16px. Keep the AI composer visually
+       compact through line-height/padding while retaining a physical 16px input. */
+    html body .lourex-ai-compose input{
+      font-size:16px!important;
+      line-height:20px!important;
+    }
+
+    /* Complex import dialogs may be tall, but must still read as bounded premium
+       sheets rather than a second full-screen application. */
+    html body .modal-backdrop:has(.product-import-shell),
+    html body .modal-backdrop:has(.supplier-import-shell){
+      align-items:flex-end!important;
+      padding-inline:max(8px,env(safe-area-inset-left,0px)) max(8px,env(safe-area-inset-right,0px))!important;
+      padding-bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
+    }
+    html body .modal:has(.product-import-shell),
+    html body .modal:has(.supplier-import-shell){
+      width:min(680px,100%)!important;
+      max-width:680px!important;
+      max-height:min(88svh,820px)!important;
+      border-radius:18px!important;
+      overflow:hidden!important;
+    }
+    html body .modal:has(.product-import-shell)>.modal-footer,
+    html body .modal:has(.supplier-import-shell)>.modal-footer{
+      flex:0 0 auto!important;
+      position:relative!important;
+      z-index:12!important;
+      padding-bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
+    }
+  }
+
+  @media (max-width:360px){
+    /* Keep the smallest supported phone visually aligned with 390/430 layouts. */
+    html body .app-ui .ta-products-workspace-header>.btn-primary{
+      background:var(--ft-accent,#315da8)!important;
+      background-image:none!important;
+      border-color:var(--ft-accent,#315da8)!important;
+      color:#fff!important;
+    }
+  }
+}

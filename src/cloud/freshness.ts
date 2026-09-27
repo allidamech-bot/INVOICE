@@ -11,14 +11,15 @@ let realtimeUid='';
 let remoteUpdateNotified=false;
 
 const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen';
+const UNSAFE_SURFACE_SELECTOR='.editor-screen,.modal-backdrop,.ta-product-editor.is-open,.ta-operations-page .ta-ops-editor,.product-library-pro.editor-open,.operations-page .purchase-editor';
 type RestorableWorkspace='home'|'documents'|'customers'|'receivables'|'reports'|'items';
 const WORKSPACE_SELECTORS:Array<[RestorableWorkspace,string]>=[
   ['home','.workspace-home-page'],
   ['documents','.documents-workspace-v2,.documents-page'],
-  ['customers','.customers-page,.customer-profile-page'],
+  ['customers','.ta-customers-page,.ta-customer-profile,.customers-page,.customer-profile-page'],
   ['receivables','.receivables-page'],
   ['reports','.reports-page'],
-  ['items','.product-library-pro,.saved-items-page']
+  ['items','.ta-product-layout,.product-library-pro,.saved-items-page']
 ];
 
 function rememberWorkspaceBeforeAutomaticReload():void{
@@ -50,7 +51,7 @@ function appIsSafeToApply():boolean{
   if(typeof navigator!=='undefined'&&!navigator.onLine)return false;
   if(document.documentElement.hasAttribute('data-lourex-document-editor'))return false;
   if(workspaceHasUnsavedChanges())return false;
-  if(document.querySelector('.editor-screen,.modal-backdrop,.product-library-pro.editor-open'))return false;
+  if(document.querySelector(UNSAFE_SURFACE_SELECTOR))return false;
   const active=document.activeElement;
   if(active instanceof HTMLInputElement||active instanceof HTMLTextAreaElement||active instanceof HTMLSelectElement)return false;
   if(active instanceof HTMLElement&&active.isContentEditable)return false;

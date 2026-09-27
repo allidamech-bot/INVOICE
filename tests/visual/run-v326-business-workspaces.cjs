@@ -112,6 +112,115 @@ async function inspect(page,surface,scenario,lang){
   },{surface,scenario,lang});
 }
 
+async function auditOpenSurface(page,selector,scrollerSelector,footerSelector,scenario,label,failures){
+  const surface=page.locator(selector).last();
+  await surface.waitFor({state:'visible',timeout:4000}).catch(()=>{});
+  if(!(await surface.isVisible().catch(()=>false))){failures.push(`${label} did not open`);return;}
+  const metrics=await surface.evaluate((el,{width,height,footerSelector})=>{
+    const r=el.getBoundingClientRect();
+    const footer=footerSelector?el.querySelector(footerSelector):null;
+    const fr=footer?.getBoundingClientRect();
+    const control=el.querySelector('input,select,textarea');
+    return{
+      left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,
+      footer:fr?{top:fr.top,bottom:fr.bottom,height:fr.height}:null,
+      fontSize:control?parseFloat(getComputedStyle(control).fontSize):0,
+      viewport:{width,height}
+    };
+  },{width:scenario.width,height:scenario.height,footerSelector});
+  if(metrics.left<-1||metrics.right>scenario.width+1||metrics.top<-1||metrics.bottom>scenario.height+1)failures.push(`${label} leaves viewport ${JSON.stringify(metrics)}`);
+  if(metrics.width>scenario.width+1||metrics.height>scenario.height+1)failures.push(`${label} oversized ${metrics.width}x${metrics.height}`);
+  if(metrics.fontSize&&metrics.fontSize<15.5)failures.push(`${label} form control font ${metrics.fontSize}px may trigger Safari zoom`);
+  if(metrics.footer&&(metrics.footer.bottom>scenario.height+1||metrics.footer.top<0))failures.push(`${label} footer not reachable ${JSON.stringify(metrics.footer)}`);
+  const scroller=page.locator(`${selector} ${scrollerSelector}`).last();
+  if(await scroller.isVisible().catch(()=>false)){
+    await scroller.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+    await page.waitForTimeout(40);
+    if(footerSelector){
+      const footer=page.locator(`${selector} ${footerSelector}`).last();
+      if(!(await footer.isVisible().catch(()=>false)))failures.push(`${label} footer disappeared after internal scroll`);
+      else{
+        const box=await footer.boundingBox();
+        if(box&&box.y+box.height>scenario.height+1)failures.push(`${label} footer fell below viewport after scroll`);
+      }
+    }
+  }
+}
+
+async function assertPrimaryAccent(page,locator,label,failures){
+  if(!(await locator.isVisible().catch(()=>false))){failures.push(`${label} primary action missing`);return;}
+  const colors=await locator.evaluate(el=>{
+    const normalize=color=>{
+      const canvas=document.createElement('canvas');canvas.width=1;canvas.height=1;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      if(!ctx)return null;
+      ctx.clearRect(0,0,1,1);ctx.fillStyle=color;ctx.fillRect(0,0,1,1);
+      const [r,g,b,a]=ctx.getImageData(0,0,1,1).data;
+      return{r,g,b,a};
+    };
+    const probe=document.createElement('span');
+    probe.style.position='fixed';probe.style.pointerEvents='none';probe.style.background='var(--ft-accent)';document.body.appendChild(probe);
+    const accentText=getComputedStyle(probe).backgroundColor;probe.remove();
+    const actualText=getComputedStyle(el).backgroundColor;
+    return{actualText,accentText,actual:normalize(actualText),accent:normalize(accentText)};
+  });
+  const channelDelta=colors.actual&&colors.accent?Math.max(
+    Math.abs(colors.actual.r-colors.accent.r),Math.abs(colors.actual.g-colors.accent.g),
+    Math.abs(colors.actual.b-colors.accent.b),Math.abs(colors.actual.a-colors.accent.a)
+  ):Infinity;
+  if(channelDelta>2)failures.push(`${label} primary color ${colors.actualText} != accent ${colors.accentText} (pixel delta ${channelDelta})`);
+}
+
+async function deepMobileAudit(page,surface,scenario,lang,engineName,failures){
+  if(engineName!=='webkit'||scenario.name!=='iphone320-light')return;
+  if(surface.name==='customers'){
+    const trigger=page.locator('.ta-customers-header .btn-primary').first();
+    await assertPrimaryAccent(page,trigger,'customer add',failures);
+    if(await trigger.isVisible().catch(()=>false))await trigger.click();
+    await auditOpenSurface(page,'.modal:has(.ta-customer-form)','.modal-body','.ta-customer-modal-actions',scenario,'Add Customer',failures);
+    await page.screenshot({path:`${output}/${engineName}-${surface.name}-${scenario.name}-${lang}-add-customer.png`,fullPage:false});
+  }
+  if(surface.name==='products'){
+    const trigger=page.locator('.ta-products-workspace-header .btn-primary').first();
+    await assertPrimaryAccent(page,trigger,'product add',failures);
+    if(await trigger.isVisible().catch(()=>false))await trigger.click();
+    await auditOpenSurface(page,'.ta-product-editor.is-open','.ta-product-editor-scroll','.ta-product-editor-footer',scenario,'Add Product',failures);
+    const save=page.locator('.ta-product-editor.is-open .btn-primary').last();
+    await assertPrimaryAccent(page,save,'product editor save',failures);
+    await page.screenshot({path:`${output}/${engineName}-${surface.name}-${scenario.name}-${lang}-add-product.png`,fullPage:false});
+  }
+  if(surface.name==='operations'){
+    const openCurrent=async(label,fileToken)=>{
+      const trigger=page.locator('.ta-ops-panel-head .btn-primary').first();
+      await assertPrimaryAccent(page,trigger,`${label} add`,failures);
+      if(await trigger.isVisible().catch(()=>false))await trigger.click();
+      await auditOpenSurface(page,'.ta-ops-split>.ta-ops-editor','.ta-ops-editor-scroll','.ta-ops-editor-actions',scenario,label,failures);
+      const save=page.locator('.ta-ops-split>.ta-ops-editor .btn-primary').last();
+      await assertPrimaryAccent(page,save,`${label} save`,failures);
+      await page.screenshot({path:`${output}/${engineName}-${surface.name}-${scenario.name}-${lang}-${fileToken}.png`,fullPage:false});
+      const close=page.locator('.ta-ops-split>.ta-ops-editor .ta-ops-editor-head>button').last();
+      if(await close.isVisible().catch(()=>false)){await close.click();await page.locator('.ta-ops-split>.ta-ops-editor').waitFor({state:'hidden',timeout:2500}).catch(()=>{});}
+    };
+    await openCurrent('Supplier editor','supplier-editor');
+    const purchaseTab=page.locator('.ta-ops-tabs>button').filter({hasText:lang==='ar'?'المشتريات':'Purchases'}).first();
+    if(await purchaseTab.isVisible().catch(()=>false)){await purchaseTab.click();await page.waitForTimeout(80);await openCurrent('Purchase editor','purchase-editor');}
+    else failures.push('Purchases tab unavailable in deep mobile audit');
+    const expenseTab=page.locator('.ta-ops-tabs>button').filter({hasText:lang==='ar'?'المصروفات':'Expenses'}).first();
+    if(await expenseTab.isVisible().catch(()=>false)){await expenseTab.click();await page.waitForTimeout(80);await openCurrent('Expense editor','expense-editor');}
+    else failures.push('Expenses tab unavailable in deep mobile audit');
+    const inventoryTab=page.locator('.ta-ops-tabs>button').filter({hasText:lang==='ar'?'المخزون':'Inventory'}).first();
+    if(await inventoryTab.isVisible().catch(()=>false)){
+      await inventoryTab.click();await page.waitForTimeout(80);
+      const entry=page.locator('.ta-inventory-entry').first();
+      if(!(await entry.isVisible().catch(()=>false)))failures.push('Inventory manual-entry surface unavailable');
+      else{
+        const box=await entry.boundingBox();if(box&&(box.x<-1||box.x+box.width>scenario.width+1))failures.push(`Inventory entry leaves viewport ${JSON.stringify(box)}`);
+        await page.screenshot({path:`${output}/${engineName}-${surface.name}-${scenario.name}-${lang}-inventory-entry.png`,fullPage:false});
+      }
+    }else failures.push('Inventory tab unavailable in deep mobile audit');
+  }
+}
+
 async function runEngine(engineName,browserType,scenarios){
   const browser=await browserType.launch({headless:true});
   const rows=[];
@@ -129,6 +238,7 @@ async function runEngine(engineName,browserType,scenarios){
       await page.locator(surface.selector).first().waitFor({state:'visible',timeout:10000});
       await page.waitForTimeout(180);
       const state=await inspect(page,surface,scenario,lang);state.failures.push(...errors);
+      await deepMobileAudit(page,surface,scenario,lang,engineName,state.failures);
       const screenshot=`${output}/${engineName}-${surface.name}-${scenario.name}-${lang}.png`;
       await page.screenshot({path:screenshot,fullPage:false});
       rows.push({engine:engineName,surface:surface.name,scenario:scenario.name,lang,state,screenshot});
@@ -144,5 +254,5 @@ async function runEngine(engineName,browserType,scenarios){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.state.failures.map(f=>`${row.engine}/${row.surface}/${row.scenario}/${row.lang}: ${f}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v337 business workspaces reachability: ${rows.length} Chromium/WebKit scenarios passed.`);
+  console.log(`v363 business workspaces reachability + deep mobile editor audit: ${rows.length} Chromium/WebKit scenarios passed.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});

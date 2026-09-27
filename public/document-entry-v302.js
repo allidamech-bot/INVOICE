@@ -88,7 +88,7 @@
   function editorOrUnsafeWorkspaceOpen(){
     return document.documentElement.hasAttribute('data-lourex-document-editor')||
       document.documentElement.hasAttribute('data-lourex-workspace-dirty')||
-      Boolean(document.querySelector('.editor-screen,.modal-backdrop,.product-library-pro.editor-open'));
+      Boolean(document.querySelector('.editor-screen,.modal-backdrop,.ta-product-editor.is-open,.ta-operations-page .ta-ops-editor,.product-library-pro.editor-open,.operations-page .purchase-editor'));
   }
 
   function completeDeferredAccount(uid){

@@ -124,15 +124,16 @@ let accountWasAuthenticated=false;
 let signOutTransitionRunning=false;
 
 const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen';
-type RestorableWorkspace='home'|'documents'|'customers'|'receivables'|'reports'|'items';
-const RESTORABLE_WORKSPACES:RestorableWorkspace[]=['home','documents','customers','receivables','reports','items'];
+type RestorableWorkspace='home'|'documents'|'customers'|'items'|'operations'|'receivables'|'reports';
+const RESTORABLE_WORKSPACES:RestorableWorkspace[]=['home','documents','customers','items','operations','receivables','reports'];
 const WORKSPACE_SELECTORS:Array<[RestorableWorkspace,string]>=[
-  ['home','.workspace-home-page'],
-  ['documents','.documents-workspace-v2,.documents-page'],
-  ['customers','.customers-page,.customer-profile-page'],
-  ['receivables','.receivables-page'],
-  ['reports','.reports-page'],
-  ['items','.product-library-pro,.saved-items-page']
+  ['home','.ta-finance-dashboard,.workspace-home-page'],
+  ['documents','.ta-documents-page,.documents-workspace-v2,.documents-page'],
+  ['customers','.ta-customers-page,.ta-customer-profile,.customers-page,.customer-profile-page'],
+  ['items','.ta-products-workspace,.ta-product-library-page,.product-library-pro,.saved-items-page'],
+  ['operations','.ta-operations-page,.operations-page'],
+  ['receivables','.ta-receivables-page,.receivables-page'],
+  ['reports','.ta-reports-page,.reports-page']
 ];
 
 function currentRestorableWorkspace():RestorableWorkspace|null{
@@ -158,6 +159,11 @@ function pendingRestorableWorkspace():RestorableWorkspace|null{
 function clearPendingWorkspace():void{try{sessionStorage.removeItem(WORKSPACE_RESUME_KEY);}catch{}}
 
 function workspaceNavigationButton(screen:RestorableWorkspace):HTMLButtonElement|null{
+  const index=RESTORABLE_WORKSPACES.indexOf(screen);
+  if(index>=0){
+    const current=Array.from(document.querySelectorAll<HTMLButtonElement>('.ta-sidebar-nav .ta-nav-item'))[index];
+    if(current)return current;
+  }
   const primary=Array.from(document.querySelectorAll<HTMLButtonElement>('.shell-nav-primary .shell-nav-button'));
   if(screen==='home')return primary[0]??null;
   if(screen==='documents')return primary[1]??null;
@@ -176,7 +182,7 @@ function restoreWorkspaceAfterAutomaticReload():void{
   if(screen==='home'){clearPendingWorkspace();return;}
   const deadline=Date.now()+12_000;
   const attempt=()=>{
-    if(document.querySelector('.auth-page')){clearPendingWorkspace();return;}
+    if(document.querySelector('.ta-auth-page,.auth-page')){clearPendingWorkspace();return;}
     const button=workspaceNavigationButton(screen);
     if(button){clearPendingWorkspace();button.click();return;}
     if(Date.now()>=deadline){clearPendingWorkspace();return;}
@@ -281,8 +287,12 @@ function isDocumentEditorOpen():boolean{
   return document.documentElement.hasAttribute('data-lourex-document-editor')||Boolean(document.querySelector('.editor-screen'));
 }
 
+function activeDataEntryEditorOpen():boolean{
+  return Boolean(document.querySelector('.ta-product-editor.is-open,.ta-operations-page .ta-ops-editor,.product-library-pro.editor-open,.operations-page .purchase-editor'));
+}
+
 function inventoryEntryHasDraftInput():boolean{
-  const entry=document.querySelector('.operations-page .inventory-entry');
+  const entry=document.querySelector('.ta-operations-page .ta-inventory-entry,.operations-page .ta-inventory-entry,.operations-page .inventory-entry');
   if(!(entry instanceof HTMLElement))return false;
   const item=entry.querySelector<HTMLSelectElement>('select');
   if(item?.value.trim())return true;
@@ -294,15 +304,15 @@ function inventoryEntryHasDraftInput():boolean{
 
 function manualLockUnsafeWorkspaceOpen():boolean{
   if(isDocumentEditorOpen())return true;
-  return document.documentElement.hasAttribute('data-lourex-workspace-dirty')||inventoryEntryHasDraftInput();
+  return document.documentElement.hasAttribute('data-lourex-workspace-dirty')||activeDataEntryEditorOpen()||inventoryEntryHasDraftInput();
 }
 
 function reloadUnsafeWorkspaceOpen():boolean{
-  return isDocumentEditorOpen()||document.documentElement.hasAttribute('data-lourex-workspace-dirty')||Boolean(document.querySelector('.modal-backdrop'));
+  return isDocumentEditorOpen()||document.documentElement.hasAttribute('data-lourex-workspace-dirty')||activeDataEntryEditorOpen()||Boolean(document.querySelector('.modal-backdrop'));
 }
 
 function safeSignedOutAuthGatewayForAutomaticReload():boolean{
-  return !currentCloudUser()&&!reloadUnsafeWorkspaceOpen()&&Boolean(document.querySelector('.auth-page'));
+  return !currentCloudUser()&&!reloadUnsafeWorkspaceOpen()&&Boolean(document.querySelector('.ta-auth-page,.auth-page'));
 }
 
 window.addEventListener('lourex-cloud-applied',()=>{

@@ -50,8 +50,29 @@ const BASE=process.env.LOUREX_VISUAL_BASE_URL||'http://127.0.0.1:4173';
   if(signedOut.calls!==1)failures.push(`signed-out stale transition reached application listener: ${signedOut.calls}`);
   if(signedOut.complete.length!==2||signedOut.complete[1]?.uid!=='account-b'||signedOut.complete[1]?.rejectedByRuntimeSafety!==true)failures.push(`signed-out transition completion mismatch: ${JSON.stringify(signedOut.complete)}`);
 
+  const deferred=await page.evaluate(()=>{
+    window.__qaCurrentUid='account-b';
+    const editor=document.createElement('aside');
+    editor.id='qa-current-product-editor';
+    editor.className='ta-product-editor is-open';
+    document.body.appendChild(editor);
+    window.dispatchEvent(new CustomEvent('lourex-account-transition-request',{detail:{uid:'account-b'}}));
+    return window.__qaTransitionCalls;
+  });
+  if(deferred!==1)failures.push(`matching transition escaped current product editor before dirty publication: ${deferred}`);
+  await page.waitForTimeout(80);
+  const stillDeferred=await page.evaluate(()=>window.__qaTransitionCalls);
+  if(stillDeferred!==1)failures.push(`matching transition was released while current product editor remained open: ${stillDeferred}`);
+  await page.evaluate(()=>document.getElementById('qa-current-product-editor')?.remove());
+  try{
+    await page.waitForFunction(()=>window.__qaTransitionCalls===2,null,{timeout:1600});
+  }catch{
+    const after=await page.evaluate(()=>window.__qaTransitionCalls);
+    failures.push(`matching transition did not resume after current product editor closed: ${after}`);
+  }
+
   if(runtimeErrors.length)failures.push(...runtimeErrors.map(error=>`pageerror: ${error}`));
   await browser.close();
   if(failures.length){console.error(failures.join('\n'));process.exit(1);}
-  console.log('v339 WebKit runtime guards: active-editor sign-out and stale account transitions passed.');
+  console.log('v339 WebKit runtime guards: active-editor sign-out, stale account transitions, and current-editor deferral passed.');
 })().catch(error=>{console.error(error);process.exit(1);});

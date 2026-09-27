@@ -5,6 +5,7 @@ const assert=require('node:assert/strict');
 const output='visual-qa-output/tailadmin-v320';
 const scenarios=[
   {name:'desktop',width:1440,height:900,touch:false},
+  {name:'phone320',width:320,height:700,touch:true},
   {name:'mobile',width:390,height:844,touch:true}
 ];
 const themes=['light','dark'];
@@ -157,15 +158,42 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
                 });
                 if(searchState.left<0||searchState.right>scenario.width+1||searchState.top<0||searchState.bottom>scenario.height+1)failures.push(`Global Search exceeds viewport ${JSON.stringify(searchState)}`);
                 if(scenario.name==='desktop'&&searchState.width<620)failures.push(`desktop Global Search too narrow: ${searchState.width}`);
-                if(scenario.name==='mobile'&&searchState.width<scenario.width-32)failures.push(`mobile Global Search too narrow: ${searchState.width}`);
+                if(scenario.name!=='desktop'&&searchState.width<scenario.width-32)failures.push(`mobile Global Search too narrow: ${searchState.width}`);
                 if(searchState.inputHeight<56)failures.push(`Global Search command input too short: ${searchState.inputHeight}`);
                 await page.screenshot({path:`${output}/search-${scenario.name}-${theme}-${lang}.png`,fullPage:false});
               }
               await page.keyboard.press('Escape');
               await searchPanel.waitFor({state:'hidden',timeout:3000}).catch(()=>{});
 
+              if(scenario.name!=='desktop'){
+                const ai=page.locator('.lourex-ai-launcher');
+                if(!(await ai.isVisible().catch(()=>false)))failures.push('LOUREX AI launcher is hidden on mobile shell');
+                else{
+                  await ai.click();
+                  const panel=page.locator('.lourex-ai-panel');
+                  await panel.waitFor({state:'visible',timeout:3000}).catch(()=>{});
+                  if(!(await panel.isVisible().catch(()=>false)))failures.push('LOUREX AI panel did not open');
+                  else{
+                    const aiState=await panel.evaluate(el=>{
+                      const r=el.getBoundingClientRect();
+                      const close=el.querySelector('.lourex-ai-close');
+                      const composer=el.querySelector('form input,form textarea');
+                      const cr=close?.getBoundingClientRect();
+                      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,closeWidth:cr?.width||0,closeHeight:cr?.height||0,composerFont:composer?parseFloat(getComputedStyle(composer).fontSize):0};
+                    });
+                    if(aiState.left<-1||aiState.right>scenario.width+1||aiState.top<-1||aiState.bottom>scenario.height+1)failures.push(`LOUREX AI panel exceeds viewport ${JSON.stringify(aiState)}`);
+                    if(aiState.closeWidth<43.5||aiState.closeHeight<43.5)failures.push(`LOUREX AI close target is ${aiState.closeWidth}x${aiState.closeHeight}`);
+                    if(aiState.composerFont&&aiState.composerFont<15.5)failures.push(`LOUREX AI composer font ${aiState.composerFont}px may trigger Safari zoom`);
+                    await page.screenshot({path:`${output}/ai-panel-${scenario.name}-${theme}-${lang}.png`,fullPage:false});
+                    const close=panel.locator('.lourex-ai-close');
+                    if(await close.isVisible().catch(()=>false))await close.click();
+                    await panel.waitFor({state:'hidden',timeout:3000}).catch(()=>{});
+                  }
+                }
+              }
+
               /* Preserve the historical shell evidence state after the additional
-                 command-search contract screenshots. */
+                 command-search and AI contracts. */
               if(scenario.name==='desktop')await page.locator('.ta-create-button').click();
               else await page.locator('.ta-mobile-nav button[aria-controls="ta-mobile-more"]').click();
             }
@@ -183,5 +211,5 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
   writeFileSync(`${output}/report.json`,JSON.stringify(results,null,2));
   const failures=results.flatMap(result=>result.failures.map(failure=>`${result.surface}/${result.scenario}/${result.theme}/${result.lang}: ${failure}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`TailAdmin v320 visual gate: ${results.length} surface/theme/language/viewport cases passed.`);
+  console.log(`TailAdmin v363 visual gate: ${results.length} surface/theme/language/viewport cases passed, including 320px AI/Search/More coverage.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -3,8 +3,11 @@ import { t } from './i18n.js';
 const ATTRIBUTE='data-lourex-workspace-dirty';
 
 const OWNER_ROOTS:Record<string,string>={
-  customers:'.customers-page,.customer-profile-page',
-  operations:'.operations-page'
+  // Keep the current TailAdmin roots first. The legacy selectors remain as
+  // compatibility fallbacks for older fixtures/recovery surfaces, but must not
+  // be the only roots or the dirty marker self-heals away during live navigation.
+  customers:'.ta-customers-page,.ta-customer-profile,.customers-page,.customer-profile-page',
+  operations:'.ta-operations-page,.operations-page'
 };
 
 function publishedDirtyOwnerIsActive():boolean{
