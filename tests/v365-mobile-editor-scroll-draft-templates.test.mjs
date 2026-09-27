@@ -11,7 +11,8 @@ test('v365 gives mobile document editors one bounded scroll owner with action-do
     read('src/styles/v337-template-layout-balance.css')
   ]);
   assert.match(owner,/v365-mobile-editor-scroll-draft-templates\.css\?v=365-1/);
-  assert.match(css,/\.ta-shell\.ta-shell\.is-editor>\.ta-main,[\s\S]*?height:100%!important;[\s\S]*?max-height:100%!important;[\s\S]*?overflow-y:auto!important;/);
+  assert.match(css,/\.ta-shell\.ta-shell\.is-editor>\.ta-main,[\s\S]*?height:100dvh!important;[\s\S]*?max-height:100dvh!important;[\s\S]*?overflow-y:auto!important;/);
+  assert.match(css,/height:calc\(100dvh - 64px\)!important;[\s\S]*?max-height:calc\(100dvh - 64px\)!important;/);
   assert.match(css,/\.ta-editor-workspace \.editor-scroll,[\s\S]*?\.ta-draft-studio-workspace \.draft-studio-scroll[\s\S]*?padding-bottom:calc\(116px \+ env\(safe-area-inset-bottom,0px\)\)!important;/);
   assert.match(css,/\.mobile-editor-actionbar,[\s\S]*?\.draft-mobile-actionbar[\s\S]*?position:fixed!important;/);
   assert.match(css,/bottom:calc\(8px \+ env\(safe-area-inset-bottom,0px\)\)!important/);

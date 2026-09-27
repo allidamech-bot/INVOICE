@@ -9,9 +9,9 @@
   html body .app-ui .ta-shell.ta-shell.is-editor>.ta-main,
   html body .app-ui .ta-shell.ta-shell.screen-editor>.ta-main{
     box-sizing:border-box!important;
-    height:100%!important;
+    height:100dvh!important;
     min-height:0!important;
-    max-height:100%!important;
+    max-height:100dvh!important;
     align-self:stretch!important;
     overflow-x:hidden!important;
     overflow-y:auto!important;
@@ -40,9 +40,9 @@
 @media screen and (min-width:901px) and (max-width:1180px){
   html body .app-ui .ta-shell.ta-shell.is-editor:has(.draft-studio)>.ta-main,
   html body .app-ui .ta-shell.ta-shell.screen-editor:has(.draft-studio)>.ta-main{
-    height:100%!important;
+    height:calc(100dvh - 64px)!important;
     min-height:0!important;
-    max-height:100%!important;
+    max-height:calc(100dvh - 64px)!important;
     overflow-x:hidden!important;
     overflow-y:auto!important;
     -webkit-overflow-scrolling:touch!important;
@@ -53,9 +53,9 @@
 @media screen and (min-width:1181px) and (max-width:1366px){
   html[data-lourex-ios-webkit="true"] body .app-ui .ta-shell.ta-shell.is-editor:has(.draft-studio)>.ta-main,
   html[data-lourex-ios-webkit="true"] body .app-ui .ta-shell.ta-shell.screen-editor:has(.draft-studio)>.ta-main{
-    height:100%!important;
+    height:calc(100dvh - 64px)!important;
     min-height:0!important;
-    max-height:100%!important;
+    max-height:calc(100dvh - 64px)!important;
     overflow-x:hidden!important;
     overflow-y:auto!important;
     -webkit-overflow-scrolling:touch!important;
