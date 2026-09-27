@@ -60,7 +60,7 @@ test('v358 canonical application palette is premium blue in both themes',()=>{
 });
 
 test('v358 removes shell sync chrome without touching conflict recovery',()=>{
-  assert.match(blue,/:where\(\.ta-sidebar-sync,\.ta-topbar-sync,\.ta-sheet-sync\)\{display:none!important\}/);
+  assert.match(blue,/\.app-ui\s+:where\(\.ta-sidebar-sync,\.ta-topbar-sync,\.ta-sheet-sync\)\{display:none!important\}/);
   assert.doesNotMatch(blue,/\.ta-conflict-banner\s*\{[^}]*display:none/i);
   assert.match(reliability,/--lourex-z-modal:1300/);
   assert.match(reliability,/--lourex-z-critical:1500/);
