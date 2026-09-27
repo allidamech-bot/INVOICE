@@ -59,7 +59,7 @@
     --ta-brand-700:#91B0ED!important;
 
     /* Keep the PWA/startup canvas token stable; application paint uses workspace. */
-    --ft-canvas:#081321!important;
+    --ft-canvas:#0D0D0D!important;
     --ft-shell:#101010!important;
     --ft-workspace:#0D0D0D!important;
     --ft-surface:#191919!important;
