@@ -50,6 +50,13 @@ test('operations uses app dialogs for business actions and only keeps the synchr
   assert.equal(confirms.length, 1, 'only the synchronous unsaved-work departure guard may use window.confirm');
 });
 
+test('dirty workspace guard recognizes the current TailAdmin customer and operations roots', async () => {
+  const guard = await read('src/lib/workspace-dirty.ts');
+  assert.match(guard, /customers:'\.ta-customers-page,\.ta-customer-profile,/);
+  assert.match(guard, /operations:'\.ta-operations-page,\.operations-page'/);
+  assert.match(guard, /document\.querySelector\(selector\)/);
+});
+
 test('reports keep phone filters and labeled-record tables within the final mobile contract', async () => {
   const css = await read('src/styles/mobile-ux-functional-hardening-v363.css');
   const reports = await read('src/components/ReportsPage.tsx');
