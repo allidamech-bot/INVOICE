@@ -44,6 +44,7 @@ jobs:
           done
           if [ "$ready" -ne 1 ]; then cat /tmp/v365-live-qa.log; exit 1; fi
           node tests/visual/run-v365-mobile-editor-scroll.cjs
+          node tests/visual/run-v365-iphone-document-editors.cjs
           node tests/visual/run-v364-core-workflows.cjs
       - name: Upload browser evidence
         if: always()
