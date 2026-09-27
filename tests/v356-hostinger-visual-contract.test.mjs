@@ -100,10 +100,11 @@ test('v359 consolidates the visible identity onto the canonical blue tokens',()=
   assert.match(precision,/\.lourex-ai-launcher\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important/);
   assert.match(precision,/\.ta-auth-page \.ta-auth-aside\{[\s\S]*?linear-gradient\(150deg,#203f70 0%,#315DA8 56%,#244d86 100%\)!important/);
   assert.match(precision,/\.ta-auth-tabs button\.is-active\{[\s\S]*?color:var\(--ft-accent\)!important/);
+  assert.match(precision,/html\[data-ui-theme="dark"\] body \.ta-auth-page \.ta-auth-primary\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important[\s\S]*?color:var\(--ft-on-accent\)!important/,'v359 must outrank the retired dark auth gradient');
 });
 
 test('v359 mobile global search sizes to content instead of reserving an empty lower half',()=>{
-  assert.match(precision,/@media screen and \(max-width:900px\)[\s\S]*?\.global-search-panel\{[\s\S]*?height:auto!important[\s\S]*?min-height:0!important[\s\S]*?max-height:min\(82dvh,680px\)!important/);
+  assert.match(precision,/@media screen and \(max-width:900px\)[\s\S]*?\.global-search-panel\{[\s\S]*?bottom:auto!important[\s\S]*?height:max-content!important[\s\S]*?min-height:0!important[\s\S]*?max-height:min\(82dvh,680px\)!important/);
   assert.match(precision,/:is\(\.global-search-start,\.global-search-results\)\{[\s\S]*?flex:0 1 auto!important[\s\S]*?min-height:0!important[\s\S]*?overflow-y:auto!important/);
   assert.match(precision,/\.global-search-empty\{min-height:180px!important;\}/);
 });
