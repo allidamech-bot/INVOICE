@@ -132,6 +132,7 @@ async function browserSession(browserType,engineName,work){
         const testCase={template,language,items:'10',mode:'desktop'};
         const metrics=await inspectPage(page,testCase);
         await page.locator('.invoice-page').first().screenshot({path:path.join(outputDir,`${language}-${template}.png`)});
+        await page.locator('.invoice-page').last().screenshot({path:path.join(outputDir,`${language}-${template}-final.png`)});
         results.push({engine,...testCase,...metrics});
       }
     }
@@ -139,6 +140,7 @@ async function browserSession(browserType,engineName,work){
       const testCase={template,language:'bilingual',items:'10',mode:'desktop'};
       const metrics=await inspectPage(page,testCase);
       await page.locator('.invoice-page').first().screenshot({path:path.join(outputDir,`bilingual-${template}.png`)});
+      await page.locator('.invoice-page').last().screenshot({path:path.join(outputDir,`bilingual-${template}-final.png`)});
       results.push({engine,...testCase,...metrics});
     }
     for(const items of ['1','28']){
