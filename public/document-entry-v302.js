@@ -76,7 +76,7 @@
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){
       const dark=root.dataset.uiTheme==='dark';
-      const bootBackground=dark?'#081321':'#f4f7fb';
+      const bootBackground=dark?'#0D0D0D':'#f4f7fb';
       root.style.backgroundColor=bootBackground;
       root.style.setProperty('--boot-bg',bootBackground);
       if(document.body)document.body.style.backgroundColor=bootBackground;
