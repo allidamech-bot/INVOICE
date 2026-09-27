@@ -191,6 +191,12 @@
   .draft-letter-page .footer-none{min-height:8mm;padding-top:0;border-top:0;background:transparent;justify-content:flex-end;}
 }
 
+/* v365 template mastheads stay inside the paddingless Draft A4 sheet. */
+.draft-letter-page[class*="template-"] .letterhead-header{
+  margin-inline:0!important;
+  margin-top:0!important;
+}
+
 @media print {
   .document-custom-watermark,
   .draft-letter-page,

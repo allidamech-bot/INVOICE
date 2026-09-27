@@ -45,6 +45,7 @@ test('current DraftDocumentRenderer has an output-only A4 owner without reviving
   for(const variant of ['header-minimal','header-classic','width-narrow','width-wide','page-ruled','page-grid','footer-minimal','footer-none'])assert.match(css,new RegExp(`\\.${variant}`));
   assert.match(css,/\.invoice-page \.document-custom-watermark\.is-repeat/);
   assert.match(css,/\.draft-letter-page\{[\s\S]*display:grid!important[\s\S]*grid-template-rows:auto minmax\(0,1fr\) auto!important/);
+  assert.match(css,/\.draft-letter-page\[class\*=\"template-\"\] \.letterhead-header\{[\s\S]*?margin-inline:0!important;[\s\S]*?margin-top:0!important;/);
   assert.match(css,/@media print[\s\S]*\.draft-letter-page \.letterhead-header[\s\S]*break-inside:avoid!important/);
   const outputOnly=css.slice(css.indexOf('/* Current Company Draft A4 renderer.'));
   assert.ok(outputOnly.length>1000,'Draft A4 output contract is missing');
