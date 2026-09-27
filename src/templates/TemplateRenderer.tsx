@@ -219,13 +219,14 @@ function firstPageItemCapacity(doc:LourexDocument):number{
   ].map(value=>value.trim()).filter(Boolean);
   const chars=values.reduce((sum,value)=>sum+value.length,0);
   const pressure=chars+values.length*18+(doc.language==='bilingual'?140:0);
-  // v364: ordinary business identities must not strand half of the first A4 page.
-  // Preserve conservative bands only for genuinely dense bilingual/legal identity blocks.
-  if(pressure>1900)return 3;
-  if(pressure>1550)return 4;
-  if(pressure>1200)return 5;
-  if(pressure>850)return 6;
-  return 7;
+  // v364: use the measured A4 room above the footer instead of the historical
+  // seven-weight ceiling. Dense identity blocks remain deliberately conservative.
+  if(pressure>2200)return 4;
+  if(pressure>1800)return 5;
+  if(pressure>1450)return 6;
+  if(pressure>1150)return 7;
+  if(pressure>850)return 8;
+  return 10;
 }
 function docItemText(doc:LourexDocument,item:DocumentItem):string{
   if(doc.language==='en')return item.descriptionEn.trim();
