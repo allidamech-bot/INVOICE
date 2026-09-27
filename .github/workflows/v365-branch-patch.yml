@@ -19,173 +19,118 @@ jobs:
         with:
           ref: fix/v365-mobile-editor-scroll-draft-templates
           fetch-depth: 0
-      - name: Apply v365 scoped editor patches
-        shell: python
+      - name: Apply scoped v365 patches
+        shell: bash
         run: |
+          python - <<'PY'
           from pathlib import Path
           import re
 
           def replace_once(path, old, new):
-              p=Path(path); text=p.read_text()
-              if old not in text:
-                  raise SystemExit(f'missing exact patch target in {path}: {old[:90]!r}')
+              p=Path(path)
+              text=p.read_text()
               if text.count(old)!=1:
-                  raise SystemExit(f'patch target not unique in {path}: {old[:90]!r}')
+                  raise SystemExit(f'expected one exact patch target in {path}, got {text.count(old)}')
               p.write_text(text.replace(old,new,1))
 
-          # 1) Persist richer company-document purposes without changing any commercial document schema.
           replace_once('src/types.ts',
-            "preset: 'blank' | 'formal-letter' | 'memo' | 'notice';",
-            "preset: 'blank' | 'formal-letter' | 'company-letter' | 'letter-of-intent' | 'memo' | 'notice';")
+              "preset: 'blank' | 'formal-letter' | 'memo' | 'notice';",
+              "preset: 'blank' | 'formal-letter' | 'company-letter' | 'letter-of-intent' | 'memo' | 'notice';")
 
           replace_once('src/lib/document-extras.ts',
-            "const LETTER_PRESETS=new Set<LetterDocumentData['preset']>(['blank','formal-letter','memo','notice']);",
-            "const LETTER_PRESETS=new Set<LetterDocumentData['preset']>(['blank','formal-letter','company-letter','letter-of-intent','memo','notice']);")
+              "const LETTER_PRESETS=new Set<LetterDocumentData['preset']>(['blank','formal-letter','memo','notice']);",
+              "const LETTER_PRESETS=new Set<LetterDocumentData['preset']>(['blank','formal-letter','company-letter','letter-of-intent','memo','notice']);")
           replace_once('src/lib/document-extras.ts',
-            "  if(preset==='formal-letter')return {...base,preset,subject:rtl?'الموضوع':'Subject',blocks:[block('paragraph',rtl?'السادة المحترمون،':'Dear Sir / Madam,'),block('paragraph',''),block('paragraph',rtl?'وتفضلوا بقبول فائق الاحترام.':'Sincerely,')]};\n  if(preset==='memo')",
-            "  if(preset==='formal-letter')return {...base,preset,subject:rtl?'الموضوع':'Subject',blocks:[block('paragraph',rtl?'السادة المحترمون،':'Dear Sir / Madam,'),block('paragraph',''),block('paragraph',rtl?'وتفضلوا بقبول فائق الاحترام.':'Sincerely,')]};\n  if(preset==='company-letter')return {...base,preset,blocks:[block('paragraph',rtl?'السادة المحترمون،':'Dear Sir / Madam,'),block('paragraph',''),block('paragraph',rtl?'وتفضلوا بقبول فائق الاحترام.':'Sincerely,')]};\n  if(preset==='letter-of-intent')return {...base,preset,subject:rtl?'خطاب نوايا':'Letter of Intent',blocks:[block('paragraph',rtl?'السادة المحترمون،':'Dear Sir / Madam,'),block('paragraph',''),block('paragraph',rtl?'وتفضلوا بقبول فائق الاحترام.':'Sincerely,')]};\n  if(preset==='memo')")
+              "  if(preset==='formal-letter')return {...base,preset,subject:rtl?'الموضوع':'Subject',blocks:[block('paragraph',rtl?'السادة المحترمون،':'Dear Sir / Madam,'),block('paragraph',''),block('paragraph',rtl?'وتفضلوا بقبول فائق الاحترام.':'Sincerely,')]};\n  if(preset==='memo')",
+              "  if(preset==='formal-letter')return {...base,preset,subject:rtl?'الموضوع':'Subject',blocks:[block('paragraph',rtl?'السادة المحترمون،':'Dear Sir / Madam,'),block('paragraph',''),block('paragraph',rtl?'وتفضلوا بقبول فائق الاحترام.':'Sincerely,')]};\n  if(preset==='company-letter')return {...base,preset,blocks:[block('paragraph',rtl?'السادة المحترمون،':'Dear Sir / Madam,'),block('paragraph',''),block('paragraph',rtl?'وتفضلوا بقبول فائق الاحترام.':'Sincerely,')]};\n  if(preset==='letter-of-intent')return {...base,preset,subject:rtl?'خطاب نوايا':'Letter of Intent',blocks:[block('paragraph',rtl?'السادة المحترمون،':'Dear Sir / Madam,'),block('paragraph',''),block('paragraph',rtl?'وتفضلوا بقبول فائق الاحترام.':'Sincerely,')]};\n  if(preset==='memo')")
 
-          # 2) Draft editor uses the exact shared commercial template selector (all 18 identities).
           replace_once('src/components/DraftDocumentEditor.tsx',
-            "import type { CompanySettings, LetterBlock, LetterDocumentData, LourexDocument } from '../types.js';",
-            "import type { CompanySettings, LetterBlock, LetterDocumentData, LourexDocument, TemplateId } from '../types.js';")
+              "import type { CompanySettings, LetterBlock, LetterDocumentData, LourexDocument } from '../types.js';",
+              "import type { CompanySettings, LetterBlock, LetterDocumentData, LourexDocument, TemplateId } from '../types.js';")
           replace_once('src/components/DraftDocumentEditor.tsx',
-            "import { DraftDocumentRenderer } from './DraftDocumentRenderer.js';",
-            "import { DraftDocumentRenderer } from './DraftDocumentRenderer.js';\nimport { TemplateThumbnails } from '../templates/TemplateThumbnails.js';")
+              "import { DraftDocumentRenderer } from './DraftDocumentRenderer.js';",
+              "import { DraftDocumentRenderer } from './DraftDocumentRenderer.js';\nimport { TemplateThumbnails } from '../templates/TemplateThumbnails.js';")
 
-          p=Path('src/components/DraftDocumentEditor.tsx'); text=p.read_text()
+          p=Path('src/components/DraftDocumentEditor.tsx')
+          text=p.read_text()
           pattern=r"type DraftPdfDesign='executive'\|'minimal'\|'commercial'\|'official';\nconst DRAFT_PDF_DESIGNS:[\s\S]*?\n\];\n"
           replacement="""const DRAFT_PURPOSES:Array<{id:LetterDocumentData['preset'];nameEn:string;nameAr:string;descriptionEn:string;descriptionAr:string}>=[
-  {id:'blank',nameEn:'Blank Page',nameAr:'صفحة حرة',descriptionEn:'Start with a clean company page.',descriptionAr:'ابدأ بصفحة شركة نظيفة.'},
-  {id:'company-letter',nameEn:'Company Letter',nameAr:'خطاب شركة',descriptionEn:'General external company correspondence.',descriptionAr:'مراسلات الشركة الخارجية العامة.'},
-  {id:'letter-of-intent',nameEn:'Letter of Intent',nameAr:'خطاب نوايا',descriptionEn:'Intent, sourcing and commercial-interest letters.',descriptionAr:'خطابات النوايا والتوريد والاهتمام التجاري.'},
-  {id:'formal-letter',nameEn:'Formal Letter',nameAr:'خطاب رسمي',descriptionEn:'Recipient, subject and formal closing.',descriptionAr:'مستلم وموضوع وخاتمة رسمية.'},
-  {id:'memo',nameEn:'Memo',nameAr:'مذكرة',descriptionEn:'Structured internal company memo.',descriptionAr:'مذكرة داخلية منظمة.'},
-  {id:'notice',nameEn:'Notice',nameAr:'إشعار',descriptionEn:'Clear official company announcement.',descriptionAr:'إشعار شركة رسمي وواضح.'}
-];
-const draftPurposeLabel=(preset:LetterDocumentData['preset'])=>DRAFT_PURPOSES.find(item=>item.id===preset)??DRAFT_PURPOSES[0]!;
-"""
+            {id:'blank',nameEn:'Blank Page',nameAr:'صفحة حرة',descriptionEn:'Start with a clean company page.',descriptionAr:'ابدأ بصفحة شركة نظيفة.'},
+            {id:'company-letter',nameEn:'Company Letter',nameAr:'خطاب شركة',descriptionEn:'General external company correspondence.',descriptionAr:'مراسلات الشركة الخارجية العامة.'},
+            {id:'letter-of-intent',nameEn:'Letter of Intent',nameAr:'خطاب نوايا',descriptionEn:'Intent, sourcing and commercial-interest letters.',descriptionAr:'خطابات النوايا والتوريد والاهتمام التجاري.'},
+            {id:'formal-letter',nameEn:'Formal Letter',nameAr:'خطاب رسمي',descriptionEn:'Recipient, subject and formal closing.',descriptionAr:'مستلم وموضوع وخاتمة رسمية.'},
+            {id:'memo',nameEn:'Memo',nameAr:'مذكرة',descriptionEn:'Structured internal company memo.',descriptionAr:'مذكرة داخلية منظمة.'},
+            {id:'notice',nameEn:'Notice',nameAr:'إشعار',descriptionEn:'Clear official company announcement.',descriptionAr:'إشعار شركة رسمي وواضح.'}
+          ];
+          const draftPurposeLabel=(preset:LetterDocumentData['preset'])=>DRAFT_PURPOSES.find(item=>item.id===preset)??DRAFT_PURPOSES[0]!;
+          """
           text,n=re.subn(pattern,replacement,text,count=1)
-          if n!=1: raise SystemExit('Draft PDF design declaration patch did not match exactly once')
+          if n!=1: raise SystemExit('draft design declaration target missing')
           p.write_text(text)
 
           replace_once('src/components/DraftDocumentEditor.tsx',
-            "  private applyPdfDesign=(id:DraftPdfDesign)=>{const design=DRAFT_PDF_DESIGNS.find(item=>item.id===id);if(design)this.patchLetter(design.settings);};\n  private activePdfDesign=(letter:LetterDocumentData):DraftPdfDesign|null=>DRAFT_PDF_DESIGNS.find(design=>Object.entries(design.settings).every(([key,value])=>letter[key as keyof LetterDocumentData]===value))?.id??null;",
-            "  private setTemplate=(id:TemplateId)=>this.mutate(doc=>({...doc,appearance:{...doc.appearance,templateId:id}}));")
+              "  private applyPdfDesign=(id:DraftPdfDesign)=>{const design=DRAFT_PDF_DESIGNS.find(item=>item.id===id);if(design)this.patchLetter(design.settings);};\n  private activePdfDesign=(letter:LetterDocumentData):DraftPdfDesign|null=>DRAFT_PDF_DESIGNS.find(design=>Object.entries(design.settings).every(([key,value])=>letter[key as keyof LetterDocumentData]===value))?.id??null;",
+              "  private setTemplate=(id:TemplateId)=>this.mutate(doc=>({...doc,appearance:{...doc.appearance,templateId:id}}));")
 
-          p=Path('src/components/DraftDocumentEditor.tsx'); text=p.read_text()
+          p=Path('src/components/DraftDocumentEditor.tsx')
+          text=p.read_text()
           pattern=r'        <section className="draft-control-section draft-pdf-design-section">[\s\S]*?</section>\n        <section className="draft-control-section">'
-          replacement='''        <section className="draft-control-section draft-pdf-design-section"><div className="draft-section-heading"><span>PDF</span><div><h2>{t('Document design templates','قوالب تصميم المستند')}</h2><p>{t('Use the same 18 premium visual identities available to quotations and invoices, adapted to company-letter content.','استخدم نفس 18 هوية تصميم فاخرة المتاحة لعروض السعر والفواتير، لكن بمحتوى خطاب الشركة.')}</p></div></div><TemplateThumbnails document={d} onSelect={this.setTemplate}/></section>\n        <section className="draft-control-section">'''
+          replacement='''        <section className="draft-control-section draft-pdf-design-section"><div className="draft-section-heading"><span>PDF</span><div><h2>{t('Document design templates','قوالب تصميم المستند')}</h2><p>{t('Use the same 18 premium visual identities available to quotations and invoices, adapted to company-letter content.','استخدم نفس 18 هوية تصميم فاخرة المتاحة لعروض السعر والفواتير، لكن بمحتوى خطاب الشركة.')}</p></div></div><TemplateThumbnails document={d} onSelect={this.setTemplate}/></section>
+        <section className="draft-control-section">'''
           text,n=re.subn(pattern,replacement,text,count=1)
-          if n!=1: raise SystemExit('Draft template section patch did not match exactly once')
+          if n!=1: raise SystemExit('draft template section target missing')
           p.write_text(text)
 
-          p=Path('src/components/DraftDocumentEditor.tsx'); text=p.read_text()
-          pattern=r'<div className="draft-preset-grid">\{\(\[\'blank\',[\s\S]*?</div><div className="form-grid two">'
+          p=Path('src/components/DraftDocumentEditor.tsx')
+          text=p.read_text()
+          pattern=r'<div className="draft-preset-grid">\{\(\[\x27blank\x27,[\s\S]*?</div><div className="form-grid two">'
           replacement='''<div className="draft-preset-grid draft-purpose-grid">{DRAFT_PURPOSES.map(purpose=><button type="button" key={purpose.id} className={letter.preset===purpose.id?'active':''} onClick={()=>this.applyPreset(purpose.id)}><strong>{t(purpose.nameEn,purpose.nameAr)}</strong><span>{t(purpose.descriptionEn,purpose.descriptionAr)}</span></button>)}</div><div className="form-grid two">'''
           text,n=re.subn(pattern,replacement,text,count=1)
-          if n!=1: raise SystemExit('Draft purpose grid patch did not match exactly once')
+          if n!=1: raise SystemExit('draft purpose grid target missing')
           p.write_text(text)
 
           replace_once('src/components/DraftDocumentEditor.tsx',
-            "<span>{t('Draft','مسودة')}</span></div><div className={`draft-save-state",
-            "<span>{t(draftPurposeLabel(letter.preset).nameEn,draftPurposeLabel(letter.preset).nameAr)}</span></div><div className={`draft-save-state")
+              "<span>{t('Draft','مسودة')}</span></div><div className={`draft-save-state",
+              "<span>{t(draftPurposeLabel(letter.preset).nameEn,draftPurposeLabel(letter.preset).nameAr)}</span></div><div className={`draft-save-state")
           replace_once('src/components/DraftDocumentEditor.tsx',
-            "<header><strong>{t('Draft Preview','معاينة المسودة')}</strong><IconButton",
-            "<header><strong>{t(draftPurposeLabel(letter.preset).nameEn,draftPurposeLabel(letter.preset).nameAr)}</strong><IconButton")
+              "<header><strong>{t('Draft Preview','معاينة المسودة')}</strong><IconButton",
+              "<header><strong>{t(draftPurposeLabel(letter.preset).nameEn,draftPurposeLabel(letter.preset).nameAr)}</strong><IconButton")
 
-          # 3) Draft renderer keeps letter semantics but receives the selected template identity.
-          p=Path('src/components/DraftDocumentRenderer.tsx'); text=p.read_text()
+          p=Path('src/components/DraftDocumentRenderer.tsx')
+          text=p.read_text()
           marker="function Block({block}:{block:LetterBlock}):any{"
-          if text.count(marker)!=1: raise SystemExit('Draft renderer Block marker missing')
+          if text.count(marker)!=1: raise SystemExit('draft renderer Block marker missing')
           helper="""function DraftPurpose({doc,letter}:{doc:LourexDocument;letter:LetterDocumentData}):any{
-  const labels:Record<LetterDocumentData['preset'],[string,string]>={
-    blank:['Company Document','مستند شركة'],
-    'company-letter':['Company Letter','خطاب شركة'],
-    'letter-of-intent':['Letter of Intent','خطاب نوايا'],
-    'formal-letter':['Formal Letter','خطاب رسمي'],
-    memo:['Memo','مذكرة'],
-    notice:['Notice','إشعار']
-  };
-  const [en,ar]=labels[letter.preset]??labels.blank;
-  const title=doc.language==='ar'?ar:doc.language==='bilingual'?`${en} / ${ar}`:en;
-  const subject=letter.subject.trim();
-  const defaultSubject=letter.preset==='letter-of-intent'?(doc.language==='ar'?'خطاب نوايا':'Letter of Intent'):'';
-  const detail=subject&&subject!==defaultSubject?subject:doc.number;
-  return <section className="draft-document-purpose"><strong dir="auto">{title}</strong><span dir="auto">{detail}</span></section>;
-}
+            const labels:Record<LetterDocumentData['preset'],[string,string]>={blank:['Company Document','مستند شركة'],'company-letter':['Company Letter','خطاب شركة'],'letter-of-intent':['Letter of Intent','خطاب نوايا'],'formal-letter':['Formal Letter','خطاب رسمي'],memo:['Memo','مذكرة'],notice:['Notice','إشعار']};
+            const [en,ar]=labels[letter.preset]??labels.blank;
+            const title=doc.language==='ar'?ar:doc.language==='bilingual'?`${en} / ${ar}`:en;
+            const subject=letter.subject.trim();
+            const defaultSubject=letter.preset==='letter-of-intent'?(doc.language==='ar'?'خطاب نوايا':'Letter of Intent'):'';
+            const detail=subject&&subject!==defaultSubject?subject:doc.number;
+            return <section className="draft-document-purpose"><strong dir="auto">{title}</strong><span dir="auto">{detail}</span></section>;
+          }
 
-"""
+          """
           text=text.replace(marker,helper+marker,1)
           old="className={`invoice-page draft-letter-page page-${letter.pageStyle} header-${letter.headerStyle} footer-${letter.footerStyle} width-${letter.bodyWidth} ${compact?'compact-preview':''}`}"
           new="className={`invoice-page draft-letter-page template-${doc.appearance.templateId} lang-${doc.language} page-${letter.pageStyle} header-${letter.headerStyle} footer-${letter.footerStyle} width-${letter.bodyWidth} ${compact?'compact-preview':''}`}"
-          if old not in text: raise SystemExit('Draft renderer article class target missing')
+          if text.count(old)!=1: raise SystemExit('draft renderer class target missing')
           text=text.replace(old,new,1)
-          old="<main className=\"letter-page-body\">{pageIndex===0?<LetterMeta doc={doc} letter={letter}/>:<div className=\"letter-continuation\"><span>{doc.number}</span></div>}"
-          new="<main className=\"letter-page-body\">{pageIndex===0?<><DraftPurpose doc={doc} letter={letter}/><LetterMeta doc={doc} letter={letter}/></>:<div className=\"letter-continuation\"><span>{doc.number}</span></div>}"
-          if old not in text: raise SystemExit('Draft renderer first page target missing')
-          text=text.replace(old,new,1)
-          p.write_text(text)
+          old='<main className="letter-page-body">{pageIndex===0?<LetterMeta doc={doc} letter={letter}/>:<div className="letter-continuation"><span>{doc.number}</span></div>}'
+          new='<main className="letter-page-body">{pageIndex===0?<><DraftPurpose doc={doc} letter={letter}/><LetterMeta doc={doc} letter={letter}/></>:<div className="letter-continuation"><span>{doc.number}</span></div>}'
+          if text.count(old)!=1: raise SystemExit('draft renderer first-page target missing')
+          p.write_text(text.replace(old,new,1))
+          PY
 
-          # 4) Regression contract: mobile scrolling, all shared templates and draft semantics.
-          Path('tests/v365-mobile-editor-scroll-draft-templates.test.mjs').write_text(r'''import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-
-const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
-
-const TEMPLATE_IDS=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
-
-test('v365 bounds the mobile editor scroll owner and clears the fixed action dock',async()=>{
-  const css=await read('src/styles/v365-mobile-editor-scroll-draft-templates.css');
-  assert.match(css,/\.ta-shell\.ta-shell\.is-editor>\.ta-main[\s\S]*height:100%!important;[\s\S]*max-height:100%!important;[\s\S]*overflow-y:auto!important;/);
-  assert.match(css,/\.ta-editor-workspace \.editor-scroll[\s\S]*padding-bottom:calc\(116px \+ env\(safe-area-inset-bottom,0px\)\)!important;/);
-  assert.match(css,/\.mobile-editor-actionbar,[\s\S]*\.draft-mobile-actionbar[\s\S]*position:fixed!important;/);
-});
-
-test('v365 Draft uses the shared 18-template selector instead of a four-design fork',async()=>{
-  const [editor,thumbs,renderer,owner]=await Promise.all([
-    read('src/components/DraftDocumentEditor.tsx'),read('src/templates/TemplateThumbnails.tsx'),read('src/components/DraftDocumentRenderer.tsx'),read('src/styles/v337-template-layout-balance.css')
-  ]);
-  assert.match(editor,/TemplateThumbnails/);
-  assert.doesNotMatch(editor,/type DraftPdfDesign=/);
-  assert.match(editor,/appearance:\{\.\.\.doc\.appearance,templateId:id\}/);
-  for(const id of TEMPLATE_IDS)assert.match(thumbs,new RegExp(`id: '${id}'`));
-  assert.match(renderer,/template-\$\{doc\.appearance\.templateId\}/);
-  assert.match(owner,/v365-mobile-editor-scroll-draft-templates\.css\?v=365-1/);
-});
-
-test('v365 Draft persists company-letter and letter-of-intent purposes without quotation semantics',async()=>{
-  const [types,extras,editor,renderer]=await Promise.all([
-    read('src/types.ts'),read('src/lib/document-extras.ts'),read('src/components/DraftDocumentEditor.tsx'),read('src/components/DraftDocumentRenderer.tsx')
-  ]);
-  assert.match(types,/company-letter.*letter-of-intent/);
-  assert.match(extras,/preset==='company-letter'/);
-  assert.match(extras,/preset==='letter-of-intent'/);
-  assert.match(editor,/nameEn:'Letter of Intent'/);
-  assert.match(editor,/nameEn:'Company Letter'/);
-  assert.match(renderer,/\['Letter of Intent','خطاب نوايا'\]/);
-  assert.doesNotMatch(renderer,/Quotation/);
-});
-''')
-
-          # Keep scope explicit: no accidental runtime/accounting/auth changes.
-          allowed={
-            'src/types.ts','src/lib/document-extras.ts','src/components/DraftDocumentEditor.tsx',
-            'src/components/DraftDocumentRenderer.tsx','tests/v365-mobile-editor-scroll-draft-templates.test.mjs'
-          }
-          changed=set()
-          import subprocess
-          for line in subprocess.check_output(['git','status','--porcelain'],text=True).splitlines():
-              changed.add(line[3:])
-          unexpected=changed-allowed
-          if unexpected: raise SystemExit(f'unexpected files changed by patch: {sorted(unexpected)}')
+          git diff --check
+          git diff -- src/types.ts src/lib/document-extras.ts src/components/DraftDocumentEditor.tsx src/components/DraftDocumentRenderer.tsx
 
       - name: Commit isolated v365 patch
+        shell: bash
         run: |
           git config user.name "lourex-v365-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/types.ts src/lib/document-extras.ts src/components/DraftDocumentEditor.tsx src/components/DraftDocumentRenderer.tsx tests/v365-mobile-editor-scroll-draft-templates.test.mjs
+          git add src/types.ts src/lib/document-extras.ts src/components/DraftDocumentEditor.tsx src/components/DraftDocumentRenderer.tsx
           git diff --cached --check
           git commit -m "v365 unify Draft templates and document purposes"
           git push origin HEAD:fix/v365-mobile-editor-scroll-draft-templates
