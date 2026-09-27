@@ -75,6 +75,7 @@ test('runtime refresh, sign-out and account transitions recognize current editor
   assert.match(runtime, /ACTIVE_DATA_ENTRY_SELECTOR='\.ta-product-editor\.is-open,\.ta-operations-page \.ta-ops-editor,\.product-library-pro\.editor-open,\.operations-page \.purchase-editor'/);
   assert.match(runtime, /document\.querySelector\('\.ta-operations-page \.ta-inventory-entry,\.operations-page \.ta-inventory-entry,\.operations-page \.inventory-entry'\)/);
   assert.match(runtime, /if\(activeDataEntryEditorOpen\(\)\)return true/);
+  assert.match(runtime, /if\(currentUid!==uid\)/);
   assert.match(runtime, /deferredByRuntimeSafety:true/);
   assert.match(runtime, /window\.setTimeout\(retryDeferredAccountTransition,400\)/);
   assert.match(runtime, /if\(ROOT\.hasAttribute\('data-lourex-workspace-dirty'\)\)return true/);
@@ -92,9 +93,12 @@ test('cloud freshness and startup recovery keep current and legacy editor select
   assert.match(watchdog, /automaticReload=no/);
 });
 
-test('manual lock and automatic reload continuity use current TailAdmin roots and navigation', async () => {
+test('manual lock and automatic reload continuity use current TailAdmin roots and current editor selectors', async () => {
   const app = await read('src/app/index.tsx');
   assert.match(app, /document\.querySelector\('\.ta-operations-page \.ta-inventory-entry,\.operations-page \.ta-inventory-entry,\.operations-page \.inventory-entry'\)/);
+  assert.ok(app.includes('.ta-product-editor.is-open,.ta-operations-page .ta-ops-editor,.product-library-pro.editor-open,.operations-page .purchase-editor'));
+  assert.match(app, /manualLockUnsafeWorkspaceOpen\(\):boolean\{[\s\S]*activeDataEntryEditorOpen\(\)/);
+  assert.match(app, /reloadUnsafeWorkspaceOpen\(\):boolean\{[\s\S]*activeDataEntryEditorOpen\(\)/);
   assert.match(app, /RESTORABLE_WORKSPACES:RestorableWorkspace\[\]=\['home','documents','customers','items','operations','receivables','reports'\]/);
   for(const selector of ['.ta-finance-dashboard','.ta-documents-page','.ta-customers-page','.ta-products-workspace','.ta-operations-page','.ta-receivables-page','.ta-reports-page'])assert.ok(app.includes(selector),selector);
   assert.match(app, /\.ta-sidebar-nav \.ta-nav-item/);
