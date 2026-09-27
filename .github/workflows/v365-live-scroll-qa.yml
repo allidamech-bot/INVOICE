@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   live-qa:
-    # Final rerun after applying visible mobile Draft purpose badge + bounded scroll owner.
+    # Clean-scope rerun after restoring the untouched v337-era owners from main.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
