@@ -2,6 +2,11 @@
  * Targeted late-cascade fixes found by reviewing current Chromium/WebKit evidence.
  * Visual only: no accounting, persistence, Firebase, document, import or cloud logic. */
 @media screen {
+  /* Native file controls are implementation details. The import components expose
+     translated 44px choose-file buttons and programmatically trigger these inputs. */
+  html body .product-import-file-input,
+  html body .supplier-import-file-input{display:none!important}
+
   /* One primary-action language across current and older business workflows.
      Several retained import/payment/product surfaces still carried the retired
      violet primary treatment at narrow widths. Keep semantic variants intact,
