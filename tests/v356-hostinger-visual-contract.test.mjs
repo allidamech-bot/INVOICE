@@ -92,7 +92,7 @@ test('v358 does not replace the canonical overlay ladder',()=>{
   assert.doesNotMatch(blue,/--lourex-z-/);
   assert.doesNotMatch(blue,/z-index\s*:/i);
   assert.match(reliability,/\.modal-backdrop\{z-index:var\(--lourex-z-modal\)!important\}/);
-  assert.match(reliability,/\.app-ui \.ta-doc-mobile-action-portal\{z-index:var\(--lourex-z-critical\)!important\}/);
+  assert.match(reliability,/\.app-ui\.ta-doc-mobile-action-portal\{z-index:var\(--lourex-z-critical\)!important\}/);
 });
 
 test('v359 consolidates the visible identity onto the canonical blue tokens',()=>{
@@ -122,5 +122,5 @@ test('v359 leaves the canonical reliability ladder untouched',()=>{
   assert.doesNotMatch(precision,/--lourex-z-/);
   assert.doesNotMatch(precision,/z-index\s*:/i);
   assert.match(reliability,/\.global-search-panel\{z-index:calc\(var\(--lourex-z-search\) \+ 1\)!important\}/);
-  assert.match(reliability,/\.app-ui \.ta-doc-mobile-action-portal\{z-index:var\(--lourex-z-critical\)!important\}/);
+  assert.match(reliability,/\.app-ui\.ta-doc-mobile-action-portal\{z-index:var\(--lourex-z-critical\)!important\}/);
 });

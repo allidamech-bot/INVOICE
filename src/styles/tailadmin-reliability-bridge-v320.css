@@ -93,7 +93,7 @@
   .modal-backdrop{z-index:var(--lourex-z-modal)!important}
   .toast,.pwa-update-toast,[data-lourex-cloud-refresh],[data-lourex-update]{z-index:var(--lourex-z-toast)!important}
   .app-ui .mobile-preview-overlay,.app-ui .draft-mobile-preview{z-index:var(--lourex-z-preview)!important}
-  .app-ui .ta-doc-mobile-action-portal{z-index:var(--lourex-z-critical)!important}
+  .app-ui.ta-doc-mobile-action-portal{z-index:var(--lourex-z-critical)!important}
 
   body:has(#ta-mobile-more) .app-ui .ta-mobile-nav{pointer-events:none!important}
 

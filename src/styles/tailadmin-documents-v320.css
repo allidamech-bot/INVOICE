@@ -222,7 +222,9 @@
   .app-ui .ta-doc-action-popover>button .icon,.app-ui .ta-doc-mobile-action-sheet>button .icon { width:16px!important;height:16px!important;color:var(--ft-muted)!important; }
   .app-ui :where(.ta-doc-action-popover,.ta-doc-mobile-action-sheet)>button.is-danger { color:var(--ft-danger)!important; }
   .app-ui :where(.ta-doc-action-popover,.ta-doc-mobile-action-sheet)>button.is-danger .icon { color:var(--ft-danger)!important; }
-  .app-ui .ta-doc-mobile-action-portal { display:none!important; }
+  /* The action portals are mounted directly under <body>. Their root also
+     carries .app-ui, so these must be compound selectors, not descendants. */
+  .app-ui.ta-doc-mobile-action-portal { display:none!important; }
 
   @media (max-width:1180px) {
     .app-ui .ta-doc-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
@@ -264,8 +266,8 @@
     .app-ui .ta-doc-detail-side { display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important; }
     .app-ui .ta-doc-detail-side>.ta-doc-panel { min-width:0!important; }
 
-    .app-ui .ta-doc-desktop-action-portal { display:none!important; }
-    .app-ui .ta-doc-mobile-action-portal { position:fixed!important;inset:0!important;z-index:1500!important;display:block!important; }
+    .app-ui.ta-doc-desktop-action-portal { display:none!important; }
+    .app-ui.ta-doc-mobile-action-portal { position:fixed!important;inset:0!important;z-index:1500!important;display:block!important; }
     .app-ui .ta-doc-action-backdrop { position:absolute!important;inset:0!important;border:0!important;border-radius:0!important;background:rgba(16,24,40,.48)!important;backdrop-filter:blur(2px)!important; }
     .app-ui .ta-doc-mobile-action-sheet { position:absolute!important;inset-inline:8px!important;bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;max-height:min(72dvh,620px)!important;overflow:auto!important;padding:7px!important;border:1px solid var(--ft-line)!important;border-radius:15px!important;background:var(--ft-surface)!important;box-shadow:0 20px 60px rgba(16,24,40,.30)!important; }
     .app-ui .ta-doc-sheet-handle { width:40px!important;height:4px!important;display:block!important;margin:2px auto 7px!important;border-radius:999px!important;background:var(--ft-line-strong)!important; }
