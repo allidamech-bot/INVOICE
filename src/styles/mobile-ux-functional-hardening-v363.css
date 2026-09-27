@@ -1,0 +1,436 @@
+/* LOUREX v363 — mobile UX / functional reachability hardening.
+ * Loaded from the final reliability bridge so this file is the last visual owner
+ * for mobile overlays, editors, validation feedback and dense workspaces.
+ * No accounting, persistence, document or cloud behavior is changed here. */
+@media screen {
+  /* ---------- Global interaction contracts ---------- */
+  html body .app-ui :where(button,a,input,select,textarea,[role="button"]){
+    -webkit-tap-highlight-color:transparent;
+  }
+  html body .app-ui :where(button,a,[role="button"]):focus-visible,
+  html body :where(.modal,.global-search-panel) :where(button,a,input,select,textarea,[role="button"]):focus-visible{
+    outline:3px solid color-mix(in srgb,var(--ft-accent) 28%,transparent)!important;
+    outline-offset:2px!important;
+  }
+  html body .app-ui :where(.ta-main,.ta-product-editor-scroll,.ta-ops-editor-scroll,.ta-mobile-sheet,.global-search-start,.global-search-results),
+  html body :where(.modal-body){
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    scrollbar-gutter:auto;
+  }
+  html body .app-ui :where(.ta-product-menu,.ta-product-row-menu,.ta-create-menu-mobile,.ta-mobile-sheet){
+    isolation:isolate;
+  }
+
+  /* ---------- Canonical modal ownership ---------- */
+  html body .modal-backdrop{
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+    touch-action:manipulation!important;
+  }
+  html body .modal{
+    min-height:0!important;
+  }
+  html body .modal>.modal-header,
+  html body .modal>.modal-footer{
+    flex:0 0 auto!important;
+  }
+  html body .modal>.modal-body{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    overflow:auto!important;
+  }
+
+  /* Validation must be visible at the moment Save is pressed, even if the user
+     is deep inside a long customer/product form. */
+  html body .modal-body:has(>.ta-customer-form){
+    display:flex!important;
+    flex-direction:column!important;
+  }
+  html body .modal-body:has(>.ta-customer-form)>.ta-customer-form-error{
+    order:-1!important;
+    position:sticky!important;
+    top:0!important;
+    z-index:8!important;
+    margin:0 0 8px!important;
+    box-shadow:0 8px 22px color-mix(in srgb,var(--ft-danger) 12%,transparent)!important;
+  }
+  html body .app-ui .ta-product-editor-scroll{
+    display:flex!important;
+    flex-direction:column!important;
+  }
+  html body .app-ui .ta-product-editor-scroll>.ta-product-error{
+    order:-1!important;
+    position:sticky!important;
+    top:0!important;
+    z-index:8!important;
+    margin:0 0 9px!important;
+    font-size:12px!important;
+    line-height:18px!important;
+    box-shadow:0 8px 22px color-mix(in srgb,var(--ft-danger) 12%,transparent)!important;
+  }
+
+  /* Menus must always clear cards/tables and remain below real dialogs. */
+  html body .app-ui :where(.ta-product-menu,.ta-product-row-menu,.ta-create-menu-mobile,.ta-create-menu-desktop){
+    z-index:var(--lourex-z-popover,1120)!important;
+  }
+
+  /* ---------- Reports readability / reachability ---------- */
+  html body .app-ui .ta-report-filterbar :where(input,select){
+    min-width:0!important;
+  }
+  html body .app-ui .ta-report-presets{
+    overflow-x:auto!important;
+    scrollbar-width:none!important;
+    overscroll-behavior-inline:contain!important;
+  }
+  html body .app-ui .ta-report-presets::-webkit-scrollbar{display:none!important;}
+  html body .app-ui .ta-report-panel .ta-table td,
+  html body .app-ui .ta-report-kpi :where(strong,b){
+    font-variant-numeric:tabular-nums!important;
+  }
+
+  /* ---------- Operations validation ---------- */
+  html body .app-ui .ta-ops-error{
+    scroll-margin-top:78px!important;
+  }
+
+  @media (max-width:900px){
+    /* One phone geometry for every generic modal. ModalFrame's visualViewport
+       inline height remains the outer safety boundary; this layer owns the card. */
+    html body .modal-backdrop{
+      justify-content:center!important;
+      padding-inline:max(8px,env(safe-area-inset-left,0px)) max(8px,env(safe-area-inset-right,0px))!important;
+      padding-bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
+    }
+    html body .modal{
+      width:100%!important;
+      max-width:720px!important;
+      max-height:min(86svh,760px)!important;
+      border:1px solid var(--ft-line-strong)!important;
+      border-radius:18px 18px 14px 14px!important;
+      box-shadow:0 24px 70px rgba(0,0,0,.24)!important;
+    }
+    html body .modal>.modal-header{
+      min-height:54px!important;
+      padding:6px 9px 6px 14px!important;
+      background:var(--ft-surface)!important;
+    }
+    html[dir="rtl"] body .modal>.modal-header{padding:6px 14px 6px 9px!important;}
+    html body .modal>.modal-header h2{
+      min-width:0!important;
+      overflow:hidden!important;
+      text-overflow:ellipsis!important;
+      white-space:nowrap!important;
+      font-size:16px!important;
+      line-height:22px!important;
+    }
+    html body .modal>.modal-header .icon-btn{
+      width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;
+      flex:0 0 44px!important;
+    }
+    html body .modal>.modal-body{
+      padding:10px!important;
+    }
+    html body .modal>.modal-footer{
+      padding:8px 10px max(8px,env(safe-area-inset-bottom,0px))!important;
+      background:color-mix(in srgb,var(--ft-surface) 94%,var(--ft-surface-2))!important;
+    }
+
+    /* Small confirmations stay compact and centered instead of becoming a huge
+       bottom sheet. This also makes destructive intent easier to review. */
+    html body .modal-backdrop:has(.modal-sm .modal-message){
+      align-items:center!important;
+      padding:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))!important;
+    }
+    html body .modal-sm:has(.modal-message){
+      width:min(390px,100%)!important;
+      max-height:min(72svh,520px)!important;
+      border-radius:17px!important;
+    }
+    html body .modal-sm:has(.modal-message)>.modal-body{
+      padding:15px!important;
+    }
+    html body .modal-sm:has(.modal-message) .modal-message{
+      font-size:13px!important;
+      line-height:20px!important;
+    }
+    html body .modal-sm:has(.modal-message) .modal-footer-actions{
+      flex-direction:row!important;
+      width:100%!important;
+    }
+    html body .modal-sm:has(.modal-message) .modal-footer-actions>.btn{
+      flex:1 1 0!important;
+      width:auto!important;
+      min-width:0!important;
+    }
+
+    /* Customer add/edit: compact floating sheet; avoid the old almost-full-screen
+       rectangle while retaining enough vertical room for keyboard interaction. */
+    html body .modal-backdrop:has(.ta-customer-form){
+      align-items:flex-end!important;
+      padding-inline:max(8px,env(safe-area-inset-left,0px)) max(8px,env(safe-area-inset-right,0px))!important;
+      padding-bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
+    }
+    html body .modal:has(.ta-customer-form){
+      width:min(680px,100%)!important;
+      max-width:680px!important;
+      max-height:min(84svh,780px)!important;
+      border-radius:18px!important;
+    }
+    html body .modal:has(.ta-customer-form)>.modal-body{
+      padding:8px!important;
+    }
+    html body .modal:has(.ta-customer-form) .ta-customer-form{
+      gap:8px!important;
+    }
+    html body .modal:has(.ta-customer-form) .ta-customer-form-section{
+      overflow:hidden!important;
+      border-radius:12px!important;
+    }
+
+    /* More menu: one bounded sheet with its own scroll, always above the dock and
+       never taller than the usable phone viewport. */
+    html body .app-ui .ta-mobile-sheet#ta-mobile-more{
+      inset-inline:max(8px,env(safe-area-inset-left,0px)) max(8px,env(safe-area-inset-right,0px))!important;
+      bottom:calc(74px + env(safe-area-inset-bottom,0px))!important;
+      width:auto!important;
+      height:min(620px,calc(100svh - 104px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)))!important;
+      max-height:calc(100svh - 104px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+      overflow:auto!important;
+      border-radius:18px!important;
+      box-shadow:0 24px 70px rgba(0,0,0,.26)!important;
+      scroll-padding-bottom:14px!important;
+    }
+    html body .app-ui .ta-mobile-sheet#ta-mobile-more .ta-sheet-header{
+      position:sticky!important;
+      top:0!important;
+      z-index:5!important;
+      background:var(--ft-surface)!important;
+    }
+    html body .app-ui .ta-mobile-sheet#ta-mobile-more .ta-sheet-close{
+      width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;
+    }
+    html body .app-ui .ta-mobile-sheet#ta-mobile-more :is(.ta-sheet-account,.ta-sheet-link,.ta-sheet-signout){
+      min-height:48px!important;
+    }
+
+    /* Create menu can contain ten document types. Keep it reachable without
+       allowing it to collide with the bottom navigation. */
+    html body .app-ui .ta-create-menu-mobile{
+      max-height:calc(100svh - 126px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+      overflow:auto!important;
+      overscroll-behavior:contain!important;
+      border-radius:18px!important;
+      scroll-padding-block:8px!important;
+    }
+
+    /* Products: opening Add/Edit is a real editor sheet instead of an editor
+       rendered after a potentially long product list. */
+    html body .app-ui .ta-product-layout:has(>.ta-product-editor.is-open)::before{
+      content:"";
+      position:fixed!important;
+      inset:0!important;
+      z-index:calc(var(--lourex-z-modal,1300) - 1)!important;
+      background:rgba(0,0,0,.48)!important;
+      backdrop-filter:blur(3px)!important;
+      -webkit-backdrop-filter:blur(3px)!important;
+      pointer-events:auto!important;
+    }
+    html body .app-ui .ta-product-editor.is-open{
+      position:fixed!important;
+      z-index:var(--lourex-z-modal,1300)!important;
+      inset:auto max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))!important;
+      width:auto!important;
+      max-width:none!important;
+      height:min(84svh,760px)!important;
+      max-height:calc(100svh - max(16px,env(safe-area-inset-top,0px)) - max(16px,env(safe-area-inset-bottom,0px)))!important;
+      display:flex!important;
+      flex-direction:column!important;
+      overflow:hidden!important;
+      border:1px solid var(--ft-line-strong)!important;
+      border-radius:18px!important;
+      box-shadow:0 24px 70px rgba(0,0,0,.28)!important;
+    }
+    html body .app-ui .ta-product-editor.is-open>.ta-product-editor-header{
+      flex:0 0 auto!important;
+      min-height:54px!important;
+      padding:6px 9px 6px 12px!important;
+      background:var(--ft-surface)!important;
+    }
+    html body .app-ui .ta-product-editor.is-open>.ta-product-editor-scroll{
+      flex:1 1 auto!important;
+      min-height:0!important;
+      overflow:auto!important;
+      padding:9px!important;
+    }
+    html body .app-ui .ta-product-editor.is-open>.ta-product-editor-footer{
+      flex:0 0 auto!important;
+      padding:8px!important;
+      padding-bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
+    }
+    html body .app-ui .ta-product-editor.is-open .ta-product-form-grid{
+      grid-template-columns:minmax(0,1fr)!important;
+    }
+    html body .app-ui .ta-product-editor.is-open :is(input,select,textarea){
+      font-size:16px!important;
+    }
+    html body .app-ui .ta-product-row-menu{
+      z-index:var(--lourex-z-popover,1120)!important;
+      inset-inline:max(8px,env(safe-area-inset-left,0px)) max(8px,env(safe-area-inset-right,0px))!important;
+      bottom:calc(78px + env(safe-area-inset-bottom,0px))!important;
+      max-height:min(55svh,440px)!important;
+      border-radius:14px!important;
+      box-shadow:0 22px 60px rgba(0,0,0,.24)!important;
+    }
+    html body .app-ui .ta-product-row-menu>button{
+      min-height:46px!important;
+      font-size:12px!important;
+    }
+
+    /* Purchasing / suppliers / expenses: editor sheets open immediately instead
+       of being appended after the list on narrow layouts. */
+    html body .app-ui .ta-ops-split:has(>.ta-ops-editor)::before{
+      content:"";
+      position:fixed!important;
+      inset:0!important;
+      z-index:calc(var(--lourex-z-modal,1300) - 1)!important;
+      background:rgba(0,0,0,.48)!important;
+      backdrop-filter:blur(3px)!important;
+      -webkit-backdrop-filter:blur(3px)!important;
+      pointer-events:auto!important;
+    }
+    html body .app-ui .ta-ops-split>.ta-ops-editor{
+      position:fixed!important;
+      z-index:var(--lourex-z-modal,1300)!important;
+      inset:auto max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))!important;
+      width:auto!important;
+      max-width:none!important;
+      height:min(84svh,780px)!important;
+      max-height:calc(100svh - max(16px,env(safe-area-inset-top,0px)) - max(16px,env(safe-area-inset-bottom,0px)))!important;
+      display:flex!important;
+      flex-direction:column!important;
+      overflow:hidden!important;
+      border:1px solid var(--ft-line-strong)!important;
+      border-radius:18px!important;
+      box-shadow:0 24px 70px rgba(0,0,0,.28)!important;
+    }
+    html body .app-ui .ta-ops-split>.ta-ops-editor>.ta-ops-editor-head{
+      flex:0 0 auto!important;
+      min-height:54px!important;
+      padding:7px 10px!important;
+      background:var(--ft-surface)!important;
+    }
+    html body .app-ui .ta-ops-split>.ta-ops-editor>.ta-ops-editor-scroll{
+      flex:1 1 auto!important;
+      min-height:0!important;
+      overflow:auto!important;
+      padding:10px!important;
+    }
+    html body .app-ui .ta-ops-split>.ta-ops-editor>.ta-ops-editor-actions{
+      flex:0 0 auto!important;
+      padding:8px 10px max(8px,env(safe-area-inset-bottom,0px))!important;
+      background:var(--ft-surface)!important;
+    }
+    html body .app-ui .ta-ops-split>.ta-ops-editor .ta-ops-form-grid{
+      grid-template-columns:minmax(0,1fr)!important;
+      gap:9px!important;
+    }
+    html body .app-ui .ta-ops-split>.ta-ops-editor :is(input,select,textarea){
+      min-width:0!important;
+      font-size:16px!important;
+    }
+    html body .app-ui .ta-ops-split>.ta-ops-editor .ta-purchase-item{
+      padding:10px!important;
+    }
+    html body .app-ui .ta-ops-split>.ta-ops-editor .ta-ops-editor-actions .btn{
+      min-height:44px!important;
+      min-width:0!important;
+    }
+    /* Operations validation lives at page level. Float it above the active sheet
+       so invalid Save/Post actions never fail invisibly behind the overlay. */
+    html body .app-ui .ta-operations-page:has(.ta-ops-editor)>.ta-ops-error{
+      position:fixed!important;
+      z-index:calc(var(--lourex-z-modal,1300) + 2)!important;
+      top:max(10px,env(safe-area-inset-top,0px))!important;
+      left:max(10px,env(safe-area-inset-left,0px))!important;
+      right:max(10px,env(safe-area-inset-right,0px))!important;
+      width:auto!important;
+      max-width:680px!important;
+      margin-inline:auto!important;
+      box-shadow:0 18px 48px rgba(0,0,0,.24)!important;
+    }
+
+    /* Tables / rows: avoid unusable tiny action clusters on phones. */
+    html body .app-ui .ta-ops-row-actions{
+      gap:4px!important;
+    }
+    html body .app-ui .ta-ops-row-actions>button{
+      min-height:44px!important;
+      padding:8px 10px!important;
+    }
+    html body .app-ui .ta-ops-error>button{
+      width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;
+    }
+
+    /* Reports: keep the two date fields usable even on Arabic / small phones. */
+    html body .app-ui .ta-report-filterbar{
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+      gap:8px!important;
+      padding:9px!important;
+    }
+    html body .app-ui .ta-report-presets,
+    html body .app-ui .ta-report-currency{
+      grid-column:1/-1!important;
+    }
+    html body .app-ui .ta-report-date{
+      min-width:0!important;
+    }
+    html body .app-ui .ta-report-date .ta-date-input{
+      min-width:0!important;
+    }
+    html body .app-ui .ta-report-date input,
+    html body .app-ui .ta-report-currency select{
+      font-size:16px!important;
+    }
+
+    /* Settings/search/statement/import use their own content but share the same
+       reachability floor and safe footer behavior. */
+    html body .modal-xl,
+    html body .modal-lg{
+      width:100%!important;
+    }
+    html body .modal:has(.product-import-shell),
+    html body .modal:has(.saved-items-shell),
+    html body .modal:has(.settings-shell){
+      max-height:min(88svh,820px)!important;
+    }
+  }
+
+  @media (max-width:430px){
+    html body .modal,
+    html body .modal:has(.ta-customer-form),
+    html body .app-ui .ta-product-editor.is-open,
+    html body .app-ui .ta-ops-split>.ta-ops-editor{
+      border-radius:16px!important;
+    }
+    html body .app-ui .ta-product-editor-footer,
+    html body .app-ui .ta-ops-editor-actions{
+      flex-wrap:wrap!important;
+      gap:7px!important;
+    }
+    html body .app-ui .ta-product-editor-footer>div{
+      width:100%!important;
+      display:grid!important;
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    }
+    html body .app-ui .ta-product-editor-footer>.btn,
+    html body .app-ui .ta-ops-editor-actions>.btn{
+      flex:1 1 0!important;
+    }
+    html body .app-ui .ta-report-presets>button{
+      min-width:max-content!important;
+      padding-inline:10px!important;
+    }
+  }
+}
