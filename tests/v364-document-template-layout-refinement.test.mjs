@@ -15,11 +15,14 @@ test('v364 commercial templates keep the closing zone anchored and premium',asyn
   assert.match(css,/@media print[\s\S]*\.invoice-page \.final-details/);
 });
 
-test('v364 pagination avoids routine standalone closing pages',async()=>{
+test('v364 pagination keeps routine commercial closing content with item pages',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   assert.match(renderer,/if\(pressure>1900\)return 3;/);
   assert.match(renderer,/if\(pressure>850\)return 6;/);
   assert.match(renderer,/const hardOverflow=detailsChars>1900/);
-  assert.match(renderer,/const exceptionalClosing=score>=18/);
+  assert.match(renderer,/const exceptionalClosing=detailsChars>1300/);
+  assert.match(renderer,/\|\|\(score>=24&&detailsChars>900\)/);
+  assert.match(renderer,/const allowedLastWeight=detailsChars>1650\?1:detailsChars>1400\?2:3;/);
+  assert.doesNotMatch(renderer,/exceptionalClosing=score>=18/);
   assert.match(renderer,/const itemPages = paginateItems\(outputItems, !separateDetails,/);
 });
