@@ -82,6 +82,23 @@ function LetterMeta({doc,letter}:{doc:LourexDocument;letter:LetterDocumentData})
   return <section className="letter-meta">{rows.map(([en,ar,value])=><div key={en}><b>{doc.language==='ar'?ar:en}</b><span dir="auto">{value}</span></div>)}</section>;
 }
 
+function DraftPurpose({doc,letter}:{doc:LourexDocument;letter:LetterDocumentData}):any{
+  const labels:Record<LetterDocumentData['preset'],[string,string]>={
+    blank:['Company Document','مستند شركة'],
+    'company-letter':['Company Letter','خطاب شركة'],
+    'letter-of-intent':['Letter of Intent','خطاب نوايا'],
+    'formal-letter':['Formal Letter','خطاب رسمي'],
+    memo:['Memo','مذكرة'],
+    notice:['Notice','إشعار']
+  };
+  const [en,ar]=labels[letter.preset]??labels.blank;
+  const title=doc.language==='ar'?ar:doc.language==='bilingual'?`${en} / ${ar}`:en;
+  const subject=letter.subject.trim();
+  const defaultSubject=letter.preset==='letter-of-intent'?(doc.language==='ar'?'خطاب نوايا':'Letter of Intent'):'';
+  const detail=subject&&subject!==defaultSubject?subject:doc.number;
+  return <section className="draft-document-purpose"><strong dir="auto">{title}</strong><span dir="auto">{detail}</span></section>;
+}
+
 function Block({block}:{block:LetterBlock}):any{
   const style={fontFamily:FONT_STACKS[block.font],fontSize:`${block.size}px`,color:block.color,fontWeight:block.bold?800:400,fontStyle:block.italic?'italic':'normal',textDecoration:block.underline?'underline':'none',lineHeight:block.lineHeight,marginTop:`${block.spacingBefore}px`,marginBottom:`${block.spacingAfter}px`,textAlign:block.align==='start'?'start':block.align==='end'?'end':block.align} as any;
   if(block.type==='spacer')return <div className="letter-block letter-block-spacer" style={{height:`${Math.max(12,block.spacingAfter+12)}px`}}/>;
@@ -107,9 +124,9 @@ export function DraftDocumentRenderer({document:doc,scale=1,compact=false}:Props
   const pages=paginate(letter);
   const direction=doc.language==='ar'?'rtl':'ltr';
   return <div className="invoice-pages draft-letter-pages" style={{'--preview-scale':String(scale),'--letter-accent':letter.accentColor} as any}>
-    {pages.map((blocks,pageIndex)=><article key={`${doc.id}-letter-${pageIndex}`} className={`invoice-page draft-letter-page page-${letter.pageStyle} header-${letter.headerStyle} footer-${letter.footerStyle} width-${letter.bodyWidth} ${compact?'compact-preview':''}`} dir={direction} data-kind="draft" data-page={pageIndex+1}>
+    {pages.map((blocks,pageIndex)=><article key={`${doc.id}-letter-${pageIndex}`} className={`invoice-page draft-letter-page template-${doc.appearance.templateId} lang-${doc.language} page-${letter.pageStyle} header-${letter.headerStyle} footer-${letter.footerStyle} width-${letter.bodyWidth} ${compact?'compact-preview':''}`} dir={direction} data-kind="draft" data-page={pageIndex+1}>
       <Watermark document={doc}/><CompanyHeader doc={doc} letter={letter}/>
-      <main className="letter-page-body">{pageIndex===0?<LetterMeta doc={doc} letter={letter}/>:<div className="letter-continuation"><span>{doc.number}</span></div>}<div className="letter-blocks">{blocks.map(block=><Block key={block.id} block={block}/>)}</div>{pageIndex===pages.length-1?<SignatureArea doc={doc} letter={letter}/>:null}</main>
+      <main className="letter-page-body">{pageIndex===0?<><DraftPurpose doc={doc} letter={letter}/><LetterMeta doc={doc} letter={letter}/></>:<div className="letter-continuation"><span>{doc.number}</span></div>}<div className="letter-blocks">{blocks.map(block=><Block key={block.id} block={block}/>)}</div>{pageIndex===pages.length-1?<SignatureArea doc={doc} letter={letter}/>:null}</main>
       <Footer doc={doc} letter={letter} pageIndex={pageIndex} totalPages={pages.length}/>
     </article>)}
   </div>;
