@@ -77,6 +77,15 @@ test('runtime refresh and sign-out safety recognizes the current inventory works
   assert.match(runtime, /return manualInventoryDraftOpen\(\)/);
 });
 
+test('manual lock and automatic reload continuity use current TailAdmin roots and navigation', async () => {
+  const app = await read('src/app/index.tsx');
+  assert.match(app, /document\.querySelector\('\.ta-operations-page \.ta-inventory-entry,\.operations-page \.ta-inventory-entry,\.operations-page \.inventory-entry'\)/);
+  assert.match(app, /RESTORABLE_WORKSPACES:RestorableWorkspace\[\]=\['home','documents','customers','items','operations','receivables','reports'\]/);
+  for(const selector of ['.ta-finance-dashboard','.ta-documents-page','.ta-customers-page','.ta-products-workspace','.ta-operations-page','.ta-receivables-page','.ta-reports-page'])assert.ok(app.includes(selector),selector);
+  assert.match(app, /\.ta-sidebar-nav \.ta-nav-item/);
+  assert.match(app, /\.ta-auth-page,\.auth-page/);
+});
+
 test('pull-to-refresh cannot start inside the current TailAdmin operations workspace', async () => {
   const pull = await read('public/pull-to-refresh.js');
   assert.match(pull, /blockedTarget=.*\.ta-operations-page/);
