@@ -82,15 +82,18 @@ test('runtime refresh, sign-out and account transitions recognize current editor
   assert.match(runtime, /return manualInventoryDraftOpen\(\)/);
 });
 
-test('cloud freshness and startup recovery keep current and legacy editor selectors protected', async () => {
+test('cloud freshness, startup recovery and document-entry fallback keep current and legacy editor selectors protected', async () => {
   const freshness = await read('src/cloud/freshness.ts');
   const watchdog = await read('public/startup-watchdog-v321.js');
+  const documentEntry = await read('public/document-entry-v302.js');
   for(const selector of ['.ta-product-editor.is-open','.ta-operations-page .ta-ops-editor','.product-library-pro.editor-open','.operations-page .purchase-editor']){
     assert.ok(freshness.includes(selector),`freshness missing ${selector}`);
     assert.ok(watchdog.includes(selector),`watchdog missing ${selector}`);
+    assert.ok(documentEntry.includes(selector),`document entry missing ${selector}`);
   }
   assert.match(freshness, /document\.querySelector\(UNSAFE_SURFACE_SELECTOR\)/);
   assert.match(watchdog, /automaticReload=no/);
+  assert.match(documentEntry, /function editorOrUnsafeWorkspaceOpen\(\)/);
 });
 
 test('manual lock and automatic reload continuity use current TailAdmin roots and current editor selectors', async () => {
