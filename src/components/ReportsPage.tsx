@@ -7,7 +7,7 @@ import { Button, Icon, Input, Select } from './UI.js';
 
 interface Props{company:CompanySettings;customers:Customer[];documents:LourexDocument[];payments:PaymentRecord[];}
 type PeriodPreset='month'|'quarter'|'year'|'all';
-interface State{from:string;to:string;currency:string;query:string;}
+interface State{from:string;to:string;currency:string;query:string;preset:PeriodPreset|null;}
 
 function startOfMonth(today:string):string{return `${today.slice(0,7)}-01`;}
 function startOfQuarter(today:string):string{const year=today.slice(0,4);const month=Number(today.slice(5,7));const start=Math.floor((month-1)/3)*3+1;return `${year}-${String(start).padStart(2,'0')}-01`;}
@@ -33,7 +33,7 @@ function csvCell(value:string|number):string{
 }
 
 export class ReportsPage extends React.Component<Props,State>{
-  state:State={from:`${todayIso().slice(0,4)}-01-01`,to:todayIso(),currency:'ALL',query:''};
+  state:State={from:`${todayIso().slice(0,4)}-01-01`,to:todayIso(),currency:'ALL',query:'',preset:'year'};
 
   componentDidMount():void{window.addEventListener('afterprint',this.afterPrint);}
   componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);document.body.classList.remove('printing-financial-report');}
@@ -41,10 +41,10 @@ export class ReportsPage extends React.Component<Props,State>{
 
   private setPreset=(preset:PeriodPreset)=>{
     const today=todayIso();
-    if(preset==='month'){this.setState({from:startOfMonth(today),to:today});return;}
-    if(preset==='quarter'){this.setState({from:startOfQuarter(today),to:today});return;}
-    if(preset==='year'){this.setState({from:`${today.slice(0,4)}-01-01`,to:today});return;}
-    this.setState({from:'',to:today});
+    if(preset==='month'){this.setState({from:startOfMonth(today),to:today,preset});return;}
+    if(preset==='quarter'){this.setState({from:startOfQuarter(today),to:today,preset});return;}
+    if(preset==='year'){this.setState({from:`${today.slice(0,4)}-01-01`,to:today,preset});return;}
+    this.setState({from:'',to:today,preset});
   };
 
   private print=()=>{document.body.classList.add('printing-financial-report');window.setTimeout(()=>window.print(),40);};
@@ -78,9 +78,9 @@ export class ReportsPage extends React.Component<Props,State>{
       </header>
 
       <section className="ta-report-filterbar" aria-label={t('Report filters','فلاتر التقرير')}>
-        <div className="ta-report-presets" role="group" aria-label={t('Period presets','فترات جاهزة')}><button type="button" onClick={()=>this.setPreset('month')}>{t('This Month','هذا الشهر')}</button><button type="button" onClick={()=>this.setPreset('quarter')}>{t('This Quarter','هذا الربع')}</button><button type="button" onClick={()=>this.setPreset('year')}>{t('This Year','هذه السنة')}</button><button type="button" onClick={()=>this.setPreset('all')}>{t('All Time','كل الفترات')}</button></div>
-        <label className="ta-report-date"><span>{t('From','من')}</span><span className="ta-date-input"><span aria-hidden="true">{filterDateLabel(this.state.from)}</span><Input aria-label={t('From date','تاريخ البداية')} type="date" value={this.state.from} onChange={(e:any)=>this.setState({from:e.target.value})}/></span></label>
-        <label className="ta-report-date"><span>{t('To','إلى')}</span><span className="ta-date-input"><span aria-hidden="true">{filterDateLabel(this.state.to)}</span><Input aria-label={t('To date','تاريخ النهاية')} type="date" value={this.state.to} onChange={(e:any)=>this.setState({to:e.target.value})}/></span></label>
+        <div className="ta-report-presets" role="group" aria-label={t('Period presets','فترات جاهزة')}><button type="button" aria-pressed={this.state.preset==='month'} onClick={()=>this.setPreset('month')}>{t('This Month','هذا الشهر')}</button><button type="button" aria-pressed={this.state.preset==='quarter'} onClick={()=>this.setPreset('quarter')}>{t('This Quarter','هذا الربع')}</button><button type="button" aria-pressed={this.state.preset==='year'} onClick={()=>this.setPreset('year')}>{t('This Year','هذه السنة')}</button><button type="button" aria-pressed={this.state.preset==='all'} onClick={()=>this.setPreset('all')}>{t('All Time','كل الفترات')}</button></div>
+        <label className="ta-report-date"><span>{t('From','من')}</span><span className="ta-date-input"><span aria-hidden="true">{filterDateLabel(this.state.from)}</span><Input aria-label={t('From date','تاريخ البداية')} type="date" value={this.state.from} onChange={(e:any)=>this.setState({from:e.target.value,preset:null})}/></span></label>
+        <label className="ta-report-date"><span>{t('To','إلى')}</span><span className="ta-date-input"><span aria-hidden="true">{filterDateLabel(this.state.to)}</span><Input aria-label={t('To date','تاريخ النهاية')} type="date" value={this.state.to} onChange={(e:any)=>this.setState({to:e.target.value,preset:null})}/></span></label>
         <label className="ta-report-currency"><span>{t('Currency','العملة')}</span><Select value={selected||'ALL'} onChange={(e:any)=>this.setState({currency:e.target.value})}><option value="ALL">{t('All currencies — separate','كل العملات — منفصلة')}</option>{currencies.map(currency=><option key={currency} value={currency}>{currency}</option>)}</Select></label>
       </section>
 
