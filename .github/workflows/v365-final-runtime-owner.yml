@@ -19,26 +19,20 @@ jobs:
         with:
           ref: fix/v365-mobile-editor-scroll-draft-templates
           fetch-depth: 0
-      - name: Apply final runtime owner patch
+      - name: Apply final runtime owner and cache-key patch
         run: python scripts/v365-final-runtime-owner.py
-      - name: Align historical runtime assertion with current production entry
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path=Path('tests/v337-template-layout-site-pass.test.mjs')
-          text=path.read_text()
-          old=r"assert.match(html,/document-entry-v302\.js\?v=337-3/);"
-          new=r"assert.match(html,/document-entry-v302\.js\?v=361/);"
-          if old not in text:
-              raise SystemExit('stale v337 document-entry assertion not found')
-          path.write_text(text.replace(old,new,1))
-          PY
       - name: Validate patch scope
         run: |
           git diff --check
           git status --short
-          git diff -- src/styles/v331-draft-scroll-recovery.css tests/v337-template-layout-site-pass.test.mjs
+          git diff -- \
+            index.html \
+            public/document-entry-v302.js \
+            scripts/v303-visual-cache-refresh.mjs \
+            scripts/v321-production-runtime-contract.mjs \
+            scripts/v347-startup-finalize.mjs \
+            src/styles/v331-draft-scroll-recovery.css \
+            tests/v337-template-layout-site-pass.test.mjs
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -71,7 +65,14 @@ jobs:
         run: |
           git config user.name "lourex-v365-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/styles/v331-draft-scroll-recovery.css tests/v337-template-layout-site-pass.test.mjs
+          git add \
+            index.html \
+            public/document-entry-v302.js \
+            scripts/v303-visual-cache-refresh.mjs \
+            scripts/v321-production-runtime-contract.mjs \
+            scripts/v347-startup-finalize.mjs \
+            src/styles/v331-draft-scroll-recovery.css \
+            tests/v337-template-layout-site-pass.test.mjs
           git diff --cached --quiet && { echo 'No runtime owner changes to commit'; exit 1; }
           git commit -m "v365 bind runtime document scroll owner to viewport"
           git push origin HEAD:fix/v365-mobile-editor-scroll-draft-templates
