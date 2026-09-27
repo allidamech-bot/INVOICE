@@ -34,9 +34,9 @@
   html body .app-ui .ta-shell.is-editor>.ta-main,
   html body .app-ui .ta-shell.screen-editor>.ta-main,
   html body .app-ui .screen-editor .ta-main{
-    height:auto!important;
+    height:100%!important;
     min-height:0!important;
-    max-height:none!important;
+    max-height:100%!important;
     align-self:stretch!important;
     overflow-x:hidden!important;
     overflow-y:auto!important;
@@ -85,9 +85,9 @@
 @media screen and (max-width:1180px){
   html body .app-ui .ta-shell.is-editor:has(.draft-studio)>.ta-main,
   html body .app-ui .ta-shell.screen-editor:has(.draft-studio)>.ta-main{
-    height:auto!important;
+    height:100%!important;
     min-height:0!important;
-    max-height:none!important;
+    max-height:100%!important;
     align-self:stretch!important;
     overflow-x:hidden!important;
     overflow-y:auto!important;

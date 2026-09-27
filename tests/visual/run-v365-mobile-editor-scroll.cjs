@@ -22,7 +22,7 @@ async function verify(engineName,browser,scenario){
       const main=document.querySelector('.ta-main');
       const nested=document.querySelector(kind==='draft'?'.draft-studio-scroll':'.editor-scroll');
       const dock=document.querySelector(kind==='draft'?'.draft-mobile-actionbar':'.mobile-editor-actionbar');
-      const end=document.querySelector('[data-scroll-end]');
+      const end=document.querySelector(kind==='draft'?'#draft [data-scroll-end]':'#commercial [data-scroll-end]');
       const ms=getComputedStyle(main),ns=getComputedStyle(nested),ds=getComputedStyle(dock);
       const mr=main.getBoundingClientRect(),dr=dock.getBoundingClientRect(),er=end.getBoundingClientRect();
       return {main:{client:main.clientHeight,scroll:main.scrollHeight,top:mr.top,bottom:mr.bottom,overflowY:ms.overflowY,height:ms.height,maxHeight:ms.maxHeight,scrollTop:main.scrollTop},nested:{overflowY:ns.overflowY,client:nested.clientHeight,scroll:nested.scrollHeight},dock:{top:dr.top,bottom:dr.bottom,position:ds.position,height:dr.height},end:{top:er.top,bottom:er.bottom},viewport:innerHeight};
@@ -39,7 +39,7 @@ async function verify(engineName,browser,scenario){
     const after=await page.evaluate(kind=>{
       const main=document.querySelector('.ta-main');
       const dock=document.querySelector(kind==='draft'?'.draft-mobile-actionbar':'.mobile-editor-actionbar');
-      const end=document.querySelector('[data-scroll-end]');
+      const end=document.querySelector(kind==='draft'?'#draft [data-scroll-end]':'#commercial [data-scroll-end]');
       const dr=dock.getBoundingClientRect(),er=end.getBoundingClientRect();
       return {scrollTop:main.scrollTop,maxScroll:main.scrollHeight-main.clientHeight,endTop:er.top,endBottom:er.bottom,dockTop:dr.top,viewport:innerHeight};
     },scenario.kind);
