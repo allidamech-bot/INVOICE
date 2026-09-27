@@ -84,7 +84,7 @@
     outline:0!important;
   }
 
-  html[data-ui-theme="dark"] body .app-ui :is(.editor-pane,.editor-section,.draft-control-section,.ta-product-editor-section,.ta-product-commandbar,.ta-product-row,.ta-product-menu,.ta-product-metrics>div,.ta-product-metrics>button,.ta-ops-form-section,.ta-ops-panel,.ta-ops-list-card,.ta-ops-editor-card,.ta-ops-callout,.ta-purchase-item,.ta-inventory-row,.ta-report-filterbar,.ta-report-kpi,.ta-panel,.ta-empty-card,.ta-settings-card) {
+  html[data-ui-theme="dark"] body .app-ui :is(.editor-pane,.editor-section,.draft-control-section,.premium-item-card,.ta-product-editor-section,.ta-product-commandbar,.ta-product-row,.ta-product-menu,.ta-product-metrics>div,.ta-product-metrics>button,.ta-ops-form-section,.ta-ops-panel,.ta-ops-list-card,.ta-ops-editor-card,.ta-ops-callout,.ta-purchase-item,.ta-inventory-row,.ta-report-filterbar,.ta-report-kpi,.ta-panel,.ta-empty-card,.ta-settings-card) {
     background:#191919!important;
     background-image:none!important;
     border-color:#383838!important;
@@ -99,6 +99,11 @@
     background:#202020!important;
     background-image:none!important;
     border-color:#383838!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .premium-item-card .item-pricing-grid {
+    background:#202020!important;
+    border-color:#383838!important;
+    box-shadow:none!important;
   }
   html[data-ui-theme="dark"] body .app-ui :is(.ta-product-page-header,.ta-product-commandbar)>.btn-primary {
     background:#7399e3!important;
@@ -117,7 +122,7 @@
   }
 
   @media (max-width:900px) {
-    html[data-ui-theme="dark"] body .app-ui :is(.ta-kpi-card,.ta-products-overview>div,.ta-customers-summary>div,.ta-product-editor-section,.ta-report-filterbar,.ta-customer-form-section),
+    html[data-ui-theme="dark"] body .app-ui :is(.ta-kpi-card,.ta-products-overview>div,.ta-customers-summary>div,.ta-product-editor-section,.premium-item-card,.ta-report-filterbar,.ta-customer-form-section),
     html[data-ui-theme="dark"] body .modal:has(.ta-customer-form) .ta-customer-form-section {
       background-image:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,0) 55%)!important;
       box-shadow:inset 0 1px 0 rgba(255,255,255,.045)!important;
@@ -177,8 +182,20 @@
     html body .app-ui .ta-customer-form-grid :is(input,select,textarea) { min-height:44px!important;font-size:16px!important; }
     html body .app-ui .ta-customer-form-grid :is(.field>label,.field-label) { font-size:12px!important;line-height:17px!important; }
     html body .app-ui .modal:has(.ta-customer-form)>.modal-footer { min-height:58px!important;padding:7px 9px max(7px,env(safe-area-inset-bottom,0px))!important; }
-    html body .app-ui .ta-customer-modal-actions { width:100%!important;display:flex!important;gap:8px!important; }
-    html body .app-ui .ta-customer-modal-actions>.btn { flex:1 1 0!important;min-width:0!important;min-height:44px!important;font-size:13px!important; }
+    html body .app-ui .modal:has(.ta-customer-form) :is(.ta-customer-modal-actions,.modal-footer-actions) { width:100%!important;display:flex!important;gap:8px!important; }
+    html body .app-ui .modal:has(.ta-customer-form) :is(.ta-customer-modal-actions,.modal-footer-actions)>.btn { flex:1 1 0!important;min-width:0!important;min-height:44px!important;font-size:13px!important; }
+
+    /* The item editor nests three padded surfaces; reclaim width for actual values. */
+    html body .app-ui .premium-item-card { padding:0!important;border-radius:12px!important;overflow:hidden!important; }
+    html body .app-ui .premium-item-card>header { padding:9px 10px!important;gap:6px!important; }
+    html body .app-ui .premium-item-card>.form-grid { padding:10px!important;gap:9px!important; }
+    html body .app-ui .premium-item-card .item-pricing-grid { grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;padding:9px!important;min-width:0!important; }
+    html body .app-ui .premium-item-card .item-pricing-grid>.item-price-control { grid-column:1/-1!important;min-width:0!important; }
+    html body .app-ui .premium-item-card :is(input,select,textarea) { min-width:0!important;min-height:44px!important;font-size:16px!important; }
+    html body .app-ui .premium-item-card textarea { min-height:74px!important; }
+    html body .app-ui .premium-item-card .item-card-actions .btn { min-height:44px!important; }
+    html body .app-ui .premium-item-card .item-card-actions .icon-btn { width:44px!important;height:44px!important; }
+    html body .app-ui .premium-item-card>footer { padding:9px 10px!important; }
 
     html body .app-ui .ta-product-commandbar>.btn-primary { display:none!important; }
     html body .app-ui .ta-product-search { min-height:44px!important;height:44px!important; }
@@ -193,5 +210,7 @@
     html body .app-ui .ta-report-filterbar { grid-template-columns:minmax(0,1fr)!important; }
     html body .app-ui .ta-report-presets,
     html body .app-ui .ta-report-currency { grid-column:auto!important; }
+    html body .app-ui .premium-item-card .item-pricing-grid { grid-template-columns:minmax(0,1fr)!important; }
+    html body .app-ui .premium-item-card .item-pricing-grid>.item-price-control { grid-column:auto!important; }
   }
 }
