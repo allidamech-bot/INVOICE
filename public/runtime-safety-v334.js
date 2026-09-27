@@ -47,7 +47,7 @@
     const uid=deferredAccountUid;
     if(!uid)return;
     const currentUid=currentFirebaseUid();
-    if(currentUid&&currentUid!==uid){deferredAccountUid='';completeRejectedAccountTransition(uid);return;}
+    if(currentUid!==uid){deferredAccountUid='';completeRejectedAccountTransition(uid);return;}
     if(unsafeWorkspaceOpen()){
       deferredAccountTimer=window.setTimeout(retryDeferredAccountTransition,400);
       return;
@@ -61,7 +61,7 @@
     const uid=String(event.detail?.uid||'').trim();
     if(!uid)return;
     const currentUid=currentFirebaseUid();
-    if(currentUid&&currentUid!==uid){
+    if(currentUid!==uid){
       event.stopImmediatePropagation();
       completeRejectedAccountTransition(uid);
       return;
