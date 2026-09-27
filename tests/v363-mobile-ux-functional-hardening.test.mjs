@@ -6,7 +6,18 @@ const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('v363 hardening layers are loaded after the visual system through the reliability bridge', async () => {
   const bridge = await read('src/styles/tailadmin-reliability-bridge-v320.css');
-  assert.match(bridge, /^@import url\("\.\/mobile-ux-functional-hardening-v363\.css\?v=363-1"\);\n@import url\("\.\/modal-viewport-reconciliation-v363\.css\?v=363-1"\);/);
+  assert.match(bridge, /^@import url\("\.\/mobile-ux-functional-hardening-v363\.css\?v=363-1"\);\n@import url\("\.\/modal-viewport-reconciliation-v363\.css\?v=363-1"\);\n@import url\("\.\/mobile-ux-deep-audit-v363\.css\?v=363-1"\);/);
+});
+
+test('v363 deep audit keeps primary actions on the current accent and bounds retained import flows', async () => {
+  const css = await read('src/styles/mobile-ux-deep-audit-v363.css');
+  assert.match(css, /\.btn\.btn-primary,button\.btn-primary/);
+  assert.match(css, /background:var\(--ft-accent,#315da8\)!important/);
+  assert.match(css, /background-image:none!important/);
+  assert.match(css, /\.modal-backdrop:has\(\.product-import-shell\)/);
+  assert.match(css, /\.modal-backdrop:has\(\.supplier-import-shell\)/);
+  assert.match(css, /max-height:min\(88svh,820px\)!important/);
+  assert.match(css, /padding-bottom:max\(8px,env\(safe-area-inset-bottom,0px\)\)!important/);
 });
 
 test('v363 reconciles Safari visualViewport inline geometry with floating modal cards', async () => {
@@ -116,6 +127,21 @@ test('pull-to-refresh cannot start inside current operations or dirty product wo
   assert.match(pull, /hasAttribute\('data-lourex-workspace-dirty'\)\)return false/);
   assert.match(pull, /document\.querySelector\('[^']*\.ta-operations-page[^']*\.ta-products-workspace[^']*\.ta-product-editor\.is-open[^']*'\)\)return false/);
   assert.match(pull, /\.product-library-pro\.editor-open/);
+});
+
+test('current WebKit browser QA physically opens and measures the critical 320px business editors', async () => {
+  const browser = await read('tests/visual/run-v326-business-workspaces.cjs');
+  assert.match(browser, /deepMobileAudit/);
+  assert.match(browser, /engineName!==['"]webkit['"]\|\|scenario\.name!==['"]iphone320-light['"]/);
+  assert.match(browser, /\.modal:has\(\.ta-customer-form\)/);
+  assert.match(browser, /\.ta-product-editor\.is-open/);
+  assert.match(browser, /Supplier editor/);
+  assert.match(browser, /Purchase editor/);
+  assert.match(browser, /Expense editor/);
+  assert.match(browser, /\.ta-inventory-entry/);
+  assert.match(browser, /assertPrimaryAccent/);
+  assert.match(browser, /fontSize<15\.5/);
+  assert.match(browser, /footer fell below viewport after scroll/);
 });
 
 test('reports keep phone filters and labeled-record tables within the final mobile contract', async () => {
