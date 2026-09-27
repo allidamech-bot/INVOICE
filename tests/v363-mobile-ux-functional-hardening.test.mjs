@@ -1,0 +1,61 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+
+test('v363 hardening layer is loaded after the visual system through the reliability bridge', async () => {
+  const bridge = await read('src/styles/tailadmin-reliability-bridge-v320.css');
+  assert.match(bridge, /^@import url\("\.\/mobile-ux-functional-hardening-v363\.css\?v=363-1"\);/);
+});
+
+test('v363 turns product and operations editors into reachable mobile sheets with visible validation', async () => {
+  const css = await read('src/styles/mobile-ux-functional-hardening-v363.css');
+  assert.match(css, /\.ta-product-layout:has\(>\.ta-product-editor\.is-open\)::before/);
+  assert.match(css, /\.ta-product-editor\.is-open\{/);
+  assert.match(css, /\.ta-ops-split:has\(>\.ta-ops-editor\)::before/);
+  assert.match(css, /\.ta-ops-split>\.ta-ops-editor\{/);
+  assert.match(css, /\.ta-operations-page:has\(\.ta-ops-editor\)>\.ta-ops-error/);
+  assert.match(css, /\.ta-product-editor-scroll>\.ta-product-error/);
+  assert.match(css, /\.modal-body:has\(>\.ta-customer-form\)>\.ta-customer-form-error/);
+});
+
+test('v363 bounds more/create menus and compact confirmations to the phone viewport', async () => {
+  const css = await read('src/styles/mobile-ux-functional-hardening-v363.css');
+  assert.match(css, /\.ta-mobile-sheet#ta-mobile-more/);
+  assert.match(css, /height:min\(620px,calc\(100svh/);
+  assert.match(css, /\.ta-create-menu-mobile\{/);
+  assert.match(css, /max-height:calc\(100svh - 126px/);
+  assert.match(css, /\.modal-backdrop:has\(\.modal-sm \.modal-message\)/);
+  assert.match(css, /width:min\(390px,100%\)/);
+});
+
+test('financial and lifecycle destructive actions use LOUREX dialogs instead of browser confirms', async () => {
+  const payments = await read('src/components/InvoicePaymentsPanel.tsx');
+  const lifecycle = await read('src/components/DocumentLifecyclePanel.tsx');
+  assert.doesNotMatch(payments, /window\.confirm\(/);
+  assert.match(payments, /<ConfirmDialog/);
+  assert.doesNotMatch(lifecycle, /window\.confirm\(/);
+  assert.match(lifecycle, /<ConfirmDialog/);
+});
+
+test('operations uses app dialogs for business actions and only keeps the synchronous unsaved-work guard', async () => {
+  const operations = await read('src/components/OperationsPage.tsx');
+  assert.doesNotMatch(operations, /window\.prompt\(/);
+  assert.match(operations, /type ConfirmAction=/);
+  assert.match(operations, /renderActionDialogs/);
+  assert.match(operations, /<ConfirmDialog/);
+  assert.match(operations, /<Modal open=\{Boolean\(this\.state\.reverseTarget\)\}/);
+  const confirms = operations.match(/window\.confirm\(/g) ?? [];
+  assert.equal(confirms.length, 1, 'only the synchronous unsaved-work departure guard may use window.confirm');
+});
+
+test('reports keep phone filters and labeled-record tables within the final mobile contract', async () => {
+  const css = await read('src/styles/mobile-ux-functional-hardening-v363.css');
+  const reports = await read('src/components/ReportsPage.tsx');
+  assert.match(css, /\.ta-report-filterbar\{/);
+  assert.match(css, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css, /\.ta-report-presets/);
+  assert.match(reports, /data-label=\{t\('Month','الشهر'\)\}/);
+  assert.match(reports, /aria-pressed=\{this\.state\.preset==='month'\}/);
+});
