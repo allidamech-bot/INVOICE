@@ -6,7 +6,7 @@ let sw=await readFile(swPath,'utf8');
 /* v351 changes the canonical visual stack, first-paint palette and PWA launch
    assets. Force a genuinely new application cache so an installed PWA cannot
    retain pre-v351 HTML, manifest, palette or runtime references. */
-const RELEASE_GENERATION=351;
+const RELEASE_GENERATION=361;
 const activeCacheMatch=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
 const activeCacheGeneration=activeCacheMatch?Number(activeCacheMatch[1]):0;
 if(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION){
@@ -17,11 +17,11 @@ if(activeCacheGeneration>0&&activeCacheGeneration<RELEASE_GENERATION){
 }
 
 const marker="LOCAL_CORE.push('./canonical-redirect.js');";
-const themeBootstrap='./theme-bootstrap-v347.js?v=351';
+const themeBootstrap='./theme-bootstrap-v347.js?v=361';
 const storageCleanup='./storage-cleanup-v347.js?v=351';
 const mobilePreviewOutput='./mobile-preview-output-v350.js?v=350';
-const homeRuntime='./home-final-closeout-v286.js?v=351';
-const documentRuntime='./document-entry-v302.js?v=351';
+const homeRuntime='./home-final-closeout-v286.js?v=361';
+const documentRuntime='./document-entry-v302.js?v=361';
 const startupWatchdog='./startup-watchdog-v321.js?v=347';
 const draftScrollRuntime='./styles/v331-draft-scroll-recovery.css?v=337-3';
 const criticalDocumentsRuntime='./styles/v332-critical-documents-deep-closeout.css?v=332-1';
