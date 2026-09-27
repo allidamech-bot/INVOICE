@@ -70,11 +70,26 @@ test('dirty workspace guard recognizes the current TailAdmin customer and operat
   assert.match(guard, /document\.querySelector\(selector\)/);
 });
 
-test('runtime refresh and sign-out safety recognizes the current inventory workspace root', async () => {
+test('runtime refresh, sign-out and account transitions recognize current editors before dirty publication', async () => {
   const runtime = await read('public/runtime-safety-v334.js');
+  assert.match(runtime, /ACTIVE_DATA_ENTRY_SELECTOR='\.ta-product-editor\.is-open,\.ta-operations-page \.ta-ops-editor,\.product-library-pro\.editor-open,\.operations-page \.purchase-editor'/);
   assert.match(runtime, /document\.querySelector\('\.ta-operations-page \.ta-inventory-entry,\.operations-page \.ta-inventory-entry,\.operations-page \.inventory-entry'\)/);
+  assert.match(runtime, /if\(activeDataEntryEditorOpen\(\)\)return true/);
+  assert.match(runtime, /deferredByRuntimeSafety:true/);
+  assert.match(runtime, /window\.setTimeout\(retryDeferredAccountTransition,400\)/);
   assert.match(runtime, /if\(ROOT\.hasAttribute\('data-lourex-workspace-dirty'\)\)return true/);
   assert.match(runtime, /return manualInventoryDraftOpen\(\)/);
+});
+
+test('cloud freshness and startup recovery keep current and legacy editor selectors protected', async () => {
+  const freshness = await read('src/cloud/freshness.ts');
+  const watchdog = await read('public/startup-watchdog-v321.js');
+  for(const selector of ['.ta-product-editor.is-open','.ta-operations-page .ta-ops-editor','.product-library-pro.editor-open','.operations-page .purchase-editor']){
+    assert.ok(freshness.includes(selector),`freshness missing ${selector}`);
+    assert.ok(watchdog.includes(selector),`watchdog missing ${selector}`);
+  }
+  assert.match(freshness, /document\.querySelector\(UNSAFE_SURFACE_SELECTOR\)/);
+  assert.match(watchdog, /automaticReload=no/);
 });
 
 test('manual lock and automatic reload continuity use current TailAdmin roots and navigation', async () => {
@@ -93,6 +108,7 @@ test('pull-to-refresh cannot start inside current operations or dirty product wo
   assert.match(pull, /blockedTarget=.*\.ta-product-editor\.is-open/);
   assert.match(pull, /hasAttribute\('data-lourex-workspace-dirty'\)\)return false/);
   assert.match(pull, /document\.querySelector\('[^']*\.ta-operations-page[^']*\.ta-products-workspace[^']*\.ta-product-editor\.is-open[^']*'\)\)return false/);
+  assert.match(pull, /\.product-library-pro\.editor-open/);
 });
 
 test('reports keep phone filters and labeled-record tables within the final mobile contract', async () => {
