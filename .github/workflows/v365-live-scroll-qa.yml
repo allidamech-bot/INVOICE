@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   live-qa:
-    # Retry after binding the runtime-promoted .ta-main owner to its shell grid row.
+    # Latest rerun includes React-stable Draft purpose/template interaction checks.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
