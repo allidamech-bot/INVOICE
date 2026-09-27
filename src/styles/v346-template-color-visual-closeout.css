@@ -48,44 +48,44 @@
   }
 
   html[data-ui-theme="dark"] {
-    --ta-brand-25:#152033!important;
-    --ta-brand-50:#1A2C43!important;
-    --ta-brand-100:#223C60!important;
-    --ta-brand-200:#2C4A72!important;
-    --ta-brand-300:#42648F!important;
-    --ta-brand-400:#658BC5!important;
-    --ta-brand-500:#82A9EC!important;
-    --ta-brand-600:#82A9EC!important;
-    --ta-brand-700:#A2BEF3!important;
+    --ta-brand-25:#151515!important;
+    --ta-brand-50:#1C1C1C!important;
+    --ta-brand-100:#242424!important;
+    --ta-brand-200:#303030!important;
+    --ta-brand-300:#484848!important;
+    --ta-brand-400:#668BD4!important;
+    --ta-brand-500:#7399E3!important;
+    --ta-brand-600:#7399E3!important;
+    --ta-brand-700:#91B0ED!important;
 
     /* Keep the PWA/startup canvas token stable; application paint uses workspace. */
     --ft-canvas:#081321!important;
-    --ft-shell:#101722!important;
-    --ft-workspace:#101722!important;
-    --ft-surface:#172231!important;
-    --ft-surface-2:#1D2B3C!important;
-    --ft-surface-3:#223247!important;
-    --ft-input:#172536!important;
-    --ft-text:#B5C2D0!important;
-    --ft-text-strong:#F1F5FA!important;
-    --ft-text-soft:#B5C2D0!important;
-    --ft-muted:#91A2B5!important;
-    --ft-faint:#6F8298!important;
-    --ft-line:#304052!important;
-    --ft-line-strong:#4A5C72!important;
-    --ft-accent:#82A9EC!important;
-    --ft-accent-hover:#A2BEF3!important;
-    --ft-accent-soft:#223C60!important;
-    --ft-accent-faint:#1A2C43!important;
-    --ft-on-accent:#101722!important;
-    --ft-success:#65C5A0!important;
-    --ft-success-soft:rgba(101,197,160,.12)!important;
-    --ft-warning:#E9B76B!important;
-    --ft-warning-soft:rgba(233,183,107,.12)!important;
-    --ft-danger:#F08F96!important;
-    --ft-danger-soft:rgba(240,143,150,.12)!important;
-    --ft-info:#82A9EC!important;
-    --ft-info-soft:rgba(130,169,236,.12)!important;
+    --ft-shell:#101010!important;
+    --ft-workspace:#0D0D0D!important;
+    --ft-surface:#191919!important;
+    --ft-surface-2:#202020!important;
+    --ft-surface-3:#282828!important;
+    --ft-input:#161616!important;
+    --ft-text:#D2D2D2!important;
+    --ft-text-strong:#F7F7F7!important;
+    --ft-text-soft:#C8C8C8!important;
+    --ft-muted:#A9A9A9!important;
+    --ft-faint:#858585!important;
+    --ft-line:#303030!important;
+    --ft-line-strong:#464646!important;
+    --ft-accent:#7399E3!important;
+    --ft-accent-hover:#91B0ED!important;
+    --ft-accent-soft:#252525!important;
+    --ft-accent-faint:#1D1D1D!important;
+    --ft-on-accent:#0D0D0D!important;
+    --ft-success:#C1D7CA!important;
+    --ft-success-soft:#222924!important;
+    --ft-warning:#E5C49A!important;
+    --ft-warning-soft:#2B251F!important;
+    --ft-danger:#EF737A!important;
+    --ft-danger-soft:#332124!important;
+    --ft-info:#91B0ED!important;
+    --ft-info-soft:#252525!important;
   }
 
   /* v330 uses v333-* names for critical editor contrast. Palette ownership stays
