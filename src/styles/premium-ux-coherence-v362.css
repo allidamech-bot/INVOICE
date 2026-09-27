@@ -129,7 +129,7 @@
   }
 
   @media (max-width:900px) {
-    html[data-ui-theme="dark"] body .app-ui :is(.ta-kpi-card,.ta-products-overview>div,.ta-customers-summary>div,.ta-product-editor-section,.premium-item-card,.ta-report-filterbar,.ta-customer-form-section),
+    html[data-ui-theme="dark"] body .app-ui :is(.ta-kpi-card,.ta-dashboard-card,.ta-doc-summary-grid>button,.ta-customer-card,.ta-customers-summary>div,.ta-products-overview>div,.ta-product-editor-section,.premium-item-card,.ta-ops-metrics>div,.ta-ops-summary>div,.ta-finance-kpi,.ta-report-kpi,.ta-report-filterbar,.ta-settings-card,.ta-customer-form-section),
     html[data-ui-theme="dark"] body .modal:has(.ta-customer-form) .ta-customer-form-section {
       background-image:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,0) 55%)!important;
       box-shadow:inset 0 1px 0 rgba(255,255,255,.045)!important;
