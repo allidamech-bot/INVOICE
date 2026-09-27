@@ -4,9 +4,14 @@
   const ROOT=document.documentElement;
   const UPDATE_BUTTON='[data-lourex-update] button,[data-lourex-cloud-refresh] button';
   const SIGNOUT_BUTTON='.settings-direct-signout-button,.settings-signout-button,.ta-cloud-account-actions button,.ta-sheet-signout';
+  const ACTIVE_DATA_ENTRY_SELECTOR='.ta-product-editor.is-open,.ta-operations-page .ta-ops-editor,.product-library-pro.editor-open,.operations-page .purchase-editor';
   const WORKSPACE_CONTINUITY_KEY='lourex-workspace-continuity-v340';
   const WORKSPACE_CONTINUITY_MAX_AGE=2*60*60*1000;
   const WORKSPACE_ORDER=['home','documents','customers','items','operations','receivables','reports'];
+  let deferredAccountUid='';
+  let deferredAccountTimer=0;
+
+  function activeDataEntryEditorOpen(){return Boolean(document.querySelector(ACTIVE_DATA_ENTRY_SELECTOR));}
 
   function manualInventoryDraftOpen(){
     const entry=document.querySelector('.ta-operations-page .ta-inventory-entry,.operations-page .ta-inventory-entry,.operations-page .inventory-entry');
@@ -22,25 +27,50 @@
   function unsafeWorkspaceOpen(){
     if(ROOT.hasAttribute('data-lourex-document-editor'))return true;
     if(ROOT.hasAttribute('data-lourex-workspace-dirty'))return true;
-    if(document.querySelector('.editor-screen,.modal-backdrop,.product-library-pro.editor-open'))return true;
+    if(document.querySelector('.editor-screen,.modal-backdrop'))return true;
+    if(activeDataEntryEditorOpen())return true;
     return manualInventoryDraftOpen();
   }
 
   function signOutUnsafeWorkspaceOpen(){
     if(ROOT.hasAttribute('data-lourex-document-editor'))return true;
     if(ROOT.hasAttribute('data-lourex-workspace-dirty'))return true;
-    if(document.querySelector('.editor-screen,.product-library-pro.editor-open'))return true;
+    if(document.querySelector('.editor-screen'))return true;
+    if(activeDataEntryEditorOpen())return true;
     return manualInventoryDraftOpen();
   }
 
   function currentFirebaseUid(){try{return String(window.firebase?.auth?.().currentUser?.uid||'').trim();}catch{return '';}}
   function completeRejectedAccountTransition(uid){try{window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid,rejectedByRuntimeSafety:true}}));}catch{}}
+  function retryDeferredAccountTransition(){
+    deferredAccountTimer=0;
+    const uid=deferredAccountUid;
+    if(!uid)return;
+    const currentUid=currentFirebaseUid();
+    if(currentUid&&currentUid!==uid){deferredAccountUid='';completeRejectedAccountTransition(uid);return;}
+    if(unsafeWorkspaceOpen()){
+      deferredAccountTimer=window.setTimeout(retryDeferredAccountTransition,400);
+      return;
+    }
+    deferredAccountUid='';
+    try{window.dispatchEvent(new CustomEvent('lourex-account-transition-request',{detail:{uid,deferredByRuntimeSafety:true}}));}
+    catch{completeRejectedAccountTransition(uid);}
+  }
   function guardStaleAccountTransition(event){
     if(!(event instanceof CustomEvent))return;
     const uid=String(event.detail?.uid||'').trim();
-    if(!uid||currentFirebaseUid()===uid)return;
+    if(!uid)return;
+    const currentUid=currentFirebaseUid();
+    if(currentUid&&currentUid!==uid){
+      event.stopImmediatePropagation();
+      completeRejectedAccountTransition(uid);
+      return;
+    }
+    if(event.detail?.deferredByRuntimeSafety||!unsafeWorkspaceOpen())return;
     event.stopImmediatePropagation();
-    completeRejectedAccountTransition(uid);
+    deferredAccountUid=uid;
+    if(deferredAccountTimer)window.clearTimeout(deferredAccountTimer);
+    deferredAccountTimer=window.setTimeout(retryDeferredAccountTransition,400);
   }
 
   function explainDeferred(button){
