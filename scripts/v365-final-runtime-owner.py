@@ -94,4 +94,10 @@ test=test.replace("/RELEASE_GENERATION=337/","/RELEASE_GENERATION=361/")
 test=test.replace("'v331-draft-scroll-recovery.css\\\\?v=337-3'","'v331-draft-scroll-recovery.css\\\\?v=365-1'")
 test=test.replace("'document-entry-v302.js\\\\?v=337-3'","'document-entry-v302.js\\\\?v=361'")
 test=test.replace("/Stale pre-337-3 document scroll fallback survived production build/","/Stale pre-v365 document scroll fallback survived production build/")
+old_runtime_assert="assert.match(cacheRefresh,/runtimeTag=`<link rel=\"stylesheet\" href=\"\\$\\{draftScrollRuntime\\}\" data-lourex-v331-draft-recovery=\"true\" \\/>`/);"
+new_runtime_assert="assert.match(cacheRefresh,/draftTag=`<link rel=\"stylesheet\" href=\"\\$\\{draftScrollRuntime\\}\" data-lourex-v331-draft-recovery=\"true\" \\/>`/);\n  assert.match(cacheRefresh,/criticalTag=`<link rel=\"stylesheet\" href=\"\\$\\{criticalDocumentsRuntime\\}\" data-lourex-v332-critical-documents=\"true\" \\/>`/);"
+test=replace_once(test,old_runtime_assert,new_runtime_assert,'v337 standalone owner tag assertions')
+old_insert_assert="assert.match(cacheRefresh,/html=html\\.replace\\(bundleTag,`\\$\\{bundleTag\\}\\\\n  \\$\\{runtimeTag\\}`\\)/);"
+new_insert_assert="assert.match(cacheRefresh,/html=html\\.replace\\(bundleTag,`\\$\\{bundleTag\\}\\\\n  \\$\\{draftTag\\}\\\\n  \\$\\{criticalTag\\}`\\)/);"
+test=replace_once(test,old_insert_assert,new_insert_assert,'v337 standalone owner insertion assertion')
 write(test_path,test)
