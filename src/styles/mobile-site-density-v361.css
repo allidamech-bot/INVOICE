@@ -35,6 +35,14 @@
   html body .app-ui .ta-doc-summary-grid>button { min-height:74px!important;padding:9px!important; }
   html body .app-ui .ta-customers-summary>div { min-height:76px!important;padding:9px 7px!important; }
   html body .app-ui .ta-customers-summary-icon { width:28px!important;height:28px!important; }
+  html body .app-ui .ta-ops-metrics>div { padding:10px!important; }
+  html body .app-ui .ta-finance-kpi,
+  html body .app-ui .ta-report-kpi { padding:10px!important; }
+  html body .app-ui .ta-report-filterbar { padding:10px!important; }
+  html body .app-ui .ta-products-workspace-body .ta-operations-page {
+    padding-top:0!important;
+    padding-inline:0!important;
+  }
 
   html body .global-search-panel { width:calc(100vw - 20px)!important;max-height:86dvh!important; }
   html body .global-search-input-wrap { min-height:52px!important; }
