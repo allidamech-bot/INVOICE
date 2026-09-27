@@ -1,0 +1,57 @@
+name: v365 fix Draft A4 header containment
+
+on:
+  push:
+    branches:
+      - fix/v365-mobile-editor-scroll-draft-templates
+    paths:
+      - .github/workflows/v365-fix-draft-a4-header-containment.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v365-mobile-editor-scroll-draft-templates
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Contain v365 Draft template mastheads inside A4
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          css_path=Path('src/styles/v337-template-layout-balance.css')
+          css=css_path.read_text()
+          marker='/* v365 template mastheads stay inside the paddingless Draft A4 sheet. */'
+          rule='''/* v365 template mastheads stay inside the paddingless Draft A4 sheet. */\n.draft-letter-page[class*="template-"] .letterhead-header{\n  margin-inline:0!important;\n  margin-top:0!important;\n}\n\n'''
+          if marker not in css:
+              anchor='\n@media print {\n'
+              if anchor not in css:
+                  raise SystemExit('Missing Draft A4 print anchor; refusing broad CSS rewrite')
+              css=css.replace(anchor,'\n'+rule+'@media print {\n',1)
+              css_path.write_text(css)
+
+          test_path=Path('tests/v337-template-layout-site-pass.test.mjs')
+          test=test_path.read_text()
+          assertion='  assert.match(css,/\\.draft-letter-page\\[class\\*=\\"template-\\"\\] \\.letterhead-header\\{[\\s\\S]*?margin-inline:0!important;[\\s\\S]*?margin-top:0!important;/);\n'
+          if assertion not in test:
+              anchor="  assert.match(css,/\\.draft-letter-page\\{[\\s\\S]*display:grid!important[\\s\\S]*grid-template-rows:auto minmax\\(0,1fr\\) auto!important/);\n"
+              if anchor not in test:
+                  raise SystemExit('Missing Draft A4 contract anchor; refusing broad test rewrite')
+              test=test.replace(anchor,anchor+assertion,1)
+              test_path.write_text(test)
+          PY
+          git diff --check
+          node --test tests/v337-template-layout-site-pass.test.mjs tests/v365-mobile-editor-scroll-draft-templates.test.mjs
+          git diff -- src/styles/v337-template-layout-balance.css tests/v337-template-layout-site-pass.test.mjs
+          git config user.name "lourex-v365-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/styles/v337-template-layout-balance.css tests/v337-template-layout-site-pass.test.mjs
+          git commit -m "v365 contain Draft template mastheads inside A4"
+          git push origin HEAD:fix/v365-mobile-editor-scroll-draft-templates
