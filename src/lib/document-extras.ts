@@ -41,7 +41,7 @@ export function defaultLetterBlock(type:LetterBlock['type']='paragraph',text='')
   return {
     id:makeId('block'),type,text,direction:'auto',align:'start',font:'system',
     size:heading?24:sub?17:14,color:'#17323a',bold:heading||sub,italic:false,underline:false,
-    lineHeight:heading?1.25:sub?1.45:1.65,spacingBefore:heading?14:sub?10:4,spacingAfter:heading?10:sub?8:8
+    lineHeight:heading?1.25:1.65,spacingBefore:heading?14:sub?10:4,spacingAfter:heading?10:sub?8:8
   };
 }
 
