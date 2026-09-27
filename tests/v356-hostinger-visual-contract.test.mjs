@@ -101,6 +101,12 @@ test('v359 consolidates the visible identity onto the canonical blue tokens',()=
   assert.match(precision,/\.ta-auth-tabs button\.is-active\{[\s\S]*?color:var\(--ft-accent\)!important/);
 });
 
+test('v359 mobile global search sizes to content instead of reserving an empty lower half',()=>{
+  assert.match(precision,/@media screen and \(max-width:900px\)[\s\S]*?\.global-search-panel\{[\s\S]*?height:auto!important[\s\S]*?min-height:0!important[\s\S]*?max-height:min\(82dvh,680px\)!important/);
+  assert.match(precision,/:is\(\.global-search-start,\.global-search-results\)\{[\s\S]*?flex:0 1 auto!important[\s\S]*?min-height:0!important[\s\S]*?overflow-y:auto!important/);
+  assert.match(precision,/\.global-search-empty\{min-height:180px!important;\}/);
+});
+
 test('v359 remains cosmetic and leaves the canonical reliability ladder untouched',()=>{
   assert.doesNotMatch(precision,/--lourex-z-/);
   assert.doesNotMatch(precision,/z-index\s*:/i);
