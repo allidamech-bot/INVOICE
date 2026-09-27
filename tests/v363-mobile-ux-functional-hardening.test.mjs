@@ -77,6 +77,12 @@ test('runtime refresh and sign-out safety recognizes the current inventory works
   assert.match(runtime, /return manualInventoryDraftOpen\(\)/);
 });
 
+test('pull-to-refresh cannot start inside the current TailAdmin operations workspace', async () => {
+  const pull = await read('public/pull-to-refresh.js');
+  assert.match(pull, /blockedTarget=.*\.ta-operations-page/);
+  assert.match(pull, /document\.querySelector\('[^']*\.ta-operations-page[^']*'\)\)return false/);
+});
+
 test('reports keep phone filters and labeled-record tables within the final mobile contract', async () => {
   const css = await read('src/styles/mobile-ux-functional-hardening-v363.css');
   const reports = await read('src/components/ReportsPage.tsx');
