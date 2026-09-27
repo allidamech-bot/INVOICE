@@ -47,13 +47,13 @@ function firstPageCapacity(doc:LourexDocument):number{
     ...visibleIdentityValues(doc,supplier?.nameEn??'',supplier?.nameAr??''),supplier?.address??'',supplier?.city??'',supplier?.country??'',supplier?.phone??'',supplier?.email??'',supplier?.vatTaxNumber??'',supplier?.commercialRegistration??'',doc.supplierReference??''
   ].map(value=>value.trim()).filter(Boolean);
   const chars=values.reduce((sum,value)=>sum+value.length,0);
-  const pressure=chars+values.length*18+(doc.language==='bilingual'?120:0);
-  if(pressure>1600)return 2;
-  if(pressure>1300)return 3;
-  if(pressure>950)return 4;
-  if(pressure>700)return 5;
-  if(pressure>500)return 6;
-  return 7;
+  const pressure=chars+values.length*18+(doc.language==='bilingual'?140:0);
+  if(pressure>2200)return 4;
+  if(pressure>1800)return 5;
+  if(pressure>1450)return 6;
+  if(pressure>1150)return 7;
+  if(pressure>850)return 8;
+  return 10;
 }
 
 function displayedItemText(doc:LourexDocument,descriptionEn:string,descriptionAr:string):string{
@@ -81,7 +81,7 @@ function termKind(key:string):DocumentValueKind{
 function displayedClosingValues(doc:LourexDocument):string[]{
   if(!documentUsesCommercialDefaults(doc.kind))return[];
   const t=doc.terms;
-  const rows:Array<[string,string]>=[['Incoterm',t.incoterm],['Payment Terms',t.paymentTerms],['Packing',t.packing],['Delivery Time',t.deliveryTime],['Port of Loading',t.portOfLoading],['Final Destination',t.finalDestination],['Country of Origin',t.countryOfOrigin],['Validity',t.validity],['Remarks',t.remarks]];
+  const rows:Array<[string,string]>=[['Incoterm',t.incoterm],['Payment Terms',t.paymentTerms],['Packing',t.packing],['Delivery Time',t.deliveryTime],['Port of Loading',t.portOfLoading],['Final Destination',t.finalDestination],['Country of Origin',t.countryOfOrigin],...(doc.kind==='purchase-order'?[]:[['Validity',t.validity] as [string,string]]),['Remarks',t.remarks]];
   return rows.map(([key,value])=>documentDisplayValue(value,doc.language,termKind(key))).filter(Boolean);
 }
 
@@ -95,16 +95,16 @@ function usesSeparateDetailsPage(doc:LourexDocument):boolean{
   const adjustments=[doc.adjustments.discountEnabled,doc.adjustments.shippingEnabled,doc.adjustments.otherChargesEnabled,doc.adjustments.taxEnabled].filter(Boolean).length;
   const score=termsCount+(notes?3:0)+(bank?4:0)+(signing?3:0)+adjustments;
 
-  const hardOverflow=detailsChars>1400||values.some(value=>value.length>520)||notes.length>900;
+  const hardOverflow=detailsChars>1900||values.some(value=>value.length>700)||notes.length>1200;
   if(hardOverflow)return true;
 
-  const complexClosing=score>=10||detailsChars>700||values.some(value=>value.length>260)||notes.length>420;
-  if(!complexClosing)return false;
+  const exceptionalClosing=detailsChars>1300||values.some(value=>value.length>500)||notes.length>820||(score>=24&&detailsChars>900);
+  if(!exceptionalClosing)return false;
 
   const tentative=paginateItems(doc.items,true,firstPageCapacity(doc),doc.language,item=>itemWeight(doc,item));
   const last=tentative[tentative.length-1]??[];
   const lastWeight=last.reduce((sum,item)=>sum+itemWeight(doc,item),0);
-  const allowedLastWeight=score>=16?2:score>=13?3:5;
+  const allowedLastWeight=detailsChars>1650?1:detailsChars>1400?2:3;
   return lastWeight>allowedLastWeight;
 }
 
