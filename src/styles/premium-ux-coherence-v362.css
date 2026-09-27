@@ -129,6 +129,19 @@
   }
 
   @media (max-width:900px) {
+    /* Arabic page headings read from the right edge on phones, not centered. */
+    html[dir="rtl"] body .app-ui .ta-documents-header>div:first-child {
+      width:100%!important;
+      align-items:flex-start!important;
+      text-align:right!important;
+    }
+    html[dir="rtl"] body .app-ui .ta-documents-header>div:first-child>:is(.ta-documents-eyebrow,h1,p) {
+      display:block!important;
+      align-self:stretch!important;
+      width:100%!important;
+      text-align:right!important;
+    }
+
     html[data-ui-theme="dark"] body .app-ui :is(.ta-kpi-card,.ta-dashboard-card,.ta-doc-summary-grid>button,.ta-customer-card,.ta-customers-summary>div,.ta-products-overview>div,.ta-product-editor-section,.premium-item-card,.ta-ops-metrics>div,.ta-ops-summary>div,.ta-finance-kpi,.ta-report-kpi,.ta-report-filterbar,.ta-settings-card,.ta-customer-form-section),
     html[data-ui-theme="dark"] body .modal:has(.ta-customer-form) .ta-customer-form-section {
       background-image:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,0) 55%)!important;
