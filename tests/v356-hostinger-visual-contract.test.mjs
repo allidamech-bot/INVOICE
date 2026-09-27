@@ -39,7 +39,7 @@ test('v356 closes the loaded-app canvas, account grid and mobile settings contra
 test('canonical application palette is violet in both light and dark modes',()=>{
   assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-accent:#673de6!important/);
   assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-accent:#9279ff!important/);
-  assert.match(palette,/html\[data-ui-theme\] body \.app-ui \.ta-shell,[\s\S]*?background-color:var\(--ft-workspace\)!important/);
+  assert.match(palette,/html\[data-ui-theme\] body \.app-ui \.ta-shell,[\s\S]*?background:var\(--ft-workspace\)!important/);
   assert.match(coherence,/\.ta-kpi-card:first-child \.ta-kpi-icon\{[\s\S]*?background:var\(--ft-accent\)!important/);
 });
 
