@@ -350,7 +350,7 @@ export interface LetterBlock {
 }
 
 export interface LetterDocumentData {
-  preset: 'blank' | 'formal-letter' | 'memo' | 'notice';
+  preset: 'blank' | 'formal-letter' | 'company-letter' | 'letter-of-intent' | 'memo' | 'notice';
   recipient: string;
   attention: string;
   subject: string;
