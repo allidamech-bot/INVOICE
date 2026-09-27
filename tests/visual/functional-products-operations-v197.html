@@ -12,6 +12,12 @@ const params=new URLSearchParams(location.search);
 const lang=params.get('lang')==='ar'?'ar':'en';
 const mode=params.get('mode')||'products';
 setUiLanguage(lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+/* The v363 WebKit-320 geometry audit intentionally opens several fresh editors in
+   sequence. Accept the real synchronous discard guard there exactly as a user
+   pressing OK would, so the audit verifies that each sheet actually releases the
+   viewport before the next tab is touched instead of force-clicking through it. */
+window.confirmAttempts=0;
+if(window.innerWidth<=320)window.confirm=()=>{window.confirmAttempts+=1;return true;};
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const now='2026-09-10T12:00:00.000Z';
 const product={id:'product-v197',createdAt:now,updatedAt:now,sku:'SKU-V197',descriptionEn:'Audit Product',descriptionAr:'صنف التدقيق',hsCode:'220299',origin:'Türkiye',packing:'12 pcs',unit:'PCS',lastUnitPrice:'10.00',lastCurrency:'USD',lastUnitCost:'5.00',lastCostCurrency:'USD',usageCount:1,lastUsedAt:now,category:'Audit',tags:['qa'],favorite:false};
