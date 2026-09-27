@@ -57,6 +57,7 @@ test('v358 canonical application palette is premium blue in both themes',()=>{
   assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-workspace:#F5F7FB!important[\s\S]*?--ft-accent:#315DA8!important/);
   assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-workspace:#101722!important[\s\S]*?--ft-accent:#82A9EC!important/);
   assert.match(palette,/--ft-on-accent:#101722!important/,'dark primary actions must use readable dark ink on the light-blue accent');
+  assert.match(palette,/html\[data-ui-theme="dark"\] body \.ta-auth-page :where\(\.ta-auth-primary,\.btn-primary,button\.btn-primary\)\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important[\s\S]*?color:var\(--ft-on-accent\)!important/,'dark auth primary must override retired violet gradient with canonical blue');
   assert.match(blue,/--hx-purple:var\(--ft-accent\)/,'retired Hostinger violet aliases must resolve to the blue application token');
   assert.match(html,/--boot-visual-accent:#315DA8/);
   assert.match(html,/--boot-visual-accent:#82A9EC/);
