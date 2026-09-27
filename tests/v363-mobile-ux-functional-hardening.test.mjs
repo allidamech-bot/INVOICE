@@ -23,11 +23,12 @@ test('production build inlines every v363 owner before the final reliability bri
   assert.match(helper, /late @import remains/);
 });
 
-test('v363 deep audit keeps primary actions on the current accent and bounds retained import flows', async () => {
+test('v363 deep audit keeps primary actions on the current accent, prevents Safari AI zoom and bounds retained import flows', async () => {
   const css = await read('src/styles/mobile-ux-deep-audit-v363.css');
   assert.match(css, /\.btn\.btn-primary,button\.btn-primary/);
   assert.match(css, /background:var\(--ft-accent,#315da8\)!important/);
   assert.match(css, /background-image:none!important/);
+  assert.match(css, /\.lourex-ai-compose input\{[\s\S]*font-size:16px!important/);
   assert.match(css, /\.modal-backdrop:has\(\.product-import-shell\)/);
   assert.match(css, /\.modal-backdrop:has\(\.supplier-import-shell\)/);
   assert.match(css, /max-height:min\(88svh,820px\)!important/);
@@ -145,6 +146,8 @@ test('pull-to-refresh cannot start inside current operations or dirty product wo
 
 test('current WebKit browser QA physically opens and measures the critical 320px business editors', async () => {
   const browser = await read('tests/visual/run-v326-business-workspaces.cjs');
+  const operationsFixture = await read('tests/visual/functional-products-operations-v197.html');
+  const importFixture = await read('tests/visual/import-final-audit-v267.html');
   assert.match(browser, /deepMobileAudit/);
   assert.match(browser, /engineName!==['"]webkit['"]\|\|scenario\.name!==['"]iphone320-light['"]/);
   assert.match(browser, /\.modal:has\(\.ta-customer-form\)/);
@@ -156,6 +159,8 @@ test('current WebKit browser QA physically opens and measures the critical 320px
   assert.match(browser, /assertPrimaryAccent/);
   assert.match(browser, /fontSize<15\.5/);
   assert.match(browser, /footer fell below viewport after scroll/);
+  assert.match(operationsFixture, /window\.innerWidth<=320\)window\.confirm=\(\)=>\{window\.confirmAttempts\+=1;return true;\}/);
+  assert.match(importFixture, /data-ui-theme="light" data-ui-theme-preference="light"/);
 });
 
 test('reports keep phone filters and labeled-record tables within the final mobile contract', async () => {
