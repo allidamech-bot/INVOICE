@@ -18,14 +18,18 @@ test('v364 commercial templates keep the closing zone anchored and premium',asyn
 test('v364 pagination keeps routine commercial closing content with item pages',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   const documents=await read('src/lib/documents.ts');
-  assert.match(renderer,/if\(pressure>2200\)return 4;/);
-  assert.match(renderer,/if\(pressure>850\)return 8;/);
-  assert.match(renderer,/return 10;/);
+  const quality=await read('src/lib/document-quality.ts');
+  for(const source of [renderer,quality]){
+    assert.match(source,/if\(pressure>2200\)return 4;/);
+    assert.match(source,/if\(pressure>850\)return 8;/);
+    assert.match(source,/return 10;/);
+    assert.match(source,/const hardOverflow=detailsChars>1900/);
+    assert.match(source,/const exceptionalClosing=detailsChars>1300/);
+    assert.match(source,/\|\|\(score>=24&&detailsChars>900\)/);
+    assert.match(source,/const allowedLastWeight=detailsChars>1650\?1:detailsChars>1400\?2:3;/);
+    assert.doesNotMatch(source,/exceptionalClosing=score>=18/);
+  }
   assert.match(documents,/Math\.min\(10,Math\.trunc\(firstPageCapacity\)\|\|7\)/);
-  assert.match(renderer,/const hardOverflow=detailsChars>1900/);
-  assert.match(renderer,/const exceptionalClosing=detailsChars>1300/);
-  assert.match(renderer,/\|\|\(score>=24&&detailsChars>900\)/);
-  assert.match(renderer,/const allowedLastWeight=detailsChars>1650\?1:detailsChars>1400\?2:3;/);
-  assert.doesNotMatch(renderer,/exceptionalClosing=score>=18/);
   assert.match(renderer,/const itemPages = paginateItems\(outputItems, !separateDetails,/);
+  assert.match(quality,/const itemPages=paginateItems\(doc\.items,!separateDetails,/);
 });
