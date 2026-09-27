@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" dir="ltr">
+<html lang="en" dir="ltr" data-ui-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -56,8 +56,8 @@
     </div>
   </main>
 <script>
-  const q=new URLSearchParams(location.search),lang=q.get('lang')==='ar'?'ar':'en',mode=q.get('mode')==='create'?'create':'signin',ar=lang==='ar',create=mode==='create';
-  document.documentElement.lang=lang;document.documentElement.dir=ar?'rtl':'ltr';
+  const q=new URLSearchParams(location.search),lang=q.get('lang')==='ar'?'ar':'en',mode=q.get('mode')==='create'?'create':'signin',theme=q.get('theme')==='dark'?'dark':'light',ar=lang==='ar',create=mode==='create';
+  document.documentElement.lang=lang;document.documentElement.dir=ar?'rtl':'ltr';document.documentElement.dataset.uiTheme=theme;
   document.querySelectorAll('[data-en][data-ar]').forEach(el=>el.textContent=el.dataset[lang]);
   const gateway=document.getElementById('gateway');gateway.className=`ta-auth-page ${create?'is-create':'is-signin'}`;
   document.getElementById('account-tab-signin').classList.toggle('is-active',!create);document.getElementById('account-tab-create').classList.toggle('is-active',create);

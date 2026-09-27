@@ -5,12 +5,14 @@ const baseUrl='http://127.0.0.1:4173/tests/visual/premium-auth-gateway-v187.html
 const reportDir='visual-qa-output';
 const reportPath=`${reportDir}/tailadmin-auth-gateway-v320.json`;
 const cases=[
-  {width:1440,height:900,lang:'en',mode:'signin',label:'desktop EN sign in'},
-  {width:1280,height:800,lang:'ar',mode:'create',label:'desktop AR create'},
-  {width:820,height:1180,lang:'ar',mode:'signin',label:'tablet AR sign in'},
-  {width:430,height:932,lang:'ar',mode:'signin',label:'large iPhone AR sign in'},
-  {width:390,height:844,lang:'en',mode:'create',label:'iPhone EN create'},
-  {width:320,height:568,lang:'ar',mode:'signin',label:'small phone AR sign in'}
+  {width:1440,height:900,lang:'en',mode:'signin',theme:'light',label:'desktop EN sign in'},
+  {width:1280,height:800,lang:'ar',mode:'create',theme:'light',label:'desktop AR create'},
+  {width:820,height:1180,lang:'ar',mode:'signin',theme:'light',label:'tablet AR sign in'},
+  {width:430,height:932,lang:'ar',mode:'signin',theme:'light',label:'large iPhone AR sign in'},
+  {width:390,height:844,lang:'en',mode:'create',theme:'light',label:'iPhone EN create'},
+  {width:320,height:568,lang:'ar',mode:'signin',theme:'light',label:'small phone AR sign in'},
+  {width:1440,height:900,lang:'en',mode:'signin',theme:'dark',label:'desktop EN dark sign in'},
+  {width:430,height:932,lang:'ar',mode:'signin',theme:'dark',label:'large iPhone AR dark sign in'}
 ];
 
 const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1);
@@ -24,10 +26,10 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
     for(const scenario of cases){
       const mobile=scenario.width<=900;
       const page=await browser.newPage({viewport:{width:scenario.width,height:scenario.height},hasTouch:scenario.width<=600,isMobile:scenario.width<=600});
-      const url=`${baseUrl}?lang=${scenario.lang}&mode=${scenario.mode}`;
+      const url=`${baseUrl}?lang=${scenario.lang}&mode=${scenario.mode}&theme=${scenario.theme}`;
       await page.goto(url,{waitUntil:'networkidle'});
       await page.waitForTimeout(80);
-      const result=await page.evaluate(({mode,lang})=>{
+      const result=await page.evaluate(({mode,lang,theme})=>{
         const rectData=r=>({left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height});
         const box=selector=>{
           const el=document.querySelector(selector);if(!el)return null;
@@ -40,9 +42,12 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
           return Array.from(range.getClientRects()).filter(r=>r.width>0&&r.height>0).map(rectData);
         });
         const fields=Array.from(document.querySelectorAll('.ta-auth-fields input')).map(el=>rectData(el.getBoundingClientRect()));
+        const primary=document.querySelector('.ta-auth-primary');
+        const primaryStyle=primary?getComputedStyle(primary):null;
         return {
           dir:document.documentElement.dir,
           lang:document.documentElement.lang,
+          theme:document.documentElement.dataset.uiTheme,
           viewport:{width:innerWidth,height:innerHeight},
           scrollWidth:document.documentElement.scrollWidth,
           scrollHeight:document.documentElement.scrollHeight,
@@ -52,13 +57,20 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
           google:box('.ta-google-button'),providerDivider:box('.ta-auth-divider'),
           tabs:box('.ta-auth-tabs'),signinTab:box('#account-tab-signin'),createTab:box('#account-tab-create'),primary:box('.ta-auth-primary'),forgot:box('#forgot'),
           confirm:box('#confirm-field'),security:box('.ta-auth-security'),fields,
-          mode,expectedLang:lang
+          primaryBackground:primaryStyle?.backgroundColor||'',
+          primaryColor:primaryStyle?.color||'',
+          mode,expectedLang:lang,expectedTheme:theme
         };
-      },{mode:scenario.mode,lang:scenario.lang});
+      },{mode:scenario.mode,lang:scenario.lang,theme:scenario.theme});
       scenarios.push({scenario,result});
       const p=`${scenario.label} ${scenario.width}x${scenario.height}`;
       if(result.dir!==(scenario.lang==='ar'?'rtl':'ltr'))failures.push(`${p}: wrong direction ${result.dir}`);
       if(result.lang!==scenario.lang)failures.push(`${p}: wrong lang ${result.lang}`);
+      if(result.theme!==scenario.theme)failures.push(`${p}: wrong theme ${result.theme}`);
+      const expectedPrimary=scenario.theme==='dark'?'rgb(130, 169, 236)':'rgb(49, 93, 168)';
+      const expectedPrimaryInk=scenario.theme==='dark'?'rgb(16, 23, 34)':'rgb(255, 255, 255)';
+      if(result.primaryBackground!==expectedPrimary)failures.push(`${p}: primary action is not canonical blue (${result.primaryBackground}, expected ${expectedPrimary})`);
+      if(result.primaryColor!==expectedPrimaryInk)failures.push(`${p}: primary action contrast ink mismatch (${result.primaryColor}, expected ${expectedPrimaryInk})`);
       if(result.scrollWidth>scenario.width+1)failures.push(`${p}: horizontal overflow ${result.scrollWidth}px > ${scenario.width}px`);
       for(const key of ['frame','main','card','languageButton','heading','google','providerDivider','tabs','signinTab','createTab','primary','security'])if(!result[key]||result[key].display==='none'||result[key].visibility==='hidden')failures.push(`${p}: missing/hidden ${key}`);
       if(result.frame&&(result.frame.left<-1||result.frame.right>scenario.width+1))failures.push(`${p}: gateway frame clips horizontally`);
@@ -80,7 +92,8 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
         if(!result.aside||result.aside.display==='none')failures.push(`${p}: desktop auth aside missing`);
         if(intersects(result.aside,result.main))failures.push(`${p}: desktop aside and form overlap`);
       }
-      await page.screenshot({path:`${reportDir}/tailadmin-auth-${scenario.width}-${scenario.lang}-${scenario.mode}.png`,fullPage:true});
+      const themeSuffix=scenario.theme==='light'?'':`-${scenario.theme}`;
+      await page.screenshot({path:`${reportDir}/tailadmin-auth-${scenario.width}-${scenario.lang}-${scenario.mode}${themeSuffix}.png`,fullPage:true});
       await page.close();
     }
   }finally{await browser.close();}

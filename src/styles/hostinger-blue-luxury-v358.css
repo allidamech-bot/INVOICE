@@ -1,0 +1,332 @@
+/* LOUREX v358 — Premium Blue visual system.
+ * Presentation/UX only. Firebase/Auth, PIN/encryption, persistence, cloud logic,
+ * accounting, document lifecycle, attachments and printable A4 output are untouched.
+ *
+ * Design contract:
+ * - enterprise blue is used sparingly for the primary action, active state and focus
+ * - three quiet surface levels, one light border, shadows only when elevation matters
+ * - mobile information density is reduced before decorative effects are added
+ * - Arabic remains first-class; financial identifiers keep their own LTR isolation
+ */
+
+@media screen {
+  :root{
+    /* Compatibility aliases for the retired violet Hostinger layers. */
+    --hx-purple:var(--ft-accent);
+    --hx-purple-strong:var(--ft-accent-hover);
+    --hx-purple-deep:#1f447f;
+    --hx-violet:#82a9ec;
+    --hx-lilac:var(--ft-accent-soft);
+    --hx-lilac-2:var(--ft-accent-faint);
+    --hx2-violet:var(--ft-accent);
+    --hx2-violet-2:#4e78bd;
+    --hx2-violet-3:#82a9ec;
+    --hx2-accent-soft:var(--ft-accent-soft);
+
+    --lbx-space-1:4px;
+    --lbx-space-2:8px;
+    --lbx-space-3:12px;
+    --lbx-space-4:16px;
+    --lbx-space-5:20px;
+    --lbx-space-6:24px;
+    --lbx-space-7:32px;
+    --lbx-space-8:40px;
+    --lbx-radius-control:12px;
+    --lbx-radius-card:18px;
+    --lbx-radius-panel:20px;
+    --lbx-radius-sheet:24px;
+    --lbx-shadow-card:0 2px 12px rgba(22,40,68,.045);
+    --lbx-shadow-menu:0 12px 32px rgba(16,30,52,.14);
+    --lbx-shadow-modal:0 24px 64px rgba(10,22,40,.22);
+    --lbx-shadow-nav:0 8px 28px rgba(17,35,61,.12);
+  }
+
+  /* Calm blue atmosphere, never a purple/neon wash. */
+  html[data-ui-theme="light"] body{
+    background:
+      radial-gradient(760px 340px at 12% -120px,rgba(49,93,168,.055),transparent 72%),
+      radial-gradient(620px 300px at 94% -140px,rgba(130,169,236,.045),transparent 74%),
+      var(--ft-workspace)!important;
+  }
+  html[data-ui-theme="dark"] body{
+    background:
+      radial-gradient(820px 360px at 10% -130px,rgba(70,111,176,.11),transparent 72%),
+      radial-gradient(620px 300px at 96% -150px,rgba(130,169,236,.055),transparent 74%),
+      var(--ft-workspace)!important;
+  }
+  html[data-ui-theme] body .app-ui .ta-main{
+    background:
+      radial-gradient(780px 300px at 14% -170px,color-mix(in srgb,var(--ft-accent) 5%,transparent),transparent 72%),
+      var(--ft-workspace)!important;
+  }
+
+  ::selection{background:color-mix(in srgb,var(--ft-accent) 22%,transparent)!important;}
+
+  /* Type hierarchy. Arabic spacing is solved with layout, never by shrinking type. */
+  html[lang="ar"] body,
+  html[dir="rtl"] body{font-family:"Noto Sans Arabic",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;}
+  .app-ui :where(.ta-dashboard-heading h1,.ta-documents-header h1,.ta-customers-header h1,.ta-products-workspace-header h1,.ta-ops-page-header h1,.ta-page-header h1){
+    color:var(--ft-text-strong)!important;
+    font-size:26px!important;
+    line-height:1.4!important;
+    font-weight:700!important;
+    letter-spacing:-.02em!important;
+  }
+  [dir="rtl"] .app-ui :where(.ta-dashboard-heading h1,.ta-documents-header h1,.ta-customers-header h1,.ta-products-workspace-header h1,.ta-ops-page-header h1,.ta-page-header h1){letter-spacing:0!important;}
+  .app-ui :where(.ta-card-header h2,.ta-doc-panel h2,.ta-settings-card h3,.lourex-advisor-identity h2){font-weight:700!important;}
+  .app-ui :where(.ta-doc-row-amount,.ta-kpi-money-stack,.ta-doc-detail-total,.money,.amount,bdi){font-variant-numeric:tabular-nums!important;}
+
+  /* Shell: less chrome, more usable canvas. */
+  html body .app-ui .ta-shell{grid-template-columns:256px minmax(0,1fr)!important;grid-template-rows:68px minmax(0,1fr)!important;}
+  html[dir="rtl"] body .app-ui .ta-shell{grid-template-columns:minmax(0,1fr) 256px!important;}
+  html body .app-ui .ta-sidebar{width:256px!important;min-width:256px!important;padding:0 12px 14px!important;background:color-mix(in srgb,var(--ft-shell) 97%,transparent)!important;border-color:var(--ft-line)!important;box-shadow:none!important;}
+  html body .app-ui .ta-sidebar-brand-row{height:68px!important;min-height:68px!important;padding-inline:4px!important;}
+  html body .app-ui .ta-sidebar-create{margin:4px 2px 16px!important;}
+  html body .app-ui .ta-sidebar-create>.ta-create-button{
+    min-height:44px!important;border-radius:12px!important;border-color:var(--ft-accent)!important;
+    background:var(--ft-accent)!important;background-image:none!important;color:var(--ft-on-accent)!important;
+    box-shadow:0 7px 18px color-mix(in srgb,var(--ft-accent) 15%,transparent)!important;
+  }
+  html body .app-ui .ta-sidebar-create>.ta-create-button:hover{background:var(--ft-accent-hover)!important;background-image:none!important;box-shadow:0 9px 22px color-mix(in srgb,var(--ft-accent) 18%,transparent)!important;transform:none!important;}
+  html body .app-ui .ta-nav-section{gap:2px!important;margin-bottom:14px!important;}
+  html body .app-ui .ta-nav-section>p{margin:8px 0 5px!important;padding-inline:10px!important;color:var(--ft-faint)!important;font-size:11px!important;line-height:18px!important;font-weight:600!important;}
+  html body .app-ui .ta-nav-item,html body .app-ui .ta-sidebar-utility{min-height:42px!important;border-radius:10px!important;font-size:14px!important;font-weight:550!important;}
+  html body .app-ui .ta-nav-item.is-active{border-color:transparent!important;background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;box-shadow:none!important;}
+  html body .app-ui .ta-nav-item.is-active .ta-nav-icon{background:transparent!important;color:var(--ft-accent)!important;}
+  html body .app-ui .ta-sidebar-footer{gap:4px!important;padding-top:11px!important;}
+  html body .app-ui .ta-sidebar-account{margin:5px 0 0!important;border-color:transparent!important;background:transparent!important;border-radius:12px!important;box-shadow:none!important;}
+  html body .app-ui .ta-sidebar-account:hover{border-color:var(--ft-line)!important;background:var(--ft-surface-2)!important;box-shadow:none!important;}
+
+  /* Cloud status belongs to Settings/Account. Conflict warnings remain independently visible. */
+  html body .app-ui :where(.ta-sidebar-sync,.ta-topbar-sync,.ta-sheet-sync){display:none!important;}
+
+  html body .app-ui .ta-topbar{height:68px!important;min-height:68px!important;padding-inline:28px!important;background:color-mix(in srgb,var(--ft-shell) 96%,transparent)!important;border-bottom:1px solid var(--ft-line)!important;box-shadow:none!important;backdrop-filter:blur(18px) saturate(1.08)!important;-webkit-backdrop-filter:blur(18px) saturate(1.08)!important;}
+  html body .app-ui .ta-page-title strong{font-size:18px!important;line-height:24px!important;font-weight:700!important;}
+  html body .app-ui .ta-page-title small{font-size:11px!important;}
+  html body .app-ui .ta-search-trigger{width:min(400px,34vw)!important;min-width:280px!important;height:44px!important;min-height:44px!important;border-radius:12px!important;border-color:var(--ft-line)!important;background:var(--ft-input)!important;box-shadow:none!important;transform:none!important;}
+  html body .app-ui .ta-search-trigger:hover{border-color:var(--ft-line-strong)!important;background:var(--ft-surface)!important;box-shadow:var(--lbx-shadow-card)!important;transform:none!important;}
+  html body .app-ui .ta-search-trigger .icon{color:var(--ft-accent)!important;}
+  html body .app-ui :where(.ta-theme-control,.ta-topbar-account){border-radius:12px!important;box-shadow:none!important;}
+
+  /* Main canvas and generic surfaces. */
+  html body .app-ui :where(.ta-finance-dashboard,.ta-documents-page,.ta-doc-detail-page,.ta-customers-page,.ta-customer-profile,.ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page){
+    width:100%!important;max-width:1360px!important;margin-inline:auto!important;padding-inline:36px!important;
+  }
+  html body .app-ui :where(.ta-kpi-card,.ta-dashboard-card,.ta-doc-register-card,.ta-doc-panel,.ta-customers-register,.ta-customer-card,.ta-product-register,.ta-product-editor,.ta-ops-list-card,.ta-ops-editor-card,.ta-panel,.ta-report-filterbar,.ta-settings-card,.ta-finance-kpi,.ta-report-kpi,.editor-section){
+    border:1px solid var(--ft-line)!important;border-radius:var(--lbx-radius-card)!important;background:var(--ft-surface)!important;box-shadow:none!important;
+  }
+  html body .app-ui :where(.ta-kpi-card,.ta-customer-card,.ta-product-metrics>button,.ta-ops-metrics>div):hover{border-color:var(--ft-line-strong)!important;background:var(--ft-surface)!important;box-shadow:var(--lbx-shadow-card)!important;transform:none!important;}
+
+  /* Controls: one blue primary action, neutral secondary controls. */
+  html body .app-ui :where(.btn-primary,.ta-create-button,.ta-card-primary-action){background:var(--ft-accent)!important;background-image:none!important;border-color:var(--ft-accent)!important;color:var(--ft-on-accent)!important;box-shadow:none!important;}
+  html body .app-ui :where(.btn-primary,.ta-create-button,.ta-card-primary-action):hover:not(:disabled){background:var(--ft-accent-hover)!important;background-image:none!important;border-color:var(--ft-accent-hover)!important;box-shadow:none!important;transform:none!important;}
+  html body .app-ui :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea,.input){min-height:44px!important;border-radius:12px!important;border-color:var(--ft-line)!important;background:var(--ft-input)!important;box-shadow:none!important;}
+  html body .app-ui :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea,.input):focus{border-color:var(--ft-accent)!important;outline:0!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent) 14%,transparent)!important;}
+  html body .app-ui :where(button,a,input,select,textarea):focus-visible{outline:2px solid color-mix(in srgb,var(--ft-accent) 70%,transparent)!important;outline-offset:2px!important;}
+
+  /* Dashboard: compact hero, denser financial overview and quiet AI. */
+  html body .app-ui .ta-finance-dashboard{gap:20px!important;padding-top:28px!important;padding-bottom:48px!important;}
+  html body .app-ui .ta-dashboard-header{margin:0!important;padding:20px 22px!important;border:1px solid var(--ft-line)!important;border-inline-start:1px solid var(--ft-line)!important;border-radius:20px!important;background:linear-gradient(135deg,color-mix(in srgb,var(--ft-accent) 4%,var(--ft-surface)),var(--ft-surface) 52%)!important;box-shadow:none!important;}
+  html[data-ui-theme="dark"] body .app-ui .ta-dashboard-header{background:linear-gradient(135deg,color-mix(in srgb,var(--ft-accent) 5%,var(--ft-surface)),var(--ft-surface) 56%)!important;}
+  html body .app-ui .ta-dashboard-eyebrow{color:var(--ft-accent)!important;font-size:12px!important;font-weight:650!important;}
+  html body .app-ui .ta-dashboard-heading p{max-width:680px!important;color:var(--ft-muted)!important;font-size:14px!important;line-height:1.65!important;}
+  html body .app-ui .ta-dashboard-header-actions{gap:10px!important;}
+  html body .app-ui .ta-period-chip{min-height:40px!important;border-radius:12px!important;background:var(--ft-surface-2)!important;box-shadow:none!important;}
+  html body .app-ui .ta-kpi-grid{gap:16px!important;}
+  html body .app-ui .ta-kpi-card{min-height:118px!important;padding:16px!important;border-radius:16px!important;box-shadow:none!important;}
+  html body .app-ui .ta-kpi-icon{width:38px!important;height:38px!important;border-radius:11px!important;background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;}
+  html body .app-ui .ta-kpi-card:first-child .ta-kpi-icon{background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;}
+  html body .app-ui .ta-kpi-copy>strong,html body .app-ui .ta-kpi-money-stack b{font-size:26px!important;line-height:1.25!important;font-weight:700!important;}
+  html body .app-ui .ta-dashboard-primary-grid{grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr)!important;gap:20px!important;}
+  html body .app-ui .ta-dashboard-secondary-grid{gap:20px!important;}
+  html body .app-ui .ta-card-header{min-height:62px!important;padding:15px 18px!important;}
+
+  html body .app-ui .lourex-advisor-card{border:1px solid var(--ft-line)!important;border-radius:20px!important;background:var(--ft-surface)!important;background-image:none!important;box-shadow:none!important;}
+  html body .app-ui .lourex-advisor-head{padding:16px 18px 8px!important;}
+  html body .app-ui .lourex-advisor-mark{background:var(--ft-accent-soft)!important;background-image:none!important;border-color:color-mix(in srgb,var(--ft-accent) 18%,var(--ft-line))!important;color:var(--ft-accent)!important;box-shadow:none!important;}
+  html body .app-ui .lourex-advisor-identity small{color:var(--ft-accent)!important;}
+  html body .app-ui .lourex-advisor-identity h2{font-size:18px!important;line-height:1.45!important;}
+  html body .app-ui .lourex-advisor-starters>button{background:var(--ft-surface-2)!important;border-color:var(--ft-line)!important;box-shadow:none!important;}
+  html body .app-ui .lourex-advisor-compose form{border-color:var(--ft-line)!important;background:var(--ft-input)!important;box-shadow:none!important;}
+
+  /* Documents: list/search is the task; creation lives in the existing New Document menu. */
+  html body .app-ui .ta-documents-page{padding-top:28px!important;padding-bottom:48px!important;}
+  html body .app-ui .ta-documents-header{gap:20px!important;}
+  html body .app-ui .ta-documents-header-actions .btn-primary{box-shadow:none!important;}
+  html body .app-ui .ta-doc-summary-grid{gap:12px!important;}
+  html body .app-ui .ta-doc-summary-grid>button{border-color:var(--ft-line)!important;background:var(--ft-surface)!important;border-radius:16px!important;box-shadow:none!important;}
+  html body .app-ui .ta-doc-summary-grid>button.is-active{border-color:color-mix(in srgb,var(--ft-accent) 24%,var(--ft-line))!important;background:var(--ft-accent-faint)!important;}
+  html body .app-ui .ta-doc-register-card{overflow:visible!important;border-radius:18px!important;}
+  html body .app-ui .ta-doc-type-tabs{scrollbar-width:none!important;}
+  html body .app-ui .ta-doc-type-tabs::-webkit-scrollbar{display:none!important;}
+  html body .app-ui .ta-doc-type-tabs>button{border-radius:10px!important;}
+  html body .app-ui .ta-doc-type-tabs>button.is-active{background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;box-shadow:none!important;}
+  html body .app-ui .ta-doc-commandbar{gap:10px!important;}
+  html body .app-ui .ta-doc-search{border-color:var(--ft-line)!important;border-radius:12px!important;background:var(--ft-input)!important;box-shadow:none!important;}
+  html body .app-ui .ta-doc-row{border-color:var(--ft-line)!important;}
+  html body .app-ui .ta-doc-row:hover{background:var(--ft-accent-faint)!important;}
+
+  /* Customers: data register first; empty state becomes the hero when there is no data. */
+  html body .app-ui .ta-customers-page{padding-top:28px!important;padding-bottom:48px!important;}
+  html body .app-ui .ta-customers-header>.btn{min-height:46px!important;}
+  html body .app-ui .ta-customers-summary{gap:12px!important;}
+  html body .app-ui .ta-customers-summary>div{border:1px solid var(--ft-line)!important;border-radius:16px!important;background:var(--ft-surface)!important;box-shadow:none!important;}
+  html body .app-ui .ta-customers-register{border-radius:18px!important;}
+  html body .app-ui .ta-customers-page:has(.ta-customers-empty) .ta-customers-summary{display:none!important;}
+  html body .app-ui .ta-customers-empty{min-height:300px!important;border:0!important;background:transparent!important;}
+
+  /* Search: search/results are primary; quick creation is supporting content. */
+  html body .global-search-backdrop{background:rgba(11,22,38,.38)!important;backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important;}
+  html body .global-search-panel{width:min(760px,calc(100vw - 32px))!important;max-height:min(82dvh,760px)!important;border:1px solid var(--ft-line)!important;border-radius:20px!important;background:color-mix(in srgb,var(--ft-surface) 98%,transparent)!important;box-shadow:var(--lbx-shadow-modal)!important;overflow:hidden!important;}
+  html body .global-search-input-wrap{min-height:62px!important;border-bottom:1px solid var(--ft-line)!important;background:var(--ft-surface)!important;box-shadow:none!important;}
+  html body .global-search-input-wrap:focus-within{border-color:var(--ft-line)!important;box-shadow:inset 0 -2px 0 var(--ft-accent)!important;}
+  html body .global-search-start,html body .global-search-results{overflow:auto!important;overscroll-behavior:contain!important;}
+  html body .global-search-actions{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;}
+  html body .global-search-actions>button,html body .global-search-destinations>button,html body .global-search-result{border-color:var(--ft-line)!important;border-radius:14px!important;background:var(--ft-surface)!important;box-shadow:none!important;}
+  html body .global-search-actions>button:hover,html body .global-search-destinations>button:hover,html body .global-search-result:hover{border-color:var(--ft-line-strong)!important;background:var(--ft-accent-faint)!important;box-shadow:none!important;}
+  html body :where(.global-search-result-icon,.global-search-actions>button>.icon){background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;border-color:transparent!important;}
+  html body .global-search-footer{border-top:1px solid var(--ft-line)!important;background:var(--ft-surface-2)!important;}
+
+  /* Overlays and Settings. */
+  html body .app-ui .ta-overlay-backdrop{background:rgba(11,22,38,.36)!important;backdrop-filter:blur(7px)!important;-webkit-backdrop-filter:blur(7px)!important;}
+  html[data-ui-theme="dark"] body .app-ui .ta-overlay-backdrop{background:rgba(3,8,16,.58)!important;}
+  html body .app-ui .ta-create-menu,html body .app-ui .ta-mobile-sheet,html body .modal{border-color:var(--ft-line)!important;background:var(--ft-surface)!important;box-shadow:var(--lbx-shadow-modal)!important;}
+  html body .app-ui .ta-create-menu-grid>button{border:1px solid var(--ft-line)!important;background:var(--ft-surface)!important;box-shadow:none!important;}
+  html body .app-ui .ta-create-menu-grid>button:hover{border-color:var(--ft-line-strong)!important;background:var(--ft-accent-faint)!important;transform:none!important;box-shadow:none!important;}
+  html body .app-ui .ta-create-menu-grid>button>.icon{border-color:transparent!important;background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;}
+  html body .app-ui :where(.ta-settings-card,.ta-settings-sidebar,.ta-account-page){box-shadow:none!important;}
+  html body .app-ui .ta-settings-card{border-color:var(--ft-line)!important;background:var(--ft-surface)!important;}
+
+  /* Dark mode should feel layered, not outlined. */
+  html[data-ui-theme="dark"] body .app-ui :where(.ta-kpi-card,.ta-dashboard-card,.ta-doc-register-card,.ta-doc-panel,.ta-customers-register,.ta-customer-card,.ta-product-register,.ta-product-editor,.ta-ops-list-card,.ta-ops-editor-card,.ta-panel,.ta-settings-card,.lourex-advisor-card){border-color:color-mix(in srgb,var(--ft-line) 84%,transparent)!important;}
+}
+
+@media screen and (min-width:901px){
+  html body .app-ui .ta-main{scrollbar-gutter:stable!important;}
+  html body .app-ui .ta-dashboard-header-actions>.btn-primary{min-width:148px!important;}
+}
+
+@media screen and (max-width:1180px) and (min-width:901px){
+  html body .app-ui .ta-shell{grid-template-columns:244px minmax(0,1fr)!important;}
+  html[dir="rtl"] body .app-ui .ta-shell{grid-template-columns:minmax(0,1fr) 244px!important;}
+  html body .app-ui .ta-sidebar{width:244px!important;min-width:244px!important;}
+  html body .app-ui :where(.ta-finance-dashboard,.ta-documents-page,.ta-customers-page,.ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page){padding-inline:28px!important;}
+}
+
+@media screen and (max-width:900px){
+  html body .app-ui .ta-shell,html[dir="rtl"] body .app-ui .ta-shell{grid-template-rows:60px minmax(0,1fr)!important;padding-bottom:calc(82px + env(safe-area-inset-bottom,0px))!important;}
+  html body .app-ui .ta-topbar,html[dir="rtl"] body .app-ui .ta-topbar{height:60px!important;min-height:60px!important;padding:max(7px,env(safe-area-inset-top,0px)) 16px 7px!important;background:color-mix(in srgb,var(--ft-shell) 96%,transparent)!important;}
+  html body .app-ui .ta-mobile-brand>button,html body .app-ui .ta-search-trigger,html body .app-ui .ta-theme-control{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;border-radius:12px!important;}
+  html body .app-ui .ta-page-title strong{max-width:48vw!important;font-size:18px!important;line-height:24px!important;font-weight:700!important;}
+  html body .app-ui .ta-search-trigger{min-width:44px!important;padding:0!important;}
+  html body .app-ui .ta-search-trigger>span,html body .app-ui .ta-search-trigger kbd{display:none!important;}
+
+  html body .app-ui :where(.ta-finance-dashboard,.ta-documents-page,.ta-doc-detail-page,.ta-customers-page,.ta-customer-profile,.ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page){max-width:none!important;padding-inline:16px!important;padding-bottom:calc(100px + env(safe-area-inset-bottom,0px))!important;}
+
+  /* Mobile dashboard */
+  html body .app-ui .ta-finance-dashboard{gap:16px!important;padding-top:18px!important;}
+  html body .app-ui .ta-dashboard-header{display:flex!important;flex-direction:column!important;gap:14px!important;padding:18px!important;border-radius:18px!important;}
+  html body .app-ui .ta-dashboard-heading{gap:5px!important;}
+  html body .app-ui .ta-dashboard-heading h1{font-size:24px!important;line-height:1.4!important;}
+  html body .app-ui .ta-dashboard-heading p{font-size:13.5px!important;line-height:1.65!important;display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2!important;overflow:hidden!important;}
+  html body .app-ui .ta-dashboard-header-actions{width:100%!important;display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;gap:10px!important;}
+  html body .app-ui .ta-dashboard-header-actions .ta-period-chip{min-width:0!important;white-space:nowrap!important;}
+  html body .app-ui .ta-dashboard-header-actions>.btn-primary{width:100%!important;min-height:44px!important;}
+  html body .app-ui .ta-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important;}
+  html body .app-ui .ta-kpi-card{min-height:112px!important;grid-template-columns:36px minmax(0,1fr)!important;gap:10px!important;padding:14px!important;}
+  html body .app-ui .ta-kpi-icon{width:36px!important;height:36px!important;}
+  html body .app-ui .ta-kpi-copy>strong,html body .app-ui .ta-kpi-money-stack b{font-size:22px!important;line-height:1.28!important;}
+  html body .app-ui .ta-dashboard-primary-grid,html body .app-ui .ta-dashboard-secondary-grid{grid-template-columns:minmax(0,1fr)!important;gap:14px!important;}
+  html body .app-ui .lourex-advisor-card{border-radius:18px!important;}
+  html body .app-ui .lourex-advisor-head{padding:14px 14px 7px!important;}
+  html body .app-ui .lourex-advisor-identity p{display:none!important;}
+  html body .app-ui .lourex-advisor-body{padding:3px 14px 9px!important;}
+  html body .app-ui .lourex-advisor-starters{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
+  html body .app-ui .lourex-advisor-starters>button:nth-child(n+3){display:none!important;}
+  html body .app-ui .lourex-advisor-starters>button{min-height:48px!important;font-size:11px!important;}
+  html body .app-ui .lourex-advisor-compose{padding:8px 14px 11px!important;}
+  html body .app-ui .lourex-advisor-trust{display:none!important;}
+
+  /* Documents: header -> register/list -> resume -> compact stats. */
+  html body .app-ui .ta-documents-page{display:flex!important;flex-direction:column!important;gap:14px!important;padding-top:18px!important;}
+  html body .app-ui .ta-documents-header{order:1!important;display:flex!important;flex-direction:column!important;gap:12px!important;margin:0!important;}
+  html body .app-ui .ta-documents-header h1{font-size:24px!important;}
+  html body .app-ui .ta-documents-header p{font-size:13.5px!important;line-height:1.65!important;}
+  html body .app-ui .ta-documents-header-actions{display:none!important;}
+  html body .app-ui .ta-doc-register-card{order:2!important;margin:0!important;overflow:hidden!important;}
+  html body .app-ui .ta-doc-resume{order:3!important;}
+  html body .app-ui .ta-doc-summary-grid{order:4!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;}
+  html body .app-ui .ta-doc-summary-grid>button{min-height:90px!important;padding:12px!important;}
+  html body .app-ui .ta-doc-type-tabs{display:flex!important;gap:6px!important;overflow-x:auto!important;overflow-y:hidden!important;scroll-snap-type:x proximity!important;scroll-padding-inline:12px!important;padding:10px 12px!important;overscroll-behavior-inline:contain!important;-webkit-overflow-scrolling:touch!important;}
+  html body .app-ui .ta-doc-type-tabs>button{flex:0 0 auto!important;min-width:max-content!important;scroll-snap-align:start!important;white-space:nowrap!important;padding-inline:12px!important;}
+  html body .app-ui .ta-doc-commandbar{display:grid!important;grid-template-columns:minmax(0,1fr) 48px!important;gap:8px!important;padding:10px 12px 12px!important;}
+  html body .app-ui .ta-doc-search{grid-column:1/-1!important;min-width:0!important;}
+  html body .app-ui .ta-doc-sort{grid-column:1!important;width:100%!important;}
+  html body .app-ui .ta-doc-filter-button{grid-column:2!important;width:48px!important;min-width:48px!important;padding:0!important;justify-content:center!important;}
+  html body .app-ui .ta-doc-filter-button>span{display:none!important;}
+  html body .app-ui .ta-doc-filters{grid-template-columns:minmax(0,1fr)!important;padding:12px!important;}
+  html body .app-ui .ta-doc-register-meta{padding-inline:12px!important;}
+  html body .app-ui .ta-doc-row{padding-inline:12px!important;}
+
+  /* Customers: empty-first behavior and calmer metrics. */
+  html body .app-ui .ta-customers-page{gap:14px!important;padding-top:18px!important;}
+  html body .app-ui .ta-customers-header{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:14px!important;}
+  html body .app-ui .ta-customers-header h1{font-size:24px!important;}
+  html body .app-ui .ta-customers-header>.btn{width:100%!important;min-height:46px!important;}
+  html body .app-ui .ta-customers-summary{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;}
+  html body .app-ui .ta-customers-summary>div{min-width:0!important;padding:12px 8px!important;}
+  html body .app-ui .ta-customers-summary-icon{width:34px!important;height:34px!important;}
+  html body .app-ui .ta-customers-toolbar{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:8px!important;padding:12px!important;}
+  html body .app-ui .ta-customers-search,html body .app-ui .ta-customers-sort{width:100%!important;}
+  html body .app-ui .ta-customers-empty{min-height:260px!important;padding:28px 18px!important;}
+
+  /* Global search: compact mobile command surface. */
+  html body .global-search-panel{width:calc(100vw - 24px)!important;max-height:min(82dvh,680px)!important;border-radius:20px!important;}
+  html body .global-search-input-wrap{min-height:58px!important;padding-inline:14px!important;}
+  html body .global-search-input-wrap kbd{display:none!important;}
+  html body .global-search-actions{grid-template-columns:minmax(0,1fr)!important;gap:8px!important;}
+  html body .global-search-actions>button:nth-child(n+4){display:none!important;}
+  html body .global-search-actions>button{min-height:58px!important;}
+  html body .global-search-destinations{display:flex!important;overflow-x:auto!important;gap:8px!important;padding-bottom:2px!important;scrollbar-width:none!important;}
+  html body .global-search-destinations::-webkit-scrollbar{display:none!important;}
+  html body .global-search-destinations>button{flex:0 0 auto!important;min-height:42px!important;white-space:nowrap!important;}
+  html body .global-search-footer{display:none!important;}
+
+  /* Floating nav, sheets and create menu. */
+  html body .app-ui .ta-mobile-nav{inset-inline:14px!important;bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;width:auto!important;min-height:72px!important;padding:7px!important;border:1px solid var(--ft-line)!important;border-radius:22px!important;background:color-mix(in srgb,var(--ft-surface) 94%,transparent)!important;box-shadow:var(--lbx-shadow-nav)!important;backdrop-filter:blur(20px) saturate(1.08)!important;-webkit-backdrop-filter:blur(20px) saturate(1.08)!important;}
+  html[data-ui-theme="dark"] body .app-ui .ta-mobile-nav{box-shadow:0 10px 32px rgba(0,0,0,.34)!important;}
+  html body .app-ui .ta-mobile-nav>button{min-height:56px!important;border-radius:14px!important;color:var(--ft-muted)!important;font-size:11px!important;font-weight:600!important;}
+  html body .app-ui .ta-mobile-nav>button.is-active{background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;}
+  html body .app-ui .ta-mobile-create{width:54px!important;height:54px!important;min-width:54px!important;min-height:54px!important;transform:translateY(-12px)!important;border:4px solid color-mix(in srgb,var(--ft-surface) 94%,transparent)!important;border-radius:16px!important;background:var(--ft-accent)!important;color:var(--ft-on-accent)!important;box-shadow:0 8px 20px color-mix(in srgb,var(--ft-accent) 24%,transparent)!important;}
+  html body .app-ui .ta-mobile-sheet{inset-inline:12px!important;bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;height:auto!important;min-height:0!important;max-height:min(85dvh,720px)!important;padding:8px 14px calc(20px + env(safe-area-inset-bottom,0px))!important;border-radius:24px!important;overflow-y:auto!important;overflow-x:hidden!important;}
+  html body .app-ui .ta-sheet-header{padding-bottom:12px!important;}
+  html body .app-ui .ta-sheet-utilities{padding-block:10px 6px!important;}
+  html body .app-ui .ta-sheet-account,html body .app-ui .ta-sheet-link{min-height:56px!important;border-radius:12px!important;}
+  html body .app-ui .ta-sheet-group{margin-top:8px!important;}
+  html body .app-ui .ta-create-menu-mobile{inset-inline:12px!important;bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;max-height:min(72dvh,640px)!important;border-radius:22px!important;overflow-y:auto!important;overscroll-behavior:contain!important;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button{min-width:0!important;min-height:82px!important;grid-template-columns:36px minmax(0,1fr)!important;padding:10px!important;border-radius:14px!important;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid>button>.icon{width:34px!important;height:34px!important;}
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid small{display:none!important;}
+
+  /* Modals and settings fit the phone instead of looking like desktop cards shrunk down. */
+  html body .modal{max-width:calc(100vw - 20px)!important;border-radius:22px!important;}
+  html body .app-ui .ta-settings-shell{min-width:0!important;}
+  html body .app-ui .ta-settings-card{border-radius:16px!important;}
+}
+
+@media screen and (max-width:430px){
+  html body .app-ui :where(.ta-finance-dashboard,.ta-documents-page,.ta-doc-detail-page,.ta-customers-page,.ta-customer-profile,.ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page){padding-inline:20px!important;}
+}
+
+@media screen and (max-width:390px){
+  html body .app-ui :where(.ta-finance-dashboard,.ta-documents-page,.ta-doc-detail-page,.ta-customers-page,.ta-customer-profile,.ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page){padding-inline:16px!important;}
+  html body .app-ui .ta-mobile-nav{inset-inline:10px!important;}
+  html body .app-ui .ta-create-menu-mobile{inset-inline:10px!important;}
+  html body .app-ui .ta-kpi-card{padding:12px!important;}
+}
+
+@media (prefers-reduced-motion:reduce){
+  html body .app-ui :where(.ta-nav-item,.ta-kpi-card,.ta-customer-card,.btn,.ta-search-trigger,.ta-create-menu-grid>button,.ta-mobile-create),
+  html body :where(.global-search-actions>button,.global-search-result){transition:none!important;transform:none!important;}
+}

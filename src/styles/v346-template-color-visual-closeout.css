@@ -1,96 +1,96 @@
-/* LOUREX v355 — canonical application palette + control design owner.
+/* LOUREX v358 — canonical Premium Blue application palette + control design owner.
  * The startup/PWA canvas tokens stay stable for launch reliability, while the
- * loaded application moves to the Hostinger-inspired violet visual system.
+ * loaded application uses a calm enterprise blue visual system.
  * Commercial A4 rendering stays exclusively in document-premium-redesign-v141.css.
  * Full-page application paint and shared Button/Toggle primitives remain centralized
- * here so historical feature styles cannot re-introduce turquoise or native-gray controls. */
+ * here so historical feature styles cannot re-introduce violet, turquoise or native-gray controls. */
 
 @media screen {
   html[data-ui-theme="light"] {
-    --ta-brand-25:#faf8ff!important;
-    --ta-brand-50:#f6f3ff!important;
-    --ta-brand-100:#eee9ff!important;
-    --ta-brand-200:#ddd4ff!important;
-    --ta-brand-300:#c4b5ff!important;
-    --ta-brand-400:#9e87fb!important;
-    --ta-brand-500:#7553eb!important;
-    --ta-brand-600:#673de6!important;
-    --ta-brand-700:#5630d7!important;
+    --ta-brand-25:#F8FAFE!important;
+    --ta-brand-50:#F3F6FC!important;
+    --ta-brand-100:#EAF0FA!important;
+    --ta-brand-200:#D8E4F5!important;
+    --ta-brand-300:#B8CDED!important;
+    --ta-brand-400:#82A9EC!important;
+    --ta-brand-500:#4E78BD!important;
+    --ta-brand-600:#315DA8!important;
+    --ta-brand-700:#244D91!important;
 
     /* Keep the PWA/startup canvas token stable; application paint uses workspace. */
     --ft-canvas:#f4f7fb!important;
-    --ft-shell:#f7f7fb!important;
-    --ft-workspace:#f7f7fb!important;
-    --ft-surface:#ffffff!important;
-    --ft-surface-2:#f4f3f9!important;
-    --ft-surface-3:#eeecf6!important;
-    --ft-input:#ffffff!important;
-    --ft-text:#403c4c!important;
-    --ft-text-strong:#17151f!important;
-    --ft-text-soft:#5e586d!important;
-    --ft-muted:#817b91!important;
-    --ft-faint:#aaa3b5!important;
-    --ft-line:#e6e3ed!important;
-    --ft-line-strong:#d8d2e2!important;
-    --ft-accent:#673de6!important;
-    --ft-accent-hover:#5630d7!important;
-    --ft-accent-soft:rgba(103,61,230,.11)!important;
-    --ft-accent-faint:rgba(103,61,230,.06)!important;
-    --ft-on-accent:#ffffff!important;
-    --ft-success:#008b65!important;
-    --ft-success-soft:rgba(0,139,101,.10)!important;
-    --ft-warning:#b96c00!important;
-    --ft-warning-soft:rgba(185,108,0,.10)!important;
-    --ft-danger:#c43838!important;
-    --ft-danger-soft:rgba(196,56,56,.10)!important;
-    --ft-info:#5965d9!important;
-    --ft-info-soft:rgba(89,101,217,.10)!important;
+    --ft-shell:#F5F7FB!important;
+    --ft-workspace:#F5F7FB!important;
+    --ft-surface:#FFFFFF!important;
+    --ft-surface-2:#F8FAFD!important;
+    --ft-surface-3:#EEF2F8!important;
+    --ft-input:#FFFFFF!important;
+    --ft-text:#53647A!important;
+    --ft-text-strong:#17253A!important;
+    --ft-text-soft:#53647A!important;
+    --ft-muted:#718096!important;
+    --ft-faint:#9AA7B8!important;
+    --ft-line:#E2E8F1!important;
+    --ft-line-strong:#C9D4E2!important;
+    --ft-accent:#315DA8!important;
+    --ft-accent-hover:#244D91!important;
+    --ft-accent-soft:#EAF0FA!important;
+    --ft-accent-faint:#F3F6FC!important;
+    --ft-on-accent:#FFFFFF!important;
+    --ft-success:#227858!important;
+    --ft-success-soft:rgba(34,120,88,.10)!important;
+    --ft-warning:#966215!important;
+    --ft-warning-soft:rgba(150,98,21,.10)!important;
+    --ft-danger:#B7434B!important;
+    --ft-danger-soft:rgba(183,67,75,.10)!important;
+    --ft-info:#315DA8!important;
+    --ft-info-soft:rgba(49,93,168,.10)!important;
   }
 
   html[data-ui-theme="dark"] {
-    --ta-brand-25:#1d192b!important;
-    --ta-brand-50:#251f3a!important;
-    --ta-brand-100:#30284d!important;
-    --ta-brand-200:#443766!important;
-    --ta-brand-300:#5d4b8f!important;
-    --ta-brand-400:#755bc8!important;
-    --ta-brand-500:#9a84ff!important;
-    --ta-brand-600:#8f75ff!important;
-    --ta-brand-700:#b3a4ff!important;
+    --ta-brand-25:#152033!important;
+    --ta-brand-50:#1A2C43!important;
+    --ta-brand-100:#223C60!important;
+    --ta-brand-200:#2C4A72!important;
+    --ta-brand-300:#42648F!important;
+    --ta-brand-400:#658BC5!important;
+    --ta-brand-500:#82A9EC!important;
+    --ta-brand-600:#82A9EC!important;
+    --ta-brand-700:#A2BEF3!important;
 
     /* Keep the PWA/startup canvas token stable; application paint uses workspace. */
     --ft-canvas:#081321!important;
-    --ft-shell:#141319!important;
-    --ft-workspace:#141319!important;
-    --ft-surface:#1d1b24!important;
-    --ft-surface-2:#25222e!important;
-    --ft-surface-3:#2d2938!important;
-    --ft-input:#211f29!important;
-    --ft-text:#d9d5e2!important;
-    --ft-text-strong:#fbfaff!important;
-    --ft-text-soft:#bdb7ca!important;
-    --ft-muted:#9791a7!important;
-    --ft-faint:#746e82!important;
-    --ft-line:#34313f!important;
-    --ft-line-strong:#484254!important;
-    --ft-accent:#9279ff!important;
-    --ft-accent-hover:#b3a4ff!important;
-    --ft-accent-soft:rgba(146,121,255,.15)!important;
-    --ft-accent-faint:rgba(146,121,255,.075)!important;
-    --ft-on-accent:#ffffff!important;
-    --ft-success:#55d4aa!important;
-    --ft-success-soft:rgba(85,212,170,.12)!important;
-    --ft-warning:#f4b14a!important;
-    --ft-warning-soft:rgba(244,177,74,.12)!important;
-    --ft-danger:#ff8178!important;
-    --ft-danger-soft:rgba(255,129,120,.12)!important;
-    --ft-info:#8ca7ff!important;
-    --ft-info-soft:rgba(140,167,255,.12)!important;
+    --ft-shell:#101722!important;
+    --ft-workspace:#101722!important;
+    --ft-surface:#172231!important;
+    --ft-surface-2:#1D2B3C!important;
+    --ft-surface-3:#223247!important;
+    --ft-input:#172536!important;
+    --ft-text:#B5C2D0!important;
+    --ft-text-strong:#F1F5FA!important;
+    --ft-text-soft:#B5C2D0!important;
+    --ft-muted:#91A2B5!important;
+    --ft-faint:#6F8298!important;
+    --ft-line:#304052!important;
+    --ft-line-strong:#4A5C72!important;
+    --ft-accent:#82A9EC!important;
+    --ft-accent-hover:#A2BEF3!important;
+    --ft-accent-soft:#223C60!important;
+    --ft-accent-faint:#1A2C43!important;
+    --ft-on-accent:#101722!important;
+    --ft-success:#65C5A0!important;
+    --ft-success-soft:rgba(101,197,160,.12)!important;
+    --ft-warning:#E9B76B!important;
+    --ft-warning-soft:rgba(233,183,107,.12)!important;
+    --ft-danger:#F08F96!important;
+    --ft-danger-soft:rgba(240,143,150,.12)!important;
+    --ft-info:#82A9EC!important;
+    --ft-info-soft:rgba(130,169,236,.12)!important;
   }
 
   /* v330 uses v333-* names for critical editor contrast. Palette ownership stays
      here: those compatibility names always resolve to the active theme instead of
-     forming an independent blue/navy theme inside the editor. */
+     forming an independent theme inside the editor. */
   html[data-ui-theme] body .app-ui .screen-editor{
     --v333-workspace:var(--ft-workspace)!important;
     --v333-card:var(--ft-surface)!important;
@@ -120,9 +120,8 @@
     background:var(--ft-workspace)!important;
   }
 
-  /* Retire the last hard-coded teal accents from the historical dark TailAdmin
-     closeout. Purple owns application actions; green remains reserved for semantic
-     success/collections data. */
+  /* Blue owns application actions; semantic green/yellow/red remain reserved for
+     success, warning and danger states. */
   html[data-ui-theme="dark"] body .app-ui .ta-kpi-card:first-child .ta-kpi-icon{
     background:var(--ft-accent)!important;
     color:var(--ft-on-accent)!important;
@@ -135,6 +134,22 @@
   html[data-ui-theme="dark"] body .app-ui :where(.btn-primary,.ta-create-button,.ta-card-primary-action):hover:not(:disabled){
     background:var(--ft-accent-hover)!important;
     border-color:var(--ft-accent-hover)!important;
+    color:#101722!important;
+  }
+
+  /* Auth is intentionally outside .app-ui. Retired Hostinger layers had a dark-mode
+     violet gradient with higher specificity, so the canonical palette must explicitly
+     own this final dark primary action too. */
+  html[data-ui-theme="dark"] body .ta-auth-page :where(.ta-auth-primary,.btn-primary,button.btn-primary){
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    border-color:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page :where(.ta-auth-primary,.btn-primary,button.btn-primary):hover:not(:disabled){
+    background:var(--ft-accent-hover)!important;
+    background-image:none!important;
+    border-color:var(--ft-accent-hover)!important;
     color:var(--ft-on-accent)!important;
   }
 
@@ -142,13 +157,13 @@
   .app-ui .btn{
     min-height:40px;
     border:1px solid var(--ft-line-strong)!important;
-    border-radius:10px!important;
+    border-radius:12px!important;
     background:var(--ft-surface)!important;
     background-image:none!important;
     color:var(--ft-text-strong)!important;
     box-shadow:none!important;
     font-weight:650!important;
-    transition:background-color .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease!important;
+    transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease!important;
   }
   .app-ui .btn:hover:not(:disabled){border-color:color-mix(in srgb,var(--ft-accent) 34%,var(--ft-line-strong))!important;background:var(--ft-surface-2)!important;transform:none!important;}
   .app-ui .btn:focus-visible,.app-ui .icon-btn:focus-visible{outline:0!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent) 18%,transparent)!important;}
@@ -180,7 +195,7 @@
 
   .app-ui .icon-btn{
     border:1px solid transparent!important;
-    border-radius:10px!important;
+    border-radius:12px!important;
     background:transparent!important;
     color:var(--ft-text-soft)!important;
     box-shadow:none!important;
