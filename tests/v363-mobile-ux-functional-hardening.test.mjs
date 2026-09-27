@@ -70,6 +70,13 @@ test('dirty workspace guard recognizes the current TailAdmin customer and operat
   assert.match(guard, /document\.querySelector\(selector\)/);
 });
 
+test('runtime refresh and sign-out safety recognizes the current inventory workspace root', async () => {
+  const runtime = await read('public/runtime-safety-v334.js');
+  assert.match(runtime, /document\.querySelector\('\.ta-operations-page \.ta-inventory-entry,\.operations-page \.ta-inventory-entry,\.operations-page \.inventory-entry'\)/);
+  assert.match(runtime, /if\(ROOT\.hasAttribute\('data-lourex-workspace-dirty'\)\)return true/);
+  assert.match(runtime, /return manualInventoryDraftOpen\(\)/);
+});
+
 test('reports keep phone filters and labeled-record tables within the final mobile contract', async () => {
   const css = await read('src/styles/mobile-ux-functional-hardening-v363.css');
   const reports = await read('src/components/ReportsPage.tsx');
