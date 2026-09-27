@@ -21,43 +21,6 @@ jobs:
           fetch-depth: 0
       - name: Apply final runtime owner and cache-key patch
         run: python scripts/v365-final-runtime-owner.py
-      - name: Align historical v337 contract with current dual-owner runtime
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path=Path('tests/v337-template-layout-site-pass.test.mjs')
-          lines=path.read_text().splitlines()
-          out=[]
-          replaced_runtime=False
-          removed_single_restore=False
-          extended_final=False
-          for line in lines:
-              if 'assert.match(cacheRefresh' in line and 'runtimeTag=' in line:
-                  out.extend([
-                      '  assert.match(cacheRefresh,/const draftTag=/);',
-                      '  assert.match(cacheRefresh,/const criticalTag=/);',
-                      '  assert.match(cacheRefresh,/data-lourex-v331-draft-recovery=\\"true\\"/);',
-                      '  assert.match(cacheRefresh,/data-lourex-v332-critical-documents=\\"true\\"/);',
-                      '  assert.match(cacheRefresh,/Standalone document owners are not ordered app\\.bundle\\.css -> v331 -> v332/);'
-                  ])
-                  replaced_runtime=True
-                  continue
-              if 'assert.match(cacheRefresh' in line and 'runtimeTag' in line and 'html=html' in line:
-                  removed_single_restore=True
-                  continue
-              out.append(line)
-              if 'assert.match(finalContract,/data-lourex-v331-draft-recovery=' in line:
-                  out.extend([
-                      '  assert.match(finalContract,/data-lourex-v332-critical-documents=\\"true\\"/);',
-                      '  assert.match(finalContract,/v332-critical-documents-deep-closeout\\.css\\?v=332-1/);',
-                      '  assert.match(finalContract,/cacheGeneration<361/);'
-                  ])
-                  extended_final=True
-          if not (replaced_runtime and removed_single_restore and extended_final):
-              raise SystemExit(f'contract alignment incomplete: runtime={replaced_runtime} restore={removed_single_restore} final={extended_final}')
-          path.write_text('\n'.join(out)+'\n')
-          PY
       - name: Validate patch scope
         run: |
           git diff --check
