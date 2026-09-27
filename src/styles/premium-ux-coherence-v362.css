@@ -1,0 +1,136 @@
+/* v362: shared visual contract for live app controls and dense mobile workflows.
+   Geometry only in screen media; print document output keeps its own styles. */
+@media screen {
+  html[data-ui-theme="dark"] {
+    --ft-canvas:#0d0d0d!important;
+    --ft-workspace:#0d0d0d!important;
+    --ft-shell:#101010!important;
+    --ft-surface:#191919!important;
+    --ft-surface-2:#202020!important;
+    --ft-surface-3:#282828!important;
+    --ft-input:#161616!important;
+    --ft-text:#d2d2d2!important;
+    --ft-text-soft:#bdbdbd!important;
+    --ft-text-strong:#f7f7f7!important;
+    --ft-muted:#a9a9a9!important;
+    --ft-faint:#888!important;
+    --ft-line:#383838!important;
+    --ft-line-strong:#484848!important;
+    --ft-accent:#7399e3!important;
+    --ft-accent-hover:#91b0ed!important;
+    --ft-accent-soft:#292929!important;
+    --ft-accent-faint:#222!important;
+    --ft-success:#bdbdbd!important;
+    --ft-success-soft:#242424!important;
+    --ft-warning:#ef737a!important;
+    --ft-warning-soft:#332124!important;
+    --ft-danger:#ef737a!important;
+    --ft-danger-soft:#332124!important;
+    --ft-focus:0 0 0 3px rgba(115,153,227,.22)!important;
+    --ta-brand-50:#252525!important;
+    --ta-brand-100:#292929!important;
+    --ta-brand-500:#7399e3!important;
+    --ta-brand-600:#91b0ed!important;
+    --ta-brand-700:#aec5f1!important;
+    --ta-shadow-xs:none!important;
+    --ta-shadow-sm:none!important;
+    --ta-shadow-lg:none!important;
+  }
+
+  /* One hierarchy for forms, cards and actions across the document and product flows. */
+  html body .app-ui :is(.editor-section,.draft-control-section,.ta-product-editor-section,.ta-ops-form-section,.ta-settings-card,.ta-report-filterbar,.ta-panel) {
+    border-radius:14px!important;
+  }
+  html body .app-ui :is(.editor-section,.draft-control-section,.ta-product-editor-section) :is(.field>label,.field-label),
+  html body .app-ui .ta-ops-form-section :is(.field>label,.field-label),
+  html body :is(.ta-settings-card,.ta-product-editor) :is(.field>label,.field-label),
+  html body .app-ui :is(.ta-report-date,.ta-report-currency) {
+    font-size:12px!important;
+    line-height:18px!important;
+    font-weight:650!important;
+  }
+  html body .app-ui :is(.editor-section,.draft-control-section,.ta-product-editor-section,.ta-ops-form-section,.ta-ops-form-grid,.ta-product-commandbar,.ta-report-filterbar,.ta-account-controls) :is(input,select,textarea),
+  html body .ta-settings-card :is(input,select,textarea) {
+    min-width:0!important;
+    min-height:44px!important;
+    border-radius:10px!important;
+    font-size:14px!important;
+    line-height:1.4!important;
+  }
+  html body .app-ui :is(.editor-section,.draft-control-section,.ta-product-editor-section,.ta-ops-form-section) textarea,
+  html body .ta-settings-card textarea { min-height:88px!important; }
+  html body .app-ui :is(.ta-product-commandbar,.ta-product-editor-footer,.ta-page-actions,.ta-settings-card-actions) .btn,
+  html body .ta-settings-card-actions .btn { min-height:44px!important;border-radius:10px!important; }
+  html body .app-ui .ta-product-editor-header>button { width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important; }
+  html body .app-ui :is(.ta-product-empty,.ta-product-editor-empty,.ta-product-history-empty) { min-height:150px!important; }
+  html body .app-ui .ta-report-presets>button[aria-pressed="true"] { background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;font-weight:700!important; }
+
+  html[data-ui-theme="dark"] body .app-ui :is(.editor-pane,.editor-section,.draft-control-section,.ta-product-editor-section,.ta-product-commandbar,.ta-product-row,.ta-product-menu,.ta-product-metrics>div,.ta-product-metrics>button,.ta-ops-form-section,.ta-ops-panel,.ta-ops-list-card,.ta-ops-editor-card,.ta-ops-callout,.ta-purchase-item,.ta-inventory-row,.ta-report-filterbar,.ta-report-kpi,.ta-panel,.ta-empty-card,.ta-settings-card) {
+    background:#191919!important;
+    background-image:none!important;
+    border-color:#383838!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.section-heading>span,.section-heading>div>span,.ta-product-editor-section>header>span,.ta-finance-kpi-icon,.ta-panel-empty>span,.ta-empty-card>span) {
+    background:#292929!important;
+    color:#e9e9e9!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-product-editor-section>header,.ta-product-editor-footer,.ta-panel-header,.ta-report-presets,.ta-report-kpi header) {
+    background:#202020!important;
+    background-image:none!important;
+    border-color:#383838!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-product-page-header,.ta-product-commandbar)>.btn-primary {
+    background:#7399e3!important;
+    border-color:#7399e3!important;
+    color:#0d0d0d!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-product-page-header,.ta-product-commandbar)>.btn-primary:hover {
+    background:#91b0ed!important;
+    border-color:#91b0ed!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-report-presets,.ta-ops-tabs,.ta-domain-tabs,.ta-editor-step-nav) >button.is-active,
+  html[data-ui-theme="dark"] body .app-ui .ta-report-presets>button[aria-pressed="true"] {
+    background:#292929!important;
+    color:#f7f7f7!important;
+    box-shadow:none!important;
+  }
+
+  @media (max-width:900px) {
+    html body .app-ui :is(.editor-layout,.draft-studio-layout) { padding-inline:10px!important; }
+    html body .app-ui :is(.editor-section,.draft-control-section) { padding:12px!important; }
+    html body .app-ui :is(.editor-form-lock,.draft-studio-form) { gap:10px!important; }
+    html body .app-ui .section-heading { margin-bottom:11px!important;padding-bottom:9px!important; }
+    html body .app-ui .ta-product-commandbar { gap:8px!important; }
+    html body .app-ui .ta-product-editor-section>header { min-height:48px!important; }
+    html body .app-ui .ta-product-form-grid { gap:9px!important;padding:10px!important; }
+    html body .app-ui .ta-product-editor-footer { flex-wrap:wrap!important; }
+    html body .app-ui .ta-product-editor-footer>div { min-width:0!important;flex-wrap:wrap!important; }
+    html body .app-ui .ta-report-filterbar { grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:9px!important; }
+    html body .app-ui .ta-report-presets,
+    html body .app-ui .ta-report-currency { grid-column:1/-1!important; }
+    html body .app-ui .ta-report-presets>button { min-height:44px!important;flex:1 0 auto!important; }
+    html body .app-ui .ta-page-header { margin-bottom:12px!important;gap:10px!important; }
+    html body .app-ui .ta-panel-header { min-height:0!important;padding:12px!important;gap:7px!important; }
+    html body .app-ui :is(.ta-panel-empty,.ta-empty-card) { min-height:110px!important;padding:16px!important; }
+    html body .ta-settings-card { margin-bottom:10px!important; }
+    html body .ta-settings-card>header { gap:7px!important; }
+    html body .ta-settings-page-header { margin-bottom:12px!important; }
+  }
+  @media (max-width:650px) {
+    html body .app-ui .ta-product-commandbar>.btn-primary { display:none!important; }
+    html body .app-ui .ta-product-search { min-height:44px!important;height:44px!important; }
+    html body .app-ui .ta-product-search input { min-height:42px!important;font-size:16px!important; }
+    html body .app-ui :is(.editor-section,.draft-control-section,.ta-product-editor-section,.ta-ops-form-section,.ta-ops-form-grid,.ta-product-commandbar,.ta-report-filterbar,.ta-account-controls) :is(input,select,textarea),
+    html body .ta-settings-card :is(input,select,textarea) { font-size:16px!important; }
+    html body .app-ui .ta-report-date { min-width:0!important; }
+    html body .app-ui .ta-date-input { min-width:0!important;padding-inline:8px!important; }
+    html body .app-ui .ta-date-input>span { overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:12px!important; }
+  }
+  @media (max-width:350px) {
+    html body .app-ui .ta-report-filterbar { grid-template-columns:minmax(0,1fr)!important; }
+    html body .app-ui .ta-report-presets,
+    html body .app-ui .ta-report-currency { grid-column:auto!important; }
+  }
+}
