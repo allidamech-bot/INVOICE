@@ -1,0 +1,149 @@
+/* LOUREX v364 — premium commercial A4 closing composition.
+ * Geometry/presentation only. Accounting values, persistence, lifecycle and PDF data stay unchanged.
+ * This layer intentionally sits after the canonical v141 A4 design system so every template keeps
+ * its own identity while sharing a stronger final-page hierarchy. */
+
+@media screen, print {
+  .invoice-page .final-details{
+    flex:0 0 auto;
+    min-height:0;
+    margin-top:auto;
+    padding-top:5.2mm;
+  }
+
+  .invoice-page.details-only .doc-body{padding-top:8mm;}
+  .invoice-page.details-only .final-details{margin-top:0;padding-top:0;}
+
+  /* The commercial close reads as one composed settlement zone, not unrelated blocks. */
+  .invoice-page .lower-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(61mm,67mm);
+    gap:6mm;
+    align-items:stretch;
+  }
+
+  .invoice-page .terms-block,
+  .invoice-page .bank-block,
+  .invoice-page .signature-block,
+  .invoice-page .notes-block{
+    border:1px solid color-mix(in srgb,var(--rule) 88%,transparent);
+    border-top:.7mm solid color-mix(in srgb,var(--template-accent) 72%,var(--rule));
+    border-radius:2.4mm;
+    padding:3.2mm 3.6mm;
+    background:color-mix(in srgb,var(--soft) 74%,var(--paper));
+  }
+
+  .invoice-page :is(.terms-block,.bank-block,.signature-block,.notes-block)>h3{
+    margin:0 0 2.2mm;
+    font-size:6.8px;
+    line-height:1.15;
+    font-weight:800;
+    letter-spacing:.105em;
+    color:var(--ink);
+  }
+
+  .invoice-page .terms-grid{gap:1.45mm 4mm;}
+  .invoice-page .term-row{grid-template-columns:minmax(20mm,auto) minmax(0,1fr);gap:1.8mm;}
+
+  .invoice-page .totals-block{
+    align-self:stretch;
+    min-height:100%;
+    padding:3.2mm 4mm 3.6mm;
+    border:1px solid color-mix(in srgb,var(--template-accent) 32%,var(--rule));
+    border-top:1.05mm solid var(--template-accent);
+    border-radius:2.4mm;
+    box-shadow:0 1.1mm 3.5mm rgba(15,32,42,.055);
+  }
+
+  .invoice-page .total-row{padding:1.45mm 0;}
+  .invoice-page .total-row>span{font-size:6.8px;}
+  .invoice-page .total-row>strong{font-size:7.8px;font-weight:760;}
+  .invoice-page .grand-total{
+    margin-top:2mm;
+    padding-top:2.7mm;
+    border-top:.65mm solid var(--template-accent);
+    align-items:end;
+  }
+  .invoice-page .grand-total>span{font-size:8px;font-weight:820;}
+  .invoice-page .grand-total>strong{font-size:14px;line-height:1;font-weight:860;letter-spacing:-.02em;}
+
+  .invoice-page .notes-block{margin-top:3.2mm;}
+  .invoice-page .bottom-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1.18fr) minmax(51mm,.82fr);
+    gap:6mm;
+    margin-top:3.2mm;
+    align-items:stretch;
+  }
+
+  .invoice-page .bank-block{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    align-content:start;
+    gap:1.25mm 4mm;
+  }
+  .invoice-page .signature-block{display:flex;flex-direction:column;}
+  .invoice-page .signature-media{margin-top:auto;min-height:20mm;}
+
+  .invoice-page .doc-footer{
+    height:11mm;
+    margin:0 11mm;
+    padding-top:1.1mm;
+    border-top:.38mm solid color-mix(in srgb,var(--template-accent) 48%,var(--rule));
+    font-size:6.15px;
+    letter-spacing:.025em;
+  }
+
+  /* Keep intentionally typographic/grid templates crisp rather than turning them into rounded cards. */
+  .invoice-page:is(.template-minimal,.template-editorial,.template-mono,.template-ledger) :is(.terms-block,.bank-block,.signature-block,.notes-block,.totals-block){
+    border-radius:0;
+    box-shadow:none;
+  }
+  .invoice-page:is(.template-minimal,.template-editorial) :is(.terms-block,.bank-block,.signature-block,.notes-block){
+    background:transparent;
+    border-inline:0;
+    border-bottom:0;
+  }
+
+  /* Preserve the authored high-contrast total identities after the shared geometry pass. */
+  .invoice-page:is(.template-obsidian,.template-split,.template-slate,.template-midnight,.template-carbon) .totals-block{
+    box-shadow:none;
+  }
+
+  /* Signature stationery keeps its formal split while adopting the tighter closing rhythm. */
+  .invoice-page.template-signature .bottom-grid{
+    grid-template-columns:minmax(0,.84fr) minmax(70mm,1.16fr);
+    padding-top:3.2mm;
+  }
+  .invoice-page.template-signature .signature-block{
+    border-radius:0;
+    border-top:0;
+    border-inline-end:0;
+    border-bottom:0;
+    background:transparent;
+  }
+
+  /* Carbon intentionally reverses totals/terms; retain that authored composition. */
+  .invoice-page.template-carbon .lower-grid{grid-template-columns:minmax(61mm,67mm) minmax(0,1fr);}
+  .invoice-page.template-carbon .totals-block{grid-column:1;}
+  .invoice-page.template-carbon .terms-block{grid-column:2;grid-row:1;}
+
+  /* Arabic mirrors the closing composition without changing numeric reading direction. */
+  .invoice-page.lang-ar :is(.lower-grid,.bottom-grid){direction:rtl;}
+  .invoice-page.lang-ar :is(.terms-block,.bank-block,.signature-block,.notes-block){text-align:right;}
+
+  /* Bilingual output needs slightly more breathing room without pushing the close to another page. */
+  .invoice-page.lang-bilingual .final-details{padding-top:4.6mm;}
+  .invoice-page.lang-bilingual :is(.terms-block,.bank-block,.signature-block,.notes-block){padding-block:2.8mm;}
+}
+
+@media print {
+  .invoice-page .final-details,
+  .invoice-page .lower-grid,
+  .invoice-page .bottom-grid,
+  .invoice-page :is(.terms-block,.totals-block,.bank-block,.signature-block,.notes-block){
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+  .invoice-page .totals-block{box-shadow:none;}
+}
