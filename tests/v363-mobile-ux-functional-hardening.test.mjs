@@ -147,6 +147,7 @@ test('pull-to-refresh cannot start inside current operations or dirty product wo
 test('current WebKit browser QA physically opens and measures the critical 320px business editors', async () => {
   const browser = await read('tests/visual/run-v326-business-workspaces.cjs');
   const operationsFixture = await read('tests/visual/functional-products-operations-v197.html');
+  const productFixture = await read('tests/visual/v326-products-workspace.html');
   const importFixture = await read('tests/visual/import-final-audit-v267.html');
   assert.match(browser, /deepMobileAudit/);
   assert.match(browser, /engineName!==['"]webkit['"]\|\|scenario\.name!==['"]iphone320-light['"]/);
@@ -160,6 +161,7 @@ test('current WebKit browser QA physically opens and measures the critical 320px
   assert.match(browser, /fontSize<15\.5/);
   assert.match(browser, /footer fell below viewport after scroll/);
   assert.match(operationsFixture, /window\.innerWidth<=320\)window\.confirm=\(\)=>\{window\.confirmAttempts\+=1;return true;\}/);
+  assert.match(productFixture, /theme-bootstrap-v347\.js\?v=361[\s\S]*styles\/app\.bundle\.css/);
   assert.match(importFixture, /data-ui-theme="light" data-ui-theme-preference="light"/);
 });
 
