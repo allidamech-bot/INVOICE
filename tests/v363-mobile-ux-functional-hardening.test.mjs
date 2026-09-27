@@ -9,6 +9,20 @@ test('v363 hardening layers are loaded after the visual system through the relia
   assert.match(bridge, /^@import url\("\.\/mobile-ux-functional-hardening-v363\.css\?v=363-1"\);\n@import url\("\.\/modal-viewport-reconciliation-v363\.css\?v=363-1"\);\n@import url\("\.\/mobile-ux-deep-audit-v363\.css\?v=363-1"\);/);
 });
 
+test('production build inlines every v363 owner before the final reliability bridge instead of shipping late imports', async () => {
+  const pkg = JSON.parse(await read('package.json'));
+  const helper = await read('scripts/v363-bundle-visual-owners.mjs');
+  assert.match(pkg.scripts.build, /node scripts\/build\.mjs && node scripts\/v363-bundle-visual-owners\.mjs/);
+  for(const name of ['mobile-ux-functional-hardening-v363.css','modal-viewport-reconciliation-v363.css','mobile-ux-deep-audit-v363.css']){
+    assert.ok(helper.includes(name),`bundle helper missing ${name}`);
+  }
+  assert.match(helper, /tailadmin-reliability-bridge-v320\.css/);
+  assert.match(helper, /bundle=bundle\.replace/);
+  assert.match(helper, /ownerBlocks\.join/);
+  assert.match(helper, /ownerIndex<0\|\|ownerIndex>finalBridgeIndex/);
+  assert.match(helper, /late @import remains/);
+});
+
 test('v363 deep audit keeps primary actions on the current accent and bounds retained import flows', async () => {
   const css = await read('src/styles/mobile-ux-deep-audit-v363.css');
   assert.match(css, /\.btn\.btn-primary,button\.btn-primary/);
