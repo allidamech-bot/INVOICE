@@ -137,6 +137,22 @@
     color:#101722!important;
   }
 
+  /* Auth is intentionally outside .app-ui. Retired Hostinger layers had a dark-mode
+     violet gradient with higher specificity, so the canonical palette must explicitly
+     own this final dark primary action too. */
+  html[data-ui-theme="dark"] body .ta-auth-page :where(.ta-auth-primary,.btn-primary,button.btn-primary){
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    border-color:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page :where(.ta-auth-primary,.btn-primary,button.btn-primary):hover:not(:disabled){
+    background:var(--ft-accent-hover)!important;
+    background-image:none!important;
+    border-color:var(--ft-accent-hover)!important;
+    color:var(--ft-on-accent)!important;
+  }
+
   /* Shared control grammar. Feature layouts may size controls, but not retheme them. */
   .app-ui .btn{
     min-height:40px;
