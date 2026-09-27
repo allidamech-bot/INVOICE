@@ -1,0 +1,221 @@
+/* v360: one restrained dark surface system for the loaded app and auth screens.
+   Light mode, document print output and application behavior are untouched. */
+@media screen {
+  html[data-ui-theme="dark"] {
+    /* Resolve the inherited Hostinger layer at its source, not per screen. */
+    --hx2-canvas:#0d0d0d!important;
+    --hx2-surface:#191919!important;
+    --hx2-surface-soft:#202020!important;
+    --hx2-surface-raised:#242424!important;
+    --hx2-border:#383838!important;
+    --hx2-border-strong:#484848!important;
+    --hx2-text:#d2d2d2!important;
+    --hx2-text-strong:#f7f7f7!important;
+    --hx2-muted:#a9a9a9!important;
+    --hx2-success-soft:#242424!important;
+    --hx2-warning-soft:#242424!important;
+    --hx2-danger-soft:#332124!important;
+    --hx2-shadow-1:none!important;
+    --hx2-shadow-2:none!important;
+    --hx2-shadow-3:none!important;
+    --hx-purple:#7399e3;
+    --hx-purple-strong:#91b0ed;
+    --hx-violet:#7399e3;
+    --hx-lilac:#252525;
+    --hx-lilac-2:#1d1d1d;
+    --hx2-violet:#a9a9a9!important;
+    --hx2-violet-2:#d2d2d2!important;
+    --hx2-violet-3:#f7f7f7!important;
+    --hx2-accent-soft:#252525;
+    --hx2-glow:none;
+    --lbx-shadow-card:none;
+    --lbx-shadow-menu:0 14px 32px rgba(0,0,0,.38);
+    --lbx-shadow-modal:0 24px 64px rgba(0,0,0,.55);
+    --lbx-shadow-nav:none;
+  }
+
+  /* Matte canvas: remove the blue/violet atmospheric washes from older layers. */
+  html[data-ui-theme="dark"] body,
+  html[data-ui-theme="dark"] body .app-ui .ta-main,
+  html[data-ui-theme="dark"] body .ta-auth-page {
+    background:#0d0d0d!important;
+    background-image:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-sidebar,.ta-topbar,.ta-mobile-nav) {
+    background:#101010!important;
+    background-image:none!important;
+    border-color:#303030!important;
+    box-shadow:none!important;
+  }
+
+  /* Every ordinary panel shares the same neutral surface hierarchy. */
+  html[data-ui-theme="dark"] body .app-ui :is(
+    .ta-dashboard-hero,.ta-dashboard-card,.ta-kpi-card,.ta-panel,.ta-doc-panel,
+    .ta-doc-register-card,.ta-doc-summary-grid,.ta-doc-type-tabs,.ta-doc-table,
+    .ta-doc-toolbar,.ta-doc-filters,
+    .ta-doc-table-head,.ta-quick-actions,.ta-dashboard-primary-grid,
+    .ta-doc-row,.ta-customer-card,.ta-customers-summary,.ta-ops-editor-card,
+    .ta-ops-list-card,.ta-settings-card,.ta-sheet-group,.ta-sheet-account,
+    .ta-mobile-sheet,.ta-search-trigger,.ta-topbar-account,.ta-doc-search,
+    .global-search-panel,.lourex-advisor-card
+  ) {
+    background:#191919!important;
+    background-image:none!important;
+    border-color:#303030!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-doc-table-head,.ta-sheet-header,.ta-card-header) {
+    background:#202020!important;
+    background-image:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-doc-summary-grid,.ta-quick-actions)>button {
+    background:#191919!important;
+    background-image:none!important;
+    border-color:#303030!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-doc-row,.ta-sheet-link):hover {
+    background:#242424!important;
+    background-image:none!important;
+  }
+  html[data-ui-theme="dark"] body :is(.modal,.ta-settings-modal,.ta-settings-dialog,.ta-settings-shell,.ta-settings-content,.ta-settings-nav,.global-search-panel,.ta-mobile-sheet,.ta-cloud-account,.ta-cloud-auth-form) {
+    background:#191919!important;
+    background-image:none!important;
+    border-color:#383838!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .ta-doc-type-tabs>button,
+  html[data-ui-theme="dark"] body :is(.global-search-input-wrap,.global-search-footer) {
+    background:#202020!important;
+    background-image:none!important;
+    border-color:#383838!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body :is(.global-search-input-wrap,.global-search-input-wrap:focus-within,.global-search-input-wrap input),
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-doc-search,.ta-doc-search-input,.ta-doc-sort) {
+    background:#202020!important;
+    background-image:none!important;
+    border-color:#383838!important;
+    box-shadow:none!important;
+    color:#f7f7f7!important;
+  }
+  html[data-ui-theme="dark"] body :is(.modal-header,.modal-footer,.ta-settings-sidebar),
+  html[data-ui-theme="dark"] body .app-ui .ta-settings-nav button {
+    background:#191919!important;
+    background-image:none!important;
+    border-color:#383838!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .ta-settings-nav button.is-active,
+  html[data-ui-theme="dark"] body .app-ui .ta-settings-nav button.is-active .ta-settings-nav-icon {
+    background:#292929!important;
+    color:#f7f7f7!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .global-search-backdrop {
+    background:rgba(0,0,0,.72)!important;
+    backdrop-filter:none!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-aside {
+    background:#181818!important;
+    background-image:none!important;
+    border-color:#303030!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page :is(.ta-auth-frame,.ta-auth-main,.ta-auth-card,.ta-auth-tabs,.ta-auth-feature-list>div,.ta-auth-account-chip,.ta-auth-info-card) {
+    background:#191919!important;
+    background-image:none!important;
+    border-color:#383838!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-main {
+    background:#101010!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-aside::before {
+    display:none!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-feature-list>div {
+    background:#242424!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page :is(.ta-auth-aside-copy>span,.ta-auth-card-header>span) {
+    color:#d2d2d2!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page :is(.ta-google-button,.ta-auth-language,.ta-auth-card input,.ta-auth-card select) {
+    background:#161616!important;
+    border-color:#3b3b3b!important;
+    color:#f7f7f7!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-tabs button.is-active {
+    background:#292929!important;
+    color:#f7f7f7!important;
+    box-shadow:none!important;
+  }
+
+  /* Active states are neutral; blue is reserved for the actual action and focus. */
+  html[data-ui-theme="dark"] body .app-ui .ta-sidebar .ta-nav-item.is-active,
+  html[data-ui-theme="dark"] body .app-ui .ta-mobile-nav>button.is-active,
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-segmented-control,.ta-range-control) >button.is-active {
+    background:#292929!important;
+    background-image:none!important;
+    border-color:#464646!important;
+    box-shadow:none!important;
+    color:#f7f7f7!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .ta-sidebar .ta-nav-item.is-active :is(.ta-nav-icon,.ta-nav-label) {
+    color:#f7f7f7!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .ta-sidebar-create>.btn,
+  html[data-ui-theme="dark"] body .app-ui .ta-sidebar-create>.ta-create-button {
+    background:#7399e3!important;
+    background-image:none!important;
+    border-color:#7399e3!important;
+    color:#0d0d0d!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-kpi-card,.ta-dashboard-card)::after {
+    background:none!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-kpi-icon,.ta-customers-summary-icon,.ta-product-metric-icon,.ta-doc-row-icon,.ta-sheet-link-icon,.global-search-result-icon) {
+    background:#292929!important;
+    background-image:none!important;
+    border-color:#383838!important;
+    box-shadow:none!important;
+    color:#e9e9e9!important;
+  }
+
+  html[data-ui-theme="dark"] body .app-ui :is(.btn-primary,button.btn-primary,.ta-create-button,.ta-card-primary-action,.lourex-ai-launcher),
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-primary {
+    background:#7399e3!important;
+    background-image:none!important;
+    border-color:#7399e3!important;
+    color:#0d0d0d!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .lourex-ai-launcher:hover {
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.btn-primary,button.btn-primary,.ta-create-button,.ta-card-primary-action,.lourex-ai-launcher):hover:not(:disabled),
+  html[data-ui-theme="dark"] body .ta-auth-page .ta-auth-primary:hover:not(:disabled) {
+    background:#91b0ed!important;
+    border-color:#91b0ed!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(input,select,textarea,.btn-secondary,.btn-ghost,.ta-doc-sort,.ta-doc-search-input) {
+    background:#161616!important;
+    background-image:none!important;
+    border-color:#3b3b3b!important;
+    color:#f7f7f7!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(input,select,textarea):focus-visible {
+    border-color:#7399e3!important;
+    outline:2px solid #7399e3!important;
+    outline-offset:1px!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.ta-error,.ta-danger,.is-danger,[role="alert"]) {
+    color:#ef737a!important;
+  }
+}

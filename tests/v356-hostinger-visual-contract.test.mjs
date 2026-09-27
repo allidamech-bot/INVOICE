@@ -16,7 +16,7 @@ function stylesheetNames(source){
   return [...source.matchAll(/<link\s+rel="stylesheet"\s+href="\.\/styles\/([^"?]+\.css)(?:\?[^\"]*)?"[^>]*\/>/g)].map(match=>match[1]);
 }
 
-test('Hostinger visual owners load once and v359 is the final design owner before reliability',()=>{
+test('Hostinger visual owners load once and v360 is the final design owner before reliability',()=>{
   const names=stylesheetNames(html);
   for(const name of [
     'hostinger-inspired-v353.css',
@@ -25,7 +25,8 @@ test('Hostinger visual owners load once and v359 is the final design owner befor
     'hostinger-final-coherence-v356.css',
     'hostinger-interaction-polish-v357.css',
     'hostinger-blue-luxury-v358.css',
-    'hostinger-blue-precision-v359.css'
+    'hostinger-blue-precision-v359.css',
+    'matte-black-dark-v360.css'
   ]){
     assert.equal(names.filter(value=>value===name).length,1,`${name} must load exactly once`);
   }
@@ -33,6 +34,7 @@ test('Hostinger visual owners load once and v359 is the final design owner befor
   assert.ok(names.indexOf('hostinger-final-coherence-v356.css')<names.indexOf('hostinger-interaction-polish-v357.css'));
   assert.ok(names.indexOf('hostinger-interaction-polish-v357.css')<names.indexOf('hostinger-blue-luxury-v358.css'));
   assert.ok(names.indexOf('hostinger-blue-luxury-v358.css')<names.indexOf('hostinger-blue-precision-v359.css'));
+  assert.ok(names.indexOf('hostinger-blue-precision-v359.css')<names.indexOf('matte-black-dark-v360.css'));
   assert.ok(names.indexOf('hostinger-blue-precision-v359.css')<names.indexOf('tailadmin-reliability-bridge-v320.css'));
   assert.doesNotMatch(html,/hostinger-final-polish-v356\.css/,'deleted duplicate v356 layer must not return');
 });
@@ -53,10 +55,10 @@ test('v357 keeps command menus neutral and inside the desktop sidebar',()=>{
   assert.doesNotMatch(interaction,/z-index\s*:/i,'interaction polish must not replace the reliability stacking contract');
 });
 
-test('v358 canonical application palette is premium blue in both themes',()=>{
+test('v358 light palette and v360 matte dark palette retain blue primary actions',()=>{
   assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-workspace:#F5F7FB!important[\s\S]*?--ft-accent:#315DA8!important/);
-  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-workspace:#101722!important[\s\S]*?--ft-accent:#82A9EC!important/);
-  assert.match(palette,/--ft-on-accent:#101722!important/,'dark primary actions must use readable dark ink on the light-blue accent');
+  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-workspace:#0D0D0D!important[\s\S]*?--ft-accent:#7399E3!important/);
+  assert.match(palette,/--ft-on-accent:#0D0D0D!important/,'dark primary actions must use readable dark ink on the blue accent');
   assert.match(palette,/html\[data-ui-theme="dark"\] body \.ta-auth-page :where\(\.ta-auth-primary,\.btn-primary,button\.btn-primary\)\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important[\s\S]*?color:var\(--ft-on-accent\)!important/,'dark auth primary must override retired violet gradient with canonical blue');
   assert.match(blue,/--hx-purple:var\(--ft-accent\)/,'retired Hostinger violet aliases must resolve to the blue application token');
   assert.match(html,/--boot-visual-accent:#315DA8/);
