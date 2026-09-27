@@ -17,8 +17,11 @@ test('v364 commercial templates keep the closing zone anchored and premium',asyn
 
 test('v364 pagination keeps routine commercial closing content with item pages',async()=>{
   const renderer=await read('src/templates/TemplateRenderer.tsx');
-  assert.match(renderer,/if\(pressure>1900\)return 3;/);
-  assert.match(renderer,/if\(pressure>850\)return 6;/);
+  const documents=await read('src/lib/documents.ts');
+  assert.match(renderer,/if\(pressure>2200\)return 4;/);
+  assert.match(renderer,/if\(pressure>850\)return 8;/);
+  assert.match(renderer,/return 10;/);
+  assert.match(documents,/Math\.min\(10,Math\.trunc\(firstPageCapacity\)\|\|7\)/);
   assert.match(renderer,/const hardOverflow=detailsChars>1900/);
   assert.match(renderer,/const exceptionalClosing=detailsChars>1300/);
   assert.match(renderer,/\|\|\(score>=24&&detailsChars>900\)/);
