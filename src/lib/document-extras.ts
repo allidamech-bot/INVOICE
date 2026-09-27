@@ -9,7 +9,7 @@ const LETTER_FONTS=new Set<LetterBlock['font']>(['system','inter','source-sans',
 const PAGE_STYLES=new Set<LetterDocumentData['pageStyle']>(['plain','ruled','grid']);
 const HEADER_STYLES=new Set<LetterDocumentData['headerStyle']>(['classic','minimal','accent']);
 const FOOTER_STYLES=new Set<LetterDocumentData['footerStyle']>(['company','minimal','none']);
-const LETTER_PRESETS=new Set<LetterDocumentData['preset']>(['blank','formal-letter','memo','notice']);
+const LETTER_PRESETS=new Set<LetterDocumentData['preset']>(['blank','formal-letter','company-letter','letter-of-intent','memo','notice']);
 
 function str(value:unknown,fallback=''):string{return typeof value==='string'?value:fallback;}
 function num(value:unknown,fallback:number,min:number,max:number):number{const n=typeof value==='number'?value:Number(value);return Number.isFinite(n)?Math.min(max,Math.max(min,n)):fallback;}
@@ -41,7 +41,7 @@ export function defaultLetterBlock(type:LetterBlock['type']='paragraph',text='')
   return {
     id:makeId('block'),type,text,direction:'auto',align:'start',font:'system',
     size:heading?24:sub?17:14,color:'#17323a',bold:heading||sub,italic:false,underline:false,
-    lineHeight:heading?1.25:1.65,spacingBefore:heading?14:sub?10:4,spacingAfter:heading?10:sub?8:8
+    lineHeight:heading?1.25:sub?1.45:1.65,spacingBefore:heading?14:sub?10:4,spacingAfter:heading?10:sub?8:8
   };
 }
 
@@ -63,6 +63,8 @@ export function letterPreset(preset:LetterDocumentData['preset'],language:Docume
   const font=rtl?'cairo':'inter';
   const block=(type:LetterBlock['type'],text:string):LetterBlock=>{const next=defaultLetterBlock(type,text);next.direction=rtl?'rtl':'auto';next.font=font as LetterBlock['font'];return next;};
   if(preset==='formal-letter')return {...base,preset,subject:rtl?'الموضوع':'Subject',blocks:[block('paragraph',rtl?'السادة المحترمون،':'Dear Sir / Madam,'),block('paragraph',''),block('paragraph',rtl?'وتفضلوا بقبول فائق الاحترام.':'Sincerely,')]};
+  if(preset==='company-letter')return {...base,preset,blocks:[block('paragraph',rtl?'السادة المحترمون،':'Dear Sir / Madam,'),block('paragraph',''),block('paragraph',rtl?'وتفضلوا بقبول فائق الاحترام.':'Sincerely,')]};
+  if(preset==='letter-of-intent')return {...base,preset,subject:rtl?'خطاب نوايا':'Letter of Intent',blocks:[block('paragraph',rtl?'السادة المحترمون،':'Dear Sir / Madam,'),block('paragraph',''),block('paragraph',rtl?'وتفضلوا بقبول فائق الاحترام.':'Sincerely,')]};
   if(preset==='memo')return {...base,preset,headerStyle:'minimal',footerStyle:'minimal',blocks:[block('heading',rtl?'مذكرة داخلية':'INTERNAL MEMO'),block('paragraph','')]};
   if(preset==='notice')return {...base,preset,headerStyle:'accent',blocks:[block('heading',rtl?'إشعار رسمي':'OFFICIAL NOTICE'),block('paragraph','')]};
   return {...base,preset:'blank'};
