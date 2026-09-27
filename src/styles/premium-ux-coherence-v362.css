@@ -72,6 +72,18 @@
   html body .app-ui .customer-dropdown span { font-size:11.5px!important;line-height:17px!important; }
   html body .app-ui .customer-dropdown button { min-height:44px!important;padding:9px 11px!important; }
 
+  /* A quiet highlight belongs to actions and focus, never the matte canvas. */
+  html[data-ui-theme="dark"] body .app-ui :is(.btn-primary,.ta-create-button,.ta-mobile-create),
+  html[data-ui-theme="dark"] body .modal:has(.ta-customer-form) .btn-primary {
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.23),0 5px 16px rgba(88,127,209,.15)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(input,select,textarea):focus-visible,
+  html[data-ui-theme="dark"] body .modal:has(.ta-customer-form) :is(input,select,textarea):focus-visible {
+    border-color:#7399e3!important;
+    box-shadow:0 0 0 3px rgba(115,153,227,.18)!important;
+    outline:0!important;
+  }
+
   html[data-ui-theme="dark"] body .app-ui :is(.editor-pane,.editor-section,.draft-control-section,.ta-product-editor-section,.ta-product-commandbar,.ta-product-row,.ta-product-menu,.ta-product-metrics>div,.ta-product-metrics>button,.ta-ops-form-section,.ta-ops-panel,.ta-ops-list-card,.ta-ops-editor-card,.ta-ops-callout,.ta-purchase-item,.ta-inventory-row,.ta-report-filterbar,.ta-report-kpi,.ta-panel,.ta-empty-card,.ta-settings-card) {
     background:#191919!important;
     background-image:none!important;
@@ -105,6 +117,15 @@
   }
 
   @media (max-width:900px) {
+    html[data-ui-theme="dark"] body .app-ui :is(.ta-kpi-card,.ta-products-overview>div,.ta-customers-summary>div,.ta-product-editor-section,.ta-report-filterbar,.ta-customer-form-section),
+    html[data-ui-theme="dark"] body .modal:has(.ta-customer-form) .ta-customer-form-section {
+      background-image:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,0) 55%)!important;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.045)!important;
+    }
+    html[data-ui-theme="dark"] body .app-ui .modal:has(.ta-customer-form) {
+      border-color:#454545!important;
+      box-shadow:0 20px 55px rgba(0,0,0,.45),0 0 0 1px rgba(115,153,227,.08)!important;
+    }
     html body .app-ui :is(.editor-layout,.draft-studio-layout) { padding-inline:10px!important; }
     html body .app-ui :is(.editor-section,.draft-control-section) { padding:12px!important; }
     html body .app-ui :is(.editor-form-lock,.draft-studio-form) { gap:10px!important; }
@@ -127,6 +148,38 @@
     html body .ta-settings-page-header { margin-bottom:12px!important; }
   }
   @media (max-width:650px) {
+    html body .app-ui .modal-backdrop:has(.ta-customer-form) {
+      padding:max(6px,env(safe-area-inset-top,0px)) max(6px,env(safe-area-inset-right,0px)) max(6px,env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))!important;
+    }
+    html body .app-ui .modal:has(.ta-customer-form) {
+      width:100%!important;
+      max-width:100%!important;
+      max-height:calc(100dvh - 12px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+      border-radius:16px!important;
+    }
+    html body .app-ui .modal:has(.ta-customer-form)>.modal-header { min-height:52px!important;padding:6px 10px!important; }
+    html body .app-ui .modal:has(.ta-customer-form)>.modal-header h2 { font-size:16px!important;line-height:22px!important; }
+    html body .app-ui .modal:has(.ta-customer-form)>.modal-header .icon-btn { width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important; }
+    html body .app-ui .modal:has(.ta-customer-form)>.modal-body { min-height:0!important;padding:8px!important; }
+    html body .app-ui .ta-customer-form { gap:8px!important; }
+    html body .app-ui .ta-customer-form-section { padding:0!important;border-radius:12px!important; }
+    html body .app-ui .ta-customer-form-section>header {
+      min-height:48px!important;
+      grid-template-columns:28px minmax(0,1fr)!important;
+      gap:7px!important;
+      margin:0!important;
+      padding:7px 9px!important;
+    }
+    html body .app-ui .ta-customer-form-icon { width:28px!important;height:28px!important; }
+    html body .app-ui .ta-customer-form-section h3 { font-size:13px!important;line-height:19px!important;font-weight:700!important; }
+    html body .app-ui .ta-customer-form-section p { font-size:11px!important;line-height:16px!important; }
+    html body .app-ui .ta-customer-form-grid { grid-template-columns:minmax(0,1fr)!important;gap:9px!important;padding:10px!important; }
+    html body .app-ui .ta-customer-form-grid :is(input,select,textarea) { min-height:44px!important;font-size:16px!important; }
+    html body .app-ui .ta-customer-form-grid :is(.field>label,.field-label) { font-size:12px!important;line-height:17px!important; }
+    html body .app-ui .modal:has(.ta-customer-form)>.modal-footer { min-height:58px!important;padding:7px 9px max(7px,env(safe-area-inset-bottom,0px))!important; }
+    html body .app-ui .ta-customer-modal-actions { width:100%!important;display:flex!important;gap:8px!important; }
+    html body .app-ui .ta-customer-modal-actions>.btn { flex:1 1 0!important;min-width:0!important;min-height:44px!important;font-size:13px!important; }
+
     html body .app-ui .ta-product-commandbar>.btn-primary { display:none!important; }
     html body .app-ui .ta-product-search { min-height:44px!important;height:44px!important; }
     html body .app-ui .ta-product-search input { min-height:42px!important;font-size:16px!important; }
