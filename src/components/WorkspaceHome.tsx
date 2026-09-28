@@ -53,7 +53,11 @@ function documentLabel(doc:LourexDocument):string{
 
 function documentStatus(doc:LourexDocument,payments:PaymentRecord[],documents:LourexDocument[],today:string):{tone:string;label:string}{
   if(doc.lifecycleStatus==='voided')return{tone:'void',label:(doc.kind==='proforma'||doc.kind==='purchase-order')?t('Cancelled','ملغى'):t('Void','ملغى')};
-  if(doc.status==='draft')return{tone:'draft',label:t('Draft','مسودة')};
+  if(doc.kind==='draft')return{tone:'draft',label:t('Draft','مسودة')};
+  if(doc.status==='draft'){
+    const ready=Object.keys(validateDocument(doc)).length===0;
+    return ready?{tone:'ready',label:t('Ready','جاهز')}:{tone:'draft',label:t('Draft','مسودة')};
+  }
   if(doc.kind==='proforma')return{tone:'quotation',label:t('Quotation','عرض سعر')};
   if(doc.kind==='purchase-order')return{tone:'issued',label:t('Issued PO','طلب شراء صادر')};
   if(doc.role==='credit-note')return{tone:'issued',label:t('Issued','صادر')};
@@ -224,7 +228,6 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
     </section>
 
     <section className="ta-quick-actions" aria-label={t('Quick actions','إجراءات سريعة')}>
-      <button type="button" onClick={onNewDocument}><span className="ta-quick-icon"><Icon name="plus"/></span><span><strong>{t('New document','مستند جديد')}</strong><small>{t('Create a business document','إنشاء مستند أعمال')}</small></span></button>
       <button type="button" onClick={()=>onNavigate('customers')}><span className="ta-quick-icon"><Icon name="users"/></span><span><strong>{t('Customers','العملاء')}</strong><small>{t('Directory and profiles','الدليل والملفات')}</small></span></button>
       <button type="button" onClick={()=>onNavigate('items')}><span className="ta-quick-icon"><Icon name="items"/></span><span><strong>{t('Products','المنتجات')}</strong><small>{t('Catalog and inventory','الكتالوج والمخزون')}</small></span></button>
       <button type="button" onClick={()=>onNavigate('operations')}><span className="ta-quick-icon"><Icon name="backup"/></span><span><strong>{t('Purchasing','المشتريات')}</strong><small>{t('Suppliers and costs','الموردون والتكاليف')}</small></span></button>
