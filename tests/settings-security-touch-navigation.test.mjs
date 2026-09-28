@@ -4,15 +4,21 @@ import { readFile } from 'node:fs/promises';
 
 const source=await readFile(new URL('../src/components/SettingsModal.tsx',import.meta.url),'utf8');
 
-test('settings tabs activate directly on a deliberate mobile touch',()=>{
+test('settings tabs activate on a deliberate pointer or touch tap, not a swipe',()=>{
   assert.match(source,/private handleSettingsTabTouchStart=[\s\S]*?changedTouches\[0\]/);
   assert.match(source,/private handleSettingsTabTouchEnd=[\s\S]*?changedTouches\[0\]/);
+  assert.match(source,/private handleSettingsTabPointerDown=[\s\S]*?pointerId:event\.pointerId/);
+  assert.match(source,/private handleSettingsTabPointerUp=[\s\S]*?start\.pointerId!==event\.pointerId/);
   assert.match(source,/Math\.abs\(touch\.clientX-start\.x\)>18\|\|Math\.abs\(touch\.clientY-start\.y\)>18/);
-  assert.match(source,/this\.lastSettingsTouchActivation=\{tab,at:Date\.now\(\)\};\s*this\.selectSettingsTab\(tab\);/);
+  assert.match(source,/Math\.abs\(event\.clientX-start\.x\)>18\|\|Math\.abs\(event\.clientY-start\.y\)>18/);
+  assert.match(source,/this\.activateSettingsTabFromTouch\(tab\)/);
 });
 
-test('security tab keeps touch, click, and touch-cancel handlers attached to its tab button',()=>{
+test('security tab keeps pointer, touch, click, and cancellation handlers attached to its tab button',()=>{
   assert.match(source,/\['security',t\('Security','الأمان'\)/);
+  assert.match(source,/onPointerDown=\{\(event:any\)=>this\.handleSettingsTabPointerDown\(id,event\)\}/);
+  assert.match(source,/onPointerUp=\{\(event:any\)=>this\.handleSettingsTabPointerUp\(id,event\)\}/);
+  assert.match(source,/onPointerCancel=\{\(\)=>\{this\.settingsPointerStart=null;\}\}/);
   assert.match(source,/onTouchStart=\{\(event:any\)=>this\.handleSettingsTabTouchStart\(id,event\)\}/);
   assert.match(source,/onTouchEnd=\{\(event:any\)=>this\.handleSettingsTabTouchEnd\(id,event\)\}/);
   assert.match(source,/onTouchCancel=\{\(\)=>\{this\.settingsTouchStart=null;\}\}/);
