@@ -1,7 +1,7 @@
 import type { SavedItem } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { ProductLibraryWorkspace } from './ProductLibraryWorkspace.js';
-import { Button, Icon } from './UI.js';
+import { Icon } from './UI.js';
 
 interface Props {
   items:SavedItem[];
@@ -29,7 +29,7 @@ export class SavedItemsPage extends React.Component<Props>{
 
   render():any{
     return <section className="ta-product-library-page">
-      <header className="ta-product-page-header"><div><span className="ta-product-page-eyebrow">{t('Reusable product catalog','كتالوج أصناف قابل لإعادة الاستخدام')}</span><h1>{t('Product Library','مكتبة الأصناف')}</h1><p>{t('Organize product data once, reuse it everywhere, and update large catalogs safely from Excel or CSV.','رتّب بيانات الأصناف مرة واحدة، استخدمها في كل مكان، وحدّث الكتالوجات الكبيرة بأمان من Excel أو CSV.')}</p></div><Button icon="plus" variant="primary" onClick={()=>window.dispatchEvent(new Event('lourex-open-product-editor'))}>{t('New Product','صنف جديد')}</Button></header>
+      <header className="ta-product-page-header"><div><span className="ta-product-page-eyebrow">{t('Reusable product catalog','كتالوج أصناف قابل لإعادة الاستخدام')}</span><h1>{t('Product Library','مكتبة الأصناف')}</h1><p>{t('Organize product data once, reuse it everywhere, and update large catalogs safely from Excel or CSV.','رتّب بيانات الأصناف مرة واحدة، استخدمها في كل مكان، وحدّث الكتالوجات الكبيرة بأمان من Excel أو CSV.')}</p></div></header>
       <div className="ta-product-page-note"><span><Icon name="items"/></span><div><strong>{t('One product source across LOUREX','مصدر واحد للأصناف في LOUREX')}</strong><small>{t('Catalog details flow into documents, purchasing, inventory and profitability without changing issued documents.','تنتقل بيانات الكتالوج إلى المستندات والمشتريات والمخزون والربحية دون تغيير المستندات الصادرة.')}</small></div></div>
       <ProductLibraryWorkspace items={this.props.items} currency={this.props.currency} onSave={this.props.onSave} onSaveMany={this.props.onSaveMany} onDelete={this.props.onDelete} onInspectInventory={this.props.onInspectInventory} onInspectPurchases={this.props.onInspectPurchases}/>
     </section>;
