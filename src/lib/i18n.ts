@@ -2,15 +2,6 @@ import type { UiLanguage } from '../types.js';
 
 let currentLanguage: UiLanguage = 'en';
 
-const arabicOverrides: Record<string,string> = {
-  'مبدئية':'عروض الأسعار',
-  'فاتورة مبدئية':'عرض سعر',
-  'فاتورة مبدئية جديدة':'عرض سعر جديد',
-  'فاتورة أولية':'عرض سعر',
-  'احفظ فاتورة مبدئية صالحة قبل تحويلها.':'احفظ عرض سعر صالحًا قبل تحويله.',
-  'بادئة الفاتورة المبدئية':'بادئة عرض السعر'
-};
-
 function automaticSyncCopy(value:string):string {
   return value
     .replace(/or use Sync\s+Now from the correct device\./g,'and allow automatic synchronization to continue from the correct signed-in device.')
@@ -31,8 +22,7 @@ export function getUiLanguage(): UiLanguage { return currentLanguage; }
 export function isArabic(): boolean { return currentLanguage === 'ar'; }
 export function t(en: string, ar: string): string {
   if (currentLanguage !== 'ar') return automaticSyncCopy(en);
-  const translated=arabicOverrides[ar] ?? ar.replace(/فاتورة مبدئية/g,'عرض سعر').replace(/فاتورة أولية/g,'عرض سعر');
-  return automaticSyncCopy(translated);
+  return automaticSyncCopy(ar);
 }
 
 export function translateValidation(message: string): string {
