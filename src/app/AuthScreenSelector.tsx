@@ -14,11 +14,12 @@ type Props =
   | (SharedProps & {
       mode: 'setup';
       company: CompanySettings;
-      onFinish: (pin: string, company: CompanySettings) => Promise<void>;
+      onFinish: (pin: string, company: CompanySettings, recoveryCode:string) => Promise<void>;
     })
   | (SharedProps & {
       mode: 'unlock';
       onUnlock: (pin: string) => Promise<void>;
+      onRecoverPin: (recoveryKey:string,newPin:string) => Promise<void>;
     });
 
 type RecoveryState='idle'|'checking'|'blocked'|'error'|'ready';
@@ -117,7 +118,7 @@ export function AuthScreenSelector(props: Props): any {
   }
 
   if (props.mode === 'unlock') {
-    return <UnlockScreen logoDataUrl={props.logoDataUrl} language={props.language} onLanguageChange={props.onLanguageChange} onUnlock={props.onUnlock}/>;
+    return <UnlockScreen logoDataUrl={props.logoDataUrl} language={props.language} onLanguageChange={props.onLanguageChange} onUnlock={props.onUnlock} onRecoverPin={props.onRecoverPin}/>;
   }
 
   // Account recovery is shown inside the existing auth surface. It is deliberately
