@@ -34,6 +34,7 @@ const COMPANY_ASSET_TYPES=/^image\/(png|webp|jpeg)$/i;
 
 export class SettingsModal extends React.Component<Props,State> {
   private assetPreparationId=0;
+  private settingsContent:HTMLElement|null=null;
   constructor(props:Props){
     super(props);
     const company=structuredClone(props.company);
@@ -53,6 +54,9 @@ export class SettingsModal extends React.Component<Props,State> {
   }
 
   private hasUnsavedSettings=()=>JSON.stringify(this.state.company)!==this.state.companyInitial||JSON.stringify(this.state.appSettings)!==this.state.documentsInitial;
+  private selectSettingsTab=(tab:State['tab'])=>this.setState({tab,error:'',message:'',savedSection:null},()=>{
+    if(this.settingsContent)this.settingsContent.scrollTop=0;
+  });
   private requestClose=()=>{if(this.hasUnsavedSettings()){this.setState({confirmClose:true});return;}this.props.onClose();};
   private discardAndClose=()=>this.setState({confirmClose:false},this.props.onClose);
   private setCompany=(key:keyof CompanySettings,value:any)=>this.setState({company:{...this.state.company,[key]:value},savedSection:null,message:'',error:''});
@@ -274,8 +278,8 @@ export class SettingsModal extends React.Component<Props,State> {
     const tabItems=([['company',t('Workspace','مساحة العمل'),'settings',t('Language and defaults','اللغة والإعدادات')],['commercial',t('Commercial','تجاري'),'invoice',t('Banking and trade controls','البنوك وضوابط التجارة')],['documents',t('Documents','المستندات'),'file',t('Output and numbering','الإخراج والترقيم')],['security',t('Security','الأمان'),'lock',t('PIN and recovery','PIN والاستعادة')]] as const);
     return <Modal open={this.props.open} title={accountScope?t('Account','الحساب'):t('Settings','الإعدادات')} size="xl" onClose={this.requestClose}>
       <div className={`ta-settings-shell ${accountScope?'is-account':'is-settings'} ${this.state.accountAction==='restore'?'is-restoring':''}`}>
-        {!accountScope?<aside className="ta-settings-sidebar"><div className="ta-settings-sidebar-head"><span>{t('LOUREX Invoice','LOUREX Invoice')}</span><strong>{t('Settings','الإعدادات')}</strong></div><nav className="ta-settings-nav" aria-label={t('Settings sections','أقسام الإعدادات')}>{tabItems.map(([id,label,icon,description])=><button type="button" key={id} className={this.state.tab===id?'is-active':''} aria-current={this.state.tab===id?'page':undefined} onClick={()=>this.setState({tab:id,error:'',message:'',savedSection:null})}><span className="ta-settings-nav-icon"><Icon name={icon}/></span><span><strong>{label}</strong><small>{description}</small></span></button>)}</nav></aside>:null}
-        <main className="ta-settings-content">
+        {!accountScope?<aside className="ta-settings-sidebar"><div className="ta-settings-sidebar-head"><span>{t('LOUREX Invoice','LOUREX Invoice')}</span><strong>{t('Settings','الإعدادات')}</strong></div><nav className="ta-settings-nav" role="tablist" aria-label={t('Settings sections','أقسام الإعدادات')}>{tabItems.map(([id,label,icon,description])=><button type="button" role="tab" key={id} id={`settings-tab-${id}`} aria-controls="settings-tab-panel" aria-selected={this.state.tab===id} className={this.state.tab===id?'is-active':''} aria-current={this.state.tab===id?'page':undefined} onClick={()=>this.selectSettingsTab(id)}><span className="ta-settings-nav-icon"><Icon name={icon}/></span><span><strong>{label}</strong><small>{description}</small></span></button>)}</nav></aside>:null}
+        <main ref={(node:HTMLElement|null)=>{this.settingsContent=node;}} id="settings-tab-panel" role="tabpanel" aria-labelledby={`settings-tab-${this.state.tab}`} tabIndex={-1} className="ta-settings-content">
           {accountScope?this.accountProfile():null}
           {!accountScope&&this.state.tab==='company'?this.workspacePreferences(c,s):null}
           {!accountScope&&this.state.tab==='commercial'?<div className="ta-settings-page ta-commercial-page">{this.pageHeader(t('Commercial','تجاري'),t('Commercial controls','الضوابط التجارية'),t('Banking, tax, payment terms, trade defaults and pricing controls.','إعدادات البنوك والضرائب وشروط الدفع والإعدادات التجارية والتسعير.'),this.saveButton('company'))}<section className="ta-settings-card ta-commercial-controls"><div className="ta-settings-card-body"><CommercialControlsSettings company={c} onChange={company=>this.setState({company,savedSection:null,message:'',error:''})}/></div></section></div>:null}
