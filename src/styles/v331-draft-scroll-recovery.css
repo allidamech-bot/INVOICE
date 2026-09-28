@@ -375,3 +375,148 @@
     max-height:calc(100svh - 104px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
   }
 }
+
+/* LOUREX v366 — Draft closeout after live iPhone review.
+ * Presentation/geometry only: keep PIN, auth, persistence, autosave and document
+ * semantics untouched. The Draft template chooser belongs at the end of the
+ * editing flow, its cards stay compact on phones, and the command dock must sit
+ * inside Safari's dynamic visual viewport rather than underneath browser chrome. */
+html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
+  display:grid!important;
+  grid-auto-flow:row!important;
+}
+html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section{
+  order:99!important;
+  margin-top:2px!important;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--ft-surface) 96%,var(--ft-accent) 4%),var(--ft-surface))!important;
+}
+html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .draft-section-heading>span{
+  font-size:0!important;
+}
+html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .draft-section-heading>span::after{
+  content:"04";
+  font-size:12px;
+  line-height:1;
+  font-weight:850;
+}
+html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .template-selector{
+  gap:9px!important;
+  margin-top:12px!important;
+}
+html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .template-card{
+  overflow:hidden!important;
+  border-radius:14px!important;
+  background:color-mix(in srgb,var(--ft-surface) 97%,var(--ft-canvas) 3%)!important;
+  box-shadow:none!important;
+}
+html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .template-mini{
+  min-height:0!important;
+  height:112px!important;
+}
+html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .template-card-copy{
+  padding:9px 10px 10px!important;
+  gap:1px!important;
+}
+html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .template-card-copy>b{
+  font-size:13px!important;
+  line-height:18px!important;
+}
+html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .template-card-copy>small{
+  font-size:10.5px!important;
+  line-height:15px!important;
+}
+html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .template-card-copy>em{
+  margin-top:3px!important;
+  font-size:10px!important;
+  line-height:14px!important;
+}
+html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .template-card.selected{
+  border-color:color-mix(in srgb,var(--ft-accent) 74%,var(--ft-line))!important;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--ft-accent) 16%,transparent)!important;
+}
+
+/* Keep mixed Arabic/English Draft titles readable in A4/PDF preview. */
+.draft-letter-page.lang-bilingual .draft-document-purpose strong{
+  direction:ltr!important;
+  unicode-bidi:plaintext!important;
+  font-family:Cairo,Tajawal,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif!important;
+  font-size:20px!important;
+  line-height:1.38!important;
+  font-weight:700!important;
+  letter-spacing:0!important;
+  text-rendering:optimizeLegibility!important;
+}
+.draft-letter-page.lang-bilingual .draft-document-purpose{
+  align-items:center!important;
+}
+
+@media screen and (max-width:900px){
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio-scroll{
+    display:flex!important;
+    flex-direction:column!important;
+    padding-bottom:calc(148px + env(safe-area-inset-bottom,0px))!important;
+    scroll-padding-bottom:calc(154px + env(safe-area-inset-bottom,0px))!important;
+  }
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section{
+    order:99!important;
+  }
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .template-selector{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+  }
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .template-mini{
+    height:104px!important;
+  }
+
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio.editor-screen>.draft-mobile-actionbar{
+    position:fixed!important;
+    z-index:260!important;
+    left:max(8px,env(safe-area-inset-left,0px))!important;
+    right:max(8px,env(safe-area-inset-right,0px))!important;
+    bottom:max(
+      calc(8px + env(safe-area-inset-bottom,0px)),
+      calc(100vh - 100dvh + 8px + env(safe-area-inset-bottom,0px))
+    )!important;
+    width:auto!important;
+    min-height:68px!important;
+    max-width:none!important;
+    display:grid!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:6px!important;
+    visibility:visible!important;
+    opacity:1!important;
+    transform:none!important;
+    pointer-events:auto!important;
+    padding:7px!important;
+    border:1px solid color-mix(in srgb,var(--ft-line) 82%,var(--ft-accent) 18%)!important;
+    border-radius:18px!important;
+    background:color-mix(in srgb,var(--ft-surface) 97%,transparent)!important;
+    box-shadow:0 12px 34px rgba(0,0,0,.28),inset 0 1px 0 color-mix(in srgb,#fff 45%,transparent)!important;
+    backdrop-filter:blur(22px)!important;
+    -webkit-backdrop-filter:blur(22px)!important;
+  }
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio.editor-screen>.draft-mobile-actionbar>.btn{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    min-width:0!important;
+    min-height:50px!important;
+    visibility:visible!important;
+    opacity:1!important;
+  }
+}
+
+@media screen and (max-width:390px){
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .template-mini{
+    height:94px!important;
+  }
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-section .template-card-copy{
+    padding:8px 8px 9px!important;
+  }
+  html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio.editor-screen>.draft-mobile-actionbar{
+    left:max(6px,env(safe-area-inset-left,0px))!important;
+    right:max(6px,env(safe-area-inset-right,0px))!important;
+    gap:5px!important;
+    padding:6px!important;
+  }
+}
