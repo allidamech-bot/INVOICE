@@ -14,13 +14,16 @@ test('settings tabs activate on a deliberate pointer or touch tap, not a swipe',
   assert.match(source,/this\.activateSettingsTabFromTouch\(tab\)/);
 });
 
-test('security tab keeps pointer, touch, click, and cancellation handlers attached to its tab button',()=>{
+test('security tab supports delegated click plus pointer, touch, and cancellation paths',()=>{
   assert.match(source,/\['security',t\('Security','الأمان'\)/);
+  assert.match(source,/private handleSettingsNavClickCapture=\(event:any\)=>\{/);
+  assert.match(source,/closest\?\.\('\[data-settings-tab\]'\)/);
+  assert.match(source,/data-settings-tab=\{id\}/);
+  assert.match(source,/onClickCapture=\{this\.handleSettingsNavClickCapture\}/);
   assert.match(source,/onPointerDown=\{\(event:any\)=>this\.handleSettingsTabPointerDown\(id,event\)\}/);
   assert.match(source,/onPointerUp=\{\(event:any\)=>this\.handleSettingsTabPointerUp\(id,event\)\}/);
   assert.match(source,/onPointerCancel=\{\(\)=>\{this\.settingsPointerStart=null;\}\}/);
   assert.match(source,/onTouchStart=\{\(event:any\)=>this\.handleSettingsTabTouchStart\(id,event\)\}/);
   assert.match(source,/onTouchEnd=\{\(event:any\)=>this\.handleSettingsTabTouchEnd\(id,event\)\}/);
   assert.match(source,/onTouchCancel=\{\(\)=>\{this\.settingsTouchStart=null;\}\}/);
-  assert.match(source,/onClick=\{\(\)=>this\.handleSettingsTabClick\(id\)\}/);
 });
