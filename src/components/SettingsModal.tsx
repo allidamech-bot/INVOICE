@@ -79,6 +79,11 @@ export class SettingsModal extends React.Component<Props,State> {
     if(recent?.tab===tab&&Date.now()-recent.at<120)return;
     this.activateSettingsTabFromTouch(tab);
   };
+  private handleSettingsNavClickCapture=(event:any)=>{
+    const button=(event.target as Element|null)?.closest?.('[data-settings-tab]') as HTMLButtonElement|null;
+    const tab=button?.dataset.settingsTab as State['tab']|undefined;
+    if(tab==='company'||tab==='commercial'||tab==='documents'||tab==='security')this.selectSettingsTab(tab);
+  };
   private handleSettingsTabTouchEnd=(tab:State['tab'],event:any)=>{
     const start=this.settingsTouchStart;
     this.settingsTouchStart=null;
@@ -87,11 +92,6 @@ export class SettingsModal extends React.Component<Props,State> {
     const recent=this.lastSettingsTouchActivation;
     if(recent?.tab===tab&&Date.now()-recent.at<120)return;
     this.activateSettingsTabFromTouch(tab);
-  };
-  private handleSettingsTabClick=(tab:State['tab'])=>{
-    const touch=this.lastSettingsTouchActivation;
-    if(touch?.tab===tab&&Date.now()-touch.at<1000){this.lastSettingsTouchActivation=null;return;}
-    this.selectSettingsTab(tab);
   };
   private requestClose=()=>{if(this.hasUnsavedSettings()){this.setState({confirmClose:true});return;}this.props.onClose();};
   private discardAndClose=()=>this.setState({confirmClose:false},this.props.onClose);
@@ -314,7 +314,7 @@ export class SettingsModal extends React.Component<Props,State> {
     const tabItems=([['company',t('Workspace','مساحة العمل'),'settings',t('Language and defaults','اللغة والإعدادات')],['commercial',t('Commercial','تجاري'),'invoice',t('Banking and trade controls','البنوك وضوابط التجارة')],['documents',t('Documents','المستندات'),'file',t('Output and numbering','الإخراج والترقيم')],['security',t('Security','الأمان'),'lock',t('PIN and recovery','PIN والاستعادة')]] as const);
     return <Modal open={this.props.open} title={accountScope?t('Account','الحساب'):t('Settings','الإعدادات')} size="xl" onClose={this.requestClose}>
       <div className={`ta-settings-shell ${accountScope?'is-account':'is-settings'} ${this.state.accountAction==='restore'?'is-restoring':''}`}>
-        {!accountScope?<aside className="ta-settings-sidebar"><div className="ta-settings-sidebar-head"><span>{t('LOUREX Invoice','LOUREX Invoice')}</span><strong>{t('Settings','الإعدادات')}</strong></div><nav className="ta-settings-nav" role="tablist" aria-label={t('Settings sections','أقسام الإعدادات')}>{tabItems.map(([id,label,icon,description])=><button type="button" role="tab" key={id} id={`settings-tab-${id}`} aria-controls="settings-tab-panel" aria-selected={this.state.tab===id} className={this.state.tab===id?'is-active':''} aria-current={this.state.tab===id?'page':undefined} onPointerDown={(event:any)=>this.handleSettingsTabPointerDown(id,event)} onPointerUp={(event:any)=>this.handleSettingsTabPointerUp(id,event)} onPointerCancel={()=>{this.settingsPointerStart=null;}} onTouchStart={(event:any)=>this.handleSettingsTabTouchStart(id,event)} onTouchEnd={(event:any)=>this.handleSettingsTabTouchEnd(id,event)} onTouchCancel={()=>{this.settingsTouchStart=null;}} onClick={()=>this.handleSettingsTabClick(id)}><span className="ta-settings-nav-icon"><Icon name={icon}/></span><span><strong>{label}</strong><small>{description}</small></span></button>)}</nav></aside>:null}
+        {!accountScope?<aside className="ta-settings-sidebar"><div className="ta-settings-sidebar-head"><span>{t('LOUREX Invoice','LOUREX Invoice')}</span><strong>{t('Settings','الإعدادات')}</strong></div><nav className="ta-settings-nav" role="tablist" aria-label={t('Settings sections','أقسام الإعدادات')} onClickCapture={this.handleSettingsNavClickCapture}>{tabItems.map(([id,label,icon,description])=><button type="button" role="tab" key={id} id={`settings-tab-${id}`} data-settings-tab={id} aria-controls="settings-tab-panel" aria-selected={this.state.tab===id} className={this.state.tab===id?'is-active':''} aria-current={this.state.tab===id?'page':undefined} onPointerDown={(event:any)=>this.handleSettingsTabPointerDown(id,event)} onPointerUp={(event:any)=>this.handleSettingsTabPointerUp(id,event)} onPointerCancel={()=>{this.settingsPointerStart=null;}} onTouchStart={(event:any)=>this.handleSettingsTabTouchStart(id,event)} onTouchEnd={(event:any)=>this.handleSettingsTabTouchEnd(id,event)} onTouchCancel={()=>{this.settingsTouchStart=null;}}><span className="ta-settings-nav-icon"><Icon name={icon}/></span><span><strong>{label}</strong><small>{description}</small></span></button>)}</nav></aside>:null}
         <main ref={(node:HTMLElement|null)=>{this.settingsContent=node;}} id="settings-tab-panel" role="tabpanel" aria-labelledby={`settings-tab-${this.state.tab}`} tabIndex={-1} className="ta-settings-content">
           {accountScope?this.accountProfile():null}
           {!accountScope&&this.state.tab==='company'?this.workspacePreferences(c,s):null}
