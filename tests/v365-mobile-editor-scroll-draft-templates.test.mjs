@@ -59,3 +59,8 @@ test('v365 premium editor layer covers both commercial EditorPageCore and Draft 
   assert.match(css,/min-height:44px!important/);
   assert.match(css,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)!important/);
 });
+
+test('v365 editor presentation stays isolated from auth and PIN recovery surfaces',async()=>{
+  const css=await read('src/styles/v365-mobile-editor-scroll-draft-templates.css');
+  assert.doesNotMatch(css,/\.ta-auth(?:-|\b)|\.unlock-screen\b|\.pin-recovery\b|\.pin-migration\b/);
+});
