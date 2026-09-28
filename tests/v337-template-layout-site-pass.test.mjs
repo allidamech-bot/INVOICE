@@ -45,23 +45,28 @@ test('current DraftDocumentRenderer has an output-only A4 owner without reviving
   for(const variant of ['header-minimal','header-classic','width-narrow','width-wide','page-ruled','page-grid','footer-minimal','footer-none'])assert.match(css,new RegExp(`\\.${variant}`));
   assert.match(css,/\.invoice-page \.document-custom-watermark\.is-repeat/);
   assert.match(css,/\.draft-letter-page\{[\s\S]*display:grid!important[\s\S]*grid-template-rows:auto minmax\(0,1fr\) auto!important/);
+  assert.match(css,/\.draft-letter-page\[class\*=\"template-\"\] \.letterhead-header\{[\s\S]*?margin-inline:0!important;[\s\S]*?margin-top:0!important;/);
   assert.match(css,/@media print[\s\S]*\.draft-letter-page \.letterhead-header[\s\S]*break-inside:avoid!important/);
   const outputOnly=css.slice(css.indexOf('/* Current Company Draft A4 renderer.'));
   assert.ok(outputOnly.length>1000,'Draft A4 output contract is missing');
   assert.doesNotMatch(outputOnly,/\.app-ui|draft-studio|draft-mobile-actionbar/);
 });
 
-test('mobile editor scroll owner stays inside the shell grid row instead of claiming a second full viewport',async()=>{
+test('mobile editor scroll owner stays explicitly viewport-bounded so Safari retains a real scroll range',async()=>{
   const recovery=await read('src/styles/v331-draft-scroll-recovery.css');
   const commercial=recovery.slice(recovery.indexOf('@media screen and (max-width:900px)'),recovery.indexOf('/* Draft Studio uses'));
   const draft=recovery.slice(recovery.indexOf('@media screen and (max-width:1180px)'),recovery.indexOf('@media screen and (max-width:720px)'));
-  for(const block of [commercial,draft]){
-    assert.match(block,/\.ta-main[\s\S]*height:auto!important/);
+  const ipad=recovery.slice(recovery.indexOf('/* LOUREX v339 — iPadOS Desktop Website landscape closeout.'),recovery.indexOf('/* LOUREX v339 — Product Import Safari visual-viewport closeout.'));
+  assert.match(commercial,/\.ta-main[\s\S]*height:100dvh!important/);
+  assert.match(commercial,/\.ta-main[\s\S]*max-height:100dvh!important/);
+  assert.match(draft,/\.ta-main[\s\S]*height:calc\(100dvh - 64px\)!important/);
+  assert.match(draft,/\.ta-main[\s\S]*max-height:calc\(100dvh - 64px\)!important/);
+  assert.match(ipad,/\.ta-main[\s\S]*height:calc\(100dvh - 64px\)!important/);
+  assert.match(ipad,/\.ta-main[\s\S]*max-height:calc\(100dvh - 64px\)!important/);
+  for(const block of [commercial,draft,ipad]){
     assert.match(block,/\.ta-main[\s\S]*min-height:0!important/);
-    assert.match(block,/\.ta-main[\s\S]*max-height:none!important/);
     assert.match(block,/\.ta-main[\s\S]*align-self:stretch!important/);
     assert.match(block,/\.ta-main[\s\S]*overflow-y:auto!important/);
-    assert.doesNotMatch(block,/\.ta-main[\s\S]{0,260}height:100dvh!important/);
   }
 });
 
@@ -100,7 +105,7 @@ test('later document-semantic owner cannot retake scroll or A4 closing geometry'
   assert.doesNotMatch(semantics,/margin-top\s*:\s*auto|flex\s*:\s*1\s+1\s+auto/i);
 });
 
-test('production entry restores the standalone v337 Draft owner after CSS bundling and cache-busts the document runtime',async()=>{
+test('production entry restores the standalone document owner after CSS bundling with current runtime cache keys',async()=>{
   const [html,cacheRefresh,finalContract,build,pkg]=await Promise.all([
     read('index.html'),
     read('scripts/v303-visual-cache-refresh.mjs'),
@@ -108,33 +113,34 @@ test('production entry restores the standalone v337 Draft owner after CSS bundli
     read('scripts/build.mjs'),
     read('package.json')
   ]);
-  assert.match(html,/v331-draft-scroll-recovery\.css\?v=337-3/);
+  assert.match(html,/v331-draft-scroll-recovery\.css\?v=365-1/);
   assert.doesNotMatch(html,/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/);
-  assert.match(html,/document-entry-v302\.js\?v=337-3/);
+  assert.match(html,/document-entry-v302\.js\?v=361/);
   assert.match(build,/app\.bundle\.css/);
   assert.match(build,/html=html\.replace\(localStylePattern/);
-  assert.match(cacheRefresh,/RELEASE_GENERATION=337/);
+  assert.match(cacheRefresh,/RELEASE_GENERATION=361/);
   assert.match(cacheRefresh,/const bundleTag='<link rel="stylesheet" href="\.\/styles\/app\.bundle\.css" \/>'/);
-  assert.match(cacheRefresh,/runtimeTag=`<link rel="stylesheet" href="\$\{draftScrollRuntime\}" data-lourex-v331-draft-recovery="true" \/>`/);
-  assert.match(cacheRefresh,/html=html\.replace\(bundleTag,`\$\{bundleTag\}\\n  \$\{runtimeTag\}`\)/);
+  assert.match(cacheRefresh,/draftTag=`<link rel="stylesheet" href="\$\{draftScrollRuntime\}" data-lourex-v331-draft-recovery="true" \/>`/);
+  assert.match(cacheRefresh,/criticalTag=`<link rel="stylesheet" href="\$\{criticalDocumentsRuntime\}" data-lourex-v332-critical-documents="true" \/>`/);
+  assert.match(cacheRefresh,/html=html\.replace\(bundleTag,`\$\{bundleTag\}\\n  \$\{draftTag\}\\n  \$\{criticalTag\}`\)/);
   assert.match(cacheRefresh,/data-lourex-v331-draft-recovery=\"true\"/);
   for(const asset of [
     'v333-critical-documents-visual-functional-closeout.css\\?v=333-1',
     'v337-template-layout-balance.css\\?v=337-3',
-    'v331-draft-scroll-recovery.css\\?v=337-3',
+    'v331-draft-scroll-recovery.css\\?v=365-1',
     'v332-critical-documents-deep-closeout.css\\?v=332-1',
-    'document-entry-v302.js\\?v=337-3'
+    'document-entry-v302.js\\?v=361'
   ])assert.match(cacheRefresh,new RegExp(asset));
   assert.match(cacheRefresh,/const entryPath='dist\/document-entry-v302\.js'/);
-  assert.match(cacheRefresh,/Stale pre-337-3 document scroll fallback survived production build/);
+  assert.match(cacheRefresh,/Stale pre-v365 document scroll fallback survived production build/);
   assert.match(finalContract,/data-lourex-v331-draft-recovery=\"true\"/);
   assert.match(finalContract,/bundleIndex=html\.indexOf\('\.\/styles\/app\.bundle\.css'\)/);
   assert.match(finalContract,/readFile\('dist\/styles\/v331-draft-scroll-recovery\.css','utf8'\)/);
   assert.match(finalContract,/draftOwner\.startsWith/);
   assert.match(finalContract,/dist\/styles\/v337-template-layout-balance\.css/);
   assert.match(finalContract,/v337-template-layout-balance\.css\?v=337-3/);
-  assert.match(finalContract,/v331-draft-scroll-recovery\.css\?v=337-3/);
-  assert.match(finalContract,/document-entry-v302\.js\?v=337-3/);
+  assert.match(finalContract,/v331-draft-scroll-recovery\.css\?v=365-1/);
+  assert.match(finalContract,/document-entry-v302\.js\?v=361/);
 
   const buildCommand=JSON.parse(pkg).scripts.build;
   const bundleStep=buildCommand.indexOf('node scripts/build.mjs');

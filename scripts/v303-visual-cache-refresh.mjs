@@ -23,8 +23,10 @@ const mobilePreviewOutput='./mobile-preview-output-v350.js?v=350';
 const homeRuntime='./home-final-closeout-v286.js?v=361';
 const documentRuntime='./document-entry-v302.js?v=361';
 const startupWatchdog='./startup-watchdog-v321.js?v=347';
-const draftScrollRuntime='./styles/v331-draft-scroll-recovery.css?v=337-3';
+const draftScrollRuntime='./styles/v331-draft-scroll-recovery.css?v=365-1';
 const criticalDocumentsRuntime='./styles/v332-critical-documents-deep-closeout.css?v=332-1';
+const legacyDraftScrollRuntimes=['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2','./styles/v331-draft-scroll-recovery.css?v=337-3'];
+for(const legacyStyle of legacyDraftScrollRuntimes)sw=sw.replaceAll(legacyStyle,draftScrollRuntime);
 
 /* app.bundle.css owns the application stack. Cache only standalone runtime
    owners/dependencies here; v304-v306 are compatibility stubs and stay omitted. */
@@ -61,7 +63,7 @@ for(const [legacy,current] of [
   ['./startup-watchdog-v321.js?v=321',startupWatchdog],
   ['./storage-cleanup-v347.js?v=347',storageCleanup]
 ])html=html.replaceAll(legacy,current);
-for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2'])html=html.replaceAll(legacyStyle,draftScrollRuntime);
+for(const legacyStyle of legacyDraftScrollRuntimes)html=html.replaceAll(legacyStyle,draftScrollRuntime);
 
 /* scripts/build.mjs intentionally excludes v331 and v332 from app.bundle.css.
    They are both standalone document owners and must be restored exactly once
@@ -70,7 +72,7 @@ for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./s
 const bundleTag='<link rel="stylesheet" href="./styles/app.bundle.css" />';
 if(!html.includes(bundleTag))throw new Error('Unable to locate app.bundle.css while restoring standalone document owners.');
 if(!html.includes(draftScrollRuntime)||!html.includes(criticalDocumentsRuntime)){
-  html=html.replace(/\s*<link\b[^>]*href=["']\.\/styles\/v331-draft-scroll-recovery\.css\?v=337-3["'][^>]*\/>/g,'');
+  html=html.replace(/\s*<link\b[^>]*href=["']\.\/styles\/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2|337-3|365-1)["'][^>]*\/>/g,'');
   html=html.replace(/\s*<link\b[^>]*href=["']\.\/styles\/v332-critical-documents-deep-closeout\.css\?v=332-1["'][^>]*\/>/g,'');
   const draftTag=`<link rel="stylesheet" href="${draftScrollRuntime}" data-lourex-v331-draft-recovery="true" />`;
   const criticalTag=`<link rel="stylesheet" href="${criticalDocumentsRuntime}" data-lourex-v332-critical-documents="true" />`;
@@ -90,7 +92,7 @@ await writeFile(htmlPath,html);
    paths for stale caches, but no current production runtime should fetch them. */
 const entryPath='dist/document-entry-v302.js';
 let entry=await readFile(entryPath,'utf8');
-for(const legacyStyle of ['./styles/v331-draft-scroll-recovery.css?v=331-1','./styles/v331-draft-scroll-recovery.css?v=336-1','./styles/v331-draft-scroll-recovery.css?v=337-2'])entry=entry.replaceAll(legacyStyle,draftScrollRuntime);
+for(const legacyStyle of legacyDraftScrollRuntimes)entry=entry.replaceAll(legacyStyle,draftScrollRuntime);
 const retiredRuntimeStyleCalls=[
   "ensureStylesheet(attachmentStyleMarker,'./attachment-gallery-v304.css?v=304');",
   "ensureStylesheet(mobileCloseoutStyleMarker,'./mobile-layout-closeout-v305.css?v=305');",
@@ -98,7 +100,7 @@ const retiredRuntimeStyleCalls=[
 ];
 for(const call of retiredRuntimeStyleCalls)entry=entry.replaceAll(call,'');
 if(!entry.includes(draftScrollRuntime))throw new Error('Unable to verify the v337 scroll-owner fallback inside production document-entry runtime.');
-if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/.test(entry))throw new Error('Stale pre-337-3 document scroll fallback survived production build.');
+if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2|337-3)/.test(entry))throw new Error('Stale pre-v365 document scroll fallback survived production build.');
 for(const retired of ['attachment-gallery-v304.css','mobile-layout-closeout-v305.css','release-hardening-v306.css'])if(entry.includes(retired))throw new Error(`Retired empty runtime stylesheet request survived production build: ${retired}`);
 await writeFile(entryPath,entry);
 

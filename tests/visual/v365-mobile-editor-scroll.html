@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <link rel="stylesheet" href="../../src/styles/tailadmin-mobile-header-v322.css">
+  <link rel="stylesheet" href="../../src/styles/v331-draft-scroll-recovery.css">
+  <style>
+    html,body{margin:0;width:100%;height:100%;font-family:Arial,sans-serif}
+    *{box-sizing:border-box}.app-ui{width:100%;height:100%}.ta-shell{width:100%}.ta-main{width:100%}
+    .fixture-section{min-height:310px;margin:12px;padding:18px}.fixture-section:nth-child(2n){min-height:380px}
+    .fixture-section h2{margin:0 0 12px}.fixture-section p{line-height:1.8}
+    .fixture-end{height:52px;display:flex;align-items:center;justify-content:center;border:1px dashed currentColor;border-radius:12px;margin:12px}
+    .draft-studio-actions,.preview-pane,.draft-studio-preview{display:none!important}
+    .fixture-button{min-height:44px;border:0;border-radius:12px;padding:0 12px;font:inherit}
+  </style>
+</head>
+<body>
+<div class="app-ui">
+  <div class="ta-shell is-editor screen-editor">
+    <main class="ta-main">
+      <div id="commercial" class="ta-editor-workspace">
+        <div class="ta-editor-core-slot">
+          <section class="editor-screen" data-document-kind="proforma">
+            <header class="editor-topbar"><div class="editor-top-left"><div><small>عرض سعر</small><strong>PI-2026-0099</strong></div></div><div class="save-indicator state-saved">تم الحفظ محلياً</div></header>
+            <div class="editor-layout"><aside class="editor-pane"><div class="editor-scroll"><fieldset class="editor-form-lock">
+              <section class="editor-section fixture-section"><div class="section-heading"><span>01</span><h2>المستند</h2></div><p>بيانات المستند وتاريخ الإصدار والعملة واللغة.</p></section>
+              <section class="editor-section fixture-section"><div class="section-heading"><span>02</span><h2>العميل</h2></div><p>بيانات العميل وعنوانه وبيانات الاتصال.</p></section>
+              <section class="editor-section fixture-section"><div class="section-heading"><span>03</span><h2>الأصناف</h2></div><p>الأصناف والكميات والأسعار والوصف.</p></section>
+              <section class="editor-section fixture-section"><div class="section-heading"><span>04</span><h2>الإجماليات</h2></div><p>الإجماليات والضريبة والشحن والخصم.</p></section>
+              <section class="editor-section fixture-section"><div class="section-heading"><span>05</span><h2>الشروط</h2></div><p>الشروط التجارية والدفع والتسليم.</p></section>
+              <section class="editor-section fixture-section"><div class="section-heading"><span>06</span><h2>التصميم</h2></div><p>قوالب وتصميم المستند.</p></section>
+              <div class="fixture-end" data-scroll-end>نهاية محرر المستند</div>
+            </fieldset></div></aside></div>
+            <div class="mobile-editor-actionbar"><div class="mobile-action-buttons"><button class="btn btn-primary fixture-button">حفظ</button><button class="btn fixture-button">معاينة</button><button class="btn fixture-button">PDF</button><button class="btn fixture-button">مشاركة</button></div></div>
+          </section>
+        </div>
+      </div>
+
+      <div id="draft" class="ta-draft-studio-workspace" hidden>
+        <section class="draft-studio editor-screen" data-document-kind="draft">
+          <header class="draft-studio-topbar"><div class="draft-studio-identity"><div><small>استديو مستندات الشركة</small><strong>DR-2026-0099</strong></div><span>خطاب نوايا</span></div><div class="draft-save-state state-saved">تم الحفظ</div></header>
+          <div class="draft-studio-layout"><aside class="draft-studio-controls"><div class="draft-studio-scroll">
+            <section class="draft-control-section fixture-section"><div class="draft-section-heading"><span>PDF</span><div><h2>قوالب تصميم المستند</h2></div></div><p>ثمانية عشر قالباً بصرياً للمسودة والخطابات.</p></section>
+            <section class="draft-control-section fixture-section"><div class="draft-section-heading"><span>01</span><div><h2>هوية المستند</h2></div></div><p>رقم المستند والتاريخ والمستلم والموضوع.</p></section>
+            <section class="draft-control-section fixture-section"><div class="draft-section-heading"><span>02</span><div><h2>الصفحة والهوية</h2></div></div><p>خطاب شركة أو خطاب نوايا أو خطاب رسمي أو مذكرة أو إشعار.</p></section>
+            <section class="draft-control-section fixture-section"><div class="draft-section-heading"><span>03</span><div><h2>استديو الكتابة</h2></div></div><p>محتوى طويل لاختبار التمرير الفعلي على Safari وChromium.</p></section>
+            <div class="fixture-end" data-scroll-end>نهاية محرر المسودة</div>
+          </div></aside></div>
+          <div class="draft-mobile-actionbar"><button class="btn fixture-button">معاينة</button><button class="btn fixture-button">PDF</button><button class="btn fixture-button">مشاركة</button><button class="btn btn-primary fixture-button">حفظ</button></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+<script>
+  const kind=new URLSearchParams(location.search).get('kind')||'commercial';
+  const commercial=document.getElementById('commercial'),draft=document.getElementById('draft');
+  commercial.hidden=kind==='draft';draft.hidden=kind!=='draft';
+</script>
+</body>
+</html>

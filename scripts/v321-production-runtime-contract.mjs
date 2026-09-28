@@ -25,7 +25,7 @@ const presentationGuard='./home-final-closeout-v286.js?v=361';
 const documentEntry='./document-entry-v302.js?v=361';
 const draftPaintUrl='./styles/v333-critical-documents-visual-functional-closeout.css?v=333-1';
 const draftOutputUrl='./styles/v337-template-layout-balance.css?v=337-3';
-const recoveryUrl='./styles/v331-draft-scroll-recovery.css?v=337-3';
+const recoveryUrl='./styles/v331-draft-scroll-recovery.css?v=365-1';
 const criticalDocumentsUrl='./styles/v332-critical-documents-deep-closeout.css?v=332-1';
 const recoveryMarker='data-lourex-v331-draft-recovery="true"';
 const criticalDocumentsMarker='data-lourex-v332-critical-documents="true"';
@@ -37,7 +37,7 @@ for(const runtime of [startupWatchdog,themeBootstrap,storageCleanup,presentation
 /* v331/v337 and v332 remain standalone document owners after the consolidated
    application bundle. This contract runs after normal precache generation and
    before the final idempotent startup verifier. */
-const recoveryTags=[...html.matchAll(/<link\b[^>]*href=["']\.\/styles\/v331-draft-scroll-recovery\.css\?v=337-3["'][^>]*>/g)];
+const recoveryTags=[...html.matchAll(/<link\b[^>]*href=["']\.\/styles\/v331-draft-scroll-recovery\.css\?v=365-1["'][^>]*>/g)];
 const criticalTags=[...html.matchAll(/<link\b[^>]*href=["']\.\/styles\/v332-critical-documents-deep-closeout\.css\?v=332-1["'][^>]*>/g)];
 if(recoveryTags.length!==1)throw new Error(`v351 production contract: expected exactly one standalone document-scroll owner, found ${recoveryTags.length}.`);
 if(criticalTags.length!==1)throw new Error(`v351 production contract: expected exactly one standalone critical-document owner, found ${criticalTags.length}.`);
@@ -50,12 +50,12 @@ const bundleIndex=html.indexOf('./styles/app.bundle.css');
 const recoveryIndex=html.indexOf(recoveryUrl);
 const criticalIndex=html.indexOf(criticalDocumentsUrl);
 if(bundleIndex<0||recoveryIndex<=bundleIndex||criticalIndex<=recoveryIndex)throw new Error('v351 production contract: standalone document owners must load app.bundle.css -> v331 -> v332.');
-if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/.test(html))throw new Error('v351 production contract: stale document-scroll owner survived in dist/index.html.');
+if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2|337-3)/.test(html))throw new Error('v351 production contract: stale document-scroll owner survived in dist/index.html.');
 if(!draftOwner.startsWith('@import url("./v333-critical-documents-visual-functional-closeout.css?v=333-1");\n@import url("./v337-template-layout-balance.css?v=337-3");'))throw new Error('v351 production contract: standalone v331 owner lost the v333/v337 import chain.');
 
 if(/document-entry-v302\.js\?v=(?:302|311|314|320|337-2|337-3)/.test(html))throw new Error('v351 production contract: stale document-entry runtime URL survived in dist/index.html.');
 if(!documentRuntime.includes(recoveryUrl))throw new Error('v351 production contract: document-entry fallback does not request the repaired Safari scroll owner.');
-if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)/.test(documentRuntime))throw new Error('v351 production contract: stale document-scroll fallback survived in dist/document-entry-v302.js.');
+if(/v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2|337-3)/.test(documentRuntime))throw new Error('v351 production contract: stale document-scroll fallback survived in dist/document-entry-v302.js.');
 for(const retiredRuntimeStyle of ['attachment-gallery-v304.css','mobile-layout-closeout-v305.css','release-hardening-v306.css']){
   if(documentRuntime.includes(retiredRuntimeStyle))throw new Error(`v351 production contract: retired empty runtime stylesheet request survived: ${retiredRuntimeStyle}.`);
 }
@@ -64,7 +64,7 @@ const cacheMatch=sw.match(/^const CACHE = 'lourex-invoice-v(\d+)';$/m);
 const cacheGeneration=cacheMatch?Number(cacheMatch[1]):0;
 if(cacheGeneration<361)throw new Error(`v351 production contract: PWA cache generation is ${cacheGeneration||'missing'}, expected >=361.`);
 
-const staleServiceWorkerRuntime=/(?:document-entry-v302\.js\?v=(?:302|311|314|320|337-2|337-3)|v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2)|storage-cleanup-v347\.js\?v=347|home-final-closeout-v286\.js\?v=320|startup-watchdog-v321\.js\?v=321)/;
+const staleServiceWorkerRuntime=/(?:document-entry-v302\.js\?v=(?:302|311|314|320|337-2|337-3)|v331-draft-scroll-recovery\.css\?v=(?:331-1|336-1|337-2|337-3)|storage-cleanup-v347\.js\?v=347|home-final-closeout-v286\.js\?v=320|startup-watchdog-v321\.js\?v=321)/;
 if(staleServiceWorkerRuntime.test(sw))throw new Error('v351 production contract: stale active runtime URL survived in the service-worker precache.');
 
 /* app.bundle.css owns all ordinary application styles. Only the dependencies

@@ -224,9 +224,9 @@ async function assertPartyDropdownInFlow(page,partySelector,label){
         const {page,errors}=await open(browser,`obsidian-draft-editor.html?lang=${lang}`);
         try{
           await page.locator('.draft-studio').waitFor();
-          const templates=page.locator('.draft-pdf-template-grid>button');
-          assert.equal(await templates.count(),4,'Draft offers four visual PDF designs');
-          assert.ok(await templates.first().isVisible(),'PDF designs are visible in the first mobile viewport');
+          const templates=page.locator('.draft-pdf-design-section .template-card');
+          assert.equal(await templates.count(),18,'Draft offers the same 18 visual templates as commercial documents');
+          assert.ok(await templates.first().isVisible(),'Document templates are visible in the mobile editor');
           assert.ok(await page.getByRole('button',{name:lang==='ar'?'بسيط':'Minimal'}).isVisible());
           await screenshot(page,`draft-pdf-templates-${lang}`);
           await page.getByRole('button',{name:lang==='ar'?'بسيط':'Minimal'}).click();
@@ -235,9 +235,7 @@ async function assertPartyDropdownInFlow(page,partySelector,label){
           const preview=page.locator('.draft-mobile-preview');await preview.waitFor();
           const pageDesign=preview.locator('.draft-letter-page').first();
           const classes=await pageDesign.getAttribute('class');
-          assert.match(classes,/header-minimal/);
-          assert.match(classes,/footer-minimal/);
-          assert.match(classes,/width-wide/);
+          assert.match(classes,/template-minimal/);
           await screenshot(page,`draft-pdf-minimal-preview-${lang}`);
           await preview.getByRole('button',{name:lang==='ar'?'إغلاق':'Close'}).click();
           await page.locator('.draft-mobile-actionbar').getByRole('button',{name:'PDF'}).click();

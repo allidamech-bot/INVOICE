@@ -1,4 +1,5 @@
 @import url("./v364-document-template-layout-refinement.css?v=364-1");
+@import url("./v365-mobile-editor-scroll-draft-templates.css?v=365-1");
 
 /* LOUREX v350 — Draft/watermark output support only.
  * Commercial A4 invoices are owned by document-premium-redesign-v141.css with
@@ -188,6 +189,12 @@
   .draft-letter-page .letterhead-footer b{flex:0 0 auto;color:#7a8d91;font-size:7.6px;white-space:nowrap;}
   .draft-letter-page .footer-minimal span{display:none;}
   .draft-letter-page .footer-none{min-height:8mm;padding-top:0;border-top:0;background:transparent;justify-content:flex-end;}
+}
+
+/* v365 template mastheads stay inside the paddingless Draft A4 sheet. */
+.draft-letter-page[class*="template-"] .letterhead-header{
+  margin-inline:0!important;
+  margin-top:0!important;
 }
 
 @media print {
