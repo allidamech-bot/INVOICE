@@ -2,7 +2,7 @@ import type { DocumentKind, EncryptedVaultRecord, SecurityMetadata, VaultPayload
 import { APP_SCHEMA_VERSION, companySnapshotFrom, emptyVault } from '../lib/defaults.js';
 import { normalizeValidityDays } from '../lib/id.js';
 import { normalizeLetterData, normalizeWatermark } from '../lib/document-extras.js';
-import { createSecurity, decryptVault, encryptVault, verifyPin } from '../crypto/crypto.js';
+import { createRecoveryCode, createSecurity, createSecurityForChangedPin, createSecurityFromRecovery, decryptVault, encryptVault, recoverVaultKey, verifyPin } from '../crypto/crypto.js';
 import { createSafetySnapshot, getEncryptedVault, getSecurity, putRecord, putSecurityAndVault } from './db.js';
 import { clearSession, getSessionKey, isSessionExpired, touchSession } from './session.js';
 
@@ -38,11 +38,11 @@ function normalizeTaxPresets(value:unknown):any[]{if(!Array.isArray(value))retur
 function normalizePaymentTermPresets(value:unknown,fallback:any[]):any[]{if(!Array.isArray(value))return fallback.map(item=>({...item}));const seen=new Set<string>();const result:any[]=[];value.forEach((preset:any,index)=>{const id=stringValue(preset?.id,`term-${index+1}`).trim()||`term-${index+1}`;if(seen.has(id))return;seen.add(id);result.push({id,label:stringValue(preset?.label),days:Math.min(3650,Math.max(0,Math.trunc(finiteNumber(preset?.days,0))))});});return result;}
 function normalizeCommercial(value:any,fallback:any):any{const source=value&&typeof value==='object'?value:{};return{taxPresets:normalizeTaxPresets(source.taxPresets),defaultTaxPresetId:stringValue(source.defaultTaxPresetId),paymentTermPresets:normalizePaymentTermPresets(source.paymentTermPresets,fallback.paymentTermPresets),defaultPaymentTermPresetId:stringValue(source.defaultPaymentTermPresetId),pricing:{method:source.pricing?.method==='margin'?'margin':'markup',percent:stringValue(source.pricing?.percent,fallback.pricing.percent),rounding:['0.01','0.05','0.10','0.50','1.00'].includes(source.pricing?.rounding)?source.pricing.rounding:fallback.pricing.rounding}};}
 
-export async function setupVault(pin: string, initial: VaultPayload = emptyVault()): Promise<{ key: CryptoKey; vault: VaultPayload }> {
-  const { metadata, key } = await createSecurity(pin);
+export async function setupVault(pin: string, initial: VaultPayload = emptyVault(),recoveryCode?:string): Promise<{ key: CryptoKey; vault: VaultPayload; recoveryCode:string }> {
+  const { metadata, key,recoveryCode:createdRecoveryCode } = await createSecurity(pin,recoveryCode);
   const encrypted = await encryptVault(key, initial);
   await putSecurityAndVault(metadata, encrypted);
-  return { key, vault: initial };
+  return { key, vault: initial,recoveryCode:createdRecoveryCode };
 }
 
 export function migrateVault(vault: VaultPayload): VaultPayload {
@@ -312,13 +312,38 @@ export async function restoreVaultWithCurrentKey(key: CryptoKey, vault: VaultPay
   return migrated;
 }
 
-export async function changePin(currentPin: string, newPin: string): Promise<{ key: CryptoKey; security: SecurityMetadata }> {
+export async function changePin(currentPin: string, newPin: string): Promise<{ key: CryptoKey; security: SecurityMetadata; recoveryCode?:string }> {
   const unlocked = await unlockVault(currentPin);
   await createSafetySnapshot('pre-pin-change',unlocked.vault.schemaVersion);
-  const { metadata, key } = await createSecurity(newPin);
+  const currentSecurity=await getSecurity();
+  if(!currentSecurity)throw new Error('Security settings are missing.');
+  const {metadata,key,recoveryCode}=await createSecurityForChangedPin(currentPin,newPin,currentSecurity);
   const encrypted = await encryptVault(key, unlocked.vault);
   await putSecurityAndVault(metadata, encrypted);
-  return { key, security: metadata };
+  return { key, security: metadata,recoveryCode };
+}
+
+export async function recoverPinWithRecoveryKey(code:string,newPin:string):Promise<{key:CryptoKey;security:SecurityMetadata;vault:VaultPayload}>{
+  const [security,encrypted]=await Promise.all([getSecurity(),getEncryptedVault()]);
+  if(!security||!encrypted)throw new Error('LOUREX encrypted data is not available on this device.');
+  const recovered=await recoverVaultKey(code,security);
+  const vault=migrateVault(await decryptVault(recovered.key,encrypted));
+  await createSafetySnapshot('pre-pin-change',vault.schemaVersion);
+  const next=await createSecurityFromRecovery(newPin,recovered.masterBytes,code,security);
+  const nextVault=await encryptVault(next.key,vault);
+  await putSecurityAndVault(next.metadata,nextVault);
+  return{key:next.key,security:next.metadata,vault};
+}
+
+export async function renewPinRecoveryKey(pin:string):Promise<{key:CryptoKey;security:SecurityMetadata;vault:VaultPayload;recoveryCode:string}>{
+  const [unlocked,security]=await Promise.all([unlockVault(pin),getSecurity()]);
+  if(!security)throw new Error('Security settings are missing.');
+  const unwrapped=await createSecurityForChangedPin(pin,pin,security);
+  const recoveryCode=createRecoveryCode();
+  const next=await createSecurityFromRecovery(pin,unwrapped.masterBytes,recoveryCode,security);
+  const encrypted=await encryptVault(next.key,unlocked.vault);
+  await putSecurityAndVault(next.metadata,encrypted);
+  return{key:next.key,security:next.metadata,vault:unlocked.vault,recoveryCode};
 }
 
 export async function replaceVaultWithPin(pin: string, vault: VaultPayload): Promise<{ key: CryptoKey; security: SecurityMetadata; vault: VaultPayload }> {
