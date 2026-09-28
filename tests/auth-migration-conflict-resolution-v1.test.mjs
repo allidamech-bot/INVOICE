@@ -25,3 +25,12 @@ test('PIN migration never chooses a divergent account copy automatically',async(
   assert.match(cloud,/resolveCloudConflictWithLocal[\s\S]*?await publishVault\(uid,security,local,remote\)/);
   assert.match(cloud,/resolveCloudConflictWithCloud[\s\S]*?await installCloudVault\(uid,true\)/);
 });
+
+test('cloud accepts wrapped-key recovery metadata but never stores the recovery key itself',async()=>{
+  const cloud=await read('src/cloud/firebase.ts');
+  const crypto=await read('src/crypto/crypto.ts');
+  assert.match(cloud,/value\.version===1\|\|value\.version===2/);
+  assert.match(cloud,/validBase64Bytes\(value\.recoveryWrapCipher,48,128\)/);
+  assert.match(crypto,/recoveryWrapIv:recoveryWrap\.iv,recoveryWrapCipher:recoveryWrap\.cipher/);
+  assert.match(crypto,/normalizeRecoveryCode\(code\)/);
+});
