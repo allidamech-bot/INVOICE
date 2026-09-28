@@ -9,6 +9,7 @@ import { letterPlainText } from '../lib/document-extras.js';
 import { documentCanConvertToInvoice, documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';
 
 interface Props {
+  initialStatus?:WorkspaceStatus;
   documents:LourexDocument[];
   payments:PaymentRecord[];
   onNew:(kind:DocumentKind)=>void;
@@ -114,7 +115,7 @@ function statusLabel(doc:LourexDocument,state:Exclude<WorkspaceStatus,'all'|'voi
 }
 
 export class DocumentsPage extends React.Component<Props,State>{
-  state:State={tab:'all',status:'all',payment:'all',currency:'all',sort:'latest',query:'',menuId:'',filtersOpen:false,outputId:'',detailId:''};
+  state:State={tab:'all',status:this.props.initialStatus??'all',payment:'all',currency:'all',sort:'latest',query:'',menuId:'',filtersOpen:false,outputId:'',detailId:''};
   private quoteConversions=new Set<string>();
   private menuTrigger:HTMLElement|null=null;
   private desktopMenu:HTMLDivElement|null=null;
