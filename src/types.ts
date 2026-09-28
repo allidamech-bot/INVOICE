@@ -517,6 +517,12 @@ export interface SecurityMetadata {
   salt: string;
   verifierIv: string;
   verifierCipher: string;
+  pinWrapIv?: string;
+  pinWrapCipher?: string;
+  recoveryIterations?: number;
+  recoverySalt?: string;
+  recoveryWrapIv?: string;
+  recoveryWrapCipher?: string;
 }
 
 export interface EncryptedVaultRecord {
