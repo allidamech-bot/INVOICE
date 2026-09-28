@@ -37,7 +37,7 @@ export function ProductsInventoryWorkspace(props:Props):any{
   const movements=props.inventoryMovements.length;
 
   return <section className="ta-products-workspace">
-    <header className="ta-products-workspace-header"><div><span>{t('Products & inventory','المنتجات والمخزون')}</span><h1>{t('Products & Inventory','المنتجات والمخزون')}</h1><p>{t('Keep the reusable catalog, stock position and inventory movements in one operating workspace.','اجمع كتالوج الأصناف والرصيد وحركات المخزون في مساحة تشغيل واحدة.')}</p></div><Button icon="plus" variant="primary" onClick={()=>window.dispatchEvent(new Event('lourex-create-product'))}>{t('New Product','صنف جديد')}</Button></header>
+    <header className="ta-products-workspace-header"><div><span>{t('Products & inventory','المنتجات والمخزون')}</span><h1>{t('Products & Inventory','المنتجات والمخزون')}</h1><p>{t('Keep the reusable catalog, stock position and inventory movements in one operating workspace.','اجمع كتالوج الأصناف والرصيد وحركات المخزون في مساحة تشغيل واحدة.')}</p></div>{tab!=='products'?<Button icon="plus" variant="primary" onClick={()=>window.dispatchEvent(new Event('lourex-create-product'))}>{t('New Product','صنف جديد')}</Button>:null}</header>
 
     <section className="ta-products-overview" aria-label={t('Products and inventory summary','ملخص المنتجات والمخزون')}>
       <div><span className="ta-products-overview-icon"><Icon name="items"/></span><span><small>{t('Products','المنتجات')}</small><strong>{props.items.length}</strong><em>{t('Reusable catalog','الكتالوج القابل لإعادة الاستخدام')}</em></span></div>

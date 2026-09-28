@@ -9,6 +9,7 @@ import { letterPlainText } from '../lib/document-extras.js';
 import { documentCanConvertToInvoice, documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';
 
 interface Props {
+  initialStatus?:WorkspaceStatus;
   documents:LourexDocument[];
   payments:PaymentRecord[];
   onNew:(kind:DocumentKind)=>void;
@@ -114,7 +115,7 @@ function statusLabel(doc:LourexDocument,state:Exclude<WorkspaceStatus,'all'|'voi
 }
 
 export class DocumentsPage extends React.Component<Props,State>{
-  state:State={tab:'all',status:'all',payment:'all',currency:'all',sort:'latest',query:'',menuId:'',filtersOpen:false,outputId:'',detailId:''};
+  state:State={tab:'all',status:this.props.initialStatus??'all',payment:'all',currency:'all',sort:'latest',query:'',menuId:'',filtersOpen:false,outputId:'',detailId:''};
   private quoteConversions=new Set<string>();
   private menuTrigger:HTMLElement|null=null;
   private desktopMenu:HTMLDivElement|null=null;
@@ -279,7 +280,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       {canCollect?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onRecordPayment?.(doc))}><Icon name="invoice"/><span>{t('Record Payment','تسجيل دفعة')}</span></button>:null}
       {canCredit?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onCreateCreditNote?.(doc))}><Icon name="invoice"/><span>{t('Create Credit Note','إنشاء إشعار دائن')}</span></button>:null}
       {canOutput?<><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}><Icon name="download"/><span>{this.state.outputId===doc.id?t('Preparing…','جارٍ التجهيز…'):'PDF'}</span></button><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}><Icon name="share"/><span>{t('Share','مشاركة')}</span></button></>:null}
-      {canDelete?<button type="button" role="menuitem" className="is-danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/><span>{t('Delete Draft','حذف المسودة')}</span></button>:null}
+      {canDelete&&this.state.detailId!==doc.id?<button type="button" role="menuitem" className="is-danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/><span>{t('Delete Draft','حذف المسودة')}</span></button>:null}
     </>;
   };
 

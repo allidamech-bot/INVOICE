@@ -10,6 +10,7 @@ import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { Button, Icon } from './UI.js';
 import { LourexAdvisorCard } from './LourexAdvisorCard.js';
 import { documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';
+import { validateDocument } from '../lib/documents.js';
 
 interface Props{
   companyName:string;
@@ -24,6 +25,7 @@ interface Props{
   onNewDocument:()=>void;
   onOpenDocument:(doc:LourexDocument)=>void;
   onNavigate:(screen:'documents'|'customers'|'items'|'receivables'|'reports'|'operations')=>void;
+  onOpenIncompleteDocuments:()=>void;
 }
 
 type ChartRange='7d'|'30d'|'6m'|'1y';
@@ -51,7 +53,11 @@ function documentLabel(doc:LourexDocument):string{
 
 function documentStatus(doc:LourexDocument,payments:PaymentRecord[],documents:LourexDocument[],today:string):{tone:string;label:string}{
   if(doc.lifecycleStatus==='voided')return{tone:'void',label:(doc.kind==='proforma'||doc.kind==='purchase-order')?t('Cancelled','ملغى'):t('Void','ملغى')};
-  if(doc.status==='draft')return{tone:'draft',label:t('Draft','مسودة')};
+  if(doc.kind==='draft')return{tone:'draft',label:t('Draft','مسودة')};
+  if(doc.status==='draft'){
+    const ready=Object.keys(validateDocument(doc)).length===0;
+    return ready?{tone:'ready',label:t('Ready','جاهز')}:{tone:'draft',label:t('Draft','مسودة')};
+  }
   if(doc.kind==='proforma')return{tone:'quotation',label:t('Quotation','عرض سعر')};
   if(doc.kind==='purchase-order')return{tone:'issued',label:t('Issued PO','طلب شراء صادر')};
   if(doc.role==='credit-note')return{tone:'issued',label:t('Issued','صادر')};
@@ -123,7 +129,7 @@ function moneyStack(rows:Array<{currency:string;netSales?:string;collected?:stri
   return <span className="ta-kpi-money-stack">{rows.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row[key]||'0.00',row.currency)}</b>)}</span>;
 }
 
-export function WorkspaceHome({companyName,documents,payments,purchases=[],expenses=[],inventoryMovements=[],items=[],itemCount,customerCount,onNewDocument,onOpenDocument,onNavigate}:Props):any{
+export function WorkspaceHome({companyName,documents,payments,purchases=[],expenses=[],inventoryMovements=[],items=[],itemCount,customerCount,onNewDocument,onOpenDocument,onNavigate,onOpenIncompleteDocuments}:Props):any{
   const [chartRange,setChartRange]=React.useState<ChartRange>('6m');
   const [chartMode,setChartMode]=React.useState<ChartMode>('cash');
   const today=todayIso();
@@ -135,7 +141,7 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
   const daily=dailyBusinessBrief(documents,payments,purchases,expenses,inventoryMovements,items,today);
   const openInvoices=receivables.reduce((sum,row)=>sum+row.openInvoices,0);
   const overdueInvoices=receivables.reduce((sum,row)=>sum+row.overdueInvoices,0);
-  const drafts=documents.filter(doc=>doc.kind!=='draft'&&doc.status==='draft').length;
+  const drafts=documents.filter(doc=>doc.kind==='draft'||(doc.status!=='final'&&doc.lifecycleStatus!=='voided'&&Object.keys(validateDocument(doc)).length>0)).length;
   const incompleteAccounting=daily.invalidOperations+daily.missingCostItems;
   const recent=[...documents].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,6);
   const displayedItemCount=items.length||(itemCount??0);
@@ -222,7 +228,6 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
     </section>
 
     <section className="ta-quick-actions" aria-label={t('Quick actions','إجراءات سريعة')}>
-      <button type="button" onClick={onNewDocument}><span className="ta-quick-icon"><Icon name="plus"/></span><span><strong>{t('New document','مستند جديد')}</strong><small>{t('Create a business document','إنشاء مستند أعمال')}</small></span></button>
       <button type="button" onClick={()=>onNavigate('customers')}><span className="ta-quick-icon"><Icon name="users"/></span><span><strong>{t('Customers','العملاء')}</strong><small>{t('Directory and profiles','الدليل والملفات')}</small></span></button>
       <button type="button" onClick={()=>onNavigate('items')}><span className="ta-quick-icon"><Icon name="items"/></span><span><strong>{t('Products','المنتجات')}</strong><small>{t('Catalog and inventory','الكتالوج والمخزون')}</small></span></button>
       <button type="button" onClick={()=>onNavigate('operations')}><span className="ta-quick-icon"><Icon name="backup"/></span><span><strong>{t('Purchasing','المشتريات')}</strong><small>{t('Suppliers and costs','الموردون والتكاليف')}</small></span></button>
@@ -275,7 +280,7 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
         <header className="ta-card-header"><div><small>{t('Priority','الأولوية')}</small><h2>{t('Needs attention','يحتاج انتباهك')}</h2><span>{attentionCount?t(`${attentionCount} areas need review`,`${attentionCount} أمور تحتاج مراجعة`):t('Everything important is under control','الأمور المهمة تحت السيطرة')}</span></div></header>
         {attentionCount?<div className="ta-attention-list">
           {overdueInvoices?<button type="button" className="is-danger" onClick={()=>onNavigate('receivables')}><span><Icon name="invoice"/><b>{t('Overdue invoices','الفواتير المتأخرة')}</b></span><strong>{overdueInvoices}</strong></button>:null}
-          {drafts?<button type="button" onClick={()=>onNavigate('documents')}><span><Icon name="edit"/><b>{t('Drafts to finish','مسودات تحتاج إكمال')}</b></span><strong>{drafts}</strong></button>:null}
+          {drafts?<button type="button" onClick={onOpenIncompleteDocuments}><span><Icon name="edit"/><b>{t('Drafts to finish','مسودات تحتاج إكمال')}</b></span><strong>{drafts}</strong></button>:null}
           {daily.draftPurchases?<button type="button" onClick={()=>onNavigate('operations')}><span><Icon name="items"/><b>{t('Purchase drafts','مسودات المشتريات')}</b></span><strong>{daily.draftPurchases}</strong></button>:null}
           {incompleteAccounting?<button type="button" className="is-danger" onClick={()=>onNavigate(daily.invalidOperations?'operations':'reports')}><span><Icon name="edit"/><b>{t('Incomplete accounting data','بيانات محاسبية غير مكتملة')}</b></span><strong>{incompleteAccounting}</strong></button>:null}
           {stockExceptions?<button type="button" onClick={()=>onNavigate('items')}><span><Icon name="items"/><b>{t('Stock exceptions','حالات مخزون تحتاج مراجعة')}</b></span><strong>{stockExceptions}</strong></button>:null}

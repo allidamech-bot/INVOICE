@@ -1,6 +1,15 @@
 /* v362: shared visual contract for live app controls and dense mobile workflows.
    Geometry only in screen media; print document output keeps its own styles. */
 @media screen {
+  /* Keep customer form actions anchored to the visual end in RTL dialogs. */
+  html body .app-ui .modal:has(.ta-customer-form)>.modal-footer { direction:rtl!important;justify-content:flex-start!important; }
+  html body .app-ui .modal:has(.ta-customer-form) .ta-customer-modal-actions { direction:ltr!important;justify-content:flex-end!important; }
+  /* The sidebar navigation is vertically scrollable; a few overflowing pixels must not expose an X scrollbar. */
+  html body .app-ui .ta-sidebar-nav { overflow-x:hidden!important; }
+  /* Dashboard creation already has a primary action; keep the quick row for the three destinations. */
+  @media (min-width:721px) { html body .app-ui .ta-quick-actions { grid-template-columns:repeat(3,minmax(0,1fr))!important; } }
+  html body .app-ui .ta-status-badge.status-ready { background:var(--ft-success-soft)!important;color:var(--ft-success)!important; }
+
   html[data-ui-theme="dark"] {
     --ft-canvas:#0d0d0d!important;
     --ft-workspace:#0d0d0d!important;
