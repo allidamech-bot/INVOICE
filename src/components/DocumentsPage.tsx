@@ -438,7 +438,7 @@ export class DocumentsPage extends React.Component<Props,State>{
           {this.typeTab('draft',t('Draft','مسودة'),this.typeCount('draft'),1)}
           {this.typeTab('rfq',t('RFQ','طلب عرض سعر'),this.typeCount('rfq'),2)}
           {this.typeTab('proforma',t('Quotation','عرض سعر'),this.typeCount('proforma'),3)}
-          {this.typeTab('proforma-invoice',t('Proforma Invoice','فاتورة مبدئية'),this.typeCount('proforma-invoice'),4)}
+          {this.typeTab('proforma-invoice',isArabic()?'فاتورة مبدئية':t('Proforma Invoice','فاتورة مبدئية'),this.typeCount('proforma-invoice'),4)}
           {this.typeTab('purchase-order',t('Purchase Order','طلب شراء'),this.typeCount('purchase-order'),5)}
           {this.typeTab('invoice',t('Commercial Invoice','فاتورة تجارية'),this.typeCount('invoice'),6)}
           {this.typeTab('delivery-note',t('Delivery Note','سند تسليم'),this.typeCount('delivery-note'),7)}
