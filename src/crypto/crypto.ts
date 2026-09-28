@@ -7,6 +7,7 @@ const decoder = new TextDecoder();
 const VERIFY_TEXT = 'LOUREX-VAULT-VERIFIER-v1';
 const MIN_KDF_ITERATIONS = 10_000;
 const MAX_KDF_ITERATIONS = 2_000_000;
+const RECOVERY_KDF_ITERATIONS = KDF_ITERATIONS;
 const MIN_SALT_BYTES = 16;
 const MAX_SALT_BYTES = 64;
 const GCM_IV_BYTES = 12;
@@ -157,6 +158,27 @@ export function randomBytes(length: number): Uint8Array {
   return bytes;
 }
 
+function recoveryCodeFromBytes(bytes:Uint8Array):string{
+  const hex=Array.from(bytes,value=>value.toString(16).padStart(2,'0')).join('').toUpperCase();
+  return `LRX-${hex.match(/.{1,8}/g)?.join('-')||hex}`;
+}
+
+export function createRecoveryCode():string{return recoveryCodeFromBytes(randomBytes(32));}
+
+function normalizeRecoveryCode(code:string):string{
+  const value=String(code||'').trim().toUpperCase().replace(/[^A-F0-9]/g,'');
+  if(!/^[A-F0-9]{64}$/.test(value))throw new Error('Recovery key must contain all 64 hexadecimal characters.');
+  return value;
+}
+
+async function importVaultKey(raw:Uint8Array):Promise<CryptoKey>{
+  return crypto.subtle.importKey('raw',raw as BufferSource,{name:'AES-GCM'},false,['encrypt','decrypt']);
+}
+
+async function recoveryKey(code:string,salt:Uint8Array,iterations:number):Promise<CryptoKey>{
+  return deriveKey(normalizeRecoveryCode(code),salt,iterations);
+}
+
 export async function deriveKey(pin: string, salt: Uint8Array, iterations = KDF_ITERATIONS): Promise<CryptoKey> {
   validateKdf(iterations, salt);
   const base = await crypto.subtle.importKey('raw', encoder.encode(pin), 'PBKDF2', false, ['deriveKey']);
@@ -186,16 +208,19 @@ async function decryptBytes(key: CryptoKey, ivB64: string, cipherB64: string): P
   return new Uint8Array(plain);
 }
 
-export async function createSecurity(pin: string): Promise<{ metadata: SecurityMetadata; key: CryptoKey }> {
+export async function createSecurity(pin: string,recoveryCode=createRecoveryCode()): Promise<{ metadata: SecurityMetadata; key: CryptoKey; recoveryCode:string }> {
   const legacyPin=/^\d{4,12}$/.test(pin);
   const accountSecret=ACCOUNT_SECRET_PATTERN.test(pin);
   if (!legacyPin&&!accountSecret) throw new Error('PIN must contain 4–12 digits.');
-  const salt = randomBytes(24);
-  const key = await deriveKey(pin, salt);
-  const verification = await encryptBytes(key, encoder.encode(VERIFY_TEXT));
+  const normalizedRecoveryCode=normalizeRecoveryCode(recoveryCode);
+  const salt=randomBytes(24),recoverySalt=randomBytes(24),masterBytes=randomBytes(32);
+  const pinKey=await deriveKey(pin,salt),recoveryKeyMaterial=await recoveryKey(normalizedRecoveryCode,recoverySalt,RECOVERY_KDF_ITERATIONS);
+  const key=await importVaultKey(masterBytes);
+  const verification = await encryptBytes(pinKey, encoder.encode(VERIFY_TEXT));
+  const pinWrap=await encryptBytes(pinKey,masterBytes),recoveryWrap=await encryptBytes(recoveryKeyMaterial,masterBytes);
   return {
-    metadata: { id: 'security', version: 1, iterations: KDF_ITERATIONS, salt: bytesToB64(salt), verifierIv: verification.iv, verifierCipher: verification.cipher },
-    key
+    metadata: { id:'security',version:2,iterations:KDF_ITERATIONS,salt:bytesToB64(salt),verifierIv:verification.iv,verifierCipher:verification.cipher,pinWrapIv:pinWrap.iv,pinWrapCipher:pinWrap.cipher,recoveryIterations:RECOVERY_KDF_ITERATIONS,recoverySalt:bytesToB64(recoverySalt),recoveryWrapIv:recoveryWrap.iv,recoveryWrapCipher:recoveryWrap.cipher },
+    key,recoveryCode:normalizedRecoveryCode
   };
 }
 
@@ -203,15 +228,53 @@ export async function verifyPin(pin: string, metadata: SecurityMetadata): Promis
   const started=nowTick();
   try {
     const salt = b64ToBytes(metadata.salt);
-    const key = await deriveKey(pin, salt, metadata.iterations);
-    const plain = await decryptBytes(key, metadata.verifierIv, metadata.verifierCipher);
+    const pinKey = await deriveKey(pin, salt, metadata.iterations);
+    const plain = await decryptBytes(pinKey, metadata.verifierIv, metadata.verifierCipher);
     if (decoder.decode(plain) !== VERIFY_TEXT) throw new Error('Wrong PIN');
+    const key=metadata.version>=2
+      ?await importVaultKey(await decryptBytes(pinKey,String(metadata.pinWrapIv||''),String(metadata.pinWrapCipher||'')))
+      :pinKey;
     diag('pin-verify-success',`durationMs=${elapsedMs(started)}`);
     return key;
   } catch (error) {
     diag('pin-verify-error',`name=${errorName(error)} durationMs=${elapsedMs(started)}`);
     throw new Error('Wrong PIN');
   }
+}
+
+export async function createSecurityForChangedPin(currentPin:string,newPin:string,metadata:SecurityMetadata):Promise<{metadata:SecurityMetadata;key:CryptoKey;recoveryCode?:string;masterBytes:Uint8Array}>{
+  const salt=b64ToBytes(metadata.salt),oldPinKey=await deriveKey(currentPin,salt,metadata.iterations);
+  const verified=await decryptBytes(oldPinKey,metadata.verifierIv,metadata.verifierCipher);
+  if(decoder.decode(verified)!==VERIFY_TEXT)throw new Error('Wrong PIN');
+  let masterBytes:Uint8Array,recoveryCode:string|undefined,existingRecovery:{iterations:number;salt:string;iv:string;cipher:string}|undefined;
+  if(metadata.version>=2){
+    masterBytes=await decryptBytes(oldPinKey,String(metadata.pinWrapIv||''),String(metadata.pinWrapCipher||''));
+    if(metadata.recoverySalt&&metadata.recoveryWrapIv&&metadata.recoveryWrapCipher&&metadata.recoveryIterations){existingRecovery={iterations:metadata.recoveryIterations,salt:metadata.recoverySalt,iv:metadata.recoveryWrapIv,cipher:metadata.recoveryWrapCipher};}
+  }else{masterBytes=randomBytes(32);recoveryCode=createRecoveryCode();}
+  const newSalt=randomBytes(24),newPinKey=await deriveKey(newPin,newSalt),key=await importVaultKey(masterBytes);
+  const verification=await encryptBytes(newPinKey,encoder.encode(VERIFY_TEXT)),pinWrap=await encryptBytes(newPinKey,masterBytes);
+  let recoveryFields:{recoveryIterations:number;recoverySalt:string;recoveryWrapIv:string;recoveryWrapCipher:string};
+  if(existingRecovery){recoveryFields={recoveryIterations:existingRecovery.iterations,recoverySalt:existingRecovery.salt,recoveryWrapIv:existingRecovery.iv,recoveryWrapCipher:existingRecovery.cipher};}
+  else{
+    const recoverySalt=randomBytes(24),recoveryKeyMaterial=await recoveryKey(recoveryCode!,recoverySalt,RECOVERY_KDF_ITERATIONS),wrap=await encryptBytes(recoveryKeyMaterial,masterBytes);
+    recoveryFields={recoveryIterations:RECOVERY_KDF_ITERATIONS,recoverySalt:bytesToB64(recoverySalt),recoveryWrapIv:wrap.iv,recoveryWrapCipher:wrap.cipher};
+  }
+  return{metadata:{id:'security',version:2,iterations:KDF_ITERATIONS,salt:bytesToB64(newSalt),verifierIv:verification.iv,verifierCipher:verification.cipher,pinWrapIv:pinWrap.iv,pinWrapCipher:pinWrap.cipher,...recoveryFields},key,recoveryCode,masterBytes};
+}
+
+export async function recoverVaultKey(code:string,metadata:SecurityMetadata):Promise<{key:CryptoKey;masterBytes:Uint8Array}>{
+  if(metadata.version<2||!metadata.recoverySalt||!metadata.recoveryWrapIv||!metadata.recoveryWrapCipher||!metadata.recoveryIterations)throw new Error('PIN recovery has not been set up for this account.');
+  try{
+    const salt=b64ToBytes(metadata.recoverySalt),derived=await recoveryKey(code,salt,metadata.recoveryIterations);
+    const masterBytes=await decryptBytes(derived,metadata.recoveryWrapIv,metadata.recoveryWrapCipher);
+    return{key:await importVaultKey(masterBytes),masterBytes};
+  }catch{throw new Error('Recovery key is incorrect.');}
+}
+
+export async function createSecurityFromRecovery(newPin:string,masterBytes:Uint8Array,code:string,metadata:SecurityMetadata):Promise<{metadata:SecurityMetadata;key:CryptoKey}>{
+  const normalizedCode=normalizeRecoveryCode(code),salt=randomBytes(24),pinKey=await deriveKey(newPin,salt),recoverySalt=randomBytes(24),recoveryKeyMaterial=await recoveryKey(normalizedCode,recoverySalt,RECOVERY_KDF_ITERATIONS),key=await importVaultKey(masterBytes);
+  const verification=await encryptBytes(pinKey,encoder.encode(VERIFY_TEXT)),pinWrap=await encryptBytes(pinKey,masterBytes),recoveryWrap=await encryptBytes(recoveryKeyMaterial,masterBytes);
+  return{metadata:{id:'security',version:2,iterations:KDF_ITERATIONS,salt:bytesToB64(salt),verifierIv:verification.iv,verifierCipher:verification.cipher,pinWrapIv:pinWrap.iv,pinWrapCipher:pinWrap.cipher,recoveryIterations:RECOVERY_KDF_ITERATIONS,recoverySalt:bytesToB64(recoverySalt),recoveryWrapIv:recoveryWrap.iv,recoveryWrapCipher:recoveryWrap.cipher},key};
 }
 
 export async function encryptVault(key: CryptoKey, vault: VaultPayload): Promise<EncryptedVaultRecord> {
