@@ -2,9 +2,10 @@ import type { CompanySettings, UiLanguage } from '../types.js';
 import { Brand, Button, Field, Input } from './UI.js';
 import { fileToDataUrl } from '../lib/files.js';
 import { t } from '../lib/i18n.js';
-import { currentCloudUser, pushLocalVaultToCloud, reconcileCloudVault } from '../cloud/firebase.js';
+import { currentCloudUser, pushLocalVaultToCloud, reconcileCloudVault, resolveCloudConflictWithCloud, resolveCloudConflictWithLocal } from '../cloud/firebase.js';
 import { getAccountVaultSecret, retireAccountVaultSecret } from '../cloud/account-access.js';
-import { changePin } from '../storage/vault.js';
+import { changePin, recoverPinWithRecoveryKey } from '../storage/vault.js';
+import { createRecoveryCode } from '../crypto/crypto.js';
 import { getSecurity } from '../storage/db.js';
 import { verifyPin } from '../crypto/crypto.js';
 import { ThemeControl } from './ThemeControl.js';
@@ -13,12 +14,12 @@ const MAX_SETUP_LOGO_BYTES=4*1024*1024;
 const SETUP_LOGO_TYPES=/^image\/(png|webp|jpeg)$/i;
 const PIN_PATTERN=/^\d{4,12}$/;
 
-interface SetupProps {onFinish:(pin:string,company:CompanySettings)=>Promise<void>;initialCompany:CompanySettings;logoDataUrl:string;language:UiLanguage;onLanguageChange:(language:UiLanguage)=>Promise<void>;}
-interface SetupState {company:CompanySettings;pin:string;confirmPin:string;error:string;busy:boolean;logoBusy:boolean;}
+interface SetupProps {onFinish:(pin:string,company:CompanySettings,recoveryCode:string)=>Promise<void>;initialCompany:CompanySettings;logoDataUrl:string;language:UiLanguage;onLanguageChange:(language:UiLanguage)=>Promise<void>;}
+interface SetupState {company:CompanySettings;pin:string;confirmPin:string;error:string;busy:boolean;logoBusy:boolean;recoveryCode:string;recoverySaved:boolean;}
 
 export class SetupScreen extends React.Component<SetupProps,SetupState>{
   private logoUploadId=0;
-  state:SetupState={company:this.props.initialCompany,pin:'',confirmPin:'',error:'',busy:false,logoBusy:false};
+  state:SetupState={company:this.props.initialCompany,pin:'',confirmPin:'',error:'',busy:false,logoBusy:false,recoveryCode:createRecoveryCode(),recoverySaved:false};
 
   private updateCompany=(key:keyof CompanySettings,value:any):void=>this.setState({company:{...this.state.company,[key]:value},error:''});
   private pinValue=(value:string)=>value.replace(/\D/g,'').slice(0,12);
@@ -36,10 +37,12 @@ export class SetupScreen extends React.Component<SetupProps,SetupState>{
     if(!this.state.company.nameEn.trim()&&!this.state.company.nameAr.trim()){this.setState({error:t('Company name is required.','اسم الشركة مطلوب.')});return;}
     if(!PIN_PATTERN.test(this.state.pin)){this.setState({error:t('Create a PIN containing 4–12 digits.','أنشئ رمز PIN مكوّنًا من 4 إلى 12 رقمًا.')});return;}
     if(this.state.pin!==this.state.confirmPin){this.setState({error:t('PIN confirmation does not match.','تأكيد رمز PIN غير مطابق.')});return;}
+    if(!this.state.recoverySaved){this.setState({error:t('Save your recovery key somewhere private before creating the workspace.','احفظ مفتاح الاسترداد في مكان خاص قبل إنشاء مساحة العمل.')});return;}
     const user=currentCloudUser();if(!user){this.setState({error:t('Your account session ended. Sign in again.','انتهت جلسة حسابك. سجّل الدخول مرة أخرى.')});return;}
     this.setState({busy:true,error:''});
-    try{await this.props.onFinish(this.state.pin,this.state.company);}catch(e){this.setState({error:e instanceof Error?e.message:t('Setup failed.','فشل الإعداد.'),busy:false});}
+    try{await this.props.onFinish(this.state.pin,this.state.company,this.state.recoveryCode);}catch(e){this.setState({error:e instanceof Error?e.message:t('Setup failed.','فشل الإعداد.'),busy:false});}
   };
+  private copyRecoveryKey=async()=>{try{await navigator.clipboard.writeText(this.state.recoveryCode);this.setState({recoverySaved:true,error:''});}catch{this.setState({error:t('Copy was blocked. Select and copy the recovery key manually.','تعذر النسخ. حدّد مفتاح الاسترداد وانسخه يدويًا.')});}};
   private languageSwitch():any{return <div className="ta-auth-utilities"><ThemeControl compact language={this.props.language}/><button type="button" className="ta-auth-language" disabled={this.state.busy||this.state.logoBusy} onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button></div>;}
 
   render():any{
@@ -49,6 +52,7 @@ export class SetupScreen extends React.Component<SetupProps,SetupState>{
       <header className="ta-auth-card-header"><span>{t('Workspace setup','إعداد مساحة العمل')}</span><h1>{t('Set up your protected workspace','جهّز مساحة عملك المحمية')}</h1><p>{t('Your account identifies you. Your private PIN protects the encrypted LOUREX workspace.','يحدد الحساب هويتك، بينما يحمي رمز PIN الخاص مساحة LOUREX المشفّرة.')}</p></header>
       <div className="ta-auth-account-chip"><span className="ta-auth-online-dot"/><div><small>{t('Signed in','تم تسجيل الدخول')}</small><strong dir="ltr">{signedIn?.email||''}</strong></div></div>
       <div className="ta-auth-info-card"><span><strong>{t('Account + PIN protection','حماية الحساب + PIN')}</strong><small>{t('The PIN itself is never uploaded. Encrypted security metadata lets the same PIN unlock your protected account data on trusted devices.','لا يتم رفع رمز PIN نفسه. تسمح بيانات الأمان المشفّرة باستخدام الرمز نفسه لفتح بيانات حسابك المحمية على أجهزتك الموثوقة.')}</small></span></div>
+      <section className="ta-pin-recovery-setup"><strong>{t('Save your PIN recovery key','احفظ مفتاح استرداد PIN')}</strong><p>{t('Use this key if you forget your PIN. It is shown only now; LOUREX cannot retrieve it later.','استخدم هذا المفتاح إذا نسيت PIN. يظهر الآن فقط، ولن يستطيع LOUREX إظهاره لاحقًا.')}</p><code dir="ltr">{this.state.recoveryCode}</code><Button disabled={busy||logoBusy} onClick={()=>void this.copyRecoveryKey()}>{t('Copy recovery key','نسخ مفتاح الاسترداد')}</Button><label><input type="checkbox" checked={this.state.recoverySaved} onChange={(e:any)=>this.setState({recoverySaved:e.target.checked,error:''})}/><span>{t('I saved this key somewhere private.','حفظت المفتاح في مكان خاص.')}</span></label></section>
       <div className="form-grid two ta-setup-company-grid"><Field label={t('Company Name English','اسم الشركة بالإنجليزية')}><Input autoFocus={this.props.language!=='ar'} dir="ltr" value={company.nameEn} onChange={(e:any)=>this.updateCompany('nameEn',e.target.value)}/></Field><Field label={t('Company Name Arabic','اسم الشركة بالعربية')}><Input autoFocus={this.props.language==='ar'} dir="rtl" value={company.nameAr} onChange={(e:any)=>this.updateCompany('nameAr',e.target.value)}/></Field></div>
       <div className="form-grid two ta-setup-pin-grid"><Field label={t('Create PIN · 4–12 digits','إنشاء PIN · من 4 إلى 12 رقمًا')}><Input inputMode="numeric" autoComplete="new-password" maxLength="12" type="password" value={pin} onChange={(e:any)=>this.setState({pin:this.pinValue(e.target.value),error:''})}/></Field><Field label={t('Confirm PIN','تأكيد PIN')}><Input inputMode="numeric" autoComplete="new-password" maxLength="12" type="password" value={confirmPin} onChange={(e:any)=>this.setState({confirmPin:this.pinValue(e.target.value),error:''})}/></Field></div>
       <label className="ta-setup-logo-upload"><div className="ta-setup-logo-preview"><img src={company.logoDataUrl||'./brand/lourex-logo.svg'} alt={t('Company logo preview','معاينة شعار الشركة')}/></div><span><strong>{t('Company Logo · Optional','شعار الشركة · اختياري')}</strong><small>{logoBusy?t('Preparing logo…','جارٍ تجهيز الشعار…'):t('PNG, WebP or JPEG · max 4 MB','PNG أو WebP أو JPEG · حتى 4 MB')}</small></span><b>{t('Choose image','اختيار صورة')}</b><input type="file" disabled={busy||logoBusy} accept="image/png,image/webp,image/jpeg" onChange={(e:any)=>this.selectLogo(e.currentTarget)}/></label>
@@ -59,10 +63,10 @@ export class SetupScreen extends React.Component<SetupProps,SetupState>{
   }
 }
 
-interface UnlockProps {onUnlock:(pin:string)=>Promise<void>;logoDataUrl:string;language:UiLanguage;onLanguageChange:(language:UiLanguage)=>Promise<void>;}
-interface UnlockState {pin:string;confirmPin:string;error:string;busy:boolean;checking:boolean;migrateAccountSecret:boolean;}
+interface UnlockProps {onUnlock:(pin:string)=>Promise<void>;onRecoverPin:(recoveryKey:string,newPin:string)=>Promise<void>;logoDataUrl:string;language:UiLanguage;onLanguageChange:(language:UiLanguage)=>Promise<void>;}
+interface UnlockState {pin:string;confirmPin:string;error:string;busy:boolean;checking:boolean;migrateAccountSecret:boolean;migrationConflict:boolean;conflictChoice:''|'keep-local'|'use-cloud';recoveryAvailable:boolean;recovering:boolean;recoveryKey:string;recoveryPin:string;recoveryConfirm:string;recoveryCode:string;recoveryUnlockPin:string;}
 export class UnlockScreen extends React.Component<UnlockProps,UnlockState>{
-  state:UnlockState={pin:'',confirmPin:'',error:'',busy:false,checking:true,migrateAccountSecret:false};
+  state:UnlockState={pin:'',confirmPin:'',error:'',busy:false,checking:true,migrateAccountSecret:false,migrationConflict:false,conflictChoice:'',recoveryAvailable:false,recovering:false,recoveryKey:'',recoveryPin:'',recoveryConfirm:'',recoveryCode:'',recoveryUnlockPin:''};
   private accountSecret='';
   componentDidMount():void{void this.detectSecurityMode();}
   private pinValue=(value:string)=>value.replace(/\D/g,'').slice(0,12);
@@ -71,45 +75,82 @@ export class UnlockScreen extends React.Component<UnlockProps,UnlockState>{
     try{
       const user=currentCloudUser();if(!user)throw new Error(t('Your account session ended. Sign in again.','انتهت جلسة حسابك. سجّل الدخول مرة أخرى.'));
       const security=await getSecurity();if(!security)throw new Error(t('Security settings are missing.','إعدادات الأمان غير موجودة.'));
+      const recoveryAvailable=security.version>=2&&Boolean(security.recoverySalt&&security.recoveryWrapIv&&security.recoveryWrapCipher&&security.recoveryIterations);
       let secret:string|null=null;try{secret=await getAccountVaultSecret(user.uid);}catch{}
-      if(secret){try{await verifyPin(secret,security);this.accountSecret=secret;this.setState({checking:false,migrateAccountSecret:true});return;}catch{}}
-      this.accountSecret='';this.setState({checking:false,migrateAccountSecret:false});
+      if(secret){try{await verifyPin(secret,security);this.accountSecret=secret;this.setState({checking:false,migrateAccountSecret:true,recoveryAvailable});return;}catch{}}
+      this.accountSecret='';this.setState({checking:false,migrateAccountSecret:false,recoveryAvailable});
     }catch(error){this.setState({checking:false,error:error instanceof Error?error.message:t('Unable to prepare secure access.','تعذر تجهيز الوصول الآمن.')});}
   };
 
   private submit=async(e:any):Promise<void>=>{
-    e.preventDefault();if(this.state.busy)return;const pin=this.state.pin;
+    e.preventDefault();if(this.state.recovering){await this.submitRecovery();return;}if(this.state.busy)return;const pin=this.state.pin;
     if(!PIN_PATTERN.test(pin)){this.setState({error:t('Enter a PIN containing 4–12 digits.','أدخل رمز PIN مكوّنًا من 4 إلى 12 رقمًا.')});return;}
     if(this.state.migrateAccountSecret&&pin!==this.state.confirmPin){this.setState({error:t('PIN confirmation does not match.','تأكيد رمز PIN غير مطابق.')});return;}
-    this.setState({busy:true,error:''});
+    this.setState({busy:true,error:'',migrationConflict:false,conflictChoice:''});
     try{
       if(this.state.migrateAccountSecret){
         if(!this.accountSecret)throw new Error(t('Secure upgrade data is unavailable. Reload and try again.','بيانات الترقية الآمنة غير متاحة. أعد تحميل الصفحة وحاول مجددًا.'));
         const user=currentCloudUser();if(!user)throw new Error(t('Your account session ended. Sign in again.','انتهت جلسة حسابك. سجّل الدخول مرة أخرى.'));
         if(typeof navigator!=='undefined'&&!navigator.onLine)throw new Error(t('Internet connection is required to complete this one-time PIN upgrade safely.','يلزم اتصال بالإنترنت لإكمال ترقية PIN هذه لمرة واحدة بأمان.'));
-        const baseline=await reconcileCloudVault(user.uid);if(baseline==='diverged')throw new Error(t('Your cloud data changed on another device. Reload LOUREX before upgrading the PIN so no newer data is overwritten.','تغيرت بياناتك السحابية على جهاز آخر. أعد تحميل LOUREX قبل ترقية PIN حتى لا يتم استبدال أي بيانات أحدث.'));
-        await changePin(this.accountSecret,pin);let published=false;
-        try{const result=await pushLocalVaultToCloud(user.uid);if(result==='remote-changed')throw new Error(t('Your cloud data changed while the PIN upgrade was being completed. Reload and try again.','تغيرت بيانات السحابة أثناء إكمال ترقية PIN. أعد التحميل وحاول مرة أخرى.'));published=result==='pushed'||result==='same';if(!published)throw new Error(t('The new PIN could not be confirmed in your cloud account.','تعذر تأكيد رمز PIN الجديد في حسابك السحابي.'));}
-        catch(error){try{await changePin(pin,this.accountSecret);}catch{}throw error;}
+        const baseline=await reconcileCloudVault(user.uid);if(baseline==='diverged'){this.setState({busy:false,migrationConflict:true,pin:'',confirmPin:'',error:''});return;}
+        const rekey=await changePin(this.accountSecret,pin);let published=false,cloudChangedDuringUpgrade=false;
+        try{const result=await pushLocalVaultToCloud(user.uid);if(result==='remote-changed'){cloudChangedDuringUpgrade=true;throw new Error(t('Your cloud data changed while the PIN upgrade was being completed. Reload and try again.','تغيرت بيانات السحابة أثناء إكمال ترقية PIN. أعد التحميل وحاول مرة أخرى.'));}published=result==='pushed'||result==='same';if(!published)throw new Error(t('The new PIN could not be confirmed in your cloud account.','تعذر تأكيد رمز PIN الجديد في حسابك السحابي.'));}
+        catch(error){try{await changePin(pin,this.accountSecret);}catch{}if(cloudChangedDuringUpgrade){this.setState({busy:false,migrationConflict:true,conflictChoice:'',pin:'',confirmPin:'',error:''});return;}throw error;}
         try{await retireAccountVaultSecret(user.uid);}catch{}this.accountSecret='';
+        if(rekey.recoveryCode){this.setState({busy:false,recoveryCode:rekey.recoveryCode,recoveryUnlockPin:pin,pin:'',confirmPin:'',error:''});return;}
       }
       await this.props.onUnlock(pin);
-    }catch(error){const message=error instanceof Error?error.message:t('Unable to open your workspace.','تعذر فتح مساحة العمل.');this.setState({busy:false,error:/wrong pin/i.test(message)?t('Incorrect PIN.','رمز PIN غير صحيح.'):message,pin:'',confirmPin:''});}
+    }catch(error){const message=error instanceof Error?error.message:t('Unable to open your workspace.','تعذر فتح مساحة العمل.');const cloudConflict=/data changed on another device/i.test(message);this.setState({busy:false,migrationConflict:cloudConflict,conflictChoice:'',error:cloudConflict?'':/wrong pin/i.test(message)?t('Incorrect PIN.','رمز PIN غير صحيح.'):message,pin:'',confirmPin:''});}
+  };
+
+  private submitRecovery=async():Promise<void>=>{
+    if(this.state.busy)return;
+    if(!this.state.recoveryKey.trim()){this.setState({error:t('Enter your recovery key.','أدخل مفتاح الاسترداد.')});return;}
+    if(!PIN_PATTERN.test(this.state.recoveryPin)){this.setState({error:t('Choose a new PIN containing 4–12 digits.','اختر رمز PIN جديدًا من 4 إلى 12 رقمًا.')});return;}
+    if(this.state.recoveryPin!==this.state.recoveryConfirm){this.setState({error:t('New PIN confirmation does not match.','تأكيد رمز PIN الجديد غير مطابق.')});return;}
+    this.setState({busy:true,error:'',migrationConflict:false,conflictChoice:''});
+    try{await this.props.onRecoverPin(this.state.recoveryKey,this.state.recoveryPin);}
+    catch(error){const message=error instanceof Error?error.message:t('Unable to recover the PIN.','تعذر استرداد PIN.');this.setState({busy:false,migrationConflict:/data changed on another device/i.test(message),conflictChoice:'',error:/data changed on another device/i.test(message)?'':message});}
+  };
+
+  private finishRecoveryCode=async():Promise<void>=>{const code=this.state.recoveryCode,pin=this.state.recoveryUnlockPin;try{await navigator.clipboard.writeText(code);}catch{}try{const user=currentCloudUser();if(user)await retireAccountVaultSecret(user.uid);}catch{}this.accountSecret='';this.setState({recoveryCode:'',recoveryUnlockPin:''});await this.props.onUnlock(pin);};
+
+  private copyRecoveryKey=async()=>{try{await navigator.clipboard.writeText(this.state.recoveryCode);this.setState({error:t('Recovery key copied. Save it in a private place.','تم نسخ مفتاح الاسترداد. احفظه في مكان خاص.')});}catch{this.setState({error:t('Copy was blocked. Select and copy the key manually.','تعذر النسخ. حدّد المفتاح وانسخه يدويًا.')});}};
+
+  private resolveMigrationConflict=async():Promise<void>=>{
+    const choice=this.state.conflictChoice;if(!choice||this.state.busy)return;
+    const user=currentCloudUser();if(!user){this.setState({error:t('Your account session ended. Sign in again.','انتهت جلسة حسابك. سجّل الدخول مرة أخرى.')});return;}
+    this.setState({busy:true,error:''});
+    try{
+      if(choice==='keep-local'){
+        await resolveCloudConflictWithLocal(user.uid);
+        this.setState({busy:false,migrationConflict:false,conflictChoice:'',error:'',pin:'',confirmPin:''});
+        return;
+      }
+      await resolveCloudConflictWithCloud(user.uid);
+      window.location.reload();
+    }catch(error){
+      this.setState({busy:false,error:error instanceof Error?error.message:t('Unable to resolve the account data conflict.','تعذر حل تعارض بيانات الحساب.')});
+    }
   };
 
   private languageSwitch():any{return <div className="ta-auth-utilities"><ThemeControl compact language={this.props.language}/><button type="button" className="ta-auth-language" disabled={this.state.busy||this.state.checking} onClick={()=>void this.props.onLanguageChange(this.props.language==='ar'?'en':'ar')}>{this.props.language==='ar'?'English':'العربية'}</button></div>;}
 
   render():any{
     if(this.state.checking)return <main className="ta-auth-page ta-unlock-page"><div className="ta-auth-center-frame"><section className="ta-auth-card ta-unlock-card">{this.languageSwitch()}<div className="ta-auth-mobile-brand is-visible"><Brand logoDataUrl={this.props.logoDataUrl} language={this.props.language}/></div><header className="ta-auth-card-header"><span>LOUREX Invoice</span><h1>{t('Preparing secure access…','جارٍ تجهيز الوصول الآمن…')}</h1><p>{t('Checking this protected workspace before asking for its PIN.','جارٍ التحقق من مساحة العمل المحمية قبل طلب رمز PIN الخاص بها.')}</p></header><div className="ta-auth-loader" aria-hidden="true"><span/></div>{this.state.error?<div className="ta-auth-feedback is-error" role="alert">{this.state.error}</div>:null}</section></div></main>;
-    const migrating=this.state.migrateAccountSecret;
+    if(this.state.recoveryCode)return <main className="ta-auth-page ta-unlock-page"><div className="ta-auth-center-frame"><section className="ta-auth-card ta-unlock-card">{this.languageSwitch()}<div className="ta-auth-mobile-brand is-visible"><Brand logoDataUrl={this.props.logoDataUrl} language={this.props.language}/></div><header className="ta-auth-card-header"><span>{t('PIN recovery','استرداد PIN')}</span><h1>{t('Save your recovery key','احفظ مفتاح الاسترداد')}</h1><p>{t('This key is shown once. Store it privately; LOUREX cannot retrieve it if you lose it.','يظهر هذا المفتاح مرة واحدة. احفظه في مكان خاص؛ لا يستطيع LOUREX استعادته إذا فقدته.')}</p></header><code className="ta-pin-recovery-code" dir="ltr">{this.state.recoveryCode}</code>{this.state.error?<div className="ta-auth-feedback is-success" role="status">{this.state.error}</div>:null}<div className="ta-auth-conflict-actions"><Button onClick={()=>void this.copyRecoveryKey()}>{t('Copy recovery key','نسخ مفتاح الاسترداد')}</Button><Button variant="primary" onClick={()=>void this.finishRecoveryCode()}>{t('I saved it — continue','حفظته — متابعة')}</Button></div></section></div></main>;
+    const migrating=this.state.migrateAccountSecret,recovering=this.state.recovering;
     return <main className="ta-auth-page ta-unlock-page"><div className="ta-auth-center-frame"><form className="ta-auth-card ta-unlock-card" onSubmit={this.submit}>
       {this.languageSwitch()}<div className="ta-auth-mobile-brand is-visible"><Brand logoDataUrl={this.props.logoDataUrl} language={this.props.language}/></div>
-      <header className="ta-auth-card-header"><span>{migrating?t('One-time security upgrade','ترقية أمان لمرة واحدة'):t('Security step','خطوة الأمان')}</span><h1>{migrating?t('Create your LOUREX PIN once','أنشئ رمز PIN الخاص بـ LOUREX مرة واحدة'):t('Enter your LOUREX PIN','أدخل رمز PIN الخاص بـ LOUREX')}</h1><p>{migrating?t('This older account will be re-encrypted with your private PIN before the legacy access secret is retired.','سيتم إعادة تشفير هذا الحساب القديم باستخدام رمز PIN الخاص بك قبل إيقاف سر الوصول القديم.'):t('Your account is signed in. Enter the PIN to unlock the encrypted workspace on this device.','تم تسجيل الدخول إلى حسابك. أدخل رمز PIN لفتح مساحة العمل المشفّرة على هذا الجهاز.')}</p></header>
-      <div className="ta-auth-info-card"><span><strong>{t('PIN protects the encrypted vault','PIN يحمي الخزنة المشفّرة')}</strong><small>{t('LOUREX asks again after sign-out, manual lock, security timeout, or when the saved protected session cannot be resumed safely.','يطلب LOUREX الرمز مجددًا بعد تسجيل الخروج أو القفل اليدوي أو انتهاء مهلة الأمان أو عندما يتعذر استئناف الجلسة المحمية بأمان.')}</small></span></div>
-      <div className="ta-auth-fields"><Field label={migrating?t('Create PIN · 4–12 digits','إنشاء PIN · من 4 إلى 12 رقمًا'):t('PIN · 4–12 digits','PIN · من 4 إلى 12 رقمًا')}><Input autoFocus inputMode="numeric" autoComplete="off" maxLength="12" type="password" value={this.state.pin} onChange={(e:any)=>this.setState({pin:this.pinValue(e.target.value),error:''})}/></Field>{migrating?<Field label={t('Confirm PIN','تأكيد PIN')}><Input inputMode="numeric" autoComplete="off" maxLength="12" type="password" value={this.state.confirmPin} onChange={(e:any)=>this.setState({confirmPin:this.pinValue(e.target.value),error:''})}/></Field>:null}</div>
+      <header className="ta-auth-card-header"><span>{recovering?t('PIN recovery','استرداد PIN'):migrating?t('One-time security upgrade','ترقية أمان لمرة واحدة'):t('Security step','خطوة الأمان')}</span><h1>{recovering?t('Recover your workspace PIN','استرداد PIN مساحة العمل'):migrating?t('Create your LOUREX PIN once','أنشئ رمز PIN الخاص بـ LOUREX مرة واحدة'):t('Enter your LOUREX PIN','أدخل رمز PIN الخاص بـ LOUREX')}</h1><p>{recovering?t('Use the recovery key you saved to create a new PIN. Your encrypted workspace will be preserved.','استخدم مفتاح الاسترداد المحفوظ لإنشاء PIN جديد مع الحفاظ على مساحة العمل المشفّرة.'):migrating?t('This older account will be re-encrypted with your private PIN before the legacy access secret is retired.','سيتم إعادة تشفير هذا الحساب القديم باستخدام رمز PIN الخاص بك قبل إيقاف سر الوصول القديم.'):t('Your account is signed in. Enter the PIN to unlock the encrypted workspace on this device.','تم تسجيل الدخول إلى حسابك. أدخل رمز PIN لفتح مساحة العمل المشفّرة على هذا الجهاز.')}</p></header>
+      {recovering?<><div className="ta-auth-info-card"><span><strong>{t('The recovery key never leaves this device','لا يغادر مفتاح الاسترداد هذا الجهاز')}</strong><small>{t('Your account email alone cannot decrypt your workspace. Use the private recovery key created in LOUREX settings.','البريد الإلكتروني وحده لا يفك تشفير مساحة العمل. استخدم مفتاح الاسترداد الخاص الذي أنشأته من إعدادات LOUREX.')}</small></span></div><div className="ta-auth-fields"><Field label={t('Recovery key','مفتاح الاسترداد')}><Input autoComplete="off" autoCapitalize="characters" spellCheck={false} dir="ltr" value={this.state.recoveryKey} onChange={(e:any)=>this.setState({recoveryKey:e.target.value.toUpperCase(),error:''})}/></Field><Field label={t('New PIN · 4–12 digits','PIN جديد · من 4 إلى 12 رقمًا')}><Input inputMode="numeric" autoComplete="new-password" maxLength="12" type="password" value={this.state.recoveryPin} onChange={(e:any)=>this.setState({recoveryPin:this.pinValue(e.target.value),error:''})}/></Field><Field label={t('Confirm new PIN','تأكيد PIN الجديد')}><Input inputMode="numeric" autoComplete="new-password" maxLength="12" type="password" value={this.state.recoveryConfirm} onChange={(e:any)=>this.setState({recoveryConfirm:this.pinValue(e.target.value),error:''})}/></Field></div></>:<><div className="ta-auth-info-card"><span><strong>{t('PIN protects the encrypted vault','PIN يحمي الخزنة المشفّرة')}</strong><small>{t('LOUREX asks again after sign-out, manual lock, security timeout, or when the saved protected session cannot be resumed safely.','يطلب LOUREX الرمز مجددًا بعد تسجيل الخروج أو القفل اليدوي أو انتهاء مهلة الأمان أو عندما يتعذر استئناف الجلسة المحمية بأمان.')}</small></span></div><div className="ta-auth-fields"><Field label={migrating?t('Create PIN · 4–12 digits','إنشاء PIN · من 4 إلى 12 رقمًا'):t('PIN · 4–12 digits','PIN · من 4 إلى 12 رقمًا')}><Input autoFocus inputMode="numeric" autoComplete="off" maxLength="12" type="password" value={this.state.pin} onChange={(e:any)=>this.setState({pin:this.pinValue(e.target.value),error:''})}/></Field>{migrating?<Field label={t('Confirm PIN','تأكيد PIN')}><Input inputMode="numeric" autoComplete="off" maxLength="12" type="password" value={this.state.confirmPin} onChange={(e:any)=>this.setState({confirmPin:this.pinValue(e.target.value),error:''})}/></Field>:null}</div></>}
       {this.state.error?<div className="ta-auth-feedback is-error" role="alert">{this.state.error}</div>:null}
-      <Button className="ta-auth-primary" variant="primary" type="submit" disabled={this.state.busy||!this.state.pin||(migrating&&!this.state.confirmPin)}>{this.state.busy?(migrating?t('Securing account…','جارٍ تأمين الحساب…'):t('Unlocking…','جارٍ فتح القفل…')):migrating?t('Create PIN & Complete Upgrade','إنشاء PIN وإكمال الترقية'):t('Unlock LOUREX','فتح LOUREX')}</Button>
-      <p className="ta-auth-note">{t('Your PIN is used locally to derive the key that unlocks the encrypted vault. The PIN itself is never displayed or uploaded as plain text.','يُستخدم رمز PIN محليًا لاشتقاق المفتاح الذي يفتح الخزنة المشفّرة. ولا يتم عرض رمز PIN نفسه أو رفعه كنص صريح.')}</p>
+      {this.state.migrationConflict?<section className="ta-auth-info-card is-subtle" role="region" aria-label={t('Account data conflict','تعارض بيانات الحساب')}><div className="ta-auth-conflict-copy"><strong>{t('Choose which account copy to keep','اختر النسخة التي تريد الاحتفاظ بها')}</strong><small>{t('This phone and the cloud both have different changes. Nothing has been overwritten. Keep This Device Copy publishes this phone’s encrypted workspace to the cloud. Use Cloud Copy replaces this phone’s encrypted workspace with the cloud version. Choose only after deciding which copy contains your latest work.','هذا الهاتف والسحابة لديهما تغييرات مختلفة، ولم يتم استبدال أي نسخة. «الاحتفاظ بنسخة هذا الجهاز» يرفع مساحة العمل المشفّرة من هذا الهاتف إلى السحابة. «استخدام نسخة السحابة» يستبدل مساحة العمل على هذا الهاتف بنسخة السحابة. اختر بعد التأكد من النسخة التي تحتوي على أحدث عملك.')}</small>
+        {this.state.conflictChoice?<div className="ta-auth-conflict-confirm"><strong>{this.state.conflictChoice==='keep-local'?t('Confirm: keep this phone’s copy?','تأكيد: الاحتفاظ بنسخة هذا الهاتف؟'):t('Confirm: use the cloud copy?','تأكيد: استخدام نسخة السحابة؟')}</strong><small>{this.state.conflictChoice==='keep-local'?t('The current cloud revision will be replaced by this phone’s data.','ستُستبدل نسخة السحابة الحالية ببيانات هذا الهاتف.'):t('The encrypted data currently on this phone will be replaced by the cloud copy.','ستُستبدل البيانات المشفّرة الموجودة على هذا الهاتف بنسخة السحابة.')}</small><div><Button disabled={this.state.busy} onClick={()=>this.setState({conflictChoice:'',error:''})}>{t('Cancel','إلغاء')}</Button><Button variant="primary" disabled={this.state.busy} onClick={()=>void this.resolveMigrationConflict()}>{this.state.busy?t('Working…','جارٍ التنفيذ…'):t('Confirm choice','تأكيد الاختيار')}</Button></div></div>:<div className="ta-auth-conflict-actions"><Button disabled={this.state.busy} onClick={()=>this.setState({conflictChoice:'keep-local',error:''})}>{t('Keep This Device Copy','الاحتفاظ بنسخة هذا الجهاز')}</Button><Button variant="primary" disabled={this.state.busy} onClick={()=>this.setState({conflictChoice:'use-cloud',error:''})}>{t('Use Cloud Copy','استخدام نسخة السحابة')}</Button></div>}
+      </div></section>:null}
+      <Button className="ta-auth-primary" variant="primary" type="submit" disabled={this.state.busy||this.state.migrationConflict||(recovering?(!this.state.recoveryKey||!this.state.recoveryPin||!this.state.recoveryConfirm):(!this.state.pin||(migrating&&!this.state.confirmPin)))}>{this.state.busy?(recovering?t('Recovering workspace…','جارٍ استرداد مساحة العمل…'):migrating?t('Securing account…','جارٍ تأمين الحساب…'):t('Unlocking…','جارٍ فتح القفل…')):recovering?t('Recover PIN & unlock','استرداد PIN وفتح القفل'):migrating?t('Create PIN & Complete Upgrade','إنشاء PIN وإكمال الترقية'):t('Unlock LOUREX','فتح LOUREX')}</Button>
+      {recovering?<button type="button" className="ta-auth-link" disabled={this.state.busy} onClick={()=>this.setState({recovering:false,error:'',migrationConflict:false,conflictChoice:'',recoveryKey:'',recoveryPin:'',recoveryConfirm:''})}>{t('Back to PIN entry','العودة لإدخال PIN')}</button>:this.state.recoveryAvailable?<button type="button" className="ta-auth-link" disabled={this.state.busy} onClick={()=>this.setState({recovering:true,error:'',migrationConflict:false,conflictChoice:''})}>{t('Forgot PIN? Recover with a recovery key','نسيت PIN؟ استرده بمفتاح الاسترداد')}</button>:<p className="ta-auth-note">{t('PIN recovery is not configured yet. Unlock LOUREX and create a recovery key in Settings → Security.','لم يتم إعداد استرداد PIN بعد. افتح LOUREX وأنشئ مفتاح استرداد من الإعدادات ← الأمان.')}</p>}
+      <p className="ta-auth-note">{recovering?t('A recovery key is required. Resetting your account password alone cannot decrypt the workspace.','يلزم مفتاح الاسترداد. إعادة تعيين كلمة مرور الحساب وحدها لا تفك تشفير مساحة العمل.'):t('Your PIN unlocks the vault key locally. Neither the PIN nor recovery key is uploaded in plain text.','يفتح PIN مفتاح الخزنة محليًا. لا يتم رفع PIN أو مفتاح الاسترداد كنص صريح.')}</p>
     </form></div></main>;
   }
 }
