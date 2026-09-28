@@ -4,7 +4,7 @@ import { calculateTotals, lineTotal } from '../dist/src/lib/money.js';
 import { defaultCompany, emptyVault, customerSnapshotFrom } from '../dist/src/lib/defaults.js';
 import { createBlankDocument, duplicateDocument, convertToInvoice, nextDocumentNumber, paginateItems, validateDocument } from '../dist/src/lib/documents.js';
 import { getDocumentReadiness } from '../dist/src/lib/readiness.js';
-import { createSecurity, verifyPin, encryptVault, decryptVault, createEncryptedBackup, decryptBackup } from '../dist/src/crypto/crypto.js';
+import { createSecurity, createSecurityForChangedPin, createSecurityFromRecovery, deriveKey, randomBytes, recoverVaultKey, verifyPin, encryptVault, decryptVault, createEncryptedBackup, decryptBackup } from '../dist/src/crypto/crypto.js';
 import { migrateVault } from '../dist/src/storage/vault.js';
 
 function customer(overrides = {}) {
@@ -134,6 +134,46 @@ test('PIN verifier rejects wrong PIN and encrypted vault round-trips', async () 
   const record = await encryptVault(key, vault);
   const restored = await decryptVault(verifiedKey, record);
   assert.equal(restored.company.nameEn, 'LOUREX');
+});
+
+test('recovery key resets the PIN and continues unlocking the same encrypted workspace',async()=>{
+  const initial=await createSecurity('123456');
+  assert.equal(JSON.stringify(initial.metadata).includes(initial.recoveryCode),false);
+  const vault=emptyVault();vault.company.nameEn='LOUREX recovery test';
+  const original=await encryptVault(initial.key,vault);
+  const recovered=await recoverVaultKey(initial.recoveryCode,initial.metadata);
+  assert.equal((await decryptVault(recovered.key,original)).company.nameEn,'LOUREX recovery test');
+  await assert.rejects(()=>recoverVaultKey(`${initial.recoveryCode.slice(0,-1)}0`,initial.metadata),/Recovery key is incorrect/);
+  const reset=await createSecurityFromRecovery('654321',recovered.masterBytes,initial.recoveryCode,initial.metadata);
+  const rewritten=await encryptVault(reset.key,vault);
+  const pinKey=await verifyPin('654321',reset.metadata);
+  assert.equal((await decryptVault(pinKey,rewritten)).company.nameEn,'LOUREX recovery test');
+  const recoveryKeyAgain=await recoverVaultKey(initial.recoveryCode,reset.metadata);
+  assert.equal((await decryptVault(recoveryKeyAgain.key,rewritten)).company.nameEn,'LOUREX recovery test');
+});
+
+test('changing PIN retains the recovery key without exposing the old PIN',async()=>{
+  const initial=await createSecurity('1111');
+  const vault=emptyVault();vault.company.nameEn='LOUREX change test';
+  const changed=await createSecurityForChangedPin('1111','2222',initial.metadata);
+  const encrypted=await encryptVault(changed.key,vault);
+  await assert.rejects(()=>verifyPin('1111',changed.metadata),/Wrong PIN/);
+  assert.equal((await decryptVault(await verifyPin('2222',changed.metadata),encrypted)).company.nameEn,'LOUREX change test');
+  assert.equal((await decryptVault((await recoverVaultKey(initial.recoveryCode,changed.metadata)).key,encrypted)).company.nameEn,'LOUREX change test');
+});
+
+test('legacy PIN metadata upgrades to recoverable key wrapping without losing vault data',async()=>{
+  const pin='3456',salt=randomBytes(24),legacyKey=await deriveKey(pin,salt),verifierIv=randomBytes(12);
+  const verifierCipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv:verifierIv},legacyKey,new TextEncoder().encode('LOUREX-VAULT-VERIFIER-v1')));
+  const toB64=bytes=>Buffer.from(bytes).toString('base64');
+  const legacy={id:'security',version:1,iterations:310000,salt:toB64(salt),verifierIv:toB64(verifierIv),verifierCipher:toB64(verifierCipher)};
+  const vault=emptyVault();vault.company.nameEn='Legacy LOUREX workspace';
+  const source=await encryptVault(legacyKey,vault);
+  const migrated=await createSecurityForChangedPin(pin,'7890',legacy);
+  const encrypted=await encryptVault(migrated.key,vault);
+  assert.equal((await decryptVault(await verifyPin('7890',migrated.metadata),encrypted)).company.nameEn,'Legacy LOUREX workspace');
+  assert.equal((await decryptVault((await recoverVaultKey(migrated.recoveryCode,migrated.metadata)).key,encrypted)).company.nameEn,'Legacy LOUREX workspace');
+  assert.equal((await decryptVault(legacyKey,source)).company.nameEn,'Legacy LOUREX workspace');
 });
 
 test('backup is encrypted, validates PIN, and restores complete payload', async () => {
