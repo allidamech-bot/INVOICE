@@ -36,6 +36,7 @@ export class SettingsModal extends React.Component<Props,State> {
   private assetPreparationId=0;
   private settingsContent:HTMLElement|null=null;
   private settingsTouchStart:{tab:State['tab'];x:number;y:number;at:number}|null=null;
+  private settingsPointerStart:{tab:State['tab'];x:number;y:number;pointerId:number;at:number}|null=null;
   private lastSettingsTouchActivation:{tab:State['tab'];at:number}|null=null;
   constructor(props:Props){
     super(props);
@@ -63,13 +64,29 @@ export class SettingsModal extends React.Component<Props,State> {
     const touch=event.changedTouches[0];
     if(touch)this.settingsTouchStart={tab,x:touch.clientX,y:touch.clientY,at:Date.now()};
   };
+  private activateSettingsTabFromTouch=(tab:State['tab'])=>{
+    this.lastSettingsTouchActivation={tab,at:Date.now()};
+    this.selectSettingsTab(tab);
+  };
+  private handleSettingsTabPointerDown=(tab:State['tab'],event:any)=>{
+    this.settingsPointerStart={tab,x:event.clientX,y:event.clientY,pointerId:event.pointerId,at:Date.now()};
+  };
+  private handleSettingsTabPointerUp=(tab:State['tab'],event:any)=>{
+    const start=this.settingsPointerStart;
+    this.settingsPointerStart=null;
+    if(!start||start.tab!==tab||start.pointerId!==event.pointerId||Date.now()-start.at>1000||Math.abs(event.clientX-start.x)>18||Math.abs(event.clientY-start.y)>18)return;
+    const recent=this.lastSettingsTouchActivation;
+    if(recent?.tab===tab&&Date.now()-recent.at<120)return;
+    this.activateSettingsTabFromTouch(tab);
+  };
   private handleSettingsTabTouchEnd=(tab:State['tab'],event:any)=>{
     const start=this.settingsTouchStart;
     this.settingsTouchStart=null;
     const touch=event.changedTouches[0];
     if(!start||start.tab!==tab||!touch||Date.now()-start.at>1000||Math.abs(touch.clientX-start.x)>18||Math.abs(touch.clientY-start.y)>18)return;
-    this.lastSettingsTouchActivation={tab,at:Date.now()};
-    this.selectSettingsTab(tab);
+    const recent=this.lastSettingsTouchActivation;
+    if(recent?.tab===tab&&Date.now()-recent.at<120)return;
+    this.activateSettingsTabFromTouch(tab);
   };
   private handleSettingsTabClick=(tab:State['tab'])=>{
     const touch=this.lastSettingsTouchActivation;
@@ -297,7 +314,7 @@ export class SettingsModal extends React.Component<Props,State> {
     const tabItems=([['company',t('Workspace','مساحة العمل'),'settings',t('Language and defaults','اللغة والإعدادات')],['commercial',t('Commercial','تجاري'),'invoice',t('Banking and trade controls','البنوك وضوابط التجارة')],['documents',t('Documents','المستندات'),'file',t('Output and numbering','الإخراج والترقيم')],['security',t('Security','الأمان'),'lock',t('PIN and recovery','PIN والاستعادة')]] as const);
     return <Modal open={this.props.open} title={accountScope?t('Account','الحساب'):t('Settings','الإعدادات')} size="xl" onClose={this.requestClose}>
       <div className={`ta-settings-shell ${accountScope?'is-account':'is-settings'} ${this.state.accountAction==='restore'?'is-restoring':''}`}>
-        {!accountScope?<aside className="ta-settings-sidebar"><div className="ta-settings-sidebar-head"><span>{t('LOUREX Invoice','LOUREX Invoice')}</span><strong>{t('Settings','الإعدادات')}</strong></div><nav className="ta-settings-nav" role="tablist" aria-label={t('Settings sections','أقسام الإعدادات')}>{tabItems.map(([id,label,icon,description])=><button type="button" role="tab" key={id} id={`settings-tab-${id}`} aria-controls="settings-tab-panel" aria-selected={this.state.tab===id} className={this.state.tab===id?'is-active':''} aria-current={this.state.tab===id?'page':undefined} onTouchStart={(event:any)=>this.handleSettingsTabTouchStart(id,event)} onTouchEnd={(event:any)=>this.handleSettingsTabTouchEnd(id,event)} onTouchCancel={()=>{this.settingsTouchStart=null;}} onClick={()=>this.handleSettingsTabClick(id)}><span className="ta-settings-nav-icon"><Icon name={icon}/></span><span><strong>{label}</strong><small>{description}</small></span></button>)}</nav></aside>:null}
+        {!accountScope?<aside className="ta-settings-sidebar"><div className="ta-settings-sidebar-head"><span>{t('LOUREX Invoice','LOUREX Invoice')}</span><strong>{t('Settings','الإعدادات')}</strong></div><nav className="ta-settings-nav" role="tablist" aria-label={t('Settings sections','أقسام الإعدادات')}>{tabItems.map(([id,label,icon,description])=><button type="button" role="tab" key={id} id={`settings-tab-${id}`} aria-controls="settings-tab-panel" aria-selected={this.state.tab===id} className={this.state.tab===id?'is-active':''} aria-current={this.state.tab===id?'page':undefined} onPointerDown={(event:any)=>this.handleSettingsTabPointerDown(id,event)} onPointerUp={(event:any)=>this.handleSettingsTabPointerUp(id,event)} onPointerCancel={()=>{this.settingsPointerStart=null;}} onTouchStart={(event:any)=>this.handleSettingsTabTouchStart(id,event)} onTouchEnd={(event:any)=>this.handleSettingsTabTouchEnd(id,event)} onTouchCancel={()=>{this.settingsTouchStart=null;}} onClick={()=>this.handleSettingsTabClick(id)}><span className="ta-settings-nav-icon"><Icon name={icon}/></span><span><strong>{label}</strong><small>{description}</small></span></button>)}</nav></aside>:null}
         <main ref={(node:HTMLElement|null)=>{this.settingsContent=node;}} id="settings-tab-panel" role="tabpanel" aria-labelledby={`settings-tab-${this.state.tab}`} tabIndex={-1} className="ta-settings-content">
           {accountScope?this.accountProfile():null}
           {!accountScope&&this.state.tab==='company'?this.workspacePreferences(c,s):null}
