@@ -85,7 +85,9 @@ function validBase64Bytes(value:unknown,minBytes:number,maxBytes:number):value i
   try{const bytes=atob(value).length;return bytes>=minBytes&&bytes<=maxBytes;}catch{return false;}
 }
 function validSecurity(value:any):value is SecurityMetadata{
-  return Boolean(value&&value.id==='security'&&value.version===1&&Number.isInteger(value.iterations)&&value.iterations>=10_000&&value.iterations<=2_000_000&&validBase64Bytes(value.salt,16,64)&&validBase64Bytes(value.verifierIv,12,12)&&validBase64Bytes(value.verifierCipher,16,512));
+  const base=Boolean(value&&value.id==='security'&&(value.version===1||value.version===2)&&Number.isInteger(value.iterations)&&value.iterations>=10_000&&value.iterations<=2_000_000&&validBase64Bytes(value.salt,16,64)&&validBase64Bytes(value.verifierIv,12,12)&&validBase64Bytes(value.verifierCipher,16,512));
+  if(!base||value.version===1)return base;
+  return Boolean(validBase64Bytes(value.pinWrapIv,12,12)&&validBase64Bytes(value.pinWrapCipher,48,128)&&Number.isInteger(value.recoveryIterations)&&value.recoveryIterations>=10_000&&value.recoveryIterations<=2_000_000&&validBase64Bytes(value.recoverySalt,16,64)&&validBase64Bytes(value.recoveryWrapIv,12,12)&&validBase64Bytes(value.recoveryWrapCipher,48,128));
 }
 function validMeta(data:any):data is CloudVaultMeta{
   return Boolean(data&&data.format===CLOUD_FORMAT&&data.version===1&&typeof data.revision==='string'&&data.revision.length>0&&data.revision.length<160&&typeof data.updatedAt==='string'&&!Number.isNaN(Date.parse(data.updatedAt))&&Number.isInteger(data.schemaVersion)&&data.schemaVersion>0&&data.schemaVersion<100&&validBase64Bytes(data.iv,12,12)&&Number.isInteger(data.cipherLength)&&data.cipherLength>0&&data.cipherLength<=MAX_CIPHER_LENGTH&&typeof data.cipherSha256==='string'&&/^[0-9a-f]{64}$/i.test(data.cipherSha256)&&Number.isInteger(data.chunkCount)&&data.chunkCount>=1&&data.chunkCount<=MAX_CHUNKS&&validSecurity(data.security));
