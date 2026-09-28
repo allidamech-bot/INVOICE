@@ -8,6 +8,7 @@
   html body .app-ui .ta-sidebar-nav { overflow-x:hidden!important; }
   /* Dashboard creation already has a primary action; keep the quick row for the three destinations. */
   @media (min-width:721px) { html body .app-ui .ta-quick-actions { grid-template-columns:repeat(3,minmax(0,1fr))!important; } }
+  html body .app-ui .ta-status-badge.status-ready { background:var(--ft-success-soft)!important;color:var(--ft-success)!important; }
 
   html[data-ui-theme="dark"] {
     --ft-canvas:#0d0d0d!important;
