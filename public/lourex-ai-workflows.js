@@ -21,6 +21,8 @@
     if(product)return`Product: ${product}`;
     const purchase=document.querySelector('.ta-ops-editor .ta-ops-editor-header h2')?.textContent?.trim();
     if(purchase)return`Purchasing workspace: ${purchase}`;
+    const reports=document.querySelector('.ta-reports-page');
+    if(reports){const dates=Array.from(reports.querySelectorAll('.ta-report-date input[type="date"]')).map(node=>node instanceof HTMLInputElement?node.value:'');const currency=reports.querySelector('.ta-report-currency select');const selectedCurrency=currency instanceof HTMLSelectElement?currency.value:'ALL';return`Reports period: ${dates[0]||'all'} to ${dates[1]||'current'}; currency filter: ${selectedCurrency||'ALL'} (currencies remain separate)`;}
     return'';
   }
   function installContextBridge(compose){
