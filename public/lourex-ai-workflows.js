@@ -3,6 +3,7 @@
   const PENDING='__lourexAiPendingSource';
   let mount=null,procurementMount=null,memoryMount=null,searchMount=null,dailyMount=null,collectionsMount=null;
   let mounting=false,handoffBusy=false,productReviewMount=null;
+  let guardianReviewMount=null,guardianInFlight=false,guardianBypass=false;
 
   function validPending(){const value=window[PENDING];if(!value||!value.file||!value.route||Date.now()-Number(value.createdAt||0)>10*60*1000){if(value)delete window[PENDING];return null;}return value;}
   function assignFile(input,file){try{const transfer=new DataTransfer();transfer.items.add(file);input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));return true;}catch{return false;}}
@@ -35,6 +36,29 @@
     },true);
   }
 
+  function purchasePostButton(event){
+    const target=event.target instanceof Element?event.target.closest('button'):null;
+    if(!(target instanceof HTMLButtonElement)||!target.closest('.ta-ops-purchase-editor .ta-ops-editor-actions'))return null;
+    const text=(target.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
+    return text.includes('post purchase')||text.includes('ترحيل الشراء')?target:null;
+  }
+  function cleanupGuardian(){if(!guardianReviewMount)return;try{window.ReactDOM?.unmountComponentAtNode(guardianReviewMount);}catch{}guardianReviewMount.remove();guardianReviewMount=null;}
+  function resumeNativePost(button){cleanupGuardian();if(!button.isConnected)return;guardianBypass=true;try{button.click();}finally{guardianBypass=false;}}
+  async function interceptPurchasePost(event){
+    if(guardianBypass||guardianInFlight||guardianReviewMount)return;
+    const button=purchasePostButton(event);if(!button)return;
+    event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();guardianInFlight=true;
+    try{
+      const mod=await import('./src/components/PurchasePostGuardian.js');
+      const prepared=await mod.preparePurchasePostGuardian(button);
+      if(!prepared){resumeNativePost(button);return;}
+      if(!window.React||!window.ReactDOM){resumeNativePost(button);return;}
+      const node=document.createElement('div');node.dataset.lourexPurchaseGuardian='true';document.body.appendChild(node);guardianReviewMount=node;
+      const onCancel=()=>cleanupGuardian();const onContinue=()=>resumeNativePost(button);
+      window.ReactDOM.render(window.React.createElement(mod.PurchasePostGuardian,{review:prepared.review,purchaseNumber:prepared.purchaseNumber,onCancel,onContinue}),node);
+    }catch(error){console.warn('[LOUREX Purchase Guardian] review skipped safely',error);resumeNativePost(button);}finally{guardianInFlight=false;}
+  }
+
   async function syncMount(){
     if(mount&&!mount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(mount);}catch{}mount=null;}
     if(procurementMount&&!procurementMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(procurementMount);}catch{}procurementMount=null;}
@@ -56,5 +80,6 @@
     }catch(error){console.warn('[LOUREX AI workflows] mount skipped',error);node.remove();}finally{mounting=false;}
   }
   function sync(){void syncMount();syncHandoff();}
+  document.addEventListener('click',event=>{void interceptPurchasePost(event);},true);
   new MutationObserver(sync).observe(document.documentElement,{childList:true,subtree:true});window.addEventListener('lourex-language-change',sync);sync();
 })();
