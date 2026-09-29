@@ -106,26 +106,27 @@ export function buildQuoteAiReview(vault:VaultPayload,draft:QuoteAiSourceDraft):
   const currency=(draft.currency||vault.appSettings.smartDefaults.currency||vault.company.defaultCurrency||'USD').trim().toUpperCase();
   const policy=vault.company.commercial.pricing;const customer=findCustomer(vault.customers,draft);
   const items=draft.items.map((row,index)=>{
-    const match=findProduct(vault.savedItems.filter(item=>!item.archived),row);const saved=match.item;
-    const cost=(saved?.lastUnitCost||'').trim();const costCurrency=(saved?.lastCostCurrency||saved?.lastCurrency||'').trim().toUpperCase();
-    const savedSale=(saved?.lastUnitPrice||'').trim();const savedCurrency=(saved?.lastCurrency||'').trim().toUpperCase();
+    const match=findProduct(vault.savedItems.filter(item=>!item.archived),row);const suggestedSaved=match.item;const exactSaved=suggestedSaved&&match.basis!=='description-likely'?suggestedSaved:null;
+    const cost=(exactSaved?.lastUnitCost||'').trim();const costCurrency=(exactSaved?.lastCostCurrency||'').trim().toUpperCase();
+    const savedSale=(exactSaved?.lastUnitPrice||'').trim();const savedCurrency=(exactSaved?.lastCurrency||'').trim().toUpperCase();
     const suggested=cost&&costCurrency===currency?pricingSuggestedUnitPrice(cost,policy):'';
-    const customerPrice=saved?lastCustomerPrice(vault,customer.customerId,row,saved,currency):'';
+    const customerPrice=exactSaved?lastCustomerPrice(vault,customer.customerId,row,exactSaved,currency):'';
     let effective=row.unitPrice.trim();let priceSource:QuoteAiPriceSource=effective?'explicit-source':'none';
     if(!effective&&customerPrice){effective=customerPrice;priceSource='customer-last-price';}
     if(!effective&&savedSale&&savedCurrency===currency){effective=savedSale;priceSource='saved-sale-price';}
     if(!effective&&suggested){effective=suggested;priceSource='pricing-policy';}
     const warnings:QuoteAiWarning[]=[];
-    if(!saved)warnings.push('unknown-product');
+    if(!suggestedSaved)warnings.push('unknown-product');
     if(row.quantityAmbiguous||row.quantityConfidence<.75)warnings.push('ambiguous-quantity');
-    if((row.productConfidence>0&&row.productConfidence<.7)||(saved&&match.confidence<.8))warnings.push('low-product-confidence');
-    if(saved&&!cost)warnings.push('missing-cost');
-    if(saved&&cost&&costCurrency&&costCurrency!==currency)warnings.push('currency-mismatch');
+    if((row.productConfidence>0&&row.productConfidence<.7)||(suggestedSaved&&match.confidence<.8))warnings.push('low-product-confidence');
+    if(exactSaved&&!cost)warnings.push('missing-cost');
+    if(exactSaved&&cost&&!costCurrency)warnings.push('currency-mismatch');
+    if(exactSaved&&cost&&costCurrency&&costCurrency!==currency)warnings.push('currency-mismatch');
     if(!effective)warnings.push('missing-selling-price');
-    if(saved&&effective&&cost&&costCurrency===currency){const priceScaled=decimalToScaled(effective,SCALE),costScaled=decimalToScaled(cost,SCALE);if(priceScaled<costScaled)warnings.push('below-cost');else if(suggested&&priceScaled<decimalToScaled(suggested,SCALE))warnings.push('below-policy');}
-    return{index,matchedItemId:saved?.id||'',matchedItemName:saved?itemName(saved):'',matchConfidence:match.confidence,matchBasis:match.basis,effectiveUnitPrice:effective,priceSource,lastCustomerPrice:customerPrice,cost,costCurrency,suggestedPrice:suggested,marginPercent:saved&&effective&&cost&&costCurrency===currency?marginPercent(effective,cost):'',warnings};
+    if(exactSaved&&effective&&cost&&costCurrency===currency){const priceScaled=decimalToScaled(effective,SCALE),costScaled=decimalToScaled(cost,SCALE);if(priceScaled<costScaled)warnings.push('below-cost');else if(suggested&&priceScaled<decimalToScaled(suggested,SCALE))warnings.push('below-policy');}
+    return{index,matchedItemId:exactSaved?.id||'',matchedItemName:suggestedSaved?itemName(suggestedSaved):'',matchConfidence:match.confidence,matchBasis:match.basis,effectiveUnitPrice:effective,priceSource,lastCustomerPrice:customerPrice,cost,costCurrency,suggestedPrice:suggested,marginPercent:exactSaved&&effective&&cost&&costCurrency===currency?marginPercent(effective,cost):'',warnings};
   });
-  return{currency,customer,items,warningCount:items.reduce((sum,row)=>sum+row.warnings.length,0),blockingAttentionCount:items.filter(row=>row.warnings.some(warning=>['unknown-product','ambiguous-quantity','currency-mismatch','missing-selling-price'].includes(warning))).length};
+  return{currency,customer,items,warningCount:items.reduce((sum,row)=>sum+row.warnings.length,0),blockingAttentionCount:items.filter(row=>row.warnings.some(warning=>['unknown-product','ambiguous-quantity','low-product-confidence','currency-mismatch','missing-selling-price'].includes(warning))).length};
 }
 
 function latinDigits(value:string):string{return value.replace(/[٠-٩]/g,digit=>String(ARABIC_DIGITS.indexOf(digit))).replace(/[٪﹪]/g,'%');}
