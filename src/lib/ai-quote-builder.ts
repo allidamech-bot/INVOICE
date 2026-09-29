@@ -1,16 +1,16 @@
-import type { Customer, DocumentItem, LourexDocument, SavedItem, VaultPayload } from '../types.js';
+import type { Customer, DocumentItem, SavedItem, VaultPayload } from '../types.js';
 import { pricingSuggestedUnitPrice } from './commercial-controls.js';
 import { makeId } from './id.js';
 import { decimalToScaled, normalizeDecimalInput } from './money.js';
 import { documentItemFromSavedItem, normalizeSavedItemIdentity, normalizeSavedItemSku } from './saved-items.js';
 
-export interface AiQuoteSourceConfidence {product:number;quantity:number;unit:number;price:number;}
 export interface AiQuoteSourceItem {
   sku:string;descriptionEn:string;descriptionAr:string;quantity:string;unit:string;unitPrice:string;
-  confidence?:Partial<AiQuoteSourceConfidence>;sourcePage?:string;sourceExcerpt?:string;
+  quantityConfidence?:number;quantityAmbiguous?:boolean;quantityNote?:string;productConfidence?:number;productNote?:string;
 }
 export interface AiQuoteSourceDraft {
-  customerName:string;customerEmail:string;customerPhone:string;currency:string;incoterm:string;paymentTerms:string;deliveryTime:string;validity:string;remarks:string;notes:string;
+  customerName:string;customerEmail:string;customerPhone:string;customerConfidence?:number;customerNote?:string;
+  currency:string;incoterm:string;paymentTerms:string;deliveryTime:string;validity:string;remarks:string;notes:string;
   items:AiQuoteSourceItem[];
 }
 export type AiQuoteMatchBasis='sku'|'name-exact'|'name-likely'|'none';
@@ -36,6 +36,7 @@ function itemLabel(item:SavedItem):string{return(item.descriptionEn||item.descri
 function tokens(value:string):Set<string>{return new Set(norm(value).split(' ').filter(token=>token.length>=2));}
 function similarity(left:string,right:string):number{const a=tokens(left),b=tokens(right);if(!a.size||!b.size)return 0;let common=0;for(const token of a)if(b.has(token))common+=1;return common/(a.size+b.size-common);}
 function sourceName(row:AiQuoteSourceItem):string{return row.descriptionEn||row.descriptionAr||row.sku||'';}
+function confidence(value:unknown,fallback=0):number{const number=Number(value);return Number.isFinite(number)?Math.max(0,Math.min(1,number)):fallback;}
 
 export function matchQuoteProduct(items:SavedItem[],row:AiQuoteSourceItem):{item:SavedItem|null;confidence:number;basis:AiQuoteMatchBasis}{
   const sku=normalizeSavedItemSku(row.sku||'');
@@ -67,7 +68,6 @@ function lastCustomerPrice(vault:VaultPayload,customerId:string,row:AiQuoteSourc
   for(const doc of docs){const line=doc.items.find(candidate=>sameDocumentItem(row,item,candidate)&&candidate.unitPrice.trim());if(line)return line.unitPrice.trim();}
   return'';
 }
-function extractionConfidence(row:AiQuoteSourceItem,key:keyof AiQuoteSourceConfidence):number{const value=Number(row.confidence?.[key]);return Number.isFinite(value)?Math.max(0,Math.min(1,value)):key==='quantity'?1:0;}
 
 export function buildAiQuoteReview(vault:VaultPayload,draft:AiQuoteSourceDraft):AiQuoteReview{
   const currency=(draft.currency||vault.appSettings.smartDefaults.currency||vault.company.defaultCurrency||'USD').toUpperCase();
@@ -82,7 +82,7 @@ export function buildAiQuoteReview(vault:VaultPayload,draft:AiQuoteSourceDraft):
     const warnings:AiQuoteWarning[]=[];
     if(!saved)warnings.push('unknown-product');
     else if(match.confidence<.85)warnings.push('low-match-confidence');
-    if(extractionConfidence(row,'quantity')<.7)warnings.push('ambiguous-quantity');
+    if(row.quantityAmbiguous===true||confidence(row.quantityConfidence,1)<.7)warnings.push('ambiguous-quantity');
     if(saved&&!cost)warnings.push('missing-cost');
     if(saved&&cost&&costCurrency&&costCurrency!==currency)warnings.push('currency-mismatch');
     if(saved&&cost&&costCurrency===currency&&proposedPrice){const p=decimalToScaled(proposedPrice,COST_DECIMALS),c=decimalToScaled(cost,COST_DECIMALS),policy=policyPrice?decimalToScaled(policyPrice,COST_DECIMALS):0n;if(p<c)warnings.push('below-cost');else if(policy>0n&&p<policy)warnings.push('below-policy');}
@@ -92,8 +92,9 @@ export function buildAiQuoteReview(vault:VaultPayload,draft:AiQuoteSourceDraft):
   return{currency,customerId:customerMatch.customer?.id||'',customerName:customerMatch.customer?(customerMatch.customer.companyNameEn||customerMatch.customer.companyNameAr):draft.customerName,customerMatchConfidence:customerMatch.confidence,lines,warnings};
 }
 
+function trimMoney(value:string):string{return value.includes('.')?value.replace(/0+$/,'').replace(/\.$/,''):value;}
 function multiplyMoney(value:string,percentValue:string):string{
-  const amount=decimalToScaled(value||'0',4),pct=decimalToScaled(percentValue||'0',4);if(amount<0n||pct<0n)return'';const scaled=(amount*(1_000_000n+pct)+500_000n)/1_000_000n;const raw=`${scaled/10_000n}.${(scaled%10_000n).toString().padStart(4,'0')}`;return normalizeDecimalInput(raw).replace(/(?:\.0+|(?<=\.\d*?)0+)$/,'').replace(/\.$/,'');
+  const amount=decimalToScaled(value||'0',4),pct=decimalToScaled(percentValue||'0',4);if(amount<0n||pct<0n)return'';const scaled=(amount*(1_000_000n+pct)+500_000n)/1_000_000n;return trimMoney(`${scaled/10_000n}.${(scaled%10_000n).toString().padStart(4,'0')}`);
 }
 function commandPercent(command:string,keyword:RegExp):string{const normalized=digits(command).normalize('NFKC');const match=normalized.match(keyword);return match?.[1]||'';}
 
