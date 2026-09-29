@@ -2,10 +2,10 @@
   'use strict';
   const PENDING='__lourexAiPendingSource';
   let mount=null;
+  let procurementMount=null;
   let mounting=false;
   let handoffBusy=false;
   let productReviewMount=null;
-  let supplierReviewMount=null;
 
   function validPending(){
     const value=window[PENDING];
@@ -76,33 +76,6 @@
     }
   }
 
-  async function mountSupplierAiReview(pending){
-    if(supplierReviewMount||!window.React||!window.ReactDOM)return false;
-    const node=document.createElement('div');
-    node.dataset.lourexAiSupplierReview='true';
-    document.body.appendChild(node);
-    supplierReviewMount=node;
-    try{
-      const mod=await import('./src/components/SupplierAiSourceReview.js');
-      if(!node.isConnected)return false;
-      const onDone=()=>{
-        try{window.ReactDOM.unmountComponentAtNode(node);}catch{}
-        node.remove();
-        if(supplierReviewMount===node)supplierReviewMount=null;
-      };
-      window.ReactDOM.render(window.React.createElement(mod.SupplierAiSourceReview,{file:pending.file,onDone}),node);
-      delete window[PENDING];
-      handoffBusy=false;
-      return true;
-    }catch(error){
-      console.warn('[LOUREX AI supplier review] mount skipped',error);
-      node.remove();
-      if(supplierReviewMount===node)supplierReviewMount=null;
-      handoffBusy=false;
-      return false;
-    }
-  }
-
   function handoffProducts(pending){
     const page=document.querySelector('.ta-product-library');
     if(!page)return false;
@@ -123,16 +96,11 @@
     return true;
   }
 
-  function handoffSupplier(pending){
-    void mountSupplierAiReview(pending);
-    return true;
-  }
-
   function syncHandoff(){
     const pending=validPending();
     if(!pending||handoffBusy)return;
     handoffBusy=true;
-    const started=pending.route==='customer'?handoffCustomer(pending):pending.route==='product_list'?handoffProducts(pending):pending.route==='supplier'?handoffSupplier(pending):false;
+    const started=pending.route==='customer'?handoffCustomer(pending):pending.route==='product_list'?handoffProducts(pending):false;
     if(!started)handoffBusy=false;
   }
 
@@ -140,6 +108,10 @@
     if(mount&&!mount.isConnected){
       try{window.ReactDOM?.unmountComponentAtNode(mount);}catch{}
       mount=null;
+    }
+    if(procurementMount&&!procurementMount.isConnected){
+      try{window.ReactDOM?.unmountComponentAtNode(procurementMount);}catch{}
+      procurementMount=null;
     }
     const panel=document.getElementById('lourex-ai-panel');
     if(!panel||mount||mounting)return;
@@ -151,10 +123,15 @@
     node.dataset.lourexAiWorkflowMount='true';
     compose.insertBefore(node,form);
     try{
-      const mod=await import('./src/components/AiWorkflowTools.js');
+      const [tools,procurement]=await Promise.all([import('./src/components/AiWorkflowTools.js'),import('./src/components/ProcurementAiCompare.js')]);
       if(!node.isConnected)return;
-      window.ReactDOM.render(window.React.createElement(mod.AiWorkflowTools),node);
+      window.ReactDOM.render(window.React.createElement(tools.AiWorkflowTools),node);
       mount=node;
+      const procurementNode=document.createElement('div');
+      procurementNode.dataset.lourexProcurementAiMount='true';
+      compose.insertBefore(procurementNode,form);
+      window.ReactDOM.render(window.React.createElement(procurement.ProcurementAiCompare),procurementNode);
+      procurementMount=procurementNode;
     }catch(error){
       console.warn('[LOUREX AI workflows] mount skipped',error);
       node.remove();
