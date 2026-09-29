@@ -1,14 +1,8 @@
 (()=>{
   'use strict';
   const PENDING='__lourexAiPendingSource';
-  let mount=null;
-  let procurementMount=null;
-  let memoryMount=null;
-  let searchMount=null;
-  let dailyMount=null;
-  let mounting=false;
-  let handoffBusy=false;
-  let productReviewMount=null;
+  let mount=null,procurementMount=null,memoryMount=null,searchMount=null,dailyMount=null;
+  let mounting=false,handoffBusy=false,productReviewMount=null;
 
   function validPending(){const value=window[PENDING];if(!value||!value.file||!value.route||Date.now()-Number(value.createdAt||0)>10*60*1000){if(value)delete window[PENDING];return null;}return value;}
   function assignFile(input,file){try{const transfer=new DataTransfer();transfer.items.add(file);input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));return true;}catch{return false;}}
@@ -19,6 +13,28 @@
   function handoffProducts(pending){const page=document.querySelector('.ta-product-library');if(!page)return false;if(!spreadsheetSource(pending.file)){void mountProductAiReview(pending);return true;}const button=page.querySelector('.ta-product-commandbar > button');if(!(button instanceof HTMLButtonElement))return false;button.click();later(()=>{const input=document.querySelector('.product-import-file-input');if(!(input instanceof HTMLInputElement))return false;if(!assignFile(input,pending.file))return false;delete window[PENDING];return true;});return true;}
   function syncHandoff(){const pending=validPending();if(!pending||handoffBusy)return;handoffBusy=true;const started=pending.route==='customer'?handoffCustomer(pending):pending.route==='product_list'?handoffProducts(pending):false;if(!started)handoffBusy=false;}
 
+  function currentEntityContext(){
+    const customer=document.querySelector('.ta-customer-profile .ta-customer-profile-hero h1')?.textContent?.trim();
+    if(customer)return`Customer: ${customer}`;
+    const product=document.querySelector('.ta-product-editor.is-open .ta-product-editor-header h2')?.textContent?.trim();
+    if(product)return`Product: ${product}`;
+    const purchase=document.querySelector('.ta-ops-editor .ta-ops-editor-header h2')?.textContent?.trim();
+    if(purchase)return`Purchasing workspace: ${purchase}`;
+    return'';
+  }
+  function installContextBridge(compose){
+    const form=compose?.querySelector('form');if(!(form instanceof HTMLFormElement)||form.dataset.lourexContextBridge==='true')return;
+    form.dataset.lourexContextBridge='true';
+    form.addEventListener('submit',()=>{
+      const context=currentEntityContext();if(!context)return;
+      const input=form.querySelector('input');if(!(input instanceof HTMLInputElement))return;
+      const original=input.value.trim();if(!original||original.startsWith('[Current LOUREX context:'))return;
+      const next=`[Current LOUREX context: ${context}] ${original}`.slice(0,1000);
+      const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;if(setter)setter.call(input,next);else input.value=next;
+      input.dispatchEvent(new Event('input',{bubbles:true}));
+    },true);
+  }
+
   async function syncMount(){
     if(mount&&!mount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(mount);}catch{}mount=null;}
     if(procurementMount&&!procurementMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(procurementMount);}catch{}procurementMount=null;}
@@ -26,6 +42,7 @@
     if(searchMount&&!searchMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(searchMount);}catch{}searchMount=null;}
     if(dailyMount&&!dailyMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(dailyMount);}catch{}dailyMount=null;}
     const panel=document.getElementById('lourex-ai-panel');if(!panel||mount||mounting)return;const compose=panel.querySelector('.lourex-ai-compose');const form=compose?.querySelector('form');if(!compose||!form||!window.React||!window.ReactDOM)return;
+    installContextBridge(compose);
     mounting=true;const node=document.createElement('div');node.dataset.lourexAiWorkflowMount='true';compose.insertBefore(node,form);
     try{
       const [tools,procurement,memory,search,daily]=await Promise.all([import('./src/components/AiWorkflowTools.js'),import('./src/components/ProcurementAiCompare.js'),import('./src/components/BusinessMemoryTool.js'),import('./src/components/BusinessSearchTool.js'),import('./src/components/DailyCommandCenterTool.js')]);if(!node.isConnected)return;
