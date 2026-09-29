@@ -3,6 +3,7 @@
   const PENDING='__lourexAiPendingSource';
   let mount=null;
   let procurementMount=null;
+  let memoryMount=null;
   let mounting=false;
   let handoffBusy=false;
   let productReviewMount=null;
@@ -105,14 +106,9 @@
   }
 
   async function syncMount(){
-    if(mount&&!mount.isConnected){
-      try{window.ReactDOM?.unmountComponentAtNode(mount);}catch{}
-      mount=null;
-    }
-    if(procurementMount&&!procurementMount.isConnected){
-      try{window.ReactDOM?.unmountComponentAtNode(procurementMount);}catch{}
-      procurementMount=null;
-    }
+    if(mount&&!mount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(mount);}catch{}mount=null;}
+    if(procurementMount&&!procurementMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(procurementMount);}catch{}procurementMount=null;}
+    if(memoryMount&&!memoryMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(memoryMount);}catch{}memoryMount=null;}
     const panel=document.getElementById('lourex-ai-panel');
     if(!panel||mount||mounting)return;
     const compose=panel.querySelector('.lourex-ai-compose');
@@ -123,7 +119,11 @@
     node.dataset.lourexAiWorkflowMount='true';
     compose.insertBefore(node,form);
     try{
-      const [tools,procurement]=await Promise.all([import('./src/components/AiWorkflowTools.js'),import('./src/components/ProcurementAiCompare.js')]);
+      const [tools,procurement,memory]=await Promise.all([
+        import('./src/components/AiWorkflowTools.js'),
+        import('./src/components/ProcurementAiCompare.js'),
+        import('./src/components/BusinessMemoryTool.js')
+      ]);
       if(!node.isConnected)return;
       window.ReactDOM.render(window.React.createElement(tools.AiWorkflowTools),node);
       mount=node;
@@ -132,6 +132,11 @@
       compose.insertBefore(procurementNode,form);
       window.ReactDOM.render(window.React.createElement(procurement.ProcurementAiCompare),procurementNode);
       procurementMount=procurementNode;
+      const memoryNode=document.createElement('div');
+      memoryNode.dataset.lourexBusinessMemoryMount='true';
+      compose.insertBefore(memoryNode,form);
+      window.ReactDOM.render(window.React.createElement(memory.BusinessMemoryTool),memoryNode);
+      memoryMount=memoryNode;
     }catch(error){
       console.warn('[LOUREX AI workflows] mount skipped',error);
       node.remove();
