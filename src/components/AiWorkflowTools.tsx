@@ -4,7 +4,7 @@ import { resumeVaultSession } from '../storage/vault.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from '../lib/spreadsheet-reader.js';
 import { aiWorkflowPrompt, searchBusinessRecords, type AiBusinessSearchResult, type AiInboxClassification, type AiInboxRoute, type AiWorkflowMode } from '../lib/ai-workflows.js';
-import { buildQuoteAiReview, type QuoteAiReview, type QuoteAiSourceDraft, type QuoteAiSourceItem, type QuoteAiWarning } from '../lib/quote-ai-review.js';
+import { applyQuoteAiPricingCommand, buildQuoteAiReview, type QuoteAiReview, type QuoteAiSourceDraft, type QuoteAiSourceItem, type QuoteAiWarning } from '../lib/quote-ai-review.js';
 import { createBlankDocument, nextDocumentNumber } from '../lib/documents.js';
 import { customerSnapshotFrom } from '../lib/defaults.js';
 import { applyCustomerCommercialDefaults } from '../lib/commercial-controls.js';
@@ -26,7 +26,7 @@ type InboxStage='idle'|'reading'|'classifying'|'extracting'|'review'|'saving'|'d
 interface PendingSource{route:Exclude<AiInboxRoute,'quote_request'|'supplier_purchase'|'unknown'>;file:File;createdAt:number;}
 interface State{
   open:boolean;view:ToolView;stage:InboxStage;file:File|null;pastedText:string;classification:AiInboxClassification|null;forcedRoute:AiInboxRoute|null;
-  quote:QuoteAiSourceDraft|null;quoteReview:QuoteAiReview|null;supplier:SupplierImportDraft|null;error:string;model:string;savedLabel:string;
+  quote:QuoteAiSourceDraft|null;quoteReview:QuoteAiReview|null;quoteCommand:string;quoteCommandMessage:string;supplier:SupplierImportDraft|null;error:string;model:string;savedLabel:string;
   searchQuery:string;searchBusy:boolean;searchResults:AiBusinessSearchResult[];listening:boolean;
 }
 
@@ -90,6 +90,7 @@ function quoteWarningLabel(warning:QuoteAiWarning):string{
 }
 function priceSourceLabel(source:QuoteAiReview['items'][number]['priceSource']):string{
   if(source==='explicit-source')return t('Source price','سعر المصدر');
+  if(source==='customer-last-price')return t('Last customer price','آخر سعر للعميل');
   if(source==='saved-sale-price')return t('Saved selling price','سعر البيع المحفوظ');
   if(source==='pricing-policy')return t('Pricing policy','سياسة التسعير');
   return t('No price','لا يوجد سعر');
@@ -115,21 +116,21 @@ export class AiWorkflowTools extends React.Component<{},State>{
   private input:HTMLInputElement|null=null;
   private abort:AbortController|null=null;
   private recognition:any=null;
-  state:State={open:false,view:'menu',stage:'idle',file:null,pastedText:'',classification:null,forcedRoute:null,quote:null,quoteReview:null,supplier:null,error:'',model:'',savedLabel:'',searchQuery:'',searchBusy:false,searchResults:[],listening:false};
+  state:State={open:false,view:'menu',stage:'idle',file:null,pastedText:'',classification:null,forcedRoute:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,error:'',model:'',savedLabel:'',searchQuery:'',searchBusy:false,searchResults:[],listening:false};
 
   componentWillUnmount():void{this.abort?.abort();try{this.recognition?.stop();}catch{}}
   private busy=()=>['reading','classifying','extracting','saving'].includes(this.state.stage);
-  private resetInbox=(forcedRoute:AiInboxRoute|null=null)=>this.setState({view:'inbox',stage:'idle',file:null,pastedText:'',classification:null,forcedRoute,quote:null,quoteReview:null,supplier:null,error:'',model:'',savedLabel:''});
+  private resetInbox=(forcedRoute:AiInboxRoute|null=null)=>this.setState({view:'inbox',stage:'idle',file:null,pastedText:'',classification:null,forcedRoute,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,error:'',model:'',savedLabel:''});
   private openMenu=()=>this.setState({open:true,view:'menu',error:'',savedLabel:''});
   private close=()=>{if(this.busy())return;this.abort?.abort();this.setState({open:false,error:'',listening:false});};
-  private chooseFile=(file:File|null)=>{if(!file||this.busy())return;this.setState({file,pastedText:'',classification:null,quote:null,quoteReview:null,supplier:null,error:'',stage:'idle',savedLabel:''});if(this.input)this.input.value='';};
+  private chooseFile=(file:File|null)=>{if(!file||this.busy())return;this.setState({file,pastedText:'',classification:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,error:'',stage:'idle',savedLabel:''});if(this.input)this.input.value='';};
   private payload=async():Promise<{fileName:string;payload:AiPayload}>=>{
     if(this.state.file)return{fileName:this.state.file.name,payload:await sourcePayload(this.state.file)};
     const text=this.state.pastedText.trim();if(!text)throw new Error(t('Choose a file or paste business text first.','اختر ملفًا أو الصق نص أعمال أولًا.'));
     return{fileName:t('Pasted text','النص الملصق'),payload:{kind:'text',mimeType:'text/plain',text:text.slice(0,MAX_TEXT_CHARS)}};
   };
   private classify=async()=>{
-    if(this.busy())return;this.setState({stage:'reading',error:'',classification:null,quote:null,quoteReview:null,supplier:null,savedLabel:''});
+    if(this.busy())return;this.setState({stage:'reading',error:'',classification:null,quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',supplier:null,savedLabel:''});
     try{const source=await this.payload();const forced=this.state.forcedRoute;if(forced){const classification={route:forced,confidence:1,reason:t('Selected workflow','مسار محدد')} as AiInboxClassification;this.setState({classification,stage:'review'});await this.extractForRoute(classification.route,source.fileName,source.payload);return;}
       this.setState({stage:'classifying'});const controller=new AbortController();this.abort=controller;const body=await postAi('/api/ai-inbox',source.fileName,source.payload,controller.signal);const classification=body.classification as AiInboxClassification;this.setState({classification,model:String(body.model||'LOUREX AI'),stage:'review'});if(classification.route==='quote_request'||classification.route==='supplier_purchase')await this.extractForRoute(classification.route,source.fileName,source.payload);}
     catch(error){this.setState({stage:'error',error:error instanceof Error?error.message:String(error)});}finally{this.abort=null;}
@@ -141,7 +142,7 @@ export class AiWorkflowTools extends React.Component<{},State>{
       if(route==='quote_request'){
         const body=await postAi('/api/quote-source-ai',fileName,payload,controller.signal);const quote=body.draft as QuoteAiSourceDraft;
         const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX before reviewing quotation pricing.','افتح قفل LOUREX قبل مراجعة تسعير عرض السعر.'));
-        this.setState({quote,quoteReview:buildQuoteAiReview(resumed.vault,quote),model:String(body.model||'LOUREX AI'),stage:'review'});
+        this.setState({quote,quoteReview:buildQuoteAiReview(resumed.vault,quote),quoteCommand:'',quoteCommandMessage:'',model:String(body.model||'LOUREX AI'),stage:'review'});
       }else{
         const body=await postAi('/api/supplier-document-ai',fileName,payload,controller.signal);this.setState({supplier:body.draft as SupplierImportDraft,model:String(body.model||'LOUREX AI'),stage:'review'});
       }
@@ -153,6 +154,11 @@ export class AiWorkflowTools extends React.Component<{},State>{
     const text=this.state.pastedText.trim();const file=this.state.file??(text?new File([text],'AI-Inbox.txt',{type:'text/plain'}):null);if(!file)return;
     setPendingSource(route,file);this.setState({open:false});advisorInput(routeNavigationPrompt(route),true);
   };
+  private applyQuoteCommand=async()=>{
+    const quote=this.state.quote,command=this.state.quoteCommand.trim();if(!quote||!command||this.busy())return;
+    try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX before applying quotation pricing.','افتح قفل LOUREX قبل تطبيق تسعير عرض السعر.'));const result=applyQuoteAiPricingCommand(resumed.vault,quote,command);if(!result.applied){this.setState({quoteCommandMessage:t('No line could safely apply this command. Check matching, cost and currency.','لم يتمكن أي بند من تطبيق هذا الأمر بأمان. راجع المطابقة والتكلفة والعملة.')});return;}this.setState({quote:result.draft,quoteReview:buildQuoteAiReview(resumed.vault,result.draft),quoteCommand:'',quoteCommandMessage:t(`Applied to ${result.applied} line(s). Review the result before saving.`,`تم التطبيق على ${result.applied} بند. راجع النتيجة قبل الحفظ.`)});}
+    catch(error){this.setState({error:error instanceof Error?error.message:String(error)});}
+  };
   private saveSupplier=async()=>{
     const draft=this.state.supplier;if(!draft||this.state.stage==='saving')return;this.setState({stage:'saving',error:''});
     try{const next=await mutateVaultSafely(vault=>{const purchase=buildSupplierPurchaseDraft(draft,vault.purchases,vault.suppliers,vault.savedItems,vault.appSettings.smartDefaults.currency||vault.company.defaultCurrency);return{...vault,purchases:[...vault.purchases,purchase]};});const saved=next.purchases.at(-1);this.setState({stage:'done',supplier:null,savedLabel:saved?t(`Purchase draft ${saved.number} saved`,`تم حفظ مسودة الشراء ${saved.number}`):t('Purchase draft saved','تم حفظ مسودة الشراء')});}
@@ -160,7 +166,7 @@ export class AiWorkflowTools extends React.Component<{},State>{
   };
   private saveQuote=async()=>{
     const draft=this.state.quote,review=this.state.quoteReview;if(!draft||!review||this.state.stage==='saving')return;this.setState({stage:'saving',error:''});
-    try{const next=await mutateVaultSafely(vault=>{const numbered=nextDocumentNumber(vault,'proforma');let doc=createBlankDocument('proforma',numbered.number,vault.company);const customer=review.customer.customerId?vault.customers.find(item=>item.id===review.customer.customerId):undefined;if(customer)doc=applyCustomerCommercialDefaults({...doc,customerSnapshot:customerSnapshotFrom(customer)},customer,vault.company);const currency=review.currency;doc={...doc,currency,items:draft.items.map((row,index)=>quoteLine(row,review.items[index],vault,currency)),terms:{...doc.terms,incoterm:draft.incoterm||doc.terms.incoterm,paymentTerms:draft.paymentTerms||doc.terms.paymentTerms,deliveryTime:draft.deliveryTime||doc.terms.deliveryTime,validity:draft.validity||doc.terms.validity,remarks:draft.remarks||doc.terms.remarks},notes:[doc.notes,draft.notes,review.warningCount?t(`AI source review: ${review.warningCount} warning(s) remain for manual review.`,`مراجعة مصدر AI: بقي ${review.warningCount} تنبيه للمراجعة اليدوية.`):''].filter(Boolean).join('\n'),updatedAt:new Date().toISOString()};return{...numbered.vault,documents:[...numbered.vault.documents,doc],documentEvents:[...numbered.vault.documentEvents,createDocumentEvent(doc,'created')]};});const saved=next.documents.at(-1);this.setState({stage:'done',quote:null,quoteReview:null,savedLabel:saved?t(`Quotation draft ${saved.number} saved for review`,`تم حفظ مسودة عرض السعر ${saved.number} للمراجعة`):t('Quotation draft saved for review','تم حفظ مسودة عرض السعر للمراجعة')});}
+    try{const next=await mutateVaultSafely(vault=>{const numbered=nextDocumentNumber(vault,'proforma');let doc=createBlankDocument('proforma',numbered.number,vault.company);const customer=review.customer.customerId?vault.customers.find(item=>item.id===review.customer.customerId):undefined;if(customer)doc=applyCustomerCommercialDefaults({...doc,customerSnapshot:customerSnapshotFrom(customer)},customer,vault.company);const currency=review.currency;doc={...doc,currency,items:draft.items.map((row,index)=>quoteLine(row,review.items[index],vault,currency)),terms:{...doc.terms,incoterm:draft.incoterm||doc.terms.incoterm,paymentTerms:draft.paymentTerms||doc.terms.paymentTerms,deliveryTime:draft.deliveryTime||doc.terms.deliveryTime,validity:draft.validity||doc.terms.validity,remarks:draft.remarks||doc.terms.remarks},notes:[doc.notes,draft.notes,review.warningCount?t(`AI source review: ${review.warningCount} warning(s) remain for manual review.`,`مراجعة مصدر AI: بقي ${review.warningCount} تنبيه للمراجعة اليدوية.`):''].filter(Boolean).join('\n'),updatedAt:new Date().toISOString()};return{...numbered.vault,documents:[...numbered.vault.documents,doc],documentEvents:[...numbered.vault.documentEvents,createDocumentEvent(doc,'created')]};});const saved=next.documents.at(-1);this.setState({stage:'done',quote:null,quoteReview:null,quoteCommand:'',quoteCommandMessage:'',savedLabel:saved?t(`Quotation draft ${saved.number} saved for review`,`تم حفظ مسودة عرض السعر ${saved.number} للمراجعة`):t('Quotation draft saved for review','تم حفظ مسودة عرض السعر للمراجعة')});}
     catch(error){this.setState({stage:'review',error:error instanceof Error?error.message:String(error)});}
   };
   private runMode=(mode:AiWorkflowMode)=>{this.setState({open:false});advisorInput(aiWorkflowPrompt(mode,isArabic()),true);};
@@ -198,8 +204,10 @@ export class AiWorkflowTools extends React.Component<{},State>{
       {route==='quote_request'&&quote&&review?<div><h3>{t('Quotation draft & pricing review','مراجعة مسودة عرض السعر والتسعير')}</h3><p>{quote.customerName||t('Customer not identified','لم يتم تحديد العميل')} · {review.currency} · {quote.items.length} {t('items','أصناف')} · {review.warningCount} {t('warnings','تنبيهات')}</p>
         {review.customer.customerId?<p><strong>{t('Customer match','مطابقة العميل')}:</strong> {review.customer.customerName} · {Math.round(review.customer.matchConfidence*100)}%</p>:quote.customerName?<p><strong>{t('Customer match','مطابقة العميل')}:</strong> {t('No exact saved customer match. The draft will remain unlinked until manual review.','لا توجد مطابقة دقيقة مع عميل محفوظ. ستبقى المسودة غير مرتبطة حتى المراجعة اليدوية.')}</p>:null}
         <div className="product-import-table-wrap"><table className="product-import-table"><thead><tr><th>{t('Product','الصنف')}</th><th>{t('Qty','الكمية')}</th><th>{t('Match','المطابقة')}</th><th>{t('Price','السعر')}</th><th>{t('Cost','التكلفة')}</th><th>{t('Margin','الهامش')}</th><th>{t('Review','المراجعة')}</th></tr></thead><tbody>{quote.items.slice(0,40).map((item,index)=>{const row=review.items[index];return <tr key={`${item.sku}-${index}`}><td><strong><bdi dir="auto">{item.descriptionEn||item.descriptionAr||item.sku}</bdi></strong>{item.sku?<small style={{display:'block'}}><bdi dir="ltr">{item.sku}</bdi></small>:null}</td><td><bdi dir="ltr">{item.quantity} {item.unit}</bdi>{item.quantityConfidence?<small style={{display:'block'}}>{Math.round(item.quantityConfidence*100)}%</small>:null}</td><td>{row?.matchedItemId?<><span>{row.matchedItemName}</span><small style={{display:'block'}}>{Math.round(row.matchConfidence*100)}%</small></>:t('Unknown','غير معروف')}</td><td>{row?.effectiveUnitPrice?<><bdi dir="ltr">{row.effectiveUnitPrice} {review.currency}</bdi><small style={{display:'block'}}>{priceSourceLabel(row.priceSource)}{row.suggestedPrice&&row.suggestedPrice!==row.effectiveUnitPrice?` · ${t('Policy','السياسة')}: ${row.suggestedPrice}`:''}</small></>:'—'}</td><td>{row?.cost&&row.costCurrency===review.currency?<bdi dir="ltr">{row.cost} {row.costCurrency}</bdi>:row?.cost?<bdi dir="ltr">{row.cost} {row.costCurrency||'?'}</bdi>:'—'}</td><td>{row?.marginPercent?<bdi dir="ltr">{row.marginPercent}%</bdi>:'—'}</td><td>{row?.warnings.length?<>{row.warnings.map(warning=><small key={warning} style={{display:'block'}}>{quoteWarningLabel(warning)}</small>)}</>:<span>{t('Ready','جاهز')}</span>}{item.quantityNote?<small style={{display:'block'}}><bdi dir="auto">{item.quantityNote}</bdi></small>:null}</td></tr>;})}</tbody></table></div>
-        <p>{review.blockingAttentionCount?t(`${review.blockingAttentionCount} line(s) need explicit manual attention before finalizing later. Saving here creates a draft only.`,`${review.blockingAttentionCount} سطر يحتاج انتباهًا يدويًا صريحًا قبل الإصدار لاحقًا. الحفظ هنا ينشئ مسودة فقط.`):t('Deterministic pricing review found no blocking attention flags. Saving still creates a draft only.','لم تجد مراجعة التسعير الحتمية مؤشرات انتباه مانعة. الحفظ يبقى لمسودة فقط.')}</p>
-        <Button variant="primary" disabled={busy} onClick={()=>void this.saveQuote()}>{t('Confirm & Save Quotation Draft','تأكيد وحفظ مسودة عرض السعر')}</Button></div>:null}
+        <Field label={t('Pricing command','أمر التسعير')} hint={t('Margin 15%, use last customer price, raise prices 4%, or use company pricing policy. LOUREX calculates locally.','هامش 15%، استخدم آخر سعر للعميل، ارفع الأسعار 4%، أو استخدم سياسة تسعير الشركة. LOUREX يحسب محليًا.')}><Input value={this.state.quoteCommand} onChange={(event:any)=>this.setState({quoteCommand:event.target.value,quoteCommandMessage:''})} onKeyDown={(event:any)=>{if(event.key==='Enter'){event.preventDefault();void this.applyQuoteCommand();}}}/></Field>
+        <div className="ta-customer-modal-actions"><Button disabled={busy||!this.state.quoteCommand.trim()} onClick={()=>void this.applyQuoteCommand()}>{t('Apply pricing command','تطبيق أمر التسعير')}</Button><Button variant="primary" disabled={busy} onClick={()=>void this.saveQuote()}>{t('Confirm & Save Quotation Draft','تأكيد وحفظ مسودة عرض السعر')}</Button></div>
+        {this.state.quoteCommandMessage?<p role="status">{this.state.quoteCommandMessage}</p>:null}
+        <p>{review.blockingAttentionCount?t(`${review.blockingAttentionCount} line(s) need explicit manual attention before finalizing later. Saving here creates a draft only.`,`${review.blockingAttentionCount} سطر يحتاج انتباهًا يدويًا صريحًا قبل الإصدار لاحقًا. الحفظ هنا ينشئ مسودة فقط.`):t('Deterministic pricing review found no blocking attention flags. Saving still creates a draft only.','لم تجد مراجعة التسعير الحتمية مؤشرات انتباه مانعة. الحفظ يبقى لمسودة فقط.')}</p></div>:null}
       {this.state.stage==='done'?<div role="status"><Icon name="check"/><strong>{this.state.savedLabel}</strong></div>:null}
       {this.state.error?<div role="alert">{this.state.error}</div>:null}
       <div className="ta-customer-modal-actions"><Button disabled={busy} onClick={()=>this.setState({view:'menu',stage:'idle',error:''})}>{t('Back','رجوع')}</Button></div>
