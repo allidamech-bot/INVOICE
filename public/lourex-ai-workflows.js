@@ -5,6 +5,7 @@
   let mounting=false;
   let handoffBusy=false;
   let productReviewMount=null;
+  let supplierReviewMount=null;
 
   function validPending(){
     const value=window[PENDING];
@@ -75,6 +76,33 @@
     }
   }
 
+  async function mountSupplierAiReview(pending){
+    if(supplierReviewMount||!window.React||!window.ReactDOM)return false;
+    const node=document.createElement('div');
+    node.dataset.lourexAiSupplierReview='true';
+    document.body.appendChild(node);
+    supplierReviewMount=node;
+    try{
+      const mod=await import('./src/components/SupplierAiSourceReview.js');
+      if(!node.isConnected)return false;
+      const onDone=()=>{
+        try{window.ReactDOM.unmountComponentAtNode(node);}catch{}
+        node.remove();
+        if(supplierReviewMount===node)supplierReviewMount=null;
+      };
+      window.ReactDOM.render(window.React.createElement(mod.SupplierAiSourceReview,{file:pending.file,onDone}),node);
+      delete window[PENDING];
+      handoffBusy=false;
+      return true;
+    }catch(error){
+      console.warn('[LOUREX AI supplier review] mount skipped',error);
+      node.remove();
+      if(supplierReviewMount===node)supplierReviewMount=null;
+      handoffBusy=false;
+      return false;
+    }
+  }
+
   function handoffProducts(pending){
     const page=document.querySelector('.ta-product-library');
     if(!page)return false;
@@ -95,11 +123,16 @@
     return true;
   }
 
+  function handoffSupplier(pending){
+    void mountSupplierAiReview(pending);
+    return true;
+  }
+
   function syncHandoff(){
     const pending=validPending();
     if(!pending||handoffBusy)return;
     handoffBusy=true;
-    const started=pending.route==='customer'?handoffCustomer(pending):pending.route==='product_list'?handoffProducts(pending):false;
+    const started=pending.route==='customer'?handoffCustomer(pending):pending.route==='product_list'?handoffProducts(pending):pending.route==='supplier'?handoffSupplier(pending):false;
     if(!started)handoffBusy=false;
   }
 
