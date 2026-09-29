@@ -36,6 +36,27 @@
     },true);
   }
 
+  function quoteSourceFromModal(modal){
+    const fileInput=modal.querySelector('input[type="file"]');
+    if(fileInput instanceof HTMLInputElement&&fileInput.files?.[0])return fileInput.files[0];
+    const text=Array.from(modal.querySelectorAll('textarea')).map(node=>node.value.trim()).find(Boolean);
+    return text?new File([text],'Quote-RFQ-Source.txt',{type:'text/plain'}):null;
+  }
+  function installQuoteCustomerBridge(){
+    const paragraphs=Array.from(document.querySelectorAll('.modal-body p'));
+    const marker=paragraphs.find(node=>{const text=(node.textContent||'').trim();return text.includes('No exact saved customer match')||text.includes('لا توجد مطابقة دقيقة مع عميل محفوظ');});
+    if(!(marker instanceof HTMLElement)||marker.dataset.lourexCustomerBridge==='true')return;
+    const modal=marker.closest('.modal');if(!(modal instanceof HTMLElement))return;const source=quoteSourceFromModal(modal);if(!source)return;
+    marker.dataset.lourexCustomerBridge='true';
+    const button=document.createElement('button');button.type='button';button.className='btn btn-secondary';button.dataset.lourexQuoteCustomerBridge='true';button.innerHTML=`<span>${document.documentElement.dir==='rtl'?'مراجعة / إنشاء العميل عبر Customer AI':'Review / Create Customer with Customer AI'}</span>`;
+    button.addEventListener('click',()=>{
+      window[PENDING]={route:'customer',file:source,createdAt:Date.now()};
+      const close=modal.querySelector('.modal-header .icon-btn');if(close instanceof HTMLButtonElement)close.click();
+      window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-global-action',{detail:{action:'navigate',target:'customers'}})),0);
+    });
+    marker.insertAdjacentElement('afterend',button);
+  }
+
   function purchasePostButton(event){
     const target=event.target instanceof Element?event.target.closest('button'):null;
     if(!(target instanceof HTMLButtonElement)||!target.closest('.ta-ops-purchase-editor .ta-ops-editor-actions'))return null;
@@ -81,7 +102,7 @@
       const cfoNode=document.createElement('div');cfoNode.dataset.lourexCfoScenarioMount='true';compose.insertBefore(cfoNode,form);window.ReactDOM.render(window.React.createElement(cfo.CfoScenarioTool),cfoNode);cfoMount=cfoNode;
     }catch(error){console.warn('[LOUREX AI workflows] mount skipped',error);node.remove();}finally{mounting=false;}
   }
-  function sync(){void syncMount();syncHandoff();}
+  function sync(){void syncMount();syncHandoff();installQuoteCustomerBridge();}
   document.addEventListener('click',event=>{void interceptPurchasePost(event);},true);
   new MutationObserver(sync).observe(document.documentElement,{childList:true,subtree:true});window.addEventListener('lourex-language-change',sync);sync();
 })();
