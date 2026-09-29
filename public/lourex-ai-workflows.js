@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
   const PENDING='__lourexAiPendingSource';
-  let mount=null,procurementMount=null,memoryMount=null,searchMount=null,dailyMount=null;
+  let mount=null,procurementMount=null,memoryMount=null,searchMount=null,dailyMount=null,collectionsMount=null;
   let mounting=false,handoffBusy=false,productReviewMount=null;
 
   function validPending(){const value=window[PENDING];if(!value||!value.file||!value.route||Date.now()-Number(value.createdAt||0)>10*60*1000){if(value)delete window[PENDING];return null;}return value;}
@@ -41,16 +41,18 @@
     if(memoryMount&&!memoryMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(memoryMount);}catch{}memoryMount=null;}
     if(searchMount&&!searchMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(searchMount);}catch{}searchMount=null;}
     if(dailyMount&&!dailyMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(dailyMount);}catch{}dailyMount=null;}
+    if(collectionsMount&&!collectionsMount.isConnected){try{window.ReactDOM?.unmountComponentAtNode(collectionsMount);}catch{}collectionsMount=null;}
     const panel=document.getElementById('lourex-ai-panel');if(!panel||mount||mounting)return;const compose=panel.querySelector('.lourex-ai-compose');const form=compose?.querySelector('form');if(!compose||!form||!window.React||!window.ReactDOM)return;
     installContextBridge(compose);
     mounting=true;const node=document.createElement('div');node.dataset.lourexAiWorkflowMount='true';compose.insertBefore(node,form);
     try{
-      const [tools,procurement,memory,search,daily]=await Promise.all([import('./src/components/AiWorkflowTools.js'),import('./src/components/ProcurementAiCompare.js'),import('./src/components/BusinessMemoryTool.js'),import('./src/components/BusinessSearchTool.js'),import('./src/components/DailyCommandCenterTool.js')]);if(!node.isConnected)return;
+      const [tools,procurement,memory,search,daily,collections]=await Promise.all([import('./src/components/AiWorkflowTools.js'),import('./src/components/ProcurementAiCompare.js'),import('./src/components/BusinessMemoryTool.js'),import('./src/components/BusinessSearchTool.js'),import('./src/components/DailyCommandCenterTool.js'),import('./src/components/CollectionsAiTool.js')]);if(!node.isConnected)return;
       window.ReactDOM.render(window.React.createElement(tools.AiWorkflowTools),node);mount=node;
       const procurementNode=document.createElement('div');procurementNode.dataset.lourexProcurementAiMount='true';compose.insertBefore(procurementNode,form);window.ReactDOM.render(window.React.createElement(procurement.ProcurementAiCompare),procurementNode);procurementMount=procurementNode;
       const memoryNode=document.createElement('div');memoryNode.dataset.lourexBusinessMemoryMount='true';compose.insertBefore(memoryNode,form);window.ReactDOM.render(window.React.createElement(memory.BusinessMemoryTool),memoryNode);memoryMount=memoryNode;
       const searchNode=document.createElement('div');searchNode.dataset.lourexBusinessSearchMount='true';compose.insertBefore(searchNode,form);window.ReactDOM.render(window.React.createElement(search.BusinessSearchTool),searchNode);searchMount=searchNode;
       const dailyNode=document.createElement('div');dailyNode.dataset.lourexDailyCommandCenterMount='true';compose.insertBefore(dailyNode,form);window.ReactDOM.render(window.React.createElement(daily.DailyCommandCenterTool),dailyNode);dailyMount=dailyNode;
+      const collectionsNode=document.createElement('div');collectionsNode.dataset.lourexCollectionsAiMount='true';compose.insertBefore(collectionsNode,form);window.ReactDOM.render(window.React.createElement(collections.CollectionsAiTool),collectionsNode);collectionsMount=collectionsNode;
     }catch(error){console.warn('[LOUREX AI workflows] mount skipped',error);node.remove();}finally{mounting=false;}
   }
   function sync(){void syncMount();syncHandoff();}
