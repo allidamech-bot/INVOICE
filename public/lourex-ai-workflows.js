@@ -4,6 +4,7 @@
   let mount=null;
   let mounting=false;
   let handoffBusy=false;
+  let productReviewMount=null;
 
   function validPending(){
     const value=window[PENDING];
@@ -45,9 +46,42 @@
     return true;
   }
 
+  function spreadsheetSource(file){return /\.(xlsx|xls|csv)$/i.test(String(file?.name||''));}
+
+  async function mountProductAiReview(pending){
+    if(productReviewMount||!window.React||!window.ReactDOM)return false;
+    const node=document.createElement('div');
+    node.dataset.lourexAiProductReview='true';
+    document.body.appendChild(node);
+    productReviewMount=node;
+    try{
+      const mod=await import('./src/components/ProductAiSourceReview.js');
+      if(!node.isConnected)return false;
+      const onDone=()=>{
+        try{window.ReactDOM.unmountComponentAtNode(node);}catch{}
+        node.remove();
+        if(productReviewMount===node)productReviewMount=null;
+      };
+      window.ReactDOM.render(window.React.createElement(mod.ProductAiSourceReview,{file:pending.file,onDone}),node);
+      delete window[PENDING];
+      handoffBusy=false;
+      return true;
+    }catch(error){
+      console.warn('[LOUREX AI product review] mount skipped',error);
+      node.remove();
+      if(productReviewMount===node)productReviewMount=null;
+      handoffBusy=false;
+      return false;
+    }
+  }
+
   function handoffProducts(pending){
     const page=document.querySelector('.ta-product-library');
     if(!page)return false;
+    if(!spreadsheetSource(pending.file)){
+      void mountProductAiReview(pending);
+      return true;
+    }
     const button=page.querySelector('.ta-product-commandbar > button');
     if(!(button instanceof HTMLButtonElement))return false;
     button.click();
