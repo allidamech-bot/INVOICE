@@ -6,6 +6,8 @@ import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { Button, Icon, Modal } from './UI.js';
 
 const MAX_BINARY_BYTES=2_600_000;
+const MAX_TEXT_BYTES=1_000_000;
+const MAX_TEXT_CHARS=120_000;
 
 type ProductDraftItem={
   sku:string;descriptionEn:string;descriptionAr:string;hsCode:string;origin:string;packing:string;unit:string;
@@ -23,7 +25,7 @@ function bytesToBase64(buffer:ArrayBuffer):string{
 }
 function mimeFor(file:File):string{
   const name=file.name.toLowerCase();
-  return file.type||(name.endsWith('.pdf')?'application/pdf':name.endsWith('.png')?'image/png':/\.jpe?g$/.test(name)?'image/jpeg':name.endsWith('.webp')?'image/webp':'');
+  return file.type||(name.endsWith('.txt')?'text/plain':name.endsWith('.pdf')?'application/pdf':name.endsWith('.png')?'image/png':/\.jpe?g$/.test(name)?'image/jpeg':name.endsWith('.webp')?'image/webp':'');
 }
 function matchingItem(items:SavedItem[],row:ProductDraftItem):SavedItem|undefined{
   const sku=normalizeSavedItemSku(row.sku||'');
@@ -80,13 +82,14 @@ export class ProductAiSourceReview extends React.Component<Props,State>{
   componentWillUnmount():void{this.abort?.abort();}
 
   private analyze=async()=>{
-    const file=this.props.file;const mimeType=mimeFor(file);
-    if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType)){this.setState({stage:'error',error:t('This AI review accepts PDF or image product sources.','تقبل هذه المراجعة ملفات PDF أو صور المنتجات.')});return;}
-    if(file.size>MAX_BINARY_BYTES){this.setState({stage:'error',error:t('Reduce this PDF/image below 2.6 MB for safe AI analysis.','خفّض حجم PDF/الصورة لأقل من 2.6 MB للتحليل الآمن.')});return;}
+    const file=this.props.file;const mimeType=mimeFor(file);const isText=mimeType==='text/plain';
+    if(!isText&&!['application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType)){this.setState({stage:'error',error:t('This AI review accepts PDF, image or pasted text product sources.','تقبل هذه المراجعة PDF أو الصور أو نص المنتجات الملصق.')});return;}
+    if(isText&&file.size>MAX_TEXT_BYTES){this.setState({stage:'error',error:t('This text source is too large for AI review.','مصدر النص كبير جدًا للمراجعة بالذكاء الاصطناعي.')});return;}
+    if(!isText&&file.size>MAX_BINARY_BYTES){this.setState({stage:'error',error:t('Reduce this PDF/image below 2.6 MB for safe AI analysis.','خفّض حجم PDF/الصورة لأقل من 2.6 MB للتحليل الآمن.')});return;}
     const controller=new AbortController();this.abort=controller;
     try{
-      const data=bytesToBase64(await file.arrayBuffer());
-      const response=await fetch('/api/product-source-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({kind:'file',fileName:file.name,mimeType,data}),signal:controller.signal});
+      const payload=isText?{kind:'text',fileName:file.name,mimeType:'text/plain',text:(await file.text()).slice(0,MAX_TEXT_CHARS)}:{kind:'file',fileName:file.name,mimeType,data:bytesToBase64(await file.arrayBuffer())};
+      const response=await fetch('/api/product-source-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify(payload),signal:controller.signal});
       let body:any={};try{body=await response.json();}catch{}
       if(!response.ok)throw new Error(String(body?.message||t('LOUREX could not read this product source.','تعذر على LOUREX قراءة مصدر المنتجات.')));
       const draft=body.draft as ProductSourceDraft;
