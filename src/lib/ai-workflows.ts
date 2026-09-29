@@ -1,7 +1,8 @@
 import type { Customer, LourexDocument, Supplier, VaultPayload } from '../types.js';
 
-export type AiInboxRoute='customer'|'supplier_purchase'|'quote_request'|'product_list'|'unknown';
-export interface AiInboxClassification {route:AiInboxRoute;confidence:number;reason:string;}
+export type AiInboxRoute='customer'|'supplier'|'supplier_purchase'|'quote_request'|'product_list'|'unknown';
+export type AiInboxDocumentType='commercial_registration'|'customer_rfq'|'supplier_quote'|'supplier_invoice'|'purchase_invoice'|'product_catalog'|'price_list'|'company_file'|'unknown';
+export interface AiInboxClassification {route:AiInboxRoute;documentType:AiInboxDocumentType;confidence:number;reason:string;}
 export type AiWorkflowMode='guardian'|'collections'|'cfo'|'daily'|'memory'|'products'|'suppliers';
 
 export interface AiBusinessSearchResult {
