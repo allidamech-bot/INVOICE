@@ -47,14 +47,14 @@ const EXTREME_DISCOUNT_PERCENT=25n;
 const SUSPICIOUS_PRICE_CHANGE_PERCENT=25n;
 function lineName(doc:LourexDocument,index:number):string{const item=doc.items[index];return(item?.descriptionEn||item?.descriptionAr||`Item ${index+1}`).trim();}
 function applicable(doc:LourexDocument):boolean{return !documentPriceOptional(doc.kind)&&!isSupplierDocumentKind(doc.kind)&&doc.role!=='credit-note';}
-function issue(code:AccountingGuardianCode,severity:AccountingGuardianSeverity,itemIndex:number,itemName:string,currency:string,price='',cost='',suggestedPrice='',detail=''):AccountingGuardianIssue{return{code,severity,level:severity==='critical'?'warning':'attention',itemIndex,itemName,currency,price,cost,suggestedPrice,detail};}
+function issue(code:AccountingGuardianCode,severity:AccountingGuardianSeverity,itemIndex:number,itemName:string,currency:string,price='',cost='',suggestedPrice='',detail=''):AccountingGuardianIssue{return{code,severity,level:severity==='info'?'attention':'warning',itemIndex,itemName,currency,price,cost,suggestedPrice,detail};}
 function percentDifference(current:string,reference:string):bigint{
   if(!current||!reference||!isNonNegativeDecimalInput(current)||!isNonNegativeDecimalInput(reference))return 0n;
   const now=decimalToScaled(current,SCALE),base=decimalToScaled(reference,SCALE);if(base<=0n)return 0n;const diff=now>=base?now-base:base-now;return diff*100n/base;
 }
 function duplicateLineKey(doc:LourexDocument,index:number):string{
   const item=doc.items[index]!;const description=normalizeSavedItemIdentity(item.descriptionEn)||normalizeSavedItemIdentity(item.descriptionAr);if(!description)return'';
-  return `${description}|${item.unit.trim().toUpperCase()}|${item.unitPrice.trim()}`;
+  return `${description}|${item.unit.trim().toUpperCase()}`;
 }
 
 export function buildAccountingGuardianReview(doc:LourexDocument,company:CompanySettings,savedItems:SavedItem[],customers:Customer[],documents:LourexDocument[],payments:PaymentRecord[]):AccountingGuardianReview{
@@ -67,7 +67,7 @@ export function buildAccountingGuardianReview(doc:LourexDocument,company:Company
     const itemName=lineName(doc,index);const quantity=item.quantity.trim();
     if(quantity&&isDecimalInput(quantity)&&decimalToScaled(quantity,SCALE)===0n)issues.push(issue('zero-quantity','critical',index,itemName,currency,item.unitPrice,'','','Quantity is zero.'));
     if(!documentPriceOptional(doc.kind)&&item.unitPrice.trim()&&isDecimalInput(item.unitPrice)&&decimalToScaled(item.unitPrice,SCALE)===0n)issues.push(issue('zero-price','critical',index,itemName,currency,item.unitPrice,'','','Selling price is zero.'));
-    const key=duplicateLineKey(doc,index);if(key){const first=duplicateSeen.get(key);if(first!==undefined)issues.push(issue('duplicate-line','warning',index,itemName,currency,item.unitPrice,'','','The same product/unit/price appears more than once in this document.'));else duplicateSeen.set(key,index);}
+    const key=duplicateLineKey(doc,index);if(key){const first=duplicateSeen.get(key);if(first!==undefined)issues.push(issue('duplicate-line','warning',index,itemName,currency,item.unitPrice,'','','The same product and unit appear more than once in this document. Review quantity and price before finalizing.'));else duplicateSeen.set(key,index);}
   });
 
   if(documentUsesCommercialDefaults(doc.kind)){
