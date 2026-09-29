@@ -14,7 +14,7 @@ async function readJson(request){const declared=Number(request.headers['content-
 function cleanText(value,max=500){return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);}
 function cleanConfidence(value){const number=Number(value);return Number.isFinite(number)?Math.max(0,Math.min(1,number)):0;}
 function cleanPage(value){const text=cleanText(value,20);return /^\d{1,5}$/.test(text)?text:'';}
-function cleanEvidence(row,fileName){return{value:cleanText(row?.value),confidence:cleanConfidence(row?.confidence),sourceFile:cleanText(row?.sourceFile,180)||fileName,sourcePage:cleanPage(row?.sourcePage),sourceExcerpt:cleanText(row?.sourceExcerpt,220)};}
+function cleanEvidence(row,fileName){return{value:cleanText(row?.value),confidence:cleanConfidence(row?.confidence),sourceFile:fileName,sourcePage:cleanPage(row?.sourcePage),sourceExcerpt:cleanText(row?.sourceExcerpt,220)};}
 function cleanResult(value,fileName){if(!value||typeof value!=='object'||!value.fields||typeof value.fields!=='object')return null;const fields={};let found=0;for(const name of FIELD_NAMES){fields[name]=cleanEvidence(value.fields[name],fileName);if(fields[name].value)found+=1;}return found?{fields}:null;}
 function parseGemini(payload,fileName){const text=payload?.candidates?.[0]?.content?.parts?.map(part=>part?.text||'').join('')||'';let parsed;try{parsed=JSON.parse(text);}catch{return null;}return cleanResult(parsed,fileName);}
 
