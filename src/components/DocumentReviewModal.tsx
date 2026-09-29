@@ -26,6 +26,14 @@ function issueText(issue:DocumentQualityIssue):string{
 
 function guardianText(code:AccountingGuardianCode):string{
   switch(code){
+    case 'missing-customer':return t('Customer identity is missing.','هوية العميل مفقودة.');
+    case 'missing-supplier':return t('Supplier identity is missing.','هوية المورد مفقودة.');
+    case 'zero-quantity':return t('Quantity is zero and needs explicit review.','الكمية صفر وتحتاج مراجعة صريحة.');
+    case 'zero-price':return t('Selling price is zero and needs explicit review.','سعر البيع صفر ويحتاج مراجعة صريحة.');
+    case 'duplicate-line':return t('A duplicate product line was detected.','تم اكتشاف سطر منتج مكرر.');
+    case 'missing-commercial-data':return t('Some commercial terms are missing.','بعض البيانات التجارية مفقودة.');
+    case 'extreme-discount':return t('The discount reached the Guardian review threshold.','بلغ الخصم حد المراجعة لدى الحارس.');
+    case 'suspicious-price-change':return t('The selling price changed materially from the saved selling price.','تغير سعر البيع بشكل ملحوظ عن سعر البيع المحفوظ.');
     case 'missing-cost':return t('Comparable cost is missing, so LOUREX cannot verify margin for this line.','التكلفة القابلة للمقارنة مفقودة، لذلك لا يستطيع LOUREX التحقق من هامش هذا السطر.');
     case 'cost-currency-mismatch':return t('The saved cost uses a different currency. LOUREX will not perform an FX conversion.','التكلفة المحفوظة بعملة مختلفة. لن يقوم LOUREX بتحويل عملات تلقائي.');
     case 'below-cost':return t('Selling price is below the comparable unit cost.','سعر البيع أقل من تكلفة الوحدة القابلة للمقارنة.');
@@ -33,6 +41,11 @@ function guardianText(code:AccountingGuardianCode):string{
     case 'credit-limit-exceeded':return t('Projected customer exposure exceeds the saved credit limit.','التعرض الائتماني المتوقع للعميل يتجاوز حد الائتمان المحفوظ.');
     case 'credit-currency-mismatch':return t('The customer credit limit and this invoice use different currencies, so no automatic comparison is made.','حد ائتمان العميل وهذه الفاتورة بعملتين مختلفتين، لذلك لا تتم مقارنة تلقائية.');
   }
+}
+function guardianSeverity(value:'info'|'warning'|'critical'):string{
+  if(value==='critical')return t('Critical','حرج');
+  if(value==='warning')return t('Warning','تحذير');
+  return t('Info','معلومة');
 }
 
 function actionLabel(mode:ReviewMode,final:boolean):string{
@@ -121,7 +134,8 @@ export function DocumentReviewModal({document:doc,mode,issues,working,onClose,on
 
       <div className="issue-warnings accounting-guardian-review">
         <strong>{t('LOUREX Accounting Guardian','حارس المحاسبة في LOUREX')}</strong>
-        {guardianLoading?<div className="issue-warning level-note"><span>…</span><p>{t('Running deterministic cost, pricing and credit checks…','جارٍ تنفيذ فحوص التكلفة والتسعير والائتمان الحتمية…')}</p></div>:guardian?.issues.length?guardian.issues.map((entry,index)=><div className={`issue-warning level-${entry.level==='warning'?'warning':'note'}`} key={`${entry.code}-${entry.itemIndex}-${index}`}><span>!</span><p><strong>{entry.itemName}</strong> — {guardianText(entry.code)}{entry.code==='below-cost'&&entry.cost?` ${t('Cost','التكلفة')}: ${entry.cost} ${entry.currency}. ${t('Price','السعر')}: ${entry.price} ${entry.currency}.`:''}{entry.code==='below-pricing-policy'&&entry.suggestedPrice?` ${t('Policy suggestion','مقترح السياسة')}: ${entry.suggestedPrice} ${entry.currency}.`:''}</p></div>):<div className="issue-clean"><Icon name="check" size={16}/>{t('No deterministic accounting or pricing warnings detected for this document.','لم يتم اكتشاف تنبيهات محاسبية أو تسعيرية حتمية لهذا المستند.')}</div>}
+        {guardianLoading?<div className="issue-warning level-note"><span>…</span><p>{t('Running deterministic cost, pricing, commercial and credit checks…','جارٍ تنفيذ فحوص التكلفة والتسعير والبيانات التجارية والائتمان الحتمية…')}</p></div>:guardian?.issues.length?guardian.issues.map((entry,index)=><div className={`issue-warning level-${entry.level==='warning'?'warning':'note'}`} key={`${entry.code}-${entry.itemIndex}-${index}`}><span>!</span><p><strong>{guardianSeverity(entry.severity)} · {entry.itemName}</strong> — {guardianText(entry.code)}{entry.code==='below-cost'&&entry.cost?` ${t('Cost','التكلفة')}: ${entry.cost} ${entry.currency}. ${t('Price','السعر')}: ${entry.price} ${entry.currency}.`:''}{entry.code==='below-pricing-policy'&&entry.suggestedPrice?` ${t('Policy suggestion','مقترح السياسة')}: ${entry.suggestedPrice} ${entry.currency}.`:''}</p></div>):<div className="issue-clean"><Icon name="check" size={16}/>{t('No deterministic accounting or pricing warnings detected for this document.','لم يتم اكتشاف تنبيهات محاسبية أو تسعيرية حتمية لهذا المستند.')}</div>}
+        {guardian?.issues.length?<small>{t(`Guardian summary: ${guardian.counts.critical} critical · ${guardian.counts.warning} warning · ${guardian.counts.info} info.`,`ملخص الحارس: ${guardian.counts.critical} حرج · ${guardian.counts.warning} تحذير · ${guardian.counts.info} معلومة.`)}</small>:null}
         <small>{t('These checks are deterministic and advisory. Currencies stay separate, no FX rate is invented, and AI never finalizes or posts this document for you.','هذه الفحوص حتمية واستشارية. تبقى العملات منفصلة، ولا يتم اختراع سعر صرف، ولا يقوم الذكاء الاصطناعي بإصدار أو ترحيل المستند بدلًا منك.')}</small>
       </div>
 
