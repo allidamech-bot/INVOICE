@@ -3,6 +3,8 @@ import type { DocumentQualityIssue } from '../lib/document-quality.js';
 import { calculateTotals, formatMoney } from '../lib/money.js';
 import { documentDisplayValue } from '../lib/document-language.js';
 import { documentBankAllowed, documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';
+import { buildAccountingGuardianReview, type AccountingGuardianCode, type AccountingGuardianReview } from '../lib/accounting-guardian.js';
+import { resumeVaultSession } from '../storage/vault.js';
 import { t } from '../lib/i18n.js';
 import { Button, Icon, Modal } from './UI.js';
 
@@ -19,6 +21,17 @@ function issueText(issue:DocumentQualityIssue):string{
     case 'language-mismatch':return t('Some document values use a different language than the selected document language. They are suppressed in output until corrected.','بعض قيم المستند مكتوبة بلغة مختلفة عن لغة المستند المختارة. سيتم إخفاؤها من الإخراج حتى يتم تصحيحها.');
     case 'multi-page':return t('This document will use multiple A4 pages.','هذا المستند سيستخدم عدة صفحات A4.');
     case 'long-description':return t('A long item description may need a quick preview check.','يوجد وصف طويل لصنف ويُفضّل مراجعته في المعاينة.');
+  }
+}
+
+function guardianText(code:AccountingGuardianCode):string{
+  switch(code){
+    case 'missing-cost':return t('Comparable cost is missing, so LOUREX cannot verify margin for this line.','التكلفة القابلة للمقارنة مفقودة، لذلك لا يستطيع LOUREX التحقق من هامش هذا السطر.');
+    case 'cost-currency-mismatch':return t('The saved cost uses a different currency. LOUREX will not perform an FX conversion.','التكلفة المحفوظة بعملة مختلفة. لن يقوم LOUREX بتحويل عملات تلقائي.');
+    case 'below-cost':return t('Selling price is below the comparable unit cost.','سعر البيع أقل من تكلفة الوحدة القابلة للمقارنة.');
+    case 'below-pricing-policy':return t('Selling price is below the current company pricing-policy suggestion.','سعر البيع أقل من السعر المقترح حسب سياسة التسعير الحالية للشركة.');
+    case 'credit-limit-exceeded':return t('Projected customer exposure exceeds the saved credit limit.','التعرض الائتماني المتوقع للعميل يتجاوز حد الائتمان المحفوظ.');
+    case 'credit-currency-mismatch':return t('The customer credit limit and this invoice use different currencies, so no automatic comparison is made.','حد ائتمان العميل وهذه الفاتورة بعملتين مختلفتين، لذلك لا تتم مقارنة تلقائية.');
   }
 }
 
@@ -65,6 +78,22 @@ function reviewParty(doc:LourexDocument):{name:string;label:string}{
 }
 
 export function DocumentReviewModal({document:doc,mode,issues,working,onClose,onConfirm}:{document:LourexDocument;mode:ReviewMode|null;issues:DocumentQualityIssue[];working:boolean;onClose:()=>void;onConfirm:()=>void}):any{
+  const [guardian,setGuardian]=React.useState<AccountingGuardianReview|null>(null);
+  const [guardianLoading,setGuardianLoading]=React.useState(false);
+  React.useEffect(()=>{
+    let alive=true;
+    if(!mode){setGuardian(null);setGuardianLoading(false);return()=>{alive=false;};}
+    setGuardianLoading(true);
+    void resumeVaultSession().then(resumed=>{
+      if(!alive)return;
+      if(!resumed){setGuardian(null);setGuardianLoading(false);return;}
+      const vault=resumed.vault;
+      setGuardian(buildAccountingGuardianReview(doc,vault.company,vault.savedItems,vault.customers,vault.documents,vault.payments));
+      setGuardianLoading(false);
+    }).catch(()=>{if(alive){setGuardian(null);setGuardianLoading(false);}});
+    return()=>{alive=false;};
+  },[mode,doc.id,doc.updatedAt]);
+
   if(!mode)return null;
   const totals=calculateTotals(doc.items,doc.adjustments);
   const party=reviewParty(doc);
@@ -89,6 +118,13 @@ export function DocumentReviewModal({document:doc,mode,issues,working,onClose,on
       <div className="issue-review-purpose"><Icon name={final?'lock':'check'} size={16}/><div><strong>{final?t('What happens next','ما الذي سيحدث الآن'):t('Confirmation effect','نتيجة التأكيد')}</strong><span>{modePurpose(mode,final)}</span></div></div>
       <div className="issue-review-grid"><div><span>{t('Document','المستند')}</span><strong>{t(kind.en,kind.ar)}</strong><small>{doc.number}</small></div><div><span>{party.label}</span><strong>{party.name||'—'}</strong></div><div><span>{t('Items','الأصناف')}</span><strong>{doc.items.length}</strong></div>{nonFinancial?<div className="issue-total-check is-nonfinancial"><span>{t('Pricing','التسعير')}</span><strong>{t('Not required','غير مطلوب')}</strong></div>:<div className="issue-total-check"><span>{doc.kind==='purchase-order'?t('Order Total','إجمالي الطلب'):doc.role==='credit-note'?t('Credit Total','إجمالي الإشعار الدائن'):doc.kind==='payment-receipt'?t('Receipt Amount','مبلغ الإيصال'):t('Grand Total','الإجمالي النهائي')}</span><strong>{formatMoney(totals.grandTotal,doc.currency)}</strong></div>}</div>
       <div className="issue-asset-checks">{bankAllowed?<span className={bankShown?'ok':''}><Icon name={bankShown?'check':'more'} size={14}/>{t('Bank details','بيانات البنك')}</span>:null}<span className={signatureShown?'ok':''}><Icon name={signatureShown?'check':'more'} size={14}/>{t('Signature','التوقيع')}</span><span className={stampShown?'ok':''}><Icon name={stampShown?'check':'more'} size={14}/>{t('Stamp','الختم')}</span></div>
+
+      <div className="issue-warnings accounting-guardian-review">
+        <strong>{t('LOUREX Accounting Guardian','حارس المحاسبة في LOUREX')}</strong>
+        {guardianLoading?<div className="issue-warning level-note"><span>…</span><p>{t('Running deterministic cost, pricing and credit checks…','جارٍ تنفيذ فحوص التكلفة والتسعير والائتمان الحتمية…')}</p></div>:guardian?.issues.length?guardian.issues.map((entry,index)=><div className={`issue-warning level-${entry.level==='warning'?'warning':'note'}`} key={`${entry.code}-${entry.itemIndex}-${index}`}><span>!</span><p><strong>{entry.itemName}</strong> — {guardianText(entry.code)}{entry.code==='below-cost'&&entry.cost?` ${t('Cost','التكلفة')}: ${entry.cost} ${entry.currency}. ${t('Price','السعر')}: ${entry.price} ${entry.currency}.`:''}{entry.code==='below-pricing-policy'&&entry.suggestedPrice?` ${t('Policy suggestion','مقترح السياسة')}: ${entry.suggestedPrice} ${entry.currency}.`:''}</p></div>):<div className="issue-clean"><Icon name="check" size={16}/>{t('No deterministic accounting or pricing warnings detected for this document.','لم يتم اكتشاف تنبيهات محاسبية أو تسعيرية حتمية لهذا المستند.')}</div>}
+        <small>{t('These checks are deterministic and advisory. Currencies stay separate, no FX rate is invented, and AI never finalizes or posts this document for you.','هذه الفحوص حتمية واستشارية. تبقى العملات منفصلة، ولا يتم اختراع سعر صرف، ولا يقوم الذكاء الاصطناعي بإصدار أو ترحيل المستند بدلًا منك.')}</small>
+      </div>
+
       {issues.length?<div className="issue-warnings"><strong>{warningCount?t(`${warningCount} warning${warningCount===1?'':'s'} to review`,`يوجد ${warningCount} تنبيه للمراجعة`):t('Quality notes','ملاحظات الجودة')}</strong>{issues.map((issue,index)=><div className={`issue-warning level-${issue.level}`} key={`${issue.code}-${index}`}><span>!</span><p>{issueText(issue)}</p></div>)}</div>:<div className="issue-clean"><Icon name="check" size={16}/>{t('No quality warnings detected.','لم يتم اكتشاف أي تنبيهات جودة.')}</div>}
     </div>
   </Modal>;
