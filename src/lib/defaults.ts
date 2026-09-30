@@ -9,6 +9,7 @@ import { defaultBankDetails } from './commercial-controls.js';
 // v13 adds optional watermarks and encrypted free-form company Draft documents.
 // v14 separates Quotation (QUO) from Proforma Invoice (PI) and finalizes the v312 business-document suite.
 // v15 deduplicates repeated company logo/signature/stamp payloads from document snapshots.
+// Batch 1 commercial tracking reuses encrypted document-event records, so no schema bump is required.
 export const APP_SCHEMA_VERSION = 15;
 export const KDF_ITERATIONS = 310_000;
 

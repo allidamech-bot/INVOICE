@@ -44,7 +44,7 @@
 
   class Fixture extends React.Component{
     state={newMenu:false};
-    render(){return h(AppShell,{screen:'documents',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:this.state.newMenu,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:()=>{},onToggleNew:()=>this.setState(state=>({newMenu:!state.newMenu})),onNew:()=>this.setState({newMenu:false}),onSettings:()=>{},onCloud:()=>{}},h(DocumentsPage,{documents,payments,onNew:()=>{},onOpen:doc=>{window.lastAction='open:'+doc.id;},onDuplicate:doc=>{window.lastAction='duplicate:'+doc.id;},onConvert:()=>{},onPrint:async()=>{},onDelete:()=>{}}));}
+    render(){return h(AppShell,{screen:'documents',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:this.state.newMenu,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:()=>{},onToggleNew:()=>this.setState(state=>({newMenu:!state.newMenu})),onNew:()=>this.setState({newMenu:false}),onSettings:()=>{},onCloud:()=>{}},h(DocumentsPage,{documents,payments,documentEvents:[],onNew:()=>{},onOpen:doc=>{window.lastAction='open:'+doc.id;},onDuplicate:doc=>{window.lastAction='duplicate:'+doc.id;},onConvert:()=>{},onPrint:async()=>{},onDelete:()=>{}}));}
   }
   ReactDOM.render(h(Fixture),document.getElementById('root'));
 </script></body></html>

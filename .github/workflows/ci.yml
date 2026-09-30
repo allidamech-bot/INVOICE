@@ -184,6 +184,7 @@ jobs:
             business-current)
               run_qa 180 node tests/visual/run-functional-payments.cjs
               run_qa 180 node tests/visual/run-import-final-audit-v267.cjs
+              run_qa 180 node tests/visual/run-commercial-flow-batch1.cjs
               ;;
             locales-current)
               run_qa 180 node tests/visual/run-saved-items-category-locale-v246.cjs

@@ -1,4 +1,4 @@
-import type { DocumentKind, LourexDocument, PaymentRecord, PaymentStatus } from '../types.js';
+import type { DocumentEventRecord, DocumentKind, LourexDocument, PaymentRecord, PaymentStatus } from '../types.js';
 import { calculateTotals, compareMoneyStrings, formatMoney, lineTotal } from '../lib/money.js';
 import { displayDate } from '../lib/id.js';
 import { hasDocumentCustomer, validateDocument } from '../lib/documents.js';
@@ -7,11 +7,14 @@ import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { Button, Icon, IconButton, Input, Select } from './UI.js';
 import { letterPlainText } from '../lib/document-extras.js';
 import { documentCanConvertToInvoice, documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';
+import { buildCommercialFlowSnapshot, commercialStatusLabel, isQuoteLikeDocument } from '../lib/commercial-flow.js';
+import { CommercialFlowPanel } from './CommercialFlowPanel.js';
 
 interface Props {
   initialStatus?:WorkspaceStatus;
   documents:LourexDocument[];
   payments:PaymentRecord[];
+  documentEvents:DocumentEventRecord[];
   onNew:(kind:DocumentKind)=>void;
   onOpen:(doc:LourexDocument)=>void;
   onDuplicate:(doc:LourexDocument)=>void;
@@ -211,6 +214,8 @@ export class DocumentsPage extends React.Component<Props,State>{
     return this.props.documents.find(item=>item.kind==='invoice'&&item.role==='standard'&&item.convertedFromId===doc.id&&item.lifecycleStatus!=='voided');
   };
 
+  private commercialStatus=(doc:LourexDocument)=>isQuoteLikeDocument(doc)?buildCommercialFlowSnapshot(doc,this.props.documents,this.props.documentEvents).status:null;
+
   private filtered():LourexDocument[]{
     const q=this.state.query.trim().toLowerCase();
     return this.props.documents.filter(doc=>{
@@ -327,6 +332,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     const state=workflowStatus(doc);
     const visualState=doc.lifecycleStatus==='voided'?'voided':state;
     const currentStatus=statusLabel(doc,state);
+    const commercialStatus=this.commercialStatus(doc);
     const customer=doc.customerSnapshot;
     const supplier=doc.supplierSnapshot;
     const attachments=doc.attachments??[];
@@ -362,12 +368,14 @@ export class DocumentsPage extends React.Component<Props,State>{
 
       <header className="ta-doc-detail-hero">
         <div className="ta-doc-detail-title"><span className={`ta-doc-detail-icon kind-${doc.kind}`}><Icon name={this.documentTypeIcon(doc)}/></span><div><small>{kindLabel(doc)}</small><h1><bdi>{doc.number}</bdi></h1><p>{partyName(doc)}</p></div></div>
-        <div className="ta-doc-detail-total"><small>{priceOptional?t('Non-financial','غير مالي'):doc.kind==='purchase-order'?t('Order Total','إجمالي الطلب'):t('Total','الإجمالي')}</small><strong><bdi>{priceOptional?'—':formatMoney(totals.grandTotal,doc.currency)}</bdi></strong><div><span className={`ta-doc-status status-${visualState}`}>{currentStatus}</span>{collection?<span className={`ta-doc-payment payment-${collection.status}`}>{paymentLabel(collection.status)}</span>:null}</div></div>
+        <div className="ta-doc-detail-total"><small>{priceOptional?t('Non-financial','غير مالي'):doc.kind==='purchase-order'?t('Order Total','إجمالي الطلب'):t('Total','الإجمالي')}</small><strong><bdi>{priceOptional?'—':formatMoney(totals.grandTotal,doc.currency)}</bdi></strong><div><span className={`ta-doc-status status-${visualState}`}>{currentStatus}</span>{commercialStatus?<span className={`lx-commercial-status status-${commercialStatus}`}>{commercialStatusLabel(commercialStatus,isArabic())}</span>:null}{collection?<span className={`ta-doc-payment payment-${collection.status}`}>{paymentLabel(collection.status)}</span>:null}</div></div>
       </header>
 
       <div className="ta-doc-detail-columns">
         <main className="ta-doc-detail-main">
           <section className="ta-doc-panel"><header><div><small>{t('Overview','نظرة عامة')}</small><h2>{t('Document details','بيانات المستند')}</h2></div></header><div className="ta-doc-facts"><div><small>{doc.kind==='purchase-order'?t('Order date','تاريخ الطلب'):t('Issue date','تاريخ الإصدار')}</small><strong>{displayDate(doc.issueDate,getUiLanguage())}</strong></div><div><small>{doc.kind==='invoice'?t('Due date','تاريخ الاستحقاق'):doc.kind==='purchase-order'?t('Requested delivery','التسليم المطلوب'):(doc.kind==='proforma'||doc.kind==='proforma-invoice')?t('Valid until','صالح حتى'):t('Additional date','تاريخ إضافي')}</small><strong>{doc.dueDate?displayDate(doc.dueDate,getUiLanguage()):'—'}</strong></div><div><small>{t('Currency','العملة')}</small><strong>{doc.currency}</strong></div><div><small>{t('Language','اللغة')}</small><strong>{doc.language==='bilingual'?t('Bilingual','ثنائي اللغة'):doc.language==='ar'?t('Arabic','العربية'):t('English','الإنجليزية')}</strong></div></div></section>
+
+          <CommercialFlowPanel document={doc} documents={this.props.documents} events={this.props.documentEvents} onOpenDocument={(related)=>this.setState({detailId:related.id,menuId:''})}/>
 
           <section className="ta-doc-panel ta-doc-items-panel">
             <header><div><small>{t('Line items','بنود المستند')}</small><h2>{t('Items','الأصناف')}</h2></div><span className="ta-doc-count-badge">{itemCountLabel(doc.items.length)}</span></header>
@@ -469,13 +477,14 @@ export class DocumentsPage extends React.Component<Props,State>{
             const visualState=doc.lifecycleStatus==='voided'?'voided':state;
             const missingParty=doc.kind==='draft'?false:isSupplierDocumentKind(doc.kind)?!doc.supplierSnapshot:!hasDocumentCustomer(doc);
             const payment=this.paymentStatus(doc);
+            const commercialStatus=this.commercialStatus(doc);
             return <article className="ta-doc-row" role="row" key={doc.id}>
               <button type="button" className="ta-doc-row-open" onClick={()=>this.setState({detailId:doc.id,menuId:''})}>
                 <span className="ta-doc-row-identity"><span className={`ta-doc-row-icon kind-${doc.kind}`}><Icon name={this.documentTypeIcon(doc)}/></span><span><strong><bdi>{doc.number}</bdi></strong><small>{kindLabel(doc)}</small></span></span>
                 <span className="ta-doc-row-party"><strong>{partyName(doc)}</strong><small>{doc.kind==='draft'?t(`${doc.letter?.blocks.length??0} content blocks`,`${doc.letter?.blocks.length??0} فقرات محتوى`):itemCountLabel(doc.items.length)}{missingParty?` · ${isSupplierDocumentKind(doc.kind)?t('Supplier required','المورد مطلوب'):t('Customer required','العميل مطلوب')}`:''}</small></span>
                 <span className="ta-doc-row-date">{displayDate(doc.issueDate,getUiLanguage())}</span>
                 <strong className="ta-doc-row-amount"><bdi>{doc.kind==='draft'||documentPriceOptional(doc.kind)?'—':formatMoney(totals.grandTotal,doc.currency)}</bdi></strong>
-                <span className="ta-doc-row-status"><span className={`ta-doc-status status-${visualState}`}>{statusLabel(doc,state)}</span>{payment?<span className={`ta-doc-payment payment-${payment}`}>{paymentLabel(payment)}</span>:null}{doc.creditForNumber?<span className="ta-doc-link-badge">↳ {doc.creditForNumber}</span>:null}</span>
+                <span className="ta-doc-row-status"><span className={`ta-doc-status status-${visualState}`}>{statusLabel(doc,state)}</span>{commercialStatus?<span className={`lx-commercial-status status-${commercialStatus}`}>{commercialStatusLabel(commercialStatus,isArabic())}</span>:null}{payment?<span className={`ta-doc-payment payment-${payment}`}>{paymentLabel(payment)}</span>:null}{doc.creditForNumber?<span className="ta-doc-link-badge">↳ {doc.creditForNumber}</span>:null}</span>
               </button>
               <div className="ta-doc-actions"><IconButton icon="more" label={t('Document actions','إجراءات المستند')} aria-haspopup="menu" aria-expanded={this.state.menuId===doc.id} onClick={(event:any)=>this.toggleMenu(doc,event)}/></div>
             </article>;
