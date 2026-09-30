@@ -60,9 +60,15 @@ function lineIdentity(line:Line,savedById:Map<string,SavedItem>):Identity|null{
 function isExplicitKey(key:string):boolean{return key.startsWith('item:')||key.startsWith('sku:');}
 function comparableKey(identity:Identity,existingKeys:KnownIdentity[]):{key:string;confidence:number;basis:ProcurementDraftOffer['matchBasis']}{
   const exact=existingKeys.find(row=>row.key===identity.key);if(exact)return{key:identity.key,confidence:1,basis:identity.basis};
-  const incomingExplicit=isExplicitKey(identity.key);let best:{key:string;score:number}|null=null;
-  for(const row of existingKeys){if(incomingExplicit&&row.explicit)continue;const score=similarity(identity.name,row.name);if(!best||score>best.score)best={key:row.key,score};}
-  if(best&&best.score>=.82)return{key:best.key,confidence:Math.min(.9,.62+best.score*.32),basis:'likely-description'};
+  const incomingExplicit=isExplicitKey(identity.key);
+  // Never fuzzy-attach an explicit item/SKU to a pre-existing name bucket. Otherwise
+  // processing order can cause two different explicit SKUs with similar names to be
+  // collapsed into the same supplier comparison. Name-only rows may still attach to
+  // one unambiguous explicit bucket, but explicit identifiers always remain canonical.
+  if(incomingExplicit)return{key:identity.key,confidence:identity.confidence,basis:identity.basis};
+  let best:{key:string;score:number}|null=null,secondScore=0;
+  for(const row of existingKeys){const score=similarity(identity.name,row.name);if(!best||score>best.score){secondScore=best?.score??0;best={key:row.key,score};}else if(score>secondScore)secondScore=score;}
+  if(best&&best.score>=.82&&best.score-secondScore>=.08)return{key:best.key,confidence:Math.min(.9,.62+best.score*.32),basis:'likely-description'};
   return{key:identity.key,confidence:identity.confidence,basis:identity.basis};
 }
 function numericCompare(left:string,right:string):number{try{const a=decimalToScaled(left,12),b=decimalToScaled(right,12);return a<b?-1:a>b?1:0;}catch{return left.localeCompare(right);}}
@@ -73,16 +79,17 @@ function landedComponentsComplete(purchase:PurchaseRecord):boolean{return Boolea
 
 export function buildProcurementDraftContext(vault:VaultPayload):ProcurementDraftContext{
   const savedById=new Map(vault.savedItems.map(item=>[item.id,item]));const grouped=new Map<string,{name:string;currency:string;offers:ProcurementDraftOffer[]}>();let uncomparableOffers=0;const identities:KnownIdentity[]=[];
-  for(const purchase of vault.purchases.filter(row=>row.status==='draft')){
+  // Process explicit item/SKU identities first so name-only rows can resolve toward
+  // canonical identifiers without making the result depend on purchase insertion order.
+  const lines:Array<{purchase:PurchaseRecord;index:number;line:Line;identity:Identity}>=[];
+  for(const purchase of vault.purchases.filter(row=>row.status==='draft'))for(const [index,line] of purchase.items.entries()){if(!line.unitCost.trim()){uncomparableOffers+=1;continue;}const identity=lineIdentity(line,savedById);if(!identity){uncomparableOffers+=1;continue;}lines.push({purchase,index,line,identity});}
+  lines.sort((a,b)=>Number(isExplicitKey(b.identity.key))-Number(isExplicitKey(a.identity.key))||a.purchase.id.localeCompare(b.purchase.id)||a.index-b.index);
+  for(const {purchase,index,line,identity} of lines){
     const landedCostComplete=landedComponentsComplete(purchase);const allocated=landedCostComplete?allocateLandedCost(purchase):null;const supplier=supplierName(purchase);const terms=paymentTerms(purchase.notes),moq=noteValue(purchase.notes,'MOQ'),leadTime=noteValue(purchase.notes,'Lead time');
-    for(const [index,line] of purchase.items.entries()){
-      if(!line.unitCost.trim()){uncomparableOffers+=1;continue;}
-      const identity=lineIdentity(line,savedById);if(!identity){uncomparableOffers+=1;continue;}
-      const match=comparableKey(identity,identities);if(!identities.some(row=>row.key===match.key))identities.push({key:match.key,name:identity.name,explicit:isExplicitKey(identity.key)});
-      const currency=purchase.currency.trim().toUpperCase();if(!currency){uncomparableOffers+=1;continue;}
-      const key=`${match.key}|${currency}`;const bucket=grouped.get(key)??{name:identity.name,currency,offers:[]};const landed=landedCostComplete?(allocated?.items[index]?.landedUnitCost||line.unitCost):'';
-      bucket.offers.push({purchaseId:purchase.id,purchaseNumber:purchase.number,supplierId:purchase.supplierSnapshot?.sourceSupplierId||'',supplierName:supplier,currency,itemId:identity.itemId,itemName:identity.name,sku:line.sku,quantity:line.quantity,unit:line.unit,unitCost:line.unitCost,landedUnitCost:landed,landedCostComplete,freight:purchase.freight.trim(),duty:purchase.duty.trim(),otherCosts:purchase.otherCosts.trim(),paymentTerms:terms,moq,leadTime,matchConfidence:Math.min(identity.confidence,match.confidence),matchBasis:match.basis});grouped.set(key,bucket);
-    }
+    const match=comparableKey(identity,identities);if(!identities.some(row=>row.key===match.key))identities.push({key:match.key,name:identity.name,explicit:isExplicitKey(identity.key)});
+    const currency=purchase.currency.trim().toUpperCase();if(!currency){uncomparableOffers+=1;continue;}
+    const key=`${match.key}|${currency}`;const bucket=grouped.get(key)??{name:identity.name,currency,offers:[]};const landed=landedCostComplete?(allocated?.items[index]?.landedUnitCost||line.unitCost):'';
+    bucket.offers.push({purchaseId:purchase.id,purchaseNumber:purchase.number,supplierId:purchase.supplierSnapshot?.sourceSupplierId||'',supplierName:supplier,currency,itemId:identity.itemId,itemName:identity.name,sku:line.sku,quantity:line.quantity,unit:line.unit,unitCost:line.unitCost,landedUnitCost:landed,landedCostComplete,freight:purchase.freight.trim(),duty:purchase.duty.trim(),otherCosts:purchase.otherCosts.trim(),paymentTerms:terms,moq,leadTime,matchConfidence:Math.min(identity.confidence,match.confidence),matchBasis:match.basis});grouped.set(key,bucket);
   }
   const comparisons:ProcurementDraftComparison[]=[];
   for(const [key,bucket] of grouped){
