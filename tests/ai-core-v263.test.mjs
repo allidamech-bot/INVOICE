@@ -19,7 +19,7 @@ test('AI foundation still mounts one contextual LOUREX copilot without changing 
   assert.match(copilot,/@media\(max-width:720px\)/);
   assert.match(copilot,/height:min\(88dvh,760px\)/);
   assert.match(copilot,/\.lourex-ai-launcher:dir\(rtl\)/);
-  for(const destination of ['home','documents','customers','receivables','reports','items','operations'])assert.match(shell,new RegExp(`navButton\\('${destination}'|moreNavButton\\('${destination}'`));
+  for(const destination of ['home','documents','customers','receivables','reports','items','operations'])assert.match(shell,new RegExp(`this\\.navItem\\('${destination}'`));
 });
 
 test('AI capability registry keeps reads non-mutating and every executable action approval-controlled',()=>{
