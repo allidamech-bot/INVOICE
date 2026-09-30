@@ -65,8 +65,11 @@ export interface QuoteAiPricingCommandResult {draft:QuoteAiSourceDraft;applied:n
 
 const SCALE=12;
 const ARABIC_DIGITS='٠١٢٣٤٥٦٧٨٩';
+const EASTERN_ARABIC_DIGITS='۰۱۲۳۴۵۶۷۸۹';
+function latinDigits(value:string):string{return value.replace(/[٠-٩]/g,digit=>String(ARABIC_DIGITS.indexOf(digit))).replace(/[۰-۹]/g,digit=>String(EASTERN_ARABIC_DIGITS.indexOf(digit))).replace(/[٫]/g,'.').replace(/([0-9]),([0-9])/g,'$1.$2').replace(/[٪﹪]/g,'%');}
 function normalized(value:string):string{return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();}
-function phoneDigits(value:string):string{return value.replace(/\D/g,'');}
+function normalizedName(value:string):string{return latinDigits(value).normalize('NFKC').toLowerCase().replace(/[\u0640\u064b-\u065f\u0670]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/\s+/g,' ');}
+function phoneDigits(value:string):string{let digits=latinDigits(value).replace(/\D/g,'');while(digits.startsWith('00'))digits=digits.slice(2);return digits;}
 function itemName(item:SavedItem):string{return(item.descriptionEn||item.descriptionAr||item.sku||'Product').trim();}
 function onlyOne<T>(rows:T[]):T|null{return rows.length===1?rows[0]!:null;}
 function marginPercent(price:string,cost:string):string{
@@ -88,7 +91,7 @@ function customerResult(customer:Customer,basis:QuoteAiCustomerReview['matchBasi
 function findCustomer(customers:Customer[],draft:QuoteAiSourceDraft):QuoteAiCustomerReview{
   const email=normalized(draft.customerEmail||'');if(email){const matches=customers.filter(item=>item.email.trim().toLowerCase()===email);const customer=onlyOne(matches);if(customer)return customerResult(customer,'email',1);if(matches.length>1)return{customerId:'',customerName:'',matchConfidence:0,matchBasis:'none'};}
   const phone=phoneDigits(draft.customerPhone||'');if(phone){const matches=customers.filter(item=>phoneDigits(item.phone)===phone);const customer=onlyOne(matches);if(customer)return customerResult(customer,'phone',.99);if(matches.length>1)return{customerId:'',customerName:'',matchConfidence:0,matchBasis:'none'};}
-  const name=normalized(draft.customerName||'');if(name){const enMatches=customers.filter(item=>normalized(item.companyNameEn)===name);const en=onlyOne(enMatches);if(en)return customerResult(en,'name-en',.96);if(enMatches.length>1)return{customerId:'',customerName:'',matchConfidence:0,matchBasis:'none'};const arMatches=customers.filter(item=>normalized(item.companyNameAr)===name);const ar=onlyOne(arMatches);if(ar)return customerResult(ar,'name-ar',.96);if(arMatches.length>1)return{customerId:'',customerName:'',matchConfidence:0,matchBasis:'none'};}
+  const name=normalizedName(draft.customerName||'');if(name){const enMatches=customers.filter(item=>normalizedName(item.companyNameEn)===name);const en=onlyOne(enMatches);if(en)return customerResult(en,'name-en',.96);if(enMatches.length>1)return{customerId:'',customerName:'',matchConfidence:0,matchBasis:'none'};const arMatches=customers.filter(item=>normalizedName(item.companyNameAr)===name);const ar=onlyOne(arMatches);if(ar)return customerResult(ar,'name-ar',.96);if(arMatches.length>1)return{customerId:'',customerName:'',matchConfidence:0,matchBasis:'none'};}
   return{customerId:'',customerName:'',matchConfidence:0,matchBasis:'none'};
 }
 function sameItem(row:QuoteAiSourceItem,saved:SavedItem,line:DocumentItem):boolean{
@@ -131,7 +134,6 @@ export function buildQuoteAiReview(vault:VaultPayload,draft:QuoteAiSourceDraft):
   return{currency,customer,items,warningCount:items.reduce((sum,row)=>sum+row.warnings.length,0),blockingAttentionCount:items.filter(row=>row.warnings.some(warning=>['unknown-product','ambiguous-quantity','low-product-confidence','missing-currency','currency-mismatch','missing-selling-price'].includes(warning))).length};
 }
 
-function latinDigits(value:string):string{return value.replace(/[٠-٩]/g,digit=>String(ARABIC_DIGITS.indexOf(digit))).replace(/[٪﹪]/g,'%');}
 function percentFrom(command:string,pattern:RegExp):string{return latinDigits(command).match(pattern)?.[1]||'';}
 function scaledMoney(value:bigint):string{const sign=value<0n?'-':'',abs=value<0n?-value:value;const raw=`${sign}${abs/10_000n}.${(abs%10_000n).toString().padStart(4,'0')}`;return raw.replace(/0+$/,'').replace(/\.$/,'');}
 function increasePrice(value:string,pct:string):string{const amount=decimalToScaled(value||'0',4),percentValue=decimalToScaled(pct||'0',4);if(amount<0n||percentValue<0n)return'';return scaledMoney((amount*(1_000_000n+percentValue)+500_000n)/1_000_000n);}
