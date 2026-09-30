@@ -122,7 +122,7 @@ export class CustomerAiCapture extends React.Component<Props,State>{
 
   private reviewNew=()=>{
     const proposal=this.state.proposal;if(!proposal)return;
-    this.props.onReview(customerFromAiProposal(proposal),this.state.matches.length>0);this.setState({open:false});
+    this.props.onReview(customerFromAiProposal(proposal),false);this.setState({open:false});
   };
 
   private reviewUpdate=()=>{
@@ -132,7 +132,7 @@ export class CustomerAiCapture extends React.Component<Props,State>{
 
   render():any{
     const busy=this.state.stage==='reading'||this.state.stage==='analyzing';const proposal=this.state.proposal;const arabic=isArabic();
-    const footer=this.state.stage==='review'&&proposal?<div className="ta-customer-modal-actions"><Button onClick={this.close}>{t('Cancel','إلغاء')}</Button>{this.state.matches.length?<Button disabled={!this.state.selectedMatchId} onClick={this.reviewUpdate}>{t('Review Update','مراجعة تحديث الموجود')}</Button>:null}<Button variant="primary" onClick={this.reviewNew}>{this.state.matches.length?t('Review as New Customer','مراجعة كعميل جديد'):t('Review Customer','مراجعة العميل')}</Button></div>:undefined;
+    const footer=this.state.stage==='review'&&proposal?<div className="ta-customer-modal-actions"><Button onClick={this.close}>{t('Cancel','إلغاء')}</Button>{this.state.matches.length?<Button disabled={!this.state.selectedMatchId} onClick={this.reviewUpdate}>{t('Review Update','مراجعة تحديث الموجود')}</Button>:null}<Button variant="primary" onClick={this.reviewNew}>{this.state.matches.length?t('Review as New Customer (duplicate guard stays on)','مراجعة كعميل جديد (حماية التكرار تبقى مفعّلة)'):t('Review Customer','مراجعة العميل')}</Button></div>:undefined;
     return <>
       <Button icon="upload" onClick={this.open}>{t('Add with AI','إضافة بالذكاء الاصطناعي')}</Button>
       <Modal open={this.state.open} title={t('AI Customer Capture','إضافة عميل بالذكاء الاصطناعي')} size="lg" onClose={this.close} footer={footer}>
@@ -154,7 +154,7 @@ export class CustomerAiCapture extends React.Component<Props,State>{
               {CUSTOMER_AI_FIELDS.map(key=>{const row=proposal.fields[key];return <div role="row" key={key}><strong>{customerAiFieldLabel(key,arabic)}</strong><span>{row.value||'—'}</span><small>{row.value?`${t('Confidence','الثقة')}: ${confidenceText(row.confidence)}${row.sourceFile?` · ${row.sourceFile}`:''}${row.sourcePage?` · ${t('Page','صفحة')} ${row.sourcePage}`:''}`:t('Not found — left blank','غير موجود — تُرك فارغًا')}</small>{row.sourceExcerpt?<small>“{row.sourceExcerpt}”</small>:null}</div>;})}
             </div>
             {proposal.conflicts.length?<div role="alert"><strong>{t('Conflicting values need review','قيم متعارضة تحتاج مراجعة')}</strong><ul>{proposal.conflicts.map(conflict=><li key={conflict.field}>{customerAiFieldLabel(conflict.field,arabic)}: {conflict.values.map(value=>value.value).join(' / ')}</li>)}</ul></div>:null}
-            {this.state.matches.length?<div><strong>{t('Possible existing customer found','تم العثور على عميل موجود محتمل')}</strong><p>{t('LOUREX will not merge automatically. Choose whether to update an existing customer or continue as a new customer.','لن يقوم LOUREX بالدمج تلقائيًا. اختر تحديث عميل موجود أو المتابعة كعميل جديد.')}</p><Select value={this.state.selectedMatchId} onChange={(event:any)=>this.setState({selectedMatchId:event.target.value})}>{this.state.matches.map(match=><option key={match.customer.id} value={match.customer.id}>{customerDisplayName(match.customer)} — {match.reasons.map(matchReasonLabel).join(', ')}</option>)}</Select></div>:<p>{t('No likely duplicate was found using registration, VAT, phone, email and normalized names.','لم يتم العثور على تكرار محتمل باستخدام السجل والضريبة والهاتف والبريد والأسماء المطبعة.')}</p>}
+            {this.state.matches.length?<div><strong>{t('Possible existing customer found','تم العثور على عميل موجود محتمل')}</strong><p>{t('LOUREX will not merge automatically. Updating an existing record stays available; creating a separate record remains subject to the existing duplicate guard.','لن يقوم LOUREX بالدمج تلقائيًا. يبقى تحديث السجل الموجود متاحًا؛ أما إنشاء سجل منفصل فيبقى خاضعًا لحماية التكرار الحالية.')}</p><Select value={this.state.selectedMatchId} onChange={(event:any)=>this.setState({selectedMatchId:event.target.value})}>{this.state.matches.map(match=><option key={match.customer.id} value={match.customer.id}>{customerDisplayName(match.customer)} — {match.reasons.map(matchReasonLabel).join(', ')}</option>)}</Select></div>:<p>{t('No likely duplicate was found using registration, VAT, phone, email and normalized names.','لم يتم العثور على تكرار محتمل باستخدام السجل والضريبة والهاتف والبريد والأسماء المطبعة.')}</p>}
             <p><small>{this.state.model?t(`Extraction: ${this.state.model}`,`الاستخراج: ${this.state.model}`):''}</small></p>
           </>:null}
 
