@@ -1,4 +1,7 @@
 /* LOUREX v449 — Chat-style AI composer. The + control is the single workflow launcher. */
+.lourex-ai-launcher>svg,#lourex-ai-panel .lourex-ai-mark>svg{display:none!important}
+.lourex-ai-launcher:before,#lourex-ai-panel .lourex-ai-mark:before{content:"";display:block;width:72%;height:72%;background:url("./brand/lourex-logo.svg") center/contain no-repeat;filter:none}
+#lourex-ai-panel .lourex-ai-mark:before{width:78%;height:78%}
 #lourex-ai-panel .lourex-ai-compose{position:relative;z-index:20;padding:10px 12px 12px!important;background:var(--ft-surface,#101011)!important}
 #lourex-ai-panel [data-lourex-ai-workflow-mount]>.lourex-ai-tools,
 #lourex-ai-panel .lourex-ai-compose>.lourex-ai-tools,
