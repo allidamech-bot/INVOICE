@@ -130,7 +130,7 @@ test('v450 AI business search excludes future-dated purchases, quotations and in
   const asOf='2026-02-15';
   const price=askBusinessRecords(vault,'latest purchase price Timeline Product',asOf);assert.equal(price.facts[0]?.value,'11.00 USD');assert.equal(price.results.some(row=>row.id==='purchase-future'),false);
   const quotes=askBusinessRecords(vault,'quotes last 3 months Memory Buyer',asOf);assert.equal(quotes.intent,'customer-documents');assert.deepEqual(quotes.results.map(row=>row.id),['quote-past']);
-  const top=askBusinessRecords(vault,'top products Saudi Arabia',asOf);assert.equal(top.intent,'top-products-country');assert.equal(top.facts.find(row=>row.label==='Country Product')?.value,'2 PCS');
+  const top=askBusinessRecords(vault,'top products Saudi Arabia',asOf);assert.equal(top.intent,'top-products-country');assert.equal(top.facts.find(row=>row.label==='Country Product')?.value,`2 ${pastInvoice.items[0].unit}`);
 });
 
 test('v450 collections and daily command center use the same requested as-of date',()=>{
