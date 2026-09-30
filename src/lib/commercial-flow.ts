@@ -1,11 +1,10 @@
-import type { CommercialDocumentEventType, DocumentEventRecord, DocumentEventType, LourexDocument } from '../types.js';
+import type { DocumentEventRecord, DocumentEventType, LourexDocument } from '../types.js';
 import { isIsoDate, makeId } from './id.js';
 
 export type CommercialTrackingStatus='draft'|'internal-ready'|'sent'|'accepted'|'rejected'|'expired'|'converted';
+export type CommercialTrackingEventKind='sent'|'accepted'|'rejected'|'followup-scheduled'|'followup-completed';
 
-const COMMERCIAL_EVENT_TYPES = new Set<CommercialDocumentEventType>([
-  'commercial-sent','commercial-accepted','commercial-rejected','commercial-followup-scheduled','commercial-followup-completed'
-]);
+const COMMERCIAL_MARKER='@lourex:commercial:v1:';
 
 export interface CommercialTrackingOverlay {
   documentId:string;
@@ -34,13 +33,21 @@ export interface CommercialFlowSnapshot {
   flow:CommercialFlowNode[];
 }
 
-export function isCommercialDocumentEventType(type:DocumentEventRecord['type']):type is CommercialDocumentEventType{
-  return COMMERCIAL_EVENT_TYPES.has(type as CommercialDocumentEventType);
+export function commercialTrackingEventKind(event:DocumentEventRecord):CommercialTrackingEventKind|null{
+  if(event.type!=='created'||!event.note.startsWith(COMMERCIAL_MARKER))return null;
+  const firstLine=event.note.split('\n',1)[0]??'';
+  const kind=firstLine.slice(COMMERCIAL_MARKER.length);
+  return kind==='sent'||kind==='accepted'||kind==='rejected'||kind==='followup-scheduled'||kind==='followup-completed'?kind:null;
 }
 
-export function isLifecycleDocumentEventType(type:DocumentEventRecord['type']):type is DocumentEventType{
-  return !isCommercialDocumentEventType(type);
+export function commercialTrackingEventPayload(event:DocumentEventRecord):string{
+  if(!commercialTrackingEventKind(event))return'';
+  const newline=event.note.indexOf('\n');
+  return newline<0?'':event.note.slice(newline+1).trim();
 }
+
+export function isCommercialTrackingEvent(event:DocumentEventRecord):boolean{return commercialTrackingEventKind(event)!==null;}
+export function isLifecycleDocumentEvent(event:DocumentEventRecord):event is DocumentEventRecord&{type:DocumentEventType}{return !isCommercialTrackingEvent(event);}
 
 export function isQuoteLikeDocument(doc:LourexDocument):boolean{
   return doc.role==='standard'&&(doc.kind==='proforma'||doc.kind==='proforma-invoice');
@@ -60,28 +67,31 @@ function dateOnly(value:string):string{return /^\d{4}-\d{2}-\d{2}/.test(value)?v
 
 export function commercialTrackingFromEvents(documentId:string,events:DocumentEventRecord[]):CommercialTrackingOverlay{
   const tracking:CommercialTrackingOverlay={documentId,status:'',sentAt:'',acceptedAt:'',rejectedAt:'',rejectionReason:'',followUpAt:'',lastFollowUpAt:'',updatedAt:''};
-  const relevant=events.filter(event=>event.documentId===documentId&&isCommercialDocumentEventType(event.type)).sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id));
+  const relevant=events.filter(event=>event.documentId===documentId&&isCommercialTrackingEvent(event)).sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id));
   for(const event of relevant){
+    const kind=commercialTrackingEventKind(event);if(!kind)continue;
+    const payload=commercialTrackingEventPayload(event);
     tracking.updatedAt=event.at;
-    if(event.type==='commercial-sent'){
+    if(kind==='sent'){
       tracking.status='sent';tracking.sentAt=event.at;tracking.acceptedAt='';tracking.rejectedAt='';tracking.rejectionReason='';
-    }else if(event.type==='commercial-accepted'){
+    }else if(kind==='accepted'){
       tracking.status='accepted';tracking.acceptedAt=event.at;tracking.rejectedAt='';tracking.rejectionReason='';
-    }else if(event.type==='commercial-rejected'){
-      tracking.status='rejected';tracking.rejectedAt=event.at;tracking.acceptedAt='';tracking.rejectionReason=event.note.trim();
-    }else if(event.type==='commercial-followup-scheduled'){
-      tracking.followUpAt=isIsoDate(event.note.trim())?event.note.trim():'';
-    }else if(event.type==='commercial-followup-completed'){
+    }else if(kind==='rejected'){
+      tracking.status='rejected';tracking.rejectedAt=event.at;tracking.acceptedAt='';tracking.rejectionReason=payload;
+    }else if(kind==='followup-scheduled'){
+      tracking.followUpAt=isIsoDate(payload)?payload:'';
+    }else if(kind==='followup-completed'){
       tracking.lastFollowUpAt=event.at;tracking.followUpAt='';
     }
   }
   return tracking;
 }
 
-export function createCommercialTrackingEvent(doc:LourexDocument,type:CommercialDocumentEventType,note=''):DocumentEventRecord{
+export function createCommercialTrackingEvent(doc:LourexDocument,kind:CommercialTrackingEventKind,payload=''):DocumentEventRecord{
   const now=new Date().toISOString();
+  const note=`${COMMERCIAL_MARKER}${kind}${payload.trim()?`\n${payload.trim()}`:''}`;
   return{
-    id:makeId('event'),documentId:doc.id,documentNumber:doc.number,type,at:now,note:note.trim(),
+    id:makeId('event'),documentId:doc.id,documentNumber:doc.number,type:'created',at:now,note,
     relatedDocumentId:'',relatedDocumentNumber:'',amount:'',currency:doc.currency
   };
 }
