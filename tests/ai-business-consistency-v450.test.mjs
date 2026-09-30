@@ -7,6 +7,7 @@ import { buildCollectionTasks } from '../dist/src/lib/collections-workflow.js';
 import { whatMattersToday } from '../dist/src/lib/daily-command-center.js';
 import { buildProductPricingContext } from '../dist/src/lib/product-pricing-intelligence.js';
 import { buildBusinessMemory } from '../dist/src/lib/business-memory.js';
+import { askBusinessRecords } from '../dist/src/lib/business-search-ai.js';
 import { createPurchase, createPurchaseItem, createSupplier } from '../dist/src/lib/operations.js';
 
 function savedItemWithoutCurrency(){
@@ -69,6 +70,17 @@ test('v450 AI business and pricing contexts exclude purchase observations after 
   assert.equal(pricingRow.cost,'');
   assert.equal(pricingRow.pricingHealth,'no-cost');
   assert.equal(pricing.purchasing.recentPurchases.length,0);
+});
+
+test('v450 AI business search ignores posted purchases that fail accounting validity',()=>{
+  const vault=emptyVault();const item={...savedItemWithoutCurrency(),descriptionEn:'Search Product'};vault.savedItems=[item];
+  const valid=postedPurchase(item,'2026-01-10','10.00');valid.id='purchase-valid';valid.number='PUR-VALID';
+  const invalid=postedPurchase(item,'2026-02-10','99.00');invalid.id='purchase-invalid';invalid.number='PUR-INVALID';invalid.items[0].quantity='0';
+  vault.purchases=[valid,invalid];
+  const answer=askBusinessRecords(vault,'latest purchase price Search Product');
+  assert.equal(answer.intent,'last-purchase-price');
+  assert.equal(answer.facts[0]?.value,'10.00 USD');
+  assert.equal(answer.results.some(row=>row.id==='purchase-invalid'),false);
 });
 
 test('v450 collections and daily command center use the same requested as-of date',()=>{
