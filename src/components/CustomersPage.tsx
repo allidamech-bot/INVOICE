@@ -5,6 +5,7 @@ import { validateCustomerCommercial } from '../lib/commercial-controls.js';
 import { findCustomerDuplicateCandidates } from '../lib/customer-ai-capture.js';
 import { setWorkspaceDirty } from '../lib/workspace-dirty.js';
 import { CustomerAiCapture } from './CustomerAiCapture.js';
+import { Customer360LivePanel } from './Customer360LivePanel.js';
 import { Button, ConfirmDialog, Field, Icon, IconButton, Input, Modal, Select, Textarea } from './UI.js';
 
 export function blankCustomer(seed=''):Customer{
@@ -130,6 +131,8 @@ export class CustomersPage extends React.Component<Props,State>{
       {this.state.error&&!this.state.editing?<div className="ta-customer-page-error" role="alert">{this.state.error}</div>:null}
 
       <header className="ta-customer-profile-hero"><span className="ta-customer-profile-avatar">{primary.trim().charAt(0).toUpperCase()||'C'}</span><div className="ta-customer-profile-identity"><small>{t('Customer profile','ملف العميل')}</small><h1>{primary}</h1>{secondary?<span dir={isArabic()?'ltr':'rtl'}>{secondary}</span>:null}{customer.contactPerson?<strong>{customer.contactPerson}</strong>:null}</div><div className="ta-customer-profile-badges">{customer.preferredCurrency?<span>{t('Currency','العملة')} <b>{customer.preferredCurrency}</b></span>:null}{customer.paymentDueDays?<span>{t('Due','الاستحقاق')} <b>{customer.paymentDueDays} {t('days','يوم')}</b></span>:null}</div></header>
+
+      <Customer360LivePanel customer={customer}/>
 
       <div className="ta-customer-profile-grid"><main className="ta-customer-profile-main">
         <section className="ta-customer-panel"><header><div><small>{t('Contact','التواصل')}</small><h2>{t('Contact & address','التواصل والعنوان')}</h2></div></header><div className="ta-customer-facts"><div><small>{t('Phone','الهاتف')}</small><strong dir="ltr">{visibleValue(customer.phone)}</strong></div><div><small>{t('Email','البريد الإلكتروني')}</small><strong dir="ltr">{visibleValue(customer.email)}</strong></div><div><small>{t('City','المدينة')}</small><strong>{visibleValue(customer.city)}</strong></div><div><small>{t('Country','الدولة')}</small><strong>{visibleValue(customer.country)}</strong></div>{customer.addressEn?<div className="is-wide"><small>{t('Address English','العنوان بالإنجليزية')}</small><strong dir="ltr">{customer.addressEn}</strong></div>:null}{customer.addressAr?<div className="is-wide"><small>{t('Address Arabic','العنوان بالعربية')}</small><strong dir="rtl">{customer.addressAr}</strong></div>:null}</div></section>
