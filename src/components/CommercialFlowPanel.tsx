@@ -1,8 +1,9 @@
 import type { DocumentEventRecord, LourexDocument } from '../types.js';
-import { buildCommercialFlowSnapshot, commercialStatusLabel, commercialTrackingEventKind, commercialTrackingEventPayload, type CommercialTrackingEventKind, isQuoteLikeDocument } from '../lib/commercial-flow.js';
+import { buildCommercialFlowSnapshot, commercialStatusLabel, commercialTrackingEventKind, commercialTrackingEventPayload, type CommercialTrackingEventKind, isQuoteLikeDocument, validatedCommercialTrackingEvent } from '../lib/commercial-flow.js';
 import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { documentKindLabel } from '../lib/document-kinds.js';
+import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { Button, Icon, Input, Modal, Textarea } from './UI.js';
 
 interface Props {
@@ -52,7 +53,7 @@ export function CommercialFlowPanel({document,documents,events,onOpenDocument,on
   const arabic=isArabic();
   const status=commercialStatusLabel(snapshot.status,arabic);
   const quoteLike=isQuoteLikeDocument(document);
-  const canTrack=Boolean(quoteLike&&document.status==='final'&&document.lifecycleStatus!=='voided'&&!snapshot.linkedInvoice&&onCommercialEvent);
+  const canTrack=Boolean(quoteLike&&document.status==='final'&&document.lifecycleStatus!=='voided'&&!snapshot.linkedInvoice);
   const terminal=snapshot.status==='accepted'||snapshot.status==='rejected'||snapshot.status==='converted';
   const statusHint=snapshot.statusSource==='conversion'
     ?t('Based on an actual linked invoice.','مبني على فاتورة مرتبطة فعلية.')
@@ -62,10 +63,18 @@ export function CommercialFlowPanel({document,documents,events,onOpenDocument,on
         ?t('Based on recorded commercial tracking.','مبني على متابعة تجارية مسجلة.')
         :t('Based on the current document lifecycle.','مبني على دورة حياة المستند الحالية.');
 
+  const persistCommercialEvent=async(kind:CommercialTrackingEventKind,payload='')=>{
+    if(onCommercialEvent){await onCommercialEvent(document,kind,payload);return;}
+    await mutateVaultSafely(vault=>{
+      const event=validatedCommercialTrackingEvent(vault,document.id,kind,payload);
+      return {...vault,documentEvents:[...vault.documentEvents,event]};
+    });
+  };
+
   const record=async(kind:CommercialTrackingEventKind,payload='')=>{
-    if(!onCommercialEvent||busy)return;
+    if(busy)return;
     setBusy(true);setError('');
-    try{await onCommercialEvent(document,kind,payload);if(kind==='rejected'){setRejectOpen(false);setRejectionReason('');}if(kind==='followup-scheduled')setFollowUpDate('');}
+    try{await persistCommercialEvent(kind,payload);if(kind==='rejected'){setRejectOpen(false);setRejectionReason('');}if(kind==='followup-scheduled')setFollowUpDate('');}
     catch(e){setError(e instanceof Error?e.message:t('Unable to update commercial tracking.','تعذر تحديث المتابعة التجارية.'));}
     finally{setBusy(false);}
   };
@@ -92,7 +101,7 @@ export function CommercialFlowPanel({document,documents,events,onOpenDocument,on
 
     {canTrack?<section className="lx-commercial-actions" aria-label={t('Commercial tracking actions','إجراءات المتابعة التجارية')}>
       <div className="lx-commercial-actions-primary">
-        {!terminal?<Button disabled={busy||snapshot.status==='sent'} onClick={()=>void record('sent')}>{snapshot.status==='sent'?t('Sent recorded','الإرسال مسجل'):t('Mark Sent','تسجيل كمرسل')}</Button>:null}
+        {!terminal?<Button disabled={busy||snapshot.status==='sent'||snapshot.status==='expired'} onClick={()=>void record('sent')}>{snapshot.status==='sent'?t('Sent recorded','الإرسال مسجل'):snapshot.status==='expired'?t('Quote expired','انتهت الصلاحية'):t('Mark Sent','تسجيل كمرسل')}</Button>:null}
         {!terminal?<Button variant="primary" disabled={busy} onClick={()=>void record('accepted')}>{t('Mark Accepted','تسجيل القبول')}</Button>:null}
         {!terminal?<Button variant="danger" disabled={busy} onClick={()=>{setError('');setRejectOpen(true);}}>{t('Mark Rejected','تسجيل الرفض')}</Button>:null}
       </div>
