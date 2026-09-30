@@ -5,7 +5,7 @@ export type TemplateId = 'executive' | 'minimal' | 'trade' | 'signature' | 'obsi
 export type DocumentStatus = 'draft' | 'final';
 export type DocumentRole = 'standard' | 'credit-note';
 export type DocumentLifecycleStatus = 'active' | 'voided';
-export type DocumentEventType = 'created' | 'issued' | 'reissued' | 'revision-started' | 'revision-discarded' | 'voided' | 'credit-note-created' | 'payment-recorded' | 'payment-deleted' | 'converted';
+export type DocumentEventType = 'created' | 'issued' | 'reissued' | 'revision-started' | 'revision-discarded' | 'voided' | 'credit-note-created' | 'payment-recorded' | 'payment-deleted' | 'converted' | 'commercial-sent' | 'commercial-accepted' | 'commercial-rejected' | 'commercial-followup-scheduled' | 'commercial-followup-completed';
 export type PaymentStatus = 'unpaid' | 'partially-paid' | 'paid' | 'overdue';
 export type PaymentMethod = 'cash' | 'bank-transfer' | 'card' | 'cheque' | 'other';
 export type PurchaseStatus = 'draft' | 'posted' | 'reversed';
@@ -556,20 +556,4 @@ export interface SessionKeyRecord {
   token: string;
   key: CryptoKey;
   updatedAt: string;
-}
-
-export interface CloudAccountRecord {
-  id: 'cloud-account';
-  uid: string;
-  email: string;
-  linkedAt: string;
-  updatedAt: string;
-}
-
-export interface EncryptedBackupFile {
-  format: 'LOUREX_BACKUP';
-  version: 1;
-  createdAt: string;
-  kdf: { name: 'PBKDF2'; hash: 'SHA-256'; iterations: number; salt: string };
-  cipher: { name: 'AES-GCM'; iv: string; data: string };
 }
