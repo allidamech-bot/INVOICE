@@ -1,4 +1,4 @@
-import {runAi} from '../server/ai/router.js';
+import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 
 const MAX_BODY_BYTES=24000;
 const MAX_COLUMNS=40;
@@ -17,14 +17,18 @@ function rateAllowed(request){const now=Date.now(),key=requestIp(request),existi
 async function readJson(request){const declared=Number(request.headers['content-length']||0);if(Number.isFinite(declared)&&declared>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');let text='';for await(const chunk of request){text+=chunk.toString();if(Buffer.byteLength(text,'utf8')>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');}return JSON.parse(text||'{}');}
 function cleanColumns(value){if(!Array.isArray(value)||value.length<1||value.length>MAX_COLUMNS)return null;const seen=new Set();const result=[];for(const entry of value){const index=Number(entry?.index);const header=String(entry?.header||'').trim().slice(0,160);if(!Number.isInteger(index)||index<0||seen.has(index)||!header)return null;seen.add(index);const samples=Array.isArray(entry?.samples)?entry.samples.slice(0,MAX_SAMPLES).map(sample=>String(sample??'').trim().slice(0,MAX_SAMPLE_CHARS)).filter(Boolean):[];result.push({index,header,samples});}return result;}
 function cleanMappings(parsed,allowedIndexes){if(!Array.isArray(parsed?.mappings))return null;const usedFields=new Set(),usedIndexes=new Set(),mappings=[];for(const item of parsed.mappings){const index=Number(item?.index),field=item?.field===null?null:String(item?.field||'');if(!allowedIndexes.has(index)||usedIndexes.has(index))continue;if(field!==null&&!ALLOWED_FIELDS.has(field))continue;if(field&&usedFields.has(field))continue;const confidence=item?.confidence==='high'||item?.confidence==='medium'||item?.confidence==='low'?item.confidence:'low';const reason=String(item?.reason||'AI suggestion').trim().slice(0,180);usedIndexes.add(index);if(field)usedFields.add(field);mappings.push({index,field,confidence,reason});}return mappings;}
+
 export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST for AI product mapping.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'AI mapping requests must come from this LOUREX Invoice deployment.'});return;}
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'AI mapping is temporarily rate limited.'});return;}
   let body;try{body=await readJson(request);}catch(error){sendJson(response,error?.message==='BODY_TOO_LARGE'?413:400,{code:'INVALID_REQUEST',message:'Invalid AI mapping request.'});return;}
   const columns=cleanColumns(body?.columns);if(!columns){sendJson(response,400,{code:'INVALID_COLUMNS',message:'No valid ambiguous columns were supplied.'});return;}
+  const allowedIndexes=new Set(columns.map(column=>column.index));
   const prompt=`You map supplier spreadsheet columns into LOUREX catalog fields. Return only mappings for the supplied columns. Never invent values. A supplier/trade Incoterm price such as EXW, FOB, CIF, CFR, FCA, DAP or DDP is purchase cost unless the heading explicitly says sale/selling/customer/retail. Keep sale price and purchase cost separate. Currency-only columns map to lastCurrency or lastCostCurrency according to context. If uncertain use null. Allowed fields: ${[...ALLOWED_FIELDS].join(', ')}. Columns: ${JSON.stringify(columns)}`;
   const schema={type:'OBJECT',properties:{mappings:{type:'ARRAY',items:{type:'OBJECT',properties:{index:{type:'INTEGER'},field:{type:'STRING',nullable:true,enum:[...ALLOWED_FIELDS]},confidence:{type:'STRING',enum:['high','medium','low']},reason:{type:'STRING'}},required:['index','field','confidence','reason']}}},required:['mappings']};
-  try{const result=await runAi({taskType:'product.column-mapping',prompt,schema,route:'general',timeoutMs:12000});const mappings=cleanMappings(result.data,new Set(columns.map(column=>column.index)));if(!mappings){sendJson(response,502,{code:'AI_INVALID_RESULT',message:'LOUREX AI returned an invalid mapping result.'});return;}sendJson(response,200,{model:'automatic',mappings});}
-  catch(error){const status=error?.status===429?429:503;sendJson(response,status,{code:error?.code||'AI_TEMPORARILY_UNAVAILABLE',message:'LOUREX AI is temporarily unavailable. Try again shortly.'});}
+  const result=await routeAiStructured({taskType:'product_mapping',prompt,schema,timeoutMs:12_000,validate:value=>Boolean(cleanMappings(value,allowedIndexes))});
+  if(!result.success){const publicError=aiRouterPublicError(result);sendJson(response,publicError.status,{code:publicError.code,message:publicError.message});return;}
+  const mappings=cleanMappings(result.data,allowedIndexes);if(!mappings){sendJson(response,502,{code:'AI_INVALID_RESULT',message:'LOUREX AI returned an invalid mapping result.'});return;}
+  sendJson(response,200,{mappings});
 }
