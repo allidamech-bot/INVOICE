@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { emptyVault, defaultCompany } from '../dist/src/lib/defaults.js';
 import { createBlankDocument } from '../dist/src/lib/documents.js';
 import { buildAiBusinessContext } from '../dist/src/lib/ai-business.js';
@@ -123,6 +124,19 @@ test('v450 collections keep legacy receivable invoices attached to their derived
   assert.equal(tasks[0].oldestOpenInvoice?.invoiceId,invoice.id);
   assert.equal(tasks[0].oldestOpenInvoice?.number,invoice.number);
   assert.equal(tasks[0].oldestOpenInvoice?.status,'overdue');
+  assert.equal(tasks[0].oldestOverdueInvoice?.invoiceId,invoice.id);
+});
+
+test('v450 collection tasks distinguish oldest issued invoice from oldest overdue due date',()=>{
+  const vault=emptyVault();
+  const oldestIssued=legacyInvoice({id:'oldest-issued',number:'INV-OLD-ISSUE',issueDate:'2026-01-01',dueDate:'2026-03-10'});
+  const oldestDue=legacyInvoice({id:'oldest-due',number:'INV-OLD-DUE',issueDate:'2026-02-01',dueDate:'2026-02-15'});
+  vault.documents=[oldestIssued,oldestDue];
+  const task=buildCollectionTasks(vault,'2026-04-01')[0];
+  assert.ok(task);
+  assert.equal(task.oldestOpenInvoice?.invoiceId,'oldest-issued');
+  assert.equal(task.oldestOverdueInvoice?.invoiceId,'oldest-due');
+  assert.deepEqual(task.openInvoices.map(row=>row.invoiceId),['oldest-issued','oldest-due']);
 });
 
 test('v450 legacy invoice payments count as collection activity even without a direct customer id',()=>{
@@ -159,4 +173,11 @@ test('v450 business memory treats an active linked invoice draft as an existing 
   vault.customers=[customer];vault.documents=[quote,active];
   const memory=buildBusinessMemory(vault);
   assert.equal(memory.entries.some(entry=>entry.key===`quote:${quote.id}:unconverted`),false);
+});
+
+test('v450 Collections AI UI consumes the canonical collection task engine',async()=>{
+  const source=await readFile(new URL('../src/components/CollectionsAiTool.tsx',import.meta.url),'utf8');
+  assert.match(source,/buildCollectionTasks\(resumed\.vault,asOf\)/);
+  assert.match(source,/oldestOverdueInvoice/);
+  assert.doesNotMatch(source,/invoicePaymentSummary|receivableCustomerId|function openInvoices|function overdueInvoices/);
 });
