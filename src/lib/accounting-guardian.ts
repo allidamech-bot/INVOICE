@@ -43,7 +43,8 @@ export interface AccountingGuardianReview{
 }
 
 const SCALE=12;
-const EXTREME_DISCOUNT_PERCENT=25n;
+const PERCENT_SCALE=4;
+const EXTREME_DISCOUNT_PERCENT=25n*10_000n;
 const SUSPICIOUS_PRICE_CHANGE_PERCENT=25n;
 function lineName(doc:LourexDocument,index:number):string{const item=doc.items[index];return(item?.descriptionEn||item?.descriptionAr||`Item ${index+1}`).trim();}
 function applicable(doc:LourexDocument):boolean{return !documentPriceOptional(doc.kind)&&!isSupplierDocumentKind(doc.kind)&&doc.role!=='credit-note';}
@@ -75,7 +76,7 @@ export function buildAccountingGuardianReview(doc:LourexDocument,company:Company
     if(missing.length)issues.push(issue('missing-commercial-data','info',-1,'Commercial terms',currency,'','','',`Missing: ${missing.join(', ')}.`));
   }
   if(doc.adjustments.discountEnabled&&doc.adjustments.discountMode==='percent'&&isNonNegativeDecimalInput(doc.adjustments.discountValue)){
-    const value=decimalToScaled(doc.adjustments.discountValue,0);if(value>=EXTREME_DISCOUNT_PERCENT)issues.push(issue('extreme-discount','warning',-1,'Discount',currency,doc.adjustments.discountValue,'','','Discount percentage is at or above the Guardian review threshold of 25%.'));
+    const value=decimalToScaled(doc.adjustments.discountValue,PERCENT_SCALE);if(value>=EXTREME_DISCOUNT_PERCENT)issues.push(issue('extreme-discount','warning',-1,'Discount',currency,doc.adjustments.discountValue,'','','Discount percentage is at or above the Guardian review threshold of 25%.'));
   }
 
   if(applicable(doc)){
