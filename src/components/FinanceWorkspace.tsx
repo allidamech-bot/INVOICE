@@ -33,9 +33,13 @@ export function FinanceWorkspace(props:Props):any{
     };
   },[]);
   return <section className="domain-workspace finance-workspace">
+    <header className="ta-page-header lx-workspace-context lx-finance-context">
+      <div><span className="ta-page-kicker">{t('Operational Finance','المالية التشغيلية')}</span><h1>{t('Receivables, collections & expenses','المستحقات والتحصيل والمصروفات')}</h1><p>{t('Control customer balances, recorded collections and operating expense records here. Period sales and profitability analysis stays in Reports & Insights.','تحكّم هنا بأرصدة العملاء والتحصيل المسجل وسجلات المصروفات التشغيلية. يبقى تحليل المبيعات والربحية حسب الفترة ضمن التقارير والتحليلات.')}</p></div>
+      <div className="ta-page-actions"><span className="ta-period-chip">{t('Revenue ≠ collections ≠ receivables','الإيراد ≠ التحصيل ≠ المستحقات')}</span></div>
+    </header>
     <DomainWorkspaceTabs value={tab} onChange={changeTab} ariaLabel={t('Finance sections','أقسام المالية')} options={[
-      {id:'receivables',label:t('Receivables & Collections','المستحقات والتحصيل'),description:t('Balances, aging, payments & statements','الأرصدة والأعمار والمدفوعات وكشوف الحساب')},
-      {id:'expenses',label:t('Expenses','المصروفات'),description:t('Operating cash out','المصروفات التشغيلية')}
+      {id:'receivables',label:t('Receivables & Collections','المستحقات والتحصيل'),description:t('Balances, aging, recorded payments & statements','الأرصدة والأعمار والمدفوعات المسجلة وكشوف الحساب')},
+      {id:'expenses',label:t('Expenses','المصروفات'),description:t('Operating expense records','سجلات المصروفات التشغيلية')}
     ]}/>
     {tab==='receivables'?<ReceivablesPage customers={props.customers} documents={props.documents} payments={props.payments} company={props.company} onSavePayment={props.onSavePayment} onDeletePayment={props.onDeletePayment}/>:<OperationsPage mode="finance" suppliers={props.suppliers} purchases={props.purchases} expenses={props.expenses} inventoryMovements={props.inventoryMovements} items={props.items} defaultCurrency={props.defaultCurrency} onSaveSupplier={props.onSaveSupplier} onDeleteSupplier={props.onDeleteSupplier} onSavePurchase={props.onSavePurchase} onDeletePurchase={props.onDeletePurchase} onPostPurchase={props.onPostPurchase} onReversePurchase={props.onReversePurchase} onSaveExpense={props.onSaveExpense} onDeleteExpense={props.onDeleteExpense} onSaveInventoryMovement={props.onSaveInventoryMovement} onDeleteInventoryMovement={props.onDeleteInventoryMovement}/>} 
   </section>;

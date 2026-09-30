@@ -46,7 +46,7 @@ const base='http://127.0.0.1:4173/tests/visual';
         await primary.nth(6).click();
         assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'reports');
 
-        await page.locator('.ta-sidebar-utility').click();
+        await page.locator('.ta-sidebar-utility').first().click();
         assert.equal(await page.evaluate(()=>window.shellQa.settings),1,'Desktop Settings must open through the scoped settings boundary');
         assert.equal(await page.evaluate(()=>sessionStorage.getItem('lourex-settings-scope')),'settings','Desktop Settings must request the Settings scope');
 
@@ -90,13 +90,23 @@ const base='http://127.0.0.1:4173/tests/visual';
         await page.locator('.ta-mobile-nav').waitFor();
         const create=page.locator('.ta-mobile-create');
         const more=page.locator('.ta-mobile-nav button[aria-controls="ta-mobile-more"]');
+        const quickCreatePanel=page.locator('.global-search-panel');
+        const closeQuickCreate=async()=>{
+          await quickCreatePanel.waitFor({state:'visible'});
+          await page.keyboard.press('Escape');
+          await quickCreatePanel.waitFor({state:'detached'});
+        };
+        await page.evaluate(()=>{
+          window.shellQa.quickCreateEvents=0;
+          window.addEventListener('lourex-global-search-open',()=>{window.shellQa.quickCreateEvents+=1;});
+        });
 
         await create.click();
-        await page.locator('#ta-mobile-create-menu').waitFor();
-        await page.locator('.ta-create-backdrop').click({position:{x:4,y:4}});
-        await page.locator('#ta-mobile-create-menu').waitFor({state:'detached'});
+        await page.waitForFunction(()=>window.shellQa.quickCreateEvents===1);
+        assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Mobile center action must not reopen the retired document-only create menu');
+        await closeQuickCreate();
         await more.click();
-        assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Create menu must be closed before More opens');
+        assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'No stale create menu may remain before More opens');
         await page.locator('#ta-mobile-more').waitFor();
         assert.equal(await page.locator('#ta-mobile-more').getAttribute('aria-modal'),'true');
         assert.equal(await page.locator('#ta-mobile-more').getAttribute('dir'),lang==='ar'?'rtl':'ltr','More sheet must declare the active writing direction');
@@ -120,12 +130,11 @@ const base='http://127.0.0.1:4173/tests/visual';
         assert.equal(await page.locator('#ta-mobile-more').count(),0,'Escape must close More');
 
         await create.click();
-        await page.locator('#ta-mobile-create-menu').waitFor();
-        await page.keyboard.press('Escape');
-        await page.locator('#ta-mobile-create-menu').waitFor({state:'detached'});
+        await page.waitForFunction(()=>window.shellQa.quickCreateEvents===2);
+        await closeQuickCreate();
         const primaryTabs=page.locator('.ta-mobile-nav > button');
         await primaryTabs.nth(2).click();
-        assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Create menu must be closed before primary navigation');
+        assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Primary navigation must not revive the retired create menu');
         assert.equal(await page.evaluate(()=>window.shellQa.navigations.at(-1)),'customers');
 
         await more.click();
@@ -136,7 +145,7 @@ const base='http://127.0.0.1:4173/tests/visual';
 
         await more.click();
         await page.locator('#ta-mobile-more').waitFor();
-        await page.locator('#ta-mobile-more .ta-sheet-group').last().locator('.ta-sheet-link').click();
+        await page.locator('#ta-mobile-more .ta-sheet-group').last().locator('.ta-sheet-link').first().click();
         assert.equal(await page.locator('#ta-mobile-more').count(),0,'More must close before Settings opens');
         assert.equal(await page.evaluate(()=>window.shellQa.settings),1);
         assert.equal(await page.evaluate(()=>sessionStorage.getItem('lourex-settings-scope')),'settings','Settings entry must request the Settings scope');
@@ -151,10 +160,10 @@ const base='http://127.0.0.1:4173/tests/visual';
         assert.equal(await page.locator('.ta-topbar-account').isVisible(),false,'Mobile top bar keeps account access inside More');
 
         await create.click();
-        await page.locator('#ta-mobile-create-menu [role="menuitem"]').nth(2).click();
-        await page.waitForFunction(()=>window.shellQa.newKind==='proforma');
-        assert.equal(await page.evaluate(()=>window.shellQa.newKind),'proforma');
-        assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Create menu must close after choosing document type');
+        await page.waitForFunction(()=>window.shellQa.quickCreateEvents===3);
+        assert.equal(await page.evaluate(()=>window.shellQa.newKind),'','Mobile center action delegates creation to canonical quick create instead of bypassing it');
+        assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Document-only mobile create menu must stay retired');
+        await closeQuickCreate();
 
         const geometry=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,width:innerWidth,navHeight:document.querySelector('.ta-mobile-nav')?.getBoundingClientRect().height||0}));
         if(geometry.scrollWidth>geometry.width+1)failures.push(`horizontal overflow ${JSON.stringify(geometry)}`);

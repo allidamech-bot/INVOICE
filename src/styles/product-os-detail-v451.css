@@ -1,0 +1,422 @@
+/* LOUREX Product OS v451 — detailed workspace, settings, reports and overlay polish.
+   Presentation only. No accounting, document lifecycle, auth, storage or PDF logic. */
+@media screen {
+  /* ------------------------------------------------------------------
+     Shared workspace context: each domain gets hierarchy without becoming noisy.
+     ------------------------------------------------------------------ */
+  html body .app-ui :is(.lx-workspace-context,.ta-products-workspace-header,.ta-page-header) {
+    border:1px solid var(--lx-border)!important;
+    border-radius:var(--lx-radius-lg)!important;
+    background:linear-gradient(135deg,var(--lx-surface-1),color-mix(in srgb,var(--lx-surface-info) 34%,var(--lx-surface-1)))!important;
+    box-shadow:var(--lx-shadow-1)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(.lx-workspace-context,.ta-products-workspace-header,.ta-page-header) {
+    background:radial-gradient(520px 150px at 8% 0%,color-mix(in srgb,var(--lx-brand) 7%,transparent),transparent 72%),var(--lx-surface-1)!important;
+  }
+  html body .app-ui .lx-finance-context {
+    border-inline-start:3px solid var(--lx-success)!important;
+  }
+  html body .app-ui .ta-reports-header {
+    border-inline-start:3px solid var(--lx-info)!important;
+  }
+  html body .app-ui .ta-products-workspace-header {
+    border-inline-start:3px solid var(--lx-ai)!important;
+  }
+
+  /* ------------------------------------------------------------------
+     Settings / Account: control center hierarchy using only real controls.
+     ------------------------------------------------------------------ */
+  html body .modal:has(.ta-settings-shell) {
+    width:min(1120px,calc(100vw - 32px))!important;
+    max-width:1120px!important;
+    border:1px solid var(--lx-border-strong)!important;
+    border-radius:var(--lx-radius-xl)!important;
+    background:var(--lx-surface-1)!important;
+    box-shadow:var(--lx-shadow-2)!important;
+    overflow:hidden!important;
+  }
+  html body .ta-settings-shell {
+    min-height:min(680px,78dvh)!important;
+    background:var(--lx-surface-1)!important;
+  }
+  html body .ta-settings-sidebar {
+    background:var(--lx-surface-2)!important;
+    border-inline-end:1px solid var(--lx-border)!important;
+  }
+  html body .ta-settings-sidebar-head {
+    padding:18px 16px 12px!important;
+    border-bottom:1px solid var(--lx-border)!important;
+  }
+  html body .ta-settings-sidebar-head span {
+    color:var(--lx-brand)!important;
+    font-size:10px!important;
+    font-weight:800!important;
+    letter-spacing:.08em!important;
+  }
+  [dir="rtl"] body .ta-settings-sidebar-head span { letter-spacing:0!important; }
+  html body .ta-settings-sidebar-head strong {
+    color:var(--lx-text)!important;
+    font-size:18px!important;
+  }
+  html body .ta-settings-nav {
+    gap:6px!important;
+    padding:12px!important;
+  }
+  html body .ta-settings-nav button {
+    min-height:58px!important;
+    padding:9px 10px!important;
+    border:1px solid transparent!important;
+    border-radius:11px!important;
+    background:transparent!important;
+    color:var(--lx-text-muted)!important;
+    transition:background var(--lx-motion-fast) ease,border-color var(--lx-motion-fast) ease,color var(--lx-motion-fast) ease!important;
+  }
+  html body .ta-settings-nav button:hover {
+    background:var(--lx-surface-1)!important;
+    border-color:var(--lx-border)!important;
+  }
+  html body .ta-settings-nav button.is-active {
+    background:var(--lx-surface-info)!important;
+    border-color:color-mix(in srgb,var(--lx-brand) 28%,var(--lx-border))!important;
+    color:var(--lx-text)!important;
+  }
+  html body .ta-settings-nav button.is-active .ta-settings-nav-icon {
+    background:color-mix(in srgb,var(--lx-brand) 12%,var(--lx-surface-1))!important;
+    color:var(--lx-brand)!important;
+  }
+  html body .ta-settings-content {
+    padding:20px!important;
+    background:var(--lx-surface-1)!important;
+  }
+  html body .ta-settings-page {
+    max-width:900px!important;
+    margin-inline:auto!important;
+  }
+  html body .ta-settings-card {
+    overflow:hidden!important;
+    border:1px solid var(--lx-border)!important;
+    border-radius:var(--lx-radius-md)!important;
+    background:var(--lx-surface-1)!important;
+    box-shadow:var(--lx-shadow-1)!important;
+  }
+  html body .ta-settings-card>header {
+    background:var(--lx-surface-2)!important;
+    border-bottom:1px solid var(--lx-border)!important;
+  }
+  html body .ta-security-page .ta-settings-card {
+    border-inline-start:3px solid color-mix(in srgb,var(--lx-warning) 72%,var(--lx-border))!important;
+  }
+  html body .ta-security-page .ta-settings-card:last-of-type {
+    background:linear-gradient(135deg,color-mix(in srgb,var(--lx-surface-warning) 50%,var(--lx-surface-1)),var(--lx-surface-1))!important;
+  }
+  html body .ta-settings-card :is(input,select,textarea) {
+    min-height:44px!important;
+    border:1px solid var(--lx-border-strong)!important;
+    border-radius:10px!important;
+    background:var(--lx-surface-2)!important;
+    color:var(--lx-text)!important;
+  }
+  html body .ta-settings-card :is(input,select,textarea):focus-visible {
+    border-color:var(--lx-focus)!important;
+    outline:2px solid color-mix(in srgb,var(--lx-focus) 36%,transparent)!important;
+    outline-offset:1px!important;
+  }
+  html body .ta-settings-note {
+    padding:10px 12px!important;
+    border:1px solid var(--lx-border)!important;
+    border-radius:10px!important;
+    background:var(--lx-surface-2)!important;
+    color:var(--lx-text-muted)!important;
+  }
+  html body .ta-settings-toast {
+    border-radius:12px!important;
+    box-shadow:var(--lx-shadow-2)!important;
+  }
+  html body .ta-settings-toast.is-success {
+    background:var(--lx-surface-success)!important;
+    border-color:color-mix(in srgb,var(--lx-success) 35%,var(--lx-border))!important;
+    color:var(--lx-success)!important;
+  }
+  html body .ta-settings-toast.is-error {
+    background:var(--lx-surface-critical)!important;
+    border-color:color-mix(in srgb,var(--lx-critical) 35%,var(--lx-border))!important;
+    color:var(--lx-critical)!important;
+  }
+
+  /* ------------------------------------------------------------------
+     Reports: reporting surfaces look analytical while preserving semantics.
+     ------------------------------------------------------------------ */
+  html body .app-ui .ta-reports-page {
+    display:flex!important;
+    flex-direction:column!important;
+    gap:14px!important;
+  }
+  html body .app-ui .ta-report-filterbar {
+    position:sticky!important;
+    top:calc(var(--ta-topbar-height,72px) + 8px)!important;
+    z-index:8!important;
+    border:1px solid var(--lx-border)!important;
+    border-radius:var(--lx-radius-md)!important;
+    background:color-mix(in srgb,var(--lx-surface-1) 94%,transparent)!important;
+    box-shadow:var(--lx-shadow-1)!important;
+    backdrop-filter:blur(12px)!important;
+    -webkit-backdrop-filter:blur(12px)!important;
+  }
+  html body .app-ui .ta-report-presets button {
+    min-height:40px!important;
+    border-radius:9px!important;
+  }
+  html body .app-ui .ta-report-presets button[aria-pressed="true"] {
+    background:var(--lx-surface-info)!important;
+    color:var(--lx-brand)!important;
+    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--lx-brand) 28%,var(--lx-border))!important;
+  }
+  html body .app-ui .ta-report-kpi-grid {
+    gap:12px!important;
+  }
+  html body .app-ui .ta-report-kpi {
+    border-top:2px solid color-mix(in srgb,var(--lx-info) 45%,var(--lx-border))!important;
+  }
+  html body .app-ui .ta-report-kpi-warning,
+  html body .app-ui .ta-data-alert {
+    border:1px solid color-mix(in srgb,var(--lx-warning) 34%,var(--lx-border))!important;
+    border-radius:12px!important;
+    background:var(--lx-surface-warning)!important;
+    color:var(--lx-text)!important;
+  }
+  html body .app-ui .ta-report-panel {
+    border:1px solid var(--lx-border)!important;
+    border-radius:var(--lx-radius-md)!important;
+    background:var(--lx-surface-1)!important;
+    box-shadow:var(--lx-shadow-1)!important;
+  }
+  html body .app-ui .ta-table-wrap {
+    scrollbar-width:thin!important;
+    scrollbar-color:var(--lx-border-strong) transparent!important;
+  }
+  html body .app-ui .ta-table tbody tr:hover {
+    background:var(--lx-surface-2)!important;
+  }
+
+  /* ------------------------------------------------------------------
+     Customer, product and operations workspaces: distinct but related families.
+     ------------------------------------------------------------------ */
+  html body .app-ui :is(.ta-customers-summary,.ta-products-overview,.ta-ops-metrics,.ta-ops-summary) {
+    gap:10px!important;
+  }
+  html body .app-ui :is(.ta-customers-summary>div,.ta-products-overview>div,.ta-ops-metrics>div,.ta-ops-summary>div) {
+    border:1px solid var(--lx-border)!important;
+    border-radius:var(--lx-radius-md)!important;
+    background:var(--lx-surface-1)!important;
+    box-shadow:var(--lx-shadow-1)!important;
+  }
+  html body .app-ui .ta-products-overview>div:nth-child(1) { border-top:2px solid var(--lx-ai)!important; }
+  html body .app-ui .ta-products-overview>div:nth-child(2) { border-top:2px solid var(--lx-warning)!important; }
+  html body .app-ui .ta-products-overview>div:nth-child(3) { border-top:2px solid var(--lx-info)!important; }
+  html body .app-ui .ta-products-overview>div:nth-child(4) { border-top:2px solid var(--lx-success)!important; }
+  html body .app-ui :is(.ta-customer-form-section,.ta-product-editor,.ta-ops-editor-card,.ta-ops-list-card,.ta-product-register) {
+    border:1px solid var(--lx-border)!important;
+    border-radius:var(--lx-radius-md)!important;
+    background:var(--lx-surface-1)!important;
+    box-shadow:var(--lx-shadow-1)!important;
+  }
+  html body .app-ui .ta-customer-form-section>header,
+  html body .app-ui :is(.ta-product-editor,.ta-ops-editor-card)>header {
+    background:var(--lx-surface-2)!important;
+    border-bottom:1px solid var(--lx-border)!important;
+  }
+  html body .app-ui :is(.ta-customer-form,.ta-products-workspace-body,.operations-page) :is(input,select,textarea) {
+    min-height:44px!important;
+  }
+
+  /* ------------------------------------------------------------------
+     Documents: issued financial work should read differently from editing chrome.
+     ------------------------------------------------------------------ */
+  html body .app-ui .ta-doc-detail-hero {
+    border:1px solid var(--lx-border)!important;
+    border-inline-start:3px solid var(--lx-brand)!important;
+    border-radius:var(--lx-radius-lg)!important;
+    background:linear-gradient(135deg,var(--lx-surface-1),color-mix(in srgb,var(--lx-surface-info) 34%,var(--lx-surface-1)))!important;
+    box-shadow:var(--lx-shadow-1)!important;
+  }
+  html body .app-ui .ta-doc-panel {
+    border:1px solid var(--lx-border)!important;
+    border-radius:var(--lx-radius-md)!important;
+    background:var(--lx-surface-1)!important;
+    box-shadow:var(--lx-shadow-1)!important;
+  }
+  html body .app-ui .ta-doc-action-panel {
+    background:linear-gradient(180deg,var(--lx-surface-2),var(--lx-surface-1))!important;
+  }
+  html body .app-ui .ta-doc-action-panel .is-danger {
+    color:var(--lx-critical)!important;
+    background:var(--lx-surface-critical)!important;
+  }
+
+  /* ------------------------------------------------------------------
+     Horizontal discovery: clipped content always gets a continuation cue.
+     ------------------------------------------------------------------ */
+  html body .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-report-presets,.ta-settings-segmented) {
+    scrollbar-width:none!important;
+    scroll-snap-type:x proximity!important;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 10px,#000 calc(100% - 18px),transparent 100%)!important;
+    mask-image:linear-gradient(90deg,transparent 0,#000 10px,#000 calc(100% - 18px),transparent 100%)!important;
+  }
+  [dir="rtl"] body .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-report-presets,.ta-settings-segmented) {
+    -webkit-mask-image:linear-gradient(270deg,transparent 0,#000 10px,#000 calc(100% - 18px),transparent 100%)!important;
+    mask-image:linear-gradient(270deg,transparent 0,#000 10px,#000 calc(100% - 18px),transparent 100%)!important;
+  }
+  html body .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-report-presets,.ta-settings-segmented)::-webkit-scrollbar { display:none!important; }
+  html body .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-report-presets,.ta-settings-segmented)>* {
+    scroll-snap-align:start!important;
+  }
+
+  /* ------------------------------------------------------------------
+     Focus, touch and motion.
+     ------------------------------------------------------------------ */
+  html body .app-ui :is(button,a,input,select,textarea):focus-visible,
+  html body :is(.modal,.global-search-panel) :is(button,a,input,select,textarea):focus-visible {
+    outline:2px solid var(--lx-focus)!important;
+    outline-offset:2px!important;
+  }
+
+  @media (max-width:900px) {
+    html body .app-ui :is(.lx-workspace-context,.ta-products-workspace-header,.ta-page-header) {
+      padding:14px!important;
+      border-radius:14px!important;
+    }
+    html body .app-ui :is(.lx-workspace-context,.ta-products-workspace-header,.ta-page-header) h1 {
+      font-size:20px!important;
+      line-height:1.3!important;
+    }
+
+    /* Every application dialog becomes an iPhone-safe sheet unless a specialized
+       component already owns a stricter geometry. */
+    html body .modal-backdrop {
+      align-items:flex-end!important;
+      justify-content:center!important;
+      padding:0 max(env(safe-area-inset-right,0px),0px) 0 max(env(safe-area-inset-left,0px),0px)!important;
+    }
+    html body .modal-backdrop>.modal {
+      width:100%!important;
+      max-width:none!important;
+      max-height:min(92dvh,900px)!important;
+      margin:0!important;
+      border-radius:22px 22px 0 0!important;
+      border-bottom:0!important;
+      overflow:hidden!important;
+      box-shadow:0 -20px 48px rgba(0,0,0,.28)!important;
+    }
+    html body .modal-backdrop>.modal .modal-header {
+      min-height:58px!important;
+      padding:10px 14px!important;
+      background:var(--lx-surface-2)!important;
+      border-bottom:1px solid var(--lx-border)!important;
+    }
+    html body .modal-backdrop>.modal .modal-body {
+      max-height:calc(92dvh - 118px)!important;
+      overflow:auto!important;
+      overscroll-behavior:contain!important;
+      -webkit-overflow-scrolling:touch!important;
+      padding:12px!important;
+    }
+    html body .modal-backdrop>.modal .modal-footer {
+      position:sticky!important;
+      bottom:0!important;
+      padding:10px 12px max(10px,env(safe-area-inset-bottom,0px))!important;
+      background:var(--lx-surface-1)!important;
+      border-top:1px solid var(--lx-border)!important;
+    }
+    html body .modal-backdrop>.modal .modal-footer :is(button,.btn) {
+      min-height:44px!important;
+    }
+
+    html body .modal:has(.ta-settings-shell) {
+      width:100%!important;
+      max-width:none!important;
+      max-height:94dvh!important;
+    }
+    html body .ta-settings-shell {
+      min-height:0!important;
+      display:block!important;
+    }
+    html body .ta-settings-sidebar {
+      position:sticky!important;
+      top:0!important;
+      z-index:4!important;
+      border-inline-end:0!important;
+      border-bottom:1px solid var(--lx-border)!important;
+    }
+    html body .ta-settings-sidebar-head {
+      display:none!important;
+    }
+    html body .ta-settings-nav {
+      display:flex!important;
+      flex-direction:row!important;
+      overflow-x:auto!important;
+      gap:6px!important;
+      padding:8px 10px!important;
+      scrollbar-width:none!important;
+      scroll-snap-type:x proximity!important;
+    }
+    html body .ta-settings-nav::-webkit-scrollbar { display:none!important; }
+    html body .ta-settings-nav button {
+      flex:0 0 auto!important;
+      min-width:max-content!important;
+      min-height:44px!important;
+      padding:8px 10px!important;
+      scroll-snap-align:start!important;
+    }
+    html body .ta-settings-nav button small { display:none!important; }
+    html body .ta-settings-content { padding:10px!important; }
+    html body .ta-settings-card { border-radius:13px!important; }
+
+    html body .app-ui .ta-report-filterbar {
+      position:static!important;
+      padding:9px!important;
+      overflow:hidden!important;
+    }
+    html body .app-ui .ta-report-presets {
+      overflow-x:auto!important;
+      flex-wrap:nowrap!important;
+    }
+    html body .app-ui .ta-report-presets button {
+      flex:0 0 auto!important;
+      min-height:44px!important;
+      white-space:nowrap!important;
+    }
+    html body .app-ui .ta-report-kpi-grid {
+      grid-template-columns:1fr!important;
+    }
+    html body .app-ui .ta-report-kpi {
+      padding:13px!important;
+    }
+
+    html body .app-ui :is(.ta-customer-form-section,.ta-product-editor,.ta-ops-editor-card,.ta-ops-list-card,.ta-product-register,.ta-doc-panel) {
+      border-radius:13px!important;
+    }
+    html body .app-ui :is(.ta-customer-form,.ta-products-workspace-body,.operations-page) :is(input,select,textarea) {
+      font-size:16px!important;
+    }
+  }
+
+  @media (max-width:430px) {
+    html body .modal-backdrop>.modal { border-radius:18px 18px 0 0!important; }
+    html body .modal-backdrop>.modal .modal-body { padding:10px!important; }
+    html body .app-ui .ta-report-kpi-primary,
+    html body .app-ui .ta-report-kpi-secondary {
+      grid-template-columns:1fr!important;
+    }
+  }
+
+  @media (prefers-reduced-motion:reduce) {
+    html body .app-ui *,
+    html body .modal *,
+    html body .global-search-panel * {
+      scroll-behavior:auto!important;
+      animation-duration:.01ms!important;
+      animation-iteration-count:1!important;
+      transition-duration:.01ms!important;
+    }
+  }
+}

@@ -8,7 +8,7 @@ const BASE=process.env.LOUREX_VISUAL_BASE_URL||'http://127.0.0.1:4173';
   const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const page=await context.newPage();
   page.on('pageerror',error=>failures.push(`pageerror: ${String(error?.message||error)}`));
-  await page.goto(`${BASE}/tests/visual/obsidian-shell.html?lang=en&v=339-overlay`,{waitUntil:'load'});
+  await page.goto(`${BASE}/tests/visual/obsidian-shell.html?lang=en&v=451-overlay`,{waitUntil:'load'});
   await page.waitForSelector('.ta-mobile-nav',{timeout:10_000});
 
   const lockState=()=>page.evaluate(()=>({
@@ -37,15 +37,31 @@ const BASE=process.env.LOUREX_VISUAL_BASE_URL||'http://127.0.0.1:4173';
   await page.locator('#ta-mobile-more').waitFor({state:'hidden'}).catch(()=>{});
   await expectUnlocked('More close button');
 
+  // v451: the mobile center action intentionally opens the canonical multi-domain
+  // Global Search / Quick Create surface instead of the specialist document menu.
+  // GlobalSearch owns its own backdrop/focus lifecycle, so AppShell's More/document
+  // overlay dataset must remain unlocked and must not leak after an action.
+  await page.evaluate(()=>{window.shellQa.newKind='';});
   const create=page.locator('.ta-mobile-create');
   await create.click();
-  await page.locator('#ta-mobile-create-menu').waitFor({state:'visible'});
-  await expectLocked('Create open');
-  const firstCreate=page.locator('#ta-mobile-create-menu button[role="menuitem"]').first();
-  await firstCreate.click();
+  const quickCreate=page.locator('.global-search-panel');
+  await quickCreate.waitFor({state:'visible'});
+  await expectUnlocked('Global Quick Create open');
+
+  const firstQuickAction=quickCreate.locator('.global-search-actions>button').first();
+  await firstQuickAction.click();
   await page.waitForTimeout(60);
-  if(await page.locator('#ta-mobile-create-menu').isVisible().catch(()=>false))failures.push('Create menu remained visible after action');
-  await expectUnlocked('Create action');
+  const created=await page.evaluate(()=>window.shellQa.newKind||'');
+  if(created!=='proforma')failures.push(`Global Quick Create dispatched ${created||'nothing'}, expected proforma`);
+  if(await quickCreate.isVisible().catch(()=>false))failures.push('Global Quick Create remained visible after action');
+  await expectUnlocked('Global Quick Create action');
+
+  // Escape must also release GlobalSearch without leaving a shell-level lock.
+  await create.click();
+  await quickCreate.waitFor({state:'visible'});
+  await page.keyboard.press('Escape');
+  await quickCreate.waitFor({state:'hidden'}).catch(()=>{});
+  await expectUnlocked('Global Quick Create escape');
 
   await more.click();
   const sheet=page.locator('#ta-mobile-more');
@@ -59,5 +75,5 @@ const BASE=process.env.LOUREX_VISUAL_BASE_URL||'http://127.0.0.1:4173';
   await context.close();
   await browser.close();
   if(failures.length){console.error(failures.join('\n'));process.exit(1);}
-  console.log('v339 WebKit shell overlays: More/Create locks are released after close/action/navigation.');
+  console.log('v451 WebKit shell overlays: More lock + Global Quick Create lifecycle release cleanly after close/action/navigation.');
 })().catch(error=>{console.error(error);process.exit(1);});

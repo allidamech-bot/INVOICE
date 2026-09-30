@@ -5,6 +5,7 @@ import { clearSession } from '../storage/session.js';
 import { Brand, Button, Icon } from './UI.js';
 import { AiCopilot } from './AiCopilot.js';
 import { ThemeControl } from './ThemeControl.js';
+import { ProductInfoModal, type ProductInfoSection } from './ProductInfoModal.js';
 
 export type WorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 
@@ -36,6 +37,7 @@ interface Props {
 interface State {
   moreOpen:boolean;
   signingOut:boolean;
+  infoSection:ProductInfoSection|null;
 }
 
 /**
@@ -44,7 +46,7 @@ interface State {
  * LOUREX business callbacks remain owned by their existing boundaries.
  */
 export class AppShell extends React.Component<Props,State>{
-  state:State={moreOpen:false,signingOut:false};
+  state:State={moreOpen:false,signingOut:false,infoSection:null};
 
   componentDidMount():void{
     document.addEventListener('keydown',this.handleKeyDown);
@@ -59,6 +61,7 @@ export class AppShell extends React.Component<Props,State>{
   componentDidUpdate(prevProps:Props,prevState:State):void{
     if(prevProps.screen!==this.props.screen){
       if(this.state.moreOpen)this.setState({moreOpen:false});
+      if(this.state.infoSection)this.setState({infoSection:null});
       if(this.props.newMenu)this.props.onToggleNew();
       this.resetWorkspaceScroll();
     }
@@ -68,7 +71,7 @@ export class AppShell extends React.Component<Props,State>{
     if(!prevState.moreOpen&&this.state.moreOpen){
       window.requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('#ta-mobile-more .ta-sheet-close')?.focus({preventScroll:true}));
     }
-    if(prevState.moreOpen&&!this.state.moreOpen&&prevProps.screen===this.props.screen){
+    if(prevState.moreOpen&&!this.state.moreOpen&&prevProps.screen===this.props.screen&&!this.state.infoSection){
       window.requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('button[aria-controls="ta-mobile-more"]')?.focus({preventScroll:true}));
     }
     if(!prevProps.newMenu&&this.props.newMenu){
@@ -155,6 +158,12 @@ export class AppShell extends React.Component<Props,State>{
     this.props.onToggleNew();
   };
 
+  private openMobileQuickCreate=()=>{
+    this.closeCreateMenu();
+    this.closeMore();
+    window.dispatchEvent(new Event('lourex-global-search-open'));
+  };
+
   private toggleMore=()=>{
     this.closeCreateMenu();
     this.setState(state=>({moreOpen:!state.moreOpen}));
@@ -176,6 +185,12 @@ export class AppShell extends React.Component<Props,State>{
     this.closeMore();
     this.requestSettingsScope('account');
     this.props.onSettings();
+  };
+
+  private openProductInfo=(section:ProductInfoSection='help')=>{
+    this.closeCreateMenu();
+    this.closeMore();
+    this.setState({infoSection:section});
   };
 
   private createDocument=(kind:DocumentKind)=>{
@@ -228,7 +243,7 @@ export class AppShell extends React.Component<Props,State>{
       case 'documents':return t('Documents','المستندات');
       case 'customers':return t('Customers','العملاء');
       case 'receivables':return t('Finance','المالية');
-      case 'reports':return t('Reports','التقارير');
+      case 'reports':return t('Reports & Insights','التقارير والتحليلات');
       case 'items':return t('Products & Inventory','المنتجات والمخزون');
       case 'operations':return t('Purchasing','المشتريات');
       case 'editor':return t('Document Studio','استوديو المستند');
@@ -259,7 +274,7 @@ export class AppShell extends React.Component<Props,State>{
     </button>;
 
   private createMenu=(id:string,className:string)=>this.props.newMenu?<div className={`ta-create-menu new-doc-menu ${className}`} id={id} role="menu" aria-label={t('New Document','مستند جديد')}>
-    <div className="ta-create-menu-heading"><small>{t('Create','إنشاء')}</small><strong>{t('New document','مستند جديد')}</strong></div>
+    <div className="ta-create-menu-heading"><small>{t('Documents','المستندات')}</small><strong>{t('Create document','إنشاء مستند')}</strong></div>
     <div className="ta-create-menu-grid">
       <button type="button" role="menuitem" onClick={()=>this.createDocument('draft')}><Icon name="edit"/><span><strong>{t('Draft','مسودة')}</strong><small>{t('Free-form company document','مستند شركة حر')}</small></span></button>
       <button type="button" role="menuitem" onClick={()=>this.createDocument('rfq')}><Icon name="file"/><span><strong>{t('RFQ','طلب عرض سعر')}</strong><small>{t('Request supplier prices','طلب أسعار المورد')}</small></span></button>
@@ -310,27 +325,30 @@ export class AppShell extends React.Component<Props,State>{
         </div>
 
         <nav className="ta-sidebar-nav">
-          <section className="ta-nav-section"><p>{t('Workspace','مساحة العمل')}</p>
+          <section className="ta-nav-section"><p>{t('Overview','نظرة عامة')}</p>
             {this.navItem('home','home',t('Dashboard','لوحة التحكم'))}
+          </section>
+          <section className="ta-nav-section"><p>{t('Sales & relationships','المبيعات والعلاقات')}</p>
             {this.navItem('documents','file',t('Documents','المستندات'))}
             {this.navItem('customers','users',t('Customers','العملاء'))}
           </section>
-          <section className="ta-nav-section"><p>{t('Business','الأعمال')}</p>
+          <section className="ta-nav-section"><p>{t('Operations','العمليات')}</p>
             {this.navItem('items','items',t('Products & Inventory','المنتجات والمخزون'))}
             {this.navItem('operations','backup',t('Purchasing','المشتريات'))}
           </section>
-          <section className="ta-nav-section"><p>{t('Finance','المالية')}</p>
+          <section className="ta-nav-section"><p>{t('Finance & insights','المالية والتحليلات')}</p>
             {this.navItem('receivables','invoice',t('Finance','المالية'))}
-            {this.navItem('reports','chart',t('Reports','التقارير'))}
+            {this.navItem('reports','chart',t('Reports & Insights','التقارير والتحليلات'))}
           </section>
         </nav>
 
         <div className="ta-sidebar-footer">
           {this.syncStatus('ta-sidebar-sync')}
           <button type="button" className="ta-sidebar-utility" onClick={this.openSettings}><span className="ta-nav-icon"><Icon name="settings"/></span><span>{t('Settings','الإعدادات')}</span></button>
+          <button type="button" className="ta-sidebar-utility" onClick={()=>this.openProductInfo('help')}><span className="ta-nav-icon"><Icon name="file"/></span><span>{t('Help & Product Info','المساعدة ومعلومات المنتج')}</span></button>
           <button type="button" className="ta-sidebar-account" onClick={this.openAccount}>
             <span className="ta-account-avatar"><Icon name="users"/></span>
-            <span className="ta-account-copy"><strong>{t('Account','الحساب')}</strong><small>{t('Company profile','ملف الشركة')}</small></span>
+            <span className="ta-account-copy"><strong>{t('My Account','حسابي')}</strong><small>{t('Identity and access','الهوية والوصول')}</small></span>
             <span className="ta-sidebar-account-chevron" aria-hidden="true">›</span>
           </button>
         </div>
@@ -341,14 +359,14 @@ export class AppShell extends React.Component<Props,State>{
           <div className="ta-mobile-brand">
             {!editor?<button type="button" onClick={()=>this.navigate('home')} aria-label={t('Dashboard','لوحة التحكم')}><Brand compact logoDataUrl={logo} language={this.props.language}/></button>:<span className="ta-editor-mark"><Icon name="edit"/></span>}
           </div>
-          <div className="ta-page-title"><small>{editor?t('Editing','تحرير'):t('Workspace','مساحة العمل')}</small><strong>{this.pageTitle()}</strong></div>
+          <div className="ta-page-title"><small>{editor?t('Editing','تحرير'):t('LOUREX workspace','مساحة LOUREX')}</small><strong>{this.pageTitle()}</strong></div>
         </div>
 
         <div className="ta-topbar-actions">
-          {!editor?<button type="button" className="ta-search-trigger" aria-label={t('Search LOUREX','بحث LOUREX')} title={t('Global search · Ctrl/⌘ K','البحث الشامل · Ctrl/⌘ K')} onClick={()=>window.dispatchEvent(new Event('lourex-global-search-open'))}><Icon name="search"/><span>{t('Search anything','ابحث في كل شيء')}</span><kbd>⌘K</kbd></button>:null}
+          {!editor?<button type="button" className="ta-search-trigger" aria-label={t('Search LOUREX','بحث LOUREX')} title={t('Global search · Ctrl/⌘ K','البحث الشامل · Ctrl/⌘ K')} onClick={()=>window.dispatchEvent(new Event('lourex-global-search-open'))}><Icon name="search"/><span>{t('Search or quick create','ابحث أو أنشئ بسرعة')}</span><kbd>⌘K</kbd></button>:null}
           <ThemeControl compact language={this.props.language} className="ta-theme-control"/>
           {this.syncStatus('ta-topbar-sync')}
-          {!editor?<button type="button" className="ta-topbar-account" aria-label={t('Account','الحساب')} onClick={this.openAccount}><span className="ta-account-avatar"><Icon name="users"/></span><span>{t('Account','الحساب')}</span></button>:null}
+          {!editor?<button type="button" className="ta-topbar-account" aria-label={t('My Account','حسابي')} onClick={this.openAccount}><span className="ta-account-avatar"><Icon name="users"/></span><span>{t('Account','الحساب')}</span></button>:null}
         </div>
       </header>
 
@@ -363,7 +381,7 @@ export class AppShell extends React.Component<Props,State>{
           <section className="ta-mobile-sheet" id="ta-mobile-more" role="dialog" aria-modal="true" aria-label={t('More','المزيد')} dir={this.props.language==='ar'?'rtl':'ltr'}>
             <div className="ta-sheet-handle" aria-hidden="true"/>
             <div className="ta-sheet-header">
-              <div><small>{t('Workspace','مساحة العمل')}</small><strong>{t('More','المزيد')}</strong><span>{t('Business, finance and settings','الأعمال والمالية والإعدادات')}</span></div>
+              <div><small>LOUREX</small><strong>{t('More','المزيد')}</strong><span>{t('Operations, finance, account and settings','العمليات والمالية والحساب والإعدادات')}</span></div>
               <button type="button" className="ta-sheet-close" onClick={this.closeMore} aria-label={t('Close','إغلاق')}><Icon name="x"/></button>
             </div>
             <div className="ta-sheet-utilities">
@@ -371,10 +389,10 @@ export class AppShell extends React.Component<Props,State>{
               {signedIn?<button type="button" className="ta-sheet-signout" disabled={this.state.signingOut} onClick={()=>void this.signOutFromMore()}><Icon name="lock"/><span>{this.state.signingOut?t('Signing out…','جارٍ تسجيل الخروج…'):t('Sign Out','تسجيل الخروج')}</span></button>:null}
             </div>
             {this.syncStatus('ta-sheet-sync')}
-            <button type="button" className="ta-sheet-account" onClick={this.openAccount}><span className="ta-sheet-link-icon"><Icon name="users"/></span><span className="ta-sheet-link-copy"><strong>{t('Account','الحساب')}</strong><small>{t('Company identity and account access','هوية الشركة وبيانات الحساب')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button>
-            <section className="ta-sheet-group"><p>{t('Business','الأعمال')}</p>{this.mobileSheetItem('items','items',t('Products & Inventory','المنتجات والمخزون'),t('Products, stock and movement','المنتجات والمخزون والحركة'))}{this.mobileSheetItem('operations','backup',t('Purchasing','المشتريات'),t('Suppliers and purchase workflow','الموردون ودورة المشتريات'))}</section>
-            <section className="ta-sheet-group"><p>{t('Finance & analysis','المالية والتحليل')}</p>{this.mobileSheetItem('receivables','invoice',t('Finance','المالية'),t('Receivables, collections and expenses','المستحقات والتحصيل والمصروفات'))}{this.mobileSheetItem('reports','chart',t('Reports','التقارير'),t('Business and financial analysis','تحليل الأعمال والنتائج المالية'))}</section>
-            <section className="ta-sheet-group"><p>{t('System','النظام')}</p><button type="button" className="ta-sheet-link" onClick={this.openSettings}><span className="ta-sheet-link-icon"><Icon name="settings"/></span><span className="ta-sheet-link-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Workspace, documents and security','مساحة العمل والمستندات والأمان')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button></section>
+            <button type="button" className="ta-sheet-account" onClick={this.openAccount}><span className="ta-sheet-link-icon"><Icon name="users"/></span><span className="ta-sheet-link-copy"><strong>{t('My Account','حسابي')}</strong><small>{t('Identity, business profile and account access','الهوية وملف الشركة والوصول للحساب')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button>
+            <section className="ta-sheet-group"><p>{t('Operations','العمليات')}</p>{this.mobileSheetItem('items','items',t('Products & Inventory','المنتجات والمخزون'),t('Products, stock and movement','المنتجات والمخزون والحركة'))}{this.mobileSheetItem('operations','backup',t('Purchasing','المشتريات'),t('Suppliers and purchase workflow','الموردون ودورة المشتريات'))}</section>
+            <section className="ta-sheet-group"><p>{t('Finance & insights','المالية والتحليلات')}</p>{this.mobileSheetItem('receivables','invoice',t('Finance','المالية'),t('Receivables, collections and expenses','المستحقات والتحصيل والمصروفات'))}{this.mobileSheetItem('reports','chart',t('Reports & Insights','التقارير والتحليلات'),t('Period analysis and profitability','تحليل الفترات والربحية'))}</section>
+            <section className="ta-sheet-group"><p>{t('Account & product','الحساب والمنتج')}</p><button type="button" className="ta-sheet-link" onClick={this.openSettings}><span className="ta-sheet-link-icon"><Icon name="settings"/></span><span className="ta-sheet-link-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Business, documents, security and data','الأعمال والمستندات والأمان والبيانات')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button><button type="button" className="ta-sheet-link" onClick={()=>this.openProductInfo('help')}><span className="ta-sheet-link-icon"><Icon name="file"/></span><span className="ta-sheet-link-copy"><strong>{t('Help & Product Info','المساعدة ومعلومات المنتج')}</strong><small>{t('Help, privacy, terms and build details','المساعدة والخصوصية والشروط وتفاصيل البناء')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button></section>
           </section>
         </>:null}
 
@@ -382,13 +400,14 @@ export class AppShell extends React.Component<Props,State>{
           <button type="button" className={this.props.screen==='home'?'is-active':''} aria-current={this.props.screen==='home'?'page':undefined} onClick={()=>this.navigate('home')}><Icon name="home"/><span>{t('Home','الرئيسية')}</span></button>
           <button type="button" className={this.props.screen==='documents'?'is-active':''} aria-current={this.props.screen==='documents'?'page':undefined} onClick={()=>this.navigate('documents')}><Icon name="file"/><span>{t('Documents','المستندات')}</span></button>
           <div className="ta-mobile-create-wrap">
-            <button type="button" className="ta-mobile-create" aria-haspopup="menu" aria-expanded={this.props.newMenu} aria-controls="ta-mobile-create-menu" aria-label={t('New Document','مستند جديد')} onClick={this.toggleCreate}><Icon name="plus" size={24}/></button>
+            <button type="button" className="ta-mobile-create" aria-haspopup="dialog" aria-label={t('Quick create or search','إنشاء سريع أو بحث')} title={t('Quick create','إنشاء سريع')} onClick={this.openMobileQuickCreate}><Icon name="plus" size={24}/></button>
           </div>
           <button type="button" className={this.props.screen==='customers'?'is-active':''} aria-current={this.props.screen==='customers'?'page':undefined} onClick={()=>this.navigate('customers')}><Icon name="users"/><span>{t('Customers','العملاء')}</span></button>
           <button type="button" className={this.state.moreOpen?'is-active':''} aria-haspopup="dialog" aria-controls="ta-mobile-more" aria-expanded={this.state.moreOpen} onClick={this.toggleMore}><Icon name="more"/><span>{t('More','المزيد')}</span></button>
         </nav>
       </>:null}
 
+      <ProductInfoModal open={Boolean(this.state.infoSection)} section={this.state.infoSection||'help'} language={this.props.language} onSection={section=>this.setState({infoSection:section})} onClose={()=>this.setState({infoSection:null})}/>
       <AiCopilot screen={this.props.screen} language={this.props.language} activeDocument={this.activeEditorDocument()} onNavigate={screen=>this.navigate(screen)}/>
     </div>;
   }
