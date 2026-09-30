@@ -1,5 +1,6 @@
 import type { LourexDocument, VaultPayload } from '../types.js';
 import { buildAiBusinessContext, type AiCustomerInsight } from './ai-business.js';
+import { decimalToScaled, isNonNegativeDecimalInput } from './money.js';
 import { invoicePaymentSummary } from './payments.js';
 import { todayIso } from './id.js';
 
@@ -25,11 +26,12 @@ export interface CollectionTask{
 }
 
 const PRIORITY:Record<CollectionTask['priority'],number>={high:2,medium:1,normal:0};
-function hasExposure(row:AiCustomerInsight):boolean{return row.currencies.some(currency=>Number(currency.outstanding)>0||Number(currency.overdue)>0);}
-function agingWeight(row:Pick<CollectionTask,'currencies'>):number{return row.currencies.reduce((score,currency)=>score+currency.overdueInvoices*20+(Number(currency.aging.days90plus)>0?10:0)+(Number(currency.aging.days61to90)>0?6:0)+(Number(currency.aging.days31to60)>0?3:0),0);}
+function positiveMoney(value:string):boolean{return isNonNegativeDecimalInput(value)&&decimalToScaled(value,2)>0n;}
+function hasExposure(row:AiCustomerInsight):boolean{return row.currencies.some(currency=>positiveMoney(currency.outstanding)||positiveMoney(currency.overdue));}
+function agingWeight(row:Pick<CollectionTask,'currencies'>):number{return row.currencies.reduce((score,currency)=>score+currency.overdueInvoices*20+(positiveMoney(currency.aging.days90plus)?10:0)+(positiveMoney(currency.aging.days61to90)?6:0)+(positiveMoney(currency.aging.days31to60)?3:0),0);}
 function customerInvoices(vault:VaultPayload,customerId:string):LourexDocument[]{return vault.documents.filter(doc=>doc.kind==='invoice'&&doc.role!=='credit-note'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&doc.customerSnapshot?.sourceCustomerId===customerId);}
 function invoiceRefs(vault:VaultPayload,customerId:string):CollectionInvoiceReference[]{
-  const today=todayIso();return customerInvoices(vault,customerId).map(invoice=>{const summary=invoicePaymentSummary(invoice,vault.payments,today,vault.documents);return{invoiceId:invoice.id,number:invoice.number,dueDate:invoice.dueDate,currency:invoice.currency,remaining:summary.remaining,status:summary.status};}).filter(row=>row.status!=='paid'&&Number(row.remaining)>0).sort((a,b)=>(a.dueDate||'9999-99-99').localeCompare(b.dueDate||'9999-99-99')||a.number.localeCompare(b.number));
+  const today=todayIso();return customerInvoices(vault,customerId).map(invoice=>{const summary=invoicePaymentSummary(invoice,vault.payments,today,vault.documents);return{invoiceId:invoice.id,number:invoice.number,dueDate:invoice.dueDate,currency:invoice.currency,remaining:summary.remaining,status:summary.status};}).filter(row=>row.status!=='paid'&&positiveMoney(row.remaining)).sort((a,b)=>(a.dueDate||'9999-99-99').localeCompare(b.dueDate||'9999-99-99')||a.number.localeCompare(b.number));
 }
 function lastCustomerActivity(vault:VaultPayload,customerId:string):string{
   const stamps:string[]=[];
