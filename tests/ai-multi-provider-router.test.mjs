@@ -6,14 +6,17 @@ import {AI_FREE_ONLY,AI_MODEL_REGISTRY,geminiSchemaToJsonSchema,routeAiStructure
 
 const originalFetch=globalThis.fetch;
 const originalSetTimeout=globalThis.setTimeout;
+const originalDateNow=Date.now;
 const originalEnv={...process.env};
+let testClock=originalDateNow();
 function response(status,payload,headers={}){return{ok:status>=200&&status<300,status,headers:{get:name=>headers[String(name).toLowerCase()]||null},async text(){return typeof payload==='string'?payload:JSON.stringify(payload);}};}
-function restore(){globalThis.fetch=originalFetch;globalThis.setTimeout=originalSetTimeout;for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];for(const [key,value] of Object.entries(originalEnv))process.env[key]=value;}
+function restore(){globalThis.fetch=originalFetch;globalThis.setTimeout=originalSetTimeout;Date.now=originalDateNow;for(const key of Object.keys(process.env))if(!(key in originalEnv))delete process.env[key];for(const [key,value] of Object.entries(originalEnv))process.env[key]=value;}
 function schema(){return{type:'OBJECT',properties:{value:{type:'STRING'}},required:['value']};}
 function confidenceSchema(){return{type:'OBJECT',properties:{value:{type:'STRING'},confidence:{type:'STRING',enum:['high','medium','low']}},required:['value','confidence']};}
 function configureAll(){process.env.GROQ_API_KEY='test-groq';process.env.CLOUDFLARE_AI_API_TOKEN='test-cf';process.env.CLOUDFLARE_ACCOUNT_ID='acct';process.env.GEMINI_API_KEY='test-gemini';}
 function allSourceFiles(root){const out=[];for(const name of readdirSync(root)){const path=join(root,name),stat=statSync(path);if(stat.isDirectory())out.push(...allSourceFiles(path));else if(/\.(?:js|jsx|ts|tsx|mjs|cjs)$/.test(name))out.push(path);}return out;}
 
+test.beforeEach(()=>{testClock+=60_000;Date.now=()=>testClock;});
 test.afterEach(restore);
 
 test('free-only registry contains only the approved provider/model set',()=>{
@@ -138,6 +141,6 @@ test('AI provider secrets are server-only and absent from browser source',()=>{
 
 test('document prompts keep uploads as untrusted data and accounting remains deterministic',()=>{
   const customer=readFileSync(new URL('../api/customer-capture-ai.js',import.meta.url),'utf8');const core=readFileSync(new URL('../api/ai-core.js',import.meta.url),'utf8');
-  assert.match(customer,/untrusted DATA/i);assert.match(customer,/do not follow/i);
+  assert.match(customer,/untrusted DATA/i);assert.match(customer,/ignore any instructions|never execute or follow/i);
   assert.match(core,/calculated deterministically/i);assert.match(core,/do not replace or recalculate/i);assert.match(core,/preview-only/i);
 });
