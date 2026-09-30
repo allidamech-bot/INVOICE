@@ -7,6 +7,7 @@ import { findSavedItemMatch, normalizeSavedItemIdentity } from './saved-items.js
 export type AccountingGuardianCode=
   |'missing-customer'
   |'missing-supplier'
+  |'missing-currency'
   |'zero-quantity'
   |'zero-price'
   |'duplicate-line'
@@ -61,6 +62,7 @@ export function buildAccountingGuardianReview(doc:LourexDocument,company:Company
   const issues:AccountingGuardianIssue[]=[];const currency=doc.currency.trim().toUpperCase();
   if(isSupplierDocumentKind(doc.kind)){if(!doc.supplierSnapshot)issues.push(issue('missing-supplier','critical',-1,'Supplier',currency,'','','','Supplier identity is missing.'));}
   else if(doc.kind!=='draft'&&!doc.customerSnapshot)issues.push(issue('missing-customer','critical',-1,'Customer',currency,'','','','Customer identity is missing.'));
+  if(!documentPriceOptional(doc.kind)&&!currency)issues.push(issue('missing-currency','critical',-1,'Currency','','','','','Document currency is missing. LOUREX will withhold all currency-sensitive price, cost, margin and credit comparisons until it is supplied.'));
 
   const duplicateSeen=new Map<string,number>();
   doc.items.forEach((item,index)=>{
@@ -78,7 +80,7 @@ export function buildAccountingGuardianReview(doc:LourexDocument,company:Company
     const value=decimalToScaled(doc.adjustments.discountValue,0);if(value>=EXTREME_DISCOUNT_PERCENT)issues.push(issue('extreme-discount','warning',-1,'Discount',currency,doc.adjustments.discountValue,'','','Discount percentage is at or above the Guardian review threshold of 25%.'));
   }
 
-  if(applicable(doc)){
+  if(applicable(doc)&&currency){
     doc.items.forEach((item,index)=>{
       const match=findSavedItemMatch(savedItems,item);const explicitCost=(item.unitCost||'').trim();const savedCost=(match?.lastUnitCost||'').trim();const savedCostCurrency=(match?.lastCostCurrency||'').trim().toUpperCase();let cost=explicitCost;if(!cost&&savedCost&&savedCostCurrency===currency)cost=savedCost;
       const price=item.unitPrice.trim();const itemName=lineName(doc,index);
@@ -90,11 +92,11 @@ export function buildAccountingGuardianReview(doc:LourexDocument,company:Company
       if(suggestedPrice&&priceScaled<decimalToScaled(suggestedPrice,SCALE))issues.push(issue('below-pricing-policy','warning',index,itemName,currency,price,cost,suggestedPrice,'Selling price is below the current company pricing-policy suggestion.'));
     });
   }
-  if(doc.kind==='invoice'&&doc.role!=='credit-note'){
+  if(doc.kind==='invoice'&&doc.role!=='credit-note'&&currency){
     const credit=customerCreditStatus(doc,customers,documents,payments);
     if(credit&&!credit.comparable)issues.push(issue('credit-currency-mismatch','info',-1,credit.customerName,credit.currency,credit.projected,credit.limit,'',`Customer credit limit uses ${credit.creditCurrency}; LOUREX does not perform FX conversion.`));
     else if(credit?.exceeded)issues.push(issue('credit-limit-exceeded','critical',-1,credit.customerName,credit.currency,credit.projected,credit.limit,'','Projected customer exposure exceeds the saved credit limit.'));
   }
-  const costIssues=issues.filter(entry=>entry.code==='missing-cost'||entry.code==='cost-currency-mismatch');const counts={info:issues.filter(entry=>entry.severity==='info').length,warning:issues.filter(entry=>entry.severity==='warning').length,critical:issues.filter(entry=>entry.severity==='critical').length};
-  return{basis:'deterministic-accounting-guardian',issues,checkedItems:applicable(doc)?doc.items.length:0,costComplete:costIssues.length===0,status:issues.length?'attention':'clear',counts,limitations:['currencies-remain-separate','no-fx-conversion','no-fraud-inference','25-percent-discount-and-price-change-thresholds-are-review-signals-not-accounting-rules','guardian-does-not-post-or-finalize-records']};
+  const costIssues=issues.filter(entry=>entry.code==='missing-currency'||entry.code==='missing-cost'||entry.code==='cost-currency-mismatch');const counts={info:issues.filter(entry=>entry.severity==='info').length,warning:issues.filter(entry=>entry.severity==='warning').length,critical:issues.filter(entry=>entry.severity==='critical').length};
+  return{basis:'deterministic-accounting-guardian',issues,checkedItems:applicable(doc)?doc.items.length:0,costComplete:costIssues.length===0,status:issues.length?'attention':'clear',counts,limitations:['currencies-remain-separate','missing-document-currency-withholds-price-cost-margin-and-credit-comparisons','no-fx-conversion','no-fraud-inference','25-percent-discount-and-price-change-thresholds-are-review-signals-not-accounting-rules','guardian-does-not-post-or-finalize-records']};
 }

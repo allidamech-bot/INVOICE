@@ -1,4 +1,7 @@
 /* LOUREX v449 — Chat-style AI composer. The + control is the single workflow launcher. */
+.lourex-ai-launcher>svg,#lourex-ai-panel .lourex-ai-mark>svg{display:none!important}
+.lourex-ai-launcher:before,#lourex-ai-panel .lourex-ai-mark:before{content:"";display:block;width:72%;height:72%;background:url("./brand/lourex-logo.svg") center/contain no-repeat;filter:none}
+#lourex-ai-panel .lourex-ai-mark:before{width:78%;height:78%}
 #lourex-ai-panel .lourex-ai-compose{position:relative;z-index:20;padding:10px 12px 12px!important;background:var(--ft-surface,#101011)!important}
 #lourex-ai-panel [data-lourex-ai-workflow-mount]>.lourex-ai-tools,
 #lourex-ai-panel .lourex-ai-compose>.lourex-ai-tools,
@@ -38,10 +41,21 @@
 #lourex-ai-panel .lourex-ai-plus-menu[hidden]{display:none!important}
 #lourex-ai-panel .lourex-ai-plus-section+ .lourex-ai-plus-section{margin-top:6px;padding-top:6px;border-top:1px solid var(--ft-line,rgba(255,255,255,.08))}
 #lourex-ai-panel .lourex-ai-plus-heading{display:block;padding:6px 10px 4px;color:var(--ft-text-soft,#918f8a);font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
-#lourex-ai-panel .lourex-ai-plus-item{width:100%;min-height:48px;display:flex;align-items:center;gap:11px;padding:8px 10px;border:0;border-radius:13px;background:transparent;color:var(--ft-text,#f5f3ef);text-align:left;font:inherit;cursor:pointer;touch-action:manipulation}
+#lourex-ai-panel .lourex-ai-plus-item{width:100%;min-height:48px;display:flex;align-items:center;gap:11px;padding:8px 10px;border:1px solid transparent;border-radius:13px;background:transparent;color:var(--ft-text,#f5f3ef);text-align:left;font:inherit;cursor:pointer;touch-action:manipulation;transition:background .15s ease,border-color .15s ease,transform .15s ease}
 #lourex-ai-panel[dir="rtl"] .lourex-ai-plus-item{text-align:right}
-#lourex-ai-panel .lourex-ai-plus-item:hover,#lourex-ai-panel .lourex-ai-plus-item:focus-visible{background:var(--ft-surface-2,#202022);outline:0}
-#lourex-ai-panel .lourex-ai-plus-icon{flex:0 0 34px;width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--ft-line,rgba(255,255,255,.09));border-radius:10px;background:var(--ft-input,#181819);color:var(--ft-accent,#82a9ec)}
+#lourex-ai-panel .lourex-ai-plus-item:hover,#lourex-ai-panel .lourex-ai-plus-item:focus-visible{background:color-mix(in srgb,var(--ai-tone,var(--ft-accent,#7399e3)) 7%,var(--ft-surface-2,#202022));border-color:color-mix(in srgb,var(--ai-tone,var(--ft-accent,#7399e3)) 20%,var(--ft-line,transparent));outline:0;transform:translateY(-1px)}
+#lourex-ai-panel .lourex-ai-plus-icon{flex:0 0 34px;width:34px;height:34px;display:grid;place-items:center;border:1px solid color-mix(in srgb,var(--ai-tone,var(--ft-accent,#82a9ec)) 30%,var(--ft-line,transparent));border-radius:10px;background:color-mix(in srgb,var(--ai-tone,var(--ft-accent,#82a9ec)) 13%,var(--ft-input,#181819));color:var(--ai-tone,var(--ft-accent,#82a9ec));box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+#lourex-ai-panel .lourex-ai-plus-item.tone-blue{--ai-tone:#4f8df7}
+#lourex-ai-panel .lourex-ai-plus-item.tone-indigo{--ai-tone:#7180ff}
+#lourex-ai-panel .lourex-ai-plus-item.tone-cyan{--ai-tone:#22b8cf}
+#lourex-ai-panel .lourex-ai-plus-item.tone-amber{--ai-tone:#e8a63a}
+#lourex-ai-panel .lourex-ai-plus-item.tone-violet{--ai-tone:#9b78f0}
+#lourex-ai-panel .lourex-ai-plus-item.tone-emerald{--ai-tone:#35b887}
+#lourex-ai-panel .lourex-ai-plus-item.tone-orange{--ai-tone:#e98743}
+#lourex-ai-panel .lourex-ai-plus-item.tone-rose{--ai-tone:#db7189}
+#lourex-ai-panel .lourex-ai-plus-item.tone-purple{--ai-tone:#ab76dc}
+#lourex-ai-panel .lourex-ai-plus-item.tone-red{--ai-tone:#dd6c6c}
+#lourex-ai-panel .lourex-ai-plus-item.tone-slate{--ai-tone:#8293ad}
 #lourex-ai-panel .lourex-ai-plus-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 #lourex-ai-panel .lourex-ai-plus-copy{min-width:0;display:flex;flex-direction:column;gap:2px}
 #lourex-ai-panel .lourex-ai-plus-copy strong{font-size:13px;font-weight:750;line-height:1.3}

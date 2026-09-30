@@ -28,6 +28,7 @@ function guardianText(code:AccountingGuardianCode):string{
   switch(code){
     case 'missing-customer':return t('Customer identity is missing.','هوية العميل مفقودة.');
     case 'missing-supplier':return t('Supplier identity is missing.','هوية المورد مفقودة.');
+    case 'missing-currency':return t('Document currency is missing. Price, cost, margin and credit comparisons are withheld until it is supplied.','عملة المستند مفقودة. تم إيقاف مقارنات السعر والتكلفة والهامش والائتمان حتى يتم تحديدها.');
     case 'zero-quantity':return t('Quantity is zero and needs explicit review.','الكمية صفر وتحتاج مراجعة صريحة.');
     case 'zero-price':return t('Selling price is zero and needs explicit review.','سعر البيع صفر ويحتاج مراجعة صريحة.');
     case 'duplicate-line':return t('A duplicate product line was detected.','تم اكتشاف سطر منتج مكرر.');

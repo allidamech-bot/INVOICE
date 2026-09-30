@@ -150,7 +150,7 @@ export function extractSupplierDraftLocally(matrix:unknown[][]):SupplierImportDr
     const sku=(data.sku??'').trim();const descriptionEn=(data.descriptionEn??'').trim();const descriptionAr=(data.descriptionAr??'').trim();
     if(!quantity||!unitCost||(!sku&&!descriptionEn&&!descriptionAr))continue;
     if(currencyColumn>=0&&!detectedCurrency)detectedCurrency=currencyHint(row[currencyColumn]);
-    items.push({sku,descriptionEn,descriptionAr,quantity,unit:(data.unit??'').trim()||'PCS',unitCost});
+    items.push({sku,descriptionEn,descriptionAr,quantity,unit:(data.unit??'').trim(),unitCost});
   }
   if(!items.length)return null;
   const explicitCurrency=metadata(matrix,['currency','invoice currency','عملة','العملة']);
@@ -160,9 +160,9 @@ export function extractSupplierDraftLocally(matrix:unknown[][]):SupplierImportDr
     documentNumber:metadata(matrix,['invoice number','invoice no','proforma number','proforma no','document number','رقم الفاتورة','رقم المستند']),
     date:isoDate(metadata(matrix,['date','invoice date','document date','التاريخ','تاريخ الفاتورة'])),
     currency:currencyHint(explicitCurrency)||detectedCurrency,
-    freight:safeDecimal(metadata(matrix,['freight','shipping','الشحن']))||'0.00',
-    duty:safeDecimal(metadata(matrix,['duty','customs','customs duty','الجمارك','الرسوم الجمركية']))||'0.00',
-    otherCosts:safeDecimal(metadata(matrix,['other costs','other charges','تكاليف أخرى','رسوم أخرى']))||'0.00',
+    freight:safeDecimal(metadata(matrix,['freight','shipping','الشحن'])),
+    duty:safeDecimal(metadata(matrix,['duty','customs','customs duty','الجمارك','الرسوم الجمركية'])),
+    otherCosts:safeDecimal(metadata(matrix,['other costs','other charges','تكاليف أخرى','رسوم أخرى'])),
     paymentTerms:metadata(matrix,['payment terms','terms of payment','شروط الدفع']),
     notes:'',
     items
