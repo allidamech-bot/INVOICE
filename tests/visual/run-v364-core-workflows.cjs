@@ -137,7 +137,7 @@ async function assertPartyDropdownInFlow(page,partySelector,label){
     await run('Product editor save and delete actions work from the mobile sheet',async()=>{
       const {page,errors}=await open(browser,'v326-products-workspace.html?lang=en');
       try{
-        await page.locator('.ta-products-workspace-header .btn-primary').click();
+        await page.locator('.ta-product-commandbar .btn-primary').click();
         const editor=page.locator('.ta-product-editor.is-open');await editor.waitFor();
         const geom=await editor.evaluate(el=>{const r=el.getBoundingClientRect(),scroll=el.querySelector('.ta-product-editor-scroll'),footer=el.querySelector('.ta-product-editor-footer');return{top:r.top,bottom:r.bottom,scrollHeight:scroll.scrollHeight,scrollClient:scroll.clientHeight,footerBottom:footer.getBoundingClientRect().bottom,viewport:innerHeight};});
         assert.ok(geom.footerBottom<=geom.viewport+1,`Product save action stays onscreen: ${JSON.stringify(geom)}`);
@@ -198,7 +198,7 @@ async function assertPartyDropdownInFlow(page,partySelector,label){
       }finally{await customer.page.close();}
       const product=await open(browser,'v326-products-workspace.html?lang=ar',viewport);
       try{
-        await product.page.locator('.ta-products-workspace-header .btn-primary').click();
+        await product.page.locator('.ta-product-commandbar .btn-primary').click();
         const editor=product.page.locator('.ta-product-editor.is-open');await editor.waitFor();
         const box=await editor.boundingBox(),footer=await editor.locator('.ta-product-editor-footer').boundingBox();
         assert.ok(box.x>=0&&box.x+box.width<=320,`320px product editor fits: ${JSON.stringify(box)}`);
