@@ -25,7 +25,7 @@ function itemMatch(items:SavedItem[],row:SupplierImportDraft['items'][number]):S
  */
 export function buildAiSupplierPurchaseDraft(draft:SupplierImportDraft,purchases:PurchaseRecord[],suppliers:Supplier[],items:SavedItem[]):PurchaseRecord{
   const matchedSupplier=supplierMatch(suppliers,draft);
-  let purchase=createPurchase(purchases,matchedSupplier?[matchedSupplier]:[],draft.currency||'USD');
+  let purchase=createPurchase(purchases,matchedSupplier?[matchedSupplier]:[],draft.currency.trim());
   const now=new Date().toISOString();
   purchase={...purchase,date:draft.date.trim(),currency:draft.currency.trim().toUpperCase(),supplierSnapshot:matchedSupplier?supplierSnapshotFrom(matchedSupplier):draft.supplierName?{sourceSupplierId:'',nameEn:draft.supplierName,nameAr:'',contactPerson:'',address:'',city:'',country:'',phone:'',email:'',vatTaxNumber:draft.supplierTaxId,commercialRegistration:''}:null,freight:draft.freight.trim(),duty:draft.duty.trim(),otherCosts:draft.otherCosts.trim(),notes:[draft.documentNumber?`Supplier document: ${draft.documentNumber}`:'',draft.paymentTerms?`Payment terms: ${draft.paymentTerms}`:'',draft.notes].filter(Boolean).join('\n'),status:'draft',updatedAt:now};
   purchase.items=draft.items.map(row=>{
