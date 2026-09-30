@@ -18,7 +18,7 @@ function quoteWithoutCurrency(){
   const doc=createBlankDocument('proforma','PI-TEST-1',company);
   doc.currency='';
   doc.customerSnapshot={sourceCustomerId:'customer-1',companyNameEn:'Test Customer',companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};
-  doc.items=[{...doc.items[0],descriptionEn:'Currency Guard Product',quantity:'1',unit:'PCS',unitPrice:'50.00',unitCost:'100.00'}];
+  doc.items=[{id:'line-1',savedItemId:'guardian-currency-item',sku:'CUR-1',descriptionEn:'Currency Guard Product',descriptionAr:'',hsCode:'',origin:'',packing:'',quantity:'1',unit:'PCS',unitPrice:'50.00',unitCost:'100.00'}];
   return {doc,company};
 }
 
@@ -36,7 +36,6 @@ test('v450 accounting guardian withholds all price-cost-policy comparisons when 
 test('v450 accounting guardian resumes comparable cost checks once a document currency is explicit',()=>{
   const {doc,company}=quoteWithoutCurrency();
   doc.currency='USD';
-  doc.items[0].unitCost='100.00';
   const product=savedProduct();product.lastCostCurrency='USD';product.lastCurrency='USD';
   const review=buildAccountingGuardianReview(doc,company,[product],[],[],[]);
   assert.ok(!review.issues.some(issue=>issue.code==='missing-currency'));
