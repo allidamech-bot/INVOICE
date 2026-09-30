@@ -76,7 +76,7 @@ export class CustomerAiCapture extends React.Component<Props,State>{
   };
   private cancel=()=>{this.generation+=1;this.abort?.abort();this.abort=null;};
   private open=()=>{this.cancel();this.setState({open:true,stage:'idle',files:[],pastedText:'',proposal:null,matches:[],selectedMatchId:'',errors:[],error:'',model:''});};
-  private close=()=>{if(this.state.stage==='reading'||this.state.stage==='analyzing')return;this.cancel();this.setState({open:false});};
+  private close=()=>{this.cancel();this.setState({open:false,stage:'idle'});};
 
   private chooseFiles=(files:FileList|null)=>{
     const next=Array.from(files??[]).slice(0,MAX_FILES);
@@ -145,7 +145,7 @@ export class CustomerAiCapture extends React.Component<Props,State>{
             <Field label={t('Or paste company text','أو الصق نص بيانات الشركة')}><Textarea rows="5" value={this.state.pastedText} disabled={busy} onChange={(event:any)=>this.setState({pastedText:event.target.value})}/></Field>
           </>:null}
 
-          {busy?<div role="status"><Icon name="file"/><strong>{this.state.stage==='reading'?t('Reading sources…','جارٍ قراءة المصادر…'):t('LOUREX AI is extracting customer data…','يقوم LOUREX AI باستخراج بيانات العميل…')}</strong><p>{t('No customer record is being changed during analysis.','لا يتم تعديل أي سجل عميل أثناء التحليل.')}</p></div>:null}
+          {busy?<div role="status"><Icon name="file"/><strong>{this.state.stage==='reading'?t('Reading sources…','جارٍ قراءة المصادر…'):t('LOUREX AI is extracting customer data…','يقوم LOUREX AI باستخراج بيانات العميل…')}</strong><p>{t('No customer record is being changed during analysis. You can cancel safely.','لا يتم تعديل أي سجل عميل أثناء التحليل. يمكنك إلغاء التحليل بأمان.')}</p><Button onClick={this.close}>{t('Cancel analysis','إلغاء التحليل')}</Button></div>:null}
 
           {this.state.stage==='review'&&proposal?<>
             <div><strong>{t('Sources reviewed','المصادر التي تمت مراجعتها')}</strong><ul>{this.state.files.map(file=><li key={`${file.name}:${file.size}`}>{file.name}</li>)}{this.state.pastedText.trim()?<li>{t('Pasted text','النص الملصق')}</li>:null}</ul></div>
