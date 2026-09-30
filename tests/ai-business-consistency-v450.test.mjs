@@ -28,6 +28,8 @@ function legacyInvoice({id='legacy-inv-1',number='INV-LEGACY-1',issueDate='2026-
   return doc;
 }
 
+function legacyPayment(invoice,{id='legacy-payment',amount='10.00',date='2026-03-01'}={}){const stamp=`${date}T12:00:00.000Z`;return{id,invoiceId:invoice.id,invoiceNumber:invoice.number,customerId:'',customerNameEn:'Legacy Buyer',customerNameAr:'',currency:invoice.currency,amount,date,method:'bank-transfer',reference:'LEGACY-PAY',notes:'',createdAt:stamp,updatedAt:stamp};}
+
 function postedPurchase(item,date,unitCost='25.00'){
   const supplier=createSupplier();supplier.id='supplier-future';supplier.nameEn='Future Supplier';
   const purchase=createPurchase([], [supplier], 'USD');
@@ -105,6 +107,14 @@ test('v450 collections keep legacy receivable invoices attached to their derived
   assert.equal(tasks[0].oldestOpenInvoice?.invoiceId,invoice.id);
   assert.equal(tasks[0].oldestOpenInvoice?.number,invoice.number);
   assert.equal(tasks[0].oldestOpenInvoice?.status,'overdue');
+});
+
+test('v450 legacy invoice payments count as collection activity even without a direct customer id',()=>{
+  const vault=emptyVault();const invoice=legacyInvoice();const payment=legacyPayment(invoice);vault.documents=[invoice];vault.payments=[payment];
+  const tasks=buildCollectionTasks(vault,'2026-03-15');
+  assert.equal(tasks.length,1);
+  assert.equal(tasks[0].currencies[0].outstanding,'90.00');
+  assert.equal(tasks[0].lastActivity.slice(0,10),'2026-03-01');
 });
 
 test('v450 historical customer intelligence excludes future invoices and preserves snapshot identity',()=>{
