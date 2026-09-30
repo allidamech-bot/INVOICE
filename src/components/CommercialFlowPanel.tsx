@@ -48,7 +48,7 @@ export function CommercialFlowPanel({document,documents,events,onOpenDocument,on
   const [rejectOpen,setRejectOpen]=React.useState(false);
   const [rejectionReason,setRejectionReason]=React.useState('');
   const [followUpDate,setFollowUpDate]=React.useState('');
-  if(!isQuoteLikeDocument(document)&&!document.convertedFromId&&document.kind!=='invoice')return null;
+  if(!isQuoteLikeDocument(document)&&!document.convertedFromId)return null;
   const snapshot=buildCommercialFlowSnapshot(document,documents,events,null);
   const arabic=isArabic();
   const status=commercialStatusLabel(snapshot.status,arabic);
