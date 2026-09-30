@@ -4,7 +4,11 @@
   const PANEL='#lourex-ai-panel';
   const COMPOSE='.lourex-ai-compose';
   const WORKFLOW_MOUNT='[data-lourex-ai-workflow-mount]';
+  const MENU_ID='lourex-ai-plus-menu-v449';
   let raf=0;
+  let recognition=null;
+  let recognitionPanel=null;
+  let voiceHadResult=false;
 
   const svg={
     plus:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
@@ -27,48 +31,10 @@
   function workflowButtons(panel){return Array.from(panel?.querySelectorAll(`${WORKFLOW_MOUNT}>.lourex-ai-tools button`)||[]);}
   function setExpanded(button,open){button?.setAttribute('aria-expanded',String(open));}
 
-  function directEvent(name){
-    closeMenu();
-    window.dispatchEvent(new Event(name));
-  }
-
-  function routeThroughWorkflowMenu(index){
-    const panel=document.querySelector(PANEL);
-    const launchers=workflowButtons(panel);
-    const tools=launchers[1];
-    if(!(tools instanceof HTMLButtonElement))return;
-    closeMenu();
-    document.documentElement.dataset.lourexAiInternalRoute='true';
-    tools.click();
-    window.requestAnimationFrame(()=>{
-      const modals=Array.from(document.querySelectorAll('.modal-backdrop'));
-      const modal=modals.at(-1);
-      const buttons=Array.from(modal?.querySelectorAll('.ta-customer-modal-actions button')||[]);
-      const target=buttons[index];
-      if(target instanceof HTMLButtonElement)target.click();
-      window.requestAnimationFrame(()=>{delete document.documentElement.dataset.lourexAiInternalRoute;});
-    });
-    window.setTimeout(()=>{delete document.documentElement.dataset.lourexAiInternalRoute;},300);
-  }
-
-  function openInbox(){
-    const panel=document.querySelector(PANEL);
-    const button=workflowButtons(panel)[0];
-    closeMenu();
-    if(button instanceof HTMLButtonElement)button.click();
-  }
-
-  function openSupplierDocument(){
-    const panel=document.querySelector(PANEL);
-    const compose=panel?.querySelector(COMPOSE);
-    const button=compose?.querySelector(':scope>.lourex-ai-tools button');
-    closeMenu();
-    if(button instanceof HTMLButtonElement)button.click();
-  }
-
   function labels(panel){return {
     create:text(panel,'Create from source','إنشاء من مصدر'),
     business:text(panel,'Business tools','أدوات الأعمال'),
+    records:text(panel,'Activity & records','النشاط والسجلات'),
     inbox:[text(panel,'AI Inbox','صندوق AI'),text(panel,'Upload any business file and route it safely','ارفع أي ملف أعمال ووجّهه بأمان')],
     quote:[text(panel,'File → Quotation','ملف ← عرض سعر'),text(panel,'Turn an RFQ or image into a quotation draft','حوّل RFQ أو صورة إلى مسودة عرض سعر')],
     product:[text(panel,'Product AI','ذكاء المنتجات'),text(panel,'Read catalogs and price lists with review','اقرأ الكتالوجات وقوائم الأسعار مع المراجعة')],
@@ -82,11 +48,82 @@
     memory:[text(panel,'Business Memory','ذاكرة الأعمال'),text(panel,'Derived patterns from approved records','أنماط مشتقة من السجلات المعتمدة')],
     guardian:[text(panel,'Accounting Guardian','حارس المحاسبة'),text(panel,'Review risks before final actions','راجع المخاطر قبل الإجراءات النهائية')],
     history:[text(panel,'AI Job History','سجل مهام AI'),text(panel,'Session-only processing history','سجل المعالجة لهذه الجلسة')],
+    advisorActivity:[text(panel,'Advisor Activity','نشاط المستشار'),text(panel,'Review actions proposed in this chat','راجع الإجراءات المقترحة في هذه المحادثة')],
     plus:text(panel,'Open AI tools','فتح أدوات AI'),
     mic:text(panel,'Voice input','إدخال صوتي'),
     listening:text(panel,'Listening… tap the microphone to stop','جارٍ الاستماع… اضغط الميكروفون للإيقاف'),
+    starting:text(panel,'Starting microphone…','جارٍ تشغيل الميكروفون…'),
+    voiceAdded:text(panel,'Voice added to your message','تمت إضافة الصوت إلى الرسالة'),
+    voiceStopped:text(panel,'Voice stopped','تم إيقاف الصوت'),
+    voiceUnavailable:text(panel,'Voice input is not available in this browser','الإدخال الصوتي غير متاح في هذا المتصفح'),
+    voiceDenied:text(panel,'Microphone access was denied. Allow microphone access and try again.','تم رفض إذن الميكروفون. اسمح بالوصول إلى الميكروفون ثم حاول مجددًا.'),
+    noSpeech:text(panel,'No speech was detected. Try again.','لم يتم اكتشاف كلام. حاول مرة أخرى.'),
+    micUnavailable:text(panel,'No microphone is available.','لا يوجد ميكروفون متاح.'),
+    voiceFailed:text(panel,'Voice input could not start. Try again.','تعذر بدء الإدخال الصوتي. حاول مرة أخرى.'),
+    loadingTools:text(panel,'AI tools are still loading. Try again in a moment.','أدوات AI ما زالت قيد التحميل. حاول بعد لحظة.'),
+    actionUnavailable:text(panel,'This AI tool could not open. Try again.','تعذر فتح أداة AI. حاول مرة أخرى.'),
     message:text(panel,'Message LOUREX…','راسل LOUREX…')
   };}
+
+  function composerStatus(panel,state,message,autoHide=0){
+    const status=panel?.querySelector('.lourex-ai-voice-status');
+    const mic=panel?.querySelector('.lourex-ai-composer-mic');
+    if(!(status instanceof HTMLElement))return;
+    status.dataset.state=state||'';
+    status.classList.toggle('is-visible',Boolean(message));
+    status.classList.toggle('is-error',state==='error');
+    const copy=status.querySelector('span:last-child');if(copy)copy.textContent=message||'';
+    if(mic instanceof HTMLButtonElement){const listening=state==='listening';mic.classList.toggle('is-listening',listening);mic.setAttribute('aria-pressed',String(listening));}
+    if(autoHide>0&&message){window.setTimeout(()=>{if(status.dataset.state===state){status.classList.remove('is-visible','is-error');status.dataset.state='';}},autoHide);}
+  }
+
+  function withWorkflowReady(callback,attempt=0){
+    const panel=document.querySelector(PANEL);
+    if(!(panel instanceof HTMLElement))return;
+    const buttons=workflowButtons(panel);
+    if(buttons.length>=3){callback(panel,buttons);return;}
+    if(attempt<12){window.setTimeout(()=>withWorkflowReady(callback,attempt+1),50);return;}
+    composerStatus(panel,'error',labels(panel).loadingTools,2800);
+  }
+
+  function closeMenu(focusPlus=false){
+    const menu=document.querySelector(`${PANEL} .lourex-ai-plus-menu`);if(!(menu instanceof HTMLElement))return;
+    menu.hidden=true;const plus=document.querySelector(`${PANEL} .lourex-ai-composer-plus`);setExpanded(plus,false);if(focusPlus&&plus instanceof HTMLButtonElement)plus.focus({preventScroll:true});
+  }
+
+  function directEvent(name){withWorkflowReady(panel=>{closeMenu();window.dispatchEvent(new Event(name));composerStatus(panel,'','');});}
+
+  function clickInternalAction(panel,index,attempt=0){
+    const modals=Array.from(document.querySelectorAll('.modal-backdrop'));
+    const modal=modals.at(-1);
+    const buttons=Array.from(modal?.querySelectorAll('.ta-customer-modal-actions button')||[]);
+    const target=buttons[index];
+    if(target instanceof HTMLButtonElement){target.click();delete document.documentElement.dataset.lourexAiInternalRoute;return;}
+    if(attempt<10){window.requestAnimationFrame(()=>clickInternalAction(panel,index,attempt+1));return;}
+    delete document.documentElement.dataset.lourexAiInternalRoute;composerStatus(panel,'error',labels(panel).actionUnavailable,2800);
+  }
+
+  function routeThroughWorkflowMenu(index){
+    withWorkflowReady((panel,launchers)=>{
+      const tools=launchers[1];if(!(tools instanceof HTMLButtonElement)){composerStatus(panel,'error',labels(panel).actionUnavailable,2800);return;}
+      closeMenu();document.documentElement.dataset.lourexAiInternalRoute='true';tools.click();window.requestAnimationFrame(()=>clickInternalAction(panel,index));
+      window.setTimeout(()=>{delete document.documentElement.dataset.lourexAiInternalRoute;},1200);
+    });
+  }
+
+  function openInbox(){withWorkflowReady((panel,buttons)=>{closeMenu();const button=buttons[0];if(button instanceof HTMLButtonElement)button.click();else composerStatus(panel,'error',labels(panel).actionUnavailable,2800);});}
+
+  function openSupplierDocument(){
+    const panel=document.querySelector(PANEL);if(!(panel instanceof HTMLElement))return;
+    const compose=panel.querySelector(COMPOSE);const button=compose?.querySelector(':scope>.lourex-ai-tools button');closeMenu();
+    if(button instanceof HTMLButtonElement)button.click();else composerStatus(panel,'error',labels(panel).actionUnavailable,2800);
+  }
+
+  function openAdvisorActivity(){
+    const panel=document.querySelector(PANEL);if(!(panel instanceof HTMLElement))return;
+    const button=panel.querySelector(`${COMPOSE}>.lourex-ai-meta button`);closeMenu();
+    if(button instanceof HTMLButtonElement)button.click();else composerStatus(panel,'error',labels(panel).actionUnavailable,2800);
+  }
 
   function item(iconName,copy,onClick){
     const button=document.createElement('button');button.type='button';button.className='lourex-ai-plus-item';button.setAttribute('role','menuitem');
@@ -101,63 +138,81 @@
 
   function buildMenu(panel,menu){
     const l=labels(panel);menu.replaceChildren();menu.setAttribute('role','menu');menu.setAttribute('aria-label',l.plus);
-    const createItems=[
-      item('inbox',l.inbox,openInbox),item('quote',l.quote,()=>routeThroughWorkflowMenu(1)),item('product',l.product,()=>routeThroughWorkflowMenu(10)),item('supplier',l.supplier,()=>routeThroughWorkflowMenu(11))
-    ];
+    const createItems=[item('inbox',l.inbox,openInbox),item('quote',l.quote,()=>routeThroughWorkflowMenu(1)),item('product',l.product,()=>routeThroughWorkflowMenu(10)),item('supplier',l.supplier,()=>routeThroughWorkflowMenu(11))];
     const compose=panel.querySelector(COMPOSE);if(compose?.querySelector(':scope>.lourex-ai-tools button'))createItems.push(item('supplier',l.supplierDoc,openSupplierDocument));
-    const businessItems=[
-      item('search',l.search,()=>directEvent('lourex-ai-open-business-search')),
-      item('money',l.collections,()=>directEvent('lourex-ai-open-collections')),
-      item('compare',l.procurement,()=>directEvent('lourex-ai-open-procurement')),
-      item('money',l.cfo,()=>directEvent('lourex-ai-open-cfo')),
-      item('today',l.daily,()=>directEvent('lourex-ai-open-daily')),
-      item('memory',l.memory,()=>directEvent('lourex-ai-open-memory')),
-      item('shield',l.guardian,()=>routeThroughWorkflowMenu(4)),
-      item('history',l.history,()=>routeThroughWorkflowMenu(3))
-    ];
-    menu.append(section(l.create,createItems),section(l.business,businessItems));
-  }
-
-  function closeMenu(){
-    const menu=document.querySelector(`${PANEL} .lourex-ai-plus-menu`);if(!(menu instanceof HTMLElement))return;menu.hidden=true;const plus=document.querySelector(`${PANEL} .lourex-ai-composer-plus`);setExpanded(plus,false);
+    const businessItems=[item('search',l.search,()=>directEvent('lourex-ai-open-business-search')),item('money',l.collections,()=>directEvent('lourex-ai-open-collections')),item('compare',l.procurement,()=>directEvent('lourex-ai-open-procurement')),item('money',l.cfo,()=>directEvent('lourex-ai-open-cfo')),item('today',l.daily,()=>directEvent('lourex-ai-open-daily')),item('memory',l.memory,()=>directEvent('lourex-ai-open-memory')),item('shield',l.guardian,()=>routeThroughWorkflowMenu(4))];
+    const recordItems=[item('history',l.history,()=>routeThroughWorkflowMenu(3)),item('history',l.advisorActivity,openAdvisorActivity)];
+    menu.append(section(l.create,createItems),section(l.business,businessItems),section(l.records,recordItems));
   }
 
   function toggleMenu(panel,menu,plus){
-    const next=menu.hidden;menu.hidden=!next;setExpanded(plus,next);if(next){buildMenu(panel,menu);window.setTimeout(()=>menu.querySelector('button')?.focus(),0);}
+    const next=menu.hidden;menu.hidden=!next;setExpanded(plus,next);if(next){buildMenu(panel,menu);composerStatus(panel,'','');window.setTimeout(()=>menu.querySelector('button')?.focus(),0);}
   }
 
-  function syncVoice(panel){
-    const mic=panel.querySelector('.lourex-ai-composer-mic');const status=panel.querySelector('.lourex-ai-voice-status');const input=panel.querySelector(`${COMPOSE} form>input`);if(!(mic instanceof HTMLButtonElement)||!(status instanceof HTMLElement))return;
-    const hiddenVoice=workflowButtons(panel)[2];const hiddenText=(hiddenVoice?.textContent||'').replace(/\s+/g,' ').trim();const listening=/\bStop\b|إيقاف/.test(hiddenText);
-    mic.classList.toggle('is-listening',listening);mic.setAttribute('aria-pressed',String(listening));status.classList.toggle('is-visible',listening);const l=labels(panel);status.querySelector('span:last-child').textContent=l.listening;if(input instanceof HTMLInputElement)input.placeholder=listening?l.listening:l.message;
+  function menuKeydown(event){
+    const menu=event.currentTarget;if(!(menu instanceof HTMLElement))return;
+    const buttons=Array.from(menu.querySelectorAll('button:not([disabled])'));if(!buttons.length)return;
+    const current=buttons.indexOf(document.activeElement);let next=-1;
+    if(event.key==='ArrowDown')next=current<0?0:(current+1)%buttons.length;
+    else if(event.key==='ArrowUp')next=current<0?buttons.length-1:(current-1+buttons.length)%buttons.length;
+    else if(event.key==='Home')next=0;
+    else if(event.key==='End')next=buttons.length-1;
+    if(next>=0){event.preventDefault();buttons[next].focus();}
+  }
+
+  function recognitionCtor(){return window.SpeechRecognition||window.webkitSpeechRecognition||null;}
+  function nativeSetInput(input,value){const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;if(setter)setter.call(input,value);else input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));}
+
+  function finishRecognition(panel,state,message,hideAfter=0){
+    recognition=null;recognitionPanel=null;composerStatus(panel,state,message,hideAfter);
   }
 
   function toggleVoice(panel){
-    const voice=workflowButtons(panel)[2];if(!(voice instanceof HTMLButtonElement))return;
-    voice.click();window.setTimeout(()=>syncVoice(panel),0);window.setTimeout(()=>syncVoice(panel),120);
+    closeMenu();
+    if(recognition){try{recognition.stop();}catch{}composerStatus(panel,'starting',labels(panel).voiceStopped,900);return;}
+    const Ctor=recognitionCtor();if(!Ctor){composerStatus(panel,'error',labels(panel).voiceUnavailable,3600);return;}
+    let instance;try{instance=new Ctor();}catch{composerStatus(panel,'error',labels(panel).voiceFailed,3200);return;}
+    recognition=instance;recognitionPanel=panel;voiceHadResult=false;
+    instance.lang=ar(panel)?'ar-SA':'en-US';instance.interimResults=false;instance.continuous=false;instance.maxAlternatives=1;
+    instance.onstart=()=>{if(recognition===instance)composerStatus(panel,'listening',labels(panel).listening);};
+    instance.onresult=event=>{
+      const transcript=Array.from(event.results||[]).map(result=>result?.[0]?.transcript||'').join(' ').replace(/\s+/g,' ').trim();if(!transcript)return;
+      voiceHadResult=true;const input=panel.querySelector(`${COMPOSE} form>input`);if(input instanceof HTMLInputElement){const existing=input.value.trim();nativeSetInput(input,`${existing}${existing?' ':''}${transcript}`.slice(0,input.maxLength>0?input.maxLength:1000));input.focus({preventScroll:true});}
+      composerStatus(panel,'done',labels(panel).voiceAdded,1400);
+    };
+    instance.onerror=event=>{
+      if(recognition!==instance)return;const code=String(event?.error||'');const l=labels(panel);const message=code==='not-allowed'||code==='service-not-allowed'?l.voiceDenied:code==='no-speech'?l.noSpeech:code==='audio-capture'?l.micUnavailable:l.voiceFailed;finishRecognition(panel,'error',message,4200);
+    };
+    instance.onend=()=>{
+      if(recognition!==instance)return;const l=labels(panel);if(voiceHadResult)finishRecognition(panel,'done',l.voiceAdded,1200);else finishRecognition(panel,'',l.voiceStopped,700);
+    };
+    composerStatus(panel,'starting',labels(panel).starting);
+    try{instance.start();}catch{finishRecognition(panel,'error',labels(panel).voiceFailed,3200);}
   }
+
+  function abortVoice(){if(!recognition)return;const current=recognition;recognition=null;recognitionPanel=null;try{current.abort?.();}catch{try{current.stop?.();}catch{}}}
 
   function enhance(panel){
     const compose=panel.querySelector(COMPOSE);const form=compose?.querySelector('form');const input=form?.querySelector('input');const send=form?.querySelector('.lourex-ai-send');if(!(compose instanceof HTMLElement)||!(form instanceof HTMLFormElement)||!(input instanceof HTMLInputElement)||!(send instanceof HTMLButtonElement))return;
-    if(form.dataset.lourexAiComposerV449==='true'){syncVoice(panel);return;}
+    if(form.dataset.lourexAiComposerV449==='true')return;
     form.dataset.lourexAiComposerV449='true';input.placeholder=labels(panel).message;
 
-    const plus=document.createElement('button');plus.type='button';plus.className='lourex-ai-composer-plus';plus.innerHTML=svg.plus;plus.setAttribute('aria-label',labels(panel).plus);plus.setAttribute('aria-expanded','false');plus.setAttribute('aria-haspopup','menu');
+    const plus=document.createElement('button');plus.type='button';plus.className='lourex-ai-composer-plus';plus.innerHTML=svg.plus;plus.setAttribute('aria-label',labels(panel).plus);plus.setAttribute('aria-expanded','false');plus.setAttribute('aria-haspopup','menu');plus.setAttribute('aria-controls',MENU_ID);
     const mic=document.createElement('button');mic.type='button';mic.className='lourex-ai-composer-mic';mic.innerHTML=svg.mic;mic.setAttribute('aria-label',labels(panel).mic);mic.setAttribute('aria-pressed','false');
     form.insertBefore(plus,input);form.insertBefore(mic,send);
 
     const status=document.createElement('div');status.className='lourex-ai-voice-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.innerHTML='<span class="lourex-ai-voice-dot" aria-hidden="true"></span><span></span>';compose.insertBefore(status,form);
-    const menu=document.createElement('div');menu.className='lourex-ai-plus-menu';menu.hidden=true;compose.appendChild(menu);buildMenu(panel,menu);
-    plus.addEventListener('click',event=>{event.stopPropagation();toggleMenu(panel,menu,plus);});mic.addEventListener('click',()=>toggleVoice(panel));syncVoice(panel);
+    const menu=document.createElement('div');menu.id=MENU_ID;menu.className='lourex-ai-plus-menu';menu.hidden=true;compose.appendChild(menu);buildMenu(panel,menu);menu.addEventListener('keydown',menuKeydown);
+    plus.addEventListener('click',event=>{event.stopPropagation();toggleMenu(panel,menu,plus);});mic.addEventListener('click',()=>toggleVoice(panel));
   }
 
   function sync(){
-    raf=0;const panel=document.querySelector(PANEL);if(panel instanceof HTMLElement)enhance(panel);
+    raf=0;const panel=document.querySelector(PANEL);if(panel instanceof HTMLElement)enhance(panel);else if(recognition)abortVoice();
   }
   function schedule(){if(raf)return;raf=window.requestAnimationFrame(sync);}
 
   document.addEventListener('pointerdown',event=>{const target=event.target;if(!(target instanceof Node))return;const menu=document.querySelector(`${PANEL} .lourex-ai-plus-menu`);const plus=document.querySelector(`${PANEL} .lourex-ai-composer-plus`);if(menu instanceof Node&&!menu.contains(target)&&plus instanceof Node&&!plus.contains(target))closeMenu();},true);
-  document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMenu();});
+  document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;const menu=document.querySelector(`${PANEL} .lourex-ai-plus-menu`);if(menu instanceof HTMLElement&&!menu.hidden){event.preventDefault();event.stopImmediatePropagation();closeMenu(true);}},true);
   new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
   window.addEventListener('lourex-language-change',schedule);schedule();
 })();
