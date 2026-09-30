@@ -33,11 +33,12 @@ test('customer AI extraction stays proposal-only and treats source contents as u
   assert.match(customerApi,/responseMimeType:'application\/json'/);
 });
 
-test('product browser contracts target the current command bar primary action',()=>{
+test('product browser contracts follow the current primary button and mobile quick-create bridge',()=>{
   assert.match(productWorkspace,/className="ta-product-commandbar"/);
-  assert.match(productWorkspace,/className="btn btn-primary"/);
-  assert.match(businessWorkspaceQa,/\.ta-product-commandbar \.btn-primary/);
-  assert.match(mobileWorkflowQa,/\.ta-product-commandbar \.btn-primary/);
+  assert.match(productWorkspace,/<Button icon="plus" variant="primary"/);
+  assert.match(productWorkspace,/lourex-open-product-editor/);
+  assert.match(businessWorkspaceQa,/lourex-open-product-editor/);
+  assert.match(mobileWorkflowQa,/lourex-open-product-editor/);
   assert.doesNotMatch(businessWorkspaceQa,/\.ta-products-workspace-header \.btn-primary/);
   assert.doesNotMatch(mobileWorkflowQa,/\.ta-products-workspace-header \.btn-primary/);
 });
