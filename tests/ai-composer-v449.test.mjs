@@ -31,6 +31,20 @@ test('v449 plus menu contains the major LOUREX AI workflows without a launcher g
   assert.match(css,/\.lourex-ai-compose\{[^}]*z-index:20/);
 });
 
+test('v450 plus menu uses restrained semantic color accents instead of one flat icon color',()=>{
+  for(const tone of ['blue','indigo','cyan','amber','violet','emerald','orange','rose','purple','red','slate'])assert.match(css,new RegExp(`tone-${tone}`));
+  assert.match(js,/tone-\$\{tone\[iconName\]\|\|'blue'\}/);
+  assert.match(css,/--ai-tone/);
+  assert.match(css,/color-mix\(in srgb,var\(--ai-tone/);
+});
+
+test('v450 advisor identity uses the official LOUREX logo instead of exposing the robot glyph',()=>{
+  assert.match(css,/\.lourex-ai-launcher>svg,#lourex-ai-panel \.lourex-ai-mark>svg\{display:none!important\}/);
+  assert.match(css,/brand\/lourex-logo\.svg/);
+  assert.match(css,/\.lourex-ai-launcher:before/);
+  assert.match(css,/\.lourex-ai-mark:before/);
+});
+
 test('v449 workflow launchers and modal actions are semantic, bilingual and non-positional',()=>{
   assert.match(js,/function buttonByLabels/);
   assert.match(js,/function workflowLauncher/);
@@ -82,6 +96,18 @@ test('v449 transient status and voice stop lifecycle cannot be cleared by stale 
   assert.match(js,/recognition===current/);
   assert.match(js,/1200/);
   assert.match(js,/current\.abort\?\.\(\)/);
+});
+
+test('v450 Safari voice keeps interim speech and treats manual stop abort/no-speech as normal stop',()=>{
+  assert.match(js,/voiceManualStop/);
+  assert.match(js,/voiceBaseInput/);
+  assert.match(js,/instance\.interimResults=true/);
+  assert.match(js,/function voiceTranscript/);
+  assert.match(js,/result\?\.isFinal\?finalParts:interimParts/);
+  assert.match(js,/applyVoiceTranscript\(panel,transcript\)/);
+  assert.match(js,/voiceManualStop&&\(code==='aborted'\|\|code==='no-speech'\)/);
+  assert.match(js,/voiceHadResult\?'done':''/);
+  assert.doesNotMatch(js,/instance\.interimResults=false/);
 });
 
 test('v449 mobile controls are visibly drawn and meet the 44px touch contract',()=>{
