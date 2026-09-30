@@ -32,6 +32,7 @@ test('financial extraction endpoints share strict decimal normalization',async()
     assert.match(source,/dot decimal separator and no thousands separators/);
   }
   assert.match(await read('api/supplier-document-ai.js'),/normalizeAiDate/);
+  assert.match(await read('api/quote-pricing-intent.js'),/normalizeAiDecimal/);
 });
 
 test('Accounting Guardian keeps the 25 percent discount threshold exact instead of rounding 24.x up',async()=>{
@@ -55,6 +56,7 @@ test('daily command center can surface more than one urgent collection customer'
   const source=await read('src/lib/daily-command-center.ts');
   assert.match(source,/buildCollectionTasks\(vault\)\.filter\(task=>task\.priority!=='normal'\)\.slice\(0,2\)/);
   assert.match(source,/for\(const collection of collections\)/);
+  assert.match(source,/EASTERN_ARABIC_DIGITS|۰۱۲۳۴۵۶۷۸۹/);
 });
 
 test('collections exposure stays decimal-safe instead of using JavaScript Number',async()=>{
@@ -63,4 +65,58 @@ test('collections exposure stays decimal-safe instead of using JavaScript Number
   assert.match(source,/decimalToScaled\(value,2\)>0n/);
   assert.doesNotMatch(source,/Number\(currency\.outstanding\)/);
   assert.doesNotMatch(source,/Number\(row\.remaining\)/);
+});
+
+test('customer and supplier duplicate matching canonicalizes Arabic and Persian digits',async()=>{
+  for(const path of ['src/lib/customer-ai-capture.ts','src/lib/supplier-ai-capture.ts']){
+    const source=await read(path);
+    assert.match(source,/ARABIC_DIGITS='٠١٢٣٤٥٦٧٨٩'/);
+    assert.match(source,/EASTERN_ARABIC_DIGITS='۰۱۲۳۴۵۶۷۸۹'/);
+    assert.match(source,/latinDigits\(value\)\.replace\(\/\\D\/g,''\)/);
+  }
+  const quote=await read('src/lib/quote-ai-review.ts');
+  assert.match(quote,/EASTERN_ARABIC_DIGITS='۰۱۲۳۴۵۶۷۸۹'/);
+  assert.match(quote,/replace\(\/\[\\u0640\\u064b-\\u065f\\u0670\]\/g,''\)/);
+});
+
+test('Business Memory follows active quote-to-invoice lifecycle including proforma invoices',async()=>{
+  const source=await read('src/lib/business-memory.ts');
+  assert.match(source,/doc\.kind==='invoice'&&doc\.lifecycleStatus!=='voided'&&doc\.convertedFromId/);
+  assert.match(source,/\['proforma','proforma-invoice'\]\.includes\(doc\.kind\)/);
+  assert.match(source,/no active linked invoice/);
+});
+
+test('Procurement AI never fuzzy-merges incoming explicit identifiers and is order-stabilized',async()=>{
+  const source=await read('src/lib/procurement-ai.ts');
+  assert.match(source,/if\(incomingExplicit\)return\{key:identity\.key/);
+  assert.match(source,/Process explicit item\/SKU identities first/);
+  assert.match(source,/best\.score-secondScore>=\.08/);
+});
+
+test('Universal AI Inbox supports safe cancellation instead of trapping mobile users',async()=>{
+  const source=await read('src/components/AiWorkflowTools.tsx');
+  assert.match(source,/private cancelAnalysis=/);
+  assert.match(source,/status:'cancelled',note:t\('Cancelled by user','ألغاه المستخدم'\)/);
+  assert.match(source,/if\(this\.state\.stage==='saving'\)return/);
+  assert.match(source,/Cancel analysis','إلغاء التحليل/);
+  assert.match(source,/\?\.name==='AbortError'/);
+});
+
+test('secondary AI workflow voice path preserves interim Safari speech and manual-stop abort semantics',async()=>{
+  const source=await read('src/components/AiWorkflowTools.tsx');
+  assert.match(source,/recognition\.interimResults=true/);
+  assert.match(source,/this\.voiceManualStop&&\(code==='aborted'\|\|code==='no-speech'\)/);
+  assert.match(source,/this\.voiceTranscript=text;this\.applyVoiceTranscript\(\)/);
+  assert.match(source,/this\.voiceStopTimer=window\.setTimeout/);
+  assert.match(source,/Safari could not reach the speech-recognition service/);
+});
+
+test('Customer and Product AI review modals can cancel analysis but keep saving protected',async()=>{
+  const customer=await read('src/components/CustomerAiCapture.tsx');
+  const product=await read('src/components/ProductAiSourceReview.tsx');
+  assert.match(customer,/private close=\(\)=>\{this\.cancel\(\);this\.setState\(\{open:false,stage:'idle'\}\);\}/);
+  assert.match(customer,/Cancel analysis','إلغاء التحليل/);
+  assert.match(product,/if\(this\.state\.stage==='saving'\)return/);
+  assert.match(product,/this\.abort\?\.abort\(\)/);
+  assert.match(product,/Cancel analysis','إلغاء التحليل/);
 });
