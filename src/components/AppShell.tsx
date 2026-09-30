@@ -5,6 +5,7 @@ import { clearSession } from '../storage/session.js';
 import { Brand, Button, Icon } from './UI.js';
 import { AiCopilot } from './AiCopilot.js';
 import { ThemeControl } from './ThemeControl.js';
+import { ProductInfoModal, type ProductInfoSection } from './ProductInfoModal.js';
 
 export type WorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 
@@ -36,6 +37,7 @@ interface Props {
 interface State {
   moreOpen:boolean;
   signingOut:boolean;
+  infoSection:ProductInfoSection|null;
 }
 
 /**
@@ -44,7 +46,7 @@ interface State {
  * LOUREX business callbacks remain owned by their existing boundaries.
  */
 export class AppShell extends React.Component<Props,State>{
-  state:State={moreOpen:false,signingOut:false};
+  state:State={moreOpen:false,signingOut:false,infoSection:null};
 
   componentDidMount():void{
     document.addEventListener('keydown',this.handleKeyDown);
@@ -59,6 +61,7 @@ export class AppShell extends React.Component<Props,State>{
   componentDidUpdate(prevProps:Props,prevState:State):void{
     if(prevProps.screen!==this.props.screen){
       if(this.state.moreOpen)this.setState({moreOpen:false});
+      if(this.state.infoSection)this.setState({infoSection:null});
       if(this.props.newMenu)this.props.onToggleNew();
       this.resetWorkspaceScroll();
     }
@@ -68,7 +71,7 @@ export class AppShell extends React.Component<Props,State>{
     if(!prevState.moreOpen&&this.state.moreOpen){
       window.requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('#ta-mobile-more .ta-sheet-close')?.focus({preventScroll:true}));
     }
-    if(prevState.moreOpen&&!this.state.moreOpen&&prevProps.screen===this.props.screen){
+    if(prevState.moreOpen&&!this.state.moreOpen&&prevProps.screen===this.props.screen&&!this.state.infoSection){
       window.requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('button[aria-controls="ta-mobile-more"]')?.focus({preventScroll:true}));
     }
     if(!prevProps.newMenu&&this.props.newMenu){
@@ -182,6 +185,12 @@ export class AppShell extends React.Component<Props,State>{
     this.closeMore();
     this.requestSettingsScope('account');
     this.props.onSettings();
+  };
+
+  private openProductInfo=(section:ProductInfoSection='help')=>{
+    this.closeCreateMenu();
+    this.closeMore();
+    this.setState({infoSection:section});
   };
 
   private createDocument=(kind:DocumentKind)=>{
@@ -336,6 +345,7 @@ export class AppShell extends React.Component<Props,State>{
         <div className="ta-sidebar-footer">
           {this.syncStatus('ta-sidebar-sync')}
           <button type="button" className="ta-sidebar-utility" onClick={this.openSettings}><span className="ta-nav-icon"><Icon name="settings"/></span><span>{t('Settings','الإعدادات')}</span></button>
+          <button type="button" className="ta-sidebar-utility" onClick={()=>this.openProductInfo('help')}><span className="ta-nav-icon"><Icon name="file"/></span><span>{t('Help & Product Info','المساعدة ومعلومات المنتج')}</span></button>
           <button type="button" className="ta-sidebar-account" onClick={this.openAccount}>
             <span className="ta-account-avatar"><Icon name="users"/></span>
             <span className="ta-account-copy"><strong>{t('My Account','حسابي')}</strong><small>{t('Identity and access','الهوية والوصول')}</small></span>
@@ -382,7 +392,7 @@ export class AppShell extends React.Component<Props,State>{
             <button type="button" className="ta-sheet-account" onClick={this.openAccount}><span className="ta-sheet-link-icon"><Icon name="users"/></span><span className="ta-sheet-link-copy"><strong>{t('My Account','حسابي')}</strong><small>{t('Identity, business profile and account access','الهوية وملف الشركة والوصول للحساب')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button>
             <section className="ta-sheet-group"><p>{t('Operations','العمليات')}</p>{this.mobileSheetItem('items','items',t('Products & Inventory','المنتجات والمخزون'),t('Products, stock and movement','المنتجات والمخزون والحركة'))}{this.mobileSheetItem('operations','backup',t('Purchasing','المشتريات'),t('Suppliers and purchase workflow','الموردون ودورة المشتريات'))}</section>
             <section className="ta-sheet-group"><p>{t('Finance & insights','المالية والتحليلات')}</p>{this.mobileSheetItem('receivables','invoice',t('Finance','المالية'),t('Receivables, collections and expenses','المستحقات والتحصيل والمصروفات'))}{this.mobileSheetItem('reports','chart',t('Reports & Insights','التقارير والتحليلات'),t('Period analysis and profitability','تحليل الفترات والربحية'))}</section>
-            <section className="ta-sheet-group"><p>{t('Account & product','الحساب والمنتج')}</p><button type="button" className="ta-sheet-link" onClick={this.openSettings}><span className="ta-sheet-link-icon"><Icon name="settings"/></span><span className="ta-sheet-link-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Business, documents, security and data','الأعمال والمستندات والأمان والبيانات')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button></section>
+            <section className="ta-sheet-group"><p>{t('Account & product','الحساب والمنتج')}</p><button type="button" className="ta-sheet-link" onClick={this.openSettings}><span className="ta-sheet-link-icon"><Icon name="settings"/></span><span className="ta-sheet-link-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Business, documents, security and data','الأعمال والمستندات والأمان والبيانات')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button><button type="button" className="ta-sheet-link" onClick={()=>this.openProductInfo('help')}><span className="ta-sheet-link-icon"><Icon name="file"/></span><span className="ta-sheet-link-copy"><strong>{t('Help & Product Info','المساعدة ومعلومات المنتج')}</strong><small>{t('Help, privacy, terms and build details','المساعدة والخصوصية والشروط وتفاصيل البناء')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button></section>
           </section>
         </>:null}
 
@@ -397,6 +407,7 @@ export class AppShell extends React.Component<Props,State>{
         </nav>
       </>:null}
 
+      <ProductInfoModal open={Boolean(this.state.infoSection)} section={this.state.infoSection||'help'} language={this.props.language} onSection={section=>this.setState({infoSection:section})} onClose={()=>this.setState({infoSection:null})}/>
       <AiCopilot screen={this.props.screen} language={this.props.language} activeDocument={this.activeEditorDocument()} onNavigate={screen=>this.navigate(screen)}/>
     </div>;
   }
