@@ -15,6 +15,7 @@ async function open(browser,url,viewport={width:390,height:844}){
   return{page,errors};
 }
 async function screenshot(page,name){await page.screenshot({path:`${output}/${name}.png`,fullPage:false,animations:'disabled'});}
+async function openProductEditor(page){await page.evaluate(()=>window.dispatchEvent(new Event('lourex-open-product-editor')));await page.locator('.ta-product-editor.is-open').waitFor();}
 async function assertPartyDropdownInFlow(page,partySelector,label){
   const metrics=await page.evaluate(selector=>{
     const party=document.querySelector(selector),dropdown=party?.querySelector('.customer-dropdown');
@@ -137,8 +138,8 @@ async function assertPartyDropdownInFlow(page,partySelector,label){
     await run('Product editor save and delete actions work from the mobile sheet',async()=>{
       const {page,errors}=await open(browser,'v326-products-workspace.html?lang=en');
       try{
-        await page.locator('.ta-product-commandbar .btn-primary').click();
-        const editor=page.locator('.ta-product-editor.is-open');await editor.waitFor();
+        await openProductEditor(page);
+        const editor=page.locator('.ta-product-editor.is-open');
         const geom=await editor.evaluate(el=>{const r=el.getBoundingClientRect(),scroll=el.querySelector('.ta-product-editor-scroll'),footer=el.querySelector('.ta-product-editor-footer');return{top:r.top,bottom:r.bottom,scrollHeight:scroll.scrollHeight,scrollClient:scroll.clientHeight,footerBottom:footer.getBoundingClientRect().bottom,viewport:innerHeight};});
         assert.ok(geom.footerBottom<=geom.viewport+1,`Product save action stays onscreen: ${JSON.stringify(geom)}`);
         await page.getByLabel('Description English').fill('Phone workflow sample');
@@ -198,8 +199,8 @@ async function assertPartyDropdownInFlow(page,partySelector,label){
       }finally{await customer.page.close();}
       const product=await open(browser,'v326-products-workspace.html?lang=ar',viewport);
       try{
-        await product.page.locator('.ta-product-commandbar .btn-primary').click();
-        const editor=product.page.locator('.ta-product-editor.is-open');await editor.waitFor();
+        await openProductEditor(product.page);
+        const editor=product.page.locator('.ta-product-editor.is-open');
         const box=await editor.boundingBox(),footer=await editor.locator('.ta-product-editor-footer').boundingBox();
         assert.ok(box.x>=0&&box.x+box.width<=320,`320px product editor fits: ${JSON.stringify(box)}`);
         assert.ok(footer.y+footer.height<=700,`320px product actions fit: ${JSON.stringify(footer)}`);
