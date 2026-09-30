@@ -33,9 +33,9 @@ export function FinanceWorkspace(props:Props):any{
     };
   },[]);
   return <section className="domain-workspace finance-workspace">
-    <header className="lx-workspace-context lx-finance-context">
-      <div><small>{t('Operational Finance','المالية التشغيلية')}</small><h1>{t('Receivables, collections & expenses','المستحقات والتحصيل والمصروفات')}</h1><p>{t('Control customer balances, recorded collections and operating expense records here. Period sales and profitability analysis stays in Reports & Insights.','تحكّم هنا بأرصدة العملاء والتحصيل المسجل وسجلات المصروفات التشغيلية. يبقى تحليل المبيعات والربحية حسب الفترة ضمن التقارير والتحليلات.')}</p></div>
-      <span className="lx-context-note">{t('Revenue ≠ collections ≠ receivables','الإيراد ≠ التحصيل ≠ المستحقات')}</span>
+    <header className="ta-page-header lx-workspace-context lx-finance-context">
+      <div><span className="ta-page-kicker">{t('Operational Finance','المالية التشغيلية')}</span><h1>{t('Receivables, collections & expenses','المستحقات والتحصيل والمصروفات')}</h1><p>{t('Control customer balances, recorded collections and operating expense records here. Period sales and profitability analysis stays in Reports & Insights.','تحكّم هنا بأرصدة العملاء والتحصيل المسجل وسجلات المصروفات التشغيلية. يبقى تحليل المبيعات والربحية حسب الفترة ضمن التقارير والتحليلات.')}</p></div>
+      <div className="ta-page-actions"><span className="ta-period-chip">{t('Revenue ≠ collections ≠ receivables','الإيراد ≠ التحصيل ≠ المستحقات')}</span></div>
     </header>
     <DomainWorkspaceTabs value={tab} onChange={changeTab} ariaLabel={t('Finance sections','أقسام المالية')} options={[
       {id:'receivables',label:t('Receivables & Collections','المستحقات والتحصيل'),description:t('Balances, aging, recorded payments & statements','الأرصدة والأعمار والمدفوعات المسجلة وكشوف الحساب')},
