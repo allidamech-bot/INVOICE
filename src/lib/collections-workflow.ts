@@ -34,9 +34,9 @@ function invoiceRefs(vault:VaultPayload,customerId:string,asOf:string):Collectio
   return customerInvoices(vault,customerId,asOf).map(invoice=>{const summary=invoicePaymentSummary(invoice,vault.payments,asOf,vault.documents);return{invoiceId:invoice.id,number:invoice.number,dueDate:invoice.dueDate,currency:invoice.currency,remaining:summary.remaining,status:summary.status};}).filter(row=>row.status!=='paid'&&Number(row.remaining)>0).sort((a,b)=>(a.dueDate||'9999-99-99').localeCompare(b.dueDate||'9999-99-99')||a.number.localeCompare(b.number));
 }
 function lastCustomerActivity(vault:VaultPayload,customerId:string,asOf:string):string{
-  const stamps:string[]=[];
+  const stamps:string[]=[];const invoiceCustomers=new Map(vault.documents.filter(doc=>doc.kind==='invoice').map(doc=>[doc.id,receivableCustomerId(doc)]));
   for(const doc of vault.documents)if(receivableCustomerId(doc)===customerId&&doc.lifecycleStatus!=='voided'){const stamp=doc.updatedAt||doc.issueDate;if(onOrBefore(stamp,asOf))stamps.push(stamp);else if(onOrBefore(doc.issueDate,asOf))stamps.push(doc.issueDate);}
-  for(const payment of vault.payments)if(payment.customerId===customerId&&onOrBefore(payment.date,asOf))stamps.push(payment.updatedAt&&onOrBefore(payment.updatedAt,asOf)?payment.updatedAt:payment.date);
+  for(const payment of vault.payments)if((payment.customerId===customerId||invoiceCustomers.get(payment.invoiceId)===customerId)&&onOrBefore(payment.date,asOf))stamps.push(payment.updatedAt&&onOrBefore(payment.updatedAt,asOf)?payment.updatedAt:payment.date);
   return stamps.filter(Boolean).sort((a,b)=>b.localeCompare(a))[0]||'';
 }
 
