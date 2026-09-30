@@ -8,14 +8,21 @@ const output='visual-qa-output/ai-assistant-help-batch3';
   const browser=await chromium.launch({headless:true});
   const results=[];
   const run=async(name,{lang='en',width=390,height=844,reducedMotion='no-preference'}={})=>{
-    const failures=[];let context,page;
+    const failures=[];const browserErrors=[];let context,page;
     try{
       context=await browser.newContext({viewport:{width,height},hasTouch:width<=860,isMobile:width<=860,reducedMotion});
       page=await context.newPage();
+      page.on('pageerror',error=>browserErrors.push(`pageerror: ${error?.stack||error}`));
+      page.on('console',message=>{if(message.type()==='error')browserErrors.push(`console: ${message.text()}`);});
       page.setDefaultTimeout(12000);
       await page.goto(`http://127.0.0.1:4173/tests/visual/ai-assistant-help-batch3.html?lang=${lang}`,{waitUntil:'load'});
-      await page.locator('.lourex-ai-launcher').waitFor();
-      await page.locator('.lx-usage-guide').waitFor();
+      await page.waitForTimeout(250);
+      const initial=await page.evaluate(()=>({launcherCount:document.querySelectorAll('.lourex-ai-launcher').length,guideCount:document.querySelectorAll('.lx-usage-guide').length,rootHtml:document.getElementById('root')?.innerHTML.slice(0,500)||''}));
+      assert.equal(browserErrors.length,0,`browser runtime errors before render checks:\n${browserErrors.join('\n')}`);
+      assert.equal(initial.launcherCount,1,`AI launcher must attach exactly once; state=${JSON.stringify(initial)}`);
+      assert.equal(initial.guideCount,1,`Usage guide must attach exactly once; state=${JSON.stringify(initial)}`);
+      await page.locator('.lourex-ai-launcher').waitFor({state:'visible'});
+      await page.locator('.lx-usage-guide').waitFor({state:'visible'});
       await page.evaluate(()=>document.fonts.ready);
       if(width<=860&&reducedMotion!=='reduce')await page.waitForTimeout(1600);
       const geometry=await page.evaluate(()=>{
@@ -29,7 +36,7 @@ const output='visual-qa-output/ai-assistant-help-batch3';
           innerWidth,
           scrollWidth:document.documentElement.scrollWidth,
           dir:document.documentElement.dir,
-          launcher:{width:launcherRect.width,height:launcherRect.height,left:launcherRect.left,right:launcherRect.right},
+          launcher:{width:launcherRect.width,height:launcherRect.height,left:launcherRect.left,right:launcherRect.right,visibility:getComputedStyle(launcher).visibility,display:getComputedStyle(launcher).display,opacity:getComputedStyle(launcher).opacity},
           coach:{content:coach.content,display:coach.display,opacity:Number.parseFloat(coach.opacity||'0'),animationName:coach.animationName},
           pulse:{display:pulse.display,animationName:pulse.animationName},
           guideColumns:getComputedStyle(guide).gridTemplateColumns,
@@ -61,9 +68,9 @@ const output='visual-qa-output/ai-assistant-help-batch3';
         assert.equal(geometry.pulse.display,'none','attention pulse must be disabled for reduced motion');
       }
       await page.screenshot({path:`${output}/${name}.png`,fullPage:true,animations:'disabled'});
-    }catch(error){failures.push(error?.stack||String(error));}
+    }catch(error){failures.push(error?.stack||String(error));if(browserErrors.length)failures.push(...browserErrors);}
     finally{if(context)await context.close();}
-    results.push({name,failures});
+    results.push({name,failures,browserErrors});
   };
   try{
     await run('mobile-en',{lang:'en'});
