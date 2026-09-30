@@ -71,3 +71,29 @@ test('A sufficiently complete vault can report ready without inventing optional 
   assert.equal(health.reviewCount,0);
   assert.deepEqual(health.issues,[]);
 });
+
+test('Business Health stays inside Home and routes every repair to a canonical workspace',async()=>{
+  const [app,home,card]=await Promise.all([read('src/app/App.tsx'),read('src/components/WorkspaceHome.tsx'),read('src/components/BusinessHealthCard.tsx')]);
+  assert.match(app,/buildBusinessHealth\(vault\)/);
+  assert.match(app,/health=\{businessHealth\}/);
+  assert.match(app,/onOpenSettings=\{\(\)=>this\.setState\(\{settingsOpen:true\}\)\}/);
+  assert.match(home,/BusinessHealthCard/);
+  assert.ok(home.indexOf('<BusinessHealthCard')>home.indexOf('ta-dashboard-intelligence-grid'));
+  assert.ok(home.indexOf('<BusinessHealthCard')<home.indexOf('ta-kpi-grid'));
+  assert.match(home,/target==='settings'/);
+  assert.match(home,/onNavigate\(target\)/);
+  assert.doesNotMatch(card,/mutateVaultSafely|saveVault|delete|merge/i);
+});
+
+test('Batch 4 mobile browser QA covers bilingual attention and ready states',async()=>{
+  const [workflow,runner,fixture]=await Promise.all([read('.github/workflows/batch4-business-health.yml'),read('tests/visual/run-business-health-batch4.cjs'),read('tests/visual/business-health-batch4.html')]);
+  assert.match(workflow,/Run mobile Business Health browser QA/);
+  assert.match(runner,/viewport:\{width:390,height:844\}/);
+  assert.match(runner,/mobile-en/);assert.match(runner,/mobile-ar/);assert.match(runner,/mobile-ready-en/);assert.match(runner,/mobile-ready-ar/);
+  assert.match(runner,/height>=44/);
+  assert.match(runner,/scrollWidth<=geometry\.innerWidth\+1/);
+  assert.match(runner,/data-last-target/);
+  assert.match(fixture,/BusinessHealthCard/);
+  assert.match(fixture,/target:'settings'/);
+  assert.match(fixture,/target:'customers'/);
+});
