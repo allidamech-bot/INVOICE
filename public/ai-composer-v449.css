@@ -1,0 +1,52 @@
+/* LOUREX v449 — Chat-style AI composer. The + control is the single workflow launcher. */
+#lourex-ai-panel .lourex-ai-compose{position:relative;padding:10px 12px 12px!important;background:var(--ft-surface, #101011)!important}
+#lourex-ai-panel [data-lourex-ai-workflow-mount]>.lourex-ai-tools,
+#lourex-ai-panel .lourex-ai-compose>.lourex-ai-tools{display:none!important}
+#lourex-ai-panel .lourex-ai-compose form{direction:ltr!important;display:flex!important;align-items:center!important;gap:4px!important;min-height:58px;padding:6px!important;border:1px solid var(--ft-line-strong,rgba(255,255,255,.13))!important;border-radius:29px!important;background:var(--ft-input,#181819)!important;box-shadow:0 8px 28px rgba(0,0,0,.14)!important;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+#lourex-ai-panel .lourex-ai-compose form:focus-within{border-color:color-mix(in srgb,var(--ft-accent,#7399e3) 58%,var(--ft-line-strong,transparent))!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent,#7399e3) 12%,transparent),0 10px 32px rgba(0,0,0,.17)!important}
+#lourex-ai-panel .lourex-ai-compose form>input{order:2;min-width:0!important;min-height:44px!important;flex:1 1 auto!important;padding:8px 6px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:var(--ft-text,#f4f2ed)!important;font-size:16px!important;line-height:1.35!important;outline:0!important}
+#lourex-ai-panel[dir="rtl"] .lourex-ai-compose form>input{direction:rtl!important;text-align:right!important}
+#lourex-ai-panel[dir="ltr"] .lourex-ai-compose form>input{direction:ltr!important;text-align:left!important}
+#lourex-ai-panel .lourex-ai-compose form>input::placeholder{color:var(--ft-text-soft,#8f8c85)!important;opacity:.82}
+#lourex-ai-panel .lourex-ai-composer-plus,
+#lourex-ai-panel .lourex-ai-composer-mic,
+#lourex-ai-panel .lourex-ai-send{flex:0 0 44px!important;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;padding:0!important;border-radius:50%!important;display:grid!important;place-items:center!important;touch-action:manipulation!important;-webkit-tap-highlight-color:transparent!important}
+#lourex-ai-panel .lourex-ai-composer-plus{order:1;border:0!important;background:transparent!important;color:var(--ft-text,#f4f2ed)!important}
+#lourex-ai-panel .lourex-ai-composer-plus svg{width:27px;height:27px;stroke-width:1.8}
+#lourex-ai-panel .lourex-ai-composer-plus[aria-expanded="true"]{background:var(--ft-surface-2,#232325)!important;color:var(--ft-accent,#82a9ec)!important}
+#lourex-ai-panel .lourex-ai-composer-mic{order:3;border:0!important;background:transparent!important;color:var(--ft-text,#f4f2ed)!important;position:relative;overflow:visible!important}
+#lourex-ai-panel .lourex-ai-composer-mic svg{width:24px;height:24px;stroke-width:1.9}
+#lourex-ai-panel .lourex-ai-composer-mic.is-listening{background:color-mix(in srgb,var(--ft-accent,#7399e3) 18%,transparent)!important;color:var(--ft-accent,#82a9ec)!important;box-shadow:0 0 0 5px color-mix(in srgb,var(--ft-accent,#7399e3) 10%,transparent)!important}
+#lourex-ai-panel .lourex-ai-composer-mic.is-listening:after{content:"";position:absolute;inset:-5px;border:1px solid color-mix(in srgb,var(--ft-accent,#7399e3) 58%,transparent);border-radius:50%;animation:lourexAiListenPulse 1.15s ease-out infinite;pointer-events:none}
+#lourex-ai-panel .lourex-ai-send{order:4!important;border:1px solid var(--ft-accent,#7399e3)!important;background:var(--ft-accent,#7399e3)!important;color:var(--ft-on-accent,#fff)!important;box-shadow:0 5px 16px color-mix(in srgb,var(--ft-accent,#7399e3) 26%,transparent)!important}
+#lourex-ai-panel .lourex-ai-send svg{width:19px!important;height:19px!important}
+#lourex-ai-panel[dir="rtl"] .lourex-ai-send svg{transform:rotate(180deg)}
+#lourex-ai-panel .lourex-ai-send:disabled{opacity:.36!important;box-shadow:none!important}
+#lourex-ai-panel .lourex-ai-voice-status{display:none;align-items:center;gap:7px;width:max-content;max-width:100%;margin:0 8px 7px;padding:5px 9px;border:1px solid color-mix(in srgb,var(--ft-accent,#7399e3) 28%,var(--ft-line,transparent));border-radius:999px;background:color-mix(in srgb,var(--ft-accent,#7399e3) 9%,var(--ft-surface,#101011));color:var(--ft-accent,#82a9ec);font-size:11px;font-weight:700}
+#lourex-ai-panel .lourex-ai-voice-status.is-visible{display:flex}
+#lourex-ai-panel .lourex-ai-voice-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 0 currentColor;animation:lourexAiVoiceDot 1.1s ease-out infinite}
+#lourex-ai-panel .lourex-ai-plus-menu{position:absolute;z-index:7;left:12px;right:12px;bottom:calc(100% - 2px);max-height:min(56dvh,520px);overflow:auto;overscroll-behavior:contain;padding:8px;border:1px solid var(--ft-line-strong,rgba(255,255,255,.14));border-radius:20px;background:color-mix(in srgb,var(--ft-surface,#111) 96%,transparent);box-shadow:0 22px 62px rgba(0,0,0,.42);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);transform-origin:bottom left;animation:lourexAiMenuIn .14s ease-out}
+#lourex-ai-panel .lourex-ai-plus-menu[hidden]{display:none!important}
+#lourex-ai-panel .lourex-ai-plus-section+ .lourex-ai-plus-section{margin-top:6px;padding-top:6px;border-top:1px solid var(--ft-line,rgba(255,255,255,.08))}
+#lourex-ai-panel .lourex-ai-plus-heading{display:block;padding:6px 10px 4px;color:var(--ft-text-soft,#918f8a);font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+#lourex-ai-panel .lourex-ai-plus-item{width:100%;min-height:48px;display:flex;align-items:center;gap:11px;padding:8px 10px;border:0;border-radius:13px;background:transparent;color:var(--ft-text,#f5f3ef);text-align:left;font:inherit;cursor:pointer;touch-action:manipulation}
+#lourex-ai-panel[dir="rtl"] .lourex-ai-plus-item{text-align:right}
+#lourex-ai-panel .lourex-ai-plus-item:hover,#lourex-ai-panel .lourex-ai-plus-item:focus-visible{background:var(--ft-surface-2,#202022);outline:0}
+#lourex-ai-panel .lourex-ai-plus-icon{flex:0 0 34px;width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--ft-line,rgba(255,255,255,.09));border-radius:10px;background:var(--ft-input,#181819);color:var(--ft-accent,#82a9ec)}
+#lourex-ai-panel .lourex-ai-plus-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#lourex-ai-panel .lourex-ai-plus-copy{min-width:0;display:flex;flex-direction:column;gap:2px}
+#lourex-ai-panel .lourex-ai-plus-copy strong{font-size:13px;font-weight:750;line-height:1.3}
+#lourex-ai-panel .lourex-ai-plus-copy small{overflow:hidden;color:var(--ft-text-soft,#8f8c85);font-size:10.5px;line-height:1.3;text-overflow:ellipsis;white-space:nowrap}
+html[data-lourex-ai-internal-route="true"] .modal-backdrop{opacity:0!important;pointer-events:none!important}
+@media(max-width:720px){
+  #lourex-ai-panel .lourex-ai-compose{padding:9px 9px calc(9px + env(safe-area-inset-bottom,0px))!important}
+  #lourex-ai-panel .lourex-ai-compose form{min-height:56px;padding:5px!important;border-radius:28px!important}
+  #lourex-ai-panel .lourex-ai-composer-plus,#lourex-ai-panel .lourex-ai-composer-mic,#lourex-ai-panel .lourex-ai-send{flex-basis:43px!important;width:43px!important;height:43px!important;min-width:43px!important;min-height:43px!important}
+  #lourex-ai-panel .lourex-ai-compose form>input{font-size:16px!important;padding-inline:4px!important}
+  #lourex-ai-panel .lourex-ai-plus-menu{left:6px;right:6px;bottom:calc(100% + 1px);max-height:min(52dvh,470px);border-radius:18px;padding:7px}
+  #lourex-ai-panel .lourex-ai-plus-item{min-height:50px;padding:7px 9px}
+}
+@keyframes lourexAiListenPulse{0%{opacity:.75;transform:scale(.86)}100%{opacity:0;transform:scale(1.22)}}
+@keyframes lourexAiVoiceDot{0%{box-shadow:0 0 0 0 color-mix(in srgb,currentColor 45%,transparent)}100%{box-shadow:0 0 0 8px transparent}}
+@keyframes lourexAiMenuIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){#lourex-ai-panel .lourex-ai-composer-mic.is-listening:after,#lourex-ai-panel .lourex-ai-voice-dot,#lourex-ai-panel .lourex-ai-plus-menu{animation:none!important}}
