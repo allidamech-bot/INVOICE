@@ -142,6 +142,7 @@ export function validatedCommercialTrackingEvent(
   if(terminal)throw new Error('This commercial decision is already closed.');
 
   const clean=payload.trim();
+  if(kind==='sent'&&effective==='expired')throw new Error('This quotation is expired. Reissue or revise it before recording a new send.');
   if(kind==='sent'&&tracking.status==='sent')throw new Error('Sent is already recorded for this quotation.');
   if(kind==='rejected'&&!clean)throw new Error('Enter the rejection reason first.');
   if(kind==='followup-scheduled'){
