@@ -1,6 +1,7 @@
 import type { Supplier } from '../types.js';
 import type { Supplier360Snapshot } from '../lib/relationship-360.js';
 import { buildSupplier360 } from '../lib/relationship-360.js';
+import { ensureRelationship360Styles } from '../lib/relationship-360-style.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { t } from '../lib/i18n.js';
 import { Supplier360Panel } from './Relationship360Panels.js';
@@ -9,6 +10,7 @@ export function Supplier360LivePanel({supplier}:{supplier:Supplier}):any{
   const [snapshot,setSnapshot]=React.useState<Supplier360Snapshot|null>(null);
   const [error,setError]=React.useState('');
   React.useEffect(()=>{
+    ensureRelationship360Styles();
     let active=true;
     setSnapshot(null);setError('');
     void resumeVaultSession().then(session=>{
