@@ -8,7 +8,7 @@ const read=path=>readFile(new URL(path,root),'utf8');
 test('Batch 1 commercial tracking stays separate from document accounting lifecycle',async()=>{
   const source=await read('src/lib/commercial-flow.ts');
   assert.match(source,/CommercialTrackingStatus='draft'\|'internal-ready'\|'sent'\|'accepted'\|'rejected'\|'expired'\|'converted'/);
-  assert.doesNotMatch(source,/doc\.status\s*=|doc\.lifecycleStatus\s*=/);
+  assert.doesNotMatch(source,/\bdoc\.(?:status|lifecycleStatus)\s*=(?!=)/);
   assert.match(source,/linkedInvoiceForCommercialDocument/);
   assert.match(source,/status:'converted',source:'conversion'/);
 });
