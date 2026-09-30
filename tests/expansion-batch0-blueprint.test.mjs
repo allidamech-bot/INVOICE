@@ -29,7 +29,8 @@ test('Batch 1 placement keeps commercial tracking additive and outside document 
   assert.match(batch1,/Primary: \*\*Documents\*\*/);
   assert.match(batch1,/CommercialDocumentTrackingRecord/);
   assert.match(batch1,/commercialStatus: draft\/internal-ready\/sent\/accepted\/rejected\/expired\/converted/);
-  assert.match(batch1,/do not repurpose `DocumentStatus`/i);
+  assert.match(batch1,/repurpose `DocumentStatus`/i);
+  assert.match(batch1,/\*\*do not\*\* repurpose `DocumentStatus`/i);
   assert.match(batch1,/Secure automatic `Viewed` depends on Batch 10/);
 });
 
