@@ -20,15 +20,48 @@ test('v449 loads the chat-style composer after AI workflow bridge',()=>{
 
 test('v449 plus menu contains the major LOUREX AI workflows without a launcher grid',()=>{
   for(const token of ['AI Inbox','File → Quotation','Product AI','Supplier AI','Ask Anything','Collections','CFO','Compare Supplier Offers','What matters today','Business Memory','Accounting Guardian','AI Job History','Advisor Activity'])assert.ok(js.includes(token),`missing ${token}`);
-  assert.match(js,/routeThroughWorkflowMenu\(1\)/);
-  assert.match(js,/routeThroughWorkflowMenu\(10\)/);
-  assert.match(js,/routeThroughWorkflowMenu\(11\)/);
+  for(const action of ['quote','product','supplier','guardian','history'])assert.match(js,new RegExp(`routeThroughWorkflowMenu\\('${action}'\\)`));
+  assert.doesNotMatch(js,/routeThroughWorkflowMenu\(\d+\)/);
   assert.match(js,/lourex-ai-open-business-search/);
   assert.match(js,/lourex-ai-open-procurement/);
   assert.match(js,/aria-controls',MENU_ID/);
   assert.match(js,/ArrowDown/);
   assert.match(js,/stopImmediatePropagation\(\)/);
-  assert.match(css,/\.lourex-ai-plus-menu\{[^}]*background:var\(--ft-surface,#111\)!important/);
+  assert.match(css,/\.lourex-ai-plus-menu\{[^}]*background:var\(--ft-surface,#111\)!important;[^}]*opacity:1!important/);
+  assert.match(css,/\.lourex-ai-compose\{[^}]*z-index:20/);
+});
+
+test('v449 internal workflow routing is semantic and cannot silently drift with button order',()=>{
+  assert.match(js,/function workflowActionLabel/);
+  assert.match(js,/File → Quote/);
+  assert.match(js,/Job History/);
+  assert.match(js,/normalizeLabel\(button\.textContent\)===expected/);
+  assert.match(js,/Array\.from\(document\.querySelectorAll\('\.modal-backdrop'\)\)\.reverse\(\)/);
+  assert.doesNotMatch(js,/const target=buttons\[index\]/);
+});
+
+test('v449 waits long enough for first-load workflow chunks and modal rendering',()=>{
+  assert.match(js,/function withWorkflowReady/);
+  assert.match(js,/attempt<40/);
+  assert.match(js,/withWorkflowReady\(callback,attempt\+1\),75/);
+  assert.match(js,/function clickInternalAction/);
+  assert.match(js,/clickInternalAction\(panel,action,attempt\+1\),25/);
+  assert.match(js,/AI tools are still loading/);
+  assert.match(js,/This AI tool could not open/);
+});
+
+test('v449 refreshes language labels and repairs partial composer remounts',()=>{
+  assert.match(js,/function refreshComposer/);
+  assert.match(js,/lourexAiComposerLang/);
+  assert.match(js,/input\.placeholder=l\.message/);
+  assert.match(js,/plus\.setAttribute\('aria-label',l\.plus\)/);
+  assert.match(js,/mic\.setAttribute\('aria-label',l\.mic\)/);
+  assert.match(js,/status\.dataset\.messageKey/);
+  assert.match(js,/buildMenu\(panel,menu\)/);
+  assert.match(js,/if\(complete\)\{refreshComposer\(panel,form,input\);return;\}/);
+  assert.match(js,/plus\?\.remove\(\);mic\?\.remove\(\);status\?\.remove\(\);menu\?\.remove\(\)/);
+  assert.match(js,/recognitionPanel!==panel\)abortVoice\(\)/);
+  assert.match(js,/window\.addEventListener\('lourex-language-change',schedule\)/);
 });
 
 test('v449 mobile controls are visibly drawn and meet the 44px touch contract',()=>{
@@ -66,13 +99,4 @@ test('v449 voice is explicit, permission-aware and transcribes without auto-send
   assert.match(vercel,/microphone=\(self\)/);
   assert.doesNotMatch(vercel,/microphone=\(\)/);
   assert.doesNotMatch(vercel,/camera=\(self\)/);
-});
-
-test('v449 workflow routing waits for the mounted bridge instead of silently dropping taps',()=>{
-  assert.match(js,/function withWorkflowReady/);
-  assert.match(js,/attempt<12/);
-  assert.match(js,/AI tools are still loading/);
-  assert.match(js,/function clickInternalAction/);
-  assert.match(js,/attempt<10/);
-  assert.match(js,/This AI tool could not open/);
 });
