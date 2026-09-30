@@ -9,12 +9,15 @@ test('v451 product OS keeps the reliability bridge as the final local style owne
   const html=await read('index.html');
   const foundation='./styles/product-os-v451.css?v=451-1';
   const workspaces='./styles/product-os-workspaces-v451.css?v=451-1';
+  const detail='./styles/product-os-detail-v451.css?v=451-1';
   const reliability='./styles/tailadmin-reliability-bridge-v320.css?v=320-2';
   assert.ok(html.includes(foundation));
   assert.ok(html.includes(workspaces));
+  assert.ok(html.includes(detail));
   assert.ok(html.includes(reliability));
   assert.ok(html.indexOf(foundation)<html.indexOf(workspaces));
-  assert.ok(html.indexOf(workspaces)<html.indexOf(reliability));
+  assert.ok(html.indexOf(workspaces)<html.indexOf(detail));
+  assert.ok(html.indexOf(detail)<html.indexOf(reliability));
 
   const localStyles=[...html.matchAll(/href="\.\/styles\/([^"?]+\.css)(?:\?[^\"]*)?"/g)].map(match=>match[1]);
   assert.equal(localStyles.at(-1),'tailadmin-reliability-bridge-v320.css');
@@ -22,9 +25,10 @@ test('v451 product OS keeps the reliability bridge as the final local style owne
 });
 
 test('v451 semantic design system distinguishes AI, action and financial surfaces',async()=>{
-  const [foundation,workspaces]=await Promise.all([
+  const [foundation,workspaces,detail]=await Promise.all([
     read('src/styles/product-os-v451.css'),
-    read('src/styles/product-os-workspaces-v451.css')
+    read('src/styles/product-os-workspaces-v451.css'),
+    read('src/styles/product-os-detail-v451.css')
   ]);
   for(const token of ['--lx-canvas','--lx-shell','--lx-surface-ai','--lx-surface-warning','--lx-surface-critical','--lx-surface-success'])assert.ok(foundation.includes(token),token);
   assert.match(foundation,/\.lourex-advisor-card/);
@@ -37,6 +41,9 @@ test('v451 semantic design system distinguishes AI, action and financial surface
   assert.match(workspaces,/safe-area-inset-bottom/);
   assert.match(workspaces,/\.global-search-panel/);
   assert.match(workspaces,/\.lx-product-info/);
+  assert.match(detail,/\.ta-settings-shell/);
+  assert.match(detail,/\.ta-report-filterbar/);
+  assert.match(detail,/\.ta-doc-detail-hero/);
 });
 
 test('dashboard puts intelligence and action before analysis without inventing financial context',async()=>{
@@ -66,6 +73,21 @@ test('mobile center action reuses canonical global quick create while specialist
   for(const group of ['Overview','Sales & relationships','Operations','Finance & insights'])assert.ok(shell.includes(group),group);
 });
 
+test('mobile overlays, horizontal discovery and accessibility keep iPhone-safe product contracts',async()=>{
+  const detail=await read('src/styles/product-os-detail-v451.css');
+  assert.match(detail,/@media \(max-width:900px\)/);
+  assert.match(detail,/\.modal-backdrop>\.modal/);
+  assert.match(detail,/align-items:flex-end/);
+  assert.match(detail,/safe-area-inset-bottom/);
+  assert.match(detail,/min-height:44px/);
+  assert.match(detail,/font-size:16px/);
+  assert.match(detail,/overscroll-behavior:contain/);
+  assert.match(detail,/scroll-snap-type:x proximity/);
+  assert.match(detail,/\[dir="rtl"\]/);
+  assert.match(detail,/:focus-visible/);
+  assert.match(detail,/prefers-reduced-motion:reduce/);
+});
+
 test('operational finance and management reports remain conceptually separate',async()=>{
   const [finance,reports]=await Promise.all([
     read('src/components/FinanceWorkspace.tsx'),
@@ -88,7 +110,7 @@ test('help, privacy, terms and about are real product surfaces without invented 
   assert.match(shell,/ProductInfoModal/);
   assert.match(shell,/Help & Product Info/);
   for(const section of ["'help'","'privacy'","'terms'","'about'"])assert.ok(info.includes(section),section);
-  assert.match(info,/window as any\).__LOUREX_RUNTIME__/);
+  assert.match(info,/window as any\.__LOUREX_RUNTIME__/);
   assert.match(info,/Not exposed by this runtime/);
   assert.match(info,/Missing source values must remain missing rather than being invented/);
   assert.match(info,/does not replace a jurisdiction-specific privacy notice/);
