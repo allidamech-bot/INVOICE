@@ -16,7 +16,7 @@ export interface BusinessSearchAnswer{
 
 function norm(value:string):string{return value.normalize('NFKC').toLowerCase().replace(/[\u064b-\u065f\u0670]/g,'').replace(/[^\p{L}\p{N}@.+-]+/gu,' ').replace(/\s+/g,' ').trim();}
 function monthsFromQuery(query:string):number|null{const q=query.replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));const match=q.match(/(?:last|اخر|آخر)\s*(\d{1,2})\s*(?:months?|شهر|اشهر|أشهر)/iu);if(!match)return null;const value=Number(match[1]);return Number.isFinite(value)&&value>0&&value<=36?value:null;}
-function monthsBack(asOf:string,months:number):string{const [year,month,day]=asOf.split('-').map(Number);const monthIndex=year*12+(month-1)-months;const targetYear=Math.floor(monthIndex/12);const targetMonth=monthIndex-targetYear*12;const maxDay=new Date(Date.UTC(targetYear,targetMonth+1,0)).getUTCDate();return `${targetYear}-${String(targetMonth+1).padStart(2,'0')}-${String(Math.min(day,maxDay)).padStart(2,'0')}`;}
+function monthsBack(asOf:string,months:number):string{const parts=asOf.split('-');const year=Number(parts[0]??0),month=Number(parts[1]??1),day=Number(parts[2]??1);const monthIndex=year*12+(month-1)-months;const targetYear=Math.floor(monthIndex/12);const targetMonth=monthIndex-targetYear*12;const maxDay=new Date(Date.UTC(targetYear,targetMonth+1,0)).getUTCDate();return `${targetYear}-${String(targetMonth+1).padStart(2,'0')}-${String(Math.min(day,maxDay)).padStart(2,'0')}`;}
 function activeFinal(doc:any):boolean{return doc.status==='final'&&doc.lifecycleStatus!=='voided';}
 function productLabel(item:SavedItem):string{return(item.descriptionEn||item.descriptionAr||item.sku||'Product').trim();}
 function bestProduct(vault:VaultPayload,query:string):SavedItem|null{
