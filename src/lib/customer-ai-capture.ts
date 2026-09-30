@@ -23,6 +23,8 @@ export interface CustomerDuplicateCandidate{
   reasons:Array<'commercialRegistration'|'vatTaxNumber'|'email'|'phone'|'companyNameEn'|'companyNameAr'>;
 }
 
+const ARABIC_DIGITS='٠١٢٣٤٥٦٧٨٩';
+const EASTERN_ARABIC_DIGITS='۰۱۲۳۴۵۶۷۸۹';
 const emptyEvidence=():CustomerAiFieldEvidence=>({value:'',confidence:0,sourceFile:'',sourcePage:'',sourceExcerpt:''});
 
 export function emptyCustomerAiProposal():CustomerAiProposal{
@@ -31,6 +33,7 @@ export function emptyCustomerAiProposal():CustomerAiProposal{
 
 function cleanText(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);}
 function confidence(value:unknown):number{const number=Number(value);return Number.isFinite(number)?Math.max(0,Math.min(1,number)):0;}
+function latinDigits(value:string):string{return value.replace(/[٠-٩]/g,digit=>String(ARABIC_DIGITS.indexOf(digit))).replace(/[۰-۹]/g,digit=>String(EASTERN_ARABIC_DIGITS.indexOf(digit)));}
 
 export function normalizeCustomerAiProposal(value:any):CustomerAiProposal{
   const proposal=emptyCustomerAiProposal();
@@ -64,11 +67,11 @@ export function mergeCustomerAiProposals(proposals:CustomerAiProposal[]):Custome
 }
 
 export function normalizeName(value:string):string{
-  return value.normalize('NFKC').toLowerCase().replace(/[\u0640\u064b-\u065f\u0670]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/\s+/g,' ');
+  return latinDigits(value).normalize('NFKC').toLowerCase().replace(/[\u0640\u064b-\u065f\u0670]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/\s+/g,' ');
 }
-export function normalizeIdentifier(value:string):string{return value.normalize('NFKC').toUpperCase().replace(/[^\p{L}\p{N}]/gu,'');}
+export function normalizeIdentifier(value:string):string{return latinDigits(value).normalize('NFKC').toUpperCase().replace(/[^\p{L}\p{N}]/gu,'');}
 export function normalizeEmail(value:string):string{return value.normalize('NFKC').trim().toLowerCase();}
-export function normalizePhone(value:string):string{let digits=value.replace(/\D/g,'');while(digits.startsWith('00'))digits=digits.slice(2);return digits;}
+export function normalizePhone(value:string):string{let digits=latinDigits(value).replace(/\D/g,'');while(digits.startsWith('00'))digits=digits.slice(2);return digits;}
 
 function customerValues(customer:Customer){return{
   commercialRegistration:normalizeIdentifier(customer.commercialRegistration),
