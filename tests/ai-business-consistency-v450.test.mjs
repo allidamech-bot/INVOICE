@@ -5,6 +5,7 @@ import { createBlankDocument } from '../dist/src/lib/documents.js';
 import { buildAiBusinessContext } from '../dist/src/lib/ai-business.js';
 import { buildCollectionTasks } from '../dist/src/lib/collections-workflow.js';
 import { whatMattersToday } from '../dist/src/lib/daily-command-center.js';
+import { buildProductPricingContext } from '../dist/src/lib/product-pricing-intelligence.js';
 import { createPurchase, createPurchaseItem, createSupplier } from '../dist/src/lib/operations.js';
 
 function savedItemWithoutCurrency(){
@@ -45,7 +46,7 @@ test('v450 AI business context leaves an unknown product currency empty instead 
   assert.equal(row.lastCost,'10.00');
 });
 
-test('v450 AI business context excludes purchase observations after the requested as-of date',()=>{
+test('v450 AI business and pricing contexts exclude purchase observations after the requested as-of date',()=>{
   const vault=emptyVault();
   const item={...savedItemWithoutCurrency(),id:'future-cost-item',lastUnitCost:'',updatedAt:'2026-01-01T00:00:00.000Z'};
   vault.savedItems=[item];
@@ -57,6 +58,12 @@ test('v450 AI business context excludes purchase observations after the requeste
   assert.equal(row.currency,'');
   assert.equal(context.suppliers.rows.length,0);
   assert.equal(context.suppliers.costAlerts.length,0);
+  const pricing=buildProductPricingContext(vault,'','2026-02-01');
+  const pricingRow=pricing.rows.find(product=>product.id===item.id);
+  assert.ok(pricingRow);
+  assert.equal(pricingRow.cost,'');
+  assert.equal(pricingRow.pricingHealth,'no-cost');
+  assert.equal(pricing.purchasing.recentPurchases.length,0);
 });
 
 test('v450 collections and daily command center use the same requested as-of date',()=>{
