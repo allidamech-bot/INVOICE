@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/commercial-flow-batch1.css?v=453-1"></head>
+<body><div id="root" class="app-ui"></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {DocumentsPage} from './src/components/DocumentsPage.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {defaultCompany,emptyVault} from './src/lib/defaults.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+import {registerVaultMutationBridge} from './src/storage/vault-mutation-bridge.js';
+
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar';
+setUiLanguage(ar?'ar':'en');document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';document.documentElement.dataset.uiTheme='dark';
+const company=defaultCompany();company.nameEn='LOUREX Trading';company.nameAr='لوركس للتجارة';
+const quote=createBlankDocument('proforma','QUO-2026-0453',company);
+quote.status='final';quote.lifecycleStatus='active';quote.issueDate='2026-10-01';quote.dueDate='2099-12-31';quote.currency='USD';quote.language=ar?'bilingual':'en';
+quote.customerSnapshot={sourceCustomerId:'cust-453',companyNameEn:'Northstar Markets',companyNameAr:'أسواق نورث ستار',contactPerson:'Samira',addressEn:'Business Bay',addressAr:'الخليج التجاري',city:'Dubai',country:'UAE',phone:'+971500000000',email:'finance@example.test',vatTaxNumber:'TRN-453',commercialRegistration:'CR-453'};
+quote.items=[{...quote.items[0],descriptionEn:'Commercial services',descriptionAr:'خدمات تجارية',quantity:'2',unit:'Unit',unitPrice:'500.00'}];
+let vault=emptyVault();vault.documents=[quote];vault.documentEvents=[];
+window.__batch1Vault=vault;
+const noop=()=>{},asyncNoop=async()=>{};
+function render(){
+  window.__batch1Vault=vault;
+  ReactDOM.render(React.createElement(DocumentsPage,{documents:vault.documents,payments:vault.payments,documentEvents:vault.documentEvents,onNew:noop,onOpen:noop,onDuplicate:noop,onPrint:asyncNoop,onDelete:noop}),document.getElementById('root'));
+}
+registerVaultMutationBridge(async mutation=>{
+  vault=mutation(vault);
+  window.__batch1Vault=vault;
+  window.__batch1MutationCount=(window.__batch1MutationCount||0)+1;
+  window.setTimeout(render,0);
+  return vault;
+});
+window.__batch1MutationCount=0;
+render();
+</script></body></html>
