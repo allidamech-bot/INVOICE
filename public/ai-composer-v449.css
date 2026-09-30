@@ -34,7 +34,7 @@
 #lourex-ai-panel .lourex-ai-voice-dot{flex:0 0 7px;width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 0 currentColor;animation:lourexAiVoiceDot 1.1s ease-out infinite}
 #lourex-ai-panel .lourex-ai-voice-status.is-error .lourex-ai-voice-dot,
 #lourex-ai-panel .lourex-ai-voice-status[data-state="done"] .lourex-ai-voice-dot{animation:none}
-#lourex-ai-panel .lourex-ai-plus-menu{position:absolute;z-index:7;left:12px;right:12px;bottom:calc(100% - 2px);max-height:min(56dvh,520px);overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:8px;border:1px solid var(--ft-line-strong,rgba(255,255,255,.14));border-radius:20px;background:color-mix(in srgb,var(--ft-surface,#111) 96%,transparent);box-shadow:0 22px 62px rgba(0,0,0,.42);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);transform-origin:bottom left;animation:lourexAiMenuIn .14s ease-out}
+#lourex-ai-panel .lourex-ai-plus-menu{position:absolute;z-index:7;left:12px;right:12px;bottom:calc(100% - 2px);max-height:min(56dvh,520px);overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:8px;border:1px solid var(--ft-line-strong,rgba(255,255,255,.14));border-radius:20px;background:var(--ft-surface,#111)!important;box-shadow:0 22px 62px rgba(0,0,0,.42);transform-origin:bottom left;animation:lourexAiMenuIn .14s ease-out}
 #lourex-ai-panel .lourex-ai-plus-menu[hidden]{display:none!important}
 #lourex-ai-panel .lourex-ai-plus-section+ .lourex-ai-plus-section{margin-top:6px;padding-top:6px;border-top:1px solid var(--ft-line,rgba(255,255,255,.08))}
 #lourex-ai-panel .lourex-ai-plus-heading{display:block;padding:6px 10px 4px;color:var(--ft-text-soft,#918f8a);font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
@@ -55,6 +55,17 @@ html[data-lourex-ai-internal-route="true"] .modal-backdrop{opacity:0!important;p
   #lourex-ai-panel .lourex-ai-compose form>input{font-size:16px!important;padding-inline:4px!important}
   #lourex-ai-panel .lourex-ai-plus-menu{left:6px;right:6px;bottom:calc(100% + 1px);max-height:min(52dvh,470px);border-radius:18px;padding:7px}
   #lourex-ai-panel .lourex-ai-plus-item{min-height:50px;padding:7px 9px}
+  #lourex-ai-panel .lourex-ai-title{min-width:0!important;flex:1 1 auto!important;overflow:hidden!important}
+  #lourex-ai-panel .lourex-ai-title>div{min-width:0!important;overflow:hidden!important}
+  #lourex-ai-panel .lourex-ai-title strong{display:block;max-width:100%;overflow-wrap:anywhere;line-height:1.2!important}
+  #lourex-ai-panel .lourex-ai-head-actions{min-width:0!important;max-width:62%;gap:4px!important}
+  #lourex-ai-panel .lourex-ai-new-conversation{min-width:0!important;max-width:128px!important;padding-inline:10px!important;white-space:nowrap!important}
+}
+@media(max-width:360px){
+  #lourex-ai-panel .lourex-ai-head{gap:6px!important;padding-inline:10px!important}
+  #lourex-ai-panel .lourex-ai-title small{display:none!important}
+  #lourex-ai-panel .lourex-ai-title strong{font-size:13px!important}
+  #lourex-ai-panel .lourex-ai-new-conversation{max-width:118px!important;padding-inline:8px!important;font-size:12px!important}
 }
 @keyframes lourexAiListenPulse{0%{opacity:.75;transform:scale(.86)}100%{opacity:0;transform:scale(1.22)}}
 @keyframes lourexAiVoiceDot{0%{box-shadow:0 0 0 0 color-mix(in srgb,currentColor 45%,transparent)}100%{box-shadow:0 0 0 8px transparent}}
