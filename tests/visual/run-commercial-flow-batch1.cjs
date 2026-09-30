@@ -78,7 +78,7 @@ const output='visual-qa-output/commercial-flow-batch1';
         await page.getByRole('button',{name:'تأكيد الرفض'}).click();
         await page.waitForFunction(()=>window.__batch1Vault.documentEvents.some(event=>event.note.includes('@lourex:commercial:v1:rejected\nالسعر مرتفع')));
         await page.locator('.lx-commercial-status.status-rejected').first().waitFor();
-        await page.getByText('السعر مرتفع',{exact:true}).waitFor();
+        await page.locator('.lx-commercial-rejection').getByText('السعر مرتفع',{exact:true}).waitFor();
         const state=await page.evaluate(()=>({status:window.__batch1Vault.documents[0].status,lifecycle:window.__batch1Vault.documents[0].lifecycleStatus,mutations:window.__batch1MutationCount,events:window.__batch1Vault.documentEvents.length}));
         assert.equal(state.status,'final');assert.equal(state.lifecycle,'active');assert.equal(state.mutations,1);assert.equal(state.events,1);
         await page.screenshot({path:`${output}/mobile-ar-rejected.png`,fullPage:true,animations:'disabled'});
