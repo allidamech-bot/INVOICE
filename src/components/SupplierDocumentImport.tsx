@@ -1,7 +1,6 @@
 import type { PurchaseRecord, SavedItem, Supplier, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
-import { createPurchase, createPurchaseItem, supplierSnapshotFrom } from '../lib/operations.js';
-import { normalizeSavedItemIdentity, normalizeSavedItemSku } from '../lib/saved-items.js';
+import { buildAiSupplierPurchaseDraft } from '../lib/ai-supplier-purchase-draft.js';
 import { extractSupplierDraftFromSheets, type SupplierImportDraft } from '../lib/supplier-document-import.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from '../lib/spreadsheet-reader.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
@@ -31,30 +30,9 @@ async function binaryPayload(file:File):Promise<AiPayload>{
   return {kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
 }
 
-function normalize(value:string):string{return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();}
-
-function supplierMatch(suppliers:Supplier[],draft:SupplierImportDraft):Supplier|undefined{
-  const name=normalize(draft.supplierName);const tax=normalize(draft.supplierTaxId);
-  return suppliers.find(supplier=>(tax&&[supplier.vatTaxNumber,supplier.commercialRegistration].some(value=>normalize(value)===tax))||(name&&[supplier.nameEn,supplier.nameAr].some(value=>normalize(value)===name)));
-}
-
-function itemMatch(items:SavedItem[],row:SupplierImportDraft['items'][number]):SavedItem|undefined{
-  const sku=normalizeSavedItemSku(row.sku);
-  if(sku){const exact=items.find(item=>normalizeSavedItemSku(item.sku??'')===sku);if(exact)return exact;}
-  const en=normalizeSavedItemIdentity(row.descriptionEn),ar=normalizeSavedItemIdentity(row.descriptionAr);
-  return items.find(item=>(en&&normalizeSavedItemIdentity(item.descriptionEn)===en)||(ar&&normalizeSavedItemIdentity(item.descriptionAr)===ar));
-}
-
-export function buildSupplierPurchaseDraft(draft:SupplierImportDraft,purchases:PurchaseRecord[],suppliers:Supplier[],items:SavedItem[],fallbackCurrency:string):PurchaseRecord{
-  const matchedSupplier=supplierMatch(suppliers,draft);
-  let purchase=createPurchase(purchases,matchedSupplier?[matchedSupplier]:[],draft.currency||matchedSupplier?.defaultCurrency||fallbackCurrency||'USD');
-  const now=new Date().toISOString();
-  purchase={...purchase,date:draft.date||purchase.date,currency:(draft.currency||purchase.currency).toUpperCase(),supplierSnapshot:matchedSupplier?supplierSnapshotFrom(matchedSupplier):draft.supplierName?{sourceSupplierId:'',nameEn:draft.supplierName,nameAr:'',contactPerson:'',address:'',city:'',country:'',phone:'',email:'',vatTaxNumber:draft.supplierTaxId,commercialRegistration:''}:null,freight:draft.freight||'0.00',duty:draft.duty||'0.00',otherCosts:draft.otherCosts||'0.00',notes:[draft.documentNumber?`Supplier document: ${draft.documentNumber}`:'',draft.paymentTerms?`Payment terms: ${draft.paymentTerms}`:'',draft.notes].filter(Boolean).join('\n'),status:'draft',updatedAt:now};
-  purchase.items=draft.items.map(row=>{
-    const saved=itemMatch(items,row);const line=createPurchaseItem(saved);
-    return {...line,savedItemId:saved?.id??'',sku:row.sku||saved?.sku||'',descriptionEn:row.descriptionEn||saved?.descriptionEn||'',descriptionAr:row.descriptionAr||saved?.descriptionAr||'',quantity:row.quantity,unit:row.unit||saved?.unit||'PCS',unitCost:row.unitCost,landedUnitCost:'',previousUnitCost:saved?.lastUnitCost??'',previousCostCurrency:saved?.lastCostCurrency??''};
-  });
-  return purchase;
+/** Compatibility wrapper: all supplier-import UI paths now use the same review-first AI draft builder. */
+export function buildSupplierPurchaseDraft(draft:SupplierImportDraft,purchases:PurchaseRecord[],suppliers:Supplier[],items:SavedItem[],_fallbackCurrency=''):PurchaseRecord{
+  return buildAiSupplierPurchaseDraft(draft,purchases,suppliers,items);
 }
 
 function stageCopy(stage:ImportStage):{title:string;detail:string}{
@@ -158,7 +136,7 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
     this.saveInFlight=true;this.setState({stage:'saving',error:''});
     try{
       await mutateVaultSafely(vault=>{
-        const purchase=buildSupplierPurchaseDraft(extracted,vault.purchases,vault.suppliers,vault.savedItems,vault.appSettings.smartDefaults.currency||vault.company.defaultCurrency);
+        const purchase=buildAiSupplierPurchaseDraft(extracted,vault.purchases,vault.suppliers,vault.savedItems);
         return {...vault,purchases:[...vault.purchases,purchase]};
       });
       this.setState({stage:'saved',draft:null,error:''});
@@ -182,7 +160,7 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
             <div className="supplier-import-review-head"><div><p className="eyebrow">{t('Draft ready for review','المسودة جاهزة للمراجعة')}</p><h3><bdi dir="auto">{draft.supplierName||t('Supplier not identified','لم يتم تحديد المورد')}</bdi></h3><small><bdi dir="auto">{[draft.documentNumber,draft.date,draft.currency].filter(Boolean).join(' · ')||t('Complete missing header details in Operations','أكمل بيانات الرأس الناقصة في العمليات')}</bdi></small></div><span>{this.state.model}</span></div>
             <div className="supplier-import-items">{draft.items.slice(0,40).map((item,index)=><div key={`${item.sku}-${index}`} className="supplier-import-item"><span><strong><bdi dir="auto">{item.descriptionEn||item.descriptionAr||item.sku}</bdi></strong><small><bdi dir="auto">{[item.sku,item.quantity,item.unit].filter(Boolean).join(' · ')}</bdi></small></span><bdi dir="ltr">{item.unitCost} {draft.currency}</bdi></div>)}</div>
             {draft.items.length>40?<small className="supplier-import-more">{t(`${draft.items.length-40} more lines will be included in the draft.`,`سيتم تضمين ${draft.items.length-40} بندًا إضافيًا في المسودة.`)}</small>:null}
-            <div className="supplier-import-costs"><strong>{t('Extra costs','التكاليف الإضافية')}</strong><span>{t('Freight','الشحن')}: <bdi dir="ltr">{draft.freight}</bdi></span><span>{t('Duty','الجمارك')}: <bdi dir="ltr">{draft.duty}</bdi></span><span>{t('Other','أخرى')}: <bdi dir="ltr">{draft.otherCosts}</bdi></span></div>
+            <div className="supplier-import-costs"><strong>{t('Extra costs','التكاليف الإضافية')}</strong><span>{t('Freight','الشحن')}: <bdi dir="ltr">{draft.freight||'—'}</bdi></span><span>{t('Duty','الجمارك')}: <bdi dir="ltr">{draft.duty||'—'}</bdi></span><span>{t('Other','أخرى')}: <bdi dir="ltr">{draft.otherCosts||'—'}</bdi></span></div>
             <div className="supplier-import-safety"><Icon name="lock"/><span>{t('Confirming creates a draft only. Review and edit it in Operations before the separate Post Purchase action can affect inventory.','التأكيد ينشئ مسودة فقط. راجعها وعدّلها في العمليات قبل أن يتمكن إجراء ترحيل الشراء المنفصل من التأثير على المخزون.')}</span></div>
             {this.state.error?<div className="inline-error" role="alert">{this.state.error}</div>:null}
           </div>:null}
