@@ -15,7 +15,7 @@ test('Setup readiness is derived-only and does not invent live cloud or auth hea
 test('Legal and bank readiness remain review-if-applicable rather than universal blockers',async()=>{
   const source=await read('src/lib/setup-readiness.ts');
   assert.match(source,/legalReady\?'complete':'review'/);
-  assert.match(source,/(legacyBankReady\|\|accountBankReady)\?'complete':'review'/);
+  assert.match(source,/\(legacyBankReady\|\|accountBankReady\)\?'complete':'review'/);
   assert.match(source,/This may be valid for some businesses/);
 });
 
