@@ -2,7 +2,9 @@ import type { CompanySettings, Customer, DocumentKind } from '../types.js';
 import { makeId } from '../lib/id.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { validateCustomerCommercial } from '../lib/commercial-controls.js';
+import { findCustomerDuplicateCandidates } from '../lib/customer-ai-capture.js';
 import { setWorkspaceDirty } from '../lib/workspace-dirty.js';
+import { CustomerAiCapture } from './CustomerAiCapture.js';
 import { Button, ConfirmDialog, Field, Icon, IconButton, Input, Modal, Select, Textarea } from './UI.js';
 
 export function blankCustomer(seed=''):Customer{
@@ -29,15 +31,14 @@ export function CustomerForm({customer,company,onChange}:FormProps):any{
 
 type CustomerSort='name'|'recent';
 interface Props {customers:Customer[];company:CompanySettings;onSave:(customer:Customer)=>Promise<void>;onDelete:(customer:Customer)=>Promise<void>;onNewDocument:(kind:DocumentKind,customer:Customer)=>Promise<void>;onViewStatement?:(customer:Customer)=>void;}
-interface State {query:string;sort:CustomerSort;editing:Customer|null;editingInitial:string;discardConfirm:boolean;deleting:Customer|null;error:string;busy:boolean;creatingDocument:string;viewingId:string;}
+interface State {query:string;sort:CustomerSort;editing:Customer|null;editingInitial:string;discardConfirm:boolean;deleting:Customer|null;error:string;busy:boolean;creatingDocument:string;viewingId:string;allowKnownDuplicate:boolean;}
 
-function normalizeCustomerName(value:string):string{return value.trim().replace(/\s+/g,' ').toLowerCase();}
 function customerDisplayName(customer:Customer):string{return(isArabic()?(customer.companyNameAr||customer.companyNameEn):(customer.companyNameEn||customer.companyNameAr)).trim();}
 function customerSearchSeed(value:string):string{const seed=value.trim();if(!seed||seed.includes('@')||/^[+\d\s().-]{5,}$/.test(seed))return'';return seed;}
 function visibleValue(value:string):string{return value.trim()||'—';}
 
 export class CustomersPage extends React.Component<Props,State>{
-  state:State={query:'',sort:'name',editing:null,editingInitial:'',discardConfirm:false,deleting:null,error:'',busy:false,creatingDocument:'',viewingId:''};
+  state:State={query:'',sort:'name',editing:null,editingInitial:'',discardConfirm:false,deleting:null,error:'',busy:false,creatingDocument:'',viewingId:'',allowKnownDuplicate:false};
   private mounted=false;
 
   componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.handleKeyDown);window.addEventListener('lourex-create-customer',this.handleQuickCreate);window.addEventListener('beforeunload',this.handleBeforeUnload);this.syncDirtyMarker();}
@@ -72,30 +73,27 @@ export class CustomersPage extends React.Component<Props,State>{
     return customers.sort((a,b)=>this.state.sort==='recent'?b.updatedAt.localeCompare(a.updatedAt)||customerDisplayName(a).localeCompare(customerDisplayName(b),isArabic()?'ar':'en',{sensitivity:'base'}):customerDisplayName(a).localeCompare(customerDisplayName(b),isArabic()?'ar':'en',{sensitivity:'base'}));
   }
 
-  private beginEdit=(customer:Customer)=>{const editing=structuredClone(customer);this.setState({editing,editingInitial:JSON.stringify(editing),discardConfirm:false,error:''});};
+  private beginEdit=(customer:Customer)=>{const editing=structuredClone(customer);this.setState({editing,editingInitial:JSON.stringify(editing),discardConfirm:false,error:'',allowKnownDuplicate:false});};
+  private beginAiReview=(customer:Customer,allowKnownDuplicate:boolean)=>{const editing=structuredClone(customer);this.setState({editing,editingInitial:JSON.stringify(editing),discardConfirm:false,error:'',allowKnownDuplicate});};
   private openProfile=(customer:Customer)=>this.setState({viewingId:customer.id,error:''});
   private newCustomer=()=>this.beginEdit(blankCustomer(customerSearchSeed(this.state.query)));
   private editingDirty=()=>Boolean(this.state.editing&&this.state.editingInitial&&JSON.stringify(this.state.editing)!==this.state.editingInitial);
   private syncDirtyMarker=()=>setWorkspaceDirty('customers',this.editingDirty());
   private handleBeforeUnload=(event:BeforeUnloadEvent)=>{if(!this.editingDirty())return;event.preventDefault();event.returnValue='';};
-  private closeEditing=()=>this.setState({editing:null,editingInitial:'',discardConfirm:false,error:''});
+  private closeEditing=()=>this.setState({editing:null,editingInitial:'',discardConfirm:false,error:'',allowKnownDuplicate:false});
   private requestClose=()=>{if(this.state.busy)return;if(this.editingDirty())this.setState({discardConfirm:true});else this.closeEditing();};
 
-  private duplicateCustomer=(candidate:Customer):Customer|undefined=>{
-    const candidateNames=[candidate.companyNameEn,candidate.companyNameAr].map(normalizeCustomerName).filter(Boolean);
-    if(!candidateNames.length)return undefined;
-    return this.props.customers.find(existing=>existing.id!==candidate.id&&[existing.companyNameEn,existing.companyNameAr].map(normalizeCustomerName).filter(Boolean).some(name=>candidateNames.includes(name)));
-  };
+  private duplicateCustomer=(candidate:Customer):Customer|undefined=>findCustomerDuplicateCandidates(this.props.customers,candidate)[0]?.customer;
 
   private save=async()=>{
     const customer=this.state.editing;if(!customer)return;
     if(!customer.companyNameEn.trim()&&!customer.companyNameAr.trim()){this.setState({error:t('Company name is required.','اسم الشركة مطلوب.')});return;}
     const duplicate=this.duplicateCustomer(customer);
-    if(duplicate){this.setState({error:t(`A customer named “${customerDisplayName(duplicate)}” already exists.`,`يوجد عميل باسم «${customerDisplayName(duplicate)}» بالفعل.`)});return;}
+    if(duplicate&&!this.state.allowKnownDuplicate){this.setState({error:t(`A possible matching customer “${customerDisplayName(duplicate)}” already exists. Review the registration, VAT, phone, email and name before creating another record.`,`يوجد عميل محتمل مطابق باسم «${customerDisplayName(duplicate)}». راجع السجل والضريبة والهاتف والبريد والاسم قبل إنشاء سجل آخر.`)});return;}
     if(customer.email.trim()&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim())){this.setState({error:t('Enter a valid email address or leave it empty.','أدخل بريدًا إلكترونيًا صحيحًا أو اترك الحقل فارغًا.')});return;}
     const commercialError=validateCustomerCommercial(customer);if(commercialError){this.setState({error:commercialError});return;}
     this.setState({busy:true,error:''});
-    try{await this.props.onSave(customer);this.setState({editing:null,editingInitial:'',discardConfirm:false,busy:false,error:'',query:''});}
+    try{await this.props.onSave(customer);this.setState({editing:null,editingInitial:'',discardConfirm:false,busy:false,error:'',query:'',allowKnownDuplicate:false});}
     catch(e){this.setState({error:e instanceof Error?e.message:t('Unable to save customer.','تعذر حفظ العميل.'),busy:false});}
   };
 
@@ -152,7 +150,7 @@ export class CustomersPage extends React.Component<Props,State>{
     const withEmail=this.props.customers.filter(customer=>customer.email.trim()).length;
     const withCredit=this.props.customers.filter(customer=>customer.creditLimit.trim()).length;
     return <section className="ta-customers-page">
-      <header className="ta-customers-header"><div><span className="ta-customers-eyebrow">{t('Address book','دليل العملاء')}</span><h1>{t('Customers','العملاء')}</h1><p>{t('Manage customer identity, commercial defaults and credit controls from one workspace.','أدر هوية العملاء وإعداداتهم التجارية والرقابة الائتمانية من مساحة واحدة.')}</p></div><Button icon="plus" variant="primary" onClick={this.newCustomer}>{suggestedName?t(`Add “${suggestedName}”`,`إضافة «${suggestedName}»`):t('Add Customer','إضافة عميل')}</Button></header>
+      <header className="ta-customers-header"><div><span className="ta-customers-eyebrow">{t('Address book','دليل العملاء')}</span><h1>{t('Customers','العملاء')}</h1><p>{t('Manage customer identity, commercial defaults and credit controls from one workspace.','أدر هوية العملاء وإعداداتهم التجارية والرقابة الائتمانية من مساحة واحدة.')}</p></div><div className="ta-customer-modal-actions"><CustomerAiCapture customers={this.props.customers} onReview={this.beginAiReview}/><Button icon="plus" variant="primary" onClick={this.newCustomer}>{suggestedName?t(`Add “${suggestedName}”`,`إضافة «${suggestedName}»`):t('Add Customer','إضافة عميل')}</Button></div></header>
 
       <section className="ta-customers-summary"><div><span className="ta-customers-summary-icon"><Icon name="users"/></span><span><small>{t('Customers','العملاء')}</small><strong>{this.props.customers.length}</strong><em>{t('Saved profiles','ملفات محفوظة')}</em></span></div><div><span className="ta-customers-summary-icon"><Icon name="file"/></span><span><small>{t('With email','لديهم بريد')}</small><strong>{withEmail}</strong><em>{t('Ready for contact','جاهزون للتواصل')}</em></span></div><div><span className="ta-customers-summary-icon"><Icon name="chart"/></span><span><small>{t('Credit controls','ضوابط ائتمان')}</small><strong>{withCredit}</strong><em>{t('Profiles with a limit','عملاء لديهم حد')}</em></span></div></section>
 

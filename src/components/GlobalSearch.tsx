@@ -18,8 +18,12 @@ interface Props{
 interface State{open:boolean;query:string;paymentPicker:boolean;}
 type ResultKind='document'|'customer'|'product'|'supplier'|'purchase';
 interface SearchResult{key:string;kind:ResultKind;title:string;subtitle:string;searchText:string;action:()=>void;}
+interface GlobalSearchOpenDetail{query?:string;autoOpenUnique?:boolean;}
+interface GlobalActionDetail{action:'navigate'|'statement'|'payment';target?:GlobalSearchTarget;customerId?:string;invoiceId?:string;}
 
 const OPEN_EVENT='lourex-global-search-open';
+const ACTION_EVENT='lourex-global-action';
+const TARGETS=new Set<GlobalSearchTarget>(['documents','customers','items','operations','receivables','reports']);
 function normalize(value:string):string{return value.normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();}
 function localized(primary:string,secondary:string,fallback:string):string{return (isArabic()?(secondary||primary):(primary||secondary))||fallback;}
 function documentCustomer(document:LourexDocument):string{if(document.kind==='draft')return document.letter?.subject||document.letter?.recipient||t('Company document','مستند شركة');if(isSupplierDocumentKind(document.kind))return localized(document.supplierSnapshot?.nameEn||'',document.supplierSnapshot?.nameAr||'',t('No supplier','بدون مورد'));return localized(document.customerSnapshot?.companyNameEn||'',document.customerSnapshot?.companyNameAr||'',t('No customer','بدون عميل'));}
@@ -38,13 +42,29 @@ export class GlobalSearch extends React.Component<Props,State>{
 
   componentDidMount():void{
     document.addEventListener('keydown',this.handleKeyDown);
-    window.addEventListener(OPEN_EVENT,this.openFromEvent);
+    window.addEventListener(OPEN_EVENT,this.openFromEvent as EventListener);
+    window.addEventListener(ACTION_EVENT,this.actionFromEvent as EventListener);
   }
   componentWillUnmount():void{
     document.removeEventListener('keydown',this.handleKeyDown);
-    window.removeEventListener(OPEN_EVENT,this.openFromEvent);
+    window.removeEventListener(OPEN_EVENT,this.openFromEvent as EventListener);
+    window.removeEventListener(ACTION_EVENT,this.actionFromEvent as EventListener);
   }
-  private openFromEvent=()=>this.open();
+  private openFromEvent=(event:Event)=>{
+    const detail=(event as CustomEvent<GlobalSearchOpenDetail>).detail;
+    const query=typeof detail?.query==='string'?detail.query.trim().slice(0,160):'';
+    this.setState({open:true,query,paymentPicker:false},()=>window.setTimeout(()=>{
+      if(detail?.autoOpenUnique&&query){const results=this.results();if(results.length===1){results[0]!.action();return;}}
+      this.inputRef?.focus();
+    },0));
+  };
+  private actionFromEvent=(event:Event)=>{
+    const detail=(event as CustomEvent<GlobalActionDetail>).detail;
+    if(!detail)return;
+    if(detail.action==='navigate'&&detail.target&&TARGETS.has(detail.target)){this.close();this.props.onNavigate(detail.target);return;}
+    if(detail.action==='statement'&&detail.customerId){this.close();this.props.onNavigate('receivables');window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-statement',{detail:{customerId:detail.customerId}})),0);return;}
+    if(detail.action==='payment'&&detail.invoiceId){this.close();this.props.onNavigate('receivables');window.setTimeout(()=>window.dispatchEvent(new CustomEvent('lourex-finance-payment',{detail:{invoiceId:detail.invoiceId}})),0);}
+  };
   private handleKeyDown=(event:KeyboardEvent)=>{
     if(event.key==='Escape'&&this.state.open){event.preventDefault();if(this.state.paymentPicker){this.setState({paymentPicker:false});return;}this.close();return;}
     if(event.key.toLowerCase()==='k'&&(event.metaKey||event.ctrlKey)){

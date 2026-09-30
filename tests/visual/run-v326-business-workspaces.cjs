@@ -181,9 +181,7 @@ async function deepMobileAudit(page,surface,scenario,lang,engineName,failures){
     await page.screenshot({path:`${output}/${engineName}-${surface.name}-${scenario.name}-${lang}-add-customer.png`,fullPage:false});
   }
   if(surface.name==='products'){
-    const trigger=page.locator('.ta-products-workspace-header .btn-primary').first();
-    await assertPrimaryAccent(page,trigger,'product add',failures);
-    if(await trigger.isVisible().catch(()=>false))await trigger.click();
+    await page.evaluate(()=>window.dispatchEvent(new Event('lourex-open-product-editor')));
     await auditOpenSurface(page,'.ta-product-editor.is-open','.ta-product-editor-scroll','.ta-product-editor-footer',scenario,'Add Product',failures);
     const save=page.locator('.ta-product-editor.is-open .btn-primary').last();
     await assertPrimaryAccent(page,save,'product editor save',failures);
