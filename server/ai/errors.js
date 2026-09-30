@@ -1,0 +1,4 @@
+export class AiProviderError extends Error{
+  constructor(code,message,{status=502,retryable=true,provider='',model='',cause=null}={}){super(message,{cause});this.name='AiProviderError';this.code=code;this.status=status;this.retryable=retryable;this.provider=provider;this.model=model;}
+}
+export function statusCodeToError(status,provider,model){if(status===429)return new AiProviderError('AI_RATE_LIMITED','Provider rate limited',{status:429,provider,model});if(status===408||status===504)return new AiProviderError('AI_TIMEOUT','Provider timeout',{status:504,provider,model});if(status===400||status===404)return new AiProviderError('AI_MODEL_UNAVAILABLE','Provider model unavailable or incompatible',{status:502,provider,model});if(status>=500)return new AiProviderError('AI_UPSTREAM_ERROR','Provider unavailable',{status:502,provider,model});return new AiProviderError('AI_UPSTREAM_ERROR','Provider rejected request',{status:502,provider,model});}
