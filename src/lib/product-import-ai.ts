@@ -14,7 +14,7 @@ export async function requestProductImportAiMapping(analysis:ProductImportAnalys
   const response=await fetch('/api/product-import-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({columns}),signal});
   let payload:any={};try{payload=await response.json();}catch{}
   if(!response.ok)throw new Error(String(payload?.message||'AI mapping is temporarily unavailable.'));
-  return {model:String(payload?.model||'Gemini'),mappings:Array.isArray(payload?.mappings)?payload.mappings:[]};
+  return {model:'LOUREX AI · Automatic',mappings:Array.isArray(payload?.mappings)?payload.mappings:[]};
 }
 
 export function mergeProductImportAiMapping(analysis:ProductImportAnalysis,current:ProductImportColumnMap,suggestions:ProductImportAiSuggestion[]):ProductImportColumnMap{

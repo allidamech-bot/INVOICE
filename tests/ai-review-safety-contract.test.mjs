@@ -6,8 +6,13 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 
 test('customer AI capture remains server-keyed, same-origin and proposal-only', () => {
   const api = read('api/customer-capture-ai.js');
+  const router = read('api/_ai/router.js');
 
-  assert.match(api, /process\.env\.GEMINI_API_KEY/);
+  assert.match(api, /routeAiStructured/);
+  assert.match(router, /process\.env\.GEMINI_API_KEY/);
+  assert.match(router, /process\.env\.GROQ_API_KEY/);
+  assert.match(router, /process\.env\.CLOUDFLARE_AI_API_TOKEN/);
+  assert.doesNotMatch(api, /process\.env\.(?:GEMINI|GROQ|CLOUDFLARE)/);
   assert.match(api, /x-requested-with/);
   assert.match(api, /LOUREX-Invoice/);
   assert.match(api, /untrusted DATA/);

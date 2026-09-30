@@ -125,6 +125,7 @@ test('v264 client still builds finance facts locally while AI Core receives only
 
 test('v264 finance authority boundaries remain enforced inside final AI Core',()=>{
   const api=sourceText('../api/ai-core.js');
+  const router=sourceText('../api/_ai/router.js');
   assert.match(api,/MAX_BODY_BYTES=180000/);
   assert.match(api,/ALLOWED_CAPABILITIES=\['workspace\.help','finance\.explain','business\.explain','pricing\.explain','document\.review','workspace\.navigate','item\.archive','item\.restore','item\.updateMetadata','item\.reviewDuplicate','document\.createDraft','document\.updateDraft'\]/);
   assert.match(api,/value\.version!==1\|\|value\.basis!=='deterministic-finance-engine'/);
@@ -145,7 +146,12 @@ test('v264 finance authority boundaries remain enforced inside final AI Core',()
   assert.match(api,/Every proposal is preview-only until the user approves it in the client/);
   assert.match(api,/never invent selling prices/i);
   assert.match(api,/Purchasing intelligence is read-only/);
-  assert.match(api,/temperature:0/);
-  assert.match(api,/process\.env\.GEMINI_API_KEY/);
+  assert.match(api,/routeAiStructured/);
+  assert.match(api,/needsDeepReasoning/);
+  assert.doesNotMatch(api,/process\.env\.(?:GEMINI|GROQ|CLOUDFLARE)/);
+  assert.match(router,/temperature:0/);
+  assert.match(router,/process\.env\.GEMINI_API_KEY/);
+  assert.match(router,/process\.env\.GROQ_API_KEY/);
+  assert.match(router,/process\.env\.CLOUDFLARE_AI_API_TOKEN/);
   assert.doesNotMatch(api,/console\.log\([^)]*(finance|business|context|message|prompt)/i);
 });

@@ -1,7 +1,8 @@
+import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
+
 const MAX_BODY_BYTES=12000;
 const RATE_WINDOW_MS=5*60*1000;
 const RATE_MAX=24;
-const GEMINI_MODEL='gemini-2.5-flash-lite';
 const MODES=['company-policy','margin','markup','increase-percent','saved-sale-price','last-customer-price','no-change'];
 const rateBuckets=new Map();
 function sendJson(response,status,payload){response.statusCode=status;response.setHeader('Content-Type','application/json; charset=utf-8');response.setHeader('Cache-Control','no-store');response.setHeader('X-Content-Type-Options','nosniff');response.setHeader('Referrer-Policy','no-referrer');response.end(JSON.stringify(payload));}
@@ -13,17 +14,25 @@ async function readJson(request){let text='';for await(const chunk of request){t
 function cleanText(value,max=500){return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);}
 function cleanPercent(value){const text=cleanText(value,24).replace(',','.');if(!/^\d{1,4}(?:\.\d{1,2})?$/.test(text))return'';const n=Number(text);return Number.isFinite(n)&&n>=0&&n<=1000?text:'';}
 function validPercentForMode(mode,value){const text=cleanPercent(value);if(!text)return'';const number=Number(text);if(mode==='margin')return number<100?text:'';if(mode==='markup'||mode==='increase-percent')return number<=1000?text:'';return'';}
+
 export default async function handler(request,response){
   if(request.method!=='POST'){response.setHeader('Allow','POST');sendJson(response,405,{code:'METHOD_NOT_ALLOWED',message:'Use POST.'});return;}
   if(!sameOriginRequest(request)){sendJson(response,403,{code:'ORIGIN_REJECTED',message:'Pricing intent requests must come from this LOUREX deployment.'});return;}
   if(!rateAllowed(request)){response.setHeader('Retry-After','300');sendJson(response,429,{code:'AI_RATE_LIMITED',message:'Pricing intent AI is temporarily rate limited.'});return;}
-  const apiKey=process.env.GEMINI_API_KEY?.trim();if(!apiKey){sendJson(response,503,{code:'AI_NOT_CONFIGURED',message:'LOUREX AI is not configured yet.'});return;}
   let body;try{body=await readJson(request);}catch{sendJson(response,400,{code:'INVALID_REQUEST',message:'Invalid pricing instruction.'});return;}
   const instruction=cleanText(body?.instruction,500);if(!instruction){sendJson(response,400,{code:'EMPTY_INSTRUCTION',message:'Enter a pricing instruction first.'});return;}
   const prompt=`Convert the user's quotation pricing instruction into exactly one structured intent. Do NOT calculate any price or money. LOUREX will perform all calculations locally.\nAllowed modes:\n- company-policy: use the saved company pricing policy.\n- margin: target gross margin percent on saved cost; must be explicitly below 100%.\n- markup: target markup percent on saved cost; explicit values up to 1000% are accepted.\n- increase-percent: increase the currently proposed selling prices by an explicit percentage up to 1000%.\n- saved-sale-price: use each matched product's saved selling price.\n- last-customer-price: use the most recent comparable price previously quoted/invoiced to the matched customer for the matched product.\n- no-change: instruction is unsupported, ambiguous, invalid, or not a pricing instruction.\nFor margin, markup, and increase-percent, percent must be the explicit percentage from the user's instruction. Never invent a percentage. Return a short reason.\nUser instruction: ${JSON.stringify(instruction)}`;
   const schema={type:'OBJECT',properties:{mode:{type:'STRING',enum:MODES},percent:{type:'STRING'},reason:{type:'STRING'}},required:['mode','percent','reason']};
-  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
-  try{const upstream=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0,responseMimeType:'application/json',responseSchema:schema}}),signal:controller.signal});if(!upstream.ok){sendJson(response,upstream.status===429?429:502,{code:upstream.status===429?'AI_RATE_LIMITED':'AI_UPSTREAM_ERROR',message:'LOUREX could not interpret this pricing instruction.'});return;}const payload=await upstream.json();const text=payload?.candidates?.[0]?.content?.parts?.map(part=>part?.text||'').join('')||'';let parsed;try{parsed=JSON.parse(text);}catch{parsed=null;}const mode=MODES.includes(parsed?.mode)?parsed.mode:'no-change';const percent=['margin','markup','increase-percent'].includes(mode)?validPercentForMode(mode,parsed?.percent):'';if(['margin','markup','increase-percent'].includes(mode)&&!percent){sendJson(response,200,{intent:{mode:'no-change',percent:'',reason:'The explicit percentage is missing or outside the safe range for this pricing mode.'}});return;}sendJson(response,200,{intent:{mode,percent,reason:cleanText(parsed?.reason,220)},model:GEMINI_MODEL});}
-  catch(error){sendJson(response,504,{code:error instanceof Error&&error.name==='AbortError'?'AI_TIMEOUT':'AI_NETWORK_ERROR',message:'Pricing instruction could not be interpreted.'});}
-  finally{clearTimeout(timeout);}
+  const result=await routeAiStructured({taskType:'quote_pricing_intent',prompt,schema,timeoutMs:12_000,validate:value=>{
+    const mode=MODES.includes(value?.mode)?value.mode:'no-change';
+    if(!['margin','markup','increase-percent'].includes(mode))return true;
+    return Boolean(validPercentForMode(mode,value?.percent));
+  }});
+  if(!result.success){
+    if(result.errorCode==='AI_INVALID_RESULT'){sendJson(response,200,{intent:{mode:'no-change',percent:'',reason:'The explicit percentage is missing or outside the safe range for this pricing mode.'}});return;}
+    const publicError=aiRouterPublicError(result);sendJson(response,publicError.status,{code:publicError.code,message:publicError.message});return;
+  }
+  const parsed=result.data;const mode=MODES.includes(parsed?.mode)?parsed.mode:'no-change';const percent=['margin','markup','increase-percent'].includes(mode)?validPercentForMode(mode,parsed?.percent):'';
+  if(['margin','markup','increase-percent'].includes(mode)&&!percent){sendJson(response,200,{intent:{mode:'no-change',percent:'',reason:'The explicit percentage is missing or outside the safe range for this pricing mode.'}});return;}
+  sendJson(response,200,{intent:{mode,percent,reason:cleanText(parsed?.reason,220)}});
 }
