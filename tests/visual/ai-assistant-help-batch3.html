@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/tailadmin-ai-v320.css?v=320-2"><link rel="stylesheet" href="styles/ai-assistant-help-batch3.css?v=455-1"></head>
+<body><div id="root" class="app-ui"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {AiCopilot} from './src/components/AiCopilot.js';
+import {UsageGuide} from './src/components/UsageGuide.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar',h=React.createElement;
+document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';setUiLanguage(ar?'ar':'en');
+function App(){return h('main',{className:'batch3-visual-shell',dir:ar?'rtl':'ltr'},h('section',{className:'batch3-guide-shell'},h(UsageGuide)),h(AiCopilot,{screen:'home',language:ar?'ar':'en',onNavigate:()=>{}}));}
+ReactDOM.render(h(App),document.getElementById('root'));
+</script><style>.batch3-visual-shell{width:100%;max-width:1180px;margin:0 auto;padding:12px;box-sizing:border-box;background:var(--ft-canvas);min-height:100dvh}.batch3-guide-shell{max-width:900px;margin:0 auto}</style></body></html>
