@@ -6,7 +6,6 @@ export type DocumentStatus = 'draft' | 'final';
 export type DocumentRole = 'standard' | 'credit-note';
 export type DocumentLifecycleStatus = 'active' | 'voided';
 export type DocumentEventType = 'created' | 'issued' | 'reissued' | 'revision-started' | 'revision-discarded' | 'voided' | 'credit-note-created' | 'payment-recorded' | 'payment-deleted' | 'converted';
-export type CommercialDocumentEventType = 'commercial-sent' | 'commercial-accepted' | 'commercial-rejected' | 'commercial-followup-scheduled' | 'commercial-followup-completed';
 export type PaymentStatus = 'unpaid' | 'partially-paid' | 'paid' | 'overdue';
 export type PaymentMethod = 'cash' | 'bank-transfer' | 'card' | 'cheque' | 'other';
 export type PurchaseStatus = 'draft' | 'posted' | 'reversed';
@@ -441,7 +440,7 @@ export interface DocumentEventRecord {
   id: string;
   documentId: string;
   documentNumber: string;
-  type: DocumentEventType | CommercialDocumentEventType;
+  type: DocumentEventType;
   at: string;
   note: string;
   relatedDocumentId: string;
