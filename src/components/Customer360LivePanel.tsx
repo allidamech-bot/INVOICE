@@ -1,6 +1,7 @@
 import type { Customer } from '../types.js';
 import type { Customer360Snapshot } from '../lib/relationship-360.js';
 import { buildCustomer360 } from '../lib/relationship-360.js';
+import { ensureRelationship360Styles } from '../lib/relationship-360-style.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { t } from '../lib/i18n.js';
 import { Customer360Panel } from './Relationship360Panels.js';
@@ -9,6 +10,7 @@ export function Customer360LivePanel({customer}:{customer:Customer}):any{
   const [snapshot,setSnapshot]=React.useState<Customer360Snapshot|null>(null);
   const [error,setError]=React.useState('');
   React.useEffect(()=>{
+    ensureRelationship360Styles();
     let active=true;
     setSnapshot(null);setError('');
     void resumeVaultSession().then(session=>{
