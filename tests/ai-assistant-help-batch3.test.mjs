@@ -13,7 +13,11 @@ test('Batch 3 keeps one canonical AI assistant and exposes it as a robot',async(
 });
 
 test('Batch 3 mobile discoverability is bilingual, bounded and reduced-motion safe',async()=>{
-  const css=await read('src/styles/ai-assistant-help-batch3.css');
+  const [css,bridge]=await Promise.all([
+    read('src/styles/ai-assistant-help-batch3.css'),
+    read('src/styles/tailadmin-reliability-bridge-v320.css')
+  ]);
+  assert.match(bridge,/^@import url\("\.\/ai-assistant-help-batch3\.css\?v=455-1"\);/);
   assert.match(css,/@media\(max-width:860px\)[\s\S]*Your personal assistant in LOUREX/);
   assert.match(css,/مساعدك الشخصي في LOUREX/);
   assert.match(css,/max-width:min\(210px,calc\(100vw - 82px\)\)/);
@@ -28,7 +32,7 @@ test('Batch 3 Help Center contains the practical usage guide without a new prima
   ]);
   assert.match(modal,/import \{ UsageGuide \} from '\.\/UsageGuide\.js'/);
   assert.match(modal,/<UsageGuide\s*\/>/);
-  assert.match(guide,/ai-assistant-help-batch3\.css/);
+  assert.doesNotMatch(guide,/import .*\.css/);
   for(const section of ['Customer 360','Commercial Flow','Supplier 360','Finance','Reports','LOUREX AI','Backup','Security'])assert.match(guide,new RegExp(section,'i'));
   assert.doesNotMatch(modal,/ProductInfoSection='guide'/);
 });
