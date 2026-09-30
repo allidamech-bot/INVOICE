@@ -79,10 +79,26 @@ test('v450 AI business search ignores posted purchases that fail accounting vali
   const valid=postedPurchase(item,'2026-01-10','10.00');valid.id='purchase-valid';valid.number='PUR-VALID';
   const invalid=postedPurchase(item,'2026-02-10','99.00');invalid.id='purchase-invalid';invalid.number='PUR-INVALID';invalid.items[0].quantity='0';
   vault.purchases=[valid,invalid];
-  const answer=askBusinessRecords(vault,'latest purchase price Search Product');
+  const answer=askBusinessRecords(vault,'latest purchase price Search Product','2026-02-15');
   assert.equal(answer.intent,'last-purchase-price');
   assert.equal(answer.facts[0]?.value,'10.00 USD');
   assert.equal(answer.results.some(row=>row.id==='purchase-invalid'),false);
+});
+
+test('v450 AI business search excludes future-dated purchases, quotations and invoice quantities',()=>{
+  const vault=emptyVault();const item={...savedItemWithoutCurrency(),descriptionEn:'Timeline Product'};vault.savedItems=[item];
+  const pastPurchase=postedPurchase(item,'2026-01-10','11.00');pastPurchase.id='purchase-past';pastPurchase.number='PUR-PAST';
+  const futurePurchase=postedPurchase(item,'2026-03-10','99.00');futurePurchase.id='purchase-future';futurePurchase.number='PUR-FUTURE-LATE';vault.purchases=[pastPurchase,futurePurchase];
+  const customer=memoryCustomer();customer.country='Saudi Arabia';vault.customers=[customer];
+  const pastQuote=memoryQuote(customer);pastQuote.id='quote-past';pastQuote.number='PI-PAST';pastQuote.issueDate='2026-01-20';
+  const futureQuote=memoryQuote(customer);futureQuote.id='quote-future';futureQuote.number='PI-FUTURE';futureQuote.issueDate='2026-03-20';
+  const pastInvoice=legacyInvoice({id:'country-past',number:'INV-COUNTRY-PAST',issueDate:'2026-01-25',dueDate:'2026-02-10',description:'Country Product'});pastInvoice.customerSnapshot={...pastInvoice.customerSnapshot,sourceCustomerId:customer.id,companyNameEn:customer.companyNameEn,country:customer.country};pastInvoice.items[0].quantity='2';
+  const futureInvoice=legacyInvoice({id:'country-future',number:'INV-COUNTRY-FUTURE',issueDate:'2026-03-25',dueDate:'2026-04-10',description:'Country Product'});futureInvoice.customerSnapshot={...futureInvoice.customerSnapshot,sourceCustomerId:customer.id,companyNameEn:customer.companyNameEn,country:customer.country};futureInvoice.items[0].quantity='100';
+  vault.documents=[pastQuote,futureQuote,pastInvoice,futureInvoice];
+  const asOf='2026-02-15';
+  const price=askBusinessRecords(vault,'latest purchase price Timeline Product',asOf);assert.equal(price.facts[0]?.value,'11.00 USD');assert.equal(price.results.some(row=>row.id==='purchase-future'),false);
+  const quotes=askBusinessRecords(vault,'quotes last 3 months Memory Buyer',asOf);assert.equal(quotes.intent,'customer-documents');assert.deepEqual(quotes.results.map(row=>row.id),['quote-past']);
+  const top=askBusinessRecords(vault,'top products Saudi Arabia',asOf);assert.equal(top.intent,'top-products-country');assert.equal(top.facts.find(row=>row.label==='Country Product')?.value,'2 PCS');
 });
 
 test('v450 collections and daily command center use the same requested as-of date',()=>{
