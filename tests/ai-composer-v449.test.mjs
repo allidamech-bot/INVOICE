@@ -31,13 +31,17 @@ test('v449 plus menu contains the major LOUREX AI workflows without a launcher g
   assert.match(css,/\.lourex-ai-compose\{[^}]*z-index:20/);
 });
 
-test('v449 internal workflow routing is semantic and cannot silently drift with button order',()=>{
+test('v449 workflow launchers and modal actions are semantic instead of positional',()=>{
+  assert.match(js,/function workflowLauncher/);
+  assert.match(js,/kind==='inbox'\?l\.inbox\[0\]:l\.tools/);
   assert.match(js,/function workflowActionLabel/);
   assert.match(js,/File → Quote/);
   assert.match(js,/Job History/);
   assert.match(js,/normalizeLabel\(button\.textContent\)===expected/);
   assert.match(js,/Array\.from\(document\.querySelectorAll\('\.modal-backdrop'\)\)\.reverse\(\)/);
   assert.doesNotMatch(js,/const target=buttons\[index\]/);
+  assert.doesNotMatch(js,/launchers\[1\]/);
+  assert.doesNotMatch(js,/const button=buttons\[0\]/);
 });
 
 test('v449 waits long enough for first-load workflow chunks and modal rendering',()=>{
@@ -50,7 +54,7 @@ test('v449 waits long enough for first-load workflow chunks and modal rendering'
   assert.match(js,/This AI tool could not open/);
 });
 
-test('v449 refreshes language labels and repairs partial composer remounts',()=>{
+test('v449 refreshes language labels and repairs partial composer remounts safely',()=>{
   assert.match(js,/function refreshComposer/);
   assert.match(js,/lourexAiComposerLang/);
   assert.match(js,/input\.placeholder=l\.message/);
@@ -59,6 +63,7 @@ test('v449 refreshes language labels and repairs partial composer remounts',()=>
   assert.match(js,/status\.dataset\.messageKey/);
   assert.match(js,/buildMenu\(panel,menu\)/);
   assert.match(js,/if\(complete\)\{refreshComposer\(panel,form,input\);return;\}/);
+  assert.match(js,/if\(recognition&&recognitionPanel===panel\)abortVoice\(\)/);
   assert.match(js,/plus\?\.remove\(\);mic\?\.remove\(\);status\?\.remove\(\);menu\?\.remove\(\)/);
   assert.match(js,/recognitionPanel!==panel\)abortVoice\(\)/);
   assert.match(js,/window\.addEventListener\('lourex-language-change',schedule\)/);
