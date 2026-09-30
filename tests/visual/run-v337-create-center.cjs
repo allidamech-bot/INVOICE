@@ -31,6 +31,40 @@ async function assertInsideViewport(locator,viewport,label,failures){
   return box;
 }
 
+async function assertQuickActionsReachable(panel,actions,viewport,failures){
+  const scrollOwner=panel.locator('.global-search-start');
+  const geometry=await scrollOwner.evaluate(el=>{
+    const r=el.getBoundingClientRect(),s=getComputedStyle(el),before=el.scrollTop,max=Math.max(0,el.scrollHeight-el.clientHeight);
+    el.scrollTop=max;
+    const after=el.scrollTop;
+    el.scrollTop=before;
+    return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,scrollHeight:el.scrollHeight,clientHeight:el.clientHeight,scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,overflowY:s.overflowY,max,after};
+  });
+  if(geometry.left<-2||geometry.right>viewport.width+2||geometry.top<-2||geometry.bottom>viewport.height+2)failures.push(`Quick create scroll owner leaves viewport: ${JSON.stringify(geometry)}`);
+  if(geometry.scrollWidth>geometry.clientWidth+2)failures.push(`Quick create has horizontal overflow ${geometry.scrollWidth}>${geometry.clientWidth}`);
+  if(geometry.max>2&&!['auto','scroll'].includes(geometry.overflowY))failures.push(`Quick create hides ${geometry.max}px without vertical scrolling (${geometry.overflowY})`);
+  if(geometry.max>2&&geometry.after<geometry.max-2)failures.push(`Quick create cannot reach scroll end ${geometry.after}/${geometry.max}`);
+
+  const count=await actions.count();
+  for(let index=0;index<count;index+=1){
+    const target=actions.nth(index);
+    await target.scrollIntoViewIfNeeded();
+    await target.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    const box=await assertInsideViewport(target,viewport,`quick action ${index+1}`,failures);
+    if(!box)continue;
+    const visible=await target.evaluate(el=>{
+      const owner=el.closest('.global-search-start');
+      if(!(owner instanceof HTMLElement))return null;
+      const r=el.getBoundingClientRect(),o=owner.getBoundingClientRect();
+      return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,ownerTop:o.top,ownerBottom:o.bottom,ownerLeft:o.left,ownerRight:o.right};
+    });
+    if(!visible){failures.push(`quick action ${index+1} has no Quick Create scroll owner`);continue;}
+    if(visible.top<visible.ownerTop-2||visible.bottom>visible.ownerBottom+2)failures.push(`quick action ${index+1} cannot be revealed inside Quick Create: ${JSON.stringify(visible)}`);
+    if(visible.left<visible.ownerLeft-2||visible.right>visible.ownerRight+2)failures.push(`quick action ${index+1} escapes Quick Create horizontally: ${JSON.stringify(visible)}`);
+  }
+  await scrollOwner.evaluate(el=>{el.scrollTop=0;});
+}
+
 async function runMobileCreateQa(page,viewport,failures){
   const openQuickCreate=async()=>{
     await page.locator('.ta-mobile-create').click();
@@ -42,14 +76,16 @@ async function runMobileCreateQa(page,viewport,failures){
     const actions=panel.locator('.global-search-actions>button');
     const count=await actions.count();
     if(count!==7)failures.push(`expected 7 multi-domain quick-create actions, found ${count}`);
-    for(let index=0;index<count;index+=1)await assertInsideViewport(actions.nth(index),viewport,`quick action ${index+1}`,failures);
+    await assertQuickActionsReachable(panel,actions,viewport,failures);
     return{panel,actions};
   };
 
   for(const action of mobileQuickActions){
     await page.evaluate(()=>{window.shellQa.newKind='';window.shellQa.navigations=[];});
     const {actions}=await openQuickCreate();
-    await actions.nth(action.index).click();
+    const target=actions.nth(action.index);
+    await target.scrollIntoViewIfNeeded();
+    await target.click();
     await page.waitForTimeout(40);
     const state=await page.evaluate(()=>({newKind:window.shellQa.newKind,navigations:[...window.shellQa.navigations],searchOpen:Boolean(document.querySelector('.global-search-panel'))}));
     if(action.kind&&state.newKind!==action.kind)failures.push(`quick action ${action.index+1} dispatched ${state.newKind||'nothing'}, expected ${action.kind}`);
@@ -58,12 +94,15 @@ async function runMobileCreateQa(page,viewport,failures){
   }
 
   const {panel,actions}=await openQuickCreate();
-  await actions.nth(6).click();
+  const paymentAction=actions.nth(6);
+  await paymentAction.scrollIntoViewIfNeeded();
+  await paymentAction.click();
   await page.waitForTimeout(30);
   const picker=panel.locator('.global-search-payment-picker');
   await picker.waitFor({state:'visible'});
   if(await picker.locator('.global-search-empty').count()!==1)failures.push('Record payment did not show a safe empty invoice picker in the empty fixture');
   const back=picker.locator('.global-search-back-button');
+  await back.scrollIntoViewIfNeeded();
   await assertInsideViewport(back,viewport,'payment-picker back action',failures);
   await back.click();
   await panel.locator('.global-search-actions').waitFor({state:'visible'});
