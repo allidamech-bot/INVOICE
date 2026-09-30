@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles/app.bundle.css">
   <link rel="stylesheet" href="ai-composer-v449.css?v=449-1">
   <link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css?v=337-3" data-lourex-qa-runtime-document-owner="true">
-  <style>.shell-fixture{min-height:1100px;padding:28px}.shell-fixture-card{max-width:760px;min-height:220px;padding:24px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-surface)}.shell-create-button{transition:none!important}@media(max-width:960px){.shell-fixture{padding:18px 14px}.shell-fixture-card{min-height:700px}}</style>
+  <style>.shell-fixture{min-height:1100px;padding:28px}.shell-fixture-card{max-width:760px;min-height:220px;padding:24px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-surface)}.shell-create-button{transition:none!important}@media(max-width:960px){.shell-fixture{padding:18px 14px}.shell-fixture-card{min-height:700px}.lourex-ai-panel:not([data-v449-qa-ready="true"]){visibility:hidden!important}}</style>
 </head>
 <body><div id="root" class="app-ui"></div>
 <script src="vendor/react.production.min.js"></script>
@@ -43,6 +43,7 @@
         const items=menu.querySelectorAll('.lourex-ai-plus-item');
         if(items.length<10)throw new Error(`v449 plus menu exposes only ${items.length} tools`);
         checked=true;
+        panel.dataset.v449QaReady='true';
         window.shellQaAiComposer={checked:true,itemCount:items.length,menu:{left:r.left,right:r.right,top:r.top,bottom:r.bottom},controls:Object.fromEntries(controls.map(([name,node])=>{const box=node.getBoundingClientRect();return[name,{width:box.width,height:box.height}];}))};
       }));
     };
