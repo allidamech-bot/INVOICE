@@ -5,12 +5,119 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <base href="../../dist/">
   <link rel="stylesheet" href="styles/app.bundle.css">
+  <link rel="stylesheet" href="ai-composer-v449.css?v=449-1">
   <link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css?v=337-3" data-lourex-qa-runtime-document-owner="true">
-  <style>.shell-fixture{min-height:1100px;padding:28px}.shell-fixture-card{max-width:760px;min-height:220px;padding:24px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-surface)}.shell-create-button{transition:none!important}@media(max-width:960px){.shell-fixture{padding:18px 14px}.shell-fixture-card{min-height:700px}}</style>
+  <style>.shell-fixture{min-height:1100px;padding:28px}.shell-fixture-card{max-width:760px;min-height:220px;padding:24px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-surface)}.shell-create-button{transition:none!important}@media(max-width:960px){.shell-fixture{padding:18px 14px}.shell-fixture-card{min-height:700px}.lourex-ai-panel:not([data-v449-qa-ready="true"]){visibility:hidden!important}}</style>
 </head>
 <body><div id="root" class="app-ui"></div>
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
+<script src="lourex-ai-workflows.js?v=1"></script>
+<script src="ai-composer-v449.js?v=449-1"></script>
+<script>
+  (()=>{
+    let checked=false;
+    let checking=false;
+    const frames=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const controlBox=(name,node)=>{
+      const r=node.getBoundingClientRect();
+      if(r.width<43.5||r.height<43.5)throw new Error(`v449 ${name} touch target ${r.width}x${r.height}`);
+      return{width:r.width,height:r.height};
+    };
+    const inspectMenu=(panel)=>{
+      const menu=panel.querySelector('.lourex-ai-plus-menu');
+      if(!(menu instanceof HTMLElement)||menu.hidden)throw new Error('v449 plus menu did not open');
+      const r=menu.getBoundingClientRect();
+      if(r.left<-1||r.right>innerWidth+1||r.top<-1||r.bottom>innerHeight+1)throw new Error(`v449 plus menu escaped viewport ${JSON.stringify({left:r.left,right:r.right,top:r.top,bottom:r.bottom})}`);
+      if(menu.scrollWidth>menu.clientWidth+2)throw new Error(`v449 plus menu horizontal overflow ${menu.scrollWidth}>${menu.clientWidth}`);
+      const items=menu.querySelectorAll('.lourex-ai-plus-item');
+      if(items.length<10)throw new Error(`v449 plus menu exposes only ${items.length} tools`);
+      return{menu,items,r};
+    };
+    const validate=async()=>{
+      if(checked||checking||innerWidth>720)return;
+      const panel=document.querySelector('.lourex-ai-panel');
+      const plus=panel?.querySelector('.lourex-ai-composer-plus');
+      const mic=panel?.querySelector('.lourex-ai-composer-mic');
+      const send=panel?.querySelector('.lourex-ai-send');
+      const input=panel?.querySelector('.lourex-ai-compose form>input');
+      if(!(panel&&plus&&mic&&send&&input))return;
+      checking=true;
+      const fail=error=>{
+        checked=true;
+        checking=false;
+        panel.dataset.v449QaReady='true';
+        const message=String(error instanceof Error?error.message:error);
+        window.shellQaAiComposer={checked:false,error:message};
+        console.error(`v449 composer QA: ${message}`);
+      };
+      try{
+        controlBox('plus',plus);controlBox('microphone',mic);controlBox('send',send);
+        const plusSvg=plus.querySelector('svg');
+        const micSvg=mic.querySelector('svg');
+        if(!plusSvg||getComputedStyle(plusSvg).stroke==='none')throw new Error('v449 plus icon is not visibly stroked');
+        if(!micSvg||getComputedStyle(micSvg).stroke==='none')throw new Error('v449 microphone icon is not visibly stroked');
+
+        plus.click();
+        await frames();
+        inspectMenu(panel);
+
+        const originalPanelDir=panel.getAttribute('dir')||'ltr';
+        const originalHtmlDir=document.documentElement.dir||'ltr';
+        const opposite=originalPanelDir==='rtl'?'ltr':'rtl';
+        panel.setAttribute('dir',opposite);document.documentElement.dir=opposite;
+        window.dispatchEvent(new Event('lourex-language-change'));
+        await frames();
+        const oppositePlus=opposite==='rtl'?'فتح أدوات AI':'Open AI tools';
+        const oppositeMic=opposite==='rtl'?'إدخال صوتي':'Voice input';
+        const oppositePlaceholder=opposite==='rtl'?'راسل LOUREX…':'Message LOUREX…';
+        const oppositeInbox=opposite==='rtl'?'صندوق AI':'AI Inbox';
+        if(plus.getAttribute('aria-label')!==oppositePlus)throw new Error(`v449 plus label did not refresh to ${opposite}`);
+        if(mic.getAttribute('aria-label')!==oppositeMic)throw new Error(`v449 microphone label did not refresh to ${opposite}`);
+        if(input.getAttribute('placeholder')!==oppositePlaceholder)throw new Error(`v449 placeholder did not refresh to ${opposite}`);
+        const switched=inspectMenu(panel);
+        if(switched.items[0]?.querySelector('strong')?.textContent?.trim()!==oppositeInbox)throw new Error(`v449 plus menu did not refresh to ${opposite}`);
+
+        panel.setAttribute('dir',originalPanelDir);document.documentElement.dir=originalHtmlDir;
+        window.dispatchEvent(new Event('lourex-language-change'));
+        await frames();
+        const originalPlus=originalPanelDir==='rtl'?'فتح أدوات AI':'Open AI tools';
+        const originalMic=originalPanelDir==='rtl'?'إدخال صوتي':'Voice input';
+        const originalPlaceholder=originalPanelDir==='rtl'?'راسل LOUREX…':'Message LOUREX…';
+        if(plus.getAttribute('aria-label')!==originalPlus||mic.getAttribute('aria-label')!==originalMic||input.getAttribute('placeholder')!==originalPlaceholder)throw new Error('v449 language round-trip did not restore composer labels');
+
+        mic.remove();
+        await frames();
+        const repairedPlus=panel.querySelector('.lourex-ai-composer-plus');
+        const repairedMic=panel.querySelector('.lourex-ai-composer-mic');
+        const repairedSend=panel.querySelector('.lourex-ai-send');
+        if(!(repairedPlus instanceof HTMLButtonElement)||!(repairedMic instanceof HTMLButtonElement)||!(repairedSend instanceof HTMLButtonElement))throw new Error('v449 partial composer remount was not repaired');
+        if(panel.querySelectorAll('.lourex-ai-composer-plus').length!==1||panel.querySelectorAll('.lourex-ai-composer-mic').length!==1||panel.querySelectorAll('.lourex-ai-plus-menu').length!==1||panel.querySelectorAll('.lourex-ai-voice-status').length!==1)throw new Error('v449 remount repair duplicated composer controls');
+        const controls={plus:controlBox('plus repaired',repairedPlus),microphone:controlBox('microphone repaired',repairedMic),send:controlBox('send repaired',repairedSend)};
+
+        repairedPlus.click();
+        await frames();
+        let finalMenu=inspectMenu(panel);
+        document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+        await frames();
+        if(!finalMenu.menu.hidden)throw new Error('v449 Escape did not close the plus menu');
+        if(!panel.isConnected)throw new Error('v449 Escape closed the advisor instead of only the plus menu');
+        if(repairedPlus.getAttribute('aria-expanded')!=='false')throw new Error('v449 Escape did not reset plus aria-expanded');
+
+        repairedPlus.click();
+        await frames();
+        finalMenu=inspectMenu(panel);
+        checked=true;
+        checking=false;
+        panel.dataset.v449QaReady='true';
+        window.shellQaAiComposer={checked:true,itemCount:finalMenu.items.length,menu:{left:finalMenu.r.left,right:finalMenu.r.right,top:finalMenu.r.top,bottom:finalMenu.r.bottom},controls,languageRoundTrip:true,remountRepair:true,escapeIsolated:true};
+      }catch(error){fail(error);}
+    };
+    new MutationObserver(validate).observe(document.documentElement,{childList:true,subtree:true});
+    addEventListener('resize',validate);
+    validate();
+  })();
+</script>
 <script type="module">
   import {AppShell} from './src/components/AppShell.js';
   import {GlobalSearch} from './src/components/GlobalSearch.js';
