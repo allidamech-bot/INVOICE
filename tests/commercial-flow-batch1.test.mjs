@@ -104,6 +104,21 @@ test('Commercial tracking transition validation uses the latest vault and blocks
   assert.equal(quote.lifecycleStatus,'active');
 });
 
+test('Converted invoices inherit Converted commercial semantics while standalone invoices stay outside the panel',async()=>{
+  const { defaultCompany }=await import('../dist/src/lib/defaults.js');
+  const { createBlankDocument }=await import('../dist/src/lib/documents.js');
+  const { effectiveCommercialStatus }=await import('../dist/src/lib/commercial-flow.js');
+  const company=defaultCompany();
+  const quote=createBlankDocument('proforma','QUO-2026-9003',company);quote.status='final';
+  const converted=createBlankDocument('invoice','INV-2026-9003',company);converted.status='final';converted.convertedFromId=quote.id;
+  const standalone=createBlankDocument('invoice','INV-2026-9004',company);standalone.status='final';
+  assert.equal(effectiveCommercialStatus(converted,[quote,converted],null,'2026-10-01').status,'converted');
+  assert.equal(effectiveCommercialStatus(standalone,[standalone],null,'2026-10-01').status,'internal-ready');
+  const panel=await read('src/components/CommercialFlowPanel.tsx');
+  assert.match(panel,/if\(!isQuoteLikeDocument\(document\)&&!document\.convertedFromId\)return null/);
+  assert.doesNotMatch(panel,/document\.kind!=='invoice'/);
+});
+
 test('Expired quotations cannot be marked sent through a non-UI mutation path',async()=>{
   const { emptyVault, defaultCompany }=await import('../dist/src/lib/defaults.js');
   const { createBlankDocument }=await import('../dist/src/lib/documents.js');
