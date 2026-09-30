@@ -1,0 +1,673 @@
+/*
+ * LOUREX Product OS v451
+ * Product-level IA/visual hierarchy layer. Presentation only.
+ * Loaded after historical TailAdmin/Hostinger/matte layers so the current
+ * business logic and component ownership remain untouched.
+ */
+@media screen {
+  :root {
+    --lx-radius-sm:10px;
+    --lx-radius-md:14px;
+    --lx-radius-lg:18px;
+    --lx-radius-xl:22px;
+    --lx-motion-fast:140ms;
+    --lx-motion:190ms;
+    --lx-shadow-1:0 1px 2px rgba(15,23,42,.05),0 8px 22px rgba(15,23,42,.05);
+    --lx-shadow-2:0 14px 36px rgba(15,23,42,.09);
+    --lx-brand:#315da8;
+    --lx-brand-strong:#234b8c;
+    --lx-ai:#0f9fb0;
+    --lx-ai-strong:#1778b5;
+    --lx-info:#315da8;
+    --lx-success:#177f65;
+    --lx-warning:#b56c16;
+    --lx-critical:#c24e57;
+  }
+
+  html[data-ui-theme="light"] {
+    --lx-canvas:#f4f7fb;
+    --lx-shell:#ffffff;
+    --lx-shell-tint:#f5f8fd;
+    --lx-surface-1:#ffffff;
+    --lx-surface-2:#f7f9fc;
+    --lx-surface-3:#eef3f8;
+    --lx-surface-ai:#f0fbfd;
+    --lx-surface-info:#eef4ff;
+    --lx-surface-success:#edf9f5;
+    --lx-surface-warning:#fff7e9;
+    --lx-surface-critical:#fff0f1;
+    --lx-border:#dce5ee;
+    --lx-border-strong:#c8d5e2;
+    --lx-text:#142536;
+    --lx-text-muted:#63768a;
+    --lx-text-faint:#8798a9;
+    --lx-focus:#315da8;
+    --lx-ai-glow:rgba(16,159,176,.13);
+    --lx-header-glow:rgba(49,93,168,.08);
+  }
+
+  html[data-ui-theme="dark"] {
+    --lx-canvas:#0b0d10;
+    --lx-shell:#111720;
+    --lx-shell-tint:#121a25;
+    --lx-surface-1:#161a20;
+    --lx-surface-2:#1b2028;
+    --lx-surface-3:#222934;
+    --lx-surface-ai:#11252c;
+    --lx-surface-info:#162238;
+    --lx-surface-success:#142720;
+    --lx-surface-warning:#2a2116;
+    --lx-surface-critical:#2d1a1e;
+    --lx-border:#2c3643;
+    --lx-border-strong:#405064;
+    --lx-text:#f5f8fb;
+    --lx-text-muted:#aab8c8;
+    --lx-text-faint:#7f8d9d;
+    --lx-brand:#82a9ec;
+    --lx-brand-strong:#a7c2f2;
+    --lx-ai:#62d0da;
+    --lx-ai-strong:#7db9f1;
+    --lx-info:#82a9ec;
+    --lx-success:#61c7a2;
+    --lx-warning:#e4a64f;
+    --lx-critical:#ef7a82;
+    --lx-focus:#82a9ec;
+    --lx-ai-glow:rgba(53,189,204,.12);
+    --lx-header-glow:rgba(58,103,171,.13);
+    --lx-shadow-1:0 1px 0 rgba(255,255,255,.02),0 12px 28px rgba(0,0,0,.2);
+    --lx-shadow-2:0 20px 46px rgba(0,0,0,.32);
+  }
+
+  html body .app-ui,
+  html body .app-ui .ta-main {
+    color:var(--lx-text)!important;
+  }
+  html[data-ui-theme="dark"] body,
+  html[data-ui-theme="dark"] body .app-ui .ta-main {
+    background:var(--lx-canvas)!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .ta-main {
+    background:var(--lx-canvas)!important;
+  }
+
+  /* -------------------------------------------------------------
+     Product shell: header is a product surface, not page background.
+     ------------------------------------------------------------- */
+  html body .app-ui .ta-topbar {
+    background:color-mix(in srgb,var(--lx-shell) 94%,transparent)!important;
+    border-color:var(--lx-border)!important;
+    box-shadow:0 1px 0 color-mix(in srgb,var(--lx-border) 70%,transparent),0 12px 32px color-mix(in srgb,var(--lx-header-glow) 68%,transparent)!important;
+    backdrop-filter:saturate(125%) blur(14px)!important;
+    -webkit-backdrop-filter:saturate(125%) blur(14px)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .ta-topbar {
+    background:linear-gradient(180deg,color-mix(in srgb,var(--lx-shell) 96%,#17283e 4%),color-mix(in srgb,var(--lx-shell) 98%,transparent))!important;
+  }
+  html body .app-ui .ta-sidebar,
+  html body .app-ui .ta-mobile-nav {
+    background:var(--lx-shell)!important;
+    border-color:var(--lx-border)!important;
+    box-shadow:var(--lx-shadow-1)!important;
+  }
+
+  /* Official brand asset: use the mark itself, not a tiny badge inside a badge. */
+  html body .app-ui .ta-brand-button {
+    min-height:58px!important;
+    gap:11px!important;
+    padding:6px 8px!important;
+    border-radius:var(--lx-radius-md)!important;
+  }
+  html body .app-ui .ta-brand-button .brand.compact {
+    flex:0 0 auto!important;
+    min-width:44px!important;
+    gap:0!important;
+  }
+  html body .app-ui .ta-brand-button .brand.compact .brand-mark {
+    width:44px!important;
+    height:44px!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:12px!important;
+    overflow:hidden!important;
+    background:transparent!important;
+    box-shadow:0 0 0 1px color-mix(in srgb,var(--lx-border) 75%,transparent)!important;
+  }
+  html body .app-ui .ta-brand-button .brand.compact .brand-mark img {
+    display:block!important;
+    width:44px!important;
+    height:44px!important;
+    max-width:none!important;
+    object-fit:cover!important;
+    transform:scale(1.06)!important;
+  }
+  html body .app-ui .ta-brand-button .brand.compact .brand-words { display:none!important; }
+  html body .app-ui .ta-brand-copy strong {
+    color:var(--lx-text)!important;
+    font-weight:800!important;
+    letter-spacing:.13em!important;
+  }
+  html body .app-ui .ta-brand-copy small {
+    color:var(--lx-text-muted)!important;
+    letter-spacing:.12em!important;
+  }
+
+  /* Sidebar IA: clearer domain groups without changing routes. */
+  html body .app-ui .ta-nav-group-label {
+    margin-top:8px!important;
+    color:var(--lx-text-faint)!important;
+    font-size:10px!important;
+    font-weight:700!important;
+    letter-spacing:.08em!important;
+  }
+  [dir="rtl"] body .app-ui .ta-nav-group-label { letter-spacing:0!important; }
+  html body .app-ui .ta-nav-item {
+    min-height:46px!important;
+    border:1px solid transparent!important;
+    border-radius:11px!important;
+    transition:background var(--lx-motion-fast) ease,border-color var(--lx-motion-fast) ease,color var(--lx-motion-fast) ease,transform var(--lx-motion-fast) ease!important;
+  }
+  html body .app-ui .ta-nav-item:hover {
+    background:var(--lx-surface-2)!important;
+    border-color:var(--lx-border)!important;
+  }
+  html body .app-ui .ta-nav-item.is-active {
+    background:var(--lx-surface-info)!important;
+    border-color:color-mix(in srgb,var(--lx-brand) 24%,var(--lx-border))!important;
+    color:var(--lx-text)!important;
+  }
+  html body .app-ui .ta-nav-item.is-active .ta-nav-icon { color:var(--lx-brand)!important; }
+
+  /* -------------------------------------------------------------
+     Command search: deterministic global search looks intentional.
+     ------------------------------------------------------------- */
+  html body .app-ui .ta-search-trigger {
+    min-height:44px!important;
+    background:var(--lx-surface-2)!important;
+    border:1px solid var(--lx-border)!important;
+    border-radius:12px!important;
+    color:var(--lx-text-muted)!important;
+    box-shadow:inset 0 1px 0 color-mix(in srgb,#fff 4%,transparent)!important;
+    transition:border-color var(--lx-motion-fast) ease,background var(--lx-motion-fast) ease,box-shadow var(--lx-motion-fast) ease!important;
+  }
+  html body .app-ui .ta-search-trigger:hover,
+  html body .app-ui .ta-search-trigger:focus-visible {
+    background:var(--lx-surface-1)!important;
+    border-color:color-mix(in srgb,var(--lx-brand) 48%,var(--lx-border))!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--lx-brand) 12%,transparent)!important;
+  }
+  html body .global-search-backdrop {
+    background:rgba(4,7,11,.64)!important;
+    backdrop-filter:blur(5px)!important;
+    -webkit-backdrop-filter:blur(5px)!important;
+  }
+  html body .global-search-panel {
+    background:var(--lx-surface-1)!important;
+    border:1px solid var(--lx-border-strong)!important;
+    border-radius:var(--lx-radius-xl)!important;
+    box-shadow:var(--lx-shadow-2)!important;
+    overflow:hidden!important;
+  }
+  html body .global-search-input-wrap {
+    background:var(--lx-shell-tint)!important;
+    border-color:var(--lx-border)!important;
+  }
+  html body .global-search-input-wrap:focus-within {
+    border-color:color-mix(in srgb,var(--lx-brand) 55%,var(--lx-border))!important;
+    box-shadow:inset 0 -2px 0 color-mix(in srgb,var(--lx-brand) 68%,transparent)!important;
+  }
+  html body :is(.global-search-actions>button,.global-search-destinations>button,.global-search-result) {
+    background:var(--lx-surface-1)!important;
+    border-color:var(--lx-border)!important;
+    border-radius:12px!important;
+    transition:background var(--lx-motion-fast) ease,border-color var(--lx-motion-fast) ease,transform var(--lx-motion-fast) ease!important;
+  }
+  html body :is(.global-search-actions>button,.global-search-destinations>button,.global-search-result):hover {
+    background:var(--lx-surface-2)!important;
+    border-color:var(--lx-border-strong)!important;
+    transform:translateY(-1px)!important;
+  }
+
+  /* -------------------------------------------------------------
+     Dashboard product hierarchy.
+     ------------------------------------------------------------- */
+  html body .app-ui .ta-finance-dashboard {
+    gap:16px!important;
+  }
+  html body .app-ui .ta-dashboard-header { order:0!important; }
+  html body .app-ui .ta-advisor-slot { order:1!important; }
+  html body .app-ui .ta-dashboard-secondary-grid { display:contents!important; }
+  html body .app-ui .ta-attention-card { order:2!important; }
+  html body .app-ui .ta-kpi-grid { order:3!important; }
+  html body .app-ui .ta-quick-actions { order:4!important; }
+  html body .app-ui .ta-dashboard-primary-grid { order:5!important; }
+  html body .app-ui .ta-inventory-card { order:6!important; }
+  html body .app-ui .ta-recent-card { order:7!important; }
+
+  html body .app-ui .ta-dashboard-header {
+    border:1px solid var(--lx-border)!important;
+    border-inline-start:3px solid var(--lx-brand)!important;
+    border-radius:var(--lx-radius-lg)!important;
+    background:linear-gradient(135deg,var(--lx-surface-1),color-mix(in srgb,var(--lx-surface-info) 52%,var(--lx-surface-1)))!important;
+    box-shadow:var(--lx-shadow-1)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .ta-dashboard-header {
+    background:radial-gradient(560px 160px at 8% 0%,color-mix(in srgb,var(--lx-brand) 9%,transparent),transparent 72%),var(--lx-surface-1)!important;
+  }
+
+  /* Card families share geometry but communicate function. */
+  html body .app-ui :is(.ta-dashboard-card,.ta-kpi-card,.ta-finance-kpi,.ta-report-kpi,.ta-panel,.ta-settings-card,.ta-products-overview>div) {
+    border-color:var(--lx-border)!important;
+    border-radius:var(--lx-radius-md)!important;
+    background:var(--lx-surface-1)!important;
+    box-shadow:var(--lx-shadow-1)!important;
+  }
+  html body .app-ui .ta-kpi-card {
+    min-height:116px!important;
+    border-top:2px solid color-mix(in srgb,var(--lx-info) 36%,var(--lx-border))!important;
+  }
+  html body .app-ui .ta-kpi-card.ta-kpi-danger {
+    border-top-color:color-mix(in srgb,var(--lx-critical) 76%,var(--lx-border))!important;
+    background:linear-gradient(180deg,color-mix(in srgb,var(--lx-surface-critical) 46%,var(--lx-surface-1)),var(--lx-surface-1))!important;
+  }
+  html body .app-ui .ta-kpi-icon,
+  html body .app-ui .ta-quick-icon {
+    background:var(--lx-surface-info)!important;
+    color:var(--lx-info)!important;
+    border:1px solid color-mix(in srgb,var(--lx-info) 20%,var(--lx-border))!important;
+  }
+  html body .app-ui .ta-kpi-danger .ta-kpi-icon {
+    background:var(--lx-surface-critical)!important;
+    color:var(--lx-critical)!important;
+    border-color:color-mix(in srgb,var(--lx-critical) 28%,var(--lx-border))!important;
+  }
+
+  /* LOUREX Intelligence owns a recognizable visual family. */
+  html body .app-ui .lourex-advisor-card {
+    position:relative!important;
+    isolation:isolate!important;
+    overflow:hidden!important;
+    border:1px solid color-mix(in srgb,var(--lx-ai) 34%,var(--lx-border))!important;
+    border-radius:var(--lx-radius-lg)!important;
+    background:
+      radial-gradient(520px 210px at 8% 0%,color-mix(in srgb,var(--lx-ai) 14%,transparent),transparent 72%),
+      radial-gradient(420px 180px at 94% 10%,color-mix(in srgb,var(--lx-brand) 10%,transparent),transparent 72%),
+      var(--lx-surface-ai)!important;
+    box-shadow:0 18px 44px color-mix(in srgb,var(--lx-ai-glow) 78%,transparent)!important;
+  }
+  html body .app-ui .lourex-advisor-card::before {
+    content:""!important;
+    position:absolute!important;
+    inset:0 0 auto!important;
+    height:2px!important;
+    background:linear-gradient(90deg,var(--lx-ai),color-mix(in srgb,var(--lx-brand) 75%,var(--lx-ai)),transparent 84%)!important;
+    opacity:.82!important;
+    pointer-events:none!important;
+  }
+  html body .app-ui .lourex-advisor-head { position:relative!important;z-index:1!important; }
+  html body .app-ui .lourex-advisor-mark {
+    width:46px!important;
+    height:46px!important;
+    border-radius:13px!important;
+    background-color:#08131d!important;
+    background-image:url('../brand/lourex-logo.svg')!important;
+    background-size:cover!important;
+    background-position:center!important;
+    box-shadow:0 0 0 1px color-mix(in srgb,var(--lx-ai) 25%,var(--lx-border)),0 8px 22px color-mix(in srgb,var(--lx-ai) 14%,transparent)!important;
+  }
+  html body .app-ui .lourex-advisor-mark .icon { opacity:0!important; }
+  html body .app-ui .lourex-advisor-identity small { color:var(--lx-ai)!important;font-weight:800!important; }
+  html body .app-ui .lourex-advisor-identity h2 { color:var(--lx-text)!important; }
+  html body .app-ui .lourex-advisor-identity p,
+  html body .app-ui .lourex-advisor-trust { color:var(--lx-text-muted)!important; }
+  html body .app-ui .lourex-advisor-starters button {
+    border-color:color-mix(in srgb,var(--lx-ai) 22%,var(--lx-border))!important;
+    background:color-mix(in srgb,var(--lx-surface-1) 80%,var(--lx-surface-ai))!important;
+    color:var(--lx-text)!important;
+  }
+  html body .app-ui .lourex-advisor-starters button:hover {
+    border-color:color-mix(in srgb,var(--lx-ai) 55%,var(--lx-border))!important;
+    background:color-mix(in srgb,var(--lx-surface-ai) 72%,var(--lx-surface-1))!important;
+  }
+  html body .app-ui .lourex-advisor-compose form {
+    border-color:color-mix(in srgb,var(--lx-ai) 24%,var(--lx-border))!important;
+    background:var(--lx-surface-1)!important;
+  }
+  html body .app-ui .lourex-advisor-compose form:focus-within {
+    border-color:var(--lx-ai)!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--lx-ai) 12%,transparent)!important;
+  }
+
+  /* Action Center: action surfaces must not look informational. */
+  html body .app-ui .ta-attention-card {
+    border-color:color-mix(in srgb,var(--lx-warning) 34%,var(--lx-border))!important;
+    background:linear-gradient(135deg,color-mix(in srgb,var(--lx-surface-warning) 72%,var(--lx-surface-1)),var(--lx-surface-1) 68%)!important;
+    box-shadow:0 12px 30px color-mix(in srgb,var(--lx-warning) 8%,transparent)!important;
+  }
+  html body .app-ui .ta-attention-card .ta-card-header {
+    background:color-mix(in srgb,var(--lx-surface-warning) 62%,transparent)!important;
+    border-color:color-mix(in srgb,var(--lx-warning) 20%,var(--lx-border))!important;
+  }
+  html body .app-ui .ta-attention-list>button {
+    min-height:48px!important;
+    border:1px solid color-mix(in srgb,var(--lx-warning) 18%,var(--lx-border))!important;
+    border-radius:11px!important;
+    background:color-mix(in srgb,var(--lx-surface-1) 86%,var(--lx-surface-warning))!important;
+    transition:transform var(--lx-motion-fast) ease,border-color var(--lx-motion-fast) ease,background var(--lx-motion-fast) ease!important;
+  }
+  html body .app-ui .ta-attention-list>button:hover {
+    transform:translateY(-1px)!important;
+    border-color:color-mix(in srgb,var(--lx-warning) 44%,var(--lx-border))!important;
+  }
+  html body .app-ui .ta-attention-list>button.is-danger {
+    background:color-mix(in srgb,var(--lx-surface-critical) 82%,var(--lx-surface-1))!important;
+    border-color:color-mix(in srgb,var(--lx-critical) 35%,var(--lx-border))!important;
+  }
+  html body .app-ui .ta-attention-list>button.is-danger .icon,
+  html body .app-ui .ta-attention-list>button.is-danger>strong { color:var(--lx-critical)!important; }
+  html body .app-ui .ta-clear-state {
+    background:var(--lx-surface-success)!important;
+    border:1px solid color-mix(in srgb,var(--lx-success) 24%,var(--lx-border))!important;
+    border-radius:12px!important;
+  }
+
+  /* Analysis comes after action. Empty charts do not occupy prime mobile real estate. */
+  html body .app-ui .ta-performance-card { border-top:2px solid color-mix(in srgb,var(--lx-brand) 40%,var(--lx-border))!important; }
+  html body .app-ui .ta-position-card { border-top:2px solid color-mix(in srgb,var(--lx-info) 46%,var(--lx-border))!important; }
+  html body .app-ui .ta-inventory-card { border-top:2px solid color-mix(in srgb,var(--lx-success) 42%,var(--lx-border))!important; }
+  html body .app-ui .ta-chart-stage.is-empty {
+    min-height:170px!important;
+    padding-bottom:8px!important;
+  }
+  html body .app-ui .ta-chart-stage.is-empty .ta-finance-chart,
+  html body .app-ui .ta-chart-stage.is-empty .ta-chart-labels { opacity:.14!important; }
+  html body .app-ui .ta-chart-stage.is-empty .ta-chart-empty {
+    inset:12px 16px 16px!important;
+    border-color:var(--lx-border)!important;
+    background:var(--lx-surface-2)!important;
+  }
+
+  /* Quick actions look clickable. */
+  html body .app-ui .ta-quick-actions>button {
+    border-color:var(--lx-border)!important;
+    border-radius:12px!important;
+    background:var(--lx-surface-1)!important;
+    box-shadow:none!important;
+    transition:transform var(--lx-motion-fast) ease,border-color var(--lx-motion-fast) ease,background var(--lx-motion-fast) ease!important;
+  }
+  html body .app-ui .ta-quick-actions>button:hover {
+    transform:translateY(-1px)!important;
+    border-color:var(--lx-border-strong)!important;
+    background:var(--lx-surface-2)!important;
+  }
+
+  /* -------------------------------------------------------------
+     Finance + Reports: semantic context and data-completeness hierarchy.
+     ------------------------------------------------------------- */
+  html body .app-ui .ta-finance-kpi {
+    border-top:2px solid color-mix(in srgb,var(--lx-info) 46%,var(--lx-border))!important;
+  }
+  html body .app-ui .ta-finance-kpi.has-alert {
+    border-top-color:var(--lx-critical)!important;
+    background:linear-gradient(180deg,color-mix(in srgb,var(--lx-surface-critical) 42%,var(--lx-surface-1)),var(--lx-surface-1))!important;
+  }
+  html body .app-ui .ta-report-kpi {
+    border-top:2px solid color-mix(in srgb,var(--lx-brand) 38%,var(--lx-border))!important;
+  }
+  html body .app-ui .ta-report-kpi-warning,
+  html body .app-ui .ta-data-alert {
+    background:var(--lx-surface-warning)!important;
+    border-color:color-mix(in srgb,var(--lx-warning) 34%,var(--lx-border))!important;
+    color:var(--lx-text)!important;
+    border-radius:12px!important;
+  }
+  html body .app-ui .ta-data-alert .icon { color:var(--lx-warning)!important; }
+  html body .app-ui .ta-report-filterbar {
+    position:sticky!important;
+    top:calc(var(--ta-topbar-height,64px) + 8px)!important;
+    z-index:12!important;
+    background:color-mix(in srgb,var(--lx-surface-1) 94%,transparent)!important;
+    border-color:var(--lx-border)!important;
+    box-shadow:var(--lx-shadow-1)!important;
+    backdrop-filter:blur(12px)!important;
+    -webkit-backdrop-filter:blur(12px)!important;
+  }
+  html body .app-ui :is(.ta-empty-card,.ta-panel-empty,.ta-dashboard-empty,.statement-empty) {
+    background:var(--lx-surface-2)!important;
+    border-color:var(--lx-border)!important;
+    color:var(--lx-text-muted)!important;
+    border-radius:var(--lx-radius-md)!important;
+  }
+
+  /* -------------------------------------------------------------
+     Domain workspaces + horizontal overflow affordance.
+     ------------------------------------------------------------- */
+  html body .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-ops-tabs) {
+    position:relative!important;
+    scroll-snap-type:x proximity!important;
+    overscroll-behavior-inline:contain!important;
+    scrollbar-width:none!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  html body .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-ops-tabs)::-webkit-scrollbar { display:none!important; }
+  html body .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-ops-tabs)>button {
+    min-height:44px!important;
+    scroll-snap-align:start!important;
+  }
+  html body .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-ops-tabs) {
+    -webkit-mask-image:linear-gradient(to right,transparent 0,#000 12px,#000 calc(100% - 22px),transparent 100%)!important;
+    mask-image:linear-gradient(to right,transparent 0,#000 12px,#000 calc(100% - 22px),transparent 100%)!important;
+  }
+  [dir="rtl"] body .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-ops-tabs) { direction:rtl!important; }
+
+  /* Customer / product / purchasing surfaces share the system, not identical cards. */
+  html body .app-ui :is(.ta-customer-card,.ta-product-register,.ta-ops-list-card,.ta-ops-editor-card) {
+    background:var(--lx-surface-1)!important;
+    border-color:var(--lx-border)!important;
+    border-radius:var(--lx-radius-md)!important;
+    box-shadow:var(--lx-shadow-1)!important;
+  }
+  html body .app-ui :is(.ta-customers-summary,.ta-products-overview,.ta-ops-metrics) > * {
+    background:var(--lx-surface-1)!important;
+    border-color:var(--lx-border)!important;
+  }
+
+  /* -------------------------------------------------------------
+     Settings / account: control center hierarchy, no fake controls.
+     ------------------------------------------------------------- */
+  html body .ta-settings-shell,
+  html body .ta-settings-content,
+  html body .ta-settings-sidebar {
+    background:var(--lx-surface-1)!important;
+    border-color:var(--lx-border)!important;
+  }
+  html body .app-ui .ta-settings-nav button,
+  html body .ta-settings-nav button {
+    min-height:52px!important;
+    border:1px solid transparent!important;
+    border-radius:11px!important;
+    background:transparent!important;
+    transition:background var(--lx-motion-fast) ease,border-color var(--lx-motion-fast) ease!important;
+  }
+  html body .ta-settings-nav button:hover {
+    background:var(--lx-surface-2)!important;
+    border-color:var(--lx-border)!important;
+  }
+  html body .ta-settings-nav button.is-active {
+    background:var(--lx-surface-info)!important;
+    border-color:color-mix(in srgb,var(--lx-brand) 25%,var(--lx-border))!important;
+    color:var(--lx-text)!important;
+  }
+  html body .ta-settings-card {
+    overflow:hidden!important;
+    background:var(--lx-surface-1)!important;
+    border-color:var(--lx-border)!important;
+  }
+  html body .ta-settings-card>header {
+    background:var(--lx-surface-2)!important;
+    border-color:var(--lx-border)!important;
+  }
+  html body .ta-security-page .ta-settings-card:last-of-type {
+    border-color:color-mix(in srgb,var(--lx-brand) 26%,var(--lx-border))!important;
+  }
+
+  /* -------------------------------------------------------------
+     Modal / sheet family: mobile-safe, clear hierarchy.
+     ------------------------------------------------------------- */
+  html body .modal-backdrop {
+    background:rgba(4,7,11,.62)!important;
+    backdrop-filter:blur(4px)!important;
+    -webkit-backdrop-filter:blur(4px)!important;
+  }
+  html body .modal {
+    background:var(--lx-surface-1)!important;
+    border:1px solid var(--lx-border-strong)!important;
+    border-radius:var(--lx-radius-xl)!important;
+    box-shadow:var(--lx-shadow-2)!important;
+  }
+  html body :is(.modal-header,.modal-footer) {
+    background:var(--lx-shell-tint)!important;
+    border-color:var(--lx-border)!important;
+  }
+  html body .app-ui :is(.ta-mobile-sheet,.mobile-more-sheet,.ta-doc-mobile-action-sheet,.ta-create-menu) {
+    background:var(--lx-surface-1)!important;
+    border-color:var(--lx-border-strong)!important;
+    box-shadow:var(--lx-shadow-2)!important;
+  }
+  html body .app-ui :is(.ta-sheet-link,.ta-doc-mobile-action-sheet button,.ta-create-menu button) {
+    min-height:48px!important;
+  }
+
+  /* -------------------------------------------------------------
+     Inputs, focus and interactive accessibility.
+     ------------------------------------------------------------- */
+  html body .app-ui :is(input,select,textarea),
+  html body .ta-settings-card :is(input,select,textarea) {
+    border-color:var(--lx-border)!important;
+    background:var(--lx-surface-2)!important;
+    color:var(--lx-text)!important;
+  }
+  html body .app-ui :is(input,select,textarea):focus-visible,
+  html body .ta-settings-card :is(input,select,textarea):focus-visible {
+    outline:2px solid var(--lx-focus)!important;
+    outline-offset:1px!important;
+    border-color:var(--lx-focus)!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--lx-focus) 13%,transparent)!important;
+  }
+  html body .app-ui :is(button,a,[role="button"]):focus-visible,
+  html body :is(.modal,.global-search-panel) :is(button,a,[role="button"]):focus-visible {
+    outline:2px solid var(--lx-focus)!important;
+    outline-offset:2px!important;
+  }
+
+  /* Mobile product density / safe areas. */
+  @media (max-width:900px) {
+    html body .app-ui .ta-topbar {
+      min-height:58px!important;
+      padding-top:max(7px,env(safe-area-inset-top,0px))!important;
+    }
+    html body .app-ui .ta-finance-dashboard {
+      padding:12px 12px calc(92px + env(safe-area-inset-bottom,0px))!important;
+      gap:12px!important;
+    }
+    html body .app-ui .ta-dashboard-header {
+      padding:14px!important;
+      border-radius:15px!important;
+    }
+    html body .app-ui .ta-dashboard-heading h1 { font-size:22px!important;line-height:29px!important; }
+    html body .app-ui .ta-dashboard-heading p { font-size:12px!important;line-height:18px!important; }
+    html body .app-ui .ta-advisor-slot { margin:0!important; }
+    html body .app-ui .lourex-advisor-card { border-radius:15px!important; }
+    html body .app-ui .lourex-advisor-head { padding:14px!important; }
+    html body .app-ui .lourex-advisor-mark { width:42px!important;height:42px!important;border-radius:12px!important; }
+    html body .app-ui .lourex-advisor-identity h2 { font-size:16px!important;line-height:22px!important; }
+    html body .app-ui .lourex-advisor-identity p { font-size:11px!important;line-height:17px!important; }
+    html body .app-ui .lourex-advisor-starters { overflow-x:auto!important;display:flex!important;scroll-snap-type:x proximity!important;scrollbar-width:none!important; }
+    html body .app-ui .lourex-advisor-starters::-webkit-scrollbar { display:none!important; }
+    html body .app-ui .lourex-advisor-starters button { flex:0 0 min(82vw,310px)!important;scroll-snap-align:start!important;min-height:44px!important; }
+
+    html body .app-ui .ta-attention-card,
+    html body .app-ui .ta-inventory-card { width:100%!important; }
+    html body .app-ui .ta-kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important; }
+    html body .app-ui .ta-kpi-card { min-height:105px!important;padding:12px!important;grid-template-columns:34px minmax(0,1fr)!important;gap:9px!important; }
+    html body .app-ui .ta-kpi-icon { width:34px!important;height:34px!important; }
+    html body .app-ui .ta-kpi-copy>strong,
+    html body .app-ui .ta-kpi-money-stack b { font-size:17px!important;line-height:23px!important; }
+    html body .app-ui .ta-quick-actions { grid-template-columns:1fr!important;gap:7px!important; }
+    html body .app-ui .ta-quick-actions>button { min-height:54px!important; }
+    html body .app-ui .ta-dashboard-primary-grid { grid-template-columns:1fr!important;gap:10px!important; }
+    html body .app-ui .ta-chart-stage.is-empty { min-height:132px!important; }
+    html body .app-ui .ta-chart-stage.is-empty .ta-finance-chart { height:120px!important; }
+    html body .app-ui .ta-card-header { min-height:58px!important;padding:13px 14px!important; }
+
+    html body .app-ui .ta-mobile-nav {
+      padding-bottom:max(7px,env(safe-area-inset-bottom,0px))!important;
+      border-top:1px solid var(--lx-border)!important;
+      box-shadow:0 -12px 32px rgba(0,0,0,.12)!important;
+    }
+    html body .app-ui .ta-mobile-nav>button { min-width:44px!important;min-height:48px!important; }
+    html body .app-ui .ta-mobile-create {
+      width:52px!important;
+      height:52px!important;
+      min-width:52px!important;
+      min-height:52px!important;
+      border-radius:17px!important;
+      box-shadow:0 9px 24px color-mix(in srgb,var(--lx-brand) 24%,transparent)!important;
+    }
+
+    html body .modal-backdrop {
+      align-items:flex-end!important;
+      padding:0!important;
+    }
+    html body .modal {
+      width:100%!important;
+      max-width:none!important;
+      max-height:min(88dvh,820px)!important;
+      margin:0!important;
+      border-radius:22px 22px 0 0!important;
+      border-inline:0!important;
+      border-bottom:0!important;
+      padding-bottom:env(safe-area-inset-bottom,0px)!important;
+    }
+    html body .modal-body {
+      overscroll-behavior:contain!important;
+      -webkit-overflow-scrolling:touch!important;
+    }
+    html body .modal-footer {
+      position:sticky!important;
+      bottom:0!important;
+      z-index:3!important;
+      padding-bottom:max(12px,env(safe-area-inset-bottom,0px))!important;
+    }
+    html body .global-search-panel {
+      width:calc(100vw - 16px)!important;
+      max-height:calc(100dvh - max(16px,env(safe-area-inset-top,0px)) - max(16px,env(safe-area-inset-bottom,0px)))!important;
+      border-radius:18px!important;
+    }
+    html body .app-ui .ta-report-filterbar {
+      top:calc(58px + env(safe-area-inset-top,0px))!important;
+      border-radius:12px!important;
+    }
+  }
+
+  @media (max-width:430px) {
+    html body .app-ui .ta-finance-dashboard { padding-inline:10px!important; }
+    html body .app-ui .ta-kpi-grid { gap:7px!important; }
+    html body .app-ui .ta-kpi-card { padding:10px!important;grid-template-columns:30px minmax(0,1fr)!important; }
+    html body .app-ui .ta-kpi-icon { width:30px!important;height:30px!important;border-radius:8px!important; }
+    html body .app-ui .ta-kpi-copy>small { font-size:10px!important;line-height:15px!important; }
+    html body .app-ui .ta-kpi-copy>strong,
+    html body .app-ui .ta-kpi-money-stack b { font-size:15px!important;line-height:21px!important; }
+    html body .app-ui .ta-dashboard-header-actions { flex-wrap:wrap!important;justify-content:flex-end!important; }
+  }
+
+  @media (prefers-reduced-motion:reduce) {
+    html body .app-ui *,
+    html body .app-ui *::before,
+    html body .app-ui *::after {
+      scroll-behavior:auto!important;
+      transition-duration:.01ms!important;
+      animation-duration:.01ms!important;
+      animation-iteration-count:1!important;
+    }
+  }
+}
