@@ -1,3 +1,4 @@
+import '../styles/ai-assistant-help-batch3.css';
 import { t } from '../lib/i18n.js';
 
 interface GuideItem{
