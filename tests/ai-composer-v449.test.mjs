@@ -28,6 +28,7 @@ test('v449 plus menu contains the major LOUREX AI workflows without a launcher g
   assert.match(js,/aria-controls',MENU_ID/);
   assert.match(js,/ArrowDown/);
   assert.match(js,/stopImmediatePropagation\(\)/);
+  assert.match(css,/\.lourex-ai-plus-menu\{[^}]*background:var\(--ft-surface,#111\)!important/);
 });
 
 test('v449 mobile controls are visibly drawn and meet the 44px touch contract',()=>{
@@ -39,6 +40,14 @@ test('v449 mobile controls are visibly drawn and meet the 44px touch contract',(
   assert.doesNotMatch(css,/43px/);
   assert.match(css,/\.lourex-ai-plus-item\{[^}]*min-height:48px/);
   assert.match(css,/env\(safe-area-inset-bottom,0px\)/);
+});
+
+test('v449 narrow-phone header can shrink without clipping the advisor title',()=>{
+  assert.match(css,/@media\(max-width:720px\)[\s\S]*\.lourex-ai-title\{[^}]*min-width:0!important;[^}]*overflow:hidden!important/);
+  assert.match(css,/\.lourex-ai-head-actions\{[^}]*max-width:62%/);
+  assert.match(css,/\.lourex-ai-new-conversation\{[^}]*max-width:128px!important/);
+  assert.match(css,/@media\(max-width:360px\)[\s\S]*\.lourex-ai-title small\{display:none!important\}/);
+  assert.match(css,/@media\(max-width:360px\)[\s\S]*\.lourex-ai-new-conversation\{[^}]*max-width:118px!important/);
 });
 
 test('v449 voice is explicit, permission-aware and transcribes without auto-sending',()=>{
