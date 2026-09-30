@@ -1,6 +1,7 @@
 import type { UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { Modal } from './UI.js';
+import { UsageGuide } from './UsageGuide.js';
 
 export type ProductInfoSection='help'|'privacy'|'terms'|'about';
 
@@ -32,6 +33,7 @@ function HelpContent():any{return <div className="lx-product-info-content">
     <article><strong>{t('Purchase & control stock','الشراء وضبط المخزون')}</strong><p>{t('Purchasing owns suppliers and purchase workflow. Products & Inventory owns catalog, on-hand position and inventory movements.','قسم المشتريات مسؤول عن الموردين ودورة الشراء. قسم المنتجات والمخزون مسؤول عن الكتالوج والرصيد وحركات المخزون.')}</p></article>
     <article><strong>{t('Understand performance','فهم الأداء')}</strong><p>{t('Reports separates sales, collections, receivables and gross profitability. Period metrics and as-of balances are not treated as the same concept.','تفصل التقارير بين المبيعات والتحصيل والمستحقات وإجمالي الربحية. مؤشرات الفترة والأرصدة حتى تاريخ معين ليست مفهوماً واحداً.')}</p></article>
   </div>
+  <UsageGuide/>
   <section className="lx-finance-help" aria-label={t('Financial terms','المصطلحات المالية')}>
     <h4>{t('Financial terms used in LOUREX','المصطلحات المالية في LOUREX')}</h4>
     <dl>
