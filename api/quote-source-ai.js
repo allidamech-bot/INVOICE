@@ -36,7 +36,7 @@ export default async function handler(request,response){
   const schema={type:'OBJECT',properties:{customerName:{type:'STRING'},customerEmail:{type:'STRING'},customerPhone:{type:'STRING'},customerConfidence:{type:'NUMBER'},customerNote:{type:'STRING'},currency:{type:'STRING'},incoterm:{type:'STRING'},paymentTerms:{type:'STRING'},deliveryTime:{type:'STRING'},validity:{type:'STRING'},remarks:{type:'STRING'},notes:{type:'STRING'},items:{type:'ARRAY',items:itemSchema}},required:['customerName','customerEmail','customerPhone','customerConfidence','customerNote','currency','incoterm','paymentTerms','deliveryTime','validity','remarks','notes','items']};
   const prompt=kind==='text'?`${instruction}\nSource filename: ${JSON.stringify(fileName)}\nUntrusted source DATA:\n${text}`:`${instruction}\nSource filename: ${JSON.stringify(fileName)}`;
   const attachments=kind==='file'?[{kind:mimeType==='application/pdf'?'native-document':'image',mimeType,data,fileName}]:[];
-  const result=await routeAiStructured({taskType:'quote_extract',prompt,attachments,schema,timeoutMs:22_000,validate:value=>Boolean(cleanResult(value))});
+  const result=await routeAiStructured({taskType:'quote_extract',prompt,attachments,schema,qualityFallback:true,timeoutMs:22_000,validate:value=>Boolean(cleanResult(value))});
   if(!result.success){
     if(result.errorCode==='AI_INVALID_RESULT'){sendJson(response,422,{code:'NO_QUOTE_DATA',message:'No reliable quotation lines with quantities were found.'});return;}
     const publicError=aiRouterPublicError(result);sendJson(response,publicError.status,{code:publicError.code,message:'LOUREX could not analyze this quotation source.'});return;
