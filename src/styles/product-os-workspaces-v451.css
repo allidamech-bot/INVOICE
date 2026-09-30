@@ -217,20 +217,28 @@
       display:block!important;
     }
 
-    body .global-search-backdrop {
+    html body .global-search-backdrop {
       background:rgba(4,7,11,.67)!important;
       backdrop-filter:blur(4px)!important;
       -webkit-backdrop-filter:blur(4px)!important;
     }
-    body .global-search-panel {
+    /* v359/v358 used stronger html+body selectors and content-sized geometry.
+       Product OS owns the final mobile command sheet so every canonical quick
+       action is inside the visual viewport and reachable by touch/WebKit. */
+    html body .global-search-panel {
+      position:fixed!important;
       top:auto!important;
       bottom:0!important;
       left:max(0px,env(safe-area-inset-left,0px))!important;
       right:max(0px,env(safe-area-inset-right,0px))!important;
       width:auto!important;
       max-width:none!important;
+      height:min(88dvh,780px)!important;
+      min-height:0!important;
       max-height:min(88dvh,780px)!important;
       margin:0!important;
+      display:flex!important;
+      flex-direction:column!important;
       border-radius:22px 22px 0 0!important;
       border-inline:0!important;
       border-bottom:0!important;
@@ -238,44 +246,52 @@
       transform:none!important;
       overflow:hidden!important;
     }
-    body .global-search-input-wrap {
+    html body .global-search-input-wrap {
+      flex:0 0 auto!important;
       min-height:58px!important;
       padding:8px 12px!important;
       border-radius:0!important;
       border-inline:0!important;
       border-top:0!important;
     }
-    body .global-search-input-wrap input {
+    html body .global-search-input-wrap input {
       min-height:44px!important;
       font-size:16px!important;
     }
-    body .global-search-start,
-    body .global-search-results {
-      overflow:auto!important;
+    html body .global-search-start,
+    html body .global-search-results {
+      flex:1 1 auto!important;
+      min-height:0!important;
+      max-height:none!important;
+      overflow-x:hidden!important;
+      overflow-y:auto!important;
       overscroll-behavior:contain!important;
       -webkit-overflow-scrolling:touch!important;
-      padding:10px 10px 14px!important;
+      padding:10px 10px max(14px,env(safe-area-inset-bottom,0px))!important;
     }
-    body .global-search-section-title {
+    html body .global-search-section-title {
       padding:7px 3px!important;
     }
-    body .global-search-actions {
+    html body .global-search-actions {
       grid-template-columns:repeat(2,minmax(0,1fr))!important;
       gap:8px!important;
     }
-    body .global-search-actions>button {
+    html body .global-search-actions>button,
+    html body .global-search-actions>button:nth-child(n+4) {
+      display:grid!important;
       min-height:68px!important;
       padding:10px!important;
       border-radius:12px!important;
     }
-    body .global-search-destinations {
+    html body .global-search-destinations {
       grid-template-columns:repeat(2,minmax(0,1fr))!important;
       gap:7px!important;
     }
-    body .global-search-destinations>button {
+    html body .global-search-destinations>button {
       min-height:46px!important;
     }
-    body .global-search-footer {
+    html body .global-search-footer {
+      flex:0 0 auto!important;
       padding-bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
     }
 
@@ -319,10 +335,11 @@
   }
 
   @media (max-width:430px) {
-    body .global-search-actions {
+    html body .global-search-actions {
       grid-template-columns:1fr!important;
     }
-    body .global-search-actions>button {
+    html body .global-search-actions>button,
+    html body .global-search-actions>button:nth-child(n+4) {
       min-height:58px!important;
     }
     .app-ui .ta-dashboard-intelligence-grid { gap:9px!important; }
