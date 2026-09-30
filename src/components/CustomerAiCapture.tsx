@@ -8,6 +8,7 @@ const MAX_BINARY_BYTES=2_600_000;
 const MAX_SPREADSHEET_BYTES=12_000_000;
 const MAX_TEXT_CHARS=120_000;
 const MAX_FILES=6;
+const SOURCE_EVENT='lourex-ai-customer-source';
 
 type CaptureStage='idle'|'reading'|'analyzing'|'review'|'error';
 type AiPayload={kind:'text'|'file';mimeType:string;text?:string;data?:string};
@@ -66,8 +67,13 @@ export class CustomerAiCapture extends React.Component<Props,State>{
   private generation=0;
 
   state:State={open:false,stage:'idle',files:[],pastedText:'',proposal:null,matches:[],selectedMatchId:'',errors:[],error:'',model:''};
-  componentWillUnmount():void{this.cancel();}
+  componentDidMount():void{window.addEventListener(SOURCE_EVENT,this.handleSourceEvent as EventListener);}
+  componentWillUnmount():void{window.removeEventListener(SOURCE_EVENT,this.handleSourceEvent as EventListener);this.cancel();}
 
+  private handleSourceEvent=(event:Event)=>{
+    const file=(event as CustomEvent<{file?:File}>).detail?.file;if(!(file instanceof File))return;
+    this.cancel();this.setState({open:true,stage:'idle',files:[file],pastedText:'',proposal:null,matches:[],selectedMatchId:'',errors:[],error:'',model:''},()=>void this.analyze());
+  };
   private cancel=()=>{this.generation+=1;this.abort?.abort();this.abort=null;};
   private open=()=>{this.cancel();this.setState({open:true,stage:'idle',files:[],pastedText:'',proposal:null,matches:[],selectedMatchId:'',errors:[],error:'',model:''});};
   private close=()=>{if(this.state.stage==='reading'||this.state.stage==='analyzing')return;this.cancel();this.setState({open:false});};
