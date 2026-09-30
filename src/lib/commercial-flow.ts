@@ -74,14 +74,20 @@ export function commercialTrackingFromEvents(documentId:string,events:DocumentEv
   const relevant=events.filter(event=>event.documentId===documentId&&isCommercialTrackingEvent(event)).sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id));
   for(const event of relevant){
     const kind=commercialTrackingEventKind(event);if(!kind)continue;
+    const terminal=tracking.status==='accepted'||tracking.status==='rejected';
+    // Concurrent cloud merges can legitimately append an older device's event
+    // after another device already recorded a terminal decision. Terminal sales
+    // decisions are monotonic: a late Sent/Follow-up/opposite decision cannot
+    // downgrade or silently replace Accepted/Rejected once the ledger contains it.
+    if(terminal)continue;
     const payload=commercialTrackingEventPayload(event);
     tracking.updatedAt=event.at;
     if(kind==='sent'){
       tracking.status='sent';tracking.sentAt=event.at;tracking.acceptedAt='';tracking.rejectedAt='';tracking.rejectionReason='';
     }else if(kind==='accepted'){
-      tracking.status='accepted';tracking.acceptedAt=event.at;tracking.rejectedAt='';tracking.rejectionReason='';
+      tracking.status='accepted';tracking.acceptedAt=event.at;tracking.rejectedAt='';tracking.rejectionReason='';tracking.followUpAt='';
     }else if(kind==='rejected'){
-      tracking.status='rejected';tracking.rejectedAt=event.at;tracking.acceptedAt='';tracking.rejectionReason=payload;
+      tracking.status='rejected';tracking.rejectedAt=event.at;tracking.acceptedAt='';tracking.rejectionReason=payload;tracking.followUpAt='';
     }else if(kind==='followup-scheduled'){
       tracking.followUpAt=isIsoDate(payload)?payload:'';
     }else if(kind==='followup-completed'){
