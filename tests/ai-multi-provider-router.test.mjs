@@ -127,11 +127,11 @@ test('low-confidence accepted result is explicitly review-required when no quali
   assert.equal(result.success,true);assert.equal(result.confidence,'low');assert.equal(result.validation.needsReview,true);
 });
 
-test('timeout is bounded and can fall through to the next provider',async()=>{
+test('timeout is bounded and falls through immediately to the next provider',async()=>{
   configureAll();globalThis.setTimeout=(fn,_ms,...args)=>originalSetTimeout(fn,0,...args);let calls=0;
   globalThis.fetch=async(url,options)=>{calls+=1;if(String(url).includes('api.groq.com'))return new Promise((resolve,reject)=>{if(options.signal?.aborted){const error=new Error('aborted');error.name='AbortError';reject(error);return;}options.signal?.addEventListener('abort',()=>{const error=new Error('aborted');error.name='AbortError';reject(error);},{once:true});});return response(200,{choices:[{message:{content:'{"value":"fallback"}'}}]});};
   const result=await routeAiStructured({taskType:'workspace_help',prompt:'help',schema:schema(),timeoutMs:3000});
-  assert.equal(result.success,true);assert.equal(result.provider,'cloudflare');assert.equal(calls,3);
+  assert.equal(result.success,true);assert.equal(result.provider,'cloudflare');assert.equal(calls,2);
 });
 
 test('AI provider secrets are server-only and absent from browser source',()=>{
