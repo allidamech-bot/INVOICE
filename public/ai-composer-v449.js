@@ -8,7 +8,9 @@
   let raf=0;
   let recognition=null;
   let recognitionPanel=null;
+  let recognitionStopTimer=0;
   let voiceHadResult=false;
+  let statusSequence=0;
 
   const svg={
     plus:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
@@ -31,6 +33,7 @@
   function workflowButtons(panel){return Array.from(panel?.querySelectorAll(`${WORKFLOW_MOUNT}>.lourex-ai-tools button`)||[]);}
   function setExpanded(button,open){button?.setAttribute('aria-expanded',String(open));}
   function normalizeLabel(value){return String(value||'').replace(/\s+/g,' ').trim();}
+  function buttonByLabels(buttons,candidates){const wanted=new Set(candidates.map(normalizeLabel));return buttons.find(button=>button instanceof HTMLButtonElement&&wanted.has(normalizeLabel(button.textContent)))||null;}
 
   function labels(panel){return {
     create:text(panel,'Create from source','إنشاء من مصدر'),
@@ -74,30 +77,41 @@
   }
 
   function workflowLauncher(panel,kind){
-    const l=labels(panel);const expected=normalizeLabel(kind==='inbox'?l.inbox[0]:l.tools);
-    return workflowButtons(panel).find(button=>button instanceof HTMLButtonElement&&normalizeLabel(button.textContent)===expected)||null;
+    const candidates=kind==='inbox'?['AI Inbox','صندوق AI']:['AI Tools','أدوات AI'];
+    return buttonByLabels(workflowButtons(panel),candidates);
+  }
+
+  function workflowActionLabels(action){
+    if(action==='quote')return['File → Quote','ملف ← عرض سعر'];
+    if(action==='history')return['Job History','سجل المهام'];
+    if(action==='guardian')return['Accounting Guardian','حارس المحاسبة'];
+    if(action==='product')return['Product AI','ذكاء المنتجات'];
+    if(action==='supplier')return['Supplier AI','ذكاء الموردين'];
+    return[];
   }
 
   function composerStatus(panel,state,messageKey='',autoHide=0){
     const status=panel?.querySelector('.lourex-ai-voice-status');
     const mic=panel?.querySelector('.lourex-ai-composer-mic');
     if(!(status instanceof HTMLElement))return;
-    const message=messageFor(panel,messageKey);
+    const message=messageFor(panel,messageKey);const sequence=String(++statusSequence);
     status.dataset.state=state||'';
     status.dataset.messageKey=messageKey||'';
+    status.dataset.messageSequence=sequence;
     status.classList.toggle('is-visible',Boolean(message));
     status.classList.toggle('is-error',state==='error');
     const copy=status.querySelector('span:last-child');if(copy)copy.textContent=message;
     if(mic instanceof HTMLButtonElement){const listening=state==='listening';mic.classList.toggle('is-listening',listening);mic.setAttribute('aria-pressed',String(listening));}
-    if(autoHide>0&&message){window.setTimeout(()=>{if(status.dataset.state===state&&status.dataset.messageKey===messageKey){status.classList.remove('is-visible','is-error');status.dataset.state='';status.dataset.messageKey='';}},autoHide);}
+    if(autoHide>0&&message){window.setTimeout(()=>{if(status.dataset.messageSequence===sequence){status.classList.remove('is-visible','is-error');status.dataset.state='';status.dataset.messageKey='';}},autoHide);}
   }
 
-  function withWorkflowReady(callback,attempt=0){
+  function withWorkflowReady(callback,attempt=0,originPanel=null){
     const panel=document.querySelector(PANEL);
     if(!(panel instanceof HTMLElement))return;
+    const origin=originPanel||panel;if(panel!==origin||!origin.isConnected)return;
     const buttons=workflowButtons(panel);
     if(buttons.length>=3){callback(panel,buttons);return;}
-    if(attempt<40){window.setTimeout(()=>withWorkflowReady(callback,attempt+1),75);return;}
+    if(attempt<40){window.setTimeout(()=>withWorkflowReady(callback,attempt+1,origin),75);return;}
     composerStatus(panel,'error','loadingTools',3200);
   }
 
@@ -108,23 +122,14 @@
 
   function directEvent(name){withWorkflowReady(panel=>{closeMenu();window.dispatchEvent(new Event(name));composerStatus(panel,'','');});}
 
-  function workflowActionLabel(panel,action){
-    const l=labels(panel);
-    if(action==='quote')return text(panel,'File → Quote','ملف ← عرض سعر');
-    if(action==='history')return text(panel,'Job History','سجل المهام');
-    if(action==='guardian')return l.guardian[0];
-    if(action==='product')return l.product[0];
-    if(action==='supplier')return l.supplier[0];
-    return '';
-  }
-
   function clickInternalAction(panel,action,attempt=0){
-    const expected=normalizeLabel(workflowActionLabel(panel,action));
+    if(!panel.isConnected||document.querySelector(PANEL)!==panel){delete document.documentElement.dataset.lourexAiInternalRoute;return;}
+    const candidates=workflowActionLabels(action);
     const modals=Array.from(document.querySelectorAll('.modal-backdrop')).reverse();
     let target=null;
     for(const modal of modals){
       const buttons=Array.from(modal.querySelectorAll('.ta-customer-modal-actions button'));
-      target=buttons.find(button=>button instanceof HTMLButtonElement&&normalizeLabel(button.textContent)===expected)||null;
+      target=buttonByLabels(buttons,candidates);
       if(target)break;
     }
     if(target instanceof HTMLButtonElement){target.click();delete document.documentElement.dataset.lourexAiInternalRoute;return;}
@@ -175,7 +180,7 @@
   }
 
   function toggleMenu(panel,menu,plus){
-    const next=menu.hidden;menu.hidden=!next;setExpanded(plus,next);if(next){buildMenu(panel,menu);composerStatus(panel,'','');window.setTimeout(()=>menu.querySelector('button')?.focus(),0);}
+    const next=menu.hidden;menu.hidden=!next;setExpanded(plus,next);if(next){buildMenu(panel,menu);composerStatus(panel,'','');window.setTimeout(()=>{if(!menu.hidden)menu.querySelector('button')?.focus();},0);}
   }
 
   function menuKeydown(event){
@@ -191,17 +196,23 @@
 
   function recognitionCtor(){return window.SpeechRecognition||window.webkitSpeechRecognition||null;}
   function nativeSetInput(input,value){const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;if(setter)setter.call(input,value);else input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));}
+  function clearRecognitionStopTimer(){if(recognitionStopTimer){window.clearTimeout(recognitionStopTimer);recognitionStopTimer=0;}}
 
   function finishRecognition(panel,state,messageKey,hideAfter=0){
-    recognition=null;recognitionPanel=null;composerStatus(panel,state,messageKey,hideAfter);
+    clearRecognitionStopTimer();recognition=null;recognitionPanel=null;composerStatus(panel,state,messageKey,hideAfter);
   }
 
   function toggleVoice(panel){
     closeMenu();
-    if(recognition){try{recognition.stop();}catch{}composerStatus(panel,'starting','voiceStopped',900);return;}
+    if(recognition){
+      const current=recognition;clearRecognitionStopTimer();composerStatus(panel,'','voiceStopped',1400);
+      try{current.stop();}catch{try{current.abort?.();}catch{}finishRecognition(panel,'','voiceStopped',700);return;}
+      recognitionStopTimer=window.setTimeout(()=>{if(recognition===current){try{current.abort?.();}catch{}finishRecognition(panel,'','voiceStopped',700);}},1200);
+      return;
+    }
     const Ctor=recognitionCtor();if(!Ctor){composerStatus(panel,'error','voiceUnavailable',3600);return;}
     let instance;try{instance=new Ctor();}catch{composerStatus(panel,'error','voiceFailed',3200);return;}
-    recognition=instance;recognitionPanel=panel;voiceHadResult=false;
+    clearRecognitionStopTimer();recognition=instance;recognitionPanel=panel;voiceHadResult=false;
     instance.lang=ar(panel)?'ar-SA':'en-US';instance.interimResults=false;instance.continuous=false;instance.maxAlternatives=1;
     instance.onstart=()=>{if(recognition===instance)composerStatus(panel,'listening','listening');};
     instance.onresult=event=>{
@@ -219,7 +230,7 @@
     try{instance.start();}catch{finishRecognition(panel,'error','voiceFailed',3200);}
   }
 
-  function abortVoice(){if(!recognition)return;const current=recognition;recognition=null;recognitionPanel=null;try{current.abort?.();}catch{try{current.stop?.();}catch{}}}
+  function abortVoice(){if(!recognition){clearRecognitionStopTimer();return;}const current=recognition;clearRecognitionStopTimer();recognition=null;recognitionPanel=null;try{current.abort?.();}catch{try{current.stop?.();}catch{}}}
 
   function refreshComposer(panel,form,input){
     const l=labels(panel);const language=ar(panel)?'ar':'en';
@@ -241,7 +252,7 @@
       buildMenu(panel,menu);
       menu.hidden=!wasOpen;
       setExpanded(plus,wasOpen);
-      if(wasOpen&&focusIndex>=0)window.setTimeout(()=>menu.querySelectorAll('button')[focusIndex]?.focus(),0);
+      if(wasOpen&&focusIndex>=0)window.setTimeout(()=>{if(!menu.hidden)menu.querySelectorAll('button')[focusIndex]?.focus();},0);
     }else if(menu instanceof HTMLElement){
       menu.setAttribute('aria-label',l.plus);
     }
