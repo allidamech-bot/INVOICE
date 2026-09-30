@@ -1,4 +1,5 @@
 import type { Customer, SavedItem, Supplier, VaultPayload } from '../types.js';
+import { buildSetupReadiness, type SetupReadinessSnapshot } from './setup-readiness.js';
 
 export type BusinessHealthSeverity='warning'|'review';
 export type BusinessHealthArea='company'|'customers'|'suppliers'|'products'|'purchasing';
@@ -22,6 +23,7 @@ export interface BusinessHealthSnapshot{
   warningCount:number;
   reviewCount:number;
   issues:BusinessHealthIssue[];
+  readiness:SetupReadinessSnapshot;
 }
 
 function text(value:unknown):string{return String(value??'').normalize('NFKC').replace(/\s+/g,' ').trim();}
@@ -147,7 +149,8 @@ export function buildBusinessHealth(vault:VaultPayload):BusinessHealthSnapshot{
     issueCount:warningCount+reviewCount,
     warningCount,
     reviewCount,
-    issues:finalIssues
+    issues:finalIssues,
+    readiness:buildSetupReadiness(vault)
   };
 }
 
