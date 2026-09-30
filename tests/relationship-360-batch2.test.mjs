@@ -82,6 +82,21 @@ test('Customer 360 lives inside the canonical customer profile and reads the enc
   assert.match(styleLoader,/relationship-360-batch2\.css\?v=454-1/);
 });
 
+test('Supplier 360 stays inside Purchasing > Suppliers and preserves canonical purchase actions',async()=>{
+  const operations=await read('src/components/OperationsPage.tsx');
+  assert.match(operations,/Supplier360LivePanel/);
+  assert.match(operations,/supplierProfileId:string/);
+  assert.match(operations,/openSupplierProfile/);
+  assert.match(operations,/View 360/);
+  assert.match(operations,/<Supplier360LivePanel supplier=\{supplier\}\/>/);
+  assert.match(operations,/newPurchaseForSupplier\(supplier\)/);
+  assert.match(operations,/showSupplierPurchaseHistory/);
+  assert.match(operations,/renderSupplierEditor/);
+  assert.match(operations,/onPostPurchase/);
+  assert.match(operations,/purchaseTotals/);
+  assert.doesNotMatch(operations,/SupplierPayable|SupplierPaymentRecord/);
+});
+
 test('Relationship 360 presentation is mobile-first, RTL-aware and does not impersonate supplier payables',async()=>{
   const [panels,css,supplierLive]=await Promise.all([
     read('src/components/Relationship360Panels.tsx'),read('src/styles/relationship-360-batch2.css'),read('src/components/Supplier360LivePanel.tsx')
@@ -94,6 +109,7 @@ test('Relationship 360 presentation is mobile-first, RTL-aware and does not impe
   assert.match(css,/\[dir="rtl"\]/);
   assert.match(css,/prefers-reduced-motion:reduce/);
   assert.match(css,/min-height:44px/);
+  assert.match(css,/lx-supplier-profile-facts/);
   assert.match(supplierLive,/buildSupplier360/);
   assert.match(supplierLive,/resumeVaultSession/);
   assert.doesNotMatch(supplierLive,/mutateVaultSafely|saveVault/);
