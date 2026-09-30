@@ -17,7 +17,8 @@ test('Batch 3 mobile discoverability is bilingual, bounded and reduced-motion sa
     read('src/styles/ai-assistant-help-batch3.css'),
     read('src/styles/tailadmin-reliability-bridge-v320.css')
   ]);
-  assert.match(bridge,/^@import url\("\.\/ai-assistant-help-batch3\.css\?v=455-1"\);/);
+  assert.match(bridge,/^@import url\("\.\/mobile-ux-functional-hardening-v363\.css\?v=363-1"\);/);
+  assert.match(bridge,/@import url\("\.\/ai-assistant-help-batch3\.css\?v=455-1"\);/);
   assert.match(css,/@media\(max-width:860px\)[\s\S]*Your personal assistant in LOUREX/);
   assert.match(css,/مساعدك الشخصي في LOUREX/);
   assert.match(css,/max-width:min\(210px,calc\(100vw - 82px\)\)/);
