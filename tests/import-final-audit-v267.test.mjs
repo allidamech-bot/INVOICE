@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { normalizeImportedDecimal, parseCsvMatrix } from '../dist/src/lib/product-import.js';
 import { extractSupplierDraftLocally } from '../dist/src/lib/supplier-document-import.js';
+import { buildAiSupplierPurchaseDraft } from '../dist/src/lib/ai-supplier-purchase-draft.js';
+import { createSupplier } from '../dist/src/lib/operations.js';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
@@ -36,6 +38,35 @@ test('v267 structured supplier spreadsheet becomes a local review-only draft wit
   assert.deepEqual(draft.items[0],{sku:'B-10',descriptionEn:'Biscuit 50g',descriptionAr:'',quantity:'24',unit:'Carton',unitCost:'1.25'});
 });
 
+test('v450 missing supplier facts remain blank instead of becoming PCS, USD or zero costs',()=>{
+  const matrix=[['SKU','Product Name','Quantity','Purchase Price'],['B-10','Biscuit','24','1.25']];
+  const draft=extractSupplierDraftLocally(matrix);
+  assert.ok(draft);
+  assert.equal(draft.currency,'');
+  assert.equal(draft.freight,'');
+  assert.equal(draft.duty,'');
+  assert.equal(draft.otherCosts,'');
+  assert.equal(draft.items[0].unit,'');
+  const purchase=buildAiSupplierPurchaseDraft(draft,[],[],[]);
+  assert.equal(purchase.currency,'');
+  assert.equal(purchase.freight,'');
+  assert.equal(purchase.duty,'');
+  assert.equal(purchase.otherCosts,'');
+  assert.equal(purchase.items[0].unit,'');
+});
+
+test('v450 ambiguous supplier and product matches stay unlinked for review',()=>{
+  const supplierA=createSupplier();supplierA.id='supplier-a';supplierA.nameEn='Same Supplier';supplierA.vatTaxNumber='VAT-1';
+  const supplierB={...createSupplier(),id:'supplier-b',nameEn:'Same Supplier',vatTaxNumber:'VAT-1'};
+  const baseItem={id:'item-a',createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-01-01T00:00:00.000Z',sku:'SKU-X',descriptionEn:'Same Product',descriptionAr:'',hsCode:'',origin:'',packing:'',unit:'BOX',lastUnitPrice:'',lastCurrency:'',lastUnitCost:'2.00',lastCostCurrency:'USD',usageCount:0,lastUsedAt:'',category:'',tags:[],favorite:false,archived:false};
+  const secondItem={...baseItem,id:'item-b'};
+  const draft={supplierName:'Same Supplier',supplierTaxId:'VAT-1',documentNumber:'',date:'',currency:'',freight:'',duty:'',otherCosts:'',paymentTerms:'',notes:'',items:[{sku:'SKU-X',descriptionEn:'Same Product',descriptionAr:'',quantity:'5',unit:'',unitCost:'3.00'}]};
+  const purchase=buildAiSupplierPurchaseDraft(draft,[],[supplierA,supplierB],[baseItem,secondItem]);
+  assert.equal(purchase.supplierSnapshot?.sourceSupplierId??'','');
+  assert.equal(purchase.items[0].savedItemId,'');
+  assert.equal(purchase.items[0].unit,'');
+});
+
 test('v267 local supplier parsing never silently truncates a large sheet',()=>{
   const matrix=[['SKU','Product Name','Quantity','Unit','Purchase Price']];
   for(let index=1;index<=145;index+=1)matrix.push([`SKU-${index}`,`Item ${index}`,String(index),'PCS','1.25']);
@@ -61,10 +92,14 @@ test('v267 import UIs keep local-first mapping, bounded previews and explicit co
   assert.match(product,/Stock belongs to Inventory/);
   assert.match(product,/stock and accounting are never changed/);
   assert.match(supplier,/extractSupplierDraftFromSheets/);
+  assert.match(supplier,/buildAiSupplierPurchaseDraft/);
   assert.match(supplier,/stage:'extracting'/);
   assert.match(supplier,/stage:'ai'/);
   assert.match(supplier,/Confirm & Save Draft/);
   assert.match(supplier,/status:'draft'/);
+  assert.doesNotMatch(supplier,/matchedSupplier\?\.defaultCurrency\|\|fallbackCurrency\|\|'USD'/);
+  assert.doesNotMatch(supplier,/row\.unit\|\|saved\?\.unit\|\|'PCS'/);
+  assert.doesNotMatch(supplier,/freight:draft\.freight\|\|'0\.00'/);
   assert.doesNotMatch(supplier,/window\.location\.reload/);
   assert.match(css,/modal:has\(\.supplier-import-shell\)/);
   assert.match(ui,/window\.visualViewport/);
