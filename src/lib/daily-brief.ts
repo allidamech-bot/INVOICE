@@ -53,6 +53,8 @@ function shiftIsoDate(date:string,days:number):string{
 
 function currency(value:string):string{return (value||'USD').trim().toUpperCase()||'USD';}
 function itemDate(value:string):string{return /^\d{4}-\d{2}-\d{2}/.test(value)?value.slice(0,10):'';}
+function datedOnOrBefore(value:string,asOf:string):boolean{const date=itemDate(value);return Boolean(date&&date<=asOf);}
+function itemExistsAsOf(item:SavedItem,asOf:string):boolean{const created=itemDate(item.createdAt);return !created||created<=asOf;}
 
 function notableChange(current:string,previous:string):'up'|'down'|'new'|null{
   const now=decimalToScaled(current||'0',2);
@@ -105,11 +107,15 @@ export function dailyBusinessBrief(
     expenseCount+=1;
   }
 
-  const integrity=operationsIntegritySummary(purchases,expenses,inventoryMovements);
-  const inventoryMovementCount=inventoryMovements.filter(movement=>movement.date===today&&inventoryMovementAccountingIsValid(movement)).length;
-  const productsUsedToday=items.filter(item=>itemDate(item.lastUsedAt)===today).length;
+  const purchasesAsOf=purchases.filter(purchase=>datedOnOrBefore(purchase.date,today));
+  const expensesAsOf=expenses.filter(expense=>datedOnOrBefore(expense.date,today));
+  const movementsAsOf=inventoryMovements.filter(movement=>datedOnOrBefore(movement.date,today));
+  const visibleItems=items.filter(item=>itemExistsAsOf(item,today));
+  const integrity=operationsIntegritySummary(purchasesAsOf,expensesAsOf,movementsAsOf);
+  const inventoryMovementCount=movementsAsOf.filter(movement=>movement.date===today&&inventoryMovementAccountingIsValid(movement)).length;
+  const productsUsedToday=visibleItems.filter(item=>itemDate(item.lastUsedAt)===today).length;
   const dormantCutoff=shiftIsoDate(today,-90);
-  const dormantProducts=items.filter(item=>{
+  const dormantProducts=visibleItems.filter(item=>{
     const used=itemDate(item.lastUsedAt);
     const created=itemDate(item.createdAt);
     if(item.usageCount>0)return Boolean(used&&used<=dormantCutoff);
@@ -145,7 +151,7 @@ export function dailyBusinessBrief(
     dormantProducts,
     missingCostItems:todayFinancial.reduce((sum,row)=>sum+row.missingCostItems,0),
     invalidOperations:integrity.totalInvalid,
-    draftPurchases:purchases.filter(purchase=>purchase.status==='draft').length,
+    draftPurchases:purchasesAsOf.filter(purchase=>purchase.status==='draft').length,
     changes
   };
 }
