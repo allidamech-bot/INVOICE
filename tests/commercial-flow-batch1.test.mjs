@@ -45,6 +45,65 @@ test('Documents workspace receives real lifecycle evidence and renders Commercia
   assert.match(panel,/buildCommercialFlowSnapshot/);
 });
 
+test('Commercial tracking persists through the registered encrypted vault mutation bridge',async()=>{
+  const panel=await read('src/components/CommercialFlowPanel.tsx');
+  const bridge=await read('src/storage/vault-mutation-bridge.ts');
+  const runtime=await read('src/app/index.tsx');
+  assert.match(panel,/mutateVaultSafely/);
+  assert.match(panel,/validatedCommercialTrackingEvent\(vault,document\.id,kind,payload\)/);
+  assert.match(panel,/documentEvents:\[\.\.\.vault\.documentEvents,event\]/);
+  assert.match(bridge,/registerVaultMutationBridge/);
+  assert.match(runtime,/registerVaultMutationBridge\(async mutation=>/);
+  assert.match(runtime,/saveVault\(key,next\)/);
+  assert.match(runtime,/instance\.vaultWriteTail=operation/);
+  assert.match(runtime,/instance\.scheduleCloudSync\(\)/);
+});
+
+test('Commercial tracking events use the encrypted event ledger without changing schema or lifecycle event labels',async()=>{
+  const [flow,defaults,lifecyclePanel]=await Promise.all([
+    read('src/lib/commercial-flow.ts'),read('src/lib/defaults.ts'),read('src/components/DocumentLifecyclePanel.tsx')
+  ]);
+  assert.match(flow,/COMMERCIAL_MARKER='@lourex:commercial:v1:'/);
+  assert.match(flow,/type:'created'/);
+  assert.match(defaults,/APP_SCHEMA_VERSION = 15/);
+  assert.match(defaults,/no schema bump is required/);
+  assert.match(lifecyclePanel,/\.filter\(isLifecycleDocumentEvent\)/);
+});
+
+test('Commercial tracking transition validation uses the latest vault and blocks stale terminal mutations',async()=>{
+  const { emptyVault, defaultCompany }=await import('../dist/src/lib/defaults.js');
+  const { createBlankDocument }=await import('../dist/src/lib/documents.js');
+  const { validatedCommercialTrackingEvent, commercialTrackingFromEvents, effectiveCommercialStatus }=await import('../dist/src/lib/commercial-flow.js');
+
+  const vault=emptyVault();
+  const quote=createBlankDocument('proforma','QUO-2026-9001',defaultCompany());
+  quote.status='final';
+  quote.lifecycleStatus='active';
+  quote.dueDate='2026-12-31';
+  vault.documents=[quote];
+
+  const sent=validatedCommercialTrackingEvent(vault,quote.id,'sent','', '2026-10-01');
+  vault.documentEvents.push(sent);
+  let tracking=commercialTrackingFromEvents(quote.id,vault.documentEvents);
+  assert.equal(tracking.status,'sent');
+  assert.equal(effectiveCommercialStatus(quote,vault.documents,tracking,'2026-10-01').status,'sent');
+
+  assert.throws(()=>validatedCommercialTrackingEvent(vault,quote.id,'followup-scheduled','2026-09-30','2026-10-01'),/cannot be in the past/i);
+  const followup=validatedCommercialTrackingEvent(vault,quote.id,'followup-scheduled','2026-10-15','2026-10-01');
+  vault.documentEvents.push(followup);
+  tracking=commercialTrackingFromEvents(quote.id,vault.documentEvents);
+  assert.equal(tracking.followUpAt,'2026-10-15');
+
+  const accepted=validatedCommercialTrackingEvent(vault,quote.id,'accepted','', '2026-10-01');
+  vault.documentEvents.push(accepted);
+  tracking=commercialTrackingFromEvents(quote.id,vault.documentEvents);
+  assert.equal(tracking.status,'accepted');
+  assert.equal(effectiveCommercialStatus(quote,vault.documents,tracking,'2027-01-01').status,'accepted');
+  assert.throws(()=>validatedCommercialTrackingEvent(vault,quote.id,'rejected','changed mind','2026-10-01'),/already closed/i);
+  assert.equal(quote.status,'final');
+  assert.equal(quote.lifecycleStatus,'active');
+});
+
 test('Commercial flow visual layer loads before the final reliability bridge',async()=>{
   const html=await read('index.html');
   const commercial='./styles/commercial-flow-batch1.css?v=453-1';
