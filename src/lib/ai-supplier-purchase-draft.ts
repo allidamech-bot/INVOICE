@@ -4,20 +4,23 @@ import { normalizeSavedItemIdentity, normalizeSavedItemSku } from './saved-items
 import type { SupplierImportDraft } from './supplier-document-import.js';
 
 function norm(value:string):string{return value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();}
+function onlyOne<T>(rows:T[]):T|undefined{return rows.length===1?rows[0]:undefined;}
 function supplierMatch(suppliers:Supplier[],draft:SupplierImportDraft):Supplier|undefined{
   const name=norm(draft.supplierName),tax=norm(draft.supplierTaxId);
-  return suppliers.find(supplier=>(tax&&[supplier.vatTaxNumber,supplier.commercialRegistration].some(value=>norm(value)===tax))||(name&&[supplier.nameEn,supplier.nameAr].some(value=>norm(value)===name)));
+  if(tax){const matches=suppliers.filter(supplier=>[supplier.vatTaxNumber,supplier.commercialRegistration].some(value=>norm(value)===tax));if(matches.length)return onlyOne(matches);}
+  if(name){const matches=suppliers.filter(supplier=>[supplier.nameEn,supplier.nameAr].some(value=>norm(value)===name));if(matches.length)return onlyOne(matches);}
+  return undefined;
 }
 function itemMatch(items:SavedItem[],row:SupplierImportDraft['items'][number]):SavedItem|undefined{
-  const sku=normalizeSavedItemSku(row.sku);
-  if(sku){const exact=items.find(item=>!item.archived&&normalizeSavedItemSku(item.sku??'')===sku);if(exact)return exact;}
-  const en=normalizeSavedItemIdentity(row.descriptionEn),ar=normalizeSavedItemIdentity(row.descriptionAr);
-  return items.find(item=>!item.archived&&((en&&normalizeSavedItemIdentity(item.descriptionEn)===en)||(ar&&normalizeSavedItemIdentity(item.descriptionAr)===ar)));
+  const active=items.filter(item=>!item.archived);const sku=normalizeSavedItemSku(row.sku);
+  if(sku){const matches=active.filter(item=>normalizeSavedItemSku(item.sku??'')===sku);if(matches.length)return onlyOne(matches);}
+  const en=normalizeSavedItemIdentity(row.descriptionEn),ar=normalizeSavedItemIdentity(row.descriptionAr);const matches=active.filter(item=>(en&&normalizeSavedItemIdentity(item.descriptionEn)===en)||(ar&&normalizeSavedItemIdentity(item.descriptionAr)===ar));return onlyOne(matches);
 }
 
 /**
  * Builds an AI-originated purchase DRAFT without inventing missing commercial facts.
  * Missing source date/currency/unit/freight/duty/other costs remain blank for human review.
+ * Ambiguous supplier/product master matches remain unlinked for explicit human review.
  * The generated LOUREX purchase number is an internal identifier, not extracted source data.
  */
 export function buildAiSupplierPurchaseDraft(draft:SupplierImportDraft,purchases:PurchaseRecord[],suppliers:Supplier[],items:SavedItem[]):PurchaseRecord{
