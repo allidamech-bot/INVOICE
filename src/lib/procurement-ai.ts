@@ -44,7 +44,7 @@ export interface ProcurementDraftContext{
 
 type Line=PurchaseRecord['items'][number];
 type Identity={key:string;itemId:string;name:string;confidence:number;basis:ProcurementDraftOffer['matchBasis']};
-type KnownIdentity={key:string;name:string;explicit:boolean};
+type KnownIdentity={key:string;name:string;explicitKey:string};
 function supplierName(purchase:PurchaseRecord):string{return(purchase.supplierSnapshot?.nameEn||purchase.supplierSnapshot?.nameAr||'Unknown supplier').trim();}
 function lineName(line:Line,saved?:SavedItem):string{return(saved?.descriptionEn||saved?.descriptionAr||line.descriptionEn||line.descriptionAr||line.sku||'Unnamed item').trim();}
 function tokens(value:string):Set<string>{return new Set(normalizeSavedItemIdentity(value).split(' ').filter(token=>token.length>=2));}
@@ -60,10 +60,18 @@ function lineIdentity(line:Line,savedById:Map<string,SavedItem>):Identity|null{
 function isExplicitKey(key:string):boolean{return key.startsWith('item:')||key.startsWith('sku:');}
 function comparableKey(identity:Identity,existingKeys:KnownIdentity[]):{key:string;confidence:number;basis:ProcurementDraftOffer['matchBasis']}{
   const exact=existingKeys.find(row=>row.key===identity.key);if(exact)return{key:identity.key,confidence:1,basis:identity.basis};
-  const incomingExplicit=isExplicitKey(identity.key);let best:{key:string;score:number}|null=null;
-  for(const row of existingKeys){if(incomingExplicit&&row.explicit)continue;const score=similarity(identity.name,row.name);if(!best||score>best.score)best={key:row.key,score};}
+  const incomingExplicitKey=isExplicitKey(identity.key)?identity.key:'';let best:{key:string;score:number}|null=null;
+  for(const row of existingKeys){
+    if(incomingExplicitKey&&row.explicitKey&&row.explicitKey!==incomingExplicitKey)continue;
+    const score=similarity(identity.name,row.name);if(!best||score>best.score)best={key:row.key,score};
+  }
   if(best&&best.score>=.82)return{key:best.key,confidence:Math.min(.9,.62+best.score*.32),basis:'likely-description'};
   return{key:identity.key,confidence:identity.confidence,basis:identity.basis};
+}
+function rememberIdentity(identities:KnownIdentity[],groupKey:string,identity:Identity):void{
+  const explicitKey=isExplicitKey(identity.key)?identity.key:'';const known=identities.find(row=>row.key===groupKey);
+  if(known){if(explicitKey&&!known.explicitKey)known.explicitKey=explicitKey;return;}
+  identities.push({key:groupKey,name:identity.name,explicitKey});
 }
 function numericCompare(left:string,right:string):number{try{const a=decimalToScaled(left,12),b=decimalToScaled(right,12);return a<b?-1:a>b?1:0;}catch{return left.localeCompare(right);}}
 function lowerCost(offers:ProcurementDraftOffer[],field:'unitCost'|'landedUnitCost'):string{
@@ -78,7 +86,7 @@ export function buildProcurementDraftContext(vault:VaultPayload):ProcurementDraf
     for(const [index,line] of purchase.items.entries()){
       if(!line.unitCost.trim()){uncomparableOffers+=1;continue;}
       const identity=lineIdentity(line,savedById);if(!identity){uncomparableOffers+=1;continue;}
-      const match=comparableKey(identity,identities);if(!identities.some(row=>row.key===match.key))identities.push({key:match.key,name:identity.name,explicit:isExplicitKey(identity.key)});
+      const match=comparableKey(identity,identities);rememberIdentity(identities,match.key,identity);
       const currency=purchase.currency.trim().toUpperCase();if(!currency){uncomparableOffers+=1;continue;}
       const key=`${match.key}|${currency}`;const bucket=grouped.get(key)??{name:identity.name,currency,offers:[]};const landed=landedCostComplete?(allocated?.items[index]?.landedUnitCost||line.unitCost):'';
       bucket.offers.push({purchaseId:purchase.id,purchaseNumber:purchase.number,supplierId:purchase.supplierSnapshot?.sourceSupplierId||'',supplierName:supplier,currency,itemId:identity.itemId,itemName:identity.name,sku:line.sku,quantity:line.quantity,unit:line.unit,unitCost:line.unitCost,landedUnitCost:landed,landedCostComplete,freight:purchase.freight.trim(),duty:purchase.duty.trim(),otherCosts:purchase.otherCosts.trim(),paymentTerms:terms,moq,leadTime,matchConfidence:Math.min(identity.confidence,match.confidence),matchBasis:match.basis});grouped.set(key,bucket);
