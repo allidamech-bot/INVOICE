@@ -1,6 +1,7 @@
 import type { SavedItem, VaultPayload } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { makeId } from '../lib/id.js';
+import { readSpreadsheetFile, spreadsheetSheetsAsText } from '../lib/spreadsheet-reader.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { reviewProductAiRows, type ProductAiClassification, type ProductAiDraftItem, type ProductAiRowReview } from '../lib/product-ai-review.js';
@@ -8,6 +9,7 @@ import { Button, Icon, Modal } from './UI.js';
 
 const MAX_BINARY_BYTES=2_600_000;
 const MAX_TEXT_BYTES=1_000_000;
+const MAX_SPREADSHEET_BYTES=12_000_000;
 const MAX_TEXT_CHARS=120_000;
 type ProductSourceDraft={sourceCurrency:string;notes:string;items:ProductAiDraftItem[]};
 type Stage='analyzing'|'review'|'saving'|'done'|'error';
@@ -15,6 +17,7 @@ interface Props{file:File;onDone:()=>void;}
 interface State{stage:Stage;draft:ProductSourceDraft|null;reviews:ProductAiRowReview[];model:string;error:string;selected:boolean[];savedCount:number;}
 function bytesToBase64(buffer:ArrayBuffer):string{const bytes=new Uint8Array(buffer);let binary='';const chunk=0x8000;for(let offset=0;offset<bytes.length;offset+=chunk)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+chunk,bytes.length)));return btoa(binary);}
 function mimeFor(file:File):string{const name=file.name.toLowerCase();return file.type||(name.endsWith('.txt')?'text/plain':name.endsWith('.pdf')?'application/pdf':name.endsWith('.png')?'image/png':/\.jpe?g$/.test(name)?'image/jpeg':name.endsWith('.webp')?'image/webp':'');}
+function spreadsheetFile(file:File):boolean{return /\.(xlsx|xls|csv)$/i.test(file.name);}
 function displayName(row:ProductAiDraftItem):string{return row.descriptionEn||row.descriptionAr||row.sku||t('Unnamed product','صنف بلا اسم');}
 function classificationLabel(value:ProductAiClassification):string{if(value==='existing-match')return t('Existing Match','مطابقة موجودة');if(value==='likely-match')return t('Likely Match','مطابقة محتملة');if(value==='new-product')return t('New Product','منتج جديد');if(value==='duplicate-candidate')return t('Duplicate Candidate','مرشح تكرار');return t('Needs Review','يحتاج مراجعة');}
 function reviewReason(review:ProductAiRowReview|undefined):string{
@@ -37,7 +40,21 @@ export class ProductAiSourceReview extends React.Component<Props,State>{
   state:State={stage:'analyzing',draft:null,reviews:[],model:'',error:'',selected:[],savedCount:0};
   componentDidMount():void{void this.analyze();}
   componentWillUnmount():void{this.abort?.abort();}
-  private analyze=async()=>{const file=this.props.file;const mimeType=mimeFor(file);const isText=mimeType==='text/plain';if(!isText&&!['application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType)){this.setState({stage:'error',error:t('This AI review accepts PDF, image or pasted text product sources.','تقبل هذه المراجعة PDF أو الصور أو نص المنتجات الملصق.')});return;}if(isText&&file.size>MAX_TEXT_BYTES){this.setState({stage:'error',error:t('This text source is too large for AI review.','مصدر النص كبير جدًا للمراجعة بالذكاء الاصطناعي.')});return;}if(!isText&&file.size>MAX_BINARY_BYTES){this.setState({stage:'error',error:t('Reduce this PDF/image below 2.6 MB for safe AI analysis.','خفّض حجم PDF/الصورة لأقل من 2.6 MB للتحليل الآمن.')});return;}const controller=new AbortController();this.abort=controller;try{const payload=isText?{kind:'text',fileName:file.name,mimeType:'text/plain',text:(await file.text()).slice(0,MAX_TEXT_CHARS)}:{kind:'file',fileName:file.name,mimeType,data:bytesToBase64(await file.arrayBuffer())};const response=await fetch('/api/product-source-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify(payload),signal:controller.signal});let body:any={};try{body=await response.json();}catch{}if(!response.ok)throw new Error(String(body?.message||t('LOUREX could not read this product source.','تعذر على LOUREX قراءة مصدر المنتجات.')));const draft=body.draft as ProductSourceDraft;const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX before reviewing product matches.','افتح قفل LOUREX قبل مراجعة مطابقة المنتجات.'));const reviews=reviewProductAiRows(resumed.vault.savedItems,draft.items,draft.sourceCurrency);this.setState({stage:'review',draft,reviews,model:String(body.model||'LOUREX AI'),selected:reviews.map(review=>review.defaultSelected),error:''});}catch(error){if(controller.signal.aborted)return;this.setState({stage:'error',error:error instanceof Error?error.message:String(error)});}finally{if(this.abort===controller)this.abort=null;}};
+  private analyze=async()=>{
+    const file=this.props.file,mimeType=mimeFor(file),isText=mimeType==='text/plain',isSpreadsheet=spreadsheetFile(file);
+    if(!isSpreadsheet&&!isText&&!['application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType)){this.setState({stage:'error',error:t('This AI review accepts PDF, image, Excel, CSV or text product sources.','تقبل هذه المراجعة PDF أو الصور أو Excel أو CSV أو نصوص المنتجات.')});return;}
+    if(isSpreadsheet&&file.size>MAX_SPREADSHEET_BYTES){this.setState({stage:'error',error:t('Reduce this spreadsheet below 12 MB for reliable AI review.','خفّض حجم الجدول لأقل من 12 MB للمراجعة الموثوقة بالذكاء الاصطناعي.')});return;}
+    if(isText&&file.size>MAX_TEXT_BYTES){this.setState({stage:'error',error:t('This text source is too large for AI review.','مصدر النص كبير جدًا للمراجعة بالذكاء الاصطناعي.')});return;}
+    if(!isSpreadsheet&&!isText&&file.size>MAX_BINARY_BYTES){this.setState({stage:'error',error:t('Reduce this PDF/image below 2.6 MB for safe AI analysis.','خفّض حجم PDF/الصورة لأقل من 2.6 MB للتحليل الآمن.')});return;}
+    const controller=new AbortController();this.abort=controller;
+    try{
+      let payload:any;
+      if(isSpreadsheet){const sheets=await readSpreadsheetFile(file);const text=spreadsheetSheetsAsText(sheets,MAX_TEXT_CHARS);if(!text.trim())throw new Error(t('This spreadsheet has no readable product data.','هذا الجدول لا يحتوي بيانات منتجات قابلة للقراءة.'));payload={kind:'text',fileName:file.name,mimeType:'text/csv',text};}
+      else if(isText)payload={kind:'text',fileName:file.name,mimeType:'text/plain',text:(await file.text()).slice(0,MAX_TEXT_CHARS)};
+      else payload={kind:'file',fileName:file.name,mimeType,data:bytesToBase64(await file.arrayBuffer())};
+      const response=await fetch('/api/product-source-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify(payload),signal:controller.signal});let body:any={};try{body=await response.json();}catch{}if(!response.ok)throw new Error(String(body?.message||t('LOUREX could not read this product source.','تعذر على LOUREX قراءة مصدر المنتجات.')));const draft=body.draft as ProductSourceDraft;const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX before reviewing product matches.','افتح قفل LOUREX قبل مراجعة مطابقة المنتجات.'));const reviews=reviewProductAiRows(resumed.vault.savedItems,draft.items,draft.sourceCurrency);this.setState({stage:'review',draft,reviews,model:String(body.model||'LOUREX AI'),selected:reviews.map(review=>review.defaultSelected),error:''});
+    }catch(error){if(controller.signal.aborted)return;this.setState({stage:'error',error:error instanceof Error?error.message:String(error)});}finally{if(this.abort===controller)this.abort=null;}
+  };
   private toggle=(index:number)=>{const review=this.state.reviews[index];if(!review||review.classification==='duplicate-candidate'||review.classification==='needs-review')return;const selected=[...this.state.selected];selected[index]=!selected[index];this.setState({selected});};
   private save=async()=>{const draft=this.state.draft;if(!draft||this.state.stage==='saving')return;const count=this.state.selected.filter(Boolean).length;if(!count)return;this.setState({stage:'saving',error:''});try{await mutateVaultSafely(vault=>applyDraft(vault,draft,this.state.selected,this.state.reviews));this.setState({stage:'done',savedCount:count});}catch(error){this.setState({stage:'review',error:error instanceof Error?error.message:String(error)});}};
   private close=()=>{if(this.state.stage==='saving'||this.state.stage==='analyzing')return;this.props.onDone();};
