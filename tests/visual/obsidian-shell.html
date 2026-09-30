@@ -17,13 +17,15 @@
 <script>
   (()=>{
     let checked=false;
+    let checking=false;
     const validate=()=>{
-      if(checked||innerWidth>720)return;
+      if(checked||checking||innerWidth>720)return;
       const panel=document.querySelector('.lourex-ai-panel');
       const plus=panel?.querySelector('.lourex-ai-composer-plus');
       const mic=panel?.querySelector('.lourex-ai-composer-mic');
       const send=panel?.querySelector('.lourex-ai-send');
       if(!(panel&&plus&&mic&&send))return;
+      checking=true;
       const controls=[['plus',plus],['microphone',mic],['send',send]];
       for(const [name,node] of controls){
         const r=node.getBoundingClientRect();
