@@ -36,6 +36,7 @@
     create:text(panel,'Create from source','إنشاء من مصدر'),
     business:text(panel,'Business tools','أدوات الأعمال'),
     records:text(panel,'Activity & records','النشاط والسجلات'),
+    tools:text(panel,'AI Tools','أدوات AI'),
     inbox:[text(panel,'AI Inbox','صندوق AI'),text(panel,'Upload any business file and route it safely','ارفع أي ملف أعمال ووجّهه بأمان')],
     quote:[text(panel,'File → Quotation','ملف ← عرض سعر'),text(panel,'Turn an RFQ or image into a quotation draft','حوّل RFQ أو صورة إلى مسودة عرض سعر')],
     product:[text(panel,'Product AI','ذكاء المنتجات'),text(panel,'Read catalogs and price lists with review','اقرأ الكتالوجات وقوائم الأسعار مع المراجعة')],
@@ -70,6 +71,11 @@
     if(!key)return '';
     const value=labels(panel)[key];
     return typeof value==='string'?value:'';
+  }
+
+  function workflowLauncher(panel,kind){
+    const l=labels(panel);const expected=normalizeLabel(kind==='inbox'?l.inbox[0]:l.tools);
+    return workflowButtons(panel).find(button=>button instanceof HTMLButtonElement&&normalizeLabel(button.textContent)===expected)||null;
   }
 
   function composerStatus(panel,state,messageKey='',autoHide=0){
@@ -127,14 +133,14 @@
   }
 
   function routeThroughWorkflowMenu(action){
-    withWorkflowReady((panel,launchers)=>{
-      const tools=launchers[1];if(!(tools instanceof HTMLButtonElement)){composerStatus(panel,'error','actionUnavailable',3200);return;}
+    withWorkflowReady(panel=>{
+      const tools=workflowLauncher(panel,'tools');if(!(tools instanceof HTMLButtonElement)){composerStatus(panel,'error','actionUnavailable',3200);return;}
       closeMenu();document.documentElement.dataset.lourexAiInternalRoute='true';tools.click();window.requestAnimationFrame(()=>clickInternalAction(panel,action));
       window.setTimeout(()=>{delete document.documentElement.dataset.lourexAiInternalRoute;},1800);
     });
   }
 
-  function openInbox(){withWorkflowReady((panel,buttons)=>{closeMenu();const button=buttons[0];if(button instanceof HTMLButtonElement)button.click();else composerStatus(panel,'error','actionUnavailable',3200);});}
+  function openInbox(){withWorkflowReady(panel=>{closeMenu();const button=workflowLauncher(panel,'inbox');if(button instanceof HTMLButtonElement)button.click();else composerStatus(panel,'error','actionUnavailable',3200);});}
 
   function openSupplierDocument(){
     const panel=document.querySelector(PANEL);if(!(panel instanceof HTMLElement))return;
@@ -251,6 +257,7 @@
     const complete=form.dataset.lourexAiComposerV449==='true'&&plus instanceof HTMLButtonElement&&mic instanceof HTMLButtonElement&&status instanceof HTMLElement&&menu instanceof HTMLElement;
     if(complete){refreshComposer(panel,form,input);return;}
 
+    if(recognition&&recognitionPanel===panel)abortVoice();
     plus?.remove();mic?.remove();status?.remove();menu?.remove();
     form.dataset.lourexAiComposerV449='true';
 
