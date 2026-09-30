@@ -26,28 +26,41 @@
       const send=panel?.querySelector('.lourex-ai-send');
       if(!(panel&&plus&&mic&&send))return;
       checking=true;
-      const controls=[['plus',plus],['microphone',mic],['send',send]];
-      for(const [name,node] of controls){
-        const r=node.getBoundingClientRect();
-        if(r.width<43.5||r.height<43.5)throw new Error(`v449 ${name} touch target ${r.width}x${r.height}`);
-      }
-      const plusSvg=plus.querySelector('svg');
-      const micSvg=mic.querySelector('svg');
-      if(!plusSvg||getComputedStyle(plusSvg).stroke==='none')throw new Error('v449 plus icon is not visibly stroked');
-      if(!micSvg||getComputedStyle(micSvg).stroke==='none')throw new Error('v449 microphone icon is not visibly stroked');
-      plus.click();
-      requestAnimationFrame(()=>requestAnimationFrame(()=>{
-        const menu=panel.querySelector('.lourex-ai-plus-menu');
-        if(!(menu instanceof HTMLElement)||menu.hidden)throw new Error('v449 plus menu did not open');
-        const r=menu.getBoundingClientRect();
-        if(r.left<-1||r.right>innerWidth+1||r.top<-1||r.bottom>innerHeight+1)throw new Error(`v449 plus menu escaped viewport ${JSON.stringify({left:r.left,right:r.right,top:r.top,bottom:r.bottom})}`);
-        if(menu.scrollWidth>menu.clientWidth+2)throw new Error(`v449 plus menu horizontal overflow ${menu.scrollWidth}>${menu.clientWidth}`);
-        const items=menu.querySelectorAll('.lourex-ai-plus-item');
-        if(items.length<10)throw new Error(`v449 plus menu exposes only ${items.length} tools`);
+      const fail=error=>{
         checked=true;
+        checking=false;
         panel.dataset.v449QaReady='true';
-        window.shellQaAiComposer={checked:true,itemCount:items.length,menu:{left:r.left,right:r.right,top:r.top,bottom:r.bottom},controls:Object.fromEntries(controls.map(([name,node])=>{const box=node.getBoundingClientRect();return[name,{width:box.width,height:box.height}];}))};
-      }));
+        const message=String(error instanceof Error?error.message:error);
+        window.shellQaAiComposer={checked:false,error:message};
+        console.error(`v449 composer QA: ${message}`);
+      };
+      try{
+        const controls=[['plus',plus],['microphone',mic],['send',send]];
+        for(const [name,node] of controls){
+          const r=node.getBoundingClientRect();
+          if(r.width<43.5||r.height<43.5){fail(`v449 ${name} touch target ${r.width}x${r.height}`);return;}
+        }
+        const plusSvg=plus.querySelector('svg');
+        const micSvg=mic.querySelector('svg');
+        if(!plusSvg||getComputedStyle(plusSvg).stroke==='none'){fail('v449 plus icon is not visibly stroked');return;}
+        if(!micSvg||getComputedStyle(micSvg).stroke==='none'){fail('v449 microphone icon is not visibly stroked');return;}
+        plus.click();
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{
+          try{
+            const menu=panel.querySelector('.lourex-ai-plus-menu');
+            if(!(menu instanceof HTMLElement)||menu.hidden){fail('v449 plus menu did not open');return;}
+            const r=menu.getBoundingClientRect();
+            if(r.left<-1||r.right>innerWidth+1||r.top<-1||r.bottom>innerHeight+1){fail(`v449 plus menu escaped viewport ${JSON.stringify({left:r.left,right:r.right,top:r.top,bottom:r.bottom})}`);return;}
+            if(menu.scrollWidth>menu.clientWidth+2){fail(`v449 plus menu horizontal overflow ${menu.scrollWidth}>${menu.clientWidth}`);return;}
+            const items=menu.querySelectorAll('.lourex-ai-plus-item');
+            if(items.length<10){fail(`v449 plus menu exposes only ${items.length} tools`);return;}
+            checked=true;
+            checking=false;
+            panel.dataset.v449QaReady='true';
+            window.shellQaAiComposer={checked:true,itemCount:items.length,menu:{left:r.left,right:r.right,top:r.top,bottom:r.bottom},controls:Object.fromEntries(controls.map(([name,node])=>{const box=node.getBoundingClientRect();return[name,{width:box.width,height:box.height}];}))};
+          }catch(error){fail(error);}
+        }));
+      }catch(error){fail(error);}
     };
     new MutationObserver(validate).observe(document.documentElement,{childList:true,subtree:true});
     addEventListener('resize',validate);
