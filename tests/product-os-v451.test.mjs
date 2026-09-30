@@ -73,6 +73,13 @@ test('mobile center action reuses canonical global quick create while specialist
   for(const group of ['Overview','Sales & relationships','Operations','Finance & insights'])assert.ok(shell.includes(group),group);
 });
 
+test('mobile command sheet owns viewport geometry and exposes the full canonical quick-create set',async()=>{
+  const workspaces=await read('src/styles/product-os-workspaces-v451.css');
+  assert.match(workspaces,/html body \.global-search-panel\s*\{[\s\S]*?position:fixed!important[\s\S]*?bottom:0!important[\s\S]*?height:min\(88dvh,780px\)!important/);
+  assert.match(workspaces,/html body \.global-search-start,[\s\S]*?html body \.global-search-results\s*\{[\s\S]*?flex:1 1 auto!important[\s\S]*?min-height:0!important[\s\S]*?overflow-y:auto!important/);
+  assert.match(workspaces,/html body \.global-search-actions>button:nth-child\(n\+4\)\s*\{\s*display:grid!important;\s*\}/);
+});
+
 test('mobile overlays, horizontal discovery and accessibility keep iPhone-safe product contracts',async()=>{
   const detail=await read('src/styles/product-os-detail-v451.css');
   assert.match(detail,/@media \(max-width:900px\)/);
@@ -110,7 +117,7 @@ test('help, privacy, terms and about are real product surfaces without invented 
   assert.match(shell,/ProductInfoModal/);
   assert.match(shell,/Help & Product Info/);
   for(const section of ["'help'","'privacy'","'terms'","'about'"])assert.ok(info.includes(section),section);
-  assert.match(info,/window as any\.__LOUREX_RUNTIME__/);
+  assert.match(info,/\(window as any\)\.__LOUREX_RUNTIME__/);
   assert.match(info,/Not exposed by this runtime/);
   assert.match(info,/Missing source values must remain missing rather than being invented/);
   assert.match(info,/does not replace a jurisdiction-specific privacy notice/);
