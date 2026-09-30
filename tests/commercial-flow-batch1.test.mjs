@@ -104,13 +104,27 @@ test('Commercial tracking transition validation uses the latest vault and blocks
   assert.equal(quote.lifecycleStatus,'active');
 });
 
-test('Commercial flow visual layer loads before the final reliability bridge',async()=>{
+test('Expired quotations cannot be marked sent through a non-UI mutation path',async()=>{
+  const { emptyVault, defaultCompany }=await import('../dist/src/lib/defaults.js');
+  const { createBlankDocument }=await import('../dist/src/lib/documents.js');
+  const { validatedCommercialTrackingEvent }=await import('../dist/src/lib/commercial-flow.js');
+  const vault=emptyVault();
+  const quote=createBlankDocument('proforma','QUO-2026-9002',defaultCompany());
+  quote.status='final';quote.lifecycleStatus='active';quote.dueDate='2026-09-30';
+  vault.documents=[quote];
+  assert.throws(()=>validatedCommercialTrackingEvent(vault,quote.id,'sent','','2026-10-01'),/quotation is expired/i);
+});
+
+test('Commercial flow visual layer loads before the final reliability bridge and protects mobile touch UX',async()=>{
   const html=await read('index.html');
   const commercial='./styles/commercial-flow-batch1.css?v=453-1';
   const bridge='./styles/tailadmin-reliability-bridge-v320.css?v=320-2';
   assert.ok(html.includes(commercial),'commercial flow stylesheet missing');
   assert.ok(html.indexOf(commercial)<html.indexOf(bridge),'commercial flow must load before reliability bridge');
   const css=await read('src/styles/commercial-flow-batch1.css');
+  assert.match(css,/\.lx-commercial-actions \.btn\{min-height:44px\}/);
+  assert.match(css,/\.lx-commercial-followup \.input\{[^}]*min-height:44px[^}]*font-size:16px/);
+  assert.match(css,/\.lx-commercial-actions-primary\{display:grid;grid-template-columns:1fr\}/);
   assert.match(css,/@media \(max-width:900px\)/);
   assert.match(css,/\[dir="rtl"\]/);
   assert.match(css,/focus-visible/);
