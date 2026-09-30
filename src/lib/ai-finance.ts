@@ -268,7 +268,7 @@ function productPerformance(source:AiFinanceSource,from:string,to:string):AiFina
     const sign=doc.role==='credit-note'?-1n:1n;
     if((doc.adjustments.discountEnabled&&nonZero(doc.adjustments.discountValue))||(doc.adjustments.shippingEnabled&&nonZero(doc.adjustments.shipping))||(doc.adjustments.otherChargesEnabled&&nonZero(doc.adjustments.otherCharges))||nonZero(doc.internalCosts.shippingCost)||nonZero(doc.internalCosts.otherCost))hasUnallocatedDocumentAdjustments=true;
     for(const item of doc.items){
-      const name=(item.descriptionEn||item.descriptionAr||'Item').trim();const currency=(doc.currency||'USD').trim().toUpperCase();const key=`${currency}\u0000${normalized(name)}`;
+      const name=(item.descriptionEn||item.descriptionAr||'Item').trim();const currency=(doc.currency||'').trim().toUpperCase();const key=`${currency}\u0000${normalized(name)}`;
       let row=map.get(key);if(!row){row={name,currency,revenue:0n,cost:0n,complete:true,missingCostItems:0};map.set(key,row);}
       row.revenue+=decimalToScaled(lineTotal(item.quantity,item.unitPrice),2)*sign;
       if(!validUnitCost(item.unitCost)){row.complete=false;row.missingCostItems+=1;continue;}
@@ -308,6 +308,6 @@ export function buildAiFinanceContext(source:AiFinanceSource,query:string,asOf=t
     matchedCustomers:customers.matched,
     activeDocument:documentSummary(source,asOf),
     productLinePerformance:needsProductPerformance(query)?productPerformance(source,currentMonthStart,asOf):null,
-    limitations:['currency-separated-no-fx-conversion','profit-hidden-when-cost-incomplete','product-profitability-does-not-allocate-document-level-adjustments','supplier-payables-not-tracked','cash-bank-ledger-not-tracked']
+    limitations:['currency-separated-no-fx-conversion','unknown-product-performance-currency-remains-empty','profit-hidden-when-cost-incomplete','product-profitability-does-not-allocate-document-level-adjustments','supplier-payables-not-tracked','cash-bank-ledger-not-tracked']
   };
 }
