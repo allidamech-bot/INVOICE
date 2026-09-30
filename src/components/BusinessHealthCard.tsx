@@ -19,7 +19,8 @@ function issueDetail(issue:BusinessHealthIssue):string{return getUiLanguage()===
 export function BusinessHealthCard({snapshot,onTarget}:Props):any{
   const ready=snapshot.status==='ready';
   const visible=snapshot.issues.slice(0,5);
-  return <section className="ta-dashboard-card ta-attention-card ta-business-health-card" aria-label={t('Business Health','جاهزية الأعمال')}>
+  const arabic=getUiLanguage()==='ar';
+  return <section className="ta-dashboard-card ta-attention-card ta-business-health-card" dir={arabic?'rtl':'ltr'} style={{textAlign:arabic?'right':'left'}} aria-label={t('Business Health','جاهزية الأعمال')}>
     <header className="ta-card-header">
       <div>
         <small>{t('Business Health','جاهزية الأعمال')}</small>
@@ -29,7 +30,7 @@ export function BusinessHealthCard({snapshot,onTarget}:Props):any{
     </header>
     {ready?<div className="ta-clear-state"><span>✓</span><strong>{t('Business data is ready','بيانات الأعمال جاهزة')}</strong><small>{t('LOUREX will keep checking deterministic completeness without changing records automatically.','سيستمر LOUREX بفحص الاكتمال بشكل حتمي دون تعديل السجلات تلقائيًا.')}</small></div>:<>
       <div className="ta-attention-list">
-        {visible.map(row=><button type="button" key={row.id} className={row.severity==='warning'?'is-danger':''} onClick={()=>onTarget(row.target)} title={issueDetail(row)}>
+        {visible.map(row=><button type="button" key={row.id} className={row.severity==='warning'?'is-danger':''} onClick={()=>onTarget(row.target)} title={issueDetail(row)} style={{textAlign:arabic?'right':'left'}}>
           <span><Icon name={issueIcon(row) as any}/><b>{issueLabel(row)}</b></span><strong>{row.count}</strong>
         </button>)}
       </div>
