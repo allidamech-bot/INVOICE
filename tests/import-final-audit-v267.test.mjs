@@ -48,6 +48,7 @@ test('v450 missing supplier facts remain blank instead of becoming PCS, USD or z
   assert.equal(draft.otherCosts,'');
   assert.equal(draft.items[0].unit,'');
   const purchase=buildAiSupplierPurchaseDraft(draft,[],[],[]);
+  assert.equal(purchase.status,'draft');
   assert.equal(purchase.currency,'');
   assert.equal(purchase.freight,'');
   assert.equal(purchase.duty,'');
@@ -96,7 +97,6 @@ test('v267 import UIs keep local-first mapping, bounded previews and explicit co
   assert.match(supplier,/stage:'extracting'/);
   assert.match(supplier,/stage:'ai'/);
   assert.match(supplier,/Confirm & Save Draft/);
-  assert.match(supplier,/status:'draft'/);
   assert.doesNotMatch(supplier,/matchedSupplier\?\.defaultCurrency\|\|fallbackCurrency\|\|'USD'/);
   assert.doesNotMatch(supplier,/row\.unit\|\|saved\?\.unit\|\|'PCS'/);
   assert.doesNotMatch(supplier,/freight:draft\.freight\|\|'0\.00'/);
