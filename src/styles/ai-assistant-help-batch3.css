@@ -1,56 +1,7 @@
 /* LOUREX Expansion Batch 3 — AI assistant discoverability + Usage Guide */
 @media screen {
-  .lourex-ai-launcher{
-    isolation:isolate;
-  }
-  .lourex-ai-launcher .icon{
-    width:22px!important;
-    height:22px!important;
-  }
-  .lourex-ai-launcher::after{
-    content:'Your personal assistant in LOUREX';
-    position:absolute;
-    right:calc(100% + 10px);
-    bottom:50%;
-    transform:translateY(50%) translateX(6px);
-    width:max-content;
-    max-width:min(230px,calc(100vw - 92px));
-    padding:9px 11px;
-    border:1px solid color-mix(in srgb,var(--ft-accent) 22%,var(--ft-line));
-    border-radius:12px;
-    background:var(--ft-surface);
-    color:var(--ft-text-strong);
-    box-shadow:var(--ft-shadow-pop);
-    font:650 11px/15px "Outfit",Inter,"Noto Sans Arabic",sans-serif;
-    text-align:start;
-    white-space:normal;
-    pointer-events:none;
-    opacity:0;
-    animation:lourexAiCoachmark 8s ease-out .8s 1 forwards;
-  }
-  [dir="rtl"] .lourex-ai-launcher::after{
-    content:'مساعدك الشخصي في LOUREX';
-    right:auto;
-    left:calc(100% + 10px);
-    direction:rtl;
-    text-align:right;
-    transform:translateY(50%) translateX(-6px);
-  }
-  .lourex-ai-launcher::before{
-    content:'';
-    position:absolute;
-    inset:-5px;
-    z-index:-1;
-    border-radius:19px;
-    border:1px solid color-mix(in srgb,var(--ft-accent) 28%,transparent);
-    opacity:0;
-    animation:lourexAiPulse 2.8s ease-out 1s 2;
-    pointer-events:none;
-  }
-  .lourex-ai-launcher[aria-expanded="true"]::after,
-  .app-ui:has(.lourex-ai-panel) .lourex-ai-launcher::after{
-    display:none;
-  }
+  .lourex-ai-launcher{isolation:isolate;}
+  .lourex-ai-launcher .icon{width:22px!important;height:22px!important;}
 
   .lx-usage-guide{display:grid;gap:14px;}
   .lx-usage-guide-head{padding:14px 15px;border:1px solid var(--ft-line);border-radius:16px;background:var(--ft-surface-2);}
@@ -65,6 +16,57 @@
   .lx-usage-guide-card ol{margin:0;padding-inline-start:20px;color:var(--ft-text-soft);font-size:10.5px;line-height:17px;}
   .lx-usage-guide-card li+li{margin-top:3px;}
 
+  @media(max-width:860px){
+    .lourex-ai-launcher::after{
+      content:'Your personal assistant in LOUREX';
+      position:absolute;
+      right:calc(100% + 10px);
+      bottom:50%;
+      transform:translateY(50%) translateX(6px);
+      width:max-content;
+      max-width:min(210px,calc(100vw - 82px));
+      padding:9px 11px;
+      border:1px solid color-mix(in srgb,var(--ft-accent) 22%,var(--ft-line));
+      border-radius:12px;
+      background:var(--ft-surface);
+      color:var(--ft-text-strong);
+      box-shadow:var(--ft-shadow-pop);
+      font:650 10.5px/15px "Outfit",Inter,"Noto Sans Arabic",sans-serif;
+      text-align:start;
+      white-space:normal;
+      pointer-events:none;
+      opacity:0;
+      animation:lourexAiCoachmark 8s ease-out .8s 1 forwards;
+    }
+    [dir="rtl"] .lourex-ai-launcher::after{
+      content:'مساعدك الشخصي في LOUREX';
+      right:auto;
+      left:calc(100% + 10px);
+      direction:rtl;
+      text-align:right;
+      transform:translateY(50%) translateX(-6px);
+    }
+    .lourex-ai-launcher::before{
+      content:'';
+      position:absolute;
+      inset:-5px;
+      z-index:-1;
+      border-radius:19px;
+      border:1px solid color-mix(in srgb,var(--ft-accent) 28%,transparent);
+      opacity:0;
+      animation:lourexAiPulse 2.8s ease-out 1s 2;
+      pointer-events:none;
+    }
+    .lourex-ai-launcher[aria-expanded="true"]::after,
+    .app-ui:has(.lourex-ai-panel) .lourex-ai-launcher::after{display:none;}
+    .lx-usage-guide-grid{grid-template-columns:1fr;}
+    .lx-usage-guide-card{padding:12px;}
+  }
+
+  @media(max-width:350px){
+    .lourex-ai-launcher::after{max-width:185px;padding:8px 9px;font-size:10px;}
+  }
+
   @keyframes lourexAiCoachmark{
     0%{opacity:0;}
     10%,68%{opacity:1;transform:translateY(50%) translateX(0);}
@@ -75,18 +77,9 @@
     35%{opacity:.75;}
     100%{opacity:0;transform:scale(1.16);}
   }
-
-  @media(max-width:860px){
-    .lourex-ai-launcher::after{max-width:min(210px,calc(100vw - 82px));font-size:10.5px;line-height:15px;}
-    .lx-usage-guide-grid{grid-template-columns:1fr;}
-    .lx-usage-guide-card{padding:12px;}
-  }
-  @media(max-width:350px){
-    .lourex-ai-launcher::after{max-width:185px;padding:8px 9px;font-size:10px;}
-  }
 }
 
 @media(prefers-reduced-motion:reduce){
-  .lourex-ai-launcher::before{display:none!important;}
-  .lourex-ai-launcher::after{animation:none!important;opacity:1!important;transform:translateY(50%)!important;}
+  .lourex-ai-launcher::before,
+  .lourex-ai-launcher::after{display:none!important;animation:none!important;}
 }
