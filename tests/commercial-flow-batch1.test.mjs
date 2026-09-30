@@ -34,3 +34,25 @@ test('Batch 1 commercial flow uses existing conversion and credit links instead 
   assert.match(source,/commercialEvidence/);
   assert.match(source,/event\.relatedDocumentId/);
 });
+
+test('Documents workspace receives real lifecycle evidence and renders Commercial Flow',async()=>{
+  const [app,documents,panel]=await Promise.all([
+    read('src/app/App.tsx'),read('src/components/DocumentsPage.tsx'),read('src/components/CommercialFlowPanel.tsx')
+  ]);
+  assert.match(app,/documentEvents=\{vault\.documentEvents\}/);
+  assert.match(documents,/CommercialFlowPanel/);
+  assert.match(documents,/events=\{this\.props\.documentEvents\}/);
+  assert.match(panel,/buildCommercialFlowSnapshot/);
+});
+
+test('Commercial flow visual layer loads before the final reliability bridge',async()=>{
+  const html=await read('index.html');
+  const commercial='./styles/commercial-flow-batch1.css?v=453-1';
+  const bridge='./styles/tailadmin-reliability-bridge-v320.css?v=320-2';
+  assert.ok(html.includes(commercial),'commercial flow stylesheet missing');
+  assert.ok(html.indexOf(commercial)<html.indexOf(bridge),'commercial flow must load before reliability bridge');
+  const css=await read('src/styles/commercial-flow-batch1.css');
+  assert.match(css,/@media \(max-width:900px\)/);
+  assert.match(css,/\[dir="rtl"\]/);
+  assert.match(css,/focus-visible/);
+});
