@@ -75,6 +75,37 @@ test('v450 AI business and pricing contexts exclude purchase observations after 
   assert.equal(pricing.purchasing.recentPurchases.length,0);
 });
 
+test('v450 historical product intelligence excludes products created after the requested as-of date',()=>{
+  const vault=emptyVault();const item={...savedItemWithoutCurrency(),id:'future-created-item',descriptionEn:'Future Created Product',createdAt:'2026-03-01T00:00:00.000Z',updatedAt:'2026-03-01T00:00:00.000Z'};vault.savedItems=[item];
+  const before=buildAiBusinessContext(vault,'2026-02-15');
+  assert.equal(before.products.rows.some(row=>row.id===item.id),false);
+  assert.equal(before.actionCenter.candidates.some(row=>row.itemId===item.id),false);
+  const pricingBefore=buildProductPricingContext(vault,'','2026-02-15');
+  assert.equal(pricingBefore.rows.some(row=>row.id===item.id),false);
+  assert.equal(whatMattersToday(vault,8,'2026-02-15').some(alert=>alert.searchQuery===item.descriptionEn),false);
+  const after=buildAiBusinessContext(vault,'2026-03-02');
+  assert.equal(after.products.rows.some(row=>row.id===item.id),true);
+  assert.equal(buildProductPricingContext(vault,'','2026-03-02').rows.some(row=>row.id===item.id),true);
+});
+
+test('v450 future purchase drafts and invalid operations do not contaminate historical daily intelligence',()=>{
+  const vault=emptyVault();const item={...savedItemWithoutCurrency(),id:'timeline-ops-item'};vault.savedItems=[item];
+  const futureDraft=postedPurchase(item,'2026-03-10','12.00');futureDraft.id='future-draft';futureDraft.number='PUR-FUTURE-DRAFT';futureDraft.status='draft';
+  const futureInvalid=postedPurchase(item,'2026-03-11','13.00');futureInvalid.id='future-invalid';futureInvalid.number='PUR-FUTURE-INVALID';futureInvalid.items[0].quantity='0';
+  vault.purchases=[futureDraft,futureInvalid];
+  const before=buildAiBusinessContext(vault,'2026-02-15');
+  assert.equal(before.daily.draftPurchases,0);
+  assert.equal(before.daily.invalidOperations,0);
+  const pricingBefore=buildProductPricingContext(vault,'','2026-02-15');
+  assert.equal(pricingBefore.purchasing.draftPurchases,0);
+  assert.equal(whatMattersToday(vault,8,'2026-02-15').some(alert=>alert.kind==='purchase-draft'),false);
+  const after=buildAiBusinessContext(vault,'2026-03-15');
+  assert.equal(after.daily.draftPurchases,1);
+  assert.ok(after.daily.invalidOperations>=1);
+  assert.equal(buildProductPricingContext(vault,'','2026-03-15').purchasing.draftPurchases,1);
+  assert.equal(whatMattersToday(vault,8,'2026-03-15').some(alert=>alert.key==='purchase-draft:future-draft'),true);
+});
+
 test('v450 AI business search ignores posted purchases that fail accounting validity',()=>{
   const vault=emptyVault();const item={...savedItemWithoutCurrency(),descriptionEn:'Search Product'};vault.savedItems=[item];
   const valid=postedPurchase(item,'2026-01-10','10.00');valid.id='purchase-valid';valid.number='PUR-VALID';
