@@ -1,9 +1,13 @@
-import type { DocumentEventRecord, DocumentEventType, LourexDocument } from '../types.js';
+import type { DocumentEventRecord, DocumentEventType, LourexDocument, VaultPayload } from '../types.js';
 import { isIsoDate, makeId } from './id.js';
 
 export type CommercialTrackingStatus='draft'|'internal-ready'|'sent'|'accepted'|'rejected'|'expired'|'converted';
 export type CommercialTrackingEventKind='sent'|'accepted'|'rejected'|'followup-scheduled'|'followup-completed';
 
+// Batch 1 deliberately stores commercial tracking inside the already encrypted,
+// conflict-merged document event ledger. A reserved note marker keeps these sales
+// events separate from accounting/document lifecycle semantics without introducing
+// a second storage silo or changing DocumentStatus / DocumentLifecycleStatus.
 const COMMERCIAL_MARKER='@lourex:commercial:v1:';
 
 export interface CommercialTrackingOverlay {
@@ -113,6 +117,40 @@ export function effectiveCommercialStatus(
   if(doc.status==='final'&&expiresAt&&isIsoDate(today)&&expiresAt<today)return{status:'expired',source:'date'};
   if(tracked?.status==='sent')return{status:'sent',source:'tracking'};
   return{status:doc.status==='final'?'internal-ready':'draft',source:'document'};
+}
+
+/**
+ * Validate against the latest vault snapshot, not the UI's potentially stale copy.
+ * The returned event can then be appended atomically through mutateVaultSafely().
+ */
+export function validatedCommercialTrackingEvent(
+  vault:Pick<VaultPayload,'documents'|'documentEvents'>,
+  documentId:string,
+  kind:CommercialTrackingEventKind,
+  payload='',
+  today=new Date().toISOString().slice(0,10)
+):DocumentEventRecord{
+  const doc=vault.documents.find(item=>item.id===documentId);
+  if(!doc)throw new Error('Quotation no longer exists. Reopen Documents and try again.');
+  if(!isQuoteLikeDocument(doc))throw new Error('Commercial tracking is available only for quotations and proforma invoices.');
+  if(doc.status!=='final'||doc.lifecycleStatus==='voided')throw new Error('Issue an active final quotation before recording external commercial tracking.');
+  if(linkedInvoiceForCommercialDocument(doc,vault.documents))throw new Error('This quotation is already converted to an invoice.');
+
+  const tracking=commercialTrackingFromEvents(doc.id,vault.documentEvents);
+  const effective=effectiveCommercialStatus(doc,vault.documents,tracking,today).status;
+  const terminal=effective==='accepted'||effective==='rejected'||effective==='converted';
+  if(terminal)throw new Error('This commercial decision is already closed.');
+
+  const clean=payload.trim();
+  if(kind==='sent'&&tracking.status==='sent')throw new Error('Sent is already recorded for this quotation.');
+  if(kind==='rejected'&&!clean)throw new Error('Enter the rejection reason first.');
+  if(kind==='followup-scheduled'){
+    if(!isIsoDate(clean))throw new Error('Choose a valid follow-up date.');
+    if(isIsoDate(today)&&clean<today)throw new Error('Follow-up date cannot be in the past.');
+  }
+  if(kind==='followup-completed'&&!tracking.followUpAt)throw new Error('Schedule a follow-up before marking it complete.');
+
+  return createCommercialTrackingEvent(doc,kind,clean);
 }
 
 export function commercialFlowDocuments(doc:LourexDocument,documents:LourexDocument[]):CommercialFlowNode[]{
