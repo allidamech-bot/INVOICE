@@ -33,9 +33,11 @@ test('customer AI UI hands proposals to review without direct persistence', () =
   assert.doesNotMatch(ui, /localStorage\./);
 });
 
-test('business workspace QA targets the current product command bar action', () => {
+test('business workspace QA follows the current mobile product editor route', () => {
+  const productWorkspace = read('src/components/ProductLibraryWorkspace.tsx');
   const qa = read('tests/visual/run-v326-business-workspaces.cjs');
 
-  assert.match(qa, /\.ta-product-commandbar \.btn-primary/);
+  assert.match(productWorkspace, /lourex-open-product-editor/);
+  assert.match(qa, /lourex-open-product-editor/);
   assert.doesNotMatch(qa, /\.ta-products-workspace-header \.btn-primary/);
 });
