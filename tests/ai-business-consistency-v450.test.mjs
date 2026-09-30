@@ -6,6 +6,7 @@ import { buildAiBusinessContext } from '../dist/src/lib/ai-business.js';
 import { buildCollectionTasks } from '../dist/src/lib/collections-workflow.js';
 import { whatMattersToday } from '../dist/src/lib/daily-command-center.js';
 import { buildProductPricingContext } from '../dist/src/lib/product-pricing-intelligence.js';
+import { buildBusinessMemory } from '../dist/src/lib/business-memory.js';
 import { createPurchase, createPurchaseItem, createSupplier } from '../dist/src/lib/operations.js';
 
 function savedItemWithoutCurrency(){
@@ -34,6 +35,10 @@ function postedPurchase(item,date,unitCost='25.00'){
   purchase.items=[line];
   return purchase;
 }
+
+function memoryCustomer(){return{id:'memory-customer',createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-01-01T00:00:00.000Z',companyNameEn:'Memory Buyer',companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:'',preferredCurrency:'USD',paymentTermPresetId:'',paymentTerms:'',paymentDueDays:'',creditLimit:'',creditCurrency:'',notes:''};}
+function memoryQuote(customer){const doc=createBlankDocument('proforma-invoice','PI-2026-MEMORY',defaultCompany());doc.id='memory-quote';doc.status='final';doc.lifecycleStatus='active';doc.issueDate='2026-01-01';doc.customerSnapshot={sourceCustomerId:customer.id,companyNameEn:customer.companyNameEn,companyNameAr:'',contactPerson:'',addressEn:'',addressAr:'',city:'',country:'',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};return doc;}
+function linkedInvoice(quote,lifecycleStatus='active'){const doc=createBlankDocument('invoice','INV-2026-MEMORY',defaultCompany());doc.id=`linked-${lifecycleStatus}`;doc.status='draft';doc.lifecycleStatus=lifecycleStatus;doc.convertedFromId=quote.id;doc.customerSnapshot=quote.customerSnapshot;return doc;}
 
 test('v450 AI business context leaves an unknown product currency empty instead of inventing USD',()=>{
   const vault=emptyVault();
@@ -102,4 +107,18 @@ test('v450 historical customer intelligence excludes future invoices and preserv
   assert.equal(customer.profitability.find(row=>row.currency==='USD')?.netRevenue,'100.00');
   assert.deepEqual(customer.topProducts.map(row=>row.name),['Past Service']);
   assert.ok(!customer.lastActivity||customer.lastActivity.slice(0,10)<='2026-03-15');
+});
+
+test('v450 business memory follows proforma invoices again when the linked invoice was voided',()=>{
+  const vault=emptyVault();const customer=memoryCustomer();const quote=memoryQuote(customer);const voided=linkedInvoice(quote,'voided');
+  vault.customers=[customer];vault.documents=[quote,voided];
+  const memory=buildBusinessMemory(vault);
+  assert.ok(memory.entries.some(entry=>entry.key===`quote:${quote.id}:unconverted`));
+});
+
+test('v450 business memory treats an active linked invoice draft as an existing conversion',()=>{
+  const vault=emptyVault();const customer=memoryCustomer();const quote=memoryQuote(customer);const active=linkedInvoice(quote,'active');
+  vault.customers=[customer];vault.documents=[quote,active];
+  const memory=buildBusinessMemory(vault);
+  assert.equal(memory.entries.some(entry=>entry.key===`quote:${quote.id}:unconverted`),false);
 });
