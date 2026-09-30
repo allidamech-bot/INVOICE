@@ -36,6 +36,7 @@ test('v451 semantic design system distinguishes AI, action and financial surface
   assert.match(workspaces,/grid-template-columns:minmax\(0,1\.55fr\)/);
   assert.match(workspaces,/safe-area-inset-bottom/);
   assert.match(workspaces,/\.global-search-panel/);
+  assert.match(workspaces,/\.lx-product-info/);
 });
 
 test('dashboard puts intelligence and action before analysis without inventing financial context',async()=>{
@@ -63,6 +64,34 @@ test('mobile center action reuses canonical global quick create while specialist
   assert.match(shell,/ta-desktop-create-menu/);
   for(const kind of ["'draft'","'rfq'","'proforma-invoice'","'purchase-order'","'delivery-note'","'payment-receipt'"])assert.ok(shell.includes(kind),`specialist document ${kind} must remain available`);
   for(const group of ['Overview','Sales & relationships','Operations','Finance & insights'])assert.ok(shell.includes(group),group);
+});
+
+test('operational finance and management reports remain conceptually separate',async()=>{
+  const [finance,reports]=await Promise.all([
+    read('src/components/FinanceWorkspace.tsx'),
+    read('src/components/ReportsPage.tsx')
+  ]);
+  assert.match(finance,/Operational Finance/);
+  assert.match(finance,/Revenue ≠ collections ≠ receivables/);
+  assert.match(finance,/Operating expense records/);
+  assert.doesNotMatch(finance,/Operating cash out/);
+  assert.match(finance,/Period sales and profitability analysis stays in Reports & Insights/);
+  assert.match(reports,/Sales, collections, receivables and gross profitability with each currency kept separate/);
+  assert.match(reports,/Profitability data is incomplete/);
+});
+
+test('help, privacy, terms and about are real product surfaces without invented runtime metadata',async()=>{
+  const [shell,info]=await Promise.all([
+    read('src/components/AppShell.tsx'),
+    read('src/components/ProductInfoModal.tsx')
+  ]);
+  assert.match(shell,/ProductInfoModal/);
+  assert.match(shell,/Help & Product Info/);
+  for(const section of ["'help'","'privacy'","'terms'","'about'"])assert.ok(info.includes(section),section);
+  assert.match(info,/window as any\).__LOUREX_RUNTIME__/);
+  assert.match(info,/Not exposed by this runtime/);
+  assert.match(info,/Missing source values must remain missing rather than being invented/);
+  assert.match(info,/does not replace a jurisdiction-specific privacy notice/);
 });
 
 test('v451 restructuring map records the exact baseline and financial safety boundaries',async()=>{
