@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<body><div id="root" class="app-ui"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {BusinessHealthCard} from './src/components/BusinessHealthCard.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar',ready=params.get('ready')==='1',h=React.createElement;
+document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';setUiLanguage(ar?'ar':'en');
+const issues=ready?[]:[
+ {id:'company-default-currency',area:'company',severity:'warning',count:1,target:'settings',labelEn:'Default currency is missing',labelAr:'العملة الافتراضية غير محددة',detailEn:'Choose a default currency.',detailAr:'اختر العملة الافتراضية.'},
+ {id:'customers-duplicates',area:'customers',severity:'review',count:2,target:'customers',labelEn:'Possible duplicate customer groups',labelAr:'مجموعات عملاء محتملة التكرار',detailEn:'Review possible duplicates.',detailAr:'راجع التكرارات المحتملة.'},
+ {id:'products-missing-cost',area:'products',severity:'warning',count:3,target:'items',labelEn:'Products with incomplete cost data',labelAr:'أصناف ببيانات تكلفة ناقصة',detailEn:'Review cost data.',detailAr:'راجع بيانات التكلفة.'},
+ {id:'suppliers-missing-contact',area:'suppliers',severity:'review',count:1,target:'operations',labelEn:'Suppliers without contact details',labelAr:'موردون بدون بيانات تواصل',detailEn:'Review supplier contacts.',detailAr:'راجع بيانات تواصل الموردين.'}
+];
+const snapshot={status:ready?'ready':'needs-attention',issueCount:ready?0:7,warningCount:ready?0:4,reviewCount:ready?0:3,issues};
+function App(){const [target,setTarget]=React.useState('');return h('main',{className:'batch4-health-shell','data-last-target':target},h(BusinessHealthCard,{snapshot,onTarget:setTarget}));}
+ReactDOM.render(h(App),document.getElementById('root'));
+</script><style>.batch4-health-shell{width:100%;max-width:900px;min-height:100dvh;margin:0 auto;padding:12px;box-sizing:border-box;background:var(--ft-canvas,#f4f7fb)}</style></body></html>
