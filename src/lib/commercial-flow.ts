@@ -1,7 +1,11 @@
-import type { DocumentEventRecord, LourexDocument } from '../types.js';
-import { isIsoDate } from './id.js';
+import type { CommercialDocumentEventType, DocumentEventRecord, DocumentEventType, LourexDocument } from '../types.js';
+import { isIsoDate, makeId } from './id.js';
 
 export type CommercialTrackingStatus='draft'|'internal-ready'|'sent'|'accepted'|'rejected'|'expired'|'converted';
+
+const COMMERCIAL_EVENT_TYPES = new Set<CommercialDocumentEventType>([
+  'commercial-sent','commercial-accepted','commercial-rejected','commercial-followup-scheduled','commercial-followup-completed'
+]);
 
 export interface CommercialTrackingOverlay {
   documentId:string;
@@ -23,10 +27,19 @@ export interface CommercialFlowNode {
 export interface CommercialFlowSnapshot {
   status:CommercialTrackingStatus;
   statusSource:'document'|'tracking'|'date'|'conversion';
+  tracking:CommercialTrackingOverlay;
   linkedInvoice:LourexDocument|null;
   expiresAt:string;
   events:DocumentEventRecord[];
   flow:CommercialFlowNode[];
+}
+
+export function isCommercialDocumentEventType(type:DocumentEventRecord['type']):type is CommercialDocumentEventType{
+  return COMMERCIAL_EVENT_TYPES.has(type as CommercialDocumentEventType);
+}
+
+export function isLifecycleDocumentEventType(type:DocumentEventRecord['type']):type is DocumentEventType{
+  return !isCommercialDocumentEventType(type);
 }
 
 export function isQuoteLikeDocument(doc:LourexDocument):boolean{
@@ -44,6 +57,34 @@ export function quoteExpiryDate(doc:LourexDocument):string{
 }
 
 function dateOnly(value:string):string{return /^\d{4}-\d{2}-\d{2}/.test(value)?value.slice(0,10):'';}
+
+export function commercialTrackingFromEvents(documentId:string,events:DocumentEventRecord[]):CommercialTrackingOverlay{
+  const tracking:CommercialTrackingOverlay={documentId,status:'',sentAt:'',acceptedAt:'',rejectedAt:'',rejectionReason:'',followUpAt:'',lastFollowUpAt:'',updatedAt:''};
+  const relevant=events.filter(event=>event.documentId===documentId&&isCommercialDocumentEventType(event.type)).sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id));
+  for(const event of relevant){
+    tracking.updatedAt=event.at;
+    if(event.type==='commercial-sent'){
+      tracking.status='sent';tracking.sentAt=event.at;tracking.acceptedAt='';tracking.rejectedAt='';tracking.rejectionReason='';
+    }else if(event.type==='commercial-accepted'){
+      tracking.status='accepted';tracking.acceptedAt=event.at;tracking.rejectedAt='';tracking.rejectionReason='';
+    }else if(event.type==='commercial-rejected'){
+      tracking.status='rejected';tracking.rejectedAt=event.at;tracking.acceptedAt='';tracking.rejectionReason=event.note.trim();
+    }else if(event.type==='commercial-followup-scheduled'){
+      tracking.followUpAt=isIsoDate(event.note.trim())?event.note.trim():'';
+    }else if(event.type==='commercial-followup-completed'){
+      tracking.lastFollowUpAt=event.at;tracking.followUpAt='';
+    }
+  }
+  return tracking;
+}
+
+export function createCommercialTrackingEvent(doc:LourexDocument,type:CommercialDocumentEventType,note=''):DocumentEventRecord{
+  const now=new Date().toISOString();
+  return{
+    id:makeId('event'),documentId:doc.id,documentNumber:doc.number,type,at:now,note:note.trim(),
+    relatedDocumentId:'',relatedDocumentNumber:'',amount:'',currency:doc.currency
+  };
+}
 
 export function effectiveCommercialStatus(
   doc:LourexDocument,
@@ -111,10 +152,12 @@ export function buildCommercialFlowSnapshot(
   tracking?:CommercialTrackingOverlay|null,
   today=new Date().toISOString().slice(0,10)
 ):CommercialFlowSnapshot{
-  const effective=effectiveCommercialStatus(doc,documents,tracking,today);
+  const derivedTracking=tracking?.documentId===doc.id?tracking:commercialTrackingFromEvents(doc.id,events);
+  const effective=effectiveCommercialStatus(doc,documents,derivedTracking,today);
   return{
     status:effective.status,
     statusSource:effective.source,
+    tracking:derivedTracking,
     linkedInvoice:linkedInvoiceForCommercialDocument(doc,documents),
     expiresAt:quoteExpiryDate(doc),
     events:commercialEvidence(doc,documents,events),
@@ -123,7 +166,7 @@ export function buildCommercialFlowSnapshot(
 }
 
 export function commercialStatusLabel(status:CommercialTrackingStatus,arabic=false):string{
-  const en:Record<CommercialTrackingStatus,string>={draft:'Draft', 'internal-ready':'Ready to send',sent:'Sent',accepted:'Accepted',rejected:'Rejected',expired:'Expired',converted:'Converted'};
+  const en:Record<CommercialTrackingStatus,string>={draft:'Draft','internal-ready':'Ready to send',sent:'Sent',accepted:'Accepted',rejected:'Rejected',expired:'Expired',converted:'Converted'};
   const ar:Record<CommercialTrackingStatus,string>={draft:'مسودة','internal-ready':'جاهز للإرسال',sent:'تم الإرسال',accepted:'مقبول',rejected:'مرفوض',expired:'منتهي',converted:'تم التحويل'};
   return(arabic?ar:en)[status];
 }
