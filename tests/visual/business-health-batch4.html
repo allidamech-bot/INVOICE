@@ -11,7 +11,17 @@ const issues=ready?[]:[
  {id:'products-missing-cost',area:'products',severity:'warning',count:3,target:'items',labelEn:'Products with incomplete cost data',labelAr:'أصناف ببيانات تكلفة ناقصة',detailEn:'Review cost data.',detailAr:'راجع بيانات التكلفة.'},
  {id:'suppliers-missing-contact',area:'suppliers',severity:'review',count:1,target:'operations',labelEn:'Suppliers without contact details',labelAr:'موردون بدون بيانات تواصل',detailEn:'Review supplier contacts.',detailAr:'راجع بيانات تواصل الموردين.'}
 ];
-const snapshot={status:ready?'ready':'needs-attention',issueCount:ready?0:7,warningCount:ready?0:4,reviewCount:ready?0:3,issues};
+const readinessChecks=ready?[
+ {id:'backup-cloud-runtime',status:'review',target:'data',labelEn:'Backup & cloud sync',labelAr:'النسخ الاحتياطي والمزامنة',detailEn:'Review live backup and sync controls.',detailAr:'راجع عناصر النسخ والمزامنة الحية.'},
+ {id:'auth-recovery-runtime',status:'review',target:'settings',labelEn:'Account & recovery health',labelAr:'سلامة الحساب والاسترداد',detailEn:'Review live account and recovery health.',detailAr:'راجع سلامة الحساب والاسترداد الحية.'}
+]:[
+ {id:'company-identity',status:'attention',target:'settings',labelEn:'Company identity',labelAr:'هوية الشركة',detailEn:'Complete the company identity.',detailAr:'أكمل هوية الشركة.'},
+ {id:'product-cost-readiness',status:'attention',target:'items',labelEn:'Product cost readiness',labelAr:'جاهزية تكاليف المنتجات',detailEn:'Complete product costs.',detailAr:'أكمل تكاليف المنتجات.'},
+ {id:'backup-cloud-runtime',status:'review',target:'data',labelEn:'Backup & cloud sync',labelAr:'النسخ الاحتياطي والمزامنة',detailEn:'Review live backup and sync controls.',detailAr:'راجع عناصر النسخ والمزامنة الحية.'},
+ {id:'auth-recovery-runtime',status:'review',target:'settings',labelEn:'Account & recovery health',labelAr:'سلامة الحساب والاسترداد',detailEn:'Review live account and recovery health.',detailAr:'راجع سلامة الحساب والاسترداد الحية.'}
+];
+const readiness={basis:'deterministic-derived-read-only',checks:readinessChecks,complete:ready?7:3,attention:ready?0:2,review:2};
+const snapshot={status:ready?'ready':'needs-attention',issueCount:ready?0:7,warningCount:ready?0:4,reviewCount:ready?0:3,issues,readiness};
 function App(){const [target,setTarget]=React.useState('');return h('main',{className:'batch4-health-shell','data-last-target':target},h(BusinessHealthCard,{snapshot,onTarget:setTarget}));}
 ReactDOM.render(h(App),document.getElementById('root'));
 </script><style>.batch4-health-shell{width:100%;max-width:900px;min-height:100dvh;margin:0 auto;padding:12px;box-sizing:border-box;background:var(--ft-canvas,#f4f7fb)}</style></body></html>
