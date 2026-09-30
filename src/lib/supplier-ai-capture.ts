@@ -7,15 +7,18 @@ export interface SupplierAiFieldEvidence{value:string;confidence:number;sourceFi
 export interface SupplierAiProposal{fields:Record<SupplierAiFieldKey,SupplierAiFieldEvidence>;conflicts:Array<{field:SupplierAiFieldKey;values:Array<{value:string;confidence:number;sourceFile:string;sourcePage:string}>}>;}
 export interface SupplierDuplicateCandidate{supplier:Supplier;score:number;reasons:Array<'commercialRegistration'|'vatTaxNumber'|'email'|'phone'|'nameEn'|'nameAr'>;}
 
+const ARABIC_DIGITS='٠١٢٣٤٥٦٧٨٩';
+const EASTERN_ARABIC_DIGITS='۰۱۲۳۴۵۶۷۸۹';
 const emptyEvidence=():SupplierAiFieldEvidence=>({value:'',confidence:0,sourceFile:'',sourcePage:'',sourceExcerpt:''});
 export function emptySupplierAiProposal():SupplierAiProposal{return{fields:Object.fromEntries(SUPPLIER_AI_FIELDS.map(key=>[key,emptyEvidence()])) as Record<SupplierAiFieldKey,SupplierAiFieldEvidence>,conflicts:[]};}
 function cleanText(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);}
 function confidence(value:unknown):number{const number=Number(value);return Number.isFinite(number)?Math.max(0,Math.min(1,number)):0;}
+function latinDigits(value:string):string{return value.replace(/[٠-٩]/g,digit=>String(ARABIC_DIGITS.indexOf(digit))).replace(/[۰-۹]/g,digit=>String(EASTERN_ARABIC_DIGITS.indexOf(digit)));}
 export function normalizeSupplierAiProposal(value:any):SupplierAiProposal{const proposal=emptySupplierAiProposal();for(const key of SUPPLIER_AI_FIELDS){const row=value?.fields?.[key]??{};proposal.fields[key]={value:cleanText(row.value),confidence:confidence(row.confidence),sourceFile:cleanText(row.sourceFile,180),sourcePage:cleanText(row.sourcePage,20),sourceExcerpt:cleanText(row.sourceExcerpt,220)};}return proposal;}
-export function normalizeSupplierName(value:string):string{return value.normalize('NFKC').toLowerCase().replace(/[\u0640\u064b-\u065f\u0670]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/\s+/g,' ');}
-export function normalizeSupplierIdentifier(value:string):string{return value.normalize('NFKC').toUpperCase().replace(/[^\p{L}\p{N}]/gu,'');}
+export function normalizeSupplierName(value:string):string{return latinDigits(value).normalize('NFKC').toLowerCase().replace(/[\u0640\u064b-\u065f\u0670]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/\s+/g,' ');}
+export function normalizeSupplierIdentifier(value:string):string{return latinDigits(value).normalize('NFKC').toUpperCase().replace(/[^\p{L}\p{N}]/gu,'');}
 export function normalizeSupplierEmail(value:string):string{return value.normalize('NFKC').trim().toLowerCase();}
-export function normalizeSupplierPhone(value:string):string{let digits=value.replace(/\D/g,'');while(digits.startsWith('00'))digits=digits.slice(2);return digits;}
+export function normalizeSupplierPhone(value:string):string{let digits=latinDigits(value).replace(/\D/g,'');while(digits.startsWith('00'))digits=digits.slice(2);return digits;}
 function compare(key:SupplierAiFieldKey,value:string):string{if(key==='email')return normalizeSupplierEmail(value);if(key==='phone')return normalizeSupplierPhone(value);if(key==='commercialRegistration'||key==='vatTaxNumber')return normalizeSupplierIdentifier(value);return normalizeSupplierName(value);}
 export function mergeSupplierAiProposals(proposals:SupplierAiProposal[]):SupplierAiProposal{
   const merged=emptySupplierAiProposal(),conflicts:SupplierAiProposal['conflicts']=[];
