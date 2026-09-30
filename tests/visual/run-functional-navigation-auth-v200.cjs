@@ -90,6 +90,12 @@ const base='http://127.0.0.1:4173/tests/visual';
         await page.locator('.ta-mobile-nav').waitFor();
         const create=page.locator('.ta-mobile-create');
         const more=page.locator('.ta-mobile-nav button[aria-controls="ta-mobile-more"]');
+        const quickCreatePanel=page.locator('.global-search-panel');
+        const closeQuickCreate=async()=>{
+          await quickCreatePanel.waitFor({state:'visible'});
+          await page.keyboard.press('Escape');
+          await quickCreatePanel.waitFor({state:'detached'});
+        };
         await page.evaluate(()=>{
           window.shellQa.quickCreateEvents=0;
           window.addEventListener('lourex-global-search-open',()=>{window.shellQa.quickCreateEvents+=1;});
@@ -98,6 +104,7 @@ const base='http://127.0.0.1:4173/tests/visual';
         await create.click();
         await page.waitForFunction(()=>window.shellQa.quickCreateEvents===1);
         assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Mobile center action must not reopen the retired document-only create menu');
+        await closeQuickCreate();
         await more.click();
         assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'No stale create menu may remain before More opens');
         await page.locator('#ta-mobile-more').waitFor();
@@ -124,6 +131,7 @@ const base='http://127.0.0.1:4173/tests/visual';
 
         await create.click();
         await page.waitForFunction(()=>window.shellQa.quickCreateEvents===2);
+        await closeQuickCreate();
         const primaryTabs=page.locator('.ta-mobile-nav > button');
         await primaryTabs.nth(2).click();
         assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Primary navigation must not revive the retired create menu');
@@ -155,6 +163,7 @@ const base='http://127.0.0.1:4173/tests/visual';
         await page.waitForFunction(()=>window.shellQa.quickCreateEvents===3);
         assert.equal(await page.evaluate(()=>window.shellQa.newKind),'','Mobile center action delegates creation to canonical quick create instead of bypassing it');
         assert.equal(await page.locator('#ta-mobile-create-menu').count(),0,'Document-only mobile create menu must stay retired');
+        await closeQuickCreate();
 
         const geometry=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,width:innerWidth,navHeight:document.querySelector('.ta-mobile-nav')?.getBoundingClientRect().height||0}));
         if(geometry.scrollWidth>geometry.width+1)failures.push(`horizontal overflow ${JSON.stringify(geometry)}`);
