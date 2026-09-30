@@ -89,9 +89,9 @@ export function buildProcurementDraftContext(vault:VaultPayload):ProcurementDraf
     if(bucket.offers.length<2)continue;const distinctSuppliers=new Set(bucket.offers.map(row=>row.supplierId||row.supplierName));if(distinctSuppliers.size<2)continue;
     const offers=[...bucket.offers].sort((a,b)=>numericCompare(a.unitCost,b.unitCost));const warnings:string[]=[];
     if(offers.some(row=>row.matchBasis==='likely-description'))warnings.push('Some product matches are likely rather than exact and require review.');
-    if(offers.some(row=>!row.landedCostComplete))warnings.push('Some offers have unknown freight, duty or other landed-cost components; landed-cost ranking is withheld for those offers.');
-    comparisons.push({key,itemName:bucket.name,currency:bucket.currency,offers,lowestUnitCostPurchaseId:lowerCost(offers,'unitCost'),lowestLandedCostPurchaseId:lowerCost(offers,'landedUnitCost'),warning:warnings.join(' ')});
+    const allLandedComplete=offers.every(row=>row.landedCostComplete);if(!allLandedComplete)warnings.push('Landed-cost ranking is withheld because one or more offers have unknown freight, duty or other landed-cost components.');
+    comparisons.push({key,itemName:bucket.name,currency:bucket.currency,offers,lowestUnitCostPurchaseId:lowerCost(offers,'unitCost'),lowestLandedCostPurchaseId:allLandedComplete?lowerCost(offers,'landedUnitCost'):'',warning:warnings.join(' ')});
   }
   comparisons.sort((a,b)=>b.offers.length-a.offers.length||a.itemName.localeCompare(b.itemName));
-  return{basis:'deterministic-draft-supplier-offers',comparisons:comparisons.slice(0,30),uncomparableOffers,limitations:['comparisons-require-the-same-currency','no-fx-conversion','landed-cost-rankings-require-explicit-freight-duty-and-other-cost-values','landed-cost-uses-existing-LOUREX-allocation','lowest-cost-is-an-observation-not-a-supplier-recommendation','drafts-remain-unposted-until-user-action','explicit-different-product-identifiers-are-never-fuzzy-merged','likely-description-matches-require-review']};
+  return{basis:'deterministic-draft-supplier-offers',comparisons:comparisons.slice(0,30),uncomparableOffers,limitations:['comparisons-require-the-same-currency','no-fx-conversion','landed-cost-rankings-require-explicit-freight-duty-and-other-cost-values-for-every-compared-offer','landed-cost-uses-existing-LOUREX-allocation','lowest-cost-is-an-observation-not-a-supplier-recommendation','drafts-remain-unposted-until-user-action','explicit-different-product-identifiers-are-never-fuzzy-merged','likely-description-matches-require-review']};
 }
