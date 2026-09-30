@@ -104,6 +104,25 @@ test('Commercial tracking transition validation uses the latest vault and blocks
   assert.equal(quote.lifecycleStatus,'active');
 });
 
+test('Terminal commercial decisions remain monotonic after concurrent event merge',async()=>{
+  const { defaultCompany }=await import('../dist/src/lib/defaults.js');
+  const { createBlankDocument }=await import('../dist/src/lib/documents.js');
+  const { createCommercialTrackingEvent, commercialTrackingFromEvents }=await import('../dist/src/lib/commercial-flow.js');
+  const quote=createBlankDocument('proforma','QUO-2026-9010',defaultCompany());quote.status='final';
+  const accepted=createCommercialTrackingEvent(quote,'accepted');accepted.at='2026-10-01T10:00:00.000Z';accepted.id='event-a';
+  const lateSent=createCommercialTrackingEvent(quote,'sent');lateSent.at='2026-10-01T11:00:00.000Z';lateSent.id='event-b';
+  const competingRejected=createCommercialTrackingEvent(quote,'rejected','other device');competingRejected.at='2026-10-01T12:00:00.000Z';competingRejected.id='event-c';
+  const lateFollowup=createCommercialTrackingEvent(quote,'followup-scheduled','2099-12-31');lateFollowup.at='2026-10-01T13:00:00.000Z';lateFollowup.id='event-d';
+  let tracking=commercialTrackingFromEvents(quote.id,[lateFollowup,competingRejected,lateSent,accepted]);
+  assert.equal(tracking.status,'accepted','a later merged Sent/Rejected event must not downgrade the first terminal decision');
+  assert.equal(tracking.followUpAt,'','terminal decision must clear and block later follow-up scheduling');
+
+  const rejected=createCommercialTrackingEvent(quote,'rejected','price');rejected.at='2026-10-01T09:00:00.000Z';rejected.id='event-0';
+  tracking=commercialTrackingFromEvents(quote.id,[accepted,rejected]);
+  assert.equal(tracking.status,'rejected','the earliest terminal ledger decision remains authoritative after merge');
+  assert.equal(tracking.rejectionReason,'price');
+});
+
 test('Converted invoices inherit Converted commercial semantics while standalone invoices stay outside the panel',async()=>{
   const { defaultCompany }=await import('../dist/src/lib/defaults.js');
   const { createBlankDocument }=await import('../dist/src/lib/documents.js');
