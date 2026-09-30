@@ -106,6 +106,7 @@ export function effectiveCommercialStatus(
   tracking?:CommercialTrackingOverlay|null,
   today=new Date().toISOString().slice(0,10)
 ):{status:CommercialTrackingStatus;source:CommercialFlowSnapshot['statusSource']}{
+  if(doc.kind==='invoice'&&doc.role==='standard'&&Boolean(doc.convertedFromId))return{status:'converted',source:'conversion'};
   if(!isQuoteLikeDocument(doc))return{status:doc.status==='final'?'internal-ready':'draft',source:'document'};
   if(linkedInvoiceForCommercialDocument(doc,documents))return{status:'converted',source:'conversion'};
 
