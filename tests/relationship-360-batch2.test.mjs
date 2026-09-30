@@ -68,3 +68,33 @@ test('Supplier 360 derives valid posted spend by currency and keeps drafts/rever
   assert.equal(result.products[0].purchaseCount,2);
   assert.ok(result.recentActivity.some(row=>row.kind==='expense'&&row.reference==='EXP-1'));
 });
+
+test('Customer 360 lives inside the canonical customer profile and reads the encrypted vault without mutation',async()=>{
+  const [customers,live,styleLoader]=await Promise.all([
+    read('src/components/CustomersPage.tsx'),read('src/components/Customer360LivePanel.tsx'),read('src/lib/relationship-360-style.ts')
+  ]);
+  assert.match(customers,/Customer360LivePanel/);
+  assert.match(customers,/<Customer360LivePanel customer=\{customer\}\/>/);
+  assert.match(live,/resumeVaultSession/);
+  assert.match(live,/buildCustomer360/);
+  assert.match(live,/ensureRelationship360Styles/);
+  assert.doesNotMatch(live,/mutateVaultSafely|saveVault/);
+  assert.match(styleLoader,/relationship-360-batch2\.css\?v=454-1/);
+});
+
+test('Relationship 360 presentation is mobile-first, RTL-aware and does not impersonate supplier payables',async()=>{
+  const [panels,css,supplierLive]=await Promise.all([
+    read('src/components/Relationship360Panels.tsx'),read('src/styles/relationship-360-batch2.css'),read('src/components/Supplier360LivePanel.tsx')
+  ]);
+  assert.match(panels,/Not Accounts Payable/);
+  assert.match(panels,/Receivables by currency/);
+  assert.match(panels,/Posted spend by currency/);
+  assert.match(css,/@media \(max-width:900px\)/);
+  assert.match(css,/@media \(max-width:390px\)/);
+  assert.match(css,/\[dir="rtl"\]/);
+  assert.match(css,/prefers-reduced-motion:reduce/);
+  assert.match(css,/min-height:44px/);
+  assert.match(supplierLive,/buildSupplier360/);
+  assert.match(supplierLive,/resumeVaultSession/);
+  assert.doesNotMatch(supplierLive,/mutateVaultSafely|saveVault/);
+});
