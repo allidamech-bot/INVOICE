@@ -67,9 +67,9 @@ function marginPercent(price:string,cost:string):string{const p=decimalToScaled(
 function differencePercent(current:string,reference:string):string{const now=decimalToScaled(current||'0',COST_DECIMALS),base=decimalToScaled(reference||'0',COST_DECIMALS);return base>0n?percentString(now-base,base):'';}
 function itemName(item:SavedItem):string{return (item.descriptionEn||item.descriptionAr||item.sku||'Unnamed item').trim();}
 function duplicateKey(item:SavedItem):string{const sku=normalizeSavedItemSku(item.sku??'');if(sku)return`sku:${sku}`;const en=normalizeSavedItemIdentity(item.descriptionEn);if(en)return`en:${en}`;const ar=normalizeSavedItemIdentity(item.descriptionAr);return ar?`ar:${ar}`:'';}
-function supplierCostHistory(purchases:PurchaseRecord[]):Map<string,Array<{currency:string;unitCost:string;date:string}>>{
+function supplierCostHistory(purchases:PurchaseRecord[],asOf:string):Map<string,Array<{currency:string;unitCost:string;date:string}>>{
   const map=new Map<string,Array<{currency:string;unitCost:string;date:string}>>();
-  const ordered=purchases.filter(purchase=>purchase.status==='posted'&&purchaseAccountingIsValid(purchase)).sort((a,b)=>(b.date||b.postedAt).localeCompare(a.date||a.postedAt));
+  const ordered=purchases.filter(purchase=>purchase.status==='posted'&&purchase.date<=asOf&&purchaseAccountingIsValid(purchase)).sort((a,b)=>(b.date||b.postedAt).localeCompare(a.date||a.postedAt));
   for(const purchase of ordered)for(const line of purchase.items){if(!line.savedItemId||!line.unitCost.trim())continue;const list=map.get(line.savedItemId)??[];list.push({currency:purchase.currency.toUpperCase(),unitCost:line.unitCost,date:purchase.date});map.set(line.savedItemId,list);}
   return map;
 }
@@ -94,7 +94,7 @@ function queryScore(item:SavedItem,message:string):number{
 }
 
 export function buildProductPricingContext(vault:VaultPayload,message:string,asOf:string):ProductPricingContext{
-  const request=parseScenarioRequest(message);const dormantCutoff=shiftIso(asOf,-90);const history=supplierCostHistory(vault.purchases);const policy=vault.company.commercial.pricing;const purchasing=buildSupplierPurchasingContext(vault,message,asOf);
+  const request=parseScenarioRequest(message);const dormantCutoff=shiftIso(asOf,-90);const history=supplierCostHistory(vault.purchases,asOf);const policy=vault.company.commercial.pricing;const purchasing=buildSupplierPurchasingContext(vault,message,asOf);
   const duplicateMap=new Map<string,SavedItem[]>();for(const item of vault.savedItems.filter(item=>!item.archived)){const key=duplicateKey(item);if(!key)continue;const list=duplicateMap.get(key)??[];list.push(item);duplicateMap.set(key,list);}const duplicateWith=new Map<string,string>();for(const group of duplicateMap.values())if(group.length>1){const primary=group[0]!;for(const duplicate of group.slice(1))duplicateWith.set(duplicate.id,primary.id);}
   const rows=vault.savedItems.filter(item=>!item.archived).map(item=>{
     const rows=history.get(item.id)??[];const latest=rows[0];const cost=(item.lastUnitCost||latest?.unitCost||'').trim();const costCurrency=(item.lastCostCurrency||latest?.currency||'').trim().toUpperCase();const salePrice=(item.lastUnitPrice||'').trim();const saleCurrency=(item.lastCurrency||'').trim().toUpperCase();const currency=costCurrency||saleCurrency||vault.company.defaultCurrency||'USD';const comparable=Boolean(cost&&salePrice&&costCurrency&&saleCurrency&&costCurrency===saleCurrency);const suggestedPrice=cost?pricingSuggestedUnitPrice(cost,policy):'';
