@@ -55,6 +55,152 @@
   }
   [dir="rtl"] .app-ui .ta-nav-section>p { letter-spacing:0!important; }
 
+  /* Product information: real help/privacy/terms/about surfaces, not fake settings. */
+  body .lx-product-info {
+    display:grid!important;
+    grid-template-columns:180px minmax(0,1fr)!important;
+    min-height:min(620px,72dvh)!important;
+    color:var(--lx-text)!important;
+  }
+  body .lx-product-info-tabs {
+    display:flex!important;
+    flex-direction:column!important;
+    gap:6px!important;
+    padding:14px!important;
+    background:var(--lx-surface-2)!important;
+    border-inline-end:1px solid var(--lx-border)!important;
+  }
+  body .lx-product-info-tabs button {
+    min-height:44px!important;
+    padding:9px 11px!important;
+    border:1px solid transparent!important;
+    border-radius:10px!important;
+    background:transparent!important;
+    color:var(--lx-text-muted)!important;
+    text-align:start!important;
+    font-weight:700!important;
+  }
+  body .lx-product-info-tabs button:hover {
+    background:var(--lx-surface-1)!important;
+    border-color:var(--lx-border)!important;
+    color:var(--lx-text)!important;
+  }
+  body .lx-product-info-tabs button.is-active {
+    background:var(--lx-surface-info)!important;
+    border-color:color-mix(in srgb,var(--lx-brand) 25%,var(--lx-border))!important;
+    color:var(--lx-brand)!important;
+  }
+  body .lx-product-info-content {
+    min-width:0!important;
+    overflow:auto!important;
+    overscroll-behavior:contain!important;
+    padding:22px!important;
+  }
+  body .lx-product-info-hero {
+    margin-bottom:18px!important;
+    padding:18px!important;
+    border:1px solid var(--lx-border)!important;
+    border-inline-start:3px solid var(--lx-brand)!important;
+    border-radius:var(--lx-radius-lg)!important;
+    background:linear-gradient(135deg,var(--lx-surface-1),color-mix(in srgb,var(--lx-surface-info) 56%,var(--lx-surface-1)))!important;
+  }
+  body .lx-product-info-hero>small {
+    display:block!important;
+    margin-bottom:6px!important;
+    color:var(--lx-brand)!important;
+    font-size:11px!important;
+    font-weight:800!important;
+    text-transform:uppercase!important;
+    letter-spacing:.06em!important;
+  }
+  [dir="rtl"] body .lx-product-info-hero>small { letter-spacing:0!important; }
+  body .lx-product-info-hero h3 {
+    margin:0!important;
+    color:var(--lx-text)!important;
+    font-size:22px!important;
+    line-height:1.3!important;
+  }
+  body .lx-product-info-hero p {
+    margin:8px 0 0!important;
+    color:var(--lx-text-muted)!important;
+    font-size:13px!important;
+    line-height:1.75!important;
+  }
+  body .lx-help-grid {
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+  }
+  body .lx-help-grid article,
+  body .lx-info-stack article,
+  body .lx-finance-help,
+  body .lx-build-info>div {
+    border:1px solid var(--lx-border)!important;
+    border-radius:var(--lx-radius-md)!important;
+    background:var(--lx-surface-1)!important;
+  }
+  body .lx-help-grid article,
+  body .lx-info-stack article {
+    padding:14px!important;
+  }
+  body .lx-help-grid strong,
+  body .lx-info-stack h4,
+  body .lx-finance-help h4 {
+    color:var(--lx-text)!important;
+  }
+  body .lx-help-grid p,
+  body .lx-info-stack p,
+  body .lx-finance-help dd {
+    color:var(--lx-text-muted)!important;
+    font-size:12px!important;
+    line-height:1.7!important;
+  }
+  body .lx-finance-help {
+    margin-top:10px!important;
+    padding:14px!important;
+  }
+  body .lx-finance-help h4 { margin:0 0 10px!important; }
+  body .lx-finance-help dl,
+  body .lx-build-info {
+    display:grid!important;
+    gap:8px!important;
+    margin:0!important;
+  }
+  body .lx-finance-help dl>div {
+    display:grid!important;
+    grid-template-columns:minmax(120px,.4fr) minmax(0,1fr)!important;
+    gap:10px!important;
+    padding-block:9px!important;
+    border-top:1px solid var(--lx-border)!important;
+  }
+  body .lx-finance-help dt,
+  body .lx-build-info dt {
+    color:var(--lx-text)!important;
+    font-size:12px!important;
+    font-weight:800!important;
+  }
+  body .lx-finance-help dd,
+  body .lx-build-info dd { margin:0!important; }
+  body .lx-info-stack { display:grid!important;gap:9px!important; }
+  body .lx-info-stack h4 { margin:0 0 6px!important; }
+  body .lx-info-stack p { margin:0!important; }
+  body .lx-info-note {
+    background:var(--lx-surface-warning)!important;
+    border-color:color-mix(in srgb,var(--lx-warning) 28%,var(--lx-border))!important;
+  }
+  body .lx-about-hero { border-inline-start-color:var(--lx-ai)!important; }
+  body .lx-build-info>div {
+    display:grid!important;
+    grid-template-columns:minmax(140px,.42fr) minmax(0,1fr)!important;
+    gap:12px!important;
+    padding:12px 14px!important;
+  }
+  body .lx-build-info code {
+    color:var(--lx-text)!important;
+    font-size:11px!important;
+    overflow-wrap:anywhere!important;
+  }
+
   /* A blank global search is the canonical quick-create surface on mobile. */
   @media (max-width:900px) {
     .app-ui .ta-dashboard-intelligence-grid {
@@ -132,6 +278,44 @@
     body .global-search-footer {
       padding-bottom:max(8px,env(safe-area-inset-bottom,0px))!important;
     }
+
+    body .lx-product-info {
+      display:block!important;
+      min-height:0!important;
+    }
+    body .lx-product-info-tabs {
+      position:sticky!important;
+      top:0!important;
+      z-index:2!important;
+      flex-direction:row!important;
+      gap:6px!important;
+      overflow-x:auto!important;
+      padding:9px 10px!important;
+      border-inline-end:0!important;
+      border-bottom:1px solid var(--lx-border)!important;
+      scroll-snap-type:x proximity!important;
+      scrollbar-width:none!important;
+    }
+    body .lx-product-info-tabs::-webkit-scrollbar { display:none!important; }
+    body .lx-product-info-tabs button {
+      flex:0 0 auto!important;
+      min-width:max-content!important;
+      min-height:44px!important;
+      scroll-snap-align:start!important;
+    }
+    body .lx-product-info-content {
+      padding:12px!important;
+      overflow:visible!important;
+    }
+    body .lx-product-info-hero {
+      padding:14px!important;
+      margin-bottom:10px!important;
+      border-radius:14px!important;
+    }
+    body .lx-product-info-hero h3 { font-size:18px!important; }
+    body .lx-help-grid { grid-template-columns:1fr!important;gap:8px!important; }
+    body .lx-finance-help dl>div,
+    body .lx-build-info>div { grid-template-columns:1fr!important;gap:5px!important; }
   }
 
   @media (max-width:430px) {
