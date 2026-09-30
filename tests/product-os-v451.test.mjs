@@ -77,7 +77,7 @@ test('mobile command sheet owns viewport geometry and exposes the full canonical
   const workspaces=await read('src/styles/product-os-workspaces-v451.css');
   assert.match(workspaces,/html body \.global-search-panel\s*\{[\s\S]*?position:fixed!important[\s\S]*?bottom:0!important[\s\S]*?height:min\(88dvh,780px\)!important/);
   assert.match(workspaces,/html body \.global-search-start,[\s\S]*?html body \.global-search-results\s*\{[\s\S]*?flex:1 1 auto!important[\s\S]*?min-height:0!important[\s\S]*?overflow-y:auto!important/);
-  assert.match(workspaces,/html body \.global-search-actions>button:nth-child\(n\+4\)\s*\{\s*display:grid!important;\s*\}/);
+  assert.match(workspaces,/html body \.global-search-actions>button,\s*html body \.global-search-actions>button:nth-child\(n\+4\)\s*\{[\s\S]*?display:grid!important/);
 });
 
 test('mobile overlays, horizontal discovery and accessibility keep iPhone-safe product contracts',async()=>{
