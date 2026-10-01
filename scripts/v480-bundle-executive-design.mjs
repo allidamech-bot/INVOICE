@@ -6,16 +6,17 @@ const owners=[
   ['executive-command-center-v480.css','480-1'],
   ['executive-workspaces-v480.css','480-2'],
   ['executive-editor-v480.css','480-3'],
-  ['executive-overlays-auth-v480.css','480-4']
+  ['executive-overlays-auth-v480.css','480-4'],
+  ['executive-coherence-v480.css','480-5']
 ];
 
 let bundle=await readFile(bundlePath,'utf8');
 const bridgeIndex=bundle.indexOf(bridgeMarker);
 if(bridgeIndex<0)throw new Error('v480 production bundle: final reliability bridge marker is missing.');
 
-/* Source/dev may load the v480 root through the final bridge. Production never
-   depends on late @import rules: every v480 owner is inserted directly before the
-   reliability bridge in deterministic order. */
+/* Source/dev loads the four structural v480 owners through the final bridge.
+   Production additionally applies the screenshot-driven coherence closeout as the
+   final v480 presentation owner. No production behavior depends on late @imports. */
 for(const [owner,version] of owners){
   const runtimeImport=new RegExp(`^@import url\\("\\./${owner.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\?v=${version}"\\);\\s*$`,'gm');
   bundle=bundle.replace(runtimeImport,'');
@@ -56,6 +57,7 @@ const finalBridgeIndex=bundle.indexOf(bridgeMarker);
 if(previous>finalBridgeIndex)throw new Error('v480 production bundle: executive owners must remain before the reliability bridge.');
 if(/@import url\("\.\/executive-[^\"]*v480\.css/.test(bundle))throw new Error('v480 production bundle: runtime executive @import survived production bundling.');
 if(!bundle.includes('url("../brand/lourex-command-orbit.svg")'))throw new Error('v480 production bundle: command orbit asset path is missing after normalization.');
+if(!bundle.includes('/* --- executive-coherence-v480.css --- */'))throw new Error('v480 production bundle: screenshot-driven coherence owner is missing.');
 
 await writeFile(bundlePath,bundle);
 console.log(`LOUREX v480 executive design stack bundled (${owners.length} owners) before final reliability bridge.`);
