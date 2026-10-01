@@ -44,15 +44,20 @@ function customerName(customer:Customer):string{return clean(customer.companyNam
 function normalizeCurrency(value:unknown):string{return clean(value,8).toUpperCase();}
 function normalizeIds(value:unknown):string[]{return Array.isArray(value)?Array.from(new Set(value.map(entry=>clean(entry,120)).filter(Boolean))).slice(0,40):[];}
 function validStage(value:unknown):PipelineStage{return STAGES.has(value as PipelineStage)?value as PipelineStage:'lead';}
+function nextMutationIso(previous=''):string{
+  const now=Date.now(),prior=Date.parse(previous);
+  return new Date(Number.isFinite(prior)?Math.max(now,prior+1):now).toISOString();
+}
 function parseOpportunity(value:any):SalesOpportunity|null{
   if(!value||typeof value!=='object')return null;
   const id=clean(value.id,120),customerId=clean(value.customerId,120),title=clean(value.title,180);
   if(!id||!customerId||!title)return null;
+  const createdAt=clean(value.createdAt,40),updatedAt=clean(value.updatedAt,40);
+  if(!createdAt||!updatedAt||!Number.isFinite(Date.parse(createdAt))||!Number.isFinite(Date.parse(updatedAt)))return null;
   return{
     id,customerId,title,stage:validStage(value.stage),amount:clean(value.amount,24),currency:normalizeCurrency(value.currency),
     expectedCloseDate:clean(value.expectedCloseDate,10),nextAction:clean(value.nextAction,300),notes:clean(value.notes,1200),
-    linkedDocumentIds:normalizeIds(value.linkedDocumentIds),lostReason:clean(value.lostReason,500),
-    createdAt:clean(value.createdAt,40),updatedAt:clean(value.updatedAt,40)
+    linkedDocumentIds:normalizeIds(value.linkedDocumentIds),lostReason:clean(value.lostReason,500),createdAt,updatedAt
   };
 }
 function parseEvent(event:DocumentEventRecord):CrmPayload|null{
@@ -60,7 +65,7 @@ function parseEvent(event:DocumentEventRecord):CrmPayload|null{
   try{
     const raw=JSON.parse(event.note.slice(CRM_MARKER.length));
     if(raw?.kind==='delete'){
-      const id=clean(raw.id,120),updatedAt=clean(raw.updatedAt,40);return id&&updatedAt?{kind:'delete',id,updatedAt}:null;
+      const id=clean(raw.id,120),updatedAt=clean(raw.updatedAt,40);return id&&updatedAt&&Number.isFinite(Date.parse(updatedAt))?{kind:'delete',id,updatedAt}:null;
     }
     if(raw?.kind==='upsert'){
       const opportunity=parseOpportunity(raw.opportunity);return opportunity?{kind:'upsert',opportunity}:null;
@@ -105,9 +110,8 @@ function validateOpportunity(vault:Pick<VaultPayload,'customers'|'documents'>,op
     const doc=vault.documents.find(row=>row.id===id);if(!doc)throw new Error('A linked document no longer exists.');
     if(doc.customerSnapshot?.sourceCustomerId!==customer.id)throw new Error('Linked documents must belong to the selected customer.');
   }
-  const createdAt=clean(opportunity.createdAt,40)||new Date().toISOString();
-  const updatedAt=new Date().toISOString();
-  return{...opportunity,title,stage,amount,currency,expectedCloseDate,nextAction:clean(opportunity.nextAction,300),notes:clean(opportunity.notes,1200),linkedDocumentIds,lostReason:stage==='lost'?clean(opportunity.lostReason,500):'',createdAt,updatedAt};
+  const createdAt=Number.isFinite(Date.parse(opportunity.createdAt))?opportunity.createdAt:new Date().toISOString();
+  return{...opportunity,title,stage,amount,currency,expectedCloseDate,nextAction:clean(opportunity.nextAction,300),notes:clean(opportunity.notes,1200),linkedDocumentIds,lostReason:stage==='lost'?clean(opportunity.lostReason,500):'',createdAt,updatedAt:opportunity.updatedAt};
 }
 function currentOpportunity(events:DocumentEventRecord[],id:string):SalesOpportunity|undefined{return salesOpportunitiesFromEvents(events).find(row=>row.id===id);}
 function assertFresh(events:DocumentEventRecord[],id:string,expectedUpdatedAt:string):void{
@@ -120,13 +124,14 @@ function crmEvent(id:string,title:string,at:string,payload:CrmPayload):DocumentE
 }
 export function validatedOpportunityUpsertEvent(vault:Pick<VaultPayload,'customers'|'documents'|'documentEvents'>,opportunity:SalesOpportunity,expectedUpdatedAt:string):{event:DocumentEventRecord;opportunity:SalesOpportunity}{
   assertFresh(vault.documentEvents,opportunity.id,expectedUpdatedAt);
-  const next=validateOpportunity(vault,opportunity);
+  const validated=validateOpportunity(vault,opportunity);
+  const next={...validated,updatedAt:nextMutationIso(expectedUpdatedAt)};
   return{opportunity:next,event:crmEvent(next.id,next.title,next.updatedAt,{kind:'upsert',opportunity:next})};
 }
 export function validatedOpportunityDeleteEvent(vault:Pick<VaultPayload,'documentEvents'>,id:string,expectedUpdatedAt:string):DocumentEventRecord{
   assertFresh(vault.documentEvents,id,expectedUpdatedAt);
   const current=currentOpportunity(vault.documentEvents,id);if(!current)throw new Error('Opportunity not found.');
-  const updatedAt=new Date().toISOString();return crmEvent(id,current.title,updatedAt,{kind:'delete',id,updatedAt});
+  const updatedAt=nextMutationIso(current.updatedAt);return crmEvent(id,current.title,updatedAt,{kind:'delete',id,updatedAt});
 }
 export function documentsForOpportunity(documents:LourexDocument[],customerId:string):LourexDocument[]{
   return documents.filter(doc=>doc.customerSnapshot?.sourceCustomerId===customerId&&doc.lifecycleStatus!=='voided').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
