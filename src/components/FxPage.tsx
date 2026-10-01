@@ -68,10 +68,10 @@ export function FxPage(props:Props):any{
     <article className="ta-finance-card lx-fx-converter">
       <header><div><span className="ta-page-kicker">{t('Manual rate','سعر يدوي')}</span><h3>{t('FX calculator','حاسبة العملات')}</h3><p>{t('Enter the rate supplied by your bank, supplier, customer or market source. LOUREX does not invent or silently fetch a rate.','أدخل السعر الوارد من البنك أو المورد أو العميل أو مصدر السوق. لا يقوم LOUREX باختراع سعر أو جلبه بصمت.')}</p></div></header>
       <div className="ta-form-grid">
-        <label className="ta-field"><span>{t('From','من')}</span><select value={fromCurrency} onChange={event=>setFromCurrency(event.target.value)}>{currencies.map(item=><option key={item} value={item}>{item}</option>)}</select></label>
-        <label className="ta-field"><span>{t('Amount','المبلغ')}</span><input inputMode="decimal" value={sourceAmount} onChange={event=>setSourceAmount(event.target.value)} /></label>
-        <label className="ta-field"><span>{t('Rate','السعر')}</span><input inputMode="decimal" value={rate} onChange={event=>setRate(event.target.value)} /><small>{t(`1 ${fromCurrency} = ${rate||'0'} ${toCurrency}`,`1 ${fromCurrency} = ${rate||'0'} ${toCurrency}`)}</small></label>
-        <label className="ta-field"><span>{t('To','إلى')}</span><select value={toCurrency} onChange={event=>setToCurrency(event.target.value)}>{Array.from(new Set([...currencies,(props.defaultCurrency||'USD').toUpperCase()])).map(item=><option key={item} value={item}>{item}</option>)}</select></label>
+        <label className="ta-field"><span>{t('From','من')}</span><select value={fromCurrency} onChange={(event:any)=>setFromCurrency(event.target.value)}>{currencies.map(item=><option key={item} value={item}>{item}</option>)}</select></label>
+        <label className="ta-field"><span>{t('Amount','المبلغ')}</span><input inputMode="decimal" value={sourceAmount} onChange={(event:any)=>setSourceAmount(event.target.value)} /></label>
+        <label className="ta-field"><span>{t('Rate','السعر')}</span><input inputMode="decimal" value={rate} onChange={(event:any)=>setRate(event.target.value)} /><small>{t(`1 ${fromCurrency} = ${rate||'0'} ${toCurrency}`,`1 ${fromCurrency} = ${rate||'0'} ${toCurrency}`)}</small></label>
+        <label className="ta-field"><span>{t('To','إلى')}</span><select value={toCurrency} onChange={(event:any)=>setToCurrency(event.target.value)}>{Array.from(new Set([...currencies,(props.defaultCurrency||'USD').toUpperCase()])).map(item=><option key={item} value={item}>{item}</option>)}</select></label>
       </div>
       <div className="ta-page-actions"><button type="button" className="btn" onClick={swap}>{t('Swap currencies','تبديل العملات')}</button><span className="ta-period-chip">{money(converted,toCurrency)}</span></div>
     </article>

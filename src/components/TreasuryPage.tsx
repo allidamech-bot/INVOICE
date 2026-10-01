@@ -102,7 +102,7 @@ export function TreasuryPage(props:Props):any{
         <p>{t('A single operational view of recorded customer receipts, supplier payments and expenses. Values remain separated by currency.','عرض تشغيلي موحّد لتحصيلات العملاء ودفعات الموردين والمصروفات المسجلة، مع فصل القيم حسب العملة.')}</p>
       </div>
       <div className="ta-page-actions">
-        <label className="ta-field"><span>{t('Currency','العملة')}</span><select value={currency} onChange={event=>setCurrency(event.target.value)}>{currencies.map(item=><option key={item} value={item}>{item}</option>)}</select></label>
+        <label className="ta-field"><span>{t('Currency','العملة')}</span><select value={currency} onChange={(event:any)=>setCurrency(event.target.value)}>{currencies.map(item=><option key={item} value={item}>{item}</option>)}</select></label>
       </div>
     </header>
 

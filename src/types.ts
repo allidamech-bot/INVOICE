@@ -9,7 +9,7 @@ export type DocumentEventType = 'created' | 'issued' | 'reissued' | 'revision-st
 export type PaymentStatus = 'unpaid' | 'partially-paid' | 'paid' | 'overdue';
 export type PaymentMethod = 'cash' | 'bank-transfer' | 'card' | 'cheque' | 'other';
 export type PurchaseStatus = 'draft' | 'posted' | 'reversed';
-export type InventoryMovementType = 'opening' | 'purchase' | 'purchase-reversal' | 'issue' | 'adjustment';
+export type InventoryMovementType = 'opening' | 'purchase' | 'purchase-reversal' | 'issue' | 'adjustment' | 'transfer';
 export type PricingMethod = 'markup' | 'margin';
 export type DiscountMode = 'fixed' | 'percent';
 export type AutoLockMinutes = 0 | 5 | 15 | 30;
@@ -20,6 +20,9 @@ export type TeamRole = 'owner' | 'admin' | 'finance' | 'sales' | 'purchasing' | 
 export type TeamMemberStatus = 'active' | 'suspended';
 export type ApprovalAction = 'issue-document' | 'post-purchase' | 'reverse-purchase';
 export type ApprovalRequestStatus = 'pending' | 'approved' | 'rejected';
+export type TreasuryAccountKind = 'cash' | 'bank';
+export type TreasuryLedgerType = 'opening-balance' | 'deposit' | 'withdrawal' | 'transfer' | 'collection' | 'supplier-payment' | 'reconciliation';
+export type TreasurySourceType = 'manual' | 'customer-payment' | 'supplier-payment';
 
 export interface WorkspaceScopeFields { workspaceId?: string; branchId?: string; }
 
@@ -204,7 +207,25 @@ export interface InventoryMovementRecord extends WorkspaceScopeFields {
   sourceId: string;
   sourceNumber: string;
   note: string;
+  fromWarehouseId?: string;
+  toWarehouseId?: string;
   createdAt: string;
+}
+
+export interface TreasuryAccountRecord extends WorkspaceScopeFields {
+  id:string;label:string;kind:TreasuryAccountKind;currency:string;bankAccountId:string;active:boolean;createdAt:string;updatedAt:string;
+}
+export interface TreasuryLedgerRecord extends WorkspaceScopeFields {
+  id:string;type:TreasuryLedgerType;date:string;currency:string;amount:string;fromAccountId:string;toAccountId:string;sourceType:TreasurySourceType;sourceId:string;reference:string;notes:string;reconciledAt:string;voidedAt:string;voidReason:string;createdAt:string;updatedAt:string;
+}
+export interface TreasuryReconciliationRecord extends WorkspaceScopeFields {
+  id:string;movementKey:string;reconciledAt:string;note:string;createdAt:string;updatedAt:string;
+}
+export interface FxRateRecord extends WorkspaceScopeFields {
+  id:string;date:string;fromCurrency:string;toCurrency:string;rate:string;sourceLabel:string;notes:string;createdAt:string;updatedAt:string;
+}
+export interface WarehouseRecord extends WorkspaceScopeFields {
+  id:string;name:string;code:string;active:boolean;createdAt:string;updatedAt:string;
 }
 
 export interface Customer extends WorkspaceScopeFields {
@@ -623,6 +644,11 @@ export interface VaultPayload {
   supplierPayments: SupplierPaymentRecord[];
   expenses: ExpenseRecord[];
   inventoryMovements: InventoryMovementRecord[];
+  treasuryAccounts: TreasuryAccountRecord[];
+  treasuryEntries: TreasuryLedgerRecord[];
+  treasuryReconciliations: TreasuryReconciliationRecord[];
+  fxRates: FxRateRecord[];
+  warehouses: WarehouseRecord[];
   workspaces: WorkspaceRecord[];
   branches: BranchRecord[];
   teamMembers: TeamMemberRecord[];

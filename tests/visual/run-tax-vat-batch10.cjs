@@ -33,7 +33,10 @@ const scenarios=[
         if(lang==='ar'&&document.documentElement.dir!=='rtl')failures.push(`Arabic dir=${document.documentElement.dir}`);
         if(lang==='en'&&document.documentElement.dir==='rtl')failures.push('English remained rtl');
         const tabs=[...document.querySelectorAll('.ta-report-workspace-tabs button')].filter(visible);
-        if(tabs.length!==2)failures.push(`report tabs count=${tabs.length}`);
+        if(tabs.length<2)failures.push(`report tabs count=${tabs.length}`);
+        const tabText=tabs.map(el=>(el.textContent||'').replace(/\s+/g,' ').trim()).join(' | ');
+        if(lang==='en'&&(!tabText.includes('Performance')||!tabText.includes('Tax / VAT')))failures.push(`required report tabs missing: ${tabText}`);
+        if(lang==='ar'&&(!tabText.includes('الأداء')||!tabText.includes('الضريبة / VAT')))failures.push(`required Arabic report tabs missing: ${tabText}`);
         for(const el of tabs){const b=el.getBoundingClientRect();if(b.height<43.5||b.width<43.5)failures.push(`tab touch target ${b.width}x${b.height}`);}
         for(const el of document.querySelectorAll('.lx-tax-center .btn,.lx-tax-center input,.lx-tax-center select')){if(!visible(el))continue;const b=el.getBoundingClientRect();if(b.height<43.5)failures.push(`control height ${b.height}`);}
         const scope=document.querySelector('.lx-tax-scope');
