@@ -78,8 +78,8 @@ test('batch12 UI contract exposes recurring manager in documents and purchasing 
   const [app,docs,ops,manager]=await Promise.all([read('src/app/App.tsx'),read('src/components/DocumentsPage.tsx'),read('src/components/OperationsPage.tsx'),read('src/components/RecurringWorkflowsManager.tsx')]);
   assert.match(app,/RecurringWorkflowsManager/);
   assert.match(app,/processDueRecurringWorkflows/);
-  assert.match(docs,/onCreateRecurring/);
-  assert.match(ops,/onCreateRecurringPurchase/);
+  assert.match(docs,/onMakeRecurring/);
+  assert.match(ops,/onMakeRecurringPurchase/);
   assert.match(manager,/never finalize, post, approve, or send automatically/);
   assert.doesNotMatch(app,/finalizeRecurring|sendRecurring|postRecurring/);
 });
