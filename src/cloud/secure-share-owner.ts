@@ -18,9 +18,9 @@ function normalizeShare(id:string,data:any):SecureShareRecord|null{
 }
 function sorted(items:SecureShareRecord[]):SecureShareRecord[]{return items.sort((a,b)=>(b.createdAt||b.updatedAt).localeCompare(a.createdAt||a.updatedAt));}
 
-export async function createSecureShare(doc:LourexDocument,days=7):Promise<SecureShareRecord>{
+export async function createSecureShare(doc:LourexDocument,days=7,allowDecision=secureShareAllowsDecision(doc)):Promise<SecureShareRecord>{
   const uid=requireOwnerUid(),db=ownerDb(),id=newSecureShareToken(),snapshot=sanitizeDocumentForSecureShare(doc),customer=doc.customerSnapshot;if(!customer)throw new Error('A customer is required before secure sharing.');
-  const now=new Date(),expiresAt=secureShareExpiry(days,now),payload={format:SECURE_SHARE_FORMAT,version:1,ownerUid:uid,documentId:doc.id,documentNumber:doc.number,documentKind:doc.kind,documentRole:doc.role,customerId:customer.sourceCustomerId,customerNameEn:customer.companyNameEn||'',customerNameAr:customer.companyNameAr||'',customerEmail:customer.email||'',allowDecision:secureShareAllowsDecision(doc),createdAt:firebase.firestore.Timestamp.fromDate(now),expiresAt:firebase.firestore.Timestamp.fromDate(new Date(expiresAt)),revokedAt:null,viewedAt:null,decision:'',decisionAt:null,customerComment:'',commentAt:null,updatedAt:firebase.firestore.Timestamp.fromDate(now),snapshot};
+  const now=new Date(),expiresAt=secureShareExpiry(days,now),payload={format:SECURE_SHARE_FORMAT,version:1,ownerUid:uid,documentId:doc.id,documentNumber:doc.number,documentKind:doc.kind,documentRole:doc.role,customerId:customer.sourceCustomerId,customerNameEn:customer.companyNameEn||'',customerNameAr:customer.companyNameAr||'',customerEmail:customer.email||'',allowDecision:Boolean(allowDecision&&secureShareAllowsDecision(doc)),createdAt:firebase.firestore.Timestamp.fromDate(now),expiresAt:firebase.firestore.Timestamp.fromDate(new Date(expiresAt)),revokedAt:null,viewedAt:null,decision:'',decisionAt:null,customerComment:'',commentAt:null,updatedAt:firebase.firestore.Timestamp.fromDate(now),snapshot};
   await db.collection('publicShares').doc(id).set(payload);const item=normalizeShare(id,payload);if(!item)throw new Error('Secure share could not be verified after creation.');return item;
 }
 
