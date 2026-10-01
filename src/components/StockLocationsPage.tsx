@@ -1,56 +1,50 @@
-import type { InventoryMovementRecord, SavedItem } from '../types.js';
+import type { BranchRecord, InventoryMovementRecord, InventoryTransferRecord, SavedItem } from '../types.js';
 import { inventoryBalances } from '../lib/operations.js';
+import { todayIso } from '../lib/id.js';
 import { t } from '../lib/i18n.js';
+import { Button, Input, Select, Textarea } from './UI.js';
 
 interface Props{
   items:SavedItem[];
-  inventoryMovements:InventoryMovementRecord[];
+  branches:BranchRecord[];
+  activeWorkspaceId:string;
+  activeBranchId:string;
+  workspaceInventoryMovements:InventoryMovementRecord[];
+  inventoryTransfers:InventoryTransferRecord[];
+  onTransfer:(input:{fromBranchId:string;toBranchId:string;itemId:string;quantity:string;date:string;note:string})=>Promise<void>;
 }
 
-function itemLabel(item:SavedItem):string{
-  return t(item.descriptionEn||item.descriptionAr||item.sku||'Product',item.descriptionAr||item.descriptionEn||item.sku||'منتج');
-}
-
+function itemLabel(item:SavedItem):string{return t(item.descriptionEn||item.descriptionAr||item.sku||'Product',item.descriptionAr||item.descriptionEn||item.sku||'منتج');}
 function movementLabel(type:InventoryMovementRecord['type']):string{
-  if(type==='opening')return t('Opening stock','رصيد افتتاحي');
-  if(type==='purchase')return t('Purchase receipt','استلام شراء');
-  if(type==='purchase-reversal')return t('Purchase reversal','عكس شراء');
-  if(type==='issue')return t('Stock issue','إخراج مخزون');
-  return t('Adjustment','تسوية');
+  if(type==='opening')return t('Opening stock','رصيد افتتاحي');if(type==='purchase')return t('Purchase receipt','استلام شراء');if(type==='purchase-reversal')return t('Purchase reversal','عكس شراء');if(type==='issue')return t('Stock issue','إخراج مخزون');if(type==='transfer-out')return t('Transfer out','تحويل صادر');if(type==='transfer-in')return t('Transfer in','تحويل وارد');return t('Adjustment','تسوية');
 }
 
 export function StockLocationsPage(props:Props):any{
-  const balances=React.useMemo(()=>inventoryBalances(props.items,props.inventoryMovements),[props.items,props.inventoryMovements]);
-  const stocked=balances.filter(row=>row.quantityScaled>0n);
-  const zero=balances.filter(row=>row.quantityScaled===0n);
-  const negative=balances.filter(row=>row.quantityScaled<0n);
-  const recent=[...props.inventoryMovements].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||'')).slice(0,30);
+  const activeBranches=props.branches.filter(branch=>branch.active);
+  const [selectedItemId,setSelectedItemId]=React.useState(props.items[0]?.id||''),[fromBranchId,setFromBranchId]=React.useState(props.activeBranchId),[toBranchId,setToBranchId]=React.useState(activeBranches.find(branch=>branch.id!==props.activeBranchId)?.id||''),[quantity,setQuantity]=React.useState(''),[date,setDate]=React.useState(todayIso()),[note,setNote]=React.useState(''),[busy,setBusy]=React.useState(false),[error,setError]=React.useState('');
+  React.useEffect(()=>{if(!props.items.some(item=>item.id===selectedItemId))setSelectedItemId(props.items[0]?.id||'');},[props.items.length]);
+  React.useEffect(()=>{if(!activeBranches.some(branch=>branch.id===fromBranchId))setFromBranchId(props.activeBranchId);if(!activeBranches.some(branch=>branch.id===toBranchId)||toBranchId===fromBranchId)setToBranchId(activeBranches.find(branch=>branch.id!==fromBranchId)?.id||'');},[props.branches.length,fromBranchId]);
+  const branchMovements=(branchId:string)=>props.workspaceInventoryMovements.filter(movement=>String(movement.workspaceId||'default')===props.activeWorkspaceId&&String(movement.branchId||'main')===branchId);
+  const balancesByBranch=new Map(activeBranches.map(branch=>[branch.id,inventoryBalances(props.items,branchMovements(branch.id))]));
+  const selectedItem=props.items.find(item=>item.id===selectedItemId)??null;
+  const recent=[...props.workspaceInventoryMovements].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||'')).slice(0,40);
+  const transfers=[...props.inventoryTransfers].sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt)).slice(0,30);
+  const transfer=async()=>{if(busy)return;setBusy(true);setError('');try{await props.onTransfer({fromBranchId,toBranchId,itemId:selectedItemId,quantity,date,note});setQuantity('');setNote('');}catch(e){setError(e instanceof Error?e.message:t('Unable to transfer stock.','تعذر تحويل المخزون.'));}finally{setBusy(false);}};
+  const branchName=(id:string)=>props.branches.find(branch=>branch.id===id)?.name||props.branches.find(branch=>branch.id===id)?.code||id;
 
   return <section className="ta-operations-page lx-stock-locations-page">
-    <header className="ta-page-header">
-      <div>
-        <span className="ta-page-kicker">{t('Warehouses & Stock Locations','المستودعات ومواقع المخزون')}</span>
-        <h2>{t('Active branch stock location','موقع مخزون الفرع النشط')}</h2>
-        <p>{t('Inventory is already isolated by the active branch. This view treats the current branch as the canonical stock location and shows only its scoped movement ledger.','المخزون معزول أصلًا حسب الفرع النشط. يعامل هذا العرض الفرع الحالي كموقع المخزون الأساسي ويعرض فقط دفتر الحركات الخاص به.')}</p>
-      </div>
-      <div className="ta-page-actions"><span className="ta-period-chip">{t('Branch-scoped inventory','مخزون معزول حسب الفرع')}</span></div>
-    </header>
+    <header className="ta-page-header"><div><span className="ta-page-kicker">{t('Warehouses & Stock Locations','المستودعات ومواقع المخزون')}</span><h2>{t('Branch-backed stock locations','مواقع مخزون مبنية على الفروع')}</h2><p>{t('Each active branch is a stock location. Transfers create paired immutable movements in the source and destination ledgers so stock never disappears between locations.','كل فرع نشط هو موقع مخزون. تنشئ التحويلات حركتين متقابلتين غير قابلتين للتعديل في دفتر المصدر والوجهة حتى لا يختفي المخزون بين المواقع.')}</p></div><div className="ta-page-actions"><span className="ta-period-chip">{t('From / To traceability','تتبع من / إلى')}</span></div></header>
 
-    <section className="ta-products-overview" aria-label={t('Stock location summary','ملخص موقع المخزون')}>
-      <div><span><small>{t('Catalog items','أصناف الكتالوج')}</small><strong>{props.items.length}</strong><em>{t('Visible in this company workspace','ظاهرة في مساحة الشركة الحالية')}</em></span></div>
-      <div><span><small>{t('In stock','متوفر')}</small><strong>{stocked.length}</strong><em>{t('Positive on-hand quantity','كمية متوفرة موجبة')}</em></span></div>
-      <div><span><small>{t('Zero stock','رصيد صفري')}</small><strong>{zero.length}</strong><em>{t('No current on-hand quantity','لا توجد كمية متوفرة حاليًا')}</em></span></div>
-      <div><span><small>{t('Negative stock','رصيد سالب')}</small><strong>{negative.length}</strong><em>{t('Requires operational review','يحتاج مراجعة تشغيلية')}</em></span></div>
-    </section>
+    <section className="ta-products-overview" aria-label={t('Stock location summary','ملخص مواقع المخزون')}><div><span><small>{t('Locations','المواقع')}</small><strong>{activeBranches.length}</strong><em>{t('Active branches in this company','الفروع النشطة في هذه الشركة')}</em></span></div><div><span><small>{t('Transfers','التحويلات')}</small><strong>{props.inventoryTransfers.length}</strong><em>{t('Auditable paired movements','حركات مزدوجة قابلة للتدقيق')}</em></span></div><div><span><small>{t('Catalog items','أصناف الكتالوج')}</small><strong>{props.items.length}</strong><em>{t('Company-scoped product catalog','كتالوج أصناف خاص بالشركة')}</em></span></div><div><span><small>{t('Reserved stock','المخزون المحجوز')}</small><strong>—</strong><em>{t('Reservation model not yet represented; available = on-hand','لا يوجد نموذج حجز بعد؛ المتاح = الرصيد الحالي')}</em></span></div></section>
 
-    <article className="ta-ops-list-card lx-location-stock-card">
-      <header className="ta-ops-card-head"><div><span className="ta-page-kicker">{t('Current location','الموقع الحالي')}</span><h3>{t('On-hand by product','المتوفر حسب الصنف')}</h3><p>{t('Quantities are calculated from the active branch movement ledger, not from another company or branch.','يتم حساب الكميات من دفتر حركات الفرع النشط فقط، وليس من شركة أو فرع آخر.')}</p></div></header>
-      {balances.length?<div className="ta-ops-list">{balances.map(row=><div className="ta-ops-row" key={row.item.id}><div><strong>{itemLabel(row.item)}</strong><small>{row.item.sku||t('No SKU','بدون SKU')} · {row.item.unit||'PCS'}</small></div><div><strong>{row.quantity} {row.item.unit||'PCS'}</strong><small>{row.quantityScaled<0n?t('Negative stock','رصيد سالب'):row.quantityScaled===0n?t('Out of stock','غير متوفر'):t('Available','متوفر')}</small></div></div>)}</div>:<div className="ta-empty-state"><strong>{t('No stock records yet','لا توجد سجلات مخزون بعد')}</strong><p>{t('Opening stock, purchases, issues and adjustments will appear here.','سيظهر هنا الرصيد الافتتاحي والمشتريات والإخراج والتسويات.')}</p></div>}
-    </article>
+    <div className="ta-ops-grid">
+      <article className="ta-ops-list-card"><header className="ta-ops-card-head"><div><span className="ta-page-kicker">{t('Transfer stock','تحويل مخزون')}</span><h3>{t('Move inventory between locations','نقل المخزون بين المواقع')}</h3></div></header>{activeBranches.length<2?<div className="ta-empty-state"><strong>{t('A second active branch is required','يلزم فرع نشط ثانٍ')}</strong><p>{t('Create another branch from Companies & Branches before transferring stock.','أنشئ فرعًا آخر من الشركات والفروع قبل تحويل المخزون.')}</p></div>:<><div className="ta-form-grid"><label className="ta-field"><span>{t('Product','الصنف')}</span><Select value={selectedItemId} onChange={(e:any)=>setSelectedItemId(e.target.value)}><option value="">{t('Choose product','اختر الصنف')}</option>{props.items.map(item=><option key={item.id} value={item.id}>{itemLabel(item)}</option>)}</Select></label><label className="ta-field"><span>{t('From location','من موقع')}</span><Select value={fromBranchId} onChange={(e:any)=>setFromBranchId(e.target.value)}>{activeBranches.map(branch=><option key={branch.id} value={branch.id}>{branch.name} · {branch.code}</option>)}</Select></label><label className="ta-field"><span>{t('To location','إلى موقع')}</span><Select value={toBranchId} onChange={(e:any)=>setToBranchId(e.target.value)}>{activeBranches.filter(branch=>branch.id!==fromBranchId).map(branch=><option key={branch.id} value={branch.id}>{branch.name} · {branch.code}</option>)}</Select></label><label className="ta-field"><span>{t('Quantity','الكمية')}</span><Input inputMode="decimal" value={quantity} onChange={(e:any)=>setQuantity(e.target.value)}/></label><label className="ta-field"><span>{t('Date','التاريخ')}</span><Input type="date" value={date} onChange={(e:any)=>setDate(e.target.value)}/></label><label className="ta-field"><span>{t('Note','ملاحظة')}</span><Textarea rows={2} value={note} onChange={(e:any)=>setNote(e.target.value)}/></label></div><Button variant="primary" disabled={busy||!selectedItemId||!toBranchId} onClick={()=>void transfer()}>{busy?t('Transferring…','جارٍ التحويل…'):t('Transfer stock','تحويل المخزون')}</Button></>}{error?<p className="form-error" role="alert">{error}</p>:null}</article>
 
-    <article className="ta-ops-list-card lx-location-movements-card">
-      <header className="ta-ops-card-head"><div><span className="ta-page-kicker">{t('Location activity','نشاط الموقع')}</span><h3>{t('Recent stock movements','أحدث حركات المخزون')}</h3></div></header>
-      {recent.length?<div className="ta-ops-list">{recent.map(movement=><div className="ta-ops-row" key={movement.id}><div><strong>{movement.itemNameEn||movement.itemNameAr||movement.sku||t('Product','منتج')}</strong><small>{movementLabel(movement.type)} · {movement.date||'—'}{movement.sourceNumber?` · ${movement.sourceNumber}`:''}</small></div><div><strong>{movement.quantity}</strong><small>{movement.note||movement.sku||'—'}</small></div></div>)}</div>:<div className="ta-empty-state"><strong>{t('No movement activity yet','لا توجد حركات بعد')}</strong><p>{t('Inventory activity for the active branch will appear here automatically.','سيظهر نشاط مخزون الفرع النشط هنا تلقائيًا.')}</p></div>}
-    </article>
+      <article className="ta-ops-list-card"><header className="ta-ops-card-head"><div><span className="ta-page-kicker">{t('Product location balance','رصيد الصنف حسب الموقع')}</span><h3>{selectedItem?itemLabel(selectedItem):t('Choose a product','اختر صنفًا')}</h3><p>{t('Available equals on-hand until a reservation model exists.','المتاح يساوي الرصيد الحالي حتى يتم تمثيل نموذج الحجز.')}</p></div></header>{selectedItem?<div className="ta-ops-list">{activeBranches.map(branch=>{const row=balancesByBranch.get(branch.id)?.find(value=>value.item.id===selectedItem.id);return <div className="ta-ops-row" key={branch.id}><div><strong>{branch.name}</strong><small>{branch.code}{branch.id===props.activeBranchId?` · ${t('Active','نشط')}`:''}</small></div><div><strong>{row?.quantity||'0'} {selectedItem.unit||'PCS'}</strong><small>{t('Available','متاح')}: {row?.quantity||'0'} · {t('Reserved','محجوز')}: —</small></div></div>})}</div>:<div className="ta-empty-state"><strong>{t('Choose a product to inspect locations','اختر صنفًا لعرض المواقع')}</strong></div>}</article>
+    </div>
+
+    <article className="ta-ops-list-card"><header className="ta-ops-card-head"><div><span className="ta-page-kicker">{t('Transfer history','سجل التحويلات')}</span><h3>{t('From / To movement history','سجل الحركات من / إلى')}</h3></div></header>{transfers.length?<div className="ta-ops-list">{transfers.map(transfer=><div className="ta-ops-row" key={transfer.id}><div><strong>{transfer.itemNameEn||transfer.itemNameAr||transfer.sku||t('Product','منتج')}</strong><small>{transfer.date} · {branchName(transfer.fromBranchId)} → {branchName(transfer.toBranchId)}</small></div><div><strong>{transfer.quantity}</strong><small>{transfer.note||transfer.sku||'—'}</small></div></div>)}</div>:<div className="ta-empty-state"><strong>{t('No transfers yet','لا توجد تحويلات بعد')}</strong></div>}</article>
+
+    <article className="ta-ops-list-card"><header className="ta-ops-card-head"><div><span className="ta-page-kicker">{t('Movement audit','تدقيق الحركات')}</span><h3>{t('Recent movements across locations','أحدث الحركات عبر المواقع')}</h3></div></header>{recent.length?<div className="ta-ops-list">{recent.map(movement=><div className="ta-ops-row" key={movement.id}><div><strong>{movement.itemNameEn||movement.itemNameAr||movement.sku||t('Product','منتج')}</strong><small>{movementLabel(movement.type)} · {movement.date||'—'} · {branchName(String(movement.branchId||'main'))}{movement.fromBranchId&&movement.toBranchId?` · ${branchName(movement.fromBranchId)} → ${branchName(movement.toBranchId)}`:''}</small></div><div><strong>{movement.quantity}</strong><small>{movement.sourceNumber||movement.note||'—'}</small></div></div>)}</div>:<div className="ta-empty-state"><strong>{t('No movement activity yet','لا توجد حركات بعد')}</strong></div>}</article>
   </section>;
 }
