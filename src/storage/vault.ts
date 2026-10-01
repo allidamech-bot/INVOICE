@@ -11,7 +11,7 @@ const LATIN_FONTS = new Set(['auto','inter','source-sans','montserrat','playfair
 const ARABIC_FONTS = new Set(['auto','cairo','tajawal','noto-kufi','noto-naskh']);
 const AUTO_LOCK_VALUES = new Set([0,5,15,30]);
 const PAYMENT_METHODS = new Set(['cash','bank-transfer','card','cheque','other']);
-const DOCUMENT_EVENT_TYPES = new Set(['created','issued','reissued','revision-started','revision-discarded','voided','credit-note-created','payment-recorded','payment-deleted','converted']);
+const DOCUMENT_EVENT_TYPES = new Set(['created','issued','reissued','revision-started','revision-discarded','voided','credit-note-created','payment-recorded','payment-deleted','converted','audit']);
 const PURCHASE_STATUSES = new Set(['draft','posted','reversed']);
 const INVENTORY_MOVEMENT_TYPES = new Set(['opening','purchase','purchase-reversal','issue','adjustment']);
 const RECURRING_TARGETS = new Set(['document','purchase']);
@@ -244,7 +244,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   }) : [];
 
   migrated.documentEvents = Array.isArray((vault as any).documentEvents) ? (vault as any).documentEvents.map((event:any)=>({
-    id:stringValue(event?.id),documentId:stringValue(event?.documentId),documentNumber:stringValue(event?.documentNumber),type:DOCUMENT_EVENT_TYPES.has(event?.type)?event.type:'created',at:stringValue(event?.at,nowIso()),note:stringValue(event?.note),relatedDocumentId:stringValue(event?.relatedDocumentId),relatedDocumentNumber:stringValue(event?.relatedDocumentNumber),amount:stringValue(event?.amount),currency:cleanCurrency(event?.currency,migrated.appSettings.smartDefaults.currency||'USD')
+    id:stringValue(event?.id),documentId:stringValue(event?.documentId),documentNumber:stringValue(event?.documentNumber),type:DOCUMENT_EVENT_TYPES.has(event?.type)?event.type:'created',at:stringValue(event?.at,nowIso()),note:stringValue(event?.note),relatedDocumentId:stringValue(event?.relatedDocumentId),relatedDocumentNumber:stringValue(event?.relatedDocumentNumber),amount:stringValue(event?.amount),currency:cleanCurrency(event?.currency,migrated.appSettings.smartDefaults.currency||'USD'),auditEntityType:['document','customer','supplier','product','purchase'].includes(String(event?.auditEntityType||''))?event.auditEntityType:undefined,auditEntityId:stringValue(event?.auditEntityId),auditEntityLabel:stringValue(event?.auditEntityLabel),auditAction:['created','updated','deleted','posted','reversed'].includes(String(event?.auditAction||''))?event.auditAction:undefined,auditActorKind:event?.auditActorKind==='system'?'system':event?.auditActorKind==='user'?'user':undefined,workspaceId:stringValue(event?.workspaceId)
   })) : [];
   migrated.documentRevisions = Array.isArray((vault as any).documentRevisions) ? (vault as any).documentRevisions.map((revision:any)=>{
     const snapshot=revision?.snapshot&&typeof revision.snapshot==='object'?structuredClone(revision.snapshot):null;if(!snapshot)return null;

@@ -5,7 +5,7 @@ export type TemplateId = 'executive' | 'minimal' | 'trade' | 'signature' | 'obsi
 export type DocumentStatus = 'draft' | 'final';
 export type DocumentRole = 'standard' | 'credit-note';
 export type DocumentLifecycleStatus = 'active' | 'voided';
-export type DocumentEventType = 'created' | 'issued' | 'reissued' | 'revision-started' | 'revision-discarded' | 'voided' | 'credit-note-created' | 'payment-recorded' | 'payment-deleted' | 'converted';
+export type DocumentEventType = 'created' | 'issued' | 'reissued' | 'revision-started' | 'revision-discarded' | 'voided' | 'credit-note-created' | 'payment-recorded' | 'payment-deleted' | 'converted' | 'audit';
 export type PaymentStatus = 'unpaid' | 'partially-paid' | 'paid' | 'overdue';
 export type PaymentMethod = 'cash' | 'bank-transfer' | 'card' | 'cheque' | 'other';
 export type PurchaseStatus = 'draft' | 'posted' | 'reversed';
@@ -465,6 +465,12 @@ export interface DocumentEventRecord {
   relatedDocumentNumber: string;
   amount: string;
   currency: string;
+  auditEntityType?: 'document'|'customer'|'supplier'|'product'|'purchase';
+  auditEntityId?: string;
+  auditEntityLabel?: string;
+  auditAction?: 'created'|'updated'|'deleted'|'posted'|'reversed';
+  auditActorKind?: 'user'|'system';
+  workspaceId?: string;
 }
 
 export interface DocumentRevisionRecord {

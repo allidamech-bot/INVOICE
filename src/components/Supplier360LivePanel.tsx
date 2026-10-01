@@ -5,6 +5,7 @@ import { ensureRelationship360Styles } from '../lib/relationship-360-style.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { t } from '../lib/i18n.js';
 import { Supplier360Panel } from './Relationship360Panels.js';
+import { EntityAuditLivePanel } from './EntityAuditLivePanel.js';
 
 export function Supplier360LivePanel({supplier}:{supplier:Supplier}):any{
   const [snapshot,setSnapshot]=React.useState<Supplier360Snapshot|null>(null);
@@ -22,5 +23,5 @@ export function Supplier360LivePanel({supplier}:{supplier:Supplier}):any{
   },[supplier.id,supplier.updatedAt]);
   if(error)return <section className="lx-360-load-state is-error" role="status">{error}</section>;
   if(!snapshot)return <section className="lx-360-load-state" role="status">{t('Preparing Supplier 360…','جارٍ تجهيز ملف المورد 360…')}</section>;
-  return <Supplier360Panel snapshot={snapshot}/>;
+  return <><Supplier360Panel snapshot={snapshot}/><EntityAuditLivePanel entityType="supplier" entityId={supplier.id} title={t('Supplier activity','نشاط المورد')}/></>;
 }
