@@ -1,0 +1,64 @@
+name: LOUREX Inventory Planning QA
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/inventory-planning.ts'
+      - 'src/lib/inventory-planning-style.ts'
+      - 'src/components/InventoryPlanningLive.tsx'
+      - 'src/components/ProductsInventoryWorkspace.tsx'
+      - 'src/styles/inventory-planning-batch7.css'
+      - 'tests/inventory-planning-batch7.test.mjs'
+      - 'tests/visual/inventory-planning-batch7.html'
+      - 'tests/visual/run-inventory-planning-batch7.cjs'
+      - '.github/workflows/batch7-inventory-planning.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inventory-planning:
+    name: Batch 7 inventory planning gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Batch 7 planning engine and placement contracts
+        run: node --test tests/inventory-planning-batch7.test.mjs
+      - name: Install Chromium QA runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run Planning mobile EN, Arabic RTL, dark and desktop browser QA
+        run: |
+          npx http-server . -p 4173 -c-1 > /tmp/lourex-batch7-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/tests/visual/inventory-planning-batch7.html >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/lourex-batch7-server.log
+            exit 1
+          fi
+          timeout --signal=TERM --kill-after=15s 180s node tests/visual/run-inventory-planning-batch7.cjs
+      - name: Upload Batch 7 visual evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lourex-batch7-inventory-planning-visual-qa
+          path: visual-qa-output/inventory-planning-batch7
+          if-no-files-found: ignore
