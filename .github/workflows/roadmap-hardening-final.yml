@@ -47,6 +47,20 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
+      - name: Repair deterministic FX input anchors
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/repair-treasury-gap.py')
+          text=p.read_text(encoding='utf-8')
+          old="""text=replace_once(text,'maxLength={8}','maxLength={3}','fx from maxlength')
+          text=replace_once(text,'maxLength={8}','maxLength={3}','fx to maxlength')"""
+          new="""if text.count('maxLength={8}') != 2: raise SystemExit(f'unexpected FX currency input anchors: {text.count(\"maxLength={8}\")}')
+          text=text.replace('maxLength={8}','maxLength={3}',2)"""
+          if old not in text:
+              raise SystemExit('FX input repair anchor missing')
+          p.write_text(text.replace(old,new,1),encoding='utf-8')
+          PY
       - name: Apply treasury and FX blueprint repair
         run: python3 scripts/repair-treasury-gap.py
       - run: npm ci
