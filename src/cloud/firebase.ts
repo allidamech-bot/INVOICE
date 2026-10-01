@@ -1,6 +1,7 @@
 import type { EncryptedVaultRecord, SecurityMetadata } from '../types.js';
 import { getEncryptedVault, getSecurity, putSecurityAndVault } from '../storage/db.js';
 import { MIN_ACCOUNT_PASSWORD_LENGTH } from '../lib/account-security.js';
+import { LOUREX_FIREBASE_CONFIG } from './firebase-config.js';
 
 declare const firebase: any;
 
@@ -14,7 +15,7 @@ interface CloudVaultMeta {
 }
 interface CloudSyncAnchor { revision:string; cipherSha256:string; updatedAt:string; }
 
-const FIREBASE_CONFIG={apiKey:'AIzaSyAgakNDqcKlyAFiOyfm1ebA8PB-_HKM-go',authDomain:'lourex-invoice.firebaseapp.com',projectId:'lourex-invoice',storageBucket:'lourex-invoice.firebasestorage.app',messagingSenderId:'985119320046',appId:'1:985119320046:web:58798f19ad368a178510ff'};
+const FIREBASE_CONFIG=LOUREX_FIREBASE_CONFIG;
 const CLOUD_FORMAT='LOUREX_CLOUD_V1';
 const CHUNK_SIZE=240_000;
 const WRITE_BATCH_CHUNKS=12;

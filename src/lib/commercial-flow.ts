@@ -2,7 +2,7 @@ import type { DocumentEventRecord, DocumentEventType, LourexDocument, VaultPaylo
 import { isIsoDate, makeId } from './id.js';
 
 export type CommercialTrackingStatus='draft'|'internal-ready'|'sent'|'accepted'|'rejected'|'expired'|'converted';
-export type CommercialTrackingEventKind='sent'|'accepted'|'rejected'|'followup-scheduled'|'followup-completed';
+export type CommercialTrackingEventKind='sent'|'viewed'|'commented'|'accepted'|'rejected'|'followup-scheduled'|'followup-completed';
 
 // Batch 1 deliberately stores commercial tracking inside the already encrypted,
 // conflict-merged document event ledger. A reserved note marker keeps these sales
@@ -14,6 +14,9 @@ export interface CommercialTrackingOverlay {
   documentId:string;
   status:'sent'|'accepted'|'rejected'|'';
   sentAt?:string;
+  viewedAt?:string;
+  lastCommentAt?:string;
+  lastComment?:string;
   acceptedAt?:string;
   rejectedAt?:string;
   rejectionReason?:string;
@@ -41,7 +44,7 @@ export function commercialTrackingEventKind(event:DocumentEventRecord):Commercia
   if(event.type!=='created'||!event.note.startsWith(COMMERCIAL_MARKER))return null;
   const firstLine=event.note.split('\n',1)[0]??'';
   const kind=firstLine.slice(COMMERCIAL_MARKER.length);
-  return kind==='sent'||kind==='accepted'||kind==='rejected'||kind==='followup-scheduled'||kind==='followup-completed'?kind:null;
+  return kind==='sent'||kind==='viewed'||kind==='commented'||kind==='accepted'||kind==='rejected'||kind==='followup-scheduled'||kind==='followup-completed'?kind:null;
 }
 
 export function commercialTrackingEventPayload(event:DocumentEventRecord):string{
@@ -70,7 +73,7 @@ export function quoteExpiryDate(doc:LourexDocument):string{
 function dateOnly(value:string):string{return /^\d{4}-\d{2}-\d{2}/.test(value)?value.slice(0,10):'';}
 
 export function commercialTrackingFromEvents(documentId:string,events:DocumentEventRecord[]):CommercialTrackingOverlay{
-  const tracking:CommercialTrackingOverlay={documentId,status:'',sentAt:'',acceptedAt:'',rejectedAt:'',rejectionReason:'',followUpAt:'',lastFollowUpAt:'',updatedAt:''};
+  const tracking:CommercialTrackingOverlay={documentId,status:'',sentAt:'',viewedAt:'',lastCommentAt:'',lastComment:'',acceptedAt:'',rejectedAt:'',rejectionReason:'',followUpAt:'',lastFollowUpAt:'',updatedAt:''};
   const relevant=events.filter(event=>event.documentId===documentId&&isCommercialTrackingEvent(event)).sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id));
   for(const event of relevant){
     const kind=commercialTrackingEventKind(event);if(!kind)continue;
@@ -79,11 +82,15 @@ export function commercialTrackingFromEvents(documentId:string,events:DocumentEv
     // after another device already recorded a terminal decision. Terminal sales
     // decisions are monotonic: a late Sent/Follow-up/opposite decision cannot
     // downgrade or silently replace Accepted/Rejected once the ledger contains it.
-    if(terminal)continue;
+    if(terminal&&kind!=='viewed'&&kind!=='commented')continue;
     const payload=commercialTrackingEventPayload(event);
     tracking.updatedAt=event.at;
     if(kind==='sent'){
       tracking.status='sent';tracking.sentAt=event.at;tracking.acceptedAt='';tracking.rejectedAt='';tracking.rejectionReason='';
+    }else if(kind==='viewed'){
+      if(!tracking.viewedAt)tracking.viewedAt=event.at;
+    }else if(kind==='commented'){
+      tracking.lastCommentAt=event.at;tracking.lastComment=payload;
     }else if(kind==='accepted'){
       tracking.status='accepted';tracking.acceptedAt=event.at;tracking.rejectedAt='';tracking.rejectionReason='';tracking.followUpAt='';
     }else if(kind==='rejected'){
@@ -97,12 +104,12 @@ export function commercialTrackingFromEvents(documentId:string,events:DocumentEv
   return tracking;
 }
 
-export function createCommercialTrackingEvent(doc:LourexDocument,kind:CommercialTrackingEventKind,payload=''):DocumentEventRecord{
-  const now=new Date().toISOString();
+export function createCommercialTrackingEvent(doc:LourexDocument,kind:CommercialTrackingEventKind,payload='',at=new Date().toISOString(),relatedDocumentId='',relatedDocumentNumber=''):DocumentEventRecord{
+  const recordedAt=!Number.isNaN(Date.parse(at))?at:new Date().toISOString();
   const note=`${COMMERCIAL_MARKER}${kind}${payload.trim()?`\n${payload.trim()}`:''}`;
   return{
-    id:makeId('event'),documentId:doc.id,documentNumber:doc.number,type:'created',at:now,note,
-    relatedDocumentId:'',relatedDocumentNumber:'',amount:'',currency:doc.currency
+    id:makeId('event'),documentId:doc.id,documentNumber:doc.number,type:'created',at:recordedAt,note,
+    relatedDocumentId,relatedDocumentNumber,amount:'',currency:doc.currency
   };
 }
 
@@ -139,6 +146,7 @@ export function validatedCommercialTrackingEvent(
 ):DocumentEventRecord{
   const doc=vault.documents.find(item=>item.id===documentId);
   if(!doc)throw new Error('Quotation no longer exists. Reopen Documents and try again.');
+  if(kind==='viewed'||kind==='commented')throw new Error('Portal evidence can only be recorded by a secure customer link.');
   if(!isQuoteLikeDocument(doc))throw new Error('Commercial tracking is available only for quotations and proforma invoices.');
   if(doc.status!=='final'||doc.lifecycleStatus==='voided')throw new Error('Issue an active final quotation before recording external commercial tracking.');
   if(linkedInvoiceForCommercialDocument(doc,vault.documents))throw new Error('This quotation is already converted to an invoice.');
