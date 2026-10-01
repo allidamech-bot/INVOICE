@@ -4,8 +4,10 @@ import { isArabic, t } from '../lib/i18n.js';
 import { validateCustomerCommercial } from '../lib/commercial-controls.js';
 import { findCustomerDuplicateCandidates } from '../lib/customer-ai-capture.js';
 import { setWorkspaceDirty } from '../lib/workspace-dirty.js';
+import { ensureSalesPipelineStyles } from '../lib/sales-pipeline-style.js';
 import { CustomerAiCapture } from './CustomerAiCapture.js';
 import { Customer360LivePanel } from './Customer360LivePanel.js';
+import { SalesPipelineLive } from './SalesPipelineLive.js';
 import { Button, ConfirmDialog, Field, Icon, IconButton, Input, Modal, Select, Textarea } from './UI.js';
 
 export function blankCustomer(seed=''):Customer{
@@ -31,18 +33,19 @@ export function CustomerForm({customer,company,onChange}:FormProps):any{
 }
 
 type CustomerSort='name'|'recent';
+type CustomerWorkspace='directory'|'pipeline';
 interface Props {customers:Customer[];company:CompanySettings;onSave:(customer:Customer)=>Promise<void>;onDelete:(customer:Customer)=>Promise<void>;onNewDocument:(kind:DocumentKind,customer:Customer)=>Promise<void>;onViewStatement?:(customer:Customer)=>void;}
-interface State {query:string;sort:CustomerSort;editing:Customer|null;editingInitial:string;discardConfirm:boolean;deleting:Customer|null;error:string;busy:boolean;creatingDocument:string;viewingId:string;allowKnownDuplicate:boolean;}
+interface State {workspace:CustomerWorkspace;query:string;sort:CustomerSort;editing:Customer|null;editingInitial:string;discardConfirm:boolean;deleting:Customer|null;error:string;busy:boolean;creatingDocument:string;viewingId:string;allowKnownDuplicate:boolean;}
 
 function customerDisplayName(customer:Customer):string{return(isArabic()?(customer.companyNameAr||customer.companyNameEn):(customer.companyNameEn||customer.companyNameAr)).trim();}
 function customerSearchSeed(value:string):string{const seed=value.trim();if(!seed||seed.includes('@')||/^[+\d\s().-]{5,}$/.test(seed))return'';return seed;}
 function visibleValue(value:string):string{return value.trim()||'—';}
 
 export class CustomersPage extends React.Component<Props,State>{
-  state:State={query:'',sort:'name',editing:null,editingInitial:'',discardConfirm:false,deleting:null,error:'',busy:false,creatingDocument:'',viewingId:'',allowKnownDuplicate:false};
+  state:State={workspace:'directory',query:'',sort:'name',editing:null,editingInitial:'',discardConfirm:false,deleting:null,error:'',busy:false,creatingDocument:'',viewingId:'',allowKnownDuplicate:false};
   private mounted=false;
 
-  componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.handleKeyDown);window.addEventListener('lourex-create-customer',this.handleQuickCreate);window.addEventListener('beforeunload',this.handleBeforeUnload);this.syncDirtyMarker();}
+  componentDidMount():void{this.mounted=true;ensureSalesPipelineStyles();document.addEventListener('keydown',this.handleKeyDown);window.addEventListener('lourex-create-customer',this.handleQuickCreate);window.addEventListener('beforeunload',this.handleBeforeUnload);this.syncDirtyMarker();}
   componentDidUpdate(prevProps:Props,prevState:State):void{
     if(prevProps.customers!==this.props.customers&&this.state.viewingId&&!this.props.customers.some(customer=>customer.id===this.state.viewingId))this.setState({viewingId:''});
     if(prevState.viewingId!==this.state.viewingId){
@@ -53,9 +56,10 @@ export class CustomersPage extends React.Component<Props,State>{
   }
   componentWillUnmount():void{this.mounted=false;document.removeEventListener('keydown',this.handleKeyDown);window.removeEventListener('lourex-create-customer',this.handleQuickCreate);window.removeEventListener('beforeunload',this.handleBeforeUnload);setWorkspaceDirty('customers',false);}
 
-  private handleQuickCreate=()=>this.newCustomer();
+  private handleQuickCreate=()=>{this.setState({workspace:'directory'},this.newCustomer);};
   private handleKeyDown=(event:KeyboardEvent)=>{
     if(event.defaultPrevented||event.metaKey||event.ctrlKey||event.altKey||this.state.editing||document.querySelector('.modal-backdrop'))return;
+    if(this.state.workspace==='pipeline')return;
     if(event.key==='Escape'&&this.state.viewingId){event.preventDefault();this.setState({viewingId:'',error:''});return;}
     if(this.state.viewingId)return;
     const target=event.target;
@@ -149,10 +153,12 @@ export class CustomersPage extends React.Component<Props,State>{
 
   render():any{
     const viewing=this.props.customers.find(customer=>customer.id===this.state.viewingId);if(viewing)return this.renderProfile(viewing);
+    if(this.state.workspace==='pipeline')return <SalesPipelineLive onShowDirectory={()=>this.setState({workspace:'directory',error:''})}/>;
     const customers=this.filtered(),query=this.state.query.trim(),suggestedName=customerSearchSeed(query),hasFilter=Boolean(query);
     const withEmail=this.props.customers.filter(customer=>customer.email.trim()).length;
     const withCredit=this.props.customers.filter(customer=>customer.creditLimit.trim()).length;
     return <section className="ta-customers-page">
+      <div className="lx-pipeline-tabs" role="tablist" aria-label={t('Customer workspace','مساحة العملاء')}><button type="button" role="tab" aria-selected="true" className="is-active">{t('Directory','الدليل')}</button><button type="button" role="tab" aria-selected="false" onClick={()=>this.setState({workspace:'pipeline',query:'',error:''})}>{t('Pipeline','خط المبيعات')}</button></div>
       <header className="ta-customers-header"><div><span className="ta-customers-eyebrow">{t('Address book','دليل العملاء')}</span><h1>{t('Customers','العملاء')}</h1><p>{t('Manage customer identity, commercial defaults and credit controls from one workspace.','أدر هوية العملاء وإعداداتهم التجارية والرقابة الائتمانية من مساحة واحدة.')}</p></div><div className="ta-customer-modal-actions"><CustomerAiCapture customers={this.props.customers} onReview={this.beginAiReview}/><Button icon="plus" variant="primary" onClick={this.newCustomer}>{suggestedName?t(`Add “${suggestedName}”`,`إضافة «${suggestedName}»`):t('Add Customer','إضافة عميل')}</Button></div></header>
 
       <section className="ta-customers-summary"><div><span className="ta-customers-summary-icon"><Icon name="users"/></span><span><small>{t('Customers','العملاء')}</small><strong>{this.props.customers.length}</strong><em>{t('Saved profiles','ملفات محفوظة')}</em></span></div><div><span className="ta-customers-summary-icon"><Icon name="file"/></span><span><small>{t('With email','لديهم بريد')}</small><strong>{withEmail}</strong><em>{t('Ready for contact','جاهزون للتواصل')}</em></span></div><div><span className="ta-customers-summary-icon"><Icon name="chart"/></span><span><small>{t('Credit controls','ضوابط ائتمان')}</small><strong>{withCredit}</strong><em>{t('Profiles with a limit','عملاء لديهم حد')}</em></span></div></section>
