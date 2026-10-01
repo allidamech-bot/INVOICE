@@ -2,27 +2,47 @@ import { readFile, writeFile } from 'node:fs/promises';
 
 const bundlePath='dist/styles/app.bundle.css';
 const bridgeMarker='/* --- tailadmin-reliability-bridge-v320.css --- */';
-const owner='executive-command-center-v480.css';
+const owners=[
+  ['executive-command-center-v480.css','480-1'],
+  ['executive-workspaces-v480.css','480-2'],
+  ['executive-editor-v480.css','480-3'],
+  ['executive-overlays-auth-v480.css','480-4']
+];
 
 let bundle=await readFile(bundlePath,'utf8');
 const bridgeIndex=bundle.indexOf(bridgeMarker);
 if(bridgeIndex<0)throw new Error('v480 production bundle: final reliability bridge marker is missing.');
 
-const runtimeImport=/^@import url\("\.\/executive-command-center-v480\.css\?v=480-1"\);\s*$/gm;
-bundle=bundle.replace(runtimeImport,'');
+/* Source/dev may load the v480 root through the final bridge. Production never
+   depends on late @import rules: every v480 owner is inserted directly before the
+   reliability bridge in deterministic order. */
+for(const [owner,version] of owners){
+  const runtimeImport=new RegExp(`^@import url\\("\\./${owner.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\?v=${version}"\\);\\s*$`,'gm');
+  bundle=bundle.replace(runtimeImport,'');
+}
 
-const css=(await readFile(`src/styles/${owner}`,'utf8')).trim();
-if(!css)throw new Error('v480 production bundle: executive design owner is empty.');
-const marker=`/* --- ${owner} --- */`;
-if(bundle.includes(marker))throw new Error('v480 production bundle: duplicate executive design owner detected.');
+const parts=[];
+for(const [owner] of owners){
+  const css=(await readFile(`src/styles/${owner}`,'utf8')).trim();
+  if(!css)throw new Error(`v480 production bundle: ${owner} is empty.`);
+  const marker=`/* --- ${owner} --- */`;
+  if(bundle.includes(marker))throw new Error(`v480 production bundle: duplicate ${owner} detected.`);
+  parts.push(`${marker}\n${css}`);
+}
 
 const insertion=bundle.indexOf(bridgeMarker);
-bundle=`${bundle.slice(0,insertion)}${marker}\n${css}\n\n${bundle.slice(insertion)}`;
+bundle=`${bundle.slice(0,insertion)}${parts.join('\n\n')}\n\n${bundle.slice(insertion)}`;
 
-const ownerIndex=bundle.indexOf(marker);
+let previous=-1;
+for(const [owner] of owners){
+  const marker=`/* --- ${owner} --- */`;
+  const index=bundle.indexOf(marker);
+  if(index<0||index<=previous)throw new Error(`v480 production bundle: ${owner} order is invalid.`);
+  previous=index;
+}
 const finalBridgeIndex=bundle.indexOf(bridgeMarker);
-if(ownerIndex<0||ownerIndex>finalBridgeIndex)throw new Error('v480 production bundle: executive design owner must remain immediately before the reliability bridge.');
-if(/@import url\("\.\/executive-command-center-v480\.css/.test(bundle))throw new Error('v480 production bundle: runtime v480 @import survived production bundling.');
+if(previous>finalBridgeIndex)throw new Error('v480 production bundle: executive owners must remain before the reliability bridge.');
+if(/@import url\("\.\/executive-[^\"]*v480\.css/.test(bundle))throw new Error('v480 production bundle: runtime executive @import survived production bundling.');
 
 await writeFile(bundlePath,bundle);
-console.log('LOUREX v480 executive design bundled before final reliability bridge.');
+console.log(`LOUREX v480 executive design stack bundled (${owners.length} owners) before final reliability bridge.`);
