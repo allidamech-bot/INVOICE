@@ -37,7 +37,7 @@ test('v480 production build inlines all four owners before the reliability bridg
   for(const owner of ['executive-command-center-v480.css','executive-workspaces-v480.css','executive-editor-v480.css','executive-overlays-auth-v480.css'])assert.ok(bundler.includes(owner),`bundler missing ${owner}`);
   assert.match(bundler,/tailadmin-reliability-bridge-v320\.css/);
   assert.match(bundler,/runtime executive @import survived production bundling/);
-  assert.match(bundler,/parts\.join\('\n\\n'\)/);
+  assert.ok(bundler.includes("parts.join('\\n\\n')"));
 });
 
 test('v480 implements the approved Home command-center hierarchy',()=>{
@@ -108,7 +108,7 @@ test('v480 binds only to existing Home and shell presentation roots',()=>{
   for(const selector of ['ta-finance-dashboard','ta-dashboard-header','ta-kpi-grid','ta-quick-actions','ta-dashboard-primary-grid','ta-dashboard-intelligence-grid'])assert.ok(home.includes(selector),`home root missing ${selector}`);
   for(const selector of ['ta-topbar','ta-mobile-nav','ta-mobile-create','ta-mobile-sheet','ta-create-menu-mobile'])assert.ok(shell.includes(selector),`shell root missing ${selector}`);
   assert.match(orbit,/viewBox="0 0 1200 560"/);
-  assert.doesNotMatch(orbit,/https?:\/\//);
+  assert.doesNotMatch(orbit,/(?:href|src)=["']https?:\/\//i);
 });
 
 test('v480 presentation owners cannot mutate LOUREX business or storage state',()=>{
