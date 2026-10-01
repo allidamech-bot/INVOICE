@@ -41,6 +41,22 @@ function targetLabel(target:NotificationTarget):string{
   if(target==='operations')return t('Open Purchasing','فتح المشتريات');
   return t('Open Products','فتح المنتجات');
 }
+function optimisticSnapshot(previous:NotificationCenterSnapshot,item:NotificationItem,action:'done'|'snooze'):NotificationCenterSnapshot{
+  const active=previous.active.filter(row=>row.key!==item.key);
+  const snoozed=previous.snoozed.filter(row=>row.key!==item.key);
+  const done=previous.done.filter(row=>row.key!==item.key);
+  if(action==='snooze')snoozed.push(item);else done.push(item);
+  return{
+    ...previous,
+    generatedAt:new Date().toISOString(),
+    active,
+    snoozed,
+    done,
+    activeHigh:active.filter(row=>row.priority==='high').length,
+    activeMedium:active.filter(row=>row.priority==='medium').length,
+    activeLow:active.filter(row=>row.priority==='low').length
+  };
+}
 
 export class NotificationCenterLive extends React.Component<Props,State>{
   state:State={open:false,loading:false,busyKey:'',snoozeKey:'',tab:'active',error:'',snapshot:null};
@@ -70,7 +86,10 @@ export class NotificationCenterLive extends React.Component<Props,State>{
   };
   private mutate=async(item:NotificationItem,action:'done'|'snooze',until='')=>{
     if(this.state.busyKey)return;
-    this.setState({busyKey:item.key,error:''});
+    const previous=this.state.snapshot;
+    const optimistic=previous?optimisticSnapshot(previous,item,action):null;
+    this.setState({busyKey:item.key,snoozeKey:'',error:'',snapshot:optimistic??previous});
+    if(optimistic)this.publish(optimistic);
     try{
       const next=await mutateVaultSafely(vault=>{
         const event=validatedNotificationStateEvent(vault,item.key,action,until,todayIso());
@@ -79,7 +98,8 @@ export class NotificationCenterLive extends React.Component<Props,State>{
       const snapshot=buildNotificationCenter(next,todayIso());
       this.setState({snapshot,busyKey:'',snoozeKey:'',error:''});this.publish(snapshot);
     }catch(error){
-      this.setState({busyKey:'',error:error instanceof Error?error.message:t('Unable to update notification.','تعذر تحديث التنبيه.')});
+      this.setState({snapshot:previous,busyKey:'',snoozeKey:'',error:error instanceof Error?error.message:t('Unable to update notification.','تعذر تحديث التنبيه.')});
+      this.publish(previous);
     }
   };
   private openTarget=(item:NotificationItem)=>{
