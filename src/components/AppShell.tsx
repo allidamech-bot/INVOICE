@@ -275,7 +275,7 @@ export class AppShell extends React.Component<Props,State>{
       <span className="ta-nav-label">{label}</span>
     </button>;
 
-  private mobileSheetItem=(screen:NavTarget,icon:NavIcon,label:string,description:string)=>
+  private mobileSheetItem=(screen:NavTarget,icon:NavIcon,label:string,description:string)=
     <button
       type="button"
       className={`ta-sheet-link ${this.props.screen===screen?'is-active':''}`}
@@ -358,7 +358,6 @@ export class AppShell extends React.Component<Props,State>{
 
         <div className="ta-sidebar-footer">
           {this.syncStatus('ta-sidebar-sync')}
-          <button type="button" className="ta-sidebar-utility" onClick={this.openNotifications}><span className="ta-nav-icon"><Icon name="alert"/></span><span>{t('Notifications & Follow-up','التنبيهات والمتابعة')}</span>{this.state.notificationCount?<span className="lx-notification-badge">{this.state.notificationCount}</span>:null}</button>
           <button type="button" className="ta-sidebar-utility" onClick={this.openSettings}><span className="ta-nav-icon"><Icon name="settings"/></span><span>{t('Settings','الإعدادات')}</span></button>
           <button type="button" className="ta-sidebar-utility" onClick={()=>this.openProductInfo('help')}><span className="ta-nav-icon"><Icon name="file"/></span><span>{t('Help & Product Info','المساعدة ومعلومات المنتج')}</span></button>
           <button type="button" className="ta-sidebar-account" onClick={this.openAccount}>
@@ -379,6 +378,7 @@ export class AppShell extends React.Component<Props,State>{
 
         <div className="ta-topbar-actions">
           {!editor?<button type="button" className="ta-search-trigger" aria-label={t('Search LOUREX','بحث LOUREX')} title={t('Global search · Ctrl/⌘ K','البحث الشامل · Ctrl/⌘ K')} onClick={()=>window.dispatchEvent(new Event('lourex-global-search-open'))}><Icon name="search"/><span>{t('Search or quick create','ابحث أو أنشئ بسرعة')}</span><kbd>⌘K</kbd></button>:null}
+          {!editor?<button type="button" className={`lx-notification-topbar ${this.state.notificationHigh?'has-high':''}`} aria-label={t('Notifications & Follow-up','التنبيهات والمتابعة')} title={t('Notifications & Follow-up','التنبيهات والمتابعة')} onClick={this.openNotifications}><Icon name="alert"/>{this.state.notificationCount?<span className="lx-notification-badge">{this.state.notificationCount}</span>:null}</button>:null}
           <ThemeControl compact language={this.props.language} className="ta-theme-control"/>
           {this.syncStatus('ta-topbar-sync')}
           {!editor?<button type="button" className="ta-topbar-account" aria-label={t('My Account','حسابي')} onClick={this.openAccount}><span className="ta-account-avatar"><Icon name="users"/></span><span>{t('Account','الحساب')}</span></button>:null}
@@ -405,9 +405,9 @@ export class AppShell extends React.Component<Props,State>{
             </div>
             {this.syncStatus('ta-sheet-sync')}
             <button type="button" className="ta-sheet-account" onClick={this.openAccount}><span className="ta-sheet-link-icon"><Icon name="users"/></span><span className="ta-sheet-link-copy"><strong>{t('My Account','حسابي')}</strong><small>{t('Identity, business profile and account access','الهوية وملف الشركة والوصول للحساب')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button>
-            <section className="ta-sheet-group"><p>{t('Follow-up','المتابعة')}</p><button type="button" className="ta-sheet-link" onClick={this.openNotifications}><span className="ta-sheet-link-icon"><Icon name="alert"/></span><span className="ta-sheet-link-copy"><strong>{t('Notifications & Follow-up','التنبيهات والمتابعة')}</strong><small>{t('Overdue items, quote dates and recorded follow-ups','المتأخرات ومواعيد العروض والمتابعات المسجلة')}</small></span>{this.state.notificationCount?<span className="lx-notification-badge">{this.state.notificationCount}</span>:null}<span className="ta-sheet-chevron" aria-hidden="true">›</span></button></section>
             <section className="ta-sheet-group"><p>{t('Operations','العمليات')}</p>{this.mobileSheetItem('items','items',t('Products & Inventory','المنتجات والمخزون'),t('Products, stock and movement','المنتجات والمخزون والحركة'))}{this.mobileSheetItem('operations','backup',t('Purchasing','المشتريات'),t('Suppliers and purchase workflow','الموردون ودورة المشتريات'))}</section>
             <section className="ta-sheet-group"><p>{t('Finance & insights','المالية والتحليلات')}</p>{this.mobileSheetItem('receivables','invoice',t('Finance','المالية'),t('Receivables, collections and expenses','المستحقات والتحصيل والمصروفات'))}{this.mobileSheetItem('reports','chart',t('Reports & Insights','التقارير والتحليلات'),t('Period analysis and profitability','تحليل الفترات والربحية'))}</section>
+            <section className="ta-sheet-group"><p>{t('Follow-up','المتابعة')}</p><button type="button" className="ta-sheet-link" onClick={this.openNotifications}><span className="ta-sheet-link-icon"><Icon name="alert"/></span><span className="ta-sheet-link-copy"><strong>{t('Notifications & Follow-up','التنبيهات والمتابعة')}</strong><small>{t('Overdue items, quote dates and recorded follow-ups','المتأخرات ومواعيد العروض والمتابعات المسجلة')}</small></span>{this.state.notificationCount?<span className="lx-notification-badge">{this.state.notificationCount}</span>:null}<span className="ta-sheet-chevron" aria-hidden="true">›</span></button></section>
             <section className="ta-sheet-group"><p>{t('Account & product','الحساب والمنتج')}</p><button type="button" className="ta-sheet-link" onClick={this.openSettings}><span className="ta-sheet-link-icon"><Icon name="settings"/></span><span className="ta-sheet-link-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Business, documents, security and data','الأعمال والمستندات والأمان والبيانات')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button><button type="button" className="ta-sheet-link" onClick={()=>this.openProductInfo('help')}><span className="ta-sheet-link-icon"><Icon name="file"/></span><span className="ta-sheet-link-copy"><strong>{t('Help & Product Info','المساعدة ومعلومات المنتج')}</strong><small>{t('Help, privacy, terms and build details','المساعدة والخصوصية والشروط وتفاصيل البناء')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button></section>
           </section>
         </>:null}
