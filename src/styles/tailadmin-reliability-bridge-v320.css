@@ -4,6 +4,9 @@
 @import url("./mobile-core-workflows-v364.css?v=364-1");
 @import url("./ai-assistant-help-batch3.css?v=455-1");
 @import url("./executive-command-center-v480.css?v=480-1");
+@import url("./executive-workspaces-v480.css?v=480-2");
+@import url("./executive-editor-v480.css?v=480-3");
+@import url("./executive-overlays-auth-v480.css?v=480-4");
 
 /* LOUREX v351 — reliability bridge only.
    Runtime/recovery geometry and UI safety contracts live here.
