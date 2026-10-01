@@ -1,0 +1,8 @@
+name: Batch 12 PR opener marker
+on:
+  workflow_dispatch:
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ready
