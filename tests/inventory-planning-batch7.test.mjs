@@ -6,7 +6,7 @@ const read=path=>readFile(path,'utf8');
 
 test('Batch 7 inventory planning is contextual inside Products & Inventory',async()=>{
   const workspace=await read('src/components/ProductsInventoryWorkspace.tsx');
-  assert.match(workspace,/type Tab='products'\|(?:'[^']+'\|)*'inventory'\|'planning'\|'movements'/);
+  assert.match(workspace,/type Tab='products'[\s\S]*'inventory'[\s\S]*'planning'[\s\S]*'movements'/);
   assert.match(workspace,/id:'planning'/);
   assert.match(workspace,/<InventoryPlanningLive\/>/);
   assert.doesNotMatch(workspace,/window\.location/);
