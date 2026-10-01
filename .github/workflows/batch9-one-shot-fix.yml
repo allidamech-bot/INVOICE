@@ -1,0 +1,57 @@
+name: Batch 9 one-shot integration fix
+on:
+  push:
+    branches:
+      - feat/lourex-accounts-payable-batch9
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/lourex-accounts-payable-batch9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Patch Batch 9 integration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app = Path('src/app/App.tsx')
+          text = app.read_text()
+          old = "<FinanceWorkspace customers={vault.customers} documents={vault.documents} payments={vault.payments} company={vault.company} supplierPayments={vault.supplierPayments} onSavePayment={this.savePayment}"
+          new = "<FinanceWorkspace customers={vault.customers} documents={vault.documents} payments={vault.payments} company={vault.company} onSavePayment={this.savePayment}"
+          if old not in text:
+              raise SystemExit('Expected FinanceWorkspace duplicate supplierPayments pattern not found')
+          app.write_text(text.replace(old, new, 1))
+
+          guardian = Path('src/components/PurchasePostGuardian.tsx')
+          text = guardian.read_text()
+          old = "const number=value(identityInputs[0]),date=value(identityInputs[1]),currency=value(identityInputs[2]),supplierId=value(supplierSelect);"
+          new = "const number=value(identityInputs[0]),date=value(identityInputs[1]),dueDate=value(identityInputs[2]),currency=value(identityInputs[3]),supplierId=value(supplierSelect);"
+          if old not in text:
+              raise SystemExit('Expected PurchasePostGuardian identity mapping pattern not found')
+          text = text.replace(old, new, 1)
+          old = "return{id:base?.id||'guardian-live-draft',number,date,supplierSnapshot:supplierSnapshot(supplier),currency:currency.toUpperCase(),items,"
+          new = "return{id:base?.id||'guardian-live-draft',number,date,dueDate:dueDate||date,supplierSnapshot:supplierSnapshot(supplier),currency:currency.toUpperCase(),items,"
+          if old not in text:
+              raise SystemExit('Expected PurchasePostGuardian return pattern not found')
+          guardian.write_text(text.replace(old, new, 1))
+          PY
+          rm .github/workflows/batch9-one-shot-fix.yml
+      - run: npm ci
+      - name: Verify TypeScript
+        run: npm run typecheck
+      - name: Verify production build
+        run: npm run build
+      - name: Commit verified fixes
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/app/App.tsx src/components/PurchasePostGuardian.tsx .github/workflows/batch9-one-shot-fix.yml
+          git commit -m "fix(finance): repair Batch 9 integration typing"
+          git push origin HEAD:feat/lourex-accounts-payable-batch9
