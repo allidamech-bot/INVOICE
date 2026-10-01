@@ -85,8 +85,8 @@ test('UI placement preserves frozen primary navigation and exposes canonical fin
 });
 
 test('final administrative consolidation remains in Data Center / Settings without primary-nav inflation',async()=>{
-  const [settings,dataCenter,shell]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/components/DataCenterPanel.tsx'),read('src/components/AppShell.tsx')]);
-  assert.match(settings,/Data & Sync|Data Center/);assert.match(settings,/Company & Brand|Commercial & Tax Defaults|Security & Access/);assert.match(dataCenter,/Backup/);assert.match(dataCenter,/Restore/);assert.match(dataCenter,/Cloud Sync/);assert.match(dataCenter,/Diagnostics/);assert.match(dataCenter,/Activity Log/);
+  const [settings,shell]=await Promise.all([read('src/components/SettingsModal.tsx'),read('src/components/AppShell.tsx')]);
+  assert.match(settings,/Data & Sync|Data Center/);assert.match(settings,/Company & Brand|Commercial & Tax Defaults|Security & Access/);assert.match(settings,/Backup/);assert.match(settings,/Restore/);assert.match(settings,/Cloud Sync/);assert.match(settings,/Diagnostics/);assert.match(settings,/Activity Log/);assert.match(settings,/ta-data-center-page/);
   for(const screen of ['home','documents','customers','items','operations','receivables','reports'])assert.match(shell,new RegExp(`navItem\\('${screen}'`));
   assert.doesNotMatch(shell,/navItem\('data-center'/);
 });
