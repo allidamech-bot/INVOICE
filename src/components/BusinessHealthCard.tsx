@@ -21,7 +21,8 @@ function readinessDetail(row:SetupReadinessCheck):string{return getUiLanguage()=
 
 export function BusinessHealthCard({snapshot,onTarget}:Props):any{
   const visible=snapshot.issues.slice(0,5);
-  const readinessReview=snapshot.readiness.checks.filter(row=>row.status!=='complete').slice(0,3);
+  const readinessAttention=snapshot.readiness.checks.filter(row=>row.status==='attention').slice(0,3);
+  const readinessReview=snapshot.readiness.checks.filter(row=>row.status==='review').slice(0,3);
   const arabic=getUiLanguage()==='ar';
   const coreReady=snapshot.status==='ready'&&snapshot.readiness.attention===0;
   const settingsTarget=(target:SetupReadinessCheck['target']):BusinessHealthTarget=>target==='items'?'items':'settings';
@@ -29,8 +30,8 @@ export function BusinessHealthCard({snapshot,onTarget}:Props):any{
     <header className="ta-card-header">
       <div>
         <small>{t('Business Health','جاهزية الأعمال')}</small>
-        <h2>{coreReady?t('Core data and setup are ready','البيانات والإعدادات الأساسية جاهزة'):t('Review data and setup quality','راجع جودة البيانات والإعدادات')}</h2>
-        <span>{snapshot.issueCount?t(`${snapshot.issueCount} data exceptions · ${snapshot.readiness.attention} setup items need attention`,`${snapshot.issueCount} استثناءات بيانات · ${snapshot.readiness.attention} عناصر إعداد تحتاج انتباه`):snapshot.readiness.attention?t(`${snapshot.readiness.attention} setup items need attention`,`${snapshot.readiness.attention} عناصر إعداد تحتاج انتباه`):t('No deterministic data exceptions. Review-only setup checks stay visible below.','لا توجد استثناءات بيانات حتمية. تبقى فحوص الإعداد التي تحتاج مراجعة ظاهرة أدناه.')}</span>
+        <h2>{coreReady?t('Business data is ready','بيانات الأعمال جاهزة'):t('Review data and setup quality','راجع جودة البيانات والإعدادات')}</h2>
+        <span>{snapshot.issueCount?t(`${snapshot.issueCount} data exceptions · ${snapshot.readiness.attention} setup items need attention`,`${snapshot.issueCount} استثناءات بيانات · ${snapshot.readiness.attention} عناصر إعداد تحتاج انتباه`):snapshot.readiness.attention?t(`${snapshot.readiness.attention} setup items need attention`,`${snapshot.readiness.attention} عناصر إعداد تحتاج انتباه`):t('No deterministic data exceptions. Runtime-only checks remain informational until verified live.','لا توجد استثناءات بيانات حتمية. تبقى الفحوص التشغيلية معلوماتية حتى يتم التحقق منها حيًا.')}</span>
       </div>
     </header>
 
@@ -50,12 +51,13 @@ export function BusinessHealthCard({snapshot,onTarget}:Props):any{
         <span className={`ta-readiness-count ${snapshot.readiness.attention?'is-attention':''}`}>{t(`${snapshot.readiness.attention} needs attention`,`${snapshot.readiness.attention} يحتاج انتباه`)}</span>
         <span className="ta-readiness-count is-review">{t(`${snapshot.readiness.review} review`,`${snapshot.readiness.review} للمراجعة`)}</span>
       </div>
-      {readinessReview.length?<div className="ta-attention-list ta-readiness-list">
-        {readinessReview.map(row=><button type="button" key={row.id} className={row.status==='attention'?'is-danger':''} onClick={()=>onTarget(settingsTarget(row.target))} title={readinessDetail(row)} style={{textAlign:arabic?'right':'left'}}>
-          <span><Icon name={readinessIcon(row) as any}/><b>{readinessLabel(row)}</b></span><strong>{row.status==='attention'?t('Fix','إصلاح'):t('Review','مراجعة')}</strong>
+      {readinessAttention.length?<div className="ta-attention-list ta-readiness-list">
+        {readinessAttention.map(row=><button type="button" key={row.id} className="is-danger" onClick={()=>onTarget(settingsTarget(row.target))} title={readinessDetail(row)} style={{textAlign:arabic?'right':'left'}}>
+          <span><Icon name={readinessIcon(row) as any}/><b>{readinessLabel(row)}</b></span><strong>{t('Fix','إصلاح')}</strong>
         </button>)}
       </div>:<div className="ta-clear-state ta-readiness-clear"><span>✓</span><strong>{t('Core setup is complete','الإعداد الأساسي مكتمل')}</strong></div>}
-      {snapshot.readiness.checks.filter(row=>row.status!=='complete').length>readinessReview.length?<p className="field-hint">{t('Additional review-only checks remain available through their canonical settings and data controls.','توجد فحوص مراجعة إضافية ويمكن الوصول إليها من الإعدادات وعناصر البيانات الأصلية.')}</p>:null}
+      {readinessReview.length?<p className="field-hint">{t(`Review only · ${readinessReview.map(readinessLabel).join(' · ')}`,`للمراجعة فقط · ${readinessReview.map(readinessLabel).join(' · ')}`)}</p>:null}
+      {snapshot.readiness.checks.filter(row=>row.status==='attention').length>readinessAttention.length?<p className="field-hint">{t('Additional setup items need attention in their canonical settings or product controls.','توجد عناصر إعداد إضافية تحتاج انتباه ويمكن الوصول إليها من الإعدادات أو عناصر المنتجات الأصلية.')}</p>:null}
     </div>
   </section>;
 }
