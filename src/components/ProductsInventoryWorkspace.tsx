@@ -5,6 +5,7 @@ import { formatMoney } from '../lib/money.js';
 import { SavedItemsPage } from './SavedItemsPage.js';
 import { OperationsPage } from './OperationsPage.js';
 import { DomainWorkspaceTabs } from './DomainWorkspaceTabs.js';
+import { InventoryPlanningLive } from './InventoryPlanningLive.js';
 import { Button, Icon, Modal } from './UI.js';
 
 interface Props{
@@ -16,7 +17,7 @@ interface Props{
   onSaveExpense:(expense:ExpenseRecord)=>Promise<void>;onDeleteExpense:(expense:ExpenseRecord)=>Promise<void>;
   onSaveInventoryMovement:(movement:InventoryMovementRecord)=>Promise<void>;onDeleteInventoryMovement:(movement:InventoryMovementRecord)=>Promise<void>;
 }
-type Tab='products'|'inventory'|'movements';
+type Tab='products'|'inventory'|'planning'|'movements';
 
 function itemName(item:SavedItem):string{return t(item.descriptionEn||item.descriptionAr||item.sku||'Product',item.descriptionAr||item.descriptionEn||item.sku||'منتج');}
 function purchaseStatus(status:PurchaseRecord['status']):string{return status==='posted'?t('Posted','مرحل'):status==='reversed'?t('Reversed','معكوس'):t('Draft','مسودة');}
@@ -37,7 +38,7 @@ export function ProductsInventoryWorkspace(props:Props):any{
   const movements=props.inventoryMovements.length;
 
   return <section className="ta-products-workspace">
-    <header className="ta-products-workspace-header"><div><span>{t('Products & inventory','المنتجات والمخزون')}</span><h1>{t('Products & Inventory','المنتجات والمخزون')}</h1><p>{t('Keep the reusable catalog, stock position and inventory movements in one operating workspace.','اجمع كتالوج الأصناف والرصيد وحركات المخزون في مساحة تشغيل واحدة.')}</p></div>{tab!=='products'?<Button icon="plus" variant="primary" onClick={()=>window.dispatchEvent(new Event('lourex-create-product'))}>{t('New Product','صنف جديد')}</Button>:null}</header>
+    <header className="ta-products-workspace-header"><div><span>{t('Products & inventory','المنتجات والمخزون')}</span><h1>{t('Products & Inventory','المنتجات والمخزون')}</h1><p>{t('Keep the reusable catalog, stock position, planning and inventory movements in one operating workspace.','اجمع كتالوج الأصناف والرصيد والتخطيط وحركات المخزون في مساحة تشغيل واحدة.')}</p></div>{tab!=='products'?<Button icon="plus" variant="primary" onClick={()=>window.dispatchEvent(new Event('lourex-create-product'))}>{t('New Product','صنف جديد')}</Button>:null}</header>
 
     <section className="ta-products-overview" aria-label={t('Products and inventory summary','ملخص المنتجات والمخزون')}>
       <div><span className="ta-products-overview-icon"><Icon name="items"/></span><span><small>{t('Products','المنتجات')}</small><strong>{props.items.length}</strong><em>{t('Reusable catalog','الكتالوج القابل لإعادة الاستخدام')}</em></span></div>
@@ -49,12 +50,14 @@ export function ProductsInventoryWorkspace(props:Props):any{
     <DomainWorkspaceTabs value={tab} onChange={changeTab} ariaLabel={t('Products and inventory sections','أقسام المنتجات والمخزون')} options={[
       {id:'products',label:t('Products','المنتجات'),description:t('Catalog, pricing & import','الكتالوج والتسعير والاستيراد')},
       {id:'inventory',label:t('Inventory','المخزون'),description:t('On-hand quantity & cost','الكمية المتوفرة والتكلفة')},
+      {id:'planning',label:t('Planning','التخطيط'),description:t('Reorder signals & stock targets','إشارات إعادة الطلب ومستهدفات المخزون')},
       {id:'movements',label:t('Inventory Movements','حركات المخزون'),description:t('Receipts, issues & adjustments','الاستلام والإخراج والتسويات')}
     ]}/>
 
     <div className="ta-products-workspace-body">
       {tab==='products'?<SavedItemsPage items={props.items} currency={props.currency} onSave={props.onSaveItem} onSaveMany={props.onSaveItems} onDelete={props.onDeleteItem} onInspectInventory={(item)=>{if(!confirmWorkspaceDeparture())return;setFocusItemId(item.id);setTab('movements');}} onInspectPurchases={(item)=>setHistoryItem(item)}/>:null}
       {tab==='inventory'?<OperationsPage mode="inventory" inventoryView="balances" focusItemId={focusItemId} {...operationsProps}/>:null}
+      {tab==='planning'?<InventoryPlanningLive/>:null}
       {tab==='movements'?<OperationsPage mode="inventory" inventoryView="movements" focusItemId={focusItemId} {...operationsProps}/>:null}
     </div>
 
