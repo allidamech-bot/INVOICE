@@ -1,0 +1,37 @@
+import type { Customer, LourexDocument, PaymentRecord, PurchaseRecord, SavedItem, Supplier } from '../types.js';
+import { categoryProfitabilityRows, invoiceProfitabilityRows, productProfitabilityRows, supplierProfitabilityRows, type ProfitabilityDimensionRow } from '../lib/profitability-dimensions.js';
+import { customerPerformanceReport } from '../lib/reports.js';
+import { formatMoney } from '../lib/money.js';
+import { t } from '../lib/i18n.js';
+import { todayIso } from '../lib/id.js';
+import { Input, Select } from './UI.js';
+
+interface Props {customers:Customer[];documents:LourexDocument[];payments:PaymentRecord[];suppliers:Supplier[];purchases:PurchaseRecord[];items:SavedItem[];}
+type Dimension='product'|'customer'|'invoice'|'supplier'|'category';
+function startYear():string{return `${todayIso().slice(0,4)}-01-01`;}
+function how(dimension:Dimension):string{
+  if(dimension==='product')return t('Product rows match invoice lines to saved products. Revenue is allocated from the invoice net revenue; costs use the line unit cost plus proportional internal shipping/other cost.','تطابق صفوف المنتج بنود الفاتورة مع الأصناف المحفوظة. يتم توزيع صافي إيراد الفاتورة وتستخدم التكلفة تكلفة الوحدة مع توزيع تكاليف الشحن/المصاريف الداخلية.');
+  if(dimension==='customer')return t('Customer profitability uses final active invoices and accounted credit notes. Missing line costs withhold profit and margin.','ربحية العميل تستخدم الفواتير النهائية الفعالة والإشعارات الدائنة المحتسبة. عند نقص تكلفة أي بند يتم حجب الربح والهامش.');
+  if(dimension==='invoice')return t('Invoice profitability = net commercial revenue minus item costs and internal shipping/other costs. Tax is not treated as revenue.','ربحية الفاتورة = صافي الإيراد التجاري ناقص تكاليف الأصناف وتكاليف الشحن/المصاريف الداخلية. الضريبة لا تعامل كإيراد.');
+  if(dimension==='supplier')return t('Supplier attribution uses the latest posted purchase for the matched saved product on or before the invoice date. Without that evidence, the row remains Unattributed.','نسبة الربحية للمورد تعتمد آخر شراء مرحل للصنف المطابق في تاريخ الفاتورة أو قبله. عند غياب هذا الدليل يبقى السطر غير منسوب.');
+  return t('Category comes from the saved-product category. Unmatched invoice lines remain Uncategorized rather than being guessed.','الفئة مأخوذة من فئة الصنف المحفوظ. بنود الفاتورة غير المطابقة تبقى بلا تصنيف بدل التخمين.');
+}
+function normalizeRows(dimension:Dimension,props:Props,from:string,to:string):ProfitabilityDimensionRow[]{
+  const docs=props.documents.filter(doc=>!doc.issueDate||((!from||doc.issueDate>=from)&&(!to||doc.issueDate<=to)));
+  if(dimension==='product')return productProfitabilityRows(docs,props.items);
+  if(dimension==='invoice')return invoiceProfitabilityRows(docs);
+  if(dimension==='supplier')return supplierProfitabilityRows(docs,props.items,props.purchases,props.suppliers);
+  if(dimension==='category')return categoryProfitabilityRows(docs,props.items);
+  return customerPerformanceReport(props.customers,props.documents,props.payments,from,to).map(row=>({id:row.customerId||row.customerName,label:row.customerName,currency:row.currency,netSales:row.netSales,totalCost:row.totalCost,grossProfit:row.grossProfit,marginPercent:row.marginPercent,profitComplete:row.profitComplete,missingCostItems:row.missingCostItems,documents:row.issuedInvoices,note:''}));
+}
+export function ProfitabilityReports(props:Props):any{
+  const [dimension,setDimension]=React.useState<Dimension>('product'),[from,setFrom]=React.useState(startYear()),[to,setTo]=React.useState(todayIso()),[currency,setCurrency]=React.useState('ALL'),[query,setQuery]=React.useState('');
+  const rows=React.useMemo(()=>normalizeRows(dimension,props,from,to),[dimension,from,to,props.documents,props.payments,props.customers,props.suppliers,props.purchases,props.items]);
+  const currencies=Array.from(new Set(rows.map(row=>row.currency))).sort();const q=query.trim().toLowerCase();const visible=rows.filter(row=>(currency==='ALL'||row.currency===currency)&&(!q||[row.label,row.note].join(' ').toLowerCase().includes(q)));
+  return <section className="ta-reports-page lx-profitability-reports"><header className="ta-page-header"><div><span className="ta-page-kicker">{t('Profitability center','مركز الربحية')}</span><h1>{t('Profitability','الربحية')}</h1><p>{t('Deterministic gross profitability with currencies kept separate and incomplete costs clearly withheld.','ربحية إجمالية حتمية مع إبقاء العملات منفصلة وحجب النتائج التي تنقصها التكاليف بوضوح.')}</p></div></header>
+    <section className="ta-report-filterbar"><label><span>{t('From','من')}</span><Input type="date" value={from} onChange={(e:any)=>setFrom(e.target.value)}/></label><label><span>{t('To','إلى')}</span><Input type="date" value={to} onChange={(e:any)=>setTo(e.target.value)}/></label><label><span>{t('Currency','العملة')}</span><Select value={currency} onChange={(e:any)=>setCurrency(e.target.value)}><option value="ALL">{t('All — separate','الكل — منفصلة')}</option>{currencies.map(code=><option key={code}>{code}</option>)}</Select></label><Input placeholder={t('Search…','بحث…')} value={query} onChange={(e:any)=>setQuery(e.target.value)}/></section>
+    <nav className="ta-report-workspace-tabs" role="tablist" aria-label={t('Profitability dimensions','أبعاد الربحية')}>{(['product','customer','invoice','supplier','category'] as Dimension[]).map(id=><button key={id} type="button" role="tab" aria-selected={dimension===id} className={dimension===id?'is-active':''} onClick={()=>setDimension(id)}>{id==='product'?t('Product','المنتج'):id==='customer'?t('Customer','العميل'):id==='invoice'?t('Invoice','الفاتورة'):id==='supplier'?t('Supplier','المورد'):t('Category','الفئة')}</button>)}</nav>
+    <section className="ta-data-alert"><span>?</span><div><strong>{t('How calculated?','كيف يتم الحساب؟')}</strong><p>{how(dimension)}</p></div></section>
+    <section className="ta-panel"><header className="ta-panel-header"><div><span>{t('Profitability detail','تفاصيل الربحية')}</span><h2>{dimension==='product'?t('By Product','حسب المنتج'):dimension==='customer'?t('By Customer','حسب العميل'):dimension==='invoice'?t('By Invoice','حسب الفاتورة'):dimension==='supplier'?t('By Supplier','حسب المورد'):t('By Category','حسب الفئة')}</h2></div><div className="ta-panel-status">{visible.length}</div></header><div className="ta-table-wrap"><table className="ta-table"><thead><tr><th>{t('Name','الاسم')}</th><th>{t('Currency','العملة')}</th><th>{t('Net Sales','صافي المبيعات')}</th><th>{t('Total Cost','إجمالي التكلفة')}</th><th>{t('Gross Profit','الربح الإجمالي')}</th><th>{t('Margin','الهامش')}</th><th>{t('Docs','المستندات')}</th></tr></thead><tbody>{visible.map(row=><tr key={`${row.id}:${row.currency}`}><td><strong>{row.label}</strong>{row.note?<small>{row.note}</small>:null}</td><td>{row.currency}</td><td>{formatMoney(row.netSales,row.currency)}</td><td>{row.profitComplete?formatMoney(row.totalCost,row.currency):'—'}</td><td>{row.profitComplete?formatMoney(row.grossProfit,row.currency):'—'}</td><td>{row.profitComplete?`${row.marginPercent}%`:'—'}</td><td>{row.documents}{!row.profitComplete?<small>{t(`${row.missingCostItems} missing cost`,`تكلفة ناقصة: ${row.missingCostItems}`)}</small>:null}</td></tr>)}</tbody></table>{!visible.length?<div className="ta-empty-card">{t('No profitability data for this filter.','لا توجد بيانات ربحية لهذا الفلتر.')}</div>:null}</div></section>
+  </section>;
+}
