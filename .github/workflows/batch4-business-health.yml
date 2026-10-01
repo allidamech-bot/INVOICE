@@ -4,10 +4,12 @@ on:
   pull_request:
     paths:
       - 'src/lib/business-health.ts'
+      - 'src/lib/setup-readiness.ts'
       - 'src/components/BusinessHealthCard.tsx'
       - 'src/components/WorkspaceHome.tsx'
       - 'src/app/App.tsx'
       - 'tests/business-health-batch4.test.mjs'
+      - 'tests/setup-readiness-batch4.test.mjs'
       - 'tests/visual/business-health-batch4.html'
       - 'tests/visual/run-business-health-batch4.cjs'
       - '.github/workflows/batch4-business-health.yml'
@@ -31,7 +33,7 @@ jobs:
       - name: Production build
         run: npm run build
       - name: Batch 4 contracts and deterministic engine tests
-        run: node --test tests/business-health-batch4.test.mjs
+        run: node --test tests/business-health-batch4.test.mjs tests/setup-readiness-batch4.test.mjs
       - name: Install Chromium QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
