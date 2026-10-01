@@ -1,9 +1,101 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    function signedIn() {
+      return request.auth != null;
     }
+
+    function activeShare() {
+      return resource.data.format == 'LOUREX_SECURE_SHARE_V1'
+        && resource.data.version == 1
+        && resource.data.revokedAt == null
+        && resource.data.expiresAt is timestamp
+        && request.time < resource.data.expiresAt;
+    }
+
+    function ownerOfShare() {
+      return signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    function validShareCreate() {
+      return signedIn()
+        && request.resource.data.format == 'LOUREX_SECURE_SHARE_V1'
+        && request.resource.data.version == 1
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.documentId is string
+        && request.resource.data.documentId.size() > 0
+        && request.resource.data.customerId is string
+        && request.resource.data.customerId.size() > 0
+        && request.resource.data.documentNumber is string
+        && request.resource.data.documentNumber.size() > 0
+        && request.resource.data.kind is string
+        && request.resource.data.currency is string
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + duration.value(90, 'd')
+        && request.resource.data.revokedAt == null
+        && request.resource.data.viewedAt == null
+        && request.resource.data.respondedAt == null
+        && request.resource.data.responseStatus == 'pending'
+        && request.resource.data.customerComment == ''
+        && request.resource.data.snapshot is map
+        && request.resource.data.snapshot.version == 1;
+    }
+
+    function ownerShareUpdate() {
+      return ownerOfShare()
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.documentId == resource.data.documentId
+        && request.resource.data.customerId == resource.data.customerId
+        && request.resource.data.documentNumber == resource.data.documentNumber
+        && request.resource.data.kind == resource.data.kind
+        && request.resource.data.currency == resource.data.currency
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.snapshot == resource.data.snapshot
+        && request.resource.data.responseStatus == resource.data.responseStatus
+        && request.resource.data.customerComment == resource.data.customerComment
+        && request.resource.data.viewedAt == resource.data.viewedAt
+        && request.resource.data.respondedAt == resource.data.respondedAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revokedAt', 'expiresAt', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.resource.data.createdAt;
+    }
+
+    function publicFirstView() {
+      return activeShare()
+        && resource.data.viewedAt == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedAt', 'updatedAt'])
+        && request.resource.data.viewedAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function publicResponse() {
+      return activeShare()
+        && (resource.data.responseStatus == 'pending' || resource.data.responseStatus == 'commented')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['responseStatus', 'customerComment', 'respondedAt', 'updatedAt'])
+        && request.resource.data.responseStatus in ['commented', 'accepted', 'rejected']
+        && request.resource.data.customerComment is string
+        && request.resource.data.customerComment.size() <= 2000
+        && request.resource.data.respondedAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && (request.resource.data.responseStatus == 'commented' || resource.data.snapshot.canRespond == true);
+    }
+
+    match /users/{userId}/{document=**} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /secureShares/{shareId} {
+      allow create: if validShareCreate();
+      allow get: if ownerOfShare() || activeShare();
+      allow list: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow update: if ownerShareUpdate() || publicFirstView() || publicResponse();
+      allow delete: if ownerOfShare();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
