@@ -109,9 +109,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
       deliveryTime:migrated.company.defaultDeliveryTime || migrated.appSettings.smartDefaults.deliveryTime
     };
   }
-  // v14 reserves PI for Proforma Invoice. Existing Quotation documents remain intact; only future quotation numbering moves to QUO.
   if(sourceVersion<14&&migrated.appSettings.numbering.proformaPrefix==='PI')migrated.appSettings.numbering.proformaPrefix='QUO';
-
 
   migrated.customers = Array.isArray((vault as any).customers) ? (vault as any).customers.map((customer:any) => ({
     id:stringValue(customer?.id), createdAt:stringValue(customer?.createdAt,nowIso()), updatedAt:stringValue(customer?.updatedAt,customer?.createdAt ? stringValue(customer.createdAt) : nowIso()),
@@ -127,11 +125,15 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   })) : [];
 
   migrated.purchases = Array.isArray((vault as any).purchases) ? (vault as any).purchases.map((purchase:any)=>({
-    id:stringValue(purchase?.id),number:stringValue(purchase?.number),date:stringValue(purchase?.date),supplierSnapshot:purchase?.supplierSnapshot&&typeof purchase.supplierSnapshot==='object'?{
+    id:stringValue(purchase?.id),number:stringValue(purchase?.number),date:stringValue(purchase?.date),dueDate:stringValue(purchase?.dueDate,stringValue(purchase?.date)),supplierSnapshot:purchase?.supplierSnapshot&&typeof purchase.supplierSnapshot==='object'?{
       sourceSupplierId:stringValue(purchase.supplierSnapshot.sourceSupplierId),nameEn:stringValue(purchase.supplierSnapshot.nameEn),nameAr:stringValue(purchase.supplierSnapshot.nameAr),contactPerson:stringValue(purchase.supplierSnapshot.contactPerson),address:stringValue(purchase.supplierSnapshot.address),city:stringValue(purchase.supplierSnapshot.city),country:stringValue(purchase.supplierSnapshot.country),phone:stringValue(purchase.supplierSnapshot.phone),email:stringValue(purchase.supplierSnapshot.email),vatTaxNumber:stringValue(purchase.supplierSnapshot.vatTaxNumber),commercialRegistration:stringValue(purchase.supplierSnapshot.commercialRegistration)
     }:null,currency:cleanCurrency(purchase?.currency,migrated.appSettings.smartDefaults.currency||'USD'),items:Array.isArray(purchase?.items)?purchase.items.map((item:any)=>({
       id:stringValue(item?.id),savedItemId:stringValue(item?.savedItemId),sku:stringValue(item?.sku),descriptionEn:stringValue(item?.descriptionEn),descriptionAr:stringValue(item?.descriptionAr),quantity:stringValue(item?.quantity,'0'),unit:stringValue(item?.unit,'PCS'),unitCost:stringValue(item?.unitCost,'0'),landedUnitCost:stringValue(item?.landedUnitCost),previousUnitCost:stringValue(item?.previousUnitCost),previousCostCurrency:stringValue(item?.previousCostCurrency).trim().toUpperCase()
     })):[],freight:stringValue(purchase?.freight,'0.00'),duty:stringValue(purchase?.duty,'0.00'),otherCosts:stringValue(purchase?.otherCosts,'0.00'),notes:stringValue(purchase?.notes),status:PURCHASE_STATUSES.has(purchase?.status)?purchase.status:'draft',postedAt:stringValue(purchase?.postedAt),reversedAt:stringValue(purchase?.reversedAt),reverseReason:stringValue(purchase?.reverseReason),createdAt:stringValue(purchase?.createdAt,nowIso()),updatedAt:stringValue(purchase?.updatedAt,purchase?.createdAt?stringValue(purchase.createdAt):nowIso())
+  })) : [];
+
+  migrated.supplierPayments = Array.isArray((vault as any).supplierPayments) ? (vault as any).supplierPayments.map((payment:any)=>({
+    id:stringValue(payment?.id),purchaseId:stringValue(payment?.purchaseId),purchaseNumber:stringValue(payment?.purchaseNumber),supplierId:stringValue(payment?.supplierId),supplierNameEn:stringValue(payment?.supplierNameEn),supplierNameAr:stringValue(payment?.supplierNameAr),currency:cleanCurrency(payment?.currency,migrated.appSettings.smartDefaults.currency||'USD'),amount:stringValue(payment?.amount,'0.00'),date:stringValue(payment?.date),method:PAYMENT_METHODS.has(payment?.method)?payment.method:'other',reference:stringValue(payment?.reference),notes:stringValue(payment?.notes),createdAt:stringValue(payment?.createdAt,nowIso()),updatedAt:stringValue(payment?.updatedAt,payment?.createdAt?stringValue(payment.createdAt):nowIso())
   })) : [];
 
   migrated.expenses = Array.isArray((vault as any).expenses) ? (vault as any).expenses.map((expense:any)=>({
@@ -158,8 +160,6 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     reference:stringValue(payment?.reference), notes:stringValue(payment?.notes), createdAt:stringValue(payment?.createdAt,nowIso()), updatedAt:stringValue(payment?.updatedAt,payment?.createdAt?stringValue(payment.createdAt):nowIso())
   })) : [];
 
-  // Historical document snapshots must never inherit today's company details.
-  // Missing legacy fields are filled only with safe blank/default snapshot values.
   const fallbackCompanySnapshot = companySnapshotFrom(defaults.company);
   migrated.documents = Array.isArray((vault as any).documents) ? (vault as any).documents.map((document:any) => {
     const companySnapshot = document?.companySnapshot ?? {};
@@ -246,6 +246,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   unique(migrated.customers.map(c => c.id), 'customer');
   unique(migrated.suppliers.map(s => s.id), 'supplier');
   unique(migrated.purchases.map(p => p.id), 'purchase');
+  unique(migrated.supplierPayments.map(p => p.id), 'supplier payment');
   unique(migrated.expenses.map(e => e.id), 'expense');
   unique(migrated.inventoryMovements.map(m => m.id), 'inventory movement');
   unique(migrated.documents.map(d => d.id), 'document');

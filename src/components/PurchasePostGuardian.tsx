@@ -12,14 +12,14 @@ function collectLivePurchase(button:HTMLButtonElement,vault:any):PurchaseRecord|
   const editor=button.closest('.ta-ops-purchase-editor');if(!(editor instanceof HTMLElement))return null;
   const sections=editor.querySelectorAll('.ta-ops-form-section');if(sections.length<3)return null;
   const identityInputs=sections[0]!.querySelectorAll('input');const supplierSelect=sections[0]!.querySelector('select');
-  const number=value(identityInputs[0]),date=value(identityInputs[1]),currency=value(identityInputs[2]),supplierId=value(supplierSelect);
-  if(!number||!date)return null;
+  const number=value(identityInputs[0]),date=value(identityInputs[1]),dueDate=value(identityInputs[2]),currency=value(identityInputs[3]),supplierId=value(supplierSelect);
+  if(!number||!date||!dueDate)return null;
   const supplier=vault.suppliers.find((entry:any)=>entry.id===supplierId);
   const base=vault.purchases.find((entry:any)=>entry.number===number);
   const items=Array.from(editor.querySelectorAll('.ta-purchase-item')).map((article,index)=>{const select=article.querySelector('select');const inputs=article.querySelectorAll('input');return{id:base?.items?.[index]?.id||`guardian-item-${index+1}`,savedItemId:value(select),sku:value(inputs[0]),descriptionEn:value(inputs[1]),descriptionAr:value(inputs[2]),quantity:value(inputs[3]),unit:value(inputs[4]),unitCost:value(inputs[5]),landedUnitCost:value(inputs[6]),previousUnitCost:'',previousCostCurrency:''};});
   if(!items.length)return null;
   const landedInputs=sections[2]!.querySelectorAll('input');const now=new Date().toISOString();
-  return{id:base?.id||'guardian-live-draft',number,date,supplierSnapshot:supplierSnapshot(supplier),currency:currency.toUpperCase(),items,freight:value(landedInputs[0]),duty:value(landedInputs[1]),otherCosts:value(landedInputs[2]),notes:'',status:'draft',postedAt:'',reversedAt:'',reverseReason:'',createdAt:base?.createdAt||now,updatedAt:now};
+  return{id:base?.id||'guardian-live-draft',number,date,dueDate,supplierSnapshot:supplierSnapshot(supplier),currency:currency.toUpperCase(),items,freight:value(landedInputs[0]),duty:value(landedInputs[1]),otherCosts:value(landedInputs[2]),notes:'',status:'draft',postedAt:'',reversedAt:'',reverseReason:'',createdAt:base?.createdAt||now,updatedAt:now};
 }
 
 export async function preparePurchasePostGuardian(button:HTMLButtonElement):Promise<{review:PurchaseGuardianReview;purchaseNumber:string}|null>{

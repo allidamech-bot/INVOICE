@@ -67,8 +67,9 @@ export function nextPurchaseNumber(purchases:PurchaseRecord[],date=todayIso()):s
 export function createPurchase(purchases:PurchaseRecord[],suppliers:Supplier[],currency='USD'):PurchaseRecord{
   const at=nowIso();
   const supplier=suppliers[0];
+  const date=todayIso();
   return {
-    id:makeId('purchase'),number:nextPurchaseNumber(purchases),date:todayIso(),supplierSnapshot:supplier?supplierSnapshotFrom(supplier):null,
+    id:makeId('purchase'),number:nextPurchaseNumber(purchases),date,dueDate:date,supplierSnapshot:supplier?supplierSnapshotFrom(supplier):null,
     currency:cleanCurrency(supplier?.defaultCurrency||currency),items:[],freight:'0.00',duty:'0.00',otherCosts:'0.00',notes:'',status:'draft',
     postedAt:'',reversedAt:'',reverseReason:'',createdAt:at,updatedAt:at
   };
@@ -156,6 +157,8 @@ export function validatePurchase(purchase:PurchaseRecord,savedItems:SavedItem[]=
   const errors:string[]=[];
   if(!purchase.number.trim())errors.push('Purchase number is required.');
   if(!isIsoDate(purchase.date))errors.push('Purchase date is invalid.');
+  if(!isIsoDate(purchase.dueDate))errors.push('Purchase due date is invalid.');
+  if(isIsoDate(purchase.date)&&isIsoDate(purchase.dueDate)&&purchase.dueDate<purchase.date)errors.push('Purchase due date cannot be before the purchase date.');
   if(!purchase.supplierSnapshot?.sourceSupplierId)errors.push('Supplier is required.');
   if(!purchase.currency.trim())errors.push('Purchase currency is required.');
   if(!purchase.items.length)errors.push('Add at least one purchase item.');
@@ -170,7 +173,7 @@ export function validatePurchase(purchase:PurchaseRecord,savedItems:SavedItem[]=
 }
 
 export function purchaseAccountingIsValid(purchase:PurchaseRecord):boolean{
-  if(!purchase.number.trim()||!isIsoDate(purchase.date)||!purchase.currency.trim()||!purchase.items.length)return false;
+  if(!purchase.number.trim()||!isIsoDate(purchase.date)||!isIsoDate(purchase.dueDate)||purchase.dueDate<purchase.date||!purchase.currency.trim()||!purchase.items.length)return false;
   for(const item of purchase.items){
     if(!positive(item.quantity)||!nonNegativeCost(item.unitCost))return false;
   }

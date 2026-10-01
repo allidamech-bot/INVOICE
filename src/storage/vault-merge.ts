@@ -3,6 +3,7 @@ import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved
 import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput } from '../lib/money.js';
 import { assertDocumentLifecycleInvariant } from '../lib/document-lifecycle.js';
 import { assertInvoicePaymentInvariant } from '../lib/payments.js';
+import { assertSupplierPaymentInvariant } from '../lib/payables.js';
 import { inventoryMovementIsManual, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
 import { isIsoDate } from '../lib/id.js';
 import { t } from '../lib/i18n.js';
@@ -441,14 +442,15 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const expenses=mergeRecords(base.expenses,intended.expenses,latest.expenses);
   const inventoryMovements=mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   const documents=mergeDocuments(base.documents,intended.documents,latest.documents);
-  // Payments are auditable financial records. A stale edit or delete must not
-  // silently overwrite a newer version saved by another tab or device.
   guardConcurrentRecordChanges(base.payments,intended.payments,latest.payments,'Payment','Reopen the invoice before saving or deleting the payment.');
   const payments=mergeRecords(base.payments,intended.payments,latest.payments);
+  guardConcurrentRecordChanges(base.supplierPayments,intended.supplierPayments,latest.supplierPayments,'Supplier payment','Reopen Supplier Payables before saving or deleting the payment.');
+  const supplierPayments=mergeRecords(base.supplierPayments,intended.supplierPayments,latest.supplierPayments);
   guardCustomerChanges(base.customers,intended.customers,customers);
   guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems);
   guardFinancialSettlementChanges(base,intended,documents,payments);
   guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems);
+  assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
   return {
     ...latest,
     schemaVersion:Math.max(latest.schemaVersion,intended.schemaVersion),
@@ -456,6 +458,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     customers,
     suppliers,
     purchases,
+    supplierPayments,
     expenses,
     inventoryMovements,
     documents,
