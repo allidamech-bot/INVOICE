@@ -2,6 +2,7 @@ import type { LourexDocument, PurchaseRecord, RecurringCadence, RecurringWorkflo
 import { addDaysIso, daysBetweenIso, isIsoDate, makeId, todayIso } from './id.js';
 
 export const DEFAULT_WORKSPACE_ID='default';
+export const DEFAULT_BRANCH_ID='main';
 export const RECURRING_MAX_INTERVAL=52;
 const DOCUMENT_KINDS=new Set(['rfq','proforma','proforma-invoice','purchase-order','invoice']);
 
@@ -40,7 +41,7 @@ function sanitizePurchaseTemplate(source:PurchaseRecord):PurchaseRecord{
 
 function baseWorkflow(target:'document'|'purchase',sourceId:string,sourceNumber:string,title:string,cadence:RecurringCadence,interval:number,nextRunDate:string,endDate:string):Omit<RecurringWorkflowRecord,'documentTemplate'|'purchaseTemplate'>{
   const now=new Date().toISOString();
-  return{id:makeId('recurring'),workspaceId:DEFAULT_WORKSPACE_ID,target,title:title.trim()||sourceNumber,sourceId,sourceNumber,cadence,interval:clampInterval(interval),nextRunDate,endDate:endDate.trim(),enabled:true,generatedRuns:[],createdAt:now,updatedAt:now};
+  return{id:makeId('recurring'),workspaceId:DEFAULT_WORKSPACE_ID,branchId:DEFAULT_BRANCH_ID,target,title:title.trim()||sourceNumber,sourceId,sourceNumber,cadence,interval:clampInterval(interval),nextRunDate,endDate:endDate.trim(),enabled:true,generatedRuns:[],createdAt:now,updatedAt:now};
 }
 
 export function createDocumentRecurringWorkflow(source:LourexDocument,options:{title?:string;cadence:RecurringCadence;interval?:number;nextRunDate?:string;endDate?:string}):RecurringWorkflowRecord{
@@ -59,7 +60,8 @@ export function createPurchaseRecurringWorkflow(source:PurchaseRecord,options:{t
 
 export function assertRecurringWorkflow(record:RecurringWorkflowRecord):void{
   if(!record.id.trim())throw new Error('Recurring workflow ID is required.');
-  if(record.workspaceId!==DEFAULT_WORKSPACE_ID)throw new Error('Unknown recurring workspace.');
+  if(!record.workspaceId.trim())throw new Error('Recurring workspace is required.');
+  if(!record.branchId.trim())throw new Error('Recurring branch is required.');
   if(record.target!=='document'&&record.target!=='purchase')throw new Error('Recurring target is invalid.');
   if(!['weekly','monthly','quarterly','yearly'].includes(record.cadence))throw new Error('Recurring cadence is invalid.');
   if(!Number.isInteger(record.interval)||record.interval<1||record.interval>RECURRING_MAX_INTERVAL)throw new Error('Recurring interval is invalid.');

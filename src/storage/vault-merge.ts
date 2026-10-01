@@ -435,6 +435,8 @@ function mergeAppSettings(base:AppSettings,intended:AppSettings,latest:AppSettin
   if(intended.autoLockMinutes!==base.autoLockMinutes)next.autoLockMinutes=intended.autoLockMinutes;
   if(intended.uiLanguage!==base.uiLanguage)next.uiLanguage=intended.uiLanguage;
   if(intended.activeTeamMemberId!==base.activeTeamMemberId)next.activeTeamMemberId=intended.activeTeamMemberId;
+  if(intended.activeWorkspaceId!==base.activeWorkspaceId)next.activeWorkspaceId=intended.activeWorkspaceId;
+  if(intended.activeBranchId!==base.activeBranchId)next.activeBranchId=intended.activeBranchId;
   const numberingKeys:Array<keyof AppSettings['numbering']>=['proformaPrefix','invoicePrefix','creditNotePrefix','purchaseOrderPrefix','proformaLast','invoiceLast','creditNoteLast','purchaseOrderLast','proformaYear','invoiceYear','creditNoteYear','purchaseOrderYear'];
   for(const key of numberingKeys)if(intended.numbering[key]!==base.numbering[key])(next.numbering as any)[key]=intended.numbering[key];
   const smartKeys:Array<Exclude<keyof AppSettings['smartDefaults'],'favoriteTemplateIds'>>=['currency','language','incoterm','paymentTerms','deliveryTime','quoteTemplateId','invoiceTemplateId'];
@@ -450,6 +452,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const purchases=mergeRecords(base.purchases,intended.purchases,latest.purchases);
   const expenses=mergeRecords(base.expenses,intended.expenses,latest.expenses);
   const inventoryMovements=mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  const workspaces=mergeRecords(base.workspaces,intended.workspaces,latest.workspaces);
+  const branches=mergeRecords(base.branches,intended.branches,latest.branches);
   guardConcurrentRecordChanges(base.teamMembers,intended.teamMembers,latest.teamMembers,'Team member','Reopen Access settings before saving this member.');
   const teamMembers=mergeRecords(base.teamMembers,intended.teamMembers,latest.teamMembers);
   const approvalPolicies=mergeRecords(base.approvalPolicies,intended.approvalPolicies,latest.approvalPolicies);
@@ -477,6 +481,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     supplierPayments,
     expenses,
     inventoryMovements,
+    workspaces,
+    branches,
     teamMembers,
     approvalPolicies,
     approvalRequests,

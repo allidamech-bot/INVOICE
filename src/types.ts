@@ -21,6 +21,8 @@ export type TeamMemberStatus = 'active' | 'suspended';
 export type ApprovalAction = 'issue-document' | 'post-purchase' | 'reverse-purchase';
 export type ApprovalRequestStatus = 'pending' | 'approved' | 'rejected';
 
+export interface WorkspaceScopeFields { workspaceId?: string; branchId?: string; }
+
 export interface BankDetails {
   bankName: string;
   accountName: string;
@@ -90,7 +92,7 @@ export interface CompanySettings {
   defaultNotes: string;
 }
 
-export interface Supplier {
+export interface Supplier extends WorkspaceScopeFields {
   id: string;
   createdAt: string;
   updatedAt: string;
@@ -137,7 +139,7 @@ export interface PurchaseItem {
   previousCostCurrency: string;
 }
 
-export interface PurchaseRecord {
+export interface PurchaseRecord extends WorkspaceScopeFields {
   id: string;
   number: string;
   date: string;
@@ -157,7 +159,7 @@ export interface PurchaseRecord {
   updatedAt: string;
 }
 
-export interface SupplierPaymentRecord {
+export interface SupplierPaymentRecord extends WorkspaceScopeFields {
   id: string;
   purchaseId: string;
   purchaseNumber: string;
@@ -174,7 +176,7 @@ export interface SupplierPaymentRecord {
   updatedAt: string;
 }
 
-export interface ExpenseRecord {
+export interface ExpenseRecord extends WorkspaceScopeFields {
   id: string;
   date: string;
   category: string;
@@ -188,7 +190,7 @@ export interface ExpenseRecord {
   updatedAt: string;
 }
 
-export interface InventoryMovementRecord {
+export interface InventoryMovementRecord extends WorkspaceScopeFields {
   id: string;
   itemId: string;
   itemNameEn: string;
@@ -205,7 +207,7 @@ export interface InventoryMovementRecord {
   createdAt: string;
 }
 
-export interface Customer {
+export interface Customer extends WorkspaceScopeFields {
   id: string;
   createdAt: string;
   updatedAt: string;
@@ -286,7 +288,7 @@ export interface DocumentAttachment {
   createdAt: string;
 }
 
-export interface SavedItem {
+export interface SavedItem extends WorkspaceScopeFields {
   id: string;
   createdAt: string;
   updatedAt: string;
@@ -406,7 +408,7 @@ export interface DocumentAppearance {
   watermark: DocumentWatermark;
 }
 
-export interface LourexDocument {
+export interface LourexDocument extends WorkspaceScopeFields {
   id: string;
   kind: DocumentKind;
   role: DocumentRole;
@@ -441,7 +443,7 @@ export interface LourexDocument {
   updatedAt: string;
 }
 
-export interface PaymentRecord {
+export interface PaymentRecord extends WorkspaceScopeFields {
   id: string;
   invoiceId: string;
   invoiceNumber: string;
@@ -475,9 +477,10 @@ export interface DocumentEventRecord {
   auditAction?: 'created'|'updated'|'deleted'|'posted'|'reversed';
   auditActorKind?: 'user'|'system';
   workspaceId?: string;
+  branchId?: string;
 }
 
-export interface DocumentRevisionRecord {
+export interface DocumentRevisionRecord extends WorkspaceScopeFields {
   id: string;
   documentId: string;
   documentNumber: string;
@@ -519,8 +522,32 @@ export interface AppSettings {
   autoLockMinutes: AutoLockMinutes;
   uiLanguage: UiLanguage;
   activeTeamMemberId: string;
+  activeWorkspaceId: string;
+  activeBranchId: string;
   numbering: NumberingSettings;
   smartDefaults: SmartDocumentDefaults;
+}
+
+export interface WorkspaceRecord {
+  id: string;
+  name: string;
+  company: CompanySettings;
+  numbering: NumberingSettings;
+  smartDefaults: SmartDocumentDefaults;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BranchRecord {
+  id: string;
+  workspaceId: string;
+  name: string;
+  code: string;
+  city: string;
+  country: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TeamMemberRecord {
@@ -540,7 +567,7 @@ export interface ApprovalPolicyRecord {
   approverRoles: TeamRole[];
 }
 
-export interface ApprovalRequestRecord {
+export interface ApprovalRequestRecord extends WorkspaceScopeFields {
   id: string;
   action: ApprovalAction;
   entityType: 'document' | 'purchase';
@@ -569,6 +596,7 @@ export interface RecurringGeneratedRun {
 export interface RecurringWorkflowRecord {
   id: string;
   workspaceId: string;
+  branchId: string;
   target: RecurringTarget;
   title: string;
   sourceId: string;
@@ -595,6 +623,8 @@ export interface VaultPayload {
   supplierPayments: SupplierPaymentRecord[];
   expenses: ExpenseRecord[];
   inventoryMovements: InventoryMovementRecord[];
+  workspaces: WorkspaceRecord[];
+  branches: BranchRecord[];
   teamMembers: TeamMemberRecord[];
   approvalPolicies: ApprovalPolicyRecord[];
   approvalRequests: ApprovalRequestRecord[];

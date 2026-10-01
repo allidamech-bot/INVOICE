@@ -95,6 +95,8 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     autoLockMinutes: AUTO_LOCK_VALUES.has(sourceSettings.autoLockMinutes) ? sourceSettings.autoLockMinutes : defaults.appSettings.autoLockMinutes,
     uiLanguage: uiLanguageValue(sourceSettings.uiLanguage, defaults.appSettings.uiLanguage),
     activeTeamMemberId:stringValue(sourceSettings.activeTeamMemberId,'owner')||'owner',
+    activeWorkspaceId:stringValue(sourceSettings.activeWorkspaceId,'default')||'default',
+    activeBranchId:stringValue(sourceSettings.activeBranchId,'main')||'main',
     numbering: {
       proformaPrefix:cleanPrefix(sourceNumbering.proformaPrefix,defaults.appSettings.numbering.proformaPrefix), invoicePrefix:cleanPrefix(sourceNumbering.invoicePrefix,defaults.appSettings.numbering.invoicePrefix), creditNotePrefix:cleanPrefix(sourceNumbering.creditNotePrefix,defaults.appSettings.numbering.creditNotePrefix), purchaseOrderPrefix:cleanPrefix(sourceNumbering.purchaseOrderPrefix,defaults.appSettings.numbering.purchaseOrderPrefix||'PO'), draftPrefix:cleanPrefix(sourceNumbering.draftPrefix,defaults.appSettings.numbering.draftPrefix||'DR'),
       proformaLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.proformaLast,defaults.appSettings.numbering.proformaLast))), invoiceLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.invoiceLast,defaults.appSettings.numbering.invoiceLast))), creditNoteLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.creditNoteLast,defaults.appSettings.numbering.creditNoteLast))), purchaseOrderLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.purchaseOrderLast,defaults.appSettings.numbering.purchaseOrderLast||0))), draftLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.draftLast,defaults.appSettings.numbering.draftLast||0))),
@@ -171,7 +173,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     if(documentTemplate){documentTemplate.role='standard';documentTemplate.status='draft';documentTemplate.lifecycleStatus='active';documentTemplate.revision=1;documentTemplate.creditForId='';documentTemplate.creditForNumber='';documentTemplate.voidedAt='';documentTemplate.voidReason='';documentTemplate.convertedFromId='';documentTemplate.attachments=[];}
     if(purchaseTemplate){purchaseTemplate.status='draft';purchaseTemplate.postedAt='';purchaseTemplate.reversedAt='';purchaseTemplate.reverseReason='';}
     return{
-      id:stringValue(workflow?.id),workspaceId:stringValue(workflow?.workspaceId,'default')||'default',target,title:stringValue(workflow?.title),sourceId:stringValue(workflow?.sourceId),sourceNumber:stringValue(workflow?.sourceNumber),cadence,
+      id:stringValue(workflow?.id),workspaceId:stringValue(workflow?.workspaceId,'default')||'default',branchId:stringValue(workflow?.branchId,'main')||'main',target,title:stringValue(workflow?.title),sourceId:stringValue(workflow?.sourceId),sourceNumber:stringValue(workflow?.sourceNumber),cadence,
       interval:Math.max(1,Math.min(52,Math.trunc(finiteNumber(workflow?.interval,1)))),nextRunDate:stringValue(workflow?.nextRunDate),endDate:stringValue(workflow?.endDate),enabled:booleanValue(workflow?.enabled,true),
       documentTemplate,purchaseTemplate,
       generatedRuns:Array.isArray(workflow?.generatedRuns)?workflow.generatedRuns.map((run:any)=>({id:stringValue(run?.id),scheduledFor:stringValue(run?.scheduledFor),generatedId:stringValue(run?.generatedId),generatedNumber:stringValue(run?.generatedNumber),createdAt:stringValue(run?.createdAt,nowIso())})).filter((run:any)=>run.id&&run.scheduledFor&&run.generatedId&&run.generatedNumber):[],
@@ -261,7 +263,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   }) : [];
 
   migrated.documentEvents = Array.isArray((vault as any).documentEvents) ? (vault as any).documentEvents.map((event:any)=>({
-    id:stringValue(event?.id),documentId:stringValue(event?.documentId),documentNumber:stringValue(event?.documentNumber),type:DOCUMENT_EVENT_TYPES.has(event?.type)?event.type:'created',at:stringValue(event?.at,nowIso()),note:stringValue(event?.note),relatedDocumentId:stringValue(event?.relatedDocumentId),relatedDocumentNumber:stringValue(event?.relatedDocumentNumber),amount:stringValue(event?.amount),currency:cleanCurrency(event?.currency,migrated.appSettings.smartDefaults.currency||'USD'),auditEntityType:['document','customer','supplier','product','purchase'].includes(String(event?.auditEntityType||''))?event.auditEntityType:undefined,auditEntityId:stringValue(event?.auditEntityId),auditEntityLabel:stringValue(event?.auditEntityLabel),auditAction:['created','updated','deleted','posted','reversed'].includes(String(event?.auditAction||''))?event.auditAction:undefined,auditActorKind:event?.auditActorKind==='system'?'system':event?.auditActorKind==='user'?'user':undefined,workspaceId:stringValue(event?.workspaceId)
+    id:stringValue(event?.id),documentId:stringValue(event?.documentId),documentNumber:stringValue(event?.documentNumber),type:DOCUMENT_EVENT_TYPES.has(event?.type)?event.type:'created',at:stringValue(event?.at,nowIso()),note:stringValue(event?.note),relatedDocumentId:stringValue(event?.relatedDocumentId),relatedDocumentNumber:stringValue(event?.relatedDocumentNumber),amount:stringValue(event?.amount),currency:cleanCurrency(event?.currency,migrated.appSettings.smartDefaults.currency||'USD'),auditEntityType:['document','customer','supplier','product','purchase'].includes(String(event?.auditEntityType||''))?event.auditEntityType:undefined,auditEntityId:stringValue(event?.auditEntityId),auditEntityLabel:stringValue(event?.auditEntityLabel),auditAction:['created','updated','deleted','posted','reversed'].includes(String(event?.auditAction||''))?event.auditAction:undefined,auditActorKind:event?.auditActorKind==='system'?'system':event?.auditActorKind==='user'?'user':undefined,workspaceId:stringValue(event?.workspaceId,'default')||'default',branchId:stringValue(event?.branchId,'main')||'main'
   })) : [];
   migrated.documentRevisions = Array.isArray((vault as any).documentRevisions) ? (vault as any).documentRevisions.map((revision:any)=>{
     const snapshot=revision?.snapshot&&typeof revision.snapshot==='object'?structuredClone(revision.snapshot):null;if(!snapshot)return null;
@@ -270,6 +272,30 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     snapshot.internalCosts={shippingCost:stringValue(snapshot.internalCosts?.shippingCost,'0.00'),otherCost:stringValue(snapshot.internalCosts?.otherCost,'0.00')};
     return{id:stringValue(revision?.id),documentId:stringValue(revision?.documentId),documentNumber:stringValue(revision?.documentNumber),revision:Math.max(1,Math.trunc(finiteNumber(revision?.revision,1))),snapshot,createdAt:stringValue(revision?.createdAt,nowIso())};
   }).filter(Boolean) as any : [];
+
+  const rawScope=(key:string,branchScoped:boolean)=>{const source=Array.isArray((vault as any)[key])?(vault as any)[key]:[];return new Map(source.map((row:any)=>[stringValue(row?.id),{workspaceId:stringValue(row?.workspaceId,'default')||'default',branchId:branchScoped?(stringValue(row?.branchId,'main')||'main'):''}]));};
+  const restoreScope=(key:keyof VaultPayload,branchScoped:boolean)=>{const map=rawScope(String(key),branchScoped),rows=(migrated as any)[key]??[];(migrated as any)[key]=rows.map((row:any)=>({...row,...(map.get(row.id)??{workspaceId:'default',branchId:branchScoped?'main':''})}));};
+  (['customers','suppliers','savedItems'] as const).forEach(key=>restoreScope(key,false));
+  (['purchases','supplierPayments','expenses','inventoryMovements','recurringWorkflows','documents','documentEvents','documentRevisions','payments','approvalRequests'] as const).forEach(key=>restoreScope(key,true));
+
+  const rawWorkspaces=Array.isArray((vault as any).workspaces)?(vault as any).workspaces:[];
+  migrated.workspaces=rawWorkspaces.map((workspace:any,index:number)=>({
+    id:stringValue(workspace?.id,index===0?'default':''),name:stringValue(workspace?.name,workspace?.company?.nameEn||workspace?.company?.nameAr||`Workspace ${index+1}`),
+    company:{...defaults.company,...structuredClone(workspace?.company&&typeof workspace.company==='object'?workspace.company:{})},
+    numbering:{...migrated.appSettings.numbering,...structuredClone(workspace?.numbering&&typeof workspace.numbering==='object'?workspace.numbering:{})},
+    smartDefaults:{...migrated.appSettings.smartDefaults,...structuredClone(workspace?.smartDefaults&&typeof workspace.smartDefaults==='object'?workspace.smartDefaults:{})},
+    createdAt:stringValue(workspace?.createdAt,nowIso()),updatedAt:stringValue(workspace?.updatedAt,workspace?.createdAt?stringValue(workspace.createdAt):nowIso())
+  })).filter((workspace:any)=>workspace.id&&workspace.name);
+  if(!migrated.workspaces.length)migrated.workspaces=[{id:'default',name:migrated.company.nameEn||migrated.company.nameAr||'LOUREX',company:structuredClone(migrated.company),numbering:structuredClone(migrated.appSettings.numbering),smartDefaults:structuredClone(migrated.appSettings.smartDefaults),createdAt:nowIso(),updatedAt:nowIso()}];
+  const rawBranches=Array.isArray((vault as any).branches)?(vault as any).branches:[];
+  migrated.branches=rawBranches.map((branch:any,index:number)=>({id:stringValue(branch?.id,index===0?'main':''),workspaceId:stringValue(branch?.workspaceId,'default')||'default',name:stringValue(branch?.name,'Main Branch'),code:stringValue(branch?.code,'MAIN').trim().toUpperCase()||'MAIN',city:stringValue(branch?.city),country:stringValue(branch?.country),active:booleanValue(branch?.active,true),createdAt:stringValue(branch?.createdAt,nowIso()),updatedAt:stringValue(branch?.updatedAt,branch?.createdAt?stringValue(branch.createdAt):nowIso())})).filter((branch:any)=>branch.id&&branch.workspaceId);
+  for(const workspace of migrated.workspaces)if(!migrated.branches.some(branch=>branch.workspaceId===workspace.id&&branch.active))migrated.branches.push({id:workspace.id==='default'?'main':`branch-${workspace.id}`,workspaceId:workspace.id,name:'Main Branch',code:'MAIN',city:workspace.company.city,country:workspace.company.country,active:true,createdAt:nowIso(),updatedAt:nowIso()});
+  if(!migrated.workspaces.some(workspace=>workspace.id===migrated.appSettings.activeWorkspaceId))migrated.appSettings.activeWorkspaceId=migrated.workspaces.find(workspace=>workspace.id==='default')?.id??migrated.workspaces[0]!.id;
+  const activeWorkspace=migrated.workspaces.find(workspace=>workspace.id===migrated.appSettings.activeWorkspaceId)!;
+  if(!migrated.branches.some(branch=>branch.workspaceId===activeWorkspace.id&&branch.id===migrated.appSettings.activeBranchId&&branch.active))migrated.appSettings.activeBranchId=migrated.branches.find(branch=>branch.workspaceId===activeWorkspace.id&&branch.active)!.id;
+  migrated.company=structuredClone(activeWorkspace.company);
+  migrated.appSettings.numbering=structuredClone(activeWorkspace.numbering);
+  migrated.appSettings.smartDefaults=structuredClone(activeWorkspace.smartDefaults);
 
   const unique = (values: string[], label: string): void => {
     const seen = new Set<string>();
@@ -284,6 +310,8 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   unique(migrated.supplierPayments.map(p => p.id), 'supplier payment');
   unique(migrated.expenses.map(e => e.id), 'expense');
   unique(migrated.inventoryMovements.map(m => m.id), 'inventory movement');
+  unique(migrated.workspaces.map(w => w.id), 'workspace');
+  unique(migrated.branches.map(b => b.id), 'branch');
   unique(migrated.teamMembers.map(m => m.id), 'team member');
   unique(migrated.approvalPolicies.map(p => p.id), 'approval policy');
   unique(migrated.approvalRequests.map(r => r.id), 'approval request');
