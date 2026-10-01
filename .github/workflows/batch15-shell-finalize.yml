@@ -1,0 +1,42 @@
+name: Batch 15 finalize shell
+
+on:
+  push:
+    branches:
+      - feat/lourex-workspaces-batch15
+    paths:
+      - 'scripts/batch15-shell-finalize.py'
+      - '.github/workflows/batch15-shell-finalize.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/lourex-workspaces-batch15
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Finalize Batch 15 shell
+        run: python3 scripts/batch15-shell-finalize.py
+      - run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Commit verified finalization
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/index.tsx src/app/App.tsx src/components/AppShell.tsx src/components/SettingsModal.tsx src/styles/workspaces-batch15.css
+          git commit -m "feat(workspaces): finalize scoped runtime and shell switcher"
+          git rm scripts/batch15-shell-finalize.py .github/workflows/batch15-shell-finalize.yml
+          git commit -m "chore(workspaces): remove one-shot shell finalizer"
+          git fetch origin feat/lourex-workspaces-batch15
+          git rebase origin/feat/lourex-workspaces-batch15
+          git push origin HEAD:feat/lourex-workspaces-batch15
