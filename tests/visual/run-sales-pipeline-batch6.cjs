@@ -49,10 +49,14 @@ const output='visual-qa-output/sales-pipeline-batch6';
         assert.equal(await page.evaluate(()=>window.__batch6MutationCount),1,'Save must use one canonical vault mutation');
         await page.locator('.lx-opportunity-card').click();await page.locator('.lx-opportunity-form').waitFor();
         await page.getByLabel('Stage',{exact:true}).selectOption('won');
-        await page.getByRole('button',{name:'Save Opportunity'}).click();await page.waitForFunction(()=>document.querySelectorAll('.lx-opportunity-card').length===1);
+        await page.getByRole('button',{name:'Save Opportunity'}).click();
+        await page.waitForFunction(()=>window.__batch6MutationCount===2);
+        await page.locator('.lx-opportunity-form').waitFor({state:'detached'});
+        await page.waitForFunction(()=>document.querySelectorAll('.lx-pipeline-summary .lx-pipeline-stat')[1]?.querySelector('strong')?.textContent?.trim()==='1');
         const summary=page.locator('.lx-pipeline-summary .lx-pipeline-stat');assert.equal(String(await summary.nth(1).locator('strong').innerText()).trim(),'1','Won summary must update deterministically');
         assert.equal(await page.evaluate(()=>window.__batch6MutationCount),2,'Stage update must use one additional canonical vault mutation');
         await page.locator('.lx-opportunity-card').click();await page.locator('.lx-opportunity-form').waitFor();
+        assert.equal(await page.getByLabel('Stage',{exact:true}).inputValue(),'won','Won stage must persist when reopening the opportunity');
         const deleteButton=page.getByRole('button',{name:'Delete'});assert.equal(await deleteButton.count(),1,'Existing opportunity must expose one visible Delete action');
         const deleteBox=await deleteButton.boundingBox();assert.ok(deleteBox&&deleteBox.height>=43.5,'Delete action must remain touch-safe');
       }
