@@ -29,6 +29,7 @@ test('planning math uses valid inventory ledger balance and issue-only demand ve
   assert.match(engine,/leadDemandScaled=averageDailyScaled\*BigInt\(policy\?\.leadTimeDays\?\?0\)/);
   assert.match(engine,/reorderTriggerScaled=maxBigInt\(reorderScaled,leadDemandScaled\+safetyScaled\)/);
   assert.match(engine,/suggestedScaled=needsOrder&&targetScaled>onHandScaled\?targetScaled-onHandScaled:0n/);
+  assert.match(engine,/status:InventoryPlanStatus=onHandScaled<=0n\?'critical':!configured\?'unconfigured'/);
   assert.doesNotMatch(engine,/purchaseTotals\(/);
   assert.doesNotMatch(engine,/allocateLandedCost\(/);
   assert.doesNotMatch(engine,/postPurchase\(/);
@@ -53,6 +54,7 @@ test('planning UI is advisory, bilingual and mobile-first',async()=>{
   assert.match(style,/@media\(max-width:640px\)/);
   assert.match(style,/min-height:44px/);
   assert.match(style,/html\[dir="rtl"\]/);
+  assert.match(style,/html\[data-ui-theme="dark"\]/);
   assert.match(style,/@media\(prefers-reduced-motion:reduce\)/);
 });
 
