@@ -1,0 +1,36 @@
+name: Batch 12 pre-PR smoke
+
+on:
+  push:
+    branches:
+      - feat/lourex-recurring-workflows-batch12
+    paths:
+      - '.github/workflows/batch12-pr-smoke.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/lourex-recurring-workflows-batch12
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run typecheck
+      - run: npm run build
+      - run: node --test tests/recurring-workflows-v464.test.mjs
+      - name: Remove one-shot smoke workflow
+        run: |
+          rm .github/workflows/batch12-pr-smoke.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/batch12-pr-smoke.yml
+          git commit -m "chore(recurring): remove one-shot smoke gate"
+          git push origin HEAD:feat/lourex-recurring-workflows-batch12
