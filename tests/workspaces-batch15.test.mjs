@@ -117,6 +117,16 @@ test('application and AI bridge use scoped runtime while backups remain full-vau
   assert.match(settings,/WorkspaceBranchSettings/);
 });
 
+test('notification center remains branch scoped and stale refreshes cannot overwrite mutations',async()=>{
+  const notifications=await read('src/components/NotificationCenterLive.tsx');
+  assert.match(notifications,/buildNotificationCenter\(scopeVault\(session\.vault\),todayIso\(\)\)/);
+  assert.match(notifications,/buildNotificationCenter\(scopeVault\(next\),todayIso\(\)\)/);
+  assert.match(notifications,/private mutationGeneration=0/);
+  assert.match(notifications,/startedAtMutationGeneration!==this\.mutationGeneration/);
+  assert.match(notifications,/optimisticSnapshot\(previous,item,action\)/);
+  assert.match(notifications,/snapshot:previous/);
+});
+
 test('primary navigation freeze remains unchanged',async()=>{
   const shell=await read('src/components/AppShell.tsx');
   for(const screen of ['home','documents','customers','items','operations','receivables','reports'])assert.match(shell,new RegExp(`navItem\\('${screen}'`));
