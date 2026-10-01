@@ -37,6 +37,7 @@ test('batch12 recurring document only materializes a clean reviewable draft once
   const workflow=createDocumentRecurringWorkflow(source,{cadence:'monthly',nextRunDate:'2026-10-01'});
   assert.equal(workflow.documentTemplate.status,'draft');
   assert.deepEqual(workflow.documentTemplate.attachments,[]);
+  assert.deepEqual(workflow.generatedRuns,[]);
   const draft=materializeRecurringDocumentDraft(workflow,'INV-2026-0011');
   assert.equal(draft.status,'draft');assert.equal(draft.lifecycleStatus,'active');assert.equal(draft.issueDate,'2026-10-01');assert.equal(draft.dueDate,'2026-10-31');
   assert.notEqual(draft.id,source.id);assert.deepEqual(draft.attachments,[]);
@@ -49,6 +50,7 @@ test('batch12 recurring purchase stays draft and never posts inventory automatic
   const supplier=createSupplier();supplier.id='s1';supplier.nameEn='Supplier';
   const source=createPurchase([], [supplier], 'USD');source.date='2026-09-15';source.dueDate='2026-10-15';source.items=[createPurchaseItem()];source.items[0].descriptionEn='Carton';source.items[0].quantity='5';source.items[0].unitCost='10';
   const workflow=createPurchaseRecurringWorkflow(source,{cadence:'monthly',nextRunDate:'2026-10-15'});
+  assert.deepEqual(workflow.generatedRuns,[]);
   const draft=materializeRecurringPurchaseDraft(workflow,'PUR-2026-0002');
   assert.equal(draft.status,'draft');assert.equal(draft.postedAt,'');assert.equal(draft.reversedAt,'');assert.equal(draft.date,'2026-10-15');assert.equal(draft.dueDate,'2026-11-14');
 });
