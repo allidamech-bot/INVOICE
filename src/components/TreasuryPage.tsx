@@ -1,141 +1,117 @@
-import type { CompanySettings, ExpenseRecord, PaymentRecord, SupplierPaymentRecord } from '../types.js';
+import type { CompanySettings, PaymentRecord, SupplierPaymentRecord, TreasuryAccountKind, TreasuryAccountRecord, TreasuryEntryType, TreasuryLedgerEntry } from '../types.js';
+import { createTreasuryAccount, createTreasuryEntry, treasuryAccountBalance, treasuryLinkedSourceUsed } from '../lib/treasury-ledger.js';
+import { todayIso } from '../lib/id.js';
 import { t } from '../lib/i18n.js';
+import { formatMoney } from '../lib/money.js';
+import { Button, Input, Select, Textarea } from './UI.js';
 
 interface Props{
   payments:PaymentRecord[];
   supplierPayments:SupplierPaymentRecord[];
-  expenses:ExpenseRecord[];
   company:CompanySettings;
   defaultCurrency:string;
+  accounts:TreasuryAccountRecord[];
+  entries:TreasuryLedgerEntry[];
+  workspaceId:string;
+  branchId:string;
+  onSaveAccount:(account:TreasuryAccountRecord)=>Promise<void>;
+  onSaveEntry:(entry:TreasuryLedgerEntry)=>Promise<void>;
+  onVoidEntry:(entry:TreasuryLedgerEntry,reason:string)=>Promise<void>;
+  onReconcileEntry:(entry:TreasuryLedgerEntry,reconciled:boolean)=>Promise<void>;
 }
 
-type TreasuryMovement={
-  id:string;
-  date:string;
-  createdAt:string;
-  direction:'in'|'out';
-  source:'customer'|'supplier'|'expense';
-  label:string;
-  reference:string;
-  method:string;
-  currency:string;
-  amount:number;
-};
+type ReconciliationDirection='in'|'out';
 
-function numberValue(value:string):number{
-  const parsed=Number(String(value||'').replace(/,/g,''));
-  return Number.isFinite(parsed)?Math.max(0,parsed):0;
+function entryLabel(type:TreasuryEntryType):string{
+  if(type==='opening-balance')return t('Opening balance','رصيد افتتاحي');
+  if(type==='deposit')return t('Deposit','إيداع');
+  if(type==='withdrawal')return t('Withdrawal','سحب');
+  if(type==='transfer')return t('Transfer','تحويل');
+  if(type==='collection')return t('Customer collection','تحصيل عميل');
+  if(type==='supplier-payment')return t('Supplier payment','دفعة مورد');
+  return t('Reconciliation adjustment','تسوية مطابقة');
 }
-
-function money(value:number,currency:string):string{
-  try{return new Intl.NumberFormat(undefined,{style:'currency',currency:currency||'USD',maximumFractionDigits:2}).format(value);}catch{return `${currency||'USD'} ${value.toFixed(2)}`;}
-}
-
-function dateLabel(value:string):string{
-  if(!value)return '—';
-  const parsed=new Date(`${value}T00:00:00`);
-  if(Number.isNaN(parsed.getTime()))return value;
-  return new Intl.DateTimeFormat(undefined,{year:'numeric',month:'short',day:'numeric'}).format(parsed);
-}
-
-function sourceLabel(source:TreasuryMovement['source']):string{
-  if(source==='customer')return t('Customer receipt','تحصيل عميل');
-  if(source==='supplier')return t('Supplier payment','دفعة مورد');
-  return t('Expense','مصروف');
-}
-
-function methodLabel(method:string):string{
-  switch(method){
-    case 'cash':return t('Cash','نقدي');
-    case 'bank-transfer':return t('Bank transfer','تحويل بنكي');
-    case 'card':return t('Card','بطاقة');
-    case 'cheque':return t('Cheque','شيك');
-    default:return t('Other','أخرى');
-  }
-}
+function accountLabel(account:TreasuryAccountRecord|undefined):string{return account?`${account.label} · ${account.currency}`:'—';}
 
 export function TreasuryPage(props:Props):any{
-  const movements=React.useMemo<TreasuryMovement[]>(()=>{
-    const rows:TreasuryMovement[]=[];
-    props.payments.forEach(payment=>rows.push({
-      id:`customer:${payment.id}`,date:payment.date,createdAt:payment.createdAt,direction:'in',source:'customer',
-      label:payment.customerNameEn||payment.customerNameAr||payment.invoiceNumber||t('Customer receipt','تحصيل عميل'),
-      reference:payment.reference||payment.invoiceNumber,method:payment.method,currency:(payment.currency||props.defaultCurrency||'USD').toUpperCase(),amount:numberValue(payment.amount)
-    }));
-    props.supplierPayments.forEach(payment=>rows.push({
-      id:`supplier:${payment.id}`,date:payment.date,createdAt:payment.createdAt,direction:'out',source:'supplier',
-      label:payment.supplierNameEn||payment.supplierNameAr||payment.purchaseNumber||t('Supplier payment','دفعة مورد'),
-      reference:payment.reference||payment.purchaseNumber,method:payment.method,currency:(payment.currency||props.defaultCurrency||'USD').toUpperCase(),amount:numberValue(payment.amount)
-    }));
-    props.expenses.forEach(expense=>rows.push({
-      id:`expense:${expense.id}`,date:expense.date,createdAt:expense.createdAt,direction:'out',source:'expense',
-      label:expense.description||expense.category||t('Operating expense','مصروف تشغيلي'),reference:expense.reference,method:'other',currency:(expense.currency||props.defaultCurrency||'USD').toUpperCase(),amount:numberValue(expense.amount)
-    }));
-    return rows.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
-  },[props.payments,props.supplierPayments,props.expenses,props.defaultCurrency]);
+  const activeAccounts=props.accounts.filter(item=>item.active);
+  const [accountLabelValue,setAccountLabelValue]=React.useState('');
+  const [accountKind,setAccountKind]=React.useState<TreasuryAccountKind>('bank');
+  const [accountCurrency,setAccountCurrency]=React.useState((props.defaultCurrency||'USD').toUpperCase());
+  const [bankAccountId,setBankAccountId]=React.useState('');
+  const [openingBalance,setOpeningBalance]=React.useState('');
+  const [entryType,setEntryType]=React.useState<TreasuryEntryType>('deposit');
+  const [entryDate,setEntryDate]=React.useState(todayIso());
+  const [fromAccountId,setFromAccountId]=React.useState('');
+  const [toAccountId,setToAccountId]=React.useState('');
+  const [entryAmount,setEntryAmount]=React.useState('');
+  const [reference,setReference]=React.useState('');
+  const [notes,setNotes]=React.useState('');
+  const [sourceId,setSourceId]=React.useState('');
+  const [reconciliationDirection,setReconciliationDirection]=React.useState<ReconciliationDirection>('in');
+  const [busy,setBusy]=React.useState('');
+  const [error,setError]=React.useState('');
+  const [voidReason,setVoidReason]=React.useState<Record<string,string>>({});
 
-  const currencies=React.useMemo(()=>Array.from(new Set([props.defaultCurrency||props.company.defaultCurrency||'USD',...movements.map(item=>item.currency)].filter(Boolean).map(item=>item.toUpperCase()))),[props.defaultCurrency,props.company.defaultCurrency,movements]);
-  const [currency,setCurrency]=React.useState<string>(currencies[0]||'USD');
-  React.useEffect(()=>{if(!currencies.includes(currency))setCurrency(currencies[0]||'USD');},[currencies.join('|')]);
+  const run=async(key:string,fn:()=>Promise<void>)=>{if(busy)return;setBusy(key);setError('');try{await fn();}catch(e){setError(e instanceof Error?e.message:t('Unable to update the treasury ledger.','تعذر تحديث دفتر الخزينة.'));}finally{setBusy('');}};
+  const banks=[{id:'primary',label:t('Primary bank metadata','بيانات البنك الرئيسي'),currency:props.company.bank.currency||props.company.defaultCurrency},...(props.company.bankAccounts||[]).map(account=>({id:account.id,label:account.label||account.bankName||account.id,currency:account.currency}))];
+  const unallocatedPayments=props.payments.filter(payment=>!treasuryLinkedSourceUsed(props.entries,'customer-payment',payment.id));
+  const unallocatedSupplierPayments=props.supplierPayments.filter(payment=>!treasuryLinkedSourceUsed(props.entries,'supplier-payment',payment.id));
 
-  const scoped=movements.filter(item=>item.currency===currency);
-  const inflow=scoped.filter(item=>item.direction==='in').reduce((sum,item)=>sum+item.amount,0);
-  const supplierOut=scoped.filter(item=>item.source==='supplier').reduce((sum,item)=>sum+item.amount,0);
-  const expenseOut=scoped.filter(item=>item.source==='expense').reduce((sum,item)=>sum+item.amount,0);
-  const outflow=supplierOut+expenseOut;
-  const net=inflow-outflow;
-  const cashIn=scoped.filter(item=>item.direction==='in'&&item.method==='cash').reduce((sum,item)=>sum+item.amount,0);
-  const cashOut=scoped.filter(item=>item.direction==='out'&&item.method==='cash').reduce((sum,item)=>sum+item.amount,0);
-  const bankIn=scoped.filter(item=>item.direction==='in'&&item.method==='bank-transfer').reduce((sum,item)=>sum+item.amount,0);
-  const bankOut=scoped.filter(item=>item.direction==='out'&&item.method==='bank-transfer').reduce((sum,item)=>sum+item.amount,0);
+  React.useEffect(()=>{
+    if(entryType==='collection'){
+      const source=unallocatedPayments.find(item=>item.id===sourceId)??unallocatedPayments[0];setSourceId(source?.id||'');setEntryAmount(source?.amount||'');setReference(source?.reference||source?.invoiceNumber||'');setFromAccountId('');
+      const target=activeAccounts.find(account=>account.currency===source?.currency);setToAccountId(target?.id||'');
+    }else if(entryType==='supplier-payment'){
+      const source=unallocatedSupplierPayments.find(item=>item.id===sourceId)??unallocatedSupplierPayments[0];setSourceId(source?.id||'');setEntryAmount(source?.amount||'');setReference(source?.reference||source?.purchaseNumber||'');setToAccountId('');
+      const target=activeAccounts.find(account=>account.currency===source?.currency);setFromAccountId(target?.id||'');
+    }else{setSourceId('');}
+  },[entryType]);
 
-  const banks=[
-    {id:'primary',label:t('Primary bank','البنك الرئيسي'),bankName:props.company.bank.bankName,accountName:props.company.bank.accountName,iban:props.company.bank.iban,currency:props.company.bank.currency||props.company.defaultCurrency},
-    ...(props.company.bankAccounts||[]).map(account=>({id:account.id,label:account.label||account.bankName||t('Bank account','حساب بنكي'),bankName:account.bankName,accountName:account.accountName,iban:account.iban,currency:account.currency}))
-  ].filter(account=>account.bankName||account.accountName||account.iban);
+  const addAccount=()=>void run('account',async()=>{
+    const account=createTreasuryAccount({label:accountLabelValue,kind:accountKind,currency:accountCurrency,bankAccountId:accountKind==='bank'?bankAccountId:'',workspaceId:props.workspaceId,branchId:props.branchId});
+    await props.onSaveAccount(account);
+    if(openingBalance.trim()&&Number(openingBalance.replace(/,/g,''))!==0){const opening=createTreasuryEntry({type:'opening-balance',date:todayIso(),amount:openingBalance,currency:account.currency,toAccountId:account.id,reference:t('Opening balance','رصيد افتتاحي'),workspaceId:props.workspaceId,branchId:props.branchId},[...props.accounts,account]);await props.onSaveEntry(opening);}
+    setAccountLabelValue('');setOpeningBalance('');setBankAccountId('');
+  });
+
+  const saveEntry=()=>void run('entry',async()=>{
+    let currency='';let from=fromAccountId,to=toAccountId,sourceType:'manual'|'customer-payment'|'supplier-payment'='manual',source='';let amount=entryAmount;
+    if(entryType==='collection'){
+      const payment=props.payments.find(item=>item.id===sourceId);if(!payment)throw new Error(t('Choose an unallocated customer payment.','اختر دفعة عميل غير مخصصة.'));currency=payment.currency;amount=payment.amount;sourceType='customer-payment';source=payment.id;from='';
+    }else if(entryType==='supplier-payment'){
+      const payment=props.supplierPayments.find(item=>item.id===sourceId);if(!payment)throw new Error(t('Choose an unallocated supplier payment.','اختر دفعة مورد غير مخصصة.'));currency=payment.currency;amount=payment.amount;sourceType='supplier-payment';source=payment.id;to='';
+    }else if(entryType==='transfer'){
+      const a=props.accounts.find(item=>item.id===from),b=props.accounts.find(item=>item.id===to);if(!a||!b||a.currency!==b.currency)throw new Error(t('Transfers require two accounts in the same currency. Use a dated FX rate for currency conversion decisions.','التحويلات تتطلب حسابين بنفس العملة. استخدم سعر صرف مؤرخ لقرارات تحويل العملات.'));currency=a.currency;
+    }else if(entryType==='reconciliation'){
+      if(reconciliationDirection==='in'){from='';const account=props.accounts.find(item=>item.id===to);currency=account?.currency||'';}else{to='';const account=props.accounts.find(item=>item.id===from);currency=account?.currency||'';}
+    }else if(entryType==='deposit'||entryType==='opening-balance'){
+      from='';const account=props.accounts.find(item=>item.id===to);currency=account?.currency||'';
+    }else{to='';const account=props.accounts.find(item=>item.id===from);currency=account?.currency||'';}
+    const entry=createTreasuryEntry({type:entryType,date:entryDate,amount,currency,fromAccountId:from,toAccountId:to,sourceType,sourceId:source,reference,notes,workspaceId:props.workspaceId,branchId:props.branchId},props.accounts);await props.onSaveEntry(entry);setEntryAmount('');setReference('');setNotes('');setSourceId('');
+  });
+
+  const currentSourceCurrency=entryType==='collection'?props.payments.find(item=>item.id===sourceId)?.currency:entryType==='supplier-payment'?props.supplierPayments.find(item=>item.id===sourceId)?.currency:'';
+  const accountOptions=(side:'from'|'to')=>activeAccounts.filter(account=>!currentSourceCurrency||account.currency===currentSourceCurrency).filter(account=>side==='from'||account.id!==fromAccountId);
+  const activeEntries=[...props.entries].sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt));
 
   return <section className="ta-finance-page lx-treasury-page">
-    <header className="ta-page-header">
-      <div>
-        <span className="ta-page-kicker">{t('Cash & Bank','النقد والبنوك')}</span>
-        <h2>{t('Treasury control center','مركز إدارة الخزينة')}</h2>
-        <p>{t('A single operational view of recorded customer receipts, supplier payments and expenses. Values remain separated by currency.','عرض تشغيلي موحّد لتحصيلات العملاء ودفعات الموردين والمصروفات المسجلة، مع فصل القيم حسب العملة.')}</p>
-      </div>
-      <div className="ta-page-actions">
-        <label className="ta-field"><span>{t('Currency','العملة')}</span><select value={currency} onChange={event=>setCurrency(event.target.value)}>{currencies.map(item=><option key={item} value={item}>{item}</option>)}</select></label>
-      </div>
-    </header>
+    <header className="ta-page-header"><div><span className="ta-page-kicker">{t('Cash & Bank','النقد والبنوك')}</span><h2>{t('Real treasury ledger','دفتر الخزينة الفعلي')}</h2><p>{t('Balances below come only from explicit ledger entries. Company bank metadata never creates a balance by itself.','الأرصدة أدناه ناتجة فقط عن قيود دفتر الخزينة الصريحة. بيانات البنك في إعدادات الشركة لا تنشئ رصيدًا بحد ذاتها.')}</p></div><div className="ta-page-actions"><span className="ta-period-chip">{t('No hidden FX · no invented balances','لا تحويل خفي · لا أرصدة مختلقة')}</span></div></header>
 
-    <div className="ta-finance-kpis lx-treasury-kpis">
-      <article className="ta-finance-kpi"><span>{t('Recorded inflow','التدفقات الداخلة المسجلة')}</span><strong>{money(inflow,currency)}</strong><small>{t('Customer collections','تحصيلات العملاء')}</small></article>
-      <article className="ta-finance-kpi"><span>{t('Recorded outflow','التدفقات الخارجة المسجلة')}</span><strong>{money(outflow,currency)}</strong><small>{t('Supplier payments + expenses','دفعات الموردين + المصروفات')}</small></article>
-      <article className="ta-finance-kpi"><span>{t('Net recorded movement','صافي الحركة المسجلة')}</span><strong>{money(net,currency)}</strong><small>{t('Not an opening/closing bank balance','ليس رصيدًا افتتاحيًا أو ختاميًا للبنك')}</small></article>
-      <article className="ta-finance-kpi"><span>{t('Activity count','عدد الحركات')}</span><strong>{scoped.length}</strong><small>{t('For selected currency','للعملة المحددة')}</small></article>
+    <div className="ta-finance-kpis lx-treasury-kpis">{activeAccounts.length?activeAccounts.map(account=><article className="ta-finance-kpi" key={account.id}><span>{account.label}</span><strong>{formatMoney(treasuryAccountBalance(account.id,props.entries),account.currency)}</strong><small>{account.kind==='bank'?t('Bank ledger account','حساب دفتر بنكي'):t('Cash ledger account','حساب دفتر نقدي')} · {account.currency}</small></article>):<article className="ta-finance-kpi"><span>{t('Treasury accounts','حسابات الخزينة')}</span><strong>0</strong><small>{t('Create an account before recording cash position.','أنشئ حسابًا قبل تسجيل المركز النقدي.')}</small></article>}</div>
+
+    <div className="ta-finance-grid">
+      <article className="ta-finance-card"><header><div><span className="ta-page-kicker">{t('Ledger account','حساب الدفتر')}</span><h3>{t('Add cash or bank account','إضافة حساب نقدي أو بنكي')}</h3></div></header><div className="ta-form-grid"><label className="ta-field"><span>{t('Label','الاسم')}</span><Input value={accountLabelValue} onChange={(e:any)=>setAccountLabelValue(e.target.value)}/></label><label className="ta-field"><span>{t('Type','النوع')}</span><Select value={accountKind} onChange={(e:any)=>setAccountKind(e.target.value)}><option value="bank">{t('Bank','بنك')}</option><option value="cash">{t('Cash','نقد')}</option></Select></label><label className="ta-field"><span>{t('Currency','العملة')}</span><Input dir="ltr" maxLength={3} value={accountCurrency} onChange={(e:any)=>setAccountCurrency(e.target.value.toUpperCase())}/></label>{accountKind==='bank'?<label className="ta-field"><span>{t('Bank metadata link (optional)','ربط بيانات البنك (اختياري)')}</span><Select value={bankAccountId} onChange={(e:any)=>setBankAccountId(e.target.value)}><option value="">{t('No metadata link','بدون ربط')}</option>{banks.map(bank=><option key={bank.id} value={bank.id}>{bank.label} · {bank.currency}</option>)}</Select></label>:null}<label className="ta-field"><span>{t('Opening balance (optional)','الرصيد الافتتاحي (اختياري)')}</span><Input inputMode="decimal" value={openingBalance} onChange={(e:any)=>setOpeningBalance(e.target.value)}/></label></div><Button variant="primary" disabled={Boolean(busy)} onClick={addAccount}>{t('Create ledger account','إنشاء حساب دفتر')}</Button></article>
+
+      <article className="ta-finance-card"><header><div><span className="ta-page-kicker">{t('New movement','حركة جديدة')}</span><h3>{t('Record treasury entry','تسجيل قيد خزينة')}</h3></div></header><div className="ta-form-grid"><label className="ta-field"><span>{t('Entry type','نوع القيد')}</span><Select value={entryType} onChange={(e:any)=>setEntryType(e.target.value)}><option value="deposit">{t('Deposit','إيداع')}</option><option value="withdrawal">{t('Withdrawal','سحب')}</option><option value="transfer">{t('Transfer','تحويل')}</option><option value="collection">{t('Customer collection','تحصيل عميل')}</option><option value="supplier-payment">{t('Supplier payment','دفعة مورد')}</option><option value="reconciliation">{t('Reconciliation','مطابقة/تسوية')}</option></Select></label><label className="ta-field"><span>{t('Date','التاريخ')}</span><Input type="date" value={entryDate} onChange={(e:any)=>setEntryDate(e.target.value)}/></label>
+      {entryType==='collection'?<label className="ta-field"><span>{t('Customer payment','دفعة العميل')}</span><Select value={sourceId} onChange={(e:any)=>{const id=e.target.value,p=props.payments.find(item=>item.id===id);setSourceId(id);setEntryAmount(p?.amount||'');setReference(p?.reference||p?.invoiceNumber||'');setToAccountId(activeAccounts.find(a=>a.currency===p?.currency)?.id||'');}}><option value="">{t('Choose payment','اختر دفعة')}</option>{unallocatedPayments.map(item=><option key={item.id} value={item.id}>{item.invoiceNumber} · {formatMoney(item.amount,item.currency)}</option>)}</Select></label>:entryType==='supplier-payment'?<label className="ta-field"><span>{t('Supplier payment','دفعة المورد')}</span><Select value={sourceId} onChange={(e:any)=>{const id=e.target.value,p=props.supplierPayments.find(item=>item.id===id);setSourceId(id);setEntryAmount(p?.amount||'');setReference(p?.reference||p?.purchaseNumber||'');setFromAccountId(activeAccounts.find(a=>a.currency===p?.currency)?.id||'');}}><option value="">{t('Choose payment','اختر دفعة')}</option>{unallocatedSupplierPayments.map(item=><option key={item.id} value={item.id}>{item.purchaseNumber} · {formatMoney(item.amount,item.currency)}</option>)}</Select></label>:null}
+      {(entryType==='withdrawal'||entryType==='supplier-payment'||entryType==='transfer'||(entryType==='reconciliation'&&reconciliationDirection==='out'))?<label className="ta-field"><span>{t('From account','من حساب')}</span><Select value={fromAccountId} onChange={(e:any)=>setFromAccountId(e.target.value)}><option value="">{t('Choose account','اختر حسابًا')}</option>{accountOptions('from').map(account=><option key={account.id} value={account.id}>{accountLabel(account)}</option>)}</Select></label>:null}
+      {(entryType==='deposit'||entryType==='collection'||entryType==='transfer'||(entryType==='reconciliation'&&reconciliationDirection==='in'))?<label className="ta-field"><span>{t('To account','إلى حساب')}</span><Select value={toAccountId} onChange={(e:any)=>setToAccountId(e.target.value)}><option value="">{t('Choose account','اختر حسابًا')}</option>{accountOptions('to').map(account=><option key={account.id} value={account.id}>{accountLabel(account)}</option>)}</Select></label>:null}
+      {entryType==='reconciliation'?<label className="ta-field"><span>{t('Adjustment direction','اتجاه التسوية')}</span><Select value={reconciliationDirection} onChange={(e:any)=>setReconciliationDirection(e.target.value)}><option value="in">{t('Increase account','زيادة الحساب')}</option><option value="out">{t('Decrease account','تخفيض الحساب')}</option></Select></label>:null}
+      <label className="ta-field"><span>{t('Amount','المبلغ')}</span><Input inputMode="decimal" disabled={entryType==='collection'||entryType==='supplier-payment'} value={entryAmount} onChange={(e:any)=>setEntryAmount(e.target.value)}/></label><label className="ta-field"><span>{t('Reference','المرجع')}</span><Input value={reference} onChange={(e:any)=>setReference(e.target.value)}/></label><label className="ta-field"><span>{t('Notes','ملاحظات')}</span><Textarea rows={2} value={notes} onChange={(e:any)=>setNotes(e.target.value)}/></label></div><Button variant="primary" disabled={Boolean(busy)||!activeAccounts.length} onClick={saveEntry}>{t('Record entry','تسجيل القيد')}</Button></article>
     </div>
 
-    <div className="ta-finance-grid lx-treasury-grid">
-      <article className="ta-finance-card">
-        <header><div><span className="ta-page-kicker">{t('Cash channel','القناة النقدية')}</span><h3>{t('Cash movement','الحركة النقدية')}</h3></div></header>
-        <div className="ta-finance-summary-row"><span>{t('Cash received','نقد مستلم')}</span><strong>{money(cashIn,currency)}</strong></div>
-        <div className="ta-finance-summary-row"><span>{t('Cash paid','نقد مدفوع')}</span><strong>{money(cashOut,currency)}</strong></div>
-        <div className="ta-finance-summary-row"><span>{t('Net cash movement','صافي الحركة النقدية')}</span><strong>{money(cashIn-cashOut,currency)}</strong></div>
-      </article>
-      <article className="ta-finance-card">
-        <header><div><span className="ta-page-kicker">{t('Bank channel','القناة البنكية')}</span><h3>{t('Bank-transfer movement','حركة التحويلات البنكية')}</h3></div></header>
-        <div className="ta-finance-summary-row"><span>{t('Bank transfers received','تحويلات بنكية واردة')}</span><strong>{money(bankIn,currency)}</strong></div>
-        <div className="ta-finance-summary-row"><span>{t('Bank transfers paid','تحويلات بنكية صادرة')}</span><strong>{money(bankOut,currency)}</strong></div>
-        <div className="ta-finance-summary-row"><span>{t('Net bank-transfer movement','صافي حركة التحويلات')}</span><strong>{money(bankIn-bankOut,currency)}</strong></div>
-      </article>
-    </div>
-
-    <article className="ta-finance-card lx-treasury-bank-card">
-      <header><div><span className="ta-page-kicker">{t('Configured accounts','الحسابات المهيأة')}</span><h3>{t('Company bank accounts','الحسابات البنكية للشركة')}</h3><p>{t('Account details come from Company Settings. Treasury does not invent balances for accounts without opening balance data.','تفاصيل الحسابات مأخوذة من إعدادات الشركة. لا تقوم الخزينة باختراع أرصدة لحسابات لا تحتوي على بيانات رصيد افتتاحي.')}</p></div></header>
-      {banks.length?<div className="ta-finance-list">{banks.map(account=><div className="ta-finance-row" key={account.id}><div><strong>{account.label}</strong><small>{[account.bankName,account.accountName].filter(Boolean).join(' · ')||'—'}</small></div><div><strong>{(account.currency||'').toUpperCase()||'—'}</strong><small>{account.iban||t('No IBAN recorded','لا يوجد IBAN مسجل')}</small></div></div>)}</div>:<div className="ta-empty-state"><strong>{t('No bank accounts configured yet','لا توجد حسابات بنكية مهيأة بعد')}</strong><p>{t('Add bank details from Company Settings to expose them here.','أضف تفاصيل البنك من إعدادات الشركة لتظهر هنا.')}</p></div>}
-    </article>
-
-    <article className="ta-finance-card lx-treasury-activity-card">
-      <header><div><span className="ta-page-kicker">{t('Treasury activity','نشاط الخزينة')}</span><h3>{t('Recent financial movements','أحدث الحركات المالية')}</h3></div></header>
-      {scoped.length?<div className="ta-finance-list">{scoped.slice(0,40).map(item=><div className="ta-finance-row lx-treasury-row" key={item.id}><div><strong>{item.label}</strong><small>{sourceLabel(item.source)} · {methodLabel(item.method)} · {dateLabel(item.date)}{item.reference?` · ${item.reference}`:''}</small></div><strong className={item.direction==='in'?'is-positive':'is-negative'}>{item.direction==='in'?'+':'−'}{money(item.amount,item.currency)}</strong></div>)}</div>:<div className="ta-empty-state"><strong>{t('No treasury movements yet','لا توجد حركات خزينة بعد')}</strong><p>{t('Customer receipts, supplier payments and expenses will appear here automatically.','ستظهر هنا تحصيلات العملاء ودفعات الموردين والمصروفات تلقائيًا.')}</p></div>}
-    </article>
+    {error?<p className="form-error" role="alert">{error}</p>:null}
+    <article className="ta-finance-card"><header><div><span className="ta-page-kicker">{t('Reconciliation & audit','المطابقة والتدقيق')}</span><h3>{t('Treasury ledger history','سجل دفتر الخزينة')}</h3><p>{t('Entries are immutable financially. Corrections void the original record instead of rewriting history.','القيود غير قابلة للتعديل ماليًا. التصحيحات تلغي السجل الأصلي بدل إعادة كتابة التاريخ.')}</p></div></header>{activeEntries.length?<div className="ta-finance-list">{activeEntries.map(entry=>{const from=props.accounts.find(item=>item.id===entry.fromAccountId),to=props.accounts.find(item=>item.id===entry.toAccountId);return <div className={`ta-finance-row ${entry.voidedAt?'is-muted':''}`} key={entry.id}><div><strong>{entryLabel(entry.type)} · {formatMoney(entry.amount,entry.currency)}</strong><small>{entry.date}{entry.reference?` · ${entry.reference}`:''} · {entry.fromAccountId?accountLabel(from):t('External','خارجي')} → {entry.toAccountId?accountLabel(to):t('External','خارجي')}</small>{entry.voidedAt?<small>{t('Voided','ملغى')}: {entry.voidReason}</small>:entry.reconciledAt?<small>{t('Reconciled','تمت المطابقة')}</small>:null}</div><div className="ta-page-actions">{!entry.voidedAt?<Button disabled={Boolean(busy)} onClick={()=>void run(`rec-${entry.id}`,()=>props.onReconcileEntry(entry,!entry.reconciledAt))}>{entry.reconciledAt?t('Unreconcile','إلغاء المطابقة'):t('Reconcile','مطابقة')}</Button>:null}{!entry.voidedAt?<><Input aria-label={t('Void reason','سبب الإلغاء')} value={voidReason[entry.id]||''} onChange={(e:any)=>setVoidReason(value=>({...value,[entry.id]:e.target.value}))}/><Button variant="danger" disabled={Boolean(busy)||!(voidReason[entry.id]||'').trim()} onClick={()=>void run(`void-${entry.id}`,()=>props.onVoidEntry(entry,voidReason[entry.id]||''))}>{t('Void','إلغاء')}</Button></>:null}</div></div>})}</div>:<div className="ta-empty-state"><strong>{t('No ledger entries yet','لا توجد قيود بعد')}</strong><p>{t('Create an account and record an opening balance, deposit, withdrawal, transfer, collection or supplier payment.','أنشئ حسابًا وسجّل رصيدًا افتتاحيًا أو إيداعًا أو سحبًا أو تحويلًا أو تحصيلًا أو دفعة مورد.')}</p></div>}</article>
   </section>;
 }
