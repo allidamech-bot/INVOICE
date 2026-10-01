@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# One-shot verified integration for the final v21 hardening domain layer.
 def replace(path, old, new, count=1):
     p=Path(path); text=p.read_text()
     found=text.count(old)
