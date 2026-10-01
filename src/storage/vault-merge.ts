@@ -434,6 +434,7 @@ function mergeAppSettings(base:AppSettings,intended:AppSettings,latest:AppSettin
   const next:AppSettings={...latest,numbering:{...latest.numbering},smartDefaults:{...latest.smartDefaults,favoriteTemplateIds:[...latest.smartDefaults.favoriteTemplateIds]}};
   if(intended.autoLockMinutes!==base.autoLockMinutes)next.autoLockMinutes=intended.autoLockMinutes;
   if(intended.uiLanguage!==base.uiLanguage)next.uiLanguage=intended.uiLanguage;
+  if(intended.activeTeamMemberId!==base.activeTeamMemberId)next.activeTeamMemberId=intended.activeTeamMemberId;
   const numberingKeys:Array<keyof AppSettings['numbering']>=['proformaPrefix','invoicePrefix','creditNotePrefix','purchaseOrderPrefix','proformaLast','invoiceLast','creditNoteLast','purchaseOrderLast','proformaYear','invoiceYear','creditNoteYear','purchaseOrderYear'];
   for(const key of numberingKeys)if(intended.numbering[key]!==base.numbering[key])(next.numbering as any)[key]=intended.numbering[key];
   const smartKeys:Array<Exclude<keyof AppSettings['smartDefaults'],'favoriteTemplateIds'>>=['currency','language','incoterm','paymentTerms','deliveryTime','quoteTemplateId','invoiceTemplateId'];
@@ -449,6 +450,11 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const purchases=mergeRecords(base.purchases,intended.purchases,latest.purchases);
   const expenses=mergeRecords(base.expenses,intended.expenses,latest.expenses);
   const inventoryMovements=mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  guardConcurrentRecordChanges(base.teamMembers,intended.teamMembers,latest.teamMembers,'Team member','Reopen Access settings before saving this member.');
+  const teamMembers=mergeRecords(base.teamMembers,intended.teamMembers,latest.teamMembers);
+  const approvalPolicies=mergeRecords(base.approvalPolicies,intended.approvalPolicies,latest.approvalPolicies);
+  guardConcurrentRecordChanges(base.approvalRequests,intended.approvalRequests,latest.approvalRequests,'Approval request','Reopen Access settings before deciding this request.');
+  const approvalRequests=mergeRecords(base.approvalRequests,intended.approvalRequests,latest.approvalRequests);
   guardRecurringWorkflowChanges(base.recurringWorkflows,intended.recurringWorkflows,latest.recurringWorkflows);
   const recurringWorkflows=mergeRecords(base.recurringWorkflows,intended.recurringWorkflows,latest.recurringWorkflows);
   const documents=mergeDocuments(base.documents,intended.documents,latest.documents);
@@ -471,6 +477,9 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     supplierPayments,
     expenses,
     inventoryMovements,
+    teamMembers,
+    approvalPolicies,
+    approvalRequests,
     recurringWorkflows,
     documents,
     documentEvents:mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents),

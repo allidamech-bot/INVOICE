@@ -1,5 +1,6 @@
 import type { AppSettings, CompanySettings, CustomerSnapshot, CompanySnapshot, VaultPayload } from '../types.js';
 import { defaultBankDetails } from './commercial-controls.js';
+import { DEFAULT_APPROVAL_POLICIES, defaultOwnerMember } from './governance.js';
 
 // Compatibility marker: APP_SCHEMA_VERSION = 7 introduced encrypted payment records.
 // v9 adds encrypted internal cost metadata for profitability analysis.
@@ -13,7 +14,8 @@ import { defaultBankDetails } from './commercial-controls.js';
 // Batch 1 commercial tracking reuses encrypted document-event records, so no schema bump is required.
 // v17 adds encrypted recurring workflow definitions and idempotent generated-draft history.
 // v18 extends the existing encrypted document-event ledger with auditable entity context.
-export const APP_SCHEMA_VERSION = 18;
+// v19 adds encrypted team roles, operator context and approval workflow records.
+export const APP_SCHEMA_VERSION = 19;
 export const KDF_ITERATIONS = 310_000;
 
 export function defaultCompany(): CompanySettings {
@@ -47,6 +49,7 @@ export function defaultAppSettings(): AppSettings {
     // their explicit preference for backward compatibility.
     autoLockMinutes: 15,
     uiLanguage: 'en',
+    activeTeamMemberId: 'owner',
     numbering: { proformaPrefix: 'QUO', invoicePrefix: 'INV', creditNotePrefix: 'CN', purchaseOrderPrefix: 'PO', draftPrefix: 'DR', proformaLast: 0, invoiceLast: 0, creditNoteLast: 0, purchaseOrderLast: 0, draftLast: 0, proformaYear: new Date().getFullYear(), invoiceYear: new Date().getFullYear(), creditNoteYear: new Date().getFullYear(), purchaseOrderYear: new Date().getFullYear(), draftYear: new Date().getFullYear() },
     smartDefaults: {
       currency:'USD',
@@ -62,7 +65,7 @@ export function defaultAppSettings(): AppSettings {
 }
 
 export function emptyVault(): VaultPayload {
-  return { schemaVersion: APP_SCHEMA_VERSION, company: defaultCompany(), appSettings: defaultAppSettings(), customers: [], suppliers: [], purchases: [], supplierPayments: [], expenses: [], inventoryMovements: [], recurringWorkflows: [], documents: [], documentEvents: [], documentRevisions: [], payments: [], savedItems: [], companyAssets: [] } as VaultPayload & {companyAssets:Array<{id:string;dataUrl:string}>};
+  return { schemaVersion: APP_SCHEMA_VERSION, company: defaultCompany(), appSettings: defaultAppSettings(), customers: [], suppliers: [], purchases: [], supplierPayments: [], expenses: [], inventoryMovements: [], teamMembers: [defaultOwnerMember()], approvalPolicies: DEFAULT_APPROVAL_POLICIES.map(policy=>({...policy,approverRoles:[...policy.approverRoles]})), approvalRequests: [], recurringWorkflows: [], documents: [], documentEvents: [], documentRevisions: [], payments: [], savedItems: [], companyAssets: [] } as VaultPayload & {companyAssets:Array<{id:string;dataUrl:string}>};
 }
 
 export function customerSnapshotFrom(customer: { id: string; companyNameEn: string; companyNameAr: string; contactPerson: string; addressEn: string; addressAr: string; city: string; country: string; phone: string; email: string; vatTaxNumber: string; commercialRegistration: string }): CustomerSnapshot {

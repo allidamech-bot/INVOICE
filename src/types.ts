@@ -16,6 +16,10 @@ export type AutoLockMinutes = 0 | 5 | 15 | 30;
 export type PaletteMode = 'auto' | 'custom';
 export type LatinFontId = 'auto' | 'inter' | 'source-sans' | 'montserrat' | 'playfair';
 export type ArabicFontId = 'auto' | 'cairo' | 'tajawal' | 'noto-kufi' | 'noto-naskh';
+export type TeamRole = 'owner' | 'admin' | 'finance' | 'sales' | 'purchasing' | 'viewer';
+export type TeamMemberStatus = 'active' | 'suspended';
+export type ApprovalAction = 'issue-document' | 'post-purchase' | 'reverse-purchase';
+export type ApprovalRequestStatus = 'pending' | 'approved' | 'rejected';
 
 export interface BankDetails {
   bankName: string;
@@ -514,8 +518,41 @@ export interface SmartDocumentDefaults {
 export interface AppSettings {
   autoLockMinutes: AutoLockMinutes;
   uiLanguage: UiLanguage;
+  activeTeamMemberId: string;
   numbering: NumberingSettings;
   smartDefaults: SmartDocumentDefaults;
+}
+
+export interface TeamMemberRecord {
+  id: string;
+  displayName: string;
+  email: string;
+  role: TeamRole;
+  status: TeamMemberStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApprovalPolicyRecord {
+  id: string;
+  action: ApprovalAction;
+  enabled: boolean;
+  approverRoles: TeamRole[];
+}
+
+export interface ApprovalRequestRecord {
+  id: string;
+  action: ApprovalAction;
+  entityType: 'document' | 'purchase';
+  entityId: string;
+  entityLabel: string;
+  entityUpdatedAt: string;
+  requestedByMemberId: string;
+  status: ApprovalRequestStatus;
+  decidedByMemberId: string;
+  decisionNote: string;
+  createdAt: string;
+  decidedAt: string;
 }
 
 export type RecurringCadence = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
@@ -558,6 +595,9 @@ export interface VaultPayload {
   supplierPayments: SupplierPaymentRecord[];
   expenses: ExpenseRecord[];
   inventoryMovements: InventoryMovementRecord[];
+  teamMembers: TeamMemberRecord[];
+  approvalPolicies: ApprovalPolicyRecord[];
+  approvalRequests: ApprovalRequestRecord[];
   recurringWorkflows: RecurringWorkflowRecord[];
   documents: LourexDocument[];
   documentEvents: DocumentEventRecord[];
