@@ -4,6 +4,7 @@ import { normalizeValidityDays } from '../lib/id.js';
 import { normalizeLetterData, normalizeWatermark } from '../lib/document-extras.js';
 import { createRecoveryCode, createSecurity, createSecurityForChangedPin, createSecurityFromRecovery, decryptVault, encryptVault, recoverVaultKey, verifyPin } from '../crypto/crypto.js';
 import { createSafetySnapshot, getEncryptedVault, getSecurity, putRecord, putSecurityAndVault } from './db.js';
+import { DEFAULT_APPROVAL_POLICIES, defaultOwnerMember, normalizeApprovalPolicies } from '../lib/governance.js';
 import { clearSession, getSessionKey, isSessionExpired, touchSession } from './session.js';
 
 const TEMPLATE_IDS = new Set(['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon']);
@@ -17,6 +18,10 @@ const INVENTORY_MOVEMENT_TYPES = new Set(['opening','purchase','purchase-reversa
 const RECURRING_TARGETS = new Set(['document','purchase']);
 const RECURRING_CADENCES = new Set(['weekly','monthly','quarterly','yearly']);
 const DOCUMENT_KINDS = new Set<DocumentKind>(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt']);
+const TEAM_ROLES = new Set(['owner','admin','finance','sales','purchasing','viewer']);
+const TEAM_STATUSES = new Set(['active','suspended']);
+const APPROVAL_ACTIONS = new Set(['issue-document','post-purchase','reverse-purchase']);
+const APPROVAL_STATUSES = new Set(['pending','approved','rejected']);
 
 function stringValue(value: unknown, fallback = ''): string {
   if (typeof value === 'string') return value;
@@ -89,6 +94,7 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     ...sourceSettings,
     autoLockMinutes: AUTO_LOCK_VALUES.has(sourceSettings.autoLockMinutes) ? sourceSettings.autoLockMinutes : defaults.appSettings.autoLockMinutes,
     uiLanguage: uiLanguageValue(sourceSettings.uiLanguage, defaults.appSettings.uiLanguage),
+    activeTeamMemberId:stringValue(sourceSettings.activeTeamMemberId,'owner')||'owner',
     numbering: {
       proformaPrefix:cleanPrefix(sourceNumbering.proformaPrefix,defaults.appSettings.numbering.proformaPrefix), invoicePrefix:cleanPrefix(sourceNumbering.invoicePrefix,defaults.appSettings.numbering.invoicePrefix), creditNotePrefix:cleanPrefix(sourceNumbering.creditNotePrefix,defaults.appSettings.numbering.creditNotePrefix), purchaseOrderPrefix:cleanPrefix(sourceNumbering.purchaseOrderPrefix,defaults.appSettings.numbering.purchaseOrderPrefix||'PO'), draftPrefix:cleanPrefix(sourceNumbering.draftPrefix,defaults.appSettings.numbering.draftPrefix||'DR'),
       proformaLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.proformaLast,defaults.appSettings.numbering.proformaLast))), invoiceLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.invoiceLast,defaults.appSettings.numbering.invoiceLast))), creditNoteLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.creditNoteLast,defaults.appSettings.numbering.creditNoteLast))), purchaseOrderLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.purchaseOrderLast,defaults.appSettings.numbering.purchaseOrderLast||0))), draftLast:Math.max(0,Math.trunc(finiteNumber(sourceNumbering.draftLast,defaults.appSettings.numbering.draftLast||0))),
@@ -145,6 +151,17 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   migrated.inventoryMovements = Array.isArray((vault as any).inventoryMovements) ? (vault as any).inventoryMovements.map((movement:any)=>({
     id:stringValue(movement?.id),itemId:stringValue(movement?.itemId),itemNameEn:stringValue(movement?.itemNameEn),itemNameAr:stringValue(movement?.itemNameAr),sku:stringValue(movement?.sku),date:stringValue(movement?.date),type:INVENTORY_MOVEMENT_TYPES.has(movement?.type)?movement.type:'adjustment',quantity:stringValue(movement?.quantity,'0'),unitCost:stringValue(movement?.unitCost),currency:stringValue(movement?.currency).trim().toUpperCase(),sourceId:stringValue(movement?.sourceId),sourceNumber:stringValue(movement?.sourceNumber),note:stringValue(movement?.note),createdAt:stringValue(movement?.createdAt,nowIso())
   })) : [];
+
+  migrated.teamMembers = Array.isArray((vault as any).teamMembers) ? (vault as any).teamMembers.map((member:any)=>({
+    id:stringValue(member?.id),displayName:stringValue(member?.displayName),email:stringValue(member?.email),role:TEAM_ROLES.has(member?.role)?member.role:'viewer',status:TEAM_STATUSES.has(member?.status)?member.status:'active',createdAt:stringValue(member?.createdAt,nowIso()),updatedAt:stringValue(member?.updatedAt,member?.createdAt?stringValue(member.createdAt):nowIso())
+  })).filter((member:any)=>member.id&&member.displayName) : [];
+  if(!migrated.teamMembers.some(member=>member.id==='owner'))migrated.teamMembers.unshift(defaultOwnerMember());
+  const rawPolicies=Array.isArray((vault as any).approvalPolicies)?(vault as any).approvalPolicies.map((policy:any)=>({id:stringValue(policy?.id),action:APPROVAL_ACTIONS.has(policy?.action)?policy.action:'issue-document',enabled:booleanValue(policy?.enabled,false),approverRoles:Array.isArray(policy?.approverRoles)?policy.approverRoles.filter((role:any)=>TEAM_ROLES.has(role)):[]})):[];
+  migrated.approvalPolicies=normalizeApprovalPolicies(rawPolicies as any);
+  migrated.approvalRequests=Array.isArray((vault as any).approvalRequests)?(vault as any).approvalRequests.map((request:any)=>({
+    id:stringValue(request?.id),action:APPROVAL_ACTIONS.has(request?.action)?request.action:'issue-document',entityType:request?.entityType==='purchase'?'purchase':'document',entityId:stringValue(request?.entityId),entityLabel:stringValue(request?.entityLabel),entityUpdatedAt:stringValue(request?.entityUpdatedAt),requestedByMemberId:stringValue(request?.requestedByMemberId,'owner'),status:APPROVAL_STATUSES.has(request?.status)?request.status:'pending',decidedByMemberId:stringValue(request?.decidedByMemberId),decisionNote:stringValue(request?.decisionNote),createdAt:stringValue(request?.createdAt,nowIso()),decidedAt:stringValue(request?.decidedAt)
+  })).filter((request:any)=>request.id&&request.entityId):[];
+  if(!migrated.teamMembers.some(member=>member.id===migrated.appSettings.activeTeamMemberId&&member.status==='active'))migrated.appSettings.activeTeamMemberId=migrated.teamMembers.find(member=>member.role==='owner'&&member.status==='active')?.id??migrated.teamMembers.find(member=>member.status==='active')?.id??'owner';
 
   migrated.recurringWorkflows = Array.isArray((vault as any).recurringWorkflows) ? (vault as any).recurringWorkflows.map((workflow:any)=>{
     const target=RECURRING_TARGETS.has(workflow?.target)?workflow.target:'document';
@@ -267,6 +284,9 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   unique(migrated.supplierPayments.map(p => p.id), 'supplier payment');
   unique(migrated.expenses.map(e => e.id), 'expense');
   unique(migrated.inventoryMovements.map(m => m.id), 'inventory movement');
+  unique(migrated.teamMembers.map(m => m.id), 'team member');
+  unique(migrated.approvalPolicies.map(p => p.id), 'approval policy');
+  unique(migrated.approvalRequests.map(r => r.id), 'approval request');
   unique(migrated.recurringWorkflows.map(r => r.id), 'recurring workflow');
   for(const workflow of migrated.recurringWorkflows)unique(workflow.generatedRuns.map(run=>run.id),'recurring run');
   unique(migrated.documents.map(d => d.id), 'document');
