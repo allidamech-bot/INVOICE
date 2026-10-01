@@ -9,6 +9,7 @@ import { activateAccountStorage, activeAccountStorageUid, purgeLegacySafetySnaps
 import { getActiveAccountUid, isCurrentSessionExpired, resumeAccountSession, setActiveAccountUid, suspendSession } from '../storage/session.js';
 import { saveVault } from '../storage/vault.js';
 import { registerVaultMutationBridge } from '../storage/vault-mutation-bridge.js';
+import { appendAuditEventsForVaultDiff } from '../lib/audit-diff.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
@@ -57,7 +58,8 @@ class AdaptiveCloudApp extends BaseApp {
         if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));
         const latest=queued??instance.state.vault;
         if(!latest)throw new Error(t('LOUREX workspace is not ready.','مساحة LOUREX غير جاهزة.'));
-        const next=mutation(latest);
+        const intended=mutation(latest);
+        const next=appendAuditEventsForVaultDiff(latest,intended);
         const encrypted=await saveVault(key,next);
         instance.latestEncryptedVault=encrypted;
         if(instance.state.unlocked&&instance.state.key===key){

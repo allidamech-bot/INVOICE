@@ -1,4 +1,4 @@
-import type { AppSettings, CompanySettings } from '../types.js';
+import type { AppSettings, CompanySettings, DocumentEventRecord } from '../types.js';
 import { fileToRawDataUrl } from '../lib/files.js';
 import { rebuildLogoWithoutBackgroundDataUrl } from '../lib/logo-rebuild.js';
 import { t } from '../lib/i18n.js';
@@ -7,13 +7,14 @@ import { consumeSettingsScope, type SettingsScope } from '../lib/settings-scope.
 import type { CloudUser } from '../cloud/firebase.js';
 import { CommercialControlsSettings } from './CommercialControlsSettings.js';
 import { Button, ConfirmDialog, Field, Input, Modal, Select, Textarea, Icon } from './UI.js';
+import { ActivityLogModal } from './ActivityLogModal.js';
 
 interface Props {
   open:boolean; company:CompanySettings; appSettings:AppSettings; onClose:()=>void;
   onSaveCompany:(company:CompanySettings)=>Promise<void>; onSaveAppSettings:(settings:AppSettings)=>Promise<void>;
   onChangePin:(currentPin:string,newPin:string)=>Promise<void|string>; onCreateRecoveryKey:(currentPin:string)=>Promise<string>; onLock:()=>void;
   cloudUser:CloudUser|null; onCloudRestore:()=>Promise<void>; onCloudSignOut:()=>Promise<void>;
-  onBackup:(pin:string)=>Promise<void>; onRestore:(file:File,pin:string)=>Promise<void>;
+  onBackup:(pin:string)=>Promise<void>; onRestore:(file:File,pin:string)=>Promise<void>; documentEvents:DocumentEventRecord[];
 }
 
 type AssetField='logoDataUrl'|'signatureDataUrl'|'stampDataUrl';
@@ -21,12 +22,12 @@ type AssetMode='rebuild'|'original';
 
 interface State {
   scope:SettingsScope;
-  tab:'company'|'commercial'|'documents'|'security'; company:CompanySettings; appSettings:AppSettings; busy:boolean; cleaningAssets:boolean; processingAsset:AssetField|null; message:string; error:string;
+  tab:'company'|'commercial'|'documents'|'data'|'security'; company:CompanySettings; appSettings:AppSettings; busy:boolean; cleaningAssets:boolean; processingAsset:AssetField|null; message:string; error:string;
   savedSection:'company'|'documents'|null; currentPin:string; newPin:string; confirmPin:string; recoveryKey:string; confirmClose:boolean; confirmCloudRestore:boolean;
   accountAction:''|'restore'|'signout'; companyInitial:string; documentsInitial:string;
   logoOriginalDataUrl:string; logoCleanedDataUrl:string; logoRebuiltDataUrl:string; logoMode:'auto'|'rebuild'|'original';
   signatureOriginalDataUrl:string; signatureRebuiltDataUrl:string; signatureMode:AssetMode;
-  stampOriginalDataUrl:string; stampRebuiltDataUrl:string; stampMode:AssetMode;
+  stampOriginalDataUrl:string; stampRebuiltDataUrl:string; stampMode:AssetMode; activityLogOpen:boolean;
 }
 
 const MAX_COMPANY_ASSET_BYTES=4*1024*1024;
@@ -42,7 +43,7 @@ export class SettingsModal extends React.Component<Props,State> {
     super(props);
     const company=structuredClone(props.company);
     const appSettings=structuredClone(props.appSettings);
-    this.state={scope:'settings',tab:'company',company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original'};
+    this.state={scope:'settings',tab:'company',company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original',activityLogOpen:false};
   }
 
   componentDidUpdate(prev:Props):void{
@@ -82,7 +83,7 @@ export class SettingsModal extends React.Component<Props,State> {
   private handleSettingsNavClickCapture=(event:any)=>{
     const button=(event.target as Element|null)?.closest?.('[data-settings-tab]') as HTMLButtonElement|null;
     const tab=button?.dataset.settingsTab as State['tab']|undefined;
-    if(tab==='company'||tab==='commercial'||tab==='documents'||tab==='security')this.selectSettingsTab(tab);
+    if(tab==='company'||tab==='commercial'||tab==='documents'||tab==='data'||tab==='security')this.selectSettingsTab(tab);
   };
   private handleSettingsTabTouchEnd=(tab:State['tab'],event:any)=>{
     const start=this.settingsTouchStart;
@@ -300,6 +301,8 @@ export class SettingsModal extends React.Component<Props,State> {
     {this.card(t('Numbering','الترقيم'),t('Control document prefixes while preserving independent forward-only sequences.','تحكم ببادئات المستندات مع الحفاظ على تسلسل مستقل يتحرك للأمام فقط.'),<><div className="form-grid two"><Field label={t('Quotation Prefix','بادئة عرض السعر')}><Input value={s.numbering.proformaPrefix} onChange={(e:any)=>this.setNumbering('proformaPrefix',e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8))}/></Field><Field label={t('Invoice Prefix','بادئة الفاتورة')}><Input value={s.numbering.invoicePrefix} onChange={(e:any)=>this.setNumbering('invoicePrefix',e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8))}/></Field><Field label={t('Purchase Order Prefix','بادئة طلب الشراء')}><Input value={s.numbering.purchaseOrderPrefix||'PO'} onChange={(e:any)=>this.setNumbering('purchaseOrderPrefix',e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8))}/></Field><Field label={t('Company Draft Prefix','بادئة مسودة الشركة')}><Input value={s.numbering.draftPrefix||'DR'} onChange={(e:any)=>this.setNumbering('draftPrefix',e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8))}/></Field></div><div className="ta-numbering-preview"><span>{s.numbering.proformaPrefix || 'PI'}-YYYY-0001</span><span>{s.numbering.invoicePrefix || 'INV'}-YYYY-0001</span><span>{s.numbering.purchaseOrderPrefix || 'PO'}-YYYY-0001</span><span>{s.numbering.draftPrefix || 'DR'}-YYYY-0001</span></div><p className="ta-settings-note">{t('Document sequences only move forward. Deleted numbers are never automatically reused.','تسلسل أرقام المستندات يتحرك للأمام فقط، ولا تتم إعادة استخدام الأرقام المحذوفة تلقائيًا.')}</p></>,this.saveButton('documents'))}
   </div>;}
 
+  private dataCenter():any{return <div className="ta-settings-page ta-data-center-page">{this.pageHeader(t('Data Center','مركز البيانات'),t('Data & activity','البيانات والنشاط'),t('Backup, restore and the encrypted activity log live together here.','النسخ والاستعادة وسجل النشاط المشفر موجودة هنا.'))}{this.card(t('Activity Log','سجل النشاط'),t('Review audited workspace changes without creating a second event system.','راجع تغييرات مساحة العمل المدققة دون إنشاء نظام أحداث ثانٍ.'),<Button icon="history" onClick={()=>this.setState({activityLogOpen:true})}>{t('Open Activity Log','فتح سجل النشاط')}</Button>)}</div>;}
+
   private securitySettings(s:AppSettings,account:CloudUser|null):any{return <div className="ta-settings-page ta-security-page">
     {this.pageHeader(t('Security','الأمان'),t('Security & recovery','الأمان والاستعادة'),t('Session locking, device PIN and encrypted cloud recovery. Sign out is available from More.','قفل الجلسة ورمز PIN والاستعادة السحابية المشفّرة. تسجيل الخروج متاح من صفحة المزيد.'))}
     {this.card(t('Session protection','حماية الجلسة'),t('Choose how long an inactive trusted device stays unlocked, or lock this workspace immediately.','اختر مدة بقاء الجهاز الموثوق مفتوحًا عند عدم الاستخدام، أو اقفل مساحة العمل فورًا.'),<div className="form-grid two"><Field label={t('Auto Lock','القفل التلقائي')}><Select value={String(s.autoLockMinutes)} onChange={(e:any)=>this.setAutoLock(Number(e.target.value) as AppSettings['autoLockMinutes'])}><option value="0">{t('Never','أبدًا')}</option><option value="5">{t('After 5 minutes','بعد 5 دقائق')}</option><option value="15">{t('After 15 minutes','بعد 15 دقيقة')}</option><option value="30">{t('After 30 minutes','بعد 30 دقيقة')}</option></Select></Field><div className="ta-settings-inline-action"><Button variant="secondary" disabled={this.state.busy} onClick={this.lockNow}>{t('Lock Now','قفل الآن')}</Button></div></div>,this.saveButton('documents'))}
@@ -311,7 +314,7 @@ export class SettingsModal extends React.Component<Props,State> {
     const c=this.state.company,s=this.state.appSettings;
     const account=this.props.cloudUser;
     const accountScope=this.state.scope==='account';
-    const tabItems=([['company',t('Workspace','مساحة العمل'),'settings',t('Language and defaults','اللغة والإعدادات')],['commercial',t('Commercial','تجاري'),'invoice',t('Banking and trade controls','البنوك وضوابط التجارة')],['documents',t('Documents','المستندات'),'file',t('Output and numbering','الإخراج والترقيم')],['security',t('Security','الأمان'),'lock',t('PIN and recovery','PIN والاستعادة')]] as const);
+    const tabItems=([['company',t('Workspace','مساحة العمل'),'settings',t('Language and defaults','اللغة والإعدادات')],['commercial',t('Commercial','تجاري'),'invoice',t('Banking and trade controls','البنوك وضوابط التجارة')],['documents',t('Documents','المستندات'),'file',t('Output and numbering','الإخراج والترقيم')],['data',t('Data Center','مركز البيانات'),'file',t('Backup and activity','النسخ والنشاط')],['security',t('Security','الأمان'),'lock',t('PIN and recovery','PIN والاستعادة')]] as const);
     return <Modal open={this.props.open} title={accountScope?t('Account','الحساب'):t('Settings','الإعدادات')} size="xl" onClose={this.requestClose}>
       <div className={`ta-settings-shell ${accountScope?'is-account':'is-settings'} ${this.state.accountAction==='restore'?'is-restoring':''}`}>
         {!accountScope?<aside className="ta-settings-sidebar"><div className="ta-settings-sidebar-head"><span>{t('LOUREX Invoice','LOUREX Invoice')}</span><strong>{t('Settings','الإعدادات')}</strong></div><nav className="ta-settings-nav" role="tablist" aria-label={t('Settings sections','أقسام الإعدادات')} onClickCapture={this.handleSettingsNavClickCapture}>{tabItems.map(([id,label,icon,description])=><button type="button" role="tab" key={id} id={`settings-tab-${id}`} data-settings-tab={id} aria-controls="settings-tab-panel" aria-selected={this.state.tab===id} className={this.state.tab===id?'is-active':''} aria-current={this.state.tab===id?'page':undefined} onPointerDown={(event:any)=>this.handleSettingsTabPointerDown(id,event)} onPointerUp={(event:any)=>this.handleSettingsTabPointerUp(id,event)} onPointerCancel={()=>{this.settingsPointerStart=null;}} onTouchStart={(event:any)=>this.handleSettingsTabTouchStart(id,event)} onTouchEnd={(event:any)=>this.handleSettingsTabTouchEnd(id,event)} onTouchCancel={()=>{this.settingsTouchStart=null;}}><span className="ta-settings-nav-icon"><Icon name={icon}/></span><span><strong>{label}</strong><small>{description}</small></span></button>)}</nav></aside>:null}
@@ -320,11 +323,13 @@ export class SettingsModal extends React.Component<Props,State> {
           {!accountScope&&this.state.tab==='company'?this.workspacePreferences(c,s):null}
           {!accountScope&&this.state.tab==='commercial'?<div className="ta-settings-page ta-commercial-page">{this.pageHeader(t('Commercial','تجاري'),t('Commercial controls','الضوابط التجارية'),t('Banking, tax, payment terms, trade defaults and pricing controls.','إعدادات البنوك والضرائب وشروط الدفع والإعدادات التجارية والتسعير.'),this.saveButton('company'))}<section className="ta-settings-card ta-commercial-controls"><div className="ta-settings-card-body"><CommercialControlsSettings company={c} onChange={company=>this.setState({company,savedSection:null,message:'',error:''})}/></div></section></div>:null}
           {!accountScope&&this.state.tab==='documents'?this.documentSettings(c,s):null}
+          {!accountScope&&this.state.tab==='data'?this.dataCenter():null}
           {!accountScope&&this.state.tab==='security'?this.securitySettings(s,account):null}
           {this.state.message?<div className="ta-settings-toast is-success" role="status"><Icon name="check"/><span>{this.state.message}</span></div>:null}
           {this.state.error?<div className="ta-settings-toast is-error" role="alert"><Icon name="alert"/><span>{this.state.error}</span></div>:null}
         </main>
       </div>
+      <ActivityLogModal open={this.state.activityLogOpen} events={this.props.documentEvents} onClose={()=>this.setState({activityLogOpen:false})}/>
       <ConfirmDialog open={this.state.confirmCloudRestore} title={t('Restore account data from cloud?','استرجاع بيانات الحساب من السحابة؟')} message={t('The signed-in account copy will replace the current encrypted local vault on this device. Use this only when you intentionally want the cloud account copy.','ستحل نسخة الحساب المسجل في السحابة محل الخزنة المحلية المشفّرة الحالية على هذا الجهاز. استخدم هذا فقط عندما تريد نسخة الحساب السحابية عن قصد.')} confirmLabel={t('Restore from Cloud','استرجاع من السحابة')} onCancel={()=>this.setState({confirmCloudRestore:false})} onConfirm={()=>void this.restoreFromCloud()}/>
       <ConfirmDialog open={this.state.confirmClose} title={accountScope?t('Discard unsaved account changes?','تجاهل تغييرات الحساب غير المحفوظة؟'):t('Discard unsaved settings?','تجاهل الإعدادات غير المحفوظة؟')} message={accountScope?t('You have unsaved company profile changes. Discard them and close Account?','لديك تغييرات غير محفوظة في ملف الشركة. هل تريد تجاهلها وإغلاق الحساب؟'):t('You have unsaved settings. Discard them and close Settings?','لديك إعدادات غير محفوظة. هل تريد تجاهلها وإغلاق الإعدادات؟')} confirmLabel={t('Discard','تجاهل')} onCancel={()=>this.setState({confirmClose:false})} onConfirm={this.discardAndClose}/>
     </Modal>;

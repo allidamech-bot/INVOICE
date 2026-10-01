@@ -12,7 +12,8 @@ import { defaultBankDetails } from './commercial-controls.js';
 // v16 adds purchase due dates and a distinct encrypted supplier-payment ledger for Accounts Payable.
 // Batch 1 commercial tracking reuses encrypted document-event records, so no schema bump is required.
 // v17 adds encrypted recurring workflow definitions and idempotent generated-draft history.
-export const APP_SCHEMA_VERSION = 17;
+// v18 extends the existing encrypted document-event ledger with auditable entity context.
+export const APP_SCHEMA_VERSION = 18;
 export const KDF_ITERATIONS = 310_000;
 
 export function defaultCompany(): CompanySettings {
