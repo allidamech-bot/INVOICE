@@ -1,4 +1,4 @@
-import type { AppSettings, CompanySettings, Customer, ExpenseRecord, InventoryMovementRecord, LourexDocument, PurchaseRecord, SavedItem, Supplier, VaultPayload } from '../types.js';
+import type { AppSettings, CompanySettings, Customer, ExpenseRecord, InventoryMovementRecord, LourexDocument, PurchaseRecord, RecurringWorkflowRecord, SavedItem, Supplier, VaultPayload } from '../types.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
 import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput } from '../lib/money.js';
 import { assertDocumentLifecycleInvariant } from '../lib/document-lifecycle.js';
@@ -7,6 +7,7 @@ import { assertSupplierPaymentInvariant } from '../lib/payables.js';
 import { inventoryMovementIsManual, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
 import { isIsoDate } from '../lib/id.js';
 import { t } from '../lib/i18n.js';
+import { assertRecurringWorkflow } from '../lib/recurring-workflows.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -406,6 +407,13 @@ function guardOperationsChanges(base:VaultPayload,intended:VaultPayload,latest:V
   guardSavedItemInventoryRemoval(base,intended,purchases,movements);
 }
 
+function guardRecurringWorkflowChanges(base:RecurringWorkflowRecord[],intended:RecurringWorkflowRecord[],latest:RecurringWorkflowRecord[]):void{
+  if(intended===base)return;
+  guardConcurrentRecordChanges(base,intended,latest,'Recurring workflow','Reopen the Recurring Manager before saving or generating a draft.');
+  const baseById=new Map(base.map(item=>[item.id,item]));
+  for(const workflow of intended){const before=baseById.get(workflow.id);if(before&&sameRecord(before,workflow))continue;assertRecurringWorkflow(workflow);}
+}
+
 function mergeCompany(base:CompanySettings,intended:CompanySettings,latest:CompanySettings):CompanySettings{
   if(intended===base)return latest;
   const next:CompanySettings={...latest,bank:{...latest.bank},bankAccounts:latest.bankAccounts.map(account=>({...account})),commercial:{...latest.commercial,taxPresets:latest.commercial.taxPresets.map(item=>({...item})),paymentTermPresets:latest.commercial.paymentTermPresets.map(item=>({...item})),pricing:{...latest.commercial.pricing}}};
@@ -441,6 +449,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const purchases=mergeRecords(base.purchases,intended.purchases,latest.purchases);
   const expenses=mergeRecords(base.expenses,intended.expenses,latest.expenses);
   const inventoryMovements=mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  guardRecurringWorkflowChanges(base.recurringWorkflows,intended.recurringWorkflows,latest.recurringWorkflows);
+  const recurringWorkflows=mergeRecords(base.recurringWorkflows,intended.recurringWorkflows,latest.recurringWorkflows);
   const documents=mergeDocuments(base.documents,intended.documents,latest.documents);
   guardConcurrentRecordChanges(base.payments,intended.payments,latest.payments,'Payment','Reopen the invoice before saving or deleting the payment.');
   const payments=mergeRecords(base.payments,intended.payments,latest.payments);
@@ -461,6 +471,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     supplierPayments,
     expenses,
     inventoryMovements,
+    recurringWorkflows,
     documents,
     documentEvents:mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents),
     documentRevisions:mergeRecords(base.documentRevisions,intended.documentRevisions,latest.documentRevisions),

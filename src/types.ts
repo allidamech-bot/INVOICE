@@ -512,6 +512,36 @@ export interface AppSettings {
   smartDefaults: SmartDocumentDefaults;
 }
 
+export type RecurringCadence = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+export type RecurringTarget = 'document' | 'purchase';
+
+export interface RecurringGeneratedRun {
+  id: string;
+  scheduledFor: string;
+  generatedId: string;
+  generatedNumber: string;
+  createdAt: string;
+}
+
+export interface RecurringWorkflowRecord {
+  id: string;
+  workspaceId: string;
+  target: RecurringTarget;
+  title: string;
+  sourceId: string;
+  sourceNumber: string;
+  cadence: RecurringCadence;
+  interval: number;
+  nextRunDate: string;
+  endDate: string;
+  enabled: boolean;
+  documentTemplate: LourexDocument | null;
+  purchaseTemplate: PurchaseRecord | null;
+  generatedRuns: RecurringGeneratedRun[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface VaultPayload {
   schemaVersion: number;
   company: CompanySettings;
@@ -522,6 +552,7 @@ export interface VaultPayload {
   supplierPayments: SupplierPaymentRecord[];
   expenses: ExpenseRecord[];
   inventoryMovements: InventoryMovementRecord[];
+  recurringWorkflows: RecurringWorkflowRecord[];
   documents: LourexDocument[];
   documentEvents: DocumentEventRecord[];
   documentRevisions: DocumentRevisionRecord[];

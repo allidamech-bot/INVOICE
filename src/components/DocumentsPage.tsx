@@ -1,4 +1,4 @@
-import type { DocumentEventRecord, DocumentKind, LourexDocument, PaymentRecord, PaymentStatus } from '../types.js';
+import type { DocumentEventRecord, DocumentKind, LourexDocument, PaymentRecord, PaymentStatus, RecurringWorkflowRecord } from '../types.js';
 import { calculateTotals, compareMoneyStrings, formatMoney, lineTotal } from '../lib/money.js';
 import { displayDate } from '../lib/id.js';
 import { hasDocumentCustomer, validateDocument } from '../lib/documents.js';
@@ -11,12 +11,16 @@ import { buildCommercialFlowSnapshot, commercialStatusLabel, isQuoteLikeDocument
 import { CommercialFlowPanel } from './CommercialFlowPanel.js';
 import { SecureShareManager } from './SecureShareManager.js';
 import { secureShareEligible } from '../lib/secure-share.js';
+import { recurringDocumentEligible } from '../lib/recurring-workflows.js';
 
 interface Props {
   initialStatus?:WorkspaceStatus;
   documents:LourexDocument[];
   payments:PaymentRecord[];
   documentEvents:DocumentEventRecord[];
+  recurringWorkflows?:RecurringWorkflowRecord[];
+  onMakeRecurring?:(doc:LourexDocument)=>void;
+  onOpenRecurring?:()=>void;
   onNew:(kind:DocumentKind)=>void;
   onOpen:(doc:LourexDocument)=>void;
   onDuplicate:(doc:LourexDocument)=>void;
@@ -285,6 +289,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({detailId:doc.id}))}><Icon name="eye"/><span>{t('View details','عرض التفاصيل')}</span></button>
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onOpen(doc))}><Icon name="edit"/><span>{doc.lifecycleStatus==='voided'?t('Open archive','فتح الأرشيف'):doc.status==='final'?t('Open / manage','فتح / إدارة'):t('Continue editing','متابعة التحرير')}</span></button>
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onDuplicate(doc))}><Icon name="copy"/><span>{t('Duplicate','نسخ')}</span></button>
+      {this.props.onMakeRecurring&&recurringDocumentEligible(doc)?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onMakeRecurring?.(doc))}><Icon name="refresh"/><span>{t('Make recurring','جعلها متكررة')}</span></button>:null}
       {linkedInvoice?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({detailId:linkedInvoice.id}))}><Icon name="invoice"/><span>{t(`Open linked invoice ${linkedInvoice.number}`,`فتح الفاتورة المرتبطة ${linkedInvoice.number}`)}</span></button>:canConvert?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.convertQuote(doc))}><Icon name="invoice"/><span>{t('Convert to Invoice','تحويل إلى فاتورة')}</span></button>:null}
       {canCollect?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onRecordPayment?.(doc))}><Icon name="invoice"/><span>{t('Record Payment','تسجيل دفعة')}</span></button>:null}
       {canCredit?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onCreateCreditNote?.(doc))}><Icon name="invoice"/><span>{t('Create Credit Note','إنشاء إشعار دائن')}</span></button>:null}
@@ -436,7 +441,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     return <section className="ta-documents-page">
       <header className="ta-documents-header">
         <div><span className="ta-documents-eyebrow">{t('Business documents','مستندات الأعمال')}</span><h1>{t('Documents','المستندات')}</h1><p>{t('Create, issue and manage the complete LOUREX trade-document workflow.','أنشئ وأصدر وأدر دورة مستندات LOUREX التجارية الكاملة.')}</p></div>
-        <div className="ta-documents-header-actions"><Button icon="edit" onClick={()=>this.props.onNew('draft')}>{t('Draft','مسودة')}</Button><Button icon="file" onClick={()=>this.props.onNew('rfq')}>{t('RFQ','طلب عرض سعر')}</Button><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Quotation','عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Invoice','فاتورة')}</Button></div>
+        <div className="ta-documents-header-actions">{this.props.onOpenRecurring?<Button onClick={()=>this.props.onOpenRecurring?.()}>{t('Recurring','المتكرر')}</Button>:null}<Button icon="edit" onClick={()=>this.props.onNew('draft')}>{t('Draft','مسودة')}</Button><Button icon="file" onClick={()=>this.props.onNew('rfq')}>{t('RFQ','طلب عرض سعر')}</Button><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Quotation','عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Invoice','فاتورة')}</Button></div>
       </header>
 
       <section className="ta-doc-summary-grid" aria-label={t('Document summary','ملخص المستندات')}>

@@ -14,6 +14,8 @@ const PAYMENT_METHODS = new Set(['cash','bank-transfer','card','cheque','other']
 const DOCUMENT_EVENT_TYPES = new Set(['created','issued','reissued','revision-started','revision-discarded','voided','credit-note-created','payment-recorded','payment-deleted','converted']);
 const PURCHASE_STATUSES = new Set(['draft','posted','reversed']);
 const INVENTORY_MOVEMENT_TYPES = new Set(['opening','purchase','purchase-reversal','issue','adjustment']);
+const RECURRING_TARGETS = new Set(['document','purchase']);
+const RECURRING_CADENCES = new Set(['weekly','monthly','quarterly','yearly']);
 const DOCUMENT_KINDS = new Set<DocumentKind>(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt']);
 
 function stringValue(value: unknown, fallback = ''): string {
@@ -144,6 +146,22 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
     id:stringValue(movement?.id),itemId:stringValue(movement?.itemId),itemNameEn:stringValue(movement?.itemNameEn),itemNameAr:stringValue(movement?.itemNameAr),sku:stringValue(movement?.sku),date:stringValue(movement?.date),type:INVENTORY_MOVEMENT_TYPES.has(movement?.type)?movement.type:'adjustment',quantity:stringValue(movement?.quantity,'0'),unitCost:stringValue(movement?.unitCost),currency:stringValue(movement?.currency).trim().toUpperCase(),sourceId:stringValue(movement?.sourceId),sourceNumber:stringValue(movement?.sourceNumber),note:stringValue(movement?.note),createdAt:stringValue(movement?.createdAt,nowIso())
   })) : [];
 
+  migrated.recurringWorkflows = Array.isArray((vault as any).recurringWorkflows) ? (vault as any).recurringWorkflows.map((workflow:any)=>{
+    const target=RECURRING_TARGETS.has(workflow?.target)?workflow.target:'document';
+    const cadence=RECURRING_CADENCES.has(workflow?.cadence)?workflow.cadence:'monthly';
+    const documentTemplate=target==='document'&&workflow?.documentTemplate&&typeof workflow.documentTemplate==='object'?structuredClone(workflow.documentTemplate):null;
+    const purchaseTemplate=target==='purchase'&&workflow?.purchaseTemplate&&typeof workflow.purchaseTemplate==='object'?structuredClone(workflow.purchaseTemplate):null;
+    if(documentTemplate){documentTemplate.role='standard';documentTemplate.status='draft';documentTemplate.lifecycleStatus='active';documentTemplate.revision=1;documentTemplate.creditForId='';documentTemplate.creditForNumber='';documentTemplate.voidedAt='';documentTemplate.voidReason='';documentTemplate.convertedFromId='';documentTemplate.attachments=[];}
+    if(purchaseTemplate){purchaseTemplate.status='draft';purchaseTemplate.postedAt='';purchaseTemplate.reversedAt='';purchaseTemplate.reverseReason='';}
+    return{
+      id:stringValue(workflow?.id),workspaceId:stringValue(workflow?.workspaceId,'default')||'default',target,title:stringValue(workflow?.title),sourceId:stringValue(workflow?.sourceId),sourceNumber:stringValue(workflow?.sourceNumber),cadence,
+      interval:Math.max(1,Math.min(52,Math.trunc(finiteNumber(workflow?.interval,1)))),nextRunDate:stringValue(workflow?.nextRunDate),endDate:stringValue(workflow?.endDate),enabled:booleanValue(workflow?.enabled,true),
+      documentTemplate,purchaseTemplate,
+      generatedRuns:Array.isArray(workflow?.generatedRuns)?workflow.generatedRuns.map((run:any)=>({id:stringValue(run?.id),scheduledFor:stringValue(run?.scheduledFor),generatedId:stringValue(run?.generatedId),generatedNumber:stringValue(run?.generatedNumber),createdAt:stringValue(run?.createdAt,nowIso())})).filter((run:any)=>run.id&&run.scheduledFor&&run.generatedId&&run.generatedNumber):[],
+      createdAt:stringValue(workflow?.createdAt,nowIso()),updatedAt:stringValue(workflow?.updatedAt,workflow?.createdAt?stringValue(workflow.createdAt):nowIso())
+    };
+  }).filter((workflow:any)=>workflow.id&&workflow.nextRunDate&&(workflow.documentTemplate||workflow.purchaseTemplate)) : [];
+
   migrated.savedItems = Array.isArray((vault as any).savedItems) ? (vault as any).savedItems.map((item:any)=>({
     id:stringValue(item?.id), createdAt:stringValue(item?.createdAt,nowIso()), updatedAt:stringValue(item?.updatedAt,item?.createdAt ? stringValue(item.updatedAt) : nowIso()),
     sku:stringValue(item?.sku), descriptionEn:stringValue(item?.descriptionEn), descriptionAr:stringValue(item?.descriptionAr), hsCode:stringValue(item?.hsCode), origin:stringValue(item?.origin), packing:stringValue(item?.packing), unit:stringValue(item?.unit,'PCS'),
@@ -249,6 +267,8 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   unique(migrated.supplierPayments.map(p => p.id), 'supplier payment');
   unique(migrated.expenses.map(e => e.id), 'expense');
   unique(migrated.inventoryMovements.map(m => m.id), 'inventory movement');
+  unique(migrated.recurringWorkflows.map(r => r.id), 'recurring workflow');
+  for(const workflow of migrated.recurringWorkflows)unique(workflow.generatedRuns.map(run=>run.id),'recurring run');
   unique(migrated.documents.map(d => d.id), 'document');
   unique(migrated.documentEvents.map(e => e.id), 'document event');
   unique(migrated.documentRevisions.map(r => r.id), 'document revision');
