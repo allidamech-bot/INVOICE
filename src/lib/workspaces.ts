@@ -70,7 +70,6 @@ export function scopeVaultForExternalMutation(vault:VaultPayload):VaultPayload{
   return scoped as VaultPayload;
 }
 
-/** Stamp and synchronize a scoped mutation before normal merge validation. */
 export function applyWorkspaceScope(base:VaultPayload,intended:VaultPayload):VaultPayload{
   const workspaceId=intended.appSettings.activeWorkspaceId||base.appSettings.activeWorkspaceId||DEFAULT_WORKSPACE_ID;
   const branchId=intended.appSettings.activeBranchId||base.appSettings.activeBranchId||DEFAULT_BRANCH_ID;
@@ -91,7 +90,6 @@ export function mergeScopedVault(full:VaultPayload,scoped:VaultPayload):VaultPay
   if(!directoryWorkspace)throw new Error('Active workspace is missing from the encrypted vault.');
   const directoryBranch=full.branches.find(item=>item.workspaceId===workspaceId&&item.id===branchId&&item.active);
   if(!directoryBranch)throw new Error('Active branch is missing from the encrypted vault.');
-
   const next:any={...full};
   for(const key of COMPANY_SCOPED_KEYS){
     const hidden=((full as any)[key]??[]).filter((row:any)=>recordWorkspace(row)!==workspaceId);
@@ -111,7 +109,6 @@ export function mergeScopedVault(full:VaultPayload,scoped:VaultPayload):VaultPay
   return next as VaultPayload;
 }
 
-/** Compatibility name used by the Batch 15 integrator; delegates to safe merge. */
 export function overlayWorkspaceScope(full:VaultPayload,scoped:VaultPayload):VaultPayload{return mergeScopedVault(full,scoped);}
 
 export function activateWorkspace(vault:VaultPayload,workspaceId:string,requestedBranchId=''):VaultPayload{
@@ -135,9 +132,9 @@ export function createWorkspace(vault:VaultPayload,name:string):VaultPayload{
   if(vault.workspaces.some(item=>item.name.trim().toLocaleLowerCase()===clean.toLocaleLowerCase()))throw new Error('A workspace with this name already exists.');
   const id=makeId('workspace'),now=new Date().toISOString();
   const company=structuredClone(vault.company);
-  company.nameEn=clean;company.nameAr='';company.logoDataUrl='';company.signatureDataUrl='';company.stampDataUrl='';company.vatNumber='';company.taxNumber='';company.commercialRegistration='';company.bankAccounts=[];company.defaultBankAccountId='primary';
+  company.nameEn=clean;company.nameAr='';company.logoDataUrl='';company.signatureDataUrl='';company.stampDataUrl='';company.addressEn='';company.addressAr='';company.city='';company.country='';company.phone='';company.email='';company.website='';company.vatNumber='';company.taxNumber='';company.commercialRegistration='';company.bank={bankName:'',accountName:'',iban:'',swift:'',currency:company.defaultCurrency||'USD'};company.bankAccounts=[];company.defaultBankAccountId='primary';
   const workspace:WorkspaceRecord={id,name:clean,company,numbering:resetNumbering(vault.appSettings.numbering),smartDefaults:structuredClone(vault.appSettings.smartDefaults),createdAt:now,updatedAt:now};
-  const branch:BranchRecord={id:makeId('branch'),workspaceId:id,name:'Main Branch',code:'MAIN',city:company.city,country:company.country,active:true,createdAt:now,updatedAt:now};
+  const branch:BranchRecord={id:makeId('branch'),workspaceId:id,name:'Main Branch',code:'MAIN',city:'',country:'',active:true,createdAt:now,updatedAt:now};
   return{...vault,workspaces:[...vault.workspaces,workspace],branches:[...vault.branches,branch]};
 }
 
