@@ -49,12 +49,6 @@ export function activeBranch(vault:Pick<VaultPayload,'branches'|'appSettings'|'w
   return branch;
 }
 
-/**
- * Runtime projection for canonical screens. The encrypted vault remains complete,
- * but every business collection exposed to the current workspace is filtered to
- * the active company/branch. Workspace directory metadata remains available to
- * the shell/manager only.
- */
 export function scopeVault(vault:VaultPayload):VaultPayload{
   const workspace=activeWorkspace(vault),branch=activeBranch(vault);
   const scoped:any={
@@ -67,10 +61,6 @@ export function scopeVault(vault:VaultPayload):VaultPayload{
   return scoped as VaultPayload;
 }
 
-/**
- * Tighter projection for AI/portal mutation bridges. It intentionally hides
- * inactive workspace/branch directory entries and the shared company asset pool.
- */
 export function scopeVaultForExternalMutation(vault:VaultPayload):VaultPayload{
   const scoped:any=scopeVault(vault);
   const workspace=activeWorkspace(scoped),branch=activeBranch(scoped);
@@ -80,11 +70,20 @@ export function scopeVaultForExternalMutation(vault:VaultPayload):VaultPayload{
   return scoped as VaultPayload;
 }
 
-/**
- * Merge a validated active-scope result back into the complete encrypted vault.
- * Inactive companies and branches are copied byte-for-byte from `full` so an
- * edit in one workspace can never delete or overwrite another workspace.
- */
+/** Stamp and synchronize a scoped mutation before normal merge validation. */
+export function applyWorkspaceScope(base:VaultPayload,intended:VaultPayload):VaultPayload{
+  const workspaceId=intended.appSettings.activeWorkspaceId||base.appSettings.activeWorkspaceId||DEFAULT_WORKSPACE_ID;
+  const branchId=intended.appSettings.activeBranchId||base.appSettings.activeBranchId||DEFAULT_BRANCH_ID;
+  const next:any={...intended};
+  for(const key of COMPANY_SCOPED_KEYS)next[key]=stampCompanyRows((intended as any)[key]??[],workspaceId);
+  for(const key of BRANCH_SCOPED_KEYS)next[key]=stampBranchRows((intended as any)[key]??[],workspaceId,branchId);
+  const now=new Date().toISOString();
+  next.workspaces=intended.workspaces.map(workspace=>workspace.id===workspaceId?{
+    ...workspace,company:structuredClone(intended.company),numbering:structuredClone(intended.appSettings.numbering),smartDefaults:structuredClone(intended.appSettings.smartDefaults),updatedAt:now
+  }:workspace);
+  return next as VaultPayload;
+}
+
 export function mergeScopedVault(full:VaultPayload,scoped:VaultPayload):VaultPayload{
   const workspaceId=scoped.appSettings.activeWorkspaceId||full.appSettings.activeWorkspaceId||DEFAULT_WORKSPACE_ID;
   const branchId=scoped.appSettings.activeBranchId||full.appSettings.activeBranchId||DEFAULT_BRANCH_ID;
@@ -102,32 +101,18 @@ export function mergeScopedVault(full:VaultPayload,scoped:VaultPayload):VaultPay
     const hidden=((full as any)[key]??[]).filter((row:any)=>!(recordWorkspace(row)===workspaceId&&recordBranch(row)===branchId));
     next[key]=[...hidden,...stampBranchRows((scoped as any)[key]??[],workspaceId,branchId)];
   }
-
-  // Account-level access policy remains shared across workspaces.
   next.teamMembers=structuredClone(scoped.teamMembers);
   next.approvalPolicies=structuredClone(scoped.approvalPolicies);
   next.company=structuredClone(scoped.company);
-  next.appSettings={
-    ...full.appSettings,
-    autoLockMinutes:scoped.appSettings.autoLockMinutes,
-    uiLanguage:scoped.appSettings.uiLanguage,
-    activeTeamMemberId:scoped.appSettings.activeTeamMemberId,
-    activeWorkspaceId:workspaceId,
-    activeBranchId:branchId,
-    numbering:structuredClone(scoped.appSettings.numbering),
-    smartDefaults:structuredClone(scoped.appSettings.smartDefaults)
-  };
+  next.appSettings={...full.appSettings,autoLockMinutes:scoped.appSettings.autoLockMinutes,uiLanguage:scoped.appSettings.uiLanguage,activeTeamMemberId:scoped.appSettings.activeTeamMemberId,activeWorkspaceId:workspaceId,activeBranchId:branchId,numbering:structuredClone(scoped.appSettings.numbering),smartDefaults:structuredClone(scoped.appSettings.smartDefaults)};
   const now=new Date().toISOString();
-  next.workspaces=full.workspaces.map(workspace=>workspace.id===workspaceId?{
-    ...workspace,
-    company:structuredClone(scoped.company),
-    numbering:structuredClone(scoped.appSettings.numbering),
-    smartDefaults:structuredClone(scoped.appSettings.smartDefaults),
-    updatedAt:now
-  }:workspace);
+  next.workspaces=full.workspaces.map(workspace=>workspace.id===workspaceId?{...workspace,company:structuredClone(scoped.company),numbering:structuredClone(scoped.appSettings.numbering),smartDefaults:structuredClone(scoped.appSettings.smartDefaults),updatedAt:now}:workspace);
   next.branches=full.branches;
   return next as VaultPayload;
 }
+
+/** Compatibility name used by the Batch 15 integrator; delegates to safe merge. */
+export function overlayWorkspaceScope(full:VaultPayload,scoped:VaultPayload):VaultPayload{return mergeScopedVault(full,scoped);}
 
 export function activateWorkspace(vault:VaultPayload,workspaceId:string,requestedBranchId=''):VaultPayload{
   const workspace=vault.workspaces.find(item=>item.id===workspaceId);
