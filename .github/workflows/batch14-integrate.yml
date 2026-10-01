@@ -24,6 +24,17 @@ jobs:
           node-version: 20
       - name: Integrate Batch 14
         run: python3 scripts/batch14-integrate.py
+      - name: Resolve governance type edge
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('src/app/App.tsx')
+          value=p.read_text()
+          old="const status=member.status==='active'?'suspended':'active';"
+          new="const status:TeamMemberRecord['status']=member.status==='active'?'suspended':'active';"
+          if old not in value: raise SystemExit('team status anchor missing')
+          p.write_text(value.replace(old,new,1))
+          PY
       - run: npm ci
       - name: TypeScript
         run: npm run typecheck
