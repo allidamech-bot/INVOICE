@@ -36,12 +36,15 @@ export function validateTreasuryEntry(entry:TreasuryLedgerRecord,accounts:Treasu
   if(!isIsoDate(entry.date))errors.push('Treasury date is invalid.');
   if(!/^[A-Z]{3}$/.test(currency(entry.currency)))errors.push('Treasury currency must be a three-letter currency code.');
   if(!positive(entry.amount))errors.push('Treasury amount must be greater than zero.');
+  if(!entry.workspaceId||!entry.branchId)errors.push('Treasury entry scope is missing.');
   const from=entry.fromAccountId?accounts.find(item=>item.id===entry.fromAccountId):undefined;
   const to=entry.toAccountId?accounts.find(item=>item.id===entry.toAccountId):undefined;
   if(accounts.length&&entry.fromAccountId&&!from)errors.push('Treasury source account was not found.');
   if(accounts.length&&entry.toAccountId&&!to)errors.push('Treasury destination account was not found.');
   if(from&&currency(from.currency)!==currency(entry.currency))errors.push('Treasury source account currency does not match the entry.');
   if(to&&currency(to.currency)!==currency(entry.currency))errors.push('Treasury destination account currency does not match the entry.');
+  if(from&&(from.workspaceId!==entry.workspaceId||from.branchId!==entry.branchId))errors.push('Treasury source account scope does not match the entry.');
+  if(to&&(to.workspaceId!==entry.workspaceId||to.branchId!==entry.branchId))errors.push('Treasury destination account scope does not match the entry.');
   if(entry.type==='transfer'){
     if(!entry.fromAccountId||!entry.toAccountId||entry.fromAccountId===entry.toAccountId)errors.push('Transfer requires two different treasury accounts.');
     if(from&&to&&currency(from.currency)!==currency(to.currency))errors.push('Transfer accounts must use the same currency.');
@@ -54,6 +57,7 @@ export function validateTreasuryEntry(entry:TreasuryLedgerRecord,accounts:Treasu
   }
   if(entry.type==='collection'&&(!entry.sourceId||entry.sourceType!=='customer-payment'))errors.push('Collection must link to a customer payment.');
   if(entry.type==='supplier-payment'&&(!entry.sourceId||entry.sourceType!=='supplier-payment'))errors.push('Supplier payment must link to a supplier payment record.');
+  if(entry.type!=='collection'&&entry.type!=='supplier-payment'&&(entry.sourceType!=='manual'||Boolean(entry.sourceId)))errors.push('Manual treasury entries cannot claim a payment source.');
   return errors;
 }
 export function assertTreasuryEntry(entry:TreasuryLedgerRecord,accounts:TreasuryAccountRecord[]=[]):void{const errors=validateTreasuryEntry(entry,accounts);if(errors.length)throw new Error(errors[0]);}
