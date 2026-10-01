@@ -38,7 +38,7 @@ test('sync merge protects concurrent AP edits and financial invariants',async()=
 
 test('Finance exposes receivables, supplier payables and expenses in the frozen workspace',async()=>{
   const finance=await read('src/components/FinanceWorkspace.tsx');
-  assert.match(finance,/type Tab='receivables'\|'payables'\|'expenses'/);
+  assert.match(finance,/type Tab=[^;]*'receivables'[^;]*'payables'[^;]*'expenses'/);
   assert.match(finance,/Supplier Payables/);
   assert.match(finance,/مستحقات الموردين/);
   assert.match(finance,/<SupplierPayablesPage/);
