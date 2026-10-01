@@ -1,0 +1,124 @@
+name: Batch 11 integrate secure share
+
+on:
+  push:
+    branches:
+      - feat/lourex-customer-portal-batch11
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/lourex-customer-portal-batch11
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Integrate secure share surfaces
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=None):
+              p=Path(path); text=p.read_text()
+              found=text.count(old)
+              if found == 0: raise SystemExit(f'Missing anchor in {path}: {old[:100]!r}')
+              if count is not None and found != count: raise SystemExit(f'Anchor count {found} != {count} in {path}: {old[:100]!r}')
+              p.write_text(text.replace(old,new))
+
+          # Central Firebase config: no behavior change for the main app.
+          p=Path('src/cloud/firebase.ts'); text=p.read_text()
+          if "./firebase-config.js" not in text:
+              text=text.replace("import { MIN_ACCOUNT_PASSWORD_LENGTH } from '../lib/account-security.js';", "import { MIN_ACCOUNT_PASSWORD_LENGTH } from '../lib/account-security.js';\nimport { LOUREX_FIREBASE_CONFIG } from './firebase-config.js';")
+          inline="const FIREBASE_CONFIG={apiKey:'AIzaSyAgakNDqcKlyAFiOyfm1ebA8PB-_HKM-go',authDomain:'lourex-invoice.firebaseapp.com',projectId:'lourex-invoice',storageBucket:'lourex-invoice.firebasestorage.app',messagingSenderId:'985119320046',appId:'1:985119320046:web:58798f19ad368a178510ff'};"
+          if inline not in text: raise SystemExit('Firebase config anchor missing')
+          text=text.replace(inline,"const FIREBASE_CONFIG=LOUREX_FIREBASE_CONFIG;")
+          p.write_text(text)
+
+          # Commercial evidence gains portal-only Viewed/Commented events while
+          # keeping Accepted/Rejected terminal for manual sales workflow actions.
+          path='src/lib/commercial-flow.ts'
+          replace(path,
+            "export type CommercialTrackingEventKind='sent'|'accepted'|'rejected'|'followup-scheduled'|'followup-completed';",
+            "export type CommercialTrackingEventKind='sent'|'viewed'|'commented'|'accepted'|'rejected'|'followup-scheduled'|'followup-completed';",1)
+          replace(path,
+            "  sentAt?:string;\n  acceptedAt?:string;",
+            "  sentAt?:string;\n  viewedAt?:string;\n  lastCommentAt?:string;\n  lastComment?:string;\n  acceptedAt?:string;",1)
+          replace(path,
+            "  return kind==='sent'||kind==='accepted'||kind==='rejected'||kind==='followup-scheduled'||kind==='followup-completed'?kind:null;",
+            "  return kind==='sent'||kind==='viewed'||kind==='commented'||kind==='accepted'||kind==='rejected'||kind==='followup-scheduled'||kind==='followup-completed'?kind:null;",1)
+          replace(path,
+            "const tracking:CommercialTrackingOverlay={documentId,status:'',sentAt:'',acceptedAt:'',rejectedAt:'',rejectionReason:'',followUpAt:'',lastFollowUpAt:'',updatedAt:''};",
+            "const tracking:CommercialTrackingOverlay={documentId,status:'',sentAt:'',viewedAt:'',lastCommentAt:'',lastComment:'',acceptedAt:'',rejectedAt:'',rejectionReason:'',followUpAt:'',lastFollowUpAt:'',updatedAt:''};",1)
+          replace(path,
+            "    if(terminal)continue;",
+            "    if(terminal&&kind!=='viewed'&&kind!=='commented')continue;",1)
+          replace(path,
+            "    if(kind==='sent'){\n      tracking.status='sent';tracking.sentAt=event.at;tracking.acceptedAt='';tracking.rejectedAt='';tracking.rejectionReason='';\n    }else if(kind==='accepted')",
+            "    if(kind==='sent'){\n      tracking.status='sent';tracking.sentAt=event.at;tracking.acceptedAt='';tracking.rejectedAt='';tracking.rejectionReason='';\n    }else if(kind==='viewed'){\n      if(!tracking.viewedAt)tracking.viewedAt=event.at;\n    }else if(kind==='commented'){\n      tracking.lastCommentAt=event.at;tracking.lastComment=payload;\n    }else if(kind==='accepted')",1)
+          replace(path,
+            "export function createCommercialTrackingEvent(doc:LourexDocument,kind:CommercialTrackingEventKind,payload=''):DocumentEventRecord{\n  const now=new Date().toISOString();\n  const note=`${COMMERCIAL_MARKER}${kind}${payload.trim()?`\\n${payload.trim()}`:''}`;\n  return{\n    id:makeId('event'),documentId:doc.id,documentNumber:doc.number,type:'created',at:now,note,\n    relatedDocumentId:'',relatedDocumentNumber:'',amount:'',currency:doc.currency\n  };\n}",
+            "export function createCommercialTrackingEvent(doc:LourexDocument,kind:CommercialTrackingEventKind,payload='',at=new Date().toISOString(),relatedDocumentId='',relatedDocumentNumber=''):DocumentEventRecord{\n  const recordedAt=!Number.isNaN(Date.parse(at))?at:new Date().toISOString();\n  const note=`${COMMERCIAL_MARKER}${kind}${payload.trim()?`\\n${payload.trim()}`:''}`;\n  return{\n    id:makeId('event'),documentId:doc.id,documentNumber:doc.number,type:'created',at:recordedAt,note,\n    relatedDocumentId,relatedDocumentNumber,amount:'',currency:doc.currency\n  };\n}",1)
+          replace(path,
+            "  const doc=vault.documents.find(item=>item.id===documentId);\n  if(!doc)throw new Error('Quotation no longer exists. Reopen Documents and try again.');",
+            "  const doc=vault.documents.find(item=>item.id===documentId);\n  if(!doc)throw new Error('Quotation no longer exists. Reopen Documents and try again.');\n  if(kind==='viewed'||kind==='commented')throw new Error('Portal evidence can only be recorded by a secure customer link.');",1)
+
+          # Commercial Flow labels and trustworthy view/comment summary.
+          path='src/components/CommercialFlowPanel.tsx'
+          replace(path,
+            "  if(commercial==='sent')return t('Marked sent','تم تسجيل الإرسال');\n  if(commercial==='accepted')",
+            "  if(commercial==='sent')return t('Marked sent','تم تسجيل الإرسال');\n  if(commercial==='viewed')return t('Viewed in secure portal','تمت المشاهدة في البوابة الآمنة');\n  if(commercial==='commented')return t('Customer commented','أضاف العميل تعليقًا');\n  if(commercial==='accepted')",1)
+          replace(path,
+            "      <div><small>{t('Linked invoice','الفاتورة المرتبطة')}</small><strong>{snapshot.linkedInvoice?.number||'—'}</strong><span>{snapshot.linkedInvoice?t('Conversion is confirmed by the linked record.','تم تأكيد التحويل من السجل المرتبط.'):t('No invoice conversion recorded yet.','لا يوجد تحويل لفاتورة مسجل حتى الآن.')}</span></div>\n    </div>",
+            "      <div><small>{t('Linked invoice','الفاتورة المرتبطة')}</small><strong>{snapshot.linkedInvoice?.number||'—'}</strong><span>{snapshot.linkedInvoice?t('Conversion is confirmed by the linked record.','تم تأكيد التحويل من السجل المرتبط.'):t('No invoice conversion recorded yet.','لا يوجد تحويل لفاتورة مسجل حتى الآن.')}</span></div>\n      <div><small>{t('Secure portal viewed','تمت المشاهدة الآمنة')}</small><strong>{snapshot.tracking.viewedAt?displayDate(snapshot.tracking.viewedAt.slice(0,10),getUiLanguage()):'—'}</strong><span>{snapshot.tracking.lastComment?t('Customer comment recorded','تم تسجيل تعليق العميل'):t('Trustworthy view evidence appears only after the secure portal opens.','يظهر إثبات المشاهدة الموثوق فقط بعد فتح البوابة الآمنة.')}</span></div>\n    </div>",1)
+
+          # Customer 360 receives a bounded shared-document surface.
+          path='src/components/Customer360LivePanel.tsx'
+          replace(path,"import { Customer360Panel } from './Relationship360Panels.js';","import { Customer360Panel } from './Relationship360Panels.js';\nimport { CustomerSharesPanel } from './CustomerSharesPanel.js';",1)
+          replace(path,"  return <Customer360Panel snapshot={snapshot}/>;","  return <><Customer360Panel snapshot={snapshot}/><CustomerSharesPanel customer={customer}/></>;",1)
+
+          # Documents: add Secure Share alongside existing native PDF/Share.
+          path='src/components/DocumentsPage.tsx'; p=Path(path); text=p.read_text()
+          text=text.replace("import { CommercialFlowPanel } from './CommercialFlowPanel.js';", "import { CommercialFlowPanel } from './CommercialFlowPanel.js';\nimport { SecureShareManager } from './SecureShareManager.js';\nimport { secureShareEligible } from '../lib/secure-share.js';")
+          text=text.replace("  detailId:string;\n}","  detailId:string;\n  secureShareId:string;\n}",1)
+          text=text.replace("detailId:''};","detailId:'',secureShareId:''};",1)
+          anchor="    if(prevProps.documents!==this.props.documents&&this.state.menuId&&!this.props.documents.some(doc=>doc.id===this.state.menuId))this.setState({menuId:''});"
+          if anchor not in text: raise SystemExit('Documents componentDidUpdate anchor missing')
+          text=text.replace(anchor,anchor+"\n    if(this.state.secureShareId&&!this.props.documents.some(doc=>doc.id===this.state.secureShareId))this.setState({secureShareId:''});",1)
+          native="      {canOutput?<><button type=\"button\" role=\"menuitem\" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}><Icon name=\"download\"/><span>{this.state.outputId===doc.id?t('Preparing…','جارٍ التجهيز…'):'PDF'}</span></button><button type=\"button\" role=\"menuitem\" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}><Icon name=\"share\"/><span>{t('Share','مشاركة')}</span></button></>:null}"
+          if native not in text: raise SystemExit('Documents native output action anchor missing')
+          text=text.replace(native,"      {secureShareEligible(doc)?<button type=\"button\" role=\"menuitem\" onClick={()=>this.runAction(()=>this.setState({secureShareId:doc.id}))}><Icon name=\"lock\"/><span>{t('Secure Share','مشاركة آمنة')}</span></button>:null}\n"+native,1)
+          toolbar="          {canOutput?<><Button icon=\"download\" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}>PDF</Button><Button icon=\"share\" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}>{t('Share','مشاركة')}</Button></>:null}"
+          if toolbar not in text: raise SystemExit('Documents detail output toolbar anchor missing')
+          text=text.replace(toolbar,toolbar+"\n          {secureShareEligible(doc)?<Button icon=\"lock\" onClick={()=>this.setState({secureShareId:doc.id})}>{t('Secure Share','مشاركة آمنة')}</Button>:null}",1)
+          manager="{this.renderActionPortal()}\n      <SecureShareManager open={Boolean(this.state.secureShareId)} document={this.props.documents.find(item=>item.id===this.state.secureShareId)??null} events={this.props.documentEvents} onClose={()=>this.setState({secureShareId:''})}/>"
+          count=text.count('{this.renderActionPortal()}')
+          if count < 2: raise SystemExit(f'Expected multiple action portal anchors, found {count}')
+          text=text.replace('{this.renderActionPortal()}',manager)
+          p.write_text(text)
+
+          # Secure-share CSS becomes part of app.bundle and remains before the final reliability owner.
+          path='index.html'; p=Path(path); text=p.read_text()
+          anchor='  <link rel="stylesheet" href="./styles/tailadmin-reliability-bridge-v320.css?v=320-2" data-lourex-tailadmin-reliability-v320="true" />'
+          if anchor not in text: raise SystemExit('Final reliability stylesheet anchor missing')
+          text=text.replace(anchor,'  <link rel="stylesheet" href="./styles/secure-share-batch11.css?v=463-1" data-lourex-secure-share-batch11="true" />\n'+anchor,1)
+          p.write_text(text)
+          PY
+      - run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Commit verified integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/cloud/firebase.ts src/lib/commercial-flow.ts src/components/CommercialFlowPanel.tsx src/components/Customer360LivePanel.tsx src/components/DocumentsPage.tsx index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "feat(portal): integrate secure share into documents and customer 360"
+          git push origin HEAD:feat/lourex-customer-portal-batch11
