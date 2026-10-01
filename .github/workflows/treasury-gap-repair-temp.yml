@@ -1,17 +1,20 @@
 name: LOUREX Treasury Gap Repair Temp
 
 on:
-  push:
+  pull_request:
     branches:
-      - feat/lourex-roadmap-hardening-final
+      - main
     paths:
       - '.treasury-gap-repair-trigger'
+      - '.github/workflows/treasury-gap-repair-temp.yml'
+      - 'scripts/repair-treasury-gap.py'
 
 permissions:
   contents: write
 
 jobs:
   repair:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feat/lourex-roadmap-hardening-final'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
