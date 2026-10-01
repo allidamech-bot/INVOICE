@@ -7,6 +7,7 @@ on:
     paths:
       - 'scripts/batch15-integrate.py'
       - '.github/workflows/batch15-integrate.yml'
+      - 'src/lib/workspaces.ts'
 
 permissions:
   contents: write
@@ -22,7 +23,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-      - name: Integrate Batch 15
+      - name: Integrate Batch 15 from current head
         run: python3 scripts/batch15-integrate.py
       - run: npm ci
       - name: TypeScript
