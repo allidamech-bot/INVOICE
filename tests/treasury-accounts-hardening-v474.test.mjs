@@ -35,6 +35,17 @@ test('Treasury allocation preserves canonical customer/supplier payments and pre
   assert.equal(treasuryLinkedSourceUsed([{...collection,voidedAt:'2026-10-01T12:00:00.000Z'}],'customer-payment','pay-1'),false);
 });
 
+test('Treasury scope and source invariants prevent cross-workspace leakage or forged payment linkage',async()=>{
+  const {createTreasuryAccount,createTreasuryEntry,assertTreasuryEntry}=await treasury();
+  const bank=createTreasuryAccount(accountInput());
+  const blankScope={...createTreasuryEntry('deposit','USD'),amount:'10.00',toAccountId:bank.id};
+  assert.throws(()=>assertTreasuryEntry(blankScope,[bank]),/scope/i);
+  const wrongBranch={...blankScope,workspaceId:'default',branchId:'other'};
+  assert.throws(()=>assertTreasuryEntry(wrongBranch,[bank]),/scope/i);
+  const forgedManual={...blankScope,workspaceId:'default',branchId:'main',sourceType:'customer-payment',sourceId:'pay-1'};
+  assert.throws(()=>assertTreasuryEntry(forgedManual,[bank]),/cannot claim/i);
+});
+
 test('Treasury corrections preserve history via void and reconciliation instead of deletion/editing semantics',async()=>{
   const {createTreasuryAccount,createTreasuryEntry,voidTreasuryEntry,markTreasuryEntryReconciled,treasuryAccountBalance}=await treasury();
   const bank=createTreasuryAccount(accountInput());
