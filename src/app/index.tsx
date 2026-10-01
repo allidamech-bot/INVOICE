@@ -10,7 +10,7 @@ import { getActiveAccountUid, isCurrentSessionExpired, resumeAccountSession, set
 import { saveVault } from '../storage/vault.js';
 import { registerVaultMutationBridge } from '../storage/vault-mutation-bridge.js';
 import { appendAuditEventsForVaultDiff } from '../lib/audit-diff.js';
-import { applyWorkspaceScope, overlayWorkspaceScope, scopeVault } from '../lib/workspaces.js';
+import { applyWorkspaceScope, mergeScopedVault, scopeVaultForExternalMutation } from '../lib/workspaces.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
@@ -59,9 +59,9 @@ class AdaptiveCloudApp extends BaseApp {
         if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));
         const latestFull=queued??instance.state.vault;
         if(!latestFull)throw new Error(t('LOUREX workspace is not ready.','مساحة LOUREX غير جاهزة.'));
-        const latest=scopeVault(latestFull);
+        const latest=scopeVaultForExternalMutation(latestFull);
         const intended=applyWorkspaceScope(latest,mutation(latest));
-        const next=overlayWorkspaceScope(latestFull,appendAuditEventsForVaultDiff(latest,intended));
+        const next=mergeScopedVault(latestFull,appendAuditEventsForVaultDiff(latest,intended));
         const encrypted=await saveVault(key,next);
         instance.latestEncryptedVault=encrypted;
         if(instance.state.unlocked&&instance.state.key===key){

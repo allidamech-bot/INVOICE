@@ -55,10 +55,12 @@ export class SettingsModal extends React.Component<Props,State> {
     if(!this.props.open&&prev.open)this.assetPreparationId+=1;
     if(this.props.open&&!prev.open){
       const scope=consumeSettingsScope();
+      let requestedTab:State['tab']='company';
+      try{if(sessionStorage.getItem('lourex-settings-tab')==='workspaces')requestedTab='workspaces';sessionStorage.removeItem('lourex-settings-tab');}catch{}
       const company=structuredClone(this.props.company);
       const appSettings=structuredClone(this.props.appSettings);
       const preparationId=++this.assetPreparationId;
-      this.setState({scope,tab:'company',company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original'},()=>void this.prepareExistingAssets(company,preparationId));
+      this.setState({scope,tab:requestedTab,company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original'},()=>void this.prepareExistingAssets(company,preparationId));
     }
   }
 

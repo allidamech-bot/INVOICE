@@ -21,6 +21,8 @@ interface Props {
   screen:WorkspaceScreen;
   logoDataUrl:string;
   language:UiLanguage;
+  workspaceName:string;
+  branchName:string;
   newMenu:boolean;
   cloudState:CloudState;
   cloudLabel:string;
@@ -176,6 +178,14 @@ export class AppShell extends React.Component<Props,State>{
     try{sessionStorage.setItem(SETTINGS_SCOPE_KEY,scope);}catch{}
   };
 
+  private openWorkspaces=()=>{
+    this.closeCreateMenu();
+    this.closeMore();
+    try{sessionStorage.setItem('lourex-settings-tab','workspaces');}catch{}
+    this.requestSettingsScope('settings');
+    this.props.onSettings();
+  };
+
   private openSettings=()=>{
     this.closeCreateMenu();
     this.closeMore();
@@ -264,6 +274,8 @@ export class AppShell extends React.Component<Props,State>{
     }
   };
 
+  private workspaceSwitcher=(className='')=><button type="button" className={`lx-workspace-switcher ${className}`.trim()} onClick={this.openWorkspaces} aria-label={`${t('Workspace','مساحة العمل')}: ${this.props.workspaceName} · ${this.props.branchName}`}><span className="ta-account-avatar"><Icon name="users"/></span><span className="lx-workspace-switcher-copy"><strong>{this.props.workspaceName}</strong><small>{this.props.branchName}</small></span><span className="ta-sidebar-account-chevron" aria-hidden="true">›</span></button>;
+
   private navItem=(screen:NavTarget,icon:NavIcon,label:string)=>
     <button
       type="button"
@@ -331,6 +343,7 @@ export class AppShell extends React.Component<Props,State>{
             <Brand compact logoDataUrl={logo} language={this.props.language}/>
             <span className="ta-brand-copy"><strong>LOUREX</strong><small>INVOICE</small></span>
           </button>
+          {this.workspaceSwitcher('is-desktop')}
         </div>
 
         <div className="ta-sidebar-create">
@@ -404,6 +417,7 @@ export class AppShell extends React.Component<Props,State>{
               {signedIn?<button type="button" className="ta-sheet-signout" disabled={this.state.signingOut} onClick={()=>void this.signOutFromMore()}><Icon name="lock"/><span>{this.state.signingOut?t('Signing out…','جارٍ تسجيل الخروج…'):t('Sign Out','تسجيل الخروج')}</span></button>:null}
             </div>
             {this.syncStatus('ta-sheet-sync')}
+            <div className="ta-sheet-workspace">{this.workspaceSwitcher('is-mobile')}</div>
             <button type="button" className="ta-sheet-account" onClick={this.openAccount}><span className="ta-sheet-link-icon"><Icon name="users"/></span><span className="ta-sheet-link-copy"><strong>{t('My Account','حسابي')}</strong><small>{t('Identity, business profile and account access','الهوية وملف الشركة والوصول للحساب')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button>
             <section className="ta-sheet-group"><p>{t('Operations','العمليات')}</p>{this.mobileSheetItem('items','items',t('Products & Inventory','المنتجات والمخزون'),t('Products, stock and movement','المنتجات والمخزون والحركة'))}{this.mobileSheetItem('operations','backup',t('Purchasing','المشتريات'),t('Suppliers and purchase workflow','الموردون ودورة المشتريات'))}</section>
             <section className="ta-sheet-group"><p>{t('Finance & insights','المالية والتحليلات')}</p>{this.mobileSheetItem('receivables','invoice',t('Finance','المالية'),t('Receivables, collections and expenses','المستحقات والتحصيل والمصروفات'))}{this.mobileSheetItem('reports','chart',t('Reports & Insights','التقارير والتحليلات'),t('Period analysis and profitability','تحليل الفترات والربحية'))}</section>
