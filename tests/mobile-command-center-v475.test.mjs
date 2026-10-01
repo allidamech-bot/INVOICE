@@ -4,31 +4,35 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-const [css,elite,workspaces,editor,reliability,home,shell]=await Promise.all([
+const [css,elite,workspaces,editor,overlays,reliability,home,shell]=await Promise.all([
   read('src/styles/mobile-command-center-v475.css'),
   read('src/styles/mobile-command-center-v475-elite.css'),
   read('src/styles/mobile-workspaces-v475.css'),
   read('src/styles/mobile-editor-v475.css'),
+  read('src/styles/mobile-overlays-v475.css'),
   read('src/styles/tailadmin-reliability-bridge-v320.css'),
   read('src/components/WorkspaceHome.tsx'),
   read('src/components/AppShell.tsx')
 ]);
 
-test('v475 loads base, elite, deep workspace and editor presentation layers in order',()=>{
+test('v475 loads base, elite, workspace, editor and overlay presentation layers in order',()=>{
   assert.match(reliability,/@import url\("\.\/mobile-command-center-v475-elite\.css\?v=475-2"\);/);
   assert.match(reliability,/@import url\("\.\/mobile-workspaces-v475\.css\?v=475-3"\);/);
   assert.match(reliability,/@import url\("\.\/mobile-editor-v475\.css\?v=475-4"\);/);
+  assert.match(reliability,/@import url\("\.\/mobile-overlays-v475\.css\?v=475-5"\);/);
   const eliteIndex=reliability.indexOf('mobile-command-center-v475-elite.css?v=475-2');
   const workspaceIndex=reliability.indexOf('mobile-workspaces-v475.css?v=475-3');
   const editorIndex=reliability.indexOf('mobile-editor-v475.css?v=475-4');
+  const overlayIndex=reliability.indexOf('mobile-overlays-v475.css?v=475-5');
   const reliabilityIndex=reliability.indexOf('/* LOUREX v351');
-  assert.ok(eliteIndex<workspaceIndex&&workspaceIndex<editorIndex&&editorIndex<reliabilityIndex,'mobile design cascade order must remain deterministic');
+  assert.ok(eliteIndex<workspaceIndex&&workspaceIndex<editorIndex&&editorIndex<overlayIndex&&overlayIndex<reliabilityIndex,'mobile design cascade order must remain deterministic');
   assert.match(elite,/@import url\("\.\/mobile-command-center-v475\.css\?v=475-1"\);/);
   assert.match(css,/Presentation-only mobile redesign/);
   assert.match(elite,/Presentation-only/);
   assert.match(workspaces,/Deep presentation-only pass/);
   assert.match(editor,/Presentation-only premium mobile treatment/);
-  for(const layer of [css,elite,workspaces,editor])assert.match(layer,/@media screen and \(max-width:900px\)/);
+  assert.match(overlays,/Presentation-only final mobile system/);
+  for(const layer of [css,elite,workspaces,editor,overlays])assert.match(layer,/@media screen and \(max-width:900px\)/);
   assert.doesNotMatch(home,/mobile-command-center-v475/);
   assert.doesNotMatch(shell,/mobile-command-center-v475/);
 });
@@ -99,15 +103,25 @@ test('v475.4 redesign reaches both commercial Document Studio and Draft Studio',
   assert.match(editor,/\.draft-studio-preview\{display:none!important;\}/);
 });
 
+test('v475.5 redesign covers global search, follow-up center and LOUREX AI overlays',()=>{
+  for(const selector of ['.global-search-panel','.global-search-actions','.global-search-result','.lx-notification-summary','.lx-notification-item','.lx-notification-actions','.lourex-ai-panel','.lourex-ai-head','.lourex-ai-compose'])assert.ok(overlays.includes(selector),`missing premium overlay styling for ${selector}`);
+  assert.match(overlays,/Global Search becomes a premium command center sheet/);
+  assert.match(overlays,/Notification Center: executive inbox rather than generic modal list/);
+  assert.match(overlays,/LOUREX AI: full-height personal advisor sheet/);
+  assert.match(overlays,/\.global-search-actions\{[\s\S]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(overlays,/\.lx-notification-actions\{[\s\S]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(overlays,/#lourex-ai-panel/);
+});
+
 test('v475 preserves mobile reachability, RTL typography and safe-area clearance',()=>{
   for(const layer of [css,elite,workspaces,editor])assert.match(layer,/font-family:"Noto Sans Arabic",Inter/);
   assert.match(css,/padding-bottom:calc\(104px \+ env\(safe-area-inset-bottom,0px\)\)/);
   assert.match(elite,/bottom:calc\(8px \+ env\(safe-area-inset-bottom,0px\)\)/);
-  assert.match(workspaces,/env\(safe-area-inset-bottom,0px\)/);
-  assert.match(editor,/env\(safe-area-inset-bottom,0px\)/);
+  for(const layer of [workspaces,editor,overlays])assert.match(layer,/env\(safe-area-inset-bottom,0px\)/);
   assert.match(css,/min-height:44px/);
   assert.match(workspaces,/min-height:44px/);
   assert.match(editor,/min-height:44px/);
+  assert.match(overlays,/min-height:44px/);
   assert.match(css,/overflow-x:clip/);
   assert.match(workspaces,/overflow-x:clip/);
   assert.doesNotMatch(css,/\.ta-mobile-nav\s*\{[^}]*display:none/);
@@ -121,12 +135,13 @@ test('v475 keeps the approved semantic color roles distinct',()=>{
   for(const token of ['--lx475-electric','--lx475-aqua','--lx475-mint','--lx475-purple','--lx475-gold','--lx475-red'])assert.match(elite,new RegExp(token.replaceAll('-','\\-')+':'));
   for(const tone of ['var(--lx475-blue)','var(--lx475-cyan)','var(--lx475-emerald)','var(--lx475-amber)','var(--lx475-violet)'])assert.ok(workspaces.includes(tone));
   for(const tone of ['var(--lx475-blue)','var(--lx475-cyan)','var(--lx475-violet)','var(--lx475-rose)'])assert.ok(editor.includes(tone));
+  for(const tone of ['var(--lx475-blue','#5b8ff3)','var(--lx475-cyan','#2bc9d7)','var(--lx475-amber','#e8ac4c)','var(--lx475-rose','#e56f83)'])assert.ok(overlays.includes(tone));
 });
 
 test('v475 remains presentation-only and never couples to data mutation',()=>{
   const forbidden=['localStorage','indexedDB','firebase','firestore','calculateTotals(','setState(','onNew(','onOpen(','onDelete(','onSave(','vault.'];
   for(const token of forbidden){
     const pattern=new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
-    for(const layer of [css,elite,workspaces,editor])assert.doesNotMatch(layer,pattern);
+    for(const layer of [css,elite,workspaces,editor,overlays])assert.doesNotMatch(layer,pattern);
   }
 });
