@@ -3,11 +3,13 @@ import { formatMoney } from '../lib/money.js';
 import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, t } from '../lib/i18n.js';
 import { customerPerformanceReport, financialReportByCurrency, monthlyPerformanceReport, normalizeReportPeriod, type CustomerPerformanceRow } from '../lib/reports.js';
+import { ensureTaxVatStyles } from '../lib/tax-vat-style.js';
+import { TaxVatCenter } from './TaxVatCenter.js';
 import { Button, Icon, Input, Select } from './UI.js';
 
 interface Props{company:CompanySettings;customers:Customer[];documents:LourexDocument[];payments:PaymentRecord[];}
 type PeriodPreset='month'|'quarter'|'year'|'all';
-interface State{from:string;to:string;currency:string;query:string;preset:PeriodPreset|null;}
+interface State{view:'performance'|'tax';from:string;to:string;currency:string;query:string;preset:PeriodPreset|null;}
 
 function startOfMonth(today:string):string{return `${today.slice(0,7)}-01`;}
 function startOfQuarter(today:string):string{const year=today.slice(0,4);const month=Number(today.slice(5,7));const start=Math.floor((month-1)/3)*3+1;return `${year}-${String(start).padStart(2,'0')}-01`;}
@@ -33,9 +35,9 @@ function csvCell(value:string|number):string{
 }
 
 export class ReportsPage extends React.Component<Props,State>{
-  state:State={from:`${todayIso().slice(0,4)}-01-01`,to:todayIso(),currency:'ALL',query:'',preset:'year'};
+  state:State={view:'performance',from:`${todayIso().slice(0,4)}-01-01`,to:todayIso(),currency:'ALL',query:'',preset:'year'};
 
-  componentDidMount():void{window.addEventListener('afterprint',this.afterPrint);}
+  componentDidMount():void{ensureTaxVatStyles();window.addEventListener('afterprint',this.afterPrint);}
   componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);document.body.classList.remove('printing-financial-report');}
   private afterPrint=()=>document.body.classList.remove('printing-financial-report');
 
@@ -56,6 +58,7 @@ export class ReportsPage extends React.Component<Props,State>{
   };
 
   render():any{
+    if(this.state.view==='tax')return <div className="ta-reports-shell"><nav className="ta-report-workspace-tabs" role="tablist" aria-label={t('Report sections','أقسام التقارير')}><button type="button" role="tab" aria-selected={false} onClick={()=>this.setState({view:'performance'})}>{t('Performance','الأداء')}</button><button type="button" role="tab" aria-selected={true} className="is-active">{t('Tax / VAT','الضريبة / VAT')}</button></nav><TaxVatCenter company={this.props.company} documents={this.props.documents}/></div>;
     const period=normalizeReportPeriod(this.state.from,this.state.to);
     const summaries=financialReportByCurrency(this.props.documents,this.props.payments,period.from,period.to);
     const allCustomers=customerPerformanceReport(this.props.customers,this.props.documents,this.props.payments,period.from,period.to);
@@ -71,7 +74,7 @@ export class ReportsPage extends React.Component<Props,State>{
     const reportTitle=period.from?`${period.from} — ${period.to}`:t(`Through ${period.to}`,`حتى ${period.to}`);
     const logo=this.props.company.logoDataUrl||'./brand/lourex-logo.svg';
 
-    return <div className="ta-reports-page financial-report-print">
+    return <div className="ta-reports-shell"><nav className="ta-report-workspace-tabs" role="tablist" aria-label={t('Report sections','أقسام التقارير')}><button type="button" role="tab" aria-selected={true} className="is-active">{t('Performance','الأداء')}</button><button type="button" role="tab" aria-selected={false} onClick={()=>this.setState({view:'tax'})}>{t('Tax / VAT','الضريبة / VAT')}</button></nav><div className="ta-reports-page financial-report-print">
       <header className="ta-page-header ta-reports-header">
         <div><span className="ta-page-kicker">{t('Management reporting','التقارير الإدارية')}</span><h1>{t('Financial Reports','التقارير المالية')}</h1><p>{t('Sales, collections, receivables and gross profitability with each currency kept separate.','المبيعات والتحصيل والمستحقات والربحية الإجمالية مع إبقاء كل عملة منفصلة.')}</p></div>
         <div className="ta-page-actions"><Button icon="download" onClick={()=>this.exportCsv(visibleCustomers)}>{t('Export CSV','تصدير CSV')}</Button><Button icon="printer" variant="primary" onClick={this.print}>{t('Print / Save PDF','طباعة / حفظ PDF')}</Button></div>
@@ -112,6 +115,6 @@ export class ReportsPage extends React.Component<Props,State>{
       </section>
 
       <footer className="report-print-footer">{t('LOUREX internal management report. Currencies are never combined or converted automatically.','تقرير إداري داخلي من LOUREX. لا يتم جمع العملات أو تحويلها تلقائيًا.')}</footer>
-    </div>;
+    </div></div>;
   }
 }
