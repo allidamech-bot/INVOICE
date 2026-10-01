@@ -1,0 +1,36 @@
+name: Final roadmap QA integration
+
+on:
+  push:
+    branches:
+      - fix/lourex-final-roadmap-qa
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: fix/lourex-final-roadmap-qa
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Apply schema and workspace integration
+        run: python3 scripts/final-roadmap-qa-integrate.py
+      - run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Commit verified integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/types.ts src/lib/defaults.ts src/lib/workspaces.ts src/storage/vault.ts src/storage/vault-merge.ts src/app/App.tsx src/components/FinanceWorkspace.tsx src/components/ProductsInventoryWorkspace.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(roadmap): add real finance and stock ledger foundations"
+          git push origin HEAD:fix/lourex-final-roadmap-qa
