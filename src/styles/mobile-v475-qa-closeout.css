@@ -1,0 +1,41 @@
+/* LOUREX v475 production QA closeout.
+ * Presentation-only corrections discovered once the complete v475 design stack
+ * was finally exercised as a real production bundle. No state, storage, records,
+ * calculations, document lifecycle, auth/PIN or AI behavior is changed here. */
+@media screen and (max-width:900px){
+  /* Keep Noto Sans Arabic as the actual Arabic face while preserving the
+     established TailAdmin fallback contract used by cross-browser QA. */
+  html[dir="rtl"] body :is(
+    .app-ui,.ta-shell,.ta-finance-dashboard,.ta-documents-page,.ta-doc-detail-page,
+    .ta-customers-page,.ta-customer-profile,.ta-products-workspace,.ta-operations-page,
+    .ta-finance-page,.ta-reports-page,.ta-receivables-page,.ta-settings-shell,
+    .editor-screen,.modal
+  ){
+    font-family:"Noto Sans Arabic",Outfit,Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif!important;
+  }
+
+  /* Gradient cards still need an opaque base color. This matters in light mode,
+     forced-colors fallbacks and WebKit computed-style checks. */
+  html body .app-ui :is(.ta-ops-stat,.ta-finance-stat,.ta-settings-stat){
+    background-color:var(--lx475w-panel,var(--lx475-surface,var(--ft-surface,#0b1a2b)))!important;
+  }
+  html[data-ui-theme="light"] body .app-ui :is(.ta-ops-stat,.ta-finance-stat,.ta-settings-stat){
+    background-color:var(--lx475-surface,var(--ft-surface,#fff))!important;
+  }
+
+  /* Physical touch targets never fall below the 44px mobile floor. */
+  html body .app-ui .ta-report-presets>button{
+    min-height:44px!important;
+    height:auto!important;
+  }
+
+  /* Final issue/PDF/share review is portaled outside some AppShell fixtures.
+     Give the modal an explicit opaque TailAdmin surface independent of portal
+     placement, while existing v475 gradients remain as the visual layer. */
+  html body .modal:has(.issue-review){
+    background-color:var(--lx475-canvas,var(--ft-surface,#0b1a2b))!important;
+  }
+  html[data-ui-theme="light"] body .modal:has(.issue-review){
+    background-color:var(--lx475-canvas,var(--ft-surface,#fff))!important;
+  }
+}
