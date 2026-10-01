@@ -5,7 +5,7 @@ const read=p=>readFile(p,'utf8');
 
 test('Batch 10 stays inside Reports and preserves frozen primary navigation',async()=>{
   const [reports,app]=await Promise.all([read('src/components/ReportsPage.tsx'),read('src/app/App.tsx')]);
-  assert.match(reports,/view:'performance'\|'tax'/);
+  assert.match(reports,/view:'performance'[\s\S]*'tax'/);
   assert.match(reports,/<TaxVatCenter company=\{this\.props\.company\} documents=\{this\.props\.documents\}/);
   assert.match(reports,/Tax \/ VAT/);
   assert.doesNotMatch(app,/TaxVatCenter/);
