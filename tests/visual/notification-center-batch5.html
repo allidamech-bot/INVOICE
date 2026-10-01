@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/notification-center-batch5.css?v=457-1"></head>
+<body><div id="root" class="app-ui"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {AppShell} from './src/components/AppShell.js';
+import {emptyVault,customerSnapshotFrom} from './src/lib/defaults.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {createCommercialTrackingEvent} from './src/lib/commercial-flow.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+import {todayIso} from './src/lib/id.js';
+import {setupVault,saveVault} from './src/storage/vault.js';
+import {establishSession} from './src/storage/session.js';
+import {registerVaultMutationBridge} from './src/storage/vault-mutation-bridge.js';
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar',h=React.createElement;
+document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';setUiLanguage(ar?'ar':'en');
+const shift=(iso,days)=>{const [y,m,d]=iso.split('-').map(Number),date=new Date(Date.UTC(y,m-1,d+days));return date.toISOString().slice(0,10)};
+const today=todayIso(),vault=emptyVault();vault.appSettings.autoLockMinutes=0;vault.company.nameEn='LOUREX';vault.company.nameAr='لوريكس';vault.company.country='Türkiye';vault.company.defaultCurrency='USD';
+const customer={id:'c-1',createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-09-01T00:00:00.000Z',companyNameEn:'Buyer Co',companyNameAr:'شركة المشتري',contactPerson:'Ali',addressEn:'',addressAr:'',city:'Jeddah',country:'Saudi Arabia',phone:'+966500000000',email:'buyer@example.com',vatTaxNumber:'',commercialRegistration:'',preferredCurrency:'USD',paymentTermPresetId:'',paymentTerms:'30 days',paymentDueDays:'30',creditLimit:'',creditCurrency:'',notes:''};vault.customers=[customer];
+const invoice=createBlankDocument('invoice','INV-2026-0001',vault.company);invoice.status='final';invoice.issueDate=shift(today,-20);invoice.dueDate=shift(today,-5);invoice.customerSnapshot=customerSnapshotFrom(customer);invoice.items=[{id:'i-1',descriptionEn:'Product',descriptionAr:'منتج',hsCode:'',origin:'',packing:'',quantity:'1',unit:'PCS',unitPrice:'100',unitCost:'50'}];
+const quote=createBlankDocument('proforma','QUO-2026-0001',vault.company);quote.status='final';quote.issueDate=shift(today,-8);quote.dueDate=shift(today,2);quote.customerSnapshot=customerSnapshotFrom(customer);quote.items=[{id:'q-1',descriptionEn:'Product',descriptionAr:'منتج',hsCode:'',origin:'',packing:'',quantity:'1',unit:'PCS',unitPrice:'120',unitCost:'50'}];vault.documents=[invoice,quote];
+vault.payments=[{id:'pay-1',invoiceId:invoice.id,invoiceNumber:invoice.number,customerId:customer.id,customerNameEn:customer.companyNameEn,customerNameAr:customer.companyNameAr,currency:'USD',amount:'20.00',date:shift(today,-10),method:'bank-transfer',reference:'BANK-1',notes:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}];
+const sent=createCommercialTrackingEvent(quote,'sent'),follow=createCommercialTrackingEvent(quote,'followup-scheduled',today);sent.at=new Date(Date.now()-7*86400000).toISOString();follow.at=new Date(Date.now()-2*86400000).toISOString();vault.documentEvents=[sent,follow];
+vault.purchases=[{id:'purchase-1',number:'PUR-001',date:shift(today,-1),supplierSnapshot:null,currency:'USD',items:[],freight:'0',duty:'0',otherCosts:'0',notes:'',status:'draft',postedAt:'',reversedAt:'',reverseReason:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}];
+vault.savedItems=[{id:'item-1',createdAt:'2026-01-01T00:00:00.000Z',updatedAt:new Date().toISOString(),sku:'SKU-1',descriptionEn:'Product',descriptionAr:'منتج',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'100',lastCurrency:'USD',lastUnitCost:'',lastCostCurrency:'',usageCount:0,lastUsedAt:new Date().toISOString()}];
+vault.inventoryMovements=[{id:'mov-1',itemId:'item-1',itemNameEn:'Product',itemNameAr:'منتج',sku:'SKU-1',date:shift(today,-1),type:'issue',quantity:'-2',unitCost:'',currency:'USD',sourceId:'',sourceNumber:'',note:'',createdAt:new Date().toISOString()}];
+const setup=await setupVault('2468',vault);await establishSession(setup.key);let current=setup.vault;registerVaultMutationBridge(async mutation=>{current=mutation(current);await saveVault(setup.key,current);return current;});
+window.__lastNav='';window.__batch5Ready=true;
+function Fixture(){return h(AppShell,{screen:'home',logoDataUrl:'',language:ar?'ar':'en',newMenu:false,cloudState:'local',cloudLabel:ar?'محلي':'Local',cloudMessage:'',onNavigate:target=>{window.__lastNav=target;},onToggleNew:()=>{},onNew:()=>{},onCreditNote:()=>{},onStatementAccount:()=>{},onSettings:()=>{},onCloud:()=>{}},h('section',{className:'batch5-fixture-content'},h('h1',null,ar?'لوحة الاختبار':'Fixture dashboard')));}
+ReactDOM.render(h(Fixture),document.getElementById('root'));
+</script><style>.batch5-fixture-content{min-height:520px;padding:12px;box-sizing:border-box}.batch5-fixture-content h1{font-size:18px}</style></body></html>
