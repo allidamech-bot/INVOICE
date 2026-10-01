@@ -9,7 +9,9 @@ test('supplier payments are a separate encrypted accounting domain',async()=>{
   assert.match(types,/supplierPayments: SupplierPaymentRecord\[\]/);
   assert.match(types,/interface PaymentRecord/);
   assert.doesNotMatch(types,/interface PaymentRecord[\s\S]*purchaseId:/);
-  assert.match(defaults,/APP_SCHEMA_VERSION = 16/);
+  const schemaVersion=Number(/export const APP_SCHEMA_VERSION = (\d+);/.exec(defaults)?.[1]??0);
+  assert.ok(schemaVersion>=16,'Accounts Payable requires encrypted vault schema v16 or newer.');
+  assert.match(defaults,/v16 adds purchase due dates and a distinct encrypted supplier-payment ledger/);
   assert.match(defaults,/supplierPayments: \[\]/);
   assert.match(vault,/dueDate:stringValue\(purchase\?\.dueDate,stringValue\(purchase\?\.date\)\)/);
   assert.match(vault,/migrated\.supplierPayments/);
