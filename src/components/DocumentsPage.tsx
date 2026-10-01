@@ -9,6 +9,7 @@ import { letterPlainText } from '../lib/document-extras.js';
 import { documentCanConvertToInvoice, documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';
 import { buildCommercialFlowSnapshot, commercialStatusLabel, isQuoteLikeDocument } from '../lib/commercial-flow.js';
 import { CommercialFlowPanel } from './CommercialFlowPanel.js';
+import { secureShareEligible } from '../lib/secure-share-snapshot.js';
 
 interface Props {
   initialStatus?:WorkspaceStatus;
@@ -24,6 +25,7 @@ interface Props {
   onRecordPayment?:(doc:LourexDocument)=>void;
   onCreateCreditNote?:(doc:LourexDocument)=>void;
   onOpenStatements?:()=>void;
+  onSecureShare?:(doc:LourexDocument)=>void;
 }
 
 type WorkspaceStatus='all'|'draft'|'ready'|'final'|'voided';
@@ -285,6 +287,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       {canCollect?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onRecordPayment?.(doc))}><Icon name="invoice"/><span>{t('Record Payment','تسجيل دفعة')}</span></button>:null}
       {canCredit?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onCreateCreditNote?.(doc))}><Icon name="invoice"/><span>{t('Create Credit Note','إنشاء إشعار دائن')}</span></button>:null}
       {canOutput?<><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}><Icon name="download"/><span>{this.state.outputId===doc.id?t('Preparing…','جارٍ التجهيز…'):'PDF'}</span></button><button type="button" role="menuitem" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}><Icon name="share"/><span>{t('Share','مشاركة')}</span></button></>:null}
+      {this.props.onSecureShare&&secureShareEligible(doc)?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onSecureShare?.(doc))}><Icon name="lock"/><span>{t('Secure Share','مشاركة آمنة')}</span></button>:null}
       {canDelete&&this.state.detailId!==doc.id?<button type="button" role="menuitem" className="is-danger" onClick={()=>this.runAction(()=>this.props.onDelete(doc))}><Icon name="trash"/><span>{t('Delete Draft','حذف المسودة')}</span></button>:null}
     </>;
   };
@@ -362,6 +365,7 @@ export class DocumentsPage extends React.Component<Props,State>{
           <Button icon={doc.lifecycleStatus==='voided'?'file':'edit'} variant="primary" onClick={()=>this.props.onOpen(doc)}>{doc.lifecycleStatus==='voided'?t('Open archive','فتح الأرشيف'):doc.status==='final'?t('Open / manage','فتح / إدارة'):t('Continue editing','متابعة التحرير')}</Button>
           {linkedInvoice?<Button icon="invoice" onClick={()=>this.setState({detailId:linkedInvoice.id,menuId:''})}>{t(`Open ${linkedInvoice.number}`,`فتح ${linkedInvoice.number}`)}</Button>:canConvert?<Button icon="invoice" onClick={()=>this.convertQuote(doc)}>{t('Convert to Invoice','تحويل إلى فاتورة')}</Button>:null}
           {canOutput?<><Button icon="download" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}>PDF</Button><Button icon="share" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}>{t('Share','مشاركة')}</Button></>:null}
+          {this.props.onSecureShare&&secureShareEligible(doc)?<Button icon="lock" onClick={()=>this.props.onSecureShare?.(doc)}>{t('Secure Share','مشاركة آمنة')}</Button>:null}
           <div className="ta-doc-detail-more ta-doc-actions"><IconButton icon="more" label={t('More actions','إجراءات أخرى')} aria-haspopup="menu" aria-expanded={this.state.menuId===doc.id} onClick={(event:any)=>this.toggleMenu(doc,event)}/></div>
         </div>
       </div>
