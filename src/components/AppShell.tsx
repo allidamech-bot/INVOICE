@@ -275,7 +275,7 @@ export class AppShell extends React.Component<Props,State>{
       <span className="ta-nav-label">{label}</span>
     </button>;
 
-  private mobileSheetItem=(screen:NavTarget,icon:NavIcon,label:string,description:string)=
+  private mobileSheetItem=(screen:NavTarget,icon:NavIcon,label:string,description:string)=>
     <button
       type="button"
       className={`ta-sheet-link ${this.props.screen===screen?'is-active':''}`}
