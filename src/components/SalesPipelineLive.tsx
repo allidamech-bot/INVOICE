@@ -51,29 +51,31 @@ export class SalesPipelineLive extends React.Component<Props,State>{
   };
   private edit=(opportunity:SalesOpportunity)=>this.setState({editing:structuredClone(opportunity),originalUpdatedAt:opportunity.updatedAt,error:''});
   private closeEditor=()=>{if(this.state.busy)return;this.setState({editing:null,originalUpdatedAt:'',error:''});};
-  private set=(patch:Partial<SalesOpportunity>)=>this.setState(state=>state.editing?{editing:{...state.editing,...patch}} as any:null as any);
+  private set=(patch:Partial<SalesOpportunity>)=>this.setState(state=>state.editing?{editing:{...state.editing,...patch}}:null);
   private chooseCustomer=(customerId:string)=>{
     const customer=this.state.customers.find(row=>row.id===customerId);if(!customer)return;
-    this.setState(state=>state.editing?{editing:{...state.editing,customerId,currency:state.editing.currency||customer.preferredCurrency||'',linkedDocumentIds:[]}} as any:null as any);
+    this.setState(state=>state.editing?{editing:{...state.editing,customerId,currency:state.editing.currency||customer.preferredCurrency||'',linkedDocumentIds:[]}}:null);
   };
   private toggleDocument=(id:string)=>{
     this.setState(state=>{
-      if(!state.editing)return null as any;
+      if(!state.editing)return null;
       const linked=state.editing.linkedDocumentIds.includes(id)?state.editing.linkedDocumentIds.filter(value=>value!==id):[...state.editing.linkedDocumentIds,id];
-      return{editing:{...state.editing,linkedDocumentIds:linked}} as any;
+      return{editing:{...state.editing,linkedDocumentIds:linked}};
     });
+  };
+  private requestDelete=(opportunity:SalesOpportunity)=>{
+    if(this.state.busy)return;
+    this.setState({deleting:structuredClone(opportunity),editing:null,originalUpdatedAt:'',error:''});
   };
   private save=async()=>{
     const editing=this.state.editing;if(!editing||this.state.busy)return;
     this.setState({busy:true,error:''});
     try{
-      let saved:SalesOpportunity|null=null;
       const next=await mutateVaultSafely(vault=>{
-        const result=validatedOpportunityUpsertEvent(vault,editing,this.state.originalUpdatedAt);saved=result.opportunity;
+        const result=validatedOpportunityUpsertEvent(vault,editing,this.state.originalUpdatedAt);
         return{...vault,documentEvents:[...vault.documentEvents,result.event]};
       });
       this.setState({busy:false,editing:null,originalUpdatedAt:'',snapshot:buildSalesPipeline(next),customers:next.customers,documents:next.documents,error:''});
-      void saved;
     }catch(error){this.setState({busy:false,error:error instanceof Error?error.message:t('Unable to save opportunity.','تعذر حفظ فرصة البيع.')});}
   };
   private remove=async()=>{
@@ -90,7 +92,8 @@ export class SalesPipelineLive extends React.Component<Props,State>{
   private editor=()=>{
     const opportunity=this.state.editing;if(!opportunity)return null;
     const documents=documentsForOpportunity(this.state.documents,opportunity.customerId).slice(0,30);
-    return <Modal open title={this.state.originalUpdatedAt?t('Edit Opportunity','تعديل فرصة البيع'):t('New Opportunity','فرصة بيع جديدة')} size="lg" onClose={this.closeEditor} footer={<div className="modal-footer-actions"><Button disabled={this.state.busy} onClick={this.closeEditor}>{t('Cancel','إلغاء')}</Button><Button variant="primary" disabled={this.state.busy} onClick={()=>void this.save()}>{this.state.busy?t('Saving…','جارٍ الحفظ…'):t('Save Opportunity','حفظ الفرصة')}</Button></div>}>
+    const existing=Boolean(this.state.originalUpdatedAt);
+    return <Modal open title={existing?t('Edit Opportunity','تعديل فرصة البيع'):t('New Opportunity','فرصة بيع جديدة')} size="lg" onClose={this.closeEditor} footer={<div className="modal-footer-actions">{existing?<Button variant="danger" disabled={this.state.busy} onClick={()=>this.requestDelete(opportunity)}>{t('Delete','حذف')}</Button>:null}<Button disabled={this.state.busy} onClick={this.closeEditor}>{t('Cancel','إلغاء')}</Button><Button variant="primary" disabled={this.state.busy} onClick={()=>void this.save()}>{this.state.busy?t('Saving…','جارٍ الحفظ…'):t('Save Opportunity','حفظ الفرصة')}</Button></div>}>
       <div className="lx-opportunity-form" dir={isArabic()?'rtl':'ltr'}>
         <div className="lx-opportunity-grid">
           <Field label={t('Customer','العميل')}><Select value={opportunity.customerId} onChange={(event:any)=>this.chooseCustomer(event.target.value)}>{this.state.customers.map(customer=><option key={customer.id} value={customer.id}>{customerName(customer)}</option>)}</Select></Field>
@@ -135,7 +138,6 @@ export class SalesPipelineLive extends React.Component<Props,State>{
       <p className="lx-pipeline-note">{t('LOUREX AI may summarize pipeline context, but stage, value and won/lost decisions remain user-controlled. Currencies are never silently converted.','يمكن لذكاء LOUREX تلخيص سياق خط المبيعات، لكن المرحلة والقيمة وقرارات الفوز/الخسارة تبقى بيد المستخدم. لا يتم تحويل العملات بشكل مخفي.')}</p>
       {this.editor()}
       <ConfirmDialog open={Boolean(this.state.deleting)} title={t('Delete opportunity?','حذف فرصة البيع؟')} message={t('The current opportunity will disappear from Pipeline. Its encrypted history remains in the local audit event stream.','ستختفي فرصة البيع الحالية من خط المبيعات، بينما يبقى سجلها المشفر ضمن سجل الأحداث المحلي.')} onCancel={()=>{if(!this.state.busy)this.setState({deleting:null});}} onConfirm={()=>void this.remove()}/>
-      {this.state.editing&&this.state.originalUpdatedAt?<div style={{display:'none'}} aria-hidden="true"><button type="button" onClick={()=>this.setState({deleting:this.state.editing})}>delete</button></div>:null}
     </section>;
   }
 }
