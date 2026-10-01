@@ -40,7 +40,7 @@ const output='visual-qa-output/sales-pipeline-batch6';
         await page.getByRole('button',{name:'New Opportunity'}).click();await page.locator('.lx-opportunity-form').waitFor();
         await page.getByLabel('Opportunity title').fill('Jeddah retail launch');
         await page.getByLabel('Opportunity value').fill('1250.50');
-        await page.getByLabel('Currency').fill('USD');
+        await page.getByLabel('Currency').selectOption('USD');
         await page.getByLabel('Expected close').fill('2026-10-20');
         await page.getByLabel('Next action').fill('Call buyer Thursday');
         const checks=page.locator('.lx-opportunity-documents input[type="checkbox"]');assert.ok(await checks.count()>=1,'Customer document must be linkable');await checks.first().check();
