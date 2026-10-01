@@ -1,0 +1,41 @@
+name: Batch 11 tailadmin selector fix
+
+on:
+  push:
+    branches:
+      - feat/lourex-customer-portal-batch11
+    paths:
+      - '.github/workflows/batch11-tailadmin-selector-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/lourex-customer-portal-batch11
+      - name: Broaden operations primary selector to wrapped actions
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          path=Path('src/styles/mobile-core-workflows-v364.css')
+          text=path.read_text()
+          old='.ta-ops-panel-head>.btn-primary'
+          count=text.count(old)
+          if count != 3:
+              raise SystemExit(f'Expected 3 operations primary selectors, found {count}')
+          path.write_text(text.replace(old,'.ta-ops-panel-head .btn-primary'))
+          PY
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/batch11-tailadmin-selector-fix.yml
+      - name: Commit narrow fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/styles/mobile-core-workflows-v364.css .github/workflows/batch11-tailadmin-selector-fix.yml
+          git commit -m "fix(operations): keep wrapped mobile primary actions on workspace accent"
+          git push origin HEAD:feat/lourex-customer-portal-batch11
