@@ -6,6 +6,7 @@ import { Brand, Button, Icon } from './UI.js';
 import { AiCopilot } from './AiCopilot.js';
 import { ThemeControl } from './ThemeControl.js';
 import { ProductInfoModal, type ProductInfoSection } from './ProductInfoModal.js';
+import { NotificationCenterLive, openNotificationCenter } from './NotificationCenterLive.js';
 
 export type WorkspaceScreen='home'|'documents'|'customers'|'receivables'|'reports'|'items'|'operations'|'editor';
 
@@ -38,6 +39,8 @@ interface State {
   moreOpen:boolean;
   signingOut:boolean;
   infoSection:ProductInfoSection|null;
+  notificationCount:number;
+  notificationHigh:number;
 }
 
 /**
@@ -46,7 +49,7 @@ interface State {
  * LOUREX business callbacks remain owned by their existing boundaries.
  */
 export class AppShell extends React.Component<Props,State>{
-  state:State={moreOpen:false,signingOut:false,infoSection:null};
+  state:State={moreOpen:false,signingOut:false,infoSection:null,notificationCount:0,notificationHigh:0};
 
   componentDidMount():void{
     document.addEventListener('keydown',this.handleKeyDown);
@@ -191,6 +194,17 @@ export class AppShell extends React.Component<Props,State>{
     this.closeCreateMenu();
     this.closeMore();
     this.setState({infoSection:section});
+  };
+
+  private openNotifications=()=>{
+    this.closeCreateMenu();
+    this.closeMore();
+    openNotificationCenter();
+  };
+
+  private updateNotificationCount=(notificationCount:number,notificationHigh:number)=>{
+    if(this.state.notificationCount===notificationCount&&this.state.notificationHigh===notificationHigh)return;
+    this.setState({notificationCount,notificationHigh});
   };
 
   private createDocument=(kind:DocumentKind)=>{
@@ -364,13 +378,14 @@ export class AppShell extends React.Component<Props,State>{
 
         <div className="ta-topbar-actions">
           {!editor?<button type="button" className="ta-search-trigger" aria-label={t('Search LOUREX','بحث LOUREX')} title={t('Global search · Ctrl/⌘ K','البحث الشامل · Ctrl/⌘ K')} onClick={()=>window.dispatchEvent(new Event('lourex-global-search-open'))}><Icon name="search"/><span>{t('Search or quick create','ابحث أو أنشئ بسرعة')}</span><kbd>⌘K</kbd></button>:null}
+          {!editor?<button type="button" className={`lx-notification-topbar ${this.state.notificationHigh?'has-high':''}`} aria-label={t('Notifications & Follow-up','التنبيهات والمتابعة')} title={t('Notifications & Follow-up','التنبيهات والمتابعة')} onClick={this.openNotifications}><Icon name="alert"/>{this.state.notificationCount?<span className="lx-notification-badge">{this.state.notificationCount}</span>:null}</button>:null}
           <ThemeControl compact language={this.props.language} className="ta-theme-control"/>
           {this.syncStatus('ta-topbar-sync')}
           {!editor?<button type="button" className="ta-topbar-account" aria-label={t('My Account','حسابي')} onClick={this.openAccount}><span className="ta-account-avatar"><Icon name="users"/></span><span>{t('Account','الحساب')}</span></button>:null}
         </div>
       </header>
 
-      <main className="workspace-content ta-main">{this.conflictBanner()}{this.props.children}</main>
+      <main className="workspace-content ta-main">{this.conflictBanner()}<NotificationCenterLive language={this.props.language} screen={this.props.screen} renderHomeSummary={this.props.screen==='home'} onNavigate={target=>this.navigate(target)} onCount={this.updateNotificationCount}/>{this.props.children}</main>
 
       {!editor?<>
         {this.props.newMenu?<button type="button" className="ta-overlay-backdrop ta-create-backdrop" aria-label={t('Close new document menu','إغلاق قائمة المستند الجديد')} onClick={this.closeCreateMenu}/>:null}
@@ -392,6 +407,7 @@ export class AppShell extends React.Component<Props,State>{
             <button type="button" className="ta-sheet-account" onClick={this.openAccount}><span className="ta-sheet-link-icon"><Icon name="users"/></span><span className="ta-sheet-link-copy"><strong>{t('My Account','حسابي')}</strong><small>{t('Identity, business profile and account access','الهوية وملف الشركة والوصول للحساب')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button>
             <section className="ta-sheet-group"><p>{t('Operations','العمليات')}</p>{this.mobileSheetItem('items','items',t('Products & Inventory','المنتجات والمخزون'),t('Products, stock and movement','المنتجات والمخزون والحركة'))}{this.mobileSheetItem('operations','backup',t('Purchasing','المشتريات'),t('Suppliers and purchase workflow','الموردون ودورة المشتريات'))}</section>
             <section className="ta-sheet-group"><p>{t('Finance & insights','المالية والتحليلات')}</p>{this.mobileSheetItem('receivables','invoice',t('Finance','المالية'),t('Receivables, collections and expenses','المستحقات والتحصيل والمصروفات'))}{this.mobileSheetItem('reports','chart',t('Reports & Insights','التقارير والتحليلات'),t('Period analysis and profitability','تحليل الفترات والربحية'))}</section>
+            <section className="ta-sheet-group"><p>{t('Follow-up','المتابعة')}</p><button type="button" className="ta-sheet-link" onClick={this.openNotifications}><span className="ta-sheet-link-icon"><Icon name="alert"/></span><span className="ta-sheet-link-copy"><strong>{t('Notifications & Follow-up','التنبيهات والمتابعة')}</strong><small>{t('Overdue items, quote dates and recorded follow-ups','المتأخرات ومواعيد العروض والمتابعات المسجلة')}</small></span>{this.state.notificationCount?<span className="lx-notification-badge">{this.state.notificationCount}</span>:null}<span className="ta-sheet-chevron" aria-hidden="true">›</span></button></section>
             <section className="ta-sheet-group"><p>{t('Account & product','الحساب والمنتج')}</p><button type="button" className="ta-sheet-link" onClick={this.openSettings}><span className="ta-sheet-link-icon"><Icon name="settings"/></span><span className="ta-sheet-link-copy"><strong>{t('Settings','الإعدادات')}</strong><small>{t('Business, documents, security and data','الأعمال والمستندات والأمان والبيانات')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button><button type="button" className="ta-sheet-link" onClick={()=>this.openProductInfo('help')}><span className="ta-sheet-link-icon"><Icon name="file"/></span><span className="ta-sheet-link-copy"><strong>{t('Help & Product Info','المساعدة ومعلومات المنتج')}</strong><small>{t('Help, privacy, terms and build details','المساعدة والخصوصية والشروط وتفاصيل البناء')}</small></span><span className="ta-sheet-chevron" aria-hidden="true">›</span></button></section>
           </section>
         </>:null}
