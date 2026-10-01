@@ -212,7 +212,7 @@ export function buildInventoryPlanning(vault:Pick<VaultPayload,'savedItems'|'sup
     const configured=Boolean(policy&&(policy.reorderPoint||policy.targetStock||policy.leadTimeDays||scaled(policy.safetyStock)>0n));
     const needsOrder=configured&&onHandScaled<=reorderTriggerScaled;
     const suggestedScaled=needsOrder&&targetScaled>onHandScaled?targetScaled-onHandScaled:0n;
-    const status:InventoryPlanStatus=!configured?'unconfigured':onHandScaled<=0n?'critical':needsOrder?'reorder':'healthy';
+    const status:InventoryPlanStatus=onHandScaled<=0n?'critical':!configured?'unconfigured':needsOrder?'reorder':'healthy';
     const daysCover=averageDailyScaled>0n&&onHandScaled>0n?Number(onHandScaled)/Number(averageDailyScaled):null;
     const linked=inferredSupplier(vault.purchases,vault.suppliers,item.id,policy?.preferredSupplierId??'');
     return{item,policy,status,onHand:fixed4(onHandScaled),onHandScaled,averageDailyIssue:fixed4(averageDailyScaled),leadTimeDemand:fixed4(leadDemandScaled),reorderTrigger:fixed4(reorderTriggerScaled),suggestedOrder:fixed4(suggestedScaled),daysCover,preferredSupplier:linked.supplier,lastPurchase:linked.purchase};
