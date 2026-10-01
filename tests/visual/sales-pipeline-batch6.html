@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/sales-pipeline-batch6.css?v=458-1"></head>
+<body><div id="root" class="app-ui"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {SalesPipelineLive} from './src/components/SalesPipelineLive.js';
+import {emptyVault,customerSnapshotFrom} from './src/lib/defaults.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+import {setupVault,saveVault,resumeVaultSession} from './src/storage/vault.js';
+import {establishSession} from './src/storage/session.js';
+import {registerVaultMutationBridge} from './src/storage/vault-mutation-bridge.js';
+const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar',h=React.createElement;
+document.documentElement.lang=ar?'ar':'en';document.documentElement.dir=ar?'rtl':'ltr';setUiLanguage(ar?'ar':'en');
+const vault=emptyVault();vault.appSettings.autoLockMinutes=0;vault.company.nameEn='LOUREX';vault.company.nameAr='لوريكس';vault.company.defaultCurrency='USD';
+const customer={id:'customer-1',createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-09-30T00:00:00.000Z',companyNameEn:'Buyer Co',companyNameAr:'شركة المشتري',contactPerson:'Ali',addressEn:'',addressAr:'',city:'Jeddah',country:'Saudi Arabia',phone:'+966500000000',email:'buyer@example.com',vatTaxNumber:'',commercialRegistration:'',preferredCurrency:'USD',paymentTermPresetId:'',paymentTerms:'30 days',paymentDueDays:'30',creditLimit:'',creditCurrency:'',notes:''};
+const second={...customer,id:'customer-2',companyNameEn:'Euro Buyer',companyNameAr:'مشتري أوروبا',preferredCurrency:'EUR',email:'euro@example.com'};vault.customers=[customer,second];
+const quote=createBlankDocument('proforma','QUO-2026-0001',vault.company);quote.status='final';quote.issueDate='2026-09-25';quote.dueDate='2026-10-20';quote.customerSnapshot=customerSnapshotFrom(customer);quote.items=[{id:'q-1',descriptionEn:'Product',descriptionAr:'منتج',hsCode:'',origin:'',packing:'',quantity:'1',unit:'PCS',unitPrice:'100',unitCost:'50'}];vault.documents=[quote];
+const setup=await setupVault('2468',vault);await establishSession(setup.key);const resumed=await resumeVaultSession();let current=resumed?.vault??setup.vault;window.__batch6MutationCount=0;registerVaultMutationBridge(async mutation=>{window.__batch6MutationCount+=1;current=mutation(current);await saveVault(setup.key,current);return current;});
+window.__directoryRequested=false;window.__batch6Ready=true;
+ReactDOM.render(h(SalesPipelineLive,{onShowDirectory:()=>{window.__directoryRequested=true;}}),document.getElementById('root'));
+</script><style>body{margin:0}.app-ui{min-height:100vh;padding:16px;box-sizing:border-box}@media(max-width:600px){.app-ui{padding:10px}}</style></body></html>
