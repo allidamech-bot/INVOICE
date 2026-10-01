@@ -9,7 +9,8 @@ const owners=[
   'mobile-editor-v475.css',
   'mobile-overlays-v475.css',
   'mobile-auth-v475.css',
-  'mobile-review-v475.css'
+  'mobile-review-v475.css',
+  'mobile-v475-qa-closeout.css'
 ];
 
 let bundle=await readFile(bundlePath,'utf8');
@@ -53,4 +54,4 @@ if(/@import url\("\.\/mobile-(?:command-center|workspaces|editor|overlays|auth|r
 }
 
 await writeFile(bundlePath,bundle);
-console.log('LOUREX v475 production mobile design bundled: base + elite + workspaces + editor + overlays + auth + review are inline before the final reliability bridge.');
+console.log('LOUREX v475 production mobile design bundled: base + elite + workspaces + editor + overlays + auth + review + QA closeout are inline before the final reliability bridge.');
