@@ -17,8 +17,10 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: feat/lourex-recurring-workflows-batch12
-      - name: Integrate recurring UI
-        run: python3 .github/scripts/batch12-ui-integrate.py
+      - name: Normalize supported icon and integrate recurring UI
+        run: |
+          sed -i 's/name=\\"calendar\\"/name=\\"refresh\\"/g' .github/scripts/batch12-ui-integrate.py
+          python3 .github/scripts/batch12-ui-integrate.py
       - uses: actions/setup-node@v6
         with:
           node-version: 20
