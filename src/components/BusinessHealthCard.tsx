@@ -1,8 +1,6 @@
 import type { BusinessHealthIssue, BusinessHealthSnapshot, BusinessHealthTarget } from '../lib/business-health.js';
-import { buildBusinessHealth } from '../lib/business-health.js';
 import type { SetupReadinessCheck } from '../lib/setup-readiness.js';
 import { getUiLanguage, t } from '../lib/i18n.js';
-import { resumeVaultSession } from '../storage/vault.js';
 import { Icon } from './UI.js';
 
 interface Props{
@@ -20,17 +18,6 @@ function issueLabel(issue:BusinessHealthIssue):string{return getUiLanguage()==='
 function issueDetail(issue:BusinessHealthIssue):string{return getUiLanguage()==='ar'?issue.detailAr:issue.detailEn;}
 function readinessLabel(row:SetupReadinessCheck):string{return getUiLanguage()==='ar'?row.labelAr:row.labelEn;}
 function readinessDetail(row:SetupReadinessCheck):string{return getUiLanguage()==='ar'?row.detailAr:row.detailEn;}
-
-function openCanonicalSettings():void{
-  try{sessionStorage.setItem('lourex-settings-scope','settings');}catch{}
-  const settingsButton=document.querySelector<HTMLButtonElement>('.ta-sidebar-footer .ta-sidebar-utility');
-  settingsButton?.click();
-}
-
-function routeToCanonicalTarget(target:BusinessHealthTarget):void{
-  if(target==='settings'){openCanonicalSettings();return;}
-  window.dispatchEvent(new CustomEvent('lourex-global-action',{detail:{action:'navigate',target}}));
-}
 
 export function BusinessHealthCard({snapshot,onTarget}:Props):any{
   const visible=snapshot.issues.slice(0,5);
@@ -71,17 +58,4 @@ export function BusinessHealthCard({snapshot,onTarget}:Props):any{
       {snapshot.readiness.checks.filter(row=>row.status!=='complete').length>readinessReview.length?<p className="field-hint">{t('Additional review-only checks remain available through their canonical settings and data controls.','توجد فحوص مراجعة إضافية ويمكن الوصول إليها من الإعدادات وعناصر البيانات الأصلية.')}</p>:null}
     </div>
   </section>;
-}
-
-export function BusinessHealthLiveCard():any{
-  const [snapshot,setSnapshot]=React.useState<BusinessHealthSnapshot|null>(null);
-  React.useEffect(()=>{
-    let active=true;
-    void resumeVaultSession().then(resumed=>{
-      if(active&&resumed)setSnapshot(buildBusinessHealth(resumed.vault));
-    }).catch(()=>{});
-    return()=>{active=false;};
-  },[]);
-  if(!snapshot)return null;
-  return <BusinessHealthCard snapshot={snapshot} onTarget={routeToCanonicalTarget}/>;
 }
