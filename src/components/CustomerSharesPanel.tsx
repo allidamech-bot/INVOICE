@@ -1,0 +1,17 @@
+import type { Customer } from '../types.js';
+import { currentCloudUser } from '../cloud/firebase.js';
+import { subscribeOwnerSecureShares } from '../cloud/secure-share-owner.js';
+import { displayDate } from '../lib/id.js';
+import { getUiLanguage, t } from '../lib/i18n.js';
+import { secureShareState, secureShareUrl, type SecureShareRecord } from '../lib/secure-share.js';
+import { syncSecureShareEvidence } from '../lib/secure-share-evidence.js';
+import { Button, Icon } from './UI.js';
+
+function statusLabel(share:SecureShareRecord):string{const state=secureShareState(share);return state==='active'?t('Active','فعال'):state==='accepted'?t('Accepted','مقبول'):state==='rejected'?t('Rejected','مرفوض'):state==='expired'?t('Expired','منتهي'):t('Revoked','ملغى');}
+
+export function CustomerSharesPanel({customer}:{customer:Customer}):any{
+  const [shares,setShares]=React.useState<SecureShareRecord[]>([]),[error,setError]=React.useState(''),[copied,setCopied]=React.useState('');
+  React.useEffect(()=>{if(!currentCloudUser()){setShares([]);setError('');return;}const off=subscribeOwnerSecureShares(items=>{const relevant=items.filter(item=>item.customerId===customer.id);setShares(relevant);setError('');void syncSecureShareEvidence(relevant);},e=>setError(e instanceof Error?e.message:t('Unable to load shared documents.','تعذر تحميل المستندات المشتركة.')));return off;},[customer.id]);
+  const copy=async(share:SecureShareRecord)=>{try{await navigator.clipboard.writeText(secureShareUrl(share.id));setCopied(share.id);window.setTimeout(()=>setCopied(value=>value===share.id?'':value),1600);}catch{setError(t('Copy is unavailable on this device.','النسخ غير متاح على هذا الجهاز.'));}};
+  return <section className="ta-panel lx-customer-shares" aria-label={t('Shared with customer','المشترك مع العميل')}><header className="ta-panel-header"><div><span>{t('Customer portal','بوابة العميل')}</span><h2>{t('Shared with customer','المشترك مع العميل')}</h2><p>{t('Secure document links and the customer evidence returned through them.','روابط المستندات الآمنة والأدلة التي أعادها العميل من خلالها.')}</p></div><span className="ta-panel-status">{shares.length}</span></header>{!currentCloudUser()?<div className="lx-share-empty"><Icon name="lock"/><span>{t('Connect the LOUREX cloud account to view secure customer links.','اربط حساب LOUREX السحابي لعرض روابط العميل الآمنة.')}</span></div>:error?<div className="lx-share-empty">{error}</div>:shares.length?<div className="lx-customer-shares-list">{shares.map(share=><article key={share.id} className="lx-customer-share-row"><div><strong><bdi>{share.documentNumber}</bdi></strong><small>{t('Created','أُنشئ')}: {displayDate(share.createdAt.slice(0,10),getUiLanguage())} · {t('Expires','ينتهي')}: {displayDate(share.expiresAt.slice(0,10),getUiLanguage())}</small>{share.viewedAt?<small>{t('Viewed','تمت المشاهدة')}: {displayDate(share.viewedAt.slice(0,10),getUiLanguage())}</small>:null}{share.customerComment?<small>{share.customerComment}</small>:null}</div><div className="lx-share-card-actions"><span className={`lx-share-chip is-${secureShareState(share)}`}>{statusLabel(share)}</span><Button onClick={()=>void copy(share)}>{copied===share.id?t('Copied','تم النسخ'):t('Copy link','نسخ الرابط')}</Button></div></article>)}</div>:<div className="lx-share-empty">{t('No secure documents have been shared with this customer yet.','لم تتم مشاركة أي مستندات آمنة مع هذا العميل حتى الآن.')}</div>}</section>;
+}
