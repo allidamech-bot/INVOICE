@@ -32,9 +32,6 @@ on:
       - '.github/workflows/roadmap-hardening-final.yml'
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
   hardening:
     name: Final roadmap hardening gate
