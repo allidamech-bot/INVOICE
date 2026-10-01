@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Apply Batch 12 app integration
+      - name: Apply due-draft processing only
         run: python3 .github/scripts/batch12-ui-integrate.py
       - name: Install dependencies
         run: npm ci
@@ -31,11 +31,11 @@ jobs:
         run: npm run build
       - name: Recurring workflow QA
         run: node --test tests/recurring-workflows-v464.test.mjs
-      - name: Commit integrated Batch 12 UI
+      - name: Commit verified due-draft processing
         run: |
           rm .github/scripts/batch12-ui-integrate.py .github/workflows/batch12-ui-integrate.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/app/App.tsx src/components/DocumentsPage.tsx src/components/OperationsPage.tsx src/components/RecurringWorkflowsManager.tsx src/lib/recurring-workflows-style.ts tests/recurring-workflows-v464.test.mjs .github/scripts/batch12-ui-integrate.py .github/workflows/batch12-ui-integrate.yml
-          git commit -m "feat(recurring): integrate recurring drafts into documents and purchasing"
+          git add src/app/App.tsx tests/recurring-workflows-v464.test.mjs .github/scripts/batch12-ui-integrate.py .github/workflows/batch12-ui-integrate.yml
+          git commit -m "feat(recurring): generate due workflows as review drafts"
           git push origin HEAD:feat/lourex-recurring-workflows-batch12
