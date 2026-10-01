@@ -1,0 +1,65 @@
+name: LOUREX Workspaces QA
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/workspaces.ts'
+      - 'src/types.ts'
+      - 'src/lib/defaults.ts'
+      - 'src/storage/vault.ts'
+      - 'src/storage/vault-merge.ts'
+      - 'src/app/App.tsx'
+      - 'src/app/index.tsx'
+      - 'src/components/AppShell.tsx'
+      - 'src/components/SettingsModal.tsx'
+      - 'src/components/WorkspaceBranchSettings.tsx'
+      - 'src/styles/workspaces-batch15.css'
+      - 'tests/workspaces-batch15.test.mjs'
+      - 'tests/visual/workspaces-batch15.html'
+      - 'tests/visual/run-workspaces-batch15.cjs'
+      - '.github/workflows/batch15-workspaces.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  workspaces:
+    name: Batch 15 workspace isolation gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Dependency security audit
+        run: npm audit --audit-level=high
+      - name: LOUREX static security gate
+        run: node scripts/security-check.mjs
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Batch 15 isolation contracts
+        run: node --test tests/workspaces-batch15.test.mjs
+      - name: Install browser QA runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Workspace responsive browser QA
+        run: |
+          npx http-server . -p 4173 -c-1 > /tmp/lourex-batch15.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/tests/visual/workspaces-batch15.html >/dev/null && break; sleep 1; done
+          node tests/visual/run-workspaces-batch15.cjs
+      - name: Upload workspace QA evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lourex-workspaces-batch15
+          path: visual-qa-output/workspaces-batch15
+          if-no-files-found: ignore
