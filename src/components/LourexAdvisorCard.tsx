@@ -5,6 +5,7 @@ import { buildAiFinanceContext, type AiFinanceSource } from '../lib/ai-finance.j
 import { advisorCalculation } from '../lib/advisor-calculator.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { buildAiContext } from './AiCopilot.js';
+import { BusinessHealthLiveCard } from './BusinessHealthCard.js';
 import { Icon } from './UI.js';
 
 interface Props{language:UiLanguage;}
@@ -119,7 +120,8 @@ export class LourexAdvisorCard extends React.Component<Props,State>{
 
   render():any{
     const starterPrompts=starters();
-    return <section className="dashboard-panel lourex-advisor-card" aria-label={t('LOUREX Financial Advisor','مستشار LOUREX المالي')}>
+    return <>
+      <section className="dashboard-panel lourex-advisor-card" aria-label={t('LOUREX Financial Advisor','مستشار LOUREX المالي')}>
         <header className="lourex-advisor-head">
           <div className="lourex-advisor-identity"><span className="lourex-advisor-mark" aria-hidden="true"><Icon name="bot"/></span><div><small>{t('LOUREX Intelligence','ذكاء LOUREX')}</small><h2>{t('Your financial advisor & accountant','مستشارك المالي والمحاسبي')}</h2><p>{t('Ask naturally about sales, collections, profit, customers, purchasing, costs or any business number.','اسأل بشكل طبيعي عن المبيعات والتحصيل والربح والعملاء والمشتريات والتكاليف أو أي رقم في أعمالك.')}</p></div></div>
           {this.state.messages.length?<button type="button" className="lourex-advisor-clear" onClick={this.clear}>{t('New conversation','محادثة جديدة')}</button>:null}
@@ -141,6 +143,8 @@ export class LourexAdvisorCard extends React.Component<Props,State>{
           </form>
           <div className="lourex-advisor-trust"><span className="lourex-advisor-status"/><span>{t('Answers use LOUREX data. Financial calculations use deterministic local math.','الإجابات تعتمد على بيانات LOUREX، والحسابات المالية تستخدم محركًا محليًا حتميًا.')}</span></div>
         </footer>
-      </section>;
+      </section>
+      <BusinessHealthLiveCard/>
+    </>;
   }
 }
