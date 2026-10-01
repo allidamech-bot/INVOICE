@@ -7,7 +7,7 @@ import {createBlankDocument} from './src/lib/documents.js';
 import {createCommercialTrackingEvent} from './src/lib/commercial-flow.js';
 import {setUiLanguage} from './src/lib/i18n.js';
 import {todayIso} from './src/lib/id.js';
-import {setupVault,saveVault} from './src/storage/vault.js';
+import {setupVault,saveVault,resumeVaultSession} from './src/storage/vault.js';
 import {establishSession} from './src/storage/session.js';
 import {registerVaultMutationBridge} from './src/storage/vault-mutation-bridge.js';
 const params=new URLSearchParams(location.search),ar=params.get('lang')==='ar',h=React.createElement;
@@ -22,7 +22,7 @@ const sent=createCommercialTrackingEvent(quote,'sent'),follow=createCommercialTr
 vault.purchases=[{id:'purchase-1',number:'PUR-001',date:shift(today,-1),supplierSnapshot:null,currency:'USD',items:[],freight:'0',duty:'0',otherCosts:'0',notes:'',status:'draft',postedAt:'',reversedAt:'',reverseReason:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}];
 vault.savedItems=[{id:'item-1',createdAt:'2026-01-01T00:00:00.000Z',updatedAt:new Date().toISOString(),sku:'SKU-1',descriptionEn:'Product',descriptionAr:'منتج',hsCode:'',origin:'',packing:'',unit:'PCS',lastUnitPrice:'100',lastCurrency:'USD',lastUnitCost:'',lastCostCurrency:'',usageCount:0,lastUsedAt:new Date().toISOString()}];
 vault.inventoryMovements=[{id:'mov-1',itemId:'item-1',itemNameEn:'Product',itemNameAr:'منتج',sku:'SKU-1',date:shift(today,-1),type:'issue',quantity:'-2',unitCost:'',currency:'USD',sourceId:'',sourceNumber:'',note:'',createdAt:new Date().toISOString()}];
-const setup=await setupVault('2468',vault);await establishSession(setup.key);let current=setup.vault;registerVaultMutationBridge(async mutation=>{current=mutation(current);await saveVault(setup.key,current);return current;});
+const setup=await setupVault('2468',vault);await establishSession(setup.key);const resumed=await resumeVaultSession();let current=resumed?.vault??setup.vault;window.__batch5MutationCount=0;window.__batch5LastEvent='';registerVaultMutationBridge(async mutation=>{window.__batch5MutationCount+=1;current=mutation(current);window.__batch5LastEvent=current.documentEvents.at(-1)?.note||'';await saveVault(setup.key,current);return current;});
 window.__lastNav='';window.__batch5Ready=true;
 function Fixture(){return h(AppShell,{screen:'home',logoDataUrl:'',language:ar?'ar':'en',newMenu:false,cloudState:'local',cloudLabel:ar?'محلي':'Local',cloudMessage:'',onNavigate:target=>{window.__lastNav=target;},onToggleNew:()=>{},onNew:()=>{},onCreditNote:()=>{},onStatementAccount:()=>{},onSettings:()=>{},onCloud:()=>{}},h('section',{className:'batch5-fixture-content'},h('h1',null,ar?'لوحة الاختبار':'Fixture dashboard')));}
 ReactDOM.render(h(Fixture),document.getElementById('root'));
