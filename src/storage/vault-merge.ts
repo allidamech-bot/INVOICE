@@ -8,6 +8,9 @@ import { inventoryMovementIsManual, validateExpense, validatePurchase, validateS
 import { isIsoDate } from '../lib/id.js';
 import { t } from '../lib/i18n.js';
 import { assertRecurringWorkflow } from '../lib/recurring-workflows.js';
+import { assertTreasuryEntry } from '../lib/treasury-ledger.js';
+import { assertFxRate } from '../lib/fx-rates.js';
+import { validateWarehouse } from '../lib/warehouses.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -452,6 +455,17 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const purchases=mergeRecords(base.purchases,intended.purchases,latest.purchases);
   const expenses=mergeRecords(base.expenses,intended.expenses,latest.expenses);
   const inventoryMovements=mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  guardConcurrentRecordChanges(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries,'Treasury entry','Reopen Cash & Bank before saving this entry.');
+  const treasuryEntries=mergeRecords(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
+  for(const entry of treasuryEntries)assertTreasuryEntry(entry);
+  guardConcurrentRecordChanges(base.treasuryReconciliations,intended.treasuryReconciliations,latest.treasuryReconciliations,'Treasury reconciliation','Reload Cash & Bank before reconciling this movement.');
+  const treasuryReconciliations=mergeRecords(base.treasuryReconciliations,intended.treasuryReconciliations,latest.treasuryReconciliations);
+  guardConcurrentRecordChanges(base.fxRates,intended.fxRates,latest.fxRates,'FX rate','Reload FX before saving this rate.');
+  const fxRates=mergeRecords(base.fxRates,intended.fxRates,latest.fxRates);
+  for(const rate of fxRates)assertFxRate(rate);
+  guardConcurrentRecordChanges(base.warehouses,intended.warehouses,latest.warehouses,'Warehouse','Reload Stock Locations before saving this location.');
+  const warehouses=mergeRecords(base.warehouses,intended.warehouses,latest.warehouses);
+  for(const warehouse of warehouses){const errors=validateWarehouse(warehouse,warehouses);if(errors.length)throw new Error(errors[0]);}
   const workspaces=mergeRecords(base.workspaces,intended.workspaces,latest.workspaces);
   const branches=mergeRecords(base.branches,intended.branches,latest.branches);
   guardConcurrentRecordChanges(base.teamMembers,intended.teamMembers,latest.teamMembers,'Team member','Reopen Access settings before saving this member.');
@@ -481,6 +495,10 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     supplierPayments,
     expenses,
     inventoryMovements,
+    treasuryEntries,
+    treasuryReconciliations,
+    fxRates,
+    warehouses,
     workspaces,
     branches,
     teamMembers,

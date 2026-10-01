@@ -9,7 +9,7 @@ export type DocumentEventType = 'created' | 'issued' | 'reissued' | 'revision-st
 export type PaymentStatus = 'unpaid' | 'partially-paid' | 'paid' | 'overdue';
 export type PaymentMethod = 'cash' | 'bank-transfer' | 'card' | 'cheque' | 'other';
 export type PurchaseStatus = 'draft' | 'posted' | 'reversed';
-export type InventoryMovementType = 'opening' | 'purchase' | 'purchase-reversal' | 'issue' | 'adjustment';
+export type InventoryMovementType = 'opening' | 'purchase' | 'purchase-reversal' | 'issue' | 'adjustment' | 'transfer';
 export type PricingMethod = 'markup' | 'margin';
 export type DiscountMode = 'fixed' | 'percent';
 export type AutoLockMinutes = 0 | 5 | 15 | 30;
@@ -204,7 +204,23 @@ export interface InventoryMovementRecord extends WorkspaceScopeFields {
   sourceId: string;
   sourceNumber: string;
   note: string;
+  fromWarehouseId?: string;
+  toWarehouseId?: string;
   createdAt: string;
+}
+
+export type TreasuryLedgerType = 'deposit' | 'withdrawal' | 'transfer';
+export interface TreasuryLedgerRecord extends WorkspaceScopeFields {
+  id:string;type:TreasuryLedgerType;date:string;currency:string;amount:string;fromAccountId:string;toAccountId:string;reference:string;notes:string;createdAt:string;updatedAt:string;
+}
+export interface TreasuryReconciliationRecord extends WorkspaceScopeFields {
+  id:string;movementKey:string;reconciledAt:string;note:string;createdAt:string;updatedAt:string;
+}
+export interface FxRateRecord extends WorkspaceScopeFields {
+  id:string;date:string;fromCurrency:string;toCurrency:string;rate:string;sourceLabel:string;notes:string;createdAt:string;updatedAt:string;
+}
+export interface WarehouseRecord extends WorkspaceScopeFields {
+  id:string;name:string;code:string;active:boolean;createdAt:string;updatedAt:string;
 }
 
 export interface Customer extends WorkspaceScopeFields {
@@ -623,6 +639,10 @@ export interface VaultPayload {
   supplierPayments: SupplierPaymentRecord[];
   expenses: ExpenseRecord[];
   inventoryMovements: InventoryMovementRecord[];
+  treasuryEntries: TreasuryLedgerRecord[];
+  treasuryReconciliations: TreasuryReconciliationRecord[];
+  fxRates: FxRateRecord[];
+  warehouses: WarehouseRecord[];
   workspaces: WorkspaceRecord[];
   branches: BranchRecord[];
   teamMembers: TeamMemberRecord[];

@@ -14,7 +14,7 @@ const AUTO_LOCK_VALUES = new Set([0,5,15,30]);
 const PAYMENT_METHODS = new Set(['cash','bank-transfer','card','cheque','other']);
 const DOCUMENT_EVENT_TYPES = new Set(['created','issued','reissued','revision-started','revision-discarded','voided','credit-note-created','payment-recorded','payment-deleted','converted','audit']);
 const PURCHASE_STATUSES = new Set(['draft','posted','reversed']);
-const INVENTORY_MOVEMENT_TYPES = new Set(['opening','purchase','purchase-reversal','issue','adjustment']);
+const INVENTORY_MOVEMENT_TYPES = new Set(['opening','purchase','purchase-reversal','issue','adjustment','transfer']);
 const RECURRING_TARGETS = new Set(['document','purchase']);
 const RECURRING_CADENCES = new Set(['weekly','monthly','quarterly','yearly']);
 const DOCUMENT_KINDS = new Set<DocumentKind>(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt']);
@@ -151,8 +151,12 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   })) : [];
 
   migrated.inventoryMovements = Array.isArray((vault as any).inventoryMovements) ? (vault as any).inventoryMovements.map((movement:any)=>({
-    id:stringValue(movement?.id),itemId:stringValue(movement?.itemId),itemNameEn:stringValue(movement?.itemNameEn),itemNameAr:stringValue(movement?.itemNameAr),sku:stringValue(movement?.sku),date:stringValue(movement?.date),type:INVENTORY_MOVEMENT_TYPES.has(movement?.type)?movement.type:'adjustment',quantity:stringValue(movement?.quantity,'0'),unitCost:stringValue(movement?.unitCost),currency:stringValue(movement?.currency).trim().toUpperCase(),sourceId:stringValue(movement?.sourceId),sourceNumber:stringValue(movement?.sourceNumber),note:stringValue(movement?.note),createdAt:stringValue(movement?.createdAt,nowIso())
+    id:stringValue(movement?.id),itemId:stringValue(movement?.itemId),itemNameEn:stringValue(movement?.itemNameEn),itemNameAr:stringValue(movement?.itemNameAr),sku:stringValue(movement?.sku),date:stringValue(movement?.date),type:INVENTORY_MOVEMENT_TYPES.has(movement?.type)?movement.type:'adjustment',quantity:stringValue(movement?.quantity,'0'),unitCost:stringValue(movement?.unitCost),currency:stringValue(movement?.currency).trim().toUpperCase(),sourceId:stringValue(movement?.sourceId),sourceNumber:stringValue(movement?.sourceNumber),note:stringValue(movement?.note),fromWarehouseId:stringValue(movement?.fromWarehouseId),toWarehouseId:stringValue(movement?.toWarehouseId),createdAt:stringValue(movement?.createdAt,nowIso())
   })) : [];
+  migrated.treasuryEntries=Array.isArray((vault as any).treasuryEntries)?(vault as any).treasuryEntries.map((entry:any)=>({id:stringValue(entry?.id),workspaceId:stringValue(entry?.workspaceId,'default')||'default',branchId:stringValue(entry?.branchId,'main')||'main',type:['deposit','withdrawal','transfer'].includes(entry?.type)?entry.type:'deposit',date:stringValue(entry?.date),currency:cleanCurrency(entry?.currency,migrated.appSettings.smartDefaults.currency||'USD'),amount:stringValue(entry?.amount,'0.00'),fromAccountId:stringValue(entry?.fromAccountId),toAccountId:stringValue(entry?.toAccountId),reference:stringValue(entry?.reference),notes:stringValue(entry?.notes),createdAt:stringValue(entry?.createdAt,nowIso()),updatedAt:stringValue(entry?.updatedAt,entry?.createdAt?stringValue(entry.createdAt):nowIso())})).filter((entry:any)=>entry.id):[];
+  migrated.treasuryReconciliations=Array.isArray((vault as any).treasuryReconciliations)?(vault as any).treasuryReconciliations.map((entry:any)=>({id:stringValue(entry?.id),workspaceId:stringValue(entry?.workspaceId,'default')||'default',branchId:stringValue(entry?.branchId,'main')||'main',movementKey:stringValue(entry?.movementKey),reconciledAt:stringValue(entry?.reconciledAt,nowIso()),note:stringValue(entry?.note),createdAt:stringValue(entry?.createdAt,nowIso()),updatedAt:stringValue(entry?.updatedAt,entry?.createdAt?stringValue(entry.createdAt):nowIso())})).filter((entry:any)=>entry.id&&entry.movementKey):[];
+  migrated.fxRates=Array.isArray((vault as any).fxRates)?(vault as any).fxRates.map((rate:any)=>({id:stringValue(rate?.id),workspaceId:stringValue(rate?.workspaceId,'default')||'default',date:stringValue(rate?.date),fromCurrency:cleanCurrency(rate?.fromCurrency,'USD'),toCurrency:cleanCurrency(rate?.toCurrency,'EUR'),rate:stringValue(rate?.rate),sourceLabel:stringValue(rate?.sourceLabel),notes:stringValue(rate?.notes),createdAt:stringValue(rate?.createdAt,nowIso()),updatedAt:stringValue(rate?.updatedAt,rate?.createdAt?stringValue(rate.createdAt):nowIso())})).filter((rate:any)=>rate.id):[];
+  migrated.warehouses=Array.isArray((vault as any).warehouses)?(vault as any).warehouses.map((warehouse:any)=>({id:stringValue(warehouse?.id),workspaceId:stringValue(warehouse?.workspaceId,'default')||'default',branchId:stringValue(warehouse?.branchId,'main')||'main',name:stringValue(warehouse?.name,'Warehouse'),code:stringValue(warehouse?.code,'WH').trim().toUpperCase()||'WH',active:booleanValue(warehouse?.active,true),createdAt:stringValue(warehouse?.createdAt,nowIso()),updatedAt:stringValue(warehouse?.updatedAt,warehouse?.createdAt?stringValue(warehouse.createdAt):nowIso())})).filter((warehouse:any)=>warehouse.id):[];
 
   migrated.teamMembers = Array.isArray((vault as any).teamMembers) ? (vault as any).teamMembers.map((member:any)=>({
     id:stringValue(member?.id),displayName:stringValue(member?.displayName),email:stringValue(member?.email),role:TEAM_ROLES.has(member?.role)?member.role:'viewer',status:TEAM_STATUSES.has(member?.status)?member.status:'active',createdAt:stringValue(member?.createdAt,nowIso()),updatedAt:stringValue(member?.updatedAt,member?.createdAt?stringValue(member.createdAt):nowIso())
@@ -275,8 +279,8 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
 
   const rawScope=(key:string,branchScoped:boolean)=>{const source=Array.isArray((vault as any)[key])?(vault as any)[key]:[];return new Map(source.map((row:any)=>[stringValue(row?.id),{workspaceId:stringValue(row?.workspaceId,'default')||'default',branchId:branchScoped?(stringValue(row?.branchId,'main')||'main'):''}]));};
   const restoreScope=(key:keyof VaultPayload,branchScoped:boolean)=>{const map=rawScope(String(key),branchScoped),rows=(migrated as any)[key]??[];(migrated as any)[key]=rows.map((row:any)=>({...row,...(map.get(row.id)??{workspaceId:'default',branchId:branchScoped?'main':''})}));};
-  (['customers','suppliers','savedItems'] as const).forEach(key=>restoreScope(key,false));
-  (['purchases','supplierPayments','expenses','inventoryMovements','recurringWorkflows','documents','documentEvents','documentRevisions','payments','approvalRequests'] as const).forEach(key=>restoreScope(key,true));
+  (['customers','suppliers','savedItems','fxRates'] as const).forEach(key=>restoreScope(key,false));
+  (['purchases','supplierPayments','expenses','inventoryMovements','treasuryEntries','treasuryReconciliations','warehouses','recurringWorkflows','documents','documentEvents','documentRevisions','payments','approvalRequests'] as const).forEach(key=>restoreScope(key,true));
 
   const rawWorkspaces=Array.isArray((vault as any).workspaces)?(vault as any).workspaces:[];
   migrated.workspaces=rawWorkspaces.map((workspace:any,index:number)=>({
@@ -290,6 +294,15 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   const rawBranches=Array.isArray((vault as any).branches)?(vault as any).branches:[];
   migrated.branches=rawBranches.map((branch:any,index:number)=>({id:stringValue(branch?.id,index===0?'main':''),workspaceId:stringValue(branch?.workspaceId,'default')||'default',name:stringValue(branch?.name,'Main Branch'),code:stringValue(branch?.code,'MAIN').trim().toUpperCase()||'MAIN',city:stringValue(branch?.city),country:stringValue(branch?.country),active:booleanValue(branch?.active,true),createdAt:stringValue(branch?.createdAt,nowIso()),updatedAt:stringValue(branch?.updatedAt,branch?.createdAt?stringValue(branch.createdAt):nowIso())})).filter((branch:any)=>branch.id&&branch.workspaceId);
   for(const workspace of migrated.workspaces)if(!migrated.branches.some(branch=>branch.workspaceId===workspace.id&&branch.active))migrated.branches.push({id:workspace.id==='default'?'main':`branch-${workspace.id}`,workspaceId:workspace.id,name:'Main Branch',code:'MAIN',city:workspace.company.city,country:workspace.company.country,active:true,createdAt:nowIso(),updatedAt:nowIso()});
+  for(const branch of migrated.branches){
+    if(!migrated.warehouses.some(warehouse=>warehouse.workspaceId===branch.workspaceId&&warehouse.branchId===branch.id))migrated.warehouses.push({id:`warehouse-${branch.id}`,workspaceId:branch.workspaceId,branchId:branch.id,name:branch.name||'Primary Location',code:(branch.code||'MAIN').toUpperCase(),active:true,createdAt:branch.createdAt||nowIso(),updatedAt:branch.updatedAt||nowIso()});
+  }
+  migrated.inventoryMovements=migrated.inventoryMovements.map(movement=>{
+    const branchId=movement.branchId||'main',fallback=`warehouse-${branchId}`;
+    if(movement.type==='transfer')return movement;
+    const negative=String(movement.quantity||'').trim().startsWith('-');
+    return {...movement,fromWarehouseId:movement.fromWarehouseId||(negative?fallback:''),toWarehouseId:movement.toWarehouseId||(!negative?fallback:'')};
+  });
   if(!migrated.workspaces.some(workspace=>workspace.id===migrated.appSettings.activeWorkspaceId))migrated.appSettings.activeWorkspaceId=migrated.workspaces.find(workspace=>workspace.id==='default')?.id??migrated.workspaces[0]!.id;
   const activeWorkspace=migrated.workspaces.find(workspace=>workspace.id===migrated.appSettings.activeWorkspaceId)!;
   if(!migrated.branches.some(branch=>branch.workspaceId===activeWorkspace.id&&branch.id===migrated.appSettings.activeBranchId&&branch.active))migrated.appSettings.activeBranchId=migrated.branches.find(branch=>branch.workspaceId===activeWorkspace.id&&branch.active)!.id;
@@ -310,6 +323,10 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   unique(migrated.supplierPayments.map(p => p.id), 'supplier payment');
   unique(migrated.expenses.map(e => e.id), 'expense');
   unique(migrated.inventoryMovements.map(m => m.id), 'inventory movement');
+  unique(migrated.treasuryEntries.map(m => m.id), 'treasury entry');
+  unique(migrated.treasuryReconciliations.map(m => m.id), 'treasury reconciliation');
+  unique(migrated.fxRates.map(m => m.id), 'FX rate');
+  unique(migrated.warehouses.map(m => m.id), 'warehouse');
   unique(migrated.workspaces.map(w => w.id), 'workspace');
   unique(migrated.branches.map(b => b.id), 'branch');
   unique(migrated.teamMembers.map(m => m.id), 'team member');

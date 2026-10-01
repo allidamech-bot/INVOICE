@@ -265,9 +265,10 @@ export function inventoryMovementAccountingIsValid(movement:InventoryMovementRec
   if((movement.type==='opening'||movement.type==='purchase')&&quantity<0n)return false;
   if((movement.type==='issue'||movement.type==='purchase-reversal')&&quantity>0n)return false;
   if((movement.type==='purchase'||movement.type==='purchase-reversal')&&!movement.sourceId.trim())return false;
+  if(movement.type==='transfer'&&(!movement.fromWarehouseId||!movement.toWarehouseId||movement.fromWarehouseId===movement.toWarehouseId||quantity<0n))return false;
   const cost=(movement.unitCost||'').trim();
   if(cost&&!isNonNegativeDecimalInput(cost))return false;
-  return movement.type==='opening'||movement.type==='purchase'||movement.type==='purchase-reversal'||movement.type==='issue'||movement.type==='adjustment';
+  return movement.type==='opening'||movement.type==='purchase'||movement.type==='purchase-reversal'||movement.type==='issue'||movement.type==='adjustment'||movement.type==='transfer';
 }
 
 export interface OperationsIntegritySummary { invalidPurchases:number; invalidExpenses:number; invalidMovements:number; totalInvalid:number; }
@@ -283,6 +284,7 @@ export function inventoryBalances(items:SavedItem[],movements:InventoryMovementR
   const byItem=new Map<string,bigint>();
   for(const movement of movements){
     if(!inventoryMovementAccountingIsValid(movement))continue;
+    if(movement.type==='transfer')continue;
     byItem.set(movement.itemId,(byItem.get(movement.itemId)??0n)+decimalToScaled(movement.quantity,4));
   }
   return items.map(item=>{const quantityScaled=byItem.get(item.id)??0n;return {item,quantity:trimFixed(fixed(quantityScaled,4)),quantityScaled};}).sort((a,b)=>{
