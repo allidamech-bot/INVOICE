@@ -8,6 +8,8 @@ import { inventoryMovementIsManual, validateExpense, validatePurchase, validateS
 import { isIsoDate } from '../lib/id.js';
 import { t } from '../lib/i18n.js';
 import { assertRecurringWorkflow } from '../lib/recurring-workflows.js';
+import { assertTreasuryAccount, assertTreasuryEntry } from '../lib/treasury-ledger.js';
+import { assertExchangeRate } from '../lib/fx-rates.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -452,6 +454,13 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const purchases=mergeRecords(base.purchases,intended.purchases,latest.purchases);
   const expenses=mergeRecords(base.expenses,intended.expenses,latest.expenses);
   const inventoryMovements=mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  guardConcurrentRecordChanges(base.treasuryAccounts,intended.treasuryAccounts,latest.treasuryAccounts,'Treasury account','Reopen Cash & Bank before saving this account.');
+  const treasuryAccounts=mergeRecords(base.treasuryAccounts,intended.treasuryAccounts,latest.treasuryAccounts);
+  guardConcurrentRecordChanges(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries,'Treasury entry','Reopen Cash & Bank before changing this entry.');
+  const treasuryEntries=mergeRecords(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
+  guardConcurrentRecordChanges(base.exchangeRates,intended.exchangeRates,latest.exchangeRates,'Exchange rate','Reopen FX before saving this rate.');
+  const exchangeRates=mergeRecords(base.exchangeRates,intended.exchangeRates,latest.exchangeRates);
+  const inventoryTransfers=mergeRecords(base.inventoryTransfers,intended.inventoryTransfers,latest.inventoryTransfers);
   const workspaces=mergeRecords(base.workspaces,intended.workspaces,latest.workspaces);
   const branches=mergeRecords(base.branches,intended.branches,latest.branches);
   guardConcurrentRecordChanges(base.teamMembers,intended.teamMembers,latest.teamMembers,'Team member','Reopen Access settings before saving this member.');
@@ -471,6 +480,9 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardFinancialSettlementChanges(base,intended,documents,payments);
   guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems);
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
+  for(const account of treasuryAccounts)assertTreasuryAccount(account);
+  for(const entry of treasuryEntries)assertTreasuryEntry(entry,treasuryAccounts);
+  for(const rate of exchangeRates)assertExchangeRate(rate);
   return {
     ...latest,
     schemaVersion:Math.max(latest.schemaVersion,intended.schemaVersion),
@@ -481,6 +493,10 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     supplierPayments,
     expenses,
     inventoryMovements,
+    inventoryTransfers,
+    treasuryAccounts,
+    treasuryEntries,
+    exchangeRates,
     workspaces,
     branches,
     teamMembers,

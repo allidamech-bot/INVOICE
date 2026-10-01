@@ -9,7 +9,7 @@ export type DocumentEventType = 'created' | 'issued' | 'reissued' | 'revision-st
 export type PaymentStatus = 'unpaid' | 'partially-paid' | 'paid' | 'overdue';
 export type PaymentMethod = 'cash' | 'bank-transfer' | 'card' | 'cheque' | 'other';
 export type PurchaseStatus = 'draft' | 'posted' | 'reversed';
-export type InventoryMovementType = 'opening' | 'purchase' | 'purchase-reversal' | 'issue' | 'adjustment';
+export type InventoryMovementType = 'opening' | 'purchase' | 'purchase-reversal' | 'issue' | 'adjustment' | 'transfer-out' | 'transfer-in';
 export type PricingMethod = 'markup' | 'margin';
 export type DiscountMode = 'fixed' | 'percent';
 export type AutoLockMinutes = 0 | 5 | 15 | 30;
@@ -20,6 +20,9 @@ export type TeamRole = 'owner' | 'admin' | 'finance' | 'sales' | 'purchasing' | 
 export type TeamMemberStatus = 'active' | 'suspended';
 export type ApprovalAction = 'issue-document' | 'post-purchase' | 'reverse-purchase';
 export type ApprovalRequestStatus = 'pending' | 'approved' | 'rejected';
+export type TreasuryAccountKind = 'cash' | 'bank';
+export type TreasuryEntryType = 'opening-balance' | 'deposit' | 'withdrawal' | 'transfer' | 'collection' | 'supplier-payment' | 'reconciliation';
+export type TreasurySourceType = 'manual' | 'customer-payment' | 'supplier-payment';
 
 export interface WorkspaceScopeFields { workspaceId?: string; branchId?: string; }
 
@@ -204,6 +207,9 @@ export interface InventoryMovementRecord extends WorkspaceScopeFields {
   sourceId: string;
   sourceNumber: string;
   note: string;
+  transferId?: string;
+  fromBranchId?: string;
+  toBranchId?: string;
   createdAt: string;
 }
 
@@ -613,6 +619,63 @@ export interface RecurringWorkflowRecord {
   updatedAt: string;
 }
 
+
+export interface TreasuryAccountRecord extends WorkspaceScopeFields {
+  id: string;
+  label: string;
+  kind: TreasuryAccountKind;
+  currency: string;
+  bankAccountId: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TreasuryLedgerEntry extends WorkspaceScopeFields {
+  id: string;
+  type: TreasuryEntryType;
+  date: string;
+  amount: string;
+  currency: string;
+  fromAccountId: string;
+  toAccountId: string;
+  sourceType: TreasurySourceType;
+  sourceId: string;
+  reference: string;
+  notes: string;
+  reconciledAt: string;
+  voidedAt: string;
+  voidReason: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExchangeRateRecord extends WorkspaceScopeFields {
+  id: string;
+  date: string;
+  baseCurrency: string;
+  quoteCurrency: string;
+  rate: string;
+  sourceLabel: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InventoryTransferRecord extends WorkspaceScopeFields {
+  id: string;
+  fromBranchId: string;
+  toBranchId: string;
+  itemId: string;
+  itemNameEn: string;
+  itemNameAr: string;
+  sku: string;
+  quantity: string;
+  date: string;
+  note: string;
+  createdAt: string;
+}
+
 export interface VaultPayload {
   schemaVersion: number;
   company: CompanySettings;
@@ -623,6 +686,10 @@ export interface VaultPayload {
   supplierPayments: SupplierPaymentRecord[];
   expenses: ExpenseRecord[];
   inventoryMovements: InventoryMovementRecord[];
+  inventoryTransfers: InventoryTransferRecord[];
+  treasuryAccounts: TreasuryAccountRecord[];
+  treasuryEntries: TreasuryLedgerEntry[];
+  exchangeRates: ExchangeRateRecord[];
   workspaces: WorkspaceRecord[];
   branches: BranchRecord[];
   teamMembers: TeamMemberRecord[];

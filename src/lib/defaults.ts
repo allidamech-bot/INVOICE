@@ -16,7 +16,8 @@ import { DEFAULT_APPROVAL_POLICIES, defaultOwnerMember } from './governance.js';
 // v18 extends the existing encrypted document-event ledger with auditable entity context.
 // v19 adds encrypted team roles, operator context and approval workflow records.
 // v20 adds encrypted multi-company workspaces and branch-scoped operational ledgers.
-export const APP_SCHEMA_VERSION = 20;
+// v21 adds real treasury ledger accounts/entries, dated FX rates and auditable stock transfers.
+export const APP_SCHEMA_VERSION = 21;
 export const KDF_ITERATIONS = 310_000;
 
 export function defaultCompany(): CompanySettings {
@@ -69,7 +70,7 @@ export function defaultAppSettings(): AppSettings {
 
 export function emptyVault(): VaultPayload {
   const company=defaultCompany(),appSettings=defaultAppSettings(),now=new Date().toISOString();
-  return { schemaVersion: APP_SCHEMA_VERSION, company, appSettings, customers: [], suppliers: [], purchases: [], supplierPayments: [], expenses: [], inventoryMovements: [], workspaces:[{id:'default',name:'LOUREX',company:structuredClone(company),numbering:structuredClone(appSettings.numbering),smartDefaults:structuredClone(appSettings.smartDefaults),createdAt:now,updatedAt:now}],branches:[{id:'main',workspaceId:'default',name:'Main Branch',code:'MAIN',city:company.city,country:company.country,active:true,createdAt:now,updatedAt:now}], teamMembers: [defaultOwnerMember()], approvalPolicies: DEFAULT_APPROVAL_POLICIES.map(policy=>({...policy,approverRoles:[...policy.approverRoles]})), approvalRequests: [], recurringWorkflows: [], documents: [], documentEvents: [], documentRevisions: [], payments: [], savedItems: [], companyAssets: [] } as VaultPayload & {companyAssets:Array<{id:string;dataUrl:string}>};
+  return { schemaVersion: APP_SCHEMA_VERSION, company, appSettings, customers: [], suppliers: [], purchases: [], supplierPayments: [], expenses: [], inventoryMovements: [], inventoryTransfers: [], treasuryAccounts: [], treasuryEntries: [], exchangeRates: [], workspaces:[{id:'default',name:'LOUREX',company:structuredClone(company),numbering:structuredClone(appSettings.numbering),smartDefaults:structuredClone(appSettings.smartDefaults),createdAt:now,updatedAt:now}],branches:[{id:'main',workspaceId:'default',name:'Main Branch',code:'MAIN',city:company.city,country:company.country,active:true,createdAt:now,updatedAt:now}], teamMembers: [defaultOwnerMember()], approvalPolicies: DEFAULT_APPROVAL_POLICIES.map(policy=>({...policy,approverRoles:[...policy.approverRoles]})), approvalRequests: [], recurringWorkflows: [], documents: [], documentEvents: [], documentRevisions: [], payments: [], savedItems: [], companyAssets: [] } as VaultPayload & {companyAssets:Array<{id:string;dataUrl:string}>};
 }
 
 export function customerSnapshotFrom(customer: { id: string; companyNameEn: string; companyNameAr: string; contactPerson: string; addressEn: string; addressAr: string; city: string; country: string; phone: string; email: string; vatTaxNumber: string; commercialRegistration: string }): CustomerSnapshot {

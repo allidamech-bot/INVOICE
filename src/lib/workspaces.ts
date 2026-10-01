@@ -4,8 +4,8 @@ import { makeId } from './id.js';
 export const DEFAULT_WORKSPACE_ID='default';
 export const DEFAULT_BRANCH_ID='main';
 
-export const COMPANY_SCOPED_KEYS=['customers','suppliers','savedItems'] as const;
-export const BRANCH_SCOPED_KEYS=['purchases','supplierPayments','expenses','inventoryMovements','recurringWorkflows','documents','documentEvents','documentRevisions','payments','approvalRequests'] as const;
+export const COMPANY_SCOPED_KEYS=['customers','suppliers','savedItems','exchangeRates','inventoryTransfers'] as const;
+export const BRANCH_SCOPED_KEYS=['purchases','supplierPayments','expenses','inventoryMovements','treasuryAccounts','treasuryEntries','recurringWorkflows','documents','documentEvents','documentRevisions','payments','approvalRequests'] as const;
 
 function recordWorkspace(record:any):string{return String(record?.workspaceId||DEFAULT_WORKSPACE_ID);}
 function recordBranch(record:any):string{return String(record?.branchId||DEFAULT_BRANCH_ID);}

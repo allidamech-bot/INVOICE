@@ -14,7 +14,7 @@ const AUTO_LOCK_VALUES = new Set([0,5,15,30]);
 const PAYMENT_METHODS = new Set(['cash','bank-transfer','card','cheque','other']);
 const DOCUMENT_EVENT_TYPES = new Set(['created','issued','reissued','revision-started','revision-discarded','voided','credit-note-created','payment-recorded','payment-deleted','converted','audit']);
 const PURCHASE_STATUSES = new Set(['draft','posted','reversed']);
-const INVENTORY_MOVEMENT_TYPES = new Set(['opening','purchase','purchase-reversal','issue','adjustment']);
+const INVENTORY_MOVEMENT_TYPES = new Set(['opening','purchase','purchase-reversal','issue','adjustment','transfer-out','transfer-in']);
 const RECURRING_TARGETS = new Set(['document','purchase']);
 const RECURRING_CADENCES = new Set(['weekly','monthly','quarterly','yearly']);
 const DOCUMENT_KINDS = new Set<DocumentKind>(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt']);
@@ -151,8 +151,21 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   })) : [];
 
   migrated.inventoryMovements = Array.isArray((vault as any).inventoryMovements) ? (vault as any).inventoryMovements.map((movement:any)=>({
-    id:stringValue(movement?.id),itemId:stringValue(movement?.itemId),itemNameEn:stringValue(movement?.itemNameEn),itemNameAr:stringValue(movement?.itemNameAr),sku:stringValue(movement?.sku),date:stringValue(movement?.date),type:INVENTORY_MOVEMENT_TYPES.has(movement?.type)?movement.type:'adjustment',quantity:stringValue(movement?.quantity,'0'),unitCost:stringValue(movement?.unitCost),currency:stringValue(movement?.currency).trim().toUpperCase(),sourceId:stringValue(movement?.sourceId),sourceNumber:stringValue(movement?.sourceNumber),note:stringValue(movement?.note),createdAt:stringValue(movement?.createdAt,nowIso())
+    id:stringValue(movement?.id),itemId:stringValue(movement?.itemId),itemNameEn:stringValue(movement?.itemNameEn),itemNameAr:stringValue(movement?.itemNameAr),sku:stringValue(movement?.sku),date:stringValue(movement?.date),type:INVENTORY_MOVEMENT_TYPES.has(movement?.type)?movement.type:'adjustment',quantity:stringValue(movement?.quantity,'0'),unitCost:stringValue(movement?.unitCost),currency:stringValue(movement?.currency).trim().toUpperCase(),sourceId:stringValue(movement?.sourceId),sourceNumber:stringValue(movement?.sourceNumber),note:stringValue(movement?.note),transferId:stringValue(movement?.transferId),fromBranchId:stringValue(movement?.fromBranchId),toBranchId:stringValue(movement?.toBranchId),createdAt:stringValue(movement?.createdAt,nowIso())
   })) : [];
+
+  migrated.inventoryTransfers = Array.isArray((vault as any).inventoryTransfers) ? (vault as any).inventoryTransfers.map((transfer:any)=>({
+    id:stringValue(transfer?.id),workspaceId:stringValue(transfer?.workspaceId,'default')||'default',fromBranchId:stringValue(transfer?.fromBranchId),toBranchId:stringValue(transfer?.toBranchId),itemId:stringValue(transfer?.itemId),itemNameEn:stringValue(transfer?.itemNameEn),itemNameAr:stringValue(transfer?.itemNameAr),sku:stringValue(transfer?.sku),quantity:stringValue(transfer?.quantity,'0'),date:stringValue(transfer?.date),note:stringValue(transfer?.note),createdAt:stringValue(transfer?.createdAt,nowIso())
+  })).filter((transfer:any)=>transfer.id&&transfer.fromBranchId&&transfer.toBranchId&&transfer.itemId) : [];
+  migrated.treasuryAccounts = Array.isArray((vault as any).treasuryAccounts) ? (vault as any).treasuryAccounts.map((account:any)=>({
+    id:stringValue(account?.id),label:stringValue(account?.label),kind:account?.kind==='bank'?'bank':'cash',currency:cleanCurrency(account?.currency,migrated.appSettings.smartDefaults.currency||'USD'),bankAccountId:stringValue(account?.bankAccountId),active:booleanValue(account?.active,true),createdAt:stringValue(account?.createdAt,nowIso()),updatedAt:stringValue(account?.updatedAt,account?.createdAt?stringValue(account.createdAt):nowIso())
+  })).filter((account:any)=>account.id&&account.label) : [];
+  migrated.treasuryEntries = Array.isArray((vault as any).treasuryEntries) ? (vault as any).treasuryEntries.map((entry:any)=>({
+    id:stringValue(entry?.id),type:['opening-balance','deposit','withdrawal','transfer','collection','supplier-payment','reconciliation'].includes(String(entry?.type||''))?entry.type:'deposit',date:stringValue(entry?.date),amount:stringValue(entry?.amount,'0.00'),currency:cleanCurrency(entry?.currency,migrated.appSettings.smartDefaults.currency||'USD'),fromAccountId:stringValue(entry?.fromAccountId),toAccountId:stringValue(entry?.toAccountId),sourceType:['customer-payment','supplier-payment'].includes(String(entry?.sourceType||''))?entry.sourceType:'manual',sourceId:stringValue(entry?.sourceId),reference:stringValue(entry?.reference),notes:stringValue(entry?.notes),reconciledAt:stringValue(entry?.reconciledAt),voidedAt:stringValue(entry?.voidedAt),voidReason:stringValue(entry?.voidReason),createdAt:stringValue(entry?.createdAt,nowIso()),updatedAt:stringValue(entry?.updatedAt,entry?.createdAt?stringValue(entry.createdAt):nowIso())
+  })).filter((entry:any)=>entry.id&&entry.date) : [];
+  migrated.exchangeRates = Array.isArray((vault as any).exchangeRates) ? (vault as any).exchangeRates.map((rate:any)=>({
+    id:stringValue(rate?.id),date:stringValue(rate?.date),baseCurrency:cleanCurrency(rate?.baseCurrency,'USD'),quoteCurrency:cleanCurrency(rate?.quoteCurrency,'USD'),rate:stringValue(rate?.rate,'1'),sourceLabel:stringValue(rate?.sourceLabel),notes:stringValue(rate?.notes),createdAt:stringValue(rate?.createdAt,nowIso()),updatedAt:stringValue(rate?.updatedAt,rate?.createdAt?stringValue(rate.createdAt):nowIso())
+  })).filter((rate:any)=>rate.id&&rate.date&&rate.sourceLabel) : [];
 
   migrated.teamMembers = Array.isArray((vault as any).teamMembers) ? (vault as any).teamMembers.map((member:any)=>({
     id:stringValue(member?.id),displayName:stringValue(member?.displayName),email:stringValue(member?.email),role:TEAM_ROLES.has(member?.role)?member.role:'viewer',status:TEAM_STATUSES.has(member?.status)?member.status:'active',createdAt:stringValue(member?.createdAt,nowIso()),updatedAt:stringValue(member?.updatedAt,member?.createdAt?stringValue(member.createdAt):nowIso())
@@ -275,8 +288,8 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
 
   const rawScope=(key:string,branchScoped:boolean)=>{const source=Array.isArray((vault as any)[key])?(vault as any)[key]:[];return new Map(source.map((row:any)=>[stringValue(row?.id),{workspaceId:stringValue(row?.workspaceId,'default')||'default',branchId:branchScoped?(stringValue(row?.branchId,'main')||'main'):''}]));};
   const restoreScope=(key:keyof VaultPayload,branchScoped:boolean)=>{const map=rawScope(String(key),branchScoped),rows=(migrated as any)[key]??[];(migrated as any)[key]=rows.map((row:any)=>({...row,...(map.get(row.id)??{workspaceId:'default',branchId:branchScoped?'main':''})}));};
-  (['customers','suppliers','savedItems'] as const).forEach(key=>restoreScope(key,false));
-  (['purchases','supplierPayments','expenses','inventoryMovements','recurringWorkflows','documents','documentEvents','documentRevisions','payments','approvalRequests'] as const).forEach(key=>restoreScope(key,true));
+  (['customers','suppliers','savedItems','exchangeRates','inventoryTransfers'] as const).forEach(key=>restoreScope(key,false));
+  (['purchases','supplierPayments','expenses','inventoryMovements','treasuryAccounts','treasuryEntries','recurringWorkflows','documents','documentEvents','documentRevisions','payments','approvalRequests'] as const).forEach(key=>restoreScope(key,true));
 
   const rawWorkspaces=Array.isArray((vault as any).workspaces)?(vault as any).workspaces:[];
   migrated.workspaces=rawWorkspaces.map((workspace:any,index:number)=>({
@@ -310,6 +323,10 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
   unique(migrated.supplierPayments.map(p => p.id), 'supplier payment');
   unique(migrated.expenses.map(e => e.id), 'expense');
   unique(migrated.inventoryMovements.map(m => m.id), 'inventory movement');
+  unique(migrated.inventoryTransfers.map(t => t.id), 'inventory transfer');
+  unique(migrated.treasuryAccounts.map(a => a.id), 'treasury account');
+  unique(migrated.treasuryEntries.map(e => e.id), 'treasury entry');
+  unique(migrated.exchangeRates.map(r => r.id), 'exchange rate');
   unique(migrated.workspaces.map(w => w.id), 'workspace');
   unique(migrated.branches.map(b => b.id), 'branch');
   unique(migrated.teamMembers.map(m => m.id), 'team member');
