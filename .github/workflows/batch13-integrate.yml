@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-      - name: Integrate Batch 13
+      - name: Integrate corrected Batch 13
         run: python3 scripts/batch13-integrate.py
       - run: npm ci
       - name: TypeScript
