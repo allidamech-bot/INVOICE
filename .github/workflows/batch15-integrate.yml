@@ -1,0 +1,40 @@
+name: Batch 15 integrate workspaces
+
+on:
+  push:
+    branches:
+      - feat/lourex-workspaces-batch15
+    paths:
+      - 'scripts/batch15-integrate.py'
+      - '.github/workflows/batch15-integrate.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/lourex-workspaces-batch15
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Integrate Batch 15
+        run: python3 scripts/batch15-integrate.py
+      - run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Commit Batch 15
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/types.ts src/lib/defaults.ts src/lib/recurring-workflows.ts src/storage/vault.ts src/storage/vault-merge.ts src/lib/audit-trail.ts src/lib/audit-diff.ts src/components/EntityAuditLivePanel.tsx src/components/SettingsModal.tsx src/app/App.tsx src/app/index.tsx index.html
+          git commit -m "feat(workspaces): integrate multi-company and branch isolation"
+          git rm scripts/batch15-integrate.py .github/workflows/batch15-integrate.yml
+          git commit -m "chore(workspaces): remove one-shot Batch 15 integrator"
+          git push origin HEAD:feat/lourex-workspaces-batch15
