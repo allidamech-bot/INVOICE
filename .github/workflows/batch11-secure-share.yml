@@ -1,0 +1,77 @@
+name: LOUREX Customer Portal QA
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/lib/secure-share.ts'
+      - 'src/lib/secure-share-evidence.ts'
+      - 'src/cloud/secure-share-owner.ts'
+      - 'src/cloud/firebase-config.ts'
+      - 'src/portal/**'
+      - 'src/components/SecureShareManager.tsx'
+      - 'src/components/CustomerSharesPanel.tsx'
+      - 'src/components/Customer360LivePanel.tsx'
+      - 'src/components/DocumentsPage.tsx'
+      - 'src/lib/commercial-flow.ts'
+      - 'src/components/CommercialFlowPanel.tsx'
+      - 'src/styles/secure-share-batch11.css'
+      - 'public/share.html'
+      - 'firestore.rules'
+      - 'tests/secure-share-batch11.test.mjs'
+      - 'tests/visual/secure-share-batch11.html'
+      - 'tests/visual/run-secure-share-batch11.cjs'
+      - '.github/workflows/batch11-secure-share.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  secure-share:
+    name: Batch 11 secure share gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Dependency security audit
+        run: npm audit --audit-level=high
+      - name: LOUREX static security gate
+        run: node scripts/security-check.mjs
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Batch 11 secure share contracts
+        run: node --test tests/secure-share-batch11.test.mjs
+      - name: Install portal browser QA runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Secure portal browser QA
+        run: |
+          npx http-server . -p 4173 -c-1 > /tmp/lourex-batch11-portal.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/tests/visual/secure-share-batch11.html >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/lourex-batch11-portal.log; exit 1; fi
+          node tests/visual/run-secure-share-batch11.cjs
+      - name: Upload portal QA evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lourex-secure-share-batch11
+          path: visual-qa-output/secure-share-batch11
+          if-no-files-found: ignore
