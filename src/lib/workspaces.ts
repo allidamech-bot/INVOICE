@@ -22,16 +22,19 @@ export function branchRecordFrom(workspaceId:string,name='Main Branch',code='MAI
 }
 
 export function activeWorkspace(vault:Pick<VaultPayload,'workspaces'|'appSettings'>):WorkspaceRecord{
-  return vault.workspaces.find(workspace=>workspace.id===vault.appSettings.activeWorkspaceId)
-    ??vault.workspaces.find(workspace=>workspace.id===DEFAULT_WORKSPACE_ID)
+  const workspace=vault.workspaces.find(item=>item.id===vault.appSettings.activeWorkspaceId)
+    ??vault.workspaces.find(item=>item.id===DEFAULT_WORKSPACE_ID)
     ??vault.workspaces[0];
+  if(!workspace)throw new Error('Workspace configuration is missing.');
+  return workspace;
 }
 
 export function activeBranch(vault:Pick<VaultPayload,'branches'|'appSettings'|'workspaces'>):BranchRecord{
   const workspace=activeWorkspace(vault);
-  return vault.branches.find(branch=>branch.workspaceId===workspace.id&&branch.id===vault.appSettings.activeBranchId&&branch.active)
-    ??vault.branches.find(branch=>branch.workspaceId===workspace.id&&branch.active)
-    ??branchRecordFrom(workspace.id);
+  const branch=vault.branches.find(item=>item.workspaceId===workspace.id&&item.id===vault.appSettings.activeBranchId&&item.active)
+    ??vault.branches.find(item=>item.workspaceId===workspace.id&&item.active);
+  if(!branch)throw new Error('Active workspace has no active branch.');
+  return branch;
 }
 
 function filterCompanyScope<T>(rows:T[],workspaceId:string):T[]{return rows.filter(row=>recordWorkspace(row)===workspaceId);}
@@ -39,7 +42,7 @@ function filterBranchScope<T>(rows:T[],workspaceId:string,branchId:string):T[]{r
 
 export function scopeVault(vault:VaultPayload):VaultPayload{
   const workspace=activeWorkspace(vault),branch=activeBranch(vault);
-  const scoped:any={...vault,company:structuredClone(workspace.company),appSettings:{...vault.appSettings,numbering:structuredClone(workspace.numbering),smartDefaults:structuredClone(workspace.smartDefaults)}};
+  const scoped:any={...vault,company:structuredClone(workspace.company),appSettings:{...vault.appSettings,activeWorkspaceId:workspace.id,activeBranchId:branch.id,numbering:structuredClone(workspace.numbering),smartDefaults:structuredClone(workspace.smartDefaults)}};
   for(const key of COMPANY_SCOPED_KEYS)scoped[key]=filterCompanyScope((vault as any)[key]??[],workspace.id);
   for(const key of BRANCH_SCOPED_KEYS)scoped[key]=filterBranchScope((vault as any)[key]??[],workspace.id,branch.id);
   return scoped as VaultPayload;
@@ -71,6 +74,22 @@ export function applyWorkspaceScope(base:VaultPayload,intended:VaultPayload):Vau
   return next as VaultPayload;
 }
 
+export function overlayWorkspaceScope(full:VaultPayload,scoped:VaultPayload):VaultPayload{
+  const workspace=activeWorkspace(scoped),branch=activeBranch(scoped);
+  const next:any={...full,...scoped};
+  for(const key of COMPANY_SCOPED_KEYS){
+    const hidden=((full as any)[key]??[]).filter((row:any)=>recordWorkspace(row)!==workspace.id);
+    next[key]=[...hidden,...((scoped as any)[key]??[])];
+  }
+  for(const key of BRANCH_SCOPED_KEYS){
+    const hidden=((full as any)[key]??[]).filter((row:any)=>!(recordWorkspace(row)===workspace.id&&recordBranch(row)===branch.id));
+    next[key]=[...hidden,...((scoped as any)[key]??[])];
+  }
+  next.company=structuredClone(workspace.company);
+  next.appSettings={...scoped.appSettings,activeWorkspaceId:workspace.id,activeBranchId:branch.id,numbering:structuredClone(workspace.numbering),smartDefaults:structuredClone(workspace.smartDefaults)};
+  return next as VaultPayload;
+}
+
 export function activateWorkspace(vault:VaultPayload,workspaceId:string,requestedBranchId=''):VaultPayload{
   const workspace=vault.workspaces.find(item=>item.id===workspaceId);
   if(!workspace)throw new Error('Workspace was not found.');
@@ -89,6 +108,7 @@ export function activateBranch(vault:VaultPayload,branchId:string):VaultPayload{
 
 export function createWorkspace(vault:VaultPayload,name:string):VaultPayload{
   const clean=name.trim();if(!clean)throw new Error('Workspace name is required.');
+  if(vault.workspaces.some(item=>item.name.trim().toLocaleLowerCase()===clean.toLocaleLowerCase()))throw new Error('A workspace with this name already exists.');
   const id=makeId('workspace'),now=new Date().toISOString();
   const company=structuredClone(vault.company);company.nameEn=clean;company.nameAr='';company.logoDataUrl='';company.signatureDataUrl='';company.stampDataUrl='';company.vatNumber='';company.taxNumber='';company.commercialRegistration='';
   const workspace:WorkspaceRecord={id,name:clean,company,numbering:structuredClone(vault.appSettings.numbering),smartDefaults:structuredClone(vault.appSettings.smartDefaults),createdAt:now,updatedAt:now};
