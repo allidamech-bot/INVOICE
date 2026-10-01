@@ -47,7 +47,7 @@ export function auditAction(event:DocumentEventRecord):AuditAction|'event'{
 export function auditEventsFor(events:DocumentEventRecord[],entityType:AuditEntityType,entityId:string,limit=50):DocumentEventRecord[]{
   return events.filter(event=>isAuditEvent(event)&&auditEntityType(event)===entityType&&auditEntityId(event)===entityId).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,Math.max(1,limit));
 }
-export function auditEventsGlobal(events:DocumentEventRecord[],limit=250):DocumentEventRecord[]{return events.filter(isAuditEvent).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,Math.max(1,limit));}
+export function auditEventsGlobal(events:DocumentEventRecord[],limit=250):DocumentEventRecord[]{return [...events].sort((a,b)=>b.at.localeCompare(a.at)).slice(0,Math.max(1,limit));}
 
 export function auditActionLabel(action:AuditAction|'event',arabic=false):string{
   if(arabic){if(action==='created')return'تم الإنشاء';if(action==='updated')return'تم التعديل';if(action==='deleted')return'تم الحذف';if(action==='posted')return'تم الترحيل';if(action==='reversed')return'تم العكس';return'نشاط';}
