@@ -1,0 +1,40 @@
+name: Batch 13 integrate audit trail
+
+on:
+  push:
+    branches:
+      - feat/lourex-audit-trail-batch13
+    paths:
+      - 'scripts/batch13-integrate.py'
+      - '.github/workflows/batch13-integrate.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/lourex-audit-trail-batch13
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Integrate Batch 13
+        run: python3 scripts/batch13-integrate.py
+      - run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Commit verified integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/types.ts src/lib/defaults.ts src/storage/vault.ts src/app/index.tsx src/components/Customer360LivePanel.tsx src/components/Supplier360LivePanel.tsx src/components/ProductLibraryWorkspace.tsx src/components/OperationsPage.tsx src/components/SettingsModal.tsx src/app/App.tsx index.html
+          git commit -m "feat(audit): integrate encrypted audit trail across workspace"
+          git rm scripts/batch13-integrate.py .github/workflows/batch13-integrate.yml
+          git commit -m "chore(audit): remove one-shot Batch 13 integration helper"
+          git push origin HEAD:feat/lourex-audit-trail-batch13
