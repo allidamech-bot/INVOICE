@@ -7,6 +7,7 @@ on:
     paths:
       - 'scripts/batch14-integrate.py'
       - '.github/workflows/batch14-integrate.yml'
+      - 'src/styles/governance-batch14.css'
 
 permissions:
   contents: write
