@@ -104,6 +104,16 @@ test('Documents and Customer 360 expose secure sharing without adding primary na
   assert.doesNotMatch(appShell,/Secure Share|Customer Portal|secureShareId/);
 });
 
+test('terminal or converted quotations cannot receive a new customer decision capability',async()=>{
+  const manager=await read('src/components/SecureShareManager.tsx');
+  assert.match(manager,/tracking\.status!==['"]accepted['"]/);
+  assert.match(manager,/tracking\.status!==['"]rejected['"]/);
+  assert.match(manager,/event\.type===['"]converted['"]/);
+  assert.match(manager,/createSecureShare\(doc,Number\(days\),allowDecision\)/);
+  const owner=await read('src/cloud/secure-share-owner.ts');
+  assert.match(owner,/Boolean\(allowDecision&&secureShareAllowsDecision\(doc\)\)/);
+});
+
 test('Batch 11 CSS protects mobile, RTL, touch, reduced motion and print surfaces',async()=>{
   const css=await read('src/styles/secure-share-batch11.css');
   assert.match(css,/min-height:44px/);
