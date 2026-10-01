@@ -1,9 +1,11 @@
 import type { AppSettings, CompanySettings, Customer, ExpenseRecord, InventoryMovementRecord, LourexDocument, PurchaseRecord, SavedItem, Supplier, VaultPayload } from '../types.js';
+import type { OpportunityRecord } from '../crm-types.js';
 import { findSavedItemDuplicate, normalizeSavedItemIdentity } from '../lib/saved-items.js';
 import { decimalToScaled, isDecimalInput, isNonNegativeDecimalInput } from '../lib/money.js';
 import { assertDocumentLifecycleInvariant } from '../lib/document-lifecycle.js';
 import { assertInvoicePaymentInvariant } from '../lib/payments.js';
 import { inventoryMovementIsManual, validateExpense, validatePurchase, validateSupplier } from '../lib/operations.js';
+import { assertOpportunity } from '../lib/sales-pipeline.js';
 import { isIsoDate } from '../lib/id.js';
 import { t } from '../lib/i18n.js';
 
@@ -241,6 +243,16 @@ function guardExpenseChanges(base:ExpenseRecord[],intended:ExpenseRecord[]):void
     if(errors.length)throw new Error(errors[0]);
   }
 }
+function guardOpportunityChanges(base:OpportunityRecord[],intended:OpportunityRecord[],latest:OpportunityRecord[]):void{
+  guardConcurrentRecordChanges(base,intended,latest,'Opportunity','Reopen the Pipeline before saving or deleting the opportunity.');
+  if(intended===base)return;
+  const baseById=new Map(base.map(item=>[item.id,item]));
+  for(const opportunity of intended){
+    const before=baseById.get(opportunity.id);
+    if(before&&sameRecord(before,opportunity))continue;
+    assertOpportunity(opportunity);
+  }
+}
 function purchaseCore(purchase:PurchaseRecord):string{
   const {status:_,postedAt:__,reversedAt:___,reverseReason:____,updatedAt:_____,...core}=purchase;
   return JSON.stringify(core);
@@ -441,6 +453,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const expenses=mergeRecords(base.expenses,intended.expenses,latest.expenses);
   const inventoryMovements=mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
   const documents=mergeDocuments(base.documents,intended.documents,latest.documents);
+  guardOpportunityChanges(base.opportunities,intended.opportunities,latest.opportunities);
+  const opportunities=mergeRecords(base.opportunities,intended.opportunities,latest.opportunities);
   // Payments are auditable financial records. A stale edit or delete must not
   // silently overwrite a newer version saved by another tab or device.
   guardConcurrentRecordChanges(base.payments,intended.payments,latest.payments,'Payment','Reopen the invoice before saving or deleting the payment.');
@@ -463,6 +477,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     documentRevisions:mergeRecords(base.documentRevisions,intended.documentRevisions,latest.documentRevisions),
     payments,
     savedItems,
+    opportunities,
     appSettings:mergeAppSettings(base.appSettings,intended.appSettings,latest.appSettings)
   };
 }
