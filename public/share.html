@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <title>LOUREX Secure Share</title>
+  <link rel="stylesheet" href="./secure-share-portal.css" />
+</head>
+<body>
+  <main class="lx-share-shell">
+    <header class="lx-share-top">
+      <div class="lx-share-brand"><span class="lx-share-brand-mark" aria-hidden="true">LX</span><div><strong>LOUREX</strong><small id="portal-subtitle">Secure customer portal</small></div></div>
+      <span class="lx-share-security" id="security-label">🔒 Capability-protected link</span>
+    </header>
+
+    <section class="lx-share-card" aria-live="polite">
+      <div class="lx-share-state" id="loading-state"><span class="lx-share-state-icon" aria-hidden="true">…</span><h1 id="loading-title">Opening secure document</h1><p id="loading-copy">Checking this private link and preparing the customer-facing document.</p></div>
+      <div class="lx-share-state" id="unavailable-state" hidden><span class="lx-share-state-icon" aria-hidden="true">🔒</span><h1 id="unavailable-title">This secure link is unavailable</h1><p id="unavailable-copy">It may have expired, been revoked, or the link may be incomplete. Ask the sender for a new Secure Share link.</p></div>
+
+      <article class="lx-share-document" id="document-view" hidden>
+        <header class="lx-share-hero">
+          <div><span class="lx-share-kicker" id="document-kind">Document</span><h1 id="document-number">—</h1><p id="document-date">—</p></div>
+          <div class="lx-share-total"><small id="grand-total-label">Grand Total</small><strong id="grand-total">—</strong></div>
+        </header>
+
+        <div class="lx-share-main">
+          <div>
+            <section class="lx-share-section">
+              <header><small id="parties-kicker">Parties</small><h2 id="parties-title">Document parties</h2></header>
+              <div class="lx-share-parties"><div class="lx-share-party" id="company-party"></div><div class="lx-share-party" id="customer-party"></div></div>
+            </section>
+
+            <section class="lx-share-section" style="margin-top:12px">
+              <header><small id="items-kicker">Details</small><h2 id="items-title">Items</h2></header>
+              <div class="lx-share-table-wrap"><table class="lx-share-table"><thead><tr><th id="th-item">Item</th><th id="th-qty">Qty</th><th id="th-unit">Unit</th><th class="num" id="th-price">Price</th><th class="num" id="th-total">Total</th></tr></thead><tbody id="items-body"></tbody></table></div>
+              <div class="lx-share-totals" id="totals-list"></div>
+            </section>
+          </div>
+
+          <aside class="lx-share-side">
+            <section class="lx-share-section"><header><small id="terms-kicker">Commercial</small><h2 id="terms-title">Terms</h2></header><div class="lx-share-facts" id="terms-list"></div></section>
+            <section class="lx-share-section" id="notes-section" hidden><header><small id="notes-kicker">Notes</small><h2 id="notes-title">Document notes</h2></header><div class="lx-share-notes" id="notes-copy"></div></section>
+            <section class="lx-share-section"><header><small id="actions-kicker">Actions</small><h2 id="actions-title">Customer actions</h2></header><div class="lx-share-actions"><button type="button" class="lx-share-btn" id="print-btn">Print / Save PDF</button></div><div class="lx-share-response" id="response-box"><div class="lx-share-response-status" id="response-status">No response has been sent yet.</div><textarea id="comment-input" maxlength="2000" placeholder="Add a comment (optional)" aria-label="Customer comment"></textarea><div class="lx-share-response-actions" id="decision-actions"><button type="button" class="lx-share-btn primary" id="accept-btn">Accept</button><button type="button" class="lx-share-btn danger" id="reject-btn">Reject</button></div><button type="button" class="lx-share-btn" id="comment-btn">Send comment</button></div></section>
+          </aside>
+        </div>
+      </article>
+    </section>
+    <footer class="lx-share-footer" id="portal-footer">This page shows only the customer-facing snapshot shared by the sender. It does not provide access to the sender’s LOUREX workspace.</footer>
+  </main>
+  <div class="lx-share-toast" id="toast" role="status" hidden></div>
+
+  <script src="./runtime-config.js"></script>
+  <script src="./vendor/firebase-app-compat.js"></script>
+  <script src="./vendor/firebase-app-check-compat.js"></script>
+  <script src="./firebase-app-check-bootstrap.js"></script>
+  <script src="./vendor/firebase-firestore-compat.js"></script>
+  <script src="./secure-share-portal.js"></script>
+</body>
+</html>
