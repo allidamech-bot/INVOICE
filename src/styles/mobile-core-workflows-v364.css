@@ -5,7 +5,7 @@
   /* Legacy Hostinger rules still assign a violet fill to operations actions
    * on some mobile routes. Keep every primary business action on the current
    * workspace accent, including supplier, purchase, expense and stock forms. */
-  html body .app-ui .ta-ops-panel-head>.btn-primary,
+  html body .app-ui .ta-ops-panel-head .btn-primary,
   html body .app-ui .ta-ops-split :is(.btn.btn-primary,button.btn-primary){
     background:var(--ft-accent)!important;
     background-image:none!important;
@@ -13,9 +13,9 @@
     color:var(--ft-on-accent,#fff)!important;
     box-shadow:none!important;
   }
-  html body .app-ui .ta-ops-panel-head>.btn-primary:hover:not(:disabled),
+  html body .app-ui .ta-ops-panel-head .btn-primary:hover:not(:disabled),
   html body .app-ui .ta-ops-split :is(.btn.btn-primary,button.btn-primary):hover:not(:disabled),
-  html body .app-ui .ta-ops-panel-head>.btn-primary:active:not(:disabled),
+  html body .app-ui .ta-ops-panel-head .btn-primary:active:not(:disabled),
   html body .app-ui .ta-ops-split :is(.btn.btn-primary,button.btn-primary):active:not(:disabled){
     background:var(--ft-accent)!important;
     background-image:none!important;

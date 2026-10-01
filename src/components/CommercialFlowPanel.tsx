@@ -22,6 +22,8 @@ function documentLabel(document:LourexDocument):string{
 function eventLabel(event:DocumentEventRecord):string{
   const commercial=commercialTrackingEventKind(event);
   if(commercial==='sent')return t('Marked sent','تم تسجيل الإرسال');
+  if(commercial==='viewed')return t('Viewed in secure portal','تمت المشاهدة في البوابة الآمنة');
+  if(commercial==='commented')return t('Customer commented','أضاف العميل تعليقًا');
   if(commercial==='accepted')return t('Accepted','تم القبول');
   if(commercial==='rejected')return t('Rejected','تم الرفض');
   if(commercial==='followup-scheduled')return t('Follow-up scheduled','تمت جدولة متابعة');
@@ -97,6 +99,7 @@ export function CommercialFlowPanel({document,documents,events,onOpenDocument,on
       <div><small>{t('Commercial status','الحالة التجارية')}</small><strong>{status}</strong><span>{statusHint}</span></div>
       <div><small>{t('Valid until','صالح حتى')}</small><strong>{snapshot.expiresAt?displayDate(snapshot.expiresAt,getUiLanguage()):'—'}</strong><span>{snapshot.expiresAt?t('Recorded on the quotation','مسجل على عرض السعر'):t('No expiry date recorded','لا يوجد تاريخ صلاحية مسجل')}</span></div>
       <div><small>{t('Linked invoice','الفاتورة المرتبطة')}</small><strong>{snapshot.linkedInvoice?.number||'—'}</strong><span>{snapshot.linkedInvoice?t('Conversion is confirmed by the linked record.','تم تأكيد التحويل من السجل المرتبط.'):t('No invoice conversion recorded yet.','لا يوجد تحويل لفاتورة مسجل حتى الآن.')}</span></div>
+      <div><small>{t('Secure portal viewed','تمت المشاهدة الآمنة')}</small><strong>{snapshot.tracking.viewedAt?displayDate(snapshot.tracking.viewedAt.slice(0,10),getUiLanguage()):'—'}</strong><span>{snapshot.tracking.lastComment?t('Customer comment recorded','تم تسجيل تعليق العميل'):t('Trustworthy view evidence appears only after the secure portal opens.','يظهر إثبات المشاهدة الموثوق فقط بعد فتح البوابة الآمنة.')}</span></div>
     </div>:null}
 
     {canTrack?<section className="lx-commercial-actions" aria-label={t('Commercial tracking actions','إجراءات المتابعة التجارية')}>

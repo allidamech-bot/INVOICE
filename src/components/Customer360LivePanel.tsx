@@ -5,6 +5,7 @@ import { ensureRelationship360Styles } from '../lib/relationship-360-style.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { t } from '../lib/i18n.js';
 import { Customer360Panel } from './Relationship360Panels.js';
+import { CustomerSharesPanel } from './CustomerSharesPanel.js';
 
 export function Customer360LivePanel({customer}:{customer:Customer}):any{
   const [snapshot,setSnapshot]=React.useState<Customer360Snapshot|null>(null);
@@ -22,5 +23,5 @@ export function Customer360LivePanel({customer}:{customer:Customer}):any{
   },[customer.id,customer.updatedAt]);
   if(error)return <section className="lx-360-load-state is-error" role="status">{error}</section>;
   if(!snapshot)return <section className="lx-360-load-state" role="status">{t('Preparing Customer 360…','جارٍ تجهيز ملف العميل 360…')}</section>;
-  return <Customer360Panel snapshot={snapshot}/>;
+  return <><Customer360Panel snapshot={snapshot}/><CustomerSharesPanel customer={customer}/></>;
 }
