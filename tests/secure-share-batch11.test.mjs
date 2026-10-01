@@ -114,6 +114,12 @@ test('terminal or converted quotations cannot receive a new customer decision ca
   assert.match(owner,/Boolean\(allowDecision&&secureShareAllowsDecision\(doc\)\)/);
 });
 
+test('mobile operations primary selector covers wrapped header actions',async()=>{
+  const css=await read('src/styles/mobile-core-workflows-v364.css');
+  assert.match(css,/\.ta-ops-panel-head \.btn-primary/);
+  assert.doesNotMatch(css,/\.ta-ops-panel-head>\.btn-primary/);
+});
+
 test('Batch 11 CSS protects mobile, RTL, touch, reduced motion and print surfaces',async()=>{
   const css=await read('src/styles/secure-share-batch11.css');
   assert.match(css,/min-height:44px/);
