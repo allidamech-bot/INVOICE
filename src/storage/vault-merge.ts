@@ -8,7 +8,7 @@ import { inventoryMovementIsManual, validateExpense, validatePurchase, validateS
 import { isIsoDate } from '../lib/id.js';
 import { t } from '../lib/i18n.js';
 import { assertRecurringWorkflow } from '../lib/recurring-workflows.js';
-import { assertTreasuryEntry } from '../lib/treasury-ledger.js';
+import { assertTreasuryAccount, assertTreasuryEntry } from '../lib/treasury-ledger.js';
 import { assertFxRate } from '../lib/fx-rates.js';
 import { validateWarehouse } from '../lib/warehouses.js';
 
@@ -455,9 +455,12 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const purchases=mergeRecords(base.purchases,intended.purchases,latest.purchases);
   const expenses=mergeRecords(base.expenses,intended.expenses,latest.expenses);
   const inventoryMovements=mergeRecords(base.inventoryMovements,intended.inventoryMovements,latest.inventoryMovements);
+  guardConcurrentRecordChanges(base.treasuryAccounts,intended.treasuryAccounts,latest.treasuryAccounts,'Treasury account','Reopen Cash & Bank before saving this account.');
+  const treasuryAccounts=mergeRecords(base.treasuryAccounts,intended.treasuryAccounts,latest.treasuryAccounts);
+  for(const account of treasuryAccounts)assertTreasuryAccount(account);
   guardConcurrentRecordChanges(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries,'Treasury entry','Reopen Cash & Bank before saving this entry.');
   const treasuryEntries=mergeRecords(base.treasuryEntries,intended.treasuryEntries,latest.treasuryEntries);
-  for(const entry of treasuryEntries)assertTreasuryEntry(entry);
+  for(const entry of treasuryEntries)assertTreasuryEntry(entry,treasuryAccounts);
   guardConcurrentRecordChanges(base.treasuryReconciliations,intended.treasuryReconciliations,latest.treasuryReconciliations,'Treasury reconciliation','Reload Cash & Bank before reconciling this movement.');
   const treasuryReconciliations=mergeRecords(base.treasuryReconciliations,intended.treasuryReconciliations,latest.treasuryReconciliations);
   guardConcurrentRecordChanges(base.fxRates,intended.fxRates,latest.fxRates,'FX rate','Reload FX before saving this rate.');
@@ -495,6 +498,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     supplierPayments,
     expenses,
     inventoryMovements,
+    treasuryAccounts,
     treasuryEntries,
     treasuryReconciliations,
     fxRates,

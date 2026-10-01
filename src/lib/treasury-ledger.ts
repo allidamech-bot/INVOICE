@@ -1,63 +1,86 @@
-import type { ExpenseRecord, PaymentRecord, SupplierPaymentRecord, TreasuryLedgerRecord, TreasuryReconciliationRecord } from '../types.js';
+import type { ExpenseRecord, PaymentRecord, SupplierPaymentRecord, TreasuryAccountRecord, TreasuryLedgerRecord, TreasuryLedgerType, TreasuryReconciliationRecord, TreasurySourceType } from '../types.js';
 import { isIsoDate, makeId, todayIso } from './id.js';
 import { decimalToScaled, isNonNegativeDecimalInput } from './money.js';
 
-export type TreasuryProjectionSource='collection'|'supplier-payment'|'expense'|'deposit'|'withdrawal'|'transfer';
+export type TreasuryProjectionSource='opening-balance'|'collection'|'supplier-payment'|'expense'|'deposit'|'withdrawal'|'transfer'|'reconciliation';
 export interface TreasuryProjectionRow {
   key:string;id:string;date:string;createdAt:string;source:TreasuryProjectionSource;direction:'in'|'out'|'internal';currency:string;amount:string;
   label:string;reference:string;method:string;fromAccountId:string;toAccountId:string;reconciled:boolean;reconciledAt:string;
 }
 
 function currency(value:string,fallback='USD'):string{return value.trim().toUpperCase()||fallback;}
-function amountIsPositive(value:string):boolean{return isNonNegativeDecimalInput(value)&&decimalToScaled(value,2)>0n;}
+function positive(value:string):boolean{return isNonNegativeDecimalInput(value)&&decimalToScaled(value,2)>0n;}
+function moneyString(value:bigint):string{const sign=value<0n?'-':'';const abs=value<0n?-value:value;return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`;}
 
-export function createTreasuryEntry(type:TreasuryLedgerRecord['type'],currencyCode='USD'):TreasuryLedgerRecord{
-  const now=new Date().toISOString();
-  return{id:makeId('treasury'),workspaceId:'',branchId:'',type,date:todayIso(),currency:currency(currencyCode),amount:'',fromAccountId:'',toAccountId:'',reference:'',notes:'',createdAt:now,updatedAt:now};
+export function assertTreasuryAccount(account:TreasuryAccountRecord):void{
+  if(!account.id||!account.label.trim())throw new Error('Treasury account label is required.');
+  if(account.kind!=='cash'&&account.kind!=='bank')throw new Error('Treasury account type is invalid.');
+  if(!/^[A-Z]{3}$/.test(currency(account.currency)))throw new Error('Treasury account currency must be a three-letter currency code.');
+  if(!account.workspaceId||!account.branchId)throw new Error('Treasury account scope is missing.');
 }
 
-export function validateTreasuryEntry(entry:TreasuryLedgerRecord):string[]{
+export function createTreasuryAccount(input:{label:string;kind:'cash'|'bank';currency:string;bankAccountId?:string;workspaceId:string;branchId:string}):TreasuryAccountRecord{
+  const now=new Date().toISOString();
+  const account:TreasuryAccountRecord={id:makeId('treasury-account'),label:input.label.trim(),kind:input.kind,currency:currency(input.currency),bankAccountId:input.bankAccountId||'',active:true,workspaceId:input.workspaceId,branchId:input.branchId,createdAt:now,updatedAt:now};
+  assertTreasuryAccount(account);return account;
+}
+
+export function createTreasuryEntry(type:TreasuryLedgerType='deposit',currencyCode='USD'):TreasuryLedgerRecord{
+  const now=new Date().toISOString();
+  return{id:makeId('treasury'),workspaceId:'',branchId:'',type,date:todayIso(),currency:currency(currencyCode),amount:'',fromAccountId:'',toAccountId:'',sourceType:'manual',sourceId:'',reference:'',notes:'',reconciledAt:'',voidedAt:'',voidReason:'',createdAt:now,updatedAt:now};
+}
+
+export function validateTreasuryEntry(entry:TreasuryLedgerRecord,accounts:TreasuryAccountRecord[]=[]):string[]{
   const errors:string[]=[];
-  if(!['deposit','withdrawal','transfer'].includes(entry.type))errors.push('Treasury entry type is invalid.');
+  if(!['opening-balance','deposit','withdrawal','transfer','collection','supplier-payment','reconciliation'].includes(entry.type))errors.push('Treasury entry type is invalid.');
   if(!isIsoDate(entry.date))errors.push('Treasury date is invalid.');
-  if(!entry.currency.trim())errors.push('Treasury currency is required.');
-  if(!amountIsPositive(entry.amount))errors.push('Treasury amount must be greater than zero.');
-  if(entry.type==='deposit'&&!entry.toAccountId.trim())errors.push('Deposit destination account is required.');
-  if(entry.type==='withdrawal'&&!entry.fromAccountId.trim())errors.push('Withdrawal source account is required.');
+  if(!/^[A-Z]{3}$/.test(currency(entry.currency)))errors.push('Treasury currency must be a three-letter currency code.');
+  if(!positive(entry.amount))errors.push('Treasury amount must be greater than zero.');
+  const from=entry.fromAccountId?accounts.find(item=>item.id===entry.fromAccountId):undefined;
+  const to=entry.toAccountId?accounts.find(item=>item.id===entry.toAccountId):undefined;
+  if(accounts.length&&entry.fromAccountId&&!from)errors.push('Treasury source account was not found.');
+  if(accounts.length&&entry.toAccountId&&!to)errors.push('Treasury destination account was not found.');
+  if(from&&currency(from.currency)!==currency(entry.currency))errors.push('Treasury source account currency does not match the entry.');
+  if(to&&currency(to.currency)!==currency(entry.currency))errors.push('Treasury destination account currency does not match the entry.');
   if(entry.type==='transfer'){
-    if(!entry.fromAccountId.trim()||!entry.toAccountId.trim())errors.push('Transfer source and destination accounts are required.');
-    if(entry.fromAccountId.trim()&&entry.fromAccountId===entry.toAccountId)errors.push('Transfer source and destination must be different.');
+    if(!entry.fromAccountId||!entry.toAccountId||entry.fromAccountId===entry.toAccountId)errors.push('Transfer requires two different treasury accounts.');
+    if(from&&to&&currency(from.currency)!==currency(to.currency))errors.push('Transfer accounts must use the same currency.');
+  }else if(entry.type==='deposit'||entry.type==='collection'){
+    if(entry.fromAccountId||!entry.toAccountId)errors.push('This treasury entry must credit one destination account.');
+  }else if(entry.type==='withdrawal'||entry.type==='supplier-payment'){
+    if(!entry.fromAccountId||entry.toAccountId)errors.push('This treasury entry must debit one source account.');
+  }else if(entry.type==='opening-balance'||entry.type==='reconciliation'){
+    if(Boolean(entry.fromAccountId)===Boolean(entry.toAccountId))errors.push('This treasury entry must adjust exactly one account.');
   }
+  if(entry.type==='collection'&&(!entry.sourceId||entry.sourceType!=='customer-payment'))errors.push('Collection must link to a customer payment.');
+  if(entry.type==='supplier-payment'&&(!entry.sourceId||entry.sourceType!=='supplier-payment'))errors.push('Supplier payment must link to a supplier payment record.');
   return errors;
 }
+export function assertTreasuryEntry(entry:TreasuryLedgerRecord,accounts:TreasuryAccountRecord[]=[]):void{const errors=validateTreasuryEntry(entry,accounts);if(errors.length)throw new Error(errors[0]);}
 
-export function assertTreasuryEntry(entry:TreasuryLedgerRecord):void{const errors=validateTreasuryEntry(entry);if(errors.length)throw new Error(errors[0]);}
-
-export function createTreasuryReconciliation(movementKey:string,note=''):TreasuryReconciliationRecord{
-  const now=new Date().toISOString();
-  if(!movementKey.trim())throw new Error('Treasury movement key is required.');
-  return{id:makeId('reconcile'),workspaceId:'',branchId:'',movementKey:movementKey.trim(),reconciledAt:now,note:note.trim(),createdAt:now,updatedAt:now};
+export function treasuryLinkedSourceUsed(entries:TreasuryLedgerRecord[],sourceType:TreasurySourceType,sourceId:string,ignoreId=''):boolean{
+  return entries.some(entry=>entry.id!==ignoreId&&!entry.voidedAt&&entry.sourceType===sourceType&&entry.sourceId===sourceId);
 }
+export function voidTreasuryEntry(entry:TreasuryLedgerRecord,reason:string):TreasuryLedgerRecord{const clean=reason.trim();if(!clean)throw new Error('Enter a reason before voiding this treasury entry.');if(entry.voidedAt)throw new Error('Treasury entry is already voided.');const now=new Date().toISOString();return{...entry,voidedAt:now,voidReason:clean,updatedAt:now};}
+export function markTreasuryEntryReconciled(entry:TreasuryLedgerRecord,reconciled:boolean):TreasuryLedgerRecord{if(entry.voidedAt)throw new Error('A voided treasury entry cannot be reconciled.');const now=new Date().toISOString();return{...entry,reconciledAt:reconciled?now:'',updatedAt:now};}
+export function treasuryAccountBalanceScaled(accountId:string,entries:TreasuryLedgerRecord[]):bigint{let total=0n;for(const entry of entries){if(entry.voidedAt)continue;const amount=decimalToScaled(entry.amount,2);if(entry.toAccountId===accountId)total+=amount;if(entry.fromAccountId===accountId)total-=amount;}return total;}
+export function treasuryAccountBalance(accountId:string,entries:TreasuryLedgerRecord[]):string{return moneyString(treasuryAccountBalanceScaled(accountId,entries));}
 
-export function treasuryProjection(
-  payments:PaymentRecord[],supplierPayments:SupplierPaymentRecord[],expenses:ExpenseRecord[],entries:TreasuryLedgerRecord[],reconciliations:TreasuryReconciliationRecord[],defaultCurrency='USD'
-):TreasuryProjectionRow[]{
-  const reconciled=new Map(reconciliations.map(item=>[item.movementKey,item]));
-  const rows:TreasuryProjectionRow[]=[];
-  const attach=(row:Omit<TreasuryProjectionRow,'reconciled'|'reconciledAt'>)=>{const rec=reconciled.get(row.key);rows.push({...row,reconciled:Boolean(rec),reconciledAt:rec?.reconciledAt||''});};
-  for(const item of payments)attach({key:`collection:${item.id}`,id:item.id,date:item.date,createdAt:item.createdAt,source:'collection',direction:'in',currency:currency(item.currency,defaultCurrency),amount:item.amount,label:item.customerNameEn||item.customerNameAr||item.invoiceNumber,reference:item.reference||item.invoiceNumber,method:item.method,fromAccountId:'',toAccountId:''});
-  for(const item of supplierPayments)attach({key:`supplier-payment:${item.id}`,id:item.id,date:item.date,createdAt:item.createdAt,source:'supplier-payment',direction:'out',currency:currency(item.currency,defaultCurrency),amount:item.amount,label:item.supplierNameEn||item.supplierNameAr||item.purchaseNumber,reference:item.reference||item.purchaseNumber,method:item.method,fromAccountId:'',toAccountId:''});
+export function createTreasuryReconciliation(movementKey:string,note=''):TreasuryReconciliationRecord{const now=new Date().toISOString();if(!movementKey.trim())throw new Error('Treasury movement key is required.');return{id:makeId('reconcile'),workspaceId:'',branchId:'',movementKey:movementKey.trim(),reconciledAt:now,note:note.trim(),createdAt:now,updatedAt:now};}
+
+export function treasuryProjection(payments:PaymentRecord[],supplierPayments:SupplierPaymentRecord[],expenses:ExpenseRecord[],entries:TreasuryLedgerRecord[],reconciliations:TreasuryReconciliationRecord[],defaultCurrency='USD'):TreasuryProjectionRow[]{
+  const active=entries.filter(entry=>!entry.voidedAt),customerLinks=new Set(active.filter(entry=>entry.sourceType==='customer-payment').map(entry=>entry.sourceId)),supplierLinks=new Set(active.filter(entry=>entry.sourceType==='supplier-payment').map(entry=>entry.sourceId)),reconciled=new Map(reconciliations.map(item=>[item.movementKey,item])),rows:TreasuryProjectionRow[]=[];
+  const attach=(row:Omit<TreasuryProjectionRow,'reconciled'|'reconciledAt'>,entry?:TreasuryLedgerRecord)=>{const rec=reconciled.get(row.key);rows.push({...row,reconciled:Boolean(entry?.reconciledAt)||Boolean(rec),reconciledAt:entry?.reconciledAt||rec?.reconciledAt||''});};
+  for(const item of payments){if(customerLinks.has(item.id))continue;attach({key:`collection:${item.id}`,id:item.id,date:item.date,createdAt:item.createdAt,source:'collection',direction:'in',currency:currency(item.currency,defaultCurrency),amount:item.amount,label:item.customerNameEn||item.customerNameAr||item.invoiceNumber,reference:item.reference||item.invoiceNumber,method:item.method,fromAccountId:'',toAccountId:''});}
+  for(const item of supplierPayments){if(supplierLinks.has(item.id))continue;attach({key:`supplier-payment:${item.id}`,id:item.id,date:item.date,createdAt:item.createdAt,source:'supplier-payment',direction:'out',currency:currency(item.currency,defaultCurrency),amount:item.amount,label:item.supplierNameEn||item.supplierNameAr||item.purchaseNumber,reference:item.reference||item.purchaseNumber,method:item.method,fromAccountId:'',toAccountId:''});}
   for(const item of expenses)attach({key:`expense:${item.id}`,id:item.id,date:item.date,createdAt:item.createdAt,source:'expense',direction:'out',currency:currency(item.currency,defaultCurrency),amount:item.amount,label:item.description||item.category||'Expense',reference:item.reference,method:'other',fromAccountId:'',toAccountId:''});
-  for(const item of entries){
-    const direction=item.type==='deposit'?'in':item.type==='withdrawal'?'out':'internal';
-    attach({key:`treasury:${item.id}`,id:item.id,date:item.date,createdAt:item.createdAt,source:item.type,direction,currency:currency(item.currency,defaultCurrency),amount:item.amount,label:item.notes||item.reference||item.type,reference:item.reference,method:'ledger',fromAccountId:item.fromAccountId,toAccountId:item.toAccountId});
-  }
+  for(const entry of active){const direction:TreasureDirection=entry.fromAccountId&&entry.toAccountId?'internal':entry.toAccountId?'in':'out';let label=entry.notes||entry.reference||entry.type;if(entry.sourceType==='customer-payment'){const item=payments.find(p=>p.id===entry.sourceId);label=item?.customerNameEn||item?.customerNameAr||item?.invoiceNumber||label;}else if(entry.sourceType==='supplier-payment'){const item=supplierPayments.find(p=>p.id===entry.sourceId);label=item?.supplierNameEn||item?.supplierNameAr||item?.purchaseNumber||label;}attach({key:`treasury:${entry.id}`,id:entry.id,date:entry.date,createdAt:entry.createdAt,source:entry.type,direction,currency:currency(entry.currency,defaultCurrency),amount:entry.amount,label,reference:entry.reference,method:'ledger',fromAccountId:entry.fromAccountId,toAccountId:entry.toAccountId},entry);}
   return rows.sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt)||a.key.localeCompare(b.key));
 }
+type TreasureDirection='in'|'out'|'internal';
 
 export function treasuryTotals(rows:TreasuryProjectionRow[],currencyCode:string):{inflow:string;outflow:string;net:string;internalTransfers:string;reconciled:number;unreconciled:number}{
   const code=currency(currencyCode),selected=rows.filter(row=>row.currency===code);let inflow=0n,outflow=0n,internal=0n;
-  for(const row of selected){const amount=decimalToScaled(row.amount,2);if(row.direction==='in')inflow+=amount;else if(row.direction==='out')outflow+=amount;else internal+=amount;}
-  const fixed=(value:bigint)=>{const sign=value<0n?'-':'';const abs=value<0n?-value:value;return `${sign}${abs/100n}.${(abs%100n).toString().padStart(2,'0')}`;};
-  return{inflow:fixed(inflow),outflow:fixed(outflow),net:fixed(inflow-outflow),internalTransfers:fixed(internal),reconciled:selected.filter(row=>row.reconciled).length,unreconciled:selected.filter(row=>!row.reconciled).length};
+  for(const row of selected){if(row.source==='opening-balance')continue;const amount=decimalToScaled(row.amount,2);if(row.direction==='in')inflow+=amount;else if(row.direction==='out')outflow+=amount;else internal+=amount;}
+  return{inflow:moneyString(inflow),outflow:moneyString(outflow),net:moneyString(inflow-outflow),internalTransfers:moneyString(internal),reconciled:selected.filter(row=>row.reconciled).length,unreconciled:selected.filter(row=>!row.reconciled).length};
 }
