@@ -23,7 +23,7 @@ function secondWorkspace(full){
 
 test('schema v20+ contains encrypted workspace and branch directory fields',async()=>{
   const [defaults,types,vault]=await Promise.all([read('src/lib/defaults.ts'),read('src/types.ts'),read('src/storage/vault.ts')]);
-  const schemaVersion=Number(defaults.match(/APP_SCHEMA_VERSION\s*=\s*(\d+)/)?.[1]??0);
+  const schemaVersion=Number(defaults.match(/export const APP_SCHEMA_VERSION\s*=\s*(\d+)/)?.[1]??0);
   assert.ok(schemaVersion>=20,'workspace isolation requires schema v20 or later');
   assert.match(types,/interface WorkspaceRecord/);
   assert.match(types,/interface BranchRecord/);
