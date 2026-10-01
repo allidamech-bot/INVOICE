@@ -137,6 +137,7 @@ export interface PurchaseRecord {
   id: string;
   number: string;
   date: string;
+  dueDate: string;
   supplierSnapshot: SupplierSnapshot | null;
   currency: string;
   items: PurchaseItem[];
@@ -148,6 +149,23 @@ export interface PurchaseRecord {
   postedAt: string;
   reversedAt: string;
   reverseReason: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupplierPaymentRecord {
+  id: string;
+  purchaseId: string;
+  purchaseNumber: string;
+  supplierId: string;
+  supplierNameEn: string;
+  supplierNameAr: string;
+  currency: string;
+  amount: string;
+  date: string;
+  method: PaymentMethod;
+  reference: string;
+  notes: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -501,6 +519,7 @@ export interface VaultPayload {
   customers: Customer[];
   suppliers: Supplier[];
   purchases: PurchaseRecord[];
+  supplierPayments: SupplierPaymentRecord[];
   expenses: ExpenseRecord[];
   inventoryMovements: InventoryMovementRecord[];
   documents: LourexDocument[];
