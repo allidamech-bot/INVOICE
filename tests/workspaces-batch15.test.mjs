@@ -21,9 +21,10 @@ function secondWorkspace(full){
   };
 }
 
-test('schema v20 contains encrypted workspace and branch directory fields',async()=>{
+test('schema v20+ contains encrypted workspace and branch directory fields',async()=>{
   const [defaults,types,vault]=await Promise.all([read('src/lib/defaults.ts'),read('src/types.ts'),read('src/storage/vault.ts')]);
-  assert.match(defaults,/APP_SCHEMA_VERSION\s*=\s*20/);
+  const schemaVersion=Number(/APP_SCHEMA_VERSION\s*=\s*(\d+)/.exec(defaults)?.[1]??0);
+  assert.ok(schemaVersion>=20,'Multi-company isolation requires schema v20 or newer.');
   assert.match(types,/interface WorkspaceRecord/);
   assert.match(types,/interface BranchRecord/);
   assert.match(types,/activeWorkspaceId: string/);
