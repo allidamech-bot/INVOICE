@@ -25,8 +25,9 @@ const output='visual-qa-output/notification-center-batch5';
         const linkBox=await link.boundingBox();assert.ok(linkBox&&linkBox.height>=44,`Mobile notification entry must be >=44px: ${linkBox?.height}`);
         await link.click();
       }else{
-        const link=page.locator('.ta-sidebar-footer .ta-sidebar-utility').filter({hasText:'Notifications & Follow-up'});
-        assert.equal(await link.count(),1,'Desktop sidebar must contain one Notifications & Follow-up utility');
+        const link=page.locator('.lx-notification-topbar');
+        assert.equal(await link.count(),1,'Desktop topbar must contain one Notifications & Follow-up entry');
+        const linkBox=await link.boundingBox();assert.ok(linkBox&&linkBox.height>=44&&linkBox.width>=44,`Desktop notification entry must be >=44px: ${JSON.stringify(linkBox)}`);
         await link.click();
       }
       await page.locator('.lx-notification-center').waitFor();
