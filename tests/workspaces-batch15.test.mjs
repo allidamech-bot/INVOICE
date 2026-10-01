@@ -121,5 +121,11 @@ test('primary navigation freeze remains unchanged',async()=>{
   const shell=await read('src/components/AppShell.tsx');
   for(const screen of ['home','documents','customers','items','operations','receivables','reports'])assert.match(shell,new RegExp(`navItem\\('${screen}'`));
   assert.doesNotMatch(shell,/navItem\('workspaces'/);
-  assert.match(shell,/mobileTab\('home'/);assert.match(shell,/mobileTab\('documents'/);assert.match(shell,/mobileCreateTab/);assert.match(shell,/mobileTab\('customers'/);assert.match(shell,/toggleMore/);
+  assert.match(shell,/className="ta-mobile-nav"/);
+  assert.match(shell,/onClick=\{\(\)=>this\.navigate\('home'\)\}/);
+  assert.match(shell,/onClick=\{\(\)=>this\.navigate\('documents'\)\}/);
+  assert.match(shell,/className="ta-mobile-create"/);
+  assert.match(shell,/onClick=\{\(\)=>this\.navigate\('customers'\)\}/);
+  assert.match(shell,/aria-controls="ta-mobile-more"/);
+  assert.match(shell,/onClick=\{this\.toggleMore\}/);
 });
