@@ -23,8 +23,16 @@ for(const [owner,version] of owners){
 
 const parts=[];
 for(const [owner] of owners){
-  const css=(await readFile(`src/styles/${owner}`,'utf8')).trim();
+  let css=(await readFile(`src/styles/${owner}`,'utf8')).trim();
   if(!css)throw new Error(`v480 production bundle: ${owner} is empty.`);
+
+  /* The production bundle lives one directory above the source-owner URL depth.
+     Normalize local brand artwork so QA and deployment both resolve /brand assets.
+     Keep Noto Sans Arabic first while retaining TailAdmin's Outfit fallback contract. */
+  css=css
+    .replaceAll('url("../../brand/','url("../brand/')
+    .replaceAll('font-family:"Noto Sans Arabic",Inter','font-family:"Noto Sans Arabic","Outfit",Inter');
+
   const marker=`/* --- ${owner} --- */`;
   if(bundle.includes(marker))throw new Error(`v480 production bundle: duplicate ${owner} detected.`);
   parts.push(`${marker}\n${css}`);
@@ -43,6 +51,9 @@ for(const [owner] of owners){
 const finalBridgeIndex=bundle.indexOf(bridgeMarker);
 if(previous>finalBridgeIndex)throw new Error('v480 production bundle: executive owners must remain before the reliability bridge.');
 if(/@import url\("\.\/executive-[^\"]*v480\.css/.test(bundle))throw new Error('v480 production bundle: runtime executive @import survived production bundling.');
+if(bundle.includes('url("../../brand/lourex-command-orbit.svg")'))throw new Error('v480 production bundle: command orbit retained the source-depth asset path.');
+if(!bundle.includes('url("../brand/lourex-command-orbit.svg")'))throw new Error('v480 production bundle: command orbit asset path is missing after normalization.');
+if(/font-family:"Noto Sans Arabic",Inter/.test(bundle))throw new Error('v480 production bundle: Arabic font stack lost the required Outfit fallback.');
 
 await writeFile(bundlePath,bundle);
 console.log(`LOUREX v480 executive design stack bundled (${owners.length} owners) before final reliability bridge.`);
