@@ -33,9 +33,9 @@ jobs:
         run: node --test tests/recurring-workflows-v464.test.mjs
       - name: Commit verified due-draft processing
         run: |
-          rm .github/scripts/batch12-ui-integrate.py .github/workflows/batch12-ui-integrate.yml
+          rm .github/scripts/batch12-ui-integrate.py .github/workflows/batch12-ui-integrate.yml src/lib/recurring-workflows-style.ts
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/app/App.tsx tests/recurring-workflows-v464.test.mjs .github/scripts/batch12-ui-integrate.py .github/workflows/batch12-ui-integrate.yml
+          git add src/app/App.tsx tests/recurring-workflows-v464.test.mjs src/lib/recurring-workflows-style.ts .github/scripts/batch12-ui-integrate.py .github/workflows/batch12-ui-integrate.yml
           git commit -m "feat(recurring): generate due workflows as review drafts"
           git push origin HEAD:feat/lourex-recurring-workflows-batch12
