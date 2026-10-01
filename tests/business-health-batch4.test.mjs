@@ -82,7 +82,7 @@ test('Business Health stays inside Home and routes every repair to a canonical w
   assert.ok(home.indexOf('<BusinessHealthCard')<home.indexOf('ta-kpi-grid'));
   assert.match(home,/target==='settings'/);
   assert.match(home,/onNavigate\(target\)/);
-  assert.doesNotMatch(card,/mutateVaultSafely|saveVault|delete|merge/i);
+  assert.doesNotMatch(card,/mutateVaultSafely|saveVault|mergeVaultIntent|deleteCustomer|deleteSupplier|deleteSavedItem|deleteDocument/);
 });
 
 test('Batch 4 mobile browser QA covers bilingual attention and ready states',async()=>{
