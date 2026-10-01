@@ -5,6 +5,7 @@ import { ReceivablesPage } from './ReceivablesPage.js';
 import { SupplierPayablesPage } from './SupplierPayablesPage.js';
 import { OperationsPage } from './OperationsPage.js';
 import { TreasuryPage } from './TreasuryPage.js';
+import { FxPage } from './FxPage.js';
 import { DomainWorkspaceTabs } from './DomainWorkspaceTabs.js';
 
 interface Props{
@@ -17,7 +18,7 @@ interface Props{
   onSaveExpense:(expense:ExpenseRecord)=>Promise<void>;onDeleteExpense:(expense:ExpenseRecord)=>Promise<void>;
   onSaveInventoryMovement:(movement:InventoryMovementRecord)=>Promise<void>;onDeleteInventoryMovement:(movement:InventoryMovementRecord)=>Promise<void>;
 }
-type Tab='treasury'|'receivables'|'payables'|'expenses';
+type Tab='treasury'|'fx'|'receivables'|'payables'|'expenses';
 
 export function FinanceWorkspace(props:Props):any{
   const [tab,setTab]=React.useState<Tab>('treasury');
@@ -40,15 +41,16 @@ export function FinanceWorkspace(props:Props):any{
   },[]);
   return <section className="domain-workspace finance-workspace">
     <header className="ta-page-header lx-workspace-context lx-finance-context">
-      <div><span className="ta-page-kicker">{t('Operational Finance','المالية التشغيلية')}</span><h1>{t('Treasury, receivables, payables & expenses','الخزينة والمستحقات ومدفوعات الموردين والمصروفات')}</h1><p>{t('Control recorded cash movement, customer balances, supplier liabilities and operating expenses here. Each financial balance remains traceable to its canonical records and currency.','تحكّم هنا بالحركة النقدية المسجلة وأرصدة العملاء والتزامات الموردين والمصروفات التشغيلية. يبقى كل رصيد مالي مرتبطًا بسجلاته الأصلية وعملته.')}</p></div>
+      <div><span className="ta-page-kicker">{t('Operational Finance','المالية التشغيلية')}</span><h1>{t('Treasury, FX, receivables, payables & expenses','الخزينة والعملات والمستحقات ومدفوعات الموردين والمصروفات')}</h1><p>{t('Control recorded cash movement, currency exposure, customer balances, supplier liabilities and operating expenses here. Each value remains traceable to its canonical records and currency.','تحكّم هنا بالحركة النقدية المسجلة وانكشاف العملات وأرصدة العملاء والتزامات الموردين والمصروفات التشغيلية. تبقى كل قيمة مرتبطة بسجلاتها الأصلية وعملتها.')}</p></div>
       <div className="ta-page-actions"><span className="ta-period-chip">{t('Revenue ≠ collections ≠ cash position','الإيراد ≠ التحصيل ≠ المركز النقدي')}</span></div>
     </header>
     <DomainWorkspaceTabs value={tab} onChange={changeTab} ariaLabel={t('Finance sections','أقسام المالية')} options={[
       {id:'treasury',label:t('Cash & Bank','النقد والبنوك'),description:t('Recorded cash movement & bank visibility','الحركة النقدية المسجلة ووضوح الحسابات البنكية')},
+      {id:'fx',label:t('FX','العملات'),description:t('Currency exposure & controlled conversion','انكشاف العملات والتحويل المنضبط')},
       {id:'receivables',label:t('Receivables','المستحقات'),description:t('Customer balances, collections & statements','أرصدة العملاء والتحصيل وكشوف الحساب')},
       {id:'payables',label:t('Supplier Payables','مستحقات الموردين'),description:t('Liabilities, aging, payments & supplier statements','الالتزامات والأعمار والمدفوعات وكشوف الموردين')},
       {id:'expenses',label:t('Expenses','المصروفات'),description:t('Operating expense records','سجلات المصروفات التشغيلية')}
     ]}/>
-    {tab==='treasury'?<TreasuryPage payments={props.payments} supplierPayments={props.supplierPayments} expenses={props.expenses} company={props.company} defaultCurrency={props.defaultCurrency}/>:tab==='receivables'?<ReceivablesPage customers={props.customers} documents={props.documents} payments={props.payments} company={props.company} onSavePayment={props.onSavePayment} onDeletePayment={props.onDeletePayment}/>:tab==='payables'?<SupplierPayablesPage suppliers={props.suppliers} purchases={props.purchases} supplierPayments={props.supplierPayments} company={props.company} onSaveSupplierPayment={props.onSaveSupplierPayment} onDeleteSupplierPayment={props.onDeleteSupplierPayment}/>:<OperationsPage mode="finance" suppliers={props.suppliers} purchases={props.purchases} expenses={props.expenses} inventoryMovements={props.inventoryMovements} items={props.items} defaultCurrency={props.defaultCurrency} onSaveSupplier={props.onSaveSupplier} onDeleteSupplier={props.onDeleteSupplier} onSavePurchase={props.onSavePurchase} onDeletePurchase={props.onDeletePurchase} onPostPurchase={props.onPostPurchase} onReversePurchase={props.onReversePurchase} onSaveExpense={props.onSaveExpense} onDeleteExpense={props.onDeleteExpense} onSaveInventoryMovement={props.onSaveInventoryMovement} onDeleteInventoryMovement={props.onDeleteInventoryMovement}/>} 
+    {tab==='treasury'?<TreasuryPage payments={props.payments} supplierPayments={props.supplierPayments} expenses={props.expenses} company={props.company} defaultCurrency={props.defaultCurrency}/>:tab==='fx'?<FxPage payments={props.payments} supplierPayments={props.supplierPayments} expenses={props.expenses} defaultCurrency={props.defaultCurrency}/>:tab==='receivables'?<ReceivablesPage customers={props.customers} documents={props.documents} payments={props.payments} company={props.company} onSavePayment={props.onSavePayment} onDeletePayment={props.onDeletePayment}/>:tab==='payables'?<SupplierPayablesPage suppliers={props.suppliers} purchases={props.purchases} supplierPayments={props.supplierPayments} company={props.company} onSaveSupplierPayment={props.onSaveSupplierPayment} onDeleteSupplierPayment={props.onDeleteSupplierPayment}/>:<OperationsPage mode="finance" suppliers={props.suppliers} purchases={props.purchases} expenses={props.expenses} inventoryMovements={props.inventoryMovements} items={props.items} defaultCurrency={props.defaultCurrency} onSaveSupplier={props.onSaveSupplier} onDeleteSupplier={props.onDeleteSupplier} onSavePurchase={props.onSavePurchase} onDeletePurchase={props.onDeletePurchase} onPostPurchase={props.onPostPurchase} onReversePurchase={props.onReversePurchase} onSaveExpense={props.onSaveExpense} onDeleteExpense={props.onDeleteExpense} onSaveInventoryMovement={props.onSaveInventoryMovement} onDeleteInventoryMovement={props.onDeleteInventoryMovement}/>} 
   </section>;
 }
