@@ -1,4 +1,4 @@
-import type { AppSettings, ApprovalPolicyRecord, ApprovalRequestRecord, CompanySettings, DocumentEventRecord, TeamMemberRecord } from '../types.js';
+import type { AppSettings, ApprovalPolicyRecord, ApprovalRequestRecord, BranchRecord, CompanySettings, DocumentEventRecord, TeamMemberRecord, WorkspaceRecord } from '../types.js';
 import { fileToRawDataUrl } from '../lib/files.js';
 import { rebuildLogoWithoutBackgroundDataUrl } from '../lib/logo-rebuild.js';
 import { t } from '../lib/i18n.js';
@@ -9,6 +9,7 @@ import { CommercialControlsSettings } from './CommercialControlsSettings.js';
 import { Button, ConfirmDialog, Field, Input, Modal, Select, Textarea, Icon } from './UI.js';
 import { ActivityLogModal } from './ActivityLogModal.js';
 import { AccessGovernanceSettings } from './AccessGovernanceSettings.js';
+import { WorkspaceBranchSettings } from './WorkspaceBranchSettings.js';
 
 interface Props {
   open:boolean; company:CompanySettings; appSettings:AppSettings; onClose:()=>void;
@@ -18,6 +19,7 @@ interface Props {
   onBackup:(pin:string)=>Promise<void>; onRestore:(file:File,pin:string)=>Promise<void>; documentEvents:DocumentEventRecord[];
   teamMembers:TeamMemberRecord[]; approvalPolicies:ApprovalPolicyRecord[]; approvalRequests:ApprovalRequestRecord[];
   onSaveTeamMember:(member:TeamMemberRecord)=>Promise<void>; onToggleTeamMember:(id:string)=>Promise<void>; onSetActiveTeamMember:(id:string)=>Promise<void>; onToggleApprovalPolicy:(id:string,enabled:boolean)=>Promise<void>; onDecideApproval:(id:string,decision:'approved'|'rejected')=>Promise<void>;
+  workspaces:WorkspaceRecord[]; branches:BranchRecord[]; onCreateWorkspace:(name:string)=>Promise<void>; onSwitchWorkspace:(id:string)=>Promise<void>; onCreateBranch:(name:string,code:string)=>Promise<void>; onSwitchBranch:(id:string)=>Promise<void>;
 }
 
 type AssetField='logoDataUrl'|'signatureDataUrl'|'stampDataUrl';
@@ -25,7 +27,7 @@ type AssetMode='rebuild'|'original';
 
 interface State {
   scope:SettingsScope;
-  tab:'company'|'commercial'|'documents'|'access'|'data'|'security'; company:CompanySettings; appSettings:AppSettings; busy:boolean; cleaningAssets:boolean; processingAsset:AssetField|null; message:string; error:string;
+  tab:'company'|'workspaces'|'commercial'|'documents'|'access'|'data'|'security'; company:CompanySettings; appSettings:AppSettings; busy:boolean; cleaningAssets:boolean; processingAsset:AssetField|null; message:string; error:string;
   savedSection:'company'|'documents'|null; currentPin:string; newPin:string; confirmPin:string; recoveryKey:string; confirmClose:boolean; confirmCloudRestore:boolean;
   accountAction:''|'restore'|'signout'; companyInitial:string; documentsInitial:string;
   logoOriginalDataUrl:string; logoCleanedDataUrl:string; logoRebuiltDataUrl:string; logoMode:'auto'|'rebuild'|'original';
@@ -53,10 +55,12 @@ export class SettingsModal extends React.Component<Props,State> {
     if(!this.props.open&&prev.open)this.assetPreparationId+=1;
     if(this.props.open&&!prev.open){
       const scope=consumeSettingsScope();
+      let requestedTab:State['tab']='company';
+      try{if(sessionStorage.getItem('lourex-settings-tab')==='workspaces')requestedTab='workspaces';sessionStorage.removeItem('lourex-settings-tab');}catch{}
       const company=structuredClone(this.props.company);
       const appSettings=structuredClone(this.props.appSettings);
       const preparationId=++this.assetPreparationId;
-      this.setState({scope,tab:'company',company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original'},()=>void this.prepareExistingAssets(company,preparationId));
+      this.setState({scope,tab:requestedTab,company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original'},()=>void this.prepareExistingAssets(company,preparationId));
     }
   }
 
@@ -86,7 +90,7 @@ export class SettingsModal extends React.Component<Props,State> {
   private handleSettingsNavClickCapture=(event:any)=>{
     const button=(event.target as Element|null)?.closest?.('[data-settings-tab]') as HTMLButtonElement|null;
     const tab=button?.dataset.settingsTab as State['tab']|undefined;
-    if(tab==='company'||tab==='commercial'||tab==='documents'||tab==='access'||tab==='data'||tab==='security')this.selectSettingsTab(tab);
+    if(tab==='company'||tab==='workspaces'||tab==='commercial'||tab==='documents'||tab==='access'||tab==='data'||tab==='security')this.selectSettingsTab(tab);
   };
   private handleSettingsTabTouchEnd=(tab:State['tab'],event:any)=>{
     const start=this.settingsTouchStart;
@@ -304,6 +308,8 @@ export class SettingsModal extends React.Component<Props,State> {
     {this.card(t('Numbering','الترقيم'),t('Control document prefixes while preserving independent forward-only sequences.','تحكم ببادئات المستندات مع الحفاظ على تسلسل مستقل يتحرك للأمام فقط.'),<><div className="form-grid two"><Field label={t('Quotation Prefix','بادئة عرض السعر')}><Input value={s.numbering.proformaPrefix} onChange={(e:any)=>this.setNumbering('proformaPrefix',e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8))}/></Field><Field label={t('Invoice Prefix','بادئة الفاتورة')}><Input value={s.numbering.invoicePrefix} onChange={(e:any)=>this.setNumbering('invoicePrefix',e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8))}/></Field><Field label={t('Purchase Order Prefix','بادئة طلب الشراء')}><Input value={s.numbering.purchaseOrderPrefix||'PO'} onChange={(e:any)=>this.setNumbering('purchaseOrderPrefix',e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8))}/></Field><Field label={t('Company Draft Prefix','بادئة مسودة الشركة')}><Input value={s.numbering.draftPrefix||'DR'} onChange={(e:any)=>this.setNumbering('draftPrefix',e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8))}/></Field></div><div className="ta-numbering-preview"><span>{s.numbering.proformaPrefix || 'PI'}-YYYY-0001</span><span>{s.numbering.invoicePrefix || 'INV'}-YYYY-0001</span><span>{s.numbering.purchaseOrderPrefix || 'PO'}-YYYY-0001</span><span>{s.numbering.draftPrefix || 'DR'}-YYYY-0001</span></div><p className="ta-settings-note">{t('Document sequences only move forward. Deleted numbers are never automatically reused.','تسلسل أرقام المستندات يتحرك للأمام فقط، ولا تتم إعادة استخدام الأرقام المحذوفة تلقائيًا.')}</p></>,this.saveButton('documents'))}
   </div>;}
 
+  private workspaceManager():any{return <div className="ta-settings-page ta-workspaces-page">{this.pageHeader(t('Companies & Branches','الشركات والفروع'),t('Workspace isolation','عزل مساحات العمل'),t('Switch between company workspaces and operational branches without mixing ledgers.','تنقل بين مساحات الشركات والفروع التشغيلية دون خلط السجلات.'))}<WorkspaceBranchSettings workspaces={this.props.workspaces} branches={this.props.branches} activeWorkspaceId={this.state.appSettings.activeWorkspaceId} activeBranchId={this.state.appSettings.activeBranchId} onCreateWorkspace={this.props.onCreateWorkspace} onSwitchWorkspace={this.props.onSwitchWorkspace} onCreateBranch={this.props.onCreateBranch} onSwitchBranch={this.props.onSwitchBranch}/></div>;}
+
   private accessSettings():any{return <div className="ta-settings-page ta-access-page">{this.pageHeader(t('Access','الوصول'),t('Team & approvals','الفريق والموافقات'),t('Operational roles and explicit approval gates for sensitive actions.','الأدوار التشغيلية وبوابات الموافقة الصريحة للإجراءات الحساسة.'))}<AccessGovernanceSettings teamMembers={this.props.teamMembers} approvalPolicies={this.props.approvalPolicies} approvalRequests={this.props.approvalRequests} activeTeamMemberId={this.state.appSettings.activeTeamMemberId} onSaveMember={this.props.onSaveTeamMember} onToggleMember={this.props.onToggleTeamMember} onSetActiveMember={async id=>{await this.props.onSetActiveTeamMember(id);this.setState({appSettings:{...this.state.appSettings,activeTeamMemberId:id}});}} onTogglePolicy={this.props.onToggleApprovalPolicy} onDecideApproval={this.props.onDecideApproval}/></div>;}
 
   private dataCenter():any{return <div className="ta-settings-page ta-data-center-page">{this.pageHeader(t('Data Center','مركز البيانات'),t('Data & activity','البيانات والنشاط'),t('Backup, restore and the encrypted activity log live together here.','النسخ والاستعادة وسجل النشاط المشفر موجودة هنا.'))}{this.card(t('Activity Log','سجل النشاط'),t('Review audited workspace changes without creating a second event system.','راجع تغييرات مساحة العمل المدققة دون إنشاء نظام أحداث ثانٍ.'),<Button icon="history" onClick={()=>this.setState({activityLogOpen:true})}>{t('Open Activity Log','فتح سجل النشاط')}</Button>)}</div>;}
@@ -319,13 +325,14 @@ export class SettingsModal extends React.Component<Props,State> {
     const c=this.state.company,s=this.state.appSettings;
     const account=this.props.cloudUser;
     const accountScope=this.state.scope==='account';
-    const tabItems=([['company',t('Workspace','مساحة العمل'),'settings',t('Language and defaults','اللغة والإعدادات')],['commercial',t('Commercial','تجاري'),'invoice',t('Banking and trade controls','البنوك وضوابط التجارة')],['documents',t('Documents','المستندات'),'file',t('Output and numbering','الإخراج والترقيم')],['access',t('Access','الوصول'),'users',t('Team and approvals','الفريق والموافقات')],['data',t('Data Center','مركز البيانات'),'file',t('Backup and activity','النسخ والنشاط')],['security',t('Security','الأمان'),'lock',t('PIN and recovery','PIN والاستعادة')]] as const);
+    const tabItems=([['company',t('Workspace','مساحة العمل'),'settings',t('Language and defaults','اللغة والإعدادات')],['workspaces',t('Companies','الشركات'),'users',t('Companies and branches','الشركات والفروع')],['commercial',t('Commercial','تجاري'),'invoice',t('Banking and trade controls','البنوك وضوابط التجارة')],['documents',t('Documents','المستندات'),'file',t('Output and numbering','الإخراج والترقيم')],['access',t('Access','الوصول'),'users',t('Team and approvals','الفريق والموافقات')],['data',t('Data Center','مركز البيانات'),'file',t('Backup and activity','النسخ والنشاط')],['security',t('Security','الأمان'),'lock',t('PIN and recovery','PIN والاستعادة')]] as const);
     return <Modal open={this.props.open} title={accountScope?t('Account','الحساب'):t('Settings','الإعدادات')} size="xl" onClose={this.requestClose}>
       <div className={`ta-settings-shell ${accountScope?'is-account':'is-settings'} ${this.state.accountAction==='restore'?'is-restoring':''}`}>
         {!accountScope?<aside className="ta-settings-sidebar"><div className="ta-settings-sidebar-head"><span>{t('LOUREX Invoice','LOUREX Invoice')}</span><strong>{t('Settings','الإعدادات')}</strong></div><nav className="ta-settings-nav" role="tablist" aria-label={t('Settings sections','أقسام الإعدادات')} onClickCapture={this.handleSettingsNavClickCapture}>{tabItems.map(([id,label,icon,description])=><button type="button" role="tab" key={id} id={`settings-tab-${id}`} data-settings-tab={id} aria-controls="settings-tab-panel" aria-selected={this.state.tab===id} className={this.state.tab===id?'is-active':''} aria-current={this.state.tab===id?'page':undefined} onPointerDown={(event:any)=>this.handleSettingsTabPointerDown(id,event)} onPointerUp={(event:any)=>this.handleSettingsTabPointerUp(id,event)} onPointerCancel={()=>{this.settingsPointerStart=null;}} onTouchStart={(event:any)=>this.handleSettingsTabTouchStart(id,event)} onTouchEnd={(event:any)=>this.handleSettingsTabTouchEnd(id,event)} onTouchCancel={()=>{this.settingsTouchStart=null;}}><span className="ta-settings-nav-icon"><Icon name={icon}/></span><span><strong>{label}</strong><small>{description}</small></span></button>)}</nav></aside>:null}
         <main ref={(node:HTMLElement|null)=>{this.settingsContent=node;}} id="settings-tab-panel" role="tabpanel" aria-labelledby={`settings-tab-${this.state.tab}`} tabIndex={-1} className="ta-settings-content">
           {accountScope?this.accountProfile():null}
           {!accountScope&&this.state.tab==='company'?this.workspacePreferences(c,s):null}
+          {!accountScope&&this.state.tab==='workspaces'?this.workspaceManager():null}
           {!accountScope&&this.state.tab==='commercial'?<div className="ta-settings-page ta-commercial-page">{this.pageHeader(t('Commercial','تجاري'),t('Commercial controls','الضوابط التجارية'),t('Banking, tax, payment terms, trade defaults and pricing controls.','إعدادات البنوك والضرائب وشروط الدفع والإعدادات التجارية والتسعير.'),this.saveButton('company'))}<section className="ta-settings-card ta-commercial-controls"><div className="ta-settings-card-body"><CommercialControlsSettings company={c} onChange={company=>this.setState({company,savedSection:null,message:'',error:''})}/></div></section></div>:null}
           {!accountScope&&this.state.tab==='documents'?this.documentSettings(c,s):null}
           {!accountScope&&this.state.tab==='access'?this.accessSettings():null}

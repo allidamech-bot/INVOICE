@@ -20,6 +20,8 @@ export interface AuditEventInput {
   relatedDocumentNumber?:string;
   amount?:string;
   currency?:string;
+  workspaceId?:string;
+  branchId?:string;
 }
 
 export function createAuditEvent(input:AuditEventInput):DocumentEventRecord{
@@ -29,7 +31,7 @@ export function createAuditEvent(input:AuditEventInput):DocumentEventRecord{
   return{
     id:makeId('event'),documentId,documentNumber,type:'audit',at,
     note:input.note?.trim()||'',relatedDocumentId:input.relatedDocumentId||'',relatedDocumentNumber:input.relatedDocumentNumber||'',amount:input.amount||'',currency:(input.currency||'').trim().toUpperCase(),
-    auditEntityType:input.entityType,auditEntityId:input.entityId,auditEntityLabel:input.entityLabel.trim(),auditAction:input.action,auditActorKind:input.actorKind||'user'
+    auditEntityType:input.entityType,auditEntityId:input.entityId,auditEntityLabel:input.entityLabel.trim(),auditAction:input.action,auditActorKind:input.actorKind||'user',workspaceId:input.workspaceId||'default',branchId:input.branchId||'main'
   };
 }
 

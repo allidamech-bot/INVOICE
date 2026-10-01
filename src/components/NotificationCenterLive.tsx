@@ -2,6 +2,7 @@ import type { UiLanguage } from '../types.js';
 import { getUiLanguage, t } from '../lib/i18n.js';
 import { todayIso } from '../lib/id.js';
 import { buildNotificationCenter, validatedNotificationStateEvent, type NotificationCenterSnapshot, type NotificationItem, type NotificationTarget } from '../lib/notification-center.js';
+import { scopeVault } from '../lib/workspaces.js';
 import { ensureNotificationCenterStyles } from '../lib/notification-center-style.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
@@ -41,9 +42,26 @@ function targetLabel(target:NotificationTarget):string{
   if(target==='operations')return t('Open Purchasing','فتح المشتريات');
   return t('Open Products','فتح المنتجات');
 }
+function optimisticSnapshot(previous:NotificationCenterSnapshot,item:NotificationItem,action:'done'|'snooze'):NotificationCenterSnapshot{
+  const active=previous.active.filter(row=>row.key!==item.key);
+  const snoozed=previous.snoozed.filter(row=>row.key!==item.key);
+  const done=previous.done.filter(row=>row.key!==item.key);
+  if(action==='snooze')snoozed.push(item);else done.push(item);
+  return{
+    ...previous,
+    generatedAt:new Date().toISOString(),
+    active,
+    snoozed,
+    done,
+    activeHigh:active.filter(row=>row.priority==='high').length,
+    activeMedium:active.filter(row=>row.priority==='medium').length,
+    activeLow:active.filter(row=>row.priority==='low').length
+  };
+}
 
 export class NotificationCenterLive extends React.Component<Props,State>{
   state:State={open:false,loading:false,busyKey:'',snoozeKey:'',tab:'active',error:'',snapshot:null};
+  private mutationGeneration=0;
 
   componentDidMount():void{
     ensureNotificationCenterStyles();
@@ -58,28 +76,37 @@ export class NotificationCenterLive extends React.Component<Props,State>{
   private openFromEvent=()=>{this.setState({open:true,tab:'active',snoozeKey:'',error:''},()=>void this.refresh(true));};
   private publish=(snapshot:NotificationCenterSnapshot|null)=>this.props.onCount(snapshot?.active.length??0,snapshot?.activeHigh??0);
   private refresh=async(showLoading:boolean)=>{
+    const startedAtMutationGeneration=this.mutationGeneration;
     if(showLoading)this.setState({loading:true,error:''});
     try{
       const session=await resumeVaultSession();
+      if(startedAtMutationGeneration!==this.mutationGeneration){this.setState({loading:false});return;}
       if(!session){this.setState({snapshot:null,loading:false,error:''});this.publish(null);return;}
-      const snapshot=buildNotificationCenter(session.vault,todayIso());
+      const snapshot=buildNotificationCenter(scopeVault(session.vault),todayIso());
+      if(startedAtMutationGeneration!==this.mutationGeneration){this.setState({loading:false});return;}
       this.setState({snapshot,loading:false,error:''});this.publish(snapshot);
     }catch(error){
+      if(startedAtMutationGeneration!==this.mutationGeneration){this.setState({loading:false});return;}
       this.setState({loading:false,error:error instanceof Error?error.message:t('Unable to load notifications.','تعذر تحميل التنبيهات.')});
     }
   };
   private mutate=async(item:NotificationItem,action:'done'|'snooze',until='')=>{
     if(this.state.busyKey)return;
-    this.setState({busyKey:item.key,error:''});
+    this.mutationGeneration+=1;
+    const previous=this.state.snapshot;
+    const optimistic=previous?optimisticSnapshot(previous,item,action):null;
+    this.setState({busyKey:item.key,snoozeKey:'',error:'',snapshot:optimistic??previous});
+    if(optimistic)this.publish(optimistic);
     try{
       const next=await mutateVaultSafely(vault=>{
         const event=validatedNotificationStateEvent(vault,item.key,action,until,todayIso());
         return{...vault,documentEvents:[...vault.documentEvents,event]};
       });
-      const snapshot=buildNotificationCenter(next,todayIso());
-      this.setState({snapshot,busyKey:'',snoozeKey:'',error:''});this.publish(snapshot);
+      const snapshot=buildNotificationCenter(scopeVault(next),todayIso());
+      this.setState({snapshot,busyKey:'',snoozeKey:'',loading:false,error:''});this.publish(snapshot);
     }catch(error){
-      this.setState({busyKey:'',error:error instanceof Error?error.message:t('Unable to update notification.','تعذر تحديث التنبيه.')});
+      this.setState({snapshot:previous,busyKey:'',snoozeKey:'',loading:false,error:error instanceof Error?error.message:t('Unable to update notification.','تعذر تحديث التنبيه.')});
+      this.publish(previous);
     }
   };
   private openTarget=(item:NotificationItem)=>{

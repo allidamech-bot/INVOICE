@@ -45,8 +45,9 @@ const output='visual-qa-output/notification-center-batch5';
       if(lang==='ar')assert.equal(geometry.textAlign,'right','Arabic notification center must align right');
       const activeCount=await page.locator('.lx-notification-item').count();assert.ok(activeCount>=5,`expected factual notification set, got ${activeCount}`);
       if(interact){
-        const first=page.locator('.lx-notification-item').first();
-        await first.locator('button.is-primary').click();
+        const invoiceItem=page.locator('.lx-notification-item').filter({hasText:'INV-2026-0001'});
+        assert.equal(await invoiceItem.count(),1,'Expected one overdue invoice notification for navigation QA');
+        await invoiceItem.locator('button.is-primary').click();
         await page.waitForFunction(()=>window.__lastNav==='receivables');
         await page.evaluate(()=>window.dispatchEvent(new Event('lourex-notification-center-open')));
         await page.locator('.lx-notification-center').waitFor();

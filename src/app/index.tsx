@@ -10,6 +10,7 @@ import { getActiveAccountUid, isCurrentSessionExpired, resumeAccountSession, set
 import { saveVault } from '../storage/vault.js';
 import { registerVaultMutationBridge } from '../storage/vault-mutation-bridge.js';
 import { appendAuditEventsForVaultDiff } from '../lib/audit-diff.js';
+import { applyWorkspaceScope, mergeScopedVault, scopeVaultForExternalMutation } from '../lib/workspaces.js';
 
 const root=document.getElementById('root');
 if(!root)throw new Error('Root element not found.');
@@ -56,10 +57,11 @@ class AdaptiveCloudApp extends BaseApp {
         await instance.waitForProtectedDataOperation();
         const key=instance.state.key;
         if(!key)throw new Error(t('App is locked.','التطبيق مقفل.'));
-        const latest=queued??instance.state.vault;
-        if(!latest)throw new Error(t('LOUREX workspace is not ready.','مساحة LOUREX غير جاهزة.'));
-        const intended=mutation(latest);
-        const next=appendAuditEventsForVaultDiff(latest,intended);
+        const latestFull=queued??instance.state.vault;
+        if(!latestFull)throw new Error(t('LOUREX workspace is not ready.','مساحة LOUREX غير جاهزة.'));
+        const latest=scopeVaultForExternalMutation(latestFull);
+        const intended=applyWorkspaceScope(latest,mutation(latest));
+        const next=mergeScopedVault(latestFull,appendAuditEventsForVaultDiff(latest,intended));
         const encrypted=await saveVault(key,next);
         instance.latestEncryptedVault=encrypted;
         if(instance.state.unlocked&&instance.state.key===key){
