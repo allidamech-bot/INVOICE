@@ -5,6 +5,7 @@
 @import url("./ai-assistant-help-batch3.css?v=455-1");
 @import url("./mobile-command-center-v475-elite.css?v=475-2");
 @import url("./mobile-workspaces-v475.css?v=475-3");
+@import url("./mobile-editor-v475.css?v=475-4");
 
 /* LOUREX v351 — reliability bridge only.
    Runtime/recovery geometry and UI safety contracts live here.
@@ -59,7 +60,7 @@
 
   html[data-lourex-signing-out="true"] .app-ui,html[data-lourex-signing-out="true"] .ta-auth-page{pointer-events:none!important;user-select:none!important}
   html[data-lourex-signing-out="true"] body::before{content:"";position:fixed;inset:0;z-index:2147483600;background:rgba(16,24,40,.58);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
-  html[data-lourex-signing-out="true"] body::after{content:"Signing out…";position:fixed;left:50%;top:50%;z-index:2147483601;transform:translate(-50%,-50%);min-width:160px;padding:13px 16px;border:1px solid var(--ft-line);border-radius:10px;background:var(--ft-surface);color:var(--ft-text-strong);box-shadow:var(--ta-shadow-lg);font:600 13px/18px "Outfit",Inter,"Noto Sans Arabic",sans-serif;text-align:center}
+  html[data-lourex-signing-out="true"] body::after{content:"Signing out…";position:fixed;left:50%!important;top:50%!important;z-index:2147483601;transform:translate(-50%,-50%)!important;min-width:160px;padding:13px 16px;border:1px solid var(--ft-line);border-radius:10px;background:var(--ft-surface);color:var(--ft-text-strong);box-shadow:var(--ta-shadow-lg);font:600 13px/18px "Outfit",Inter,"Noto Sans Arabic",sans-serif;text-align:center}
   html[dir="rtl"][data-lourex-signing-out="true"] body::after{content:"جارٍ تسجيل الخروج…"}
 
   .app-ui :where(.ta-mobile-sheet,.mobile-more-sheet) :is(button,a):focus-visible{outline:3px solid color-mix(in srgb,var(--ft-accent) 28%,transparent)!important;outline-offset:2px!important}
@@ -69,21 +70,12 @@
   .app-ui .document-attachments-section :where(input,select,textarea,button,a){min-width:0}
   .app-ui .document-attachment-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
 
-  /* Final physical touch-target floor for compact source/dev controls whose older
-     visual owners intentionally remain earlier in the cascade. Production hardening
-     may normalize the same values earlier; this final contract is idempotent. */
   .app-ui .template-favorite-button{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important}
   .app-ui .lourex-advisor-compose form>button{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important}
   .app-ui :where(.lourex-ai-close,.lourex-ai-starters button,.lourex-ai-proposal-actions button,.lourex-ai-meta button,.lourex-ai-new-conversation){min-height:44px!important}
   .app-ui .lourex-ai-close{width:44px!important;min-width:44px!important;height:44px!important}
 
-  html body .app-ui .modal-backdrop:has(.product-import-shell) .product-import-mobile-actions{
-    position:sticky!important;
-    top:0!important;
-    inset-block-start:0!important;
-    z-index:30!important;
-    transform:none!important;
-  }
+  html body .app-ui .modal-backdrop:has(.product-import-shell) .product-import-mobile-actions{position:sticky!important;top:0!important;inset-block-start:0!important;z-index:30!important;transform:none!important}
 
   .app-ui .ta-sidebar{z-index:var(--lourex-z-shell)!important}
   .app-ui .ta-mobile-nav{z-index:var(--lourex-z-nav)!important}
@@ -102,32 +94,13 @@
 
   html body .pwa-update-toast,
   html body [data-lourex-cloud-refresh],
-  html body [data-lourex-update]{
-    position:fixed!important;
-    left:50%!important;right:auto!important;inset-inline:auto!important;
-    top:auto!important;bottom:calc(96px + env(safe-area-inset-bottom,0px))!important;
-    width:min(340px,calc(100vw - 24px))!important;max-width:calc(100vw - 24px)!important;
-    margin:0!important;transform:translateX(-50%)!important;
-  }
+  html body [data-lourex-update]{position:fixed!important;left:50%!important;right:auto!important;inset-inline:auto!important;top:auto!important;bottom:calc(96px + env(safe-area-inset-bottom,0px))!important;width:min(340px,calc(100vw - 24px))!important;max-width:calc(100vw - 24px)!important;margin:0!important;transform:translateX(-50%)!important}
 
   .app-ui .ta-main{overscroll-behavior:contain!important}
 }
 
-/* The fixed mobile navigation clearance is reserved once by the shell. Historical
-   page owners still carry larger fallback paddings, but this final reachability
-   contract removes the second 108–112px dock reservation from actual runtime. */
 @media screen and (max-width:900px){
-  html body .app-ui :is(
-    .ta-finance-dashboard,
-    .ta-documents-page,
-    .ta-doc-detail-page,
-    .ta-customers-page,
-    .ta-customer-profile,
-    .ta-products-workspace,
-    .ta-operations-page,
-    .ta-finance-page,
-    .ta-reports-page
-  ){padding-bottom:24px!important}
+  html body .app-ui :is(.ta-finance-dashboard,.ta-documents-page,.ta-doc-detail-page,.ta-customers-page,.ta-customer-profile,.ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page){padding-bottom:24px!important}
 }
 
 @media screen and (max-width:720px){
