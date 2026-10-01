@@ -1,4 +1,5 @@
 import type { ExpenseRecord, InventoryMovementRecord, LourexDocument, PaymentRecord, PurchaseRecord, SavedItem } from '../types.js';
+import type { BusinessHealthSnapshot } from '../lib/business-health.js';
 import { calculateTotals, formatMoney } from '../lib/money.js';
 import { financialReportByCurrency, monthlyPerformanceReport } from '../lib/reports.js';
 import { receivablesByCurrency } from '../lib/receivables.js';
@@ -9,6 +10,7 @@ import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
 import { Button, Icon } from './UI.js';
 import { LourexAdvisorCard } from './LourexAdvisorCard.js';
+import { BusinessHealthCard } from './BusinessHealthCard.js';
 import { documentKindLabel, documentPriceOptional, isSupplierDocumentKind } from '../lib/document-kinds.js';
 import { validateDocument } from '../lib/documents.js';
 
@@ -22,10 +24,12 @@ interface Props{
   items?:SavedItem[];
   itemCount?:number;
   customerCount:number;
+  health:BusinessHealthSnapshot;
   onNewDocument:()=>void;
   onOpenDocument:(doc:LourexDocument)=>void;
   onNavigate:(screen:'documents'|'customers'|'items'|'receivables'|'reports'|'operations')=>void;
   onOpenIncompleteDocuments:()=>void;
+  onOpenSettings:()=>void;
 }
 
 type ChartRange='7d'|'30d'|'6m'|'1y';
@@ -129,7 +133,7 @@ function moneyStack(rows:Array<{currency:string;netSales?:string;collected?:stri
   return <span className="ta-kpi-money-stack">{rows.slice(0,3).map(row=><b key={row.currency}>{formatMoney(row[key]||'0.00',row.currency)}</b>)}</span>;
 }
 
-export function WorkspaceHome({companyName,documents,payments,purchases=[],expenses=[],inventoryMovements=[],items=[],itemCount,customerCount,onNewDocument,onOpenDocument,onNavigate,onOpenIncompleteDocuments}:Props):any{
+export function WorkspaceHome({companyName,documents,payments,purchases=[],expenses=[],inventoryMovements=[],items=[],itemCount,customerCount,health,onNewDocument,onOpenDocument,onNavigate,onOpenIncompleteDocuments,onOpenSettings}:Props):any{
   const [chartRange,setChartRange]=React.useState<ChartRange>('6m');
   const [chartMode,setChartMode]=React.useState<ChartMode>('sales');
   const today=todayIso();
@@ -227,6 +231,8 @@ export function WorkspaceHome({companyName,documents,payments,purchases=[],expen
         </div>:<div className="ta-clear-state"><span>✓</span><strong>{t('No urgent issues','لا توجد أمور عاجلة')}</strong><small>{t('Important exceptions will appear here automatically.','ستظهر الحالات المهمة هنا تلقائياً.')}</small></div>}
       </section>
     </div>
+
+    <BusinessHealthCard snapshot={health} onTarget={target=>{if(target==='settings'){onOpenSettings();return;}onNavigate(target);}}/>
 
     <section className="ta-kpi-grid" aria-label={t('Business summary','ملخص الأعمال')}>
       <button type="button" className="ta-kpi-card" onClick={()=>onNavigate('reports')}>

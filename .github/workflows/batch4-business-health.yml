@@ -1,0 +1,65 @@
+name: LOUREX Business Health QA
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/business-health.ts'
+      - 'src/lib/setup-readiness.ts'
+      - 'src/components/BusinessHealthCard.tsx'
+      - 'src/components/WorkspaceHome.tsx'
+      - 'src/app/App.tsx'
+      - 'tests/business-health-batch4.test.mjs'
+      - 'tests/setup-readiness-batch4.test.mjs'
+      - 'tests/visual/business-health-batch4.html'
+      - 'tests/visual/run-business-health-batch4.cjs'
+      - '.github/workflows/batch4-business-health.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  business-health:
+    name: Batch 4 data quality + readiness gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Batch 4 contracts and deterministic engine tests
+        run: node --test tests/business-health-batch4.test.mjs tests/setup-readiness-batch4.test.mjs
+      - name: Install Chromium QA runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run mobile Business Health browser QA
+        run: |
+          npx http-server . -p 4173 -c-1 > /tmp/lourex-batch4-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/tests/visual/business-health-batch4.html >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/lourex-batch4-server.log
+            exit 1
+          fi
+          timeout --signal=TERM --kill-after=15s 180s node tests/visual/run-business-health-batch4.cjs
+      - name: Upload Batch 4 visual evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lourex-batch4-business-health-visual-qa
+          path: visual-qa-output/business-health-batch4
+          if-no-files-found: ignore
