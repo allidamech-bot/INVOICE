@@ -4,7 +4,8 @@ const bundlePath='dist/styles/app.bundle.css';
 const bridgeMarker='/* --- tailadmin-reliability-bridge-v320.css --- */';
 const owners=[
   'premium-visual-system-v481.css',
-  'premium-workspaces-v481.css'
+  'premium-workspaces-v481.css',
+  'premium-overlays-v481.css'
 ];
 
 let bundle=await readFile(bundlePath,'utf8');
@@ -35,10 +36,11 @@ for(const ownerName of owners){
   if(ownerIndex<=previous)throw new Error(`v481 production bundle: ${ownerName} order is invalid.`);
   previous=ownerIndex;
 }
-if(/@import url\("\.\/premium-(?:visual-system|workspaces)-v481\.css/.test(bundle))throw new Error('v481 production bundle: late runtime import survived production bundling.');
+if(/@import url\("\.\/premium-(?:visual-system|workspaces|overlays)-v481\.css/.test(bundle))throw new Error('v481 production bundle: late runtime import survived production bundling.');
 if(!bundle.includes('--lx481-canvas:#040b14'))throw new Error('v481 production bundle: dark premium token set is missing.');
 if(!bundle.includes('html[data-ui-theme="light"]'))throw new Error('v481 production bundle: light premium token set is missing.');
 if(!bundle.includes('.lx-pipeline-board'))throw new Error('v481 production bundle: sales pipeline rebuild is missing.');
+if(!bundle.includes('.ta-create-menu-mobile'))throw new Error('v481 production bundle: mobile command-surface rebuild is missing.');
 
 await writeFile(bundlePath,bundle);
 console.log(`LOUREX v481 premium visual rebuild bundled (${owners.length} final presentation owners).`);
