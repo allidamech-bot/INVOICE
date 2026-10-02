@@ -4,19 +4,22 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('v482 runs after v481 and also owns the real production cascade after v332',async()=>{
+test('v482 runs after v481 and owns the real production cascade after v332',async()=>{
   const pkg=JSON.parse(await read('package.json'));
   const build=String(pkg.scripts?.build||'');
   const v481=build.indexOf('scripts/v481-bundle-premium-visual.mjs');
   const v482=build.indexOf('scripts/v482-bundle-mobile-ux-repair.mjs');
   assert.ok(v481>=0&&v482>v481,'v482 bundler must run after v481');
 
-  const [bundler,finalize]=await Promise.all([
+  const [bundler,finalize,sourceCss,emittedCss]=await Promise.all([
     read('scripts/v482-bundle-mobile-ux-repair.mjs'),
-    read('scripts/v347-startup-finalize.mjs')
+    read('scripts/v347-startup-finalize.mjs'),
+    read('src/styles/v482-mobile-ux-repair.css'),
+    read('dist/styles/v482-mobile-ux-repair.css')
   ]);
   assert.match(bundler,/premium-regression-fixes-v481\.css/,'v482 must anchor after the final v481 bundle owner');
-  assert.match(bundler,/v482-mobile-ux-repair\.css/,'v482 CSS owner is not bundled');
+  assert.match(bundler,/standalonePath='dist\/styles\/v482-mobile-ux-repair\.css'/,'v482 build does not emit the standalone stylesheet referenced by production');
+  assert.equal(emittedCss.trim(),sourceCss.trim(),'emitted standalone v482 stylesheet differs from its source owner');
   assert.match(finalize,/v482MobileRepair='\.\/styles\/v482-mobile-ux-repair\.css\?v=482'/,'production standalone v482 stylesheet is not wired');
   assert.match(finalize,/app\.bundle\.css -> v331 -> v332 -> v482/,'production final owner order contract is missing');
   assert.match(finalize,/data-lourex-v482-mobile-ux="true"/,'production v482 owner marker is missing');
