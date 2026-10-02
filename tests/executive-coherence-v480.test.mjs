@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
-const [css,bundler,reliability]=await Promise.all([
+const [css,bundler,reliability,workspaceFixture]=await Promise.all([
   read('src/styles/executive-coherence-v480.css'),
   read('scripts/v480-bundle-executive-design.mjs'),
-  read('src/styles/tailadmin-reliability-bridge-v320.css')
+  read('src/styles/tailadmin-reliability-bridge-v320.css'),
+  read('tests/visual/functional-products-operations-v197.html')
 ]);
 
 test('v480 coherence closeout is bundled after the four structural design owners',()=>{
@@ -29,6 +30,13 @@ test('v480 final reliability bridge prevents retired Hostinger violet from re-en
   assert.match(reliability,/\.btn\.btn-primary:is\(:hover,:active\):not\(:disabled\)[\s\S]*?background:#315DA8!important/);
   assert.match(reliability,/html\[data-ui-theme="dark"\] body #root#root\.app-ui \.ta-operations-page[\s\S]*?background:#7399E3!important/);
   assert.match(reliability,/color:#FFFFFF!important/);
+});
+
+test('workspace visual fixture applies the real production theme bootstrap before app CSS',()=>{
+  const bootstrap=workspaceFixture.indexOf('<script src="theme-bootstrap-v347.js?v=361"></script>');
+  const bundle=workspaceFixture.indexOf('<link rel="stylesheet" href="styles/app.bundle.css">');
+  assert.ok(bootstrap>0,'workspace fixture must load the production theme bootstrap');
+  assert.ok(bundle>bootstrap,'theme bootstrap must execute before the application stylesheet');
 });
 
 test('v480 coherence cannot mutate business or account state',()=>{
