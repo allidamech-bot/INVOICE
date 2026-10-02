@@ -51,8 +51,8 @@ function stripMarkedBlock(source,name){
 let bundle=await readFile(bundlePath,'utf8');
 for(const name of retiredBlocks)bundle=stripMarkedBlock(bundle,name);
 
-/* The source reliability bridge still references v480 compatibility paths so old
-   source fixtures keep resolving. Production owns no late visual @imports. */
+/* Production has no late historical visual imports. Functional runtime CSS stays
+   in the reliability bridge; presentation is emitted once from the stable owner. */
 bundle=bundle.replace(/^@import url\("\.\/executive-(?:command-center|workspaces|editor|overlays-auth)-v480\.css\?v=480-[1-4]"\);\s*$/gm,'');
 bundle=bundle.replace(/^@import url\("\.\/lourex-visual-foundation\.css"\);\s*$/gm,'');
 bundle=bundle.replace(/\n{3,}/g,'\n\n').trimEnd()+"\n";
@@ -80,6 +80,18 @@ html=html.replaceAll(oldHref,canonicalHref).replaceAll('data-lourex-v482-mobile-
 if(!html.includes(canonicalHref))throw new Error('visual foundation: canonical production stylesheet is not linked.');
 if(html.includes(oldHref))throw new Error('visual foundation: historical v482 production link remains.');
 if((html.match(/data-lourex-visual-foundation="true"/g)||[]).length!==1)throw new Error('visual foundation: expected exactly one canonical stylesheet link.');
+
+/* Make the canonical owner literally the final stylesheet in production. Scoped
+   feature CSS may exist in source for component structure, but nothing may load
+   after the product-wide presentation owner in the deployed document. */
+const canonicalTagPattern=new RegExp(`\\s*<link rel="stylesheet" href="${canonicalHref.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}" data-lourex-visual-foundation="true" \\/>`);
+const canonicalMatch=html.match(canonicalTagPattern);
+if(!canonicalMatch)throw new Error('visual foundation: canonical stylesheet tag could not be isolated.');
+html=html.replace(canonicalTagPattern,'');
+if(!html.includes('</head>'))throw new Error('visual foundation: production head closing tag is missing.');
+html=html.replace('</head>',`  <link rel="stylesheet" href="${canonicalHref}" data-lourex-visual-foundation="true" />\n</head>`);
+const stylesheetLinks=[...html.matchAll(/<link rel="stylesheet"[^>]*>/g)].map(match=>match[0]);
+if(!stylesheetLinks.length||!stylesheetLinks.at(-1)?.includes('data-lourex-visual-foundation="true"'))throw new Error('visual foundation: canonical owner is not the final production stylesheet.');
 await writeFile(htmlPath,html);
 
 let sw=await readFile(swPath,'utf8');
