@@ -4,8 +4,14 @@
    Screen only: document paper, PDF templates and print layouts are excluded.
    Important declarations bridge historical owners already using important;
    no new stylesheet, runtime owner or business behavior is introduced. */
+@font-face{font-family:"LOUREX Tajawal";font-style:normal;font-weight:400;font-display:swap;src:url("../fonts/Tajawal-Regular.ttf") format("truetype");}
+@font-face{font-family:"LOUREX Tajawal";font-style:normal;font-weight:500;font-display:swap;src:url("../fonts/Tajawal-Medium.ttf") format("truetype");}
+@font-face{font-family:"LOUREX Tajawal";font-style:normal;font-weight:700;font-display:swap;src:url("../fonts/Tajawal-Bold.ttf") format("truetype");}
+@font-face{font-family:"LOUREX Tajawal";font-style:normal;font-weight:800;font-display:swap;src:url("../fonts/Tajawal-ExtraBold.ttf") format("truetype");}
+
 @media screen {
 :root{
+  --lx485-arabic:"LOUREX Tajawal",Tahoma,Arial,sans-serif;
   --lx485-canvas:#0a1826;
   --lx485-canvas-2:#0d2032;
   --lx485-surface:#12263a;
@@ -279,7 +285,7 @@ html body #root .app-ui .ta-customer-panel>header{background:transparent!importa
 html body #root .app-ui :is(.ta-documents-header,.ta-customers-header,.ta-customer-profile-hero,.ta-products-workspace-header,.ta-product-page-header,.ta-ops-page-header,.ta-page-header,.ta-settings-page-header,.lx-pipeline-topbar){
   position:relative;min-width:0;min-height:0!important;padding:20px!important;
   border:1px solid var(--lx485-line-strong)!important;border-radius:24px!important;
-  background:radial-gradient(360px 200px at 100% 0%,color-mix(in srgb,var(--lx485-blue) 12%,transparent),transparent 75%),linear-gradient(150deg,var(--lx485-surface-2),var(--lx485-surface))!important;
+  background:radial-gradient(ellipse 150px 120px at 8% -10%,transparent 66%,color-mix(in srgb,var(--workspace-tone,var(--lx485-blue)) 15%,transparent) 67%,transparent 68%),radial-gradient(320px 180px at 0% 0%,color-mix(in srgb,var(--workspace-tone,var(--lx485-blue)) 18%,transparent),transparent 76%),linear-gradient(150deg,var(--lx485-surface-2),var(--lx485-surface))!important;
   color:var(--lx485-text)!important;box-shadow:var(--lx485-shadow)!important;
 }
 html body #root .app-ui :is(.ta-documents-header,.ta-customers-header,.ta-customer-profile-hero,.ta-products-workspace-header,.ta-product-page-header,.ta-ops-page-header,.ta-page-header,.ta-settings-page-header,.lx-pipeline-topbar) :is(h1,h2,h3){
@@ -290,7 +296,7 @@ html body #root .app-ui :is(.ta-documents-header,.ta-customers-header,.ta-produc
 /* Cards: restrained orbital identity for metrics; clean productivity panels. */
 html body #root .app-ui :is(.ta-documents-toolbar,.ta-doc-commandbar,.ta-customers-toolbar,.ta-customer-panel,.ta-products-toolbar,.ta-product-commandbar,.ta-product-register,.ta-product-page-note,.ta-product-detail,.ta-ops-panel,.ta-ops-list-card,.ta-finance-card,.ta-panel,.ta-report-filterbar,.ta-settings-card,.lx-360-card,.lx-inventory-plan-preview,.lx-inventory-plan-toolbar,.lx-pipeline-column){
   min-width:0;border:1px solid var(--lx485-line)!important;border-radius:20px!important;
-  background:linear-gradient(155deg,var(--lx485-surface-2),var(--lx485-surface))!important;
+  background:radial-gradient(ellipse 110px 90px at 100% 0%,color-mix(in srgb,var(--workspace-tone,var(--lx485-blue)) 9%,transparent),transparent 78%),linear-gradient(155deg,var(--lx485-surface-2),var(--lx485-surface))!important;
   color:var(--lx485-text)!important;box-shadow:var(--lx485-shadow)!important;
 }
 html body #root .app-ui :is(.ta-doc-row,.ta-customer-row,.ta-customer-card,.ta-product-row,.ta-ops-row,.ta-account-row,.lx-pipeline-card,.lx-inventory-plan-row){
@@ -308,7 +314,7 @@ html body #root .app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-me
 html body #root .app-ui :is(.ta-finance-kpi,.lx-inventory-plan-summary){
   --metric-tone:var(--lx485-blue);position:relative;overflow:hidden;min-width:0;
   border:1px solid color-mix(in srgb,var(--metric-tone) 30%,var(--lx485-line))!important;border-radius:20px!important;
-  background:radial-gradient(120px 100px at 100% 0%,color-mix(in srgb,var(--metric-tone) 12%,transparent),transparent 76%),linear-gradient(150deg,var(--lx485-surface-2),var(--lx485-surface))!important;
+  background:radial-gradient(circle at calc(100% - 22px) 22px,transparent 46px,color-mix(in srgb,var(--metric-tone) 13%,transparent) 47px,transparent 48px),radial-gradient(120px 100px at 100% 0%,color-mix(in srgb,var(--metric-tone) 16%,transparent),transparent 76%),linear-gradient(150deg,var(--lx485-surface-2),var(--lx485-surface))!important;
   color:var(--lx485-text)!important;box-shadow:var(--lx485-shadow)!important;
 }
 html body #root .app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-metrics,.ta-customers-summary,.ta-report-kpi-grid)>*:nth-child(2){--metric-tone:#52baa5;}
@@ -590,4 +596,130 @@ html body #root .app-ui :is(.ta-doc-row,.ta-customer-row,.ta-sheet-link,.ta-crea
   html[data-ui-theme] body #root .app-ui .ta-topbar-leading{min-width:0!important;flex:1 1 auto!important;margin-inline-end:52px!important;}
   html[data-ui-theme] body #root .app-ui .ta-page-title{min-width:0!important;max-width:calc(100vw - 196px)!important;}
   html[data-ui-theme] body #root .app-ui .ta-page-title strong{font-size:15px!important;line-height:1.5!important;white-space:normal!important;overflow-wrap:anywhere;}
+}
+
+@media screen {
+  /* Arabic interface typography, deliberately separate from document paper. */
+  html[dir="rtl"] body #root .app-ui,
+  html[dir="rtl"] body #root .app-ui :is(div,span,small,strong,b,p,h1,h2,h3,h4,label,legend,button,input,textarea,select,a,li,td,th,summary):not(:where(.invoice-page *,.draft-letter-page *,.template-mini *,.invoice-page,.draft-letter-page)){
+    font-family:var(--lx485-arabic)!important;letter-spacing:0!important;
+  }
+  html[dir="rtl"] body #root .app-ui :is(h1,h2,h3,.ta-page-title strong){font-weight:800!important;}
+  html[dir="rtl"] body #root .app-ui :is(p,.ta-kpi-copy>small,.global-search-result-copy small){line-height:1.7!important;}
+  html[dir="rtl"] body #root .app-ui :is(.btn,.ta-domain-tabs button,.ta-mobile-nav button){font-weight:700!important;}
+
+  /* One atmospheric language, translated into each workspace's purpose. */
+  html body #root .app-ui :is(.ta-documents-page,.ta-customers-page,.ta-settings-shell){--workspace-tone:var(--lx485-blue);}
+  html body #root .app-ui .ta-products-workspace{--workspace-tone:#50b7aa;}
+  html body #root .app-ui .screen-operations{--workspace-tone:#53a6c1;}
+  html body #root .app-ui .finance-workspace{--workspace-tone:var(--lx485-blue);}
+  html body #root .app-ui .ta-reports-page{--workspace-tone:#8e91d5;}
+  html body #root .app-ui :is(.lourex-advisor-card,.lourex-ai-panel){--workspace-tone:#53bac4;}
+  html body #root .app-ui :is(.ta-doc-row,.ta-customer-row,.ta-product-row,.ta-ops-row,.lx-pipeline-card){
+    background:radial-gradient(ellipse 110px 90px at 100% 0%,color-mix(in srgb,var(--workspace-tone,var(--lx485-blue)) 10%,transparent),transparent 80%),var(--lx485-surface)!important;
+  }
+  html body #root .app-ui :is(.ta-sheet-link,.ta-settings-card,.lx-360-card){
+    background:radial-gradient(ellipse 110px 90px at 100% 0%,color-mix(in srgb,var(--workspace-tone,var(--lx485-blue)) 11%,transparent),transparent 80%),linear-gradient(155deg,var(--lx485-surface-2),var(--lx485-surface))!important;
+  }
+  html body #root .app-ui :is(.ta-product-editor-header,.ta-ops-editor-head,.modal-header){
+    background:radial-gradient(160px 100px at 0% 0%,color-mix(in srgb,var(--workspace-tone,var(--lx485-blue)) 12%,transparent),transparent 80%),var(--lx485-surface-2)!important;
+  }
+}
+
+@media screen {
+  /* Navigation, preferences and supporting modules share the card atmosphere. */
+  html body #root .app-ui .ta-sheet-group:nth-of-type(1) .ta-sheet-link:nth-of-type(1){--workspace-tone:#50b7aa;}
+  html body #root .app-ui .ta-sheet-group:nth-of-type(1) .ta-sheet-link:nth-of-type(2){--workspace-tone:#53a6c1;}
+  html body #root .app-ui .ta-sheet-group:nth-of-type(2) .ta-sheet-link:nth-of-type(2){--workspace-tone:#8e91d5;}
+  html body #root .app-ui .ta-sheet-group:nth-of-type(3){--workspace-tone:#c49a56;}
+  html body #root .app-ui :is(.ta-settings-nav button,.ta-sheet-link,.ta-sheet-account,.lx-workspace-switcher){
+    --nav-tone:var(--workspace-tone,var(--lx485-blue));
+    background:radial-gradient(circle at 100% 0%,transparent 46px,color-mix(in srgb,var(--nav-tone) 12%,transparent) 47px,transparent 48px),radial-gradient(130px 110px at 100% 0%,color-mix(in srgb,var(--nav-tone) 13%,transparent),transparent 82%),var(--lx485-surface)!important;
+    border:1px solid color-mix(in srgb,var(--nav-tone) 17%,var(--lx485-line))!important;
+  }
+  html body #root .app-ui .ta-settings-nav button[data-settings-tab="workspaces"]{--workspace-tone:#50b7aa;}
+  html body #root .app-ui .ta-settings-nav button[data-settings-tab="commercial"]{--workspace-tone:#53a6c1;}
+  html body #root .app-ui .ta-settings-nav button[data-settings-tab="access"]{--workspace-tone:#8e91d5;}
+  html body #root .app-ui .ta-settings-nav button[data-settings-tab="security"]{--workspace-tone:#8e91d5;}
+  html body #root .app-ui :is(.ta-settings-nav-icon,.ta-sheet-link-icon){
+    border:1px solid color-mix(in srgb,var(--nav-tone,var(--lx485-blue)) 30%,var(--lx485-line))!important;
+    background:linear-gradient(145deg,color-mix(in srgb,var(--nav-tone,var(--lx485-blue)) 16%,var(--lx485-surface-3)),var(--lx485-surface-2))!important;
+    color:var(--nav-tone,var(--lx485-blue))!important;border-radius:13px!important;
+    box-shadow:inset 0 1px 0 color-mix(in srgb,var(--nav-tone,var(--lx485-blue)) 16%,transparent)!important;
+  }
+  html body #root .app-ui .ta-settings-nav button.is-active{
+    border-color:color-mix(in srgb,var(--nav-tone,var(--lx485-blue)) 48%,var(--lx485-line))!important;
+    box-shadow:inset 0 1px 0 color-mix(in srgb,var(--nav-tone,var(--lx485-blue)) 14%,transparent)!important;
+  }
+  html body #root .app-ui :is(.lx-workspace-summary,.lx-workspace-card,.lx-governance-hero,.lx-governance-card,.commercial-row-card,.commercial-settings-section,.ta-settings-asset,.ta-account-summary,.ta-editor-convert-card){
+    min-width:0;border:1px solid var(--lx485-line)!important;border-radius:18px!important;
+    background:radial-gradient(circle at 100% 0%,transparent 62px,color-mix(in srgb,var(--workspace-tone,var(--lx485-blue)) 10%,transparent) 63px,transparent 64px),radial-gradient(170px 130px at 100% 0%,color-mix(in srgb,var(--workspace-tone,var(--lx485-blue)) 12%,transparent),transparent 80%),linear-gradient(155deg,var(--lx485-surface-2),var(--lx485-surface))!important;
+    color:var(--lx485-text)!important;box-shadow:none!important;
+  }
+  html body #root .app-ui :is(.lx-workspace-card,.lx-governance-card,.commercial-row-card)>header{background:transparent!important;border-color:var(--lx485-line)!important;}
+  html body #root .app-ui :is(.lx-workspace-summary,.lx-workspace-card,.lx-governance-hero,.lx-governance-card,.commercial-settings-section) :is(h3,h4,strong,label){color:var(--lx485-text-2)!important;}
+  html body #root .app-ui :is(.lx-workspace-summary,.lx-workspace-card,.lx-governance-hero,.lx-governance-card,.commercial-settings-section) :is(small,p){color:var(--lx485-muted)!important;}
+  html body #root .app-ui :is(.lx-workspace-list>article,.lx-governance-members>article,.lx-governance-policies>label,.ta-numbering-preview>div){
+    background:var(--lx485-surface-3)!important;border-color:var(--lx485-line)!important;border-radius:13px!important;color:var(--lx485-text-2)!important;
+  }
+  html body #root .app-ui :is(.ta-settings-note,.ta-finance-note,.ta-product-page-note){
+    border-inline-start:3px solid color-mix(in srgb,var(--workspace-tone,var(--lx485-blue)) 60%,var(--lx485-line))!important;
+    background:color-mix(in srgb,var(--workspace-tone,var(--lx485-blue)) 5%,var(--lx485-surface-2))!important;
+  }
+  html body #root .app-ui :is(.empty-state,.ta-empty-card,.ta-ops-empty,.ta-product-empty,.ta-customers-empty,.ta-documents-empty,.lx-notification-empty)>span:first-child:has(svg){
+    background:radial-gradient(circle at 25% 20%,color-mix(in srgb,var(--workspace-tone,var(--lx485-blue)) 20%,var(--lx485-surface-2)),var(--lx485-surface-3))!important;
+    color:var(--workspace-tone,var(--lx485-blue))!important;border:1px solid var(--lx485-line-strong)!important;border-radius:17px!important;
+  }
+  html body #root .app-ui :is(.ta-product-row-menu,.action-menu,.ta-overflow-menu){
+    border:1px solid var(--lx485-line-strong)!important;background:var(--lx485-surface-2)!important;color:var(--lx485-text)!important;border-radius:17px!important;
+  }
+  html body #root .app-ui :is(.ta-product-row-menu,.action-menu,.ta-overflow-menu) button{min-height:44px!important;background:transparent!important;color:var(--lx485-text-2)!important;}
+  html body #root .app-ui .editor-screen :is(.editor-section,.ta-editor-support-panels>section){
+    border-color:var(--lx485-line)!important;background:var(--lx485-surface)!important;border-radius:18px!important;
+  }
+  html body #root .app-ui .editor-screen .editor-section>header{
+    background:radial-gradient(140px 100px at 0% 0%,color-mix(in srgb,var(--lx485-blue) 10%,transparent),transparent 80%),var(--lx485-surface-2)!important;border-color:var(--lx485-line)!important;
+  }
+  html[data-ui-theme] body #root .global-search-panel .global-search-actions>button{
+    background:radial-gradient(circle at 100% 0%,transparent 44px,color-mix(in srgb,var(--lx485-blue) 13%,transparent) 45px,transparent 46px),radial-gradient(150px 100px at 100% 0%,color-mix(in srgb,var(--lx485-blue) 14%,transparent),transparent 80%),linear-gradient(155deg,var(--lx485-surface-2),var(--lx485-surface))!important;
+  }
+}
+
+@media screen and (max-width:900px){
+  html[data-ui-theme] body #root .app-ui .modal:has(.ta-settings-shell){height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;}
+  html[data-ui-theme] body #root .app-ui .modal-body:has(.ta-settings-shell){display:flex!important;flex:1 1 auto!important;overflow:hidden!important;}
+  html[data-ui-theme] body #root .app-ui .ta-settings-shell{display:flex!important;flex-direction:column!important;min-height:0!important;height:100%!important;max-height:none!important;width:100%!important;}
+  html[data-ui-theme] body #root .app-ui .ta-settings-sidebar{position:static!important;flex:0 0 auto!important;padding:8px!important;background:transparent!important;}
+  html[data-ui-theme] body #root .app-ui .ta-settings-nav{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;padding:0!important;overflow:visible!important;border:0!important;background:transparent!important;}
+  html[data-ui-theme] body #root .app-ui .ta-settings-nav button{min-width:0!important;width:100%!important;min-height:44px!important;padding:6px 8px!important;gap:7px!important;white-space:normal!important;}
+  html[data-ui-theme] body #root .app-ui .ta-settings-nav strong{font-size:12px!important;line-height:1.5!important;}
+  html[data-ui-theme] body #root .app-ui .ta-settings-nav small{display:none!important;}
+  html[data-ui-theme] body #root .app-ui .ta-settings-nav-icon{width:28px!important;height:28px!important;flex:0 0 28px!important;border-radius:9px!important;}
+  html[data-ui-theme] body #root .app-ui .ta-settings-nav-icon svg{width:17px!important;height:17px!important;}
+  html[data-ui-theme] body #root .app-ui .ta-settings-content{flex:1 1 auto!important;min-height:0!important;height:auto!important;max-height:none!important;overflow:auto!important;padding:10px 4px 18px!important;}
+}
+@media screen and (max-height:600px) and (max-width:900px){
+  html[data-ui-theme] body #root .app-ui .ta-settings-nav{display:flex!important;overflow-x:auto!important;}
+  html[data-ui-theme] body #root .app-ui .ta-settings-nav button{flex:0 0 auto!important;width:auto!important;}
+}
+
+@media screen {
+  html[dir="rtl"] body #root :is(.ta-auth-page,.ta-cloud-account,.ta-cloud-auth-form),
+  html[dir="rtl"] body #root :is(.ta-auth-page,.ta-cloud-account,.ta-cloud-auth-form) :is(div,span,small,strong,p,h1,h2,h3,label,button,input,select,a){font-family:var(--lx485-arabic)!important;letter-spacing:0!important;}
+  html[data-ui-theme] body #root :is(.ta-auth-card,.ta-auth-info-card,.ta-cloud-account){
+    border-color:var(--lx485-line-strong)!important;
+    background:radial-gradient(ellipse 150px 120px at 5% 0%,transparent 66%,color-mix(in srgb,var(--lx485-blue) 14%,transparent) 67%,transparent 68%),radial-gradient(240px 170px at 0% 0%,color-mix(in srgb,var(--lx485-blue) 14%,transparent),transparent 80%),linear-gradient(155deg,var(--lx485-surface-2),var(--lx485-surface))!important;
+    color:var(--lx485-text)!important;
+  }
+  html[data-ui-theme] body #root .app-ui .ta-sidebar-nav .ta-nav-item.is-active{
+    background:radial-gradient(110px 80px at 100% 0%,color-mix(in srgb,var(--lx485-blue) 18%,transparent),transparent 80%),color-mix(in srgb,var(--lx485-blue) 10%,var(--lx485-surface))!important;
+  }
+  html[data-ui-theme] body #root .app-ui :is(.input,.global-search-input-wrap input):focus-visible{
+    border-color:var(--lx485-blue)!important;outline:2px solid color-mix(in srgb,var(--lx485-blue) 24%,transparent)!important;outline-offset:2px!important;
+  }
+}
+
+@media screen {
+  html[data-ui-theme] body #root .app-ui .ta-kpi-copy>strong{font-size:28px!important;line-height:1.2!important;font-weight:800!important;}
+  html[data-ui-theme] body #root .app-ui .ta-kpi-copy em{font-size:12px!important;line-height:1.6!important;}
 }
