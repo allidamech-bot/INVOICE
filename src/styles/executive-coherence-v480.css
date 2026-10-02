@@ -49,7 +49,7 @@
   html body .app-ui .ta-documents-page .ta-doc-filter-button{width:48px!important;min-width:48px!important;height:48px!important;min-height:48px!important;border:1px solid var(--lx480-line)!important;border-radius:13px!important;background:var(--lx480-surface-2)!important;color:var(--lx480-text)!important;}
   html body .app-ui .ta-doc-type-tabs{display:flex!important;gap:7px!important;padding:8px!important;overflow-x:auto!important;scrollbar-width:none!important;border:1px solid var(--lx480-line)!important;border-radius:17px!important;background:var(--lx480-surface)!important;}
   html body .app-ui .ta-doc-type-tabs::-webkit-scrollbar{display:none!important;}
-  html body .app-ui .ta-doc-type-tabs>button{flex:0 0 auto!important;min-height:42px!important;padding:8px 11px!important;border:1px solid transparent!important;border-radius:12px!important;background:var(--lx480-surface-2)!important;color:var(--lx480-muted)!important;}
+  html body .app-ui .ta-doc-type-tabs>button{flex:0 0 auto!important;min-height:44px!important;padding:8px 11px!important;border:1px solid transparent!important;border-radius:12px!important;background:var(--lx480-surface-2)!important;color:var(--lx480-muted)!important;}
   html body .app-ui .ta-doc-type-tabs>button.is-active{border-color:color-mix(in srgb,var(--lx480-blue) 48%,var(--lx480-line))!important;background:color-mix(in srgb,var(--lx480-blue) 15%,var(--lx480-surface-2))!important;color:#d6e5ff!important;}
   html[data-ui-theme="light"] body .app-ui .ta-doc-type-tabs>button.is-active{color:#295aab!important;}
 
@@ -66,7 +66,7 @@
   html body .app-ui :is(.ta-operations-page,.ta-finance-page,.ta-reports-page) :is(.ta-ops-tabs,.ta-report-tabs,.ta-finance-tabs){
     display:flex!important;gap:6px!important;overflow-x:auto!important;scrollbar-width:none!important;padding:6px!important;border:1px solid var(--lx480-line)!important;border-radius:15px!important;background:var(--lx480-surface)!important;
   }
-  html body .app-ui :is(.ta-operations-page,.ta-finance-page,.ta-reports-page) :is(.ta-ops-tabs,.ta-report-tabs,.ta-finance-tabs) button{flex:0 0 auto!important;min-height:42px!important;border:1px solid transparent!important;border-radius:11px!important;background:var(--lx480-surface-2)!important;color:var(--lx480-muted)!important;}
+  html body .app-ui :is(.ta-operations-page,.ta-finance-page,.ta-reports-page) :is(.ta-ops-tabs,.ta-report-tabs,.ta-finance-tabs) button{flex:0 0 auto!important;min-height:44px!important;border:1px solid transparent!important;border-radius:11px!important;background:var(--lx480-surface-2)!important;color:var(--lx480-muted)!important;}
   html body .app-ui :is(.ta-operations-page,.ta-finance-page,.ta-reports-page) :is(.ta-ops-tabs,.ta-report-tabs,.ta-finance-tabs) button.is-active{border-color:color-mix(in srgb,var(--lx480-blue) 40%,var(--lx480-line))!important;background:color-mix(in srgb,var(--lx480-blue) 14%,var(--lx480-surface-2))!important;color:var(--lx480-text)!important;}
 
   /* Settings modal: mobile should be one compact control console, not a desktop
@@ -122,6 +122,32 @@
   html body #lourex-ai-panel .lourex-ai-plus-copy small{display:block!important;min-width:0!important;color:var(--lx480-muted)!important;font-size:10px!important;line-height:1.4!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;}
   html body #lourex-ai-panel .lourex-ai-compose{background:color-mix(in srgb,var(--lx480-surface) 95%,transparent)!important;}
   html body #lourex-ai-panel .lourex-ai-compose form{border-color:var(--lx480-line-hi)!important;background:var(--lx480-canvas-2)!important;}
+
+  /* Final screenshot QA: preserve the 44px physical touch floor and remove the
+     remaining warm legacy surfaces that were still visible inside v480 cards. */
+  html body .app-ui :is(.ta-documents-tabs,.lx-pipeline-tabs,.ta-editor-step-nav,.ta-report-workspace-tabs) button{min-height:44px!important;}
+  html body .app-ui .ta-report-workspace-tabs{
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important;padding:5px!important;
+    border:1px solid var(--lx480-line)!important;border-radius:16px!important;background:var(--lx480-surface)!important;box-shadow:var(--lx480-shadow)!important;
+  }
+  html body .app-ui .ta-report-workspace-tabs button{
+    min-width:0!important;padding:7px 6px!important;border:1px solid transparent!important;border-radius:11px!important;
+    background:var(--lx480-surface-2)!important;color:var(--lx480-muted)!important;font-size:10px!important;font-weight:800!important;
+  }
+  html body .app-ui .ta-report-workspace-tabs button.is-active{
+    border-color:color-mix(in srgb,var(--lx480-blue) 42%,var(--lx480-line))!important;
+    background:color-mix(in srgb,var(--lx480-blue) 14%,var(--lx480-surface-2))!important;color:var(--lx480-text)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :is(
+    .ta-doc-row,.ta-customer-row,.ta-product-row,.ta-account-row,.ta-report-card,.ta-settings-card,
+    .ta-ops-card,.ta-ops-summary>*,.ta-ops-metrics>*,.ta-finance-summary>*,.ta-report-controls,
+    .item-editor-row,.line-item-row,.document-readiness,.totals-panel,.document-totals,.editor-totals
+  ){
+    background-color:var(--lx480-surface)!important;
+    background-image:linear-gradient(155deg,color-mix(in srgb,var(--lx480-surface-2) 96%,var(--lx480-blue) 4%),var(--lx480-surface))!important;
+    border-color:var(--lx480-line)!important;color:var(--lx480-text)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui .workspace-shell.screen-editor :is(.ta-editor-step-nav,.field,.field-control,.item-field){background-color:transparent!important;}
 
   /* Avoid warm legacy fills in active mobile overlays and forms. */
   html[data-ui-theme="dark"] body :is(.modal,.global-search-panel,#lourex-ai-panel,.ta-mobile-sheet,.ta-create-menu-mobile) :is(input,select,textarea){background:var(--lx480-canvas-2)!important;border-color:var(--lx480-line)!important;color:var(--lx480-text)!important;}
