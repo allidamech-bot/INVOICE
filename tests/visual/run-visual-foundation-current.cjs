@@ -44,9 +44,11 @@ async function applyProductionFoundation(page){
 }
 
 function nearBlack(value){
-  const m=String(value||'').match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  const m=String(value||'').match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?/i);
   if(!m)return false;
-  const [r,g,b]=m.slice(1).map(Number);
+  const alpha=m[4]===undefined?1:Number(m[4]);
+  if(!Number.isFinite(alpha)||alpha<0.2)return false;
+  const [r,g,b]=m.slice(1,4).map(Number);
   return r<7&&g<7&&b<7;
 }
 
