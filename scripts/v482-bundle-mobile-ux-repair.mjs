@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 const bundlePath='dist/styles/app.bundle.css';
+const standalonePath='dist/styles/v482-mobile-ux-repair.css';
 const entryPath='dist/document-entry-v302.js';
 const v481Marker='/* --- premium-regression-fixes-v481.css --- */';
 const ownerName='v482-mobile-ux-repair.css';
@@ -22,6 +23,14 @@ if(!bundle.includes('.ta-create-menu-grid'))throw new Error('v482 production bun
 if(!bundle.includes('.ta-business-health-card'))throw new Error('v482 production bundle: dashboard surface repair is missing.');
 if(!bundle.includes('html[data-ui-theme="light"]'))throw new Error('v482 production bundle: Light mode repair ownership is missing.');
 await writeFile(bundlePath,bundle);
+
+/* Production index loads v482 as the final standalone stylesheet after v331/v332.
+   Emit that exact artifact from the same source used for the bundle so the link
+   can never point at a missing file or a stale visual owner. */
+await writeFile(standalonePath,`${css}\n`);
+const emitted=(await readFile(standalonePath,'utf8')).trim();
+if(emitted!==css)throw new Error('v482 production stylesheet: emitted standalone owner differs from source.');
+if(!emitted.includes('.ta-documents-header-actions')||!emitted.includes('#lourex-ai-panel.lourex-ai-panel'))throw new Error('v482 production stylesheet: required mobile repair contracts are missing.');
 
 /* v302 kept a historical late-auth recovery fallback that hard-navigated the
    page when account setup was visible. Keep the source compatibility file intact,
@@ -49,4 +58,4 @@ if(/(?:window\.)?location\s*\.\s*(?:reload|replace|assign)\s*\(/.test(recoveryBl
 if(!recoveryBlock.includes('lourex-account-transition-request')||!recoveryBlock.includes('automaticReload:false'))throw new Error('v482 production runtime: in-app late-auth transition contract is missing.');
 await writeFile(entryPath,entry);
 
-console.log('LOUREX v482 final owner verified: mobile UX repair bundled and generated late-auth recovery uses in-app transition without hard reload.');
+console.log('LOUREX v482 final owner verified: bundle + standalone mobile UX owner emitted and generated late-auth recovery uses in-app transition without hard reload.');
