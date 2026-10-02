@@ -45,3 +45,52 @@
     background-image:linear-gradient(155deg,#fff,#f7faff)!important;
   }
 }
+
+/* 320px iPhones need the KPI value to own the full card width. Keeping the icon
+   in a dedicated grid column clips longer values such as SAR 8,380.00 in RTL.
+   Float the icon in the corner and isolate monetary text as LTR numeric content. */
+@media screen and (max-width:350px){
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-card{
+    display:block!important;
+    min-height:128px!important;
+    padding:12px!important;
+  }
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-icon{
+    position:absolute!important;
+    inset-inline-end:12px!important;
+    inset-block-start:12px!important;
+    z-index:2!important;
+  }
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-copy{
+    display:grid!important;
+    gap:3px!important;
+    min-width:0!important;
+    width:100%!important;
+    padding:0!important;
+  }
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-copy>small{
+    min-width:0!important;
+    padding-inline-end:48px!important;
+  }
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-money-stack{
+    display:grid!important;
+    gap:1px!important;
+    min-width:0!important;
+    width:100%!important;
+    margin-top:7px!important;
+  }
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-money-stack>b{
+    display:block!important;
+    min-width:0!important;
+    max-width:100%!important;
+    white-space:nowrap!important;
+    direction:ltr!important;
+    unicode-bidi:isolate!important;
+    text-align:start!important;
+    font-size:clamp(14px,4.65vw,16px)!important;
+    line-height:1.18!important;
+    font-variant-numeric:tabular-nums!important;
+    letter-spacing:-.01em!important;
+  }
+  html[dir="rtl"] body #root.app-ui .workspace-shell.screen-home .ta-kpi-money-stack>b{text-align:right!important;}
+}
