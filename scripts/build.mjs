@@ -21,8 +21,8 @@ if(vercelEnvironment==='production'){
 }
 
 const VENDOR_ASSETS=[
-  {name:'react.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js','https://unpkg.com/react@17.0.2/umd/react.production.min.js']},
-  {name:'react-dom.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react.production.min.js','https://unpkg.com/react-dom@17.0.2/umd/react.production.min.js']},
+  {name:'react.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react@17.0.2/umd/react.production.min.js','https://unpkg.com/react@17.0.2/umd/react.production.min.js','https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.production.min.js']},
+  {name:'react-dom.production.min.js',urls:['https://cdn.jsdelivr.net/npm/react-dom@17.0.2/umd/react-dom.production.min.js','https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js','https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.production.min.js']},
   {name:'firebase-app-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js','https://unpkg.com/firebase@12.17.1/firebase-app-compat.js']},
   {name:'firebase-app-check-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-app-check-compat.js','https://unpkg.com/firebase@12.17.1/firebase-app-check-compat.js']},
   {name:'firebase-auth-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-auth-compat.js','https://unpkg.com/firebase@12.17.1/firebase-auth-compat.js']},
