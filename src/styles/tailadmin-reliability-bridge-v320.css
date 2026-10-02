@@ -167,3 +167,121 @@
   .lourex-ios-output-card{max-width:calc(100vw - 24px)!important}
   html body .pwa-update-toast,html body [data-lourex-cloud-refresh],html body [data-lourex-update]{bottom:calc(94px + env(safe-area-inset-bottom,0px))!important}
 }
+
+/* LOUREX v480 post-merge mobile visual handoff.
+   The reliability bridge is the last production owner, so any generic surface that
+   still consumes historical --ft-* tokens must inherit the active v480 executive
+   palette here. Accent tokens are deliberately left untouched because the current
+   light/dark primary-action contract is already canonical and regression-tested. */
+@media screen and (max-width:900px){
+  :root{
+    --ft-workspace:var(--lx480-canvas)!important;
+    --ft-surface:var(--lx480-surface)!important;
+    --ft-surface-2:var(--lx480-surface-2)!important;
+    --ft-surface-3:var(--lx480-surface-3)!important;
+    --ft-input:var(--lx480-canvas-2)!important;
+    --ft-text:var(--lx480-text)!important;
+    --ft-text-soft:var(--lx480-muted)!important;
+    --ft-text-strong:var(--lx480-text)!important;
+    --ft-muted:var(--lx480-muted)!important;
+    --ft-faint:var(--lx480-faint)!important;
+    --ft-line:var(--lx480-line)!important;
+    --ft-line-strong:var(--lx480-line-hi)!important;
+  }
+
+  /* Settings / Account screenshots exposed fixed charcoal descendants that do not
+     consume --ft-* tokens. Reclaim only those mobile descendants for v480. */
+  html body .modal.modal-xl:has(.ta-settings-shell)>.modal-body,
+  html body .ta-settings-shell,
+  html body .ta-settings-content,
+  html body .ta-settings-page{
+    background:var(--lx480-canvas)!important;
+    color:var(--lx480-text)!important;
+  }
+  html body .ta-settings-card>header{
+    background:var(--lx480-surface-2)!important;
+    border-color:var(--lx480-line)!important;
+  }
+  html body .ta-settings-card-body{
+    background:var(--lx480-surface)!important;
+    color:var(--lx480-text)!important;
+  }
+  html body .ta-settings-card :is(.ta-settings-asset-upload,.ta-settings-asset-preview,.ta-account-summary){
+    background:var(--lx480-surface-2)!important;
+    border-color:var(--lx480-line)!important;
+    color:var(--lx480-text)!important;
+  }
+
+  /* Reports retained one historical charcoal filter canvas even though the hero
+     and result cards were already v480. */
+  html body .app-ui .ta-reports-page .ta-report-filterbar{
+    border-color:var(--lx480-line)!important;
+    background:linear-gradient(155deg,var(--lx480-surface-2),var(--lx480-surface))!important;
+    color:var(--lx480-text)!important;
+    box-shadow:var(--lx480-shadow)!important;
+  }
+
+  /* Final generic mobile overlays should read from the executive palette after the
+     safety/z-index rules above, never from historical matte charcoal. */
+  html body .global-search-panel,
+  html body .app-ui .ta-mobile-sheet,
+  html body .app-ui .ta-create-menu-mobile,
+  html body .lourex-ai-panel,
+  html body #lourex-ai-panel,
+  html body .modal{
+    border-color:var(--lx480-line-hi)!important;
+    color:var(--lx480-text)!important;
+  }
+  html body .global-search-panel{
+    background-color:var(--lx480-surface)!important;
+    background-image:linear-gradient(165deg,var(--lx480-surface-2),var(--lx480-canvas))!important;
+  }
+  html body .app-ui .ta-mobile-sheet,
+  html body .app-ui .ta-create-menu-mobile{
+    background-color:var(--lx480-surface)!important;
+    background-image:linear-gradient(180deg,var(--lx480-surface-2),var(--lx480-canvas))!important;
+  }
+  html body .lourex-ai-panel,
+  html body #lourex-ai-panel{
+    background-color:var(--lx480-surface)!important;
+  }
+  html body :is(.global-search-result,.global-search-actions button),
+  html body .app-ui .ta-mobile-sheet :is(.ta-sheet-link,.ta-sheet-account,.lx-workspace-switcher.is-mobile),
+  html body .app-ui .ta-create-menu-mobile .ta-create-menu-grid button{
+    background-color:var(--lx480-surface)!important;
+    border-color:var(--lx480-line)!important;
+    color:var(--lx480-text)!important;
+  }
+  html body .modal>.modal-header,
+  html body .modal>.modal-footer{
+    background:var(--lx480-surface-2)!important;
+    border-color:var(--lx480-line)!important;
+    color:var(--lx480-text)!important;
+  }
+  html body .modal>.modal-body{
+    background:var(--lx480-surface)!important;
+    color:var(--lx480-text)!important;
+  }
+
+  /* Recovery / fail-safe views are product surfaces too. Keep their conservative
+     behavior but use the same v480 presentation language. */
+  .app-recovery{
+    background:
+      radial-gradient(360px 240px at 100% 0%,rgba(87,144,255,.12),transparent 72%),
+      linear-gradient(180deg,var(--lx480-canvas),var(--lx480-canvas-2))!important;
+    color:var(--lx480-text)!important;
+  }
+  .app-recovery>section{
+    border-color:var(--lx480-line-hi)!important;
+    border-radius:22px!important;
+    background:linear-gradient(155deg,var(--lx480-surface-2),var(--lx480-surface))!important;
+    color:var(--lx480-text)!important;
+    box-shadow:var(--lx480-shadow-lg)!important;
+  }
+  .app-recovery button:not(:first-of-type),
+  .app-recovery details{
+    border-color:var(--lx480-line)!important;
+    background:var(--lx480-surface-2)!important;
+    color:var(--lx480-text)!important;
+  }
+}
