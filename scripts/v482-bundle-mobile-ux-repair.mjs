@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 const bundlePath='dist/styles/app.bundle.css';
+const entryPath='dist/document-entry-v302.js';
 const v481Marker='/* --- premium-regression-fixes-v481.css --- */';
 const ownerName='v482-mobile-ux-repair.css';
 const marker=`/* --- ${ownerName} --- */`;
@@ -20,6 +21,32 @@ if(!bundle.includes('.global-search-actions'))throw new Error('v482 production b
 if(!bundle.includes('.ta-create-menu-grid'))throw new Error('v482 production bundle: Quick Create geometry repair is missing.');
 if(!bundle.includes('.ta-business-health-card'))throw new Error('v482 production bundle: dashboard surface repair is missing.');
 if(!bundle.includes('html[data-ui-theme="light"]'))throw new Error('v482 production bundle: Light mode repair ownership is missing.');
-
 await writeFile(bundlePath,bundle);
-console.log('LOUREX v482 mobile UX repair bundled as the final presentation owner.');
+
+/* v302 kept a historical late-auth recovery fallback that hard-navigated the
+   page when account setup was visible. Keep the source compatibility file intact,
+   but make the generated production runtime use the same in-app transition
+   protocol as current account switching. Explicit sign-out reload behavior is
+   intentionally outside this narrowly scoped replacement. */
+let entry=await readFile(entryPath,'utf8');
+const lateAuthRecovery=/function recoverLateAuthenticatedAccount\(\)\{[\s\S]*?\n  \}\n\n  function noteAppliedCloudVault/;
+if(!lateAuthRecovery.test(entry))throw new Error('v482 production runtime: late-auth recovery block is missing.');
+entry=entry.replace(lateAuthRecovery,`function recoverLateAuthenticatedAccount(){
+    const setup=document.querySelector('.account-managed-setup');if(!setup)return;
+    if(editorOrUnsafeWorkspaceOpen())return;
+    let uid='';try{uid=String(window.firebase?.auth?.().currentUser?.uid||'');}catch{}if(!uid)return;
+    try{if(window.sessionStorage.getItem(accountScopeRecoveryKey)===uid)return;window.sessionStorage.setItem(accountScopeRecoveryKey,uid);}catch{}
+    try{window.dispatchEvent(new CustomEvent('lourex-account-transition-request',{detail:{uid,lateAuthRecovery:true,automaticReload:false,source:'document-entry'}}));}
+    catch{completeDeferredAccount(uid);}
+  }
+
+  function noteAppliedCloudVault`);
+const recoveryStart=entry.indexOf('function recoverLateAuthenticatedAccount(){');
+const recoveryEnd=entry.indexOf('\n\n  function noteAppliedCloudVault',recoveryStart);
+if(recoveryStart<0||recoveryEnd<=recoveryStart)throw new Error('v482 production runtime: safe late-auth recovery block could not be isolated.');
+const recoveryBlock=entry.slice(recoveryStart,recoveryEnd);
+if(/(?:window\.)?location\s*\.\s*(?:reload|replace|assign)\s*\(/.test(recoveryBlock))throw new Error('v482 production runtime: automatic late-auth page navigation remains.');
+if(!recoveryBlock.includes('lourex-account-transition-request')||!recoveryBlock.includes('automaticReload:false'))throw new Error('v482 production runtime: in-app late-auth transition contract is missing.');
+await writeFile(entryPath,entry);
+
+console.log('LOUREX v482 final owner verified: mobile UX repair bundled and generated late-auth recovery uses in-app transition without hard reload.');
