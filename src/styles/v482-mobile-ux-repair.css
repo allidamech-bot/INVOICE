@@ -364,6 +364,10 @@
   html body #root.app-ui .ta-documents-header-actions :is(button,.btn){font-size:11px!important;padding:8px!important;}
   html body #root.app-ui .ta-create-menu-grid>button,
   html body .global-search-actions>button{min-height:88px!important;padding:10px!important;}
+  html body #root.app-ui .ta-sheet-group{grid-template-columns:minmax(0,1fr)!important;}
+  html body #root.app-ui .ta-sheet-group>p{grid-column:1/-1!important;}
+  html body #root.app-ui .ta-sheet-link-copy{min-width:0!important;}
+  html body #root.app-ui .ta-sheet-link-copy strong{overflow-wrap:normal!important;word-break:normal!important;hyphens:none!important;}
   html body #lourex-ai-panel .lourex-ai-head{padding:10px 12px!important;gap:6px!important;}
   html body #lourex-ai-panel .lourex-ai-title small{display:none!important;}
   html body #lourex-ai-panel .lourex-ai-head-actions{max-width:52vw!important;gap:4px!important;}
