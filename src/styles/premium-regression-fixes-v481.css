@@ -1,0 +1,26 @@
+/* LOUREX v481 — screenshot/QA regression hardening.
+   This owner is intentionally last within v481. It corrects computed-style
+   contracts that gradients alone cannot satisfy and prevents transparent metric
+   surfaces from re-entering the mobile business workspaces. */
+@media screen and (max-width:900px){
+  /* Keep primary actions visually premium while exposing a real computed base
+     color. WebKit QA reads backgroundColor, so a gradient-only button is
+     indistinguishable from a transparent control. */
+  html body #root.app-ui :is(.ta-documents-header,.ta-customers-header,.lx-pipeline-topbar) .btn-primary{
+    background-color:var(--ft-accent,#315da8)!important;
+    background-image:linear-gradient(135deg,rgba(126,172,255,.34),rgba(32,79,166,.18))!important;
+    border-color:color-mix(in srgb,var(--ft-accent,#315da8) 72%,var(--lx481-line))!important;
+    color:#fff!important;
+  }
+
+  /* v326 checks the physical backgroundColor of each Operations KPI card. Keep
+     the subtle premium gradient, but give every card an opaque semantic base. */
+  html body #root.app-ui .ta-ops-metrics>*{
+    background-color:var(--lx481-surface)!important;
+    background-image:linear-gradient(155deg,var(--lx481-surface-2),var(--lx481-surface))!important;
+  }
+  html[data-ui-theme="light"] body #root.app-ui .ta-ops-metrics>*{
+    background-color:#fff!important;
+    background-image:linear-gradient(155deg,#fff,#f7faff)!important;
+  }
+}
