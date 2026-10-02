@@ -102,7 +102,7 @@
   ){
     background-color:var(--lx480-surface)!important;background-image:none!important;border-color:var(--lx480-line)!important;color:var(--lx480-text)!important;
   }
-  html body .app-ui .workspace-shell.screen-editor :is(input,select,textarea){background:var(--lx480-canvas-2)!important;border-color:var(--lx480-line)!important;color:var(--lx480-text)!important;}
+  html[data-ui-theme="dark"] body .app-ui .workspace-shell.screen-editor :is(input,select,textarea){background:var(--lx480-canvas-2)!important;border-color:var(--lx480-line)!important;color:var(--lx480-text)!important;}
 
   /* AI composer: real screenshots exposed legacy generic button rules shrinking
      the + workflow menu copy. Give each item a stable two-column layout. */
@@ -140,6 +140,7 @@
   }
   html[data-ui-theme="dark"] body .app-ui :is(
     .ta-doc-row,.ta-customer-row,.ta-product-row,.ta-account-row,.ta-report-card,.ta-settings-card,
+    .ta-customers-summary>div,.ta-customers-register,.ta-customers-toolbar,.ta-customers-search,
     .ta-ops-card,.ta-ops-summary>*,.ta-ops-metrics>*,.ta-finance-summary>*,.ta-report-controls,
     .item-editor-row,.line-item-row,.document-readiness,.totals-panel,.document-totals,.editor-totals
   ){
@@ -147,6 +148,10 @@
     background-image:linear-gradient(155deg,color-mix(in srgb,var(--lx480-surface-2) 96%,var(--lx480-blue) 4%),var(--lx480-surface))!important;
     border-color:var(--lx480-line)!important;color:var(--lx480-text)!important;
   }
+  html[data-ui-theme="dark"] body .app-ui :is(
+    .ta-documents-page,.ta-customers-page,.ta-products-workspace,.ta-operations-page,
+    .ta-finance-page,.ta-reports-page,.workspace-shell.screen-editor
+  ) :is(input,select,textarea){background:var(--lx480-canvas-2)!important;border-color:var(--lx480-line)!important;color:var(--lx480-text)!important;}
   html[data-ui-theme="dark"] body .app-ui .workspace-shell.screen-editor :is(.ta-editor-step-nav,.field,.field-control,.item-field){background-color:transparent!important;}
 
   /* Avoid warm legacy fills in active mobile overlays and forms. */
