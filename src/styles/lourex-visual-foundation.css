@@ -714,17 +714,18 @@ html[dir="ltr"] textarea{
   }
   #root.app-ui .ta-mobile-sheet{
     display:block!important;
-    left:50%!important;
-    right:auto!important;
+    left:max(20px,env(safe-area-inset-left,0px))!important;
+    right:max(20px,env(safe-area-inset-right,0px))!important;
     bottom:calc(92px + env(safe-area-inset-bottom,0px))!important;
-    width:min(620px,calc(100vw - 40px))!important;
+    width:auto!important;
     max-width:620px!important;
     max-height:min(720px,calc(100svh - 132px))!important;
+    margin-inline:auto!important;
     padding:var(--space-4)!important;
-    transform:translateX(-50%)!important;
+    transform:none!important;
     overflow:auto!important;
   }
-  html[dir="rtl"] #root.app-ui .ta-mobile-sheet{transform:translateX(-50%)!important;}
+  html[dir="rtl"] #root.app-ui .ta-mobile-sheet{transform:none!important;}
   #root.app-ui .ta-documents-header-actions{
     width:min(100%,680px)!important;
     max-width:680px!important;
