@@ -44,6 +44,23 @@
   html body #root.app-ui .ta-mobile-sheet .ta-sheet-header{border-bottom-color:var(--lx481-line)!important;}
   html body #root.app-ui .ta-mobile-sheet .ta-sheet-group>p{border:0!important;box-shadow:none!important;}
 
+  /* ThemeControl renders its visual button inside the ta-sheet-theme wrapper.
+     Historical owners can still give that nested button a warm charcoal fill, so
+     v481 explicitly owns the physical toggle surface too. */
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-theme,
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-theme .mf-theme-toggle{
+    border-color:var(--lx481-line)!important;
+    background-color:var(--lx481-surface)!important;
+    background-image:none!important;
+    color:var(--lx481-text)!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="light"] body #root.app-ui .ta-mobile-sheet .ta-sheet-theme,
+  html[data-ui-theme="light"] body #root.app-ui .ta-mobile-sheet .ta-sheet-theme .mf-theme-toggle{
+    background-color:#fff!important;
+    color:var(--lx481-text)!important;
+  }
+
   /* v326 checks the physical backgroundColor of each Operations KPI card. Keep
      the subtle premium gradient, but give every card an opaque semantic base. */
   html body #root.app-ui .ta-ops-metrics>*{
