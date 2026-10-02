@@ -68,13 +68,11 @@ test('Documents hierarchy is centered, unclipped and wrapper-light',async()=>{
 test('More, navigation and tablet/desktop use the same semantic surface system',async()=>{
   const css=await read('src/styles/lourex-visual-foundation.css');
   assert.match(css,/\.ta-mobile-sheet\{[\s\S]*?background:var\(--app-surface\)!important;/);
-  assert.match(css,/\.ta-mobile-sheet \.ta-sheet-group\{[\s\S]*?background:var\(--app-surface-raised\)!important;/);
+  assert.match(css,/\.ta-mobile-sheet \.ta-sheet-group\{[\s\S]*?background:transparent!important;[\s\S]*?border-top:1px solid var\(--app-border\)!important;/);
   assert.match(css,/\.ta-mobile-sheet :is\(\.ta-sheet-link,\.ta-sheet-account\)\{[\s\S]*?background:transparent!important;/);
-  assert.match(css,/@media screen and \(max-width:900px\)[\s\S]*?\.ta-mobile-nav\{[\s\S]*?env\(safe-area-inset-bottom,0px\)/);
-  assert.match(css,/@media screen and \(max-width:719px\)/);
-  assert.match(css,/@media screen and \(min-width:720px\) and \(max-width:1099px\)/);
-  assert.match(css,/@media screen and \(min-width:901px\) and \(max-width:1099px\)/);
-  assert.match(css,/@media screen and \(min-width:1100px\)/);
+  assert.match(css,/@media screen and \(max-width:719px\)[\s\S]*?\.ta-mobile-nav\{[\s\S]*?env\(safe-area-inset-bottom,0px\)/);
+  assert.match(css,/@media screen and \(min-width:720px\) and \(max-width:1199px\)[\s\S]*?\.ta-sidebar\{display:none!important;[\s\S]*?\.ta-mobile-nav\{[\s\S]*?display:grid!important;/);
+  assert.match(css,/@media screen and \(min-width:1200px\)[\s\S]*?\.ta-mobile-nav\{display:none!important;/);
 });
 
 test('historical v480 source paths are declaration-free compatibility stubs',async()=>{
