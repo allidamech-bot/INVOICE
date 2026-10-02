@@ -26,12 +26,11 @@
     const uid=currentFirebaseUid();
     if(!uid)return;
 
-    /* document-entry-v302 historically listened to this same event and called
-       window.location.replace(...) when a late authenticated account appeared.
-       Capture the event first and convert the recovery into the in-app account
-       transition protocol. This preserves Vault write draining/cloud-idle guards
-       while preventing Safari from entering a visible reload loop from More /
-       Account / Settings surfaces. */
+    /* A legacy document-entry listener used a hard page navigation when a late
+       authenticated account appeared. Capture the same cloud-refresh event first
+       and convert recovery into the in-app account transition protocol. This
+       preserves Vault write draining/cloud-idle guards while preventing Safari
+       from entering a visible refresh loop from More / Account / Settings. */
     event.stopImmediatePropagation();
     mark('mode=transition automaticReload=no source=cloud-refresh');
     if(recoveryInFlight)return;
