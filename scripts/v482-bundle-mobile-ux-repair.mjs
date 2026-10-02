@@ -5,32 +5,37 @@ const standalonePath='dist/styles/v482-mobile-ux-repair.css';
 const entryPath='dist/document-entry-v302.js';
 const v481Marker='/* --- premium-regression-fixes-v481.css --- */';
 const ownerName='v482-mobile-ux-repair.css';
+const narrowOwnerName='v482-narrow-readability.css';
 const marker=`/* --- ${ownerName} --- */`;
+const narrowMarker=`/* --- ${narrowOwnerName} --- */`;
 
 let bundle=await readFile(bundlePath,'utf8');
 if(!bundle.includes(v481Marker))throw new Error('v482 production bundle: v481 final owner marker is missing.');
-if(bundle.includes(marker))throw new Error('v482 production bundle: duplicate mobile UX repair owner detected.');
-const css=(await readFile(`src/styles/${ownerName}`,'utf8')).trim();
-if(!css)throw new Error('v482 production bundle: mobile UX repair owner is empty.');
+if(bundle.includes(marker)||bundle.includes(narrowMarker))throw new Error('v482 production bundle: duplicate mobile UX repair owner detected.');
+const baseCss=(await readFile(`src/styles/${ownerName}`,'utf8')).trim();
+const narrowCss=(await readFile(`src/styles/${narrowOwnerName}`,'utf8')).trim();
+if(!baseCss||!narrowCss)throw new Error('v482 production bundle: mobile UX repair source is empty.');
+const css=`${baseCss}\n\n${narrowMarker}\n${narrowCss}`;
 
 bundle=`${bundle.trimEnd()}\n\n${marker}\n${css}\n`;
 if(bundle.indexOf(marker)<=bundle.indexOf(v481Marker))throw new Error('v482 production bundle: repair owner must follow v481.');
 if(!bundle.includes('.ta-documents-header-actions'))throw new Error('v482 production bundle: compact Documents command grid is missing.');
 if(!bundle.includes('#lourex-ai-panel.lourex-ai-panel'))throw new Error('v482 production bundle: AI mobile safe-area repair is missing.');
 if(!bundle.includes('#lourex-ai-panel .lourex-ai-head'))throw new Error('v482 production bundle: AI header overlap repair is missing.');
+if(!bundle.includes('#lourex-ai-panel .lourex-ai-plus-copy')||!bundle.includes('grid-column:2!important'))throw new Error('v482 production bundle: narrow AI workflow readability repair is missing.');
 if(!bundle.includes('.global-search-actions'))throw new Error('v482 production bundle: Global Search quick-create repair is missing.');
 if(!bundle.includes('.ta-create-menu-grid'))throw new Error('v482 production bundle: Quick Create geometry repair is missing.');
 if(!bundle.includes('.ta-business-health-card'))throw new Error('v482 production bundle: dashboard surface repair is missing.');
 if(!bundle.includes('html[data-ui-theme="light"]'))throw new Error('v482 production bundle: Light mode repair ownership is missing.');
 await writeFile(bundlePath,bundle);
 
-/* Production index loads v482 as the final standalone stylesheet after v331/v332.
-   Emit that exact artifact from the same source used for the bundle so the link
-   can never point at a missing file or a stale visual owner. */
+/* Production index loads one v482 standalone stylesheet after v331/v332. Emit the
+   base repair and the screenshot-driven narrow readability supplement as that
+   single final artifact so no extra runtime cascade owner is introduced. */
 await writeFile(standalonePath,`${css}\n`);
 const emitted=(await readFile(standalonePath,'utf8')).trim();
-if(emitted!==css)throw new Error('v482 production stylesheet: emitted standalone owner differs from source.');
-if(!emitted.includes('.ta-documents-header-actions')||!emitted.includes('#lourex-ai-panel.lourex-ai-panel'))throw new Error('v482 production stylesheet: required mobile repair contracts are missing.');
+if(emitted!==css)throw new Error('v482 production stylesheet: emitted standalone owner differs from composed source.');
+if(!emitted.includes('.ta-documents-header-actions')||!emitted.includes('#lourex-ai-panel.lourex-ai-panel')||!emitted.includes('#lourex-ai-panel .lourex-ai-plus-copy'))throw new Error('v482 production stylesheet: required mobile repair contracts are missing.');
 
 /* v302 kept a historical late-auth recovery fallback that hard-navigated the
    page when account setup was visible. Keep the source compatibility file intact,
@@ -58,4 +63,4 @@ if(/(?:window\.)?location\s*\.\s*(?:reload|replace|assign)\s*\(/.test(recoveryBl
 if(!recoveryBlock.includes('lourex-account-transition-request')||!recoveryBlock.includes('automaticReload:false'))throw new Error('v482 production runtime: in-app late-auth transition contract is missing.');
 await writeFile(entryPath,entry);
 
-console.log('LOUREX v482 final owner verified: bundle + standalone mobile UX owner emitted and generated late-auth recovery uses in-app transition without hard reload.');
+console.log('LOUREX v482 final owner verified: bundle + standalone base/narrow mobile UX repairs emitted and generated late-auth recovery uses in-app transition without hard reload.');
