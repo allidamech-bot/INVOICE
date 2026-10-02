@@ -19,12 +19,33 @@ interface Props {
 interface EditorSectionNavItem {id:string;number:string;label:string;hasError:boolean;}
 interface State {sections:EditorSectionNavItem[];activeSectionId:string;persistenceError:string;}
 
+const COMPANY_SCALAR_KEYS:[keyof CompanySettings,...(keyof CompanySettings)[]]=[
+  'nameEn','nameAr','logoDataUrl','addressEn','addressAr','city','country','phone','email','website','vatNumber','taxNumber','commercialRegistration',
+  'defaultBankAccountId','signatureDataUrl','stampDataUrl','defaultCurrency','defaultLanguage','defaultPaymentTerms','defaultIncoterm','defaultDeliveryTime',
+  'defaultValidityDays','defaultFooterText','defaultNotes'
+];
+
+function sameEditorCompany(a:CompanySettings,b:CompanySettings):boolean{
+  if(a===b)return true;
+  for(const key of COMPANY_SCALAR_KEYS)if(a[key]!==b[key])return false;
+  return JSON.stringify(a.bank)===JSON.stringify(b.bank)
+    &&JSON.stringify(a.bankAccounts)===JSON.stringify(b.bankAccounts)
+    &&JSON.stringify(a.commercial)===JSON.stringify(b.commercial);
+}
+
 /**
  * v320 Document Studio orchestration shell.
  *
  * Reliability-critical editing behavior remains delegated to the established
  * EditorPageCore. This wrapper owns the new TailAdmin workspace frame, editor
  * step navigation, final-quote conversion affordance and single-flight guards.
+ *
+ * v483 stability note: App scopes the Vault for every render and historically
+ * returned a freshly cloned CompanySettings object. EditorPageCore interpreted
+ * reference churn as a real company edit, mutated the draft, autosaved the whole
+ * encrypted Vault, then received another cloned company object on the next App
+ * render. Keep the company prop referentially stable until its actual content
+ * changes so a persistence render can never feed back into another draft write.
  */
 export class EditorPage extends React.Component<Props,State>{
   private static readonly activeEditorAttribute='data-lourex-document-editor';
@@ -34,7 +55,6 @@ export class EditorPage extends React.Component<Props,State>{
   private navSetupTimer:number|undefined;
   private navMutationObserver:MutationObserver|undefined;
   private navScrollRoot:HTMLElement|null=null;
-  private initialDraftPersisted=false;
   private quoteConversionRunning=false;
   private outputPromise:Promise<void>|null=null;
   private customerSavePromise:Promise<void>|null=null;
@@ -42,13 +62,13 @@ export class EditorPage extends React.Component<Props,State>{
   private revisionPromise:Promise<LourexDocument>|null=null;
   private lifecyclePromises=new Map<string,Promise<void>>();
   private mounted=false;
+  private stableEditorCompany:CompanySettings;
 
-  constructor(props:Props){super(props);this.state={sections:[],activeSectionId:'',persistenceError:''};}
+  constructor(props:Props){super(props);this.stableEditorCompany=props.company;this.state={sections:[],activeSectionId:'',persistenceError:''};}
 
   componentDidMount():void{
     this.mounted=true;
     document.documentElement.setAttribute(EditorPage.activeEditorAttribute,this.props.document.id);
-    this.ensureInitialDraftPersisted();
     this.resetScroll();
     this.scheduleSectionNavigationSetup();
   }
@@ -56,9 +76,7 @@ export class EditorPage extends React.Component<Props,State>{
   componentDidUpdate(prevProps:Props):void{
     if(prevProps.document.id!==this.props.document.id){
       document.documentElement.setAttribute(EditorPage.activeEditorAttribute,this.props.document.id);
-      this.initialDraftPersisted=false;
       this.quoteConversionRunning=false;
-      this.ensureInitialDraftPersisted();
       this.resetScroll();
       this.scheduleSectionNavigationSetup();
     }
@@ -73,6 +91,11 @@ export class EditorPage extends React.Component<Props,State>{
     if(this.navSetupTimer!==undefined)window.clearTimeout(this.navSetupTimer);
     this.teardownSectionNavigation();
   }
+
+  private editorCompany=(company:CompanySettings):CompanySettings=>{
+    if(!sameEditorCompany(this.stableEditorCompany,company))this.stableEditorCompany=company;
+    return this.stableEditorCompany;
+  };
 
   private resetScroll=()=>{
     const reset=()=>{
@@ -166,11 +189,11 @@ export class EditorPage extends React.Component<Props,State>{
   private saveWithProtectedRetry=async(doc:LourexDocument,auto?:boolean):Promise<void>=>{
     const deadline=Date.now()+12_000;
     for(;;){
-      try{await this.props.onSave(this.withLatestInternalCosts(doc),auto);return;}
+      try{await this.props.onSave(this.withLatestInternalCosts(doc),auto);if(this.mounted&&this.state.persistenceError)this.setState({persistenceError:''});return;}
       catch(e){
         const message=e instanceof Error?e.message:String(e??'');
         const protectedOperation=/protected data operation/i.test(message)||message.includes('عملية محمية');
-        if(!protectedOperation||Date.now()>=deadline)throw e;
+        if(!protectedOperation||Date.now()>=deadline){if(this.mounted)this.setState({persistenceError:message||t('Unable to save the document locally.','تعذر حفظ المستند محليًا.')});throw e;}
         await new Promise<void>(resolve=>window.setTimeout(resolve,150));
       }
     }
@@ -219,18 +242,6 @@ export class EditorPage extends React.Component<Props,State>{
     void Promise.resolve(this.props.onConvert(this.props.document)).finally(()=>{this.quoteConversionRunning=false;});
   };
 
-  private ensureInitialDraftPersisted=()=>{
-    const doc=this.props.document;
-    if(doc.status==='final'||this.props.documents.some(item=>item.id===doc.id)){this.initialDraftPersisted=true;return;}
-    if(this.initialDraftPersisted)return;
-    this.initialDraftPersisted=true;
-    void this.saveWithProtectedRetry(doc,true).then(()=>{if(this.mounted&&this.state.persistenceError)this.setState({persistenceError:''});}).catch(e=>{
-      this.initialDraftPersisted=false;
-      if(!this.mounted)return;
-      this.setState({persistenceError:e instanceof Error?e.message:t('Unable to save the new draft locally.','تعذر حفظ المسودة الجديدة محليًا.')});
-    });
-  };
-
   private renderSectionNavigator=():any=>{
     const sections=this.state.sections;
     if(!sections.length)return null;
@@ -254,7 +265,8 @@ export class EditorPage extends React.Component<Props,State>{
 
   render():any{
     const props=this.props;
-    if(isLetterDocument(props.document))return <div className="ta-editor-workspace ta-draft-studio-workspace"><DraftDocumentEditor key={props.document.id} document={props.document} company={props.company} onClose={props.onClose} onSave={this.saveWithProtectedRetry} onPrint={this.printWithPreparedMode} onEditActivity={props.onEditActivity}/></div>;
+    const company=this.editorCompany(props.company);
+    if(isLetterDocument(props.document))return <div className="ta-editor-workspace ta-draft-studio-workspace"><DraftDocumentEditor key={props.document.id} document={props.document} company={company} onClose={props.onClose} onSave={this.saveWithProtectedRetry} onPrint={this.printWithPreparedMode} onEditActivity={props.onEditActivity}/></div>;
 
     const finalQuote=documentCanConvertToInvoice(props.document.kind)&&props.document.status==='final'&&props.document.lifecycleStatus!=='voided';
     const sourceIsProformaInvoice=props.document.kind==='proforma-invoice';
@@ -268,7 +280,7 @@ export class EditorPage extends React.Component<Props,State>{
 
     return <div className="ta-editor-workspace" data-v320-editor="true">
       {this.state.persistenceError?<div className="ta-editor-persistence-error" role="alert"><span className="ta-editor-error-icon">!</span><div><strong>{t('Local save needs attention','الحفظ المحلي يحتاج انتباهك')}</strong><span>{this.state.persistenceError}</span></div></div>:null}
-      <div className="ta-editor-core-slot"><EditorPageCore key={props.document.id} {...props} onSave={this.saveWithProtectedRetry} onSaveCustomer={this.saveCustomerSingleFlight} onSaveDocumentItem={this.saveDocumentItemSingleFlight} onBeginRevision={this.beginRevisionSingleFlight} onPrint={this.printWithPreparedMode}/></div>
+      <div className="ta-editor-core-slot"><EditorPageCore key={props.document.id} {...props} company={company} onSave={this.saveWithProtectedRetry} onSaveCustomer={this.saveCustomerSingleFlight} onSaveDocumentItem={this.saveDocumentItemSingleFlight} onBeginRevision={this.beginRevisionSingleFlight} onPrint={this.printWithPreparedMode}/></div>
       {supportPanels&&supportSlot?ReactDOM.createPortal(supportPanels,supportSlot):null}
       {sectionNavigator&&navSlot?ReactDOM.createPortal(sectionNavigator,navSlot):null}
       {finalQuoteAction&&editorScreen?ReactDOM.createPortal(finalQuoteAction,editorScreen):null}
