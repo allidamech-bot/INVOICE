@@ -69,7 +69,8 @@ test('More, navigation and tablet/desktop use the same semantic surface system',
   const css=await read('src/styles/lourex-visual-foundation.css');
   assert.match(css,/\.ta-mobile-sheet\{[\s\S]*?background:var\(--app-surface\)!important;/);
   assert.match(css,/\.ta-mobile-sheet \.ta-sheet-group\{[\s\S]*?background:transparent!important;[\s\S]*?border-top:1px solid var\(--app-border\)!important;/);
-  assert.match(css,/\.ta-mobile-sheet :is\(\.ta-sheet-link,\.ta-sheet-account\)\{[\s\S]*?background:transparent!important;/);
+  assert.match(css,/\.ta-mobile-sheet \.ta-sheet-account\{[\s\S]*?background:var\(--app-surface-raised\)!important;[\s\S]*?border:1px solid var\(--app-border\)!important;/);
+  assert.match(css,/\.ta-mobile-sheet \.ta-sheet-link\{[\s\S]*?background:transparent!important;[\s\S]*?border-bottom:1px solid var\(--app-border\)!important;/);
   assert.match(css,/@media screen and \(max-width:719px\)[\s\S]*?\.ta-mobile-nav\{[\s\S]*?env\(safe-area-inset-bottom,0px\)/);
   assert.match(css,/@media screen and \(min-width:720px\) and \(max-width:1199px\)[\s\S]*?\.ta-sidebar\{display:none!important;[\s\S]*?\.ta-mobile-nav\{[\s\S]*?display:grid!important;/);
   assert.match(css,/@media screen and \(min-width:1200px\)[\s\S]*?\.ta-mobile-nav\{display:none!important;/);
