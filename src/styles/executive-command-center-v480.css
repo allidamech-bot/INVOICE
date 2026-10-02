@@ -1,6 +1,513 @@
 /*
- * Compatibility stub — v480 presentation ownership is retired.
- * The canonical visual owner is src/styles/lourex-visual-foundation.css.
- * Kept only because the historical reliability bridge still references this path
- * in source/dev builds; production removes the legacy import during finalization.
+ * LOUREX Executive Command Center v480
+ * Approved design direction: premium mobile fintech + business OS + AI command center.
+ * Presentation-only. No storage, calculations, routing, auth, vault, document lifecycle
+ * or business record mutation is owned here.
  */
+
+@media screen and (max-width:900px){
+  :root{
+    --lx480-canvas:#020914;
+    --lx480-canvas-2:#05111f;
+    --lx480-surface:#071727;
+    --lx480-surface-2:#0a1d31;
+    --lx480-surface-3:#0d233a;
+    --lx480-text:#f6f9ff;
+    --lx480-muted:#9baec7;
+    --lx480-faint:#6f849f;
+    --lx480-line:rgba(123,171,238,.18);
+    --lx480-line-hi:rgba(126,181,255,.34);
+    --lx480-blue:#5790ff;
+    --lx480-cyan:#2dd5e7;
+    --lx480-emerald:#35d49d;
+    --lx480-violet:#8e79ff;
+    --lx480-amber:#f1b44f;
+    --lx480-rose:#ff667f;
+    --lx480-shadow:0 18px 44px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.035);
+    --lx480-shadow-lg:0 30px 76px rgba(0,0,0,.44),0 10px 34px rgba(28,82,173,.13),inset 0 1px 0 rgba(255,255,255,.04);
+    --lx480-radius-xl:26px;
+    --lx480-radius-lg:21px;
+    --lx480-radius-md:15px;
+  }
+
+  html[data-ui-theme="light"]{
+    --lx480-canvas:#f3f7fc;
+    --lx480-canvas-2:#edf3fa;
+    --lx480-surface:#ffffff;
+    --lx480-surface-2:#f7faff;
+    --lx480-surface-3:#eef5ff;
+    --lx480-text:#10233b;
+    --lx480-muted:#657994;
+    --lx480-faint:#8797ab;
+    --lx480-line:rgba(55,92,143,.14);
+    --lx480-line-hi:rgba(66,112,181,.24);
+    --lx480-shadow:0 14px 34px rgba(40,71,111,.10),inset 0 1px 0 rgba(255,255,255,.86);
+    --lx480-shadow-lg:0 26px 60px rgba(40,71,111,.15),inset 0 1px 0 rgba(255,255,255,.92);
+  }
+
+  html body .app-ui .workspace-shell:not(.is-editor){
+    background:var(--lx480-canvas)!important;
+    color:var(--lx480-text)!important;
+  }
+
+  html body .app-ui .workspace-shell:not(.is-editor) .ta-main{
+    position:relative!important;
+    padding:10px 12px calc(108px + env(safe-area-inset-bottom,0px))!important;
+    overflow-x:clip!important;
+    background:
+      radial-gradient(540px 330px at 100% -8%,rgba(63,126,244,.20),transparent 68%),
+      radial-gradient(430px 300px at -16% 24%,rgba(34,205,224,.08),transparent 72%),
+      linear-gradient(180deg,var(--lx480-canvas) 0%,var(--lx480-canvas-2) 54%,var(--lx480-canvas) 100%)!important;
+  }
+
+  html[data-ui-theme="light"] body .app-ui .workspace-shell:not(.is-editor) .ta-main{
+    background:
+      radial-gradient(520px 330px at 103% -7%,rgba(70,132,243,.13),transparent 68%),
+      radial-gradient(410px 290px at -15% 25%,rgba(45,198,220,.06),transparent 72%),
+      linear-gradient(180deg,#f8fbff 0%,#eef4fb 56%,#f6f9fd 100%)!important;
+  }
+
+  html[dir="rtl"] body .app-ui .workspace-shell:not(.is-editor),
+  html[dir="rtl"] body .app-ui .workspace-shell:not(.is-editor) :is(button,input,select,textarea){
+    font-family:"Noto Sans Arabic",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+  }
+
+  /* Compact executive topbar. */
+  html body .app-ui .workspace-shell:not(.is-editor) .ta-topbar{
+    min-height:72px!important;
+    padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px!important;
+    border-bottom:1px solid var(--lx480-line)!important;
+    background:linear-gradient(180deg,rgba(3,12,23,.96),rgba(4,14,26,.88))!important;
+    box-shadow:0 12px 34px rgba(0,0,0,.25)!important;
+    backdrop-filter:blur(22px) saturate(150%)!important;
+    -webkit-backdrop-filter:blur(22px) saturate(150%)!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .workspace-shell:not(.is-editor) .ta-topbar{
+    background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(247,250,255,.90))!important;
+    box-shadow:0 12px 32px rgba(46,76,116,.08)!important;
+  }
+  html body .app-ui .workspace-shell:not(.is-editor) .ta-mobile-brand>button,
+  html body .app-ui .workspace-shell:not(.is-editor) :is(.ta-search-trigger,.lx-notification-topbar,.ta-topbar-account){
+    min-width:44px!important;
+    min-height:44px!important;
+    border:1px solid var(--lx480-line)!important;
+    border-radius:14px!important;
+    background:linear-gradient(145deg,color-mix(in srgb,var(--lx480-surface-2) 92%,var(--lx480-blue) 8%),var(--lx480-surface))!important;
+    color:var(--lx480-text)!important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 8px 20px rgba(0,0,0,.16)!important;
+  }
+  html body .app-ui .workspace-shell:not(.is-editor) .ta-page-title strong{
+    color:var(--lx480-text)!important;
+    font-size:17px!important;
+    line-height:1.25!important;
+    font-weight:900!important;
+  }
+  html body .app-ui .workspace-shell:not(.is-editor) .ta-page-title small{color:var(--lx480-faint)!important;}
+
+  /* Home is a real command center, not a stack of equal cards. */
+  html body .app-ui .workspace-shell.screen-home .ta-finance-dashboard{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:12px!important;
+    width:100%!important;
+    max-width:100%!important;
+    margin:0!important;
+    padding:0 0 24px!important;
+    overflow:visible!important;
+  }
+
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-header{order:1!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-grid{order:2!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-quick-actions{order:3!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-primary-grid{order:4!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-intelligence-grid{order:5!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-business-health-card{order:6!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-inventory-card{order:7!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-recent-card{order:8!important;}
+
+  /* Hero: the approved global command-center language. */
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-header{
+    position:relative!important;
+    isolation:isolate!important;
+    overflow:hidden!important;
+    min-height:226px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:flex-end!important;
+    gap:14px!important;
+    margin:0!important;
+    padding:20px 18px 18px!important;
+    border:1px solid rgba(111,169,255,.34)!important;
+    border-radius:28px!important;
+    background:
+      linear-gradient(100deg,rgba(3,14,26,.92) 0%,rgba(5,23,43,.76) 49%,rgba(5,23,43,.32) 100%),
+      url("../../brand/lourex-command-orbit.svg") 72% 42%/auto 118% no-repeat,
+      linear-gradient(145deg,#061323 0%,#08223d 53%,#06121f 100%)!important;
+    box-shadow:var(--lx480-shadow-lg)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-header::before{
+    content:""!important;
+    position:absolute!important;
+    z-index:-1!important;
+    inset:0!important;
+    pointer-events:none!important;
+    background:
+      radial-gradient(250px 190px at 90% 14%,rgba(68,136,255,.28),transparent 70%),
+      linear-gradient(135deg,rgba(255,255,255,.035),transparent 42%)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-header::after{
+    content:""!important;
+    position:absolute!important;
+    z-index:-1!important;
+    width:190px!important;
+    height:190px!important;
+    inset-block-start:-84px!important;
+    inset-inline-end:-42px!important;
+    border:1px solid rgba(119,176,255,.28)!important;
+    border-radius:50%!important;
+    box-shadow:0 0 58px rgba(62,127,248,.22),inset 0 0 40px rgba(42,211,231,.07)!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .workspace-shell.screen-home .ta-dashboard-header{
+    background:
+      linear-gradient(100deg,rgba(255,255,255,.97) 0%,rgba(246,250,255,.91) 50%,rgba(238,246,255,.74) 100%),
+      url("../../brand/lourex-command-orbit.svg") 72% 42%/auto 118% no-repeat,
+      #fff!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-heading{
+    position:relative!important;
+    z-index:2!important;
+    display:grid!important;
+    gap:6px!important;
+    width:min(100%,330px)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-eyebrow{
+    width:max-content!important;
+    max-width:100%!important;
+    min-height:27px!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    padding:5px 10px!important;
+    border:1px solid rgba(120,177,255,.34)!important;
+    border-radius:999px!important;
+    background:linear-gradient(90deg,rgba(80,142,255,.15),rgba(45,213,231,.07))!important;
+    color:#b8d4ff!important;
+    font-size:10px!important;
+    font-weight:850!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .workspace-shell.screen-home .ta-dashboard-eyebrow{color:#315fae!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-heading h1{
+    max-width:15ch!important;
+    margin:0!important;
+    color:var(--lx480-text)!important;
+    font-size:clamp(28px,7.7vw,35px)!important;
+    line-height:1.18!important;
+    font-weight:900!important;
+    letter-spacing:-.025em!important;
+    text-wrap:balance!important;
+  }
+  html[dir="rtl"] body .app-ui .workspace-shell.screen-home .ta-dashboard-heading h1{letter-spacing:0!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-heading p{
+    max-width:34ch!important;
+    margin:0!important;
+    color:color-mix(in srgb,var(--lx480-muted) 94%,#fff 6%)!important;
+    font-size:12.5px!important;
+    line-height:1.78!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-header-actions{
+    position:relative!important;
+    z-index:3!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,.78fr) minmax(0,1.22fr)!important;
+    gap:8px!important;
+    width:100%!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-header-actions>*{
+    min-height:48px!important;
+    border-radius:15px!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-header-actions .btn{
+    border-color:#6b9dff!important;
+    background:linear-gradient(135deg,#64a0ff,#3f79f1)!important;
+    color:#fff!important;
+    font-weight:900!important;
+    box-shadow:0 12px 28px rgba(54,116,236,.31),inset 0 1px 0 rgba(255,255,255,.18)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-period-chip{
+    border:1px solid var(--lx480-line-hi)!important;
+    background:rgba(7,24,42,.74)!important;
+    color:#d6e6ff!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .workspace-shell.screen-home .ta-period-chip{
+    background:rgba(255,255,255,.84)!important;
+    color:#345a8e!important;
+  }
+
+  /* Four semantic financial instruments. */
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-grid{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-card{
+    --lx480-tone:var(--lx480-blue);
+    position:relative!important;
+    isolation:isolate!important;
+    overflow:hidden!important;
+    min-width:0!important;
+    min-height:136px!important;
+    display:grid!important;
+    grid-template-columns:42px minmax(0,1fr)!important;
+    align-content:start!important;
+    gap:10px!important;
+    padding:14px!important;
+    border:1px solid color-mix(in srgb,var(--lx480-tone) 34%,var(--lx480-line))!important;
+    border-radius:21px!important;
+    background:
+      radial-gradient(126px 106px at 100% 0%,color-mix(in srgb,var(--lx480-tone) 16%,transparent),transparent 72%),
+      linear-gradient(155deg,color-mix(in srgb,var(--lx480-surface-2) 95%,var(--lx480-tone) 5%),var(--lx480-surface))!important;
+    color:var(--lx480-text)!important;
+    box-shadow:var(--lx480-shadow)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-card:nth-child(1){--lx480-tone:var(--lx480-emerald);}
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-card:nth-child(2){--lx480-tone:var(--lx480-blue);}
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-card:nth-child(3){--lx480-tone:var(--lx480-violet);}
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-card:nth-child(4){--lx480-tone:var(--lx480-rose);}
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-card::after{
+    content:""!important;
+    position:absolute!important;
+    z-index:-1!important;
+    width:88px!important;
+    height:88px!important;
+    inset-block-end:-48px!important;
+    inset-inline-start:-24px!important;
+    border:1px solid color-mix(in srgb,var(--lx480-tone) 22%,transparent)!important;
+    border-radius:50%!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-icon{
+    width:42px!important;
+    height:42px!important;
+    display:grid!important;
+    place-items:center!important;
+    border:1px solid color-mix(in srgb,var(--lx480-tone) 38%,transparent)!important;
+    border-radius:13px!important;
+    background:color-mix(in srgb,var(--lx480-tone) 15%,transparent)!important;
+    color:var(--lx480-tone)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-copy{display:grid!important;gap:4px!important;min-width:0!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-copy small{color:var(--lx480-muted)!important;font-size:10.5px!important;font-weight:750!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-money-stack{display:grid!important;gap:2px!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-money-stack b,
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-copy>strong{
+    color:var(--lx480-text)!important;
+    font-size:clamp(17px,4.8vw,23px)!important;
+    line-height:1.18!important;
+    font-weight:900!important;
+    font-variant-numeric:tabular-nums!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-copy em{color:color-mix(in srgb,var(--lx480-tone) 84%,#fff 16%)!important;font-size:9px!important;font-style:normal!important;line-height:1.45!important;}
+
+  /* Quick launcher behaves like app shortcuts, not generic buttons. */
+  html body .app-ui .workspace-shell.screen-home .ta-quick-actions{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:8px!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-quick-actions>button{
+    min-width:0!important;
+    min-height:92px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    justify-content:space-between!important;
+    gap:7px!important;
+    padding:11px!important;
+    border:1px solid var(--lx480-line)!important;
+    border-radius:17px!important;
+    background:linear-gradient(155deg,var(--lx480-surface-2),var(--lx480-surface))!important;
+    color:var(--lx480-text)!important;
+    box-shadow:0 10px 24px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.025)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-quick-icon{
+    width:35px!important;height:35px!important;display:grid!important;place-items:center!important;
+    border-radius:11px!important;background:rgba(87,144,255,.12)!important;color:var(--lx480-blue)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-quick-actions strong{font-size:11px!important;font-weight:850!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-quick-actions small{display:none!important;}
+
+  /* Analytics = instrument display. */
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-primary-grid{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:12px!important;
+  }
+  html body .app-ui .workspace-shell.screen-home :is(.ta-performance-card,.ta-position-card,.ta-inventory-card,.ta-recent-card,.ta-business-health-card,.ta-attention-card){
+    border:1px solid var(--lx480-line)!important;
+    border-radius:22px!important;
+    background:linear-gradient(160deg,var(--lx480-surface-2),var(--lx480-surface))!important;
+    color:var(--lx480-text)!important;
+    box-shadow:var(--lx480-shadow)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-performance-card{
+    position:relative!important;
+    overflow:hidden!important;
+    padding:15px!important;
+    background:
+      linear-gradient(rgba(99,151,226,.06) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(99,151,226,.06) 1px,transparent 1px),
+      linear-gradient(160deg,var(--lx480-surface-2),var(--lx480-surface))!important;
+    background-size:24px 24px,24px 24px,auto!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-card-header{gap:10px!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-card-header small{color:var(--lx480-blue)!important;font-size:9.5px!important;font-weight:850!important;text-transform:none!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-card-header h2{margin:2px 0!important;color:var(--lx480-text)!important;font-size:17px!important;font-weight:900!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-card-header span{color:var(--lx480-muted)!important;font-size:10px!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-range-control{
+    padding:4px!important;border:1px solid var(--lx480-line)!important;border-radius:12px!important;background:rgba(3,12,22,.34)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-range-control button{min-height:36px!important;border-radius:9px!important;color:var(--lx480-muted)!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-range-control button.is-active{background:rgba(87,144,255,.18)!important;color:#bcd6ff!important;box-shadow:inset 0 0 0 1px rgba(101,158,247,.22)!important;}
+  html[data-ui-theme="light"] body .app-ui .workspace-shell.screen-home .ta-range-control button.is-active{color:#315fae!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-segmented-control{border-color:var(--lx480-line)!important;background:rgba(3,12,22,.32)!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-segmented-control button{min-height:40px!important;color:var(--lx480-muted)!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-segmented-control button.is-active{background:rgba(87,144,255,.15)!important;color:#c5dcff!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-chart-stage{min-height:214px!important;border-radius:16px!important;background:linear-gradient(180deg,rgba(5,19,35,.40),rgba(4,14,26,.14))!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-chart-gridline{stroke:rgba(131,171,226,.13)!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-line-sales{stroke:var(--lx480-blue)!important;filter:drop-shadow(0 0 5px rgba(87,144,255,.42))!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-line-collected{stroke:var(--lx480-cyan)!important;filter:drop-shadow(0 0 5px rgba(45,213,231,.30))!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-line-profit{stroke:var(--lx480-emerald)!important;filter:drop-shadow(0 0 5px rgba(53,212,157,.30))!important;}
+
+  html body .app-ui .workspace-shell.screen-home .ta-position-card{padding:15px!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-position-balance{
+    margin:10px 0!important;padding:14px!important;border:1px solid rgba(87,144,255,.22)!important;border-radius:16px!important;background:linear-gradient(135deg,rgba(87,144,255,.11),rgba(45,213,231,.04))!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-position-balance strong{color:var(--lx480-text)!important;font-size:25px!important;font-weight:900!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-position-list>div{border-color:var(--lx480-line)!important;background:rgba(255,255,255,.015)!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-card-primary-action{min-height:46px!important;border-radius:13px!important;background:linear-gradient(135deg,#5790ff,#3d77ef)!important;color:#fff!important;font-weight:850!important;}
+
+  /* Action center first, AI second, matching the approved reference hierarchy. */
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-intelligence-grid{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:12px!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-intelligence-grid>.ta-attention-card{order:1!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-intelligence-grid>.ta-advisor-slot{order:2!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-attention-card{padding:15px!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-attention-list{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-attention-list>button{
+    min-width:0!important;min-height:86px!important;display:grid!important;align-content:space-between!important;gap:8px!important;padding:11px!important;border:1px solid rgba(241,180,79,.24)!important;border-radius:15px!important;background:linear-gradient(145deg,rgba(241,180,79,.10),rgba(9,25,42,.60))!important;color:var(--lx480-text)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-attention-list>button.is-danger{border-color:rgba(255,102,127,.28)!important;background:linear-gradient(145deg,rgba(255,102,127,.11),rgba(9,25,42,.62))!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-attention-list>button strong{font-size:20px!important;color:var(--lx480-text)!important;}
+
+  /* LOUREX AI is a first-class product surface. */
+  html body .app-ui .workspace-shell.screen-home .lourex-advisor-card{
+    position:relative!important;
+    isolation:isolate!important;
+    overflow:hidden!important;
+    padding:15px!important;
+    border:1px solid rgba(45,213,231,.30)!important;
+    border-radius:23px!important;
+    background:
+      radial-gradient(220px 150px at 0% 0%,rgba(45,213,231,.12),transparent 72%),
+      radial-gradient(240px 180px at 100% 100%,rgba(87,144,255,.12),transparent 74%),
+      linear-gradient(155deg,#071b2c,#071522)!important;
+    box-shadow:0 20px 48px rgba(0,0,0,.28),0 10px 34px rgba(20,129,162,.11),inset 0 1px 0 rgba(255,255,255,.035)!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .workspace-shell.screen-home .lourex-advisor-card{
+    background:radial-gradient(220px 150px at 0% 0%,rgba(45,213,231,.10),transparent 72%),linear-gradient(155deg,#fff,#f4f9ff)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .lourex-advisor-mark{
+    width:46px!important;height:46px!important;border:1px solid rgba(45,213,231,.32)!important;border-radius:15px!important;background:linear-gradient(145deg,rgba(45,213,231,.16),rgba(87,144,255,.11))!important;color:var(--lx480-cyan)!important;box-shadow:0 0 28px rgba(45,213,231,.13)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .lourex-advisor-identity h2{color:var(--lx480-text)!important;font-size:16px!important;font-weight:900!important;}
+  html body .app-ui .workspace-shell.screen-home .lourex-advisor-identity small{color:var(--lx480-cyan)!important;font-weight:850!important;}
+  html body .app-ui .workspace-shell.screen-home .lourex-advisor-identity p,
+  html body .app-ui .workspace-shell.screen-home .lourex-advisor-welcome-copy span{color:var(--lx480-muted)!important;}
+  html body .app-ui .workspace-shell.screen-home .lourex-advisor-starters{display:flex!important;gap:7px!important;overflow-x:auto!important;scrollbar-width:none!important;padding-bottom:2px!important;}
+  html body .app-ui .workspace-shell.screen-home .lourex-advisor-starters::-webkit-scrollbar{display:none!important;}
+  html body .app-ui .workspace-shell.screen-home .lourex-advisor-starters button{flex:0 0 auto!important;min-height:40px!important;border:1px solid var(--lx480-line)!important;border-radius:999px!important;background:rgba(255,255,255,.025)!important;color:var(--lx480-muted)!important;}
+  html body .app-ui .workspace-shell.screen-home .lourex-advisor-compose form{min-height:52px!important;border:1px solid rgba(87,144,255,.27)!important;border-radius:15px!important;background:rgba(3,13,24,.56)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)!important;}
+  html body .app-ui .workspace-shell.screen-home .lourex-advisor-compose input{font-size:16px!important;color:var(--lx480-text)!important;}
+  html body .app-ui .workspace-shell.screen-home .lourex-advisor-compose form>button{width:44px!important;min-width:44px!important;height:44px!important;border-radius:13px!important;background:linear-gradient(135deg,var(--lx480-blue),#3d77ef)!important;color:#fff!important;}
+
+  /* Secondary operational cards stay quieter than the command surfaces. */
+  html body .app-ui .workspace-shell.screen-home :is(.ta-business-health-card,.ta-inventory-card,.ta-recent-card){padding:14px!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-inventory-stats{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-inventory-stats>div{min-width:0!important;padding:10px!important;border:1px solid var(--lx480-line)!important;border-radius:14px!important;background:rgba(255,255,255,.018)!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-recent-head{display:none!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-recent-table{display:grid!important;gap:8px!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-recent-row{
+    min-width:0!important;min-height:78px!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-areas:"doc status" "party amount"!important;gap:5px 10px!important;padding:11px!important;border:1px solid var(--lx480-line)!important;border-radius:15px!important;background:rgba(255,255,255,.018)!important;color:var(--lx480-text)!important;
+  }
+  html body .app-ui .workspace-shell.screen-home .ta-recent-document{grid-area:doc!important;min-width:0!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-recent-party{grid-area:party!important;color:var(--lx480-muted)!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-recent-amount{grid-area:amount!important;align-self:end!important;color:var(--lx480-text)!important;font-variant-numeric:tabular-nums!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-status-badge{grid-area:status!important;align-self:start!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-recent-date{display:none!important;}
+
+  /* Floating hardware-like mobile dock. */
+  html body .app-ui .workspace-shell:not(.is-editor) .ta-mobile-nav{
+    position:fixed!important;
+    z-index:var(--lourex-z-nav,120)!important;
+    left:12px!important;right:12px!important;
+    bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;
+    width:auto!important;
+    height:76px!important;
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    align-items:center!important;
+    padding:7px 7px 8px!important;
+    border:1px solid rgba(112,164,238,.24)!important;
+    border-radius:25px!important;
+    background:linear-gradient(180deg,rgba(7,24,41,.94),rgba(4,14,25,.96))!important;
+    box-shadow:0 24px 58px rgba(0,0,0,.46),0 0 0 1px rgba(255,255,255,.018) inset!important;
+    backdrop-filter:blur(24px) saturate(155%)!important;
+    -webkit-backdrop-filter:blur(24px) saturate(155%)!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .workspace-shell:not(.is-editor) .ta-mobile-nav{
+    background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(244,248,253,.96))!important;
+    box-shadow:0 18px 42px rgba(40,70,108,.17),0 0 0 1px rgba(255,255,255,.7) inset!important;
+  }
+  html body .app-ui .workspace-shell:not(.is-editor) .ta-mobile-nav>button{
+    min-width:0!important;min-height:58px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:4px!important;border:0!important;border-radius:16px!important;background:transparent!important;color:var(--lx480-faint)!important;font-size:9px!important;font-weight:800!important;
+  }
+  html body .app-ui .workspace-shell:not(.is-editor) .ta-mobile-nav>button.is-active{background:linear-gradient(180deg,rgba(87,144,255,.17),rgba(87,144,255,.07))!important;color:#84b5ff!important;box-shadow:inset 0 0 0 1px rgba(94,151,241,.18)!important;}
+  html body .app-ui .workspace-shell:not(.is-editor) .ta-mobile-create-wrap{display:grid!important;place-items:center!important;align-self:stretch!important;}
+  html body .app-ui .workspace-shell:not(.is-editor) .ta-mobile-create{
+    width:60px!important;min-width:60px!important;height:60px!important;min-height:60px!important;margin-top:-28px!important;border:1px solid rgba(151,203,255,.78)!important;border-radius:50%!important;background:radial-gradient(circle at 36% 28%,#9ed9ff 0%,#5c9cff 34%,#3675ed 72%,#2456c9 100%)!important;color:#fff!important;box-shadow:0 14px 34px rgba(49,113,235,.48),0 0 0 5px rgba(6,18,31,.88),inset 0 2px 0 rgba(255,255,255,.36)!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .workspace-shell:not(.is-editor) .ta-mobile-create{box-shadow:0 13px 30px rgba(49,113,235,.34),0 0 0 5px rgba(247,250,255,.96),inset 0 2px 0 rgba(255,255,255,.42)!important;}
+
+  /* More/Create sheets use the same premium language. */
+  html body .app-ui :is(.ta-mobile-sheet,.ta-create-menu-mobile){
+    border:1px solid var(--lx480-line-hi)!important;
+    background:linear-gradient(180deg,var(--lx480-surface-2),var(--lx480-surface))!important;
+    color:var(--lx480-text)!important;
+    box-shadow:0 -24px 70px rgba(0,0,0,.46)!important;
+  }
+  html body .app-ui :is(.ta-sheet-link,.ta-create-menu-mobile .ta-create-menu-grid>button){
+    min-height:54px!important;border:1px solid var(--lx480-line)!important;border-radius:14px!important;background:rgba(255,255,255,.018)!important;color:var(--lx480-text)!important;
+  }
+
+  /* Accessibility and interaction floor. */
+  html body .app-ui .workspace-shell:not(.is-editor) :is(button,a,[role="button"]):focus-visible{
+    outline:3px solid color-mix(in srgb,var(--lx480-blue) 36%,transparent)!important;
+    outline-offset:2px!important;
+  }
+  html body .app-ui .workspace-shell:not(.is-editor) :is(button,input,select,textarea){-webkit-tap-highlight-color:transparent!important;}
+}
+
+@media screen and (max-width:380px){
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-header{min-height:214px!important;padding:18px 15px 16px!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-dashboard-heading h1{font-size:26px!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-card{min-height:128px!important;padding:12px!important;grid-template-columns:38px minmax(0,1fr)!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-kpi-icon{width:38px!important;height:38px!important;}
+  html body .app-ui .workspace-shell.screen-home .ta-quick-actions>button{min-height:86px!important;padding:10px!important;}
+}
+
+@media (prefers-reduced-motion:reduce){
+  html body .app-ui .workspace-shell:not(.is-editor) *,
+  html body .app-ui .workspace-shell:not(.is-editor) *::before,
+  html body .app-ui .workspace-shell:not(.is-editor) *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}
+}
