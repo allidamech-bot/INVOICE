@@ -50,9 +50,10 @@ test('v482 repairs the production mobile surfaces reported from iPhone screensho
   assert.match(css,/\.ta-sheet-link\{[\s\S]*?min-height:62px!important/,'More sheet command sizing repair is missing');
   assert.match(css,/@media screen and \(max-width:360px\)\{[\s\S]*?\.ta-sheet-group\{grid-template-columns:minmax\(0,1fr\)!important;\}/,'320px More sheet must collapse command groups to one readable column');
   assert.match(css,/@media screen and \(max-width:360px\)\{[\s\S]*?\.ta-sheet-link-copy strong\{overflow-wrap:normal!important;word-break:normal!important;hyphens:none!important;\}/,'narrow More labels must not split words');
-  assert.match(narrow,/#lourex-ai-panel \.lourex-ai-plus-item\{[\s\S]*?grid-template-columns:38px minmax\(0,1fr\)!important/,'AI workflow menu must reserve a flexible copy track');
-  assert.match(narrow,/#lourex-ai-panel \.lourex-ai-plus-icon\{[\s\S]*?grid-column:1!important/,'AI workflow icon must be pinned to the first logical grid track');
-  assert.match(narrow,/#lourex-ai-panel \.lourex-ai-plus-copy\{[\s\S]*?grid-column:2!important[\s\S]*?justify-self:stretch!important/,'AI workflow copy must be pinned to and stretch across the flexible track');
+  assert.match(narrow,/#lourex-ai-panel \.lourex-ai-plus-item\{[\s\S]*?display:flex!important[\s\S]*?flex-direction:row!important/,'AI workflow menu must use a stable flexible row instead of a collapsing grid track');
+  assert.match(narrow,/#lourex-ai-panel \.lourex-ai-plus-icon\{[\s\S]*?flex:0 0 38px!important/,'AI workflow icon must keep a fixed readable footprint');
+  assert.match(narrow,/#lourex-ai-panel \.lourex-ai-plus-copy\{[\s\S]*?flex:1 1 0!important[\s\S]*?opacity:1!important[\s\S]*?visibility:visible!important/,'AI workflow copy must consume remaining width and remain visibly rendered');
+  assert.match(narrow,/#lourex-ai-panel \.lourex-ai-plus-copy strong\{[\s\S]*?width:100%!important[\s\S]*?opacity:1!important[\s\S]*?visibility:visible!important/,'AI workflow primary labels must stay visible at full flexible width');
   assert.match(narrow,/#lourex-ai-panel\[dir="rtl"\] \.lourex-ai-plus-copy\{[\s\S]*?text-align:right!important/,'Arabic AI workflow copy must retain RTL alignment');
   assert.match(narrow,/@media screen and \(max-width:360px\)\{[\s\S]*?\.lourex-ai-plus-copy small\{[\s\S]*?display:none!important/,'320px AI workflow menu must remove secondary copy before compressing primary labels');
   assert.match(css,/\.ta-business-health-card/,'Business Health production card repair is missing');
