@@ -23,6 +23,14 @@ test('v482 runs after v481 and also owns the real production cascade after v332'
   assert.match(finalize,/criticalDocumentsRuntime,v482MobileRepair/,'v482 stylesheet is not included in final service-worker precache verification');
 });
 
+test('v482 TailAdmin QA mirrors the production owner cascade and checks AI overlap',async()=>{
+  const runner=await read('tests/visual/run-tailadmin-v320.cjs');
+  assert.match(runner,/productionVisualOwners=\[[\s\S]*?name:'v331'[\s\S]*?name:'v332'[\s\S]*?name:'v482'/,'TailAdmin QA does not mirror v331 -> v332 -> v482');
+  assert.match(runner,/applyProductionVisualOwners\(page\)/,'TailAdmin QA never applies the production owner cascade');
+  assert.match(runner,/qaOwnerOrder\.join\(','\)!=='v331,v332,v482'/,'TailAdmin QA does not enforce owner order');
+  assert.match(runner,/titleActionsOverlap/,'TailAdmin QA does not guard LOUREX AI header overlap');
+});
+
 test('v482 repairs the production mobile surfaces reported from iPhone screenshots',async()=>{
   const css=await read('src/styles/v482-mobile-ux-repair.css');
   assert.match(css,/\.ta-documents-header-actions\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/,'Documents command grid repair is missing');
