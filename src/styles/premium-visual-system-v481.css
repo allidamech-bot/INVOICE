@@ -255,16 +255,16 @@
     display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;
   }
   html body #root.app-ui .workspace-shell.screen-home .ta-kpi-card{
-    --lx481-tone:var(--lx481-primary);
+    --lx481-tone:var(--lx481-emerald);
     min-height:128px!important;position:relative!important;overflow:hidden!important;
-    display:grid!important;grid-template-columns:40px minmax(0,1fr)!important;align-content:start!important;gap:10px!important;
+    display:grid!important;grid-template-columns:minmax(0,1fr)!important;align-content:start!important;gap:10px!important;
     padding:13px!important;border:1px solid color-mix(in srgb,var(--lx481-tone) 32%,var(--lx481-line))!important;border-radius:20px!important;
     background:
       radial-gradient(120px 90px at 108% -6%,color-mix(in srgb,var(--lx481-tone) 18%,transparent),transparent 74%),
       linear-gradient(155deg,var(--lx481-surface-2),var(--lx481-surface))!important;
     color:var(--lx481-text)!important;box-shadow:var(--lx481-shadow)!important;
   }
-  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-card:nth-child(2){--lx481-tone:var(--lx481-emerald);}
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-card:nth-child(2){--lx481-tone:var(--lx481-primary);}
   html body #root.app-ui .workspace-shell.screen-home .ta-kpi-card:nth-child(3){--lx481-tone:var(--lx481-violet);}
   html body #root.app-ui .workspace-shell.screen-home .ta-kpi-card:nth-child(4){--lx481-tone:var(--lx481-rose);}
   html body #root.app-ui .workspace-shell.screen-home .ta-kpi-card::after{
@@ -277,6 +277,18 @@
   }
   html body #root.app-ui .workspace-shell.screen-home .ta-kpi-card :is(strong,b){color:var(--lx481-text)!important;}
   html body #root.app-ui .workspace-shell.screen-home .ta-kpi-card :is(small,p,span){color:var(--lx481-muted)!important;}
+
+  /* The icon occupies the label band; monetary values use the full card width.
+     Multi-currency balances must never clip underneath the decorative orbit. */
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-icon{
+    position:absolute!important;inset-block-start:13px;inset-inline-start:13px;
+  }
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-copy{position:relative;gap:8px!important;}
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-copy>small{padding-inline-start:50px;min-height:30px;display:flex;align-items:center;}
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-money-stack b{
+    font-size:clamp(17px,4.6vw,21px)!important;white-space:normal!important;overflow-wrap:anywhere;direction:ltr;text-align:start;
+  }
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-copy em{color:var(--lx481-tone)!important;}
 
   /* Quick launcher: compact navigation instruments, not another hero-size section. */
   html body #root.app-ui .workspace-shell.screen-home .ta-quick-actions{

@@ -1,9 +1,10 @@
-/* LOUREX v485 — screenshot-driven visible UI corrections.
-   This owner intentionally sits after v484. It fixes the exact surfaces visible in
-   the Oct 2 production screenshots: centered document filter tiles, non-black
-   dark hierarchy, More sheet depth, and a genuinely activated desktop/iPad
-   premium dashboard. Presentation only; no runtime/business logic changes. */
-
+/* Approved LOUREX screenshot language, extended in the existing visible-UI owner.
+   Keep the Dashboard hero, KPI composition and floating dock in their current
+   component owners. Workspace surfaces and command layers are owned here.
+   Screen only: document paper, PDF templates and print layouts are excluded.
+   Important declarations bridge historical owners already using important;
+   no new stylesheet, runtime owner or business behavior is introduced. */
+@media screen {
 :root{
   --lx485-canvas:#0a1826;
   --lx485-canvas-2:#0d2032;
@@ -18,7 +19,7 @@
   --lx485-line:rgba(140,179,228,.21);
   --lx485-line-strong:rgba(145,190,247,.34);
   --lx485-blue:#72a4ff;
-  --lx485-blue-strong:#4c82e5;
+  --lx485-blue-strong:#3975e8;
   --lx485-shadow:0 16px 42px rgba(0,6,14,.24),inset 0 1px 0 rgba(255,255,255,.04);
 
   --lx484-canvas:var(--lx485-canvas)!important;
@@ -64,6 +65,14 @@
   --ft-line:var(--lx485-line)!important;
   --ft-line-strong:var(--lx485-line-strong)!important;
   --ft-accent:var(--lx485-blue)!important;
+  /* Native business modules consume these aliases; they share the same palette. */
+  --text-primary:var(--lx485-text)!important;
+  --text-secondary:var(--lx485-text-2)!important;
+  --text-muted:var(--lx485-muted)!important;
+  --surface-elevated:var(--lx485-surface-3)!important;
+  --surface-muted:var(--lx485-canvas-2)!important;
+  --border-subtle:var(--lx485-line)!important;
+  --accent-primary:var(--lx485-blue)!important;
 }
 
 html[data-ui-theme="light"]{
@@ -84,269 +93,256 @@ html[data-ui-theme="light"]{
   --lx485-shadow:0 14px 36px rgba(37,70,113,.09),inset 0 1px 0 rgba(255,255,255,.96);
 }
 
+
+/* Canvas → workspace → card → control. All colors resolve from one palette. */
 html,body,#root,
-html body #root.app-ui .workspace-shell:not(.is-editor),
-html body #root.app-ui .ta-shell{
-  background-color:var(--lx485-canvas)!important;
-  color:var(--lx485-text)!important;
+html body #root.app-ui :is(.workspace-shell,.ta-shell){
+  background-color:var(--lx485-canvas)!important;color:var(--lx485-text)!important;
 }
-
 html body #root.app-ui .workspace-shell:not(.is-editor) .ta-main{
-  background-color:var(--lx485-canvas)!important;
-  background-image:
-    radial-gradient(720px 420px at 100% -5%,rgba(87,143,242,.15),transparent 69%),
-    radial-gradient(520px 340px at -10% 50%,rgba(45,196,215,.055),transparent 72%),
-    linear-gradient(180deg,var(--lx485-canvas) 0%,var(--lx485-canvas-2) 52%,var(--lx485-canvas) 100%)!important;
+  background:radial-gradient(760px 420px at 100% -5%,rgba(87,143,242,.10),transparent 72%),var(--lx485-canvas)!important;
+}
+html body #root.app-ui :is(.ta-finance-dashboard,.ta-documents-page,.ta-customers-page,.ta-products-workspace,.ta-reports-page,.domain-workspace,.lx-pipeline-page){
+  min-width:0;background:transparent!important;color:var(--lx485-text)!important;
+}
+html body #root.app-ui :is(.ta-sidebar,.ta-topbar){
+  background:var(--lx485-canvas-2)!important;border-color:var(--lx485-line)!important;color:var(--lx485-text)!important;
+}
+html body #root.app-ui :is(.ta-page-title strong,.ta-sidebar-brand strong){color:var(--lx485-text)!important;}
+html body #root.app-ui :is(.ta-sidebar-nav .ta-nav-item.is-active,.ta-sidebar-nav .ta-nav-item[aria-current="page"]){
+  background:color-mix(in srgb,var(--lx485-blue) 14%,var(--lx485-surface))!important;
+  border-color:var(--lx485-line-strong)!important;color:var(--lx485-text)!important;
 }
 
-/* The reported Documents page has a black well around the hero/register.
-   Give the workspace itself a transparent navy context instead of a black slab. */
-html[data-ui-theme="dark"] body #root.app-ui :is(.ta-documents-page,.ta-customers-page,.lx-pipeline-page){
-  background:transparent!important;
-  color:var(--lx485-text)!important;
+/* Compact workspace headers inherit the hero's atmosphere without its scale. */
+html body #root.app-ui :is(.ta-documents-header,.ta-customers-header,.ta-customer-profile-hero,.ta-products-workspace-header,.ta-product-page-header,.ta-ops-page-header,.ta-page-header,.ta-settings-page-header,.lx-pipeline-topbar){
+  position:relative;min-width:0;min-height:0!important;padding:20px!important;
+  border:1px solid var(--lx485-line-strong)!important;border-radius:24px!important;
+  background:radial-gradient(360px 200px at 100% 0%,color-mix(in srgb,var(--lx485-blue) 12%,transparent),transparent 75%),linear-gradient(150deg,var(--lx485-surface-2),var(--lx485-surface))!important;
+  color:var(--lx485-text)!important;box-shadow:var(--lx485-shadow)!important;
 }
-
-html[data-ui-theme="dark"] body #root.app-ui :is(
-  .ta-documents-header,.ta-customers-header,.lx-pipeline-topbar,
-  .ta-documents-toolbar,.ta-doc-commandbar,.ta-customers-toolbar,
-  .ta-documents-list,.ta-documents-table,.ta-customers-list
-){
-  border-color:var(--lx485-line)!important;
+html body #root.app-ui :is(.ta-documents-header,.ta-customers-header,.ta-customer-profile-hero,.ta-products-workspace-header,.ta-product-page-header,.ta-ops-page-header,.ta-page-header,.ta-settings-page-header,.lx-pipeline-topbar) :is(h1,h2,h3){
+  color:var(--lx485-text)!important;line-height:1.4!important;
 }
+html body #root.app-ui :is(.ta-documents-header,.ta-customers-header,.ta-products-workspace-header,.ta-product-page-header,.ta-ops-page-header,.ta-page-header,.ta-settings-page-header) :is(p,small){color:var(--lx485-muted)!important;}
 
-/* Exact correction requested by the user: the document type/status tiles must be
-   geometrically centered and never enter the viewport half-clipped. */
-html body #root.app-ui .ta-doc-type-tabs{
-  -webkit-mask-image:none!important;
-  mask-image:none!important;
-  border:1px solid var(--lx485-line)!important;
+/* Cards: restrained orbital identity for metrics; clean productivity panels. */
+html body #root.app-ui :is(.ta-documents-toolbar,.ta-doc-commandbar,.ta-customers-toolbar,.ta-customer-panel,.ta-products-toolbar,.ta-product-commandbar,.ta-product-register,.ta-product-page-note,.ta-product-detail,.ta-ops-panel,.ta-ops-list-card,.ta-finance-card,.ta-panel,.ta-report-filterbar,.ta-settings-card,.lx-360-card,.lx-inventory-plan-preview,.lx-inventory-plan-toolbar,.lx-pipeline-column){
+  min-width:0;border:1px solid var(--lx485-line)!important;border-radius:20px!important;
   background:linear-gradient(155deg,var(--lx485-surface-2),var(--lx485-surface))!important;
-  box-shadow:var(--lx485-shadow)!important;
+  color:var(--lx485-text)!important;box-shadow:var(--lx485-shadow)!important;
+}
+html body #root.app-ui :is(.ta-doc-row,.ta-customer-row,.ta-customer-card,.ta-product-row,.ta-ops-row,.ta-account-row,.lx-pipeline-card,.lx-inventory-plan-row){
+  min-width:0;border-color:var(--lx485-line)!important;background:var(--lx485-surface)!important;color:var(--lx485-text)!important;
+}
+html body #root.app-ui :is(.ta-doc-row,.ta-customer-row,.ta-product-row,.ta-ops-row,.ta-account-row):hover{background:var(--lx485-surface-2)!important;}
+html body #root.app-ui :is(.ta-customer-panel,.ta-product-register,.ta-ops-panel,.ta-panel,.ta-settings-card,.lx-360-card) :is(h2,h3,h4){color:var(--lx485-text)!important;}
+html body #root.app-ui :is(.ta-doc-row,.ta-customer-row,.ta-product-row,.ta-ops-row,.ta-account-row,.lx-pipeline-card) :is(strong,b){color:var(--lx485-text)!important;}
+html body #root.app-ui :is(.ta-doc-row,.ta-customer-row,.ta-product-row,.ta-ops-row,.ta-account-row) small{color:var(--lx485-muted)!important;}
+html body #root.app-ui :is(.ta-customer-avatar,.ta-customer-profile-avatar,.ta-product-row-icon,.ta-ops-row-icon,.ta-avatar){
+  background:color-mix(in srgb,var(--lx485-blue) 12%,var(--lx485-surface-3))!important;color:var(--lx485-blue)!important;border-color:var(--lx485-line-strong)!important;
+}
+html body #root.app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-metrics,.ta-customers-summary,.ta-report-kpi-grid){background:transparent!important;box-shadow:none!important;border:0!important;}
+html body #root.app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-metrics,.ta-customers-summary,.ta-report-kpi-grid)>*,
+html body #root.app-ui :is(.ta-finance-kpi,.lx-inventory-plan-summary){
+  --metric-tone:var(--lx485-blue);position:relative;overflow:hidden;min-width:0;
+  border:1px solid color-mix(in srgb,var(--metric-tone) 30%,var(--lx485-line))!important;border-radius:20px!important;
+  background:radial-gradient(120px 100px at 100% 0%,color-mix(in srgb,var(--metric-tone) 12%,transparent),transparent 76%),linear-gradient(150deg,var(--lx485-surface-2),var(--lx485-surface))!important;
+  color:var(--lx485-text)!important;box-shadow:var(--lx485-shadow)!important;
+}
+html body #root.app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-metrics,.ta-customers-summary,.ta-report-kpi-grid)>*:nth-child(2){--metric-tone:#52baa5;}
+html body #root.app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-metrics,.ta-customers-summary,.ta-report-kpi-grid)>*:nth-child(3){--metric-tone:#9b89df;}
+html body #root.app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-metrics,.ta-customers-summary,.ta-report-kpi-grid)>*:nth-child(4){--metric-tone:#d87991;}
+html body #root.app-ui :is(.ta-report-kpi,.ta-product-metrics>*,.ta-products-overview>*,.ta-customers-summary>*,.ta-ops-metrics>*) :is(strong,b){color:var(--lx485-text)!important;}
+html body #root.app-ui :is(.ta-report-kpi,.ta-product-metrics>*,.ta-products-overview>*,.ta-customers-summary>*,.ta-ops-metrics>*) small{color:var(--lx485-muted)!important;}
+html body #root.app-ui :is(.ta-product-metric-icon,.ta-products-overview-icon,.ta-ops-metric-icon,.ta-customers-summary-icon){
+  border-color:color-mix(in srgb,var(--metric-tone) 35%,var(--lx485-line))!important;background:color-mix(in srgb,var(--metric-tone) 10%,var(--lx485-surface-3))!important;color:var(--metric-tone)!important;
+}
+
+/* Document filters remain fully visible; local tables retain their own scrolling. */
+html body #root.app-ui .ta-doc-type-tabs{
+  -webkit-mask-image:none!important;mask-image:none!important;overflow:visible!important;
+  border:1px solid var(--lx485-line)!important;background:var(--lx485-surface)!important;border-radius:18px!important;
 }
 html body #root.app-ui .ta-doc-type-tabs>button{
-  border:1px solid var(--lx485-line)!important;
-  background:var(--lx485-surface-3)!important;
-  color:var(--lx485-text-2)!important;
-  justify-content:center!important;
-  text-align:center!important;
+  border:1px solid var(--lx485-line)!important;background:var(--lx485-surface-3)!important;color:var(--lx485-text-2)!important;justify-content:center!important;text-align:center!important;
 }
-html body #root.app-ui .ta-doc-type-tabs>button.is-active,
-html body #root.app-ui .ta-doc-type-tabs>button[aria-selected="true"]{
-  border-color:color-mix(in srgb,var(--lx485-blue) 56%,var(--lx485-line))!important;
-  background:linear-gradient(145deg,color-mix(in srgb,var(--lx485-blue) 20%,var(--lx485-surface-3)),var(--lx485-surface-3))!important;
-  color:var(--lx485-text)!important;
+html body #root.app-ui :is(.ta-domain-tabs,.ta-ops-tabs,.ta-finance-tabs,.ta-report-workspace-tabs,.ta-settings-nav,.lx-pipeline-tabs){
+  border-color:var(--lx485-line)!important;background:var(--lx485-canvas-2)!important;
 }
+html body #root.app-ui :is(.ta-doc-type-tabs,.ta-domain-tabs,.ta-ops-tabs,.ta-finance-tabs,.ta-report-workspace-tabs,.ta-settings-nav,.lx-pipeline-tabs)>button{
+  min-height:44px;border-radius:12px!important;color:var(--lx485-text-2)!important;
+}
+html body #root.app-ui :is(.ta-doc-type-tabs,.ta-domain-tabs,.ta-ops-tabs,.ta-finance-tabs,.ta-report-workspace-tabs,.ta-settings-nav,.lx-pipeline-tabs)>button:is(.is-active,[aria-selected="true"]){
+  border-color:var(--lx485-line-strong)!important;background:color-mix(in srgb,var(--lx485-blue) 15%,var(--lx485-surface-3))!important;color:var(--lx485-text)!important;
+}
+html body #root.app-ui .ta-documents-header-actions{width:min(100%,520px)!important;max-width:520px!important;margin-inline:auto!important;justify-self:center!important;}
+html body #root.app-ui :is(.ta-doc-table-head,.ta-product-table-head,.ta-product-register-header,.ta-report-kpi>header,.ta-table thead,.ta-panel-header,.ta-ops-panel-head,.ta-settings-card-header){
+  border-color:var(--lx485-line)!important;background:var(--lx485-surface-2)!important;color:var(--lx485-muted)!important;
+}
+html body #root.app-ui :is(.ta-table td,.ta-table th,.ta-customer-facts>*,.ta-product-facts>*){border-color:var(--lx485-line)!important;}
+html body #root.app-ui .ta-report-presets{background:transparent!important;}
+html body #root.app-ui .ta-report-presets>button{background:var(--lx485-surface-3)!important;border-color:var(--lx485-line)!important;color:var(--lx485-text-2)!important;}
+html body #root.app-ui .ta-report-presets>button[aria-pressed="true"]{border-color:var(--lx485-line-strong)!important;color:var(--lx485-text)!important;}
+html body #root.app-ui :is(.ta-report-kpi>header,.ta-product-register-header) :is(span,h2){color:var(--lx485-text)!important;}
+html body #root.app-ui :is(.ta-report-kpi-secondary,.ta-report-kpi-primary,.ta-report-currency){background:transparent!important;border-color:var(--lx485-line)!important;}
+html body #root.app-ui .ta-doc-type-tabs>button b{background:var(--lx485-surface-2)!important;color:var(--lx485-text-2)!important;}
 
-/* The black creation buttons inside the Documents hero were visually collapsing
-   into the page. Give non-primary actions their own elevated blue-graphite layer. */
-html[data-ui-theme="dark"] body #root.app-ui .ta-documents-header-actions>:is(button,.btn):not(.btn-primary){
-  border-color:var(--lx485-line-strong)!important;
-  background-color:var(--lx485-surface-3)!important;
-  background-image:linear-gradient(145deg,var(--lx485-elevated),var(--lx485-surface-3))!important;
-  color:var(--lx485-text)!important;
-  box-shadow:0 9px 22px rgba(0,7,16,.20),inset 0 1px 0 rgba(255,255,255,.045)!important;
-}
-html body #root.app-ui .ta-documents-header-actions>.btn-primary{
-  border-color:rgba(164,199,255,.62)!important;
-  background:linear-gradient(135deg,#79a8fa,#5689e7)!important;
-  color:#08111d!important;
-  box-shadow:0 14px 30px rgba(47,103,207,.30),inset 0 1px 0 rgba(255,255,255,.24)!important;
-}
+html body #root.app-ui :is(.ta-table-wrap,.ta-inventory-table){max-width:100%;overscroll-behavior-inline:contain;}
 
-html[data-ui-theme="dark"] body #root.app-ui :is(
-  .ta-documents-filterbar,.ta-doc-search,.ta-doc-sort,.ta-doc-filter-button,
-  .ta-customers-search,.ta-customers-sort
-){
-  border-color:var(--lx485-line)!important;
-  background-color:var(--lx485-surface-2)!important;
-  color:var(--lx485-text)!important;
+/* Shared controls are scoped to app forms: never recolor rendered document paper. */
+html body #root.app-ui :is(.btn,.icon-btn){min-height:44px;border-radius:13px!important;}
+html body #root.app-ui .btn:not(.btn-primary):not(.btn-danger):not(.btn-ghost){
+  border-color:var(--lx485-line-strong)!important;background:var(--lx485-surface-3)!important;color:var(--lx485-text-2)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)!important;
 }
+html body #root.app-ui .btn.btn-primary{
+  background:linear-gradient(135deg,#619dff,#3975e8)!important;background-color:#3975e8!important;border:1px solid rgba(168,202,255,.48)!important;
+  color:#fff!important;box-shadow:0 8px 20px rgba(47,106,224,.18),inset 0 1px 0 rgba(255,255,255,.20)!important;
+}
+html body #root.app-ui .btn.btn-danger{background:color-mix(in srgb,#da7088 12%,var(--lx485-surface))!important;border-color:rgba(218,112,136,.35)!important;color:#ed91a4!important;}
+html[data-ui-theme="light"] body #root.app-ui .btn.btn-danger{color:#ac3652!important;}
+html body #root.app-ui :is(.btn-ghost,.icon-btn){color:var(--lx485-text-2)!important;}
+html body #root.app-ui :is(.input,.ta-doc-search,.ta-customers-search,.ta-customers-sort,.ta-product-search,.ta-product-sort,.ta-product-filter,.ta-ops-search,.ta-search-field,.ta-date-input){
+  border:1px solid var(--lx485-line)!important;border-radius:12px!important;background:var(--lx485-canvas-2)!important;color:var(--lx485-text)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)!important;
+}
+html body #root.app-ui :is(.ta-doc-search,.ta-customers-search,.ta-product-search,.ta-ops-search,.ta-search-field) input{
+  border:0!important;background:transparent!important;color:var(--lx485-text)!important;
+}
+html body #root.app-ui .field-label{color:var(--lx485-text-2)!important;}
+html body #root.app-ui .input::placeholder{color:var(--lx485-muted)!important;opacity:1;}
+html body #root.app-ui :is(.input,.btn,.icon-btn):focus-visible{
+  outline:2px solid var(--lx485-blue)!important;outline-offset:3px;box-shadow:0 0 0 4px color-mix(in srgb,var(--lx485-blue) 12%,transparent)!important;
+}
+html body #root.app-ui .input[aria-invalid="true"]{border-color:#d87991!important;}
 
-/* More sheet: three readable layers, no charcoal-on-charcoal blocks. */
-html[data-ui-theme="dark"] body #root.app-ui .ta-mobile-sheet{
-  border-color:var(--lx485-line-strong)!important;
-  background:#102235!important;
-  color:var(--lx485-text)!important;
-  box-shadow:0 32px 90px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.045)!important;
+/* Editor: quiet navy workspace, clearer panels, original paper and behavior. */
+html body #root.app-ui :is(.editor-screen,.editor-pane,.editor-scroll){background:var(--lx485-canvas-2)!important;color:var(--lx485-text)!important;}
+html body #root.app-ui :is(.editor-topbar,.preview-toolbar,.mobile-action-bar){background:var(--lx485-surface)!important;border-color:var(--lx485-line)!important;color:var(--lx485-text)!important;}
+html body #root.app-ui :is(.editor-section,.editor-item-card,.item-card,.selected-customer,.editor-totals,.advanced-panel){
+  background:var(--lx485-surface)!important;border:1px solid var(--lx485-line)!important;border-radius:18px!important;box-shadow:none!important;color:var(--lx485-text)!important;
 }
-html[data-ui-theme="dark"] body #root.app-ui .ta-mobile-sheet :is(.ta-sheet-account,.ta-sheet-link,.ta-sheet-theme,.ta-sheet-theme .mf-theme-toggle){
-  border-color:var(--lx485-line)!important;
-  background:#1a3047!important;
-  color:var(--lx485-text)!important;
+html body #root.app-ui :is(.editor-section,.editor-totals,.editor-topbar) :is(h2,h3,strong){color:var(--lx485-text)!important;}
+html body #root.app-ui .editor-section .section-heading{border-color:var(--lx485-line)!important;}
+html body #root.app-ui :is(.editor-section .section-heading>span,.editor-section-nav-slot button>span,.save-indicator){
+  background:var(--lx485-surface-3)!important;border-color:var(--lx485-line-strong)!important;color:var(--lx485-text-2)!important;
 }
-html[data-ui-theme="dark"] body #root.app-ui .ta-mobile-sheet :is(.ta-sheet-workspace,.lx-workspace-switcher){
-  border-color:color-mix(in srgb,var(--lx485-blue) 34%,var(--lx485-line))!important;
-  background:#132a41!important;
+html body #root.app-ui .ta-settings-shell{background:var(--lx485-canvas-2)!important;color:var(--lx485-text)!important;}
+html body #root.app-ui .ta-settings-sidebar{background:var(--lx485-canvas-2)!important;border-color:var(--lx485-line)!important;}
+
+html body #root.app-ui .editor-totals .grand{background:color-mix(in srgb,var(--lx485-blue) 10%,var(--lx485-surface-3))!important;border-color:var(--lx485-line-strong)!important;color:var(--lx485-text)!important;}
+
+/* Sheets/forms share outer depth; inner sections stay quiet, never black slabs. */
+html body #root.app-ui :is(.modal,.ta-mobile-sheet,.ta-create-menu-mobile),
+html body .global-search-panel{
+  border:1px solid var(--lx485-line-strong)!important;border-radius:26px!important;
+  background:radial-gradient(340px 180px at 100% 0%,color-mix(in srgb,var(--lx485-blue) 9%,transparent),transparent 75%),var(--lx485-surface)!important;
+  color:var(--lx485-text)!important;box-shadow:0 28px 75px rgba(0,6,18,.32)!important;
 }
-html[data-ui-theme="dark"] body #root.app-ui .ta-mobile-sheet .ta-sheet-group>p{
-  color:#8fa9c6!important;
+html body #root.app-ui :is(.modal-header,.modal-footer,.ta-sheet-header,.ta-create-menu-heading){
+  border-color:var(--lx485-line)!important;background:transparent!important;color:var(--lx485-text)!important;
+}
+html body #root.app-ui :is(.modal-header h2,.ta-sheet-header strong){color:var(--lx485-text)!important;}
+html body #root.app-ui :is(.ta-customer-form-section,.ta-product-editor-section,.ta-ops-form-section,.ta-settings-card-body,.ta-settings-content,.ta-settings-page,.ta-sheet-group){
+  background:transparent!important;color:var(--lx485-text)!important;border-color:var(--lx485-line)!important;
+}
+html body #root.app-ui :is(.ta-sheet-link,.ta-sheet-account,.ta-sheet-theme,.ta-sheet-workspace,.ta-create-menu-grid button,.ta-settings-asset,.ta-settings-note,.ta-numbering-preview,.ta-account-summary,.ta-customer-form-icon){
+  background:var(--lx485-surface-3)!important;border-color:var(--lx485-line)!important;color:var(--lx485-text)!important;
+}
+html body #root.app-ui :is(.ta-sheet-link,.ta-sheet-account) :is(strong,b){color:var(--lx485-text)!important;}
+html body #root.app-ui :is(.ta-sheet-link,.ta-sheet-account) small{color:var(--lx485-muted)!important;white-space:normal!important;line-height:1.55!important;}
+html body #root.app-ui .ta-sheet-link-icon{color:var(--lx485-blue)!important;background:color-mix(in srgb,var(--lx485-blue) 12%,var(--lx485-surface-2))!important;border-color:var(--lx485-line-strong)!important;}
+html body #root.app-ui .ta-sheet-group>p{color:var(--lx485-muted)!important;}
+html body #root.app-ui .ta-sheet-header>button{background:var(--lx485-surface-3)!important;color:var(--lx485-text)!important;}
+
+/* Search is also the central Create surface. Keep its header and close visible. */
+html body .global-search-input-wrap{
+  position:relative!important;top:auto!important;display:grid!important;grid-template-columns:22px minmax(0,1fr) 44px!important;
+  padding:6px 0 12px!important;gap:8px!important;background:transparent!important;border-color:var(--lx485-line)!important;
+}
+html body .global-search-panel .global-search-input-wrap input{
+  min-width:0;min-height:44px!important;height:44px!important;padding-inline:12px!important;border:1px solid var(--lx485-line)!important;
+  border-radius:13px!important;background:var(--lx485-canvas-2)!important;color:var(--lx485-text)!important;
+}
+html body .global-search-close{width:44px;height:44px;border:1px solid var(--lx485-line);border-radius:13px;background:var(--lx485-surface-3);color:var(--lx485-text);display:grid;place-items:center;}
+html body .global-search-input-wrap>svg{color:var(--lx485-blue)!important;}
+html body :is(.global-search-start,.global-search-results){min-height:0!important;min-width:0;overscroll-behavior:contain;background:transparent!important;}
+html body .global-search-panel .global-search-actions>button{
+  display:flex!important;flex-direction:row!important;align-items:center!important;gap:10px!important;min-height:78px!important;padding:12px!important;
+  border:1px solid var(--lx485-line)!important;border-radius:17px!important;background:linear-gradient(155deg,var(--lx485-surface-2),var(--lx485-surface-3))!important;color:var(--lx485-text)!important;text-align:start!important;
+}
+html body .global-search-panel .global-search-actions>button>svg{flex:0 0 28px;grid-column:auto!important;grid-row:auto!important;align-self:center!important;color:var(--lx485-blue)!important;}
+html body .global-search-panel .global-search-actions>button>span{min-width:0;display:grid;gap:4px;}
+html body .global-search-panel .global-search-actions>button strong{color:var(--lx485-text)!important;font-size:14px!important;line-height:1.45;}
+html body .global-search-panel .global-search-actions>button small{color:var(--lx485-muted)!important;font-size:12px!important;line-height:1.5;}
+html body :is(.global-search-destinations button,.global-search-result,.global-search-result-icon){
+  border-color:var(--lx485-line)!important;background:var(--lx485-surface-3)!important;color:var(--lx485-text-2)!important;
+}
+html body .global-search-result{grid-template-columns:42px minmax(0,1fr) 20px!important;}
+html body .global-search-result-copy strong{color:var(--lx485-text)!important;}
+html body :is(.global-search-result-copy small,.global-search-result-copy>span,.global-search-section-title,.global-search-footer){color:var(--lx485-muted)!important;}
+html body .global-search-footer{background:transparent!important;border-color:var(--lx485-line)!important;}
+
+/* Notifications, AI review and empty states belong to the same product. */
+html body #root.app-ui :is(.lx-notification-center,.lx-notification-summary,.lourex-advisor-card,.lourex-ai-panel,.ai-customer-proposal,.lx-inventory-planning){
+  border-color:var(--lx485-line-strong)!important;background:var(--lx485-surface)!important;color:var(--lx485-text)!important;
+}
+html body #root.app-ui :is(.lx-notification-item,.lx-notification-tabs,.lourex-advisor-compose,.lourex-ai-compose){
+  border-color:var(--lx485-line)!important;background:var(--lx485-surface-3)!important;color:var(--lx485-text)!important;
+}
+html body #root.app-ui :is(.empty-state,.ta-empty-card,.ta-ops-empty,.ta-product-empty,.ta-customers-empty,.ta-documents-empty,.lx-notification-empty){
+  border:1px dashed var(--lx485-line-strong)!important;border-radius:20px!important;background:color-mix(in srgb,var(--lx485-surface) 75%,transparent)!important;
+  color:var(--lx485-muted)!important;box-shadow:none!important;
+}
+html body #root.app-ui :is(.empty-state,.ta-empty-card,.ta-product-empty,.ta-customers-empty,.ta-documents-empty) :is(h2,h3,strong){color:var(--lx485-text)!important;}
+html[dir="rtl"] body #root.app-ui :is(.ta-sheet-chevron,.ta-customer-profile-back svg){transform:scaleX(-1);}
+html body #root.app-ui :is(.ta-doc-row,.ta-customer-row,.ta-sheet-link,.ta-create-menu-grid button){text-align:start!important;}
 }
 
 @media screen and (max-width:900px){
-  /* The previous horizontal scroller is what produced the half-visible tile at
-     the edge of the screenshot. On phones, use an explicit centered 2-column
-     command grid. Every tile is fully visible and 44px+ tall. */
+  html body #root.app-ui .ta-main{padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;}
+  html body #root.app-ui .workspace-shell.is-editor .ta-main{padding-bottom:0!important;}
+  html body #root.app-ui .ta-mobile-nav{background:color-mix(in srgb,var(--lx485-canvas-2) 94%,transparent)!important;border-color:var(--lx485-line-strong)!important;}
+  html[data-ui-theme="light"] body #root.app-ui .ta-mobile-nav{background:rgba(255,255,255,.95)!important;}
+  html body #root.app-ui :is(.ta-documents-header,.ta-customers-header,.ta-customer-profile-hero,.ta-products-workspace-header,.ta-product-page-header,.ta-ops-page-header,.ta-page-header,.ta-settings-page-header){padding:16px!important;border-radius:22px!important;}
+  html body #root.app-ui :is(.ta-documents-header,.ta-customers-header,.ta-products-workspace-header,.ta-product-page-header,.ta-ops-page-header,.ta-page-header) h1{font-size:clamp(24px,6.5vw,30px)!important;}
   html body #root.app-ui .ta-doc-type-tabs{
-    width:100%!important;
-    max-width:100%!important;
-    display:grid!important;
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
-    grid-auto-flow:row!important;
-    gap:8px!important;
-    padding:8px!important;
-    overflow:visible!important;
-    scroll-snap-type:none!important;
-    direction:inherit!important;
+    width:100%!important;max-width:100%!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-auto-flow:row!important;gap:8px!important;padding:8px!important;scroll-snap-type:none!important;direction:inherit!important;
   }
-  html body #root.app-ui .ta-doc-type-tabs>button{
-    width:100%!important;
-    min-width:0!important;
-    min-height:46px!important;
-    padding:8px 10px!important;
-    white-space:normal!important;
-    line-height:1.25!important;
-    scroll-snap-align:none!important;
+  html body #root.app-ui .ta-doc-type-tabs>button{width:100%!important;min-width:0!important;min-height:46px!important;padding:8px 10px!important;white-space:normal!important;line-height:1.4!important;}
+  html body #root.app-ui .ta-doc-type-tabs>button:last-child:nth-child(odd){grid-column:1/-1!important;width:min(100%,320px)!important;justify-self:center!important;}
+  html body #root.app-ui :is(.input,.ta-search-field input){font-size:16px!important;min-height:44px!important;}
+  html body #root.app-ui :is(.ta-product-form-grid,.ta-customer-form-grid,.ta-ops-form-grid){gap:12px!important;}
+  html body #root.app-ui .ta-sheet-group{grid-template-columns:1fr!important;gap:7px!important;}
+  html body #root.app-ui .ta-sheet-link{min-height:64px!important;}
+  html body #root.app-ui :is(.ta-mobile-sheet,.ta-create-menu-mobile){max-height:calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;overscroll-behavior:contain;}
+  html body #root.app-ui .modal:not(:has(.ta-settings-shell)){
+    width:100%!important;max-width:640px!important;height:auto!important;max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;border-radius:24px!important;
   }
-  html body #root.app-ui .ta-doc-type-tabs>button:last-child:nth-child(odd){
-    grid-column:1/-1!important;
-    width:min(100%,320px)!important;
-    justify-self:center!important;
+  html body #root.app-ui .modal-backdrop{align-items:flex-end!important;padding:12px 8px calc(8px + env(safe-area-inset-bottom,0px))!important;}
+  html body #root.app-ui .modal-header{padding:12px 14px!important;flex-shrink:0;}
+  html body #root.app-ui .modal-body{min-height:0;overflow:auto!important;overscroll-behavior:contain;padding:14px!important;}
+  html body #root.app-ui .modal-footer{padding:10px 14px!important;flex-shrink:0;}
+  html body .global-search-panel{
+    left:8px!important;right:8px!important;top:auto!important;bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;transform:none!important;
+    width:auto!important;max-width:none!important;height:auto!important;max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+    margin:0!important;padding:12px!important;overflow:hidden!important;
   }
-
-  html body #root.app-ui .ta-documents-header{
-    background-image:
-      radial-gradient(330px 210px at 100% 0%,rgba(114,164,255,.20),transparent 72%),
-      linear-gradient(155deg,#172f49,#10243a)!important;
-  }
-  html body #root.app-ui .ta-documents-header-actions{
-    width:min(100%,470px)!important;
-    max-width:470px!important;
-    margin-inline:auto!important;
-    justify-self:center!important;
-  }
-  html body #root.app-ui .ta-documents-header-actions>:is(button,.btn){
-    justify-content:center!important;
-    text-align:center!important;
-  }
-
-  html[data-ui-theme="dark"] body #root.app-ui :is(.ta-documents-toolbar,.ta-doc-commandbar,.ta-customers-toolbar){
-    background:linear-gradient(155deg,#152b42,#102338)!important;
-  }
-
-  html[data-ui-theme="dark"] body #root.app-ui .ta-mobile-nav{
-    background:rgba(14,32,50,.96)!important;
-    border-color:var(--lx485-line-strong)!important;
-  }
+  html body .global-search-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
+  html body :is(.global-search-start,.global-search-results){flex:1 1 auto;overflow:auto!important;padding:10px 0!important;}
+  html body .global-search-panel input{font-size:16px!important;}
+  html body .global-search-destinations button{min-height:44px!important;}
+  html body .global-search-footer{flex-shrink:0;padding:10px 0 0!important;}
 }
-
-/* iPad landscape / desktop: this is an actual visual activation, not just token
-   aliases. The dashboard, shell and cards now use the same premium navy system. */
+@media screen and (max-width:380px){
+  html body .global-search-actions{grid-template-columns:1fr!important;}
+  html body #root.app-ui .ta-customers-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  html body #root.app-ui .ta-customers-summary>div:last-child:nth-child(odd){grid-column:1/-1;}
+}
 @media screen and (min-width:901px){
-  html body #root.app-ui .ta-main{
-    padding:24px 28px 36px!important;
-    background-color:var(--lx485-canvas)!important;
-    background-image:
-      radial-gradient(920px 520px at 88% -12%,rgba(87,143,242,.14),transparent 70%),
-      linear-gradient(180deg,#0a1826 0%,#0d2032 52%,#0a1826 100%)!important;
-  }
-  html[data-ui-theme="light"] body #root.app-ui .ta-main{
-    background-image:linear-gradient(180deg,#f7faff,#f0f5fb 52%,#f5f8fc)!important;
-  }
-
-  html[data-ui-theme="dark"] body #root.app-ui .ta-sidebar{
-    background:linear-gradient(180deg,#10253a,#0c1b2b)!important;
-    border-inline-color:var(--lx485-line)!important;
-  }
-  html[data-ui-theme="dark"] body #root.app-ui .ta-topbar{
-    background:rgba(14,32,50,.94)!important;
-    border-bottom-color:var(--lx485-line)!important;
-    backdrop-filter:blur(22px) saturate(140%)!important;
-    -webkit-backdrop-filter:blur(22px) saturate(140%)!important;
-  }
-
-  html body #root.app-ui .ta-finance-dashboard{
-    width:100%!important;
-    max-width:1500px!important;
-    margin-inline:auto!important;
-    gap:16px!important;
-  }
-  html[data-ui-theme="dark"] body #root.app-ui .workspace-shell.screen-home .ta-dashboard-header{
-    min-height:190px!important;
-    border:1px solid var(--lx485-line-strong)!important;
-    border-radius:28px!important;
-    background:
-      radial-gradient(520px 280px at 92% 0%,rgba(114,164,255,.22),transparent 72%),
-      linear-gradient(135deg,#18334f 0%,#12283e 52%,#0f2134 100%)!important;
-    box-shadow:0 24px 68px rgba(0,5,12,.26),inset 0 1px 0 rgba(255,255,255,.045)!important;
-  }
-  html body #root.app-ui .workspace-shell.screen-home .ta-dashboard-heading h1{
-    color:var(--lx485-text)!important;
-    font-size:clamp(34px,3vw,46px)!important;
-    line-height:1.08!important;
-  }
-  html body #root.app-ui .workspace-shell.screen-home .ta-dashboard-heading p{color:var(--lx485-muted)!important;}
-
-  html[data-ui-theme="dark"] body #root.app-ui :is(
-    .ta-dashboard-card,.ta-kpi-card,.ta-attention-card,.ta-recent-card,
-    .ta-inventory-card,.ta-performance-card,.ta-position-card
-  ){
-    border:1px solid var(--lx485-line)!important;
-    background:linear-gradient(155deg,#172d45,#11253a)!important;
-    color:var(--lx485-text)!important;
-    box-shadow:var(--lx485-shadow)!important;
-  }
-  html[data-ui-theme="dark"] body #root.app-ui .lourex-advisor-card{
-    border:1px solid color-mix(in srgb,#32c8d8 40%,var(--lx485-line))!important;
-    background:
-      radial-gradient(520px 260px at 90% 0%,rgba(50,200,216,.12),transparent 72%),
-      linear-gradient(145deg,#183149,#12273b)!important;
-    box-shadow:0 20px 52px rgba(0,7,14,.25),0 0 0 1px rgba(50,200,216,.035)!important;
-  }
-  html[data-ui-theme="dark"] body #root.app-ui .ta-attention-card{
-    background:linear-gradient(155deg,#2a2926,#1a2733)!important;
-    border-color:rgba(232,180,90,.26)!important;
-  }
-
-  html body #root.app-ui :is(.ta-dashboard-primary-grid,.ta-dashboard-secondary-grid,.ta-kpi-grid){gap:14px!important;}
-
-  /* Desktop Documents receives the same obvious surface treatment. */
-  html[data-ui-theme="dark"] body #root.app-ui .ta-documents-header{
-    background:
-      radial-gradient(480px 260px at 96% 0%,rgba(114,164,255,.20),transparent 72%),
-      linear-gradient(145deg,#18334f,#11263c)!important;
-  }
-  html body #root.app-ui .ta-documents-header-actions{
-    width:min(100%,520px)!important;
-    max-width:520px!important;
-    margin-inline:auto!important;
-    justify-self:center!important;
-  }
-
-  /* Desktop type tabs are centered too. No edge masks or half-clipped pills. */
-  html body #root.app-ui .ta-doc-type-tabs{
-    display:flex!important;
-    flex-wrap:wrap!important;
-    justify-content:center!important;
-    align-items:center!important;
-    gap:8px!important;
-    overflow:visible!important;
-    padding:9px!important;
-  }
-  html body #root.app-ui .ta-doc-type-tabs>button{
-    flex:0 1 auto!important;
-    min-width:118px!important;
-    min-height:44px!important;
-  }
-}
-
-@media screen and (min-width:901px) and (max-width:1180px){
-  html body #root.app-ui .ta-main{padding:20px!important;}
-  html body #root.app-ui .ta-documents-header{
-    grid-template-columns:minmax(0,1fr)!important;
-    gap:18px!important;
-  }
-  html body #root.app-ui .ta-documents-header-actions{
-    width:min(100%,620px)!important;
-    max-width:620px!important;
-  }
+  html body #root.app-ui .ta-finance-dashboard{width:100%!important;max-width:1500px!important;margin-inline:auto!important;gap:16px!important;}
+  html body #root.app-ui .ta-doc-type-tabs{display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:8px!important;padding:8px!important;}
+  html body #root.app-ui .ta-doc-type-tabs>button{min-width:118px!important;min-height:44px!important;}
+  html body #root.app-ui .ta-main{padding:24px 28px 36px!important;}
+  html body .global-search-panel{padding:16px!important;}
 }
