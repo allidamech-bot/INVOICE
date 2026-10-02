@@ -1,6 +1,6 @@
 /* LOUREX v482 — narrow-screen readability supplement.
    Final presentation-only correction after 320px/390px screenshot review.
-   Keeps AI workflow copy readable in both LTR and RTL without grid-track collapse. */
+   Keeps AI workflow and More command copy readable in both LTR and RTL without grid-track collapse. */
 @media screen and (max-width:900px){
   html body #lourex-ai-panel .lourex-ai-plus-menu{
     overflow-x:hidden!important;
@@ -88,6 +88,33 @@
     text-indent:0!important;
     color:var(--lx480-muted,var(--ft-text-soft,#8fa1b8))!important;
   }
+
+  /* More can keep its efficient two-column layout on normal phones, but command
+     labels must wrap only at word boundaries. Older owners allowed emergency
+     anywhere-breaking, which produced fragments such as Produ / cts on 320px. */
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-link-copy{
+    min-width:0!important;
+    overflow:hidden!important;
+  }
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-link-copy strong{
+    display:block!important;
+    min-width:0!important;
+    max-width:100%!important;
+    white-space:normal!important;
+    overflow-wrap:normal!important;
+    word-break:normal!important;
+    hyphens:none!important;
+  }
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-link-copy small{
+    display:block!important;
+    min-width:0!important;
+    max-width:100%!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    overflow-wrap:normal!important;
+    word-break:normal!important;
+  }
 }
 
 @media screen and (max-width:360px){
@@ -112,5 +139,28 @@
   }
   html body #lourex-ai-panel .lourex-ai-plus-copy small{
     display:none!important;
+  }
+
+  /* At 320px a two-column More grid leaves roughly 80–95px of usable text after
+     the icon. Use one readable command per row instead of breaking English words
+     into arbitrary character fragments. Arabic benefits from the same geometry. */
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-group{
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:6px!important;
+  }
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-group>p{
+    grid-column:1!important;
+  }
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-link{
+    width:100%!important;
+    min-width:0!important;
+    min-height:58px!important;
+    grid-template-columns:42px minmax(0,1fr) 16px!important;
+    gap:9px!important;
+    padding:8px 10px!important;
+  }
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-link-copy strong{
+    font-size:13.5px!important;
+    line-height:1.25!important;
   }
 }
