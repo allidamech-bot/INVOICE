@@ -38,8 +38,10 @@ test('one stable visual foundation owns the active product cascade',async()=>{
 
   assert.match(index,/styles\/lourex-visual-foundation\.css\?v=foundation-1/,'source HTML must load the stable visual owner');
   assert.match(pkg,/runtime-auth-transition-finalize\.mjs && node scripts\/visual-foundation-finalize\.mjs/,'build must end with runtime separation and the stable visual finalizer');
-  assert.match(build,/sourceStyleNames\.at\(-1\)!=='lourex-visual-foundation\.css'/,'source build must enforce the canonical visual owner position');
-  assert.match(build,/standaloneRuntimeStyles=new Set\([^)]*lourex-visual-foundation\.css/s,'canonical visual owner must remain standalone, not duplicated in the bundle');
+  assert.match(build,/const foundationOwner='lourex-visual-foundation\.css'/,'source build must declare the canonical visual owner');
+  assert.match(build,/sourceStyleNames\.at\(-1\)!==foundationOwner/,'source build must enforce the canonical visual owner position');
+  assert.match(build,/const reliabilityIndex=sourceStyleNames\.indexOf\(reliabilityOwner\);[\s\S]*reliabilityIndex>=foundationIndex/,'source build must enforce reliability before the final visual owner');
+  assert.match(build,/standaloneRuntimeStyles=new Set\([\s\S]*foundationOwner[\s\S]*\)/,'canonical visual owner must remain standalone, not duplicated in the bundle');
   assert.match(finalize,/src\/styles\/lourex-visual-foundation\.css/,'production finalizer must read the stable source owner');
   assert.match(finalize,/dist\/styles\/lourex-visual-foundation\.css/,'production finalizer must emit one stable production owner');
 
@@ -52,6 +54,7 @@ test('one stable visual foundation owns the active product cascade',async()=>{
 
   assert.doesNotMatch(bridge,/executive-.*v480/,'runtime reliability bridge must not own executive presentation');
   assert.match(bridge,/mobile-ux-functional-hardening-v363\.css/,'functional mobile hardening must remain available');
+  assert.ok(foundation.includes('--app-canvas'),'foundation must expose semantic application tokens');
 });
 
 test('semantic tokens and one intentional responsive strategy define the visual system',async()=>{
