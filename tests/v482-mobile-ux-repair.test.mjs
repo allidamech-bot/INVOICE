@@ -44,6 +44,8 @@ test('v482 repairs the production mobile surfaces reported from iPhone screensho
   assert.match(css,/#lourex-ai-panel \.lourex-ai-head\{[\s\S]*?grid-template-columns:minmax\(0,1fr\) auto!important/,'AI header overlap repair is missing');
   assert.match(css,/#lourex-ai-panel \.lourex-ai-close\{[\s\S]*?position:static!important/,'AI close control must remain in header flow');
   assert.match(css,/\.ta-sheet-link\{[\s\S]*?min-height:62px!important/,'More sheet command sizing repair is missing');
+  assert.match(css,/@media screen and \(max-width:360px\)\{[\s\S]*?\.ta-sheet-group\{grid-template-columns:minmax\(0,1fr\)!important;\}/,'320px More sheet must collapse command groups to one readable column');
+  assert.match(css,/@media screen and \(max-width:360px\)\{[\s\S]*?\.ta-sheet-link-copy strong\{overflow-wrap:normal!important;word-break:normal!important;hyphens:none!important;\}/,'narrow More labels must not split words');
   assert.match(css,/\.ta-business-health-card/,'Business Health production card repair is missing');
   assert.match(css,/\.ta-range-control/,'Dashboard analytics control repair is missing');
   assert.match(css,/html\[data-ui-theme="light"\][\s\S]*?background:#fff!important/,'Light mode clean surface repair is missing');
