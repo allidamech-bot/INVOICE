@@ -132,34 +132,30 @@
   ){padding-bottom:24px!important}
 
   /* The executive stack must not let older Hostinger-era violet actions re-enter
-     the mobile Operations workflow. The current workspace accent remains the
-     canonical primary action color in supplier, purchase and expense editors. */
-  html body .app-ui .ta-operations-page .ta-ops-panel-head :is(.btn-primary,button.btn-primary),
-  html body .app-ui .ta-operations-page .ta-ops-split :is(.btn.btn-primary,button.btn-primary){
-    background:var(--ft-accent)!important;
-    background-image:none!important;
-    border-color:var(--ft-accent)!important;
-    color:var(--ft-on-accent,#fff)!important;
-    box-shadow:none!important;
-  }
-  html body .app-ui .ta-operations-page .ta-ops-panel-head :is(.btn-primary,button.btn-primary):is(:hover,:active):not(:disabled),
-  html body .app-ui .ta-operations-page .ta-ops-split :is(.btn.btn-primary,button.btn-primary):is(:hover,:active):not(:disabled){
-    background:var(--ft-accent)!important;
-    background-image:none!important;
-    border-color:var(--ft-accent)!important;
-    color:var(--ft-on-accent,#fff)!important;
-    box-shadow:none!important;
-  }
-
-  /* Light-mode v480 is canonical Premium Blue. A retired Hostinger scope can still
-     provide a local violet --ft-accent inside the legacy Operations fixture, so do
-     not re-resolve that stale custom property for the final mobile primary action. */
-  html[data-ui-theme="light"] body .app-ui section.ta-operations-page div.ta-ops-split section.ta-ops-list-card header.ta-ops-panel-head button.btn.btn-primary,
-  html[data-ui-theme="light"] body .app-ui section.ta-operations-page div.ta-ops-split :is(button.btn.btn-primary,.btn.btn-primary){
+     the mobile Operations workflow. Keep the final ownership on the real #root so
+     historical class-only !important rules cannot outrank the canonical palette. */
+  html[data-ui-theme="light"] body #root.app-ui .ta-operations-page .ta-ops-panel-head .btn.btn-primary,
+  html[data-ui-theme="light"] body #root.app-ui .ta-operations-page .ta-ops-split .btn.btn-primary{
     background:#315DA8!important;
     background-image:none!important;
     border-color:#315DA8!important;
     color:#FFFFFF!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="light"] body #root.app-ui .ta-operations-page .ta-ops-panel-head .btn.btn-primary:is(:hover,:active):not(:disabled),
+  html[data-ui-theme="light"] body #root.app-ui .ta-operations-page .ta-ops-split .btn.btn-primary:is(:hover,:active):not(:disabled){
+    background:#315DA8!important;
+    background-image:none!important;
+    border-color:#315DA8!important;
+    color:#FFFFFF!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body #root.app-ui .ta-operations-page .ta-ops-panel-head .btn.btn-primary,
+  html[data-ui-theme="dark"] body #root.app-ui .ta-operations-page .ta-ops-split .btn.btn-primary{
+    background:#7399E3!important;
+    background-image:none!important;
+    border-color:#7399E3!important;
+    color:#0D0D0D!important;
     box-shadow:none!important;
   }
 }
