@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <base href="../../dist/">
+  <link rel="stylesheet" href="styles/app.bundle.css">
+  <title>v483 Documents density QA</title>
+</head>
+<body>
+  <div id="root" class="app-ui"></div>
+  <script src="vendor/react.production.min.js"></script>
+  <script src="vendor/react-dom.production.min.js"></script>
+  <script type="module">
+    import {DocumentsPage} from './src/components/DocumentsPage.js';
+    import {setUiLanguage} from './src/lib/i18n.js';
+
+    const noop=()=>{};
+    const asyncNoop=async()=>{};
+
+    window.renderDocumentsDensity=(language='en')=>{
+      const ar=language==='ar';
+      setUiLanguage(ar?'ar':'en');
+      document.documentElement.lang=ar?'ar':'en';
+      document.documentElement.dir=ar?'rtl':'ltr';
+      ReactDOM.render(React.createElement(DocumentsPage,{
+        documents:[],
+        payments:[],
+        documentEvents:[],
+        recurringWorkflows:[],
+        onMakeRecurring:noop,
+        onOpenRecurring:noop,
+        onNew:noop,
+        onOpen:noop,
+        onDuplicate:noop,
+        onConvert:noop,
+        onPrint:asyncNoop,
+        onDelete:noop,
+        onRecordPayment:noop,
+        onCreateCreditNote:noop,
+        onOpenStatements:noop
+      }),document.getElementById('root'));
+    };
+
+    window.renderDocumentsDensity('en');
+  </script>
+</body>
+</html>

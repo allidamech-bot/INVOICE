@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <base href="../../dist/">
+  <link rel="stylesheet" href="styles/app.bundle.css">
+  <link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css?v=483">
+  <title>v483 editor save loop QA</title>
+</head>
+<body>
+  <div id="root" class="app-ui"></div>
+  <script src="vendor/react.production.min.js"></script>
+  <script src="vendor/react-dom.production.min.js"></script>
+  <script type="module">
+    import {EditorPage} from './src/components/EditorPage.js';
+    import {createBlankDocument} from './src/lib/documents.js';
+    import {defaultCompany,defaultAppSettings,customerSnapshotFrom} from './src/lib/defaults.js';
+    import {blankCustomer} from './src/components/CustomersPage.js';
+    import {setUiLanguage} from './src/lib/i18n.js';
+
+    setUiLanguage('en');
+    let company=defaultCompany();
+    company={...company,nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة'};
+    const customer={...blankCustomer(),id:'customer-v483',companyNameEn:'Stability Customer',companyNameAr:'عميل الاستقرار',city:'Istanbul',country:'Türkiye'};
+    let documentValue=createBlankDocument('proforma','PI-2026-0483',company);
+    documentValue.customerSnapshot=customerSnapshotFrom(customer);
+    documentValue.items=[{...documentValue.items[0],descriptionEn:'Stability line',quantity:'1',unit:'PCS',unitPrice:'10.00'}];
+
+    window.saveAttempts=0;
+    window.saveEvents=[];
+    window.renderCount=0;
+    window.closeCount=0;
+    const asyncNoop=async()=>{};
+
+    const render=()=>{
+      window.renderCount+=1;
+      const props={
+        document:documentValue,
+        documents:[documentValue],
+        customers:[customer],suppliers:[],company,savedItems:[],payments:[],documentEvents:[],documentRevisions:[],smartDefaults:defaultAppSettings().smartDefaults,
+        onEditActivity:()=>{},
+        onClose:()=>{window.closeCount+=1;},
+        onSave:async(value,auto)=>{
+          window.saveAttempts+=1;
+          window.saveEvents.push({attempt:window.saveAttempts,auto:Boolean(auto),number:value.number,at:Date.now()});
+          documentValue=structuredClone(value);
+          company=structuredClone(company);
+          await Promise.resolve();
+          render();
+        },
+        onSaveCustomer:asyncNoop,onSaveSavedItem:asyncNoop,onSaveDocumentItem:asyncNoop,onUseSavedItems:asyncNoop,onDeleteSavedItem:asyncNoop,onSaveSmartDefaults:asyncNoop,
+        onSavePayment:asyncNoop,onDeletePayment:asyncNoop,onBeginRevision:async value=>structuredClone(value),onDiscardRevision:asyncNoop,onVoidDocument:asyncNoop,onCreateCreditNote:asyncNoop,
+        onConvert:asyncNoop,onPrint:asyncNoop
+      };
+      ReactDOM.render(React.createElement(EditorPage,props),document.getElementById('root'));
+    };
+
+    render();
+  </script>
+</body>
+</html>
