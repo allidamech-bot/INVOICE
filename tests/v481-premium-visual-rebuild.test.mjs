@@ -18,7 +18,8 @@ test('v481 is the final production presentation owner after all historical visua
     '/* --- premium-visual-system-v481.css --- */',
     '/* --- premium-workspaces-v481.css --- */',
     '/* --- premium-overlays-v481.css --- */',
-    '/* --- premium-business-v481.css --- */'
+    '/* --- premium-business-v481.css --- */',
+    '/* --- premium-regression-fixes-v481.css --- */'
   ];
   let previous=-1;
   for(const marker of markers){
@@ -26,7 +27,7 @@ test('v481 is the final production presentation owner after all historical visua
     assert.ok(index>previous,`built bundle owner order is invalid at ${marker}`);
     previous=index;
   }
-  assert.doesNotMatch(bundle,/@import url\("\.\/premium-(?:visual-system|workspaces|overlays|business)-v481\.css/,'production must not depend on late v481 @imports');
+  assert.doesNotMatch(bundle,/@import url\("\.\/premium-(?:visual-system|workspaces|overlays|business|regression-fixes)-v481\.css/,'production must not depend on late v481 @imports');
 });
 
 test('v481 premium system provides one coherent dark/light mobile palette and command-center hierarchy',async()=>{
@@ -71,4 +72,11 @@ test('v481 business surfaces keep products finance reports settings account and 
   assert.match(css,/\.ta-settings-card\{[\s\S]*?background:linear-gradient\(155deg,var\(--lx481-surface-2\),var\(--lx481-surface\)\)!important/,'settings cards can regress to charcoal/brown legacy surfaces');
   assert.match(css,/\.app-recovery>section\{[\s\S]*?border-radius:22px!important/,'recovery premium surface contract is missing');
   assert.match(css,/html\[data-ui-theme="light"\] body \.app-recovery>section\{background:#fff!important/,'recovery Light mode surface contract is missing');
+});
+
+test('v481 final regression owner preserves physical primary color and opaque operations KPI surfaces',async()=>{
+  const css=await read('src/styles/premium-regression-fixes-v481.css');
+  assert.match(css,/background-color:var\(--ft-accent,#315da8\)!important/,'primary controls can regress to gradient-only transparent computed backgrounds');
+  assert.match(css,/\.ta-ops-metrics>\*\{[\s\S]*?background-color:var\(--lx481-surface\)!important/,'operations KPI cards can regress to transparent computed surfaces');
+  assert.match(css,/html\[data-ui-theme="light"\][\s\S]*?\.ta-ops-metrics>\*\{[\s\S]*?background-color:#fff!important/,'Light operations KPI cards lost their opaque base surface');
 });
