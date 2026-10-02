@@ -195,6 +195,22 @@ html[dir="ltr"] textarea{
   color:var(--text-primary)!important;
 }
 
+/* Desktop create stays inside the navigation rail instead of covering workspace content. */
+#root.app-ui .ta-create-wrap{position:relative!important;}
+#root.app-ui .ta-create-menu{
+  inset-inline-start:0!important;
+  inset-inline-end:auto!important;
+  bottom:calc(100% + 10px)!important;
+  width:100%!important;
+  max-width:100%!important;
+  padding:10px!important;
+}
+html[dir="rtl"] #root.app-ui .ta-create-menu{
+  inset-inline-start:auto!important;
+  inset-inline-end:0!important;
+}
+#root.app-ui .ta-create-menu-grid{grid-template-columns:minmax(0,1fr)!important;}
+
 /* Shared workspace grammar */
 #root.app-ui :is(
   .ta-finance-dashboard,.ta-documents-page,.ta-doc-detail-page,.ta-customers-page,
@@ -316,6 +332,9 @@ body .ta-auth-page :is(.btn,button).btn-primary:hover{
   background:var(--accent-hover)!important;
   border-color:var(--accent-hover)!important;
 }
+
+/* AI overlay stays comfortably tappable without crowding the title/actions row. */
+body .lourex-ai-panel .lourex-ai-head{min-height:68px!important;}
 
 /* Documents — reference implementation for the final hierarchy. */
 #root.app-ui .ta-documents-page{gap:var(--space-4)!important;}
