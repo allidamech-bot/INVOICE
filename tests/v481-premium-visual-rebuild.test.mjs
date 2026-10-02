@@ -74,12 +74,13 @@ test('v481 business surfaces keep products finance reports settings account and 
   assert.match(css,/html\[data-ui-theme="light"\] body \.app-recovery>section\{background:#fff!important/,'recovery Light mode surface contract is missing');
 });
 
-test('v481 final regression owner preserves physical colors, compact commands and 320px monetary fit',async()=>{
+test('v481 final regression owner preserves physical colors, compact commands, clean More sheet and 320px monetary fit',async()=>{
   const css=await read('src/styles/premium-regression-fixes-v481.css');
   assert.match(css,/background-color:var\(--ft-accent,#315da8\)!important/,'primary controls can regress to gradient-only transparent computed backgrounds');
   assert.match(css,/\.ta-ops-metrics>\*\{[\s\S]*?background-color:var\(--lx481-surface\)!important/,'operations KPI cards can regress to transparent computed surfaces');
   assert.match(css,/html\[data-ui-theme="light"\][\s\S]*?\.ta-ops-metrics>\*\{[\s\S]*?background-color:#fff!important/,'Light operations KPI cards lost their opaque base surface');
   assert.match(css,/\.ta-documents-header-actions\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/,'Documents creation commands can regress to the oversized vertical stack');
+  assert.match(css,/\.ta-mobile-sheet :is\(\.ta-sheet-header,\.ta-sheet-group,\.ta-sheet-group>p\)\{[\s\S]*?background-color:transparent!important;[\s\S]*?background-image:none!important/,'More sheet can regress to legacy warm header/group seams');
   assert.match(css,/@media screen and \(max-width:350px\)\{[\s\S]*?\.ta-kpi-card\{[\s\S]*?display:block!important/,'320px KPI cards lost the full-width copy layout');
   assert.match(css,/\.ta-kpi-money-stack>b\{[\s\S]*?white-space:nowrap!important;[\s\S]*?direction:ltr!important;[\s\S]*?font-size:clamp\(14px,4\.65vw,16px\)!important/,'320px monetary values can clip or reorder in RTL');
 });
