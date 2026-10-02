@@ -13,13 +13,19 @@ test('v481 is the final production presentation owner after all historical visua
   assert.ok(v481Index>finalizeIndex,'v481 bundler must run after the historical/final runtime finalize stages');
 
   const bundle=await read('dist/styles/app.bundle.css');
-  const bridge='/* --- tailadmin-reliability-bridge-v320.css --- */';
-  const owner='/* --- premium-visual-system-v481.css --- */';
-  const bridgeIndex=bundle.indexOf(bridge);
-  const ownerIndex=bundle.indexOf(owner);
-  assert.ok(bridgeIndex>=0,'built bundle lost the reliability bridge');
-  assert.ok(ownerIndex>bridgeIndex,'v481 must be the final presentation owner after the reliability bridge');
-  assert.doesNotMatch(bundle,/@import url\("\.\/premium-visual-system-v481\.css/,'production must not depend on a late v481 @import');
+  const markers=[
+    '/* --- tailadmin-reliability-bridge-v320.css --- */',
+    '/* --- premium-visual-system-v481.css --- */',
+    '/* --- premium-workspaces-v481.css --- */',
+    '/* --- premium-overlays-v481.css --- */'
+  ];
+  let previous=-1;
+  for(const marker of markers){
+    const index=bundle.indexOf(marker);
+    assert.ok(index>previous,`built bundle owner order is invalid at ${marker}`);
+    previous=index;
+  }
+  assert.doesNotMatch(bundle,/@import url\("\.\/premium-(?:visual-system|workspaces|overlays)-v481\.css/,'production must not depend on late v481 @imports');
 });
 
 test('v481 premium system provides one coherent dark/light mobile palette and command-center hierarchy',async()=>{
@@ -34,4 +40,24 @@ test('v481 premium system provides one coherent dark/light mobile palette and co
   assert.match(css,/\.ta-kpi-card:nth-child\(4\).*?--lx481-tone:var\(--lx481-rose\)/s,'semantic rose KPI differentiation is missing');
   assert.match(css,/\.ta-empty-state,.ta-chart-empty,.ta-dashboard-empty/,'intentional empty-state treatment is missing');
   assert.match(css,/min-height:44px/,'mobile touch-target floor is missing');
+});
+
+test('v481 workspace rebuild removes blank pipeline voids and gives documents/customers one premium hierarchy',async()=>{
+  const css=await read('src/styles/premium-workspaces-v481.css');
+  assert.match(css,/\.ta-documents-overview\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/,'documents overview is not a compact 2-column instrument grid');
+  assert.match(css,/\.ta-doc-row\{[\s\S]*?border-radius:18px!important/,'document register cards lost the premium row contract');
+  assert.match(css,/\.ta-customers-summary\{[\s\S]*?repeat\(3,minmax\(0,1fr\)\)/,'customer summary is not compact on mobile');
+  assert.match(css,/\.lx-pipeline-board\{[\s\S]*?grid-template-columns:1fr!important/,'pipeline board must be a reachable mobile stage stack');
+  assert.match(css,/\.lx-pipeline-column>\.lx-pipeline-empty\{[\s\S]*?min-height:76px!important/,'empty pipeline stages may regress into giant blank regions');
+  assert.doesNotMatch(css,/\.lx-pipeline-column>\.lx-pipeline-empty\{[\s\S]{0,260}?min-height:\s*(?:[2-9]\d\d|\d{4,})px/i,'empty pipeline stages must stay compact');
+});
+
+test('v481 command surfaces rebuild More, Quick Create, Search and LOUREX AI as one design system',async()=>{
+  const css=await read('src/styles/premium-overlays-v481.css');
+  assert.match(css,/\.ta-mobile-sheet\{[\s\S]*?border-radius:26px!important/,'More sheet premium surface is missing');
+  assert.match(css,/\.ta-sheet-group\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/,'More sheet must use the compact two-column command layout');
+  assert.match(css,/\.ta-create-menu-grid\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/,'Quick Create command grid is missing');
+  assert.match(css,/\.global-search-panel\{[\s\S]*?bottom:calc\(8px \+ env\(safe-area-inset-bottom,0px\)\)!important/,'Global Search safe-area contract is missing');
+  assert.match(css,/\.lourex-ai-compose input\{[\s\S]*?font-size:16px!important/,'LOUREX AI composer must remain Safari-zoom safe');
+  assert.match(css,/html\[data-ui-theme="light"\][\s\S]*?\.ta-mobile-sheet/,'Light mode overlay ownership is missing');
 });
