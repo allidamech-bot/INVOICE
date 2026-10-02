@@ -573,22 +573,23 @@ body .lourex-ai-panel .lourex-ai-head{min-height:68px!important;}
   }
   #root.app-ui .ta-doc-summary-grid>button{padding:12px!important;}
   #root.app-ui .ta-doc-summary-grid>button em{display:none!important;}
+  #root.app-ui .ta-doc-register-card{gap:var(--space-2)!important;}
   #root.app-ui .ta-doc-type-tabs{
     display:grid!important;
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
     grid-auto-flow:row!important;
-    gap:var(--space-2)!important;
-    padding:var(--space-2)!important;
+    gap:6px!important;
+    padding:6px!important;
     overflow:visible!important;
     scroll-snap-type:none!important;
   }
   #root.app-ui .ta-doc-type-tabs>button{
     width:100%!important;
     min-width:0!important;
-    min-height:46px!important;
-    padding:8px 10px!important;
+    min-height:44px!important;
+    padding:6px 8px!important;
     white-space:normal!important;
-    line-height:1.3!important;
+    line-height:1.2!important;
   }
   #root.app-ui .ta-doc-type-tabs>button:last-child:nth-child(odd){
     grid-column:1/-1!important;
