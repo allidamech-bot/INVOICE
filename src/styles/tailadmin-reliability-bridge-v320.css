@@ -3,12 +3,10 @@
 @import url("./mobile-ux-deep-audit-v363.css?v=363-1");
 @import url("./mobile-core-workflows-v364.css?v=364-1");
 @import url("./ai-assistant-help-batch3.css?v=455-1");
-@import url("./mobile-command-center-v475-elite.css?v=475-2");
-@import url("./mobile-workspaces-v475.css?v=475-3");
-@import url("./mobile-editor-v475.css?v=475-4");
-@import url("./mobile-overlays-v475.css?v=475-5");
-@import url("./mobile-auth-v475.css?v=475-6");
-@import url("./mobile-review-v475.css?v=475-7");
+@import url("./executive-command-center-v480.css?v=480-1");
+@import url("./executive-workspaces-v480.css?v=480-2");
+@import url("./executive-editor-v480.css?v=480-3");
+@import url("./executive-overlays-auth-v480.css?v=480-4");
 
 /* LOUREX v351 — reliability bridge only.
    Runtime/recovery geometry and UI safety contracts live here.
@@ -132,6 +130,35 @@
     .ta-finance-page,
     .ta-reports-page
   ){padding-bottom:24px!important}
+
+  /* The executive stack must not let older Hostinger-era violet actions re-enter
+     the mobile Operations workflow. The duplicate #root selector is intentional:
+     it gives this final reliability owner two ID specificity points, so legacy
+     language/direction-specific !important rules cannot win on WebKit. */
+  html[data-ui-theme="light"] body #root#root.app-ui .ta-operations-page .ta-ops-panel-head .btn.btn-primary,
+  html[data-ui-theme="light"] body #root#root.app-ui .ta-operations-page .ta-ops-split .btn.btn-primary{
+    background:#315DA8!important;
+    background-image:none!important;
+    border-color:#315DA8!important;
+    color:#FFFFFF!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="light"] body #root#root.app-ui .ta-operations-page .ta-ops-panel-head .btn.btn-primary:is(:hover,:active):not(:disabled),
+  html[data-ui-theme="light"] body #root#root.app-ui .ta-operations-page .ta-ops-split .btn.btn-primary:is(:hover,:active):not(:disabled){
+    background:#315DA8!important;
+    background-image:none!important;
+    border-color:#315DA8!important;
+    color:#FFFFFF!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="dark"] body #root#root.app-ui .ta-operations-page .ta-ops-panel-head .btn.btn-primary,
+  html[data-ui-theme="dark"] body #root#root.app-ui .ta-operations-page .ta-ops-split .btn.btn-primary{
+    background:#7399E3!important;
+    background-image:none!important;
+    border-color:#7399E3!important;
+    color:#0D0D0D!important;
+    box-shadow:none!important;
+  }
 }
 
 @media screen and (max-width:720px){

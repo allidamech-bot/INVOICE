@@ -1,0 +1,165 @@
+/*
+ * LOUREX Executive Editor v480
+ * Mobile Commercial Document Studio + Draft Studio presentation owner.
+ * No document mutation, totals, lifecycle, storage or output logic is owned here.
+ */
+@media screen and (max-width:900px){
+  html body .app-ui .workspace-shell.screen-editor{
+    --lx480-editor-blue:#5790ff;
+    --lx480-editor-cyan:#2dd5e7;
+    --lx480-editor-violet:#8e79ff;
+    --lx480-editor-rose:#ff667f;
+    background:var(--lx480-canvas,#020914)!important;color:var(--lx480-text,#f6f9ff)!important;
+  }
+  html[dir="rtl"] body .app-ui .workspace-shell.screen-editor,
+  html[dir="rtl"] body .app-ui .workspace-shell.screen-editor :is(button,input,select,textarea){font-family:"Noto Sans Arabic",Inter,sans-serif!important;}
+  html body .app-ui .workspace-shell.screen-editor .ta-main{
+    padding:8px 10px calc(112px + env(safe-area-inset-bottom,0px))!important;overflow-x:clip!important;
+    background:radial-gradient(460px 300px at 100% -4%,rgba(87,144,255,.16),transparent 70%),linear-gradient(180deg,var(--lx480-canvas,#020914),var(--lx480-canvas-2,#05111f))!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .workspace-shell.screen-editor .ta-main{background:radial-gradient(460px 300px at 100% -4%,rgba(87,144,255,.10),transparent 70%),linear-gradient(180deg,#f8fbff,#eef4fb)!important;}
+
+  /* Editor topbar is compact and subordinate to content. */
+  html body .app-ui .workspace-shell.screen-editor .ta-topbar{
+    min-height:68px!important;padding:calc(7px + env(safe-area-inset-top,0px)) 10px 7px!important;border-bottom:1px solid var(--lx480-line)!important;
+    background:linear-gradient(180deg,rgba(3,12,23,.97),rgba(4,14,26,.91))!important;box-shadow:0 10px 30px rgba(0,0,0,.22)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .workspace-shell.screen-editor .ta-topbar{background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(247,250,255,.91))!important;}
+  html body .app-ui .workspace-shell.screen-editor .ta-editor-mark{width:42px!important;height:42px!important;border:1px solid color-mix(in srgb,var(--lx480-editor-blue) 35%,var(--lx480-line))!important;border-radius:13px!important;background:color-mix(in srgb,var(--lx480-editor-blue) 12%,var(--lx480-surface-2))!important;color:var(--lx480-editor-blue)!important;}
+  html body .app-ui .workspace-shell.screen-editor .ta-page-title small{display:block!important;color:var(--lx480-faint)!important;font-size:9px!important;text-transform:uppercase!important;letter-spacing:.08em!important;}
+  html[dir="rtl"] body .app-ui .workspace-shell.screen-editor .ta-page-title small{text-transform:none!important;letter-spacing:0!important;}
+  html body .app-ui .workspace-shell.screen-editor .ta-page-title strong{color:var(--lx480-text)!important;font-size:16px!important;font-weight:900!important;}
+
+  /* Commercial Studio command surface. */
+  html body .app-ui .editor-shell,html body .app-ui .document-editor{width:100%!important;max-width:100%!important;margin:0!important;}
+  html body .app-ui .editor-topbar{
+    position:relative!important;overflow:hidden!important;display:grid!important;gap:11px!important;margin:0 0 10px!important;padding:15px!important;
+    border:1px solid var(--lx480-line-hi)!important;border-radius:22px!important;background:radial-gradient(230px 150px at 100% 0%,rgba(87,144,255,.17),transparent 72%),linear-gradient(150deg,var(--lx480-surface-2),var(--lx480-surface))!important;box-shadow:var(--lx480-shadow-lg)!important;
+  }
+  html body .app-ui .editor-topbar :is(h1,h2,strong){color:var(--lx480-text)!important;}
+  html body .app-ui .editor-topbar :is(p,small,span){color:var(--lx480-muted)!important;}
+  html body .app-ui .editor-topbar-actions{display:flex!important;gap:7px!important;overflow-x:auto!important;scrollbar-width:none!important;}
+  html body .app-ui .editor-topbar-actions::-webkit-scrollbar{display:none!important;}
+  html body .app-ui .editor-topbar-actions>*{flex:0 0 auto!important;min-height:44px!important;border-radius:13px!important;}
+
+  /* Horizontal roadmap gives the mobile editor an explicit flow. */
+  html body .app-ui .ta-editor-step-nav{
+    position:sticky!important;top:calc(68px + env(safe-area-inset-top,0px))!important;z-index:35!important;
+    display:flex!important;gap:6px!important;overflow-x:auto!important;scrollbar-width:none!important;margin:0 0 10px!important;padding:6px!important;
+    border:1px solid var(--lx480-line)!important;border-radius:16px!important;background:color-mix(in srgb,var(--lx480-surface) 92%,transparent)!important;box-shadow:0 10px 28px rgba(0,0,0,.18)!important;backdrop-filter:blur(16px)!important;-webkit-backdrop-filter:blur(16px)!important;
+  }
+  html body .app-ui .ta-editor-step-nav::-webkit-scrollbar{display:none!important;}
+  html body .app-ui .ta-editor-step-nav button{flex:0 0 auto!important;min-height:40px!important;padding:8px 11px!important;border:1px solid transparent!important;border-radius:11px!important;background:transparent!important;color:var(--lx480-muted)!important;font-size:11px!important;font-weight:800!important;}
+  html body .app-ui .ta-editor-step-nav button.is-active{border-color:color-mix(in srgb,var(--lx480-editor-blue) 40%,var(--lx480-line))!important;background:color-mix(in srgb,var(--lx480-editor-blue) 13%,var(--lx480-surface-2))!important;color:#cfe0ff!important;}
+  html[data-ui-theme="light"] body .app-ui .ta-editor-step-nav button.is-active{color:#28559e!important;}
+
+  html body .app-ui .document-readiness{
+    margin:0 0 10px!important;padding:12px!important;border:1px solid color-mix(in srgb,var(--lx480-editor-cyan) 25%,var(--lx480-line))!important;border-radius:17px!important;
+    background:radial-gradient(130px 90px at 100% 0%,rgba(45,213,231,.08),transparent 72%),var(--lx480-surface)!important;box-shadow:var(--lx480-shadow)!important;
+  }
+  html body .app-ui .document-readiness :is(strong,h3){color:var(--lx480-text)!important;}
+  html body .app-ui .document-readiness :is(span,small,p){color:var(--lx480-muted)!important;}
+
+  /* Every section is a sculpted module, not a generic white rectangle. */
+  html body .app-ui .editor-section,
+  html body .app-ui .draft-control-section,
+  html body .app-ui .draft-block-card,
+  html body .app-ui .document-attachments-section{
+    position:relative!important;overflow:hidden!important;margin:0 0 10px!important;padding:13px!important;
+    border:1px solid var(--lx480-line)!important;border-radius:19px!important;background:linear-gradient(155deg,color-mix(in srgb,var(--lx480-surface-2) 96%,var(--lx480-editor-blue) 4%),var(--lx480-surface))!important;color:var(--lx480-text)!important;box-shadow:var(--lx480-shadow)!important;
+  }
+  html[data-ui-theme="light"] body .app-ui :is(.editor-section,.draft-control-section,.draft-block-card,.document-attachments-section){background:linear-gradient(155deg,#fff,#f7faff)!important;}
+  html body .app-ui .editor-section::before,html body .app-ui .draft-control-section::before{
+    content:""!important;position:absolute!important;inset:0 0 auto!important;height:2px!important;pointer-events:none!important;background:linear-gradient(90deg,var(--lx480-editor-blue),var(--lx480-editor-cyan),transparent 82%)!important;opacity:.72!important;
+  }
+  html body .app-ui :is(.editor-section,.draft-control-section,.draft-block-card,.document-attachments-section) :is(h2,h3,strong){color:var(--lx480-text)!important;}
+  html body .app-ui :is(.editor-section,.draft-control-section,.draft-block-card,.document-attachments-section) :is(p,small,label,.field-hint){color:var(--lx480-muted)!important;}
+  html body .app-ui .editor-section>header,html body .app-ui .draft-control-section>header{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:10px!important;margin-bottom:11px!important;}
+  html body .app-ui .editor-section>header h2,html body .app-ui .draft-control-section>header h2{margin:0!important;font-size:16px!important;font-weight:900!important;}
+
+  /* Fields are large enough for iPhone keyboard interaction. */
+  html body .app-ui .workspace-shell.screen-editor :is(input,select,textarea){
+    min-height:50px!important;border:1px solid var(--lx480-line)!important;border-radius:13px!important;background:var(--lx480-canvas-2)!important;color:var(--lx480-text)!important;font-size:16px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .workspace-shell.screen-editor :is(input,select,textarea){background:#f8fbff!important;}
+  html body .app-ui .workspace-shell.screen-editor textarea{min-height:96px!important;line-height:1.65!important;resize:vertical!important;}
+  html body .app-ui .workspace-shell.screen-editor :is(input,select,textarea):focus{outline:0!important;border-color:color-mix(in srgb,var(--lx480-editor-blue) 70%,var(--lx480-line))!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--lx480-editor-blue) 14%,transparent)!important;}
+  html body .app-ui .workspace-shell.screen-editor .field{display:grid!important;gap:6px!important;min-width:0!important;}
+  html body .app-ui .workspace-shell.screen-editor .field>label{font-size:11px!important;font-weight:800!important;color:var(--lx480-muted)!important;}
+
+  /* Line items: one item = one readable financial card. */
+  html body .app-ui .items-editor-header,html body .app-ui .items-table-head{display:none!important;}
+  html body .app-ui :is(.items-editor-list,.line-items-list){display:grid!important;gap:9px!important;}
+  html body .app-ui :is(.item-editor-row,.line-item-row){display:grid!important;grid-template-columns:1fr!important;gap:8px!important;padding:12px!important;border:1px solid color-mix(in srgb,var(--lx480-editor-violet) 20%,var(--lx480-line))!important;border-radius:17px!important;background:radial-gradient(110px 90px at 100% 0%,rgba(142,121,255,.07),transparent 72%),var(--lx480-surface-2)!important;}
+  html body .app-ui :is(.item-editor-row,.line-item-row) :is(button,.icon-button){min-height:44px!important;border-radius:12px!important;}
+  html body .app-ui .saved-items-picker,html body .app-ui .saved-item-picker{border:1px solid var(--lx480-line)!important;border-radius:17px!important;background:var(--lx480-surface)!important;box-shadow:0 20px 50px rgba(0,0,0,.34)!important;}
+
+  /* Totals / adjustments get a real financial hierarchy. */
+  html body .app-ui :is(.totals-panel,.document-totals,.editor-totals){padding:12px!important;border:1px solid color-mix(in srgb,var(--lx480-emerald) 22%,var(--lx480-line))!important;border-radius:17px!important;background:radial-gradient(130px 90px at 100% 0%,rgba(53,212,157,.08),transparent 72%),var(--lx480-surface)!important;}
+  html body .app-ui :is(.totals-panel,.document-totals,.editor-totals)>div{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;min-height:36px!important;color:var(--lx480-muted)!important;}
+  html body .app-ui :is(.totals-panel,.document-totals,.editor-totals)>div:last-child{margin-top:5px!important;padding-top:9px!important;border-top:1px solid var(--lx480-line)!important;color:var(--lx480-text)!important;font-size:17px!important;font-weight:900!important;}
+
+  /* Attachments — camera/files feel first class. */
+  html body .app-ui .document-attachments-section{border-color:color-mix(in srgb,var(--lx480-editor-cyan) 22%,var(--lx480-line))!important;}
+  html body .app-ui .document-attachments-section :is(button,.btn){min-height:46px!important;border-radius:13px!important;}
+  html body .app-ui .document-attachment-row{display:grid!important;grid-template-columns:minmax(0,1fr) 44px!important;gap:8px!important;padding:10px!important;border:1px solid var(--lx480-line)!important;border-radius:14px!important;background:var(--lx480-surface-2)!important;}
+
+  /* Preview is deliberately an explicit action on mobile, not a competing pane. */
+  html body .app-ui :is(.editor-preview-pane,.preview-pane){display:none!important;}
+  html body .app-ui .editor-form-pane{width:100%!important;max-width:100%!important;min-width:0!important;}
+
+  /* Mobile editor action dock. */
+  html body .app-ui .mobile-editor-actionbar{
+    position:fixed!important;z-index:var(--lourex-z-critical,1500)!important;left:10px!important;right:10px!important;bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;
+    display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important;padding:7px!important;border:1px solid var(--lx480-line-hi)!important;border-radius:21px!important;
+    background:linear-gradient(180deg,rgba(8,25,43,.96),rgba(3,13,25,.98))!important;box-shadow:0 22px 58px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.04)!important;backdrop-filter:blur(20px) saturate(145%)!important;-webkit-backdrop-filter:blur(20px) saturate(145%)!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .mobile-editor-actionbar{background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(243,248,255,.98))!important;box-shadow:0 18px 44px rgba(36,67,108,.18)!important;}
+  html body .app-ui .mobile-editor-actionbar button{min-width:0!important;min-height:50px!important;display:grid!important;place-items:center!important;gap:2px!important;padding:6px 4px!important;border:1px solid transparent!important;border-radius:14px!important;background:transparent!important;color:var(--lx480-muted)!important;font-size:9px!important;font-weight:800!important;}
+  html body .app-ui .mobile-editor-actionbar button:is(.primary,.is-primary){border-color:color-mix(in srgb,var(--lx480-editor-blue) 55%,var(--lx480-line))!important;background:linear-gradient(145deg,#64a0ff,#3f79f1)!important;color:#fff!important;box-shadow:0 10px 24px rgba(54,116,236,.28)!important;}
+
+  /* Draft Studio: writing-first, same design DNA. */
+  html body .app-ui .draft-studio{width:100%!important;max-width:100%!important;margin:0!important;padding:0 0 18px!important;}
+  html body .app-ui .draft-studio-topbar{position:relative!important;overflow:hidden!important;display:grid!important;gap:10px!important;margin:0 0 10px!important;padding:15px!important;border:1px solid var(--lx480-line-hi)!important;border-radius:22px!important;background:radial-gradient(220px 150px at 100% 0%,rgba(142,121,255,.14),transparent 72%),linear-gradient(150deg,var(--lx480-surface-2),var(--lx480-surface))!important;box-shadow:var(--lx480-shadow-lg)!important;}
+  html body .app-ui .draft-studio-topbar :is(h1,h2,strong){color:var(--lx480-text)!important;}
+  html body .app-ui .draft-studio-topbar :is(p,small,span){color:var(--lx480-muted)!important;}
+  html body .app-ui .draft-studio-preview{display:none!important;}
+  html body .app-ui .draft-studio-form{width:100%!important;max-width:100%!important;min-width:0!important;}
+  html body .app-ui .draft-block-card{border-color:color-mix(in srgb,var(--lx480-editor-violet) 20%,var(--lx480-line))!important;}
+  html body .app-ui .draft-block-card textarea{min-height:130px!important;}
+  html body .app-ui .draft-mobile-actionbar{
+    position:fixed!important;z-index:var(--lourex-z-critical,1500)!important;left:10px!important;right:10px!important;bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;
+    display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important;padding:7px!important;border:1px solid var(--lx480-line-hi)!important;border-radius:21px!important;background:linear-gradient(180deg,rgba(8,25,43,.96),rgba(3,13,25,.98))!important;box-shadow:0 22px 58px rgba(0,0,0,.48)!important;
+  }
+  html[data-ui-theme="light"] body .app-ui .draft-mobile-actionbar{background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(243,248,255,.98))!important;box-shadow:0 18px 44px rgba(36,67,108,.18)!important;}
+  html body .app-ui .draft-mobile-actionbar button{min-height:50px!important;border-radius:14px!important;color:var(--lx480-muted)!important;}
+
+  /* Mobile preview overlays remain fully opaque and readable. */
+  html body .app-ui :is(.mobile-preview-overlay,.draft-mobile-preview){background:rgba(0,6,15,.72)!important;backdrop-filter:blur(9px)!important;-webkit-backdrop-filter:blur(9px)!important;}
+  html body .app-ui :is(.mobile-preview-card,.draft-mobile-preview-card){max-width:calc(100vw - 16px)!important;max-height:calc(100dvh - 24px)!important;border:1px solid var(--lx480-line-hi)!important;border-radius:24px!important;background:var(--lx480-surface)!important;color:var(--lx480-text)!important;box-shadow:0 34px 90px rgba(0,0,0,.56)!important;}
+
+  /* Final issue / PDF / share review — executive decision sheet. */
+  html body .modal:has(.issue-review){max-width:calc(100vw - 16px)!important;max-height:calc(100dvh - 18px)!important;overflow:auto!important;border:1px solid var(--lx480-line-hi)!important;border-radius:25px!important;background:linear-gradient(165deg,var(--lx480-surface-2),var(--lx480-canvas))!important;color:var(--lx480-text)!important;box-shadow:0 34px 96px rgba(0,0,0,.58)!important;}
+  html[data-ui-theme="light"] body .modal:has(.issue-review){background:linear-gradient(165deg,#fff,#f4f8ff)!important;}
+  html body .issue-review{display:grid!important;gap:10px!important;}
+  html body .issue-review-status{padding:12px!important;border:1px solid color-mix(in srgb,var(--lx480-editor-blue) 28%,var(--lx480-line))!important;border-radius:16px!important;background:color-mix(in srgb,var(--lx480-editor-blue) 8%,var(--lx480-surface))!important;}
+  html body .issue-review-purpose{color:var(--lx480-muted)!important;line-height:1.65!important;}
+  html body .issue-review-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
+  html body .issue-review-grid>*{padding:10px!important;border:1px solid var(--lx480-line)!important;border-radius:14px!important;background:var(--lx480-surface-2)!important;min-width:0!important;}
+  html body .issue-asset-checks{display:grid!important;gap:7px!important;}
+  html body .accounting-guardian-review{padding:11px!important;border:1px solid color-mix(in srgb,var(--lx480-emerald) 27%,var(--lx480-line))!important;border-radius:15px!important;background:color-mix(in srgb,var(--lx480-emerald) 7%,var(--lx480-surface))!important;}
+  html body .issue-warning{padding:10px!important;border:1px solid color-mix(in srgb,var(--lx480-editor-rose) 30%,var(--lx480-line))!important;border-radius:14px!important;background:color-mix(in srgb,var(--lx480-editor-rose) 7%,var(--lx480-surface))!important;color:var(--lx480-editor-rose)!important;}
+  html body .modal:has(.issue-review) .modal-footer-actions{position:sticky!important;bottom:0!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;padding:10px 0 calc(4px + env(safe-area-inset-bottom,0px))!important;background:linear-gradient(180deg,transparent 0%,var(--lx480-canvas) 24%)!important;}
+  html body .modal:has(.issue-review) .modal-footer-actions button{min-height:48px!important;border-radius:14px!important;}
+
+  @media(max-width:430px){
+    html body .app-ui .mobile-editor-actionbar,html body .app-ui .draft-mobile-actionbar{grid-template-columns:repeat(4,minmax(0,1fr))!important;left:8px!important;right:8px!important;}
+    html body .issue-review-grid{grid-template-columns:1fr!important;}
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  @media screen and (max-width:900px){
+    html body .app-ui .workspace-shell.screen-editor *{scroll-behavior:auto!important;}
+  }
+}
