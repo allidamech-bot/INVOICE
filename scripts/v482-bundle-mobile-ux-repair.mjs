@@ -14,8 +14,11 @@ if(!css)throw new Error('v482 production bundle: mobile UX repair owner is empty
 bundle=`${bundle.trimEnd()}\n\n${marker}\n${css}\n`;
 if(bundle.indexOf(marker)<=bundle.indexOf(v481Marker))throw new Error('v482 production bundle: repair owner must follow v481.');
 if(!bundle.includes('.ta-documents-header-actions'))throw new Error('v482 production bundle: compact Documents command grid is missing.');
-if(!bundle.includes('.lourex-ai-panel.is-open'))throw new Error('v482 production bundle: AI mobile safe-area repair is missing.');
+if(!bundle.includes('#lourex-ai-panel.lourex-ai-panel'))throw new Error('v482 production bundle: AI mobile safe-area repair is missing.');
+if(!bundle.includes('#lourex-ai-panel .lourex-ai-head'))throw new Error('v482 production bundle: AI header overlap repair is missing.');
+if(!bundle.includes('.global-search-actions'))throw new Error('v482 production bundle: Global Search quick-create repair is missing.');
 if(!bundle.includes('.ta-create-menu-grid'))throw new Error('v482 production bundle: Quick Create geometry repair is missing.');
+if(!bundle.includes('.ta-business-health-card'))throw new Error('v482 production bundle: dashboard surface repair is missing.');
 if(!bundle.includes('html[data-ui-theme="light"]'))throw new Error('v482 production bundle: Light mode repair ownership is missing.');
 
 await writeFile(bundlePath,bundle);
