@@ -1,14 +1,96 @@
-/*
- * Legacy compatibility marker retained for the established build/startup contract.
- *
- * Palette, control appearance and application surfaces are NO LONGER owned here.
- * The stable final owner is public/visual-foundation.css.
- *
- * Only editor compatibility aliases remain because v333 document/editor geometry
- * consumes these names. They resolve to the semantic --ft-* bridge supplied by the
- * final foundation and do not form an independent theme.
- */
+/* LOUREX v358 — canonical Premium Blue application palette + control design owner.
+ * The startup/PWA canvas tokens stay stable for launch reliability, while the
+ * loaded application uses a calm enterprise blue visual system.
+ * Commercial A4 rendering stays exclusively in document-premium-redesign-v141.css.
+ * Full-page application paint and shared Button/Toggle primitives remain centralized
+ * here so historical feature styles cannot re-introduce violet, turquoise or native-gray controls. */
+
 @media screen {
+  html[data-ui-theme="light"] {
+    --ta-brand-25:#F8FAFE!important;
+    --ta-brand-50:#F3F6FC!important;
+    --ta-brand-100:#EAF0FA!important;
+    --ta-brand-200:#D8E4F5!important;
+    --ta-brand-300:#B8CDED!important;
+    --ta-brand-400:#82A9EC!important;
+    --ta-brand-500:#4E78BD!important;
+    --ta-brand-600:#315DA8!important;
+    --ta-brand-700:#244D91!important;
+
+    /* Keep the PWA/startup canvas token stable; application paint uses workspace. */
+    --ft-canvas:#f4f7fb!important;
+    --ft-shell:#F5F7FB!important;
+    --ft-workspace:#F5F7FB!important;
+    --ft-surface:#FFFFFF!important;
+    --ft-surface-2:#F8FAFD!important;
+    --ft-surface-3:#EEF2F8!important;
+    --ft-input:#FFFFFF!important;
+    --ft-text:#53647A!important;
+    --ft-text-strong:#17253A!important;
+    --ft-text-soft:#53647A!important;
+    --ft-muted:#718096!important;
+    --ft-faint:#9AA7B8!important;
+    --ft-line:#E2E8F1!important;
+    --ft-line-strong:#C9D4E2!important;
+    --ft-accent:#315DA8!important;
+    --ft-accent-hover:#244D91!important;
+    --ft-accent-soft:#EAF0FA!important;
+    --ft-accent-faint:#F3F6FC!important;
+    --ft-on-accent:#FFFFFF!important;
+    --ft-success:#227858!important;
+    --ft-success-soft:rgba(34,120,88,.10)!important;
+    --ft-warning:#966215!important;
+    --ft-warning-soft:rgba(150,98,21,.10)!important;
+    --ft-danger:#B7434B!important;
+    --ft-danger-soft:rgba(183,67,75,.10)!important;
+    --ft-info:#315DA8!important;
+    --ft-info-soft:rgba(49,93,168,.10)!important;
+  }
+
+  html[data-ui-theme="dark"] {
+    --ta-brand-25:#151515!important;
+    --ta-brand-50:#1C1C1C!important;
+    --ta-brand-100:#242424!important;
+    --ta-brand-200:#303030!important;
+    --ta-brand-300:#484848!important;
+    --ta-brand-400:#668BD4!important;
+    --ta-brand-500:#7399E3!important;
+    --ta-brand-600:#7399E3!important;
+    --ta-brand-700:#91B0ED!important;
+
+    /* Keep the PWA/startup canvas token stable; application paint uses workspace. */
+    --ft-canvas:#0D0D0D!important;
+    --ft-shell:#101010!important;
+    --ft-workspace:#0D0D0D!important;
+    --ft-surface:#191919!important;
+    --ft-surface-2:#202020!important;
+    --ft-surface-3:#282828!important;
+    --ft-input:#161616!important;
+    --ft-text:#D2D2D2!important;
+    --ft-text-strong:#F7F7F7!important;
+    --ft-text-soft:#C8C8C8!important;
+    --ft-muted:#A9A9A9!important;
+    --ft-faint:#858585!important;
+    --ft-line:#303030!important;
+    --ft-line-strong:#464646!important;
+    --ft-accent:#7399E3!important;
+    --ft-accent-hover:#91B0ED!important;
+    --ft-accent-soft:#252525!important;
+    --ft-accent-faint:#1D1D1D!important;
+    --ft-on-accent:#0D0D0D!important;
+    --ft-success:#D2D2D2!important;
+    --ft-success-soft:#242424!important;
+    --ft-warning:#EF737A!important;
+    --ft-warning-soft:#332124!important;
+    --ft-danger:#EF737A!important;
+    --ft-danger-soft:#332124!important;
+    --ft-info:#91B0ED!important;
+    --ft-info-soft:#252525!important;
+  }
+
+  /* v330 uses v333-* names for critical editor contrast. Palette ownership stays
+     here: those compatibility names always resolve to the active theme instead of
+     forming an independent theme inside the editor. */
   html[data-ui-theme] body .app-ui .screen-editor{
     --v333-workspace:var(--ft-workspace)!important;
     --v333-card:var(--ft-surface)!important;
@@ -21,5 +103,154 @@
     --v333-muted:var(--ft-muted)!important;
     --v333-accent:var(--ft-accent)!important;
     --v333-accent-soft:var(--ft-accent-soft)!important;
+  }
+
+  /* One loaded-app paint. Use the shorthand so older `background:` declarations
+     that consumed --ft-canvas cannot keep a stale navy layer in dark mode. */
+  html[data-ui-theme] body,
+  html[data-ui-theme] #root,
+  html[data-ui-theme] body .app-root,
+  html[data-ui-theme] body .app-ui,
+  html[data-ui-theme] body .app-ui .ta-shell,
+  html[data-ui-theme] body .app-ui .ta-main,
+  html[data-ui-theme] body .app-ui .main-content,
+  html[data-ui-theme] body .app-ui .editor-main,
+  html[data-ui-theme] body .app-ui .workspace,
+  html[data-ui-theme] body .app-ui .ta-editor-workspace{
+    background:var(--ft-workspace)!important;
+  }
+
+  /* Blue owns application actions; semantic green/yellow/red remain reserved for
+     success, warning and danger states. */
+  html[data-ui-theme="dark"] body .app-ui .ta-kpi-card:first-child .ta-kpi-icon{
+    background:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :where(.btn-primary,.ta-create-button,.ta-card-primary-action){
+    background:var(--ft-accent)!important;
+    border-color:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
+  }
+  html[data-ui-theme="dark"] body .app-ui :where(.btn-primary,.ta-create-button,.ta-card-primary-action):hover:not(:disabled){
+    background:var(--ft-accent-hover)!important;
+    border-color:var(--ft-accent-hover)!important;
+    color:#101722!important;
+  }
+
+  /* Auth is intentionally outside .app-ui. Retired Hostinger layers had a dark-mode
+     violet gradient with higher specificity, so the canonical palette must explicitly
+     own this final dark primary action too. */
+  html[data-ui-theme="dark"] body .ta-auth-page :where(.ta-auth-primary,.btn-primary,button.btn-primary){
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    border-color:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
+  }
+  html[data-ui-theme="dark"] body .ta-auth-page :where(.ta-auth-primary,.btn-primary,button.btn-primary):hover:not(:disabled){
+    background:var(--ft-accent-hover)!important;
+    background-image:none!important;
+    border-color:var(--ft-accent-hover)!important;
+    color:var(--ft-on-accent)!important;
+  }
+
+  /* Shared control grammar. Feature layouts may size controls, but not retheme them. */
+  .app-ui .btn{
+    min-height:40px;
+    border:1px solid var(--ft-line-strong)!important;
+    border-radius:12px!important;
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+    font-weight:650!important;
+    transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease!important;
+  }
+  .app-ui .btn:hover:not(:disabled){border-color:color-mix(in srgb,var(--ft-accent) 34%,var(--ft-line-strong))!important;background:var(--ft-surface-2)!important;transform:none!important;}
+  .app-ui .btn:focus-visible,.app-ui .icon-btn:focus-visible{outline:0!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent) 18%,transparent)!important;}
+  .app-ui .btn:disabled,.app-ui .icon-btn:disabled{opacity:.5!important;cursor:not-allowed!important;}
+
+  .app-ui .btn-primary{
+    border-color:var(--ft-accent)!important;
+    background:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
+  }
+  .app-ui .btn-primary:hover:not(:disabled){border-color:var(--ft-accent-hover)!important;background:var(--ft-accent-hover)!important;color:var(--ft-on-accent)!important;}
+  .app-ui .btn-secondary{
+    border-color:var(--ft-line-strong)!important;
+    background:var(--ft-surface)!important;
+    color:var(--ft-text-strong)!important;
+  }
+  .app-ui .btn-ghost{
+    border-color:transparent!important;
+    background:transparent!important;
+    color:var(--ft-text-soft)!important;
+  }
+  .app-ui .btn-ghost:hover:not(:disabled){border-color:var(--ft-line)!important;background:var(--ft-surface-2)!important;color:var(--ft-text-strong)!important;}
+  .app-ui .btn-danger{
+    border-color:color-mix(in srgb,var(--ft-danger) 48%,var(--ft-line))!important;
+    background:var(--ft-danger-soft)!important;
+    color:var(--ft-danger)!important;
+  }
+  .app-ui .btn-danger:hover:not(:disabled){border-color:var(--ft-danger)!important;background:color-mix(in srgb,var(--ft-danger) 16%,var(--ft-surface))!important;color:var(--ft-danger)!important;}
+
+  .app-ui .icon-btn{
+    border:1px solid transparent!important;
+    border-radius:12px!important;
+    background:transparent!important;
+    color:var(--ft-text-soft)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .icon-btn:hover:not(:disabled){border-color:var(--ft-line)!important;background:var(--ft-surface-2)!important;color:var(--ft-text-strong)!important;}
+
+  .app-ui .toggle{
+    border-color:var(--ft-line-strong)!important;
+    background:var(--ft-input)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .toggle.on{
+    border-color:var(--ft-accent)!important;
+    background:var(--ft-accent)!important;
+  }
+
+  .app-ui .profitability-panel{
+    background:var(--ft-surface)!important;
+    border-color:var(--ft-line)!important;
+    color:var(--ft-text)!important;
+  }
+  .app-ui .profitability-summary>div{
+    position:relative!important;
+    overflow:hidden!important;
+    background:var(--ft-surface-2)!important;
+    border-color:var(--ft-line-strong)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  .app-ui .profitability-summary>div::before{
+    content:"";
+    position:absolute;
+    inset-block:0;
+    inset-inline-start:0;
+    width:3px;
+    border-radius:99px;
+    background:var(--ft-accent);
+  }
+  .app-ui .profitability-summary>div:nth-child(2)::before{background:var(--ft-warning)!important;}
+  .app-ui .profitability-summary>.profitability-profit::before{background:var(--ft-success)!important;}
+  .app-ui .profitability-summary span,
+  .app-ui .profitability-summary small,
+  .app-ui .profitability-lines-head span,
+  .app-ui .profitability-line>div:first-child span{color:var(--ft-text-soft)!important;}
+  .app-ui .profitability-summary strong,
+  .app-ui .profitability-lines-head strong,
+  .app-ui .profitability-line>div:first-child strong{color:var(--ft-text-strong)!important;}
+  .app-ui .profitability-profit{background:color-mix(in srgb,var(--ft-success-soft) 58%,var(--ft-surface-2))!important;}
+  .app-ui .profitability-lines,
+  .app-ui .profitability-line,
+  .app-ui .profitability-lines-head,
+  .app-ui .profitability-overheads label{border-color:var(--ft-line)!important;}
+  .app-ui .profitability-lines-head,
+  .app-ui .profitability-overheads label{
+    background:var(--ft-surface-2)!important;
+    color:var(--ft-text)!important;
   }
 }
