@@ -1,5 +1,5 @@
 const {chromium}=require('playwright');
-const {mkdirSync,writeFileSync,readFileSync}=require('node:fs');
+const {mkdirSync,writeFileSync}=require('node:fs');
 const assert=require('node:assert/strict');
 
 const output='visual-qa-output/tailadmin-v320';
@@ -26,20 +26,26 @@ const surfaces=[
 ];
 
 const productionVisualOwners=[
-  {name:'v331',css:readFileSync('src/styles/v331-draft-scroll-recovery.css','utf8')},
-  {name:'v332',css:readFileSync('src/styles/v332-critical-documents-deep-closeout.css','utf8')},
-  {name:'v482',css:readFileSync('src/styles/v482-mobile-ux-repair.css','utf8')}
+  {name:'v331',href:'styles/v331-draft-scroll-recovery.css?v=365-1'},
+  {name:'v332',href:'styles/v332-critical-documents-deep-closeout.css?v=332-1'},
+  {name:'v482',href:'styles/v482-mobile-ux-repair.css?v=482'}
 ];
 
 async function applyProductionVisualOwners(page){
-  await page.evaluate(owners=>{
-    document.querySelectorAll('style[data-lourex-qa-owner]').forEach(node=>node.remove());
+  await page.evaluate(async owners=>{
+    document.querySelectorAll('link[data-lourex-qa-owner]').forEach(node=>node.remove());
     for(const owner of owners){
-      const style=document.createElement('style');
-      style.setAttribute('data-lourex-qa-owner',owner.name);
-      style.textContent=owner.css;
-      document.head.appendChild(style);
+      await new Promise((resolve,reject)=>{
+        const link=document.createElement('link');
+        link.rel='stylesheet';
+        link.href=owner.href;
+        link.setAttribute('data-lourex-qa-owner',owner.name);
+        link.addEventListener('load',()=>resolve(),{once:true});
+        link.addEventListener('error',()=>reject(new Error(`failed to load production visual owner ${owner.href}`)),{once:true});
+        document.head.appendChild(link);
+      });
     }
+    if(document.fonts?.ready)await document.fonts.ready;
   },productionVisualOwners);
 }
 
@@ -93,7 +99,7 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
                 sidebarDisplay:sidebar?getComputedStyle(sidebar).display:'missing',
                 bottomDisplay:bottom?getComputedStyle(bottom).display:'missing',
                 shell,
-                qaOwnerOrder:Array.from(document.querySelectorAll('style[data-lourex-qa-owner]')).map(node=>node.getAttribute('data-lourex-qa-owner')||''),
+                qaOwnerOrder:Array.from(document.querySelectorAll('link[data-lourex-qa-owner]')).map(node=>node.getAttribute('data-lourex-qa-owner')||''),
                 legacyLinks:Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(link=>link.getAttribute('href')||'').filter(href=>/obsidian|luminous-noir|precision-black|canonical-v314|fintech-(?:shell|workspaces)-v280/.test(href))
               };
             },{selector:surface.selector,shell:Boolean(surface.shell),theme,lang});
