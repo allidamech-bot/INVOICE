@@ -1,6 +1,5 @@
 /*
- * Compatibility bridge — v480 overlay/auth presentation ownership is retired.
- * This is the last historical v480 import in source/dev and therefore routes the
- * cascade to the one canonical, non-versioned visual foundation.
+ * Compatibility stub — v480 overlay/auth presentation ownership is retired.
+ * The canonical visual owner is src/styles/lourex-visual-foundation.css.
+ * This path remains declaration-free for historical references only.
  */
-@import url("./lourex-visual-foundation.css");
