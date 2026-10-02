@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles/app.bundle.css">
   <link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css?v=337-3" data-lourex-qa-runtime-document-owner="true">
 </head>
-<body><div id="root" class="app-ui"></div>
+<body><div id="root"><div id="visual-app" class="app-ui"></div></div>
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
 <script type="module">
@@ -46,5 +46,5 @@
     state={newMenu:false};
     render(){return h(AppShell,{screen:'documents',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:this.state.newMenu,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:()=>{},onToggleNew:()=>this.setState(state=>({newMenu:!state.newMenu})),onNew:()=>this.setState({newMenu:false}),onSettings:()=>{},onCloud:()=>{}},h(DocumentsPage,{documents,payments,documentEvents:[],onNew:()=>{},onOpen:doc=>{window.lastAction='open:'+doc.id;},onDuplicate:doc=>{window.lastAction='duplicate:'+doc.id;},onConvert:()=>{},onPrint:async()=>{},onDelete:()=>{}}));}
   }
-  ReactDOM.render(h(Fixture),document.getElementById('root'));
+  ReactDOM.render(h(Fixture),document.getElementById('visual-app'));
 </script></body></html>

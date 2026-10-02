@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
-<body><div id="root" class="app-ui"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+<body><div id="root"><div id="visual-app" class="app-ui"></div></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
 import {AppShell} from './src/components/AppShell.js';
 import {ReportsPage} from './src/components/ReportsPage.js';
 import {ReceivablesPage} from './src/components/ReceivablesPage.js';
@@ -46,5 +46,5 @@ class Fixture extends React.Component{
   return h(AppShell,{screen,logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:()=>{},onToggleNew:()=>{},onNew:()=>{},onSettings:()=>{},onCloud:()=>{}},page);
  }
 }
-ReactDOM.render(h(Fixture),document.getElementById('root'));
+ReactDOM.render(h(Fixture),document.getElementById('visual-app'));
 </script></body></html>

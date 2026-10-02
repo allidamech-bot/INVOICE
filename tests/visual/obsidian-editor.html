@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css?v=337-3" data-lourex-qa-runtime-document-owner="true"></head>
-<body><div id="root" class="app-ui"></div>
+<body><div id="root"><div id="visual-app" class="app-ui"></div></div>
 <script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
 <script type="module">
 import {AppShell} from './src/components/AppShell.js';
@@ -41,5 +41,5 @@ const props={document:doc,documents,customers:[customer],suppliers:[supplier],co
  onConvert:async value=>{window.convertCount+=1;window.eventLog.push({type:'convert-start',id:value.id});if(convertDelay)await delay(convertDelay);window.lastConverted=structuredClone(value);window.eventLog.push({type:'convert-done',id:value.id});},
  onPrint:async(value,mode)=>{window.outputAttempts+=1;window.eventLog.push({type:'output-start',mode,status:value.status});if(outputDelay)await delay(outputDelay);if(window.failOutput){window.eventLog.push({type:'output-error',mode});throw new Error('Fixture output failure');}window.lastOutput=mode;window.lastOutputDocument=structuredClone(value);window.eventLog.push({type:'output-done',mode,status:value.status});}
 };
-ReactDOM.render(React.createElement(AppShell,{screen:'editor',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:noop,onToggleNew:noop,onNew:noop,onSettings:noop,onCloud:noop},React.createElement(EditorPage,props)),document.getElementById('root'));
+ReactDOM.render(React.createElement(AppShell,{screen:'editor',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:noop,onToggleNew:noop,onNew:noop,onSettings:noop,onCloud:noop},React.createElement(EditorPage,props)),document.getElementById('visual-app'));
 </script></body></html>

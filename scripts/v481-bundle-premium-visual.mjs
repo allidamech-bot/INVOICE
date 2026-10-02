@@ -45,7 +45,7 @@ if(!bundle.includes('.lx-pipeline-board'))throw new Error('v481 production bundl
 if(!bundle.includes('.ta-create-menu-mobile'))throw new Error('v481 production bundle: mobile command-surface rebuild is missing.');
 if(!bundle.includes('.ta-settings-shell'))throw new Error('v481 production bundle: settings/account rebuild is missing.');
 if(!bundle.includes('background-color:var(--ft-accent,#315da8)!important'))throw new Error('v481 production bundle: primary-action computed-color hardening is missing.');
-if(!bundle.includes('html body #root.app-ui .ta-ops-metrics>*'))throw new Error('v481 production bundle: operations KPI surface hardening is missing.');
+if(!bundle.includes('html body #root .app-ui .ta-ops-metrics>*'))throw new Error('v481 production bundle: operations KPI surface hardening is missing.');
 
 await writeFile(bundlePath,bundle);
 console.log(`LOUREX v481 premium visual rebuild bundled (${owners.length} final presentation owners).`);

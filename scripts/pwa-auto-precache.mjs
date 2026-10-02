@@ -13,6 +13,12 @@ const compiledModules=(await readdir('dist/src',{recursive:true}))
 if(!compiledModules.length)throw new Error('No compiled LOUREX application modules found for PWA precache.');
 if(!sw.includes(cacheMarker))throw new Error('Unable to locate the LOUREX PWA cache insertion point.');
 
+const interfaceFonts=['Regular','Medium','Bold','ExtraBold'].map(weight=>`./fonts/Tajawal-${weight}.ttf`);
+for(const font of interfaceFonts){
+  if(sw.includes(`'${font}'`))continue;
+  sw=sw.replace(cacheMarker,`LOCAL_CORE.push('${font}');\n${cacheMarker}`);
+}
+
 for(const runtime of compiledModules){
   if(sw.includes(`'${runtime}'`)||sw.includes(`"${runtime}"`))continue;
   sw=sw.replace(cacheMarker,`LOCAL_CORE.push('${runtime}');\n${cacheMarker}`);
