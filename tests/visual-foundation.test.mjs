@@ -58,10 +58,10 @@ test('LOUREX has one non-versioned application-wide visual owner',async()=>{
 test('Documents hierarchy is centered, unclipped and wrapper-light',async()=>{
   const css=await read('src/styles/lourex-visual-foundation.css');
   assert.match(css,/\.ta-documents-header-actions\{[\s\S]*?margin-inline:auto!important;[\s\S]*?justify-self:center!important;/);
-  assert.match(css,/\.ta-documents-header-actions>:last-child:nth-child\(odd\)[\s\S]*?justify-self:center;/);
+  assert.match(css,/\.ta-documents-header-actions>:last-child:nth-child\(odd\)[\s\S]*?grid-column:1\/-1!important;/);
   assert.match(css,/\.ta-doc-register-card\{[\s\S]*?background:transparent!important;[\s\S]*?border:0!important;[\s\S]*?box-shadow:none!important;/);
   assert.match(css,/\.ta-doc-type-tabs\{[\s\S]*?-webkit-mask-image:none!important;[\s\S]*?mask-image:none!important;/);
-  assert.match(css,/@media screen and \(max-width:900px\)[\s\S]*?\.ta-doc-type-tabs\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important;[\s\S]*?overflow:visible!important;/);
+  assert.match(css,/@media screen and \(max-width:719px\)[\s\S]*?\.ta-doc-type-tabs\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important;[\s\S]*?overflow:visible!important;/);
   assert.match(css,/\.ta-doc-commandbar\{[\s\S]*?grid-template-columns:minmax\(0,1fr\) minmax\(150px,220px\) auto!important;/);
 });
 
