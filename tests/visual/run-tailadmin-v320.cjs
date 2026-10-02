@@ -1,5 +1,5 @@
 const {chromium}=require('playwright');
-const {mkdirSync,writeFileSync}=require('node:fs');
+const {mkdirSync,writeFileSync,readFileSync}=require('node:fs');
 const assert=require('node:assert/strict');
 
 const output='visual-qa-output/tailadmin-v320';
@@ -25,6 +25,24 @@ const surfaces=[
   {name:'recovery',fixture:'obsidian-overlays.html',query:'screen=recovery',selector:'.app-recovery'}
 ];
 
+const productionVisualOwners=[
+  {name:'v331',css:readFileSync('src/styles/v331-draft-scroll-recovery.css','utf8')},
+  {name:'v332',css:readFileSync('src/styles/v332-critical-documents-deep-closeout.css','utf8')},
+  {name:'v482',css:readFileSync('src/styles/v482-mobile-ux-repair.css','utf8')}
+];
+
+async function applyProductionVisualOwners(page){
+  await page.evaluate(owners=>{
+    document.querySelectorAll('style[data-lourex-qa-owner]').forEach(node=>node.remove());
+    for(const owner of owners){
+      const style=document.createElement('style');
+      style.setAttribute('data-lourex-qa-owner',owner.name);
+      style.textContent=owner.css;
+      document.head.appendChild(style);
+    }
+  },productionVisualOwners);
+}
+
 function rgb(value){
   const match=String(value||'').match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
   return match?match.slice(1,4).map(Number):null;
@@ -48,6 +66,7 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
             const params=new URLSearchParams(surface.query||'');params.set('lang',lang);
             const url=`http://127.0.0.1:4173/tests/visual/${surface.fixture}?${params.toString()}`;
             await page.goto(url,{waitUntil:'load'});
+            await applyProductionVisualOwners(page);
             await page.evaluate(({theme})=>{
               document.documentElement.dataset.uiTheme=theme;
               document.documentElement.dataset.uiThemePreference=theme;
@@ -74,11 +93,13 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
                 sidebarDisplay:sidebar?getComputedStyle(sidebar).display:'missing',
                 bottomDisplay:bottom?getComputedStyle(bottom).display:'missing',
                 shell,
+                qaOwnerOrder:Array.from(document.querySelectorAll('style[data-lourex-qa-owner]')).map(node=>node.getAttribute('data-lourex-qa-owner')||''),
                 legacyLinks:Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(link=>link.getAttribute('href')||'').filter(href=>/obsidian|luminous-noir|precision-black|canonical-v314|fintech-(?:shell|workspaces)-v280/.test(href))
               };
             },{selector:surface.selector,shell:Boolean(surface.shell),theme,lang});
 
             const failures=[...errors];
+            if(state.qaOwnerOrder.join(',')!=='v331,v332,v482')failures.push(`production QA owner order mismatch: ${state.qaOwnerOrder.join(' -> ')}`);
             if(!state.accent||!state.workspace||!state.surface||!state.text)failures.push('TailAdmin --ft-* token set is incomplete');
             if(!/Outfit/i.test(state.font))failures.push(`TailAdmin typography missing: ${state.font}`);
             if(state.scrollWidth>scenario.width+2)failures.push(`horizontal overflow ${state.scrollWidth}px at ${scenario.width}px`);
@@ -179,11 +200,20 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
                       const close=el.querySelector('.lourex-ai-close');
                       const composer=el.querySelector('form input,form textarea');
                       const cr=close?.getBoundingClientRect();
-                      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,closeWidth:cr?.width||0,closeHeight:cr?.height||0,composerFont:composer?parseFloat(getComputedStyle(composer).fontSize):0};
+                      const head=el.querySelector('.lourex-ai-head');
+                      const title=el.querySelector('.lourex-ai-title');
+                      const actions=el.querySelector('.lourex-ai-head-actions');
+                      const hr=head?.getBoundingClientRect();
+                      const tr=title?.getBoundingClientRect();
+                      const ar=actions?.getBoundingClientRect();
+                      const overlaps=Boolean(tr&&ar&&!(tr.right<=ar.left+1||ar.right<=tr.left+1||tr.bottom<=ar.top+1||ar.bottom<=tr.top+1));
+                      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,closeWidth:cr?.width||0,closeHeight:cr?.height||0,composerFont:composer?parseFloat(getComputedStyle(composer).fontSize):0,headHeight:hr?.height||0,titleActionsOverlap:overlaps};
                     });
                     if(aiState.left<-1||aiState.right>scenario.width+1||aiState.top<-1||aiState.bottom>scenario.height+1)failures.push(`LOUREX AI panel exceeds viewport ${JSON.stringify(aiState)}`);
                     if(aiState.closeWidth<43.5||aiState.closeHeight<43.5)failures.push(`LOUREX AI close target is ${aiState.closeWidth}x${aiState.closeHeight}`);
                     if(aiState.composerFont&&aiState.composerFont<15.5)failures.push(`LOUREX AI composer font ${aiState.composerFont}px may trigger Safari zoom`);
+                    if(aiState.headHeight<68)failures.push(`LOUREX AI header too short: ${aiState.headHeight}px`);
+                    if(aiState.titleActionsOverlap)failures.push('LOUREX AI header title overlaps action controls');
                     await page.screenshot({path:`${output}/ai-panel-${scenario.name}-${theme}-${lang}.png`,fullPage:false});
                     const close=panel.locator('.lourex-ai-close');
                     if(await close.isVisible().catch(()=>false))await close.click();
@@ -211,5 +241,5 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
   writeFileSync(`${output}/report.json`,JSON.stringify(results,null,2));
   const failures=results.flatMap(result=>result.failures.map(failure=>`${result.surface}/${result.scenario}/${result.theme}/${result.lang}: ${failure}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`TailAdmin v363 visual gate: ${results.length} surface/theme/language/viewport cases passed, including 320px AI/Search/More coverage.`);
+  console.log(`TailAdmin v482 visual gate: ${results.length} surface/theme/language/viewport cases passed with production v331 -> v332 -> v482 cascade, including 320px AI/Search/More coverage.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
