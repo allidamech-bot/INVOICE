@@ -3,14 +3,28 @@
    Keeps AI workflow and More command copy readable in both LTR and RTL without grid-track collapse. */
 @media screen and (max-width:900px){
   html body #lourex-ai-panel .lourex-ai-plus-menu{
+    width:auto!important;
+    min-width:0!important;
+    max-width:none!important;
     overflow-x:hidden!important;
+  }
+  html body #lourex-ai-panel .lourex-ai-plus-section{
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
   }
   html body #lourex-ai-panel .lourex-ai-plus-item{
     width:100%!important;
     min-width:0!important;
+    max-width:none!important;
     min-height:60px!important;
     height:auto!important;
     display:flex!important;
+    flex:0 0 auto!important;
+    align-self:stretch!important;
     flex-direction:row!important;
     align-items:center!important;
     justify-content:flex-start!important;
@@ -29,7 +43,7 @@
   html body #lourex-ai-panel .lourex-ai-plus-copy{
     flex:1 1 0!important;
     min-width:0!important;
-    width:calc(100% - 48px)!important;
+    width:auto!important;
     max-width:none!important;
     display:flex!important;
     flex-direction:column!important;
@@ -58,6 +72,7 @@
     width:100%!important;
     min-width:0!important;
     max-width:none!important;
+    max-inline-size:none!important;
     height:auto!important;
     position:static!important;
     transform:none!important;
@@ -78,6 +93,7 @@
     width:100%!important;
     min-width:0!important;
     max-width:none!important;
+    max-inline-size:none!important;
     position:static!important;
     transform:none!important;
     opacity:1!important;
@@ -129,9 +145,6 @@
     min-width:36px!important;
     height:36px!important;
     min-height:36px!important;
-  }
-  html body #lourex-ai-panel .lourex-ai-plus-copy{
-    width:calc(100% - 44px)!important;
   }
   html body #lourex-ai-panel .lourex-ai-plus-copy strong{
     font-size:12px!important;
