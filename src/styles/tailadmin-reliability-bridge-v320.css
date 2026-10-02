@@ -150,6 +150,18 @@
     color:var(--ft-on-accent,#fff)!important;
     box-shadow:none!important;
   }
+
+  /* Light-mode v480 is canonical Premium Blue. A retired Hostinger scope can still
+     provide a local violet --ft-accent inside the legacy Operations fixture, so do
+     not re-resolve that stale custom property for the final mobile primary action. */
+  html[data-ui-theme="light"] body .app-ui section.ta-operations-page div.ta-ops-split section.ta-ops-list-card header.ta-ops-panel-head button.btn.btn-primary,
+  html[data-ui-theme="light"] body .app-ui section.ta-operations-page div.ta-ops-split :is(button.btn.btn-primary,.btn.btn-primary){
+    background:#315DA8!important;
+    background-image:none!important;
+    border-color:#315DA8!important;
+    color:#FFFFFF!important;
+    box-shadow:none!important;
+  }
 }
 
 @media screen and (max-width:720px){
