@@ -101,7 +101,7 @@ async function runCase(name,browserType,viewport,lang){
        guard must stop the legacy listener and request an in-app transition while
        keeping the current document alive. */
     const navigationBeforeRecovery=mainFrameNavigations;
-    await page.addScriptTag({url:'http://127.0.0.1:4173/runtime-no-auto-reload-v482.js?v=482'});
+    await page.addScriptTag({url:'http://127.0.0.1:4173/dist/runtime-no-auto-reload-v482.js?v=482'});
     const recovery=await page.evaluate(async()=>{
       const setup=document.createElement('div');
       setup.className='account-managed-setup';
