@@ -1,0 +1,1 @@
+Fix exact production screenshots: centered document tabs, visible navy layers, More sheet depth, iPad/desktop premium activation.

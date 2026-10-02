@@ -1,0 +1,1 @@
+Validation targets: iPhone Documents tabs centered with no clipped tile; non-primary create buttons visibly navy; More sheet layer separation; iPad/desktop premium shell/dashboard active; existing business behavior unchanged.
