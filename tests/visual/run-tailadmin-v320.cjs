@@ -26,9 +26,7 @@ const surfaces=[
 ];
 
 const productionVisualOwners=[
-  {name:'v331',href:'styles/v331-draft-scroll-recovery.css?v=365-1'},
-  {name:'v332',href:'styles/v332-critical-documents-deep-closeout.css?v=332-1'},
-  {name:'v482',href:'styles/v482-mobile-ux-repair.css?v=482'}
+  {name:'foundation',href:'styles/lourex-visual-foundation.css?v=foundation-1'}
 ];
 
 async function applyProductionVisualOwners(page){
@@ -105,7 +103,7 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
             },{selector:surface.selector,shell:Boolean(surface.shell),theme,lang});
 
             const failures=[...errors];
-            if(state.qaOwnerOrder.join(',')!=='v331,v332,v482')failures.push(`production QA owner order mismatch: ${state.qaOwnerOrder.join(' -> ')}`);
+            if(state.qaOwnerOrder.join(',')!=='foundation')failures.push(`production QA owner order mismatch: ${state.qaOwnerOrder.join(' -> ')}`);
             if(!state.accent||!state.workspace||!state.surface||!state.text)failures.push('TailAdmin --ft-* token set is incomplete');
             if(!/Outfit/i.test(state.font))failures.push(`TailAdmin typography missing: ${state.font}`);
             if(state.scrollWidth>scenario.width+2)failures.push(`horizontal overflow ${state.scrollWidth}px at ${scenario.width}px`);
@@ -247,5 +245,5 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
   writeFileSync(`${output}/report.json`,JSON.stringify(results,null,2));
   const failures=results.flatMap(result=>result.failures.map(failure=>`${result.surface}/${result.scenario}/${result.theme}/${result.lang}: ${failure}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`TailAdmin v482 visual gate: ${results.length} surface/theme/language/viewport cases passed with production v331 -> v332 -> v482 cascade, including 320px AI/Search/More coverage.`);
+  console.log(`TailAdmin current visual gate: ${results.length} surface/theme/language/viewport cases passed with the canonical visual foundation, including 320px AI/Search/More coverage.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});

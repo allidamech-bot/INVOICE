@@ -1,0 +1,64 @@
+name: Visual Foundation QA
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/styles/**'
+      - 'scripts/**'
+      - 'index.html'
+      - 'package.json'
+      - 'tests/visual-foundation-current.test.mjs'
+      - 'tests/visual/run-visual-foundation-current.cjs'
+      - 'tests/visual/**'
+      - '.github/workflows/visual-foundation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-foundation:
+    name: Cross-device visual foundation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Static foundation contract
+        run: node --test tests/visual-foundation-current.test.mjs
+      - name: Production build
+        run: npm run build
+      - name: Install screenshot runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Cross-device screenshot and geometry QA
+        run: |
+          npx http-server . -p 4173 -c-1 > /tmp/lourex-visual-foundation-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/tests/visual/obsidian-documents.html >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/lourex-visual-foundation-server.log
+            exit 1
+          fi
+          node tests/visual/run-visual-foundation-current.cjs
+      - name: Upload visual foundation evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lourex-visual-foundation-screenshots
+          path: visual-qa-output/visual-foundation
+          if-no-files-found: error
