@@ -132,26 +132,27 @@
   ){padding-bottom:24px!important}
 
   /* The executive stack must not let older Hostinger-era violet actions re-enter
-     the mobile Operations workflow. Keep the final ownership on the real #root so
-     historical class-only !important rules cannot outrank the canonical palette. */
-  html[data-ui-theme="light"] body #root.app-ui .ta-operations-page .ta-ops-panel-head .btn.btn-primary,
-  html[data-ui-theme="light"] body #root.app-ui .ta-operations-page .ta-ops-split .btn.btn-primary{
+     the mobile Operations workflow. The duplicate #root selector is intentional:
+     it gives this final reliability owner two ID specificity points, so legacy
+     language/direction-specific !important rules cannot win on WebKit. */
+  html[data-ui-theme="light"] body #root#root.app-ui .ta-operations-page .ta-ops-panel-head .btn.btn-primary,
+  html[data-ui-theme="light"] body #root#root.app-ui .ta-operations-page .ta-ops-split .btn.btn-primary{
     background:#315DA8!important;
     background-image:none!important;
     border-color:#315DA8!important;
     color:#FFFFFF!important;
     box-shadow:none!important;
   }
-  html[data-ui-theme="light"] body #root.app-ui .ta-operations-page .ta-ops-panel-head .btn.btn-primary:is(:hover,:active):not(:disabled),
-  html[data-ui-theme="light"] body #root.app-ui .ta-operations-page .ta-ops-split .btn.btn-primary:is(:hover,:active):not(:disabled){
+  html[data-ui-theme="light"] body #root#root.app-ui .ta-operations-page .ta-ops-panel-head .btn.btn-primary:is(:hover,:active):not(:disabled),
+  html[data-ui-theme="light"] body #root#root.app-ui .ta-operations-page .ta-ops-split .btn.btn-primary:is(:hover,:active):not(:disabled){
     background:#315DA8!important;
     background-image:none!important;
     border-color:#315DA8!important;
     color:#FFFFFF!important;
     box-shadow:none!important;
   }
-  html[data-ui-theme="dark"] body #root.app-ui .ta-operations-page .ta-ops-panel-head .btn.btn-primary,
-  html[data-ui-theme="dark"] body #root.app-ui .ta-operations-page .ta-ops-split .btn.btn-primary{
+  html[data-ui-theme="dark"] body #root#root.app-ui .ta-operations-page .ta-ops-panel-head .btn.btn-primary,
+  html[data-ui-theme="dark"] body #root#root.app-ui .ta-operations-page .ta-ops-split .btn.btn-primary{
     background:#7399E3!important;
     background-image:none!important;
     border-color:#7399E3!important;
