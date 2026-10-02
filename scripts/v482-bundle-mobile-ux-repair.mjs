@@ -22,7 +22,7 @@ if(bundle.indexOf(marker)<=bundle.indexOf(v481Marker))throw new Error('v482 prod
 if(!bundle.includes('.ta-documents-header-actions'))throw new Error('v482 production bundle: compact Documents command grid is missing.');
 if(!bundle.includes('#lourex-ai-panel.lourex-ai-panel'))throw new Error('v482 production bundle: AI mobile safe-area repair is missing.');
 if(!bundle.includes('#lourex-ai-panel .lourex-ai-head'))throw new Error('v482 production bundle: AI header overlap repair is missing.');
-if(!bundle.includes('#lourex-ai-panel .lourex-ai-plus-copy')||!bundle.includes('grid-column:2!important'))throw new Error('v482 production bundle: narrow AI workflow readability repair is missing.');
+if(!bundle.includes('#lourex-ai-panel .lourex-ai-plus-copy')||!bundle.includes('flex:1 1 0!important')||!bundle.includes('visibility:visible!important'))throw new Error('v482 production bundle: visible narrow AI workflow readability repair is missing.');
 if(!bundle.includes('.global-search-actions'))throw new Error('v482 production bundle: Global Search quick-create repair is missing.');
 if(!bundle.includes('.ta-create-menu-grid'))throw new Error('v482 production bundle: Quick Create geometry repair is missing.');
 if(!bundle.includes('.ta-business-health-card'))throw new Error('v482 production bundle: dashboard surface repair is missing.');
