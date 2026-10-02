@@ -45,6 +45,10 @@ if(!html.includes(newDocumentEntry))throw new Error('v351: document-entry runtim
 
 const runtimeSafety='<script src="./runtime-safety-v334.js?v=344"></script>';
 if(!html.includes(runtimeSafety))throw new Error('v351: runtime safety script reference is missing.');
+const runtimeNoAutoReload='./runtime-no-auto-reload-v482.js?v=482';
+if(!html.includes(runtimeNoAutoReload))html=html.replace(runtimeSafety,`${runtimeSafety}\n  <script src="${runtimeNoAutoReload}"></script>`);
+if(!html.includes(runtimeNoAutoReload))throw new Error('v482: no-auto-reload runtime guard is missing.');
+if(html.indexOf(runtimeNoAutoReload)<=html.indexOf(runtimeSafety)||html.indexOf(runtimeNoAutoReload)>=html.indexOf(newDocumentEntry))throw new Error('v482: no-auto-reload guard must load after runtime safety and before document entry.');
 const storageCleanup='./storage-cleanup-v347.js?v=351';
 html=html.replaceAll('./storage-cleanup-v347.js?v=347',storageCleanup);
 if(!html.includes('storage-cleanup-v347.js'))html=html.replace(runtimeSafety,`${runtimeSafety}\n  <script src="${storageCleanup}"></script>`);
@@ -58,11 +62,17 @@ if(!html.includes(mobilePreviewOutput))throw new Error('v351: mobile Preview out
 
 const draftScrollRuntime='./styles/v331-draft-scroll-recovery.css?v=365-1';
 const criticalDocumentsRuntime='./styles/v332-critical-documents-deep-closeout.css?v=332-1';
+const v482MobileRepair='./styles/v482-mobile-ux-repair.css?v=482';
 const bundleTag='<link rel="stylesheet" href="./styles/app.bundle.css" />';
 if(!html.includes(bundleTag)||!html.includes(draftScrollRuntime)||!html.includes(criticalDocumentsRuntime))throw new Error('v351: standalone v331/v332 document owner is missing before finalization.');
 if((html.match(/data-lourex-v331-draft-recovery="true"/g)||[]).length!==1)throw new Error('v351: expected exactly one v331 standalone owner marker.');
 if((html.match(/data-lourex-v332-critical-documents="true"/g)||[]).length!==1)throw new Error('v351: expected exactly one v332 standalone owner marker.');
-if(html.indexOf(draftScrollRuntime)<=html.indexOf(bundleTag)||html.indexOf(criticalDocumentsRuntime)<=html.indexOf(draftScrollRuntime))throw new Error('v351: standalone document owner order must be app.bundle.css -> v331 -> v332.');
+const criticalDocumentsTag=`<link rel="stylesheet" href="${criticalDocumentsRuntime}" data-lourex-v332-critical-documents="true" />`;
+const v482MobileRepairTag=`<link rel="stylesheet" href="${v482MobileRepair}" data-lourex-v482-mobile-ux="true" />`;
+if(!html.includes(criticalDocumentsTag))throw new Error('v482: canonical v332 stylesheet tag is missing.');
+if(!html.includes(v482MobileRepair))html=html.replace(criticalDocumentsTag,`${criticalDocumentsTag}\n  ${v482MobileRepairTag}`);
+if(!html.includes(v482MobileRepairTag))throw new Error('v482: final standalone mobile UX repair stylesheet is missing.');
+if(html.indexOf(draftScrollRuntime)<=html.indexOf(bundleTag)||html.indexOf(criticalDocumentsRuntime)<=html.indexOf(draftScrollRuntime)||html.indexOf(v482MobileRepair)<=html.indexOf(criticalDocumentsRuntime))throw new Error('v482: stylesheet owner order must be app.bundle.css -> v331 -> v332 -> v482.');
 await writeFile(htmlPath,html);
 
 /* build.mjs owns the palette insertion point. Finalization owns only the final
@@ -101,7 +111,7 @@ sw=sw.replaceAll(oldDocumentEntry,newDocumentEntry);
 sw=sw.replaceAll('./storage-cleanup-v347.js?v=347',storageCleanup);
 const cacheMarker="LOCAL_CORE.push('./canonical-redirect.js');";
 if(!sw.includes(cacheMarker))throw new Error('v351: service-worker cache insertion marker is missing.');
-for(const asset of [themeBootstrap,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime]){
+for(const asset of [themeBootstrap,runtimeNoAutoReload,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime,v482MobileRepair]){
   if(!sw.includes(`LOCAL_CORE.push('${asset}');`))sw=sw.replace(cacheMarker,`LOCAL_CORE.push('${asset}');\n${cacheMarker}`);
 }
 await writeFile(swPath,sw);
@@ -115,17 +125,20 @@ if(!finalHtml.includes(themeBootstrap))throw new Error('v351: external theme boo
 if(!finalHtml.includes(canonicalLightBoot)||!finalHtml.includes(canonicalDarkBoot))throw new Error('v351: canonical first-paint boot palette is missing from production HTML.');
 if(finalHtml.includes(legacyLightBoot)||finalHtml.includes(legacyDarkBoot))throw new Error('v351: legacy first-paint boot palette remains in production HTML.');
 if(!finalHtml.includes('<meta name="theme-color" content="#0D0D0D" />'))throw new Error('v351: production theme-color meta is not canonical.');
+if(!finalHtml.includes(runtimeNoAutoReload))throw new Error('v482: production HTML is missing no-auto-reload runtime guard.');
+if(finalHtml.indexOf(runtimeNoAutoReload)<=finalHtml.indexOf(runtimeSafety)||finalHtml.indexOf(runtimeNoAutoReload)>=finalHtml.indexOf(newDocumentEntry))throw new Error('v482: final runtime guard order is invalid.');
 if(!finalHtml.includes(storageCleanup)||finalHtml.includes('./storage-cleanup-v347.js?v=347'))throw new Error('v351: storage cleanup cache key is not canonical.');
 if(!finalHtml.includes(mobilePreviewOutput))throw new Error('v351: mobile Preview output validation bridge is not wired.');
-for(const asset of [newWatchdog,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime])if(!finalHtml.includes(asset))throw new Error(`v351: production HTML is missing ${asset}.`);
-if(finalHtml.indexOf(draftScrollRuntime)<=finalHtml.indexOf(bundleTag)||finalHtml.indexOf(criticalDocumentsRuntime)<=finalHtml.indexOf(draftScrollRuntime))throw new Error('v351: final standalone document owner order is invalid.');
+for(const asset of [newWatchdog,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime,v482MobileRepair])if(!finalHtml.includes(asset))throw new Error(`v482: production HTML is missing ${asset}.`);
+if(finalHtml.indexOf(draftScrollRuntime)<=finalHtml.indexOf(bundleTag)||finalHtml.indexOf(criticalDocumentsRuntime)<=finalHtml.indexOf(draftScrollRuntime)||finalHtml.indexOf(v482MobileRepair)<=finalHtml.indexOf(criticalDocumentsRuntime))throw new Error('v482: final standalone stylesheet order is invalid.');
+if((finalHtml.match(/data-lourex-v482-mobile-ux="true"/g)||[]).length!==1)throw new Error('v482: expected exactly one standalone mobile UX owner.');
 if(!finalCss.includes(paletteMarker))throw new Error('v351: explicit application palette owner is not bundled.');
 if(!finalCss.includes(startupMarker))throw new Error('v351: startup single-layer CSS is not final in the production bundle.');
 if((finalCss.match(/\/\* --- v346-template-color-visual-closeout\.css --- \*\//g)||[]).length!==1)throw new Error('v351: application palette owner appears more than once in the production bundle.');
 if(/@import\s+url\([^)]*v346-template-color-visual-closeout/i.test(finalCss))throw new Error('v351: late v346 runtime @import remains in the production bundle.');
 if(finalEntry.includes("const bootBackground=dark?'#0c111d':'#f9fafb';"))throw new Error('v351: stale document-entry boot canvas survived finalization.');
 for(const retiredRuntimeStyle of ['attachment-gallery-v304.css','mobile-layout-closeout-v305.css','release-hardening-v306.css'])if(finalEntry.includes(retiredRuntimeStyle))throw new Error(`v351: retired empty runtime stylesheet request survived finalization: ${retiredRuntimeStyle}.`);
-for(const asset of [newWatchdog,themeBootstrap,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime])if(!finalSw.includes(asset))throw new Error(`v351: service worker is missing ${asset}.`);
+for(const asset of [newWatchdog,themeBootstrap,runtimeNoAutoReload,storageCleanup,mobilePreviewOutput,newPresentationGuard,newDocumentEntry,draftScrollRuntime,criticalDocumentsRuntime,v482MobileRepair])if(!finalSw.includes(asset))throw new Error(`v482: service worker is missing ${asset}.`);
 if(finalSw.includes('./storage-cleanup-v347.js?v=347'))throw new Error('v351: stale storage cleanup cache key remains in service worker.');
 
-console.log('LOUREX v351 startup finalization verified: canonical source/production palette, one loading owner, standalone v331/v332 document owners, no retired empty runtime CSS requests, no automatic stuck-boot reload, conservative storage cleanup, Preview output feedback and final PWA precache aligned.');
+console.log('LOUREX v482 startup finalization verified: no automatic late-auth hard reload, final standalone mobile UX owner after v332, canonical source/production palette, one loading owner, conservative storage cleanup and final PWA precache aligned.');

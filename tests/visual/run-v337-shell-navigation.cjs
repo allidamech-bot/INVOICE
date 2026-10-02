@@ -17,9 +17,12 @@ async function runCase(name,browserType,viewport,lang){
     const context=await browser.newContext({viewport,isMobile:true,hasTouch:true});
     const page=await context.newPage();
     const failures=[];
+    let mainFrameNavigations=0;
     page.on('pageerror',error=>failures.push(`pageerror: ${String(error)}`));
+    page.on('framenavigated',frame=>{if(frame===page.mainFrame())mainFrameNavigations+=1;});
     await page.goto(`http://127.0.0.1:4173/tests/visual/obsidian-shell.html?lang=${lang}`,{waitUntil:'load'});
     await page.locator('.ta-mobile-nav').waitFor({state:'visible'});
+    const initialMainFrameNavigations=mainFrameNavigations;
 
     const navButtons=page.locator('.ta-mobile-nav>button');
     const navCount=await navButtons.count();
@@ -91,6 +94,38 @@ async function runCase(name,browserType,viewport,lang){
     scope=await page.evaluate(()=>sessionStorage.getItem('lourex-settings-scope'));
     if(settingsAfter!==settingsBefore+1)failures.push('Settings entry did not invoke settings surface');
     if(scope!=='settings')failures.push(`Settings entry stored scope=${scope}`);
+    if(mainFrameNavigations!==initialMainFrameNavigations)failures.push(`More navigation hard-navigated the document ${mainFrameNavigations-initialMainFrameNavigations} time(s)`);
+
+    /* Reproduce the production late-auth cloud-refresh race that previously
+       triggered document-entry's location.replace fallback. The v482 capture
+       guard must stop the legacy listener and request an in-app transition while
+       keeping the current document alive. */
+    const navigationBeforeRecovery=mainFrameNavigations;
+    await page.addScriptTag({url:'http://127.0.0.1:4173/dist/runtime-no-auto-reload-v482.js?v=482'});
+    const recovery=await page.evaluate(async()=>{
+      const setup=document.createElement('div');
+      setup.className='account-managed-setup';
+      setup.hidden=true;
+      document.body.appendChild(setup);
+      const firebaseMock={auth:()=>({currentUser:{uid:'qa-late-auth'}})};
+      try{Object.defineProperty(window,'firebase',{configurable:true,writable:true,value:firebaseMock});}catch{window.firebase=firebaseMock;}
+      window.__qaLateAuthTransitions=0;
+      window.__qaLegacyCloudListener=0;
+      window.addEventListener('lourex-account-transition-request',event=>{
+        window.__qaLateAuthTransitions+=1;
+        const uid=String(event instanceof CustomEvent?event.detail?.uid||'':'');
+        window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid}}));
+      });
+      window.addEventListener('lourex-cloud-refresh-available',()=>{window.__qaLegacyCloudListener+=1;});
+      window.dispatchEvent(new CustomEvent('lourex-cloud-refresh-available'));
+      await new Promise(resolve=>setTimeout(resolve,40));
+      const result={transitions:window.__qaLateAuthTransitions,legacy:window.__qaLegacyCloudListener};
+      setup.remove();
+      return result;
+    });
+    if(recovery.transitions!==1)failures.push(`late-auth cloud refresh requested ${recovery.transitions} in-app transitions, expected 1`);
+    if(recovery.legacy!==0)failures.push(`late-auth cloud refresh leaked to ${recovery.legacy} legacy listener(s)`);
+    if(mainFrameNavigations!==navigationBeforeRecovery)failures.push('late-auth cloud refresh hard-navigated the document');
 
     await page.evaluate(()=>{window.__qaSearchOpen=0;window.addEventListener('lourex-global-search-open',()=>{window.__qaSearchOpen+=1;},{once:false});});
     const search=page.locator('.ta-search-trigger');
@@ -118,5 +153,5 @@ async function runCase(name,browserType,viewport,lang){
   writeFileSync(`${output}/report.json`,JSON.stringify(rows,null,2));
   const failures=rows.flatMap(row=>row.failures.map(f=>`${row.name}/${row.lang}: ${f}`));
   assert.equal(failures.length,0,failures.join('\n'));
-  console.log(`v337 shell navigation: ${rows.length} Chromium/WebKit phone+iPad cases passed with pan-y More-menu reachability.`);
+  console.log(`v482 shell navigation: ${rows.length} Chromium/WebKit phone+iPad cases passed with pan-y More reachability, no hard navigation and guarded late-auth cloud refresh.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
