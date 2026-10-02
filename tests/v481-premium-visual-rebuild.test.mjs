@@ -17,7 +17,8 @@ test('v481 is the final production presentation owner after all historical visua
     '/* --- tailadmin-reliability-bridge-v320.css --- */',
     '/* --- premium-visual-system-v481.css --- */',
     '/* --- premium-workspaces-v481.css --- */',
-    '/* --- premium-overlays-v481.css --- */'
+    '/* --- premium-overlays-v481.css --- */',
+    '/* --- premium-business-v481.css --- */'
   ];
   let previous=-1;
   for(const marker of markers){
@@ -25,7 +26,7 @@ test('v481 is the final production presentation owner after all historical visua
     assert.ok(index>previous,`built bundle owner order is invalid at ${marker}`);
     previous=index;
   }
-  assert.doesNotMatch(bundle,/@import url\("\.\/premium-(?:visual-system|workspaces|overlays)-v481\.css/,'production must not depend on late v481 @imports');
+  assert.doesNotMatch(bundle,/@import url\("\.\/premium-(?:visual-system|workspaces|overlays|business)-v481\.css/,'production must not depend on late v481 @imports');
 });
 
 test('v481 premium system provides one coherent dark/light mobile palette and command-center hierarchy',async()=>{
@@ -60,4 +61,14 @@ test('v481 command surfaces rebuild More, Quick Create, Search and LOUREX AI as 
   assert.match(css,/\.global-search-panel\{[\s\S]*?bottom:calc\(8px \+ env\(safe-area-inset-bottom,0px\)\)!important/,'Global Search safe-area contract is missing');
   assert.match(css,/\.lourex-ai-compose input\{[\s\S]*?font-size:16px!important/,'LOUREX AI composer must remain Safari-zoom safe');
   assert.match(css,/html\[data-ui-theme="light"\][\s\S]*?\.ta-mobile-sheet/,'Light mode overlay ownership is missing');
+});
+
+test('v481 business surfaces keep products finance reports settings account and recovery on the same palette',async()=>{
+  const css=await read('src/styles/premium-business-v481.css');
+  assert.match(css,/\.ta-products-overview,.ta-product-metrics,.ta-ops-metrics\)\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/,'business KPI grids lost compact mobile geometry');
+  assert.match(css,/\.ta-report-filterbar\{padding:10px!important/,'reports filterbar premium contract is missing');
+  assert.match(css,/\.ta-settings-shell\{[\s\S]*?background:var\(--lx481-canvas\)!important/,'settings shell can escape the v481 canvas');
+  assert.match(css,/\.ta-settings-card\{[\s\S]*?background:linear-gradient\(155deg,var\(--lx481-surface-2\),var\(--lx481-surface\)\)!important/,'settings cards can regress to charcoal/brown legacy surfaces');
+  assert.match(css,/\.app-recovery>section\{[\s\S]*?border-radius:22px!important/,'recovery premium surface contract is missing');
+  assert.match(css,/html\[data-ui-theme="light"\] body \.app-recovery>section\{background:#fff!important/,'recovery Light mode surface contract is missing');
 });
