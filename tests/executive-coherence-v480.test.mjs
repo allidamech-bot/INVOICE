@@ -23,9 +23,11 @@ test('v480 coherence is screenshot-driven and covers the remaining visual seams'
   assert.match(css,/min-height:44px/);
 });
 
-test('v480 final reliability bridge prevents retired Hostinger violet from re-entering light Operations primary actions',()=>{
-  assert.match(reliability,/html\[data-ui-theme="light"\][\s\S]*?ta-operations-page[\s\S]*?ta-ops-panel-head[\s\S]*?button\.btn\.btn-primary[\s\S]*?background:#315DA8!important/);
-  assert.match(reliability,/border-color:#315DA8!important/);
+test('v480 final reliability bridge prevents retired Hostinger violet from re-entering Operations primary actions',()=>{
+  assert.match(reliability,/html\[data-ui-theme="light"\] body #root\.app-ui \.ta-operations-page \.ta-ops-panel-head \.btn\.btn-primary,[\s\S]*?background:#315DA8!important/);
+  assert.match(reliability,/html\[data-ui-theme="light"\] body #root\.app-ui \.ta-operations-page \.ta-ops-split \.btn\.btn-primary\{[\s\S]*?border-color:#315DA8!important/);
+  assert.match(reliability,/\.btn\.btn-primary:is\(:hover,:active\):not\(:disabled\)[\s\S]*?background:#315DA8!important/);
+  assert.match(reliability,/html\[data-ui-theme="dark"\] body #root\.app-ui \.ta-operations-page[\s\S]*?background:#7399E3!important/);
   assert.match(reliability,/color:#FFFFFF!important/);
 });
 
