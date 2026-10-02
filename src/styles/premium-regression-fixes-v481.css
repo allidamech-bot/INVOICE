@@ -34,6 +34,16 @@
   }
   html body #root.app-ui .ta-documents-header-actions :is(button,.btn):last-child:nth-child(odd){grid-column:1/-1!important;}
 
+  /* The previous More-sheet artifact still exposed warm Hostinger-era strips on
+     the title and group labels in Dark Mode. Make those structural rows inherit
+     the v481 sheet itself instead of carrying a separate legacy surface. */
+  html body #root.app-ui .ta-mobile-sheet :is(.ta-sheet-header,.ta-sheet-group,.ta-sheet-group>p){
+    background-color:transparent!important;
+    background-image:none!important;
+  }
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-header{border-bottom-color:var(--lx481-line)!important;}
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-group>p{border:0!important;box-shadow:none!important;}
+
   /* v326 checks the physical backgroundColor of each Operations KPI card. Keep
      the subtle premium gradient, but give every card an opaque semantic base. */
   html body #root.app-ui .ta-ops-metrics>*{
