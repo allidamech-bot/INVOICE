@@ -13,6 +13,27 @@
     color:#fff!important;
   }
 
+  /* Documents should read as a compact command center, not a vertical form stack.
+     Keep every creation path visible while cutting the hero height roughly in half. */
+  html body #root.app-ui .ta-documents-header-actions{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+    width:100%!important;
+  }
+  html body #root.app-ui .ta-documents-header-actions :is(button,.btn){
+    width:100%!important;
+    min-width:0!important;
+    min-height:46px!important;
+    padding:8px 9px!important;
+    white-space:normal!important;
+    justify-content:center!important;
+    text-align:center!important;
+    font-size:11.5px!important;
+    line-height:1.25!important;
+  }
+  html body #root.app-ui .ta-documents-header-actions :is(button,.btn):last-child:nth-child(odd){grid-column:1/-1!important;}
+
   /* v326 checks the physical backgroundColor of each Operations KPI card. Keep
      the subtle premium gradient, but give every card an opaque semantic base. */
   html body #root.app-ui .ta-ops-metrics>*{
