@@ -1,0 +1,123 @@
+/* LOUREX v481 — screenshot/QA regression hardening.
+   This owner is intentionally last within v481. It corrects computed-style
+   contracts that gradients alone cannot satisfy and prevents transparent metric
+   surfaces from re-entering the mobile business workspaces. */
+@media screen and (max-width:900px){
+  /* Keep primary actions visually premium while exposing a real computed base
+     color. WebKit QA reads backgroundColor, so a gradient-only button is
+     indistinguishable from a transparent control. */
+  html body #root.app-ui :is(.ta-documents-header,.ta-customers-header,.lx-pipeline-topbar) .btn-primary{
+    background-color:var(--ft-accent,#315da8)!important;
+    background-image:linear-gradient(135deg,rgba(126,172,255,.34),rgba(32,79,166,.18))!important;
+    border-color:color-mix(in srgb,var(--ft-accent,#315da8) 72%,var(--lx481-line))!important;
+    color:#fff!important;
+  }
+
+  /* Documents should read as a compact command center, not a vertical form stack.
+     Keep every creation path visible while cutting the hero height roughly in half. */
+  html body #root.app-ui .ta-documents-header-actions{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+    width:100%!important;
+  }
+  html body #root.app-ui .ta-documents-header-actions :is(button,.btn){
+    width:100%!important;
+    min-width:0!important;
+    min-height:46px!important;
+    padding:8px 9px!important;
+    white-space:normal!important;
+    justify-content:center!important;
+    text-align:center!important;
+    font-size:11.5px!important;
+    line-height:1.25!important;
+  }
+  html body #root.app-ui .ta-documents-header-actions :is(button,.btn):last-child:nth-child(odd){grid-column:1/-1!important;}
+
+  /* The previous More-sheet artifact still exposed warm Hostinger-era strips on
+     the title and group labels in Dark Mode. Make those structural rows inherit
+     the v481 sheet itself instead of carrying a separate legacy surface. */
+  html body #root.app-ui .ta-mobile-sheet :is(.ta-sheet-header,.ta-sheet-group,.ta-sheet-group>p){
+    background-color:transparent!important;
+    background-image:none!important;
+  }
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-header{border-bottom-color:var(--lx481-line)!important;}
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-group>p{border:0!important;box-shadow:none!important;}
+
+  /* ThemeControl renders its visual button inside the ta-sheet-theme wrapper.
+     Historical owners can still give that nested button a warm charcoal fill, so
+     v481 explicitly owns the physical toggle surface too. */
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-theme,
+  html body #root.app-ui .ta-mobile-sheet .ta-sheet-theme .mf-theme-toggle{
+    border-color:var(--lx481-line)!important;
+    background-color:var(--lx481-surface)!important;
+    background-image:none!important;
+    color:var(--lx481-text)!important;
+    box-shadow:none!important;
+  }
+  html[data-ui-theme="light"] body #root.app-ui .ta-mobile-sheet .ta-sheet-theme,
+  html[data-ui-theme="light"] body #root.app-ui .ta-mobile-sheet .ta-sheet-theme .mf-theme-toggle{
+    background-color:#fff!important;
+    color:var(--lx481-text)!important;
+  }
+
+  /* v326 checks the physical backgroundColor of each Operations KPI card. Keep
+     the subtle premium gradient, but give every card an opaque semantic base. */
+  html body #root.app-ui .ta-ops-metrics>*{
+    background-color:var(--lx481-surface)!important;
+    background-image:linear-gradient(155deg,var(--lx481-surface-2),var(--lx481-surface))!important;
+  }
+  html[data-ui-theme="light"] body #root.app-ui .ta-ops-metrics>*{
+    background-color:#fff!important;
+    background-image:linear-gradient(155deg,#fff,#f7faff)!important;
+  }
+}
+
+/* 320px iPhones need the KPI value to own the full card width. Keeping the icon
+   in a dedicated grid column clips longer values such as SAR 8,380.00 in RTL.
+   Float the icon in the corner and isolate monetary text as LTR numeric content. */
+@media screen and (max-width:350px){
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-card{
+    display:block!important;
+    min-height:128px!important;
+    padding:12px!important;
+  }
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-icon{
+    position:absolute!important;
+    inset-inline-end:12px!important;
+    inset-block-start:12px!important;
+    z-index:2!important;
+  }
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-copy{
+    display:grid!important;
+    gap:3px!important;
+    min-width:0!important;
+    width:100%!important;
+    padding:0!important;
+  }
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-copy>small{
+    min-width:0!important;
+    padding-inline-end:48px!important;
+  }
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-money-stack{
+    display:grid!important;
+    gap:1px!important;
+    min-width:0!important;
+    width:100%!important;
+    margin-top:7px!important;
+  }
+  html body #root.app-ui .workspace-shell.screen-home .ta-kpi-money-stack>b{
+    display:block!important;
+    min-width:0!important;
+    max-width:100%!important;
+    white-space:nowrap!important;
+    direction:ltr!important;
+    unicode-bidi:isolate!important;
+    text-align:start!important;
+    font-size:clamp(14px,4.65vw,16px)!important;
+    line-height:1.18!important;
+    font-variant-numeric:tabular-nums!important;
+    letter-spacing:-.01em!important;
+  }
+  html[dir="rtl"] body #root.app-ui .workspace-shell.screen-home .ta-kpi-money-stack>b{text-align:right!important;}
+}
