@@ -3,14 +3,16 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
+const retiredSourceOwners=[
+  'hostinger-inspired-v353.css','hostinger-premium-closeout-v354.css','hostinger-system-contract-v355.css',
+  'hostinger-final-coherence-v356.css','hostinger-interaction-polish-v357.css','hostinger-blue-luxury-v358.css',
+  'hostinger-blue-precision-v359.css','matte-black-dark-v360.css','mobile-site-density-v361.css','premium-ux-coherence-v362.css'
+];
 
 test('LOUREX has one non-versioned application-wide visual owner',async()=>{
-  const [pkg,css,finalizer,runtime,doc]=await Promise.all([
-    read('package.json'),
-    read('src/styles/lourex-visual-foundation.css'),
-    read('scripts/visual-foundation-finalize.mjs'),
-    read('scripts/runtime-auth-transition-finalize.mjs'),
-    read('docs/VISUAL_FOUNDATION.md')
+  const [pkg,index,build,css,finalizer,runtime,doc]=await Promise.all([
+    read('package.json'),read('index.html'),read('scripts/build.mjs'),read('src/styles/lourex-visual-foundation.css'),
+    read('scripts/visual-foundation-finalize.mjs'),read('scripts/runtime-auth-transition-finalize.mjs'),read('docs/VISUAL_FOUNDATION.md')
   ]);
 
   for(const script of [
@@ -21,6 +23,15 @@ test('LOUREX has one non-versioned application-wide visual owner',async()=>{
     `versioned visual bundler must be retired: ${script}`);
 
   assert.match(pkg,/runtime-auth-transition-finalize\.mjs && node scripts\/visual-foundation-finalize\.mjs/);
+  assert.equal((index.match(/styles\/lourex-visual-foundation\.css/g)||[]).length,1,'source must link the canonical foundation exactly once');
+  assert.match(index,/tailadmin-reliability-bridge-v320\.css[\s\S]*lourex-visual-foundation\.css/);
+  for(const retired of retiredSourceOwners)assert.doesNotMatch(index,new RegExp(retired.replaceAll('.','\\.')),`retired source owner must not be linked: ${retired}`);
+
+  assert.match(build,/const foundationOwner='lourex-visual-foundation\.css'/);
+  assert.match(build,/standaloneRuntimeStyles=new Set\([\s\S]*foundationOwner/);
+  assert.match(build,/Historical application-wide visual owner is still linked from source/);
+  assert.match(build,/Reliability bridge must load before the canonical visual foundation/);
+
   assert.match(css,/--app-canvas:/);
   assert.match(css,/--app-surface:/);
   assert.match(css,/--app-surface-raised:/);
@@ -66,18 +77,14 @@ test('More, navigation and tablet/desktop use the same semantic surface system',
   assert.match(css,/@media screen and \(min-width:1100px\)/);
 });
 
-test('historical v480 source paths are compatibility stubs, not visual owners',async()=>{
-  const [command,workspaces,editor,overlays]=await Promise.all([
-    read('src/styles/executive-command-center-v480.css'),
-    read('src/styles/executive-workspaces-v480.css'),
-    read('src/styles/executive-editor-v480.css'),
-    read('src/styles/executive-overlays-auth-v480.css')
+test('historical v480 source paths are declaration-free compatibility stubs',async()=>{
+  const stubs=await Promise.all([
+    read('src/styles/executive-command-center-v480.css'),read('src/styles/executive-workspaces-v480.css'),
+    read('src/styles/executive-editor-v480.css'),read('src/styles/executive-overlays-auth-v480.css')
   ]);
-  for(const stub of [command,workspaces,editor]){
+  for(const stub of stubs){
     assert.match(stub,/Compatibility stub/);
+    assert.doesNotMatch(stub,/@import/,'retired v480 stubs must not import another visual owner');
     assert.doesNotMatch(stub,/\{[^}]*:/,'retired v480 stubs must not contain CSS declarations');
   }
-  assert.match(overlays,/Compatibility bridge/);
-  assert.match(overlays,/@import url\("\.\/lourex-visual-foundation\.css"\);/);
-  assert.equal((overlays.match(/@import/g)||[]).length,1);
 });
