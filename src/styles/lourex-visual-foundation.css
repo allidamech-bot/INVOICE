@@ -303,6 +303,20 @@ html[dir="ltr"] textarea{
   border-color:var(--accent-hover)!important;
 }
 
+/* Authentication lives outside the workspace shell, but remains owned by this foundation. */
+body .ta-auth-page .ta-auth-primary,
+body .ta-auth-page :is(.btn,button).btn-primary{
+  background:var(--accent)!important;
+  border-color:var(--accent)!important;
+  color:var(--accent-contrast)!important;
+  box-shadow:none!important;
+}
+body .ta-auth-page .ta-auth-primary:hover,
+body .ta-auth-page :is(.btn,button).btn-primary:hover{
+  background:var(--accent-hover)!important;
+  border-color:var(--accent-hover)!important;
+}
+
 /* Documents — reference implementation for the final hierarchy. */
 #root.app-ui .ta-documents-page{gap:var(--space-4)!important;}
 #root.app-ui .ta-documents-header{
