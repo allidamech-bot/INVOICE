@@ -41,9 +41,20 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
           const range=document.createRange();range.selectNodeContents(el);
           return Array.from(range.getClientRects()).filter(r=>r.width>0&&r.height>0).map(rectData);
         });
+        const resolveColor=value=>{
+          const probe=document.createElement('span');
+          probe.style.color=value;
+          document.body.appendChild(probe);
+          const resolved=getComputedStyle(probe).color;
+          probe.remove();
+          return resolved;
+        };
         const fields=Array.from(document.querySelectorAll('.ta-auth-fields input')).map(el=>rectData(el.getBoundingClientRect()));
         const primary=document.querySelector('.ta-auth-primary');
         const primaryStyle=primary?getComputedStyle(primary):null;
+        const rootStyle=getComputedStyle(document.documentElement);
+        const accentToken=rootStyle.getPropertyValue('--accent').trim()||rootStyle.getPropertyValue('--ft-accent').trim();
+        const accentContrastToken=rootStyle.getPropertyValue('--accent-contrast').trim()||rootStyle.getPropertyValue('--ft-on-accent').trim();
         return {
           dir:document.documentElement.dir,
           lang:document.documentElement.lang,
@@ -57,6 +68,9 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
           google:box('.ta-google-button'),providerDivider:box('.ta-auth-divider'),
           tabs:box('.ta-auth-tabs'),signinTab:box('#account-tab-signin'),createTab:box('#account-tab-create'),primary:box('.ta-auth-primary'),forgot:box('#forgot'),
           confirm:box('#confirm-field'),security:box('.ta-auth-security'),fields,
+          accentToken,accentContrastToken,
+          expectedPrimaryBackground:accentToken?resolveColor(accentToken):'',
+          expectedPrimaryColor:accentContrastToken?resolveColor(accentContrastToken):'',
           primaryBackground:primaryStyle?.backgroundColor||'',
           primaryColor:primaryStyle?.color||'',
           mode,expectedLang:lang,expectedTheme:theme
@@ -67,10 +81,9 @@ const intersects=(a,b)=>Boolean(a&&b&&Math.min(a.right,b.right)-Math.max(a.left,
       if(result.dir!==(scenario.lang==='ar'?'rtl':'ltr'))failures.push(`${p}: wrong direction ${result.dir}`);
       if(result.lang!==scenario.lang)failures.push(`${p}: wrong lang ${result.lang}`);
       if(result.theme!==scenario.theme)failures.push(`${p}: wrong theme ${result.theme}`);
-      const expectedPrimary=scenario.theme==='dark'?'rgb(115, 153, 227)':'rgb(49, 93, 168)';
-      const expectedPrimaryInk=scenario.theme==='dark'?'rgb(13, 13, 13)':'rgb(255, 255, 255)';
-      if(result.primaryBackground!==expectedPrimary)failures.push(`${p}: primary action is not canonical blue (${result.primaryBackground}, expected ${expectedPrimary})`);
-      if(result.primaryColor!==expectedPrimaryInk)failures.push(`${p}: primary action contrast ink mismatch (${result.primaryColor}, expected ${expectedPrimaryInk})`);
+      if(!result.accentToken||!result.accentContrastToken)failures.push(`${p}: canonical foundation accent tokens are missing`);
+      if(result.primaryBackground!==result.expectedPrimaryBackground)failures.push(`${p}: primary action does not match canonical accent (${result.primaryBackground}, expected ${result.expectedPrimaryBackground})`);
+      if(result.primaryColor!==result.expectedPrimaryColor)failures.push(`${p}: primary action contrast ink mismatch (${result.primaryColor}, expected ${result.expectedPrimaryColor})`);
       if(result.scrollWidth>scenario.width+1)failures.push(`${p}: horizontal overflow ${result.scrollWidth}px > ${scenario.width}px`);
       for(const key of ['frame','main','card','languageButton','heading','google','providerDivider','tabs','signinTab','createTab','primary','security'])if(!result[key]||result[key].display==='none'||result[key].visibility==='hidden')failures.push(`${p}: missing/hidden ${key}`);
       if(result.frame&&(result.frame.left<-1||result.frame.right>scenario.width+1))failures.push(`${p}: gateway frame clips horizontally`);
