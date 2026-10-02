@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css?v=337-3" data-lourex-qa-runtime-document-owner="true"></head>
-<body><div id="root" class="app-ui"></div>
+<body><div id="root"><div id="visual-app" class="app-ui"></div></div>
 <script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
 <script type="module">
 import {GlobalSearch} from './src/components/GlobalSearch.js';
@@ -21,6 +21,6 @@ const documents=Array.from({length:14},(_,index)=>{
 const customers=Array.from({length:8},(_,index)=>({id:`qa-customer-${index+1}`,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),companyNameEn:`QA Customer ${index+1}`,companyNameAr:`عميل اختبار ${index+1}`,contactPerson:`QA Contact ${index+1}`,addressEn:'QA Business District',addressAr:'منطقة اختبار الأعمال',city:'Istanbul',country:'Türkiye',phone:`+90 555 100 ${String(index+1).padStart(4,'0')}`,email:`qa-customer-${index+1}@example.test`,vatTaxNumber:'',commercialRegistration:'',preferredCurrency:'USD',paymentTermPresetId:'',paymentTerms:'Net 30',paymentDueDays:'30',creditLimit:'10000',creditCurrency:'USD',notes:''}));
 const noop=()=>{};
 window.searchQa={navigate:'',opened:'',created:''};
-ReactDOM.render(h(GlobalSearch,{documents,customers,items:[],suppliers:[],purchases:[],language:lang,onNavigate:screen=>{window.searchQa.navigate=screen;},onOpenDocument:doc=>{window.searchQa.opened=doc.id;},onNewDocument:kind=>{window.searchQa.created=kind;}}),document.getElementById('root'));
+ReactDOM.render(h(GlobalSearch,{documents,customers,items:[],suppliers:[],purchases:[],language:lang,onNavigate:screen=>{window.searchQa.navigate=screen;},onOpenDocument:doc=>{window.searchQa.opened=doc.id;},onNewDocument:kind=>{window.searchQa.created=kind;}}),document.getElementById('visual-app'));
 requestAnimationFrame(()=>window.dispatchEvent(new Event('lourex-global-search-open')));
 </script></body></html>

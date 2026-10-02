@@ -3,33 +3,33 @@
    Presentation only: no business logic, routing, persistence, calculations or AI execution. */
 @media screen and (max-width:900px){
   /* ---------- Global mobile rhythm ---------- */
-  html body #root.app-ui .ta-main,
-  html body #root.app-ui .workspace-content{
+  html body #root .app-ui .ta-main,
+  html body #root .app-ui .workspace-content{
     padding-inline:16px!important;
     padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important;
   }
 
-  html body #root.app-ui :is(button,.btn,input,select,textarea){box-sizing:border-box;}
+  html body #root .app-ui :is(button,.btn,input,select,textarea){box-sizing:border-box;}
 
   /* ---------- Documents ----------
      Production loaded v331/v332 after app.bundle and could overwrite v481.
      v482 is also loaded standalone after v332, so this geometry is authoritative. */
-  html body #root.app-ui .ta-documents-header{
+  html body #root .app-ui .ta-documents-header{
     min-height:0!important;
     padding:18px!important;
     gap:14px!important;
     border-radius:22px!important;
   }
-  html body #root.app-ui .ta-documents-header>div:first-child{min-width:0!important;}
-  html body #root.app-ui .ta-documents-header h1{font-size:30px!important;line-height:1.08!important;margin-block:6px!important;}
-  html body #root.app-ui .ta-documents-header p{font-size:13px!important;line-height:1.65!important;}
-  html body #root.app-ui .ta-documents-header-actions{
+  html body #root .app-ui .ta-documents-header>div:first-child{min-width:0!important;}
+  html body #root .app-ui .ta-documents-header h1{font-size:30px!important;line-height:1.08!important;margin-block:6px!important;}
+  html body #root .app-ui .ta-documents-header p{font-size:13px!important;line-height:1.65!important;}
+  html body #root .app-ui .ta-documents-header-actions{
     display:grid!important;
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
     gap:8px!important;
     width:100%!important;
   }
-  html body #root.app-ui .ta-documents-header-actions :is(button,.btn){
+  html body #root .app-ui .ta-documents-header-actions :is(button,.btn){
     width:100%!important;
     min-width:0!important;
     min-height:46px!important;
@@ -40,12 +40,12 @@
     font-size:12px!important;
     line-height:1.25!important;
   }
-  html body #root.app-ui .ta-documents-header-actions :is(button,.btn):last-child:nth-child(odd){grid-column:1/-1!important;}
-  html body #root.app-ui :is(.ta-doc-type-tabs,.ta-documents-filterbar,.ta-doc-search){border-radius:18px!important;}
+  html body #root .app-ui .ta-documents-header-actions :is(button,.btn):last-child:nth-child(odd){grid-column:1/-1!important;}
+  html body #root .app-ui :is(.ta-doc-type-tabs,.ta-documents-filterbar,.ta-doc-search){border-radius:18px!important;}
 
   /* ---------- Dashboard / financial surfaces ----------
      Use the actual WorkspaceHome classes. Retire warm brown/charcoal header strips. */
-  html body #root.app-ui .workspace-shell.screen-home :is(
+  html body #root .app-ui .workspace-shell.screen-home :is(
     .ta-dashboard-card,.ta-performance-card,.ta-receivables-card,.ta-business-health-card,
     .ta-inventory-card,.ta-recent-card,.ta-action-center-card,.ta-attention-card,.ta-position-card
   ){
@@ -54,7 +54,7 @@
     box-shadow:0 16px 38px rgba(0,0,0,.18)!important;
     overflow:hidden!important;
   }
-  html body #root.app-ui .workspace-shell.screen-home :is(
+  html body #root .app-ui .workspace-shell.screen-home :is(
     .ta-dashboard-card,.ta-performance-card,.ta-receivables-card,.ta-business-health-card,
     .ta-inventory-card,.ta-recent-card,.ta-action-center-card,.ta-attention-card,.ta-position-card
   )>.ta-card-header{
@@ -66,13 +66,13 @@
     border-color:var(--lx481-line)!important;
     box-shadow:none!important;
   }
-  html body #root.app-ui .workspace-shell.screen-home .ta-card-header h2{font-size:20px!important;line-height:1.25!important;margin:2px 0!important;}
-  html body #root.app-ui .workspace-shell.screen-home .ta-card-header small{font-size:10.5px!important;line-height:1.3!important;}
-  html body #root.app-ui .workspace-shell.screen-home .ta-card-header span{font-size:11px!important;line-height:1.45!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-card-header h2{font-size:20px!important;line-height:1.25!important;margin:2px 0!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-card-header small{font-size:10.5px!important;line-height:1.3!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-card-header span{font-size:11px!important;line-height:1.45!important;}
 
   /* Analytics controls shown as heavy grey masks in production screenshots. */
-  html body #root.app-ui .workspace-shell.screen-home :is(.ta-range-control,.ta-segmented-control),
-  html body #root.app-ui :is(.ta-chart-tabs,.ta-report-tabs){
+  html body #root .app-ui .workspace-shell.screen-home :is(.ta-range-control,.ta-segmented-control),
+  html body #root .app-ui :is(.ta-chart-tabs,.ta-report-tabs){
     display:grid!important;
     grid-auto-flow:column!important;
     grid-auto-columns:1fr!important;
@@ -84,8 +84,8 @@
     border-radius:14px!important;
     box-shadow:none!important;
   }
-  html body #root.app-ui .workspace-shell.screen-home :is(.ta-range-control,.ta-segmented-control)>button,
-  html body #root.app-ui :is(.ta-chart-tabs,.ta-report-tabs)>button{
+  html body #root .app-ui .workspace-shell.screen-home :is(.ta-range-control,.ta-segmented-control)>button,
+  html body #root .app-ui :is(.ta-chart-tabs,.ta-report-tabs)>button{
     min-width:0!important;
     min-height:38px!important;
     padding:6px 8px!important;
@@ -96,12 +96,12 @@
     box-shadow:none!important;
     font-size:11.5px!important;
   }
-  html body #root.app-ui .workspace-shell.screen-home :is(.ta-range-control,.ta-segmented-control)>button.is-active,
-  html body #root.app-ui :is(.ta-chart-tabs,.ta-report-tabs)>button.is-active{
+  html body #root .app-ui .workspace-shell.screen-home :is(.ta-range-control,.ta-segmented-control)>button.is-active,
+  html body #root .app-ui :is(.ta-chart-tabs,.ta-report-tabs)>button.is-active{
     background:color-mix(in srgb,var(--lx481-primary) 20%,var(--lx481-surface-2))!important;
     color:var(--lx481-text)!important;
   }
-  html body #root.app-ui .workspace-shell.screen-home :is(.ta-chart-empty,.ta-dashboard-empty){
+  html body #root .app-ui .workspace-shell.screen-home :is(.ta-chart-empty,.ta-dashboard-empty){
     min-height:180px!important;
     padding:22px!important;
     margin:10px 0 0!important;
@@ -111,7 +111,7 @@
   }
 
   /* ---------- Embedded LOUREX AI ---------- */
-  html body #root.app-ui .lourex-ai-compose{
+  html body #root .app-ui .lourex-ai-compose{
     min-height:54px!important;
     padding:6px!important;
     gap:6px!important;
@@ -120,7 +120,7 @@
     border:1px solid var(--lx481-line)!important;
     box-shadow:none!important;
   }
-  html body #root.app-ui .lourex-ai-compose input{
+  html body #root .app-ui .lourex-ai-compose input{
     min-width:0!important;
     width:100%!important;
     height:42px!important;
@@ -131,7 +131,7 @@
     border-radius:13px!important;
     font-size:16px!important;
   }
-  html body #root.app-ui .lourex-ai-compose :is(button,.lourex-ai-send,.lourex-ai-composer-plus,.lourex-ai-composer-mic){
+  html body #root .app-ui .lourex-ai-compose :is(button,.lourex-ai-send,.lourex-ai-composer-plus,.lourex-ai-composer-mic){
     width:44px!important;
     min-width:44px!important;
     height:44px!important;
@@ -266,7 +266,7 @@
   }
 
   /* ---------- More ---------- */
-  html body #root.app-ui .ta-mobile-sheet{
+  html body #root .app-ui .ta-mobile-sheet{
     width:calc(100vw - 20px)!important;
     max-width:560px!important;
     max-height:min(82dvh,760px)!important;
@@ -277,24 +277,24 @@
     overflow:auto!important;
     overscroll-behavior:contain!important;
   }
-  html body #root.app-ui .ta-mobile-sheet :is(.ta-sheet-header,.ta-sheet-group,.ta-sheet-group>p){
+  html body #root .app-ui .ta-mobile-sheet :is(.ta-sheet-header,.ta-sheet-group,.ta-sheet-group>p){
     background:transparent!important;
     background-image:none!important;
     box-shadow:none!important;
   }
-  html body #root.app-ui .ta-sheet-group{gap:8px!important;}
-  html body #root.app-ui .ta-sheet-link{
+  html body #root .app-ui .ta-sheet-group{gap:8px!important;}
+  html body #root .app-ui .ta-sheet-link{
     min-height:62px!important;
     padding:9px 11px!important;
     border-radius:16px!important;
   }
-  html body #root.app-ui .ta-sheet-link-copy strong{font-size:14px!important;line-height:1.25!important;}
-  html body #root.app-ui .ta-sheet-link-copy small{font-size:11.5px!important;line-height:1.35!important;}
-  html body #root.app-ui .ta-sheet-link-icon{width:42px!important;height:42px!important;border-radius:12px!important;}
-  html body #root.app-ui .ta-sheet-utilities :is(button,.mf-theme-toggle){min-height:46px!important;border-radius:14px!important;}
+  html body #root .app-ui .ta-sheet-link-copy strong{font-size:14px!important;line-height:1.25!important;}
+  html body #root .app-ui .ta-sheet-link-copy small{font-size:11.5px!important;line-height:1.35!important;}
+  html body #root .app-ui .ta-sheet-link-icon{width:42px!important;height:42px!important;border-radius:12px!important;}
+  html body #root .app-ui .ta-sheet-utilities :is(button,.mf-theme-toggle){min-height:46px!important;border-radius:14px!important;}
 
   /* ---------- Create document menu ---------- */
-  html body #root.app-ui .ta-create-menu-mobile{
+  html body #root .app-ui .ta-create-menu-mobile{
     width:calc(100vw - 20px)!important;
     max-width:560px!important;
     max-height:min(82dvh,760px)!important;
@@ -302,48 +302,48 @@
     border-color:var(--lx481-line)!important;
     overflow:auto!important;
   }
-  html body #root.app-ui .ta-create-menu-grid{
+  html body #root .app-ui .ta-create-menu-grid{
     display:grid!important;
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
     gap:8px!important;
   }
-  html body #root.app-ui .ta-create-menu-grid>button{
+  html body #root .app-ui .ta-create-menu-grid>button{
     min-width:0!important;
     min-height:96px!important;
     padding:11px!important;
     border-radius:16px!important;
     align-items:flex-start!important;
   }
-  html body #root.app-ui .ta-create-menu-grid>button strong{font-size:13.5px!important;line-height:1.3!important;}
-  html body #root.app-ui .ta-create-menu-grid>button small{font-size:11px!important;line-height:1.4!important;}
+  html body #root .app-ui .ta-create-menu-grid>button strong{font-size:13.5px!important;line-height:1.3!important;}
+  html body #root .app-ui .ta-create-menu-grid>button small{font-size:11px!important;line-height:1.4!important;}
 
   /* ---------- Customers ---------- */
-  html body #root.app-ui .ta-customers-header{padding:18px!important;gap:14px!important;border-radius:22px!important;}
-  html body #root.app-ui .ta-customers-toolbar{
+  html body #root .app-ui .ta-customers-header{padding:18px!important;gap:14px!important;border-radius:22px!important;}
+  html body #root .app-ui .ta-customers-toolbar{
     padding:10px!important;
     gap:8px!important;
     border-radius:18px!important;
   }
-  html body #root.app-ui .ta-customers-toolbar :is(input,select,button){min-height:44px!important;}
-  html body #root.app-ui :is(.ta-customers-empty,.ta-empty-state,.lx-pipeline-empty){
+  html body #root .app-ui .ta-customers-toolbar :is(input,select,button){min-height:44px!important;}
+  html body #root .app-ui :is(.ta-customers-empty,.ta-empty-state,.lx-pipeline-empty){
     min-height:132px!important;
     padding:18px!important;
     border-radius:18px!important;
   }
 
   /* ---------- Light mode clean-up ---------- */
-  html[data-ui-theme="light"] body #root.app-ui .workspace-shell.screen-home :is(
+  html[data-ui-theme="light"] body #root .app-ui .workspace-shell.screen-home :is(
     .ta-dashboard-card,.ta-performance-card,.ta-receivables-card,.ta-business-health-card,
     .ta-inventory-card,.ta-recent-card,.ta-action-center-card,.ta-attention-card,.ta-position-card
   ),
-  html[data-ui-theme="light"] body #root.app-ui :is(.ta-documents-header,.ta-customers-header,.ta-customers-toolbar,.ta-mobile-sheet,.ta-create-menu-mobile){
+  html[data-ui-theme="light"] body #root .app-ui :is(.ta-documents-header,.ta-customers-header,.ta-customers-toolbar,.ta-mobile-sheet,.ta-create-menu-mobile){
     background:#fff!important;
     background-image:none!important;
     border-color:#d7e2f0!important;
     box-shadow:0 14px 34px rgba(36,69,110,.08)!important;
   }
-  html[data-ui-theme="light"] body #root.app-ui .workspace-shell.screen-home :is(.ta-range-control,.ta-segmented-control),
-  html[data-ui-theme="light"] body #root.app-ui :is(.ta-chart-tabs,.ta-report-tabs,.lourex-ai-compose),
+  html[data-ui-theme="light"] body #root .app-ui .workspace-shell.screen-home :is(.ta-range-control,.ta-segmented-control),
+  html[data-ui-theme="light"] body #root .app-ui :is(.ta-chart-tabs,.ta-report-tabs,.lourex-ai-compose),
   html[data-ui-theme="light"] body :is(.global-search-start,.global-search-results){
     background:#f4f7fb!important;
     border-color:#d7e2f0!important;
@@ -357,17 +357,17 @@
 }
 
 @media screen and (max-width:360px){
-  html body #root.app-ui .ta-main,
-  html body #root.app-ui .workspace-content{padding-inline:12px!important;}
-  html body #root.app-ui .ta-documents-header{padding:14px!important;}
-  html body #root.app-ui .ta-documents-header h1{font-size:27px!important;}
-  html body #root.app-ui .ta-documents-header-actions :is(button,.btn){font-size:11px!important;padding:8px!important;}
-  html body #root.app-ui .ta-create-menu-grid>button,
+  html body #root .app-ui .ta-main,
+  html body #root .app-ui .workspace-content{padding-inline:12px!important;}
+  html body #root .app-ui .ta-documents-header{padding:14px!important;}
+  html body #root .app-ui .ta-documents-header h1{font-size:27px!important;}
+  html body #root .app-ui .ta-documents-header-actions :is(button,.btn){font-size:11px!important;padding:8px!important;}
+  html body #root .app-ui .ta-create-menu-grid>button,
   html body .global-search-actions>button{min-height:88px!important;padding:10px!important;}
-  html body #root.app-ui .ta-sheet-group{grid-template-columns:minmax(0,1fr)!important;}
-  html body #root.app-ui .ta-sheet-group>p{grid-column:1/-1!important;}
-  html body #root.app-ui .ta-sheet-link-copy{min-width:0!important;}
-  html body #root.app-ui .ta-sheet-link-copy strong{overflow-wrap:normal!important;word-break:normal!important;hyphens:none!important;}
+  html body #root .app-ui .ta-sheet-group{grid-template-columns:minmax(0,1fr)!important;}
+  html body #root .app-ui .ta-sheet-group>p{grid-column:1/-1!important;}
+  html body #root .app-ui .ta-sheet-link-copy{min-width:0!important;}
+  html body #root .app-ui .ta-sheet-link-copy strong{overflow-wrap:normal!important;word-break:normal!important;hyphens:none!important;}
   html body #lourex-ai-panel .lourex-ai-head{padding:10px 12px!important;gap:6px!important;}
   html body #lourex-ai-panel .lourex-ai-title small{display:none!important;}
   html body #lourex-ai-panel .lourex-ai-head-actions{max-width:52vw!important;gap:4px!important;}

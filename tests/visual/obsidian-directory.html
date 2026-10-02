@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
-<body><div id="root" class="app-ui"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+<body><div id="root"><div id="visual-app" class="app-ui"></div></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
 import {AppShell} from './src/components/AppShell.js';
 import {CustomersPage,blankCustomer} from './src/components/CustomersPage.js';
 import {SavedItemsPage} from './src/components/SavedItemsPage.js';
@@ -19,5 +19,5 @@ class Fixture extends React.Component{
  saveItem=async item=>{window.savedProduct=item;this.setState(s=>({items:s.items.map(c=>c.id===item.id?item:c)}));};
  render(){return h(AppShell,{screen:screen==='customers'?'customers':'items',logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:()=>{},onToggleNew:()=>{},onNew:()=>{},onSettings:()=>{},onCloud:()=>{}},screen==='customers'?h(CustomersPage,{customers:this.state.customers,company,onSave:this.saveCustomer,onDelete:this.deleteCustomer,onNewDocument:async(kind,c)=>{window.createdDocument={kind,customerId:c.id};}}):h(React.Fragment,null,h(SavedItemsPage,{items:this.state.items,currency:'USD',onSave:this.saveItem,onSaveMany:async()=>{},onDelete:async()=>{}}),h(SavedItemsModal,{open:this.state.picker,items:this.state.items,currency:'USD',onClose:()=>this.setState({picker:false}),onSave:this.saveItem,onDelete:async()=>{},onSelectMany:async selected=>{window.selectedItems=selected;this.setState({picker:false});}})));}
 }
-ReactDOM.render(h(Fixture),document.getElementById('root'));
+ReactDOM.render(h(Fixture),document.getElementById('visual-app'));
 </script></body></html>

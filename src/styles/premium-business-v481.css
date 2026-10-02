@@ -1,13 +1,13 @@
 /* LOUREX v481 — products, purchasing, finance, reports, settings/account and recovery. */
 @media screen and (max-width:900px){
-  html body #root.app-ui :is(
+  html body #root .app-ui :is(
     .ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page,.ta-settings-shell
   ){
     width:100%!important;max-width:100%!important;margin:0!important;color:var(--lx481-text)!important;
   }
 
   /* Shared business workspace headers. */
-  html body #root.app-ui :is(
+  html body #root .app-ui :is(
     .ta-products-workspace-header,.ta-ops-page-header,.ta-page-header,.ta-settings-page-header
   ){
     position:relative!important;overflow:hidden!important;display:grid!important;gap:9px!important;padding:16px!important;
@@ -15,70 +15,70 @@
     background:radial-gradient(240px 160px at 100% 0%,rgba(91,145,244,.13),transparent 72%),linear-gradient(150deg,var(--lx481-surface-2),var(--lx481-surface))!important;
     color:var(--lx481-text)!important;box-shadow:var(--lx481-shadow)!important;
   }
-  html[data-ui-theme="light"] body #root.app-ui :is(
+  html[data-ui-theme="light"] body #root .app-ui :is(
     .ta-products-workspace-header,.ta-ops-page-header,.ta-page-header,.ta-settings-page-header
   ){background:radial-gradient(240px 160px at 100% 0%,rgba(60,112,201,.07),transparent 72%),linear-gradient(150deg,#fff,#f8fbff)!important;}
-  html body #root.app-ui :is(
+  html body #root .app-ui :is(
     .ta-products-workspace-header,.ta-ops-page-header,.ta-page-header,.ta-settings-page-header
   ) :is(h1,h2,h3){margin:0!important;color:var(--lx481-text)!important;font-weight:920!important;}
-  html body #root.app-ui :is(
+  html body #root .app-ui :is(
     .ta-products-workspace-header,.ta-ops-page-header,.ta-page-header,.ta-settings-page-header
   ) :is(p,small){color:var(--lx481-muted)!important;}
 
   /* ---------- Products + Purchasing ---------- */
-  html body #root.app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-summary,.ta-ops-metrics){
+  html body #root .app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-summary,.ta-ops-metrics){
     display:grid!important;gap:8px!important;border:0!important;background:none!important;box-shadow:none!important;
   }
-  html body #root.app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-metrics){grid-template-columns:repeat(2,minmax(0,1fr))!important;}
-  html body #root.app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-summary,.ta-ops-metrics)>*{
+  html body #root .app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-metrics){grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  html body #root .app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-summary,.ta-ops-metrics)>*{
     min-width:0!important;border:1px solid var(--lx481-line)!important;border-radius:17px!important;background:linear-gradient(155deg,var(--lx481-surface-2),var(--lx481-surface))!important;color:var(--lx481-text)!important;box-shadow:var(--lx481-shadow-sm)!important;
   }
-  html[data-ui-theme="light"] body #root.app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-summary,.ta-ops-metrics)>*{background:#fff!important;}
+  html[data-ui-theme="light"] body #root .app-ui :is(.ta-products-overview,.ta-product-metrics,.ta-ops-summary,.ta-ops-metrics)>*{background:#fff!important;}
 
-  html body #root.app-ui :is(.ta-products-toolbar,.ta-product-toolbar,.ta-ops-toolbar,.ta-ops-card){
+  html body #root .app-ui :is(.ta-products-toolbar,.ta-product-toolbar,.ta-ops-toolbar,.ta-ops-card){
     border:1px solid var(--lx481-line)!important;border-radius:18px!important;background:linear-gradient(155deg,var(--lx481-surface-2),var(--lx481-surface))!important;color:var(--lx481-text)!important;box-shadow:var(--lx481-shadow-sm)!important;
   }
-  html[data-ui-theme="light"] body #root.app-ui :is(.ta-products-toolbar,.ta-product-toolbar,.ta-ops-toolbar,.ta-ops-card){background:#fff!important;}
-  html body #root.app-ui :is(.ta-product-search,.ta-ops-search){border:1px solid var(--lx481-line)!important;border-radius:14px!important;background:var(--lx481-canvas-2)!important;}
-  html body #root.app-ui :is(.ta-product-search,.ta-ops-search) input{background:transparent!important;border:0!important;box-shadow:none!important;color:var(--lx481-text)!important;}
+  html[data-ui-theme="light"] body #root .app-ui :is(.ta-products-toolbar,.ta-product-toolbar,.ta-ops-toolbar,.ta-ops-card){background:#fff!important;}
+  html body #root .app-ui :is(.ta-product-search,.ta-ops-search){border:1px solid var(--lx481-line)!important;border-radius:14px!important;background:var(--lx481-canvas-2)!important;}
+  html body #root .app-ui :is(.ta-product-search,.ta-ops-search) input{background:transparent!important;border:0!important;box-shadow:none!important;color:var(--lx481-text)!important;}
 
-  html body #root.app-ui :is(.ta-domain-tabs,.ta-ops-tabs,.ta-finance-tabs,.ta-report-tabs){
+  html body #root .app-ui :is(.ta-domain-tabs,.ta-ops-tabs,.ta-finance-tabs,.ta-report-tabs){
     display:flex!important;gap:6px!important;overflow-x:auto!important;scrollbar-width:none!important;padding:6px!important;border:1px solid var(--lx481-line)!important;border-radius:16px!important;background:var(--lx481-surface)!important;
   }
-  html body #root.app-ui :is(.ta-domain-tabs,.ta-ops-tabs,.ta-finance-tabs,.ta-report-tabs)::-webkit-scrollbar{display:none!important;}
-  html body #root.app-ui :is(.ta-domain-tabs,.ta-ops-tabs,.ta-finance-tabs,.ta-report-tabs)>button{flex:0 0 auto!important;min-height:44px!important;border:1px solid transparent!important;border-radius:11px!important;background:var(--lx481-surface-2)!important;color:var(--lx481-muted)!important;}
-  html body #root.app-ui :is(.ta-domain-tabs,.ta-ops-tabs,.ta-finance-tabs,.ta-report-tabs)>button.is-active{border-color:color-mix(in srgb,var(--lx481-primary) 38%,var(--lx481-line))!important;background:color-mix(in srgb,var(--lx481-primary) 11%,var(--lx481-surface-2))!important;color:var(--lx481-text)!important;}
+  html body #root .app-ui :is(.ta-domain-tabs,.ta-ops-tabs,.ta-finance-tabs,.ta-report-tabs)::-webkit-scrollbar{display:none!important;}
+  html body #root .app-ui :is(.ta-domain-tabs,.ta-ops-tabs,.ta-finance-tabs,.ta-report-tabs)>button{flex:0 0 auto!important;min-height:44px!important;border:1px solid transparent!important;border-radius:11px!important;background:var(--lx481-surface-2)!important;color:var(--lx481-muted)!important;}
+  html body #root .app-ui :is(.ta-domain-tabs,.ta-ops-tabs,.ta-finance-tabs,.ta-report-tabs)>button.is-active{border-color:color-mix(in srgb,var(--lx481-primary) 38%,var(--lx481-line))!important;background:color-mix(in srgb,var(--lx481-primary) 11%,var(--lx481-surface-2))!important;color:var(--lx481-text)!important;}
 
-  html body #root.app-ui :is(.ta-product-row,.ta-ops-row){
+  html body #root .app-ui :is(.ta-product-row,.ta-ops-row){
     border-color:var(--lx481-line)!important;background:var(--lx481-surface)!important;color:var(--lx481-text)!important;
   }
-  html[data-ui-theme="light"] body #root.app-ui :is(.ta-product-row,.ta-ops-row){background:#fff!important;}
-  html body #root.app-ui :is(.ta-product-row,.ta-ops-row) :is(strong,b){color:var(--lx481-text)!important;}
-  html body #root.app-ui :is(.ta-product-row,.ta-ops-row) :is(small,p,span){color:var(--lx481-muted)!important;}
+  html[data-ui-theme="light"] body #root .app-ui :is(.ta-product-row,.ta-ops-row){background:#fff!important;}
+  html body #root .app-ui :is(.ta-product-row,.ta-ops-row) :is(strong,b){color:var(--lx481-text)!important;}
+  html body #root .app-ui :is(.ta-product-row,.ta-ops-row) :is(small,p,span){color:var(--lx481-muted)!important;}
 
   /* ---------- Finance / Receivables ---------- */
-  html body #root.app-ui .ta-finance-page{display:grid!important;gap:10px!important;}
-  html body #root.app-ui :is(.ta-finance-card,.ta-account-card,.ta-receivable-card,.ta-aging-card,.ta-summary-card,.ta-receivables-summary,.ta-receivables-toolbar){
+  html body #root .app-ui .ta-finance-page{display:grid!important;gap:10px!important;}
+  html body #root .app-ui :is(.ta-finance-card,.ta-account-card,.ta-receivable-card,.ta-aging-card,.ta-summary-card,.ta-receivables-summary,.ta-receivables-toolbar){
     border:1px solid var(--lx481-line)!important;border-radius:19px!important;background:linear-gradient(155deg,var(--lx481-surface-2),var(--lx481-surface))!important;color:var(--lx481-text)!important;box-shadow:var(--lx481-shadow-sm)!important;
   }
-  html[data-ui-theme="light"] body #root.app-ui :is(.ta-finance-card,.ta-account-card,.ta-receivable-card,.ta-aging-card,.ta-summary-card,.ta-receivables-summary,.ta-receivables-toolbar){background:#fff!important;}
-  html body #root.app-ui :is(.ta-finance-kpi,.ta-finance-metric){
+  html[data-ui-theme="light"] body #root .app-ui :is(.ta-finance-card,.ta-account-card,.ta-receivable-card,.ta-aging-card,.ta-summary-card,.ta-receivables-summary,.ta-receivables-toolbar){background:#fff!important;}
+  html body #root .app-ui :is(.ta-finance-kpi,.ta-finance-metric){
     min-width:0!important;min-height:104px!important;padding:12px!important;border:1px solid var(--lx481-line)!important;border-radius:17px!important;background:radial-gradient(105px 74px at 100% 0%,rgba(91,145,244,.08),transparent 72%),var(--lx481-surface)!important;color:var(--lx481-text)!important;
   }
-  html body #root.app-ui .ta-finance-kpi :is(strong,b),html body #root.app-ui .ta-finance-metric :is(strong,b){color:var(--lx481-text)!important;}
-  html body #root.app-ui .ta-finance-kpi :is(small,span),html body #root.app-ui .ta-finance-metric :is(small,span){color:var(--lx481-muted)!important;}
+  html body #root .app-ui .ta-finance-kpi :is(strong,b),html body #root .app-ui .ta-finance-metric :is(strong,b){color:var(--lx481-text)!important;}
+  html body #root .app-ui .ta-finance-kpi :is(small,span),html body #root .app-ui .ta-finance-metric :is(small,span){color:var(--lx481-muted)!important;}
 
   /* ---------- Reports ---------- */
-  html body #root.app-ui .ta-reports-page{display:grid!important;gap:10px!important;}
-  html body #root.app-ui :is(.ta-report-card,.ta-report-filterbar,.ta-report-toolbar,.ta-report-filters,.ta-report-period,.ta-report-currency,.ta-report-result,.ta-report-summary){
+  html body #root .app-ui .ta-reports-page{display:grid!important;gap:10px!important;}
+  html body #root .app-ui :is(.ta-report-card,.ta-report-filterbar,.ta-report-toolbar,.ta-report-filters,.ta-report-period,.ta-report-currency,.ta-report-result,.ta-report-summary){
     border:1px solid var(--lx481-line)!important;border-radius:18px!important;background:linear-gradient(155deg,var(--lx481-surface-2),var(--lx481-surface))!important;color:var(--lx481-text)!important;box-shadow:var(--lx481-shadow-sm)!important;
   }
-  html[data-ui-theme="light"] body #root.app-ui :is(.ta-report-card,.ta-report-filterbar,.ta-report-toolbar,.ta-report-filters,.ta-report-period,.ta-report-currency,.ta-report-result,.ta-report-summary){background:#fff!important;}
-  html body #root.app-ui .ta-report-filterbar{padding:10px!important;}
-  html body #root.app-ui .ta-report-presets{display:flex!important;gap:6px!important;overflow-x:auto!important;scrollbar-width:none!important;}
-  html body #root.app-ui .ta-report-presets::-webkit-scrollbar{display:none!important;}
-  html body #root.app-ui .ta-report-presets>button{flex:0 0 auto!important;min-height:44px!important;border:1px solid var(--lx481-line)!important;border-radius:11px!important;background:var(--lx481-surface-2)!important;color:var(--lx481-muted)!important;}
-  html body #root.app-ui .ta-report-presets>button.is-active{border-color:color-mix(in srgb,var(--lx481-primary) 38%,var(--lx481-line))!important;background:color-mix(in srgb,var(--lx481-primary) 11%,var(--lx481-surface-2))!important;color:var(--lx481-text)!important;}
+  html[data-ui-theme="light"] body #root .app-ui :is(.ta-report-card,.ta-report-filterbar,.ta-report-toolbar,.ta-report-filters,.ta-report-period,.ta-report-currency,.ta-report-result,.ta-report-summary){background:#fff!important;}
+  html body #root .app-ui .ta-report-filterbar{padding:10px!important;}
+  html body #root .app-ui .ta-report-presets{display:flex!important;gap:6px!important;overflow-x:auto!important;scrollbar-width:none!important;}
+  html body #root .app-ui .ta-report-presets::-webkit-scrollbar{display:none!important;}
+  html body #root .app-ui .ta-report-presets>button{flex:0 0 auto!important;min-height:44px!important;border:1px solid var(--lx481-line)!important;border-radius:11px!important;background:var(--lx481-surface-2)!important;color:var(--lx481-muted)!important;}
+  html body #root .app-ui .ta-report-presets>button.is-active{border-color:color-mix(in srgb,var(--lx481-primary) 38%,var(--lx481-line))!important;background:color-mix(in srgb,var(--lx481-primary) 11%,var(--lx481-surface-2))!important;color:var(--lx481-text)!important;}
 
   /* ---------- Settings / Account ---------- */
   html body .modal.modal-xl:has(.ta-settings-shell){
@@ -130,6 +130,6 @@
   html body .app-recovery details{border:1px solid var(--lx481-line)!important;border-radius:14px!important;background:var(--lx481-canvas-2)!important;}
   html body .app-recovery pre{background:var(--lx481-canvas)!important;color:var(--lx481-text-2)!important;}
 
-  html[dir="rtl"] body #root.app-ui :is(.ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page,.ta-settings-shell),
+  html[dir="rtl"] body #root .app-ui :is(.ta-products-workspace,.ta-operations-page,.ta-finance-page,.ta-reports-page,.ta-settings-shell),
   html[dir="rtl"] body .app-recovery{text-align:right!important;}
 }
