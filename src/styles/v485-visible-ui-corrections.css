@@ -507,3 +507,87 @@ html body #root .app-ui :is(.ta-doc-row,.ta-customer-row,.ta-sheet-link,.ta-crea
   html body #root .app-ui .ta-main{padding:24px 28px 36px!important;}
   html[data-ui-theme] body #root .global-search-panel{padding:16px!important;}
 }
+
+/* Operational editors use the same raised navy/ivory surfaces as documents. */
+@media screen {
+  html[data-ui-theme] body #root .app-ui :is(.ta-ops-editor,.ta-ops-editor-card,.ta-product-editor){
+    border:1px solid var(--lx485-line-strong)!important;border-radius:22px!important;
+    background:var(--lx485-surface)!important;color:var(--lx485-text)!important;
+  }
+  html[data-ui-theme] body #root .app-ui :is(.ta-ops-editor-head,.ta-ops-editor-actions,.ta-product-editor-header,.ta-product-editor-footer){
+    background:var(--lx485-surface-2)!important;border-color:var(--lx485-line)!important;color:var(--lx485-text)!important;
+  }
+  html[data-ui-theme] body #root .app-ui :is(.ta-ops-editor-scroll,.ta-product-editor-scroll){background:var(--lx485-surface)!important;}
+  html[data-ui-theme] body #root .app-ui :is(.ta-ops-editor,.ta-product-editor) :is(h2,h3,strong,label){color:var(--lx485-text-2)!important;}
+  html[data-ui-theme] body #root .app-ui :is(.ta-ops-editor,.ta-product-editor) :is(small,p){color:var(--lx485-muted)!important;}
+  html[data-ui-theme] body #root .app-ui :is(.ta-ops-editor-head,.ta-product-editor-header)>button{
+    width:44px!important;height:44px!important;background:var(--lx485-surface-3)!important;color:var(--lx485-text-2)!important;border-radius:13px!important;
+  }
+  html[data-ui-theme] body #root .app-ui :is(.ta-ops-form-section,.ta-product-editor-section,.ta-purchase-line,.ta-purchase-totals){
+    background:var(--lx485-surface-2)!important;border-color:var(--lx485-line)!important;border-radius:15px!important;
+  }
+  html[data-ui-theme] body #root .app-ui :is(.ta-ops-form-section,.ta-product-editor-section)>header{
+    background:var(--lx485-surface-3)!important;border-color:var(--lx485-line)!important;
+  }
+  html[data-ui-theme] body #root .app-ui .ta-ops-row-actions{flex-wrap:wrap;}
+  html[data-ui-theme] body #root .app-ui .ta-ops-row-actions button{min-height:44px!important;}
+  html[data-ui-theme] body #root .app-ui .ta-inventory-entry .ta-ops-form-grid{padding:14px!important;}
+}
+@media screen and (max-width:900px){
+  /* Context remains available, but workspaces do not repeat Dashboard-sized heroes. */
+  html[data-ui-theme] body #root .app-ui :is(.ta-products-workspace-header,.lx-finance-context,.ta-ops-page-header){padding:14px 16px!important;gap:10px!important;}
+  html[data-ui-theme] body #root .app-ui :is(.ta-products-workspace-header,.lx-finance-context,.ta-ops-page-header) h1{font-size:22px!important;line-height:1.5!important;}
+  html[data-ui-theme] body #root .app-ui :is(.ta-products-workspace-header,.lx-finance-context,.ta-ops-page-header) p{font-size:12px!important;line-height:1.65!important;margin:6px 0 0!important;}
+  html[data-ui-theme] body #root .app-ui .ta-products-workspace-body :is(.ta-product-page-header,.ta-ops-page-header){
+    background:transparent!important;border:0!important;box-shadow:none!important;padding:8px 4px!important;
+  }
+  html[data-ui-theme] body #root .app-ui .ta-products-workspace-body :is(.ta-product-page-header,.ta-ops-page-header) h1{font-size:20px!important;}
+  html[data-ui-theme] body #root .app-ui .ta-products-workspace-body :is(.ta-product-page-eyebrow,.ta-ops-page-header>div>span){display:none!important;}
+  html[data-ui-theme] body #root .app-ui :is(.ta-product-editor,.ta-ops-editor){
+    max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;
+    border-radius:22px!important;overflow:hidden!important;
+  }
+  html[data-ui-theme] body #root .app-ui :is(.ta-product-editor-header,.ta-ops-editor-head){padding:12px 14px!important;flex-shrink:0;}
+  html[data-ui-theme] body #root .app-ui :is(.ta-product-editor-scroll,.ta-ops-editor-scroll){padding:12px!important;overscroll-behavior:contain;}
+  html[data-ui-theme] body #root .app-ui :is(.ta-product-editor-footer,.ta-ops-editor-actions){padding:10px 12px!important;flex-shrink:0;}
+}
+
+@media screen {
+  /* Product rows own their layout; generic card/button grids must not clip cells. */
+  html[data-ui-theme] body #root .app-ui .ta-product-layout{min-width:0!important;width:100%!important;max-width:100%!important;}
+  html[data-ui-theme] body #root .app-ui .ta-product-table-head{display:none!important;}
+  html[data-ui-theme] body #root .app-ui .ta-product-row{
+    display:grid!important;grid-template-columns:44px minmax(0,1fr) 44px!important;grid-template-rows:auto!important;
+    grid-auto-flow:row!important;align-items:start!important;gap:8px!important;padding:12px!important;
+    width:100%!important;max-width:100%!important;min-width:0!important;height:auto!important;min-height:110px!important;overflow:visible!important;
+    content-visibility:visible!important;contain:none!important;contain-intrinsic-size:auto!important;
+  }
+  html[data-ui-theme] body #root .app-ui .ta-product-row-leading{grid-column:1!important;grid-row:1!important;width:44px!important;align-self:start!important;}
+  html[data-ui-theme] body #root .app-ui .ta-product-row-main{
+    grid-column:2!important;grid-row:1!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
+    grid-template-areas:"name name" "sku price" "category category" "commercial commercial"!important;
+    min-width:0!important;width:100%!important;height:auto!important;min-height:0!important;gap:6px 8px!important;
+    padding:0!important;text-align:start!important;align-items:start!important;overflow:visible!important;
+    background:transparent!important;border:0!important;box-shadow:none!important;transform:none!important;
+  }
+  html[data-ui-theme] body #root .app-ui .ta-product-row-menu-wrap{grid-column:3!important;grid-row:1!important;width:44px!important;}
+  html[data-ui-theme] body #root .app-ui .ta-product-name{grid-area:name!important;min-width:0!important;}
+  html[data-ui-theme] body #root .app-ui .ta-product-name strong{font-size:14px!important;line-height:1.6!important;white-space:normal!important;overflow:visible!important;overflow-wrap:anywhere;}
+  html[data-ui-theme] body #root .app-ui .ta-product-name small{font-size:12px!important;line-height:1.6!important;white-space:normal!important;overflow-wrap:anywhere;}
+  html[data-ui-theme] body #root .app-ui .ta-product-row-main>code{grid-area:sku!important;justify-self:start!important;}
+  html[data-ui-theme] body #root .app-ui .ta-product-price{grid-area:price!important;font-size:13px!important;white-space:normal!important;}
+  html[data-ui-theme] body #root .app-ui .ta-product-category{grid-area:category!important;}
+  html[data-ui-theme] body #root .app-ui .ta-product-commercial{grid-area:commercial!important;min-width:0!important;}
+  html[data-ui-theme] body #root .app-ui .ta-product-commercial small{white-space:normal!important;line-height:1.6!important;overflow:visible!important;}
+}
+@media screen and (max-width:380px){
+  html[data-ui-theme] body #root .app-ui .ta-product-row{grid-template-columns:44px minmax(0,1fr) 44px!important;gap:6px!important;padding:10px!important;}
+  html[data-ui-theme] body #root .app-ui :is(.ta-product-row-leading,.ta-product-row-menu-wrap){width:44px!important;}
+  html[data-ui-theme] body #root .app-ui .ta-product-row-main{grid-template-columns:minmax(0,1fr)!important;grid-template-areas:"name" "price" "sku" "category" "commercial"!important;}
+}
+
+@media screen and (max-width:380px){
+  html[data-ui-theme] body #root .app-ui .ta-topbar-leading{min-width:0!important;flex:1 1 auto!important;margin-inline-end:52px!important;}
+  html[data-ui-theme] body #root .app-ui .ta-page-title{min-width:0!important;max-width:calc(100vw - 196px)!important;}
+  html[data-ui-theme] body #root .app-ui .ta-page-title strong{font-size:15px!important;line-height:1.5!important;white-space:normal!important;overflow-wrap:anywhere;}
+}
