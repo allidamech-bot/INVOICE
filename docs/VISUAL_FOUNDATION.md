@@ -8,6 +8,10 @@ Future palette, surface hierarchy, spacing, radius, shell, Documents, Customers,
 More sheet, mobile navigation, tablet and desktop visual changes must be made in
 that file. Do not create another versioned visual closeout stylesheet.
 
+The source application links this file exactly once, after the TailAdmin
+reliability/geometry bridge. Production emits the same source as one standalone
+canonical stylesheet after the structural bundle and runtime document owners.
+
 ## Ownership audit
 
 ### A. Necessary structural / functional CSS
@@ -30,7 +34,8 @@ consumed by structural TailAdmin rules.
 
 ### B. Obsolete visual generations
 
-The following generations are retired from the production visual cascade:
+The following generations are retired from the active application-wide visual
+cascade:
 
 - Hostinger v353–v359
 - Matte Black v360
@@ -39,11 +44,11 @@ The following generations are retired from the production visual cascade:
 - Executive visual owners v480
 - Premium visual owners v481
 - Mobile visual repair/density/hierarchy layers v482–v485
-- v346 application palette owner
+- v346 as a palette/theme owner (its remaining editor aliases are compatibility only)
 
-The historical files remain in repository history where useful for auditability,
-but the production finalizer strips their bundle blocks and does not use their
-versioned bundlers.
+Historical files may remain in repository history or as declaration-free
+compatibility paths where an old contract references a filename, but they no
+longer own application presentation.
 
 ### C. Conflicts that caused the rebuild
 
@@ -53,10 +58,9 @@ v484, v485). Several of those layers re-aliased older color variables with
 The result was page-specific cascade ownership, duplicated dark surfaces and a
 source/production ordering difference.
 
-The v480 source imports are now compatibility stubs only. The last stub imports
-the canonical foundation for source/dev. Production removes those imports and
-loads the canonical generated stylesheet once after the v331/v332 functional
-owners.
+Source/dev now loads no Hostinger/Matte/Premium application-wide owner. The v480
+compatibility files are declaration-free stubs. Production strips historical
+visual blocks before loading the same canonical foundation once.
 
 ### D. Consolidated responsibilities
 
@@ -78,6 +82,10 @@ belong to the visual foundation.
 
 ## Build contract
 
+`scripts/build.mjs` treats the canonical visual foundation as a standalone owner,
+so it cannot also be duplicated inside `app.bundle.css`. The structural bundle
+contains component/layout baselines and reliability contracts only.
+
 `scripts/visual-foundation-finalize.mjs` removes retired visual blocks from the
 production bundle, emits `dist/styles/lourex-visual-foundation.css`, rewires the
 production HTML/service-worker cache to that canonical artifact, and keeps a
@@ -96,5 +104,5 @@ The former v482 late-auth hard-reload prevention lives separately in
 4. Prefer semantic tokens over page-specific colors.
 5. Keep responsive behavior within Phone / Tablet / Desktop ranges, adding a
    narrow sub-adjustment only when the shell structure requires it.
-6. Validate the actual rendered screenshots; a passing build alone is not visual
+6. Validate actual rendered screenshots; a passing build alone is not visual
    acceptance.
