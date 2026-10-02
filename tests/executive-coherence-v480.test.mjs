@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
-const [css,bundler]=await Promise.all([
+const [css,bundler,reliability]=await Promise.all([
   read('src/styles/executive-coherence-v480.css'),
-  read('scripts/v480-bundle-executive-design.mjs')
+  read('scripts/v480-bundle-executive-design.mjs'),
+  read('src/styles/tailadmin-reliability-bridge-v320.css')
 ]);
 
 test('v480 coherence closeout is bundled after the four structural design owners',()=>{
@@ -20,6 +21,12 @@ test('v480 coherence is screenshot-driven and covers the remaining visual seams'
   assert.match(css,/grid-template-columns:38px minmax\(0,1fr\)/);
   assert.match(css,/safe-area-inset-bottom/);
   assert.match(css,/min-height:44px/);
+});
+
+test('v480 final reliability bridge prevents retired Hostinger violet from re-entering light Operations primary actions',()=>{
+  assert.match(reliability,/html\[data-ui-theme="light"\][\s\S]*?ta-operations-page[\s\S]*?ta-ops-panel-head[\s\S]*?button\.btn\.btn-primary[\s\S]*?background:#315DA8!important/);
+  assert.match(reliability,/border-color:#315DA8!important/);
+  assert.match(reliability,/color:#FFFFFF!important/);
 });
 
 test('v480 coherence cannot mutate business or account state',()=>{
