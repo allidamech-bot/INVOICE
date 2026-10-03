@@ -4,6 +4,7 @@ import { fileToDataUrl } from '../lib/files.js';
 import { t } from '../lib/i18n.js';
 import { currentCloudUser, pushLocalVaultToCloud, reconcileCloudVault, resolveCloudConflictWithCloud, resolveCloudConflictWithLocal } from '../cloud/firebase.js';
 import { getAccountVaultSecret, retireAccountVaultSecret } from '../cloud/account-access.js';
+import { normalizePinInput } from '../lib/account-security.js';
 import { changePin, recoverPinWithRecoveryKey } from '../storage/vault.js';
 import { createRecoveryCode } from '../crypto/crypto.js';
 import { getSecurity } from '../storage/db.js';
@@ -22,7 +23,7 @@ export class SetupScreen extends React.Component<SetupProps,SetupState>{
   state:SetupState={company:this.props.initialCompany,pin:'',confirmPin:'',error:'',busy:false,logoBusy:false,recoveryCode:createRecoveryCode(),recoverySaved:false};
 
   private updateCompany=(key:keyof CompanySettings,value:any):void=>this.setState({company:{...this.state.company,[key]:value},error:''});
-  private pinValue=(value:string)=>value.replace(/\D/g,'').slice(0,12);
+  private pinValue=normalizePinInput;
   private selectLogo=(input:HTMLInputElement):void=>{const file=input.files?.[0];input.value='';void this.uploadLogo(file);};
   private uploadLogo=async(file?:File):Promise<void>=>{
     if(!file)return;const uploadId=++this.logoUploadId;
@@ -69,7 +70,7 @@ export class UnlockScreen extends React.Component<UnlockProps,UnlockState>{
   state:UnlockState={pin:'',confirmPin:'',error:'',busy:false,checking:true,migrateAccountSecret:false,migrationConflict:false,conflictChoice:'',recoveryAvailable:false,recovering:false,recoveryKey:'',recoveryPin:'',recoveryConfirm:'',recoveryCode:'',recoveryUnlockPin:''};
   private accountSecret='';
   componentDidMount():void{void this.detectSecurityMode();}
-  private pinValue=(value:string)=>value.replace(/\D/g,'').slice(0,12);
+  private pinValue=normalizePinInput;
   private detectSecurityMode=async():Promise<void>=>{
     this.setState({checking:true,error:''});
     try{
