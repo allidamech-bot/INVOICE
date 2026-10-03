@@ -222,10 +222,9 @@ class ModalFrame extends React.Component<ModalFrameProps> {
     const viewport=window.visualViewport;
     const height=viewport?.height??window.innerHeight;
     const offsetTop=viewport?.offsetTop??0;
-    const browserNavigator=navigator as Navigator&{standalone?:boolean};
-    const appleTouchDevice=/iPad|iPhone|iPod/.test(browserNavigator.userAgent)||(browserNavigator.platform==='MacIntel'&&browserNavigator.maxTouchPoints>1);
-    const standalone=window.matchMedia('(display-mode: standalone)').matches||browserNavigator.standalone===true;
-    const browserBottomReserve=appleTouchDevice&&!standalone?Math.min(96,Math.max(72,Math.round(window.innerHeight*.1))):0;
+    // visualViewport already excludes Safari chrome and the on-screen keyboard.
+    // A second browser reserve hides content and leaves an inaccessible blank band.
+    const browserBottomReserve=0;
     if(Number.isFinite(height)&&height>0)this.backdrop.style.setProperty('--modal-visual-height',`${Math.round(height)}px`);
     if(Number.isFinite(offsetTop))this.backdrop.style.setProperty('--modal-visual-offset-top',`${Math.round(offsetTop)}px`);
     this.backdrop.style.setProperty('--modal-browser-bottom-reserve',`${browserBottomReserve}px`);
