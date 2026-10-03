@@ -24,5 +24,5 @@ export function Customer360LivePanel({customer}:{customer:Customer}):any{
   },[customer.id,customer.updatedAt]);
   if(error)return <section className="lx-360-load-state is-error" role="status">{error}</section>;
   if(!snapshot)return <section className="lx-360-load-state" role="status">{t('Preparing Customer 360…','جارٍ تجهيز ملف العميل 360…')}</section>;
-  return <><Customer360Panel snapshot={snapshot}/><CustomerSharesPanel customer={customer}/><EntityAuditLivePanel entityType="customer" entityId={customer.id} title={t('Customer activity','نشاط العميل')}/></>;
+  return <><Customer360Panel snapshot={snapshot}/><details className="lx-360-card lx-360-disclosure"><summary>{t('Shared documents & audit history','المستندات المشتركة وسجل التدقيق')}</summary><CustomerSharesPanel customer={customer}/><EntityAuditLivePanel entityType="customer" entityId={customer.id} title={t('Customer activity','نشاط العميل')}/></details></>;
 }

@@ -41,6 +41,7 @@ export interface Customer360Snapshot {
   activeDocumentCount:number;
   financialPosition:CurrencyReceivableSummary[];
   recentDocuments:Customer360DocumentRow[];
+  latestQuotation:Customer360DocumentRow|null;
   recentActivity:Relationship360Activity[];
   productMentions:Customer360ProductMention[];
   lastActivityAt:string;
@@ -104,7 +105,11 @@ export function buildCustomer360(
   const quotationCount=linkedDocuments.filter(doc=>doc.kind==='proforma'||doc.kind==='proforma-invoice').length;
   const invoiceCount=linkedDocuments.filter(doc=>doc.kind==='invoice'&&doc.role==='standard').length;
   const activeDocumentCount=linkedDocuments.filter(doc=>doc.lifecycleStatus!=='voided').length;
-  const recentDocuments=[...linkedDocuments].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||b.issueDate.localeCompare(a.issueDate)).slice(0,12).map(doc=>({id:doc.id,number:doc.number,kind:doc.kind,role:doc.role,status:doc.status,lifecycleStatus:doc.lifecycleStatus,issueDate:doc.issueDate,dueDate:doc.dueDate,currency:doc.currency,updatedAt:doc.updatedAt}));
+  const sortedDocuments=[...linkedDocuments].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||b.issueDate.localeCompare(a.issueDate));
+  const documentRow=(doc:LourexDocument):Customer360DocumentRow=>({id:doc.id,number:doc.number,kind:doc.kind,role:doc.role,status:doc.status,lifecycleStatus:doc.lifecycleStatus,issueDate:doc.issueDate,dueDate:doc.dueDate,currency:doc.currency,updatedAt:doc.updatedAt});
+  const recentDocuments=sortedDocuments.slice(0,12).map(documentRow);
+  const latestQuote=sortedDocuments.find(doc=>doc.role==='standard'&&(doc.kind==='proforma'||doc.kind==='proforma-invoice')&&doc.lifecycleStatus!=='voided');
+  const latestQuotation=latestQuote?documentRow(latestQuote):null;
 
   const productMap=new Map<string,Customer360ProductMention>();
   for(const doc of linkedDocuments.filter(row=>row.lifecycleStatus!=='voided')){
@@ -132,6 +137,7 @@ export function buildCustomer360(
     activeDocumentCount,
     financialPosition,
     recentDocuments,
+    latestQuotation,
     recentActivity:recentActivity.slice(0,20),
     productMentions,
     lastActivityAt:newest([customer.updatedAt,...recentActivity.map(row=>row.at)])

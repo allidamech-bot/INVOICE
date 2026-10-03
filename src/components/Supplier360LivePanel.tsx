@@ -23,5 +23,5 @@ export function Supplier360LivePanel({supplier}:{supplier:Supplier}):any{
   },[supplier.id,supplier.updatedAt]);
   if(error)return <section className="lx-360-load-state is-error" role="status">{error}</section>;
   if(!snapshot)return <section className="lx-360-load-state" role="status">{t('Preparing Supplier 360…','جارٍ تجهيز ملف المورد 360…')}</section>;
-  return <><Supplier360Panel snapshot={snapshot}/><EntityAuditLivePanel entityType="supplier" entityId={supplier.id} title={t('Supplier activity','نشاط المورد')}/></>;
+  return <><Supplier360Panel snapshot={snapshot}/><details className="lx-360-card lx-360-disclosure"><summary>{t('Supplier audit history','سجل تدقيق المورد')}</summary><EntityAuditLivePanel entityType="supplier" entityId={supplier.id} title={t('Supplier activity','نشاط المورد')}/></details></>;
 }
