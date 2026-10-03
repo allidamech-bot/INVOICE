@@ -790,7 +790,12 @@ html body #root #lourex-ai-panel .lourex-ai-compose form>input::placeholder{colo
 html body #root #lourex-ai-panel :is(.lourex-ai-composer-plus,.lourex-ai-composer-mic){color:var(--lx485-muted)!important;}
 html body #root #lourex-ai-panel .lourex-ai-send{background:linear-gradient(135deg,#5998ff,#326fe6)!important;color:#fff!important;border-color:var(--lx485-blue)!important;border-radius:14px!important;}
 html body #root #lourex-ai-panel :is(.lourex-ai-plus-menu,.lourex-ai-proposal,.lourex-ai-preview,.lourex-ai-audit){background:var(--lx485-surface-2)!important;color:var(--lx485-text-2)!important;border-color:var(--lx485-line)!important;}
-html body #root #lourex-ai-panel .lourex-ai-plus-item{background:var(--lx485-surface)!important;border-color:var(--lx485-line)!important;color:var(--lx485-text)!important;}
+html body #root #lourex-ai-panel .lourex-ai-plus-section{display:flex!important;flex-direction:column!important;gap:6px!important;}
+html body #root #lourex-ai-panel .lourex-ai-plus-item{width:100%!important;min-width:0!important;max-width:100%!important;height:auto!important;min-height:58px!important;display:flex!important;gap:10px!important;padding:10px!important;text-align:start!important;box-shadow:none!important;background:radial-gradient(ellipse at 100% 0%,color-mix(in srgb,var(--ai-tone,var(--lx485-blue)) 10%,transparent),transparent 65%),var(--lx485-surface)!important;border-color:var(--lx485-line)!important;color:var(--lx485-text)!important;}
+html body #root #lourex-ai-panel .lourex-ai-plus-copy{flex:1 1 0!important;min-width:0!important;}
+html body #root #lourex-ai-panel .lourex-ai-plus-copy strong{font-size:14px!important;line-height:1.5!important;overflow-wrap:anywhere!important;}
+html body #root #lourex-ai-panel .lourex-ai-plus-copy small{white-space:normal!important;line-height:1.5!important;font-size:12px!important;}
+html body #root #lourex-ai-panel .lourex-ai-plus-item:focus-visible{outline:2px solid var(--lx485-blue)!important;outline-offset:-2px!important;}
 html body #root #lourex-ai-panel .lourex-ai-plus-copy small{color:var(--lx485-muted)!important;}
 html body #root :is(.loading-screen,#lourex-boot.loading-screen){background:radial-gradient(ellipse at 50% 45%,color-mix(in srgb,var(--lx485-blue) 15%,transparent),transparent 55%),var(--lx485-canvas)!important;color:var(--lx485-text)!important;box-shadow:none!important;gap:22px!important;}
 html body #root .loading-screen:before{background:none!important;border:1px solid var(--lx485-line)!important;border-radius:50%!important;width:280px!important;height:280px!important;inset:auto!important;opacity:.6!important;animation:none!important;}
