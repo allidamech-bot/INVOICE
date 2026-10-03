@@ -1,3 +1,4 @@
+import { readablePdfText } from '../lib/pdf-source.js';
 import type { PurchaseRecord, SavedItem, Supplier, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { buildAiSupplierPurchaseDraft } from '../lib/ai-supplier-purchase-draft.js';
@@ -26,6 +27,7 @@ async function binaryPayload(file:File):Promise<AiPayload>{
   const name=file.name.toLowerCase();
   const mime=file.type||(name.endsWith('.pdf')?'application/pdf':'');
   if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error(t('Use PDF, image, Excel or CSV.','استخدم PDF أو صورة أو Excel أو CSV.'));
+  if(mime==='application/pdf'){if(file.size>MAX_SPREADSHEET_BYTES)throw new Error(t('PDF exceeds 12 MB.','ملف PDF يتجاوز 12 MB.'));const text=await readablePdfText(file,MAX_TEXT_CHARS);if(text.trim())return{kind:'text',mimeType:'text/plain',text};}
   if(file.size>MAX_BINARY_BYTES)throw new Error(t('This PDF/image is too large for safe AI import. Reduce it below 2.6 MB.','ملف PDF/الصورة كبير للاستيراد الآمن. خفّضه لأقل من 2.6 MB.'));
   return {kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
 }
