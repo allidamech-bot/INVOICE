@@ -1,5 +1,6 @@
 (()=>{
   'use strict';
+  const setText=(node,value)=>{if(node&&node.textContent!==String(value))node.textContent=String(value);};
 
   const LEGACY_NAV_BUTTON_ID='lourex-settings-diagnostics-v345';
   const OVERVIEW_ID='lourex-data-center-overview-v472';
@@ -67,16 +68,16 @@
     const labels=card.querySelectorAll('[data-data-center-label]');
     const stats=card.querySelectorAll('[data-data-center-value]');
     const labelText=ar?['عزل البيانات','الحماية المحلية','حجم الخزنة النشطة','الاستعادة والحماية']:['Data isolation','Local protection','Active vault size','Recovery & protection'];
-    labels.forEach((node,index)=>{node.textContent=labelText[index]||'';});
-    [values.architecture,values.protection,values.vault,values.recovery].forEach((value,index)=>{if(stats[index])stats[index].textContent=value;});
+    labels.forEach((node,index)=>{setText(node,labelText[index]||'');});
+    [values.architecture,values.protection,values.vault,values.recovery].forEach((value,index)=>{setText(stats[index],value);});
     const title=card.querySelector('[data-data-center-title]');
     const description=card.querySelector('[data-data-center-description]');
-    if(title)title.textContent=ar?'مركز التحكم بالبيانات':'Data control center';
-    if(description)description.textContent=ar?'نقطة واحدة لفهم مكان البيانات وعزلها والوصول إلى أدوات الإدارة الأصلية دون إنشاء نسخ مكررة من السجلات أو الإعدادات.':'One place to understand data scope and reach the canonical management tools without duplicating ledgers or settings.';
+    setText(title,ar?'مركز التحكم بالبيانات':'Data control center');
+    setText(description,ar?'نقطة واحدة لفهم مكان البيانات وعزلها والوصول إلى أدوات الإدارة الأصلية دون إنشاء نسخ مكررة من السجلات أو الإعدادات.':'One place to understand data scope and reach the canonical management tools without duplicating ledgers or settings.');
     const workspaces=card.querySelector('[data-data-center-workspaces]');
     const security=card.querySelector('[data-data-center-security]');
-    if(workspaces)workspaces.textContent=ar?'الشركات والفروع':'Companies & Branches';
-    if(security)security.textContent=ar?'الأمان والاستعادة':'Security & Recovery';
+    setText(workspaces,ar?'الشركات والفروع':'Companies & Branches');
+    setText(security,ar?'الأمان والاستعادة':'Security & Recovery');
   };
 
   const updateDiagnostics=card=>{
@@ -92,14 +93,14 @@
     const vaultValue=card.querySelector('[data-diag-vault-value]');
     const scope=card.querySelector('[data-diag-scope]');
     const action=card.querySelector('[data-diag-action]');
-    if(title)title.textContent=ar?'التشخيص وصحة النظام':'Diagnostics & system health';
-    if(description)description.textContent=ar?'تم نقل أدوات التشخيص إلى مركز البيانات بدل إضافة قسم جانبي مستقل.':'Diagnostics now live inside Data Center instead of creating another Settings section.';
-    if(eventsLabel)eventsLabel.textContent=ar?'أحداث التشغيل':'Runtime events';
-    if(eventsValue)eventsValue.textContent=String(events);
-    if(vaultLabel)vaultLabel.textContent=ar?'الخزنة النشطة':'Active vault';
-    if(vaultValue)vaultValue.textContent=vault?formatBytes(vault.encryptedBytes):'—';
-    if(scope)scope.textContent=ar?'يشمل دورة حياة الصفحة، أخطاء JavaScript وPromise، Auth/Firebase، التنقل والحفظ، Vault/Crypto، IndexedDB، التخزين، السحابة وService Worker. لا يسجل محتوى الأعمال أو PIN.':'Includes page lifecycle, JavaScript/Promise errors, Auth/Firebase, navigation/save state, Vault/Crypto, IndexedDB, storage, cloud and Service Worker. No business content or PIN is recorded.';
-    if(action)action.textContent=ar?'فتح التشخيص الشامل':'Open full diagnostics';
+    setText(title,ar?'التشخيص وصحة النظام':'Diagnostics & system health');
+    setText(description,ar?'تم نقل أدوات التشخيص إلى مركز البيانات بدل إضافة قسم جانبي مستقل.':'Diagnostics now live inside Data Center instead of creating another Settings section.');
+    setText(eventsLabel,ar?'أحداث التشغيل':'Runtime events');
+    setText(eventsValue,String(events));
+    setText(vaultLabel,ar?'الخزنة النشطة':'Active vault');
+    setText(vaultValue,vault?formatBytes(vault.encryptedBytes):'—');
+    setText(scope,ar?'يشمل دورة حياة الصفحة، أخطاء JavaScript وPromise، Auth/Firebase، التنقل والحفظ، Vault/Crypto، IndexedDB، التخزين، السحابة وService Worker. لا يسجل محتوى الأعمال أو PIN.':'Includes page lifecycle, JavaScript/Promise errors, Auth/Firebase, navigation/save state, Vault/Crypto, IndexedDB, storage, cloud and Service Worker. No business content or PIN is recorded.');
+    setText(action,ar?'فتح التشخيص الشامل':'Open full diagnostics');
   };
 
   const ensureDataCenterCards=()=>{
@@ -163,6 +164,7 @@
 
 (()=>{
   'use strict';
+  const setText=(node,value)=>{if(node&&node.textContent!==String(value))node.textContent=String(value);};
 
   const STYLE_ID='lourex-cloud-refresh-data-center-style-v472';
   const NOTICE_ID='lourex-cloud-refresh-data-center-v472';
@@ -211,15 +213,15 @@
     const title=notice.querySelector('[data-cloud-refresh-title]');
     const detail=notice.querySelector('[data-cloud-refresh-detail]');
     const action=notice.querySelector('[data-cloud-refresh-action]');
-    if(title)title.textContent=ar?'توجد نسخة سحابية أحدث':'Newer cloud copy available';
-    if(detail)detail.textContent=ar?'مركز البيانات هو نقطة التنبيه. تنفيذ الاستعادة الحساسة يبقى داخل الأمان والاستعادة حتى لا تتكرر منطقـة الاسترجاع.':'Data Center owns the notice. The sensitive restore action stays in Security & Recovery so restore logic is not duplicated.';
-    if(action)action.textContent=ar?'فتح الأمان والاستعادة':'Open Security & Recovery';
+    setText(title,ar?'توجد نسخة سحابية أحدث':'Newer cloud copy available');
+    setText(detail,ar?'مركز البيانات هو نقطة التنبيه. تنفيذ الاستعادة الحساسة يبقى داخل الأمان والاستعادة حتى لا تتكرر منطقـة الاسترجاع.':'Data Center owns the notice. The sensitive restore action stays in Security & Recovery so restore logic is not duplicated.');
+    setText(action,ar?'فتح الأمان والاستعادة':'Open Security & Recovery');
     const header=page.querySelector('.ta-settings-page-header');
     if(notice.parentElement!==page){notice.remove();if(header?.parentNode===page)header.insertAdjacentElement('afterend',notice);else page.prepend(notice);}
   };
 
   const sync=()=>{ensureStyle();removeFloating();renderDataCenterNotice();};
-  const schedule=()=>{if(scheduled)return;scheduled=true;queueMicrotask(()=>{scheduled=false;sync();});};
+  const schedule=()=>{if(scheduled)return;scheduled=true;window.requestAnimationFrame(()=>{scheduled=false;sync();});};
 
   window.addEventListener('lourex-cloud-refresh-available',()=>{setAvailable(true);schedule();});
   window.addEventListener('lourex-cloud-applied',()=>{setAvailable(false);schedule();});
