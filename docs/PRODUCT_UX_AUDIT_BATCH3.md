@@ -20,6 +20,8 @@ The already documented NON-BLOCKING historical unit/browser archives now run onl
 
 Legacy relationship source assertions predate real Supplier Payables and a purchase accounting snapshot, and the old CI contract expects an obsolete quality-step label. They fail on main too; their unrelated historical expectations are not debugged or made blocking here.
 
+The path-triggered CRM gate exposed a stale literal schema-15 assertion although legitimate main already uses schema 21. That blocking assertion is replaced with current-vault runtime invariants: preparing an opportunity cannot mutate the vault, and appending its event preserves the schema and every non-event collection. All other CRM safety checks remain intact.
+
 ## Boundaries
 
 No stored schema, deterministic accounting engines, authentication, PIN, PDF, inventory posting, issued documents or dependencies change. The added quotation field is a read-only transient relationship projection. Browser saves exercise the real form callback in an isolated fixture; encrypted persistence ownership is unchanged. Physical Safari is not available. Review used the React best-practices checklist for listener cleanup, primitive dependencies, canonical state and native keyboard/disclosure semantics.

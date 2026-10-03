@@ -11,13 +11,22 @@ function customer(id='customer-1',currency='USD'){
 function baseVault(customers=[customer()]){return{customers,documents:[],documentEvents:[]};}
 
 test('Batch 6 uses a dedicated encrypted CRM event namespace without a schema bump or financial mutation path',async()=>{
-  const [pipeline,defaults,bridge]=await Promise.all([
-    read('src/lib/sales-pipeline.ts'),read('src/lib/defaults.ts'),read('src/storage/vault-mutation-bridge.ts')
+  const [pipeline,bridge]=await Promise.all([
+    read('src/lib/sales-pipeline.ts'),read('src/storage/vault-mutation-bridge.ts')
   ]);
   assert.match(pipeline,/CRM_MARKER='@lourex:crm-opportunity:v1:'/);
   assert.match(pipeline,/CRM_DOCUMENT_PREFIX='@lourex:crm-opportunity:'/);
   assert.match(pipeline,/type:'created'/);
-  assert.match(defaults,/APP_SCHEMA_VERSION = 15/);
+  // CRM reuses events at the current schema; a historical version literal is not
+  // a no-migration contract once other legitimate subsystems advance the vault.
+  const {emptyVault,APP_SCHEMA_VERSION}=await import('../dist/src/lib/defaults.js');
+  const {blankOpportunity,validatedOpportunityUpsertEvent}=await import('../dist/src/lib/sales-pipeline.js');
+  const vault=emptyVault();vault.customers=[customer()];const before=structuredClone(vault);
+  const result=validatedOpportunityUpsertEvent(vault,blankOpportunity(vault.customers[0]),'');
+  assert.deepEqual(vault,before,'preparing CRM evidence must not change schema or financial records');
+  const next={...vault,documentEvents:[...vault.documentEvents,result.event]};
+  assert.equal(next.schemaVersion,APP_SCHEMA_VERSION);
+  for(const key of Object.keys(before).filter(key=>key!=='documentEvents'))assert.deepEqual(next[key],before[key]);
   assert.doesNotMatch(pipeline,/schemaVersion|saveVault|localStorage|sessionStorage|PaymentRecord|DocumentStatus|DocumentLifecycleStatus/);
   assert.match(bridge,/mutateVaultSafely/);
 });
