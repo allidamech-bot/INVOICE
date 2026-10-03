@@ -15,7 +15,8 @@ const MAX_TOTAL_BYTES=(IOS_WEBKIT?5:8)*MB;
 const MAX_FILES=IOS_WEBKIT?6:8;
 const IMAGE_EXTENSION=/\.(png|jpe?g|webp|gif|heic|heif)$/i;
 const PDF_EXTENSION=/\.pdf$/i;
-type AttachmentKind='image'|'pdf';
+type AttachmentKind='image'|'pdf'|'file';
+const SUPPORTING_EXTENSION=/\.(docx?|xlsx?|pptx?|csv|txt|rtf|zip)$/i;
 
 function attachmentKind(file:File):AttachmentKind|null{
   const mime=(file.type||'').trim().toLowerCase();
@@ -26,11 +27,13 @@ function attachmentKind(file:File):AttachmentKind|null{
     if(PDF_EXTENSION.test(file.name))return'pdf';
     if(IMAGE_EXTENSION.test(file.name))return'image';
   }
+  if(SUPPORTING_EXTENSION.test(file.name))return'file';
   return null;
 }
 function ascii(bytes:Uint8Array,start:number,length:number):string{return String.fromCharCode(...bytes.slice(start,start+length));}
 async function genuineAttachment(file:File,kind:AttachmentKind):Promise<boolean>{
   const bytes=new Uint8Array(await file.slice(0,32).arrayBuffer());
+  if(kind==='file')return bytes.length>0;
   if(kind==='pdf')return bytes.length>=5&&ascii(bytes,0,5)==='%PDF-';
   if(bytes.length>=8&&bytes[0]===0x89&&ascii(bytes,1,3)==='PNG'&&bytes[4]===0x0d&&bytes[5]===0x0a&&bytes[6]===0x1a&&bytes[7]===0x0a)return true;
   if(bytes.length>=3&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)return true;
@@ -40,6 +43,7 @@ async function genuineAttachment(file:File,kind:AttachmentKind):Promise<boolean>
   return false;
 }
 function normalizedMime(file:File,kind:AttachmentKind):string{
+  if(kind==='file')return file.type||'application/octet-stream';
   if(kind==='pdf')return'application/pdf';
   const mime=(file.type||'').trim().toLowerCase();
   if(mime.startsWith('image/'))return mime;
@@ -60,30 +64,34 @@ function totalAttachmentBytes(list:DocumentAttachment[]):number{return list.redu
 
 export class DocumentAttachmentsSection extends React.Component<Props,State>{
   state:State={busy:false,error:'',preview:null};private input:HTMLInputElement|null=null;
-  componentDidMount():void{document.addEventListener('keydown',this.handleKeyDown);}
-  componentWillUnmount():void{document.removeEventListener('keydown',this.handleKeyDown);}
+  private mounted=false;
+  componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.handleKeyDown);}
+  componentWillUnmount():void{this.mounted=false;document.removeEventListener('keydown',this.handleKeyDown);}
   private handleKeyDown=(event:KeyboardEvent)=>{if(event.key==='Escape'&&this.state.preview){event.preventDefault();this.closePreview();}};
+  private adding=false;
   private add=async(event:any)=>{
-    const input=event.target as HTMLInputElement,files=Array.from(input.files??[]),current=this.props.document.attachments??[];
-    if(!files.length)return;
-    if(current.length+files.length>MAX_FILES){this.setState({error:t(`A document can contain up to ${MAX_FILES} attachments.`,`يمكن أن يحتوي المستند على ${MAX_FILES} مرفقات كحد أقصى.`)});input.value='';return;}
-    for(const file of files){
-      const kind=attachmentKind(file);
-      if(!kind||!await genuineAttachment(file,kind)){this.setState({error:t('Only genuine PDF, PNG, JPEG, WebP, GIF, HEIC and HEIF files are supported.','تُقبل فقط ملفات PDF وPNG وJPEG وWebP وGIF وHEIC وHEIF الأصلية.')});input.value='';return;}
-      if(file.size>MAX_FILE_BYTES){this.setState({error:t(`Each attachment must be ${MAX_FILE_BYTES/MB} MB or smaller.`,`يجب ألا يتجاوز حجم كل مرفق ${MAX_FILE_BYTES/MB} ميغابايت.`)});input.value='';return;}
-    }
-    const currentBytes=totalAttachmentBytes(current),incomingBytes=files.reduce((n,f)=>n+f.size,0);
-    if(currentBytes+incomingBytes>MAX_TOTAL_BYTES){this.setState({error:t(`Attachments are limited to ${MAX_TOTAL_BYTES/MB} MB per document to keep encrypted saving fast and reliable.`,`إجمالي مرفقات المستند محدود بـ ${MAX_TOTAL_BYTES/MB} ميغابايت للحفاظ على سرعة وموثوقية الحفظ المشفّر.`)});input.value='';return;}
-    this.setState({busy:true,error:''});
+    const input=event.target as HTMLInputElement,files=Array.from(input.files??[]);
+    if(!files.length||this.adding)return;
+    const documentId=this.props.document.id;this.adding=true;this.setState({busy:true,error:''});
     try{
-      // FileReader/base64 conversion is deliberately sequential. Promise.all here
-      // used to allocate several full file buffers and data URLs simultaneously,
-      // which is exactly the kind of transient spike that can terminate Safari.
+      const checkBudget=(current:DocumentAttachment[])=>{
+        if(current.length+files.length>MAX_FILES)throw new Error(t(`A document can contain up to ${MAX_FILES} attachments.`,`يمكن أن يحتوي المستند على ${MAX_FILES} مرفقات كحد أقصى.`));
+        if(totalAttachmentBytes(current)+files.reduce((n,f)=>n+f.size,0)>MAX_TOTAL_BYTES)throw new Error(t(`Attachments are limited to ${MAX_TOTAL_BYTES/MB} MB per document.`,`إجمالي مرفقات المستند محدود بـ ${MAX_TOTAL_BYTES/MB} ميغابايت.`));
+      };
+      checkBudget(this.props.document.attachments??[]);
       const added:DocumentAttachment[]=[];
-      for(const file of files)added.push(await asAttachment(file));
-      this.props.onChange({...this.props.document,attachments:[...current,...added]});
-    }catch(e){this.setState({error:e instanceof Error?e.message:t('Unable to add attachment.','تعذر إضافة المرفق.')});}
-    finally{this.setState({busy:false});input.value='';}
+      for(const file of files){
+        const kind=attachmentKind(file);
+        if(!kind||!await genuineAttachment(file,kind))throw new Error(t('Choose a PDF, image, Office document, text file or ZIP archive.','اختر PDF أو صورة أو مستند Office أو ملفًا نصيًا أو أرشيف ZIP.'));
+        if(file.size>MAX_FILE_BYTES)throw new Error(t(`Each attachment must be ${MAX_FILE_BYTES/MB} MB or smaller.`,`يجب ألا يتجاوز حجم كل مرفق ${MAX_FILE_BYTES/MB} ميغابايت.`));
+        added.push(await asAttachment(file));
+      }
+      // Preserve edits made while sequential file reads were in progress.
+      if(!this.mounted||this.props.document.id!==documentId)return;
+      const latest=this.props.document;checkBudget(latest.attachments??[]);
+      this.props.onChange({...latest,attachments:[...(latest.attachments??[]),...added]});
+    }catch(e){if(this.mounted)this.setState({error:e instanceof Error?e.message:t('Unable to add attachment.','تعذر إضافة المرفق.')});}
+    finally{this.adding=false;if(this.mounted)this.setState({busy:false});input.value='';}
   };
   private remove=(id:string)=>this.props.onChange({...this.props.document,attachments:(this.props.document.attachments??[]).filter(a=>a.id!==id)});
   private openPreview=(preview:DocumentAttachment)=>this.setState({preview});
@@ -94,10 +102,10 @@ export class DocumentAttachmentsSection extends React.Component<Props,State>{
       <section id="document-attachments" data-attachment-count={list.length} className="editor-section document-attachments-section" aria-label={t('Document attachments','مرفقات المستند')}>
         <div className="section-heading"><div><span>07</span><h2>{t('Attachments','المرفقات')}</h2></div></div>
         <div className="attachment-add-row">
-          <Button className="attachment-add-button" icon="plus" disabled={this.state.busy||list.length>=MAX_FILES||totalSize>=MAX_TOTAL_BYTES} onClick={()=>this.input?.click()}>{this.state.busy?t('Adding…','جارٍ الإضافة…'):t('Add attachment','إضافة مرفق')}</Button>
-          <span className="attachment-add-note">{t(`Images or PDF · ${MAX_FILE_BYTES/MB} MB each · ${bytes(totalSize)} of ${MAX_TOTAL_BYTES/MB} MB used`,`صور أو PDF · ${MAX_FILE_BYTES/MB} ميغابايت لكل ملف · مستخدم ${bytes(totalSize)} من ${MAX_TOTAL_BYTES/MB} ميغابايت`)}</span>
+          <Button className="attachment-add-button" icon="plus" disabled={this.state.busy||list.length>=MAX_FILES||totalSize>=MAX_TOTAL_BYTES} onClick={()=>this.input?.click()}>{this.state.busy?t('Adding…','جارٍ الإضافة…'):t('Add files','إضافة ملفات')}</Button>
+          <span className="attachment-add-note">{t(`Files · ${MAX_FILE_BYTES/MB} MB each · ${bytes(totalSize)} of ${MAX_TOTAL_BYTES/MB} MB used`,`ملفات · ${MAX_FILE_BYTES/MB} ميغابايت لكل ملف · مستخدم ${bytes(totalSize)} من ${MAX_TOTAL_BYTES/MB} ميغابايت`)}</span>
         </div>
-        <input ref={(n:HTMLInputElement|null)=>{this.input=n;}} className="document-attachment-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/heic,image/heif,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.gif,.heic,.heif" multiple onChange={this.add}/>
+        <input ref={(n:HTMLInputElement|null)=>{this.input=n;}} className="document-attachment-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/heic,image/heif,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.gif,.heic,.heif,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.rtf,.zip" multiple onChange={this.add}/>
         <p className="attachment-help">{t('Attach supplier files, purchase documents, scans, product images, or any supporting PDF directly to this document. Files stay inside the encrypted LOUREX workspace.','أرفق ملفات المورد أو مستندات الشراء أو الصور الممسوحة أو صور المنتجات أو أي PDF داعم مباشرة بهذا المستند. تبقى الملفات داخل مساحة LOUREX المشفّرة.')}</p>
         {IOS_WEBKIT?<p className="attachment-help">{t('iPhone/iPad stability mode uses a smaller attachment budget and opens image previews only on demand.','وضع استقرار iPhone/iPad يستخدم حد مرفقات أصغر ولا يفك ترميز الصور إلا عند فتح المعاينة.')}</p>:null}
         {this.state.error?<div className="inline-error">{this.state.error}</div>:null}
@@ -110,9 +118,9 @@ export class DocumentAttachmentsSection extends React.Component<Props,State>{
             <div className="attachment-copy"><strong title={attachment.name}>{attachment.name}</strong><small>{pdf?'PDF':image?t('Image','صورة'):t('File','ملف')} · {bytes(attachment.size)}</small></div>
             <div className="attachment-card-actions"><button type="button" className="attachment-open-button" onClick={()=>this.openPreview(attachment)}>{pdf?t('Details','التفاصيل'):t('Preview','معاينة')}</button><IconButton icon="trash" label={t('Remove attachment','حذف المرفق')} onClick={()=>this.remove(attachment.id)}/></div>
           </article>;
-        })}</div>:<div className="attachments-empty"><Icon name="file"/><span>{t('No attachments yet. Add an image or PDF when this document has supporting files.','لا توجد مرفقات بعد. أضف صورة أو PDF عندما يكون لهذا المستند ملفات داعمة.')}</span></div>}
+        })}</div>:<div className="attachments-empty"><Icon name="file"/><span>{t('No attachments yet. Add one or more supporting files.','لا توجد مرفقات بعد. أضف ملفًا داعمًا أو عدة ملفات.')}</span></div>}
       </section>
-      {preview?<div className="attachment-preview-overlay" role="dialog" aria-modal="true" aria-label={preview.name} onClick={this.closePreview}><div className="attachment-preview-dialog" onClick={(event:any)=>event.stopPropagation()}><header><div><strong>{preview.name}</strong><small>{isPdfAttachment(preview)?'PDF':t('Image preview','معاينة الصورة')}</small></div><IconButton icon="x" label={t('Close preview','إغلاق المعاينة')} onClick={this.closePreview}/></header><div className="attachment-preview-body">{isPdfAttachment(preview)?<div className="attachment-pdf-preview"><span className="attachment-pdf-preview-icon"><Icon name="file"/></span><strong>{t('PDF attached to this document','ملف PDF مرفق بهذا المستند')}</strong><small>{preview.name} · {bytes(preview.size)}</small><a className="attachment-preview-fallback" href={preview.dataUrl} download={preview.name}>{t('Download PDF','تنزيل PDF')}</a></div>:<img src={preview.dataUrl} alt={preview.name}/>}</div></div></div>:null}
+      {preview?<div className="attachment-preview-overlay" role="dialog" aria-modal="true" aria-label={preview.name} onClick={this.closePreview}><div className="attachment-preview-dialog" onClick={(event:any)=>event.stopPropagation()}><header><div><strong>{preview.name}</strong><small>{isImageAttachment(preview)?t('Image preview','معاينة الصورة'):t('File details','تفاصيل الملف')}</small></div><IconButton icon="x" label={t('Close preview','إغلاق المعاينة')} onClick={this.closePreview}/></header><div className="attachment-preview-body">{!isImageAttachment(preview)?<div className="attachment-pdf-preview"><span className="attachment-pdf-preview-icon"><Icon name="file"/></span><strong>{t('File attached to this document','ملف مرفق بهذا المستند')}</strong><small>{preview.name} · {bytes(preview.size)}</small><a className="attachment-preview-fallback" href={preview.dataUrl} download={preview.name}>{t('Download file','تنزيل الملف')}</a></div>:<img src={preview.dataUrl} alt={preview.name}/>}</div></div></div>:null}
     </>;
   }
 }

@@ -1,3 +1,5 @@
+import { requestAiJson } from '../lib/ai-request.js';
+import { readablePdfText } from '../lib/pdf-source.js';
 import type { Customer } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from '../lib/spreadsheet-reader.js';
@@ -46,11 +48,15 @@ async function payloadForFile(file:File):Promise<AiPayload>{
   }
   if(name.endsWith('.txt')){
     if(file.size>1_000_000)throw new Error(t(`${file.name} is too large.`,`الملف ${file.name} كبير جدًا.`));
-    const text=(await file.text()).slice(0,MAX_TEXT_CHARS);if(!text.trim())throw new Error(t(`${file.name} is empty.`,`الملف ${file.name} فارغ.`));
+    const text=await file.text();if(text.length>MAX_TEXT_CHARS)throw new Error(t('Text exceeds the analysis limit. Split the source into smaller files.','النص يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.'));if(!text.trim())throw new Error(t(`${file.name} is empty.`,`الملف ${file.name} فارغ.`));
     return {kind:'text',mimeType:'text/plain',text};
   }
   const mime=file.type||(name.endsWith('.pdf')?'application/pdf':name.endsWith('.png')?'image/png':/\.jpe?g$/.test(name)?'image/jpeg':name.endsWith('.webp')?'image/webp':'');
   if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error(t(`Unsupported file: ${file.name}.`,`نوع الملف غير مدعوم: ${file.name}.`));
+  if(mime==='application/pdf'){
+    if(file.size>MAX_SPREADSHEET_BYTES)throw new Error(t('PDF exceeds 12 MB.','ملف PDF يتجاوز 12 MB.'));
+    const text=await readablePdfText(file,MAX_TEXT_CHARS);if(text.trim())return {kind:'text',mimeType:'text/plain',text};
+  }
   if(file.size>MAX_BINARY_BYTES)throw new Error(t(`${file.name} is too large for safe AI analysis. Reduce it below 2.6 MB.`,`الملف ${file.name} كبير للتحليل الآمن. خفّضه لأقل من 2.6 MB.`));
   return {kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
 }
@@ -76,7 +82,7 @@ export class CustomerAiCapture extends React.Component<Props,State>{
   };
   private cancel=()=>{this.generation+=1;this.abort?.abort();this.abort=null;};
   private open=()=>{this.cancel();this.setState({open:true,stage:'idle',files:[],pastedText:'',proposal:null,matches:[],selectedMatchId:'',errors:[],error:'',model:''});};
-  private close=()=>{if(this.state.stage==='reading'||this.state.stage==='analyzing')return;this.cancel();this.setState({open:false});};
+  private close=()=>{this.cancel();this.setState({open:false,stage:'idle'});};
 
   private chooseFiles=(files:FileList|null)=>{
     const next=Array.from(files??[]).slice(0,MAX_FILES);
@@ -86,19 +92,17 @@ export class CustomerAiCapture extends React.Component<Props,State>{
 
   private request=async(fileName:string,payload:AiPayload,generation:number):Promise<{proposal:CustomerAiProposal;model:string}|null>=>{
     const controller=new AbortController();this.abort=controller;
-    const timeout=window.setTimeout(()=>controller.abort(),26000);
     try{
-      const response=await fetch('/api/customer-capture-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({fileName,...payload}),signal:controller.signal});
-      let body:any={};try{body=await response.json();}catch{}
-      if(!response.ok)throw new Error(String(body?.message||t('Unable to analyze this customer source.','تعذر تحليل مصدر بيانات العميل.')));
+      const body=await requestAiJson('/api/customer-capture-ai',{fileName,...payload},controller.signal);
       if(generation!==this.generation||controller.signal.aborted)return null;
       return {proposal:normalizeCustomerAiProposal(body.proposal),model:String(body.model||'LOUREX AI')};
-    }finally{window.clearTimeout(timeout);if(this.abort===controller)this.abort=null;}
+    }finally{if(this.abort===controller)this.abort=null;}
   };
 
   private analyze=async()=>{
     if(this.state.stage==='reading'||this.state.stage==='analyzing')return;
     const files=this.state.files.slice(0,MAX_FILES),pasted=this.state.pastedText.trim();
+    if(pasted.length>MAX_TEXT_CHARS){this.setState({error:t('Text exceeds the analysis limit. Split the source into smaller files.','النص يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.')});return;}
     if(!files.length&&!pasted){this.setState({error:t('Choose at least one company file or paste company text.','اختر ملف شركة واحدًا على الأقل أو الصق نص بيانات الشركة.')});return;}
     const generation=++this.generation;const proposals:CustomerAiProposal[]=[];const errors:string[]=[];let model='';
     this.setState({stage:'reading',proposal:null,matches:[],errors:[],error:'',model:''});
@@ -111,7 +115,7 @@ export class CustomerAiCapture extends React.Component<Props,State>{
       }catch(error){if(generation!==this.generation)return;errors.push(`${file.name}: ${error instanceof Error?error.message:String(error)}`);}
     }
     if(pasted&&generation===this.generation){
-      try{this.setState({stage:'analyzing'});const result=await this.request(t('Pasted text','النص الملصق'),{kind:'text',mimeType:'text/plain',text:pasted.slice(0,MAX_TEXT_CHARS)},generation);if(result){proposals.push(result.proposal);model=result.model||model;}}
+      try{this.setState({stage:'analyzing'});const result=await this.request(t('Pasted text','النص الملصق'),{kind:'text',mimeType:'text/plain',text:pasted},generation);if(result){proposals.push(result.proposal);model=result.model||model;}}
       catch(error){if(generation!==this.generation)return;errors.push(error instanceof Error?error.message:String(error));}
     }
     if(generation!==this.generation)return;
@@ -135,7 +139,7 @@ export class CustomerAiCapture extends React.Component<Props,State>{
     const footer=this.state.stage==='review'&&proposal?<div className="ta-customer-modal-actions"><Button onClick={this.close}>{t('Cancel','إلغاء')}</Button>{this.state.matches.length?<Button disabled={!this.state.selectedMatchId} onClick={this.reviewUpdate}>{t('Review Update','مراجعة تحديث الموجود')}</Button>:null}<Button variant="primary" onClick={this.reviewNew}>{this.state.matches.length?t('Review as New Customer (duplicate guard stays on)','مراجعة كعميل جديد (حماية التكرار تبقى مفعّلة)'):t('Review Customer','مراجعة العميل')}</Button></div>:undefined;
     return <>
       <Button icon="upload" onClick={this.open}>{t('Add with AI','إضافة بالذكاء الاصطناعي')}</Button>
-      <Modal open={this.state.open} title={t('AI Customer Capture','إضافة عميل بالذكاء الاصطناعي')} size="lg" onClose={this.close} footer={footer}>
+      <Modal portal open={this.state.open} title={t('AI Customer Capture','إضافة عميل بالذكاء الاصطناعي')} size="lg" onClose={this.close} footer={footer}>
         <div aria-busy={busy}>
           {this.state.stage!=='review'?<>
             <p>{t('Upload a commercial registration or other company source. LOUREX extracts a proposal only; nothing is saved until you review and save it.','ارفع سجلًا تجاريًا أو أي مصدر بيانات للشركة. يستخرج LOUREX مقترحًا فقط؛ لا يتم حفظ أي شيء قبل المراجعة والحفظ.')}</p>

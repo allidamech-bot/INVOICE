@@ -131,7 +131,7 @@
     border-radius:13px!important;
     font-size:16px!important;
   }
-  html body #root .app-ui .lourex-ai-compose :is(button,.lourex-ai-send,.lourex-ai-composer-plus,.lourex-ai-composer-mic){
+  html body #root .app-ui .lourex-ai-compose>form>:is(.lourex-ai-send,.lourex-ai-composer-plus,.lourex-ai-composer-mic){
     width:44px!important;
     min-width:44px!important;
     height:44px!important;

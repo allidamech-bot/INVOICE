@@ -1,3 +1,5 @@
+import { requestAiJson } from '../lib/ai-request.js';
+import { readablePdfText } from '../lib/pdf-source.js';
 import type { PurchaseRecord, SavedItem, Supplier, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { buildAiSupplierPurchaseDraft } from '../lib/ai-supplier-purchase-draft.js';
@@ -26,6 +28,7 @@ async function binaryPayload(file:File):Promise<AiPayload>{
   const name=file.name.toLowerCase();
   const mime=file.type||(name.endsWith('.pdf')?'application/pdf':'');
   if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error(t('Use PDF, image, Excel or CSV.','استخدم PDF أو صورة أو Excel أو CSV.'));
+  if(mime==='application/pdf'){if(file.size>MAX_SPREADSHEET_BYTES)throw new Error(t('PDF exceeds 12 MB.','ملف PDF يتجاوز 12 MB.'));const text=await readablePdfText(file,MAX_TEXT_CHARS);if(text.trim())return{kind:'text',mimeType:'text/plain',text};}
   if(file.size>MAX_BINARY_BYTES)throw new Error(t('This PDF/image is too large for safe AI import. Reduce it below 2.6 MB.','ملف PDF/الصورة كبير للاستيراد الآمن. خفّضه لأقل من 2.6 MB.'));
   return {kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
 }
@@ -78,12 +81,9 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
 
   private requestAi=async(file:File,payload:AiPayload,generation:number)=>{
     const controller=new AbortController();this.requestAbort=controller;
-    const timeout=window.setTimeout(()=>controller.abort(),26000);
     this.setState({stage:'ai'});
     try{
-      const response=await fetch('/api/supplier-document-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({fileName:file.name,...payload}),signal:controller.signal});
-      let body:any={};try{body=await response.json();}catch{}
-      if(!response.ok)throw new Error(String(body?.message||t('Unable to analyze this supplier document.','تعذر تحليل مستند المورد.')));
+      const body=await requestAiJson('/api/supplier-document-ai',{fileName:file.name,...payload},controller.signal);
       if(!body?.draft?.items?.length)throw new Error(t('No reliable purchase lines were found.','لم يتم العثور على بنود شراء موثوقة.'));
       if(generation!==this.requestGeneration||controller.signal.aborted)return;
       this.setState({draft:body.draft as SupplierImportDraft,model:String(body.model||'LOUREX AI'),stage:'ready',error:''});
@@ -92,7 +92,6 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
       const timedOut=controller.signal.aborted;
       this.setState({stage:'error',error:timedOut?t('Analysis took too long. Check the connection and retry; nothing was saved.','استغرق التحليل وقتًا طويلًا. تحقق من الاتصال وأعد المحاولة؛ لم يتم حفظ شيء.'):error instanceof Error?error.message:String(error),draft:null});
     }finally{
-      window.clearTimeout(timeout);
       if(this.requestAbort===controller)this.requestAbort=null;
     }
   };
@@ -150,7 +149,7 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
     const footer=draft&&this.state.stage==='ready'?<div className="supplier-import-footer"><Button onClick={this.close}>{t('Cancel','إلغاء')}</Button><Button variant="primary" disabled={this.saveInFlight} onClick={()=>void this.saveDraft()}>{t('Confirm & Save Draft','تأكيد وحفظ المسودة')}</Button></div>:this.state.stage==='saved'?<div className="supplier-import-footer"><span/><Button variant="primary" icon="check" onClick={this.close}>{t('Done','تم')}</Button></div>:undefined;
     return <>
       <Button icon="upload" onClick={this.openPicker}>{t('Import Supplier Document','استيراد مستند مورد')}</Button>
-      <Modal open={this.state.open} title={t('Supplier Document → Purchase Draft','مستند مورد ← مسودة شراء')} size="lg" onClose={this.close} footer={footer}>
+      <Modal portal open={this.state.open} title={t('Supplier Document → Purchase Draft','مستند مورد ← مسودة شراء')} size="lg" onClose={this.close} footer={footer}>
         <div className={`supplier-import-shell stage-${this.state.stage}`} data-supplier-import-stage={this.state.stage} aria-busy={this.busy()}>
           <input ref={(node:any)=>{this.input=node;}} className="supplier-import-file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv,application/pdf,image/png,image/jpeg,image/webp,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" onChange={(event:any)=>void this.choose(event.target.files?.[0]??null)}/>
           {this.state.stage==='idle'?<div className="supplier-import-start"><span className="supplier-import-icon"><Icon name="upload"/></span><div><p className="eyebrow">{t('Review-first purchasing','مشتريات تبدأ بالمراجعة')}</p><h3>{t('Create a purchase draft from a supplier file','أنشئ مسودة شراء من ملف المورد')}</h3><p>{t('Excel and CSV are parsed locally first. PDF and images use LOUREX AI. Nothing reaches inventory or accounting until the draft is reviewed and posted from Operations.','يتم تحليل Excel وCSV محليًا أولًا. تستخدم ملفات PDF والصور ذكاء LOUREX. لا يصل شيء إلى المخزون أو المحاسبة حتى تُراجع المسودة وتُرحّل من العمليات.')}</p></div><Button icon="upload" onClick={()=>this.input?.click()}>{t('Choose File','اختر ملفًا')}</Button></div>:null}

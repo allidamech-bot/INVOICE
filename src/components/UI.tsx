@@ -301,9 +301,12 @@ class ModalFrame extends React.Component<ModalFrameProps> {
   }
 }
 
-export function Modal({ open, title, children, onClose, size = 'md', footer }: { open: boolean; title: string; children: any; onClose: () => void; size?: 'sm'|'md'|'lg'|'xl'; footer?: any }): any {
+export function Modal({ open, title, children, onClose, size = 'md', footer, portal = false }: { open: boolean; title: string; children: any; onClose: () => void; size?: 'sm'|'md'|'lg'|'xl'; footer?: any; portal?: boolean }): any {
   if (!open) return null;
-  return <ModalFrame title={title} size={size} onClose={onClose} footer={footer}>{children}</ModalFrame>;
+  const frame=<ModalFrame title={title} size={size} onClose={onClose} footer={footer}>{children}</ModalFrame>;
+  // AI tools live in a filtered chat panel. Portal only those overlays so fixed
+  // sheets use the viewport and do not inherit composer control dimensions.
+  return portal?ReactDOM.createPortal(frame,document.querySelector('#root .app-ui')||document.getElementById('root')||document.body):frame;
 }
 
 export function ConfirmDialog({ open, title, message, confirmLabel, destructive = true, onCancel, onConfirm }: { open: boolean; title: string; message: string; confirmLabel?: string; destructive?: boolean; onCancel: () => void; onConfirm: () => void }): any {

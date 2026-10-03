@@ -65,7 +65,7 @@
   html[data-ui-theme="light"] body .lourex-ai-compose{background:linear-gradient(180deg,rgba(244,248,255,.84),#f4f8ff 30%)!important;}
   html body .lourex-ai-compose form{display:grid!important;grid-template-columns:minmax(0,1fr) 48px!important;gap:7px!important;}
   html body .lourex-ai-compose input{min-height:50px!important;border:1px solid var(--lx480-line-hi)!important;border-radius:15px!important;background:var(--lx480-surface)!important;color:var(--lx480-text)!important;font-size:16px!important;}
-  html body .lourex-ai-compose button{width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;border:1px solid #6b9dff!important;border-radius:15px!important;background:linear-gradient(145deg,#64a0ff,#3f79f1)!important;color:#fff!important;box-shadow:0 10px 24px rgba(54,116,236,.28)!important;}
+  html body .lourex-ai-compose>form>button{width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;border:1px solid #6b9dff!important;border-radius:15px!important;background:linear-gradient(145deg,#64a0ff,#3f79f1)!important;color:#fff!important;box-shadow:0 10px 24px rgba(54,116,236,.28)!important;}
 
   /* MORE + CREATE — same premium dock language. */
   html body .app-ui .ta-mobile-sheet,html body .app-ui .ta-create-menu-mobile{

@@ -26,9 +26,9 @@ export default async function handler(request,response){
   const kind=body?.kind==='text'?'text':body?.kind==='file'?'file':'';
   const mimeType=cleanText(body?.mimeType,100);
   const fileName=cleanText(body?.fileName,180)||'Pasted text';
-  const text=kind==='text'?String(body?.text||'').slice(0,120000):'';
+  const text=kind==='text'?String(body?.text||''):'';
   const data=kind==='file'?String(body?.data||''):'';
-  if(!kind||(kind==='text'&&!text.trim())||(kind==='file'&&(!data||data.length>3_600_000||!['application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType)))){sendJson(response,400,{code:'INVALID_FILE',message:'Use PDF, PNG, JPG, WEBP, Excel, CSV or pasted text. Large files should be reduced before import.'});return;}
+  if(!kind||(kind==='text'&&(!text.trim()||text.length>120000))||(kind==='file'&&(!data||data.length>3_600_000||!['application/pdf','image/png','image/jpeg','image/webp'].includes(mimeType)))){sendJson(response,400,{code:'INVALID_FILE',message:'Use PDF, PNG, JPG, WEBP, Excel, CSV or pasted text. Large files should be reduced before import.'});return;}
 
   const evidenceSchema={type:'OBJECT',properties:{value:{type:'STRING'},confidence:{type:'NUMBER'},sourceFile:{type:'STRING'},sourcePage:{type:'STRING'},sourceExcerpt:{type:'STRING'}},required:['value','confidence','sourceFile','sourcePage','sourceExcerpt']};
   const properties={};for(const field of FIELD_NAMES)properties[field]=evidenceSchema;

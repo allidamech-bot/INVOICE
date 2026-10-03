@@ -108,7 +108,7 @@
   html body .lourex-ai-compose{position:absolute!important;left:0!important;right:0!important;bottom:0!important;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))!important;border-top:1px solid var(--lx481-line)!important;background:linear-gradient(180deg,color-mix(in srgb,var(--lx481-canvas) 82%,transparent),var(--lx481-canvas) 34%)!important;}
   html body .lourex-ai-compose form{display:grid!important;grid-template-columns:minmax(0,1fr) 50px!important;gap:7px!important;}
   html body .lourex-ai-compose input{min-height:52px!important;border:1px solid var(--lx481-line-strong)!important;border-radius:16px!important;background:var(--lx481-surface)!important;color:var(--lx481-text)!important;font-size:16px!important;}
-  html body .lourex-ai-compose button{width:50px!important;height:50px!important;min-width:50px!important;min-height:50px!important;border:1px solid rgba(139,182,255,.70)!important;border-radius:16px!important;background:linear-gradient(145deg,#6da4ff,#467fe4)!important;color:#fff!important;box-shadow:0 11px 25px rgba(48,105,214,.27)!important;}
+  html body .lourex-ai-compose>form>button{width:50px!important;height:50px!important;min-width:50px!important;min-height:50px!important;border:1px solid rgba(139,182,255,.70)!important;border-radius:16px!important;background:linear-gradient(145deg,#6da4ff,#467fe4)!important;color:#fff!important;box-shadow:0 11px 25px rgba(48,105,214,.27)!important;}
 
   /* Generic mobile modal coherence. */
   html body .modal{

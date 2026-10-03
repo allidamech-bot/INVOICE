@@ -9,6 +9,10 @@
   let recognition=null;
   let recognitionPanel=null;
   let recognitionStopTimer=0;
+  let recognitionCaptureTimer=0;
+  let recognitionFinishing=false;
+  let voiceCompletion=null;
+  let voiceRestartPanel=null;
   let voiceHadResult=false;
   let voiceManualStop=false;
   let voiceBaseInput='';
@@ -73,31 +77,58 @@
   function recognitionCtor(){return window.SpeechRecognition||window.webkitSpeechRecognition||null;}
   function nativeSetInput(input,value){const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;if(setter)setter.call(input,value);else input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));}
   function clearRecognitionStopTimer(){if(recognitionStopTimer){window.clearTimeout(recognitionStopTimer);recognitionStopTimer=0;}}
-  function resetVoiceState(){voiceHadResult=false;voiceManualStop=false;voiceBaseInput='';}
-  function finishRecognition(panel,state,messageKey,hideAfter=0){clearRecognitionStopTimer();const completed=recognition;if(completed){completed.onstart=null;completed.onresult=null;completed.onerror=null;completed.onend=null;try{completed.abort?.();}catch{}}recognition=null;recognitionPanel=null;composerStatus(panel,state,messageKey,hideAfter);resetVoiceState();}
+  function clearCaptureTimer(){if(recognitionCaptureTimer){window.clearTimeout(recognitionCaptureTimer);recognitionCaptureTimer=0;}}
+  function resetVoiceState(){voiceHadResult=false;voiceManualStop=false;voiceBaseInput='';recognitionFinishing=false;voiceCompletion=null;}
+  function finishRecognition(instance,panel,state,messageKey,hideAfter=0){
+    if(recognition!==instance)return;
+    clearRecognitionStopTimer();clearCaptureTimer();
+    instance.onstart=null;instance.onresult=null;instance.onerror=null;instance.onend=null;
+    recognition=null;recognitionPanel=null;
+    const restart=voiceRestartPanel;voiceRestartPanel=null;
+    composerStatus(panel,state,messageKey,hideAfter);resetVoiceState();
+    if(restart?.isConnected)window.setTimeout(()=>{if(document.querySelector(PANEL)===restart&&!recognition)toggleVoice(restart);},0);
+  }
+  function stopRecognition(instance,panel,state,messageKey,hideAfter=0,abort=false){
+    if(recognition!==instance)return;
+    recognitionFinishing=true;voiceCompletion={state,messageKey,hideAfter};clearCaptureTimer();clearRecognitionStopTimer();
+    composerStatus(panel,state,messageKey,hideAfter);
+    // Safari may deliver a final result before releasing its native microphone.
+    // Keep ownership until onend; starting a second instance sooner can fail.
+    recognitionStopTimer=window.setTimeout(()=>{if(recognition!==instance)return;try{instance.abort?.();}catch{}finishRecognition(instance,panel,state,messageKey,hideAfter);},1200);
+    try{if(abort)instance.abort();else instance.stop();}catch{try{instance.abort?.();}catch{}}
+  }
   function voiceTranscript(event){const finalParts=[];const interimParts=[];for(const result of Array.from(event?.results||[])){const value=String(result?.[0]?.transcript||'').replace(/\s+/g,' ').trim();if(!value)continue;(result?.isFinal?finalParts:interimParts).push(value);}return[...finalParts,...interimParts].join(' ').replace(/\s+/g,' ').trim();}
-  function applyVoiceTranscript(panel,transcript){if(!transcript)return;voiceHadResult=true;const input=panel.querySelector(`${COMPOSE} form>input`);if(input instanceof HTMLInputElement){const value=`${voiceBaseInput}${voiceBaseInput?' ':''}${transcript}`.trim();nativeSetInput(input,value.slice(0,input.maxLength>0?input.maxLength:1000));/* Avoid opening the on-screen keyboard during voice capture. */}}
+  function applyVoiceTranscript(panel,transcript){if(!transcript)return;voiceHadResult=true;const input=panel.querySelector(`${COMPOSE} form>input`);if(input instanceof HTMLInputElement){const value=`${voiceBaseInput}${voiceBaseInput?' ':''}${transcript}`.trim();nativeSetInput(input,value.slice(0,input.maxLength>0?input.maxLength:1000));}}
 
   function toggleVoice(panel){
     closeMenu();
     if(recognition){
-      const current=recognition;voiceManualStop=true;clearRecognitionStopTimer();composerStatus(panel,'','voiceStopped',1400);
-      try{current.stop();}catch{try{current.abort?.();}catch{}finishRecognition(panel,voiceHadResult?'done':'',voiceHadResult?'voiceAdded':'voiceStopped',voiceHadResult?1200:700);return;}
-      recognitionStopTimer=window.setTimeout(()=>{if(recognition===current){try{current.abort?.();}catch{}finishRecognition(panel,voiceHadResult?'done':'',voiceHadResult?'voiceAdded':'voiceStopped',voiceHadResult?1200:700);}},1200);
-      return;
+      if(recognitionFinishing){voiceRestartPanel=panel;composerStatus(panel,'starting','starting');return;}
+      voiceManualStop=true;stopRecognition(recognition,panel,'','voiceStopped',1400);return;
     }
     const Ctor=recognitionCtor();if(!Ctor){composerStatus(panel,'error','voiceUnavailable',3600);return;}
     let instance;try{instance=new Ctor();}catch{composerStatus(panel,'error','voiceFailed',3200);return;}
-    clearRecognitionStopTimer();recognition=instance;recognitionPanel=panel;voiceHadResult=false;voiceManualStop=false;const input=panel.querySelector(`${COMPOSE} form>input`);voiceBaseInput=input instanceof HTMLInputElement?input.value.trim():'';
+    clearRecognitionStopTimer();clearCaptureTimer();resetVoiceState();recognition=instance;recognitionPanel=panel;
+    const input=panel.querySelector(`${COMPOSE} form>input`);voiceBaseInput=input instanceof HTMLInputElement?input.value.trim():'';
     instance.lang=ar(panel)?'ar-SA':'en-US';instance.interimResults=true;instance.continuous=false;instance.maxAlternatives=1;
-    instance.onstart=()=>{if(recognition===instance)composerStatus(panel,'listening','listening');};
-    instance.onresult=event=>{if(recognition!==instance)return;const transcript=voiceTranscript(event);if(!transcript)return;applyVoiceTranscript(panel,transcript);composerStatus(panel,'listening','listening');if(Array.from(event.results||[]).every(result=>result.isFinal)){finishRecognition(panel,'done','voiceAdded',1200);}};
-    instance.onerror=event=>{if(recognition!==instance)return;const code=String(event?.error||'');if(voiceManualStop&&(code==='aborted'||code==='no-speech')){finishRecognition(panel,voiceHadResult?'done':'',voiceHadResult?'voiceAdded':'voiceStopped',voiceHadResult?1200:700);return;}const key=code==='not-allowed'||code==='service-not-allowed'?'voiceDenied':code==='no-speech'?'noSpeech':code==='audio-capture'?'micUnavailable':'voiceFailed';finishRecognition(panel,'error',key,4200);};
-    instance.onend=()=>{if(recognition!==instance)return;if(voiceHadResult)finishRecognition(panel,'done','voiceAdded',1200);else if(voiceManualStop)finishRecognition(panel,'','voiceStopped',700);else finishRecognition(panel,'error','noSpeech',2400);};
-    composerStatus(panel,'starting','starting');try{instance.start();}catch{finishRecognition(panel,'error','voiceFailed',3200);}
+    instance.onstart=()=>{if(recognition===instance&&!recognitionFinishing)composerStatus(panel,'listening','listening');};
+    instance.onresult=event=>{if(recognition!==instance||(recognitionFinishing&&!voiceManualStop))return;const transcript=voiceTranscript(event);if(!transcript)return;applyVoiceTranscript(panel,transcript);if(recognitionFinishing)return;composerStatus(panel,'listening','listening');if(Array.from(event.results||[]).every(result=>result.isFinal))stopRecognition(instance,panel,'done','voiceAdded',1200);};
+    instance.onerror=event=>{
+      if(recognition!==instance||recognitionFinishing)return;const code=String(event?.error||'');
+      const key=code==='not-allowed'||code==='service-not-allowed'?'voiceDenied':code==='no-speech'?'noSpeech':code==='audio-capture'?'micUnavailable':'voiceFailed';
+      stopRecognition(instance,panel,'error',key,4200,true);
+    };
+    instance.onend=()=>{if(recognition!==instance)return;const end=voiceCompletion||{state:voiceHadResult?'done':voiceManualStop?'':'error',messageKey:voiceHadResult?'voiceAdded':voiceManualStop?'voiceStopped':'noSpeech',hideAfter:voiceHadResult?1200:2400};finishRecognition(instance,panel,end.state,end.messageKey,end.hideAfter);};
+    composerStatus(panel,'starting','starting');
+    recognitionCaptureTimer=window.setTimeout(()=>{if(recognition===instance)stopRecognition(instance,panel,voiceHadResult?'done':'error',voiceHadResult?'voiceAdded':'noSpeech',2400);},30000);
+    try{instance.start();}catch{stopRecognition(instance,panel,'error','voiceFailed',3200,true);}
   }
 
-  function abortVoice(){if(!recognition){clearRecognitionStopTimer();resetVoiceState();return;}const current=recognition;clearRecognitionStopTimer();recognition=null;recognitionPanel=null;resetVoiceState();try{current.abort?.();}catch{try{current.stop?.();}catch{}}}
+  function abortVoice(){
+    voiceRestartPanel=null;clearRecognitionStopTimer();clearCaptureTimer();const current=recognition;
+    recognition=null;recognitionPanel=null;resetVoiceState();
+    if(current){current.onstart=null;current.onresult=null;current.onerror=null;current.onend=null;try{current.abort?.();}catch{try{current.stop?.();}catch{}}}
+  }
   function refreshComposer(panel,form,input){const l=labels(panel);const language=ar(panel)?'ar':'en';input.placeholder=l.message;const plus=form.querySelector('.lourex-ai-composer-plus');const mic=form.querySelector('.lourex-ai-composer-mic');const menu=panel.querySelector('.lourex-ai-plus-menu');const status=panel.querySelector('.lourex-ai-voice-status');if(plus instanceof HTMLButtonElement)plus.setAttribute('aria-label',l.plus);if(mic instanceof HTMLButtonElement)mic.setAttribute('aria-label',l.mic);if(status instanceof HTMLElement&&status.classList.contains('is-visible')){const copy=status.querySelector('span:last-child');if(copy){const next=messageFor(panel,status.dataset.messageKey||'');if(copy.textContent!==next)copy.textContent=next;}}if(form.dataset.lourexAiComposerLang!==language&&menu instanceof HTMLElement){const wasOpen=!menu.hidden;const currentButtons=Array.from(menu.querySelectorAll('button'));const focusIndex=currentButtons.indexOf(document.activeElement);buildMenu(panel,menu);menu.hidden=!wasOpen;setExpanded(plus,wasOpen);if(wasOpen&&focusIndex>=0)window.setTimeout(()=>{if(!menu.hidden)menu.querySelectorAll('button')[focusIndex]?.focus();},0);}else if(menu instanceof HTMLElement)menu.setAttribute('aria-label',l.plus);form.dataset.lourexAiComposerLang=language;}
   function enhance(panel){const compose=panel.querySelector(COMPOSE);const form=compose?.querySelector('form');const input=form?.querySelector('input');const send=form?.querySelector('.lourex-ai-send');if(!(compose instanceof HTMLElement)||!(form instanceof HTMLFormElement)||!(input instanceof HTMLInputElement)||!(send instanceof HTMLButtonElement))return;const plus=form.querySelector('.lourex-ai-composer-plus');const mic=form.querySelector('.lourex-ai-composer-mic');const status=compose.querySelector(':scope>.lourex-ai-voice-status');const menu=compose.querySelector(':scope>.lourex-ai-plus-menu');const complete=form.dataset.lourexAiComposerV449==='true'&&plus instanceof HTMLButtonElement&&mic instanceof HTMLButtonElement&&status instanceof HTMLElement&&menu instanceof HTMLElement;if(complete){refreshComposer(panel,form,input);return;}if(recognition&&recognitionPanel===panel)abortVoice();plus?.remove();mic?.remove();status?.remove();menu?.remove();form.dataset.lourexAiComposerV449='true';const nextPlus=document.createElement('button');nextPlus.type='button';nextPlus.className='lourex-ai-composer-plus';nextPlus.innerHTML=svg.plus;nextPlus.setAttribute('aria-expanded','false');nextPlus.setAttribute('aria-haspopup','menu');nextPlus.setAttribute('aria-controls',MENU_ID);const nextMic=document.createElement('button');nextMic.type='button';nextMic.className='lourex-ai-composer-mic';nextMic.innerHTML=svg.mic;nextMic.setAttribute('aria-pressed','false');form.insertBefore(nextPlus,input);form.insertBefore(nextMic,send);const nextStatus=document.createElement('div');nextStatus.className='lourex-ai-voice-status';nextStatus.setAttribute('role','status');nextStatus.setAttribute('aria-live','polite');nextStatus.innerHTML='<span class="lourex-ai-voice-dot" aria-hidden="true"></span><span></span>';compose.insertBefore(nextStatus,form);const nextMenu=document.createElement('div');nextMenu.id=MENU_ID;nextMenu.className='lourex-ai-plus-menu';nextMenu.hidden=true;compose.appendChild(nextMenu);buildMenu(panel,nextMenu);nextMenu.addEventListener('keydown',menuKeydown);nextPlus.addEventListener('click',event=>{event.stopPropagation();toggleMenu(panel,nextMenu,nextPlus);});nextMic.addEventListener('click',()=>toggleVoice(panel));refreshComposer(panel,form,input);}
   function sync(){raf=0;const panel=document.querySelector(PANEL);if(panel instanceof HTMLElement){if(recognition&&recognitionPanel&&recognitionPanel!==panel)abortVoice();enhance(panel);}else if(recognition)abortVoice();}

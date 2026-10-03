@@ -82,6 +82,8 @@ export class EditorPage extends React.Component<Props,State>{
   private validationAttempted=false;
   private departureFlushQueued=false;
   private editRevision=0;
+  private issuancePending=false;
+  private revisionPending=false;
 
   constructor(props:Props){
     super(props);
@@ -151,7 +153,7 @@ export class EditorPage extends React.Component<Props,State>{
   };
 
   private mutate=(fn:(d:LourexDocument)=>LourexDocument)=>{
-    if(this.state.doc.status==='final')return;
+    if(this.state.doc.status==='final'||this.issuancePending)return;
     this.props.onEditActivity?.();
     this.departureFlushQueued=false;
     this.editRevision+=1;
@@ -175,7 +177,7 @@ export class EditorPage extends React.Component<Props,State>{
   };
 
   private save=async(auto=false)=>{
-    if(this.state.doc.status==='final')return;
+    if(this.state.doc.status==='final'||this.issuancePending)return;
     if(this.state.saving){if(auto)this.schedule();return;}
     const revisionAtStart=this.editRevision;
     const snapshot=this.state.doc;
@@ -196,6 +198,7 @@ export class EditorPage extends React.Component<Props,State>{
   };
 
   private saveAndClose=async()=>{
+    if(this.issuancePending||this.revisionPending)return;
     if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
     if(this.state.doc.status==='final'||this.state.saveState==='saved'){this.props.onClose();return;}
     if(this.state.saving){window.setTimeout(()=>void this.saveAndClose(),100);return;}
@@ -214,20 +217,26 @@ export class EditorPage extends React.Component<Props,State>{
 
   private openReview=(mode:ReviewMode)=>{if(this.validateCurrent())this.setState({reviewMode:mode,mobilePreview:false});};
   private output=async(mode:'print'|'pdf'|'share')=>{
-    if(!this.validateCurrent()||this.state.issuing)return;
+    if(this.issuancePending||!this.validateCurrent()||this.state.issuing)return;
     if(this.state.doc.status!=='final'){this.setState({reviewMode:mode,mobilePreview:false});return;}
     try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
+    this.issuancePending=true;
     this.setState({issuing:true,mobilePreview:false,errors:{}});
     try{await this.props.onPrint(this.state.doc,mode);}
     catch(e){this.setGlobalError(e instanceof Error?e.message:t('Unable to prepare document.','تعذر تجهيز المستند.'));}
-    finally{this.setState({issuing:false});}
+    finally{this.issuancePending=false;this.setState({issuing:false});}
   };
   private issueAndContinue=async()=>{
-    const mode=this.state.reviewMode;if(!mode)return;
-    const alreadyFinal=this.state.doc.status==='final';
-    const finalDoc=alreadyFinal?this.state.doc:{...this.state.doc,status:'final' as const,updatedAt:new Date().toISOString()};
+    const mode=this.state.reviewMode;if(!mode||this.issuancePending)return;
+    this.issuancePending=true;
+    if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
     this.setState({issuing:true,errors:{}});
     try{
+      while(this.state.saving)await new Promise<void>(resolve=>window.setTimeout(resolve,40));
+      if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
+      if(!this.validateCurrent()){this.setState({issuing:false,reviewMode:null});return;}
+      const alreadyFinal=this.state.doc.status==='final';
+      const finalDoc=alreadyFinal?this.state.doc:{...this.state.doc,status:'final' as const,updatedAt:new Date().toISOString()};
       if(!alreadyFinal){
         await this.props.onSave(finalDoc,false);
         await new Promise<void>(resolve=>this.setState({doc:finalDoc,saveState:'saved'},resolve));
@@ -237,9 +246,11 @@ export class EditorPage extends React.Component<Props,State>{
         await this.props.onPrint(finalDoc,mode);
       }
       this.setState({reviewMode:null,issuing:false,doc:finalDoc,saveState:'saved',errors:{}});
-    }catch(e){this.setState({issuing:false,errors:{...this.state.errors,global:e instanceof Error?e.message:t('Unable to issue document.','تعذر إصدار المستند.')}});}
+    }catch(e){this.setState({issuing:false,errors:{...this.state.errors,global:e instanceof Error?e.message:t('Unable to issue document.','تعذر إصدار المستند.')}});}finally{this.issuancePending=false;}
   };
   private unlockFinal=async()=>{
+    if(this.revisionPending)return;
+    this.revisionPending=true;
     if(this.autosaveTimer)clearTimeout(this.autosaveTimer);
     this.setState({unlockConfirm:false,saving:true,saveState:'saving',errors:{}});
     try{
@@ -247,7 +258,7 @@ export class EditorPage extends React.Component<Props,State>{
       this.setState({doc,saving:false,saveState:'saved'});
     }catch(e){
       this.setState({saving:false,saveState:'saved',errors:{global:e instanceof Error?e.message:t('Unable to start revision.','تعذر بدء المراجعة.')}});
-    }
+    }finally{this.revisionPending=false;}
   };
   private convert=()=>{if(this.validateCurrent())void this.props.onConvert(this.state.doc);};
   private field=(key:keyof LourexDocument,value:any)=>this.mutate(d=>({...d,[key]:value}));
