@@ -798,7 +798,8 @@ html body #root .loading-screen:after{content:none!important;}
 html body #root .loading-screen .brand-mark{box-shadow:0 0 50px color-mix(in srgb,var(--lx485-blue) 10%,transparent)!important;}
 html body #root .loading-screen .loading-line{width:132px!important;background:var(--lx485-line)!important;border-radius:99px!important;}
 html body #root .loading-screen .loading-line:after{background:var(--lx485-blue)!important;}
-@media(max-width:900px){
+@media(max-width:1199px){
+html body #root .app-ui .ta-doc-table-head{display:none!important;}
 html body #root .app-ui .ta-doc-row{grid-template-columns:minmax(0,1fr) 44px!important;gap:0!important;padding:14px!important;min-height:0!important;}
 html body #root .app-ui .ta-doc-row-open{grid-template-columns:minmax(0,1fr) auto!important;grid-template-areas:"identity identity" "party party" "date amount" "status status"!important;gap:9px 12px!important;padding:0!important;min-height:0!important;}
 html body #root .app-ui .ta-doc-row-identity{grid-area:identity!important;grid-template-columns:40px minmax(0,1fr)!important;}
@@ -810,6 +811,8 @@ html body #root .app-ui .ta-doc-row-date{grid-area:date!important;font-size:12px
 html body #root .app-ui .ta-doc-row-amount{grid-area:amount!important;font-size:14px!important;line-height:1.5!important;}
 html body #root .app-ui .ta-doc-row-status{grid-area:status!important;}
 html body #root .app-ui .ta-doc-actions{align-self:start!important;padding:0!important;}
+}
+@media(max-width:900px){
 html body #root .app-ui .ta-doc-resume{grid-template-columns:40px minmax(0,1fr) 22px!important;}
 html body #root .app-ui .ta-doc-resume-meta{display:none!important;}
 html body #root .app-ui .ta-doc-summary-grid>button{padding:14px!important;}
@@ -824,7 +827,7 @@ html body #root .app-ui .draft-section-heading.with-action{flex-wrap:wrap!import
 html body #root .app-ui .draft-section-heading.with-action>div{flex:1!important;}
 html body #root .app-ui .draft-section-heading.with-action>.btn{margin-inline-start:50px!important;}
 }
-@media(min-width:901px){
+@media(min-width:1200px){
 html body #root .app-ui .ta-doc-row-open{grid-template-columns:minmax(150px,1.1fr) minmax(130px,1fr) 100px 110px minmax(110px,.9fr)!important;}
 html body #root .app-ui .ta-doc-table-head{min-width:0!important;grid-template-columns:minmax(150px,1.1fr) minmax(130px,1fr) 100px 110px minmax(110px,.9fr) 44px!important;background:transparent!important;}
 html body #root .app-ui .ta-doc-row :is(strong,small){font-size:13px!important;line-height:1.5!important;}
