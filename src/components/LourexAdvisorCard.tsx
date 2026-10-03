@@ -3,6 +3,7 @@ import { t } from '../lib/i18n.js';
 import { formatMoney } from '../lib/money.js';
 import { buildAiFinanceContext, type AiFinanceSource } from '../lib/ai-finance.js';
 import { advisorCalculation } from '../lib/advisor-calculator.js';
+import { requestAiJson } from '../lib/ai-request.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { buildAiContext } from './AiCopilot.js';
 import { Icon } from './UI.js';
@@ -75,10 +76,20 @@ function localFinanceFallback(source:AiFinanceSource,message:string,language:UiL
 export class LourexAdvisorCard extends React.Component<Props,State>{
   state:State={input:'',busy:false,error:'',messages:[]};
 
+  private mounted=false;
+  private pending=false;
+  private generation=0;
+  private controller:AbortController|null=null;
+  private cancel=()=>{this.generation+=1;this.controller?.abort();this.controller=null;this.pending=false;};
+  private current=(generation:number,controller:AbortController)=>this.mounted&&generation===this.generation&&!controller.signal.aborted;
+  componentDidMount():void{this.mounted=true;}
+  componentWillUnmount():void{this.mounted=false;this.cancel();}
+  componentDidUpdate(previous:Props):void{if(previous.language!==this.props.language){this.cancel();this.setState({busy:false,error:''});}}
   private ask=async(raw?:string)=>{
-    if(this.state.busy)return;
+    if(this.pending||this.state.busy)return;
     const message=String(raw??this.state.input).trim().slice(0,MAX_MESSAGE_CHARS);
     if(!message)return;
+    this.pending=true;const generation=++this.generation,controller=new AbortController();this.controller=controller;
     const previousMessages=this.state.messages;
     const userMessage:AdvisorMessage={id:messageId('advisor-user'),role:'user',text:message};
     this.setState(state=>({busy:true,error:'',input:'',messages:[...state.messages,userMessage]}));
@@ -87,24 +98,24 @@ export class LourexAdvisorCard extends React.Component<Props,State>{
     if(calculation){
       const assistantMessage:AdvisorMessage={id:messageId('advisor-calc'),role:'assistant',text:calculation.summary};
       this.setState(state=>({busy:false,messages:[...state.messages,assistantMessage]}));
-      return;
+      this.pending=false;this.controller=null;return;
     }
 
     let financeSource:AiFinanceSource|null=null;
     try{
       const resumed=await resumeVaultSession();
+      if(!this.current(generation,controller))return;
       if(!resumed)throw new Error(t('Unlock LOUREX before using your financial advisor.','افتح قفل LOUREX قبل استخدام مستشارك المالي.'));
       financeSource={documents:resumed.vault.documents,payments:resumed.vault.payments,customers:resumed.vault.customers,activeDocument:null};
       const context=buildAiContext('home',this.props.language,financeSource,resumed.vault,message,null);
       const requestMessage=conversationRequest(message,previousMessages);
-      const response=await fetch('/api/ai-core',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({message:requestMessage,context})});
-      let payload:any={};
-      try{payload=await response.json();}catch{}
-      if(!response.ok)throw new Error(String(payload?.message||t('LOUREX Advisor is temporarily unavailable.','مستشار LOUREX غير متاح مؤقتًا.')));
+      const payload=await requestAiJson('/api/ai-core',{message:requestMessage,context},controller.signal);
+      if(!this.current(generation,controller))return;
       const answer=String(payload?.answer||'').trim().slice(0,4000)||t('I could not form a useful answer from this request.','لم أتمكن من تكوين إجابة مفيدة لهذا الطلب.');
       const assistantMessage:AdvisorMessage={id:messageId('advisor-answer'),role:'assistant',text:answer};
       this.setState(state=>({busy:false,messages:[...state.messages,assistantMessage]}));
     }catch(error){
+      if(!this.current(generation,controller))return;
       const fallback=financeSource?localFinanceFallback(financeSource,message,this.props.language):'';
       if(fallback){
         const assistantMessage:AdvisorMessage={id:messageId('advisor-local'),role:'assistant',text:fallback};
@@ -112,10 +123,10 @@ export class LourexAdvisorCard extends React.Component<Props,State>{
         return;
       }
       this.setState({busy:false,error:error instanceof Error?error.message:t('LOUREX Advisor is temporarily unavailable.','مستشار LOUREX غير متاح مؤقتًا.')});
-    }
+    }finally{if(generation===this.generation){this.pending=false;this.controller=null;}}
   };
 
-  private clear=()=>this.setState({messages:[],input:'',error:''});
+  private clear=()=>{this.cancel();this.setState({messages:[],input:'',error:'',busy:false});};
 
   render():any{
     const starterPrompts=starters();

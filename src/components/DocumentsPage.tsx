@@ -310,6 +310,18 @@ export class DocumentsPage extends React.Component<Props,State>{
 
   private documentTypeIcon=(doc:LourexDocument):'edit'|'proforma'|'file'|'invoice'=>doc.kind==='draft'?'edit':doc.kind==='proforma'?'proforma':doc.kind==='purchase-order'||doc.kind==='rfq'||doc.kind==='delivery-note'?'file':'invoice';
 
+  private renderAttachments=(doc:LourexDocument):any=>{
+    const attachments=(doc.attachments??[]).filter(attachment=>attachment.dataUrl);
+    if(!attachments.length)return null;
+    return <section className="ta-doc-panel"><header><div><small>{t('Files','الملفات')}</small><h2>{t('Attachments','المرفقات')}</h2></div><span className="ta-doc-count-badge">{attachments.length}</span></header><div className="ta-doc-attachments">{attachments.map(attachment=>{
+      const pdf=attachment.mimeType==='application/pdf'||/\.pdf$/i.test(attachment.name);
+      const image=attachment.mimeType.startsWith('image/');
+      const preview=pdf||image;
+      const label=pdf?'PDF':image?t('Image','صورة'):attachment.name.split('.').pop()?.toUpperCase()||t('File','ملف');
+      return <a key={attachment.id} href={attachment.dataUrl} target={preview?'_blank':undefined} rel={preview?'noreferrer':undefined} download={preview?undefined:attachment.name}><span className="ta-doc-file-icon"><Icon name="file"/></span><span><strong>{attachment.name}</strong><small>{label} · {attachmentSizeLabel(attachment.size)}</small></span><em>{preview?t('Open','فتح'):t('Download','تنزيل')}</em></a>;
+    })}</div></section>;
+  };
+
   private renderDraftDetail=(doc:LourexDocument):any=>{
     const letter=doc.letter;
     const canDelete=doc.status!=='final';
@@ -326,6 +338,7 @@ export class DocumentsPage extends React.Component<Props,State>{
         <main className="ta-doc-detail-main">
           <section className="ta-doc-panel"><header><div><small>{t('Overview','نظرة عامة')}</small><h2>{t('Document details','بيانات المستند')}</h2></div></header><div className="ta-doc-facts"><div><small>{t('Recipient','المستلم')}</small><strong>{letter?.recipient||'—'}</strong></div><div><small>{t('Reference','المرجع')}</small><strong>{letter?.reference||'—'}</strong></div><div><small>{t('Subject','الموضوع')}</small><strong>{letter?.subject||'—'}</strong></div><div><small>{t('Language','اللغة')}</small><strong>{doc.language==='ar'?t('Arabic','العربية'):doc.language==='bilingual'?t('Bilingual','ثنائي اللغة'):t('English','الإنجليزية')}</strong></div></div></section>
           <section className="ta-doc-panel ta-doc-letter-content"><header><div><small>{t('Content','المحتوى')}</small><h2>{t('Draft content','محتوى المسودة')}</h2></div><span className="ta-doc-count-badge">{letter?.blocks.length||0}</span></header><div className="ta-doc-letter-blocks">{letter?.blocks.filter(block=>block.type!=='spacer').map(block=><p key={block.id} dir={block.direction}>{block.text||'—'}</p>)}</div></section>
+          {this.renderAttachments(doc)}
         </main>
         <aside className="ta-doc-detail-side"><section className="ta-doc-panel ta-doc-action-panel"><header><div><small>{t('Actions','الإجراءات')}</small><h2>{t('Document actions','إجراءات المستند')}</h2></div></header><button type="button" onClick={()=>this.props.onDuplicate(doc)}><Icon name="copy"/><span>{t('Duplicate document','نسخ المستند')}</span></button>{canDelete?<button type="button" className="is-danger" onClick={()=>this.props.onDelete(doc)}><Icon name="trash"/><span>{t('Delete draft','حذف المسودة')}</span></button>:null}</section></aside>
       </div>
@@ -346,7 +359,6 @@ export class DocumentsPage extends React.Component<Props,State>{
     const commercialStatus=this.commercialStatus(doc);
     const customer=doc.customerSnapshot;
     const supplier=doc.supplierSnapshot;
-    const attachments=doc.attachments??[];
     const commercial=[
       [t('Incoterm','الإنكوترم'),doc.terms.incoterm],
       [t('Payment terms','شروط الدفع'),doc.terms.paymentTerms],
@@ -401,7 +413,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
           {commercial.length?<section className="ta-doc-panel"><header><div><small>{t('Trade','التجارة')}</small><h2>{t('Commercial terms','الشروط التجارية')}</h2></div></header><div className="ta-doc-terms">{commercial.map(([label,value])=><div key={String(label)}><small>{label}</small><strong>{value}</strong></div>)}</div></section>:null}
           {doc.notes||doc.terms.remarks?<section className="ta-doc-panel"><header><div><small>{t('Notes','الملاحظات')}</small><h2>{t('Additional information','معلومات إضافية')}</h2></div></header><div className="ta-doc-notes">{doc.notes?<p>{doc.notes}</p>:null}{doc.terms.remarks?<p>{doc.terms.remarks}</p>:null}</div></section>:null}
-          {attachments.length?<section className="ta-doc-panel"><header><div><small>{t('Files','الملفات')}</small><h2>{t('Attachments','المرفقات')}</h2></div><span className="ta-doc-count-badge">{attachments.length}</span></header><div className="ta-doc-attachments">{attachments.map(attachment=><a key={attachment.id} href={attachment.dataUrl} target="_blank" rel="noreferrer"><span className="ta-doc-file-icon"><Icon name="file"/></span><span><strong>{attachment.name}</strong><small>{attachment.mimeType==='application/pdf'?'PDF':t('Image','صورة')} · {attachmentSizeLabel(attachment.size)}</small></span><em>{t('Open','فتح')}</em></a>)}</div></section>:null}
+          {this.renderAttachments(doc)}
         </main>
 
         <aside className="ta-doc-detail-side">
