@@ -24,19 +24,21 @@ test('v483 no longer writes a new document merely because the editor opened',asy
   assert.match(editor,/private saveWithProtectedRetry=async\(doc:LourexDocument,auto\?:boolean\)/,'explicit editor persistence path was removed');
 });
 
-test('v483 owns compact Documents geometry after v482 in production',async()=>{
-  const [pkg,css,bundler]=await Promise.all([
+test('compact Documents geometry has one final owner after retiring v483',async()=>{
+  const [pkg,css,bundle,standalone]=await Promise.all([
     read('package.json'),
-    read('src/styles/v483-mobile-density.css'),
-    read('scripts/v483-bundle-mobile-density.mjs')
+    read('src/styles/v485-visible-ui-corrections.css'),
+    read('dist/styles/app.bundle.css'),
+    read('dist/styles/v482-mobile-ux-repair.css')
   ]);
   const scripts=JSON.parse(pkg).scripts;
   const build=String(scripts?.build||'');
-  assert.ok(build.indexOf('scripts/v483-bundle-mobile-density.mjs')>build.indexOf('scripts/v482-bundle-mobile-ux-repair.mjs'),'v483 density owner must run after v482');
-  assert.match(css,/\.ta-documents-header-actions\{[\s\S]*?grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/,'Documents creation commands are not locked to the compact two-column mobile grid');
-  assert.match(css,/\.ta-documents-header-actions>:is\(button,\.btn\)\{[\s\S]*?min-height:48px!important/,'Documents creation commands lost their compact accessible touch height');
-  assert.match(css,/\.ta-documents-header h1\{[\s\S]*?font-size:27px!important/,'Documents title remains oversized on phone');
+  assert.ok(!build.includes('scripts/v483-bundle-mobile-density.mjs'),'retired density layer must not execute');
+  assert.match(css,/\.ta-documents-header-actions>:is\(button,\.btn\)\{[\s\S]*?min-height:44px!important/,'Documents creation commands lost their accessible touch height');
+  assert.match(css,/\.ta-documents-header h1\{[\s\S]*?font-size:25px!important/,'Documents title remains oversized on phone');
   assert.match(css,/\.ta-doc-search\{[\s\S]*?min-height:54px!important/,'Documents search geometry is not bounded');
-  assert.match(bundler,/for\(const path of \[bundlePath,standalonePath\]\)/,'v483 density owner is not emitted to both production CSS paths');
-  assert.match(bundler,/duplicate owner marker/,'v483 build does not reject duplicate cascade ownership');
+  for(const content of [bundle,standalone]){
+    assert.ok(!content.includes('/* --- v483-mobile-density.css --- */'),'retired owner leaked into production');
+    assert.equal(content.split('/* --- v485-visible-ui-corrections.css --- */').length-1,1,'final owner must be emitted exactly once per artifact');
+  }
 });
