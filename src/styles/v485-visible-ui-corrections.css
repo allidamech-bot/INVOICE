@@ -724,10 +724,65 @@ html body #root .app-ui :is(.ta-doc-row,.ta-customer-row,.ta-sheet-link,.ta-crea
   html[data-ui-theme] body #root .app-ui .ta-kpi-copy em{font-size:12px!important;line-height:1.6!important;}
 }
 
+/* Desktop composition uses the same surfaces and orbital accents as the mobile home. */
+@media screen and (min-width:901px){
+  html body #root .app-ui .workspace-shell.screen-home .ta-finance-dashboard{display:flex!important;flex-direction:column!important;gap:20px!important;max-width:1440px!important;margin-inline:auto!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-dashboard-header{
+    display:flex!important;align-items:center!important;justify-content:space-between!important;gap:24px!important;padding:28px!important;min-height:180px!important;border-radius:28px!important;
+    background:radial-gradient(ellipse 400px 260px at 100% 0%,color-mix(in srgb,var(--lx485-blue) 20%,transparent),transparent 80%),url("../brand/lourex-command-orbit.svg") 0% 50%/auto 140% no-repeat,linear-gradient(135deg,var(--lx485-surface),var(--lx485-surface-2))!important;
+  }
+  html body #root .app-ui .workspace-shell.screen-home .ta-dashboard-heading{width:auto!important;max-width:680px!important;min-width:0!important;gap:10px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-dashboard-heading h1{font-size:clamp(28px,2.4vw,38px)!important;line-height:1.35!important;max-width:none!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-dashboard-heading p{font-size:14px!important;line-height:1.8!important;max-width:62ch!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-dashboard-eyebrow{display:inline-flex!important;align-self:flex-start!important;padding:5px 12px!important;border-radius:999px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-dashboard-header-actions{display:flex!important;flex-wrap:wrap!important;flex:0 0 auto!important;gap:10px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-kpi-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:16px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-kpi-card{
+    --lx481-tone:#50b7aa;position:relative!important;overflow:hidden!important;min-width:0!important;min-height:160px!important;padding:20px!important;border-radius:24px!important;
+    border:1px solid color-mix(in srgb,var(--lx481-tone) 36%,var(--lx485-line))!important;
+    background:radial-gradient(150px 130px at 100% 0%,color-mix(in srgb,var(--lx481-tone) 16%,transparent),transparent 78%),linear-gradient(155deg,var(--lx485-surface-2),var(--lx485-surface))!important;
+  }
+  html body #root .app-ui .workspace-shell.screen-home .ta-kpi-card:nth-child(2){--lx481-tone:var(--lx485-blue);}
+  html body #root .app-ui .workspace-shell.screen-home .ta-kpi-card:nth-child(3){--lx481-tone:#9690df;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-kpi-card:nth-child(4){--lx481-tone:#dd7e99;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-kpi-card:after{content:""!important;position:absolute!important;width:132px!important;height:132px!important;inset-block-start:-30px!important;inset-inline-start:-24px!important;border-radius:50%!important;border:1px solid color-mix(in srgb,var(--lx481-tone) 24%,transparent)!important;pointer-events:none!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-kpi-icon{width:44px!important;height:44px!important;background:color-mix(in srgb,var(--lx481-tone) 14%,var(--lx485-surface-3))!important;color:var(--lx481-tone)!important;border:1px solid color-mix(in srgb,var(--lx481-tone) 35%,var(--lx485-line))!important;border-radius:15px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-kpi-copy em{color:var(--lx481-tone)!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-quick-actions{gap:16px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-quick-actions>button{--workspace-tone:var(--lx485-blue);min-height:100px!important;flex-direction:row!important;align-items:center!important;gap:14px!important;padding:20px!important;border:1px solid var(--lx485-line)!important;border-radius:22px!important;background:radial-gradient(circle at 0% 0%,transparent 65px,color-mix(in srgb,var(--workspace-tone) 12%,transparent) 66px,transparent 67px),radial-gradient(180px 110px at 0% 0%,color-mix(in srgb,var(--workspace-tone) 12%,transparent),transparent 80%),var(--lx485-surface)!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-quick-actions>button:nth-child(2){--workspace-tone:#50b7aa;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-quick-actions>button:nth-child(3){--workspace-tone:#c49a56;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-quick-actions>button strong{font-size:15px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-quick-actions>button small{display:block!important;font-size:12px!important;color:var(--lx485-muted)!important;margin-block-start:5px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-quick-icon{display:grid!important;place-items:center!important;width:44px!important;height:44px!important;flex:0 0 44px!important;background:var(--lx485-surface-3)!important;border:1px solid var(--lx485-line)!important;border-radius:14px!important;color:var(--workspace-tone)!important;}
+  html body #root .app-ui .workspace-shell.screen-home :is(.ta-dashboard-intelligence-grid,.ta-dashboard-primary-grid){gap:20px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-dashboard-card{border-radius:24px!important;background:linear-gradient(155deg,var(--lx485-surface-2),var(--lx485-surface))!important;border-color:var(--lx485-line)!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-card-header{padding:20px!important;gap:16px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-card-header h2{font-size:20px!important;line-height:1.5!important;}
+  html body #root .app-ui .workspace-shell.screen-home :is(.ta-recent-table,.ta-recent-row,.ta-recent-head){background:transparent!important;color:var(--lx485-text-2)!important;border-color:var(--lx485-line)!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-recent-head{background:var(--lx485-surface-3)!important;color:var(--lx485-muted)!important;padding:14px 20px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-recent-row{min-height:80px!important;padding:14px 20px!important;gap:16px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-recent-row :is(strong,.ta-recent-party){font-size:14px!important;line-height:1.6!important;}
+  html body #root .app-ui .workspace-shell.screen-home :is(.ta-recent-head,.ta-recent-date,.ta-recent-document small,.ta-status-badge){font-size:12px!important;line-height:1.6!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-inventory-stats>div{background:var(--lx485-surface-3)!important;border:1px solid var(--lx485-line)!important;border-radius:15px!important;padding:14px!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-inventory-stats small{font-size:12px!important;color:var(--lx485-muted)!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-dashboard-intelligence-grid{align-items:start!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-attention-card{min-height:0!important;height:auto!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-recent-row:hover{background:var(--lx485-surface-3)!important;}
+  html body #root .app-ui .workspace-shell.screen-home :is(.ta-document-icon,.ta-status-badge,.ta-range-control,.ta-segmented-control){background:var(--lx485-surface-3)!important;border-color:var(--lx485-line)!important;color:var(--lx485-text-2)!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-document-icon{color:var(--lx485-blue)!important;}
+  html body #root .app-ui .workspace-shell.screen-home :is(.ta-range-control,.ta-segmented-control)>button{min-height:40px!important;background:transparent!important;color:var(--lx485-muted)!important;}
+  html body #root .app-ui .workspace-shell.screen-home :is(.ta-range-control,.ta-segmented-control)>button.is-active{background:var(--lx485-elevated)!important;color:var(--lx485-text)!important;}
+}
+@media screen and (min-width:901px) and (max-width:1150px){
+  html body #root .app-ui .workspace-shell.screen-home .ta-dashboard-header{flex-wrap:wrap!important;}
+  html body #root .app-ui .workspace-shell.screen-home .ta-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+}
+
 /* Register, document studios and conversation: populated-state surface contracts. */
 @media screen {
 html body #root .app-ui .ta-documents-page{display:flex!important;flex-direction:column!important;gap:16px!important;}
-html body #root .app-ui .ta-doc-summary-grid{gap:12px!important;}
+html body #root .app-ui .ta-doc-summary-grid{gap:12px!important;background:transparent!important;border:0!important;}
 html body #root .app-ui .ta-doc-summary-grid>button{min-width:0!important;min-height:106px!important;padding:16px!important;border:1px solid var(--lx485-line)!important;border-radius:20px!important;background:radial-gradient(ellipse at 100% 0%,color-mix(in srgb,var(--lx485-blue) 12%,transparent),transparent 65%),var(--lx485-surface)!important;color:var(--lx485-text)!important;box-shadow:none!important;}
 html body #root .app-ui .ta-doc-summary-grid :is(small,em){font-size:12px!important;line-height:1.55!important;color:var(--lx485-muted)!important;}
 html body #root .app-ui .ta-doc-summary-grid strong{font-size:26px!important;line-height:1.3!important;color:var(--lx485-text)!important;}
@@ -764,6 +819,10 @@ html body #root .app-ui :is(.draft-studio,.draft-studio-scroll,.draft-studio-con
 html body #root .app-ui :is(.modal-body,.modal-footer) :is(.info-note,.notice,.empty-state,.card){background:var(--lx485-surface)!important;border-color:var(--lx485-line)!important;color:var(--lx485-text-2)!important;}
 html body #root .app-ui .ta-mobile-sheet{touch-action:pan-y!important;overscroll-behavior-y:contain!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;contain:layout style!important;backdrop-filter:none!important;}
 html body #root .app-ui .ta-mobile-sheet :is(.ta-sheet-group,.ta-sheet-link){content-visibility:visible!important;contain:none!important;}
+/* Source tools are viewport overlays, outside the filtered chat panel. */
+html body #root .app-ui:has(.modal-backdrop) #lourex-ai-panel{visibility:hidden!important;pointer-events:none!important;}
+html body #root .app-ui .ai-workflow-actions{display:flex!important;flex-wrap:wrap!important;gap:10px!important;margin-block:14px!important;}
+html body #root .app-ui .ai-workflow-actions>.btn{flex:1 1 150px!important;width:auto!important;min-width:0!important;height:auto!important;min-height:44px!important;padding:10px 14px!important;font-size:14px!important;line-height:1.5!important;white-space:normal!important;}
 /* Copilot is mounted outside the app-ui wrapper; give it the same tokens explicitly. */
 html body #root #lourex-ai-panel{background:var(--lx485-canvas)!important;color:var(--lx485-text)!important;border:1px solid var(--lx485-line-strong)!important;border-radius:24px!important;font-family:var(--lx485-arabic)!important;}
 html body #root #lourex-ai-panel :is(.lourex-ai-head,.lourex-ai-compose,.lourex-ai-context){background:var(--lx485-surface)!important;border-color:var(--lx485-line)!important;color:var(--lx485-text-2)!important;}

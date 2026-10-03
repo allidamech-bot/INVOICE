@@ -138,7 +138,7 @@ export class CustomerAiCapture extends React.Component<Props,State>{
     const footer=this.state.stage==='review'&&proposal?<div className="ta-customer-modal-actions"><Button onClick={this.close}>{t('Cancel','إلغاء')}</Button>{this.state.matches.length?<Button disabled={!this.state.selectedMatchId} onClick={this.reviewUpdate}>{t('Review Update','مراجعة تحديث الموجود')}</Button>:null}<Button variant="primary" onClick={this.reviewNew}>{this.state.matches.length?t('Review as New Customer (duplicate guard stays on)','مراجعة كعميل جديد (حماية التكرار تبقى مفعّلة)'):t('Review Customer','مراجعة العميل')}</Button></div>:undefined;
     return <>
       <Button icon="upload" onClick={this.open}>{t('Add with AI','إضافة بالذكاء الاصطناعي')}</Button>
-      <Modal open={this.state.open} title={t('AI Customer Capture','إضافة عميل بالذكاء الاصطناعي')} size="lg" onClose={this.close} footer={footer}>
+      <Modal portal open={this.state.open} title={t('AI Customer Capture','إضافة عميل بالذكاء الاصطناعي')} size="lg" onClose={this.close} footer={footer}>
         <div aria-busy={busy}>
           {this.state.stage!=='review'?<>
             <p>{t('Upload a commercial registration or other company source. LOUREX extracts a proposal only; nothing is saved until you review and save it.','ارفع سجلًا تجاريًا أو أي مصدر بيانات للشركة. يستخرج LOUREX مقترحًا فقط؛ لا يتم حفظ أي شيء قبل المراجعة والحفظ.')}</p>
