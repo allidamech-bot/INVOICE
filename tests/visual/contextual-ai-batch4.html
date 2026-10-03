@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css"><link rel="stylesheet" href="styles/v332-critical-documents-deep-closeout.css"><link rel="stylesheet" href="styles/v482-mobile-ux-repair.css"></head><body><div id="root"><div class="app-ui" id="visual-app"></div></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {AppShell} from './src/components/AppShell.js';
+import {EditorPage} from './src/components/EditorPageCore.js';
+import {DocumentsPage} from './src/components/DocumentsPage.js';
+import {ReportsPage} from './src/components/ReportsPage.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {GlobalSearch} from './src/components/GlobalSearch.js';
+import {CustomersPage,blankCustomer} from './src/components/CustomersPage.js';
+import {ProductsInventoryWorkspace} from './src/components/ProductsInventoryWorkspace.js';
+import {OperationsPage} from './src/components/OperationsPage.js';
+import {FinanceWorkspace} from './src/components/FinanceWorkspace.js';
+import {emptyVault,defaultCompany} from './src/lib/defaults.js';
+import {createSupplier,createPurchase,createPurchaseItem} from './src/lib/operations.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),lang=params.get('lang')==='ar'?'ar':'en',theme=params.get('theme')==='light'?'light':'dark',h=React.createElement;
+setUiLanguage(lang);document.documentElement.dataset.uiTheme=theme;document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+const vault=emptyVault(),company=defaultCompany();
+const customer={...blankCustomer(),id:'c1',companyNameEn:'Northstar Trading',companyNameAr:'نورث ستار للتجارة',city:'Dubai',email:'buyer@example.test'};
+const item={id:'p1',createdAt:'2026-01-01',updatedAt:'2026-01-01',sku:'VAL-1',descriptionEn:'Industrial valve',descriptionAr:'صمام صناعي',hsCode:'',origin:'',packing:'',unit:'PCS',lastCurrency:'USD',lastUnitPrice:'12',lastCostCurrency:'USD',lastUnitCost:'8',usageCount:0,lastUsedAt:'2026-01-01',tags:[]};
+const supplier={...createSupplier(),id:'s1',nameEn:'Source Co',nameAr:'شركة المصدر'};
+const purchase={...createPurchase([],[supplier],'USD'),id:'purchase-1',number:'PUR-QA-1',items:[{...createPurchaseItem(item),quantity:'2',unitCost:'8'}]};
+const noop=async()=>{};
+const doc=createBlankDocument('proforma','QUO-QA-1',company);
+class Fixture extends React.Component{
+ state={screen:'customers',items:[item]};
+ navigate=screen=>this.setState({screen});
+ saveItem=async item=>{window.savedProduct=item;this.setState({items:[item]});};
+ render(){const shared={suppliers:[supplier],purchases:[purchase],expenses:[],inventoryMovements:[],items:this.state.items,defaultCurrency:'USD',onSaveSupplier:noop,onDeleteSupplier:noop,onSavePurchase:noop,onDeletePurchase:noop,onPostPurchase:noop,onReversePurchase:noop,onSaveExpense:noop,onDeleteExpense:noop,onSaveInventoryMovement:noop,onDeleteInventoryMovement:noop};
+ const products={...shared,currency:'USD',warehouses:[],workspaceId:'qa',branchId:'qa',onSaveItem:this.saveItem,onSaveItems:noop,onDeleteItem:noop};
+ const finance={...shared,customers:[customer],documents:[],payments:[],company,supplierPayments:[],treasuryAccounts:[],treasuryEntries:[],treasuryReconciliations:[],fxRates:[],workspaceId:'qa',branchId:'qa',onSavePayment:noop,onDeletePayment:noop,onSaveSupplierPayment:noop,onDeleteSupplierPayment:noop};
+ return h(React.Fragment,null,h(AppShell,{screen:this.state.screen,language:lang,logoDataUrl:'./brand/lourex-logo.svg',newMenu:false,cloudState:'offline',cloudLabel:'QA',cloudMessage:'',onNavigate:this.navigate,onToggleNew:()=>{},onNew:()=>{},onSettings:()=>{},onCloud:()=>{}},this.state.screen==='editor'?h(EditorPage,{document:doc,documents:[doc],customers:[customer],suppliers:[],company,savedItems:[item],payments:[],smartDefaults:vault.appSettings.smartDefaults,onClose:noop,onSave:noop,onSaveCustomer:noop,onSaveSavedItem:noop,onSaveDocumentItem:noop,onUseSavedItems:noop,onDeleteSavedItem:noop,onSaveSmartDefaults:noop,onBeginRevision:noop,onConvert:noop,onPrint:noop}):this.state.screen==='documents'?h(DocumentsPage,{documents:[doc],payments:[],documentEvents:[],onNew:noop,onOpen:noop,onDuplicate:noop,onConvert:noop,onPrint:noop,onDelete:noop}):this.state.screen==='reports'?h(ReportsPage,{documents:[],payments:[],customers:[customer],company}):this.state.screen==='customers'?h(CustomersPage,{company,customers:[customer],onSave:noop,onDelete:noop,onCreateDocument:noop}):this.state.screen==='items'?h(ProductsInventoryWorkspace,products):this.state.screen==='receivables'?h(FinanceWorkspace,finance):h(OperationsPage,{...shared,mode:'purchasing'})),h(GlobalSearch,{documents:[],customers:[customer],items:this.state.items,suppliers:[supplier],purchases:[purchase],language:lang,onNavigate:this.navigate,onOpenDocument:()=>{},onNewDocument:()=>{}}));}
+}
+window.navigateWorkspace=screen=>window.fixture.navigate(screen);
+ReactDOM.render(h(Fixture,{ref:instance=>window.fixture=instance}),document.getElementById('visual-app'));
+</script></body></html>

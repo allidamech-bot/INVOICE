@@ -1011,3 +1011,12 @@ html body #root .loading-screen .brand{position:relative!important;isolation:iso
 html body #root .loading-screen .brand::before{content:""!important;display:block!important;visibility:visible!important;position:absolute!important;width:252px!important;height:252px!important;inset:auto!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;border:1px solid var(--lx485-line)!important;border-radius:50%!important;background:radial-gradient(circle,color-mix(in srgb,var(--lx485-blue) 8%,transparent),transparent 70%)!important;z-index:-1!important;opacity:1!important;pointer-events:none!important;animation:none!important;}
 html body #root .loading-screen .brand::after{content:""!important;display:block!important;position:absolute!important;inset:auto!important;top:50%!important;left:50%!important;width:292px!important;height:292px!important;transform:translate(-50%,-50%)!important;border:1px solid color-mix(in srgb,var(--lx485-line) 40%,transparent)!important;border-radius:50%!important;background:transparent!important;z-index:-1!important;pointer-events:none!important;}
 }
+
+/* Saved, deterministic context inside the existing product editor. */
+#root .app-ui .lx-product-pricing-brief{padding:var(--lx-ui-space-3,12px);margin-block:12px;background:var(--lx-ui-surface);border:1px solid var(--ft-line);border-radius:var(--lx-ui-radius-control,13px)}
+#root .app-ui .lx-product-pricing-brief small{display:block;color:var(--ft-muted);margin-block:4px}
+#root .app-ui .lx-product-pricing-brief dl{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0}
+#root .app-ui .lx-product-pricing-brief dd{margin:0;font-weight:700}
+/* Contextual Advisor must sit above phone editors, below reviewed modal proposals. */
+html body #root .app-ui #lourex-ai-panel{z-index:calc(var(--lx-ui-layer-modal,10000) - 2)!important;}
+html body #root .app-ui .lourex-ai-backdrop{z-index:calc(var(--lx-ui-layer-modal,10000) - 3)!important;}

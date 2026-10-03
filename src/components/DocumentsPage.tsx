@@ -1,3 +1,4 @@
+import { AiWorkflowTools } from './AiWorkflowTools.js';
 import type { DocumentEventRecord, DocumentKind, LourexDocument, PaymentRecord, PaymentStatus, RecurringWorkflowRecord } from '../types.js';
 import { calculateTotals, compareMoneyStrings, formatMoney, lineTotal } from '../lib/money.js';
 import { displayDate } from '../lib/id.js';
@@ -455,7 +456,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     return <section className="ta-documents-page">
       <header className="ta-documents-header">
         <div><span className="ta-documents-eyebrow">{t('Business documents','مستندات الأعمال')}</span><h1>{t('Documents','المستندات')}</h1><p>{t('Create, issue and manage the complete LOUREX trade-document workflow.','أنشئ وأصدر وأدر دورة مستندات LOUREX التجارية الكاملة.')}</p></div>
-        <div className="ta-documents-header-actions">{this.props.onOpenRecurring?<Button onClick={()=>this.props.onOpenRecurring?.()}>{t('Recurring','المتكرر')}</Button>:null}<Button icon="edit" onClick={()=>this.props.onNew('draft')}>{t('Draft','مسودة')}</Button><Button icon="file" onClick={()=>this.props.onNew('rfq')}>{t('RFQ','طلب عرض سعر')}</Button><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Quotation','عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Invoice','فاتورة')}</Button></div>
+        <div className="ta-documents-header-actions"><AiWorkflowTools compact defaultRoute="quote_request"/>{this.props.onOpenRecurring?<Button onClick={()=>this.props.onOpenRecurring?.()}>{t('Recurring','المتكرر')}</Button>:null}<Button icon="edit" onClick={()=>this.props.onNew('draft')}>{t('Draft','مسودة')}</Button><Button icon="file" onClick={()=>this.props.onNew('rfq')}>{t('RFQ','طلب عرض سعر')}</Button><Button icon="proforma" variant="primary" onClick={()=>this.props.onNew('proforma')}>{t('Quotation','عرض سعر')}</Button><Button icon="invoice" onClick={()=>this.props.onNew('invoice')}>{t('Invoice','فاتورة')}</Button></div>
       </header>
 
       <section className="ta-doc-summary-grid" aria-label={t('Document summary','ملخص المستندات')}>
