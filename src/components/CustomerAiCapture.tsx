@@ -102,6 +102,7 @@ export class CustomerAiCapture extends React.Component<Props,State>{
   private analyze=async()=>{
     if(this.state.stage==='reading'||this.state.stage==='analyzing')return;
     const files=this.state.files.slice(0,MAX_FILES),pasted=this.state.pastedText.trim();
+    if(pasted.length>MAX_TEXT_CHARS){this.setState({error:t('Text exceeds the analysis limit. Split the source into smaller files.','النص يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.')});return;}
     if(!files.length&&!pasted){this.setState({error:t('Choose at least one company file or paste company text.','اختر ملف شركة واحدًا على الأقل أو الصق نص بيانات الشركة.')});return;}
     const generation=++this.generation;const proposals:CustomerAiProposal[]=[];const errors:string[]=[];let model='';
     this.setState({stage:'reading',proposal:null,matches:[],errors:[],error:'',model:''});
@@ -114,7 +115,7 @@ export class CustomerAiCapture extends React.Component<Props,State>{
       }catch(error){if(generation!==this.generation)return;errors.push(`${file.name}: ${error instanceof Error?error.message:String(error)}`);}
     }
     if(pasted&&generation===this.generation){
-      try{this.setState({stage:'analyzing'});const result=await this.request(t('Pasted text','النص الملصق'),{kind:'text',mimeType:'text/plain',text:pasted.slice(0,MAX_TEXT_CHARS)},generation);if(result){proposals.push(result.proposal);model=result.model||model;}}
+      try{this.setState({stage:'analyzing'});const result=await this.request(t('Pasted text','النص الملصق'),{kind:'text',mimeType:'text/plain',text:pasted},generation);if(result){proposals.push(result.proposal);model=result.model||model;}}
       catch(error){if(generation!==this.generation)return;errors.push(error instanceof Error?error.message:String(error));}
     }
     if(generation!==this.generation)return;
