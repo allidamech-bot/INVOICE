@@ -17,9 +17,9 @@ for(const path of [bundlePath,standalonePath]){
   content=`${content.trimEnd()}\n\n${marker}\n${css}\n`;
   await writeFile(path,content);
   const emitted=await readFile(path,'utf8');
-  const v483Index=emitted.lastIndexOf('/* --- v483-mobile-density.css --- */');
+  const mobileIndex=emitted.lastIndexOf('/* --- v482-narrow-readability.css --- */');
   const v484Index=emitted.lastIndexOf(marker);
-  if(v484Index<0||v484Index<=v483Index)throw new Error(`v484 visual hierarchy: final owner order is invalid in ${path}.`);
+  if(mobileIndex<0||v484Index<0||v484Index<=mobileIndex)throw new Error(`v484 visual hierarchy: final owner order is invalid in ${path}.`);
 }
 
-console.log('LOUREX v484 responsive visual owner appended after v483 in bundle + standalone production cascade.');
+console.log('LOUREX v484 responsive visual owner appended after v482 in bundle + standalone production cascade.');
