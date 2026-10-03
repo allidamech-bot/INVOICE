@@ -86,7 +86,7 @@ async function inspect(page,surface,scenario,lang){
     if(surface.name==='customers'){
       const cards=[...document.querySelectorAll('.ta-customers-summary>div')].filter(isVisible);
       if(cards.length<3)failures.push(`customer summary cards=${cards.length}`);
-      if(scenario.width<=900&&cards.length>=3){const rows=new Set(cards.map(el=>Math.round(el.getBoundingClientRect().y)));if(rows.size!==1)failures.push(`customer overview should stay compact on one row, rows=${rows.size}`);}
+      if(scenario.width<=900&&cards.length>=3){const rows=new Set(cards.map(el=>Math.round(el.getBoundingClientRect().y)));const expectedRows=scenario.width<=380?2:1;if(rows.size!==expectedRows)failures.push(`customer overview expected ${expectedRows} compact rows, rows=${rows.size}`);}
     }
 
     if(surface.name==='products'){

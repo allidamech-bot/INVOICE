@@ -159,7 +159,7 @@ async function runDocumentsDensity(language){
     if(metrics.direction!==(language==='ar'?'rtl':'ltr'))failures.push(`direction=${metrics.direction}, expected ${language==='ar'?'rtl':'ltr'}`);
     if(!metrics.header||!metrics.actions||!metrics.search||!metrics.tabs)failures.push('Documents density fixture is missing required geometry nodes');
     if(metrics.scrollWidth>metrics.viewport.width+1)failures.push(`horizontal overflow ${metrics.scrollWidth}px > viewport ${metrics.viewport.width}px`);
-    if(metrics.header&&metrics.header.height>340)failures.push(`Documents hero is still oversized at ${metrics.header.height.toFixed(1)}px`);
+    if(metrics.header&&metrics.header.height>240)failures.push(`Documents hero is still oversized at ${metrics.header.height.toFixed(1)}px`);
     if(metrics.header&&(metrics.header.left<-1||metrics.header.right>metrics.viewport.width+1))failures.push(`Documents hero escapes viewport: ${JSON.stringify(metrics.header)}`);
     if(metrics.titleFont>28)failures.push(`Documents title font remains oversized at ${metrics.titleFont}px`);
     if(metrics.buttons.length!==5)failures.push(`expected 5 creation actions, found ${metrics.buttons.length}`);

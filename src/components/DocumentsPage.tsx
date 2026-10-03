@@ -468,6 +468,11 @@ export class DocumentsPage extends React.Component<Props,State>{
       {resume?<button type="button" className="ta-doc-resume" onClick={()=>this.props.onOpen(resume)}><span className="ta-doc-resume-icon"><Icon name={this.documentTypeIcon(resume)}/></span><span className="ta-doc-resume-copy"><small>{t('Continue where you left off','أكمل من حيث توقفت')}</small><strong>{resume.number}</strong><span>{partyName(resume)}</span></span><span className="ta-doc-resume-meta"><b>{resume.kind==='draft'?(resume.letter?.subject||t('Company Draft','مسودة شركة')):documentPriceOptional(resume.kind)?'—':formatMoney(calculateTotals(resume.items,resume.adjustments).grandTotal,resume.currency)}</b><em>{workflowStatus(resume)==='ready'?t('Ready to issue','جاهز للإصدار'):t('Continue editing','متابعة التحرير')}</em></span><span className="ta-doc-resume-arrow" aria-hidden="true">→</span></button>:null}
 
       <section className="ta-doc-register-card">
+        <label className="ta-doc-mobile-type-picker"><span>{t('Document types','أنواع المستندات')}</span><Select value={this.state.tab} onChange={(e:any)=>this.setState({tab:e.target.value as OverviewTab,menuId:''})}>
+          <option value="all">{t('All','الكل')} ({this.props.documents.length})</option>
+          {(['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt'] as DocumentKind[]).map(kind=><option key={kind} value={kind}>{documentKindLabel(kind)[isArabic()?'ar':'en']} ({this.typeCount(kind)})</option>)}
+          <option value="credit">{t('Credit Note','إشعار دائن')} ({this.props.documents.filter(doc=>doc.role==='credit-note').length})</option>
+        </Select></label>
         <div className="ta-doc-type-tabs" aria-label={t('Document types','أنواع المستندات')}>
           {this.typeTab('all',t('All','الكل'),this.props.documents.length)}
           {this.typeTab('draft',t('Draft','مسودة'),this.typeCount('draft'),1)}

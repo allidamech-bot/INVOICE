@@ -229,7 +229,9 @@ class ModalFrame extends React.Component<ModalFrameProps> {
     if(Number.isFinite(offsetTop))this.backdrop.style.setProperty('--modal-visual-offset-top',`${Math.round(offsetTop)}px`);
     this.backdrop.style.setProperty('--modal-browser-bottom-reserve',`${browserBottomReserve}px`);
     if(window.matchMedia('(max-width: 860px)').matches){
-      const usableHeight=Math.max(240,Math.round(height-browserBottomReserve));
+      // Never exceed the visible viewport when a landscape keyboard leaves
+      // less than 240px. A minimum sheet height puts its footer off screen.
+      const usableHeight=Math.max(1,Math.round(height-browserBottomReserve));
       this.backdrop.style.setProperty('height',`${usableHeight}px`,'important');
       this.backdrop.style.setProperty('min-height','0','important');
       this.backdrop.style.setProperty('max-height',`${usableHeight}px`,'important');

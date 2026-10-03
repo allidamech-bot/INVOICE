@@ -87,6 +87,7 @@ jobs:
           node tests/visual/run-v337-shell-navigation.cjs
           node tests/visual/run-v339-shell-overlay-release.cjs
           node tests/visual/run-v339-signout-guard.cjs
+          node tests/visual/run-responsive-batch1.cjs
 
       - name: Enforce current PR contract + stability gates
         if: always()

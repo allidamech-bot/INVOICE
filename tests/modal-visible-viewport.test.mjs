@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import ts from 'typescript';
+
+test('modal follows keyboard viewport and clears mobile geometry after rotation',()=>{
+  const source=readFileSync('src/components/UI.tsx','utf8')+'\nexport { ModalFrame };';
+  const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText;
+  const values=new Map();
+  let mobile=true;
+  const window={innerHeight:800,visualViewport:{height:190,offsetTop:32},matchMedia:()=>({matches:mobile})};
+  const exports={};
+  runInNewContext(code,{exports,require:()=>({}),React:{Component:class{},createElement:()=>null},window});
+  const frame=new exports.ModalFrame();
+  frame.backdrop={style:{setProperty:(key,value)=>values.set(key,value),removeProperty:key=>values.delete(key)}};
+  frame.syncVisualViewport();
+  assert.equal(values.get('height'),'190px');
+  assert.equal(values.get('max-height'),'190px');
+  assert.equal(values.get('top'),'32px');
+  window.visualViewport.height=740;
+  window.visualViewport.offsetTop=0;
+  frame.syncVisualViewport();
+  assert.equal(values.get('height'),'740px');
+  mobile=false;
+  frame.syncVisualViewport();
+  for(const key of ['height','min-height','max-height','top','bottom','align-items','padding'])assert.equal(values.has(key),false,key);
+  mobile=true;
+  window.visualViewport=null;
+  frame.syncVisualViewport();
+  assert.equal(values.get('height'),'800px');
+});
