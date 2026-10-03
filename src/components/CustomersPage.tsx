@@ -45,7 +45,7 @@ export class CustomersPage extends React.Component<Props,State>{
   state:State={workspace:'directory',query:'',sort:'name',editing:null,editingInitial:'',discardConfirm:false,deleting:null,error:'',busy:false,creatingDocument:'',viewingId:'',allowKnownDuplicate:false};
   private mounted=false;
 
-  componentDidMount():void{this.mounted=true;ensureSalesPipelineStyles();document.addEventListener('keydown',this.handleKeyDown);window.addEventListener('lourex-create-customer',this.handleQuickCreate);window.addEventListener('beforeunload',this.handleBeforeUnload);this.syncDirtyMarker();}
+  componentDidMount():void{this.mounted=true;ensureSalesPipelineStyles();document.addEventListener('keydown',this.handleKeyDown);window.addEventListener('lourex-create-customer',this.handleQuickCreate);window.addEventListener('lourex-open-customer',this.handleOpenCustomer);window.addEventListener('beforeunload',this.handleBeforeUnload);this.syncDirtyMarker();}
   componentDidUpdate(prevProps:Props,prevState:State):void{
     if(prevProps.customers!==this.props.customers&&this.state.viewingId&&!this.props.customers.some(customer=>customer.id===this.state.viewingId))this.setState({viewingId:''});
     if(prevState.viewingId!==this.state.viewingId){
@@ -54,8 +54,13 @@ export class CustomersPage extends React.Component<Props,State>{
     }
     this.syncDirtyMarker();
   }
-  componentWillUnmount():void{this.mounted=false;document.removeEventListener('keydown',this.handleKeyDown);window.removeEventListener('lourex-create-customer',this.handleQuickCreate);window.removeEventListener('beforeunload',this.handleBeforeUnload);setWorkspaceDirty('customers',false);}
+  componentWillUnmount():void{this.mounted=false;document.removeEventListener('keydown',this.handleKeyDown);window.removeEventListener('lourex-create-customer',this.handleQuickCreate);window.removeEventListener('lourex-open-customer',this.handleOpenCustomer);window.removeEventListener('beforeunload',this.handleBeforeUnload);setWorkspaceDirty('customers',false);}
 
+  private handleOpenCustomer=(event:Event)=>{
+    const id=(event as CustomEvent<{id?:string}>).detail?.id;
+    if(this.state.busy||this.state.creatingDocument||this.state.editing||this.state.deleting||!this.props.customers.some(row=>row.id===id))return;
+    this.setState({workspace:'directory',viewingId:id!,query:'',error:''});
+  };
   private handleQuickCreate=()=>{this.setState({workspace:'directory'},this.newCustomer);};
   private handleKeyDown=(event:KeyboardEvent)=>{
     if(event.defaultPrevented||event.metaKey||event.ctrlKey||event.altKey||this.state.editing||document.querySelector('.modal-backdrop'))return;

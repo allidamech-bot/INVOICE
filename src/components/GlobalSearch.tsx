@@ -82,6 +82,20 @@ export class GlobalSearch extends React.Component<Props,State>{
     this.props.onNavigate(screen);
     window.setTimeout(()=>window.dispatchEvent(new Event(eventName)),0);
   };
+  private openRecord=(screen:GlobalSearchTarget,eventName:string,detail:{id:string})=>{
+    this.close();this.props.onNavigate(screen);
+    window.setTimeout(()=>window.dispatchEvent(new CustomEvent(eventName,{detail})),0);
+  };
+  private resultKeyDown=(event:{key:string;preventDefault:()=>void})=>{
+    if(event.key!=='ArrowDown'&&event.key!=='ArrowUp'&&event.key!=='Enter')return;
+    const rows=Array.from(document.querySelectorAll<HTMLButtonElement>('.global-search-results .global-search-result'));
+    if(!rows.length)return;
+    const index=rows.indexOf(document.activeElement as HTMLButtonElement);
+    if(event.key==='Enter'){if(index<0&&document.activeElement===this.inputRef){event.preventDefault();rows[0]?.click();}return;}
+    event.preventDefault();
+    if(event.key==='ArrowUp'&&index===0){this.inputRef?.focus();return;}
+    rows[event.key==='ArrowDown'?Math.min(index+1,rows.length-1):index<0?rows.length-1:index-1]?.focus();
+  };
   private paymentInvoices=():LourexDocument[]=>this.props.documents
     .filter(document=>document.kind==='invoice'&&document.role!=='credit-note'&&document.status==='final'&&document.lifecycleStatus!=='voided')
     .sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))
@@ -103,24 +117,25 @@ export class GlobalSearch extends React.Component<Props,State>{
     }
     for(const customer of this.props.customers){
       const name=localized(customer.companyNameEn,customer.companyNameAr,customer.contactPerson||t('Unnamed customer','عميل بدون اسم'));
-      candidates.push({key:`customer-${customer.id}`,kind:'customer',title:name,subtitle:[customer.contactPerson,customer.phone,customer.email].filter(Boolean).join(' · ')||t('Customer profile','ملف العميل'),searchText:[customer.companyNameEn,customer.companyNameAr,customer.contactPerson,customer.phone,customer.email,customer.city,customer.country].join(' '),action:()=>this.navigate('customers')});
+      candidates.push({key:`customer-${customer.id}`,kind:'customer',title:name,subtitle:[customer.contactPerson,customer.phone,customer.email].filter(Boolean).join(' · ')||t('Customer profile','ملف العميل'),searchText:[customer.companyNameEn,customer.companyNameAr,customer.contactPerson,customer.phone,customer.email,customer.city,customer.country].join(' '),action:()=>this.openRecord('customers','lourex-open-customer',{id:customer.id})});
     }
     for(const item of this.props.items){
       if(item.archived)continue;
       const name=localized(item.descriptionEn,item.descriptionAr,item.sku||t('Unnamed product','منتج بدون اسم'));
-      candidates.push({key:`item-${item.id}`,kind:'product',title:name,subtitle:[item.sku,item.category,item.lastCurrency&&item.lastUnitPrice?`${item.lastCurrency} ${item.lastUnitPrice}`:''].filter(Boolean).join(' · ')||t('Product record','سجل المنتج'),searchText:[item.sku||'',item.descriptionEn,item.descriptionAr,item.hsCode,item.origin,item.category||'',...(item.tags||[])].join(' '),action:()=>this.navigate('items')});
+      candidates.push({key:`item-${item.id}`,kind:'product',title:name,subtitle:[item.sku,item.category,item.lastCurrency&&item.lastUnitPrice?`${item.lastCurrency} ${item.lastUnitPrice}`:''].filter(Boolean).join(' · ')||t('Product record','سجل المنتج'),searchText:[item.sku||'',item.descriptionEn,item.descriptionAr,item.hsCode,item.origin,item.category||'',...(item.tags||[])].join(' '),action:()=>this.openRecord('items','lourex-open-product',{id:item.id})});
     }
     for(const supplier of this.props.suppliers){
       const name=localized(supplier.nameEn,supplier.nameAr,t('Unnamed supplier','مورد بدون اسم'));
-      candidates.push({key:`supplier-${supplier.id}`,kind:'supplier',title:name,subtitle:[supplier.contactPerson,supplier.country,supplier.defaultCurrency].filter(Boolean).join(' · ')||t('Supplier profile','ملف المورد'),searchText:[supplier.nameEn,supplier.nameAr,supplier.contactPerson,supplier.phone,supplier.email,supplier.country].join(' '),action:()=>this.navigate('operations')});
+      candidates.push({key:`supplier-${supplier.id}`,kind:'supplier',title:name,subtitle:[supplier.contactPerson,supplier.country,supplier.defaultCurrency].filter(Boolean).join(' · ')||t('Supplier profile','ملف المورد'),searchText:[supplier.nameEn,supplier.nameAr,supplier.contactPerson,supplier.phone,supplier.email,supplier.country].join(' '),action:()=>this.openRecord('operations','lourex-open-supplier',{id:supplier.id})});
     }
     for(const purchase of this.props.purchases){
       const supplier=localized(purchase.supplierSnapshot?.nameEn||'',purchase.supplierSnapshot?.nameAr||'',t('No supplier','بدون مورد'));
-      candidates.push({key:`purchase-${purchase.id}`,kind:'purchase',title:purchase.number,subtitle:`${supplier} · ${purchase.date} · ${purchase.currency}`,searchText:[purchase.number,supplier,purchase.date,purchase.currency,purchase.status].join(' '),action:()=>this.navigate('operations')});
+      candidates.push({key:`purchase-${purchase.id}`,kind:'purchase',title:purchase.number,subtitle:`${supplier} · ${purchase.date} · ${purchase.currency}`,searchText:[purchase.number,supplier,purchase.date,purchase.currency,purchase.status].join(' '),action:()=>this.openRecord('operations','lourex-open-purchase',{id:purchase.id})});
     }
     const tokens=q.split(' ').filter(Boolean);
     return candidates.map(result=>{
       const haystack=normalize(`${result.title} ${result.subtitle} ${result.searchText}`);
+      if(!tokens.every(token=>haystack.includes(token)))return{result,score:0};
       const score=tokens.reduce((sum,token)=>sum+(haystack.startsWith(token)?5:haystack.includes(token)?2:0),0)+(normalize(result.title).startsWith(q)?8:0);
       return{result,score};
     }).filter(entry=>entry.score>0).sort((a,b)=>b.score-a.score||a.result.title.localeCompare(b.result.title)).slice(0,10).map(entry=>entry.result);
@@ -137,7 +152,7 @@ export class GlobalSearch extends React.Component<Props,State>{
   render():any{
     if(!this.state.open)return null;
     const results=this.results();
-    return <><button type="button" className="global-search-backdrop" aria-label={t('Close global search','إغلاق البحث الشامل')} onClick={this.close}/><section className="global-search-panel" role="dialog" aria-modal="true" aria-label={t('Search LOUREX','بحث LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
+    return <><button type="button" className="global-search-backdrop" aria-label={t('Close global search','إغلاق البحث الشامل')} onClick={this.close}/><section className="global-search-panel" onKeyDown={this.resultKeyDown} role="dialog" aria-modal="true" aria-label={t('Search LOUREX','بحث LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
       <header className="global-search-input-wrap"><Icon name="search"/><input ref={(node:HTMLInputElement|null)=>{this.inputRef=node;}} value={this.state.query} disabled={this.state.paymentPicker} onChange={(event:any)=>this.setState({query:event.target.value})} placeholder={t('Search documents, customers, products, suppliers or purchases…','ابحث في المستندات والعملاء والمنتجات والموردين والمشتريات…')} aria-label={t('Search LOUREX','بحث LOUREX')}/><button type="button" className="global-search-close" onClick={this.close} aria-label={t('Close search','إغلاق البحث')}><Icon name="x"/></button></header>
       {this.state.paymentPicker?this.renderPaymentPicker():!this.state.query.trim()?<div className="global-search-start">
         <div className="global-search-section-title"><span>{t('Quick create','إنشاء سريع')}</span><small>{t('Always opens the canonical workspace','يفتح دائمًا مساحة العمل الأصلية')}</small></div>
@@ -152,7 +167,7 @@ export class GlobalSearch extends React.Component<Props,State>{
         </div>
         <div className="global-search-section-title"><span>{t('Go to','انتقل إلى')}</span></div>
         <div className="global-search-destinations"><button type="button" onClick={()=>this.navigate('documents')}><Icon name="file"/>{t('Documents','المستندات')}</button><button type="button" onClick={()=>this.navigate('customers')}><Icon name="users"/>{t('Customers','العملاء')}</button><button type="button" onClick={()=>this.navigate('items')}><Icon name="items"/>{t('Products & Inventory','المنتجات والمخزون')}</button><button type="button" onClick={()=>this.navigate('operations')}><Icon name="backup"/>{t('Purchasing','المشتريات')}</button><button type="button" onClick={()=>this.navigate('receivables')}><Icon name="invoice"/>{t('Finance','المالية')}</button><button type="button" onClick={()=>this.navigate('reports')}><Icon name="file"/>{t('Reports','التقارير')}</button></div>
-      </div>:<div className="global-search-results">{results.length?results.map(result=><button type="button" key={result.key} className="global-search-result" onClick={result.action}><span className="global-search-result-icon"><Icon name={iconFor(result.kind)}/></span><span className="global-search-result-copy"><small>{kindLabel(result.kind)}</small><strong>{result.title}</strong><span>{result.subtitle}</span></span><span className="global-search-result-arrow" aria-hidden="true">→</span></button>):<div className="global-search-empty"><Icon name="search"/><strong>{t('No matching records','لا توجد نتائج مطابقة')}</strong><span>{t('Try a document number, customer, product, supplier or purchase reference.','جرّب رقم مستند أو اسم عميل أو منتج أو مورد أو مرجع شراء.')}</span></div>}</div>}
+      </div>:<div className="global-search-results">{results.length?results.map(result=><button type="button" key={result.key} className="global-search-result" onClick={result.action}><span className="global-search-result-icon"><Icon name={iconFor(result.kind)}/></span><span className="global-search-result-copy"><small>{kindLabel(result.kind)}</small><strong>{result.title}</strong><span>{result.subtitle}</span></span><span className="global-search-result-arrow" aria-hidden="true">→</span></button>):<div className="global-search-empty"><Icon name="search"/><strong>{t('No matching records','لا توجد نتائج مطابقة')}</strong><span>{t('Try a document number, customer, product, supplier or purchase reference.','جرّب رقم مستند أو اسم عميل أو منتج أو مورد أو مرجع شراء.')}</span><button type="button" className="global-search-back-button" onClick={()=>this.setState({query:''})}>{t('Browse workspaces & create','تصفح المساحات والإنشاء')}</button></div>}</div>}
       <footer className="global-search-footer"><span>{t('Global search routes every record to its single source of truth.','البحث الشامل يوجّه كل سجل إلى مكانه الأصلي الوحيد.')}</span><kbd>{typeof navigator!=='undefined'&&/Mac|iPhone|iPad/.test(navigator.platform)?'⌘ K':'Ctrl K'}</kbd></footer>
     </section></>;
   }

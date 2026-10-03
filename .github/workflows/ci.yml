@@ -2,6 +2,11 @@ name: LOUREX Invoice CI
 
 on:
   workflow_dispatch:
+    inputs:
+      legacy_diagnostics:
+        description: Run historical nonblocking diagnostics when investigating a relevant regression
+        type: boolean
+        default: false
   pull_request:
     branches:
       - main
@@ -187,6 +192,7 @@ jobs:
               run_qa 180 node tests/visual/run-import-final-audit-v267.cjs
               run_qa 180 node tests/visual/run-commercial-flow-batch1.cjs
               run_qa 180 node tests/visual/run-relationship-360-batch2.cjs
+              run_qa 180 node tests/visual/run-workspace-ux-batch3.cjs
               ;;
             locales-current)
               run_qa 180 node tests/visual/run-saved-items-category-locale-v246.cjs
@@ -235,6 +241,7 @@ jobs:
           fi
 
   legacy-browser-baseline:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.legacy_diagnostics }}
     name: Legacy browser baseline (${{ matrix.shard }}, non-blocking)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -325,6 +332,7 @@ jobs:
           if-no-files-found: ignore
 
   legacy-baseline:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.legacy_diagnostics }}
     name: Legacy unit baseline (non-blocking)
     runs-on: ubuntu-latest
     continue-on-error: true
