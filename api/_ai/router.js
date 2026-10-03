@@ -212,7 +212,7 @@ function providerError(provider,model,status,bodyText){
 }
 async function fetchWithTimeout(url,options,timeoutMs){
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),timeoutMs);
-  try{return await fetch(url,{...options,signal:controller.signal});}finally{clearTimeout(timeout);}
+  try{const response=await fetch(url,{...options,signal:controller.signal});const text=await response.text();if(controller.signal.aborted)throw new DOMException('Provider response timed out','AbortError');return{response,text};}finally{clearTimeout(timeout);}
 }
 function groqReasoningOptions(model,reasoningLevel){
   if(model.model.startsWith('openai/gpt-oss-'))return{reasoning_effort:reasoningLevel==='deep'?'medium':'low',include_reasoning:false};
@@ -222,8 +222,8 @@ async function callGroq(model,request){
   const apiKey=process.env.GROQ_API_KEY?.trim();if(!apiKey)throw Object.assign(new Error('not configured'),{routerCategory:'unavailable',routerCode:'AI_NOT_CONFIGURED',retryable:false});
   const schema=geminiSchemaToJsonSchema(request.schema);
   const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:{name:'lourex_result',strict:false,schema}},...groqReasoningOptions(model,request.reasoningLevel)};
-  const response=await fetchWithTimeout(GROQ_CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},body:JSON.stringify(body)},request.timeoutMs);
-  const text=await response.text();if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable});}
+  const {response,text}=await fetchWithTimeout(GROQ_CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},body:JSON.stringify(body)},request.timeoutMs);
+  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
   return{data:parseOpenAiPayload(payload),headers:response.headers};
 }
@@ -232,8 +232,8 @@ async function callCloudflare(model,request){
   const schema=geminiSchemaToJsonSchema(request.schema);
   const body={model:model.model,messages:normalizeMessages(request),temperature:0,max_completion_tokens:Math.min(request.maxOutputTokens||MAX_OUTPUT_TOKENS,MAX_OUTPUT_TOKENS),response_format:{type:'json_schema',json_schema:schema},options:{rejectIfBusy:true}};
   const url=`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}${CLOUDFLARE_CHAT_PATH}`;
-  const response=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify(body)},request.timeoutMs);
-  const text=await response.text();if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable});}
+  const {response,text}=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify(body)},request.timeoutMs);
+  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
   return{data:parseOpenAiPayload(payload),headers:response.headers};
 }
@@ -242,8 +242,8 @@ async function callGemini(model,request){
   const schema=request.schema?.type&&String(request.schema.type)===String(request.schema.type).toUpperCase()?request.schema:jsonSchemaToGeminiSchema(request.schema);
   const body={contents:geminiContents(request),generationConfig:{temperature:0,responseMimeType:'application/json',responseSchema:schema}};
   const url=`${GEMINI_BASE_URL}/${encodeURIComponent(model.model)}:generateContent`;
-  const response=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},body:JSON.stringify(body)},request.timeoutMs);
-  const text=await response.text();if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable});}
+  const {response,text}=await fetchWithTimeout(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},body:JSON.stringify(body)},request.timeoutMs);
+  if(!response.ok){const info=providerError(model.provider,model.model,response.status,text);throw Object.assign(new Error(info.code),{routerCategory:info.category,routerCode:info.code,status:response.status,retryable:info.retryable});}
   let payload;try{payload=JSON.parse(text);}catch{throw Object.assign(new Error('invalid upstream json'),{routerCategory:'invalid',routerCode:'AI_INVALID_RESULT',retryable:false});}
   return{data:parseGeminiPayload(payload),headers:response.headers};
 }
@@ -257,7 +257,9 @@ function hasLowConfidence(value){
     if(Array.isArray(current)){for(const item of current)visit(item);return;}
     if(typeof current!=='object')return;
     for(const [key,item] of Object.entries(current)){
-      if(key.toLowerCase()==='confidence'){
+      const confidenceKey=key.toLowerCase();
+      const groundedCustomer=confidenceKey==='customerconfidence'&&Boolean(current.customerName||current.customerEmail||current.customerPhone);
+      if(confidenceKey==='confidence'||confidenceKey==='quantityconfidence'||confidenceKey==='productconfidence'||groundedCustomer){
         if(typeof item==='string'&&item.toLowerCase()==='low')low=true;
         if(typeof item==='number'&&Number.isFinite(item)&&item<0.5)low=true;
       }
