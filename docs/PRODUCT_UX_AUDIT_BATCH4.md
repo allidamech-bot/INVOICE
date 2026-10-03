@@ -23,3 +23,5 @@ TypeScript, production build, static security and dependency audit; four compile
 No provider credentials or independently accessible deployment are available for paid/live canaries in this workspace; no live-provider result is claimed. Browser fixtures prove entry, routing and review-first behavior, not live extraction quality. Product evidence requires an unlocked Vault. Physical Safari hardware is unavailable.
 
 A sampled historical v264 test still expects inline fetch JSON instead of the requestAiJson helper already present on baseline main. Six other deterministic v264 checks passed; this stale non-blocking assertion was not modified or repeatedly debugged.
+
+CI initially rejected the Documents fixture because its hard-coded five-action contract predated the new capture action. The contract now requires all six actions, explicitly verifies capture, and retains compact hero, overflow, 44px targets and paired-row geometry checks.
