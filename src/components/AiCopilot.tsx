@@ -1,3 +1,4 @@
+import { CONTEXTUAL_ADVISOR_EVENT } from './ContextualAdvisorAction.js';
 import type { DocumentItem, DocumentKind, DocumentLanguage, LourexDocument, SavedItem, UiLanguage, VaultPayload } from '../types.js';
 import { t } from '../lib/i18n.js';
 import { buildAiFinanceContext, type AiFinanceContext, type AiFinanceSource } from '../lib/ai-finance.js';
@@ -151,9 +152,10 @@ export class AiCopilot extends React.Component<Props,State>{
   private requestController:AbortController|null=null;
   private cancelRequest=()=>{this.requestGeneration+=1;this.requestController?.abort();this.requestController=null;this.pending=false;};
   private currentRequest=(generation:number,controller:AbortController)=>this.mounted&&generation===this.requestGeneration&&!controller.signal.aborted;
-  componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.onKeyDown);}
+  componentDidMount():void{this.mounted=true;document.addEventListener('keydown',this.onKeyDown);window.addEventListener(CONTEXTUAL_ADVISOR_EVENT,this.openContext);}
   componentDidUpdate(previous:Props):void{if(previous.screen!==this.props.screen||previous.language!==this.props.language||previous.activeDocument?.id!==this.props.activeDocument?.id){this.cancelRequest();this.setState({busy:this.applying,proposal:null,error:''});}}
-  componentWillUnmount():void{this.mounted=false;this.cancelRequest();document.removeEventListener('keydown',this.onKeyDown);}
+  componentWillUnmount():void{this.mounted=false;this.cancelRequest();document.removeEventListener('keydown',this.onKeyDown);window.removeEventListener(CONTEXTUAL_ADVISOR_EVENT,this.openContext);}
+  private openContext=(event:Event)=>{const detail=(event as CustomEvent).detail;if(!this.mounted||this.pending||this.applying||this.state.busy||detail?.screen!==this.props.screen||typeof detail?.question!=='string')return;const input=bounded(detail.question,MAX_MESSAGE_CHARS);if(!input)return;this.setState({open:true,input,proposal:null,error:''},()=>document.querySelector<HTMLInputElement>('#lourex-ai-panel .lourex-ai-compose input')?.focus());};
   private onKeyDown=(event:KeyboardEvent)=>{if(event.key==='Escape'&&this.state.open)this.toggle();};
   private addAudit=(capability:AiCapabilityId,outcome:AiAuditEntry['outcome'])=>this.setState(state=>({audit:[{id:id('audit'),at:new Date().toISOString(),capability,outcome,screen:this.props.screen},...state.audit].slice(0,30)}));
   private toggle=()=>{if(this.applying)return;if(this.state.open)this.cancelRequest();this.setState(state=>({open:!state.open,busy:false,error:'',proposal:state.open?null:state.proposal}));};

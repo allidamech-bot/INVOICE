@@ -1,3 +1,5 @@
+import { ContextualAdvisorAction } from './ContextualAdvisorAction.js';
+import { contextualReportQuestion } from '../lib/contextual-report-question.js';
 import type { CompanySettings, Customer, LourexDocument, PaymentRecord, PurchaseRecord, SavedItem, Supplier } from '../types.js';
 import { formatMoney } from '../lib/money.js';
 import { displayDate, todayIso } from '../lib/id.js';
@@ -79,7 +81,7 @@ export class ReportsPage extends React.Component<Props,State>{
     return <div className="ta-reports-shell"><nav className="ta-report-workspace-tabs" role="tablist" aria-label={t('Report sections','أقسام التقارير')}><button type="button" role="tab" aria-selected={true} className="is-active">{t('Performance','الأداء')}</button><button type="button" role="tab" aria-selected={false} onClick={()=>this.setState({view:'profitability'})}>{t('Profitability','الربحية')}</button><button type="button" role="tab" aria-selected={false} onClick={()=>this.setState({view:'tax'})}>{t('Tax / VAT','الضريبة / VAT')}</button></nav><div className="ta-reports-page financial-report-print">
       <header className="ta-page-header ta-reports-header">
         <div><span className="ta-page-kicker">{t('Management reporting','التقارير الإدارية')}</span><h1>{t('Financial Reports','التقارير المالية')}</h1><p>{t('Sales, collections, receivables and gross profitability with each currency kept separate.','المبيعات والتحصيل والمستحقات والربحية الإجمالية مع إبقاء كل عملة منفصلة.')}</p></div>
-        <div className="ta-page-actions"><Button icon="download" onClick={()=>this.exportCsv(visibleCustomers)}>{t('Export CSV','تصدير CSV')}</Button><Button icon="printer" variant="primary" onClick={this.print}>{t('Print / Save PDF','طباعة / حفظ PDF')}</Button></div>
+        <div className="ta-page-actions"><ContextualAdvisorAction screen="reports" label={t('Explain report','شرح التقرير')} question={contextualReportQuestion(period.from,period.to,visibleSummaries)}/><Button icon="download" onClick={()=>this.exportCsv(visibleCustomers)}>{t('Export CSV','تصدير CSV')}</Button><Button icon="printer" variant="primary" onClick={this.print}>{t('Print / Save PDF','طباعة / حفظ PDF')}</Button></div>
       </header>
 
       <section className="ta-report-filterbar" aria-label={t('Report filters','فلاتر التقرير')}>

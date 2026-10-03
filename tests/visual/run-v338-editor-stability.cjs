@@ -149,7 +149,7 @@ async function runDocumentsDensity(language){
         scrollWidth:document.documentElement.scrollWidth,
         header:header?rect(header):null,
         actions:actions?rect(actions):null,
-        buttons:buttons.map(button=>rect(button)),
+        buttons:buttons.map(button=>({...rect(button),label:button.textContent.trim()})),
         search:search?rect(search):null,
         tabs:tabs?rect(tabs):null,
         titleFont:title?parseFloat(getComputedStyle(title).fontSize):0
@@ -162,22 +162,21 @@ async function runDocumentsDensity(language){
     if(metrics.header&&metrics.header.height>240)failures.push(`Documents hero is still oversized at ${metrics.header.height.toFixed(1)}px`);
     if(metrics.header&&(metrics.header.left<-1||metrics.header.right>metrics.viewport.width+1))failures.push(`Documents hero escapes viewport: ${JSON.stringify(metrics.header)}`);
     if(metrics.titleFont>28)failures.push(`Documents title font remains oversized at ${metrics.titleFont}px`);
-    if(metrics.buttons.length!==5)failures.push(`expected 5 creation actions, found ${metrics.buttons.length}`);
+    if(metrics.buttons.length!==6)failures.push(`expected 6 creation actions, found ${metrics.buttons.length}`);
 
     for(const [index,button] of metrics.buttons.entries()){
       if(button.height<44)failures.push(`action ${index+1} touch height ${button.height.toFixed(1)}px < 44px`);
       if(button.height>60)failures.push(`action ${index+1} height ${button.height.toFixed(1)}px is too tall`);
       if(button.left<-1||button.right>metrics.viewport.width+1)failures.push(`action ${index+1} escapes viewport`);
     }
-    if(metrics.buttons.length===5&&metrics.actions){
-      const [a,b,c,d,last]=metrics.buttons;
-      if(Math.abs(a.top-b.top)>2)failures.push(`first action row is not aligned: ${a.top} vs ${b.top}`);
-      if(Math.abs(c.top-d.top)>2)failures.push(`second action row is not aligned: ${c.top} vs ${d.top}`);
-      if(c.top<=a.top+10)failures.push('second action row did not advance vertically');
-      if(last.top<=c.top+10)failures.push('full-width final action did not advance to its own row');
-      if(Math.abs(a.width-b.width)>3||Math.abs(c.width-d.width)>3)failures.push('two-column action widths are inconsistent');
-      if(last.width<a.width*1.8)failures.push(`final action is not full width: ${last.width.toFixed(1)}px vs half ${a.width.toFixed(1)}px`);
-      if(Math.abs(last.width-metrics.actions.width)>4)failures.push(`final action width ${last.width.toFixed(1)}px does not match actions container ${metrics.actions.width.toFixed(1)}px`);
+    if(metrics.buttons.length===6&&metrics.actions){
+      if(!metrics.buttons.some(button=>/Create from file|إنشاء من ملف/.test(button.label)))failures.push('contextual file capture action is missing');
+      for(let index=0;index<6;index+=2){
+        const a=metrics.buttons[index],b=metrics.buttons[index+1];
+        if(Math.abs(a.top-b.top)>2)failures.push(`action row ${index/2+1} is not aligned`);
+        if(Math.abs(a.width-b.width)>3)failures.push(`action row ${index/2+1} widths are inconsistent`);
+        if(index>0&&a.top<=metrics.buttons[index-2].top+10)failures.push(`action row ${index/2+1} did not advance vertically`);
+      }
     }
     if(metrics.search){
       if(metrics.search.height<50||metrics.search.height>64)failures.push(`search height ${metrics.search.height.toFixed(1)}px is outside compact range`);
