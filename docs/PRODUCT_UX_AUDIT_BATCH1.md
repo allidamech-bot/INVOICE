@@ -1,52 +1,66 @@
-# Product / UX audit — batch 1 baseline
+# Batch 1 — responsive safety and mobile density
 
-Baseline: main `10999686` (PR #491). No open PRs were returned at the start of this inspection.
+Baseline: main `10999686c066573470e0a5ec448dac10b8efbf5e` (PR #491).
+Branch: `audit/product-ux-batch1`. PR: #492. Merge pending final blocking CI.
 
-## Scope and evidence
+## Changes and evidence
 
-This is an initial source inspection of the application shell, shared modal,
-application initialization, and CSS build ownership. It is not a production visual
-audit or a completed accounting/AI audit. Device behavior still needs browser
-verification. Findings below distinguish confirmed code behavior from follow-up
-risks.
+- Shared modal height follows the actual visual viewport, including keyboard
+  viewports below 240px. Existing offset and desktop cleanup remain intact.
+- Documents uses a native phone type selector with all ten existing choices.
+  Desktop tabs remain intact; both controls update the same filter state.
+- Mobile intro decoration is collapsed and creation buttons retain 44px targets.
+  At 390px Chromium, the canonical header fell from 318px to 210px; search moved
+  from y=626 to y=298. No document types or actions were removed.
+- Product import phone review stacks each row with translated labels, preserving
+  all eight columns including sale price/currency, cost/currency, metadata and
+  validation reason. Existing review/confirmation semantics remain unchanged.
+- Phone import uses the existing sticky actions without a duplicate footer.
 
-## Confirmed defect fixed
+## Root causes of failed blocking browser checks
 
-`src/components/UI.tsx`, `ModalFrame.syncVisualViewport`: mobile overlays imposed
-a 240px minimum even when `visualViewport.height` was smaller. With a landscape
-keyboard leaving 190px, the backdrop was 240px high and extended 50px below the
-visible viewport. Its geometry now follows the visible height, retaining the
-existing offset, scroll listeners and desktop cleanup.
+The Documents fixture mounted `.app-ui` on `#root` itself, while production puts
+`.app-ui` inside `#root`. Consequently `#root .app-ui` owners never matched the
+fixture, producing a 425px header. Both Documents and import fixtures now match
+production ancestry. The Documents height assertion was tightened to 240px,
+not relaxed.
 
-A focused behavioral test executes the transpiled component method with a
-190px keyboard viewport, keyboard dismissal, desktop rotation and the fallback
-without VisualViewport. This verifies generated geometry, not rendered device
-layout. No new dependency was introduced.
+The Safari import test asserted an additional 72px chrome reserve after
+`visualViewport.height` was already used. That contradicts current viewport
+ownership and double-subtracts chrome. The test now requires zero duplicate
+reserve and retains geometry, CTA visibility, sticky scroll stability, body lock,
+RTL, parsing and save checks. A focused browser test also exercises a simulated
+190px keyboard viewport with offset and its dismissal in Chromium and WebKit.
 
-## Visual ownership inventory
+## QA actually run
 
-- 237 source CSS files; these are not all necessarily active in production.
-- 70 direct local stylesheet links in `index.html`; additional build/runtime
-  ownership must be traced before proposing removals.
-- 36,047 `!important` occurrences across source styles. This is an inventory
-  count, not evidence that every declaration affects the live cascade.
-- `scripts/build.mjs` already retires some historical layers and enforces a final
-  reliability bridge. Later build scripts add more visual bundles.
+- Dependency audit: PASS, zero vulnerabilities.
+- LOUREX static security: PASS.
+- TypeScript / production build: PASS.
+- Shared-modal behavioral test: PASS.
+- Documents: 320/390/430/820/900/901/1024/1440, representative AR/EN and dark/light:
+  PASS. No horizontal overflow; all choices retained; 44px creation targets.
+- Phone Product Import 320px Arabic: Chromium + WebKit PASS, all eight columns
+  and financial values preserved, close releases body scrolling.
+- Existing import final audit: PASS, six real-component scenarios.
+- v338/v483 WebKit editor/save-loop/Documents gate: PASS.
+- iPad Desktop-UA WebKit: 820x1180 portrait Draft and 1194x834 landscape Draft,
+  Invoice and Quotation: PASS, end-scroll and autosave.
+- Shell navigation: PASS, ten Chromium/WebKit phone+iPad cases.
+- WebKit overlay-release and sign-out guard: PASS.
 
-The next visual pass must map computed styles to active owners before changing
-surface colors or geometry. The inventory alone does not justify another
-foundation rewrite or deleting historical CSS.
+Screenshots and geometry reports are generated under
+`visual-qa-output/responsive-batch1`. Final published CI is authoritative for merge.
 
-## Follow-up order
+## Limitations
 
-1. Render shared dialogs and More/Create overlays in Arabic and English at phone,
-   tablet and desktop widths; verify scrolling, footer reachability, keyboard and
-   focus return. Inspect nested-overlay event ownership.
-2. Trace active surface/background owners on Home, Documents and the editor;
-   correct verified contrast and hierarchy defects in existing owners.
-3. Exercise document create/edit/save/reopen and accounting validation with
-   focused checks for actual defects.
-4. Exercise AI attachment, voice repeat recording, proposal review and approval.
+VisualViewport keyboard/chrome transitions are simulated. Real physical Safari
+keyboard/browser-toolbar behavior is not claimed as hardware-verified. Fixtures
+render actual components with local data; this is not an authenticated production
+account audit. No storage, accounting, auth, AI or PDF behavior was changed.
 
-Preserve repository isolation and feature-branch delivery. Run checks tied to
-changed behavior; avoid repeating unrelated historical suites.
+## Sequential continuation
+
+After blocking CI passes and this PR merges, begin Batch 2 from newly merged
+main: inventory active production owners and consolidate in small parity-proven
+steps. Do not restore PR #484 or stack future batches on this unmerged branch.

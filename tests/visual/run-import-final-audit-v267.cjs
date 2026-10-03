@@ -139,7 +139,9 @@ function assertMobileModal(layout,{mustScroll=true}={}){
         await page.locator('.product-import-mapping-list').waitFor();
         const layout=await modalMeasurements(page);
         assertMobileModal(layout);
-        assert.ok(layout.browserReserve>=72,`iPhone Safari overlay reserve is missing: ${layout.browserReserve}`);
+        // visualViewport.height already excludes browser chrome. Reserving a
+        // second 72px hides usable content; assert visible actions instead.
+        assert.equal(layout.browserReserve,0,'visual viewport must not double-reserve Safari chrome');
         assert.ok(layout.stickyActions.bottom<=layout.viewport-layout.browserReserve+1,`sticky actions ${layout.stickyActions.bottom} remain beneath Safari chrome ending at ${layout.viewport-layout.browserReserve}`);
         const actions=page.locator('.product-import-mobile-actions');
         const before=await actions.boundingBox();

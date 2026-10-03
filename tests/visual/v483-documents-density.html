@@ -8,7 +8,7 @@
   <title>v483 Documents density QA</title>
 </head>
 <body>
-  <div id="root" class="app-ui"></div>
+  <div id="root"><div id="documents-fixture" class="app-ui"></div></div>
   <script src="vendor/react.production.min.js"></script>
   <script src="vendor/react-dom.production.min.js"></script>
   <script type="module">
@@ -39,7 +39,7 @@
         onRecordPayment:noop,
         onCreateCreditNote:noop,
         onOpenStatements:noop
-      }),document.getElementById('root'));
+      }),document.getElementById('documents-fixture'));
     };
 
     window.renderDocumentsDensity('en');
