@@ -1,3 +1,4 @@
+import { requestAiJson } from '../lib/ai-request.js';
 import { readablePdfText } from '../lib/pdf-source.js';
 import type { PurchaseRecord } from '../types.js';
 import { t } from '../lib/i18n.js';
@@ -27,26 +28,27 @@ async function payloadFor(file:File):Promise<AiPayload>{
   const mime=file.type||(name.endsWith('.pdf')?'application/pdf':name.endsWith('.png')?'image/png':/\.jpe?g$/.test(name)?'image/jpeg':name.endsWith('.webp')?'image/webp':'');if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error(t(`Unsupported offer file: ${file.name}.`,`نوع ملف العرض غير مدعوم: ${file.name}.`));if(mime==='application/pdf'){if(file.size>MAX_SPREADSHEET_BYTES)throw new Error(t('PDF exceeds 12 MB.','ملف PDF يتجاوز 12 MB.'));const text=await readablePdfText(file,MAX_TEXT_CHARS);if(text.trim())return{kind:'text',mimeType:'text/plain',text};}
   if(file.size>MAX_BINARY_BYTES)throw new Error(t(`${file.name} is too large for safe AI analysis.`,`الملف ${file.name} كبير للتحليل الآمن.`));return{kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
 }
-async function extractOffer(file:File,signal:AbortSignal):Promise<OfferProposal>{const payload=await payloadFor(file);const response=await fetch('/api/supplier-document-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({fileName:file.name,...payload}),signal});let body:any={};try{body=await response.json();}catch{}if(!response.ok||!body?.draft?.items?.length)throw new Error(String(body?.message||t(`No reliable supplier offer lines in ${file.name}.`,`لا توجد بنود عرض مورد موثوقة في ${file.name}.`)));return{fileName:file.name,draft:body.draft as SupplierImportDraft,model:String(body.model||'LOUREX AI')};}
+async function extractOffer(file:File,signal:AbortSignal):Promise<OfferProposal>{const payload=await payloadFor(file);const body=await requestAiJson('/api/supplier-document-ai',{fileName:file.name,...payload},signal);if(!body?.draft?.items?.length)throw new Error(String(body?.message||t(`No reliable supplier offer lines in ${file.name}.`,`لا توجد بنود عرض مورد موثوقة في ${file.name}.`)));return{fileName:file.name,draft:body.draft as SupplierImportDraft,model:String(body.model||'LOUREX AI')};}
 function supplierName(draft:SupplierImportDraft):string{return draft.supplierName||t('Unidentified supplier','مورد غير محدد');}
 function noteValue(notes:string,label:string):string{const row=notes.split(/\r?\n/).find(line=>line.toLowerCase().startsWith(`${label.toLowerCase()}:`));return row?row.slice(row.indexOf(':')+1).trim():'';}
 function missingOfferFacts(draft:SupplierImportDraft):string[]{const missing:string[]=[];if(!draft.currency.trim())missing.push(t('currency','العملة'));if(draft.items.some(item=>!item.unit.trim()))missing.push(t('item unit','وحدة الصنف'));if(!draft.freight.trim())missing.push(t('freight','الشحن'));if(!draft.duty.trim())missing.push(t('duty','الجمارك'));if(!draft.otherCosts.trim())missing.push(t('other landed costs','تكاليف الوصول الأخرى'));return Array.from(new Set(missing));}
 
 export class ProcurementAiCompare extends React.Component<Props,State>{
-  private input:HTMLInputElement|null=null;private abort:AbortController|null=null;
+  private input:HTMLInputElement|null=null;private abort:AbortController|null=null;private saving=false;
   state:State={open:false,stage:'pick',files:[],offers:[],comparisons:[],selectedOfferIndex:-1,error:'',savedLabel:''};
   componentDidMount():void{window.addEventListener('lourex-ai-open-procurement',this.openFromEvent);}
   componentWillUnmount():void{this.abort?.abort();window.removeEventListener('lourex-ai-open-procurement',this.openFromEvent);}
   private openFromEvent=()=>this.open();
-  private open=()=>this.setState({open:true,stage:'pick',files:[],offers:[],comparisons:[],selectedOfferIndex:-1,error:'',savedLabel:''});
-  private close=()=>{if(this.state.stage==='analyzing'||this.state.stage==='saving')return;this.abort?.abort();this.setState({open:false});};
+  private open=()=>{if(this.saving)return;this.abort?.abort();this.setState({open:true,stage:'pick',files:[],offers:[],comparisons:[],selectedOfferIndex:-1,error:'',savedLabel:''});};
+  private close=()=>{if(this.saving||this.state.stage==='saving')return;this.abort?.abort();this.setState({open:false,stage:'pick'});};
   private choose=(files:FileList|null)=>{const next=Array.from(files??[]).slice(0,MAX_FILES);this.setState({files:next,offers:[],comparisons:[],selectedOfferIndex:-1,error:'',stage:'pick'});if(this.input)this.input.value='';};
   private analyze=async()=>{
-    if(this.state.files.length<2)return;this.abort?.abort();const controller=new AbortController();this.abort=controller;this.setState({stage:'analyzing',offers:[],comparisons:[],error:''});
+    if(this.saving||this.state.stage==='saving'||this.state.files.length<2)return;this.abort?.abort();const controller=new AbortController();this.abort=controller;this.setState({stage:'analyzing',offers:[],comparisons:[],error:''});
     try{
       const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX before comparing supplier offers.','افتح قفل LOUREX قبل مقارنة عروض الموردين.'));
       const offers:OfferProposal[]=[];const failures:string[]=[];for(const file of this.state.files){try{offers.push(await extractOffer(file,controller.signal));}catch(error){if(controller.signal.aborted)return;failures.push(`${file.name}: ${error instanceof Error?error.message:String(error)}`);}}
       if(offers.length<2)throw new Error(failures[0]||t('At least two readable supplier offers are required.','يلزم عرضان موردان قابلان للقراءة على الأقل.'));
+      if(controller.signal.aborted)return;
       const ephemeral:PurchaseRecord[]=[];
       for(const [index,offer] of offers.entries()){
         const purchase=buildAiSupplierPurchaseDraft(offer.draft,[...resumed.vault.purchases,...ephemeral],resumed.vault.suppliers,resumed.vault.savedItems);
@@ -54,12 +56,12 @@ export class ProcurementAiCompare extends React.Component<Props,State>{
       }
       const context=buildProcurementDraftContext({...resumed.vault,purchases:[...resumed.vault.purchases.filter(p=>p.status!=='draft'),...ephemeral]});
       this.setState({stage:'review',offers,comparisons:context.comparisons,selectedOfferIndex:-1,error:failures.length?failures.join('\n'):''});
-    }catch(error){this.setState({stage:'error',error:error instanceof Error?error.message:String(error)});}finally{this.abort=null;}
+    }catch(error){if(controller.signal.aborted)return;this.setState({stage:'error',error:error instanceof Error?error.message:String(error)});}finally{if(this.abort===controller)this.abort=null;}
   };
   private saveSelected=async()=>{
-    const offer=this.state.offers[this.state.selectedOfferIndex];if(!offer||this.state.stage==='saving')return;this.setState({stage:'saving',error:''});
+    const offer=this.state.offers[this.state.selectedOfferIndex];if(!offer||this.saving||this.state.stage==='saving')return;this.saving=true;this.setState({stage:'saving',error:''});
     try{const next=await mutateVaultSafely(vault=>{const purchase=buildAiSupplierPurchaseDraft(offer.draft,vault.purchases,vault.suppliers,vault.savedItems);return{...vault,purchases:[...vault.purchases,purchase]};});const saved=next.purchases.at(-1);this.setState({stage:'done',savedLabel:saved?t(`Purchase draft ${saved.number} saved for review`,`تم حفظ مسودة الشراء ${saved.number} للمراجعة`):t('Purchase draft saved','تم حفظ مسودة الشراء')});}
-    catch(error){this.setState({stage:'review',error:error instanceof Error?error.message:String(error)});}
+    catch(error){this.setState({stage:'review',error:error instanceof Error?error.message:String(error)});}finally{this.saving=false;}
   };
   render():any{return <>
     {this.props.launcher===false?null:<Button icon="items" onClick={this.open}>{t('Compare Supplier Offers','مقارنة عروض الموردين')}</Button>}

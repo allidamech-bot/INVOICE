@@ -1,3 +1,4 @@
+import { requestAiJson } from '../lib/ai-request.js';
 import { readablePdfText } from '../lib/pdf-source.js';
 import type { PurchaseRecord, SavedItem, Supplier, UiLanguage } from '../types.js';
 import { t } from '../lib/i18n.js';
@@ -80,12 +81,9 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
 
   private requestAi=async(file:File,payload:AiPayload,generation:number)=>{
     const controller=new AbortController();this.requestAbort=controller;
-    const timeout=window.setTimeout(()=>controller.abort(),26000);
     this.setState({stage:'ai'});
     try{
-      const response=await fetch('/api/supplier-document-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({fileName:file.name,...payload}),signal:controller.signal});
-      let body:any={};try{body=await response.json();}catch{}
-      if(!response.ok)throw new Error(String(body?.message||t('Unable to analyze this supplier document.','تعذر تحليل مستند المورد.')));
+      const body=await requestAiJson('/api/supplier-document-ai',{fileName:file.name,...payload},controller.signal);
       if(!body?.draft?.items?.length)throw new Error(t('No reliable purchase lines were found.','لم يتم العثور على بنود شراء موثوقة.'));
       if(generation!==this.requestGeneration||controller.signal.aborted)return;
       this.setState({draft:body.draft as SupplierImportDraft,model:String(body.model||'LOUREX AI'),stage:'ready',error:''});
@@ -94,7 +92,6 @@ export class SupplierDocumentImport extends React.Component<Props,State>{
       const timedOut=controller.signal.aborted;
       this.setState({stage:'error',error:timedOut?t('Analysis took too long. Check the connection and retry; nothing was saved.','استغرق التحليل وقتًا طويلًا. تحقق من الاتصال وأعد المحاولة؛ لم يتم حفظ شيء.'):error instanceof Error?error.message:String(error),draft:null});
     }finally{
-      window.clearTimeout(timeout);
       if(this.requestAbort===controller)this.requestAbort=null;
     }
   };

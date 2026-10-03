@@ -1,3 +1,4 @@
+import { requestAiJson } from '../lib/ai-request.js';
 import { readablePdfText } from '../lib/pdf-source.js';
 import type { Customer } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
@@ -81,7 +82,7 @@ export class CustomerAiCapture extends React.Component<Props,State>{
   };
   private cancel=()=>{this.generation+=1;this.abort?.abort();this.abort=null;};
   private open=()=>{this.cancel();this.setState({open:true,stage:'idle',files:[],pastedText:'',proposal:null,matches:[],selectedMatchId:'',errors:[],error:'',model:''});};
-  private close=()=>{if(this.state.stage==='reading'||this.state.stage==='analyzing')return;this.cancel();this.setState({open:false});};
+  private close=()=>{this.cancel();this.setState({open:false,stage:'idle'});};
 
   private chooseFiles=(files:FileList|null)=>{
     const next=Array.from(files??[]).slice(0,MAX_FILES);
@@ -91,14 +92,11 @@ export class CustomerAiCapture extends React.Component<Props,State>{
 
   private request=async(fileName:string,payload:AiPayload,generation:number):Promise<{proposal:CustomerAiProposal;model:string}|null>=>{
     const controller=new AbortController();this.abort=controller;
-    const timeout=window.setTimeout(()=>controller.abort(),26000);
     try{
-      const response=await fetch('/api/customer-capture-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({fileName,...payload}),signal:controller.signal});
-      let body:any={};try{body=await response.json();}catch{}
-      if(!response.ok)throw new Error(String(body?.message||t('Unable to analyze this customer source.','تعذر تحليل مصدر بيانات العميل.')));
+      const body=await requestAiJson('/api/customer-capture-ai',{fileName,...payload},controller.signal);
       if(generation!==this.generation||controller.signal.aborted)return null;
       return {proposal:normalizeCustomerAiProposal(body.proposal),model:String(body.model||'LOUREX AI')};
-    }finally{window.clearTimeout(timeout);if(this.abort===controller)this.abort=null;}
+    }finally{if(this.abort===controller)this.abort=null;}
   };
 
   private analyze=async()=>{
