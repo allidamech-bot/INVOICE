@@ -127,6 +127,7 @@ function statusLabel(doc:LourexDocument,state:Exclude<WorkspaceStatus,'all'|'voi
 export class DocumentsPage extends React.Component<Props,State>{
   state:State={tab:'all',status:this.props.initialStatus??'all',payment:'all',currency:'all',sort:'latest',query:'',menuId:'',filtersOpen:false,outputId:'',detailId:'',secureShareId:''};
   private quoteConversions=new Set<string>();
+  private outputPending=false;
   private menuTrigger:HTMLElement|null=null;
   private desktopMenu:HTMLDivElement|null=null;
 
@@ -259,7 +260,8 @@ export class DocumentsPage extends React.Component<Props,State>{
   private reserveOutput=(mode:'pdf'|'share')=>{try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}};
 
   private runOutput=async(mode:'pdf'|'share',doc:LourexDocument)=>{
-    if(this.state.outputId)return;
+    if(this.outputPending)return;
+    this.outputPending=true;
     this.reserveOutput(mode);
     this.setState({menuId:'',outputId:doc.id});
     try{
@@ -269,7 +271,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       const outputDocument=doc.attachments?.length?{...doc,attachments:[]}:doc;
       await this.props.onPrint(outputDocument,mode);
     }catch{/* App owns output error reporting. */}
-    finally{this.setState({outputId:''});}
+    finally{this.outputPending=false;this.setState({outputId:''});}
   };
 
   private clearFilters=()=>this.setState({tab:'all',status:'all',payment:'all',currency:'all',query:'',sort:'latest',menuId:'',filtersOpen:false});

@@ -44,6 +44,7 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
   private previewTimer:number|undefined;
   private previewMedia:MediaQueryList|null=null;
   private revision=0;
+  private outputPending=false;
   private departureFlushQueued=false;
   constructor(props:Props){
     super(props);
@@ -133,13 +134,17 @@ export class DraftDocumentEditor extends React.Component<Props,State>{
   };
   private saveAndClose=async()=>{if(this.state.saveState==='saved'){this.props.onClose();return;}const saved=await this.persistStable();if(saved)this.props.onClose();};
   private output=async(mode:'print'|'pdf'|'share')=>{
-    if(this.state.outputBusy)return;
-    const doc=this.state.saveState==='saved'?this.state.doc:await this.persistStable();
-    if(!doc)return;
-    try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
-    this.setState({outputBusy:true,error:'',mobilePreview:false});
-    try{await this.props.onPrint(doc,mode);}catch(e){this.setState({error:e instanceof Error?e.message:t('Unable to prepare document.','تعذر تجهيز المستند.')});}
-    finally{this.setState({outputBusy:false});}
+    if(this.outputPending)return;
+    this.outputPending=true;
+    this.setState({outputBusy:true,error:''});
+    try{
+      const doc=this.state.saveState==='saved'?this.state.doc:await this.persistStable();
+      if(!doc)return;
+      try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
+      this.setState({mobilePreview:false});
+      await this.props.onPrint(doc,mode);
+    }catch(e){this.setState({error:e instanceof Error?e.message:t('Unable to prepare document.','تعذر تجهيز المستند.')});}
+    finally{this.outputPending=false;this.setState({outputBusy:false});}
   };
 
   private patchLetter=(patch:Partial<LetterDocumentData>)=>this.mutate(doc=>({...doc,letter:{...normalizeLetterData(doc.letter,doc.language),...patch}}));
