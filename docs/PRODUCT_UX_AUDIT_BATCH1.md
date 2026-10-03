@@ -32,6 +32,14 @@ reserve and retains geometry, CTA visibility, sticky scroll stability, body lock
 RTL, parsing and save checks. A focused browser test also exercises a simulated
 190px keyboard viewport with offset and its dismissal in Chromium and WebKit.
 
+The blocking TailAdmin shard also contained two pre-existing stale assumptions:
+Arabic had to use Outfit although the approved owner uses self-hosted Tajawal,
+and 320px customer summaries had to use one row although the approved owner uses
+two. Contracts now follow these existing language/breakpoint rules. The primary
+button's opaque gradient is preserved while its solid fallback uses the existing
+accent token, resolving the WebKit fallback-color mismatch without changing the
+visible gradient.
+
 ## QA actually run
 
 - Dependency audit: PASS, zero vulnerabilities.

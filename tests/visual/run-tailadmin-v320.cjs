@@ -107,7 +107,10 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
             const failures=[...errors];
             if(state.qaOwnerOrder.join(',')!=='v331,v332,v482')failures.push(`production QA owner order mismatch: ${state.qaOwnerOrder.join(' -> ')}`);
             if(!state.accent||!state.workspace||!state.surface||!state.text)failures.push('TailAdmin --ft-* token set is incomplete');
-            if(!/Outfit/i.test(state.font))failures.push(`TailAdmin typography missing: ${state.font}`);
+            // The approved Arabic owner uses self-hosted Tajawal; older generic
+            // surfaces can still inherit Outfit. English retains its own font.
+            const approvedFont=lang==='ar'?/Tajawal|Outfit/i:/Outfit/i;
+            if(!approvedFont.test(state.font))failures.push(`Approved typography missing: ${state.font}`);
             if(state.scrollWidth>scenario.width+2)failures.push(`horizontal overflow ${state.scrollWidth}px at ${scenario.width}px`);
             if(lang==='ar'&&state.dir!=='rtl')failures.push(`Arabic direction is ${state.dir||'unset'}, expected rtl`);
             if(lang==='en'&&state.dir==='rtl')failures.push('English fixture remained rtl');

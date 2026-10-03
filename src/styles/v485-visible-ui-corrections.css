@@ -363,7 +363,7 @@ html body #root .app-ui .btn:not(.btn-primary):not(.btn-danger):not(.btn-ghost){
   border-color:var(--lx485-line-strong)!important;background:var(--lx485-surface-3)!important;color:var(--lx485-text-2)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)!important;
 }
 html body #root .app-ui .btn.btn-primary{
-  background:linear-gradient(135deg,#619dff,#3975e8)!important;background-color:#3975e8!important;border:1px solid rgba(168,202,255,.48)!important;
+  background:linear-gradient(135deg,#619dff,#3975e8)!important;background-color:var(--ft-accent,#3975e8)!important;border:1px solid rgba(168,202,255,.48)!important;
   color:#fff!important;box-shadow:0 8px 20px rgba(47,106,224,.18),inset 0 1px 0 rgba(255,255,255,.20)!important;
 }
 html body #root .app-ui .btn.btn-danger{background:color-mix(in srgb,#da7088 12%,var(--lx485-surface))!important;border-color:rgba(218,112,136,.35)!important;color:#ed91a4!important;}
