@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css"><link rel="stylesheet" href="styles/v332-critical-documents-deep-closeout.css"><link rel="stylesheet" href="styles/v482-mobile-ux-repair.css"></head><body><div id="root"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {App} from './src/app/App.js';
+import {emptyVault} from './src/lib/defaults.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {getEncryptedVault,activateAccountStorage} from './src/storage/db.js';
+import {decryptVault} from './src/crypto/crypto.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),lang=params.get('lang')==='ar'?'ar':'en';setUiLanguage(lang);document.documentElement.dataset.uiTheme=lang==='ar'?'dark':'light';
+const vault=emptyVault();vault.appSettings.uiLanguage=lang;const quote=createBlankDocument('proforma','QUO-QA-6',vault.company);quote.status='final';quote.language=lang;quote.customerSnapshot={sourceCustomerId:'c1',companyNameEn:'Northstar Trading',companyNameAr:'نورث ستار للتجارة',contactPerson:'',addressEn:'',addressAr:'',city:'Dubai',country:'UAE',phone:'',email:'',vatTaxNumber:'',commercialRegistration:''};quote.items=[{...quote.items[0],descriptionEn:'Industrial valve',descriptionAr:'صمام صناعي',quantity:'3',unitPrice:'12.50',unitCost:'8'}];vault.documents=[quote];
+await activateAccountStorage('commercial-batch6-fixture');const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']);
+class Fixture extends App{
+ constructor(props){super(props);this.state={...this.state,loading:false,unlocked:true,key,vault,screen:'documents',uiLanguage:lang};this.scheduleCloudSync=()=>{};}
+ componentDidMount(){window.fixture=this;}
+ componentWillUnmount(){}
+}
+window.readStored=async()=>decryptVault(key,await getEncryptedVault());
+ReactDOM.render(React.createElement(Fixture),document.getElementById('root'));
+</script></body></html>
