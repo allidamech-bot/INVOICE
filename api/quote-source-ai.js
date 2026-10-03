@@ -1,5 +1,5 @@
 import {includesExplicitSourceCodes,explicitQuoteSource} from './_ai/source-lines.js';
-import {normalizeSourceNumber} from './_ai/numbers.js';
+import {normalizeSourceNumber,explicitSourceDecimal} from './_ai/numbers.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 
 const MAX_BODY_BYTES=4_000_000;
@@ -15,12 +15,13 @@ function rateAllowed(request){const now=Date.now(),key=requestIp(request),existi
 async function readJson(request){const declared=Number(request.headers['content-length']||0);if(Number.isFinite(declared)&&declared>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');let text='';for await(const chunk of request){text+=chunk.toString();if(Buffer.byteLength(text,'utf8')>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');}return JSON.parse(text||'{}');}
 function cleanText(value,max=500){return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);}
 function cleanCurrency(value){const text=cleanText(value,8).toUpperCase();return /^[A-Z]{3}$/.test(text)?text:'';}
-function cleanMoney(value){const text=normalizeSourceNumber(cleanText(value,32)).replace(/,/g,'');return /^\d{1,18}(?:\.\d{1,4})?$/.test(text)?text:'';}
-function cleanQuantity(value){const text=normalizeSourceNumber(cleanText(value,24)).replace(/,/g,'');return /^\d{1,12}(?:\.\d{1,4})?$/.test(text)?text:'';}
+function cleanMoney(value){return explicitSourceDecimal(cleanText(value,32),18);}
+function cleanQuantity(value){const text=explicitSourceDecimal(cleanText(value,24));return text&&/[1-9]/.test(text)?text:'';}
 function cleanConfidence(value){const number=Number(value);return Number.isFinite(number)?Math.max(0,Math.min(1,number)):0;}
 function cleanItem(row){
   if(!row||typeof row!=='object')return null;
   const descriptionEn=cleanText(row.descriptionEn,180),descriptionAr=cleanText(row.descriptionAr,180),sku=cleanText(row.sku,60),quantity=cleanQuantity(row.quantity);if((!descriptionEn&&!descriptionAr&&!sku)||!quantity)return null;
+  if(String(row.unitPrice??'').trim()&&!cleanMoney(row.unitPrice))return null;
   const unit=cleanText(row.unit,40);const unitMissing=!unit;const rawNote=cleanText(row.quantityNote,220);const quantityNote=unitMissing?[rawNote,'Order unit is not stated in the source; review quantity basis before finalizing.'].filter(Boolean).join(' ').slice(0,220):rawNote;
   return{sku,descriptionEn,descriptionAr,quantity,unit,unitPrice:cleanMoney(row.unitPrice),quantityConfidence:unitMissing?Math.min(.6,cleanConfidence(row.quantityConfidence)):cleanConfidence(row.quantityConfidence),quantityAmbiguous:unitMissing||row.quantityAmbiguous===true,quantityNote,productConfidence:cleanConfidence(row.productConfidence),productNote:cleanText(row.productNote,220)};
 }
