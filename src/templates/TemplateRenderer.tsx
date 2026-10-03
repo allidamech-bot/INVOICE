@@ -272,13 +272,52 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
   return lastWeight>allowedLastWeight;
 }
 
-function renderDocument({ document: doc, scale = 1, compact = false }: Props):any{
-  const separateDetails = shouldUseDetailsPage(doc);
-  const outputItems=doc.items.flatMap(item=>outputItemFragments(doc,item));
-  const itemPages = paginateItems(outputItems, !separateDetails, firstPageItemCapacity(doc),doc.language,item=>itemWeight(doc,item));
-  const pages = separateDetails ? [...itemPages, [] as DocumentItem[]] : itemPages;
-  return <div className="invoice-pages" style={{ '--preview-scale': String(scale) } as any}>{pages.map((items,index) => <Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index === pages.length - 1} variant={doc.appearance.templateId} compact={compact}/>)}</div>;
+function initialPages(doc:LourexDocument):DocumentItem[][]{
+  const separateDetails=shouldUseDetailsPage(doc);
+  const fragments=doc.items.flatMap(item=>outputItemFragments(doc,item));
+  // Start with item capacity; measured closing content decides whether to split.
+  const pages=paginateItems(fragments,false,firstPageItemCapacity(doc),doc.language,item=>itemWeight(doc,item));
+  return separateDetails?[...pages,[]]:pages;
 }
+class MeasuredDocument extends React.Component<Props,{pages:DocumentItem[][];ready:boolean}>{
+  state={pages:initialPages(this.props.document),ready:false};
+  private root:HTMLDivElement|null=null;
+  private frame=0;private mounted=false;private moves=0;
+  componentDidMount():void{this.mounted=true;this.prepare();}
+  componentWillUnmount():void{this.mounted=false;cancelAnimationFrame(this.frame);}
+  componentDidUpdate(previous:Props):void{
+    if(previous.document!==this.props.document){this.moves=0;this.setState({pages:initialPages(this.props.document),ready:false},()=>this.prepare());}
+  }
+  private prepare=()=>{void Promise.resolve(document.fonts?.ready).then(()=>{if(this.mounted)this.schedule();});};
+  private schedule=()=>{cancelAnimationFrame(this.frame);this.frame=requestAnimationFrame(()=>{this.frame=requestAnimationFrame(this.measure);});};
+  private measure=()=>{
+    if(!this.mounted||!this.root)return;
+    const articles=Array.from(this.root.querySelectorAll<HTMLElement>('.invoice-page'));
+    for(let i=0;i<articles.length;i++){
+      const article=articles[i]!,footer=article.querySelector('.doc-footer'),body=article.querySelector('.doc-body');
+      if(!footer||!body)continue;
+      if(!article.offsetHeight)return;
+      const scale=article.getBoundingClientRect().height/article.offsetHeight||1;
+      const boundary=footer.getBoundingClientRect().top-8*scale;
+      const bottom=Math.max(...Array.from(body.querySelectorAll('*')).map(node=>node.getBoundingClientRect().bottom));
+      if(bottom<=boundary+1)continue;
+      const pages=this.state.pages.map(page=>[...page]),items=pages[i]!;
+      // A whole row remains intact. Very long rows are already text fragments.
+      if(!items.length||this.moves++>this.props.document.items.length*20+40)return;
+      const moved=items.pop()!;
+      if(!items.length&&i<pages.length-1){items.push(moved);return;}
+      if(!pages[i+1])pages.push([]);
+      pages[i+1]!.unshift(moved);
+      this.setState({pages,ready:false},this.schedule);return;
+    }
+    if(!this.state.ready)this.setState({ready:true});
+  };
+  render():any{
+    const {document:doc,scale=1,compact=false}=this.props,pages=this.state.pages;
+    return <div ref={(node:HTMLDivElement|null)=>{this.root=node;}} className="invoice-pages" data-pagination-ready={this.state.ready?'true':'false'} onLoad={()=>{if(this.state.ready)this.setState({ready:false},this.schedule);else this.schedule();}} style={{'--preview-scale':String(scale)} as any}>{pages.map((items,index)=><Page key={`${doc.id}-${index}`} document={doc} items={items} pageIndex={index} totalPages={pages.length} finalPage={index===pages.length-1} variant={doc.appearance.templateId} compact={compact}/>)}</div>;
+  }
+}
+function renderDocument(props:Props):any{return <MeasuredDocument {...props}/>;}
 
 // The mobile preview overlay stays mounted while hidden. Defer its expensive A4
 // subtree until the overlay is actually open so normal document editing does not

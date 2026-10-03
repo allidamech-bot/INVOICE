@@ -29,6 +29,8 @@ const VENDOR_ASSETS=[
   {name:'firebase-firestore-compat.js',urls:['https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore-compat.js','https://unpkg.com/firebase@12.17.1/firebase-firestore-compat.js']},
   {name:'html2canvas.min.js',urls:['https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js','https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js']},
   {name:'jspdf.umd.min.js',urls:['https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js','https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js']},
+  {name:'pdf.mjs',urls:['https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs','https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.mjs']},
+  {name:'pdf.worker.mjs',urls:['https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.mjs','https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.mjs']},
   {name:'xlsx.full.min.js',urls:['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js']}
 ];
 

@@ -1,3 +1,4 @@
+import {normalizeSourceNumber} from './_ai/numbers.js';
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 
 const MAX_BODY_BYTES=4_000_000;
@@ -13,7 +14,7 @@ function rateAllowed(request){const now=Date.now(),key=requestIp(request),existi
 async function readJson(request){const declared=Number(request.headers['content-length']||0);if(Number.isFinite(declared)&&declared>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');let text='';for await(const chunk of request){text+=chunk.toString();if(Buffer.byteLength(text,'utf8')>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');}return JSON.parse(text||'{}');}
 function cleanText(value,max=180){return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);}
 function cleanCurrency(value){const text=cleanText(value,8).toUpperCase();return /^[A-Z]{3}$/.test(text)?text:'';}
-function cleanMoney(value){const text=cleanText(value,30).replace(/,/g,'');return /^\d{1,18}(?:\.\d{1,4})?$/.test(text)?text:'';}
+function cleanMoney(value){const text=normalizeSourceNumber(cleanText(value,30)).replace(/,/g,'');return /^\d{1,18}(?:\.\d{1,4})?$/.test(text)?text:'';}
 function cleanDate(value){const text=cleanText(value,10);return /^\d{4}-\d{2}-\d{2}$/.test(text)?text:'';}
 function cleanItem(row){if(!row||typeof row!=='object')return null;const quantity=cleanMoney(row.quantity),unitCost=cleanMoney(row.unitCost);const descriptionEn=cleanText(row.descriptionEn,180),descriptionAr=cleanText(row.descriptionAr,180),sku=cleanText(row.sku,60);if(!quantity||!unitCost||(!descriptionEn&&!descriptionAr&&!sku))return null;return{sku,descriptionEn,descriptionAr,quantity,unit:cleanText(row.unit,40),unitCost};}
 function cleanResult(value){if(!value||typeof value!=='object')return null;const items=Array.isArray(value.items)?value.items.slice(0,120).map(cleanItem).filter(Boolean):[];if(!items.length)return null;const moq=cleanText(value.moq,120),leadTime=cleanText(value.leadTime,120),rawNotes=cleanText(value.notes,500);const notes=[moq?`MOQ: ${moq}`:'',leadTime?`Lead time: ${leadTime}`:'',rawNotes].filter(Boolean).join('\n');return{supplierName:cleanText(value.supplierName,160),supplierTaxId:cleanText(value.supplierTaxId,80),documentNumber:cleanText(value.documentNumber,80),date:cleanDate(value.date),currency:cleanCurrency(value.currency),freight:cleanMoney(value.freight),duty:cleanMoney(value.duty),otherCosts:cleanMoney(value.otherCosts),paymentTerms:cleanText(value.paymentTerms,160),notes,items};}

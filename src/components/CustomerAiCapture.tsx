@@ -1,3 +1,4 @@
+import { readablePdfText } from '../lib/pdf-source.js';
 import type { Customer } from '../types.js';
 import { isArabic, t } from '../lib/i18n.js';
 import { readSpreadsheetFile, spreadsheetSheetsAsText } from '../lib/spreadsheet-reader.js';
@@ -46,11 +47,15 @@ async function payloadForFile(file:File):Promise<AiPayload>{
   }
   if(name.endsWith('.txt')){
     if(file.size>1_000_000)throw new Error(t(`${file.name} is too large.`,`الملف ${file.name} كبير جدًا.`));
-    const text=(await file.text()).slice(0,MAX_TEXT_CHARS);if(!text.trim())throw new Error(t(`${file.name} is empty.`,`الملف ${file.name} فارغ.`));
+    const text=await file.text();if(text.length>MAX_TEXT_CHARS)throw new Error(t('Text exceeds the analysis limit. Split the source into smaller files.','النص يتجاوز حد التحليل. قسّم المصدر إلى ملفات أصغر.'));if(!text.trim())throw new Error(t(`${file.name} is empty.`,`الملف ${file.name} فارغ.`));
     return {kind:'text',mimeType:'text/plain',text};
   }
   const mime=file.type||(name.endsWith('.pdf')?'application/pdf':name.endsWith('.png')?'image/png':/\.jpe?g$/.test(name)?'image/jpeg':name.endsWith('.webp')?'image/webp':'');
   if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(mime))throw new Error(t(`Unsupported file: ${file.name}.`,`نوع الملف غير مدعوم: ${file.name}.`));
+  if(mime==='application/pdf'){
+    if(file.size>MAX_SPREADSHEET_BYTES)throw new Error(t('PDF exceeds 12 MB.','ملف PDF يتجاوز 12 MB.'));
+    const text=await readablePdfText(file,MAX_TEXT_CHARS);if(text.trim())return {kind:'text',mimeType:'text/plain',text};
+  }
   if(file.size>MAX_BINARY_BYTES)throw new Error(t(`${file.name} is too large for safe AI analysis. Reduce it below 2.6 MB.`,`الملف ${file.name} كبير للتحليل الآمن. خفّضه لأقل من 2.6 MB.`));
   return {kind:'file',mimeType:mime,data:bytesToBase64(await file.arrayBuffer())};
 }

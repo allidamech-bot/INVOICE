@@ -365,7 +365,10 @@
   };
   window.__LOUREX_OUTPUT_ERROR__ = (message) => showPreparationError(new Error(String(message||'Unable to prepare document.')));
 
-  const portalIsReady = () => Boolean(document.querySelector('.print-portal .invoice-page'));
+  const portalIsReady = () => {
+    const pages=document.querySelector('.print-portal [data-pagination-ready]');
+    return Boolean(document.querySelector('.print-portal .invoice-page'))&&(!pages||pages.getAttribute('data-pagination-ready')==='true');
+  };
   const prepareCurrentOutput = () => {
     const overlay=ensureInlineOverlay(pendingMode);
     if (pendingMode==='print') {
