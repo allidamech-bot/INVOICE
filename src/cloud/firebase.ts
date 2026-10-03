@@ -269,6 +269,28 @@ export async function resolveCloudConflictWithLocal(uid:string):Promise<void>{
 }
 export async function resolveCloudConflictWithCloud(uid:string):Promise<void>{const installed=await installCloudVault(uid,true);if(!installed)throw new Error('Cloud account data is unavailable.');}
 
+// Only used before PIN verification, while the workspace is locked. Do not
+// publish local data here or overwrite local changes without a user's choice.
+export async function refreshCloudVaultForUnlock(uid:string):Promise<'same'|'pulled'|'diverged'>{
+  requireCurrentUid(uid);
+  const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(uid)]);
+  if(!remote)return 'same';
+  if(local){
+    const hash=await sha256(local.cipher);
+    if(hash===remote.cipherSha256){writeSyncAnchor(uid,remote);return 'same';}
+    const anchor=readSyncAnchor(uid);
+    if(!anchor)return 'diverged';
+    const remoteChanged=remote.revision!==anchor.revision||remote.cipherSha256!==anchor.cipherSha256;
+    if(!remoteChanged)return 'same';
+    if(hash!==anchor.cipherSha256)return 'diverged';
+  }
+  // An explicit unlock may safely fast-forward an unchanged device even after
+  // the short startup budget has elapsed. The installer rechecks UID/dirty UI.
+  if(!document.querySelector('.ta-unlock-page'))throw new Error('Lock the workspace before refreshing secure access.');
+  const installed=await installCloudVault(uid);
+  return installed?'pulled':'same';
+}
+
 export async function reconcileCloudVault(uid:string):Promise<CloudSyncResult>{
   requireCurrentUid(uid);
   const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(uid)]);

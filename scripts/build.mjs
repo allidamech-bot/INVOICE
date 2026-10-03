@@ -1,5 +1,6 @@
 import { cp, mkdir, rm, readFile, writeFile, readdir } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 const EXPECTED_REPO_OWNER='allidamech-bot';
 const EXPECTED_REPO_SLUG='INVOICE';
@@ -166,6 +167,12 @@ const firebaseAppScript='<script crossorigin src="./vendor/firebase-app-compat.j
 if(!html.includes(firebaseAppScript))throw new Error('Production HTML is missing the vendored Firebase app runtime.');
 html=html.replace(firebaseAppScript,`${firebaseAppScript}\n  <script src="./vendor/firebase-app-check-compat.js"></script>\n  <script src="./firebase-app-check-bootstrap.js"></script>`);
 html=html.replace(/\s*<link rel="preconnect" href="https:\/\/(?:cdn\.jsdelivr\.net|www\.gstatic\.com)"[^>]*\/>\n?/g,'\n');
+// Existing installed workers cache this public runtime by its full URL. A
+// content-derived URL delivers voice fixes even before the new worker activates.
+const voiceRuntimeHash=createHash('sha256').update(await readFile('dist/ai-composer-v449.js')).digest('hex').slice(0,16);
+const voiceRuntimeUrl=`./ai-composer-v449.js?v=${voiceRuntimeHash}`;
+if(!html.includes('./ai-composer-v449.js?v=449-1'))throw new Error('Voice runtime reference is missing.');
+html=html.replace('./ai-composer-v449.js?v=449-1',voiceRuntimeUrl);
 await writeFile('dist/index.html',html);
 
 // Keep the browser-driven template stress fixture available on local and
@@ -192,6 +199,7 @@ if(!supplierImport.includes('../lib/spreadsheet-reader.js'))throw new Error('Sup
 
 const swPath='dist/sw.js';
 let sw=await readFile(swPath,'utf8');
+sw=sw.replace("LOCAL_CORE.push('./canonical-redirect.js');",`LOCAL_CORE.push(${JSON.stringify(voiceRuntimeUrl)});\nLOCAL_CORE.push('./canonical-redirect.js');`);
 sw=sw.replace("const CACHE = 'lourex-invoice-v202';","const CACHE = 'lourex-invoice-v203';\n// lourex-invoice-v202: preserved as a legacy marker for cache-migration tests.");
 sw=sw.replace("const CACHE = 'lourex-invoice-v203';","const CACHE = 'lourex-invoice-v204';\n// lourex-invoice-v203: preserved as a legacy marker for cache-migration tests.");
 sw=sw.replace(/"\.\/styles\/[^\"]+\.css"(?:,"\.\/styles\/[^\"]+\.css")*/g,'"./styles/app.bundle.css"');

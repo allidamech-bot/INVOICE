@@ -13,3 +13,7 @@ export function accountPasswordIssue(password:string):AccountPasswordIssue{
 }
 
 export function accountPasswordAcceptable(password:string):boolean{return accountPasswordIssue(password)===null;}
+/** Normalize numeric keyboard glyphs without changing the PIN's digits. */
+export function normalizePinInput(value:string):string{
+  return value.replace(/[\u0660-\u0669\u06f0-\u06f9]/g,digit=>String(digit.charCodeAt(0)-(digit.charCodeAt(0)<=0x669?0x660:0x6f0))).replace(/\D/g,'').slice(0,12);
+}

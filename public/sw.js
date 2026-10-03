@@ -152,7 +152,7 @@ LOCAL_CORE.push('./document-entry-v302.js');
 LOCAL_CORE.push('./src/lib/customer-search.js');
 LOCAL_CORE.push('./canonical-redirect.js');
 const EXTERNAL_CORE_SET = new Set(EXTERNAL_CORE);
-const FRESH_PATHS = new Set(['/ios-print-bridge.js','/pull-to-refresh.js']);
+const FRESH_PATHS = new Set(['/ios-print-bridge.js','/pull-to-refresh.js','/ai-composer-v449.js']);
 const APP_CACHE_PREFIX='lourex-invoice-';
 
 function isAppRuntimePath(pathname){
