@@ -223,7 +223,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     return this.props.documents.find(item=>item.kind==='invoice'&&item.role==='standard'&&item.convertedFromId===doc.id&&item.lifecycleStatus!=='voided');
   };
 
-  private commercialStatus=(doc:LourexDocument)=>isQuoteLikeDocument(doc)?buildCommercialFlowSnapshot(doc,this.props.documents,this.props.documentEvents).status:null;
+  private commercialStatus=(doc:LourexDocument)=>doc.lifecycleStatus!=='voided'&&isQuoteLikeDocument(doc)?buildCommercialFlowSnapshot(doc,this.props.documents,this.props.documentEvents).status:null;
 
   private filtered():LourexDocument[]{
     const q=this.state.query.trim().toLowerCase();
