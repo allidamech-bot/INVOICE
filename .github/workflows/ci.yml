@@ -67,10 +67,12 @@ jobs:
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium webkit
 
-      - name: Start WebKit stability server
+      - name: Run v338/v339 editor + navigation stability WebKit gates
+        id: stability_qa
         run: |
           npx http-server . -p 4173 -c-1 > /tmp/lourex-v339-stability-server.log 2>&1 &
-          echo $! > /tmp/lourex-v339-stability-server.pid
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
           ready=0
           for attempt in $(seq 1 30); do
             if curl --fail --silent --show-error http://127.0.0.1:4173/tests/visual/v338-editor-stability.html >/dev/null; then
@@ -83,28 +85,10 @@ jobs:
             cat /tmp/lourex-v339-stability-server.log
             exit 1
           fi
-
-      - name: WebKit core editor stability
-        id: stability_core
-        continue-on-error: true
-        run: node tests/visual/run-v338-editor-stability.cjs
-
-      - name: WebKit iPad draft stability
-        id: stability_ipad_draft
-        continue-on-error: true
-        run: |
+          node tests/visual/run-v338-editor-stability.cjs
           node tests/visual/run-v339-ipad-landscape-draft.cjs
+          node tests/visual/run-v339-ipad-landscape-commercial.cjs
           node tests/visual/run-v339-ipad-portrait-draft.cjs
-
-      - name: WebKit commercial quotation geometry
-        id: stability_commercial
-        continue-on-error: true
-        run: node tests/visual/run-v339-ipad-landscape-commercial.cjs
-
-      - name: WebKit navigation, responsive and voice stability
-        id: stability_remaining
-        continue-on-error: true
-        run: |
           node tests/visual/run-v337-shell-navigation.cjs
           node tests/visual/run-v339-shell-overlay-release.cjs
           node tests/visual/run-v339-signout-guard.cjs
@@ -114,28 +98,15 @@ jobs:
           node tests/visual/run-modal-viewport-acceptance-batch1.cjs
           node tests/visual/run-ai-voice-reliability-batch5.cjs
 
-      - name: Stop WebKit stability server
-        if: always()
-        run: |
-          if [ -f /tmp/lourex-v339-stability-server.pid ]; then
-            kill "$(cat /tmp/lourex-v339-stability-server.pid)" >/dev/null 2>&1 || true
-          fi
-
       - name: Enforce current PR contract + stability gates
         if: always()
         env:
           CURRENT_CONTRACTS: ${{ steps.current_contracts.outcome }}
-          STABILITY_CORE: ${{ steps.stability_core.outcome }}
-          STABILITY_IPAD_DRAFT: ${{ steps.stability_ipad_draft.outcome }}
-          STABILITY_COMMERCIAL: ${{ steps.stability_commercial.outcome }}
-          STABILITY_REMAINING: ${{ steps.stability_remaining.outcome }}
+          STABILITY_QA: ${{ steps.stability_qa.outcome }}
         run: |
           echo "Current PR contract tests: $CURRENT_CONTRACTS"
-          echo "WebKit core editor stability: $STABILITY_CORE"
-          echo "WebKit iPad draft stability: $STABILITY_IPAD_DRAFT"
-          echo "WebKit commercial quotation geometry: $STABILITY_COMMERCIAL"
-          echo "WebKit navigation/responsive/voice stability: $STABILITY_REMAINING"
-          if [ "$CURRENT_CONTRACTS" != 'success' ] || [ "$STABILITY_CORE" != 'success' ] || [ "$STABILITY_IPAD_DRAFT" != 'success' ] || [ "$STABILITY_COMMERCIAL" != 'success' ] || [ "$STABILITY_REMAINING" != 'success' ]; then
+          echo "v338/v339 editor + navigation stability: $STABILITY_QA"
+          if [ "$CURRENT_CONTRACTS" != 'success' ] || [ "$STABILITY_QA" != 'success' ]; then
             exit 1
           fi
 
@@ -170,7 +141,7 @@ jobs:
         env:
           SHARD: ${{ matrix.shard }}
         run: |
-          npx http-server . -p 4173 -c-1 > "/tmp/lourex-${SHARD}-server.log" 2>&1 &
+          npx http-server . -p 4173 -c-1 > "/tmp/lourex-${SHARD}-qa-server.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
           ready=0
@@ -182,58 +153,76 @@ jobs:
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then
-            cat "/tmp/lourex-${SHARD}-server.log"
+            cat "/tmp/lourex-${SHARD}-qa-server.log"
             exit 1
           fi
 
+          status=0
+          run_qa(){
+            limit="$1"
+            shift
+            echo "::group::$*"
+            timeout --signal=TERM --kill-after=15s "${limit}s" "$@" || {
+              code=$?
+              if [ "$code" -eq 124 ] || [ "$code" -eq 137 ]; then
+                echo "QA command timed out ($code after ${limit}s): $*"
+              else
+                echo "QA command failed ($code): $*"
+              fi
+              status=1
+            }
+            echo "::endgroup::"
+          }
+
           case "$SHARD" in
             templates)
-              node tests/visual/run-template-visual-qa.cjs
-              node tests/visual/run-v303-layout-structure.cjs
-              node tests/visual/run-v310-contrast-layout.cjs
-              node tests/visual/run-v311-quality-pass.cjs
-              node tests/visual/run-v314-canonical-layout.cjs
-              node tests/visual/run-v330-template-contrast.cjs
-              node tests/visual/run-v365-mobile-editor-scroll.cjs
+              run_qa 180 node tests/visual/run-pdf-searchable-v222.cjs
+              run_qa 300 node tests/visual/run-template-visual-qa.cjs visual-qa-output
               ;;
             mobile-current)
-              node tests/visual/run-v321-mobile-critical-flows.cjs
-              node tests/visual/run-mobile-save-durability-batch6.cjs
-              node tests/visual/run-v339-ipad-landscape-commercial.cjs
-              node tests/visual/run-v339-ipad-portrait-commercial.cjs
-              node tests/visual/run-mobile-current.cjs
+              run_qa 180 node tests/visual/run-mobile-final-quote-stack.cjs
+              run_qa 180 node tests/visual/run-mobile-modal-overlap-v176.cjs
+              run_qa 180 node tests/visual/run-functional-navigation-auth-v200.cjs
+              run_qa 180 node tests/visual/run-v364-core-workflows.cjs
               ;;
             auth-documents)
-              node tests/visual/run-account-auth-v215.cjs
-              node tests/visual/run-v326-auth-documents.cjs
-              node tests/visual/run-v337-auth-documents.cjs
-              node tests/visual/run-v482-mobile-ux-repair.cjs
+              run_qa 180 node tests/visual/run-premium-auth-gateway-v187.cjs
+              run_qa 180 node tests/visual/run-mobile-preview-fit-v241.cjs
+              run_qa 180 node tests/visual/run-functional-document-workflow.cjs
+              run_qa 180 node tests/visual/run-functional-editor-controls-v201.cjs
               ;;
             business-current)
-              node tests/visual/run-v326-business-workspaces.cjs
-              node tests/visual/run-v337-business-workspaces.cjs
-              node tests/visual/run-v480-business-workspaces.cjs
-              node tests/visual/run-contextual-ai-batch4.cjs
+              run_qa 180 node tests/visual/run-functional-payments.cjs
+              run_qa 180 node tests/visual/run-import-final-audit-v267.cjs
+              run_qa 180 node tests/visual/run-commercial-flow-batch1.cjs
+              run_qa 180 node tests/visual/run-relationship-360-batch2.cjs
+              run_qa 180 node tests/visual/run-workspace-ux-batch3.cjs
+              run_qa 180 node tests/visual/run-workspace-closeout-batch3.cjs
+              run_qa 180 node tests/visual/run-notification-recovery-batch3.cjs
+              run_qa 180 node tests/visual/run-contextual-ai-batch4.cjs
+              run_qa 180 node tests/visual/run-commercial-completion-batch6.cjs
+              run_qa 180 node tests/visual/run-accounting-foundation-batch7.cjs
               ;;
             locales-current)
-              node tests/visual/run-v326-locales.cjs
-              node tests/visual/run-v337-locales.cjs
+              run_qa 180 node tests/visual/run-saved-items-category-locale-v246.cjs
               ;;
             tailadmin-current)
-              node tests/visual/run-v320-tailadmin-qa.cjs
-              node tests/visual/run-v322-mobile-header.cjs
-              node tests/visual/run-v323-design-system.cjs
-              node tests/visual/run-v320-tailadmin-contract.cjs
+              run_qa 180 node tests/visual/run-tailadmin-v320.cjs
+              run_qa 180 node tests/visual/run-v326-business-workspaces.cjs
               ;;
             v337-current)
-              node tests/visual/run-v337-current.cjs
+              run_qa 180 node tests/visual/run-v337-draft-output.cjs
+              run_qa 180 node tests/visual/run-v337-create-center.cjs
+              run_qa 180 node tests/visual/run-v337-document-actions.cjs
+              run_qa 180 node tests/visual/run-v337-shell-navigation.cjs
               ;;
             *)
               echo "Unknown current QA shard: $SHARD"
               exit 2
               ;;
           esac
-      - name: Upload current browser QA diagnostics
+          exit "$status"
+      - name: Upload current shard QA evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -241,12 +230,12 @@ jobs:
           path: visual-qa-output
           if-no-files-found: ignore
 
-  current-gate:
-    name: Current PR Quality Gate
+  quality-gate:
+    name: Current PR quality gate
+    if: always()
     needs:
       - verify
       - browser-qa
-    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Enforce verify + all current browser QA shards
@@ -369,14 +358,12 @@ jobs:
           mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' -print | sort)
           printf 'legacy top-level test files (%s):\n' "${#files[@]}" | tee legacy-unit.log
           printf '%s\n' "${files[@]}" | tee -a legacy-unit.log
-          if [ "${#files[@]}" -gt 0 ]; then
-            set +e
-            node --test "${files[@]}" 2>&1 | tee -a legacy-unit.log
-            status=${PIPESTATUS[0]}
-            set -e
-            exit "$status"
-          fi
-      - name: Upload legacy unit diagnostics
+          set +e
+          node --test "${files[@]}" 2>&1 | tee -a legacy-unit.log
+          status=${PIPESTATUS[0]}
+          set -e
+          exit "$status"
+      - name: Upload legacy baseline diagnostics
         if: always()
         uses: actions/upload-artifact@v6
         with:
