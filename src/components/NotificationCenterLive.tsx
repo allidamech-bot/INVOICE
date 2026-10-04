@@ -81,7 +81,7 @@ export class NotificationCenterLive extends React.Component<Props,State>{
     try{
       const session=await resumeVaultSession();
       if(startedAtMutationGeneration!==this.mutationGeneration){this.setState({loading:false});return;}
-      if(!session){this.setState({snapshot:null,loading:false,error:''});this.publish(null);return;}
+      if(!session){this.setState({snapshot:null,loading:false,error:t('Unlock the encrypted vault to review notifications. Close this window and unlock your session, then try again.','افتح الخزنة المشفرة لمراجعة التنبيهات. أغلق هذه النافذة وافتح جلستك ثم أعد المحاولة.')});this.publish(null);return;}
       const snapshot=buildNotificationCenter(scopeVault(session.vault),todayIso());
       if(startedAtMutationGeneration!==this.mutationGeneration){this.setState({loading:false});return;}
       this.setState({snapshot,loading:false,error:''});this.publish(snapshot);
@@ -176,11 +176,11 @@ export class NotificationCenterLive extends React.Component<Props,State>{
             {(['active','snoozed','done'] as NotificationCenterTab[]).map(tab=>{
               const count=tab==='active'?snapshot?.active.length??0:tab==='snoozed'?snapshot?.snoozed.length??0:snapshot?.done.length??0;
               const text=tab==='active'?t('Active','نشط'):tab==='snoozed'?t('Snoozed','مؤجل'):t('Done','تم');
-              return <button type="button" role="tab" key={tab} aria-selected={this.state.tab===tab} className={this.state.tab===tab?'is-active':''} onClick={()=>this.setState({tab,snoozeKey:'',error:''})}>{text} · {count}</button>;
+              return <button type="button" role="tab" key={tab} aria-selected={this.state.tab===tab} className={this.state.tab===tab?'is-active':''} onClick={()=>this.setState({tab,snoozeKey:'',error:this.state.snapshot?'':this.state.error})}>{text} · {count}</button>;
             })}
           </div>
-          {this.state.error?<div className="lx-notification-error" role="alert">{this.state.error}</div>:null}
-          {this.state.loading?<div className="lx-notification-empty"><Icon name="refresh"/><strong>{t('Loading notifications…','جارٍ تحميل التنبيهات…')}</strong></div>:items.length?<div className="lx-notification-list">{items.map(this.row)}</div>:<div className="lx-notification-empty"><Icon name="check"/><strong>{this.state.tab==='active'?t('Nothing needs attention','لا يوجد ما يحتاج انتباه'):this.state.tab==='snoozed'?t('Nothing is snoozed','لا توجد عناصر مؤجلة'):t('No completed items in the current conditions','لا توجد عناصر مكتملة ضمن الحالات الحالية')}</strong><span>{t('The Center is derived from recorded LOUREX data and never invents missing business facts.','المركز مشتق من بيانات LOUREX المسجلة ولا يخترع معلومات أعمال مفقودة.')}</span></div>}
+          {this.state.error?<div className="lx-notification-error" role="alert"><span>{this.state.error}</span><Button disabled={this.state.loading||Boolean(this.state.busyKey)} onClick={()=>void this.refresh(true)}>{t('Try again','إعادة المحاولة')}</Button></div>:null}
+          {this.state.loading?<div className="lx-notification-empty" role="status"><Icon name="refresh"/><strong>{t('Loading notifications…','جارٍ تحميل التنبيهات…')}</strong></div>:this.state.error&&!this.state.snapshot?null:items.length?<div className="lx-notification-list">{items.map(this.row)}</div>:<div className="lx-notification-empty"><Icon name="check"/><strong>{this.state.tab==='active'?t('Nothing needs attention','لا يوجد ما يحتاج انتباه'):this.state.tab==='snoozed'?t('Nothing is snoozed','لا توجد عناصر مؤجلة'):t('No completed items in the current conditions','لا توجد عناصر مكتملة ضمن الحالات الحالية')}</strong><span>{t('The Center is derived from recorded LOUREX data and never invents missing business facts.','المركز مشتق من بيانات LOUREX المسجلة ولا يخترع معلومات أعمال مفقودة.')}</span><Button onClick={this.close}>{t('Return to workspace','العودة إلى مساحة العمل')}</Button></div>}
         </div>
       </Modal>
     </>;

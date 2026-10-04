@@ -6,8 +6,10 @@ import {ProductsInventoryWorkspace} from './src/components/ProductsInventoryWork
 import {OperationsPage} from './src/components/OperationsPage.js';
 import {FinanceWorkspace} from './src/components/FinanceWorkspace.js';
 import {emptyVault,defaultCompany} from './src/lib/defaults.js';
-import {createSupplier,createPurchase,createPurchaseItem} from './src/lib/operations.js';
+import {createSupplier,createPurchase,createPurchaseItem,createManualInventoryMovement} from './src/lib/operations.js';
 import {setUiLanguage} from './src/lib/i18n.js';
+import {setupVault} from './src/storage/vault.js';
+import {establishSession,suspendSession} from './src/storage/session.js';
 const params=new URLSearchParams(location.search),lang=params.get('lang')==='ar'?'ar':'en',theme=params.get('theme')==='light'?'light':'dark',h=React.createElement;
 setUiLanguage(lang);document.documentElement.dataset.uiTheme=theme;document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
 const vault=emptyVault(),company=defaultCompany();
@@ -15,12 +17,18 @@ const customer={...blankCustomer(),id:'c1',companyNameEn:'Northstar Trading',com
 const item={id:'p1',createdAt:'2026-01-01',updatedAt:'2026-01-01',sku:'VAL-1',descriptionEn:'Industrial valve',descriptionAr:'صمام صناعي',hsCode:'',origin:'',packing:'',unit:'PCS',lastCurrency:'USD',lastUnitPrice:'12',lastCostCurrency:'USD',lastUnitCost:'8',usageCount:0,lastUsedAt:'2026-01-01',tags:[]};
 const supplier={...createSupplier(),id:'s1',nameEn:'Source Co',nameAr:'شركة المصدر'};
 const purchase={...createPurchase([],[supplier],'USD'),id:'purchase-1',number:'PUR-QA-1',items:[{...createPurchaseItem(item),quantity:'2',unitCost:'8'}]};
+const stockMovement=createManualInventoryMovement(item,'opening','12','2026-01-01','QA baseline stock','8','USD');
+if(params.get('vault')==='1'){
+ vault.savedItems=[item];vault.suppliers=[supplier];vault.purchases=[purchase];vault.inventoryMovements=[stockMovement];vault.appSettings.autoLockMinutes=0;
+ const setup=await setupVault('2468',vault);await establishSession(setup.key);
+ window.lockWorkspaceQa=()=>suspendSession();window.unlockWorkspaceQa=()=>establishSession(setup.key);
+}
 const noop=async()=>{};
 class Fixture extends React.Component{
  state={screen:'customers',items:[item],newMenu:false};
  navigate=screen=>this.setState({screen});
  saveItem=async item=>{window.savedProduct=item;this.setState({items:[item]});};
- render(){const shared={suppliers:[supplier],purchases:[purchase],expenses:[],inventoryMovements:[],items:this.state.items,defaultCurrency:'USD',onSaveSupplier:noop,onDeleteSupplier:noop,onSavePurchase:noop,onDeletePurchase:noop,onPostPurchase:noop,onReversePurchase:noop,onSaveExpense:noop,onDeleteExpense:noop,onSaveInventoryMovement:noop,onDeleteInventoryMovement:noop};
+ render(){const shared={suppliers:[supplier],purchases:[purchase],expenses:[],inventoryMovements:[stockMovement],items:this.state.items,defaultCurrency:'USD',onSaveSupplier:noop,onDeleteSupplier:noop,onSavePurchase:noop,onDeletePurchase:noop,onPostPurchase:noop,onReversePurchase:noop,onSaveExpense:noop,onDeleteExpense:noop,onSaveInventoryMovement:noop,onDeleteInventoryMovement:noop};
  const products={...shared,currency:'USD',warehouses:[],workspaceId:'qa',branchId:'qa',onSaveItem:this.saveItem,onSaveItems:noop,onDeleteItem:noop};
  const finance={...shared,customers:[customer],documents:[],payments:[],company,supplierPayments:[],treasuryAccounts:[],treasuryEntries:[],treasuryReconciliations:[],fxRates:[],workspaceId:'qa',branchId:'qa',onSavePayment:noop,onDeletePayment:noop,onSaveSupplierPayment:noop,onDeleteSupplierPayment:noop};
  return h(React.Fragment,null,h(AppShell,{screen:this.state.screen,language:lang,logoDataUrl:'./brand/lourex-logo.svg',newMenu:this.state.newMenu,cloudState:'offline',cloudLabel:'QA',cloudMessage:'',onNavigate:this.navigate,onToggleNew:()=>this.setState({newMenu:!this.state.newMenu}),onNew:()=>{},onSettings:()=>{},onCloud:()=>{}},this.state.screen==='customers'?h(CustomersPage,{company,customers:[customer],onSave:noop,onDelete:noop,onCreateDocument:noop}):this.state.screen==='items'?h(ProductsInventoryWorkspace,products):this.state.screen==='receivables'?h(FinanceWorkspace,finance):h(OperationsPage,{...shared,mode:'purchasing'})),h(GlobalSearch,{documents:[],customers:[customer],items:this.state.items,suppliers:[supplier],purchases:[purchase],language:lang,onNavigate:this.navigate,onOpenDocument:()=>{},onNewDocument:()=>{}}));}
