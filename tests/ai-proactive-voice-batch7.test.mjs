@@ -44,15 +44,18 @@ test('Proactive preferences are encrypted, bounded and severity mute is determin
   assert.match(engine,/Supplier obligations remain separated by currency/);
 });
 
-test('Global proactive dock and Morning Brief share one canonical engine and refresh after session activation',async()=>{
-  const [dock,daily]=await Promise.all([readFile(new URL('../src/components/ProactiveAssistantTool.tsx',import.meta.url),'utf8'),readFile(new URL('../src/components/DailyCommandCenterTool.tsx',import.meta.url),'utf8')]);
+test('Proactive intelligence keeps canonical refresh behavior while persistent UI is consolidated into one Tools hub',async()=>{
+  const [dock,daily,placement]=await Promise.all([readFile(new URL('../src/components/ProactiveAssistantTool.tsx',import.meta.url),'utf8'),readFile(new URL('../src/components/DailyCommandCenterTool.tsx',import.meta.url),'utf8'),readFile(new URL('../scripts/ai-batch7-placement-repair.mjs',import.meta.url),'utf8')]);
   const canonicalImports=dock.match(/from '\.\.\/lib\/ai-proactive-assistant\.js'/g)??[];
-  assert.equal(canonicalImports.length,1,'global proactive dock must import the canonical proactive engine exactly once');
+  assert.equal(canonicalImports.length,1,'proactive runtime must import the canonical proactive engine exactly once');
   assert.match(dock,/lourex-ai-open-daily/);
   assert.match(dock,/loadProactiveState/);assert.match(dock,/dismissProactiveSignal/);assert.match(dock,/snoozeProactiveSignal/);assert.match(dock,/setProactiveCategoryMuted/);
   assert.match(dock,/lourex-account-transition-complete/,'proactive assistant must refresh as soon as an account Vault session becomes available');
   assert.match(dock,/lourex-proactive-refresh/,'proactive assistant must expose a bounded explicit refresh event for verified runtime transitions');
   for(const token of ['buildMorningBrief','conditionalTaskSignals','visibleProactiveSignals','Dismiss','Mute category','Morning Brief enabled'])assert.match(daily,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  for(const token of ['lourex-ai-tools','lourex-ai-manager-button','lourex-proactive-dock','display:none','lourex-ai-hub-trigger','lourex-ai-hub-menu','data-lourex-proactive-attention','lourex-ai-open-daily'])assert.match(placement,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  assert.match(placement,/one assistant, one control hierarchy/i);
+  assert.match(placement,/one Tools hub/i);
 });
 
 test('Batch 7 voice extends existing recognizer lifecycle and leaves transcript editable',async()=>{
@@ -63,9 +66,9 @@ test('Batch 7 voice extends existing recognizer lifecycle and leaves transcript 
   assert.doesNotMatch(installer,/requestSubmit\(\)|\.submit\(\)/,'voice must populate an editable composer and never auto-submit');
 });
 
-test('Batch 7 adds no Serverless Function and stays inside Vercel Hobby budget',async()=>{
+test('Batch 7 adds no Serverless Function, installs placement repair last, and stays inside Vercel Hobby budget',async()=>{
   const pkg=await readFile(new URL('../package.json',import.meta.url),'utf8');
-  assert.match(pkg,/ai-batch6-personal-memory-tasks\.mjs && node scripts\/ai-batch7-proactive-voice\.mjs/);
+  assert.match(pkg,/ai-batch6-personal-memory-tasks\.mjs && node scripts\/ai-batch7-proactive-voice\.mjs && node scripts\/ai-batch7-placement-repair\.mjs/);
   const apiFiles=(await readdir(new URL('../api/',import.meta.url))).filter(name=>name.endsWith('.js')&&!name.startsWith('_'));
   assert.ok(apiFiles.length<=12,`Vercel Hobby supports at most 12 top-level Serverless Functions; found ${apiFiles.length}`);
 });
