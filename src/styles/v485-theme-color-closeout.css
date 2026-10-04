@@ -1,0 +1,185 @@
+/* LOUREX v485 theme color closeout.
+ * This module is bundled into the existing v485 visible-UI owner; it is not a
+ * standalone runtime stylesheet. It completes the accepted screenshot palette by
+ * owning the FT aliases and by replacing historical matte-black hard-coded surfaces.
+ * Screen only. Printable invoice/PDF surfaces are intentionally excluded.
+ */
+@media screen {
+  :root{
+    --lx485-success:#49b98d;
+    --lx485-success-soft:#12382d;
+    --lx485-warning:#e3ab52;
+    --lx485-warning-soft:#3a2b17;
+    --lx485-danger:#f06d7c;
+    --lx485-danger-soft:#3c1f28;
+    --lx485-info:var(--lx485-blue);
+    --lx485-info-soft:color-mix(in srgb,var(--lx485-blue) 16%,var(--lx485-surface));
+    --lx485-on-blue:#081421;
+
+    --ft-canvas:var(--lx485-canvas)!important;
+    --ft-workspace:var(--lx485-canvas)!important;
+    --ft-shell:var(--lx485-canvas-2)!important;
+    --ft-surface:var(--lx485-surface)!important;
+    --ft-surface-2:var(--lx485-surface-2)!important;
+    --ft-surface-3:var(--lx485-surface-3)!important;
+    --ft-input:var(--lx485-canvas-2)!important;
+    --ft-text:var(--lx485-text-2)!important;
+    --ft-text-soft:var(--lx485-muted)!important;
+    --ft-text-strong:var(--lx485-text)!important;
+    --ft-muted:var(--lx485-muted)!important;
+    --ft-faint:var(--lx485-faint)!important;
+    --ft-line:var(--lx485-line)!important;
+    --ft-line-strong:var(--lx485-line-strong)!important;
+    --ft-accent:var(--lx485-blue)!important;
+    --ft-accent-hover:var(--lx485-blue-strong)!important;
+    --ft-accent-soft:color-mix(in srgb,var(--lx485-blue) 15%,var(--lx485-surface))!important;
+    --ft-accent-faint:color-mix(in srgb,var(--lx485-blue) 8%,var(--lx485-surface))!important;
+    --ft-on-accent:var(--lx485-on-blue)!important;
+    --ft-success:var(--lx485-success)!important;
+    --ft-success-soft:var(--lx485-success-soft)!important;
+    --ft-warning:var(--lx485-warning)!important;
+    --ft-warning-soft:var(--lx485-warning-soft)!important;
+    --ft-danger:var(--lx485-danger)!important;
+    --ft-danger-soft:var(--lx485-danger-soft)!important;
+    --ft-info:var(--lx485-info)!important;
+    --ft-info-soft:var(--lx485-info-soft)!important;
+  }
+
+  html[data-ui-theme="light"]{
+    --lx485-success:#238462;
+    --lx485-success-soft:#e4f4ed;
+    --lx485-warning:#ad741d;
+    --lx485-warning-soft:#fff2dc;
+    --lx485-danger:#c94f62;
+    --lx485-danger-soft:#fdecef;
+    --lx485-on-blue:#ffffff;
+  }
+
+  /* Historical matte-black owners used hard-coded colors instead of tokens.
+     v485 is later in the production cascade and explicitly reclaims those surfaces. */
+  html body #root .app-ui .ta-main,
+  html body #root .ta-auth-page{
+    background-color:var(--lx485-canvas)!important;
+    color:var(--lx485-text)!important;
+  }
+  html body #root .app-ui :is(.ta-sidebar,.ta-topbar,.ta-mobile-nav){
+    background:var(--lx485-canvas-2)!important;
+    background-image:none!important;
+    border-color:var(--lx485-line)!important;
+  }
+
+  html body #root .app-ui :is(
+    .ta-dashboard-card,.ta-kpi-card,.ta-panel,.ta-doc-panel,.ta-doc-register-card,
+    .ta-doc-summary-grid,.ta-doc-type-tabs,.ta-doc-table,.ta-doc-toolbar,.ta-doc-filters,
+    .ta-quick-actions,.ta-doc-row,.ta-customer-card,.ta-customers-summary,
+    .ta-ops-editor-card,.ta-ops-list-card,.ta-ops-metrics>div,.ta-ops-summary>div,
+    .ta-products-overview>div,.ta-product-register,.ta-product-editor,.ta-finance-kpi,
+    .ta-finance-card,.ta-report-kpi,.ta-report-filterbar,.ta-settings-card,.ta-sheet-group,
+    .ta-sheet-account,.ta-mobile-sheet,.ta-search-trigger,.ta-topbar-account,.ta-doc-search,
+    .global-search-panel,.lourex-advisor-card,.editor-pane,.editor-section,
+    .draft-control-section,.premium-item-card,.ta-product-editor-section,
+    .ta-product-commandbar,.ta-product-row,.ta-product-menu,.ta-product-metrics>div,
+    .ta-product-metrics>button,.ta-ops-form-section,.ta-ops-panel,.ta-ops-callout,
+    .ta-purchase-item,.ta-inventory-row,.ta-empty-card
+  ),
+  html body #root :is(.modal,.ta-settings-modal,.ta-settings-dialog,.ta-settings-shell,
+    .ta-settings-content,.ta-settings-nav,.ta-cloud-account,.ta-cloud-auth-form){
+    background:var(--lx485-surface)!important;
+    background-image:none!important;
+    border-color:var(--lx485-line)!important;
+  }
+
+  html body #root .app-ui :is(.ta-doc-table-head,.ta-sheet-header,.ta-card-header,
+    .ta-product-editor-section>header,.ta-product-editor-footer,.ta-panel-header,
+    .ta-report-presets,.ta-report-kpi header),
+  html body #root :is(.modal-header,.modal-footer,.ta-settings-sidebar,
+    .ta-settings-card>header,.global-search-input-wrap,.global-search-footer){
+    background:var(--lx485-surface-2)!important;
+    background-image:none!important;
+    border-color:var(--lx485-line)!important;
+  }
+
+  html body #root .app-ui :is(.ta-doc-summary-grid,.ta-quick-actions)>button,
+  html body #root :is(.global-search-start,.global-search-results,.global-search-actions>button,
+    .global-search-destinations>button,.global-search-result),
+  html body #root .app-ui .premium-item-card .item-pricing-grid{
+    background:var(--lx485-surface-2)!important;
+    background-image:none!important;
+    border-color:var(--lx485-line)!important;
+  }
+
+  html body #root .app-ui :is(.ta-doc-row,.ta-sheet-link):hover,
+  html body #root :is(.global-search-actions>button,.global-search-destinations>button,.global-search-result):hover{
+    background:var(--lx485-surface-3)!important;
+  }
+
+  html body #root .app-ui :is(input,select,textarea,.btn-secondary,.btn-ghost,.ta-doc-sort,.ta-doc-search-input),
+  html body #root .ta-settings-card :is(input,select,textarea),
+  html body #root .ta-auth-page :is(.ta-google-button,.ta-auth-language,.ta-auth-card input,.ta-auth-card select){
+    background:var(--lx485-canvas-2)!important;
+    background-image:none!important;
+    border-color:var(--lx485-line-strong)!important;
+    color:var(--lx485-text)!important;
+  }
+
+  /* Active controls use a restrained blue tint; ordinary cards never become blue slabs. */
+  html body #root .app-ui .ta-sidebar .ta-nav-item.is-active,
+  html body #root .app-ui .ta-mobile-nav>button.is-active,
+  html body #root .app-ui :is(.ta-domain-tabs,.ta-doc-type-tabs,.ta-ops-tabs,
+    .ta-segmented-control,.ta-range-control,.ta-editor-step-nav)>button.is-active,
+  html body #root .app-ui .ta-report-presets>button[aria-pressed="true"],
+  html body #root .ta-settings-nav button.is-active{
+    background:color-mix(in srgb,var(--lx485-blue) 15%,var(--lx485-surface))!important;
+    background-image:none!important;
+    border-color:var(--lx485-line-strong)!important;
+    color:var(--lx485-blue)!important;
+  }
+
+  html body #root .app-ui :is(.ta-kpi-icon,.ta-customers-summary-icon,.ta-customer-form-icon,
+    .ta-products-overview-icon,.ta-product-metric-icon,.ta-ops-metric-icon,.ta-ops-empty>span,
+    .ta-doc-row-icon,.ta-sheet-link-icon,.global-search-result-icon,.ta-finance-kpi-icon,
+    .ta-panel-empty>span,.ta-empty-card>span){
+    background:color-mix(in srgb,var(--lx485-blue) 13%,var(--lx485-surface-2))!important;
+    background-image:none!important;
+    border-color:color-mix(in srgb,var(--lx485-blue) 24%,var(--lx485-line))!important;
+    color:var(--lx485-blue)!important;
+  }
+
+  /* Semantic states stay visually meaningful. */
+  html body #root .app-ui :is(.ta-status-badge.status-ready,.status-paid,.collection-paid,
+    .profitability-status.complete,.lifecycle-status.is-final,.draft-save-state.state-saved){
+    background:var(--lx485-success-soft)!important;
+    color:var(--lx485-success)!important;
+    border-color:color-mix(in srgb,var(--lx485-success) 30%,var(--lx485-line))!important;
+  }
+  html body #root .app-ui :is(.ta-data-alert,.ta-report-kpi-warning,
+    .ta-ops-status.status-draft,.ta-ops-status.is-draft){
+    background:var(--lx485-warning-soft)!important;
+    color:var(--lx485-warning)!important;
+    border-color:color-mix(in srgb,var(--lx485-warning) 30%,var(--lx485-line))!important;
+  }
+  html body #root .app-ui :is(.ta-error,.ta-danger,.is-danger,[role="alert"],.ta-ops-integrity,
+    .ta-ops-error,.ta-customer-form-error,.ta-ops-status.status-reversed,.ta-ops-status.is-reversed){
+    color:var(--lx485-danger)!important;
+  }
+  html body #root .app-ui :is(.ta-ops-integrity,.ta-ops-error,.ta-customer-form-error,
+    .ta-ops-status.status-reversed,.ta-ops-status.is-reversed){
+    background:var(--lx485-danger-soft)!important;
+    border-color:color-mix(in srgb,var(--lx485-danger) 32%,var(--lx485-line))!important;
+  }
+
+  html[data-ui-theme="dark"] body #root .app-ui :is(.ta-kpi-card,.ta-dashboard-card,
+    .ta-doc-summary-grid>button,.ta-customer-card,.ta-customers-summary>div,
+    .ta-products-overview>div,.ta-product-editor-section,.premium-item-card,
+    .ta-ops-metrics>div,.ta-ops-summary>div,.ta-finance-kpi,.ta-report-kpi,
+    .ta-report-filterbar,.ta-settings-card,.ta-customer-form-section){
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035)!important;
+  }
+  html[data-ui-theme="light"] body #root .app-ui :is(.ta-kpi-card,.ta-dashboard-card,
+    .ta-doc-summary-grid>button,.ta-customer-card,.ta-customers-summary>div,
+    .ta-products-overview>div,.ta-product-editor-section,.premium-item-card,
+    .ta-ops-metrics>div,.ta-ops-summary>div,.ta-finance-kpi,.ta-report-kpi,
+    .ta-report-filterbar,.ta-settings-card,.ta-customer-form-section){
+    box-shadow:0 1px 2px rgba(24,49,78,.045)!important;
+  }
+}
