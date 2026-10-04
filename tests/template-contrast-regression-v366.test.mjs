@@ -30,3 +30,21 @@ test('v366 prevents microscopic item and party copy in preview and print',async(
   assert.match(css,/party-address[\s\S]*font-size:max\(7\.6px,1em\)!important/);
   assert.match(css,/@media print/);
 });
+
+test('design customization stays in the existing Design section and remains bounded',async()=>{
+  const editor=await read('src/components/EditorPageCore.tsx');
+  assert.match(editor,/section-heading[\s\S]{0,120}06[\s\S]{0,120}Design/);
+  assert.match(editor,/Color System[\s\S]{0,500}paletteMode/);
+  assert.match(editor,/Auto — matched to template/);
+  assert.match(editor,/Custom Accent/);
+  assert.match(editor,/English Font[\s\S]{0,400}LATIN_FONT_OPTIONS/);
+  assert.match(editor,/Arabic Font[\s\S]{0,400}ARABIC_FONT_OPTIONS/);
+});
+
+test('design controls are mobile-safe and do not add navigation or header UI',async()=>{
+  const css=await read('src/styles/template-surface-contrast-v366.css');
+  assert.match(css,/design-advanced-panel[\s\S]*min-height:44px/);
+  assert.match(css,/@media\(max-width:720px\)[\s\S]*appearance-system-grid\{grid-template-columns:1fr!important/);
+  assert.doesNotMatch(css,/\.editor-topbar[^\n]*content:/);
+  assert.doesNotMatch(css,/\.app-sidebar[^\n]*content:/);
+});
