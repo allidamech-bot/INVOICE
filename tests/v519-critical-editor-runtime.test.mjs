@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 
 test('v519 keeps active quotation editing on lightweight checkpoints',async()=>{
   const runtime=await readFile('dist/src/app/index.js','utf8');
+  assert.ok(runtime.includes("document.documentElement.setAttribute('data-lourex-ios-webkit','true')"),'production iPad/WebKit detection must expose a root geometry marker');
   assert.ok(runtime.includes("const editorActivityEvents=['input','beforeinput','compositionstart','compositionend'];"),'mobile keyboard input must count as activity');
   assert.ok(runtime.includes('for(const eventName of editorActivityEvents)window.addEventListener(eventName,instance.activity,{passive:true});'),'activity listeners must be installed on the live app instance');
   assert.ok(runtime.includes('for(const eventName of editorActivityEvents)window.removeEventListener(eventName,instance.activity);'),'activity listeners must be cleaned up');
