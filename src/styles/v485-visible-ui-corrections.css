@@ -264,6 +264,8 @@ html body #root .app-ui .workspace-shell.screen-home .ta-quick-actions>button{
 }
 html body #root .app-ui .ta-quick-actions>button strong{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;font-size:12px!important;line-height:1.5!important;}
 @media (max-width:900px){
+  html body #root .app-ui .ta-shell[data-editor-viewport-constrained="true"] :is(.mobile-editor-actionbar,.draft-mobile-actionbar){bottom:calc(var(--lx-editor-bottom-gap,0px) + 8px + env(safe-area-inset-bottom,0px))!important;}
+  html body #root .app-ui .ta-shell[data-editor-viewport-constrained="true"]>.ta-main{max-height:var(--lx-editor-scroll-height)!important;}
   html body #root .app-ui .mobile-editor-actionbar{
     position:fixed!important;inset:auto 8px calc(8px + env(safe-area-inset-bottom,0px)) 8px!important;
     width:auto!important;max-width:none!important;padding:8px!important;border:1px solid var(--lx485-line-strong)!important;

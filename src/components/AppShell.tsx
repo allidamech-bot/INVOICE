@@ -52,18 +52,44 @@ interface State {
  */
 export class AppShell extends React.Component<Props,State>{
   state:State={moreOpen:false,signingOut:false,infoSection:null,notificationCount:0,notificationHigh:0};
+  private shellRef:HTMLElement|null=null;
+  private syncEditorViewport=()=>{
+    const shell=this.shellRef;if(!shell)return;
+    const viewport=window.visualViewport;
+    const height=viewport?.height??window.innerHeight,offset=viewport?.offsetTop??0;
+    const constrained=this.props.screen==='editor'&&this.isMobileShell()&&Number.isFinite(height)&&height>0&&Number.isFinite(offset)&&(height<window.innerHeight-8||offset>0);
+    if(!constrained){
+      delete shell.dataset.editorViewportConstrained;
+      shell.style.removeProperty('--lx-editor-bottom-gap');
+      shell.style.removeProperty('--lx-editor-scroll-height');
+      return;
+    }
+    shell.dataset.editorViewportConstrained='true';
+    shell.style.setProperty('--lx-editor-bottom-gap',`${Math.max(0,Math.ceil(window.innerHeight-height-offset))}px`);
+    const main=shell.querySelector<HTMLElement>(':scope > .ta-main');
+    if(main)shell.style.setProperty('--lx-editor-scroll-height',`${Math.max(1,Math.floor(height+offset-main.getBoundingClientRect().top))}px`);
+  };
+  private setShellRef=(shell:HTMLElement|null)=>{this.shellRef=shell;this.syncEditorViewport();};
 
   componentDidMount():void{
     document.addEventListener('keydown',this.handleKeyDown);
     this.syncOverlayState();
+    window.addEventListener('resize',this.syncEditorViewport);
+    window.visualViewport?.addEventListener('resize',this.syncEditorViewport);
+    window.visualViewport?.addEventListener('scroll',this.syncEditorViewport);
+    this.syncEditorViewport();
   }
 
   componentWillUnmount():void{
     document.removeEventListener('keydown',this.handleKeyDown);
     this.applyOverlayLock(false);
+    window.removeEventListener('resize',this.syncEditorViewport);
+    window.visualViewport?.removeEventListener('resize',this.syncEditorViewport);
+    window.visualViewport?.removeEventListener('scroll',this.syncEditorViewport);
   }
 
   componentDidUpdate(prevProps:Props,prevState:State):void{
+    this.syncEditorViewport();
     if(prevProps.screen!==this.props.screen){
       if(this.state.moreOpen)this.setState({moreOpen:false});
       if(this.state.infoSection)this.setState({infoSection:null});
@@ -336,7 +362,7 @@ export class AppShell extends React.Component<Props,State>{
     const logo='./brand/lourex-logo.svg';
     const mobile=this.isMobileShell();
 
-    return <div className={`workspace-shell fintech-shell-v280 ta-shell screen-${this.props.screen} ${editor?'is-editor':''}`}>
+    return <div ref={this.setShellRef} className={`workspace-shell fintech-shell-v280 ta-shell screen-${this.props.screen} ${editor?'is-editor':''}`}>
       {!editor?<aside className="workspace-sidebar ta-sidebar" aria-label={t('Main navigation','التنقل الرئيسي')}>
         <div className="ta-sidebar-brand-row">
           <button type="button" className="ta-brand-button" onClick={()=>this.navigate('home')} aria-label={t('Dashboard','لوحة التحكم')}>

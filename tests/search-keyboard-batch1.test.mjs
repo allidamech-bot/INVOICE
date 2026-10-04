@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import ts from 'typescript';
 
 globalThis.React={Component:class{},createElement:()=>null};
 const {GlobalSearch}=await import('../dist/src/components/GlobalSearch.js');
@@ -35,4 +38,23 @@ test('search removes all viewport listeners on unmount',()=>{
   const search=new GlobalSearch();search.componentDidMount();
   assert.equal(listeners.size,6);
   search.componentWillUnmount();assert.equal(listeners.size,0);
+});
+
+test('editor shell lifts both docks and bounds the actual scroll owner, then restores desktop',()=>{
+  const source=readFileSync('src/components/AppShell.tsx','utf8');
+  const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText;
+  let mobile=true;const values=new Map();
+  const window={innerHeight:844,visualViewport:{height:360,offsetTop:20},matchMedia:()=>({matches:mobile})};
+  const exports={};runInNewContext(code,{exports,require:()=>({}),React:globalThis.React,window});
+  const shell=new exports.AppShell();shell.props={screen:'editor'};
+  const element={dataset:{},querySelector:()=>({getBoundingClientRect:()=>({top:88})}),style:{setProperty:(key,value)=>values.set(key,value),removeProperty:key=>values.delete(key)}};
+  shell.setShellRef(element);
+  assert.equal(element.dataset.editorViewportConstrained,'true');
+  assert.equal(values.get('--lx-editor-bottom-gap'),'464px');
+  assert.equal(values.get('--lx-editor-scroll-height'),'292px');
+  window.visualViewport.height=844;window.visualViewport.offsetTop=0;shell.syncEditorViewport();
+  assert.equal(values.size,0);assert.equal(element.dataset.editorViewportConstrained,undefined);
+  window.visualViewport.height=360;shell.syncEditorViewport();mobile=false;shell.syncEditorViewport();assert.equal(values.size,0);
+  mobile=true;shell.syncEditorViewport();shell.props.screen='home';shell.syncEditorViewport();assert.equal(values.size,0);
+  shell.setShellRef(null);shell.syncEditorViewport();
 });

@@ -39,7 +39,7 @@ hardware tests and do not by themselves close this follow-up batch.
 | visualViewport / keyboard / offset | `ModalFrame` and `modal-visible-viewport.test.mjs`; import keyboard CTA strengthened in `run-responsive-batch1.cjs` | Import strengthened test PASS locally; search gap reproduced and being fixed |
 | Browser chrome / safe area | Modal uses actual visual height with zero duplicate toolbar reserve; v363 reconciliation | Simulated coverage only; physical Safari unavailable |
 | Bottom navigation | `run-v337-shell-navigation.cjs`: target geometry and navigation | Existing coverage; final blocking CI pending |
-| Editor docks / nested scroll | v338 editor stability; v339 iPad portrait/landscape runners | Existing coverage; final blocking CI pending |
+| Editor docks / nested scroll | v338 editor stability; v339 iPad portrait/landscape runners; new actual EditorPage/AppShell keyboard fixture | Commercial dock behind keyboard reproduced; follow-up repair and final gate pending |
 | Dialogs / sheets | Modal viewport tests; shell More scroll-end checks | Search/Quick Create actual viewport was missing; follow-up test added |
 | Overlay locks / More / Create release | `run-v339-shell-overlay-release.cjs`; search follow-up repeated Escape/action path | Existing and new coverage; final blocking CI pending |
 | Documents density | All ten types retained; same filter state; 44px creation targets; search/header geometry | Eight representative widths PASS locally |
@@ -64,3 +64,10 @@ cleanup. Full-roadmap completion is still not inferred from these results.
 
 No physical iPhone/iPad or live-provider success is claimed. Do not mark the
 entire roadmap complete while the above open items remain.
+
+An additional actual `EditorPage` inside `AppShell` fixture reproduced the
+commercial editor dock behind a 360px keyboard viewport. A shell-scoped
+constrained-viewport adjustment now lifts both commercial/Draft action docks
+and limits the existing outer scroll owner. Normal geometry remains unchanged;
+no money or editor saving logic is replaced. This acceptance item must pass its
+new blocking regression before merge, even if the earlier PR head is green.
