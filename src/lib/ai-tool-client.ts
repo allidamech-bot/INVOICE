@@ -1,8 +1,10 @@
 import type { VaultPayload } from '../types.js';
 import { requestAiJson } from './ai-request.js';
 import { scopeVault } from './workspaces.js';
+import { resumeVaultSession } from '../storage/vault.js';
 import { createAiToolRuntime, deterministicAiToolPlan, executeAiToolPlan, validateAiToolPlan, compactToolResults, type AiToolPlan, type AiToolResult } from './ai-tool-orchestrator.js';
 import { buildCfoBrief, buildDealDeskDecision, formatCfoBrief, formatDealDeskDecision, isCfoIntent, isDealDeskIntent } from './ai-cfo-deal-desk.js';
+import { handleAssistantLocalCommand } from './ai-personal-assistant.js';
 
 export interface AiToolOrchestrationResult{answer:string;proposal:any|null;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
 function clean(value:unknown,max=500):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
@@ -15,6 +17,13 @@ function likelyToolIntent(message:string,context:any):boolean{const q=clean(mess
 export async function orchestrateAiToolRequest(input:{message:string;vault:VaultPayload;context:any;language:'en'|'ar';signal?:AbortSignal;}):Promise<AiToolOrchestrationResult|null>{
   if(input.context?.conversationSources?.length)return null;
   const scopedVault=scopeVault(input.vault);const runtime=createAiToolRuntime(scopedVault,input.context);
+  if(runtime.scope!=='temporary'){
+    const resumed=await resumeVaultSession();
+    if(resumed){
+      const local=await handleAssistantLocalCommand(resumed.key,{message:input.message,scope:runtime.scope,workspaceId:runtime.workspaceId,branchId:runtime.branchId,language:input.language,threadId:clean(input.context?.assistantRuntime?.threadId,120)});
+      if(local){const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};return{answer:local.answer,proposal:local.proposal,plan,results:[],plannedBy:'local'};}
+    }
+  }
   if(isCfoIntent(input.message)){
     const brief=buildCfoBrief(input.context?.advisorV2);if(brief){
       if(!brief.available){const plan:AiToolPlan={version:1,goal:clean(input.message,240),calls:[]};return{answer:formatCfoBrief(brief,input.language),proposal:null,plan,results:[],plannedBy:'local'};}
