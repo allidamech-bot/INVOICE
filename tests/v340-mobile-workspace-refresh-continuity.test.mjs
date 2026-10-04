@@ -37,3 +37,25 @@ test('v340 keeps Apple mobile free of app-level pull reload and preserves sign-o
   assert.match(runtime,/clearWorkspaceContinuityForSignOut\(\)/);
   assert.match(runtime,/platform==='MacIntel'&&touchPoints>1/);
 });
+
+test('v486 checkpoints only active editor identity and restores the exact saved document after reload',async()=>{
+  const runtime=await read('public/editor-stability-v338.js');
+  assert.match(runtime,/const EDITOR_RESUME_KEY='lourex-active-editor-v486'/);
+  assert.match(runtime,/return \{id,number,savedAt:Date\.now\(\)\}/);
+  assert.match(runtime,/sessionStorage\.setItem\(EDITOR_RESUME_KEY,JSON\.stringify\(valid\)\)/);
+  assert.doesNotMatch(runtime,/EDITOR_RESUME_KEY[\s\S]{0,300}(?:items|customerSnapshot|attachments|notes)/,'editor recovery marker must not duplicate document contents outside the encrypted Vault');
+  assert.match(runtime,/\.ta-doc-resume/);
+  assert.match(runtime,/\.ta-doc-row-identity strong bdi,\.ta-doc-row-identity strong/);
+  assert.match(runtime,/\.ta-doc-detail-toolbar-actions button/);
+  assert.match(runtime,/exactText\([^\n]+target\.number\)/);
+});
+
+test('v486 keeps recovery through reload or automatic PIN lock but clears it after normal Back/sign-out',async()=>{
+  const runtime=await read('public/editor-stability-v338.js');
+  assert.match(runtime,/window\.addEventListener\('beforeunload',\(\)=>\{pageExiting=true;checkpointEditor\(\);\}\)/);
+  assert.match(runtime,/window\.addEventListener\('pagehide',\(\)=>\{[\s\S]*pageExiting=true;[\s\S]*checkpointEditor\(\)/);
+  assert.match(runtime,/if\(!pageExiting&&current\)clearEditorResume\(\)/);
+  assert.match(runtime,/document\.querySelector\('\.auth-page'\)[\s\S]*armEditorRestore\(\)/);
+  assert.match(runtime,/clearWorkspaceContinuityForSignOut\(\)[\s\S]*clearEditorResume\(\)/);
+  assert.match(runtime,/attributeFilter:\['class','data-lourex-document-editor'\]/);
+});
