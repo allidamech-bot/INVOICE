@@ -56,8 +56,15 @@ test('v357 keeps command menus neutral and inside the desktop sidebar',()=>{
 });
 
 test('canonical light/dark palette keeps layered surfaces and blue primary actions',()=>{
-  assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-workspace:#F5F8F9!important[\s\S]*?--ft-surface:#FFFFFF!important[\s\S]*?--ft-surface-2:#EEF3F4!important[\s\S]*?--ft-accent:#315DA8!important/);
-  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-workspace:#071113!important[\s\S]*?--ft-shell:#0D191C!important[\s\S]*?--ft-surface:#122126!important[\s\S]*?--ft-surface-3:#1C3035!important[\s\S]*?--ft-accent:#3A68B8!important/);
+  assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-workspace:#F5F8F9!important/);
+  assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-surface:#FFFFFF!important/);
+  assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-surface-2:#EEF3F4!important/);
+  assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-accent:#315DA8!important/);
+  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-workspace:#071113!important/);
+  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-shell:#0D191C!important/);
+  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-surface:#122126!important/);
+  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-surface-3:#1C3035!important/);
+  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-accent:#3A68B8!important/);
   assert.match(palette,/--ft-on-accent:#FFFFFF!important/,'primary actions must use white ink on canonical blue');
   assert.match(palette,/html\[data-ui-theme="dark"\] body \.ta-auth-page :where\(\.ta-auth-primary,\.btn-primary,button\.btn-primary\)\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important[\s\S]*?color:var\(--ft-on-accent\)!important/,'dark auth primary must use the canonical blue action language');
   assert.match(blue,/--hx-purple:var\(--ft-accent\)/,'retired Hostinger violet aliases must resolve to the blue application token');
