@@ -168,6 +168,8 @@
     color:var(--ft-on-accent)!important;
   }
   .app-ui .btn-primary:hover:not(:disabled){border-color:var(--ft-accent-hover)!important;background:var(--ft-accent-hover)!important;color:var(--ft-on-accent)!important;}
+  /* Button labels are presentation children, never independent semantic text. */
+  html body #root .app-ui .btn.btn-primary>span{color:inherit!important;}
   .app-ui .btn-secondary{
     border-color:var(--ft-line-strong)!important;
     background:var(--ft-surface)!important;
