@@ -15,7 +15,7 @@ const legacyIosExpression=/\/iP\(\?:hone\|ad\|od\)\/i\.test\(navigator\.userAgen
 const legacyIosReplacement="(/iP(?:hone|ad|od)/i.test(navigator.userAgent||'')||(String(navigator.platform||'')==='MacIntel'&&Number(navigator.maxTouchPoints||0)>1))";
 const desktopPreviewMatch=/window\.matchMedia\('\(min-width:1181px\)'\)\.matches/g;
 const previewEventMatch=/event\.matches/g;
-const runtimeHelper=`\nfunction __lourexAppleMobileWebKit(){\n  try{\n    if(Boolean(window.__LOUREX_IOS_WEBKIT__))return true;\n    const ua=String(navigator.userAgent||'');\n    const platform=String(navigator.platform||'');\n    const touchPoints=Number(navigator.maxTouchPoints||0);\n    return /iP(?:hone|ad|od)/i.test(ua)||(platform==='MacIntel'&&touchPoints>1);\n  }catch{return false;}\n}\n`;
+const runtimeHelper=`\nfunction __lourexAppleMobileWebKit(){\n  try{\n    if(Boolean(window.__LOUREX_IOS_WEBKIT__))return true;\n    const ua=String(navigator.userAgent||'');\n    const platform=String(navigator.platform||'');\n    const touchPoints=Number(navigator.maxTouchPoints||0);\n    return /iP(?:hone|ad|od)/i.test(ua)||(platform==='MacIntel'&&touchPoints>1);\n  }catch{return false;}\n}\ntry{\n  if(__lourexAppleMobileWebKit())document.documentElement.setAttribute('data-lourex-ios-webkit','true');\n  else document.documentElement.removeAttribute('data-lourex-ios-webkit');\n}catch{}\n`;
 
 for(const path of editorTargets){
   let source=await readFile(path,'utf8');
@@ -39,7 +39,9 @@ for(const path of editorTargets){
     throw new Error(`v339 iPadOS desktop-preview guard was not installed in ${path}.`);
   }
 
-  await writeFile(path,source+runtimeHelper);
+  source+=runtimeHelper;
+  if(!source.includes("document.documentElement.setAttribute('data-lourex-ios-webkit','true')"))throw new Error(`v339 iPadOS root geometry marker was not installed in ${path}.`);
+  await writeFile(path,source);
 }
 
 for(const path of compatibilityTargets){
@@ -125,6 +127,7 @@ for(const path of compatibilityTargets){
   // the outer flex item must be allowed to shrink and anchor to the visible top
   // instead of being vertically centered outside the visual viewport.
   const safariImportViewport=`\n@media screen and (max-width:760px),screen and (max-height:520px){\n.app-ui .modal-backdrop:has(.product-import-shell),.app-ui .modal-backdrop:has(.supplier-import-shell){align-items:flex-start!important;justify-content:center!important;overflow:hidden!important}\n.app-ui .modal:has(.product-import-shell),.app-ui .modal:has(.supplier-import-shell){min-height:0!important;align-self:flex-start!important}\n}\n`;
+
   css+=coarsePointerActions+safariImportViewport;
 
   if(/\.app-ui\s+\.template-favorite-button\s*\{[^}]*min-height\s*:\s*38px!important/.test(css))throw new Error('v339 template favorite 38px override remains in production CSS.');
@@ -134,4 +137,4 @@ for(const path of compatibilityTargets){
   await writeFile(cssTarget,css);
 }
 
-console.log('v339 iPadOS Desktop Website runtime, editor timing, attachment-memory, A4-output, Safari viewport, touch-target and live-preview safeguards installed.');
+console.log('v339 iPadOS Desktop Website runtime marker, editor timing, attachment-memory, A4-output, Safari viewport, touch-target and live-preview safeguards installed.');
