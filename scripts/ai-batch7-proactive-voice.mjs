@@ -33,6 +33,9 @@ voice=voice.replace(manualStopToken,"voiceManualStop=true;stopRecognition(recogn
 const naturalEndToken="const end=voiceCompletion||{state:voiceHadResult?'done':voiceManualStop?'':'error',messageKey:voiceHadResult?'voiceAdded':voiceManualStop?'voiceStopped':'noSpeech',hideAfter:voiceHadResult?1200:2400};";
 if(!voice.includes(naturalEndToken))throw new Error('AI Batch 7 could not find natural voice completion lifecycle.');
 voice=voice.replace(naturalEndToken,"const end=voiceCompletion||{state:voiceHadResult?'done':voiceManualStop?'':'error',messageKey:voiceHadResult?'voiceAdded':voiceManualStop?'voiceStopped':'noSpeech',hideAfter:voiceHadResult?5000:2400};");
+const finalResultToken="if(Array.from(event.results||[]).every(result=>result.isFinal))stopRecognition(instance,panel,'done','voiceAdded',1200);";
+if(!voice.includes(finalResultToken))throw new Error('AI Batch 7 could not find successful final-result completion lifecycle.');
+voice=voice.replace(finalResultToken,"if(Array.from(event.results||[]).every(result=>result.isFinal))stopRecognition(instance,panel,'done','voiceAdded',5000);");
 const captureToken="recognitionCaptureTimer=window.setTimeout(()=>{if(recognition===instance)stopRecognition(instance,panel,voiceHadResult?'done':'error',voiceHadResult?'voiceAdded':'noSpeech',2400);},30000);";
 if(!voice.includes(captureToken))throw new Error('AI Batch 7 could not find voice capture timeout lifecycle.');
 voice=voice.replace(captureToken,"recognitionCaptureTimer=window.setTimeout(()=>{if(recognition===instance)stopRecognition(instance,panel,voiceHadResult?'done':'error',voiceHadResult?'voiceAdded':'noSpeech',voiceHadResult?5000:2400);},30000);");
