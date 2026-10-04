@@ -54,7 +54,7 @@ export interface AdvisorDataV2 {
 }
 
 const RESPONSE_CONTRACT:AdvisorResponseContract=Object.freeze({
-  sections:['Summary','KPI','Table','Risk','Missing','Recommendation','Evidence','Actions'],
+  sections:['Summary','KPI','Table','Risk','Missing','Recommendation','Evidence','Actions'] as const,
   currencyPolicy:'keep-currencies-separate-unless-a-deterministic-fx-result-is-provided',
   arithmeticPolicy:'use-provided-deterministic-values-do-not-recalculate-accounting',
   missingDataPolicy:'state-missing-data-never-invent',
