@@ -1,68 +1,9 @@
-/* LOUREX v355 — final visual token/utility contract for the Hostinger-style branch.
-   This file intentionally owns color tokens, typography and small shared surfaces
-   after the page closeout layer, while runtime geometry remains owned by the
-   reliability bridge that loads after it. */
+/* LOUREX v355 — shared typography and utility contract.
+ * Palette ownership lives only in v346-template-color-visual-closeout.css.
+ * This file consumes canonical tokens and must never redefine the application theme.
+ */
 
 @media screen {
-  html[data-ui-theme="light"],html:not([data-ui-theme="dark"]){
-    --ft-workspace:#f7f7fb;
-    --ft-surface:#ffffff;
-    --ft-surface-2:#f4f3f9;
-    --ft-surface-3:#eeecf6;
-    --ft-input:#ffffff;
-    --ft-text:#403c4c;
-    --ft-text-soft:#5e586d;
-    --ft-text-strong:#17151f;
-    --ft-muted:#817b91;
-    --ft-faint:#aaa3b5;
-    --ft-line:#e6e3ed;
-    --ft-line-strong:#d8d2e2;
-    --ft-accent:#673de6;
-    --ft-accent-soft:#eee9ff;
-    --ft-accent-faint:#f7f4ff;
-    --ft-success:#008b65;
-    --ft-success-soft:#e9f8f2;
-    --ft-warning:#b96c00;
-    --ft-warning-soft:#fff6df;
-    --ft-danger:#c43838;
-    --ft-danger-soft:#fff0ef;
-    --ft-focus:0 0 0 4px rgba(103,61,230,.11);
-    --ta-brand-50:#f7f4ff;
-    --ta-brand-100:#eee9ff;
-    --ta-brand-500:#7553eb;
-    --ta-brand-600:#673de6;
-    --ta-brand-700:#5630d7;
-  }
-  html[data-ui-theme="dark"]{
-    --ft-workspace:#141319;
-    --ft-surface:#1d1b24;
-    --ft-surface-2:#25222e;
-    --ft-surface-3:#2d2938;
-    --ft-input:#211f29;
-    --ft-text:#d9d5e2;
-    --ft-text-soft:#bdb7ca;
-    --ft-text-strong:#fbfaff;
-    --ft-muted:#9791a7;
-    --ft-faint:#746e82;
-    --ft-line:#34313f;
-    --ft-line-strong:#484254;
-    --ft-accent:#9279ff;
-    --ft-accent-soft:#30284d;
-    --ft-accent-faint:#251f3a;
-    --ft-success:#55d4aa;
-    --ft-success-soft:rgba(85,212,170,.12);
-    --ft-warning:#f4b14a;
-    --ft-warning-soft:rgba(244,177,74,.12);
-    --ft-danger:#ff8178;
-    --ft-danger-soft:rgba(255,129,120,.12);
-    --ft-focus:0 0 0 4px rgba(143,117,255,.15);
-    --ta-brand-50:#251f3a;
-    --ta-brand-100:#30284d;
-    --ta-brand-500:#9a84ff;
-    --ta-brand-600:#8f75ff;
-    --ta-brand-700:#b3a4ff;
-  }
-
   body,.app-ui,.app-ui button,.app-ui input,.app-ui select,.app-ui textarea,
   .ta-auth-page,.ta-auth-page button,.ta-auth-page input,.ta-auth-page select,
   .global-search-panel,.global-search-panel button,.global-search-panel input,
@@ -70,8 +11,7 @@
     font-family:"Outfit",Inter,"Noto Sans Arabic",sans-serif!important;
   }
 
-  ::selection{background:rgba(103,61,230,.20);color:var(--ft-text-strong);}
-  html[data-ui-theme="dark"] ::selection{background:rgba(143,117,255,.28);color:#fff;}
+  ::selection{background:color-mix(in srgb,var(--ft-accent) 22%,transparent);color:var(--ft-text-strong);}
 
   .app-ui :is(.ta-status-dot,.ta-cloud-state-dot,.ta-account-dot,.ta-auth-online-dot){box-shadow:0 0 0 4px color-mix(in srgb,currentColor 9%,transparent)!important;}
   .app-ui :is(.ta-status-dot,.ta-cloud-state-dot).state-synced,
@@ -89,7 +29,7 @@
   }
   .app-ui .ta-cloud-account-header>.ta-avatar{border-radius:11px!important;background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;}
   .app-ui .ta-cloud-continuity{
-    border-color:var(--ft-line)!important;border-radius:12px!important;background:var(--ft-surface)!important;box-shadow:0 1px 2px rgba(31,24,58,.04)!important;
+    border-color:var(--ft-line)!important;border-radius:12px!important;background:var(--ft-surface)!important;box-shadow:0 1px 2px color-mix(in srgb,var(--ft-text-strong) 5%,transparent)!important;
   }
   .app-ui .ta-cloud-conflict{border-radius:13px!important;background:var(--ft-danger-soft)!important;}
   .app-ui .ta-cloud-choice-confirm{border-color:var(--ft-line)!important;border-radius:11px!important;background:var(--ft-surface)!important;}
@@ -104,7 +44,7 @@
   .app-ui :is(.ta-ops-integrity,.ta-ops-error,.ta-customer-form-error){border-color:color-mix(in srgb,var(--ft-danger) 24%,var(--ft-line))!important;background:var(--ft-danger-soft)!important;color:var(--ft-danger)!important;}
 
   .app-ui :is(.ta-panel-header,.ta-product-register-header,.ta-product-selection-bar,.ta-ops-panel-head,.ta-ops-card-head,.ta-ops-editor-head,.ta-settings-card>header){
-    background:linear-gradient(180deg,color-mix(in srgb,var(--ft-accent) 1.8%,var(--ft-surface)),var(--ft-surface))!important;
+    background:var(--ft-surface-2)!important;
   }
 
   .app-ui :is(.ta-table,.ta-product-table,.ta-inventory-table){scrollbar-color:color-mix(in srgb,var(--ft-accent) 20%,var(--ft-line)) transparent;}
@@ -116,22 +56,22 @@
   .app-ui :is(.ta-product-row,.ta-ops-row,.ta-account-row,.ta-recent-row,.ta-customer-row,.ta-doc-row){transition:background-color .15s ease,border-color .15s ease!important;}
 
   .app-ui :is(.ta-create-menu,.ta-product-menu,.action-menu,.customer-dropdown) button:hover{
-    background:color-mix(in srgb,var(--ft-accent) 4%,var(--ft-surface-2))!important;color:var(--ft-text-strong)!important;
+    background:var(--ft-surface-2)!important;color:var(--ft-text-strong)!important;
   }
   .app-ui :is(.ta-create-menu,.ta-product-menu,.action-menu,.customer-dropdown) button:active{transform:translateY(1px)!important;}
 
   .app-ui :is(.ta-settings-link-action,.ta-text-action,.ta-product-register-header>button){color:var(--ft-accent)!important;}
-  .app-ui :is(.ta-settings-link-action,.ta-text-action,.ta-product-register-header>button):hover{color:var(--ta-brand-700)!important;}
+  .app-ui :is(.ta-settings-link-action,.ta-text-action,.ta-product-register-header>button):hover{color:var(--ft-accent-hover)!important;}
 
   .app-ui .ta-conflict-banner{
-    border-color:color-mix(in srgb,var(--ft-danger) 24%,var(--ft-line))!important;border-radius:14px!important;background:var(--ft-danger-soft)!important;box-shadow:0 10px 28px rgba(120,30,30,.06)!important;
+    border-color:color-mix(in srgb,var(--ft-danger) 24%,var(--ft-line))!important;border-radius:14px!important;background:var(--ft-danger-soft)!important;box-shadow:none!important;
   }
   .app-ui .ta-conflict-icon{border-radius:11px!important;background:color-mix(in srgb,var(--ft-danger) 10%,transparent)!important;color:var(--ft-danger)!important;}
 
   .app-ui :is(.ta-settings-toast.is-success,.ta-auth-feedback.is-success){border-color:color-mix(in srgb,var(--ft-success) 24%,var(--ft-line))!important;background:var(--ft-success-soft)!important;color:var(--ft-success)!important;}
   .app-ui :is(.ta-settings-toast.is-error,.ta-auth-feedback.is-error){border-color:color-mix(in srgb,var(--ft-danger) 24%,var(--ft-line))!important;background:var(--ft-danger-soft)!important;color:var(--ft-danger)!important;}
 
-  .app-ui .ta-mobile-sheet{border-color:var(--ft-line)!important;background:color-mix(in srgb,var(--ft-surface) 97%,transparent)!important;}
+  .app-ui .ta-mobile-sheet{border-color:var(--ft-line)!important;background:var(--ft-surface)!important;}
   .app-ui .ta-sheet-link{border-radius:12px!important;color:var(--ft-text)!important;}
   .app-ui .ta-sheet-link:hover{background:var(--ft-surface-2)!important;}
   .app-ui .ta-sheet-link.is-active{background:var(--ft-accent-soft)!important;color:var(--ft-accent)!important;}
@@ -139,28 +79,26 @@
 
   .app-ui :is(.ta-settings-asset-upload,.ta-setup-logo-upload,.attachment-dropzone,.upload-tile,.file-picker){transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease!important;}
 
-  /* Entry / PIN visual closeout. Keep one brand wordmark and use the same violet
-     primary-action language as the signed-in workspace. */
+  /* Entry/PIN uses the same canonical action language as the signed-in workspace. */
   .ta-auth-page .ta-auth-brand>span{display:none!important;}
   .ta-auth-page .ta-auth-primary{
     min-height:46px!important;
-    border:1px solid #673de6!important;
+    border:1px solid var(--ft-accent)!important;
     border-radius:11px!important;
-    background:linear-gradient(135deg,#673de6,#7c5cf1)!important;
-    color:#fff!important;
-    box-shadow:0 9px 22px rgba(103,61,230,.20)!important;
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    color:var(--ft-on-accent)!important;
+    box-shadow:0 8px 20px color-mix(in srgb,var(--ft-accent) 18%,transparent)!important;
     font-weight:700!important;
   }
-  html[data-ui-theme="dark"] .ta-auth-page .ta-auth-primary{border-color:#9279ff!important;background:linear-gradient(135deg,#8064f4,#9a84ff)!important;box-shadow:0 10px 26px rgba(103,61,230,.28)!important;}
-  .ta-auth-page .ta-auth-primary:hover:not(:disabled){transform:translateY(-1px)!important;box-shadow:0 12px 28px rgba(103,61,230,.25)!important;}
+  .ta-auth-page .ta-auth-primary:hover:not(:disabled){background:var(--ft-accent-hover)!important;border-color:var(--ft-accent-hover)!important;transform:none!important;box-shadow:0 10px 24px color-mix(in srgb,var(--ft-accent) 20%,transparent)!important;}
   .ta-auth-page .ta-auth-link{color:var(--ft-accent)!important;font-weight:620!important;}
   .ta-auth-page .ta-auth-security>span{background:var(--ft-success)!important;box-shadow:0 0 0 4px color-mix(in srgb,var(--ft-success) 10%,transparent)!important;}
 
   .app-ui button:disabled,.ta-auth-page button:disabled,.global-search-panel button:disabled{filter:saturate(.72);opacity:.55!important;}
 }
 
-/* Account uses the same XL workspace modal as Settings on desktop. A historical
-   content-width rule could otherwise shrink the account scope into a narrow column. */
+/* Account uses the same XL workspace modal as Settings on desktop. */
 @media screen and (min-width:901px){
   html body .modal.modal-xl:has(.ta-settings-shell.is-account){
     width:min(1040px,calc(100vw - 56px))!important;
@@ -185,8 +123,7 @@
   .app-ui .ta-page-title strong{font-size:17px!important;line-height:23px!important;}
   .app-ui .ta-page-title small{font-size:10.5px!important;line-height:15px!important;}
   .app-ui .ta-mobile-nav-label{font-weight:620!important;}
-  .app-ui .ta-mobile-sheet{border-radius:24px 24px 0 0!important;box-shadow:0 -20px 60px rgba(42,29,88,.18)!important;}
-  html[data-ui-theme="dark"] .app-ui .ta-mobile-sheet{box-shadow:0 -20px 60px rgba(0,0,0,.46)!important;}
+  .app-ui .ta-mobile-sheet{border-radius:24px 24px 0 0!important;box-shadow:0 -18px 52px color-mix(in srgb,var(--ft-text-strong) 12%,transparent)!important;}
 }
 
 @media (prefers-reduced-motion:reduce){

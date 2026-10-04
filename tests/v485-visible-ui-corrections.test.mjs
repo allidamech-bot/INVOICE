@@ -12,25 +12,26 @@ test('v485 centers the actual Documents type tiles instead of the hero action wr
   assert.match(css,/\.ta-doc-type-tabs>button:last-child:nth-child\(odd\)[\s\S]*?justify-self:center!important/,'odd final tile must remain centered');
 });
 
-test('v485 gives Dark Mode visibly separated navy surfaces instead of stacked near-black layers',async()=>{
+test('v485 consumes the canonical theme instead of owning a second palette',async()=>{
   const css=await read('src/styles/v485-visible-ui-corrections.css');
-  assert.match(css,/--lx485-canvas:#0a1826/);
-  assert.match(css,/--lx485-surface:#12263a/);
-  assert.match(css,/--lx485-surface-3:#1d3651/);
-  assert.match(css,/\.ta-documents-header-actions>:is\(button,\.btn\):not\(\.btn-primary\)[\s\S]*?background-color:var\(--lx485-surface-3\)!important/,'non-primary create controls must no longer be black');
-  assert.match(css,/\.ta-mobile-sheet\{[\s\S]*?background:#102235!important/,'More sheet must own a visible navy base');
-  assert.match(css,/\.ta-mobile-sheet :is\(\.ta-sheet-account,\.ta-sheet-link,\.ta-sheet-theme,\.ta-sheet-theme \.mf-theme-toggle\)[\s\S]*?background:#1a3047!important/,'More sheet items need a distinct elevated layer');
+  assert.match(css,/--lx485-canvas:var\(--ft-canvas\)/);
+  assert.match(css,/--lx485-surface:var\(--ft-surface\)/);
+  assert.match(css,/--lx485-surface-3:var\(--ft-surface-3\)/);
+  assert.match(css,/--lx485-blue:var\(--ft-accent\)/);
+  assert.doesNotMatch(css,/--ft-(?:canvas|shell|workspace|surface(?:-2|-3)?|input|text(?:-strong|-soft)?|muted|faint|line(?:-strong)?|accent(?:-hover|-soft|-faint)?|on-accent|success(?:-soft)?|warning(?:-soft)?|danger(?:-soft)?|info(?:-soft)?|focus)\s*:/i);
+  assert.match(css,/\.ta-documents-header-actions>:is\(button,\.btn\):not\(\.btn-primary\)[\s\S]*?background-color:var\(--ft-surface-3\)!important/,'non-primary create controls must use the canonical elevated surface');
+  assert.match(css,/\.ta-mobile-sheet,\.ta-create-menu-mobile\)[\s\S]*?background:var\(--ft-surface\)!important/,'mobile sheets must use the canonical elevated surface hierarchy');
 });
 
-test('v485 visibly activates the premium dashboard on iPad and desktop',async()=>{
+test('v485 keeps premium dashboard geometry without decorative palette layers',async()=>{
   const css=await read('src/styles/v485-visible-ui-corrections.css');
   assert.match(css,/@media screen and \(min-width:901px\)[\s\S]*?\.ta-finance-dashboard/,'desktop dashboard owner is missing');
-  assert.match(css,/workspace-shell\.screen-home \.ta-dashboard-header\{[\s\S]*?linear-gradient\(135deg,#18334f 0%,#12283e 52%,#0f2134 100%\)!important/,'desktop hero must use the visible premium surface');
-  assert.match(css,/\.lourex-advisor-card\{[\s\S]*?linear-gradient\(145deg,#183149,#12273b\)!important/,'desktop AI card premium treatment is missing');
-  assert.match(css,/\.ta-sidebar\{[\s\S]*?linear-gradient\(180deg,#10253a,#0c1b2b\)!important/,'desktop/iPad sidebar must leave the old flat black treatment');
+  assert.match(css,/workspace-shell\.screen-home \.ta-dashboard-header\{[\s\S]*?background:var\(--ft-surface-2\)!important/,'desktop hero must use the canonical raised surface');
+  assert.match(css,/workspace-shell\.screen-home \.ta-kpi-card\{[\s\S]*?background:var\(--ft-surface\)!important/,'desktop KPI cards must use the canonical surface');
+  assert.doesNotMatch(css,/#(?:c79347|c49a56|9b89df|8e91d5|9690df)/i,'legacy decorative gold/purple palette must not return');
 });
 
-test('v485 is the final production visual owner after v484',async()=>{
+test('v485 is the final production geometry owner after v484',async()=>{
   const [pkg,bundle,standalone]=await Promise.all([
     read('package.json'),
     read('dist/styles/app.bundle.css'),

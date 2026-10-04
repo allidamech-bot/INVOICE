@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0D0D0D" />
+  <meta name="theme-color" content="#071113" />
   <script>
     (function(){
       var pref='system';
@@ -13,24 +13,24 @@
       document.documentElement.dataset.uiTheme=resolved;
       document.documentElement.style.colorScheme=resolved;
       var meta=document.querySelector('meta[name="theme-color"]');
-      if(meta)meta.setAttribute('content',resolved==='dark'?'#0D0D0D':'#f4f7fb');
+      if(meta)meta.setAttribute('content',resolved==='dark'?'#071113':'#F5F8F9');
     })();
   </script>
   <title>LOUREX Invoice — Unified Diagnostics</title>
   <style>
     :root{
       font-family:Outfit,Inter,Arial,sans-serif;
-      --canvas:#0D0D0D;--surface:#191919;--surface-2:#202020;--input:#161616;
-      --text:#D2D2D2;--strong:#F7F7F7;--soft:#C8C8C8;--muted:#A9A9A9;
-      --line:#303030;--line-strong:#464646;--accent:#7399E3;--accent-soft:rgba(115,153,227,.16);--on-accent:#0D0D0D;
-      --success:#d2d2d2;--warning:#ef737a;--danger:#ef737a;
+      --canvas:#071113;--surface:#122126;--surface-2:#17292E;--input:#0D191C;
+      --text:#D6E3E6;--strong:#F7FBFC;--soft:#B7C7CB;--muted:#91A4A9;
+      --line:#244047;--line-strong:#33545C;--accent:#3A68B8;--accent-soft:rgba(58,104,184,.16);--on-accent:#FFFFFF;
+      --success:#4BC89B;--warning:#E3A145;--danger:#F06B72;
       color:var(--text);background:var(--canvas);color-scheme:dark;
     }
     html[data-ui-theme="light"]{
-      --canvas:#f4f7fb;--surface:#ffffff;--surface-2:#eef4f7;--input:#ffffff;
-      --text:#33475b;--strong:#102235;--soft:#62758a;--muted:#73869a;
-      --line:#d8e3eb;--line-strong:#c3d1dc;--accent:#129da1;--accent-soft:rgba(18,157,161,.11);--on-accent:#ffffff;
-      --success:#178b68;--warning:#b7791f;--danger:#c33d3d;
+      --canvas:#F5F8F9;--surface:#FFFFFF;--surface-2:#EEF3F4;--input:#FFFFFF;
+      --text:#32464C;--strong:#102126;--soft:#52666C;--muted:#71858A;
+      --line:#DDE5E7;--line-strong:#C9D5D9;--accent:#315DA8;--accent-soft:rgba(49,93,168,.12);--on-accent:#FFFFFF;
+      --success:#1B7D5E;--warning:#A66A18;--danger:#C94D54;
       color-scheme:light;
     }
     *{box-sizing:border-box}
@@ -41,8 +41,7 @@
     .brand img{width:48px;height:48px;object-fit:contain;border-radius:11px}
     .brand h1{font-size:22px;margin:0;color:var(--strong)}
     .brand p{margin:3px 0 0;color:var(--muted);font-size:13px}
-    .card{margin-bottom:14px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 12px 30px rgba(16,24,40,.06)}
-    html[data-ui-theme="dark"] .card{box-shadow:none}
+    .card{margin-bottom:14px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:none}
     .summary{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
     .dot{width:10px;height:10px;border-radius:50%;background:var(--muted)}
     .dot.ok{background:var(--success)}.dot.warn{background:var(--warning)}.dot.bad{background:var(--danger)}
