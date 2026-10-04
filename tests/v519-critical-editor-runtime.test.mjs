@@ -19,9 +19,11 @@ test('v519 makes A4 preview physically non-shrinkable on every screen preview',a
   assert.match(css,/\.screen-editor \.preview-stage[\s\S]*?display:block!important;[\s\S]*?overflow:auto!important/);
 });
 
-test('v519 restores one bounded desktop split and tablet single-column editor',async()=>{
+test('v519 restores bounded desktop split while tablet and iPad commercial editors stay single-column',async()=>{
   const css=await readFile('src/styles/critical-editor-geometry-v519.css','utf8');
   assert.match(css,/@media screen and \(min-width:1181px\)[\s\S]*?\.editor-layout[\s\S]*?grid-template-columns:minmax\(520px,48%\) minmax\(0,52%\)!important/);
+  assert.match(css,/@media screen and \(min-width:1181px\) and \(max-width:1366px\)[\s\S]*?html\[data-lourex-ios-webkit="true"\][\s\S]*?\.editor-layout[\s\S]*?display:block!important/);
+  assert.match(css,/@media screen and \(min-width:1181px\) and \(max-width:1366px\)[\s\S]*?html\[data-lourex-ios-webkit="true"\][\s\S]*?:is\(\.preview-pane,\.editor-preview-pane\)[\s\S]*?display:none!important/);
   assert.match(css,/@media screen and \(min-width:901px\) and \(max-width:1180px\)[\s\S]*?\.editor-layout[\s\S]*?display:block!important/);
   assert.match(css,/@media screen and \(min-width:901px\) and \(max-width:1180px\)[\s\S]*?:is\(\.preview-pane,\.editor-preview-pane\)[\s\S]*?display:none!important/);
 });
