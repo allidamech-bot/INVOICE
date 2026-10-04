@@ -18,9 +18,10 @@ function dueBusinessTaskSignals(tasks:AssistantTaskRecord[],preferences:Proactiv
 
 export class DailyCommandCenterTool extends React.Component<Props,State>{
   state:State={open:false,busy:false,signals:[],personalTasks:[],preferences:null,error:''};
-  componentDidMount():void{window.addEventListener(OPEN_EVENT,this.handleOpen);}
-  componentWillUnmount():void{window.removeEventListener(OPEN_EVENT,this.handleOpen);}
+  componentDidMount():void{window.addEventListener(OPEN_EVENT,this.handleOpen);document.addEventListener('keydown',this.handleModalEscape,true);}
+  componentWillUnmount():void{window.removeEventListener(OPEN_EVENT,this.handleOpen);document.removeEventListener('keydown',this.handleModalEscape,true);}
   private handleOpen=()=>{void this.open();};
+  private handleModalEscape=(event:KeyboardEvent)=>{if(!this.state.open||event.key!=='Escape')return;event.preventDefault();event.stopPropagation();if(!this.state.busy)this.setState({open:false});};
   private load=async()=>{
     const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX before reading today’s priorities.','افتح قفل LOUREX قبل قراءة أولويات اليوم.'));
     const [preferences,tasksState]=await Promise.all([loadProactiveState(resumed.key),loadAssistantTasks(resumed.key)]);
@@ -37,7 +38,7 @@ export class DailyCommandCenterTool extends React.Component<Props,State>{
   private refresh=async()=>{try{const loaded=await this.load();this.setState({preferences:loaded.preferences,signals:loaded.signals,personalTasks:loaded.personalTasks,error:''});}catch(error){this.setState({error:error instanceof Error?error.message:String(error)});}};
   private dismiss=async(key:string)=>{try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX first.','افتح قفل LOUREX أولاً.'));await dismissProactiveSignal(resumed.key,key);await this.refresh();}catch(error){this.setState({error:error instanceof Error?error.message:String(error)});}};
   private snooze=async(key:string)=>{try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX first.','افتح قفل LOUREX أولاً.'));await snoozeProactiveSignal(resumed.key,key,tomorrowIso());await this.refresh();}catch(error){this.setState({error:error instanceof Error?error.message:String(error)});}};
-  private mute=async(category:ProactiveCategory,muted:boolean)=>{try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX first.','افتح قفل LOUREX أولاً.'));await setProactiveCategoryMuted(resumed.key,category,true);await this.refresh();}catch(error){this.setState({error:error instanceof Error?error.message:String(error)});}};
+  private mute=async(category:ProactiveCategory,muted:boolean)=>{try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX first.','افتح قفل LOUREX أولاً.'));await setProactiveCategoryMuted(resumed.key,category,muted);await this.refresh();}catch(error){this.setState({error:error instanceof Error?error.message:String(error)});}};
   private toggleBrief=async()=>{try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX first.','افتح قفل LOUREX أولاً.'));const next=!(this.state.preferences?.morningBriefEnabled!==false);await setMorningBriefEnabled(resumed.key,next);await this.refresh();}catch(error){this.setState({error:error instanceof Error?error.message:String(error)});}};
   private title=(signal:ProactiveSignal)=>document.documentElement.lang==='ar'?signal.titleAr:signal.title;
   private detail=(signal:ProactiveSignal)=>document.documentElement.lang==='ar'?signal.detailAr:signal.detail;
