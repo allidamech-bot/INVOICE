@@ -28,13 +28,18 @@ source=source.replace(periodicReschedule,`checkpointFlushPromise=operation.then(
  * while the security timer believed the app was idle and automatically unmounted
  * the editor. Input/composition events now count as genuine activity without
  * weakening the configured idle timeout.
+ *
+ * The production iPad detector is a JavaScript capability check. Surface that same
+ * result as a root marker so the final CSS owner can keep desktop-class iPadOS
+ * viewports single-column without guessing from viewport width or user-agent CSS.
  */
 const activityAnchor='const __lourexDocumentAutosaveV486=true;';
 if(!source.includes(activityAnchor))throw new Error('v519 could not find the adaptive document runtime owner.');
-const activityRuntime=`${activityAnchor}\n    const editorActivityEvents=['input','beforeinput','compositionstart','compositionend'];\n    for(const eventName of editorActivityEvents)window.addEventListener(eventName,instance.activity,{passive:true});\n    const baseComponentWillUnmountForEditorActivity=instance.componentWillUnmount?.bind(instance);\n    instance.componentWillUnmount=()=>{\n      for(const eventName of editorActivityEvents)window.removeEventListener(eventName,instance.activity);\n      baseComponentWillUnmountForEditorActivity?.();\n    };`;
+const activityRuntime=`${activityAnchor}\n    if(iosWebKit)document.documentElement.setAttribute('data-lourex-ios-webkit','true');\n    else document.documentElement.removeAttribute('data-lourex-ios-webkit');\n    const editorActivityEvents=['input','beforeinput','compositionstart','compositionend'];\n    for(const eventName of editorActivityEvents)window.addEventListener(eventName,instance.activity,{passive:true});\n    const baseComponentWillUnmountForEditorActivity=instance.componentWillUnmount?.bind(instance);\n    instance.componentWillUnmount=()=>{\n      for(const eventName of editorActivityEvents)window.removeEventListener(eventName,instance.activity);\n      baseComponentWillUnmountForEditorActivity?.();\n    };`;
 source=source.replace(activityAnchor,activityRuntime);
 
 if(source.includes('window.setTimeout(()=>void flushDocumentCheckpoint().catch(()=>undefined),30000)'))throw new Error('v519 periodic full-vault checkpoint flush is still active.');
+if(!source.includes("document.documentElement.setAttribute('data-lourex-ios-webkit','true')"))throw new Error('v519 iPad WebKit root marker is missing.');
 if(!source.includes("const editorActivityEvents=['input','beforeinput','compositionstart','compositionend'];"))throw new Error('v519 mobile editor activity coverage is missing.');
 if(!source.includes('if(checkpointPending||checkpointFlushPromise){instance.cloudSyncQueued=true;return Promise.resolve();}'))throw new Error('v519 expected cloud sync checkpoint guard is missing.');
 if(!source.includes('void flushDocumentCheckpoint().then(()=>baseCloseEditor())'))throw new Error('v519 close-editor durability flush is missing.');
@@ -55,4 +60,4 @@ if(bundle.includes('LOUREX v519 — critical commercial editor geometry owner.')
 bundle+=`\n${geometry}\n`;
 await writeFile(cssTarget,bundle);
 
-console.log('LOUREX v519 critical editor closeout installed: lightweight active autosave, mobile keyboard activity protection, fixed editor split, and non-shrinkable A4 preview.');
+console.log('LOUREX v519 critical editor closeout installed: lightweight active autosave, mobile keyboard activity protection, iPad WebKit geometry marker, fixed editor split, and non-shrinkable A4 preview.');
