@@ -36,4 +36,19 @@ if(!source.includes('if(checkpointPending||checkpointFlushPromise){instance.clou
 if(!source.includes('void flushDocumentCheckpoint().then(()=>baseCloseEditor())'))throw new Error('v519 close-editor durability flush is missing.');
 
 await writeFile(runtimeTarget,source);
-console.log('LOUREX v519 critical editor runtime installed: no periodic full-vault encryption during active editing + mobile keyboard activity keeps the configured session alive.');
+
+/*
+ * The repository intentionally contains historical visual owners. Install one final,
+ * narrowly scoped commercial-editor geometry layer after the generated bundle so
+ * older grid/flex/max-width rules cannot collapse the quotation editor or the A4
+ * preview. This layer is screen-only and does not alter print/PDF geometry.
+ */
+const cssTarget='dist/styles/app.bundle.css';
+const geometrySource='src/styles/critical-editor-geometry-v519.css';
+let bundle=await readFile(cssTarget,'utf8');
+const geometry=await readFile(geometrySource,'utf8');
+if(bundle.includes('LOUREX v519 — critical commercial editor geometry owner.'))throw new Error('v519 critical editor geometry is already installed.');
+bundle+=`\n${geometry}\n`;
+await writeFile(cssTarget,bundle);
+
+console.log('LOUREX v519 critical editor closeout installed: lightweight active autosave, mobile keyboard activity protection, fixed editor split, and non-shrinkable A4 preview.');
