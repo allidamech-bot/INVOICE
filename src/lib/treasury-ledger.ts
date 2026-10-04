@@ -1,4 +1,7 @@
-import type { ExpenseRecord, PaymentRecord, SupplierPaymentRecord, TreasuryAccountRecord, TreasuryLedgerRecord, TreasuryLedgerType, TreasuryReconciliationRecord, TreasurySourceType } from '../types.js';
+import type { ExpenseRecord, PaymentRecord, SupplierPaymentRecord, TreasuryAccountRecord, TreasuryLedgerRecord, TreasuryLedgerType, TreasuryReconciliationRecord, TreasurySourceType, VaultPayload } from '../types.js';
+import { assertInvoicePaymentInvariant } from './payments.js';
+import { normalizeSupplierPayment } from './payables.js';
+import { t } from './i18n.js';
 import { isIsoDate, makeId, todayIso } from './id.js';
 import { decimalToScaled, isNonNegativeDecimalInput } from './money.js';
 
@@ -61,6 +64,41 @@ export function validateTreasuryEntry(entry:TreasuryLedgerRecord,accounts:Treasu
   return errors;
 }
 export function assertTreasuryEntry(entry:TreasuryLedgerRecord,accounts:TreasuryAccountRecord[]=[]):void{const errors=validateTreasuryEntry(entry,accounts);if(errors.length)throw new Error(errors[0]);}
+
+// Validate against the newest scoped Vault inside its existing encrypted write
+// queue. A rendered payment/account snapshot is never posting authority.
+export function appendTreasuryEntry(vault:VaultPayload,entry:TreasuryLedgerRecord):VaultPayload{
+  function fail(en:string,ar:string):never{throw new Error(t(en,ar));}
+  if(!entry.id||vault.treasuryEntries.some(item=>item.id===entry.id))fail('Treasury entry already exists.','قيد الخزينة موجود بالفعل.');
+  if(entry.voidedAt||entry.reconciledAt)fail('New treasury entries must be active and unreconciled.','يجب أن يكون القيد الجديد ساريًا وغير مطابق.');
+  if(entry.workspaceId!==vault.appSettings.activeWorkspaceId||entry.branchId!==vault.appSettings.activeBranchId)fail('Workspace changed. Reopen the treasury form.','تغيرت مساحة العمل. افتح نموذج الخزينة من جديد.');
+  const inScope=(item:{workspaceId?:string;branchId?:string})=>(item.workspaceId||'default')===entry.workspaceId&&(item.branchId||'main')===entry.branchId;
+  for(const id of [entry.fromAccountId,entry.toAccountId].filter(Boolean)){
+    const matches=vault.treasuryAccounts.filter(item=>item.id===id);
+    if(matches.length!==1||!matches[0]?.active||!inScope(matches[0]))fail('Treasury account changed or is unavailable. Choose an active account again.','تغير حساب الخزينة أو لم يعد متاحًا. اختر حسابًا ساريًا من جديد.');
+  }
+  if(!/^[A-Z]{3}$/.test(entry.currency.trim().toUpperCase()))fail('Treasury currency is required.','عملة الخزينة مطلوبة.');
+  assertTreasuryEntry(entry,vault.treasuryAccounts);
+  if(entry.sourceType!=='manual'){
+    if(treasuryLinkedSourceUsed(vault.treasuryEntries,entry.sourceType,entry.sourceId))fail('This payment is already allocated to treasury.','تم تخصيص هذه الدفعة مسبقًا للخزينة.');
+    const matches=entry.sourceType==='customer-payment'?vault.payments.filter(item=>item.id===entry.sourceId):vault.supplierPayments.filter(item=>item.id===entry.sourceId);
+    const source=matches[0];
+    if(matches.length!==1||!source||!inScope(source))fail('The linked payment is unavailable. Choose a payment again.','الدفعة المرتبطة غير متاحة. اختر الدفعة من جديد.');
+    if(!positive(source.amount)||source.currency.trim().toUpperCase()!==entry.currency.trim().toUpperCase()||decimalToScaled(source.amount,2)!==decimalToScaled(entry.amount,2))fail('The payment amount or currency changed. Select it again and review before saving.','تغير مبلغ الدفعة أو عملتها. اخترها من جديد وراجعها قبل الحفظ.');
+    if(entry.sourceType==='customer-payment'){
+      const payment=vault.payments.find(item=>item.id===entry.sourceId)!;
+      const invoice=vault.documents.find(item=>item.id===payment.invoiceId);
+      if(!invoice||!inScope(invoice))fail('The payment invoice is unavailable.','فاتورة الدفعة غير متاحة.');
+      assertInvoicePaymentInvariant(invoice,vault.payments,vault.documents);
+    }else{
+      const payment=vault.supplierPayments.find(item=>item.id===entry.sourceId)!;
+      const purchase=vault.purchases.find(item=>item.id===payment.purchaseId);
+      if(!purchase||!inScope(purchase))fail('The payment purchase is unavailable.','مستند شراء الدفعة غير متاح.');
+      normalizeSupplierPayment(purchase,vault.suppliers.find(item=>item.id===payment.supplierId)??null,vault.supplierPayments,payment);
+    }
+  }
+  return{...vault,treasuryEntries:[...vault.treasuryEntries,entry]};
+}
 
 export function treasuryLinkedSourceUsed(entries:TreasuryLedgerRecord[],sourceType:TreasurySourceType,sourceId:string,ignoreId=''):boolean{
   return entries.some(entry=>entry.id!==ignoreId&&!entry.voidedAt&&entry.sourceType===sourceType&&entry.sourceId===sourceId);
