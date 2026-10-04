@@ -1,0 +1,12 @@
+<!doctype html><html lang="en" dir="ltr" data-ui-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css"><link rel="stylesheet" href="styles/v332-critical-documents-deep-closeout.css"><link rel="stylesheet" href="styles/v482-mobile-ux-repair.css"></head>
+<body><div id="root"><div id="modal-fixture" class="app-ui"></div></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+import {Modal,ConfirmDialog,Button,Input,Field} from './src/components/UI.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const language=new URLSearchParams(location.search).get('lang')==='ar'?'ar':'en';setUiLanguage(language);document.documentElement.lang=language;document.documentElement.dir=language==='ar'?'rtl':'ltr';document.documentElement.dataset.uiTheme=language==='ar'?'dark':'light';
+window.modalAcceptance={saved:0};const h=React.createElement;
+class Fixture extends React.Component{
+ state={open:false,nested:false};
+ render(){return h(React.Fragment,null,h(Button,{onClick:()=>this.setState({open:true}),'data-testid':'open-form'},'Open form'),h(Modal,{open:this.state.open,title:language==='ar'?'مراجعة البيانات وحفظ التغييرات':'Review and save changes',size:'lg',onClose:()=>this.setState({open:false,nested:false}),footer:h('div',{className:'modal-footer-actions'},h(Button,{onClick:()=>this.setState({nested:true})},'Nested review'),h(Button,{variant:'primary',onClick:()=>{window.modalAcceptance.saved+=1;this.setState({open:false});}},'Save reviewed'))},h('div',{className:'ta-customer-form'},Array.from({length:20},(_,index)=>h(Field,{key:index,label:`Field ${index+1}`},h(Input,{'aria-label':`Field ${index+1}`,defaultValue:`Value ${index+1}`}))))),h(ConfirmDialog,{open:this.state.nested,title:'Confirm review',message:'Review without changing stored financial values.',confirmLabel:'Approve review',destructive:false,onCancel:()=>this.setState({nested:false}),onConfirm:()=>this.setState({nested:false})}));}
+}
+ReactDOM.render(h(Fixture),document.getElementById('modal-fixture'));
+</script></body></html>

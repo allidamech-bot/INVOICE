@@ -13,7 +13,7 @@ test('modal follows keyboard viewport and clears mobile geometry after rotation'
   const exports={};
   runInNewContext(code,{exports,require:()=>({}),React:{Component:class{},createElement:()=>null},window});
   const frame=new exports.ModalFrame();
-  frame.backdrop={style:{setProperty:(key,value)=>values.set(key,value),removeProperty:key=>values.delete(key)}};
+  frame.backdrop={dataset:{},style:{setProperty:(key,value)=>values.set(key,value),removeProperty:key=>values.delete(key)}};
   frame.syncVisualViewport();
   assert.equal(values.get('height'),'190px');
   assert.equal(values.get('max-height'),'190px');
@@ -22,6 +22,7 @@ test('modal follows keyboard viewport and clears mobile geometry after rotation'
   window.visualViewport.offsetTop=0;
   frame.syncVisualViewport();
   assert.equal(values.get('height'),'740px');
+  window.visualViewport.height=800;
   mobile=false;
   frame.syncVisualViewport();
   for(const key of ['height','min-height','max-height','top','bottom','align-items','padding'])assert.equal(values.has(key),false,key);
@@ -29,4 +30,26 @@ test('modal follows keyboard viewport and clears mobile geometry after rotation'
   window.visualViewport=null;
   frame.syncVisualViewport();
   assert.equal(values.get('height'),'800px');
+});
+
+test('tablet keyboard bounds backdrop and dialog while normal desktop geometry restores',()=>{
+  const source=readFileSync('src/components/UI.tsx','utf8')+'\nexport { ModalFrame };';
+  const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText;
+  const values=new Map(),dialogValues=new Map();
+  const window={innerHeight:844,visualViewport:{height:360,offsetTop:20},matchMedia:()=>({matches:false})};
+  const exports={};runInNewContext(code,{exports,require:()=>({}),React:{Component:class{},createElement:()=>null},window});
+  const frame=new exports.ModalFrame();
+  const style=map=>({setProperty:(key,value)=>map.set(key,value),removeProperty:key=>map.delete(key)});
+  frame.backdrop={dataset:{},style:style(values)};frame.dialog={style:style(dialogValues)};
+  frame.syncVisualViewport();
+  assert.equal(values.get('height'),'360px');assert.equal(values.get('top'),'20px');
+  assert.equal(values.get('align-items'),'center');assert.equal(dialogValues.get('max-height'),'344px');
+  assert.equal(values.get('--modal-browser-bottom-reserve'),'0px','actual viewport is not double-reserved');
+  window.visualViewport.height=190;frame.syncVisualViewport();assert.equal(frame.backdrop.dataset.viewportCompact,'true');
+  window.visualViewport.height=844;window.visualViewport.offsetTop=0;frame.syncVisualViewport();
+  assert.equal(values.has('height'),false);assert.equal(dialogValues.size,0);
+  assert.equal(frame.backdrop.dataset.viewportCompact,undefined,'dismissal restores normal density');
+  window.visualViewport.height=NaN;window.visualViewport.offsetTop=Infinity;frame.syncVisualViewport();
+  assert.equal(values.get('--modal-visual-height'),'844px');assert.equal(values.get('--modal-visual-offset-top'),'0px');
+  assert.equal(values.has('height'),false,'invalid viewport cannot leave stale keyboard geometry');
 });
