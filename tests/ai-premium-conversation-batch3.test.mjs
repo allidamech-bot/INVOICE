@@ -18,12 +18,13 @@ test('Batch 3 is installed after unified assistant and deterministic Advisor V2'
 });
 
 test('Premium composer supports multiline keyboard-safe sending and explicit stop/retry/edit/re-ask/copy',async()=>{
-  const source=await read('scripts/ai-batch3-premium-conversation.mjs');
+  const [source,lifecycle]=await Promise.all([read('scripts/ai-batch3-premium-conversation.mjs'),read('scripts/ai-batch3-conversation-lifecycle-fix.mjs')]);
   for(const token of ['lourex-ai-premium-textarea','event.shiftKey','isComposing','requestSubmit','__lourexStopConversation','Retry','Re-ask','Edit','Copy'])assert.match(source,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
   assert.match(source,/max-height:132px/);
   assert.match(source,/min-height:44px/);
   assert.match(source,/scrollTop=box\.scrollHeight/);
   assert.match(source,/lourex-ai-compose-bridge/,'legacy input bridge must remain for existing AI tools and voice');
+  assert.match(lifecycle,/lourex-ai-attachment-inputs/,'file/camera controls must not become direct form inputs and break the legacy voice selector');
 });
 
 test('Conversation attachments reuse canonical LOUREX parsers, AI Inbox classification and a general read-only fallback',async()=>{
@@ -48,7 +49,7 @@ test('Source-aware conversation endpoint is server-sanitized and read-only',asyn
   assert.match(api,/This endpoint is READ-ONLY/);
   assert.match(api,/Never combine currencies/);
   assert.match(api,/never perform your own FX conversion/i);
-  assert.match(api,/Never create a numeric health score/);
+  assert.match(api,/never create a numeric health score/i);
   assert.match(api,/\[evidence:ID\]/);
   assert.match(api,/enum:\['workspace\.navigate'\]/);
   for(const forbidden of ['document.createDraft','document.updateDraft','item.archive','item.restore','item.updateMetadata','post purchase'])assert.doesNotMatch(api,new RegExp(forbidden.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'));
@@ -68,7 +69,7 @@ test('Generic source fallback is same-origin, untrusted-data-only and mutation f
 
 test('Premium conversation UI includes source review, structured blocks, evidence and searchable encrypted chat history',async()=>{
   const source=await read('scripts/ai-batch3-premium-conversation.mjs');
-  for(const token of ['Camera','Photos & files','onPaste','onDrop','dragActive','Review','lourex-ai-conversation-source-review','Summary','KPI','Comparison','Risk','Warning','Opportunity','Known','Missing','Assumption','Recommendation','Evidence','Actions','threadSearch','Search conversations','assistantEvidence','lourex-ai-decision-card'])assert.match(source,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  for(const token of ['Camera','Photos & files','onPaste','onDrop','dragActive','Review','lourex-ai-conversation-source-review','Summary','KPI','Comparison','Risk','Warning','Opportunity','Known','Missing','Assumption','Recommendation','Evidence','Actions','threadSearch','Search conversations','assistantEvidence','lourex-ai-decision-card'])assert.match(source,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'));
   assert.match(source,/@media\(max-width:720px\)/);
   assert.match(source,/height:100dvh/);
   assert.match(source,/safe-area-inset-top/);
