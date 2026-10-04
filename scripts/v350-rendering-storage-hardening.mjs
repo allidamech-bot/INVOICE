@@ -52,9 +52,12 @@ const aiTarget='dist/src/components/AiCopilot.js';
   const imports=`import { clearDocumentAutosaveCheckpoint, recoverDocumentAutosaveCheckpoint, saveDocumentAutosaveCheckpoint } from '../storage/document-autosave.js';\nimport { mergeVaultIntent as mergeVaultIntentForAutosave } from '../storage/vault-merge.js';\nimport { overlayWorkspaceScope as overlayWorkspaceScopeForAutosave, scopeVault as scopeVaultForAutosave } from '../lib/workspaces.js';\n`;
   source=imports+source;
 
-  const marker='    return true;\n  })();';
-  const markerIndex=source.indexOf(marker);
-  if(markerIndex<0)throw new Error('v350 could not locate AdaptiveCloudApp runtime closeout.');
+  const ownerStart=source.indexOf('class AdaptiveCloudApp extends BaseApp {');
+  const ownerEnd=source.indexOf('const App = AdaptiveCloudApp;',ownerStart);
+  const marker='        return true;\n    })();';
+  const owner=ownerStart<0||ownerEnd<=ownerStart?'':source.slice(ownerStart,ownerEnd);
+  if(owner.split(marker).length!==2)throw new Error('v350 expected exactly one AdaptiveCloudApp runtime closeout.');
+  const markerIndex=ownerStart+owner.indexOf(marker);
   const runtime=`
     const __lourexDocumentAutosaveV486=true;
     const fullPersist=instance.persist.bind(instance);

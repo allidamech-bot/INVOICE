@@ -97,6 +97,18 @@ purchase posting and manual stock. Diff check PASS. No production implementation
 AI, dependency, storage schema or accounting algorithm changed in this closeout.
 Physical hardware unavailable; final remote gates/merge still required.
 
+### Build integration defect found after latest main update
+
+Main advanced to `fc4da7b8` through #503 while this closeout was open. Its autosave
+build injection expected a4/2-space return/initializer marker, but the actual
+AdaptiveCloudApp output uses8/4 spaces. Both local build and CI failed before
+browser gates. The minimal fix scopes the marker to the AdaptiveCloudApp class,
+requires exactly one match, and inserts the unchanged checkpoint runtime there.
+No checkpoint timing, crypto, storage or AI behavior is changed. A compiled-output
+regression verifies one checkpoint owner inside the instantiated class, all five
+durability hooks, recovery and JavaScript syntax. Full latest-main production
+build and ten closeout contracts PASS. Final remote gates still required.
+
 Sampled historical diagnostics: 24/29 passed. Five failures require the obsolete
 pre-portal no-Viewed rule, schema 15, the former revision snapshot spelling or
 old stylesheet ordering. Their asserted source files are unchanged from main;
