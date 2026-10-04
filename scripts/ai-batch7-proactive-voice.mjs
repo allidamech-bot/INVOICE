@@ -24,6 +24,9 @@ voice=voice.replace(transcriptToken,"function applyVoiceTranscript(panel,transcr
 const statusToken="const status=panel?.querySelector('.lourex-ai-voice-status');const mic=panel?.querySelector('.lourex-ai-composer-mic');if(!(status instanceof HTMLElement))return;";
 if(!voice.includes(statusToken))throw new Error('AI Batch 7 could not find voice composer status.');
 voice=voice.replace(statusToken,statusToken+"const retry=status.querySelector('.lourex-ai-voice-retry');if(retry instanceof HTMLButtonElement){retry.hidden=state!=='error';retry.textContent=messageFor(panel,'retryVoice');}");
+const statusCopyToken="const copy=status.querySelector('span:last-child');";
+if(!voice.includes(statusCopyToken))throw new Error('AI Batch 7 could not find canonical voice status copy target.');
+voice=voice.replace(statusCopyToken,"const copy=status.querySelector('span:not(.lourex-ai-voice-dot)');");
 const statusHtml="nextStatus.innerHTML='<span class=\"lourex-ai-voice-dot\" aria-hidden=\"true\"></span><span></span>';compose.insertBefore(nextStatus,form);";
 if(!voice.includes(statusHtml))throw new Error('AI Batch 7 could not find voice status markup.');
 voice=voice.replace(statusHtml,"nextStatus.innerHTML='<span class=\"lourex-ai-voice-dot\" aria-hidden=\"true\"></span><span></span><button type=\"button\" class=\"lourex-ai-voice-retry\" hidden></button>';const voiceRetry=nextStatus.querySelector('.lourex-ai-voice-retry');if(voiceRetry instanceof HTMLButtonElement)voiceRetry.addEventListener('click',()=>toggleVoice(panel));compose.insertBefore(nextStatus,form);");
