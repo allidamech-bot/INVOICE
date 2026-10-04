@@ -197,6 +197,8 @@ jobs:
               run_qa 180 node tests/visual/run-commercial-flow-batch1.cjs
               run_qa 180 node tests/visual/run-relationship-360-batch2.cjs
               run_qa 180 node tests/visual/run-workspace-ux-batch3.cjs
+              run_qa 180 node tests/visual/run-workspace-closeout-batch3.cjs
+              run_qa 180 node tests/visual/run-notification-recovery-batch3.cjs
               run_qa 180 node tests/visual/run-contextual-ai-batch4.cjs
               run_qa 180 node tests/visual/run-commercial-completion-batch6.cjs
               run_qa 180 node tests/visual/run-accounting-foundation-batch7.cjs

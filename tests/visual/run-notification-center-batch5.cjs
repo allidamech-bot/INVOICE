@@ -51,7 +51,11 @@ const output='visual-qa-output/notification-center-batch5';
         await page.waitForFunction(()=>window.__lastNav==='receivables');
         await page.evaluate(()=>window.dispatchEvent(new Event('lourex-notification-center-open')));
         await page.locator('.lx-notification-center').waitFor();
+        // The shell is visible before the encrypted refresh finishes. Count the
+        // factual rows only once they load; zero loading rows is not a baseline.
+        await page.locator('.lx-notification-item').first().waitFor();
         const before=await page.locator('.lx-notification-item').count();
+        assert.equal(before,activeCount,'reopening cannot remove recorded conditions before any mutation');
         const firstAgain=page.locator('.lx-notification-item').first();
         await firstAgain.getByRole('button',{name:'Snooze'}).click();
         await firstAgain.getByRole('button',{name:'Tomorrow'}).click();

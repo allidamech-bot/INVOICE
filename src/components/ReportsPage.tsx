@@ -43,6 +43,7 @@ export class ReportsPage extends React.Component<Props,State>{
   componentDidMount():void{ensureTaxVatStyles();window.addEventListener('afterprint',this.afterPrint);}
   componentWillUnmount():void{window.removeEventListener('afterprint',this.afterPrint);document.body.classList.remove('printing-financial-report');}
   private afterPrint=()=>document.body.classList.remove('printing-financial-report');
+  private clearFilters=()=>this.setState({from:'',to:todayIso(),currency:'ALL',query:'',preset:'all'});
 
   private setPreset=(preset:PeriodPreset)=>{
     const today=todayIso();
@@ -93,7 +94,7 @@ export class ReportsPage extends React.Component<Props,State>{
 
       <div className="report-print-header ta-report-print-header"><div className="report-print-brand"><img src={logo} alt={companyDisplayName(this.props.company)}/><div><strong>{companyDisplayName(this.props.company)}</strong><span>{t('Financial Management Report','تقرير الإدارة المالية')}</span></div></div><div><strong>{reportTitle}</strong><span>{selected||t('Currencies shown separately','العملات معروضة بشكل منفصل')}</span></div></div>
 
-      {!visibleSummaries.length?<section className="ta-empty-card"><span><Icon name="invoice"/></span><div><strong>{t('No financial activity in this period','لا توجد حركة مالية ضمن هذه الفترة')}</strong><p>{t('Change the period or currency filter.','غيّر الفترة أو فلتر العملة.')}</p></div></section>:null}
+      {!visibleSummaries.length?<section className="ta-empty-card"><span><Icon name="invoice"/></span><div><strong>{t('No financial activity in this period','لا توجد حركة مالية ضمن هذه الفترة')}</strong><p>{t('Change the period or currency filter.','غيّر الفترة أو فلتر العملة.')}</p><Button icon="refresh" onClick={this.clearFilters}>{t('Reset filters','إعادة ضبط الفلاتر')}</Button></div></section>:null}
 
       <section className="ta-report-kpi-grid" aria-label={t('Financial summary','الملخص المالي')}>
         {visibleSummaries.map(row=><article className="ta-report-kpi" key={row.currency}>

@@ -9,6 +9,10 @@
   const editableSelector='input,textarea,select,[contenteditable="true"],[contenteditable=""]';
   const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen';
   const WORKSPACE_LAST_KEY='lourex-last-stable-workspace-v340';
+  const EDITOR_RESUME_KEY='lourex-active-editor-v486';
+  const ACTIVE_ACCOUNT_UID_KEY='lourex-invoice-active-account-v1';
+  const EDITOR_RESUME_MAX_AGE=6*60*60*1000;
+  const EDITOR_RESTORE_TIMEOUT=12_000;
   const WORKSPACES=['home','documents','customers','items','operations','receivables','reports'];
   const WORKSPACE_NAV_INDEX={home:0,documents:1,customers:2,items:3,operations:4,receivables:5,reports:6};
   let lastEditorInputAt=0;
@@ -17,6 +21,11 @@
   let workspaceRestoreArmed=Boolean(workspaceRestoreTarget&&workspaceRestoreTarget!=='home');
   let workspaceRestoreAttempts=0;
   let sawInteractiveShell=false;
+  let pageExiting=false;
+  let editorRestoreTarget=readEditorResume();
+  let editorRestoreArmed=Boolean(editorRestoreTarget);
+  let editorRestoreStartedAt=0;
+  let editorRestoreLastClickAt=0;
 
   function editorOpen(){
     return root.hasAttribute('data-lourex-document-editor')||Boolean(document.querySelector('.editor-screen'));
@@ -32,9 +41,81 @@
     return Boolean(target.closest('.app-ui'))||Boolean(target.closest('.editor-screen'))||root.hasAttribute('data-lourex-document-editor');
   }
 
+  function currentAccountUid(){
+    try{return String(localStorage.getItem(ACTIVE_ACCOUNT_UID_KEY)||'').trim();}catch{return '';}
+  }
+
+  function currentEditorIdentity(){
+    const id=String(root.getAttribute('data-lourex-document-editor')||'').trim();
+    if(!id||id==='opening'||!editorOpen())return null;
+    const numberNode=document.querySelector('.editor-screen .editor-top-left strong,.draft-studio .draft-studio-identity strong');
+    const number=String(numberNode?.textContent||'').trim();
+    if(!number)return null;
+    return {id,number,accountUid:currentAccountUid(),savedAt:Date.now()};
+  }
+
+  function validEditorResume(value){
+    if(!value||typeof value!=='object')return null;
+    const id=String(value.id||'').trim();
+    const number=String(value.number||'').trim();
+    const accountUid=String(value.accountUid||'').trim();
+    const savedAt=Number(value.savedAt||0);
+    if(!id||!number||!Number.isFinite(savedAt)||savedAt<=0)return null;
+    if(accountUid!==currentAccountUid())return null;
+    if(Date.now()-savedAt>EDITOR_RESUME_MAX_AGE)return null;
+    return {id,number,accountUid,savedAt};
+  }
+
+  function readEditorResume(){
+    try{
+      const raw=sessionStorage.getItem(EDITOR_RESUME_KEY);
+      if(!raw)return null;
+      const parsed=validEditorResume(JSON.parse(raw));
+      if(parsed)return parsed;
+      sessionStorage.removeItem(EDITOR_RESUME_KEY);
+    }catch{try{sessionStorage.removeItem(EDITOR_RESUME_KEY);}catch{}}
+    return null;
+  }
+
+  function writeEditorResume(identity){
+    const valid=validEditorResume(identity);
+    if(!valid)return;
+    try{sessionStorage.setItem(EDITOR_RESUME_KEY,JSON.stringify(valid));}catch{}
+    editorRestoreTarget=valid;
+  }
+
+  function clearEditorResume(){
+    try{sessionStorage.removeItem(EDITOR_RESUME_KEY);}catch{}
+    editorRestoreTarget=null;
+    editorRestoreArmed=false;
+    editorRestoreStartedAt=0;
+    editorRestoreLastClickAt=0;
+  }
+
+  function checkpointEditor(){
+    const identity=currentEditorIdentity();
+    if(!identity)return false;
+    writeEditorResume(identity);
+    editorRestoreArmed=false;
+    editorRestoreStartedAt=0;
+    editorRestoreLastClickAt=0;
+    return true;
+  }
+
+  function armEditorRestore(){
+    const target=readEditorResume();
+    if(!target)return false;
+    editorRestoreTarget=target;
+    editorRestoreArmed=true;
+    editorRestoreStartedAt=0;
+    editorRestoreLastClickAt=0;
+    return true;
+  }
+
   function signalEditorActivity(event){
     if(!editorInputTarget(event.target))return;
     lastEditorInputAt=Date.now();
+    checkpointEditor();
     try{
       window.dispatchEvent(new KeyboardEvent('keydown',{key:'',code:'',bubbles:false,cancelable:false}));
     }catch{
@@ -92,6 +173,70 @@
     workspaceRestoreAttempts=0;
     removeWorkspace(WORKSPACE_RESUME_KEY);
     removeWorkspace(WORKSPACE_LAST_KEY);
+    clearEditorResume();
+  }
+
+  function exactText(node,value){
+    return Boolean(node&&String(node.textContent||'').trim()===value);
+  }
+
+  function clickEditorRestoreTarget(){
+    const target=editorRestoreTarget;
+    if(!target)return false;
+    const now=Date.now();
+    const elapsed=now-editorRestoreLastClickAt;
+    if(elapsed<180){
+      window.setTimeout(scheduleWorkspaceContinuity,Math.max(16,190-elapsed));
+      return true;
+    }
+
+    const detailTitle=document.querySelector('.ta-doc-detail-hero h1');
+    if(exactText(detailTitle,target.number)){
+      const open=document.querySelector('.ta-doc-detail-toolbar-actions button');
+      if(open instanceof HTMLButtonElement){editorRestoreLastClickAt=now;open.click();return true;}
+    }
+
+    const resume=document.querySelector('.ta-doc-resume');
+    if(resume instanceof HTMLButtonElement&&exactText(resume.querySelector('strong'),target.number)){
+      editorRestoreLastClickAt=now;resume.click();return true;
+    }
+
+    const rows=Array.from(document.querySelectorAll('.ta-doc-row'));
+    const row=rows.find(item=>exactText(item.querySelector('.ta-doc-row-identity strong bdi,.ta-doc-row-identity strong'),target.number));
+    const open=row?.querySelector('.ta-doc-row-open');
+    if(open instanceof HTMLButtonElement){editorRestoreLastClickAt=now;open.click();return true;}
+    return false;
+  }
+
+  function processEditorContinuity(current){
+    if(checkpointEditor())return true;
+    if(editorOpen())return true;
+
+    if(!editorRestoreArmed||!editorRestoreTarget){
+      // A normal Back action replaces the editor with Documents. Clear the
+      // recovery marker only after a stable in-app workspace exists. During an
+      // automatic PIN lock or WebKit process teardown there is no workspace, so
+      // the marker survives and the same saved document can be reopened.
+      if(!pageExiting&&current)clearEditorResume();
+      else if(!pageExiting&&(document.querySelector('.auth-page')||document.querySelector('.loading-screen,.app-recovery-screen')))armEditorRestore();
+      return false;
+    }
+
+    if(!current)return true;
+    if(!editorRestoreStartedAt)editorRestoreStartedAt=Date.now();
+    if(Date.now()-editorRestoreStartedAt>EDITOR_RESTORE_TIMEOUT){
+      clearEditorResume();
+      return false;
+    }
+
+    if(current!=='documents'){
+      const button=workspaceNavigationButton('documents');
+      if(button){button.click();scheduleWorkspaceContinuity();}
+      return true;
+    }
+
+    if(!clickEditorRestoreTarget())window.setTimeout(scheduleWorkspaceContinuity,120);
+    return true;
   }
 
   function processWorkspaceContinuity(){
@@ -103,6 +248,8 @@
     }
 
     const current=currentWorkspace();
+    if(processEditorContinuity(current))return;
+
     if(!current){
       // A PIN lock, account re-initialization or Safari process recovery can
       // temporarily replace the interactive shell with auth/loading UI. Preserve
@@ -149,19 +296,23 @@
   // iOS/iPadOS software keyboards do not reliably emit keydown for every text
   // mutation. BaseApp's inactivity timer listens to keydown/touchstart/pointerdown,
   // so mirror actual text mutations from every unlocked app workspace into that
-  // existing activity channel, not only the document editor.
+  // existing activity channel, not only the document editor. Checkpoint only the
+  // active document identity/account; document contents remain solely in the encrypted Vault.
   for(const type of ['beforeinput','input','compositionupdate','compositionend','paste','change']){
     document.addEventListener(type,signalEditorActivity,true);
   }
 
-  // Keep a lightweight checkpoint of every stable TailAdmin workspace. The old
-  // reload-restoration code still points at pre-TailAdmin .shell-nav-* selectors;
-  // this runtime guard uses the live .ta-shell/.ta-nav-item contract and includes
-  // Purchasing/Operations from the mobile More sheet.
+  // Keep a lightweight checkpoint of every stable TailAdmin workspace and the
+  // active document editor. The editor checkpoint closes the gap left by ordinary
+  // workspace recovery: a genuine Safari/WebKit process reload can now reopen the
+  // same encrypted draft instead of ejecting the user to Home/Documents.
   const workspaceObserver=new MutationObserver(scheduleWorkspaceContinuity);
-  workspaceObserver.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
-  window.addEventListener('pageshow',scheduleWorkspaceContinuity);
+  workspaceObserver.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','data-lourex-document-editor']});
+  window.addEventListener('pageshow',()=>{pageExiting=false;if(!editorOpen())armEditorRestore();scheduleWorkspaceContinuity();});
+  window.addEventListener('beforeunload',()=>{pageExiting=true;checkpointEditor();});
   window.addEventListener('pagehide',()=>{
+    pageExiting=true;
+    checkpointEditor();
     if(root.dataset.lourexSigningOut==='true'){clearWorkspaceContinuityForSignOut();return;}
     const current=currentWorkspace();
     if(current)rememberStableWorkspace(current);
@@ -244,7 +395,9 @@
         lastInputAt:()=>lastEditorInputAt,
         currentWorkspace,
         workspaceRestoreTarget:()=>workspaceRestoreTarget,
-        workspaceRestoreArmed:()=>workspaceRestoreArmed
+        workspaceRestoreArmed:()=>workspaceRestoreArmed,
+        editorResumeTarget:()=>editorRestoreTarget,
+        editorRestoreArmed:()=>editorRestoreArmed
       }
     });
   }catch{}

@@ -8,6 +8,7 @@ const output='visual-qa-output/workspace-ux-batch3';
   for(const [width,lang,theme] of [[320,'ar','dark'],[390,'en','light'],[820,'ar','light'],[1440,'en','dark']]){
    const page=await browser.newPage({viewport:{width,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
    await page.goto(`http://127.0.0.1:4173/tests/visual/workspace-ux-batch3.html?lang=${lang}&theme=${theme}`,{waitUntil:'networkidle'});
+   assert.equal(await page.evaluate(()=>document.documentElement.dataset.uiTheme),theme,'exercise the requested resolved theme, not a pre-mount attribute');
    const inBounds=async surface=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${surface}: horizontal overflow`);};
    const search=async(query,key='Enter')=>{await page.evaluate(()=>window.dispatchEvent(new Event('lourex-global-search-open')));const input=page.locator('.global-search-input-wrap input');await input.fill(query);if(key==='ArrowDown')await input.press('ArrowDown');await page.keyboard.press('Enter');};
    await search('buyer@example.test');await page.locator('.ta-customer-profile').waitFor();assert.match(await page.locator('.ta-customer-profile-identity').innerText(),/Northstar|نورث/);await inBounds('customer');

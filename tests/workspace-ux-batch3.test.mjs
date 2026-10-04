@@ -3,16 +3,36 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 // Real compiled classes with synchronous React state; no persistence or providers.
-globalThis.React={createElement:(tag,props,...children)=>({tag,props,children}),Component:class{constructor(props){this.props=props;}setState(patch,callback){this.state={...this.state,...(typeof patch==='function'?patch(this.state,this.props):patch)};callback?.();}}};
+globalThis.React={createElement:(tag,props,...children)=>({tag,props,children}),useState:value=>[value,()=>{}],useEffect:()=>{},useMemo:compute=>compute(),Component:class{constructor(props){this.props=props;}setState(patch,callback){this.state={...this.state,...(typeof patch==='function'?patch(this.state,this.props):patch)};callback?.();}}};
 const {GlobalSearch}=await import('../dist/src/components/GlobalSearch.js');
 const {ProductLibraryWorkspace}=await import('../dist/src/components/ProductLibraryWorkspace.js');
 const {CustomersPage}=await import('../dist/src/components/CustomersPage.js');
+const {ProductsInventoryWorkspace}=await import('../dist/src/components/ProductsInventoryWorkspace.js');
+const {inventoryBalances,createManualInventoryMovement}=await import('../dist/src/lib/operations.js');
 const {buildCustomer360}=await import('../dist/src/lib/relationship-360.js');
 const {defaultCompany,customerSnapshotFrom}=await import('../dist/src/lib/defaults.js');
 const {createBlankDocument}=await import('../dist/src/lib/documents.js');
 const customer={id:'c1',companyNameEn:'Northstar Trading',companyNameAr:'نورث ستار للتجارة',contactPerson:'Samira',phone:'',email:'buyer@example.test',city:'Dubai',country:'UAE',updatedAt:'2026-01-01'};
 const item={id:'p1',sku:'VAL-1',descriptionEn:'Industrial valve',descriptionAr:'صمام صناعي',lastCurrency:'USD',lastUnitPrice:'12',tags:[]};
 const props={documents:[],customers:[customer],items:[item,{...item,id:'archived',archived:true}],suppliers:[],purchases:[],language:'en',onNavigate:()=>{}};
+function elements(node){if(Array.isArray(node))return node.flatMap(elements);return node&&typeof node==='object'?[node,...(node.children??[]).flatMap(elements)]:[];}
+
+test('catalog stock projection reuses the recorded movement engine without modifying sources',()=>{
+ const movements=[createManualInventoryMovement(item,'opening','12','2026-01-01','Opening'),createManualInventoryMovement(item,'issue','3','2026-01-02','Issue')];
+ const input={items:[item],inventoryMovements:movements,purchases:[],suppliers:[],expenses:[],warehouses:[],currency:'USD'};
+ const before=JSON.stringify(input),tree=ProductsInventoryWorkspace(input);
+ const catalog=elements(tree).find(node=>node.props?.stockQuantities instanceof Map);
+ assert.ok(catalog);assert.equal(catalog.props.stockQuantities.get(item.id),inventoryBalances(input.items,movements)[0].quantity);
+ assert.equal(catalog.props.stockQuantities.get(item.id),'9');assert.equal(JSON.stringify(input),before);
+});
+
+test('catalog distinguishes recorded zero stock from unavailable standalone stock context',()=>{
+ const page=new ProductLibraryWorkspace({items:[item],currency:'USD',stockQuantities:new Map([[item.id,'0']])});
+ let stock=elements(page.render()).find(node=>node.props?.className==='ta-product-stock');assert.ok(stock);
+ assert.equal(elements(stock).find(node=>node.tag==='bdi').children[0],'0');
+ page.props={...page.props,stockQuantities:undefined};assert.equal(elements(page.render()).some(node=>node.props?.className==='ta-product-stock'),false);
+ page.state.query='missing';const before=page.state.editing;page.clearFilters();assert.equal(page.state.query,'');assert.equal(page.state.editing,before);
+});
 
 test('search requires every query token and returns canonical record identity',()=>{
  const search=new GlobalSearch(props);search.state.query='Northstar Dubai';assert.equal(search.results().length,1);

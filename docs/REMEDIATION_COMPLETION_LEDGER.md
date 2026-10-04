@@ -23,8 +23,8 @@ Historical batch notes retain their implementation evidence, not completion auth
 | Batch | Status | Existing merged work | Remaining closeout |
 | --- | --- | --- | --- |
 | 1 Responsive/mobile | COMPLETE — required automated acceptance and merge | PR #492, #499 and #500; final #500 CI all current shards, verify and quality gate PASS; merged main `077d3a2c24771eca2438c53aea51e13028c466d8` | Physical Safari/iPad verification unavailable, not claimed; no mandatory automated acceptance item remains open |
-| 2 Design system | IN PROGRESS — closeout | Retired one active v483 owner; semantic aliases and parity tests | Review surviving ownership/duplicates/breakpoints and all requested semantic roles/scales; prove current consolidation by parity; no big-bang rewrite |
-| 3 Workspace UX | PARTIAL — not active | Exact search navigation, Customer/Supplier 360 summaries/disclosure, compact Products and Finance | Review each named workspace and its empty/error/loading/form states; Reports, Settings, More, Create and Notifications were retained, not comprehensively acceptance-tested |
+| 2 Design system | COMPLETE — controlled consolidation and merge | PR #493 and #501; semantic roles/scales, explicit retained-owner inventory, obsolete declaration removal; 18 exact parity cases and all final blocking gates PASS; merged main `867845f543657b0b8e47a4e72353decda671d25c` | Historical structural owners intentionally retained, not falsely described as eliminated; no mandatory closeout gate remains open |
+| 3 Workspace UX | IN PROGRESS — final acceptance / merge pending | Exact search/360, compact Products/Finance; Reports/Operations empty recovery; recorded catalog stock; planning retry; common Create order; truthful locked notifications | Screen-by-screen mapping in `PRODUCT_UX_AUDIT_BATCH3.md`; representative browser paths and 17 focused/relevant contracts passed, including locked-tab regression; final published HEAD blocking gates/merge remain required |
 | 4 AI everywhere | PARTIAL — not active | Inline existing Copilot/Inbox entry, bounded context and deterministic product brief | Map every requested workspace intelligence outcome to real existing capability or remaining implementation; opening an advisor alone is not proof of a useful workflow; provider canaries not run |
 | 5 AI reliability | PARTIAL — not active | Timeout/body-read cancellation, extraction completeness, local RFQ parsing/numerals, voice fixtures | Full reliability checklist review including selectable/scanned PDFs, ambiguity/evidence/confidence/telemetry and fallback; provider and physical voice canaries unavailable/not run |
 | 6 Commercial workflows | PARTIAL — not active | Source-linked reviewed delivery drafts, deduplication and lifecycle tests | Explicit sales/purchase lifecycle completeness and candidate suitability review; Sales Order/Debit Note and automatic PO–receipt linkage were not added; do not imply otherwise |
@@ -33,8 +33,9 @@ Historical batch notes retain their implementation evidence, not completion auth
 ## Batch 1 acceptance inventory
 
 The following maps every original Batch 1 target to its code and automated
-acceptance evidence. The remaining release requirement is the final closeout
-PR's blocking gates and merge. Physical hardware is not claimed; the requested
+acceptance evidence. Its final release gates passed on PR #500 and it merged
+as main 077d3a2c; historical pending-gate notes below describe pre-merge state.
+Physical hardware is not claimed; the requested
 Chromium/WebKit and representative iPad/boundary coverage is automated.
 
 | Requirement | Implementation / evidence | Closeout status |

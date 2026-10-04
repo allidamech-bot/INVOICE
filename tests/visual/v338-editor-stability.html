@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" dir="ltr">
+<html lang="en" dir="ltr" data-lourex-document-editor="qa-editor-v486">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -7,15 +7,60 @@
   <title>v338 editor stability QA</title>
 </head>
 <body>
-  <main class="app-ui">
+  <main id="qa-app" class="app-ui">
     <section class="editor-screen">
+      <div class="editor-top-left"><strong>PI-2026-0486</strong></div>
       <label>Draft body<textarea id="draft-input">Initial text</textarea></label>
     </section>
   </main>
   <script>
     window.__activityEvents=0;
+    window.__editorRecoveryCycles=0;
     window.addEventListener('keydown',function(){window.__activityEvents+=1;});
   </script>
   <script src="editor-stability-v338.js?v=338"></script>
+  <script>
+    (function(){
+      const root=document.documentElement;
+      const app=document.getElementById('qa-app');
+      const id='qa-editor-v486';
+      const number='PI-2026-0486';
+
+      function renderEditor(shell){
+        shell.className='ta-shell screen-editor';
+        root.setAttribute('data-lourex-document-editor',id);
+        const content=shell.querySelector('.qa-content');
+        content.innerHTML='<section class="editor-screen"><div class="editor-top-left"><strong>'+number+'</strong></div><label>Recovered draft<textarea id="recovered-input">Recovered text</textarea></label></section>';
+        window.__editorRecoveryCycles+=1;
+      }
+
+      function renderRecoveredShell(){
+        root.removeAttribute('data-lourex-document-editor');
+        app.innerHTML='<div class="ta-shell screen-home"><nav class="ta-sidebar-nav">'+Array.from({length:7},(_,index)=>'<button type="button" class="ta-nav-item" data-index="'+index+'">'+index+'</button>').join('')+'</nav><div class="qa-content"><p>Home after simulated WebKit process recovery</p></div></div>';
+        const shell=app.querySelector('.ta-shell');
+        const content=shell.querySelector('.qa-content');
+        const buttons=Array.from(shell.querySelectorAll('.ta-nav-item'));
+        buttons[1].addEventListener('click',function(){
+          shell.className='ta-shell screen-documents';
+          content.innerHTML='<button type="button" class="ta-doc-resume"><span><strong>'+number+'</strong></span></button><div class="ta-doc-row"><button type="button" class="ta-doc-row-open"><span class="ta-doc-row-identity"><strong><bdi>'+number+'</bdi></strong></span></button></div>';
+          content.querySelector('.ta-doc-resume').addEventListener('click',function(){renderEditor(shell);});
+          content.querySelector('.ta-doc-row-open').addEventListener('click',function(){
+            content.innerHTML='<section class="ta-doc-detail-page"><header class="ta-doc-detail-hero"><h1>'+number+'</h1></header><div class="ta-doc-detail-toolbar-actions"><button type="button">Open Studio</button></div></section>';
+            content.querySelector('.ta-doc-detail-toolbar-actions button').addEventListener('click',function(){renderEditor(shell);});
+          });
+        });
+      }
+
+      // Existing runner verifies the editor is present immediately, types into it,
+      // then waits 2.8s. During that settle window force the same lifecycle shape as
+      // a Safari/WebKit process recovery: checkpoint on pagehide, lose the editor,
+      // bootstrap at Home, then pageshow. The runtime must reopen this exact quote.
+      window.setTimeout(function(){
+        window.dispatchEvent(new Event('pagehide'));
+        renderRecoveredShell();
+        window.dispatchEvent(new Event('pageshow'));
+      },400);
+    })();
+  </script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"></head>
+<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css"><link rel="stylesheet" href="styles/v332-critical-documents-deep-closeout.css"><link rel="stylesheet" href="styles/v482-mobile-ux-repair.css"></head>
 <body><div id="root"><div id="visual-app" class="app-ui"></div></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
 import {AppShell} from './src/components/AppShell.js';
 import {ReportsPage} from './src/components/ReportsPage.js';
@@ -27,6 +27,7 @@ const usdB=invoice({id:'inv-usd-b',number:`INV-${year}-0003`,currency:'USD',pric
 const documents=[usdA,eurA,usdB];
 const payment=(doc,id,amount,month)=>({id,invoiceId:doc.id,invoiceNumber:doc.number,customerId:doc.customerSnapshot.sourceCustomerId,customerNameEn:doc.customerSnapshot.companyNameEn,customerNameAr:doc.customerSnapshot.companyNameAr,currency:doc.currency,amount,date:`${year}-${month}-15`,method:'bank-transfer',reference:id,notes:'',createdAt:now,updatedAt:now});
 const payments=[payment(usdA,'pay-usd-1','700.00','02'),payment(eurA,'pay-eur-1','500.00','04'),payment(usdB,'pay-usd-2','300.00','07')];
+window.financialSourceSnapshot=()=>JSON.stringify({documents,payments});
 const items=Array.from({length:8},(_,i)=>({id:`item-${i}`,createdAt:now,updatedAt:now,sku:`LX-${String(i+1).padStart(3,'0')}`,descriptionEn:['Precision valve','Control module','Steel fitting'][i%3]+` ${i+1}`,descriptionAr:['صمام دقيق','وحدة تحكم','وصلة فولاذية'][i%3]+` ${i+1}`,hsCode:'848180',origin:'Türkiye',packing:'Box',unit:'PCS',lastUnitPrice:String(180+i*20),lastCurrency:'USD',lastUnitCost:String(95+i*8),lastCostCurrency:'USD',usageCount:12-i,lastUsedAt:now,category:'Components',tags:['Industrial'],favorite:i<2}));
 const supplierA={...createSupplier(),id:'supplier-atlas',nameEn:'Anatolia Components',nameAr:'مكونات الأناضول',contactPerson:'Kemal Yilmaz',country:'Türkiye',city:'Istanbul',defaultCurrency:'USD',email:'sales@anatolia.example',updatedAt:now};
 const supplierB={...createSupplier(),id:'supplier-euro',nameEn:'Euro Industrial',nameAr:'يورو الصناعية',country:'Germany',city:'Hamburg',defaultCurrency:'EUR',updatedAt:now};
@@ -36,15 +37,15 @@ const draft=createPurchase([posted],suppliers,'EUR');draft.id='purchase-draft';d
 const expenses=[Object.assign(createExpense('USD'),{id:'expense-1',date:`${year}-04-06`,category:'Freight',description:'Warehouse transfer',amount:'420.00',reference:'EXP-001',updatedAt:now}),Object.assign(createExpense('EUR'),{id:'expense-2',date:`${year}-06-11`,category:'Marketing',description:'Trade catalog',amount:'260.00',reference:'EXP-002',updatedAt:now})];
 const inventoryMovements=[createManualInventoryMovement(items[0],'opening','120',`${year}-01-02`,'Opening balance','88','USD'),createManualInventoryMovement(items[0],'issue','18',`${year}-07-18`,'Sample allocation','92.5','USD'),createManualInventoryMovement(items[1],'opening','65',`${year}-02-02`,'Opening balance','72','EUR')];
 class Fixture extends React.Component{
- state={suppliers,purchases:[posted,draft],expenses,inventoryMovements,items};
+ state=params.get('empty')==='1'?{suppliers:[],purchases:[],expenses:[],inventoryMovements:[],items:[]}:{suppliers,purchases:[posted,draft],expenses,inventoryMovements,items};
  saveSupplier=async item=>this.setState(s=>({suppliers:s.suppliers.some(x=>x.id===item.id)?s.suppliers.map(x=>x.id===item.id?item:x):[...s.suppliers,item]}));
  savePurchase=async item=>this.setState(s=>({purchases:s.purchases.some(x=>x.id===item.id)?s.purchases.map(x=>x.id===item.id?item:x):[...s.purchases,item]}));
  saveExpense=async item=>this.setState(s=>({expenses:s.expenses.some(x=>x.id===item.id)?s.expenses.map(x=>x.id===item.id?item:x):[...s.expenses,item]}));
  saveMovement=async item=>this.setState(s=>({inventoryMovements:[...s.inventoryMovements,item]}));
  render(){
-  const page=screen==='reports'?h(ReportsPage,{company,customers,documents,payments}):screen==='receivables'?h(ReceivablesPage,{company,customers,documents,payments}):h(OperationsPage,{suppliers:this.state.suppliers,purchases:this.state.purchases,expenses:this.state.expenses,inventoryMovements:this.state.inventoryMovements,items:this.state.items,defaultCurrency:'USD',onSaveSupplier:this.saveSupplier,onDeleteSupplier:async()=>{},onSavePurchase:this.savePurchase,onDeletePurchase:async()=>{},onPostPurchase:async()=>{},onReversePurchase:async()=>{},onSaveExpense:this.saveExpense,onDeleteExpense:async()=>{},onSaveInventoryMovement:this.saveMovement,onDeleteInventoryMovement:async()=>{}});
+  const page=screen==='reports'?h(ReportsPage,{company,customers,documents,payments,suppliers:this.state.suppliers,purchases:this.state.purchases,items:this.state.items}):screen==='receivables'?h(ReceivablesPage,{company,customers,documents,payments}):h(OperationsPage,{suppliers:this.state.suppliers,purchases:this.state.purchases,expenses:this.state.expenses,inventoryMovements:this.state.inventoryMovements,items:this.state.items,defaultCurrency:'USD',onSaveSupplier:this.saveSupplier,onDeleteSupplier:async()=>{},onSavePurchase:this.savePurchase,onDeletePurchase:async()=>{},onPostPurchase:async()=>{},onReversePurchase:async()=>{},onSaveExpense:this.saveExpense,onDeleteExpense:async()=>{},onSaveInventoryMovement:this.saveMovement,onDeleteInventoryMovement:async()=>{}});
   return h(AppShell,{screen,logoDataUrl:'./brand/lourex-logo.svg',language:ar?'ar':'en',newMenu:false,cloudState:'synced',cloudLabel:ar?'متزامن':'Synced',cloudMessage:'',onNavigate:()=>{},onToggleNew:()=>{},onNew:()=>{},onSettings:()=>{},onCloud:()=>{}},page);
  }
 }
-ReactDOM.render(h(Fixture),document.getElementById('visual-app'));
+ReactDOM.render(h(Fixture,{ref:instance=>window.financialFixture=instance}),document.getElementById('visual-app'));
 </script></body></html>
