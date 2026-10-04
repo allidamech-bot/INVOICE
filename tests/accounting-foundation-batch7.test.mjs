@@ -11,6 +11,7 @@ import {receivablesByCurrency} from '../dist/src/lib/receivables.js';
 import {outputVatReport} from '../dist/src/lib/tax-vat.js';
 import {calculateTotals} from '../dist/src/lib/money.js';
 import {setUiLanguage} from '../dist/src/lib/i18n.js';
+import {createCreditNoteDraft,assertDocumentLifecycleInvariant} from '../dist/src/lib/document-lifecycle.js';
 function fixture(){const vault=emptyVault(),account=createTreasuryAccount({label:'Bank',kind:'bank',currency:'USD',workspaceId:'default',branchId:'main'});vault.treasuryAccounts=[account];
  const invoice=createBlankDocument('invoice','INV-7',vault.company);invoice.status='final';invoice.customerSnapshot={sourceCustomerId:'c1',companyNameEn:'Atlas',companyNameAr:'أطلس'};invoice.items=[{...invoice.items[0],descriptionEn:'Valve',descriptionAr:'صمام',quantity:'10',unitPrice:'10',unitCost:'6'}];vault.documents=[invoice];
  const payment=normalizePaymentRecord(invoice,[],{id:'p1',amount:'30.00',date:invoice.issueDate,method:'bank-transfer',reference:'PAY-7',notes:''},vault.documents);vault.payments=[payment];
@@ -59,4 +60,28 @@ test('management reports reconcile to deterministic sales/receivables/tax source
 
 test('new source-change guidance remains Arabic and cannot cause an automatic posting',()=>{
  setUiLanguage('ar');try{const {vault,entry}=fixture();vault.payments[0].amount='40';assert.throws(()=>appendTreasuryEntry(vault,entry),/تغير مبلغ الدفعة/);assert.equal(vault.treasuryEntries.length,0);}finally{setUiLanguage('en');}
+});
+
+test('opening balance is cash position, not a collection; allocation and explicit void do not double-count payment movement',()=>{
+ const {vault,account,entry}=fixture();
+ const opening={...createTreasuryEntry('opening-balance','USD'),workspaceId:'default',branchId:'main',amount:'100.00',toAccountId:account.id};
+ const withOpening=appendTreasuryEntry(vault,opening),allocated=appendTreasuryEntry(withOpening,entry);
+ const rows=treasuryProjection(allocated.payments,[],[],allocated.treasuryEntries,[]);
+ assert.equal(treasuryAccountBalance(account.id,allocated.treasuryEntries),'130.00');assert.equal(treasuryTotals(rows,'USD').inflow,'30.00');assert.equal(treasuryTotals(rows,'USD').net,'30.00');
+ const corrected={...allocated,treasuryEntries:[opening,voidTreasuryEntry(entry,'Wrong account')]};
+ const after=treasuryProjection(corrected.payments,[],[],corrected.treasuryEntries,[]);
+ assert.equal(after.filter(row=>row.source==='collection').length,1);assert.equal(treasuryTotals(after,'USD').net,'30.00');assert.equal(treasuryAccountBalance(account.id,corrected.treasuryEntries),'100.00');
+ assert.deepEqual(corrected.documents,vault.documents);assert.deepEqual(corrected.payments,vault.payments);
+});
+
+test('issued credits reconcile net sales, receivables and output VAT as-of while future, voided and draft sources stay excluded',()=>{
+ const {vault,invoice}=fixture();invoice.issueDate='2026-10-01';invoice.dueDate='2026-10-01';invoice.adjustments.taxEnabled=true;invoice.adjustments.taxPercent='5';
+ const fullCredit={...createCreditNoteDraft(invoice,'CN-7-CLOSEOUT','105.00'),status:'final',issueDate:'2026-10-02'};
+ assertDocumentLifecycleInvariant(fullCredit,[invoice,fullCredit],[]);
+ const future={...structuredClone(invoice),id:'future',number:'FUTURE',issueDate:'2026-11-01'},voided={...structuredClone(invoice),id:'void',number:'VOID',lifecycleStatus:'voided'},draft={...structuredClone(invoice),id:'draft',number:'DRAFT',status:'draft'};
+ const documents=[invoice,fullCredit,future,voided,draft];
+ const before=financialReportByCurrency(documents,[],'','2026-10-01')[0];assert.equal(before.invoiced,'105.00');assert.equal(before.outstanding,'105.00');assert.equal(outputVatReport(documents,'','2026-10-01').currencies[0].outputVat,'5.00');
+ const after=financialReportByCurrency(documents,[],'','2026-10-02')[0];assert.equal(after.invoiced,'0.00');assert.equal(after.netSales,'0.00');assert.equal(after.outstanding,'0.00');assert.equal(after.grossProfit,'0.00');
+ assert.equal(receivablesByCurrency(documents,[],'2026-10-02')[0].outstanding,'0.00');
+ const tax=outputVatReport(documents,'','2026-10-02');assert.equal(tax.currencies[0].outputVat,'0.00');assert.equal(tax.rows.length,2);assert.equal(tax.inputVatSupported,false);
 });
