@@ -1,5 +1,6 @@
 import { buildMorningBrief, conditionalTaskSignals, visibleProactiveSignals, type ProactiveSignal } from '../lib/ai-proactive-assistant.js';
 import { t } from '../lib/i18n.js';
+import { scopeVault } from '../lib/workspaces.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { loadAssistantTasks, scopedAssistantTasks, type AssistantTaskRecord } from '../storage/assistant-task-store.js';
 import { loadProactiveState, dismissProactiveSignal, snoozeProactiveSignal, setProactiveCategoryMuted, setMorningBriefEnabled, proactiveSignalVisible, type ProactiveState, type ProactiveCategory } from '../storage/assistant-proactive-store.js';
@@ -23,13 +24,13 @@ export class DailyCommandCenterTool extends React.Component<Props,State>{
   private load=async()=>{
     const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX before reading today’s priorities.','افتح قفل LOUREX قبل قراءة أولويات اليوم.'));
     const [preferences,tasksState]=await Promise.all([loadProactiveState(resumed.key),loadAssistantTasks(resumed.key)]);
-    const workspaceId=resumed.vault.appSettings.activeWorkspaceId,branchId=resumed.vault.appSettings.activeBranchId;
+    const vault=scopeVault(resumed.vault),workspaceId=vault.appSettings.activeWorkspaceId,branchId=vault.appSettings.activeBranchId;
     const businessTasks=scopedAssistantTasks(tasksState,{scope:'business',workspaceId,branchId,status:'open'});
     const personalTasks=scopedAssistantTasks(tasksState,{scope:'personal',status:'open'});
-    const base=visibleProactiveSignals(resumed.vault,preferences,undefined,12);
-    const conditional=conditionalTaskSignals(resumed.vault,businessTasks).filter(signal=>proactiveSignalVisible(preferences,signal));
+    const base=visibleProactiveSignals(vault,preferences,undefined,12);
+    const conditional=conditionalTaskSignals(vault,businessTasks).filter(signal=>proactiveSignalVisible(preferences,signal));
     const plain=dueBusinessTaskSignals(businessTasks,preferences);
-    const brief=buildMorningBrief(resumed.vault,preferences,personalTasks);
+    const brief=buildMorningBrief(vault,preferences,personalTasks);
     return{preferences,signals:sortSignals([...base,...conditional,...plain]).slice(0,12),personalTasks:brief.personalTasks};
   };
   private open=async()=>{if(this.state.busy)return;this.setState({open:true,busy:true,error:''});try{const loaded=await this.load();this.setState({busy:false,preferences:loaded.preferences,signals:loaded.signals,personalTasks:loaded.personalTasks});}catch(error){this.setState({busy:false,error:error instanceof Error?error.message:String(error)});}};
