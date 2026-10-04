@@ -47,9 +47,19 @@ const fixedEvidence="React.createElement('span',null,row.fact))));return React.c
 if(!source.includes(brokenEvidence))throw new Error('Batch 3 evidence-panel syntax target changed.');
 source=source.replace(brokenEvidence,fixedEvidence);
 
+// The recursive render transform already transforms form children while walking
+// the compose subtree. The compose branch must not call transform() on those
+// children a second time, or the hidden legacy input bridge becomes another
+// premium textarea and users see duplicate composers.
+const duplicateComposer="...React.Children.toArray(child.props.children).map(grand=>transform(grand,true)),fileInput,cameraInput";
+const singleComposer="...React.Children.toArray(child.props.children),fileInput,cameraInput";
+if(!source.includes(duplicateComposer))throw new Error('Batch 3 duplicate-composer transform target changed.');
+source=source.replace(duplicateComposer,singleComposer);
+
 if(source.includes('let __lourexConversationSources'))throw new Error('Batch 3 lexical conversation source state survived TDZ hardening.');
 if(source.includes('__lourexConversationSources.length'))throw new Error('Batch 3 direct source-state read survived TDZ hardening.');
 if(source.includes(brokenEvidence))throw new Error('Batch 3 evidence-panel syntax repair did not apply.');
+if(source.includes(duplicateComposer))throw new Error('Batch 3 duplicate composer transform survived hardening.');
 source+='\nconst __lourexConversationLifecycleFixBatch3=true;\n';
 await writeFile(target,source);
 
@@ -57,4 +67,4 @@ for(const runtime of [target,workflowTarget]){
   const checked=spawnSync(process.execPath,['--check',runtime],{encoding:'utf8'});
   if(checked.status!==0)throw new Error(`AI Batch 3 generated invalid JavaScript in ${runtime}:\n${checked.stderr||checked.stdout||'unknown syntax error'}`);
 }
-console.log('[LOUREX AI] Batch 3 syntax, source TDZ and retry/cancel lifecycle hardened; generated runtimes parse cleanly.');
+console.log('[LOUREX AI] Batch 3 syntax, source TDZ, single-composer and retry/cancel lifecycle hardened; generated runtimes parse cleanly.');
