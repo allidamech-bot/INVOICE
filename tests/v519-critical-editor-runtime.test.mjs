@@ -30,11 +30,15 @@ test('physical A4 geometry is owned by document.css and cannot shrink inside pre
   assert.match(css,/@media print\{\.invoice-page\{width:210mm;min-width:210mm;max-width:210mm;height:297mm;min-height:297mm/);
 });
 
-test('existing iPad stability owner marks WebKit and removes the dead commercial preview track',async()=>{
-  const source=await readFile('scripts/v339-ipados-desktop-stability.mjs','utf8');
-  assert.ok(source.includes("document.documentElement.setAttribute('data-lourex-ios-webkit','true')"),'EditorPageCore runtime must expose the real iPad/WebKit capability to CSS');
-  assert.ok(source.includes('html[data-lourex-ios-webkit="true"] body #root .app-ui .screen-editor .editor-layout{display:block!important'),'iPad commercial editor must become single-column instead of retaining the dead preview track');
-  assert.ok(source.includes('html[data-lourex-ios-webkit="true"] body #root .app-ui .screen-editor :is(.editor-preview-pane,.preview-pane){display:none!important'),'iPad commercial preview pane must not reserve width when live A4 preview is intentionally unmounted');
+test('existing iPad runtime marker and reliability CSS remove the dead commercial preview track',async()=>{
+  const [runtimeOwner,reliabilityCss]=await Promise.all([
+    readFile('scripts/v339-ipados-desktop-stability.mjs','utf8'),
+    readFile('src/styles/tailadmin-reliability-bridge-v320.css','utf8')
+  ]);
+  assert.ok(runtimeOwner.includes("document.documentElement.setAttribute('data-lourex-ios-webkit','true')"),'existing iPad runtime must expose the WebKit capability marker');
+  assert.match(reliabilityCss,/@media screen and \(min-width:1181px\) and \(max-width:1366px\)[\s\S]*?html\[data-lourex-ios-webkit="true"\][\s\S]*?\.editor-layout\{[\s\S]*?display:block!important/,'source reliability owner must collapse the iPad editor to one column');
+  assert.match(reliabilityCss,/html\[data-lourex-ios-webkit="true"\][\s\S]*?:is\(\.editor-preview-pane,\.preview-pane\)\{[\s\S]*?display:none!important/,'source reliability owner must remove the dead iPad preview track');
+  assert.ok(!runtimeOwner.includes('ipadCommercialGeometry'),'generated runtime hardening must not append a second quotation geometry layer');
 });
 
 test('commercial editor keeps existing TailAdmin desktop owner and no v519 postbuild layer',async()=>{
