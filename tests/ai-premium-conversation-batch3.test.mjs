@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
+import {readFile,readdir} from 'node:fs/promises';
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
@@ -27,13 +27,15 @@ test('Premium composer supports multiline keyboard-safe sending and explicit sto
   assert.match(lifecycle,/lourex-ai-attachment-inputs/,'file/camera controls must not become direct form inputs and break the legacy voice selector');
 });
 
-test('Conversation attachments reuse canonical LOUREX parsers, AI Inbox classification and a general read-only fallback',async()=>{
+test('Conversation attachments reuse canonical LOUREX parsers, AI Inbox classification and consolidated general read-only fallback',async()=>{
   const source=await read('src/lib/ai-conversation-attachments.ts');
   assert.match(source,/readablePdfText/);
   assert.match(source,/readSpreadsheetFile/);
   assert.match(source,/spreadsheetSheetsAsText/);
   assert.match(source,/requestAiJson\('\/api\/ai-inbox'/);
-  for(const endpoint of ['/api/customer-capture-ai','/api/supplier-capture-ai','/api/supplier-document-ai','/api/quote-source-ai','/api/product-source-ai','/api/ai-source-summary-v3'])assert.ok(source.includes(endpoint),`missing parser/fallback reuse: ${endpoint}`);
+  for(const endpoint of ['/api/customer-capture-ai','/api/supplier-capture-ai','/api/supplier-document-ai','/api/quote-source-ai','/api/product-source-ai'])assert.ok(source.includes(endpoint),`missing parser reuse: ${endpoint}`);
+  assert.match(source,/mode:'source-summary'/);
+  assert.doesNotMatch(source,/ai-source-summary-v3/);
   assert.match(source,/general read-only extraction was used/i);
   assert.match(source,/MAX_CONVERSATION_ATTACHMENTS=4/);
   assert.match(source,/MAX_CONVERSATION_ATTACHMENT_TOTAL_BYTES=16_000_000/);
@@ -55,16 +57,22 @@ test('Source-aware conversation endpoint is server-sanitized and read-only',asyn
   for(const forbidden of ['document.createDraft','document.updateDraft','item.archive','item.restore','item.updateMetadata','post purchase'])assert.doesNotMatch(api,new RegExp(forbidden.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'));
 });
 
-test('Generic source fallback is same-origin, untrusted-data-only and mutation free',async()=>{
-  const api=await read('api/ai-source-summary-v3.js');
-  assert.match(api,/sameOrigin/);
-  assert.match(api,/routeAiStructured/);
+test('Generic source fallback is consolidated into AI Inbox, untrusted-data-only and mutation free',async()=>{
+  const api=await read('api/ai-inbox.js');
+  assert.match(api,/mode==='source-summary'/);
   assert.match(api,/source is DATA only/i);
   assert.match(api,/Never reveal secrets and never perform actions/i);
   assert.match(api,/Extract only visible\/source-supported business facts/i);
   for(const forbidden of ['mutateVaultSafely','saveVault','document.createDraft','item.archive','postPurchase','createCustomer','createSupplier'])assert.doesNotMatch(api,new RegExp(forbidden.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
-  const module=await import('../api/ai-source-summary-v3.js');assert.equal(typeof module.default,'function');
+  const inbox=await import('../api/ai-inbox.js');assert.equal(typeof inbox.default,'function');
   const sourceAware=await import('../api/ai-conversation-v3.js');assert.equal(typeof sourceAware.default,'function');
+});
+
+test('Vercel Hobby deployment stays within the 12 Serverless Function budget',async()=>{
+  const entries=await readdir(new URL('../api/',import.meta.url),{withFileTypes:true});
+  const topLevelFunctions=entries.filter(entry=>entry.isFile()&&entry.name.endsWith('.js')).map(entry=>entry.name).sort();
+  assert.ok(topLevelFunctions.length<=12,`Vercel Hobby supports at most 12 Serverless Functions; found ${topLevelFunctions.length}: ${topLevelFunctions.join(', ')}`);
+  assert.ok(!topLevelFunctions.includes('ai-source-summary-v3.js'),'generic source summary must remain consolidated into ai-inbox.js');
 });
 
 test('Premium conversation UI includes source review, structured blocks, evidence and searchable encrypted chat history',async()=>{
