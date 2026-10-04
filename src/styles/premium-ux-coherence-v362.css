@@ -1,50 +1,14 @@
-/* v362: shared visual contract for live app controls and dense mobile workflows.
-   Geometry only in screen media; print document output keeps its own styles. */
+/* v362: shared geometry and responsive contract for live controls and dense workflows.
+ * Palette ownership is intentionally excluded; all colors consume canonical theme tokens.
+ * Print document output keeps its own styles.
+ */
 @media screen {
   /* Keep customer form actions anchored to the visual end in RTL dialogs. */
   html body .app-ui .modal:has(.ta-customer-form)>.modal-footer { direction:rtl!important;justify-content:flex-start!important; }
   html body .app-ui .modal:has(.ta-customer-form) .ta-customer-modal-actions { direction:ltr!important;justify-content:flex-end!important; }
-  /* The sidebar navigation is vertically scrollable; a few overflowing pixels must not expose an X scrollbar. */
   html body .app-ui .ta-sidebar-nav { overflow-x:hidden!important; }
-  /* Dashboard creation already has a primary action; keep the quick row for the three destinations. */
   @media (min-width:721px) { html body .app-ui .ta-quick-actions { grid-template-columns:repeat(3,minmax(0,1fr))!important; } }
   html body .app-ui .ta-status-badge.status-ready { background:var(--ft-success-soft)!important;color:var(--ft-success)!important; }
-
-  html[data-ui-theme="dark"] {
-    --ft-canvas:#0d0d0d!important;
-    --ft-workspace:#0d0d0d!important;
-    --ft-shell:#101010!important;
-    --ft-surface:#191919!important;
-    --ft-surface-2:#202020!important;
-    --ft-surface-3:#282828!important;
-    --ft-input:#161616!important;
-    --ft-text:#d2d2d2!important;
-    --ft-text-soft:#bdbdbd!important;
-    --ft-text-strong:#f7f7f7!important;
-    --ft-muted:#a9a9a9!important;
-    --ft-faint:#888!important;
-    --ft-line:#383838!important;
-    --ft-line-strong:#484848!important;
-    --ft-accent:#7399e3!important;
-    --ft-accent-hover:#91b0ed!important;
-    --ft-accent-soft:#292929!important;
-    --ft-accent-faint:#222!important;
-    --ft-success:#bdbdbd!important;
-    --ft-success-soft:#242424!important;
-    --ft-warning:#ef737a!important;
-    --ft-warning-soft:#332124!important;
-    --ft-danger:#ef737a!important;
-    --ft-danger-soft:#332124!important;
-    --ft-focus:0 0 0 3px rgba(115,153,227,.22)!important;
-    --ta-brand-50:#252525!important;
-    --ta-brand-100:#292929!important;
-    --ta-brand-500:#7399e3!important;
-    --ta-brand-600:#91b0ed!important;
-    --ta-brand-700:#aec5f1!important;
-    --ta-shadow-xs:none!important;
-    --ta-shadow-sm:none!important;
-    --ta-shadow-lg:none!important;
-  }
 
   /* One hierarchy for forms, cards and actions across the document and product flows. */
   html body .app-ui :is(.editor-section,.draft-control-section,.ta-product-editor-section,.ta-ops-form-section,.ta-settings-card,.ta-report-filterbar,.ta-panel) {
@@ -81,59 +45,59 @@
   html body .app-ui .customer-dropdown span { font-size:11.5px!important;line-height:17px!important; }
   html body .app-ui .customer-dropdown button { min-height:44px!important;padding:9px 11px!important; }
 
-  /* A quiet highlight belongs to actions and focus, never the matte canvas. */
   html[data-ui-theme="dark"] body .app-ui :is(.btn-primary,.ta-create-button,.ta-mobile-create),
   html[data-ui-theme="dark"] body .modal:has(.ta-customer-form) .btn-primary {
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.23),0 5px 16px rgba(88,127,209,.15)!important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 5px 16px color-mix(in srgb,var(--ft-accent) 18%,transparent)!important;
   }
   html[data-ui-theme="dark"] body .app-ui :is(input,select,textarea):focus-visible,
   html[data-ui-theme="dark"] body .modal:has(.ta-customer-form) :is(input,select,textarea):focus-visible {
-    border-color:#7399e3!important;
-    box-shadow:0 0 0 3px rgba(115,153,227,.18)!important;
+    border-color:var(--ft-accent)!important;
+    box-shadow:var(--ft-focus)!important;
     outline:0!important;
   }
 
   html[data-ui-theme="dark"] body .app-ui :is(.editor-pane,.editor-section,.draft-control-section,.premium-item-card,.ta-product-editor-section,.ta-product-commandbar,.ta-product-row,.ta-product-menu,.ta-product-metrics>div,.ta-product-metrics>button,.ta-ops-form-section,.ta-ops-panel,.ta-ops-list-card,.ta-ops-editor-card,.ta-ops-callout,.ta-purchase-item,.ta-inventory-row,.ta-report-filterbar,.ta-report-kpi,.ta-panel,.ta-empty-card,.ta-settings-card) {
-    background:#191919!important;
+    background:var(--ft-surface)!important;
     background-image:none!important;
-    border-color:#383838!important;
+    border-color:var(--ft-line)!important;
     box-shadow:none!important;
   }
   html[data-ui-theme="dark"] body .app-ui :is(.section-heading>span,.section-heading>div>span,.ta-product-editor-section>header>span,.ta-finance-kpi-icon,.ta-panel-empty>span,.ta-empty-card>span) {
-    background:#292929!important;
-    color:#e9e9e9!important;
+    background:var(--ft-accent-soft)!important;
+    color:var(--ft-accent)!important;
     box-shadow:none!important;
   }
   html[data-ui-theme="dark"] body .app-ui :is(.ta-product-editor-section>header,.ta-product-editor-footer,.ta-panel-header,.ta-report-presets,.ta-report-kpi header) {
-    background:#202020!important;
+    background:var(--ft-surface-2)!important;
     background-image:none!important;
-    border-color:#383838!important;
+    border-color:var(--ft-line)!important;
   }
   html[data-ui-theme="dark"] body .app-ui .premium-item-card .item-pricing-grid {
-    background:#202020!important;
-    border-color:#383838!important;
+    background:var(--ft-surface-2)!important;
+    border-color:var(--ft-line)!important;
     box-shadow:none!important;
   }
   html[data-ui-theme="dark"] body .app-ui :is(.ta-finance-kpi,.ta-report-kpi)::after {
-    background:linear-gradient(90deg,transparent,rgba(255,255,255,.16),transparent)!important;
-    opacity:.55!important;
+    background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--ft-info) 26%,transparent),transparent)!important;
+    opacity:.5!important;
   }
   html[data-ui-theme="dark"] body :is(.modal-backdrop,.dialog-backdrop) {
-    background:rgba(0,0,0,.68)!important;
+    background:rgba(2,9,12,.68)!important;
   }
   html[data-ui-theme="dark"] body .app-ui :is(.ta-product-page-header,.ta-product-commandbar)>.btn-primary {
-    background:#7399e3!important;
-    border-color:#7399e3!important;
-    color:#0d0d0d!important;
+    background:var(--ft-accent)!important;
+    border-color:var(--ft-accent)!important;
+    color:var(--ft-on-accent)!important;
   }
   html[data-ui-theme="dark"] body .app-ui :is(.ta-product-page-header,.ta-product-commandbar)>.btn-primary:hover {
-    background:#91b0ed!important;
-    border-color:#91b0ed!important;
+    background:var(--ft-accent-hover)!important;
+    border-color:var(--ft-accent-hover)!important;
+    color:var(--ft-on-accent)!important;
   }
   html[data-ui-theme="dark"] body .app-ui :is(.ta-report-presets,.ta-ops-tabs,.ta-domain-tabs,.ta-editor-step-nav) >button.is-active,
   html[data-ui-theme="dark"] body .app-ui .ta-report-presets>button[aria-pressed="true"] {
-    background:#292929!important;
-    color:#f7f7f7!important;
+    background:var(--ft-accent-soft)!important;
+    color:var(--ft-accent)!important;
     box-shadow:none!important;
   }
 
@@ -151,14 +115,17 @@
       text-align:right!important;
     }
 
+    /* On compact screens preserve hierarchy without painting another decorative layer. */
     html[data-ui-theme="dark"] body .app-ui :is(.ta-kpi-card,.ta-dashboard-card,.ta-doc-summary-grid>button,.ta-customer-card,.ta-customers-summary>div,.ta-products-overview>div,.ta-product-editor-section,.premium-item-card,.ta-ops-metrics>div,.ta-ops-summary>div,.ta-finance-kpi,.ta-report-kpi,.ta-report-filterbar,.ta-settings-card,.ta-customer-form-section),
     html[data-ui-theme="dark"] body .modal:has(.ta-customer-form) .ta-customer-form-section {
-      background-image:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,0) 55%)!important;
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.045)!important;
+      background:var(--ft-surface)!important;
+      background-image:none!important;
+      border-color:var(--ft-line)!important;
+      box-shadow:none!important;
     }
     html[data-ui-theme="dark"] body .app-ui .modal:has(.ta-customer-form) {
-      border-color:#454545!important;
-      box-shadow:0 20px 55px rgba(0,0,0,.45),0 0 0 1px rgba(115,153,227,.08)!important;
+      border-color:var(--ft-line-strong)!important;
+      box-shadow:0 20px 55px rgba(0,0,0,.34)!important;
     }
     html body .app-ui :is(.editor-layout,.draft-studio-layout) { padding-inline:10px!important; }
     html body .app-ui :is(.editor-section,.draft-control-section) { padding:12px!important; }
@@ -182,7 +149,7 @@
     html body .ta-settings-page-header { margin-bottom:12px!important; }
   }
   @media (max-width:650px) {
-    /* Reports read as labeled records instead of a 980px sideways table. */
+    /* Reports read as labeled records instead of a sideways table. */
     html body .app-ui .ta-report-panel .ta-table-wrap { overflow:visible!important;padding:8px!important; }
     html body .app-ui .ta-report-panel .ta-table { display:block!important;width:100%!important;min-width:0!important; }
     html body .app-ui .ta-report-panel .ta-table thead { display:none!important; }
