@@ -65,6 +65,16 @@ export function registerAssistantEntity(screen:string,entity:Partial<AssistantEn
 }
 
 function registeredEntity(screen:string):AssistantEntityContext|null{return registeredEntities.get(screen)??null;}
+function entityBelongsToScope(entity:AssistantEntityContext|null,vault:VaultPayload):boolean{
+  if(!entity)return false;
+  if(entity.type==='customer')return vault.customers.some(row=>row.id===entity.id);
+  if(entity.type==='supplier')return vault.suppliers.some(row=>row.id===entity.id);
+  if(entity.type==='product')return vault.savedItems.some(row=>row.id===entity.id);
+  if(entity.type==='purchase')return vault.purchases.some(row=>row.id===entity.id);
+  if(entity.type==='document')return vault.documents.some(row=>row.id===entity.id);
+  if(entity.type==='workspace')return entity.id===vault.appSettings.activeWorkspaceId;
+  return entity.type==='report';
+}
 function uniqueByLabel<T>(rows:T[],labels:(row:T)=>string[],visible:string):T|null{
   const target=norm(visible);if(!target)return null;
   const matches=rows.filter(row=>labels(row).some(label=>norm(label)===target));
@@ -134,7 +144,11 @@ export function prepareAssistantContext(vault:VaultPayload,screen:string,message
   const businessVault=scopeVault(vault);
   const workspace=activeWorkspace(businessVault),branch=activeBranch(businessVault);
   const effectiveVault=scope==='personal'?personalSafeVault(businessVault):businessVault;
-  const entity=scope==='personal'?null:(activeDocumentEntity(activeDocument)??registeredEntity(screen)??resolveUiEntity(screen,businessVault));
+  const activeEntity=activeDocumentEntity(activeDocument);
+  const storedEntity=registeredEntity(screen);
+  const scopedActiveEntity=entityBelongsToScope(activeEntity,businessVault)?activeEntity:null;
+  const scopedStoredEntity=entityBelongsToScope(storedEntity,businessVault)?storedEntity:null;
+  const entity=scope==='personal'?null:(scopedActiveEntity??scopedStoredEntity??resolveUiEntity(screen,businessVault));
   const queryHint=scope==='personal'?'':entitySearchText(entity,businessVault);
   const query=queryHint?`${message}\n\nCurrent entity lookup terms (LOUREX DATA ONLY): ${safeText(queryHint,320)}`:message;
   return{vault:effectiveVault,runtime:{version:1,scope,workspaceId:workspace.id,workspaceName:safeText(workspace.name),branchId:branch.id,branchName:safeText(branch.name||branch.code),operatorId:fullMember.id,operatorName:safeText(fullMember.displayName),operatorRole:fullMember.role,allowedCapabilities:assistantCapabilitiesForRole(fullMember.role,scope),entity},query};
