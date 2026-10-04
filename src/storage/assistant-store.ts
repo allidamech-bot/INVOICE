@@ -22,6 +22,8 @@ const MAX_THREADS=30;
 const MAX_MESSAGES=60;
 const MAX_MESSAGE_CHARS=4000;
 const MAX_SUMMARY_CHARS=1200;
+const MAX_PROVIDER_MEMORY_CHARS=520;
+const PROVIDER_SUMMARY_PREFIX='Earlier conversation summary: ';
 
 function safeText(value:unknown,max:number):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 function now():string{return new Date().toISOString();}
@@ -88,9 +90,12 @@ export function summarizeAssistantConversation(messages:MessageLike[]):string{
   return normalized.slice(0,-4).slice(-12).map((row:AssistantStoredMessage)=>`${row.role==='user'?'User':'Advisor'}: ${safeText(row.text,120)}`).join(' | ').slice(-MAX_SUMMARY_CHARS);
 }
 export function assistantProviderMemory(messages:MessageLike[],summary=''):string{
-  const recent=messages.map((row:MessageLike)=>normalizedMessage(row)).filter((row:AssistantStoredMessage|null):row is AssistantStoredMessage=>Boolean(row)).slice(-2).map((row:AssistantStoredMessage)=>`${row.role==='user'?'User':'Advisor'}: ${safeText(row.text,150)}`).join('\n');
-  const compactSummary=safeText(summary,260);
-  return [compactSummary?`Earlier conversation summary: ${compactSummary}`:'',recent].filter(Boolean).join('\n').slice(-520);
+  const recent=messages.map((row:MessageLike)=>normalizedMessage(row)).filter((row:AssistantStoredMessage|null):row is AssistantStoredMessage=>Boolean(row)).slice(-2).map((row:AssistantStoredMessage)=>`${row.role==='user'?'User':'Advisor'}: ${safeText(row.text,140)}`).join('\n');
+  const separator=recent?'\n':'';
+  const summaryBudget=Math.max(0,MAX_PROVIDER_MEMORY_CHARS-PROVIDER_SUMMARY_PREFIX.length-separator.length-recent.length);
+  const compactSummary=safeText(summary,Math.min(260,summaryBudget));
+  const parts=[compactSummary?`${PROVIDER_SUMMARY_PREFIX}${compactSummary}`:'',recent].filter(Boolean);
+  return parts.join('\n').slice(0,MAX_PROVIDER_MEMORY_CHARS);
 }
 export function upsertAssistantThread(state:AssistantStoreState,input:{threadId?:string;scope:Exclude<AssistantScope,'temporary'>;workspaceId:string;branchId:string;messages:MessageLike[]}):{state:AssistantStoreState;thread:AssistantThread}{
   const normalized=normalizeAssistantState(state);
