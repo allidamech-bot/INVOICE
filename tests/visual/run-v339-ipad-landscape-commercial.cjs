@@ -13,7 +13,7 @@ async function runCase(browser,kind){
   const page=await context.newPage();
   const runtimeErrors=[];
   page.on('pageerror',error=>runtimeErrors.push(String(error?.message||error)));
-  const url=`${BASE}/tests/visual/obsidian-editor.html?lang=en&kind=${kind}&v=339-commercial`;
+  const url=`${BASE}/tests/visual/obsidian-editor.html?lang=en&kind=${kind}&v=519-commercial`;
   await page.goto(url,{waitUntil:'networkidle'});
   await page.waitForSelector('.editor-screen .editor-scroll',{timeout:10_000});
   await page.waitForTimeout(250);
@@ -25,20 +25,25 @@ async function runCase(browser,kind){
     const layout=document.querySelector('.editor-layout');
     const editorPane=document.querySelector('.editor-pane');
     const previewPane=document.querySelector('.preview-pane,.editor-preview-pane');
-    const style=scroll?getComputedStyle(scroll):null;
+    const scrollStyle=scroll?getComputedStyle(scroll):null;
+    const layoutStyle=layout?getComputedStyle(layout):null;
     const rect=node=>{const box=node?.getBoundingClientRect();return box?{width:box.width,height:box.height,left:box.left,right:box.right}:null;};
+    const layoutBox=rect(layout);
+    const layoutPadding=layoutStyle?(parseFloat(layoutStyle.paddingLeft||'0')+parseFloat(layoutStyle.paddingRight||'0')):0;
     return {
       width:innerWidth,height:innerHeight,
       platform:navigator.platform,touchPoints:navigator.maxTouchPoints,
       iosMarker:document.documentElement.dataset.lourexIosWebkit||'',
       editorMarker:document.documentElement.hasAttribute('data-lourex-document-editor'),
-      overflowY:style?.overflowY||'missing',
+      overflowY:scrollStyle?.overflowY||'missing',
       clientHeight:scroll?.clientHeight||0,
       scrollHeight:scroll?.scrollHeight||0,
       previewChildren:document.querySelector('.preview-stage')?.childElementCount??-1,
       previewDisplay:previewPane?getComputedStyle(previewPane).display:'missing',
-      layoutDisplay:layout?getComputedStyle(layout).display:'missing',
-      workspace:rect(workspace),layout:rect(layout),editorPane:rect(editorPane),previewPane:rect(previewPane)
+      layoutDisplay:layoutStyle?.display||'missing',
+      layoutContentWidth:layoutBox?Math.max(0,layoutBox.width-layoutPadding):0,
+      layoutPadding,
+      workspace:rect(workspace),layout:layoutBox,editorPane:rect(editorPane),previewPane:rect(previewPane)
     };
   });
   if(initial.width!==1194||initial.height!==834)failures.push(`viewport=${initial.width}x${initial.height}, expected 1194x834`);
@@ -50,8 +55,8 @@ async function runCase(browser,kind){
   if(initial.previewChildren!==0)failures.push(`live A4 renderer remained mounted on iPad landscape (${initial.previewChildren} child nodes)`);
   if(initial.previewDisplay!=='none')failures.push(`iPad commercial preview still reserves a dead desktop track (display=${initial.previewDisplay})`);
   if(initial.layoutDisplay!=='block')failures.push(`iPad commercial editor layout=${initial.layoutDisplay}, expected single-column block`);
-  if(!initial.layout||!initial.editorPane)failures.push('iPad commercial editor geometry nodes missing');
-  else if(initial.editorPane.width<initial.layout.width-4)failures.push(`iPad editor pane ${initial.editorPane.width}px does not fill ${initial.layout.width}px layout`);
+  if(!initial.layout||!initial.editorPane||!initial.layoutContentWidth)failures.push('iPad commercial editor geometry nodes missing');
+  else if(initial.editorPane.width<initial.layoutContentWidth-4)failures.push(`iPad editor pane ${initial.editorPane.width}px does not fill ${initial.layoutContentWidth}px layout content box (${initial.layoutPadding}px intentional inline gutter)`);
   if(initial.workspace&&initial.layout&&initial.layout.width<initial.workspace.width-28)failures.push(`iPad layout wastes workspace width ${initial.layout.width}/${initial.workspace.width}px`);
 
   const textInput=page.locator('.editor-scroll input[type="text"],.editor-scroll input:not([type])').first();
@@ -72,7 +77,9 @@ async function runCase(browser,kind){
     const target=document.querySelector('.document-attachments-section');
     const layout=document.querySelector('.editor-layout');
     const editor=document.querySelector('.editor-pane');
+    const layoutStyle=layout?getComputedStyle(layout):null;
     const sr=scroll?.getBoundingClientRect(),tr=target?.getBoundingClientRect(),lr=layout?.getBoundingClientRect(),er=editor?.getBoundingClientRect();
+    const layoutPadding=layoutStyle?(parseFloat(layoutStyle.paddingLeft||'0')+parseFloat(layoutStyle.paddingRight||'0')):0;
     return {
       editorPresent:Boolean(document.querySelector('.editor-screen')),
       scrollTop:scroll?.scrollTop||0,
@@ -81,6 +88,7 @@ async function runCase(browser,kind){
       scrollBottom:sr?.bottom??null,
       previewDisplay:getComputedStyle(document.querySelector('.preview-pane,.editor-preview-pane')).display,
       layoutWidth:lr?.width||0,
+      layoutContentWidth:lr?Math.max(0,lr.width-layoutPadding):0,
       editorWidth:er?.width||0
     };
   });
@@ -89,7 +97,7 @@ async function runCase(browser,kind){
   if(after.targetBottom===null||after.scrollBottom===null)failures.push('attachments end target missing');
   else if(after.targetBottom>after.scrollBottom+4)failures.push(`attachments section remains clipped below scroll viewport ${after.targetBottom}/${after.scrollBottom}`);
   if(after.previewDisplay!=='none')failures.push(`iPad preview track returned after editing (${after.previewDisplay})`);
-  if(!after.layoutWidth||!after.editorWidth||after.editorWidth<after.layoutWidth-4)failures.push(`iPad editor no longer fills layout after editing (${after.editorWidth}/${after.layoutWidth}px)`);
+  if(!after.layoutContentWidth||!after.editorWidth||after.editorWidth<after.layoutContentWidth-4)failures.push(`iPad editor no longer fills layout content box after editing (${after.editorWidth}/${after.layoutContentWidth}px)`);
   if(page.url()!==initialUrl)failures.push(`URL changed during commercial edit/scroll: ${initialUrl} -> ${page.url()}`);
   if(runtimeErrors.length)failures.push(...runtimeErrors.map(error=>`pageerror: ${error}`));
 
