@@ -9,6 +9,7 @@ const darkMap=await read('src/styles/matte-black-dark-v360.css');
 const responsive=await read('src/styles/premium-ux-coherence-v362.css');
 const finalOwner=await read('src/styles/v485-visible-ui-corrections.css');
 const bundler=await read('scripts/v485-bundle-visible-ui.mjs');
+const health=await read('public/health.html');
 
 const paletteToken=/--ft-(?:canvas|shell|workspace|surface(?:-2|-3)?|input|text(?:-strong|-soft)?|muted|faint|line(?:-strong)?|accent(?:-hover|-soft|-faint)?|on-accent|success(?:-soft)?|warning(?:-soft)?|danger(?:-soft)?|info(?:-soft)?|focus)\s*:/i;
 
@@ -71,4 +72,14 @@ test('downstream visual owners use tokens rather than repainting the application
   assert.doesNotMatch(utilities,/#673de6|#9279ff|#8064f4|#9a84ff/i);
   assert.match(finalOwner,/Workspace headers and cards are flat surfaces with clear hierarchy/);
   assert.match(finalOwner,/background:var\(--ft-surface\)!important/);
+});
+
+test('standalone diagnostics page follows the same canonical color hierarchy',()=>{
+  assert.match(health,/meta name="theme-color" content="#071113"/);
+  assert.match(health,/--canvas:#071113;--surface:#122126;--surface-2:#17292E;--input:#0D191C/);
+  assert.match(health,/--accent:#3A68B8;--accent-soft:rgba\(58,104,184,.16\);--on-accent:#FFFFFF/);
+  assert.match(health,/--success:#4BC89B;--warning:#E3A145;--danger:#F06B72/);
+  assert.match(health,/html\[data-ui-theme="light"\][\s\S]*?--canvas:#F5F8F9;--surface:#FFFFFF;--surface-2:#EEF3F4;--input:#FFFFFF/);
+  assert.match(health,/--success:#1B7D5E;--warning:#A66A18;--danger:#C94D54/);
+  assert.doesNotMatch(health,/#0D0D0D|#191919|#202020|#7399E3|--success:#d2d2d2|--warning:#ef737a/i);
 });
