@@ -1,8 +1,8 @@
 # Remediation completion ledger — reopened
 
 Reviewed baseline: main `e8eaf04557108feb8c9fe116223481b6f2b1eeeb`.
-Current continuation baseline: main `a08788bce4e86758f4a45ce11d441f3f561b8947`
-after PR #499 merged with every current blocking gate passing.
+Current continuation baseline: main `3df0c7a2925a8879b1cc236156dad9249b88ba6e`
+after PR #502 merged; final Batch3 HEAD `65518f6d` passed every current blocking gate.
 
 PRs #492–#498 merged scoped improvements. A merged PR and green CI **do not**
 establish completion of every requirement in the original seven-batch roadmap.
@@ -24,10 +24,10 @@ Historical batch notes retain their implementation evidence, not completion auth
 | --- | --- | --- | --- |
 | 1 Responsive/mobile | COMPLETE — required automated acceptance and merge | PR #492, #499 and #500; final #500 CI all current shards, verify and quality gate PASS; merged main `077d3a2c24771eca2438c53aea51e13028c466d8` | Physical Safari/iPad verification unavailable, not claimed; no mandatory automated acceptance item remains open |
 | 2 Design system | COMPLETE — controlled consolidation and merge | PR #493 and #501; semantic roles/scales, explicit retained-owner inventory, obsolete declaration removal; 18 exact parity cases and all final blocking gates PASS; merged main `867845f543657b0b8e47a4e72353decda671d25c` | Historical structural owners intentionally retained, not falsely described as eliminated; no mandatory closeout gate remains open |
-| 3 Workspace UX | IN PROGRESS — final acceptance / merge pending | Exact search/360, compact Products/Finance; Reports/Operations empty recovery; recorded catalog stock; planning retry; common Create order; truthful locked notifications | Screen-by-screen mapping in `PRODUCT_UX_AUDIT_BATCH3.md`; representative browser paths and 17 focused/relevant contracts passed, including locked-tab regression; final published HEAD blocking gates/merge remain required |
-| 4 AI everywhere | PARTIAL — not active | Inline existing Copilot/Inbox entry, bounded context and deterministic product brief | Map every requested workspace intelligence outcome to real existing capability or remaining implementation; opening an advisor alone is not proof of a useful workflow; provider canaries not run |
-| 5 AI reliability | PARTIAL — not active | Timeout/body-read cancellation, extraction completeness, local RFQ parsing/numerals, voice fixtures | Full reliability checklist review including selectable/scanned PDFs, ambiguity/evidence/confidence/telemetry and fallback; provider and physical voice canaries unavailable/not run |
-| 6 Commercial workflows | PARTIAL — not active | Source-linked reviewed delivery drafts, deduplication and lifecycle tests | Explicit sales/purchase lifecycle completeness and candidate suitability review; Sales Order/Debit Note and automatic PO–receipt linkage were not added; do not imply otherwise |
+| 3 Workspace UX | COMPLETE — required automated acceptance and merge | PR #502 merged at `3df0c7a2`; final HEAD `65518f6d` Invoice CI and all seven path-triggered workflows PASS; exact workspace mapping and required runner alignment retained | Physical Safari/iPad unavailable, not claimed; no mandatory automated closeout item remains open |
+| 4 AI everywhere | STOPPED — user instruction; incomplete | Inline existing Copilot/Inbox entry, bounded context and deterministic product brief | Map every requested workspace intelligence outcome to real existing capability or remaining implementation; opening an advisor alone is not proof of a useful workflow; provider canaries not run |
+| 5 AI reliability | STOPPED — user instruction; incomplete | Timeout/body-read cancellation, extraction completeness, local RFQ parsing/numerals, voice fixtures | Full reliability checklist review including selectable/scanned PDFs, ambiguity/evidence/confidence/telemetry and fallback; provider and physical voice canaries unavailable/not run |
+| 6 Commercial workflows | IN PROGRESS — explicit lifecycle/suitability closeout | Existing source-linked reviewed delivery and deterministic owners retained; `PRODUCT_UX_AUDIT_BATCH6.md` maps sales/purchase acceptance and each conditional candidate decision | Nine lifecycle contracts locally PASS; current browser acceptance, final closeout HEAD blocking CI and merge remain required |
 | 7 Accounting foundation | SCOPED FOUNDATION MERGED — roadmap closeout pending | Option A documented; latest-vault treasury allocation validation and deterministic tests | Re-evaluate after 1–6 closeout; verify operational finance/reporting boundaries. Full GL was deliberately not implemented, as permitted by the roadmap |
 
 ## Batch 1 acceptance inventory
