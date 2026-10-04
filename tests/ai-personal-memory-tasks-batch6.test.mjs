@@ -42,6 +42,18 @@ test('memory and task commands are local-first and all durable mutations remain 
   assert.match(actions,/resumeVaultSession/);assert.match(actions,/createAssistantMemory/);assert.match(actions,/completeAssistantTask/);
 });
 
+test('Personal runtime is a real productivity assistant while business context stays excluded',async()=>{
+  const {assistantRuntimeHint,prepareAssistantContext}=await import('../dist/src/lib/ai-assistant-foundation.js');
+  const {emptyVault}=await import('../dist/src/lib/defaults.js');
+  const prepared=prepareAssistantContext(emptyVault(),'home','help me study',null,'personal');
+  const hint=assistantRuntimeHint(prepared.runtime);
+  assert.match(hint,/general personal productivity assistant/i);
+  for(const capability of ['writing','translation','planning','study help','personal budgeting','lists','goals'])assert.match(hint,new RegExp(capability,'i'));
+  assert.match(hint,/Business records.*intentionally excluded/i);
+  assert.equal(prepared.runtime.workspaceId,'');assert.equal(prepared.runtime.branchId,'');assert.equal(prepared.runtime.entity,null);
+  assert.deepEqual(prepared.runtime.allowedCapabilities,['workspace.help']);
+});
+
 test('Batch 6 runtime sends only bounded relevant memory/task context and exposes a compact manager',async()=>{
   const [pkg,installer]=await Promise.all([read('package.json'),read('scripts/ai-batch6-personal-memory-tasks.mjs')]);
   assert.match(pkg,/ai-batch4-tool-orchestrator\.mjs && node scripts\/ai-batch6-personal-memory-tasks\.mjs/);
