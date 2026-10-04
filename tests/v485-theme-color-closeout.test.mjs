@@ -35,6 +35,7 @@ test('v485 theme closeout restores semantic color ownership instead of gray/red 
   ])assert.ok(theme.includes(token),token);
   assert.match(theme,/\.ta-report-kpi-secondary>span\.is-danger :is\(small,b\)[\s\S]*?color:var\(--lx485-danger\)!important/);
   assert.match(theme,/\.kpi-overdue :is\(\.dashboard-kpi-icon,small,\.dashboard-money-stack b\)[\s\S]*?color:var\(--lx485-danger\)!important/);
+  assert.doesNotMatch(theme,/\[role=["']alert["']\]/,'ARIA alert alone must not imply danger color');
 });
 
 test('v485 light colored inks meet AA contrast on near-white surfaces',()=>{
