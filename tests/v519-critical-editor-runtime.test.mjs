@@ -2,15 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-test('active quotation autosave stays lightweight in its existing v350 owner',async()=>{
-  const source=await readFile('scripts/v350-rendering-storage-hardening.mjs','utf8');
-  assert.ok(source.includes('saveDocumentAutosaveCheckpoint(key,checkpointDocument,checkpointEvents'),'autosave must keep the encrypted per-document checkpoint');
-  assert.ok(!source.includes('checkpointFlushTimer'),'active editing must not own a periodic full-vault timer');
-  assert.ok(!source.includes('scheduleDocumentCheckpointFlush'),'active editing must not schedule periodic full-vault encryption');
-  assert.ok(!source.includes('30000'),'the removed 30-second full-vault cycle must not survive in the checkpoint owner');
-  assert.ok(source.includes('void flushDocumentCheckpoint().then(()=>baseCloseEditor())'),'normal editor close must flush the checkpoint into the authoritative Vault');
-  assert.ok(source.includes('if(checkpointPending||checkpointFlushPromise){instance.cloudSyncQueued=true;return Promise.resolve();}'),'cloud publication must remain deferred while a checkpoint is pending');
-  assert.ok(source.includes('recoverDocumentAutosaveCheckpoint(key,vault)'),'crash/process recovery must keep the encrypted checkpoint recovery path');
+test('active quotation autosave stays lightweight in the emitted v350 runtime',async()=>{
+  const [source,runtime]=await Promise.all([
+    readFile('scripts/v350-rendering-storage-hardening.mjs','utf8'),
+    readFile('dist/src/app/index.js','utf8')
+  ]);
+  assert.ok(source.includes('saveDocumentAutosaveCheckpoint(key,checkpointDocument,checkpointEvents'),'v350 source owner must keep the encrypted per-document checkpoint');
+  assert.ok(runtime.includes('saveDocumentAutosaveCheckpoint(key,checkpointDocument,checkpointEvents'),'production runtime must keep the encrypted per-document checkpoint');
+  assert.ok(!runtime.includes('checkpointFlushTimer'),'production runtime must not own a periodic full-vault timer while editing');
+  assert.ok(!runtime.includes('scheduleDocumentCheckpointFlush'),'production runtime must not schedule periodic full-vault encryption while editing');
+  assert.ok(!runtime.includes('window.setTimeout(()=>void flushDocumentCheckpoint().catch(()=>undefined),30000)'),'removed 30-second full-vault cycle must not survive in production');
+  assert.ok(runtime.includes('void flushDocumentCheckpoint().then(()=>baseCloseEditor())'),'normal editor close must flush the checkpoint into the authoritative Vault');
+  assert.ok(runtime.includes('if(checkpointPending||checkpointFlushPromise){instance.cloudSyncQueued=true;return Promise.resolve();}'),'cloud publication must remain deferred while a checkpoint is pending');
+  assert.ok(runtime.includes('recoverDocumentAutosaveCheckpoint(key,vault)'),'crash/process recovery must keep the encrypted checkpoint recovery path');
 });
 
 test('mobile keyboard activity keeps the established stability owner',async()=>{
