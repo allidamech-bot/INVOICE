@@ -10,6 +10,7 @@
   const WORKSPACE_RESUME_KEY='lourex-auto-reload-screen';
   const WORKSPACE_LAST_KEY='lourex-last-stable-workspace-v340';
   const EDITOR_RESUME_KEY='lourex-active-editor-v486';
+  const ACTIVE_ACCOUNT_UID_KEY='lourex-invoice-active-account-v1';
   const EDITOR_RESUME_MAX_AGE=6*60*60*1000;
   const EDITOR_RESTORE_TIMEOUT=12_000;
   const WORKSPACES=['home','documents','customers','items','operations','receivables','reports'];
@@ -40,23 +41,29 @@
     return Boolean(target.closest('.app-ui'))||Boolean(target.closest('.editor-screen'))||root.hasAttribute('data-lourex-document-editor');
   }
 
+  function currentAccountUid(){
+    try{return String(localStorage.getItem(ACTIVE_ACCOUNT_UID_KEY)||'').trim();}catch{return '';}
+  }
+
   function currentEditorIdentity(){
     const id=String(root.getAttribute('data-lourex-document-editor')||'').trim();
     if(!id||id==='opening'||!editorOpen())return null;
     const numberNode=document.querySelector('.editor-screen .editor-top-left strong,.draft-studio .draft-studio-identity strong');
     const number=String(numberNode?.textContent||'').trim();
     if(!number)return null;
-    return {id,number,savedAt:Date.now()};
+    return {id,number,accountUid:currentAccountUid(),savedAt:Date.now()};
   }
 
   function validEditorResume(value){
     if(!value||typeof value!=='object')return null;
     const id=String(value.id||'').trim();
     const number=String(value.number||'').trim();
+    const accountUid=String(value.accountUid||'').trim();
     const savedAt=Number(value.savedAt||0);
     if(!id||!number||!Number.isFinite(savedAt)||savedAt<=0)return null;
+    if(accountUid!==currentAccountUid())return null;
     if(Date.now()-savedAt>EDITOR_RESUME_MAX_AGE)return null;
-    return {id,number,savedAt};
+    return {id,number,accountUid,savedAt};
   }
 
   function readEditorResume(){
@@ -177,7 +184,11 @@
     const target=editorRestoreTarget;
     if(!target)return false;
     const now=Date.now();
-    if(now-editorRestoreLastClickAt<180)return true;
+    const elapsed=now-editorRestoreLastClickAt;
+    if(elapsed<180){
+      window.setTimeout(scheduleWorkspaceContinuity,Math.max(16,190-elapsed));
+      return true;
+    }
 
     const detailTitle=document.querySelector('.ta-doc-detail-hero h1');
     if(exactText(detailTitle,target.number)){
@@ -220,11 +231,11 @@
 
     if(current!=='documents'){
       const button=workspaceNavigationButton('documents');
-      if(button){editorRestoreLastClickAt=Date.now();button.click();}
+      if(button){button.click();scheduleWorkspaceContinuity();}
       return true;
     }
 
-    clickEditorRestoreTarget();
+    if(!clickEditorRestoreTarget())window.setTimeout(scheduleWorkspaceContinuity,120);
     return true;
   }
 
@@ -286,7 +297,7 @@
   // mutation. BaseApp's inactivity timer listens to keydown/touchstart/pointerdown,
   // so mirror actual text mutations from every unlocked app workspace into that
   // existing activity channel, not only the document editor. Checkpoint only the
-  // active document id/number; document contents remain solely in the encrypted Vault.
+  // active document identity/account; document contents remain solely in the encrypted Vault.
   for(const type of ['beforeinput','input','compositionupdate','compositionend','paste','change']){
     document.addEventListener(type,signalEditorActivity,true);
   }
