@@ -27,7 +27,13 @@ const ARABIC_FONTS: Record<Exclude<ArabicFontId,'auto'>,string> = {cairo:'Cairo,
 const AUTO_LATIN_BY_TEMPLATE: Record<TemplateId,Exclude<LatinFontId,'auto'>> = {executive:'inter',minimal:'source-sans',trade:'source-sans',signature:'playfair',obsidian:'montserrat',cobalt:'montserrat',editorial:'playfair',split:'inter',prism:'montserrat',slate:'source-sans',horizon:'playfair',mono:'source-sans',aurora:'montserrat',ledger:'source-sans',noir:'montserrat',midnight:'montserrat',blackivory:'playfair',carbon:'montserrat'};
 const AUTO_ARABIC_BY_TEMPLATE: Record<TemplateId,Exclude<ArabicFontId,'auto'>> = {executive:'cairo',minimal:'tajawal',trade:'tajawal',signature:'noto-naskh',obsidian:'noto-kufi',cobalt:'noto-kufi',editorial:'noto-naskh',split:'cairo',prism:'noto-kufi',slate:'tajawal',horizon:'noto-naskh',mono:'tajawal',aurora:'noto-kufi',ledger:'tajawal',noir:'noto-kufi',midnight:'noto-kufi',blackivory:'noto-naskh',carbon:'noto-kufi'};
 
-export interface TemplateAppearanceTokens {page:string;surface:string;primary:string;secondary:string;muted:string;border:string;tableHeader:string;tableHeaderText:string;accent:string;accentInk:string;totalsSurface:string;inverse:string;textScale:number;}
+export interface TemplateAppearanceTokens {
+  page:string;surface:string;surfaceInk:string;surfaceMuted:string;
+  darkSurface:string;darkSurfaceInk:string;darkSurfaceMuted:string;
+  primary:string;secondary:string;muted:string;border:string;
+  tableHeader:string;tableHeaderText:string;accent:string;accentInk:string;
+  totalsSurface:string;inverse:string;textScale:number;
+}
 function validHex(value:unknown):value is string{return typeof value==='string'&&/^#[0-9a-f]{6}$/i.test(value);}
 export function resolvedAccent(appearance:DocumentAppearance):string{return (appearance.paletteMode??'auto')==='custom'&&validHex(appearance.accentColor)?appearance.accentColor:AUTO_ACCENTS[appearance.templateId];}
 function linearChannel(value:number):number{const channel=value/255;return channel<=0.04045?channel/12.92:Math.pow((channel+0.055)/1.055,2.4);}
@@ -38,7 +44,16 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const primary=custom&&validHex(a.primaryTextColor)?a.primaryTextColor:(dark?'#f7f2e8':'#17212b');
   const secondary=custom&&validHex(a.secondaryTextColor)?a.secondaryTextColor:(dark?'#d7d0c4':'#4d5b68');
   const textScale=a.textScale==='small'?.94:a.textScale==='large'?1.08:1;
-  return {page:dark?'#151515':'#fffdf8',surface:dark?'#202020':'#ffffff',primary,secondary,muted:dark?'#aaa398':'#687582',border:dark?'#48443e':'#d8dde2',tableHeader:dark?'#292724':'#eef1f3',tableHeaderText:dark?'#fffaf0':'#17212b',accent,accentInk:resolvedAccentInk(accent),totalsSurface:dark?'#25231f':'#f5f2ea',inverse:'#ffffff',textScale};
+  // Surface tokens are intentionally independent from the template's overall tone.
+  // A dark template can contain white customer cards; a light template can contain
+  // dark mastheads. Components must consume the token matching their own surface.
+  const surface='#ffffff';
+  const surfaceInk='#17212b';
+  const surfaceMuted='#58656f';
+  const darkSurface=dark?'#202020':'#102b3d';
+  const darkSurfaceInk='#fffaf0';
+  const darkSurfaceMuted='#d7d0c4';
+  return {page:dark?'#151515':'#fffdf8',surface,surfaceInk,surfaceMuted,darkSurface,darkSurfaceInk,darkSurfaceMuted,primary,secondary,muted:dark?'#aaa398':'#687582',border:dark?'#48443e':'#d8dde2',tableHeader:dark?'#292724':'#eef1f3',tableHeaderText:dark?'#fffaf0':'#17212b',accent,accentInk:resolvedAccentInk(accent),totalsSurface:dark?'#25231f':'#f5f2ea',inverse:'#ffffff',textScale};
 }
 export function resolvedLatinFont(appearance:DocumentAppearance):string{const requested=appearance.latinFont??'auto';const fontId=requested==='auto'?AUTO_LATIN_BY_TEMPLATE[appearance.templateId]:requested;return LATIN_FONTS[fontId];}
 export function resolvedArabicFont(appearance:DocumentAppearance):string{const requested=appearance.arabicFont??'auto';const fontId=requested==='auto'?AUTO_ARABIC_BY_TEMPLATE[appearance.templateId]:requested;return ARABIC_FONTS[fontId];}
