@@ -46,11 +46,15 @@
   }
 
   html[data-ui-theme="light"]{
-    --lx485-success:#238462;
+    /* Keep the accepted light palette while ensuring normal-size colored text
+       clears WCAG AA contrast on near-white surfaces. */
+    --lx485-blue:#3f70c5;
+    --lx485-muted:#5e748e;
+    --lx485-success:#1f785b;
     --lx485-success-soft:#e4f4ed;
-    --lx485-warning:#ad741d;
+    --lx485-warning:#9b6110;
     --lx485-warning-soft:#fff2dc;
-    --lx485-danger:#c94f62;
+    --lx485-danger:#b94357;
     --lx485-danger-soft:#fdecef;
     --lx485-on-blue:#ffffff;
   }
