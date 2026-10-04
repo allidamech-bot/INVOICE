@@ -1,0 +1,186 @@
+import type { VaultPayload } from '../types.js';
+import { calculateTotals, decimalToScaled, lineTotal, normalizeDecimalInput } from './money.js';
+import { customerReceivables, customerStatement, receivableCustomerId } from './receivables.js';
+import { inventoryBalances } from './operations.js';
+import { supplierPayablesByCurrency } from './payables.js';
+import { treasuryAccountBalance, treasuryProjection, treasuryTotals } from './treasury-ledger.js';
+import { fxRateMatchForDate, convertWithFxMatch } from './fx-rates.js';
+import { todayIso } from './id.js';
+
+export type AiToolClass='read'|'calculate'|'prepare'|'execute'|'high-impact';
+export type AiToolId=
+  |'customer.getSummary'|'customer.getReceivables'|'customer.getHistory'
+  |'supplier.getSummary'|'product.getSummary'|'product.getCostHistory'
+  |'document.get'|'purchase.get'|'finance.getSummary'|'treasury.getSnapshot'|'reports.getMetrics'|'inventory.getStatus'|'search.records'
+  |'pricing.margin'|'pricing.markup'|'pricing.targetPrice'|'landedCost.calculate'|'scenario.calculate'|'fx.convertUsingRecordedRate'|'receivables.aging'|'breakEven.calculate'|'inventory.coverage'
+  |'quotation.prepare'|'invoice.prepare'|'customer.prepare'|'supplier.prepare'|'purchase.prepare'|'reminder.prepare'|'message.prepare'|'report.prepare'
+  |'document.createDraft'|'document.updateDraft'|'customer.update'|'supplier.update'|'product.updateMetadata'|'navigation.open'|'task.create'
+  |'document.finalize'|'payment.record'|'inventory.adjust'|'financial.delete'|'accounting.post';
+
+export interface AiToolDefinition{id:AiToolId;class:AiToolClass;description:string;approval:boolean;mutation:boolean;maxResultChars:number;}
+export interface AiToolCall{id:string;tool:AiToolId;args:Record<string,unknown>;reason:string;}
+export interface AiToolResult{id:string;tool:AiToolId;ok:boolean;class:AiToolClass;data:unknown;summary:string;source:string;}
+export interface AiToolPlan{version:1;calls:AiToolCall[];goal:string;}
+export interface AiToolExecutionProposal{capability:'tool.execute';tool:Extract<AiToolId,'customer.update'|'supplier.update'|'product.updateMetadata'|'task.create'>;args:Record<string,unknown>;label:string;rationale:string;}
+export interface AiToolRuntime{vault:VaultPayload;context:any;scope:'business'|'personal'|'temporary';workspaceId:string;branchId:string;}
+
+const DEFS:AiToolDefinition[]=[
+  ['customer.getSummary','read','Customer identity, receivables and recent commercial activity.',false,false,5000],
+  ['customer.getReceivables','read','Customer receivables by currency.',false,false,4000],
+  ['customer.getHistory','read','Recent customer documents and payments.',false,false,5000],
+  ['supplier.getSummary','read','Supplier identity, purchases and payable exposure.',false,false,5000],
+  ['product.getSummary','read','Product master, current stock and observed cost/price context.',false,false,5000],
+  ['product.getCostHistory','read','Observed posted purchase cost history for one product.',false,false,5000],
+  ['document.get','read','One LOUREX document by ID or number.',false,false,5000],
+  ['purchase.get','read','One purchase record by ID or number.',false,false,5000],
+  ['finance.getSummary','read','Deterministic Advisor V2 financial summary.',false,false,6000],
+  ['treasury.getSnapshot','read','Cash/bank balances and treasury activity by currency.',false,false,5000],
+  ['reports.getMetrics','read','Current deterministic finance/business report metrics.',false,false,6000],
+  ['inventory.getStatus','read','Current recorded inventory quantities.',false,false,5000],
+  ['search.records','read','Natural business search across scoped LOUREX records.',false,false,5000],
+  ['pricing.margin','calculate','Calculate gross margin from deterministic numeric inputs.',false,false,1500],
+  ['pricing.markup','calculate','Calculate markup on cost from deterministic numeric inputs.',false,false,1500],
+  ['pricing.targetPrice','calculate','Calculate selling price required for a target gross margin.',false,false,1500],
+  ['landedCost.calculate','calculate','Calculate landed total and landed unit cost.',false,false,1800],
+  ['scenario.calculate','calculate','Apply an explicit percentage scenario to one stated numeric base.',false,false,1800],
+  ['fx.convertUsingRecordedRate','calculate','Convert using an exact recorded LOUREX FX rate and date.',false,false,1800],
+  ['receivables.aging','calculate','Return deterministic aging buckets for a customer.',false,false,3500],
+  ['breakEven.calculate','calculate','Calculate break-even units/revenue from explicit costs and price.',false,false,1800],
+  ['inventory.coverage','calculate','Calculate stock coverage from stock and average daily usage.',false,false,1800],
+  ['quotation.prepare','prepare','Prepare a review-only quotation draft payload.',true,false,3500],
+  ['invoice.prepare','prepare','Prepare a review-only invoice draft payload.',true,false,3500],
+  ['customer.prepare','prepare','Prepare customer details for review.',true,false,3000],
+  ['supplier.prepare','prepare','Prepare supplier details for review.',true,false,3000],
+  ['purchase.prepare','prepare','Prepare a purchase draft payload for review.',true,false,3500],
+  ['reminder.prepare','prepare','Prepare a reminder without scheduling or sending it.',true,false,2500],
+  ['message.prepare','prepare','Prepare external communication without sending it.',true,false,2500],
+  ['report.prepare','prepare','Prepare a report specification without changing records.',true,false,2500],
+  ['document.createDraft','execute','Create a LOUREX draft only after visible approval.',true,true,3000],
+  ['document.updateDraft','execute','Update an existing LOUREX draft only after visible approval.',true,true,3000],
+  ['customer.update','execute','Update customer master data after visible approval.',true,true,2500],
+  ['supplier.update','execute','Update supplier master data after visible approval.',true,true,2500],
+  ['product.updateMetadata','execute','Update product metadata after visible approval.',true,true,2500],
+  ['navigation.open','execute','Navigate to a LOUREX workspace after approval.',true,false,1000],
+  ['task.create','execute','Create an encrypted assistant task after visible approval.',true,true,2500],
+  ['document.finalize','high-impact','Finalize a business document.',true,true,800],
+  ['payment.record','high-impact','Record a financial payment.',true,true,800],
+  ['inventory.adjust','high-impact','Adjust stock.',true,true,800],
+  ['financial.delete','high-impact','Delete a financial record.',true,true,800],
+  ['accounting.post','high-impact','Post an accounting entry.',true,true,800]
+].map(([id,cls,description,approval,mutation,maxResultChars])=>({id:id as AiToolId,class:cls as AiToolClass,description:String(description),approval:Boolean(approval),mutation:Boolean(mutation),maxResultChars:Number(maxResultChars)}));
+export const AI_TOOL_REGISTRY:ReadonlyArray<AiToolDefinition>=Object.freeze(DEFS);
+const DEF_BY_ID=new Map(AI_TOOL_REGISTRY.map(row=>[row.id,row]));
+const HIGH_IMPACT=new Set(AI_TOOL_REGISTRY.filter(row=>row.class==='high-impact').map(row=>row.id));
+const EXECUTE=new Set(AI_TOOL_REGISTRY.filter(row=>row.class==='execute').map(row=>row.id));
+const PREPARE=new Set(AI_TOOL_REGISTRY.filter(row=>row.class==='prepare').map(row=>row.id));
+const MONEY=/^\d{1,15}(?:\.\d{1,8})?$/;
+
+function clean(value:unknown,max=160):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
+function lower(value:unknown):string{return clean(value,500).toLowerCase();}
+function currency(value:unknown):string{const result=clean(value,8).toUpperCase();return /^[A-Z]{3}$/.test(result)?result:'';}
+function money(value:unknown):string{const result=normalizeDecimalInput(clean(value,40));return MONEY.test(result)?result:'';}
+function int(value:unknown,min=0,max=100):number{const n=Number(value);return Number.isFinite(n)?Math.max(min,Math.min(max,Math.trunc(n))):min;}
+function safeObject(value:unknown):Record<string,unknown>{return value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};}
+function fit(value:unknown,max:number):unknown{const text=JSON.stringify(value);if(text.length<=max)return value;return{truncated:true,preview:text.slice(0,max)};}
+function cents(value:string):bigint{return decimalToScaled(value||'0',2);}
+function formatScaled(value:bigint,decimals=2):string{const scale=10n**BigInt(decimals),sign=value<0n?'-':'',abs=value<0n?-value:value;return`${sign}${abs/scale}.${(abs%scale).toString().padStart(decimals,'0')}`;}
+function roundDiv(a:bigint,b:bigint):bigint{if(b===0n)throw new Error('Division by zero.');const sign=(a<0n)!==(b<0n)?-1n:1n,x=a<0n?-a:a,y=b<0n?-b:b;return((x+y/2n)/y)*sign;}
+function matches(haystack:string,query:string):boolean{const q=lower(query);return!q||lower(haystack).includes(q);}
+function itemName(item:any):string{return clean(item.descriptionEn||item.descriptionAr||item.sku||'Product',140);}
+function customerName(customer:any):string{return clean(customer?.companyNameEn||customer?.companyNameAr||customer?.contactPerson||'Customer',140);}
+function supplierName(supplier:any):string{return clean(supplier?.nameEn||supplier?.nameAr||supplier?.contactPerson||'Supplier',140);}
+function relevantEntity(runtime:AiToolRuntime,type:string):string{const entity=runtime.context?.assistantRuntime?.entity;return entity?.type===type?clean(entity.id,120):'';}
+function findCustomer(runtime:AiToolRuntime,args:Record<string,unknown>):any|null{const id=clean(args.customerId,120)||relevantEntity(runtime,'customer');if(id)return runtime.vault.customers.find(row=>row.id===id)??null;const q=clean(args.query||args.name,160);return runtime.vault.customers.find(row=>matches([row.companyNameEn,row.companyNameAr,row.contactPerson,row.phone,row.email].join(' '),q))??null;}
+function findSupplier(runtime:AiToolRuntime,args:Record<string,unknown>):any|null{const id=clean(args.supplierId,120)||relevantEntity(runtime,'supplier');if(id)return runtime.vault.suppliers.find(row=>row.id===id)??null;const q=clean(args.query||args.name,160);return runtime.vault.suppliers.find(row=>matches([row.nameEn,row.nameAr,row.contactPerson,row.phone,row.email].join(' '),q))??null;}
+function findProduct(runtime:AiToolRuntime,args:Record<string,unknown>):any|null{const id=clean(args.itemId||args.productId,120)||relevantEntity(runtime,'product');if(id)return runtime.vault.savedItems.find(row=>row.id===id)??null;const q=clean(args.query||args.sku||args.name,160);return runtime.vault.savedItems.find(row=>matches([row.sku,row.descriptionEn,row.descriptionAr,row.hsCode,row.category].join(' '),q))??null;}
+function findDocument(runtime:AiToolRuntime,args:Record<string,unknown>):any|null{const id=clean(args.documentId,120)||relevantEntity(runtime,'document');const number=clean(args.number||args.query,100);return runtime.vault.documents.find(row=>(id&&row.id===id)||(number&&lower(row.number)===lower(number)))??null;}
+function findPurchase(runtime:AiToolRuntime,args:Record<string,unknown>):any|null{const id=clean(args.purchaseId,120)||relevantEntity(runtime,'purchase');const number=clean(args.number||args.query,100);return runtime.vault.purchases.find(row=>(id&&row.id===id)||(number&&lower(row.number)===lower(number)))??null;}
+
+export function aiToolPlannerCatalog(scope:'business'|'personal'|'temporary'='business'):Array<{id:AiToolId;class:AiToolClass;description:string;approval:boolean}>{
+  if(scope==='personal')return AI_TOOL_REGISTRY.filter(row=>['message.prepare','reminder.prepare','task.create'].includes(row.id)).map(({id,class:cls,description,approval})=>({id,class:cls,description,approval}));
+  return AI_TOOL_REGISTRY.map(({id,class:cls,description,approval})=>({id,class:cls,description,approval}));
+}
+export function createAiToolRuntime(vault:VaultPayload,context:any):AiToolRuntime{
+  const scope=(context?.assistantRuntime?.scope==='personal'?'personal':context?.assistantRuntime?.scope==='temporary'?'temporary':'business') as AiToolRuntime['scope'];
+  return{vault,context,scope,workspaceId:clean(context?.assistantRuntime?.workspaceId,120),branchId:clean(context?.assistantRuntime?.branchId,120)};
+}
+export function validateAiToolPlan(value:unknown,scope:'business'|'personal'|'temporary'='business'):AiToolPlan|null{
+  if(!value||typeof value!=='object')return null;const raw=value as any;if(raw.version!==1||!Array.isArray(raw.calls)||raw.calls.length>5)return null;const allowed=new Set(aiToolPlannerCatalog(scope).map(row=>row.id));const calls:AiToolCall[]=[];
+  for(const entry of raw.calls){if(!entry||typeof entry!=='object')return null;const tool=clean(entry.tool,80) as AiToolId;if(!allowed.has(tool)||!DEF_BY_ID.has(tool))return null;calls.push({id:clean(entry.id,80)||`tool-${calls.length+1}`,tool,args:safeObject(entry.args),reason:clean(entry.reason,220)});}
+  return{version:1,calls,goal:clean(raw.goal,260)};
+}
+
+function readCustomerSummary(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const customer=findCustomer(runtime,args);if(!customer)throw new Error('Customer was not found in the active workspace.');const account=customerReceivables(runtime.vault.customers,runtime.vault.documents,runtime.vault.payments).find(row=>row.customerId===customer.id);const docs=runtime.vault.documents.filter(row=>receivableCustomerId(row)===customer.id).sort((a,b)=>b.issueDate.localeCompare(a.issueDate)).slice(0,8).map(row=>({id:row.id,number:row.number,kind:row.kind,status:row.status,date:row.issueDate,currency:row.currency,total:calculateTotals(row.items,row.adjustments).grandTotal}));return{id:customer.id,name:customerName(customer),city:customer.city,country:customer.country,preferredCurrency:customer.preferredCurrency,paymentTerms:customer.paymentTerms,creditLimit:customer.creditLimit,creditCurrency:customer.creditCurrency,receivables:account?.currencies??[],recentDocuments:docs};}
+function readCustomerReceivables(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const customer=findCustomer(runtime,args);if(!customer)throw new Error('Customer was not found in the active workspace.');const account=customerReceivables(runtime.vault.customers,runtime.vault.documents,runtime.vault.payments).find(row=>row.customerId===customer.id);return{customerId:customer.id,name:customerName(customer),currencies:account?.currencies??[],hasOverdue:account?.hasOverdue??false,openInvoices:account?.openInvoices??0};}
+function readCustomerHistory(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const customer=findCustomer(runtime,args);if(!customer)throw new Error('Customer was not found in the active workspace.');const statements=customerStatement(customer.id,runtime.vault.documents,runtime.vault.payments);return{customerId:customer.id,name:customerName(customer),statements:statements.map(row=>({...row,entries:row.entries.slice(-12)}))};}
+function readSupplierSummary(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const supplier=findSupplier(runtime,args);if(!supplier)throw new Error('Supplier was not found in the active workspace.');const purchases=runtime.vault.purchases.filter(row=>row.supplierSnapshot?.sourceSupplierId===supplier.id).sort((a,b)=>b.date.localeCompare(a.date));const payables=supplierPayablesByCurrency(purchases,runtime.vault.supplierPayments,todayIso());return{id:supplier.id,name:supplierName(supplier),city:supplier.city,country:supplier.country,defaultCurrency:supplier.defaultCurrency,paymentTerms:supplier.paymentTerms,payables,recentPurchases:purchases.slice(0,8).map(row=>({id:row.id,number:row.number,date:row.date,status:row.status,currency:row.currency,total:row.items.reduce((sum:any,item:any)=>sum+cents(lineTotal(item.quantity,item.unitCost)),0n).toString()}))};}
+function costHistory(runtime:AiToolRuntime,item:any):unknown[]{const rows:any[]=[];for(const purchase of runtime.vault.purchases){if(purchase.status!=='posted')continue;for(const line of purchase.items){if(line.savedItemId!==item.id)continue;rows.push({purchaseId:purchase.id,purchaseNumber:purchase.number,date:purchase.date,supplierId:purchase.supplierSnapshot?.sourceSupplierId||'',supplierName:purchase.supplierSnapshot?.nameEn||purchase.supplierSnapshot?.nameAr||'',currency:purchase.currency,unitCost:line.unitCost,landedUnitCost:line.landedUnitCost||''});}}return rows.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,20);}
+function readProductSummary(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const item=findProduct(runtime,args);if(!item)throw new Error('Product was not found in the active workspace.');const balance=inventoryBalances(runtime.vault.savedItems,runtime.vault.inventoryMovements).find(row=>row.item.id===item.id);return{id:item.id,sku:item.sku,name:itemName(item),hsCode:item.hsCode,origin:item.origin,unit:item.unit,lastUnitCost:item.lastUnitCost,lastCostCurrency:item.lastCostCurrency,lastUnitPrice:item.lastUnitPrice,lastCurrency:item.lastCurrency,quantity:balance?.quantity??'0',costHistory:costHistory(runtime,item).slice(0,5)};}
+function readDocument(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const doc=findDocument(runtime,args);if(!doc)throw new Error('Document was not found in the active branch.');return{id:doc.id,number:doc.number,kind:doc.kind,role:doc.role,status:doc.status,lifecycleStatus:doc.lifecycleStatus,issueDate:doc.issueDate,dueDate:doc.dueDate,currency:doc.currency,customerName:doc.customerSnapshot?.companyNameEn||doc.customerSnapshot?.companyNameAr||'',supplierName:doc.supplierSnapshot?.nameEn||doc.supplierSnapshot?.nameAr||'',items:doc.items.slice(0,20).map((row:any)=>({id:row.id,sku:row.sku,descriptionEn:row.descriptionEn,descriptionAr:row.descriptionAr,quantity:row.quantity,unit:row.unit,unitPrice:row.unitPrice,unitCost:row.unitCost})),totals:calculateTotals(doc.items,doc.adjustments),terms:doc.terms};}
+function readPurchase(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const row=findPurchase(runtime,args);if(!row)throw new Error('Purchase was not found in the active branch.');return{id:row.id,number:row.number,date:row.date,dueDate:row.dueDate,status:row.status,currency:row.currency,supplierName:row.supplierSnapshot?.nameEn||row.supplierSnapshot?.nameAr||'',items:row.items.slice(0,20).map((item:any)=>({savedItemId:item.savedItemId,sku:item.sku,descriptionEn:item.descriptionEn,quantity:item.quantity,unit:item.unit,unitCost:item.unitCost,landedUnitCost:item.landedUnitCost}))};}
+function treasurySnapshot(runtime:AiToolRuntime):unknown{const rows=treasuryProjection(runtime.vault.payments,runtime.vault.supplierPayments,runtime.vault.expenses,runtime.vault.treasuryEntries,runtime.vault.treasuryReconciliations,runtime.vault.company.defaultCurrency||'USD');const currencies=Array.from(new Set([...runtime.vault.treasuryAccounts.map(row=>row.currency),...rows.map(row=>row.currency)])).sort();return{accounts:runtime.vault.treasuryAccounts.filter(row=>row.active).map(row=>({id:row.id,label:row.label,kind:row.kind,currency:row.currency,balance:treasuryAccountBalance(row.id,runtime.vault.treasuryEntries)})),activity:currencies.map(code=>({currency:code,...treasuryTotals(rows,code)}))};}
+function inventoryStatus(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const q=clean(args.query,160);return inventoryBalances(runtime.vault.savedItems,runtime.vault.inventoryMovements).filter(row=>!q||matches([row.item.sku,row.item.descriptionEn,row.item.descriptionAr].join(' '),q)).slice(0,30).map(row=>({itemId:row.item.id,sku:row.item.sku,name:itemName(row.item),quantity:row.quantity,state:row.quantityScaled<0n?'negative':row.quantityScaled===0n?'zero':'positive'}));}
+function searchRecords(runtime:AiToolRuntime,args:Record<string,unknown>):unknown{const q=clean(args.query,160);if(q.length<2)throw new Error('Search query is too short.');const hits:any[]=[];const add=(type:string,id:string,label:string,meta:any={})=>{if(hits.length<20&&matches(`${label} ${JSON.stringify(meta)}`,q))hits.push({type,id,label,...meta});};for(const row of runtime.vault.customers)add('customer',row.id,customerName(row),{email:row.email,phone:row.phone});for(const row of runtime.vault.suppliers)add('supplier',row.id,supplierName(row),{email:row.email,phone:row.phone});for(const row of runtime.vault.savedItems)add('product',row.id,itemName(row),{sku:row.sku,hsCode:row.hsCode});for(const row of runtime.vault.documents)add('document',row.id,row.number,{kind:row.kind,date:row.issueDate});for(const row of runtime.vault.purchases)add('purchase',row.id,row.number,{date:row.date,supplier:row.supplierSnapshot?.nameEn||row.supplierSnapshot?.nameAr||''});return hits.slice(0,12);}
+
+function requireMoney(args:Record<string,unknown>,key:string):string{const value=money(args[key]);if(!value)throw new Error(`${key} must be a non-negative decimal.`);return value;}
+function calculation(tool:AiToolId,runtime:AiToolRuntime,args:Record<string,unknown>):unknown{
+  if(tool==='pricing.margin'||tool==='pricing.markup'){const cost=requireMoney(args,'cost'),price=requireMoney(args,'price'),c=cents(cost),p=cents(price);if(p<=0n||c<0n)throw new Error('Price must be greater than zero.');const numerator=tool==='pricing.margin'?(p-c)*10_000n:(p-c)*10_000n,denominator=tool==='pricing.margin'?p:c;if(denominator<=0n)throw new Error('Cost must be greater than zero for markup.');return{cost,price,percent:formatScaled(roundDiv(numerator,denominator),2),basis:tool==='pricing.margin'?'gross-margin-on-sales':'markup-on-cost'};}
+  if(tool==='pricing.targetPrice'){const cost=requireMoney(args,'cost'),target=requireMoney(args,'targetMarginPercent'),basis=decimalToScaled(target,2);if(basis>=10_000n)throw new Error('Target margin must be below 100%.');const result=roundDiv(decimalToScaled(cost,2)*10_000n,10_000n-basis);return{cost,targetMarginPercent:target,targetPrice:formatScaled(result,2)};}
+  if(tool==='landedCost.calculate'){const quantity=requireMoney(args,'quantity'),unitCost=requireMoney(args,'unitCost'),freight=money(args.freight)||'0',duty=money(args.duty)||'0',otherCosts=money(args.otherCosts)||'0',goods=cents(lineTotal(quantity,unitCost)),total=goods+cents(freight)+cents(duty)+cents(otherCosts),qty=decimalToScaled(quantity,4);if(qty<=0n)throw new Error('Quantity must be greater than zero.');return{quantity,unitCost,goodsSubtotal:formatScaled(goods,2),freight,duty,otherCosts,landedTotal:formatScaled(total,2),landedUnitCost:formatScaled(roundDiv(total*10_000n,qty),2)};}
+  if(tool==='scenario.calculate'){const base=requireMoney(args,'base'),percent=requireMoney(args,'percent'),direction=clean(args.direction,16)==='decrease'?'decrease':'increase',b=decimalToScaled(base,4),pct=decimalToScaled(percent,2),delta=roundDiv(b*pct,10_000n),result=direction==='decrease'?b-delta:b+delta;return{base,percent,direction,result:formatScaled(result,4)};}
+  if(tool==='fx.convertUsingRecordedRate'){const amount=requireMoney(args,'amount'),from=currency(args.fromCurrency),to=currency(args.toCurrency),date=clean(args.date,10)||todayIso();if(!from||!to)throw new Error('Three-letter currencies are required.');const match=fxRateMatchForDate(runtime.vault.fxRates,from,to,date);if(!match)throw new Error(`No recorded LOUREX FX rate is available for ${from}/${to} on or before ${date}.`);return{amount,fromCurrency:from,toCurrency:to,date,converted:convertWithFxMatch(amount,match),rate:match.rate.rate,rateDate:match.rate.date,source:match.rate.sourceLabel,inverse:match.inverse};}
+  if(tool==='receivables.aging')return readCustomerReceivables(runtime,args);
+  if(tool==='breakEven.calculate'){const fixed=requireMoney(args,'fixedCosts'),price=requireMoney(args,'unitPrice'),variable=requireMoney(args,'unitVariableCost'),contribution=cents(price)-cents(variable);if(contribution<=0n)throw new Error('Unit price must exceed unit variable cost.');const units=(cents(fixed)+contribution-1n)/contribution;return{fixedCosts:fixed,unitPrice:price,unitVariableCost:variable,contributionPerUnit:formatScaled(contribution,2),breakEvenUnits:units.toString(),breakEvenRevenue:formatScaled(units*cents(price),2)};}
+  if(tool==='inventory.coverage'){const stock=requireMoney(args,'stock'),usage=requireMoney(args,'averageDailyUsage'),u=decimalToScaled(usage,4);if(u<=0n)throw new Error('Average daily usage must be greater than zero.');return{stock,averageDailyUsage:usage,coverageDays:formatScaled(roundDiv(decimalToScaled(stock,4)*100n,u),2)};}
+  throw new Error('Unsupported deterministic calculation.');
+}
+
+function prepare(tool:AiToolId,runtime:AiToolRuntime,args:Record<string,unknown>):unknown{
+  const boundedArgs=Object.fromEntries(Object.entries(args).slice(0,24).map(([key,value])=>[clean(key,60),typeof value==='string'?clean(value,500):Array.isArray(value)?value.slice(0,20):value]));
+  if(tool==='quotation.prepare'||tool==='invoice.prepare')return{status:'preview-only',kind:tool==='quotation.prepare'?'proforma':'invoice',customer:findCustomer(runtime,args)?{id:findCustomer(runtime,args)!.id,name:customerName(findCustomer(runtime,args))}:null,currency:currency(args.currency)||runtime.vault.company.defaultCurrency||'',items:Array.isArray(args.items)?args.items.slice(0,20):[],notes:clean(args.notes,800),approvalRequired:true};
+  if(tool==='customer.prepare')return{status:'preview-only',entity:'customer',fields:boundedArgs,approvalRequired:true};
+  if(tool==='supplier.prepare')return{status:'preview-only',entity:'supplier',fields:boundedArgs,approvalRequired:true};
+  if(tool==='purchase.prepare')return{status:'preview-only',entity:'purchase',fields:boundedArgs,approvalRequired:true};
+  if(tool==='reminder.prepare')return{status:'preview-only',entity:'reminder',title:clean(args.title,160),dueAt:clean(args.dueAt,40),relatedEntityId:clean(args.relatedEntityId,120),approvalRequired:true};
+  if(tool==='message.prepare')return{status:'preview-only',entity:'message',recipient:clean(args.recipient,160),channel:clean(args.channel,40),body:clean(args.body,2000),approvalRequired:true};
+  if(tool==='report.prepare')return{status:'preview-only',entity:'report',title:clean(args.title,160),periodFrom:clean(args.periodFrom,10),periodTo:clean(args.periodTo,10),sections:Array.isArray(args.sections)?args.sections.slice(0,12).map(item=>clean(item,80)):[],approvalRequired:true};
+  throw new Error('Unsupported prepare tool.');
+}
+
+export function proposalForExecutableTool(call:AiToolCall,runtime:AiToolRuntime):any|null{
+  const args=safeObject(call.args);
+  if(call.tool==='navigation.open'){const target=clean(args.target,30);if(!['home','documents','customers','receivables','reports','items','operations'].includes(target))return null;return{capability:'workspace.navigate',target,label:clean(args.label,80)||`Open ${target}`,rationale:call.reason||'Requested navigation.'};}
+  if(call.tool==='product.updateMetadata'){const item=findProduct(runtime,args);if(!item)return null;const patch=safeObject(args.patch);return{capability:'item.updateMetadata',itemId:item.id,relatedItemId:'',patch,label:clean(args.label,80)||'Update product',rationale:call.reason||'Prepared product metadata update.'};}
+  if(call.tool==='document.createDraft'){const kind=clean(args.kind,30)==='invoice'?'invoice':'proforma';return{capability:'document.createDraft',kind,customerId:clean(args.customerId,120),currency:currency(args.currency)||runtime.vault.company.defaultCurrency||'USD',language:clean(args.language,8)==='ar'?'ar':clean(args.language,8)==='bilingual'?'bilingual':'en',items:Array.isArray(args.items)?args.items.slice(0,20):[],incoterm:clean(args.incoterm,80),paymentTerms:clean(args.paymentTerms,120),deliveryTime:clean(args.deliveryTime,120),validity:clean(args.validity,100),remarks:clean(args.remarks,500),notes:clean(args.notes,500),label:clean(args.label,80)||'Create draft',rationale:call.reason||'Prepared draft creation.'};}
+  if(call.tool==='document.updateDraft'){return{capability:'document.updateDraft',documentId:clean(args.documentId,120),language:args.language,addItems:Array.isArray(args.addItems)?args.addItems.slice(0,20):[],itemEdits:Array.isArray(args.itemEdits)?args.itemEdits.slice(0,30):[],termsPatch:safeObject(args.termsPatch),notes:typeof args.notes==='string'?clean(args.notes,500):undefined,label:clean(args.label,80)||'Update draft',rationale:call.reason||'Prepared draft update.'};}
+  if(['customer.update','supplier.update','task.create'].includes(call.tool))return{capability:'tool.execute',tool:call.tool,args,label:clean(args.label,80)||call.tool,rationale:call.reason||'Prepared safe LOUREX action.'} as AiToolExecutionProposal;
+  return null;
+}
+
+export function executeAiToolCall(runtime:AiToolRuntime,call:AiToolCall):AiToolResult{
+  const def=DEF_BY_ID.get(call.tool);if(!def)return{id:call.id,tool:call.tool,ok:false,class:'read',data:null,summary:'Unknown tool.',source:'tool-registry'};
+  if(runtime.scope==='personal'&&!['message.prepare','reminder.prepare','task.create'].includes(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'Business tools are unavailable in Personal scope.',source:'scope-guard'};
+  if(HIGH_IMPACT.has(call.tool))return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:'High-impact financial actions are never executed by LOUREX AI. Open the relevant workspace and complete the protected workflow manually.',source:'high-impact-guard'};
+  if(EXECUTE.has(call.tool)){const proposal=proposalForExecutableTool(call,runtime);return{id:call.id,tool:call.tool,ok:Boolean(proposal),class:def.class,data:proposal,summary:proposal?'Approval proposal prepared.':'The requested action could not be safely prepared.',source:'approval-gate'};}
+  try{let data:unknown;
+    if(call.tool==='customer.getSummary')data=readCustomerSummary(runtime,call.args);else if(call.tool==='customer.getReceivables')data=readCustomerReceivables(runtime,call.args);else if(call.tool==='customer.getHistory')data=readCustomerHistory(runtime,call.args);else if(call.tool==='supplier.getSummary')data=readSupplierSummary(runtime,call.args);else if(call.tool==='product.getSummary')data=readProductSummary(runtime,call.args);else if(call.tool==='product.getCostHistory'){const item=findProduct(runtime,call.args);if(!item)throw new Error('Product was not found in the active workspace.');data={itemId:item.id,name:itemName(item),history:costHistory(runtime,item)};}else if(call.tool==='document.get')data=readDocument(runtime,call.args);else if(call.tool==='purchase.get')data=readPurchase(runtime,call.args);else if(call.tool==='finance.getSummary')data=runtime.context?.advisorV2??runtime.context?.finance??{};else if(call.tool==='treasury.getSnapshot')data=treasurySnapshot(runtime);else if(call.tool==='reports.getMetrics')data={finance:runtime.context?.finance??{},business:runtime.context?.business?.daily??{},health:runtime.context?.advisorV2?.health??{},missingData:runtime.context?.advisorV2?.missingData??[]};else if(call.tool==='inventory.getStatus')data=inventoryStatus(runtime,call.args);else if(call.tool==='search.records')data=searchRecords(runtime,call.args);else if(def.class==='calculate')data=calculation(call.tool,runtime,call.args);else if(PREPARE.has(call.tool))data=prepare(call.tool,runtime,call.args);else throw new Error('Tool is not implemented.');
+    return{id:call.id,tool:call.tool,ok:true,class:def.class,data:fit(data,def.maxResultChars),summary:`${call.tool} completed deterministically.`,source:'lourex-local-engine'};
+  }catch(error){return{id:call.id,tool:call.tool,ok:false,class:def.class,data:null,summary:error instanceof Error?error.message:String(error),source:'lourex-local-engine'};}
+}
+export function executeAiToolPlan(runtime:AiToolRuntime,plan:AiToolPlan):{results:AiToolResult[];proposal:any|null;blockedHighImpact:boolean}{const results=plan.calls.map(call=>executeAiToolCall(runtime,call));const proposals=results.filter(row=>row.class==='execute'&&row.ok).map(row=>row.data).filter(Boolean);return{results,proposal:proposals.length===1?proposals[0]:proposals.length?{capability:'tool.plan',steps:proposals,label:'Review action plan',rationale:plan.goal||'Multiple actions require approval.'}:null,blockedHighImpact:results.some(row=>row.class==='high-impact')};}
+
+export function deterministicAiToolPlan(message:string,runtime:AiToolRuntime):AiToolPlan|null{
+  if(runtime.scope==='personal')return null;const q=lower(message),entity=runtime.context?.assistantRuntime?.entity;
+  const call=(tool:AiToolId,args:Record<string,unknown>,reason:string):AiToolPlan=>({version:1,goal:clean(message,240),calls:[{id:'local-1',tool,args,reason}]});
+  if(/(?:open|go to|navigate|افتح|روح|اذهب)/i.test(q)){if(/(?:invoice|فاتورة|quotation|quote|عرض)/i.test(q))return call('navigation.open',{target:'documents'},'Open the Documents workspace.');if(/(?:customer|عميل)/i.test(q))return call('navigation.open',{target:'customers'},'Open Customers.');if(/(?:receivable|overdue|تحصيل|متأخر)/i.test(q))return call('navigation.open',{target:'receivables'},'Open Receivables.');if(/(?:report|تقرير)/i.test(q))return call('navigation.open',{target:'reports'},'Open Reports.');if(/(?:product|inventory|مخزون|منتج)/i.test(q))return call('navigation.open',{target:'items'},'Open Products & Inventory.');if(/(?:supplier|purchase|مورد|شراء|مشتريات)/i.test(q))return call('navigation.open',{target:'operations'},'Open Purchasing/Operations.');}
+  if(entity?.type==='customer'&&/(?:overdue|receivable|outstanding|متأخر|مستحق|ذمم)/i.test(q))return call('customer.getReceivables',{customerId:entity.id},'Read the current customer receivables.');
+  if(entity?.type==='customer'&&/(?:history|account|summary|وضع|حساب|تاريخ)/i.test(q))return call('customer.getSummary',{customerId:entity.id},'Read the current customer summary.');
+  if(entity?.type==='product'&&/(?:cost|price|stock|margin|تكلفة|سعر|مخزون|هامش)/i.test(q))return call('product.getSummary',{itemId:entity.id},'Read the current product summary.');
+  if(entity?.type==='supplier'&&/(?:summary|payable|purchase|cost|مورد|مستحق|شراء|تكلفة)/i.test(q))return call('supplier.getSummary',{supplierId:entity.id},'Read the current supplier summary.');
+  if(/(?:cash|bank|treasury|liquidity|سيولة|بنك|خزينة|كاش)/i.test(q))return call('treasury.getSnapshot',{},'Read the deterministic treasury snapshot.');
+  if(/(?:company health|business health|financial summary|وضع الشركة|الوضع المالي|صحة الشركة)/i.test(q))return call('finance.getSummary',{},'Read deterministic financial and business summary.');
+  if(/(?:inventory|stock|المخزون)/i.test(q)&&/(?:status|negative|zero|وضع|سالب|صفر)/i.test(q))return call('inventory.getStatus',{},'Read recorded inventory status.');
+  return null;
+}
+
+export function compactToolResults(results:AiToolResult[]):Array<{tool:AiToolId;ok:boolean;summary:string;data:unknown;source:string}>{return results.slice(0,5).map(row=>({tool:row.tool,ok:row.ok,summary:clean(row.summary,280),data:row.data,source:row.source}));}
