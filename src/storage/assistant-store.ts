@@ -94,8 +94,10 @@ export function assistantProviderMemory(messages:MessageLike[],summary=''):strin
 }
 export function upsertAssistantThread(state:AssistantStoreState,input:{threadId?:string;scope:Exclude<AssistantScope,'temporary'>;workspaceId:string;branchId:string;messages:MessageLike[]}):{state:AssistantStoreState;thread:AssistantThread}{
   const normalized=normalizeAssistantState(state);
-  const existing=input.threadId?normalized.threads.find(row=>row.id===input.threadId&&scopeMatches(row,input.scope,input.workspaceId,input.branchId)):findAssistantThread(normalized,input.scope,input.workspaceId,input.branchId);
-  const base=existing??newAssistantThread(input.scope,input.workspaceId,input.branchId);
+  const requestedId=safeText(input.threadId,120);
+  const existing=requestedId?normalized.threads.find(row=>row.id===requestedId&&scopeMatches(row,input.scope,input.workspaceId,input.branchId)):findAssistantThread(normalized,input.scope,input.workspaceId,input.branchId);
+  const created=newAssistantThread(input.scope,input.workspaceId,input.branchId);
+  const base=existing??(requestedId?{...created,id:requestedId}:created);
   const messages=input.messages.map(normalizedMessage).filter((row):row is AssistantStoredMessage=>Boolean(row)).slice(-MAX_MESSAGES);
   const thread:AssistantThread={...base,title:titleFrom(messages,base.title),summary:summarizeAssistantConversation(messages),messages,updatedAt:now()};
   const threads=[thread,...normalized.threads.filter(row=>row.id!==thread.id)].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,MAX_THREADS);
