@@ -95,6 +95,7 @@ jobs:
           node tests/visual/run-responsive-batch1.cjs
           node tests/visual/run-search-keyboard-batch1.cjs
           node tests/visual/run-editor-keyboard-batch1.cjs
+          node tests/visual/run-modal-viewport-acceptance-batch1.cjs
           node tests/visual/run-ai-voice-reliability-batch5.cjs
 
       - name: Enforce current PR contract + stability gates

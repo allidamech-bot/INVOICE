@@ -267,6 +267,8 @@ html body #root .app-ui .ta-quick-actions>button strong{white-space:normal!impor
   html body #root .app-ui .ta-shell[data-editor-viewport-constrained="true"] :is(.mobile-editor-actionbar,.draft-mobile-actionbar){bottom:calc(var(--lx-editor-bottom-gap,0px) + 8px + env(safe-area-inset-bottom,0px))!important;}
   html body #root .app-ui .ta-shell.is-editor[data-editor-viewport-constrained="true"]>.ta-main{max-height:var(--lx-editor-scroll-height)!important;}
   html body #root .app-ui .ta-shell[data-editor-viewport-constrained="true"] :is(.ta-product-editor.is-open,.ta-ops-editor){top:var(--lx-editor-viewport-top)!important;bottom:auto!important;height:var(--lx-editor-viewport-height)!important;max-height:var(--lx-editor-viewport-height)!important;}
+  html body #root .app-ui .ta-shell[data-editor-viewport-constrained="true"] :is(.ta-mobile-sheet,.ta-create-menu-mobile){top:var(--lx-editor-viewport-top)!important;bottom:auto!important;max-height:var(--lx-editor-viewport-height)!important;overflow-y:auto!important;}
+  html body #root .app-ui .ta-shell[data-editor-viewport-constrained="true"] .ta-mobile-nav{bottom:calc(var(--lx-editor-bottom-gap,0px) + 8px + env(safe-area-inset-bottom,0px))!important;}
   html body #root .app-ui .mobile-editor-actionbar{
     position:fixed!important;inset:auto 8px calc(8px + env(safe-area-inset-bottom,0px)) 8px!important;
     width:auto!important;max-width:none!important;padding:8px!important;border:1px solid var(--lx485-line-strong)!important;
@@ -393,6 +395,8 @@ html body #root .app-ui .btn.btn-primary{
   color:#fff!important;box-shadow:0 8px 20px rgba(47,106,224,.18),inset 0 1px 0 rgba(255,255,255,.20)!important;
 }
 html body #root .app-ui .btn.btn-danger{background:color-mix(in srgb,#da7088 12%,var(--lx485-surface))!important;border-color:rgba(218,112,136,.35)!important;color:#ed91a4!important;}
+/* Older modal text rules must not mute the label of its primary action. */
+html body #root .app-ui .modal .btn.btn-primary>span{color:inherit!important;}
 html[data-ui-theme="light"] body #root .app-ui .btn.btn-danger{color:#ac3652!important;}
 html body #root .app-ui :is(.btn-ghost,.icon-btn){color:var(--lx485-text-2)!important;}
 html body #root .app-ui :is(.input,.ta-doc-search,.ta-customers-search,.ta-customers-sort,.ta-product-search,.ta-product-sort,.ta-product-filter,.ta-ops-search,.ta-search-field,.ta-date-input){
@@ -1026,3 +1030,13 @@ html body #root .loading-screen .brand::after{content:""!important;display:block
 /* Contextual Advisor must sit above phone editors, below reviewed modal proposals. */
 html body #root .app-ui #lourex-ai-panel{z-index:calc(var(--lx-ui-layer-modal,10000) - 2)!important;}
 html body #root .app-ui .lourex-ai-backdrop{z-index:calc(var(--lx-ui-layer-modal,10000) - 3)!important;}
+
+/* Very short keyboard viewports need room for one full input, not smaller
+   touch targets. Normal phone/tablet/desktop modal presentation is unchanged. */
+html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-header{padding:4px 8px!important;min-height:0!important;gap:8px!important;}
+html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-header h2{min-width:0!important;font-size:18px!important;line-height:24px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;margin:0!important;}
+html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-body{padding:8px!important;min-height:0!important;}
+html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-footer{padding:4px 8px!important;}
+html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] :is(.modal-header button,.modal-footer button){min-height:44px!important;}
+html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-footer-actions{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;gap:6px!important;}
+html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-footer-actions>.btn{flex:1 1 0!important;min-width:0!important;width:auto!important;padding:4px 6px!important;font-size:12px!important;line-height:16px!important;white-space:normal!important;}

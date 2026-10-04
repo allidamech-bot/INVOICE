@@ -220,15 +220,19 @@ class ModalFrame extends React.Component<ModalFrameProps> {
   private syncVisualViewport=():void=>{
     if(!this.backdrop)return;
     const viewport=window.visualViewport;
-    const height=viewport?.height??window.innerHeight;
-    const offsetTop=viewport?.offsetTop??0;
+    const height=viewport&&Number.isFinite(viewport.height)&&viewport.height>0?viewport.height:window.innerHeight;
+    const offsetTop=viewport&&Number.isFinite(viewport.offsetTop)?Math.max(0,viewport.offsetTop):0;
     // visualViewport already excludes Safari chrome and the on-screen keyboard.
     // A second browser reserve hides content and leaves an inaccessible blank band.
     const browserBottomReserve=0;
     if(Number.isFinite(height)&&height>0)this.backdrop.style.setProperty('--modal-visual-height',`${Math.round(height)}px`);
     if(Number.isFinite(offsetTop))this.backdrop.style.setProperty('--modal-visual-offset-top',`${Math.round(offsetTop)}px`);
     this.backdrop.style.setProperty('--modal-browser-bottom-reserve',`${browserBottomReserve}px`);
-    if(window.matchMedia('(max-width: 860px)').matches){
+    const mobile=window.matchMedia('(max-width: 860px)').matches;
+    const constrained=height<window.innerHeight-8||offsetTop>0;
+    if(constrained&&height<260)this.backdrop.dataset.viewportCompact='true';
+    else delete this.backdrop.dataset.viewportCompact;
+    if(mobile||constrained){
       // Never exceed the visible viewport when a landscape keyboard leaves
       // less than 240px. A minimum sheet height puts its footer off screen.
       const usableHeight=Math.max(1,Math.round(height-browserBottomReserve));
@@ -237,11 +241,15 @@ class ModalFrame extends React.Component<ModalFrameProps> {
       this.backdrop.style.setProperty('max-height',`${usableHeight}px`,'important');
       this.backdrop.style.setProperty('top',`${Math.round(offsetTop)}px`,'important');
       this.backdrop.style.setProperty('bottom','auto','important');
-      this.backdrop.style.setProperty('align-items','flex-end','important');
-      this.backdrop.style.setProperty('padding','0','important');
+      this.backdrop.style.setProperty('align-items',window.matchMedia('(max-width: 900px)').matches?'flex-end':'center','important');
+      this.backdrop.style.setProperty('padding',mobile?'0':'8px','important');
     }else{
       for(const property of ['height','min-height','max-height','top','bottom','align-items','padding'])this.backdrop.style.removeProperty(property);
     }
+    // Tablet/desktop modal CSS otherwise still measures the layout viewport.
+    // Bound the actual card as well as its backdrop while the keyboard is open.
+    if(constrained)this.dialog?.style.setProperty('max-height',`${Math.max(1,Math.floor(height)-16)}px`,'important');
+    else this.dialog?.style.removeProperty('max-height');
   };
   componentDidMount():void{
     this.previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;

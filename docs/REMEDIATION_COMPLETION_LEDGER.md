@@ -1,6 +1,8 @@
 # Remediation completion ledger — reopened
 
 Reviewed baseline: main `e8eaf04557108feb8c9fe116223481b6f2b1eeeb`.
+Current continuation baseline: main `a08788bce4e86758f4a45ce11d441f3f561b8947`
+after PR #499 merged with every current blocking gate passing.
 
 PRs #492–#498 merged scoped improvements. A merged PR and green CI **do not**
 establish completion of every requirement in the original seven-batch roadmap.
@@ -20,7 +22,7 @@ Historical batch notes retain their implementation evidence, not completion auth
 
 | Batch | Status | Existing merged work | Remaining closeout |
 | --- | --- | --- | --- |
-| 1 Responsive/mobile | OPEN — active | Modal viewport, Documents density, import phone rows, existing shell/editor/iPad gates | Complete requirement-to-evidence review; search/quick-create keyboard defect reproduced in current main and under repair; final follow-up gates/PR not yet complete; physical Safari verification unavailable |
+| 1 Responsive/mobile | OPEN — final closeout gate | PR #492 and #499 responsive, density, import and keyboard repairs; additional tablet/modal/sheet fixes below | Local requirement acceptance complete; final closeout PR blocking QA and merge still required. Physical Safari verification unavailable, not claimed |
 | 2 Design system | PARTIAL — not active | Retired one active v483 owner; semantic aliases and parity tests | Review surviving ownership/duplicates/breakpoints and all requested semantic roles/scales; prove any further consolidation by parity; no big-bang rewrite |
 | 3 Workspace UX | PARTIAL — not active | Exact search navigation, Customer/Supplier 360 summaries/disclosure, compact Products and Finance | Review each named workspace and its empty/error/loading/form states; Reports, Settings, More, Create and Notifications were retained, not comprehensively acceptance-tested |
 | 4 AI everywhere | PARTIAL — not active | Inline existing Copilot/Inbox entry, bounded context and deterministic product brief | Map every requested workspace intelligence outcome to real existing capability or remaining implementation; opening an advisor alone is not proof of a useful workflow; provider canaries not run |
@@ -30,24 +32,26 @@ Historical batch notes retain their implementation evidence, not completion auth
 
 ## Batch 1 acceptance inventory
 
-The following references describe existing automated coverage; they are not fresh
-hardware tests and do not by themselves close this follow-up batch.
+The following maps every original Batch 1 target to its code and automated
+acceptance evidence. The remaining release requirement is the final closeout
+PR's blocking gates and merge. Physical hardware is not claimed; the requested
+Chromium/WebKit and representative iPad/boundary coverage is automated.
 
 | Requirement | Implementation / evidence | Closeout status |
 | --- | --- | --- |
-| Safari/WebKit stability | Current CI v338/v339 editor/navigation gates; prior PR #492 results | Final follow-up gate pending |
-| visualViewport / keyboard / offset | `ModalFrame` and `modal-visible-viewport.test.mjs`; import keyboard CTA strengthened in `run-responsive-batch1.cjs` | Import strengthened test PASS locally; search gap reproduced and being fixed |
+| Safari/WebKit stability | Current CI v338/v339 editor/navigation gates; PR #499 all current shards and quality gate | PASS on merged #499; final closeout CI required |
+| visualViewport / keyboard / offset | `ModalFrame`, two viewport behavior contracts, `run-modal-viewport-acceptance-batch1.cjs`, import/search/editor regressions | Local PASS: offsets, 360/190px keyboard heights, input/save hit areas, restore/fallback |
 | Browser chrome / safe area | Modal uses actual visual height with zero duplicate toolbar reserve; v363 reconciliation | Simulated coverage only; physical Safari unavailable |
-| Bottom navigation | `run-v337-shell-navigation.cjs`: target geometry and navigation | Existing coverage; final blocking CI pending |
-| Editor docks / nested scroll | v338 editor stability; v339 iPad portrait/landscape runners; new actual EditorPage/AppShell keyboard fixture | Commercial dock behind keyboard reproduced; follow-up repair and final gate pending |
-| Dialogs / sheets | Modal viewport tests; shell More scroll-end checks | Search/Quick Create actual viewport was missing; follow-up test added |
-| Overlay locks / More / Create release | `run-v339-shell-overlay-release.cjs`; search follow-up repeated Escape/action path | Existing and new coverage; final blocking CI pending |
+| Bottom navigation | `run-v337-shell-navigation.cjs`; new actual-viewport nav bounds assertion | #499 normal geometry/navigation PASS; new Safari-chrome geometry local PASS |
+| Editor docks / nested scroll | v338/v339 and `run-editor-keyboard-batch1.cjs` | #499 PASS: commercial/Draft 390/900 and 320/820, product/purchase keyboard action hit tests |
+| Dialogs / sheets | Shared actual Modal fixture 320/900/901/1024; More visible bounds + scroll-end action; actual Settings numbering save | Local PASS; normal geometry restored rather than redesigned |
+| Overlay locks / More / Create release | `run-v339-shell-overlay-release.cjs`; search repeated Escape/action; nested actual ConfirmDialog and Settings close | #499 existing gates PASS; new nested-lock/last-close restore local PASS |
 | Documents density | All ten types retained; same filter state; 44px creation targets; search/header geometry | Eight representative widths PASS locally |
 | Import phone review | Eight labeled fields including sale/cost currency and validation detail | Chromium/WebKit 320 Arabic PASS locally; keyboard confirmation saves once |
-| 320 hard mode / overflow | Documents/import and shell gates | Covered surfaces only; no claim of every application form audited |
+| 320 hard mode / overflow | Documents/import/shell current gates; short-keyboard modal input/save and RTL | Current required surfaces PASS; unrelated workspace UX remains Batch 3, not falsely marked audited |
 | 900/901 transition | Documents responsive runner | PASS locally |
-| iPad portrait / landscape | v339 820 portrait and 1194 landscape actual-editor fixtures | Existing automated coverage; physical iPad unavailable |
-| Arabic/English, light/dark, desktop | Documents representative coverage; existing current browser shards | Documents PASS locally; changed search surface final coverage pending |
+| iPad portrait / landscape | v339 820 portrait and 1194 landscape current gates; new 900/901/1024 tablet keyboard bounds | #499 iPad gates PASS; tablet modal bounds local PASS; physical iPad unavailable |
+| Arabic/English, light/dark, desktop | Documents representative coverage; #499 current shards; new AR dark / EN light compact cases | PASS representative coverage; no normal desktop geometry or approved palette replacement |
 
 ## New defect evidence
 
@@ -86,3 +90,31 @@ matches production; all original overflow, 44px, RTL and mutation assertions
 remain unchanged. Its three browser scenarios passed locally. Required remote
 checks must still pass on the final published HEAD; do not use an earlier head's
 success as merge evidence.
+
+## Final Batch 1 closeout defects and verification
+
+- On a08788bc, the actual shared Modal at width 900 ended at y=836 while the
+  keyboard-visible bounds ended at y=380. The old 860px inline cutoff left
+  tablet dialogs positioned in the full layout viewport. Actual visual height
+  and offset now constrain both backdrop and card on tablets too; dismissal
+  restores approved CSS. Invalid viewport measurements fall back safely.
+- At a 190px keyboard height, stacked footer actions could consume all form
+  space. Only this constrained short-viewport state uses compact header/footer
+  spacing and horizontal actions, retaining 44px hit areas and the full title
+  in the accessible dialog label. No action or field is removed.
+- More/Create sheets and bottom navigation now consume the existing shell
+  visual viewport variables instead of staying below the visible Safari edge.
+- Primary modal labels inherited a muted span color despite a white button
+  foreground. The primary label now inherits its button color; browser coverage
+  asserts this in Arabic dark and English light, without changing the palette.
+- Two historical v485 source-text diagnostics also fail on the unchanged main
+  baseline (old exact background/gradient strings). These are non-blocking
+  legacy diagnostics, not new regressions; they were not weakened or redesigned
+  to satisfy obsolete palette assertions.
+- New local acceptance PASS: Chromium 900 EN/light; WebKit 320/901 AR/dark and
+  1024 EN/light; last input reachable at 360 and 190px; 44px save reachable;
+  nested review keeps outer lock, final close restores it; WebKit 390 More
+  scroll-end/release and actual Settings reviewed numbering save at 190px.
+- Physical iOS keyboard/browser-toolbar behavior is simulated, not hardware
+  verified. No finance/storage/auth/AI lifecycle changed. Final blocking CI on
+  the associated closeout PR remains the merge requirement.
