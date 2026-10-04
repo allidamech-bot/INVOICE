@@ -74,16 +74,17 @@ test('AI Batch 1 conversation store scopes threads, preserves explicit new-threa
   assert.match(provider,/message 9/);
 });
 
-test('AI Batch 1 build contract installs canonical advisor, resumable chats and structured entity hooks',async()=>{
-  const [pkg,script,lifecycle,foundation,store,contextual]=await Promise.all([
+test('AI Batch 1 build contract installs canonical advisor, resumable chats and strict personal isolation',async()=>{
+  const [pkg,script,lifecycle,personalIsolation,foundation,store,contextual]=await Promise.all([
     readFile(new URL('../package.json',import.meta.url),'utf8'),
     readFile(new URL('../scripts/ai-batch1-unified-assistant.mjs',import.meta.url),'utf8'),
     readFile(new URL('../scripts/ai-batch1-thread-lifecycle-fix.mjs',import.meta.url),'utf8'),
+    readFile(new URL('../scripts/ai-batch1-personal-isolation-fix.mjs',import.meta.url),'utf8'),
     readFile(new URL('../src/lib/ai-assistant-foundation.ts',import.meta.url),'utf8'),
     readFile(new URL('../src/storage/assistant-store.ts',import.meta.url),'utf8'),
     readFile(new URL('../src/components/ContextualAdvisorAction.tsx',import.meta.url),'utf8')
   ]);
-  assert.match(pkg,/ai-batch1-unified-assistant\.mjs && node scripts\/ai-batch1-thread-lifecycle-fix\.mjs/);
+  assert.match(pkg,/ai-batch1-unified-assistant\.mjs && node scripts\/ai-batch1-thread-lifecycle-fix\.mjs && node scripts\/ai-batch1-personal-isolation-fix\.mjs/);
   assert.match(script,/prepareAssistantContext\(vault, screen, message/);
   assert.match(script,/context\.allowedCapabilities\.includes/);
   assert.match(script,/assistantProviderMemory\(this\.state\.messages/);
@@ -97,6 +98,10 @@ test('AI Batch 1 build contract installs canonical advisor, resumable chats and 
   assert.match(lifecycle,/async function __lourexNewAssistantConversation/);
   assert.match(lifecycle,/await __lourexPersistAssistantThread\(instance\)/);
   assert.match(lifecycle,/__lourexBatch1ThreadLifecycleFix/);
+  assert.match(personalIsolation,/prepared\.runtime\.scope === 'personal' \? null/);
+  assert.match(personalIsolation,/activeDocument: scopedActiveDocument/);
+  assert.match(personalIsolation,/draftReference\(scopedVault, prepared\.query, scopedActiveDocument\)/);
+  assert.match(personalIsolation,/__lourexBatch1PersonalIsolationFix/);
   assert.match(foundation,/scopeVault\(vault\)/);
   assert.match(foundation,/scope==='personal'\?personalSafeVault/);
   assert.match(foundation,/registerAssistantEntity/);
