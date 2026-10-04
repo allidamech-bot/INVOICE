@@ -50,9 +50,12 @@ source=source.replace(brokenEvidence,fixedEvidence);
 // The recursive render transform already transforms form children while walking
 // the compose subtree. The compose branch must not call transform() on those
 // children a second time, or the hidden legacy input bridge becomes another
-// premium textarea and users see duplicate composers.
+// premium textarea and users see duplicate composers. Keep file/camera inputs
+// behind a wrapper so historical Voice/Collections/Search code using the
+// canonical direct-child selector `.lourex-ai-compose form>input` still resolves
+// exactly one element: the hidden legacy text bridge.
 const duplicateComposer="...React.Children.toArray(child.props.children).map(grand=>transform(grand,true)),fileInput,cameraInput";
-const singleComposer="...React.Children.toArray(child.props.children),fileInput,cameraInput";
+const singleComposer="...React.Children.toArray(child.props.children),React.createElement('span',{className:'lourex-ai-attachment-inputs','aria-hidden':'true'},fileInput,cameraInput)";
 if(!source.includes(duplicateComposer))throw new Error('Batch 3 duplicate-composer transform target changed.');
 source=source.replace(duplicateComposer,singleComposer);
 
@@ -60,6 +63,7 @@ if(source.includes('let __lourexConversationSources'))throw new Error('Batch 3 l
 if(source.includes('__lourexConversationSources.length'))throw new Error('Batch 3 direct source-state read survived TDZ hardening.');
 if(source.includes(brokenEvidence))throw new Error('Batch 3 evidence-panel syntax repair did not apply.');
 if(source.includes(duplicateComposer))throw new Error('Batch 3 duplicate composer transform survived hardening.');
+if(!source.includes("className:'lourex-ai-attachment-inputs'"))throw new Error('Batch 3 attachment inputs did not preserve the legacy direct-input selector.');
 source+='\nconst __lourexConversationLifecycleFixBatch3=true;\n';
 await writeFile(target,source);
 
@@ -67,4 +71,4 @@ for(const runtime of [target,workflowTarget]){
   const checked=spawnSync(process.execPath,['--check',runtime],{encoding:'utf8'});
   if(checked.status!==0)throw new Error(`AI Batch 3 generated invalid JavaScript in ${runtime}:\n${checked.stderr||checked.stdout||'unknown syntax error'}`);
 }
-console.log('[LOUREX AI] Batch 3 syntax, source TDZ, single-composer and retry/cancel lifecycle hardened; generated runtimes parse cleanly.');
+console.log('[LOUREX AI] Batch 3 syntax, source TDZ, single-composer, legacy voice selector and retry/cancel lifecycle hardened; generated runtimes parse cleanly.');
