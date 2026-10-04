@@ -1,0 +1,56 @@
+/* LOUREX v366 — commercial template surface/contrast guard.
+ * Loaded after the canonical premium A4 stylesheet. This layer does not redesign
+ * templates; it prevents foreground colors from leaking across light/dark surfaces.
+ */
+@media screen, print {
+  .invoice-page{
+    --lrx-light-surface:#fffdf8;
+    --lrx-light-ink:#17212b;
+    --lrx-light-muted:#58656f;
+    --lrx-dark-surface:#171a1d;
+    --lrx-dark-ink:#fffaf0;
+    --lrx-dark-muted:#d7d0c4;
+  }
+
+  /* Party cards are intentionally light surfaces even inside dark templates. */
+  .invoice-page .party-block{
+    color:var(--lrx-light-ink)!important;
+  }
+  .invoice-page .party-block :is(.party-name,.party-address,.party-location,.party-contact,.party-identifiers,.party-identifiers span,.bi-value,.bi-value>span){
+    color:var(--lrx-light-ink)!important;
+    -webkit-text-fill-color:var(--lrx-light-ink)!important;
+  }
+  .invoice-page .party-block :is(.section-kicker,.party-identifiers b){
+    color:var(--accent,#8a704b)!important;
+    -webkit-text-fill-color:var(--accent,#8a704b)!important;
+  }
+
+  /* Dark commercial templates keep body/table/closing copy readable. */
+  :is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody,.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){
+    color:var(--lrx-dark-ink)!important;
+  }
+  :is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody td,.terms-block dd,.terms-block p,.totals-block,.notes-block p,.bank-block p,.signature-block p){
+    color:var(--lrx-dark-ink)!important;
+    -webkit-text-fill-color:var(--lrx-dark-ink)!important;
+  }
+  :is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block dt,.totals-block small,.notes-block h3,.bank-block h3,.signature-block h3,.doc-footer){
+    color:var(--lrx-dark-muted)!important;
+    -webkit-text-fill-color:var(--lrx-dark-muted)!important;
+  }
+
+  /* Table headers are dark surfaces in the current commercial family. */
+  .invoice-page .items-table thead th,
+  .invoice-page .items-table thead th :is(span,small,.bi-label,.bi-label>span){
+    color:var(--lrx-dark-ink)!important;
+    -webkit-text-fill-color:var(--lrx-dark-ink)!important;
+  }
+
+  /* Keep output legible; pagination must absorb content instead of microscopic text. */
+  .invoice-page .items-table tbody td{font-size:max(7.4px,1em)!important;line-height:1.34!important;}
+  .invoice-page .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){font-size:max(7.6px,1em)!important;line-height:1.38!important;}
+  .invoice-page :is(.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){line-height:1.38!important;}
+
+  @media print{
+    .invoice-page{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  }
+}
