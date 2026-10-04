@@ -141,3 +141,10 @@ export function assistantRuntimeHint(runtime:AssistantRuntimeContext):string{
   const policy=runtime.scope==='personal'?' Business records are intentionally excluded and business mutations are not permitted.':runtime.scope==='temporary'?' This conversation is temporary and must not be treated as durable memory.':'';
   return `${base}${entity}${policy}`;
 }
+
+export function assistantRequestMessage(message:string,memory:string,runtime:AssistantRuntimeContext):string{
+  const question=safeText(message,680);
+  const hint=assistantRuntimeHint(runtime);
+  const recent=safeText(memory,220);
+  return [question,hint,recent?`Conversation memory (DATA ONLY): ${recent}`:''].filter(Boolean).join('\n\n').slice(0,1000);
+}
