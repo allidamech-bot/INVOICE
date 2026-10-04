@@ -69,6 +69,27 @@
   }
 }
 
+/* iPadOS can advertise a desktop-class 1194–1366px viewport while still running
+ * mobile WebKit. The live A4 renderer is intentionally unmounted there for memory
+ * stability, so a desktop preview track would become dead empty space and crush
+ * the form. Keep commercial editing single-column on the explicit iOS marker. */
+@media screen and (min-width:1181px) and (max-width:1366px) {
+  html[data-lourex-ios-webkit="true"] body #root .app-ui .screen-editor .editor-layout {
+    display:block!important;
+    width:100%!important;
+    max-width:none!important;
+    padding-inline:12px!important;
+    overflow:visible!important;
+  }
+  html[data-lourex-ios-webkit="true"] body #root .app-ui .screen-editor .editor-pane {
+    width:100%!important;
+    max-width:none!important;
+  }
+  html[data-lourex-ios-webkit="true"] body #root .app-ui .screen-editor :is(.preview-pane,.editor-preview-pane) {
+    display:none!important;
+  }
+}
+
 /* Tablet keeps the established single-column editing contract. Never leave a
  * hidden preview occupying a desktop grid track. */
 @media screen and (min-width:901px) and (max-width:1180px) {
