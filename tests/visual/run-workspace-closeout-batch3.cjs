@@ -38,6 +38,7 @@ const output='visual-qa-output/workspace-closeout-batch3';
    await page.locator('.ta-ops-purchase-editor').waitFor();assert.equal(await page.evaluate(()=>window.financialFixture.state.purchases.length),0,'opening a reviewed draft cannot post or persist it');await bounds('purchase create');
    await page.screenshot({path:`${output}/purchase-${width}-${lang}-${theme}.png`,animations:'disabled'});
    await page.goto(`http://127.0.0.1:4173/tests/visual/workspace-ux-batch3.html?lang=${lang}&theme=${theme}&vault=1`,{waitUntil:'networkidle'});
+   assert.equal(await page.evaluate(()=>document.documentElement.dataset.uiTheme),theme,'theme preference must survive production ThemeControl initialization');
    await page.evaluate(()=>window.navigateWorkspace('items'));
    await page.locator('.ta-product-stock').waitFor();assert.equal((await page.locator('.ta-product-stock bdi').innerText()).trim(),'12','stock comes from the posted movement, not the draft purchase');
    await page.locator('.ta-product-search input').fill('no-such-product');
