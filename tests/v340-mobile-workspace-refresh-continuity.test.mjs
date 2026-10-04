@@ -41,13 +41,27 @@ test('v340 keeps Apple mobile free of app-level pull reload and preserves sign-o
 test('v486 checkpoints only active editor identity and restores the exact saved document after reload',async()=>{
   const runtime=await read('public/editor-stability-v338.js');
   assert.match(runtime,/const EDITOR_RESUME_KEY='lourex-active-editor-v486'/);
-  assert.match(runtime,/return \{id,number,savedAt:Date\.now\(\)\}/);
+  assert.match(runtime,/const ACTIVE_ACCOUNT_UID_KEY='lourex-invoice-active-account-v1'/);
+  const identityStart=runtime.indexOf('function currentEditorIdentity()');
+  const identityEnd=runtime.indexOf('function validEditorResume',identityStart);
+  assert.ok(identityStart>=0&&identityEnd>identityStart,'editor identity checkpoint function missing');
+  const identityBody=runtime.slice(identityStart,identityEnd);
+  assert.match(identityBody,/return \{id,number,accountUid:currentAccountUid\(\),savedAt:Date\.now\(\)\}/);
+  for(const forbidden of ['items','customerSnapshot','attachments','notes','company','totals'])assert.doesNotMatch(identityBody,new RegExp(`\\b${forbidden}\\b`),`editor recovery checkpoint must not persist ${forbidden}`);
   assert.match(runtime,/sessionStorage\.setItem\(EDITOR_RESUME_KEY,JSON\.stringify\(valid\)\)/);
-  assert.doesNotMatch(runtime,/EDITOR_RESUME_KEY[\s\S]{0,300}(?:items|customerSnapshot|attachments|notes)/,'editor recovery marker must not duplicate document contents outside the encrypted Vault');
   assert.match(runtime,/\.ta-doc-resume/);
   assert.match(runtime,/\.ta-doc-row-identity strong bdi,\.ta-doc-row-identity strong/);
   assert.match(runtime,/\.ta-doc-detail-toolbar-actions button/);
   assert.match(runtime,/exactText\([^\n]+target\.number\)/);
+});
+
+test('v486 recovery is account scoped and retries through async navigation/detail transitions',async()=>{
+  const runtime=await read('public/editor-stability-v338.js');
+  assert.match(runtime,/accountUid!==currentAccountUid\(\)/);
+  assert.match(runtime,/return \{id,number,accountUid,savedAt\}/);
+  assert.match(runtime,/if\(elapsed<180\)\{[\s\S]*window\.setTimeout\(scheduleWorkspaceContinuity,Math\.max\(16,190-elapsed\)\)/);
+  assert.match(runtime,/if\(button\)\{button\.click\(\);scheduleWorkspaceContinuity\(\);\}/);
+  assert.match(runtime,/if\(!clickEditorRestoreTarget\(\)\)window\.setTimeout\(scheduleWorkspaceContinuity,120\)/);
 });
 
 test('v486 keeps recovery through reload or automatic PIN lock but clears it after normal Back/sign-out',async()=>{
