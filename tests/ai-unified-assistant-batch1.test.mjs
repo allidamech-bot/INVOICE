@@ -19,13 +19,11 @@ test('AI Batch 1 role capabilities keep read access broad and mutations role-gat
   assert.ok(viewer.includes('workspace.navigate'));
   assert.ok(!viewer.includes('document.createDraft'));
   assert.ok(!viewer.includes('item.archive'));
-
   const owner=assistantCapabilitiesForRole('owner','business');
   assert.ok(owner.includes('document.createDraft'));
   assert.ok(owner.includes('document.updateDraft'));
   assert.ok(owner.includes('item.archive'));
   assert.ok(owner.includes('item.updateMetadata'));
-
   assert.deepEqual(assistantCapabilitiesForRole('owner','personal'),['workspace.help']);
 });
 
@@ -77,14 +75,15 @@ test('AI Batch 1 conversation store scopes threads, preserves explicit new-threa
 });
 
 test('AI Batch 1 build contract installs canonical advisor, resumable chats and structured entity hooks',async()=>{
-  const [pkg,script,foundation,store,contextual]=await Promise.all([
+  const [pkg,script,lifecycle,foundation,store,contextual]=await Promise.all([
     readFile(new URL('../package.json',import.meta.url),'utf8'),
     readFile(new URL('../scripts/ai-batch1-unified-assistant.mjs',import.meta.url),'utf8'),
+    readFile(new URL('../scripts/ai-batch1-thread-lifecycle-fix.mjs',import.meta.url),'utf8'),
     readFile(new URL('../src/lib/ai-assistant-foundation.ts',import.meta.url),'utf8'),
     readFile(new URL('../src/storage/assistant-store.ts',import.meta.url),'utf8'),
     readFile(new URL('../src/components/ContextualAdvisorAction.tsx',import.meta.url),'utf8')
   ]);
-  assert.match(pkg,/v485-bundle-visible-ui\.mjs && node scripts\/ai-batch1-unified-assistant\.mjs/);
+  assert.match(pkg,/ai-batch1-unified-assistant\.mjs && node scripts\/ai-batch1-thread-lifecycle-fix\.mjs/);
   assert.match(script,/prepareAssistantContext\(vault, screen, message/);
   assert.match(script,/context\.allowedCapabilities\.includes/);
   assert.match(script,/assistantProviderMemory\(this\.state\.messages/);
@@ -95,6 +94,9 @@ test('AI Batch 1 build contract installs canonical advisor, resumable chats and 
   assert.match(script,/__lourexOpenThread/);
   assert.match(script,/__lourexDeleteAssistantThread/);
   assert.match(script,/saveAssistantState/);
+  assert.match(lifecycle,/async function __lourexNewAssistantConversation/);
+  assert.match(lifecycle,/await __lourexPersistAssistantThread\(instance\)/);
+  assert.match(lifecycle,/__lourexBatch1ThreadLifecycleFix/);
   assert.match(foundation,/scopeVault\(vault\)/);
   assert.match(foundation,/scope==='personal'\?personalSafeVault/);
   assert.match(foundation,/registerAssistantEntity/);
