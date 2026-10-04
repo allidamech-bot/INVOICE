@@ -25,11 +25,26 @@
     -webkit-text-fill-color:var(--accent,#8a704b)!important;
   }
 
+  /* Light templates must never inherit inverse/white body copy. This is the
+   * failure mode visible in the supplied quotation preview: white/pale item text
+   * on the ivory page. Keep the selector explicit so dark families remain intact. */
+  :is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger) :is(.items-table tbody,.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){
+    color:var(--lrx-light-ink)!important;
+  }
+  :is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger) :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block dd,.terms-block p,.totals-block,.totals-block span,.totals-block strong,.notes-block p,.bank-block p,.signature-block p){
+    color:var(--lrx-light-ink)!important;
+    -webkit-text-fill-color:var(--lrx-light-ink)!important;
+  }
+  :is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger) :is(.terms-block dt,.totals-block small,.notes-block h3,.bank-block h3,.signature-block h3,.doc-footer){
+    color:var(--lrx-light-muted)!important;
+    -webkit-text-fill-color:var(--lrx-light-muted)!important;
+  }
+
   /* Dark commercial templates keep body/table/closing copy readable. */
   :is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody,.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){
     color:var(--lrx-dark-ink)!important;
   }
-  :is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody td,.terms-block dd,.terms-block p,.totals-block,.notes-block p,.bank-block p,.signature-block p){
+  :is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block dd,.terms-block p,.totals-block,.totals-block span,.totals-block strong,.notes-block p,.bank-block p,.signature-block p){
     color:var(--lrx-dark-ink)!important;
     -webkit-text-fill-color:var(--lrx-dark-ink)!important;
   }
