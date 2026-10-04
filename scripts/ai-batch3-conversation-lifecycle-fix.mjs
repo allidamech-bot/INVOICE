@@ -1,0 +1,17 @@
+import {readFile,writeFile} from 'node:fs/promises';
+const target='dist/src/components/AiCopilot.js';
+let source=await readFile(target,'utf8');
+if(!source.includes('__lourexPremiumConversationBatch3'))throw new Error('Batch 3 premium conversation runtime must be installed first.');
+if(source.includes('__lourexConversationLifecycleFixBatch3'))throw new Error('Batch 3 conversation lifecycle fix already installed.');
+const retry='try{await baseAsk(__lourexCleanUserText(last.text));}finally{__lourexConversationSources=[];}';
+if(!source.includes(retry))throw new Error('Batch 3 retry lifecycle target changed.');
+source=source.replace(retry,'try{await instance.ask(__lourexCleanUserText(last.text));}finally{__lourexConversationSources=[];}');
+const stop="instance.__lourexStopConversation=()=>{instance.__lourexAttachmentAbort?.abort();instance.cancelRequest?.();instance.setState({busy:false,attachmentBusy:false,error:''});};";
+if(!source.includes(stop))throw new Error('Batch 3 stop lifecycle target changed.');
+source=source.replace(stop,"instance.__lourexStopConversation=()=>{instance.__lourexAttachmentStopped=true;instance.__lourexAttachmentAbort?.abort();instance.cancelRequest?.();instance.setState({busy:false,attachmentBusy:false,error:''});};");
+const attachmentCatch="}catch(error){if(!instance.__lourexAttachmentAbort?.signal?.aborted)instance.setState({error:error instanceof Error?error.message:String(error)});}finally{__lourexConversationSources=[];}};";
+if(!source.includes(attachmentCatch))throw new Error('Batch 3 attachment cancellation target changed.');
+source=source.replace(attachmentCatch,"}catch(error){if(!instance.__lourexAttachmentStopped&&error?.name!=='AbortError')instance.setState({error:error instanceof Error?error.message:String(error)});}finally{instance.__lourexAttachmentStopped=false;__lourexConversationSources=[];}};");
+source+='\nconst __lourexConversationLifecycleFixBatch3=true;\n';
+await writeFile(target,source);
+console.log('[LOUREX AI] Batch 3 conversation retry/cancel lifecycle hardened.');
