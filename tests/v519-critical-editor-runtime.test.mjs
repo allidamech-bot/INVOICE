@@ -26,13 +26,15 @@ test('v519 restores one bounded desktop split and tablet single-column editor',a
   assert.match(css,/@media screen and \(min-width:901px\) and \(max-width:1180px\)[\s\S]*?:is\(\.preview-pane,\.editor-preview-pane\)[\s\S]*?display:none!important/);
 });
 
-test('v519 is installed in the production build pipeline after the checkpoint owner',async()=>{
+test('v519 is the final production closeout after every historical visual and AI owner',async()=>{
   const pkg=JSON.parse(await readFile('package.json','utf8'));
   const build=String(pkg.scripts?.build??'');
   const checkpoint=build.indexOf('node scripts/v350-rendering-storage-hardening.mjs');
-  const guard=build.indexOf('node scripts/v519-critical-editor-runtime.mjs');
+  const guard='node scripts/v519-critical-editor-runtime.mjs';
   assert.ok(checkpoint>=0,'checkpoint owner must remain in the build');
-  assert.ok(guard>checkpoint,'v519 must harden the emitted runtime after v350 installs the checkpoint owner');
+  assert.ok(build.indexOf(guard)>checkpoint,'v519 must harden the emitted runtime after v350 installs the checkpoint owner');
+  assert.ok(build.trim().endsWith(guard),'v519 must run last so no later visual/AI owner can override critical editor geometry');
   const bundle=await readFile('dist/styles/app.bundle.css','utf8');
   assert.ok(bundle.includes('LOUREX v519 — critical commercial editor geometry owner.'),'final production CSS must contain v519 geometry owner');
+  assert.ok(bundle.trim().endsWith('}'),'final bundle must remain syntactically closed after v519 injection');
 });
