@@ -1,0 +1,98 @@
+/* LOUREX v519 — critical commercial editor geometry owner.
+ * Screen-only. Keeps quotation/invoice editing and A4 preview immune to the
+ * accumulated historical responsive layers. Printable/PDF geometry is untouched.
+ */
+@media screen {
+  html body #root .app-ui .ta-editor-workspace,
+  html body #root .app-ui .ta-editor-core-slot,
+  html body #root .app-ui .screen-editor .editor-screen {
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+  }
+
+  /* A4 must never participate as a shrinkable flex/grid child. Shrinking the
+     renderer corrupts table widths, totals, headers and makes the preview appear
+     as a narrow strip. Scale visually; never relayout the physical sheet. */
+  html body #root .app-ui .preview-stage>.invoice-pages,
+  html body #root .app-ui .mobile-preview-stage>.invoice-pages {
+    width:210mm!important;
+    min-width:210mm!important;
+    max-width:none!important;
+    flex:0 0 210mm!important;
+    margin-inline:auto!important;
+    transform-origin:top center!important;
+  }
+  html body #root .app-ui .preview-stage .invoice-page,
+  html body #root .app-ui .mobile-preview-stage .invoice-page {
+    width:210mm!important;
+    min-width:210mm!important;
+    max-width:210mm!important;
+    height:297mm!important;
+    min-height:297mm!important;
+    flex:0 0 297mm!important;
+  }
+
+  /* display:block prevents flex-shrink negotiation from resizing the transformed
+     A4 root before transform:scale() is applied. The preview remains scrollable
+     when a narrow desktop window cannot physically contain the selected scale. */
+  html body #root .app-ui .screen-editor .preview-stage {
+    display:block!important;
+    min-width:0!important;
+    overflow:auto!important;
+    text-align:center!important;
+  }
+}
+
+/* Full desktop: one predictable workbench. The editor cannot collapse below a
+ * usable commercial-form width and the preview receives enough room for 0.82 A4. */
+@media screen and (min-width:1181px) {
+  html body #root .app-ui .screen-editor .editor-layout {
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    display:grid!important;
+    grid-template-columns:minmax(520px,48%) minmax(0,52%)!important;
+    gap:14px!important;
+    overflow:hidden!important;
+  }
+  html body #root .app-ui .screen-editor .editor-pane,
+  html body #root .app-ui .screen-editor .preview-pane,
+  html body #root .app-ui .screen-editor .editor-preview-pane {
+    width:auto!important;
+    min-width:0!important;
+    max-width:none!important;
+  }
+  html body #root .app-ui .screen-editor .editor-scroll {
+    width:100%!important;
+    min-width:0!important;
+  }
+}
+
+/* Tablet keeps the established single-column editing contract. Never leave a
+ * hidden preview occupying a desktop grid track. */
+@media screen and (min-width:901px) and (max-width:1180px) {
+  html body #root .app-ui .screen-editor .editor-layout {
+    display:block!important;
+    width:100%!important;
+    max-width:none!important;
+    padding-inline:12px!important;
+  }
+  html body #root .app-ui .screen-editor .editor-pane {
+    width:100%!important;
+    max-width:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.preview-pane,.editor-preview-pane) {
+    display:none!important;
+  }
+}
+
+/* Phone remains one-column and preview-on-demand. */
+@media screen and (max-width:900px) {
+  html body #root .app-ui .screen-editor .editor-layout,
+  html body #root .app-ui .screen-editor .editor-pane {
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+  }
+}
