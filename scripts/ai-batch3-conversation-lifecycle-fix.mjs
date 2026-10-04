@@ -1,5 +1,7 @@
 import {readFile,writeFile} from 'node:fs/promises';
+import {spawnSync} from 'node:child_process';
 const target='dist/src/components/AiCopilot.js';
+const workflowTarget='dist/src/components/AiWorkflowTools.js';
 let source=await readFile(target,'utf8');
 if(!source.includes('__lourexPremiumConversationBatch3'))throw new Error('Batch 3 premium conversation runtime must be installed first.');
 if(source.includes('__lourexConversationLifecycleFixBatch3'))throw new Error('Batch 3 conversation lifecycle fix already installed.');
@@ -40,4 +42,9 @@ if(source.includes('let __lourexConversationSources'))throw new Error('Batch 3 l
 if(source.includes('__lourexConversationSources.length'))throw new Error('Batch 3 direct source-state read survived TDZ hardening.');
 source+='\nconst __lourexConversationLifecycleFixBatch3=true;\n';
 await writeFile(target,source);
-console.log('[LOUREX AI] Batch 3 conversation source TDZ + retry/cancel lifecycle hardened.');
+
+for(const runtime of [target,workflowTarget]){
+  const checked=spawnSync(process.execPath,['--check',runtime],{encoding:'utf8'});
+  if(checked.status!==0)throw new Error(`AI Batch 3 generated invalid JavaScript in ${runtime}:\n${checked.stderr||checked.stdout||'unknown syntax error'}`);
+}
+console.log('[LOUREX AI] Batch 3 conversation source TDZ + retry/cancel lifecycle hardened; generated runtimes parse cleanly.');
