@@ -16,7 +16,7 @@ function stylesheetNames(source){
   return [...source.matchAll(/<link\s+rel="stylesheet"\s+href="\.\/styles\/([^"?]+\.css)(?:\?[^\"]*)?"[^>]*\/>/g)].map(match=>match[1]);
 }
 
-test('Hostinger visual owners load once and v360 is the final design owner before reliability',()=>{
+test('Hostinger visual owners load once and v360 remains before reliability',()=>{
   const names=stylesheetNames(html);
   for(const name of [
     'hostinger-inspired-v353.css',
@@ -30,7 +30,7 @@ test('Hostinger visual owners load once and v360 is the final design owner befor
   ]){
     assert.equal(names.filter(value=>value===name).length,1,`${name} must load exactly once`);
   }
-  assert.equal(names.at(-1),'tailadmin-reliability-bridge-v320.css','reliability bridge must remain the final stylesheet');
+  assert.equal(names.at(-1),'tailadmin-reliability-bridge-v320.css','reliability bridge must remain the final linked stylesheet');
   assert.ok(names.indexOf('hostinger-final-coherence-v356.css')<names.indexOf('hostinger-interaction-polish-v357.css'));
   assert.ok(names.indexOf('hostinger-interaction-polish-v357.css')<names.indexOf('hostinger-blue-luxury-v358.css'));
   assert.ok(names.indexOf('hostinger-blue-luxury-v358.css')<names.indexOf('hostinger-blue-precision-v359.css'));
@@ -55,11 +55,18 @@ test('v357 keeps command menus neutral and inside the desktop sidebar',()=>{
   assert.doesNotMatch(interaction,/z-index\s*:/i,'interaction polish must not replace the reliability stacking contract');
 });
 
-test('v358 light palette and v360 matte dark palette retain blue primary actions',()=>{
-  assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-workspace:#F5F7FB!important[\s\S]*?--ft-accent:#315DA8!important/);
-  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-workspace:#0D0D0D!important[\s\S]*?--ft-accent:#7399E3!important/);
-  assert.match(palette,/--ft-on-accent:#0D0D0D!important/,'dark primary actions must use readable dark ink on the blue accent');
-  assert.match(palette,/html\[data-ui-theme="dark"\] body \.ta-auth-page :where\(\.ta-auth-primary,\.btn-primary,button\.btn-primary\)\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important[\s\S]*?color:var\(--ft-on-accent\)!important/,'dark auth primary must override retired violet gradient with canonical blue');
+test('canonical light/dark palette keeps layered surfaces and blue primary actions',()=>{
+  assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-workspace:#F5F8F9!important/);
+  assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-surface:#FFFFFF!important/);
+  assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-surface-2:#EEF3F4!important/);
+  assert.match(palette,/html\[data-ui-theme="light"\][\s\S]*?--ft-accent:#315DA8!important/);
+  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-workspace:#071113!important/);
+  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-shell:#0D191C!important/);
+  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-surface:#122126!important/);
+  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-surface-3:#1C3035!important/);
+  assert.match(palette,/html\[data-ui-theme="dark"\][\s\S]*?--ft-accent:#3A68B8!important/);
+  assert.match(palette,/--ft-on-accent:#FFFFFF!important/,'primary actions must use white ink on canonical blue');
+  assert.match(palette,/html\[data-ui-theme="dark"\] body \.ta-auth-page :where\(\.ta-auth-primary,\.btn-primary,button\.btn-primary\)\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important[\s\S]*?color:var\(--ft-on-accent\)!important/,'dark auth primary must use the canonical blue action language');
   assert.match(blue,/--hx-purple:var\(--ft-accent\)/,'retired Hostinger violet aliases must resolve to the blue application token');
   assert.match(html,/--boot-visual-accent:#315DA8/);
   assert.match(html,/--boot-visual-accent:#82A9EC/);
@@ -95,20 +102,20 @@ test('v358 does not replace the canonical overlay ladder',()=>{
   assert.match(reliability,/\.app-ui\.ta-doc-mobile-action-portal\{z-index:var\(--lourex-z-critical\)!important\}/);
 });
 
-test('v359 consolidates the visible identity onto the canonical blue tokens',()=>{
+test('v359 neutralizes v358 decorative paint and keeps canonical blue identity',()=>{
   assert.match(precision,/--hx-purple:var\(--ft-accent\)/);
   assert.match(precision,/--hx2-violet:var\(--ft-accent\)/);
-  assert.match(precision,/\.ta-sidebar-create>\.btn\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important/);
+  assert.match(precision,/\.ta-sidebar-create>\.btn[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important/);
   assert.match(precision,/\.lourex-ai-launcher\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important/);
-  assert.match(precision,/\.ta-auth-page \.ta-auth-aside\{[\s\S]*?linear-gradient\(150deg,#203f70 0%,#315DA8 56%,#244d86 100%\)!important/);
-  assert.match(precision,/\.ta-auth-aside \.brand-words strong\{color:#fff!important;\}/,'desktop auth wordmark must remain legible on the blue story panel');
-  assert.match(precision,/\.ta-auth-mobile-brand \.brand-words strong\{color:var\(--ft-text-strong\)!important;\}/,'mobile auth wordmark must follow theme text contrast');
-  assert.match(precision,/\.ta-auth-tabs button\.is-active\{[\s\S]*?color:var\(--ft-accent\)!important/);
-  assert.match(precision,/html\[data-ui-theme="dark"\] body \.ta-auth-page \.ta-auth-primary\{[\s\S]*?background:var\(--ft-accent\)!important[\s\S]*?background-image:none!important[\s\S]*?color:var\(--ft-on-accent\)!important/,'v359 must outrank the retired dark auth gradient');
+  assert.match(precision,/\.ta-auth-page \.ta-auth-aside\{[\s\S]*?background:var\(--ft-surface-2\)!important[\s\S]*?background-image:none!important/);
+  assert.match(precision,/\.ta-auth-aside \.brand-words strong,[\s\S]*?color:var\(--ft-text-strong\)!important/,'auth wordmark must follow canonical surface contrast');
+  assert.match(precision,/\.ta-auth-tabs button\.is-active\{[\s\S]*?background:var\(--ft-accent-soft\)!important[\s\S]*?color:var\(--ft-accent\)!important/);
+  assert.match(precision,/\.ta-topbar\{[\s\S]*?backdrop-filter:none!important[\s\S]*?-webkit-backdrop-filter:none!important/,'topbar glass treatment must be retired');
+  assert.doesNotMatch(precision,/radial-gradient|linear-gradient/,'v359 must not keep a competing decorative gradient theme');
 });
 
 test('v359 shell specificity removes routine cloud status but never conflict recovery',()=>{
-  assert.match(precision,/html body \.app-ui \.ta-sidebar-sync,[\s\S]*?html body \.app-ui \.ta-topbar-sync,[\s\S]*?html body \.app-ui \.ta-sheet-sync\{[\s\S]*?display:none!important/);
+  assert.match(precision,/html body \.app-ui \.ta-sidebar-sync,[\s\S]*?html body \.app-ui \.ta-topbar-sync,[\s\S]*?html body \.app-ui \.ta-sheet-sync\{display:none!important/);
   assert.doesNotMatch(precision,/\.ta-conflict-banner\s*\{[^}]*display:none/i);
 });
 
