@@ -69,24 +69,37 @@ function extractionEndpoint(route:ConversationAttachmentRoute):string{
   if(route==='supplier_purchase')return'/api/supplier-document-ai';
   if(route==='quote_request')return'/api/quote-source-ai';
   if(route==='product_list')return'/api/product-source-ai';
-  return'';
+  return'/api/ai-source-summary-v3';
 }
 function extractedPayload(route:ConversationAttachmentRoute,body:any):unknown{
   if(route==='customer'||route==='supplier')return body?.proposal??null;
   if(route==='supplier_purchase'||route==='quote_request'||route==='product_list')return body?.draft??null;
-  return null;
+  return body?.source??null;
+}
+async function genericExtraction(fileName:string,payload:AiPayload,signal?:AbortSignal):Promise<string>{
+  const body=await requestAiJson('/api/ai-source-summary-v3',{fileName,...payload},signal,30_000);
+  return compactJson(body?.source??null);
 }
 
 export async function analyzeConversationAttachment(file:File,signal?:AbortSignal):Promise<ConversationAttachmentAnalysis>{
   const payload=await conversationAttachmentPayload(file);
-  const classificationBody=await requestAiJson('/api/ai-inbox',{fileName:file.name,...payload},signal,30_000);
-  const raw=classificationBody?.classification??{};const route=(['customer','supplier','supplier_purchase','quote_request','product_list','unknown'].includes(String(raw.route))?String(raw.route):'unknown') as ConversationAttachmentRoute;
-  const classification:ConversationAttachmentClassification={route,documentType:boundedText(raw.documentType,80)||'unknown',confidence:Math.max(0,Math.min(1,Number(raw.confidence)||0)),reason:boundedText(raw.reason,300)};
-  let extracted='';const endpoint=extractionEndpoint(route);
-  if(endpoint){
+  let classification:ConversationAttachmentClassification={route:'unknown',documentType:'unknown',confidence:0,reason:'LOUREX Inbox could not classify this source reliably; general read-only extraction was used.'};
+  try{
+    const classificationBody=await requestAiJson('/api/ai-inbox',{fileName:file.name,...payload},signal,30_000);
+    const raw=classificationBody?.classification??{};const route=(['customer','supplier','supplier_purchase','quote_request','product_list','unknown'].includes(String(raw.route))?String(raw.route):'unknown') as ConversationAttachmentRoute;
+    classification={route,documentType:boundedText(raw.documentType,80)||'unknown',confidence:Math.max(0,Math.min(1,Number(raw.confidence)||0)),reason:boundedText(raw.reason,300)};
+  }catch(error){if(signal?.aborted)throw error;}
+  let extracted='';const endpoint=extractionEndpoint(classification.route);
+  try{
     const body=await requestAiJson(endpoint,{fileName:file.name,...payload},signal,45_000);
-    extracted=compactJson(extractedPayload(route,body));
-  }else if(payload.kind==='text')extracted=boundedText(payload.text,MAX_EXTRACT_CHARS);
+    extracted=compactJson(extractedPayload(classification.route,body));
+  }catch(error){
+    if(signal?.aborted)throw error;
+    if(endpoint==='/api/ai-source-summary-v3')throw error;
+    extracted=await genericExtraction(file.name,payload,signal);
+    classification={...classification,reason:[classification.reason,'Specific extraction was uncertain; general read-only source extraction was used.'].filter(Boolean).join(' ').slice(0,300)};
+  }
+  if(!extracted&&payload.kind==='text')extracted=boundedText(payload.text,MAX_EXTRACT_CHARS);
   return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),size:file.size,route:classification.route,documentType:classification.documentType,confidence:classification.confidence,reason:classification.reason,extracted}};
 }
 
