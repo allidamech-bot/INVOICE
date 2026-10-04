@@ -27,6 +27,15 @@ voice=voice.replace(statusToken,statusToken+"const retry=status.querySelector('.
 const statusHtml="nextStatus.innerHTML='<span class=\"lourex-ai-voice-dot\" aria-hidden=\"true\"></span><span></span>';compose.insertBefore(nextStatus,form);";
 if(!voice.includes(statusHtml))throw new Error('AI Batch 7 could not find voice status markup.');
 voice=voice.replace(statusHtml,"nextStatus.innerHTML='<span class=\"lourex-ai-voice-dot\" aria-hidden=\"true\"></span><span></span><button type=\"button\" class=\"lourex-ai-voice-retry\" hidden></button>';const voiceRetry=nextStatus.querySelector('.lourex-ai-voice-retry');if(voiceRetry instanceof HTMLButtonElement)voiceRetry.addEventListener('click',()=>toggleVoice(panel));compose.insertBefore(nextStatus,form);");
+const manualStopToken="voiceManualStop=true;stopRecognition(recognition,panel,'','voiceStopped',1400);return;";
+if(!voice.includes(manualStopToken))throw new Error('AI Batch 7 could not find manual voice stop lifecycle.');
+voice=voice.replace(manualStopToken,"voiceManualStop=true;stopRecognition(recognition,panel,voiceHadResult?'done':'',voiceHadResult?'voiceAdded':'voiceStopped',voiceHadResult?5000:1400);return;");
+const naturalEndToken="const end=voiceCompletion||{state:voiceHadResult?'done':voiceManualStop?'':'error',messageKey:voiceHadResult?'voiceAdded':voiceManualStop?'voiceStopped':'noSpeech',hideAfter:voiceHadResult?1200:2400};";
+if(!voice.includes(naturalEndToken))throw new Error('AI Batch 7 could not find natural voice completion lifecycle.');
+voice=voice.replace(naturalEndToken,"const end=voiceCompletion||{state:voiceHadResult?'done':voiceManualStop?'':'error',messageKey:voiceHadResult?'voiceAdded':voiceManualStop?'voiceStopped':'noSpeech',hideAfter:voiceHadResult?5000:2400};");
+const captureToken="recognitionCaptureTimer=window.setTimeout(()=>{if(recognition===instance)stopRecognition(instance,panel,voiceHadResult?'done':'error',voiceHadResult?'voiceAdded':'noSpeech',2400);},30000);";
+if(!voice.includes(captureToken))throw new Error('AI Batch 7 could not find voice capture timeout lifecycle.');
+voice=voice.replace(captureToken,"recognitionCaptureTimer=window.setTimeout(()=>{if(recognition===instance)stopRecognition(instance,panel,voiceHadResult?'done':'error',voiceHadResult?'voiceAdded':'noSpeech',voiceHadResult?5000:2400);},30000);");
 voice+=`\nconst __lourexContextualVoiceBatch7=true;\n`;
 await writeFile(voiceTarget,voice);
 
