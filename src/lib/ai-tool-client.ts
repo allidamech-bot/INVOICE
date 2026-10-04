@@ -1,5 +1,6 @@
 import type { VaultPayload } from '../types.js';
 import { requestAiJson } from './ai-request.js';
+import { scopeVault } from './workspaces.js';
 import { createAiToolRuntime, deterministicAiToolPlan, executeAiToolPlan, validateAiToolPlan, compactToolResults, type AiToolPlan, type AiToolResult } from './ai-tool-orchestrator.js';
 
 export interface AiToolOrchestrationResult{answer:string;proposal:any|null;plan:AiToolPlan;results:AiToolResult[];plannedBy:'local'|'ai';}
@@ -11,7 +12,7 @@ function formatAnswer(plan:AiToolPlan,results:AiToolResult[],language:'en'|'ar')
 
 export async function orchestrateAiToolRequest(input:{message:string;vault:VaultPayload;context:any;language:'en'|'ar';signal?:AbortSignal;}):Promise<AiToolOrchestrationResult|null>{
   if(input.context?.conversationSources?.length)return null;
-  const runtime=createAiToolRuntime(input.vault,input.context);let plan=deterministicAiToolPlan(input.message,runtime),plannedBy:'local'|'ai'='local';
+  const scopedVault=scopeVault(input.vault);const runtime=createAiToolRuntime(scopedVault,input.context);let plan=deterministicAiToolPlan(input.message,runtime),plannedBy:'local'|'ai'='local';
   if(!plan){
     plannedBy='ai';
     const entity=input.context?.assistantRuntime?.entity??{};
