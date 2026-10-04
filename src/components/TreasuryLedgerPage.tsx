@@ -1,5 +1,5 @@
 import type { CompanySettings, ExpenseRecord, PaymentRecord, SupplierPaymentRecord, TreasuryAccountKind, TreasuryAccountRecord, TreasuryLedgerRecord, TreasuryLedgerType, TreasuryReconciliationRecord } from '../types.js';
-import { assertTreasuryEntry, createTreasuryAccount, createTreasuryEntry, createTreasuryReconciliation, markTreasuryEntryReconciled, treasuryAccountBalance, treasuryLinkedSourceUsed, treasuryProjection, treasuryTotals, voidTreasuryEntry } from '../lib/treasury-ledger.js';
+import { appendTreasuryEntry, assertTreasuryEntry, createTreasuryAccount, createTreasuryEntry, createTreasuryReconciliation, markTreasuryEntryReconciled, treasuryAccountBalance, treasuryLinkedSourceUsed, treasuryProjection, treasuryTotals, voidTreasuryEntry } from '../lib/treasury-ledger.js';
 import { formatMoney } from '../lib/money.js';
 import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, t } from '../lib/i18n.js';
@@ -35,14 +35,14 @@ export function TreasuryLedgerPage(props:Props):any{
   const chooseSupplierSource=(id:string)=>{const item=props.supplierPayments.find(payment=>payment.id===id);setSourceId(id);setAmount(item?.amount||'');setReference(item?.reference||item?.purchaseNumber||'');setDate(item?.date||todayIso());setTo('');setFrom(activeAccounts.find(account=>account.currency===item?.currency)?.id||'');};
   const save=()=>void run(async()=>{
     let entryAmount=amount.trim(),currency='',fromId=from,toId=to,sourceType:TreasuryLedgerRecord['sourceType']='manual',linkedSource='';
-    if(type==='collection'){const item=props.payments.find(payment=>payment.id===sourceId);if(!item)throw new Error(t('Choose an unallocated customer payment.','اختر دفعة عميل غير مخصصة.'));entryAmount=item.amount;currency=item.currency;sourceType='customer-payment';linkedSource=item.id;fromId='';}
-    else if(type==='supplier-payment'){const item=props.supplierPayments.find(payment=>payment.id===sourceId);if(!item)throw new Error(t('Choose an unallocated supplier payment.','اختر دفعة مورد غير مخصصة.'));entryAmount=item.amount;currency=item.currency;sourceType='supplier-payment';linkedSource=item.id;toId='';}
+    if(type==='collection'){const item=props.payments.find(payment=>payment.id===sourceId);if(!item)throw new Error(t('Choose an unallocated customer payment.','اختر دفعة عميل غير مخصصة.'));currency=item.currency;sourceType='customer-payment';linkedSource=item.id;fromId='';}
+    else if(type==='supplier-payment'){const item=props.supplierPayments.find(payment=>payment.id===sourceId);if(!item)throw new Error(t('Choose an unallocated supplier payment.','اختر دفعة مورد غير مخصصة.'));currency=item.currency;sourceType='supplier-payment';linkedSource=item.id;toId='';}
     else if(type==='transfer'){const a=props.treasuryAccounts.find(item=>item.id===fromId);currency=a?.currency||'';}
     else if(type==='deposit'){fromId='';currency=props.treasuryAccounts.find(item=>item.id===toId)?.currency||'';}
     else if(type==='withdrawal'){toId='';currency=props.treasuryAccounts.find(item=>item.id===fromId)?.currency||'';}
     else if(type==='reconciliation'){if(reconciliationDirection==='in'){fromId='';currency=props.treasuryAccounts.find(item=>item.id===toId)?.currency||'';}else{toId='';currency=props.treasuryAccounts.find(item=>item.id===fromId)?.currency||'';}}
     const entry={...createTreasuryEntry(type,currency),workspaceId:props.workspaceId,branchId:props.branchId,date,amount:entryAmount,currency:currency.toUpperCase(),fromAccountId:fromId,toAccountId:toId,sourceType,sourceId:linkedSource,reference:reference.trim(),notes:notes.trim()};assertTreasuryEntry(entry,props.treasuryAccounts);
-    await mutateVaultSafely(vault=>{if(linkedSource&&treasuryLinkedSourceUsed(vault.treasuryEntries,sourceType,linkedSource))throw new Error(t('This payment is already allocated to treasury.','تم تخصيص هذه الدفعة مسبقًا للخزينة.'));return{...vault,treasuryEntries:[...vault.treasuryEntries,entry]};});setAmount('');setReference('');setNotes('');setSourceId('');
+    await mutateVaultSafely(vault=>appendTreasuryEntry(vault,entry));setAmount('');setReference('');setNotes('');setSourceId('');
   },t('Unable to save treasury entry.','تعذر حفظ حركة الخزينة.'));
 
   const toggleReconciled=(key:string,reconciled:boolean)=>void run(async()=>{if(key.startsWith('treasury:')){const id=key.slice('treasury:'.length);await mutateVaultSafely(vault=>({...vault,treasuryEntries:vault.treasuryEntries.map(entry=>entry.id===id?markTreasuryEntryReconciled(entry,!reconciled):entry)}));return;}await mutateVaultSafely(vault=>({...vault,treasuryReconciliations:reconciled?vault.treasuryReconciliations.filter(item=>item.movementKey!==key):[...vault.treasuryReconciliations,{...createTreasuryReconciliation(key),workspaceId:props.workspaceId,branchId:props.branchId}]}));},t('Unable to update reconciliation.','تعذر تحديث المطابقة.'));
