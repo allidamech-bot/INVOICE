@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/notification-center-batch5.css?v=457-1"></head>
-<body><div id="root" class="app-ui"></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
+<body><div id="root"><div id="notification-fixture" class="app-ui"></div></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script type="module">
 import {AppShell} from './src/components/AppShell.js';
 import {emptyVault,customerSnapshotFrom} from './src/lib/defaults.js';
 import {createBlankDocument} from './src/lib/documents.js';
@@ -25,5 +25,5 @@ vault.inventoryMovements=[{id:'mov-1',itemId:'item-1',itemNameEn:'Product',itemN
 const setup=await setupVault('2468',vault);await establishSession(setup.key);const resumed=await resumeVaultSession();let current=resumed?.vault??setup.vault;window.__batch5MutationCount=0;window.__batch5LastEvent='';registerVaultMutationBridge(async mutation=>{window.__batch5MutationCount+=1;current=mutation(current);window.__batch5LastEvent=current.documentEvents.at(-1)?.note||'';await saveVault(setup.key,current);return current;});
 window.__lastNav='';window.__batch5Ready=true;
 function Fixture(){return h(AppShell,{screen:'home',logoDataUrl:'',language:ar?'ar':'en',workspaceName:'LOUREX',branchName:ar?'الفرع الرئيسي':'Main Branch',newMenu:false,cloudState:'local',cloudLabel:ar?'محلي':'Local',cloudMessage:'',onNavigate:target=>{window.__lastNav=target;},onToggleNew:()=>{},onNew:()=>{},onCreditNote:()=>{},onStatementAccount:()=>{},onSettings:()=>{},onCloud:()=>{}},h('section',{className:'batch5-fixture-content'},h('h1',null,ar?'لوحة الاختبار':'Fixture dashboard')));}
-ReactDOM.render(h(Fixture),document.getElementById('root'));
+ReactDOM.render(h(Fixture),document.getElementById('notification-fixture'));
 </script><style>.batch5-fixture-content{min-height:520px;padding:12px;box-sizing:border-box}.batch5-fixture-content h1{font-size:18px}</style></body></html>

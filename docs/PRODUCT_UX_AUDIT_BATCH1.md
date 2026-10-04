@@ -1,7 +1,9 @@
 # Batch 1 — responsive safety and mobile density
 
 Baseline: main `10999686c066573470e0a5ec448dac10b8efbf5e` (PR #491).
-Branch: `audit/product-ux-batch1`. PR: #492. Merge pending final blocking CI.
+Branch: `audit/product-ux-batch1`. PR: #492, merged.
+Scope note: this historical PR report is not full-roadmap completion evidence.
+See `REMEDIATION_COMPLETION_LEDGER.md` for reopened acceptance and remaining work.
 
 ## Changes and evidence
 

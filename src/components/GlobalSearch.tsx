@@ -39,16 +39,45 @@ function iconFor(kind:ResultKind):'file'|'users'|'items'|'backup'{return kind===
 export class GlobalSearch extends React.Component<Props,State>{
   state:State={open:false,query:'',paymentPicker:false};
   private inputRef:HTMLInputElement|null=null;
+  private panelRef:HTMLElement|null=null;
+
+  private syncVisualViewport=()=>{
+    const panel=this.panelRef;
+    if(!panel)return;
+    const viewport=window.visualViewport;
+    const height=viewport?.height??window.innerHeight;
+    const offset=viewport?.offsetTop??0;
+    const constrained=window.matchMedia('(max-width: 900px)').matches&&Number.isFinite(height)&&height>0&&Number.isFinite(offset)&&(height<window.innerHeight-8||offset>0);
+    if(!constrained){
+      delete panel.dataset.visualViewportConstrained;
+      for(const property of ['top','bottom','max-height'])panel.style.removeProperty(property);
+      return;
+    }
+    // The visual viewport already excludes browser chrome and the keyboard.
+    // Keep one inset, not a second toolbar reserve, and retain the normal
+    // approved bottom-sheet placement whenever the viewport is unrestricted.
+    panel.dataset.visualViewportConstrained='true';
+    panel.style.setProperty('top',`${Math.round(offset)+8}px`,'important');
+    panel.style.setProperty('bottom','auto','important');
+    panel.style.setProperty('max-height',`${Math.max(1,Math.floor(height)-16)}px`,'important');
+  };
+  private setPanelRef=(panel:HTMLElement|null)=>{this.panelRef=panel;this.syncVisualViewport();};
 
   componentDidMount():void{
     document.addEventListener('keydown',this.handleKeyDown);
     window.addEventListener(OPEN_EVENT,this.openFromEvent as EventListener);
     window.addEventListener(ACTION_EVENT,this.actionFromEvent as EventListener);
+    window.addEventListener('resize',this.syncVisualViewport);
+    window.visualViewport?.addEventListener('resize',this.syncVisualViewport);
+    window.visualViewport?.addEventListener('scroll',this.syncVisualViewport);
   }
   componentWillUnmount():void{
     document.removeEventListener('keydown',this.handleKeyDown);
     window.removeEventListener(OPEN_EVENT,this.openFromEvent as EventListener);
     window.removeEventListener(ACTION_EVENT,this.actionFromEvent as EventListener);
+    window.removeEventListener('resize',this.syncVisualViewport);
+    window.visualViewport?.removeEventListener('resize',this.syncVisualViewport);
+    window.visualViewport?.removeEventListener('scroll',this.syncVisualViewport);
   }
   private openFromEvent=(event:Event)=>{
     const detail=(event as CustomEvent<GlobalSearchOpenDetail>).detail;
@@ -152,7 +181,7 @@ export class GlobalSearch extends React.Component<Props,State>{
   render():any{
     if(!this.state.open)return null;
     const results=this.results();
-    return <><button type="button" className="global-search-backdrop" aria-label={t('Close global search','إغلاق البحث الشامل')} onClick={this.close}/><section className="global-search-panel" onKeyDown={this.resultKeyDown} role="dialog" aria-modal="true" aria-label={t('Search LOUREX','بحث LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
+    return <><button type="button" className="global-search-backdrop" aria-label={t('Close global search','إغلاق البحث الشامل')} onClick={this.close}/><section ref={this.setPanelRef} className="global-search-panel" onKeyDown={this.resultKeyDown} role="dialog" aria-modal="true" aria-label={t('Search LOUREX','بحث LOUREX')} dir={this.props.language==='ar'?'rtl':'ltr'}>
       <header className="global-search-input-wrap"><Icon name="search"/><input ref={(node:HTMLInputElement|null)=>{this.inputRef=node;}} value={this.state.query} disabled={this.state.paymentPicker} onChange={(event:any)=>this.setState({query:event.target.value})} placeholder={t('Search documents, customers, products, suppliers or purchases…','ابحث في المستندات والعملاء والمنتجات والموردين والمشتريات…')} aria-label={t('Search LOUREX','بحث LOUREX')}/><button type="button" className="global-search-close" onClick={this.close} aria-label={t('Close search','إغلاق البحث')}><Icon name="x"/></button></header>
       {this.state.paymentPicker?this.renderPaymentPicker():!this.state.query.trim()?<div className="global-search-start">
         <div className="global-search-section-title"><span>{t('Quick create','إنشاء سريع')}</span><small>{t('Always opens the canonical workspace','يفتح دائمًا مساحة العمل الأصلية')}</small></div>

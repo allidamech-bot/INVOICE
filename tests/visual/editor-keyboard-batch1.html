@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-ui-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css"></head>
+<body><div id="root"><div id="editor-fixture" class="app-ui"></div></div>
+<script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script>
+<script type="module">
+import {AppShell} from './src/components/AppShell.js';
+import {EditorPage} from './src/components/EditorPage.js';
+import {createBlankDocument} from './src/lib/documents.js';
+import {defaultCompany,defaultAppSettings} from './src/lib/defaults.js';
+import {setUiLanguage} from './src/lib/i18n.js';
+const params=new URLSearchParams(location.search),kind=params.get('kind')==='draft'?'draft':'proforma',language=params.get('lang')==='ar'?'ar':'en';
+setUiLanguage(language);document.documentElement.lang=language;document.documentElement.dir=language==='ar'?'rtl':'ltr';document.documentElement.dataset.uiTheme=language==='ar'?'dark':'light';
+const company=defaultCompany(),documentValue=createBlankDocument(kind,'KEYBOARD-1',company);
+documentValue.language=language;window.keyboardEditorQa={saves:0};
+const noop=()=>{},asyncNoop=async()=>{};
+const editor=React.createElement(EditorPage,{document:documentValue,documents:[documentValue],customers:[],suppliers:[],company,savedItems:[],payments:[],documentEvents:[],documentRevisions:[],smartDefaults:defaultAppSettings().smartDefaults,onEditActivity:noop,onClose:noop,onSave:async()=>{window.keyboardEditorQa.saves+=1;},onSaveCustomer:asyncNoop,onSaveSavedItem:asyncNoop,onSaveDocumentItem:asyncNoop,onUseSavedItems:asyncNoop,onDeleteSavedItem:asyncNoop,onSaveSmartDefaults:asyncNoop,onSavePayment:asyncNoop,onDeletePayment:asyncNoop,onBeginRevision:async value=>structuredClone(value),onDiscardRevision:asyncNoop,onVoidDocument:asyncNoop,onCreateCreditNote:asyncNoop,onConvert:asyncNoop,onPrint:asyncNoop});
+ReactDOM.render(React.createElement(AppShell,{screen:'editor',logoDataUrl:'./brand/lourex-logo.svg',language,newMenu:false,cloudState:'local',cloudLabel:'QA',cloudMessage:'',onNavigate:noop,onToggleNew:noop,onNew:noop,onCreditNote:noop,onStatementAccount:noop,onSettings:noop,onCloud:noop},editor),document.getElementById('editor-fixture'));
+</script></body></html>

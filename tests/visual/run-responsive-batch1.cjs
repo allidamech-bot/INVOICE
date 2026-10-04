@@ -72,8 +72,28 @@ const base='http://127.0.0.1:4173/tests/visual/';
         const geometry=await page.locator('.modal').evaluate(e=>({rect:e.getBoundingClientRect().toJSON(),height:visualViewport.height,offset:visualViewport.offsetTop}));
         assert.ok(geometry.rect.top>=geometry.offset-1,'keyboard must not hide modal header');
         assert.ok(geometry.rect.bottom<=geometry.height+geometry.offset+1,'modal stays inside keyboard viewport');
+        // A visible modal is not proof of a usable action. Exercise the actual
+        // nested scroll owner at both ends while the keyboard consumes space.
+        for(const edge of ['start','end']){
+          await page.locator('.modal-body').evaluate((element,edge)=>{
+            element.scrollTop=edge==='start'?0:element.scrollHeight;
+          },edge);
+          const actionGeometry=await page.getByLabel('إجراءات الاستيراد').getByRole('button',{name:'تأكيد استيراد 1'}).evaluate(element=>{
+            const rect=element.getBoundingClientRect();
+            const body=element.closest('.modal-body').getBoundingClientRect();
+            return {top:rect.top,bottom:rect.bottom,height:rect.height,bodyTop:body.top,bodyBottom:body.bottom,viewportTop:visualViewport.offsetTop,viewportBottom:visualViewport.offsetTop+visualViewport.height};
+          });
+          assert.ok(actionGeometry.height>=44,'keyboard must not shrink the touch target');
+          assert.ok(actionGeometry.top>=Math.max(actionGeometry.bodyTop,actionGeometry.viewportTop)-1,`${engine.name()} ${height} ${edge}: confirm clipped above scroll owner`);
+          assert.ok(actionGeometry.bottom<=Math.min(actionGeometry.bodyBottom,actionGeometry.viewportBottom)+1,`${engine.name()} ${height} ${edge}: confirm clipped below visible scroll owner`);
+          await page.getByLabel('إجراءات الاستيراد').getByRole('button',{name:'تأكيد استيراد 1'}).click({trial:true});
+        }
       }
-      await page.locator('.modal-header button').click();
+      await page.evaluate(()=>{window.batch1Viewport.height=190;window.batch1Viewport.offsetTop=20;visualViewport.dispatchEvent(new Event('resize'));});
+      await page.getByLabel('إجراءات الاستيراد').getByRole('button',{name:'تأكيد استيراد 1'}).click();
+      await page.getByLabel('إجراءات الاستيراد').getByRole('button',{name:'تم',exact:true}).click();
+      assert.equal(await page.evaluate(()=>window.importAttempts),1,'keyboard confirmation saves exactly once');
+      assert.equal(await page.evaluate(()=>window.productState().length),1,'confirmed record survives modal close');
       assert.equal(await page.evaluate(()=>document.body.style.overflow),'','close releases body scroll');
       results.push({engine:engine.name(),import:metrics});
     }finally{await browser.close();}
