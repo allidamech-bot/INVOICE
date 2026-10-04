@@ -156,8 +156,8 @@ export class NotificationCenterLive extends React.Component<Props,State>{
     return <section className="ta-dashboard-card lx-notification-summary" aria-label={t('Notifications and follow-up','التنبيهات والمتابعة')}>
       <div className="lx-notification-summary-copy">
         <small>{t('Follow-up Center','مركز المتابعة')}</small>
-        <strong>{count?t(`${count} items need review`,`${count} عناصر تحتاج مراجعة`):t('No active follow-ups','لا توجد متابعات نشطة')}</strong>
-        <span>{high?t(`${high} high-priority items`,`${high} عناصر عالية الأولوية`):t('Overdue invoices, quote dates and recorded follow-ups appear here.','تظهر هنا الفواتير المتأخرة ومواعيد العروض والمتابعات المسجلة.')}</span>
+        <strong>{!snapshot?this.state.loading?t('Loading notifications…','جارٍ تحميل التنبيهات…'):t('Notifications unavailable','التنبيهات غير متاحة'):count?t(`${count} items need review`,`${count} عناصر تحتاج مراجعة`):t('No active follow-ups','لا توجد متابعات نشطة')}</strong>
+        <span>{!snapshot?this.state.error||t('Open Review to load notifications from the encrypted vault.','افتح المراجعة لتحميل التنبيهات من الخزنة المشفرة.'):high?t(`${high} high-priority items`,`${high} عناصر عالية الأولوية`):t('Overdue invoices, quote dates and recorded follow-ups appear here.','تظهر هنا الفواتير المتأخرة ومواعيد العروض والمتابعات المسجلة.')}</span>
       </div>
       <div className="lx-notification-summary-actions">
         {count?<span className={`lx-notification-count ${high?'is-danger':''}`}>{count}</span>:null}

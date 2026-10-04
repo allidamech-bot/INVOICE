@@ -57,7 +57,7 @@ acceptance. Current additional implementation:
 - Quick Create puts Quotation and Commercial Invoice first while retaining all
   ten document types, canonical callbacks and review guards.
 - Locked notifications now report the unreadable vault, not a false healthy
-  empty result. Switching tabs cannot erase that error. Retry resumes the same
+  empty result, in both the Dashboard summary and Center. Switching tabs cannot erase that error. Retry resumes the same
   read-only projection; a genuine empty state offers Return to workspace.
 
 ### Original workspace acceptance mapping
@@ -92,6 +92,12 @@ review found that production ThemeControl initialization overwrote the fixture's
 pre-mount theme attribute. The fixture now uses the existing persisted theme
 preference API, and both workspace runners assert the actual resolved theme.
 Only the affected four-case workspace paths are rerun for this fixture correction.
+
+The existing notification browser runner exposed a loading-readiness race on
+reopen: it could capture zero rows while the encrypted refresh was still loading,
+then wait for a negative row count after Snooze. It now waits for factual rows
+and asserts the unchanged original active count before mutating. All original
+Snooze/Done, geometry, RTL and mutation assertions remain; no test is weakened.
 
 Form-save smoke exercises real component callbacks in isolated fixtures. Actual
 encrypted persistence is exercised for planning/notification session recovery
