@@ -523,6 +523,9 @@ html body #root .app-ui :is(.ta-doc-row,.ta-customer-row,.ta-sheet-link,.ta-crea
   html[data-ui-theme] body #root .global-search-panel input{font-size:16px!important;}
   html[data-ui-theme] body #root .global-search-destinations button{min-height:44px!important;}
   html[data-ui-theme] body #root .global-search-footer{flex-shrink:0;padding:10px 0 0!important;}
+  /* Only the keyboard/chrome-constrained search surface may shrink below the
+     historical content floor. Its own results/start pane remains scrollable. */
+  html[data-ui-theme] body #root .global-search-panel[data-visual-viewport-constrained="true"] :is(.global-search-start,.global-search-results){min-height:0!important;}
 }
 /* Mobile records take priority over the full desktop type grid. Every type
    remains available through the native selector, including specialist types. */
