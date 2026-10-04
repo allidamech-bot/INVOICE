@@ -21,6 +21,9 @@ const output='visual-qa-output/workspace-closeout-batch3';
    await page.waitForFunction(()=>document.querySelectorAll('.ta-report-kpi').length>=2);
    assert.equal(await page.getByLabel(text('From date','تاريخ البداية'),{exact:true}).inputValue(),'');
    assert.equal(await page.evaluate(()=>window.financialSourceSnapshot()),before,'report recovery cannot mutate financial sources');await bounds('report');
+   const firstMetricY=await page.locator('.ta-report-kpi').first().evaluate(node=>{let top=node.getBoundingClientRect().top;for(let parent=node.parentElement;parent;parent=parent.parentElement)top+=parent.scrollTop;return top;});
+   if(width<=390)assert.ok(firstMetricY<=650,`first financial metric should precede decorative content at ${width}px without relying on scroll (y=${firstMetricY})`);
+   for(const action of await page.locator('.ta-reports-header .ta-page-actions button').all())await touch(action);
    for(const tab of [['Profitability','الربحية'],['Tax / VAT','الضريبة / VAT'],['Performance','الأداء']])await page.getByRole('tab',{name:text(...tab),exact:true}).click();
    await page.screenshot({path:`${output}/reports-${width}-${lang}-${theme}.png`,animations:'disabled'});
    await open('operations');await page.locator('#operations-tab-purchases').click();
@@ -57,7 +60,7 @@ const output='visual-qa-output/workspace-closeout-batch3';
    assert.equal(await createItems.count(),10,'all existing document types remain');
    assert.match(await createItems.nth(0).innerText(),/Quotation|عرض سعر/);assert.match(await createItems.nth(1).innerText(),/Commercial Invoice|فاتورة تجارية/);
    await page.keyboard.press('Escape');
-   assert.deepEqual(errors,[],'no runtime error through report views and canonical editor paths');results.push({width,lang,theme,reportRecovery:'PASS',supplierSave:'PASS',purchaseDraft:'PASS',recordedStock:'PASS',productRecovery:'PASS',planningRecovery:'PASS',commonCreateOrder:'PASS'});await page.close();
+   assert.deepEqual(errors,[],'no runtime error through report views and canonical editor paths');results.push({width,lang,theme,firstMetricY,reportRecovery:'PASS',supplierSave:'PASS',purchaseDraft:'PASS',recordedStock:'PASS',productRecovery:'PASS',planningRecovery:'PASS',commonCreateOrder:'PASS'});await page.close();
   }
  }finally{await browser.close();}
  writeFileSync(`${output}/report.json`,JSON.stringify(results,null,2));console.log('Batch 3 workspace recovery/catalog acceptance: four representative paths PASS.');

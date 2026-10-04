@@ -516,6 +516,13 @@ html body #root .app-ui :is(.ta-doc-row,.ta-customer-row,.ta-sheet-link,.ta-crea
   html[data-ui-theme="light"] body #root .app-ui .ta-mobile-nav{background:rgba(255,255,255,.95)!important;}
   html body #root .app-ui :is(.ta-documents-header,.ta-customers-header,.ta-customer-profile-hero,.ta-products-workspace-header,.ta-product-page-header,.ta-ops-page-header,.ta-page-header,.ta-settings-page-header){padding:16px!important;border-radius:22px!important;}
   html body #root .app-ui :is(.ta-documents-header,.ta-customers-header,.ta-products-workspace-header,.ta-product-page-header,.ta-ops-page-header,.ta-page-header) h1{font-size:clamp(24px,6.5vw,30px)!important;}
+  /* Reports lead with the period and metrics, not three stacked export actions. */
+  html body #root .app-ui .ta-reports-header{padding:12px!important;gap:10px!important;}
+  html body #root .app-ui .ta-reports-header .ta-page-kicker{display:none!important;}
+  html body #root .app-ui .ta-reports-header h1{font-size:22px!important;line-height:1.4!important;margin:0!important;}
+  html body #root .app-ui .ta-reports-header p{font-size:12px!important;line-height:18px!important;margin:6px 0 0!important;}
+  html body #root .app-ui .ta-reports-header .ta-page-actions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;width:100%!important;}
+  html body #root .app-ui .ta-reports-header .ta-page-actions>.btn{min-width:0!important;width:100%!important;min-height:64px!important;flex-direction:column!important;gap:4px!important;padding:6px!important;font-size:12px!important;line-height:16px!important;white-space:normal!important;}
   html body #root .app-ui .ta-doc-type-tabs{
     width:100%!important;max-width:100%!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
     grid-auto-flow:row!important;gap:8px!important;padding:8px!important;scroll-snap-type:none!important;direction:inherit!important;

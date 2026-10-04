@@ -41,6 +41,13 @@ acceptance. Current additional implementation:
   editor; purchase discard protection and busy state are retained.
 - Reports period-empty state offers Reset filters, restoring all separately
   reported currencies through today and clearing transient search only.
+- Reports phone introduction/actions are compact within the existing v485
+  owner: decorative repeated kicker hidden, all three actions retained in one
+  64px-minimum row, full currency-separation explanation kept. First financial
+  metric must appear by y=650 at 320/390 rather than below the former tall hero.
+  Final browser positions PASS without subtracting ancestor scroll: 611.6px at
+  320 AR/dark and 606.8px at 390 EN/light; 820/1440 also PASS. Accounting logic,
+  CSV generation and printing callbacks remain unchanged.
 - Product catalog now shows recorded stock beside SKU, description, cost and
   selling-price context. It reuses `inventoryBalances`; draft purchases do not
   create stock. Known zero and unavailable standalone stock context differ.
