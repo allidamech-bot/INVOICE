@@ -19,6 +19,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     window.SpeechRecognition=Recognition;window.webkitSpeechRecognition=Recognition;
    });
    await page.goto(`http://127.0.0.1:4173/tests/visual/ai-voice-reliability-batch5.html?lang=${lang}`,{waitUntil:'networkidle'});await page.locator('.lourex-ai-launcher').click();const mic=page.locator('.lourex-ai-composer-mic'),input=page.locator('.lourex-ai-compose form>input');await mic.waitFor();
+   assert.equal(await page.locator('.lourex-ai-scope-button').count(),3,'unified assistant exposes Business, Personal and Temporary scopes');
    await mic.click();await page.evaluate(()=>{window.staleResult=window.speechInstances[0].onresult;window.speechInstances[0].result('first session');});assert.equal(await input.inputValue(),'first session');
    await mic.click();assert.equal(await page.evaluate(()=>window.speechInstances.length),1,'restart waits for native onend');await page.evaluate(()=>window.speechInstances[0].end());await page.waitForFunction(()=>window.speechInstances.length===2);
    await mic.click();await page.evaluate(()=>{window.speechInstances[1].result('second session');window.speechInstances[1].end();});assert.equal(await input.inputValue(),'first session second session','manual stop accepts final transcript');
@@ -27,7 +28,29 @@ const {mkdirSync,writeFileSync}=require('node:fs');
    await mic.click();await page.locator('.lourex-ai-close').click();await page.waitForFunction(()=>window.speechInstances[4].abortCalled);await page.locator('.lourex-ai-launcher').click();await mic.click();await page.waitForFunction(()=>window.speechInstances.length===6);await page.evaluate(()=>window.speechInstances[5].end());
    await mic.click();await page.evaluate(()=>window.speechInstances[6].result('fallback cleanup'));await page.waitForFunction(()=>window.speechInstances[6].abortCalled);await mic.click();await page.waitForFunction(()=>window.speechInstances.length===8);await page.evaluate(()=>window.speechInstances[7].end());
    assert.equal(await page.evaluate(()=>window.overlappingStarts),0);assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));const box=await mic.boundingBox();assert.ok(box.width>=44&&box.height>=44);
-   await page.screenshot({path:`${output}/${engine.name()}-${lang}.png`,animations:'disabled'});report.push({engine:engine.name(),width,lang,sessions:8,restart:'PASS',manualStop:'PASS',errorRetry:'PASS',stale:'PASS',unmount:'PASS',missingOnend:'PASS',overlappingStarts:0,providerCalls:0});
+
+   let unifiedAssistant='not-run';
+   if(engine.name()==='chromium'){
+    await input.fill('Cost is 10 and I want a 20% margin');await input.press('Enter');
+    await page.locator('.lourex-ai-message.assistant').last().waitFor({state:'visible'});
+    assert.deepEqual(requests,[],'deterministic advisor calculation must not call a provider');
+    await page.locator('.lourex-ai-new-conversation').click();
+    await page.locator('.lourex-ai-history-button').click();
+    await page.locator('.lourex-ai-thread-row').first().waitFor({state:'visible'});
+    assert.ok((await page.locator('.lourex-ai-thread-row').count())>=1,'saved assistant conversation must appear in recent chats');
+    await page.locator('.lourex-ai-thread-open').first().click();
+    await page.locator('.lourex-ai-message.user').filter({hasText:'Cost is 10'}).waitFor({state:'visible'});
+    const scopes=page.locator('.lourex-ai-scope-button');
+    await scopes.nth(1).click();await page.waitForFunction(()=>document.querySelectorAll('.lourex-ai-scope-button')[1]?.getAttribute('aria-selected')==='true');
+    assert.equal(await page.locator('.lourex-ai-message').count(),0,'personal scope must not inherit business conversation');
+    await scopes.nth(2).click();await page.waitForFunction(()=>document.querySelectorAll('.lourex-ai-scope-button')[2]?.getAttribute('aria-selected')==='true');
+    assert.equal(await page.locator('.lourex-ai-history-button').count(),0,'temporary scope must not expose durable chat history');
+    await scopes.nth(0).click();await page.waitForFunction(()=>document.querySelectorAll('.lourex-ai-scope-button')[0]?.getAttribute('aria-selected')==='true');
+    await page.locator('.lourex-ai-message.user').filter({hasText:'Cost is 10'}).waitFor({state:'visible'});
+    unifiedAssistant='PASS';
+   }
+
+   await page.screenshot({path:`${output}/${engine.name()}-${lang}.png`,animations:'disabled'});report.push({engine:engine.name(),width,lang,sessions:8,restart:'PASS',manualStop:'PASS',errorRetry:'PASS',stale:'PASS',unmount:'PASS',missingOnend:'PASS',overlappingStarts:0,providerCalls:requests.length,unifiedAssistant});
   }finally{await browser.close();}
- }writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log('Voice reliability: repeated sessions, delayed release, error/retry, stale callbacks and unmount PASS in Chromium + WebKit.');
+ }writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log('Voice reliability PASS in Chromium + WebKit; unified encrypted conversation/scopes smoke PASS in Chromium.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
