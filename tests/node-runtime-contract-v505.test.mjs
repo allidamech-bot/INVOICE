@@ -4,12 +4,12 @@ import { readFile } from 'node:fs/promises';
 
 const packageJsonUrl = new URL('../package.json', import.meta.url);
 
-test('production runtime stays pinned to Node 20.x', async () => {
+test('production runtime stays pinned to Node 24.x', async () => {
   const packageJson = JSON.parse(await readFile(packageJsonUrl, 'utf8'));
 
   assert.equal(
     packageJson.engines?.node,
-    '20.x',
-    'LOUREX production builds must stay on Node 20.x so Vercel cannot silently advance to an incompatible major runtime.',
+    '24.x',
+    'LOUREX production builds must stay on Node 24.x so Vercel cannot silently advance to an incompatible major runtime.',
   );
 });

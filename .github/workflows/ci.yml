@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
       - run: npm ci
       - name: Dependency security audit
         run: npm audit --audit-level=high
@@ -129,7 +129,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
       - run: npm ci
       - name: Production build
         run: npm run build
@@ -266,7 +266,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
       - run: npm ci
       - name: Production build for legacy browser diagnostics
         run: npm run build
@@ -349,7 +349,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
       - run: npm ci
       - name: Production build for legacy contracts
         run: npm run build
