@@ -119,7 +119,8 @@ export class ReportsPage extends React.Component<Props,State>{
         {!visibleCustomers.length?<div className="ta-panel-empty compact"><strong>{t('No customer activity matches these filters.','لا توجد حركة عملاء مطابقة لهذه الفلاتر.')}</strong></div>:null}
       </section>
 
-      <footer className="report-print-footer">{t('LOUREX internal management report. Currencies are never combined or converted automatically.','تقرير إداري داخلي من LOUREX. لا يتم جمع العملات أو تحويلها تلقائيًا.')}</footer>
+      <p className="lx-finance-disclaimer">{t('Management report: gross profit uses recorded item costs. It is not net profit after all operating expenses or a statutory financial statement.','تقرير إداري: يعتمد الربح الإجمالي على تكاليف الأصناف المسجلة، ولا يمثل صافي الربح بعد جميع المصروفات أو قائمة مالية نظامية.')}</p>
+      <footer className="report-print-footer">{t('LOUREX internal management report, not a statutory financial statement. Currencies are never combined or converted automatically.','تقرير إداري داخلي من LOUREX، وليس قائمة مالية نظامية. لا يتم جمع العملات أو تحويلها تلقائيًا.')}</footer>
     </div></div>;
   }
 }

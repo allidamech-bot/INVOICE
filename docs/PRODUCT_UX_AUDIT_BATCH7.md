@@ -87,3 +87,51 @@ newer props do not replace the reviewed displayed amount, explicit reselect/revi
 retries successfully once and removes the already allocated source. No overflow.
 No visual design change; no WebKit-specific code or provider calls. Physical
 hardware verification is unavailable. Blocking CI must pass before merge.
+
+## Sequential closeout after Batch6
+
+Baseline: main `bffe5c724655f59a76248aeca61c9bf314a5d6ed`, after #504 merged.
+Batch6 final HEAD `42f45488`: verify/security/TypeScript/build/contracts/WebKit,
+all seven current browser shards and quality gate PASS before merge.
+Batches4/5 remain stopped and incomplete by user instruction. They are not
+prerequisites for deterministic operational finance; no AI modification is made.
+
+### Product decision retained after commercial review
+
+Option A remains the suitable scope. Batch6 verified the current full-delivery,
+invoice/credit/collection and explicit posted-receipt/payment/reversal paths.
+These are operational records; acceptance of a quotation does not reserve stock,
+a PO does not post stock/AP, and a delivery note does not post COGS. There is still
+no journal-derived Trial Balance, statutory P&L or Balance Sheet. Do not fabricate
+these outputs from unrelated invoice, purchase or cash totals. The future Option B
+requirements above remain a separate product decision, not an unfinished mandatory
+implementation in this selected Option A remediation.
+
+### Mandatory Option A acceptance mapping
+
+| Area | Verified boundary / evidence |
+| --- | --- |
+| Receivables | Active issued invoice, accounted credit and payment owners; Batch6 partial payment/credit reconciles to customer statement; Batch7 as-of credit/void/draft/future-source contract |
+| Supplier payables | Actual posted purchases and matching supplier payments; Batch6 draft/no AP and paid-reversal rejection; Batch7 canonical source/scope/currency contract |
+| Treasury cash position | Explicit opening balance/account entries; new contract confirms130.00 position while movement net is30.00, and explicit allocation void restores source movement without double counting |
+| Transfers / FX | Same-currency transfer is operationally neutral; cross-currency transfer rejected; existing dated FX presentation remains separate from settlement |
+| Management sales/profit | Recorded source costs, separate currencies and unknown-cost withholding; as-of full credit reconciles sales/profit/receivables; visible EN/AR report scope now distinguishes gross profit from net profit after all expenses and statutory statements |
+| Output VAT | Deterministic active source invoices/accounted credits; new as-of contract reconciles5.00 before credit to0.00 after; draft/void/future sources excluded; input VAT unsupported remains explicit |
+| Review / latest-state safety | Real latest-vault allocation guard; existing encrypted browser gate rejects stale source and unreviewed newer props, then explicit review retries once |
+| Correction / audit / isolation | Append-only treasury correction via explicit void/replacement; duplicate source rejected; account/workspace/branch/currency checks; no source document/payment rewrite or historical automatic reposting |
+| Schema / storage / accounting policy | Existing owners retained; no GL, accounting-period model, schema migration or deterministic calculation change; report wording uses the existing presentation owner |
+
+Two additional compiled contracts cover opening-position/movement separation and
+as-of invoice/credit/receivable/VAT reconciliation. The existing eight foundation
+contracts remain unchanged. The report scope note sits after the current tables,
+preserving the compact header and first-metric placement; printed output also
+states its management scope. Local acceptance and final closeout PR evidence must
+pass before merge. Hardware verification remains unavailable, not claimed.
+
+Local closeout PASS: full production build/TypeScript;21 compiled contracts
+(ten foundation + eleven treasury/FX/migration); encrypted Treasury latest-state
+review/retry at320 AR and390 EN; Reports recovery, stock/planning acceptance at
+320 AR/dark,390 EN/light,820 AR/light,1440 EN/dark; visible report scope at320 AR
+and390 EN with screenshot inspection; diff check. Required remote checks apply
+to the final published closeout HEAD. Completion takes effect only when this
+closeout PR is merged with every blocking gate PASS; no pre-merge completion is claimed.
