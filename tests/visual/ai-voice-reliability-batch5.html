@@ -1,6 +1,10 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><base href="../../dist/"><link rel="stylesheet" href="styles/app.bundle.css"><link rel="stylesheet" href="ai-composer-v449.css"></head><body><div id="root"><div class="app-ui" id="visual-app"></div></div><script src="vendor/react.production.min.js"></script><script src="vendor/react-dom.production.min.js"></script><script src="ai-composer-v449.js"></script><script type="module">
 import {AiCopilot} from './src/components/AiCopilot.js';
 import {setUiLanguage} from './src/lib/i18n.js';
+import {setupVault} from './src/storage/vault.js';
+import {establishSession} from './src/storage/session.js';
 const lang=new URLSearchParams(location.search).get('lang')==='ar'?'ar':'en';setUiLanguage(lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';document.documentElement.dataset.uiTheme='dark';
+const {key}=await setupVault('2468');
+if(!await establishSession(key))throw new Error('AI voice reliability fixture could not establish encrypted LOUREX session.');
 ReactDOM.render(React.createElement(AiCopilot,{screen:'home',language:lang,onNavigate:()=>{}}),document.getElementById('visual-app'));
 </script></body></html>
