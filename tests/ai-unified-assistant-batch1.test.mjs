@@ -65,17 +65,29 @@ test('AI Batch 1 carries sanitized exact entity metadata into runtime hint',()=>
   registerAssistantEntity('reports',null);
 });
 
-test('AI Batch 1 personal scope excludes business records and business mutations',()=>{
+test('AI Batch 1 personal scope excludes all business records, identities and mutations',()=>{
   const vault=emptyVault();
   vault.customers=[customer('c-1','Private Business Customer')];
   vault.purchases.push({id:'p-1',number:'PO-1',date:'2026-10-01',dueDate:'',supplierSnapshot:null,currency:'USD',items:[],freight:'0',duty:'0',otherCosts:'0',notes:'',status:'draft',postedAt:'',reversedAt:'',reverseReason:'',createdAt:'2026-10-01T00:00:00.000Z',updatedAt:'2026-10-01T00:00:00.000Z',workspaceId:'default',branchId:'main'});
   const prepared=prepareAssistantContext(vault,'home','help me plan my day',null,'personal');
+  const hint=assistantRuntimeHint(prepared.runtime);
   assert.equal(prepared.runtime.scope,'personal');
   assert.equal(prepared.vault.customers.length,0);
   assert.equal(prepared.vault.purchases.length,0);
   assert.equal(prepared.vault.documents.length,0);
   assert.deepEqual(prepared.runtime.allowedCapabilities,['workspace.help']);
   assert.equal(prepared.runtime.entity,null);
+  assert.equal(prepared.runtime.workspaceId,'');
+  assert.equal(prepared.runtime.workspaceName,'');
+  assert.equal(prepared.runtime.branchId,'');
+  assert.equal(prepared.runtime.branchName,'');
+  assert.equal(prepared.runtime.operatorId,'');
+  assert.equal(prepared.runtime.operatorName,'');
+  assert.equal(prepared.runtime.operatorRole,'viewer');
+  assert.doesNotMatch(hint,/workspaceId=/);
+  assert.doesNotMatch(hint,/branchId=/);
+  assert.doesNotMatch(hint,/operatorRole=/);
+  assert.match(hint,/business identity metadata/);
 });
 
 test('AI Batch 1 conversation store scopes threads, preserves explicit new-thread ids and bounds provider memory',()=>{
@@ -134,6 +146,7 @@ test('AI Batch 1 build contract installs canonical advisor, resumable chats and 
   assert.match(foundation,/entityBelongsToScope/);
   assert.match(foundation,/registerAssistantEntity/);
   assert.match(foundation,/meta:safeMeta\(entity\.meta\)/);
+  assert.match(foundation,/business identity metadata/);
   assert.match(contextual,/entity\?:ContextualAdvisorEntity/);
   assert.match(contextual,/entity:props\.entity\?\?null/);
   assert.match(store,/AES-GCM/);
