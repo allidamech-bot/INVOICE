@@ -55,6 +55,7 @@ test('editor shell lifts both docks and bounds the actual scroll owner, then res
   window.visualViewport.height=844;window.visualViewport.offsetTop=0;shell.syncEditorViewport();
   assert.equal(values.size,0);assert.equal(element.dataset.editorViewportConstrained,undefined);
   window.visualViewport.height=360;shell.syncEditorViewport();mobile=false;shell.syncEditorViewport();assert.equal(values.size,0);
-  mobile=true;shell.syncEditorViewport();shell.props.screen='home';shell.syncEditorViewport();assert.equal(values.size,0);
+  mobile=true;shell.props.screen='items';shell.syncEditorViewport();assert.equal(values.get('--lx-editor-viewport-height'),'344px','workspace editors use the same real viewport');
+  assert.equal(values.get('--lx-editor-viewport-top'),'8px');
   shell.setShellRef(null);shell.syncEditorViewport();
 });

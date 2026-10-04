@@ -57,14 +57,18 @@ export class AppShell extends React.Component<Props,State>{
     const shell=this.shellRef;if(!shell)return;
     const viewport=window.visualViewport;
     const height=viewport?.height??window.innerHeight,offset=viewport?.offsetTop??0;
-    const constrained=this.props.screen==='editor'&&this.isMobileShell()&&Number.isFinite(height)&&height>0&&Number.isFinite(offset)&&(height<window.innerHeight-8||offset>0);
+    const constrained=this.isMobileShell()&&Number.isFinite(height)&&height>0&&Number.isFinite(offset)&&(height<window.innerHeight-8||offset>0);
     if(!constrained){
       delete shell.dataset.editorViewportConstrained;
       shell.style.removeProperty('--lx-editor-bottom-gap');
       shell.style.removeProperty('--lx-editor-scroll-height');
+      shell.style.removeProperty('--lx-editor-viewport-top');
+      shell.style.removeProperty('--lx-editor-viewport-height');
       return;
     }
     shell.dataset.editorViewportConstrained='true';
+    shell.style.setProperty('--lx-editor-viewport-top',`${Math.round(offset)+8}px`);
+    shell.style.setProperty('--lx-editor-viewport-height',`${Math.max(1,Math.floor(height)-16)}px`);
     shell.style.setProperty('--lx-editor-bottom-gap',`${Math.max(0,Math.ceil(window.innerHeight-height-offset))}px`);
     const main=shell.querySelector<HTMLElement>(':scope > .ta-main');
     if(main)shell.style.setProperty('--lx-editor-scroll-height',`${Math.max(1,Math.floor(height+offset-main.getBoundingClientRect().top))}px`);

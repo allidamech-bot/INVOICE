@@ -71,3 +71,18 @@ constrained-viewport adjustment now lifts both commercial/Draft action docks
 and limits the existing outer scroll owner. Normal geometry remains unchanged;
 no money or editor saving logic is replaced. This acceptance item must pass its
 new blocking regression before merge, even if the earlier PR head is green.
+
+The same focused test subsequently reproduced the saved-product editor footer
+behind the keyboard. The existing shell viewport variables now also constrain
+product and purchasing editor overlays, without changing normal workspace
+geometry. Final local coverage passed commercial/Draft docks at 390/900 and
+320/820 respectively, and WebKit 390 product/purchase action hit tests. Four
+modal/search/editor behavior contracts passed. The latest production build passed.
+
+The path-triggered Notification Center blocking gate exposed another fixture
+with `.app-ui` placed on `#root`, unlike production's `#root > .app-ui` ancestry.
+That prevented the approved final modal owner from matching. The fixture now
+matches production; all original overflow, 44px, RTL and mutation assertions
+remain unchanged. Its three browser scenarios passed locally. Required remote
+checks must still pass on the final published HEAD; do not use an earlier head's
+success as merge evidence.
