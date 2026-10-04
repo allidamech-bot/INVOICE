@@ -38,8 +38,18 @@ const attachmentCatch="}catch(error){if(!instance.__lourexAttachmentAbort?.signa
 if(!source.includes(attachmentCatch))throw new Error('Batch 3 attachment cancellation target changed.');
 source=source.replace(attachmentCatch,"}catch(error){if(!instance.__lourexAttachmentStopped&&error?.name!=='AbortError')instance.setState({error:error instanceof Error?error.message:String(error)});}finally{instance.__lourexAttachmentStopped=false;__lourexSetConversationSources([]);}};");
 
+// Repair the generated evidence-list branch. The list/map/button nesting needs
+// four closing parentheses: span, button, map and outer aside. The original
+// Batch 3 installer emitted only three, which browsers reported as a module
+// SyntaxError before the application could mount.
+const brokenEvidence="React.createElement('span',null,row.fact)));return React.createElement('aside'";
+const fixedEvidence="React.createElement('span',null,row.fact))));return React.createElement('aside'";
+if(!source.includes(brokenEvidence))throw new Error('Batch 3 evidence-panel syntax target changed.');
+source=source.replace(brokenEvidence,fixedEvidence);
+
 if(source.includes('let __lourexConversationSources'))throw new Error('Batch 3 lexical conversation source state survived TDZ hardening.');
 if(source.includes('__lourexConversationSources.length'))throw new Error('Batch 3 direct source-state read survived TDZ hardening.');
+if(source.includes(brokenEvidence))throw new Error('Batch 3 evidence-panel syntax repair did not apply.');
 source+='\nconst __lourexConversationLifecycleFixBatch3=true;\n';
 await writeFile(target,source);
 
@@ -47,4 +57,4 @@ for(const runtime of [target,workflowTarget]){
   const checked=spawnSync(process.execPath,['--check',runtime],{encoding:'utf8'});
   if(checked.status!==0)throw new Error(`AI Batch 3 generated invalid JavaScript in ${runtime}:\n${checked.stderr||checked.stdout||'unknown syntax error'}`);
 }
-console.log('[LOUREX AI] Batch 3 conversation source TDZ + retry/cancel lifecycle hardened; generated runtimes parse cleanly.');
+console.log('[LOUREX AI] Batch 3 syntax, source TDZ and retry/cancel lifecycle hardened; generated runtimes parse cleanly.');
