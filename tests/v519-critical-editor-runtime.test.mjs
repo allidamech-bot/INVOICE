@@ -2,42 +2,42 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
-test('v519 keeps active quotation editing on lightweight checkpoints',async()=>{
-  const runtime=await readFile('dist/src/app/index.js','utf8');
-  assert.ok(runtime.includes("document.documentElement.setAttribute('data-lourex-ios-webkit','true')"),'production iPad/WebKit detection must expose a root geometry marker');
-  assert.ok(runtime.includes("const editorActivityEvents=['input','beforeinput','compositionstart','compositionend'];"),'mobile keyboard input must count as activity');
-  assert.ok(runtime.includes('for(const eventName of editorActivityEvents)window.addEventListener(eventName,instance.activity,{passive:true});'),'activity listeners must be installed on the live app instance');
-  assert.ok(runtime.includes('for(const eventName of editorActivityEvents)window.removeEventListener(eventName,instance.activity);'),'activity listeners must be cleaned up');
-  assert.ok(!runtime.includes('window.setTimeout(()=>void flushDocumentCheckpoint().catch(()=>undefined),30000)'),'full Vault encryption must not run periodically while the editor stays open');
-  assert.ok(runtime.includes('void flushDocumentCheckpoint().then(()=>baseCloseEditor())'),'closing the editor must still flush the encrypted checkpoint');
-  assert.ok(runtime.includes('if(checkpointPending||checkpointFlushPromise){instance.cloudSyncQueued=true;return Promise.resolve();}'),'cloud publication must remain deferred while a lightweight checkpoint is pending');
+test('active quotation autosave stays lightweight in its existing v350 owner',async()=>{
+  const source=await readFile('scripts/v350-rendering-storage-hardening.mjs','utf8');
+  assert.ok(source.includes('saveDocumentAutosaveCheckpoint(key,checkpointDocument,checkpointEvents'),'autosave must keep the encrypted per-document checkpoint');
+  assert.ok(!source.includes('checkpointFlushTimer'),'active editing must not own a periodic full-vault timer');
+  assert.ok(!source.includes('scheduleDocumentCheckpointFlush'),'active editing must not schedule periodic full-vault encryption');
+  assert.ok(!source.includes('30000'),'the removed 30-second full-vault cycle must not survive in the checkpoint owner');
+  assert.ok(source.includes('void flushDocumentCheckpoint().then(()=>baseCloseEditor())'),'normal editor close must flush the checkpoint into the authoritative Vault');
+  assert.ok(source.includes('if(checkpointPending||checkpointFlushPromise){instance.cloudSyncQueued=true;return Promise.resolve();}'),'cloud publication must remain deferred while a checkpoint is pending');
+  assert.ok(source.includes('recoverDocumentAutosaveCheckpoint(key,vault)'),'crash/process recovery must keep the encrypted checkpoint recovery path');
 });
 
-test('v519 makes A4 preview physically non-shrinkable on every screen preview',async()=>{
-  const css=await readFile('src/styles/critical-editor-geometry-v519.css','utf8');
-  assert.match(css,/\.preview-stage>\.invoice-pages,[\s\S]*?width:210mm!important;[\s\S]*?min-width:210mm!important;[\s\S]*?max-width:none!important;[\s\S]*?flex:0 0 210mm!important/);
-  assert.match(css,/\.preview-stage \.invoice-page,[\s\S]*?width:210mm!important;[\s\S]*?min-width:210mm!important;[\s\S]*?max-width:210mm!important;[\s\S]*?height:297mm!important/);
-  assert.match(css,/\.screen-editor \.preview-stage[\s\S]*?display:block!important;[\s\S]*?overflow:auto!important/);
+test('mobile keyboard activity has one established owner instead of a second runtime patch',async()=>{
+  const [stability,checkpointOwner]=await Promise.all([
+    readFile('public/editor-stability-v338.js','utf8'),
+    readFile('scripts/v350-rendering-storage-hardening.mjs','utf8')
+  ]);
+  assert.match(stability,/\['beforeinput','input','compositionupdate','compositionend','paste','change'\]/,'the existing stability runtime must observe real text mutations');
+  assert.ok(stability.includes("window.dispatchEvent(new KeyboardEvent('keydown'"),'text mutation must feed the existing inactivity activity channel');
+  assert.ok(!checkpointOwner.includes('editorActivityEvents'),'autosave persistence must not install a duplicate activity-listener layer');
 });
 
-test('v519 restores bounded desktop split while tablet and iPad commercial editors stay single-column',async()=>{
-  const css=await readFile('src/styles/critical-editor-geometry-v519.css','utf8');
-  assert.match(css,/@media screen and \(min-width:1181px\)[\s\S]*?\.editor-layout[\s\S]*?grid-template-columns:minmax\(520px,48%\) minmax\(0,52%\)!important/);
-  assert.match(css,/@media screen and \(min-width:1181px\) and \(max-width:1366px\)[\s\S]*?html\[data-lourex-ios-webkit="true"\][\s\S]*?\.editor-layout[\s\S]*?display:block!important/);
-  assert.match(css,/@media screen and \(min-width:1181px\) and \(max-width:1366px\)[\s\S]*?html\[data-lourex-ios-webkit="true"\][\s\S]*?:is\(\.preview-pane,\.editor-preview-pane\)[\s\S]*?display:none!important/);
-  assert.match(css,/@media screen and \(min-width:901px\) and \(max-width:1180px\)[\s\S]*?\.editor-layout[\s\S]*?display:block!important/);
-  assert.match(css,/@media screen and \(min-width:901px\) and \(max-width:1180px\)[\s\S]*?:is\(\.preview-pane,\.editor-preview-pane\)[\s\S]*?display:none!important/);
+test('physical A4 geometry is owned by document.css and cannot shrink inside preview chrome',async()=>{
+  const css=await readFile('src/styles/document.css','utf8');
+  assert.match(css,/\.invoice-page\{width:210mm;min-width:210mm;max-width:210mm;height:297mm;min-height:297mm;flex:0 0 297mm/);
+  assert.match(css,/\.preview-stage \.invoice-pages,\.mobile-preview-stage \.invoice-pages\{width:210mm;min-width:210mm;max-width:none;flex:0 0 auto/);
+  assert.match(css,/@media print\{\.invoice-page\{width:210mm;min-width:210mm;max-width:210mm;height:297mm;min-height:297mm/);
 });
 
-test('v519 is the final production closeout after every historical visual and AI owner',async()=>{
-  const pkg=JSON.parse(await readFile('package.json','utf8'));
+test('commercial editor keeps one existing TailAdmin layout owner and no v519 postbuild layer',async()=>{
+  const [pkg,editorCss]=await Promise.all([
+    readFile('package.json','utf8').then(JSON.parse),
+    readFile('src/styles/tailadmin-editor-core-v320.css','utf8')
+  ]);
   const build=String(pkg.scripts?.build??'');
-  const checkpoint=build.indexOf('node scripts/v350-rendering-storage-hardening.mjs');
-  const guard='node scripts/v519-critical-editor-runtime.mjs';
-  assert.ok(checkpoint>=0,'checkpoint owner must remain in the build');
-  assert.ok(build.indexOf(guard)>checkpoint,'v519 must harden the emitted runtime after v350 installs the checkpoint owner');
-  assert.ok(build.trim().endsWith(guard),'v519 must run last so no later visual/AI owner can override critical editor geometry');
-  const bundle=await readFile('dist/styles/app.bundle.css','utf8');
-  assert.ok(bundle.includes('LOUREX v519 — critical commercial editor geometry owner.'),'final production CSS must contain v519 geometry owner');
-  assert.ok(bundle.trim().endsWith('}'),'final bundle must remain syntactically closed after v519 injection');
+  assert.ok(build.includes('node scripts/v350-rendering-storage-hardening.mjs'),'v350 persistence owner must remain in the build');
+  assert.ok(!build.includes('v519-critical-editor-runtime'),'the removed postbuild patch must not return');
+  assert.match(editorCss,/\.app-ui \.editor-layout\{display:grid!important;grid-template-columns:minmax\(460px,\.92fr\) minmax\(520px,1\.08fr\)!important/,'desktop editor/preview split stays in TailAdmin editor core');
+  assert.match(editorCss,/@media\(max-width:1180px\)[\s\S]*?\.editor-preview-pane,\.app-ui \.preview-pane,\.app-ui \.draft-studio-preview\{display:none!important\}/,'tablet editor keeps the established single-column preview-on-demand contract');
 });
