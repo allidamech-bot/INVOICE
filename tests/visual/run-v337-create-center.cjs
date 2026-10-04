@@ -12,7 +12,7 @@ const cases=[
   ['webkit-ipad1024-landscape',webkit,{width:1024,height:768,isMobile:false,hasTouch:true}],
   ['chromium-desktop',chromium,{width:1440,height:900,isMobile:false,hasTouch:false}]
 ];
-const specialistKinds=['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt'];
+const specialistKinds=['proforma','invoice','draft','proforma-invoice','rfq','purchase-order','delivery-note','payment-receipt'];
 const mobileQuickActions=[
   {index:0,kind:'proforma'},
   {index:1,kind:'invoice'},

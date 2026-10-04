@@ -111,3 +111,19 @@ dependency; stock is memoized from the existing deterministic engine and new
 buttons call the existing guarded editor methods. Unrelated components and
 deterministic engines remain unchanged. Batch3 remains open until final gates
 and merge; Batches4–7 remain unclosed.
+
+### Required runner alignment on continuation from c94ab149
+
+- Navigation/auth chooses the unique Quotation action by its exact visible title,
+  asserts that it leads Create, and still verifies the proforma callback and close.
+- Create Center expects the approved Quotation/Commercial Invoice-first order;
+  all ten desktop actions, callbacks, close behavior, scrolling and touch targets
+  remain checked. All seven mobile actions and safe payment picker remain checked.
+- Core workflows scope New Purchase to the purchases panel header in EN/AR;
+  the empty-state shortcut no longer makes the locator ambiguous. Purchase posting,
+  inventory quantities, editor bounds and browser-error assertions remain intact.
+- Local PASS: navigation/auth seven flows; Create Center fourteen Chromium/WebKit
+  EN/AR phone/iPad/desktop cases; all ten mobile core scenarios; eleven current
+  Batch3 contracts; production build; diff check. No production or AI code changed.
+- Final published HEAD still requires every blocking remote gate and merge.
+  Batches4 and5 are stopped by user instruction; next active batches are6 then7.
