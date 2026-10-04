@@ -67,6 +67,7 @@ test('AI Batch 1 conversation store scopes threads, preserves explicit new-threa
   assert.equal(result.thread.id,forced);
   assert.equal(result.state.currentBusinessThreadId,forced);
   assert.equal(result.state.threads.length,2);
+  assert.ok(result.state.threads.some(row=>row.id===first.id));
   const summary=summarizeAssistantConversation(messages);
   assert.ok(summary.length>0&&summary.length<=1200);
   const provider=assistantProviderMemory(messages,summary);
@@ -75,12 +76,13 @@ test('AI Batch 1 conversation store scopes threads, preserves explicit new-threa
   assert.match(provider,/message 9/);
 });
 
-test('AI Batch 1 build contract installs canonical advisor runtime after final visual owner',async()=>{
-  const [pkg,script,foundation,store]=await Promise.all([
+test('AI Batch 1 build contract installs canonical advisor, resumable chats and structured entity hooks',async()=>{
+  const [pkg,script,foundation,store,contextual]=await Promise.all([
     readFile(new URL('../package.json',import.meta.url),'utf8'),
     readFile(new URL('../scripts/ai-batch1-unified-assistant.mjs',import.meta.url),'utf8'),
     readFile(new URL('../src/lib/ai-assistant-foundation.ts',import.meta.url),'utf8'),
-    readFile(new URL('../src/storage/assistant-store.ts',import.meta.url),'utf8')
+    readFile(new URL('../src/storage/assistant-store.ts',import.meta.url),'utf8'),
+    readFile(new URL('../src/components/ContextualAdvisorAction.tsx',import.meta.url),'utf8')
   ]);
   assert.match(pkg,/v485-bundle-visible-ui\.mjs && node scripts\/ai-batch1-unified-assistant\.mjs/);
   assert.match(script,/prepareAssistantContext\(vault, screen, message/);
@@ -89,8 +91,15 @@ test('AI Batch 1 build contract installs canonical advisor runtime after final v
   assert.match(script,/lourex-unified-assistant-submit/);
   assert.match(script,/__lourexUnifiedAssistantBatch1/);
   assert.match(script,/__lourexUnifiedHomeAdvisorBatch1/);
+  assert.match(script,/Recent conversations/);
+  assert.match(script,/__lourexOpenThread/);
+  assert.match(script,/__lourexDeleteAssistantThread/);
+  assert.match(script,/saveAssistantState/);
   assert.match(foundation,/scopeVault\(vault\)/);
   assert.match(foundation,/scope==='personal'\?personalSafeVault/);
+  assert.match(foundation,/registerAssistantEntity/);
+  assert.match(contextual,/entity\?:ContextualAdvisorEntity/);
+  assert.match(contextual,/entity:props\.entity\?\?null/);
   assert.match(store,/AES-GCM/);
   assert.match(store,/RECORD_ID='assistant-state'/);
 });
