@@ -54,6 +54,10 @@ test('primary and semantic colors keep distinct jobs',()=>{
   assert.doesNotMatch(palette,/--ft-success:#D2D2D2|--ft-warning:#EF737A/i);
 });
 
+test('primary labels cannot be recolored by nested modal or helper text rules',()=>{
+  assert.match(palette,/html body #root \.app-ui \.btn\.btn-primary>span\{color:inherit!important;\}/);
+});
+
 test('final visible UI has no legacy gold purple or gradient button palette',()=>{
   assert.doesNotMatch(finalOwner,/#(?:c79347|c49a56|9b89df|8e91d5|9690df|619dff|3975e8|326fe6|2459c4|5998ff)/i);
   assert.doesNotMatch(finalOwner,/linear-gradient\([^)]*#(?:619dff|3975e8|326fe6|2459c4|5998ff)/i);
