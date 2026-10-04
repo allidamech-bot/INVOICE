@@ -69,7 +69,7 @@ function extractionEndpoint(route:ConversationAttachmentRoute):string{
   if(route==='supplier_purchase')return'/api/supplier-document-ai';
   if(route==='quote_request')return'/api/quote-source-ai';
   if(route==='product_list')return'/api/product-source-ai';
-  return'/api/ai-source-summary-v3';
+  return'';
 }
 function extractedPayload(route:ConversationAttachmentRoute,body:any):unknown{
   if(route==='customer'||route==='supplier')return body?.proposal??null;
@@ -77,7 +77,7 @@ function extractedPayload(route:ConversationAttachmentRoute,body:any):unknown{
   return body?.source??null;
 }
 async function genericExtraction(fileName:string,payload:AiPayload,signal?:AbortSignal):Promise<string>{
-  const body=await requestAiJson('/api/ai-source-summary-v3',{fileName,...payload},signal,30_000);
+  const body=await requestAiJson('/api/ai-inbox',{mode:'source-summary',fileName,...payload},signal,30_000);
   return compactJson(body?.source??null);
 }
 
@@ -90,14 +90,17 @@ export async function analyzeConversationAttachment(file:File,signal?:AbortSigna
     classification={route,documentType:boundedText(raw.documentType,80)||'unknown',confidence:Math.max(0,Math.min(1,Number(raw.confidence)||0)),reason:boundedText(raw.reason,300)};
   }catch(error){if(signal?.aborted)throw error;}
   let extracted='';const endpoint=extractionEndpoint(classification.route);
-  try{
-    const body=await requestAiJson(endpoint,{fileName:file.name,...payload},signal,45_000);
-    extracted=compactJson(extractedPayload(classification.route,body));
-  }catch(error){
-    if(signal?.aborted)throw error;
-    if(endpoint==='/api/ai-source-summary-v3')throw error;
+  if(!endpoint){
     extracted=await genericExtraction(file.name,payload,signal);
-    classification={...classification,reason:[classification.reason,'Specific extraction was uncertain; general read-only source extraction was used.'].filter(Boolean).join(' ').slice(0,300)};
+  }else{
+    try{
+      const body=await requestAiJson(endpoint,{fileName:file.name,...payload},signal,45_000);
+      extracted=compactJson(extractedPayload(classification.route,body));
+    }catch(error){
+      if(signal?.aborted)throw error;
+      extracted=await genericExtraction(file.name,payload,signal);
+      classification={...classification,reason:[classification.reason,'Specific extraction was uncertain; general read-only source extraction was used.'].filter(Boolean).join(' ').slice(0,300)};
+    }
   }
   if(!extracted&&payload.kind==='text')extracted=boundedText(payload.text,MAX_EXTRACT_CHARS);
   return{file,source:{id:id(),fileName:boundedText(file.name,180),mimeType:boundedText(file.type||payload.mimeType,100),size:file.size,route:classification.route,documentType:classification.documentType,confidence:classification.confidence,reason:classification.reason,extracted}};
