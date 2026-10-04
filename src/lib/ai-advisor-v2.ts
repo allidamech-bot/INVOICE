@@ -4,7 +4,7 @@ import type { AiFinanceContext } from './ai-finance.js';
 import { validateFxRate } from './fx-rates.js';
 import { todayIso } from './id.js';
 import { decimalToScaled } from './money.js';
-import { inventoryBalances, spendByCurrency } from './operations.js';
+import { expenseAccountingIsValid, inventoryBalances, purchaseAccountingIsValid, spendByCurrency } from './operations.js';
 import { supplierPayablesByCurrency } from './payables.js';
 import { buildSalesPipeline } from './sales-pipeline.js';
 import { treasuryAccountBalance, treasuryProjection, treasuryTotals } from './treasury-ledger.js';
@@ -65,6 +65,7 @@ function amountPositive(value:string):boolean{try{return decimalToScaled(value||
 function quantityState(value:string):'positive'|'zero'|'negative'{try{const scaled=decimalToScaled(value||'0',4);return scaled<0n?'negative':scaled>0n?'positive':'zero';}catch{return'zero';}}
 function itemName(item:VaultPayload['savedItems'][number]):string{return(item.descriptionEn||item.descriptionAr||item.sku||'Unnamed item').trim();}
 function evidence(id:string,area:AdvisorArea,source:string,fact:string,severity:AdvisorEvidenceSeverity='info',currency='',amount='',count=0):AdvisorEvidence{return{id,area,source,fact,severity,currency,amount,count};}
+function datedOnOrBefore(value:string,asOf:string):boolean{return /^\d{4}-\d{2}-\d{2}/.test(value)&&value.slice(0,10)<=asOf;}
 function redactedAdvisor(asOf:string):AdvisorDataV2{return{
   version:2,basis:'deterministic-advisor-data-v2',available:false,asOf,responseContract:RESPONSE_CONTRACT,
   sales:{today:[],monthToDate:[],comparison:[]},receivables:{byCurrency:[],highestOverdueByCurrency:[]},payables:{byCurrency:[]},
@@ -79,16 +80,24 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
   const asOf=finance.asOf||business.asOf||todayIso();
   if(scope==='personal')return redactedAdvisor(asOf);
 
-  const payables=supplierPayablesByCurrency(vault.purchases,vault.supplierPayments,asOf);
-  const treasuryRows=treasuryProjection(vault.payments,vault.supplierPayments,vault.expenses,vault.treasuryEntries,vault.treasuryReconciliations,vault.company.defaultCurrency||'USD');
+  const purchasesAsOf=vault.purchases.filter(row=>datedOnOrBefore(row.date,asOf));
+  const supplierPaymentsAsOf=vault.supplierPayments.filter(row=>datedOnOrBefore(row.date,asOf));
+  const expensesAsOf=vault.expenses.filter(row=>datedOnOrBefore(row.date,asOf));
+  const inventoryMovementsAsOf=vault.inventoryMovements.filter(row=>datedOnOrBefore(row.date,asOf));
+  const customerPaymentsAsOf=vault.payments.filter(row=>datedOnOrBefore(row.date,asOf));
+  const treasuryEntriesAsOf=vault.treasuryEntries.filter(row=>datedOnOrBefore(row.date,asOf));
+  const treasuryReconciliationsAsOf=vault.treasuryReconciliations.filter(row=>datedOnOrBefore(row.reconciledAt,asOf));
+
+  const payables=supplierPayablesByCurrency(purchasesAsOf,supplierPaymentsAsOf,asOf);
+  const treasuryRows=treasuryProjection(customerPaymentsAsOf,supplierPaymentsAsOf,expensesAsOf,treasuryEntriesAsOf,treasuryReconciliationsAsOf,vault.company.defaultCurrency||'USD');
   const treasuryCurrencies=Array.from(new Set([...vault.treasuryAccounts.map(row=>row.currency),...treasuryRows.map(row=>row.currency)].filter(Boolean))).sort();
-  const treasuryAccounts=vault.treasuryAccounts.slice(0,24).map(account=>({id:account.id,label:account.label,kind:account.kind,currency:account.currency,balance:treasuryAccountBalance(account.id,vault.treasuryEntries),active:account.active}));
+  const treasuryAccounts=vault.treasuryAccounts.slice(0,24).map(account=>({id:account.id,label:account.label,kind:account.kind,currency:account.currency,balance:treasuryAccountBalance(account.id,treasuryEntriesAsOf),active:account.active}));
   const activityByCurrency=treasuryCurrencies.slice(0,12).map(currency=>({currency,...treasuryTotals(treasuryRows,currency)}));
   const unallocatedMovements=treasuryRows.filter(row=>row.direction!=='internal'&&!row.fromAccountId&&!row.toAccountId).length;
 
-  const spend=spendByCurrency(vault.purchases,vault.expenses).slice(0,12);
+  const spend=spendByCurrency(purchasesAsOf,expensesAsOf).slice(0,12);
   const expensesByCurrency=spend.filter(row=>amountPositive(row.expenses)).map(row=>({currency:row.currency,expenses:row.expenses}));
-  const balances=inventoryBalances(vault.savedItems,vault.inventoryMovements);
+  const balances=inventoryBalances(vault.savedItems,inventoryMovementsAsOf);
   const inventoryRows=balances.map(row=>({itemId:row.item.id,name:itemName(row.item),sku:row.item.sku??'',quantity:row.quantity,state:quantityState(row.quantity)})).sort((a,b)=>{
     const rank={negative:2,zero:1,positive:0} as const;return rank[b.state]-rank[a.state]||a.name.localeCompare(b.name);
   });
@@ -129,7 +138,7 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
   ].filter(Boolean))).sort();
   const missingData:AdvisorMissingData[]=[];
   if(business.daily.missingCostItems)missingData.push({area:'company-health',code:'missing-cost-data',detail:'Profitability is incomplete where item cost data is missing.'});
-  if(!vault.treasuryAccounts.length&&(vault.payments.length||vault.supplierPayments.length||vault.expenses.length||vault.treasuryEntries.length))missingData.push({area:'treasury',code:'treasury-accounts-not-configured',detail:'Financial activity exists but no treasury cash/bank account is configured.'});
+  if(!vault.treasuryAccounts.length&&(customerPaymentsAsOf.length||supplierPaymentsAsOf.length||expensesAsOf.length||treasuryEntriesAsOf.length))missingData.push({area:'treasury',code:'treasury-accounts-not-configured',detail:'Financial activity exists but no treasury cash/bank account is configured.'});
   if(currencies.length>1&&!latestRates.length)missingData.push({area:'fx',code:'no-recorded-fx-rates',detail:'Multiple currencies are present but no valid recorded FX rate is available. LOUREX will keep currencies separate.'});
   if(unallocatedMovements)missingData.push({area:'treasury',code:'unallocated-treasury-movements',detail:`${unallocatedMovements} cash movement(s) are not allocated to a treasury account.`});
 
@@ -137,9 +146,9 @@ export function buildAdvisorDataV2(vault:VaultPayload,finance:AiFinanceContext,b
     version:2,basis:'deterministic-advisor-data-v2',available:true,asOf,responseContract:RESPONSE_CONTRACT,
     sales:{today:finance.today.slice(0,12),monthToDate:finance.monthToDate.slice(0,12),comparison:finance.comparisons.monthToDateVsPreviousMonth.slice(0,12)},
     receivables:{byCurrency:finance.receivables.slice(0,12),highestOverdueByCurrency:finance.highestOverdueByCurrency.slice(0,12)},
-    payables:{byCurrency:payables.slice(0,12)},treasury:{accounts:treasuryAccounts,activityByCurrency,unallocatedMovements},expenses:{byCurrency:expensesByCurrency,count:vault.expenses.length},
+    payables:{byCurrency:payables.slice(0,12)},treasury:{accounts:treasuryAccounts,activityByCurrency,unallocatedMovements},expenses:{byCurrency:expensesByCurrency,count:expensesAsOf.filter(expenseAccountingIsValid).length},
     inventory:{totalItems:inventoryRows.length,positiveItems,zeroItems,negativeItems,rows:inventoryRows.slice(0,24)},
-    purchasing:{byCurrency:spend,postedPurchases:vault.purchases.filter(row=>row.status==='posted').length,draftPurchases:vault.purchases.filter(row=>row.status==='draft').length,reversedPurchases:vault.purchases.filter(row=>row.status==='reversed').length,costAlerts:business.suppliers.costAlerts.slice(0,12),supplierComparisons:business.suppliers.itemComparisons.slice(0,12)},
+    purchasing:{byCurrency:spend,postedPurchases:purchasesAsOf.filter(row=>row.status==='posted'&&purchaseAccountingIsValid(row)).length,draftPurchases:purchasesAsOf.filter(row=>row.status==='draft').length,reversedPurchases:purchasesAsOf.filter(row=>row.status==='reversed').length,costAlerts:business.suppliers.costAlerts.slice(0,12),supplierComparisons:business.suppliers.itemComparisons.slice(0,12)},
     fx:{policy:'recorded-rates-only-no-automatic-conversion',latestRates,recordedPairs:[...seenPairs].slice(0,20)},
     pipeline:{stages:pipeline.stages,openValues:pipeline.openValues,nextActions,wonCount:pipeline.wonCount,lostCount:pipeline.lostCount},
     health:{status,score:null,signals},evidence:evidenceRows.slice(0,32),missingData,
