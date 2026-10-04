@@ -44,18 +44,22 @@ test('Proactive preferences are encrypted, bounded and severity mute is determin
   assert.match(engine,/Supplier obligations remain separated by currency/);
 });
 
-test('Global proactive dock and Morning Brief share the same canonical engine and encrypted controls',async()=>{
+test('Global proactive dock and Morning Brief share one canonical engine and refresh after session activation',async()=>{
   const [dock,daily]=await Promise.all([readFile(new URL('../src/components/ProactiveAssistantTool.tsx',import.meta.url),'utf8'),readFile(new URL('../src/components/DailyCommandCenterTool.tsx',import.meta.url),'utf8')]);
-  assert.match(dock,/from '\.\.\/lib\/ai-proactive-assistant\.js'/);
+  const canonicalImports=dock.match(/from '\.\.\/lib\/ai-proactive-assistant\.js'/g)??[];
+  assert.equal(canonicalImports.length,1,'global proactive dock must import the canonical proactive engine exactly once');
   assert.match(dock,/lourex-ai-open-daily/);
   assert.match(dock,/loadProactiveState/);assert.match(dock,/dismissProactiveSignal/);assert.match(dock,/snoozeProactiveSignal/);assert.match(dock,/setProactiveCategoryMuted/);
-  assert.doesNotMatch(dock,/proactive-assistant\.js/);
+  assert.match(dock,/lourex-account-transition-complete/,'proactive assistant must refresh as soon as an account Vault session becomes available');
+  assert.match(dock,/lourex-proactive-refresh/,'proactive assistant must expose a bounded explicit refresh event for verified runtime transitions');
   for(const token of ['buildMorningBrief','conditionalTaskSignals','visibleProactiveSignals','Dismiss','Mute category','Morning Brief enabled'])assert.match(daily,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 });
 
 test('Batch 7 voice extends existing recognizer lifecycle and leaves transcript editable',async()=>{
   const installer=await readFile(new URL('../scripts/ai-batch7-proactive-voice.mjs',import.meta.url),'utf8');
   assert.match(installer,/normalizeVoiceTranscript/);assert.match(installer,/[٠-٩]/);assert.match(installer,/[۰-۹]/);assert.match(installer,/Transcript ready — edit or send/);assert.match(installer,/lourex-ai-voice-retry/);assert.match(installer,/toggleVoice\(panel\)/);assert.match(installer,/--check/);
+  assert.match(installer,/voiceHadResult\?5000/,'successful transcript status must remain visible long enough to review/edit on WebKit and mobile');
+  assert.match(installer,/voiceHadResult\?'voiceAdded':'voiceStopped'/,'manual stop with an existing transcript must report that the transcript is ready rather than pretending it was discarded');
   assert.doesNotMatch(installer,/requestSubmit\(\)|\.submit\(\)/,'voice must populate an editable composer and never auto-submit');
 });
 
