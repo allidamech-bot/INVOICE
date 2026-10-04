@@ -53,6 +53,11 @@ test('Proactive intelligence keeps canonical refresh behavior while persistent U
   assert.match(dock,/lourex-account-transition-complete/,'proactive assistant must refresh as soon as an account Vault session becomes available');
   assert.match(dock,/lourex-proactive-refresh/,'proactive assistant must expose a bounded explicit refresh event for verified runtime transitions');
   for(const token of ['buildMorningBrief','conditionalTaskSignals','visibleProactiveSignals','Dismiss','Mute category','Morning Brief enabled'])assert.match(daily,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  assert.match(daily,/handleModalEscape/,'Morning Brief must own Escape while its modal is open');
+  assert.match(daily,/addEventListener\('keydown',this\.handleModalEscape,true\)/,'Morning Brief Escape isolation must run in capture phase before the underlying assistant');
+  assert.match(daily,/event\.stopPropagation\(\)/,'closing Morning Brief must not close the assistant behind it');
+  assert.match(daily,/setProactiveCategoryMuted\(resumed\.key,category,muted\)/,'mute/unmute must pass the requested state');
+  assert.doesNotMatch(daily,/setProactiveCategoryMuted\(resumed\.key,category,true\)/,'Unmute must not be hard-coded back to mute');
   for(const token of ['lourex-ai-tools','lourex-ai-manager-button','lourex-proactive-dock','display:none','lourex-ai-hub-trigger','lourex-ai-hub-menu','data-lourex-proactive-attention','lourex-ai-open-daily'])assert.match(placement,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
   assert.match(placement,/one assistant, one control hierarchy/i);
   assert.match(placement,/one Tools hub/i);
