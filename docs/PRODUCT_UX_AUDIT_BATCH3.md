@@ -25,3 +25,35 @@ The path-triggered CRM gate exposed a stale literal schema-15 assertion although
 ## Boundaries
 
 No stored schema, deterministic accounting engines, authentication, PIN, PDF, inventory posting, issued documents or dependencies change. The added quotation field is a read-only transient relationship projection. Browser saves exercise the real form callback in an isolated fixture; encrypted persistence ownership is unchanged. Physical Safari is not available. Review used the React best-practices checklist for listener cleanup, primitive dependencies, canonical state and native keyboard/disclosure semantics.
+
+## Reopened sequential closeout — IN PROGRESS
+
+Baseline: main `867845f543657b0b8e47a4e72353decda671d25c`, after #500
+closed Batch1 and #501 closed controlled Batch2 with every current blocking gate
+passing. Branch `audit/batch3-workspace-closeout`; no closeout PR or merge yet.
+
+The earlier scoped improvements above do not establish every workspace's
+acceptance. Current additional implementation:
+
+- Operations search-empty states no longer falsely imply that the underlying
+  register is empty. Clear search returns to existing records without mutation.
+- True supplier/purchase/expense empty states offer the existing canonical
+  editor; purchase discard protection and busy state are retained.
+- Reports period-empty state offers Reset filters, restoring all separately
+  reported currencies through today and clearing transient search only.
+- Three focused transpiled-component tests PASS; TypeScript and diff check PASS.
+  These are not browser or encrypted-persistence acceptance and are not presented
+  as such. No build/full historical matrix was rerun for these first small edits.
+
+Open mandatory closeout: actual changed Reports/Operations browser recovery and
+form-save smoke; screen-by-screen mapping for Documents, Customers/360,
+Products/Inventory, Purchasing/Suppliers, Finance, Reports, Settings, More,
+Search/Create and Notifications (including important empty/error/loading states);
+representative320/390, one iPad,1440, Arabic/English; final relevant contracts,
+production build/security and blocking PR gates. Reuse already accepted paths
+where still applicable, not an indiscriminate historical screenshot archive.
+
+React Best Practices review: local filters stay component-owned; no derived
+business state/effect is introduced, no new global listener, async mutation or
+dependency; new buttons call the existing guarded editor methods. Unrelated
+components and deterministic engines remain unchanged. Batch3 remains open.

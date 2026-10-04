@@ -181,7 +181,12 @@ export class OperationsPage extends React.Component<Props,State>{
       <section className="ta-ops-list-card ta-inventory-history">{this.panelHead(t('Audit trail','سجل التدقيق'),t('Recent Movements','الحركات الأخيرة'),t('Purchase receipts, reversals and manual inventory changes.','استلامات الشراء والعكس وحركات المخزون اليدوية.'))}<div className="ta-ops-list">{movements.length?movements.map(m=><article key={m.id} className="ta-ops-row"><span className="ta-ops-row-icon"><Icon name="items"/></span><div className="ta-ops-row-copy"><strong>{movementItemLabel(m)}</strong><small>{m.date} · {movementTypeLabel(m.type)}{m.sourceNumber?` · ${m.sourceNumber}`:''}</small></div><strong className={`ta-inventory-quantity ${m.quantity.startsWith('-')?'is-negative':'is-positive'}`}>{m.quantity}</strong>{inventoryMovementIsManual(m)?<div className="ta-ops-row-actions"><button disabled={this.state.busy} className="is-danger" onClick={()=>this.deleteMovement(m)}>{t('Reverse','عكس')}</button></div>:null}</article>):this.emptyState('items',t('No inventory movements yet.','لا توجد حركات مخزون بعد.'),t('Posted purchases and manual movements will appear here.','ستظهر المشتريات المرحلة والحركات اليدوية هنا.'))}</div></section></div>:null}</div>;
   }
 
-  private emptyState=(icon:any,title:string,description:string)=><div className="ta-ops-empty"><span><Icon name={icon}/></span><strong>{title}</strong><small>{description}</small></div>;
+  private emptyState=(icon:any,title:string,description:string)=>{
+    const tab=this.state.tab,filtered=tab!=='inventory'&&Boolean(this.state.search.trim());
+    const action=filtered?()=>this.setState({search:''}):tab==='suppliers'?()=>this.startSupplier():tab==='purchases'?()=>this.newPurchase():tab==='expenses'?()=>this.startExpense():null;
+    const label=filtered?t('Clear search','مسح البحث'):tab==='suppliers'?t('Add Supplier','إضافة مورد'):tab==='purchases'?t('New Purchase','شراء جديد'):t('Add Expense','إضافة مصروف');
+    return <div className="ta-ops-empty"><span><Icon name={icon}/></span><strong>{filtered?t('No matching records','لا توجد سجلات مطابقة'):title}</strong><small>{filtered?t('Clear the search to return to your recorded activity.','امسح البحث للعودة إلى سجلاتك.'):description}</small>{action?<Button disabled={this.state.busy} onClick={action}>{label}</Button>:null}</div>;
+  };
 
   render():any{
     const mode=this.props.mode??'all',allowedTabs=tabsForMode(mode),heading=this.heading();
