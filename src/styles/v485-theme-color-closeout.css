@@ -171,6 +171,15 @@
     background:var(--lx485-danger-soft)!important;
     border-color:color-mix(in srgb,var(--lx485-danger) 32%,var(--lx485-line))!important;
   }
+  /* Child typography in financial KPIs historically set its own color. Reclaim
+     overdue at the leaf nodes so the semantic state cannot collapse back to white. */
+  html body #root .app-ui .ta-report-kpi-secondary>span.is-danger :is(small,b),
+  html body #root .app-ui .kpi-overdue :is(.dashboard-kpi-icon,small,.dashboard-money-stack b){
+    color:var(--lx485-danger)!important;
+  }
+  html body #root .app-ui .kpi-overdue .dashboard-kpi-icon{
+    background:var(--lx485-danger-soft)!important;
+  }
 
   html[data-ui-theme="dark"] body #root .app-ui :is(.ta-kpi-card,.ta-dashboard-card,
     .ta-doc-summary-grid>button,.ta-customer-card,.ta-customers-summary>div,
