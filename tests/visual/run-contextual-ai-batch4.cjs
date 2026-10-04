@@ -9,13 +9,13 @@ const {mkdirSync,writeFileSync}=require('node:fs');
   await page.route('**/api/**',route=>{requests.push(route.request().url());return route.fulfill({status:503,body:'Unexpected provider call'});});
   await page.goto(`http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html?lang=${lang}&theme=${theme}`,{waitUntil:'networkidle'});
   const prepareUnlockedProductionAiRuntime=async()=>{
+    const mount=page.locator('[data-lourex-proactive-assistant-mount]');await mount.waitFor({state:'attached'});
     await page.evaluate(async()=>{
       const [{setupVault},{emptyVault},{establishSession}]=await Promise.all([import('/dist/src/storage/vault.js'),import('/dist/src/lib/defaults.js'),import('/dist/src/storage/session.js')]);
       const initial=emptyVault();initial.company.nameEn='LOUREX QA';
       const {key}=await setupVault('2468',initial);const established=await establishSession(key);if(!established)throw new Error('QA could not establish encrypted Vault session');
-      await new Promise((resolve,reject)=>{const existing=document.querySelector('script[data-qa-ai-workflows="true"]');if(existing){resolve();return;}const script=document.createElement('script');script.src='/dist/lourex-ai-workflows.js?v=batch7-qa';script.dataset.qaAiWorkflows='true';script.onload=()=>resolve();script.onerror=()=>reject(new Error('QA could not load production AI workflow runtime'));document.body.appendChild(script);});
+      window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid:'qa'}}));
     });
-    const mount=page.locator('[data-lourex-proactive-assistant-mount]');await mount.waitFor({state:'attached'});await page.evaluate(()=>window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid:'qa'}})));
   };
   await prepareUnlockedProductionAiRuntime();
   const bounds=async()=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'horizontal overflow');
