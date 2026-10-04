@@ -31,7 +31,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
 
    let unifiedAssistant='not-run';
    if(engine.name()==='chromium'){
-    await input.fill('Cost is 10 and I want a 20% margin');await input.press('Enter');
+    await input.fill('Cost is 10 and margin 20%');await input.press('Enter');
     await page.locator('.lourex-ai-message.assistant').last().waitFor({state:'visible'});
     assert.deepEqual(requests,[],'deterministic advisor calculation must not call a provider');
     await page.locator('.lourex-ai-new-conversation').click();
