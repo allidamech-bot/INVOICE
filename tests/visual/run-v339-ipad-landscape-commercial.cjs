@@ -21,6 +21,7 @@ async function runCase(browser,kind){
 
   const initial=await page.evaluate(()=>{
     const scroll=document.querySelector('.editor-scroll');
+    const workspace=document.querySelector('.ta-editor-core-slot');
     const layout=document.querySelector('.editor-layout');
     const editorPane=document.querySelector('.editor-pane');
     const previewPane=document.querySelector('.preview-pane,.editor-preview-pane');
@@ -37,7 +38,7 @@ async function runCase(browser,kind){
       previewChildren:document.querySelector('.preview-stage')?.childElementCount??-1,
       previewDisplay:previewPane?getComputedStyle(previewPane).display:'missing',
       layoutDisplay:layout?getComputedStyle(layout).display:'missing',
-      layout:rect(layout),editorPane:rect(editorPane),previewPane:rect(previewPane)
+      workspace:rect(workspace),layout:rect(layout),editorPane:rect(editorPane),previewPane:rect(previewPane)
     };
   });
   if(initial.width!==1194||initial.height!==834)failures.push(`viewport=${initial.width}x${initial.height}, expected 1194x834`);
@@ -49,15 +50,14 @@ async function runCase(browser,kind){
   if(initial.previewChildren!==0)failures.push(`live A4 renderer remained mounted on iPad landscape (${initial.previewChildren} child nodes)`);
   if(initial.previewDisplay!=='none')failures.push(`iPad commercial preview still reserves a dead desktop track (display=${initial.previewDisplay})`);
   if(initial.layoutDisplay!=='block')failures.push(`iPad commercial editor layout=${initial.layoutDisplay}, expected single-column block`);
-  if(!initial.editorPane||initial.editorPane.width<1150)failures.push(`iPad commercial editor pane collapsed to ${initial.editorPane?.width??0}px instead of full workspace`);
+  if(!initial.layout||!initial.editorPane)failures.push('iPad commercial editor geometry nodes missing');
+  else if(initial.editorPane.width<initial.layout.width-4)failures.push(`iPad editor pane ${initial.editorPane.width}px does not fill ${initial.layout.width}px layout`);
+  if(initial.workspace&&initial.layout&&initial.layout.width<initial.workspace.width-28)failures.push(`iPad layout wastes workspace width ${initial.layout.width}/${initial.workspace.width}px`);
 
   const textInput=page.locator('.editor-scroll input[type="text"],.editor-scroll input:not([type])').first();
   if(await textInput.count()){
     const before=await textInput.inputValue();
     await textInput.fill(`${before} QA`);
-    // iPad WebKit intentionally uses a longer autosave delay to reduce encrypted
-    // vault-write pressure. Poll the observable save event rather than relying on a
-    // narrow fixed sleep that becomes flaky under loaded CI runners.
     try{
       await page.waitForFunction(()=>Number(window.saveAttempts||0)>=1,undefined,{timeout:4500});
     }catch{
@@ -69,13 +69,10 @@ async function runCase(browser,kind){
   await page.waitForTimeout(250);
   const after=await page.evaluate(()=>{
     const scroll=document.querySelector('.editor-scroll');
-    // TailAdmin's section navigator assigns runtime step IDs to direct editor
-    // sections. The attachment section remains the same semantic/rendered section,
-    // but its authored #document-attachments ID is replaced after mount. Target
-    // the stable component class so this QA checks reachability rather than an
-    // implementation-detail ID owned by the step navigator.
     const target=document.querySelector('.document-attachments-section');
-    const sr=scroll?.getBoundingClientRect(),tr=target?.getBoundingClientRect();
+    const layout=document.querySelector('.editor-layout');
+    const editor=document.querySelector('.editor-pane');
+    const sr=scroll?.getBoundingClientRect(),tr=target?.getBoundingClientRect(),lr=layout?.getBoundingClientRect(),er=editor?.getBoundingClientRect();
     return {
       editorPresent:Boolean(document.querySelector('.editor-screen')),
       scrollTop:scroll?.scrollTop||0,
@@ -83,7 +80,8 @@ async function runCase(browser,kind){
       targetBottom:tr?.bottom??null,
       scrollBottom:sr?.bottom??null,
       previewDisplay:getComputedStyle(document.querySelector('.preview-pane,.editor-preview-pane')).display,
-      editorWidth:document.querySelector('.editor-pane')?.getBoundingClientRect().width||0
+      layoutWidth:lr?.width||0,
+      editorWidth:er?.width||0
     };
   });
   if(!after.editorPresent)failures.push('commercial editor disappeared after end-scroll');
@@ -91,7 +89,7 @@ async function runCase(browser,kind){
   if(after.targetBottom===null||after.scrollBottom===null)failures.push('attachments end target missing');
   else if(after.targetBottom>after.scrollBottom+4)failures.push(`attachments section remains clipped below scroll viewport ${after.targetBottom}/${after.scrollBottom}`);
   if(after.previewDisplay!=='none')failures.push(`iPad preview track returned after editing (${after.previewDisplay})`);
-  if(after.editorWidth<1150)failures.push(`iPad editor narrowed after editing (${after.editorWidth}px)`);
+  if(!after.layoutWidth||!after.editorWidth||after.editorWidth<after.layoutWidth-4)failures.push(`iPad editor no longer fills layout after editing (${after.editorWidth}/${after.layoutWidth}px)`);
   if(page.url()!==initialUrl)failures.push(`URL changed during commercial edit/scroll: ${initialUrl} -> ${page.url()}`);
   if(runtimeErrors.length)failures.push(...runtimeErrors.map(error=>`pageerror: ${error}`));
 
