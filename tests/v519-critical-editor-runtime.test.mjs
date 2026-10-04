@@ -13,7 +13,7 @@ test('active quotation autosave stays lightweight in its existing v350 owner',as
   assert.ok(source.includes('recoverDocumentAutosaveCheckpoint(key,vault)'),'crash/process recovery must keep the encrypted checkpoint recovery path');
 });
 
-test('mobile keyboard activity has one established owner instead of a second runtime patch',async()=>{
+test('mobile keyboard activity keeps the established stability owner',async()=>{
   const [stability,checkpointOwner]=await Promise.all([
     readFile('public/editor-stability-v338.js','utf8'),
     readFile('scripts/v350-rendering-storage-hardening.mjs','utf8')
@@ -30,14 +30,22 @@ test('physical A4 geometry is owned by document.css and cannot shrink inside pre
   assert.match(css,/@media print\{\.invoice-page\{width:210mm;min-width:210mm;max-width:210mm;height:297mm;min-height:297mm/);
 });
 
-test('commercial editor keeps one existing TailAdmin layout owner and no v519 postbuild layer',async()=>{
+test('existing iPad stability owner marks WebKit and removes the dead commercial preview track',async()=>{
+  const source=await readFile('scripts/v339-ipados-desktop-stability.mjs','utf8');
+  assert.ok(source.includes("document.documentElement.setAttribute('data-lourex-ios-webkit','true')"),'EditorPageCore runtime must expose the real iPad/WebKit capability to CSS');
+  assert.ok(source.includes('html[data-lourex-ios-webkit="true"] body #root .app-ui .screen-editor .editor-layout{display:block!important'),'iPad commercial editor must become single-column instead of retaining the dead preview track');
+  assert.ok(source.includes('html[data-lourex-ios-webkit="true"] body #root .app-ui .screen-editor :is(.editor-preview-pane,.preview-pane){display:none!important'),'iPad commercial preview pane must not reserve width when live A4 preview is intentionally unmounted');
+});
+
+test('commercial editor keeps existing TailAdmin desktop owner and no v519 postbuild layer',async()=>{
   const [pkg,editorCss]=await Promise.all([
     readFile('package.json','utf8').then(JSON.parse),
     readFile('src/styles/tailadmin-editor-core-v320.css','utf8')
   ]);
   const build=String(pkg.scripts?.build??'');
+  assert.ok(build.includes('node scripts/v339-ipados-desktop-stability.mjs'),'existing iPad stability owner must remain in the build');
   assert.ok(build.includes('node scripts/v350-rendering-storage-hardening.mjs'),'v350 persistence owner must remain in the build');
-  assert.ok(!build.includes('v519-critical-editor-runtime'),'the removed postbuild patch must not return');
+  assert.ok(!build.includes('v519-critical-editor-runtime'),'a second postbuild editor owner must not return');
   assert.match(editorCss,/\.app-ui \.editor-layout\{display:grid!important;grid-template-columns:minmax\(460px,\.92fr\) minmax\(520px,1\.08fr\)!important/,'desktop editor/preview split stays in TailAdmin editor core');
   assert.match(editorCss,/@media\(max-width:1180px\)[\s\S]*?\.editor-preview-pane,\.app-ui \.preview-pane,\.app-ui \.draft-studio-preview\{display:none!important\}/,'tablet editor keeps the established single-column preview-on-demand contract');
 });
