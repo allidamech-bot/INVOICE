@@ -12,6 +12,20 @@ test('v519 keeps active quotation editing on lightweight checkpoints',async()=>{
   assert.ok(runtime.includes('if(checkpointPending||checkpointFlushPromise){instance.cloudSyncQueued=true;return Promise.resolve();}'),'cloud publication must remain deferred while a lightweight checkpoint is pending');
 });
 
+test('v519 makes A4 preview physically non-shrinkable on every screen preview',async()=>{
+  const css=await readFile('src/styles/critical-editor-geometry-v519.css','utf8');
+  assert.match(css,/\.preview-stage>\.invoice-pages,[\s\S]*?width:210mm!important;[\s\S]*?min-width:210mm!important;[\s\S]*?max-width:none!important;[\s\S]*?flex:0 0 210mm!important/);
+  assert.match(css,/\.preview-stage \.invoice-page,[\s\S]*?width:210mm!important;[\s\S]*?min-width:210mm!important;[\s\S]*?max-width:210mm!important;[\s\S]*?height:297mm!important/);
+  assert.match(css,/\.screen-editor \.preview-stage[\s\S]*?display:block!important;[\s\S]*?overflow:auto!important/);
+});
+
+test('v519 restores one bounded desktop split and tablet single-column editor',async()=>{
+  const css=await readFile('src/styles/critical-editor-geometry-v519.css','utf8');
+  assert.match(css,/@media screen and \(min-width:1181px\)[\s\S]*?\.editor-layout[\s\S]*?grid-template-columns:minmax\(520px,48%\) minmax\(0,52%\)!important/);
+  assert.match(css,/@media screen and \(min-width:901px\) and \(max-width:1180px\)[\s\S]*?\.editor-layout[\s\S]*?display:block!important/);
+  assert.match(css,/@media screen and \(min-width:901px\) and \(max-width:1180px\)[\s\S]*?:is\(\.preview-pane,\.editor-preview-pane\)[\s\S]*?display:none!important/);
+});
+
 test('v519 is installed in the production build pipeline after the checkpoint owner',async()=>{
   const pkg=JSON.parse(await readFile('package.json','utf8'));
   const build=String(pkg.scripts?.build??'');
@@ -19,4 +33,6 @@ test('v519 is installed in the production build pipeline after the checkpoint ow
   const guard=build.indexOf('node scripts/v519-critical-editor-runtime.mjs');
   assert.ok(checkpoint>=0,'checkpoint owner must remain in the build');
   assert.ok(guard>checkpoint,'v519 must harden the emitted runtime after v350 installs the checkpoint owner');
+  const bundle=await readFile('dist/styles/app.bundle.css','utf8');
+  assert.ok(bundle.includes('LOUREX v519 — critical commercial editor geometry owner.'),'final production CSS must contain v519 geometry owner');
 });
