@@ -17,6 +17,10 @@ const periodicFlush=`const scheduleDocumentCheckpointFlush=()=>{\n      if(check
 if(!source.includes(periodicFlush))throw new Error('v519 could not find the document checkpoint periodic flush owner.');
 source=source.replace(periodicFlush,`const scheduleDocumentCheckpointFlush=()=>{\n      // v519: the lightweight checkpoint remains authoritative while the editor is open.\n      // Full-vault encryption is intentionally deferred to close/full-mutation boundaries.\n    };`);
 
+const periodicReschedule=`checkpointFlushPromise=operation.then(()=>undefined).finally(()=>{checkpointFlushPromise=null;if(checkpointPending&&!checkpointFlushTimer)checkpointFlushTimer=window.setTimeout(()=>void flushDocumentCheckpoint().catch(()=>undefined),30000);});`;
+if(!source.includes(periodicReschedule))throw new Error('v519 could not find the document checkpoint periodic re-schedule owner.');
+source=source.replace(periodicReschedule,`checkpointFlushPromise=operation.then(()=>undefined).finally(()=>{checkpointFlushPromise=null;});`);
+
 /*
  * Mobile virtual keyboards do not reliably emit window keydown events for every
  * edit. The base inactivity timer previously listened only to pointerdown/keydown/
