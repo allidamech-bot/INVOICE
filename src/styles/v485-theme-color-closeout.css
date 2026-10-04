@@ -149,7 +149,8 @@
     color:var(--lx485-blue)!important;
   }
 
-  /* Semantic states stay visually meaningful. */
+  /* Semantic states stay visually meaningful. ARIA live regions are not colored
+     globally: a synchronization choice may be an alert without being a danger. */
   html body #root .app-ui :is(.ta-status-badge.status-ready,.status-paid,.collection-paid,
     .profitability-status.complete,.lifecycle-status.is-final,.draft-save-state.state-saved){
     background:var(--lx485-success-soft)!important;
@@ -162,7 +163,7 @@
     color:var(--lx485-warning)!important;
     border-color:color-mix(in srgb,var(--lx485-warning) 30%,var(--lx485-line))!important;
   }
-  html body #root .app-ui :is(.ta-error,.ta-danger,.is-danger,[role="alert"],.ta-ops-integrity,
+  html body #root .app-ui :is(.ta-error,.ta-danger,.is-danger,.ta-ops-integrity,
     .ta-ops-error,.ta-customer-form-error,.ta-ops-status.status-reversed,.ta-ops-status.is-reversed){
     color:var(--lx485-danger)!important;
   }
