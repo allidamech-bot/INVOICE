@@ -35,6 +35,9 @@
   --lx-ui-card:var(--lx485-surface-2);
   --lx-ui-elevated:var(--lx485-surface-3);
   --lx-ui-interactive:var(--lx485-blue);
+  --lx-ui-primary:var(--lx-ui-interactive);
+  --lx-ui-info:var(--ft-info);
+  --lx-ui-overlay:var(--lx485-surface);
   --lx-ui-success:var(--ft-success);
   --lx-ui-warning:var(--ft-warning);
   --lx-ui-danger:var(--ft-danger);
@@ -48,8 +51,19 @@
   --lx-ui-radius-card:20px;
   --lx-ui-radius-sheet:24px;
   --lx-ui-control-height:44px;
+  --lx-ui-control-height-dock:52px;
+  --lx-ui-type-caption:12px;
+  --lx-ui-type-body:14px;
+  --lx-ui-type-input:16px;
+  --lx-ui-type-section:18px;
+  --lx-ui-type-title:24px;
+  --lx-ui-font-arabic:var(--lx485-arabic);
   --lx-ui-input-font-size:16px;
+  --lx-ui-layer-navigation:80;
+  --lx-ui-layer-editor-dock:900;
   --lx-ui-layer-modal:10000;
+  --lx-ui-layer-advisor:calc(var(--lx-ui-layer-modal) - 2);
+  --lx-ui-layer-advisor-backdrop:calc(var(--lx-ui-layer-modal) - 3);
 
   --lx484-canvas:var(--lx485-canvas)!important;
   --lx484-canvas-2:var(--lx485-canvas-2)!important;
@@ -432,7 +446,7 @@ html body #root .app-ui .editor-totals .grand{background:color-mix(in srgb,var(-
 html body #root .app-ui :is(.modal,.ta-mobile-sheet,.ta-create-menu-mobile),
 html[data-ui-theme] body #root .global-search-panel{
   border:1px solid var(--lx485-line-strong)!important;border-radius:26px!important;
-  background:radial-gradient(340px 180px at 100% 0%,color-mix(in srgb,var(--lx485-blue) 9%,transparent),transparent 75%),var(--lx485-surface)!important;
+  background:radial-gradient(340px 180px at 100% 0%,color-mix(in srgb,var(--lx-ui-primary) 9%,transparent),transparent 75%),var(--lx-ui-overlay)!important;
   color:var(--lx485-text)!important;box-shadow:0 28px 75px rgba(0,6,18,.32)!important;
 }
 html body #root .app-ui :is(.modal-header,.modal-footer,.ta-sheet-header,.ta-create-menu-heading){
@@ -458,14 +472,14 @@ html[data-ui-theme] body #root .global-search-input-wrap{
 }
 html[data-ui-theme] body #root .global-search-panel .global-search-input-wrap input{
   min-width:0;min-height:44px!important;height:44px!important;padding-inline:12px!important;border:1px solid var(--lx485-line)!important;
-  border-radius:13px!important;background:var(--lx485-canvas-2)!important;color:var(--lx485-text)!important;
+  border-radius:var(--lx-ui-radius-control)!important;background:var(--lx485-canvas-2)!important;color:var(--lx485-text)!important;
 }
-html[data-ui-theme] body #root .global-search-close{width:44px;height:44px;border:1px solid var(--lx485-line);border-radius:13px;background:var(--lx485-surface-3);color:var(--lx485-text);display:grid;place-items:center;}
+html[data-ui-theme] body #root .global-search-close{width:var(--lx-ui-control-height);height:var(--lx-ui-control-height);border:1px solid var(--lx485-line);border-radius:var(--lx-ui-radius-control);background:var(--lx485-surface-3);color:var(--lx485-text);display:grid;place-items:center;}
 html[data-ui-theme] body #root .global-search-input-wrap>svg{color:var(--lx485-blue)!important;}
 html[data-ui-theme] body #root :is(.global-search-start,.global-search-results){min-height:0!important;min-width:0;overscroll-behavior:contain;background:transparent!important;}
 html[data-ui-theme] body #root .global-search-panel .global-search-actions>button{
   display:flex!important;flex-direction:row!important;align-items:center!important;gap:10px!important;min-height:78px!important;padding:12px!important;
-  border:1px solid var(--lx485-line)!important;border-radius:17px!important;background:linear-gradient(155deg,var(--lx485-surface-2),var(--lx485-surface-3))!important;color:var(--lx485-text)!important;text-align:start!important;
+  border:1px solid var(--lx485-line)!important;border-radius:17px!important;color:var(--lx485-text)!important;text-align:start!important;
 }
 html[data-ui-theme] body #root .global-search-panel .global-search-actions>button>svg{flex:0 0 28px;grid-column:auto!important;grid-row:auto!important;align-self:center!important;color:var(--lx485-blue)!important;}
 html[data-ui-theme] body #root .global-search-panel .global-search-actions>button>span{min-width:0;display:grid;gap:4px;}
@@ -514,7 +528,7 @@ html body #root .app-ui :is(.ta-doc-row,.ta-customer-row,.ta-sheet-link,.ta-crea
   html body #root .app-ui .ta-sheet-link{min-height:64px!important;}
   html body #root .app-ui :is(.ta-mobile-sheet,.ta-create-menu-mobile){max-height:calc(100dvh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;overscroll-behavior:contain;}
   html body #root .app-ui .modal:not(:has(.ta-settings-shell)){
-    width:100%!important;max-width:640px!important;height:auto!important;max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;border-radius:24px!important;
+    width:100%!important;max-width:640px!important;height:auto!important;border-radius:24px!important;
   }
   html body #root .app-ui .modal-backdrop{align-items:flex-end!important;padding:12px 8px calc(8px + env(safe-area-inset-bottom,0px))!important;}
   html body #root .app-ui .modal-header{padding:12px 14px!important;flex-shrink:0;}
@@ -1028,8 +1042,8 @@ html body #root .loading-screen .brand::after{content:""!important;display:block
 #root .app-ui .lx-product-pricing-brief dl{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0}
 #root .app-ui .lx-product-pricing-brief dd{margin:0;font-weight:700}
 /* Contextual Advisor must sit above phone editors, below reviewed modal proposals. */
-html body #root .app-ui #lourex-ai-panel{z-index:calc(var(--lx-ui-layer-modal,10000) - 2)!important;}
-html body #root .app-ui .lourex-ai-backdrop{z-index:calc(var(--lx-ui-layer-modal,10000) - 3)!important;}
+html body #root .app-ui #lourex-ai-panel{z-index:var(--lx-ui-layer-advisor,9998)!important;}
+html body #root .app-ui .lourex-ai-backdrop{z-index:var(--lx-ui-layer-advisor-backdrop,9997)!important;}
 
 /* Very short keyboard viewports need room for one full input, not smaller
    touch targets. Normal phone/tablet/desktop modal presentation is unchanged. */
