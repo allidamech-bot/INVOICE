@@ -36,6 +36,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     await page.locator('.lourex-ai-message.assistant').last().waitFor({state:'visible'});
     assert.deepEqual(requests,[],'deterministic advisor calculation must not call a provider');
     await page.locator('.lourex-ai-new-conversation').click();
+    await page.waitForFunction(()=>document.querySelectorAll('.lourex-ai-message').length===0);
     await page.locator('.lourex-ai-history-button').click();
     await page.locator('.lourex-ai-thread-row').first().waitFor({state:'visible'});
     assert.ok((await page.locator('.lourex-ai-thread-row').count())>=1,'saved assistant conversation must appear in recent chats');
