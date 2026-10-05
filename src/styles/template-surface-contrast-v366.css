@@ -26,7 +26,14 @@
   .invoice-pages>.invoice-page.template-obsidian .totals-block :is(.total-row>span,.total-row>strong,.grand-total>span,.grand-total>strong,small){color:var(--lrx-dark-ink)!important;-webkit-text-fill-color:var(--lrx-dark-ink)!important;}
 
   /* Auto means matched to the selected template. Do not flatten the authored
-   * template palettes with a second global foreground system. */
+   * template palettes with a second global foreground system. The four hybrid
+   * identities below are the exception at the body level: later identity layers
+   * can leave inverse ink behind while v141 restores a light commercial sheet.
+   * Protect only semantic light-body copy; totals, mastheads and table headers keep
+   * their own authored local-surface colors. */
+  .invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block .term-row>span,.notes-block p,.bank-block>div>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
+  .invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){color:var(--lrx-heading,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-light-ink))!important;}
 
   /* Custom Accent is structural/decorative. It changes safe rules/highlights,
    * while foreground readability is controlled independently below. */
