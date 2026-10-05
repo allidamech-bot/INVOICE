@@ -30,6 +30,15 @@ const {mkdirSync,writeFileSync}=require('node:fs');
    await mic.click();await page.waitForFunction(()=>window.speechInstances.length===7);await page.evaluate(()=>window.speechInstances[6].result('fallback cleanup'));await page.waitForFunction(()=>window.speechInstances[6].abortCalled);await mic.click();await page.waitForFunction(()=>window.speechInstances.length===8);await page.evaluate(()=>window.speechInstances[7].end());
    assert.equal(await page.evaluate(()=>window.overlappingStarts),0,'Safari delayed release must never receive overlapping recognition.start() calls');assert.deepEqual(errors,[]);assert.deepEqual(requests,[],'voice must not call providers before explicit Send');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));const box=await mic.boundingBox();assert.ok(box.width>=44&&box.height>=44);
 
+   await input.fill(lang==='ar'?'اعرض وضع الخزينة والسيولة':'Show treasury and cash status');await input.press('Enter');
+   await page.locator('.lourex-ai-message.assistant').last().waitFor({state:'visible'});
+   const toolActivity=page.locator('.lourex-ai-tool-activity').last();await toolActivity.waitFor({state:'visible'});
+   assert.match(await toolActivity.innerText(),lang==='ar'?/خطة LOUREX/:/LOUREX plan/,'deterministic tool request exposes the visible LOUREX plan');
+   assert.ok((await toolActivity.locator('.lourex-ai-tool-step').count())>=1,'visible LOUREX plan lists at least one tool step');
+   const activityBox=await toolActivity.boundingBox(),panelBox=await page.locator('#lourex-ai-panel').boundingBox();assert.ok(activityBox&&panelBox&&activityBox.x>=panelBox.x-1&&activityBox.x+activityBox.width<=panelBox.x+panelBox.width+1,'tool activity card stays inside assistant panel');
+   assert.deepEqual(requests,[],'deterministic treasury tool must remain local and avoid provider calls');
+   const naturalLanguageOs='PASS';
+
    let unifiedAssistant='not-run';
    if(engine.name()==='chromium'){
     await input.fill('Cost is 10 and margin 20%');await input.press('Enter');
@@ -52,7 +61,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     unifiedAssistant='PASS';
    }
 
-   await page.screenshot({path:`${output}/${engine.name()}-${lang}.png`,animations:'disabled'});report.push({engine:engine.name(),width,lang,sessions:8,restart:'PASS',manualStop:'PASS',errorRetry:'PASS',digitNormalization:'PASS',editableTranscript:'PASS',stale:'PASS',unmount:'PASS',missingOnend:'PASS',nativeReleaseDelayMs:await page.evaluate(()=>window.nativeReleaseDelayMs),overlappingStarts:0,providerCalls:requests.length,unifiedAssistant});
+   await page.screenshot({path:`${output}/${engine.name()}-${lang}.png`,animations:'disabled'});report.push({engine:engine.name(),width,lang,sessions:8,restart:'PASS',manualStop:'PASS',errorRetry:'PASS',digitNormalization:'PASS',editableTranscript:'PASS',stale:'PASS',unmount:'PASS',missingOnend:'PASS',nativeReleaseDelayMs:await page.evaluate(()=>window.nativeReleaseDelayMs),overlappingStarts:0,providerCalls:requests.length,naturalLanguageOs,unifiedAssistant});
   }finally{await browser.close();}
- }writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log('Voice reliability + delayed Safari native release PASS in Chromium + WebKit; unified encrypted conversation/scopes smoke PASS in Chromium.');
+ }writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log('Voice reliability + delayed Safari native release PASS; Batch 4 natural-language local tool plan smoke PASS in Chromium + WebKit; unified encrypted conversation/scopes smoke PASS in Chromium.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
