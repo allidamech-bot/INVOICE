@@ -15,7 +15,7 @@ test('v366 explicitly protects light quotation body copy from inverse text leaka
   const css=await read('src/styles/template-surface-contrast-v366.css');
   assert.match(css,/template-executive[\s\S]*template-ledger/);
   assert.match(css,/items-table tbody td[\s\S]*--lrx-light-ink/);
-  assert.match(css,/-webkit-text-fill-color:var\(--lrx-light-ink\)!important/);
+  assert.match(css,/-webkit-text-fill-color:[^;]*--lrx-light-ink/);
 });
 
 test('v366 keeps light cards readable inside dark commercial templates',async()=>{
@@ -26,8 +26,8 @@ test('v366 keeps light cards readable inside dark commercial templates',async()=
 
 test('v366 prevents microscopic item and party copy in preview and print',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/items-table tbody td\{font-size:max\(7\.4px,1em\)!important/);
-  assert.match(css,/party-address[\s\S]*font-size:max\(7\.6px,1em\)!important/);
+  assert.match(css,/items-table tbody td\{font-size:max\(calc\(7\.4px \* var\(--doc-text-scale,1\)\),calc\(1em \* var\(--doc-text-scale,1\)\)\)!important/);
+  assert.match(css,/party-address[\s\S]*font-size:max\(calc\(7\.6px \* var\(--doc-text-scale,1\)\),calc\(1em \* var\(--doc-text-scale,1\)\)\)!important/);
   assert.match(css,/@media print/);
 });
 

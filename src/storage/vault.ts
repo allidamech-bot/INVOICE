@@ -30,6 +30,8 @@ function stringValue(value: unknown, fallback = ''): string {
 }
 function cleanCurrency(value:unknown,fallback='USD'):string{return (stringValue(value,fallback).trim().toUpperCase()||fallback);}
 function cleanPrefix(value:unknown,fallback:string):string{return (stringValue(value,fallback).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)||fallback);}
+function hexColorValue(value:unknown,fallback=''):string{const color=stringValue(value).trim();return /^#[0-9a-f]{6}$/i.test(color)?color:fallback;}
+function textScaleValue(value:unknown):'small'|'normal'|'large'{return value==='small'||value==='large'?value:'normal';}
 function booleanValue(value: unknown, fallback: boolean): boolean { return typeof value === 'boolean' ? value : fallback; }
 function finiteNumber(value: unknown, fallback: number): number { return typeof value === 'number' && Number.isFinite(value) ? value : fallback; }
 function languageValue(value: unknown, fallback: 'en'|'ar'|'bilingual' = 'en'): 'en'|'ar'|'bilingual' { return value === 'en' || value === 'ar' || value === 'bilingual' ? value : fallback; }
@@ -258,7 +260,8 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
       },
       internalCosts:{shippingCost:stringValue(internalCosts.shippingCost,'0.00'),otherCost:stringValue(internalCosts.otherCost,'0.00')},
       appearance:{
-        templateId:templateValue(appearance.templateId,'executive'), paletteMode:appearance.paletteMode === 'custom' ? 'custom' : 'auto', accentColor:stringValue(appearance.accentColor,'#b58b4f'),
+        templateId:templateValue(appearance.templateId,'executive'), paletteMode:appearance.paletteMode === 'custom' ? 'custom' : 'auto', accentColor:hexColorValue(appearance.accentColor,'#b58b4f'),
+        primaryTextColor:hexColorValue(appearance.primaryTextColor), secondaryTextColor:hexColorValue(appearance.secondaryTextColor), textScale:textScaleValue(appearance.textScale),
         latinFont:typeof appearance.latinFont === 'string' && LATIN_FONTS.has(appearance.latinFont) ? appearance.latinFont : 'auto', arabicFont:typeof appearance.arabicFont === 'string' && ARABIC_FONTS.has(appearance.arabicFont) ? appearance.arabicFont : 'auto',
         showBank:booleanValue(appearance.showBank,true), showSignature:booleanValue(appearance.showSignature,Boolean(normalizedCompanySnapshot.signatureDataUrl)), showStamp:booleanValue(appearance.showStamp,Boolean(normalizedCompanySnapshot.stampDataUrl)),
         showHsCode:booleanValue(appearance.showHsCode,true), showOrigin:booleanValue(appearance.showOrigin,true), showPacking:booleanValue(appearance.showPacking,false), watermark:normalizeWatermark(appearance.watermark)
