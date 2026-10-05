@@ -61,7 +61,11 @@ const {mkdirSync,writeFileSync}=require('node:fs');
         assert.match(await textarea.inputValue(),/\n/,'multiline composer remains functional');
         const fileInput=panel.locator('input[type="file"][multiple]');
         await fileInput.setInputFiles({name:'final-qa.txt',mimeType:'text/plain',buffer:Buffer.from('Final AI responsive QA source')});
-        await panel.locator('.lourex-ai-attachment-chip').waitFor({state:'visible'});
+        const attachmentChip=panel.locator('.lourex-ai-attachment-chip');
+        await attachmentChip.waitFor({state:'visible'});
+        assert.match(await attachmentChip.innerText(),/final-qa\.txt/,'selected attachment is visible before Send');
+        await attachmentChip.locator('.lourex-ai-attachment-remove').click();
+        await attachmentChip.waitFor({state:'hidden'});
 
         const trigger=panel.locator('.lourex-ai-hub-trigger');
         assert.equal(await trigger.count(),1,'exactly one Tools trigger');
@@ -98,9 +102,8 @@ const {mkdirSync,writeFileSync}=require('node:fs');
         if(width<=720)assert.ok(Math.abs(managerBox.width-width)<=2,'mobile Memory & Tasks is full width');
         await manager.locator('.lourex-ai-manager-head > button').click();
 
-        const bridge=panel.locator('.lourex-ai-compose form>input');
-        await bridge.fill(lang==='ar'?'اعرض وضع الخزينة والسيولة':'Show treasury and cash status');
-        await bridge.press('Enter');
+        await textarea.fill(lang==='ar'?'اعرض وضع الخزينة والسيولة':'Show treasury and cash status');
+        await textarea.press('Enter');
         const assistant=panel.locator('.lourex-ai-message.assistant').last();
         await assistant.waitFor({state:'visible'});
         assert.equal(await assistant.locator('.lourex-ai-structured-answer').count(),1,'assistant answer uses executive structured renderer');
