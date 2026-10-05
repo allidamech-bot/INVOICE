@@ -16,21 +16,29 @@ test('appearance engine exposes independent surface and semantic ink tokens',asy
   assert.match(appearance,/heading:string;primary:string;secondary:string/);
   assert.match(appearance,/const surfaceInk='#17212b'/);
   assert.match(appearance,/const darkSurfaceInk='#fffaf0'/);
+  assert.match(appearance,/DARK_BODY_TEMPLATES=new Set<TemplateId>\(\['obsidian'\]\)/);
 });
 
-test('all current commercial identities resolve their canonical light paper and dark local-surface tokens',()=>{
+test('effective output papers match the loaded cascade and Obsidian keeps independent light-card tokens',()=>{
   const base=createBlankDocument('invoice','INV-TOKEN',defaultCompany()).appearance;
-  const papers={executive:'#ffffff',minimal:'#ffffff',trade:'#ffffff',signature:'#fcfaf5',obsidian:'#ffffff',cobalt:'#ffffff',editorial:'#ffffff',split:'#ffffff',prism:'#ffffff',slate:'#ffffff',horizon:'#ffffff',mono:'#ffffff',aurora:'#fdfbf6',ledger:'#ffffff',noir:'#fffdf8',midnight:'#fcfaf4',blackivory:'#fbf6eb',carbon:'#fafafa'};
-  for(const [templateId,paper] of Object.entries(papers)){
+  const lightPapers={executive:'#ffffff',minimal:'#ffffff',trade:'#ffffff',signature:'#fcfaf5',cobalt:'#ffffff',editorial:'#ffffff',split:'#ffffff',prism:'#ffffff',slate:'#ffffff',horizon:'#ffffff',mono:'#ffffff',aurora:'#fdfbf6',ledger:'#ffffff',noir:'#fffdf8',midnight:'#fcfaf4',blackivory:'#fbf6eb',carbon:'#fafafa'};
+  for(const [templateId,paper] of Object.entries(lightPapers)){
     const tokens=resolvedAppearanceTokens({...base,templateId});
-    assert.equal(tokens.page,paper,`${templateId}: canonical paper`);
+    assert.equal(tokens.page,paper,`${templateId}: effective paper`);
     assert.equal(tokens.primary,'#17212b',`${templateId}: body ink`);
-    assert.equal(tokens.surface,'#ffffff',`${templateId}: card surface`);
+    assert.equal(tokens.surface,'#ffffff',`${templateId}: local light surface`);
     assert.equal(tokens.darkSurfaceInk,'#fffaf0',`${templateId}: local dark-surface ink`);
   }
+  const obsidian=resolvedAppearanceTokens({...base,templateId:'obsidian'});
+  assert.equal(obsidian.page,'#15191c');
+  assert.equal(obsidian.primary,'#f5f1e9');
+  assert.equal(obsidian.secondary,'#aeb5ba');
+  assert.equal(obsidian.surface,'#f1f2f2');
+  assert.equal(obsidian.surfaceInk,'#17212b');
+  assert.equal(obsidian.darkSurface,'#15191c');
 });
 
-test('custom text colors pass contrast guards and unsafe choices fall back on every light paper',()=>{
+test('custom text colors are guarded against the surface they actually render on',()=>{
   const base=createBlankDocument('invoice','INV-CONTRAST',defaultCompany()).appearance;
   for(const templateId of ['signature','aurora','noir','midnight','blackivory','carbon']){
     const unsafe=resolvedAppearanceTokens({...base,templateId,paletteMode:'custom',primaryTextColor:'#ffffff',secondaryTextColor:'#fffdf8',headingTextColor:'#ffffff'});
@@ -42,6 +50,14 @@ test('custom text colors pass contrast guards and unsafe choices fall back on ev
   assert.equal(safe.primary,'#101820');
   assert.equal(safe.secondary,'#35424b');
   assert.equal(safe.heading,'#22303a');
+
+  const obsidianUnsafe=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'custom',primaryTextColor:'#101010',secondaryTextColor:'#222222',headingTextColor:'#111111'});
+  assert.equal(obsidianUnsafe.primary,'#f5f1e9');
+  assert.equal(obsidianUnsafe.secondary,'#aeb5ba');
+  assert.notEqual(obsidianUnsafe.heading,'#111111');
+  const obsidianSafe=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'custom',primaryTextColor:'#ffffff',secondaryTextColor:'#d7d0c4'});
+  assert.equal(obsidianSafe.primary,'#ffffff');
+  assert.equal(obsidianSafe.secondary,'#d7d0c4');
 });
 
 test('Normal typography maps back to canonical v141 sizes while Small and Large stay bounded',()=>{
