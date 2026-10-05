@@ -19,7 +19,7 @@ on:
       - 'tests/ai-conversation-batch4-consolidation.test.mjs'
       - 'tests/ai-remediation-batch4-tools-routes-ux.test.mjs'
       - 'tests/visual/run-ai-voice-reliability-batch5.cjs'
-      - 'tests/visual/run-ai-remediation-batch4-tools-routes-ux-v2.cjs'
+      - 'tests/visual/run-ai-remediation-batch4-tools-routes-ux-v3.cjs'
       - '.github/workflows/ai-conversation-owner-batch4.yml'
   workflow_dispatch:
 
@@ -69,7 +69,7 @@ jobs:
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then cat /tmp/lourex-ai-remediation-batch4.log; exit 1; fi
-          node tests/visual/run-ai-remediation-batch4-tools-routes-ux-v2.cjs
+          node tests/visual/run-ai-remediation-batch4-tools-routes-ux-v3.cjs
       - name: Upload Batch 4 browser evidence
         if: always()
         uses: actions/upload-artifact@v6
