@@ -12,6 +12,7 @@ on:
       - 'src/storage/vault.ts'
       - 'src/styles/template-surface-contrast-v366.css'
       - 'src/styles/v332-critical-documents-deep-closeout.css'
+      - 'src/styles/roadmap-hardening-final.css'
       - 'src/portal/SharePortal.tsx'
       - 'public/share.html'
       - 'tests/document-design-final-deep-audit.test.mjs'
@@ -19,6 +20,7 @@ on:
       - 'tests/document-appearance-controls-v525.test.mjs'
       - 'tests/template-surface-contrast-v366.test.mjs'
       - 'tests/template-surface-tokens-v366.test.mjs'
+      - 'tests/mobile-document-design-controls-v540.test.mjs'
       - 'tests/visual/template-visual-qa.js'
       - 'tests/visual/run-document-design-final-deep.cjs'
       - '.github/workflows/document-design-final-deep.yml'
@@ -53,7 +55,8 @@ jobs:
             tests/document-design-controls-closeout.test.mjs \
             tests/document-appearance-controls-v525.test.mjs \
             tests/template-surface-contrast-v366.test.mjs \
-            tests/template-surface-tokens-v366.test.mjs
+            tests/template-surface-tokens-v366.test.mjs \
+            tests/mobile-document-design-controls-v540.test.mjs
       - name: Install browser QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
