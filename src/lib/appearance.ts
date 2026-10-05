@@ -98,7 +98,9 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const darkBody=DARK_BODY_TEMPLATES.has(templateId);
   const page=TEMPLATE_PAPERS[templateId];
   const lightSurface=TEMPLATE_LIGHT_SURFACES[templateId];
-  const bodyContrastSurfaces=darkBody?[page]:[page,lightSurface];
+  // Obsidian body copy can render on both the graphite page and its #20262a soft
+  // rows/sections. Light templates likewise need to clear paper + semantic fill.
+  const bodyContrastSurfaces=darkBody?[page,'#20262a']:[page,lightSurface];
 
   const defaultPrimary=darkBody?'#f5f1e9':'#17212b';
   const defaultSecondary=darkBody?'#aeb5ba':'#4d5b68';
