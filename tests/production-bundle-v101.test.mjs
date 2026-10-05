@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 const read=path=>readFile(path,'utf8');
 const localStyles=html=>[...html.matchAll(/href="\.\/styles\/([^"?]+\.css)(?:\?[^\"]*)?"/g)].map(match=>match[1]);
 
-test('production build collapses the source cascade into one bundle plus the standalone v337 runtime owner',async()=>{
+test('production build keeps the current bundle plus ordered standalone runtime owners',async()=>{
   const [sourceHtml,distHtml,bundle]=await Promise.all([
     read('index.html'),
     read('dist/index.html'),
@@ -14,9 +14,16 @@ test('production build collapses the source cascade into one bundle plus the sta
   const sourceStyles=localStyles(sourceHtml);
   const distStyles=localStyles(distHtml);
   assert.ok(sourceStyles.length>30);
-  assert.deepEqual(distStyles,['app.bundle.css','v331-draft-scroll-recovery.css']);
-  assert.match(distHtml,/v331-draft-scroll-recovery\.css\?v=337-3/);
+  assert.deepEqual(distStyles,['app.bundle.css','v331-draft-scroll-recovery.css','v332-critical-documents-deep-closeout.css','v482-mobile-ux-repair.css']);
+  assert.match(distHtml,/v331-draft-scroll-recovery\.css\?v=365-1/);
   assert.match(distHtml,/data-lourex-v331-draft-recovery="true"/);
+  assert.match(distHtml,/v332-critical-documents-deep-closeout\.css\?v=332-1/);
+  assert.match(distHtml,/data-lourex-v332-critical-documents="true"/);
+  assert.match(distHtml,/v482-mobile-ux-repair\.css\?v=482/);
+  assert.match(distHtml,/data-lourex-v482-mobile-ux="true"/);
+  assert.ok(distHtml.indexOf('app.bundle.css')<distHtml.indexOf('v331-draft-scroll-recovery.css'));
+  assert.ok(distHtml.indexOf('v331-draft-scroll-recovery.css')<distHtml.indexOf('v332-critical-documents-deep-closeout.css'));
+  assert.ok(distHtml.indexOf('v332-critical-documents-deep-closeout.css')<distHtml.indexOf('v482-mobile-ux-repair.css'));
   let previous=-1;
   for(const name of sourceStyles){
     const marker=`/* --- ${name} --- */`;
@@ -26,12 +33,14 @@ test('production build collapses the source cascade into one bundle plus the sta
   }
 });
 
-test('production service worker caches the bundle and the explicit v337 runtime owner instead of the full source stack',async()=>{
+test('production service worker caches the bundle and every explicit standalone runtime owner',async()=>{
   const [sourceSw,distSw]=await Promise.all([read('public/sw.js'),read('dist/sw.js')]);
   assert.match(sourceSw,/const CACHE = 'lourex-invoice-v101'/);
   assert.match(distSw,/const CACHE = 'lourex-invoice-v\d+'/);
   assert.match(distSw,/\.\/styles\/app\.bundle\.css/);
-  assert.match(distSw,/\.\/styles\/v331-draft-scroll-recovery\.css\?v=337-3/);
+  assert.match(distSw,/\.\/styles\/v331-draft-scroll-recovery\.css\?v=365-1/);
+  assert.match(distSw,/\.\/styles\/v332-critical-documents-deep-closeout\.css\?v=332-1/);
+  assert.match(distSw,/\.\/styles\/v482-mobile-ux-repair\.css\?v=482/);
   assert.match(distSw,/\.\/styles\/v337-template-layout-balance\.css\?v=337-3/);
   assert.doesNotMatch(distSw,/\.\/styles\/app\.css["']/);
   assert.doesNotMatch(distSw,/\.\/styles\/performance-polish-v100\.css["']/);
