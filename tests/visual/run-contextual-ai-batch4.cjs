@@ -28,7 +28,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     const rootCopy=await menu.innerText();assert.match(rootCopy,lang==='ar'?/الكاميرا[\s\S]*الصور والملفات[\s\S]*أدوات AI/:/Camera[\s\S]*Photos & files[\s\S]*AI Tools/,'plus root contains sources and nested AI Tools');
     const rootBox=await menu.boundingBox();assert.ok(rootBox&&rootBox.x>=-1&&rootBox.x+rootBox.width<=width+1&&rootBox.y>=-1&&rootBox.y+rootBox.height<=901,'plus root menu remains inside viewport');
     await menu.locator('.lourex-ai-plus-item').filter({hasText:lang==='ar'?'أدوات AI':'AI Tools'}).last().click();await page.waitForFunction(()=>document.querySelector('#lourex-ai-panel .lourex-ai-plus-menu')?.dataset?.view==='tools');
-    const copy=await menu.innerText();assert.match(copy,lang==='ar'?/صندوق AI[\s\S]*الذاكرة والمهام[\s\S]*الموجز الصباحي/:/AI Inbox[\s\S]*Memory & Tasks[\s\S]*Morning Brief/,'nested AI Tools contains canonical destinations');
+    const copy=await menu.innerText();assert.match(copy,lang==='ar'?/صندوق AI[\s\S]*الموجز الصباحي[\s\S]*الذاكرة والمهام/:/AI Inbox[\s\S]*Morning Brief[\s\S]*Memory & Tasks/,'nested AI Tools contains canonical destinations');
     const actions=menu.locator('.lourex-ai-plus-item');assert.ok((await actions.count())>=10,'AI Tools exposes the full LOUREX tool set');
     if(width<=720){for(let i=0;i<await actions.count();i++){const target=await actions.nth(i).boundingBox();assert.ok(target&&target.height>=44&&target.width>=44,'mobile AI Tools action meets 44px target');}}
     if(!keyboardChecked){
