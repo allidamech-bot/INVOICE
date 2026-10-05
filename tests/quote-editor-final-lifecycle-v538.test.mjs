@@ -63,11 +63,15 @@ test('v539 review modal escapes the editor stacking context before final PDF con
   assert.match(reviewModal,/return <Modal portal open/);
 });
 
-test('v538 uses the real EditorPage boundary and is enforced by its WebKit workflow',()=>{
+test('v538 uses the real EditorPage boundary inside the production #root > .app-ui shell',()=>{
+  assert.match(fixture,/<div id="root"><div id="qa-app" class="app-ui"><\/div><\/div>/);
   assert.match(fixture,/import \{EditorPage\} from '\.\/src\/components\/EditorPage\.js'/);
-  assert.match(fixture,/ReactDOM\.render\(React\.createElement\(EditorPage,props\)/);
+  assert.match(fixture,/ReactDOM\.render\(React\.createElement\(EditorPage,props\),document\.getElementById\('qa-app'\)\)/);
   assert.match(fixture,/__LOUREX_PREPARE_PDF__/);
   assert.match(fixture,/className='qa-print-portal print-portal'/);
+});
+
+test('v538 lifecycle is enforced by its WebKit workflow',()=>{
   assert.match(workflow,/node --test tests\/quote-editor-final-lifecycle-v538\.test\.mjs/);
   assert.match(workflow,/npx playwright install --with-deps webkit/);
   assert.match(workflow,/node tests\/visual\/run-v538-quote-editor-final-flow\.cjs/);
