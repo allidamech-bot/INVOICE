@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {emptyVault,defaultCompany} from '../dist/src/lib/defaults.js';
+import {createBlankDocument} from '../dist/src/lib/documents.js';
+import {migrateVault} from '../dist/src/storage/vault.js';
+import {resolvedAppearanceTokens} from '../dist/src/lib/appearance.js';
 
 const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
@@ -56,6 +60,79 @@ test('typography exposes fonts and bounded hierarchy controls',async()=>{
   assert.match(controls,/Large/);
 });
 
+test('vault migration preserves every custom document design choice across reload and restore',()=>{
+  const company=defaultCompany();
+  const vault=emptyVault();
+  const doc=createBlankDocument('invoice','INV-2026-DESIGN',company);
+  doc.appearance={
+    ...doc.appearance,
+    paletteMode:'custom',
+    accentColor:'#345678',
+    headingTextColor:'#234567',
+    primaryTextColor:'#17212b',
+    secondaryTextColor:'#4d5b68',
+    textScale:'large',
+    documentTitleScale:'large',
+    sectionHeadingScale:'small',
+    bodyTextScale:'large',
+    tableTextScale:'small'
+  };
+  vault.documents=[doc];
+  const migrated=migrateVault(vault);
+  const appearance=migrated.documents[0].appearance;
+  assert.equal(appearance.paletteMode,'custom');
+  assert.equal(appearance.accentColor,'#345678');
+  assert.equal(appearance.headingTextColor,'#234567');
+  assert.equal(appearance.primaryTextColor,'#17212b');
+  assert.equal(appearance.secondaryTextColor,'#4d5b68');
+  assert.equal(appearance.textScale,'large');
+  assert.equal(appearance.documentTitleScale,'large');
+  assert.equal(appearance.sectionHeadingScale,'small');
+  assert.equal(appearance.bodyTextScale,'large');
+  assert.equal(appearance.tableTextScale,'small');
+});
+
+test('vault migration rejects malformed design colors and free-form text sizes',()=>{
+  const vault=emptyVault();
+  const doc=createBlankDocument('invoice','INV-2026-DESIGN-SAFE',defaultCompany());
+  Object.assign(doc.appearance,{
+    paletteMode:'custom',accentColor:'red',headingTextColor:'javascript:bad',primaryTextColor:'#fff',secondaryTextColor:'#12345g',
+    documentTitleScale:'huge',sectionHeadingScale:'22px',bodyTextScale:'tiny',tableTextScale:'999'
+  });
+  vault.documents=[doc];
+  const appearance=migrateVault(vault).documents[0].appearance;
+  assert.equal(appearance.accentColor,'#b58b4f');
+  assert.equal(appearance.headingTextColor,'');
+  assert.equal(appearance.primaryTextColor,'');
+  assert.equal(appearance.secondaryTextColor,'');
+  assert.equal(appearance.documentTitleScale,undefined);
+  assert.equal(appearance.sectionHeadingScale,undefined);
+  assert.equal(appearance.bodyTextScale,undefined);
+  assert.equal(appearance.tableTextScale,undefined);
+});
+
+test('former dark identities resolve a light commercial body instead of white body text',()=>{
+  const base=createBlankDocument('invoice','INV-2026-TONE',defaultCompany()).appearance;
+  for(const templateId of ['obsidian','noir','midnight','blackivory','carbon']){
+    const tokens=resolvedAppearanceTokens({...base,templateId,paletteMode:'auto'});
+    assert.equal(tokens.page,'#fffdf8',`${templateId} body must remain a light commercial sheet`);
+    assert.equal(tokens.primary,'#17212b',`${templateId} body copy must remain dark on the light sheet`);
+    assert.equal(tokens.secondary,'#4d5b68',`${templateId} labels must remain readable on the light sheet`);
+  }
+});
+
+test('custom text colors are contrast guarded while safe choices remain user controlled',()=>{
+  const base=createBlankDocument('invoice','INV-2026-CONTRAST',defaultCompany()).appearance;
+  const unsafe=resolvedAppearanceTokens({...base,paletteMode:'custom',primaryTextColor:'#ffffff',secondaryTextColor:'#ffffff',headingTextColor:'#ffffff'});
+  assert.equal(unsafe.primary,'#17212b');
+  assert.equal(unsafe.secondary,'#4d5b68');
+  assert.notEqual(unsafe.heading,'#ffffff');
+  const safe=resolvedAppearanceTokens({...base,paletteMode:'custom',primaryTextColor:'#111111',secondaryTextColor:'#333333',headingTextColor:'#222222'});
+  assert.equal(safe.primary,'#111111');
+  assert.equal(safe.secondary,'#333333');
+  assert.equal(safe.heading,'#222222');
+});
+
 test('preview and all output modes consume one renderer token source',async()=>{
   const [editor,renderer,appearance]=await Promise.all([
     read('src/components/EditorPageCore.tsx'),
@@ -79,6 +156,15 @@ test('the reported dark-template terms regression is covered at the actual marku
   assert.match(renderer,/<b>\{localized\(doc,row\[0\],row\[1\]\)\}<\/b><span dir="auto">\{row\[2\]\}<\/span>/);
   assert.match(css,/\.terms-block \.term-row>b\{color:var\(--lrx-secondary/);
   assert.match(css,/\.terms-block \.term-row>span\{color:var\(--lrx-primary/);
+});
+
+test('custom body colors cannot overwrite authored totals or table-header contrast',async()=>{
+  const css=await read('src/styles/template-surface-contrast-v366.css');
+  const primaryRule=css.match(/\.invoice-page :is\(([^)]*terms-block \.term-row>span[^)]*)\)\{color:var\(--lrx-primary/);
+  assert.ok(primaryRule,'semantic primary body rule must exist');
+  assert.doesNotMatch(primaryRule[1],/totals-block/);
+  assert.doesNotMatch(primaryRule[1],/items-table thead/);
+  assert.match(css,/Do not globally override table-header or totals text colors/);
 });
 
 test('mobile design controls remain touch-safe and one-column without new app chrome',async()=>{
