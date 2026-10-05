@@ -16,6 +16,7 @@ on:
       - 'scripts/ai-conversation-owner-stage4-accessibility.mjs'
       - 'scripts/ai-conversation-final-batch5.mjs'
       - 'scripts/ai-remediation-batch3-conversation-ux.mjs'
+      - 'scripts/ai-remediation-batch3-conversation-ux-closeout.mjs'
       - 'tests/ai-conversation-final-batch5.test.mjs'
       - 'tests/ai-remediation-batch3-conversation-ux.test.mjs'
       - 'tests/ai-voice-ios-release-owner.test.mjs'
