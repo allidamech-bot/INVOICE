@@ -22,9 +22,10 @@
   :is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block dt,.totals-block small,.notes-block h3,.bank-block h3,.signature-block h3,.doc-footer){color:var(--doc-secondary-text,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--doc-secondary-text,var(--lrx-light-muted))!important;}
 
   /* Midnight and Carbon keep an intentionally dark totals module on their otherwise
-   * light sheets. Surface contrast wins over the sheet-level text preference here. */
-  :is(.template-midnight,.template-carbon) .totals-block{color:var(--lrx-dark-ink)!important;}
-  :is(.template-midnight,.template-carbon) .totals-block :is(span,strong,small){color:var(--lrx-dark-ink)!important;-webkit-text-fill-color:var(--lrx-dark-ink)!important;}
+   * light sheets. This selector deliberately owns the local surface with stronger
+   * specificity than legacy flagship rules that still describe older light totals. */
+  .invoice-pages>.invoice-page:is(.template-midnight,.template-carbon) .totals-block{color:var(--lrx-dark-ink)!important;}
+  .invoice-pages>.invoice-page:is(.template-midnight,.template-carbon) .totals-block :is(.total-row>span,.total-row>strong,.grand-total>span,.grand-total>strong,small){color:var(--lrx-dark-ink)!important;-webkit-text-fill-color:var(--lrx-dark-ink)!important;}
 
   /* Obsidian is the only commercial template with a full dark body. Its white
    * customer/seller cards remain protected by the surface-specific rules above. */
