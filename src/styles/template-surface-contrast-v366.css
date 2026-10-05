@@ -9,6 +9,8 @@
     --lrx-light-muted:#58656f;
     --lrx-dark-ink:#fffaf0;
     --lrx-dark-muted:#d7d0c4;
+    --lrx-title-base:25px;
+    --lrx-title-secondary-base:20px;
   }
 
   /* Baseline local-surface protection retained from latest main. Party cards are
@@ -85,8 +87,29 @@
   /* Bounded typography controls apply in Auto and Custom. Normal must be a visual
    * no-op relative to the effective shipped v141 + v364 document cascade, including
    * compact/template-specific table typography. Small/Large scale the authored
-   * hierarchy instead of flattening every role. */
-  .invoice-page .doc-title{zoom:var(--lrx-title-scale,1);}
+   * hierarchy instead of flattening every role. Title sizing uses real font-size
+   * rather than CSS zoom so Safari/WebKit participates in layout and pagination. */
+  .invoice-page .doc-title{zoom:1;}
+  .invoice-page.template-executive{--lrx-title-base:28px;}
+  .invoice-page.template-minimal{--lrx-title-base:31px;--lrx-title-secondary-base:22px;}
+  .invoice-page.template-trade{--lrx-title-base:27px;}
+  .invoice-page.template-signature{--lrx-title-base:29px;}
+  .invoice-page.template-obsidian{--lrx-title-base:25px;}
+  .invoice-page.template-cobalt{--lrx-title-base:25px;}
+  .invoice-page.template-editorial{--lrx-title-base:34px;--lrx-title-secondary-base:22px;}
+  .invoice-page.template-split{--lrx-title-base:30px;}
+  .invoice-page.template-prism{--lrx-title-base:25px;}
+  .invoice-page.template-slate{--lrx-title-base:29px;}
+  .invoice-page.template-horizon{--lrx-title-base:29px;}
+  .invoice-page.template-mono{--lrx-title-base:29px;}
+  .invoice-page.template-aurora{--lrx-title-base:29px;}
+  .invoice-page.template-ledger{--lrx-title-base:25px;}
+  .invoice-page.template-noir{--lrx-title-base:29px;}
+  .invoice-page.template-midnight{--lrx-title-base:30px;}
+  .invoice-page.template-blackivory{--lrx-title-base:31px;--lrx-title-secondary-base:22px;}
+  .invoice-page.template-carbon{--lrx-title-base:28px;}
+  .invoice-page.page-first :is(.header-executive,.header-minimal,.header-trade,.header-signature,.header-modern) .doc-title>span{font-size:calc(var(--lrx-title-base,25px)*var(--lrx-title-scale,1))!important;}
+  .invoice-page.page-first.lang-bilingual :is(.header-executive,.header-minimal,.header-trade,.header-signature,.header-modern) .doc-title>em{font-size:calc(var(--lrx-title-secondary-base,20px)*var(--lrx-title-scale,1))!important;}
 
   .invoice-page :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3){font-size:var(--lrx-heading-size,6.8px)!important;line-height:1.25!important;}
   .invoice-page .continued-label{font-size:calc(var(--lrx-heading-size,6.8px)*.955882)!important;line-height:1.25!important;}
