@@ -15,6 +15,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ai-conversation-batch4-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   executive-ai-workspace:
     name: Executive AI workspace gate
