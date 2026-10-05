@@ -30,6 +30,15 @@ const AUTO_ACCENTS: Record<TemplateId,string> = {
 const TEMPLATE_PAPERS: Record<TemplateId,string> = {
   executive:'#ffffff', minimal:'#ffffff', trade:'#ffffff', signature:'#fcfaf5', obsidian:'#15191c', cobalt:'#ffffff', editorial:'#ffffff', split:'#ffffff', prism:'#ffffff', slate:'#ffffff', horizon:'#ffffff', mono:'#ffffff', aurora:'#fdfbf6', ledger:'#ffffff', noir:'#fffdf8', midnight:'#fcfaf4', blackivory:'#fbf6eb', carbon:'#fafafa'
 };
+
+/* Foreground roles are used on more than the page itself: alternating item rows,
+ * party cards and section labels also use authored light fills. A color that only
+ * clears 4.5:1 on pure white can still become unreadable on those slightly darker
+ * surfaces, so custom text must pass both the page and the darkest common light
+ * semantic surface for that template. */
+const TEMPLATE_LIGHT_SURFACES: Record<TemplateId,string> = {
+  executive:'#f5f7f8', minimal:'#ffffff', trade:'#f2f6f7', signature:'#f8f3e8', obsidian:'#f1f2f2', cobalt:'#f1f6fa', editorial:'#ffffff', split:'#eef2f2', prism:'#f3f8f7', slate:'#f1f3f4', horizon:'#f4f8f9', mono:'#f4f4f4', aurora:'#eef5f3', ledger:'#e9eef0', noir:'#f5f2eb', midnight:'#edf2f3', blackivory:'#f5efe3', carbon:'#eceeef'
+};
 const DARK_BODY_TEMPLATES=new Set<TemplateId>(['obsidian']);
 const LATIN_FONTS: Record<Exclude<LatinFontId,'auto'>,string> = {inter:'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif','source-sans':'"Source Sans 3", "Segoe UI", Arial, sans-serif',montserrat:'Montserrat, Arial, sans-serif',playfair:'"Playfair Display", Georgia, serif'};
 const ARABIC_FONTS: Record<Exclude<ArabicFontId,'auto'>,string> = {cairo:'Cairo, Tahoma, Arial, sans-serif',tajawal:'Tajawal, Tahoma, Arial, sans-serif','noto-kufi':'"Noto Kufi Arabic", Tahoma, Arial, sans-serif','noto-naskh':'"Noto Naskh Arabic", Tahoma, Arial, serif'};
@@ -59,9 +68,10 @@ function luminance(hex:string):number{
 }
 function contrastRatio(a:number,b:number):number{const lighter=Math.max(a,b),darker=Math.min(a,b);return(lighter+0.05)/(darker+0.05);}
 function colorContrast(foreground:string,background:string):number{return contrastRatio(luminance(foreground),luminance(background));}
-function safeTextColor(candidate:unknown,background:string,fallback:string,minContrast=4.5):string{
+function safeTextColor(candidate:unknown,backgrounds:string|readonly string[],fallback:string,minContrast=4.5):string{
   if(!validHex(candidate))return fallback;
-  return colorContrast(candidate,background)>=minContrast?candidate:fallback;
+  const surfaces=Array.isArray(backgrounds)?backgrounds:[backgrounds as string];
+  return surfaces.every(background=>colorContrast(candidate,background)>=minContrast)?candidate:fallback;
 }
 function scaleValue(value:TextScale|undefined,normal:number,smallRatio:number,largeRatio:number):number{
   return normal*(value==='small'?smallRatio:value==='large'?largeRatio:1);
@@ -79,13 +89,15 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const custom=(appearance.paletteMode??'auto')==='custom';
   const darkBody=DARK_BODY_TEMPLATES.has(appearance.templateId);
   const page=TEMPLATE_PAPERS[appearance.templateId];
+  const lightSurface=TEMPLATE_LIGHT_SURFACES[appearance.templateId];
+  const bodyContrastSurfaces=darkBody?[page]:[page,lightSurface];
 
   const defaultPrimary=darkBody?'#f5f1e9':'#17212b';
   const defaultSecondary=darkBody?'#aeb5ba':'#4d5b68';
-  const primary=custom?safeTextColor(appearance.primaryTextColor,page,defaultPrimary):defaultPrimary;
-  const secondary=custom?safeTextColor(appearance.secondaryTextColor,page,defaultSecondary):defaultSecondary;
-  const autoHeading=safeTextColor(accent,page,primary);
-  const heading=custom?safeTextColor(appearance.headingTextColor,page,autoHeading):autoHeading;
+  const primary=custom?safeTextColor(appearance.primaryTextColor,bodyContrastSurfaces,defaultPrimary):defaultPrimary;
+  const secondary=custom?safeTextColor(appearance.secondaryTextColor,bodyContrastSurfaces,defaultSecondary):defaultSecondary;
+  const autoHeading=safeTextColor(accent,bodyContrastSurfaces,primary);
+  const heading=custom?safeTextColor(appearance.headingTextColor,bodyContrastSurfaces,autoHeading):autoHeading;
   const legacyScale=appearance.textScale??'normal';
 
   // Renderer variables predate role-based sizing and use historical numeric bases
@@ -100,7 +112,7 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   // Surface tokens describe local modules, not the page as a whole. Obsidian is
   // intentionally mixed: graphite page/body plus light #f1f2f2 party cards.
   // Custom page text can therefore never be reused blindly inside those cards.
-  const surface=darkBody?'#f1f2f2':'#ffffff';
+  const surface=darkBody?lightSurface:'#ffffff';
   const surfaceInk='#17212b';
   const surfaceMuted='#58656f';
   const darkSurface=darkBody?page:'#202020';
