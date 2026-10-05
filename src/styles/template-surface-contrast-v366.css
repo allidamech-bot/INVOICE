@@ -1,7 +1,7 @@
 /* LOUREX v366 — document appearance guard.
- * Canonical template art direction remains authoritative in Auto mode.
- * Custom mode may recolor bounded semantic roles on light document surfaces,
- * but must never repaint authored dark mastheads, table headers or totals bands.
+ * Authored template art direction remains authoritative in Auto mode. Custom mode
+ * recolors bounded semantic roles without leaking one foreground across surfaces.
+ * Obsidian is intentionally mixed: graphite commercial body + light party cards.
  */
 @media screen, print {
   .invoice-page{
@@ -11,8 +11,8 @@
     --lrx-dark-muted:#d7d0c4;
   }
 
-  /* Auto means matched to the selected template. Do not flatten the canonical
-   * 18 template palettes with a second global foreground system. */
+  /* Auto means matched to the selected template. Do not flatten the authored
+   * template palettes with a second global foreground system. */
 
   /* Custom Accent is structural/decorative. It changes safe rules/highlights,
    * while foreground readability is controlled independently below. */
@@ -21,12 +21,13 @@
   .invoice-page.palette-custom .party-customer{border-color:var(--accent)!important;}
   .invoice-page.palette-custom .grand-total{border-top-color:var(--accent)!important;}
 
-  /* Custom semantic foreground roles only target light commercial body surfaces.
-   * Dark mastheads, item-table headers and totals panels keep their authored ink. */
-  .invoice-page.palette-custom .party-block{color:var(--lrx-primary,var(--lrx-light-ink))!important;}
-  .invoice-page.palette-custom .party-block :is(.party-name,.party-identifiers span,.bi-value,.bi-value>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
-  .invoice-page.palette-custom .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
-  .invoice-page.palette-custom .party-block :is(.section-kicker,.party-identifiers b){color:var(--lrx-heading,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-light-ink))!important;}
+  /* Custom semantic foreground roles on normal light-body templates. Obsidian's
+   * party cards are excluded because its page token is intentionally light-on-dark
+   * while those local cards need independent dark-on-light ink. */
+  .invoice-page.palette-custom:not(.template-obsidian) .party-block{color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page.palette-custom:not(.template-obsidian) .party-block :is(.party-name,.party-identifiers span,.bi-value,.bi-value>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page.palette-custom:not(.template-obsidian) .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
+  .invoice-page.palette-custom:not(.template-obsidian) .party-block :is(.section-kicker,.party-identifiers b){color:var(--lrx-heading,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-light-ink))!important;}
 
   .invoice-page.palette-custom :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block .term-row>span,.notes-block p,.bank-block>div>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
   .invoice-page.palette-custom :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
@@ -36,6 +37,23 @@
    * contract explicit: Payment Terms / Final Destination are values, not labels. */
   .invoice-page.palette-custom .terms-block .term-row>b{color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
   .invoice-page.palette-custom .terms-block .term-row>span{color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+
+  /* Effective Obsidian is a graphite body because the later v330 identity layer
+   * overrides --paper/--soft, but its two party cards remain light v141 modules.
+   * Repair both Auto and Custom against the surfaces that actually render. */
+  .invoice-page.template-obsidian .party-block{color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;}
+  .invoice-page.template-obsidian .party-block :is(.party-name,.party-identifiers span,.bi-value,.bi-value>span){color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;}
+  .invoice-page.template-obsidian .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){color:var(--lrx-surface-muted,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-surface-muted,var(--lrx-light-muted))!important;}
+  .invoice-page.template-obsidian .party-block :is(.section-kicker,.party-identifiers b){color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;}
+
+  .invoice-page.template-obsidian :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block .term-row>span,.notes-block p,.bank-block>div>span){color:var(--lrx-primary,var(--lrx-dark-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-dark-ink))!important;}
+  .invoice-page.template-obsidian :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-dark-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-dark-muted))!important;}
+  .invoice-page.template-obsidian :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){color:var(--lrx-heading,var(--lrx-dark-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-dark-ink))!important;}
+
+  /* Signature is ink on the graphite body. Preserve stamp color; only signature
+   * artwork receives the dark-surface compatibility treatment. */
+  .invoice-page.template-obsidian .signature-image:not([src^="data:image/jpeg"]){filter:brightness(0) invert(1) contrast(1.25) drop-shadow(0 0 .25mm rgba(255,255,255,.18));mix-blend-mode:normal;}
+  .invoice-page.template-obsidian .signature-image[src^="data:image/jpeg"]{filter:invert(1) grayscale(1) contrast(1.30) brightness(1.12);mix-blend-mode:screen;}
 
   /* Deliberately absent: custom foreground rules for .items-table thead,
    * .totals-block, .grand-total, mastheads and document-title ink. Those surfaces
