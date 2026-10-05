@@ -1,0 +1,100 @@
+name: Temporary document appearance patch
+on:
+  push:
+    branches: [fix/document-pdf-appearance-controls]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[appearance-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: fix/document-pdf-appearance-controls
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Apply root document appearance fix
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const replaceOnce=(path,from,to)=>{
+            const source=fs.readFileSync(path,'utf8');
+            const count=source.split(from).length-1;
+            if(count!==1)throw new Error(`${path}: expected exactly one match, found ${count}`);
+            fs.writeFileSync(path,source.replace(from,to));
+          };
+
+          replaceOnce('src/storage/vault.ts',
+            "function cleanPrefix(value:unknown,fallback:string):string{return (stringValue(value,fallback).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)||fallback);}\nfunction booleanValue",
+            "function cleanPrefix(value:unknown,fallback:string):string{return (stringValue(value,fallback).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)||fallback);}\nfunction hexColorValue(value:unknown,fallback=''):string{const color=stringValue(value).trim();return /^#[0-9a-f]{6}$/i.test(color)?color:fallback;}\nfunction textScaleValue(value:unknown):'small'|'normal'|'large'{return value==='small'||value==='large'?value:'normal';}\nfunction booleanValue");
+          replaceOnce('src/storage/vault.ts',
+            "templateId:templateValue(appearance.templateId,'executive'), paletteMode:appearance.paletteMode === 'custom' ? 'custom' : 'auto', accentColor:stringValue(appearance.accentColor,'#b58b4f'),\n        latinFont:",
+            "templateId:templateValue(appearance.templateId,'executive'), paletteMode:appearance.paletteMode === 'custom' ? 'custom' : 'auto', accentColor:hexColorValue(appearance.accentColor,'#b58b4f'),\n        primaryTextColor:hexColorValue(appearance.primaryTextColor), secondaryTextColor:hexColorValue(appearance.secondaryTextColor), textScale:textScaleValue(appearance.textScale),\n        latinFont:");
+
+          replaceOnce('src/lib/documents.ts',
+            "appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: kind==='draft'?'#8e7cf3':kind==='rfq'?'#2563eb':kind==='purchase-order'?'#c88f37':kind==='delivery-note'?'#7c8b95':kind==='payment-receipt'?'#0f9f7f':'#159fa7', latinFont: 'auto', arabicFont: 'auto',",
+            "appearance: { templateId: 'executive', paletteMode: 'auto', accentColor: kind==='draft'?'#8e7cf3':kind==='rfq'?'#2563eb':kind==='purchase-order'?'#c88f37':kind==='delivery-note'?'#7c8b95':kind==='payment-receipt'?'#0f9f7f':'#159fa7', primaryTextColor:'', secondaryTextColor:'', textScale:'normal', latinFont: 'auto', arabicFont: 'auto',");
+
+          replaceOnce('src/lib/appearance.ts',
+            "const dark=DARK_TEMPLATES.has(appearance.templateId);const accent=resolvedAccent(appearance);const custom=(appearance.paletteMode??'auto')==='custom';const a=appearance as DocumentAppearance&{primaryTextColor?:string;secondaryTextColor?:string;textScale?:'small'|'normal'|'large'};\n  const primary=custom&&validHex(a.primaryTextColor)?a.primaryTextColor:(dark?'#f7f2e8':'#17212b');\n  const secondary=custom&&validHex(a.secondaryTextColor)?a.secondaryTextColor:(dark?'#d7d0c4':'#4d5b68');\n  const textScale=a.textScale==='small'?.94:a.textScale==='large'?1.08:1;",
+            "const dark=DARK_TEMPLATES.has(appearance.templateId);const accent=resolvedAccent(appearance);const custom=(appearance.paletteMode??'auto')==='custom';\n  const primary=custom&&validHex(appearance.primaryTextColor)?appearance.primaryTextColor:(dark?'#f7f2e8':'#17212b');\n  const secondary=custom&&validHex(appearance.secondaryTextColor)?appearance.secondaryTextColor:(dark?'#d7d0c4':'#4d5b68');\n  const textScale=appearance.textScale==='small'?.94:appearance.textScale==='large'?1.08:1;");
+
+          replaceOnce('src/templates/TemplateRenderer.tsx',
+            "import { resolvedAccent, resolvedAccentInk, resolvedArabicFont, resolvedLatinFont } from '../lib/appearance.js';",
+            "import { resolvedAppearanceTokens, resolvedArabicFont, resolvedLatinFont } from '../lib/appearance.js';");
+          replaceOnce('src/templates/TemplateRenderer.tsx',
+            "const accent=resolvedAccent(doc.appearance);\n  const paletteMode=doc.appearance.paletteMode??'auto';\n  const detailsOnly=finalPage&&pageIndex>0&&items.length===0;\n  const style={ '--accent':accent, '--accent-ink':resolvedAccentInk(accent), '--font-latin':resolvedLatinFont(doc.appearance), '--font-arabic':resolvedArabicFont(doc.appearance) } as any;",
+            "const appearanceTokens=resolvedAppearanceTokens(doc.appearance);\n  const accent=appearanceTokens.accent;\n  const paletteMode=doc.appearance.paletteMode??'auto';\n  const detailsOnly=finalPage&&pageIndex>0&&items.length===0;\n  const style={ '--accent':accent, '--accent-ink':appearanceTokens.accentInk, '--font-latin':resolvedLatinFont(doc.appearance), '--font-arabic':resolvedArabicFont(doc.appearance), '--doc-primary-text':appearanceTokens.primary, '--doc-secondary-text':appearanceTokens.secondary, '--doc-text-scale':String(appearanceTokens.textScale) } as any;");
+
+          replaceOnce('src/components/EditorPageCore.tsx',
+            "import { ARABIC_FONT_OPTIONS, LATIN_FONT_OPTIONS } from '../lib/appearance.js';",
+            "import { ARABIC_FONT_OPTIONS, LATIN_FONT_OPTIONS, resolvedAppearanceTokens } from '../lib/appearance.js';");
+          replaceOnce('src/components/EditorPageCore.tsx',
+            "const credit=isSupplierDocument||d.kind!=='invoice'?null:customerCreditStatus(d,this.props.customers,this.props.documents,this.props.payments);\n\n    return",
+            "const credit=isSupplierDocument||d.kind!=='invoice'?null:customerCreditStatus(d,this.props.customers,this.props.documents,this.props.payments);\n    const appearanceTokens=resolvedAppearanceTokens(d.appearance);\n\n    return");
+          replaceOnce('src/components/EditorPageCore.tsx',
+            "<option value=\"custom\">{t('Custom Accent','لون مخصص')}</option></Select></Field>{(d.appearance.paletteMode??'auto')==='custom'?<Field label={t('Accent','اللون المميز')}><Input type=\"color\" value={d.appearance.accentColor||'#b58b4f'} onChange={(e:any)=>this.appearance('accentColor',e.target.value)}/></Field>:<div className=\"appearance-auto-note\"><span><strong>{t('Auto','تلقائي')}</strong>{t('The template chooses its balanced accent and contrast automatically.','يختار القالب اللون والتباين المتوازن تلقائيًا.')}</span></div>}<Field label={t('English Font','الخط الإنجليزي')}>",
+            "<option value=\"custom\">{t('Custom Accent + Text','ألوان مخصصة')}</option></Select></Field>{(d.appearance.paletteMode??'auto')==='custom'?<><Field label={t('Accent','اللون المميز')}><Input type=\"color\" value={d.appearance.accentColor||'#b58b4f'} onChange={(e:any)=>this.appearance('accentColor',e.target.value)}/></Field><Field label={t('Primary Text','لون النص الرئيسي')}><Input type=\"color\" value={d.appearance.primaryTextColor||appearanceTokens.primary} onChange={(e:any)=>this.appearance('primaryTextColor',e.target.value)}/></Field><Field label={t('Secondary Text','لون النص الثانوي')}><Input type=\"color\" value={d.appearance.secondaryTextColor||appearanceTokens.secondary} onChange={(e:any)=>this.appearance('secondaryTextColor',e.target.value)}/></Field></>:<div className=\"appearance-auto-note\"><span><strong>{t('Auto','تلقائي')}</strong>{t('The template chooses its balanced accent and contrast automatically.','يختار القالب اللون والتباين المتوازن تلقائيًا.')}</span></div>}<Field label={t('Text Size','حجم النص')}><Select value={d.appearance.textScale??'normal'} onChange={(e:any)=>this.appearance('textScale',e.target.value)}><option value=\"small\">{t('Compact','صغير')}</option><option value=\"normal\">{t('Normal','عادي')}</option><option value=\"large\">{t('Large','كبير')}</option></Select></Field><Field label={t('English Font','الخط الإنجليزي')}>" );
+
+          replaceOnce('src/styles/template-surface-contrast-v366.css',
+            ":is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger) :is(.items-table tbody,.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){color:var(--lrx-light-ink)!important;}",
+            ":is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger) :is(.items-table tbody,.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){color:var(--doc-primary-text,var(--lrx-light-ink))!important;}");
+          replaceOnce('src/styles/template-surface-contrast-v366.css',
+            ":is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger) :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block dd,.terms-block p,.totals-block,.totals-block span,.totals-block strong,.notes-block p,.bank-block p,.signature-block p){color:var(--lrx-light-ink)!important;-webkit-text-fill-color:var(--lrx-light-ink)!important;}",
+            ":is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger) :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block dd,.terms-block p,.totals-block,.totals-block span,.totals-block strong,.notes-block p,.bank-block p,.signature-block p){color:var(--doc-primary-text,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--doc-primary-text,var(--lrx-light-ink))!important;}");
+          replaceOnce('src/styles/template-surface-contrast-v366.css',
+            ":is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger) :is(.terms-block dt,.totals-block small,.notes-block h3,.bank-block h3,.signature-block h3,.doc-footer){color:var(--lrx-light-muted)!important;-webkit-text-fill-color:var(--lrx-light-muted)!important;}",
+            ":is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger) :is(.terms-block dt,.totals-block small,.notes-block h3,.bank-block h3,.signature-block h3,.doc-footer){color:var(--doc-secondary-text,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--doc-secondary-text,var(--lrx-light-muted))!important;}");
+          replaceOnce('src/styles/template-surface-contrast-v366.css',
+            ":is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody,.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){color:var(--lrx-dark-ink)!important;}",
+            ":is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody,.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){color:var(--doc-primary-text,var(--lrx-dark-ink))!important;}");
+          replaceOnce('src/styles/template-surface-contrast-v366.css',
+            ":is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block dd,.terms-block p,.totals-block,.totals-block span,.totals-block strong,.notes-block p,.bank-block p,.signature-block p){color:var(--lrx-dark-ink)!important;-webkit-text-fill-color:var(--lrx-dark-ink)!important;}",
+            ":is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block dd,.terms-block p,.totals-block,.totals-block span,.totals-block strong,.notes-block p,.bank-block p,.signature-block p){color:var(--doc-primary-text,var(--lrx-dark-ink))!important;-webkit-text-fill-color:var(--doc-primary-text,var(--lrx-dark-ink))!important;}");
+          replaceOnce('src/styles/template-surface-contrast-v366.css',
+            ":is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block dt,.totals-block small,.notes-block h3,.bank-block h3,.signature-block h3,.doc-footer){color:var(--lrx-dark-muted)!important;-webkit-text-fill-color:var(--lrx-dark-muted)!important;}",
+            ":is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block dt,.totals-block small,.notes-block h3,.bank-block h3,.signature-block h3,.doc-footer){color:var(--doc-secondary-text,var(--lrx-dark-muted))!important;-webkit-text-fill-color:var(--doc-secondary-text,var(--lrx-dark-muted))!important;}");
+          replaceOnce('src/styles/template-surface-contrast-v366.css',
+            ".invoice-page .items-table tbody td{font-size:max(7.4px,1em)!important;line-height:1.34!important;}\n  .invoice-page .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){font-size:max(7.6px,1em)!important;line-height:1.38!important;}\n  .invoice-page :is(.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){line-height:1.38!important;}",
+            ".invoice-page .items-table tbody td{font-size:max(calc(7.4px * var(--doc-text-scale,1)),calc(1em * var(--doc-text-scale,1)))!important;line-height:1.34!important;}\n  .invoice-page .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){font-size:max(calc(7.6px * var(--doc-text-scale,1)),calc(1em * var(--doc-text-scale,1)))!important;line-height:1.38!important;}\n  .invoice-page :is(.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){font-size:calc(1em * var(--doc-text-scale,1))!important;line-height:1.38!important;}");
+
+          const test=`import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport {readFile} from 'node:fs/promises';\nconst read=path=>readFile(path,'utf8');\n\ntest('document appearance controls persist and drive the renderer/PDF contract',async()=>{\n  const [editor,renderer,vault,documents,css]=await Promise.all([read('src/components/EditorPageCore.tsx'),read('src/templates/TemplateRenderer.tsx'),read('src/storage/vault.ts'),read('src/lib/documents.ts'),read('src/styles/template-surface-contrast-v366.css')]);\n  assert.match(editor,/Primary Text[\\s\\S]{0,260}primaryTextColor/);\n  assert.match(editor,/Secondary Text[\\s\\S]{0,260}secondaryTextColor/);\n  assert.match(editor,/Text Size[\\s\\S]{0,300}textScale/);\n  assert.match(renderer,/resolvedAppearanceTokens\\(doc\\.appearance\\)/);\n  assert.match(renderer,/--doc-primary-text/);\n  assert.match(renderer,/--doc-secondary-text/);\n  assert.match(renderer,/--doc-text-scale/);\n  assert.match(vault,/primaryTextColor:hexColorValue\\(appearance\\.primaryTextColor\\)/);\n  assert.match(vault,/secondaryTextColor:hexColorValue\\(appearance\\.secondaryTextColor\\)/);\n  assert.match(vault,/textScale:textScaleValue\\(appearance\\.textScale\\)/);\n  assert.match(documents,/primaryTextColor:''[\\s\\S]{0,120}secondaryTextColor:''[\\s\\S]{0,120}textScale:'normal'/);\n  assert.match(css,/var\\(--doc-primary-text,var\\(--lrx-light-ink\\)\\)/);\n  assert.match(css,/var\\(--doc-primary-text,var\\(--lrx-dark-ink\\)\\)/);\n  assert.match(css,/var\\(--doc-secondary-text,var\\(--lrx-light-muted\\)\\)/);\n  assert.match(css,/var\\(--doc-text-scale,1\\)/);\n  assert.match(css,/\\.invoice-page \\.party-block\\{color:var\\(--lrx-light-ink\\)!important;\\}/,'light party cards stay surface-safe even when a dark template uses custom body text');\n});\n\ntest('vault migration really preserves manual document appearance values',async()=>{\n  const {emptyVault}=await import('../dist/src/lib/defaults.js');\n  const {createBlankDocument}=await import('../dist/src/lib/documents.js');\n  const {migrateVault}=await import('../dist/src/storage/vault.js');\n  const vault=emptyVault();\n  const doc=createBlankDocument('proforma','QUO-TEST',vault.company);\n  doc.appearance.paletteMode='custom';doc.appearance.primaryTextColor='#112233';doc.appearance.secondaryTextColor='#445566';doc.appearance.textScale='large';\n  vault.documents=[doc];\n  const migrated=migrateVault(vault);\n  assert.equal(migrated.documents[0].appearance.primaryTextColor,'#112233');\n  assert.equal(migrated.documents[0].appearance.secondaryTextColor,'#445566');\n  assert.equal(migrated.documents[0].appearance.textScale,'large');\n});\n`;
+          fs.writeFileSync('tests/document-appearance-controls-v525.test.mjs',test);
+          NODE
+      - name: Verify
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+          node --test tests/template-design-system-foundation.test.mjs tests/template-contrast-regression-v366.test.mjs tests/template-surface-contrast-v366.test.mjs tests/document-appearance-controls-v525.test.mjs
+      - name: Commit clean product diff
+        run: |
+          rm .github/workflows/tmp-document-appearance-patch.yml
+          git config user.name 'LOUREX QA'
+          git config user.email 'actions@github.com'
+          git add src tests .github/workflows/tmp-document-appearance-patch.yml
+          git commit -m 'fix(documents): complete appearance controls end to end [appearance-patched]'
+          git push origin HEAD:fix/document-pdf-appearance-controls
