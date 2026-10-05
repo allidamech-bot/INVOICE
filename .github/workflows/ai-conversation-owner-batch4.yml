@@ -5,16 +5,21 @@ on:
     branches: [main]
     paths:
       - 'package.json'
+      - 'scripts/ai-batch7-placement-repair.mjs'
       - 'scripts/ai-conversation-owner-stage4-tools.mjs'
       - 'scripts/ai-conversation-owner-stage4-tools-closeout.mjs'
       - 'scripts/ai-conversation-owner-stage4.mjs'
       - 'scripts/ai-conversation-owner-stage4-accessibility.mjs'
+      - 'scripts/ai-remediation-batch4-tools-routes-ux.mjs'
+      - 'src/components/AiCopilot.tsx'
+      - 'src/components/AiWorkflowTools.tsx'
+      - 'src/components/DailyCommandCenterTool.tsx'
       - 'tests/ai-conversation-owner-batch4.test.mjs'
       - 'tests/ai-conversation-natural-os-batch4.test.mjs'
       - 'tests/ai-conversation-batch4-consolidation.test.mjs'
+      - 'tests/ai-remediation-batch4-tools-routes-ux.test.mjs'
       - 'tests/visual/run-ai-voice-reliability-batch5.cjs'
-      - 'src/components/AiCopilot.tsx'
-      - 'src/components/AiWorkflowTools.tsx'
+      - 'tests/visual/run-ai-remediation-batch4-tools-routes-ux-v3.cjs'
       - '.github/workflows/ai-conversation-owner-batch4.yml'
   workflow_dispatch:
 
@@ -45,4 +50,30 @@ jobs:
       - name: Production build
         run: npm run build
       - name: Batch 4 contracts
-        run: node --test tests/ai-conversation-owner-batch4.test.mjs tests/ai-conversation-natural-os-batch4.test.mjs tests/ai-conversation-batch4-consolidation.test.mjs
+        run: node --test tests/ai-conversation-owner-batch4.test.mjs tests/ai-conversation-natural-os-batch4.test.mjs tests/ai-conversation-batch4-consolidation.test.mjs tests/ai-remediation-batch4-tools-routes-ux.test.mjs
+      - name: Install focused browser QA runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Run focused Batch 4 browser acceptance
+        run: |
+          npx http-server . -p 4173 -c-1 > /tmp/lourex-ai-remediation-batch4.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/lourex-ai-remediation-batch4.log; exit 1; fi
+          node tests/visual/run-ai-remediation-batch4-tools-routes-ux-v3.cjs
+      - name: Upload Batch 4 browser evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lourex-ai-remediation-batch4-tools-routes-ux
+          path: visual-qa-output/ai-remediation-batch4-tools-routes-ux
+          if-no-files-found: error
