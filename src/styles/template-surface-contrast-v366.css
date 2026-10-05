@@ -81,13 +81,13 @@
    * vary by template and keep their explicit high-contrast colors. */
 
   /* Bounded typography controls apply in Auto and Custom. Normal must be a visual
-   * no-op relative to v141, including compact/template-specific table typography.
-   * Small/Large scale the authored hierarchy instead of flattening every role. */
+   * no-op relative to the effective shipped v141 + v364 document cascade, including
+   * compact/template-specific table typography. Small/Large scale the authored
+   * hierarchy instead of flattening every role. */
   .invoice-page .doc-title{zoom:var(--lrx-title-scale,1);}
 
-  .invoice-page :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3){font-size:var(--lrx-heading-size,7px)!important;line-height:1.25!important;}
-  .invoice-page .items-wrap{font-size:var(--lrx-heading-size,7px)!important;}
-  .invoice-page .continued-label{font-size:92.857%!important;line-height:1.25!important;}
+  .invoice-page :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3){font-size:var(--lrx-heading-size,6.8px)!important;line-height:1.25!important;}
+  .invoice-page .continued-label{font-size:calc(var(--lrx-heading-size,6.8px)*.955882)!important;line-height:1.25!important;}
 
   .invoice-page .items-table{font-size:var(--lrx-table-size,7.25px)!important;}
   .invoice-page .items-table thead th{font-size:87.586%!important;}
