@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 const localStyles=html=>[...html.matchAll(/href="\.\/styles\/([^"?]+\.css)(?:\?[^\"]*)?"/g)].map(match=>match[1]);
+const standaloneSourceOwners=new Set(['v331-draft-scroll-recovery.css','v332-critical-documents-deep-closeout.css']);
 
 test('production build keeps the current bundle plus ordered standalone runtime owners',async()=>{
   const [sourceHtml,distHtml,bundle]=await Promise.all([
@@ -25,12 +26,13 @@ test('production build keeps the current bundle plus ordered standalone runtime 
   assert.ok(distHtml.indexOf('v331-draft-scroll-recovery.css')<distHtml.indexOf('v332-critical-documents-deep-closeout.css'));
   assert.ok(distHtml.indexOf('v332-critical-documents-deep-closeout.css')<distHtml.indexOf('v482-mobile-ux-repair.css'));
   let previous=-1;
-  for(const name of sourceStyles){
+  for(const name of sourceStyles.filter(name=>!standaloneSourceOwners.has(name))){
     const marker=`/* --- ${name} --- */`;
     const index=bundle.indexOf(marker);
     assert.ok(index>previous,`${name} must retain its source cascade order in app.bundle.css`);
     previous=index;
   }
+  for(const name of standaloneSourceOwners)assert.ok(sourceStyles.includes(name),`${name} must remain an explicit source runtime owner`);
 });
 
 test('production service worker caches the bundle and every explicit standalone runtime owner',async()=>{
