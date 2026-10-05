@@ -71,10 +71,12 @@
   .invoice-page.template-obsidian :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-dark-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-dark-muted))!important;}
   .invoice-page.template-obsidian :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){color:var(--lrx-heading,var(--lrx-dark-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-dark-ink))!important;}
 
-  /* Signature is ink on the graphite body. Preserve stamp color; only signature
-   * artwork receives the dark-surface compatibility treatment. */
-  .invoice-page.template-obsidian .signature-image:not([src^="data:image/jpeg"]){filter:brightness(0) invert(1) contrast(1.25) drop-shadow(0 0 .25mm rgba(255,255,255,.18));mix-blend-mode:normal;}
-  .invoice-page.template-obsidian .signature-image[src^="data:image/jpeg"]{filter:invert(1) grayscale(1) contrast(1.30) brightness(1.12);mix-blend-mode:screen;}
+  /* iOS PDF preserves signature/stamp artwork as native high-resolution overlays.
+   * A CSS-only inversion would therefore diverge from the PDF overlay. Keep both
+   * Preview and every output path faithful to the source artwork by placing the
+   * artwork on an explicit light signing surface instead of recoloring the image. */
+  .invoice-page.template-obsidian .signature-media{background:#fff!important;border:1px solid #d9dee0!important;border-radius:1.8mm!important;padding:2mm!important;box-sizing:border-box!important;}
+  .invoice-page.template-obsidian .signature-image{filter:none!important;mix-blend-mode:normal!important;}
 
   /* Deliberately absent: custom foreground rules for .items-table thead,
    * .totals-block, .grand-total, mastheads and document-title ink. Those surfaces
