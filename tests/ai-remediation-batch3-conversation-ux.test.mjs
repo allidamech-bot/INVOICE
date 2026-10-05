@@ -5,13 +5,15 @@ import fs from 'node:fs';
 const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const pkg=JSON.parse(read('package.json'));
 const owner=read('scripts/ai-remediation-batch3-conversation-ux.mjs');
+const closeout=read('scripts/ai-remediation-batch3-conversation-ux-closeout.mjs');
 
 test('remediation Batch 3 runs after final conversation composition and before final voice hash',()=>{
   const build=String(pkg.scripts?.build||'');
   const finalConversation=build.indexOf('node scripts/ai-conversation-final-batch5.mjs');
   const remediation=build.indexOf('node scripts/ai-remediation-batch3-conversation-ux.mjs');
+  const containment=build.indexOf('node scripts/ai-remediation-batch3-conversation-ux-closeout.mjs');
   const voiceHash=build.indexOf('node scripts/ai-voice-final-runtime-hash.mjs');
-  assert.ok(finalConversation>=0&&remediation>finalConversation&&voiceHash>remediation,'Batch 3 UX must be the final conversation presentation owner without moving the voice delivery hash');
+  assert.ok(finalConversation>=0&&remediation>finalConversation&&containment>remediation&&voiceHash>containment,'Batch 3 UX and closeout must be the final conversation presentation owners without moving the voice delivery hash');
 });
 
 test('remediation Batch 3 preserves conversation capabilities while flattening controls',()=>{
@@ -32,4 +34,10 @@ test('remediation Batch 3 owns one thread scroll region and safe-area composer',
   assert.match(owner,/@media\(max-width:720px\)[\s\S]*height:100dvh!important/);
   assert.match(owner,/\.lourex-ai-message\.assistant\{align-self:stretch!important;max-width:none!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important/);
   assert.match(owner,/\.lourex-ai-context-shell\{[\s\S]*background:transparent!important/);
+});
+
+test('remediation Batch 3 closeout keeps functional content contained and removes the giant welcome card',()=>{
+  assert.match(closeout,/\.lourex-ai-tool-activity\{align-self:stretch!important;width:100%!important;max-width:100%!important;min-width:0!important/,'tool activity remains contained inside the conversation panel');
+  assert.match(closeout,/\.lourex-ai-empty\{align-self:center!important;width:100%!important;max-width:440px!important[\s\S]*border:0!important[\s\S]*background:transparent!important[\s\S]*box-shadow:none!important/,'welcome state is flat instead of another card');
+  assert.match(closeout,/\.lourex-ai-starters button\{min-height:44px!important/,'starter suggestions remain touch-safe');
 });
