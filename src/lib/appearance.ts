@@ -57,7 +57,10 @@ export interface TemplateAppearanceTokens {
 }
 
 function validHex(value:unknown):value is string{return typeof value==='string'&&/^#[0-9a-f]{6}$/i.test(value);}
-export function resolvedAccent(appearance:DocumentAppearance):string{return (appearance.paletteMode??'auto')==='custom'&&validHex(appearance.accentColor)?appearance.accentColor:AUTO_ACCENTS[appearance.templateId];}
+function safeTemplateId(value:unknown):TemplateId{return typeof value==='string'&&Object.prototype.hasOwnProperty.call(AUTO_ACCENTS,value)?value as TemplateId:'executive';}
+function safeLatinFontId(value:unknown):LatinFontId{return value==='inter'||value==='source-sans'||value==='montserrat'||value==='playfair'?value:'auto';}
+function safeArabicFontId(value:unknown):ArabicFontId{return value==='cairo'||value==='tajawal'||value==='noto-kufi'||value==='noto-naskh'?value:'auto';}
+export function resolvedAccent(appearance:DocumentAppearance):string{const templateId=safeTemplateId((appearance as any)?.templateId);return (appearance?.paletteMode??'auto')==='custom'&&validHex(appearance?.accentColor)?appearance.accentColor:AUTO_ACCENTS[templateId];}
 function linearChannel(value:number):number{const channel=value/255;return channel<=0.04045?channel/12.92:Math.pow((channel+0.055)/1.055,2.4);}
 function luminance(hex:string):number{
   const clean=hex.replace('#','');
@@ -85,29 +88,34 @@ export function resolvedAccentInk(hex:string):'#ffffff'|'#101010'{
 }
 
 export function resolvedAppearanceTokens(appearance:DocumentAppearance):TemplateAppearanceTokens{
-  const accent=resolvedAccent(appearance);
-  const custom=(appearance.paletteMode??'auto')==='custom';
-  const darkBody=DARK_BODY_TEMPLATES.has(appearance.templateId);
-  const page=TEMPLATE_PAPERS[appearance.templateId];
-  const lightSurface=TEMPLATE_LIGHT_SURFACES[appearance.templateId];
+  /* Revision history and recurring templates can outlive the schema version that
+   * created them. Resolve defensively at the renderer boundary as well as in vault
+   * migration so one malformed legacy template/font id can never produce undefined
+   * colors or fonts in Preview/PDF/Print/Share. */
+  const templateId=safeTemplateId((appearance as any)?.templateId);
+  const accent=resolvedAccent({...appearance,templateId});
+  const custom=(appearance?.paletteMode??'auto')==='custom';
+  const darkBody=DARK_BODY_TEMPLATES.has(templateId);
+  const page=TEMPLATE_PAPERS[templateId];
+  const lightSurface=TEMPLATE_LIGHT_SURFACES[templateId];
   const bodyContrastSurfaces=darkBody?[page]:[page,lightSurface];
 
   const defaultPrimary=darkBody?'#f5f1e9':'#17212b';
   const defaultSecondary=darkBody?'#aeb5ba':'#4d5b68';
-  const primary=custom?safeTextColor(appearance.primaryTextColor,bodyContrastSurfaces,defaultPrimary):defaultPrimary;
-  const secondary=custom?safeTextColor(appearance.secondaryTextColor,bodyContrastSurfaces,defaultSecondary):defaultSecondary;
+  const primary=custom?safeTextColor(appearance?.primaryTextColor,bodyContrastSurfaces,defaultPrimary):defaultPrimary;
+  const secondary=custom?safeTextColor(appearance?.secondaryTextColor,bodyContrastSurfaces,defaultSecondary):defaultSecondary;
   const autoHeading=safeTextColor(accent,bodyContrastSurfaces,primary);
-  const heading=custom?safeTextColor(appearance.headingTextColor,bodyContrastSurfaces,autoHeading):autoHeading;
-  const legacyScale=appearance.textScale??'normal';
+  const heading=custom?safeTextColor(appearance?.headingTextColor,bodyContrastSurfaces,autoHeading):autoHeading;
+  const legacyScale=appearance?.textScale??'normal';
 
   // Renderer variables predate role-based sizing and use historical numeric bases
   // (10 / 9.2 / 9.1 px). Normal must therefore normalize back to the canonical
   // v141 A4 sizes instead of silently enlarging every document. Small/Large are
   // restrained multipliers around those canonical Normal values.
-  const titleScale=scaleValue(appearance.documentTitleScale??'normal',1,.92,1.10);
-  const headingScale=scaleValue(appearance.sectionHeadingScale??'normal',.7,.94,1.08);
-  const bodyScale=scaleValue(appearance.bodyTextScale??legacyScale,8.2/9.2,.95,1.06);
-  const tableScale=scaleValue(appearance.tableTextScale??legacyScale,7.25/9.1,.95,1.05);
+  const titleScale=scaleValue(appearance?.documentTitleScale??'normal',1,.92,1.10);
+  const headingScale=scaleValue(appearance?.sectionHeadingScale??'normal',.7,.94,1.08);
+  const bodyScale=scaleValue(appearance?.bodyTextScale??legacyScale,8.2/9.2,.95,1.06);
+  const tableScale=scaleValue(appearance?.tableTextScale??legacyScale,7.25/9.1,.95,1.05);
 
   // Surface tokens describe local modules, not the page as a whole. Obsidian is
   // intentionally mixed: graphite page/body plus light #f1f2f2 party cards.
@@ -128,5 +136,5 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   };
 }
 
-export function resolvedLatinFont(appearance:DocumentAppearance):string{const requested=appearance.latinFont??'auto';const fontId=requested==='auto'?AUTO_LATIN_BY_TEMPLATE[appearance.templateId]:requested;return LATIN_FONTS[fontId];}
-export function resolvedArabicFont(appearance:DocumentAppearance):string{const requested=appearance.arabicFont??'auto';const fontId=requested==='auto'?AUTO_ARABIC_BY_TEMPLATE[appearance.templateId]:requested;return ARABIC_FONTS[fontId];}
+export function resolvedLatinFont(appearance:DocumentAppearance):string{const templateId=safeTemplateId((appearance as any)?.templateId);const requested=safeLatinFontId((appearance as any)?.latinFont);const fontId=requested==='auto'?AUTO_LATIN_BY_TEMPLATE[templateId]:requested;return LATIN_FONTS[fontId];}
+export function resolvedArabicFont(appearance:DocumentAppearance):string{const templateId=safeTemplateId((appearance as any)?.templateId);const requested=safeArabicFontId((appearance as any)?.arabicFont);const fontId=requested==='auto'?AUTO_ARABIC_BY_TEMPLATE[templateId]:requested;return ARABIC_FONTS[fontId];}
