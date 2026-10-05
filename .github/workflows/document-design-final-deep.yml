@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - 'package.json'
+      - 'index.html'
+      - 'scripts/build.mjs'
+      - 'tests/batch6-css-runtime-ownership-closeout.test.mjs'
       - 'scripts/v485-bundle-visible-ui.mjs'
       - 'scripts/v544-pdf-a4-output-emergency.mjs'
       - 'src/lib/appearance.ts'

@@ -58,9 +58,10 @@ test('planning UI is advisory, bilingual and mobile-first',async()=>{
   assert.match(style,/@media\(prefers-reduced-motion:reduce\)/);
 });
 
-test('planning styles load as an isolated runtime layer',async()=>{
+test('planning styles use canonical bundled ownership without a runtime layer',async()=>{
   const loader=await read('src/lib/inventory-planning-style.ts');
-  assert.match(loader,/inventory-planning-batch7\.css/);
-  assert.match(loader,/data-\$\{STYLE_KEY\}/);
-  assert.match(loader,/document\.head\.appendChild\(link\)/);
+  assert.doesNotMatch(loader,/createElement\(['"]link['"]\)|inventory-planning-batch7\.css/);
+  const index=await read('index.html');
+  assert.match(index,/inventory-planning-batch7\.css\?v=459-1/);
+  assert.match(loader,/app\.bundle\.css/);
 });

@@ -16,12 +16,13 @@ test('Batch 5 keeps one global center in AppShell without adding a primary route
   assert.match(center,/validatedNotificationStateEvent/);
 });
 
-test('Batch 5 UI is bilingual, mobile bounded and uses established style-loader pattern',async()=>{
-  const [center,css,loader]=await Promise.all([read('src/components/NotificationCenterLive.tsx'),read('src/styles/notification-center-batch5.css'),read('src/lib/notification-center-style.ts')]);
+test('Batch 5 UI is bilingual, mobile bounded and uses canonical bundled style ownership',async()=>{
+  const [center,css,loader,index]=await Promise.all([read('src/components/NotificationCenterLive.tsx'),read('src/styles/notification-center-batch5.css'),read('src/lib/notification-center-style.ts'),read('index.html')]);
   assert.match(center,/Notifications & Follow-up/);assert.match(center,/التنبيهات والمتابعة/);
   assert.match(center,/Snooze/);assert.match(center,/تأجيل/);assert.match(center,/Done/);assert.match(center,/تم/);
   assert.match(css,/@media\(max-width:900px\)/);assert.match(css,/@media\(max-width:390px\)/);assert.match(css,/min-height:44px/);assert.match(css,/\[dir="rtl"\]/);assert.match(css,/prefers-reduced-motion:reduce/);
-  assert.match(loader,/notification-center-batch5\.css\?v=457-1/);
+  assert.doesNotMatch(loader,/createElement\(['"]link['"]\)|notification-center-batch5\.css/);
+  assert.match(index,/notification-center-batch5\.css\?v=457-1/);
   assert.doesNotMatch(center,/import .*\.css/);
 });
 

@@ -95,7 +95,9 @@ test('Customers owns Directory and Pipeline while Customer 360 remains intact',a
 
 test('Pipeline presentation is mobile-first, RTL-aware and keeps touch targets usable',async()=>{
   const [css,loader]=await Promise.all([read('src/styles/sales-pipeline-batch6.css'),read('src/lib/sales-pipeline-style.ts')]);
-  assert.match(loader,/sales-pipeline-batch6\.css\?v=458-1/);
+  assert.doesNotMatch(loader,/createElement\(['"]link['"]\)|sales-pipeline-batch6\.css/);
+  const index=await read('index.html');
+  assert.match(index,/sales-pipeline-batch6\.css\?v=458-1/);
   assert.match(css,/@media\(max-width:600px\)[\s\S]*grid-template-columns:1fr/);
   assert.match(css,/@media\(max-width:390px\)/);
   assert.match(css,/\[dir="rtl"\]/);

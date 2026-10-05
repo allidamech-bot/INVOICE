@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - 'package.json'
+      - 'index.html'
+      - 'scripts/build.mjs'
+      - 'tests/batch6-css-runtime-ownership-closeout.test.mjs'
       - 'src/components/EditorPage.tsx'
       - 'src/components/EditorPageCore.tsx'
       - 'src/components/DocumentReviewModal.tsx'
