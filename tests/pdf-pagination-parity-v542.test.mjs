@@ -6,8 +6,8 @@ const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('screen-time PDF source uses canonical A4 geometry before pagination',async()=>{
   const css=await read('src/styles/a4-mobile-print-v73.css');
-  const screenAt=css.indexOf('@media screen');
-  const printAt=css.indexOf('@media print');
+  const screenAt=css.indexOf('@media screen {');
+  const printAt=css.indexOf('\n@media print {');
   assert.ok(screenAt>=0,'screen-time print portal A4 contract missing');
   assert.ok(printAt>screenAt,'screen-time contract must exist before print-only rules');
   const screen=css.slice(screenAt,printAt);
