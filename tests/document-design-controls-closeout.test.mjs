@@ -93,23 +93,29 @@ test('vault migration rejects malformed design colors and free-form text sizes',
   assert.equal(appearance.tableTextScale,undefined);
 });
 
-test('all former dark identities resolve their real light canonical paper instead of white body ink',()=>{
+test('converted dark identities remain light commercial paper while Obsidian follows the effective graphite override',()=>{
   const base=createBlankDocument('invoice','INV-2026-TONE',defaultCompany()).appearance;
-  const papers={obsidian:'#ffffff',noir:'#fffdf8',midnight:'#fcfaf4',blackivory:'#fbf6eb',carbon:'#fafafa'};
-  for(const [templateId,paper] of Object.entries(papers)){
+  const lightPapers={noir:'#fffdf8',midnight:'#fcfaf4',blackivory:'#fbf6eb',carbon:'#fafafa'};
+  for(const [templateId,paper] of Object.entries(lightPapers)){
     const tokens=resolvedAppearanceTokens({...base,templateId,paletteMode:'auto'});
-    assert.equal(tokens.page,paper,`${templateId} canonical paper`);
+    assert.equal(tokens.page,paper,`${templateId} effective paper`);
     assert.equal(tokens.primary,'#17212b',`${templateId} body copy must remain dark`);
     assert.equal(tokens.secondary,'#4d5b68',`${templateId} labels must remain readable`);
   }
+  const obsidian=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'auto'});
+  assert.equal(obsidian.page,'#15191c');
+  assert.equal(obsidian.primary,'#f5f1e9');
+  assert.equal(obsidian.secondary,'#aeb5ba');
+  assert.equal(obsidian.surface,'#f1f2f2');
+  assert.equal(obsidian.surfaceInk,'#17212b');
 });
 
-test('Auto token colors match the canonical premium template stylesheet',async()=>{
+test('Auto token colors match the authored premium template accents',async()=>{
   const base=createBlankDocument('invoice','INV-2026-AUTO',defaultCompany()).appearance;
   const expected={executive:'#bd9659',minimal:'#242b30',trade:'#ad8747',signature:'#aa8143',obsidian:'#b68d4e',cobalt:'#246ea8',editorial:'#1e2529',split:'#527382',prism:'#4f7d78',slate:'#566874',horizon:'#235269',mono:'#111111',aurora:'#477b74',ledger:'#314e5d',noir:'#b58a46',midnight:'#c19b59',blackivory:'#26231f',carbon:'#a98148'};
   for(const [templateId,accent] of Object.entries(expected))assert.equal(resolvedAppearanceTokens({...base,templateId,paletteMode:'auto'}).accent,accent,templateId);
   const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.doesNotMatch(css,/\.invoice-page\.palette-auto\s+:/,'Auto must not be recolored by the custom semantic layer');
+  assert.doesNotMatch(css,/\.invoice-page\.palette-auto\s+:/,'Auto must not be globally recolored by the custom semantic layer');
   assert.match(css,/Auto means matched to the selected template/);
 });
 
@@ -123,6 +129,9 @@ test('custom text colors are contrast guarded while safe choices remain user con
   assert.equal(safe.primary,'#111111');
   assert.equal(safe.secondary,'#333333');
   assert.equal(safe.heading,'#222222');
+  const obsidianUnsafe=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'custom',primaryTextColor:'#111111',secondaryTextColor:'#222222'});
+  assert.equal(obsidianUnsafe.primary,'#f5f1e9');
+  assert.equal(obsidianUnsafe.secondary,'#aeb5ba');
 });
 
 test('custom Accent actually drives bounded structural accents without owning foreground readability',async()=>{
@@ -134,10 +143,11 @@ test('custom Accent actually drives bounded structural accents without owning fo
 });
 
 test('preview and all output modes consume one renderer token source',async()=>{
-  const [editor,renderer,appearance]=await Promise.all([read('src/components/EditorPageCore.tsx'),read('src/templates/TemplateRenderer.tsx'),read('src/lib/appearance.ts')]);
+  const [editor,renderer,appearance,app]=await Promise.all([read('src/components/EditorPageCore.tsx'),read('src/templates/TemplateRenderer.tsx'),read('src/lib/appearance.ts'),read('src/app/App.tsx')]);
   assert.match(editor,/TemplateRenderer document=\{this\.state\.previewDoc\}/);
   assert.match(editor,/TemplateRenderer document=\{previewDocument\(d\)\}/);
   assert.match(editor,/onPrint\(this\.state\.doc,mode\)/);
+  assert.match(app,/<TemplateRenderer document=\{this\.state\.printDoc\} scale=\{1\}/);
   assert.match(renderer,/resolvedAppearanceTokens\(doc\.appearance\)/);
   for(const token of ['--lrx-primary','--lrx-secondary','--lrx-heading','--lrx-title-scale','--lrx-heading-size','--lrx-body-size','--lrx-table-size'])assert.match(renderer,new RegExp(token));
   assert.match(appearance,/safeTextColor/);
@@ -159,6 +169,15 @@ test('custom body colors cannot overwrite authored totals, table headers or mast
   assert.doesNotMatch(primaryRule[1],/items-table thead/);
   assert.doesNotMatch(primaryRule[1],/header-modern|header-executive|header-trade|header-signature/);
   assert.match(css,/Deliberately absent: custom foreground rules/);
+});
+
+test('Obsidian protects light party cards and graphite body roles separately in Auto and Custom',async()=>{
+  const css=await read('src/styles/template-surface-contrast-v366.css');
+  assert.match(css,/template-obsidian \.party-block\{color:var\(--lrx-surface-ink/);
+  assert.match(css,/template-obsidian :is\(\.items-table tbody td[\s\S]*terms-block \.term-row>span[\s\S]*bank-block>div>span\)\{color:var\(--lrx-primary/);
+  assert.match(css,/template-obsidian :is\(\.terms-block \.term-row>b,\.bank-block>div>b,\.doc-footer\)\{color:var\(--lrx-secondary/);
+  assert.match(css,/template-obsidian \.signature-image:not/);
+  assert.match(css,/template-obsidian \.signature-image\[src\^="data:image\/jpeg"\]/);
 });
 
 test('mobile design controls remain touch-safe and one-column without new app chrome',async()=>{
