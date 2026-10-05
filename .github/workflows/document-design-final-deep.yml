@@ -20,7 +20,7 @@ on:
       - 'src/portal/SharePortal.tsx'
       - 'public/share.html'
       - 'public/ios-print-bridge.js'
-      - 'tests/v485-visible-ui-corrections.test.mjs'
+      - 'tests/batch5-editor-visual-flattening.test.mjs'
       - 'tests/document-design-final-deep-audit.test.mjs'
       - 'tests/document-design-controls-closeout.test.mjs'
       - 'tests/document-appearance-controls-v525.test.mjs'
