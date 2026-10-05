@@ -46,7 +46,7 @@ test('high-impact financial calls never enter an approval plan',async()=>{
 });
 
 test('Batch 4 final owner preserves tool.plan and enforces one explicit approval per step',async()=>{
-  const [script,pkg]=await Promise.all([read('scripts/ai-conversation-owner-stage4.mjs'),read('package.json')]);
+  const [script,closeoutScript,pkg]=await Promise.all([read('scripts/ai-conversation-owner-stage4.mjs'),read('scripts/ai-conversation-owner-stage4-closeout.mjs'),read('package.json')]);
   assert.match(script,/__lourexNaturalLanguageOsBatch4/);
   assert.match(script,/__lourexProposalCapability === 'tool\.plan'/);
   assert.match(script,/__lourexApprovePlanStep/);
@@ -57,9 +57,13 @@ test('Batch 4 final owner preserves tool.plan and enforces one explicit approval
   assert.match(script,/every change needs approval/);
   assert.match(script,/step\.capability!=='workspace\.navigate'/,'navigation must be ordered after in-panel actions so a plan cannot silently lose later approvals');
   assert.doesNotMatch(script,/for\s*\([^)]*steps[^)]*\)\s*\{[^}]*applyApprovedToolExecution/s,'the plan must not bulk-execute all steps');
-  const closeout=pkg.indexOf('node scripts/ai-conversation-owner-stage3-closeout.mjs');
+  assert.match(closeoutScript,/step\.status==='approval'\?\{\.\.\.step,status:'dismissed'/,'dismissing a plan must clear every pending approval state');
+  assert.match(closeoutScript,/instance\.state\?\.messages\|\|\[\]\)\.length/,'blank conversations must not render stale tool activity');
+  const batch3Closeout=pkg.indexOf('node scripts/ai-conversation-owner-stage3-closeout.mjs');
   const stage4=pkg.indexOf('node scripts/ai-conversation-owner-stage4.mjs');
-  assert.ok(closeout>=0&&stage4>closeout,'Batch 4 final owner must run after the Batch 3 closeout');
+  const stage4Closeout=pkg.indexOf('node scripts/ai-conversation-owner-stage4-closeout.mjs');
+  assert.ok(batch3Closeout>=0&&stage4>batch3Closeout,'Batch 4 final owner must run after the Batch 3 closeout');
+  assert.ok(stage4Closeout>stage4,'Batch 4 lifecycle closeout must run after the Stage 4 owner');
 });
 
 test('Batch 4 tool UI remains compact, touch-safe and uses existing LOUREX design tokens',async()=>{
