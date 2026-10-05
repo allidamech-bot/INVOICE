@@ -46,7 +46,13 @@ const aiTarget='dist/src/components/AiCopilot.js';
    open, the lightweight checkpoint is the crash-durability boundary: it is flushed
    into the authoritative encrypted Vault only on normal editor close or when a
    different full mutation takes ownership. A crash/process reload recovers the
-   encrypted checkpoint before workspace continuity reopens the editor. */
+   encrypted checkpoint before workspace continuity reopens the editor.
+
+   Departure events are intentionally allowed to request durability while an autosave
+   is already running. saveDocument therefore owns a single serialized queue: an
+   automatic save for the exact same document revision reuses the existing promise,
+   while a newer revision waits behind it. A manual save is never collapsed into an
+   earlier automatic save because it also owns Smart Defaults / explicit-save effects. */
 {
   let source=await readFile(runtimeTarget,'utf8');
   if(source.includes('__lourexDocumentAutosaveV486'))throw new Error('v350 document autosave checkpoint runtime was already installed unexpectedly.');
@@ -71,6 +77,9 @@ const aiTarget='dist/src/components/AiCopilot.js';
     let checkpointPending=false;
     let checkpointFlushPromise=null;
     let checkpointCloseRunning=false;
+    let documentSaveTail=null;
+    let documentSaveKey='';
+    let documentSaveMode='';
 
     const recoverPendingDocumentAutosave=async()=>{
       await new Promise(resolve=>window.setTimeout(resolve,0));
@@ -144,11 +153,27 @@ const aiTarget='dist/src/components/AiCopilot.js';
       await operation;
     };
 
-    instance.saveDocument=async(doc,auto=false)=>{
-      if(!auto||doc.status!=='draft')return fullSaveDocument(doc,auto);
-      autosaveDocumentId=doc.id;
-      try{return await fullSaveDocument(doc,true);}
-      finally{if(autosaveDocumentId===doc.id)autosaveDocumentId='';}
+    instance.saveDocument=(doc,auto=false)=>{
+      const autoDraft=Boolean(auto&&doc.status==='draft');
+      const saveKey=String(doc.id||'')+'|'+String(doc.updatedAt||'');
+      if(documentSaveTail&&documentSaveKey===saveKey){
+        if(autoDraft||documentSaveMode==='manual')return documentSaveTail;
+      }
+      const previous=documentSaveTail;
+      const operation=(async()=>{
+        if(previous)await previous.catch(()=>undefined);
+        if(!autoDraft)return fullSaveDocument(doc,auto);
+        autosaveDocumentId=doc.id;
+        try{return await fullSaveDocument(doc,true);}
+        finally{if(autosaveDocumentId===doc.id)autosaveDocumentId='';}
+      })();
+      documentSaveTail=operation;
+      documentSaveKey=saveKey;
+      documentSaveMode=autoDraft?'auto':'manual';
+      void operation.finally(()=>{
+        if(documentSaveTail===operation){documentSaveTail=null;documentSaveKey='';documentSaveMode='';}
+      }).catch(()=>undefined);
+      return operation;
     };
 
     instance.initialize=async()=>{await baseInitialize();await recoverPendingDocumentAutosave();};
@@ -170,6 +195,9 @@ const aiTarget='dist/src/components/AiCopilot.js';
   if(!source.includes('saveDocumentAutosaveCheckpoint(key,checkpointDocument,checkpointEvents'))throw new Error('v350 lightweight document checkpoint path is missing.');
   if(source.includes('checkpointFlushTimer')||source.includes('scheduleDocumentCheckpointFlush')||source.includes('30000'))throw new Error('v350 active editing must not schedule periodic full-vault encryption.');
   if(!source.includes('recoverDocumentAutosaveCheckpoint(key,vault)'))throw new Error('v350 checkpoint recovery path is missing.');
+  if(!source.includes("const saveKey=String(doc.id||'')+'|'+String(doc.updatedAt||'')"))throw new Error('v350 document save identity is missing.');
+  if(!source.includes('if(documentSaveTail&&documentSaveKey===saveKey)'))throw new Error('v350 document save single-flight guard is missing.');
+  if(!source.includes('if(previous)await previous.catch(()=>undefined)'))throw new Error('v350 document save serialization is missing.');
   if(!source.includes('void flushDocumentCheckpoint().then(()=>baseCloseEditor())'))throw new Error('v350 close-editor durability flush is missing.');
   if(!source.includes('if(checkpointPending||checkpointFlushPromise){instance.cloudSyncQueued=true;return Promise.resolve();}'))throw new Error('v350 checkpoint cloud-sync guard is missing.');
   await writeFile(runtimeTarget,source);
@@ -190,4 +218,4 @@ const aiTarget='dist/src/components/AiCopilot.js';
   await writeFile(aiTarget,source);
 }
 
-console.log('LOUREX v350 rendering/storage hardening installed: lightweight encrypted document checkpoints, visible Preview validation handoff, single AI CSS owner and functional New conversation control.');
+console.log('LOUREX v350 rendering/storage hardening installed: lightweight encrypted document checkpoints, serialized document saves, visible Preview validation handoff, single AI CSS owner and functional New conversation control.');
