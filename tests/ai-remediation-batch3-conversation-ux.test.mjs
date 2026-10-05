@@ -37,7 +37,8 @@ test('remediation Batch 3 owns one thread scroll region and safe-area composer',
 });
 
 test('remediation Batch 3 closeout keeps functional content contained and removes the giant welcome card',()=>{
-  assert.match(closeout,/\.lourex-ai-tool-activity\{align-self:stretch!important;width:100%!important;max-width:100%!important;min-width:0!important/,'tool activity remains contained inside the conversation panel');
+  assert.match(closeout,/\.lourex-ai-tool-activity\{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;align-self:stretch!important;flex:0 0 auto!important;width:auto!important;max-width:100%!important;min-width:0!important/,'tool activity uses stretch geometry instead of a transient 100% width box');
+  assert.match(closeout,/transform:none!important;translate:none!important;animation:none!important;transition:none!important;overflow:hidden!important/,'tool activity cannot inherit mount motion that temporarily escapes the conversation panel');
   assert.match(closeout,/\.lourex-ai-empty\{align-self:center!important;width:100%!important;max-width:440px!important[\s\S]*border:0!important[\s\S]*background:transparent!important[\s\S]*box-shadow:none!important/,'welcome state is flat instead of another card');
   assert.match(closeout,/\.lourex-ai-starters button\{min-height:44px!important/,'starter suggestions remain touch-safe');
 });
