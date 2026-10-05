@@ -27,6 +27,15 @@
     box-shadow:none!important;
   }
 
+  /* Preserve v332 document semantics while owning the final visual surface. */
+  html body #root .app-ui .screen-editor .editor-screen[data-document-kind="rfq"] .item-pricing-grid,
+  html body #root .app-ui .screen-editor .editor-screen[data-document-kind="delivery-note"] .item-pricing-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  html body #root .app-ui .screen-editor .editor-screen[data-document-kind="payment-receipt"] .item-pricing-grid {
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+
   html body #root .app-ui .screen-editor .premium-item-card .item-price-control {
     display:grid!important;
     gap:6px!important;
@@ -109,6 +118,14 @@
     padding-top:10px!important;
   }
 
+  html body #root .app-ui .screen-editor .editor-screen[data-document-kind="rfq"] .item-pricing-grid,
+  html body #root .app-ui .screen-editor .editor-screen[data-document-kind="delivery-note"] .item-pricing-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  html body #root .app-ui .screen-editor .editor-screen[data-document-kind="payment-receipt"] .item-pricing-grid {
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+
   html body #root .app-ui .screen-editor .premium-item-card .item-price-control {
     grid-column:1/-1!important;
   }
@@ -126,6 +143,11 @@
 @media screen and (max-width:380px) {
   html body #root .app-ui .screen-editor .premium-item-card .item-pricing-grid {
     grid-template-columns:minmax(0,1fr)!important;
+  }
+
+  html body #root .app-ui .screen-editor .editor-screen[data-document-kind="rfq"] .item-pricing-grid,
+  html body #root .app-ui .screen-editor .editor-screen[data-document-kind="delivery-note"] .item-pricing-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
   }
 
   html body #root .app-ui .screen-editor .premium-item-card .item-price-control {
