@@ -15,20 +15,24 @@ test('iOS voice release owner runs after the canonical conversation owner and be
   assert.ok(conversation>=0&&iosRelease>conversation&&stage3>iosRelease,'iOS voice release owner must patch the canonical runtime before Batch 3 composer transforms');
 });
 
-test('WebKit voice restart waits beyond the old 420ms lease and retains a bounded transient start retry',()=>{
+test('WebKit voice restart uses an extended native lease and bounded transient start retry',()=>{
   assert.match(owner,/__lourexWebKitVoice/);
-  assert.match(owner,/NATIVE_RELEASE_GRACE_MS=__lourexWebKitVoice\?1100:420/);
-  assert.match(owner,/NATIVE_RELEASE_RETRY_MS=260/);
-  assert.match(owner,/NATIVE_RELEASE_RETRY_LIMIT=4/);
+  assert.match(owner,/NATIVE_RELEASE_GRACE_MS=__lourexWebKitVoice\?1600:420/);
+  assert.match(owner,/NATIVE_RELEASE_RETRY_MS=__lourexWebKitVoice\?320:220/);
+  assert.match(owner,/NATIVE_RELEASE_RETRY_LIMIT=__lourexWebKitVoice\?6:4/);
   assert.match(owner,/__lourexTransientVoiceStartError/);
   assert.match(owner,/native microphone\|microphone\.\*owned\|already\.\*start\|busy\|in use/);
   assert.match(owner,/__lourexStartVoice\(instance,panel,attempt\+1\)/);
   assert.match(owner,/name==='notallowederror'\|\|name==='securityerror'/);
   assert.match(owner,/source\.replace\(startToken,'    __lourexStartVoice\(instance,panel\);'\)/);
+  assert.match(owner,/__LOUREX_VOICE_RUNTIME_OWNER__/);
+  assert.match(owner,/ios-release-v2/);
 });
 
-test('WebKit browser QA reproduces a native release delay that exceeds the old grace',()=>{
-  assert.match(visual,/releaseDelay:engine\.name\(\)==='webkit'\?900:260/);
+test('WebKit browser QA reproduces a native release delay that exceeds the previous 1100ms grace and repeats twelve sessions',()=>{
+  assert.match(visual,/releaseDelay:engine\.name\(\)==='webkit'\?1450:260/);
   assert.match(visual,/native microphone is still owned/);
   assert.match(visual,/overlappingStarts\),0/);
+  assert.match(visual,/sessions:12/);
+  assert.match(visual,/repeat session/);
 });
