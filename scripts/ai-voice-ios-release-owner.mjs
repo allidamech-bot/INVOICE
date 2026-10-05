@@ -9,7 +9,7 @@ if(source.includes('__lourexIosVoiceReleaseOwner'))throw new Error('iOS voice re
 
 const graceToken='  const NATIVE_RELEASE_GRACE_MS=420;';
 if(!source.includes(graceToken))throw new Error('iOS voice release owner could not find the native release grace.');
-source=source.replace(graceToken,`  const __lourexWebKitVoice=/iP(?:hone|ad|od)/i.test(navigator.userAgent)||(/AppleWebKit/i.test(navigator.userAgent)&&!/Chrome|Chromium|Edg|OPR/i.test(navigator.userAgent));\n  const NATIVE_RELEASE_GRACE_MS=__lourexWebKitVoice?1100:420;\n  const NATIVE_RELEASE_RETRY_MS=260;\n  const NATIVE_RELEASE_RETRY_LIMIT=4;`);
+source=source.replace(graceToken,`  const __lourexWebKitVoice=/iP(?:hone|ad|od)/i.test(navigator.userAgent)||(/AppleWebKit/i.test(navigator.userAgent)&&!/Chrome|Chromium|Edg|OPR/i.test(navigator.userAgent));\n  const NATIVE_RELEASE_GRACE_MS=__lourexWebKitVoice?1600:420;\n  const NATIVE_RELEASE_RETRY_MS=__lourexWebKitVoice?320:220;\n  const NATIVE_RELEASE_RETRY_LIMIT=__lourexWebKitVoice?6:4;`);
 
 const toggleToken='  function toggleVoice(panel){';
 if(!source.includes(toggleToken))throw new Error('iOS voice release owner could not find the voice toggle owner.');
@@ -20,7 +20,7 @@ const startToken="    try{instance.start();}catch{stopRecognition(instance,panel
 if(!source.includes(startToken))throw new Error('iOS voice release owner could not find the canonical recognition start call.');
 source=source.replace(startToken,'    __lourexStartVoice(instance,panel);');
 
-source+=`\nconst __lourexIosVoiceReleaseOwner=true;\n`;
+source+=`\nconst __lourexIosVoiceReleaseOwner=true;\nwindow.__LOUREX_VOICE_RUNTIME_OWNER__='ios-release-v2';\n`;
 await writeFile(target,source);
 execFileSync(process.execPath,['--check',target],{stdio:'pipe'});
-console.log('[LOUREX AI] iOS/WebKit voice release owner installed: post-onend lease barrier and bounded transient start retry are active.');
+console.log('[LOUREX AI] iOS/WebKit voice release owner v2 installed: extended post-onend lease barrier, bounded transient retry, and runtime owner diagnostics are active.');
