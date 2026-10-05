@@ -35,11 +35,16 @@ test('Batch 3 has one paperclip attachment control and a mobile bottom sheet',()
   assert.match(stage,/__lourexConversationComposerBatch3/);
 });
 
-test('Batch 3 close and backdrop bind to the currently rendered advisor instance',()=>{
+test('Batch 3 close and backdrop synchronously release the current modal layer',()=>{
   assert.match(closeout,/__lourexConversationCloseoutBatch3/);
+  assert.match(closeout,/function __lourexReleaseConversationOverlayBatch3\(\)/);
+  assert.match(closeout,/document\.getElementById\('lourex-ai-panel'\)/);
+  assert.match(closeout,/document\.querySelectorAll\('\.lourex-ai-backdrop'\)/);
+  assert.match(closeout,/style\.setProperty\('pointer-events','none','important'\)/);
+  assert.match(closeout,/style\.setProperty\('display','none','important'\)/);
+  assert.match(closeout,/__lourexReleaseConversationOverlayBatch3\(\);[\s\S]*instance\.__lourexAttachmentAbort\?\.abort\(\)/,'overlay must release before async/react cleanup work');
   assert.match(closeout,/instance\.cancelRequest\?\.\(\)/);
-  assert.match(closeout,/attachmentMenuOpen:false/);
-  assert.match(closeout,/instance\.setState\(\{open:false,busy:false,error:'',proposal:null,attachmentMenuOpen:false\}\)/);
+  assert.match(closeout,/instance\.applying\?\{open:false,attachmentMenuOpen:false\}:\{open:false,busy:false,error:'',proposal:null,attachmentMenuOpen:false\}/,'closing must be allowed even while an approved action owns the busy state');
   assert.match(closeout,/className==='lourex-ai-backdrop'\|\|className\.includes\('lourex-ai-close'\)/);
   assert.doesNotMatch(closeout,/instance\.__lourexCloseCapture\s*=/,'Close must not install stale document-level capture ownership');
   assert.match(closeout,/if\(source\.includes\("document\.addEventListener\('click',instance\.__lourexCloseCapture,true\)"\)\)throw/,'closeout must retain the guard that rejects a document capture listener');
