@@ -59,10 +59,8 @@ test('final AI interaction contracts retain mobile safe areas and approval bound
   assert.match(accessibility,/ArrowDown/);
   assert.match(accessibility,/Escape/);
   assert.match(placement,/event\.stopPropagation\(\)/,'canonical Tools trigger owns propagation');
-  assert.match(accessibility,/trigger\.addEventListener\('click'/,'focus handoff must bind directly to the trigger rather than depend on document bubbling');
-  assert.match(accessibility,/dataset\.focusOwner/);
-  assert.match(accessibility,/focusFirstTool/);
-  assert.match(accessibility,/requestAnimationFrame\(\(\)=>focusFirstTool/);
+  assert.match(accessibility,/document\.addEventListener\('click',[\s\S]*?\},true\);/,'Tools focus handoff must run in capture phase across stopPropagation');
+  assert.match(accessibility,/getAttribute\('aria-expanded'\)===['"]true['"]\)first\.focus\(\)/,'focus handoff must verify the Tools menu opened before focusing');
   assert.match(tools,/Nothing will run automatically/);
   assert.match(tools,/applyApprovedToolExecution/);
   assert.match(stage4,/lourex-ai-structured-answer/);
