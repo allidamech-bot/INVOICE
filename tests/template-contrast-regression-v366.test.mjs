@@ -11,7 +11,7 @@ test('v366 contrast guard is loaded after canonical premium output styles',async
   assert.ok(premium>=0&&guard>premium,'contrast guard must load after canonical premium A4 CSS');
 });
 
-test('v366 targets current commercial terms markup only in Custom color mode',async()=>{
+test('v366 targets current commercial terms markup in Custom color mode',async()=>{
   const [renderer,css]=await Promise.all([read('src/templates/TemplateRenderer.tsx'),read('src/styles/template-surface-contrast-v366.css')]);
   assert.match(renderer,/className="term-row"/);
   assert.match(renderer,/--lrx-primary/);
@@ -20,28 +20,40 @@ test('v366 targets current commercial terms markup only in Custom color mode',as
   assert.match(css,/\.invoice-page\.palette-custom \.terms-block \.term-row>span\{color:var\(--lrx-primary/);
 });
 
-test('Auto keeps canonical template palettes instead of flattening them',async()=>{
-  const [appearance,css,premium]=await Promise.all([read('src/lib/appearance.ts'),read('src/styles/template-surface-contrast-v366.css'),read('src/styles/document-premium-redesign-v141.css')]);
+test('Auto keeps authored template palettes and models the later Obsidian dark-body override',async()=>{
+  const [appearance,css,premium,v330]=await Promise.all([read('src/lib/appearance.ts'),read('src/styles/template-surface-contrast-v366.css'),read('src/styles/document-premium-redesign-v141.css'),read('src/styles/v330-critical-documents-closeout.css')]);
   assert.match(appearance,/TEMPLATE_PAPERS/);
+  assert.match(appearance,/obsidian:'#15191c'/);
+  assert.match(appearance,/DARK_BODY_TEMPLATES=new Set<TemplateId>\(\['obsidian'\]\)/);
   assert.match(appearance,/noir:'#fffdf8'/);
   assert.match(appearance,/midnight:'#fcfaf4'/);
   assert.match(appearance,/blackivory:'#fbf6eb'/);
   assert.match(appearance,/carbon:'#fafafa'/);
-  assert.match(premium,/\.template-noir\{--paper:#fffdf8/);
-  assert.match(premium,/\.template-midnight\{--paper:#fcfaf4/);
+  assert.match(premium,/\.template-obsidian\{--paper:#fff/);
+  assert.match(v330,/\.template-obsidian \{ --paper:#15191c;--ink:#f5f1e9;--muted:#aeb5ba;--rule:#343a3f;--soft:#20262a; \}/);
   assert.match(css,/Auto means matched to the selected template/);
   assert.doesNotMatch(css,/\.invoice-page\.palette-auto\s/);
 });
 
-test('Custom body roles stay light-surface scoped and preserve dark-module contrast',async()=>{
+test('Custom light-body roles preserve dark modules and do not leak page ink into Obsidian cards',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/\.invoice-page\.palette-custom \.party-block\{color:var\(--lrx-primary/);
+  assert.match(css,/\.invoice-page\.palette-custom:not\(\.template-obsidian\) \.party-block\{color:var\(--lrx-primary/);
   assert.match(css,/\.invoice-page\.palette-custom :is\(\.items-table tbody td/);
+  assert.match(css,/\.invoice-page\.template-obsidian \.party-block\{color:var\(--lrx-surface-ink/);
+  assert.match(css,/\.invoice-page\.template-obsidian :is\(\.items-table tbody td/);
   assert.match(css,/Deliberately absent: custom foreground rules/);
   const customBody=css.match(/\/\* Custom semantic foreground roles[\s\S]*?\/\* The current Commercial Terms DOM/);
   assert.ok(customBody);
   assert.doesNotMatch(customBody[0],/items-table thead/);
   assert.doesNotMatch(customBody[0],/totals-block/);
+});
+
+test('Obsidian signature compatibility is dark-surface aware without recoloring stamps',async()=>{
+  const css=await read('src/styles/template-surface-contrast-v366.css');
+  assert.match(css,/template-obsidian \.signature-image:not\(\[src\^="data:image\/jpeg"\]\)[\s\S]*invert\(1\)/);
+  assert.match(css,/template-obsidian \.signature-image\[src\^="data:image\/jpeg"\][\s\S]*mix-blend-mode:screen/);
+  const obsidianBlock=css.slice(css.indexOf('Signature is ink on the graphite body'),css.indexOf('Deliberately absent'));
+  assert.doesNotMatch(obsidianBlock,/stamp-image/);
 });
 
 test('Normal typography is a canonical no-op and bounded controls preserve hierarchy',async()=>{
