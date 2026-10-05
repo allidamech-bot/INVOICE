@@ -5,8 +5,14 @@ on:
     branches: [main]
     paths:
       - 'package.json'
+      - 'scripts/ai-conversation-owner-stage4-tools.mjs'
+      - 'scripts/ai-conversation-owner-stage4-tools-closeout.mjs'
       - 'scripts/ai-conversation-owner-stage4.mjs'
+      - 'scripts/ai-conversation-owner-stage4-accessibility.mjs'
       - 'tests/ai-conversation-owner-batch4.test.mjs'
+      - 'tests/ai-conversation-natural-os-batch4.test.mjs'
+      - 'tests/ai-conversation-batch4-consolidation.test.mjs'
+      - 'tests/visual/run-ai-voice-reliability-batch5.cjs'
       - 'src/components/AiCopilot.tsx'
       - 'src/components/AiWorkflowTools.tsx'
       - '.github/workflows/ai-conversation-owner-batch4.yml'
@@ -39,4 +45,4 @@ jobs:
       - name: Production build
         run: npm run build
       - name: Batch 4 contracts
-        run: node --test tests/ai-conversation-owner-batch4.test.mjs
+        run: node --test tests/ai-conversation-owner-batch4.test.mjs tests/ai-conversation-natural-os-batch4.test.mjs tests/ai-conversation-batch4-consolidation.test.mjs
