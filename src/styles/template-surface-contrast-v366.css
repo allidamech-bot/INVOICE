@@ -1,65 +1,158 @@
-/* LOUREX v366 — commercial template surface/contrast guard.
- * Loaded after the canonical premium A4 stylesheet. This layer does not redesign
- * templates; it prevents foreground colors from leaking across light/dark surfaces.
+/* LOUREX v366 — document appearance guard.
+ * Authored template art direction remains authoritative in Auto mode. Custom mode
+ * recolors bounded semantic roles without leaking one foreground across surfaces.
+ * Obsidian is intentionally mixed: graphite commercial body + light party cards.
  */
 @media screen, print {
   .invoice-page{
-    --lrx-light-surface:#fffdf8;
     --lrx-light-ink:#17212b;
     --lrx-light-muted:#58656f;
-    --lrx-dark-surface:#171a1d;
     --lrx-dark-ink:#fffaf0;
     --lrx-dark-muted:#d7d0c4;
   }
-  .invoice-page .party-block{color:var(--lrx-light-ink)!important;}
-  .invoice-page .party-block :is(.party-name,.party-address,.party-location,.party-contact,.party-identifiers,.party-identifiers span,.bi-value,.bi-value>span){color:var(--lrx-light-ink)!important;-webkit-text-fill-color:var(--lrx-light-ink)!important;}
+
+  /* Baseline local-surface protection retained from latest main. Party cards are
+   * light modules even when the surrounding identity is dark. More-specific
+   * Custom rules below may use a selected color only when that local surface is safe. */
+  .invoice-page .party-block{color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;}
+  .invoice-page .party-block :is(.party-name,.party-address,.party-location,.party-contact,.party-identifiers,.party-identifiers span,.bi-value,.bi-value>span){color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;}
   .invoice-page .party-block :is(.section-kicker,.party-identifiers b){color:var(--accent,#8a704b)!important;-webkit-text-fill-color:var(--accent,#8a704b)!important;}
 
-  /* Light-sheet templates must never inherit inverse/white body copy. Noir,
-   * Midnight, Black Ivory and Carbon are hybrid designs: dark masthead, light body. */
-  :is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody,.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){color:var(--doc-primary-text,var(--lrx-light-ink))!important;}
-  :is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block dd,.terms-block p,.totals-block,.totals-block span,.totals-block strong,.notes-block p,.bank-block p,.signature-block p){color:var(--doc-primary-text,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--doc-primary-text,var(--lrx-light-ink))!important;}
-  :is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block dt,.totals-block small,.notes-block h3,.bank-block h3,.signature-block h3,.doc-footer){color:var(--doc-secondary-text,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--doc-secondary-text,var(--lrx-light-muted))!important;}
-
-  /* Midnight and Carbon keep an intentionally dark totals module on their otherwise
-   * light sheets. This selector deliberately owns the local surface with stronger
-   * specificity than legacy flagship rules that still describe older light totals. */
+  /* Latest-main inverse-total guard remains explicit. These are authored dark
+   * modules on otherwise light commercial sheets and must never inherit body ink. */
   .invoice-pages>.invoice-page:is(.template-midnight,.template-carbon) .totals-block{color:var(--lrx-dark-ink)!important;}
   .invoice-pages>.invoice-page:is(.template-midnight,.template-carbon) .totals-block :is(.total-row>span,.total-row>strong,.grand-total>span,.grand-total>strong,small){color:var(--lrx-dark-ink)!important;-webkit-text-fill-color:var(--lrx-dark-ink)!important;}
+  .invoice-pages>.invoice-page.template-obsidian .totals-block{color:var(--lrx-dark-ink)!important;}
+  .invoice-pages>.invoice-page.template-obsidian .totals-block :is(.total-row>span,.total-row>strong,.grand-total>span,.grand-total>strong,small){color:var(--lrx-dark-ink)!important;-webkit-text-fill-color:var(--lrx-dark-ink)!important;}
 
-  /* Obsidian is the only commercial template with a full dark body. Its white
-   * customer/seller cards remain protected by the surface-specific rules above. */
-  .template-obsidian :is(.items-table tbody,.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){color:var(--doc-primary-text,var(--lrx-dark-ink))!important;}
-  .template-obsidian :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block dd,.terms-block p,.totals-block,.totals-block span,.totals-block strong,.notes-block p,.bank-block p,.signature-block p){color:var(--doc-primary-text,var(--lrx-dark-ink))!important;-webkit-text-fill-color:var(--doc-primary-text,var(--lrx-dark-ink))!important;}
-  .template-obsidian :is(.terms-block dt,.totals-block small,.notes-block h3,.bank-block h3,.signature-block h3,.doc-footer){color:var(--doc-secondary-text,var(--lrx-dark-muted))!important;-webkit-text-fill-color:var(--doc-secondary-text,var(--lrx-dark-muted))!important;}
+  /* Auto means matched to the selected template. Do not flatten the authored
+   * template palettes with a second global foreground system. The four hybrid
+   * identities below are the exception at the body level: later identity layers
+   * can leave inverse ink behind while v141 restores a light commercial sheet.
+   * Protect only semantic light-body copy; totals, mastheads and table headers keep
+   * their own authored local-surface colors. */
+  .invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block .term-row>span,.notes-block p,.bank-block>div>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
+  .invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){color:var(--lrx-heading,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-light-ink))!important;}
 
-  .invoice-page .items-table thead th,.invoice-page .items-table thead th :is(span,small,.bi-label,.bi-label>span){color:var(--lrx-dark-ink)!important;-webkit-text-fill-color:var(--lrx-dark-ink)!important;}
-  .invoice-page .items-table tbody td{font-size:max(calc(7.4px * var(--doc-text-scale,1)),calc(1em * var(--doc-text-scale,1)))!important;line-height:1.34!important;}
-  .invoice-page .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){font-size:max(calc(7.6px * var(--doc-text-scale,1)),calc(1em * var(--doc-text-scale,1)))!important;line-height:1.38!important;}
-  .invoice-page :is(.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){font-size:calc(1em * var(--doc-text-scale,1))!important;line-height:1.38!important;}
-  @media print{.invoice-page{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}}
+  /* Custom Accent is structural/decorative. It changes safe rules/highlights,
+   * while foreground readability is controlled independently below. */
+  .invoice-page.palette-custom{--template-accent:var(--accent)!important;}
+  .invoice-page.palette-custom .page-accent{background:var(--accent)!important;}
+  .invoice-page.palette-custom .party-customer{border-color:var(--accent)!important;}
+  .invoice-page.palette-custom .grand-total{border-top-color:var(--accent)!important;}
+
+  /* Custom semantic foreground roles on normal light-body templates. Obsidian's
+   * party cards are excluded because its page token is intentionally light-on-dark
+   * while those local cards need independent dark-on-light ink. */
+  .invoice-page.palette-custom:not(.template-obsidian) .party-block{color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page.palette-custom:not(.template-obsidian) .party-block :is(.party-name,.party-identifiers span,.bi-value,.bi-value>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page.palette-custom:not(.template-obsidian) .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
+  .invoice-page.palette-custom:not(.template-obsidian) .party-block :is(.section-kicker,.party-identifiers b){color:var(--lrx-heading,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-light-ink))!important;}
+
+  .invoice-page.palette-custom :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block .term-row>span,.notes-block p,.bank-block>div>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page.palette-custom :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
+  .invoice-page.palette-custom :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){color:var(--lrx-heading,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-light-ink))!important;}
+
+  /* The current Commercial Terms DOM is b + span inside .term-row. Keep the
+   * contract explicit: Payment Terms / Final Destination are values, not labels. */
+  .invoice-page.palette-custom .terms-block .term-row>b{color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
+  .invoice-page.palette-custom .terms-block .term-row>span{color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+
+  /* Effective Obsidian is a graphite body because the later v330 identity layer
+   * overrides --paper/--soft, but its two party cards remain light v141 modules.
+   * Repair both Auto and Custom against the surfaces that actually render. */
+  .invoice-page.template-obsidian .party-block{color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;}
+  .invoice-page.template-obsidian .party-block :is(.party-name,.party-identifiers span,.bi-value,.bi-value>span){color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;}
+  .invoice-page.template-obsidian .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){color:var(--lrx-surface-muted,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-surface-muted,var(--lrx-light-muted))!important;}
+  .invoice-page.template-obsidian .party-block :is(.section-kicker,.party-identifiers b){color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;}
+
+  .invoice-page.template-obsidian :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block .term-row>span,.notes-block p,.bank-block>div>span){color:var(--lrx-primary,var(--lrx-dark-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-dark-ink))!important;}
+  .invoice-page.template-obsidian :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-dark-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-dark-muted))!important;}
+  .invoice-page.template-obsidian :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){color:var(--lrx-heading,var(--lrx-dark-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-dark-ink))!important;}
+
+  /* Signature is ink on the graphite body. Preserve stamp color; only signature
+   * artwork receives the dark-surface compatibility treatment. */
+  .invoice-page.template-obsidian .signature-image:not([src^="data:image/jpeg"]){filter:brightness(0) invert(1) contrast(1.25) drop-shadow(0 0 .25mm rgba(255,255,255,.18));mix-blend-mode:normal;}
+  .invoice-page.template-obsidian .signature-image[src^="data:image/jpeg"]{filter:invert(1) grayscale(1) contrast(1.30) brightness(1.12);mix-blend-mode:screen;}
+
+  /* Deliberately absent: custom foreground rules for .items-table thead,
+   * .totals-block, .grand-total, mastheads and document-title ink. Those surfaces
+   * vary by template and keep their explicit high-contrast colors. */
+
+  /* Bounded typography controls apply in Auto and Custom. Normal must be a visual
+   * no-op relative to the effective shipped v141 + v364 document cascade, including
+   * compact/template-specific table typography. Small/Large scale the authored
+   * hierarchy instead of flattening every role. */
+  .invoice-page .doc-title{zoom:var(--lrx-title-scale,1);}
+
+  .invoice-page :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3){font-size:var(--lrx-heading-size,6.8px)!important;line-height:1.25!important;}
+  .invoice-page .continued-label{font-size:calc(var(--lrx-heading-size,6.8px)*.955882)!important;line-height:1.25!important;}
+
+  .invoice-page .items-table{font-size:var(--lrx-table-size,7.25px)!important;}
+  .invoice-page .items-table thead th{font-size:87.586%!important;}
+  .invoice-page .items-table thead th small{font-size:84.252%!important;}
+  .invoice-page .items-table tbody td{font-size:100%!important;line-height:1.4!important;}
+  .invoice-page .items-table tbody td.description-cell{font-size:104.138%!important;}
+  .invoice-page .items-table tbody td.trade-cell{font-size:93.793%!important;}
+
+  /* Slate intentionally uses denser table typography; Editorial intentionally
+   * gives descriptions slightly more editorial emphasis. Preserve those canonical
+   * Normal sizes and scale them proportionally with the same bounded table token. */
+  .invoice-page.template-slate .items-table thead th{font-size:calc(var(--lrx-table-size,7.25px)*.813793)!important;}
+  .invoice-page.template-slate .items-table thead th small{font-size:calc(var(--lrx-table-size,7.25px)*.737931)!important;}
+  .invoice-page.template-slate .items-table tbody td{font-size:calc(var(--lrx-table-size,7.25px)*.924138)!important;line-height:1.3!important;}
+  .invoice-page.template-slate .items-table tbody td.description-cell{font-size:calc(var(--lrx-table-size,7.25px)*.951724)!important;}
+  .invoice-page.template-editorial .items-table tbody td.description-cell{font-size:calc(var(--lrx-table-size,7.25px)*1.062069)!important;}
+
+  .invoice-page .party-block{font-size:var(--lrx-body-size,8.2px)!important;}
+  .invoice-page .party-block :is(.party-address,.party-location,.party-contact){font-size:100%!important;line-height:1.5!important;}
+  .invoice-page .party-identifiers{font-size:100%!important;}
+  .invoice-page .party-identifiers b{font-size:75.610%!important;line-height:1.2!important;}
+  .invoice-page .party-identifiers span{font-size:86.585%!important;}
+
+  .invoice-page :is(.terms-block,.notes-block,.bank-block,.signature-block){font-size:var(--lrx-body-size,8.2px)!important;line-height:1.38!important;}
+  .invoice-page .terms-block .term-row,
+  .invoice-page .bank-block>div{font-size:100%!important;line-height:1.38!important;}
+  .invoice-page .terms-block .term-row>b,
+  .invoice-page .bank-block>div>b{font-size:76.220%!important;line-height:1.25!important;}
+  .invoice-page .terms-block .term-row>span,
+  .invoice-page .bank-block>div>span{font-size:85.366%!important;line-height:1.42!important;}
+  .invoice-page .notes-block p{font-size:84.146%!important;line-height:1.5!important;}
+
+  @media print{
+    .invoice-page{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  }
 }
 
-/* Batch 4 — keep customization inside the existing Design section. No new
- * navigation/header surface. Controls remain touch-safe without turning the
- * editor into a desktop publishing tool. */
+/* Design controls stay inside section 06. No navigation/header/bottom-bar UI. */
 @media screen {
-  .app-ui .design-advanced-panel .appearance-system-grid{
-    display:grid!important;
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
-    gap:10px!important;
-    align-items:start!important;
-  }
-  .app-ui .design-advanced-panel .appearance-system-grid>.field,
-  .app-ui .design-advanced-panel .appearance-auto-note{min-width:0!important;margin:0!important;}
+  .app-ui .document-design-stack{display:grid!important;gap:12px!important;margin-bottom:12px!important;}
+  .app-ui .design-control-card{border:1px solid var(--ft-line,#d9e1e4)!important;border-radius:14px!important;background:var(--ft-panel,#fff)!important;padding:12px!important;min-width:0!important;}
+  .app-ui .design-control-card-head{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:10px!important;margin-bottom:10px!important;}
+  .app-ui .design-control-card-head>div{display:grid!important;gap:3px!important;min-width:0!important;}
+  .app-ui .design-control-card-head strong{font-size:13px!important;font-weight:850!important;}
+  .app-ui .design-control-card-head small{font-size:11px!important;line-height:1.45!important;color:var(--ft-muted,#6b7b80)!important;}
+  .app-ui .design-mode-badge{display:inline-flex!important;align-items:center!important;min-height:28px!important;padding:4px 9px!important;border-radius:999px!important;font-size:10px!important;font-weight:850!important;white-space:nowrap!important;border:1px solid var(--ft-line,#d9e1e4)!important;}
+  .app-ui .design-mode-badge.is-auto{color:var(--ft-accent,#315f7b)!important;}
+  .app-ui .design-mode-badge.is-custom{color:var(--ft-text-strong,#17212b)!important;}
+  .app-ui .design-advanced-panel .appearance-system-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;align-items:start!important;}
+  .app-ui .design-advanced-panel .appearance-system-grid>.field,.app-ui .design-advanced-panel .appearance-auto-note{min-width:0!important;margin:0!important;}
   .app-ui .design-advanced-panel :is(select,input[type="color"]){min-height:44px!important;}
   .app-ui .design-advanced-panel input[type="color"]{width:100%!important;padding:5px!important;cursor:pointer;}
-  .app-ui .appearance-auto-note{min-height:44px!important;box-sizing:border-box!important;}
+  .app-ui .appearance-auto-note{min-height:58px!important;box-sizing:border-box!important;display:flex!important;align-items:center!important;padding:9px 10px!important;border:1px dashed var(--ft-line,#d9e1e4)!important;border-radius:10px!important;}
+  .app-ui .appearance-auto-note>span{display:grid!important;gap:2px!important;font-size:11px!important;line-height:1.4!important;}
+  .app-ui .contrast-safety-note{grid-column:1/-1!important;display:grid!important;gap:3px!important;padding:9px 10px!important;border-radius:10px!important;background:var(--ft-soft,#f4f7f8)!important;border:1px solid var(--ft-line,#d9e1e4)!important;font-size:11px!important;line-height:1.45!important;}
+  .app-ui .contrast-safety-note span{color:var(--ft-muted,#6b7b80)!important;}
   .app-ui .appearance-toggles,.app-ui .appearance-table-columns{gap:8px!important;}
+
   @media(max-width:720px){
     .app-ui .design-advanced-panel .appearance-system-grid{grid-template-columns:1fr!important;gap:9px!important;}
     .app-ui .design-advanced-panel{padding:12px!important;overflow:hidden!important;}
+    .app-ui .design-control-card{padding:11px!important;border-radius:12px!important;}
+    .app-ui .design-control-card-head{align-items:flex-start!important;}
     .app-ui .design-advanced-panel :is(select,input,button){max-width:100%!important;}
+    .app-ui .contrast-safety-note{grid-column:auto!important;}
     .app-ui .appearance-toggles,.app-ui .appearance-table-columns{grid-template-columns:1fr!important;}
   }
 }

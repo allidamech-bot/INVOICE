@@ -186,7 +186,9 @@
   .invoice-page.kind-delivery-note .items-table .col-description{width:auto!important;}
 
   /* Receipt output: Description + Amount. Keep the underlying quantity=1 line
-     representation untouched for compatibility with calculations and old files. */
+     representation untouched for compatibility with calculations and old files.
+     The pseudo header follows the bounded table-size control while preserving its
+     historical Normal size. */
   .invoice-page.kind-payment-receipt .items-table col.col-qty,
   .invoice-page.kind-payment-receipt .items-table col.col-unit,
   .invoice-page.kind-payment-receipt .items-table col.col-price,
@@ -199,9 +201,9 @@
   .invoice-page.kind-payment-receipt .items-table .col-description{width:auto!important;}
   .invoice-page.kind-payment-receipt .items-table th:last-child{font-size:0!important;}
   .invoice-page.kind-payment-receipt .items-table th:last-child small{display:none!important;}
-  .invoice-page.kind-payment-receipt.lang-en .items-table th:last-child::after{content:"Amount";font-size:9pt;}
-  .invoice-page.kind-payment-receipt.lang-ar .items-table th:last-child::after{content:"المبلغ";font-size:9pt;}
-  .invoice-page.kind-payment-receipt.lang-bilingual .items-table th:last-child::after{content:"Amount / المبلغ";font-size:8.5pt;}
+  .invoice-page.kind-payment-receipt.lang-en .items-table th:last-child::after{content:"Amount";font-size:calc(var(--lrx-table-size,7.25px)*1.6552);}
+  .invoice-page.kind-payment-receipt.lang-ar .items-table th:last-child::after{content:"المبلغ";font-size:calc(var(--lrx-table-size,7.25px)*1.6552);}
+  .invoice-page.kind-payment-receipt.lang-bilingual .items-table th:last-child::after{content:"Amount / المبلغ";font-size:calc(var(--lrx-table-size,7.25px)*1.5632);}
   .invoice-page.kind-payment-receipt .totals-block .total-row[data-total="subtotal"]{display:none!important;}
   .invoice-page.kind-payment-receipt .grand-total>span{font-size:0!important;}
   .invoice-page.kind-payment-receipt.lang-en .grand-total>span::after{content:"Receipt Amount";font-size:9pt;}
