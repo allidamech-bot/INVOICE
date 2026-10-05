@@ -33,26 +33,9 @@ const KIND_LABELS:Record<string,[string,string]>={
   'conditional-task':['Reminder','تذكير'],
 };
 
-const MEMORY_KIND_LABELS:Record<string,[string,string]>={
-  note:['Note','ملاحظة'],
-  preference:['Preference','تفضيل'],
-  fact:['Saved detail','معلومة محفوظة'],
-  instruction:['Instruction','تعليمات'],
-};
-
-const STATUS_LABELS:Record<string,[string,string]>={
-  open:['Open','مفتوحة'],
-  done:['Completed','مكتملة'],
-  completed:['Completed','مكتملة'],
-  cancelled:['Cancelled','ملغاة'],
-};
-
-const RECURRENCE_LABELS:Record<string,[string,string]>={
-  daily:['Daily','يوميًا'],
-  weekly:['Weekly','أسبوعيًا'],
-  monthly:['Monthly','شهريًا'],
-  yearly:['Yearly','سنويًا'],
-};
+const MEMORY_KIND_LABELS:Record<string,[string,string]>={note:['Note','ملاحظة'],preference:['Preference','تفضيل'],fact:['Saved detail','معلومة محفوظة'],instruction:['Instruction','تعليمات']};
+const STATUS_LABELS:Record<string,[string,string]>={open:['Open','مفتوحة'],done:['Completed','مكتملة'],completed:['Completed','مكتملة'],cancelled:['Cancelled','ملغاة']};
+const RECURRENCE_LABELS:Record<string,[string,string]>={daily:['Daily','يوميًا'],weekly:['Weekly','أسبوعيًا'],monthly:['Monthly','شهريًا'],yearly:['Yearly','سنويًا']};
 
 function pick(pair:[string,string]|undefined,language:AiPresentationLanguage,fallback:string):string{return pair?.[language==='ar'?1:0]||fallback;}
 function readableFallback(value:string):string{return value.replace(/[_-]+/g,' ').replace(/\b\w/g,char=>char.toUpperCase()).trim();}
@@ -62,14 +45,11 @@ export function aiKindLabel(kind:string,language:AiPresentationLanguage='en'):st
 export function aiMemoryKindLabel(kind:string,language:AiPresentationLanguage='en'):string{return pick(MEMORY_KIND_LABELS[kind],language,readableFallback(kind));}
 export function aiTaskStatusLabel(status:string,language:AiPresentationLanguage='en'):string{return pick(STATUS_LABELS[status],language,readableFallback(status));}
 export function aiRecurrenceLabel(recurrence:string,language:AiPresentationLanguage='en'):string{if(!recurrence||recurrence==='none')return'';return pick(RECURRENCE_LABELS[recurrence],language,readableFallback(recurrence));}
-export function aiPriorityLabel(category:string,language:AiPresentationLanguage='en'):string{
-  const pair:Record<string,[string,string]>={urgent:['Critical','عاجلة'],attention:['High','مرتفعة'],opportunity:['Opportunity','فرصة'],info:['Normal','عادية']};
-  return pick(pair[category],language,readableFallback(category));
-}
+export function aiPriorityLabel(category:string,language:AiPresentationLanguage='en'):string{const pair:Record<string,[string,string]>={urgent:['Critical','عاجلة'],attention:['High','مرتفعة'],opportunity:['Opportunity','فرصة'],info:['Normal','عادية']};return pick(pair[category],language,readableFallback(category));}
 
 export function humanizeMissingFieldDetail(detail:string,language:AiPresentationLanguage='en'):string{
   const match=detail.trim().match(/^Missing:\s*(.+?)\.?$/i);if(!match)return detail;
-  const labels=match[1].split(',').map(value=>value.trim()).filter(Boolean).map(value=>aiFieldLabel(value,language));
+  const fields=match[1]??'';const labels=fields.split(',').map(value=>value.trim()).filter(Boolean).map(value=>aiFieldLabel(value,language));
   if(!labels.length)return detail;
   return language==='ar'?`البيانات الناقصة: ${labels.join('، ')}.`:`Missing: ${labels.join(', ')}.`;
 }
