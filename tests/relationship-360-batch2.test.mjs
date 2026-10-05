@@ -13,7 +13,7 @@ function supplier(id='supplier-1'){
 }
 function supplierSnapshot(source){return {sourceSupplierId:source.id,nameEn:source.nameEn,nameAr:source.nameAr,contactPerson:source.contactPerson,address:source.address,city:source.city,country:source.country,phone:source.phone,email:source.email,vatTaxNumber:source.vatTaxNumber,commercialRegistration:source.commercialRegistration};}
 function purchase({id,number,currency,date,source,itemId='item-1',cost='10',quantity='2',status='posted'}){
-  return {id,number,date,supplierSnapshot:supplierSnapshot(source),currency,items:[{id:`line-${id}`,savedItemId:itemId,sku:'SKU-1',descriptionEn:'Product One',descriptionAr:'المنتج الأول',quantity,unit:'PCS',unitCost:cost,landedUnitCost:cost,previousUnitCost:'',previousCostCurrency:''}],freight:'0',duty:'0',otherCosts:'0',notes:'',status,postedAt:status==='posted'?`${date}T12:00:00.000Z`:'',reversedAt:'',reverseReason:'',createdAt:`${date}T09:00:00.000Z`,updatedAt:`${date}T12:00:00.000Z`};
+  return {id,number,date,dueDate:date,supplierSnapshot:supplierSnapshot(source),currency,items:[{id:`line-${id}`,savedItemId:itemId,sku:'SKU-1',descriptionEn:'Product One',descriptionAr:'المنتج الأول',quantity,unit:'PCS',unitCost:cost,landedUnitCost:cost,previousUnitCost:'',previousCostCurrency:''}],freight:'0',duty:'0',otherCosts:'0',notes:'',status,postedAt:status==='posted'?`${date}T12:00:00.000Z`:'',reversedAt:'',reverseReason:'',createdAt:`${date}T09:00:00.000Z`,updatedAt:`${date}T12:00:00.000Z`};
 }
 
 test('Batch 2 Relationship 360 is derived-first and does not introduce a persistence silo',async()=>{
@@ -83,8 +83,8 @@ test('Customer 360 lives inside the canonical customer profile and reads the enc
   assert.match(index,/relationship-360-batch2\.css\?v=454-1/);
 });
 
-test('Supplier 360 stays inside Purchasing > Suppliers and preserves canonical purchase actions',async()=>{
-  const operations=await read('src/components/OperationsPage.tsx');
+test('Supplier 360 stays inside Purchasing > Suppliers while AP context remains routed to Finance',async()=>{
+  const [operations,supplierLive]=await Promise.all([read('src/components/OperationsPage.tsx'),read('src/components/Supplier360LivePanel.tsx')]);
   assert.match(operations,/Supplier360LivePanel/);
   assert.match(operations,/supplierProfileId:string/);
   assert.match(operations,/openSupplierProfile/);
@@ -95,7 +95,9 @@ test('Supplier 360 stays inside Purchasing > Suppliers and preserves canonical p
   assert.match(operations,/renderSupplierEditor/);
   assert.match(operations,/onPostPurchase/);
   assert.match(operations,/purchaseTotals/);
-  assert.doesNotMatch(operations,/SupplierPayable|SupplierPaymentRecord/);
+  assert.match(operations,/SupplierPaymentRecord/);
+  assert.match(operations,/onOpenSupplierFinance/);
+  assert.doesNotMatch(supplierLive,/SupplierPaymentRecord|supplierPayablesByCurrency|purchasePayableSummary|\.\/payables\.js/);
 });
 
 test('Relationship 360 presentation is mobile-first, RTL-aware and does not impersonate supplier payables',async()=>{
