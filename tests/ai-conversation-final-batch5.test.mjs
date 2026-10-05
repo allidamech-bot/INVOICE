@@ -36,8 +36,9 @@ test('final responsive gate covers phone tablet desktop and both browser engines
 });
 
 test('final AI interaction contracts retain mobile safe areas and approval boundaries',async()=>{
-  const [accessibility,tools,stage4]=await Promise.all([
+  const [accessibility,placement,tools,stage4]=await Promise.all([
     read('scripts/ai-conversation-owner-stage4-accessibility.mjs'),
+    read('scripts/ai-batch7-placement-repair.mjs'),
     read('scripts/ai-conversation-owner-stage4-tools.mjs'),
     read('scripts/ai-conversation-owner-stage4.mjs')
   ]);
@@ -45,6 +46,11 @@ test('final AI interaction contracts retain mobile safe areas and approval bound
   assert.match(accessibility,/min-height:44px/);
   assert.match(accessibility,/ArrowDown/);
   assert.match(accessibility,/Escape/);
+  assert.match(placement,/event\.stopPropagation\(\)/,'canonical Tools trigger owns propagation');
+  assert.match(accessibility,/trigger\.addEventListener\('click'/,'focus handoff must bind directly to the trigger rather than depend on document bubbling');
+  assert.match(accessibility,/dataset\.focusOwner/);
+  assert.match(accessibility,/focusFirstTool/);
+  assert.match(accessibility,/requestAnimationFrame\(\(\)=>focusFirstTool/);
   assert.match(tools,/Nothing will run automatically/);
   assert.match(tools,/applyApprovedToolExecution/);
   assert.match(stage4,/lourex-ai-structured-answer/);
