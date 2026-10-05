@@ -60,6 +60,16 @@ test('desktop, mobile, RTL and touch contracts remain explicit',async()=>{
   assert.match(accessibility,/ArrowDown/,'Tools menu must retain deterministic keyboard navigation');
 });
 
+test('Tools first-focus survives the canonical trigger stopPropagation boundary',async()=>{
+  const [placement,accessibility]=await Promise.all([
+    read('scripts/ai-batch7-placement-repair.mjs'),
+    read('scripts/ai-conversation-owner-stage4-accessibility.mjs')
+  ]);
+  assert.match(placement,/trigger\.addEventListener\('click',event=>\{event\.stopPropagation\(\);openHub\(trigger,shell\);\}\)/,'canonical Tools trigger intentionally stops click bubbling');
+  assert.match(accessibility,/document\.addEventListener\('click',event=>\{[\s\S]*?\},true\);/,'accessibility focus handoff must listen in capture phase so the trigger cannot block it');
+  assert.match(accessibility,/getAttribute\('aria-expanded'\)===['"]true['"]\)first\.focus\(\)/,'focus handoff must re-check that the menu actually opened before moving focus');
+});
+
 test('workflow hub prioritizes primary tools and isolates history',async()=>{
   const stage4=await read('scripts/ai-conversation-owner-stage4.mjs');
   const start=stage4.indexOf("t('Start here'");
