@@ -1,6 +1,7 @@
-/* v73 — isolate the printable A4 canvas from mobile application containment.
-   The iPhone shell intentionally clamps app chrome to the viewport; the document
-   preview itself must remain a real 210mm × 297mm sheet and then be scaled. */
+/* v542 — canonical A4 geometry for preview, JS PDF capture and native print.
+   The iPhone shell intentionally clamps app chrome to the viewport. Every document
+   output surface must still be measured as a real 210mm × 297mm sheet before any
+   pagination decision is made. */
 
 @media (max-width: 720px) {
   /* The preview overlay is opt-in. A previous mobile refinement forced it visible
@@ -14,7 +15,7 @@
 
   /* Do not let `.app-ui * { max-width:100% }` shrink the A4 renderer to the
      phone viewport. Shrinking the layout (instead of scaling it) collapses the
-     totals column, clips titles and distorts tables. */
+     totals column, clips titles and changes pagination. */
   .app-ui .preview-stage .invoice-pages,
   .app-ui .mobile-preview-stage .invoice-pages {
     width: 210mm !important;
@@ -39,6 +40,38 @@
   }
 }
 
+/* The iOS PDF bridge captures `.print-portal` while normal SCREEN media is still
+   active. Therefore this surface must use the exact same physical A4 geometry
+   before html2canvas/jsPDF starts. Previously these guarantees existed only in
+   @media print, so mobile containment could shrink the hidden renderer to the
+   phone viewport and MeasuredDocument would commit a false extra page. */
+@media screen {
+  html body #root .print-portal,
+  html body #root .print-portal .invoice-pages {
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: none !important;
+  }
+
+  html body #root .print-portal .invoice-pages {
+    gap: 0 !important;
+    transform: none !important;
+    margin: 0 !important;
+    flex: none !important;
+  }
+
+  html body #root .print-portal .invoice-page {
+    box-sizing: border-box !important;
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    flex: 0 0 297mm !important;
+    margin: 0 !important;
+  }
+}
+
 /* Keep the commercial totals column at its authored A4 width even when it is
    the only child in the lower grid (for example when no commercial terms exist). */
 .invoice-page .lower-grid > .totals-block {
@@ -56,8 +89,8 @@
   white-space: nowrap;
 }
 
-/* Printing/PDF must always use physical A4 dimensions, irrespective of the
-   phone's visual viewport or safe-area containment rules. */
+/* Native printing must use the same canonical dimensions as Preview and the
+   JavaScript PDF path, irrespective of viewport or safe-area containment. */
 @media print {
   html,
   body,
