@@ -70,8 +70,8 @@ test('Supplier 360 derives valid posted spend by currency and keeps drafts/rever
 });
 
 test('Customer 360 lives inside the canonical customer profile and reads the encrypted vault without mutation',async()=>{
-  const [customers,live,styleLoader]=await Promise.all([
-    read('src/components/CustomersPage.tsx'),read('src/components/Customer360LivePanel.tsx'),read('src/lib/relationship-360-style.ts')
+  const [customers,live,styleLoader,index]=await Promise.all([
+    read('src/components/CustomersPage.tsx'),read('src/components/Customer360LivePanel.tsx'),read('src/lib/relationship-360-style.ts'),read('index.html')
   ]);
   assert.match(customers,/Customer360LivePanel/);
   assert.match(customers,/<Customer360LivePanel customer=\{customer\}\/>/);
@@ -79,7 +79,8 @@ test('Customer 360 lives inside the canonical customer profile and reads the enc
   assert.match(live,/buildCustomer360/);
   assert.match(live,/ensureRelationship360Styles/);
   assert.doesNotMatch(live,/mutateVaultSafely|saveVault/);
-  assert.match(styleLoader,/relationship-360-batch2\.css\?v=454-1/);
+  assert.doesNotMatch(styleLoader,/createElement\(['"]link['"]\)|relationship-360-batch2\.css/);
+  assert.match(index,/relationship-360-batch2\.css\?v=454-1/);
 });
 
 test('Supplier 360 stays inside Purchasing > Suppliers and preserves canonical purchase actions',async()=>{
