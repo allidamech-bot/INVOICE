@@ -28,10 +28,10 @@ test('hybrid dark-header templates keep light commercial body ink',async()=>{
   assert.match(css,/template-carbon\) :is\(\.terms-block dt[\s\S]*--lrx-light-muted/);
 });
 
-test('midnight and carbon retain readable inverse ink inside their dark totals modules',async()=>{
+test('midnight and carbon dark totals own inverse ink with legacy-proof specificity',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/:is\(\.template-midnight,\.template-carbon\) \.totals-block\{color:var\(--lrx-dark-ink\)!important;\}/);
-  assert.match(css,/:is\(\.template-midnight,\.template-carbon\) \.totals-block :is\(span,strong,small\)\{color:var\(--lrx-dark-ink\)!important;-webkit-text-fill-color:var\(--lrx-dark-ink\)!important;\}/);
+  assert.match(css,/\.invoice-pages>\.invoice-page:is\(\.template-midnight,\.template-carbon\) \.totals-block\{color:var\(--lrx-dark-ink\)!important;\}/);
+  assert.match(css,/\.invoice-pages>\.invoice-page:is\(\.template-midnight,\.template-carbon\) \.totals-block :is\(\.total-row>span,\.total-row>strong,\.grand-total>span,\.grand-total>strong,small\)\{color:var\(--lrx-dark-ink\)!important;-webkit-text-fill-color:var\(--lrx-dark-ink\)!important;\}/);
 });
 
 test('obsidian alone retains explicit dark-body ink',async()=>{
