@@ -15,7 +15,8 @@ test('final AI conversation owner chain remains single and ordered',async()=>{
     'ai-conversation-owner-stage4-tools.mjs',
     'ai-conversation-owner-stage4-tools-closeout.mjs',
     'ai-conversation-owner-stage4.mjs',
-    'ai-conversation-owner-stage4-accessibility.mjs'
+    'ai-conversation-owner-stage4-accessibility.mjs',
+    'ai-conversation-final-batch5.mjs'
   ];
   let previous=-1;
   for(const owner of owners){
@@ -25,6 +26,17 @@ test('final AI conversation owner chain remains single and ordered',async()=>{
     assert.equal(build.indexOf(needle,first+1),-1,`${owner} must run exactly once`);
     previous=first;
   }
+});
+
+test('first composer submit survives asynchronous thread hydration',async()=>{
+  const closeout=await read('scripts/ai-conversation-final-batch5.mjs');
+  assert.match(closeout,/const submitted=typeof raw==='string'\?raw:String\(instance\.state\.input\?\?''\)/);
+  assert.match(closeout,/await __lourexEnsureAssistantThread\(instance\)/);
+  assert.match(closeout,/await baseAsk\(raw===undefined\?submitted:raw\)/);
+  const captureAt=closeout.indexOf("const submitted=typeof raw==='string'");
+  const hydrateAt=closeout.indexOf('await __lourexEnsureAssistantThread(instance)');
+  const askAt=closeout.indexOf('await baseAsk(raw===undefined?submitted:raw)');
+  assert.ok(captureAt>=0&&captureAt<hydrateAt&&hydrateAt<askAt,'submitted text must be captured before hydration and used after hydration');
 });
 
 test('final responsive gate covers phone tablet desktop and both browser engines',async()=>{
