@@ -27,7 +27,7 @@ test('iOS PDF bridge consumes only pagination-ready print portal pages',async()=
   assert.match(bridge,/const sourcePages = Array\.from/);
 });
 
-test('fixture renders the identical quotation snapshot into preview and PDF source',async()=>{
+test('fixture renders the identical quotation snapshot into preview and PDF source with real logo watermark pressure',async()=>{
   const fixture=await read('tests/visual/v542-pagination-parity.js');
   assert.match(fixture,/mobile-preview-stage/);
   assert.match(fixture,/print-portal/);
@@ -35,4 +35,23 @@ test('fixture renders the identical quotation snapshot into preview and PDF sour
   assert.match(fixture,/TemplateRenderer,\{document:documentData,scale:1/);
   assert.match(fixture,/QUO-2026-0046/);
   assert.match(fixture,/Eti popkek 60 gr\*24/);
+  assert.match(fixture,/logoDataUrl/);
+  assert.match(fixture,/type:'logo'/);
+  assert.match(fixture,/pattern:'repeat'/);
+  assert.match(fixture,/Export cartons on pallets/);
+});
+
+test('v544 emergency owner runs after visual bundle owners and removes the pagination deadlock',async()=>{
+  const [pkgRaw,owner]=await Promise.all([read('package.json'),read('scripts/v544-pdf-a4-output-emergency.mjs')]);
+  const pkg=JSON.parse(pkgRaw);const build=String(pkg.scripts?.build||'');
+  const visualOwner=build.indexOf('v485-bundle-visible-ui.mjs');
+  const emergencyOwner=build.indexOf('v544-pdf-a4-output-emergency.mjs');
+  const aiOwner=build.indexOf('ai-batch1-unified-assistant.mjs');
+  assert.ok(visualOwner>=0&&emergencyOwner>visualOwner,'v544 must run after visual bundle owners');
+  assert.ok(aiOwner<0||emergencyOwner<aiOwner,'v544 must finish document output before AI runtime patching');
+  assert.match(owner,/oneRowDeadlock/);
+  assert.match(owner,/items\.push\(moved\);continue/);
+  assert.match(owner,/this\.moves=0/);
+  assert.match(owner,/nth-child\(-n\+3\):last-child/);
+  assert.match(owner,/LOUREX v544 PDF A4 emergency/);
 });
