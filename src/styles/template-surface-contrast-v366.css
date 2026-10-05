@@ -29,11 +29,6 @@
   .invoice-page .terms-block .term-row>b{color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
   .invoice-page .terms-block .term-row>span{color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
 
-  /* Light/dark fallback contracts remain explicit for legacy documents that do
-   * not yet carry the new inline appearance tokens. */
-  :is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger){--lrx-primary:var(--lrx-primary,#17212b);--lrx-secondary:var(--lrx-secondary,#4d5b68);}
-  :is(.template-obsidian,.template-noir,.template-midnight,.template-blackivory,.template-carbon){--lrx-primary:var(--lrx-primary,#f7f2e8);--lrx-secondary:var(--lrx-secondary,#d7d0c4);}
-
   .invoice-page .items-table thead th,.invoice-page .items-table thead th :is(span,small,.bi-label,.bi-label>span){color:var(--lrx-table-header-ink,var(--lrx-dark-ink))!important;-webkit-text-fill-color:var(--lrx-table-header-ink,var(--lrx-dark-ink))!important;}
 
   /* Bounded typography controls. A4 pagination remains authoritative. */
