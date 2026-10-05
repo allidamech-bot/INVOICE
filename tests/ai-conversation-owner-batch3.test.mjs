@@ -13,8 +13,10 @@ test('Batch 3 runs after the canonical conversation owner',()=>{
 
 test('Batch 3 removes the duplicate workflow plus without breaking the voice bridge',()=>{
   assert.match(stage,/!plus&&!menu/);
-  assert.match(stage,/plus\?\.remove\(\);mic\?\.remove\(\);status\?\.remove\(\);menu\?\.remove\(\)/);
+  assert.match(stage,/const createStart="const nextPlus=document\.createElement\('button'\);"/,'installer must identify and replace the legacy plus construction block');
   assert.match(stage,/nextMic\.addEventListener\('click',\(\)=>toggleVoice\(panel\)\)/);
+  assert.match(stage,/class=\"lourex-ai-voice-retry\" hidden/,'voice retry control must survive composer consolidation');
+  assert.match(stage,/voiceRetry\.addEventListener\('click',\(\)=>toggleVoice\(panel\)\)/,'voice retry must restart the canonical recognizer');
   assert.match(stage,/__lourexConversationOwnerBatch3/);
   assert.match(stage,/lourex-ai-composer-plus,#lourex-ai-panel \.lourex-ai-plus-menu\{display:none!important/);
 });
