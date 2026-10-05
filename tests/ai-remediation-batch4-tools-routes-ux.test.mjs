@@ -28,6 +28,15 @@ test('Morning Brief exposes decision hierarchy without raw evidence or signal ki
   assert.doesNotMatch(source,/\{signal\.kind\}/,'raw signal kind must not be rendered to users');
 });
 
+test('Batch 4 closeout maps product-data fields to human labels at user-facing boundaries',async()=>{
+  const presentation=await read('src/lib/ai-presentation.ts');
+  const brief=await read('src/components/DailyCommandCenterTool.tsx');
+  const proactive=await read('src/components/ProactiveAssistantTool.tsx');
+  for(const token of ["sku:['SKU','رمز المنتج']","hsCode:['HS Code','الرمز الجمركي']","cost:['Cost','التكلفة']","descriptionAr:['Arabic description','الوصف العربي']","'product-data':['Product data','بيانات المنتج']",'humanizeMissingFieldDetail'])assert.match(presentation,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  assert.match(brief,/aiSignalDetail\(raw,signal\.kind,lang\)/,'Morning Brief must humanize product-data details before rendering');
+  assert.match(proactive,/aiSignalDetail\(lang==='ar'\?top\.detailAr:top\.detail,top\.kind,lang\)/,'Proactive assistant must humanize the same detail consistently');
+});
+
 test('Tools hub preserves exact accessible action names after adding descriptions',async()=>{
   const placement=await read('scripts/ai-batch7-placement-repair.mjs');
   assert.match(placement,/button\.setAttribute\('aria-label',label\)/);
