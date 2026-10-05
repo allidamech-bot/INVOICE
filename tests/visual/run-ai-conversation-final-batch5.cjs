@@ -52,6 +52,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
 
         const textarea=panel.locator('.lourex-ai-premium-textarea');
         const attach=panel.locator('.lourex-ai-attach-button');
+        const send=panel.locator('.lourex-ai-send');
         await textarea.waitFor({state:'visible'});
         const attachBox=await attach.boundingBox();
         assert.ok(attachBox&&attachBox.width>=43&&attachBox.height>=43,'attachment target remains touch safe');
@@ -66,6 +67,14 @@ const {mkdirSync,writeFileSync}=require('node:fs');
         assert.match(await attachmentChip.innerText(),/final-qa\.txt/,'selected attachment is visible before Send');
         await attachmentChip.locator('.lourex-ai-attachment-remove').click();
         await attachmentChip.waitFor({state:'hidden'});
+
+        // Exercise the actual user-facing textarea keyboard path separately from tool/menu lifecycle.
+        await textarea.fill('Cost is 10 and margin 20%');
+        const beforeKeyboardAssistants=await panel.locator('.lourex-ai-message.assistant').count();
+        await textarea.press('Enter');
+        await panel.locator('.lourex-ai-message.user').filter({hasText:'Cost is 10'}).last().waitFor({state:'visible'});
+        await page.waitForFunction(count=>document.querySelectorAll('#lourex-ai-panel .lourex-ai-message.assistant').length>count,beforeKeyboardAssistants);
+        assert.deepEqual(requests,[],'visible textarea Enter must keep deterministic margin calculation local');
 
         const trigger=panel.locator('.lourex-ai-hub-trigger');
         assert.equal(await trigger.count(),1,'exactly one Tools trigger');
@@ -102,8 +111,12 @@ const {mkdirSync,writeFileSync}=require('node:fs');
         if(width<=720)assert.ok(Math.abs(managerBox.width-width)<=2,'mobile Memory & Tasks is full width');
         await manager.locator('.lourex-ai-manager-head > button').click();
 
+        // After opening/closing Tools and Memory, the visible composer must still submit normally.
         await textarea.fill(lang==='ar'?'اعرض وضع الخزينة والسيولة':'Show treasury and cash status');
-        await textarea.press('Enter');
+        const beforeTreasuryAssistants=await panel.locator('.lourex-ai-message.assistant').count();
+        assert.equal(await send.isEnabled(),true,'Send remains enabled after Tools and Memory lifecycle');
+        await send.click();
+        await page.waitForFunction(count=>document.querySelectorAll('#lourex-ai-panel .lourex-ai-message.assistant').length>count,beforeTreasuryAssistants);
         const assistant=panel.locator('.lourex-ai-message.assistant').last();
         await assistant.waitFor({state:'visible'});
         assert.equal(await assistant.locator('.lourex-ai-structured-answer').count(),1,'assistant answer uses executive structured renderer');
@@ -129,7 +142,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
         assert.deepEqual(errors,[],'final AI QA must have no page errors');
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'final AI state must remain overflow free');
         await page.screenshot({path:`${output}/${matrix.name}-${width}-${lang}-${theme}.png`,animations:'disabled'});
-        report.push({engine:matrix.name,width,height,lang,theme,panel:'PASS',composer:'PASS',attachments:'PASS',toolsKeyboard:'PASS',memoryTasks:'PASS',structuredAnswer:'PASS',localToolPlan:'PASS',morningBrief:'PASS',providerCalls:requests.length});
+        report.push({engine:matrix.name,width,height,lang,theme,panel:'PASS',composer:'PASS',keyboardSend:'PASS',attachments:'PASS',toolsKeyboard:'PASS',memoryTasks:'PASS',postToolsSend:'PASS',structuredAnswer:'PASS',localToolPlan:'PASS',morningBrief:'PASS',providerCalls:requests.length});
         await page.close();
       }
     }finally{
