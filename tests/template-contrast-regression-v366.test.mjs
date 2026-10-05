@@ -11,40 +11,61 @@ test('v366 contrast guard is loaded after canonical premium output styles',async
   assert.ok(premium>=0&&guard>premium,'contrast guard must load after canonical premium A4 CSS');
 });
 
-test('v366 explicitly protects light quotation body copy from inverse text leakage',async()=>{
-  const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/template-executive[\s\S]*template-ledger/);
-  assert.match(css,/items-table tbody td[\s\S]*--lrx-light-ink/);
-  assert.match(css,/-webkit-text-fill-color:var\(--lrx-light-ink\)!important/);
+test('v366 assigns commercial terms labels and values from canonical document tokens',async()=>{
+  const [renderer,css]=await Promise.all([
+    read('src/templates/TemplateRenderer.tsx'),
+    read('src/styles/template-surface-contrast-v366.css')
+  ]);
+  assert.match(renderer,/className="term-row"/);
+  assert.match(renderer,/--lrx-primary/);
+  assert.match(renderer,/--lrx-secondary/);
+  assert.match(css,/\.terms-block \.term-row>b\{color:var\(--lrx-secondary/);
+  assert.match(css,/\.terms-block \.term-row>span\{color:var\(--lrx-primary/);
 });
 
-test('v366 keeps light cards readable inside dark commercial templates',async()=>{
-  const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/\.invoice-page \.party-block[\s\S]*--lrx-light-ink/);
-  assert.match(css,/template-obsidian[\s\S]*template-carbon[\s\S]*--lrx-dark-ink/);
+test('v366 keeps light party cards independent from overall template darkness',async()=>{
+  const [appearance,css]=await Promise.all([
+    read('src/lib/appearance.ts'),
+    read('src/styles/template-surface-contrast-v366.css')
+  ]);
+  assert.match(appearance,/const surfaceInk='#17212b'/);
+  assert.match(appearance,/const darkSurfaceInk='#fffaf0'/);
+  assert.match(css,/\.invoice-page \.party-block[\s\S]*--lrx-surface-ink/);
 });
 
-test('v366 prevents microscopic item and party copy in preview and print',async()=>{
+test('v366 prevents microscopic item and party copy while allowing bounded user sizing',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/items-table tbody td\{font-size:max\(7\.4px,1em\)!important/);
-  assert.match(css,/party-address[\s\S]*font-size:max\(7\.6px,1em\)!important/);
+  assert.match(css,/items-table tbody td\{font-size:max\(7\.4px,var\(--lrx-table-size,9\.1px\)\)!important/);
+  assert.match(css,/party-address[\s\S]*font-size:max\(7\.6px,var\(--lrx-body-size,9\.2px\)\)!important/);
   assert.match(css,/@media print/);
 });
 
-test('design customization stays in the existing Design section and remains bounded',async()=>{
-  const editor=await read('src/components/EditorPageCore.tsx');
+test('design customization stays in section 06 and exposes the agreed controls',async()=>{
+  const [editor,controls]=await Promise.all([
+    read('src/components/EditorPageCore.tsx'),
+    read('src/components/DocumentDesignControls.tsx')
+  ]);
   assert.match(editor,/section-heading[\s\S]{0,120}06[\s\S]{0,120}Design/);
-  assert.match(editor,/Color System[\s\S]{0,500}paletteMode/);
-  assert.match(editor,/Auto — matched to template/);
-  assert.match(editor,/Custom Accent/);
-  assert.match(editor,/English Font[\s\S]{0,400}LATIN_FONT_OPTIONS/);
-  assert.match(editor,/Arabic Font[\s\S]{0,400}ARABIC_FONT_OPTIONS/);
+  assert.match(editor,/DocumentDesignControls appearance=\{d\.appearance\} onChange=\{this\.appearance\}/);
+  assert.match(controls,/Auto — matched to template/);
+  assert.match(controls,/Accent Color/);
+  assert.match(controls,/Heading Color/);
+  assert.match(controls,/Primary Text/);
+  assert.match(controls,/Secondary Text \/ Labels/);
+  assert.match(controls,/English Font/);
+  assert.match(controls,/Arabic Font/);
+  assert.match(controls,/Document Title Size/);
+  assert.match(controls,/Section Heading Size/);
+  assert.match(controls,/Body \/ Values Size/);
+  assert.match(controls,/Table Text Size/);
 });
 
 test('design controls are mobile-safe and do not add navigation or header UI',async()=>{
-  const css=await read('src/styles/template-surface-contrast-v366.css');
+  const [css,controls]=await Promise.all([
+    read('src/styles/template-surface-contrast-v366.css'),
+    read('src/components/DocumentDesignControls.tsx')
+  ]);
   assert.match(css,/design-advanced-panel[\s\S]*min-height:44px/);
   assert.match(css,/@media\(max-width:720px\)[\s\S]*appearance-system-grid\{grid-template-columns:1fr!important/);
-  assert.doesNotMatch(css,/\.editor-topbar[^\n]*content:/);
-  assert.doesNotMatch(css,/\.app-sidebar[^\n]*content:/);
+  assert.doesNotMatch(controls,/workspace-sidebar|bottom-nav|editor-topbar/);
 });
