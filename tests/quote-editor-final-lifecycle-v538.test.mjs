@@ -6,6 +6,8 @@ const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const runner=read('tests/visual/run-v538-quote-editor-final-flow.cjs');
 const fixture=read('tests/visual/v538-quote-editor-final-flow.html');
 const workflow=read('.github/workflows/quote-editor-final-lifecycle.yml');
+const pkg=JSON.parse(read('package.json'));
+const departureOwner=read('scripts/v539-editor-departure-single-owner.mjs');
 
 test('v538 final quote lifecycle covers priority iPhone and iPad WebKit sizes',()=>{
   assert.match(runner,/const \{webkit\}=require\('playwright'\)/);
@@ -40,6 +42,20 @@ test('v538 rejects duplicate or parallel editor persistence across autosave and 
   assert.match(runner,/app hide\/pagehide produced parallel saves/);
   assert.match(fixture,/window\.activeSaves\+=1/);
   assert.match(fixture,/window\.maxConcurrentSaves=Math\.max/);
+});
+
+test('v539 emitted quote editor uses one departure persistence owner with synchronous single-flight protection',()=>{
+  const build=String(pkg.scripts?.build||'');
+  const checkpointAt=build.indexOf('node scripts/v529-document-autosave-checkpoint-fix.mjs');
+  const ownerAt=build.indexOf('node scripts/v539-editor-departure-single-owner.mjs');
+  const precacheAt=build.indexOf('node scripts/pwa-auto-precache.mjs');
+  assert.ok(checkpointAt>=0&&ownerAt>checkpointAt&&precacheAt>ownerAt,'v539 departure owner must finalize the editor runtime after autosave hardening and before PWA precache');
+  assert.match(departureOwner,/handleVisibilityChange[\s\S]*this\.flushPendingSnapshot\(\)/);
+  assert.match(departureOwner,/flushPendingSnapshot[\s\S]*void this\.save\(true\)/);
+  assert.match(departureOwner,/if \(this\.saveInFlight\)/);
+  assert.match(departureOwner,/hasNewerChanges && this\.departureFlushQueued/);
+  assert.match(departureOwner,/this\.saveInFlight \|\| this\.state\.saving/);
+  assert.match(departureOwner,/flushSource\.includes\('this\.props\.onSave\('/);
 });
 
 test('v538 uses the real EditorPage boundary and is enforced by its WebKit workflow',()=>{
