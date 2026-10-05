@@ -32,6 +32,9 @@ async function inspect(page,testCase){
     const termLabel=sheet?.querySelector('.terms-block .term-row>b');
     const termValue=sheet?.querySelector('.terms-block .term-row>span');
     const partyName=sheet?.querySelector('.party-block .party-name');
+    const signatureMedia=sheet?.querySelector('.signature-media');
+    const signature=sheet?.querySelector('.signature-image');
+    const stamp=sheet?.querySelector('.stamp-image');
     const css=sheet?getComputedStyle(sheet):null;
     const box=sheet?.getBoundingClientRect();
     return{
@@ -42,6 +45,7 @@ async function inspect(page,testCase){
       latin:css?.getPropertyValue('--font-latin').trim()||'',arabic:css?.getPropertyValue('--font-arabic').trim()||'',
       tableSize:tableCell?parseFloat(getComputedStyle(tableCell).fontSize):0,titleSize:title?parseFloat(getComputedStyle(title).fontSize):0,
       termLabelColor:termLabel?getComputedStyle(termLabel).color:'',termValueColor:termValue?getComputedStyle(termValue).color:'',partyNameColor:partyName?getComputedStyle(partyName).color:'',
+      signatureSurface:signatureMedia?getComputedStyle(signatureMedia).backgroundColor:'',signatureFilter:signature?getComputedStyle(signature).filter:'',stampFilter:stamp?getComputedStyle(stamp).filter:'',
       headerExecutive:Boolean(sheet?.querySelector('.header-executive')),
       pageCount:document.querySelectorAll('.invoice-page').length,
       width:box?.width||0,height:box?.height||0,
@@ -75,6 +79,11 @@ async function inspect(page,testCase){
         if(testCase.fonts==='custom'){
           assert.match(metrics.latin,/Montserrat/i,`${label}: Latin font token`);
           assert.match(metrics.arabic,/Cairo/i,`${label}: Arabic font token`);
+        }
+        if(testCase.name==='obsidian-custom-unsafe-ar'){
+          assert.equal(metrics.signatureSurface,'rgb(255, 255, 255)',`${label}: signature surface must stay light for preview/PDF parity`);
+          assert.equal(metrics.signatureFilter,'none',`${label}: signature must not depend on a CSS-only recolor`);
+          assert.ok(!/invert\(/i.test(metrics.stampFilter),`${label}: stamp must preserve source color`);
         }
         if(testCase.name==='legacy-template-fallback')assert.equal(metrics.headerExecutive,true,`${label}: Executive fallback header missing`);
         results.push({engine,...testCase,...metrics});
