@@ -44,6 +44,22 @@ test('custom text colors pass contrast guards and unsafe choices fall back on ev
   assert.equal(safe.heading,'#22303a');
 });
 
+test('Normal typography maps back to canonical v141 sizes while Small and Large stay bounded',()=>{
+  const base=createBlankDocument('invoice','INV-TYPE',defaultCompany()).appearance;
+  const normal=resolvedAppearanceTokens({...base,textScale:'normal',documentTitleScale:'normal',sectionHeadingScale:'normal',bodyTextScale:'normal',tableTextScale:'normal'});
+  assert.equal(normal.titleScale,1);
+  assert.ok(Math.abs(10*normal.headingScale-7)<1e-9);
+  assert.ok(Math.abs(9.2*normal.bodyScale-8.2)<1e-9);
+  assert.ok(Math.abs(9.1*normal.tableScale-7.25)<1e-9);
+
+  const small=resolvedAppearanceTokens({...base,documentTitleScale:'small',sectionHeadingScale:'small',bodyTextScale:'small',tableTextScale:'small'});
+  const large=resolvedAppearanceTokens({...base,documentTitleScale:'large',sectionHeadingScale:'large',bodyTextScale:'large',tableTextScale:'large'});
+  assert.ok(small.titleScale<normal.titleScale&&normal.titleScale<large.titleScale);
+  assert.ok(small.headingScale<normal.headingScale&&normal.headingScale<large.headingScale);
+  assert.ok(small.bodyScale<normal.bodyScale&&normal.bodyScale<large.bodyScale);
+  assert.ok(small.tableScale<normal.tableScale&&normal.tableScale<large.tableScale);
+});
+
 test('document typography remains bounded rather than free-form pixels',async()=>{
   const appearance=await read('src/lib/appearance.ts');
   assert.match(appearance,/type TextScale='small'\|'normal'\|'large'/);
