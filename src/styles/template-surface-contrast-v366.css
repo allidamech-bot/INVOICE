@@ -11,6 +11,20 @@
     --lrx-dark-muted:#d7d0c4;
   }
 
+  /* Baseline local-surface protection retained from latest main. Party cards are
+   * light modules even when the surrounding identity is dark. More-specific
+   * Custom rules below may use a selected color only when that local surface is safe. */
+  .invoice-page .party-block{color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;}
+  .invoice-page .party-block :is(.party-name,.party-address,.party-location,.party-contact,.party-identifiers,.party-identifiers span,.bi-value,.bi-value>span){color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;}
+  .invoice-page .party-block :is(.section-kicker,.party-identifiers b){color:var(--accent,#8a704b)!important;-webkit-text-fill-color:var(--accent,#8a704b)!important;}
+
+  /* Latest-main inverse-total guard remains explicit. These are authored dark
+   * modules on otherwise light commercial sheets and must never inherit body ink. */
+  .invoice-pages>.invoice-page:is(.template-midnight,.template-carbon) .totals-block{color:var(--lrx-dark-ink)!important;}
+  .invoice-pages>.invoice-page:is(.template-midnight,.template-carbon) .totals-block :is(.total-row>span,.total-row>strong,.grand-total>span,.grand-total>strong,small){color:var(--lrx-dark-ink)!important;-webkit-text-fill-color:var(--lrx-dark-ink)!important;}
+  .invoice-pages>.invoice-page.template-obsidian .totals-block{color:var(--lrx-dark-ink)!important;}
+  .invoice-pages>.invoice-page.template-obsidian .totals-block :is(.total-row>span,.total-row>strong,.grand-total>span,.grand-total>strong,small){color:var(--lrx-dark-ink)!important;-webkit-text-fill-color:var(--lrx-dark-ink)!important;}
+
   /* Auto means matched to the selected template. Do not flatten the authored
    * template palettes with a second global foreground system. */
 
@@ -60,8 +74,8 @@
    * vary by template and keep their explicit high-contrast colors. */
 
   /* Bounded typography controls apply in Auto and Custom. Normal must be a visual
-   * no-op relative to canonical v141. Small/Large scale the authored hierarchy
-   * instead of flattening every role to one oversized font. */
+   * no-op relative to v141, including compact/template-specific table typography.
+   * Small/Large scale the authored hierarchy instead of flattening every role. */
   .invoice-page .doc-title{zoom:var(--lrx-title-scale,1);}
 
   .invoice-page :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3){font-size:var(--lrx-heading-size,7px)!important;line-height:1.25!important;}
@@ -74,6 +88,15 @@
   .invoice-page .items-table tbody td{font-size:100%!important;line-height:1.4!important;}
   .invoice-page .items-table tbody td.description-cell{font-size:104.138%!important;}
   .invoice-page .items-table tbody td.trade-cell{font-size:93.793%!important;}
+
+  /* Slate intentionally uses denser table typography; Editorial intentionally
+   * gives descriptions slightly more editorial emphasis. Preserve those canonical
+   * Normal sizes and scale them proportionally with the same bounded table token. */
+  .invoice-page.template-slate .items-table thead th{font-size:calc(var(--lrx-table-size,7.25px)*.813793)!important;}
+  .invoice-page.template-slate .items-table thead th small{font-size:calc(var(--lrx-table-size,7.25px)*.737931)!important;}
+  .invoice-page.template-slate .items-table tbody td{font-size:calc(var(--lrx-table-size,7.25px)*.924138)!important;line-height:1.3!important;}
+  .invoice-page.template-slate .items-table tbody td.description-cell{font-size:calc(var(--lrx-table-size,7.25px)*.951724)!important;}
+  .invoice-page.template-editorial .items-table tbody td.description-cell{font-size:calc(var(--lrx-table-size,7.25px)*1.062069)!important;}
 
   .invoice-page .party-block{font-size:var(--lrx-body-size,8.2px)!important;}
   .invoice-page .party-block :is(.party-address,.party-location,.party-contact){font-size:100%!important;line-height:1.5!important;}
