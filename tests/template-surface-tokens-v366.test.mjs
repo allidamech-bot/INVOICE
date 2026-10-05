@@ -17,6 +17,7 @@ test('appearance engine exposes independent surface and semantic ink tokens',asy
   assert.match(appearance,/const surfaceInk='#17212b'/);
   assert.match(appearance,/const darkSurfaceInk='#fffaf0'/);
   assert.match(appearance,/DARK_BODY_TEMPLATES=new Set<TemplateId>\(\['obsidian'\]\)/);
+  assert.match(appearance,/TEMPLATE_LIGHT_SURFACES/);
 });
 
 test('effective output papers match the loaded cascade and Obsidian keeps independent light-card tokens',()=>{
@@ -38,7 +39,7 @@ test('effective output papers match the loaded cascade and Obsidian keeps indepe
   assert.equal(obsidian.darkSurface,'#15191c');
 });
 
-test('custom text colors are guarded against the surface they actually render on',()=>{
+test('custom text colors pass every actual semantic surface, not merely the page paper',()=>{
   const base=createBlankDocument('invoice','INV-CONTRAST',defaultCompany()).appearance;
   for(const templateId of ['signature','aurora','noir','midnight','blackivory','carbon']){
     const unsafe=resolvedAppearanceTokens({...base,templateId,paletteMode:'custom',primaryTextColor:'#ffffff',secondaryTextColor:'#fffdf8',headingTextColor:'#ffffff'});
@@ -50,6 +51,14 @@ test('custom text colors are guarded against the surface they actually render on
   assert.equal(safe.primary,'#101820');
   assert.equal(safe.secondary,'#35424b');
   assert.equal(safe.heading,'#22303a');
+
+  // #767676 barely clears 4.5:1 on white, but fails on Carbon's #eceeef
+  // alternating rows. It must therefore fall back instead of becoming a hidden
+  // low-contrast regression on every second item row.
+  const softUnsafe=resolvedAppearanceTokens({...base,templateId:'carbon',paletteMode:'custom',primaryTextColor:'#767676',secondaryTextColor:'#767676',headingTextColor:'#767676'});
+  assert.equal(softUnsafe.primary,'#17212b');
+  assert.equal(softUnsafe.secondary,'#4d5b68');
+  assert.notEqual(softUnsafe.heading,'#767676');
 
   const obsidianUnsafe=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'custom',primaryTextColor:'#101010',secondaryTextColor:'#222222',headingTextColor:'#111111'});
   assert.equal(obsidianUnsafe.primary,'#f5f1e9');
