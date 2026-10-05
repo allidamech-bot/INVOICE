@@ -17,7 +17,7 @@ test('Batch 4 runs after the canonical Batch 3 owner and stays in the existing a
 });
 
 test('Batch 4 upgrades the single Tools hub without adding persistent duplicate launchers',()=>{
-  for(const token of ['lourex-ai-tools-menu','aria-controls','aria-haspopup','data-tool-key','lourex-ai-hub-action-icon','lourex-ai-hub-action-copy'])assert.match(stage,new RegExp(token));
+  for(const token of ['lourex-ai-tools-menu','aria-controls','aria-haspopup','dataset.toolKey','lourex-ai-hub-action-icon','lourex-ai-hub-action-copy'])assert.match(stage,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
   assert.match(stage,/AI Inbox/);
   assert.match(stage,/AI Tools/);
   assert.match(stage,/Memory & Tasks/);
@@ -25,6 +25,13 @@ test('Batch 4 upgrades the single Tools hub without adding persistent duplicate 
   assert.match(stage,/صندوق AI/);
   assert.match(stage,/الذاكرة والمهام/);
   assert.doesNotMatch(stage,/lourex-ai-manager-button.*display\s*:\s*(?:block|flex|grid)/,'Batch 4 must not restore the old persistent Memory launcher');
+});
+
+test('Batch 4 decoration is idempotent and language-aware',()=>{
+  assert.match(stage,/menu\.dataset\.premiumOwner==='4'/);
+  assert.match(stage,/menu\.dataset\.premiumLanguage===language/);
+  assert.match(stage,/menu\.dataset\.premiumOwner='4'/);
+  assert.match(stage,/menu\.dataset\.premiumLanguage=language/);
 });
 
 test('Batch 4 adds keyboard ownership and returns focus on Escape',()=>{
