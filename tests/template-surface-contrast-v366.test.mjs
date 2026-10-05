@@ -24,5 +24,6 @@ test('dark template body and table surfaces retain explicit readable ink',async(
   for(const id of ['obsidian','noir','midnight','blackivory','carbon'])assert.match(css,new RegExp(`template-${id}`));
   assert.match(css,/--lrx-dark-ink:#fffaf0/);
   assert.match(css,/\.items-table thead th/);
-  assert.match(css,/font-size:max\(calc\(7\.4px \* var\(--doc-text-scale,1\)\),calc\(1em \* var\(--doc-text-scale,1\)\)\)\)/);
+  assert.match(css,/items-table tbody td\{font-size:max\(calc\(7\.4px \* var\(--doc-text-scale,1\)\)/);
+  assert.match(css,/calc\(1em \* var\(--doc-text-scale,1\)\)/);
 });
