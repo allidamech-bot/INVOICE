@@ -5,11 +5,13 @@ on:
     branches:
       - main
     paths:
+      - 'package.json'
       - 'src/components/EditorPage.tsx'
       - 'src/components/EditorPageCore.tsx'
       - 'src/components/DocumentReviewModal.tsx'
       - 'public/editor-stability-v338.js'
       - 'scripts/v529-document-autosave-checkpoint-fix.mjs'
+      - 'scripts/v539-editor-departure-single-owner.mjs'
       - 'tests/quote-editor-final-lifecycle-v538.test.mjs'
       - 'tests/visual/v538-quote-editor-final-flow.html'
       - 'tests/visual/run-v538-quote-editor-final-flow.cjs'
