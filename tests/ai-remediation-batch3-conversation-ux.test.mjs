@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
+const pkg=JSON.parse(read('package.json'));
+const owner=read('scripts/ai-remediation-batch3-conversation-ux.mjs');
+
+test('remediation Batch 3 runs after final conversation composition and before final voice hash',()=>{
+  const build=String(pkg.scripts?.build||'');
+  const finalConversation=build.indexOf('node scripts/ai-conversation-final-batch5.mjs');
+  const remediation=build.indexOf('node scripts/ai-remediation-batch3-conversation-ux.mjs');
+  const voiceHash=build.indexOf('node scripts/ai-voice-final-runtime-hash.mjs');
+  assert.ok(finalConversation>=0&&remediation>finalConversation&&voiceHash>remediation,'Batch 3 UX must be the final conversation presentation owner without moving the voice delivery hash');
+});
+
+test('remediation Batch 3 preserves conversation capabilities while flattening controls',()=>{
+  assert.match(owner,/__lourexNewConversation\?\.\(\)/,'New Conversation remains wired');
+  assert.match(owner,/instance\.ask\(clean\)/,'Re-ask remains wired');
+  assert.match(owner,/__lourexRetryLast/,'Retry remains wired');
+  assert.match(owner,/assistantEvidence:\{list:/,'Evidence remains wired');
+  assert.match(owner,/__lourexCopy\(text\)/,'Copy remains wired');
+  assert.match(owner,/lourex-ai-message-action/,'message actions use the compact icon row');
+  assert.match(owner,/lourex-ai-overflow-trigger/,'header exposes one compact overflow trigger');
+  assert.match(owner,/className\.includes\('lourex-ai-new-conversation'\)\)return null/,'legacy oversized New Conversation control is removed from the final tree');
+});
+
+test('remediation Batch 3 owns one thread scroll region and safe-area composer',()=>{
+  assert.match(owner,/grid-template-rows:auto auto minmax\(0,1fr\) auto/);
+  assert.match(owner,/\.lourex-ai-messages\{min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important/);
+  assert.match(owner,/padding:8px 10px max\(9px,env\(safe-area-inset-bottom,0px\)\)/);
+  assert.match(owner,/@media\(max-width:720px\)[\s\S]*height:100dvh!important/);
+  assert.match(owner,/\.lourex-ai-message\.assistant\{align-self:stretch!important;max-width:none!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important/);
+  assert.match(owner,/\.lourex-ai-context-shell\{[\s\S]*background:transparent!important/);
+});
