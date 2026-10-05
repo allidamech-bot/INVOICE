@@ -40,10 +40,10 @@ function linearChannel(value:number):number{const channel=value/255;return chann
 function contrastRatio(a:number,b:number):number{const lighter=Math.max(a,b),darker=Math.min(a,b);return(lighter+0.05)/(darker+0.05);}
 export function resolvedAccentInk(hex:string):'#ffffff'|'#101010'{const clean=hex.replace('#','');const full=clean.length===3?clean.split('').map(x=>x+x).join(''):clean;if(!/^[0-9a-f]{6}$/i.test(full))return'#101010';const r=parseInt(full.slice(0,2),16),g=parseInt(full.slice(2,4),16),b=parseInt(full.slice(4,6),16);const luminance=.2126*linearChannel(r)+.7152*linearChannel(g)+.0722*linearChannel(b);const dark=.2126*linearChannel(16)+.7152*linearChannel(16)+.0722*linearChannel(16);return contrastRatio(1,luminance)>=contrastRatio(luminance,dark)?'#ffffff':'#101010';}
 export function resolvedAppearanceTokens(appearance:DocumentAppearance):TemplateAppearanceTokens{
-  const dark=DARK_TEMPLATES.has(appearance.templateId);const accent=resolvedAccent(appearance);const custom=(appearance.paletteMode??'auto')==='custom';const a=appearance as DocumentAppearance&{primaryTextColor?:string;secondaryTextColor?:string;textScale?:'small'|'normal'|'large'};
-  const primary=custom&&validHex(a.primaryTextColor)?a.primaryTextColor:(dark?'#f7f2e8':'#17212b');
-  const secondary=custom&&validHex(a.secondaryTextColor)?a.secondaryTextColor:(dark?'#d7d0c4':'#4d5b68');
-  const textScale=a.textScale==='small'?.94:a.textScale==='large'?1.08:1;
+  const dark=DARK_TEMPLATES.has(appearance.templateId);const accent=resolvedAccent(appearance);const custom=(appearance.paletteMode??'auto')==='custom';
+  const primary=custom&&validHex(appearance.primaryTextColor)?appearance.primaryTextColor:(dark?'#f7f2e8':'#17212b');
+  const secondary=custom&&validHex(appearance.secondaryTextColor)?appearance.secondaryTextColor:(dark?'#d7d0c4':'#4d5b68');
+  const textScale=appearance.textScale==='small'?.94:appearance.textScale==='large'?1.08:1;
   // Surface tokens are intentionally independent from the template's overall tone.
   // A dark template can contain white customer cards; a light template can contain
   // dark mastheads. Components must consume the token matching their own surface.
