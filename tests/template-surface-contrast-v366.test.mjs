@@ -50,3 +50,10 @@ test('typography scaling keeps canonical normal sizes and role hierarchy',async(
   assert.match(css,/\.invoice-page \.party-block\{font-size:var\(--lrx-body-size,8\.2px\)!important;\}/);
   assert.match(css,/\.invoice-page \.notes-block p\{font-size:84\.146%!important/);
 });
+
+test('later receipt output semantics do not bypass bounded table sizing',async()=>{
+  const css=await read('src/styles/v332-critical-documents-deep-closeout.css');
+  assert.match(css,/kind-payment-receipt\.lang-en \.items-table th:last-child::after\{content:"Amount";font-size:calc\(var\(--lrx-table-size,7\.25px\)\*1\.6552\);\}/);
+  assert.match(css,/kind-payment-receipt\.lang-ar \.items-table th:last-child::after\{content:"المبلغ";font-size:calc\(var\(--lrx-table-size,7\.25px\)\*1\.6552\);\}/);
+  assert.match(css,/kind-payment-receipt\.lang-bilingual \.items-table th:last-child::after\{content:"Amount \/ المبلغ";font-size:calc\(var\(--lrx-table-size,7\.25px\)\*1\.5632\);\}/);
+});
