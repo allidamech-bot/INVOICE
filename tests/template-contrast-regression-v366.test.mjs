@@ -48,12 +48,14 @@ test('Custom light-body roles preserve dark modules and do not leak page ink int
   assert.doesNotMatch(customBody[0],/totals-block/);
 });
 
-test('Obsidian signature compatibility is dark-surface aware without recoloring stamps',async()=>{
-  const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/template-obsidian \.signature-image:not\(\[src\^="data:image\/jpeg"\]\)[\s\S]*invert\(1\)/);
-  assert.match(css,/template-obsidian \.signature-image\[src\^="data:image\/jpeg"\][\s\S]*mix-blend-mode:screen/);
-  const obsidianBlock=css.slice(css.indexOf('Signature is ink on the graphite body'),css.indexOf('Deliberately absent'));
-  assert.doesNotMatch(obsidianBlock,/stamp-image/);
+test('Obsidian signing artwork stays output-faithful without CSS-only recoloring',async()=>{
+  const [css,bridge]=await Promise.all([read('src/styles/template-surface-contrast-v366.css'),read('public/ios-print-bridge.js')]);
+  assert.match(css,/template-obsidian \.signature-media\{background:#fff!important;[\s\S]*border-radius:1\.8mm!important;[\s\S]*padding:2mm!important/);
+  assert.match(css,/template-obsidian \.signature-image\{filter:none!important;mix-blend-mode:normal!important;\}/);
+  assert.doesNotMatch(css,/template-obsidian \.signature-image[^\n]*invert\(/);
+  assert.match(bridge,/SHARP_MEDIA_SELECTOR\s*=\s*'\.signature-image,\.stamp-image'/);
+  assert.match(bridge,/collectSharpMedia/);
+  assert.match(bridge,/pdf\.addImage/);
 });
 
 test('Normal typography is an effective-production no-op and bounded controls preserve hierarchy',async()=>{

@@ -2,10 +2,15 @@ import { TemplateRenderer } from '../../dist/src/templates/TemplateRenderer.js';
 
 const templateIds=['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon'];
 const params=new URLSearchParams(location.search);
-const template=templateIds.includes(params.get('template'))?params.get('template'):'midnight';
+const requestedTemplate=params.get('legacyTemplate')||params.get('template');
+const template=params.has('legacyTemplate')?(requestedTemplate||'removed-template'):templateIds.includes(requestedTemplate)?requestedTemplate:'midnight';
 const language=['en','ar','bilingual'].includes(params.get('language'))?params.get('language'):'en';
 const count=Math.max(1,Math.min(32,Number(params.get('items'))||10));
 const mode=['desktop','tablet','mobile','print'].includes(params.get('mode'))?params.get('mode'):'desktop';
+const palette=params.get('palette')==='custom'?'custom':'auto';
+const textScale=['small','normal','large'].includes(params.get('textScale'))?params.get('textScale'):'normal';
+const customFonts=params.get('fonts')==='custom';
+const unsafeColors=params.get('unsafeColors')==='true';
 const scale=mode==='mobile'?.48:mode==='tablet'?.72:mode==='print'?1:.82;
 
 const svg=(markup)=>`data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`;
@@ -23,6 +28,11 @@ const items=Array.from({length:count},(_,index)=>({
   quantity:String((index%7)+1),unit:index%2===0?'PCS':'SET',unitPrice:String(1175+(index*83)),unitCost:'0'
 }));
 
+const darkCandidate=template==='obsidian';
+const primaryTextColor=unsafeColors?(darkCandidate?'#111111':'#ffffff'):(darkCandidate?'#ffffff':'#17212b');
+const secondaryTextColor=unsafeColors?(darkCandidate?'#222222':'#ffffff'):(darkCandidate?'#d7d0c4':'#35424b');
+const headingTextColor=unsafeColors?(darkCandidate?'#111111':'#ffffff'):(darkCandidate?'#fffaf0':'#22303a');
+
 const documentData={
   id:'visual-qa-document',kind:'proforma',role:'standard',status:'final',lifecycleStatus:'active',revision:2,creditForId:'',creditForNumber:'',voidedAt:'',voidReason:'',bankAccountId:'qa-bank',paymentTermPresetId:'qa-terms',number:'PI-2026-00847',issueDate:'2026-09-03',dueDate:'2026-09-24',currency:'USD',language,
   customerSnapshot:{sourceCustomerId:'qa-customer',companyNameEn:'Helvetia Advanced Industrial Procurement Corporation',companyNameAr:'شركة هلفيتيا المتقدمة للمشتريات الصناعية',contactPerson:'Nadia Al Mansoori',addressEn:'International Commerce Centre, Building 14, Logistics District, Jebel Ali Free Zone',addressAr:'مركز التجارة الدولي، المبنى 14، المنطقة اللوجستية، المنطقة الحرة بجبل علي',city:'Dubai',country:'United Arab Emirates',phone:'+971 4 555 0188',email:'procurement@helvetia-industrial.example',vatTaxNumber:'100498273600003',commercialRegistration:'DMCC-884731'},
@@ -30,14 +40,14 @@ const documentData={
   items,
   terms:{incoterm:'CIF Jebel Ali — Incoterms® 2020',paymentTerms:'30% advance, 70% against shipping documents',packing:'Seaworthy export packing with fumigated pallets',deliveryTime:'6–8 weeks from receipt of advance payment',portOfLoading:'Hamburg, Germany',finalDestination:'Jebel Ali Port, Dubai, UAE',countryOfOrigin:'Germany / European Union',validity:'21 calendar days from issue date',remarks:'Subject to final technical approval and vessel availability.'},
   adjustments:{discountEnabled:true,discountMode:'percent',discountValue:'3.5',shippingEnabled:true,shipping:'2650',otherChargesEnabled:true,otherCharges:'480',taxEnabled:true,taxPercent:'5'},internalCosts:{shippingCost:'0',otherCost:'0'},
-  appearance:{templateId:template,paletteMode:'auto',accentColor:'#b08a4b',latinFont:'inter',arabicFont:'auto',showBank:true,showSignature:true,showStamp:true,showHsCode:true,showOrigin:true,showPacking:true},
+  appearance:{templateId:template,paletteMode:palette,accentColor:palette==='custom'?'#315f7b':'#b08a4b',headingTextColor,primaryTextColor,secondaryTextColor,textScale:'normal',documentTitleScale:textScale,sectionHeadingScale:textScale,bodyTextScale:textScale,tableTextScale:textScale,latinFont:customFonts?'montserrat':'inter',arabicFont:customFonts?'cairo':'auto',showBank:true,showSignature:true,showStamp:true,showHsCode:true,showOrigin:true,showPacking:true},
   notes:'Please reference the document number on all correspondence. Certificates of origin, inspection records, and final packing lists will accompany the shipping documents.',convertedFromId:'',createdAt:'2026-09-03T09:00:00.000Z',updatedAt:'2026-09-03T09:00:00.000Z'
 };
 
 try{
   const rendered=React.createElement(TemplateRenderer,{document:documentData,scale,compact:false});
   const shell=React.createElement('div',{className:`qa-shell editor-screen ${mode==='mobile'?'mobile-preview-open':''}`},
-    React.createElement('div',{className:'qa-caption'},React.createElement('span',null,`${template.toUpperCase()} · ${language.toUpperCase()} · ${count} items`),React.createElement('span',null,mode.toUpperCase())),
+    React.createElement('div',{className:'qa-caption'},React.createElement('span',null,`${String(template).toUpperCase()} · ${language.toUpperCase()} · ${count} items · ${palette.toUpperCase()}`),React.createElement('span',null,mode.toUpperCase())),
     React.createElement('div',{className:`qa-stage preview-stage ${mode==='mobile'?'mobile-preview-stage':''} mode-${mode}`},rendered)
   );
   ReactDOM.render(shell,document.getElementById('root'));

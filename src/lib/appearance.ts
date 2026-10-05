@@ -46,6 +46,7 @@ const AUTO_LATIN_BY_TEMPLATE: Record<TemplateId,Exclude<LatinFontId,'auto'>> = {
 const AUTO_ARABIC_BY_TEMPLATE: Record<TemplateId,Exclude<ArabicFontId,'auto'>> = {executive:'cairo',minimal:'tajawal',trade:'tajawal',signature:'noto-naskh',obsidian:'noto-kufi',cobalt:'noto-kufi',editorial:'noto-naskh',split:'cairo',prism:'noto-kufi',slate:'tajawal',horizon:'noto-naskh',mono:'tajawal',aurora:'noto-kufi',ledger:'tajawal',noir:'noto-kufi',midnight:'noto-kufi',blackivory:'noto-naskh',carbon:'noto-kufi'};
 
 type TextScale='small'|'normal'|'large';
+export type DocumentTone='light'|'dark';
 
 export interface TemplateAppearanceTokens {
   page:string;surface:string;surfaceInk:string;surfaceMuted:string;
@@ -57,10 +58,11 @@ export interface TemplateAppearanceTokens {
 }
 
 function validHex(value:unknown):value is string{return typeof value==='string'&&/^#[0-9a-f]{6}$/i.test(value);}
-function safeTemplateId(value:unknown):TemplateId{return typeof value==='string'&&Object.prototype.hasOwnProperty.call(AUTO_ACCENTS,value)?value as TemplateId:'executive';}
+export function resolvedTemplateId(value:unknown):TemplateId{return typeof value==='string'&&Object.prototype.hasOwnProperty.call(AUTO_ACCENTS,value)?value as TemplateId:'executive';}
+export function resolvedDocumentTone(appearance:DocumentAppearance):DocumentTone{return DARK_BODY_TEMPLATES.has(resolvedTemplateId((appearance as any)?.templateId))?'dark':'light';}
 function safeLatinFontId(value:unknown):LatinFontId{return value==='inter'||value==='source-sans'||value==='montserrat'||value==='playfair'?value:'auto';}
 function safeArabicFontId(value:unknown):ArabicFontId{return value==='cairo'||value==='tajawal'||value==='noto-kufi'||value==='noto-naskh'?value:'auto';}
-export function resolvedAccent(appearance:DocumentAppearance):string{const templateId=safeTemplateId((appearance as any)?.templateId);return (appearance?.paletteMode??'auto')==='custom'&&validHex(appearance?.accentColor)?appearance.accentColor:AUTO_ACCENTS[templateId];}
+export function resolvedAccent(appearance:DocumentAppearance):string{const templateId=resolvedTemplateId((appearance as any)?.templateId);return (appearance?.paletteMode??'auto')==='custom'&&validHex(appearance?.accentColor)?appearance.accentColor:AUTO_ACCENTS[templateId];}
 function linearChannel(value:number):number{const channel=value/255;return channel<=0.04045?channel/12.92:Math.pow((channel+0.055)/1.055,2.4);}
 function luminance(hex:string):number{
   const clean=hex.replace('#','');
@@ -92,7 +94,7 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
    * created them. Resolve defensively at the renderer boundary as well as in vault
    * migration so one malformed legacy template/font id can never produce undefined
    * colors or fonts in Preview/PDF/Print/Share. */
-  const templateId=safeTemplateId((appearance as any)?.templateId);
+  const templateId=resolvedTemplateId((appearance as any)?.templateId);
   const accent=resolvedAccent({...appearance,templateId});
   const custom=(appearance?.paletteMode??'auto')==='custom';
   const darkBody=DARK_BODY_TEMPLATES.has(templateId);
@@ -138,5 +140,5 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   };
 }
 
-export function resolvedLatinFont(appearance:DocumentAppearance):string{const templateId=safeTemplateId((appearance as any)?.templateId);const requested=safeLatinFontId((appearance as any)?.latinFont);const fontId=requested==='auto'?AUTO_LATIN_BY_TEMPLATE[templateId]:requested;return LATIN_FONTS[fontId];}
-export function resolvedArabicFont(appearance:DocumentAppearance):string{const templateId=safeTemplateId((appearance as any)?.templateId);const requested=safeArabicFontId((appearance as any)?.arabicFont);const fontId=requested==='auto'?AUTO_ARABIC_BY_TEMPLATE[templateId]:requested;return ARABIC_FONTS[fontId];}
+export function resolvedLatinFont(appearance:DocumentAppearance):string{const templateId=resolvedTemplateId((appearance as any)?.templateId);const requested=safeLatinFontId((appearance as any)?.latinFont);const fontId=requested==='auto'?AUTO_LATIN_BY_TEMPLATE[templateId]:requested;return LATIN_FONTS[fontId];}
+export function resolvedArabicFont(appearance:DocumentAppearance):string{const templateId=resolvedTemplateId((appearance as any)?.templateId);const requested=safeArabicFontId((appearance as any)?.arabicFont);const fontId=requested==='auto'?AUTO_ARABIC_BY_TEMPLATE[templateId]:requested;return ARABIC_FONTS[fontId];}
