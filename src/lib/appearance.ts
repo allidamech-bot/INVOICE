@@ -21,7 +21,9 @@ export const ARABIC_FONT_OPTIONS: Array<{value:ArabicFontId;label:string}> = [
 const AUTO_ACCENTS: Record<TemplateId,string> = {
   executive:'#b58b4f', minimal:'#0b1d2d', trade:'#b58b4f', signature:'#b58b4f', obsidian:'#b79b67', cobalt:'#356f9c', editorial:'#8b7258', split:'#b58b4f', prism:'#3f736f', slate:'#5f7484', horizon:'#b58b4f', mono:'#161616', aurora:'#b58b4f', ledger:'#8a704b', noir:'#c7a15d', midnight:'#c8a25a', blackivory:'#b78a41', carbon:'#ba914d'
 };
-const DARK_TEMPLATES=new Set<TemplateId>(['obsidian','noir','midnight','blackivory','carbon']);
+// Body tone is independent from masthead identity. Noir/Midnight/Black Ivory/Carbon
+// use dark branded headers over light commercial sheets; only Obsidian owns a dark body.
+const DARK_TEMPLATES=new Set<TemplateId>(['obsidian']);
 const LATIN_FONTS: Record<Exclude<LatinFontId,'auto'>,string> = {inter:'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif','source-sans':'"Source Sans 3", "Segoe UI", Arial, sans-serif',montserrat:'Montserrat, Arial, sans-serif',playfair:'"Playfair Display", Georgia, serif'};
 const ARABIC_FONTS: Record<Exclude<ArabicFontId,'auto'>,string> = {cairo:'Cairo, Tahoma, Arial, sans-serif',tajawal:'Tajawal, Tahoma, Arial, sans-serif','noto-kufi':'"Noto Kufi Arabic", Tahoma, Arial, sans-serif','noto-naskh':'"Noto Naskh Arabic", Tahoma, Arial, serif'};
 const AUTO_LATIN_BY_TEMPLATE: Record<TemplateId,Exclude<LatinFontId,'auto'>> = {executive:'inter',minimal:'source-sans',trade:'source-sans',signature:'playfair',obsidian:'montserrat',cobalt:'montserrat',editorial:'playfair',split:'inter',prism:'montserrat',slate:'source-sans',horizon:'playfair',mono:'source-sans',aurora:'montserrat',ledger:'source-sans',noir:'montserrat',midnight:'montserrat',blackivory:'playfair',carbon:'montserrat'};
