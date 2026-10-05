@@ -9,6 +9,8 @@
     --lrx-light-muted:#58656f;
     --lrx-dark-ink:#fffaf0;
     --lrx-dark-muted:#d7d0c4;
+    --lrx-title-base:25px;
+    --lrx-title-secondary-base:20px;
   }
 
   /* Baseline local-surface protection retained from latest main. Party cards are
@@ -71,10 +73,12 @@
   .invoice-page.template-obsidian :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-dark-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-dark-muted))!important;}
   .invoice-page.template-obsidian :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){color:var(--lrx-heading,var(--lrx-dark-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-dark-ink))!important;}
 
-  /* Signature is ink on the graphite body. Preserve stamp color; only signature
-   * artwork receives the dark-surface compatibility treatment. */
-  .invoice-page.template-obsidian .signature-image:not([src^="data:image/jpeg"]){filter:brightness(0) invert(1) contrast(1.25) drop-shadow(0 0 .25mm rgba(255,255,255,.18));mix-blend-mode:normal;}
-  .invoice-page.template-obsidian .signature-image[src^="data:image/jpeg"]{filter:invert(1) grayscale(1) contrast(1.30) brightness(1.12);mix-blend-mode:screen;}
+  /* iOS PDF preserves signature/stamp artwork as native high-resolution overlays.
+   * A CSS-only inversion would therefore diverge from the PDF overlay. Keep both
+   * Preview and every output path faithful to the source artwork by placing the
+   * artwork on an explicit light signing surface instead of recoloring the image. */
+  .invoice-page.template-obsidian .signature-media{background:#fff!important;border:1px solid #d9dee0!important;border-radius:1.8mm!important;padding:2mm!important;box-sizing:border-box!important;}
+  .invoice-page.template-obsidian .signature-image{filter:none!important;mix-blend-mode:normal!important;}
 
   /* Deliberately absent: custom foreground rules for .items-table thead,
    * .totals-block, .grand-total, mastheads and document-title ink. Those surfaces
@@ -83,8 +87,29 @@
   /* Bounded typography controls apply in Auto and Custom. Normal must be a visual
    * no-op relative to the effective shipped v141 + v364 document cascade, including
    * compact/template-specific table typography. Small/Large scale the authored
-   * hierarchy instead of flattening every role. */
-  .invoice-page .doc-title{zoom:var(--lrx-title-scale,1);}
+   * hierarchy instead of flattening every role. Title sizing uses real font-size
+   * rather than CSS zoom so Safari/WebKit participates in layout and pagination. */
+  .invoice-page .doc-title{zoom:1;}
+  .invoice-page.template-executive{--lrx-title-base:28px;}
+  .invoice-page.template-minimal{--lrx-title-base:31px;--lrx-title-secondary-base:22px;}
+  .invoice-page.template-trade{--lrx-title-base:27px;}
+  .invoice-page.template-signature{--lrx-title-base:29px;}
+  .invoice-page.template-obsidian{--lrx-title-base:25px;}
+  .invoice-page.template-cobalt{--lrx-title-base:25px;}
+  .invoice-page.template-editorial{--lrx-title-base:34px;--lrx-title-secondary-base:22px;}
+  .invoice-page.template-split{--lrx-title-base:30px;}
+  .invoice-page.template-prism{--lrx-title-base:25px;}
+  .invoice-page.template-slate{--lrx-title-base:29px;}
+  .invoice-page.template-horizon{--lrx-title-base:29px;}
+  .invoice-page.template-mono{--lrx-title-base:29px;}
+  .invoice-page.template-aurora{--lrx-title-base:29px;}
+  .invoice-page.template-ledger{--lrx-title-base:25px;}
+  .invoice-page.template-noir{--lrx-title-base:29px;}
+  .invoice-page.template-midnight{--lrx-title-base:30px;}
+  .invoice-page.template-blackivory{--lrx-title-base:31px;--lrx-title-secondary-base:22px;}
+  .invoice-page.template-carbon{--lrx-title-base:28px;}
+  .invoice-page.page-first :is(.header-executive,.header-minimal,.header-trade,.header-signature,.header-modern) .doc-title>span{font-size:calc(var(--lrx-title-base,25px)*var(--lrx-title-scale,1))!important;}
+  .invoice-page.page-first.lang-bilingual :is(.header-executive,.header-minimal,.header-trade,.header-signature,.header-modern) .doc-title>em{font-size:calc(var(--lrx-title-secondary-base,20px)*var(--lrx-title-scale,1))!important;}
 
   .invoice-page :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3){font-size:var(--lrx-heading-size,6.8px)!important;line-height:1.25!important;}
   .invoice-page .continued-label{font-size:calc(var(--lrx-heading-size,6.8px)*.955882)!important;line-height:1.25!important;}
