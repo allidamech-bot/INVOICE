@@ -13,15 +13,22 @@ test('v366 contrast guard is loaded after canonical premium output styles',async
 
 test('v366 explicitly protects light quotation body copy from inverse text leakage',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/template-executive[\s\S]*template-ledger/);
+  assert.match(css,/template-executive[\s\S]*template-carbon/);
   assert.match(css,/items-table tbody td[\s\S]*--lrx-light-ink/);
   assert.match(css,/-webkit-text-fill-color:[^;]*--lrx-light-ink/);
 });
 
-test('v366 keeps light cards readable inside dark commercial templates',async()=>{
+test('v366 keeps light cards readable inside obsidian dark body',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
   assert.match(css,/\.invoice-page \.party-block[\s\S]*--lrx-light-ink/);
-  assert.match(css,/template-obsidian[\s\S]*template-carbon[\s\S]*--lrx-dark-ink/);
+  assert.match(css,/\.template-obsidian[\s\S]*--lrx-dark-ink/);
+});
+
+test('hybrid dark-header identities stay on light-sheet body colors',async()=>{
+  const [css,appearance]=await Promise.all([read('src/styles/template-surface-contrast-v366.css'),read('src/lib/appearance.ts')]);
+  for(const id of ['noir','midnight','blackivory','carbon'])assert.match(css,new RegExp(`template-${id}`));
+  assert.match(appearance,/const DARK_TEMPLATES=new Set<TemplateId>\(\['obsidian'\]\)/);
+  assert.match(css,/template-carbon\) :is\(\.items-table tbody[\s\S]*--lrx-light-ink/);
 });
 
 test('v366 prevents microscopic item and party copy in preview and print',async()=>{
