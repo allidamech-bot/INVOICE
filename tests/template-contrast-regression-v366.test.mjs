@@ -11,37 +11,37 @@ test('v366 contrast guard is loaded after canonical premium output styles',async
   assert.ok(premium>=0&&guard>premium,'contrast guard must load after canonical premium A4 CSS');
 });
 
-test('v366 assigns commercial terms labels and values from canonical document tokens',async()=>{
-  const [renderer,css]=await Promise.all([
-    read('src/templates/TemplateRenderer.tsx'),
-    read('src/styles/template-surface-contrast-v366.css')
-  ]);
+test('v366 targets current commercial terms markup only in Custom color mode',async()=>{
+  const [renderer,css]=await Promise.all([read('src/templates/TemplateRenderer.tsx'),read('src/styles/template-surface-contrast-v366.css')]);
   assert.match(renderer,/className="term-row"/);
   assert.match(renderer,/--lrx-primary/);
   assert.match(renderer,/--lrx-secondary/);
-  assert.match(css,/\.terms-block \.term-row>b\{color:var\(--lrx-secondary/);
-  assert.match(css,/\.terms-block \.term-row>span\{color:var\(--lrx-primary/);
+  assert.match(css,/\.invoice-page\.palette-custom \.terms-block \.term-row>b\{color:var\(--lrx-secondary/);
+  assert.match(css,/\.invoice-page\.palette-custom \.terms-block \.term-row>span\{color:var\(--lrx-primary/);
 });
 
-test('v366 keeps light commercial cards readable for every template identity',async()=>{
-  const [appearance,css]=await Promise.all([
-    read('src/lib/appearance.ts'),
-    read('src/styles/template-surface-contrast-v366.css')
-  ]);
-  assert.match(appearance,/const page='#fffdf8'/);
-  assert.match(appearance,/const defaultPrimary='#17212b'/);
-  assert.match(appearance,/const darkSurfaceInk='#fffaf0'/);
-  assert.match(css,/\.invoice-page \.party-block\{color:var\(--lrx-primary/);
-  assert.match(css,/\.party-contact/);
+test('Auto keeps canonical template palettes instead of flattening them',async()=>{
+  const [appearance,css,premium]=await Promise.all([read('src/lib/appearance.ts'),read('src/styles/template-surface-contrast-v366.css'),read('src/styles/document-premium-redesign-v141.css')]);
+  assert.match(appearance,/TEMPLATE_PAPERS/);
+  assert.match(appearance,/noir:'#fffdf8'/);
+  assert.match(appearance,/midnight:'#fcfaf4'/);
+  assert.match(appearance,/blackivory:'#fbf6eb'/);
+  assert.match(appearance,/carbon:'#fafafa'/);
+  assert.match(premium,/\.template-noir\{--paper:#fffdf8/);
+  assert.match(premium,/\.template-midnight\{--paper:#fcfaf4/);
+  assert.match(css,/Auto means matched to the selected template/);
+  assert.doesNotMatch(css,/\.invoice-page\.palette-auto\s/);
 });
 
-test('v366 preserves authored dark-module contrast instead of repainting totals and table headers',async()=>{
+test('Custom body roles stay light-surface scoped and preserve dark-module contrast',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/Do not globally override table-header or totals text colors/);
-  const semanticBody=css.match(/\/\* Light body semantic roles[\s\S]*?\/\*[\s\S]*?The Commercial Terms DOM/);
-  assert.ok(semanticBody);
-  assert.doesNotMatch(semanticBody[0],/items-table thead th\{/);
-  assert.doesNotMatch(semanticBody[0],/totals-block strong/);
+  assert.match(css,/\.invoice-page\.palette-custom \.party-block\{color:var\(--lrx-primary/);
+  assert.match(css,/\.invoice-page\.palette-custom :is\(\.items-table tbody td/);
+  assert.match(css,/Deliberately absent: custom foreground rules/);
+  const customBody=css.match(/\/\* Custom semantic foreground roles[\s\S]*?\/\* The current Commercial Terms DOM/);
+  assert.ok(customBody);
+  assert.doesNotMatch(customBody[0],/items-table thead/);
+  assert.doesNotMatch(customBody[0],/totals-block/);
 });
 
 test('v366 prevents microscopic item and party copy while allowing bounded user sizing',async()=>{
@@ -51,17 +51,14 @@ test('v366 prevents microscopic item and party copy while allowing bounded user 
   assert.match(css,/@media print/);
 });
 
-test('design customization stays in section 06 and exposes the agreed controls',async()=>{
-  const [editor,controls]=await Promise.all([
-    read('src/components/EditorPageCore.tsx'),
-    read('src/components/DocumentDesignControls.tsx')
-  ]);
+test('design customization stays in section 06 and exposes the agreed bounded controls',async()=>{
+  const [editor,controls]=await Promise.all([read('src/components/EditorPageCore.tsx'),read('src/components/DocumentDesignControls.tsx')]);
   assert.match(editor,/section-heading[\s\S]{0,120}06[\s\S]{0,120}Design/);
   assert.match(editor,/DocumentDesignControls appearance=\{d\.appearance\} onChange=\{this\.appearance\}/);
   assert.match(controls,/Auto — matched to template/);
-  assert.match(controls,/Accent Color/);
-  assert.match(controls,/Heading Color/);
-  assert.match(controls,/Primary Text/);
+  assert.match(controls,/Accent \/ Highlight/);
+  assert.match(controls,/Section Heading Color/);
+  assert.match(controls,/Primary Text \/ Values/);
   assert.match(controls,/Secondary Text \/ Labels/);
   assert.match(controls,/English Font/);
   assert.match(controls,/Arabic Font/);
@@ -72,10 +69,7 @@ test('design customization stays in section 06 and exposes the agreed controls',
 });
 
 test('design controls are mobile-safe and do not add navigation or header UI',async()=>{
-  const [css,controls]=await Promise.all([
-    read('src/styles/template-surface-contrast-v366.css'),
-    read('src/components/DocumentDesignControls.tsx')
-  ]);
+  const [css,controls]=await Promise.all([read('src/styles/template-surface-contrast-v366.css'),read('src/components/DocumentDesignControls.tsx')]);
   assert.match(css,/design-advanced-panel[\s\S]*min-height:44px/);
   assert.match(css,/@media\(max-width:720px\)[\s\S]*appearance-system-grid\{grid-template-columns:1fr!important/);
   assert.doesNotMatch(controls,/workspace-sidebar|bottom-nav|editor-topbar/);
