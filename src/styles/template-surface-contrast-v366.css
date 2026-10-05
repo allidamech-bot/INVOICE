@@ -1,41 +1,48 @@
-/* LOUREX v366 — commercial template surface/contrast guard + document design controls.
- * This layer owns semantic document text roles after the premium A4 styles.
- * It deliberately does NOT recolor authored dark modules such as mastheads and
- * total panels; those surfaces keep their template-specific contrast contract.
+/* LOUREX v366 — document appearance guard.
+ * Canonical template art direction remains authoritative in Auto mode.
+ * Custom mode may recolor bounded semantic roles on light document surfaces,
+ * but must never repaint authored dark mastheads, table headers or totals bands.
  */
 @media screen, print {
   .invoice-page{
-    --lrx-light-surface:#fffdf8;
     --lrx-light-ink:#17212b;
     --lrx-light-muted:#58656f;
-    --lrx-dark-surface:#171a1d;
     --lrx-dark-ink:#fffaf0;
     --lrx-dark-muted:#d7d0c4;
   }
 
-  /* Current commercial sheets have light body/card surfaces, including the
-   * formerly full-dark identities. Custom body colors are contrast-guarded by
-   * the resolver before they arrive here. */
-  .invoice-page .party-block{color:var(--lrx-primary,var(--lrx-light-ink))!important;}
-  .invoice-page .party-block :is(.party-name,.party-identifiers span,.bi-value,.bi-value>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
-  .invoice-page .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
-  .invoice-page .party-block :is(.section-kicker,.party-identifiers b){color:var(--lrx-heading,var(--accent,#8a704b))!important;-webkit-text-fill-color:var(--lrx-heading,var(--accent,#8a704b))!important;}
+  /* Auto means matched to the selected template. Do not flatten the canonical
+   * 18 template palettes with a second global foreground system. */
 
-  /* Light body semantic roles. Keep totals/header bands outside these selectors:
-   * several templates intentionally render those modules on dark backgrounds. */
-  .invoice-page :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block .term-row>span,.notes-block p,.bank-block>div>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
-  .invoice-page :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
-  .invoice-page :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){color:var(--lrx-heading,var(--accent,#8a704b))!important;-webkit-text-fill-color:var(--lrx-heading,var(--accent,#8a704b))!important;}
+  /* Custom Accent is structural/decorative. It changes safe rules/highlights,
+   * while foreground readability is controlled independently below. */
+  .invoice-page.palette-custom{--template-accent:var(--accent)!important;}
+  .invoice-page.palette-custom .page-accent{background:var(--accent)!important;}
+  .invoice-page.palette-custom .party-customer{border-color:var(--accent)!important;}
+  .invoice-page.palette-custom .grand-total{border-top-color:var(--accent)!important;}
 
-  /* The Commercial Terms DOM is b + span inside .term-row. Keep this explicit so
-   * Payment Terms / Final Destination never inherit decorative or inverse ink. */
-  .invoice-page .terms-block .term-row>b{color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
-  .invoice-page .terms-block .term-row>span{color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  /* Custom semantic foreground roles only target light commercial body surfaces.
+   * Dark mastheads, item-table headers and totals panels keep their authored ink. */
+  .invoice-page.palette-custom .party-block{color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page.palette-custom .party-block :is(.party-name,.party-identifiers span,.bi-value,.bi-value>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page.palette-custom .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
+  .invoice-page.palette-custom .party-block :is(.section-kicker,.party-identifiers b){color:var(--lrx-heading,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-light-ink))!important;}
 
-  /* Do not globally override table-header or totals text colors. Their surfaces
-   * vary per template and already own explicit authored contrast. */
+  .invoice-page.palette-custom :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block .term-row>span,.notes-block p,.bank-block>div>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page.palette-custom :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
+  .invoice-page.palette-custom :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){color:var(--lrx-heading,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-light-ink))!important;}
 
-  /* Bounded typography controls. A4 pagination remains authoritative. */
+  /* The current Commercial Terms DOM is b + span inside .term-row. Keep the
+   * contract explicit: Payment Terms / Final Destination are values, not labels. */
+  .invoice-page.palette-custom .terms-block .term-row>b{color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
+  .invoice-page.palette-custom .terms-block .term-row>span{color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+
+  /* Deliberately absent: custom foreground rules for .items-table thead,
+   * .totals-block, .grand-total, mastheads and document-title ink. Those surfaces
+   * vary by template and keep their explicit high-contrast colors. */
+
+  /* Bounded typography controls apply in Auto and Custom. A4 measurement remains
+   * authoritative and can paginate when a larger choice consumes more space. */
   .invoice-page .doc-title{zoom:var(--lrx-title-scale,1);}
   .invoice-page :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){font-size:var(--lrx-heading-size,10px)!important;line-height:1.25!important;}
   .invoice-page .items-table thead th{font-size:var(--lrx-table-heading-size,8.2px)!important;}
@@ -62,14 +69,8 @@
   .app-ui .design-mode-badge{display:inline-flex!important;align-items:center!important;min-height:28px!important;padding:4px 9px!important;border-radius:999px!important;font-size:10px!important;font-weight:850!important;white-space:nowrap!important;border:1px solid var(--ft-line,#d9e1e4)!important;}
   .app-ui .design-mode-badge.is-auto{color:var(--ft-accent,#315f7b)!important;}
   .app-ui .design-mode-badge.is-custom{color:var(--ft-text-strong,#17212b)!important;}
-  .app-ui .design-advanced-panel .appearance-system-grid{
-    display:grid!important;
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
-    gap:10px!important;
-    align-items:start!important;
-  }
-  .app-ui .design-advanced-panel .appearance-system-grid>.field,
-  .app-ui .design-advanced-panel .appearance-auto-note{min-width:0!important;margin:0!important;}
+  .app-ui .design-advanced-panel .appearance-system-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;align-items:start!important;}
+  .app-ui .design-advanced-panel .appearance-system-grid>.field,.app-ui .design-advanced-panel .appearance-auto-note{min-width:0!important;margin:0!important;}
   .app-ui .design-advanced-panel :is(select,input[type="color"]){min-height:44px!important;}
   .app-ui .design-advanced-panel input[type="color"]{width:100%!important;padding:5px!important;cursor:pointer;}
   .app-ui .appearance-auto-note{min-height:58px!important;box-sizing:border-box!important;display:flex!important;align-items:center!important;padding:9px 10px!important;border:1px dashed var(--ft-line,#d9e1e4)!important;border-radius:10px!important;}
