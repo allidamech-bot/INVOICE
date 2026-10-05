@@ -6,14 +6,17 @@ const read=path=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('screen-time PDF source uses canonical A4 geometry before pagination',async()=>{
   const css=await read('src/styles/a4-mobile-print-v73.css');
-  const screen=css.match(/@media screen\s*\{([\s\S]*?)\n\}/);
-  assert.ok(screen,'screen-time print portal A4 contract missing');
-  assert.match(screen[1],/#root \.print-portal \.invoice-pages/);
-  assert.match(screen[1],/#root \.print-portal \.invoice-page/);
-  assert.match(screen[1],/width:\s*210mm\s*!important/);
-  assert.match(screen[1],/height:\s*297mm\s*!important/);
-  assert.match(screen[1],/max-width:\s*none\s*!important/);
-  assert.match(screen[1],/transform:\s*none\s*!important/);
+  const screenAt=css.indexOf('@media screen');
+  const printAt=css.indexOf('@media print');
+  assert.ok(screenAt>=0,'screen-time print portal A4 contract missing');
+  assert.ok(printAt>screenAt,'screen-time contract must exist before print-only rules');
+  const screen=css.slice(screenAt,printAt);
+  assert.match(screen,/#root \.print-portal \.invoice-pages/);
+  assert.match(screen,/#root \.print-portal \.invoice-page/);
+  assert.match(screen,/width:\s*210mm\s*!important/);
+  assert.match(screen,/height:\s*297mm\s*!important/);
+  assert.match(screen,/max-width:\s*none\s*!important/);
+  assert.match(screen,/transform:\s*none\s*!important/);
 });
 
 test('iOS PDF bridge consumes only pagination-ready print portal pages',async()=>{
