@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const runner=read('tests/visual/run-v538-quote-editor-final-flow.cjs');
 const fixture=read('tests/visual/v538-quote-editor-final-flow.html');
-const ci=read('.github/workflows/ci.yml');
+const workflow=read('.github/workflows/quote-editor-final-lifecycle.yml');
 
 test('v538 final quote lifecycle covers priority iPhone and iPad WebKit sizes',()=>{
   assert.match(runner,/const \{webkit\}=require\('playwright'\)/);
@@ -42,10 +42,12 @@ test('v538 rejects duplicate or parallel editor persistence across autosave and 
   assert.match(fixture,/window\.maxConcurrentSaves=Math\.max/);
 });
 
-test('v538 uses the real EditorPage boundary and is enforced by current WebKit stability CI',()=>{
+test('v538 uses the real EditorPage boundary and is enforced by its WebKit workflow',()=>{
   assert.match(fixture,/import \{EditorPage\} from '\.\/src\/components\/EditorPage\.js'/);
   assert.match(fixture,/ReactDOM\.render\(React\.createElement\(EditorPage,props\)/);
   assert.match(fixture,/__LOUREX_PREPARE_PDF__/);
   assert.match(fixture,/className='qa-print-portal print-portal'/);
-  assert.match(ci,/node tests\/visual\/run-v538-quote-editor-final-flow\.cjs/);
+  assert.match(workflow,/node --test tests\/quote-editor-final-lifecycle-v538\.test\.mjs/);
+  assert.match(workflow,/npx playwright install --with-deps webkit/);
+  assert.match(workflow,/node tests\/visual\/run-v538-quote-editor-final-flow\.cjs/);
 });
