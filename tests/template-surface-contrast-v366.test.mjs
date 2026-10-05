@@ -68,6 +68,10 @@ test('Auto and authored dark local modules are not flattened by Custom foregroun
 test('Normal typography preserves the effective shipped cascade and template-specific hierarchy',async()=>{
   const [css,v364]=await Promise.all([read('src/styles/template-surface-contrast-v366.css'),read('src/styles/v364-document-template-layout-refinement.css')]);
   assert.match(v364,/\.invoice-page :is\(\.terms-block,\.bank-block,\.signature-block,\.notes-block\)>h3\{[\s\S]*font-size:6\.8px;/);
+  assert.match(css,/\.invoice-page \.doc-title\{zoom:1;\}/);
+  assert.match(css,/\.invoice-page\.template-executive\{--lrx-title-base:28px;\}/);
+  assert.match(css,/\.invoice-page\.page-first :is\(\.header-executive,\.header-minimal,\.header-trade,\.header-signature,\.header-modern\) \.doc-title>span\{font-size:calc\(var\(--lrx-title-base,25px\)\*var\(--lrx-title-scale,1\)\)!important;\}/);
+  assert.match(css,/\.invoice-page\.page-first\.lang-bilingual[\s\S]*--lrx-title-secondary-base,20px/);
   assert.match(css,/\.invoice-page :is\(\.terms-block h3,\.notes-block h3,\.bank-block h3,\.signature-block h3\)\{font-size:var\(--lrx-heading-size,6\.8px\)!important;/);
   assert.match(css,/\.invoice-page \.continued-label\{font-size:calc\(var\(--lrx-heading-size,6\.8px\)\*\.955882\)!important;/);
   assert.doesNotMatch(css,/\.invoice-page \.items-wrap\{font-size:var\(--lrx-heading-size/);
