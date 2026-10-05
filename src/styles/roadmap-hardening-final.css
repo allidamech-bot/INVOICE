@@ -1,3 +1,313 @@
-.lx-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}.lx-form-grid label{display:grid;gap:6px;min-width:0}.lx-form-grid label>span{font-size:12px;font-weight:750;color:var(--ft-text-muted,#64748b)}.lx-form-wide{grid-column:1/-1}.lx-row-actions{display:flex;gap:8px;flex-wrap:wrap}.lx-finance-disclaimer{margin:8px 0 0;font-size:12px;line-height:1.45;color:var(--ft-text-muted,#64748b)}.lx-fx-conversion-result{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--ft-border,#dbe3ef);border-radius:14px;background:var(--ft-surface-subtle,#f8fafc);margin-top:12px}.lx-fx-conversion-result span{font-size:12px;color:var(--ft-text-muted,#64748b)}.lx-fx-conversion-result strong{font-size:18px}.lx-location-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:12px 0 16px}.lx-location-card{display:grid;gap:8px;padding:14px;border:1px solid var(--ft-border,#dbe3ef);border-radius:16px;background:var(--ft-surface,#fff)}.lx-location-card>div{display:flex;align-items:center;justify-content:space-between;gap:8px}.lx-location-card small,.lx-location-card span,.lx-location-card em{font-size:12px;color:var(--ft-text-muted,#64748b)}.lx-location-card.is-archived{opacity:.64}.lx-profitability-reports .ta-report-workspace-tabs{overflow-x:auto;scrollbar-width:none}.lx-profitability-reports .ta-report-workspace-tabs button{min-height:44px;white-space:nowrap}.lx-treasury-ledger .ta-table td small,.lx-profitability-reports .ta-table td small{display:block;margin-top:3px;color:var(--ft-text-muted,#64748b)}
+.lx-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}.lx-form-grid label{display:grid;gap:6px;min-width:0}.lx-form-grid label>span{font-size:12px;font-weight:750;color:var(--ft-text-muted,#64748b)}.lx-form-wide{grid-column:1/-1}.lx-row-actions{display:flex;gap:8px;flex-wrap:wrap}.lx-finance-disclaimer{margin:8px 0 0;font-size:12px;line-height:1.45;color:var(--ft-text-muted,#64748b)}.lx-fx-conversion-result{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--ft-border,#dbe3ef);border-radius:14px;background:var(--ft-surface-subtle,#f8fafc);margin-top:12px}.lx-fx-conversion-result span{font-size:12px;color:var(--ft-text-muted,#64748b)}.lx-fx-conversion-result strong{font-size:18px}.lx-location-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:12px 0 16px}.lx-location-card{display:grid;gap:8px;padding:14px;border:1px solid var(--ft-border,#dbe3ef);border-radius:16px;background:var(--ft-surface,#fff)}.lx-location-card>div{display:flex;align-items:center;justify-content:space-between;gap:8px}.lx-location-card small,.lx-location-card span,.lx-location-card em{font-size:12px;color:var(--ft-text-muted,#64748b)}.lx-location-card.is-archived{opacity:.64}.lx-profitability-reports .ta-report-workspace-tabs{overflow-x:auto;scrollbar-width:none}.lx-treasury-ledger .ta-table td small,.lx-profitability-reports .ta-table td small{display:block;margin-top:3px;color:var(--ft-text-muted,#64748b)}
 @media(max-width:720px){.lx-form-grid{grid-template-columns:1fr}.lx-form-wide{grid-column:auto}.lx-row-actions{display:grid;grid-template-columns:1fr}.lx-row-actions .btn{width:100%}.lx-fx-conversion-result{align-items:flex-start;flex-direction:column}.lx-location-cards{grid-template-columns:1fr}.lx-treasury-ledger .ta-table-wrap,.lx-profitability-reports .ta-table-wrap,.lx-warehouse-page .ta-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}.lx-treasury-ledger button,.lx-treasury-ledger input,.lx-treasury-ledger select,.lx-treasury-ledger textarea,.lx-fx-rates button,.lx-fx-rates input,.lx-fx-rates select,.lx-fx-rates textarea,.lx-warehouse-page button,.lx-warehouse-page input,.lx-warehouse-page select,.lx-warehouse-page textarea,.lx-profitability-reports button,.lx-profitability-reports input,.lx-profitability-reports select,.lx-profitability-reports textarea{min-height:44px}}
 html[dir="rtl"] .lx-treasury-ledger,html[dir="rtl"] .lx-fx-rates,html[dir="rtl"] .lx-warehouse-page,html[dir="rtl"] .lx-profitability-reports{text-align:right}@media(prefers-reduced-motion:reduce){.lx-treasury-ledger *,.lx-fx-rates *,.lx-warehouse-page *,.lx-profitability-reports *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* LOUREX v540 — document design controls use the same flat editor language as the
+ * rest of the product. This deliberately removes the nested card hierarchy that
+ * made Color / Typography / Watermark look like a foreign form on iPhone. */
+@media screen{
+  html body #root .app-ui .screen-editor .design-advanced-panel{
+    margin:14px 0 0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    overflow:visible!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-stack{
+    display:block!important;
+    margin:0!important;
+    min-width:0!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-group{
+    margin:0!important;
+    padding:0!important;
+    min-width:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    color:var(--ft-text)!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-group+.document-design-group{
+    margin-top:4px!important;
+    padding-top:4px!important;
+    border-top:1px solid var(--ft-line)!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-group-head{
+    display:flex!important;
+    align-items:flex-start!important;
+    justify-content:space-between!important;
+    gap:12px!important;
+    padding:13px 0 10px!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 78%,transparent)!important;
+    background:transparent!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-group-head>div{
+    display:grid!important;
+    gap:3px!important;
+    min-width:0!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-group-head strong{
+    color:var(--ft-text-strong)!important;
+    font-size:14px!important;
+    line-height:1.35!important;
+    font-weight:800!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-group-head small{
+    color:var(--ft-muted)!important;
+    font-size:11px!important;
+    line-height:1.5!important;
+    font-weight:500!important;
+  }
+  html body #root .app-ui .screen-editor .design-mode-badge{
+    flex:0 0 auto!important;
+    min-height:28px!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    padding:3px 9px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:999px!important;
+    background:transparent!important;
+    color:var(--ft-muted)!important;
+    font-size:10px!important;
+    line-height:18px!important;
+    font-weight:800!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .design-mode-badge.is-custom{
+    border-color:color-mix(in srgb,var(--ft-accent) 42%,var(--ft-line))!important;
+    color:var(--ft-accent)!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-rows{
+    display:block!important;
+    min-width:0!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-row{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(150px,220px)!important;
+    align-items:center!important;
+    gap:16px!important;
+    min-width:0!important;
+    padding:11px 0!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 68%,transparent)!important;
+    background:transparent!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-label{
+    display:grid!important;
+    gap:3px!important;
+    min-width:0!important;
+    text-align:start!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-label strong{
+    color:var(--ft-text-strong)!important;
+    font-size:12px!important;
+    line-height:1.45!important;
+    font-weight:760!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-label small{
+    color:var(--ft-muted)!important;
+    font-size:10.5px!important;
+    line-height:1.45!important;
+    font-weight:500!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-control{
+    min-width:0!important;
+    width:100%!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-control>.input.select{
+    width:100%!important;
+    min-width:0!important;
+    min-height:44px!important;
+    margin:0!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-note{
+    display:grid!important;
+    gap:3px!important;
+    margin:0!important;
+    padding:10px 0 11px!important;
+    border:0!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 68%,transparent)!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    color:var(--ft-text)!important;
+    font-size:11px!important;
+    line-height:1.5!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-note strong{color:var(--ft-text-strong)!important;font-weight:760!important;}
+  html body #root .app-ui .screen-editor .document-design-note span{color:var(--ft-muted)!important;}
+  html body #root .app-ui .screen-editor .document-color-control{
+    width:100%!important;
+    min-height:44px!important;
+    box-sizing:border-box!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:9px!important;
+    padding:4px 8px!important;
+    border:1px solid color-mix(in srgb,var(--ft-line) 88%,var(--ft-accent) 12%)!important;
+    border-radius:12px!important;
+    background:color-mix(in srgb,var(--ft-surface) 96%,var(--ft-canvas) 4%)!important;
+    box-shadow:none!important;
+    cursor:pointer!important;
+  }
+  html body #root .app-ui .screen-editor .document-color-swatch{
+    flex:0 0 36px!important;
+    width:36px!important;
+    min-width:36px!important;
+    max-width:36px!important;
+    height:36px!important;
+    min-height:36px!important;
+    margin:0!important;
+    padding:0!important;
+    border:1px solid color-mix(in srgb,var(--ft-line) 80%,#000 20%)!important;
+    border-radius:9px!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    overflow:hidden!important;
+    cursor:pointer!important;
+    -webkit-appearance:none!important;
+    appearance:none!important;
+  }
+  html body #root .app-ui .screen-editor .document-color-swatch::-webkit-color-swatch-wrapper{padding:0!important;}
+  html body #root .app-ui .screen-editor .document-color-swatch::-webkit-color-swatch{border:0!important;border-radius:8px!important;}
+  html body #root .app-ui .screen-editor .document-color-value{
+    min-width:0!important;
+    color:var(--ft-muted)!important;
+    font:700 11px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace!important;
+    letter-spacing:.02em!important;
+  }
+
+  /* Watermark is one continuation of the same settings surface, not another card. */
+  html body #root .app-ui .screen-editor .watermark-editor-card,
+  html body #root .app-ui .screen-editor .watermark-editor-head,
+  html body #root .app-ui .screen-editor .watermark-editor-body{
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .watermark-editor-card{
+    margin:4px 0 0!important;
+    padding:0!important;
+    border:0!important;
+  }
+  html body #root .app-ui .screen-editor .watermark-editor-head{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:12px!important;
+    margin:0!important;
+    padding:13px 0!important;
+    border:0!important;
+    border-top:1px solid var(--ft-line)!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 68%,transparent)!important;
+  }
+  html body #root .app-ui .screen-editor .watermark-editor-head>span{
+    color:var(--ft-muted)!important;
+    font-size:11px!important;
+    line-height:1.4!important;
+  }
+  html body #root .app-ui .screen-editor .watermark-editor-body{
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+  }
+  html body #root .app-ui .screen-editor .watermark-preset-row{
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    gap:8px!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:11px 0!important;
+    overflow-x:auto!important;
+    overscroll-behavior-x:contain!important;
+    scrollbar-width:none!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 68%,transparent)!important;
+    background:transparent!important;
+  }
+  html body #root .app-ui .screen-editor .watermark-preset-row::-webkit-scrollbar{display:none!important;}
+  html body #root .app-ui .screen-editor .watermark-preset-row>button{
+    flex:0 0 auto!important;
+    min-width:auto!important;
+    min-height:38px!important;
+    margin:0!important;
+    padding:7px 12px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:999px!important;
+    background:transparent!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+    font-size:11px!important;
+    font-weight:720!important;
+  }
+  html body #root .app-ui .screen-editor .watermark-range{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    align-items:center!important;
+    gap:10px!important;
+    min-width:0!important;
+  }
+  html body #root .app-ui .screen-editor .watermark-range input[type="range"]{width:100%!important;min-width:0!important;max-width:100%!important;}
+  html body #root .app-ui .screen-editor .watermark-range small{min-width:38px!important;text-align:end!important;color:var(--ft-muted)!important;}
+  html body #root .app-ui .screen-editor .watermark-editor-body input[type="color"]{
+    width:54px!important;
+    min-width:54px!important;
+    max-width:54px!important;
+    height:44px!important;
+    min-height:44px!important;
+    padding:4px!important;
+    margin:0!important;
+    border-radius:11px!important;
+    cursor:pointer!important;
+  }
+}
+
+@media screen and (max-width:900px){
+  html body #root .app-ui .screen-editor .document-design-group-head{padding-block:12px 9px!important;}
+  html body #root .app-ui .screen-editor .document-design-row{
+    grid-template-columns:minmax(0,1fr) minmax(126px,44%)!important;
+    gap:10px!important;
+    padding:10px 0!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-label strong{font-size:12px!important;}
+  html body #root .app-ui .screen-editor .document-design-label small{font-size:10px!important;}
+  html body #root .app-ui .screen-editor .document-design-control>.input.select{min-height:44px!important;font-size:14px!important;}
+  html body #root .app-ui .screen-editor .document-color-control{min-height:44px!important;padding:3px 6px!important;}
+  html body #root .app-ui .screen-editor .document-color-swatch{width:34px!important;min-width:34px!important;max-width:34px!important;height:34px!important;min-height:34px!important;}
+  html body #root .app-ui .screen-editor .watermark-editor-body .form-grid.two.compact-grid{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:0!important;
+    margin:0!important;
+  }
+  html body #root .app-ui .screen-editor .watermark-editor-body .form-grid.two.compact-grid>.field{
+    display:grid!important;
+    gap:7px!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:10px 0!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 68%,transparent)!important;
+    background:transparent!important;
+  }
+  html body #root .app-ui .screen-editor .watermark-editor-body .form-grid.two.compact-grid>.field.span-2{grid-column:auto!important;}
+  html body #root .app-ui .screen-editor .watermark-editor-body :is(.field input,.field select,.input,.select){max-width:100%!important;}
+  html body #root .app-ui .screen-editor .appearance-toggles,
+  html body #root .app-ui .screen-editor .appearance-table-columns{
+    margin:0!important;
+    padding:11px 0!important;
+    border:0!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 68%,transparent)!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+}
+
+@media screen and (max-width:360px){
+  html body #root .app-ui .screen-editor .document-design-row{grid-template-columns:1fr!important;gap:7px!important;}
+  html body #root .app-ui .screen-editor .document-design-control{width:100%!important;}
+}
+
+html[dir="rtl"] body #root .app-ui .screen-editor :is(.document-design-group-head,.document-design-label,.document-design-note,.watermark-editor-head){text-align:right!important;}
