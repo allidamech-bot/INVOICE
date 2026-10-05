@@ -41,7 +41,8 @@ test('Batch 3 close and backdrop bind to the currently rendered advisor instance
   assert.match(closeout,/attachmentMenuOpen:false/);
   assert.match(closeout,/instance\.setState\(\{open:false,busy:false,error:'',proposal:null,attachmentMenuOpen:false\}\)/);
   assert.match(closeout,/className==='lourex-ai-backdrop'\|\|className\.includes\('lourex-ai-close'\)/);
-  assert.doesNotMatch(closeout,/document\.addEventListener\('click'/,'Close must not be intercepted by a stale document-level capture owner');
+  assert.doesNotMatch(closeout,/instance\.__lourexCloseCapture\s*=/,'Close must not install stale document-level capture ownership');
+  assert.match(closeout,/if\(source\.includes\("document\.addEventListener\('click',instance\.__lourexCloseCapture,true\)"\)\)throw/,'closeout must retain the guard that rejects a document capture listener');
 });
 
 test('Batch 3 closeout keeps the send action on v485 tokens and preserves 44px narrow-phone targets',()=>{
