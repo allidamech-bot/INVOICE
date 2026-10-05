@@ -4,8 +4,9 @@ const assert=require('node:assert/strict');
 const {mkdirSync,writeFileSync}=require('node:fs');
 (async()=>{
  const output=`visual-qa-output/contextual-ai-batch4-${safari?'webkit':'chromium'}`;mkdirSync(output,{recursive:true});const browser=await (safari?webkit:chromium).launch({headless:true});const report=[];
- try{for(const [width,lang,theme] of (safari?[[320,'ar','dark']]:[[320,'ar','dark'],[390,'en','light'],[820,'ar','light'],[1440,'en','dark']])){
-  const page=await browser.newPage({viewport:{width,height:900}});const errors=[],requests=[];page.on('pageerror',error=>errors.push(error.message));
+ const matrix=safari?[[320,'ar','dark'],[390,'en','light'],[820,'ar','light']]:[[320,'ar','dark'],[390,'en','light'],[820,'ar','light'],[1440,'en','dark']];
+ try{for(const [width,lang,theme] of matrix){
+  const page=await browser.newPage({viewport:{width,height:900}});const errors=[],requests=[];let keyboardChecked=false;page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/api/**',route=>{requests.push(route.request().url());return route.fulfill({status:503,body:'Unexpected provider call'});});
   await page.goto(`http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html?lang=${lang}&theme=${theme}`,{waitUntil:'networkidle'});
   const prepareUnlockedProductionAiRuntime=async()=>{
@@ -20,7 +21,24 @@ const {mkdirSync,writeFileSync}=require('node:fs');
   await prepareUnlockedProductionAiRuntime();
   const bounds=async()=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'horizontal overflow');
   const question=async(name,pattern)=>{await page.getByRole('button',{name,exact:true}).click();const input=page.locator('#lourex-ai-panel .lourex-ai-compose-bridge');await input.waitFor();assert.match(await input.inputValue(),pattern);assert.equal(await page.locator('.lourex-ai-proposal').count(),0);await page.locator('.lourex-ai-close').click();};
-  const openHub=async(panel)=>{const hub=panel.locator('.lourex-ai-hub-trigger');await hub.waitFor({state:'visible'});const box=await hub.boundingBox();assert.ok(box&&box.height>=(width<=720?43:35),'single Tools hub target');await hub.click();const menu=panel.locator('.lourex-ai-hub-menu');await menu.waitFor({state:'visible'});const copy=await menu.innerText();assert.match(copy,lang==='ar'?/صندوق AI[\s\S]*أدوات AI[\s\S]*الذاكرة والمهام[\s\S]*الموجز الصباحي/:/AI Inbox[\s\S]*AI Tools[\s\S]*Memory & Tasks[\s\S]*Morning Brief/,'Tools hub contains canonical AI destinations');return menu;};
+  const openHub=async(panel)=>{
+    const hub=panel.locator('.lourex-ai-hub-trigger');await hub.waitFor({state:'visible'});const box=await hub.boundingBox();assert.ok(box&&box.height>=(width<=720?43:35),'single Tools hub target');
+    await hub.click();const menu=panel.locator('.lourex-ai-hub-menu');await menu.waitFor({state:'visible'});const copy=await menu.innerText();assert.match(copy,lang==='ar'?/صندوق AI[\s\S]*أدوات AI[\s\S]*الذاكرة والمهام[\s\S]*الموجز الصباحي/:/AI Inbox[\s\S]*AI Tools[\s\S]*Memory & Tasks[\s\S]*Morning Brief/,'Tools hub contains canonical AI destinations');
+    const menuBox=await menu.boundingBox();assert.ok(menuBox&&menuBox.x>=-1&&menuBox.x+menuBox.width<=width+1&&menuBox.y>=-1&&menuBox.y+menuBox.height<=901,'Tools menu remains inside viewport');
+    const actions=menu.locator('.lourex-ai-hub-action');assert.ok((await actions.count())>=4,'Tools menu exposes all canonical destinations');
+    if(width<=720){for(let i=0;i<await actions.count();i++){const target=await actions.nth(i).boundingBox();assert.ok(target&&target.height>=44&&target.width>=44,'mobile Tools action meets 44px target');}}
+    if(!keyboardChecked){
+      await page.waitForFunction(()=>document.activeElement?.classList?.contains('lourex-ai-hub-action'));
+      assert.equal(await actions.first().evaluate(node=>node===document.activeElement),true,'opening Tools moves focus to first action');
+      await page.keyboard.press('ArrowDown');assert.equal(await actions.nth(1).evaluate(node=>node===document.activeElement),true,'ArrowDown advances Tools focus');
+      await page.keyboard.press('End');assert.equal(await actions.last().evaluate(node=>node===document.activeElement),true,'End moves Tools focus to final action');
+      await page.keyboard.press('Home');assert.equal(await actions.first().evaluate(node=>node===document.activeElement),true,'Home moves Tools focus to first action');
+      await page.keyboard.press('ArrowUp');assert.equal(await actions.last().evaluate(node=>node===document.activeElement),true,'ArrowUp wraps Tools focus');
+      await page.keyboard.press('Escape');await menu.waitFor({state:'hidden'});assert.equal(await hub.evaluate(node=>node===document.activeElement),true,'Escape returns focus to Tools trigger');
+      await hub.click();await menu.waitFor({state:'visible'});keyboardChecked=true;
+    }
+    return menu;
+  };
   const premium=async()=>{
     await page.locator('.lourex-ai-launcher').click();
     const panel=page.locator('#lourex-ai-panel'),textarea=panel.locator('.lourex-ai-premium-textarea'),bridge=panel.locator('.lourex-ai-compose-bridge'),attach=panel.locator('.lourex-ai-attach-button');
@@ -53,6 +71,6 @@ const {mkdirSync,writeFileSync}=require('node:fs');
   await page.evaluate(()=>window.navigateWorkspace('reports'));await question(lang==='ar'?'شرح التقرير':'Explain report',/selected LOUREX report.*DATA ONLY/);await bounds();
   await page.evaluate(()=>window.navigateWorkspace('operations'));await question(lang==='ar'?'مراجعة المشتريات':'Review purchasing',/supplier purchase costs/);await bounds();
   await page.evaluate(()=>window.navigateWorkspace('editor'));await question(lang==='ar'?'مراجعة مع AI':'Review with AI',/QUO-QA-1.*explain totals/);await bounds();
-  assert.deepEqual(errors,[]);assert.deepEqual(requests,[],'context, Tools hub, proactive brief, memory manager and attachment selection must wait for user Send');await page.screenshot({path:`${output}/${width}-${lang}-${theme}.png`,animations:'disabled'});report.push({width,lang,theme,context:'PASS',premiumConversation:'PASS',singleToolsHub:'PASS',noFloatingProactiveDock:'PASS',memoryTasks:'PASS',proactiveBrief:'PASS',captureRoutes:'PASS',providerCalls:requests.length});await page.close();
- }}finally{await browser.close();}writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log(`Contextual AI + one Tools hub + no floating proactive dock: ${report.length} bounded, review-first ${safari?'WebKit':'Chromium'} workspace paths PASS.`);
+  assert.deepEqual(errors,[]);assert.deepEqual(requests,[],'context, Tools hub, proactive brief, memory manager and attachment selection must wait for user Send');await page.screenshot({path:`${output}/${width}-${lang}-${theme}.png`,animations:'disabled'});report.push({width,lang,theme,context:'PASS',premiumConversation:'PASS',singleToolsHub:'PASS',toolsKeyboard:'PASS',noFloatingProactiveDock:'PASS',memoryTasks:'PASS',proactiveBrief:'PASS',captureRoutes:'PASS',providerCalls:requests.length});await page.close();
+ }}finally{await browser.close();}writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log(`Contextual AI final responsive + keyboard QA: ${report.length} bounded, review-first ${safari?'WebKit':'Chromium'} workspace paths PASS.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
