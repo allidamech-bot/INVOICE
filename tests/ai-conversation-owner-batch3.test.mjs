@@ -5,10 +5,11 @@ import fs from 'node:fs';
 const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const pkg=JSON.parse(read('package.json'));
 const stage=read('scripts/ai-conversation-owner-stage3.mjs');
+const closeout=read('scripts/ai-conversation-owner-stage3-closeout.mjs');
 
-test('Batch 3 runs after the canonical conversation owner',()=>{
+test('Batch 3 runs after the canonical conversation owner and closes out last',()=>{
   const build=String(pkg.scripts?.build||'');
-  assert.match(build,/ai-conversation-owner\.mjs[\s\S]*ai-conversation-owner-stage3\.mjs/);
+  assert.match(build,/ai-conversation-owner\.mjs[\s\S]*ai-conversation-owner-stage3\.mjs[\s\S]*ai-conversation-owner-stage3-closeout\.mjs/);
 });
 
 test('Batch 3 removes the duplicate workflow plus without breaking the voice bridge',()=>{
@@ -32,4 +33,12 @@ test('Batch 3 has one paperclip attachment control and a mobile bottom sheet',()
   assert.match(stage,/border-radius:24px!important/);
   assert.match(stage,/lourex-ai-attach-button,#lourex-ai-panel \.lourex-ai-composer-mic,#lourex-ai-panel \.lourex-ai-send\{flex-basis:44px!important/);
   assert.match(stage,/__lourexConversationComposerBatch3/);
+});
+
+test('Batch 3 close and backdrop deterministically release the advisor overlay',()=>{
+  assert.match(closeout,/__lourexConversationCloseoutBatch3/);
+  assert.match(closeout,/instance\.cancelRequest\?\.\(\)/);
+  assert.match(closeout,/attachmentMenuOpen:false/);
+  assert.match(closeout,/open:false,busy:false,error:'',proposal:null/);
+  assert.match(closeout,/className==='lourex-ai-backdrop'\|\|className\.includes\('lourex-ai-close'\)/);
 });
