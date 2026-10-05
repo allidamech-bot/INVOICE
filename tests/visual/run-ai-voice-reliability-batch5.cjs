@@ -18,9 +18,10 @@ const {mkdirSync,writeFileSync}=require('node:fs');
      end(){this.onend?.();releaseLater(this);}
     }
     window.SpeechRecognition=Recognition;window.webkitSpeechRecognition=Recognition;
-   },{releaseDelay:engine.name()==='webkit'?900:260});
+   },{releaseDelay:engine.name()==='webkit'?1450:260});
    await page.goto(`http://127.0.0.1:4173/tests/visual/ai-voice-reliability-batch5.html?lang=${lang}`,{waitUntil:'networkidle'});await page.locator('.lourex-ai-launcher').click();const mic=page.locator('.lourex-ai-composer-mic'),input=page.locator('.lourex-ai-compose form>input'),textarea=page.locator('.lourex-ai-premium-textarea');await mic.waitFor();
    assert.equal(await page.locator('.lourex-ai-scope-button').count(),3,'unified assistant exposes Business, Personal and Temporary scopes');
+   assert.equal(await page.evaluate(()=>window.__LOUREX_VOICE_RUNTIME_OWNER__),'ios-release-v2','final composer exposes the current iOS voice owner');
    await mic.click();await page.evaluate(()=>{window.staleResult=window.speechInstances[0].onresult;window.speechInstances[0].result('first session');});assert.equal(await input.inputValue(),'first session');
    await mic.click();assert.equal(await page.evaluate(()=>window.speechInstances.length),1,'restart waits for native onend');await page.evaluate(()=>window.speechInstances[0].end());await page.waitForFunction(()=>window.speechInstances.length===2);
    await mic.click();await page.evaluate(()=>{window.speechInstances[1].result('second session');window.speechInstances[1].end();});assert.equal(await input.inputValue(),'first session second session','manual stop accepts final transcript');
@@ -28,6 +29,12 @@ const {mkdirSync,writeFileSync}=require('node:fs');
    assert.match(await page.locator('.lourex-ai-voice-status').innerText(),lang==='ar'?/جاهز|النص الصوتي/:/Transcript ready|edit or send/);
    await mic.click();await page.waitForFunction(()=>window.speechInstances.length===5);await page.locator('.lourex-ai-close').click();await page.waitForFunction(()=>window.speechInstances[4].abortCalled);await page.locator('.lourex-ai-launcher').click();await mic.click();await page.waitForFunction(()=>window.speechInstances.length===6);await page.evaluate(()=>window.speechInstances[5].end());
    await mic.click();await page.waitForFunction(()=>window.speechInstances.length===7);await page.evaluate(()=>window.speechInstances[6].result('fallback cleanup'));await page.waitForFunction(()=>window.speechInstances[6].abortCalled);await mic.click();await page.waitForFunction(()=>window.speechInstances.length===8);await page.evaluate(()=>window.speechInstances[7].end());
+
+   for(let cycle=0;cycle<4;cycle+=1){
+    const expected=9+cycle;await mic.click();await page.waitForFunction(count=>window.speechInstances.length===count,expected);await page.evaluate(({index,cycle})=>{window.speechInstances[index].result(`repeat session ${cycle+1}`);window.speechInstances[index].end();},{index:expected-1,cycle});
+   }
+   assert.equal(await page.evaluate(()=>window.speechInstances.length),12,'twelve independent speech sessions must be constructible in one open app lifecycle');
+   assert.match(await input.inputValue(),/repeat session 4$/,'twelfth session transcript reaches the editable composer');
    assert.equal(await page.evaluate(()=>window.overlappingStarts),0,'Safari delayed release must never receive overlapping recognition.start() calls');assert.deepEqual(errors,[]);assert.deepEqual(requests,[],'voice must not call providers before explicit Send');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));const box=await mic.boundingBox();assert.ok(box.width>=44&&box.height>=44);
 
    await input.fill(lang==='ar'?'اعرض وضع الخزينة والسيولة':'Show treasury and cash status');await input.press('Enter');
@@ -61,7 +68,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     unifiedAssistant='PASS';
    }
 
-   await page.screenshot({path:`${output}/${engine.name()}-${lang}.png`,animations:'disabled'});report.push({engine:engine.name(),width,lang,sessions:8,restart:'PASS',manualStop:'PASS',errorRetry:'PASS',digitNormalization:'PASS',editableTranscript:'PASS',stale:'PASS',unmount:'PASS',missingOnend:'PASS',nativeReleaseDelayMs:await page.evaluate(()=>window.nativeReleaseDelayMs),overlappingStarts:0,providerCalls:requests.length,naturalLanguageOs,unifiedAssistant});
+   await page.screenshot({path:`${output}/${engine.name()}-${lang}.png`,animations:'disabled'});report.push({engine:engine.name(),width,lang,sessions:12,restart:'PASS',manualStop:'PASS',errorRetry:'PASS',digitNormalization:'PASS',editableTranscript:'PASS',stale:'PASS',unmount:'PASS',missingOnend:'PASS',repeatSessions:'PASS',runtimeOwner:await page.evaluate(()=>window.__LOUREX_VOICE_RUNTIME_OWNER__),nativeReleaseDelayMs:await page.evaluate(()=>window.nativeReleaseDelayMs),overlappingStarts:0,providerCalls:requests.length,naturalLanguageOs,unifiedAssistant});
   }finally{await browser.close();}
- }writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log('Voice reliability + delayed Safari native release PASS; Batch 4 natural-language local tool plan smoke PASS in Chromium + WebKit; unified encrypted conversation/scopes smoke PASS in Chromium.');
+ }writeFileSync(`${output}/report.json`,JSON.stringify(report,null,2));console.log('Voice reliability + 12-session delayed Safari native release PASS; Batch 4 natural-language local tool plan smoke PASS in Chromium + WebKit; unified encrypted conversation/scopes smoke PASS in Chromium.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
