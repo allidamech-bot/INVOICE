@@ -43,3 +43,10 @@ test('Batch 3 close and backdrop bind to the currently rendered advisor instance
   assert.match(closeout,/className==='lourex-ai-backdrop'\|\|className\.includes\('lourex-ai-close'\)/);
   assert.doesNotMatch(closeout,/document\.addEventListener\('click'/,'Close must not be intercepted by a stale document-level capture owner');
 });
+
+test('Batch 3 closeout keeps the send action on v485 tokens and preserves 44px narrow-phone targets',()=>{
+  assert.match(closeout,/const cssTarget='dist\/ai-composer-v449\.css'/);
+  assert.match(closeout,/background:var\(--lx485-blue,var\(--ft-accent\)\)!important/,'send action must resolve through the canonical LOUREX accent token');
+  assert.match(closeout,/flex-basis:44px!important;width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important/,'narrow-phone controls must remain full 44px targets');
+  assert.match(closeout,/#619dff\|#3975e8\|rgba\\\(168,202,255\|rgba\\\(47,106,224/,'closeout must reject the competing hard-coded blue treatment');
+});
