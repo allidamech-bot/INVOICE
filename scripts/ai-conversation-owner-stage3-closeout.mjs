@@ -1,6 +1,7 @@
 import {readFile,writeFile} from 'node:fs/promises';
 
 const cssTarget='dist/ai-composer-v449.css';
+const aiTarget='dist/src/components/AiCopilot.js';
 
 /* Batch 3 closeout owns only the final visual-contract corrections discovered
    during deep QA. The earlier Close/backdrop failure came from the legacy
@@ -24,4 +25,15 @@ if(!css.includes("background:var(--lx485-blue,var(--ft-accent))!important"))thro
 if(!css.includes(safeTargets))throw new Error('AI Batch 3 narrow-phone controls must remain 44px touch targets.');
 
 await writeFile(cssTarget,css);
-console.log('[LOUREX AI] Batch 3 closeout installed: v485 send palette and 44px narrow-phone targets are enforced without overriding AiCopilot close ownership.');
+
+/* Publish one stable downstream readiness marker for later conversation stages.
+   Batch 3's AiCopilot implementation marker remains the source of truth; this
+   alias only declares that the complete Stage 3 contract has reached dist. */
+let ai=await readFile(aiTarget,'utf8');
+if(!ai.includes('__lourexConversationComposerBatch3'))throw new Error('AI Batch 3 closeout requires the merged AiCopilot composer owner.');
+if(!ai.includes('__lourexConversationOwnerStage3')){
+  ai+='\nconst __lourexConversationOwnerStage3=true;\n';
+  await writeFile(aiTarget,ai);
+}
+
+console.log('[LOUREX AI] Batch 3 closeout installed: v485 send palette, 44px narrow-phone targets and the downstream Stage 3 readiness marker are enforced without overriding AiCopilot close ownership.');
