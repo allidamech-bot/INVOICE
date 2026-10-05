@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <base href="../../dist/">
+  <link rel="stylesheet" href="styles/app.bundle.css">
+  <link rel="stylesheet" href="styles/v331-draft-scroll-recovery.css?v=538">
+  <title>Quote editor final lifecycle QA</title>
+</head>
+<body>
+  <div id="root" class="app-ui"></div>
+  <script src="vendor/react.production.min.js"></script>
+  <script src="vendor/react-dom.production.min.js"></script>
+  <script type="module">
+    import {EditorPage} from './src/components/EditorPage.js';
+    import {createBlankDocument} from './src/lib/documents.js';
+    import {defaultCompany,defaultAppSettings,customerSnapshotFrom} from './src/lib/defaults.js';
+    import {blankCustomer} from './src/components/CustomersPage.js';
+    import {setUiLanguage} from './src/lib/i18n.js';
+
+    setUiLanguage('en');
+    let company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة'};
+    const customer={...blankCustomer(),id:'customer-v538',companyNameEn:'Lifecycle Customer',companyNameAr:'عميل دورة الحياة',city:'Istanbul',country:'Türkiye'};
+    let documentValue=createBlankDocument('proforma','PI-2026-0538',company);
+    documentValue={...documentValue,issueDate:'2026-10-05',dueDate:'2026-11-04',language:'en',customerSnapshot:customerSnapshotFrom(customer)};
+    documentValue.items=[{...documentValue.items[0],descriptionEn:'Lifecycle stability line',quantity:'2',unit:'PCS',unitPrice:'15.00'}];
+
+    window.saveAttempts=0;
+    window.saveEvents=[];
+    window.activeSaves=0;
+    window.maxConcurrentSaves=0;
+    window.printEvents=[];
+    window.preparePdfModes=[];
+    window.closeCount=0;
+    window.renderCount=0;
+    window.__LOUREX_PREPARE_PDF__=mode=>window.preparePdfModes.push(mode);
+    const asyncNoop=async()=>{};
+    const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
+    const render=()=>{
+      window.renderCount+=1;
+      const props={
+        document:documentValue,
+        documents:[documentValue],
+        customers:[customer],suppliers:[],company,savedItems:[],payments:[],documentEvents:[],documentRevisions:[],smartDefaults:defaultAppSettings().smartDefaults,
+        onEditActivity:()=>{},
+        onClose:()=>{window.closeCount+=1;},
+        onSave:async(value,auto)=>{
+          window.saveAttempts+=1;
+          window.activeSaves+=1;
+          window.maxConcurrentSaves=Math.max(window.maxConcurrentSaves,window.activeSaves);
+          const event={attempt:window.saveAttempts,auto:Boolean(auto),number:value.number,status:value.status,at:Date.now()};
+          window.saveEvents.push(event);
+          try{
+            await sleep(110);
+            documentValue=structuredClone(value);
+            company=structuredClone(company);
+            render();
+          }finally{window.activeSaves-=1;}
+        },
+        onSaveCustomer:asyncNoop,onSaveSavedItem:asyncNoop,onSaveDocumentItem:asyncNoop,onUseSavedItems:asyncNoop,onDeleteSavedItem:asyncNoop,onSaveSmartDefaults:asyncNoop,
+        onSavePayment:asyncNoop,onDeletePayment:asyncNoop,
+        onBeginRevision:async value=>({...structuredClone(value),status:'draft',revision:(value.revision||1)+1}),
+        onDiscardRevision:asyncNoop,onVoidDocument:asyncNoop,onCreateCreditNote:asyncNoop,onConvert:asyncNoop,
+        onPrint:async(value,mode)=>{
+          window.printEvents.push({mode,number:value.number,status:value.status,at:Date.now()});
+          const portal=document.createElement('div');portal.className='qa-print-portal print-portal';portal.dataset.mode=mode;portal.innerHTML='<div class="invoice-pages" data-pagination-ready="true"><section class="invoice-page">QA output</section></div>';
+          document.body.appendChild(portal);
+          await sleep(90);
+          portal.remove();
+        }
+      };
+      ReactDOM.render(React.createElement(EditorPage,props),document.getElementById('root'));
+    };
+
+    render();
+  </script>
+</body>
+</html>
