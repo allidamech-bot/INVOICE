@@ -64,6 +64,14 @@ test('custom text colors pass every actual semantic surface, not merely the page
   assert.equal(obsidianUnsafe.primary,'#f5f1e9');
   assert.equal(obsidianUnsafe.secondary,'#aeb5ba');
   assert.notEqual(obsidianUnsafe.heading,'#111111');
+
+  // #818181 clears 4.5:1 against Obsidian's #15191c paper but fails on its
+  // effective #20262a soft rows/sections. The guard must validate both surfaces.
+  const obsidianSoftUnsafe=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'custom',primaryTextColor:'#818181',secondaryTextColor:'#818181',headingTextColor:'#818181'});
+  assert.equal(obsidianSoftUnsafe.primary,'#f5f1e9');
+  assert.equal(obsidianSoftUnsafe.secondary,'#aeb5ba');
+  assert.notEqual(obsidianSoftUnsafe.heading,'#818181');
+
   const obsidianSafe=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'custom',primaryTextColor:'#ffffff',secondaryTextColor:'#d7d0c4'});
   assert.equal(obsidianSafe.primary,'#ffffff');
   assert.equal(obsidianSafe.secondary,'#d7d0c4');
