@@ -6,6 +6,7 @@ const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const pkg=JSON.parse(read('package.json'));
 const stage=read('scripts/ai-conversation-owner-stage3.mjs');
 const closeout=read('scripts/ai-conversation-owner-stage3-closeout.mjs');
+const tailadmin=read('tests/visual/run-tailadmin-v320.cjs');
 
 test('Batch 3 runs after the canonical conversation owner and closes out last',()=>{
   const build=String(pkg.scripts?.build||'');
@@ -35,19 +36,11 @@ test('Batch 3 has one paperclip attachment control and a mobile bottom sheet',()
   assert.match(stage,/__lourexConversationComposerBatch3/);
 });
 
-test('Batch 3 close and backdrop synchronously release the current modal layer',()=>{
-  assert.match(closeout,/__lourexConversationCloseoutBatch3/);
-  assert.match(closeout,/function __lourexReleaseConversationOverlayBatch3\(\)/);
-  assert.match(closeout,/document\.getElementById\('lourex-ai-panel'\)/);
-  assert.match(closeout,/document\.querySelectorAll\('\.lourex-ai-backdrop'\)/);
-  assert.match(closeout,/style\.setProperty\('pointer-events','none','important'\)/);
-  assert.match(closeout,/style\.setProperty\('display','none','important'\)/);
-  assert.match(closeout,/__lourexReleaseConversationOverlayBatch3\(\);[\s\S]*instance\.__lourexAttachmentAbort\?\.abort\(\)/,'overlay must release before async/react cleanup work');
-  assert.match(closeout,/instance\.cancelRequest\?\.\(\)/);
-  assert.match(closeout,/instance\.applying\?\{open:false,attachmentMenuOpen:false\}:\{open:false,busy:false,error:'',proposal:null,attachmentMenuOpen:false\}/,'closing must be allowed even while an approved action owns the busy state');
-  assert.match(closeout,/className==='lourex-ai-backdrop'\|\|className\.includes\('lourex-ai-close'\)/);
-  assert.doesNotMatch(closeout,/instance\.__lourexCloseCapture\s*=/,'Close must not install stale document-level capture ownership');
-  assert.match(closeout,/if\(source\.includes\("document\.addEventListener\('click',instance\.__lourexCloseCapture,true\)"\)\)throw/,'closeout must retain the guard that rejects a document capture listener');
+test('Batch 3 closeout is visual-only and does not replace AiCopilot close ownership',()=>{
+  assert.doesNotMatch(closeout,/AiCopilot\.prototype/,'deep-QA closeout must not wrap React lifecycle or render ownership');
+  assert.doesNotMatch(closeout,/setState\(/,'deep-QA closeout must not introduce a second close-state owner');
+  assert.doesNotMatch(closeout,/querySelectorAll\('\.lourex-ai-backdrop'\)/,'deep-QA closeout must not hide production overlays through diagnostic DOM mutation');
+  assert.match(closeout,/production close behavior must therefore remain owned by[\s\S]*AiCopilot/);
 });
 
 test('Batch 3 closeout keeps the send action on v485 tokens and preserves 44px narrow-phone targets',()=>{
@@ -55,4 +48,12 @@ test('Batch 3 closeout keeps the send action on v485 tokens and preserves 44px n
   assert.match(closeout,/background:var\(--lx485-blue,var\(--ft-accent\)\)!important/,'send action must resolve through the canonical LOUREX accent token');
   assert.match(closeout,/flex-basis:44px!important;width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important/,'narrow-phone controls must remain full 44px targets');
   assert.match(closeout,/#619dff\|#3975e8\|rgba\\\(168,202,255\|rgba\\\(47,106,224/,'closeout must reject the competing hard-coded blue treatment');
+});
+
+test('TailAdmin mobile QA recognizes the Batch 3 composer instead of waiting for the retired v449 plus',()=>{
+  assert.match(tailadmin,/panel\.waitFor\(\{state:'attached'/);
+  assert.match(tailadmin,/lourex-ai-attach-button/);
+  assert.match(tailadmin,/!el\.querySelector\('\.lourex-ai-composer-plus'\)/);
+  assert.match(tailadmin,/el\.dataset\.v449QaReady='true'/);
+  assert.match(tailadmin,/LOUREX AI attachment target/);
 });
