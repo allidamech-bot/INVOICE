@@ -44,10 +44,17 @@ test('Custom body roles stay light-surface scoped and preserve dark-module contr
   assert.doesNotMatch(customBody[0],/totals-block/);
 });
 
-test('v366 prevents microscopic item and party copy while allowing bounded user sizing',async()=>{
-  const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/items-table tbody td\{font-size:max\(7\.4px,var\(--lrx-table-size,9\.1px\)\)!important/);
-  assert.match(css,/party-address[\s\S]*font-size:max\(7\.6px,var\(--lrx-body-size,9\.2px\)\)!important/);
+test('Normal typography is a canonical no-op and bounded controls preserve hierarchy',async()=>{
+  const [css,appearance]=await Promise.all([read('src/styles/template-surface-contrast-v366.css'),read('src/lib/appearance.ts')]);
+  assert.match(appearance,/headingScale=scaleValue\(appearance\.sectionHeadingScale\?\?'normal',\.7,\.94,1\.08\)/);
+  assert.match(appearance,/bodyScale=scaleValue\(appearance\.bodyTextScale\?\?legacyScale,8\.2\/9\.2,\.95,1\.06\)/);
+  assert.match(appearance,/tableScale=scaleValue\(appearance\.tableTextScale\?\?legacyScale,7\.25\/9\.1,\.95,1\.05\)/);
+  assert.match(css,/items-table\{font-size:var\(--lrx-table-size,7\.25px\)!important;\}/);
+  assert.match(css,/items-table tbody td\{font-size:100%!important/);
+  assert.match(css,/items-table tbody td\.description-cell\{font-size:104\.138%!important/);
+  assert.match(css,/items-table tbody td\.trade-cell\{font-size:93\.793%!important/);
+  assert.match(css,/party-block\{font-size:var\(--lrx-body-size,8\.2px\)!important;\}/);
+  assert.match(css,/term-row>span,[\s\S]*bank-block>div>span\{font-size:85\.366%!important/);
   assert.match(css,/@media print/);
 });
 
