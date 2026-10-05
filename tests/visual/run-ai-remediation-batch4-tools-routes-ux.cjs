@@ -30,13 +30,30 @@ const {mkdirSync,writeFileSync}=require('node:fs');
         window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid:'qa-batch4'}}));
       });
 
-      await page.locator('.lourex-ai-launcher').click();
-      const panel=page.locator('#lourex-ai-panel');await panel.waitFor({state:'visible'});
-      const hub=panel.locator('.lourex-ai-hub-trigger');
-      const openHub=async()=>{await hub.click();const menu=panel.locator('.lourex-ai-hub-menu');await menu.waitFor({state:'visible'});await menu.locator('.lourex-ai-hub-action-copy').first().waitFor({state:'visible'});return menu;};
+      const ensureAssistant=async()=>{
+        const currentPanel=page.locator('#lourex-ai-panel');
+        if(!(await currentPanel.isVisible().catch(()=>false))){
+          const launcher=page.locator('.lourex-ai-launcher');
+          await launcher.waitFor({state:'visible'});
+          await launcher.click();
+          await currentPanel.waitFor({state:'visible'});
+        }
+        return currentPanel;
+      };
+      const openHub=async()=>{
+        const currentPanel=await ensureAssistant();
+        const trigger=currentPanel.locator('.lourex-ai-hub-trigger');
+        await trigger.waitFor({state:'visible'});
+        await trigger.click();
+        const menu=currentPanel.locator('.lourex-ai-hub-menu');
+        await menu.waitFor({state:'visible'});
+        await menu.locator('.lourex-ai-hub-action-copy').first().waitFor({state:'visible'});
+        return{panel:currentPanel,menu};
+      };
+      await ensureAssistant();
       const labels=entry.lang==='ar'?{inbox:'صندوق AI',tools:'أدوات AI',memory:'الذاكرة والمهام',brief:'الموجز الصباحي'}:{inbox:'AI Inbox',tools:'AI Tools',memory:'Memory & Tasks',brief:'Morning Brief'};
 
-      let menu=await openHub();
+      let opened=await openHub(),menu=opened.menu;
       const actions=menu.locator('.lourex-ai-hub-action');assert.equal(await actions.count(),4,'Tools hub keeps the four canonical destinations');
       for(let index=0;index<4;index++){assert.equal(await actions.nth(index).locator('.lourex-ai-hub-action-copy strong').count(),1,'Tool action has one human title');assert.equal(await actions.nth(index).locator('.lourex-ai-hub-action-copy small').count(),1,'Tool action has one concise description');}
       for(const label of Object.values(labels))assert.equal(await menu.getByRole('button',{name:label,exact:true}).count(),1,`exact accessible Tool name remains ${label}`);
@@ -47,21 +64,21 @@ const {mkdirSync,writeFileSync}=require('node:fs');
       const workflowBox=await workflowHub.boundingBox();assert.ok(workflowBox&&workflowBox.x>=-1&&workflowBox.x+workflowBox.width<=entry.width+1,'AI Workflows stays horizontally contained');
       let modal=workflowHub.locator('xpath=ancestor::*[contains(@class,"modal")][1]');let close=modal.locator('.modal-header .icon-btn');if(await close.count())await close.click();else await page.keyboard.press('Escape');
 
-      menu=await openHub();await menu.getByRole('button',{name:labels.memory,exact:true}).click();
-      const manager=panel.locator('.lourex-ai-manager');await manager.waitFor({state:'visible'});
+      opened=await openHub();menu=opened.menu;await menu.getByRole('button',{name:labels.memory,exact:true}).click();
+      const manager=opened.panel.locator('.lourex-ai-manager');await manager.waitFor({state:'visible'});
       assert.equal(await manager.getAttribute('data-lourex-batch4-ux'),'true','Memory & Tasks uses the Batch 4 presentation owner');
-      const managerBox=await manager.boundingBox(),panelBox=await panel.boundingBox();assert.ok(managerBox&&panelBox&&managerBox.x>=panelBox.x-1&&managerBox.x+managerBox.width<=panelBox.x+panelBox.width+1,'Memory & Tasks stays inside assistant panel');
+      const managerBox=await manager.boundingBox(),panelBox=await opened.panel.boundingBox();assert.ok(managerBox&&panelBox&&managerBox.x>=panelBox.x-1&&managerBox.x+managerBox.width<=panelBox.x+panelBox.width+1,'Memory & Tasks stays inside assistant panel');
       assert.doesNotMatch(await manager.innerText(),/assistant-task:|workspaceId|branchId/i,'Memory & Tasks does not expose technical record keys');
       await manager.locator('.lourex-ai-manager-head > button').click();
 
-      menu=await openHub();await menu.getByRole('button',{name:labels.brief,exact:true}).click();
+      opened=await openHub();menu=opened.menu;await menu.getByRole('button',{name:labels.brief,exact:true}).click();
       const brief=page.locator('.lourex-proactive-brief');await brief.waitFor({state:'visible'});
       assert.equal(await brief.getAttribute('data-lourex-batch4-ux'),'true','Morning Brief uses the Batch 4 presentation owner');
       assert.equal(await brief.locator('.lourex-proactive-evidence:visible').count(),0,'Morning Brief hides raw evidence');
       assert.doesNotMatch(await brief.innerText(),/assistant-task:|workspaceId|branchId/i,'Morning Brief does not expose technical record keys');
       modal=brief.locator('xpath=ancestor::*[contains(@class,"modal")][1]');close=modal.locator('.modal-header .icon-btn');if(await close.count())await close.click();else await page.keyboard.press('Escape');
 
-      menu=await openHub();await menu.getByRole('button',{name:labels.inbox,exact:true}).click();
+      opened=await openHub();menu=opened.menu;await menu.getByRole('button',{name:labels.inbox,exact:true}).click();
       const inbox=page.locator('.lourex-ai-inbox');await inbox.waitFor({state:'visible'});
       assert.equal(await inbox.getAttribute('data-lourex-batch4-ux'),'true','AI Inbox uses the Batch 4 presentation owner');
       const inboxBox=await inbox.boundingBox();assert.ok(inboxBox&&inboxBox.x>=-1&&inboxBox.x+inboxBox.width<=entry.width+1,'AI Inbox stays horizontally contained');
