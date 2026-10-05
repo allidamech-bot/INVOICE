@@ -93,6 +93,19 @@ if(sourceStyleNames.at(-1)!=='tailadmin-reliability-bridge-v320.css') throw new 
 if(!sourceStyleNames.includes('tailadmin-finance-v320.css')||!sourceStyleNames.includes('tailadmin-overlays-v320.css'))throw new Error('The canonical v320 TailAdmin visual owners are missing from the production cascade.');
 if(!sourceStyleNames.includes('tailadmin-design-closeout-v323.css'))throw new Error('The v323 application density/spacing owner is missing from the production cascade.');
 
+const canonicalDomainStyles=[
+  'relationship-360-batch2.css',
+  'notification-center-batch5.css',
+  'sales-pipeline-batch6.css',
+  'inventory-planning-batch7.css',
+  'pricing-batch8.css',
+  'payables-batch9.css',
+  'tax-vat-batch10.css'
+];
+for(const name of canonicalDomainStyles){
+  if(!sourceStyleNames.includes(name))throw new Error(`Canonical domain stylesheet is missing from app.bundle inputs: ${name}`);
+}
+
 /* v351 single-owner contract.
    v331/v332 are deliberately standalone runtime document owners. Keeping them in
    app.bundle.css as well made the same declarations participate twice. */
@@ -144,7 +157,12 @@ const styleParts=await Promise.all(styleNames.map(async name=>{
   const css=await readFile(`src/styles/${name}`,'utf8');
   return `/* --- ${name} --- */\n${css.trim()}\n`;
 }));
-await writeFile('dist/styles/app.bundle.css',styleParts.join('\n'));
+const appBundleCss=styleParts.join('\n');
+for(const name of canonicalDomainStyles){
+  const marker=`/* --- ${name} --- */`;
+  if(appBundleCss.split(marker).length-1!==1)throw new Error(`Canonical domain stylesheet must appear exactly once in app.bundle.css: ${name}`);
+}
+await writeFile('dist/styles/app.bundle.css',appBundleCss);
 
 let bundleInserted=false;
 html=html.replace(localStylePattern,()=>{
