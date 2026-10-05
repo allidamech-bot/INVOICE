@@ -18,14 +18,19 @@ export const ARABIC_FONT_OPTIONS: Array<{value:ArabicFontId;label:string}> = [
   {value:'noto-naskh',label:'Noto Naskh Arabic'}
 ];
 
-/* Keep Auto aligned with the canonical A4 stylesheet rather than maintaining a
+/* Keep Auto aligned with the authored output identities rather than maintaining a
  * second visual system with near-but-not-identical colors. */
 const AUTO_ACCENTS: Record<TemplateId,string> = {
   executive:'#bd9659', minimal:'#242b30', trade:'#ad8747', signature:'#aa8143', obsidian:'#b68d4e', cobalt:'#246ea8', editorial:'#1e2529', split:'#527382', prism:'#4f7d78', slate:'#566874', horizon:'#235269', mono:'#111111', aurora:'#477b74', ledger:'#314e5d', noir:'#b58a46', midnight:'#c19b59', blackivory:'#26231f', carbon:'#a98148'
 };
+
+/* Effective output papers after the currently loaded cascade. v141 makes the
+ * commercial identities light, but the later v330 identity layer deliberately
+ * turns Obsidian back into a graphite sheet while leaving its party cards light. */
 const TEMPLATE_PAPERS: Record<TemplateId,string> = {
-  executive:'#ffffff', minimal:'#ffffff', trade:'#ffffff', signature:'#fcfaf5', obsidian:'#ffffff', cobalt:'#ffffff', editorial:'#ffffff', split:'#ffffff', prism:'#ffffff', slate:'#ffffff', horizon:'#ffffff', mono:'#ffffff', aurora:'#fdfbf6', ledger:'#ffffff', noir:'#fffdf8', midnight:'#fcfaf4', blackivory:'#fbf6eb', carbon:'#fafafa'
+  executive:'#ffffff', minimal:'#ffffff', trade:'#ffffff', signature:'#fcfaf5', obsidian:'#15191c', cobalt:'#ffffff', editorial:'#ffffff', split:'#ffffff', prism:'#ffffff', slate:'#ffffff', horizon:'#ffffff', mono:'#ffffff', aurora:'#fdfbf6', ledger:'#ffffff', noir:'#fffdf8', midnight:'#fcfaf4', blackivory:'#fbf6eb', carbon:'#fafafa'
 };
+const DARK_BODY_TEMPLATES=new Set<TemplateId>(['obsidian']);
 const LATIN_FONTS: Record<Exclude<LatinFontId,'auto'>,string> = {inter:'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif','source-sans':'"Source Sans 3", "Segoe UI", Arial, sans-serif',montserrat:'Montserrat, Arial, sans-serif',playfair:'"Playfair Display", Georgia, serif'};
 const ARABIC_FONTS: Record<Exclude<ArabicFontId,'auto'>,string> = {cairo:'Cairo, Tahoma, Arial, sans-serif',tajawal:'Tajawal, Tahoma, Arial, sans-serif','noto-kufi':'"Noto Kufi Arabic", Tahoma, Arial, sans-serif','noto-naskh':'"Noto Naskh Arabic", Tahoma, Arial, serif'};
 const AUTO_LATIN_BY_TEMPLATE: Record<TemplateId,Exclude<LatinFontId,'auto'>> = {executive:'inter',minimal:'source-sans',trade:'source-sans',signature:'playfair',obsidian:'montserrat',cobalt:'montserrat',editorial:'playfair',split:'inter',prism:'montserrat',slate:'source-sans',horizon:'playfair',mono:'source-sans',aurora:'montserrat',ledger:'source-sans',noir:'montserrat',midnight:'montserrat',blackivory:'playfair',carbon:'montserrat'};
@@ -72,13 +77,11 @@ export function resolvedAccentInk(hex:string):'#ffffff'|'#101010'{
 export function resolvedAppearanceTokens(appearance:DocumentAppearance):TemplateAppearanceTokens{
   const accent=resolvedAccent(appearance);
   const custom=(appearance.paletteMode??'auto')==='custom';
-
-  // Every current commercial identity has a light document body, but not every
-  // paper is exactly white. Contrast checks therefore use the real canonical
-  // paper for the selected template. Dark mastheads/totals remain local modules.
+  const darkBody=DARK_BODY_TEMPLATES.has(appearance.templateId);
   const page=TEMPLATE_PAPERS[appearance.templateId];
-  const defaultPrimary='#17212b';
-  const defaultSecondary='#4d5b68';
+
+  const defaultPrimary=darkBody?'#f5f1e9':'#17212b';
+  const defaultSecondary=darkBody?'#aeb5ba':'#4d5b68';
   const primary=custom?safeTextColor(appearance.primaryTextColor,page,defaultPrimary):defaultPrimary;
   const secondary=custom?safeTextColor(appearance.secondaryTextColor,page,defaultSecondary):defaultSecondary;
   const autoHeading=safeTextColor(accent,page,primary);
@@ -94,21 +97,21 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const bodyScale=scaleValue(appearance.bodyTextScale??legacyScale,8.2/9.2,.95,1.06);
   const tableScale=scaleValue(appearance.tableTextScale??legacyScale,7.25/9.1,.95,1.05);
 
-  // Surface tokens describe local components. Custom body colors are never used
-  // as a blanket page foreground and therefore cannot leak onto dark mastheads or
-  // totals bands that own their own authored contrast.
-  const surface='#ffffff';
+  // Surface tokens describe local modules, not the page as a whole. Obsidian is
+  // intentionally mixed: graphite page/body plus light #f1f2f2 party cards.
+  // Custom page text can therefore never be reused blindly inside those cards.
+  const surface=darkBody?'#f1f2f2':'#ffffff';
   const surfaceInk='#17212b';
   const surfaceMuted='#58656f';
-  const darkSurface='#202020';
+  const darkSurface=darkBody?page:'#202020';
   const darkSurfaceInk='#fffaf0';
   const darkSurfaceMuted='#d7d0c4';
 
   return {
     page,surface,surfaceInk,surfaceMuted,darkSurface,darkSurfaceInk,darkSurfaceMuted,
-    heading,primary,secondary,muted:'#687582',border:'#d8dde2',
-    tableHeader:'#eef1f3',tableHeaderText:'#17212b',
-    accent,accentInk:resolvedAccentInk(accent),totalsSurface:'#f5f2ea',inverse:'#ffffff',
+    heading,primary,secondary,muted:darkBody?'#aeb5ba':'#687582',border:darkBody?'#343a3f':'#d8dde2',
+    tableHeader:darkBody?'#080a0c':'#eef1f3',tableHeaderText:darkBody?'#fffaf0':'#17212b',
+    accent,accentInk:resolvedAccentInk(accent),totalsSurface:darkBody?'#202529':'#f5f2ea',inverse:'#ffffff',
     titleScale,headingScale,bodyScale,tableScale
   };
 }
