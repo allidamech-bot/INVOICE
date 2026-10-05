@@ -60,24 +60,36 @@ test('vault migration really preserves manual document appearance values',async(
   assert.equal(appearance.tableTextScale,'small');
 });
 
-test('appearance resolver protects each light commercial paper from unsafe custom ink',async()=>{
+test('appearance resolver protects each effective surface from unsafe custom ink',async()=>{
   const {defaultCompany}=await import('../dist/src/lib/defaults.js');
   const {createBlankDocument}=await import('../dist/src/lib/documents.js');
   const {resolvedAppearanceTokens}=await import('../dist/src/lib/appearance.js');
   const base=createBlankDocument('invoice','INV-APPEARANCE-SAFE',defaultCompany()).appearance;
-  const papers={obsidian:'#ffffff',noir:'#fffdf8',midnight:'#fcfaf4',blackivory:'#fbf6eb',carbon:'#fafafa'};
-  for(const [templateId,paper] of Object.entries(papers)){
+  const lightPapers={noir:'#fffdf8',midnight:'#fcfaf4',blackivory:'#fbf6eb',carbon:'#fafafa'};
+  for(const [templateId,paper] of Object.entries(lightPapers)){
     const auto=resolvedAppearanceTokens({...base,templateId,paletteMode:'auto'});
     assert.equal(auto.page,paper);
     assert.equal(auto.primary,'#17212b');
+    assert.equal(auto.secondary,'#4d5b68');
   }
   const unsafe=resolvedAppearanceTokens({...base,paletteMode:'custom',primaryTextColor:'#ffffff',secondaryTextColor:'#ffffff',headingTextColor:'#ffffff'});
   assert.equal(unsafe.primary,'#17212b');
   assert.equal(unsafe.secondary,'#4d5b68');
   assert.notEqual(unsafe.heading,'#ffffff');
+
+  const obsidian=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'auto'});
+  assert.equal(obsidian.page,'#15191c');
+  assert.equal(obsidian.primary,'#f5f1e9');
+  assert.equal(obsidian.secondary,'#aeb5ba');
+  assert.equal(obsidian.surface,'#f1f2f2');
+  assert.equal(obsidian.surfaceInk,'#17212b');
+  const obsidianUnsafe=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'custom',primaryTextColor:'#111111',secondaryTextColor:'#222222',headingTextColor:'#111111'});
+  assert.equal(obsidianUnsafe.primary,'#f5f1e9');
+  assert.equal(obsidianUnsafe.secondary,'#aeb5ba');
+  assert.notEqual(obsidianUnsafe.heading,'#111111');
 });
 
-test('Auto stays canonical while Custom Accent owns only bounded structural highlights',async()=>{
+test('Auto stays authored while Custom Accent owns only bounded structural highlights',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
   assert.doesNotMatch(css,/\.invoice-page\.palette-auto\s/);
   assert.match(css,/\.invoice-page\.palette-custom\{--template-accent:var\(--accent\)!important;\}/);
