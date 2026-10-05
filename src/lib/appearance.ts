@@ -21,7 +21,6 @@ export const ARABIC_FONT_OPTIONS: Array<{value:ArabicFontId;label:string}> = [
 const AUTO_ACCENTS: Record<TemplateId,string> = {
   executive:'#b58b4f', minimal:'#0b1d2d', trade:'#b58b4f', signature:'#b58b4f', obsidian:'#b79b67', cobalt:'#356f9c', editorial:'#8b7258', split:'#b58b4f', prism:'#3f736f', slate:'#5f7484', horizon:'#b58b4f', mono:'#161616', aurora:'#b58b4f', ledger:'#8a704b', noir:'#c7a15d', midnight:'#c8a25a', blackivory:'#b78a41', carbon:'#ba914d'
 };
-const DARK_TEMPLATES=new Set<TemplateId>(['obsidian','noir','midnight','blackivory','carbon']);
 const LATIN_FONTS: Record<Exclude<LatinFontId,'auto'>,string> = {inter:'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif','source-sans':'"Source Sans 3", "Segoe UI", Arial, sans-serif',montserrat:'Montserrat, Arial, sans-serif',playfair:'"Playfair Display", Georgia, serif'};
 const ARABIC_FONTS: Record<Exclude<ArabicFontId,'auto'>,string> = {cairo:'Cairo, Tahoma, Arial, sans-serif',tajawal:'Tajawal, Tahoma, Arial, sans-serif','noto-kufi':'"Noto Kufi Arabic", Tahoma, Arial, sans-serif','noto-naskh':'"Noto Naskh Arabic", Tahoma, Arial, serif'};
 const AUTO_LATIN_BY_TEMPLATE: Record<TemplateId,Exclude<LatinFontId,'auto'>> = {executive:'inter',minimal:'source-sans',trade:'source-sans',signature:'playfair',obsidian:'montserrat',cobalt:'montserrat',editorial:'playfair',split:'inter',prism:'montserrat',slate:'source-sans',horizon:'playfair',mono:'source-sans',aurora:'montserrat',ledger:'source-sans',noir:'montserrat',midnight:'montserrat',blackivory:'playfair',carbon:'montserrat'};
@@ -64,12 +63,16 @@ export function resolvedAccentInk(hex:string):'#ffffff'|'#101010'{
 }
 
 export function resolvedAppearanceTokens(appearance:DocumentAppearance):TemplateAppearanceTokens{
-  const dark=DARK_TEMPLATES.has(appearance.templateId);
   const accent=resolvedAccent(appearance);
   const custom=(appearance.paletteMode??'auto')==='custom';
-  const page=dark?'#151515':'#fffdf8';
-  const defaultPrimary=dark?'#f7f2e8':'#17212b';
-  const defaultSecondary=dark?'#d7d0c4':'#4d5b68';
+
+  // All current commercial templates use a light A4/body sheet. Templates such
+  // as Obsidian, Noir, Midnight, Black Ivory and Carbon only use dark local
+  // modules (mastheads/totals). Treating the entire page as dark reintroduces
+  // white-on-ivory body text, which is exactly the regression this layer guards.
+  const page='#fffdf8';
+  const defaultPrimary='#17212b';
+  const defaultSecondary='#4d5b68';
   const primary=custom?safeTextColor(appearance.primaryTextColor,page,defaultPrimary,4.5):defaultPrimary;
   const secondary=custom?safeTextColor(appearance.secondaryTextColor,page,defaultSecondary,4.5):defaultSecondary;
   const autoHeading=safeTextColor(accent,page,primary,3);
@@ -80,21 +83,20 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const bodyScale=scaleValue(appearance.bodyTextScale??legacyScale,.95,1.06);
   const tableScale=scaleValue(appearance.tableTextScale??legacyScale,.95,1.05);
 
-  // Surface tokens intentionally describe the actual component surface. A dark
-  // template can still contain a white customer card, so those cards must never
-  // inherit dark-page ink or unsafe user colors.
+  // Surface tokens describe local component surfaces. Dark modules keep their
+  // authored foregrounds; user body colors never leak into them.
   const surface='#ffffff';
   const surfaceInk='#17212b';
   const surfaceMuted='#58656f';
-  const darkSurface=dark?'#202020':'#102b3d';
+  const darkSurface='#202020';
   const darkSurfaceInk='#fffaf0';
   const darkSurfaceMuted='#d7d0c4';
 
   return {
     page,surface,surfaceInk,surfaceMuted,darkSurface,darkSurfaceInk,darkSurfaceMuted,
-    heading,primary,secondary,muted:dark?'#aaa398':'#687582',border:dark?'#48443e':'#d8dde2',
-    tableHeader:dark?'#292724':'#eef1f3',tableHeaderText:dark?'#fffaf0':'#17212b',
-    accent,accentInk:resolvedAccentInk(accent),totalsSurface:dark?'#25231f':'#f5f2ea',inverse:'#ffffff',
+    heading,primary,secondary,muted:'#687582',border:'#d8dde2',
+    tableHeader:'#eef1f3',tableHeaderText:'#17212b',
+    accent,accentInk:resolvedAccentInk(accent),totalsSurface:'#f5f2ea',inverse:'#ffffff',
     titleScale,headingScale,bodyScale,tableScale
   };
 }
