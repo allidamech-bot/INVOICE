@@ -1,0 +1,38 @@
+name: LOUREX AI Conversation Batch 4 QA
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'scripts/ai-conversation-owner-stage4.mjs'
+      - 'tests/ai-conversation-owner-batch4.test.mjs'
+      - 'src/components/AiCopilot.tsx'
+      - 'src/components/AiWorkflowTools.tsx'
+      - '.github/workflows/ai-conversation-owner-batch4.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  executive-ai-workspace:
+    name: Executive AI workspace gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: npm ci
+      - name: Dependency security audit
+        run: npm audit --audit-level=high
+      - name: LOUREX static security
+        run: node scripts/security-check.mjs
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Batch 4 contracts
+        run: node --test tests/ai-conversation-owner-batch4.test.mjs
