@@ -8,6 +8,7 @@ const fixture=read('tests/visual/v538-quote-editor-final-flow.html');
 const workflow=read('.github/workflows/quote-editor-final-lifecycle.yml');
 const pkg=JSON.parse(read('package.json'));
 const departureOwner=read('scripts/v539-editor-departure-single-owner.mjs');
+const reviewModal=read('src/components/DocumentReviewModal.tsx');
 
 test('v538 final quote lifecycle covers priority iPhone and iPad WebKit sizes',()=>{
   assert.match(runner,/const \{webkit\}=require\('playwright'\)/);
@@ -56,6 +57,10 @@ test('v539 emitted quote editor uses one departure persistence owner with synchr
   assert.match(departureOwner,/hasNewerChanges && this\.departureFlushQueued/);
   assert.match(departureOwner,/this\.saveInFlight \|\| this\.state\.saving/);
   assert.match(departureOwner,/flushSource\.includes\('this\.props\.onSave\('/);
+});
+
+test('v539 review modal escapes the editor stacking context before final PDF confirmation',()=>{
+  assert.match(reviewModal,/return <Modal portal open/);
 });
 
 test('v538 uses the real EditorPage boundary and is enforced by its WebKit workflow',()=>{
