@@ -40,5 +40,8 @@ test('Batch 3 close and backdrop deterministically release the advisor overlay',
   assert.match(closeout,/instance\.cancelRequest\?\.\(\)/);
   assert.match(closeout,/attachmentMenuOpen:false/);
   assert.match(closeout,/open:false,busy:false,error:'',proposal:null/);
+  assert.match(closeout,/document\.addEventListener\('click',instance\.__lourexCloseCapture,true\)/,'close ownership must run in capture phase before delegated React handlers');
+  assert.match(closeout,/event\.stopImmediatePropagation\(\)/,'close ownership must prevent duplicate delegated toggles');
+  assert.match(closeout,/document\.removeEventListener\('click',this\.__lourexCloseCapture,true\)/,'capture close listener must be released on unmount');
   assert.match(closeout,/className==='lourex-ai-backdrop'\|\|className\.includes\('lourex-ai-close'\)/);
 });
