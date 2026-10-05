@@ -70,25 +70,13 @@ if(!flushSource||flushSource.includes('this.props.onSave('))throw new Error('v53
 await writeFile(target,source);
 execFileSync(process.execPath,['--check',target],{stdio:'pipe'});
 
-/*
- * The quote issue/PDF review dialog is rendered from inside EditorPageCore. On
- * narrow screens the fixed mobile editor action dock is a sibling stacking layer;
- * even though the modal backdrop owns the modal z-index, the nested dialog can be
- * trapped by the editor stacking context and the dock intercepts the confirmation
- * button. Modal already has an explicit portal escape hatch. Enable it only for
- * DocumentReviewModal so the review dialog is mounted at .app-ui and remains the
- * top interactive surface without changing global modal behavior.
- */
+/* DocumentReviewModal owns its portal in source. Verify the emitted production
+   module keeps that contract instead of installing a second post-build owner. */
 const reviewTarget='dist/src/components/DocumentReviewModal.js';
-let review=await readFile(reviewTarget,'utf8');
-if(review.includes('__lourexDocumentReviewPortalV539'))throw new Error('v539 document review portal is already installed.');
-const reviewModalPattern=/React\.createElement\(Modal,\s*\{\s*open:\s*true,/g;
-const reviewModalMatches=review.match(reviewModalPattern)?.length??0;
-if(reviewModalMatches!==1)throw new Error(`v539 expected one DocumentReviewModal root modal; found ${reviewModalMatches}.`);
-review=review.replace(reviewModalPattern,match=>match.replace(/open:\s*true,/, 'open: true, portal: true,'));
-review+=`\nconst __lourexDocumentReviewPortalV539=true;\n`;
-if(!/React\.createElement\(Modal,\s*\{\s*open:\s*true,\s*portal:\s*true,/.test(review))throw new Error('v539 document review portal was not emitted.');
-await writeFile(reviewTarget,review);
+const review=await readFile(reviewTarget,'utf8');
+const reviewPortalPattern=/React\.createElement\(Modal,\s*\{(?=[^}]{0,260}portal:\s*true)(?=[^}]{0,260}open:\s*true)/g;
+const reviewPortalMatches=review.match(reviewPortalPattern)?.length??0;
+if(reviewPortalMatches!==1)throw new Error(`v539 expected one portaled DocumentReviewModal in production output; found ${reviewPortalMatches}.`);
 execFileSync(process.execPath,['--check',reviewTarget],{stdio:'pipe'});
 
-console.log('LOUREX v539 quote editor closeout installed: single-owner departure persistence and a portaled document-review dialog above the mobile action dock.');
+console.log('LOUREX v539 quote editor closeout verified: single-owner departure persistence and the source-owned portaled review dialog above the mobile action dock.');
