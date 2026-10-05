@@ -15,7 +15,7 @@ test('Batch 4 presentation owner runs after Batch 3 and before final voice hash'
 
 test('Batch 4 is presentation-only and humanizes technical labels',async()=>{
   const owner=await read('scripts/ai-remediation-batch4-tools-routes-ux.mjs');
-  for(const token of ['__lourexRemediationMemoryKind','__lourexRemediationTaskMeta','lourex-ai-hub-action-copy',"supplier_purchase:['Supplier purchase','شراء من مورد']",'humanizeTechnicalMeta','data.lourexBatch4'])assert.match(owner,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  for(const token of ['__lourexRemediationMemoryKind','__lourexRemediationTaskMeta','lourex-ai-hub-action-copy',"supplier_purchase:['Supplier purchase','شراء من مورد']",'humanizeTechnicalMeta','dataset.lourexBatch4'])assert.match(owner,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
   for(const forbidden of ['requestAiJson(','mutateVaultSafely(','createAssistantMemory(','updateAssistantTask(','deleteAssistantTask(','fetch('])assert.doesNotMatch(owner,new RegExp(forbidden.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')),`presentation owner must not introduce ${forbidden}`);
   assert.match(owner,/appCss\+=appCssBlock/);
   assert.match(owner,/composerCss\+=composerCssBlock/);
