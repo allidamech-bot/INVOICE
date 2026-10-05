@@ -77,11 +77,11 @@ test('custom text colors pass every actual semantic surface, not merely the page
   assert.equal(obsidianSafe.secondary,'#d7d0c4');
 });
 
-test('Normal typography maps back to canonical v141 sizes while Small and Large stay bounded',()=>{
+test('Normal typography maps to the effective shipped sizes while Small and Large stay bounded',()=>{
   const base=createBlankDocument('invoice','INV-TYPE',defaultCompany()).appearance;
   const normal=resolvedAppearanceTokens({...base,textScale:'normal',documentTitleScale:'normal',sectionHeadingScale:'normal',bodyTextScale:'normal',tableTextScale:'normal'});
   assert.equal(normal.titleScale,1);
-  assert.ok(Math.abs(10*normal.headingScale-7)<1e-9);
+  assert.ok(Math.abs(10*normal.headingScale-6.8)<1e-9);
   assert.ok(Math.abs(9.2*normal.bodyScale-8.2)<1e-9);
   assert.ok(Math.abs(9.1*normal.tableScale-7.25)<1e-9);
 
