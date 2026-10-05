@@ -13,6 +13,7 @@ on:
       - 'scripts/ai-conversation-owner-stage4-tools-closeout.mjs'
       - 'scripts/ai-conversation-owner-stage4.mjs'
       - 'scripts/ai-conversation-owner-stage4-accessibility.mjs'
+      - 'scripts/ai-conversation-final-batch5.mjs'
       - 'tests/ai-conversation-final-batch5.test.mjs'
       - 'tests/visual/contextual-ai-batch4.html'
       - 'tests/visual/run-ai-conversation-final-batch5.cjs'
