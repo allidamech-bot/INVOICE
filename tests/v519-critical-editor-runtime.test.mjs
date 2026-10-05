@@ -17,6 +17,21 @@ test('active quotation autosave stays lightweight in the emitted v350 runtime',a
   assert.ok(runtime.includes('recoverDocumentAutosaveCheckpoint(key,vault)'),'crash/process recovery must keep the encrypted checkpoint recovery path');
 });
 
+test('document saves are single-flight across autosave, pagehide and explicit save re-entry',async()=>{
+  const [source,runtime]=await Promise.all([
+    readFile('scripts/v350-rendering-storage-hardening.mjs','utf8'),
+    readFile('dist/src/app/index.js','utf8')
+  ]);
+  for(const code of [source,runtime]){
+    assert.ok(code.includes("let documentSaveTail=null"),'document save tail must exist');
+    assert.ok(code.includes("const saveKey=String(doc.id||'')+'|'+String(doc.updatedAt||'')"),'document revision identity must be stable');
+    assert.ok(code.includes('if(documentSaveTail&&documentSaveKey===saveKey)'),'same-revision re-entry must reuse the active save');
+    assert.ok(code.includes("if(autoDraft||documentSaveMode==='manual')return documentSaveTail"),'duplicate autosave/pagehide must collapse while manual semantics stay explicit');
+    assert.ok(code.includes('if(previous)await previous.catch(()=>undefined)'),'newer document revisions must serialize behind the active write');
+    assert.ok(code.includes("documentSaveMode=autoDraft?'auto':'manual'"),'runtime must distinguish automatic and explicit save semantics');
+  }
+});
+
 test('mobile keyboard activity keeps the established stability owner',async()=>{
   const [stability,checkpointOwner]=await Promise.all([
     readFile('public/editor-stability-v338.js','utf8'),
