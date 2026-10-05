@@ -6,8 +6,8 @@ const {mkdirSync,writeFileSync}=require('node:fs');
  for(const [engine,width,lang] of [[chromium,390,'en'],[webkit,320,'ar']]){
   const browser=await engine.launch({headless:true});try{
    const page=await browser.newPage({viewport:{width,height:844}});const errors=[],requests=[];page.on('pageerror',error=>errors.push(error.message));await page.route('**/api/**',route=>{requests.push(route.request().url());return route.fulfill({status:503,body:'No live provider in fixture'});});
-   await page.addInitScript(()=>{
-    window.speechInstances=[];window.nativeOwner=null;window.overlappingStarts=0;window.nativeReleaseDelayMs=260;
+   await page.addInitScript(({releaseDelay})=>{
+    window.speechInstances=[];window.nativeOwner=null;window.overlappingStarts=0;window.nativeReleaseDelayMs=releaseDelay;
     const releaseLater=instance=>window.setTimeout(()=>{if(window.nativeOwner===instance)window.nativeOwner=null;},window.nativeReleaseDelayMs);
     class Recognition{
      constructor(){window.speechInstances.push(this);}
@@ -18,7 +18,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
      end(){this.onend?.();releaseLater(this);}
     }
     window.SpeechRecognition=Recognition;window.webkitSpeechRecognition=Recognition;
-   });
+   },{releaseDelay:engine.name()==='webkit'?900:260});
    await page.goto(`http://127.0.0.1:4173/tests/visual/ai-voice-reliability-batch5.html?lang=${lang}`,{waitUntil:'networkidle'});await page.locator('.lourex-ai-launcher').click();const mic=page.locator('.lourex-ai-composer-mic'),input=page.locator('.lourex-ai-compose form>input'),textarea=page.locator('.lourex-ai-premium-textarea');await mic.waitFor();
    assert.equal(await page.locator('.lourex-ai-scope-button').count(),3,'unified assistant exposes Business, Personal and Temporary scopes');
    await mic.click();await page.evaluate(()=>{window.staleResult=window.speechInstances[0].onresult;window.speechInstances[0].result('first session');});assert.equal(await input.inputValue(),'first session');
