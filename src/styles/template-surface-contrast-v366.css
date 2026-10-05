@@ -1,7 +1,7 @@
 /* LOUREX v366 — commercial template surface/contrast guard + document design controls.
- * This is the final document-output guard after the premium A4 styles. It owns
- * readable foreground assignment for Preview, PDF/Print and Share without
- * redesigning template geometry.
+ * This layer owns semantic document text roles after the premium A4 styles.
+ * It deliberately does NOT recolor authored dark modules such as mastheads and
+ * total panels; those surfaces keep their template-specific contrast contract.
  */
 @media screen, print {
   .invoice-page{
@@ -13,23 +13,27 @@
     --lrx-dark-muted:#d7d0c4;
   }
 
-  /* Surface-aware party cards stay readable even inside dark templates. */
-  .invoice-page .party-block{color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;}
-  .invoice-page .party-block :is(.party-name,.party-address,.party-location,.party-contact,.party-identifiers,.party-identifiers span,.bi-value,.bi-value>span){color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-surface-ink,var(--lrx-light-ink))!important;}
-  .invoice-page .party-block :is(.section-kicker,.party-identifiers b){color:var(--accent,#8a704b)!important;-webkit-text-fill-color:var(--accent,#8a704b)!important;}
+  /* Current commercial sheets have light body/card surfaces, including the
+   * formerly full-dark identities. Custom body colors are contrast-guarded by
+   * the resolver before they arrive here. */
+  .invoice-page .party-block{color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page .party-block :is(.party-name,.party-identifiers span,.bi-value,.bi-value>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
+  .invoice-page .party-block :is(.section-kicker,.party-identifiers b){color:var(--lrx-heading,var(--accent,#8a704b))!important;-webkit-text-fill-color:var(--lrx-heading,var(--accent,#8a704b))!important;}
 
-  /* Canonical document roles. Inline renderer tokens are shared by screen/print. */
-  .invoice-page :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block .term-row>span,.totals-block strong,.notes-block p,.bank-block>div>span,.signature-block p){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
-  .invoice-page :is(.terms-block .term-row>b,.totals-block .total-row>span,.totals-block small,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
+  /* Light body semantic roles. Keep totals/header bands outside these selectors:
+   * several templates intentionally render those modules on dark backgrounds. */
+  .invoice-page :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block .term-row>span,.notes-block p,.bank-block>div>span){color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
+  .invoice-page :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
   .invoice-page :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){color:var(--lrx-heading,var(--accent,#8a704b))!important;-webkit-text-fill-color:var(--lrx-heading,var(--accent,#8a704b))!important;}
 
-  /* The exact markup used by Commercial Terms is b + span inside .term-row.
-   * Keeping this explicit prevents Payment Terms / Final Destination from
-   * inheriting a dark accent on dark templates. */
+  /* The Commercial Terms DOM is b + span inside .term-row. Keep this explicit so
+   * Payment Terms / Final Destination never inherit decorative or inverse ink. */
   .invoice-page .terms-block .term-row>b{color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
   .invoice-page .terms-block .term-row>span{color:var(--lrx-primary,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-primary,var(--lrx-light-ink))!important;}
 
-  .invoice-page .items-table thead th,.invoice-page .items-table thead th :is(span,small,.bi-label,.bi-label>span){color:var(--lrx-table-header-ink,var(--lrx-dark-ink))!important;-webkit-text-fill-color:var(--lrx-table-header-ink,var(--lrx-dark-ink))!important;}
+  /* Do not globally override table-header or totals text colors. Their surfaces
+   * vary per template and already own explicit authored contrast. */
 
   /* Bounded typography controls. A4 pagination remains authoritative. */
   .invoice-page .doc-title{zoom:var(--lrx-title-scale,1);}
@@ -39,9 +43,7 @@
   .invoice-page .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers){font-size:max(7.6px,var(--lrx-body-size,9.2px))!important;line-height:1.38!important;}
   .invoice-page .terms-block .term-row,
   .invoice-page .notes-block p,
-  .invoice-page .bank-block>div,
-  .invoice-page .signature-block p,
-  .invoice-page .totals-block .total-row{font-size:var(--lrx-body-size,9.2px)!important;line-height:1.38!important;}
+  .invoice-page .bank-block>div{font-size:var(--lrx-body-size,9.2px)!important;line-height:1.38!important;}
   .invoice-page :is(.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){line-height:1.38!important;}
 
   @media print{
