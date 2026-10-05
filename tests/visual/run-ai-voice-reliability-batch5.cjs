@@ -42,7 +42,12 @@ const {mkdirSync,writeFileSync}=require('node:fs');
    const toolActivity=page.locator('.lourex-ai-tool-activity').last();await toolActivity.waitFor({state:'visible'});
    assert.match(await toolActivity.innerText(),lang==='ar'?/خطة LOUREX/:/LOUREX plan/,'deterministic tool request exposes the visible LOUREX plan');
    assert.ok((await toolActivity.locator('.lourex-ai-tool-step').count())>=1,'visible LOUREX plan lists at least one tool step');
-   const activityBox=await toolActivity.boundingBox(),panelBox=await page.locator('#lourex-ai-panel').boundingBox();assert.ok(activityBox&&panelBox&&activityBox.x>=panelBox.x-1&&activityBox.x+activityBox.width<=panelBox.x+panelBox.width+1,'tool activity card stays inside assistant panel');
+   const panel=page.locator('#lourex-ai-panel'),messages=page.locator('#lourex-ai-panel .lourex-ai-messages');
+   const activityBox=await toolActivity.boundingBox(),panelBox=await panel.boundingBox(),messagesBox=await messages.boundingBox();
+   const geometry=await toolActivity.evaluate(el=>{const style=getComputedStyle(el),parent=el.parentElement,parentStyle=parent?getComputedStyle(parent):null;return{className:el.className,parentClass:parent?.className||'',offsetParentClass:el.offsetParent?.className||'',style:{display:style.display,position:style.position,width:style.width,maxWidth:style.maxWidth,minWidth:style.minWidth,marginLeft:style.marginLeft,marginRight:style.marginRight,transform:style.transform,translate:style.translate,boxSizing:style.boxSizing,alignSelf:style.alignSelf,overflow:style.overflow},parentStyle:parentStyle?{display:parentStyle.display,width:parentStyle.width,paddingLeft:parentStyle.paddingLeft,paddingRight:parentStyle.paddingRight,overflowX:parentStyle.overflowX,direction:parentStyle.direction}:null,scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,parentScrollWidth:parent?.scrollWidth||0,parentClientWidth:parent?.clientWidth||0};});
+   const activityContained=Boolean(activityBox&&panelBox&&activityBox.x>=panelBox.x-1&&activityBox.x+activityBox.width<=panelBox.x+panelBox.width+1);
+   if(!activityContained)console.error('TOOL_ACTIVITY_GEOMETRY',JSON.stringify({engine:engine.name(),width,lang,activityBox,panelBox,messagesBox,geometry}));
+   assert.ok(activityContained,`tool activity card stays inside assistant panel; geometry=${JSON.stringify({activityBox,panelBox,messagesBox,geometry})}`);
    assert.deepEqual(requests,[],'deterministic treasury tool must remain local and avoid provider calls');
    const naturalLanguageOs='PASS';
 
