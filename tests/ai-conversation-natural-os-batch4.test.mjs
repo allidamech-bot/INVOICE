@@ -57,6 +57,16 @@ test('Batch 4 tool owner preserves plans and explicit approvals',async()=>{
   assert.ok(tools>=0&&close>tools&&executive>close);
 });
 
+test('Batch 4 Arabic executive response sections are fully localized',async()=>{
+  const closeout=await read('scripts/ai-conversation-owner-stage4-tools-closeout.mjs');
+  assert.match(closeout,/الملخص/);
+  assert.match(closeout,/البيانات المؤكدة/);
+  assert.match(closeout,/الإجراءات/);
+  assert.match(closeout,/تنبيه/);
+  assert.match(closeout,/المخاطر/);
+  assert.doesNotMatch(closeout,/\["ar\?'Summary':'Summary'","ar\?'Summary':'Summary'"\]/);
+});
+
 test('Batch 4 tool UI remains touch-safe and token-based',async()=>{
   const script=await read('scripts/ai-conversation-owner-stage4-tools.mjs');
   assert.match(script,/lourex-ai-tool-activity/);
