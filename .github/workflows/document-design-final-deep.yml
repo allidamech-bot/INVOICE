@@ -5,6 +5,8 @@ on:
     branches:
       - main
     paths:
+      - 'package.json'
+      - 'scripts/v544-pdf-a4-output-emergency.mjs'
       - 'src/lib/appearance.ts'
       - 'src/templates/TemplateRenderer.tsx'
       - 'src/components/DocumentDesignControls.tsx'
