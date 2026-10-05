@@ -49,7 +49,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     const plusBox=await plus.boundingBox();assert.ok(plusBox&&plusBox.width>=43&&plusBox.height>=43,'44px unified plus target');assert.equal(await panel.locator('.lourex-ai-attach-button').isVisible(),false,'duplicate attachment control stays retired');
     const panelBox=await panel.boundingBox();assert.ok(panelBox,'AI panel visible');
     if(width<=720){assert.ok(panelBox.x<=1&&Math.abs(panelBox.width-width)<=2,'phone AI is full width');assert.ok(panelBox.height>=895,'phone AI uses full dynamic viewport');}
-    else if(width<=900){assert.ok(panelBox.x>=0&&panelBox.x<=10&&panelBox.width<=width&&panelBox.width>=width-20,'tablet-compact AI remains a bounded overlay');assert.ok(panelBox.height>=870,'tablet-compact AI keeps near-full viewport height');}
+    else if(width<=900){assert.ok(panelBox.x>=0&&panelBox.x+panelBox.width<=width+1&&panelBox.width>=480&&panelBox.width<=540,'tablet AI remains a bounded side overlay');assert.ok(panelBox.height>=870,'tablet AI keeps near-full viewport height');}
     else assert.ok(panelBox.width<=502&&panelBox.width>=420,'desktop AI remains a side panel');
     assert.equal(await panel.locator('.lourex-ai-tools').isVisible(),false,'legacy AI Inbox / AI Tools / Voice toolbar is not persistent chrome');
     assert.equal(await panel.locator('.lourex-ai-manager-button').isVisible(),false,'Memory & Tasks is not a separate persistent button');
