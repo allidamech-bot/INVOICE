@@ -171,13 +171,13 @@ test('custom body colors cannot overwrite authored totals, table headers or mast
   assert.match(css,/Deliberately absent: custom foreground rules/);
 });
 
-test('Obsidian protects light party cards and graphite body roles separately in Auto and Custom',async()=>{
+test('Obsidian protects light party cards, graphite body roles and signing artwork separately',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
   assert.match(css,/template-obsidian \.party-block\{color:var\(--lrx-surface-ink/);
   assert.match(css,/template-obsidian :is\(\.items-table tbody td[\s\S]*terms-block \.term-row>span[\s\S]*bank-block>div>span\)\{color:var\(--lrx-primary/);
   assert.match(css,/template-obsidian :is\(\.terms-block \.term-row>b,\.bank-block>div>b,\.doc-footer\)\{color:var\(--lrx-secondary/);
-  assert.match(css,/template-obsidian \.signature-image:not/);
-  assert.match(css,/template-obsidian \.signature-image\[src\^="data:image\/jpeg"\]/);
+  assert.match(css,/template-obsidian \.signature-media\{background:#fff!important/);
+  assert.match(css,/template-obsidian \.signature-image\{filter:none!important;mix-blend-mode:normal!important;\}/);
 });
 
 test('mobile design controls remain touch-safe and one-column without new app chrome',async()=>{
