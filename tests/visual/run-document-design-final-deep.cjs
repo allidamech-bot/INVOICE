@@ -29,12 +29,12 @@ async function inspect(page,testCase){
     const pages=document.querySelector('.invoice-pages');
     const tableCell=sheet?.querySelector('.items-table tbody td');
     const title=sheet?.querySelector('.doc-title span,.doc-title .doc-title-primary-ar');
-    const termLabel=sheet?.querySelector('.terms-block .term-row>b');
-    const termValue=sheet?.querySelector('.terms-block .term-row>span');
+    const termLabel=document.querySelector('.terms-block .term-row>b');
+    const termValue=document.querySelector('.terms-block .term-row>span');
     const partyName=sheet?.querySelector('.party-block .party-name');
-    const signatureMedia=sheet?.querySelector('.signature-media');
-    const signature=sheet?.querySelector('.signature-image');
-    const stamp=sheet?.querySelector('.stamp-image');
+    const signatureMedia=document.querySelector('.invoice-page .signature-media');
+    const signature=document.querySelector('.invoice-page .signature-image');
+    const stamp=document.querySelector('.invoice-page .stamp-image');
     const css=sheet?getComputedStyle(sheet):null;
     const box=sheet?.getBoundingClientRect();
     return{
@@ -54,6 +54,7 @@ async function inspect(page,testCase){
     };
   });
   await page.locator('.invoice-page').first().screenshot({path:path.join(output,`${testCase.name}.png`)});
+  if(testCase.name==='obsidian-custom-unsafe-ar')await page.locator('.invoice-page').last().screenshot({path:path.join(output,`${testCase.name}-final.png`)});
   return metrics;
 }
 
