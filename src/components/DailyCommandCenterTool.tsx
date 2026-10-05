@@ -1,4 +1,5 @@
 import { buildMorningBrief, conditionalTaskSignals, visibleProactiveSignals, type ProactiveSignal } from '../lib/ai-proactive-assistant.js';
+import { aiSignalDetail } from '../lib/ai-presentation.js';
 import { t } from '../lib/i18n.js';
 import { scopeVault } from '../lib/workspaces.js';
 import { resumeVaultSession } from '../storage/vault.js';
@@ -12,6 +13,7 @@ const OPEN_EVENT='lourex-ai-open-daily';
 const WEIGHT:Record<ProactiveCategory,number>={urgent:4,attention:3,opportunity:2,info:1};
 function openCanonical(query:string):void{if(!query)return;window.dispatchEvent(new CustomEvent('lourex-global-search-open',{detail:{query,autoOpenUnique:true}}));}
 function categoryLabel(value:ProactiveCategory):string{return value==='urgent'?t('Urgent','عاجل'):value==='attention'?t('Attention','انتباه'):value==='opportunity'?t('Opportunity','فرصة'):t('Information','معلومة');}
+function language():'en'|'ar'{return document.documentElement.lang==='ar'?'ar':'en';}
 function tomorrowIso():string{const date=new Date();date.setDate(date.getDate()+1);date.setHours(9,0,0,0);return date.toISOString();}
 function sortSignals(rows:ProactiveSignal[]):ProactiveSignal[]{const seen=new Set<string>();return [...rows].filter(row=>{if(seen.has(row.key))return false;seen.add(row.key);return true;}).sort((a,b)=>(WEIGHT[b.category]??0)-(WEIGHT[a.category]??0)||a.title.localeCompare(b.title));}
 function dueBusinessTaskSignals(tasks:AssistantTaskRecord[],preferences:ProactiveState,at=Date.now()):ProactiveSignal[]{return tasks.filter(task=>task.status==='open'&&task.conditionType==='none'&&(!task.dueAt||Date.parse(task.snoozedUntil||task.dueAt)<=at)).slice(0,8).map((task):ProactiveSignal=>({key:`task-reminder:${task.id}`,kind:'conditional-task',category:'attention',title:`Reminder — ${task.title}`,titleAr:`تذكير — ${task.title}`,detail:task.notes||'A saved business reminder is due.',detailAr:task.notes||'تذكير أعمال محفوظ مستحق الآن.',actionLabel:'Open tasks',actionLabelAr:'فتح المهام',searchQuery:'',evidence:[`assistant-task:${task.id}`]})).filter(signal=>proactiveSignalVisible(preferences,signal));}
@@ -44,7 +46,7 @@ export class DailyCommandCenterTool extends React.Component<Props,State>{
   private mute=async(category:ProactiveCategory,muted:boolean)=>{try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX first.','افتح قفل LOUREX أولاً.'));await setProactiveCategoryMuted(resumed.key,category,muted);await this.refresh();}catch(error){this.setState({error:error instanceof Error?error.message:String(error)});}};
   private toggleBrief=async()=>{try{const resumed=await resumeVaultSession();if(!resumed)throw new Error(t('Unlock LOUREX first.','افتح قفل LOUREX أولاً.'));const next=!(this.state.preferences?.morningBriefEnabled!==false);await setMorningBriefEnabled(resumed.key,next);await this.refresh();}catch(error){this.setState({error:error instanceof Error?error.message:String(error)});}};
   private title=(signal:ProactiveSignal)=>document.documentElement.lang==='ar'?signal.titleAr:signal.title;
-  private detail=(signal:ProactiveSignal)=>document.documentElement.lang==='ar'?signal.detailAr:signal.detail;
+  private detail=(signal:ProactiveSignal)=>{const lang=language(),raw=lang==='ar'?signal.detailAr:signal.detail;return aiSignalDetail(raw,signal.kind,lang);};
   private action=(signal:ProactiveSignal)=>document.documentElement.lang==='ar'?signal.actionLabelAr:signal.actionLabel;
   render():any{
     const muted=this.state.preferences?.mutedCategories??[],briefEnabled=this.state.preferences?.morningBriefEnabled!==false;
