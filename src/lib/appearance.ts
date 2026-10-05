@@ -58,7 +58,9 @@ function safeTextColor(candidate:unknown,background:string,fallback:string,minCo
   if(!validHex(candidate))return fallback;
   return colorContrast(candidate,background)>=minContrast?candidate:fallback;
 }
-function scaleValue(value:TextScale|undefined,small:number,large:number):number{return value==='small'?small:value==='large'?large:1;}
+function scaleValue(value:TextScale|undefined,normal:number,smallRatio:number,largeRatio:number):number{
+  return normal*(value==='small'?smallRatio:value==='large'?largeRatio:1);
+}
 
 export function resolvedAccentInk(hex:string):'#ffffff'|'#101010'{
   if(!validHex(hex))return'#101010';
@@ -82,10 +84,15 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const autoHeading=safeTextColor(accent,page,primary);
   const heading=custom?safeTextColor(appearance.headingTextColor,page,autoHeading):autoHeading;
   const legacyScale=appearance.textScale??'normal';
-  const titleScale=scaleValue(appearance.documentTitleScale??'normal',.92,1.10);
-  const headingScale=scaleValue(appearance.sectionHeadingScale??'normal',.94,1.08);
-  const bodyScale=scaleValue(appearance.bodyTextScale??legacyScale,.95,1.06);
-  const tableScale=scaleValue(appearance.tableTextScale??legacyScale,.95,1.05);
+
+  // Renderer variables predate role-based sizing and use historical numeric bases
+  // (10 / 9.2 / 9.1 px). Normal must therefore normalize back to the canonical
+  // v141 A4 sizes instead of silently enlarging every document. Small/Large are
+  // restrained multipliers around those canonical Normal values.
+  const titleScale=scaleValue(appearance.documentTitleScale??'normal',1,.92,1.10);
+  const headingScale=scaleValue(appearance.sectionHeadingScale??'normal',.7,.94,1.08);
+  const bodyScale=scaleValue(appearance.bodyTextScale??legacyScale,8.2/9.2,.95,1.06);
+  const tableScale=scaleValue(appearance.tableTextScale??legacyScale,7.25/9.1,.95,1.05);
 
   // Surface tokens describe local components. Custom body colors are never used
   // as a blanket page foreground and therefore cannot leak onto dark mastheads or
