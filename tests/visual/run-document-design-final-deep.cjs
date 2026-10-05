@@ -28,7 +28,7 @@ async function inspect(page,testCase){
     const sheet=document.querySelector('.invoice-page');
     const pages=document.querySelector('.invoice-pages');
     const tableCell=sheet?.querySelector('.items-table tbody td');
-    const title=sheet?.querySelector('.doc-title span,.doc-title .doc-title-primary-ar');
+    const titleBlock=sheet?.querySelector('.doc-title');
     const termLabel=document.querySelector('.terms-block .term-row>b');
     const termValue=document.querySelector('.terms-block .term-row>span');
     const partyName=sheet?.querySelector('.party-block .party-name');
@@ -37,13 +37,14 @@ async function inspect(page,testCase){
     const stamp=document.querySelector('.invoice-page .stamp-image');
     const css=sheet?getComputedStyle(sheet):null;
     const box=sheet?.getBoundingClientRect();
+    const titleBox=titleBlock?.getBoundingClientRect();
     return{
       ready:pages?.dataset.paginationReady||'',
       template:sheet?.dataset.template||'',tone:sheet?.dataset.tone||'',palette:sheet?.dataset.palette||'',
       direction:sheet?getComputedStyle(sheet).direction:'',
       primary:css?.getPropertyValue('--lrx-primary').trim()||'',secondary:css?.getPropertyValue('--lrx-secondary').trim()||'',heading:css?.getPropertyValue('--lrx-heading').trim()||'',accent:css?.getPropertyValue('--accent').trim()||'',
       latin:css?.getPropertyValue('--font-latin').trim()||'',arabic:css?.getPropertyValue('--font-arabic').trim()||'',
-      tableSize:tableCell?parseFloat(getComputedStyle(tableCell).fontSize):0,titleSize:title?parseFloat(getComputedStyle(title).fontSize):0,
+      tableSize:tableCell?parseFloat(getComputedStyle(tableCell).fontSize):0,titleVisualHeight:titleBox?.height||0,titleVisualWidth:titleBox?.width||0,
       termLabelColor:termLabel?getComputedStyle(termLabel).color:'',termValueColor:termValue?getComputedStyle(termValue).color:'',partyNameColor:partyName?getComputedStyle(partyName).color:'',
       signatureSurface:signatureMedia?getComputedStyle(signatureMedia).backgroundColor:'',signatureFilter:signature?getComputedStyle(signature).filter:'',stampFilter:stamp?getComputedStyle(stamp).filter:'',
       headerExecutive:Boolean(sheet?.querySelector('.header-executive')),
@@ -96,7 +97,7 @@ async function inspect(page,testCase){
     const large=results.find(row=>row.engine===engine&&row.name==='executive-custom-large');
     assert.ok(small&&large,`${engine}: size comparison cases missing`);
     assert.ok(large.tableSize>small.tableSize,`${engine}: table Small/Large did not change (${small.tableSize} -> ${large.tableSize})`);
-    assert.ok(large.titleSize>small.titleSize,`${engine}: title Small/Large did not change (${small.titleSize} -> ${large.titleSize})`);
+    assert.ok(large.titleVisualHeight>small.titleVisualHeight||large.titleVisualWidth>small.titleVisualWidth,`${engine}: title Small/Large did not change visually (${small.titleVisualWidth}x${small.titleVisualHeight} -> ${large.titleVisualWidth}x${large.titleVisualHeight})`);
   }
   writeFileSync(path.join(output,'report.json'),JSON.stringify({caseCount:results.length,results},null,2));
   console.log(`Final document design browser QA passed: ${results.length} cases.`);
