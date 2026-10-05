@@ -40,5 +40,13 @@ test('Auto and dark local modules keep canonical authored foreground contrast',a
   assert.doesNotMatch(css,/\.invoice-page\.palette-auto\s/);
   assert.doesNotMatch(css,/\.invoice-page\.palette-custom \.items-table thead th[^\n]*--lrx/);
   assert.doesNotMatch(css,/\.invoice-page\.palette-custom \.totals-block[^\n]*color:var\(--lrx/);
-  assert.match(css,/font-size:max\(7\.4px,var\(--lrx-table-size,9\.1px\)\)/);
+});
+
+test('typography scaling keeps canonical normal sizes and role hierarchy',async()=>{
+  const css=await read('src/styles/template-surface-contrast-v366.css');
+  assert.match(css,/\.invoice-page \.items-table\{font-size:var\(--lrx-table-size,7\.25px\)!important;\}/);
+  assert.match(css,/\.invoice-page \.items-table thead th\{font-size:87\.586%!important;\}/);
+  assert.match(css,/\.invoice-page \.items-table tbody td\{font-size:100%!important/);
+  assert.match(css,/\.invoice-page \.party-block\{font-size:var\(--lrx-body-size,8\.2px\)!important;\}/);
+  assert.match(css,/\.invoice-page \.notes-block p\{font-size:84\.146%!important/);
 });
