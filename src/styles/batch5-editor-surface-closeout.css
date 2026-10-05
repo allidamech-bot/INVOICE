@@ -1,0 +1,134 @@
+/* LOUREX Batch 5 — final editor surface closeout.
+ * Screen-only presentation owner. Document/PDF output and editor behavior are
+ * intentionally outside this layer. */
+@media screen {
+  html body #root .app-ui .screen-editor .premium-item-card .item-core-grid {
+    min-width:0!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+
+  html body #root .app-ui .screen-editor .premium-item-card .item-pricing-grid {
+    grid-template-columns:minmax(72px,.72fr) minmax(92px,.88fr) minmax(150px,1.4fr)!important;
+    gap:10px!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:11px 0 0!important;
+    border:0!important;
+    border-top:1px solid color-mix(in srgb,var(--ft-line) 72%,transparent)!important;
+    border-radius:0!important;
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+
+  html body #root .app-ui .screen-editor .premium-item-card .item-price-control {
+    display:grid!important;
+    gap:6px!important;
+    min-width:0!important;
+  }
+
+  html body #root .app-ui .screen-editor .premium-item-card .pricing-suggestion-chip {
+    width:max-content!important;
+    max-width:100%!important;
+    min-height:32px!important;
+    margin:0!important;
+    padding:5px 8px!important;
+    border:1px solid color-mix(in srgb,var(--ft-accent) 24%,var(--ft-line))!important;
+    border-radius:8px!important;
+    background:transparent!important;
+    color:var(--ft-accent)!important;
+    box-shadow:none!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+
+  html body #root .app-ui .screen-editor .premium-item-card .item-advanced-control {
+    margin:0!important;
+    padding:9px 0 0!important;
+    border:0!important;
+    border-top:1px solid color-mix(in srgb,var(--ft-line) 66%,transparent)!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+
+  html body #root .app-ui .screen-editor .premium-item-card .item-advanced-control>button {
+    min-height:36px!important;
+    margin:0!important;
+    padding:5px 2px!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    color:var(--ft-accent)!important;
+    box-shadow:none!important;
+  }
+
+  html body #root .app-ui .screen-editor .premium-item-card .item-advanced-fields {
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:10px!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:10px 0 0!important;
+    border:0!important;
+    border-top:1px solid color-mix(in srgb,var(--ft-line) 66%,transparent)!important;
+    border-radius:0!important;
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+
+  html body #root .app-ui .screen-editor .premium-item-card>footer {
+    margin:10px 0 0!important;
+    padding:10px 0 0!important;
+    border:0!important;
+    border-top:1px solid color-mix(in srgb,var(--ft-line) 72%,transparent)!important;
+    border-radius:0!important;
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+
+  html[data-ui-theme="dark"] body #root .app-ui .screen-editor .premium-item-card :is(.item-core-grid,.item-pricing-grid,.item-advanced-control,.item-advanced-fields),
+  html[data-ui-theme="dark"] body #root .app-ui .screen-editor .premium-item-card>footer {
+    background:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+  }
+}
+
+@media screen and (max-width:720px) {
+  html body #root .app-ui .screen-editor .premium-item-card .item-pricing-grid {
+    grid-template-columns:minmax(0,.8fr) minmax(0,1fr)!important;
+    gap:9px!important;
+    padding-top:10px!important;
+  }
+
+  html body #root .app-ui .screen-editor .premium-item-card .item-price-control {
+    grid-column:1/-1!important;
+  }
+
+  html body #root .app-ui .screen-editor .premium-item-card .item-advanced-fields {
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:9px!important;
+  }
+
+  html body #root .app-ui .screen-editor .premium-item-card .pricing-suggestion-chip {
+    min-height:36px!important;
+  }
+}
+
+@media screen and (max-width:380px) {
+  html body #root .app-ui .screen-editor .premium-item-card .item-pricing-grid {
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+
+  html body #root .app-ui .screen-editor .premium-item-card .item-price-control {
+    grid-column:auto!important;
+  }
+}
