@@ -59,10 +59,26 @@ async function inspect(type,name){
     assert.equal(metrics.outputFinalDetails,true,`${name}: output closing details detached`);
     assert.equal(metrics.outputContinuation,false,`${name}: false continuation page introduced`);
     assert.match(metrics.outputFooter,/1\s*\/\s*1/,`${name}: output footer did not stay 1 / 1`);
+
+    await page.evaluate(()=>{if(typeof window.__LOUREX_PREPARE_PDF__!=='function')throw new Error('PDF bridge was not installed');window.__LOUREX_PREPARE_PDF__('pdf');});
+    const pdfLink=page.locator('.lourex-ios-output-primary[href^="blob:"]');
+    await pdfLink.waitFor({state:'attached',timeout:20000});
+    const href=await pdfLink.getAttribute('href');
+    assert.ok(href&&href.startsWith('blob:'),`${name}: PDF bridge did not expose a downloadable blob`);
+    const pdfArtifact=await page.evaluate(async blobUrl=>{
+      const response=await fetch(blobUrl);const buffer=await response.arrayBuffer();const bytes=new Uint8Array(buffer);let text='';
+      for(let offset=0;offset<bytes.length;offset+=0x8000)text+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+0x8000,bytes.length)));
+      return{bytes:bytes.length,pageObjects:(text.match(/\/Type\s*\/Page\b/g)||[]).length,hasSingleCount:/\/Count\s+1\b/.test(text)};
+    },href);
+    assert.ok(pdfArtifact.bytes>10000,`${name}: generated PDF blob is unexpectedly small (${pdfArtifact.bytes} bytes)`);
+    assert.equal(pdfArtifact.pageObjects,1,`${name}: downloaded PDF blob contains ${pdfArtifact.pageObjects} physical pages`);
+    assert.equal(pdfArtifact.hasSingleCount,true,`${name}: downloaded PDF page tree does not report Count 1`);
+    const cancel=page.locator('.lourex-ios-output-cancel');if(await cancel.count())await cancel.last().click();
+
     await page.locator('.mobile-preview-stage .invoice-page').first().screenshot({path:path.join(output,`v542-${name}-preview.png`)});
     await page.evaluate(()=>{const portal=document.querySelector('.print-portal');if(portal instanceof HTMLElement){portal.style.left='0';portal.style.top='0';portal.style.zIndex='999';}});
     await page.locator('.print-portal .invoice-page').first().screenshot({path:path.join(output,`v542-${name}-pdf-source.png`)});
-    return{name,...metrics};
+    return{name,...metrics,pdfBytes:pdfArtifact.bytes,pdfPages:pdfArtifact.pageObjects};
   }finally{await browser.close();}
 }
 
@@ -71,5 +87,5 @@ async function inspect(type,name){
   results.push(await inspect(chromium,'chromium-iphone390'));
   results.push(await inspect(webkit,'webkit-iphone390'));
   writeFileSync(path.join(output,'v542-pagination-parity.json'),JSON.stringify({results},null,2));
-  console.log('v542 preview/PDF pagination parity passed for Chromium + WebKit.');
+  console.log('v542 preview/PDF pagination parity plus downloaded PDF page-count validation passed for Chromium + WebKit.');
 })().catch(error=>{console.error(error);process.exit(1);});
