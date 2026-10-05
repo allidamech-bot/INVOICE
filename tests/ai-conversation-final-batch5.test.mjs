@@ -30,12 +30,16 @@ test('final AI conversation owner chain remains single and ordered',async()=>{
 
 test('first composer submit survives asynchronous thread hydration',async()=>{
   const closeout=await read('scripts/ai-conversation-final-batch5.mjs');
-  assert.match(closeout,/const submitted=typeof raw==='string'\?raw:String\(instance\.state\.input\?\?''\)/);
-  assert.match(closeout,/await __lourexEnsureAssistantThread\(instance\)/);
-  assert.match(closeout,/await baseAsk\(raw===undefined\?submitted:raw\)/);
-  const captureAt=closeout.indexOf("const submitted=typeof raw==='string'");
-  const hydrateAt=closeout.indexOf('await __lourexEnsureAssistantThread(instance)');
-  const askAt=closeout.indexOf('await baseAsk(raw===undefined?submitted:raw)');
+  const nextStart=closeout.indexOf('const nextWrapper=');
+  const nextEnd=closeout.indexOf(';\nsource=source.replace',nextStart);
+  assert.ok(nextStart>=0&&nextEnd>nextStart,'Batch 5 replacement wrapper must be explicit');
+  const nextWrapper=closeout.slice(nextStart,nextEnd);
+  assert.match(nextWrapper,/const submitted=typeof raw==='string'\?raw:String\(instance\.state\.input\?\?''\)/);
+  assert.match(nextWrapper,/await __lourexEnsureAssistantThread\(instance\)/);
+  assert.match(nextWrapper,/await baseAsk\(raw===undefined\?submitted:raw\)/);
+  const captureAt=nextWrapper.indexOf("const submitted=typeof raw==='string'");
+  const hydrateAt=nextWrapper.indexOf('await __lourexEnsureAssistantThread(instance)');
+  const askAt=nextWrapper.indexOf('await baseAsk(raw===undefined?submitted:raw)');
   assert.ok(captureAt>=0&&captureAt<hydrateAt&&hydrateAt<askAt,'submitted text must be captured before hydration and used after hydration');
 });
 
