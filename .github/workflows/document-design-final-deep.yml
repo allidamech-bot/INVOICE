@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'package.json'
+      - 'scripts/v485-bundle-visible-ui.mjs'
       - 'scripts/v544-pdf-a4-output-emergency.mjs'
       - 'src/lib/appearance.ts'
       - 'src/templates/TemplateRenderer.tsx'
@@ -19,6 +20,7 @@ on:
       - 'src/portal/SharePortal.tsx'
       - 'public/share.html'
       - 'public/ios-print-bridge.js'
+      - 'tests/v485-visible-ui-corrections.test.mjs'
       - 'tests/document-design-final-deep-audit.test.mjs'
       - 'tests/document-design-controls-closeout.test.mjs'
       - 'tests/document-appearance-controls-v525.test.mjs'
