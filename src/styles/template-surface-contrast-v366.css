@@ -21,6 +21,11 @@
   :is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.terms-block dd,.terms-block p,.totals-block,.totals-block span,.totals-block strong,.notes-block p,.bank-block p,.signature-block p){color:var(--doc-primary-text,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--doc-primary-text,var(--lrx-light-ink))!important;}
   :is(.template-executive,.template-minimal,.template-trade,.template-signature,.template-cobalt,.template-editorial,.template-split,.template-prism,.template-slate,.template-horizon,.template-mono,.template-aurora,.template-ledger,.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block dt,.totals-block small,.notes-block h3,.bank-block h3,.signature-block h3,.doc-footer){color:var(--doc-secondary-text,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--doc-secondary-text,var(--lrx-light-muted))!important;}
 
+  /* Midnight and Carbon keep an intentionally dark totals module on their otherwise
+   * light sheets. Surface contrast wins over the sheet-level text preference here. */
+  :is(.template-midnight,.template-carbon) .totals-block{color:var(--lrx-dark-ink)!important;}
+  :is(.template-midnight,.template-carbon) .totals-block :is(span,strong,small){color:var(--lrx-dark-ink)!important;-webkit-text-fill-color:var(--lrx-dark-ink)!important;}
+
   /* Obsidian is the only commercial template with a full dark body. Its white
    * customer/seller cards remain protected by the surface-specific rules above. */
   .template-obsidian :is(.items-table tbody,.terms-block,.totals-block,.notes-block,.bank-block,.signature-block){color:var(--doc-primary-text,var(--lrx-dark-ink))!important;}
