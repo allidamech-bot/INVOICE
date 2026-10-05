@@ -18,8 +18,13 @@ export const ARABIC_FONT_OPTIONS: Array<{value:ArabicFontId;label:string}> = [
   {value:'noto-naskh',label:'Noto Naskh Arabic'}
 ];
 
+/* Keep Auto aligned with the canonical A4 stylesheet rather than maintaining a
+ * second visual system with near-but-not-identical colors. */
 const AUTO_ACCENTS: Record<TemplateId,string> = {
-  executive:'#b58b4f', minimal:'#0b1d2d', trade:'#b58b4f', signature:'#b58b4f', obsidian:'#b79b67', cobalt:'#356f9c', editorial:'#8b7258', split:'#b58b4f', prism:'#3f736f', slate:'#5f7484', horizon:'#b58b4f', mono:'#161616', aurora:'#b58b4f', ledger:'#8a704b', noir:'#c7a15d', midnight:'#c8a25a', blackivory:'#b78a41', carbon:'#ba914d'
+  executive:'#bd9659', minimal:'#242b30', trade:'#ad8747', signature:'#aa8143', obsidian:'#b68d4e', cobalt:'#246ea8', editorial:'#1e2529', split:'#527382', prism:'#4f7d78', slate:'#566874', horizon:'#235269', mono:'#111111', aurora:'#477b74', ledger:'#314e5d', noir:'#b58a46', midnight:'#c19b59', blackivory:'#26231f', carbon:'#a98148'
+};
+const TEMPLATE_PAPERS: Record<TemplateId,string> = {
+  executive:'#ffffff', minimal:'#ffffff', trade:'#ffffff', signature:'#fcfaf5', obsidian:'#ffffff', cobalt:'#ffffff', editorial:'#ffffff', split:'#ffffff', prism:'#ffffff', slate:'#ffffff', horizon:'#ffffff', mono:'#ffffff', aurora:'#fdfbf6', ledger:'#ffffff', noir:'#fffdf8', midnight:'#fcfaf4', blackivory:'#fbf6eb', carbon:'#fafafa'
 };
 const LATIN_FONTS: Record<Exclude<LatinFontId,'auto'>,string> = {inter:'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif','source-sans':'"Source Sans 3", "Segoe UI", Arial, sans-serif',montserrat:'Montserrat, Arial, sans-serif',playfair:'"Playfair Display", Georgia, serif'};
 const ARABIC_FONTS: Record<Exclude<ArabicFontId,'auto'>,string> = {cairo:'Cairo, Tahoma, Arial, sans-serif',tajawal:'Tajawal, Tahoma, Arial, sans-serif','noto-kufi':'"Noto Kufi Arabic", Tahoma, Arial, sans-serif','noto-naskh':'"Noto Naskh Arabic", Tahoma, Arial, serif'};
@@ -66,25 +71,25 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const accent=resolvedAccent(appearance);
   const custom=(appearance.paletteMode??'auto')==='custom';
 
-  // All current commercial templates use a light A4/body sheet. Templates such
-  // as Obsidian, Noir, Midnight, Black Ivory and Carbon only use dark local
-  // modules (mastheads/totals). Treating the entire page as dark reintroduces
-  // white-on-ivory body text, which is exactly the regression this layer guards.
-  const page='#fffdf8';
+  // Every current commercial identity has a light document body, but not every
+  // paper is exactly white. Contrast checks therefore use the real canonical
+  // paper for the selected template. Dark mastheads/totals remain local modules.
+  const page=TEMPLATE_PAPERS[appearance.templateId];
   const defaultPrimary='#17212b';
   const defaultSecondary='#4d5b68';
-  const primary=custom?safeTextColor(appearance.primaryTextColor,page,defaultPrimary,4.5):defaultPrimary;
-  const secondary=custom?safeTextColor(appearance.secondaryTextColor,page,defaultSecondary,4.5):defaultSecondary;
-  const autoHeading=safeTextColor(accent,page,primary,3);
-  const heading=custom?safeTextColor(appearance.headingTextColor,page,autoHeading,3):autoHeading;
+  const primary=custom?safeTextColor(appearance.primaryTextColor,page,defaultPrimary):defaultPrimary;
+  const secondary=custom?safeTextColor(appearance.secondaryTextColor,page,defaultSecondary):defaultSecondary;
+  const autoHeading=safeTextColor(accent,page,primary);
+  const heading=custom?safeTextColor(appearance.headingTextColor,page,autoHeading):autoHeading;
   const legacyScale=appearance.textScale??'normal';
   const titleScale=scaleValue(appearance.documentTitleScale??'normal',.92,1.10);
   const headingScale=scaleValue(appearance.sectionHeadingScale??'normal',.94,1.08);
   const bodyScale=scaleValue(appearance.bodyTextScale??legacyScale,.95,1.06);
   const tableScale=scaleValue(appearance.tableTextScale??legacyScale,.95,1.05);
 
-  // Surface tokens describe local component surfaces. Dark modules keep their
-  // authored foregrounds; user body colors never leak into them.
+  // Surface tokens describe local components. Custom body colors are never used
+  // as a blanket page foreground and therefore cannot leak onto dark mastheads or
+  // totals bands that own their own authored contrast.
   const surface='#ffffff';
   const surfaceInk='#17212b';
   const surfaceMuted='#58656f';
