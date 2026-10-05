@@ -23,5 +23,5 @@ css+=`\n\n/* LOUREX AI Conversation Owner — Batch 4: premium Tools + readable 
 
 for(const [target,content] of [[workflowTarget,workflow],[aiTarget,ai],[cssTarget,css]])await writeFile(target,content);
 for(const file of [workflowTarget,aiTarget])execFileSync(process.execPath,['--check',file],{stdio:'pipe'});
-for(const token of ['lourex-ai-tools-menu','data-tool-key','ArrowDown','ArrowUp','safe-area-inset-bottom','lourex-ai-hub-action-copy','lourex-ai-proposal'])if(!(workflow+css).includes(token))throw new Error('AI Batch 4 premium UI is missing '+token);
+for(const token of ['lourex-ai-tools-menu','dataset.toolKey','ArrowDown','ArrowUp','safe-area-inset-bottom','lourex-ai-hub-action-copy','lourex-ai-proposal'])if(!(workflow+css).includes(token))throw new Error('AI Batch 4 premium UI is missing '+token);
 console.log('[LOUREX AI] Batch 4 installed: premium Tools hub, keyboard navigation, readable conversation hierarchy and review-first action cards.');
