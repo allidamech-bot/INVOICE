@@ -56,11 +56,12 @@ test('Obsidian signature compatibility is dark-surface aware without recoloring 
   assert.doesNotMatch(obsidianBlock,/stamp-image/);
 });
 
-test('Normal typography is a canonical no-op and bounded controls preserve hierarchy',async()=>{
+test('Normal typography is an effective-production no-op and bounded controls preserve hierarchy',async()=>{
   const [css,appearance]=await Promise.all([read('src/styles/template-surface-contrast-v366.css'),read('src/lib/appearance.ts')]);
-  assert.match(appearance,/headingScale=scaleValue\(appearance\.sectionHeadingScale\?\?'normal',\.7,\.94,1\.08\)/);
+  assert.match(appearance,/headingScale=scaleValue\(appearance\.sectionHeadingScale\?\?'normal',\.68,\.94,1\.08\)/);
   assert.match(appearance,/bodyScale=scaleValue\(appearance\.bodyTextScale\?\?legacyScale,8\.2\/9\.2,\.95,1\.06\)/);
   assert.match(appearance,/tableScale=scaleValue\(appearance\.tableTextScale\?\?legacyScale,7\.25\/9\.1,\.95,1\.05\)/);
+  assert.match(css,/terms-block h3,[\s\S]*font-size:var\(--lrx-heading-size,6\.8px\)!important/);
   assert.match(css,/items-table\{font-size:var\(--lrx-table-size,7\.25px\)!important;\}/);
   assert.match(css,/items-table tbody td\{font-size:100%!important/);
   assert.match(css,/items-table tbody td\.description-cell\{font-size:104\.138%!important/);
