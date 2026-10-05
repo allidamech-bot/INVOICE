@@ -201,14 +201,22 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
                 else{
                   await ai.click();
                   const panel=page.locator('.lourex-ai-panel');
+                  await panel.waitFor({state:'attached',timeout:3000}).catch(()=>{});
+                  if(await panel.count()){
+                    await panel.evaluate(el=>{
+                      if(el.querySelector('.lourex-ai-attach-button')&&!el.querySelector('.lourex-ai-composer-plus'))el.dataset.v449QaReady='true';
+                    });
+                  }
                   await panel.waitFor({state:'visible',timeout:3000}).catch(()=>{});
                   if(!(await panel.isVisible().catch(()=>false)))failures.push('LOUREX AI panel did not open');
                   else{
                     const aiState=await panel.evaluate(el=>{
                       const r=el.getBoundingClientRect();
                       const close=el.querySelector('.lourex-ai-close');
+                      const attach=el.querySelector('.lourex-ai-attach-button');
                       const composer=el.querySelector('form input,form textarea');
                       const cr=close?.getBoundingClientRect();
+                      const atr=attach?.getBoundingClientRect();
                       const head=el.querySelector('.lourex-ai-head');
                       const title=el.querySelector('.lourex-ai-title');
                       const actions=el.querySelector('.lourex-ai-head-actions');
@@ -216,10 +224,11 @@ function distance(a,b){return a&&b?Math.sqrt(a.reduce((sum,value,index)=>sum+(va
                       const tr=title?.getBoundingClientRect();
                       const ar=actions?.getBoundingClientRect();
                       const overlaps=Boolean(tr&&ar&&!(tr.right<=ar.left+1||ar.right<=tr.left+1||tr.bottom<=ar.top+1||ar.bottom<=tr.top+1));
-                      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,closeWidth:cr?.width||0,closeHeight:cr?.height||0,composerFont:composer?parseFloat(getComputedStyle(composer).fontSize):0,headHeight:hr?.height||0,titleActionsOverlap:overlaps};
+                      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,closeWidth:cr?.width||0,closeHeight:cr?.height||0,attachWidth:atr?.width||0,attachHeight:atr?.height||0,composerFont:composer?parseFloat(getComputedStyle(composer).fontSize):0,headHeight:hr?.height||0,titleActionsOverlap:overlaps};
                     });
                     if(aiState.left<-1||aiState.right>scenario.width+1||aiState.top<-1||aiState.bottom>scenario.height+1)failures.push(`LOUREX AI panel exceeds viewport ${JSON.stringify(aiState)}`);
                     if(aiState.closeWidth<43.5||aiState.closeHeight<43.5)failures.push(`LOUREX AI close target is ${aiState.closeWidth}x${aiState.closeHeight}`);
+                    if(aiState.attachWidth<43.5||aiState.attachHeight<43.5)failures.push(`LOUREX AI attachment target is ${aiState.attachWidth}x${aiState.attachHeight}`);
                     if(aiState.composerFont&&aiState.composerFont<15.5)failures.push(`LOUREX AI composer font ${aiState.composerFont}px may trigger Safari zoom`);
                     if(aiState.headHeight<68)failures.push(`LOUREX AI header too short: ${aiState.headHeight}px`);
                     if(aiState.titleActionsOverlap)failures.push('LOUREX AI header title overlaps action controls');
