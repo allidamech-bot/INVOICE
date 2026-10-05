@@ -111,11 +111,11 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const legacyScale=appearance?.textScale??'normal';
 
   // Renderer variables predate role-based sizing and use historical numeric bases
-  // (10 / 9.2 / 9.1 px). Normal must therefore normalize back to the canonical
-  // v141 A4 sizes instead of silently enlarging every document. Small/Large are
-  // restrained multipliers around those canonical Normal values.
+  // (10 / 9.2 / 9.1 px). Normal is anchored to the effective shipped document
+  // cascade: v364 owns 6.8px section headings while v141 owns 8.2px body and
+  // 7.25px table text. Small/Large remain restrained multipliers around those.
   const titleScale=scaleValue(appearance?.documentTitleScale??'normal',1,.92,1.10);
-  const headingScale=scaleValue(appearance?.sectionHeadingScale??'normal',.7,.94,1.08);
+  const headingScale=scaleValue(appearance?.sectionHeadingScale??'normal',.68,.94,1.08);
   const bodyScale=scaleValue(appearance?.bodyTextScale??legacyScale,8.2/9.2,.95,1.06);
   const tableScale=scaleValue(appearance?.tableTextScale??legacyScale,7.25/9.1,.95,1.05);
 
