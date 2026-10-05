@@ -10,6 +10,7 @@ import { clearSession, getSessionKey, isSessionExpired, touchSession } from './s
 const TEMPLATE_IDS = new Set(['executive','minimal','trade','signature','obsidian','cobalt','editorial','split','prism','slate','horizon','mono','aurora','ledger','noir','midnight','blackivory','carbon']);
 const LATIN_FONTS = new Set(['auto','inter','source-sans','montserrat','playfair']);
 const ARABIC_FONTS = new Set(['auto','cairo','tajawal','noto-kufi','noto-naskh']);
+const TEXT_SCALES = new Set(['small','normal','large']);
 const AUTO_LOCK_VALUES = new Set([0,5,15,30]);
 const PAYMENT_METHODS = new Set(['cash','bank-transfer','card','cheque','other']);
 const DOCUMENT_EVENT_TYPES = new Set(['created','issued','reissued','revision-started','revision-discarded','voided','credit-note-created','payment-recorded','payment-deleted','converted','audit']);
@@ -30,14 +31,14 @@ function stringValue(value: unknown, fallback = ''): string {
 }
 function cleanCurrency(value:unknown,fallback='USD'):string{return (stringValue(value,fallback).trim().toUpperCase()||fallback);}
 function cleanPrefix(value:unknown,fallback:string):string{return (stringValue(value,fallback).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8)||fallback);}
-function hexColorValue(value:unknown,fallback=''):string{const color=stringValue(value).trim();return /^#[0-9a-f]{6}$/i.test(color)?color:fallback;}
-function textScaleValue(value:unknown):'small'|'normal'|'large'{return value==='small'||value==='large'?value:'normal';}
 function booleanValue(value: unknown, fallback: boolean): boolean { return typeof value === 'boolean' ? value : fallback; }
 function finiteNumber(value: unknown, fallback: number): number { return typeof value === 'number' && Number.isFinite(value) ? value : fallback; }
 function languageValue(value: unknown, fallback: 'en'|'ar'|'bilingual' = 'en'): 'en'|'ar'|'bilingual' { return value === 'en' || value === 'ar' || value === 'bilingual' ? value : fallback; }
 function uiLanguageValue(value: unknown, fallback: 'en'|'ar' = 'en'): 'en'|'ar' { return value === 'ar' || value === 'en' ? value : fallback; }
 function templateValue(value: unknown, fallback: any = 'executive'): any { return typeof value === 'string' && TEMPLATE_IDS.has(value) ? value : fallback; }
 function documentKindValue(value:unknown,fallback:DocumentKind='proforma'):DocumentKind{return typeof value==='string'&&DOCUMENT_KINDS.has(value as DocumentKind)?value as DocumentKind:fallback;}
+function hexColorValue(value:unknown,fallback=''):string{const candidate=stringValue(value).trim();return /^#[0-9a-f]{6}$/i.test(candidate)?candidate:fallback;}
+function textScaleValue(value:unknown):'small'|'normal'|'large'|undefined{return typeof value==='string'&&TEXT_SCALES.has(value)?value as 'small'|'normal'|'large':undefined;}
 function nowIso(): string { return new Date().toISOString(); }
 function normalizeBankAccounts(value:unknown):any[]{
   if(!Array.isArray(value))return[];const seen=new Set<string>();const result:any[]=[];
@@ -261,8 +262,9 @@ export function migrateVault(vault: VaultPayload): VaultPayload {
       internalCosts:{shippingCost:stringValue(internalCosts.shippingCost,'0.00'),otherCost:stringValue(internalCosts.otherCost,'0.00')},
       appearance:{
         templateId:templateValue(appearance.templateId,'executive'), paletteMode:appearance.paletteMode === 'custom' ? 'custom' : 'auto', accentColor:hexColorValue(appearance.accentColor,'#b58b4f'),
-        primaryTextColor:hexColorValue(appearance.primaryTextColor), secondaryTextColor:hexColorValue(appearance.secondaryTextColor), textScale:textScaleValue(appearance.textScale),
         latinFont:typeof appearance.latinFont === 'string' && LATIN_FONTS.has(appearance.latinFont) ? appearance.latinFont : 'auto', arabicFont:typeof appearance.arabicFont === 'string' && ARABIC_FONTS.has(appearance.arabicFont) ? appearance.arabicFont : 'auto',
+        primaryTextColor:hexColorValue(appearance.primaryTextColor), secondaryTextColor:hexColorValue(appearance.secondaryTextColor), headingTextColor:hexColorValue(appearance.headingTextColor),
+        textScale:textScaleValue(appearance.textScale), documentTitleScale:textScaleValue(appearance.documentTitleScale), sectionHeadingScale:textScaleValue(appearance.sectionHeadingScale), bodyTextScale:textScaleValue(appearance.bodyTextScale), tableTextScale:textScaleValue(appearance.tableTextScale),
         showBank:booleanValue(appearance.showBank,true), showSignature:booleanValue(appearance.showSignature,Boolean(normalizedCompanySnapshot.signatureDataUrl)), showStamp:booleanValue(appearance.showStamp,Boolean(normalizedCompanySnapshot.stampDataUrl)),
         showHsCode:booleanValue(appearance.showHsCode,true), showOrigin:booleanValue(appearance.showOrigin,true), showPacking:booleanValue(appearance.showPacking,false), watermark:normalizeWatermark(appearance.watermark)
       },
