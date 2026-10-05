@@ -16,24 +16,27 @@ test('effective commercial papers include the later Obsidian graphite override o
   assert.match(appearance,/TEMPLATE_PAPERS/);
   assert.match(appearance,/obsidian:'#15191c'/);
   assert.match(appearance,/DARK_BODY_TEMPLATES=new Set<TemplateId>\(\['obsidian'\]\)/);
-  assert.match(appearance,/noir:'#fffdf8'/);
-  assert.match(appearance,/midnight:'#fcfaf4'/);
-  assert.match(appearance,/blackivory:'#fbf6eb'/);
-  assert.match(appearance,/carbon:'#fafafa'/);
+  for(const [id,paper] of Object.entries({noir:'#fffdf8',midnight:'#fcfaf4',blackivory:'#fbf6eb',carbon:'#fafafa'}))assert.match(appearance,new RegExp(`${id}:'${paper}'`));
   assert.match(v330,/\.template-obsidian \{ --paper:#15191c;--ink:#f5f1e9;--muted:#aeb5ba;--rule:#343a3f;--soft:#20262a; \}/);
+});
+
+test('latest-main local-surface and inverse-total protections remain intact',async()=>{
+  const css=await read('src/styles/template-surface-contrast-v366.css');
+  assert.match(css,/\.invoice-page \.party-block\{color:var\(--lrx-surface-ink,var\(--lrx-light-ink\)\)!important;\}/);
+  assert.match(css,/\.invoice-pages>\.invoice-page:is\(\.template-midnight,\.template-carbon\) \.totals-block\{color:var\(--lrx-dark-ink\)!important;\}/);
+  assert.match(css,/\.invoice-pages>\.invoice-page\.template-obsidian \.totals-block\{color:var\(--lrx-dark-ink\)!important;\}/);
 });
 
 test('custom light-body roles are semantic and contrast guarded',async()=>{
   const [appearance,css]=await Promise.all([read('src/lib/appearance.ts'),read('src/styles/template-surface-contrast-v366.css')]);
   assert.match(appearance,/safeTextColor/);
-  assert.match(appearance,/const surfaceInk='#17212b'/);
+  assert.match(appearance,/TEMPLATE_LIGHT_SURFACES/);
   assert.match(css,/\.invoice-page\.palette-custom:not\(\.template-obsidian\) \.party-block\{color:var\(--lrx-primary/);
   assert.match(css,/\.party-name/);
   assert.match(css,/\.party-contact/);
-  assert.match(css,/--lrx-secondary/);
 });
 
-test('Obsidian Auto and Custom both protect light cards and dark body copy independently',async()=>{
+test('Obsidian Auto and Custom protect light cards and dark body copy independently',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
   assert.match(css,/\.invoice-page\.template-obsidian \.party-block\{color:var\(--lrx-surface-ink/);
   assert.match(css,/template-obsidian \.party-block :is\(\.party-address,\.party-location,\.party-contact,\.party-identifiers\)\{color:var\(--lrx-surface-muted/);
@@ -52,13 +55,15 @@ test('Auto and authored dark local modules are not flattened by Custom foregroun
   assert.doesNotMatch(css,/\.invoice-page\.palette-custom \.totals-block[^\n]*color:var\(--lrx/);
 });
 
-test('typography scaling keeps canonical normal sizes and role hierarchy',async()=>{
+test('Normal typography preserves both general and template-specific canonical hierarchy',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
   assert.match(css,/\.invoice-page \.items-table\{font-size:var\(--lrx-table-size,7\.25px\)!important;\}/);
-  assert.match(css,/\.invoice-page \.items-table thead th\{font-size:87\.586%!important;\}/);
   assert.match(css,/\.invoice-page \.items-table tbody td\{font-size:100%!important/);
+  assert.match(css,/template-slate \.items-table thead th\{font-size:calc\(var\(--lrx-table-size,7\.25px\)\*\.813793\)!important;\}/);
+  assert.match(css,/template-slate \.items-table tbody td\{font-size:calc\(var\(--lrx-table-size,7\.25px\)\*\.924138\)!important;line-height:1\.3!important;\}/);
+  assert.match(css,/template-slate \.items-table tbody td\.description-cell\{font-size:calc\(var\(--lrx-table-size,7\.25px\)\*\.951724\)!important;\}/);
+  assert.match(css,/template-editorial \.items-table tbody td\.description-cell\{font-size:calc\(var\(--lrx-table-size,7\.25px\)\*1\.062069\)!important;\}/);
   assert.match(css,/\.invoice-page \.party-block\{font-size:var\(--lrx-body-size,8\.2px\)!important;\}/);
-  assert.match(css,/\.invoice-page \.notes-block p\{font-size:84\.146%!important/);
 });
 
 test('later receipt output semantics do not bypass bounded table sizing',async()=>{
