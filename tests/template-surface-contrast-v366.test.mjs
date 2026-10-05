@@ -51,8 +51,9 @@ test('Obsidian Auto and Custom protect light cards and dark body copy independen
   assert.match(css,/template-obsidian \.party-block :is\(\.party-address,\.party-location,\.party-contact,\.party-identifiers\)\{color:var\(--lrx-surface-muted/);
   assert.match(css,/template-obsidian :is\(\.items-table tbody td[\s\S]*\.terms-block \.term-row>span[\s\S]*\.bank-block>div>span\)\{color:var\(--lrx-primary/);
   assert.match(css,/template-obsidian :is\(\.terms-block \.term-row>b,\.bank-block>div>b,\.doc-footer\)\{color:var\(--lrx-secondary/);
-  assert.match(css,/template-obsidian \.signature-image:not\(\[src\^="data:image\/jpeg"\]\)/);
-  assert.match(css,/template-obsidian \.signature-image\[src\^="data:image\/jpeg"\]/);
+  assert.match(css,/template-obsidian \.signature-media\{background:#fff!important;[\s\S]*padding:2mm!important/);
+  assert.match(css,/template-obsidian \.signature-image\{filter:none!important;mix-blend-mode:normal!important;\}/);
+  assert.doesNotMatch(css,/template-obsidian \.signature-image[^\n]*invert\(/);
 });
 
 test('Auto and authored dark local modules are not flattened by Custom foreground rules',async()=>{
