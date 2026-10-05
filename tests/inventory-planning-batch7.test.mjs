@@ -63,6 +63,5 @@ test('planning styles use canonical bundled ownership without a runtime layer',a
   assert.doesNotMatch(loader,/createElement\(['"]link['"]\)|inventory-planning-batch7\.css/);
   const index=await read('index.html');
   assert.match(index,/inventory-planning-batch7\.css\?v=459-1/);
-  assert.match(loader,/data-\$\{STYLE_KEY\}/);
-  assert.match(loader,/document\.head\.appendChild\(link\)/);
+  assert.match(loader,/app\.bundle\.css/);
 });
