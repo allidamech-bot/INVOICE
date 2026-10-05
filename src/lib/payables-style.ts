@@ -1,9 +1,6 @@
-const STYLE_KEY='lourex-payables-batch9';
-export function ensurePayablesStyles():void{
-  if(typeof document==='undefined'||document.head.querySelector(`link[data-${STYLE_KEY}]`))return;
-  const link=document.createElement('link');
-  link.rel='stylesheet';
-  link.href='./styles/payables-batch9.css?v=461-1';
-  link.setAttribute(`data-${STYLE_KEY}`,'true');
-  document.head.appendChild(link);
-}
+/**
+ * Batch 6 ownership closeout: Payables styles are canonical inputs to
+ * app.bundle.css. Keep this hook for component compatibility; it must not add
+ * a late runtime stylesheet or create a second cascade owner.
+ */
+export function ensurePayablesStyles():void{}
