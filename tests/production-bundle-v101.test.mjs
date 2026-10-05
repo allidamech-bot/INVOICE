@@ -45,11 +45,15 @@ test('production bundle keeps print and responsive rules rather than rebuilding 
   assert.match(bundle,/performance-polish-v100\.css/);
 });
 
-test('web font request only loads the fonts actually used by the current interface and Arabic documents',async()=>{
+test('web font request covers every font exposed by document design controls',async()=>{
   const html=await read('index.html');
+  const families=[
+    'Cairo','Inter','Montserrat','Noto\\+Kufi\\+Arabic','Noto\\+Naskh\\+Arabic',
+    'Noto\\+Sans\\+Arabic','Outfit','Playfair\\+Display','Source\\+Sans\\+3','Tajawal'
+  ];
+  for(const family of families)assert.match(html,new RegExp(`family=${family}:wght@`),`${family} must be loaded by the document font selector`);
   assert.match(html,/family=Inter:wght@400;500;600;700;800/);
-  assert.match(html,/family=Noto\+Sans\+Arabic:wght@400;500;600;700;800;900/);
-  for(const unused of ['Montserrat','Playfair+Display','Cairo','Tajawal','Noto+Kufi+Arabic','Noto+Naskh+Arabic']){
-    assert.doesNotMatch(html,new RegExp(unused.replace(/\+/g,'\\+')));
-  }
+  assert.match(html,/family=Noto\+Kufi\+Arabic:wght@400;500;600;700;800;900/);
+  assert.match(html,/family=Noto\+Naskh\+Arabic:wght@400;500;600;700/);
+  assert.match(html,/family=Source\+Sans\+3:wght@400;500;600;700;800/);
 });
