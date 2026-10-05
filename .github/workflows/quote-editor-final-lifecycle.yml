@@ -13,7 +13,7 @@ on:
       - 'scripts/v485-bundle-visible-ui.mjs'
       - 'scripts/v529-document-autosave-checkpoint-fix.mjs'
       - 'scripts/v539-editor-departure-single-owner.mjs'
-      - 'tests/v485-visible-ui-corrections.test.mjs'
+      - 'tests/batch5-editor-visual-flattening.test.mjs'
       - 'tests/quote-editor-final-lifecycle-v538.test.mjs'
       - 'tests/visual/v538-quote-editor-final-flow.html'
       - 'tests/visual/run-v538-quote-editor-final-flow.cjs'
