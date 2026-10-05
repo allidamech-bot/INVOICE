@@ -28,7 +28,11 @@ test('iOS PDF bridge consumes only pagination-ready print portal pages',async()=
 });
 
 test('fixture renders the identical quotation snapshot into preview and PDF source with real logo watermark pressure',async()=>{
-  const fixture=await read('tests/visual/v542-pagination-parity.js');
+  const [fixture,html,runner]=await Promise.all([
+    read('tests/visual/v542-pagination-parity.js'),
+    read('tests/visual/v542-pagination-parity.html'),
+    read('tests/visual/run-v542-pagination-parity.cjs')
+  ]);
   assert.match(fixture,/mobile-preview-stage/);
   assert.match(fixture,/print-portal/);
   assert.match(fixture,/TemplateRenderer,\{document:documentData,scale:\.48/);
@@ -39,6 +43,12 @@ test('fixture renders the identical quotation snapshot into preview and PDF sour
   assert.match(fixture,/type:'logo'/);
   assert.match(fixture,/pattern:'repeat'/);
   assert.match(fixture,/Export cartons on pallets/);
+  assert.match(html,/vendor\/html2canvas\.min\.js/);
+  assert.match(html,/vendor\/jspdf\.umd\.min\.js/);
+  assert.match(html,/ios-print-bridge\.js/);
+  assert.match(runner,/__LOUREX_PREPARE_PDF__/);
+  assert.match(runner,/pageObjects/);
+  assert.match(runner,/downloaded PDF blob contains/);
 });
 
 test('v544 emergency owner runs after visual bundle owners and removes the pagination deadlock',async()=>{
