@@ -27,6 +27,15 @@ test('latest-main local-surface and inverse-total protections remain intact',asy
   assert.match(css,/\.invoice-pages>\.invoice-page\.template-obsidian \.totals-block\{color:var\(--lrx-dark-ink\)!important;\}/);
 });
 
+test('hybrid light-sheet Auto body copy cannot regress to inverse ink',async()=>{
+  const css=await read('src/styles/template-surface-contrast-v366.css');
+  const hybrid='\\.invoice-page:is\\(\\.template-noir,\\.template-midnight,\\.template-blackivory,\\.template-carbon\\)';
+  assert.match(css,new RegExp(`${hybrid} :is\\(\\.items-table tbody td[\\s\\S]*\\.terms-block \\.term-row>span[\\s\\S]*\\.bank-block>div>span\\)\\{color:var\\(--lrx-primary`));
+  assert.match(css,new RegExp(`${hybrid} :is\\(\\.terms-block \\.term-row>b,\\.bank-block>div>b,\\.doc-footer\\)\\{color:var\\(--lrx-secondary`));
+  assert.match(css,new RegExp(`${hybrid} :is\\(\\.terms-block h3[\\s\\S]*\\.continued-label\\)\\{color:var\\(--lrx-heading`));
+  assert.doesNotMatch(css,new RegExp(`${hybrid}[^\\n]*\\.totals-block`));
+});
+
 test('custom light-body roles are semantic and contrast guarded',async()=>{
   const [appearance,css]=await Promise.all([read('src/lib/appearance.ts'),read('src/styles/template-surface-contrast-v366.css')]);
   assert.match(appearance,/safeTextColor/);
