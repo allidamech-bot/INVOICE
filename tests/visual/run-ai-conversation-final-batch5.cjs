@@ -31,18 +31,20 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         });
         await page.goto(`http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html?lang=${lang}&theme=${theme}`,{waitUntil:'networkidle'});
         await page.locator('[data-lourex-proactive-assistant-mount]').waitFor({state:'attached'});
-        await page.evaluate(async()=>{
-          const [{setupVault},{emptyVault},{establishSession}]=await Promise.all([
+        await page.evaluate(async selectedTheme=>{
+          const [{setupVault},{emptyVault},{establishSession},{setUiThemePreference}]=await Promise.all([
             import('/dist/src/storage/vault.js'),
             import('/dist/src/lib/defaults.js'),
-            import('/dist/src/storage/session.js')
+            import('/dist/src/storage/session.js'),
+            import('/dist/src/lib/ui-theme.js')
           ]);
           const initial=emptyVault();
           initial.company.nameEn='LOUREX Final QA';
           const {key}=await setupVault('2468',initial);
           if(!await establishSession(key))throw new Error('Final AI QA could not establish encrypted session');
+          setUiThemePreference(selectedTheme);
           window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid:'qa-final'}}));
-        });
+        },theme);
 
         const launcher=page.locator('.lourex-ai-launcher');
         await launcher.click();
