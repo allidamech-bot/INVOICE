@@ -94,6 +94,12 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         await page.waitForFunction(count=>document.querySelectorAll('#lourex-ai-panel .lourex-ai-message.assistant').length>count,beforeKeyboardAssistants);
         const userVisual=await userMessage.evaluate(node=>{const style=getComputedStyle(node);return{bg:style.backgroundColor,text:style.color};});
         assert.ok(contrast(userVisual.text,userVisual.bg)>=4.5,'user bubble must meet WCAG AA text contrast');
+        const messagesBox=await panel.locator('.lourex-ai-messages').boundingBox();
+        const userBox=await userMessage.boundingBox();
+        assert.ok(messagesBox&&userBox,'sender geometry must be measurable');
+        const senderLeftGap=userBox.x-messagesBox.x;
+        const senderRightGap=(messagesBox.x+messagesBox.width)-(userBox.x+userBox.width);
+        assert.ok(senderRightGap<=senderLeftGap,'user bubble must stay on the physical right in both LTR and RTL');
         if(width<=720){
           const messageActions=panel.locator('.lourex-ai-message-actions .lourex-ai-message-action');
           for(let i=0;i<await messageActions.count();i++){const box=await messageActions.nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'mobile message action remains 44px touch safe');}
