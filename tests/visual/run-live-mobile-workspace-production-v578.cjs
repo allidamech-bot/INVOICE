@@ -224,12 +224,24 @@ async function unlockIfNeeded(page,pin,timeout=90000){
       {name:'mobile-a.pdf',mimeType:'application/pdf',buffer:pdfBuffer('mobile-a')},
       {name:'mobile-b.pdf',mimeType:'application/pdf',buffer:pdfBuffer('mobile-b')}
     ]);
-    await page.waitForFunction(()=>document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')==='2');
+    await page.waitForFunction(()=>document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')==='2'||Boolean(document.querySelector('#document-attachments .inline-error')),{timeout:30000});
+    const firstBatchState=await page.evaluate(()=>({
+      count:document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')||'',
+      error:document.querySelector('#document-attachments .inline-error')?.textContent?.trim()||'',
+      cards:Array.from(document.querySelectorAll('.attachment-card .attachment-copy strong')).map(node=>node.textContent?.trim()||'')
+    }));
+    assert.equal(firstBatchState.count,'2',`multi-file first selection was rejected: ${JSON.stringify(firstBatchState)}`);
     const firstBatchNames=await page.locator('.attachment-card .attachment-copy strong').allTextContents();
     await attachmentInput.setInputFiles([
       {name:'mobile-c.pdf',mimeType:'application/pdf',buffer:pdfBuffer('mobile-c')}
     ]);
-    await page.waitForFunction(()=>document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')==='3');
+    await page.waitForFunction(()=>document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')==='3'||Boolean(document.querySelector('#document-attachments .inline-error')),{timeout:30000});
+    const secondBatchState=await page.evaluate(()=>({
+      count:document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')||'',
+      error:document.querySelector('#document-attachments .inline-error')?.textContent?.trim()||'',
+      cards:Array.from(document.querySelectorAll('.attachment-card .attachment-copy strong')).map(node=>node.textContent?.trim()||'')
+    }));
+    assert.equal(secondBatchState.count,'3',`multi-file accumulation failed: ${JSON.stringify(secondBatchState)}`);
     const accumulatedNames=await page.locator('.attachment-card .attachment-copy strong').allTextContents();
     assert.deepEqual(firstBatchNames,['mobile-a.pdf','mobile-b.pdf'],'multi-file first selection did not preserve both files');
     assert.deepEqual(accumulatedNames,['mobile-a.pdf','mobile-b.pdf','mobile-c.pdf'],'second file selection replaced prior attachments instead of accumulating');
