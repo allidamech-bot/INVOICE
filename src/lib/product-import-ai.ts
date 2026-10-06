@@ -11,7 +11,7 @@ export function ambiguousProductImportColumns(analysis:ProductImportAnalysis,map
 export async function requestProductImportAiMapping(analysis:ProductImportAnalysis,mapping:ProductImportColumnMap,signal?:AbortSignal):Promise<ProductImportAiResult>{
   const columns=ambiguousProductImportColumns(analysis,mapping);
   if(!columns.length)return {model:'local',mappings:[]};
-  const response=await fetch('/api/product-import-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify({columns}),signal});
+  const response=await fetch('/api/product-import-ai',{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice','X-LOUREX-App-Host':window.location.host},body:JSON.stringify({columns}),signal});
   let payload:any={};try{payload=await response.json();}catch{}
   if(!response.ok)throw new Error(String(payload?.message||'AI mapping is temporarily unavailable.'));
   return {model:'LOUREX AI · Automatic',mappings:Array.isArray(payload?.mappings)?payload.mappings:[]};
