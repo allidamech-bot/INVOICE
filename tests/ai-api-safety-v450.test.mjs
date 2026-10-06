@@ -27,3 +27,20 @@ test('v450 document extraction APIs retain explicit untrusted-source boundaries'
     assert.match(source,/MAX_BODY_BYTES/,`${file} missing bounded body size`);
   }
 });
+
+
+test('live AI origin guard accepts browser same-origin metadata behind deployment proxies without dropping request-intent protection',async()=>{
+  const files=[
+    'api/ai-core.js','api/ai-advisor-v2.js','api/ai-conversation-v3.js','api/ai-inbox.js',
+    'api/customer-capture-ai.js','api/supplier-capture-ai.js','api/supplier-document-ai.js',
+    'api/product-source-ai.js','api/product-import-ai.js','api/quote-source-ai.js'
+  ];
+  for(const file of files){
+    const source=await read(file);
+    assert.match(source,/requestedWith!=='LOUREX-Invoice'/,`${file} must retain LOUREX request-intent header enforcement`);
+    assert.match(source,/sec-fetch-site/,`${file} must use browser same-origin metadata behind reverse proxies`);
+    assert.match(source,/fetchSite==='same-origin'/,`${file} must accept a browser-confirmed same-origin request`);
+    assert.match(source,/fetchSite&&fetchSite!=='same-origin'/,`${file} must reject explicit cross-site browser requests`);
+    assert.match(source,/requestHosts\(request\)/,`${file} must retain host matching fallback when fetch metadata is absent`);
+  }
+});
