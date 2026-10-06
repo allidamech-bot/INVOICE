@@ -122,7 +122,8 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         const toolsCopy=await menu.innerText();
         assert.match(toolsCopy,lang==='ar'?/صندوق AI[\s\S]*الموجز الصباحي[\s\S]*الذاكرة والمهام/:/AI Inbox[\s\S]*Morning Brief[\s\S]*Memory & Tasks/,'nested AI Tools exposes canonical destinations');
         const toolsBox=await menu.boundingBox();
-        assert.ok(toolsBox&&Math.abs(toolsBox.x-rootBox.x)<=1&&Math.abs(toolsBox.width-rootBox.width)<=1,'nested AI Tools preserves the same anchored menu geometry');
+        assert.ok(toolsBox&&toolsBox.x>=-1&&toolsBox.x+toolsBox.width<=width+1&&toolsBox.y>=-1&&toolsBox.y+toolsBox.height<=height+1,'nested AI Tools stays inside viewport');
+        assert.ok(Math.abs(toolsBox.x-plusBox.x)<=14,'nested AI Tools remains physically anchored to the visible + control');
         const actions=menu.locator('.lourex-ai-plus-item');
         assert.ok((await actions.count())>=10,'AI Tools menu exposes the full LOUREX tool set');
         await page.waitForFunction(()=>document.activeElement?.classList?.contains('lourex-ai-plus-item'));
