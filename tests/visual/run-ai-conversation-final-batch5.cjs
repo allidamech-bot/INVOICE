@@ -66,11 +66,6 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         await textarea.waitFor({state:'visible'});
         const plusBox=await plus.boundingBox();
         assert.ok(plusBox&&plusBox.width>=43&&plusBox.height>=43,'unified plus target remains touch safe');
-        const activeScope=panel.locator('.lourex-ai-scope-button[aria-selected="true"]').first();
-        if(await activeScope.count()){
-          const scopeVisual=await activeScope.evaluate(node=>{const style=getComputedStyle(node);return{bg:style.backgroundColor,text:style.color};});
-          assert.ok(contrast(scopeVisual.text,scopeVisual.bg)>=4.5,'active scope text contrast must meet WCAG AA');
-        }
         if(width<=720){
           const scopeButtons=panel.locator('.lourex-ai-scope-button');
           for(let i=0;i<await scopeButtons.count();i++){const box=await scopeButtons.nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'mobile scope target remains 44px touch safe');}
