@@ -40,7 +40,8 @@ test('remediation Batch 3 owns a conversation-local light and dark hierarchy',()
   assert.match(owner,/--lx-chat-bg:#0b0c0e/,'dark chat canvas is charcoal instead of inheriting the navy workspace');
   assert.match(owner,/html\[data-ui-theme='light'\][\s\S]*--lx-chat-bg:#ffffff/,'light chat canvas has its own neutral surface');
   assert.match(owner,/\.lourex-ai-message\.user\{align-self:flex-end!important;max-width:min\(82%,420px\)!important[\s\S]*background:var\(--lx-chat-accent\)!important;color:#fff!important/,'user bubble is the primary accent and LTR sender-side aligned');
-  assert.match(owner,/\[dir='rtl'\] \.lourex-ai-message\.user\{align-self:flex-start!important;border-radius:18px 18px 5px 18px!important/,'RTL uses flex-start so the sender remains physically right');
+  assert.match(owner,/\[dir='rtl'\] \.lourex-ai-messages\{direction:ltr!important/,'RTL thread layout uses LTR flex geometry so sender stays physically right');
+  assert.match(owner,/\[dir='rtl'\] \.lourex-ai-message\{direction:rtl!important;text-align:start!important/,'RTL message text direction is restored inside the physical thread layout');
   assert.match(owner,/\.lourex-ai-plus-menu:is\(\[data-view='root'\],\[data-view='tools'\]\)/,'the compact root and nested + menus share final visual ownership');
   assert.match(owner,/\.lourex-ai-context-line\{display:none!important/,'mobile context copy collapses instead of consuming a full extra row');
 });
