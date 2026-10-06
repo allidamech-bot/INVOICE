@@ -31,8 +31,8 @@ async function installVoiceStub(context){
 async function createQaWorkspace(page,label){
   await page.goto(PROD,{waitUntil:'networkidle',timeout:90000});
   const stamp=Date.now()+Math.floor(Math.random()*10000);
-  const email=\`lourex.mobile.\${label}.\${stamp}@example.com\`;
-  const password=\`MobileQa!\${stamp}Aa\`;
+  const email=`lourex.mobile.${label}.${stamp}@example.com`;
+  const password=`MobileQa!${stamp}Aa`;
   const pin='2468';
 
   await page.locator('#account-tab-create').click();
@@ -43,7 +43,7 @@ async function createQaWorkspace(page,label){
   await page.locator('.ta-auth-primary').click();
 
   await page.locator('.ta-setup-card').waitFor({state:'visible',timeout:90000});
-  await page.getByLabel('Company Name English').fill(\`LOUREX Mobile QA \${label}\`);
+  await page.getByLabel('Company Name English').fill(`LOUREX Mobile QA ${label}`);
   await page.getByLabel('Create PIN · 4–12 digits').fill(pin);
   await page.getByLabel('Confirm PIN').fill(pin);
   await page.locator('.ta-pin-recovery-setup input[type="checkbox"]').check();
@@ -115,8 +115,8 @@ async function createQuotation(page){
       await iphone.locator('#ta-mobile-more .ta-sheet-close').click();
       await iphone.locator('#ta-mobile-more').waitFor({state:'detached'}).catch(()=>iphone.locator('#ta-mobile-more').waitFor({state:'hidden'}));
       const state=await shellUnlocked(iphone);
-      assert.equal(state.backdropVisible,false,\`More close \${i+1} left backdrop visible\`);
-      assert.notEqual(state.bodyOverflow,'hidden',\`More close \${i+1} left body locked\`);
+      assert.equal(state.backdropVisible,false,`More close ${i+1} left backdrop visible`);
+      assert.notEqual(state.bodyOverflow,'hidden',`More close ${i+1} left body locked`);
     }
     for(let i=0;i<3;i++){
       await iphone.locator('.ta-mobile-create').click();
@@ -124,8 +124,8 @@ async function createQuotation(page){
       await iphone.keyboard.press('Escape');
       await iphone.locator('.global-search-panel').waitFor({state:'hidden'});
       const state=await shellUnlocked(iphone);
-      assert.equal(state.backdropVisible,false,\`Create close \${i+1} left backdrop visible\`);
-      assert.notEqual(state.bodyOverflow,'hidden',\`Create close \${i+1} left body locked\`);
+      assert.equal(state.backdropVisible,false,`Create close ${i+1} left backdrop visible`);
+      assert.notEqual(state.bodyOverflow,'hidden',`Create close ${i+1} left body locked`);
     }
     await iphone.locator('.ta-mobile-create').click();await iphone.locator('.global-search-panel').waitFor({state:'visible'});await iphone.keyboard.press('Escape');
     await more.click();await iphone.locator('#ta-mobile-more').waitFor({state:'visible'});await iphone.locator('#ta-mobile-more .ta-sheet-close').click();
@@ -141,10 +141,10 @@ async function createQuotation(page){
     for(let i=1;i<=3;i++){
       await mic.click();
       await iphone.waitForFunction(n=>window.__LOUREX_QA_SPEECH_INSTANCES__?.length>=n,i);
-      await iphone.evaluate(({index,text})=>window.__LOUREX_QA_SPEECH_INSTANCES__[index].__result(text),{index:i-1,text:\`voice session \${i}\`});
+      await iphone.evaluate(({index,text})=>window.__LOUREX_QA_SPEECH_INSTANCES__[index].__result(text),{index:i-1,text:`voice session ${i}`});
       await iphone.waitForTimeout(80);
       const value=await input.inputValue();
-      assert.ok(value.includes(\`voice session \${i}\`),\`voice result \${i} did not reach composer\`);
+      assert.ok(value.includes(`voice session ${i}`),`voice result ${i} did not reach composer`);
       await mic.click();
       await iphone.evaluate(index=>window.__LOUREX_QA_SPEECH_INSTANCES__[index].__end(),i-1);
       await iphone.waitForTimeout(120);
@@ -181,9 +181,9 @@ async function createQuotation(page){
     await iphone.setViewportSize({width:390,height:500});await iphone.waitForTimeout(250);
     const dock=iphone.locator('.mobile-editor-actionbar');await dock.waitFor({state:'visible'});
     const box=await dock.boundingBox();assert.ok(box,'mobile action bar has no geometry');
-    assert.ok(box.y>=0&&box.y+box.height<=501,\`mobile action bar escaped reduced visible viewport: \${JSON.stringify(box)}\`);
+    assert.ok(box.y>=0&&box.y+box.height<=501,`mobile action bar escaped reduced visible viewport: ${JSON.stringify(box)}`);
     const overflow=await iphone.evaluate(()=>({w:innerWidth,sw:document.documentElement.scrollWidth}));
-    assert.ok(overflow.sw<=overflow.w+1,\`horizontal overflow \${overflow.sw} > \${overflow.w}\`);
+    assert.ok(overflow.sw<=overflow.w+1,`horizontal overflow ${overflow.sw} > ${overflow.w}`);
     await iphone.setViewportSize({width:390,height:844});
     return {dock:box,overflow};
   });
@@ -195,8 +195,8 @@ async function createQuotation(page){
     const row=iphone.locator('.ta-doc-row').first();await row.waitFor({state:'visible',timeout:30000});
     const box=await row.boundingBox();assert.ok(box,'document row geometry missing');
     const state=await iphone.evaluate(()=>({height:innerHeight,width:innerWidth,scrollWidth:document.documentElement.scrollWidth}));
-    assert.ok(box.y<650,\`first document row starts too low on phone: y=\${box.y}\`);
-    assert.ok(box.y<state.height,\`first document row is below fold: y=\${box.y}, h=\${state.height}\`);
+    assert.ok(box.y<650,`first document row starts too low on phone: y=${box.y}`);
+    assert.ok(box.y<state.height,`first document row is below fold: y=${box.y}, h=${state.height}`);
     assert.ok(state.scrollWidth<=state.width+1,'Documents page has horizontal overflow');
     return {row:box,viewport:state};
   });
@@ -209,7 +209,7 @@ async function createQuotation(page){
     const inspect=async(label)=>{
       await iphone.waitForTimeout(100);
       const v=await iphone.evaluate(()=>({dir:document.documentElement.dir,lang:document.documentElement.lang,width:innerWidth,scrollWidth:document.documentElement.scrollWidth}));
-      assert.equal(v.dir,'rtl',\`\${label} lost RTL\`);assert.ok(v.scrollWidth<=v.width+1,\`\${label} clips horizontally \${v.scrollWidth}>\${v.width}\`);return v;
+      assert.equal(v.dir,'rtl',`${label} lost RTL`);assert.ok(v.scrollWidth<=v.width+1,`${label} clips horizontally ${v.scrollWidth}>${v.width}`);return v;
     };
     const surfaces={};
     await iphone.locator('.ta-mobile-nav').getByRole('button',{name:'الرئيسية'}).click();surfaces.home=await inspect('Dashboard');
