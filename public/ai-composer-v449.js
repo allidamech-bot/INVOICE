@@ -103,7 +103,7 @@
     composerStatus(panel,state,messageKey,hideAfter);
     // Safari may deliver a final result before releasing its native microphone.
     // Keep ownership until onend; starting a second instance sooner can fail.
-    const current=instance;recognitionStopTimer=window.setTimeout(()=>{if(recognition!==current)return;try{current.abort?.();}catch{}finishRecognition(current,panel,state,messageKey,hideAfter);},1200);
+    const current=recognition;if(!(recognition===current&&current===instance))return;recognitionStopTimer=window.setTimeout(()=>{if(recognition!==instance)return;try{instance.abort?.();}catch{}finishRecognition(instance,panel,state,messageKey,hideAfter);},1200);
     try{if(abort)instance.abort();else instance.stop();}catch{try{instance.abort?.();}catch{}}
   }
   function voiceTranscript(event){const finalParts=[];const interimParts=[];for(const result of Array.from(event?.results||[])){const value=String(result?.[0]?.transcript||'').replace(/\s+/g,' ').trim();if(!value)continue;(result?.isFinal?finalParts:interimParts).push(value);}return[...finalParts,...interimParts].join(' ').replace(/\s+/g,' ').trim();}
