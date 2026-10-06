@@ -36,6 +36,7 @@ on:
       - 'tests/visual/v542-pagination-parity.html'
       - 'tests/visual/v542-pagination-parity.js'
       - 'tests/visual/run-v542-pagination-parity.cjs'
+      - 'tests/visual/run-production-mobile-pdf-canary-v576.cjs'
       - '.github/workflows/document-design-final-deep.yml'
   workflow_dispatch:
 
@@ -91,10 +92,14 @@ jobs:
           if [ "$ready" -ne 1 ]; then cat /tmp/lourex-document-design-final.log; exit 1; fi
           node tests/visual/run-document-design-final-deep.cjs
           node tests/visual/run-v542-pagination-parity.cjs
+      - name: Production iPhone PDF canary
+        run: node tests/visual/run-production-mobile-pdf-canary-v576.cjs
       - name: Upload final document design evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: lourex-document-design-final-deep
-          path: visual-qa-output/document-design-final-deep
+          path: |
+            visual-qa-output/document-design-final-deep
+            visual-qa-output/production-mobile-pdf-v576
           if-no-files-found: error
