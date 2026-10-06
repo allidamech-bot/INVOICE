@@ -29,7 +29,7 @@ test('remediation Batch 3 preserves conversation capabilities while flattening c
 
 test('remediation Batch 3 owns one thread scroll region and safe-area composer',()=>{
   assert.match(owner,/grid-template-rows:auto auto minmax\(0,1fr\) auto/);
-  assert.match(owner,/\.lourex-ai-messages\{min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important/);
+  assert.match(owner,/\.lourex-ai-messages\{direction:ltr!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important/);
   assert.match(owner,/padding:8px 10px max\(9px,env\(safe-area-inset-bottom,0px\)\)/);
   assert.match(owner,/@media\(max-width:720px\)[\s\S]*height:100dvh!important/);
   assert.match(owner,/\.lourex-ai-message\.assistant\{align-self:stretch!important;max-width:none!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important/);
