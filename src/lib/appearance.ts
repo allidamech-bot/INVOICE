@@ -40,6 +40,8 @@ const TEMPLATE_LIGHT_SURFACES: Record<TemplateId,string> = {
   executive:'#f5f7f8', minimal:'#ffffff', trade:'#f2f6f7', signature:'#f8f3e8', obsidian:'#f1f2f2', cobalt:'#f1f6fa', editorial:'#ffffff', split:'#eef2f2', prism:'#f3f8f7', slate:'#f1f3f4', horizon:'#f4f8f9', mono:'#f4f4f4', aurora:'#eef5f3', ledger:'#e9eef0', noir:'#f5f2eb', midnight:'#edf2f3', blackivory:'#f5efe3', carbon:'#eceeef'
 };
 const DARK_BODY_TEMPLATES=new Set<TemplateId>(['obsidian']);
+const AUTO_LIGHT_TEXT='#101010';
+const AUTO_DARK_TEXT='#ffffff';
 const LATIN_FONTS: Record<Exclude<LatinFontId,'auto'>,string> = {inter:'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif','source-sans':'"Source Sans 3", "Segoe UI", Arial, sans-serif',montserrat:'Montserrat, Arial, sans-serif',playfair:'"Playfair Display", Georgia, serif'};
 const ARABIC_FONTS: Record<Exclude<ArabicFontId,'auto'>,string> = {cairo:'Cairo, Tahoma, Arial, sans-serif',tajawal:'Tajawal, Tahoma, Arial, sans-serif','noto-kufi':'"Noto Kufi Arabic", Tahoma, Arial, sans-serif','noto-naskh':'"Noto Naskh Arabic", Tahoma, Arial, serif'};
 const AUTO_LATIN_BY_TEMPLATE: Record<TemplateId,Exclude<LatinFontId,'auto'>> = {executive:'inter',minimal:'source-sans',trade:'source-sans',signature:'playfair',obsidian:'montserrat',cobalt:'montserrat',editorial:'playfair',split:'inter',prism:'montserrat',slate:'source-sans',horizon:'playfair',mono:'source-sans',aurora:'montserrat',ledger:'source-sans',noir:'montserrat',midnight:'montserrat',blackivory:'playfair',carbon:'montserrat'};
@@ -106,10 +108,11 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
 
   const defaultPrimary=darkBody?'#f5f1e9':'#17212b';
   const defaultSecondary=darkBody?'#aeb5ba':'#4d5b68';
-  const primary=custom?safeTextColor(appearance?.primaryTextColor,bodyContrastSurfaces,defaultPrimary):defaultPrimary;
-  const secondary=custom?safeTextColor(appearance?.secondaryTextColor,bodyContrastSurfaces,defaultSecondary):defaultSecondary;
+  const autoText=darkBody?AUTO_DARK_TEXT:AUTO_LIGHT_TEXT;
+  const primary=custom?safeTextColor(appearance?.primaryTextColor,bodyContrastSurfaces,defaultPrimary):autoText;
+  const secondary=custom?safeTextColor(appearance?.secondaryTextColor,bodyContrastSurfaces,defaultSecondary):autoText;
   const autoHeading=safeTextColor(accent,bodyContrastSurfaces,primary);
-  const heading=custom?safeTextColor(appearance?.headingTextColor,bodyContrastSurfaces,autoHeading):autoHeading;
+  const heading=custom?safeTextColor(appearance?.headingTextColor,bodyContrastSurfaces,autoHeading):autoText;
   const legacyScale=appearance?.textScale??'normal';
 
   // Renderer variables predate role-based sizing and use historical numeric bases

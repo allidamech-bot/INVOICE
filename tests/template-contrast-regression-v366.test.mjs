@@ -20,7 +20,7 @@ test('v366 targets current commercial terms markup in Custom color mode',async()
   assert.match(css,/\.invoice-page\.palette-custom \.terms-block \.term-row>span\{color:var\(--lrx-primary/);
 });
 
-test('Auto keeps authored template palettes and models the later Obsidian dark-body override',async()=>{
+test('Auto keeps authored template structure but normalizes body foreground to black or white',async()=>{
   const [appearance,css,premium,v330]=await Promise.all([read('src/lib/appearance.ts'),read('src/styles/template-surface-contrast-v366.css'),read('src/styles/document-premium-redesign-v141.css'),read('src/styles/v330-critical-documents-closeout.css')]);
   assert.match(appearance,/TEMPLATE_PAPERS/);
   assert.match(appearance,/obsidian:'#15191c'/);
@@ -31,8 +31,9 @@ test('Auto keeps authored template palettes and models the later Obsidian dark-b
   assert.match(appearance,/carbon:'#fafafa'/);
   assert.match(premium,/\.template-obsidian\{--paper:#fff/);
   assert.match(v330,/\.template-obsidian \{ --paper:#15191c;--ink:#f5f1e9;--muted:#aeb5ba;--rule:#343a3f;--soft:#20262a; \}/);
-  assert.match(css,/Auto means matched to the selected template/);
-  assert.doesNotMatch(css,/\.invoice-page\.palette-auto\s/);
+  assert.match(css,/Auto foreground is intentionally binary and surface-aware/);
+  assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)/);
+  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian/);
 });
 
 test('Custom light-body roles preserve dark modules and do not leak page ink into Obsidian cards',async()=>{

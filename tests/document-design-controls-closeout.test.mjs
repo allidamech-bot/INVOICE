@@ -33,7 +33,7 @@ test('section 06 keeps the complete design workflow in its existing location',as
   assert.match(design,/Refresh Company Details/);
 });
 
-test('custom palette exposes precise bounded roles while Auto stays template-owned',async()=>{
+test('custom palette exposes precise bounded roles while Auto uses binary surface contrast',async()=>{
   const controls=await read('src/components/DocumentDesignControls.tsx');
   assert.match(controls,/value="auto"/);
   assert.match(controls,/value="custom"/);
@@ -41,7 +41,7 @@ test('custom palette exposes precise bounded roles while Auto stays template-own
   assert.match(controls,/Section Heading Color/);
   assert.match(controls,/Primary Text \/ Values/);
   assert.match(controls,/Secondary Text \/ Labels/);
-  assert.match(controls,/Template palette/);
+  assert.match(controls,/Automatic contrast/);
   assert.match(controls,/Readability guard is always on/);
   assert.match(controls,/does not recolor dark mastheads or totals text/);
 });
@@ -99,13 +99,15 @@ test('converted dark identities remain light commercial paper while Obsidian fol
   for(const [templateId,paper] of Object.entries(lightPapers)){
     const tokens=resolvedAppearanceTokens({...base,templateId,paletteMode:'auto'});
     assert.equal(tokens.page,paper,`${templateId} effective paper`);
-    assert.equal(tokens.primary,'#17212b',`${templateId} body copy must remain dark`);
-    assert.equal(tokens.secondary,'#4d5b68',`${templateId} labels must remain readable`);
+    assert.equal(tokens.primary,'#101010',`${templateId} body copy must be black in Auto`);
+    assert.equal(tokens.secondary,'#101010',`${templateId} labels must be black in Auto`);
+    assert.equal(tokens.heading,'#101010',`${templateId} headings must be black in Auto`);
   }
   const obsidian=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'auto'});
   assert.equal(obsidian.page,'#15191c');
-  assert.equal(obsidian.primary,'#f5f1e9');
-  assert.equal(obsidian.secondary,'#aeb5ba');
+  assert.equal(obsidian.primary,'#ffffff');
+  assert.equal(obsidian.secondary,'#ffffff');
+  assert.equal(obsidian.heading,'#ffffff');
   assert.equal(obsidian.surface,'#f1f2f2');
   assert.equal(obsidian.surfaceInk,'#17212b');
 });
@@ -115,8 +117,9 @@ test('Auto token colors match the authored premium template accents',async()=>{
   const expected={executive:'#bd9659',minimal:'#242b30',trade:'#ad8747',signature:'#aa8143',obsidian:'#b68d4e',cobalt:'#246ea8',editorial:'#1e2529',split:'#527382',prism:'#4f7d78',slate:'#566874',horizon:'#235269',mono:'#111111',aurora:'#477b74',ledger:'#314e5d',noir:'#b58a46',midnight:'#c19b59',blackivory:'#26231f',carbon:'#a98148'};
   for(const [templateId,accent] of Object.entries(expected))assert.equal(resolvedAppearanceTokens({...base,templateId,paletteMode:'auto'}).accent,accent,templateId);
   const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.doesNotMatch(css,/\.invoice-page\.palette-auto\s+:/,'Auto must not be globally recolored by the custom semantic layer');
-  assert.match(css,/Auto means matched to the selected template/);
+  assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)/,'Auto must explicitly protect light document surfaces');
+  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian/,'Auto must explicitly protect the dark Obsidian body');
+  assert.match(css,/Auto foreground is intentionally binary and surface-aware/);
 });
 
 test('custom text colors are contrast guarded while safe choices remain user controlled',()=>{
