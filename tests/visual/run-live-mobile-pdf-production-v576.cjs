@@ -36,7 +36,7 @@ async function pdfArtifact(page){
 async function fillItem(card,description,quantity,price){
   await card.locator('textarea').first().fill(description);
   await card.getByLabel('Quantity').fill(String(quantity));
-  await card.getByLabel('Unit').fill('PCS');
+  await card.getByLabel('Unit',{exact:true}).selectOption('PCS');
   await card.getByLabel(/Unit Price \(/).fill(String(price));
 }
 
