@@ -10,8 +10,16 @@ const rateBuckets=new Map();
 const RESPONSE_CONTRACT={sections:['Summary','KPI','Table','Risk','Missing','Recommendation','Evidence','Actions'],currencyPolicy:'keep-currencies-separate-unless-a-deterministic-fx-result-is-provided',arithmeticPolicy:'use-provided-deterministic-values-do-not-recalculate-accounting',missingDataPolicy:'state-missing-data-never-invent',actionPolicy:'preview-only-user-approval-required'};
 
 function sendJson(response,status,payload){response.statusCode=status;response.setHeader('Content-Type','application/json; charset=utf-8');response.setHeader('Cache-Control','no-store');response.setHeader('X-Content-Type-Options','nosniff');response.setHeader('Referrer-Policy','no-referrer');response.end(JSON.stringify(payload));}
-function requestHosts(request){return [request.headers.host,request.headers['x-forwarded-host'],request.headers['x-original-host']].flatMap(value=>String(value||'').split(',')).map(value=>value.trim().toLowerCase()).filter(Boolean);}
-function sameOriginRequest(request){const origin=String(request.headers.origin||'').trim();const requestedWith=String(request.headers['x-requested-with']||'').trim();if(!origin||requestedWith!=='LOUREX-Invoice')return false;try{const parsed=new URL(origin);if(parsed.protocol!=='https:')return false;const fetchSite=String(request.headers['sec-fetch-site']||'').trim().toLowerCase();if(fetchSite==='same-origin')return true;if(fetchSite&&fetchSite!=='same-origin')return false;return requestHosts(request).includes(parsed.host.toLowerCase());}catch{return false;}}
+function normalizedHost(value){return String(value||'').split(',')[0]?.trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'')||'';}
+function trustedRequestHosts(request){return new Set([
+  normalizedHost(request.headers.host),
+  normalizedHost(request.headers['x-forwarded-host']),
+  normalizedHost(request.headers['x-original-host']),
+  normalizedHost(process.env.VERCEL_PROJECT_PRODUCTION_URL),
+  normalizedHost(process.env.VERCEL_URL),
+  normalizedHost(process.env.VERCEL_BRANCH_URL)
+].filter(Boolean));}
+function sameOriginRequest(request){const origin=String(request.headers.origin||'').trim();const requestedWith=String(request.headers['x-requested-with']||'').trim();if(!origin||requestedWith!=='LOUREX-Invoice')return false;try{const parsed=new URL(origin);if(parsed.protocol!=='https:')return false;const fetchSite=String(request.headers['sec-fetch-site']||'').trim().toLowerCase();if(fetchSite&&fetchSite!=='same-origin')return false;if(fetchSite==='same-origin')return true;return trustedRequestHosts(request).has(parsed.host.toLowerCase());}catch{return false;}}
 function requestIp(request){return String(request.headers['x-forwarded-for']||'').split(',')[0]?.trim()||String(request.socket?.remoteAddress||'unknown');}
 function rateAllowed(request){const now=Date.now(),key=requestIp(request),existing=rateBuckets.get(key);const bucket=!existing||now-existing.startedAt>=RATE_WINDOW_MS?{startedAt:now,count:0}:existing;bucket.count+=1;rateBuckets.set(key,bucket);if(rateBuckets.size>500){for(const [entryKey,value]of rateBuckets){if(now-value.startedAt>=RATE_WINDOW_MS)rateBuckets.delete(entryKey);}}return bucket.count<=RATE_MAX;}
 async function readJson(request){const declared=Number(request.headers['content-length']||0);if(Number.isFinite(declared)&&declared>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');let text='';for await(const chunk of request){text+=chunk.toString();if(Buffer.byteLength(text,'utf8')>MAX_BODY_BYTES)throw new Error('BODY_TOO_LARGE');}return JSON.parse(text||'{}');}
