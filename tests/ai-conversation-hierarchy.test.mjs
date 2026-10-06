@@ -35,6 +35,8 @@ test('React owns the visible plus while v449 owns its menu and voice controls',(
 test('final conversation palette keeps accessible contrast and local chrome ownership',()=>{
   assert.match(presentation,/--lx-chat-accent:#356edb/,'dark accent is dark enough for white message text');
   assert.match(presentation,/--lx-chat-muted:#686d75/,'light muted copy remains readable on neutral surfaces');
+  assert.match(presentation,/--lx-chat-accent-text:#82a9ec/,'dark accent text is separated from filled accent surfaces');
+  assert.match(presentation,/--lx-chat-accent-text:#315da8/,'light accent text is separated from filled accent surfaces');
   const css=presentation.slice(presentation.indexOf('LOUREX Remediation Batch 3 — Modern Conversation UX'));
   for(const token of [
     'var(--lx485-muted,var(--ft-muted))',
