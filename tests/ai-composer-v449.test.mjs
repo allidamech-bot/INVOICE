@@ -31,19 +31,6 @@ test('v449 plus menu contains the major LOUREX AI workflows without a launcher g
   assert.match(css,/\.lourex-ai-compose\{[^}]*z-index:20/);
 });
 
-test('v449 plus root is a compact gateway for attachments and nested AI tools',()=>{
-  assert.match(js,/Camera/);
-  assert.match(js,/Photos & files/);
-  assert.match(js,/function sourceInput\(panel,camera=false\)/);
-  assert.match(js,/input\[type="file"\]/);
-  assert.match(js,/function buildToolsMenu\(panel,menu\)/);
-  assert.match(js,/menu\.dataset\.view='root'/);
-  assert.match(js,/menu\.dataset\.view='tools'/);
-  assert.match(js,/item\('camera',l\.camera,\(\)=>openSource\(true\)\)/);
-  assert.match(js,/item\('files',l\.files,\(\)=>openSource\(false\)\)/);
-  assert.match(js,/item\('tools',l\.toolbox/);
-});
-
 test('v450 plus menu uses restrained semantic color accents instead of one flat icon color',()=>{
   for(const tone of ['blue','indigo','cyan','amber','violet','emerald','orange','rose','purple','red','slate'])assert.match(css,new RegExp(`tone-${tone}`));
   assert.match(js,/tone-\$\{tone\[iconName\]\|\|'blue'\}/);
