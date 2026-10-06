@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const pkg=JSON.parse(read('package.json'));
 const stage=read('scripts/ai-conversation-owner-stage3.mjs');
+const premium=read('scripts/ai-batch3-premium-conversation.mjs');
 const closeout=read('scripts/ai-conversation-owner-stage3-closeout.mjs');
 const tailadmin=read('tests/visual/run-tailadmin-v320.cjs');
 
@@ -30,8 +31,8 @@ test('Batch 3 keeps the unified plus in the React tree and preserves the v449 vo
 
 test('Batch 3 keeps attachment inputs as hidden bridges behind the unified plus menu',()=>{
   assert.match(stage,/function __lourexAttachmentMenu\(instance\)\{return null;\}/,'duplicate React attachment menu is retired');
-  assert.match(stage,/__lourexFileInput/);
-  assert.match(stage,/__lourexCameraInput/);
+  assert.match(premium,/__lourexFileInput/,'premium conversation owner keeps the multi-file input bridge');
+  assert.match(premium,/__lourexCameraInput/,'premium conversation owner keeps the camera input bridge');
   assert.match(stage,/className:'lourex-ai-composer-plus'/);
   assert.match(stage,/lourex-ai-plus-menu/);
   assert.match(stage,/__lourexConversationComposerBatch3/);
