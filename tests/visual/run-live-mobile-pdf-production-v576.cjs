@@ -139,10 +139,22 @@ async function fillItem(card,description,quantity,price){
       await page.waitForTimeout(400);
     }
 
-    for(let index=4;index<=11;index++){
+    await page.locator('.ta-mobile-create').click();
+    await page.locator('.global-search-panel').waitFor({state:'visible'});
+    await page.getByRole('button',{name:/New quotation/}).click();
+    await page.locator('.editor-screen').waitFor({state:'visible',timeout:30000});
+
+    const multiCustomerSearch=page.getByPlaceholder('Search customer');
+    await multiCustomerSearch.fill('Mobile PDF Test Buyer');
+    await page.locator('.customer-dropdown button').first().click();
+    await page.locator('.selected-customer').waitFor({state:'visible',timeout:30000});
+
+    cards=page.locator('.item-card');
+    await fillItem(cards.nth(0),'Mobile multipage item 1',1,'11');
+    for(let index=2;index<=11;index++){
       await page.getByRole('button',{name:'Add Item'}).click();
       cards=page.locator('.item-card');
-      await fillItem(cards.nth(index-1),`Mobile PDF item ${index}`,index,String(10+index));
+      await fillItem(cards.nth(index-1),`Mobile multipage item ${index}`,index,String(10+index));
     }
 
     await page.getByRole('button',{name:'Preview'}).last().click();
