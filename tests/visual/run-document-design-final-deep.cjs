@@ -13,7 +13,8 @@ const cases=[
   {name:'obsidian-custom-unsafe-ar',template:'obsidian',language:'ar',items:'10',mode:'desktop',palette:'custom',textScale:'large',fonts:'custom',unsafeColors:'true',expectTemplate:'obsidian',expectTone:'dark',expectPrimary:'#f5f1e9',expectSecondary:'#aeb5ba'},
   {name:'carbon-custom-bilingual',template:'carbon',language:'bilingual',items:'10',mode:'desktop',palette:'custom',textScale:'small',fonts:'custom',expectTemplate:'carbon',expectTone:'light',expectPrimary:'#17212b'},
   {name:'midnight-custom-unsafe',template:'midnight',language:'en',items:'10',mode:'desktop',palette:'custom',textScale:'normal',unsafeColors:'true',expectTemplate:'midnight',expectTone:'light',expectPrimary:'#17212b',expectSecondary:'#4d5b68'},
-  {name:'legacy-template-fallback',legacyTemplate:'removed-template',language:'en',items:'4',mode:'desktop',palette:'auto',textScale:'normal',expectTemplate:'executive',expectTone:'light',expectPrimary:'#17212b'}
+  {name:'legacy-template-fallback',legacyTemplate:'removed-template',language:'en',items:'4',mode:'desktop',palette:'auto',textScale:'normal',expectTemplate:'executive',expectTone:'light',expectPrimary:'#101010',expectSecondary:'#101010'},
+  {name:'obsidian-auto-binary',template:'obsidian',language:'en',items:'6',mode:'desktop',palette:'auto',textScale:'normal',expectTemplate:'obsidian',expectTone:'dark',expectPrimary:'#ffffff',expectSecondary:'#ffffff'}
 ];
 
 const hex=value=>String(value||'').trim().toLowerCase();
@@ -90,6 +91,16 @@ async function inspect(page,testCase){
           assert.ok(!/invert\(/i.test(metrics.stampFilter),`${label}: stamp must preserve source color`);
         }
         if(testCase.name==='legacy-template-fallback')assert.equal(metrics.headerExecutive,true,`${label}: Executive fallback header missing`);
+        if(testCase.name==='obsidian-auto-binary'){
+          assert.equal(metrics.termLabelColor,'rgb(255, 255, 255)',`${label}: dark body label must be white in Auto`);
+          assert.equal(metrics.termValueColor,'rgb(255, 255, 255)',`${label}: dark body value must be white in Auto`);
+          assert.equal(metrics.partyNameColor,'rgb(16, 16, 16)',`${label}: light party card text must be black in Auto`);
+        }
+        if(testCase.name==='legacy-template-fallback'){
+          assert.equal(metrics.termLabelColor,'rgb(16, 16, 16)',`${label}: light body label must be black in Auto`);
+          assert.equal(metrics.termValueColor,'rgb(16, 16, 16)',`${label}: light body value must be black in Auto`);
+          assert.equal(metrics.partyNameColor,'rgb(16, 16, 16)',`${label}: light party card text must be black in Auto`);
+        }
         results.push({engine,...testCase,...metrics});
       }
     }finally{await browser.close();}
