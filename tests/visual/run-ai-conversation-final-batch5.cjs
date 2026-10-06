@@ -104,6 +104,7 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         await plus.click();
         const menu=panel.locator('.lourex-ai-plus-menu');
         await menu.waitFor({state:'visible'});
+        await menu.evaluate(async node=>{await Promise.all(node.getAnimations().map(animation=>animation.finished.catch(()=>undefined)));});
         assert.equal(await menu.getAttribute('data-view'),'root','plus opens the compact root gateway first');
         const rootCopy=await menu.innerText();
         assert.match(rootCopy,lang==='ar'?/الكاميرا[\s\S]*الصور والملفات[\s\S]*أدوات AI/:/Camera[\s\S]*Photos & files[\s\S]*AI Tools/,'root gateway exposes sources and AI Tools');
