@@ -2,6 +2,11 @@ const {chromium,webkit}=require('playwright');
 const assert=require('node:assert/strict');
 const {mkdirSync,writeFileSync}=require('node:fs');
 
+const rgb=value=>{const parts=String(value||'').match(/[\d.]+/g)||[];return parts.slice(0,3).map(Number);};
+const channel=value=>{const n=value/255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;};
+const luminance=value=>{const [r=0,g=0,b=0]=rgb(value);return .2126*channel(r)+.7152*channel(g)+.0722*channel(b);};
+const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(luminance(a),luminance(b));return(hi+.05)/(lo+.05);};
+
 (async()=>{
   const output='visual-qa-output/ai-conversation-final-batch5';
   mkdirSync(output,{recursive:true});
@@ -26,18 +31,20 @@ const {mkdirSync,writeFileSync}=require('node:fs');
         });
         await page.goto(`http://127.0.0.1:4173/tests/visual/contextual-ai-batch4.html?lang=${lang}&theme=${theme}`,{waitUntil:'networkidle'});
         await page.locator('[data-lourex-proactive-assistant-mount]').waitFor({state:'attached'});
-        await page.evaluate(async()=>{
-          const [{setupVault},{emptyVault},{establishSession}]=await Promise.all([
+        await page.evaluate(async selectedTheme=>{
+          const [{setupVault},{emptyVault},{establishSession},{setUiThemePreference}]=await Promise.all([
             import('/dist/src/storage/vault.js'),
             import('/dist/src/lib/defaults.js'),
-            import('/dist/src/storage/session.js')
+            import('/dist/src/storage/session.js'),
+            import('/dist/src/lib/ui-theme.js')
           ]);
           const initial=emptyVault();
           initial.company.nameEn='LOUREX Final QA';
           const {key}=await setupVault('2468',initial);
           if(!await establishSession(key))throw new Error('Final AI QA could not establish encrypted session');
+          setUiThemePreference(selectedTheme);
           window.dispatchEvent(new CustomEvent('lourex-account-transition-complete',{detail:{uid:'qa-final'}}));
-        });
+        },theme);
 
         const launcher=page.locator('.lourex-ai-launcher');
         await launcher.click();
@@ -49,6 +56,11 @@ const {mkdirSync,writeFileSync}=require('node:fs');
         assert.ok(panelBox.x+panelBox.width<=width+1,'assistant panel must not overflow horizontally');
         assert.ok(panelBox.y+panelBox.height<=height+2,'assistant panel must not overflow vertically');
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'page must not gain horizontal overflow');
+        assert.equal(await panel.getAttribute('data-lourex-conversation-remediation'),'3','final conversation presentation owner must be mounted');
+        const panelVisual=await panel.evaluate(node=>{const style=getComputedStyle(node);return{theme:document.documentElement.dataset.uiTheme,bg:style.backgroundColor,text:style.color,chatBg:style.getPropertyValue('--lx-chat-bg').trim(),chatMuted:style.getPropertyValue('--lx-chat-muted').trim(),chatAccent:style.getPropertyValue('--lx-chat-accent').trim()};});
+        assert.equal(panelVisual.theme,theme,'fixture theme must reach the conversation');
+        assert.equal(panelVisual.bg,theme==='dark'?'rgb(11, 12, 14)':'rgb(255, 255, 255)','conversation canvas must visibly follow the selected theme');
+        assert.ok(contrast(panelVisual.text,panelVisual.bg)>=4.5,'conversation base text contrast must meet WCAG AA');
 
         const textarea=panel.locator('.lourex-ai-premium-textarea');
         const plus=panel.locator('.lourex-ai-composer-plus');
@@ -56,6 +68,10 @@ const {mkdirSync,writeFileSync}=require('node:fs');
         await textarea.waitFor({state:'visible'});
         const plusBox=await plus.boundingBox();
         assert.ok(plusBox&&plusBox.width>=43&&plusBox.height>=43,'unified plus target remains touch safe');
+        if(width<=720){
+          const scopeButtons=panel.locator('.lourex-ai-scope-button');
+          for(let i=0;i<await scopeButtons.count();i++){const box=await scopeButtons.nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'mobile scope target remains 44px touch safe');}
+        }
         assert.equal(await panel.locator('.lourex-ai-attach-button').isVisible(),false,'duplicate attachment control stays retired');
         await textarea.fill(lang==='ar'?'سطر أول':'First line');
         await textarea.press('Shift+Enter');
@@ -73,24 +89,48 @@ const {mkdirSync,writeFileSync}=require('node:fs');
         await textarea.fill('Cost is 10 and margin 20%');
         const beforeKeyboardAssistants=await panel.locator('.lourex-ai-message.assistant').count();
         await textarea.press('Enter');
-        await panel.locator('.lourex-ai-message.user').filter({hasText:'Cost is 10'}).last().waitFor({state:'visible'});
+        const userMessage=panel.locator('.lourex-ai-message.user').filter({hasText:'Cost is 10'}).last();
+        await userMessage.waitFor({state:'visible'});
         await page.waitForFunction(count=>document.querySelectorAll('#lourex-ai-panel .lourex-ai-message.assistant').length>count,beforeKeyboardAssistants);
+        const userVisual=await userMessage.evaluate(node=>{const style=getComputedStyle(node);return{bg:style.backgroundColor,text:style.color};});
+        assert.ok(contrast(userVisual.text,userVisual.bg)>=4.5,'user bubble must meet WCAG AA text contrast');
+        const messagesBox=await panel.locator('.lourex-ai-messages').boundingBox();
+        const userBox=await userMessage.boundingBox();
+        assert.ok(messagesBox&&userBox,'sender geometry must be measurable');
+        const senderLeftGap=userBox.x-messagesBox.x;
+        const senderRightGap=(messagesBox.x+messagesBox.width)-(userBox.x+userBox.width);
+        assert.ok(senderRightGap<=senderLeftGap,'user bubble must stay on the physical right in both LTR and RTL');
+        if(width<=720){
+          const messageActions=panel.locator('.lourex-ai-message-actions .lourex-ai-message-action');
+          for(let i=0;i<await messageActions.count();i++){const box=await messageActions.nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'mobile message action remains 44px touch safe');}
+        }
         assert.deepEqual(requests,[],'visible textarea Enter must keep deterministic margin calculation local');
 
         assert.equal(await panel.locator('.lourex-ai-hub-trigger').isVisible(),false,'persistent Tools hub is retired from conversation chrome');
         await plus.click();
         const menu=panel.locator('.lourex-ai-plus-menu');
         await menu.waitFor({state:'visible'});
+        await menu.evaluate(async node=>{await Promise.all(node.getAnimations().map(animation=>animation.finished.catch(()=>undefined)));});
         assert.equal(await menu.getAttribute('data-view'),'root','plus opens the compact root gateway first');
         const rootCopy=await menu.innerText();
         assert.match(rootCopy,lang==='ar'?/الكاميرا[\s\S]*الصور والملفات[\s\S]*أدوات AI/:/Camera[\s\S]*Photos & files[\s\S]*AI Tools/,'root gateway exposes sources and AI Tools');
         const rootBox=await menu.boundingBox();
         assert.ok(rootBox&&rootBox.x>=-1&&rootBox.x+rootBox.width<=width+1&&rootBox.y>=-1&&rootBox.y+rootBox.height<=height+1,'plus root menu stays inside viewport');
+        assert.ok(Math.abs(rootBox.x-plusBox.x)<=14,'plus menu remains physically anchored to the visible + control in LTR and RTL');
+        const menuVisual=await menu.evaluate(node=>{const style=getComputedStyle(node);return{bg:style.backgroundColor,color:style.color};});
+        assert.ok(contrast(menuVisual.color,menuVisual.bg)>=4.5,'plus menu text contrast must meet WCAG AA');
+        if(width<=720){
+          const rootItems=menu.locator('.lourex-ai-plus-item');
+          for(let i=0;i<await rootItems.count();i++){const box=await rootItems.nth(i).boundingBox();assert.ok(box&&box.height>=44&&box.width>=44,'mobile root + item remains 44px touch safe');}
+        }
         const toolsEntry=menu.locator('.lourex-ai-plus-item').filter({hasText:lang==='ar'?'أدوات AI':'AI Tools'}).last();
         await toolsEntry.click();
         await page.waitForFunction(()=>document.querySelector('#lourex-ai-panel .lourex-ai-plus-menu')?.dataset?.view==='tools');
         const toolsCopy=await menu.innerText();
         assert.match(toolsCopy,lang==='ar'?/صندوق AI[\s\S]*الموجز الصباحي[\s\S]*الذاكرة والمهام/:/AI Inbox[\s\S]*Morning Brief[\s\S]*Memory & Tasks/,'nested AI Tools exposes canonical destinations');
+        const toolsBox=await menu.boundingBox();
+        assert.ok(toolsBox&&toolsBox.x>=-1&&toolsBox.x+toolsBox.width<=width+1&&toolsBox.y>=-1&&toolsBox.y+toolsBox.height<=height+1,'nested AI Tools stays inside viewport');
+        assert.ok(Math.abs(toolsBox.x-plusBox.x)<=14,'nested AI Tools remains physically anchored to the visible + control');
         const actions=menu.locator('.lourex-ai-plus-item');
         assert.ok((await actions.count())>=10,'AI Tools menu exposes the full LOUREX tool set');
         await page.waitForFunction(()=>document.activeElement?.classList?.contains('lourex-ai-plus-item'));
@@ -152,7 +192,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
         assert.deepEqual(errors,[],'final AI QA must have no page errors');
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'final AI state must remain overflow free');
         await page.screenshot({path:`${output}/${matrix.name}-${width}-${lang}-${theme}.png`,animations:'disabled'});
-        report.push({engine:matrix.name,width,height,lang,theme,panel:'PASS',composer:'PASS',keyboardSend:'PASS',attachments:'PASS',toolsKeyboard:'PASS',memoryTasks:'PASS',postToolsSend:'PASS',structuredAnswer:'PASS',localToolPlan:'PASS',morningBrief:'PASS',providerCalls:requests.length});
+        report.push({engine:matrix.name,width,height,lang,theme,panel:'PASS',composer:'PASS',keyboardSend:'PASS',attachments:'PASS',toolsKeyboard:'PASS',memoryTasks:'PASS',postToolsSend:'PASS',structuredAnswer:'PASS',localToolPlan:'PASS',morningBrief:'PASS',canvas:panelVisual.bg,userContrast:Number(contrast(userVisual.text,userVisual.bg).toFixed(2)),providerCalls:requests.length});
         await page.close();
       }
     }finally{

@@ -54,7 +54,7 @@ const attachStartIndex=ai.indexOf(attachStart);
 const fileInputToken=';const fileInput=React.createElement';
 const attachEndIndex=attachStartIndex<0?-1:ai.indexOf(fileInputToken,attachStartIndex);
 if(attachStartIndex<0||attachEndIndex<0)throw new Error('AI composer Batch 3 could not isolate the premium attachment button.');
-const attachReplacement=`const attachButton=React.createElement('button',{type:'button',className:'lourex-ai-composer-plus','aria-expanded':false,'aria-haspopup':'menu','aria-label':t('Add or use AI tools','إضافة أو استخدام أدوات AI'),disabled:Boolean(instance.state.busy||instance.state.attachmentBusy),onClick:()=>window.dispatchEvent(new Event('lourex-ai-toggle-plus'))},React.createElement('svg',{viewBox:'0 0 24 24','aria-hidden':'true'},React.createElement('path',{d:'M12 5v14M5 12h14'})))`;
+const attachReplacement=`const attachButton=React.createElement('button',{type:'button',className:'lourex-ai-composer-plus','aria-haspopup':'menu','aria-label':t('Add or use AI tools','إضافة أو استخدام أدوات AI'),disabled:Boolean(instance.state.busy||instance.state.attachmentBusy),onClick:()=>window.dispatchEvent(new Event('lourex-ai-toggle-plus'))},React.createElement('svg',{viewBox:'0 0 24 24','aria-hidden':'true'},React.createElement('path',{d:'M12 5v14M5 12h14'})))`;
 ai=ai.slice(0,attachStartIndex)+attachReplacement+ai.slice(attachEndIndex);
 ai+=`\nconst __lourexConversationComposerBatch3=true;\n`;
 await writeFile(aiTarget,ai);

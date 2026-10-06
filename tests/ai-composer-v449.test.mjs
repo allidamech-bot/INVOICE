@@ -60,6 +60,11 @@ test('v449 workflow launchers and modal actions are semantic, bilingual and non-
   assert.doesNotMatch(js,/const button=buttons\[0\]/);
 });
 
+test('v449 language refresh preserves an open nested AI Tools menu',()=>{
+  assert.match(js,/const currentView=menu\.dataset\.view==='tools'\?'tools':'root'/);
+  assert.match(js,/if\(currentView==='tools'\)buildToolsMenu\(panel,menu\);else buildMenu\(panel,menu\)/);
+});
+
 test('v449 async workflow retries are bounded and cancelled when the originating panel is gone',()=>{
   assert.match(js,/function withWorkflowReady\(callback,attempt=0,originPanel=null\)/);
   assert.match(js,/panel!==origin\|\|!origin\.isConnected/);
@@ -106,7 +111,8 @@ test('v450 Safari voice keeps interim speech and treats manual stop abort/no-spe
   assert.match(js,/result\?\.isFinal\?finalParts:interimParts/);
   assert.match(js,/applyVoiceTranscript\(panel,transcript\)/);
   assert.match(js,/voiceManualStop&&\(code==='aborted'\|\|code==='no-speech'\)/);
-  assert.match(js,/voiceHadResult\?'done':''/);
+  assert.match(js,/voiceCompletion\|\|\{state:voiceHadResult\?'done':voiceManualStop\?'':'error'/);
+  assert.match(js,/messageKey:voiceHadResult\?'voiceAdded':voiceManualStop\?'voiceStopped':'noSpeech'/);
   assert.doesNotMatch(js,/instance\.interimResults=false/);
 });
 
