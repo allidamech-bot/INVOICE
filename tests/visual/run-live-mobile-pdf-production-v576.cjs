@@ -139,6 +139,10 @@ async function fillItem(card,description,quantity,price){
       await page.waitForTimeout(400);
     }
 
+    await page.reload({waitUntil:'networkidle',timeout:90000});
+    await page.locator('.app-ui .ta-mobile-nav').waitFor({state:'visible',timeout:90000});
+    assert.equal(await page.evaluate(()=>innerWidth),390,'reloaded multi-page WebKit QA did not stay at iPhone width');
+
     await page.locator('.ta-mobile-create').click();
     await page.locator('.global-search-panel').waitFor({state:'visible'});
     await page.getByRole('button',{name:/New quotation/}).click();
