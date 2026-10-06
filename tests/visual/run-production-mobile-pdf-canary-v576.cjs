@@ -34,8 +34,8 @@ async function createWorkspace(page,name){
   const email=`mobile-pdf-v576-${name}-${stamp}@example.com`;
   const password='QA-Mobile-PDF-v576!'+stamp;
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByLabel('Confirm Password').fill(password);
+  await page.getByLabel('Password',{exact:true}).fill(password);
+  await page.getByLabel('Confirm Password',{exact:true}).fill(password);
   await page.getByRole('button',{name:'Create Account',exact:true}).last().click();
   await page.getByRole('heading',{name:/Set up your protected workspace/i}).waitFor({timeout:45000});
   await page.getByLabel('Company Name English').fill('LOUREX Mobile PDF QA');
