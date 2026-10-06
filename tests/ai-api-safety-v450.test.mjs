@@ -29,7 +29,7 @@ test('v450 document extraction APIs retain explicit untrusted-source boundaries'
 });
 
 
-test('live AI origin guard accepts browser same-origin metadata behind deployment proxies without dropping request-intent protection',async()=>{
+test('live AI origin guard trusts only verified LOUREX hosts while retaining request-intent protection',async()=>{
   const files=[
     'api/ai-core.js','api/ai-advisor-v2.js','api/ai-conversation-v3.js','api/ai-inbox.js',
     'api/customer-capture-ai.js','api/supplier-capture-ai.js','api/supplier-document-ai.js',
@@ -38,9 +38,11 @@ test('live AI origin guard accepts browser same-origin metadata behind deploymen
   for(const file of files){
     const source=await read(file);
     assert.match(source,/requestedWith!=='LOUREX-Invoice'/,`${file} must retain LOUREX request-intent header enforcement`);
-    assert.match(source,/sec-fetch-site/,`${file} must use browser same-origin metadata behind reverse proxies`);
-    assert.match(source,/fetchSite==='same-origin'/,`${file} must accept a browser-confirmed same-origin request`);
-    assert.match(source,/fetchSite&&fetchSite!=='same-origin'/,`${file} must reject explicit cross-site browser requests`);
-    assert.match(source,/requestHosts\(request\)/,`${file} must retain host matching fallback when fetch metadata is absent`);
+    assert.match(source,/parsed\.protocol!=='https:'/,`${file} must keep HTTPS origin enforcement`);
+    assert.match(source,/deploymentHosts\(\)/,`${file} must recognize Vercel deployment hosts`);
+    assert.match(source,/BUILTIN_PUBLIC_APP_HOSTS=\['invoice-three-puce\.vercel\.app'\]/,`${file} must recognize the verified public production alias`);
+    assert.match(source,/LOUREX_PUBLIC_APP_HOSTS/,`${file} must support explicit future public-host configuration`);
+    assert.match(source,/publicAppHosts\(\)/,`${file} must include verified public hosts in the trusted set`);
+    assert.match(source,/sec-fetch-site/,`${file} must retain browser fetch metadata checks for unrecognized origins`);
   }
 });
