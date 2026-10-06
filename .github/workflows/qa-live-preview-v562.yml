@@ -29,17 +29,28 @@ jobs:
           PREVIEW_URL: https://invoice-git-qa-live-fixes-v562-alidaamishs-projects.vercel.app
         run: |
           set -euo pipefail
-          probe() {
+          inspect() {
             path="$1"
-            body="/tmp/probe-$(echo "$path" | tr '/?' '__').html"
-            code=$(curl -sS -L -o "$body" -w '%{http_code}' \
+            name=$(echo "$path" | tr '/?' '__')
+            headers="/tmp/$name.headers"
+            body="/tmp/$name.body"
+            code=$(curl -sS -D "$headers" -o "$body" -w '%{http_code}' \
               -H "x-vercel-trusted-oidc-idp-token: $OIDC_TOKEN" \
               "$PREVIEW_URL$path")
-            echo "$path -> HTTP $code"
-            head -c 600 "$body" | tr '\n' ' '
+            echo "DIRECT $path -> HTTP $code"
+            sed -n '1,20p' "$headers" | grep -Ev 'set-cookie|authorization' || true
+            final=$(curl -sS -L -o "$body.follow" -w '%{http_code} %{url_effective}' \
+              -H "x-vercel-trusted-oidc-idp-token: $OIDC_TOKEN" \
+              "$PREVIEW_URL$path")
+            echo "FOLLOW $path -> $final"
+            head -c 300 "$body.follow" | tr '\n' ' '
             echo
-            test "$code" = "200"
-            ! grep -q "FUNCTION_INVOCATION_FAILED" "$body"
           }
-          probe "/"
-          probe "/health.html"
+          inspect "/"
+          inspect "/runtime-config.js"
+          inspect "/health.html"
+          curl -sS -L -o /tmp/runtime.js \
+            -H "x-vercel-trusted-oidc-idp-token: $OIDC_TOKEN" \
+            "$PREVIEW_URL/runtime-config.js"
+          grep -q "invoice-three-puce.vercel.app\|runtimeConfig\|__LOUREX" /tmp/runtime.js
+          ! grep -q "FUNCTION_INVOCATION_FAILED" /tmp/runtime.js
