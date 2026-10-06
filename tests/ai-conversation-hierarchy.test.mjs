@@ -24,6 +24,7 @@ test('unified plus opens sources first and nests the full LOUREX AI tool set',()
 
 test('React owns the visible plus while v449 owns its menu and voice controls',()=>{
   assert.match(stage3,/className:'lourex-ai-composer-plus'/);
+  assert.equal(stage3.includes("className:'lourex-ai-composer-plus','aria-expanded':false"),false,'React must not reset runtime-owned aria-expanded during rerenders');
   assert.match(stage3,/lourex-ai-toggle-plus/);
   assert.match(stage3,/nextMenu\.className='lourex-ai-plus-menu'/);
   assert.match(stage3,/mic\?\.remove\(\);status\?\.remove\(\);menu\?\.remove\(\)/);
