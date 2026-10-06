@@ -36,6 +36,7 @@ on:
       - 'tests/visual/v542-pagination-parity.html'
       - 'tests/visual/v542-pagination-parity.js'
       - 'tests/visual/run-v542-pagination-parity.cjs'
+      - 'tests/visual/run-live-mobile-pdf-production-v576.cjs'
       - '.github/workflows/document-design-final-deep.yml'
   workflow_dispatch:
 
@@ -91,6 +92,7 @@ jobs:
           if [ "$ready" -ne 1 ]; then cat /tmp/lourex-document-design-final.log; exit 1; fi
           node tests/visual/run-document-design-final-deep.cjs
           node tests/visual/run-v542-pagination-parity.cjs
+          node tests/visual/run-live-mobile-pdf-production-v576.cjs
       - name: Upload final document design evidence
         if: always()
         uses: actions/upload-artifact@v6
