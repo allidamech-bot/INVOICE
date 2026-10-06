@@ -23,6 +23,25 @@ async function lifecycle(browser,scenario){
   const initialHref=page.url();
   const numberInput=page.locator('.editor-form-lock > .editor-section').first().locator('input').first();
 
+  // The live editor must expose the exact VAT amount before the user reaches output.
+  const editorTotals=page.locator('.editor-totals');
+  await editorTotals.waitFor({state:'visible'});
+  assert.match(await editorTotals.innerText(),/30\.00\s+USD/,scenario.name+': subtotal is not visible/correct in editor totals');
+  assert.match(await editorTotals.innerText(),/Tax \/ VAT 15%/,scenario.name+': 15% VAT label is not visible in editor totals');
+  assert.match(await editorTotals.innerText(),/4\.50\s+USD/,scenario.name+': 15% VAT amount is not 4.50 in editor totals');
+  assert.match(await editorTotals.innerText(),/34\.50\s+USD/,scenario.name+': grand total is not 34.50 in editor totals');
+
+  const previewButton=page.locator('button:visible').filter({hasText:/^Preview$/}).first();
+  await previewButton.click();
+  const previewTotals=page.locator('.mobile-preview-stage .totals-block');
+  await previewTotals.waitFor({state:'visible'});
+  const previewText=await previewTotals.innerText();
+  assert.match(previewText,/30\.00\s+USD/,scenario.name+': preview subtotal drifted from editor');
+  assert.match(previewText,/Tax 15%/,scenario.name+': preview VAT label drifted from editor');
+  assert.match(previewText,/4\.50\s+USD/,scenario.name+': preview VAT amount drifted from editor');
+  assert.match(previewText,/34\.50\s+USD/,scenario.name+': preview grand total drifted from editor');
+  await page.locator('.mobile-preview-overlay button[aria-label="Close"]').click();
+
   // Opening the quote alone must never trigger an automatic write.
   await page.waitForTimeout(1650);
   assert.equal(await page.evaluate(()=>window.saveAttempts),0,`${scenario.name}: editor mount performed an implicit save`);
@@ -104,6 +123,7 @@ async function lifecycle(browser,scenario){
   assert.equal(finalState.printEvents[0]?.mode,'pdf',`${scenario.name}: PDF action did not reach the PDF output path`);
   assert.equal(finalState.printEvents[0]?.number,'PI-2026-0538-E',`${scenario.name}: PDF used a stale quote snapshot`);
   assert.equal(finalState.printEvents[0]?.status,'final',`${scenario.name}: PDF did not receive the finalized quote`);
+  assert.deepEqual(finalState.printEvents[0]?.totals,{subtotal:'30.00',discount:'0.00',shipping:'0.00',otherCharges:'0.00',tax:'4.50',grandTotal:'34.50'},`${scenario.name}: PDF handoff totals drifted from the reviewed 15% VAT values`);
   assert.ok(finalState.preparePdfModes.includes('pdf'),`${scenario.name}: PDF preparation mode was never announced`);
   assert.ok(finalState.scrollWidth<=finalState.viewport+1,`${scenario.name}: final editor flow introduced horizontal overflow`);
   assert.equal(page.url(),initialHref,`${scenario.name}: PDF output navigated away from the editor`);
