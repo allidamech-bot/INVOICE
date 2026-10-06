@@ -63,8 +63,8 @@ test('final conversation owner uses a local neutral palette and sender-side bubb
   assert.match(presentation,/--lx-chat-bg:#0b0c0e/);
   assert.match(presentation,/html\[data-ui-theme='light'\][\s\S]*--lx-chat-bg:#ffffff/);
   assert.match(presentation,/\.lourex-ai-message\.assistant\{[\s\S]*background:transparent!important;color:var\(--lx-chat-text\)!important/);
-  assert.match(presentation,/\.lourex-ai-message\.user\{[\s\S]*background:var\(--lx-chat-accent\)!important;color:#fff!important/);
-  assert.match(presentation,/\[dir='rtl'\] \.lourex-ai-message\.user\{align-self:flex-end!important/);
-  assert.match(presentation,/\.lourex-ai-plus-menu\[data-view='root'\]/);
+  assert.match(presentation,/\.lourex-ai-message\.user\{align-self:auto!important;max-width:min\(82%,420px\)!important;margin-left:auto!important;margin-right:0!important[\s\S]*background:var\(--lx-chat-accent\)!important;color:#fff!important/);
+  assert.match(presentation,/\[dir='rtl'\] \.lourex-ai-message\.user\{border-radius:18px 18px 5px 18px!important/);
+  assert.match(presentation,/\.lourex-ai-plus-menu:is\(\[data-view='root'\],\[data-view='tools'\]\)/);
   assert.match(presentation,/:is\(\.lourex-ai-hub-trigger,\.lourex-ai-hub-menu\)\{display:none!important/);
 });
