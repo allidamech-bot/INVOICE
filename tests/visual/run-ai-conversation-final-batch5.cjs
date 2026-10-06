@@ -112,6 +112,7 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         assert.match(rootCopy,lang==='ar'?/الكاميرا[\s\S]*الصور والملفات[\s\S]*أدوات AI/:/Camera[\s\S]*Photos & files[\s\S]*AI Tools/,'root gateway exposes sources and AI Tools');
         const rootBox=await menu.boundingBox();
         assert.ok(rootBox&&rootBox.x>=-1&&rootBox.x+rootBox.width<=width+1&&rootBox.y>=-1&&rootBox.y+rootBox.height<=height+1,'plus root menu stays inside viewport');
+        assert.ok(Math.abs(rootBox.x-plusBox.x)<=14,'plus menu remains physically anchored to the visible + control in LTR and RTL');
         const menuVisual=await menu.evaluate(node=>{const style=getComputedStyle(node);return{bg:style.backgroundColor,color:style.color};});
         assert.ok(contrast(menuVisual.color,menuVisual.bg)>=4.5,'plus menu text contrast must meet WCAG AA');
         if(width<=720){
@@ -123,6 +124,8 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         await page.waitForFunction(()=>document.querySelector('#lourex-ai-panel .lourex-ai-plus-menu')?.dataset?.view==='tools');
         const toolsCopy=await menu.innerText();
         assert.match(toolsCopy,lang==='ar'?/صندوق AI[\s\S]*الموجز الصباحي[\s\S]*الذاكرة والمهام/:/AI Inbox[\s\S]*Morning Brief[\s\S]*Memory & Tasks/,'nested AI Tools exposes canonical destinations');
+        const toolsBox=await menu.boundingBox();
+        assert.ok(toolsBox&&Math.abs(toolsBox.x-rootBox.x)<=1&&Math.abs(toolsBox.width-rootBox.width)<=1,'nested AI Tools preserves the same anchored menu geometry');
         const actions=menu.locator('.lourex-ai-plus-item');
         assert.ok((await actions.count())>=10,'AI Tools menu exposes the full LOUREX tool set');
         await page.waitForFunction(()=>document.activeElement?.classList?.contains('lourex-ai-plus-item'));
