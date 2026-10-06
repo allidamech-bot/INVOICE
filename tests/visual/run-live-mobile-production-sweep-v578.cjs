@@ -55,7 +55,8 @@ async function createQaWorkspace(page,label){
 async function shellUnlocked(page){
   return await page.evaluate(()=>({
     bodyOverflow:getComputedStyle(document.body).overflow,
-    shellOverlay:document.documentElement.getAttribute('data-lourex-shell-overlay'),
+    htmlOverlay:document.documentElement.getAttribute('data-lourex-shell-overlay'),
+    bodyOverlay:document.body.getAttribute('data-lourex-shell-overlay'),
     backdropVisible:Array.from(document.querySelectorAll('.ta-overlay-backdrop')).some(el=>getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden'),
     scrollWidth:document.documentElement.scrollWidth,
     width:innerWidth
@@ -110,13 +111,16 @@ async function createQuotation(page){
   await check(report.iphone,'More/Create repeated overlay release',async()=>{
     const nav=iphone.locator('.ta-mobile-nav');
     const more=nav.getByRole('button',{name:'More'});
+    const baseline=await shellUnlocked(iphone);
     for(let i=0;i<3;i++){
       await more.click();await iphone.locator('#ta-mobile-more').waitFor({state:'visible'});
       await iphone.locator('#ta-mobile-more .ta-sheet-close').click();
       await iphone.locator('#ta-mobile-more').waitFor({state:'detached'}).catch(()=>iphone.locator('#ta-mobile-more').waitFor({state:'hidden'}));
       const state=await shellUnlocked(iphone);
       assert.equal(state.backdropVisible,false,`More close ${i+1} left backdrop visible`);
-      assert.notEqual(state.bodyOverflow,'hidden',`More close ${i+1} left body locked`);
+      assert.equal(state.htmlOverlay,null,`More close ${i+1} left html overlay lock`);
+      assert.equal(state.bodyOverlay,null,`More close ${i+1} left body overlay lock`);
+      assert.equal(state.bodyOverflow,baseline.bodyOverflow,`More close ${i+1} did not restore baseline body overflow`);
     }
     for(let i=0;i<3;i++){
       await iphone.locator('.ta-mobile-create').click();
@@ -125,7 +129,9 @@ async function createQuotation(page){
       await iphone.locator('.global-search-panel').waitFor({state:'hidden'});
       const state=await shellUnlocked(iphone);
       assert.equal(state.backdropVisible,false,`Create close ${i+1} left backdrop visible`);
-      assert.notEqual(state.bodyOverflow,'hidden',`Create close ${i+1} left body locked`);
+      assert.equal(state.htmlOverlay,null,`Create close ${i+1} left html overlay lock`);
+      assert.equal(state.bodyOverlay,null,`Create close ${i+1} left body overlay lock`);
+      assert.equal(state.bodyOverflow,baseline.bodyOverflow,`Create close ${i+1} did not restore baseline body overflow`);
     }
     await iphone.locator('.ta-mobile-create').click();await iphone.locator('.global-search-panel').waitFor({state:'visible'});await iphone.keyboard.press('Escape');
     await more.click();await iphone.locator('#ta-mobile-more').waitFor({state:'visible'});await iphone.locator('#ta-mobile-more .ta-sheet-close').click();
@@ -151,7 +157,8 @@ async function createQuotation(page){
       await input.fill('');
     }
     assert.equal(await iphone.evaluate(()=>window.__LOUREX_QA_SPEECH_INSTANCES__.length),3);
-    await panel.getByRole('button',{name:/Close LOUREX Advisor|إغلاق مستشار LOUREX/}).click().catch(async()=>{await iphone.locator('.lourex-ai-backdrop').click();});
+    await panel.locator('.lourex-ai-close').click();
+    await panel.waitFor({state:'detached'});
     return {sessions:3};
   });
 
@@ -242,7 +249,7 @@ async function createQuotation(page){
 
   await check(report.ipad,'iPad PIN accepts after manual lock, sign-in, and reload',async()=>{
     await openSettings(ipad);
-    await ipad.getByRole('button',{name:'Security'}).click();
+    await ipad.locator('[data-settings-tab="security"]').click();
     await ipad.getByRole('button',{name:'Lock Now'}).click();
     await ipad.locator('.ta-unlock-page').waitFor({state:'visible',timeout:30000});
     await ipad.getByLabel('PIN · 4–12 digits').fill(credentials.pin);
