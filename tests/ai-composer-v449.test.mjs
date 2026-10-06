@@ -111,7 +111,8 @@ test('v450 Safari voice keeps interim speech and treats manual stop abort/no-spe
   assert.match(js,/result\?\.isFinal\?finalParts:interimParts/);
   assert.match(js,/applyVoiceTranscript\(panel,transcript\)/);
   assert.match(js,/voiceManualStop&&\(code==='aborted'\|\|code==='no-speech'\)/);
-  assert.match(js,/voiceHadResult\?'done':''/);
+  assert.match(js,/voiceCompletion\|\|\{state:voiceHadResult\?'done':voiceManualStop\?'':'error'/);
+  assert.match(js,/messageKey:voiceHadResult\?'voiceAdded':voiceManualStop\?'voiceStopped':'noSpeech'/);
   assert.doesNotMatch(js,/instance\.interimResults=false/);
 });
 
