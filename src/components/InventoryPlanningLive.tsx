@@ -120,7 +120,7 @@ export class InventoryPlanningLive extends React.Component<Record<string,never>,
         <div><span>{t('Lead time','مهلة التوريد')}</span><b>{row.policy?`${row.policy.leadTimeDays} ${t('days','يوم')}`:'—'}</b></div>
         <div><span>{t('Preferred supplier','المورد المفضل')}</span><b>{supplierName(row.preferredSupplier)}</b></div>
         <div><span>{t('Latest posted purchase','آخر شراء مرحل')}</span><b>{row.lastPurchase?`${row.lastPurchase.number} · ${row.lastPurchase.date}`:'—'}</b></div>
-        <Button icon="edit" variant={configured?'secondary':'primary'} onClick={()=>this.edit(row)}>{configured?t('Edit Policy','تعديل السياسة'):t('Set Policy','إعداد السياسة')}</Button>
+        <Button icon="edit" variant={configured?'secondary':'primary'} onClick={()=>this.edit(row)}>{configured?t('Edit Policy','تعديل السياسة'):t('Set Reorder Policy','إعداد سياسة إعادة الطلب')}</Button>
       </div>
     </article>;
   };
@@ -149,6 +149,7 @@ export class InventoryPlanningLive extends React.Component<Record<string,never>,
     return <section className="lx-inventory-planning">
       <header className="lx-inventory-plan-heading"><div><span>{t('Inventory intelligence','ذكاء المخزون')}</span><h2>{t('Inventory Planning','تخطيط المخزون')}</h2><p>{t('Turn the existing stock ledger into clear reorder signals without automatic purchasing or hidden assumptions.','حوّل سجل المخزون الحالي إلى إشارات إعادة طلب واضحة بدون شراء تلقائي أو افتراضات مخفية.')}</p></div><div className="lx-inventory-plan-window"><Icon name="chart"/><span><small>{t('Demand window','نافذة الطلب')}</small><strong>{snapshot.lookbackDays} {t('days','يوم')}</strong></span></div></header>
       {this.renderSummary(snapshot)}
+      {snapshot.unconfigured>0?<div className="lx-inventory-plan-footnote is-setup-guide"><Icon name="settings"/><p><strong>{t('First setup','الإعداد الأول')}:</strong> {t('Set Policy defines the reorder point, target stock and lead time. Opening stock is recorded through Inventory Movements; Planning never invents or posts stock automatically.','إعداد السياسة يحدد نقطة إعادة الطلب والمخزون المستهدف ومهلة التوريد. يتم تسجيل الرصيد الافتتاحي من خلال حركات المخزون؛ التخطيط لا ينشئ أو يرحّل مخزونًا تلقائيًا.')}</p></div>:null}
       <div className="lx-inventory-plan-toolbar">
         <label className="lx-inventory-plan-search"><Icon name="search"/><Input value={this.state.query} placeholder={t('Search product, SKU or supplier','ابحث عن صنف أو SKU أو مورد')} onChange={(e:any)=>this.setState({query:String(e.target.value)})}/></label>
         <Select aria-label={t('Planning status','حالة التخطيط')} value={this.state.filter} onChange={(e:any)=>this.setState({filter:e.target.value as State['filter']})}>
