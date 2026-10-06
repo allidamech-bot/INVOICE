@@ -75,17 +75,69 @@
     else if (normalizedSpace === 'srgb-linear') rgb = rgb.map(encodeSrgb);
     return rgbaText(rgb[0], rgb[1], rgb[2], alpha);
   });
+  const computedStyleFor = (node, pseudo = '') => {
+    const view = node?.ownerDocument?.defaultView || window;
+    try { return view.getComputedStyle(node, pseudo || null); }
+    catch { return getComputedStyle(node, pseudo || null); }
+  };
+  const colorBearingProperties = (computed) => {
+    const names = new Set(COLOR_PROPS);
+    for (let index = 0; index < computed.length; index += 1) {
+      const prop = computed.item(index);
+      if (prop) names.add(prop);
+    }
+    return names;
+  };
+  const normalizeComputedColorProperties = (node, computed) => {
+    for (const prop of colorBearingProperties(computed)) {
+      const value = computed.getPropertyValue(prop);
+      if (!value || !/color\(/i.test(value)) continue;
+      node.style.setProperty(prop, replaceColorFunction(value), 'important');
+    }
+  };
   const normalizeUnsupportedColors = (root) => {
     const nodes = [root, ...Array.from(root.querySelectorAll('*'))];
     for (const node of nodes) {
       if (!node?.style) continue;
-      const computed = getComputedStyle(node);
-      for (const prop of COLOR_PROPS) {
-        const value = computed.getPropertyValue(prop);
-        if (!value || !/color\(/i.test(value)) continue;
-        node.style.setProperty(prop, replaceColorFunction(value), 'important');
+      normalizeComputedColorProperties(node, computedStyleFor(node));
+    }
+  };
+  const installPseudoColorOverrides = (root) => {
+    const doc = root?.ownerDocument || document;
+    root.querySelectorAll?.('style[data-lourex-pdf-color-sanitizer]').forEach(style => style.remove());
+    const rules = [];
+    let sequence = 0;
+    const nodes = [root, ...Array.from(root.querySelectorAll('*'))];
+    for (const node of nodes) {
+      if (!node?.setAttribute) continue;
+      for (const pseudo of ['::before','::after']) {
+        const computed = computedStyleFor(node, pseudo);
+        const content = String(computed.getPropertyValue('content') || '').trim();
+        if (!content || content === 'none' || content === 'normal') continue;
+        const declarations = [];
+        for (const prop of colorBearingProperties(computed)) {
+          const value = computed.getPropertyValue(prop);
+          if (!value || !/color\(/i.test(value)) continue;
+          declarations.push(`${prop}:${replaceColorFunction(value)}!important;`);
+        }
+        if (!declarations.length) continue;
+        let key = node.getAttribute('data-lourex-pdf-color-key');
+        if (!key) {
+          key = `lrxpdf-${sequence++}`;
+          node.setAttribute('data-lourex-pdf-color-key', key);
+        }
+        rules.push(`[data-lourex-pdf-color-key="${key}"]${pseudo}{${declarations.join('')}}`);
       }
     }
+    if (!rules.length) return;
+    const style = doc.createElement('style');
+    style.setAttribute('data-lourex-pdf-color-sanitizer','true');
+    style.textContent = rules.join('\n');
+    root.appendChild(style);
+  };
+  const sanitizeUnsupportedColors = (root) => {
+    normalizeUnsupportedColors(root);
+    installPseudoColorOverrides(root);
   };
 
   const firstStrongDirection = (value, fallback = 'ltr') => {
@@ -287,7 +339,7 @@
       try {
         await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
         await waitForCloneAssets(stage);
-        normalizeUnsupportedColors(stage);
+        sanitizeUnsupportedColors(stage);
         Array.from(stage.querySelectorAll('.invoice-page')).forEach(stabilizeDocumentDirection);
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
@@ -306,6 +358,8 @@
             imageTimeout:1800,
             removeContainer:true,
             onclone:(clonedDocument)=>{
+              const clonedStage=clonedDocument.querySelector('.lourex-ios-pdf-stage');
+              if(clonedStage)sanitizeUnsupportedColors(clonedStage);
               Array.from(clonedDocument.querySelectorAll('.invoice-page')).forEach(stabilizeDocumentDirection);
             }
           });
