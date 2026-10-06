@@ -27,6 +27,15 @@ test('iOS PDF bridge consumes only pagination-ready print portal pages',async()=
   assert.match(bridge,/const sourcePages = Array\.from/);
 });
 
+test('mobile PDF bridge sanitizes CSS Color 4 on elements and pseudo-elements before canvas capture',async()=>{
+  const bridge=await read('public/ios-print-bridge.js');
+  assert.match(bridge,/computed\.length/);
+  assert.match(bridge,/\['::before','::after'\]/);
+  assert.match(bridge,/sanitizeUnsupportedColors\(stage\)/);
+  assert.match(bridge,/onclone:\(clonedDocument\)=>\{[\s\S]*sanitizeUnsupportedColors\(clonedStage\)/);
+  assert.match(bridge,/data-lourex-pdf-color-sanitizer/);
+});
+
 test('fixture renders the identical quotation snapshot into preview and PDF source with real logo watermark pressure',async()=>{
   const [fixture,html,runner]=await Promise.all([
     read('tests/visual/v542-pagination-parity.js'),
