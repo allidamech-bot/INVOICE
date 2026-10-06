@@ -47,6 +47,7 @@ test('final conversation palette keeps accessible contrast and local chrome owne
   assert.match(css,/\.lourex-ai-scope-button\{min-height:44px!important;height:44px!important/,'mobile scope tabs remain 44px targets');
   assert.match(css,/\.lourex-ai-message-action\{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important/,'mobile message actions remain 44px targets');
   assert.match(css,/\[dir='rtl'\] \.lourex-ai-plus-item\.is-back \.lourex-ai-plus-icon\{transform:scaleX\(-1\)/,'RTL back affordance mirrors correctly');
+  assert.match(css,/\.lourex-ai-plus-menu:is\(\[data-view='root'\],\[data-view='tools'\]\)\{left:8px!important;right:auto!important/,'plus menus stay physically anchored to the left-side + control in both LTR and RTL');
 });
 
 test('final conversation owner uses a local neutral palette and sender-side bubbles',()=>{
