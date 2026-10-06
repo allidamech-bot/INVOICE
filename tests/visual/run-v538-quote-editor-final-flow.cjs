@@ -40,7 +40,7 @@ async function lifecycle(browser,scenario){
   assert.match(previewText,/Tax 15%/,scenario.name+': preview VAT label drifted from editor');
   assert.match(previewText,/4\.50\s+USD/,scenario.name+': preview VAT amount drifted from editor');
   assert.match(previewText,/34\.50\s+USD/,scenario.name+': preview grand total drifted from editor');
-  await page.getByRole('button',{name:/Close/}).first().click();
+  await page.locator('.mobile-preview-overlay button[aria-label="Close"]').click();
 
   // Opening the quote alone must never trigger an automatic write.
   await page.waitForTimeout(1650);
