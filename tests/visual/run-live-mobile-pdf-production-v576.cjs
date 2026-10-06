@@ -18,8 +18,9 @@ async function pdfArtifact(page){
   const href=await link.getAttribute('href');
   assert.ok(href&&href.startsWith('blob:'),'iPhone PDF output did not expose a blob download link');
   return await page.evaluate(async blobUrl=>{
-    const response=await fetch(blobUrl);
-    const buffer=await response.arrayBuffer();
+    const blob=window.__LOUREX_QA_PDF_BLOBS__?.get?.(blobUrl);
+    assertBlob: if(!(blob instanceof Blob)) throw new Error('QA could not resolve the generated PDF Blob');
+    const buffer=await blob.arrayBuffer();
     const bytes=new Uint8Array(buffer);
     let text='';
     for(let offset=0;offset<bytes.length;offset+=0x8000){
@@ -47,6 +48,16 @@ async function fillItem(card,description,quantity,price){
     hasTouch:true,isMobile:true,userAgent:scenario.userAgent
   });
   await context.addInitScript(()=>{
+    try{
+      const originalCreateObjectURL=URL.createObjectURL.bind(URL);
+      const blobs=new Map();
+      Object.defineProperty(window,'__LOUREX_QA_PDF_BLOBS__',{configurable:true,value:blobs});
+      URL.createObjectURL=value=>{
+        const blobUrl=originalCreateObjectURL(value);
+        if(value instanceof Blob)blobs.set(blobUrl,value);
+        return blobUrl;
+      };
+    }catch{}
     try{Object.defineProperty(navigator,'platform',{configurable:true,get:()=> 'iPhone'});}catch{}
     try{Object.defineProperty(navigator,'maxTouchPoints',{configurable:true,get:()=>5});}catch{}
   });
