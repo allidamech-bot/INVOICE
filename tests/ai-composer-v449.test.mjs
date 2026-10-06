@@ -60,6 +60,11 @@ test('v449 workflow launchers and modal actions are semantic, bilingual and non-
   assert.doesNotMatch(js,/const button=buttons\[0\]/);
 });
 
+test('v449 language refresh preserves an open nested AI Tools menu',()=>{
+  assert.match(js,/const currentView=menu\.dataset\.view==='tools'\?'tools':'root'/);
+  assert.match(js,/if\(currentView==='tools'\)buildToolsMenu\(panel,menu\);else buildMenu\(panel,menu\)/);
+});
+
 test('v449 async workflow retries are bounded and cancelled when the originating panel is gone',()=>{
   assert.match(js,/function withWorkflowReady\(callback,attempt=0,originPanel=null\)/);
   assert.match(js,/panel!==origin\|\|!origin\.isConnected/);
