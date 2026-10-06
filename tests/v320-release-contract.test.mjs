@@ -129,10 +129,6 @@ test('AI presentation no longer injects a legacy runtime stylesheet',async()=>{
 
 test('feature branches cannot deploy to Vercel production automatically',async()=>{
   const config=JSON.parse(await read('vercel.json'));
-  const gate=config.git?.deploymentEnabled;
-  if(gate===false){
-    assert.equal(gate,false,'the release gate may be fully relocked between production publishes');
-    return;
-  }
-  assert.deepEqual(gate,{main:true,'*':false},'when publishing is temporarily enabled it must be main-only');
+  assert.equal(config.git?.deploymentEnabled?.main,true);
+  assert.equal(config.git?.deploymentEnabled?.['*'],false);
 });
