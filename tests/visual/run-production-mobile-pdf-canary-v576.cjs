@@ -64,8 +64,8 @@ async function createQuote(page){
   async function fillItem(index,desc,qty,price){
     const card=page.locator('.item-card').nth(index);
     await card.locator('textarea').first().fill(desc);
-    await card.getByLabel('Quantity').fill(String(qty));
-    await card.getByLabel('Unit').fill('PCS');
+    await card.getByLabel('Quantity',{exact:true}).fill(String(qty));
+    await card.getByLabel('Unit',{exact:true}).selectOption({label:'PCS'}).catch(async()=>card.getByLabel('Unit',{exact:true}).selectOption('PCS'));
     await card.getByLabel(/Unit Price/).fill(String(price));
   }
   await fillItem(0,'Mobile Test Item 1',1,25);
