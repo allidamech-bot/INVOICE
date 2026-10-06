@@ -31,6 +31,23 @@ test('React owns the visible plus while v449 owns its menu and voice controls',(
   assert.match(stage3,/function __lourexAttachmentMenu\(instance\)\{return null;\}/);
 });
 
+test('final conversation palette keeps accessible contrast and local chrome ownership',()=>{
+  assert.match(presentation,/--lx-chat-accent:#356edb/,'dark accent is dark enough for white message text');
+  assert.match(presentation,/--lx-chat-muted:#686d75/,'light muted copy remains readable on neutral surfaces');
+  const css=presentation.slice(presentation.indexOf('LOUREX Remediation Batch 3 — Modern Conversation UX'));
+  for(const token of [
+    'var(--lx485-muted,var(--ft-muted))',
+    'var(--lx485-text,var(--ft-text))',
+    'var(--lx485-text-2,var(--ft-text-soft))',
+    'var(--lx485-surface,var(--ft-surface))',
+    'var(--lx485-surface-2,var(--ft-surface-2))',
+    'var(--lx485-line-strong,var(--ft-line-strong))'
+  ])assert.equal(css.includes(token),false,`conversation chrome still leaks ${token}`);
+  assert.match(css,/\.lourex-ai-scope-button\{min-height:44px!important;height:44px!important/,'mobile scope tabs remain 44px targets');
+  assert.match(css,/\.lourex-ai-message-action\{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important/,'mobile message actions remain 44px targets');
+  assert.match(css,/\[dir='rtl'\] \.lourex-ai-plus-item\.is-back \.lourex-ai-plus-icon\{transform:scaleX\(-1\)/,'RTL back affordance mirrors correctly');
+});
+
 test('final conversation owner uses a local neutral palette and sender-side bubbles',()=>{
   assert.match(presentation,/--lx-chat-bg:#0b0c0e/);
   assert.match(presentation,/html\[data-ui-theme='light'\][\s\S]*--lx-chat-bg:#ffffff/);
