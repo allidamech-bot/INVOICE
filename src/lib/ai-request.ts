@@ -9,7 +9,7 @@ export async function requestAiJson(endpoint:string,payload:unknown,signal?:Abor
   signal?.addEventListener('abort',cancel,{once:true});
   const timer=window.setTimeout(()=>{timedOut=true;controller.abort();},timeoutMs);
   try{
-    const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice'},body:JSON.stringify(payload),signal:controller.signal});
+    const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'LOUREX-Invoice','X-LOUREX-App-Host':window.location.host},body:JSON.stringify(payload),signal:controller.signal});
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
     let body:any=null;try{body=await response.json();}catch{}
     if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
