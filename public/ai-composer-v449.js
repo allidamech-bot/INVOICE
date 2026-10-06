@@ -103,7 +103,7 @@
     composerStatus(panel,state,messageKey,hideAfter);
     // Safari may deliver a final result before releasing its native microphone.
     // Keep ownership until onend; starting a second instance sooner can fail.
-    recognitionStopTimer=window.setTimeout(()=>{if(recognition!==instance)return;try{instance.abort?.();}catch{}finishRecognition(instance,panel,state,messageKey,hideAfter);},1200);
+    const current=instance;recognitionStopTimer=window.setTimeout(()=>{if(recognition!==current)return;try{current.abort?.();}catch{}finishRecognition(current,panel,state,messageKey,hideAfter);},1200);
     try{if(abort)instance.abort();else instance.stop();}catch{try{instance.abort?.();}catch{}}
   }
   function voiceTranscript(event){const finalParts=[];const interimParts=[];for(const result of Array.from(event?.results||[])){const value=String(result?.[0]?.transcript||'').replace(/\s+/g,' ').trim();if(!value)continue;(result?.isFinal?finalParts:interimParts).push(value);}return[...finalParts,...interimParts].join(' ').replace(/\s+/g,' ').trim();}
@@ -123,7 +123,7 @@
     instance.onstart=()=>{if(recognition===instance&&!recognitionFinishing)composerStatus(panel,'listening','listening');};
     instance.onresult=event=>{if(recognition!==instance||(recognitionFinishing&&!voiceManualStop))return;const transcript=voiceTranscript(event);if(!transcript)return;applyVoiceTranscript(panel,transcript);if(recognitionFinishing)return;composerStatus(panel,'listening','listening');if(Array.from(event.results||[]).every(result=>result.isFinal))stopRecognition(instance,panel,'done','voiceAdded',1200);};
     instance.onerror=event=>{
-      if(recognition!==instance||recognitionFinishing)return;const code=String(event?.error||'');
+      const code=String(event?.error||'');if(recognition!==instance||recognitionFinishing||(voiceManualStop&&(code==='aborted'||code==='no-speech')))return;
       const key=code==='not-allowed'||code==='service-not-allowed'?'voiceDenied':code==='no-speech'?'noSpeech':code==='audio-capture'?'micUnavailable':'voiceFailed';
       stopRecognition(instance,panel,'error',key,4200,true);
     };
