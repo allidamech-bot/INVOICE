@@ -56,11 +56,13 @@ test('Obsidian Auto and Custom protect light cards and dark body copy independen
   assert.doesNotMatch(css,/template-obsidian \.signature-image[^\n]*invert\(/);
 });
 
-test('Auto and authored dark local modules are not flattened by Custom foreground rules',async()=>{
+test('Auto uses only black or white body foreground while dark local modules keep authored inverse contrast',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/Auto means matched to the selected template/);
+  assert.match(css,/Auto foreground is intentionally binary and surface-aware/);
+  assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)[\s\S]*color:var\(--lrx-primary,#101010\)!important/);
+  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian[\s\S]*color:#101010!important/);
+  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian :is\([\s\S]*color:#ffffff!important/);
   assert.match(css,/Deliberately absent: custom foreground rules/);
-  assert.doesNotMatch(css,/\.invoice-page\.palette-auto\s/);
   assert.doesNotMatch(css,/\.invoice-page\.palette-custom \.items-table thead th[^\n]*--lrx/);
   assert.doesNotMatch(css,/\.invoice-page\.palette-custom \.totals-block[^\n]*color:var\(--lrx/);
 });
