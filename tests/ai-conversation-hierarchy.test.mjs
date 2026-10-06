@@ -6,6 +6,11 @@ const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const composer=read('public/ai-composer-v449.js');
 const stage3=read('scripts/ai-conversation-owner-stage3.mjs');
 const presentation=read('scripts/ai-remediation-batch3-conversation-ux.mjs');
+const rgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+const mix=(fg,bg,p)=>{const a=rgb(fg),b=rgb(bg);return '#'+a.map((v,i)=>Math.round(v*p+b[i]*(1-p)).toString(16).padStart(2,'0')).join('');};
+const channel=value=>{const n=value/255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;};
+const luminance=hex=>{const [r,g,b]=rgb(hex);return .2126*channel(r)+.7152*channel(g)+.0722*channel(b);};
+const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(luminance(a),luminance(b));return(hi+.05)/(lo+.05);};
 
 test('unified plus opens sources first and nests the full LOUREX AI tool set',()=>{
   assert.match(composer,/Camera/);
@@ -37,6 +42,8 @@ test('final conversation palette keeps accessible contrast and local chrome owne
   assert.match(presentation,/--lx-chat-muted:#686d75/,'light muted copy remains readable on neutral surfaces');
   assert.match(presentation,/--lx-chat-accent-text:#82a9ec/,'dark accent text is separated from filled accent surfaces');
   assert.match(presentation,/--lx-chat-accent-text:#315da8/,'light accent text is separated from filled accent surfaces');
+  assert.ok(contrast('#82a9ec',mix('#356edb','#0b0c0e',.11))>=4.5,'dark active-scope accent text meets AA');
+  assert.ok(contrast('#315da8',mix('#376fcf','#ffffff',.11))>=4.5,'light active-scope accent text meets AA');
   const css=presentation.slice(presentation.indexOf('LOUREX Remediation Batch 3 — Modern Conversation UX'));
   for(const token of [
     'var(--lx485-muted,var(--ft-muted))',
