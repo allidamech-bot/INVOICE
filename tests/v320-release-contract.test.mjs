@@ -127,7 +127,7 @@ test('AI presentation no longer injects a legacy runtime stylesheet',async()=>{
   assert.ok(css.includes('v320')||css.includes('TailAdmin'));
 });
 
-test('one-time release gate deploys main while feature branches remain blocked',async()=>{
+test('feature branches cannot deploy to Vercel production automatically',async()=>{
   const config=JSON.parse(await read('vercel.json'));
   assert.equal(config.git?.deploymentEnabled?.main,true);
   assert.equal(config.git?.deploymentEnabled?.['*'],false);
