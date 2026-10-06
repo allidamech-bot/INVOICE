@@ -33,7 +33,16 @@ test('remediation Batch 3 owns one thread scroll region and safe-area composer',
   assert.match(owner,/padding:8px 10px max\(9px,env\(safe-area-inset-bottom,0px\)\)/);
   assert.match(owner,/@media\(max-width:720px\)[\s\S]*height:100dvh!important/);
   assert.match(owner,/\.lourex-ai-message\.assistant\{align-self:stretch!important;max-width:none!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important/);
-  assert.match(owner,/\.lourex-ai-context-shell\{[\s\S]*background:transparent!important/);
+  assert.match(owner,/\.lourex-ai-context-shell\{[\s\S]*background:var\(--lx-chat-bg\)!important/);
+});
+
+test('remediation Batch 3 owns a conversation-local light and dark hierarchy',()=>{
+  assert.match(owner,/--lx-chat-bg:#0b0c0e/,'dark chat canvas is charcoal instead of inheriting the navy workspace');
+  assert.match(owner,/html\[data-ui-theme='light'\][\s\S]*--lx-chat-bg:#ffffff/,'light chat canvas has its own neutral surface');
+  assert.match(owner,/\.lourex-ai-message\.user\{[\s\S]*background:var\(--lx-chat-accent\)!important;color:#fff!important/,'user bubble is the primary accent');
+  assert.match(owner,/\[dir='rtl'\] \.lourex-ai-message\.user\{align-self:flex-end!important/,'outgoing RTL messages stay on the sender side');
+  assert.match(owner,/\.lourex-ai-plus-menu\[data-view='root'\]/,'the compact root + menu has final visual ownership');
+  assert.match(owner,/\.lourex-ai-context-line\{display:none!important/,'mobile context copy collapses instead of consuming a full extra row');
 });
 
 test('remediation Batch 3 closeout keeps functional content contained and removes the giant welcome card',()=>{
@@ -41,4 +50,5 @@ test('remediation Batch 3 closeout keeps functional content contained and remove
   assert.match(closeout,/transform:none!important;translate:none!important;animation:none!important;transition:none!important;overflow:hidden!important/,'tool activity cannot inherit mount motion that temporarily escapes the conversation panel');
   assert.match(closeout,/\.lourex-ai-empty\{align-self:center!important;width:100%!important;max-width:440px!important[\s\S]*border:0!important[\s\S]*background:transparent!important[\s\S]*box-shadow:none!important/,'welcome state is flat instead of another card');
   assert.match(closeout,/\.lourex-ai-starters button\{min-height:44px!important/,'starter suggestions remain touch-safe');
+  assert.match(closeout,/--lx-chat-text/,'welcome copy resolves through the conversation palette when available');
 });
