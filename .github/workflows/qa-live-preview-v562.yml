@@ -1,0 +1,45 @@
+name: QA Live Preview v562
+
+on:
+  push:
+    branches:
+      - qa/live-fixes-v562
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/github-script@v7
+        id: oidc
+        with:
+          script: |
+            const token = await core.getIDToken();
+            core.setSecret(token);
+            core.setOutput('token', token)
+      - name: Probe protected Vercel preview
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          PREVIEW_URL: https://invoice-git-qa-live-fixes-v562-alidaamishs-projects.vercel.app
+        run: |
+          set -euo pipefail
+          probe() {
+            path="$1"
+            body="/tmp/probe-$(echo "$path" | tr '/?' '__').html"
+            code=$(curl -sS -L -o "$body" -w '%{http_code}' \
+              -H "x-vercel-trusted-oidc-idp-token: $OIDC_TOKEN" \
+              "$PREVIEW_URL$path")
+            echo "$path -> HTTP $code"
+            head -c 600 "$body" | tr '\n' ' '
+            echo
+            test "$code" = "200"
+            ! grep -q "FUNCTION_INVOCATION_FAILED" "$body"
+          }
+          probe "/"
+          probe "/health.html"
