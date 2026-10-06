@@ -41,6 +41,9 @@ test('live AI origin guard accepts browser same-origin metadata behind deploymen
     assert.match(source,/sec-fetch-site/,`${file} must use browser same-origin metadata behind reverse proxies`);
     assert.match(source,/fetchSite==='same-origin'/,`${file} must accept a browser-confirmed same-origin request`);
     assert.match(source,/fetchSite&&fetchSite!=='same-origin'/,`${file} must reject explicit cross-site browser requests`);
-    assert.match(source,/requestHosts\(request\)/,`${file} must retain host matching fallback when fetch metadata is absent`);
+    assert.match(source,/trustedRequestHosts\(request\)/,`${file} must retain trusted-host fallback when fetch metadata is absent`);
+    assert.match(source,/VERCEL_PROJECT_PRODUCTION_URL/,`${file} must trust the configured production alias`);
+    assert.match(source,/VERCEL_URL/,`${file} must trust the active deployment host`);
+    assert.match(source,/VERCEL_BRANCH_URL/,`${file} must trust the active branch host`);
   }
 });
