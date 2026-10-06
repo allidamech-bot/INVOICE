@@ -91,6 +91,8 @@ async function fillItem(card,description,quantity,price){
     await page.locator('.app-ui .ta-mobile-nav').waitFor({state:'visible',timeout:90000});
     assert.equal(await page.evaluate(()=>innerWidth),390,'WebKit live QA did not run at iPhone width');
 
+    await page.locator('.editor-topbar button[aria-label="Back"]').click();
+    await page.locator('.app-ui .ta-mobile-nav').waitFor({state:'visible',timeout:30000});
     await page.locator('.ta-mobile-create').click();
     await page.locator('.global-search-panel').waitFor({state:'visible'});
     await page.getByRole('button',{name:/New quotation/}).click();
