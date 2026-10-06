@@ -18,6 +18,7 @@
     import {defaultCompany,defaultAppSettings,customerSnapshotFrom} from './src/lib/defaults.js';
     import {blankCustomer} from './src/components/CustomersPage.js';
     import {setUiLanguage} from './src/lib/i18n.js';
+    import {calculateTotals} from './src/lib/money.js';
 
     setUiLanguage('en');
     let company={...defaultCompany(),nameEn:'LOUREX Trading',nameAr:'لوركس للتجارة'};
@@ -25,6 +26,7 @@
     let documentValue=createBlankDocument('proforma','PI-2026-0538',company);
     documentValue={...documentValue,issueDate:'2026-10-05',dueDate:'2026-11-04',language:'en',customerSnapshot:customerSnapshotFrom(customer)};
     documentValue.items=[{...documentValue.items[0],descriptionEn:'Lifecycle stability line',quantity:'2',unit:'PCS',unitPrice:'15.00'}];
+    documentValue.adjustments={...documentValue.adjustments,taxEnabled:true,taxPercent:'15'};
 
     window.saveAttempts=0;
     window.saveEvents=[];
@@ -64,7 +66,7 @@
         onBeginRevision:async value=>({...structuredClone(value),status:'draft',revision:(value.revision||1)+1}),
         onDiscardRevision:asyncNoop,onVoidDocument:asyncNoop,onCreateCreditNote:asyncNoop,onConvert:asyncNoop,
         onPrint:async(value,mode)=>{
-          window.printEvents.push({mode,number:value.number,status:value.status,at:Date.now()});
+          window.printEvents.push({mode,number:value.number,status:value.status,totals:calculateTotals(value.items,value.adjustments),at:Date.now()});
           const portal=document.createElement('div');portal.className='qa-print-portal print-portal';portal.dataset.mode=mode;portal.innerHTML='<div class="invoice-pages" data-pagination-ready="true"><section class="invoice-page">QA output</section></div>';
           document.body.appendChild(portal);
           await sleep(90);
