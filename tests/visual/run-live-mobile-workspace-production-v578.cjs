@@ -219,27 +219,36 @@ async function unlockIfNeeded(page,pin,timeout=90000){
     await page.locator('.lourex-ai-close').click().catch(()=>{});
 
     await openNewQuotation(page);
-    const attachmentInput=page.locator('.document-attachment-input');
-    await attachmentInput.setInputFiles([
+    const addFiles=page.getByRole('button',{name:'Add files'});
+    const firstChooserPromise=page.waitForEvent('filechooser');
+    await addFiles.click();
+    const firstChooser=await firstChooserPromise;
+    await firstChooser.setFiles([
       {name:'mobile-a.pdf',mimeType:'application/pdf',buffer:pdfBuffer('mobile-a')},
       {name:'mobile-b.pdf',mimeType:'application/pdf',buffer:pdfBuffer('mobile-b')}
     ]);
-    await page.waitForFunction(()=>document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')==='2'||Boolean(document.querySelector('#document-attachments .inline-error')),{timeout:30000});
+    await page.waitForTimeout(1800);
     const firstBatchState=await page.evaluate(()=>({
       count:document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')||'',
       error:document.querySelector('#document-attachments .inline-error')?.textContent?.trim()||'',
-      cards:Array.from(document.querySelectorAll('.attachment-card .attachment-copy strong')).map(node=>node.textContent?.trim()||'')
+      cards:Array.from(document.querySelectorAll('.attachment-card .attachment-copy strong')).map(node=>node.textContent?.trim()||''),
+      button:document.querySelector('.attachment-add-button')?.textContent?.trim()||''
     }));
-    assert.equal(firstBatchState.count,'2',`multi-file first selection was rejected: ${JSON.stringify(firstBatchState)}`);
+    assert.equal(firstBatchState.count,'2',`multi-file first selection was rejected or ignored: ${JSON.stringify(firstBatchState)}`);
     const firstBatchNames=await page.locator('.attachment-card .attachment-copy strong').allTextContents();
-    await attachmentInput.setInputFiles([
+
+    const secondChooserPromise=page.waitForEvent('filechooser');
+    await addFiles.click();
+    const secondChooser=await secondChooserPromise;
+    await secondChooser.setFiles([
       {name:'mobile-c.pdf',mimeType:'application/pdf',buffer:pdfBuffer('mobile-c')}
     ]);
-    await page.waitForFunction(()=>document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')==='3'||Boolean(document.querySelector('#document-attachments .inline-error')),{timeout:30000});
+    await page.waitForTimeout(1800);
     const secondBatchState=await page.evaluate(()=>({
       count:document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')||'',
       error:document.querySelector('#document-attachments .inline-error')?.textContent?.trim()||'',
-      cards:Array.from(document.querySelectorAll('.attachment-card .attachment-copy strong')).map(node=>node.textContent?.trim()||'')
+      cards:Array.from(document.querySelectorAll('.attachment-card .attachment-copy strong')).map(node=>node.textContent?.trim()||''),
+      button:document.querySelector('.attachment-add-button')?.textContent?.trim()||''
     }));
     assert.equal(secondBatchState.count,'3',`multi-file accumulation failed: ${JSON.stringify(secondBatchState)}`);
     const accumulatedNames=await page.locator('.attachment-card .attachment-copy strong').allTextContents();
