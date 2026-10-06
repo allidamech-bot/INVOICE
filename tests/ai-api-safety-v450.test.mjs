@@ -39,8 +39,9 @@ test('live AI origin guard accepts browser same-origin metadata behind deploymen
     const source=await read(file);
     assert.match(source,/requestedWith!=='LOUREX-Invoice'/,`${file} must retain LOUREX request-intent header enforcement`);
     assert.match(source,/sec-fetch-site/,`${file} must use browser same-origin metadata behind reverse proxies`);
-    assert.match(source,/fetchSite==='same-origin'/,`${file} must accept a browser-confirmed same-origin request`);
-    assert.match(source,/fetchSite&&fetchSite!=='same-origin'/,`${file} must reject explicit cross-site browser requests`);
-    assert.match(source,/requestHosts\(request\)/,`${file} must retain host matching fallback when fetch metadata is absent`);
+    assert.match(source,/fetchSite==='cross-site'/,`${file} must reject explicit cross-site browser requests`);
+    assert.match(source,/hostMatches=requestHosts\(request\)\.includes/,`${file} must verify the browser origin against trusted request\/deployment hosts`);
+    assert.match(source,/return fetchSite==='same-origin'/,`${file} must retain the reverse-proxy same-origin fallback`);
+    assert.match(source,/VERCEL_PROJECT_PRODUCTION_URL/,`${file} must recognize the production alias behind Vercel deployment hosts`);
   }
 });
