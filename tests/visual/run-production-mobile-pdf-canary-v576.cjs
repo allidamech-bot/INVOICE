@@ -58,8 +58,6 @@ async function createQuote(page){
   await page.locator('.new-customer-option').click();
   await page.getByRole('heading',{name:'New Customer'}).waitFor({timeout:15000});
   await page.getByLabel('Company Name English').last().fill('Mobile PDF Buyer');
-  await page.getByLabel('City').fill('QA City');
-  await page.getByLabel('Country').fill('Saudi Arabia');
   await page.getByRole('button',{name:/Save & Select/i}).click();
   await page.locator('.selected-customer').waitFor({timeout:15000});
 
