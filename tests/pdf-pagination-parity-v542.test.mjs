@@ -56,7 +56,12 @@ test('fixture renders the identical quotation snapshot into preview and PDF sour
   assert.match(html,/vendor\/jspdf\.umd\.min\.js/);
   assert.match(html,/ios-print-bridge\.js/);
   assert.match(runner,/__LOUREX_PREPARE_PDF__/);
+  assert.match(runner,/results\.push\(await inspect\(webkit,'webkit-iphone390'\)\)/,'WebKit iPhone 390x844 must stay in the regression gate');
+  assert.match(runner,/viewport:\{width:390,height:844\}/,'mobile PDF regression must run at the iPhone viewport');
+  assert.match(runner,/assert\.equal\(metrics\.previewCount,1/,'short quotation must remain one preview page on mobile');
+  assert.match(runner,/assert\.equal\(metrics\.outputCount,metrics\.previewCount/,'PDF source page count must match mobile preview');
   assert.match(runner,/pageObjects/);
+  assert.match(runner,/assert\.equal\(pdfArtifact\.pageObjects,1/,'downloaded WebKit PDF must physically contain one page');
   assert.match(runner,/downloaded PDF blob contains/);
 });
 
