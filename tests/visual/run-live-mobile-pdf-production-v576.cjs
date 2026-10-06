@@ -139,6 +139,45 @@ async function fillItem(card,description,quantity,price){
       await page.waitForTimeout(400);
     }
 
+    for(let index=4;index<=11;index++){
+      await page.getByRole('button',{name:'Add Item'}).click();
+      cards=page.locator('.item-card');
+      await fillItem(cards.nth(index-1),`Mobile PDF item ${index}`,index,String(10+index));
+    }
+
+    await page.getByRole('button',{name:'Preview'}).last().click();
+    await page.locator('.mobile-preview-stage .invoice-page').first().waitFor({state:'visible',timeout:30000});
+    const multiPreview=await page.evaluate(()=>{
+      const pages=Array.from(document.querySelectorAll('.mobile-preview-stage .invoice-page'));
+      return {
+        count:pages.length,
+        rows:pages.map(page=>page.querySelectorAll('.items-table tbody tr').length),
+        finalDetails:pages.map(page=>Boolean(page.querySelector('.final-details'))),
+        footers:pages.map(page=>page.querySelector('.doc-footer')?.textContent?.trim()||'')
+      };
+    });
+    assert.ok(multiPreview.count>1,`11-item iPhone preview expected multiple pages, got ${multiPreview.count}`);
+    assert.ok(multiPreview.rows.at(-1)>0,`11-item iPhone preview stranded totals/footer on a page with no item rows: ${JSON.stringify(multiPreview.rows)}`);
+    assert.equal(multiPreview.finalDetails.at(-1),true,'11-item iPhone preview detached final details from the last content page');
+    await page.screenshot({path:path.join(output,'iphone390-multipage-preview.png'),fullPage:false,animations:'disabled'});
+    await page.locator('.mobile-preview-overlay button[aria-label="Close"]').click();
+
+    await page.locator('.mobile-editor-actionbar button').filter({hasText:/^PDF$/}).click();
+    const multiReview=page.locator('.modal-backdrop').last();
+    if(await multiReview.isVisible().catch(()=>false)){
+      const confirm=multiReview.getByRole('button',{name:/Confirm, Issue & PDF|Continue to PDF/});
+      await confirm.waitFor({state:'visible',timeout:15000});
+      await confirm.click();
+    }
+    const multiArtifact=await pdfArtifact(page);
+    assert.ok(multiArtifact.bytes>10000,`multi-page: generated PDF is unexpectedly small (${multiArtifact.bytes} bytes)`);
+    assert.equal(multiArtifact.pageObjects,multiPreview.count,`multi-page: iPhone downloaded PDF contains ${multiArtifact.pageObjects} physical pages but preview has ${multiPreview.count}`);
+    assert.ok(multiArtifact.countMatches.includes(multiPreview.count),`multi-page: downloaded PDF page tree does not include Count ${multiPreview.count}`);
+    await page.screenshot({path:path.join(output,'iphone390-multipage-output.png'),fullPage:false,animations:'disabled'});
+    const multiClose=page.locator('.lourex-ios-output-cancel');
+    if(await multiClose.count())await multiClose.last().click();
+    await page.waitForTimeout(400);
+
     const finalState=await page.evaluate(()=>({
       width:innerWidth,
       scrollWidth:document.documentElement.scrollWidth,
@@ -151,7 +190,7 @@ async function fillItem(card,description,quantity,price){
     assert.equal(finalState.mobileActionbar,true,'mobile document action bar disappeared');
     assert.deepEqual(pageErrors,[],'page errors occurred during live iPhone PDF flow');
 
-    const report={url,viewport:{width:390,height:844},engine:'webkit',previewCount,previewFooter,downloads:results,finalState,pageErrors,consoleErrors};
+    const report={url,viewport:{width:390,height:844},engine:'webkit',previewCount,previewFooter,downloads:results,multiPage:{preview:multiPreview,pdf:multiArtifact},finalState,pageErrors,consoleErrors};
     writeFileSync(path.join(output,'report.json'),JSON.stringify(report,null,2));
     console.log('LIVE MOBILE PDF PASS',JSON.stringify(report));
   }finally{
