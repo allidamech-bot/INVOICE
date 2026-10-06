@@ -39,6 +39,7 @@ let ai=await readFile(aiTarget,'utf8');
 if(!ai.includes('__lourexPremiumConversationBatch3'))throw new Error('AI composer Batch 3 requires the premium conversation runtime.');
 if(!ai.includes('__lourexConversationOwnerBatch2'))throw new Error('AI composer Batch 3 requires the navigation hierarchy.');
 if(ai.includes('__lourexConversationComposerBatch3'))throw new Error('AI composer Batch 3 render is already installed.');
+if(!ai.includes('__lourexFileInput')||!ai.includes('__lourexCameraInput'))throw new Error('AI composer Batch 3 requires both hidden attachment input bridges.');
 
 const menuStart='function __lourexAttachmentMenu(instance){';
 const menuEnd='function __lourexAddFiles(instance,fileList){';
