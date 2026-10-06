@@ -42,7 +42,7 @@ test('live production alias is accepted when Vercel forwards a different interna
     for(const handler of [advisorHandler,aiCoreHandler]){
       const res=await run(handler,{origin:'https://invoice-three-puce.vercel.app',host:'invoice-pmt3rfqb7-alidaamishs-projects.vercel.app'});
       assert.notEqual(res.statusCode,403);
-      assert.notMatch(String(res.body?.code||''),/ORIGIN_REJECTED/);
+      assert.doesNotMatch(String(res.body?.code||''),/ORIGIN_REJECTED/);
     }
   }finally{
     if(previous===undefined)delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
