@@ -234,7 +234,7 @@ async function unlockIfNeeded(page,pin,timeout=90000){
       cards:Array.from(document.querySelectorAll('.attachment-card .attachment-copy strong')).map(node=>node.textContent?.trim()||''),
       button:document.querySelector('.attachment-add-button')?.textContent?.trim()||''
     }));
-    assert.equal(firstBatchState.count,'2',`multi-file first selection was rejected or ignored: ${JSON.stringify(firstBatchState)}`);
+    assert.equal(firstBatchState.cards.length,2,`multi-file first selection was rejected or ignored: ${JSON.stringify(firstBatchState)}`);
     const firstBatchNames=await page.locator('.attachment-card .attachment-copy strong').allTextContents();
 
     const secondChooserPromise=page.waitForEvent('filechooser');
@@ -250,7 +250,7 @@ async function unlockIfNeeded(page,pin,timeout=90000){
       cards:Array.from(document.querySelectorAll('.attachment-card .attachment-copy strong')).map(node=>node.textContent?.trim()||''),
       button:document.querySelector('.attachment-add-button')?.textContent?.trim()||''
     }));
-    assert.equal(secondBatchState.count,'3',`multi-file accumulation failed: ${JSON.stringify(secondBatchState)}`);
+    assert.equal(secondBatchState.cards.length,3,`multi-file accumulation failed: ${JSON.stringify(secondBatchState)}`);
     const accumulatedNames=await page.locator('.attachment-card .attachment-copy strong').allTextContents();
     assert.deepEqual(firstBatchNames,['mobile-a.pdf','mobile-b.pdf'],'multi-file first selection did not preserve both files');
     assert.deepEqual(accumulatedNames,['mobile-a.pdf','mobile-b.pdf','mobile-c.pdf'],'second file selection replaced prior attachments instead of accumulating');
