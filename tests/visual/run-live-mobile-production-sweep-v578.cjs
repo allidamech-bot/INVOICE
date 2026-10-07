@@ -182,7 +182,7 @@ async function createQuotation(page){
     const attachmentStep=iphone.locator('.ta-editor-step-list>button').filter({hasText:/Attachments|المرفقات/}).first();
     assert.equal(await attachmentStep.count(),1,`Attachments step missing from live mobile editor: ${JSON.stringify(stepLabels)}`);
     await attachmentStep.click();
-    const section=iphone.locator('#document-attachments');
+    const section=iphone.locator('.document-attachments-section');
     await section.waitFor({state:'attached',timeout:15000});
     await section.scrollIntoViewIfNeeded();
     const input=section.locator('.document-attachment-input');
@@ -191,9 +191,9 @@ async function createQuotation(page){
       {name:'mobile-qa-a.pdf',mimeType:'application/pdf',buffer:pdf('a')},
       {name:'mobile-qa-b.pdf',mimeType:'application/pdf',buffer:pdf('b')}
     ]);
-    await iphone.waitForFunction(()=>document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')==='2');
+    await iphone.waitForFunction(()=>document.querySelector('.document-attachments-section')?.getAttribute('data-attachment-count')==='2');
     await input.setInputFiles({name:'mobile-qa-c.pdf',mimeType:'application/pdf',buffer:pdf('c')});
-    await iphone.waitForFunction(()=>document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')==='3');
+    await iphone.waitForFunction(()=>document.querySelector('.document-attachments-section')?.getAttribute('data-attachment-count')==='3');
     const names=await section.locator('.attachment-card .attachment-copy strong').allTextContents();
     assert.deepEqual(new Set(names),new Set(['mobile-qa-a.pdf','mobile-qa-b.pdf','mobile-qa-c.pdf']));
     return {count:3,names,steps:stepLabels};
