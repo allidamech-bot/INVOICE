@@ -23,12 +23,12 @@ test('production document owner is fully compiled before first paint',async()=>{
     read('dist/styles/v331-draft-scroll-recovery.css'),
     read('package.json')
   ]);
-  assert.doesNotMatch(css,/@import\\b/,'Document CSS must not wait for nested network requests during render');
+  assert.doesNotMatch(css,/@import\b/,'Document CSS must not wait for nested network requests during render');
   const expected=[
     'v333-critical-documents-visual-functional-closeout.css',
+    'v337-template-layout-balance.css',
     'v364-document-template-layout-refinement.css',
-    'v365-mobile-editor-scroll-draft-templates.css',
-    'v337-template-layout-balance.css'
+    'v365-mobile-editor-scroll-draft-templates.css'
   ];
   let last=-1;
   for(const filename of expected){
