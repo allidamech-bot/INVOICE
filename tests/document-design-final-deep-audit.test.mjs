@@ -35,9 +35,9 @@ test('legacy template fallback keeps tokens and the actual rendered identity in 
   assert.equal(resolvedTemplateId('removed-template'),'executive');
   assert.equal(tokens.page,'#ffffff');
   assert.equal(tokens.accent,'#bd9659');
-  assert.equal(tokens.primary,'#101010');
-  assert.equal(tokens.secondary,'#101010');
-  assert.equal(tokens.heading,'#101010');
+  assert.equal(tokens.primary,'#17212b');
+  assert.equal(tokens.secondary,'#4d5b68');
+  assert.equal(tokens.heading,'#17212b');
 });
 
 test('secure-share output loads the exact document font family set used by the main app',async()=>{
