@@ -279,7 +279,8 @@ const css=`${sourceCss}\n${modalInteractionGuard.trim()}\n${editorFlatteningGuar
 if(!css.includes('.app-ui:has(.modal-backdrop) :is(.mobile-editor-actionbar,.draft-mobile-actionbar)'))throw new Error('v485 visible UI: modal/editor action isolation guard is missing.');
 if(!css.includes('visibility:hidden!important')||!css.includes('pointer-events:none!important'))throw new Error('v485 visible UI: modal/editor action isolation is incomplete.');
 if(!css.includes('LOUREX Batch 5 — document editor visual flattening')||!css.includes('.item-pricing-grid')||!css.includes('.watermark-editor-card'))throw new Error('v485 visible UI: Batch 5 editor flattening guard is missing.');
-if(!css.includes('background:transparent!important')||!css.includes('grid-template-columns:minmax(0,1fr)!important')||!css.includes('min-height:44px!important'))throw new Error('v485 visible UI: Batch 5 editor flattening contract is incomplete.');\nif(!css.includes('LOUREX v589 — final document studio owner')||!css.includes('.document-design-row')||!css.includes('--rule:#665d4f'))throw new Error('v485 visible UI: v589 final document studio owner is missing.');
+if(!css.includes('background:transparent!important')||!css.includes('grid-template-columns:minmax(0,1fr)!important')||!css.includes('min-height:44px!important'))throw new Error('v485 visible UI: Batch 5 editor flattening contract is incomplete.');
+if(!css.includes('LOUREX v589 — final document studio owner')||!css.includes('.document-design-row')||!css.includes('--rule:#665d4f'))throw new Error('v485 visible UI: v589 final document studio owner is missing.');
 
 for(const path of [bundlePath,standalonePath]){
   let content=await readFile(path,'utf8');
