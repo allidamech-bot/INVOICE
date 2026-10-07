@@ -83,32 +83,35 @@ async function inspect(page,template){
 
 (async()=>{
   const report=[];
+  const failures=[];
+  const check=(condition,message)=>{if(!condition)failures.push(message);};
   for(const [engine,browserType] of [['chromium',chromium],['webkit',webkit]]){
     const browser=await browserType.launch({headless:true});
     try{
       const page=await browser.newPage({viewport:{width:1440,height:1280}});
       for(const template of templates){
         const row=await inspect(page,template);
-        assert.equal(row.template,template,`${engine}/${template}: template mismatch`);
-        assert.ok(row.pageCount>=1,`${engine}/${template}: no rendered page`);
-        assert.ok(row.overflow.x<=2&&row.overflow.y<=2,`${engine}/${template}: A4 overflow ${JSON.stringify(row.overflow)}`);
+        check(row.template===template,`${engine}/${template}: template mismatch (${row.template})`);
+        check(row.pageCount>=1,`${engine}/${template}: no rendered page`);
+        check(row.overflow.x<=2&&row.overflow.y<=2,`${engine}/${template}: A4 overflow ${JSON.stringify(row.overflow)}`);
         for(const sample of row.samples){
           if(sample.missing)continue;
           const fg=sample.color,bg=sample.background;
-          assert.ok(fg&&bg,`${engine}/${template}/${sample.name}: color could not be resolved`);
+          if(!(fg&&bg)){failures.push(`${engine}/${template}/${sample.name}: color could not be resolved`);continue;}
           const ratio=contrast(fg,bg);
           sample.contrast=ratio;
-          assert.ok(ratio>=3.8,`${engine}/${template}/${sample.name}: contrast ${ratio.toFixed(2)} is too low for visible client PDF text`);
+          check(ratio>=3.8,`${engine}/${template}/${sample.name}: contrast ${ratio.toFixed(2)} is too low for visible client PDF text`);
         }
         if(row.rowBorder&&row.rowBorder.width>0&&row.rowBorder.style!=='none'&&row.rowBorder.color){
           const ratio=contrast(row.rowBorder.color,row.rowBorder.background);
           row.rowBorder.contrast=ratio;
-          assert.ok(ratio>=1.22,`${engine}/${template}: item-row separator contrast ${ratio.toFixed(2)} is effectively invisible`);
+          check(ratio>=1.22,`${engine}/${template}: item-row separator contrast ${ratio.toFixed(2)} is effectively invisible`);
         }
         report.push({engine,...row});
       }
     }finally{await browser.close();}
   }
-  writeFileSync(path.join(output,'report.json'),JSON.stringify({templates,caseCount:report.length,report},null,2));
+  writeFileSync(path.join(output,'report.json'),JSON.stringify({templates,caseCount:report.length,failures,report},null,2));
+  if(failures.length)throw new Error(`All-template Auto contrast QA found ${failures.length} issue(s):\n- ${failures.join('\n- ')}`);
   console.log(`All-template Auto contrast QA passed: ${report.length} browser/template cases.`);
 })().catch(error=>{console.error(error);process.exit(1);});
