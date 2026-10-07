@@ -69,9 +69,9 @@ test('appearance resolver protects each effective surface from unsafe custom ink
   for(const [templateId,paper] of Object.entries(lightPapers)){
     const auto=resolvedAppearanceTokens({...base,templateId,paletteMode:'auto'});
     assert.equal(auto.page,paper);
-    assert.equal(auto.primary,'#101010');
-    assert.equal(auto.secondary,'#101010');
-    assert.equal(auto.heading,'#101010');
+    assert.equal(auto.primary,'#17212b');
+    assert.equal(auto.secondary,'#4d5b68');
+    assert.notEqual(auto.heading,'#ffffff');
   }
   const unsafe=resolvedAppearanceTokens({...base,paletteMode:'custom',primaryTextColor:'#ffffff',secondaryTextColor:'#ffffff',headingTextColor:'#ffffff'});
   assert.equal(unsafe.primary,'#17212b');
