@@ -3,7 +3,7 @@
    document-premium-redesign-v141.css. */
 
 /* Arabic must never inherit Latin tracking/casing rules. */
-.invoice-page :where([dir="rtl"],.doc-title-primary-ar,.bi-label>span:last-child,.bi-value>span:last-child){
+.invoice-page :where([dir="rtl"],.doc-title-primary-ar,.bidi-ar){
   font-family:var(--font-arabic,"Noto Sans Arabic",Tahoma,Arial,sans-serif)!important;
   direction:rtl!important;
   unicode-bidi:isolate!important;
@@ -40,7 +40,8 @@
 /* One explicit language-direction contract for every template. UI direction must
    never leak into document direction. */
 .invoice-page.lang-ar{direction:rtl!important;unicode-bidi:isolate!important;text-align:right!important}
-.invoice-page.lang-en,.invoice-page.lang-bilingual{direction:ltr!important;unicode-bidi:isolate!important}
+.invoice-page.lang-en{direction:ltr!important;unicode-bidi:isolate!important;text-align:left!important}
+.invoice-page.lang-bilingual{direction:ltr!important;unicode-bidi:isolate!important;text-align:start!important}
 
 .invoice-page.lang-ar :is(
   .header-executive,.header-minimal,.header-trade,.header-signature,.header-modern,
@@ -89,15 +90,22 @@
 ){text-align:right!important}
 .invoice-page.lang-ar .items-table :is(.quantity-cell,.numeric-heading,.money-cell){text-align:left!important}
 
-/* Bilingual output is structurally LTR; each fragment owns its bidi direction. */
+/* Bilingual output keeps structural layout stable while every language fragment
+   owns its direction explicitly. Never infer language from first/last child:
+   one-language identity fields are valid inside bilingual documents. */
 .invoice-page.lang-bilingual :is(.bi-label,.bi-value){direction:ltr!important;unicode-bidi:isolate!important}
-.invoice-page.lang-bilingual :is(.bi-label,.bi-value)>span:first-child{direction:ltr!important;unicode-bidi:isolate!important;text-align:left!important}
-.invoice-page.lang-bilingual :is(.bi-label,.bi-value)>span:last-child{
+.invoice-page .bidi-fragment{unicode-bidi:isolate!important}
+.invoice-page .bidi-en{direction:ltr!important;text-align:left!important}
+.invoice-page .bidi-ar{
   direction:rtl!important;
-  unicode-bidi:isolate!important;
   text-align:right!important;
   letter-spacing:0!important;
   text-transform:none!important;
+}
+.invoice-page.lang-bilingual :is(.party-location,.term-row>span,.notes-block p,.unit-cell,.trade-cell){unicode-bidi:plaintext!important}
+.invoice-page.lang-bilingual :is(.money-cell,.quantity-cell,.numeric-heading,.doc-meta>div>span,.party-contact,.party-identifiers>div>span,.grand-total>strong,.total-row>strong,.doc-footer>span:last-child){
+  direction:ltr!important;
+  unicode-bidi:isolate!important;
 }
 
 @media print{
