@@ -169,6 +169,15 @@ html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lour
   }
 }
 @media(max-width:720px){
+  html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3']{
+    inset:0!important;
+    width:100vw!important;
+    max-width:none!important;
+    height:100dvh!important;
+    max-height:100dvh!important;
+    border:0!important;
+    border-radius:0!important;
+  }
   html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-context-shell{
     min-height:48px!important;
     padding:3px 8px 4px!important;
