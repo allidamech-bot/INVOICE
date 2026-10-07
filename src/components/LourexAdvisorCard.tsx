@@ -12,7 +12,7 @@ interface Props{language:UiLanguage;}
 interface AdvisorMessage{id:string;role:'user'|'assistant';text:string;}
 interface State{input:string;busy:boolean;error:string;messages:AdvisorMessage[];}
 
-const MAX_MESSAGE_CHARS=1000;
+const MAX_MESSAGE_CHARS=6000;
 const HISTORY_MESSAGES=6;
 function messageId(prefix:string):string{return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;}
 
