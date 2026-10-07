@@ -27,9 +27,9 @@ test('renderer appearance boundary survives malformed legacy template and font i
   assert.equal(tokens.primary,'#17212b');
   assert.equal(tokens.secondary,'#4d5b68');
   assert.equal(tokens.titleScale,1);
-  assert.equal(tokens.headingScale,.68);
-  assert.equal(tokens.bodyScale,8.2/9.2);
-  assert.equal(tokens.tableScale,7.25/9.1);
+  assert.equal(tokens.headingScale,.78);
+  assert.equal(tokens.bodyScale,1);
+  assert.equal(tokens.tableScale,8.2/9.1);
   assert.match(resolvedLatinFont(appearance),/^Inter,/);
   assert.match(resolvedArabicFont(appearance),/^Cairo,/);
 });
