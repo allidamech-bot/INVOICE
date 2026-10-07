@@ -31,7 +31,7 @@ test('Auto keeps authored template structure but normalizes body foreground to b
   assert.match(appearance,/carbon:'#fafafa'/);
   assert.match(premium,/\.template-obsidian\{--paper:#fff/);
   assert.match(v330,/\.template-obsidian \{ --paper:#15191c;--ink:#f5f1e9;--muted:#aeb5ba;--rule:#343a3f;--soft:#20262a; \}/);
-  assert.match(css,/Auto foreground is intentionally binary and surface-aware/);
+  assert.match(css,/Auto foreground is semantic and surface-aware/);
   assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)/);
   assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian/);
 });
