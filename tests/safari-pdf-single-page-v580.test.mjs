@@ -9,7 +9,10 @@ test('v580 Safari PDF owner runs before the final runtime cache identity',async(
   const build=String(pkg.scripts?.build||'');
   const owner='scripts/v580-safari-pdf-single-page.mjs';
   assert.ok(build.includes(owner),'v580 Safari PDF owner is missing from build');
-  const safariAt=build.indexOf(`node ${owner}`);\n  const finalHashAt=build.indexOf('node scripts/ai-voice-final-runtime-hash.mjs');\n  assert.ok(safariAt>=0&&finalHashAt>safariAt,'v580 must finish before the final runtime cache identity');\n  assert.ok(build.trim().endsWith('node scripts/ai-voice-final-runtime-hash.mjs'),'final runtime cache identity must remain last');
+  const safariAt=build.indexOf(`node ${owner}`);
+  const finalHashAt=build.indexOf('node scripts/ai-voice-final-runtime-hash.mjs');
+  assert.ok(safariAt>=0&&finalHashAt>safariAt,'v580 must finish before the final runtime cache identity');
+  assert.ok(build.trim().endsWith('node scripts/ai-voice-final-runtime-hash.mjs'),'final runtime cache identity must remain last');
 });
 
 test('v580 prevents Safari document PDF from falling back to native print and busts its bridge cache',async()=>{
