@@ -117,8 +117,8 @@
     --v333-line-strong:#b9c7d7;
     --v333-text:#1b2737;
     --v333-muted:#64748b;
-    --v333-accent:#4f6ff7;
-    --v333-accent-soft:#edf2ff;
+    --v333-accent:var(--ft-accent,#315DA8);
+    --v333-accent-soft:var(--ft-accent-faint,rgba(49,93,168,.08));
   }
   html[data-ui-theme="dark"] body .app-ui .screen-editor{
     --v333-workspace:#07111f;
@@ -130,8 +130,8 @@
     --v333-line-strong:#3b526d;
     --v333-text:#f4f7fb;
     --v333-muted:#9bacc1;
-    --v333-accent:#7d98ff;
-    --v333-accent-soft:rgba(95,122,255,.14);
+    --v333-accent:var(--ft-accent,#7399E3);
+    --v333-accent-soft:var(--ft-accent-faint,rgba(115,153,227,.10));
   }
 
   html body .app-ui .screen-editor .editor-screen{
@@ -143,6 +143,44 @@
     background:color-mix(in srgb,var(--v333-card) 96%,transparent)!important;
   }
   html body .app-ui .screen-editor .document-readiness{display:none!important;}
+
+  /* Live-v583: editor actions use the same application palette as every other
+     workspace. Retired gradients/fixed blues must not create a second visual system. */
+  html body #root .app-ui .screen-editor :is(.editor-actions,.mobile-action-buttons) .btn-primary{
+    background:var(--ft-accent)!important;
+    background-image:none!important;
+    border-color:var(--ft-accent)!important;
+    color:var(--ft-on-accent,#fff)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.editor-actions,.mobile-action-buttons) :is(.btn-secondary,.btn-ghost){
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border-color:var(--ft-line-strong)!important;
+    color:var(--ft-text)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.editor-actions,.mobile-action-buttons) :is(.btn-secondary,.btn-ghost):hover{
+    background:var(--ft-surface-2)!important;
+    border-color:var(--ft-accent)!important;
+  }
+
+  /* Section navigation must land below the sticky editor chrome, never under it. */
+  html body .app-ui .screen-editor .editor-section{scroll-margin-top:96px!important;}
+
+  /* Customer quick-edit sections need visible grouping inside the long modal. */
+  html body .app-ui .modal .ta-customer-form-section{
+    padding:14px!important;
+    border:1px solid var(--ft-line)!important;
+    border-radius:14px!important;
+    background:var(--ft-surface)!important;
+  }
+  html body .app-ui .modal .ta-customer-form-section+ .ta-customer-form-section{margin-top:12px!important;}
+  html body .app-ui .modal .ta-customer-form-section>header{
+    padding-bottom:10px!important;
+    margin-bottom:12px!important;
+    border-bottom:1px solid var(--ft-line)!important;
+  }
 
   html body .app-ui .screen-editor :is(
     .editor-section,.premium-selected-customer,.selected-customer,.premium-item-card,.item-card,
