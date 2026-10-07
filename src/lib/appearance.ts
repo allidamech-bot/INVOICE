@@ -132,7 +132,7 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const surface=darkBody?(mixedLightCards?lightSurface:darkSemanticSurface):'#ffffff';
   const surfaceInk=darkBody&&!mixedLightCards?'#f5f1e9':'#17212b';
   const surfaceMuted=darkBody&&!mixedLightCards?'#aeb5ba':'#58656f';
-  const darkSurface=darkBody?darkSemanticSurface:'#202020';
+  const darkSurface=darkBody?(mixedLightCards?page:darkSemanticSurface):'#202020';
   const darkSurfaceInk='#fffaf0';
   const darkSurfaceMuted='#d7d0c4';
 
