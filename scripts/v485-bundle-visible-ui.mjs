@@ -353,6 +353,18 @@ const documentStudioFinalGuard=`
   -webkit-text-fill-color:#e7edf1!important;
 }
 
+
+.invoice-page.template-trade .items-table thead th{
+  background:#16384d!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-trade .items-table thead th small{
+  color:#e8eef2!important;
+  -webkit-text-fill-color:#e8eef2!important;
+}
+
 /* Dark-template readability closeout observed in live QA. */
 .invoice-page.template-blackivory{
   --rule:#837665;
