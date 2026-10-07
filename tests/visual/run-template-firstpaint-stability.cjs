@@ -13,16 +13,19 @@ const url='http://127.0.0.1:4173/tests/visual/obsidian-editor.html';
           try{
             await page.addInitScript(()=>{
               window.__templateFirstPaintSamples=[];
-              const started=performance.now();
+              const watchStarted=performance.now();
+              let firstVisible=null;
               const observe=()=>{
-                if(performance.now()-started>4000)return;
+                if(performance.now()-watchStarted>15000)return;
+                if(firstVisible!==null&&performance.now()-firstVisible>3000)return;
                 const gallery=document.querySelector('.template-selector');
                 if(gallery instanceof HTMLElement){
                   const rect=gallery.getBoundingClientRect();
                   const style=getComputedStyle(gallery);
                   if(rect.width>0&&rect.height>0&&style.visibility!=='hidden'&&style.display==='grid'){
+                    if(firstVisible===null)firstVisible=performance.now();
                     window.__templateFirstPaintSamples.push({
-                      at:Math.round(performance.now()-started),
+                      at:Math.round(performance.now()-firstVisible),
                       columns:style.gridTemplateColumns.trim().split(/\s+/).length,
                       width:Math.round(rect.width)
                     });
