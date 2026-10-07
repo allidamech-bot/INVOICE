@@ -84,3 +84,10 @@ test('v585 conversation persistence serializes overlapping saves so New Conversa
   assert.match(owner,/prior\.catch\(\(\)=>undefined\)\.then\(run\)/);
   assert.match(owner,/messages=\(instance\.state\.messages\|\|\[\]\)\.map/);
 });
+
+test('v585 created-document artifact does not alter the canonical message text child consumed by conversation owners',async()=>{
+  const copilot=await read('src/components/AiCopilot.tsx');
+  assert.match(copilot,/React\.Fragment key=\{message\.id\}/);
+  assert.match(copilot,/className=\{\`lourex-ai-message \$\{message\.role\}\`\}>\{message\.text\}<\/div>/);
+  assert.match(copilot,/message\.artifact\?<div className="lourex-ai-created-artifact"/);
+});
