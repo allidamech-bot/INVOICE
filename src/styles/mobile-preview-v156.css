@@ -6,7 +6,7 @@
   body:has(.app-ui .editor-screen.mobile-preview-open){overflow:hidden!important;overscroll-behavior:none!important}
 
   .app-ui .mobile-preview-overlay{
-    position:fixed!important;inset:0!important;z-index:240!important;
+    position:fixed!important;inset:0!important;z-index:var(--lourex-z-preview,1400)!important;
     width:100vw!important;height:100dvh!important;min-height:100dvh!important;
     margin:0!important;padding:0!important;display:none!important;flex-direction:column!important;
     overflow:hidden!important;background:var(--ft-workspace)!important;
