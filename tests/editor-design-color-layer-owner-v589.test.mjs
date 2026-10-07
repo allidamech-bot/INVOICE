@@ -29,8 +29,8 @@ test('v589 Design section has one visual hierarchy instead of nested card layers
 
 test('v589 strengthens the two live-observed dark-template contrast weaknesses',async()=>{
   const css=await read('src/styles/v485-visible-ui-corrections.css');
-  assert.match(css,/\.invoice-page\.template-blackivory\{--rule:#665d4f;\}/);
-  assert.match(css,/\.template-blackivory \.items-table tbody td\{border-bottom-color:#5b5347!important;\}/);
-  assert.match(css,/\.invoice-page\.template-noir\{--rule:#5b4a34;\}/);
-  assert.match(css,/\.template-noir \.section-kicker\{color:#d8b36f!important/);
+  assert.match(css,/\.invoice-page\.template-blackivory\{--rule:#837665;\}/);
+  assert.match(css,/\.template-blackivory \.items-table tbody td\{border-bottom-color:#6f6557!important;\}/);
+  assert.match(css,/\.invoice-page\.template-noir\{--rule:#765f3f;\}/);
+  assert.match(css,/\.template-noir \.section-kicker\{color:#e0bd78!important/);
 });
