@@ -1287,6 +1287,20 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-foo
   }
 
 }
+
+/* Executive table headings are client-facing text, not decorative accent text.
+   Keep their foreground independent of the gold accent in Auto/Custom output. */
+.invoice-page.template-executive .items-table thead th{
+  background:#102d41!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-executive .items-table thead th small{
+  color:#e7edf1!important;
+  -webkit-text-fill-color:#e7edf1!important;
+}
+
 .invoice-page.template-blackivory{--rule:#837665;}
 .invoice-page.template-blackivory .items-table{border-color:#837665!important;}
 .invoice-page.template-blackivory .items-table tbody td{border-bottom-color:#6f6557!important;}
