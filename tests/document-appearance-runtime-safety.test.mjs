@@ -38,9 +38,9 @@ test('valid legacy appearance still resolves its authored template identity',()=
   const appearance={...createBlankDocument('invoice','INV-LEGACY-VALID',defaultCompany()).appearance,templateId:'obsidian',paletteMode:'auto',latinFont:'auto',arabicFont:'auto'};
   const tokens=resolvedAppearanceTokens(appearance);
   assert.equal(tokens.page,'#15191c');
-  assert.equal(tokens.primary,'#ffffff');
-  assert.equal(tokens.secondary,'#ffffff');
-  assert.equal(tokens.heading,'#ffffff');
+  assert.equal(tokens.primary,'#f5f1e9');
+  assert.equal(tokens.secondary,'#aeb5ba');
+  assert.equal(tokens.heading,'#b68d4e');
   assert.match(resolvedLatinFont(appearance),/^Montserrat,/);
   assert.match(resolvedArabicFont(appearance),/^"Noto Kufi Arabic"/);
 });
