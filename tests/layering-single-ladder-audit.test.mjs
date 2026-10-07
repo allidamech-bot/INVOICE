@@ -78,3 +78,28 @@ test('AI fixed descendants use a component-local ladder instead of masquerading 
   }
   assert.doesNotMatch(design2,/z-index\s*:\s*1400/,'AI scope menu must not claim the application preview layer');
 });
+
+
+test('active foundational and editor owners do not reintroduce competing global layer numbers',async()=>{
+  const [app,documentPreview,attachments,editorCore,contrastGuard,draftRecovery]=await Promise.all([
+    read('src/styles/app.css'),
+    read('src/styles/document-premium-redesign-v141.css'),
+    read('src/styles/tailadmin-attachments-v320.css'),
+    read('src/styles/tailadmin-editor-core-v320.css'),
+    read('src/styles/v330-template-contrast-guard.css'),
+    read('src/styles/v331-draft-scroll-recovery.css')
+  ]);
+
+  assert.match(app,/\.modal-backdrop\{position:fixed;inset:0;z-index:var\(--lourex-z-modal,1300\)/);
+  assert.match(app,/\.toast\{position:fixed;right:22px;bottom:22px;z-index:var\(--lourex-z-toast,1360\)/);
+  assert.match(app,/\.mobile-preview-overlay\{position:fixed;inset:0;z-index:var\(--lourex-z-preview,1400\)/);
+  assert.match(app,/\.new-menu,.action-menu,.customer-dropdown\{[^}]*z-index:var\(--lourex-z-popover,1120\)/);
+
+  assert.match(documentPreview,/\.mobile-preview-open \.mobile-preview-overlay\{[^}]*z-index:var\(--lourex-z-preview,1400\)/);
+  assert.match(attachments,/\.attachment-preview-overlay\{[^}]*z-index:var\(--lourex-z-preview,1400\)!important/);
+  assert.doesNotMatch(attachments,/z-index:214748\d+/,'runtime attachment previews must not bypass the application ladder');
+
+  assert.match(editorCore,/\.draft-mobile-actionbar\{position:fixed!important;z-index:var\(--lourex-z-editor-dock,900\)!important/);
+  assert.match(contrastGuard,/\.screen-editor \.lourex-ai-launcher\{[\s\S]*?z-index:var\(--lourex-z-assistant-trigger,1180\)!important/);
+  assert.equal((draftRecovery.match(/z-index:var\(--lourex-z-editor-dock,900\)!important/g)||[]).length,2);
+});
