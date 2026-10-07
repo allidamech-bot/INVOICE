@@ -43,3 +43,14 @@ test('v591 final build owner contains the same native-control and layer contract
   assert.match(bundle,/\.appearance-table-columns\) \.toggle-row/);
   assert.match(bundle,/\.attachment-open-button/);
 });
+
+
+test('v591 Executive table header cannot inherit low-contrast accent foreground',async()=>{
+  const [css,bundle]=await Promise.all([
+    read('src/styles/v485-visible-ui-corrections.css'),
+    read('scripts/v485-bundle-visible-ui.mjs')
+  ]);
+  for(const source of [css,bundle]){
+    assert.match(source,/\.invoice-page\.template-executive \.items-table thead th\{[\s\S]*background:#102d41!important;[\s\S]*color:#fff!important;[\s\S]*-webkit-text-fill-color:#fff!important/);
+  }
+});
