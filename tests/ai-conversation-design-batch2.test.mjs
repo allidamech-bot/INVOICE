@@ -39,6 +39,8 @@ test('Batch 2 softens report chrome and preserves history and approval surfaces'
   assert.match(source,/\.lourex-ai-answer-block\.is-summary \.lourex-ai-answer-heading-row/);
   assert.match(source,/\.lourex-ai-thread-picker\[data-lourex-design2='true'\]/);
   assert.match(source,/\.lourex-ai-tool-approval\{/);
+  assert.match(source,/\.lourex-ai-premium-textarea\{[\s\S]*background:transparent!important/,'composer text area merges into one visual surface');
+  assert.match(source,/\.lourex-ai-message-action:is\(\.is-helpful,\.is-not-helpful\)[\s\S]*display:none!important/,'mobile feedback controls no longer crowd persistent message actions');
   assert.doesNotMatch(source,/assistantCapabilityAllowed|document\.createDraft|payment\.record|inventory\.adjust|accounting\.post/,'presentation owner cannot change AI authority');
 });
 
