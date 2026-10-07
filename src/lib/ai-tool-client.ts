@@ -2,7 +2,7 @@ import type { VaultPayload } from '../types.js';
 import { requestAiJson } from './ai-request.js';
 import { scopeVault } from './workspaces.js';
 import { resumeVaultSession } from '../storage/vault.js';
-import { createAiToolRuntime, deterministicAiToolPlan, executeAiToolPlan, validateAiToolPlan, compactToolResults, type AiToolPlan, type AiToolResult } from './ai-tool-orchestrator.js';
+import { createAiToolRuntime, deterministicAiToolPlan, executeAiToolPlan, validateAiToolPlan, compactToolResults, type AiToolPlan, type AiToolResult, type AiToolId } from './ai-tool-orchestrator.js';
 import { buildCfoBrief, buildDealDeskDecision, formatCfoBrief, formatDealDeskDecision, isCfoIntent, isDealDeskIntent } from './ai-cfo-deal-desk.js';
 import { handleAssistantLocalCommand } from './ai-personal-assistant.js';
 
