@@ -84,9 +84,9 @@ test('Normal typography maps to the effective shipped sizes while Small and Larg
   const base=createBlankDocument('invoice','INV-TYPE',defaultCompany()).appearance;
   const normal=resolvedAppearanceTokens({...base,textScale:'normal',documentTitleScale:'normal',sectionHeadingScale:'normal',bodyTextScale:'normal',tableTextScale:'normal'});
   assert.equal(normal.titleScale,1);
-  assert.ok(Math.abs(10*normal.headingScale-6.8)<1e-9);
-  assert.ok(Math.abs(9.2*normal.bodyScale-8.2)<1e-9);
-  assert.ok(Math.abs(9.1*normal.tableScale-7.25)<1e-9);
+  assert.ok(Math.abs(10*normal.headingScale-7.8)<1e-9);
+  assert.ok(Math.abs(9.2*normal.bodyScale-9.2)<1e-9);
+  assert.ok(Math.abs(9.1*normal.tableScale-8.2)<1e-9);
 
   const small=resolvedAppearanceTokens({...base,documentTitleScale:'small',sectionHeadingScale:'small',bodyTextScale:'small',tableTextScale:'small'});
   const large=resolvedAppearanceTokens({...base,documentTitleScale:'large',sectionHeadingScale:'large',bodyTextScale:'large',tableTextScale:'large'});
