@@ -20,7 +20,7 @@ test('v366 targets current commercial terms markup in Custom color mode',async()
   assert.match(css,/\.invoice-page\.palette-custom \.terms-block \.term-row>span\{color:var\(--lrx-primary/);
 });
 
-test('Auto keeps authored template structure but normalizes body foreground to black or white',async()=>{
+test('Auto keeps authored template structure and semantic surface-aware foreground roles',async()=>{
   const [appearance,css,premium,v330]=await Promise.all([read('src/lib/appearance.ts'),read('src/styles/template-surface-contrast-v366.css'),read('src/styles/document-premium-redesign-v141.css'),read('src/styles/v330-critical-documents-closeout.css')]);
   assert.match(appearance,/TEMPLATE_PAPERS/);
   assert.match(appearance,/obsidian:'#15191c'/);
@@ -59,17 +59,17 @@ test('Obsidian signing artwork stays output-faithful without CSS-only recoloring
   assert.match(bridge,/pdf\.addImage/);
 });
 
-test('Normal typography is an effective-production no-op and bounded controls preserve hierarchy',async()=>{
+test('Normal typography uses the readable production baseline and bounded controls preserve hierarchy',async()=>{
   const [css,appearance]=await Promise.all([read('src/styles/template-surface-contrast-v366.css'),read('src/lib/appearance.ts')]);
-  assert.match(appearance,/headingScale=scaleValue\(appearance\?\.sectionHeadingScale\?\?'normal',\.68,\.94,1\.08\)/);
-  assert.match(appearance,/bodyScale=scaleValue\(appearance\?\.bodyTextScale\?\?legacyScale,8\.2\/9\.2,\.95,1\.06\)/);
-  assert.match(appearance,/tableScale=scaleValue\(appearance\?\.tableTextScale\?\?legacyScale,7\.25\/9\.1,\.95,1\.05\)/);
-  assert.match(css,/terms-block h3,[\s\S]*font-size:var\(--lrx-heading-size,6\.8px\)!important/);
-  assert.match(css,/items-table\{font-size:var\(--lrx-table-size,7\.25px\)!important;\}/);
+  assert.match(appearance,/headingScale=scaleValue\(appearance\?\.sectionHeadingScale\?\?'normal',\.78,\.94,1\.08\)/);
+  assert.match(appearance,/bodyScale=scaleValue\(appearance\?\.bodyTextScale\?\?legacyScale,1,\.95,1\.06\)/);
+  assert.match(appearance,/tableScale=scaleValue\(appearance\?\.tableTextScale\?\?legacyScale,8\.2\/9\.1,\.95,1\.05\)/);
+  assert.match(css,/terms-block h3,[\s\S]*font-size:var\(--lrx-heading-size,7\.8px\)!important/);
+  assert.match(css,/items-table\{font-size:var\(--lrx-table-size,8\.2px\)!important;\}/);
   assert.match(css,/items-table tbody td\{font-size:100%!important/);
   assert.match(css,/items-table tbody td\.description-cell\{font-size:104\.138%!important/);
   assert.match(css,/items-table tbody td\.trade-cell\{font-size:93\.793%!important/);
-  assert.match(css,/party-block\{font-size:var\(--lrx-body-size,8\.2px\)!important;\}/);
+  assert.match(css,/party-block\{font-size:var\(--lrx-body-size,9\.2px\)!important;\}/);
   assert.match(css,/term-row>span,[\s\S]*bank-block>div>span\{font-size:85\.366%!important/);
   assert.match(css,/@media print/);
 });
