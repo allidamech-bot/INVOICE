@@ -28,7 +28,7 @@ const items=Array.from({length:count},(_,index)=>({
   quantity:String((index%7)+1),unit:index%2===0?'PCS':'SET',unitPrice:String(1175+(index*83)),unitCost:'0'
 }));
 
-const darkCandidate=template==='obsidian';
+const darkCandidate=['obsidian','noir','midnight','blackivory','carbon'].includes(template);
 const primaryTextColor=unsafeColors?(darkCandidate?'#111111':'#ffffff'):(darkCandidate?'#ffffff':'#17212b');
 const secondaryTextColor=unsafeColors?(darkCandidate?'#222222':'#ffffff'):(darkCandidate?'#d7d0c4':'#35424b');
 const headingTextColor=unsafeColors?(darkCandidate?'#111111':'#ffffff'):(darkCandidate?'#fffaf0':'#22303a');
