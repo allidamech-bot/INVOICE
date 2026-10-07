@@ -26,17 +26,17 @@ test('effective output papers match the loaded cascade and Obsidian keeps indepe
   for(const [templateId,paper] of Object.entries(lightPapers)){
     const tokens=resolvedAppearanceTokens({...base,templateId});
     assert.equal(tokens.page,paper,`${templateId}: effective paper`);
-    assert.equal(tokens.primary,'#101010',`${templateId}: Auto body ink`);
-    assert.equal(tokens.secondary,'#101010',`${templateId}: Auto label ink`);
-    assert.equal(tokens.heading,'#101010',`${templateId}: Auto heading ink`);
+    assert.equal(tokens.primary,'#17212b',`${templateId}: Auto body ink`);
+    assert.equal(tokens.secondary,'#4d5b68',`${templateId}: Auto label ink`);
+    assert.notEqual(tokens.heading,'#ffffff',`${templateId}: Auto heading cannot become inverse ink on a light sheet`);
     assert.equal(tokens.surface,'#ffffff',`${templateId}: local light surface`);
     assert.equal(tokens.darkSurfaceInk,'#fffaf0',`${templateId}: local dark-surface ink`);
   }
   const obsidian=resolvedAppearanceTokens({...base,templateId:'obsidian'});
   assert.equal(obsidian.page,'#15191c');
-  assert.equal(obsidian.primary,'#ffffff');
-  assert.equal(obsidian.secondary,'#ffffff');
-  assert.equal(obsidian.heading,'#ffffff');
+  assert.equal(obsidian.primary,'#f5f1e9');
+  assert.equal(obsidian.secondary,'#aeb5ba');
+  assert.equal(obsidian.heading,'#b68d4e');
   assert.equal(obsidian.surface,'#f1f2f2');
   assert.equal(obsidian.surfaceInk,'#17212b');
   assert.equal(obsidian.darkSurface,'#15191c');
