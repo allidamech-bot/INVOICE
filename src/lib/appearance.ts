@@ -112,14 +112,14 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const heading=custom?safeTextColor(appearance?.headingTextColor,bodyContrastSurfaces,autoHeading):autoHeading;
   const legacyScale=appearance?.textScale??'normal';
 
-  // Renderer variables predate role-based sizing and use historical numeric bases
-  // (10 / 9.2 / 9.1 px). Normal is anchored to the effective shipped document
-  // cascade: v364 owns 6.8px section headings while v141 owns 8.2px body and
-  // 7.25px table text. Small/Large remain restrained multipliers around those.
+  // Keep commercial PDFs readable at normal zoom. The old effective cascade
+  // drifted to ~5–6pt labels/table copy, which looked washed out on iPhone and
+  // in client PDFs. Normal now restores a restrained business-document baseline
+  // while Small/Large remain bounded around it.
   const titleScale=scaleValue(appearance?.documentTitleScale??'normal',1,.92,1.10);
-  const headingScale=scaleValue(appearance?.sectionHeadingScale??'normal',.68,.94,1.08);
-  const bodyScale=scaleValue(appearance?.bodyTextScale??legacyScale,8.2/9.2,.95,1.06);
-  const tableScale=scaleValue(appearance?.tableTextScale??legacyScale,7.25/9.1,.95,1.05);
+  const headingScale=scaleValue(appearance?.sectionHeadingScale??'normal',.78,.94,1.08);
+  const bodyScale=scaleValue(appearance?.bodyTextScale??legacyScale,1,.95,1.06);
+  const tableScale=scaleValue(appearance?.tableTextScale??legacyScale,8.2/9.1,.95,1.05);
 
   // Surface tokens describe local modules, not the page as a whole. Obsidian is
   // intentionally mixed: graphite page/body plus light #f1f2f2 party cards.
