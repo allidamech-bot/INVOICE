@@ -5,7 +5,7 @@ const runtimeTarget='dist/ai-composer-v449.js';
 const cssTarget='dist/ai-composer-v449.css';
 
 let runtime=await readFile(runtimeTarget,'utf8');
-if(!runtime.includes('__lourexConversationComposerBatch3'))throw new Error('Conversation Design Batch 2 requires the current composer owner.');
+if(!runtime.includes('__lourexConversationOwnerBatch3'))throw new Error('Conversation Design Batch 2 requires the current composer runtime owner.');
 if(runtime.includes('__lourexConversationDesignBatch2'))throw new Error('Conversation Design Batch 2 runtime is already installed.');
 
 runtime+=`
