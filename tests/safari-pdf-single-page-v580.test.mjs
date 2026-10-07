@@ -23,3 +23,16 @@ test('v580 prevents Safari document PDF from falling back to native print and bu
   assert.match(owner,/LOCAL_CORE\.push\('\.\/ios-print-bridge\.js\?v=\$\{VERSION\}'\)/);
   assert.match(owner,/v580 Safari PDF cache refresh/);
 });
+
+
+test('Safari app boundary refuses native PDF fallback when the bridge is unavailable',async()=>{
+  const app=await read('src/app/App.tsx');
+  const start=app.indexOf("private requestPrint=async(doc:LourexDocument,mode:'print'|'pdf'|'share')");
+  const end=app.indexOf('private afterPrint=',start);
+  assert.ok(start>=0&&end>start,'requestPrint workflow not found');
+  const workflow=app.slice(start,end);
+  assert.match(workflow,/appleTouch=\/iPad\|iPhone\|iPod\/i\.test\(navigator\.userAgent\)/);
+  assert.match(workflow,/mode!==['"]print['"]&&typeof preparePdf!==['"]function['"]/);
+  assert.match(workflow,/Safari PDF engine is not ready/);
+  assert.match(workflow,/preparePdf\?\.\(mode\)/);
+});
