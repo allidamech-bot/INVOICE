@@ -231,7 +231,7 @@
       content:"";
       position:fixed!important;
       inset:0!important;
-      z-index:calc(var(--lourex-z-modal,1300) - 1)!important;
+      z-index:calc(var(--lourex-z-sheet,1140) - 1)!important;
       background:rgba(0,0,0,.48)!important;
       backdrop-filter:blur(3px)!important;
       -webkit-backdrop-filter:blur(3px)!important;
@@ -239,7 +239,7 @@
     }
     html body .app-ui .ta-product-editor.is-open{
       position:fixed!important;
-      z-index:var(--lourex-z-modal,1300)!important;
+      z-index:var(--lourex-z-sheet,1140)!important;
       inset:auto max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))!important;
       width:auto!important;
       max-width:none!important;
@@ -294,7 +294,7 @@
       content:"";
       position:fixed!important;
       inset:0!important;
-      z-index:calc(var(--lourex-z-modal,1300) - 1)!important;
+      z-index:calc(var(--lourex-z-sheet,1140) - 1)!important;
       background:rgba(0,0,0,.48)!important;
       backdrop-filter:blur(3px)!important;
       -webkit-backdrop-filter:blur(3px)!important;
@@ -302,7 +302,7 @@
     }
     html body .app-ui .ta-ops-split>.ta-ops-editor{
       position:fixed!important;
-      z-index:var(--lourex-z-modal,1300)!important;
+      z-index:var(--lourex-z-sheet,1140)!important;
       inset:auto max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))!important;
       width:auto!important;
       max-width:none!important;
