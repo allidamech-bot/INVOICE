@@ -65,13 +65,13 @@ test('appearance resolver protects each effective surface from unsafe custom ink
   const {createBlankDocument}=await import('../dist/src/lib/documents.js');
   const {resolvedAppearanceTokens}=await import('../dist/src/lib/appearance.js');
   const base=createBlankDocument('invoice','INV-APPEARANCE-SAFE',defaultCompany()).appearance;
-  const lightPapers={noir:'#fffdf8',midnight:'#fcfaf4',blackivory:'#fbf6eb',carbon:'#fafafa'};
-  for(const [templateId,paper] of Object.entries(lightPapers)){
+  const darkPapers={noir:'#121212',midnight:'#071824',blackivory:'#14130f',carbon:'#1b1d20'};
+  for(const [templateId,paper] of Object.entries(darkPapers)){
     const auto=resolvedAppearanceTokens({...base,templateId,paletteMode:'auto'});
     assert.equal(auto.page,paper);
-    assert.equal(auto.primary,'#17212b');
-    assert.equal(auto.secondary,'#4d5b68');
-    assert.notEqual(auto.heading,'#ffffff');
+    assert.equal(auto.primary,'#f5f1e9');
+    assert.equal(auto.secondary,'#aeb5ba');
+    assert.equal(auto.surfaceInk,'#f5f1e9');
   }
   const unsafe=resolvedAppearanceTokens({...base,paletteMode:'custom',primaryTextColor:'#ffffff',secondaryTextColor:'#ffffff',headingTextColor:'#ffffff'});
   assert.equal(unsafe.primary,'#17212b');

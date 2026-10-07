@@ -11,8 +11,8 @@ const cases=[
   {name:'executive-custom-small',template:'executive',language:'en',items:'10',mode:'desktop',palette:'custom',textScale:'small',fonts:'custom',expectTemplate:'executive',expectTone:'light',expectPrimary:'#17212b'},
   {name:'executive-custom-large',template:'executive',language:'en',items:'10',mode:'desktop',palette:'custom',textScale:'large',fonts:'custom',expectTemplate:'executive',expectTone:'light',expectPrimary:'#17212b'},
   {name:'obsidian-custom-unsafe-ar',template:'obsidian',language:'ar',items:'10',mode:'desktop',palette:'custom',textScale:'large',fonts:'custom',unsafeColors:'true',expectTemplate:'obsidian',expectTone:'dark',expectPrimary:'#f5f1e9',expectSecondary:'#aeb5ba'},
-  {name:'carbon-custom-bilingual',template:'carbon',language:'bilingual',items:'10',mode:'desktop',palette:'custom',textScale:'small',fonts:'custom',expectTemplate:'carbon',expectTone:'light',expectPrimary:'#17212b'},
-  {name:'midnight-custom-unsafe',template:'midnight',language:'en',items:'10',mode:'desktop',palette:'custom',textScale:'normal',unsafeColors:'true',expectTemplate:'midnight',expectTone:'light',expectPrimary:'#17212b',expectSecondary:'#4d5b68'},
+  {name:'carbon-custom-bilingual',template:'carbon',language:'bilingual',items:'10',mode:'desktop',palette:'custom',textScale:'small',fonts:'custom',expectTemplate:'carbon',expectTone:'dark',expectPrimary:'#ffffff',expectSecondary:'#d7d0c4'},
+  {name:'midnight-custom-unsafe',template:'midnight',language:'en',items:'10',mode:'desktop',palette:'custom',textScale:'normal',unsafeColors:'true',expectTemplate:'midnight',expectTone:'dark',expectPrimary:'#f5f1e9',expectSecondary:'#aeb5ba'},
   {name:'legacy-template-fallback',legacyTemplate:'removed-template',language:'en',items:'4',mode:'desktop',palette:'auto',textScale:'normal',expectTemplate:'executive',expectTone:'light',expectPrimary:'#17212b',expectSecondary:'#4d5b68'},
   {name:'obsidian-auto-semantic',template:'obsidian',language:'en',items:'6',mode:'desktop',palette:'auto',textScale:'normal',expectTemplate:'obsidian',expectTone:'dark',expectPrimary:'#f5f1e9',expectSecondary:'#aeb5ba'}
 ];

@@ -24,11 +24,11 @@ test('Auto keeps authored template structure and semantic surface-aware foregrou
   const [appearance,css,premium,v330]=await Promise.all([read('src/lib/appearance.ts'),read('src/styles/template-surface-contrast-v366.css'),read('src/styles/document-premium-redesign-v141.css'),read('src/styles/v330-critical-documents-closeout.css')]);
   assert.match(appearance,/TEMPLATE_PAPERS/);
   assert.match(appearance,/obsidian:'#15191c'/);
-  assert.match(appearance,/DARK_BODY_TEMPLATES=new Set<TemplateId>\(\['obsidian'\]\)/);
-  assert.match(appearance,/noir:'#fffdf8'/);
-  assert.match(appearance,/midnight:'#fcfaf4'/);
-  assert.match(appearance,/blackivory:'#fbf6eb'/);
-  assert.match(appearance,/carbon:'#fafafa'/);
+  assert.match(appearance,/DARK_BODY_TEMPLATES=new Set<TemplateId>\(\['obsidian','noir','midnight','blackivory','carbon'\]\)/);
+  assert.match(appearance,/noir:'#121212'/);
+  assert.match(appearance,/midnight:'#071824'/);
+  assert.match(appearance,/blackivory:'#14130f'/);
+  assert.match(appearance,/carbon:'#1b1d20'/);
   assert.match(premium,/\.template-obsidian\{--paper:#fff/);
   assert.match(v330,/\.template-obsidian \{ --paper:#15191c;--ink:#f5f1e9;--muted:#aeb5ba;--rule:#343a3f;--soft:#20262a; \}/);
   assert.match(css,/Auto foreground is semantic and surface-aware/);

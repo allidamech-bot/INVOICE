@@ -28,7 +28,7 @@ const AUTO_ACCENTS: Record<TemplateId,string> = {
  * commercial identities light, but the later v330 identity layer deliberately
  * turns Obsidian back into a graphite sheet while leaving its party cards light. */
 const TEMPLATE_PAPERS: Record<TemplateId,string> = {
-  executive:'#ffffff', minimal:'#ffffff', trade:'#ffffff', signature:'#fcfaf5', obsidian:'#15191c', cobalt:'#ffffff', editorial:'#ffffff', split:'#ffffff', prism:'#ffffff', slate:'#ffffff', horizon:'#ffffff', mono:'#ffffff', aurora:'#fdfbf6', ledger:'#ffffff', noir:'#fffdf8', midnight:'#fcfaf4', blackivory:'#fbf6eb', carbon:'#fafafa'
+  executive:'#ffffff', minimal:'#ffffff', trade:'#ffffff', signature:'#fcfaf5', obsidian:'#15191c', cobalt:'#ffffff', editorial:'#ffffff', split:'#ffffff', prism:'#ffffff', slate:'#ffffff', horizon:'#ffffff', mono:'#ffffff', aurora:'#fdfbf6', ledger:'#ffffff', noir:'#121212', midnight:'#071824', blackivory:'#14130f', carbon:'#1b1d20'
 };
 
 /* Foreground roles are used on more than the page itself: alternating item rows,
@@ -39,7 +39,10 @@ const TEMPLATE_PAPERS: Record<TemplateId,string> = {
 const TEMPLATE_LIGHT_SURFACES: Record<TemplateId,string> = {
   executive:'#f5f7f8', minimal:'#ffffff', trade:'#f2f6f7', signature:'#f8f3e8', obsidian:'#f1f2f2', cobalt:'#f1f6fa', editorial:'#ffffff', split:'#eef2f2', prism:'#f3f8f7', slate:'#f1f3f4', horizon:'#f4f8f9', mono:'#f4f4f4', aurora:'#eef5f3', ledger:'#e9eef0', noir:'#f5f2eb', midnight:'#edf2f3', blackivory:'#f5efe3', carbon:'#eceeef'
 };
-const DARK_BODY_TEMPLATES=new Set<TemplateId>(['obsidian']);
+const DARK_BODY_TEMPLATES=new Set<TemplateId>(['obsidian','noir','midnight','blackivory','carbon']);
+const TEMPLATE_DARK_SURFACES: Partial<Record<TemplateId,string>> = {
+  obsidian:'#20262a',noir:'#1b1a18',midnight:'#0d2434',blackivory:'#1f1d18',carbon:'#24282b'
+};
 const LATIN_FONTS: Record<Exclude<LatinFontId,'auto'>,string> = {inter:'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif','source-sans':'"Source Sans 3", "Segoe UI", Arial, sans-serif',montserrat:'Montserrat, Arial, sans-serif',playfair:'"Playfair Display", Georgia, serif'};
 const ARABIC_FONTS: Record<Exclude<ArabicFontId,'auto'>,string> = {cairo:'Cairo, Tahoma, Arial, sans-serif',tajawal:'Tajawal, Tahoma, Arial, sans-serif','noto-kufi':'"Noto Kufi Arabic", Tahoma, Arial, sans-serif','noto-naskh':'"Noto Naskh Arabic", Tahoma, Arial, serif'};
 const AUTO_LATIN_BY_TEMPLATE: Record<TemplateId,Exclude<LatinFontId,'auto'>> = {executive:'inter',minimal:'source-sans',trade:'source-sans',signature:'playfair',obsidian:'montserrat',cobalt:'montserrat',editorial:'playfair',split:'inter',prism:'montserrat',slate:'source-sans',horizon:'playfair',mono:'source-sans',aurora:'montserrat',ledger:'source-sans',noir:'montserrat',midnight:'montserrat',blackivory:'playfair',carbon:'montserrat'};
@@ -100,9 +103,10 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const darkBody=DARK_BODY_TEMPLATES.has(templateId);
   const page=TEMPLATE_PAPERS[templateId];
   const lightSurface=TEMPLATE_LIGHT_SURFACES[templateId];
-  // Obsidian body copy can render on both the graphite page and its #20262a soft
-  // rows/sections. Light templates likewise need to clear paper + semantic fill.
-  const bodyContrastSurfaces=darkBody?[page,'#20262a']:[page,lightSurface];
+  // Dark identities must clear both their paper and their authored dark semantic
+  // surfaces. Light identities clear paper + local light fills.
+  const darkSemanticSurface=TEMPLATE_DARK_SURFACES[templateId]||page;
+  const bodyContrastSurfaces=darkBody?[page,darkSemanticSurface]:[page,lightSurface];
 
   const defaultPrimary=darkBody?'#f5f1e9':'#17212b';
   const defaultSecondary=darkBody?'#aeb5ba':'#4d5b68';
@@ -121,13 +125,14 @@ export function resolvedAppearanceTokens(appearance:DocumentAppearance):Template
   const bodyScale=scaleValue(appearance?.bodyTextScale??legacyScale,1,.95,1.06);
   const tableScale=scaleValue(appearance?.tableTextScale??legacyScale,8.2/9.1,.95,1.05);
 
-  // Surface tokens describe local modules, not the page as a whole. Obsidian is
-  // intentionally mixed: graphite page/body plus light #f1f2f2 party cards.
-  // Custom page text can therefore never be reused blindly inside those cards.
-  const surface=darkBody?lightSurface:'#ffffff';
-  const surfaceInk='#17212b';
-  const surfaceMuted='#58656f';
-  const darkSurface=darkBody?page:'#202020';
+  // Obsidian intentionally keeps light party cards. The four luxury identities
+  // are now true dark documents, so their local cards also use dark semantic
+  // surfaces and light ink instead of inheriting light-sheet card tokens.
+  const mixedLightCards=templateId==='obsidian';
+  const surface=darkBody?(mixedLightCards?lightSurface:darkSemanticSurface):'#ffffff';
+  const surfaceInk=darkBody&&!mixedLightCards?'#f5f1e9':'#17212b';
+  const surfaceMuted=darkBody&&!mixedLightCards?'#aeb5ba':'#58656f';
+  const darkSurface=darkBody?(mixedLightCards?page:darkSemanticSurface):'#202020';
   const darkSurfaceInk='#fffaf0';
   const darkSurfaceMuted='#d7d0c4';
 

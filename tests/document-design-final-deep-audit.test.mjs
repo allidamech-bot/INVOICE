@@ -22,7 +22,8 @@ test('document tone follows the effective paper instead of being hardcoded light
   const renderer=await read('src/templates/TemplateRenderer.tsx');
   const base=createBlankDocument('invoice','INV-TONE-FINAL',defaultCompany()).appearance;
   assert.equal(resolvedDocumentTone({...base,templateId:'obsidian'}),'dark');
-  for(const templateId of ['executive','noir','midnight','blackivory','carbon'])assert.equal(resolvedDocumentTone({...base,templateId}),'light',templateId);
+  assert.equal(resolvedDocumentTone({...base,templateId:'executive'}),'light');
+  for(const templateId of ['obsidian','noir','midnight','blackivory','carbon'])assert.equal(resolvedDocumentTone({...base,templateId}),'dark',templateId);
   assert.equal(resolvedDocumentTone({...base,templateId:'removed-template'}),'light');
   assert.match(renderer,/document-tone-\$\{tone\}/);
   assert.match(renderer,/data-tone=\{tone\}/);

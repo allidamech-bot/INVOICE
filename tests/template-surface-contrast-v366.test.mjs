@@ -15,8 +15,8 @@ test('effective commercial papers include the later Obsidian graphite override o
   const [appearance,v330]=await Promise.all([read('src/lib/appearance.ts'),read('src/styles/v330-critical-documents-closeout.css')]);
   assert.match(appearance,/TEMPLATE_PAPERS/);
   assert.match(appearance,/obsidian:'#15191c'/);
-  assert.match(appearance,/DARK_BODY_TEMPLATES=new Set<TemplateId>\(\['obsidian'\]\)/);
-  for(const [id,paper] of Object.entries({noir:'#fffdf8',midnight:'#fcfaf4',blackivory:'#fbf6eb',carbon:'#fafafa'}))assert.match(appearance,new RegExp(`${id}:'${paper}'`));
+  assert.match(appearance,/DARK_BODY_TEMPLATES=new Set<TemplateId>\(\['obsidian','noir','midnight','blackivory','carbon'\]\)/);
+  for(const [id,paper] of Object.entries({noir:'#121212',midnight:'#071824',blackivory:'#14130f',carbon:'#1b1d20'}))assert.match(appearance,new RegExp(`${id}:'${paper}'`));
   assert.match(v330,/\.template-obsidian \{ --paper:#15191c;--ink:#f5f1e9;--muted:#aeb5ba;--rule:#343a3f;--soft:#20262a; \}/);
 });
 
