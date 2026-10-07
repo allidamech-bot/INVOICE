@@ -1,0 +1,44 @@
+name: LOUREX LIVE Production Read-only Audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/visual/run-production-live-audit.cjs'
+      - '.github/workflows/live-production-browser-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  live-production:
+    name: Browser validation of deployed invoice-three-puce
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Install existing browser test dependencies
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          for sources in /etc/apt/apt-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [ -f "$sources" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$sources"
+            fi
+          done
+          timeout --signal=TERM --kill-after=30s 700s npx playwright install-deps chromium webkit
+          timeout --signal=TERM --kill-after=20s 240s npx playwright install chromium webkit
+      - name: Open actual Production in Chromium and WebKit
+        env:
+          LOUREX_PRODUCTION_URL: https://invoice-three-puce.vercel.app/
+        run: timeout --signal=TERM --kill-after=20s 180s node tests/visual/run-production-live-audit.cjs
+      - name: Upload screenshots and structured evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lourex-live-production-qa
+          path: visual-qa-output/live-production/
+          if-no-files-found: ignore
