@@ -246,6 +246,7 @@ export class EditorPage extends React.Component<Props,State>{
         await new Promise<void>(resolve=>this.setState({doc:finalDoc,saveState:'saved'},resolve));
       }
       if(mode!=='issue'){
+        await new Promise<void>(resolve=>this.setState({reviewMode:null},resolve));
         try{(window as any).__LOUREX_PREPARE_PDF__?.(mode);}catch{}
         await this.props.onPrint(finalDoc,mode);
       }
