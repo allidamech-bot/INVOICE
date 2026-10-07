@@ -21,7 +21,7 @@ const editorFlatteningGuard=`
    content inside that surface, not nested cards. This is screen-only: printable
    document paper, PDF output, templates and fixed editor action docks are not
    styled here. */
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card){
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card){
   min-width:0!important;
   background:var(--lx485-surface-2)!important;
   color:var(--lx485-text-2)!important;
@@ -30,62 +30,62 @@ html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card){
   box-shadow:none!important;
   overflow:hidden!important;
 }
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card)>header,
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card)>.form-grid,
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card)>footer,
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card) .item-core-grid,
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card) .item-pricing-grid,
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card) .item-advanced-control,
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card) .item-advanced-fields{
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card)>header,
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card)>.form-grid,
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card)>footer,
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card) .item-core-grid,
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card) .item-pricing-grid,
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card) .item-advanced-control,
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card) .item-advanced-fields{
   min-width:0!important;
   background:transparent!important;
   background-image:none!important;
   box-shadow:none!important;
 }
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card) .item-pricing-grid,
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card) .item-advanced-fields{
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card) .item-pricing-grid,
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card) .item-advanced-fields{
   border:0!important;
   border-radius:0!important;
   padding-inline:0!important;
 }
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card) .item-pricing-grid{
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card) .item-pricing-grid{
   padding-block:10px!important;
 }
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card) .item-advanced-fields{
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card) .item-advanced-fields{
   margin-top:2px!important;
   padding-block:12px 2px!important;
   border-top:1px solid color-mix(in srgb,var(--lx485-line) 76%,transparent)!important;
 }
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card)>header{
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card)>header{
   border-bottom:1px solid color-mix(in srgb,var(--lx485-line) 82%,transparent)!important;
 }
-html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card)>footer{
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card)>footer{
   border-top:1px solid color-mix(in srgb,var(--lx485-line) 72%,transparent)!important;
 }
-html body #root .app-ui .screen-editor .item-advanced-control{
+html body #root .app-ui :is(.screen-editor,.editor-screen) .item-advanced-control{
   padding:2px 0!important;
   border:0!important;
   border-radius:0!important;
 }
-html body #root .app-ui .screen-editor .item-advanced-control>button,
-html body #root .app-ui .screen-editor .item-card-actions button{
+html body #root .app-ui :is(.screen-editor,.editor-screen) .item-advanced-control>button,
+html body #root .app-ui :is(.screen-editor,.editor-screen) .item-card-actions button{
   min-height:44px!important;
   box-shadow:none!important;
 }
-html body #root .app-ui .screen-editor .item-advanced-control>button{
+html body #root .app-ui :is(.screen-editor,.editor-screen) .item-advanced-control>button{
   background:transparent!important;
   color:var(--lx485-text-2)!important;
   border:1px solid var(--lx485-line)!important;
   border-radius:11px!important;
 }
-html body #root .app-ui .screen-editor .item-line-total{
+html body #root .app-ui :is(.screen-editor,.editor-screen) .item-line-total{
   background:transparent!important;
   border:0!important;
   border-radius:0!important;
   padding-inline:0!important;
   color:var(--lx485-text)!important;
 }
-html body #root .app-ui .screen-editor :is(.design-advanced-panel,.document-design-stack,.document-design-group,.document-design-rows,.appearance-system-grid){
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.design-advanced-panel,.document-design-stack,.document-design-group,.document-design-rows,.appearance-system-grid){
   min-width:0!important;
   background:transparent!important;
   background-image:none!important;
@@ -93,46 +93,46 @@ html body #root .app-ui .screen-editor :is(.design-advanced-panel,.document-desi
   border-radius:0!important;
   box-shadow:none!important;
 }
-html body #root .app-ui .screen-editor :is(.watermark-editor-card,.watermark-editor-head,.watermark-editor-body){
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.watermark-editor-card,.watermark-editor-head,.watermark-editor-body){
   min-width:0!important;
   background:transparent!important;
   background-image:none!important;
   border-radius:0!important;
   box-shadow:none!important;
 }
-html body #root .app-ui .screen-editor .watermark-editor-card{
+html body #root .app-ui :is(.screen-editor,.editor-screen) .watermark-editor-card{
   border:0!important;
 }
-html body #root .app-ui .screen-editor .watermark-editor-head{
+html body #root .app-ui :is(.screen-editor,.editor-screen) .watermark-editor-head{
   border-inline:0!important;
   border-top:1px solid var(--lx485-line)!important;
   border-bottom:1px solid color-mix(in srgb,var(--lx485-line) 72%,transparent)!important;
 }
-html body #root .app-ui .screen-editor .watermark-editor-body{
+html body #root .app-ui :is(.screen-editor,.editor-screen) .watermark-editor-body{
   border:0!important;
 }
-html body #root .app-ui .screen-editor :is(.document-design-control>.input.select,.document-color-control,.watermark-editor-body input,.watermark-editor-body select,.watermark-editor-body button){
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.document-design-control>.input.select,.document-color-control,.watermark-editor-body input,.watermark-editor-body select,.watermark-editor-body button){
   min-height:44px!important;
 }
-html body #root .app-ui .screen-editor :is(.document-design-label,.watermark-editor-card,.item-advanced-fields){
+html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.document-design-label,.watermark-editor-card,.item-advanced-fields){
   text-align:start!important;
 }
 @media screen and (max-width:900px){
-  html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card) .item-pricing-grid,
-  html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card) .item-advanced-fields{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card) .item-pricing-grid,
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card) .item-advanced-fields{
     grid-template-columns:minmax(0,1fr)!important;
     gap:9px!important;
   }
-  html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card){border-radius:14px!important;}
-  html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card) .item-pricing-grid{padding-block:9px!important;}
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card){border-radius:14px!important;}
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card) .item-pricing-grid{padding-block:9px!important;}
 }
 @media screen and (max-width:430px){
-  html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card)>header,
-  html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card)>.form-grid,
-  html body #root .app-ui .screen-editor :is(.item-card,.premium-item-card)>footer{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card)>header,
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card)>.form-grid,
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.item-card,.premium-item-card)>footer{
     padding-inline:10px!important;
   }
-  html body #root .app-ui .screen-editor .item-card-actions{gap:4px!important;}
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .item-card-actions{gap:4px!important;}
 }
 `;
 
@@ -142,53 +142,61 @@ const documentStudioFinalGuard=`
    Runs after Batch 5 flattening so editor buttons and Design controls cannot
    inherit a second visual system from older owners. */
 @media screen {
-  html body #root .app-ui .screen-editor{
-    --lrx-editor-accent:var(--boot-accent,#129da1);
+  html body #root .app-ui :is(.screen-editor,.editor-screen){
+    --lrx-editor-accent:#315fad;
   }
 
-  html body #root .app-ui .screen-editor .btn.btn-primary{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .btn.btn-primary{
     background:var(--lrx-editor-accent)!important;
     background-image:none!important;
     border-color:var(--lrx-editor-accent)!important;
     color:#fff!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor .btn.btn-secondary,
-  html body #root .app-ui .screen-editor .btn:not(.btn-primary):not(.btn-danger):not(.btn-ghost){
-    background:var(--ft-surface)!important;
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .btn.btn-secondary,
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .btn:not(.btn-primary):not(.btn-danger):not(.btn-ghost){
+    background:var(--lx485-surface-3,#1d3651)!important;
     background-image:none!important;
-    border:1px solid var(--ft-line-strong)!important;
-    color:var(--ft-text-strong)!important;
+    border:1px solid var(--lx485-line-strong,rgba(145,190,247,.34))!important;
+    color:var(--lx485-text-2,#cbd8e8)!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor .btn.btn-ghost,
-  html body #root .app-ui .screen-editor .icon-btn{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .btn.btn-ghost{
+    background:var(--lx485-surface-3,#1d3651)!important;
+    background-image:none!important;
+    border:1px solid var(--lx485-line-strong,rgba(145,190,247,.34))!important;
+    color:var(--lx485-text-2,#cbd8e8)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .icon-btn{
     background:transparent!important;
     background-image:none!important;
     border-color:transparent!important;
-    color:var(--ft-text-strong)!important;
+    color:var(--lx485-text-2,#cbd8e8)!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor :is(.btn,.icon-btn):hover:not(:disabled){
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.btn,.icon-btn):hover:not(:disabled){
     border-color:color-mix(in srgb,var(--lrx-editor-accent) 52%,var(--ft-line-strong))!important;
   }
 
-  html body #root .app-ui .screen-editor .advanced-master-toggle{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .advanced-master-toggle{
+    appearance:none!important;
+    -webkit-appearance:none!important;
     min-height:44px!important;
-    background:var(--ft-surface)!important;
+    background:var(--lx485-surface-3,#1d3651)!important;
     background-image:none!important;
-    border:1px solid var(--ft-line-strong)!important;
-    color:var(--ft-text-strong)!important;
+    border:1px solid var(--lx485-line-strong,rgba(145,190,247,.34))!important;
+    color:var(--lx485-text-2,#cbd8e8)!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor .advanced-master-toggle:hover,
-  html body #root .app-ui .screen-editor .advanced-master-toggle:focus-visible{
-    background:var(--ft-surface-2)!important;
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .advanced-master-toggle:hover,
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .advanced-master-toggle:focus-visible{
+    background:var(--lx485-surface-2,#172d45)!important;
     border-color:var(--lrx-editor-accent)!important;
-    color:var(--ft-text-strong)!important;
+    color:var(--lx485-text,#f7faff)!important;
   }
 
-  html body #root .app-ui .screen-editor :is(
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(
     .design-advanced-panel,.document-design-stack,.document-design-group,
     .document-design-rows,.appearance-system-grid,.watermark-editor-card,
     .watermark-editor-head,.watermark-editor-body
@@ -199,15 +207,22 @@ const documentStudioFinalGuard=`
     border-radius:0!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor .document-design-group+.document-design-group{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .design-advanced-panel :is(.watermark-editor-card,.watermark-editor-head,.watermark-editor-body){
+    background:transparent!important;
+    background-image:none!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .document-design-group+.document-design-group{
     border-top:1px solid var(--ft-line)!important;
   }
-  html body #root .app-ui .screen-editor .document-design-row{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .document-design-row{
     background:transparent!important;
     box-shadow:none!important;
     border-bottom:1px solid color-mix(in srgb,var(--ft-line) 72%,transparent)!important;
   }
-  html body #root .app-ui .screen-editor .document-design-note{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .document-design-note{
     background:transparent!important;
     background-image:none!important;
     border-inline:0!important;
@@ -215,36 +230,38 @@ const documentStudioFinalGuard=`
     border-radius:0!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor .document-color-control,
-  html body #root .app-ui .screen-editor .document-design-control>.input.select{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .document-color-control,
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .document-design-control>.input.select{
     background:var(--ft-surface)!important;
     background-image:none!important;
     border:1px solid var(--ft-line-strong)!important;
     color:var(--ft-text-strong)!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor .design-mode-badge{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .design-mode-badge{
     background:transparent!important;
     border-color:var(--ft-line)!important;
     color:var(--ft-muted)!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor .design-mode-badge.is-custom{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .design-mode-badge.is-custom{
     border-color:color-mix(in srgb,var(--lrx-editor-accent) 48%,var(--ft-line))!important;
     color:var(--lrx-editor-accent)!important;
   }
-  html body #root .app-ui .screen-editor :is(
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(
     .item-advanced-control>button,.watermark-preset-row>button,
     .draft-block-toolbar button,.draft-block-actions button
   ){
-    background:var(--ft-surface)!important;
+    appearance:none!important;
+    -webkit-appearance:none!important;
+    background:var(--lx485-surface-3,#1d3651)!important;
     background-image:none!important;
-    border:1px solid var(--ft-line)!important;
-    color:var(--ft-text-strong)!important;
+    border:1px solid var(--lx485-line-strong,rgba(145,190,247,.34))!important;
+    color:var(--lx485-text-2,#cbd8e8)!important;
     box-shadow:none!important;
   }
   /* Native editor buttons that bypass UI.Button must still use the same palette. */
-  html body #root .app-ui .screen-editor :is(
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(
     .customer-dropdown button,.recent-customer-row button,
     .item-suggestion-box button,.pricing-suggestion-chip,
     .product-metadata-suggestions button,.commercial-preset-chips button,
@@ -257,7 +274,7 @@ const documentStudioFinalGuard=`
     color:var(--ft-text-strong)!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor :is(
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(
     .customer-dropdown button,.recent-customer-row button,
     .item-suggestion-box button,.pricing-suggestion-chip,
     .product-metadata-suggestions button,.commercial-preset-chips button,
@@ -267,7 +284,7 @@ const documentStudioFinalGuard=`
     border-color:color-mix(in srgb,var(--lrx-editor-accent) 52%,var(--ft-line-strong))!important;
     color:var(--ft-text-strong)!important;
   }
-  html body #root .app-ui .screen-editor :is(
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(
     .pricing-suggestion-chip,.product-metadata-suggestions button.active,
     .product-metadata-suggestions button[aria-pressed="true"]
   ){
@@ -277,30 +294,30 @@ const documentStudioFinalGuard=`
   }
 
   /* Template controls are controls, not black badges/cards from older owners. */
-  html body #root .app-ui .screen-editor .template-card{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .template-card{
     background:var(--ft-surface)!important;
     background-image:none!important;
     border-color:var(--ft-line-strong)!important;
     color:var(--ft-text-strong)!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor .template-card.selected{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .template-card.selected{
     border-color:var(--lrx-editor-accent)!important;
     box-shadow:0 0 0 2px color-mix(in srgb,var(--lrx-editor-accent) 14%,transparent)!important;
   }
-  html body #root .app-ui .screen-editor .template-favorite-button{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .template-favorite-button{
     background:var(--ft-surface)!important;
     background-image:none!important;
     border:1px solid var(--ft-line)!important;
     color:var(--ft-muted)!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor .template-favorite-button.active{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .template-favorite-button.active{
     background:var(--ft-accent-faint)!important;
     border-color:color-mix(in srgb,var(--lrx-editor-accent) 42%,var(--ft-line))!important;
     color:var(--lrx-editor-accent)!important;
   }
-  html body #root .app-ui .screen-editor .template-default-badge{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .template-default-badge{
     background:var(--ft-accent-faint)!important;
     background-image:none!important;
     border-color:color-mix(in srgb,var(--lrx-editor-accent) 38%,var(--ft-line))!important;
@@ -309,7 +326,7 @@ const documentStudioFinalGuard=`
   }
 
   /* Section 06 is one settings surface: separators, not nested card layers. */
-  html body #root .app-ui .screen-editor .template-preference-bar{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) .template-preference-bar{
     background:transparent!important;
     background-image:none!important;
     border-inline:0!important;
@@ -318,14 +335,14 @@ const documentStudioFinalGuard=`
     border-bottom:1px solid var(--ft-line)!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor :is(.appearance-toggles,.appearance-table-columns){
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.appearance-toggles,.appearance-table-columns){
     background:transparent!important;
     background-image:none!important;
     border:0!important;
     border-radius:0!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor :is(.appearance-toggles,.appearance-table-columns) .toggle-row{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.appearance-toggles,.appearance-table-columns) .toggle-row{
     background:transparent!important;
     background-image:none!important;
     border:0!important;
@@ -333,7 +350,7 @@ const documentStudioFinalGuard=`
     border-radius:0!important;
     box-shadow:none!important;
   }
-  html body #root .app-ui .screen-editor :is(.appearance-toggles,.appearance-table-columns) .toggle-row:last-child{
+  html body #root .app-ui :is(.screen-editor,.editor-screen) :is(.appearance-toggles,.appearance-table-columns) .toggle-row:last-child{
     border-bottom:0!important;
   }
 
