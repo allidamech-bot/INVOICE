@@ -91,3 +91,14 @@ test('v585 created-document artifact does not alter the canonical message text c
   assert.match(copilot,/className=\{\`lourex-ai-message \$\{message\.role\}\`\}>\{message\.text\}<\/div>/);
   assert.match(copilot,/message\.artifact\?<div className="lourex-ai-created-artifact"/);
 });
+
+test('v585 long quotation prompts survive every visible assistant entry point',async()=>{
+  const [copilot,premium,unified,home]=await Promise.all([
+    read('src/components/AiCopilot.tsx'),read('scripts/ai-batch3-premium-conversation.mjs'),read('scripts/ai-batch1-unified-assistant.mjs'),read('src/components/LourexAdvisorCard.tsx')
+  ]);
+  assert.match(copilot,/MAX_MESSAGE_CHARS=6000/);
+  assert.match(premium,/event\.target\.value\.slice\(0,6000\)/);
+  assert.match(premium,/message\+'\\\\n📎 '\+names\)\.slice\(0,6000\)/);
+  assert.match(unified,/detail\.question\.trim\(\)\.slice\(0,6000\)/);
+  assert.match(home,/MAX_MESSAGE_CHARS=6000/);
+});
