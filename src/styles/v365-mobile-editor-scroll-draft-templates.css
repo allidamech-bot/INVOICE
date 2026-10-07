@@ -197,7 +197,7 @@ html body .app-ui .screen-editor :where(.btn,.icon-button,button){
   html body .app-ui .screen-editor .mobile-editor-actionbar,
   html body .app-ui .screen-editor .draft-mobile-actionbar{
     position:fixed!important;
-    z-index:190!important;
+    z-index:var(--lourex-z-editor-dock,900)!important;
     left:10px!important;
     right:10px!important;
     bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;
