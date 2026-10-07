@@ -93,7 +93,7 @@ test('vault migration rejects malformed design colors and free-form text sizes',
   assert.equal(appearance.tableTextScale,undefined);
 });
 
-test('converted dark identities remain light commercial paper while Obsidian follows the effective graphite override',()=>{
+test('luxury identities use true dark commercial paper while Obsidian keeps its mixed-surface contract',()=>{
   const base=createBlankDocument('invoice','INV-2026-TONE',defaultCompany()).appearance;
   const lightPapers={noir:'#121212',midnight:'#071824',blackivory:'#14130f',carbon:'#1b1d20'};
   for(const [templateId,paper] of Object.entries(lightPapers)){
