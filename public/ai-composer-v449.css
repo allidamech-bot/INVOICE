@@ -1,4 +1,14 @@
 /* LOUREX v449 — Chat-style AI composer. The + control is the single workflow launcher. */
+/* AI descendants stay inside the canonical --lourex-z-ai application layer.
+   These small values are component-local stacking only and must never be used
+   as substitutes for the global --lourex-z-* ladder. */
+#lourex-ai-panel{
+  --lourex-ai-local-z-attachment:55;
+  --lourex-ai-local-z-scope:96;
+  --lourex-ai-local-z-sheet-backdrop:120;
+  --lourex-ai-local-z-sheet:121;
+  --lourex-ai-local-z-sheet-top:122;
+}
 .lourex-ai-launcher>svg,#lourex-ai-panel .lourex-ai-mark>svg{display:none!important}
 .lourex-ai-launcher:before,#lourex-ai-panel .lourex-ai-mark:before{content:"";display:block;width:72%;height:72%;background:url("./brand/lourex-logo.svg") center/contain no-repeat;filter:none}
 #lourex-ai-panel .lourex-ai-mark:before{width:78%;height:78%}
