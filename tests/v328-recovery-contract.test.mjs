@@ -33,11 +33,17 @@ test('mobile document step navigation belongs to the editor scroll surface',asyn
   assert.equal((core.match(/data-editor-nav-slot/g)||[]).length,1);
 });
 
-test('v328 mobile presentation owns aligned AI, compact advisor and readable templates',async()=>{
-  const [aiCss,templateCss]=await Promise.all([read('src/styles/tailadmin-ai-finish-v320.css'),read('src/styles/template-preferences.css')]);
-  assert.match(aiCss,/v328 — unified AI identity/);
-  assert.match(aiCss,/\.lourex-ai-launcher[^}]*width:44px!important[^}]*height:44px!important/);
-  assert.match(aiCss,/\.lourex-advisor-card/);
-  assert.match(templateCss,/v328 — phone template gallery/);
-  assert.match(templateCss,/grid-template-columns:minmax\(0,1fr\)!important/);
+test('current visual owners isolate AI conversation, dashboard advisor and mobile templates',async()=>{
+  const [conversationCss,advisorCss,galleryCss]=await Promise.all([
+    read('src/styles/tailadmin-ai-v320.css'),
+    read('src/styles/tailadmin-ai-finish-v320.css'),
+    read('src/styles/v330-critical-documents-closeout.css')
+  ]);
+  assert.match(conversationCss,/v350 — sole AI conversation-panel visual owner/);
+  assert.match(conversationCss,/\.lourex-ai-launcher\{[\s\S]*?width:50px!important;height:50px!important/);
+  assert.match(advisorCss,/v350 — dashboard AI surfaces only/);
+  assert.match(advisorCss,/\.app-ui \.lourex-advisor-card\{/);
+  assert.doesNotMatch(advisorCss,/\.lourex-ai-panel\s*\{/);
+  assert.match(galleryCss,/Mobile template gallery/);
+  assert.match(galleryCss,/\.screen-editor \.template-selector \{ grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important;gap:10px!important; \}/);
 });

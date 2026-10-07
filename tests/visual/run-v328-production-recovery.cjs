@@ -65,7 +65,7 @@ const expected=['draft','rfq','proforma','proforma-invoice','purchase-order','in
           assert.equal(info.navInside,true,`Stepper must live inside editor scroll: ${JSON.stringify(info)}`);
           assert.notEqual(info.navPosition,'fixed');
           assert.notEqual(info.actionPosition,'fixed');
-          assert.ok(info.templateColumns&&!info.templateColumns.includes(' '),`Phone template gallery must be one column: ${JSON.stringify(info)}`);
+          assert.equal(info.templateColumns.trim().split(/\s+/).length,2,`Phone template gallery must retain the approved two-column layout: ${JSON.stringify(info)}`);
           assert.ok(info.templateHeight>=110,`Template preview is too cramped: ${JSON.stringify(info)}`);
           await scroll.evaluate(el=>{el.scrollTop=el.scrollHeight;});await editor.waitForTimeout(60);
           assert.ok((await scroll.evaluate(el=>el.scrollTop))>100,'Editor cannot scroll to bottom');
