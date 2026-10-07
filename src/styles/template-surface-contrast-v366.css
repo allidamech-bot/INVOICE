@@ -73,26 +73,46 @@
   .invoice-page.template-obsidian :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-dark-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-dark-muted))!important;}
   .invoice-page.template-obsidian :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){color:var(--lrx-heading,var(--lrx-dark-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-dark-ink))!important;}
 
-  /* Auto foreground is intentionally binary and surface-aware. Light document
-   * surfaces use black text; dark document surfaces use white text. Accent colors
-   * remain structural/decorative and never become body copy in Auto mode. Dark
-   * mastheads, table headers and totals retain their authored inverse treatment. */
+  /* Auto foreground is semantic and surface-aware. Primary values, muted labels,
+   * and headings keep distinct hierarchy while every chosen foreground remains
+   * contrast-safe for its local surface. Accent colors are never allowed to leak
+   * into dark mastheads, table headers, totals, or light body copy unsafely. */
   .invoice-page.palette-auto:not(.template-obsidian) :is(
-    .party-block,.party-block .party-name,.party-block .party-address,.party-block .party-location,.party-block .party-contact,.party-block .party-identifiers,.party-block .party-identifiers b,.party-block .party-identifiers span,.party-block .section-kicker,.party-block .bi-value,.party-block .bi-value>span,
+    .party-block .party-name,.party-block .party-identifiers span,.party-block .bi-value,.party-block .bi-value>span,
     .items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.items-table .money-cell.strong,
-    .terms-block .term-row>b,.terms-block .term-row>span,.notes-block p,.bank-block>div>b,.bank-block>div>span,.doc-footer,
-    .terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label
-  ){color:var(--lrx-primary,#101010)!important;-webkit-text-fill-color:var(--lrx-primary,#101010)!important;}
+    .terms-block .term-row>span,.notes-block p,.bank-block>div>span
+  ){color:var(--lrx-primary,#17212b)!important;-webkit-text-fill-color:var(--lrx-primary,#17212b)!important;}
 
-  .invoice-page.palette-auto.template-obsidian .party-block,
-  .invoice-page.palette-auto.template-obsidian .party-block :is(.party-name,.party-address,.party-location,.party-contact,.party-identifiers,.party-identifiers b,.party-identifiers span,.section-kicker,.bi-value,.bi-value>span){
-    color:#101010!important;-webkit-text-fill-color:#101010!important;
+  .invoice-page.palette-auto:not(.template-obsidian) :is(
+    .party-block .party-address,.party-block .party-location,.party-block .party-contact,.party-block .party-identifiers,.party-block .party-identifiers b,
+    .terms-block .term-row>b,.bank-block>div>b,.doc-footer
+  ){color:var(--lrx-secondary,#4d5b68)!important;-webkit-text-fill-color:var(--lrx-secondary,#4d5b68)!important;}
+
+  .invoice-page.palette-auto:not(.template-obsidian) :is(
+    .party-block .section-kicker,.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label
+  ){color:var(--lrx-heading,var(--lrx-primary,#17212b))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-primary,#17212b))!important;}
+
+  /* Obsidian has light party cards on a dark body. Protect each local surface
+   * independently rather than forcing one global white/black foreground. */
+  .invoice-page.palette-auto.template-obsidian .party-block :is(.party-name,.party-identifiers span,.bi-value,.bi-value>span){
+    color:var(--lrx-surface-ink,#17212b)!important;-webkit-text-fill-color:var(--lrx-surface-ink,#17212b)!important;
+  }
+  .invoice-page.palette-auto.template-obsidian .party-block :is(.party-address,.party-location,.party-contact,.party-identifiers,.party-identifiers b){
+    color:var(--lrx-surface-muted,#58656f)!important;-webkit-text-fill-color:var(--lrx-surface-muted,#58656f)!important;
+  }
+  .invoice-page.palette-auto.template-obsidian .party-block .section-kicker{
+    color:var(--lrx-surface-ink,#17212b)!important;-webkit-text-fill-color:var(--lrx-surface-ink,#17212b)!important;
   }
   .invoice-page.palette-auto.template-obsidian :is(
     .items-table tbody td,.items-table tbody td span,.items-table tbody td .bi-value,.items-table tbody td .bi-value>span,.items-table .money-cell.strong,
-    .terms-block .term-row>b,.terms-block .term-row>span,.notes-block p,.bank-block>div>b,.bank-block>div>span,.doc-footer,
+    .terms-block .term-row>span,.notes-block p,.bank-block>div>span
+  ){color:var(--lrx-primary,#f5f1e9)!important;-webkit-text-fill-color:var(--lrx-primary,#f5f1e9)!important;}
+  .invoice-page.palette-auto.template-obsidian :is(
+    .terms-block .term-row>b,.bank-block>div>b,.doc-footer
+  ){color:var(--lrx-secondary,#aeb5ba)!important;-webkit-text-fill-color:var(--lrx-secondary,#aeb5ba)!important;}
+  .invoice-page.palette-auto.template-obsidian :is(
     .terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label
-  ){color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;}
+  ){color:var(--lrx-heading,var(--lrx-primary,#f5f1e9))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-primary,#f5f1e9))!important;}
 
   /* iOS PDF preserves signature/stamp artwork as native high-resolution overlays.
    * A CSS-only inversion would therefore diverge from the PDF overlay. Keep both
