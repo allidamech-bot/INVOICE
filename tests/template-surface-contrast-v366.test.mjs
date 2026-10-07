@@ -56,12 +56,14 @@ test('Obsidian Auto and Custom protect light cards and dark body copy independen
   assert.doesNotMatch(css,/template-obsidian \.signature-image[^\n]*invert\(/);
 });
 
-test('Auto uses only black or white body foreground while dark local modules keep authored inverse contrast',async()=>{
+test('Auto keeps semantic hierarchy while every local surface keeps authored inverse contrast',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/Auto foreground is intentionally binary and surface-aware/);
-  assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)[\s\S]*color:var\(--lrx-primary,#101010\)!important/);
-  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian[\s\S]*color:#101010!important/);
-  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian :is\([\s\S]*color:#ffffff!important/);
+  assert.match(css,/Auto foreground is semantic and surface-aware/);
+  assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)[\s\S]*color:var\(--lrx-primary,#17212b\)!important/);
+  assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)[\s\S]*color:var\(--lrx-secondary,#4d5b68\)!important/);
+  assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)[\s\S]*color:var\(--lrx-heading/);
+  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian \.party-block[\s\S]*--lrx-surface-ink/);
+  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian[\s\S]*--lrx-secondary,#aeb5ba/);
   assert.match(css,/Deliberately absent: custom foreground rules/);
   assert.doesNotMatch(css,/\.invoice-page\.palette-custom \.items-table thead th[^\n]*--lrx/);
   assert.doesNotMatch(css,/\.invoice-page\.palette-custom \.totals-block[^\n]*color:var\(--lrx/);
