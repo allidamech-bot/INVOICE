@@ -3,7 +3,7 @@
  * proposal and composer geometry. tailadmin-ai-finish owns dashboard advisor cards only. */
 @media screen {
   .lourex-ai-launcher{
-    position:fixed!important;z-index:1180!important;right:22px!important;bottom:22px!important;
+    position:fixed!important;z-index:var(--lourex-z-assistant-trigger,1180)!important;right:22px!important;bottom:22px!important;
     width:50px!important;height:50px!important;display:grid!important;place-items:center!important;
     border:1px solid color-mix(in srgb,var(--ft-accent) 32%,var(--ft-line))!important;border-radius:15px!important;
     background:var(--ft-accent)!important;color:var(--ft-on-accent)!important;box-shadow:0 12px 30px color-mix(in srgb,var(--ft-accent) 24%,transparent)!important;
@@ -13,9 +13,9 @@
   .lourex-ai-launcher:focus-visible{outline:0!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--ft-accent) 22%,transparent),0 12px 30px color-mix(in srgb,var(--ft-accent) 24%,transparent)!important;}
   [dir="rtl"] .lourex-ai-launcher{right:auto!important;left:22px!important;}
 
-  .lourex-ai-backdrop{position:fixed!important;inset:0!important;z-index:1181!important;border:0!important;background:rgba(8,19,33,.46)!important;backdrop-filter:blur(5px)!important;-webkit-backdrop-filter:blur(5px)!important;}
+  .lourex-ai-backdrop{position:fixed!important;inset:0!important;z-index:calc(var(--lourex-z-ai,1220) - 1)!important;border:0!important;background:rgba(8,19,33,.46)!important;backdrop-filter:blur(5px)!important;-webkit-backdrop-filter:blur(5px)!important;}
   .lourex-ai-panel{
-    position:fixed!important;z-index:1182!important;top:16px!important;right:16px!important;bottom:16px!important;
+    position:fixed!important;z-index:var(--lourex-z-ai,1220)!important;top:16px!important;right:16px!important;bottom:16px!important;
     width:min(620px,calc(100vw - 32px))!important;max-width:none!important;min-height:0!important;
     display:flex!important;flex-direction:column!important;overflow:hidden!important;
     border:1px solid var(--ft-line)!important;border-radius:20px!important;background:var(--ft-surface)!important;color:var(--ft-text)!important;
