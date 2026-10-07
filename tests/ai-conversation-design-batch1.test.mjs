@@ -35,4 +35,6 @@ test('Batch 1 preserves mobile touch and full conversation readability',async()=
   assert.match(source,/\.lourex-ai-scope-button\{[\s\S]*min-height:44px!important/);
   assert.match(source,/\.lourex-ai-message\{[\s\S]*font-size:15\.5px!important/);
   assert.match(source,/\.lourex-ai-compose\{[\s\S]*env\(safe-area-inset-bottom,0px\)/);
+  assert.match(source,/@media\(min-width:721px\) and \(max-width:900px\)[\s\S]*width:min\(520px,calc\(100vw - 24px\)\)!important/,'tablet keeps the established bounded side overlay');
+  assert.match(source,/@media\(max-width:720px\)[\s\S]*width:100vw!important[\s\S]*height:100dvh!important/,'phones remain full-screen and safe-area aware');
 });
