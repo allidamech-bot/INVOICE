@@ -4,7 +4,7 @@ const cssTarget='dist/ai-composer-v449.css';
 let css=await readFile(cssTarget,'utf8');
 
 if(!css.includes('LOUREX Remediation Batch 3 — Modern Conversation UX'))throw new Error('Conversation Design Batch 1 requires the modern conversation owner.');
-if(!css.includes('LOUREX AI Batch 4'))throw new Error('Conversation Design Batch 1 requires the current AI conversation stack.');
+if(!css.includes('LOUREX Remediation Batch 4 — compact command hub + Memory & Tasks'))throw new Error('Conversation Design Batch 1 requires the current AI conversation stack.');
 if(css.includes('LOUREX AI Conversation Design Batch 1'))throw new Error('Conversation Design Batch 1 is already installed.');
 
 css+=`
