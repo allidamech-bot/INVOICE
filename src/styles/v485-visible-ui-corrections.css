@@ -59,12 +59,6 @@
   --lx-ui-type-title:24px;
   --lx-ui-font-arabic:var(--lx485-arabic);
   --lx-ui-input-font-size:16px;
-  --lx-ui-layer-navigation:80;
-  --lx-ui-layer-editor-dock:900;
-  --lx-ui-layer-modal:10000;
-  --lx-ui-layer-advisor:calc(var(--lx-ui-layer-modal) - 2);
-  --lx-ui-layer-advisor-backdrop:calc(var(--lx-ui-layer-modal) - 3);
-
   --lx484-canvas:var(--lx485-canvas)!important;
   --lx484-canvas-2:var(--lx485-canvas-2)!important;
   --lx484-surface:var(--lx485-surface)!important;
@@ -230,7 +224,7 @@ html body #root .app-ui .ta-clear-state{
   min-height:0!important;padding:18px!important;border-radius:18px!important;
   background:color-mix(in srgb,#52baa5 7%,var(--lx485-surface-2))!important;border:1px solid color-mix(in srgb,#52baa5 30%,var(--lx485-line))!important;
 }
-html body #root .app-ui .modal-backdrop{z-index:var(--lx-ui-layer-modal)!important;isolation:isolate;}
+html body #root .app-ui .modal-backdrop{z-index:var(--lourex-z-modal,1300)!important;isolation:isolate;}
 html body #root .app-ui:has(.modal-backdrop) .ta-mobile-nav{visibility:hidden!important;pointer-events:none!important;}
 html body #root .app-ui .modal:has(.ta-settings-shell){
   display:flex!important;flex-direction:column!important;overflow:hidden!important;
@@ -286,7 +280,7 @@ html body #root .app-ui .ta-quick-actions>button strong{white-space:normal!impor
   html body #root .app-ui .mobile-editor-actionbar{
     position:fixed!important;inset:auto 8px calc(8px + env(safe-area-inset-bottom,0px)) 8px!important;
     width:auto!important;max-width:none!important;padding:8px!important;border:1px solid var(--lx485-line-strong)!important;
-    border-radius:20px!important;background:var(--lx485-surface)!important;box-shadow:var(--lx485-shadow)!important;z-index:80!important;
+    border-radius:20px!important;background:var(--lx485-surface)!important;box-shadow:var(--lx485-shadow)!important;z-index:var(--lourex-z-editor-dock,900)!important;
   }
   html body #root .app-ui .mobile-editor-actionbar .mobile-action-buttons{
     width:100%!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important;
@@ -976,7 +970,7 @@ html body #root .app-ui .ta-doc-summary-grid{grid-template-columns:repeat(2,minm
 html body #root .app-ui :is(.screen-editor,.editor-screen) .ta-main{height:100dvh!important;max-height:100dvh!important;padding-bottom:0!important;}
 html body #root .app-ui :is(.screen-editor,.editor-screen) .draft-studio-scroll{padding:14px 12px calc(92px + env(safe-area-inset-bottom,0px))!important;}
 html body #root .app-ui .draft-control-section{padding:16px!important;}
-html body #root .app-ui .draft-mobile-actionbar{position:fixed!important;inset:auto 8px calc(8px + env(safe-area-inset-bottom,0px))!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important;height:auto!important;padding:8px!important;border:1px solid var(--lx485-line-strong)!important;border-radius:22px!important;z-index:900!important;}
+html body #root .app-ui .draft-mobile-actionbar{position:fixed!important;inset:auto 8px calc(8px + env(safe-area-inset-bottom,0px))!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important;height:auto!important;padding:8px!important;border:1px solid var(--lx485-line-strong)!important;border-radius:22px!important;z-index:var(--lourex-z-editor-dock,900)!important;}
 html body #root .app-ui .draft-mobile-actionbar .btn{display:flex!important;flex-direction:column!important;justify-content:center!important;gap:4px!important;min-width:0!important;min-height:52px!important;font-size:12px!important;padding:6px!important;}
 html body #root .app-ui .draft-mobile-actionbar .icon{width:20px!important;height:20px!important;}
 html body #root .app-ui .draft-section-heading.with-action{flex-wrap:wrap!important;}
@@ -1049,8 +1043,8 @@ html body #root .loading-screen .brand::after{content:""!important;display:block
 #root .app-ui .lx-product-pricing-brief dl{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0}
 #root .app-ui .lx-product-pricing-brief dd{margin:0;font-weight:700}
 /* Contextual Advisor must sit above phone editors, below reviewed modal proposals. */
-html body #root .app-ui #lourex-ai-panel{z-index:var(--lx-ui-layer-advisor,9998)!important;}
-html body #root .app-ui .lourex-ai-backdrop{z-index:var(--lx-ui-layer-advisor-backdrop,9997)!important;}
+html body #root .app-ui #lourex-ai-panel{z-index:var(--lourex-z-ai,1220)!important;}
+html body #root .app-ui .lourex-ai-backdrop{z-index:calc(var(--lourex-z-ai,1220) - 1)!important;}
 
 /* Very short keyboard viewports need room for one full input, not smaller
    touch targets. Normal phone/tablet/desktop modal presentation is unchanged. */
