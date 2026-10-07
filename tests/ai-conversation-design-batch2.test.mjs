@@ -47,6 +47,7 @@ test('Batch 2 closeout prevents mutation-observer feedback while keeping scope d
   const source=await read('scripts/ai-conversation-design-batch2-closeout.mjs');
   assert.match(source,/textContent!==nextTriggerLabel/);
   assert.match(source,/option\.textContent!==nextLabel/);
+  assert.match(source,/stopImmediatePropagation\(\)/,'Escape closes the scope selector without bubbling into the advisor close handler');
   assert.match(source,/__lourexConversationDesignBatch2Closeout/);
   assert.doesNotMatch(source,/assistantCapabilityAllowed|document\.createDraft|payment\.record|inventory\.adjust/);
 });
