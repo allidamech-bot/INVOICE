@@ -65,6 +65,7 @@ async function inspect(page,template){
       samples:[
         sample('party-name','.party-block .party-name'),
         sample('table-header','.items-table thead th'),
+        sample('table-header-last','.items-table thead th:last-child'),
         sample('table-body','.items-table tbody td'),
         sample('term-label','.terms-block .term-row>b'),
         sample('term-value','.terms-block .term-row>span'),
