@@ -43,3 +43,13 @@ test('v584 removes review layer before PDF preparation starts',async()=>{
   const printAt=flow.indexOf('await this.props.onPrint(finalDoc,mode)');
   assert.ok(closeAt>=0&&prepareAt>closeAt&&printAt>prepareAt,'review modal must close before preparation and output');
 });
+
+
+test('v584 reopens review on output failure so retry stays available without stacked live layers',async()=>{
+  const core=await read('src/components/EditorPageCore.tsx');
+  const start=core.indexOf('private issueAndContinue=async()=>');
+  const end=core.indexOf('private unlockFinal=async()=>',start);
+  const flow=core.slice(start,end);
+  assert.match(flow,/await new Promise<void>\(resolve=>this\.setState\(\{reviewMode:null\},resolve\)\)/);
+  assert.match(flow,/catch\(e\)\{this\.setState\(\{issuing:false,reviewMode:mode==='issue'\?null:mode/);
+});
