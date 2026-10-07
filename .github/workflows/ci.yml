@@ -65,16 +65,20 @@ jobs:
       - name: Install browser stability runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
+          # Install apt/system dependencies exactly once. Retrying --with-deps after a
+          # timeout can orphan apt-get and deadlock dpkg on the next attempt.
+          npx playwright install-deps chromium webkit
           installed=0
           for attempt in 1 2 3; do
-            if timeout --signal=TERM --kill-after=15s 240s npx playwright install --with-deps chromium webkit; then
+            if timeout --signal=TERM --kill-after=15s 240s npx playwright install chromium webkit; then
               installed=1
               break
             fi
-            echo "Playwright browser runtime install attempt $attempt failed or timed out; retrying."
+            echo "Playwright browser binary install attempt $attempt failed or timed out; retrying."
+            sleep 2
           done
           if [ "$installed" -ne 1 ]; then
-            echo "Playwright browser runtime install failed after bounded retries."
+            echo "Playwright browser binary install failed after bounded retries."
             exit 1
           fi
 
@@ -147,16 +151,20 @@ jobs:
       - name: Install browser QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
+          # Install apt/system dependencies exactly once. Retrying --with-deps after a
+          # timeout can orphan apt-get and deadlock dpkg on the next attempt.
+          npx playwright install-deps chromium webkit
           installed=0
           for attempt in 1 2 3; do
-            if timeout --signal=TERM --kill-after=15s 240s npx playwright install --with-deps chromium webkit; then
+            if timeout --signal=TERM --kill-after=15s 240s npx playwright install chromium webkit; then
               installed=1
               break
             fi
-            echo "Playwright browser runtime install attempt $attempt failed or timed out; retrying."
+            echo "Playwright browser binary install attempt $attempt failed or timed out; retrying."
+            sleep 2
           done
           if [ "$installed" -ne 1 ]; then
-            echo "Playwright browser runtime install failed after bounded retries."
+            echo "Playwright browser binary install failed after bounded retries."
             exit 1
           fi
       - name: Run ${{ matrix.shard }} QA shard
@@ -295,16 +303,20 @@ jobs:
       - name: Install legacy browser QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
+          # Install apt/system dependencies exactly once. Retrying --with-deps after a
+          # timeout can orphan apt-get and deadlock dpkg on the next attempt.
+          npx playwright install-deps chromium webkit
           installed=0
           for attempt in 1 2 3; do
-            if timeout --signal=TERM --kill-after=15s 240s npx playwright install --with-deps chromium webkit; then
+            if timeout --signal=TERM --kill-after=15s 240s npx playwright install chromium webkit; then
               installed=1
               break
             fi
-            echo "Playwright browser runtime install attempt $attempt failed or timed out; retrying."
+            echo "Playwright browser binary install attempt $attempt failed or timed out; retrying."
+            sleep 2
           done
           if [ "$installed" -ne 1 ]; then
-            echo "Playwright browser runtime install failed after bounded retries."
+            echo "Playwright browser binary install failed after bounded retries."
             exit 1
           fi
       - name: Run ${{ matrix.shard }} historical diagnostics
