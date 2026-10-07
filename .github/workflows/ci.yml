@@ -162,6 +162,13 @@ jobs:
       - name: Install browser QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
+          # Apply the same official Ubuntu archive mirror used by the verify
+          # job, so matrix shards cannot stall on the Azure apt mirror.
+          for sources in /etc/apt/apt-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [ -f "$sources" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$sources"
+            fi
+          done
           # Install apt/system dependencies exactly once. Retrying --with-deps after a
           # timeout can orphan apt-get and deadlock dpkg on the next attempt.
           if ! timeout --signal=TERM --kill-after=30s 900s npx playwright install-deps chromium webkit; then
@@ -222,6 +229,7 @@ jobs:
             templates)
               run_qa 180 node tests/visual/run-pdf-searchable-v222.cjs
               run_qa 300 node tests/visual/run-template-visual-qa.cjs visual-qa-output
+              run_qa 120 node tests/visual/run-template-firstpaint-stability.cjs
               ;;
             mobile-current)
               run_qa 180 node tests/visual/run-mobile-final-quote-stack.cjs
