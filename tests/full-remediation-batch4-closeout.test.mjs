@@ -55,6 +55,16 @@ test('Batch 4 locks one canonical application z-index ladder',async()=>{
   assert.match(visible,/z-index:var\(--lourex-z-ai,1220\)!important/);
 });
 
+
+test('Batch 4 keeps mobile editor sheets below the contextual AI overlay',async()=>{
+  const css=await read('src/styles/mobile-ux-functional-hardening-v363.css');
+  assert.match(css,/\.ta-product-layout:has\(>\.ta-product-editor\.is-open\)::before\{[\s\S]*?z-index:calc\(var\(--lourex-z-sheet,1140\) - 1\)!important/);
+  assert.match(css,/\.ta-product-editor\.is-open\{[\s\S]*?z-index:var\(--lourex-z-sheet,1140\)!important/);
+  assert.match(css,/\.ta-ops-split:has\(>\.ta-ops-editor\)::before\{[\s\S]*?z-index:calc\(var\(--lourex-z-sheet,1140\) - 1\)!important/);
+  assert.match(css,/\.ta-ops-split>\.ta-ops-editor\{[\s\S]*?z-index:var\(--lourex-z-sheet,1140\)!important/);
+  assert.doesNotMatch(css,/\.ta-product-editor\.is-open\{[\s\S]{0,240}?z-index:var\(--lourex-z-modal,1300\)!important/);
+});
+
 test('Batch 4 keeps one production CSS bundle plus the proven standalone allowlist',async()=>{
   const contract=await read('tests/batch6-css-runtime-ownership-closeout.test.mjs');
   assert.match(contract,/styles\/app\.bundle\.css/);
