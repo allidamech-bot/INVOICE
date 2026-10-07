@@ -54,3 +54,14 @@ test('v591 Executive table header cannot inherit low-contrast accent foreground'
     assert.match(source,/\.invoice-page\.template-executive \.items-table thead th\{[\s\S]*background:#102d41!important;[\s\S]*color:#fff!important;[\s\S]*-webkit-text-fill-color:#fff!important/);
   }
 });
+
+
+test('v591 Trade table header keeps readable inverse text',async()=>{
+  const [css,bundle]=await Promise.all([
+    read('src/styles/v485-visible-ui-corrections.css'),
+    read('scripts/v485-bundle-visible-ui.mjs')
+  ]);
+  for(const source of [css,bundle]){
+    assert.match(source,/\.invoice-page\.template-trade \.items-table thead th\{[\s\S]*background:#16384d!important;[\s\S]*color:#fff!important/);
+  }
+});
