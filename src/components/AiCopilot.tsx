@@ -62,7 +62,7 @@ interface Props {screen:AiWorkspaceScreen;language:UiLanguage;activeDocument?:Lo
 interface State {open:boolean;busy:boolean;input:string;error:string;messages:AiMessage[];proposal:AiProposal|null;audit:AiAuditEntry[];auditOpen:boolean;}
 
 const NAV_TARGETS=new Set<AiNavTarget>(['home','documents','customers','receivables','reports','items','operations']);
-const MAX_MESSAGE_CHARS=1000;
+const MAX_MESSAGE_CHARS=6000;
 const MONEY_INPUT=/^\d{1,12}(?:\.\d{1,4})?$/;
 function id(prefix:string):string{return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;}
 function normalized(value:string):string{return value.normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();}
