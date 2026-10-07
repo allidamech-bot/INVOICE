@@ -16,3 +16,12 @@ test('v590 A4 pagination ignores autosave-only document identity churn',async()=
   assert.match(renderer,/if\(nextSignature!==this\.renderSignature\)/);
   assert.doesNotMatch(renderer,/previous\.document!==this\.props\.document/);
 });
+
+
+test('Batch 2 ignores clone-only company prop churn during autosave',async()=>{
+  const editor=await readFile('src/components/EditorPageCore.tsx','utf8');
+  assert.match(editor,/function sameDraftCompanySource\(previous:CompanySettings,next:CompanySettings\):boolean/);
+  assert.match(editor,/JSON\.stringify\(previous\)===JSON\.stringify\(next\)/);
+  assert.match(editor,/sameDraftCompanySource\(prevProps\.company,this\.props\.company\)/);
+  assert.doesNotMatch(editor,/prevProps\.company!==this\.props\.company&&this\.state\.doc\.status==='draft'/);
+});
