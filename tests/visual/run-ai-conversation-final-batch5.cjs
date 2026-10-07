@@ -78,7 +78,7 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         await scopeMenu.waitFor({state:'visible'});
         assert.equal(await scopeMenu.locator('.lourex-ai-scope-option').count(),3,'scope selector keeps Business, Personal and Temporary available');
         if(width<=720){for(let i=0;i<3;i++){const box=await scopeMenu.locator('.lourex-ai-scope-option').nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'mobile scope option remains 44px touch safe');}}
-        await scopeTrigger.click();
+        await page.keyboard.press('Escape');
         await scopeMenu.waitFor({state:'hidden'});
         assert.equal(await panel.locator('.lourex-ai-attach-button').isVisible(),false,'duplicate attachment control stays retired');
         await textarea.fill(lang==='ar'?'سطر أول':'First line');
