@@ -18,6 +18,29 @@ test('production HTML uses one bundled first-paint owner and ordered document st
   }
 });
 
+test('production document owner is fully compiled before first paint',async()=>{
+  const [css,builder]=await Promise.all([
+    read('dist/styles/v331-draft-scroll-recovery.css'),
+    read('package.json')
+  ]);
+  assert.doesNotMatch(css,/@import\\b/,'Document CSS must not wait for nested network requests during render');
+  const expected=[
+    'v333-critical-documents-visual-functional-closeout.css',
+    'v364-document-template-layout-refinement.css',
+    'v365-mobile-editor-scroll-draft-templates.css',
+    'v337-template-layout-balance.css'
+  ];
+  let last=-1;
+  for(const filename of expected){
+    const i=css.indexOf(`/* document dependency: ${filename} */`);
+    assert.ok(i>last,`Missing or out-of-order compiled document dependency: ${filename}`);
+    last=i;
+  }
+  const script=JSON.parse(builder).scripts.build;
+  assert.ok(script.indexOf('v321-production-runtime-contract.mjs')<script.indexOf('v604-flatten-document-css.mjs'));
+  assert.ok(script.indexOf('v604-flatten-document-css.mjs')<script.indexOf('v347-startup-finalize.mjs'));
+});
+
 test('production runtime cannot re-promote CSS link nodes after initial rendering',async()=>{
   const runtime=await read('dist/document-entry-v302.js');
   assert.match(runtime,/let stylesheetOrderPrepared=false;/);
