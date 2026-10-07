@@ -415,7 +415,7 @@
     top:auto!important;
     bottom:calc(90px + env(safe-area-inset-bottom,0px))!important;
     transform:none!important;
-    z-index:119!important;
+    z-index:var(--lourex-z-assistant-trigger,1180)!important;
   }
   html body .app-ui .screen-editor .document-attachments-section .attachment-add-row{grid-template-columns:1fr!important;min-height:0!important;padding:14px!important;}
   html body .app-ui .screen-editor .document-attachments-section .attachment-add-button{grid-column:1!important;grid-row:auto!important;width:100%!important;min-height:48px!important;}
