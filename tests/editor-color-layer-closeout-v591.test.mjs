@@ -83,3 +83,14 @@ test('v591 remaining template heading and totals surfaces keep explicit readable
     assert.match(source,/\.invoice-page\.template-blackivory \.totals-block \.total-row :is\(span,strong\)\{[\s\S]*color:#f5efe2!important/);
   }
 });
+
+test('v594 Carbon zebra rows stay on the dark authored surface',async()=>{
+  const [css,bundle]=await Promise.all([
+    read('src/styles/v485-visible-ui-corrections.css'),
+    read('scripts/v485-bundle-visible-ui.mjs')
+  ]);
+  for(const source of [css,bundle]){
+    assert.match(source,/\.invoice-page\.template-carbon \.items-table tbody tr:nth-child\(even\)\{[\s\S]*background:var\(--soft\)!important/);
+  }
+});
+
