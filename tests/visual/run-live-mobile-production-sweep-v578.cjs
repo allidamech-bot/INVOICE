@@ -83,7 +83,8 @@ async function createQuotation(page){
   await customerSearch.click();
   await page.locator('.new-customer-option').click();
   const modal=page.locator('.modal-backdrop').last();
-  await modal.getByLabel(/Company Name English|اسم الشركة بالإنجليزية/).fill('Mobile Sweep Buyer');
+  const customerName=`Mobile Sweep Buyer ${Date.now()}-${Math.floor(Math.random()*10000)}`;
+  await modal.getByLabel(/Company Name English|اسم الشركة بالإنجليزية/).fill(customerName);
   await modal.getByRole('button',{name:/Save & Select|حفظ واختيار/}).click();
   await page.locator('.selected-customer').waitFor({state:'visible',timeout:30000});
   const card=page.locator('.item-card').first();
@@ -176,7 +177,13 @@ async function createQuotation(page){
       await aiPanel.waitFor({state:'hidden',timeout:5000}).catch(()=>{});
     }
     await createQuotation(iphone);
+    await iphone.waitForFunction(()=>document.querySelectorAll('.ta-editor-step-list>button').length>=7,undefined,{timeout:30000});
+    const stepLabels=await iphone.locator('.ta-editor-step-list>button').allTextContents();
+    const attachmentStep=iphone.locator('.ta-editor-step-list>button').filter({hasText:/Attachments|المرفقات/}).first();
+    assert.equal(await attachmentStep.count(),1,`Attachments step missing from live mobile editor: ${JSON.stringify(stepLabels)}`);
+    await attachmentStep.click();
     const section=iphone.locator('#document-attachments');
+    await section.waitFor({state:'attached',timeout:15000});
     await section.scrollIntoViewIfNeeded();
     const input=section.locator('.document-attachment-input');
     const pdf=(label)=>Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n% '+label+'\n%%EOF\n');
@@ -189,7 +196,7 @@ async function createQuotation(page){
     await iphone.waitForFunction(()=>document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')==='3');
     const names=await section.locator('.attachment-card .attachment-copy strong').allTextContents();
     assert.deepEqual(new Set(names),new Set(['mobile-qa-a.pdf','mobile-qa-b.pdf','mobile-qa-c.pdf']));
-    return {count:3,names};
+    return {count:3,names,steps:stepLabels};
   });
 
   await check(report.iphone,'Mobile keyboard-sized viewport keeps editor CTA reachable',async()=>{
