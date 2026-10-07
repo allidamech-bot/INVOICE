@@ -1301,6 +1301,18 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-foo
   -webkit-text-fill-color:#e7edf1!important;
 }
 
+
+.invoice-page.template-trade .items-table thead th{
+  background:#16384d!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-trade .items-table thead th small{
+  color:#e8eef2!important;
+  -webkit-text-fill-color:#e8eef2!important;
+}
+
 .invoice-page.template-blackivory{--rule:#837665;}
 .invoice-page.template-blackivory .items-table{border-color:#837665!important;}
 .invoice-page.template-blackivory .items-table tbody td{border-bottom-color:#6f6557!important;}
