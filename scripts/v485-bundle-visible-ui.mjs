@@ -452,6 +452,78 @@ const documentStudioFinalGuard=`
   color:#e0bd78!important;
   -webkit-text-fill-color:#e0bd78!important;
 }
+
+/* v591 all-template contrast closeout: table headings are semantic client text.
+   Each authored header keeps its identity while forcing a proven readable ink. */
+.invoice-page.template-signature .items-table thead th{
+  background:#f4efe6!important;
+  background-image:none!important;
+  color:#28343c!important;
+  -webkit-text-fill-color:#28343c!important;
+}
+.invoice-page.template-signature .items-table thead th small{
+  color:#46535b!important;
+  -webkit-text-fill-color:#46535b!important;
+}
+.invoice-page.template-cobalt .items-table thead th{
+  background:#173f5e!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-split .items-table thead th{
+  background:#102a3c!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-slate .items-table thead th{
+  background:#304852!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-slate .items-table thead th:last-child{
+  background:#6e8791!important;
+  color:#101820!important;
+  -webkit-text-fill-color:#101820!important;
+}
+.invoice-page.template-horizon .items-table thead th{
+  background:#174d61!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-horizon .items-table thead th:last-child{
+  background:#bc9857!important;
+  color:#17130d!important;
+  -webkit-text-fill-color:#17130d!important;
+}
+.invoice-page.template-aurora .items-table thead th{
+  background:#24574f!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-aurora .items-table thead th:last-child{
+  background:#4f9187!important;
+  color:#10211e!important;
+  -webkit-text-fill-color:#10211e!important;
+}
+.invoice-page.template-ledger .items-table thead th{
+  background:#263b49!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-noir .totals-block .total-row :is(span,strong){
+  color:#f4efe6!important;
+  -webkit-text-fill-color:#f4efe6!important;
+}
+.invoice-page.template-blackivory .totals-block .total-row :is(span,strong){
+  color:#f5efe2!important;
+  -webkit-text-fill-color:#f5efe2!important;
+}
 `;
 
 const sourceCss=(await readFile(sourcePath,'utf8')).trim();
