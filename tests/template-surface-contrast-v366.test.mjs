@@ -90,7 +90,7 @@ test('Normal typography preserves the effective shipped cascade and template-spe
 
 test('later receipt output semantics do not bypass bounded table sizing',async()=>{
   const css=await read('src/styles/v332-critical-documents-deep-closeout.css');
-  assert.match(css,/kind-payment-receipt\.lang-en \.items-table th:last-child::after\{content:"Amount";font-size:calc\(var\(--lrx-table-size,8\.2px\)\*1\.6552\);\}/);
-  assert.match(css,/kind-payment-receipt\.lang-ar \.items-table th:last-child::after\{content:"المبلغ";font-size:calc\(var\(--lrx-table-size,8\.2px\)\*1\.6552\);\}/);
-  assert.match(css,/kind-payment-receipt\.lang-bilingual \.items-table th:last-child::after\{content:"Amount \/ المبلغ";font-size:calc\(var\(--lrx-table-size,8\.2px\)\*1\.5632\);\}/);
+  assert.match(css,/kind-payment-receipt\.lang-en \.items-table th:last-child::after\{content:"Amount";font-size:calc\(var\(--lrx-table-size,7\.25px\)\*1\.6552\);\}/);
+  assert.match(css,/kind-payment-receipt\.lang-ar \.items-table th:last-child::after\{content:"المبلغ";font-size:calc\(var\(--lrx-table-size,7\.25px\)\*1\.6552\);\}/);
+  assert.match(css,/kind-payment-receipt\.lang-bilingual \.items-table th:last-child::after\{content:"Amount \/ المبلغ";font-size:calc\(var\(--lrx-table-size,7\.25px\)\*1\.5632\);\}/);
 });
