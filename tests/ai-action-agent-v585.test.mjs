@@ -72,3 +72,8 @@ test('v585 empty queries never bind unrelated first customer, supplier or produc
   const guards=source.match(/if\(!q\)return null;/g)||[];
   assert.ok(guards.length>=3,'customer/supplier/product lookup must require a real query when no id exists');
 });
+
+test('v585 conversation history refresh is awaited before reopening a saved chat',async()=>{
+  const owner=await read('scripts/ai-batch1-unified-assistant.mjs');
+  assert.match(owner,/await new Promise\(resolve=>instance\.setState\(\{assistantThreads:/);
+});
