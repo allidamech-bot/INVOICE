@@ -25,12 +25,12 @@
 }
 
 .invoice-page .bi-label{column-gap:1.35mm!important;row-gap:.45mm!important}
-.invoice-page .bi-label>span:last-child{display:inline-block;line-height:1.42!important;font-size:1.04em!important}
-.invoice-page .bi-value>span:last-child{line-height:1.48!important}
-.invoice-page .doc-meta b .bi-label>span:last-child,
-.invoice-page .section-kicker .bi-label>span:last-child,
-.invoice-page .items-table th .bi-label>span:last-child,
-.invoice-page :is(.terms-block,.bank-block,.signature-block,.notes-block) h3 .bi-label>span:last-child{font-weight:700}
+.invoice-page .bi-label>.bidi-ar{display:inline-block;line-height:1.42!important;font-size:1.04em!important}
+.invoice-page .bi-value>.bidi-ar{line-height:1.48!important}
+.invoice-page .doc-meta b .bi-label>.bidi-ar,
+.invoice-page .section-kicker .bi-label>.bidi-ar,
+.invoice-page .items-table th .bi-label>.bidi-ar,
+.invoice-page :is(.terms-block,.bank-block,.signature-block,.notes-block) h3 .bi-label>.bidi-ar{font-weight:700}
 
 .invoice-page :is(.doc-meta b,.section-kicker,.items-table th,.continued-label,.modern-title>small,.signature-title>small,.terms-block h3,.bank-block h3,.signature-block h3,.notes-block h3) [dir="rtl"]{
   letter-spacing:0!important;
@@ -109,7 +109,7 @@
 }
 
 @media print{
-  .invoice-page :where([dir="rtl"],.doc-title-primary-ar,.bi-label>span:last-child,.bi-value>span:last-child){
+  .invoice-page :where([dir="rtl"],.doc-title-primary-ar,.bidi-ar){
     letter-spacing:0!important;
     text-transform:none!important;
     word-break:normal!important;
