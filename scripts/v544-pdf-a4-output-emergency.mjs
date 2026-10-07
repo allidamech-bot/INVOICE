@@ -26,7 +26,7 @@ css+=`\n/* LOUREX v544 PDF A4 emergency — compact only routine short commercia
    This preserves authored template identity while preventing a three-line quote
    from ejecting its final item/totals to a mostly empty continuation page. */
 @media screen, print {
-  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) .final-details{padding-top:2.4mm;}
+  .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) .final-details{margin-top:8mm!important;padding-top:0;}
   .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) .lower-grid{gap:4mm;}
   .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) :is(.terms-block,.bank-block,.signature-block,.notes-block){padding:2.2mm 2.8mm;}
   .invoice-page.page-first:not(.details-only):has(.items-table tbody tr:nth-child(-n+3):last-child) :is(.terms-block,.bank-block,.signature-block,.notes-block)>h3{margin-bottom:1.35mm;}
