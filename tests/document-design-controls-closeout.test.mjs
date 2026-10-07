@@ -99,15 +99,15 @@ test('converted dark identities remain light commercial paper while Obsidian fol
   for(const [templateId,paper] of Object.entries(lightPapers)){
     const tokens=resolvedAppearanceTokens({...base,templateId,paletteMode:'auto'});
     assert.equal(tokens.page,paper,`${templateId} effective paper`);
-    assert.equal(tokens.primary,'#101010',`${templateId} body copy must be black in Auto`);
-    assert.equal(tokens.secondary,'#101010',`${templateId} labels must be black in Auto`);
-    assert.equal(tokens.heading,'#101010',`${templateId} headings must be black in Auto`);
+    assert.equal(tokens.primary,'#17212b',`${templateId} Auto body copy must use the safe primary ink`);
+    assert.equal(tokens.secondary,'#4d5b68',`${templateId} Auto labels must keep a softer semantic ink`);
+    assert.notEqual(tokens.heading,'#ffffff',`${templateId} Auto heading must not become inverse ink on a light sheet`);
   }
   const obsidian=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'auto'});
   assert.equal(obsidian.page,'#15191c');
-  assert.equal(obsidian.primary,'#ffffff');
-  assert.equal(obsidian.secondary,'#ffffff');
-  assert.equal(obsidian.heading,'#ffffff');
+  assert.equal(obsidian.primary,'#f5f1e9');
+  assert.equal(obsidian.secondary,'#aeb5ba');
+  assert.equal(obsidian.heading,'#b68d4e');
   assert.equal(obsidian.surface,'#f1f2f2');
   assert.equal(obsidian.surfaceInk,'#17212b');
 });
@@ -119,7 +119,7 @@ test('Auto token colors match the authored premium template accents',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
   assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)/,'Auto must explicitly protect light document surfaces');
   assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian/,'Auto must explicitly protect the dark Obsidian body');
-  assert.match(css,/Auto foreground is intentionally binary and surface-aware/);
+  assert.match(css,/Auto foreground is semantic and surface-aware/);
 });
 
 test('custom text colors are contrast guarded while safe choices remain user controlled',()=>{

@@ -27,9 +27,9 @@ test('renderer appearance boundary survives malformed legacy template and font i
   assert.equal(tokens.primary,'#17212b');
   assert.equal(tokens.secondary,'#4d5b68');
   assert.equal(tokens.titleScale,1);
-  assert.equal(tokens.headingScale,.68);
-  assert.equal(tokens.bodyScale,8.2/9.2);
-  assert.equal(tokens.tableScale,7.25/9.1);
+  assert.equal(tokens.headingScale,.78);
+  assert.equal(tokens.bodyScale,1);
+  assert.equal(tokens.tableScale,8.2/9.1);
   assert.match(resolvedLatinFont(appearance),/^Inter,/);
   assert.match(resolvedArabicFont(appearance),/^Cairo,/);
 });
@@ -38,9 +38,9 @@ test('valid legacy appearance still resolves its authored template identity',()=
   const appearance={...createBlankDocument('invoice','INV-LEGACY-VALID',defaultCompany()).appearance,templateId:'obsidian',paletteMode:'auto',latinFont:'auto',arabicFont:'auto'};
   const tokens=resolvedAppearanceTokens(appearance);
   assert.equal(tokens.page,'#15191c');
-  assert.equal(tokens.primary,'#ffffff');
-  assert.equal(tokens.secondary,'#ffffff');
-  assert.equal(tokens.heading,'#ffffff');
+  assert.equal(tokens.primary,'#f5f1e9');
+  assert.equal(tokens.secondary,'#aeb5ba');
+  assert.equal(tokens.heading,'#b68d4e');
   assert.match(resolvedLatinFont(appearance),/^Montserrat,/);
   assert.match(resolvedArabicFont(appearance),/^"Noto Kufi Arabic"/);
 });

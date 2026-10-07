@@ -56,12 +56,14 @@ test('Obsidian Auto and Custom protect light cards and dark body copy independen
   assert.doesNotMatch(css,/template-obsidian \.signature-image[^\n]*invert\(/);
 });
 
-test('Auto uses only black or white body foreground while dark local modules keep authored inverse contrast',async()=>{
+test('Auto keeps semantic hierarchy while every local surface keeps authored inverse contrast',async()=>{
   const css=await read('src/styles/template-surface-contrast-v366.css');
-  assert.match(css,/Auto foreground is intentionally binary and surface-aware/);
-  assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)[\s\S]*color:var\(--lrx-primary,#101010\)!important/);
-  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian[\s\S]*color:#101010!important/);
-  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian :is\([\s\S]*color:#ffffff!important/);
+  assert.match(css,/Auto foreground is semantic and surface-aware/);
+  assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)[\s\S]*color:var\(--lrx-primary,#17212b\)!important/);
+  assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)[\s\S]*color:var\(--lrx-secondary,#4d5b68\)!important/);
+  assert.match(css,/\.invoice-page\.palette-auto:not\(\.template-obsidian\)[\s\S]*color:var\(--lrx-heading/);
+  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian \.party-block[\s\S]*--lrx-surface-ink/);
+  assert.match(css,/\.invoice-page\.palette-auto\.template-obsidian[\s\S]*--lrx-secondary,#aeb5ba/);
   assert.match(css,/Deliberately absent: custom foreground rules/);
   assert.doesNotMatch(css,/\.invoice-page\.palette-custom \.items-table thead th[^\n]*--lrx/);
   assert.doesNotMatch(css,/\.invoice-page\.palette-custom \.totals-block[^\n]*color:var\(--lrx/);
@@ -74,16 +76,16 @@ test('Normal typography preserves the effective shipped cascade and template-spe
   assert.match(css,/\.invoice-page\.template-executive\{--lrx-title-base:28px;\}/);
   assert.match(css,/\.invoice-page\.page-first :is\(\.header-executive,\.header-minimal,\.header-trade,\.header-signature,\.header-modern\) \.doc-title>span\{font-size:calc\(var\(--lrx-title-base,25px\)\*var\(--lrx-title-scale,1\)\)!important;\}/);
   assert.match(css,/\.invoice-page\.page-first\.lang-bilingual[\s\S]*--lrx-title-secondary-base,20px/);
-  assert.match(css,/\.invoice-page :is\(\.terms-block h3,\.notes-block h3,\.bank-block h3,\.signature-block h3\)\{font-size:var\(--lrx-heading-size,6\.8px\)!important;/);
-  assert.match(css,/\.invoice-page \.continued-label\{font-size:calc\(var\(--lrx-heading-size,6\.8px\)\*\.955882\)!important;/);
+  assert.match(css,/\.invoice-page :is\(\.terms-block h3,\.notes-block h3,\.bank-block h3,\.signature-block h3\)\{font-size:var\(--lrx-heading-size,7\.8px\)!important;/);
+  assert.match(css,/\.invoice-page \.continued-label\{font-size:calc\(var\(--lrx-heading-size,7\.8px\)\*\.955882\)!important;/);
   assert.doesNotMatch(css,/\.invoice-page \.items-wrap\{font-size:var\(--lrx-heading-size/);
-  assert.match(css,/\.invoice-page \.items-table\{font-size:var\(--lrx-table-size,7\.25px\)!important;\}/);
+  assert.match(css,/\.invoice-page \.items-table\{font-size:var\(--lrx-table-size,8\.2px\)!important;\}/);
   assert.match(css,/\.invoice-page \.items-table tbody td\{font-size:100%!important/);
-  assert.match(css,/template-slate \.items-table thead th\{font-size:calc\(var\(--lrx-table-size,7\.25px\)\*\.813793\)!important;\}/);
-  assert.match(css,/template-slate \.items-table tbody td\{font-size:calc\(var\(--lrx-table-size,7\.25px\)\*\.924138\)!important;line-height:1\.3!important;\}/);
-  assert.match(css,/template-slate \.items-table tbody td\.description-cell\{font-size:calc\(var\(--lrx-table-size,7\.25px\)\*\.951724\)!important;\}/);
-  assert.match(css,/template-editorial \.items-table tbody td\.description-cell\{font-size:calc\(var\(--lrx-table-size,7\.25px\)\*1\.062069\)!important;\}/);
-  assert.match(css,/\.invoice-page \.party-block\{font-size:var\(--lrx-body-size,8\.2px\)!important;\}/);
+  assert.match(css,/template-slate \.items-table thead th\{font-size:calc\(var\(--lrx-table-size,8\.2px\)\*\.813793\)!important;\}/);
+  assert.match(css,/template-slate \.items-table tbody td\{font-size:calc\(var\(--lrx-table-size,8\.2px\)\*\.924138\)!important;line-height:1\.3!important;\}/);
+  assert.match(css,/template-slate \.items-table tbody td\.description-cell\{font-size:calc\(var\(--lrx-table-size,8\.2px\)\*\.951724\)!important;\}/);
+  assert.match(css,/template-editorial \.items-table tbody td\.description-cell\{font-size:calc\(var\(--lrx-table-size,8\.2px\)\*1\.062069\)!important;\}/);
+  assert.match(css,/\.invoice-page \.party-block\{font-size:var\(--lrx-body-size,9\.2px\)!important;\}/);
 });
 
 test('later receipt output semantics do not bypass bounded table sizing',async()=>{
