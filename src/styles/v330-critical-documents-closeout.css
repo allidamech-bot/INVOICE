@@ -365,8 +365,9 @@
   }
   html body .app-ui .screen-editor .lourex-ai-launcher[aria-expanded="true"] { opacity:0!important;pointer-events:none!important; }
 
-  /* Mobile template gallery: one readable card per row, preview first. */
-  html body .app-ui .screen-editor .template-selector { grid-template-columns:minmax(0,1fr)!important;gap:12px!important; }
+  /* Canonical mobile gallery geometry: two cards from the first paint.
+     Keep the current approved layout in the bundled CSS; no late runtime override. */
+  html body .app-ui .screen-editor .template-selector { grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important; }
   html body .app-ui .screen-editor .template-card-wrap .template-card { display:block!important;min-height:0!important; }
   html body .app-ui .screen-editor .template-mini-static { height:176px!important; }
   html body .app-ui .screen-editor .template-card-copy { padding:13px!important; }
