@@ -60,6 +60,10 @@ function draftWithLatestCompany(doc:LourexDocument,company:CompanySettings):Lour
   const refreshed=refreshCompanySnapshot(doc,company);
   return {...refreshed,appearance:{...refreshed.appearance,showSignature:!hadSignature&&Boolean(company.signatureDataUrl)?true:refreshed.appearance.showSignature,showStamp:!hadStamp&&Boolean(company.stampDataUrl)?true:refreshed.appearance.showStamp}};
 }
+function sameDraftCompanySource(previous:CompanySettings,next:CompanySettings):boolean{
+  if(previous===next)return true;
+  return JSON.stringify(previous)===JSON.stringify(next);
+}
 
 function priorHsCodes(savedItems:SavedItem[],documents:LourexDocument[]):string[]{
   const merged=[...sortSavedItems(savedItems),...historySuggestions(documents)];
@@ -100,7 +104,10 @@ export class EditorPage extends React.Component<Props,State>{
     this.previewMedia=window.matchMedia('(min-width:1181px)');
     this.previewMedia.addEventListener?.('change',this.handlePreviewMedia);
   }
-  componentDidUpdate(prevProps:Props):void{if(prevProps.company!==this.props.company&&this.state.doc.status==='draft')this.mutate(doc=>draftWithLatestCompany(doc,this.props.company));}
+  componentDidUpdate(prevProps:Props):void{
+    if(this.state.doc.status!=='draft'||sameDraftCompanySource(prevProps.company,this.props.company))return;
+    this.mutate(doc=>draftWithLatestCompany(doc,this.props.company));
+  }
   componentWillUnmount():void{this.flushPendingSnapshot();if(this.autosaveTimer)clearTimeout(this.autosaveTimer);if(this.previewTimer)clearTimeout(this.previewTimer);this.previewMedia?.removeEventListener?.('change',this.handlePreviewMedia);document.removeEventListener('visibilitychange',this.handleVisibilityChange);window.removeEventListener('beforeunload',this.handleBeforeUnload);window.removeEventListener('pagehide',this.handlePageHide);window.removeEventListener('lourex-ai-document-updated',this.handleAiDocumentUpdated as EventListener);}
 
   private handlePreviewMedia=(event:MediaQueryListEvent)=>this.setState(state=>({desktopPreview:event.matches,previewDoc:event.matches?previewDocument(state.doc):state.previewDoc}));
