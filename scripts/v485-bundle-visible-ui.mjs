@@ -339,6 +339,20 @@ const documentStudioFinalGuard=`
 
 }
 
+
+/* Executive table headings are client-facing text, not decorative accent text.
+   Keep their foreground independent of the gold accent in Auto/Custom output. */
+.invoice-page.template-executive .items-table thead th{
+  background:#102d41!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-executive .items-table thead th small{
+  color:#e7edf1!important;
+  -webkit-text-fill-color:#e7edf1!important;
+}
+
 /* Dark-template readability closeout observed in live QA. */
 .invoice-page.template-blackivory{
   --rule:#837665;
