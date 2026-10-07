@@ -165,6 +165,13 @@
     border-color:var(--ft-accent)!important;
   }
 
+  html body .app-ui .screen-editor .save-indicator.state-unsaved,
+  html body .app-ui .screen-editor .draft-save-state.state-unsaved{
+    color:var(--ft-muted)!important;
+    background:var(--ft-surface-2)!important;
+    border-color:var(--ft-line)!important;
+  }
+
   /* Section navigation must land below the sticky editor chrome, never under it. */
   html body .app-ui .screen-editor .editor-section{scroll-margin-top:96px!important;}
 
