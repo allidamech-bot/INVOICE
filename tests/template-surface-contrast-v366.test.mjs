@@ -36,6 +36,11 @@ test('hybrid light-sheet Auto body copy cannot regress to inverse ink',async()=>
   assert.doesNotMatch(css,new RegExp(`${hybrid}[^\\n]*\\.totals-block`));
 });
 
+test('Carbon dark-body zebra rows cannot inherit the global light stripe',async()=>{
+  const css=await read('src/styles/template-surface-contrast-v366.css');
+  assert.match(css,/\.invoice-page\.template-carbon \.items-table tbody tr:nth-child\(even\)\{[\s\S]*background:var\(--soft,#24282b\)!important;/);
+});
+
 test('custom light-body roles are semantic and contrast guarded',async()=>{
   const [appearance,css]=await Promise.all([read('src/lib/appearance.ts'),read('src/styles/template-surface-contrast-v366.css')]);
   assert.match(appearance,/safeTextColor/);
