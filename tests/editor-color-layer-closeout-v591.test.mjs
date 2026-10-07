@@ -74,11 +74,11 @@ test('v591 remaining template heading and totals surfaces keep explicit readable
   ]);
   for(const source of [css,bundle]){
     assert.match(source,/\.template-signature \.items-table thead th\{[\s\S]*background:#f4efe6!important[\s\S]*color:#28343c!important/);
-    for(const [template,bg] of [['cobalt','#123f67'],['split','#102a3c'],['slate','#304852'],['aurora','#24574f'],['ledger','#263b49']]){
+    for(const [template,bg] of [['cobalt','#173f5e'],['split','#102a3c'],['slate','#304852'],['aurora','#24574f'],['ledger','#263b49']]){
       assert.ok(source.includes(`.invoice-page.template-${template} .items-table thead th{`),template);
       assert.ok(source.includes(`background:${bg}!important`),`${template} background`);
     }
-    assert.match(source,/\.template-horizon \.items-table thead th\{[\s\S]*background:#fff!important[\s\S]*color:#173747!important/);
-    assert.match(source,/:is\(\.template-noir,\.template-blackivory\) \.totals-block \.total-row>span\{[\s\S]*color:var\(--muted\)!important/);
+    assert.match(source,/\.invoice-page\.template-horizon \.items-table thead th\{[\s\S]*background:#174d61!important[\s\S]*color:#fff!important[\s\S]*-webkit-text-fill-color:#fff!important/);
+    assert.match(source,/\.invoice-page\.template-noir \.totals-block \.total-row :is\(span,strong\)\{[\s\S]*color:#f4efe6!important/);\n    assert.match(source,/\.invoice-page\.template-blackivory \.totals-block \.total-row :is\(span,strong\)\{[\s\S]*color:#f5efe2!important/);
   }
 });
