@@ -65,3 +65,20 @@ test('v591 Trade table header keeps readable inverse text',async()=>{
     assert.match(source,/\.invoice-page\.template-trade \.items-table thead th\{[\s\S]*background:#16384d!important;[\s\S]*color:#fff!important/);
   }
 });
+
+
+test('v591 remaining template heading and totals surfaces keep explicit readable ink',async()=>{
+  const [css,bundle]=await Promise.all([
+    read('src/styles/v485-visible-ui-corrections.css'),
+    read('scripts/v485-bundle-visible-ui.mjs')
+  ]);
+  for(const source of [css,bundle]){
+    assert.match(source,/\.template-signature \.items-table thead th\{[\s\S]*background:#f4efe6!important[\s\S]*color:#28343c!important/);
+    for(const [template,bg] of [['cobalt','#123f67'],['split','#102a3c'],['slate','#304852'],['aurora','#24574f'],['ledger','#263b49']]){
+      assert.ok(source.includes(`.invoice-page.template-${template} .items-table thead th{`),template);
+      assert.ok(source.includes(`background:${bg}!important`),`${template} background`);
+    }
+    assert.match(source,/\.template-horizon \.items-table thead th\{[\s\S]*background:#fff!important[\s\S]*color:#173747!important/);
+    assert.match(source,/:is\(\.template-noir,\.template-blackivory\) \.totals-block \.total-row>span\{[\s\S]*color:var\(--muted\)!important/);
+  }
+});
