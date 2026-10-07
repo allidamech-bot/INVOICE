@@ -80,9 +80,9 @@ test('appearance resolver protects each effective surface from unsafe custom ink
 
   const obsidian=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'auto'});
   assert.equal(obsidian.page,'#15191c');
-  assert.equal(obsidian.primary,'#ffffff');
-  assert.equal(obsidian.secondary,'#ffffff');
-  assert.equal(obsidian.heading,'#ffffff');
+  assert.equal(obsidian.primary,'#f5f1e9');
+  assert.equal(obsidian.secondary,'#aeb5ba');
+  assert.equal(obsidian.heading,'#b68d4e');
   assert.equal(obsidian.surface,'#f1f2f2');
   assert.equal(obsidian.surfaceInk,'#17212b');
   const obsidianUnsafe=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'custom',primaryTextColor:'#111111',secondaryTextColor:'#222222',headingTextColor:'#111111'});
