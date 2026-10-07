@@ -1459,3 +1459,92 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-foo
   color:#f5efe2!important;
   -webkit-text-fill-color:#f5efe2!important;
 }
+
+
+/* v591 all-template client-text contrast closeout. */
+.invoice-page.template-signature .items-table thead th{
+  background:#f4efe6!important;
+  background-image:none!important;
+  color:#28343c!important;
+  -webkit-text-fill-color:#28343c!important;
+}
+.invoice-page.template-signature .items-table thead th small{
+  color:#46545d!important;
+  -webkit-text-fill-color:#46545d!important;
+}
+.invoice-page.template-cobalt .items-table thead th{
+  background:#173f5e!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-cobalt .items-table thead th small{
+  color:#e7eef4!important;
+  -webkit-text-fill-color:#e7eef4!important;
+}
+.invoice-page.template-split .items-table thead th{
+  background:#102a3c!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-split .items-table thead th small{
+  color:#e7edf1!important;
+  -webkit-text-fill-color:#e7edf1!important;
+}
+.invoice-page.template-slate .items-table thead th{
+  background:#304852!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-slate .items-table thead th small{
+  color:#e5ecef!important;
+  -webkit-text-fill-color:#e5ecef!important;
+}
+.invoice-page.template-horizon .items-table thead th{
+  background:#fff!important;
+  background-image:none!important;
+  color:#17242e!important;
+  -webkit-text-fill-color:#17242e!important;
+}
+.invoice-page.template-horizon .items-table thead th small{
+  color:#41505b!important;
+  -webkit-text-fill-color:#41505b!important;
+}
+.invoice-page.template-aurora .items-table thead th{
+  background:#24574f!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-aurora .items-table thead th small{
+  color:#e8f2ef!important;
+  -webkit-text-fill-color:#e8f2ef!important;
+}
+.invoice-page.template-ledger .items-table thead th{
+  background:#263b49!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-ledger .items-table thead th small{
+  color:#e6edf1!important;
+  -webkit-text-fill-color:#e6edf1!important;
+}
+.invoice-page.template-noir .totals-block .total-row>span{
+  color:#e2d8c8!important;
+  -webkit-text-fill-color:#e2d8c8!important;
+}
+.invoice-page.template-noir .totals-block .total-row>strong{
+  color:#f6f1e8!important;
+  -webkit-text-fill-color:#f6f1e8!important;
+}
+.invoice-page.template-blackivory .totals-block .total-row>span{
+  color:#d9d0c2!important;
+  -webkit-text-fill-color:#d9d0c2!important;
+}
+.invoice-page.template-blackivory .totals-block .total-row>strong{
+  color:#f5efe2!important;
+  -webkit-text-fill-color:#f5efe2!important;
+}
