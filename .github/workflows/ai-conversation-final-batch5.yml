@@ -22,6 +22,7 @@ on:
       - 'scripts/ai-remediation-batch3-conversation-ux-closeout.mjs'
       - 'scripts/ai-conversation-design-batch1.mjs'
       - 'scripts/ai-conversation-design-batch2.mjs'
+      - 'scripts/ai-conversation-design-batch2-closeout.mjs'
       - 'tests/ai-conversation-final-batch5.test.mjs'
       - 'tests/ai-remediation-batch3-conversation-ux.test.mjs'
       - 'tests/ai-conversation-design-batch1.test.mjs'
