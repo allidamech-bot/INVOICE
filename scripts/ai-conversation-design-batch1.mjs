@@ -152,6 +152,12 @@ html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lour
   border-radius:13px!important;
   box-shadow:none!important;
 }
+@media(min-width:721px) and (max-width:900px){
+  html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3']{
+    width:min(520px,calc(100vw - 24px))!important;
+    max-width:520px!important;
+  }
+}
 @media (hover:hover) and (pointer:fine) and (min-width:721px){
   html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-message-actions{
     opacity:0!important;
