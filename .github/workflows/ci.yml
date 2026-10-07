@@ -65,7 +65,18 @@ jobs:
       - name: Install browser stability runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium webkit
+          installed=0
+          for attempt in 1 2 3; do
+            if timeout --signal=TERM --kill-after=15s 240s npx playwright install --with-deps chromium webkit; then
+              installed=1
+              break
+            fi
+            echo "Playwright browser runtime install attempt $attempt failed or timed out; retrying."
+          done
+          if [ "$installed" -ne 1 ]; then
+            echo "Playwright browser runtime install failed after bounded retries."
+            exit 1
+          fi
 
       - name: Run v338/v339 editor + navigation stability WebKit gates
         id: stability_qa
@@ -136,7 +147,18 @@ jobs:
       - name: Install browser QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium webkit
+          installed=0
+          for attempt in 1 2 3; do
+            if timeout --signal=TERM --kill-after=15s 240s npx playwright install --with-deps chromium webkit; then
+              installed=1
+              break
+            fi
+            echo "Playwright browser runtime install attempt $attempt failed or timed out; retrying."
+          done
+          if [ "$installed" -ne 1 ]; then
+            echo "Playwright browser runtime install failed after bounded retries."
+            exit 1
+          fi
       - name: Run ${{ matrix.shard }} QA shard
         env:
           SHARD: ${{ matrix.shard }}
@@ -273,7 +295,18 @@ jobs:
       - name: Install legacy browser QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium webkit
+          installed=0
+          for attempt in 1 2 3; do
+            if timeout --signal=TERM --kill-after=15s 240s npx playwright install --with-deps chromium webkit; then
+              installed=1
+              break
+            fi
+            echo "Playwright browser runtime install attempt $attempt failed or timed out; retrying."
+          done
+          if [ "$installed" -ne 1 ]; then
+            echo "Playwright browser runtime install failed after bounded retries."
+            exit 1
+          fi
       - name: Run ${{ matrix.shard }} historical diagnostics
         env:
           SHARD: ${{ matrix.shard }}
