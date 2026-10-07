@@ -122,8 +122,8 @@ document.addEventListener('click',event=>{
 document.addEventListener('keydown',event=>{
   if(event.key!=='Escape')return;
   const root=panel()?.querySelector('.lourex-ai-scopes[data-lourex-scope-selector="2"]');
-  if(root instanceof HTMLElement&&root.querySelector('.lourex-ai-scope-menu:not([hidden])')){event.stopPropagation();closeScopeMenu(root,true);}
-});
+  if(root instanceof HTMLElement&&root.querySelector('.lourex-ai-scope-menu:not([hidden])')){event.preventDefault();event.stopPropagation();closeScopeMenu(root,true);}
+},true);
 new MutationObserver(scheduleSync).observe(document.documentElement,{childList:true,subtree:true});
 window.addEventListener('lourex-language-change',scheduleSync);
 scheduleSync();
