@@ -95,13 +95,13 @@ test('vault migration rejects malformed design colors and free-form text sizes',
 
 test('luxury identities use true dark commercial paper while Obsidian keeps its mixed-surface contract',()=>{
   const base=createBlankDocument('invoice','INV-2026-TONE',defaultCompany()).appearance;
-  const lightPapers={noir:'#121212',midnight:'#071824',blackivory:'#14130f',carbon:'#1b1d20'};
-  for(const [templateId,paper] of Object.entries(lightPapers)){
+  const darkPapers={noir:'#121212',midnight:'#071824',blackivory:'#14130f',carbon:'#1b1d20'};
+  for(const [templateId,paper] of Object.entries(darkPapers)){
     const tokens=resolvedAppearanceTokens({...base,templateId,paletteMode:'auto'});
-    assert.equal(tokens.page,paper,`${templateId} effective paper`);
-    assert.equal(tokens.primary,'#17212b',`${templateId} Auto body copy must use the safe primary ink`);
-    assert.equal(tokens.secondary,'#4d5b68',`${templateId} Auto labels must keep a softer semantic ink`);
-    assert.notEqual(tokens.heading,'#ffffff',`${templateId} Auto heading must not become inverse ink on a light sheet`);
+    assert.equal(tokens.page,paper,`${templateId} effective dark paper`);
+    assert.equal(tokens.primary,'#f5f1e9',`${templateId} Auto body copy must use safe light ink`);
+    assert.equal(tokens.secondary,'#aeb5ba',`${templateId} Auto labels must use muted light ink`);
+    assert.equal(tokens.surfaceInk,'#f5f1e9',`${templateId} dark local surfaces must keep light ink`);
   }
   const obsidian=resolvedAppearanceTokens({...base,templateId:'obsidian',paletteMode:'auto'});
   assert.equal(obsidian.page,'#15191c');
