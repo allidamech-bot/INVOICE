@@ -99,3 +99,5 @@ test('v591 all-template header and totals colors are explicitly contrast-safe',a
     assert.match(source,/template-blackivory \.totals-block \.total-row :is\(span,strong\)\{[\s\S]*color:#f5efe2!important/);
   }
 });
+
+// v591 CI retrigger after full template contrast pass
