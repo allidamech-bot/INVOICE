@@ -136,6 +136,138 @@ html body #root .app-ui .screen-editor :is(.document-design-label,.watermark-edi
 }
 `;
 
+
+const documentStudioFinalGuard=`
+/* LOUREX v589 — final document studio owner.
+   Runs after Batch 5 flattening so editor buttons and Design controls cannot
+   inherit a second visual system from older owners. */
+@media screen {
+  html body #root .app-ui .screen-editor{
+    --lrx-editor-accent:var(--boot-accent,#129da1);
+  }
+
+  html body #root .app-ui .screen-editor .btn.btn-primary{
+    background:var(--lrx-editor-accent)!important;
+    background-image:none!important;
+    border-color:var(--lrx-editor-accent)!important;
+    color:#fff!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .btn.btn-secondary,
+  html body #root .app-ui .screen-editor .btn:not(.btn-primary):not(.btn-danger):not(.btn-ghost){
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border:1px solid var(--ft-line-strong)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .btn.btn-ghost,
+  html body #root .app-ui .screen-editor .icon-btn{
+    background:transparent!important;
+    background-image:none!important;
+    border-color:transparent!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.btn,.icon-btn):hover:not(:disabled){
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 52%,var(--ft-line-strong))!important;
+  }
+
+  html body #root .app-ui .screen-editor .advanced-master-toggle{
+    min-height:44px!important;
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border:1px solid var(--ft-line-strong)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .advanced-master-toggle:hover,
+  html body #root .app-ui .screen-editor .advanced-master-toggle:focus-visible{
+    background:var(--ft-surface-2)!important;
+    border-color:var(--lrx-editor-accent)!important;
+    color:var(--ft-text-strong)!important;
+  }
+
+  html body #root .app-ui .screen-editor :is(
+    .design-advanced-panel,.document-design-stack,.document-design-group,
+    .document-design-rows,.appearance-system-grid,.watermark-editor-card,
+    .watermark-editor-head,.watermark-editor-body
+  ){
+    background:transparent!important;
+    background-image:none!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-group+.document-design-group{
+    border-top:1px solid var(--ft-line)!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-row{
+    background:transparent!important;
+    box-shadow:none!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 72%,transparent)!important;
+  }
+  html body #root .app-ui .screen-editor .document-design-note{
+    background:transparent!important;
+    background-image:none!important;
+    border-inline:0!important;
+    border-top:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .document-color-control,
+  html body #root .app-ui .screen-editor .document-design-control>.input.select{
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border:1px solid var(--ft-line-strong)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .design-mode-badge{
+    background:transparent!important;
+    border-color:var(--ft-line)!important;
+    color:var(--ft-muted)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .design-mode-badge.is-custom{
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 48%,var(--ft-line))!important;
+    color:var(--lrx-editor-accent)!important;
+  }
+  html body #root .app-ui .screen-editor :is(
+    .item-advanced-control>button,.watermark-preset-row>button,
+    .draft-block-toolbar button,.draft-block-actions button
+  ){
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border:1px solid var(--ft-line)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+}
+
+/* Dark-template readability closeout observed in live QA. */
+.invoice-page.template-blackivory{
+  --rule:#665d4f;
+}
+.invoice-page.template-blackivory .items-table{
+  border-color:#665d4f!important;
+}
+.invoice-page.template-blackivory .items-table tbody td{
+  border-bottom-color:#5b5347!important;
+}
+.invoice-page.template-noir{
+  --rule:#5b4a34;
+}
+.invoice-page.template-noir .party-grid,
+.invoice-page.template-noir .party-block{
+  border-color:#5b4a34!important;
+}
+.invoice-page.template-noir .section-kicker{
+  color:#d8b36f!important;
+  -webkit-text-fill-color:#d8b36f!important;
+}
+`;
+
 const sourceCss=(await readFile(sourcePath,'utf8')).trim();
 if(!sourceCss)throw new Error('v485 visible UI: source stylesheet is empty.');
 if(!sourceCss.includes('.ta-doc-type-tabs')||!sourceCss.includes('grid-template-columns:repeat(2,minmax(0,1fr))!important'))throw new Error('v485 visible UI: centered mobile document tile grid is missing.');
@@ -143,11 +275,12 @@ if(!sourceCss.includes('-webkit-mask-image:none!important')||!sourceCss.includes
 if(!sourceCss.includes('@media screen and (min-width:901px)')||!sourceCss.includes('.ta-finance-dashboard'))throw new Error('v485 visible UI: iPad/desktop premium activation is missing.');
 if(!sourceCss.includes('--lx485-canvas:#0a1826')||!sourceCss.includes('--lx485-surface-3:#1d3651'))throw new Error('v485 visible UI: dark hierarchy tokens are missing.');
 
-const css=`${sourceCss}\n${modalInteractionGuard.trim()}\n${editorFlatteningGuard.trim()}\n`;
+const css=`${sourceCss}\n${modalInteractionGuard.trim()}\n${editorFlatteningGuard.trim()}\n${documentStudioFinalGuard.trim()}\n`;
 if(!css.includes('.app-ui:has(.modal-backdrop) :is(.mobile-editor-actionbar,.draft-mobile-actionbar)'))throw new Error('v485 visible UI: modal/editor action isolation guard is missing.');
 if(!css.includes('visibility:hidden!important')||!css.includes('pointer-events:none!important'))throw new Error('v485 visible UI: modal/editor action isolation is incomplete.');
 if(!css.includes('LOUREX Batch 5 — document editor visual flattening')||!css.includes('.item-pricing-grid')||!css.includes('.watermark-editor-card'))throw new Error('v485 visible UI: Batch 5 editor flattening guard is missing.');
 if(!css.includes('background:transparent!important')||!css.includes('grid-template-columns:minmax(0,1fr)!important')||!css.includes('min-height:44px!important'))throw new Error('v485 visible UI: Batch 5 editor flattening contract is incomplete.');
+if(!css.includes('LOUREX v589 — final document studio owner')||!css.includes('.document-design-row')||!css.includes('--rule:#665d4f'))throw new Error('v485 visible UI: v589 final document studio owner is missing.');
 
 for(const path of [bundlePath,standalonePath]){
   let content=await readFile(path,'utf8');
