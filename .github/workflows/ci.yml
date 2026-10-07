@@ -214,6 +214,7 @@ jobs:
             templates)
               run_qa 180 node tests/visual/run-pdf-searchable-v222.cjs
               run_qa 300 node tests/visual/run-template-visual-qa.cjs visual-qa-output
+              run_qa 120 node tests/visual/run-template-firstpaint-stability.cjs
               ;;
             mobile-current)
               run_qa 180 node tests/visual/run-mobile-final-quote-stack.cjs
