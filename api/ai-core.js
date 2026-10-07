@@ -1,7 +1,7 @@
 import {aiRouterPublicError,routeAiStructured} from './_ai/router.js';
 
 const MAX_BODY_BYTES=180000;
-const MAX_MESSAGE_CHARS=1000;
+const MAX_MESSAGE_CHARS=6000;
 const RATE_WINDOW_MS=5*60*1000;
 const RATE_MAX=20;
 const SCREENS=new Set(['home','documents','customers','receivables','reports','items','operations','editor']);
