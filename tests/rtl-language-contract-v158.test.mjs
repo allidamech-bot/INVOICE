@@ -10,6 +10,8 @@ test('v158 isolates document direction from application direction',async()=>{
     read('src/styles/document-output-quality-v157.css')
   ]);
   assert.match(renderer,/dir=\{doc\.language==='ar'\?'rtl':'ltr'\}/);
+  assert.match(renderer,/className="bidi-fragment bidi-en" lang="en" dir="ltr"/);
+  assert.match(renderer,/className="bidi-fragment bidi-ar" lang="ar" dir="rtl"/);
   assert.match(css,/\.invoice-page\.lang-ar\{[\s\S]*direction:rtl!important;[\s\S]*text-align:right!important/);
   assert.match(css,/\.invoice-page\.lang-en,[\s\S]*\.invoice-page\.lang-bilingual\{[\s\S]*direction:ltr!important/);
 });
@@ -29,6 +31,8 @@ test('v158 keeps Arabic prose RTL but technical identifiers LTR',async()=>{
 
 test('v158 gives bilingual English and Arabic fragments independent bidi isolation',async()=>{
   const css=await read('src/styles/document-output-quality-v157.css');
-  assert.match(css,/\.invoice-page\.lang-bilingual :is\(\.bi-label,.bi-value\)>span:first-child\{[\s\S]*direction:ltr!important;[\s\S]*text-align:left!important/);
-  assert.match(css,/\.invoice-page\.lang-bilingual :is\(\.bi-label,.bi-value\)>span:last-child\{[\s\S]*direction:rtl!important;[\s\S]*text-align:right!important;[\s\S]*letter-spacing:0!important/);
+  assert.match(css,/\.invoice-page \.bidi-en\{direction:ltr!important;text-align:left!important\}/);
+  assert.match(css,/\.invoice-page \.bidi-ar\{[\s\S]*direction:rtl!important;[\s\S]*text-align:right!important;[\s\S]*letter-spacing:0!important/);
+  assert.doesNotMatch(css,/\.bi-(?:label|value)>span:(?:first|last)-child/);
+  assert.doesNotMatch(css,/\.bi-(?:label|value)>span:(?:first|last)-child[^{]*\{[^}]*direction:/);
 });

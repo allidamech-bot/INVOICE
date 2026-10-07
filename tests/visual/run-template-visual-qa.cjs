@@ -98,6 +98,11 @@ async function inspectPage(page,testCase){
       sellerX:seller?rect(seller).left:null,
       customerX:customer?rect(customer).left:null,
       bilingualRtlCount:first?.querySelectorAll('[dir="rtl"]').length||0,
+      bidiEnCount:document.querySelectorAll('.invoice-page .bidi-en').length,
+      bidiArCount:document.querySelectorAll('.invoice-page .bidi-ar').length,
+      bidiEnDirectionErrors:[...document.querySelectorAll('.invoice-page .bidi-en')].filter(element=>getComputedStyle(element).direction!=='ltr').length,
+      bidiArDirectionErrors:[...document.querySelectorAll('.invoice-page .bidi-ar')].filter(element=>getComputedStyle(element).direction!=='rtl').length,
+      technicalDirectionErrors:[...document.querySelectorAll('.invoice-page :is(.money-cell,.quantity-cell,.party-contact,.party-identifiers>div>span,.grand-total>strong,.total-row>strong,.doc-footer>span:last-child)')].filter(element=>getComputedStyle(element).direction!=='ltr').length,
       grandTotalCount:document.querySelectorAll('.grand-total').length,
       maxItemsToClosingGap,
       maxClosingGap,
@@ -136,7 +141,7 @@ async function browserSession(browserType,engineName,work){
         results.push({engine,...testCase,...metrics});
       }
     }
-    for(const template of ['trade','signature','editorial','mono','midnight','carbon']){
+    for(const template of templates){
       const testCase={template,language:'bilingual',items:'10',mode:'desktop'};
       const metrics=await inspectPage(page,testCase);
       await page.locator('.invoice-page').first().screenshot({path:path.join(outputDir,`bilingual-${template}.png`)});
@@ -165,7 +170,7 @@ async function browserSession(browserType,engineName,work){
   /* Safari/WebKit pass targets the exact high-risk sparse-document condition from
      production: all 18 template families, both primary languages, one item. */
   await browserSession(webkit,'webkit',async(page,errors,engine)=>{
-    for(const language of ['en','ar'])for(const template of templates){
+    for(const language of ['en','ar','bilingual'])for(const template of templates){
       const testCase={template,language,items:'1',mode:'desktop'};
       const metrics=await inspectPage(page,testCase);
       if(['executive','signature','midnight','carbon'].includes(template))await page.locator('.invoice-page').first().screenshot({path:path.join(outputDir,`webkit-${language}-${template}-sparse.png`)});
@@ -185,7 +190,15 @@ async function browserSession(browserType,engineName,work){
     if(result.language==='ar'&&result.direction!=='rtl')failures.push(`${label}: computed direction is not RTL`);
     if(result.language==='ar'&&!(result.sellerX>result.customerX))failures.push(`${label}: seller/customer grid did not mirror`);
     if(result.language==='en'&&!(result.sellerX<result.customerX))failures.push(`${label}: seller/customer grid order is incorrect`);
-    if(result.language==='bilingual'&&result.bilingualRtlCount<3)failures.push(`${label}: bilingual Arabic content is missing`);
+    if(result.language==='bilingual'){
+      if(result.direction!=='ltr')failures.push(`${label}: bilingual structural direction must stay LTR`);
+      if(!(result.sellerX<result.customerX))failures.push(`${label}: bilingual party-grid structure changed direction`);
+      if(result.bilingualRtlCount<3||result.bidiArCount<3)failures.push(`${label}: bilingual Arabic content is missing`);
+      if(result.bidiEnCount<3)failures.push(`${label}: bilingual English content is missing`);
+      if(result.bidiEnDirectionErrors)failures.push(`${label}: ${result.bidiEnDirectionErrors} English fragments are not LTR`);
+      if(result.bidiArDirectionErrors)failures.push(`${label}: ${result.bidiArDirectionErrors} Arabic fragments are not RTL`);
+      if(result.technicalDirectionErrors)failures.push(`${label}: ${result.technicalDirectionErrors} technical/numeric fields are not isolated LTR`);
+    }
     if(result.items==='10'&&result.mode==='desktop'&&(result.language==='en'||result.language==='ar')&&result.firstPageItemRowCount<4)failures.push(`${label}: first page wastes available A4 space (${result.firstPageItemRowCount} item rows)`);
     if(result.items==='10'&&result.mode==='desktop'&&result.language==='bilingual'&&result.firstPageItemRowCount<2)failures.push(`${label}: bilingual first page wastes available A4 space (${result.firstPageItemRowCount} item rows)`);
   }
