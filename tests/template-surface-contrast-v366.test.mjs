@@ -76,21 +76,21 @@ test('Normal typography preserves the effective shipped cascade and template-spe
   assert.match(css,/\.invoice-page\.template-executive\{--lrx-title-base:28px;\}/);
   assert.match(css,/\.invoice-page\.page-first :is\(\.header-executive,\.header-minimal,\.header-trade,\.header-signature,\.header-modern\) \.doc-title>span\{font-size:calc\(var\(--lrx-title-base,25px\)\*var\(--lrx-title-scale,1\)\)!important;\}/);
   assert.match(css,/\.invoice-page\.page-first\.lang-bilingual[\s\S]*--lrx-title-secondary-base,20px/);
-  assert.match(css,/\.invoice-page :is\(\.terms-block h3,\.notes-block h3,\.bank-block h3,\.signature-block h3\)\{font-size:var\(--lrx-heading-size,6\.8px\)!important;/);
-  assert.match(css,/\.invoice-page \.continued-label\{font-size:calc\(var\(--lrx-heading-size,6\.8px\)\*\.955882\)!important;/);
+  assert.match(css,/\.invoice-page :is\(\.terms-block h3,\.notes-block h3,\.bank-block h3,\.signature-block h3\)\{font-size:var\(--lrx-heading-size,7\.8px\)!important;/);
+  assert.match(css,/\.invoice-page \.continued-label\{font-size:calc\(var\(--lrx-heading-size,7\.8px\)\*\.955882\)!important;/);
   assert.doesNotMatch(css,/\.invoice-page \.items-wrap\{font-size:var\(--lrx-heading-size/);
-  assert.match(css,/\.invoice-page \.items-table\{font-size:var\(--lrx-table-size,7\.25px\)!important;\}/);
+  assert.match(css,/\.invoice-page \.items-table\{font-size:var\(--lrx-table-size,8\.2px\)!important;\}/);
   assert.match(css,/\.invoice-page \.items-table tbody td\{font-size:100%!important/);
-  assert.match(css,/template-slate \.items-table thead th\{font-size:calc\(var\(--lrx-table-size,7\.25px\)\*\.813793\)!important;\}/);
-  assert.match(css,/template-slate \.items-table tbody td\{font-size:calc\(var\(--lrx-table-size,7\.25px\)\*\.924138\)!important;line-height:1\.3!important;\}/);
-  assert.match(css,/template-slate \.items-table tbody td\.description-cell\{font-size:calc\(var\(--lrx-table-size,7\.25px\)\*\.951724\)!important;\}/);
-  assert.match(css,/template-editorial \.items-table tbody td\.description-cell\{font-size:calc\(var\(--lrx-table-size,7\.25px\)\*1\.062069\)!important;\}/);
-  assert.match(css,/\.invoice-page \.party-block\{font-size:var\(--lrx-body-size,8\.2px\)!important;\}/);
+  assert.match(css,/template-slate \.items-table thead th\{font-size:calc\(var\(--lrx-table-size,8\.2px\)\*\.813793\)!important;\}/);
+  assert.match(css,/template-slate \.items-table tbody td\{font-size:calc\(var\(--lrx-table-size,8\.2px\)\*\.924138\)!important;line-height:1\.3!important;\}/);
+  assert.match(css,/template-slate \.items-table tbody td\.description-cell\{font-size:calc\(var\(--lrx-table-size,8\.2px\)\*\.951724\)!important;\}/);
+  assert.match(css,/template-editorial \.items-table tbody td\.description-cell\{font-size:calc\(var\(--lrx-table-size,8\.2px\)\*1\.062069\)!important;\}/);
+  assert.match(css,/\.invoice-page \.party-block\{font-size:var\(--lrx-body-size,9\.2px\)!important;\}/);
 });
 
 test('later receipt output semantics do not bypass bounded table sizing',async()=>{
   const css=await read('src/styles/v332-critical-documents-deep-closeout.css');
-  assert.match(css,/kind-payment-receipt\.lang-en \.items-table th:last-child::after\{content:"Amount";font-size:calc\(var\(--lrx-table-size,7\.25px\)\*1\.6552\);\}/);
-  assert.match(css,/kind-payment-receipt\.lang-ar \.items-table th:last-child::after\{content:"المبلغ";font-size:calc\(var\(--lrx-table-size,7\.25px\)\*1\.6552\);\}/);
-  assert.match(css,/kind-payment-receipt\.lang-bilingual \.items-table th:last-child::after\{content:"Amount \/ المبلغ";font-size:calc\(var\(--lrx-table-size,7\.25px\)\*1\.5632\);\}/);
+  assert.match(css,/kind-payment-receipt\.lang-en \.items-table th:last-child::after\{content:"Amount";font-size:calc\(var\(--lrx-table-size,8\.2px\)\*1\.6552\);\}/);
+  assert.match(css,/kind-payment-receipt\.lang-ar \.items-table th:last-child::after\{content:"المبلغ";font-size:calc\(var\(--lrx-table-size,8\.2px\)\*1\.6552\);\}/);
+  assert.match(css,/kind-payment-receipt\.lang-bilingual \.items-table th:last-child::after\{content:"Amount \/ المبلغ";font-size:calc\(var\(--lrx-table-size,8\.2px\)\*1\.5632\);\}/);
 });
