@@ -9,8 +9,9 @@ test('AI conversation design Batch 2 runs immediately after Batch 1',async()=>{
   const build=pkg.scripts.build;
   const one=build.indexOf('node scripts/ai-conversation-design-batch1.mjs');
   const two=build.indexOf('node scripts/ai-conversation-design-batch2.mjs');
+  const closeout=build.indexOf('node scripts/ai-conversation-design-batch2-closeout.mjs');
   const pdf=build.indexOf('node scripts/v580-safari-pdf-single-page.mjs');
-  assert.ok(one>=0&&two>one&&pdf>two,'Batch 2 must own final conversation interaction presentation after Batch 1');
+  assert.ok(one>=0&&two>one&&closeout>two&&pdf>closeout,'Batch 2 closeout must stabilize the final interaction owner before unrelated PDF finalization');
 });
 
 test('Batch 2 consolidates scope tabs without removing scope capability',async()=>{
@@ -39,4 +40,13 @@ test('Batch 2 softens report chrome and preserves history and approval surfaces'
   assert.match(source,/\.lourex-ai-thread-picker\[data-lourex-design2='true'\]/);
   assert.match(source,/\.lourex-ai-tool-approval\{/);
   assert.doesNotMatch(source,/assistantCapabilityAllowed|document\.createDraft|payment\.record|inventory\.adjust|accounting\.post/,'presentation owner cannot change AI authority');
+});
+
+
+test('Batch 2 closeout prevents mutation-observer feedback while keeping scope delegation intact',async()=>{
+  const source=await read('scripts/ai-conversation-design-batch2-closeout.mjs');
+  assert.match(source,/textContent!==nextTriggerLabel/);
+  assert.match(source,/option\.textContent!==nextLabel/);
+  assert.match(source,/__lourexConversationDesignBatch2Closeout/);
+  assert.doesNotMatch(source,/assistantCapabilityAllowed|document\.createDraft|payment\.record|inventory\.adjust/);
 });
