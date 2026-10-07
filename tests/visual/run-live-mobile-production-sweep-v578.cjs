@@ -144,47 +144,58 @@ async function createQuotation(page){
     const panel=iphone.locator('#lourex-ai-panel');await panel.waitFor({state:'visible'});
     const mic=panel.locator('.lourex-ai-composer-mic');await mic.waitFor({state:'visible'});
     const input=panel.locator('.lourex-ai-compose form>input');
-    for(let i=1;i<=3;i++){
-      await mic.click();
-      await iphone.waitForFunction(n=>window.__LOUREX_QA_SPEECH_INSTANCES__?.length>=n,i);
-      await iphone.evaluate(({index,text})=>window.__LOUREX_QA_SPEECH_INSTANCES__[index].__result(text),{index:i-1,text:`voice session ${i}`});
-      await iphone.waitForTimeout(80);
-      const value=await input.inputValue();
-      assert.ok(value.includes(`voice session ${i}`),`voice result ${i} did not reach composer`);
-      await mic.click();
-      await iphone.evaluate(index=>window.__LOUREX_QA_SPEECH_INSTANCES__[index].__end(),i-1);
-      await iphone.waitForTimeout(120);
-      await input.fill('');
-    }
+    const textarea=panel.locator('.lourex-ai-premium-textarea');
+
+    await mic.click();
+    await iphone.waitForFunction(()=>window.__LOUREX_QA_SPEECH_INSTANCES__?.length===1);
+    await iphone.evaluate(()=>window.__LOUREX_QA_SPEECH_INSTANCES__[0].__result('voice session 1'));
+    await iphone.waitForFunction(()=>document.querySelector('.lourex-ai-premium-textarea')?.value?.includes('voice session 1'));
+
+    await mic.click();
+    await iphone.evaluate(()=>window.__LOUREX_QA_SPEECH_INSTANCES__[0].__end());
+    await iphone.waitForFunction(()=>window.__LOUREX_QA_SPEECH_INSTANCES__?.length===2);
+    await iphone.evaluate(()=>window.__LOUREX_QA_SPEECH_INSTANCES__[1].__result('voice session 2'));
+    await iphone.waitForFunction(()=>document.querySelector('.lourex-ai-premium-textarea')?.value?.includes('voice session 2'));
+
+    await mic.click();
+    await iphone.evaluate(()=>window.__LOUREX_QA_SPEECH_INSTANCES__[1].__end());
+    await mic.click();
+    await iphone.waitForFunction(()=>window.__LOUREX_QA_SPEECH_INSTANCES__?.length===3);
+    await iphone.evaluate(()=>window.__LOUREX_QA_SPEECH_INSTANCES__[2].__result('voice session 3'));
+    await iphone.waitForFunction(()=>document.querySelector('.lourex-ai-premium-textarea')?.value?.includes('voice session 3'));
+    await mic.click();
+    await iphone.evaluate(()=>window.__LOUREX_QA_SPEECH_INSTANCES__[2].__end());
+
+    const value=await textarea.inputValue().catch(()=>input.inputValue());
+    assert.match(value,/voice session 1/);
+    assert.match(value,/voice session 2/);
+    assert.match(value,/voice session 3/);
     assert.equal(await iphone.evaluate(()=>window.__LOUREX_QA_SPEECH_INSTANCES__.length),3);
     await panel.locator('.lourex-ai-close').click();
-    await panel.waitFor({state:'detached'});
-    return {sessions:3};
+    await panel.waitFor({state:'hidden'}).catch(()=>panel.waitFor({state:'detached'}));
+    return {sessions:3,transcript:value};
   });
 
-  await check(report.iphone,'Multi-file selection accumulates across picker uses',async()=>{
-    const nav=iphone.locator('.ta-mobile-nav');await nav.getByRole('button',{name:'Customers'}).click();
-    await iphone.getByRole('button',{name:'Add with AI'}).click();
-    const modal=iphone.locator('.modal-backdrop').last();await modal.waitFor({state:'visible'});
-    const input=modal.locator('input[type="file"][multiple]');
-    await input.setInputFiles({name:'first.txt',mimeType:'text/plain',buffer:Buffer.from('first company source')});
-    await iphone.waitForTimeout(100);
-    const firstCount=await modal.getByText(/Selected sources/).locator('xpath=following-sibling::ul[1]/li').count().catch(()=>modal.locator('li').count());
-    assert.ok(firstCount>=1,'first selected file did not appear');
-    await input.setInputFiles({name:'second.txt',mimeType:'text/plain',buffer:Buffer.from('second company source')});
-    await iphone.waitForTimeout(100);
-    const names=await modal.locator('li').allTextContents();
-    assert.ok(names.some(v=>v.includes('first.txt')),'first file was replaced after second picker use');
-    assert.ok(names.some(v=>v.includes('second.txt')),'second file did not appear');
-    await iphone.keyboard.press('Escape');
-    return {selected:names};
+  await check(report.iphone,'Multi-file document attachments select together and accumulate',async()=>{
+    await createQuotation(iphone);
+    const section=iphone.locator('#document-attachments');
+    await section.scrollIntoViewIfNeeded();
+    const input=section.locator('.document-attachment-input');
+    const pdf=(label)=>Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n% '+label+'\n%%EOF\n');
+    await input.setInputFiles([
+      {name:'mobile-qa-a.pdf',mimeType:'application/pdf',buffer:pdf('a')},
+      {name:'mobile-qa-b.pdf',mimeType:'application/pdf',buffer:pdf('b')}
+    ]);
+    await iphone.waitForFunction(()=>document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')==='2');
+    await input.setInputFiles({name:'mobile-qa-c.pdf',mimeType:'application/pdf',buffer:pdf('c')});
+    await iphone.waitForFunction(()=>document.querySelector('#document-attachments')?.getAttribute('data-attachment-count')==='3');
+    const names=await section.locator('.attachment-card .attachment-copy strong').allTextContents();
+    assert.deepEqual(new Set(names),new Set(['mobile-qa-a.pdf','mobile-qa-b.pdf','mobile-qa-c.pdf']));
+    return {count:3,names};
   });
 
   await check(report.iphone,'Mobile keyboard-sized viewport keeps editor CTA reachable',async()=>{
-    const nav=iphone.locator('.ta-mobile-nav');await nav.getByRole('button',{name:'Documents'}).click();
-    await createQuotation(iphone);
-    const fields=iphone.locator('.editor-pane input:not([type="hidden"]), .editor-pane textarea, .editor-pane select');
-    const lower=fields.last();await lower.scrollIntoViewIfNeeded();await lower.focus();
+    const lower=iphone.locator('.editor-screen textarea:visible').last();await lower.scrollIntoViewIfNeeded();await lower.focus();
     await iphone.setViewportSize({width:390,height:500});await iphone.waitForTimeout(250);
     const dock=iphone.locator('.mobile-editor-actionbar');await dock.waitFor({state:'visible'});
     const box=await dock.boundingBox();assert.ok(box,'mobile action bar has no geometry');
@@ -196,7 +207,7 @@ async function createQuotation(page){
   });
 
   await check(report.iphone,'Documents mobile density exposes row above fold',async()=>{
-    await iphone.locator('.editor-topbar button[aria-label="Back"]').click();
+    await iphone.locator('.editor-topbar').getByRole('button',{name:/Back|رجوع/}).click();
     await iphone.locator('.ta-mobile-nav').waitFor({state:'visible',timeout:30000});
     await iphone.locator('.ta-mobile-nav').getByRole('button',{name:'Documents'}).click();
     const row=iphone.locator('.ta-doc-row').first();await row.waitFor({state:'visible',timeout:30000});
