@@ -251,7 +251,7 @@ export class EditorPage extends React.Component<Props,State>{
         await this.props.onPrint(finalDoc,mode);
       }
       this.setState({reviewMode:null,issuing:false,doc:finalDoc,saveState:'saved',errors:{}});
-    }catch(e){this.setState({issuing:false,errors:{...this.state.errors,global:e instanceof Error?e.message:t('Unable to issue document.','تعذر إصدار المستند.')}});}finally{this.issuancePending=false;}
+    }catch(e){this.setState({issuing:false,reviewMode:mode==='issue'?null:mode,errors:{...this.state.errors,global:e instanceof Error?e.message:t('Unable to issue document.','تعذر إصدار المستند.')}});}finally{this.issuancePending=false;}
   };
   private unlockFinal=async()=>{
     if(this.revisionPending)return;
