@@ -290,6 +290,10 @@ function shouldUseDetailsPage(doc: LourexDocument): boolean {
   return lastWeight>allowedLastWeight;
 }
 
+function documentRenderSignature(doc:LourexDocument):string{
+  return JSON.stringify({...doc,updatedAt:'',attachments:[]});
+}
+
 function initialPages(doc:LourexDocument):DocumentItem[][]{
   const separateDetails=shouldUseDetailsPage(doc);
   const fragments=doc.items.flatMap(item=>outputItemFragments(doc,item));
@@ -301,10 +305,16 @@ class MeasuredDocument extends React.Component<Props,{pages:DocumentItem[][];rea
   state={pages:initialPages(this.props.document),ready:false};
   private root:HTMLDivElement|null=null;
   private frame=0;private mounted=false;private moves=0;
+  private renderSignature=documentRenderSignature(this.props.document);
   componentDidMount():void{this.mounted=true;this.prepare();}
   componentWillUnmount():void{this.mounted=false;cancelAnimationFrame(this.frame);}
-  componentDidUpdate(previous:Props):void{
-    if(previous.document!==this.props.document){this.moves=0;this.setState({pages:initialPages(this.props.document),ready:false},()=>this.prepare());}
+  componentDidUpdate():void{
+    const nextSignature=documentRenderSignature(this.props.document);
+    if(nextSignature!==this.renderSignature){
+      this.renderSignature=nextSignature;
+      this.moves=0;
+      this.setState({pages:initialPages(this.props.document),ready:false},()=>this.prepare());
+    }
   }
   private prepare=()=>{void Promise.resolve(document.fonts?.ready).then(()=>{if(this.mounted)this.schedule();});};
   private schedule=()=>{cancelAnimationFrame(this.frame);this.frame=requestAnimationFrame(()=>{this.frame=requestAnimationFrame(this.measure);});};
