@@ -34,10 +34,10 @@ test('mobile document step navigation belongs to the editor scroll surface',asyn
 });
 
 test('v328 mobile presentation owns aligned AI, compact advisor and readable templates',async()=>{
-  const [aiCss,templateCss]=await Promise.all([read('src/styles/tailadmin-ai-finish-v320.css'),read('src/styles/template-preferences.css')]);
+  const [aiCss,galleryCss]=await Promise.all([read('src/styles/tailadmin-ai-finish-v320.css'),read('src/styles/v330-critical-documents-closeout.css')]);
   assert.match(aiCss,/v328 — unified AI identity/);
   assert.match(aiCss,/\.lourex-ai-launcher[^}]*width:44px!important[^}]*height:44px!important/);
   assert.match(aiCss,/\.lourex-advisor-card/);
-  assert.match(templateCss,/v328 — phone template gallery/);
-  assert.match(templateCss,/grid-template-columns:minmax\(0,1fr\)!important/);
+  assert.match(galleryCss,/Mobile template gallery/);
+  assert.match(galleryCss,/\.screen-editor \.template-selector \{ grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important;gap:10px!important; \}/);
 });
