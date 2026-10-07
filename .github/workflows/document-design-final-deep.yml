@@ -33,6 +33,7 @@ on:
       - 'tests/pdf-pagination-parity-v542.test.mjs'
       - 'tests/visual/template-visual-qa.js'
       - 'tests/visual/run-document-design-final-deep.cjs'
+      - 'tests/visual/run-all-template-auto-contrast-v591.cjs'
       - 'tests/visual/v542-pagination-parity.html'
       - 'tests/visual/v542-pagination-parity.js'
       - 'tests/visual/run-v542-pagination-parity.cjs'
@@ -90,6 +91,7 @@ jobs:
           done
           if [ "$ready" -ne 1 ]; then cat /tmp/lourex-document-design-final.log; exit 1; fi
           node tests/visual/run-document-design-final-deep.cjs
+          node tests/visual/run-all-template-auto-contrast-v591.cjs
           node tests/visual/run-v542-pagination-parity.cjs
       - name: Upload final document design evidence
         if: always()
