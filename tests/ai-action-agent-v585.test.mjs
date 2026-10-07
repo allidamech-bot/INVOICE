@@ -77,3 +77,10 @@ test('v585 conversation history refresh is awaited before reopening a saved chat
   const owner=await read('scripts/ai-batch1-unified-assistant.mjs');
   assert.match(owner,/await new Promise\(resolve=>instance\.setState\(\{assistantThreads:/);
 });
+
+test('v585 conversation persistence serializes overlapping saves so New Conversation cannot overwrite the latest turn',async()=>{
+  const owner=await read('scripts/ai-batch1-unified-assistant.mjs');
+  assert.match(owner,/__lourexAssistantPersistQueue/);
+  assert.match(owner,/prior\.catch\(\(\)=>undefined\)\.then\(run\)/);
+  assert.match(owner,/messages=\(instance\.state\.messages\|\|\[\]\)\.map/);
+});
