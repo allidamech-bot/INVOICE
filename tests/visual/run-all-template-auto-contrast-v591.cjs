@@ -67,6 +67,7 @@ async function inspect(page,template){
         sample('table-header','.items-table thead th'),
         sample('table-header-last','.items-table thead th:last-child'),
         sample('table-body','.items-table tbody td'),
+        sample('table-body-even','.items-table tbody tr:nth-child(2) td'),
         sample('term-label','.terms-block .term-row>b'),
         sample('term-value','.terms-block .term-row>span'),
         sample('totals-label','.totals-block span'),
