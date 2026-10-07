@@ -33,6 +33,6 @@ test('v158 gives bilingual English and Arabic fragments independent bidi isolati
   const css=await read('src/styles/document-output-quality-v157.css');
   assert.match(css,/\.invoice-page \.bidi-en\{direction:ltr!important;text-align:left!important\}/);
   assert.match(css,/\.invoice-page \.bidi-ar\{[\s\S]*direction:rtl!important;[\s\S]*text-align:right!important;[\s\S]*letter-spacing:0!important/);
-  assert.doesNotMatch(css,/>span:first-child\{direction:ltr!important/);
-  assert.doesNotMatch(css,/>span:last-child\{[\s\S]*direction:rtl!important/);
+  assert.doesNotMatch(css,/\.bi-(?:label|value)>span:(?:first|last)-child/);
+  assert.doesNotMatch(css,/\.bi-(?:label|value)>span:(?:first|last)-child[^{]*\{[^}]*direction:/);
 });
