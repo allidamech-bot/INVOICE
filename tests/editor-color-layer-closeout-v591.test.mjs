@@ -79,6 +79,7 @@ test('v591 remaining template heading and totals surfaces keep explicit readable
       assert.ok(source.includes(`background:${bg}!important`),`${template} background`);
     }
     assert.match(source,/\.invoice-page\.template-horizon \.items-table thead th\{[\s\S]*background:#174d61!important[\s\S]*color:#fff!important[\s\S]*-webkit-text-fill-color:#fff!important/);
-    assert.match(source,/\.invoice-page\.template-noir \.totals-block \.total-row :is\(span,strong\)\{[\s\S]*color:#f4efe6!important/);\n    assert.match(source,/\.invoice-page\.template-blackivory \.totals-block \.total-row :is\(span,strong\)\{[\s\S]*color:#f5efe2!important/);
+    assert.match(source,/\.invoice-page\.template-noir \.totals-block \.total-row :is\(span,strong\)\{[\s\S]*color:#f4efe6!important/);
+    assert.match(source,/\.invoice-page\.template-blackivory \.totals-block \.total-row :is\(span,strong\)\{[\s\S]*color:#f5efe2!important/);
   }
 });
