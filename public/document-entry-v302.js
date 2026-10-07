@@ -9,6 +9,7 @@
   const iosRuntimeRepairKey='lourex-ios-runtime-repair-v317';
   let deferredAccountUid='';
   let deferredAccountTimer=0;
+  let stylesheetOrderPrepared=false;
 
   const menuKinds=['draft','rfq','proforma','proforma-invoice','purchase-order','invoice','delivery-note','payment-receipt','credit-note','statement-account'];
   const menuLabelKinds=new Map([
@@ -63,15 +64,22 @@
     if(link)head.appendChild(link);
   }
 
-  /* TailAdmin owners are re-promoted first; v331 then restores Safari/Draft
-     geometry and v332 remains the final document-type semantics/presentation
-     owner. Retired v304-v306 compatibility styles are never requested. */
+  /* Stylesheet order is established once, before the editor is exposed.
+     Re-appending loaded <link> nodes during every React reconciliation changes
+     cascade order and can flash an older gallery layout on iOS Safari. The
+     production bundle has a fixed order; only unbundled/dev markup needs the
+     historical TailAdmin/Draft promotion, and only during initial bootstrap. */
   function ensureRuntimeReliability(){
-    ensureStylesheet(draftScrollRecoveryStyleMarker,'./styles/v331-draft-scroll-recovery.css?v=365-1');
-    ensureStylesheet(criticalDocumentsStyleMarker,'./styles/v332-critical-documents-deep-closeout.css?v=332-1');
-    promoteTailAdminOwners();
-    promoteDraftRecovery();
-    promoteCriticalDocuments();
+    if(!stylesheetOrderPrepared){
+      ensureStylesheet(draftScrollRecoveryStyleMarker,'./styles/v331-draft-scroll-recovery.css?v=365-1');
+      ensureStylesheet(criticalDocumentsStyleMarker,'./styles/v332-critical-documents-deep-closeout.css?v=332-1');
+      if(!document.querySelector('link[rel="stylesheet"][href*="app.bundle.css"]')){
+        promoteTailAdminOwners();
+        promoteDraftRecovery();
+        promoteCriticalDocuments();
+      }
+      stylesheetOrderPrepared=true;
+    }
 
     const root=document.documentElement;
     if(root.dataset.lourexBooting==='true'){
