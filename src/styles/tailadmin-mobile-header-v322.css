@@ -59,28 +59,34 @@
     overflow:hidden!important;
   }
 
-  /* Application chrome always uses the LOUREX app mark. Company artwork belongs
-     to documents/settings and must never turn the app header into a product image. */
-  html body .app-ui .ta-mobile-brand .brand.compact,
-  html body .app-ui .ta-brand-button .brand.compact{
-    width:34px!important;
-    min-width:34px!important;
-    height:34px!important;
+  /* Mobile app chrome owns only the mobile LOUREX mark. The desktop/sidebar
+     brand has its own owner, so these selectors must never compete. */
+  html body .app-ui .ta-mobile-brand .brand.compact{
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
     position:relative!important;
   }
-  html body .app-ui .ta-mobile-brand .brand-mark,
-  html body .app-ui .ta-brand-button .brand-mark{
-    width:34px!important;
-    height:34px!important;
-    min-width:34px!important;
-    border-radius:9px!important;
+  html body .app-ui .ta-mobile-brand .brand-mark{
+    width:40px!important;
+    height:40px!important;
+    min-width:40px!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:11px!important;
     overflow:hidden!important;
-    background:url("../brand/lourex-logo.svg") center/contain no-repeat!important;
+    background:transparent!important;
   }
-  html body .app-ui .ta-mobile-brand .brand-mark img,
-  html body .app-ui .ta-brand-button .brand-mark img{opacity:0!important;}
-  html body .app-ui .ta-mobile-brand .brand-words,
-  html body .app-ui .ta-brand-button>.brand.compact>.brand-words{display:none!important;}
+  html body .app-ui .ta-mobile-brand .brand-mark img{
+    display:block!important;
+    width:40px!important;
+    height:40px!important;
+    max-width:none!important;
+    object-fit:cover!important;
+    opacity:1!important;
+    transform:scale(1.03)!important;
+  }
+  html body .app-ui .ta-mobile-brand .brand-words{display:none!important;}
 
   html body .app-ui .ta-page-title{min-width:0!important;gap:0!important;}
   html body .app-ui .ta-page-title small{display:none!important;}
