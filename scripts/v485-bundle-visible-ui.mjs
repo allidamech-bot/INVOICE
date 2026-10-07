@@ -459,6 +459,11 @@ const documentStudioFinalGuard=`
   color:#f5efe2!important;
   -webkit-text-fill-color:#f5efe2!important;
 }
+
+/* v594 Carbon row contrast: keep zebra striping inside the authored dark surface. */
+.invoice-page.template-carbon .items-table tbody tr:nth-child(even){
+  background:var(--soft)!important;
+}
 `;
 
 const sourceCss=(await readFile(sourcePath,'utf8')).trim();
