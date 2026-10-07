@@ -195,7 +195,7 @@ html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lour
 }
 html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-scope-menu{
   position:absolute!important;
-  z-index:96!important;
+  z-index:var(--lourex-ai-local-z-scope,96)!important;
   top:calc(100% + 6px)!important;
   inset-inline-end:0!important;
   min-width:180px!important;
@@ -319,7 +319,7 @@ html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lour
   }
   html body #root #lourex-ai-panel[data-lourex-conversation-remediation='3'] .lourex-ai-scope-menu{
     position:fixed!important;
-    z-index:1400!important;
+    z-index:var(--lourex-ai-local-z-scope,96)!important;
     top:calc(env(safe-area-inset-top,0px) + 58px)!important;
     inset-inline:8px!important;
     min-width:0!important;
