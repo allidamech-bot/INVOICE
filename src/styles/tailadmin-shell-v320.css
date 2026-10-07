@@ -44,7 +44,7 @@
     border-radius:0!important;
     background:var(--ft-shell)!important;
     box-shadow:none!important;
-    z-index:60!important;
+    z-index:var(--lourex-z-shell,60)!important;
   }
 
   html[dir="rtl"] .app-ui .ta-sidebar {
@@ -394,7 +394,7 @@
 
   .app-ui .ta-create-menu {
     position:absolute!important;
-    z-index:200!important;
+    z-index:var(--lourex-z-popover,1120)!important;
     width:min(480px,calc(100vw - 32px))!important;
     overflow:hidden!important;
     padding:8px!important;
@@ -434,7 +434,7 @@
   .app-ui .ta-overlay-backdrop {
     position:fixed!important;
     inset:0!important;
-    z-index:150!important;
+    z-index:var(--lourex-z-backdrop,1100)!important;
     border:0!important;
     border-radius:0!important;
     background:rgba(16,24,40,.42)!important;
@@ -501,7 +501,7 @@
       position:fixed!important;
       inset-inline:0!important;
       bottom:0!important;
-      z-index:120!important;
+      z-index:var(--lourex-z-nav,120)!important;
       min-height:calc(68px + env(safe-area-inset-bottom,0px))!important;
       display:grid!important;
       grid-template-columns:repeat(5,minmax(0,1fr))!important;
@@ -559,7 +559,7 @@
       width:auto!important;
       max-height:min(70dvh,620px)!important;
       overflow:auto!important;
-      z-index:210!important;
+      z-index:var(--lourex-z-popover,1120)!important;
     }
 
     .app-ui .ta-create-backdrop { display:block!important; }
@@ -570,7 +570,7 @@
       position:fixed!important;
       inset-inline:10px!important;
       bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;
-      z-index:220!important;
+      z-index:var(--lourex-z-sheet,1140)!important;
       max-height:min(84dvh,760px)!important;
       display:flex!important;
       flex-direction:column!important;
