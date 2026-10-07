@@ -37,6 +37,14 @@
   .invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block .term-row>b,.bank-block>div>b,.doc-footer){color:var(--lrx-secondary,var(--lrx-light-muted))!important;-webkit-text-fill-color:var(--lrx-secondary,var(--lrx-light-muted))!important;}
   .invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(.terms-block h3,.notes-block h3,.bank-block h3,.signature-block h3,.continued-label){color:var(--lrx-heading,var(--lrx-light-ink))!important;-webkit-text-fill-color:var(--lrx-heading,var(--lrx-light-ink))!important;}
 
+  /* Carbon is a true dark-body identity, but v140's global zebra rule paints
+   * every second item row with the shared light surface. Keep Carbon's striping
+   * on its authored dark soft surface so Auto and contrast-guarded Custom ink
+   * stay readable without flattening the masthead, totals or table header. */
+  .invoice-page.template-carbon .items-table tbody tr:nth-child(even){
+    background:var(--soft,#24282b)!important;
+  }
+
   /* Custom Accent is structural/decorative. It changes safe rules/highlights,
    * while foreground readability is controlled independently below. */
   .invoice-page.palette-custom{--template-accent:var(--accent)!important;}
