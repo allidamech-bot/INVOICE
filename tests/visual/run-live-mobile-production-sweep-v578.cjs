@@ -65,7 +65,7 @@ async function shellUnlocked(page){
 
 async function openSettings(page){
   const nav=page.locator('.ta-mobile-nav');
-  const more=nav.getByRole('button',{name:/More|المزيد/});
+  const more=nav.locator('button[aria-controls="ta-mobile-more"]');
   await more.click();
   await page.locator('#ta-mobile-more').waitFor({state:'visible'});
   await page.getByRole('button',{name:/Settings|الإعدادات/}).click();
@@ -89,8 +89,8 @@ async function createQuotation(page){
   const card=page.locator('.item-card').first();
   await card.locator('textarea').first().fill('Mobile live QA item');
   await card.getByLabel(/Quantity|الكمية/).fill('2');
-  const unit=card.getByLabel(/Unit|الوحدة/,{exact:true});
-  if(await unit.evaluate(el=>el.tagName==='SELECT'))await unit.selectOption('PCS');else await unit.fill('PCS');
+  const unit=card.getByRole('combobox',{name:/^(Unit|الوحدة)$/});
+  await unit.selectOption('PCS');
   await card.getByLabel(/Unit Price \(|سعر الوحدة/).fill('10');
   await page.waitForTimeout(1200);
 }
@@ -230,23 +230,47 @@ async function createQuotation(page){
 
   await check(report.iphone,'Authenticated RTL surfaces remain aligned and unclipped',async()=>{
     await openSettings(iphone);
+    const settingsModal=iphone.locator('.modal-backdrop').last();
     await iphone.getByLabel('Interface Language').selectOption('ar');
     await iphone.waitForFunction(()=>document.documentElement.dir==='rtl'&&document.documentElement.lang==='ar');
-    await iphone.keyboard.press('Escape');
+    const closeSettings=settingsModal.locator('.modal-header button').first();
+    await closeSettings.click();
+    await settingsModal.waitFor({state:'detached',timeout:10000}).catch(()=>settingsModal.waitFor({state:'hidden',timeout:10000}));
+
     const inspect=async(label)=>{
-      await iphone.waitForTimeout(100);
+      await iphone.waitForTimeout(120);
       const v=await iphone.evaluate(()=>({dir:document.documentElement.dir,lang:document.documentElement.lang,width:innerWidth,scrollWidth:document.documentElement.scrollWidth}));
-      assert.equal(v.dir,'rtl',`${label} lost RTL`);assert.ok(v.scrollWidth<=v.width+1,`${label} clips horizontally ${v.scrollWidth}>${v.width}`);return v;
+      assert.equal(v.dir,'rtl',`${label} lost RTL`);
+      assert.equal(v.lang,'ar',`${label} lost Arabic interface language`);
+      assert.ok(v.scrollWidth<=v.width+1,`${label} clips horizontally ${v.scrollWidth}>${v.width}`);
+      return v;
     };
     const surfaces={};
-    await iphone.locator('.ta-mobile-nav').getByRole('button',{name:'الرئيسية'}).click();surfaces.home=await inspect('Dashboard');
-    await iphone.locator('.ta-mobile-nav').getByRole('button',{name:'المستندات'}).click();surfaces.documents=await inspect('Documents');
-    await iphone.locator('.ta-mobile-create').click();await iphone.locator('.global-search-panel').waitFor({state:'visible'});surfaces.create=await inspect('Create');await iphone.keyboard.press('Escape');
-    await openSettings(iphone);surfaces.settings=await inspect('Settings');await iphone.keyboard.press('Escape');
-    await iphone.locator('.ta-mobile-nav').getByRole('button',{name:'المستندات'}).click();
+    const nav=iphone.locator('.ta-mobile-nav');
+    await nav.waitFor({state:'visible',timeout:15000});
+    const navText=await nav.innerText();
+    assert.match(navText,/الرئيسية/,'mobile navigation did not rerender Arabic Home label');
+    assert.match(navText,/المستندات/,'mobile navigation did not rerender Arabic Documents label');
+    assert.match(navText,/المزيد/,'mobile navigation did not rerender Arabic More label');
+
+    await nav.locator('button').nth(0).click();surfaces.home=await inspect('Dashboard');
+    await nav.locator('button').nth(1).click();surfaces.documents=await inspect('Documents');
+
+    await iphone.locator('.ta-mobile-create').click();
+    await iphone.locator('.global-search-panel').waitFor({state:'visible'});
+    surfaces.create=await inspect('Create');
+    await iphone.keyboard.press('Escape');
+    await iphone.locator('.global-search-panel').waitFor({state:'hidden',timeout:10000});
+
+    await openSettings(iphone);
+    surfaces.settings=await inspect('Settings');
+    const settingsModal2=iphone.locator('.modal-backdrop').last();
+    await settingsModal2.locator('.modal-header button').first().click();
+    await settingsModal2.waitFor({state:'detached',timeout:10000}).catch(()=>settingsModal2.waitFor({state:'hidden',timeout:10000}));
+
     await createQuotation(iphone);
     surfaces.editor=await inspect('Editor');
-    return surfaces;
+    return {navText,surfaces};
   });
 
   assert.deepEqual(iphoneErrors,[],'page errors occurred in iPhone sweep');
