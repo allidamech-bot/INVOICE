@@ -130,7 +130,7 @@
 
   html body .app-ui .screen-editor .draft-mobile-actionbar{
     position:fixed!important;
-    z-index:180!important;
+    z-index:var(--lourex-z-editor-dock,900)!important;
     left:0!important;
     right:0!important;
     bottom:0!important;
@@ -470,7 +470,7 @@ html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-pdf-design-se
 
   html body .app-ui .screen-editor .ta-draft-studio-workspace .draft-studio.editor-screen>.draft-mobile-actionbar{
     position:fixed!important;
-    z-index:260!important;
+    z-index:var(--lourex-z-editor-dock,900)!important;
     left:max(8px,env(safe-area-inset-left,0px))!important;
     right:max(8px,env(safe-area-inset-right,0px))!important;
     bottom:max(
