@@ -19,10 +19,24 @@ test('v591 native editor controls cannot retain black or foreign button surfaces
   }
 });
 
+test('v591 final editor controls stay readable and cannot fall back to browser-native buttons',async()=>{
+  const [css,bundle]=await Promise.all([
+    read('src/styles/v485-visible-ui-corrections.css'),
+    read('scripts/v485-bundle-visible-ui.mjs')
+  ]);
+  for(const source of [css,bundle]){
+    assert.match(source,/--lrx-editor-accent:#315fad/);
+    assert.match(source,/:is\(\.screen-editor,\.editor-screen\) \.btn\.btn-ghost\{[\s\S]*background:var\(--lx485-surface-3,#1d3651\)!important/);
+    assert.match(source,/:is\(\.screen-editor,\.editor-screen\) \.icon-btn\{[\s\S]*background:transparent!important/);
+    assert.match(source,/:is\(\.screen-editor,\.editor-screen\) \.advanced-master-toggle\{[\s\S]*appearance:none!important/);
+    assert.match(source,/\.item-advanced-control>button[\s\S]*appearance:none!important[\s\S]*--lx485-line-strong/);
+  }
+});
+
 test('v591 template selector controls use app surfaces and accent states, not black badges',async()=>{
   const css=await read('src/styles/v485-visible-ui-corrections.css');
-  assert.match(css,/\.screen-editor \.template-card\{[\s\S]*background:var\(--ft-surface\)!important/);
-  assert.match(css,/\.screen-editor \.template-card\.selected\{[\s\S]*border-color:var\(--lrx-editor-accent\)!important/);
+  assert.match(css,/:is\(\.screen-editor,\.editor-screen\) \.template-card\{[\s\S]*background:var\(--ft-surface\)!important/);
+  assert.match(css,/:is\(\.screen-editor,\.editor-screen\) \.template-card\.selected\{[\s\S]*border-color:var\(--lrx-editor-accent\)!important/);
   assert.match(css,/\.template-favorite-button\.active\{[\s\S]*background:var\(--ft-accent-faint\)!important/);
   assert.match(css,/\.template-default-badge\{[\s\S]*background:var\(--ft-accent-faint\)!important/);
 });
