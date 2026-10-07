@@ -1192,11 +1192,105 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-foo
   html body #root .app-ui .screen-editor .design-mode-badge{background:transparent!important;border-color:var(--ft-line)!important;color:var(--ft-muted)!important;box-shadow:none!important;}
   html body #root .app-ui .screen-editor .design-mode-badge.is-custom{border-color:color-mix(in srgb,var(--lrx-editor-accent) 48%,var(--ft-line))!important;color:var(--lrx-editor-accent)!important;}
   html body #root .app-ui .screen-editor :is(.item-advanced-control>button,.watermark-preset-row>button,.draft-block-toolbar button,.draft-block-actions button){background:var(--ft-surface)!important;background-image:none!important;border:1px solid var(--ft-line)!important;color:var(--ft-text-strong)!important;box-shadow:none!important;}
+  /* Native editor buttons that bypass UI.Button must still use the same palette. */
+  html body #root .app-ui .screen-editor :is(
+    .customer-dropdown button,.recent-customer-row button,
+    .item-suggestion-box button,.pricing-suggestion-chip,
+    .product-metadata-suggestions button,.commercial-preset-chips button,
+    .watermark-preset-row button,.attachment-open-button
+  ){
+    min-height:40px!important;
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border:1px solid var(--ft-line)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(
+    .customer-dropdown button,.recent-customer-row button,
+    .item-suggestion-box button,.pricing-suggestion-chip,
+    .product-metadata-suggestions button,.commercial-preset-chips button,
+    .watermark-preset-row button,.attachment-open-button
+  ):is(:hover,:focus-visible){
+    background:var(--ft-surface-2)!important;
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 52%,var(--ft-line-strong))!important;
+    color:var(--ft-text-strong)!important;
+  }
+  html body #root .app-ui .screen-editor :is(
+    .pricing-suggestion-chip,.product-metadata-suggestions button.active,
+    .product-metadata-suggestions button[aria-pressed="true"]
+  ){
+    background:var(--ft-accent-faint)!important;
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 46%,var(--ft-line))!important;
+    color:var(--lrx-editor-accent)!important;
+  }
+
+  /* Template controls are controls, not black badges/cards from older owners. */
+  html body #root .app-ui .screen-editor .template-card{
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border-color:var(--ft-line-strong)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .template-card.selected{
+    border-color:var(--lrx-editor-accent)!important;
+    box-shadow:0 0 0 2px color-mix(in srgb,var(--lrx-editor-accent) 14%,transparent)!important;
+  }
+  html body #root .app-ui .screen-editor .template-favorite-button{
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border:1px solid var(--ft-line)!important;
+    color:var(--ft-muted)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .template-favorite-button.active{
+    background:var(--ft-accent-faint)!important;
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 42%,var(--ft-line))!important;
+    color:var(--lrx-editor-accent)!important;
+  }
+  html body #root .app-ui .screen-editor .template-default-badge{
+    background:var(--ft-accent-faint)!important;
+    background-image:none!important;
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 38%,var(--ft-line))!important;
+    color:var(--lrx-editor-accent)!important;
+    box-shadow:none!important;
+  }
+
+  /* Section 06 is one settings surface: separators, not nested card layers. */
+  html body #root .app-ui .screen-editor .template-preference-bar{
+    background:transparent!important;
+    background-image:none!important;
+    border-inline:0!important;
+    border-radius:0!important;
+    border-top:1px solid var(--ft-line)!important;
+    border-bottom:1px solid var(--ft-line)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.appearance-toggles,.appearance-table-columns){
+    background:transparent!important;
+    background-image:none!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.appearance-toggles,.appearance-table-columns) .toggle-row{
+    background:transparent!important;
+    background-image:none!important;
+    border:0!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 72%,transparent)!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.appearance-toggles,.appearance-table-columns) .toggle-row:last-child{
+    border-bottom:0!important;
+  }
+
 }
-.invoice-page.template-blackivory{--rule:#665d4f;}
-.invoice-page.template-blackivory .items-table{border-color:#665d4f!important;}
-.invoice-page.template-blackivory .items-table tbody td{border-bottom-color:#5b5347!important;}
-.invoice-page.template-noir{--rule:#5b4a34;}
+.invoice-page.template-blackivory{--rule:#837665;}
+.invoice-page.template-blackivory .items-table{border-color:#837665!important;}
+.invoice-page.template-blackivory .items-table tbody td{border-bottom-color:#6f6557!important;}
+.invoice-page.template-noir{--rule:#765f3f;}
 .invoice-page.template-noir .party-grid,
-.invoice-page.template-noir .party-block{border-color:#5b4a34!important;}
-.invoice-page.template-noir .section-kicker{color:#d8b36f!important;-webkit-text-fill-color:#d8b36f!important;}
+.invoice-page.template-noir .party-block{border-color:#765f3f!important;}
+.invoice-page.template-noir .section-kicker{color:#e0bd78!important;-webkit-text-fill-color:#e0bd78!important;}
