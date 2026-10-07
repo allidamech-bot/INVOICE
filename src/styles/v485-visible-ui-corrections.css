@@ -1061,3 +1061,112 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-foo
 html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] :is(.modal-header button,.modal-footer button){min-height:44px!important;}
 html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-footer-actions{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;gap:6px!important;}
 html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-footer-actions>.btn{flex:1 1 0!important;min-width:0!important;width:auto!important;padding:4px 6px!important;font-size:12px!important;line-height:16px!important;white-space:normal!important;}
+
+
+/* v584 live document regression closeout: final owner only. */
+@media screen {
+  /* The document editor follows the same application accent as first paint:
+     teal in light mode, blue in dark mode. No fixed v485 blue may leak into
+     editor actions or the advanced-options toggle. */
+  html body #root .app-ui .screen-editor{--lrx-editor-accent:var(--boot-accent,#129da1);}
+  html body #root .app-ui .screen-editor :is(
+    .editor-actions,.mobile-editor-actionbar,.draft-mobile-actionbar,.template-preference-bar
+  ) .btn-primary{
+    background:var(--lrx-editor-accent)!important;
+    background-image:none!important;
+    border-color:var(--lrx-editor-accent)!important;
+    color:#fff!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(
+    .editor-actions,.mobile-editor-actionbar,.draft-mobile-actionbar,.template-preference-bar
+  ) :is(.btn-secondary,.btn-ghost){
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border-color:var(--ft-line-strong)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .advanced-master-toggle{
+    min-height:44px!important;
+    background:var(--ft-surface-2)!important;
+    background-image:none!important;
+    border:1px solid var(--ft-line-strong)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .advanced-master-toggle:hover,
+  html body #root .app-ui .screen-editor .advanced-master-toggle:focus-visible{
+    border-color:var(--lrx-editor-accent)!important;
+    color:var(--ft-text-strong)!important;
+    outline:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(
+    .item-advanced-control>button,.watermark-preset-row>button,.draft-block-toolbar button,
+    .draft-block-actions button
+  ){
+    background:var(--ft-surface-2)!important;
+    background-image:none!important;
+    border-color:var(--ft-line)!important;
+    color:var(--ft-text)!important;
+    box-shadow:none!important;
+  }
+}
+
+/* Noir, Midnight, Black Ivory and Carbon are full dark identities, not light
+   paper with a dark masthead. These declarations are the final printable owner. */
+.invoice-page.template-noir{
+  --paper:#121212;--ink:#f5f1e9;--muted:#b8b0a3;--rule:#3a3328;--soft:#1b1a18;
+}
+.invoice-page.template-midnight{
+  --paper:#071824;--ink:#f4f7fa;--muted:#a9b6c1;--rule:#29425a;--soft:#0d2434;
+}
+.invoice-page.template-blackivory{
+  --paper:#14130f;--ink:#f5efe2;--muted:#c3b9a8;--rule:#4a453c;--soft:#1f1d18;
+}
+.invoice-page.template-carbon{
+  --paper:#1b1d20;--ink:#f3f0ea;--muted:#b5b9bb;--rule:#3a3d40;--soft:#24282b;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon){
+  background:var(--paper)!important;
+  color:var(--ink)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .doc-body{
+  background:var(--paper)!important;
+  color:var(--ink)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(
+  .party-block,.terms-block,.notes-block,.bank-block,.signature-block
+){
+  background:var(--soft)!important;
+  border-color:var(--rule)!important;
+  color:var(--ink)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(
+  .items-table tbody td,.term-row>span,.notes-block p,.bank-block>div>span,.doc-footer
+){
+  color:var(--ink)!important;
+  -webkit-text-fill-color:var(--ink)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) :is(
+  .term-row>b,.bank-block>div>b,.party-address,.party-location,.party-contact
+){
+  color:var(--muted)!important;
+  -webkit-text-fill-color:var(--muted)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .totals-block{
+  background:var(--soft)!important;
+  border-color:var(--rule)!important;
+  color:var(--ink)!important;
+}
+.invoice-page:is(.template-noir,.template-midnight,.template-blackivory,.template-carbon) .signature-media{
+  background:#fff!important;
+}
+
+/* Template chooser must preview the actual dark paper identity. */
+@media screen{
+  .app-ui .template-preview-noir{--mock-paper:#121212!important;--mock-ink:#f5f1e9!important;--mock-soft:#1b1a18!important;}
+  .app-ui .template-preview-midnight{--mock-paper:#071824!important;--mock-ink:#f4f7fa!important;--mock-soft:#0d2434!important;}
+  .app-ui .template-preview-blackivory{--mock-paper:#14130f!important;--mock-ink:#f5efe2!important;--mock-soft:#1f1d18!important;}
+  .app-ui .template-preview-carbon{--mock-paper:#1b1d20!important;--mock-ink:#f3f0ea!important;--mock-soft:#24282b!important;}
+}
