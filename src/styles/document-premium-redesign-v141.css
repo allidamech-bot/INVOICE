@@ -165,7 +165,7 @@
 
 /* Preview responsiveness; the A4 itself never becomes mobile-card UI. */
 @media(max-width:720px){
-  .app-ui .mobile-preview-overlay{display:none}.app-ui .mobile-preview-open .mobile-preview-overlay{display:flex;position:fixed;inset:0;z-index:80;flex-direction:column;background:#e7eaeb}
+  .app-ui .mobile-preview-overlay{display:none}.app-ui .mobile-preview-open .mobile-preview-overlay{display:flex;position:fixed;inset:0;z-index:var(--lourex-z-preview,1400);flex-direction:column;background:#e7eaeb}
   .app-ui .preview-stage .invoice-pages,.app-ui .mobile-preview-stage .invoice-pages{width:210mm;max-width:none;transform-origin:top center}
   .app-ui .preview-stage .invoice-page,.app-ui .mobile-preview-stage .invoice-page{width:210mm;min-width:210mm;height:297mm;min-height:297mm}
   .app-ui .mobile-preview-stage{display:flex;justify-content:center;overflow:auto;padding:16px 0 calc(28px + env(safe-area-inset-bottom))}
