@@ -68,10 +68,18 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         await textarea.waitFor({state:'visible'});
         const plusBox=await plus.boundingBox();
         assert.ok(plusBox&&plusBox.width>=43&&plusBox.height>=43,'unified plus target remains touch safe');
-        if(width<=720){
-          const scopeButtons=panel.locator('.lourex-ai-scope-button');
-          for(let i=0;i<await scopeButtons.count();i++){const box=await scopeButtons.nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'mobile scope target remains 44px touch safe');}
-        }
+        const scopeTrigger=panel.locator('.lourex-ai-scope-trigger');
+        await scopeTrigger.waitFor({state:'visible'});
+        const scopeTriggerBox=await scopeTrigger.boundingBox();
+        assert.ok(scopeTriggerBox&&scopeTriggerBox.width>=44&&scopeTriggerBox.height>=(width<=720?44:36),'consolidated scope trigger remains touch safe');
+        assert.equal(await panel.locator('.lourex-ai-scope-button:visible').count(),0,'legacy three-tab scope chrome is visually retired');
+        await scopeTrigger.click();
+        const scopeMenu=panel.locator('.lourex-ai-scope-menu');
+        await scopeMenu.waitFor({state:'visible'});
+        assert.equal(await scopeMenu.locator('.lourex-ai-scope-option').count(),3,'scope selector keeps Business, Personal and Temporary available');
+        if(width<=720){for(let i=0;i<3;i++){const box=await scopeMenu.locator('.lourex-ai-scope-option').nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'mobile scope option remains 44px touch safe');}}
+        await page.keyboard.press('Escape');
+        await scopeMenu.waitFor({state:'hidden'});
         assert.equal(await panel.locator('.lourex-ai-attach-button').isVisible(),false,'duplicate attachment control stays retired');
         await textarea.fill(lang==='ar'?'سطر أول':'First line');
         await textarea.press('Shift+Enter');
@@ -101,8 +109,9 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         const senderRightGap=(messagesBox.x+messagesBox.width)-(userBox.x+userBox.width);
         assert.ok(senderRightGap<=senderLeftGap,'user bubble must stay on the physical right in both LTR and RTL');
         if(width<=720){
-          const messageActions=panel.locator('.lourex-ai-message-actions .lourex-ai-message-action');
-          for(let i=0;i<await messageActions.count();i++){const box=await messageActions.nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'mobile message action remains 44px touch safe');}
+          const messageActions=panel.locator('.lourex-ai-message-actions .lourex-ai-message-action:visible');
+          for(let i=0;i<await messageActions.count();i++){const box=await messageActions.nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'visible mobile message action remains 44px touch safe');}
+          assert.equal(await panel.locator('.lourex-ai-message-action.is-helpful:visible,.lourex-ai-message-action.is-not-helpful:visible').count(),0,'mobile feedback actions no longer crowd persistent conversation chrome');
         }
         assert.deepEqual(requests,[],'visible textarea Enter must keep deterministic margin calculation local');
 
@@ -171,6 +180,9 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         const activity=panel.locator('.lourex-ai-tool-activity').last();
         await activity.waitFor({state:'visible'});
         assert.match(await activity.innerText(),lang==='ar'?/خطة LOUREX/:/LOUREX plan/,'deterministic request exposes visible local tool plan');
+        assert.equal(await activity.locator('.lourex-ai-tool-steps').isVisible(),false,'tool activity details are collapsed by default');
+        await activity.locator('.lourex-ai-tool-activity-head').click();
+        assert.equal(await activity.locator('.lourex-ai-tool-steps').isVisible(),true,'tool activity details remain available on demand');
         const activityBox=await activity.boundingBox();
         assert.ok(activityBox&&activityBox.x>=panelBox.x-1&&activityBox.x+activityBox.width<=panelBox.x+panelBox.width+1,'tool plan remains inside assistant panel');
         assert.deepEqual(requests,[],'deterministic treasury path must not call an AI provider');

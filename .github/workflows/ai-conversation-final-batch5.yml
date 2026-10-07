@@ -21,9 +21,12 @@ on:
       - 'scripts/ai-remediation-batch3-conversation-ux.mjs'
       - 'scripts/ai-remediation-batch3-conversation-ux-closeout.mjs'
       - 'scripts/ai-conversation-design-batch1.mjs'
+      - 'scripts/ai-conversation-design-batch2.mjs'
+      - 'scripts/ai-conversation-design-batch2-closeout.mjs'
       - 'tests/ai-conversation-final-batch5.test.mjs'
       - 'tests/ai-remediation-batch3-conversation-ux.test.mjs'
       - 'tests/ai-conversation-design-batch1.test.mjs'
+      - 'tests/ai-conversation-design-batch2.test.mjs'
       - 'tests/ai-voice-ios-release-owner.test.mjs'
       - 'tests/ai-voice-runtime-delivery-batch2.test.mjs'
       - 'tests/visual/contextual-ai-batch4.html'
@@ -60,7 +63,7 @@ jobs:
       - name: Production build
         run: npm run build
       - name: Final AI contracts
-        run: node --test tests/ai-conversation-design-batch1.test.mjs tests/ai-conversation-final-batch5.test.mjs tests/ai-conversation-owner-batch4.test.mjs tests/ai-conversation-natural-os-batch4.test.mjs tests/ai-conversation-batch4-consolidation.test.mjs tests/ai-remediation-batch3-conversation-ux.test.mjs tests/ai-voice-ios-release-owner.test.mjs tests/ai-voice-runtime-delivery-batch2.test.mjs
+        run: node --test tests/ai-conversation-design-batch1.test.mjs tests/ai-conversation-design-batch2.test.mjs tests/ai-conversation-final-batch5.test.mjs tests/ai-conversation-owner-batch4.test.mjs tests/ai-conversation-natural-os-batch4.test.mjs tests/ai-conversation-batch4-consolidation.test.mjs tests/ai-remediation-batch3-conversation-ux.test.mjs tests/ai-voice-ios-release-owner.test.mjs tests/ai-voice-runtime-delivery-batch2.test.mjs
       - name: Install browser QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
