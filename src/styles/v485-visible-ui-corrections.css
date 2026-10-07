@@ -1192,11 +1192,270 @@ html body #root .app-ui .modal-backdrop[data-viewport-compact="true"] .modal-foo
   html body #root .app-ui .screen-editor .design-mode-badge{background:transparent!important;border-color:var(--ft-line)!important;color:var(--ft-muted)!important;box-shadow:none!important;}
   html body #root .app-ui .screen-editor .design-mode-badge.is-custom{border-color:color-mix(in srgb,var(--lrx-editor-accent) 48%,var(--ft-line))!important;color:var(--lrx-editor-accent)!important;}
   html body #root .app-ui .screen-editor :is(.item-advanced-control>button,.watermark-preset-row>button,.draft-block-toolbar button,.draft-block-actions button){background:var(--ft-surface)!important;background-image:none!important;border:1px solid var(--ft-line)!important;color:var(--ft-text-strong)!important;box-shadow:none!important;}
+  /* Native editor buttons that bypass UI.Button must still use the same palette. */
+  html body #root .app-ui .screen-editor :is(
+    .customer-dropdown button,.recent-customer-row button,
+    .item-suggestion-box button,.pricing-suggestion-chip,
+    .product-metadata-suggestions button,.commercial-preset-chips button,
+    .watermark-preset-row button,.attachment-open-button
+  ){
+    min-height:40px!important;
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border:1px solid var(--ft-line)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(
+    .customer-dropdown button,.recent-customer-row button,
+    .item-suggestion-box button,.pricing-suggestion-chip,
+    .product-metadata-suggestions button,.commercial-preset-chips button,
+    .watermark-preset-row button,.attachment-open-button
+  ):is(:hover,:focus-visible){
+    background:var(--ft-surface-2)!important;
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 52%,var(--ft-line-strong))!important;
+    color:var(--ft-text-strong)!important;
+  }
+  html body #root .app-ui .screen-editor :is(
+    .pricing-suggestion-chip,.product-metadata-suggestions button.active,
+    .product-metadata-suggestions button[aria-pressed="true"]
+  ){
+    background:var(--ft-accent-faint)!important;
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 46%,var(--ft-line))!important;
+    color:var(--lrx-editor-accent)!important;
+  }
+
+  /* Template controls are controls, not black badges/cards from older owners. */
+  html body #root .app-ui .screen-editor .template-card{
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border-color:var(--ft-line-strong)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .template-card.selected{
+    border-color:var(--lrx-editor-accent)!important;
+    box-shadow:0 0 0 2px color-mix(in srgb,var(--lrx-editor-accent) 14%,transparent)!important;
+  }
+  html body #root .app-ui .screen-editor .template-favorite-button{
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border:1px solid var(--ft-line)!important;
+    color:var(--ft-muted)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .template-favorite-button.active{
+    background:var(--ft-accent-faint)!important;
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 42%,var(--ft-line))!important;
+    color:var(--lrx-editor-accent)!important;
+  }
+  html body #root .app-ui .screen-editor .template-default-badge{
+    background:var(--ft-accent-faint)!important;
+    background-image:none!important;
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 38%,var(--ft-line))!important;
+    color:var(--lrx-editor-accent)!important;
+    box-shadow:none!important;
+  }
+
+  /* Section 06 is one settings surface: separators, not nested card layers. */
+  html body #root .app-ui .screen-editor .template-preference-bar{
+    background:transparent!important;
+    background-image:none!important;
+    border-inline:0!important;
+    border-radius:0!important;
+    border-top:1px solid var(--ft-line)!important;
+    border-bottom:1px solid var(--ft-line)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.appearance-toggles,.appearance-table-columns){
+    background:transparent!important;
+    background-image:none!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.appearance-toggles,.appearance-table-columns) .toggle-row{
+    background:transparent!important;
+    background-image:none!important;
+    border:0!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 72%,transparent)!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.appearance-toggles,.appearance-table-columns) .toggle-row:last-child{
+    border-bottom:0!important;
+  }
+
 }
-.invoice-page.template-blackivory{--rule:#665d4f;}
-.invoice-page.template-blackivory .items-table{border-color:#665d4f!important;}
-.invoice-page.template-blackivory .items-table tbody td{border-bottom-color:#5b5347!important;}
-.invoice-page.template-noir{--rule:#5b4a34;}
+
+/* Executive table headings are client-facing text, not decorative accent text.
+   Keep their foreground independent of the gold accent in Auto/Custom output. */
+.invoice-page.template-executive .items-table thead th{
+  background:#102d41!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-executive .items-table thead th small{
+  color:#e7edf1!important;
+  -webkit-text-fill-color:#e7edf1!important;
+}
+
+
+.invoice-page.template-trade .items-table thead th{
+  background:#16384d!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-trade .items-table thead th small{
+  color:#e8eef2!important;
+  -webkit-text-fill-color:#e8eef2!important;
+}
+
+
+/* Template-specific table-heading contrast closeout. Preserve each authored
+   identity while pinning readable foregrounds to the actual local surface. */
+.invoice-page.template-signature .items-table thead th{
+  background:#f4efe6!important;background-image:none!important;
+  color:#28343c!important;-webkit-text-fill-color:#28343c!important;
+}
+.invoice-page.template-signature .items-table thead th small{
+  color:#4d5960!important;-webkit-text-fill-color:#4d5960!important;
+}
+.invoice-page.template-cobalt .items-table thead th{
+  background:#123f67!important;background-image:none!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-cobalt .items-table thead th small{
+  color:#e5edf3!important;-webkit-text-fill-color:#e5edf3!important;
+}
+.invoice-page.template-split .items-table thead th{
+  background:#102a3c!important;background-image:none!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-split .items-table thead th small{
+  color:#e5edf2!important;-webkit-text-fill-color:#e5edf2!important;
+}
+.invoice-page.template-slate .items-table thead th{
+  background:#304852!important;background-image:none!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-slate .items-table thead th:last-child{
+  background:#526d78!important;
+}
+.invoice-page.template-slate .items-table thead th small{
+  color:#edf2f4!important;-webkit-text-fill-color:#edf2f4!important;
+}
+.invoice-page.template-horizon .items-table thead th{
+  background:#fff!important;background-image:none!important;
+  color:#173747!important;-webkit-text-fill-color:#173747!important;
+}
+.invoice-page.template-horizon .items-table thead th small{
+  color:#315566!important;-webkit-text-fill-color:#315566!important;
+}
+.invoice-page.template-aurora .items-table thead th{
+  background:#24574f!important;background-image:none!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-aurora .items-table thead th:last-child{
+  background:#356f66!important;
+}
+.invoice-page.template-aurora .items-table thead th small{
+  color:#edf5f2!important;-webkit-text-fill-color:#edf5f2!important;
+}
+.invoice-page.template-ledger .items-table thead th{
+  background:#263b49!important;background-image:none!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-ledger .items-table thead th small{
+  color:#e9eff2!important;-webkit-text-fill-color:#e9eff2!important;
+}
+
+/* Dark totals use strong secondary ink for labels. Old gold/gray labels were
+   too close to their dark panel in Noir and Black Ivory. */
+.invoice-page:is(.template-noir,.template-blackivory) .totals-block .total-row>span{
+  color:var(--muted)!important;
+  -webkit-text-fill-color:var(--muted)!important;
+}
+
+.invoice-page.template-blackivory{--rule:#837665;}
+.invoice-page.template-blackivory .items-table{border-color:#837665!important;}
+.invoice-page.template-blackivory .items-table tbody td{border-bottom-color:#6f6557!important;}
+.invoice-page.template-noir{--rule:#765f3f;}
 .invoice-page.template-noir .party-grid,
-.invoice-page.template-noir .party-block{border-color:#5b4a34!important;}
-.invoice-page.template-noir .section-kicker{color:#d8b36f!important;-webkit-text-fill-color:#d8b36f!important;}
+.invoice-page.template-noir .party-block{border-color:#765f3f!important;}
+.invoice-page.template-noir .section-kicker{color:#e0bd78!important;-webkit-text-fill-color:#e0bd78!important;}
+
+
+/* v591 all-template contrast closeout: table headings are semantic client text.
+   Each authored header keeps its identity while forcing a proven readable ink. */
+.invoice-page.template-signature .items-table thead th{
+  background:#f4efe6!important;
+  background-image:none!important;
+  color:#28343c!important;
+  -webkit-text-fill-color:#28343c!important;
+}
+.invoice-page.template-signature .items-table thead th small{
+  color:#46535b!important;
+  -webkit-text-fill-color:#46535b!important;
+}
+.invoice-page.template-cobalt .items-table thead th{
+  background:#173f5e!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-split .items-table thead th{
+  background:#102a3c!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-slate .items-table thead th{
+  background:#304852!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-slate .items-table thead th:last-child{
+  background:#6e8791!important;
+  color:#101820!important;
+  -webkit-text-fill-color:#101820!important;
+}
+.invoice-page.template-horizon .items-table thead th{
+  background:#174d61!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-horizon .items-table thead th:last-child{
+  background:#bc9857!important;
+  color:#17130d!important;
+  -webkit-text-fill-color:#17130d!important;
+}
+.invoice-page.template-aurora .items-table thead th{
+  background:#24574f!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-aurora .items-table thead th:last-child{
+  background:#4f9187!important;
+  color:#10211e!important;
+  -webkit-text-fill-color:#10211e!important;
+}
+.invoice-page.template-ledger .items-table thead th{
+  background:#263b49!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-noir .totals-block .total-row :is(span,strong){
+  color:#f4efe6!important;
+  -webkit-text-fill-color:#f4efe6!important;
+}
+.invoice-page.template-blackivory .totals-block .total-row :is(span,strong){
+  color:#f5efe2!important;
+  -webkit-text-fill-color:#f5efe2!important;
+}
