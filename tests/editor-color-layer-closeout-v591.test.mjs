@@ -82,3 +82,20 @@ test('v591 remaining template heading and totals surfaces keep explicit readable
     assert.match(source,/:is\(\.template-noir,\.template-blackivory\) \.totals-block \.total-row>span\{[\s\S]*color:var\(--muted\)!important/);
   }
 });
+
+
+test('v591 all-template header and totals colors are explicitly contrast-safe',async()=>{
+  const [css,bundle]=await Promise.all([
+    read('src/styles/v485-visible-ui-corrections.css'),
+    read('scripts/v485-bundle-visible-ui.mjs')
+  ]);
+  for(const source of [css,bundle]){
+    assert.match(source,/template-signature \.items-table thead th\{[\s\S]*color:#28343c!important/);
+    for(const id of ['cobalt','split','ledger'])assert.match(source,new RegExp(`template-${id} \\\.items-table thead th\\\\{[\\\\s\\\\S]*color:#fff!important`));
+    assert.match(source,/template-slate \.items-table thead th:last-child\{[\s\S]*color:#101820!important/);
+    assert.match(source,/template-horizon \.items-table thead th:last-child\{[\s\S]*color:#17130d!important/);
+    assert.match(source,/template-aurora \.items-table thead th:last-child\{[\s\S]*color:#10211e!important/);
+    assert.match(source,/template-noir \.totals-block \.total-row :is\(span,strong\)\{[\s\S]*color:#f4efe6!important/);
+    assert.match(source,/template-blackivory \.totals-block \.total-row :is\(span,strong\)\{[\s\S]*color:#f5efe2!important/);
+  }
+});
