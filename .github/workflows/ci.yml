@@ -67,7 +67,10 @@ jobs:
           npm install --no-save --package-lock=false playwright@1.55.0
           # Install apt/system dependencies exactly once. Retrying --with-deps after a
           # timeout can orphan apt-get and deadlock dpkg on the next attempt.
-          npx playwright install-deps chromium webkit
+          if ! timeout --signal=TERM --kill-after=30s 900s npx playwright install-deps chromium webkit; then
+            echo "Playwright system dependency installation failed or exceeded 15 minutes."
+            exit 1
+          fi
           installed=0
           for attempt in 1 2 3; do
             if timeout --signal=TERM --kill-after=15s 240s npx playwright install chromium webkit; then
@@ -153,7 +156,10 @@ jobs:
           npm install --no-save --package-lock=false playwright@1.55.0
           # Install apt/system dependencies exactly once. Retrying --with-deps after a
           # timeout can orphan apt-get and deadlock dpkg on the next attempt.
-          npx playwright install-deps chromium webkit
+          if ! timeout --signal=TERM --kill-after=30s 900s npx playwright install-deps chromium webkit; then
+            echo "Playwright system dependency installation failed or exceeded 15 minutes."
+            exit 1
+          fi
           installed=0
           for attempt in 1 2 3; do
             if timeout --signal=TERM --kill-after=15s 240s npx playwright install chromium webkit; then
@@ -305,7 +311,10 @@ jobs:
           npm install --no-save --package-lock=false playwright@1.55.0
           # Install apt/system dependencies exactly once. Retrying --with-deps after a
           # timeout can orphan apt-get and deadlock dpkg on the next attempt.
-          npx playwright install-deps chromium webkit
+          if ! timeout --signal=TERM --kill-after=30s 900s npx playwright install-deps chromium webkit; then
+            echo "Playwright system dependency installation failed or exceeded 15 minutes."
+            exit 1
+          fi
           installed=0
           for attempt in 1 2 3; do
             if timeout --signal=TERM --kill-after=15s 240s npx playwright install chromium webkit; then
