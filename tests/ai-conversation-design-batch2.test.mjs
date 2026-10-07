@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
+// Browser gates exercise the corresponding scope/menu interaction against built runtime output.
 
 test('AI conversation design Batch 2 runs immediately after Batch 1',async()=>{
   const pkg=JSON.parse(await read('package.json'));
