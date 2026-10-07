@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const api=fs.readFileSync(new URL('../api/ai-core.js',import.meta.url),'utf8');
 const router=fs.readFileSync(new URL('../api/_ai/router.js',import.meta.url),'utf8');
 const copilot=fs.readFileSync(new URL('../src/components/AiCopilot.tsx',import.meta.url),'utf8');
+const requestClient=fs.readFileSync(new URL('../src/lib/ai-request.ts',import.meta.url),'utf8');
 const finance=fs.readFileSync(new URL('../src/lib/ai-finance.ts',import.meta.url),'utf8');
 const business=fs.readFileSync(new URL('../src/lib/ai-business.ts',import.meta.url),'utf8');
 const pricing=fs.readFileSync(new URL('../src/lib/product-pricing-intelligence.ts',import.meta.url),'utf8');
@@ -58,7 +59,7 @@ test('AI client shares bounded derived contexts instead of serializing the raw v
   assert.match(business,/basis:'deterministic-business-intelligence'/);
   assert.match(pricing,/basis:'deterministic-product-pricing'/);
   assert.match(copilot,/MAX_MESSAGE_CHARS=6000/);
-  assert.match(copilot,/X-Requested-With':'LOUREX-Invoice'/);
+  assert.match(requestClient,/X-Requested-With':'LOUREX-Invoice'/);
 });
 
 test('AI Core uses the server-only provider router while preserving bounds and deterministic-data constraints',()=>{
