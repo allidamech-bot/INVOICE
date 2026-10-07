@@ -243,28 +243,221 @@ const documentStudioFinalGuard=`
     color:var(--ft-text-strong)!important;
     box-shadow:none!important;
   }
+  /* Native editor buttons that bypass UI.Button must still use the same palette. */
+  html body #root .app-ui .screen-editor :is(
+    .customer-dropdown button,.recent-customer-row button,
+    .item-suggestion-box button,.pricing-suggestion-chip,
+    .product-metadata-suggestions button,.commercial-preset-chips button,
+    .watermark-preset-row button,.attachment-open-button
+  ){
+    min-height:40px!important;
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border:1px solid var(--ft-line)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(
+    .customer-dropdown button,.recent-customer-row button,
+    .item-suggestion-box button,.pricing-suggestion-chip,
+    .product-metadata-suggestions button,.commercial-preset-chips button,
+    .watermark-preset-row button,.attachment-open-button
+  ):is(:hover,:focus-visible){
+    background:var(--ft-surface-2)!important;
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 52%,var(--ft-line-strong))!important;
+    color:var(--ft-text-strong)!important;
+  }
+  html body #root .app-ui .screen-editor :is(
+    .pricing-suggestion-chip,.product-metadata-suggestions button.active,
+    .product-metadata-suggestions button[aria-pressed="true"]
+  ){
+    background:var(--ft-accent-faint)!important;
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 46%,var(--ft-line))!important;
+    color:var(--lrx-editor-accent)!important;
+  }
+
+  /* Template controls are controls, not black badges/cards from older owners. */
+  html body #root .app-ui .screen-editor .template-card{
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border-color:var(--ft-line-strong)!important;
+    color:var(--ft-text-strong)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .template-card.selected{
+    border-color:var(--lrx-editor-accent)!important;
+    box-shadow:0 0 0 2px color-mix(in srgb,var(--lrx-editor-accent) 14%,transparent)!important;
+  }
+  html body #root .app-ui .screen-editor .template-favorite-button{
+    background:var(--ft-surface)!important;
+    background-image:none!important;
+    border:1px solid var(--ft-line)!important;
+    color:var(--ft-muted)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor .template-favorite-button.active{
+    background:var(--ft-accent-faint)!important;
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 42%,var(--ft-line))!important;
+    color:var(--lrx-editor-accent)!important;
+  }
+  html body #root .app-ui .screen-editor .template-default-badge{
+    background:var(--ft-accent-faint)!important;
+    background-image:none!important;
+    border-color:color-mix(in srgb,var(--lrx-editor-accent) 38%,var(--ft-line))!important;
+    color:var(--lrx-editor-accent)!important;
+    box-shadow:none!important;
+  }
+
+  /* Section 06 is one settings surface: separators, not nested card layers. */
+  html body #root .app-ui .screen-editor .template-preference-bar{
+    background:transparent!important;
+    background-image:none!important;
+    border-inline:0!important;
+    border-radius:0!important;
+    border-top:1px solid var(--ft-line)!important;
+    border-bottom:1px solid var(--ft-line)!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.appearance-toggles,.appearance-table-columns){
+    background:transparent!important;
+    background-image:none!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.appearance-toggles,.appearance-table-columns) .toggle-row{
+    background:transparent!important;
+    background-image:none!important;
+    border:0!important;
+    border-bottom:1px solid color-mix(in srgb,var(--ft-line) 72%,transparent)!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+  html body #root .app-ui .screen-editor :is(.appearance-toggles,.appearance-table-columns) .toggle-row:last-child{
+    border-bottom:0!important;
+  }
+
 }
+
+
+/* Executive table headings are client-facing text, not decorative accent text.
+   Keep their foreground independent of the gold accent in Auto/Custom output. */
+.invoice-page.template-executive .items-table thead th{
+  background:#102d41!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-executive .items-table thead th small{
+  color:#e7edf1!important;
+  -webkit-text-fill-color:#e7edf1!important;
+}
+
+
+.invoice-page.template-trade .items-table thead th{
+  background:#16384d!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-trade .items-table thead th small{
+  color:#e8eef2!important;
+  -webkit-text-fill-color:#e8eef2!important;
+}
+
 
 /* Dark-template readability closeout observed in live QA. */
 .invoice-page.template-blackivory{
-  --rule:#665d4f;
+  --rule:#837665;
 }
 .invoice-page.template-blackivory .items-table{
-  border-color:#665d4f!important;
+  border-color:#837665!important;
 }
 .invoice-page.template-blackivory .items-table tbody td{
-  border-bottom-color:#5b5347!important;
+  border-bottom-color:#6f6557!important;
 }
 .invoice-page.template-noir{
-  --rule:#5b4a34;
+  --rule:#765f3f;
 }
 .invoice-page.template-noir .party-grid,
 .invoice-page.template-noir .party-block{
-  border-color:#5b4a34!important;
+  border-color:#765f3f!important;
 }
 .invoice-page.template-noir .section-kicker{
-  color:#d8b36f!important;
-  -webkit-text-fill-color:#d8b36f!important;
+  color:#e0bd78!important;
+  -webkit-text-fill-color:#e0bd78!important;
+}
+
+/* v591 all-template contrast closeout: table headings are semantic client text.
+   Each authored header keeps its identity while forcing a proven readable ink. */
+.invoice-page.template-signature .items-table thead th{
+  background:#f4efe6!important;
+  background-image:none!important;
+  color:#28343c!important;
+  -webkit-text-fill-color:#28343c!important;
+}
+.invoice-page.template-signature .items-table thead th small{
+  color:#46535b!important;
+  -webkit-text-fill-color:#46535b!important;
+}
+.invoice-page.template-cobalt .items-table thead th{
+  background:#173f5e!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-split .items-table thead th{
+  background:#102a3c!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-slate .items-table thead th{
+  background:#304852!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-slate .items-table thead th:last-child{
+  background:#6e8791!important;
+  color:#101820!important;
+  -webkit-text-fill-color:#101820!important;
+}
+.invoice-page.template-horizon .items-table thead th{
+  background:#174d61!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-horizon .items-table thead th:last-child{
+  background:#bc9857!important;
+  color:#17130d!important;
+  -webkit-text-fill-color:#17130d!important;
+}
+.invoice-page.template-aurora .items-table thead th{
+  background:#24574f!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-aurora .items-table thead th:last-child{
+  background:#4f9187!important;
+  color:#10211e!important;
+  -webkit-text-fill-color:#10211e!important;
+}
+.invoice-page.template-ledger .items-table thead th{
+  background:#263b49!important;
+  background-image:none!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.invoice-page.template-noir .totals-block .total-row :is(span,strong){
+  color:#f4efe6!important;
+  -webkit-text-fill-color:#f4efe6!important;
+}
+.invoice-page.template-blackivory .totals-block .total-row :is(span,strong){
+  color:#f5efe2!important;
+  -webkit-text-fill-color:#f5efe2!important;
 }
 `;
 
@@ -280,7 +473,7 @@ if(!css.includes('.app-ui:has(.modal-backdrop) :is(.mobile-editor-actionbar,.dra
 if(!css.includes('visibility:hidden!important')||!css.includes('pointer-events:none!important'))throw new Error('v485 visible UI: modal/editor action isolation is incomplete.');
 if(!css.includes('LOUREX Batch 5 — document editor visual flattening')||!css.includes('.item-pricing-grid')||!css.includes('.watermark-editor-card'))throw new Error('v485 visible UI: Batch 5 editor flattening guard is missing.');
 if(!css.includes('background:transparent!important')||!css.includes('grid-template-columns:minmax(0,1fr)!important')||!css.includes('min-height:44px!important'))throw new Error('v485 visible UI: Batch 5 editor flattening contract is incomplete.');
-if(!css.includes('LOUREX v589 — final document studio owner')||!css.includes('.document-design-row')||!css.includes('--rule:#665d4f'))throw new Error('v485 visible UI: v589 final document studio owner is missing.');
+if(!css.includes('LOUREX v589 — final document studio owner')||!css.includes('.document-design-row')||!css.includes('--rule:#837665'))throw new Error('v485 visible UI: v589 final document studio owner is missing.');
 
 for(const path of [bundlePath,standalonePath]){
   let content=await readFile(path,'utf8');
