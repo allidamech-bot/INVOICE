@@ -50,7 +50,7 @@ const {mkdirSync,writeFileSync}=require('node:fs');
     const panelBox=await panel.boundingBox();assert.ok(panelBox,'AI panel visible');
     if(width<=720){assert.ok(panelBox.x<=1&&Math.abs(panelBox.width-width)<=2,'phone AI is full width');assert.ok(panelBox.height>=895,'phone AI uses full dynamic viewport');}
     else if(width<=900){assert.ok(panelBox.x>=0&&panelBox.x+panelBox.width<=width+1&&panelBox.width>=480&&panelBox.width<=540,'tablet AI remains a bounded side overlay');assert.ok(panelBox.height>=870,'tablet AI keeps near-full viewport height');}
-    else assert.ok(panelBox.x>=0&&panelBox.x+panelBox.width<=width+1&&panelBox.width>=480&&panelBox.width<=540,'desktop AI remains a bounded side panel');
+    else assert.ok(panelBox.x>=0&&panelBox.x+panelBox.width<=width+1&&panelBox.width>=560&&panelBox.width<=600,'desktop AI uses the wider readable side panel from the conversation design audit');
     assert.equal(await panel.locator('.lourex-ai-tools').isVisible(),false,'legacy AI Inbox / AI Tools / Voice toolbar is not persistent chrome');
     assert.equal(await panel.locator('.lourex-ai-manager-button').isVisible(),false,'Memory & Tasks is not a separate persistent button');
     await textarea.fill(lang==='ar'?'سطر أول':'First line');await textarea.press('Shift+Enter');await textarea.type(lang==='ar'?'سطر ثان':'Second line');assert.match(await textarea.inputValue(),/\n/,'Shift+Enter creates multiline input');
