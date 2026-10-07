@@ -111,8 +111,9 @@ const contrast=(a,b)=>{const hi=Math.max(luminance(a),luminance(b)),lo=Math.min(
         const senderRightGap=(messagesBox.x+messagesBox.width)-(userBox.x+userBox.width);
         assert.ok(senderRightGap<=senderLeftGap,'user bubble must stay on the physical right in both LTR and RTL');
         if(width<=720){
-          const messageActions=panel.locator('.lourex-ai-message-actions .lourex-ai-message-action');
-          for(let i=0;i<await messageActions.count();i++){const box=await messageActions.nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'mobile message action remains 44px touch safe');}
+          const messageActions=panel.locator('.lourex-ai-message-actions .lourex-ai-message-action:visible');
+          for(let i=0;i<await messageActions.count();i++){const box=await messageActions.nth(i).boundingBox();assert.ok(box&&box.width>=44&&box.height>=44,'visible mobile message action remains 44px touch safe');}
+          assert.equal(await panel.locator('.lourex-ai-message-action.is-helpful:visible,.lourex-ai-message-action.is-not-helpful:visible').count(),0,'mobile feedback actions move out of persistent conversation chrome');
         }
         assert.deepEqual(requests,[],'visible textarea Enter must keep deterministic margin calculation local');
 
