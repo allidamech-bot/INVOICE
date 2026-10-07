@@ -24,10 +24,10 @@ test('live v583 Auto PDF colors keep primary secondary and heading roles indepen
   assert.match(css,/--lrx-heading/);
 });
 
-test('live v583 short quotations keep their commercial close near the item table',async()=>{
+test('live v583 short quotations keep their commercial close anchored at the page foot',async()=>{
   const owner=await read('scripts/v544-pdf-a4-output-emergency.mjs');
-  assert.match(owner,/nth-child\(-n\+3\):last-child\) \.final-details\{margin-top:8mm!important;padding-top:0;\}/);
-  assert.doesNotMatch(owner,/nth-child\(-n\+3\):last-child\) \.final-details\{padding-top:2\.4mm;\}/);
+  assert.match(owner,/nth-child\(-n\+3\):last-child\) \.final-details\{margin-top:auto!important;padding-top:2\.4mm;\}/);
+  assert.doesNotMatch(owner,/nth-child\(-n\+3\):last-child\) \.final-details\{margin-top:8mm/);
 });
 
 test('live v583 normal PDF typography is readable instead of the historical tiny cascade',async()=>{
