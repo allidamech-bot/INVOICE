@@ -46,6 +46,7 @@ test('global application overlays consume the single canonical LOUREX z-index la
   assert.match(documents,/\.app-ui\.ta-doc-mobile-action-portal \{[^}]*z-index:var\(--lourex-z-critical,1500\)!important/);
 
   assert.match(ai,/\.lourex-ai-launcher\{[\s\S]*?z-index:var\(--lourex-z-assistant-trigger,1180\)!important/);
+  assert.match(ai,/\.lourex-advisor-nudge\{[^}]*z-index:calc\(var\(--lourex-z-assistant-trigger,1180\) - 4\)!important/);
   assert.match(ai,/\.lourex-ai-backdrop\{[^}]*z-index:calc\(var\(--lourex-z-ai,1220\) - 1\)!important/);
   assert.match(ai,/\.lourex-ai-panel\{[\s\S]*?z-index:var\(--lourex-z-ai,1220\)!important/);
   assert.match(preview,/\.mobile-preview-overlay\{[\s\S]*?z-index:var\(--lourex-z-preview,1400\)!important/);
