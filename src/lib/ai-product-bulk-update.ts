@@ -107,7 +107,7 @@ export function applyAiBulkProductUpdate(vault:VaultPayload,batch:AiBulkProductB
     if(!current||current.archived||current.updatedAt!==row.beforeUpdatedAt||JSON.stringify(snapshot(current))!==JSON.stringify(row.before))
       throw new Error('Product changed since preview. Review the entire batch again; nothing was saved.');
     const cleaned=pickPatch(row.patch);
-    if(JSON.stringify(cleaned)!==JSON.stringify(row.patch))throw new Error('Approved price or metadata changed since preview.');
+    if(JSON.stringify(cleaned)!==JSON.stringify(row.patch)||JSON.stringify(row.preview?.before)!==JSON.stringify(row.before)||JSON.stringify(row.preview?.after)!==JSON.stringify({...row.before,...row.patch}))throw new Error('Approved price or metadata changed since preview.');
   }
   const savedItems=vault.savedItems.map(item=>{
     const row=batch.rows.find(entry=>entry.itemId===item.id&&workspaceOf(item)===batch.workspaceId);
