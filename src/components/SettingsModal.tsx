@@ -3,6 +3,7 @@ import { fileToRawDataUrl } from '../lib/files.js';
 import { rebuildLogoWithoutBackgroundDataUrl } from '../lib/logo-rebuild.js';
 import { t } from '../lib/i18n.js';
 import { normalizePinInput } from '../lib/account-security.js';
+import { backupPasswordIssue } from '../lib/backup.js';
 import { validateCommercialCompany } from '../lib/commercial-controls.js';
 import { consumeSettingsScope, type SettingsScope } from '../lib/settings-scope.js';
 import type { CloudUser } from '../cloud/firebase.js';
@@ -17,7 +18,7 @@ interface Props {
   onSaveCompany:(company:CompanySettings)=>Promise<void>; onSaveAppSettings:(settings:AppSettings)=>Promise<void>;
   onChangePin:(currentPin:string,newPin:string)=>Promise<void|string>; onCreateRecoveryKey:(currentPin:string)=>Promise<string>; onLock:()=>void;
   cloudUser:CloudUser|null; onCloudRestore:()=>Promise<void>; onCloudSignOut:()=>Promise<void>;
-  onBackup:(pin:string)=>Promise<void>; onRestore:(file:File,pin:string)=>Promise<void>; documentEvents:DocumentEventRecord[];
+  onBackup:(pin:string,password:string)=>Promise<void>; onRestore:(file:File,password:string)=>Promise<void>; documentEvents:DocumentEventRecord[];
   teamMembers:TeamMemberRecord[]; approvalPolicies:ApprovalPolicyRecord[]; approvalRequests:ApprovalRequestRecord[];
   onSaveTeamMember:(member:TeamMemberRecord)=>Promise<void>; onToggleTeamMember:(id:string)=>Promise<void>; onSetActiveTeamMember:(id:string)=>Promise<void>; onToggleApprovalPolicy:(id:string,enabled:boolean)=>Promise<void>; onDecideApproval:(id:string,decision:'approved'|'rejected')=>Promise<void>;
   workspaces:WorkspaceRecord[]; branches:BranchRecord[]; onCreateWorkspace:(name:string)=>Promise<void>; onSwitchWorkspace:(id:string)=>Promise<void>; onCreateBranch:(name:string,code:string)=>Promise<void>; onSwitchBranch:(id:string)=>Promise<void>;
@@ -31,6 +32,7 @@ interface State {
   tab:'company'|'workspaces'|'commercial'|'documents'|'access'|'data'|'security'; company:CompanySettings; appSettings:AppSettings; busy:boolean; cleaningAssets:boolean; processingAsset:AssetField|null; message:string; error:string;
   savedSection:'company'|'documents'|null; currentPin:string; newPin:string; confirmPin:string; recoveryKey:string; confirmClose:boolean; confirmCloudRestore:boolean;
   accountAction:''|'restore'|'signout'; companyInitial:string; documentsInitial:string;
+  backupPin:string; backupPassword:string; backupPasswordConfirm:string; restorePassword:string; restoreFile:File|null; confirmLocalRestore:boolean;
   logoOriginalDataUrl:string; logoCleanedDataUrl:string; logoRebuiltDataUrl:string; logoMode:'auto'|'rebuild'|'original';
   signatureOriginalDataUrl:string; signatureRebuiltDataUrl:string; signatureMode:AssetMode;
   stampOriginalDataUrl:string; stampRebuiltDataUrl:string; stampMode:AssetMode; activityLogOpen:boolean;
@@ -49,7 +51,7 @@ export class SettingsModal extends React.Component<Props,State> {
     super(props);
     const company=structuredClone(props.company);
     const appSettings=structuredClone(props.appSettings);
-    this.state={scope:'settings',tab:'company',company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original',activityLogOpen:false};
+    this.state={scope:'settings',tab:'company',company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',backupPin:'',backupPassword:'',backupPasswordConfirm:'',restorePassword:'',restoreFile:null,confirmLocalRestore:false,companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original',activityLogOpen:false};
   }
 
   componentDidUpdate(prev:Props):void{
@@ -61,7 +63,7 @@ export class SettingsModal extends React.Component<Props,State> {
       const company=structuredClone(this.props.company);
       const appSettings=structuredClone(this.props.appSettings);
       const preparationId=++this.assetPreparationId;
-      this.setState({scope,tab:requestedTab,company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original'},()=>void this.prepareExistingAssets(company,preparationId));
+      this.setState({scope,tab:requestedTab,company,appSettings,busy:false,cleaningAssets:false,processingAsset:null,message:'',error:'',savedSection:null,currentPin:'',newPin:'',confirmPin:'',recoveryKey:'',confirmClose:false,confirmCloudRestore:false,accountAction:'',backupPin:'',backupPassword:'',backupPasswordConfirm:'',restorePassword:'',restoreFile:null,confirmLocalRestore:false,companyInitial:JSON.stringify(company),documentsInitial:JSON.stringify(appSettings),logoOriginalDataUrl:'',logoCleanedDataUrl:'',logoRebuiltDataUrl:'',logoMode:'original',signatureOriginalDataUrl:'',signatureRebuiltDataUrl:'',signatureMode:'original',stampOriginalDataUrl:'',stampRebuiltDataUrl:'',stampMode:'original'},()=>void this.prepareExistingAssets(company,preparationId));
     }
   }
 
@@ -102,7 +104,7 @@ export class SettingsModal extends React.Component<Props,State> {
     if(recent?.tab===tab&&Date.now()-recent.at<120)return;
     this.activateSettingsTabFromTouch(tab);
   };
-  private requestClose=()=>{if(this.hasUnsavedSettings()){this.setState({confirmClose:true});return;}this.props.onClose();};
+  private requestClose=()=>{if(this.state.busy)return;if(this.hasUnsavedSettings()){this.setState({confirmClose:true});return;}this.props.onClose();};
   private discardAndClose=()=>this.setState({confirmClose:false},this.props.onClose);
   private setCompany=(key:keyof CompanySettings,value:any)=>this.setState({company:{...this.state.company,[key]:value},savedSection:null,message:'',error:''});
   private setBank=(key:keyof CompanySettings['bank'],value:string)=>this.setState({company:{...this.state.company,bank:{...this.state.company.bank,[key]:value}},savedSection:null,message:'',error:''});
@@ -246,6 +248,41 @@ export class SettingsModal extends React.Component<Props,State> {
     this.props.onLock();
   };
 
+  private exportEncryptedBackup=async()=>{
+    if(this.state.busy)return;
+    if(this.hasUnsavedSettings()){this.setState({error:t('Save your pending settings before making a backup.','احفظ الإعدادات المعلقة قبل إنشاء نسخة احتياطية.')});return;}
+    const {backupPin,backupPassword,backupPasswordConfirm}=this.state;
+    const issue=backupPasswordIssue(backupPassword,backupPin);
+    if(issue){this.setState({error:issue});return;}
+    if(!/^\d{4,12}$/.test(backupPin)){this.setState({error:t('Enter the current device PIN to authorize the backup.','أدخل رمز PIN الحالي للجهاز للسماح بالنسخ.')});return;}
+    if(backupPassword!==backupPasswordConfirm){this.setState({error:t('Backup password confirmation does not match.','تأكيد كلمة مرور النسخة الاحتياطية غير مطابق.')});return;}
+    this.setState({busy:true,error:'',message:''});
+    try{
+      await this.props.onBackup(backupPin,backupPassword);
+      this.setState({busy:false,backupPin:'',backupPassword:'',backupPasswordConfirm:'',message:t('Encrypted backup was prepared. Confirm it was saved to Files/Downloads.','تم إعداد النسخة المشفرة. تأكد من حفظها في الملفات أو التنزيلات.')});
+    }catch(e){this.setState({busy:false,error:e instanceof Error?e.message:t('Unable to create backup.','تعذر إنشاء النسخة الاحتياطية.')});}
+  };
+
+  private requestLocalRestore=()=>{
+    if(this.state.busy)return;
+    if(this.hasUnsavedSettings()){this.setState({error:t('Save or discard unsaved settings before restoring a backup.','احفظ أو تجاهل الإعدادات غير المحفوظة قبل الاستعادة.')});return;}
+    if(!this.state.restoreFile){this.setState({error:t('Choose a LOUREX backup file.','اختر ملف نسخة احتياطية من LOUREX.')});return;}
+    if(this.state.restoreFile.size>50*1024*1024){this.setState({error:t('Backup file is too large (50 MB maximum).','ملف النسخة الاحتياطية كبير جدًا (الحد 50 MB).')});return;}
+    if(!this.state.restorePassword){this.setState({error:t('Enter the backup password, or the PIN used for an older backup.','أدخل كلمة مرور النسخة، أو رمز PIN المستخدم في نسخة قديمة.')});return;}
+    this.setState({confirmLocalRestore:true,error:'',message:''});
+  };
+
+  private restoreLocalBackup=async()=>{
+    if(this.state.busy||!this.state.confirmLocalRestore)return;
+    const {restoreFile,restorePassword}=this.state;
+    if(!restoreFile||!restorePassword)return;
+    this.setState({confirmLocalRestore:false,busy:true,error:'',message:''});
+    try{
+      await this.props.onRestore(restoreFile,restorePassword);
+      this.setState({busy:false,restoreFile:null,restorePassword:'',message:t('Backup restored successfully.','تم استرجاع النسخة الاحتياطية بنجاح.')},this.props.onClose);
+    }catch(e){this.setState({busy:false,restorePassword:'',error:e instanceof Error?e.message:t('Unable to restore backup. The current data is unchanged.','تعذرت الاستعادة. البيانات الحالية لم تتغير.')});}
+  };
+
   private restoreFromCloud=async()=>{
     const user=this.props.cloudUser;
     if(!user){this.setState({confirmCloudRestore:false,error:t('Sign in to your LOUREX account first.','سجّل الدخول إلى حساب LOUREX أولًا.')});return;}
@@ -313,7 +350,26 @@ export class SettingsModal extends React.Component<Props,State> {
 
   private accessSettings():any{return <div className="ta-settings-page ta-access-page">{this.pageHeader(t('Access','الوصول'),t('Team & approvals','الفريق والموافقات'),t('Operational roles and explicit approval gates for sensitive actions.','الأدوار التشغيلية وبوابات الموافقة الصريحة للإجراءات الحساسة.'))}<AccessGovernanceSettings teamMembers={this.props.teamMembers} approvalPolicies={this.props.approvalPolicies} approvalRequests={this.props.approvalRequests} activeTeamMemberId={this.state.appSettings.activeTeamMemberId} onSaveMember={this.props.onSaveTeamMember} onToggleMember={this.props.onToggleTeamMember} onSetActiveMember={async id=>{await this.props.onSetActiveTeamMember(id);this.setState({appSettings:{...this.state.appSettings,activeTeamMemberId:id}});}} onTogglePolicy={this.props.onToggleApprovalPolicy} onDecideApproval={this.props.onDecideApproval}/></div>;}
 
-  private dataCenter():any{return <div className="ta-settings-page ta-data-center-page">{this.pageHeader(t('Data Center','مركز البيانات'),t('Data & activity','البيانات والنشاط'),t('Backup, restore and the encrypted activity log live together here.','النسخ والاستعادة وسجل النشاط المشفر موجودة هنا.'))}{this.card(t('Activity Log','سجل النشاط'),t('Review audited workspace changes without creating a second event system.','راجع تغييرات مساحة العمل المدققة دون إنشاء نظام أحداث ثانٍ.'),<Button icon="history" onClick={()=>this.setState({activityLogOpen:true})}>{t('Open Activity Log','فتح سجل النشاط')}</Button>)}</div>;}
+  private dataCenter():any{return <div className="ta-settings-page ta-data-center-page">
+    {this.pageHeader(t('Data Center','مركز البيانات'),t('Data & activity','البيانات والنشاط'),t('Export encrypted backups, restore deliberately, and review the activity log.','صدّر النسخ الاحتياطية المشفرة واستعدها بعد التأكيد وراجع سجل النشاط.'))}
+    {this.card(t('Export encrypted backup','تصدير نسخة احتياطية مشفرة'),t('Use a separate strong password. Your device PIN only authorizes the export and is not used to encrypt the new backup.','استخدم كلمة مرور قوية مستقلة. رمز PIN يسمح بالتصدير فقط ولا يُستخدم لتشفير النسخة الجديدة.'),<>
+      <div className="form-grid two">
+        <Field label={t('Current device PIN','رمز PIN الحالي')}><Input type="password" inputMode="numeric" autoComplete="off" disabled={this.state.busy} value={this.state.backupPin} onChange={(e:any)=>this.setState({backupPin:normalizePinInput(e.target.value),error:''})}/></Field>
+        <Field label={t('Backup password (12+ characters)','كلمة مرور النسخة (12 حرفًا أو أكثر)')}><Input type="password" autoComplete="new-password" disabled={this.state.busy} value={this.state.backupPassword} onChange={(e:any)=>this.setState({backupPassword:e.target.value,error:''})}/></Field>
+        <Field label={t('Confirm backup password','تأكيد كلمة مرور النسخة')}><Input type="password" autoComplete="new-password" disabled={this.state.busy} value={this.state.backupPasswordConfirm} onChange={(e:any)=>this.setState({backupPasswordConfirm:e.target.value,error:''})}/></Field>
+      </div>
+      <p className="ta-settings-note"><Icon name="lock"/>{t('Keep the password private. LOUREX cannot recover a forgotten backup password. Save the exported file in Files/Downloads.','احتفظ بكلمة المرور في مكان آمن. لا يستطيع LOUREX استرجاع كلمة مرور النسخة المنسية. احفظ الملف في الملفات أو التنزيلات.')}</p>
+      <div className="ta-settings-card-actions"><Button icon="download" variant="primary" disabled={this.state.busy} onClick={()=>void this.exportEncryptedBackup()}>{this.state.busy?t('Working…','جارٍ التنفيذ…'):t('Export Encrypted Backup','تصدير النسخة المشفرة')}</Button></div>
+    </>)}
+    {this.card(t('Restore from backup file','استعادة من ملف احتياطي'),t('This replaces the current local workspace after explicit confirmation. A safety snapshot is created first. Legacy backups encrypted with a PIN are supported.','تستبدل هذه العملية مساحة العمل المحلية بعد تأكيدك، مع إنشاء لقطة أمان مسبقًا. النسخ القديمة المحمية بـPIN مدعومة.'),<>
+      <div className="form-grid two">
+        <Field label={t('LOUREX backup file','ملف النسخة الاحتياطية')}><input className="input" type="file" accept=".lourex-backup,application/json" disabled={this.state.busy} onChange={(e:any)=>this.setState({restoreFile:(e.target.files?.[0] as File|undefined)??null,error:'',message:''})}/></Field>
+        <Field label={t('Backup password / older backup PIN','كلمة مرور النسخة / رمز PIN القديم')}><Input type="password" autoComplete="off" disabled={this.state.busy} value={this.state.restorePassword} onChange={(e:any)=>this.setState({restorePassword:e.target.value,error:''})}/></Field>
+      </div>
+      <div className="ta-settings-card-actions"><Button icon="upload" variant="secondary" disabled={this.state.busy||!this.state.restoreFile} onClick={this.requestLocalRestore}>{t('Review & Restore Backup','مراجعة واستعادة النسخة')}</Button></div>
+    </>)}
+    {this.card(t('Activity Log','سجل النشاط'),t('Review audited workspace changes without creating a second event system.','راجع تغييرات مساحة العمل المدققة دون إنشاء نظام أحداث ثانٍ.'),<Button icon="history" onClick={()=>this.setState({activityLogOpen:true})}>{t('Open Activity Log','فتح سجل النشاط')}</Button>)}
+  </div>;}
 
   private securitySettings(s:AppSettings,account:CloudUser|null):any{return <div className="ta-settings-page ta-security-page">
     {this.pageHeader(t('Security','الأمان'),t('Security & recovery','الأمان والاستعادة'),t('Session locking, device PIN and encrypted cloud recovery. Sign out is available from More.','قفل الجلسة ورمز PIN والاستعادة السحابية المشفّرة. تسجيل الخروج متاح من صفحة المزيد.'))}
@@ -344,6 +400,7 @@ export class SettingsModal extends React.Component<Props,State> {
         </main>
       </div>
       <ActivityLogModal open={this.state.activityLogOpen} events={this.props.documentEvents} onClose={()=>this.setState({activityLogOpen:false})}/>
+      <ConfirmDialog open={this.state.confirmLocalRestore} title={t('Replace local data from backup?','استبدال البيانات المحلية من النسخة؟')} message={this.props.cloudUser?t('The backup will replace all current local workspace data and may sync to your linked account. A safety snapshot is created first. Continue only if you trust the file and want these records on this account.','ستستبدل النسخة جميع البيانات المحلية وقد تتم مزامنتها إلى حسابك المتصل. ستُنشأ لقطة أمان أولًا. تابع فقط إذا كنت تثق بالملف وتريد هذه السجلات على حسابك.'):t('The backup will replace the current local workspace. An encrypted safety snapshot is created before replacement. Continue only if you trust the file.','ستستبدل النسخة مساحة العمل المحلية. تُنشأ لقطة أمان مشفرة قبل الاستبدال. تابع فقط إذا كنت تثق بالملف.')} confirmLabel={t('Restore Selected Backup','استعادة النسخة المحددة')} onCancel={()=>this.setState({confirmLocalRestore:false})} onConfirm={()=>void this.restoreLocalBackup()}/>
       <ConfirmDialog open={this.state.confirmCloudRestore} title={t('Restore account data from cloud?','استرجاع بيانات الحساب من السحابة؟')} message={t('The signed-in account copy will replace the current encrypted local vault on this device. Use this only when you intentionally want the cloud account copy.','ستحل نسخة الحساب المسجل في السحابة محل الخزنة المحلية المشفّرة الحالية على هذا الجهاز. استخدم هذا فقط عندما تريد نسخة الحساب السحابية عن قصد.')} confirmLabel={t('Restore from Cloud','استرجاع من السحابة')} onCancel={()=>this.setState({confirmCloudRestore:false})} onConfirm={()=>void this.restoreFromCloud()}/>
       <ConfirmDialog open={this.state.confirmClose} title={accountScope?t('Discard unsaved account changes?','تجاهل تغييرات الحساب غير المحفوظة؟'):t('Discard unsaved settings?','تجاهل الإعدادات غير المحفوظة؟')} message={accountScope?t('You have unsaved company profile changes. Discard them and close Account?','لديك تغييرات غير محفوظة في ملف الشركة. هل تريد تجاهلها وإغلاق الحساب؟'):t('You have unsaved settings. Discard them and close Settings?','لديك إعدادات غير محفوظة. هل تريد تجاهلها وإغلاق الإعدادات؟')} confirmLabel={t('Discard','تجاهل')} onCancel={()=>this.setState({confirmClose:false})} onConfirm={this.discardAndClose}/>
     </Modal>;
