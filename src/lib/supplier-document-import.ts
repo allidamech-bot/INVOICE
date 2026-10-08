@@ -183,6 +183,29 @@ export function extractSupplierDraftLocally(matrix:unknown[][]):SupplierImportDr
   };
 }
 
+/** Combine source fragments only when their commercial identity and currency agree.
+ * Used by workbooks and multi-file review; nothing is committed here. */
+export function combineSupplierImportDrafts(sources:Array<{name:string;draft:SupplierImportDraft}>):SupplierImportDraft{
+  if(!sources.length)throw new Error('No supplier import sources were provided.');
+  const merged:SupplierImportDraft={...sources[0]!.draft,items:[],sourceSheets:[],skippedSheets:[]};
+  const fields:Array<keyof Omit<SupplierImportDraft,'items'|'notes'|'sourceSheets'|'skippedSheets'>>=[
+    'supplierName','supplierTaxId','documentNumber','date','currency','freight','duty','otherCosts','paymentTerms'
+  ];
+  for(const {name,draft} of sources){
+    if(!Array.isArray(draft.items)||!draft.items.length)throw new Error(`Supplier import: "${name}" has no purchase lines. Nothing was saved.`);
+    for(const field of fields){
+      const value=draft[field].trim(),existing=merged[field].trim();
+      if(value&&existing&&value!==existing)throw new Error(`Supplier import: "${name}" conflicts on ${field} (${existing} / ${value}). Split the source documents before saving.`);
+      if(value&&!existing)merged[field]=value;
+    }
+    merged.items.push(...draft.items);
+    if(draft.sourceSheets?.length)merged.sourceSheets!.push(...draft.sourceSheets.map(row=>({name:`${name} / ${row.name}`,itemCount:row.itemCount})));
+    else merged.sourceSheets!.push({name,itemCount:draft.items.length});
+    merged.skippedSheets!.push(...(draft.skippedSheets??[]).map(sheet=>`${name} / ${sheet}`));
+  }
+  return merged;
+}
+
 export function extractSupplierDraftFromSheets(sheets:Array<{name?:string;matrix:unknown[][]}>):SupplierImportDraft|null{
   const sources:Array<{name:string;draft:SupplierImportDraft}>=[];
   const skipped:string[]=[];
@@ -196,19 +219,7 @@ export function extractSupplierDraftFromSheets(sheets:Array<{name?:string;matrix
     sources.push({name,draft});
   }
   if(!sources.length)return null;
-  const first=sources[0]!.draft;
-  const merged:SupplierImportDraft={...first,items:[],sourceSheets:[],skippedSheets:skipped};
-  const fields:Array<keyof Omit<SupplierImportDraft,'items'|'notes'|'sourceSheets'|'skippedSheets'>>=[
-    'supplierName','supplierTaxId','documentNumber','date','currency','freight','duty','otherCosts','paymentTerms'
-  ];
-  for(const {name,draft} of sources){
-    for(const field of fields){
-      const value=draft[field].trim(),existing=merged[field].trim();
-      if(value&&existing&&value!==existing)throw new Error(`Supplier import: worksheet "${name}" conflicts on ${field} (${existing} / ${value}). Split the source documents before saving.`);
-      if(value&&!existing)merged[field]=value;
-    }
-    merged.items.push(...draft.items);
-    merged.sourceSheets!.push({name,itemCount:draft.items.length});
-  }
+  const merged=combineSupplierImportDrafts(sources);
+  merged.skippedSheets=skipped;
   return merged;
 }
