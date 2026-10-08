@@ -12,6 +12,7 @@ import { assertTreasuryAccount, assertTreasuryEntry } from '../lib/treasury-ledg
 import { assertFxRate } from '../lib/fx-rates.js';
 import { defaultWarehouseId, validateWarehouse, warehouseItemQuantity } from '../lib/warehouses.js';
 import { assertGoodsReceiptIntegrity } from '../lib/goods-receipt-flow.js';
+import { assertSupplierInvoiceIntegrity } from '../lib/supplier-invoice-flow.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -535,6 +536,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
   const documentEvents=mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents);
   assertGoodsReceiptIntegrity(documents,documentEvents);
+  assertSupplierInvoiceIntegrity(documents,documentEvents);
   return {
     ...latest,
     schemaVersion:Math.max(latest.schemaVersion,intended.schemaVersion),
