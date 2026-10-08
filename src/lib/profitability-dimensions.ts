@@ -44,9 +44,10 @@ function lineAllocations(documents:LourexDocument[],items:SavedItem[]):LineAlloc
       const share=last?overhead-allocatedOverhead:roundDivide(overhead*(raw[index]??0n),rawTotal||1n);
       allocatedOverhead+=share;
       const unitCost=item.unitCost?.trim();let itemCost:bigint|null=null,missing=0;
-      if(unitCost&&isNonNegativeDecimalInput(unitCost)){
-        const q=decimalToScaled(item.quantity,4),u=decimalToScaled(unitCost,12);itemCost=roundDivide(q*u,100_000_000_000_000n)*sign+share;
-      }else missing=1;
+      const validLineCost=Boolean(unitCost&&isNonNegativeDecimalInput(unitCost));
+      if(validLineCost&&profit.invalidInternalCostFields===0){
+        const q=decimalToScaled(item.quantity,4),u=decimalToScaled(unitCost!,12);itemCost=roundDivide(q*u,100_000_000_000_000n)*sign+share;
+      }else if(!validLineCost)missing=1;
       rows.push({doc,item,saved:findSavedItemMatch(items,item),revenue,cost:itemCost,missing});
     });
     void totals;
