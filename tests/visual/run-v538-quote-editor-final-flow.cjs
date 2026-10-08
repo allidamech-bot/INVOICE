@@ -105,7 +105,10 @@ async function lifecycle(browser,scenario){
   const confirm=page.getByRole('button',{name:/Confirm, Issue & PDF|Continue to PDF/}).first();
   await confirm.waitFor({state:'visible'});await confirm.click();
   await page.waitForFunction(()=>Array.isArray(window.printEvents)&&window.printEvents.length===1,null,{timeout:7000});
-  await page.waitForFunction(()=>Number(window.activeSaves)===0,null,{timeout:5000});
+  // The print event fires before its temporary portal's async cleanup completes.
+  // Assert the portal is actually gone rather than racing the 90ms cleanup.
+  await page.waitForFunction(()=>Number(window.activeSaves)===0,null,{timeout:15000});
+  await page.waitForFunction(()=>document.querySelector('.qa-print-portal')===null,null,{timeout:15000});
   await page.locator('.editor-screen').waitFor({state:'visible'});
   await page.locator('.final-lock-banner').waitFor({state:'visible'});
   await page.waitForFunction(()=>document.querySelectorAll('.modal-backdrop').length===0,null,{timeout:5000});
