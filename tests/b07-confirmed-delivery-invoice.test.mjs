@@ -169,6 +169,18 @@ test('Batch 7 — only authorized owner/admin/sales/finance operators may prepar
   }
 });
 
+test('Batch 7 — unauthorized operators cannot use create/open to bypass invoice draft access checks',()=>{
+  const {vault,quote}=setup(),first=confirmed(vault,quote);
+  const created=createConfirmedDeliveryInvoiceDraft(first.vault,first.note.id);
+  const owner=defaultOwnerMember();
+  for(const role of ['viewer','purchasing']){
+    const person={...owner,id:role,role,displayName:role};
+    const scoped={...created.vault,teamMembers:[owner,person],
+      appSettings:{...created.vault.appSettings,activeTeamMemberId:role}};
+    assert.throws(()=>createConfirmedDeliveryInvoiceDraft(scoped,first.note.id),/does not have permission/);
+  }
+});
+
 test('Batch 7 — final issuance stays human reviewed and serialized, not an AI or automatic posting',async()=>{
   const [app,page,merge,source]=await Promise.all([
     readFile(new URL('../src/app/App.tsx',import.meta.url),'utf8'),
@@ -180,6 +192,7 @@ test('Batch 7 — final issuance stays human reviewed and serialized, not an AI 
   assert.match(app,/persistFullMutation\(full=>/);
   assert.match(page,/onCreateDeliveryInvoice/);
   assert.match(page,/invoiceSourceDelivery\(doc\.id,this\.props\.documents,this\.props\.documentEvents\)/);
+  assert.match(page,/item\.convertedFromId===doc\.id/);
   assert.match(merge,/assertDeliveryInvoiceIntegrity\(documents,documentEvents\)/);
   assert.match(app,/assertDeliveryInvoiceIntegrity\(documents,documentEvents\)/);
   assert.doesNotMatch(source,/postPurchase|savePayment|inventoryMovements:\[/);
