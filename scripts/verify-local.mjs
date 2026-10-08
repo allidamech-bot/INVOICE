@@ -331,7 +331,7 @@ if(args.has('--help')){
 }
 const npm=process.platform==='win32'?'npm.cmd':'npm';
 function run(cmd,argv,timeout=600000){
-  const result=spawnSync(cmd,argv,{cwd:ROOT,stdio:'inherit',encoding:'utf8',timeout,windowsHide:true});
+  const result=spawnSync(cmd,argv,{cwd:ROOT,stdio:'inherit',encoding:'utf8',timeout,windowsHide:true,shell:process.platform==='win32'&&cmd===npm});
   if(result.error)throw Error('Command failed: '+cmd+' '+argv.join(' ')+' / '+result.error.message);
   if(result.status!==0)throw Error('Command failed ('+result.status+'): '+cmd+' '+argv.join(' '));
 }
@@ -355,6 +355,8 @@ function assertBrowserReady(){
   }
 }
 async function startServer(){
+  try{const occupied=await fetch('http://127.0.0.1:4173/',{signal:AbortSignal.timeout(1000)});if(occupied)throw Error('Port 4173 is already occupied: close the other server to avoid testing stale content.');}
+  catch(error){if(error.message?.startsWith('Port 4173 is already occupied'))throw error;}
   const entry=path.join(ROOT,'node_modules','http-server','bin','http-server');
   if(!existsSync(entry))throw Error('http-server missing. Run npm ci.');
   const server=spawn(process.execPath,[entry,'.','-p','4173','-c-1'],{cwd:ROOT,stdio:'ignore',windowsHide:true});
