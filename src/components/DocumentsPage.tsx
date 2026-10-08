@@ -1,4 +1,5 @@
 import { deliverySourceEligible, linkedDeliveries, deliverySource } from '../lib/delivery-flow.js';
+import { linkedPurchaseOrders, purchaseOrderSource, purchaseOrderSourceEligible } from '../lib/procurement-flow.js';
 import { AiWorkflowTools } from './AiWorkflowTools.js';
 import type { DocumentEventRecord, DocumentKind, LourexDocument, PaymentRecord, PaymentStatus, RecurringWorkflowRecord } from '../types.js';
 import { calculateTotals, compareMoneyStrings, formatMoney, lineTotal } from '../lib/money.js';
@@ -27,6 +28,7 @@ interface Props {
   onOpen:(doc:LourexDocument)=>void;
   onDuplicate:(doc:LourexDocument)=>void;
   onCreateDelivery?:(doc:LourexDocument)=>void;
+  onCreatePurchaseOrder?:(doc:LourexDocument)=>void;
   onConvert?:(doc:LourexDocument)=>void;
   onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>Promise<void>;
   onDelete:(doc:LourexDocument)=>void;
@@ -286,6 +288,8 @@ export class DocumentsPage extends React.Component<Props,State>{
     const canOutput=doc.kind==='draft'||doc.status==='final';
     const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
     const linkedDelivery=linkedDeliveries(doc,this.props.documents,this.props.documentEvents).find(item=>item.lifecycleStatus!=='voided');
+    const linkedPurchaseOrder=linkedPurchaseOrders(doc,this.props.documents,this.props.documentEvents).find(item=>item.lifecycleStatus!=='voided');
+    const canCreatePurchaseOrder=Boolean(this.props.onCreatePurchaseOrder&&purchaseOrderSourceEligible(doc));
     const canDeliver=Boolean(this.props.onCreateDelivery&&deliverySourceEligible(doc));
     const linkedInvoice=this.linkedInvoiceForQuote(doc);
     const canConvert=Boolean(this.props.onConvert&&documentCanConvertToInvoice(doc.kind)&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
@@ -299,6 +303,7 @@ export class DocumentsPage extends React.Component<Props,State>{
       {this.props.onMakeRecurring&&recurringDocumentEligible(doc)?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onMakeRecurring?.(doc))}><Icon name="refresh"/><span>{t('Make recurring','جعلها متكررة')}</span></button>:null}
       {linkedInvoice?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({detailId:linkedInvoice.id}))}><Icon name="invoice"/><span>{t(`Open linked invoice ${linkedInvoice.number}`,`فتح الفاتورة المرتبطة ${linkedInvoice.number}`)}</span></button>:canConvert?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.convertQuote(doc))}><Icon name="invoice"/><span>{t('Convert to Invoice','تحويل إلى فاتورة')}</span></button>:null}
       {canDeliver?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onCreateDelivery?.(doc))}><Icon name="file"/><span>{linkedDelivery?t(`Open delivery ${linkedDelivery.number}`,`فتح التسليم ${linkedDelivery.number}`):t('Create delivery draft','إنشاء مسودة تسليم')}</span></button>:null}
+      {canCreatePurchaseOrder?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onCreatePurchaseOrder?.(doc))}><Icon name="file"/><span>{linkedPurchaseOrder?t(`Open purchase order ${linkedPurchaseOrder.number}`,`فتح أمر الشراء ${linkedPurchaseOrder.number}`):t('Create Purchase Order from RFQ','إنشاء أمر شراء من طلب عرض السعر')}</span></button>:null}
       {canCollect?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onRecordPayment?.(doc))}><Icon name="invoice"/><span>{t('Record Payment','تسجيل دفعة')}</span></button>:null}
       {canCredit?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onCreateCreditNote?.(doc))}><Icon name="invoice"/><span>{t('Create Credit Note','إنشاء إشعار دائن')}</span></button>:null}
       {secureShareEligible(doc)?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({secureShareId:doc.id}))}><Icon name="lock"/><span>{t('Secure Share','مشاركة آمنة')}</span></button>:null}
@@ -380,12 +385,14 @@ export class DocumentsPage extends React.Component<Props,State>{
     const canOutput=doc.status==='final';
     const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
     const linkedDelivery=linkedDeliveries(doc,this.props.documents,this.props.documentEvents).find(item=>item.lifecycleStatus!=='voided');
+    const linkedPurchaseOrder=linkedPurchaseOrders(doc,this.props.documents,this.props.documentEvents).find(item=>item.lifecycleStatus!=='voided');
+    const canCreatePurchaseOrder=Boolean(this.props.onCreatePurchaseOrder&&purchaseOrderSourceEligible(doc));
     const canDeliver=Boolean(this.props.onCreateDelivery&&deliverySourceEligible(doc));
     const linkedInvoice=this.linkedInvoiceForQuote(doc);
     const sourceQuote=doc.convertedFromId?this.props.documents.find(item=>item.id===doc.convertedFromId):undefined;
     const sourceInvoice=doc.creditForId?this.props.documents.find(item=>item.id===doc.creditForId):undefined;
     const creditNotes=doc.kind==='invoice'&&doc.role==='standard'?this.props.documents.filter(item=>item.role==='credit-note'&&item.creditForId===doc.id):[];
-    const relatedDocuments=[linkedInvoice,sourceQuote,sourceInvoice,deliverySource(doc,this.props.documents,this.props.documentEvents),...linkedDeliveries(doc,this.props.documents,this.props.documentEvents),...creditNotes].filter((item,index,array):item is LourexDocument=>Boolean(item&&item.id!==doc.id)&&array.findIndex(candidate=>candidate?.id===item?.id)===index);
+    const relatedDocuments=[linkedInvoice,sourceQuote,sourceInvoice,deliverySource(doc,this.props.documents,this.props.documentEvents),purchaseOrderSource(doc,this.props.documents,this.props.documentEvents),...linkedDeliveries(doc,this.props.documents,this.props.documentEvents),...linkedPurchaseOrders(doc,this.props.documents,this.props.documentEvents),...creditNotes].filter((item,index,array):item is LourexDocument=>Boolean(item&&item.id!==doc.id)&&array.findIndex(candidate=>candidate?.id===item?.id)===index);
     const canConvert=Boolean(this.props.onConvert&&documentCanConvertToInvoice(doc.kind)&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice);
 
     return <section className="ta-doc-detail-page">
@@ -395,6 +402,7 @@ export class DocumentsPage extends React.Component<Props,State>{
           <Button icon={doc.lifecycleStatus==='voided'?'file':'edit'} variant="primary" onClick={()=>this.props.onOpen(doc)}>{doc.lifecycleStatus==='voided'?t('Open archive','فتح الأرشيف'):doc.status==='final'?t('Open / manage','فتح / إدارة'):t('Continue editing','متابعة التحرير')}</Button>
           {linkedInvoice?<Button icon="invoice" onClick={()=>this.setState({detailId:linkedInvoice.id,menuId:''})}>{t(`Open ${linkedInvoice.number}`,`فتح ${linkedInvoice.number}`)}</Button>:canConvert?<Button icon="invoice" onClick={()=>this.convertQuote(doc)}>{t('Convert to Invoice','تحويل إلى فاتورة')}</Button>:null}
           {canDeliver?<Button icon="file" onClick={()=>this.props.onCreateDelivery?.(doc)}>{linkedDelivery?t(`Open delivery ${linkedDelivery.number}`,`فتح التسليم ${linkedDelivery.number}`):t('Create delivery draft','إنشاء مسودة تسليم')}</Button>:null}
+          {canCreatePurchaseOrder?<Button icon="file" onClick={()=>this.props.onCreatePurchaseOrder?.(doc)}>{linkedPurchaseOrder?t(`Open PO ${linkedPurchaseOrder.number}`,`فتح أمر الشراء ${linkedPurchaseOrder.number}`):t('Create Purchase Order','إنشاء أمر شراء')}</Button>:null}
           {canOutput?<><Button icon="download" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('pdf',doc)}>PDF</Button><Button icon="share" disabled={Boolean(this.state.outputId)} onClick={()=>void this.runOutput('share',doc)}>{t('Share','مشاركة')}</Button></>:null}
           {secureShareEligible(doc)?<Button icon="lock" onClick={()=>this.setState({secureShareId:doc.id})}>{t('Secure Share','مشاركة آمنة')}</Button>:null}
           <div className="ta-doc-detail-more ta-doc-actions"><IconButton icon="more" label={t('More actions','إجراءات أخرى')} aria-haspopup="menu" aria-expanded={this.state.menuId===doc.id} onClick={(event:any)=>this.toggleMenu(doc,event)}/></div>
