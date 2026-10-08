@@ -437,6 +437,7 @@ test('Batch 7 — issued delivery invoices cannot be revised out of receivables'
     readFile(new URL('../src/components/DocumentLifecyclePanel.tsx',import.meta.url),'utf8')
   ]);
   assert.match(app,/An issued delivery-linked invoice cannot be revised/);
+  assert.match(app,/This issued delivery-linked invoice is immutable/);
   assert.match(editor,/!isDeliveryLinkedInvoice\(d\.id,this\.props\.documentEvents\?\?\[\]\)/);
   assert.match(editor,/revisionAllowed\?<Button icon="edit"/);
   assert.match(editor,/revisionAllowed\?<Button icon="edit" variant="primary"/);
