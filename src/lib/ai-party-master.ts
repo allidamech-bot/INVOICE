@@ -123,7 +123,7 @@ export function applyAiPartyMaster(vault:VaultPayload,batch:AiPartyMasterBatch):
   const fields:Record<string,unknown>={};
   for(const [key,value] of Object.entries(batch.after)){
     if(key==='name')continue;
-    if(!keys.includes(key as EditableField))throw new Error('Unapproved party field.');
+    if(!keys.includes(key as EditableField))throw new Error('Unapproved party field. Approved party preview changed.');
     fields[key]=value;
   }
   const cleaned=assertFields(fields);
