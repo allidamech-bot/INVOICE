@@ -99,6 +99,8 @@ async function audit(page,failures){
             await page.getByRole('button',{name:restore}).first().click();
             assert.ok(await page.getByRole('button',{name:restore}).count()>=2,'Explicit restore confirmation missing');
             assert.ok(await page.locator('.modal').count()>=2,'Restore must open a separate confirmation dialog');
+            // The confirm dialog unmounts before onCloudRestore runs. Capture that it was visibly confirmed before clicking.
+            await page.evaluate(()=>{window.__qaConfirmedCloudRestoreFromVisibleDialog=document.querySelectorAll('.modal').length>=2;});
             await page.getByRole('button',{name:restore}).last().click();
             await page.waitForFunction(()=>window.cloudRestoreObserved?.called===true);
             // Confirmation was verified *before* submitting it above; the modal closes before the async restore callback starts.\n            assert.ok(await page.evaluate(()=>window.cloudRestoreObserved?.called),'Confirmed restore did not reach its handler');
