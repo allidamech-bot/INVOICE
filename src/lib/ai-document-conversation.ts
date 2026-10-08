@@ -77,7 +77,7 @@ function setLineValue(proposal:Proposal,drafting:DraftReference,index:number,fie
 }
 /** Edits only a user-reviewed proposal, never the vault. A new command with
  * unsupported syntax returns null so other business requests retain normal routing. */
-export function reviseAiPendingDocumentDraft(proposal:Proposal,message:string,drafting:DraftReference,language:'en'|'ar'):StagedDocumentRevision|null{
+function reviseSingleAiPendingDocumentDraft(proposal:Proposal,message:string,drafting:DraftReference,language:'en'|'ar'):StagedDocumentRevision|null{
   const input=String(message||'').trim().slice(0,6000);if(!input)return null;
   const ar=language==='ar';
   if(/^(?:موافق|اعتمد|احفظ|سجّل|سجل|approve|confirm|save|register)(?:\s+المسودة|\s+draft)?[.!؟\s]*$/iu.test(input))
@@ -93,6 +93,25 @@ export function reviseAiPendingDocumentDraft(proposal:Proposal,message:string,dr
       const value=number(matched?.[1]||raw,change.field==='quantity');
       const updated=setLineValue(proposal,drafting,change.index,change.field,value);
       return result(updated,ar);
+    }catch(error){return rejected(proposal,error instanceof Error?error.message:String(error),ar);}
+  }
+  // Exact catalog SKU targeting is safer than guessing by partial product name.
+  // Multiple lines containing the same product are ambiguous and must use row numbers.
+  const skuChange=input.match(/^(?:غيّر|غير|عدّل|عدل|اجعل|set|change|update)\s+(سعر|السعر|كمية|الكمية|price|quantity|qty)\s+(?:sku|كود)\s+([a-z0-9._/-]{1,80})\s+(?:إلى|الى|to|=|بسعر)\s+(\S+(?:\s*[A-Z]{3})?)$/iu);
+  if(skuChange){
+    try{
+      if(proposal.capability!=='document.createDraft')throw new Error('SKU-based update of saved lines requires an explicit row number.');
+      const sku=skuChange[2]!.toLowerCase();
+      const references=drafting.items.filter(item=>item.sku?.toLowerCase()===sku);
+      if(references.length!==1)throw new Error('SKU is missing or ambiguous in the active company.');
+      const matches=proposal.items.map((row,index)=>row.savedItemId===references[0]!.id?index+1:null).filter((index):index is number=>index!==null);
+      if(matches.length!==1)throw new Error('SKU occurs zero or multiple times in the draft; use an exact row number.');
+      const field=/سعر|price/i.test(skuChange[1]!)?'unitPrice':'quantity';
+      const raw=skuChange[3]!.trim(),match=raw.match(/^(.+?)(?:\s+([A-Z]{3}))?$/i);
+      const currency=proposal.currency;
+      if(match?.[2]&&match[2].toUpperCase()!==currency)throw new Error('Price currency differs from the draft; no conversion is performed.');
+      const value=number(match?.[1]||raw,field==='quantity');
+      return result(setLineValue(proposal,drafting,matches[0]!,field,value),ar);
     }catch(error){return rejected(proposal,error instanceof Error?error.message:String(error),ar);}
   }
   const remove=removeLineIndex(input);
@@ -115,11 +134,53 @@ export function reviseAiPendingDocumentDraft(proposal:Proposal,message:string,dr
       return result({...proposal,addItems:[...proposal.addItems,row]},ar);
     }catch(error){return rejected(proposal,error instanceof Error?error.message:String(error),ar);}
   }
-  const terms=input.match(/^(?:غيّر|غير|عدّل|عدل|اجعل|set|change|update)\s+(?:شروط\s*الدفع|payment\s*terms)\s*(?:إلى|الى|to|=|:)\s*(.{1,120})$/iu);
+  const terms=input.match(/^(?:غيّر|غير|عدّل|عدل|اجعل|set|change|update)\s+(شروط\s*الدفع|payment\s*terms|الإنكوترمز|انكوترمز|incoterm|مدة\s*التسليم|delivery\s*time|التسليم|الصلاحية|validity|ملاحظات\s*العرض|remarks|الملاحظات|ملاحظات|notes|التعبئة|packing|ميناء\s*التحميل|port\s*of\s*loading|الوجهة\s*النهائية|final\s*destination|بلد\s*المنشأ|country\s*of\s*origin)\s*(?:إلى|الى|to|=|:)\s*(.{1,500})$/iu);
   if(terms){
-    const value=terms[1]!.trim();
-    if(proposal.capability==='document.createDraft')return result({...proposal,paymentTerms:value},ar);
-    return result({...proposal,termsPatch:{...proposal.termsPatch,paymentTerms:value}},ar);
+    const raw=terms[1]!.trim().toLowerCase(),value=terms[2]!.trim();
+    const definitions:[string,RegExp,number][]=[
+      ['paymentTerms',/^(?:شروط\s*الدفع|payment\s*terms)$/iu,120],
+      ['incoterm',/^(?:الإنكوترمز|انكوترمز|incoterm)$/iu,80],
+      ['deliveryTime',/^(?:مدة\s*التسليم|delivery\s*time|التسليم)$/iu,120],
+      ['validity',/^(?:الصلاحية|validity)$/iu,100],
+      ['remarks',/^(?:ملاحظات\s*العرض|remarks)$/iu,500],
+      ['notes',/^(?:الملاحظات|ملاحظات|notes)$/iu,500],
+      ['packing',/^(?:التعبئة|packing)$/iu,120],
+      ['portOfLoading',/^(?:ميناء\s*التحميل|port\s*of\s*loading)$/iu,100],
+      ['finalDestination',/^(?:الوجهة\s*النهائية|final\s*destination)$/iu,100],
+      ['countryOfOrigin',/^(?:بلد\s*المنشأ|country\s*of\s*origin)$/iu,100]
+    ];
+    const entry=definitions.find(([,pattern])=>pattern.test(raw));
+    if(!entry||!value||value.length>entry[2])return rejected(proposal,'Commercial term is missing or too long.',ar);
+    const key=entry[0];
+    if(proposal.capability==='document.createDraft'){
+      if(!['paymentTerms','incoterm','deliveryTime','validity','remarks','notes'].includes(key))
+        return rejected(proposal,'This additional commercial field is available when editing a saved draft in the document editor.',ar);
+      return result({...proposal,[key]:value},ar);
+    }
+    if(key==='notes')return result({...proposal,notes:value},ar);
+    return result({...proposal,termsPatch:{...proposal.termsPatch,[key]:value}},ar);
   }
   return null;
+}
+
+/** Multi-command revisions are copy-on-write and all-or-nothing. Each command
+ * is individually grounded in the user's explicit text. Do not interpret a
+ * free-form paragraph as an implicit permission to rewrite the whole quote. */
+export function reviseAiPendingDocumentDraft(proposal:Proposal,message:string,drafting:DraftReference,language:'en'|'ar'):StagedDocumentRevision|null{
+  const input=String(message||'').trim();
+  // Explicit 'then' / 'and then' / && delimiters only; semicolons are used
+  // inside the supported item-add syntax and must not split a product row.
+  const parts=input.split(/\s+(?:ثم|and\s+then)\s+|\s*&&\s*/iu).map(part=>part.trim()).filter(Boolean);
+  if(parts.length<=1)return reviseSingleAiPendingDocumentDraft(proposal,message,drafting,language);
+  if(parts.length>10)return rejected(proposal,'Maximum of ten exact staged commands per request.',language==='ar');
+  let staged:Proposal=proposal;
+  for(const part of parts){
+    const change=reviseSingleAiPendingDocumentDraft(staged,part,drafting,language);
+    if(!change||!change.changed){
+      const reason=change?.message||'Unsupported command: '+part.slice(0,90);
+      return rejected(proposal,'Multi-step edit cancelled without changes. '+reason,language==='ar');
+    }
+    staged=change.proposal;
+  }
+  return result(staged,language==='ar');
 }
