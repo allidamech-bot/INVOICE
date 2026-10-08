@@ -7,8 +7,10 @@ import { confirmGoodsReceipt, type ConfirmGoodsReceiptInput } from '../lib/goods
 import { GoodsReceiptReview } from './GoodsReceiptReview.js';
 import { matchSupplierInvoice, type MatchSupplierInvoiceInput } from '../lib/supplier-invoice-flow.js';
 import { SupplierInvoiceReview } from './SupplierInvoiceReview.js';
+import { postMatchedSupplierInvoice, type PostMatchedSupplierInvoiceInput } from '../lib/supplier-invoice-posting.js';
+import { SupplierInvoicePostingReview } from './SupplierInvoicePostingReview.js';
 import { AiWorkflowTools } from './AiWorkflowTools.js';
-import type { DocumentEventRecord, DocumentKind, LourexDocument, PaymentRecord, PaymentStatus, RecurringWorkflowRecord } from '../types.js';
+import type { DocumentEventRecord, DocumentKind, LourexDocument, PaymentRecord, PaymentStatus, RecurringWorkflowRecord, SavedItem } from '../types.js';
 import { calculateTotals, compareMoneyStrings, formatMoney, lineTotal } from '../lib/money.js';
 import { displayDate } from '../lib/id.js';
 import { hasDocumentCustomer, validateDocument } from '../lib/documents.js';
@@ -28,6 +30,7 @@ interface Props {
   documents:LourexDocument[];
   payments:PaymentRecord[];
   documentEvents:DocumentEventRecord[];
+  savedItems:SavedItem[];
   recurringWorkflows?:RecurringWorkflowRecord[];
   onMakeRecurring?:(doc:LourexDocument)=>void;
   onOpenRecurring?:()=>void;
@@ -263,6 +266,16 @@ export class DocumentsPage extends React.Component<Props,State>{
 
   private runAction=(action:()=>void)=>this.setState({menuId:''},action);
 
+  private postMatchedSupplierBill=async(input:PostMatchedSupplierInvoiceInput):Promise<void>=>{
+    let approvalPending=false;
+    await mutateVaultSafely(vault=>{
+      const result=postMatchedSupplierInvoice(vault,input);
+      approvalPending=result.approvalPending;
+      return result.vault;
+    });
+    if(approvalPending)throw new Error(t('Approval request saved. Approve in Settings → Access, then return to post this invoice.','تم حفظ طلب الموافقة. اعتمده من الإعدادات ← الوصول، ثم عد لترحيل الفاتورة.'));
+  };
+
   private matchSupplierBill=async(input:MatchSupplierInvoiceInput):Promise<void>=>{
     await mutateVaultSafely(vault=>matchSupplierInvoice(vault,input).vault);
   };
@@ -445,7 +458,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
           <CommercialFlowPanel document={doc} documents={this.props.documents} events={this.props.documentEvents} onOpenDocument={(related)=>this.setState({detailId:related.id,menuId:''})}/>
           {doc.kind==='rfq'?<SupplierQuotationReview rfq={doc} documents={this.props.documents} events={this.props.documentEvents} onAccept={this.acceptSupplierQuote} onOpenPurchaseOrder={(related)=>this.setState({detailId:related.id,menuId:''})}/>:null}
-          {doc.kind==='purchase-order'?<><GoodsReceiptReview order={doc} events={this.props.documentEvents} onConfirm={this.confirmGoodsDelivery}/><SupplierInvoiceReview order={doc} events={this.props.documentEvents} onMatch={this.matchSupplierBill}/></>:null}
+          {doc.kind==='purchase-order'?<><GoodsReceiptReview order={doc} events={this.props.documentEvents} onConfirm={this.confirmGoodsDelivery}/><SupplierInvoiceReview order={doc} events={this.props.documentEvents} onMatch={this.matchSupplierBill}/><SupplierInvoicePostingReview order={doc} events={this.props.documentEvents} savedItems={this.props.savedItems} onPost={this.postMatchedSupplierBill}/></>:null}
 
           <section className="ta-doc-panel ta-doc-items-panel">
             <header><div><small>{t('Line items','بنود المستند')}</small><h2>{t('Items','الأصناف')}</h2></div><span className="ta-doc-count-badge">{itemCountLabel(doc.items.length)}</span></header>
