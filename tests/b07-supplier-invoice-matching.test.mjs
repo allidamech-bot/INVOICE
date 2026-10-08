@@ -78,7 +78,7 @@ test('Batch7 supplier invoice: duplicates, over-billing, price and total varianc
   assert.throws(()=>matchSupplierInvoice(vault,matchInput(order,{statedTotal:'125.61'})),/does not match/);
   assert.throws(()=>matchSupplierInvoice(vault,matchInput(order,{unitPrices:['10.50001','25']})),/at most 4 decimals/);
   assert.throws(()=>matchSupplierInvoice(vault,matchInput(order,{unitPrices:['-1','25']})),/at most 4 decimals/);
-  assert.throws(()=>matchSupplierInvoice(vault,matchInput(order,{quantities:['7.20001','0']})),/four decimals/);
+  assert.throws(()=>matchSupplierInvoice(vault,matchInput(order,{quantities:['7.20001','0']})),/at most 4 decimals/);
   assert.throws(()=>matchSupplierInvoice(vault,matchInput(order,{quantities:['0','0'],statedTotal:'0'})),/At least one received/);
   assert.throws(()=>matchSupplierInvoice(vault,matchInput(order,{quantities:['1']})),/All invoice lines/);
   assert.throws(()=>matchSupplierInvoice(vault,matchInput(order,{invoiceReference:' '})),/invoice reference is required/);
