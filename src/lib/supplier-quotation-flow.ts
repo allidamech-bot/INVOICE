@@ -49,7 +49,7 @@ export function acceptedSupplierQuotationEvents(rfqId:string,events:DocumentEven
 
 function fail(en:string,ar:string):never{throw new Error(t(en,ar));}
 
-function sameLine(source:LourexDocument['items'][number],target:LourexDocument['items'][number]):boolean{
+function sameLine(source:LourexDocument['items'][number],target:LourexDocument['items'][number]|undefined):boolean{
   return Boolean(source&&target&&
     decimalToScaled(source.quantity,4)===decimalToScaled(target.quantity,4)&&
     source.unit.trim()===target.unit.trim()&&
@@ -117,8 +117,13 @@ export function acceptSupplierQuotation(
   if(po.items.some(line=>line.unitPrice.trim()||line.unitCost.trim())){
     fail('Purchase order already has prices or costs. Do not overwrite them silently.','أمر الشراء يحتوي على أسعار أو تكاليف. لن يتم استبدالها تلقائيًا.');
   }
+  const priceFor=(index:number):string=>{
+    const value=unitPrices[index];
+    if(value===undefined)fail('Missing supplier price for a purchase order line.','سعر المورد مفقود لأحد بنود أمر الشراء.');
+    return value;
+  };
   const acceptedAt=new Date().toISOString();
-  const updated:LourexDocument={...po,items:po.items.map((line,i)=>({...line,unitPrice:unitPrices[i]})),updatedAt:acceptedAt};
+  const updated:LourexDocument={...po,items:po.items.map((line,i)=>({...line,unitPrice:priceFor(i)})),updatedAt:acceptedAt};
   const quotation:AcceptedSupplierQuotation={
     rfqId:rfq.id,purchaseOrderId:po.id,reference,supplierId,currency:rfq.currency,
     acceptedAt,acceptedByMemberId:actor.id,validUntil,notes,
