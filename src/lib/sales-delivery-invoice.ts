@@ -2,6 +2,7 @@ import type {DocumentEventRecord, LourexDocument, VaultPayload} from '../types.j
 import {convertToInvoice, nextDocumentNumber, validateDocument} from './documents.js';
 import {createDocumentEvent} from './document-lifecycle.js';
 import {makeId} from './id.js';
+import {assertGovernancePermission} from './governance.js';
 import {decimalToScaled} from './money.js';
 import {t} from './i18n.js';
 import {
@@ -77,6 +78,7 @@ export function createConfirmedDeliveryInvoiceDraft(vault:VaultPayload,deliveryN
     fail('Confirm actual delivery quantities before preparing an invoice.','أكد الكميات المسلّمة فعليًا قبل تجهيز الفاتورة.');
   const existing=linkedDeliveryInvoice(delivery.id,vault.documents,vault.documentEvents);
   if(existing)return{vault,invoice:existing,created:false};
+  assertGovernancePermission(vault,'issue-document');
   const proof=proofs[0]!,context=deliverySalesOrderContext(delivery,vault.documents,vault.documentEvents);
   if(!context)fail('Accepted Sales Order source is unavailable.','مصدر أمر البيع المعتمد غير متاح.');
   const {order,quotation}=context;
