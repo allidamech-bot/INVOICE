@@ -1,4 +1,5 @@
 import { deliverySourceEligible, linkedDeliveries, deliverySource } from '../lib/delivery-flow.js';
+import { invoiceSourceDelivery } from '../lib/sales-delivery-invoice.js';
 import { linkedPurchaseOrders, purchaseOrderSource, purchaseOrderSourceEligible } from '../lib/procurement-flow.js';
 import { acceptSupplierQuotation, type SupplierQuotationAcceptanceInput } from '../lib/supplier-quotation-flow.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
@@ -443,7 +444,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     const sourceQuote=doc.convertedFromId?this.props.documents.find(item=>item.id===doc.convertedFromId):undefined;
     const sourceInvoice=doc.creditForId?this.props.documents.find(item=>item.id===doc.creditForId):undefined;
     const creditNotes=doc.kind==='invoice'&&doc.role==='standard'?this.props.documents.filter(item=>item.role==='credit-note'&&item.creditForId===doc.id):[];
-    const relatedDocuments=[linkedInvoice,sourceQuote,sourceInvoice,deliverySource(doc,this.props.documents,this.props.documentEvents),purchaseOrderSource(doc,this.props.documents,this.props.documentEvents),...linkedDeliveries(doc,this.props.documents,this.props.documentEvents),...linkedPurchaseOrders(doc,this.props.documents,this.props.documentEvents),...creditNotes].filter((item,index,array):item is LourexDocument=>Boolean(item&&item.id!==doc.id)&&array.findIndex(candidate=>candidate?.id===item?.id)===index);
+    const relatedDocuments=[linkedInvoice,sourceQuote,sourceInvoice,deliverySource(doc,this.props.documents,this.props.documentEvents),invoiceSourceDelivery(doc.id,this.props.documents,this.props.documentEvents),purchaseOrderSource(doc,this.props.documents,this.props.documentEvents),...linkedDeliveries(doc,this.props.documents,this.props.documentEvents),...linkedPurchaseOrders(doc,this.props.documents,this.props.documentEvents),...creditNotes].filter((item,index,array):item is LourexDocument=>Boolean(item&&item.id!==doc.id)&&array.findIndex(candidate=>candidate?.id===item?.id)===index);
     const canConvert=Boolean(this.props.onConvert&&documentCanConvertToInvoice(doc.kind)&&doc.role==='standard'&&doc.status==='final'&&doc.lifecycleStatus!=='voided'&&!linkedInvoice&&!salesOrderForQuotation(doc.id,this.props.documentEvents));
 
     return <section className="ta-doc-detail-page">
