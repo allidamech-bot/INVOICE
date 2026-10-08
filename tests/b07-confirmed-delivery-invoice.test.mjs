@@ -8,7 +8,7 @@ import {acceptSalesOrder} from '../dist/src/lib/sales-order-flow.js';
 import {createLinkedDeliveryDraft} from '../dist/src/lib/delivery-flow.js';
 import {confirmSalesDelivery} from '../dist/src/lib/sales-delivery-flow.js';
 import {
-  createConfirmedDeliveryInvoiceDraft, linkedDeliveryInvoice, assertDeliveryInvoiceIntegrity
+  createConfirmedDeliveryInvoiceDraft, linkedDeliveryInvoice, invoiceSourceDelivery, assertDeliveryInvoiceIntegrity
 } from '../dist/src/lib/sales-delivery-invoice.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {todayIso} from '../dist/src/lib/id.js';
@@ -58,6 +58,7 @@ test('Batch 7 — exact partially delivered lines become unissued invoice draft,
   assert.equal(result.invoice.adjustments.otherChargesEnabled,false);
   assert.match(result.invoice.terms.remarks,/POD-A/);
   assert.equal(linkedDeliveryInvoice(a.note.id,result.vault.documents,result.vault.documentEvents)?.id,result.invoice.id);
+  assert.equal(invoiceSourceDelivery(result.invoice.id,result.vault.documents,result.vault.documentEvents)?.id,a.note.id);
   for(const key of ['payments','supplierPayments','purchases','inventoryMovements','treasuryEntries']){
     assert.deepEqual(result.vault[key],a.vault[key],key+' must remain untouched');
   }
@@ -123,6 +124,7 @@ test('Batch 7 — final issuance stays human reviewed and serialized, not an AI 
   assert.match(app,/createConfirmedDeliveryInvoiceDraft\(scoped,delivery\.id\)/);
   assert.match(app,/persistFullMutation\(full=>/);
   assert.match(page,/onCreateDeliveryInvoice/);
+  assert.match(page,/invoiceSourceDelivery\(doc\.id,this\.props\.documents,this\.props\.documentEvents\)/);
   assert.match(merge,/assertDeliveryInvoiceIntegrity\(documents,documentEvents\)/);
   assert.match(app,/assertDeliveryInvoiceIntegrity\(documents,documentEvents\)/);
   assert.doesNotMatch(source,/postPurchase|savePayment|inventoryMovements:\[/);
