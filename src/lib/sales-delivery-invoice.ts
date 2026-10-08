@@ -45,6 +45,24 @@ function parseLink(event:DocumentEventRecord):InvoiceDeliveryEvidence|null{
     return value;
   }catch{return null;}
 }
+/** Prevent offline merge from deleting or rewriting immutable delivery→invoice creation evidence. */
+export function assertDeliveryInvoiceLedgerContinuity(
+  base:DocumentEventRecord[], intended:DocumentEventRecord[], latest:DocumentEventRecord[]
+):void{
+  const byId=(events:DocumentEventRecord[])=>new Map(events.map(event=>[event.id,event]));
+  const intendedById=byId(intended),latestById=byId(latest);
+  for(const event of links(base)){
+    const wanted=intendedById.get(event.id),remote=latestById.get(event.id);
+    if(!wanted||!remote||JSON.stringify(wanted)!==JSON.stringify(event)
+      ||JSON.stringify(remote)!==JSON.stringify(event))
+      fail('Confirmed delivery invoice links are append-only and cannot be removed or rewritten during sync.','روابط فواتير التسليم المؤكد لا يجوز حذفها أو تعديلها أثناء المزامنة.');
+  }
+  for(const event of links(intended)){
+    const remote=latestById.get(event.id);
+    if(remote&&JSON.stringify(remote)!==JSON.stringify(event))
+      fail('Conflicting delivery invoice event IDs detected during sync.','تعارضت معرفات سجل فواتير التسليم أثناء المزامنة.');
+  }
+}
 export function isDeliveryLinkedInvoice(invoiceId:string,events:DocumentEventRecord[]):boolean{
   return links(events).some(event=>event.documentId===invoiceId);
 }
