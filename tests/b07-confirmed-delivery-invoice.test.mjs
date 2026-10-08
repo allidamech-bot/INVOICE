@@ -14,6 +14,7 @@ import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
 import {todayIso} from '../dist/src/lib/id.js';
 import {defaultOwnerMember} from '../dist/src/lib/governance.js';
 import {normalizePaymentRecord,invoicePaymentSummary,assertInvoicePaymentInvariant} from '../dist/src/lib/payments.js';
+import {salesOrderInvoiceProgress} from '../dist/src/lib/sales-order-progress.js';
 
 function setup(){
   const v=emptyVault(),now=new Date().toISOString();
@@ -192,6 +193,55 @@ test('Batch 7 — only authorized owner/admin/sales/finance operators may prepar
   }
 });
 
+test('Batch 7 — read-only SO progress separates physical quantities, invoice drafts and actual collections',()=>{
+  const {vault,quote,order}=setup();
+  const blank=salesOrderInvoiceProgress(order,vault.documents,vault.documentEvents,[]);
+  assert.equal(blank.confirmedDeliveries,0);
+  assert.equal(blank.unbilledDeliveries,0);
+  assert.equal(blank.outstanding,'0.00');
+  const delivery=confirmed(vault,quote,['4','1'],'POD-PROGRESS');
+  const delivered=salesOrderInvoiceProgress(order,delivery.vault.documents,delivery.vault.documentEvents,[]);
+  assert.deepEqual(delivered.lines.map(line=>line.delivered),['4','1']);
+  assert.deepEqual(delivered.lines.map(line=>line.remaining),['8','5']);
+  assert.equal(delivered.confirmedDeliveries,1);
+  assert.equal(delivered.unbilledDeliveries,1);
+  const draft=createConfirmedDeliveryInvoiceDraft(delivery.vault,delivery.note.id);
+  const draftProgress=salesOrderInvoiceProgress(order,draft.vault.documents,draft.vault.documentEvents,[]);
+  assert.equal(draftProgress.invoiceDrafts,1);
+  assert.equal(draftProgress.invoicesIssued,0);
+  assert.equal(draftProgress.outstanding,'0.00','draft invoice is never AR');
+  const issued={...draft.invoice,status:'final'};
+  const documents=draft.vault.documents.map(doc=>doc.id===issued.id?issued:doc);
+  const issuedProgress=salesOrderInvoiceProgress(order,documents,draft.vault.documentEvents,[]);
+  assert.equal(issuedProgress.invoiceDrafts,0);
+  assert.equal(issuedProgress.invoicesIssued,1);
+  assert.equal(issuedProgress.netIssued,'65.00');
+  assert.equal(issuedProgress.outstanding,'65.00');
+  const today=todayIso();
+  const payment=normalizePaymentRecord(issued,[],{
+    id:'progress-payment',invoiceId:issued.id,invoiceNumber:issued.number,
+    customerId:issued.customerSnapshot.sourceCustomerId,customerNameEn:'Riyadh FMCG',customerNameAr:'',
+    currency:'USD',amount:'20.00',date:today,method:'bank-transfer',reference:'BANK-PROGRESS',
+    notes:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()
+  },documents);
+  const paid=salesOrderInvoiceProgress(order,documents,draft.vault.documentEvents,[payment]);
+  assert.equal(paid.collected,'20.00');
+  assert.equal(paid.outstanding,'45.00');
+  assert.equal(paid.unbilledDeliveries,0);
+  assert.equal(paid.currency,'USD');
+});
+
+test('Batch 7 — sales order summary uses scoped financial data without changing the receivables owner',async()=>{
+  const [orderPanel,page,source]=await Promise.all([
+    readFile(new URL('../src/components/SalesOrderReview.tsx',import.meta.url),'utf8'),
+    readFile(new URL('../src/components/DocumentsPage.tsx',import.meta.url),'utf8'),
+    readFile(new URL('../src/lib/sales-order-progress.ts',import.meta.url),'utf8')
+  ]);
+  assert.match(orderPanel,/salesOrderInvoiceProgress\(order,this\.props\.documents,events,this\.props\.payments\)/);
+  assert.match(page,/SalesOrderReview quotation=\{doc\} events=\{this\.props\.documentEvents\} documents=\{this\.props\.documents\} payments=\{this\.props\.payments\}/);
+  assert.match(source,/invoicePaymentSummary\(invoice,payments,undefined,documents\)/);
+  assert.doesNotMatch(source,/saveVault|mutateVaultSafely|postPurchase|savePayment|localStorage/);
+});
 test('Batch 7 — unauthorized operators cannot use create/open to bypass invoice draft access checks',()=>{
   const {vault,quote}=setup(),first=confirmed(vault,quote);
   const created=createConfirmedDeliveryInvoiceDraft(first.vault,first.note.id);
