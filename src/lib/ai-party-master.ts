@@ -90,7 +90,7 @@ function assertNotDuplicated(rows:Array<Customer|Supplier>,party:PartyType,name:
     throw new Error('Duplicate party name or email in the current company. No changes made.');
 }
 function batchPreview(batch:AiPartyMasterBatch):AiPartyMasterBatch['preview']{
-  return{itemId:batch.recordId,name:batch.after.name||'',before:batch.before,after:batch.after};
+  return{itemId:batch.recordId,name:batch.after.name||'',before:{...batch.before},after:{...batch.after}};
 }
 export function prepareAiPartyMaster(vault:VaultPayload,intent:AiPartyMasterIntent):AiPartyMasterBatch{
   if(!intent||!['customer','supplier'].includes(intent.party)||!['create','update'].includes(intent.mode))
