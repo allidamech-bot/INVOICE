@@ -107,6 +107,15 @@ test('Batch 7 — linked invoice quantities, price, customer, currency, product 
   }
   assert.throws(()=>assertDeliveryInvoiceIntegrity(r.vault.documents.filter(x=>x.id!==original.id),r.vault.documentEvents),/invoice source|invoice link|invoice|Invoice/);
 });
+test('Batch 7 — voided linked invoices cannot strand confirmed delivery evidence',()=>{
+  const {vault,quote}=setup(),a=confirmed(vault,quote);
+  const created=createConfirmedDeliveryInvoiceDraft(a.vault,a.note.id);
+  const voided={...created.invoice,status:'final',lifecycleStatus:'voided'};
+  const nextDocs=created.vault.documents.map(doc=>doc.id===voided.id?voided:doc);
+  assert.throws(()=>assertDeliveryInvoiceIntegrity(nextDocs,created.vault.documentEvents),
+    /Delivery invoice source, customer or line count changed/);
+});
+
 test('Batch 7 — invoice issue date and immutable event document numbers remain tied to delivered evidence',()=>{
   const {vault,quote}=setup(),a=confirmed(vault,quote);
   const created=createConfirmedDeliveryInvoiceDraft(a.vault,a.note.id);
@@ -214,5 +223,6 @@ test('Batch 7 — final issuance stays human reviewed and serialized, not an AI 
   assert.match(page,/canDelete=doc\.status!=='final'[^;]*!isDeliveryLinkedInvoice/);
   assert.match(merge,/assertDeliveryInvoiceIntegrity\(documents,documentEvents\)/);
   assert.match(app,/assertDeliveryInvoiceIntegrity\(documents,documentEvents\)/);
+  assert.match(app,/A delivery-linked invoice cannot be voided/);
   assert.doesNotMatch(source,/postPurchase|savePayment|inventoryMovements:\[/);
 });
