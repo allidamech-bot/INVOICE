@@ -62,6 +62,13 @@ export function assertDeliveryInvoiceLedgerContinuity(
     if(remote&&JSON.stringify(remote)!==JSON.stringify(event))
       fail('Conflicting delivery invoice event IDs detected during sync.','تعارضت معرفات سجل فواتير التسليم أثناء المزامنة.');
   }
+  // A concurrent actor can reuse an existing event ID with a non-link payload.
+  // Check latest links too: mergeRecords replaces a matching ID with intended.
+  for(const event of links(latest)){
+    const wanted=intendedById.get(event.id);
+    if(wanted&&JSON.stringify(wanted)!==JSON.stringify(event))
+      fail('Confirmed delivery invoice event ID collides with an unrelated concurrent event.','تعارض معرف سجل فاتورة التسليم مع حدث متزامن آخر.');
+  }
 }
 export function isDeliveryLinkedInvoice(invoiceId:string,events:DocumentEventRecord[]):boolean{
   return links(events).some(event=>event.documentId===invoiceId);
