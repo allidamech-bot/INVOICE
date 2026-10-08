@@ -266,11 +266,15 @@ function productPerformance(source:AiFinanceSource,from:string,to:string):AiFina
   for(const doc of countedFinancialDocuments(source.documents)){
     if(doc.issueDate<from||doc.issueDate>to)continue;
     const sign=doc.role==='credit-note'?-1n:1n;
-    if((doc.adjustments.discountEnabled&&nonZero(doc.adjustments.discountValue))||(doc.adjustments.shippingEnabled&&nonZero(doc.adjustments.shipping))||(doc.adjustments.otherChargesEnabled&&nonZero(doc.adjustments.otherCharges))||nonZero(doc.internalCosts.shippingCost)||nonZero(doc.internalCosts.otherCost))hasUnallocatedDocumentAdjustments=true;
+    // Product rows are item-line only, but a malformed internal expense is
+    // still unknown cost evidence. Never present their margins as complete.
+    const invalidInternalExpenses=calculateProfitability(doc).invalidInternalCostFields>0;
+    if((doc.adjustments.discountEnabled&&nonZero(doc.adjustments.discountValue))||(doc.adjustments.shippingEnabled&&nonZero(doc.adjustments.shipping))||(doc.adjustments.otherChargesEnabled&&nonZero(doc.adjustments.otherCharges))||nonZero(doc.internalCosts.shippingCost)||nonZero(doc.internalCosts.otherCost)||invalidInternalExpenses)hasUnallocatedDocumentAdjustments=true;
     for(const item of doc.items){
       const name=(item.descriptionEn||item.descriptionAr||'Item').trim();const currency=(doc.currency||'').trim().toUpperCase();const key=`${currency}\u0000${normalized(name)}`;
       let row=map.get(key);if(!row){row={name,currency,revenue:0n,cost:0n,complete:true,missingCostItems:0};map.set(key,row);}
       row.revenue+=decimalToScaled(lineTotal(item.quantity,item.unitPrice),2)*sign;
+      if(invalidInternalExpenses)row.complete=false;
       if(!validUnitCost(item.unitCost)){row.complete=false;row.missingCostItems+=1;continue;}
       row.cost+=costLineCents(item.quantity,item.unitCost)*sign;
     }
