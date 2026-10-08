@@ -80,3 +80,14 @@ test('B08.2: legacy records with no scope may match each other but not a modern 
   assert.equal(attributed(legacy,[legacyItem],[oldPurchase],[oldSupplier]).label,'Live supplier-old');
   assert.equal(attributed(invoice(),[legacyItem],[oldPurchase],[oldSupplier]).label,'Unattributed');
 });
+
+test('B08.2: same-name catalog products in different workspaces select the scoped item',()=>{
+  const d=invoice();
+  const unrelated=item('workspace-b','branch-b');
+  unrelated.id='foreign-widget';
+  const correct=item();
+  const records=[purchase('p-correct','supplier-correct')];
+  const row=attributed(d,[unrelated,correct],records,[supplier('supplier-correct')]);
+  assert.equal(row.id,'supplier-correct');
+  assert.equal(productProfitabilityRows([d],[unrelated,correct])[0].id,'widget-1');
+});
