@@ -19,12 +19,13 @@ This can produce a misleading *supplier attribution* even when the currency-sepa
 
 ## Regression tests
 
-`tests/b08-supplier-profit-provenance.test.mjs` adds five source contracts for:
+`tests/b08-supplier-profit-provenance.test.mjs` adds six source contracts for:
 1. Ignore more recent posted purchases in other workspaces/branches.
 2. Ignore saved-item matches outside the document scope without hiding revenue.
 3. Exclude invalid/future/anonymous supplier purchase evidence.
 4. Prevent live supplier names leaking across branches for an otherwise valid snapshot attribution.
 5. Preserve compatibility between legacy unscoped records while not trusting an unscoped purchase for a scoped invoice.
+6. Select the in-scope catalog item even when another workspace has the same product description.
 
 Source-extracted logic checks with minimal fixtures passed. **Full repository tests NOT RUN.** Node 24, installed dependencies, complete browser assets, and GitHub-network checkout are unavailable in this assistant's local runtime. Vercel Sandbox creation was denied (403).
 
