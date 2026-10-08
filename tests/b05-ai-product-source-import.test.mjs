@@ -154,7 +154,8 @@ test('B05: source import is local-only and approval UI shows all extracted field
   const client=await readFile('src/lib/ai-tool-client.ts','utf8');
   const ui=await readFile('scripts/ai-conversation-owner-stage4-tools.mjs','utf8');
   assert.match(client,/requestedAiProductImport\(input\.message\)/);
-  assert.match(client,/args:\{sources:input\.context\.conversationSources,generateMissingSku:requestedAiProductSkuGeneration\(input\.message\)\}/);
+  assert.match(client,/args:\\{sources:input\\.context\\.conversationSources,generateMissingSku:requestedAiProductSkuGeneration\\(input\\.message\\)\\}/);
+  assert.match(client,/requestedAiProductSkuGeneration\\(input\\.message\\)/);
   assert.match(ui,/product\.importSource/);
   assert.match(ui,/lastUnitCost/);
 });
