@@ -98,7 +98,8 @@ public/
 
 ## Verification
 
-`node scripts/verify-local.mjs` runs mandatory local checks, security, production build and Chromium/WebKit regressions including fixed-precision financial calculations, independent numbering, document snapshots, conversion/duplication, long-document pagination, encrypted storage, PIN verification, encrypted backup/restore, cloud ownership/integrity, PWA caching, iOS PDF behavior, RTL/LTR output, all template identifiers, mobile editor behavior and concurrent local writes.
+`node scripts/verify-local.mjs` is the mandatory **local** replacement for the retired GitHub Actions workflows. It runs the high-severity dependency audit, LOUREX security gate, TypeScript, production build, current Batch 7 and changed PR contract tests, plus Chromium/WebKit mobile, iPad, document and workspace browser QA.
 
+Run `node scripts/verify-local.mjs --legacy` to include historical, non-blocking diagnostics; `--quick` is development-only and **not sufficient** for merge approval. No GitHub-hosted CI check will appear on Pull Requests, so the final PR head must be verified and signed off manually.
 
-For local setup, optional historical diagnostics and manual PR verification, see [the local QA runbook](docs/LOCAL_VERIFICATION_NO_ACTIONS.md).
+See [local verification and PR signoff](docs/LOCAL_VERIFICATION_NO_ACTIONS.md) for setup and complete instructions.
