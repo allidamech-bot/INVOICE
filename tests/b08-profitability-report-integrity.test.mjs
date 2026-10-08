@@ -69,6 +69,10 @@ test('B08: period credit is included only with a valid earlier source invoice, o
 test('B08: the profitability screen validates source links before applying the period and excludes malformed dates',async()=>{
   const source=await readFile('src/components/ProfitabilityReports.tsx','utf8');
   assert.match(source,/financialDocuments\(props\.documents\)\.filter\(doc=>isIsoDate\(doc\.issueDate\)/);
+  assert.match(source,/const period=normalizeReportPeriod\(from,to\)/);
+  assert.match(source,/doc\.issueDate>=period\.from/);
+  assert.match(source,/doc\.issueDate<=period\.to/);
+  assert.match(source,/customerPerformanceReport\(props\.customers,props\.documents,props\.payments,period\.from,period\.to\)/);
   assert.doesNotMatch(source,/!doc\.issueDate\|\|/);
 });
 
