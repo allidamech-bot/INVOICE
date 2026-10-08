@@ -71,3 +71,20 @@ test('B08: the profitability screen validates source links before applying the p
   assert.match(source,/financialDocuments\(props\.documents\)\.filter\(doc=>isIsoDate\(doc\.issueDate\)/);
   assert.doesNotMatch(source,/!doc\.issueDate\|\|/);
 });
+
+test('B08: reversed credit-note allocation preserves signed cost and overhead per product',()=>{
+  const credit=invoice();
+  credit.role='credit-note';
+  credit.items[0].unitCost='10.00';
+  const rows=productProfitabilityRows([credit],[]);
+  const first=rows.find(row=>row.label==='Missing cost');
+  const second=rows.find(row=>row.label==='Known cost');
+  assert.equal(first.netSales,'-100.00');
+  assert.equal(first.totalCost,'-20.00');
+  assert.equal(first.grossProfit,'-80.00');
+  assert.equal(second.netSales,'-100.00');
+  assert.equal(second.totalCost,'-40.00');
+  assert.equal(second.grossProfit,'-60.00');
+  assert.equal(rows.reduce((sum,row)=>sum+Number(row.totalCost),0),-60);
+  assert.equal(rows.reduce((sum,row)=>sum+Number(row.grossProfit),0),-140);
+});
