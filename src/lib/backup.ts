@@ -64,8 +64,10 @@ export function assertRestorableBackupVault(value:unknown):asserts value is Vaul
   if(!Number.isSafeInteger(raw.schemaVersion)||Number(raw.schemaVersion)<1||Number(raw.schemaVersion)>APP_SCHEMA_VERSION)
     throw new Error('This backup uses an unsupported data version. Update LOUREX before restoring to avoid losing records.');
   const isObject=(item:unknown)=>Boolean(item&&typeof item==='object'&&!Array.isArray(item));
-  if(!isObject(raw.company)||!isObject(raw.appSettings)||!Array.isArray(raw.customers)||!Array.isArray(raw.documents))
+  if(!isObject(raw.company)||!isObject(raw.appSettings))
     throw new Error('Backup data is incomplete. The existing workspace was not changed.');
+  if(!Array.isArray(raw.customers))throw new Error('Backup collection "customers" is missing or invalid. The existing workspace was not changed.');
+  if(!Array.isArray(raw.documents))throw new Error('Backup collection "documents" is missing or invalid. The existing workspace was not changed.');
   const required=Number(raw.schemaVersion)>=21;
   for(const key of CURRENT_VAULT_COLLECTIONS){
     const rows=raw[key];
