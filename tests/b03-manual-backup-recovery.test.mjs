@@ -64,6 +64,9 @@ test('B03: export PIN verification is independent of the backup encryption passw
   assert.match(localRestore,/readBackup\(file,pin\)/);
   assert.match(localRestore,/beginProtectedOperation\(\)/);
   assert.match(localRestore,/restoreVaultWithCurrentKey\(key,restored\)/);
+  assert.match(localRestore,/if\(committed\)this\.scheduleCloudSync\(500\)/);
+  assert.match(localRestore,/committed=true/);
+  assert.match(localRestore,/try\{await this\.syncPublicPreferences\(/);
   const vault=await readFile('src/storage/vault.ts','utf8');
   assert.match(vault,/restoreVaultWithCurrentKey[\s\S]*createSafetySnapshot\('pre-restore'\)/);
 });
@@ -75,4 +78,5 @@ test('B03: backup read enforces size and basic vault shape after authentication,
   assert.match(source,/Array\.isArray\(restored\.customers\)/);
   assert.match(source,/Backup sharing was canceled\. No file has been saved/);
   assert.match(source,/Backup data is incomplete\. The existing workspace was not changed/);
+  assert.match(source,/restored\.schemaVersion>APP_SCHEMA_VERSION/);
 });
