@@ -6,6 +6,7 @@ import {requestedAiProductImport,prepareAiProductSourceImport,applyAiProductSour
 import {createAiToolRuntime,executeAiToolPlan} from '../dist/src/lib/ai-tool-orchestrator.js';
 import {applyApprovedToolExecution} from '../dist/src/lib/ai-tool-actions.js';
 import {registerVaultMutationBridge} from '../dist/src/storage/vault-mutation-bridge.js';
+import {conversationAttachmentPayload} from '../dist/src/lib/ai-conversation-attachments.js';
 
 function item(id='A-1',name='Test biscuits',price='8.50',currency='USD'){
   return{sku:id,descriptionEn:name,descriptionAr:'',salePrice:price,saleCurrency:currency,unitCost:'4.00',costCurrency:'USD',unit:'CTN',category:'Snacks',origin:'TR',packing:'12 pcs',hsCode:'190590'};
@@ -118,6 +119,11 @@ test('B05: one explicit approval calls the Vault mutation once and verifies all 
   assert.equal(calls,1);
   assert.match(result.summary,/1 extracted products registered/);
   assert.equal(current.savedItems.length,1);
+});
+test('B05: oversized spreadsheet text fails before classification rather than cutting rows',async()=>{
+  const payload='SKU,Name\\n'+'x'.repeat(120500);
+  const file=new File([payload],'oversized.csv',{type:'text/csv'});
+  await assert.rejects(()=>conversationAttachmentPayload(file),/safe AI source limit/);
 });
 test('B05: source import is local-only and approval UI shows all extracted fields',async()=>{
   const client=await readFile('src/lib/ai-tool-client.ts','utf8');
