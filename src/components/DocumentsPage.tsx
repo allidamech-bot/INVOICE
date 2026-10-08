@@ -1,5 +1,5 @@
 import { deliverySourceEligible, linkedDeliveries, deliverySource } from '../lib/delivery-flow.js';
-import { invoiceSourceDelivery } from '../lib/sales-delivery-invoice.js';
+import { invoiceSourceDelivery, isDeliveryLinkedInvoice } from '../lib/sales-delivery-invoice.js';
 import { linkedPurchaseOrders, purchaseOrderSource, purchaseOrderSourceEligible } from '../lib/procurement-flow.js';
 import { acceptSupplierQuotation, type SupplierQuotationAcceptanceInput } from '../lib/supplier-quotation-flow.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
@@ -338,7 +338,7 @@ export class DocumentsPage extends React.Component<Props,State>{
 
   private actionButtons=(doc:LourexDocument):any=>{
     const canOutput=doc.kind==='draft'||doc.status==='final';
-    const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
+    const canDelete=doc.status!=='final'&&(doc.revision||1)<=1&&!isDeliveryLinkedInvoice(doc.id,this.props.documentEvents);
     const linkedDelivery=linkedDeliveries(doc,this.props.documents,this.props.documentEvents).find(item=>item.lifecycleStatus!=='voided');
     const linkedPurchaseOrder=linkedPurchaseOrders(doc,this.props.documents,this.props.documentEvents).find(item=>item.lifecycleStatus!=='voided');
     const canCreatePurchaseOrder=Boolean(this.props.onCreatePurchaseOrder&&purchaseOrderSourceEligible(doc));
@@ -351,7 +351,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     return <>
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({detailId:doc.id}))}><Icon name="eye"/><span>{t('View details','عرض التفاصيل')}</span></button>
       <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onOpen(doc))}><Icon name="edit"/><span>{doc.lifecycleStatus==='voided'?t('Open archive','فتح الأرشيف'):doc.status==='final'?t('Open / manage','فتح / إدارة'):t('Continue editing','متابعة التحرير')}</span></button>
-      <button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onDuplicate(doc))}><Icon name="copy"/><span>{t('Duplicate','نسخ')}</span></button>
+      {!isDeliveryLinkedInvoice(doc.id,this.props.documentEvents)?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onDuplicate(doc))}><Icon name="copy"/><span>{t('Duplicate','نسخ')}</span></button>:null}
       {this.props.onMakeRecurring&&recurringDocumentEligible(doc)?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onMakeRecurring?.(doc))}><Icon name="refresh"/><span>{t('Make recurring','جعلها متكررة')}</span></button>:null}
       {linkedInvoice?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.setState({detailId:linkedInvoice.id}))}><Icon name="invoice"/><span>{t(`Open linked invoice ${linkedInvoice.number}`,`فتح الفاتورة المرتبطة ${linkedInvoice.number}`)}</span></button>:canConvert?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.convertQuote(doc))}><Icon name="invoice"/><span>{t('Convert to Invoice','تحويل إلى فاتورة')}</span></button>:null}
       {canDeliver?<button type="button" role="menuitem" onClick={()=>this.runAction(()=>this.props.onCreateDelivery?.(doc))}><Icon name="file"/><span>{linkedDelivery?t(`Open delivery ${linkedDelivery.number}`,`فتح التسليم ${linkedDelivery.number}`):t('Create delivery draft','إنشاء مسودة تسليم')}</span></button>:null}
@@ -436,7 +436,7 @@ export class DocumentsPage extends React.Component<Props,State>{
     ].filter(([,value])=>Boolean(value));
     const canOutput=doc.status==='final';
     const canCollect=Boolean(this.props.onRecordPayment&&collection&&collection.status!=='paid');
-    const canDelete=doc.status!=='final'&&(doc.revision||1)<=1;
+    const canDelete=doc.status!=='final'&&(doc.revision||1)<=1&&!isDeliveryLinkedInvoice(doc.id,this.props.documentEvents);
     const linkedDelivery=linkedDeliveries(doc,this.props.documents,this.props.documentEvents).find(item=>item.lifecycleStatus!=='voided');
     const linkedPurchaseOrder=linkedPurchaseOrders(doc,this.props.documents,this.props.documentEvents).find(item=>item.lifecycleStatus!=='voided');
     const canCreatePurchaseOrder=Boolean(this.props.onCreatePurchaseOrder&&purchaseOrderSourceEligible(doc));
