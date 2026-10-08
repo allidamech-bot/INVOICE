@@ -24,9 +24,13 @@ Status: **PR #642, runtime QA pending**. Baseline is `main` after #641, with no 
 - Existing authorization limits new invoice preparation and the repeat create/open action to roles capable of document issuance: owner, admin, sales and finance.
 - Partial invoice drafts retain the same approved customer payment-term preset and due-date calculation as ordinary quotation-to-invoice conversion; this is important for accurate receivables aging.
 - The delivery→invoice creation event is append-only, even across two-device vault merges. Offline attempts to delete or rewrite the evidence must fail closed.
-- The accepted Sales Order review now shows delivered/remaining quantities per SKU line, confirmed deliveries, invoices in draft/final state, issued net receivables, credits, collections and outstanding balances from canonical payments. Draft invoices are **not** receivables.
+- The accepted Sales Order review now shows delivered/remaining quantities per SKU line, confirmed deliveries, invoices in draft/final state, issued net receivables, credits, collections and outstanding balances from canonical payments. Draft invoices are **not** receivables. The per-item detail is collapsed by default to preserve phone-screen density.
 - Delivery-linked invoices cannot be deleted, duplicated or directly voided, because the physical delivery evidence must remain traceable. Correct issued invoices through the existing Credit Note process; dedicated cancel/replacement is deferred to an explicitly audited future workflow.
 - Nothing in the operation automatically decrements stock, posts an inventory cost, creates a payment, settles VAT or publishes an invoice. It does not create a general ledger.
+
+### Release verification contract
+
+The complete local signoff must be recorded against the final PR head with **Node.js 24.x**: `npm ci`, `npm install --no-save --package-lock=false playwright@1.55.0`, `npx playwright install chromium webkit`, `git fetch origin main`, then `node scripts/verify-local.mjs`. It must pass TypeScript, build, Node contracts, mobile Chromium/WebKit QA and security checks. Static source inspections and draft previews alone are **not** signoff.
 
 ## Evidence and follow-up
 
