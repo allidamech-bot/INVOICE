@@ -2,7 +2,7 @@ import type {SavedItem, VaultPayload} from '../types.js';
 import {isNonNegativeDecimalInput, normalizeDecimalInput} from './money.js';
 import {normalizeSavedItemIdentity, normalizeSavedItemSku} from './saved-items.js';
 
-export const AI_BULK_PRODUCT_LIMIT=40;
+export const AI_BULK_PRODUCT_LIMIT=120;
 export type AiBulkProductPatch=Partial<Pick<SavedItem,'sku'|'category'|'lastUnitPrice'|'lastCurrency'>>;
 export interface AiBulkProductPreview{
   itemId:string;
@@ -63,7 +63,7 @@ function resolve(existing:SavedItem[],ref:Record<string,unknown>):SavedItem{
 }
 export function prepareAiBulkProductUpdate(vault:VaultPayload,requested:unknown):AiBulkProductBatch{
   if(!Array.isArray(requested)||!requested.length||requested.length>AI_BULK_PRODUCT_LIMIT)
-    throw new Error('Provide 1–40 explicit product edits per approval.');
+    throw new Error('Provide 1–120 explicit product edits per approval.');
   const workspaceId=vault.appSettings.activeWorkspaceId||DEFAULT_WORKSPACE_ID;
   const existing=vault.savedItems.filter(item=>workspaceOf(item)===workspaceId);
   const seen=new Set<string>();
