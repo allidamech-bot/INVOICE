@@ -18,7 +18,7 @@ export function parseAiProductGroupPriceIntent(message:string):AiProductGroupPri
   if(!s||s.length>400||failNegated(s)||/%|٪/.test(s))return null;
   const currency='(?:usd|sar|eur|try|dollars?|riyals?|euro|lira|دولار|ريال|يورو|ليرة)';
   const en=new RegExp('(set|change|update)\\s+(?:the\\s+)?(?:price\\s+(?:of|for)\\s+)?([a-z][a-z0-9\\s-]{1,48}?)\\s+(\\d{1,4})\\s*(?:g|gr|grams?)\\s+(?:price\\s+)?(?:to|at|=)\\s*(\\d+(?:[.,]\\d{1,2})?)\\s*('+currency+')?','iu');
-  const ar=new RegExp('(?:خلي|خلّي|اجعل|غير|غيّر|عدل|عدّل)\\s+(?:سعر\\s+)?([\\p{L}\\p{N}\\s-]{2,52}?)\\s+(\\d{1,4})\\s*(?:غرام|جرام|g|gr)\\s+(?:السعر\\s+|سعرها\\s+|بسعر\\s+|إلى\\s+|الى\\s+|يكون\\s+|=\\s*)?(\\d+(?:[.,]\\d{1,2})?)\\s*('+currency+')?','iu');
+  const ar=new RegExp('(خلي|خلّي|اجعل|غير|غيّر|عدل|عدّل)\\s+(?:سعر\\s+)?([\\p{L}\\p{N}\\s-]{2,52}?)\\s+(\\d{1,4})\\s*(?:غرام|جرام|g|gr)\\s+(?:السعر\\s+|سعرها\\s+|بسعر\\s+|إلى\\s+|الى\\s+|يكون\\s+|=\\s*)?(\\d+(?:[.,]\\d{1,2})?)\\s*('+currency+')?','iu');
   const m=en.exec(s)||ar.exec(s);
   if(!m)return null;
   const nameContains=m[2]!.replace(/^(?:all|the|كل|جميع|مجموعة|أصناف|اصناف)\s+/iu,'').trim();
