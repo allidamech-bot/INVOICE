@@ -1,0 +1,62 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {formatAiDocumentCreationPreview,formatAiDocumentUpdatePreview} from '../dist/src/lib/ai-document-preview.js';
+import {emptyVault} from '../dist/src/lib/defaults.js';
+import {createAiToolRuntime,executeAiToolPlan} from '../dist/src/lib/ai-tool-orchestrator.js';
+const line=(name,qty,price)=>({savedItemId:'',descriptionEn:name,descriptionAr:'',quantity:String(qty),unit:'CTN',unitPrice:String(price)});
+test('B06: every prepared quotation/invoice line and its quantity/price is shown before saving',()=>{
+ const proposal={kind:'proforma',currency:'USD',language:'bilingual',customerId:'customer-123',customerDraft:null,items:[line('Snickers 50g','15','12.50'),line('Mars 50g','2','9.75'),line('Red Bull 250ml','4','30.00')],paymentTerms:'Net 30',incoterm:'CIF'};
+ const output=formatAiDocumentCreationPreview(proposal,'en');
+ assert.match(output,/customer-123/);
+ assert.match(output,/Snickers 50g \| Qty: 15 CTN \| Unit price: 12.50/);
+ assert.match(output,/Mars 50g \| Qty: 2 CTN \| Unit price: 9.75/);
+ assert.match(output,/Red Bull 250ml \| Qty: 4 CTN \| Unit price: 30.00/);
+ assert.match(output,/Payment terms: Net 30/);
+ assert.match(output,/Incoterm: CIF/);
+ assert.match(output,/Explicit approval required/);
+ const ar=formatAiDocumentCreationPreview({...proposal,kind:'invoice'},'ar');
+ assert.match(ar,/مسودة فاتورة/);
+ assert.match(ar,/سعر الوحدة/);
+ assert.match(ar,/Snickers 50g/);
+});
+test('B06: preview never drops a large or invalid prepared document',()=>{
+ const p={kind:'invoice',currency:'USD',language:'en',customerId:'client',items:Array.from({length:20},(_,i)=>line('Item '+i,i+1,'1.50'))};
+ const result=formatAiDocumentCreationPreview(p,'en');
+ assert.match(result,/Item 19/);
+ assert.equal(result.split('Unit price:').length-1,20);
+ assert.throws(()=>formatAiDocumentCreationPreview({...p,items:[...p.items,line('Item 20',21,'1') ]},'en'),/1–20/);
+ assert.throws(()=>formatAiDocumentCreationPreview({...p,items:[]},'en'),/1–20/);
+});
+test('B06: proposed invoice/quotation edits list every added/changed item and term',()=>{
+ const p={documentId:'doc-XYZ',addItems:[line('Milk 1L',3,'9'),line('Coffee 250g',8,'11.50')],itemEdits:[{itemId:'line-2',quantity:'10',unitPrice:'7.50'},{itemId:'line-4',descriptionEn:'Updated cracker'}],termsPatch:{incoterm:'FOB',paymentTerms:'50% advance'},notes:'Client requested fast dispatch'};
+ const en=formatAiDocumentUpdatePreview(p,'en');
+ assert.match(en,/doc-XYZ/);
+ assert.match(en,/Milk 1L/);
+ assert.match(en,/Coffee 250g/);
+ assert.match(en,/line-2 → quantity: 10; unitPrice: 7.50/);
+ assert.match(en,/line-4 → descriptionEn: Updated cracker/);
+ assert.match(en,/50% advance/);
+ assert.match(en,/Client requested fast dispatch/);
+ const ar=formatAiDocumentUpdatePreview(p,'ar');
+ assert.match(ar,/تعديلات الأصناف/);
+ assert.throws(()=>formatAiDocumentUpdatePreview({...p,addItems:Array(21).fill(line('A',1,1))},'en'),/safe row limits/);
+ assert.throws(()=>formatAiDocumentUpdatePreview({...p,itemEdits:Array(31).fill({itemId:'A'})},'en'),/safe row limits/);
+});
+test('B06: actual component uses full document previews and plan refuses row truncation',async()=>{
+ const component=await readFile('src/components/AiCopilot.tsx','utf8');
+ const orchestrator=await readFile('src/lib/ai-tool-orchestrator.ts','utf8');
+ assert.match(component,/formatAiDocumentCreationPreview\(proposal,this\.props\.language\)/);
+ assert.match(component,/formatAiDocumentUpdatePreview\(\{\.\.\.proposal/);
+ assert.match(orchestrator,/No rows were silently dropped/);
+ assert.match(orchestrator,/No edits were omitted/);
+});
+test('B06: tool plan refuses a 21-item AI-created invoice instead of truncating to 20',()=>{
+ const v=emptyVault(),context={assistantRuntime:{scope:'business',workspaceId:'default',branchId:'default'}};
+ const runtime=createAiToolRuntime(v,context);
+ const plan={version:1,goal:'Create complete document',calls:[{id:'one',tool:'document.createDraft',args:{kind:'invoice',items:Array.from({length:21},(_,i)=>line('Item '+i,1,'12.00'))},reason:'Exact requested file contents'}]};
+ const result=executeAiToolPlan(runtime,plan);
+ assert.equal(result.proposal,null);
+ assert.equal(result.results[0].ok,false);
+ assert.match(result.results[0].summary,/over 20 rows/);
+});
