@@ -45,7 +45,8 @@ export function createLinkedDeliveryDraft(vault:VaultPayload,sourceId:string):{v
   const numbered=nextDocumentNumber(vault,'delivery-note');
   const base=createBlankDocument('delivery-note',numbered.number,vault.company);
   const balances=salesOrder?new Map(salesDeliveryBalances(salesOrder,vault.documentEvents).map(line=>[line.salesOrderLineId,line.remaining])):null;
-  const committedItems=sourceQuotation?.items??source.items;
+  // Preserve legacy invoice-based deliveries when no accepted Sales Order exists.
+  const committedItems=salesOrder?(sourceQuotation?.items??source.items):source.items;
   const linkedPairs=committedItems.flatMap(item=>{
     const remaining=balances?.get(item.id);
     if(salesOrder&&(!remaining||decimalToScaled(remaining,4)<=0n))return[];
