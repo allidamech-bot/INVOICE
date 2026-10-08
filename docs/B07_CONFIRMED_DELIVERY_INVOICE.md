@@ -16,6 +16,7 @@ Status: **PR #642, runtime QA pending**. Baseline is `main` after #641, with no 
 ## Deterministic controls
 
 - Exact immutable source: confirmed proof reference, DN number/version, accepted quotation and Sales Order IDs, customer, currency, mapped line IDs and quantities.
+- The invoice event currency, source Sales Order currency, physical delivery customer/currency and legal buyer name/VAT/commercial registration are cross-checked against the accepted quotation snapshot, preventing a false customer or currency association.
 - Repeat request opens the same invoice; two offline concurrent creations for one DN are rejected on vault merge.
 - The invoice cannot silently change confirmed quantities, line identity, accepted unit price, accepted customer or currency. Invoice creation and alteration are checked against immutable local event evidence.
 - Unconfirmed, draft, voided or tampered source Delivery Notes are rejected.
@@ -38,7 +39,7 @@ Delivery-invoice creation evidence remains a structured, immutable document even
 
 ## Evidence and follow-up
 
-- New contract test: `tests/b07-confirmed-delivery-invoice.test.mjs` (19 scenarios), including isolated partial/full receivables settlement, role bypass checks, chronology, and source reference tampering.
+- New contract test: `tests/b07-confirmed-delivery-invoice.test.mjs` (21 scenarios), including isolated partial/full receivables settlement, role bypass checks, chronology, and source reference tampering.
 - Changes: `sales-delivery-invoice.ts`, `sales-order-progress.ts`, serialized App mutation, DocumentsPage, SalesOrderReview and SalesDeliveryReview, vault merge and regression tests.
 - Static source contract audit completed; no full Node 24 / npm typecheck, build or Playwright run has been performed in this execution environment. **Do not merge #642 or claim functionality tested until real local QA is available.**
 - Local QA: on the final PR HEAD run `node scripts/verify-local.mjs` after installing Node 24, dependencies and Playwright Chromium/WebKit. See `docs/LOCAL_VERIFICATION_NO_ACTIONS.md`.
