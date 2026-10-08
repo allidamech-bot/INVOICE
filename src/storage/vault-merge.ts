@@ -448,6 +448,24 @@ function mergeAppSettings(base:AppSettings,intended:AppSettings,latest:AppSettin
   return next;
 }
 
+// A payment already allocated to an active cash/bank entry cannot be edited or
+// deleted independently. Void/correct its treasury allocation first, preserving
+// the financial audit trail and preventing orphaned source references.
+function guardAllocatedPaymentChanges<T extends {id:string}>(
+  base:T[],intended:T[],entries:VaultPayload['treasuryEntries'],
+  sourceType:'customer-payment'|'supplier-payment',label:string
+):void{
+  if(intended===base)return;
+  const wanted=new Map(intended.map(row=>[row.id,row]));
+  for(const before of base){
+    const after=wanted.get(before.id);
+    if(after&&sameRecord(before,after))continue;
+    if(entries.some(entry=>!entry.voidedAt&&entry.sourceType===sourceType&&entry.sourceId===before.id)){
+      throw new Error(`${label} has an active linked treasury entry. Void or correct that entry before changing the payment.`);
+    }
+  }
+}
+
 export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:VaultPayload):VaultPayload{
   const customers=mergeRecords(base.customers,intended.customers,latest.customers);
   const savedItems=mergeRecords(base.savedItems,intended.savedItems,latest.savedItems);
@@ -483,6 +501,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   const payments=mergeRecords(base.payments,intended.payments,latest.payments);
   guardConcurrentRecordChanges(base.supplierPayments,intended.supplierPayments,latest.supplierPayments,'Supplier payment','Reopen Supplier Payables before saving or deleting the payment.');
   const supplierPayments=mergeRecords(base.supplierPayments,intended.supplierPayments,latest.supplierPayments);
+  guardAllocatedPaymentChanges(base.payments,intended.payments,treasuryEntries,'customer-payment','Customer payment');
+  guardAllocatedPaymentChanges(base.supplierPayments,intended.supplierPayments,treasuryEntries,'supplier-payment','Supplier payment');
   guardCustomerChanges(base.customers,intended.customers,customers);
   guardSavedItemChanges(base.savedItems,intended.savedItems,savedItems);
   guardFinancialSettlementChanges(base,intended,documents,payments);
