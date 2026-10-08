@@ -111,3 +111,21 @@ test('B08.3: invalid cost evidence never appears as a trusted cost in editing or
   assert.match(center,/internal expense evidence is missing or invalid/);
   assert.match(reports,/Cost evidence incomplete/);
 });
+
+test('B08.3: AI item-line profitability withholds margins when an invoice has invalid internal expenses',()=>{
+  const {vault}=invalidCostFixture();
+  const ctx=buildAiFinanceContext({
+    documents:vault.documents,payments:vault.payments,customers:vault.customers,activeDocument:null
+  },'product profitability',todayIso());
+  assert.ok(ctx.productLinePerformance);
+  assert.equal(ctx.productLinePerformance.basis,'item-lines-only');
+  assert.equal(ctx.productLinePerformance.hasUnallocatedDocumentAdjustments,true);
+  const row=ctx.productLinePerformance.rows.find(item=>item.name==='Widget');
+  assert.ok(row);
+  assert.equal(row.lineRevenue,'100.00');
+  assert.equal(row.missingCostItems,0);
+  assert.equal(row.profitComplete,false);
+  assert.equal(row.lineCost,'');
+  assert.equal(row.lineGrossProfit,'');
+  assert.equal(row.marginPercent,'');
+});
