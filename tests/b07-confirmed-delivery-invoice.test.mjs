@@ -277,6 +277,22 @@ test('Batch 7 — concurrent non-link event ID cannot overwrite remote invoice p
   assert.throws(()=>mergeVaultIntent(physical.vault,conflicting,final.vault),/event ID collides/);
 });
 
+test('Batch 7 — same-ID conflicting events in one offline upload cannot erase invoice creation',()=>{
+  const {vault,quote}=setup();
+  const delivered=confirmed(vault,quote,['4','1'],'POD-LOCAL-DUP');
+  const result=createConfirmedDeliveryInvoiceDraft(delivered.vault,delivered.note.id);
+  const marker='@lourex:sales-order:delivery-invoice:v1:';
+  const link=result.vault.documentEvents.find(event=>event.note.startsWith(marker));
+  assert.ok(link);
+  const unrelated={...link,note:'Unrelated event replacing invoice proof',type:'audit'};
+  const altered={...result.vault,documentEvents:[...result.vault.documentEvents,unrelated]};
+  assert.throws(()=>assertDeliveryInvoiceLedgerContinuity(
+    delivered.vault.documentEvents,altered.documentEvents,delivered.vault.documentEvents
+  ),/Conflicting duplicate IDs/);
+  assert.throws(()=>mergeVaultIntent(delivered.vault,altered,delivered.vault),
+    /Conflicting duplicate IDs/);
+});
+
 test('Batch 7 — only authorized owner/admin/sales/finance operators may prepare an invoice',()=>{
   const {vault,quote}=setup(),a=confirmed(vault,quote);
   const owner=defaultOwnerMember();
