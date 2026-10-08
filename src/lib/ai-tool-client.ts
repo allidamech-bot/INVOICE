@@ -119,6 +119,10 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
     }
     plan=validateAiToolPlan(payload?.plan,runtime.scope);
     if(!plan||!plan.calls.length)return actionRequested?aiPlanningUnavailableResult(input.message,input.language,'invalid'):null;
+    // Catalog-wide transformations are authorized ONLY by the deterministic
+    // interpretation of an explicit user message, never by model or file text.
+    if(plan.calls.some(call=>call.tool==='product.bulkUpdate'&&Object.hasOwn(call.args,'transform')))
+      return aiPlanningUnavailableResult(input.message,input.language,'invalid');
     if(hasSources){
       const allowed=new Map(aiToolPlannerCatalog(runtime.scope).map(def=>[def.id,def.class]));
       const writes=plan.calls.some(call=>allowed.get(call.tool)==='execute'||allowed.get(call.tool)==='high-impact');
