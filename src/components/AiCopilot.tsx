@@ -183,6 +183,14 @@ export class AiCopilot extends React.Component<Props,State>{
       if(target)context.drafting.activeDocument=draftReference(resumed.vault,message,target).activeDocument;
     }
     if(pendingDocumentProposal){
+      const activeWorkspace=resumed.vault.appSettings.activeWorkspaceId||'default';
+      const preparedItems=pendingDocumentProposal.capability==='document.createDraft'?pendingDocumentProposal.items:pendingDocumentProposal.addItems;
+      for(const item of preparedItems){
+        if(!item.savedItemId||context.drafting.items.some(ref=>ref.id===item.savedItemId))continue;
+        const stored=resumed.vault.savedItems.find(row=>row.id===item.savedItemId&&(row.workspaceId||'default')===activeWorkspace&&!aiProductArchived(row));
+        if(!stored)continue;
+        context.drafting.items.push({id:stored.id,name:(stored.descriptionEn||stored.descriptionAr||stored.sku||'Item').trim(),sku:stored.sku||'',descriptionEn:stored.descriptionEn,descriptionAr:stored.descriptionAr,unit:stored.unit||'',lastUnitPrice:stored.lastUnitPrice||'',lastCurrency:stored.lastCurrency||''});
+      }
       const staged=reviseAiPendingDocumentDraft(pendingDocumentProposal,message,context.drafting,this.props.language);
       if(staged){
         if(!this.currentRequest(generation,controller))return;
