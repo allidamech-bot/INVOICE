@@ -4,6 +4,8 @@ import { createDocumentEvent } from './document-lifecycle.js';
 import { makeId } from './id.js';
 import { t } from './i18n.js';
 import { salesOrderForQuotation, assertSalesOrderIntegrity } from './sales-order-flow.js';
+import { confirmedSalesDeliveries, salesDeliveryBalances, type SalesDeliveryMapping } from './sales-delivery-flow.js';
+import { decimalToScaled } from './money.js';
 
 export function deliverySourceEligible(source:LourexDocument):boolean{
   return source.role==='standard'&&source.status==='final'&&source.lifecycleStatus!=='voided'&&['proforma','proforma-invoice','invoice'].includes(source.kind);
@@ -27,19 +29,42 @@ export function deliverySource(delivery:LourexDocument,documents:LourexDocument[
 export function createLinkedDeliveryDraft(vault:VaultPayload,sourceId:string):{vault:VaultPayload;document:LourexDocument;created:boolean}{
   const source=vault.documents.find(doc=>doc.id===sourceId);
   if(!source||!deliverySourceEligible(source))throw new Error(t('Delivery requires an active issued quotation or invoice.','يتطلب التسليم عرض سعر أو فاتورة صادرة وسارية.'));
-  const existing=linkedDeliveries(source,vault.documents,vault.documentEvents).find(doc=>doc.lifecycleStatus!=='voided');
-  if(existing)return{vault,document:existing,created:false};
+  const active=linkedDeliveries(source,vault.documents,vault.documentEvents).filter(doc=>doc.lifecycleStatus!=='voided');
   if(Object.keys(validateDocument(source)).length)throw new Error(t('The source document must be valid before creating a delivery draft.','يجب أن يكون المستند المصدر صالحًا قبل إنشاء مسودة التسليم.'));
   const sourceQuotation=source.kind==='invoice'&&source.convertedFromId
     ?vault.documents.find(doc=>doc.id===source.convertedFromId):source;
   const salesOrder=sourceQuotation?salesOrderForQuotation(sourceQuotation.id,vault.documentEvents):undefined;
-  if(salesOrder)assertSalesOrderIntegrity(vault.documents,vault.documentEvents);
+  if(salesOrder){
+    assertSalesOrderIntegrity(vault.documents,vault.documentEvents);
+    const pending=active.find(doc=>!confirmedSalesDeliveries(doc.id,vault.documentEvents).length);
+    if(pending)return{vault,document:pending,created:false};
+    if(salesDeliveryBalances(salesOrder,vault.documentEvents).every(line=>decimalToScaled(line.remaining,4)<=0n)){
+      throw new Error(t('All Sales Order quantities are already confirmed delivered.','تم تأكيد تسليم جميع كميات أمر البيع.'));
+    }
+  }else if(active[0])return{vault,document:active[0],created:false};
   const numbered=nextDocumentNumber(vault,'delivery-note');
   const base=createBlankDocument('delivery-note',numbered.number,vault.company);
+  const balances=salesOrder?new Map(salesDeliveryBalances(salesOrder,vault.documentEvents).map(line=>[line.salesOrderLineId,line.remaining])):null;
+  const committedItems=sourceQuotation?.items??source.items;
+  const linkedItems=committedItems.flatMap(item=>{
+    const remaining=balances?.get(item.id);
+    if(salesOrder&&(!remaining||decimalToScaled(remaining,4)<=0n))return[];
+    return [{...item,id:makeId('item'),quantity:remaining??item.quantity,unitPrice:'',unitCost:''}];
+  });
+  const mapping:SalesDeliveryMapping|undefined=salesOrder?{
+    quotationId:salesOrder.quotationId,salesOrderNumber:salesOrder.salesOrderNumber,
+    lines:linkedItems.map(item=>({
+      salesOrderLineId:committedItems.find(sourceItem=>sourceItem.descriptionEn===item.descriptionEn
+        &&sourceItem.descriptionAr===item.descriptionAr&&sourceItem.unit===item.unit)?.id||'',
+      deliveryLineId:item.id
+    }))
+  }:undefined;
+  if(mapping?.lines.some(line=>!line.salesOrderLineId))throw new Error(t('Cannot map delivery items to the Sales Order.','تعذر ربط أصناف التسليم بأمر البيع.'));
   const document:LourexDocument={...base,currency:source.currency,language:source.language,customerSnapshot:structuredClone(source.customerSnapshot),
-    items:source.items.map(item=>({...item,id:makeId('item'),unitPrice:'',unitCost:''})),
+    items:linkedItems,
     terms:{...base.terms,incoterm:source.terms.incoterm,packing:source.terms.packing,deliveryTime:source.terms.deliveryTime,portOfLoading:source.terms.portOfLoading,finalDestination:source.terms.finalDestination,countryOfOrigin:source.terms.countryOfOrigin,
       remarks:salesOrder?(source.language==='ar'?`تسليم مقابل أمر البيع ${salesOrder.salesOrderNumber}`:source.language==='bilingual'?`Delivery against Sales Order ${salesOrder.salesOrderNumber} / تسليم مقابل أمر البيع ${salesOrder.salesOrderNumber}`:`Delivery against Sales Order ${salesOrder.salesOrderNumber}`):source.language==='ar'?`تسليم مقابل ${source.number}`:source.language==='bilingual'?`Delivery against ${source.number} / تسليم مقابل ${source.number}`:`Delivery against ${source.number}`}};
-  const documentEvents=[...vault.documentEvents,createDocumentEvent(document,'created',salesOrder?`@lourex:sales-order:delivery-draft:v1:${salesOrder.salesOrderNumber}`:'',source)];
+  const documentEvents=[...vault.documentEvents,createDocumentEvent(document,'created',mapping
+    ?'@lourex:sales-order:delivery-draft:v2:'+JSON.stringify(mapping):'',source)];
   return{vault:{...numbered.vault,documents:[...vault.documents,document],documentEvents},document,created:true};
 }
