@@ -15,6 +15,7 @@ import { assertGoodsReceiptIntegrity } from '../lib/goods-receipt-flow.js';
 import { assertSupplierInvoiceIntegrity } from '../lib/supplier-invoice-flow.js';
 import { assertMatchedSupplierInvoicePostingIntegrity } from '../lib/supplier-invoice-posting.js';
 import { assertSalesOrderIntegrity } from '../lib/sales-order-flow.js';
+import { assertSalesDeliveryIntegrity } from '../lib/sales-delivery-flow.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -540,6 +541,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   assertGoodsReceiptIntegrity(documents,documentEvents);
   assertSupplierInvoiceIntegrity(documents,documentEvents);
   assertSalesOrderIntegrity(documents,documentEvents);
+  assertSalesDeliveryIntegrity(documents,documentEvents);
   assertMatchedSupplierInvoicePostingIntegrity({documents,documentEvents,purchases,inventoryMovements});
   return {
     ...latest,
