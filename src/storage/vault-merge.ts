@@ -11,6 +11,7 @@ import { assertRecurringWorkflow } from '../lib/recurring-workflows.js';
 import { assertTreasuryAccount, assertTreasuryEntry } from '../lib/treasury-ledger.js';
 import { assertFxRate } from '../lib/fx-rates.js';
 import { defaultWarehouseId, validateWarehouse, warehouseItemQuantity } from '../lib/warehouses.js';
+import { assertGoodsReceiptIntegrity } from '../lib/goods-receipt-flow.js';
 
 function sameArray(a: readonly string[], b: readonly string[]): boolean {
   return a.length===b.length && a.every((value,index)=>value===b[index]);
@@ -532,6 +533,8 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
   guardFinancialSettlementChanges(base,intended,documents,payments);
   guardOperationsChanges(base,intended,latest,suppliers,purchases,expenses,inventoryMovements,savedItems);
   assertSupplierPaymentInvariant(purchases,suppliers,supplierPayments);
+  const documentEvents=mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents);
+  assertGoodsReceiptIntegrity(documents,documentEvents);
   return {
     ...latest,
     schemaVersion:Math.max(latest.schemaVersion,intended.schemaVersion),
@@ -554,7 +557,7 @@ export function mergeVaultIntent(base:VaultPayload,intended:VaultPayload,latest:
     approvalRequests,
     recurringWorkflows,
     documents,
-    documentEvents:mergeRecords(base.documentEvents,intended.documentEvents,latest.documentEvents),
+    documentEvents,
     documentRevisions:mergeRecords(base.documentRevisions,intended.documentRevisions,latest.documentRevisions),
     payments,
     savedItems,
