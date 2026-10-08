@@ -6,7 +6,8 @@ import { createBlankDocument, validateDocument } from '../dist/src/lib/documents
 import { createSupplier, supplierSnapshotFrom } from '../dist/src/lib/operations.js';
 import { createLinkedPurchaseOrderDraft } from '../dist/src/lib/procurement-flow.js';
 import { acceptSupplierQuotation } from '../dist/src/lib/supplier-quotation-flow.js';
-import { confirmGoodsReceipt, confirmedGoodsReceipts, goodsReceiptBalances } from '../dist/src/lib/goods-receipt-flow.js';
+import { confirmGoodsReceipt, confirmedGoodsReceipts, goodsReceiptBalances, assertGoodsReceiptIntegrity } from '../dist/src/lib/goods-receipt-flow.js';
+import { mergeVaultIntent } from '../dist/src/storage/vault-merge.js';
 import { defaultOwnerMember } from '../dist/src/lib/governance.js';
 import { todayIso } from '../dist/src/lib/id.js';
 
@@ -121,4 +122,28 @@ test('Batch7 GRN: visible purchase-order review uses serialized mutation bridge'
   assert.match(docs,/GoodsReceiptReview order=\{doc\}/);
   assert.match(panel,/this\.state\.confirmed/);
   assert.match(panel,/t\('Goods Receipts \(GRN\)','استلام البضاعة \(GRN\)'\)/);
+});
+
+test('Batch7 GRN: concurrent offline receipts beyond ordered quantity are blocked on vault merge',()=>{
+  const {vault,order}=fixture();
+  const left=confirmGoodsReceipt(vault,input(order,['7','0'],'GRN-L')).vault;
+  const right=confirmGoodsReceipt(vault,input(order,['7','0'],'GRN-R')).vault;
+  assert.equal(goodsReceiptBalances(order,left.documentEvents)[0].remaining,'5.5');
+  assert.equal(goodsReceiptBalances(order,right.documentEvents)[0].remaining,'5.5');
+  assert.throws(()=>mergeVaultIntent(vault,left,right),/Concurrent receipts exceed ordered quantity/);
+  const within=confirmGoodsReceipt(vault,input(order,['5','0'],'GRN-R')).vault;
+  const combined=mergeVaultIntent(vault,left,within);
+  assert.deepEqual(goodsReceiptBalances(order,combined.documentEvents).map(x=>x.remaining),['0.5','6']);
+  assert.doesNotThrow(()=>assertGoodsReceiptIntegrity(combined.documents,combined.documentEvents));
+});
+
+test('Batch7 GRN: duplicate cross-device references and mismatched PO units are rejected',()=>{
+  const {vault,order}=fixture();
+  const left=confirmGoodsReceipt(vault,input(order,['5','0'],'Same-Ref')).vault;
+  const other=confirmGoodsReceipt(vault,input(order,['3','0'],'same-ref')).vault;
+  assert.throws(()=>mergeVaultIntent(vault,left,other),/Duplicate goods receipt reference/);
+  const changed={...left,documents:left.documents.map(doc=>doc.id===order.id?{...doc,items:doc.items.map((item,i)=>i===0?{...item,unit:'PCS'}:item)}:doc)};
+  assert.throws(()=>assertGoodsReceiptIntegrity(changed.documents,changed.documentEvents),/mismatched PO lines/);
+  const missing=left.documents.filter(doc=>doc.id!==order.id);
+  assert.throws(()=>assertGoodsReceiptIntegrity(missing,left.documentEvents),/was removed/);
 });
