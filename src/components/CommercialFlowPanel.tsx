@@ -2,6 +2,7 @@ import type { DocumentEventRecord, LourexDocument } from '../types.js';
 import { buildCommercialFlowSnapshot, commercialStatusLabel, commercialTrackingEventKind, commercialTrackingEventPayload, type CommercialTrackingEventKind, isQuoteLikeDocument, validatedCommercialTrackingEvent } from '../lib/commercial-flow.js';
 import { displayDate, todayIso } from '../lib/id.js';
 import { getUiLanguage, isArabic, t } from '../lib/i18n.js';
+import { documentEventDisplayNote } from '../lib/document-event-display.js';
 import { documentKindLabel } from '../lib/document-kinds.js';
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { Button, Icon, Input, Modal, Textarea } from './UI.js';
@@ -41,10 +42,7 @@ function eventLabel(event:DocumentEventRecord):string{
 }
 
 function eventNote(event:DocumentEventRecord):string{
-  // Persist structured evidence unchanged, but never expose its internal JSON in the customer-facing timeline.
-  if(event.note.startsWith('@lourex:sales-order:delivery-invoice:v1:'))
-    return t('Invoice prepared from confirmed delivery.','تم تجهيز الفاتورة من تسليم مؤكد.');
-  return commercialTrackingEventKind(event)?commercialTrackingEventPayload(event):event.note;
+  return commercialTrackingEventKind(event)?commercialTrackingEventPayload(event):documentEventDisplayNote(event.note);
 }
 
 export function CommercialFlowPanel({document,documents,events,onOpenDocument,onCommercialEvent}:Props):any{
