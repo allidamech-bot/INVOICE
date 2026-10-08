@@ -12,13 +12,14 @@ import {
   createConfirmedDeliveryInvoiceDraft, linkedDeliveryInvoice, invoiceSourceDelivery, assertDeliveryInvoiceIntegrity
 } from '../dist/src/lib/sales-delivery-invoice.js';
 import {mergeVaultIntent} from '../dist/src/storage/vault-merge.js';
-import {todayIso} from '../dist/src/lib/id.js';
+import {todayIso,addDaysIso} from '../dist/src/lib/id.js';
 import {defaultOwnerMember} from '../dist/src/lib/governance.js';
 import {normalizePaymentRecord,invoicePaymentSummary,assertInvoicePaymentInvariant} from '../dist/src/lib/payments.js';
 import {salesOrderInvoiceProgress} from '../dist/src/lib/sales-order-progress.js';
 
-function setup(){
+function setup(defaultPaymentTermPresetId=''){
   const v=emptyVault(),now=new Date().toISOString();
+  if(defaultPaymentTermPresetId)v.company.commercial.defaultPaymentTermPresetId=defaultPaymentTermPresetId;
   const customer={id:'customer-inv-01',companyNameEn:'Riyadh FMCG',companyNameAr:'شركة الرياض',
     contactPerson:'Buyer',addressEn:'Riyadh',addressAr:'الرياض',city:'Riyadh',country:'Saudi Arabia',
     phone:'',email:'',vatTaxNumber:'',commercialRegistration:'',createdAt:now,updatedAt:now};
@@ -67,6 +68,16 @@ test('Batch 7 — exact partially delivered lines become unissued invoice draft,
     assert.deepEqual(result.vault[key],a.vault[key],key+' must remain untouched');
   }
   assert.doesNotThrow(()=>assertDeliveryInvoiceIntegrity(result.vault.documents,result.vault.documentEvents));
+});
+test('Batch 7 — invoice inherits normal Net 30 customer receivable due date',()=>{
+  const {vault,quote}=setup('term-net30');
+  const receipt=confirmed(vault,quote,['4','1'],'POD-NET30');
+  const created=createConfirmedDeliveryInvoiceDraft(receipt.vault,receipt.note.id);
+  assert.equal(created.invoice.status,'draft');
+  assert.equal(created.invoice.paymentTermPresetId,'term-net30');
+  assert.equal(created.invoice.terms.paymentTerms,'Net 30');
+  assert.equal(created.invoice.dueDate,addDaysIso(created.invoice.issueDate,30));
+  assert.equal(created.invoice.items.length,2);
 });
 test('Batch 7 — repeated request reopens the SAME invoice draft without another number',()=>{
   const {vault,quote}=setup(),a=confirmed(vault,quote);
