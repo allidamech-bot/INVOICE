@@ -65,12 +65,13 @@ export class SalesOrderReview extends React.Component<Props,State>{
             {' · '}{t('Remaining','المتبقي')} <bdi>{line.remaining}</bdi> {order.lines[i]?.unit}
           </span>)}
           <span>{t('Confirmed delivery notes','سندات التسليم المؤكدة')}: <bdi>{progress.confirmedDeliveries}</bdi>
-            {' · '}{t('Not invoiced','لم تُفوتر')}: <bdi>{progress.unbilledDeliveries}</bdi>
+            {' · '}{t('No invoice draft','دون مسودة فاتورة')}: <bdi>{progress.unbilledDeliveries}</bdi>
           </span>
           <span>{t('Invoice drafts (not receivables)','مسودات الفواتير (ليست مستحقات)')}: <bdi>{progress.invoiceDrafts}</bdi>
             {' · '}{t('Issued invoices','فواتير صادرة')}: <bdi>{progress.invoicesIssued}</bdi>
           </span>
           <span>{t('Issued net of credits','صافي الفواتير بعد الإشعارات الدائنة')}: <bdi>{formatMoney(progress.netIssued,progress.currency)}</bdi>
+            {' · '}{t('Credits','الإشعارات الدائنة')}: <bdi>{formatMoney(progress.credits,progress.currency)}</bdi>
             {' · '}{t('Collected','المحصّل')}: <bdi>{formatMoney(progress.collected,progress.currency)}</bdi>
             {' · '}{t('Outstanding','المتبقي للتحصيل')}: <bdi>{formatMoney(progress.outstanding,progress.currency)}</bdi>
           </span>
