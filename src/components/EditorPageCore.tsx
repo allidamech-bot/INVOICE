@@ -1,6 +1,7 @@
 import { ContextualAdvisorAction } from './ContextualAdvisorAction.js';
 import { normalizeWatermark } from '../lib/document-extras.js';
-import type { AppSettings, CompanySettings, Customer, DocumentItem, LourexDocument, PaymentRecord, PaymentTermPreset, SavedItem, Supplier, TemplateId } from '../types.js';
+import type { AppSettings, CompanySettings, Customer, DocumentEventRecord, DocumentItem, LourexDocument, PaymentRecord, PaymentTermPreset, SavedItem, Supplier, TemplateId } from '../types.js';
+import { isDeliveryLinkedInvoice } from '../lib/sales-delivery-invoice.js';
 import { calculateTotals, decimalToScaled, formatMoney, isDecimalInput, lineTotal } from '../lib/money.js';
 import { customerSnapshotFrom } from '../lib/defaults.js';
 import { emptyItem, refreshCompanySnapshot, validateDocument } from '../lib/documents.js';
@@ -33,7 +34,7 @@ function EditorDateInput(props:{value:string;label:string;onChange:(value:string
 }
 
 interface Props {
-  document:LourexDocument; documents:LourexDocument[]; customers:Customer[]; suppliers:Supplier[]; company:CompanySettings; savedItems:SavedItem[]; payments:PaymentRecord[]; smartDefaults:AppSettings['smartDefaults'];
+  document:LourexDocument; documents:LourexDocument[]; documentEvents?:DocumentEventRecord[]; customers:Customer[]; suppliers:Supplier[]; company:CompanySettings; savedItems:SavedItem[]; payments:PaymentRecord[]; smartDefaults:AppSettings['smartDefaults'];
   onEditActivity?:()=>void; onClose:()=>void; onSave:(doc:LourexDocument,auto?:boolean)=>Promise<void>; onSaveCustomer:(customer:Customer)=>Promise<void>;
   onSaveSavedItem:(item:SavedItem)=>Promise<void>; onSaveDocumentItem:(item:DocumentItem,currency:string)=>Promise<void>; onUseSavedItems:(items:SavedItem[])=>Promise<void>; onDeleteSavedItem:(item:SavedItem)=>Promise<void>;
   onSaveSmartDefaults:(defaults:AppSettings['smartDefaults'])=>Promise<void>; onBeginRevision:(doc:LourexDocument)=>Promise<LourexDocument>; onConvert:(doc:LourexDocument)=>Promise<void>; onPrint:(doc:LourexDocument,mode:'print'|'pdf'|'share')=>Promise<void>;
@@ -322,7 +323,7 @@ export class EditorPage extends React.Component<Props,State>{
   private setCurrentTemplateDefault=()=>{const templateId=this.state.doc.appearance.templateId,kind=this.state.doc.kind;if(kind!=='invoice'&&kind!=='proforma'&&kind!=='proforma-invoice'&&kind!=='rfq')return;const smart=(kind==='proforma'||kind==='proforma-invoice'||kind==='rfq')?{...this.props.smartDefaults,quoteTemplateId:templateId}:{...this.props.smartDefaults,invoiceTemplateId:templateId};void this.saveTemplateDefaults(smart);};
 
   render():any{
-    const d=this.state.doc,errors=this.state.errors,totals=calculateTotals(d.items,d.adjustments),readiness=getDocumentReadiness(d),locked=d.status==='final',revisionAllowed=d.status==='final'&&d.lifecycleStatus!=='voided'&&d.role!=='credit-note';
+    const d=this.state.doc,errors=this.state.errors,totals=calculateTotals(d.items,d.adjustments),readiness=getDocumentReadiness(d),locked=d.status==='final',revisionAllowed=d.status==='final'&&d.lifecycleStatus!=='voided'&&d.role!=='credit-note'&&!isDeliveryLinkedInvoice(d.id,this.props.documentEvents??[]);
     const isPurchaseOrder=d.kind==='purchase-order';
     const isSupplierDocument=isSupplierDocumentKind(d.kind);
     const kindLabel=documentKindLabel(d.kind,d.role);
@@ -366,7 +367,7 @@ export class EditorPage extends React.Component<Props,State>{
         {!locked?<><div className="readiness-track"><span style={{width:`${readiness.percent}%`}}/></div><div className="readiness-groups">{readiness.groups.map(group=><span key={group.key} className={group.complete?'complete':''}><Icon name={group.complete?'check':'more'} size={14}/>{groupLabel(group.key)}</span>)}</div></>:null}
       </div>
 
-      {locked?<div className="final-lock-banner"><Icon name="lock" size={18}/><div><strong>{t('This document is Final','هذا المستند نهائي')}</strong><span>{t('Editing is disabled until you explicitly unlock it. PDF, print and share remain available.','التعديل متوقف حتى تقوم بفتحه صراحةً. PDF والطباعة والمشاركة ما زالت متاحة.')}</span></div><Button icon="edit" onClick={()=>this.setState({unlockConfirm:true})}>{t('Unlock for editing','فتح للتعديل')}</Button></div>:null}
+      {locked?<div className="final-lock-banner"><Icon name="lock" size={18}/><div><strong>{t('This document is Final','هذا المستند نهائي')}</strong><span>{t('Editing is disabled until you explicitly unlock it. PDF, print and share remain available.','التعديل متوقف حتى تقوم بفتحه صراحةً. PDF والطباعة والمشاركة ما زالت متاحة.')}</span></div>{revisionAllowed?<Button icon="edit" onClick={()=>this.setState({unlockConfirm:true})}>{t('Unlock for editing','فتح للتعديل')}</Button>:null}</div>:null}
       {errors.global?<div className="editor-global-error">{errors.global}</div>:null}
       {validationCount&&!locked?<div className="editor-validation-summary" role="alert"><span className="validation-dot"/><div><strong>{t('Complete the required information','أكمل البيانات الإلزامية')}</strong><span>{t('Required fields are highlighted below. Fix them, then save again.','تم تحديد الحقول المطلوبة بالأسفل. أكملها ثم اضغط حفظ مرة أخرى.')}</span></div><b>{validationCount}</b></div>:null}
 
