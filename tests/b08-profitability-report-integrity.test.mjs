@@ -128,3 +128,16 @@ test('B08: blank historical expense fields retain the accepted zero-cost semanti
   assert.equal(profit.totalCost,'40.00');
   assert.equal(profit.grossProfit,'160.00');
 });
+
+test('B08: management report and profitability editor warn when financial cost evidence is invalid',async()=>{
+  const [report,editor,dimensions]=await Promise.all([
+    readFile('src/components/ReportsPage.tsx','utf8'),
+    readFile('src/components/ProfitabilityPanel.tsx','utf8'),
+    readFile('src/components/ProfitabilityReports.tsx','utf8')
+  ]);
+  assert.match(report,/visibleSummaries\.some\(row=>!row\.profitComplete\)/);
+  assert.match(report,/Cost data is missing or invalid/);
+  assert.match(editor,/summary\.invalidInternalCostFields\?/);
+  assert.match(dimensions,/row\.missingCostItems>0\?/);
+  assert.match(dimensions,/Invalid internal expense data/);
+});
