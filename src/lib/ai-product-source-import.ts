@@ -53,6 +53,7 @@ function assertUnique(rows:SavedItem[],existing:SavedItem[]):void{
 export function requestedAiProductImport(message:string):boolean{
   const text=String(message||'').normalize('NFKC').toLowerCase().trim();
   if(text.length>500||!text)return false;
+  if(/(?:do not|don't|dont|never|without|no need to|preview only|review only|just show|only show)\s+(?:save|register|import|add|store|create|the|these|any)?|(?:لا\s*(?:تحفظ|تسجل|تسجّل|تضيف|تستورد)|بدون\s*(?:حفظ|تسجيل|إضافة|اضافة)|معاينة\s*فقط|للمراجعة\s*فقط|فقط\s*اعرض)/iu.test(text))return false;
   const action=/(?:save|register|import|add|store|حفظ|احفظ|سجل|سجّل|أضف|اضف|استورد|خزن)/iu.test(text);
   const product=/(?:product|items?|catalog|list|all of them|them|الأصناف|اصناف|المنتجات|منتجات|الكتالوج|القائمة|كلها|جميعها|هم)/iu.test(text);
   return action&&product;
