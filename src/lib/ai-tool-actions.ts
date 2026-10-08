@@ -1,10 +1,11 @@
 import { mutateVaultSafely } from '../storage/vault-mutation-bridge.js';
 import { applyAiBulkProductUpdate, type AiBulkProductBatch } from './ai-product-bulk-update.js';
+import {applyAiProductSourceImport,type AiProductSourceImportBatch} from './ai-product-source-import.js';
 import { resumeVaultSession } from '../storage/vault.js';
 import { createAssistantTask, updateAssistantTask, completeAssistantTask, deleteAssistantTask } from '../storage/assistant-task-store.js';
 import { createAssistantMemory, updateAssistantMemory, deleteAssistantMemory, setPersonalMemoryEnabled } from '../storage/assistant-memory-store.js';
 
-export interface GenericToolExecutionProposal{capability:'tool.execute';tool:'customer.update'|'supplier.update'|'product.bulkUpdate'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
+export interface GenericToolExecutionProposal{capability:'tool.execute';tool:'customer.update'|'supplier.update'|'product.bulkUpdate'|'product.importSource'|'task.create'|'task.update'|'task.complete'|'task.delete'|'memory.create'|'memory.update'|'memory.delete'|'memory.setEnabled';args:Record<string,unknown>;label:string;rationale:string;}
 
 function clean(value:unknown,max=160):string{return String(value??'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);}
 function patchObject(value:unknown):Record<string,unknown>{return value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};}
@@ -13,6 +14,12 @@ const CUSTOMER_FIELDS=[['companyNameEn',160],['companyNameAr',160],['contactPers
 const SUPPLIER_FIELDS=[['nameEn',160],['nameAr',160],['contactPerson',120],['address',240],['city',100],['country',100],['phone',60],['email',160],['vatTaxNumber',80],['commercialRegistration',80],['defaultCurrency',8],['paymentTerms',160],['notes',1000]] as const;
 
 export async function applyApprovedToolExecution(proposal:GenericToolExecutionProposal):Promise<{summary:string;id:string}>{
+  if(proposal.tool==='product.importSource'){
+    const batch=proposal.args as unknown as AiProductSourceImportBatch;
+    const next=await mutateVaultSafely(vault=>applyAiProductSourceImport(vault,batch));
+    if(batch.rows.some(row=>!next.savedItems.some(item=>item.id===row.item.id)))throw new Error('Approved imported products could not be verified. Review the catalog.');
+    return{summary:String(batch.rows.length)+' extracted products registered after explicit approval.',id:'imported-products-'+batch.rows.length};
+  }
   if(proposal.tool==='product.bulkUpdate'){
     const batch=proposal.args as unknown as AiBulkProductBatch;
     const next=await mutateVaultSafely(vault=>applyAiBulkProductUpdate(vault,batch));
