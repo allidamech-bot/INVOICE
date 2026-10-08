@@ -1,7 +1,7 @@
 import type {DocumentEventRecord, LourexDocument, VaultPayload} from '../types.js';
 import {convertToInvoice, nextDocumentNumber, validateDocument} from './documents.js';
 import {createDocumentEvent} from './document-lifecycle.js';
-import {makeId} from './id.js';
+import {isIsoDate, makeId} from './id.js';
 import {assertGovernancePermission} from './governance.js';
 import {decimalToScaled} from './money.js';
 import {t} from './i18n.js';
@@ -141,13 +141,14 @@ export function assertDeliveryInvoiceIntegrity(documents:LourexDocument[],events
     if(seenDeliveries.has(record.deliveryNoteId)||seenInvoices.has(record.invoiceId))
       fail('Concurrent invoices conflict for one delivered shipment.','تعارضت الفواتير المتزامنة لنفس الشحنة المسلّمة.');
     seenDeliveries.add(record.deliveryNoteId);seenInvoices.add(record.invoiceId);
-    if(!invoice||invoice.kind!=='invoice'||invoice.role!=='standard'
+    if(!invoice||event.documentNumber!==invoice.number||!isIsoDate(invoice.issueDate)
+      ||invoice.kind!=='invoice'||invoice.role!=='standard'
       ||invoice.number!==record.invoiceNumber||invoice.convertedFromId!==record.quotationId
       ||invoice.customerSnapshot?.sourceCustomerId!==record.customerId
       ||invoice.currency!==record.currency||invoice.items.length!==record.lines.length
       ||documents.some(other=>other.id!==invoice.id&&other.number.trim().toLowerCase()===invoice.number.trim().toLowerCase()))
       fail('Delivery invoice source, customer or line count changed.','تغير مصدر فاتورة التسليم أو العميل أو عدد البنود.');
-    if(!delivery||delivery.kind!=='delivery-note'||delivery.updatedAt!==record.deliveryNoteUpdatedAt
+    if(!delivery||event.relatedDocumentNumber!==delivery.number||delivery.kind!=='delivery-note'||delivery.updatedAt!==record.deliveryNoteUpdatedAt
       ||delivery.status!=='final'||delivery.lifecycleStatus==='voided')
       fail('Issued Delivery Note source has changed.','تغير سند التسليم الصادر المرتبط بالفاتورة.');
     const proof=confirmedSalesDeliveries(delivery.id,events);
@@ -155,6 +156,8 @@ export function assertDeliveryInvoiceIntegrity(documents:LourexDocument[],events
     if(proof.length!==1||!context||proof[0]!.reference!==record.deliveryReference
       ||proof[0]!.quotationId!==record.quotationId||context.order.salesOrderNumber!==record.salesOrderNumber)
       fail('Invoice has no matching physical-delivery evidence.','الفاتورة تفتقد إثبات تسليم فعلي مطابق.');
+    if(invoice.issueDate<proof[0]!.deliveredDate)
+      fail('Invoice issue date cannot precede confirmed delivery.','تاريخ إصدار الفاتورة لا يمكن أن يسبق التسليم المؤكد.');
     if(record.lines.length!==proof[0]!.lines.length)
       fail('Invoice must include every confirmed delivery line.','يجب أن تشمل الفاتورة جميع بنود التسليم المؤكد.');
     const orderLines=new Map(context.order.lines.map(line=>[line.quotationLineId,line]));
