@@ -76,8 +76,8 @@ export function calculateProfitability(document:LourexDocument):ProfitabilitySum
   // while presenting a complete gross margin.
   const shippingInput=document.internalCosts?.shippingCost??'0.00';
   const otherInput=document.internalCosts?.otherCost??'0.00';
-  const shippingParsed=shippingInput===''?0n:nonNegativeScaled(shippingInput,2);
-  const otherParsed=otherInput===''?0n:nonNegativeScaled(otherInput,2);
+  const shippingParsed=typeof shippingInput==='string'&&!shippingInput.trim()?0n:nonNegativeScaled(shippingInput,2);
+  const otherParsed=typeof otherInput==='string'&&!otherInput.trim()?0n:nonNegativeScaled(otherInput,2);
   const invalidInternalCostFields=Number(shippingParsed===null)+Number(otherParsed===null);
   const shippingCost=shippingParsed??0n;
   const otherCost=otherParsed??0n;
