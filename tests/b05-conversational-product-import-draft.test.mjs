@@ -56,7 +56,7 @@ test('B05: failed follow-up edits cannot partially modify the unsaved draft',()=
  const v=vault(),base=prepareAiProductSourceImport(v,[file()]);
  const snapshot=JSON.stringify(base);
  assert.throws(()=>reviseAiProductImportDraft(v,base,'Set Snickers 75g price to 30 USD'),/No staged product/);
- assert.throws(()=>reviseAiProductImportDraft(v,base,'Set Snickers 50g price to 30'),/currency/i);
+ assert.throws(()=>reviseAiProductImportDraft(v,base,'Set Snickers 50g price to -30 USD'),/Specify an exact draft edit/);
  assert.throws(()=>reviseAiProductImportDraft(v,base,'غيّر تصنيف جميع الأصناف إلى Confectionery'),/unchanged/);
  assert.equal(JSON.stringify(base),snapshot);
  assert.equal(v.savedItems.length,0);
