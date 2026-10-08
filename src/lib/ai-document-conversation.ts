@@ -1,6 +1,7 @@
-import type {AiDocumentDraftProposal,AiDocumentUpdateProposal,AiDraftItemInput,DraftReference} from '../components/AiCopilot.js';
+import type {AiDocumentDraftProposal,AiDocumentUpdateProposal,AiDraftItemInput,AiContextEnvelope} from '../components/AiCopilot.js';
 
 type Proposal=AiDocumentDraftProposal|AiDocumentUpdateProposal;
+type DraftReference=AiContextEnvelope['drafting'];
 export interface StagedDocumentRevision {proposal:Proposal;message:string;changed:boolean;}
 const AR='٠١٢٣٤٥٦٧٨٩',FA='۰۱۲۳۴۵۶۷۸۹';
 function latinDigits(value:string):string{return [...value.normalize('NFKC')].map(c=>AR.includes(c)?String(AR.indexOf(c)):FA.includes(c)?String(FA.indexOf(c)):c).join('');}
