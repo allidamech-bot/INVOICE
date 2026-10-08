@@ -54,7 +54,32 @@ jobs:
       - name: Install focused browser QA runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium webkit
+          # Use the official Ubuntu package mirror like the primary CI gate.
+          # The default Azure mirror intermittently stalls unattended apt
+          # installation, cancelling this otherwise-valid browser QA.
+          for sources in /etc/apt/apt-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [ -f "$sources" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$sources"
+              sudo sed -i 's|https://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$sources"
+            fi
+          done
+          if ! timeout --signal=TERM --kill-after=30s 900s npx playwright install-deps chromium webkit; then
+            echo "Required Chromium/WebKit system dependencies could not be installed."
+            exit 1
+          fi
+          installed=0
+          for attempt in 1 2 3; do
+            if timeout --signal=TERM --kill-after=15s 240s npx playwright install chromium webkit; then
+              installed=1
+              break
+            fi
+            echo "Chromium/WebKit browser binary install failed; attempt $attempt."
+            sleep 2
+          done
+          if [ "$installed" -ne 1 ]; then
+            echo "Mandatory AI Conversation browser installation failed."
+            exit 1
+          fi
       - name: Run focused Batch 4 browser acceptance
         run: |
           npx http-server . -p 4173 -c-1 > /tmp/lourex-ai-remediation-batch4.log 2>&1 &
