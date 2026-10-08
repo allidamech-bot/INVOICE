@@ -1,6 +1,7 @@
 import type { EncryptedVaultRecord, SecurityMetadata } from '../types.js';
 import { getEncryptedVault, getSecurity, putSecurityAndVault } from '../storage/db.js';
 import { MIN_ACCOUNT_PASSWORD_LENGTH } from '../lib/account-security.js';
+import { APP_SCHEMA_VERSION } from '../lib/defaults.js';
 import { LOUREX_FIREBASE_CONFIG } from './firebase-config.js';
 
 declare const firebase: any;
@@ -89,6 +90,15 @@ function validSecurity(value:any):value is SecurityMetadata{
   const base=Boolean(value&&value.id==='security'&&(value.version===1||value.version===2)&&Number.isInteger(value.iterations)&&value.iterations>=10_000&&value.iterations<=2_000_000&&validBase64Bytes(value.salt,16,64)&&validBase64Bytes(value.verifierIv,12,12)&&validBase64Bytes(value.verifierCipher,16,512));
   if(!base||value.version===1)return base;
   return Boolean(validBase64Bytes(value.pinWrapIv,12,12)&&validBase64Bytes(value.pinWrapCipher,48,128)&&Number.isInteger(value.recoveryIterations)&&value.recoveryIterations>=10_000&&value.recoveryIterations<=2_000_000&&validBase64Bytes(value.recoverySalt,16,64)&&validBase64Bytes(value.recoveryWrapIv,12,12)&&validBase64Bytes(value.recoveryWrapCipher,48,128));
+}
+/** Deterministic field comparison avoids treating a changed PIN/recovery wrap as
+ * identical merely because the encrypted business payload stayed unchanged. */
+export function cloudSecurityMatches(a:SecurityMetadata,b:SecurityMetadata):boolean{
+  const keys:Array<keyof SecurityMetadata>=[
+    'id','version','iterations','salt','verifierIv','verifierCipher',
+    'pinWrapIv','pinWrapCipher','recoveryIterations','recoverySalt','recoveryWrapIv','recoveryWrapCipher'
+  ];
+  return keys.every(key=>a[key]===b[key]);
 }
 function validMeta(data:any):data is CloudVaultMeta{
   return Boolean(data&&data.format===CLOUD_FORMAT&&data.version===1&&typeof data.revision==='string'&&data.revision.length>0&&data.revision.length<160&&typeof data.updatedAt==='string'&&!Number.isNaN(Date.parse(data.updatedAt))&&Number.isInteger(data.schemaVersion)&&data.schemaVersion>0&&data.schemaVersion<100&&validBase64Bytes(data.iv,12,12)&&Number.isInteger(data.cipherLength)&&data.cipherLength>0&&data.cipherLength<=MAX_CIPHER_LENGTH&&typeof data.cipherSha256==='string'&&/^[0-9a-f]{64}$/i.test(data.cipherSha256)&&Number.isInteger(data.chunkCount)&&data.chunkCount>=1&&data.chunkCount<=MAX_CHUNKS&&validSecurity(data.security));
@@ -203,6 +213,8 @@ async function commitSingleChunkIfUnchanged(uid:string,meta:CloudVaultMeta,previ
   });
 }
 async function publishVault(uid:string,security:SecurityMetadata,vault:EncryptedVaultRecord,previous:CloudVaultMeta|null):Promise<CloudVaultMeta>{
+  if(previous&&previous.schemaVersion>APP_SCHEMA_VERSION)throw new Error('Cloud account data comes from a newer LOUREX version. Update the app before replacing that cloud copy.');
+  if(vault.schemaVersion>APP_SCHEMA_VERSION)throw new Error('This LOUREX build cannot publish data from a newer schema version.');
   if(vault.cipher.length>MAX_CIPHER_LENGTH)throw new Error('Account data is too large for cloud storage. Remove oversized images and try again.');
   const cipherSha256=await sha256(vault.cipher);const chunks=splitCipher(vault.cipher);const revision=revisionId();
   const meta:CloudVaultMeta={format:CLOUD_FORMAT,version:1,revision,updatedAt:vault.updatedAt,schemaVersion:vault.schemaVersion,iv:vault.iv,cipherLength:vault.cipher.length,cipherSha256,chunkCount:chunks.length,security,parentRevision:previous?.revision||'',deviceId:currentDeviceId()};
@@ -228,6 +240,7 @@ export async function installCloudVault(uid:string,notify=false):Promise<boolean
   requireCurrentUid(uid);
   if(inlineDraftWorkspaceOpen())throw new Error('Close the open editor or dialog before applying cloud account data.');
   const meta=await getCloudVaultMeta(uid);if(!meta)return false;
+  if(meta.schemaVersion>APP_SCHEMA_VERSION)throw new Error('Cloud account data requires a newer LOUREX version. Update the app before restoring.');
   const remote=await pullCloudVaultFromMeta(uid,meta);
   // Network reads can take long enough for the user to open an editor, change
   // account state, or enter a dialog after this operation started. Revalidate
@@ -235,6 +248,7 @@ export async function installCloudVault(uid:string,notify=false):Promise<boolean
   // encrypted local vault.
   requireCurrentUid(uid);
   if(inlineDraftWorkspaceOpen())throw new Error('Close the open editor or dialog before applying cloud account data.');
+  if(meta.schemaVersion>APP_SCHEMA_VERSION)throw new Error('Cloud account data requires a newer LOUREX version. Update the app before restoring.');
   await putSecurityAndVault(remote.security,remote.vault);
   writeSyncAnchor(uid,meta);
   if(notify)notifyCloudApplied();
@@ -247,7 +261,9 @@ export async function pushLocalVaultToCloud(uid:string,localSnapshot?:EncryptedV
   const [security,storedVault,previous]=await Promise.all([getSecurity(),localSnapshot?Promise.resolve(localSnapshot):getEncryptedVault(),getCloudVaultMeta(uid)]);const vault=storedVault;
   if(!security||!vault)throw new Error('There is no LOUREX account data to save.');
   const localHash=await sha256(vault.cipher);
-  if(previous&&previous.cipherSha256===localHash){writeSyncAnchor(uid,previous);return 'same';}
+  if(previous&&previous.schemaVersion>APP_SCHEMA_VERSION)return 'remote-changed';
+  const securityUnchanged=previous?cloudSecurityMatches(previous.security,security):false;
+  if(previous&&previous.cipherSha256===localHash&&securityUnchanged){writeSyncAnchor(uid,previous);return 'same';}
   if(previous){
     const anchor=readSyncAnchor(uid);
     if(!anchor)return 'remote-changed';
@@ -275,9 +291,14 @@ export async function refreshCloudVaultForUnlock(uid:string):Promise<'same'|'pul
   requireCurrentUid(uid);
   const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(uid)]);
   if(!remote)return 'same';
+  if(remote.schemaVersion>APP_SCHEMA_VERSION)throw new Error('Cloud account data requires a newer LOUREX version. Update the app before unlocking.');
   if(local){
     const hash=await sha256(local.cipher);
-    if(hash===remote.cipherSha256){writeSyncAnchor(uid,remote);return 'same';}
+    if(hash===remote.cipherSha256){
+      const localSecurity=await getSecurity();
+      if(!localSecurity||!cloudSecurityMatches(localSecurity,remote.security))return 'diverged';
+      writeSyncAnchor(uid,remote);return 'same';
+    }
     const anchor=readSyncAnchor(uid);
     if(!anchor)return 'diverged';
     const remoteChanged=remote.revision!==anchor.revision||remote.cipherSha256!==anchor.cipherSha256;
@@ -294,6 +315,7 @@ export async function refreshCloudVaultForUnlock(uid:string):Promise<'same'|'pul
 export async function reconcileCloudVault(uid:string):Promise<CloudSyncResult>{
   requireCurrentUid(uid);
   const [local,remote]=await Promise.all([getEncryptedVault(),getCloudVaultMeta(uid)]);
+  if(remote&&remote.schemaVersion>APP_SCHEMA_VERSION)return 'diverged';
   if(!local&&!remote)return 'empty';
   // Automatic cloud installation is a startup-only capability. Once React has
   // mounted an auth/workspace surface, a newer remote copy must become an
@@ -311,7 +333,11 @@ export async function reconcileCloudVault(uid:string):Promise<CloudSyncResult>{
   }
   if(!local||!remote)return 'empty';
   const localHash=await sha256(local.cipher);
-  if(localHash===remote.cipherSha256){writeSyncAnchor(uid,remote);return 'same';}
+  if(localHash===remote.cipherSha256){
+    const localSecurity=await getSecurity();
+    if(!localSecurity||!cloudSecurityMatches(localSecurity,remote.security))return 'diverged';
+    writeSyncAnchor(uid,remote);return 'same';
+  }
   const anchor=readSyncAnchor(uid);
   if(!anchor)return 'diverged';
   const localChanged=localHash!==anchor.cipherSha256;
