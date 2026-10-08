@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {emptyVault} from '../dist/src/lib/defaults.js';
-import {requestedAiProductImport,prepareAiProductSourceImport,applyAiProductSourceImport,AI_PRODUCT_SOURCE_IMPORT_MAX} from '../dist/src/lib/ai-product-source-import.js';
+import {requestedAiProductImport,requestedAiProductSkuGeneration,prepareAiProductSourceImport,applyAiProductSourceImport,AI_PRODUCT_SOURCE_IMPORT_MAX} from '../dist/src/lib/ai-product-source-import.js';
 import {createAiToolRuntime,executeAiToolPlan} from '../dist/src/lib/ai-tool-orchestrator.js';
 import {applyApprovedToolExecution} from '../dist/src/lib/ai-tool-actions.js';
 import {registerVaultMutationBridge} from '../dist/src/storage/vault-mutation-bridge.js';
@@ -26,6 +26,31 @@ test('B05: only explicit user instructions authorize registering source products
   assert.equal(requestedAiProductImport('Do not save any products; just list them'),false);
   assert.equal(requestedAiProductImport('لا تسجل المنتجات، اعرض فقط'),false);
   assert.equal(requestedAiProductImport('Preview only; do not register products'),false);
+});
+test('B05: explicit one-command product import can assign only missing SKUs before approving registration',()=>{
+  assert.equal(requestedAiProductImport('سجل جميع الأصناف واضف SKU لكل صنف'),true);
+  assert.equal(requestedAiProductSkuGeneration('سجل جميع الأصناف واضف SKU لكل صنف'),true);
+  assert.equal(requestedAiProductSkuGeneration('register all products and add SKUs'),true);
+  assert.equal(requestedAiProductSkuGeneration('Register the product file; do not add SKU'),false);
+  assert.equal(requestedAiProductSkuGeneration('List every SKU'),false);
+  const v=vault();
+  const rows=[item('SKU-0001','Existing identified'),item('','Uncoded biscuit','3.50'),item('','Uncoded cookies','4.20')];
+  const staged=prepareAiProductSourceImport(v,[file(rows)],{generateMissingSku:true});
+  assert.equal(staged.rows.length,3);
+  assert.equal(staged.rows[0].item.sku,'SKU-0001');
+  assert.equal(staged.rows[1].item.sku,'SKU-0002');
+  assert.equal(staged.rows[2].item.sku,'SKU-0003');
+  assert.equal(staged.rows[1].preview.after.sku,'SKU-0002');
+  assert.equal(v.savedItems.length,0);
+  const committed=applyAiProductSourceImport(v,staged);
+  assert.deepEqual(committed.savedItems.map(row=>row.sku),['SKU-0001','SKU-0002','SKU-0003']);
+});
+test('B05: generated SKUs avoid existing company codes and preserve other companies',()=>{
+  const v=vault();const earlier=prepareAiProductSourceImport(v,[file([item('SKU-0001','Older')])]);
+  v.savedItems=applyAiProductSourceImport(v,earlier).savedItems;
+  const staged=prepareAiProductSourceImport(v,[file([item('','Another one')])],{generateMissingSku:true});
+  assert.equal(staged.rows[0].preview.after.sku,'SKU-0002');
+  assert.throws(()=>prepareAiProductSourceImport(v,[file([item('','Another one')])],{generateMissingSku:true,skuPrefix:'BAD SPACE'}),/prefix/);
 });
 test('B05: product list stages every source row for review without mutation',()=>{
   const v=vault(),before=JSON.stringify(v);
@@ -129,7 +154,8 @@ test('B05: source import is local-only and approval UI shows all extracted field
   const client=await readFile('src/lib/ai-tool-client.ts','utf8');
   const ui=await readFile('scripts/ai-conversation-owner-stage4-tools.mjs','utf8');
   assert.match(client,/requestedAiProductImport\(input\.message\)/);
-  assert.match(client,/args:\{sources:input\.context\.conversationSources\}/);
+  assert.match(client,/args:\{sources:input\.context\.conversationSources,generateMissingSku:requestedAiProductSkuGeneration\(input\.message\)\}/);
+  assert.match(client,/requestedAiProductSkuGeneration\(input\.message\)/);
   assert.match(ui,/product\.importSource/);
   assert.match(ui,/lastUnitCost/);
 });
