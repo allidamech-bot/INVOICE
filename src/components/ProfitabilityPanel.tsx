@@ -111,7 +111,7 @@ export class ProfitabilityPanel extends React.Component<Props,State>{
       <button type="button" className="profitability-toggle" onClick={()=>this.setState({open:!this.state.open})} aria-expanded={this.state.open}>
         <span className="profitability-icon"><Icon name="invoice" size={18}/></span>
         <span><small>{t('Internal only · never printed','داخلي فقط · لا يظهر بالطباعة')}</small><strong>{label}</strong></span>
-        <span className={`profitability-status ${summary.complete?'complete':'incomplete'}`}>{summary.complete?t('Cost complete','التكلفة مكتملة'):t(`${summary.missingCostItems} costs missing`,`ناقص ${summary.missingCostItems} تكلفة`)}</span>
+        <span className={`profitability-status ${summary.complete?'complete':'incomplete'}`}>{summary.complete?t('Cost complete','التكلفة مكتملة'):summary.invalidInternalCostFields?t('Internal expense data is invalid','بيانات المصاريف الداخلية غير صالحة'):t(`${summary.missingCostItems} costs missing`,`ناقص ${summary.missingCostItems} تكلفة`)}</span>
       </button>
       {this.state.open?<div className="profitability-body">
         <div className="profitability-summary">
