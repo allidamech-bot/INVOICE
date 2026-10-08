@@ -37,7 +37,7 @@ test('Draft output visual runner covers WebKit, Chromium, EN/AR, screen and prin
 test('CI cannot silently drop the Draft A4 output regression pass',async()=>{
   const ci=await read('scripts/verify-local.mjs');
   assert.match(ci,/assertBrowserReady/);
-  assert.match(ci,/run-v337-draft-output\\.cjs/);
+  assert.match(ci,/run-v337-draft-output\.cjs/);
   assert.match(ci,/visual-qa-output/);
   assert.match(ci,/runBrowserQa/);
   assert.match(ci,/process.exitCode=1/);
