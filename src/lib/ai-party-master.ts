@@ -30,6 +30,7 @@ function normalizeName(input:string):string{return input.normalize('NFKC').trim(
 function displayName(record:Customer|Supplier,party:PartyType):string{
   return party==='customer'?((record as Customer).companyNameEn||(record as Customer).companyNameAr):((record as Supplier).nameEn||(record as Supplier).nameAr);
 }
+function names(record:Customer|Supplier,party:PartyType):string[]{return party==='customer'?[(record as Customer).companyNameEn,(record as Customer).companyNameAr]:[(record as Supplier).nameEn,(record as Supplier).nameAr];}
 function companyScope(row:{workspaceId?:string}):string{return row.workspaceId||'default';}
 function rowsOf(vault:VaultPayload,party:PartyType):Array<Customer|Supplier>{
   return party==='customer'?vault.customers:vault.suppliers;
@@ -77,13 +78,15 @@ function dataFields(row:Customer|Supplier):Record<string,string>{
   return data;
 }
 function createRecord(batch:AiPartyMasterBatch):Customer|Supplier{
-  const base={id:batch.recordId,workspaceId:batch.workspaceId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),...batch.after};
-  if(batch.party==='customer')return{...base,companyNameEn:batch.after.name,companyNameAr:'',addressEn:'',addressAr:'',vatTaxNumber:'',commercialRegistration:'',preferredCurrency:'',paymentTermPresetId:'',paymentDueDays:'',creditLimit:'',creditCurrency:''} as Customer;
-  return{...base,nameEn:batch.after.name,nameAr:'',address:'',vatTaxNumber:'',commercialRegistration:'',defaultCurrency:''} as Supplier;
+  const empty=Object.fromEntries(keys.map(key=>[key,''])) as Record<EditableField,string>;
+  const ar=/[\u0600-\u06ff]/u.test(batch.after.name);
+  const base={id:batch.recordId,workspaceId:batch.workspaceId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),...empty,...batch.after};
+  if(batch.party==='customer')return{...base,companyNameEn:ar?'':batch.after.name,companyNameAr:ar?batch.after.name:'',addressEn:'',addressAr:'',vatTaxNumber:'',commercialRegistration:'',preferredCurrency:'',paymentTermPresetId:'',paymentDueDays:'',creditLimit:'',creditCurrency:''} as Customer;
+  return{...base,nameEn:ar?'':batch.after.name,nameAr:ar?batch.after.name:'',address:'',vatTaxNumber:'',commercialRegistration:'',defaultCurrency:''} as Supplier;
 }
 function assertNotDuplicated(rows:Array<Customer|Supplier>,party:PartyType,name:string,recordId:string,email:string):void{
   const n=normalizeName(name),em=email.trim().toLowerCase();
-  if(rows.some(row=>row.id!==recordId&&(normalizeName(displayName(row,party))===n||(em&&row.email.trim().toLowerCase()===em))))
+  if(rows.some(row=>row.id!==recordId&&(names(row,party).some(value=>value&&normalizeName(value)===n)||(em&&row.email.trim().toLowerCase()===em))))
     throw new Error('Duplicate party name or email in the current company. No changes made.');
 }
 function batchPreview(batch:AiPartyMasterBatch):AiPartyMasterBatch['preview']{
@@ -97,10 +100,10 @@ export function prepareAiPartyMaster(vault:VaultPayload,intent:AiPartyMasterInte
   const rows=rowsOf(vault,intent.party).filter(row=>companyScope(row)===workspaceId);
   let record:Customer|Supplier|undefined;
   if(intent.mode==='update'){
-    const matches=rows.filter(row=>normalizeName(displayName(row,intent.party))===normalizeName(name));
+    const matches=rows.filter(row=>names(row,intent.party).some(value=>value&&normalizeName(value)===normalizeName(name)));
     if(matches.length!==1)throw new Error(matches.length?'Ambiguous customer/supplier identity.':'No exact customer/supplier record in the current company.');
     record=matches[0];
-  }else if(rows.some(row=>normalizeName(displayName(row,intent.party))===normalizeName(name))){
+  }else if(rows.some(row=>names(row,intent.party).some(value=>value&&normalizeName(value)===normalizeName(name)))){
     throw new Error('Party already exists. Choose an exact update command instead.');
   }
   const before=record?{name:displayName(record,intent.party),...dataFields(record)}:{};
