@@ -38,10 +38,14 @@ function lineAllocations(documents:LourexDocument[],items:SavedItem[]):LineAlloc
     doc.items.forEach((item,index)=>{
       const last=index===doc.items.length-1;
       const revenue=last?netRevenue-allocatedRevenue:roundDivide(netRevenue*(raw[index]??0n),rawTotal||1n);allocatedRevenue+=revenue;
+      // Allocate overhead to every line, including unknown-cost lines, before
+      // deciding whether its own profit is reportable. Otherwise a later costed
+      // product can inherit the missing-cost product's overhead.
+      const share=last?overhead-allocatedOverhead:roundDivide(overhead*(raw[index]??0n),rawTotal||1n);
+      allocatedOverhead+=share;
       const unitCost=item.unitCost?.trim();let itemCost:bigint|null=null,missing=0;
       if(unitCost&&isNonNegativeDecimalInput(unitCost)){
-        const q=decimalToScaled(item.quantity,4),u=decimalToScaled(unitCost,12);itemCost=roundDivide(q*u,100_000_000_000_000n)*sign;
-        const share=last?overhead-allocatedOverhead:roundDivide(overhead*(raw[index]??0n),rawTotal||1n);allocatedOverhead+=share;itemCost+=share;
+        const q=decimalToScaled(item.quantity,4),u=decimalToScaled(unitCost,12);itemCost=roundDivide(q*u,100_000_000_000_000n)*sign+share;
       }else missing=1;
       rows.push({doc,item,saved:findSavedItemMatch(items,item),revenue,cost:itemCost,missing});
     });
