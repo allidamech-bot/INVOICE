@@ -102,7 +102,9 @@ export async function orchestrateAiToolRequest(input:{message:string;vault:Vault
   }
   const dealDesk=!hasSources&&isDealDeskIntent(input.message);let plan=hasSources?null:deterministicAiToolPlan(input.message,runtime),plannedBy:'local'|'ai'='local';
   if(!plan){
-    if(!likelyToolIntent(input.message,input.context)&&!(hasSources&&explicitAiActionRequest(input.message)))return null;
+    // Explicit user commands must always reach the planner, including short
+    // Arabic commands such as "احفظ جميع الأصناف" with no attachment.
+    if(!likelyToolIntent(input.message,input.context)&&!explicitAiActionRequest(input.message))return null;
     plannedBy='ai';
     const entity=input.context?.assistantRuntime?.entity??{};
     const actionRequested=explicitAiActionRequest(input.message);
