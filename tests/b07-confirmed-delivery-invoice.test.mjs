@@ -166,6 +166,17 @@ test('Batch 7 — delivery-linked invoice provenance cannot redirect customer or
   assert.throws(()=>assertDeliveryInvoiceIntegrity(normalDocs,badEventCurrency),/matching physical-delivery evidence/);
 });
 
+test('Batch 7 — customer legal name and VAT registration remain tied to accepted quotation',()=>{
+  const {vault,quote}=setup(),receipt=confirmed(vault,quote,['4','1'],'POD-CUSTOMER-LEGAL');
+  const result=createConfirmedDeliveryInvoiceDraft(receipt.vault,receipt.note.id);
+  for(const customerPatch of [{companyNameEn:'Unrelated Buyer'},{vatTaxNumber:'FAKE-VAT-99'},{commercialRegistration:'FAKE-CR'}]){
+    const mutated=result.vault.documents.map(doc=>doc.id===result.invoice.id
+      ?{...doc,customerSnapshot:{...doc.customerSnapshot,...customerPatch}}:doc);
+    assert.throws(()=>assertDeliveryInvoiceIntegrity(mutated,result.vault.documentEvents),
+      /customer legal identity differs/);
+  }
+});
+
 test('Batch 7 — duplicate offline invoices for one confirmed note fail merge',()=>{
   const {vault,quote}=setup(),a=confirmed(vault,quote);
   const left=createConfirmedDeliveryInvoiceDraft(a.vault,a.note.id).vault;
