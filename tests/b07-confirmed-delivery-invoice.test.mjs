@@ -388,6 +388,16 @@ test('Batch 7 — unauthorized operators cannot use create/open to bypass invoic
   }
 });
 
+test('Batch 7 — commercial flow does not mislabel partial invoicing as a single full conversion',async()=>{
+  const panel=await readFile(new URL('../src/components/CommercialFlowPanel.tsx',import.meta.url),'utf8');
+  assert.match(panel,/hasSalesOrder=quoteLike&&events\.some/);
+  assert.match(panel,/event\.note\.startsWith\('@lourex:sales-order:accepted:v1:'\)/);
+  assert.match(panel,/const issuedInvoices=relatedInvoices\.filter\(item=>item\.status==='final'\)\.length/);
+  assert.match(panel,/const draftInvoices=relatedInvoices\.filter\(item=>item\.status==='draft'\)\.length/);
+  assert.match(panel,/Sales Order accepted/);
+  assert.match(panel,/Linked invoices/);
+});
+
 test('Batch 7 — internal invoice evidence remains intact but both history panels display a readable label',async()=>{
   const [helper,commercial,lifecycle]=await Promise.all([
     readFile(new URL('../src/lib/document-event-display.ts',import.meta.url),'utf8'),
