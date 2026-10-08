@@ -1,6 +1,7 @@
 import type { DocumentEventRecord, LourexDocument, VaultPayload } from '../types.js';
 import { assertGovernancePermission } from './governance.js';
 import { createDocumentEvent } from './document-lifecycle.js';
+import { validateDocument } from './documents.js';
 import { createLinkedPurchaseOrderDraft, linkedPurchaseOrders, purchaseOrderSourceEligible } from './procurement-flow.js';
 import { decimalToScaled, isNonNegativeDecimalInput, normalizeDecimalInput } from './money.js';
 import { isIsoDate } from './id.js';
@@ -66,8 +67,9 @@ export function acceptSupplierQuotation(
   if(!input.expectedRfqUpdatedAt||rfq.updatedAt!==input.expectedRfqUpdatedAt){
     fail('RFQ changed. Reopen and review its latest version.','تغير طلب عرض السعر. افتح أحدث نسخة وراجعها.');
   }
+  if(Object.keys(validateDocument(rfq)).length)fail('Correct the issued RFQ before accepting supplier pricing.','صحح طلب عرض السعر الصادر قبل اعتماد أسعار المورد.');
   const supplierId=rfq.supplierSnapshot?.sourceSupplierId?.trim()||'';
-  if(!supplierId)fail('Select a registered supplier in the RFQ first.','اختر موردًا مسجلًا في طلب عرض السعر أولًا.');
+  if(!supplierId||!vault.suppliers.some(supplier=>supplier.id===supplierId))fail('Select a registered supplier in the RFQ first.','اختر موردًا مسجلًا في طلب عرض السعر أولًا.');
   if(!/^[A-Z]{3}$/.test(rfq.currency.trim()))fail('The RFQ currency is invalid.','عملة طلب عرض السعر غير صالحة.');
   if(!Array.isArray(input.unitPrices)||input.unitPrices.length!==rfq.items.length||!rfq.items.length){
     fail('Quote all RFQ lines without omitting or adding items.','أدخل أسعار جميع أصناف طلب عرض السعر دون إضافة أو حذف.');
